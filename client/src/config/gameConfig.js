@@ -10,10 +10,10 @@ export const GAME_CONFIG = {
   roundPixels: true,
   antialias: false,
   
-  server: {
-    url: "ws://localhost:2567",
-    roomName: "PokeWorld"
-  },
+server: {
+  url: "ws://localhost:2567",
+  roomName: ""  // vide, sera défini dynamiquement
+},
   
   // Configuration de la caméra - style top-down RPG
   camera: {

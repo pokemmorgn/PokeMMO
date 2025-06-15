@@ -1,69 +1,61 @@
-// src/main.js - Avec votre map Pokemon
-import Phaser from "phaser";
-import { LoaderScene } from './scenes/LoaderScene.js';
-import { MapLoaderScene } from "./scenes/MapLoaderScene.js";
+import Phaser from 'phaser';
+import AnimatedTiles from 'phaser-animated-tiles/dist/AnimatedTiles.js';
+import { LoaderScene } from "./scenes/LoaderScene.js";
+import { BeachScene } from "./scenes/zones/BeachScene.js";
+import { VillageScene } from "./scenes/zones/VillageScene.js";
+import { Road1Scene } from './scenes/zones/Road1Scene.js'; // ✅ Import de Road1Scene
 
-// 🔒 Récupération ou demande du pseudo utilisateur
-let username = localStorage.getItem('username');
+// 🔒 Récupérer l'adresse du wallet SUI si présente dans l'URL
+function getWalletFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('wallet');
+}
+
+let username = getWalletFromUrl();
 if (!username) {
-  username = prompt("Choisis un pseudo :");
+  // Utiliser le prompt UNIQUEMENT s'il n'y a pas de wallet (mode debug/test sans Phantom)
+  username = prompt("Connecte-toi avec Phantom. (DEBUG: Entrez un pseudo manuellement)");
   if (!username || username.trim() === "") {
     alert("Un pseudo est obligatoire pour jouer !");
     throw new Error("Aucun pseudo fourni.");
   }
-  localStorage.setItem('username', username);
 }
-window.username = username; // Pour y accéder globalement
 
-// Configuration Phaser style PokeMMO
+// Stocker le username globalement pour les scènes
+window.username = username;
+
 const config = {
   type: Phaser.AUTO,
   width: 800,
   height: 600,
   backgroundColor: '#000000',
-
-  // Configuration pixel art
   pixelArt: true,
   roundPixels: true,
   antialias: false,
-
-  scene: [MapLoaderScene], // l'ordre est important
-
-  // Physique pour RPG
+  scene: [LoaderScene, BeachScene, VillageScene, Road1Scene], // ✅ AJOUT : Road1Scene dans la liste
   physics: {
     default: 'arcade',
     arcade: {
       gravity: { y: 0 },
-      debug: false
+      debug: true
     }
   },
-
-  // Rendu pixel perfect
-  render: {
-    pixelArt: true,
-    roundPixels: true
+  plugins: {
+    scene: [
+      {
+        key: 'animatedTiles',
+        plugin: AnimatedTiles,
+        mapping: 'animatedTiles'
+      }
+    ]
   },
-
-  // Mise à l'échelle
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   }
 };
 
-// Créer le jeu
 const game = new Phaser.Game(config);
+window.game = game; // Pour debug si besoin
 
-// Gestion des erreurs
-window.addEventListener('error', (event) => {
-  console.error('❌ Game error:', event.error);
-});
-
-// Nettoyage
-window.addEventListener('beforeunload', () => {
-  if (game) {
-    game.destroy(true);
-  }
-});
-
-console.log("🚀 PokeMMO with Pokemon maps started!");
+export default game;

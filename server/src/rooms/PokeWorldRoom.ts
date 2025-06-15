@@ -18,12 +18,53 @@ export class PokeWorldRoom extends Room<PokeWorldState> {
           try {
             await PlayerData.updateOne(
               { username: player.name },
-              { $set: { lastX: player.x, lastY: player.y } }
+              { $set: { lastX: player.x, lastY: player.y, lastMap: player.map || "Beach" } }
             );
           } catch (err) {
             console.error(`❌ Erreur lors de la mise à jour de la position de ${player.name}`, err);
           }
         }
+      }
+    });
+
+    // GESTION DE TRANSITION DE ZONE
+    this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (player) {
+        // Change la zone côté serveur
+        player.map = data.targetZone;
+
+        // Position de spawn selon la direction (adapte à tes maps)
+        if (data.direction === "north") {
+          player.x = 100;
+          player.y = 100;
+        } else if (data.direction === "south") {
+          player.x = 428;
+          player.y = 465;
+        } else {
+          // Position par défaut si direction inconnue
+          player.x = 52;
+          player.y = 48;
+        }
+
+        // Sauvegarde côté Mongo
+        try {
+          await PlayerData.updateOne(
+            { username: player.name },
+            { $set: { lastX: player.x, lastY: player.y, lastMap: player.map } }
+          );
+        } catch (err) {
+          console.error(`❌ Erreur lors de la sauvegarde zone: ${player.name}`, err);
+        }
+
+        // Notifie le client pour le changement de zone
+        client.send("zoneChanged", {
+          targetZone: data.targetZone,
+          fromZone: data.fromZone || player.map,
+          direction: data.direction,
+        });
+
+        console.log(`🌐 Zone changée pour ${player.name}: ${player.map} (${player.x},${player.y})`);
       }
     });
 
@@ -45,12 +86,14 @@ export class PokeWorldRoom extends Room<PokeWorldState> {
       data = await PlayerData.findOne({ username });
 
       if (!data) {
+        // Premier login : nouvel utilisateur
         data = await PlayerData.create({
           username,
           gold: 0,
           pokemons: [],
-          lastX: 300,
-          lastY: 300
+          lastX: 52,
+          lastY: 48,
+          lastMap: "Beach"
         });
         console.log(`🆕 Nouveau joueur : ${username}`);
       } else {
@@ -64,11 +107,28 @@ export class PokeWorldRoom extends Room<PokeWorldState> {
 
     const player = new Player();
     player.name = data.username;
-    player.x = data.lastX ?? 300;
-    player.y = data.lastY ?? 300;
+
+    // Si lastX/Y ou lastMap sont absents, force le spawn initial
+    if (
+      typeof data.lastX !== "number" ||
+      typeof data.lastY !== "number" ||
+      !data.lastMap
+    ) {
+      player.x = 52;
+      player.y = 48;
+      player.map = "Beach";
+      await PlayerData.updateOne(
+        { username: player.name },
+        { $set: { lastX: 52, lastY: 48, lastMap: "Beach" } }
+      );
+    } else {
+      player.x = data.lastX;
+      player.y = data.lastY;
+      player.map = data.lastMap;
+    }
 
     this.state.players.set(client.sessionId, player);
-    console.log(`✨ ${player.name} connecté à (${player.x}, ${player.y})`);
+    console.log(`✨ ${player.name} connecté à (${player.x}, ${player.y}) sur ${player.map}`);
   }
 
   async onLeave(client: Client, consented: boolean) {
@@ -78,16 +138,14 @@ export class PokeWorldRoom extends Room<PokeWorldState> {
       try {
         await PlayerData.updateOne(
           { username: player.name },
-          { $set: { lastX: player.x, lastY: player.y } }
+          { $set: { lastX: player.x, lastY: player.y, lastMap: player.map || "Beach" } }
         );
       } catch (err) {
         console.error(`❌ Erreur lors de la sauvegarde de la position à la sortie de ${player.name}`, err);
       }
     }
 
-    if (this.state.players.has(client.sessionId)) {
-      this.state.players.delete(client.sessionId);
-    }
+    this.state.players.delete(client.sessionId);
   }
 
   onDispose() {
