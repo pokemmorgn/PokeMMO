@@ -1,5 +1,5 @@
 // ===============================================
-// BeachRoom.ts - Version corrigée avec sauvegarde
+// BeachRoom.ts - Version corrigée avec sauvegarde map + position
 // ===============================================
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
@@ -12,12 +12,12 @@ export class BeachRoom extends Room<PokeWorldState> {
     this.setState(new PokeWorldState());
 
     console.log('🔥 DEBUT onCreate BeachRoom');
-    
-    // ✅ Sauvegarde automatique toutes les 30 secondes
+
+    // Sauvegarde automatique toutes les 30 secondes
     this.clock.setInterval(() => {
       console.log(`🔥🔥🔥 TIMER - Appel saveAllPlayers - ${new Date().toISOString()}`);
       this.saveAllPlayers();
-    }, 30000); // 30 secondes
+    }, 30000);
 
     this.onMessage("move", (client, data: { x: number, y: number }) => {
       const player = this.state.players.get(client.sessionId);
@@ -27,26 +27,32 @@ export class BeachRoom extends Room<PokeWorldState> {
       }
     });
 
-    this.onMessage("changeZone", (client, data: { targetZone: string, direction: string }) => {
+    this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
       console.log(`[BeachRoom] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
 
-      // ✅ AJOUT : Calculer la position de spawn dans la zone cible
+      // Calcul position spawn dans la zone cible
       let spawnX = 100, spawnY = 100; // Position par défaut
       
       if (data.targetZone === 'VillageScene') {
-        // Position d'entrée depuis la plage vers le village
         spawnX = 150;
         spawnY = 200;
       }
 
-      // ✅ AJOUT : Supprimer immédiatement le joueur de cette room
+      // Supprime joueur de cette room (transition)
       const player = this.state.players.get(client.sessionId);
       if (player) {
         this.state.players.delete(client.sessionId);
         console.log(`[BeachRoom] Joueur ${client.sessionId} supprimé pour transition`);
+
+        // Sauvegarde position + map cible dans la DB
+        await PlayerData.updateOne(
+          { username: player.name },
+          { $set: { lastX: spawnX, lastY: spawnY, lastMap: data.targetZone } }
+        );
+        console.log(`[BeachRoom] Sauvegarde position et map (${spawnX}, ${spawnY}) dans ${data.targetZone} pour ${player.name}`);
       }
 
-      // Envoie la confirmation de changement au client
+      // Envoi confirmation au client
       client.send("zoneChanged", {
         targetZone: data.targetZone,
         fromZone: "BeachScene",
@@ -62,7 +68,6 @@ export class BeachRoom extends Room<PokeWorldState> {
     console.log('🔥 FIN onCreate BeachRoom');
   }
 
-  // ✅ AJOUT : Méthode de sauvegarde automatique
   async saveAllPlayers() {
     console.log('🟡🟡🟡 saveAllPlayers APPELEE');
     console.log('🟡 Nombre de joueurs:', this.state.players.size);
@@ -95,10 +100,9 @@ export class BeachRoom extends Room<PokeWorldState> {
     const username = options.username || "Anonymous";
     console.log('🔍 DEBUG username utilisé:', username);
     
-    // ✅ AJOUT : Vérifier s'il n'y a pas déjà un joueur avec ce username
+    // Vérifie si joueur avec même nom existe déjà, supprime-le si oui
     const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
     if (existingPlayer) {
-      // Supprimer l'ancien joueur avec le même username
       const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
       if (oldSessionId) {
         this.state.players.delete(oldSessionId);
@@ -106,7 +110,7 @@ export class BeachRoom extends Room<PokeWorldState> {
       }
     }
     
-    // Charge ou crée le player
+    // Recherche les données sauvegardées
     console.log('🔍 DEBUG - Recherche playerData pour username:', username);
     let playerData = await PlayerData.findOne({ username });
     console.log('🔍 DEBUG - playerData trouvé:', playerData);
@@ -120,18 +124,15 @@ export class BeachRoom extends Room<PokeWorldState> {
     const player = new Player();
     player.name = username;
     
-    // ✅ AJOUT : Utiliser les coordonnées de spawn si fournies (transition depuis autre zone)
+    // Spawn depuis transition ou depuis la dernière position sauvegardée
     if (options.spawnX !== undefined && options.spawnY !== undefined) {
       player.x = options.spawnX;
       player.y = options.spawnY;
       console.log(`[BeachRoom] ${username} spawn à (${options.spawnX}, ${options.spawnY}) depuis ${options.fromZone}`);
     } else {
-      // Position par défaut ou dernière position sauvée
       player.x = playerData.lastX;
       player.y = playerData.lastY;
-      console.log(`🔍 DEBUG - Position depuis DB: (${playerData.lastX}, ${playerData.lastY})`);
-      console.log(`🔍 DEBUG - Position assignée au player: (${player.x}, ${player.y})`);
-      console.log(`[BeachRoom] ${username} spawn à position sauvée (${player.x}, ${player.y})`);
+      console.log(`[BeachRoom] ${username} spawn à position sauvegardée (${player.x}, ${player.y})`);
     }
     
     player.map = "Beach";
@@ -139,17 +140,17 @@ export class BeachRoom extends Room<PokeWorldState> {
     console.log(`[BeachRoom] ${username} est entré avec sessionId: ${client.sessionId}`);
   }
 
-  async onLeave(client: Client) {
-    const player = this.state.players.get(client.sessionId);
-    if (player) {
-      // Sauvegarde en base
-      await PlayerData.updateOne({ username: player.name }, {
-        $set: { lastX: player.x, lastY: player.y, lastMap: "Beach" }
-      });
-      console.log(`[BeachRoom] ${player.name} a quitté (sauvé à ${player.x}, ${player.y})`);
-      this.state.players.delete(client.sessionId);
-    }
+async onLeave(client: Client) {
+  const player = this.state.players.get(client.sessionId);
+  if (player) {
+    await PlayerData.updateOne({ username: player.name }, {
+      $set: { lastX: player.x, lastY: player.y, lastMap: player.map }
+    });
+    console.log(`[BeachRoom] ${player.name} a quitté (sauvé à ${player.x}, ${player.y} sur ${player.map})`);
+    this.state.players.delete(client.sessionId);
   }
+}
+
 
   async onDispose() {
     console.log("[BeachRoom] Room fermée - sauvegarde finale");

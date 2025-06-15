@@ -3,6 +3,7 @@ import path from 'path';
 import config from "@colyseus/tools";
 import { monitor } from "@colyseus/monitor";
 import { playground } from "@colyseus/playground";
+import { PlayerData } from "./models/PlayerData";
 
 import { BeachRoom } from "./rooms/BeachRoom";
 import { VillageRoom } from "./rooms/VillageRoom";
@@ -17,9 +18,30 @@ export default config({
     gameServer.define('VillageRoom', VillageRoom);
   },
 
+ 
   initializeExpress: (app) => {
     app.get("/hello_world", (req, res) => {
       res.send("Welcome to PokeWorld!");
+    });
+
+    // ✅ ROUTE API
+    app.get("/api/playerData", async (req, res) => {
+      const username = req.query.username;
+      if (!username) return res.status(400).json({ error: "username manquant" });
+      try {
+        const player = await PlayerData.findOne({ username });
+        if (!player) return res.status(404).json({ error: "not found" });
+
+        res.json({
+          lastMap: player.lastMap,
+          lastX: player.lastX,
+          lastY: player.lastY,
+          gold: player.gold,
+          pokemons: player.pokemons
+        });
+      } catch (err) {
+        res.status(500).json({ error: "Erreur serveur" });
+      }
     });
 
     app.use(express.static(path.join(__dirname, '../client/dist')));

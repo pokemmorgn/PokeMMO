@@ -59,20 +59,56 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
+  getExistingNetwork() {
+    // Liste des scènes qui pourraient avoir le NetworkManager
+    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene'];
+
+    for (const sceneName of scenesToCheck) {
+      const scene = this.scene.manager.getScene(sceneName);
+      if (scene && scene.networkManager) {
+        this.networkManager = scene.networkManager;
+        this.mySessionId = this.networkManager.getSessionId();
+        if (this.playerManager) {
+          this.playerManager.setMySessionId(this.mySessionId);
+        }
+        this.setupNetwork();
+        console.log(`[${this.scene.key}] NetworkManager récupéré de ${sceneName}, sessionId: ${this.mySessionId}`);
+        return;
+      }
+    }
+
+    console.warn(`[${this.scene.key}] Aucun NetworkManager trouvé, initialisation...`);
+    this.initializeNetwork();
+  }
+
   loadMap() {
     console.log('--- DEBUT loadMap ---');
     this.map = this.make.tilemap({ key: this.mapKey });
 
+    // DEBUG LOGS : Tilesets & Layers
+    console.log("========== [DEBUG] Chargement de la map ==========");
+    console.log("Clé de la map (mapKey):", this.mapKey);
+    console.log("Tilesets trouvés dans la map:", this.map.tilesets.map(ts => ts.name));
+    console.log("Layers dans la map:", this.map.layers.map(l => l.name));
+    console.log("==============================================");
+
     let needsLoading = false;
     this.map.tilesets.forEach(tileset => {
+      console.log(`[DEBUG] Tileset "${tileset.name}"`);
       if (!this.textures.exists(tileset.name)) {
+        console.log(`[DEBUG] --> Image du tileset "${tileset.name}" NON trouvée, chargement...`);
         this.load.image(tileset.name, `assets/sprites/${tileset.name}.png`);
         needsLoading = true;
+      } else {
+        console.log(`[DEBUG] --> Image du tileset "${tileset.name}" DÉJÀ chargée`);
       }
     });
 
     const finishLoad = () => {
-      this.phaserTilesets = this.map.tilesets.map(ts => this.map.addTilesetImage(ts.name, ts.name));
+      this.phaserTilesets = this.map.tilesets.map(ts => {
+        console.log(`[DEBUG] Appel addTilesetImage pour "${ts.name}"`);
+        return this.map.addTilesetImage(ts.name, ts.name);
+      });
 
       this.layers = {};
       const depthOrder = {
@@ -80,9 +116,12 @@ export class BaseZoneScene extends Phaser.Scene {
         'BelowPlayer2': 2,
         'World': 3,
         'AbovePlayer': 4,
+        // Ajoute ici si tu veux d'autres layers visibles
+        'Grass': 1.5 // Ex : profondeur personnalisée pour Grass
       };
 
       this.map.layers.forEach(layerData => {
+        console.log(`[DEBUG] Layer créé: ${layerData.name}`);
         const layer = this.map.createLayer(layerData.name, this.phaserTilesets, 0, 0);
         this.layers[layerData.name] = layer;
         layer.setDepth(depthOrder[layerData.name] ?? 0);
@@ -115,6 +154,7 @@ export class BaseZoneScene extends Phaser.Scene {
       finishLoad();
     }
   }
+
 
   setupAnimatedObjects() {
     if (this.map.objects && this.map.objects.length > 0) {
@@ -198,69 +238,91 @@ export class BaseZoneScene extends Phaser.Scene {
     // à override dans les sous-classes
   }
 
-positionPlayer(player) {
-  // ✅ Utiliser la position du serveur au lieu de forcer (100, 100)
-  const serverX = player.x || 100; // Fallback si pas de position serveur
-  const serverY = player.y || 100;
-  
-  player.x = serverX;
-  player.y = serverY;
-  
-  console.log(`Position appliquée: (${serverX}, ${serverY})`);
-}
+  positionPlayer(player) {
+    const serverX = player.x || 100; // Fallback si pas de position serveur
+    const serverY = player.y || 100;
 
-  initializeNetwork() {
+    if (this.scene.settings.data.spawnX !== undefined && this.scene.settings.data.spawnY !== undefined) {
+      player.x = this.scene.settings.data.spawnX;
+      player.y = this.scene.settings.data.spawnY;
+      console.log(`Position appliquée via spawnX/spawnY: (${player.x}, ${player.y})`);
+    } else {
+      player.x = serverX;
+      player.y = serverY;
+      console.log(`Position appliquée depuis serveur: (${player.x}, ${player.y})`);
+    }
+  }
+
+  async initializeNetwork() {
     const getWalletFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
       return params.get('wallet');
     };
 
-    let identifier = getWalletFromUrl();
-    if (!identifier && window.app?.currentAccount?.address) {
-      identifier = window.app.currentAccount.address;
+const fetchLastPosition = async (identifier) => {
+  try {
+const res = await fetch(`http://localhost:2567/api/playerData?username=${encodeURIComponent(username)}`);
+    if (res.ok) {
+      const data = await res.json();
+      console.log("DEBUG API response data:", data); // <---- AJOUTE ÇA
+      return {
+        lastMap: data.lastMap || 'Beach',
+        lastX: data.lastX !== undefined ? data.lastX : 52,
+        lastY: data.lastY !== undefined ? data.lastY : 48
+      };
     }
-    if (!identifier) {
-      alert("Aucun wallet connecté !");
-      throw new Error("Aucun wallet détecté");
-    }
+  } catch (e) {
+    console.warn("Erreur récupération dernière position, fallback à BeachRoom", e);
+  }
+  return { lastMap: 'Beach', lastX: 52, lastY: 48 };
+};
 
-    let roomName = '';
-    switch(this.scene.key) {
-      case 'BeachScene': roomName = 'BeachRoom'; break;
-      case 'VillageScene': roomName = 'VillageRoom'; break;
-      case 'Road1Scene': roomName = 'Road1Room'; break; // ✅ AJOUT
-      default: roomName = 'DefaultRoom';
-    }
+    (async () => {
+      let identifier = getWalletFromUrl();
+      if (!identifier && window.app?.currentAccount?.address) {
+        identifier = window.app.currentAccount.address;
+      }
+      if (!identifier) {
+        alert("Aucun wallet connecté !");
+        throw new Error("Aucun wallet détecté");
+      }
 
-    this.networkManager = new NetworkManager(identifier);
-    this.setupNetwork();
-    this.connectToServer(roomName);
+      const { lastMap, lastX, lastY } = await fetchLastPosition(identifier);
+const mapName = lastMap.toLowerCase();
+console.log(`DEBUG lastMap: ${lastMap}, mapName: ${mapName}`);
+
+let roomName = '';
+
+console.log("DEBUG lastMap:", lastMap, "mapName:", mapName);
+
+switch(mapName) {
+  case 'beach':
+    roomName = 'BeachRoom';
+    break;
+  case 'village':
+    roomName = 'VillageRoom';
+    break;
+  case 'road1':
+    roomName = 'Road1Room';
+    break;
+  default:
+    roomName = 'BeachRoom';
+    console.warn(`lastMap inconnu: ${lastMap}, connexion à BeachRoom par défaut`);
+}
+console.log("DEBUG roomName choisi:", roomName);
+
+      this.networkManager = new NetworkManager(identifier);
+      this.setupNetwork();
+
+      this.connectToServer(roomName, { spawnX: lastX, spawnY: lastY, fromZone: 'reload' });
+    })();
   }
 
-  getExistingNetwork() {
-    // ✅ MODIFICATION : Récupérer le NetworkManager depuis n'importe quelle scène active
-    const scenes = ['BeachScene', 'VillageScene'];
-    let foundNetworkManager = null;
-    
-    for (const sceneName of scenes) {
-      const scene = this.scene.manager.getScene(sceneName);
-      if (scene && scene.networkManager) {
-        foundNetworkManager = scene.networkManager;
-        break;
-      }
-    }
-
-    if (foundNetworkManager) {
-      this.networkManager = foundNetworkManager;
-      this.mySessionId = this.networkManager.getSessionId();
-      if (this.playerManager) {
-        this.playerManager.setMySessionId(this.mySessionId);
-      }
-      this.setupNetwork();
-      console.log(`[${this.scene.key}] NetworkManager récupéré, sessionId: ${this.mySessionId}`);
-    } else {
-      console.warn(`[${this.scene.key}] Aucun NetworkManager trouvé, initialisation...`);
-      this.initializeNetwork();
+  async connectToServer(roomName, options = {}) {
+    const connected = await this.networkManager.connect(roomName, options);
+    if (!connected) {
+      this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnection failed!`);
+      console.error("Échec de connexion au serveur");
     }
   }
 
@@ -348,33 +410,24 @@ positionPlayer(player) {
       this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nDisconnected`);
     });
 
-    // ✅ MODIFICATION : Handler unique de transition - plus simple
     this.zoneChangedHandler = (data) => {
       console.log(`[${this.scene.key}] Zone changée reçue:`, data);
-      
-      // Vérifier que c'est bien pour changer de scène
+
       if (data.targetZone && data.targetZone !== this.scene.key) {
         console.log(`[${this.scene.key}] Changement vers ${data.targetZone}`);
-        
-        // Nettoyage immédiat et changement de scène
+
         this.cleanup();
-        
-        this.scene.start(data.targetZone, { 
+
+        this.scene.start(data.targetZone, {
           fromZone: this.scene.key,
-          fromDirection: data.fromDirection || null 
+          fromDirection: data.fromDirection || null,
+          spawnX: data.spawnX,
+          spawnY: data.spawnY
         });
       }
     };
 
     this.networkManager.onZoneChanged(this.zoneChangedHandler);
-  }
-
-  async connectToServer(roomName) {
-    const connected = await this.networkManager.connect(roomName);
-    if (!connected) {
-      this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnection failed!`);
-      console.error("Échec de connexion au serveur");
-    }
   }
 
   update() {
@@ -416,24 +469,20 @@ positionPlayer(player) {
       vy = speed; moved = true; direction = 'down';
     }
 
-    // ✅ MODIFICATION : Prédiction côté client pour un mouvement fluide
     myPlayer.body.setVelocity(vx, vy);
 
     if (moved && direction) {
       myPlayer.play(`walk_${direction}`, true);
       this.lastDirection = direction;
-      
-      // ✅ AJOUT : Marquer que le joueur bouge localement
       myPlayer.isMovingLocally = true;
     } else {
       myPlayer.play(`idle_${this.lastDirection}`, true);
       myPlayer.isMovingLocally = false;
     }
 
-    // ✅ MODIFICATION : Envoyer la position seulement si on bouge ET avec throttling
     if (moved) {
       const now = Date.now();
-      if (!this.lastMoveTime || now - this.lastMoveTime > 50) { // Max 20 FPS pour le réseau
+      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
         this.networkManager.sendMove(myPlayer.x, myPlayer.y);
         this.lastMoveTime = now;
       }
@@ -449,16 +498,13 @@ positionPlayer(player) {
     console.log(`[${this.scene.key}] Début transition vers ${targetScene}`);
     this.isTransitioning = true;
 
-    // ✅ MODIFICATION : Le NetworkManager gère le changement de room automatiquement
-    // On fait juste le nettoyage de la scène et on lance la nouvelle scène
     this.cleanup();
 
-    // ✅ MODIFICATION : Délai pour s'assurer que le nettoyage est terminé
     this.time.delayedCall(50, () => {
       console.log(`[${this.scene.key}] Lancement de la nouvelle scène ${targetScene}`);
-      this.scene.start(targetScene, { 
+      this.scene.start(targetScene, {
         fromZone: this.scene.key,
-        fromDirection: fromDirection 
+        fromDirection: fromDirection
       });
     });
   }
@@ -466,33 +512,27 @@ positionPlayer(player) {
   cleanup() {
     console.log(`[${this.scene.key}] Nettoyage en cours...`);
 
-    // ✅ Nettoyer les handlers réseau
     if (this.networkManager && this.zoneChangedHandler) {
       this.networkManager.offZoneChanged(this.zoneChangedHandler);
       this.zoneChangedHandler = null;
     }
 
-    // ✅ Nettoyer les joueurs
     if (this.playerManager) {
       this.playerManager.clearAllPlayers();
     }
 
-    // ✅ Nettoyer les objets animés
     if (this.animatedObjects) {
       this.animatedObjects.clear(true, true);
       this.animatedObjects = null;
     }
 
-    // ✅ Nettoyer les timers
     if (this.loadTimer) {
       this.loadTimer.remove(false);
       this.loadTimer = null;
     }
 
-    // ✅ Nettoyer tous les événements
     this.time.removeAllEvents();
 
-    // ✅ Réinitialiser les flags
     this.cameraFollowing = false;
     this.isTransitioning = false;
   }

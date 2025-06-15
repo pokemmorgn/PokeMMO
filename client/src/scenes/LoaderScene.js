@@ -39,11 +39,38 @@ export class LoaderScene extends Phaser.Scene {
       }
     });
 
-    this.load.on('complete', () => {
-      console.log('📦 All assets loaded, starting beach scene...');
-      // Démarrer par la scène de plage (zone d'intro)
-      this.scene.start('BeachScene');
-    });
+this.load.on('complete', async () => {
+  console.log('📦 All assets loaded, checking player position...');
+
+  let lastMap = "BeachScene"; // défaut
+  try {
+    const username = window.username;
+const res = await fetch(`http://localhost:2567/api/playerData?username=${encodeURIComponent(username)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.lastMap) {
+        // Pour éviter toute confusion de casse ou d'ID
+        if (["BeachScene", "VillageScene", "Road1Scene"].includes(data.lastMap)) {
+          lastMap = data.lastMap;
+        } else if (data.lastMap.toLowerCase().includes("beach")) {
+          lastMap = "BeachScene";
+        } else if (data.lastMap.toLowerCase().includes("village")) {
+          lastMap = "VillageScene";
+        } else if (data.lastMap.toLowerCase().includes("road")) {
+          lastMap = "Road1Scene";
+        }
+      }
+      console.log("🌍 Last map from DB:", lastMap);
+    } else {
+      console.warn("❓ API playerData NOK, default to Beach");
+    }
+  } catch (e) {
+    console.warn("❌ API playerData error, default to Beach", e);
+  }
+
+  // Démarre la SCÈNE selon la sauvegarde !
+  this.scene.start(lastMap);
+});
   }
 
   createLoadingBar() {

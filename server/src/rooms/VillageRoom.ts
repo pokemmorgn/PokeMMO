@@ -8,12 +8,11 @@ export class VillageRoom extends Room<PokeWorldState> {
   onCreate(options: any) {
     this.setState(new PokeWorldState());
 
-    // ✅ AJOUT : Sauvegarde automatique toutes les 30 secondes
+    // Sauvegarde automatique toutes les 30 secondes
     this.clock.setInterval(() => {
       this.saveAllPlayers();
-	        console.log(`[${new Date().toISOString()}] Sauvegarde automatique de tous les joueurs`);
-
-    }, 30000); // 30 secondes
+      console.log(`[${new Date().toISOString()}] Sauvegarde automatique de tous les joueurs`);
+    }, 30000);
 
     this.onMessage("move", (client, data: { x: number, y: number }) => {
       const player = this.state.players.get(client.sessionId);
@@ -23,11 +22,11 @@ export class VillageRoom extends Room<PokeWorldState> {
       }
     });
 
-    this.onMessage("changeZone", (client, data: { targetZone: string, direction: string }) => {
+    this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
       console.log(`[VillageRoom] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
 
       let spawnX = 52, spawnY = 48;
-      
+
       if (data.targetZone === 'BeachScene') {
         spawnX = 100;
         spawnY = 100;
@@ -40,6 +39,13 @@ export class VillageRoom extends Room<PokeWorldState> {
       if (player) {
         this.state.players.delete(client.sessionId);
         console.log(`[VillageRoom] Joueur ${client.sessionId} supprimé pour transition`);
+
+        // Sauvegarde position + map cible dans la DB
+        await PlayerData.updateOne(
+          { username: player.name },
+          { $set: { lastX: spawnX, lastY: spawnY, lastMap: data.targetZone } }
+        );
+        console.log(`[VillageRoom] Sauvegarde position et map (${spawnX}, ${spawnY}) dans ${data.targetZone} pour ${player.name}`);
       }
 
       client.send("zoneChanged", {
@@ -56,7 +62,6 @@ export class VillageRoom extends Room<PokeWorldState> {
     console.log("[VillageRoom] Room créée :", this.roomId);
   }
 
-  // ✅ AJOUT : Méthode de sauvegarde automatique
   async saveAllPlayers() {
     try {
       for (const [sessionId, player] of this.state.players) {
@@ -72,7 +77,7 @@ export class VillageRoom extends Room<PokeWorldState> {
 
   async onJoin(client: Client, options: any) {
     const username = options.username || "Anonymous";
-    
+
     const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
     if (existingPlayer) {
       const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
@@ -81,12 +86,12 @@ export class VillageRoom extends Room<PokeWorldState> {
         console.log(`[VillageRoom] Ancien joueur ${username} supprimé (sessionId: ${oldSessionId})`);
       }
     }
-    
+
     let playerData = await PlayerData.findOne({ username });
     if (!playerData) {
       playerData = await PlayerData.create({ username, lastX: 200, lastY: 150, lastMap: "Village" });
     }
-    
+
     const player = new Player();
     player.name = username;
 
@@ -105,14 +110,14 @@ export class VillageRoom extends Room<PokeWorldState> {
     console.log(`[VillageRoom] ${username} est entré avec sessionId: ${client.sessionId}`);
   }
 
-  async onLeave(client: Client) {
-    const player = this.state.players.get(client.sessionId);
-    if (player) {
-      await PlayerData.updateOne({ username: player.name }, {
-        $set: { lastX: player.x, lastY: player.y, lastMap: "Village" }
-      });
-      console.log(`[VillageRoom] ${player.name} a quitté (sauvé à ${player.x}, ${player.y})`);
-      this.state.players.delete(client.sessionId);
-    }
+async onLeave(client: Client) {
+  const player = this.state.players.get(client.sessionId);
+  if (player) {
+    await PlayerData.updateOne({ username: player.name }, {
+      $set: { lastX: player.x, lastY: player.y, lastMap: player.map }
+    });
+    console.log(`[VillageRoom] ${player.name} a quitté (sauvé à ${player.x}, ${player.y} sur ${player.map})`);
+    this.state.players.delete(client.sessionId);
   }
 }
+} // <-- fermeture de la classe VillageRoom

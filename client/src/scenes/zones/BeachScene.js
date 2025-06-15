@@ -1,12 +1,12 @@
 // ===============================================
-// BeachScene.js - Version corrigée avec cooldown
+// BeachScene.js - Intro starter carré + dialogue en bas + cooldown
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 
 export class BeachScene extends BaseZoneScene {
   constructor() {
     super('BeachScene', 'GreenRootBeach');
-    this.transitionCooldowns = {}; // ✅ AJOUT : Cooldowns par zone de transition
+    this.transitionCooldowns = {};
   }
 
   setupZoneTransitions() {
@@ -33,9 +33,7 @@ export class BeachScene extends BaseZoneScene {
 
     console.log(`🚪 Zone de transition créée vers ${targetScene}`, zone);
 
-    // ✅ MODIFICATION : Attendre que le joueur soit créé puis créer l'overlap UNE SEULE FOIS
     let overlapCreated = false;
-    
     const checkPlayerInterval = this.time.addEvent({
       delay: 100,
       loop: true,
@@ -43,36 +41,25 @@ export class BeachScene extends BaseZoneScene {
         const myPlayer = this.playerManager.getMyPlayer();
         if (myPlayer && !overlapCreated) {
           overlapCreated = true;
-          
+
           this.physics.add.overlap(myPlayer, zone, () => {
-            // ✅ AJOUT : Vérifier le cooldown pour éviter les transitions multiples
             const cooldownKey = `${targetScene}_${direction}`;
             if (this.transitionCooldowns[cooldownKey] || this.isTransitioning) {
               console.log(`[Transition] Cooldown actif ou déjà en transition vers ${targetScene}`);
               return;
             }
-
-            // ✅ AJOUT : Activer le cooldown
             this.transitionCooldowns[cooldownKey] = true;
             console.log("[Transition] Demande transition vers", targetScene);
-            
-            // ✅ AJOUT : Désactiver temporairement la zone de transition
             zone.body.enable = false;
-            
             this.networkManager.requestZoneTransition(targetScene, direction);
-            
-            // ✅ AJOUT : Réactiver après un délai (au cas où la transition échoue)
+
             this.time.delayedCall(3000, () => {
-              if (this.transitionCooldowns) {
-                delete this.transitionCooldowns[cooldownKey];
-              }
-              if (zone.body) {
-                zone.body.enable = true;
-              }
+              if (this.transitionCooldowns) delete this.transitionCooldowns[cooldownKey];
+              if (zone.body) zone.body.enable = true;
             });
           });
-          
-          checkPlayerInterval.remove(); // ✅ IMPORTANT : Supprimer l'interval
+
+          checkPlayerInterval.remove();
           console.log(`✅ Overlap créé pour transition vers ${targetScene}`);
         }
       },
@@ -82,20 +69,16 @@ export class BeachScene extends BaseZoneScene {
   positionPlayer(player) {
     const initData = this.scene.settings.data;
 
-    // ✅ SOLUTION : Utiliser la position du serveur sauf si c'est une transition
+    // Spawn logique classique
     if (initData?.fromZone === 'VillageScene') {
-      // Transition depuis VillageScene - utiliser position fixe d'entrée
       player.x = 52;
       player.y = 48;
       console.log(`🚪 Joueur positionné depuis VillageScene: ${player.x}, ${player.y}`);
     } else if (initData?.fromZone) {
-      // Transition depuis une autre zone - utiliser position fixe d'entrée  
       player.x = 52;
       player.y = 48;
       console.log(`🚪 Joueur positionné depuis ${initData.fromZone}: ${player.x}, ${player.y}`);
     } else {
-      // ✅ PAS DE TRANSITION : Utiliser la position du serveur (sauvegardée)
-      // Ne pas modifier player.x et player.y - garder les valeurs du serveur
       console.log(`🏖️ Joueur positionné à la position sauvée du serveur: (${player.x}, ${player.y})`);
     }
 
@@ -107,6 +90,54 @@ export class BeachScene extends BaseZoneScene {
     if (this.networkManager) {
       this.networkManager.sendMove(player.x, player.y);
     }
+
+    // 👉 INTRODUCTION — Affiche le starter et le dialogue au premier spawn (temporaire : toujours !)
+    if (!initData?.fromZone) { // Premier spawn depuis le menu (pas une transition)
+      this.startIntroSequence(player);
+    }
+  }
+
+  startIntroSequence(player) {
+    // Starter (carré bleu) qui s’approche du joueur
+    this.spawnStarterPokemon(player.x + 48, player.y);
+  }
+
+  spawnStarterPokemon(x, y) {
+    const starter = this.add.rectangle(x, y, 24, 24, 0x66ccff)
+      .setStrokeStyle(2, 0xffffff)
+      .setDepth(5);
+
+    // Animation pour venir à côté du joueur
+    this.tweens.add({
+      targets: starter,
+      x: x - 36,
+      duration: 700,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        this.showIntroDialogue(starter);
+      }
+    });
+  }
+
+  showIntroDialogue(starter) {
+    // Boîte de dialogue au-dessus du starter
+    const textBox = this.add.text(
+      starter.x, starter.y - 32,
+      "Salut ! Tu viens d’arriver ? Je t’emmène au village !",
+      {
+        fontSize: "13px",
+        color: "#fff",
+        backgroundColor: "#114",
+        padding: { x: 6, y: 4 }
+      }
+    ).setDepth(1000).setOrigin(0.5);
+
+    // Après 2s, retire le carré et le texte
+    this.time.delayedCall(2000, () => {
+      starter.destroy();
+      textBox.destroy();
+      // Enchaîner la suite ici si tu veux (ex : mouvement auto vers le village)
+    });
   }
 
   create() {
@@ -120,7 +151,6 @@ export class BeachScene extends BaseZoneScene {
     });
   }
 
-  // ✅ AJOUT : Nettoyage des cooldowns lors de la destruction de la scène
   cleanup() {
     this.transitionCooldowns = {};
     super.cleanup();
