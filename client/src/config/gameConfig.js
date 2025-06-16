@@ -11,7 +11,7 @@ export const GAME_CONFIG = {
   antialias: false,
   
 server: {
-  url: "ws://localhost:2567",
+  url: "ws://vps-8ca3aa34.vps.ovh.net:2567",
   roomName: ""  // vide, sera défini dynamiquement
 },
   
