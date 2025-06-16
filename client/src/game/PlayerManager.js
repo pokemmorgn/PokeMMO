@@ -30,6 +30,14 @@ export class PlayerManager {
       this.players.set(sessionId, player);
       return player;
     }
+    const anchor = this.scene.add.circle(x, y, 2, 0xff00ff).setDepth(2000);
+this.scene.tweens.add({
+  targets: anchor,
+  alpha: 0,
+  duration: 1500,
+  yoyo: true
+});
+
     if (!this.animsCreated) { this.createAnimations(); this.animsCreated = true; }
     const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 0).setOrigin(0.5, 1).setScale(1);
     player.setDepth(5);
