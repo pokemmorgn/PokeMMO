@@ -51,11 +51,12 @@ export class PlayerManager {
     // -- SPRITE CREATION --
     const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 0).setOrigin(0.5, 1);
 
-    player.setDepth(100);
-    player.setScale(0,5);
-    player.body.setSize(player.width, player.height * 0.5);
-    player.body.setOffset(0, player.height * 0.5);
-
+    // Après avoir créé le sprite player...
+player.setOrigin(0.5, 1); // Centre bas, les pieds posés au sol
+player.setScale(1); // Pas de scale chelou
+// Pour un sprite 32x32 :
+player.body.setSize(16, 10);   // Hitbox 16x10 px (ajuste selon la taille de pieds)
+player.body.setOffset(8, 22);  // Décale la hitbox au niveau des pieds
     // Animation par défaut
     if (this.scene.anims.exists('idle_down')) {
       player.play('idle_down');
