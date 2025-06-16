@@ -24,7 +24,7 @@ export class BaseZoneScene extends Phaser.Scene {
     if (!this.textures.exists('BoyWalk')) {
   this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
     frameWidth: 32,
-    frameHeight: 32,
+    frameHeight: 48,
   });
 }
   }
