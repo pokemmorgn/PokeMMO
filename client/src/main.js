@@ -4,6 +4,7 @@ import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
 import { VillageScene } from "./scenes/zones/VillageScene.js";
 import { Road1Scene } from './scenes/zones/Road1Scene.js'; // ✅ Import de Road1Scene
+import { VillageLabScene } from './scenes/zones/VillageLabScene.js'; // ✅
 
 // 🔒 Récupérer l'adresse du wallet SUI si présente dans l'URL
 function getWalletFromUrl() {
@@ -32,7 +33,7 @@ const config = {
   pixelArt: true,
   roundPixels: true,
   antialias: false,
-  scene: [LoaderScene, BeachScene, VillageScene, Road1Scene], // ✅ AJOUT : Road1Scene dans la liste
+  scene: [LoaderScene, BeachScene, VillageScene, Road1Scene, VillageLabScene], // ✅ AJOUT : Road1Scene dans la liste
   physics: {
     default: 'arcade',
     arcade: {
