@@ -13,7 +13,7 @@ export const GAME_CONFIG = {
 server: {
   url: `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/colyseus`,
   roomName: ""
-}
+},
   
   // Configuration de la caméra - style top-down RPG
   camera: {
