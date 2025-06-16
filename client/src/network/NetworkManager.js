@@ -65,6 +65,7 @@ export class NetworkManager {
       case 'BeachScene': newRoomName = 'BeachRoom'; break;
       case 'VillageScene': newRoomName = 'VillageRoom'; break;
       case 'Road1Scene': newRoomName = 'Road1Room'; break; // ✅ AJOUT
+      case 'VillageLabScene': newRoomName = 'VillageLabRoom'; break;
       default: newRoomName = 'DefaultRoom';
     }
 
