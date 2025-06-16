@@ -18,14 +18,15 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   preload() {
-    const ext = 'tmj';
-    this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
+  const ext = 'tmj';
+  this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
 
-    this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
-  frameWidth: 32,
-  frameHeight: 32
-});
-  }
+  // Charger le spritesheet du joueur (32x32 par frame)
+  this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
+    frameWidth: 32,
+    frameHeight: 32,
+  });
+}
 
   create() {
     console.log(`🌍 Creating zone: ${this.scene.key}`);
