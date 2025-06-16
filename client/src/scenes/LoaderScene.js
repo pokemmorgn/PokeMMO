@@ -45,7 +45,7 @@ this.load.on('complete', async () => {
   let lastMap = "BeachScene"; // défaut
   try {
     const username = window.username;
-const res = await fetch(`http://vps-8ca3aa34.vps.ovh.net:2567/api/playerData?username=${encodeURIComponent(username)}`);
+const res = await fetch(`/api/playerData?username=${encodeURIComponent(username)}`);
     if (res.ok) {
       const data = await res.json();
       if (data.lastMap) {
