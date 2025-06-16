@@ -21,9 +21,10 @@ export class BaseZoneScene extends Phaser.Scene {
     const ext = 'tmj';
     this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
 
-    if (!this.textures.exists('BoyWalk')) {
-  this.load.image('BoyWalk', 'assets/character/BoyWalk.png');
-}
+    this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
+  frameWidth: 32,
+  frameHeight: 32
+});
   }
 
   create() {
