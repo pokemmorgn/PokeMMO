@@ -58,8 +58,11 @@ export class PlayerManager {
     player.sessionId = sessionId;
 
     // Hitbox adaptée (pour un sprite 32x32 façon RPG)
-    player.body.setSize(16, 10);
-    player.body.setOffset(8, 22);
+    // Vérifier que le body existe avant de modifier
+    if (player.body) {
+      player.body.setSize(16, 10);
+      player.body.setOffset(8, 22);
+    }
 
     // Animation idle par défaut
     if (this.scene.anims.exists('idle_down')) player.play('idle_down');
@@ -229,25 +232,30 @@ export class PlayerManager {
           player.y += deltaY * 0.3;
         }
         
-        // Gérer les animations en fonction du mouvement
-        if (playerState.isMoving !== undefined) {
-          player.isMoving = playerState.isMoving;
+        // Gérer les animations - IMPORTANT: le serveur n'envoie pas isMoving/direction
+        // On doit détecter le mouvement en comparant les positions
+        const deltaX = playerState.x - player.x;
+        const deltaY = playerState.y - player.y;
+        const isMoving = Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5;
+        
+        // Déterminer la direction basée sur le mouvement
+        let direction = player.lastDirection || 'down';
+        if (isMoving) {
+          if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            direction = deltaX > 0 ? 'right' : 'left';
+          } else {
+            direction = deltaY > 0 ? 'down' : 'up';
+          }
+        }
+        
+        // Mettre à jour l'animation si nécessaire
+        if (direction !== player.lastDirection || isMoving !== player.isMoving) {
+          player.lastDirection = direction;
+          player.isMoving = isMoving;
           
-          if (playerState.direction && playerState.direction !== player.lastDirection) {
-            player.lastDirection = playerState.direction;
-            
-            // Jouer l'animation appropriée
-            if (player.isMoving) {
-              const walkAnim = `walk_${playerState.direction}`;
-              if (this.scene.anims.exists(walkAnim) && player.anims.currentAnim?.key !== walkAnim) {
-                player.play(walkAnim);
-              }
-            } else {
-              const idleAnim = `idle_${playerState.direction}`;
-              if (this.scene.anims.exists(idleAnim) && player.anims.currentAnim?.key !== idleAnim) {
-                player.play(idleAnim);
-              }
-            }
+          const animKey = isMoving ? `walk_${direction}` : `idle_${direction}`;
+          if (this.scene.anims.exists(animKey) && player.anims.currentAnim?.key !== animKey) {
+            player.play(animKey);
           }
         }
         
