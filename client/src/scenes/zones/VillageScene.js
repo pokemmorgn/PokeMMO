@@ -31,7 +31,7 @@ export class VillageScene extends BaseZoneScene {
     }
 
     // ✅ AJOUT : Vérifier le layer Door pour le laboratoire
-    const doorLayer = this.map.getObjectLayer('Doors');
+    const doorLayer = this.map.getObjectLayer('Door');
     if (doorLayer) {
       const labDoor = doorLayer.objects.find(obj => obj.name === 'Labo');
       if (labDoor) {
