@@ -22,7 +22,7 @@ export class LoaderScene extends Phaser.Scene {
     this.load.image('FloatingRing_1', 'assets/sprites/FloatingRing_1.png');
     this.load.image('RockFloating_1', 'assets/sprites/RockFloating_1.png');
     this.load.image('RockFloating_2', 'assets/sprites/RockFloating_2.png');
-    this.load.image('RockFloating_3', 'assets/sprites/RockFloating_3.png');
+    this.load.image('RockFloating_3', 'assets/sprites/Rockfloating_3.png');
     this.load.image('Umbrella', 'assets/sprites/Umbrella.png');
     this.load.image('Water', 'assets/sprites/Water.png');
     this.load.image('Water_2', 'assets/sprites/Water_2.png');
