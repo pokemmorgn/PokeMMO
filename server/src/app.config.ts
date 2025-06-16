@@ -8,6 +8,7 @@ import { PlayerData } from "./models/PlayerData";
 import { BeachRoom } from "./rooms/BeachRoom";
 import { VillageRoom } from "./rooms/VillageRoom";
 import { Road1Room } from "./rooms/Road1Room"; // ✅ AJOUT : Import de Road1Room
+import { VillageLabRoom } from "./rooms/VillageLabRoom";
 import { connectDB } from "./db";
 
 export default config({
@@ -15,7 +16,8 @@ export default config({
     // Définition des rooms par zone
 	gameServer.define('Road1Room', Road1Room),
     gameServer.define('BeachRoom', BeachRoom),
-    gameServer.define('VillageRoom', VillageRoom);
+    gameServer.define('VillageRoom', VillageRoom),
+    gameServer.define('VillageLabRoom', VillageLabRoom);
   },
 
  
