@@ -28,8 +28,10 @@ export class LoaderScene extends Phaser.Scene {
     this.load.image('Water_2', 'assets/sprites/Water_2.png');
     this.load.image('Water_3', 'assets/sprites/Water_3.png');
 
-    this.load.image('BoyWalk', 'assets/character/BoyWalk.png');
-
+    this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
+  frameWidth: 32,
+  frameHeight: 32
+});
     // ✅ Progress events
     this.load.on('progress', (progress) => {
       this.updateProgressBar(progress);
