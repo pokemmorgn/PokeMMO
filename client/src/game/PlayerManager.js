@@ -37,7 +37,7 @@ export class PlayerManager {
       graphics.generateTexture('player_placeholder', 16, 32);
       graphics.destroy();
       const player = this.scene.add.sprite(x, y, 'player_placeholder').setOrigin(0.5, 1);
-      player.setDepth(1000);
+      player.setDepth(5);
       this.players.set(sessionId, player);
       return player;
     }
