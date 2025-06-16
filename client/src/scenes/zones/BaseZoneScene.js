@@ -13,15 +13,16 @@ export class BaseZoneScene extends Phaser.Scene {
     this.mySessionId = null;
     this.loadTimer = null;
     this.animatedObjects = null;
-    this.zoneChangedHandler = null; // Handler changement de zone
-    this.lastMoveTime = 0; // Throttle mouvements
+    this.zoneChangedHandler = null;
+    this.lastMoveTime = 0;
     this.isTransitioning = false;
   }
 
   preload() {
     const ext = 'tmj';
     this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
-    // Précharge les tilesets communs (une seule fois)
+
+    // Précharger les tilesets communs
     this.preloadCommonTilesets();
 
     if (!this.textures.exists('dude')) {
@@ -32,13 +33,13 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
+  // Précharger les tilesets communs
   preloadCommonTilesets() {
     const commonTilesets = [
       'barriers', 'bridge_1', 'campfire_1', 'floatingring_1', 'fountain_1', 'grass',
       'greenroot', 'labointerior', 'labointerior2', 'laboratory', 'lavandia', 'road_1',
-      'rockfloating_1', 'rockfloating_2', 'rockfloating_3', 'umbrella'
+      'rockfloating_1', 'rockfloating_2', 'rockfloating_3', 'umbrella', 'water', 'water_2'
     ];
-
     commonTilesets.forEach(tilesetName => {
       if (!this.textures.exists(tilesetName)) {
         console.log(`🎨 Préchargement du tileset commun: ${tilesetName}`);
@@ -49,24 +50,26 @@ export class BaseZoneScene extends Phaser.Scene {
 
   create() {
     console.log(`🌍 Creating zone: ${this.scene.key}`);
+    console.log(`📊 Scene data:`, this.scene.settings.data);
+
     this.createPlayerAnimations();
     this.loadMap();
     this.setupManagers();
     this.setupInputs();
     this.createUI();
 
-    // Gestion réseau selon la scène
+    // Gestion réseau
     if (this.scene.key === 'BeachScene') {
       this.initializeNetwork();
     } else {
       this.getExistingNetwork();
     }
 
-    // Nettoyage à la fermeture
     this.events.on('shutdown', () => {
       console.log(`[${this.scene.key}] Shutdown - nettoyage`);
       this.cleanup();
     });
+
     this.events.on('destroy', () => {
       console.log(`[${this.scene.key}] Destroy - nettoyage final`);
       this.cleanup();
@@ -74,9 +77,7 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   getExistingNetwork() {
-    // Liste des scènes susceptibles d'avoir le NetworkManager
     const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene'];
-
     for (const sceneName of scenesToCheck) {
       const scene = this.scene.manager.getScene(sceneName);
       if (scene && scene.networkManager) {
@@ -90,7 +91,6 @@ export class BaseZoneScene extends Phaser.Scene {
         return;
       }
     }
-
     console.warn(`[${this.scene.key}] Aucun NetworkManager trouvé, initialisation...`);
     this.initializeNetwork();
   }
@@ -99,7 +99,7 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log('— DEBUT loadMap —');
     this.map = this.make.tilemap({ key: this.mapKey });
 
-    // DEBUG LOGS
+    // DEBUG LOGS : Tilesets & Layers
     console.log("========== [DEBUG] Chargement de la map ==========");
     console.log("Clé de la map (mapKey):", this.mapKey);
     console.log("Tilesets trouvés dans la map:", this.map.tilesets.map(ts => ts.name));
@@ -107,7 +107,6 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log("==============================================");
 
     let needsLoading = false;
-
     this.map.tilesets.forEach(tileset => {
       const normalizedName = this.normalizeTilesetName(tileset.name);
 
@@ -170,14 +169,16 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  // Normalise les noms de tilesets (à adapter si besoin)
+  // Normaliser les noms de tilesets
   normalizeTilesetName(tilesetName) {
     return tilesetName
       .replace(/_village$/i, '')
       .replace(/_beach$/i, '')
       .replace(/_lab$/i, '')
-      .replace(/\d+$/i, '') // retire les numéros
+      .replace(/road1$/i, '')
+      .replace(/\d+$/i, '')
       .toLowerCase();
+ 
   }
 
   setupAnimatedObjects() {
