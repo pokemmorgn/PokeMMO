@@ -34,7 +34,7 @@ export class BaseZoneScene extends Phaser.Scene {
 
   preloadCommonTilesets() {
     const commonTilesets = [
-      'greenroot', 'trees', 'buildings', 'nature'
+      'Greenroot'
       // Ajoute ici tes tilesets communs
     ];
 
