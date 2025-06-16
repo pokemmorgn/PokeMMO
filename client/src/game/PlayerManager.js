@@ -1,11 +1,12 @@
-// src/game/PlayerManager.js - Version corrigée pour éviter la duplication
+// src/game/PlayerManager.js - Version BoyWalk
 
 export class PlayerManager {
   constructor(scene) {
     this.scene = scene;
     this.players = new Map();
     this.mySessionId = null;
-    this.isDestroyed = false; // ✅ AJOUT : Flag pour éviter les opérations sur un manager détruit
+    this.isDestroyed = false;
+    this.animsCreated = false;
     console.log("PlayerManager initialisé pour", scene.scene.key);
   }
 
@@ -15,7 +16,7 @@ export class PlayerManager {
   }
 
   getMyPlayer() {
-    if (this.isDestroyed) return null; // ✅ AJOUT : Protection
+    if (this.isDestroyed) return null;
     const player = this.players.get(this.mySessionId);
     return player || null;
   }
@@ -26,25 +27,14 @@ export class PlayerManager {
       return null;
     }
 
-    // ✅ AJOUT : Vérifier qu'on ne crée pas un joueur qui existe déjà
-    if (this.players.has(sessionId)) {
-      console.warn(`Joueur ${sessionId} existe déjà, mise à jour de position seulement`);
-      const existingPlayer = this.players.get(sessionId);
-      existingPlayer.x = x;
-      existingPlayer.y = y;
-      return existingPlayer;
-    }
-
-    console.log("Création joueur :", sessionId, "à position", x, y);
-
-    // Vérifier que le spritesheet dude existe
-    if (!this.scene.textures.exists('dude')) {
-      console.error("❌ Spritesheet 'dude' introuvable !");
+    // -- SPRITESHEET CHECK --
+    if (!this.scene.textures.exists('BoyWalk')) {
+      console.error("❌ Spritesheet 'BoyWalk' introuvable !");
       // Placeholder rouge
       const graphics = this.scene.add.graphics();
       graphics.fillStyle(0xff0000);
-      graphics.fillRect(0, 0, 32, 48);
-      graphics.generateTexture('player_placeholder', 32, 48);
+      graphics.fillRect(0, 0, 32, 32);
+      graphics.generateTexture('player_placeholder', 32, 32);
       graphics.destroy();
       const player = this.scene.add.sprite(x, y, 'player_placeholder').setOrigin(0.5, 1);
       player.setDepth(5);
@@ -52,20 +42,19 @@ export class PlayerManager {
       return player;
     }
 
-    // Créer le sprite avec le spritesheet dude (idle frame = 4)
-    const player = this.scene.physics.add.sprite(x, y, 'dude', 4).setOrigin(0.5, 1);
+    // -- CRÉATION DES ANIMATIONS (1x au premier appel) --
+    if (!this.animsCreated) {
+      this.createAnimations();
+      this.animsCreated = true;
+    }
 
-    // Config joueur
+    // -- SPRITE CREATION --
+    const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 0).setOrigin(0.5, 1);
+
     player.setDepth(5);
-    player.setScale(0.5);
-    player.body.setSize(
-      player.width * 0.5,
-      player.height * 0.5
-    );
-    player.body.setOffset(
-      (player.width - player.width * 0.5) / 2,
-      player.height * 0.5
-    );
+    player.setScale(1);
+    player.body.setSize(player.width, player.height * 0.5);
+    player.body.setOffset(0, player.height * 0.5);
 
     // Animation par défaut
     if (this.scene.anims.exists('idle_down')) {
@@ -73,17 +62,15 @@ export class PlayerManager {
     }
     player.lastDirection = 'down';
     player.isMoving = false;
-
-    // ✅ AJOUT : Marquer le sessionId sur le player pour debug
     player.sessionId = sessionId;
 
     // Indicateur pour ton joueur
     if (sessionId === this.mySessionId) {
-      const indicator = this.scene.add.circle(0, -32, 3, 0x00ff00);
+      const indicator = this.scene.add.circle(0, -28, 3, 0x00ff00);
       indicator.setDepth(1001);
       indicator.setStrokeStyle(1, 0x004400);
       player.indicator = indicator;
-      console.log("👤 Mon joueur créé avec spritesheet dude");
+      console.log("👤 Mon joueur créé avec spritesheet BoyWalk");
     } else {
       console.log("👥 Autre joueur créé :", sessionId);
     }
@@ -92,100 +79,141 @@ export class PlayerManager {
     return player;
   }
 
+  // -- ANIMATIONS BOYWALK --
+  createAnimations() {
+    const anims = this.scene.anims;
+    // Walk
+    if (!anims.exists('walk_down')) {
+      anims.create({
+        key: 'walk_down',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }),
+        frameRate: 8,
+        repeat: -1
+      });
+    }
+    if (!anims.exists('walk_left')) {
+      anims.create({
+        key: 'walk_left',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }),
+        frameRate: 8,
+        repeat: -1
+      });
+    }
+    if (!anims.exists('walk_right')) {
+      anims.create({
+        key: 'walk_right',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }),
+        frameRate: 8,
+        repeat: -1
+      });
+    }
+    if (!anims.exists('walk_up')) {
+      anims.create({
+        key: 'walk_up',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 15 }),
+        frameRate: 8,
+        repeat: -1
+      });
+    }
+    // Idle (1 frame pour chaque direction)
+    if (!anims.exists('idle_down')) {
+      anims.create({
+        key: 'idle_down',
+        frames: [{ key: 'BoyWalk', frame: 0 }],
+        frameRate: 1,
+        repeat: -1
+      });
+    }
+    if (!anims.exists('idle_left')) {
+      anims.create({
+        key: 'idle_left',
+        frames: [{ key: 'BoyWalk', frame: 4 }],
+        frameRate: 1,
+        repeat: -1
+      });
+    }
+    if (!anims.exists('idle_right')) {
+      anims.create({
+        key: 'idle_right',
+        frames: [{ key: 'BoyWalk', frame: 8 }],
+        frameRate: 1,
+        repeat: -1
+      });
+    }
+    if (!anims.exists('idle_up')) {
+      anims.create({
+        key: 'idle_up',
+        frames: [{ key: 'BoyWalk', frame: 12 }],
+        frameRate: 1,
+        repeat: -1
+      });
+    }
+    console.log("🎞️ Animations BoyWalk créées !");
+  }
+
   updatePlayers(state) {
-    // ✅ VÉRIFICATIONS DE SÉCURITÉ RENFORCÉES
     if (this.isDestroyed) {
       console.warn("PlayerManager détruit, updatePlayers ignoré");
       return;
     }
-
     if (!this.scene || !this.scene.scene.isActive()) {
       console.warn("Scène inactive, updatePlayers ignoré");
       return;
     }
-
-    // ✅ AJOUT : Vérifier si le NetworkManager est en transition
     if (this.scene.networkManager && this.scene.networkManager.isTransitioning) {
       console.log("NetworkManager en transition, updatePlayers ignoré");
       return;
     }
-
     if (!state.players) {
       console.warn("❌ Pas de données players dans le state");
       return;
     }
-
-    // ✅ MODIFICATION : Débounce pour éviter les mises à jour trop fréquentes
-    if (this.updateTimeout) {
-      clearTimeout(this.updateTimeout);
-    }
-
+    if (this.updateTimeout) clearTimeout(this.updateTimeout);
     this.updateTimeout = setTimeout(() => {
       this.performUpdate(state);
-    }, 16); // ~60fps
+    }, 16);
   }
 
   performUpdate(state) {
     if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
-
     // Supprimer les joueurs déconnectés
     const currentSessionIds = new Set();
     state.players.forEach((playerState, sessionId) => {
       currentSessionIds.add(sessionId);
     });
-
-    // ✅ MODIFICATION : Copie du Map pour éviter les modifications concurrentes
     const playersToCheck = new Map(this.players);
     playersToCheck.forEach((player, sessionId) => {
       if (!currentSessionIds.has(sessionId)) {
-        console.log("🚪 Joueur supprimé :", sessionId);
         this.removePlayer(sessionId);
       }
     });
-
     // Mettre à jour ou créer les joueurs
     state.players.forEach((playerState, sessionId) => {
       if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
-
       let player = this.players.get(sessionId);
-
       if (!player) {
-        // Créer un nouveau joueur
         player = this.createPlayer(sessionId, playerState.x, playerState.y);
       } else {
-        // ✅ VÉRIFICATION : S'assurer que le player existe encore dans la scène
         if (!this.scene.children.exists(player)) {
-          console.warn(`Player ${sessionId} n'existe plus dans la scène, recréation`);
           this.players.delete(sessionId);
           player = this.createPlayer(sessionId, playerState.x, playerState.y);
           return;
         }
-
-        // ✅ MODIFICATION : Différencier le joueur local des autres
         if (sessionId === this.mySessionId) {
-          // Pour MON joueur : mise à jour directe, sans interpolation
-          // (le mouvement est géré par handleMovement dans BaseZoneScene)
-          
-          // Synchronisation périodique avec le serveur (anti-désync)
           const distance = Phaser.Math.Distance.Between(
             player.x, player.y,
             playerState.x, playerState.y
           );
-          
-          if (distance > 50) { // Désynchronisation importante
-            console.log(`🔄 Correction de position pour mon joueur: ${distance}px`);
+          if (distance > 50) {
             player.x = playerState.x;
             player.y = playerState.y;
           }
         } else {
-          // Pour LES AUTRES joueurs : interpolation fluide
           const distance = Phaser.Math.Distance.Between(
             player.x, player.y,
             playerState.x, playerState.y
           );
-
           if (distance > 5) {
-            // ✅ MODIFICATION : Vérifier que le tween peut être créé
             if (this.scene.tweens && !player.isBeingTweened) {
               player.isBeingTweened = true;
               this.scene.tweens.add({
@@ -195,36 +223,28 @@ export class PlayerManager {
                 duration: 100,
                 ease: 'Linear',
                 onComplete: () => {
-                  if (player && !this.isDestroyed) {
-                    player.isBeingTweened = false;
-                  }
+                  if (player && !this.isDestroyed) player.isBeingTweened = false;
                 }
               });
             } else {
-              // Fallback si pas de tween disponible
               player.x = playerState.x;
               player.y = playerState.y;
             }
-
-            // Calcul direction pour animation
+            // Animation de marche (direction)
             const direction = this.calculateDirection(player.x, player.y, playerState.x, playerState.y);
             this.playWalkAnimation(player, direction);
             player.isMoving = true;
           } else {
-            // Petit déplacement
             player.x = playerState.x;
             player.y = playerState.y;
-
-            // Animation idle
             this.playIdleAnimation(player);
             player.isMoving = false;
           }
         }
-
-        // Update indicator
+        // Indicator update
         if (player.indicator && !this.isDestroyed) {
           player.indicator.x = player.x;
-          player.indicator.y = player.y - 32;
+          player.indicator.y = player.y - 28;
         }
       }
     });
@@ -241,120 +261,78 @@ export class PlayerManager {
   }
 
   playWalkAnimation(player, direction) {
-    if (this.isDestroyed || !player || !player.scene || !direction) {
-      return;
-    }
-
-    // Vérifier que le player existe encore dans la scène
-    if (!player.scene.children.exists(player)) {
-      return;
-    }
-
+    if (this.isDestroyed || !player || !player.scene || !direction) return;
+    if (!player.scene.children.exists(player)) return;
     let animKey = '';
-    if (direction === 'left' || direction === 'right') {
+    if (['left', 'right', 'up', 'down'].includes(direction)) {
       animKey = `walk_${direction}`;
     } else {
       animKey = `idle_down`;
     }
-
-    // Vérifier que l'animation existe dans la scène
     if (!player.scene.anims.exists(animKey)) {
-      player.setFrame(4); // Fallback frame idle
+      player.setFrame(0);
       return;
     }
-
     try {
       player.play(animKey, true);
       player.lastDirection = direction;
     } catch (error) {
-      console.warn(`Erreur lors de l'animation ${animKey}:`, error);
-      player.setFrame(4);
+      player.setFrame(0);
     }
   }
 
   playIdleAnimation(player) {
-    if (this.isDestroyed || !player || !player.scene) {
-      return;
-    }
-
-    // Vérifier que le player existe encore dans la scène
-    if (!player.scene.children.exists(player)) {
-      return;
-    }
-
+    if (this.isDestroyed || !player || !player.scene) return;
+    if (!player.scene.children.exists(player)) return;
     try {
       player.stop();
-      player.setFrame(4);
+      // Idle direction
+      const last = player.lastDirection || 'down';
+      const idleKey = `idle_${last}`;
+      if (player.scene.anims.exists(idleKey)) {
+        player.play(idleKey);
+      } else {
+        player.setFrame(0);
+      }
     } catch (error) {
-      console.warn('Erreur lors de l\'animation idle:', error);
+      player.setFrame(0);
     }
   }
 
   removePlayer(sessionId) {
     if (this.isDestroyed) return;
-
     const player = this.players.get(sessionId);
     if (player) {
-      // ✅ AMÉLIORATION : Nettoyage plus robuste
       if (player.indicator) {
-        try {
-          player.indicator.destroy();
-        } catch (e) {
-          console.warn("Erreur destruction indicator:", e);
-        }
+        try { player.indicator.destroy(); } catch (e) {}
       }
-      
       if (player.body && player.body.destroy) {
-        try {
-          player.body.destroy();
-        } catch (e) {
-          console.warn("Erreur destruction body:", e);
-        }
+        try { player.body.destroy(); } catch (e) {}
       }
-      
-      try {
-        player.destroy();
-      } catch (e) {
-        console.warn("Erreur destruction player:", e);
-      }
-      
+      try { player.destroy(); } catch (e) {}
       this.players.delete(sessionId);
-      console.log("👋 Joueur retiré :", sessionId);
     }
   }
 
-  // ✅ MÉTHODE AMÉLIORÉE POUR NETTOYER TOUS LES JOUEURS
   clearAllPlayers() {
     if (this.isDestroyed) return;
-
-    console.log(`🧹 Nettoyage de tous les joueurs (${this.players.size})`);
-    
-    // ✅ MODIFICATION : Nettoyer les timeouts
     if (this.updateTimeout) {
       clearTimeout(this.updateTimeout);
       this.updateTimeout = null;
     }
-
-    // ✅ MODIFICATION : Copie pour éviter les modifications concurrentes
     const playersToRemove = Array.from(this.players.keys());
-    playersToRemove.forEach(sessionId => {
-      this.removePlayer(sessionId);
-    });
-    
+    playersToRemove.forEach(sessionId => this.removePlayer(sessionId));
     this.players.clear();
     this.mySessionId = null;
   }
 
   playPlayerAnimation(sessionId, animationKey) {
     if (this.isDestroyed) return;
-
     const player = this.players.get(sessionId);
     if (player && this.scene.anims.exists(animationKey)) {
       try {
         player.play(animationKey, true);
-      } catch (error) {
-        console.warn(`Erreur animation ${animationKey}:`, error);
-      }
+      } catch (error) {}
     }
   }
 
@@ -368,7 +346,6 @@ export class PlayerManager {
 
   getPlayerInfo(sessionId) {
     if (this.isDestroyed) return null;
-
     const player = this.players.get(sessionId);
     if (player) {
       return {
@@ -382,12 +359,9 @@ export class PlayerManager {
     return null;
   }
 
-  // ✅ NOUVELLE MÉTHODE : Marquer comme détruit
   destroy() {
-    console.log("🧹 PlayerManager - Destruction");
     this.isDestroyed = true;
     this.clearAllPlayers();
-    
     if (this.updateTimeout) {
       clearTimeout(this.updateTimeout);
       this.updateTimeout = null;
