@@ -75,78 +75,78 @@ export class PlayerManager {
   }
 
   createAnimations() {
-    const anims = this.scene.anims;
-    // BAS : frames 0-3
-    if (!anims.exists('walk_down')) {
-      anims.create({
-        key: 'walk_down',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }),
-        frameRate: 8,
-        repeat: -1
-      });
-    }
-    // GAUCHE : frames 4-7
-    if (!anims.exists('walk_left')) {
-      anims.create({
-        key: 'walk_left',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }),
-        frameRate: 8,
-        repeat: -1
-      });
-    }
-    // DROITE : frames 8-11
-    if (!anims.exists('walk_right')) {
-      anims.create({
-        key: 'walk_right',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }),
-        frameRate: 8,
-        repeat: -1
-      });
-    }
-    // HAUT : frames 12-15
-    if (!anims.exists('walk_up')) {
-      anims.create({
-        key: 'walk_up',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 15 }),
-        frameRate: 8,
-        repeat: -1
-      });
-    }
-    // IDLE : première frame de chaque direction
-    if (!anims.exists('idle_down')) {
-      anims.create({
-        key: 'idle_down',
-        frames: [{ key: 'BoyWalk', frame: 0 }],
-        frameRate: 1,
-        repeat: 0
-      });
-    }
-    if (!anims.exists('idle_left')) {
-      anims.create({
-        key: 'idle_left',
-        frames: [{ key: 'BoyWalk', frame: 4 }],
-        frameRate: 1,
-        repeat: 0
-      });
-    }
-    if (!anims.exists('idle_right')) {
-      anims.create({
-        key: 'idle_right',
-        frames: [{ key: 'BoyWalk', frame: 8 }],
-        frameRate: 1,
-        repeat: 0
-      });
-    }
-    if (!anims.exists('idle_up')) {
-      anims.create({
-        key: 'idle_up',
-        frames: [{ key: 'BoyWalk', frame: 12 }],
-        frameRate: 1,
-        repeat: 0
-      });
-    }
-    console.log("🎞️ Animations BoyWalk créées (4x4, bas-gauche-droite-haut)");
+  const anims = this.scene.anims;
+  // HAUT : frames 0-3 (ancienne ligne du bas)
+  if (!anims.exists('walk_up')) {
+    anims.create({
+      key: 'walk_up',
+      frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }),
+      frameRate: 8,
+      repeat: -1
+    });
   }
+  // GAUCHE : frames 4-7
+  if (!anims.exists('walk_left')) {
+    anims.create({
+      key: 'walk_left',
+      frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }),
+      frameRate: 8,
+      repeat: -1
+    });
+  }
+  // DROITE : frames 8-11
+  if (!anims.exists('walk_right')) {
+    anims.create({
+      key: 'walk_right',
+      frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }),
+      frameRate: 8,
+      repeat: -1
+    });
+  }
+  // BAS : frames 12-15 (ancienne ligne du haut)
+  if (!anims.exists('walk_down')) {
+    anims.create({
+      key: 'walk_down',
+      frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 15 }),
+      frameRate: 8,
+      repeat: -1
+    });
+  }
+  // IDLE
+  if (!anims.exists('idle_up')) {
+    anims.create({
+      key: 'idle_up',
+      frames: [{ key: 'BoyWalk', frame: 0 }],
+      frameRate: 1,
+      repeat: 0
+    });
+  }
+  if (!anims.exists('idle_left')) {
+    anims.create({
+      key: 'idle_left',
+      frames: [{ key: 'BoyWalk', frame: 4 }],
+      frameRate: 1,
+      repeat: 0
+    });
+  }
+  if (!anims.exists('idle_right')) {
+    anims.create({
+      key: 'idle_right',
+      frames: [{ key: 'BoyWalk', frame: 8 }],
+      frameRate: 1,
+      repeat: 0
+    });
+  }
+  if (!anims.exists('idle_down')) {
+    anims.create({
+      key: 'idle_down',
+      frames: [{ key: 'BoyWalk', frame: 12 }],
+      frameRate: 1,
+      repeat: 0
+    });
+  }
+  console.log("🎞️ Animations BoyWalk créées (4x4, haut-gauche-droite-bas)");
+}
 
   updatePlayers(state) {
     if (this.isDestroyed) return;
