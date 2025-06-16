@@ -34,8 +34,22 @@ export class BaseZoneScene extends Phaser.Scene {
 
   preloadCommonTilesets() {
     const commonTilesets = [
-      'Greenroot'
-      // Ajoute ici tes tilesets communs
+      'barriers',           // Barrières
+      'bridge_1',          // Ponts
+      'campfire_1',        // Feux de camp
+      'floatingring_1',    // Anneaux flottants
+      'fountain_1',        // Fontaines
+      'grass',             // Herbe
+      'greenroot',         // Tileset principal
+      'labointerior',      // Intérieur labo
+      'labointerior2',     // Intérieur labo 2
+      'laboratory',        // Laboratoire
+      'lavandia',          // Tileset Lavandia
+      'road_1',           // Routes
+      'rockfloating_1',    // Rochers flottants 1
+      'rockfloating_2',    // Rochers flottants 2
+      'rockfloating_3',    // Rochers flottants 3
+      'umbrella',          // Parapluies
     ];
 
     commonTilesets.forEach(tilesetName => {
