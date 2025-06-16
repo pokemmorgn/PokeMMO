@@ -14,35 +14,16 @@ setupZoneTransitions() {
 const worldsLayer = this.map.getObjectLayer(‘Worlds’);
 if (worldsLayer) {
 // Transition de retour vers le village
-const villageExit = worldsLayer.objects.find(obj => obj.name === ‘VillageExit’);
+const villageExit = worldsLayer.objects.find(obj => obj.name === ‘GR’);
 if (villageExit) {
 this.createTransitionZone(villageExit, ‘VillageScene’, ‘south’);
 console.log(`🏘️ Transition vers Village trouvée !`);
+} else {
+console.warn(`⚠️ Objet 'GR' non trouvé dans le layer Worlds`);
+// Debug : Lister tous les objets du layer Worlds
+console.log(“Objets disponibles dans Worlds:”, worldsLayer.objects.map(obj => obj.name));
 }
-
-```
-  // Transition vers le bureau du professeur
-  const professorOffice = worldsLayer.objects.find(obj => obj.name === 'ProfessorOffice');
-  if (professorOffice) {
-    this.createTransitionZone(professorOffice, 'ProfessorOfficeScene', 'north');
-    console.log(`🧑‍🔬 Transition vers Bureau du Professeur trouvée !`);
-  }
-
-  // Transition vers le stockage
-  const labStorage = worldsLayer.objects.find(obj => obj.name === 'LabStorage');
-  if (labStorage) {
-    this.createTransitionZone(labStorage, 'LabStorageScene', 'east');
-    console.log(`📦 Transition vers Stockage trouvée !`);
-  }
-
-  if (!villageExit && !professorOffice && !labStorage) {
-    console.warn(`⚠️ Aucune zone de transition trouvée dans le layer Worlds`);
-    // Debug : Lister tous les objets du layer Worlds
-    console.log("Objets disponibles dans Worlds:", worldsLayer.objects.map(obj => obj.name));
-  }
 }
-```
-
 }
 
 createTransitionZone(transitionObj, targetScene, direction) {
@@ -116,62 +97,21 @@ console.log(“🚨 initData:”, initData);
 ```
 const spawnLayer = this.map.getObjectLayer('SpawnPoint');
 if (spawnLayer) {
-  let spawnPoint = null;
-  
-  // Choisir le bon spawn point selon la zone d'origine
-  if (initData?.fromZone === 'VillageScene') {
-    spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Village');
-    if (spawnPoint) {
-      player.x = spawnPoint.x + spawnPoint.width / 2;
-      player.y = spawnPoint.y + spawnPoint.height / 2;
-      console.log(`🏘️ Joueur positionné au SpawnPoint depuis Village: ${player.x}, ${player.y}`);
-    }
-  } else if (initData?.fromZone === 'ProfessorOfficeScene') {
-    spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Office');
-    if (spawnPoint) {
-      player.x = spawnPoint.x + spawnPoint.width / 2;
-      player.y = spawnPoint.y + spawnPoint.height / 2;
-      console.log(`🧑‍🔬 Joueur positionné depuis Bureau: ${player.x}, ${player.y}`);
-    }
-  } else if (initData?.fromZone === 'LabStorageScene') {
-    spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Storage');
-    if (spawnPoint) {
-      player.x = spawnPoint.x + spawnPoint.width / 2;
-      player.y = spawnPoint.y + spawnPoint.height / 2;
-      console.log(`📦 Joueur positionné depuis Stockage: ${player.x}, ${player.y}`);
-    }
+  const spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Laboratory');
+  if (spawnPoint) {
+    player.x = spawnPoint.x + spawnPoint.width / 2;
+    player.y = spawnPoint.y + spawnPoint.height / 2;
+    console.log(`🧪 Joueur positionné au SpawnPoint_Laboratory: ${player.x}, ${player.y}`);
   } else {
-    // Position par défaut
-    spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Laboratory');
-    if (spawnPoint) {
-      player.x = spawnPoint.x + spawnPoint.width / 2;
-      player.y = spawnPoint.y + spawnPoint.height / 2;
-      console.log(`🧪 Joueur positionné au SpawnPoint_Laboratory: ${player.x}, ${player.y}`);
-    } else {
-      player.x = 300;
-      player.y = 200;
-      console.log(`⚠️ Pas de SpawnPoint_Laboratory trouvé, position par défaut: ${player.x}, ${player.y}`);
-    }
+    player.x = 300;
+    player.y = 200;
+    console.log(`⚠️ Pas de SpawnPoint_Laboratory trouvé, position par défaut: ${player.x}, ${player.y}`);
   }
 } else {
   // Fallback sans layer SpawnPoint
-  if (initData?.fromZone === 'VillageScene') {
-    player.x = 300;
-    player.y = 400;
-    console.log(`🏘️ Pas de SpawnLayer, position depuis Village: ${player.x}, ${player.y}`);
-  } else if (initData?.fromZone === 'ProfessorOfficeScene') {
-    player.x = 150;
-    player.y = 200;
-    console.log(`🧑‍🔬 Pas de SpawnLayer, position depuis Bureau: ${player.x}, ${player.y}`);
-  } else if (initData?.fromZone === 'LabStorageScene') {
-    player.x = 200;
-    player.y = 300;
-    console.log(`📦 Pas de SpawnLayer, position depuis Stockage: ${player.x}, ${player.y}`);
-  } else {
-    player.x = 300;
-    player.y = 200;
-    console.log(`🧪 Pas de SpawnLayer, position par défaut: ${player.x}, ${player.y}`);
-  }
+  player.x = 300;
+  player.y = 200;
+  console.log(`🧪 Pas de SpawnLayer, position par défaut dans le labo: ${player.x}, ${player.y}`);
 }
 
 if (player.indicator) {
