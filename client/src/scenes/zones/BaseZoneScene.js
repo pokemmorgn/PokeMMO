@@ -13,16 +13,13 @@ export class BaseZoneScene extends Phaser.Scene {
     this.mySessionId = null;
     this.loadTimer = null;
     this.animatedObjects = null;
-    this.zoneChangedHandler = null; // Handler changement de zone
-    this.lastMoveTime = 0; // Throttle mouvements
-    this.isTransitioning = false;
+    this.zoneChangedHandler = null; // Référence du handler
+    this.lastMoveTime = 0; // Throttling des mouvements
   }
 
   preload() {
     const ext = 'tmj';
     this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
-    // Précharge les tilesets communs (une seule fois)
-    this.preloadCommonTilesets();
 
     if (!this.textures.exists('dude')) {
       this.load.spritesheet('dude', 'https://labs.phaser.io/assets/sprites/dude.png', {
@@ -32,40 +29,29 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  preloadCommonTilesets() {
-    const commonTilesets = [
-      'greenroot', 'trees', 'buildings', 'nature'
-      // Ajoute ici tes tilesets communs
-    ];
-
-    commonTilesets.forEach(tilesetName => {
-      if (!this.textures.exists(tilesetName)) {
-        console.log(`🎨 Préchargement du tileset commun: ${tilesetName}`);
-        this.load.image(tilesetName, `assets/sprites/${tilesetName}.png`);
-      }
-    });
-  }
-
   create() {
     console.log(`🌍 Creating zone: ${this.scene.key}`);
+    console.log(`📊 Scene data:`, this.scene.settings.data);
+
     this.createPlayerAnimations();
     this.loadMap();
     this.setupManagers();
     this.setupInputs();
     this.createUI();
 
-    // Gestion réseau selon la scène
+    // Gestion réseau simplifiée
     if (this.scene.key === 'BeachScene') {
       this.initializeNetwork();
     } else {
       this.getExistingNetwork();
     }
 
-    // Nettoyage à la fermeture
+    // Nettoyage amélioré
     this.events.on('shutdown', () => {
       console.log(`[${this.scene.key}] Shutdown - nettoyage`);
       this.cleanup();
     });
+    // Événement avant destruction
     this.events.on('destroy', () => {
       console.log(`[${this.scene.key}] Destroy - nettoyage final`);
       this.cleanup();
@@ -73,9 +59,8 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   getExistingNetwork() {
-    // Liste des scènes susceptibles d'avoir le NetworkManager
+    // Liste des scènes qui pourraient avoir le NetworkManager
     const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene'];
-
     for (const sceneName of scenesToCheck) {
       const scene = this.scene.manager.getScene(sceneName);
       if (scene && scene.networkManager) {
@@ -89,7 +74,6 @@ export class BaseZoneScene extends Phaser.Scene {
         return;
       }
     }
-
     console.warn(`[${this.scene.key}] Aucun NetworkManager trouvé, initialisation...`);
     this.initializeNetwork();
   }
@@ -98,7 +82,7 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log('— DEBUT loadMap —');
     this.map = this.make.tilemap({ key: this.mapKey });
 
-    // DEBUG LOGS
+    // DEBUG LOGS : Tilesets & Layers
     console.log("========== [DEBUG] Chargement de la map ==========");
     console.log("Clé de la map (mapKey):", this.mapKey);
     console.log("Tilesets trouvés dans la map:", this.map.tilesets.map(ts => ts.name));
@@ -106,24 +90,21 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log("==============================================");
 
     let needsLoading = false;
-
     this.map.tilesets.forEach(tileset => {
-      const normalizedName = this.normalizeTilesetName(tileset.name);
-
-      if (!this.textures.exists(normalizedName) && !this.textures.exists(tileset.name)) {
-        console.log(`[DEBUG] --> Image du tileset "${normalizedName}" NON trouvée, chargement...`);
-        this.load.image(tileset.name, `assets/sprites/${normalizedName}.png`);
+      console.log(`[DEBUG] Tileset "${tileset.name}"`);
+      if (!this.textures.exists(tileset.name)) {
+        console.log(`[DEBUG] --> Image du tileset "${tileset.name}" NON trouvée, chargement...`);
+        this.load.image(tileset.name, `assets/sprites/${tileset.name}.png`);
         needsLoading = true;
       } else {
-        console.log(`[DEBUG] --> Image du tileset "${normalizedName}" DÉJÀ chargée`);
+        console.log(`[DEBUG] --> Image du tileset "${tileset.name}" DÉJÀ chargée`);
       }
     });
 
     const finishLoad = () => {
       this.phaserTilesets = this.map.tilesets.map(ts => {
-        const normalizedName = this.normalizeTilesetName(ts.name);
-        const textureKey = this.textures.exists(normalizedName) ? normalizedName : ts.name;
-        return this.map.addTilesetImage(ts.name, textureKey);
+        console.log(`[DEBUG] Appel addTilesetImage pour "${ts.name}"`);
+        return this.map.addTilesetImage(ts.name, ts.name);
       });
 
       this.layers = {};
@@ -136,6 +117,7 @@ export class BaseZoneScene extends Phaser.Scene {
       };
 
       this.map.layers.forEach(layerData => {
+        console.log(`[DEBUG] Layer créé: ${layerData.name}`);
         const layer = this.map.createLayer(layerData.name, this.phaserTilesets, 0, 0);
         this.layers[layerData.name] = layer;
         layer.setDepth(depthOrder[layerData.name] ?? 0);
@@ -167,16 +149,6 @@ export class BaseZoneScene extends Phaser.Scene {
     } else {
       finishLoad();
     }
-  }
-
-  // Normalise les noms de tilesets (à adapter si besoin)
-  normalizeTilesetName(tilesetName) {
-    return tilesetName
-      .replace(/_village$/i, '')
-      .replace(/_beach$/i, '')
-      .replace(/_lab$/i, '')
-      .replace(/\d+$/i, '') // retire les numéros
-      .toLowerCase();
   }
 
   setupAnimatedObjects() {
@@ -258,7 +230,7 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   setupZoneTransitions() {
-    // À override dans les sous-classes !
+    // à override dans les sous-classes
   }
 
   positionPlayer(player) {
@@ -312,19 +284,30 @@ export class BaseZoneScene extends Phaser.Scene {
 
       const { lastMap, lastX, lastY } = await fetchLastPosition(identifier);
       const mapName = lastMap.toLowerCase();
+      console.log(`DEBUG lastMap: ${lastMap}, mapName: ${mapName}`);
 
       let roomName = '';
-      switch (mapName) {
-        case 'beach': roomName = 'BeachRoom'; break;
-        case 'village': roomName = 'VillageRoom'; break;
-        case 'villagelab': roomName = 'VillageLabRoom'; break;
-        case 'road1': roomName = 'Road1Room'; break;
-        default: roomName = 'BeachRoom'; console.warn(`lastMap inconnu: ${lastMap}, connexion à BeachRoom par défaut`);
+      switch(mapName) {
+        case 'beach':
+          roomName = 'BeachRoom';
+          break;
+        case 'village':
+          roomName = 'VillageRoom';
+          break;
+        case 'villagelab':
+          roomName = 'VillageLabRoom';
+          break;
+        case 'road1':
+          roomName = 'Road1Room';
+          break;
+        default:
+          roomName = 'BeachRoom';
+          console.warn(`lastMap inconnu: ${lastMap}, connexion à BeachRoom par défaut`);
       }
+      console.log("DEBUG roomName choisi:", roomName);
 
       this.networkManager = new NetworkManager(identifier);
       this.setupNetwork();
-
       this.connectToServer(roomName, { spawnX: lastX, spawnY: lastY, fromZone: 'reload' });
     })();
   }
@@ -426,7 +409,9 @@ export class BaseZoneScene extends Phaser.Scene {
 
       if (data.targetZone && data.targetZone !== this.scene.key) {
         console.log(`[${this.scene.key}] Changement vers ${data.targetZone}`);
+
         this.cleanup();
+
         this.scene.start(data.targetZone, {
           fromZone: this.scene.key,
           fromDirection: data.fromDirection || null,
@@ -474,4 +459,74 @@ export class BaseZoneScene extends Phaser.Scene {
     }
     if (this.cursors.up.isDown || this.wasd.W.isDown) {
       vy = -speed; moved = true; direction = 'up';
-    } else if (this.cursors.down.isDown || this.wasd.S.is
+    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+      vy = speed; moved = true; direction = 'down';
+    }
+
+    myPlayer.body.setVelocity(vx, vy);
+
+    if (moved && direction) {
+      myPlayer.play(`walk_${direction}`, true);
+      this.lastDirection = direction;
+      myPlayer.isMovingLocally = true;
+    } else {
+      myPlayer.play(`idle_${this.lastDirection}`, true);
+      myPlayer.isMovingLocally = false;
+    }
+
+    if (moved) {
+      const now = Date.now();
+      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+        this.networkManager.sendMove(myPlayer.x, myPlayer.y);
+        this.lastMoveTime = now;
+      }
+    }
+  }
+
+    transitionToZone(targetScene, fromDirection = null) {
+    if (this.isTransitioning) {
+      console.log(`[${this.scene.key}] Transition déjà en cours, ignorée`);
+      return;
+    }
+    console.log(`[${this.scene.key}] Début transition vers ${targetScene}`);
+    this.isTransitioning = true;
+
+    this.cleanup();
+
+    this.time.delayedCall(50, () => {
+      console.log(`[${this.scene.key}] Lancement de la nouvelle scène ${targetScene}`);
+      this.scene.start(targetScene, {
+        fromZone: this.scene.key,
+        fromDirection: fromDirection
+      });
+    });
+  }
+
+  cleanup() {
+    console.log(`[${this.scene.key}] Nettoyage en cours...`);
+
+    if (this.networkManager && this.zoneChangedHandler) {
+      this.networkManager.offZoneChanged(this.zoneChangedHandler);
+      this.zoneChangedHandler = null;
+    }
+
+    if (this.playerManager) {
+      this.playerManager.clearAllPlayers();
+    }
+
+    if (this.animatedObjects) {
+      this.animatedObjects.clear(true, true);
+      this.animatedObjects = null;
+    }
+
+    if (this.loadTimer) {
+      this.loadTimer.remove(false);
+      this.loadTimer = null;
+    }
+
+    this.time.removeAllEvents();
+
+    this.cameraFollowing = false;
+    this.isTransitioning = false;
+  }
+}
