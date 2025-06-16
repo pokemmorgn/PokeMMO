@@ -28,11 +28,11 @@ export class LoaderScene extends Phaser.Scene {
     this.load.image('Water_2', 'assets/sprites/Water_2.png');
     this.load.image('Water_3', 'assets/sprites/Water_3.png');
 
-    // ✅ Spritesheet du joueur
-    this.load.spritesheet('dude', 'https://labs.phaser.io/assets/sprites/dude.png', {
-      frameWidth: 32,
-      frameHeight: 48,
-    });
+    // Nouveau (mets la bonne taille, normalement 32x32 !)
+this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
+  frameWidth: 32,
+  frameHeight: 32,
+});
 
     // ✅ Progress events
     this.load.on('progress', (progress) => {
