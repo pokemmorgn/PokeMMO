@@ -33,11 +33,11 @@ export class PlayerManager {
       // Placeholder rouge
       const graphics = this.scene.add.graphics();
       graphics.fillStyle(0xff0000);
-      graphics.fillRect(0, 0, 16, 16);
-      graphics.generateTexture('player_placeholder', 16, 16);
+      graphics.fillRect(0, 0, 16, 32);
+      graphics.generateTexture('player_placeholder', 16, 32);
       graphics.destroy();
       const player = this.scene.add.sprite(x, y, 'player_placeholder').setOrigin(0.5, 1);
-      player.setDepth(5);
+      player.setDepth(1000);
       this.players.set(sessionId, player);
       return player;
     }
@@ -51,8 +51,8 @@ export class PlayerManager {
     // -- SPRITE CREATION --
     const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 0).setOrigin(0.5, 1);
 
-    player.setDepth(5);
-    player.setScale(1);
+    player.setDepth(100);
+    player.setScale(0,5);
     player.body.setSize(player.width, player.height * 0.5);
     player.body.setOffset(0, player.height * 0.5);
 
