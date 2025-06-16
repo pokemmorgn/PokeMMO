@@ -1,4 +1,4 @@
-// src/game/PlayerManager.js - Adapté pour spritesheet 4x4 (ordre bas-gauche-droite-haut)
+// src/game/PlayerManager.js - Spritesheet 4x4 (ordre bas-gauche-droite-haut), 100% Phaser 3 compatible
 
 export class PlayerManager {
   constructor(scene) {
@@ -10,9 +10,7 @@ export class PlayerManager {
     console.log("PlayerManager initialisé pour", scene.scene.key);
   }
 
-  setMySessionId(sessionId) {
-    this.mySessionId = sessionId;
-  }
+  setMySessionId(sessionId) { this.mySessionId = sessionId; }
 
   getMyPlayer() {
     if (this.isDestroyed) return null;
@@ -22,26 +20,15 @@ export class PlayerManager {
   createPlayer(sessionId, x, y) {
     if (this.isDestroyed) return null;
 
-    // Vérifier si la texture du joueur existe
+    // Gestion du placeholder si le spritesheet n'existe pas
     if (!this.scene.textures.exists('BoyWalk')) {
-      console.warn("Texture 'BoyWalk' non trouvée, création d'un placeholder");
-      
-      // Créer un placeholder simple
       const graphics = this.scene.add.graphics();
       graphics.fillStyle(0xff0000);
       graphics.fillRect(0, 0, 32, 32);
       graphics.generateTexture('player_placeholder', 32, 32);
       graphics.destroy();
-      
-      const player = this.scene.add.sprite(x, y, 'player_placeholder')
-        .setOrigin(0.5, 1)
-        .setScale(1)
-        .setDepth(5);
-      
-      player.sessionId = sessionId;
-      player.lastDirection = 'down';
-      player.isMoving = false;
-      
+      const player = this.scene.add.sprite(x, y, 'player_placeholder').setOrigin(0.5, 1).setScale(1);
+      player.setDepth(5);
       this.players.set(sessionId, player);
       return player;
     }
@@ -52,9 +39,7 @@ export class PlayerManager {
       targets: anchor,
       alpha: 0,
       duration: 1500,
-      onComplete: () => {
-        if (anchor && anchor.destroy) anchor.destroy();
-      }
+      onComplete: () => { if (anchor && anchor.destroy) anchor.destroy(); }
     });
 
     // Crée les animations si besoin
@@ -69,11 +54,8 @@ export class PlayerManager {
     player.sessionId = sessionId;
 
     // Hitbox adaptée (pour un sprite 32x32 façon RPG)
-    // Vérifier que le body existe avant de modifier
-    if (player.body) {
-      player.body.setSize(16, 10);
-      player.body.setOffset(8, 22);
-    }
+    player.body.setSize(16, 10);
+    player.body.setOffset(8, 22);
 
     // Animation idle par défaut
     if (this.scene.anims.exists('idle_down')) player.play('idle_down');
@@ -94,18 +76,6 @@ export class PlayerManager {
 
   createAnimations() {
     const anims = this.scene.anims;
-    
-    // Vérifier que la texture existe
-    const texture = this.scene.textures.get('BoyWalk');
-    if (!texture) {
-      console.error("Texture 'BoyWalk' non trouvée!");
-      return;
-    }
-    
-    // Méthode correcte pour obtenir le nombre de frames dans Phaser 3
-    const frames = texture.getFrameNames();
-    console.log(`Texture 'BoyWalk' chargée avec ${frames.length} frames`);
-    
     // BAS : frames 0-3
     if (!anims.exists('walk_down')) {
       anims.create({
@@ -183,26 +153,20 @@ export class PlayerManager {
     if (!this.scene || !this.scene.scene.isActive()) return;
     if (this.scene.networkManager && this.scene.networkManager.isTransitioning) return;
     if (!state || !state.players) return;
-    
-    // Annuler le timeout précédent s'il existe
     if (this.updateTimeout) {
       clearTimeout(this.updateTimeout);
       this.updateTimeout = null;
     }
-    
-    // Effectuer la mise à jour directement ou avec un délai minimal
     this.performUpdate(state);
   }
 
   performUpdate(state) {
     if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
-    
     // Supprimer les joueurs déconnectés
     const currentSessionIds = new Set();
     state.players.forEach((playerState, sessionId) => {
       currentSessionIds.add(sessionId);
     });
-    
     // Créer une copie pour éviter les modifications pendant l'itération
     const playersToCheck = Array.from(this.players.keys());
     playersToCheck.forEach(sessionId => {
@@ -214,9 +178,9 @@ export class PlayerManager {
     // Mettre à jour ou créer les joueurs
     state.players.forEach((playerState, sessionId) => {
       if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
-      
+
       let player = this.players.get(sessionId);
-      
+
       if (!player) {
         // Créer un nouveau joueur
         player = this.createPlayer(sessionId, playerState.x, playerState.y);
@@ -227,49 +191,33 @@ export class PlayerManager {
           player = this.createPlayer(sessionId, playerState.x, playerState.y);
           return;
         }
-        
-        // Mettre à jour la position avec interpolation douce
-        const deltaX = playerState.x - player.x;
-        const deltaY = playerState.y - player.y;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        
-        // Si la distance est trop grande, téléporter directement
-        if (distance > 100) {
-          player.x = playerState.x;
-          player.y = playerState.y;
-        } else {
-          // Interpolation douce pour des mouvements fluides
-          player.x += deltaX * 0.3;
-          player.y += deltaY * 0.3;
-        }
-        
-        // Gérer les animations - IMPORTANT: le serveur n'envoie pas isMoving/direction
-        // On doit détecter le mouvement en comparant les positions
-        const deltaX = playerState.x - player.x;
-        const deltaY = playerState.y - player.y;
-        const isMoving = Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5;
-        
-        // Déterminer la direction basée sur le mouvement
-        let direction = player.lastDirection || 'down';
-        if (isMoving) {
-          if (Math.abs(deltaX) > Math.abs(deltaY)) {
-            direction = deltaX > 0 ? 'right' : 'left';
-          } else {
-            direction = deltaY > 0 ? 'down' : 'up';
+
+        // Mettre à jour la position (tu peux ajouter une interpolation douce ici si besoin)
+        player.x = playerState.x;
+        player.y = playerState.y;
+
+        // Gérer les animations en fonction du mouvement
+        if (playerState.isMoving !== undefined) {
+          player.isMoving = playerState.isMoving;
+
+          if (playerState.direction && playerState.direction !== player.lastDirection) {
+            player.lastDirection = playerState.direction;
+
+            // Jouer l'animation appropriée
+            if (player.isMoving) {
+              const walkAnim = `walk_${playerState.direction}`;
+              if (this.scene.anims.exists(walkAnim) && player.anims.currentAnim?.key !== walkAnim) {
+                player.play(walkAnim);
+              }
+            } else {
+              const idleAnim = `idle_${playerState.direction}`;
+              if (this.scene.anims.exists(idleAnim) && player.anims.currentAnim?.key !== idleAnim) {
+                player.play(idleAnim);
+              }
+            }
           }
         }
-        
-        // Mettre à jour l'animation si nécessaire
-        if (direction !== player.lastDirection || isMoving !== player.isMoving) {
-          player.lastDirection = direction;
-          player.isMoving = isMoving;
-          
-          const animKey = isMoving ? `walk_${direction}` : `idle_${direction}`;
-          if (this.scene.anims.exists(animKey) && player.anims.currentAnim?.key !== animKey) {
-            player.play(animKey);
-          }
-        }
-        
+
         // Indicateur "cercle vert" pour ton joueur : il suit le joueur
         if (player.indicator && !this.isDestroyed) {
           player.indicator.x = player.x;
@@ -287,7 +235,7 @@ export class PlayerManager {
       if (player.anims && player.anims.isPlaying) {
         player.anims.stop();
       }
-      
+
       if (player.indicator) {
         try { player.indicator.destroy(); } catch (e) {}
       }
