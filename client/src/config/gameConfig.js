@@ -11,9 +11,9 @@ export const GAME_CONFIG = {
   antialias: false,
   
 server: {
-  url: "ws://vps-8ca3aa34.vps.ovh.net:2567",
-  roomName: ""  // vide, sera défini dynamiquement
-},
+  url: `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/colyseus`,
+  roomName: ""
+}
   
   // Configuration de la caméra - style top-down RPG
   camera: {
