@@ -21,12 +21,12 @@ export class BaseZoneScene extends Phaser.Scene {
     const ext = 'tmj';
     this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
 
-    if (!this.textures.exists('dude')) {
-      this.load.spritesheet('dude', 'https://labs.phaser.io/assets/sprites/dude.png', {
-        frameWidth: 32,
-        frameHeight: 48,
-      });
-    }
+    if (!this.textures.exists('BoyWalk')) {
+  this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
+    frameWidth: 32,
+    frameHeight: 32,
+  });
+}
   }
 
   create() {
