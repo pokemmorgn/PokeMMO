@@ -261,8 +261,7 @@ export class BaseZoneScene extends Phaser.Scene {
 
 const fetchLastPosition = async (identifier) => {
   try {
-const res = await fetch(`http://vps-8ca3aa34.vps.ovh.net:2567/api/playerData?username=${encodeURIComponent(username)}`);
-    if (res.ok) {
+const res = await fetch(`/api/playerData?username=${encodeURIComponent(username)}`);   if (res.ok) {
       const data = await res.json();
       console.log("DEBUG API response data:", data); // <---- AJOUTE ÇA
       return {
