@@ -41,7 +41,9 @@ export class PlayerManager {
       targets: anchor,
       alpha: 0,
       duration: 1500,
-      yoyo: true
+      onComplete: () => {
+        if (anchor && anchor.destroy) anchor.destroy();
+      }
     });
 
     // Crée les animations si besoin
@@ -78,6 +80,18 @@ export class PlayerManager {
 
   createAnimations() {
     const anims = this.scene.anims;
+    
+    // Vérifier que la texture existe et a les bonnes propriétés
+    const texture = this.scene.textures.get('BoyWalk');
+    if (!texture) {
+      console.error("Texture 'BoyWalk' non trouvée!");
+      return;
+    }
+    
+    const frameData = texture.getFrameData();
+    const totalFrames = frameData.total;
+    console.log(`Texture 'BoyWalk' chargée avec ${totalFrames} frames`);
+    
     // BAS : frames 0-3
     if (!anims.exists('walk_down')) {
       anims.create({
@@ -154,22 +168,30 @@ export class PlayerManager {
     if (this.isDestroyed) return;
     if (!this.scene || !this.scene.scene.isActive()) return;
     if (this.scene.networkManager && this.scene.networkManager.isTransitioning) return;
-    if (!state.players) return;
-    if (this.updateTimeout) clearTimeout(this.updateTimeout);
-    this.updateTimeout = setTimeout(() => {
-      this.performUpdate(state);
-    }, 16);
+    if (!state || !state.players) return;
+    
+    // Annuler le timeout précédent s'il existe
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
+      this.updateTimeout = null;
+    }
+    
+    // Effectuer la mise à jour directement ou avec un délai minimal
+    this.performUpdate(state);
   }
 
   performUpdate(state) {
     if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
+    
     // Supprimer les joueurs déconnectés
     const currentSessionIds = new Set();
     state.players.forEach((playerState, sessionId) => {
       currentSessionIds.add(sessionId);
     });
-    const playersToCheck = new Map(this.players);
-    playersToCheck.forEach((player, sessionId) => {
+    
+    // Créer une copie pour éviter les modifications pendant l'itération
+    const playersToCheck = Array.from(this.players.keys());
+    playersToCheck.forEach(sessionId => {
       if (!currentSessionIds.has(sessionId)) {
         this.removePlayer(sessionId);
       }
@@ -178,17 +200,57 @@ export class PlayerManager {
     // Mettre à jour ou créer les joueurs
     state.players.forEach((playerState, sessionId) => {
       if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
+      
       let player = this.players.get(sessionId);
+      
       if (!player) {
+        // Créer un nouveau joueur
         player = this.createPlayer(sessionId, playerState.x, playerState.y);
       } else {
-        if (!this.scene.children.exists(player)) {
+        // Vérifier que le sprite existe toujours dans la scène
+        if (!player.scene || player.scene !== this.scene) {
           this.players.delete(sessionId);
           player = this.createPlayer(sessionId, playerState.x, playerState.y);
           return;
         }
-        player.x = playerState.x;
-        player.y = playerState.y;
+        
+        // Mettre à jour la position avec interpolation douce
+        const deltaX = playerState.x - player.x;
+        const deltaY = playerState.y - player.y;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        // Si la distance est trop grande, téléporter directement
+        if (distance > 100) {
+          player.x = playerState.x;
+          player.y = playerState.y;
+        } else {
+          // Interpolation douce pour des mouvements fluides
+          player.x += deltaX * 0.3;
+          player.y += deltaY * 0.3;
+        }
+        
+        // Gérer les animations en fonction du mouvement
+        if (playerState.isMoving !== undefined) {
+          player.isMoving = playerState.isMoving;
+          
+          if (playerState.direction && playerState.direction !== player.lastDirection) {
+            player.lastDirection = playerState.direction;
+            
+            // Jouer l'animation appropriée
+            if (player.isMoving) {
+              const walkAnim = `walk_${playerState.direction}`;
+              if (this.scene.anims.exists(walkAnim) && player.anims.currentAnim?.key !== walkAnim) {
+                player.play(walkAnim);
+              }
+            } else {
+              const idleAnim = `idle_${playerState.direction}`;
+              if (this.scene.anims.exists(idleAnim) && player.anims.currentAnim?.key !== idleAnim) {
+                player.play(idleAnim);
+              }
+            }
+          }
+        }
+        
         // Indicateur "cercle vert" pour ton joueur : il suit le joueur
         if (player.indicator && !this.isDestroyed) {
           player.indicator.x = player.x;
@@ -202,6 +264,11 @@ export class PlayerManager {
     if (this.isDestroyed) return;
     const player = this.players.get(sessionId);
     if (player) {
+      // Arrêter les animations
+      if (player.anims && player.anims.isPlaying) {
+        player.anims.stop();
+      }
+      
       if (player.indicator) {
         try { player.indicator.destroy(); } catch (e) {}
       }
@@ -240,7 +307,9 @@ export class PlayerManager {
       return {
         x: player.x,
         y: player.y,
-        isMyPlayer: sessionId === this.mySessionId
+        isMyPlayer: sessionId === this.mySessionId,
+        direction: player.lastDirection,
+        isMoving: player.isMoving
       };
     }
     return null;
