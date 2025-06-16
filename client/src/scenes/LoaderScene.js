@@ -1,4 +1,4 @@
-// src/scenes/LoaderScene.js - Mise à jour pour la nouvelle architecture
+// src/scenes/LoaderScene.js
 
 export class LoaderScene extends Phaser.Scene {
   constructor() {
@@ -11,23 +11,23 @@ export class LoaderScene extends Phaser.Scene {
 
     // Charger toutes les maps d'un coup
     this.load.tilemapTiledJSON('GreenRootBeach', 'assets/maps/GreenRootBeach.tmj');
-    this.load.tilemapTiledJSON('Greenroot', 'assets/maps/Greenroot.tmj'); // Corrigé la casse
+    this.load.tilemapTiledJSON('Greenroot', 'assets/maps/Greenroot.tmj');
+    this.load.tilemapTiledJSON('ProfLaboInt', 'assets/maps/ProfLaboInt.tmj'); // LABO INTERIEUR
 
-    // Charger les tilesets communs
+    // Tilesets communs et labo
     this.load.image('All', 'assets/sprites/All.png');
     this.load.image('Beach', 'assets/sprites/Beach.png');
     this.load.image('AnimatedPalmTree', 'assets/sprites/AnimatedPalmTree.png');
+    this.load.image('LaboInterior1', 'assets/sprites/LaboInterior1.png'); // Ajout
+    this.load.image('LaboInterior2', 'assets/sprites/LaboInterior2.png'); // Ajout
 
-    // Charger le spritesheet du joueur
+    // Spritesheet du joueur
     this.load.spritesheet('dude', 'https://labs.phaser.io/assets/sprites/dude.png', {
       frameWidth: 32,
       frameHeight: 48,
     });
 
-    // Sons d'ambiance (optionnel pour plus tard)
-    // this.load.audio('ocean_waves', 'assets/audio/ocean_waves.ogg');
-    // this.load.audio('village_theme', 'assets/audio/village_theme.ogg');
-
+    // ...progress bar et on('complete') inchangé
     this.load.on('progress', (progress) => {
       if (this.progressBar) {
         this.progressBar.clear();
@@ -39,63 +39,57 @@ export class LoaderScene extends Phaser.Scene {
       }
     });
 
-this.load.on('complete', async () => {
-  console.log('📦 All assets loaded, checking player position...');
+    this.load.on('complete', async () => {
+      console.log('📦 All assets loaded, checking player position...');
 
-  let lastMap = "BeachScene"; // défaut
-  try {
-    const username = window.username;
-const res = await fetch(`/api/playerData?username=${encodeURIComponent(username)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.lastMap) {
-        // Pour éviter toute confusion de casse ou d'ID
-        if (["BeachScene", "VillageScene", "Road1Scene"].includes(data.lastMap)) {
-          lastMap = data.lastMap;
-        } else if (data.lastMap.toLowerCase().includes("beach")) {
-          lastMap = "BeachScene";
-        } else if (data.lastMap.toLowerCase().includes("village")) {
-          lastMap = "VillageScene";
-        } else if (data.lastMap.toLowerCase().includes("road")) {
-          lastMap = "Road1Scene";
+      let lastMap = "BeachScene";
+      try {
+        const username = window.username;
+        const res = await fetch(`/api/playerData?username=${encodeURIComponent(username)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.lastMap) {
+            if (["BeachScene", "VillageScene", "Road1Scene", "VillageLabScene"].includes(data.lastMap)) {
+              lastMap = data.lastMap;
+            } else if (data.lastMap.toLowerCase().includes("beach")) {
+              lastMap = "BeachScene";
+            } else if (data.lastMap.toLowerCase().includes("village") && !data.lastMap.toLowerCase().includes("lab")) {
+              lastMap = "VillageScene";
+            } else if (data.lastMap.toLowerCase().includes("road")) {
+              lastMap = "Road1Scene";
+            } else if (
+              data.lastMap.toLowerCase().includes("labo") ||
+              data.lastMap.toLowerCase().includes("proflabo")
+            ) {
+              lastMap = "VillageLabScene";
+            }
+          }
+          console.log("🌍 Last map from DB:", lastMap);
+        } else {
+          console.warn("❓ API playerData NOK, default to Beach");
         }
+      } catch (e) {
+        console.warn("❌ API playerData error, default to Beach", e);
       }
-      console.log("🌍 Last map from DB:", lastMap);
-    } else {
-      console.warn("❓ API playerData NOK, default to Beach");
-    }
-  } catch (e) {
-    console.warn("❌ API playerData error, default to Beach", e);
-  }
 
-  // Démarre la SCÈNE selon la sauvegarde !
-  this.scene.start(lastMap);
-});
+      this.scene.start(lastMap);
+    });
   }
 
   createLoadingBar() {
-    // Fond de la barre de progression
     this.add.rectangle(400, 290, 320, 40, 0x222222);
-    
-    // Barre de progression
     this.progressBar = this.add.graphics();
-    
-    // Texte de pourcentage
     this.progressText = this.add.text(400, 290, '0%', {
       fontSize: '16px',
       fontFamily: 'monospace',
       color: '#ffffff'
     }).setOrigin(0.5);
-
-    // Titre du jeu
     this.add.text(400, 200, 'PokeWorld MMO', {
       fontSize: '32px',
       fontFamily: 'monospace',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
-
-    // Texte de chargement
     this.add.text(400, 240, 'Loading world...', {
       fontSize: '18px',
       fontFamily: 'monospace',
