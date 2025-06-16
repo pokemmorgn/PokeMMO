@@ -1,4 +1,4 @@
-// src/game/PlayerManager.js - BoyWalk, 32x32, Animations ordonnées (0-4, 5-8, ...)
+// src/game/PlayerManager.js - Adapté pour spritesheet 4x4 (ordre classique Pokémon)
 
 export class PlayerManager {
   constructor(scene) {
@@ -10,27 +10,16 @@ export class PlayerManager {
     console.log("PlayerManager initialisé pour", scene.scene.key);
   }
 
-  setMySessionId(sessionId) {
-    this.mySessionId = sessionId;
-    console.log("Mon sessionId défini :", sessionId);
-  }
+  setMySessionId(sessionId) { this.mySessionId = sessionId; }
 
   getMyPlayer() {
     if (this.isDestroyed) return null;
-    const player = this.players.get(this.mySessionId);
-    return player || null;
+    return this.players.get(this.mySessionId) || null;
   }
 
   createPlayer(sessionId, x, y) {
-    if (this.isDestroyed) {
-      console.warn("PlayerManager détruit, création de joueur ignorée");
-      return null;
-    }
-
-    // -- SPRITESHEET CHECK --
+    if (this.isDestroyed) return null;
     if (!this.scene.textures.exists('BoyWalk')) {
-      console.error("❌ Spritesheet 'BoyWalk' introuvable !");
-      // Placeholder rouge 32x32
       const graphics = this.scene.add.graphics();
       graphics.fillStyle(0xff0000);
       graphics.fillRect(0, 0, 32, 32);
@@ -41,118 +30,92 @@ export class PlayerManager {
       this.players.set(sessionId, player);
       return player;
     }
-
-    // -- CRÉATION DES ANIMATIONS (1x au premier appel) --
-    if (!this.animsCreated) {
-      this.createAnimations();
-      this.animsCreated = true;
-    }
-
-    // -- SPRITE CREATION --
+    if (!this.animsCreated) { this.createAnimations(); this.animsCreated = true; }
     const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 0).setOrigin(0.5, 1).setScale(1);
     player.setDepth(5);
     player.sessionId = sessionId;
-
-    // Hitbox classique pour 32x32
     player.body.setSize(16, 10);
     player.body.setOffset(8, 22);
-
-    // Animation par défaut
-    if (this.scene.anims.exists('idle_down')) {
-      player.play('idle_down');
-    }
+    if (this.scene.anims.exists('idle_down')) player.play('idle_down');
     player.lastDirection = 'down';
     player.isMoving = false;
-
-    // Indicateur pour ton joueur
     if (sessionId === this.mySessionId) {
-      const indicator = this.scene.add.circle(0, -24, 3, 0x00ff00);
-      indicator.setDepth(1001);
-      indicator.setStrokeStyle(1, 0x004400);
+      const indicator = this.scene.add.circle(0, -24, 3, 0x00ff00).setDepth(1001).setStrokeStyle(1, 0x004400);
       player.indicator = indicator;
-      console.log("👤 Mon joueur créé avec spritesheet BoyWalk");
-    } else {
-      console.log("👥 Autre joueur créé :", sessionId);
     }
-
     this.players.set(sessionId, player);
     return player;
   }
 
-  // -- ANIMATIONS BOYWALK : index dans l'ordre demandé --
   createAnimations() {
     const anims = this.scene.anims;
-    // BAS : 0 1 2 3 4
+    // BAS : 0 1 2 3
     if (!anims.exists('walk_down')) {
       anims.create({
         key: 'walk_down',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 4 }),
-        frameRate: 8,
-        repeat: -1
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }),
+        frameRate: 8, repeat: -1
       });
     }
-    // GAUCHE : 5 6 7 8
+    // GAUCHE : 4 5 6 7
     if (!anims.exists('walk_left')) {
       anims.create({
         key: 'walk_left',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 5, end: 8 }),
-        frameRate: 8,
-        repeat: -1
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }),
+        frameRate: 8, repeat: -1
       });
     }
-    // DROITE : 9 10 11 12
+    // DROITE : 8 9 10 11
     if (!anims.exists('walk_right')) {
       anims.create({
         key: 'walk_right',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 9, end: 12 }),
-        frameRate: 8,
-        repeat: -1
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }),
+        frameRate: 8, repeat: -1
       });
     }
-    // HAUT : 13 14 15 16
+    // HAUT : 12 13 14 15
     if (!anims.exists('walk_up')) {
       anims.create({
         key: 'walk_up',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 13, end: 16 }),
-        frameRate: 8,
-        repeat: -1
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 15 }),
+        frameRate: 8, repeat: -1
       });
     }
-    // IDLE = première frame de chaque direction
+    // IDLE
     if (!anims.exists('idle_down')) {
       anims.create({
         key: 'idle_down',
         frames: [{ key: 'BoyWalk', frame: 0 }],
-        frameRate: 1,
-        repeat: 0
+        frameRate: 1, repeat: 0
       });
     }
     if (!anims.exists('idle_left')) {
       anims.create({
         key: 'idle_left',
-        frames: [{ key: 'BoyWalk', frame: 5 }],
-        frameRate: 1,
-        repeat: 0
+        frames: [{ key: 'BoyWalk', frame: 4 }],
+        frameRate: 1, repeat: 0
       });
     }
     if (!anims.exists('idle_right')) {
       anims.create({
         key: 'idle_right',
-        frames: [{ key: 'BoyWalk', frame: 9 }],
-        frameRate: 1,
-        repeat: 0
+        frames: [{ key: 'BoyWalk', frame: 8 }],
+        frameRate: 1, repeat: 0
       });
     }
     if (!anims.exists('idle_up')) {
       anims.create({
         key: 'idle_up',
-        frames: [{ key: 'BoyWalk', frame: 13 }],
-        frameRate: 1,
-        repeat: 0
+        frames: [{ key: 'BoyWalk', frame: 12 }],
+        frameRate: 1, repeat: 0
       });
     }
-    console.log("🎞️ Animations BoyWalk créées (0-4 bas, 5-8 gauche, 9-12 droite, 13-16 haut)");
+    console.log("🎞️ Animations BoyWalk créées (4x4, bas-gauche-droite-haut)");
   }
+
+  // ... reste inchangé ...
+}
+
 
   updatePlayers(state) {
     if (this.isDestroyed) return;
