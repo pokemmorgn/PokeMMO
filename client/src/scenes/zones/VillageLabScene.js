@@ -142,16 +142,15 @@ if (spawnLayer) {
     }
   } else {
     // Position par défaut
-    spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Default') || 
-                spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Village');
+    spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Laboratory');
     if (spawnPoint) {
       player.x = spawnPoint.x + spawnPoint.width / 2;
       player.y = spawnPoint.y + spawnPoint.height / 2;
-      console.log(`🧪 Joueur positionné au SpawnPoint par défaut: ${player.x}, ${player.y}`);
+      console.log(`🧪 Joueur positionné au SpawnPoint_Laboratory: ${player.x}, ${player.y}`);
     } else {
       player.x = 300;
       player.y = 200;
-      console.log(`⚠️ Pas de SpawnPoint trouvé, position par défaut: ${player.x}, ${player.y}`);
+      console.log(`⚠️ Pas de SpawnPoint_Laboratory trouvé, position par défaut: ${player.x}, ${player.y}`);
     }
   }
 } else {
