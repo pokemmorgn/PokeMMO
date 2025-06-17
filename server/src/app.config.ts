@@ -16,6 +16,9 @@ import { AuthRoom } from "./rooms/AuthRoom";
 
 // Managers
 import { MoveManager } from "./managers/MoveManager";
+import { PokemonManager } from "./managers/PokemonManager";
+
+let globalPokemonManager: PokemonManager;
 let globalMoveManager: MoveManager;
 
 export default config({
@@ -84,4 +87,4 @@ export default config({
   }
 });
 
-export { globalMoveManager };
+export { globalMoveManager, globalPokemonManager };
