@@ -1,0 +1,227 @@
+{
+  "hardy": {
+    "name": "Hardy",
+    "increased": null,
+    "decreased": null,
+    "flavor_like": "spicy",
+    "flavor_dislike": "spicy",
+    "description": "A hardy nature.",
+    "personality": "Sturdy body"
+  },
+  "lonely": {
+    "name": "Lonely",
+    "increased": "attack",
+    "decreased": "defense",
+    "flavor_like": "spicy",
+    "flavor_dislike": "sour",
+    "description": "Raises Attack, lowers Defense.",
+    "personality": "Proud of its power"
+  },
+  "brave": {
+    "name": "Brave",
+    "increased": "attack",
+    "decreased": "speed",
+    "flavor_like": "spicy",
+    "flavor_dislike": "sweet",
+    "description": "Raises Attack, lowers Speed.",
+    "personality": "Loves to fight"
+  },
+  "adamant": {
+    "name": "Adamant",
+    "increased": "attack",
+    "decreased": "specialAttack",
+    "flavor_like": "spicy",
+    "flavor_dislike": "dry",
+    "description": "Raises Attack, lowers Special Attack.",
+    "personality": "Loves to thrash about"
+  },
+  "naughty": {
+    "name": "Naughty",
+    "increased": "attack",
+    "decreased": "specialDefense",
+    "flavor_like": "spicy",
+    "flavor_dislike": "bitter",
+    "description": "Raises Attack, lowers Special Defense.",
+    "personality": "Mischievous"
+  },
+  "bold": {
+    "name": "Bold",
+    "increased": "defense",
+    "decreased": "attack",
+    "flavor_like": "sour",
+    "flavor_dislike": "spicy",
+    "description": "Raises Defense, lowers Attack.",
+    "personality": "Impetuous and silly"
+  },
+  "docile": {
+    "name": "Docile",
+    "increased": null,
+    "decreased": null,
+    "flavor_like": "sour",
+    "flavor_dislike": "sour",
+    "description": "A docile nature.",
+    "personality": "Often dozes off"
+  },
+  "relaxed": {
+    "name": "Relaxed",
+    "increased": "defense",
+    "decreased": "speed",
+    "flavor_like": "sour",
+    "flavor_dislike": "sweet",
+    "description": "Raises Defense, lowers Speed.",
+    "personality": "Likes to relax"
+  },
+  "impish": {
+    "name": "Impish",
+    "increased": "defense",
+    "decreased": "specialAttack",
+    "flavor_like": "sour",
+    "flavor_dislike": "dry",
+    "description": "Raises Defense, lowers Special Attack.",
+    "personality": "Somewhat of a clown"
+  },
+  "lax": {
+    "name": "Lax",
+    "increased": "defense",
+    "decreased": "specialDefense",
+    "flavor_like": "sour",
+    "flavor_dislike": "bitter",
+    "description": "Raises Defense, lowers Special Defense.",
+    "personality": "Scatters things often"
+  },
+  "timid": {
+    "name": "Timid",
+    "increased": "speed",
+    "decreased": "attack",
+    "flavor_like": "sweet",
+    "flavor_dislike": "spicy",
+    "description": "Raises Speed, lowers Attack.",
+    "personality": "Often runs away"
+  },
+  "hasty": {
+    "name": "Hasty",
+    "increased": "speed",
+    "decreased": "defense",
+    "flavor_like": "sweet",
+    "flavor_dislike": "sour",
+    "description": "Raises Speed, lowers Defense.",
+    "personality": "Likes to run"
+  },
+  "serious": {
+    "name": "Serious",
+    "increased": null,
+    "decreased": null,
+    "flavor_like": "sweet",
+    "flavor_dislike": "sweet",
+    "description": "A serious nature.",
+    "personality": "Very finicky"
+  },
+  "jolly": {
+    "name": "Jolly",
+    "increased": "speed",
+    "decreased": "specialAttack",
+    "flavor_like": "sweet",
+    "flavor_dislike": "dry",
+    "description": "Raises Speed, lowers Special Attack.",
+    "personality": "Somewhat vain"
+  },
+  "naive": {
+    "name": "Naive",
+    "increased": "speed",
+    "decreased": "specialDefense",
+    "flavor_like": "sweet",
+    "flavor_dislike": "bitter",
+    "description": "Raises Speed, lowers Special Defense.",
+    "personality": "Hates to lose"
+  },
+  "modest": {
+    "name": "Modest",
+    "increased": "specialAttack",
+    "decreased": "attack",
+    "flavor_like": "dry",
+    "flavor_dislike": "spicy",
+    "description": "Raises Special Attack, lowers Attack.",
+    "personality": "Thoroughly cunning"
+  },
+  "mild": {
+    "name": "Mild",
+    "increased": "specialAttack",
+    "decreased": "defense",
+    "flavor_like": "dry",
+    "flavor_dislike": "sour",
+    "description": "Raises Special Attack, lowers Defense.",
+    "personality": "Often lost in thought"
+  },
+  "quiet": {
+    "name": "Quiet",
+    "increased": "specialAttack",
+    "decreased": "speed",
+    "flavor_like": "dry",
+    "flavor_dislike": "sweet",
+    "description": "Raises Special Attack, lowers Speed.",
+    "personality": "Very quiet"
+  },
+  "bashful": {
+    "name": "Bashful",
+    "increased": null,
+    "decreased": null,
+    "flavor_like": "dry",
+    "flavor_dislike": "dry",
+    "description": "A bashful nature.",
+    "personality": "A little quick tempered"
+  },
+  "rash": {
+    "name": "Rash",
+    "increased": "specialAttack",
+    "decreased": "specialDefense",
+    "flavor_like": "dry",
+    "flavor_dislike": "bitter",
+    "description": "Raises Special Attack, lowers Special Defense.",
+    "personality": "Highly persistent"
+  },
+  "calm": {
+    "name": "Calm",
+    "increased": "specialDefense",
+    "decreased": "attack",
+    "flavor_like": "bitter",
+    "flavor_dislike": "spicy",
+    "description": "Raises Special Defense, lowers Attack.",
+    "personality": "Good endurance"
+  },
+  "gentle": {
+    "name": "Gentle",
+    "increased": "specialDefense",
+    "decreased": "defense",
+    "flavor_like": "bitter",
+    "flavor_dislike": "sour",
+    "description": "Raises Special Defense, lowers Defense.",
+    "personality": "Good perseverance"
+  },
+  "sassy": {
+    "name": "Sassy",
+    "increased": "specialDefense",
+    "decreased": "speed",
+    "flavor_like": "bitter",
+    "flavor_dislike": "sweet",
+    "description": "Raises Special Defense, lowers Speed.",
+    "personality": "Somewhat stubborn"
+  },
+  "careful": {
+    "name": "Careful",
+    "increased": "specialDefense",
+    "decreased": "specialAttack",
+    "flavor_like": "bitter",
+    "flavor_dislike": "dry",
+    "description": "Raises Special Defense, lowers Special Attack.",
+    "personality": "Alert to sounds"
+  },
+  "quirky": {
+    "name": "Quirky",
+    "increased": null,
+    "decreased": null,
+    "flavor_like": "bitter",
+    "flavor_dislike": "bitter",
+    "description": "A quirky nature.",
+    "personality": "Highly curious"
+  }
+}
