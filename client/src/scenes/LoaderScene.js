@@ -77,7 +77,7 @@ export class LoaderScene extends Phaser.Scene {
     }
 
     try {
-      const res = await fetch(`https://pokerune.cloud/api/playerData?username=${encodeURIComponent(identifier)}`);
+      const res = await fetch(`/api/playerData?username=${encodeURIComponent(identifier)}`);
       if (res.ok) {
         const data = await res.json();
         const lastMap = data.lastMap || 'Beach';
