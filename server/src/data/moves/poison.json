@@ -1,0 +1,92 @@
+{
+  "poison_sting": {
+    "name": "Poison Sting",
+    "category": "Physical",
+    "power": 15,
+    "accuracy": 100,
+    "pp": 35,
+    "priority": 0,
+    "description": "The user stabs the target with a poisonous stinger. This may also poison the target.",
+    "effects": ["30% chance to poison"]
+  },
+  "smog": {
+    "name": "Smog",
+    "category": "Special",
+    "power": 20,
+    "accuracy": 70,
+    "pp": 20,
+    "priority": 0,
+    "description": "The target is attacked with a discharge of filthy gases. This may also poison the target.",
+    "effects": ["40% chance to poison"]
+  },
+  "sludge": {
+    "name": "Sludge",
+    "category": "Special",
+    "power": 65,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "Unsanitary sludge is hurled at the target. This may also poison the target.",
+    "effects": ["30% chance to poison"]
+  },
+  "pin_missile": {
+    "name": "Pin Missile",
+    "category": "Physical",
+    "power": 14,
+    "accuracy": 85,
+    "pp": 20,
+    "priority": 0,
+    "description": "Sharp spikes are shot at the target in rapid succession. They hit two to five times in a row.",
+    "effects": ["hits 2-5 times"]
+  },
+  "twineedle": {
+    "name": "Twineedle",
+    "category": "Physical",
+    "power": 25,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The user damages the target twice in succession by jabbing it with two spikes. This may also poison the target.",
+    "effects": ["hits twice", "20% chance to poison each hit"]
+  },
+  "toxic": {
+    "name": "Toxic",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 85,
+    "pp": 10,
+    "priority": 0,
+    "description": "A move that leaves the target badly poisoned. Its poison damage worsens every turn.",
+    "effects": ["badly poisons target", "damage increases each turn"]
+  },
+  "poison_gas": {
+    "name": "Poison Gas",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 55,
+    "pp": 40,
+    "priority": 0,
+    "description": "A cloud of poison gas is sprayed in the face of opposing Pokémon, poisoning those it hits.",
+    "effects": ["poisons target"]
+  },
+  "acid": {
+    "name": "Acid",
+    "category": "Special",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The opposing Pokémon are attacked with a spray of harsh acid. This may also lower their Sp. Def stats.",
+    "effects": ["10% chance to lower Special Defense by 1 stage"]
+  },
+  "acid_armor": {
+    "name": "Acid Armor",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 40,
+    "priority": 0,
+    "description": "The user alters its cellular structure to liquefy itself, sharply raising its Defense stat.",
+    "effects": ["raises user's Defense by 2 stages"]
+  }
+}
