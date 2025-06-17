@@ -601,26 +601,36 @@
 
             async connectPhantom() {
                 try {
+                    // CORRECTION: Utiliser la nouvelle API Phantom
+                    if (!window.phantom?.sui) {
+                        throw new Error('Phantom Wallet avec support Sui non détecté');
+                    }
+
                     const suiProvider = window.phantom.sui;
-                    const response = await suiProvider.requestAccount();
                     
+                    // Connexion avec la nouvelle API
+                    const resp = await suiProvider.connect();
+                    console.log('✅ Phantom connecté:', resp);
+
+                    // Récupération de l'adresse depuis la réponse
                     let address = null;
-                    if (response && response.address) {
-                        address = response.address;
-                    } else if (response && typeof response === 'string') {
-                        address = response;
-                    } else if (suiProvider.publicKey) {
-                        address = suiProvider.publicKey.toString();
+                    if (resp.accounts && resp.accounts.length > 0) {
+                        address = resp.accounts[0].address;
+                    } else if (resp.account) {
+                        address = resp.account.address;
+                    } else if (resp.address) {
+                        address = resp.address;
                     }
 
                     if (!address) {
                         throw new Error('Impossible de récupérer l\'adresse du wallet');
                     }
 
-                    console.log('✅ Phantom connecté:', address);
+                    console.log('✅ Adresse récupérée:', address);
                     return { address };
 
                 } catch (error) {
+                    console.error('❌ Erreur connexion Phantom:', error);
                     throw new Error('Échec de la connexion Phantom: ' + error.message);
                 }
             }
@@ -630,13 +640,17 @@
                     this.updateStatus('pending', 'Signature en cours...');
                     document.getElementById('signatureStatus').textContent = 'Demande signature...';
 
-                    const suiProvider = window.phantom.sui;
-                    if (!suiProvider.signMessage) {
-                        throw new Error('Fonction de signature non disponible');
+                    if (!window.phantom?.sui) {
+                        throw new Error('Phantom Wallet non disponible');
                     }
 
+                    const suiProvider = window.phantom.sui;
+                    
+                    // CORRECTION: Format correct pour signMessage selon l'API Phantom Sui
                     const messageBytes = new TextEncoder().encode(message);
-                    const signatureResponse = await suiProvider.signMessage({
+                    
+                    // Nouvelle API Phantom pour Sui
+                    const signatureResponse = await suiProvider.signPersonalMessage({
                         message: messageBytes
                     });
 
@@ -648,6 +662,7 @@
                         throw new Error('Connexion serveur perdue');
                     }
 
+                    // Envoi de la signature au serveur
                     this.authRoom.send('verifyAuth', {
                         walletAddress: this.currentWallet.address,
                         signature: signatureResponse.signature,
@@ -778,7 +793,7 @@
 
             async waitForPhantom(timeout = 10000) {
                 return new Promise((resolve, reject) => {
-                    if (window.phantom) {
+                    if (window.phantom?.sui) {
                         resolve();
                         return;
                     }
@@ -788,10 +803,10 @@
 
                     const checkPhantom = () => {
                         attempts++;
-                        if (window.phantom) {
+                        if (window.phantom?.sui) {
                             resolve();
                         } else if (attempts >= maxAttempts) {
-                            reject(new Error('Phantom Wallet non détecté. Installez l\'extension Phantom.'));
+                            reject(new Error('Phantom Wallet avec support Sui non détecté. Installez l\'extension Phantom et activez Sui.'));
                         } else {
                             setTimeout(checkPhantom, 100);
                         }
