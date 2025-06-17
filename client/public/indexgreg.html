@@ -773,25 +773,26 @@ class PhantomMultiAccountManager {
 
             const address = this.currentAccount.address;
             const message = `PokeWorld Auth ${Date.now()}`;
-            const encodedMessage = new TextEncoder().encode(message);
+            // Signature Phantom Sui, pour AuthRoom
 
-            // Signature via Phantom Sui
-            const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
+const encodedMessage = new TextEncoder().encode(message);
+const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
+let sigBytes = Uint8Array.from(atob(signed.signature), c => c.charCodeAt(0));
 
-            // Convertir signature Uint8Array en base64 pour envoyer au serveur
-            const signatureBase64 = btoa(String.fromCharCode(...signed.signature));
+// --- Correction : enlever le header (1er octet) ---
+sigBytes = sigBytes.slice(1); // Retire le 1er octet
 
-            // Connexion au serveur AuthRoom Colyseus
-            const room = await this.colyseusClient.joinOrCreate("AuthRoom");
+const signatureBase64 = btoa(String.fromCharCode(...sigBytes));
 
-            // Envoyer les données d'authentification
-            room.send("authenticate", {
-                address,
-                signature: signatureBase64,
-                message,
-                walletType: "phantom",
-                timestamp: Date.now()
-            });
+// Ensuite, envoie signatureBase64 au serveur
+room.send("authenticate", {
+    address,
+    signature: signatureBase64,
+    message,
+    walletType: "phantom",
+    timestamp: Date.now()
+});
+
 
             // Écouter les réponses serveur
             room.onMessage("authenticated", (data) => {
