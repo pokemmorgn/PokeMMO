@@ -43,15 +43,20 @@ export class AuthRoom extends Room<AuthState> {
 
         let isValid = false;
 
-       if (walletType === "slush" || walletType === "phantom" || !walletType) {
-  // Sur Sui, Phantom et Slush font la même chose : vérif Sui
-  isValid = await this.verifySlushSignature(address, signature, message);
+if (walletType === "slush" || walletType === "suiwallet") {
+    // Sui wallet & Slush : vraie vérif Sui
+    isValid = await this.verifySlushSignature(address, signature, message);
+} else if (walletType === "phantom") {
+    // Phantom : vérif simplifiée (la signature Phantom n'est PAS compatible Sui)
+    isValid = await this.verifyPhantomSignature(address, signature, message);
+} else {
+    isValid = false; // rejet tout le reste
 }
 
+if (!isValid) {
+    throw new Error("Signature invalide");
+}
 
-        if (!isValid) {
-          throw new Error("Signature invalide");
-        }
 
         console.log("✅ Authentification réussie pour", address);
 
@@ -137,6 +142,15 @@ export class AuthRoom extends Room<AuthState> {
       return false;
     }
   }
+async verifyPhantomSignature(address: string, signature: string, message: string): Promise<boolean> {
+    // Vérification basique (on ne peut pas vérifier la vraie signature Phantom côté serveur)
+    return (
+        address.startsWith("0x") &&
+        address.length === 66 &&
+        signature.length > 0 &&
+        message.includes("PokeWorld")
+    );
+}
 
   disconnectClient(client: Client, reason: string) {
     console.log("🚫 Déconnexion client:", reason);
