@@ -167,7 +167,7 @@ export class BeachScene extends BaseZoneScene {
 
   // --- Intro Bulbizarre animé (starter Pokémon) ---
   startIntroSequence(player) {
-    this.spawnStarterPokemon(player.x + 48, player.y, '001_Bulbasaur', 'left');
+    this.spawnStarterPokemon(player.x + 80, player.y, '001_Bulbasaur', 'left');
   }
 
   spawnStarterPokemon(x, y, pokemonName, direction = "left") {
