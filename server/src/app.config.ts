@@ -27,8 +27,8 @@ export default config({
   options: {
     // Serveur HTTPS sécurisé avec Let's Encrypt
     server: https.createServer({
-      cert: fs.readFileSync('/etc/letsencrypt/live/pokerune.cloud/fullchain.pem'),
-      key: fs.readFileSync('/etc/letsencrypt/live/pokerune.cloud/privkey.pem')
+      key: fs.readFileSync('/home/ubuntu/pokerune_certs/privkey.pem'),
+cert: fs.readFileSync('/home/ubuntu/pokerune_certs/fullchain.pem')
     })
   },
 
