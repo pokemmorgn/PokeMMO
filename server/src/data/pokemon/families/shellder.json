@@ -1,0 +1,213 @@
+{
+  "family": "shellder",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 90,
+      "name": "Shellder",
+      "types": ["Water"],
+      "baseStats": {
+        "hp": 30,
+        "attack": 65,
+        "defense": 100,
+        "specialAttack": 45,
+        "specialDefense": 25,
+        "speed": 40
+      },
+      "abilities": ["shell_armor"],
+      "hiddenAbility": null,
+      "height": 0.3,
+      "weight": 4.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/90.png",
+      "description": "Its hard shell repels any kind of attack. It is vulnerable only when its shell is open.",
+      "category": "Bivalve Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Water_3"],
+      "hatchTime": 5120,
+      "baseExperience": 61,
+      "growthRate": "Slow",
+      "captureRate": 190,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Route 19",
+          "rarity": "Common",
+          "method": "Fishing",
+          "level_range": "10-40",
+          "encounter_rate": "50%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Route 20",
+          "rarity": "Common",
+          "method": "Fishing",
+          "level_range": "10-40",
+          "encounter_rate": "50%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Route 21",
+          "rarity": "Common",
+          "method": "Fishing",
+          "level_range": "10-40",
+          "encounter_rate": "50%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Seafoam Islands",
+          "rarity": "Common",
+          "method": "Fishing",
+          "level_range": "10-40",
+          "encounter_rate": "50%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "withdraw", "level": 1},
+        {"moveId": "supersonic", "level": 9},
+        {"moveId": "clamp", "level": 17},
+        {"moveId": "aurora_beam", "level": 25},
+        {"moveId": "leer", "level": 33},
+        {"moveId": "ice_beam", "level": 41}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 91,
+        "method": "stone",
+        "requirement": "water_stone"
+      }
+    },
+    {
+      "id": 91,
+      "name": "Cloyster",
+      "types": ["Water", "Ice"],
+      "baseStats": {
+        "hp": 50,
+        "attack": 95,
+        "defense": 180,
+        "specialAttack": 85,
+        "specialDefense": 45,
+        "speed": 70
+      },
+      "abilities": ["shell_armor"],
+      "hiddenAbility": null,
+      "height": 1.5,
+      "weight": 132.5,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/91.png",
+      "description": "When attacked, it launches its horns in quick volleys. Its innards have never been seen.",
+      "category": "Bivalve Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Water_3"],
+      "hatchTime": 5120,
+      "baseExperience": 184,
+      "growthRate": "Slow",
+      "captureRate": 60,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Evolution Only",
+          "rarity": "N/A",
+          "method": "Evolution",
+          "level_range": "Any",
+          "encounter_rate": "0%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "withdraw", "level": 1},
+        {"moveId": "supersonic", "level": 1},
+        {"moveId": "clamp", "level": 1},
+        {"moveId": "aurora_beam", "level": 1},
+        {"moveId": "spike_cannon", "level": 1},
+        {"moveId": "leer", "level": 1},
+        {"moveId": "ice_beam", "level": 1}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 90
+      }
+    }
+  ]
+}
