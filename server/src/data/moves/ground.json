@@ -1,0 +1,62 @@
+{
+  "sand_attack": {
+    "name": "Sand Attack",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "Sand is hurled in the target's face, reducing the target's accuracy.",
+    "effects": ["lowers target's accuracy by 1 stage"]
+  },
+  "dig": {
+    "name": "Dig",
+    "category": "Physical",
+    "power": 60,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The user burrows, then attacks on the next turn.",
+    "effects": ["user becomes semi-invulnerable on turn 1", "attacks on turn 2"]
+  },
+  "bone_club": {
+    "name": "Bone Club",
+    "category": "Physical",
+    "power": 65,
+    "accuracy": 85,
+    "pp": 20,
+    "priority": 0,
+    "description": "The user clubs the target with a bone. This may also make the target flinch.",
+    "effects": ["10% chance to flinch"]
+  },
+  "bonemerang": {
+    "name": "Bonemerang",
+    "category": "Physical",
+    "power": 50,
+    "accuracy": 90,
+    "pp": 10,
+    "priority": 0,
+    "description": "The user throws the bone it holds. The bone loops around to hit the target twice—coming and going.",
+    "effects": ["hits twice"]
+  },
+  "earthquake": {
+    "name": "Earthquake",
+    "category": "Physical",
+    "power": 100,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The user sets off an earthquake that strikes every Pokémon around it.",
+    "effects": ["hits all adjacent Pokémon", "double damage if target used Dig"]
+  },
+  "fissure": {
+    "name": "Fissure",
+    "category": "Physical",
+    "power": 0,
+    "accuracy": 30,
+    "pp": 5,
+    "priority": 0,
+    "description": "The user opens up a fissure in the ground and drops the target in. The target faints instantly if this attack hits.",
+    "effects": ["one-hit KO if it hits", "doesn't affect Flying types"]
+  }
+}
