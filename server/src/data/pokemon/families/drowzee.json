@@ -1,0 +1,192 @@
+{
+  "family": "drowzee",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 96,
+      "name": "Drowzee",
+      "types": ["Psychic"],
+      "baseStats": {
+        "hp": 60,
+        "attack": 48,
+        "defense": 45,
+        "specialAttack": 43,
+        "specialDefense": 90,
+        "speed": 42
+      },
+      "abilities": ["insomnia"],
+      "hiddenAbility": null,
+      "height": 1.0,
+      "weight": 32.4,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/96.png",
+      "description": "Puts enemies to sleep then eats their dreams. Occasionally gets sick from eating bad dreams.",
+      "category": "Hypnosis Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Human-Like"],
+      "hatchTime": 5120,
+      "baseExperience": 66,
+      "growthRate": "Medium Fast",
+      "captureRate": 190,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Route 11",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "9-15",
+          "encounter_rate": "35%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Route 12",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "24-28",
+          "encounter_rate": "25%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Cerulean Cave",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "52-56",
+          "encounter_rate": "15%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "pound", "level": 1},
+        {"moveId": "hypnosis", "level": 1},
+        {"moveId": "disable", "level": 7},
+        {"moveId": "confusion", "level": 11},
+        {"moveId": "headbutt", "level": 17},
+        {"moveId": "poison_gas", "level": 21},
+        {"moveId": "psychic", "level": 27},
+        {"moveId": "meditate", "level": 33}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 97,
+        "method": "level",
+        "requirement": 26
+      }
+    },
+    {
+      "id": 97,
+      "name": "Hypno",
+      "types": ["Psychic"],
+      "baseStats": {
+        "hp": 85,
+        "attack": 73,
+        "defense": 70,
+        "specialAttack": 73,
+        "specialDefense": 115,
+        "speed": 67
+      },
+      "abilities": ["insomnia"],
+      "hiddenAbility": null,
+      "height": 1.6,
+      "weight": 75.6,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/97.png",
+      "description": "When it locks eyes with an enemy, it will use a mix of psi moves such as Hypnosis and Confusion.",
+      "category": "Hypnosis Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Human-Like"],
+      "hatchTime": 5120,
+      "baseExperience": 169,
+      "growthRate": "Medium Fast",
+      "captureRate": 75,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Cerulean Cave",
+          "rarity": "Rare",
+          "method": "Wild Encounter",
+          "level_range": "64-67",
+          "encounter_rate": "10%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "pound", "level": 1},
+        {"moveId": "hypnosis", "level": 1},
+        {"moveId": "disable", "level": 1},
+        {"moveId": "confusion", "level": 1},
+        {"moveId": "headbutt", "level": 1},
+        {"moveId": "poison_gas", "level": 1},
+        {"moveId": "psychic", "level": 30},
+        {"moveId": "meditate", "level": 38}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 96
+      }
+    }
+  ]
+}
