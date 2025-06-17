@@ -1,349 +1,159 @@
-// ===============================================
-// VillageLabScene.js - Laboratoire du Professeur avec logique de transition
-// ===============================================
-import { BaseZoneScene } from './BaseZoneScene.js';
+import { Room, Client } from "@colyseus/core";
+import { PokeWorldState, Player } from "../schema/PokeWorldState";
+import { PlayerData } from "../models/PlayerData";
 
-export class VillageLabScene extends BaseZoneScene {
-  constructor() {
-    super('VillageLabScene', 'ProfLaboInt');
-    this.transitionCooldowns = {};
-    this.professorInteracted = false;
-  }
+export class VillageLabRoom extends Room<PokeWorldState> {
+  maxClients = 50;
 
-  setupZoneTransitions() {
-    const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (worldsLayer) {
-      const villageExit = worldsLayer.objects.find(obj => obj.name === 'GR');
-      if (villageExit) {
-        this.createTransitionZone(villageExit, 'VillageScene', 'south');
-        console.log('🏘️ Transition vers Village trouvée !');
-      } else {
-        console.warn('⚠️ Objet "GR" non trouvé dans le layer Worlds');
-        console.log('Objets disponibles dans Worlds:', worldsLayer.objects.map(obj => obj.name));
-      }
-    }
-  }
+  onCreate(options: any): void {
+    this.setState(new PokeWorldState());
 
-  createTransitionZone(transitionObj, targetScene, direction) {
-    const transitionZone = this.add.zone(
-      transitionObj.x + transitionObj.width / 2,
-      transitionObj.y + transitionObj.height / 2,
-      transitionObj.width,
-      transitionObj.height
-    );
+    this.clock.setInterval(() => {
+      this.saveAllPlayers();
+      console.log(`[${new Date().toISOString()}] Sauvegarde automatique de tous les joueurs (VillageLab)`);
+    }, 30000);
 
-    this.physics.world.enable(transitionZone);
-    transitionZone.body.setAllowGravity(false);
-    transitionZone.body.setImmovable(true);
-
-    console.log(`🚪 Zone de transition créée vers ${targetScene} (${direction})`, transitionZone);
-
-    let overlapCreated = false;
-    const checkPlayerInterval = this.time.addEvent({
-      delay: 100,
-      loop: true,
-      callback: () => {
-        const myPlayer = this.playerManager.getMyPlayer();
-        if (myPlayer && !overlapCreated) {
-          overlapCreated = true;
-          this.physics.add.overlap(myPlayer, transitionZone, () => {
-            const cooldownKey = `${targetScene}_${direction}`;
-            if (this.transitionCooldowns[cooldownKey] || this.isTransitioning) return;
-
-            this.transitionCooldowns[cooldownKey] = true;
-            console.log(`[Transition] Demande transition vers ${targetScene} (${direction})`);
-            transitionZone.body.enable = false;
-            this.networkManager.requestZoneTransition(targetScene, direction);
-
-            this.time.delayedCall(3000, () => {
-              delete this.transitionCooldowns[cooldownKey];
-              if (transitionZone.body) transitionZone.body.enable = true;
-            });
-          });
-
-          checkPlayerInterval.remove();
-          console.log(`✅ Overlap créé pour transition vers ${targetScene}`);
-        }
-      }
-    });
-  }
-
-  positionPlayer(player) {
-    const initData = this.scene.settings.data;
-    const spawnLayer = this.map.getObjectLayer('SpawnPoint');
-    if (spawnLayer) {
-      const spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Laboratory');
-      if (spawnPoint) {
-        player.x = spawnPoint.x + spawnPoint.width / 2;
-        player.y = spawnPoint.y + spawnPoint.height / 2;
-        console.log(`🧪 Joueur positionné au SpawnPoint_Laboratory: ${player.x}, ${player.y}`);
-      } else {
-        player.x = 300;
-        player.y = 200;
-      }
-    } else {
-      player.x = 300;
-      player.y = 200;
-    }
-
-    if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-    }
-
-    if (this.networkManager) {
-      this.networkManager.sendMove(player.x, player.y);
-    }
-  }
-
-  create() {
-    console.log('🚨 DEBUT VillageLabScene.create()');
-    super.create();
-
-    this.add
-      .text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "E" to interact', {
-        font: '18px monospace',
-        fill: '#000000',
-        padding: { x: 20, y: 10 },
-        backgroundColor: '#ffffff',
-      })
-      .setScrollFactor(0)
-      .setDepth(30);
-
-    this.setupLabEvents();
-    this.setupNPCs();
-    this.setupInteractiveObjects();
-  }
-
-  setupLabEvents() {
-    this.time.delayedCall(1000, () => {
-      if (this.infoText) {
-        this.infoText.setText('PokeWorld MMO\nLaboratoire Pokémon\nConnected!');
+    this.onMessage("move", (client, data: { x: number; y: number }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (player) {
+        player.x = data.x;
+        player.y = data.y;
       }
     });
 
-    if (this.networkManager?.room) {
-      this.networkManager.room.onMessage('professorDialog', (data) => this.showProfessorDialog(data));
-      this.networkManager.room.onMessage('starterReceived', (data) => this.showStarterReceived(data));
-      this.networkManager.room.onMessage('welcomeToLab', (data) => this.showWelcomeMessage(data));
-    }
-  }
+    this.onMessage("changeZone", async (client: Client, data: { targetZone: string; direction: string }) => {
+      console.log(`[VillageLabRoom] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
 
-  setupNPCs() {
-    const npcLayer = this.map.getObjectLayer('NPCs');
-    if (npcLayer) {
-      npcLayer.objects.forEach(npcObj => this.createNPC(npcObj));
-    }
-  }
+      let spawnX = 300, spawnY = 200;
 
-  setupInteractiveObjects() {
-    const layer = this.map.getObjectLayer('Interactive');
-    if (layer) {
-      layer.objects.forEach(obj => this.createInteractiveObject(obj));
-    }
-
-    this.input.keyboard.on('keydown-E', () => this.handleInteraction());
-  }
-
-  createNPC(npcData) {
-    const npc = this.add.rectangle(
-      npcData.x + npcData.width / 2,
-      npcData.y + npcData.height / 2,
-      npcData.width,
-      npcData.height,
-      npcData.name === 'Professeur' ? 0x2ecc71 : 0x3498db
-    );
-
-    const label = this.add.text(
-      npc.x,
-      npc.y - 30,
-      npcData.name || 'NPC',
-      {
-        fontSize: '12px',
-        fontFamily: 'monospace',
-        color: '#ffffff',
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        padding: { x: 4, y: 2 }
+      switch (data.targetZone) {
+        case 'VillageScene': spawnX = 400; spawnY = 300; break;
+        case 'ProfessorOffice': spawnX = 150; spawnY = 100; break;
+        case 'LabStorage': spawnX = 200; spawnY = 250; break;
       }
-    ).setOrigin(0.5);
 
-    npc.setInteractive();
-    npc.on('pointerdown', () => this.interactWithNPC(npcData.name || 'Assistant'));
+      const player = this.state.players.get(client.sessionId);
+      if (player) {
+        this.state.players.delete(client.sessionId);
+        console.log(`[VillageLabRoom] Joueur ${client.sessionId} supprimé pour transition`);
 
-    npc.npcData = npcData;
-    this.npcs = this.npcs || [];
-    this.npcs.push(npc);
-  }
-
-  createInteractiveObject(objData) {
-    const obj = this.add.rectangle(
-      objData.x + objData.width / 2,
-      objData.y + objData.height / 2,
-      objData.width,
-      objData.height,
-      0xf39c12
-    ).setAlpha(0.5);
-
-    obj.objData = objData;
-    this.interactiveObjects = this.interactiveObjects || [];
-    this.interactiveObjects.push(obj);
-  }
-
-  handleInteraction() {
-    const player = this.playerManager.getMyPlayer();
-    if (!player) return;
-
-    for (const npc of this.npcs || []) {
-      if (Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y) < 50) {
-        this.interactWithNPC(npc.npcData.name);
-        return;
+        await PlayerData.updateOne(
+          { username: player.name },
+          { $set: { lastX: spawnX, lastY: spawnY, lastMap: data.targetZone } }
+        );
+        console.log(`[VillageLabRoom] Sauvegarde position et map (${spawnX}, ${spawnY}) dans ${data.targetZone} pour ${player.name}`);
       }
-    }
 
-    for (const obj of this.interactiveObjects || []) {
-      if (Phaser.Math.Distance.Between(player.x, player.y, obj.x, obj.y) < 50) {
-        this.interactWithObject(obj.objData.name);
-        return;
-      }
-    }
-  }
+      client.send("zoneChanged", {
+        targetZone: data.targetZone,
+        fromZone: "VillageLabScene",
+        direction: data.direction,
+        spawnX,
+        spawnY,
+      });
 
-  interactWithNPC(npcName) {
-    if (npcName === 'Professeur') {
-      this.networkManager?.room?.send('interactWithProfessor', {});
-    } else {
-      const messages = {
-        Assistant: 'Je m\'occupe de l\'entretien du laboratoire.',
-        Chercheur: 'Nous étudions les Pokémon ici. Fascinant !',
-        Stagiaire: 'J\'apprends encore... C\'est compliqué !',
-      };
-      this.showSimpleDialog(npcName, messages[npcName] || 'Bonjour ! Je travaille ici.');
-    }
-  }
+      console.log(`[VillageLabRoom] Transition envoyée: ${data.targetZone} à (${spawnX}, ${spawnY})`);
+    });
 
-  interactWithObject(objName) {
-    const messages = {
-      Ordinateur: 'L\'ordinateur affiche des données sur les Pokémon.',
-      Machine: 'Cette machine analyse les Pokéball.',
-      Bibliothèque: 'Des livres sur les Pokémon... Très instructif !',
-      Microscope: 'Un microscope high-tech pour étudier l\'ADN Pokémon.',
-    };
-    this.showSimpleDialog('Système', messages[objName] || 'Vous examinez l\'objet.');
-  }
+    this.onMessage("interactWithProfessor", (client: Client) => {
+      console.log(`[VillageLabRoom] ${client.sessionId} interagit avec le professeur`);
+      client.send("professorDialog", {
+        message: "Bonjour ! Bienvenue dans mon laboratoire !",
+        options: ["Recevoir un Pokémon", "Informations", "Fermer"],
+      });
+    });
 
-  showProfessorDialog(data) {
-    const dialogBg = this.add.rectangle(this.cameras.main.centerX, this.cameras.main.centerY, 400, 200, 0x000000, 0.8)
-      .setScrollFactor(0)
-      .setDepth(2000);
-
-    const dialogText = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY - 50, `Professeur: "${data.message}"`, {
-      fontSize: '16px',
-      fontFamily: 'monospace',
-      color: '#ffffff',
-      wordWrap: { width: 350 }
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
-
-    if (data.options) {
-      data.options.forEach((option, i) => {
-        const btn = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY + 20 + i * 30, `${i + 1}. ${option}`, {
-          fontSize: '14px',
-          fontFamily: 'monospace',
-          color: '#00ff00',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          padding: { x: 8, y: 4 }
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
-
-        btn.setInteractive();
-        btn.on('pointerdown', () => {
-          this.handleProfessorChoice(option);
-          dialogBg.destroy();
-          dialogText.destroy();
-          btn.destroy();
+    this.onMessage("selectStarter", async (client: Client, data: { pokemon: string }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (player) {
+        console.log(`[VillageLabRoom] ${player.name} sélectionne ${data.pokemon} comme starter`);
+        client.send("starterReceived", {
+          pokemon: data.pokemon,
+          message: `Félicitations ! Vous avez reçu ${data.pokemon} !`,
         });
+      }
+    });
+
+    console.log("[VillageLabRoom] Room créée :", this.roomId);
+  }
+
+  async saveAllPlayers(): Promise<void> {
+    try {
+      for (const [_, player] of this.state.players.entries()) {
+        await PlayerData.updateOne(
+          { username: player.name },
+          { $set: { lastX: player.x, lastY: player.y, lastMap: "VillageLabScene" } }
+        );
+      }
+      console.log(`[VillageLabRoom] Sauvegarde automatique : ${this.state.players.size} joueurs`);
+    } catch (error) {
+      console.error("[VillageLabRoom] Erreur sauvegarde automatique:", error);
+    }
+  }
+
+  async onJoin(client: Client, options: any): Promise<void> {
+    const username = options.username || "Anonymous";
+
+    const existingPlayer = Array.from(this.state.players.values() as Iterable<Player>)
+      .find(p => p.name === username);
+
+    if (existingPlayer) {
+      const oldSessionId = Array.from(this.state.players.entries() as Iterable<[string, Player]>)
+        .find(([_, p]) => p.name === username)?.[0];
+
+      if (oldSessionId) {
+        this.state.players.delete(oldSessionId);
+        console.log(`[VillageLabRoom] Ancien joueur ${username} supprimé (sessionId: ${oldSessionId})`);
+      }
+    }
+
+    let playerData = await PlayerData.findOne({ username });
+    if (!playerData) {
+      playerData = await PlayerData.create({
+        username,
+        lastX: 300,
+        lastY: 200,
+        lastMap: "VillageLabScene"
       });
     }
 
-    this.time.delayedCall(10000, () => {
-      dialogBg?.destroy();
-      dialogText?.destroy();
+    const player = new Player();
+    player.name = username;
+
+    if (options.spawnX !== undefined && options.spawnY !== undefined) {
+      player.x = options.spawnX;
+      player.y = options.spawnY;
+      console.log(`[VillageLabRoom] ${username} spawn à (${options.spawnX}, ${options.spawnY}) depuis ${options.fromZone}`);
+    } else {
+      player.x = playerData.lastX;
+      player.y = playerData.lastY;
+      console.log(`[VillageLabRoom] ${username} spawn à position sauvée (${player.x}, ${player.y})`);
+    }
+
+    player.map = "VillageLabScene";
+    this.state.players.set(client.sessionId, player);
+    console.log(`[VillageLabRoom] ${username} est entré dans le laboratoire avec sessionId: ${client.sessionId}`);
+
+    client.send("welcomeToLab", {
+      message: "Bienvenue dans le laboratoire du Professeur !",
+      canReceiveStarter: true
     });
   }
 
-  handleProfessorChoice(choice) {
-    if (choice === 'Recevoir un Pokémon') {
-      this.showStarterSelection();
-    } else if (choice === 'Informations') {
-      this.showSimpleDialog('Professeur', 'Je donne leur premier Pokémon aux nouveaux dresseurs !');
+  async onLeave(client: Client): Promise<void> {
+    const player = this.state.players.get(client.sessionId);
+    if (player) {
+      await PlayerData.updateOne(
+        { username: player.name },
+        { $set: { lastX: player.x, lastY: player.y, lastMap: "VillageLabScene" } }
+      );
+      console.log(`[VillageLabRoom] ${player.name} a quitté le laboratoire (sauvé à ${player.x}, ${player.y} sur VillageLabScene)`);
+      this.state.players.delete(client.sessionId);
     }
   }
 
-  showStarterSelection() {
-    const starters = ['Bulbasaur', 'Charmander', 'Squirtle'];
-    const bg = this.add.rectangle(this.cameras.main.centerX, this.cameras.main.centerY, 500, 250, 0x0066cc, 0.9)
-      .setScrollFactor(0)
-      .setDepth(2000);
-
-    this.add.text(this.cameras.main.centerX, this.cameras.main.centerY - 80, 'Choisissez votre Pokémon de départ:', {
-      fontSize: '18px',
-      fontFamily: 'monospace',
-      color: '#ffffff',
-      align: 'center'
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
-
-    starters.forEach((pokemon, i) => {
-      const btn = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY - 20 + i * 40, pokemon, {
-        fontSize: '16px',
-        fontFamily: 'monospace',
-        color: '#ffffff',
-        backgroundColor: 'rgba(0, 200, 0, 0.8)',
-        padding: { x: 15, y: 8 }
-      }).setOrigin(0.5).setScrollFactor(0).setDepth(2001);
-
-      btn.setInteractive();
-      btn.on('pointerdown', () => {
-        this.networkManager?.room?.send('selectStarter', { pokemon });
-        bg.destroy();
-        btn.destroy();
-      });
-    });
-  }
-
-  showStarterReceived(data) {
-    const msg = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY, data.message, {
-      fontSize: '20px',
-      fontFamily: 'monospace',
-      color: '#ffff00',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      padding: { x: 20, y: 15 },
-      align: 'center'
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
-
-    this.time.delayedCall(4000, () => msg.destroy());
-  }
-
-  showWelcomeMessage(data) {
-    if (data.message) {
-      this.showSimpleDialog('Laboratoire', data.message);
-    }
-  }
-
-  showSimpleDialog(speaker, message) {
-    const dialog = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY + 100, `${speaker}: "${message}"`, {
-      fontSize: '14px',
-      fontFamily: 'monospace',
-      color: '#ffffff',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      padding: { x: 10, y: 8 },
-      wordWrap: { width: 350 }
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
-
-    this.time.delayedCall(3000, () => dialog.destroy());
-  }
-
-  cleanup() {
-    this.transitionCooldowns = {};
-    this.npcs = [];
-    this.interactiveObjects = [];
-    super.cleanup();
+  onDispose(): void {
+    console.log("[VillageLabRoom] Room fermée :", this.roomId);
+    this.saveAllPlayers();
   }
 }
