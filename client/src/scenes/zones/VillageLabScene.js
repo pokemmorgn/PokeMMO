@@ -2,7 +2,7 @@
 // VillageLabScene.js - Laboratoire du Professeur avec logique de transition
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
-import { CameraManager } from '../../camera/CameraManager.js';
+
 
 export class VillageLabScene extends BaseZoneScene {
   constructor() {
@@ -341,68 +341,7 @@ export class VillageLabScene extends BaseZoneScene {
     this.time.delayedCall(3000, () => dialog.destroy());
   }
 
-  // --- Surcharge setupScene pour limiter caméra au labo ---
-  setupScene() {
-    console.log('— DEBUT setupScene (VillageLabScene) —');
-
-    const labWidth = 192;
-    const labHeight = 320;
-
-    this.cameras.main.setBounds(0, 0, labWidth, labHeight);
-
-    const baseWidth = this.scale.width;
-    const baseHeight = this.scale.height;
-
-    const zoomX = baseWidth / labWidth;
-    const zoomY = baseHeight / labHeight;
-    const zoom = Math.min(zoomX, zoomY);
-
-    this.cameras.main.setZoom(zoom);
-    this.cameras.main.setBackgroundColor('#2d5a3d');
-    this.cameras.main.setRoundPixels(true);
-
-    this.cameraManager = new CameraManager(this);
-
-    let retry = 0;
-    const MAX_RETRY = 60;
-
-    if (this.loadTimer) {
-      this.loadTimer.remove(false);
-      this.loadTimer = null;
-    }
-
-    this.loadTimer = this.time.addEvent({
-      delay: 100,
-      loop: true,
-      callback: () => {
-        const myPlayer = this.playerManager?.getMyPlayer();
-        if (myPlayer) {
-          myPlayer.setDepth(3.5);
-
-          this.positionPlayer(myPlayer);
-
-          if (this.worldLayer) {
-            this.physics.add.collider(myPlayer, this.worldLayer);
-          }
-
-          this.cameraManager.followPlayer(myPlayer);
-          this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
-          this.cameraFollowing = true;
-
-          this.loadTimer.remove();
-          this.loadTimer = null;
-          console.log('--- FIN setupScene (VillageLabScene) ---');
-        } else {
-          retry++;
-          if (retry > MAX_RETRY) {
-            this.loadTimer.remove();
-            this.loadTimer = null;
-            alert("Erreur : joueur non synchronisé. Recharge la page !");
-          }
-        }
-      }
-    });
-  }
+  
 
   cleanup() {
     this.transitionCooldowns = {};
