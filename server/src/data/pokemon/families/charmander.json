@@ -1,0 +1,147 @@
+{
+  "family": "charmander",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 4,
+      "name": "Charmander",
+      "types": ["Fire"],
+      "baseStats": {
+        "hp": 39,
+        "attack": 52,
+        "defense": 43,
+        "specialAttack": 60,
+        "specialDefense": 50,
+        "speed": 65
+      },
+      "abilities": ["blaze"],
+      "hiddenAbility": "solar_power",
+      "height": 0.6,
+      "weight": 8.5,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png",
+      "description": "Obviously prefers hot places. When it rains, steam is said to spout from the tip of its tail.",
+      "category": "Lizard Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Monster", "Dragon"],
+      "hatchTime": 5120,
+      "baseExperience": 62,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "learnset": [
+        {"moveId": "scratch", "level": 1},
+        {"moveId": "growl", "level": 1},
+        {"moveId": "ember", "level": 7},
+        {"moveId": "smokescreen", "level": 13},
+        {"moveId": "dragon_rage", "level": 19},
+        {"moveId": "scary_face", "level": 25},
+        {"moveId": "flamethrower", "level": 31},
+        {"moveId": "slash", "level": 37},
+        {"moveId": "fire_spin", "level": 43}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 5,
+        "method": "level",
+        "requirement": 16
+      }
+    },
+    {
+      "id": 5,
+      "name": "Charmeleon",
+      "types": ["Fire"],
+      "baseStats": {
+        "hp": 58,
+        "attack": 64,
+        "defense": 58,
+        "specialAttack": 80,
+        "specialDefense": 65,
+        "speed": 80
+      },
+      "abilities": ["blaze"],
+      "hiddenAbility": "solar_power",
+      "height": 1.1,
+      "weight": 19.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/5.png",
+      "description": "When it swings its burning tail, it elevates the temperature to unbearably hot levels.",
+      "category": "Flame Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Monster", "Dragon"],
+      "hatchTime": 5120,
+      "baseExperience": 142,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "learnset": [
+        {"moveId": "scratch", "level": 1},
+        {"moveId": "growl", "level": 1},
+        {"moveId": "ember", "level": 1},
+        {"moveId": "smokescreen", "level": 1},
+        {"moveId": "dragon_rage", "level": 20},
+        {"moveId": "scary_face", "level": 27},
+        {"moveId": "flamethrower", "level": 34},
+        {"moveId": "slash", "level": 41},
+        {"moveId": "fire_spin", "level": 48}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 6,
+        "method": "level",
+        "requirement": 36,
+        "evolvesFrom": 4
+      }
+    },
+    {
+      "id": 6,
+      "name": "Charizard",
+      "types": ["Fire", "Flying"],
+      "baseStats": {
+        "hp": 78,
+        "attack": 84,
+        "defense": 78,
+        "specialAttack": 109,
+        "specialDefense": 85,
+        "speed": 100
+      },
+      "abilities": ["blaze"],
+      "hiddenAbility": "solar_power",
+      "height": 1.7,
+      "weight": 90.5,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/6.png",
+      "description": "Spits fire that is hot enough to melt boulders. Known to cause forest fires unintentionally.",
+      "category": "Flame Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Monster", "Dragon"],
+      "hatchTime": 5120,
+      "baseExperience": 267,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "learnset": [
+        {"moveId": "scratch", "level": 1},
+        {"moveId": "growl", "level": 1},
+        {"moveId": "ember", "level": 1},
+        {"moveId": "smokescreen", "level": 1},
+        {"moveId": "wing_attack", "level": 1},
+        {"moveId": "dragon_rage", "level": 20},
+        {"moveId": "scary_face", "level": 27},
+        {"moveId": "flamethrower", "level": 34},
+        {"moveId": "slash", "level": 41},
+        {"moveId": "fire_spin", "level": 48}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 5
+      }
+    }
+  ]
+}
