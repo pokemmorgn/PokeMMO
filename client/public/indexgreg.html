@@ -478,7 +478,7 @@
                             });
 
                             // 3. Connexion Colyseus AuthRoom (WebSocket)
-                            const client = new Colyseus.Client("wss://tonserveur:2567"); // <-- Modifie l'URL selon ton endpoint
+                            const client = new Colyseus.Client("wss://pokerune.cloud/api"); // <-- Modifie l'URL selon ton endpoint
                             const room = await client.joinOrCreate("AuthRoom");
 
                             // 4. Envoyer la preuve d'authentification
