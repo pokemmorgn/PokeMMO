@@ -1,0 +1,213 @@
+{
+  "family": "meowth",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 52,
+      "name": "Meowth",
+      "types": ["Normal"],
+      "baseStats": {
+        "hp": 40,
+        "attack": 45,
+        "defense": 35,
+        "specialAttack": 40,
+        "specialDefense": 40,
+        "speed": 90
+      },
+      "abilities": ["pickup"],
+      "hiddenAbility": null,
+      "height": 0.4,
+      "weight": 4.2,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/52.png",
+      "description": "Adores circular objects. Wanders the streets on a nightly basis to look for dropped loose change.",
+      "category": "Scratch Cat Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Field"],
+      "hatchTime": 5120,
+      "baseExperience": 58,
+      "growthRate": "Medium Fast",
+      "captureRate": 255,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Route 5",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "10-16",
+          "encounter_rate": "30%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Route 6",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "10-16",
+          "encounter_rate": "30%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Route 7",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "19-22",
+          "encounter_rate": "25%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Route 8",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "18-20",
+          "encounter_rate": "25%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "scratch", "level": 1},
+        {"moveId": "growl", "level": 1},
+        {"moveId": "bite", "level": 12},
+        {"moveId": "pay_day", "level": 17},
+        {"moveId": "screech", "level": 24},
+        {"moveId": "fury_swipes", "level": 33},
+        {"moveId": "slash", "level": 44}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 53,
+        "method": "level",
+        "requirement": 28
+      }
+    },
+    {
+      "id": 53,
+      "name": "Persian",
+      "types": ["Normal"],
+      "baseStats": {
+        "hp": 65,
+        "attack": 70,
+        "defense": 60,
+        "specialAttack": 65,
+        "specialDefense": 65,
+        "speed": 115
+      },
+      "abilities": ["limber"],
+      "hiddenAbility": null,
+      "height": 1.0,
+      "weight": 32.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/53.png",
+      "description": "Although its fur has many admirers, it is tough to raise as a pet because of its fickle meanness.",
+      "category": "Classy Cat Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Field"],
+      "hatchTime": 5120,
+      "baseExperience": 154,
+      "growthRate": "Medium Fast",
+      "captureRate": 90,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Cerulean Cave",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "52-56",
+          "encounter_rate": "20%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "scratch", "level": 1},
+        {"moveId": "growl", "level": 1},
+        {"moveId": "bite", "level": 1},
+        {"moveId": "pay_day", "level": 1},
+        {"moveId": "screech", "level": 1},
+        {"moveId": "fury_swipes", "level": 37},
+        {"moveId": "slash", "level": 51}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 52
+      }
+    }
+  ]
+}
