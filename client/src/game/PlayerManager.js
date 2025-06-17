@@ -181,9 +181,10 @@ player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
           return;
         }
 
-        // Mettre à jour la position
-        player.x = playerState.x;
-        player.y = playerState.y;
+        const lerpFactor = 0.2; // Ajuste entre 0.1 (plus lent) et 0.5 (plus rapide)
+
+player.x += (playerState.x - player.x) * lerpFactor;
+player.y += (playerState.y - player.y) * lerpFactor;
 
         // Gérer les animations en fonction du mouvement
         if (playerState.isMoving !== undefined) {
