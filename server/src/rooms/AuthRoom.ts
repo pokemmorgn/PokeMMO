@@ -81,31 +81,7 @@ export class AuthRoom extends Room<AuthState> {
     });
   }
 
-  async verifyAlternativeAuth(address: string, signature: string, message: string): Promise<boolean> {
-  try {
-    const messageBytes = new TextEncoder().encode(message);
-    
-    // Signature reçue en base64, on la convertit en Uint8Array
-    const signatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
-    
-    // Utilise verifyPersonalMessage pour vérifier la signature
-    const publicKey = await verifyPersonalMessage(messageBytes, signatureBytes);
-    
-    if (!publicKey) return false;
-
-    // Compare l'adresse dérivée à l'adresse fournie
-    const derivedAddress = publicKey.toSuiAddress?.();
-    if (derivedAddress !== address) {
-      console.warn("Adresse dérivée ne correspond pas à l'adresse fournie");
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Erreur vérification alternative:", error);
-    return false;
-  }
-}
+ 
 
 
   async manualSuiVerification(address: string, signature: string, message: string): Promise<boolean> {
