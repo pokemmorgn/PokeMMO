@@ -459,25 +459,56 @@
 
             }
 
-initializeEventListeners() {
-    this.connectBtn.addEventListener('click', () => this.handleConnectionToggle());
-    this.refreshBtn.addEventListener('click', () => this.refreshAccounts());
-    
-    // Event JOUER
-this.playGameBtn.addEventListener('click', () => {
-    if (this.currentAccount && this.currentAccount.address) {
-        // Tu peux aussi passer l'adresse en paramètre si besoin :
-        // location.href = "index.html?wallet=" + encodeURIComponent(this.currentAccount.address);
+            initializeEventListeners() {
+                this.connectBtn.addEventListener('click', () => this.handleConnectionToggle());
+                this.refreshBtn.addEventListener('click', () => this.refreshAccounts());
 
-        // Si tu veux juste aller sur index.html sans rien transmettre :
-location.href = "index.html?wallet=" + encodeURIComponent(this.currentAccount.address);
-    } else {
-        alert("Connecte ton wallet pour jouer.");
-    }
-});
+                // JOUER : signature Sui puis connexion AuthRoom Colyseus
+                this.playGameBtn.addEventListener('click', async () => {
+                    if (this.currentAccount && this.currentAccount.address) {
+                        try {
+                            // 1. Préparer le message à signer (simple ou timestampé)
+                            const message = `Connexion à PokeWorld: ${Date.now()}`;
+                            const msgBytes = new TextEncoder().encode(message);
 
-    // Écouter les changements de compte dans Phantom
-    this.setupPhantomListeners();
+                            // 2. Demander signature Sui
+                            const suiProvider = window.phantom.sui;
+                            const { signature } = await suiProvider.signMessage({
+                                message: msgBytes,
+                            });
+
+                            // 3. Connexion Colyseus AuthRoom (WebSocket)
+                            const client = new Colyseus.Client("wss://tonserveur:2567"); // <-- Modifie l'URL selon ton endpoint
+                            const room = await client.joinOrCreate("AuthRoom");
+
+                            // 4. Envoyer la preuve d'authentification
+                            room.send("authenticate", {
+                                address: this.currentAccount.address,
+                                signature: signature, // Ed25519/base64
+                                message: message
+                            });
+
+                            // 5. Attendre validation serveur
+                            room.onMessage((msg) => {
+                                if (msg.status === "ok") {
+                                    // Authentifié ! Redirige ou continue le jeu ici.
+                                    alert("Authentification réussie ! Adresse : " + msg.address);
+                                    // location.href = "index.html?wallet=" + encodeURIComponent(this.currentAccount.address);
+                                } else {
+                                    alert(msg.reason || "Erreur d'authentification.");
+                                }
+                            });
+
+                        } catch (err) {
+                            alert("Erreur d'authentification SUI: " + (err.message || err));
+                        }
+                    } else {
+                        alert("Connecte ton wallet pour jouer.");
+                    }
+                });
+
+                // Écouter les changements de compte dans Phantom
+                this.setupPhantomListeners();
 }
 
             async setupPhantomListeners() {
