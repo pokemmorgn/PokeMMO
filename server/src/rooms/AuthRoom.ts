@@ -97,45 +97,31 @@ export class AuthRoom extends Room<AuthState> {
 
   async verifySlushSignature(address: string, signature: string, message: string): Promise<boolean> {
   try {
-    console.log("🔍 Vérification signature Slush");
-
-    // Encoder le message en Uint8Array (ok)
     const messageBytes = new TextEncoder().encode(message);
+    const signatureBytes = Uint8Array.from(Buffer.from(signature, 'base64'));
+    const publicKey = await verifyPersonalMessage(messageBytes, signatureBytes);
 
-    // La signature reste en base64 (chaîne) pour verifyPersonalMessage
-    // On ne la convertit pas en Uint8Array
-    // const signatureBytes = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0)); // A retirer
+    const isValid = publicKey != null;
 
-   // Ne pas passer 'address' en 3e argument, car ce n'est pas prévu
-const publicKey = await verifyPersonalMessage(messageBytes, signature);
+    if (isValid) {
+      const derivedAddress = publicKey.toSuiAddress?.();
+      if (derivedAddress.toLowerCase() !== address.toLowerCase()) {
+        console.warn("Adresse dérivée ne correspond pas à l'adresse fournie");
+        return false;
+      }
+    }
 
-// Vérifie si la signature est valide (publicKey non null)
-const isValid = publicKey != null;
-
-// Si besoin, vérifie que la clé publique correspond à l'adresse attendue (fonction à écrire)
-if (isValid) {
-  const derivedAddress = publicKey.toSuiAddress?.(); // si méthode dispo, sinon adapter
-  if (derivedAddress !== address) {
-    console.warn("Adresse dérivée ne correspond pas à l'adresse fournie");
-    return false;
-  }
-}
-
-console.log("🔍 Résultat vérification:", isValid);
-return isValid;
-
+    return isValid;
   } catch (error) {
-    console.error("❌ Erreur vérification Slush:", error);
-
-    // Alternative : vérification manuelle si l'API ne fonctionne pas
+    console.error("Erreur vérification Slush:", error);
     try {
       return await this.manualSuiVerification(address, signature, message);
-    } catch (e) {
-      console.error("❌ Vérification manuelle échouée:", e);
+    } catch {
       return false;
     }
   }
 }
+
 
   async manualSuiVerification(address: string, signature: string, message: string): Promise<boolean> {
     try {
