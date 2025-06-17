@@ -14,6 +14,10 @@ import { connectDB } from "./db";
 // Authentification system
 import { AuthRoom } from "./rooms/AuthRoom";
 
+// Managers
+import { MoveManager } from "./managers/MoveManager";
+let globalMoveManager: MoveManager;
+
 export default config({
   initializeGameServer: (gameServer) => {
     //---------------- AUTH SYSTEM----------------------//
@@ -65,9 +69,19 @@ export default config({
     try {
       await connectDB();
       console.log("✅ Connected to MongoDB: pokeworld");
+      // Initialisation du MoveManager
+      console.log("🔄 Initialisation du MoveManager...");
+      globalMoveManager = new MoveManager({
+        basePath: './src/data',
+        useDevFallback: true,
+        enableCache: true
+      });
+      console.log("✅ MoveManager initialisé");
     } catch (err) {
       console.error("❌ MongoDB connection failed:", err);
       process.exit(1);
     }
   }
 });
+
+export { globalMoveManager };
