@@ -36,25 +36,41 @@
           "location": "Viridian Forest",
           "rarity": "Common",
           "method": "Wild Grass",
-          "level_range": "3-5"
+          "level_range": "3-5",
+          "encounter_rate": "30%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "catch_rate_modifier": 1.0
         },
         {
           "location": "Route 2",
           "rarity": "Common", 
           "method": "Wild Grass",
-          "level_range": "3-4"
+          "level_range": "3-4",
+          "encounter_rate": "25%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "catch_rate_modifier": 1.0
         },
         {
           "location": "Route 24",
           "rarity": "Uncommon",
           "method": "Wild Grass", 
-          "level_range": "7-8"
+          "level_range": "7-8",
+          "encounter_rate": "15%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "catch_rate_modifier": 1.0
         },
         {
           "location": "Route 25",
           "rarity": "Uncommon",
           "method": "Wild Grass",
-          "level_range": "8-10"
+          "level_range": "8-10",
+          "encounter_rate": "15%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "catch_rate_modifier": 1.0
         }
       ],
       "learnset": [
@@ -101,13 +117,21 @@
           "location": "Viridian Forest",
           "rarity": "Uncommon",
           "method": "Wild Grass",
-          "level_range": "4-6"
+          "level_range": "4-6",
+          "encounter_rate": "15%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "catch_rate_modifier": 1.0
         },
         {
           "location": "Route 2",
           "rarity": "Rare",
           "method": "Wild Grass",
-          "level_range": "4-5"
+          "level_range": "4-5",
+          "encounter_rate": "5%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "catch_rate_modifier": 1.0
         }
       ],
       "learnset": [
@@ -155,7 +179,11 @@
           "location": "Viridian Forest",
           "rarity": "Rare",
           "method": "Wild Grass",
-          "level_range": "7-9"
+          "level_range": "7-9",
+          "encounter_rate": "5%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "catch_rate_modifier": 1.0
         }
       ],
       "learnset": [
