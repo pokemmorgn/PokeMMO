@@ -95,17 +95,18 @@ export class AuthRoom extends Room<AuthState> {
     });
   }
 
-  async verifySlushSignature(address: string, signature: string, message: string): Promise<boolean> {
+async verifySlushSignature(address: string, signature: string, message: string): Promise<boolean> {
   try {
     const messageBytes = new TextEncoder().encode(message);
-    const signatureBytes = Uint8Array.from(Buffer.from(signature, 'base64'));
-    const publicKey = await verifyPersonalMessage(messageBytes, signatureBytes);
+
+    // Passe la signature base64 en string directement
+    const publicKey = await verifyPersonalMessage(messageBytes, signature);
 
     const isValid = publicKey != null;
 
     if (isValid) {
       const derivedAddress = publicKey.toSuiAddress?.();
-      if (derivedAddress.toLowerCase() !== address.toLowerCase()) {
+      if (derivedAddress !== address) {
         console.warn("Adresse dérivée ne correspond pas à l'adresse fournie");
         return false;
       }
@@ -114,12 +115,10 @@ export class AuthRoom extends Room<AuthState> {
     return isValid;
   } catch (error) {
     console.error("Erreur vérification Slush:", error);
-    try {
-      return await this.manualSuiVerification(address, signature, message);
-    } catch {
-      return false;
-    }
+    return false;
   }
+}
+
 }
 
 
