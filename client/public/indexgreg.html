@@ -517,22 +517,7 @@ this.playGameBtn.addEventListener('click', async () => {
     }
 });
 
-            room.onMessage((msg) => {
-                if (msg.status === "ok") {
-                    alert("Authentification réussie ! Adresse : " + msg.address);
-                    // location.href = "index.html?wallet=" + encodeURIComponent(this.currentAccount.address);
-                } else {
-                    alert(msg.reason || "Erreur d'authentification.");
-                }
-            });
-
-        } catch (err) {
-            alert("Erreur d'authentification SUI: " + (err.message || err));
-        }
-    } else {
-        alert("Connecte ton wallet pour jouer.");
-    }
-});
+            
 
 
                 // Écouter les changements de compte dans Phantom
