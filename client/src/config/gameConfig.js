@@ -11,7 +11,7 @@ export const GAME_CONFIG = {
   antialias: false,
   
 server: {
-  url: `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api`,
+  url: `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`,
   roomName: ""
 },
   
