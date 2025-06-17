@@ -471,11 +471,14 @@
             }
 
             async connectToAuthServer() {
-                try {
-                    console.log('🔐 Connexion au serveur d\'authentification...');
-                    // CORRECTION: Ajout explicite du "window." pour être 100% compatible avec la version browser Colyseus
-                    this.client = new window.Colyseus.Client('wss://pokerune.cloud:2567');
-                    this.authRoom = await this.client.joinOrCreate('AuthRoom');
+    try {
+        console.log('🔐 Tentative de connexion à ws://localhost:2567...');
+        
+        this.client = new Colyseus.Client('ws://localhost:2567');
+        console.log('✅ Client Colyseus créé');
+        
+        this.authRoom = await this.client.joinOrCreate('AuthRoom');
+        console.log('✅ AuthRoom rejointe:', this.authRoom.sessionId);
                     this.sessionId = this.authRoom.sessionId;
 
                     this.serverStatus.textContent = 'Serveur: Connecté';
