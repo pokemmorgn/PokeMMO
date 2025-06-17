@@ -177,7 +177,7 @@ export class BaseZoneScene extends Phaser.Scene {
   setupScene() {
     console.log('— DEBUT setupScene —');
     this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
-    this.cameras.main.setZoom(2);
+    this.cameras.main.setZoom(1);
     this.cameras.main.setBackgroundColor('#2d5a3d');
     this.cameras.main.setRoundPixels(true);
 
