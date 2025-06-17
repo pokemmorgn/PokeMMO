@@ -1,18 +1,23 @@
 import fs from "fs";
 import https from "https";
-import { listen } from "@colyseus/tools";
-import app from "./app.config";
+import { Server } from "colyseus";
+import appConfig from "./app.config";
 
+// Créer un serveur HTTPS
 const sslOptions = {
   key: fs.readFileSync("/home/ubuntu/pokerune_certs/privkey.pem"),
   cert: fs.readFileSync("/home/ubuntu/pokerune_certs/fullchain.pem"),
 };
+const httpsServer = https.createServer(sslOptions);
 
-const server = https.createServer(sslOptions);
+// Créer et démarrer le GameServer Colyseus manuellement
+const gameServer = new Server({
+  server: httpsServer,
+});
 
-listen(app, {
-  server,
-  port: 2567 // ✅ Spécifie le port pour éviter les erreurs [object Object]
-}).then(() => {
-  console.log("✅ Serveur HTTPS lancé sur https://pokerune.cloud:2567");
+appConfig.initializeGameServer?.(gameServer);
+appConfig.beforeListen?.().then(() => {
+  httpsServer.listen(2567, () => {
+    console.log("✅ Serveur HTTPS lancé sur https://pokerune.cloud:2567");
+  });
 });
