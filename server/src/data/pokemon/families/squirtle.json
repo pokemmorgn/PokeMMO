@@ -1,0 +1,146 @@
+{
+  "family": "squirtle",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 7,
+      "name": "Squirtle",
+      "types": ["Water"],
+      "baseStats": {
+        "hp": 44,
+        "attack": 48,
+        "defense": 65,
+        "specialAttack": 50,
+        "specialDefense": 64,
+        "speed": 43
+      },
+      "abilities": ["torrent"],
+      "hiddenAbility": "rain_dish",
+      "height": 0.5,
+      "weight": 9.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/7.png",
+      "description": "After birth, its back swells and hardens into a shell. Powerfully sprays foam from its mouth.",
+      "category": "Tiny Turtle Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Monster", "Water 1"],
+      "hatchTime": 5120,
+      "baseExperience": 63,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "tail_whip", "level": 1},
+        {"moveId": "bubble", "level": 7},
+        {"moveId": "withdraw", "level": 13},
+        {"moveId": "water_gun", "level": 19},
+        {"moveId": "bite", "level": 25},
+        {"moveId": "rapid_spin", "level": 31},
+        {"moveId": "protect", "level": 37},
+        {"moveId": "hydro_pump", "level": 43}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 8,
+        "method": "level",
+        "requirement": 16
+      }
+    },
+    {
+      "id": 8,
+      "name": "Wartortle",
+      "types": ["Water"],
+      "baseStats": {
+        "hp": 59,
+        "attack": 63,
+        "defense": 80,
+        "specialAttack": 65,
+        "specialDefense": 80,
+        "speed": 58
+      },
+      "abilities": ["torrent"],
+      "hiddenAbility": "rain_dish",
+      "height": 1.0,
+      "weight": 22.5,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/8.png",
+      "description": "Often hides in water to stalk unwary prey. For swimming fast, it moves its ears to maintain balance.",
+      "category": "Turtle Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Monster", "Water 1"],
+      "hatchTime": 5120,
+      "baseExperience": 142,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "tail_whip", "level": 1},
+        {"moveId": "bubble", "level": 1},
+        {"moveId": "withdraw", "level": 1},
+        {"moveId": "water_gun", "level": 20},
+        {"moveId": "bite", "level": 27},
+        {"moveId": "rapid_spin", "level": 34},
+        {"moveId": "protect", "level": 41},
+        {"moveId": "hydro_pump", "level": 48}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 9,
+        "method": "level",
+        "requirement": 36,
+        "evolvesFrom": 7
+      }
+    },
+    {
+      "id": 9,
+      "name": "Blastoise",
+      "types": ["Water"],
+      "baseStats": {
+        "hp": 79,
+        "attack": 83,
+        "defense": 100,
+        "specialAttack": 85,
+        "specialDefense": 105,
+        "speed": 78
+      },
+      "abilities": ["torrent"],
+      "hiddenAbility": "rain_dish",
+      "height": 1.6,
+      "weight": 85.5,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/9.png",
+      "description": "A brutal Pokémon with pressurized water jets on its shell. They are used for high speed tackles.",
+      "category": "Shellfish Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Monster", "Water 1"],
+      "hatchTime": 5120,
+      "baseExperience": 239,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "tail_whip", "level": 1},
+        {"moveId": "bubble", "level": 1},
+        {"moveId": "withdraw", "level": 1},
+        {"moveId": "water_gun", "level": 20},
+        {"moveId": "bite", "level": 27},
+        {"moveId": "rapid_spin", "level": 34},
+        {"moveId": "protect", "level": 41},
+        {"moveId": "hydro_pump", "level": 48}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 8
+      }
+    }
+  ]
+}
