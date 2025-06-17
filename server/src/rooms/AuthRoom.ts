@@ -43,12 +43,11 @@ export class AuthRoom extends Room<AuthState> {
 
         let isValid = false;
 
-        if (walletType === "slush") {
-          isValid = await this.verifySlushSignature(address, signature, message);
-        } else if (walletType === "phantom" || !walletType) {
-          console.log("⚠️ Vérification alternative pour", walletType || "wallet inconnu");
-          isValid = await this.verifyAlternativeAuth(address, signature, message);
-        }
+       if (walletType === "slush" || walletType === "phantom" || !walletType) {
+  // Sur Sui, Phantom et Slush font la même chose : vérif Sui
+  isValid = await this.verifySlushSignature(address, signature, message);
+}
+
 
         if (!isValid) {
           throw new Error("Signature invalide");
