@@ -1,0 +1,147 @@
+{
+  "family": "bulbasaur",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 1,
+      "name": "Bulbasaur",
+      "types": ["Grass", "Poison"],
+      "baseStats": {
+        "hp": 45,
+        "attack": 49,
+        "defense": 49,
+        "specialAttack": 65,
+        "specialDefense": 65,
+        "speed": 45
+      },
+      "abilities": ["overgrow"],
+      "hiddenAbility": "chlorophyll",
+      "height": 0.7,
+      "weight": 6.9,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png",
+      "description": "A strange seed was planted on its back at birth. The plant sprouts and grows with this Pokémon.",
+      "category": "Seed Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Monster", "Grass"],
+      "hatchTime": 5120,
+      "baseExperience": 64,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "growl", "level": 1},
+        {"moveId": "vine_whip", "level": 7},
+        {"moveId": "poison_powder", "level": 13},
+        {"moveId": "sleep_powder", "level": 15},
+        {"moveId": "razor_leaf", "level": 20},
+        {"moveId": "sweet_scent", "level": 25},
+        {"moveId": "synthesis", "level": 32},
+        {"moveId": "solar_beam", "level": 39}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 2,
+        "method": "level",
+        "requirement": 16
+      }
+    },
+    {
+      "id": 2,
+      "name": "Ivysaur",
+      "types": ["Grass", "Poison"],
+      "baseStats": {
+        "hp": 60,
+        "attack": 62,
+        "defense": 63,
+        "specialAttack": 80,
+        "specialDefense": 80,
+        "speed": 60
+      },
+      "abilities": ["overgrow"],
+      "hiddenAbility": "chlorophyll",
+      "height": 1.0,
+      "weight": 13.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/2.png",
+      "description": "When the bulb on its back grows large, it appears to lose the ability to stand on its hind legs.",
+      "category": "Seed Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Monster", "Grass"],
+      "hatchTime": 5120,
+      "baseExperience": 142,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "growl", "level": 1},
+        {"moveId": "vine_whip", "level": 1},
+        {"moveId": "poison_powder", "level": 1},
+        {"moveId": "sleep_powder", "level": 1},
+        {"moveId": "razor_leaf", "level": 22},
+        {"moveId": "sweet_scent", "level": 29},
+        {"moveId": "synthesis", "level": 38},
+        {"moveId": "solar_beam", "level": 47}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 3,
+        "method": "level",
+        "requirement": 32,
+        "evolvesFrom": 2
+      }
+    },
+    {
+      "id": 3,
+      "name": "Venusaur",
+      "types": ["Grass", "Poison"],
+      "baseStats": {
+        "hp": 80,
+        "attack": 82,
+        "defense": 83,
+        "specialAttack": 100,
+        "specialDefense": 100,
+        "speed": 80
+      },
+      "abilities": ["overgrow"],
+      "hiddenAbility": "chlorophyll",
+      "height": 2.0,
+      "weight": 100.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/3.png",
+      "description": "The flower on its back catches the sun's rays. The larger the flower, the more power the Pokémon can store.",
+      "category": "Seed Pokémon",
+      "genderRatio": {
+        "male": 87.5,
+        "female": 12.5
+      },
+      "eggGroups": ["Monster", "Grass"],
+      "hatchTime": 5120,
+      "baseExperience": 236,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "growl", "level": 1},
+        {"moveId": "vine_whip", "level": 1},
+        {"moveId": "poison_powder", "level": 1},
+        {"moveId": "sleep_powder", "level": 1},
+        {"moveId": "petal_dance", "level": 1},
+        {"moveId": "razor_leaf", "level": 22},
+        {"moveId": "sweet_scent", "level": 29},
+        {"moveId": "synthesis", "level": 41},
+        {"moveId": "solar_beam", "level": 53}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 2
+      }
+    }
+  ]
+}
