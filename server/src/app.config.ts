@@ -32,23 +32,24 @@ export default config({
     });
 
     app.get("/api/playerData", async (req, res) => {
-      const username = req.query.username;
-      if (!username) return res.status(400).json({ error: "username manquant" });
-      try {
-        const player = await PlayerData.findOne({ username });
-        if (!player) return res.status(404).json({ error: "not found" });
+  const username = req.query.username;
+  if (!username) return res.status(400).json({ error: "username manquant" });
+  try {
+    const player = await PlayerData.findOne({ username });
+    if (!player) return res.status(404).json({ error: "not found" });
 
-        res.json({
-          lastMap: player.lastMap,
-          lastX: player.lastX,
-          lastY: player.lastY,
-          gold: player.gold,
-          pokemons: player.pokemons
-        });
-      } catch (err) {
-        res.status(500).json({ error: "Erreur serveur" });
-      }
+    res.json({
+      lastMap: player.lastMap,
+      lastX: player.lastX,
+      lastY: player.lastY,
+      gold: player.gold,
+      pokemons: player.pokemons,
+      walletAddress: player.walletAddress  // <-- Ajout ici
     });
+  } catch (err) {
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
 
     app.use(express.static(path.join(__dirname, '../client/dist')));
 
