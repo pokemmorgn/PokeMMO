@@ -80,7 +80,7 @@ export class PlayerManager {
   if (!anims.exists('walk_up')) {
     anims.create({
       key: 'walk_up',
-      frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }),
+      frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 2 }),
       frameRate: 8,
       repeat: -1
     });
@@ -89,7 +89,7 @@ export class PlayerManager {
   if (!anims.exists('walk_left')) {
     anims.create({
       key: 'walk_left',
-      frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }),
+      frames: anims.generateFrameNumbers('BoyWalk', { start: 3, end: 5 }),
       frameRate: 8,
       repeat: -1
     });
@@ -98,7 +98,7 @@ export class PlayerManager {
   if (!anims.exists('walk_right')) {
     anims.create({
       key: 'walk_right',
-      frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }),
+      frames: anims.generateFrameNumbers('BoyWalk', { start: 6, end: 8 }),
       frameRate: 8,
       repeat: -1
     });
@@ -107,7 +107,7 @@ export class PlayerManager {
   if (!anims.exists('walk_down')) {
     anims.create({
       key: 'walk_down',
-      frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 15 }),
+      frames: anims.generateFrameNumbers('BoyWalk', { start: 9, end: 11 }),
       frameRate: 8,
       repeat: -1
     });
@@ -124,7 +124,7 @@ export class PlayerManager {
   if (!anims.exists('idle_left')) {
     anims.create({
       key: 'idle_left',
-      frames: [{ key: 'BoyWalk', frame: 4 }],
+      frames: [{ key: 'BoyWalk', frame: 3 }],
       frameRate: 1,
       repeat: 0
     });
@@ -132,7 +132,7 @@ export class PlayerManager {
   if (!anims.exists('idle_right')) {
     anims.create({
       key: 'idle_right',
-      frames: [{ key: 'BoyWalk', frame: 8 }],
+      frames: [{ key: 'BoyWalk', frame: 6 }],
       frameRate: 1,
       repeat: 0
     });
@@ -140,7 +140,7 @@ export class PlayerManager {
   if (!anims.exists('idle_down')) {
     anims.create({
       key: 'idle_down',
-      frames: [{ key: 'BoyWalk', frame: 12 }],
+      frames: [{ key: 'BoyWalk', frame: 9 }],
       frameRate: 1,
       repeat: 0
     });
