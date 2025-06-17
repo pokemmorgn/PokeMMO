@@ -433,67 +433,75 @@
         </div>
     </div>
 
-    <!-- Colyseus Client, VERSION FIXÉE -->
-    <script src="https://unpkg.com/colyseus.js@0.15.16/dist/colyseus.js"></script>
-    <script>
-        class SecurePokeWorldAuth {
-            constructor() {
-                this.client = null;
-                this.authRoom = null;
-                this.currentWallet = null;
-                this.isAuthenticated = false;
-                this.challengeMessage = null;
-                this.sessionId = null;
+   <!-- Colyseus Client, VERSION FIXÉE -->
+<script src="https://unpkg.com/colyseus.js@0.15.16/dist/colyseus.js"></script>
+<script>
+    class SecurePokeWorldAuth {
+        constructor() {
+            this.client = null;
+            this.authRoom = null;
+            this.currentWallet = null;
+            this.isAuthenticated = false;
+            this.challengeMessage = null;
+            this.sessionId = null;
 
-                this.initializeElements();
-                this.initializeEventListeners();
-                this.startDiagnostics();
-                this.connectToAuthServer();
+            this.initializeElements();
+            this.initializeEventListeners();
+            this.startDiagnostics();
+            this.connectToAuthServer();
+        }
+
+        initializeElements() {
+            this.connectBtn = document.getElementById('connectBtn');
+            this.playBtn = document.getElementById('playBtn');
+            this.loading = document.getElementById('loading');
+            this.authInfo = document.getElementById('authInfo');
+            this.walletAddress = document.getElementById('walletAddress');
+            this.statusDot = document.getElementById('statusDot');
+            this.authStatus = document.getElementById('authStatus');
+            this.authDetails = document.getElementById('authDetails');
+            this.serverStatus = document.getElementById('serverStatus');
+            this.errorMessage = document.getElementById('errorMessage');
+            this.successMessage = document.getElementById('successMessage');
+        }
+
+        initializeEventListeners() {
+            this.connectBtn.addEventListener('click', () => this.handleAuthFlow());
+            this.playBtn.addEventListener('click', () => this.startGame());
+        }
+
+        async connectToAuthServer() {
+            try {
+                console.log('🔐 Tentative de connexion à wss://pokerune.cloud:2567...');
+
+                this.client = new Colyseus.Client("wss://pokerune.cloud");
+                console.log('✅ Client Colyseus créé');
+
+                this.authRoom = await this.client.joinOrCreate('AuthRoom');
+                console.log('✅ AuthRoom rejointe:', this.authRoom.sessionId);
+                this.sessionId = this.authRoom.sessionId;
+
+                this.serverStatus.textContent = 'Serveur: Connecté';
+                this.serverStatus.classList.add('connected');
+                document.getElementById('authRoomStatus').textContent = '✅';
+                document.getElementById('sessionId').textContent = this.sessionId.substring(0, 8) + '...';
+
+                this.setupAuthRoomListeners();
+                console.log('✅ Connecté au serveur d\'authentification');
+            } catch (error) {
+                console.error('❌ Erreur connexion serveur:', error);
+                this.showError('Impossible de se connecter au serveur d\'authentification');
             }
+        }
 
-            initializeElements() {
-                this.connectBtn = document.getElementById('connectBtn');
-                this.playBtn = document.getElementById('playBtn');
-                this.loading = document.getElementById('loading');
-                this.authInfo = document.getElementById('authInfo');
-                this.walletAddress = document.getElementById('walletAddress');
-                this.statusDot = document.getElementById('statusDot');
-                this.authStatus = document.getElementById('authStatus');
-                this.authDetails = document.getElementById('authDetails');
-                this.serverStatus = document.getElementById('serverStatus');
-                this.errorMessage = document.getElementById('errorMessage');
-                this.successMessage = document.getElementById('successMessage');
-            }
-
-            initializeEventListeners() {
-                this.connectBtn.addEventListener('click', () => this.handleAuthFlow());
-                this.playBtn.addEventListener('click', () => this.startGame());
-            }
-
-           async connectToAuthServer() {
-    try {
-        console.log('🔐 Tentative de connexion à wss://pokerune.cloud:2567...');
-        
-const client = new Colyseus.Client("wss://pokerune.cloud");
-        console.log('✅ Client Colyseus créé');
-
-        this.authRoom = await this.client.joinOrCreate('AuthRoom');
-        console.log('✅ AuthRoom rejointe:', this.authRoom.sessionId);
-        this.sessionId = this.authRoom.sessionId;
-
-        this.serverStatus.textContent = 'Serveur: Connecté';
-        this.serverStatus.classList.add('connected');
-        document.getElementById('authRoomStatus').textContent = '✅';
-        document.getElementById('sessionId').textContent = this.sessionId.substring(0, 8) + '...';
-
-        this.setupAuthRoomListeners();
-        console.log('✅ Connecté au serveur d\'authentification');
-
-    } catch (error) {
-        console.error('❌ Erreur connexion serveur:', error);
-        this.showError('Impossible de se connecter au serveur d\'authentification');
+        // Ajoute les méthodes setupAuthRoomListeners, handleAuthFlow, startGame, showError ici
     }
-}
+
+    window.addEventListener("load", () => {
+        window.pokeAuth = new SecurePokeWorldAuth();
+    });
+</script>
+
 
             setupAuthRoomListeners() {
                 // ... (Aucune modif, copie/colle tout le reste de ta classe ici inchangé) ...
