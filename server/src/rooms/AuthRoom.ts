@@ -96,32 +96,35 @@ export class AuthRoom extends Room<AuthState> {
   }
 
   async verifySlushSignature(address: string, signature: string, message: string): Promise<boolean> {
+  try {
+    console.log("🔍 Vérification signature Slush");
+
+    // Encoder le message en Uint8Array (ok)
+    const messageBytes = new TextEncoder().encode(message);
+
+    // La signature reste en base64 (chaîne) pour verifyPersonalMessage
+    // On ne la convertit pas en Uint8Array
+    // const signatureBytes = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0)); // A retirer
+
+    // Appeler verifyPersonalMessage avec la signature en string
+    const publicKey = await verifyPersonalMessage(messageBytes, signature, address);
+
+    const isValid = publicKey != null;
+
+    console.log("🔍 Résultat vérification:", isValid);
+    return isValid;
+  } catch (error) {
+    console.error("❌ Erreur vérification Slush:", error);
+
+    // Alternative : vérification manuelle si l'API ne fonctionne pas
     try {
-      console.log("🔍 Vérification signature Slush");
-
-      // Utiliser la bibliothèque Sui pour vérifier
-      const messageBytes = new TextEncoder().encode(message);
-
-      // La signature de Slush est au format base64
-      const signatureBytes = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0));
-
-      // Vérifier avec l'API Sui
-      const isValid = await verifyPersonalMessage(messageBytes, signatureBytes, address);
-
-      console.log("🔍 Résultat vérification:", isValid);
-      return isValid;
-    } catch (error) {
-      console.error("❌ Erreur vérification Slush:", error);
-
-      // Alternative : vérification manuelle si l'API ne fonctionne pas
-      try {
-        return await this.manualSuiVerification(address, signature, message);
-      } catch (e) {
-        console.error("❌ Vérification manuelle échouée:", e);
-        return false;
-      }
+      return await this.manualSuiVerification(address, signature, message);
+    } catch (e) {
+      console.error("❌ Vérification manuelle échouée:", e);
+      return false;
     }
   }
+}
 
   async manualSuiVerification(address: string, signature: string, message: string): Promise<boolean> {
     try {
