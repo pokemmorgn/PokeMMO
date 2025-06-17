@@ -1,0 +1,111 @@
+{
+  "absorb": {
+    "name": "Absorb",
+    "category": "Special",
+    "power": 20,
+    "accuracy": 100,
+    "pp": 25,
+    "priority": 0,
+    "description": "A nutrient-draining attack. The user's HP is restored by half the damage taken by the target.",
+    "effects": ["heals user for 50% of damage dealt"]
+  },
+  "mega_drain": {
+    "name": "Mega Drain",
+    "category": "Special",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "A nutrient-draining attack. The user's HP is restored by half the damage taken by the target.",
+    "effects": ["heals user for 50% of damage dealt"]
+  },
+  "leech_seed": {
+    "name": "Leech Seed",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 90,
+    "pp": 10,
+    "priority": 0,
+    "description": "A seed is planted on the target. It steals some HP from the target every turn.",
+    "effects": ["drains 1/8 max HP each turn", "heals user for drained amount"]
+  },
+  "vine_whip": {
+    "name": "Vine Whip",
+    "category": "Physical",
+    "power": 35,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The target is struck with slender, whiplike vines to inflict damage."
+  },
+  "razor_leaf": {
+    "name": "Razor Leaf",
+    "category": "Physical",
+    "power": 55,
+    "accuracy": 95,
+    "pp": 25,
+    "priority": 0,
+    "description": "Sharp-edged leaves are launched to slash at the opposing Pokémon. Critical hits land more easily.",
+    "effects": ["high critical hit ratio"]
+  },
+  "solar_beam": {
+    "name": "Solar Beam",
+    "category": "Special",
+    "power": 120,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "A two-turn attack. The user gathers light, then blasts a bundled beam on the next turn.",
+    "effects": ["charges on turn 1", "attacks on turn 2"]
+  },
+  "petal_dance": {
+    "name": "Petal Dance",
+    "category": "Special",
+    "power": 70,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The user attacks the target by scattering petals for two to three turns. The user then becomes confused.",
+    "effects": ["attacks for 2-3 turns", "user becomes confused after"]
+  },
+  "sleep_powder": {
+    "name": "Sleep Powder",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 75,
+    "pp": 15,
+    "priority": 0,
+    "description": "The user scatters a big cloud of sleep-inducing dust around the target.",
+    "effects": ["puts target to sleep"]
+  },
+  "stun_spore": {
+    "name": "Stun Spore",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 75,
+    "pp": 30,
+    "priority": 0,
+    "description": "The user scatters a cloud of numbing powder that paralyzes the target.",
+    "effects": ["paralyzes target"]
+  },
+  "poison_powder": {
+    "name": "Poison Powder",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 75,
+    "pp": 35,
+    "priority": 0,
+    "description": "The user scatters a cloud of poisonous dust on the target.",
+    "effects": ["poisons target"]
+  },
+  "spore": {
+    "name": "Spore",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "The user scatters bursts of spores that induce sleep.",
+    "effects": ["puts target to sleep"]
+  }
+}
