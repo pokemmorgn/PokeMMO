@@ -1,21 +1,12 @@
-import fs   from "fs";
-import https from "https";
-import { listen } from "@colyseus/tools";   // <-- (pas “colyseus” !)
+/**
+ * Entrée principale du serveur Colyseus – écoute **uniquement** en HTTP local.
+ * Le chiffrement TLS est géré par Nginx (reverse-proxy).
+ */
+
+import { listen } from "@colyseus/tools";
 import appConfig from "./app.config";
 
-// ───── Certificats Let’s Encrypt
-const sslOptions = {
-  key : fs.readFileSync("/home/ubuntu/pokerune_certs/privkey.pem"),
-  cert: fs.readFileSync("/home/ubuntu/pokerune_certs/fullchain.pem"),
-};
-
-// ───── Crée le serveur HTTPS
-const httpsServer = https.createServer(sslOptions);
-
-// ───── Lance Colyseus + Express sur ce serveur
-listen(appConfig, {            // 1er paramètre = app.config
-  server: httpsServer,         // 2ᵉ paramètre = objet d’options
-  port  : 2567                 // (le port DOIT rester 2567)
-}).then(() => {
-  console.log("✅ Serveur HTTPS lancé sur https://pokerune.cloud:2567");
+// Lance Colyseus sur 127.0.0.1:2567 (HTTP)
+listen(appConfig, 2567).then(() => {
+  console.log("✅ Colyseus écoute sur http://127.0.0.1:2567");
 });
