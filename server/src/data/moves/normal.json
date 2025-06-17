@@ -1,0 +1,750 @@
+{
+  "pound": {
+    "name": "Pound",
+    "category": "Physical",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 35,
+    "priority": 0,
+    "description": "The target is physically pounded with a long tail, a foreleg, or the like."
+  },
+  "karate_chop": {
+    "name": "Karate Chop",
+    "category": "Physical",
+    "power": 50,
+    "accuracy": 100,
+    "pp": 25,
+    "priority": 0,
+    "description": "The target is attacked with a sharp chop. Critical hits land more easily.",
+    "effects": ["high critical hit ratio"]
+  },
+  "double_slap": {
+    "name": "Double Slap",
+    "category": "Physical",
+    "power": 15,
+    "accuracy": 85,
+    "pp": 10,
+    "priority": 0,
+    "description": "The target is slapped repeatedly, back and forth, two to five times in a row.",
+    "effects": ["hits 2-5 times"]
+  },
+  "comet_punch": {
+    "name": "Comet Punch",
+    "category": "Physical",
+    "power": 18,
+    "accuracy": 85,
+    "pp": 15,
+    "priority": 0,
+    "description": "The target is hit with a flurry of punches that strike two to five times in a row.",
+    "effects": ["hits 2-5 times"]
+  },
+  "mega_punch": {
+    "name": "Mega Punch",
+    "category": "Physical",
+    "power": 80,
+    "accuracy": 85,
+    "pp": 20,
+    "priority": 0,
+    "description": "The target is slugged by a punch thrown with muscle-packed power."
+  },
+  "pay_day": {
+    "name": "Pay Day",
+    "category": "Physical",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "Numerous coins are hurled at the target to inflict damage. Money is earned after the battle.",
+    "effects": ["earns money equal to twice the user's level"]
+  },
+  "scratch": {
+    "name": "Scratch",
+    "category": "Physical",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 35,
+    "priority": 0,
+    "description": "Hard, pointed, sharp claws rake the target to inflict damage."
+  },
+  "vice_grip": {
+    "name": "Vice Grip",
+    "category": "Physical",
+    "power": 55,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The target is gripped and squeezed from both sides to inflict damage."
+  },
+  "guillotine": {
+    "name": "Guillotine",
+    "category": "Physical",
+    "power": 0,
+    "accuracy": 30,
+    "pp": 5,
+    "priority": 0,
+    "description": "A vicious, tearing attack with big pincers. The target faints instantly if this attack hits.",
+    "effects": ["one-hit KO if it hits"]
+  },
+  "razor_wind": {
+    "name": "Razor Wind",
+    "category": "Special",
+    "power": 80,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "A two-turn attack. Blades of wind hit opposing Pokémon on the second turn. Critical hits land more easily.",
+    "effects": ["charges on turn 1", "attacks on turn 2", "high critical hit ratio"]
+  },
+  "swords_dance": {
+    "name": "Swords Dance",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "A frenetic dance to uplift the fighting spirit. This sharply raises the user's Attack stat.",
+    "effects": ["raises user's Attack by 2 stages"]
+  },
+  "cut": {
+    "name": "Cut",
+    "category": "Physical",
+    "power": 50,
+    "accuracy": 95,
+    "pp": 30,
+    "priority": 0,
+    "description": "The target is cut with a scythe or claw."
+  },
+  "gust": {
+    "name": "Gust",
+    "category": "Special",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 35,
+    "priority": 0,
+    "description": "A gust of wind is whipped up by wings and launched at the target to inflict damage."
+  },
+  "wing_attack": {
+    "name": "Wing Attack",
+    "category": "Physical",
+    "power": 60,
+    "accuracy": 100,
+    "pp": 35,
+    "priority": 0,
+    "description": "The target is struck with large, imposing wings spread wide to inflict damage."
+  },
+  "whirlwind": {
+    "name": "Whirlwind",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 85,
+    "pp": 20,
+    "priority": -6,
+    "description": "The target is blown away, and a different Pokémon is dragged out.",
+    "effects": ["forces opponent to switch"]
+  },
+  "fly": {
+    "name": "Fly",
+    "category": "Physical",
+    "power": 70,
+    "accuracy": 95,
+    "pp": 15,
+    "priority": 0,
+    "description": "The user soars and then strikes its target on the next turn.",
+    "effects": ["user becomes semi-invulnerable on turn 1", "attacks on turn 2"]
+  },
+  "bind": {
+    "name": "Bind",
+    "category": "Physical",
+    "power": 15,
+    "accuracy": 85,
+    "pp": 20,
+    "priority": 0,
+    "description": "Things such as long bodies or tentacles are used to bind and squeeze the target for four to five turns.",
+    "effects": ["traps target for 4-5 turns", "deals 1/16 max HP damage each turn"]
+  },
+  "slam": {
+    "name": "Slam",
+    "category": "Physical",
+    "power": 80,
+    "accuracy": 75,
+    "pp": 20,
+    "priority": 0,
+    "description": "The target is slammed with a long tail, vines, or the like to inflict damage."
+  },
+  "stomp": {
+    "name": "Stomp",
+    "category": "Physical",
+    "power": 65,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The target is stomped with a big foot. This may also make the target flinch.",
+    "effects": ["30% chance to flinch"]
+  },
+  "double_kick": {
+    "name": "Double Kick",
+    "category": "Physical",
+    "power": 30,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The target is quickly kicked twice in succession using both feet.",
+    "effects": ["hits twice"]
+  },
+  "mega_kick": {
+    "name": "Mega Kick",
+    "category": "Physical",
+    "power": 120,
+    "accuracy": 75,
+    "pp": 5,
+    "priority": 0,
+    "description": "The target is attacked by a kick launched with muscle-packed power."
+  },
+  "jump_kick": {
+    "name": "Jump Kick",
+    "category": "Physical",
+    "power": 70,
+    "accuracy": 95,
+    "pp": 25,
+    "priority": 0,
+    "description": "The user jumps up high, then strikes with a kick. If the kick misses, the user hurts itself.",
+    "effects": ["user takes recoil damage if move misses"]
+  },
+  "rolling_kick": {
+    "name": "Rolling Kick",
+    "category": "Physical",
+    "power": 60,
+    "accuracy": 85,
+    "pp": 15,
+    "priority": 0,
+    "description": "The user lashes out with a quick, spinning kick. This may also make the target flinch.",
+    "effects": ["30% chance to flinch"]
+  },
+  "sand_attack": {
+    "name": "Sand Attack",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "Sand is hurled in the target's face, reducing the target's accuracy.",
+    "effects": ["lowers target's accuracy by 1 stage"]
+  },
+  "headbutt": {
+    "name": "Headbutt",
+    "category": "Physical",
+    "power": 70,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "The user sticks out its head and attacks by charging straight into the target. This may also make the target flinch.",
+    "effects": ["30% chance to flinch"]
+  },
+  "horn_attack": {
+    "name": "Horn Attack",
+    "category": "Physical",
+    "power": 65,
+    "accuracy": 100,
+    "pp": 25,
+    "priority": 0,
+    "description": "The target is jabbed with a sharply pointed horn to inflict damage."
+  },
+  "fury_attack": {
+    "name": "Fury Attack",
+    "category": "Physical",
+    "power": 15,
+    "accuracy": 85,
+    "pp": 20,
+    "priority": 0,
+    "description": "The target is jabbed repeatedly with a horn or beak two to five times in a row.",
+    "effects": ["hits 2-5 times"]
+  },
+  "horn_drill": {
+    "name": "Horn Drill",
+    "category": "Physical",
+    "power": 0,
+    "accuracy": 30,
+    "pp": 5,
+    "priority": 0,
+    "description": "The user stabs the target with a horn that rotates like a drill. The target faints instantly if this attack hits.",
+    "effects": ["one-hit KO if it hits"]
+  },
+  "tackle": {
+    "name": "Tackle",
+    "category": "Physical",
+    "power": 35,
+    "accuracy": 95,
+    "pp": 35,
+    "priority": 0,
+    "description": "A physical attack in which the user charges and slams into the target with its whole body."
+  },
+  "body_slam": {
+    "name": "Body Slam",
+    "category": "Physical",
+    "power": 85,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "The user drops onto the target with its full body weight. This may also leave the target with paralysis.",
+    "effects": ["30% chance to paralyze"]
+  },
+  "wrap": {
+    "name": "Wrap",
+    "category": "Physical",
+    "power": 15,
+    "accuracy": 85,
+    "pp": 20,
+    "priority": 0,
+    "description": "A long body, vines, or the like are used to wrap and squeeze the target for four to five turns.",
+    "effects": ["traps target for 4-5 turns", "deals 1/16 max HP damage each turn"]
+  },
+  "take_down": {
+    "name": "Take Down",
+    "category": "Physical",
+    "power": 90,
+    "accuracy": 85,
+    "pp": 20,
+    "priority": 0,
+    "description": "A reckless, full-body charge attack for slamming into the target. This also damages the user a little.",
+    "effects": ["user takes 25% recoil damage"]
+  },
+  "thrash": {
+    "name": "Thrash",
+    "category": "Physical",
+    "power": 90,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The user rampages and attacks for two to three turns. The user then becomes confused.",
+    "effects": ["attacks for 2-3 turns", "user becomes confused after"]
+  },
+  "double_edge": {
+    "name": "Double-Edge",
+    "category": "Physical",
+    "power": 120,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "A reckless, life-risking tackle. This also damages the user quite a lot.",
+    "effects": ["user takes 33% recoil damage"]
+  },
+  "tail_whip": {
+    "name": "Tail Whip",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The user wags its tail cutely, making opposing Pokémon less wary and lowering their Defense stats.",
+    "effects": ["lowers target's Defense by 1 stage"]
+  },
+  "leer": {
+    "name": "Leer",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The user gives opposing Pokémon an intimidating leer that lowers the Defense stat.",
+    "effects": ["lowers target's Defense by 1 stage"]
+  },
+  "growl": {
+    "name": "Growl",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 40,
+    "priority": 0,
+    "description": "The user growls in an endearing way, making opposing Pokémon less wary. This lowers their Attack stats.",
+    "effects": ["lowers target's Attack by 1 stage"]
+  },
+  "roar": {
+    "name": "Roar",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": -6,
+    "description": "The target is scared off, and a different Pokémon is dragged out.",
+    "effects": ["forces opponent to switch"]
+  },
+  "sing": {
+    "name": "Sing",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 55,
+    "pp": 15,
+    "priority": 0,
+    "description": "A soothing lullaby is sung in a calming voice that puts the target into a deep slumber.",
+    "effects": ["puts target to sleep"]
+  },
+  "supersonic": {
+    "name": "Supersonic",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 55,
+    "pp": 20,
+    "priority": 0,
+    "description": "The user generates odd sound waves from its body that confuse the target.",
+    "effects": ["confuses target"]
+  },
+  "sonic_boom": {
+    "name": "Sonic Boom",
+    "category": "Special",
+    "power": 0,
+    "accuracy": 90,
+    "pp": 20,
+    "priority": 0,
+    "description": "The target is hit with a destructive shock wave that always inflicts 20 HP damage.",
+    "effects": ["always deals exactly 20 damage"]
+  },
+  "disable": {
+    "name": "Disable",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 55,
+    "pp": 20,
+    "priority": 0,
+    "description": "For four turns, this move prevents the target from using the move it last used.",
+    "effects": ["disables target's last used move for 4 turns"]
+  },
+  "quick_attack": {
+    "name": "Quick Attack",
+    "category": "Physical",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 1,
+    "description": "The user lunges at the target at a speed that makes it almost invisible. This move always goes first.",
+    "effects": ["priority +1"]
+  },
+  "rage": {
+    "name": "Rage",
+    "category": "Physical",
+    "power": 20,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "As long as this move is in use, the power of rage raises the Attack stat each time the user is hit in battle.",
+    "effects": ["Attack increases by 1 stage each time user is hit"]
+  },
+  "mimic": {
+    "name": "Mimic",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The user copies the target's last move. The move can be used during battle until the Pokémon is switched out.",
+    "effects": ["copies target's last used move"]
+  },
+  "screech": {
+    "name": "Screech",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 85,
+    "pp": 40,
+    "priority": 0,
+    "description": "An earsplitting screech harshly lowers the target's Defense stat.",
+    "effects": ["lowers target's Defense by 2 stages"]
+  },
+  "double_team": {
+    "name": "Double Team",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "By moving rapidly, the user makes illusory copies of itself to raise its evasiveness.",
+    "effects": ["raises user's evasiveness by 1 stage"]
+  },
+  "recover": {
+    "name": "Recover",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "Restoring its own cells, the user restores its own HP by half of its max HP.",
+    "effects": ["heals user by 50% of max HP"]
+  },
+  "harden": {
+    "name": "Harden",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The user stiffens all the muscles in its body to raise its Defense stat.",
+    "effects": ["raises user's Defense by 1 stage"]
+  },
+  "minimize": {
+    "name": "Minimize",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The user compresses its body to make itself look smaller, which sharply raises its evasiveness.",
+    "effects": ["raises user's evasiveness by 1 stage"]
+  },
+  "smokescreen": {
+    "name": "Smokescreen",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The user releases an obscuring cloud of smoke or ink. This lowers the target's accuracy.",
+    "effects": ["lowers target's accuracy by 1 stage"]
+  },
+  "confuse_ray": {
+    "name": "Confuse Ray",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The target is exposed to a sinister ray that triggers confusion.",
+    "effects": ["confuses target"]
+  },
+  "defense_curl": {
+    "name": "Defense Curl",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 40,
+    "priority": 0,
+    "description": "The user curls up to conceal weak spots and raise its Defense stat.",
+    "effects": ["raises user's Defense by 1 stage"]
+  },
+  "barrier": {
+    "name": "Barrier",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The user throws up a sturdy wall that sharply raises its Defense stat.",
+    "effects": ["raises user's Defense by 2 stages"]
+  },
+  "light_screen": {
+    "name": "Light Screen",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "A wondrous wall of light is put up to reduce damage from special attacks for five turns.",
+    "effects": ["reduces special damage by 50% for 5 turns"]
+  },
+  "reflect": {
+    "name": "Reflect",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "A wondrous wall of light is put up to reduce damage from physical attacks for five turns.",
+    "effects": ["reduces physical damage by 50% for 5 turns"]
+  },
+  "focus_energy": {
+    "name": "Focus Energy",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The user takes a deep breath and focuses so that critical hits land more easily.",
+    "effects": ["increases critical hit ratio"]
+  },
+  "bide": {
+    "name": "Bide",
+    "category": "Physical",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 1,
+    "description": "The user endures attacks for two turns, then strikes back to cause double the damage taken.",
+    "effects": ["stores damage for 2 turns", "deals double stored damage on turn 3"]
+  },
+  "metronome": {
+    "name": "Metronome",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The user waggles a finger and stimulates its brain into randomly using nearly any move.",
+    "effects": ["randomly uses any move in the game"]
+  },
+  "self_destruct": {
+    "name": "Self-Destruct",
+    "category": "Physical",
+    "power": 200,
+    "accuracy": 100,
+    "pp": 5,
+    "priority": 0,
+    "description": "The user attacks everything around it by causing an explosion. The user faints upon using this move.",
+    "effects": ["user faints after attacking"]
+  },
+  "egg_bomb": {
+    "name": "Egg Bomb",
+    "category": "Physical",
+    "power": 100,
+    "accuracy": 75,
+    "pp": 10,
+    "priority": 0,
+    "description": "A large egg is hurled at the target with maximum force to inflict damage."
+  },
+  "swift": {
+    "name": "Swift",
+    "category": "Special",
+    "power": 60,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "Star-shaped rays are shot at the opposing Pokémon. This attack never misses.",
+    "effects": ["never misses"]
+  },
+  "skull_bash": {
+    "name": "Skull Bash",
+    "category": "Physical",
+    "power": 100,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "The user tucks in its head to raise its Defense stat on the first turn, then rams the target on the next turn.",
+    "effects": ["charges on turn 1", "raises Defense", "attacks on turn 2"]
+  },
+  "spike_cannon": {
+    "name": "Spike Cannon",
+    "category": "Physical",
+    "power": 20,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "Sharp spikes are shot at the target in rapid succession. They hit two to five times in a row.",
+    "effects": ["hits 2-5 times"]
+  },
+  "constrict": {
+    "name": "Constrict",
+    "category": "Physical",
+    "power": 10,
+    "accuracy": 100,
+    "pp": 35,
+    "priority": 0,
+    "description": "The target is attacked with long, creeping tentacles, vines, or the like. This may also lower the target's Speed stat.",
+    "effects": ["10% chance to lower Speed by 1 stage"]
+  },
+  "amnesia": {
+    "name": "Amnesia",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The user temporarily empties its mind to forget its concerns. This sharply raises the user's Sp. Def stat.",
+    "effects": ["raises user's Special Defense by 2 stages"]
+  },
+  "soft_boiled": {
+    "name": "Soft-Boiled",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The user restores its own HP by up to half of its max HP.",
+    "effects": ["heals user by 50% of max HP"]
+  },
+  "high_jump_kick": {
+    "name": "High Jump Kick",
+    "category": "Physical",
+    "power": 85,
+    "accuracy": 90,
+    "pp": 20,
+    "priority": 0,
+    "description": "The target is attacked with a knee kick from a jump. If it misses, the user is hurt instead.",
+    "effects": ["user takes recoil damage if move misses"]
+  },
+  "glare": {
+    "name": "Glare",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 75,
+    "pp": 30,
+    "priority": 0,
+    "description": "The user intimidates the target with the pattern on its belly to cause paralysis.",
+    "effects": ["paralyzes target"]
+  },
+  "barrage": {
+    "name": "Barrage",
+    "category": "Physical",
+    "power": 15,
+    "accuracy": 85,
+    "pp": 20,
+    "priority": 0,
+    "description": "Round objects are hurled at the target to strike two to five times in a row.",
+    "effects": ["hits 2-5 times"]
+  },
+  "lovely_kiss": {
+    "name": "Lovely Kiss",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 75,
+    "pp": 10,
+    "priority": 0,
+    "description": "With a lovely, sweet kiss, the user makes the target fall into a deep slumber.",
+    "effects": ["puts target to sleep"]
+  },
+  "transform": {
+    "name": "Transform",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The user transforms into a copy of the target right down to having the same move set.",
+    "effects": ["copies target's appearance, type, stats, and moves"]
+  },
+  "dizzy_punch": {
+    "name": "Dizzy Punch",
+    "category": "Physical",
+    "power": 70,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The target is hit with rhythmically launched punches. This may also leave the target confused.",
+    "effects": ["20% chance to confuse"]
+  },
+  "substitute": {
+    "name": "Substitute",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The user makes a copy of itself using some of its HP. The copy serves as the user's decoy.",
+    "effects": ["creates substitute with 25% of user's max HP"]
+  },
+  "struggle": {
+    "name": "Struggle",
+    "category": "Physical",
+    "power": 50,
+    "accuracy": 100,
+    "pp": 1,
+    "priority": 0,
+    "description": "This attack is used in desperation only if the user has no PP. It also damages the user a little.",
+    "effects": ["used when no PP remaining", "user takes recoil damage"]
+  },
+  "splash": {
+    "name": "Splash",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 40,
+    "priority": 0,
+    "description": "The user just flops and splashes around to no effect at all...",
+    "effects": ["no effect"]
+  }
+}
