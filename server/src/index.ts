@@ -10,6 +10,9 @@ const sslOptions = {
 
 const server = https.createServer(sslOptions);
 
-listen(app, { server }).then(() => {
-  console.log("✅ Serveur HTTPS lancé sur https://pokerune.cloud");
+listen(app, {
+  server,
+  port: 2567 // ✅ Spécifie le port pour éviter les erreurs [object Object]
+}).then(() => {
+  console.log("✅ Serveur HTTPS lancé sur https://pokerune.cloud:2567");
 });
