@@ -1,1 +1,53 @@
 
+{
+  "ember": {
+    "name": "Ember",
+    "category": "Special",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 25,
+    "priority": 0,
+    "description": "The target is attacked with small flames. This may also leave the target with a burn.",
+    "effects": ["10% chance to burn"]
+  },
+  "flamethrower": {
+    "name": "Flamethrower",
+    "category": "Special",
+    "power": 95,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "The target is scorched with an intense blast of fire. This may also leave the target with a burn.",
+    "effects": ["10% chance to burn"]
+  },
+  "fire_blast": {
+    "name": "Fire Blast",
+    "category": "Special",
+    "power": 120,
+    "accuracy": 85,
+    "pp": 5,
+    "priority": 0,
+    "description": "The target is attacked with an intense blast of all-consuming fire. This may also leave the target with a burn.",
+    "effects": ["10% chance to burn"]
+  },
+  "fire_punch": {
+    "name": "Fire Punch",
+    "category": "Physical",
+    "power": 75,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "The target is punched with a fiery fist. This may also leave the target with a burn.",
+    "effects": ["10% chance to burn"]
+  },
+  "fire_spin": {
+    "name": "Fire Spin",
+    "category": "Special",
+    "power": 15,
+    "accuracy": 70,
+    "pp": 15,
+    "priority": 0,
+    "description": "The target becomes trapped within a fierce vortex of fire that rages for two to five turns.",
+    "effects": ["traps target for 2-5 turns", "deals 1/16 max HP damage each turn"]
+  }
+}
