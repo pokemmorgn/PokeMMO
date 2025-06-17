@@ -1,0 +1,194 @@
+{
+  "family": "cubone",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 104,
+      "name": "Cubone",
+      "types": ["Ground"],
+      "baseStats": {
+        "hp": 50,
+        "attack": 50,
+        "defense": 95,
+        "specialAttack": 40,
+        "specialDefense": 50,
+        "speed": 35
+      },
+      "abilities": ["rock_head"],
+      "hiddenAbility": null,
+      "height": 0.4,
+      "weight": 6.5,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/104.png",
+      "description": "Because it never removes its skull helmet, no one has ever seen this Pokémon's real face.",
+      "category": "Lonely Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Monster"],
+      "hatchTime": 5120,
+      "baseExperience": 64,
+      "growthRate": "Medium Fast",
+      "captureRate": 190,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Pokémon Tower",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "13-17",
+          "encounter_rate": "15%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Safari Zone",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "22-25",
+          "encounter_rate": "25%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "bone_club", "level": 1},
+        {"moveId": "growl", "level": 5},
+        {"moveId": "leer", "level": 9},
+        {"moveId": "focus_energy", "level": 13},
+        {"moveId": "bonemerang", "level": 17},
+        {"moveId": "rage", "level": 21},
+        {"moveId": "false_swipe", "level": 25},
+        {"moveId": "thrash", "level": 29},
+        {"moveId": "bone_rush", "level": 33}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 105,
+        "method": "level",
+        "requirement": 28
+      }
+    },
+    {
+      "id": 105,
+      "name": "Marowak",
+      "types": ["Ground"],
+      "baseStats": {
+        "hp": 60,
+        "attack": 80,
+        "defense": 110,
+        "specialAttack": 50,
+        "specialDefense": 80,
+        "speed": 45
+      },
+      "abilities": ["rock_head"],
+      "hiddenAbility": null,
+      "height": 1.0,
+      "weight": 45.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/105.png",
+      "description": "The bone it holds is its key weapon. It throws the bone skillfully like a boomerang to KO targets.",
+      "category": "Bone Keeper Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Monster"],
+      "hatchTime": 5120,
+      "baseExperience": 149,
+      "growthRate": "Medium Fast",
+      "captureRate": 75,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Safari Zone",
+          "rarity": "Rare",
+          "method": "Wild Encounter",
+          "level_range": "30-33",
+          "encounter_rate": "10%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Cerulean Cave",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "54-56",
+          "encounter_rate": "15%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "bone_club", "level": 1},
+        {"moveId": "growl", "level": 1},
+        {"moveId": "leer", "level": 1},
+        {"moveId": "focus_energy", "level": 1},
+        {"moveId": "bonemerang", "level": 1},
+        {"moveId": "rage", "level": 1},
+        {"moveId": "false_swipe", "level": 1},
+        {"moveId": "thrash", "level": 1},
+        {"moveId": "bone_rush", "level": 1}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 104
+      }
+    }
+  ]
+}
