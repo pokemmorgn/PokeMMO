@@ -1,0 +1,235 @@
+{
+  "family": "gastly",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 92,
+      "name": "Gastly",
+      "types": ["Ghost", "Poison"],
+      "baseStats": {
+        "hp": 30,
+        "attack": 35,
+        "defense": 30,
+        "specialAttack": 100,
+        "specialDefense": 35,
+        "speed": 80
+      },
+      "abilities": ["levitate"],
+      "hiddenAbility": null,
+      "height": 1.3,
+      "weight": 0.1,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/92.png",
+      "description": "Almost invisible, this gaseous Pokémon cloaks the target and puts it to sleep without notice.",
+      "category": "Gas Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Amorphous"],
+      "hatchTime": 5120,
+      "baseExperience": 62,
+      "growthRate": "Medium Slow",
+      "captureRate": 190,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Pokémon Tower",
+          "rarity": "Very Common",
+          "method": "Wild Encounter",
+          "level_range": "13-19",
+          "encounter_rate": "85%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "lick", "level": 1},
+        {"moveId": "confuse_ray", "level": 1},
+        {"moveId": "night_shade", "level": 8},
+        {"moveId": "hypnosis", "level": 13},
+        {"moveId": "dream_eater", "level": 21},
+        {"moveId": "destiny_bond", "level": 28}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 93,
+        "method": "level",
+        "requirement": 25
+      }
+    },
+    {
+      "id": 93,
+      "name": "Haunter",
+      "types": ["Ghost", "Poison"],
+      "baseStats": {
+        "hp": 45,
+        "attack": 50,
+        "defense": 45,
+        "specialAttack": 115,
+        "specialDefense": 55,
+        "speed": 95
+      },
+      "abilities": ["levitate"],
+      "hiddenAbility": null,
+      "height": 1.6,
+      "weight": 0.1,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/93.png",
+      "description": "Because of its ability to slip through block walls, it is said to be from another dimension.",
+      "category": "Gas Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Amorphous"],
+      "hatchTime": 5120,
+      "baseExperience": 142,
+      "growthRate": "Medium Slow",
+      "captureRate": 90,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Pokémon Tower",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "20-22",
+          "encounter_rate": "15%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Cerulean Cave",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "52-56",
+          "encounter_rate": "15%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "lick", "level": 1},
+        {"moveId": "confuse_ray", "level": 1},
+        {"moveId": "night_shade", "level": 1},
+        {"moveId": "hypnosis", "level": 1},
+        {"moveId": "dream_eater", "level": 25},
+        {"moveId": "destiny_bond", "level": 33}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 94,
+        "method": "trade",
+        "requirement": "trade",
+        "evolvesFrom": 92
+      }
+    },
+    {
+      "id": 94,
+      "name": "Gengar",
+      "types": ["Ghost", "Poison"],
+      "baseStats": {
+        "hp": 60,
+        "attack": 65,
+        "defense": 60,
+        "specialAttack": 130,
+        "specialDefense": 75,
+        "speed": 110
+      },
+      "abilities": ["levitate"],
+      "hiddenAbility": null,
+      "height": 1.5,
+      "weight": 40.5,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/94.png",
+      "description": "Under a full moon, this Pokémon likes to mimic the shadows of people and laugh at their fright.",
+      "category": "Shadow Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Amorphous"],
+      "hatchTime": 5120,
+      "baseExperience": 225,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Trade Evolution Only",
+          "rarity": "N/A",
+          "method": "Trade Evolution",
+          "level_range": "Any",
+          "encounter_rate": "0%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "lick", "level": 1},
+        {"moveId": "confuse_ray", "level": 1},
+        {"moveId": "night_shade", "level": 1},
+        {"moveId": "hypnosis", "level": 1},
+        {"moveId": "dream_eater", "level": 1},
+        {"moveId": "destiny_bond", "level": 1}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 93
+      }
+    }
+  ]
+}
