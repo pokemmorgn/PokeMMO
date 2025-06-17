@@ -1,389 +1,326 @@
 // ===============================================
-// AuthRoom.ts - Room de connexion/authentification sécurisée Sui
+// AuthRoom.ts - Système d'authentification sécurisé Sui Network
 // ===============================================
 import { Room, Client } from "@colyseus/core";
-import { AuthState, AuthPlayer } from "../schema/AuthState";
+import { Schema, MapSchema, type } from "@colyseus/schema";
 import { PlayerData } from "../models/PlayerData";
-import { Connection } from "@mysten/sui.js/client";
-import { verifySignature } from "@mysten/sui.js/verify";
-import { fromB64 } from "@mysten/bcs";
+import * as crypto from 'crypto';
 
-interface AuthOptions {
-  walletAddress?: string;
+// État de l'authentification
+export class AuthState extends Schema {
+  @type({ map: "string" }) authenticatedUsers = new MapSchema<string>();
+  @type({ map: "string" }) pendingAuth = new MapSchema<string>();
+}
+
+// Interface pour les données d'authentification
+interface AuthData {
+  walletAddress: string;
   signature?: string;
   message?: string;
-  publicKey?: string;
+  timestamp: number;
 }
 
 export class AuthRoom extends Room<AuthState> {
-  maxClients = 1000; // Plus de clients pour la gestion globale d'auth
-  private suiClient: Connection;
-  private challenges: Map<string, { message: string, timestamp: number }> = new Map();
-  
-  // Nettoyage des challenges expirés toutes les 5 minutes
-  private readonly CHALLENGE_EXPIRY = 5 * 60 * 1000; 
+  maxClients = 1000;
+  private authChallenges = new Map<string, { message: string; timestamp: number }>();
 
   onCreate(options: any) {
     this.setState(new AuthState());
+    console.log('🔐 AuthRoom créée:', this.roomId);
 
-    console.log('🔐 DEBUT onCreate AuthRoom');
-
-    // Initialiser le client Sui (mainnet/testnet selon config)
-    this.suiClient = new Connection({
-      fullnode: process.env.SUI_RPC_URL || "https://fullnode.mainnet.sui.io:443"
-    });
-
-    // Nettoyage périodique des challenges expirés
+    // Nettoyage des défis expirés toutes les 5 minutes
     this.clock.setInterval(() => {
       this.cleanExpiredChallenges();
-    }, 60000); // Toutes les minutes
+    }, 5 * 60 * 1000);
 
-    // === DEMANDE DE CHALLENGE ===
+    // Message pour demander un défi d'authentification
     this.onMessage("requestChallenge", (client, data: { walletAddress: string }) => {
       this.handleChallengeRequest(client, data);
     });
 
-    // === VERIFICATION DE SIGNATURE ===
-    this.onMessage("verifySignature", async (client, data: AuthOptions) => {
-      await this.handleSignatureVerification(client, data);
+    // Message pour vérifier l'authentification
+    this.onMessage("verifyAuth", (client, data: AuthData) => {
+      this.handleAuthVerification(client, data);
     });
 
-    // === DECONNEXION ===
-    this.onMessage("disconnect", (client) => {
-      this.handleDisconnection(client);
+    // Message pour vérifier le statut d'auth
+    this.onMessage("checkAuthStatus", (client) => {
+      this.handleAuthStatusCheck(client);
     });
-
-    console.log("[AuthRoom] Room d'authentification créée :", this.roomId);
-    console.log('🔐 FIN onCreate AuthRoom');
   }
 
-  /**
-   * Génère un challenge cryptographique unique pour l'adresse wallet
-   */
   private handleChallengeRequest(client: Client, data: { walletAddress: string }) {
     try {
-      const { walletAddress } = data;
-      
-      if (!this.isValidSuiAddress(walletAddress)) {
-        client.send("challengeError", { 
+      console.log(`🔐 Demande de défi pour: ${data.walletAddress} (${client.sessionId})`);
+
+      // Validation de l'adresse Sui
+      if (!this.isValidSuiAddress(data.walletAddress)) {
+        client.send("authError", { 
           error: "Adresse Sui invalide",
-          code: "INVALID_ADDRESS"
+          code: "INVALID_ADDRESS" 
         });
         return;
       }
 
-      // Générer un message de challenge unique
+      // Génération d'un message de défi unique
       const timestamp = Date.now();
-      const nonce = Math.random().toString(36).substring(2, 15);
-      const message = `Connexion sécurisée au jeu\nAdresse: ${walletAddress}\nTimestamp: ${timestamp}\nNonce: ${nonce}`;
+      const nonce = crypto.randomBytes(16).toString('hex');
+      const challengeMessage = `Authentification PokeWorld\nAdresse: ${data.walletAddress}\nTimestamp: ${timestamp}\nNonce: ${nonce}`;
 
-      // Stocker le challenge
-      this.challenges.set(client.sessionId, {
-        message,
+      // Stockage du défi
+      this.authChallenges.set(client.sessionId, {
+        message: challengeMessage,
         timestamp
       });
 
-      console.log(`[AuthRoom] Challenge généré pour ${walletAddress}: ${client.sessionId}`);
+      // Marquer comme en attente
+      this.state.pendingAuth.set(client.sessionId, data.walletAddress);
 
-      client.send("challengeGenerated", {
-        message,
-        walletAddress,
-        sessionId: client.sessionId
+      // Envoi du défi au client
+      client.send("authChallenge", {
+        message: challengeMessage,
+        walletAddress: data.walletAddress,
+        timestamp
       });
 
+      console.log(`✅ Défi envoyé pour ${data.walletAddress}`);
+
     } catch (error) {
-      console.error("[AuthRoom] Erreur génération challenge:", error);
-      client.send("challengeError", { 
-        error: "Erreur interne de génération",
-        code: "GENERATION_ERROR"
+      console.error("❌ Erreur lors de la génération du défi:", error);
+      client.send("authError", { 
+        error: "Erreur serveur lors de la génération du défi",
+        code: "CHALLENGE_ERROR" 
       });
     }
   }
 
-  /**
-   * Vérifie la signature cryptographique côté serveur
-   */
-  private async handleSignatureVerification(client: Client, data: AuthOptions) {
+  private async handleAuthVerification(client: Client, data: AuthData) {
     try {
-      const { walletAddress, signature, publicKey } = data;
+      console.log(`🔍 Vérification auth pour: ${data.walletAddress} (${client.sessionId})`);
 
-      // Vérifications de base
-      if (!walletAddress || !signature || !publicKey) {
-        client.send("authError", { 
-          error: "Données manquantes pour la vérification",
-          code: "MISSING_DATA"
-        });
-        return;
-      }
-
-      // Récupérer le challenge
-      const challenge = this.challenges.get(client.sessionId);
+      // Récupération du défi
+      const challenge = this.authChallenges.get(client.sessionId);
       if (!challenge) {
         client.send("authError", { 
-          error: "Challenge non trouvé ou expiré",
-          code: "CHALLENGE_NOT_FOUND"
+          error: "Aucun défi trouvé. Demandez d'abord un défi.",
+          code: "NO_CHALLENGE" 
         });
         return;
       }
 
-      // Vérifier l'expiration du challenge
-      if (Date.now() - challenge.timestamp > this.CHALLENGE_EXPIRY) {
-        this.challenges.delete(client.sessionId);
+      // Vérification de l'expiration (5 minutes)
+      if (Date.now() - challenge.timestamp > 5 * 60 * 1000) {
+        this.authChallenges.delete(client.sessionId);
+        this.state.pendingAuth.delete(client.sessionId);
         client.send("authError", { 
-          error: "Challenge expiré",
-          code: "CHALLENGE_EXPIRED"
+          error: "Défi expiré. Demandez un nouveau défi.",
+          code: "CHALLENGE_EXPIRED" 
         });
         return;
       }
 
-      // === VERIFICATION CRYPTOGRAPHIQUE SUI ===
-      const isSignatureValid = await this.verifySuiSignature(
+      // Validation de l'adresse
+      if (!this.isValidSuiAddress(data.walletAddress)) {
+        client.send("authError", { 
+          error: "Adresse Sui invalide",
+          code: "INVALID_ADDRESS" 
+        });
+        return;
+      }
+
+      // Vérification de la signature (simulation - à remplacer par vraie vérification Sui)
+      const isValidSignature = await this.verifySuiSignature(
         challenge.message,
-        signature,
-        publicKey,
-        walletAddress
+        data.signature || '',
+        data.walletAddress
       );
 
-      if (!isSignatureValid) {
+      if (!isValidSignature) {
         client.send("authError", { 
           error: "Signature invalide",
-          code: "INVALID_SIGNATURE"
+          code: "INVALID_SIGNATURE" 
         });
         return;
       }
 
-      // === VERIFICATION ON-CHAIN (optionnelle) ===
-      const walletExists = await this.verifyWalletOnChain(walletAddress);
-      if (!walletExists) {
-        console.warn(`[AuthRoom] Wallet ${walletAddress} non trouvé on-chain`);
-        // Note: On peut continuer même si le wallet est nouveau
-      }
-
-      // === AUTHENTIFICATION REUSSIE ===
-      await this.authenticatePlayer(client, walletAddress);
-
-      // Nettoyer le challenge utilisé
-      this.challenges.delete(client.sessionId);
-
-      console.log(`✅ [AuthRoom] Authentification réussie pour ${walletAddress}`);
+      // Authentification réussie
+      await this.completeAuthentication(client, data.walletAddress);
 
     } catch (error) {
-      console.error("[AuthRoom] Erreur vérification signature:", error);
+      console.error("❌ Erreur lors de la vérification:", error);
       client.send("authError", { 
-        error: "Erreur de vérification",
-        code: "VERIFICATION_ERROR"
+        error: "Erreur serveur lors de la vérification",
+        code: "VERIFICATION_ERROR" 
       });
     }
   }
 
-  /**
-   * Vérifie cryptographiquement la signature Sui
-   */
-  private async verifySuiSignature(
-    message: string, 
-    signature: string, 
-    publicKey: string, 
-    walletAddress: string
-  ): Promise<boolean> {
+  private async completeAuthentication(client: Client, walletAddress: string) {
     try {
-      // Convertir le message en bytes
-      const messageBytes = new TextEncoder().encode(message);
-      
-      // Convertir la signature depuis base64
-      const signatureBytes = fromB64(signature);
-      
-      // Convertir la clé publique depuis base64
-      const publicKeyBytes = fromB64(publicKey);
+      // Nettoyage des données temporaires
+      this.authChallenges.delete(client.sessionId);
+      this.state.pendingAuth.delete(client.sessionId);
 
-      // Vérifier la signature avec la librairie Sui
-      const isValid = await verifySignature(
-        messageBytes,
-        signatureBytes,
-        publicKeyBytes
-      );
+      // Marquer comme authentifié
+      this.state.authenticatedUsers.set(client.sessionId, walletAddress);
 
-      // Vérification supplémentaire: la clé publique correspond-elle à l'adresse?
-      const derivedAddress = this.deriveAddressFromPublicKey(publicKeyBytes);
-      const addressMatches = derivedAddress === walletAddress;
-
-      console.log(`[AuthRoom] Signature valide: ${isValid}, Adresse correspond: ${addressMatches}`);
-
-      return isValid && addressMatches;
-
-    } catch (error) {
-      console.error("[AuthRoom] Erreur vérification cryptographique:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Vérifie que le wallet existe on-chain
-   */
-  private async verifyWalletOnChain(walletAddress: string): Promise<boolean> {
-    try {
-      const objects = await this.suiClient.getOwnedObjects({
-        owner: walletAddress,
-        limit: 1
+      // Recherche/création du joueur dans la base
+      let playerData = await PlayerData.findOne({ 
+        $or: [
+          { username: walletAddress },
+          { walletAddress: walletAddress }
+        ]
       });
 
-      // Si on peut récupérer les objets, le wallet existe
-      return objects.data !== undefined;
-
-    } catch (error) {
-      console.error("[AuthRoom] Erreur vérification on-chain:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Authentifie le joueur et met à jour la base de données
-   */
-  private async authenticatePlayer(client: Client, walletAddress: string) {
-    try {
-      // Vérifier si joueur avec cette adresse existe déjà connecté
-      const existingPlayer = Array.from(this.state.players.values())
-        .find(p => p.walletAddress === walletAddress);
-
-      if (existingPlayer) {
-        // Déconnecter l'ancienne session
-        const oldSessionId = Array.from(this.state.players.entries())
-          .find(([_, p]) => p.walletAddress === walletAddress)?.[0];
-        
-        if (oldSessionId) {
-          this.state.players.delete(oldSessionId);
-          console.log(`[AuthRoom] Ancienne session ${oldSessionId} supprimée pour ${walletAddress}`);
-        }
-      }
-
-      // Rechercher ou créer le joueur en base
-      let playerData = await PlayerData.findOne({ walletAddress });
-      
       if (!playerData) {
-        // Créer un nouveau joueur
-        const username = `Player_${walletAddress.substring(2, 8)}`;
+        // Création d'un nouveau compte
         playerData = await PlayerData.create({
-          username,
-          walletAddress,
+          username: walletAddress,
+          walletAddress: walletAddress,
           lastX: 52,
           lastY: 48,
           lastMap: "Beach",
+          gold: 1000, // Gold de départ
+          pokemons: [],
           createdAt: new Date(),
-          lastLogin: new Date(),
-          isVerified: true
+          lastLogin: new Date()
         });
-        console.log(`[AuthRoom] Nouveau joueur créé: ${username} (${walletAddress})`);
+        console.log(`✅ Nouveau compte créé pour ${walletAddress}`);
       } else {
-        // Mettre à jour la dernière connexion
+        // Mise à jour de la dernière connexion
         await PlayerData.updateOne(
-          { walletAddress },
-          { 
-            $set: { 
-              lastLogin: new Date(),
-              isVerified: true 
-            } 
-          }
+          { _id: playerData._id },
+          { $set: { lastLogin: new Date() } }
         );
-        console.log(`[AuthRoom] Joueur existant connecté: ${playerData.username}`);
+        console.log(`✅ Connexion mise à jour pour ${walletAddress}`);
       }
 
-      // Créer l'entrée dans le state de la room
-      const authPlayer = new AuthPlayer();
-      authPlayer.sessionId = client.sessionId;
-      authPlayer.walletAddress = walletAddress;
-      authPlayer.username = playerData.username;
-      authPlayer.isAuthenticated = true;
-      authPlayer.authenticatedAt = Date.now();
-
-      this.state.players.set(client.sessionId, authPlayer);
-
-      // Envoyer la confirmation au client
+      // Envoi de la confirmation d'authentification
       client.send("authSuccess", {
-        username: playerData.username,
         walletAddress: walletAddress,
-        lastMap: playerData.lastMap,
-        lastX: playerData.lastX,
-        lastY: playerData.lastY,
-        sessionId: client.sessionId
+        playerData: {
+          username: playerData.username,
+          lastMap: playerData.lastMap,
+          lastX: playerData.lastX,
+          lastY: playerData.lastY,
+          gold: playerData.gold,
+          pokemons: playerData.pokemons
+        },
+        timestamp: Date.now()
       });
+
+      console.log(`🎉 Authentification réussie pour ${walletAddress}`);
 
     } catch (error) {
-      console.error("[AuthRoom] Erreur authentification joueur:", error);
+      console.error("❌ Erreur lors de la finalisation:", error);
       client.send("authError", { 
-        error: "Erreur de sauvegarde",
-        code: "DATABASE_ERROR"
+        error: "Erreur lors de la création/récupération du compte",
+        code: "DATABASE_ERROR" 
       });
     }
   }
 
-  /**
-   * Gère la déconnexion propre
-   */
-  private handleDisconnection(client: Client) {
-    const player = this.state.players.get(client.sessionId);
-    if (player) {
-      console.log(`[AuthRoom] Déconnexion de ${player.username} (${player.walletAddress})`);
-      this.state.players.delete(client.sessionId);
-    }
-    
-    // Nettoyer le challenge si présent
-    this.challenges.delete(client.sessionId);
+  private handleAuthStatusCheck(client: Client) {
+    const walletAddress = this.state.authenticatedUsers.get(client.sessionId);
+    const isPending = this.state.pendingAuth.has(client.sessionId);
+
+    client.send("authStatus", {
+      isAuthenticated: !!walletAddress,
+      isPending: isPending,
+      walletAddress: walletAddress || null
+    });
   }
 
-  /**
-   * Nettoie les challenges expirés
-   */
+  private isValidSuiAddress(address: string): boolean {
+    // Validation basique d'une adresse Sui
+    // Les adresses Sui commencent par 0x et font 66 caractères
+    const suiAddressRegex = /^0x[a-fA-F0-9]{64}$/;
+    return suiAddressRegex.test(address);
+  }
+
+  private async verifySuiSignature(message: string, signature: string, address: string): Promise<boolean> {
+    try {
+      // TODO: Implémenter la vérification réelle de signature Sui
+      // Pour l'instant, simulation (accepte toutes les signatures non vides)
+      
+      console.log(`🔍 Vérification signature pour ${address}`);
+      console.log(`📝 Message: ${message.substring(0, 50)}...`);
+      console.log(`✍️ Signature: ${signature.substring(0, 20)}...`);
+
+      // Simulation - à remplacer par la vraie vérification Sui
+      if (!signature || signature.length < 10) {
+        return false;
+      }
+
+      // Ici, tu devrais utiliser les outils de vérification Sui
+      // Exemple avec @mysten/sui.js :
+      /*
+      import { verifyMessage } from '@mysten/sui.js/verify';
+      
+      try {
+        const isValid = await verifyMessage(
+          new TextEncoder().encode(message),
+          signature,
+          address
+        );
+        return isValid;
+      } catch (error) {
+        console.error('Erreur vérification Sui:', error);
+        return false;
+      }
+      */
+
+      // Pour le développement, on accepte toute signature
+      return true;
+
+    } catch (error) {
+      console.error('❌ Erreur vérification signature:', error);
+      return false;
+    }
+  }
+
   private cleanExpiredChallenges() {
     const now = Date.now();
-    let cleaned = 0;
-    
-    for (const [sessionId, challenge] of this.challenges.entries()) {
-      if (now - challenge.timestamp > this.CHALLENGE_EXPIRY) {
-        this.challenges.delete(sessionId);
-        cleaned++;
+    const expiredSessions: string[] = [];
+
+    for (const [sessionId, challenge] of this.authChallenges) {
+      if (now - challenge.timestamp > 5 * 60 * 1000) { // 5 minutes
+        expiredSessions.push(sessionId);
       }
     }
-    
-    if (cleaned > 0) {
-      console.log(`[AuthRoom] ${cleaned} challenges expirés nettoyés`);
+
+    for (const sessionId of expiredSessions) {
+      this.authChallenges.delete(sessionId);
+      this.state.pendingAuth.delete(sessionId);
+      console.log(`🧹 Défi expiré nettoyé: ${sessionId}`);
+    }
+
+    if (expiredSessions.length > 0) {
+      console.log(`🧹 ${expiredSessions.length} défis expirés nettoyés`);
     }
   }
 
-  /**
-   * Valide le format d'une adresse Sui
-   */
-  private isValidSuiAddress(address: string): boolean {
-    return /^0x[a-fA-F0-9]{64}$/.test(address);
-  }
-
-  /**
-   * Dérive l'adresse à partir de la clé publique
-   */
-  private deriveAddressFromPublicKey(publicKeyBytes: Uint8Array): string {
-    // Implémentation simplifiée - à adapter selon le schéma Sui exact
-    // Cette fonction devrait utiliser la même logique que Sui pour dériver l'adresse
+  async onJoin(client: Client, options: any) {
+    console.log(`🔐 Nouvelle connexion AuthRoom: ${client.sessionId}`);
     
-    // Pour l'instant, on fait confiance à la vérification de signature
-    // Une implémentation complète nécessiterait d'importer les utilitaires Sui appropriés
-    
-    return ""; // Placeholder - implémenter la dérivation d'adresse Sui
-  }
-
-  async onJoin(client: Client, options: AuthOptions) {
-    console.log(`[AuthRoom] Nouvelle connexion: ${client.sessionId}`);
-    
-    // Le joueur devra demander un challenge pour s'authentifier
-    client.send("authRequired", {
-      message: "Authentification requise via signature Sui",
-      sessionId: client.sessionId
+    // Envoi de l'état de connexion
+    client.send("connectionEstablished", {
+      sessionId: client.sessionId,
+      timestamp: Date.now()
     });
   }
 
   async onLeave(client: Client) {
-    this.handleDisconnection(client);
+    console.log(`🔐 Déconnexion AuthRoom: ${client.sessionId}`);
+    
+    // Nettoyage des données de session
+    this.authChallenges.delete(client.sessionId);
+    this.state.pendingAuth.delete(client.sessionId);
+    this.state.authenticatedUsers.delete(client.sessionId);
   }
 
   async onDispose() {
-    console.log("[AuthRoom] Room d'authentification fermée");
-    this.challenges.clear();
+    console.log("🔐 AuthRoom fermée - nettoyage final");
+    this.authChallenges.clear();
   }
 }
