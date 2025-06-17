@@ -464,48 +464,60 @@
                 this.refreshBtn.addEventListener('click', () => this.refreshAccounts());
 
                 // JOUER : signature Sui puis connexion AuthRoom Colyseus
-                this.playGameBtn.addEventListener('click', async () => {
-                    if (this.currentAccount && this.currentAccount.address) {
-                        try {
-                            // 1. Préparer le message à signer (simple ou timestampé)
-                            const message = `Connexion à PokeWorld: ${Date.now()}`;
-                            const msgBytes = new TextEncoder().encode(message);
+this.playGameBtn.addEventListener('click', async () => {
+    if (this.currentAccount && this.currentAccount.address) {
+        try {
+            const message = `Connexion à PokeWorld: ${Date.now()}`;
+            const msgBytes = new TextEncoder().encode(message);
 
-                            // 2. Demander signature Sui
-                            const suiProvider = window.phantom.sui;
-                            const { signature } = await suiProvider.signMessage({
-                                message: msgBytes,
-                            });
+            const suiProvider = window.phantom.sui;
+            let sigResult = await suiProvider.signMessage({ message: msgBytes });
 
-                            // 3. Connexion Colyseus AuthRoom (WebSocket)
-                            const client = new Colyseus.Client("wss://pokerune.cloud/api"); // <-- Modifie l'URL selon ton endpoint
-                            const room = await client.joinOrCreate("AuthRoom");
+            // Compat Phantom (parfois renvoie { signature: { signature: "..." }, ... } )
+            let signature;
+            if (typeof sigResult.signature === "string") {
+                signature = sigResult.signature;
+            } else if (sigResult.signature && sigResult.signature.signature) {
+                signature = sigResult.signature.signature;
+            } else if (sigResult.signature) {
+                signature = sigResult.signature;
+            } else {
+                throw new Error("Impossible de récupérer la signature du wallet.");
+            }
 
-                            // 4. Envoyer la preuve d'authentification
-                            room.send("authenticate", {
-                                address: this.currentAccount.address,
-                                signature: signature, // Ed25519/base64
-                                message: message
-                            });
+            // LOG DEBUG
+            console.log("Colyseus AUTH params : ", {
+                address: this.currentAccount.address,
+                signature,
+                message
+            });
 
-                            // 5. Attendre validation serveur
-                            room.onMessage((msg) => {
-                                if (msg.status === "ok") {
-                                    // Authentifié ! Redirige ou continue le jeu ici.
-                                    alert("Authentification réussie ! Adresse : " + msg.address);
-                                    // location.href = "index.html?wallet=" + encodeURIComponent(this.currentAccount.address);
-                                } else {
-                                    alert(msg.reason || "Erreur d'authentification.");
-                                }
-                            });
+            const client = new Colyseus.Client("wss://pokerune.cloud/api"); // <-- adapte l'URL
+            const room = await client.joinOrCreate("AuthRoom");
 
-                        } catch (err) {
-                            alert("Erreur d'authentification SUI: " + (err.message || err));
-                        }
-                    } else {
-                        alert("Connecte ton wallet pour jouer.");
-                    }
-                });
+            room.send("authenticate", {
+                address: this.currentAccount.address,
+                signature: signature,
+                message: message
+            });
+
+            room.onMessage((msg) => {
+                if (msg.status === "ok") {
+                    alert("Authentification réussie ! Adresse : " + msg.address);
+                    // location.href = "index.html?wallet=" + encodeURIComponent(this.currentAccount.address);
+                } else {
+                    alert(msg.reason || "Erreur d'authentification.");
+                }
+            });
+
+        } catch (err) {
+            alert("Erreur d'authentification SUI: " + (err.message || err));
+        }
+    } else {
+        alert("Connecte ton wallet pour jouer.");
+    }
+});
+
 
                 // Écouter les changements de compte dans Phantom
                 this.setupPhantomListeners();
