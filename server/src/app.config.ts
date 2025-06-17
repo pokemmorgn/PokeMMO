@@ -11,10 +11,16 @@ import { Road1Room } from "./rooms/Road1Room"; // ✅ AJOUT : Import de Road1Roo
 import { VillageLabRoom } from "./rooms/VillageLabRoom";
 import { connectDB } from "./db";
 
+// Authentification system
+import { AuthRoom } from "./rooms/AuthRoom";
+
 export default config({
   initializeGameServer: (gameServer) => {
+    //---------------- AUTH SYSTEM----------------------//
+    gameServer.define('AuthRoom', AuthRoom);
+    //---------------- AUTH SYSTEM----------------------//
     // Définition des rooms par zone
-	gameServer.define('Road1Room', Road1Room),
+    gameServer.define('Road1Room', Road1Room),
     gameServer.define('BeachRoom', BeachRoom),
     gameServer.define('VillageRoom', VillageRoom),
     gameServer.define('VillageLabRoom', VillageLabRoom);
