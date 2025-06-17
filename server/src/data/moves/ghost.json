@@ -1,0 +1,32 @@
+{
+  "lick": {
+    "name": "Lick",
+    "category": "Physical",
+    "power": 20,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The target is licked with a long tongue, causing damage. This may also leave the target with paralysis.",
+    "effects": ["30% chance to paralyze"]
+  },
+  "confuse_ray": {
+    "name": "Confuse Ray",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The target is exposed to a sinister ray that triggers confusion.",
+    "effects": ["confuses target"]
+  },
+  "night_shade": {
+    "name": "Night Shade",
+    "category": "Special",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "The user makes the target see a frightening mirage. It inflicts damage equal to the user's level.",
+    "effects": ["deals damage equal to user's level"]
+  }
+}
