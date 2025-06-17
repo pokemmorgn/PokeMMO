@@ -34,20 +34,17 @@
       "catchLocations": [
         {
           "location": "Viridian Forest",
-          "area": "Deep Forest",
-          "rarity": "Very Common",
-          "method": "Wild Grass",
+          "rarity": "Common",
+          "method": "Wild Encounter",
           "level_range": "3-5",
-          "encounter_rate": "30%",
+          "encounter_rate": "45%",
           "time_of_day": "Any",
           "season": "Any",
           "ball_effectiveness": {
             "poke_ball": 1.0,
             "great_ball": 1.5,
             "ultra_ball": 2.0,
-            "master_ball": 255.0,
-            "net_ball": 3.0,
-            "nest_ball": 2.0
+            "master_ball": 255.0
           },
           "status_modifiers": {
             "normal": 1.0,
@@ -60,72 +57,17 @@
         },
         {
           "location": "Route 2",
-          "area": "South of Pewter City",
           "rarity": "Common",
-          "method": "Wild Grass",
+          "method": "Wild Encounter",
           "level_range": "3-4",
-          "encounter_rate": "25%",
+          "encounter_rate": "35%",
           "time_of_day": "Any",
           "season": "Any",
           "ball_effectiveness": {
             "poke_ball": 1.0,
             "great_ball": 1.5,
             "ultra_ball": 2.0,
-            "master_ball": 255.0,
-            "net_ball": 3.0,
-            "nest_ball": 2.0
-          },
-          "status_modifiers": {
-            "normal": 1.0,
-            "sleep": 2.5,
-            "freeze": 2.5,
-            "paralysis": 1.5,
-            "burn": 1.5,
-            "poison": 1.5
-          }
-        },
-        {
-          "location": "Route 24",
-          "area": "Near Cerulean City",
-          "rarity": "Common",
-          "method": "Wild Grass",
-          "level_range": "7-8",
-          "encounter_rate": "20%",
-          "time_of_day": "Day",
-          "season": "Spring",
-          "ball_effectiveness": {
-            "poke_ball": 1.0,
-            "great_ball": 1.5,
-            "ultra_ball": 2.0,
-            "master_ball": 255.0,
-            "net_ball": 3.0,
-            "nest_ball": 1.5
-          },
-          "status_modifiers": {
-            "normal": 1.0,
-            "sleep": 2.5,
-            "freeze": 2.5,
-            "paralysis": 1.5,
-            "burn": 1.5,
-            "poison": 1.5
-          }
-        },
-        {
-          "location": "Route 25",
-          "area": "Bill's House Area",
-          "rarity": "Common",
-          "method": "Wild Grass",
-          "level_range": "7-9",
-          "encounter_rate": "20%",
-          "time_of_day": "Day",
-          "season": "Spring",
-          "ball_effectiveness": {
-            "poke_ball": 1.0,
-            "great_ball": 1.5,
-            "ultra_ball": 2.0,
-            "master_ball": 255.0,
-            "net_ball": 3.0,
-            "nest_ball": 1.5
+            "master_ball": 255.0
           },
           "status_modifiers": {
             "normal": 1.0,
@@ -166,7 +108,7 @@
       "height": 0.7,
       "weight": 9.9,
       "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/11.png",
-      "description": "This Pokémon is vulnerable to attack while its shell is soft, exposing its weak and tender body.",
+      "description": "A steel-hard shell protects its tender body. It quietly endures hardships while awaiting evolution.",
       "category": "Cocoon Pokémon",
       "genderRatio": {
         "male": 50.0,
@@ -181,71 +123,17 @@
       "catchLocations": [
         {
           "location": "Viridian Forest",
-          "area": "Deep Forest",
-          "rarity": "Common",
-          "method": "Wild Grass",
-          "level_range": "6-7",
-          "encounter_rate": "15%",
-          "time_of_day": "Any",
-          "season": "Any",
-          "ball_effectiveness": {
-            "poke_ball": 1.0,
-            "great_ball": 1.5,
-            "ultra_ball": 2.0,
-            "master_ball": 255.0,
-            "net_ball": 3.0,
-            "nest_ball": 1.8
-          },
-          "status_modifiers": {
-            "normal": 1.0,
-            "sleep": 2.5,
-            "freeze": 2.5,
-            "paralysis": 1.5,
-            "burn": 1.5,
-            "poison": 1.5
-          }
-        },
-        {
-          "location": "Route 2",
-          "area": "South of Pewter City",
           "rarity": "Uncommon",
-          "method": "Wild Grass",
-          "level_range": "5-6",
-          "encounter_rate": "10%",
+          "method": "Wild Encounter",
+          "level_range": "4-6",
+          "encounter_rate": "20%",
           "time_of_day": "Any",
           "season": "Any",
           "ball_effectiveness": {
             "poke_ball": 1.0,
             "great_ball": 1.5,
             "ultra_ball": 2.0,
-            "master_ball": 255.0,
-            "net_ball": 3.0,
-            "nest_ball": 1.8
-          },
-          "status_modifiers": {
-            "normal": 1.0,
-            "sleep": 2.5,
-            "freeze": 2.5,
-            "paralysis": 1.5,
-            "burn": 1.5,
-            "poison": 1.5
-          }
-        },
-        {
-          "location": "Evolution Only",
-          "area": null,
-          "rarity": "N/A",
-          "method": "Evolution",
-          "level_range": "7+",
-          "encounter_rate": "0%",
-          "time_of_day": "Any",
-          "season": "Any",
-          "ball_effectiveness": {
-            "poke_ball": 1.0,
-            "great_ball": 1.5,
-            "ultra_ball": 2.0,
-            "master_ball": 255.0,
-            "net_ball": 3.0
+            "master_ball": 255.0
           },
           "status_modifiers": {
             "normal": 1.0,
@@ -258,7 +146,7 @@
         }
       ],
       "learnset": [
-        {"moveId": "harden", "level": 7}
+        {"moveId": "harden", "level": 1}
       ],
       "evolution": {
         "canEvolve": true,
@@ -285,7 +173,7 @@
       "height": 1.1,
       "weight": 32.0,
       "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/12.png",
-      "description": "In battle, it flaps its wings at high speed to release highly toxic dust into the air.",
+      "description": "In battle, it flaps its wings at great speed to release highly toxic dust into the air.",
       "category": "Butterfly Pokémon",
       "genderRatio": {
         "male": 50.0,
@@ -300,7 +188,6 @@
       "catchLocations": [
         {
           "location": "Evolution Only",
-          "area": null,
           "rarity": "N/A",
           "method": "Evolution",
           "level_range": "10+",
@@ -311,35 +198,7 @@
             "poke_ball": 1.0,
             "great_ball": 1.5,
             "ultra_ball": 2.0,
-            "master_ball": 255.0,
-            "net_ball": 3.0,
-            "fast_ball": 4.0
-          },
-          "status_modifiers": {
-            "normal": 1.0,
-            "sleep": 2.5,
-            "freeze": 2.5,
-            "paralysis": 1.5,
-            "burn": 1.5,
-            "poison": 1.5
-          }
-        },
-        {
-          "location": "Route 2",
-          "area": "South of Pewter City",
-          "rarity": "Very Rare",
-          "method": "Wild Grass",
-          "level_range": "12-14",
-          "encounter_rate": "1%",
-          "time_of_day": "Day",
-          "season": "Spring",
-          "ball_effectiveness": {
-            "poke_ball": 1.0,
-            "great_ball": 1.5,
-            "ultra_ball": 2.0,
-            "master_ball": 255.0,
-            "net_ball": 3.0,
-            "fast_ball": 4.0
+            "master_ball": 255.0
           },
           "status_modifiers": {
             "normal": 1.0,
@@ -352,20 +211,22 @@
         }
       ],
       "learnset": [
-        {"moveId": "tackle", "level": 1},
-        {"moveId": "string_shot", "level": 1},
-        {"moveId": "bug_bite", "level": 1},
-        {"moveId": "harden", "level": 1},
-        {"moveId": "confusion", "level": 10},
-        {"moveId": "poison_powder", "level": 13},
-        {"moveId": "stun_spore", "level": 14},
-        {"moveId": "sleep_powder", "level": 15},
-        {"moveId": "psybeam", "level": 18},
-        {"moveId": "silver_wind", "level": 23},
-        {"moveId": "supersonic", "level": 28},
-        {"moveId": "safeguard", "level": 34},
-        {"moveId": "bug_buzz", "level": 40},
-        {"moveId": "whirlwind", "level": 47}
+        {"moveId": "confusion", "level": 1},
+        {"moveId": "gust", "level": 1},
+        {"moveId": "poison_powder", "level": 12},
+        {"moveId": "stun_spore", "level": 12},
+        {"moveId": "sleep_powder", "level": 12},
+        {"moveId": "psybeam", "level": 15},
+        {"moveId": "silver_wind", "level": 18},
+        {"moveId": "supersonic", "level": 23},
+        {"moveId": "safeguard", "level": 26},
+        {"moveId": "whirlwind", "level": 31},
+        {"moveId": "bug_buzz", "level": 34},
+        {"moveId": "rage_powder", "level": 39},
+        {"moveId": "captivate", "level": 42},
+        {"moveId": "tailwind", "level": 47},
+        {"moveId": "air_slash", "level": 50},
+        {"moveId": "quiver_dance", "level": 55}
       ],
       "evolution": {
         "canEvolve": false,
