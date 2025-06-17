@@ -167,34 +167,33 @@ export class BeachScene extends BaseZoneScene {
 
   // --- Intro Bulbizarre animé (starter Pokémon) ---
   startIntroSequence(player) {
-    this.spawnStarterPokemon(player.x + 80, player.y, '001_Bulbasaur', 'left');
+    this.spawnStarterPokemon(player.x + 96, player.y, '001_Bulbasaur', 'left');
   }
 
   spawnStarterPokemon(x, y, pokemonName, direction = "left") {
-    this.pokemonSpriteManager.loadSpritesheet(pokemonName);
+  this.pokemonSpriteManager.loadSpritesheet(pokemonName);
 
-    // Attend que le spritesheet soit chargé avant de créer le sprite animé
-    const trySpawn = () => {
-      if (this.textures.exists(`${pokemonName}_Walk`)) {
-        const starter = this.pokemonSpriteManager.createPokemonSprite(pokemonName, x, y, direction);
+  const trySpawn = () => {
+    if (this.textures.exists(`${pokemonName}_Walk`)) {
+      const starter = this.pokemonSpriteManager.createPokemonSprite(pokemonName, x, y, direction);
 
-        // Animation pour venir à côté du joueur
-        this.tweens.add({
-          targets: starter,
-          x: x - 36,
-          duration: 700,
-          ease: 'Sine.easeInOut',
-          onComplete: () => {
-            starter.play(`${pokemonName}_Walk_left`);
-            this.showIntroDialogue(starter);
-          }
-        });
-      } else {
-        this.time.delayedCall(50, trySpawn);
-      }
-    };
-    trySpawn();
-  }
+      // Il part de x+96, arrive à x (juste à droite du joueur)
+      this.tweens.add({
+        targets: starter,
+        x: x - 96,
+        duration: 700,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          starter.play(`${pokemonName}_Walk_left`);
+          this.showIntroDialogue(starter);
+        }
+      });
+    } else {
+      this.time.delayedCall(50, trySpawn);
+    }
+  };
+  trySpawn();
+}
 
   showIntroDialogue(starter) {
     // Boîte de dialogue au-dessus du starter
