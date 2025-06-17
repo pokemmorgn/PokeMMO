@@ -1,0 +1,79 @@
+{
+  "gust": {
+    "name": "Gust",
+    "category": "Special",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 35,
+    "priority": 0,
+    "description": "A gust of wind is whipped up by wings and launched at the target to inflict damage.",
+    "effects": ["double damage if target used Fly"]
+  },
+  "wing_attack": {
+    "name": "Wing Attack",
+    "category": "Physical",
+    "power": 60,
+    "accuracy": 100,
+    "pp": 35,
+    "priority": 0,
+    "description": "The target is struck with large, imposing wings spread wide to inflict damage."
+  },
+  "whirlwind": {
+    "name": "Whirlwind",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 85,
+    "pp": 20,
+    "priority": -6,
+    "description": "The target is blown away, and a different Pokémon is dragged out.",
+    "effects": ["forces opponent to switch", "priority -6"]
+  },
+  "fly": {
+    "name": "Fly",
+    "category": "Physical",
+    "power": 70,
+    "accuracy": 95,
+    "pp": 15,
+    "priority": 0,
+    "description": "The user soars and then strikes its target on the next turn.",
+    "effects": ["user becomes semi-invulnerable on turn 1", "attacks on turn 2"]
+  },
+  "peck": {
+    "name": "Peck",
+    "category": "Physical",
+    "power": 35,
+    "accuracy": 100,
+    "pp": 35,
+    "priority": 0,
+    "description": "The target is jabbed with a sharply pointed beak or horn."
+  },
+  "drill_peck": {
+    "name": "Drill Peck",
+    "category": "Physical",
+    "power": 80,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "A corkscrewing attack that strikes the target with a sharp beak acting as a drill."
+  },
+  "sky_attack": {
+    "name": "Sky Attack",
+    "category": "Physical",
+    "power": 140,
+    "accuracy": 90,
+    "pp": 5,
+    "priority": 0,
+    "description": "A second-turn attack move where critical hits land more easily. This may also make the target flinch.",
+    "effects": ["charges on turn 1", "attacks on turn 2", "high critical hit ratio", "30% chance to flinch"]
+  },
+  "mirror_move": {
+    "name": "Mirror Move",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The user counters the target by mimicking the target's last move.",
+    "effects": ["copies and uses target's last move"]
+  }
+}
