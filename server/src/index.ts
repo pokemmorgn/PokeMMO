@@ -15,9 +15,3 @@ const server = https.createServer(httpsOptions);
 listen(appConfig, 2567, server).then(() => {
     console.log(`✅ Colyseus écoute sur https://pokerune.cloud:2567`);
 });
-```
-
-1. **Dans votre HTML, changez :**
-
-```javascript
-this.client = new Colyseus.Client("wss://pokerune.cloud:2567");
