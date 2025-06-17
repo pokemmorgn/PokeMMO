@@ -439,13 +439,12 @@ class PhantomMultiAccountManager {
     constructor() {
         this.currentAccount = null;
         this.isConnected = false;
-        this.connectionState = null;
         
         this.initializeElements();
         this.initializeEventListeners();
         this.startDiagnostics();
         
-        // Initialise client Colyseus (adapter l'URL à ton serveur)
+        // Initialiser client Colyseus (adapter l'URL à ton serveur)
         this.colyseusClient = new Colyseus.Client("wss://pokerune.cloud/ws"); 
     }
 
@@ -457,7 +456,6 @@ class PhantomMultiAccountManager {
         this.statusDot = document.getElementById('statusDot');
         this.accountStatus = document.getElementById('accountStatus');
         this.accountDetails = document.getElementById('accountDetails');
-        this.accountList = document.getElementById('accountList');
         this.refreshBtn = document.getElementById('refreshBtn');
         this.playGameBtn = document.getElementById('playGameBtn');
     }
@@ -764,8 +762,6 @@ class PhantomMultiAccountManager {
         }
     }
 
-    // *** Voici la méthode importante qui fait l’auth avec AuthRoom ***
-
     async authenticateAndPlay() {
         if (!this.currentAccount?.address) {
             alert("Connecte ton wallet pour jouer.");
@@ -777,15 +773,18 @@ class PhantomMultiAccountManager {
 
             const address = this.currentAccount.address;
             const message = `PokeWorld Auth ${Date.now()}`;
-
             const encodedMessage = new TextEncoder().encode(message);
+
+            // Signature via Phantom Sui
             const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
+
+            // Convertir signature Uint8Array en base64 pour envoyer au serveur
             const signatureBase64 = btoa(String.fromCharCode(...signed.signature));
 
-            // Connexion au serveur Colyseus AuthRoom
+            // Connexion au serveur AuthRoom Colyseus
             const room = await this.colyseusClient.joinOrCreate("AuthRoom");
 
-            // Envoi du payload
+            // Envoyer les données d'authentification
             room.send("authenticate", {
                 address,
                 signature: signatureBase64,
@@ -794,11 +793,11 @@ class PhantomMultiAccountManager {
                 timestamp: Date.now()
             });
 
-            // Écoute des réponses du serveur
+            // Écouter les réponses serveur
             room.onMessage("authenticated", (data) => {
                 if (data.status === "ok") {
                     alert("Authentification réussie !");
-                    // Rediriger vers le jeu avec l'adresse dans l'URL
+                    // Redirection vers la page principale avec wallet en query param
                     window.location.href = "index.html?wallet=" + encodeURIComponent(address);
                 } else {
                     alert("Erreur d'authentification");
@@ -818,7 +817,7 @@ class PhantomMultiAccountManager {
     }
 }
 
-// Fonction utilitaire pour copier l'adresse
+// Copier l'adresse dans le presse-papier
 function copyAddress() {
     const address = document.getElementById('walletAddress').textContent.replace('Copy', '');
     navigator.clipboard.writeText(address).then(() => {
@@ -831,7 +830,7 @@ function copyAddress() {
     });
 }
 
-// Initialisation au chargement
+// Initialiser l'application au chargement
 let app;
 window.addEventListener('load', () => {
     setTimeout(() => {
@@ -855,6 +854,7 @@ window.addEventListener('focus', () => {
     }
 });
 </script>
+
 
 </body>
 </html>
