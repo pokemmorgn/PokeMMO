@@ -1,0 +1,52 @@
+{
+  "thunder_shock": {
+    "name": "Thunder Shock",
+    "category": "Special",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "A jolt of electricity crashes down on the target to inflict damage. This may also leave the target with paralysis.",
+    "effects": ["10% chance to paralyze"]
+  },
+  "thunderbolt": {
+    "name": "Thunderbolt",
+    "category": "Special",
+    "power": 95,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "A strong electric blast crashes down on the target. This may also leave the target with paralysis.",
+    "effects": ["10% chance to paralyze"]
+  },
+  "thunder": {
+    "name": "Thunder",
+    "category": "Special",
+    "power": 120,
+    "accuracy": 70,
+    "pp": 10,
+    "priority": 0,
+    "description": "A wicked thunderbolt is dropped on the target to inflict damage. This may also leave the target with paralysis.",
+    "effects": ["30% chance to paralyze"]
+  },
+  "thunder_wave": {
+    "name": "Thunder Wave",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The user launches a weak jolt of electricity that paralyzes the target.",
+    "effects": ["paralyzes target"]
+  },
+  "thunder_punch": {
+    "name": "Thunder Punch",
+    "category": "Physical",
+    "power": 75,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "The target is punched with an electrified fist. This may also leave the target with paralysis.",
+    "effects": ["10% chance to paralyze"]
+  }
+}
