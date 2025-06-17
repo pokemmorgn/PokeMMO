@@ -4,6 +4,8 @@ import config from "@colyseus/tools";
 import { monitor } from "@colyseus/monitor";
 import { playground } from "@colyseus/playground";
 import { PlayerData } from "./models/PlayerData";
+import https from 'https';
+import fs from 'fs';
 
 import { BeachRoom } from "./rooms/BeachRoom";
 import { VillageRoom } from "./rooms/VillageRoom";
@@ -22,6 +24,14 @@ let globalPokemonManager: PokemonManager;
 let globalMoveManager: MoveManager;
 
 export default config({
+  options: {
+    // Serveur HTTPS sécurisé avec Let's Encrypt
+    server: https.createServer({
+      cert: fs.readFileSync('/etc/letsencrypt/live/pokerune.cloud/fullchain.pem'),
+      key: fs.readFileSync('/etc/letsencrypt/live/pokerune.cloud/privkey.pem')
+    })
+  },
+
   initializeGameServer: (gameServer) => {
     //---------------- AUTH SYSTEM----------------------//
     gameServer.define('AuthRoom', AuthRoom);
@@ -33,7 +43,6 @@ export default config({
     gameServer.define('VillageLabRoom', VillageLabRoom);
   },
 
- 
   initializeExpress: (app) => {
     app.get("/hello_world", (req, res) => {
       res.send("Welcome to PokeWorld!");
