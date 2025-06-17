@@ -30,8 +30,8 @@ export class LoaderScene extends Phaser.Scene {
 
     // Charger le spritesheet du joueur (32x32 par frame)
   this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
-    frameWidth: 64,
-    frameHeight: 64,
+    frameWidth: 32,
+    frameHeight: 32,
   });
     // ✅ Progress events
     this.load.on('progress', (progress) => {
