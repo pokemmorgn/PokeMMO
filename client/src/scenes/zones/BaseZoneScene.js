@@ -505,14 +505,13 @@ this.applyVisualSettings();
 applyVisualSettings() {
   switch (this.mapKey) {
     case 'ProfLaboInt':
-      if (this.cameraManager) this.cameraManager.setZoom(0.5);
       const playerLab = this.playerManager?.getMyPlayer();
-      if (playerLab) playerLab.setScale(1);
+      if (playerLab) playerLab.setScale(2);
       break;
 
     case 'Village':
     case 'VillageRoom':
-      if (this.cameraManager) this.cameraManager.setZoom(0.5);
+      
       const playerVillage = this.playerManager?.getMyPlayer();
       if (playerVillage) playerVillage.setScale(1);
       break;
