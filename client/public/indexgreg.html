@@ -467,10 +467,17 @@
 this.playGameBtn.addEventListener('click', async () => {
     if (this.currentAccount && this.currentAccount.address) {
         try {
+            console.log("1️⃣ Début try JOUER");
+
             const suiProvider = window.phantom.sui;
+            console.log("2️⃣ suiProvider:", suiProvider);
+
             const message = `Connexion à PokeWorld: ${Date.now()}`;
             const msgBytes = new TextEncoder().encode(message);
+            console.log("3️⃣ Message et msgBytes:", message, msgBytes);
+
             let sigResult = await suiProvider.signMessage({ message: msgBytes });
+            console.log("4️⃣ Signature reçue:", sigResult);
 
             let signature;
             if (typeof sigResult.signature === "string") {
@@ -482,12 +489,15 @@ this.playGameBtn.addEventListener('click', async () => {
             } else {
                 throw new Error("Impossible de récupérer la signature du wallet.");
             }
+            console.log("5️⃣ Signature extraite:", signature);
 
-            // 👇 Création du client et de la room dans le même try !
-            const client = new Colyseus.Client("wss://pokerune.cloud/api"); 
+            const client = new Colyseus.Client("wss://pokerune.cloud/api");
+            console.log("6️⃣ Client Colyseus créé", client);
+
             const room = await client.joinOrCreate("AuthRoom");
+            console.log("7️⃣ Room rejointe", room);
 
-            console.log("Avant envoi authenticate:", {
+            console.log("8️⃣ Avant envoi authenticate:", {
                 address: this.currentAccount.address,
                 signature,
                 message
@@ -502,7 +512,6 @@ this.playGameBtn.addEventListener('click', async () => {
             room.onMessage((msg) => {
                 if (msg.status === "ok") {
                     alert("Authentification réussie ! Adresse : " + msg.address);
-                    // location.href = "index.html?wallet=" + encodeURIComponent(this.currentAccount.address);
                 } else {
                     alert(msg.reason || "Erreur d'authentification.");
                 }
@@ -510,16 +519,12 @@ this.playGameBtn.addEventListener('click', async () => {
 
         } catch (err) {
             console.error("Erreur lors de la signature ou de l'envoi :", err);
-            alert("Erreur d'authentification SUI: " + (err.message || err));
+            alert("Erreur d'authentification SUI: " + (err && err.message ? err.message : err));
         }
     } else {
         alert("Connecte ton wallet pour jouer.");
     }
 });
-
-            
-
-
                 // Écouter les changements de compte dans Phantom
                 this.setupPhantomListeners();
 }
