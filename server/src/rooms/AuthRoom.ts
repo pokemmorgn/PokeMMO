@@ -81,8 +81,29 @@ export class AuthRoom extends Room<AuthState> {
     });
   }
 
- 
+  async verifySlushSignature(address: string, signature: string, message: string): Promise<boolean> {
+    try {
+      const messageBytes = new TextEncoder().encode(message);
 
+      // Convertir la signature base64 en Uint8Array
+      const signatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+
+      const publicKey = await verifyPersonalMessage(messageBytes, signatureBytes);
+
+      if (!publicKey) return false;
+
+      const derivedAddress = publicKey.toSuiAddress?.();
+      if (derivedAddress !== address) {
+        console.warn("Adresse dérivée ne correspond pas à l'adresse fournie");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Erreur vérification Slush:", error);
+      return false;
+    }
+  }
 
   async manualSuiVerification(address: string, signature: string, message: string): Promise<boolean> {
     try {
@@ -94,7 +115,7 @@ export class AuthRoom extends Room<AuthState> {
 
       return (
         address.startsWith("0x") &&
-        address.length === 66 && // 0x + 64 hex chars
+        address.length === 66 &&
         signature.length > 0 &&
         message.includes("PokeWorld")
       );
