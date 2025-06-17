@@ -1,0 +1,154 @@
+import { Room, Client } from "@colyseus/core";
+import { PokeWorldState, Player } from "../schema/PokeWorldState";
+import { PlayerData } from "../models/PlayerData";
+
+export class VillageHouse1Room extends Room<PokeWorldState> {
+  maxClients = 50;
+
+  onCreate(options: any): void {
+    this.setState(new PokeWorldState());
+
+    this.clock.setInterval(() => {
+      this.saveAllPlayers();
+      console.log(`[${new Date().toISOString()}] Sauvegarde automatique de tous les joueurs (VillageHouse1)`);
+    }, 30000);
+
+    this.onMessage("move", (client, data: { x: number; y: number }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (player) {
+        player.x = data.x;
+        player.y = data.y;
+      }
+    });
+
+    this.onMessage("changeZone", async (client: Client, data: { targetZone: string; direction: string }) => {
+      console.log(`[VillageHouse1Room] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
+
+      // Définir la position de spawn selon la zone cible
+      let spawnX = 300, spawnY = 200;
+
+      switch (data.targetZone) {
+        case 'VillageScene': spawnX = 500; spawnY = 400; break;
+        case 'VillageLabScene': spawnX = 70; spawnY = 240; break;
+        // Ajoute d’autres zones si besoin
+      }
+
+      const player = this.state.players.get(client.sessionId);
+      if (player) {
+        this.state.players.delete(client.sessionId);
+        console.log(`[VillageHouse1Room] Joueur ${client.sessionId} supprimé pour transition`);
+
+        await PlayerData.updateOne(
+          { username: player.name },
+          { $set: { lastX: spawnX, lastY: spawnY, lastMap: data.targetZone } }
+        );
+        console.log(`[VillageHouse1Room] Sauvegarde position et map (${spawnX}, ${spawnY}) dans ${data.targetZone} pour ${player.name}`);
+      }
+
+      client.send("zoneChanged", {
+        targetZone: data.targetZone,
+        fromZone: "VillageHouse1Room",
+        direction: data.direction,
+        spawnX,
+        spawnY,
+      });
+
+      console.log(`[VillageHouse1Room] Transition envoyée: ${data.targetZone} à (${spawnX}, ${spawnY})`);
+    });
+
+    // Exemple d'interaction simple
+    this.onMessage("interactWithNPC", (client: Client, data: { npcName: string }) => {
+      console.log(`[VillageHouse1Room] ${client.sessionId} interagit avec ${data.npcName}`);
+
+      const messages: Record<string, string> = {
+        Grandma: "Bonjour jeune dresseur ! Prends soin de toi.",
+        Cat: "Le chat ronronne doucement.",
+      };
+
+      const message = messages[data.npcName] || "Il n'y a rien ici.";
+      client.send("npcDialog", { message });
+    });
+
+    console.log("[VillageHouse1Room] Room créée :", this.roomId);
+  }
+
+  async saveAllPlayers(): Promise<void> {
+    try {
+      for (const [_, player] of this.state.players.entries()) {
+        await PlayerData.updateOne(
+          { username: player.name },
+          { $set: { lastX: player.x, lastY: player.y, lastMap: "VillageHouse1Room" } }
+        );
+      }
+      console.log(`[VillageHouse1Room] Sauvegarde automatique : ${this.state.players.size} joueurs`);
+    } catch (error) {
+      console.error("[VillageHouse1Room] Erreur sauvegarde automatique:", error);
+    }
+  }
+
+  async onJoin(client: Client, options: any): Promise<void> {
+    const username = options.username || "Anonymous";
+
+    // Supprimer joueur déjà connecté avec ce nom
+    const existingPlayer = Array.from(this.state.players.values() as Iterable<Player>)
+      .find(p => p.name === username);
+
+    if (existingPlayer) {
+      const oldSessionId = Array.from(this.state.players.entries() as Iterable<[string, Player]>)
+        .find(([_, p]) => p.name === username)?.[0];
+
+      if (oldSessionId) {
+        this.state.players.delete(oldSessionId);
+        console.log(`[VillageHouse1Room] Ancien joueur ${username} supprimé (sessionId: ${oldSessionId})`);
+      }
+    }
+
+    let playerData = await PlayerData.findOne({ username });
+    if (!playerData) {
+      playerData = await PlayerData.create({
+        username,
+        lastX: 300,
+        lastY: 200,
+        lastMap: "VillageHouse1Room"
+      });
+    }
+
+    const player = new Player();
+    player.name = username;
+
+    if (options.spawnX !== undefined && options.spawnY !== undefined) {
+      player.x = options.spawnX;
+      player.y = options.spawnY;
+      console.log(`[VillageHouse1Room] ${username} spawn à (${options.spawnX}, ${options.spawnY}) depuis ${options.fromZone}`);
+    } else {
+      player.x = playerData.lastX;
+      player.y = playerData.lastY;
+      console.log(`[VillageHouse1Room] ${username} spawn à position sauvée (${player.x}, ${player.y})`);
+    }
+
+    player.map = "VillageHouse1Room";
+    this.state.players.set(client.sessionId, player);
+    console.log(`[VillageHouse1Room] ${username} est entré dans la maison avec sessionId: ${client.sessionId}`);
+
+    client.send("welcomeToHouse", {
+      message: "Bienvenue dans la maison du village !"
+    });
+  }
+
+  async onLeave(client: Client): Promise<void> {
+    const player = this.state.players.get(client.sessionId);
+    if (player) {
+      await PlayerData.updateOne(
+        { username: player.name },
+        { $set: { lastX: player.x, lastY: player.y, lastMap: "VillageHouse1Room" } }
+      );
+      console.log(`[VillageHouse1Room] ${player.name} a quitté la maison (sauvé à ${player.x}, ${player.y} sur VillageHouse1Room)`);
+      this.state.players.delete(client.sessionId);
+    }
+  }
+
+  onDispose(): void {
+    console.log("[VillageHouse1Room] Room fermée :", this.roomId);
+    this.saveAllPlayers();
+  }
+}
