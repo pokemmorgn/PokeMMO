@@ -1,0 +1,305 @@
+{
+  "family": "pidgey",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 16,
+      "name": "Pidgey",
+      "types": ["Normal", "Flying"],
+      "baseStats": {
+        "hp": 40,
+        "attack": 45,
+        "defense": 40,
+        "specialAttack": 35,
+        "specialDefense": 35,
+        "speed": 56
+      },
+      "abilities": ["keen_eye", "tangled_feet"],
+      "hiddenAbility": "big_pecks",
+      "height": 0.3,
+      "weight": 1.8,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/16.png",
+      "description": "A common sight in forests and woods. It flaps its wings at ground level to kick up blinding sand.",
+      "category": "Tiny Bird Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Flying"],
+      "hatchTime": 3840,
+      "baseExperience": 50,
+      "growthRate": "Medium Slow",
+      "captureRate": 255,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Route 1",
+          "rarity": "Very Common",
+          "method": "Wild Encounter",
+          "level_range": "2-5",
+          "encounter_rate": "55%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Route 2",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "3-5",
+          "encounter_rate": "45%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Viridian Forest",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "3-5",
+          "encounter_rate": "40%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "sand_attack", "level": 5},
+        {"moveId": "gust", "level": 9},
+        {"moveId": "quick_attack", "level": 13},
+        {"moveId": "whirlwind", "level": 17},
+        {"moveId": "twister", "level": 21},
+        {"moveId": "feather_dance", "level": 25},
+        {"moveId": "agility", "level": 29},
+        {"moveId": "wing_attack", "level": 33},
+        {"moveId": "roost", "level": 37},
+        {"moveId": "tailwind", "level": 41},
+        {"moveId": "mirror_move", "level": 45},
+        {"moveId": "air_slash", "level": 49},
+        {"moveId": "hurricane", "level": 53}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 17,
+        "method": "level",
+        "requirement": 18
+      }
+    },
+    {
+      "id": 17,
+      "name": "Pidgeotto",
+      "types": ["Normal", "Flying"],
+      "baseStats": {
+        "hp": 63,
+        "attack": 60,
+        "defense": 55,
+        "specialAttack": 50,
+        "specialDefense": 50,
+        "speed": 71
+      },
+      "abilities": ["keen_eye", "tangled_feet"],
+      "hiddenAbility": "big_pecks",
+      "height": 1.1,
+      "weight": 30.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/17.png",
+      "description": "Very protective of its sprawling territorial area, this Pokémon will fiercely peck at any intruder.",
+      "category": "Bird Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Flying"],
+      "hatchTime": 3840,
+      "baseExperience": 122,
+      "growthRate": "Medium Slow",
+      "captureRate": 120,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Route 14",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "23-26",
+          "encounter_rate": "30%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Route 15",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "26-30",
+          "encounter_rate": "25%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "sand_attack", "level": 1},
+        {"moveId": "gust", "level": 1},
+        {"moveId": "quick_attack", "level": 1},
+        {"moveId": "whirlwind", "level": 20},
+        {"moveId": "twister", "level": 25},
+        {"moveId": "feather_dance", "level": 30},
+        {"moveId": "agility", "level": 35},
+        {"moveId": "wing_attack", "level": 40},
+        {"moveId": "roost", "level": 45},
+        {"moveId": "tailwind", "level": 50},
+        {"moveId": "mirror_move", "level": 55},
+        {"moveId": "air_slash", "level": 60},
+        {"moveId": "hurricane", "level": 65}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 18,
+        "method": "level",
+        "requirement": 36,
+        "evolvesFrom": 16
+      }
+    },
+    {
+      "id": 18,
+      "name": "Pidgeot",
+      "types": ["Normal", "Flying"],
+      "baseStats": {
+        "hp": 83,
+        "attack": 80,
+        "defense": 75,
+        "specialAttack": 70,
+        "specialDefense": 70,
+        "speed": 101
+      },
+      "abilities": ["keen_eye", "tangled_feet"],
+      "hiddenAbility": "big_pecks",
+      "height": 1.5,
+      "weight": 39.5,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/18.png",
+      "description": "When hunting, it skims the surface of water at high speed to pick off unwary prey such as Magikarp.",
+      "category": "Bird Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Flying"],
+      "hatchTime": 3840,
+      "baseExperience": 216,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Evolution Only",
+          "rarity": "N/A",
+          "method": "Evolution",
+          "level_range": "36+",
+          "encounter_rate": "0%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "sand_attack", "level": 1},
+        {"moveId": "gust", "level": 1},
+        {"moveId": "quick_attack", "level": 1},
+        {"moveId": "whirlwind", "level": 20},
+        {"moveId": "twister", "level": 25},
+        {"moveId": "feather_dance", "level": 30},
+        {"moveId": "agility", "level": 35},
+        {"moveId": "wing_attack", "level": 38},
+        {"moveId": "roost", "level": 44},
+        {"moveId": "tailwind", "level": 50},
+        {"moveId": "mirror_move", "level": 56},
+        {"moveId": "air_slash", "level": 62},
+        {"moveId": "hurricane", "level": 68}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 17
+      }
+    }
+  ]
+}
