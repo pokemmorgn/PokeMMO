@@ -59,7 +59,7 @@ export class BaseZoneScene extends Phaser.Scene {
 
   getExistingNetwork() {
     // Liste des scènes qui pourraient avoir le NetworkManager
-    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene, VillageHouse1Scene'];
+    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene'];
     for (const sceneName of scenesToCheck) {
       const scene = this.scene.manager.getScene(sceneName);
       if (scene && scene.networkManager) {
