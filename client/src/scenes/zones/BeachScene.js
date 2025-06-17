@@ -3,7 +3,7 @@
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 
-// Mini-manager pour 2x4 Pokémon spritesheet (tu peux le sortir en fichier à part)
+// Mini-manager pour spritesheets Pokémon 2x4 (27x27px)
 class PokemonSpriteManager {
   constructor(scene) {
     this.scene = scene;
@@ -13,8 +13,8 @@ class PokemonSpriteManager {
     const key = `${pokemonName}_Walk`;
     if (!this.scene.textures.exists(key)) {
       this.scene.load.spritesheet(key, `assets/pokemon/${pokemonName}.png`, {
-        frameWidth: 32,
-        frameHeight: 32,
+        frameWidth: 27,
+        frameHeight: 27,
       });
       this.scene.load.once('complete', () => this.createAnimations(key));
       this.scene.load.start();
@@ -36,12 +36,32 @@ class PokemonSpriteManager {
 
   createAnimations(key) {
     const anims = this.scene.anims;
-    if (!anims.exists(`${key}_up`)) {
-      anims.create({ key: `${key}_up`, frames: anims.generateFrameNumbers(key, { start: 0, end: 1 }), frameRate: 6, repeat: -1 });
-      anims.create({ key: `${key}_down`, frames: anims.generateFrameNumbers(key, { start: 2, end: 3 }), frameRate: 6, repeat: -1 });
-      anims.create({ key: `${key}_left`, frames: anims.generateFrameNumbers(key, { start: 4, end: 5 }), frameRate: 6, repeat: -1 });
-      anims.create({ key: `${key}_right`, frames: anims.generateFrameNumbers(key, { start: 6, end: 7 }), frameRate: 6, repeat: -1 });
-    }
+    if (anims.exists(`${key}_down`)) return;
+
+    anims.create({
+      key: `${key}_up`,
+      frames: [ { key, frame: 0 }, { key, frame: 1 } ],
+      frameRate: 6,
+      repeat: -1
+    });
+    anims.create({
+      key: `${key}_down`,
+      frames: [ { key, frame: 2 }, { key, frame: 3 } ],
+      frameRate: 6,
+      repeat: -1
+    });
+    anims.create({
+      key: `${key}_left`,
+      frames: [ { key, frame: 4 }, { key, frame: 5 } ],
+      frameRate: 6,
+      repeat: -1
+    });
+    anims.create({
+      key: `${key}_right`,
+      frames: [ { key, frame: 6 }, { key, frame: 7 } ],
+      frameRate: 6,
+      repeat: -1
+    });
   }
 }
 
@@ -49,7 +69,7 @@ export class BeachScene extends BaseZoneScene {
   constructor() {
     super('BeachScene', 'GreenRootBeach');
     this.transitionCooldowns = {};
-    this.pokemonSpriteManager = null; // Ajout
+    this.pokemonSpriteManager = null;
   }
 
   setupZoneTransitions() {
@@ -69,7 +89,6 @@ export class BeachScene extends BaseZoneScene {
       transitionObj.width,
       transitionObj.height
     );
-
     this.physics.world.enable(zone);
     zone.body.setAllowGravity(false);
     zone.body.setImmovable(true);
@@ -142,20 +161,19 @@ export class BeachScene extends BaseZoneScene {
 
   create() {
     super.create();
-    this.pokemonSpriteManager = new PokemonSpriteManager(this); // Ajout
+    this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.setupBeachEvents();
   }
 
-  // === Changement ici ===
+  // --- Intro Bulbizarre animé (starter Pokémon) ---
   startIntroSequence(player) {
-    // Affiche Bulbizarre animé qui arrive vers la gauche
     this.spawnStarterPokemon(player.x + 48, player.y, '001_Bulbasaur', 'left');
   }
 
   spawnStarterPokemon(x, y, pokemonName, direction = "left") {
     this.pokemonSpriteManager.loadSpritesheet(pokemonName);
 
-    // Petite astuce : attendre que le spritesheet soit chargé
+    // Attend que le spritesheet soit chargé avant de créer le sprite animé
     const trySpawn = () => {
       if (this.textures.exists(`${pokemonName}_Walk`)) {
         const starter = this.pokemonSpriteManager.createPokemonSprite(pokemonName, x, y, direction);
@@ -172,7 +190,7 @@ export class BeachScene extends BaseZoneScene {
           }
         });
       } else {
-        this.time.delayedCall(50, trySpawn); // Wait until loaded
+        this.time.delayedCall(50, trySpawn);
       }
     };
     trySpawn();
@@ -195,7 +213,7 @@ export class BeachScene extends BaseZoneScene {
     this.time.delayedCall(2000, () => {
       starter.destroy();
       textBox.destroy();
-      // Ici tu peux enchaîner vers le déplacement auto ou la suite
+      // Ici tu peux enchaîner vers le déplacement auto ou la suite si tu veux
     });
   }
 
