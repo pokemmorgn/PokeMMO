@@ -495,11 +495,16 @@ this.playGameBtn.addEventListener('click', async () => {
             const client = new Colyseus.Client("wss://pokerune.cloud/api"); // <-- adapte l'URL
             const room = await client.joinOrCreate("AuthRoom");
 
-            room.send("authenticate", {
-                address: this.currentAccount.address,
-                signature: signature,
-                message: message
-            });
+            console.log("Avant envoi authenticate:", {
+  address: this.currentAccount.address,
+  signature,
+  message
+});
+room.send("authenticate", {
+  address: this.currentAccount.address,
+  signature,
+  message
+});
 
             room.onMessage((msg) => {
                 if (msg.status === "ok") {
