@@ -1,0 +1,62 @@
+{
+  "ice_beam": {
+    "name": "Ice Beam",
+    "category": "Special",
+    "power": 95,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The target is struck with an icy-cold beam of energy. This may also leave the target frozen.",
+    "effects": ["10% chance to freeze"]
+  },
+  "blizzard": {
+    "name": "Blizzard",
+    "category": "Special",
+    "power": 120,
+    "accuracy": 90,
+    "pp": 5,
+    "priority": 0,
+    "description": "A howling blizzard is summoned to strike opposing Pokémon. This may also leave the opposing Pokémon frozen.",
+    "effects": ["10% chance to freeze", "hits all adjacent opponents"]
+  },
+  "aurora_beam": {
+    "name": "Aurora Beam",
+    "category": "Special",
+    "power": 65,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The target is hit with a rainbow-colored beam. This may also lower the target's Attack stat.",
+    "effects": ["10% chance to lower Attack by 1 stage"]
+  },
+  "ice_punch": {
+    "name": "Ice Punch",
+    "category": "Physical",
+    "power": 75,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "The target is punched with an icy fist. This may also leave the target frozen.",
+    "effects": ["10% chance to freeze"]
+  },
+  "haze": {
+    "name": "Haze",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The user creates a haze that eliminates every stat change among all the Pokémon engaged in battle.",
+    "effects": ["resets all stat changes to 0"]
+  },
+  "mist": {
+    "name": "Mist",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The user cloaks itself and its allies in a white mist that prevents any of their stats from being lowered for five turns.",
+    "effects": ["prevents stat reduction for 5 turns"]
+  }
+}
