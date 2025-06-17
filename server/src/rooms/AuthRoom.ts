@@ -1,5 +1,5 @@
 // ===============================================
-// AuthRoom.ts - Système d'authentification sécurisé Sui Network
+// AuthRoom.ts - Système d'authentification sécurisé Sui Network - CORRIGÉ
 // ===============================================
 import { Room, Client } from "@colyseus/core";
 import { Schema, MapSchema, type } from "@colyseus/schema";
@@ -73,7 +73,10 @@ export class AuthRoom extends Room<AuthState> {
         timestamp
       });
 
-      // Marquer comme en attente
+      // Marquer comme en attente - VÉRIFIER AVANT D'AJOUTER
+      if (this.state.pendingAuth.has(client.sessionId)) {
+        this.state.pendingAuth.delete(client.sessionId);
+      }
       this.state.pendingAuth.set(client.sessionId, data.walletAddress);
 
       // Envoi du défi au client
@@ -111,7 +114,10 @@ export class AuthRoom extends Room<AuthState> {
       // Vérification de l'expiration (5 minutes)
       if (Date.now() - challenge.timestamp > 5 * 60 * 1000) {
         this.authChallenges.delete(client.sessionId);
-        this.state.pendingAuth.delete(client.sessionId);
+        // CORRECTION: Vérifier avant de supprimer
+        if (this.state.pendingAuth.has(client.sessionId)) {
+          this.state.pendingAuth.delete(client.sessionId);
+        }
         client.send("authError", { 
           error: "Défi expiré. Demandez un nouveau défi.",
           code: "CHALLENGE_EXPIRED" 
@@ -159,9 +165,16 @@ export class AuthRoom extends Room<AuthState> {
     try {
       // Nettoyage des données temporaires
       this.authChallenges.delete(client.sessionId);
-      this.state.pendingAuth.delete(client.sessionId);
+      
+      // CORRECTION: Vérifier avant de supprimer
+      if (this.state.pendingAuth.has(client.sessionId)) {
+        this.state.pendingAuth.delete(client.sessionId);
+      }
 
-      // Marquer comme authentifié
+      // Marquer comme authentifié - VÉRIFIER AVANT D'AJOUTER
+      if (this.state.authenticatedUsers.has(client.sessionId)) {
+        this.state.authenticatedUsers.delete(client.sessionId);
+      }
       this.state.authenticatedUsers.set(client.sessionId, walletAddress);
 
       // Recherche/création du joueur dans la base
@@ -291,7 +304,12 @@ export class AuthRoom extends Room<AuthState> {
 
     for (const sessionId of expiredSessions) {
       this.authChallenges.delete(sessionId);
-      this.state.pendingAuth.delete(sessionId);
+      
+      // CORRECTION: Vérifier avant de supprimer
+      if (this.state.pendingAuth.has(sessionId)) {
+        this.state.pendingAuth.delete(sessionId);
+      }
+      
       console.log(`🧹 Défi expiré nettoyé: ${sessionId}`);
     }
 
@@ -313,14 +331,31 @@ export class AuthRoom extends Room<AuthState> {
   async onLeave(client: Client) {
     console.log(`🔐 Déconnexion AuthRoom: ${client.sessionId}`);
     
-    // Nettoyage des données de session
-    this.authChallenges.delete(client.sessionId);
-    this.state.pendingAuth.delete(client.sessionId);
-    this.state.authenticatedUsers.delete(client.sessionId);
+    try {
+      // CORRECTION: Vérifier avant de supprimer pour éviter les erreurs
+      this.authChallenges.delete(client.sessionId);
+      
+      if (this.state.pendingAuth && this.state.pendingAuth.has(client.sessionId)) {
+        this.state.pendingAuth.delete(client.sessionId);
+      }
+      
+      if (this.state.authenticatedUsers && this.state.authenticatedUsers.has(client.sessionId)) {
+        this.state.authenticatedUsers.delete(client.sessionId);
+      }
+      
+      console.log(`✅ Nettoyage session ${client.sessionId} terminé`);
+    } catch (error) {
+      console.error(`❌ Erreur lors du nettoyage de ${client.sessionId}:`, error);
+    }
   }
 
   async onDispose() {
     console.log("🔐 AuthRoom fermée - nettoyage final");
-    this.authChallenges.clear();
+    try {
+      this.authChallenges.clear();
+      // Les MapSchema seront automatiquement nettoyées
+    } catch (error) {
+      console.error("❌ Erreur lors du nettoyage final:", error);
+    }
   }
 }
