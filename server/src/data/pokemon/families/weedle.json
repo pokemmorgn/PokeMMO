@@ -1,0 +1,176 @@
+{
+  "family": "weedle",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 13,
+      "name": "Weedle",
+      "types": ["Bug", "Poison"],
+      "baseStats": {
+        "hp": 40,
+        "attack": 35,
+        "defense": 30,
+        "specialAttack": 20,
+        "specialDefense": 20,
+        "speed": 50
+      },
+      "abilities": ["shield_dust"],
+      "hiddenAbility": "run_away",
+      "height": 0.3,
+      "weight": 3.2,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/13.png",
+      "description": "Often found in forests, eating leaves. It has a sharp venomous stinger on its head.",
+      "category": "Hairy Bug Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Bug"],
+      "hatchTime": 3840,
+      "baseExperience": 39,
+      "growthRate": "Medium Fast",
+      "captureRate": 255,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Viridian Forest",
+          "rarity": "Common",
+          "method": "Wild Grass",
+          "level_range": "3-5"
+        },
+        {
+          "location": "Route 2",
+          "rarity": "Common", 
+          "method": "Wild Grass",
+          "level_range": "3-4"
+        },
+        {
+          "location": "Route 24",
+          "rarity": "Uncommon",
+          "method": "Wild Grass", 
+          "level_range": "7-8"
+        },
+        {
+          "location": "Route 25",
+          "rarity": "Uncommon",
+          "method": "Wild Grass",
+          "level_range": "8-10"
+        }
+      ],
+      "learnset": [
+        {"moveId": "poison_sting", "level": 1},
+        {"moveId": "string_shot", "level": 1}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 14,
+        "method": "level",
+        "requirement": 7
+      }
+    },
+    {
+      "id": 14,
+      "name": "Kakuna",
+      "types": ["Bug", "Poison"],
+      "baseStats": {
+        "hp": 45,
+        "attack": 25,
+        "defense": 50,
+        "specialAttack": 25,
+        "specialDefense": 25,
+        "speed": 35
+      },
+      "abilities": ["shed_skin"],
+      "height": 0.6,
+      "weight": 10.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/14.png",
+      "description": "Almost incapable of moving, this Pokémon can only harden its shell to protect itself from predators.",
+      "category": "Cocoon Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Bug"],
+      "hatchTime": 3840,
+      "baseExperience": 72,
+      "growthRate": "Medium Fast",
+      "captureRate": 120,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Viridian Forest",
+          "rarity": "Uncommon",
+          "method": "Wild Grass",
+          "level_range": "4-6"
+        },
+        {
+          "location": "Route 2",
+          "rarity": "Rare",
+          "method": "Wild Grass",
+          "level_range": "4-5"
+        }
+      ],
+      "learnset": [
+        {"moveId": "harden", "level": 1}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 15,
+        "method": "level",
+        "requirement": 10,
+        "evolvesFrom": 13
+      }
+    },
+    {
+      "id": 15,
+      "name": "Beedrill",
+      "types": ["Bug", "Poison"],
+      "baseStats": {
+        "hp": 65,
+        "attack": 90,
+        "defense": 40,
+        "specialAttack": 45,
+        "specialDefense": 80,
+        "speed": 75
+      },
+      "abilities": ["swarm"],
+      "hiddenAbility": "sniper",
+      "height": 1.0,
+      "weight": 29.5,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/15.png",
+      "description": "Flies at high speed and attacks using its large venomous stingers on its forelegs and tail.",
+      "category": "Poison Bee Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Bug"],
+      "hatchTime": 3840,
+      "baseExperience": 178,
+      "growthRate": "Medium Fast",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Viridian Forest",
+          "rarity": "Rare",
+          "method": "Wild Grass",
+          "level_range": "7-9"
+        }
+      ],
+      "learnset": [
+        {"moveId": "fury_attack", "level": 1},
+        {"moveId": "focus_energy", "level": 1},
+        {"moveId": "twineedle", "level": 16},
+        {"moveId": "rage", "level": 20},
+        {"moveId": "pursuit", "level": 25},
+        {"moveId": "pin_missile", "level": 30},
+        {"moveId": "agility", "level": 35}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 14
+      }
+    }
+  ]
+}
