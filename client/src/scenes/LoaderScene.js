@@ -10,7 +10,7 @@ export class LoaderScene extends Phaser.Scene {
     this.createLoadingBar();
 
     // ✅ Maps
-    this.load.tilemapTiledJSON('GreenRootBeach', 'assets/maps/GreenRootBeach.tmj');
+    this.load.tilemapTiledJSON('GreenRootBeach', 'assets/maps/GreenrootBeach.tmj');
     this.load.tilemapTiledJSON('Greenroot', 'assets/maps/Greenroot.tmj');
     this.load.tilemapTiledJSON('ProfLaboInt', 'assets/maps/GRLabo.tmj');
 
