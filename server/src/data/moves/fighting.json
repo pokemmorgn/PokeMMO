@@ -1,0 +1,92 @@
+{
+  "low_kick": {
+    "name": "Low Kick",
+    "category": "Physical",
+    "power": 50,
+    "accuracy": 90,
+    "pp": 20,
+    "priority": 0,
+    "description": "A powerful low kick that makes the target fall over. The heavier the target, the greater the move's power.",
+    "effects": ["power varies with target's weight"]
+  },
+  "karate_chop": {
+    "name": "Karate Chop",
+    "category": "Physical",
+    "power": 50,
+    "accuracy": 100,
+    "pp": 25,
+    "priority": 0,
+    "description": "The target is attacked with a sharp chop. Critical hits land more easily.",
+    "effects": ["high critical hit ratio"]
+  },
+  "double_kick": {
+    "name": "Double Kick",
+    "category": "Physical",
+    "power": 30,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The target is quickly kicked twice in succession using both feet.",
+    "effects": ["hits twice"]
+  },
+  "jump_kick": {
+    "name": "Jump Kick",
+    "category": "Physical",
+    "power": 70,
+    "accuracy": 95,
+    "pp": 25,
+    "priority": 0,
+    "description": "The user jumps up high, then strikes with a kick. If the kick misses, the user hurts itself.",
+    "effects": ["user takes recoil damage if move misses"]
+  },
+  "rolling_kick": {
+    "name": "Rolling Kick",
+    "category": "Physical",
+    "power": 60,
+    "accuracy": 85,
+    "pp": 15,
+    "priority": 0,
+    "description": "The user lashes out with a quick, spinning kick. This may also make the target flinch.",
+    "effects": ["30% chance to flinch"]
+  },
+  "high_jump_kick": {
+    "name": "High Jump Kick",
+    "category": "Physical",
+    "power": 85,
+    "accuracy": 90,
+    "pp": 20,
+    "priority": 0,
+    "description": "The target is attacked with a knee kick from a jump. If it misses, the user is hurt instead.",
+    "effects": ["user takes heavy recoil damage if move misses"]
+  },
+  "counter": {
+    "name": "Counter",
+    "category": "Physical",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": -5,
+    "description": "A retaliation move that counters any physical attack, inflicting double the damage taken.",
+    "effects": ["returns double physical damage taken", "priority -5"]
+  },
+  "seismic_toss": {
+    "name": "Seismic Toss",
+    "category": "Physical",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The target is thrown using the power of gravity. It inflicts damage equal to the user's level.",
+    "effects": ["deals damage equal to user's level"]
+  },
+  "submission": {
+    "name": "Submission",
+    "category": "Physical",
+    "power": 80,
+    "accuracy": 80,
+    "pp": 25,
+    "priority": 0,
+    "description": "The user grabs the target and recklessly dives for the ground. This also damages the user a little.",
+    "effects": ["user takes 25% recoil damage"]
+  }
+}
