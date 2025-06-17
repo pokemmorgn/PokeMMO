@@ -470,30 +470,30 @@
                 this.playBtn.addEventListener('click', () => this.startGame());
             }
 
-            async connectToAuthServer() {
+           async connectToAuthServer() {
     try {
         console.log('🔐 Tentative de connexion à wss://pokerune.cloud:2567...');
         
-const client = new Colyseus.Client("wss://pokerune.cloud");
+        this.client = new Colyseus.Client("wss://pokerune.cloud");
         console.log('✅ Client Colyseus créé');
-        
+
         this.authRoom = await this.client.joinOrCreate('AuthRoom');
         console.log('✅ AuthRoom rejointe:', this.authRoom.sessionId);
-                    this.sessionId = this.authRoom.sessionId;
+        this.sessionId = this.authRoom.sessionId;
 
-                    this.serverStatus.textContent = 'Serveur: Connecté';
-                    this.serverStatus.classList.add('connected');
-                    document.getElementById('authRoomStatus').textContent = '✅';
-                    document.getElementById('sessionId').textContent = this.sessionId.substring(0, 8) + '...';
+        this.serverStatus.textContent = 'Serveur: Connecté';
+        this.serverStatus.classList.add('connected');
+        document.getElementById('authRoomStatus').textContent = '✅';
+        document.getElementById('sessionId').textContent = this.sessionId.substring(0, 8) + '...';
 
-                    this.setupAuthRoomListeners();
-                    console.log('✅ Connecté au serveur d\'authentification');
+        this.setupAuthRoomListeners();
+        console.log('✅ Connecté au serveur d\'authentification');
 
-                } catch (error) {
-                    console.error('❌ Erreur connexion serveur:', error);
-                    this.showError('Impossible de se connecter au serveur d\'authentification');
-                }
-            }
+    } catch (error) {
+        console.error('❌ Erreur connexion serveur:', error);
+        this.showError('Impossible de se connecter au serveur d\'authentification');
+    }
+}
 
             setupAuthRoomListeners() {
                 // ... (Aucune modif, copie/colle tout le reste de ta classe ici inchangé) ...
