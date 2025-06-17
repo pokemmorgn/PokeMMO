@@ -135,7 +135,7 @@ export class VillageScene extends BaseZoneScene {
       } else if (initData?.fromZone === 'VillageLabScene') {
         // ✅ AJOUT : Spawn point pour retour depuis le Laboratoire
         spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Labo') ||
-                     spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_GRbottom');
+                     
         if (spawnPoint) {
           player.x = spawnPoint.x + spawnPoint.width / 2;
           player.y = spawnPoint.y + spawnPoint.height / 2;
