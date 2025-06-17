@@ -4,19 +4,13 @@ import config from "@colyseus/tools";
 import { monitor } from "@colyseus/monitor";
 import { playground } from "@colyseus/playground";
 import { PlayerData } from "./models/PlayerData";
-import https from 'https';
-import fs from 'fs';
 
 import { BeachRoom } from "./rooms/BeachRoom";
 import { VillageRoom } from "./rooms/VillageRoom";
-import { Road1Room } from "./rooms/Road1Room"; // ✅ AJOUT : Import de Road1Room
+import { Road1Room } from "./rooms/Road1Room";
 import { VillageLabRoom } from "./rooms/VillageLabRoom";
 import { connectDB } from "./db";
-
-// Authentification system
 import { AuthRoom } from "./rooms/AuthRoom";
-
-// Managers
 import { MoveManager } from "./managers/MoveManager";
 import { PokemonManager } from "./managers/PokemonManager";
 
@@ -24,19 +18,8 @@ let globalPokemonManager: PokemonManager;
 let globalMoveManager: MoveManager;
 
 export default config({
-  options: {
-    // Serveur HTTPS sécurisé avec Let's Encrypt
-    server: https.createServer({
-      key: fs.readFileSync('/home/ubuntu/pokerune_certs/privkey.pem'),
-cert: fs.readFileSync('/home/ubuntu/pokerune_certs/fullchain.pem')
-    })
-  },
-
   initializeGameServer: (gameServer) => {
-    //---------------- AUTH SYSTEM----------------------//
     gameServer.define('AuthRoom', AuthRoom);
-    //---------------- AUTH SYSTEM----------------------//
-    // Définition des rooms par zone
     gameServer.define('Road1Room', Road1Room);
     gameServer.define('BeachRoom', BeachRoom);
     gameServer.define('VillageRoom', VillageRoom);
@@ -48,7 +31,6 @@ cert: fs.readFileSync('/home/ubuntu/pokerune_certs/fullchain.pem')
       res.send("Welcome to PokeWorld!");
     });
 
-    // ✅ ROUTE API
     app.get("/api/playerData", async (req, res) => {
       const username = req.query.username;
       if (!username) return res.status(400).json({ error: "username manquant" });
@@ -81,7 +63,6 @@ cert: fs.readFileSync('/home/ubuntu/pokerune_certs/fullchain.pem')
     try {
       await connectDB();
       console.log("✅ Connected to MongoDB: pokeworld");
-      // Initialisation du MoveManager
       console.log("🔄 Initialisation du MoveManager...");
       globalMoveManager = new MoveManager({
         basePath: './src/data',
