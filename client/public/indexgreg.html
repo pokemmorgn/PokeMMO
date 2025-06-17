@@ -473,12 +473,8 @@ this.playGameBtn.addEventListener('click', async () => {
             console.log("2️⃣ suiProvider:", suiProvider);
 
             const message = `Connexion à PokeWorld: ${Date.now()}`;
-            const msgBytes = new TextEncoder().encode(message);
-            console.log("3️⃣ Message et msgBytes:", message, msgBytes);
-
-            let sigResult = await suiProvider.signMessage({ message: msgBytes });
-            console.log("4️⃣ Signature reçue:", sigResult);
-
+            // Essaye direct en string !
+let sigResult = await suiProvider.signMessage({ message });
             let signature;
             if (typeof sigResult.signature === "string") {
                 signature = sigResult.signature;
