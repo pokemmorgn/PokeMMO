@@ -1,0 +1,307 @@
+{
+  "family": "geodude",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 74,
+      "name": "Geodude",
+      "types": ["Rock", "Ground"],
+      "baseStats": {
+        "hp": 40,
+        "attack": 80,
+        "defense": 100,
+        "specialAttack": 30,
+        "specialDefense": 30,
+        "speed": 20
+      },
+      "abilities": ["rock_head"],
+      "hiddenAbility": null,
+      "height": 0.4,
+      "weight": 20.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/74.png",
+      "description": "Found in fields and mountains. Mistaking them for boulders, people often step or trip on them.",
+      "category": "Rock Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Mineral"],
+      "hatchTime": 3840,
+      "baseExperience": 60,
+      "growthRate": "Medium Slow",
+      "captureRate": 255,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Mt. Moon",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "8-10",
+          "encounter_rate": "25%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Rock Tunnel",
+          "rarity": "Very Common",
+          "method": "Wild Encounter",
+          "level_range": "15-17",
+          "encounter_rate": "70%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Victory Road",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "22-24",
+          "encounter_rate": "40%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Cerulean Cave",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "46-70",
+          "encounter_rate": "35%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "defense_curl", "level": 6},
+        {"moveId": "rock_throw", "level": 11},
+        {"moveId": "self_destruct", "level": 16},
+        {"moveId": "harden", "level": 21},
+        {"moveId": "earthquake", "level": 26},
+        {"moveId": "explosion", "level": 31}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 75,
+        "method": "level",
+        "requirement": 25
+      }
+    },
+    {
+      "id": 75,
+      "name": "Graveler",
+      "types": ["Rock", "Ground"],
+      "baseStats": {
+        "hp": 55,
+        "attack": 95,
+        "defense": 115,
+        "specialAttack": 45,
+        "specialDefense": 45,
+        "speed": 35
+      },
+      "abilities": ["rock_head"],
+      "hiddenAbility": null,
+      "height": 1.0,
+      "weight": 105.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/75.png",
+      "description": "Rolls down slopes to move. It rolls over any obstacle without slowing or changing its direction.",
+      "category": "Rock Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Mineral"],
+      "hatchTime": 3840,
+      "baseExperience": 137,
+      "growthRate": "Medium Slow",
+      "captureRate": 120,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Victory Road",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "40-44",
+          "encounter_rate": "20%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Cerulean Cave",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "55-67",
+          "encounter_rate": "25%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "defense_curl", "level": 1},
+        {"moveId": "rock_throw", "level": 1},
+        {"moveId": "self_destruct", "level": 1},
+        {"moveId": "harden", "level": 21},
+        {"moveId": "earthquake", "level": 29},
+        {"moveId": "explosion", "level": 36}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 76,
+        "method": "trade",
+        "requirement": "trade",
+        "evolvesFrom": 74
+      }
+    },
+    {
+      "id": 76,
+      "name": "Golem",
+      "types": ["Rock", "Ground"],
+      "baseStats": {
+        "hp": 80,
+        "attack": 120,
+        "defense": 130,
+        "specialAttack": 55,
+        "specialDefense": 65,
+        "speed": 45
+      },
+      "abilities": ["rock_head"],
+      "hiddenAbility": null,
+      "height": 1.4,
+      "weight": 300.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/76.png",
+      "description": "Its boulder-like body is extremely hard. It can easily withstand dynamite blasts without damage.",
+      "category": "Megaton Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Mineral"],
+      "hatchTime": 3840,
+      "baseExperience": 223,
+      "growthRate": "Medium Slow",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Trade Evolution Only",
+          "rarity": "N/A",
+          "method": "Trade Evolution",
+          "level_range": "Any",
+          "encounter_rate": "0%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "defense_curl", "level": 1},
+        {"moveId": "rock_throw", "level": 1},
+        {"moveId": "self_destruct", "level": 1},
+        {"moveId": "harden", "level": 1},
+        {"moveId": "earthquake", "level": 1},
+        {"moveId": "explosion", "level": 1}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 75
+      }
+    }
+  ]
+}
