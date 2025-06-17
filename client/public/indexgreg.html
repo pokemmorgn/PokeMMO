@@ -763,59 +763,59 @@ class PhantomMultiAccountManager {
     }
 
     async authenticateAndPlay() {
-        if (!this.currentAccount?.address) {
-            alert("Connecte ton wallet pour jouer.");
-            return;
-        }
-
-        try {
-            this.setLoadingState(true);
-
-            const address = this.currentAccount.address;
-            const message = `PokeWorld Auth ${Date.now()}`;
-            // Signature Phantom Sui, pour AuthRoom
-
-const encodedMessage = new TextEncoder().encode(message);
-const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
-let sigBytes = Uint8Array.from(atob(signed.signature), c => c.charCodeAt(0));
-
-// --- Correction : enlever le header (1er octet) ---
-sigBytes = sigBytes.slice(1); // Retire le 1er octet
-
-const signatureBase64 = btoa(String.fromCharCode(...sigBytes));
-
-// Ensuite, envoie signatureBase64 au serveur
-room.send("authenticate", {
-    address,
-    signature: signatureBase64,
-    message,
-    walletType: "phantom",
-    timestamp: Date.now()
-});
-
-
-            // Écouter les réponses serveur
-            room.onMessage("authenticated", (data) => {
-                if (data.status === "ok") {
-                    alert("Authentification réussie !");
-                    // Redirection vers la page principale avec wallet en query param
-                    window.location.href = "index.html?wallet=" + encodeURIComponent(address);
-                } else {
-                    alert("Erreur d'authentification");
-                }
-            });
-
-            room.onMessage("error", (error) => {
-                alert("Erreur serveur : " + error.reason);
-                room.leave();
-                this.setLoadingState(false);
-            });
-
-        } catch (error) {
-            this.setLoadingState(false);
-            alert("Erreur lors de la connexion : " + (error.message || error));
-        }
+    if (!this.currentAccount?.address) {
+        alert("Connecte ton wallet pour jouer.");
+        return;
     }
+
+    let room;
+    try {
+        this.setLoadingState(true);
+
+        const address = this.currentAccount.address;
+        const message = `PokeWorld Auth ${Date.now()}`;
+        const encodedMessage = new TextEncoder().encode(message);
+        const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
+
+        // Fix Phantom Sui header (voir message précédent)
+        let sigBytes = Uint8Array.from(atob(signed.signature), c => c.charCodeAt(0));
+        sigBytes = sigBytes.slice(1);
+        const signatureBase64 = btoa(String.fromCharCode(...sigBytes));
+
+        // Connexion au serveur Colyseus AuthRoom
+        room = await this.colyseusClient.joinOrCreate("AuthRoom");
+
+        // Envoi du payload
+        room.send("authenticate", {
+            address,
+            signature: signatureBase64,
+            message,
+            walletType: "phantom",
+            timestamp: Date.now()
+        });
+
+        room.onMessage("authenticated", (data) => {
+            if (data.status === "ok") {
+                alert("Authentification réussie !");
+                window.location.href = "index.html?wallet=" + encodeURIComponent(address);
+            } else {
+                alert("Erreur d'authentification");
+            }
+        });
+
+        room.onMessage("error", (error) => {
+            alert("Erreur serveur : " + error.reason);
+            room.leave();
+            this.setLoadingState(false);
+        });
+
+    } catch (error) {
+        this.setLoadingState(false);
+        alert("Erreur lors de la connexion : " + (error.message || error));
+        // room n'est pas défini donc ne pas tenter d'appeler room.leave()
+    }
+}
+
 }
 
 // Copier l'adresse dans le presse-papier
