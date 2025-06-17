@@ -1,0 +1,129 @@
+{
+  "water_gun": {
+    "name": "Water Gun",
+    "category": "Special",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 25,
+    "priority": 0,
+    "description": "The target is blasted with a forceful shot of water."
+  },
+  "hydro_pump": {
+    "name": "Hydro Pump",
+    "category": "Special",
+    "power": 120,
+    "accuracy": 80,
+    "pp": 5,
+    "priority": 0,
+    "description": "The target is blasted by a huge volume of water launched under great pressure."
+  },
+  "surf": {
+    "name": "Surf",
+    "category": "Special",
+    "power": 95,
+    "accuracy": 100,
+    "pp": 15,
+    "priority": 0,
+    "description": "The user attacks everything around it by swamping its surroundings with a giant wave."
+  },
+  "ice_beam": {
+    "name": "Ice Beam",
+    "category": "Special",
+    "power": 95,
+    "accuracy": 100,
+    "pp": 10,
+    "priority": 0,
+    "description": "The target is struck with an icy-cold beam of energy. This may also leave the target frozen.",
+    "effects": ["10% chance to freeze"]
+  },
+  "blizzard": {
+    "name": "Blizzard",
+    "category": "Special",
+    "power": 120,
+    "accuracy": 90,
+    "pp": 5,
+    "priority": 0,
+    "description": "A howling blizzard is summoned to strike opposing Pokémon. This may also leave the opposing Pokémon frozen.",
+    "effects": ["10% chance to freeze"]
+  },
+  "bubble_beam": {
+    "name": "Bubble Beam",
+    "category": "Special",
+    "power": 65,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "A spray of bubbles is forcefully ejected at the target. This may also lower its Speed stat.",
+    "effects": ["10% chance to lower Speed by 1 stage"]
+  },
+  "water_pulse": {
+    "name": "Water Pulse",
+    "category": "Special",
+    "power": 60,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The user attacks the target with a pulsing blast of water. This may also confuse the target.",
+    "effects": ["20% chance to confuse"]
+  },
+  "aurora_beam": {
+    "name": "Aurora Beam",
+    "category": "Special",
+    "power": 65,
+    "accuracy": 100,
+    "pp": 20,
+    "priority": 0,
+    "description": "The target is hit with a rainbow-colored beam. This may also lower the target's Attack stat.",
+    "effects": ["10% chance to lower Attack by 1 stage"]
+  },
+  "haze": {
+    "name": "Haze",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The user creates a haze that eliminates every stat change among all the Pokémon engaged in battle.",
+    "effects": ["resets all stat changes to 0"]
+  },
+  "mist": {
+    "name": "Mist",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "The user cloaks itself and its allies in a white mist that prevents any of their stats from being lowered for five turns.",
+    "effects": ["prevents stat reduction for 5 turns"]
+  },
+  "clamp": {
+    "name": "Clamp",
+    "category": "Physical",
+    "power": 35,
+    "accuracy": 85,
+    "pp": 15,
+    "priority": 0,
+    "description": "The target is clamped and squeezed by the user's very thick and sturdy shell for four to five turns.",
+    "effects": ["traps target for 4-5 turns", "deals 1/16 max HP damage each turn"]
+  },
+  "bubble": {
+    "name": "Bubble",
+    "category": "Special",
+    "power": 20,
+    "accuracy": 100,
+    "pp": 30,
+    "priority": 0,
+    "description": "A spray of countless bubbles is jetted at the opposing Pokémon. This may also lower their Speed stats.",
+    "effects": ["10% chance to lower Speed by 1 stage"]
+  },
+  "withdraw": {
+    "name": "Withdraw",
+    "category": "Status",
+    "power": 0,
+    "accuracy": 100,
+    "pp": 40,
+    "priority": 0,
+    "description": "The user withdraws its body into its hard shell, raising its Defense stat.",
+    "effects": ["raises user's Defense by 1 stage"]
+  }
+}
