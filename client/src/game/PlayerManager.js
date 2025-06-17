@@ -73,7 +73,7 @@ player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
     anims.create({
       key: 'walk_down',
       frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }),
-      frameRate: 8,
+      frameRate: 15,
       repeat: -1,
     });
   }
@@ -81,7 +81,7 @@ player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
     anims.create({
       key: 'walk_left',
       frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }),
-      frameRate: 8,
+      frameRate: 15,
       repeat: -1,
     });
   }
@@ -89,7 +89,7 @@ player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
     anims.create({
       key: 'walk_right',
       frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }),
-      frameRate: 8,
+      frameRate: 15,
       repeat: -1,
     });
   }
@@ -97,7 +97,7 @@ player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
     anims.create({
       key: 'walk_up',
       frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 14 }),
-      frameRate: 8,
+      frameRate: 15,
       repeat: -1,
     });
   }
