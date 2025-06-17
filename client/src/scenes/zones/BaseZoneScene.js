@@ -213,6 +213,8 @@ export class BaseZoneScene extends Phaser.Scene {
           this.cameraManager.followPlayer(myPlayer);
           this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
           this.cameraFollowing = true;
+          // <-- Ajoute ici :
+this.applyVisualSettings();
           this.loadTimer.remove();
           this.loadTimer = null;
           console.log('--- FIN setupScene ---');
@@ -500,7 +502,27 @@ export class BaseZoneScene extends Phaser.Scene {
       });
     });
   }
+applyVisualSettings() {
+  switch (this.mapKey) {
+    case 'ProfLaboInt':
+      if (this.cameraManager) this.cameraManager.setZoom(2);
+      const playerLab = this.playerManager?.getMyPlayer();
+      if (playerLab) playerLab.setScale(1);
+      break;
 
+    case 'Village':
+    case 'VillageRoom':
+      if (this.cameraManager) this.cameraManager.setZoom(1);
+      const playerVillage = this.playerManager?.getMyPlayer();
+      if (playerVillage) playerVillage.setScale(1);
+      break;
+
+    default:
+      if (this.cameraManager) this.cameraManager.setZoom(1);
+      const playerDefault = this.playerManager?.getMyPlayer();
+      if (playerDefault) playerDefault.setScale(1);
+  }
+}
   cleanup() {
     console.log(`[${this.scene.key}] Nettoyage en cours...`);
 
