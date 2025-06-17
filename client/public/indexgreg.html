@@ -472,96 +472,114 @@ this.playGameBtn.addEventListener('click', async () => {
             const suiProvider = window.phantom.sui;
             console.log("2️⃣ suiProvider:", suiProvider);
 
-            // Lister toutes les méthodes disponibles
-            const availableMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(suiProvider))
-                .filter(name => typeof suiProvider[name] === 'function');
-            console.log("📋 Méthodes disponibles sur le provider:", availableMethods);
+            // Debug complet
+            console.log("🔍 Exploration complète du provider:");
+            console.log("Méthodes directes:", Object.keys(suiProvider));
+            console.log("Méthodes prototype:", Object.getOwnPropertyNames(Object.getPrototypeOf(suiProvider)));
+            for (let prop in suiProvider) {
+                if (typeof suiProvider[prop] === 'function') {
+                    console.log(`Fonction trouvée: ${prop}`);
+                }
+            }
+            console.log("signMessage existe?", typeof suiProvider.signMessage);
+            console.log("signPersonalMessage existe?", typeof suiProvider.signPersonalMessage);
+            console.log("signAndExecuteTransactionBlock existe?", typeof suiProvider.signAndExecuteTransactionBlock);
+            console.log("signTransactionBlock existe?", typeof suiProvider.signTransactionBlock);
 
             const message = `Connexion à PokeWorld: ${Date.now()}`;
-            const messageBytes = new TextEncoder().encode(message);
+            const messageBase64 = btoa(message);
+            console.log("3️⃣ Message original:", message);
+            console.log("3️⃣ Message base64:", messageBase64);
 
             let signature = null;
             let signatureMethod = null;
 
-            // Tentative 1: signPersonalMessage
-            if (availableMethods.includes('signPersonalMessage')) {
-                try {
-                    console.log("🔏 Tentative avec signPersonalMessage");
-                    const sigResult = await suiProvider.signPersonalMessage({
-                        message: messageBytes,
-                        account: this.currentAccount.address
-                    });
-                    signature = sigResult.signature;
-                    signatureMethod = 'signPersonalMessage';
-                } catch (e) {
-                    console.log("❌ signPersonalMessage échouée:", e);
-                }
+            // Test 1: signMessage simple
+            try {
+                console.log("🔏 Test 1: signMessage simple");
+                const result = await suiProvider.signMessage(message);
+                signature = result.signature || result;
+                signatureMethod = "signMessage_string";
+                console.log("✅ Succès méthode 1:", result);
+            } catch (e) {
+                console.log("❌ Échec méthode 1:", e);
             }
 
-            // Tentative 2: signMessage
-            if (!signature && availableMethods.includes('signMessage')) {
-                try {
-                    console.log("🔏 Tentative avec signMessage");
-                    const sigResult = await suiProvider.signMessage({
-                        message: messageBytes,
-                        address: this.currentAccount.address
-                    });
-                    signature = sigResult.signature || sigResult;
-                    signatureMethod = 'signMessage';
-                } catch (e) {
-                    console.log("❌ signMessage échouée:", e);
-                }
-            }
-
-            // Tentative 3: sign (méthode générique)
-            if (!signature && availableMethods.includes('sign')) {
-                try {
-                    console.log("🔏 Tentative avec sign");
-                    signature = await suiProvider.sign(messageBytes, this.currentAccount.address);
-                    signatureMethod = 'sign';
-                } catch (e) {
-                    console.log("❌ sign échouée:", e);
-                }
-            }
-
-            // Tentative 4: Transaction vide comme preuve
-            if (!signature && availableMethods.includes('signAndExecuteTransactionBlock')) {
-                try {
-                    console.log("🔏 Tentative avec transaction vide pour preuve");
-                    const tx = {
-                        kind: "moveCall",
-                        data: {
-                            packageObjectId: "0x2",
-                            module: "devnet_nft",
-                            function: "mint",
-                            typeArguments: [],
-                            arguments: [],
-                            gasBudget: 1000,
-                        }
-                    };
-                    const result = await suiProvider.signAndExecuteTransactionBlock({
-                        transactionBlock: tx,
-                        options: {
-                            showEffects: false,
-                            showEvents: false,
-                            showBalanceChanges: false,
-                            showInput: true,
-                        }
-                    });
-                    signature = result.digest;
-                    signatureMethod = 'transactionDigest';
-                } catch (e) {
-                    console.log("❌ transaction vide échouée:", e);
-                }
-            }
-
+            // Test 2: signMessage avec objet {message}
             if (!signature) {
-                throw new Error("Aucune méthode de signature n'est disponible sur ce wallet. Méthodes testées : " +
-                    ['signPersonalMessage', 'signMessage', 'sign', 'transactionDigest'].join(', '));
+                try {
+                    console.log("🔏 Test 2: signMessage avec objet");
+                    const result = await suiProvider.signMessage({ message });
+                    signature = result.signature || result;
+                    signatureMethod = "signMessage_obj";
+                    console.log("✅ Succès méthode 2:", result);
+                } catch (e) {
+                    console.log("❌ Échec méthode 2:", e);
+                }
             }
 
-            console.log("✅ Signature obtenue avec :", signatureMethod);
-            console.log("📝 Signature :", signature);
+            // Test 3: signMessage avec Uint8Array
+            if (!signature) {
+                try {
+                    console.log("🔏 Test 3: signMessage avec Uint8Array");
+                    const encoder = new TextEncoder();
+                    const messageBytes = encoder.encode(message);
+                    const result = await suiProvider.signMessage({
+                        message: messageBytes
+                    });
+                    signature = result.signature || result;
+                    signatureMethod = "signMessage_bytes";
+                    console.log("✅ Succès méthode 3:", result);
+                } catch (e) {
+                    console.log("❌ Échec méthode 3:", e);
+                }
+            }
+
+            // Test 4: signTransactionBlock
+            if (!signature && typeof suiProvider.signTransactionBlock === 'function') {
+                try {
+                    console.log("🔏 Test 4: signTransactionBlock");
+                    const txb = {
+                        version: 1,
+                        sender: this.currentAccount.address,
+                        gasData: {
+                            budget: 1000,
+                            price: 1,
+                            owner: this.currentAccount.address,
+                            payment: []
+                        },
+                        inputs: [],
+                        transactions: []
+                    };
+                    const result = await suiProvider.signTransactionBlock({
+                        transactionBlock: txb
+                    });
+                    signature = result.signature || result.transactionBlockBytes;
+                    signatureMethod = "signTransactionBlock";
+                    console.log("✅ Succès méthode 4:", result);
+                } catch (e) {
+                    console.log("❌ Échec méthode 4:", e);
+                }
+            }
+
+            // Fallback: alternative non sécurisée
+            if (!signature) {
+                console.log("❌ Aucune méthode de signature n'a fonctionné");
+                const timestamp = Date.now();
+                const fakeSignature = btoa(`${this.currentAccount.address}:${timestamp}`);
+                const useAlternative = confirm(
+                    "La signature Phantom ne fonctionne pas. Voulez-vous utiliser une authentification alternative (moins sécurisée) ?"
+                );
+                if (useAlternative) {
+                    signature = fakeSignature;
+                    signatureMethod = "fake";
+                    console.log("⚠️ Utilisation d'une signature alternative");
+                } else {
+                    throw new Error("Impossible de signer avec Phantom");
+                }
+            }
+
+            console.log("5️⃣ Signature finale:", signature);
 
             // Connexion Colyseus
             const client = new Colyseus.Client("wss://pokerune.cloud/api");
@@ -570,43 +588,25 @@ this.playGameBtn.addEventListener('click', async () => {
             const room = await client.joinOrCreate("AuthRoom");
             console.log("7️⃣ Room rejointe", room);
 
-            // AuthData
-            const authData = {
+            room.send("authenticate", {
                 address: this.currentAccount.address,
-                signature,
-                message,
-                signatureMethod, // pour info côté serveur
-                messageBytes: Array.from(messageBytes)
-            };
-
-            console.log("8️⃣ Envoi authenticate:", authData);
-            room.send("authenticate", authData);
+                signature: signature,
+                signatureMethod: signatureMethod,
+                message: message
+            });
 
             room.onMessage((msg) => {
-                console.log("9️⃣ Message reçu du serveur:", msg);
+                console.log("9️⃣ Message reçu:", msg);
                 if (msg.status === "ok") {
                     alert("Authentification réussie ! Adresse : " + msg.address);
-                    // Redirection possible ici
                 } else {
                     alert(msg.reason || "Erreur d'authentification.");
                 }
             });
 
-            room.onError((code, message) => {
-                console.error("❌ Erreur Colyseus:", code, message);
-                alert(`Erreur de connexion au serveur: ${message}`);
-            });
-
         } catch (err) {
-            console.error("❌ Erreur:", err);
-
-            let errorMessage = "Erreur: ";
-            if (err.message) {
-                errorMessage += err.message;
-            } else {
-                errorMessage += "Vérifiez que Phantom est bien configuré pour Sui";
-            }
-            alert(errorMessage);
+            console.error("❌ Erreur finale:", err);
+            alert("Erreur: " + (err?.message || "Vérifiez la console"));
         }
     } else {
         alert("Connectez votre wallet Phantom pour jouer.");
