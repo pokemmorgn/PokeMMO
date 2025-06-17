@@ -1,25 +1,47 @@
-// ===============================================
-// VillageHouse1Scene.js - Maison 1 avec logique de transition vers VillageScene
-// ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 
-export class VillageHouse1Scene extends BaseZoneScene {
+export class VillageScene extends BaseZoneScene {
   constructor() {
-    super('VillageHouse1Scene', 'House1Interior'); // Change la clé si besoin
+    super('VillageScene', 'Greenroot');
     this.transitionCooldowns = {};
   }
 
   setupZoneTransitions() {
-    // Gestion des transitions via le layer 'Door' (sortie vers Village)
+    const worldsLayer = this.map.getObjectLayer('Worlds');
+    if (worldsLayer) {
+      const beachExit = worldsLayer.objects.find(obj => obj.name === 'GRbeach');
+      if (beachExit) {
+        this.createTransitionZone(beachExit, 'BeachScene', 'south');
+      }
+
+      const roadExit = worldsLayer.objects.find(obj => obj.name === 'Road_1');
+      if (roadExit) {
+        this.createTransitionZone(roadExit, 'Road1Scene', 'east');
+        console.log(`🛣️ Transition vers Road1 trouvée !`);
+      } else {
+        console.warn(`⚠️ Objet 'Road_1' non trouvé dans le layer Worlds`);
+        console.log("Objets disponibles dans Worlds:", worldsLayer.objects.map(obj => obj.name));
+      }
+    }
+
     const doorLayer = this.map.getObjectLayer('Door');
     if (doorLayer) {
-      const houseDoor = doorLayer.objects.find(obj => obj.name === 'House1');
-      if (houseDoor) {
-        this.createTransitionZone(houseDoor, 'VillageScene', 'north');
-        console.log(`🏠 Transition vers Village trouvée depuis Maison 1 !`);
+      const labDoor = doorLayer.objects.find(obj => obj.name === 'Labo');
+      if (labDoor) {
+        this.createTransitionZone(labDoor, 'VillageLabScene', 'north');
+        console.log(`🧪 Transition vers Laboratoire trouvée !`);
+      } else {
+        console.warn(`⚠️ Objet 'Labo' non trouvé dans le layer Door`);
+        console.log("Objets disponibles dans Door:", doorLayer.objects.map(obj => obj.name));
+      }
+
+      // ✅ AJOUT : Transition vers VillageHouse1
+      const house1Door = doorLayer.objects.find(obj => obj.name === 'House1');
+      if (house1Door) {
+        this.createTransitionZone(house1Door, 'VillageHouse1Scene', 'inside');
+        console.log(`🏠 Transition vers VillageHouse1 trouvée !`);
       } else {
         console.warn(`⚠️ Objet 'House1' non trouvé dans le layer Door`);
-        console.log("Objets disponibles dans Door:", doorLayer.objects.map(obj => obj.name));
       }
     } else {
       console.warn(`⚠️ Layer 'Door' non trouvé`);
@@ -77,25 +99,55 @@ export class VillageHouse1Scene extends BaseZoneScene {
           checkPlayerInterval.remove();
           console.log(`✅ Overlap créé pour transition vers ${targetScene}`);
         }
-      },
+      }
     });
   }
 
   positionPlayer(player) {
+    const initData = this.scene.settings.data;
     const spawnLayer = this.map.getObjectLayer('SpawnPoint');
+    let spawnPoint = null;
+
     if (spawnLayer) {
-      const spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_House1');
+      if (initData?.fromZone === 'BeachScene') {
+        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_GRbottom');
+      } else if (initData?.fromZone === 'Road1Scene') {
+        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Road1') ||
+                     spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_GRbottom');
+      } else if (initData?.fromZone === 'VillageLabScene') {
+        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Labo');
+      } else if (initData?.fromZone === 'VillageHouse1Scene') {
+        // ✅ AJOUT : Spawn depuis la maison
+        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_House1');
+      } else {
+        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_GRbottom');
+      }
+
       if (spawnPoint) {
         player.x = spawnPoint.x + spawnPoint.width / 2;
         player.y = spawnPoint.y + spawnPoint.height / 2;
-        console.log(`🏠 Joueur positionné au SpawnPoint_House1: ${player.x}, ${player.y}`);
       } else {
-        player.x = 300;
-        player.y = 200;
+        player.x = 200;
+        player.y = 150;
       }
     } else {
-      player.x = 300;
-      player.y = 200;
+      // Fallback sans spawnLayer
+      if (initData?.fromZone === 'BeachScene') {
+        player.x = 150;
+        player.y = 200;
+      } else if (initData?.fromZone === 'Road1Scene') {
+        player.x = 100;
+        player.y = 150;
+      } else if (initData?.fromZone === 'VillageLabScene') {
+        player.x = 250;
+        player.y = 180;
+      } else if (initData?.fromZone === 'VillageHouse1Scene') {
+        player.x = 220;
+        player.y = 160;
+      } else {
+        player.x = 200;
+        player.y = 150;
+      }
     }
 
     if (player.indicator) {
@@ -109,39 +161,38 @@ export class VillageHouse1Scene extends BaseZoneScene {
   }
 
   create() {
-    console.log('🚨 DEBUT VillageHouse1Scene.create()');
+    console.log("🚨 DEBUT VillageScene.create()");
     super.create();
 
-    this.add
-      .text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "E" to interact', {
-        font: '18px monospace',
-        fill: '#000000',
-        padding: { x: 20, y: 10 },
-        backgroundColor: '#ffffff',
-      })
-      .setScrollFactor(0)
-      .setDepth(30);
+    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
+      font: '18px monospace',
+      fill: '#000000',
+      padding: { x: 20, y: 10 },
+      backgroundColor: '#ffffff',
+    }).setScrollFactor(0).setDepth(30);
 
+    this.setupVillageEvents();
     this.setupNPCs();
-    this.setupInteractiveObjects();
 
-    console.log('🚨 FIN VillageHouse1Scene.create()');
+    console.log("🚨 FIN VillageScene.create()");
+  }
+
+  setupVillageEvents() {
+    this.time.delayedCall(1000, () => {
+      console.log("🏘️ Bienvenue à GreenRoot Village !");
+      if (this.infoText) {
+        this.infoText.setText('PokeWorld MMO\nGreenRoot Village\nConnected!');
+      }
+    });
   }
 
   setupNPCs() {
     const npcLayer = this.map.getObjectLayer('NPCs');
     if (npcLayer) {
-      npcLayer.objects.forEach(npcObj => this.createNPC(npcObj));
+      npcLayer.objects.forEach(npcObj => {
+        this.createNPC(npcObj);
+      });
     }
-  }
-
-  setupInteractiveObjects() {
-    const layer = this.map.getObjectLayer('Interactive');
-    if (layer) {
-      layer.objects.forEach(obj => this.createInteractiveObject(obj));
-    }
-
-    this.input.keyboard.on('keydown-E', () => this.handleInteraction());
   }
 
   createNPC(npcData) {
@@ -153,7 +204,7 @@ export class VillageHouse1Scene extends BaseZoneScene {
       0x3498db
     );
 
-    const label = this.add.text(
+    const npcName = this.add.text(
       npc.x,
       npc.y - 30,
       npcData.name || 'NPC',
@@ -162,84 +213,49 @@ export class VillageHouse1Scene extends BaseZoneScene {
         fontFamily: 'monospace',
         color: '#ffffff',
         backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        padding: { x: 4, y: 2 }
+        padding: { x: 4, y: 2 },
       }
     ).setOrigin(0.5);
 
     npc.setInteractive();
-    npc.on('pointerdown', () => this.interactWithNPC(npcData.name || 'Assistant'));
+    npc.on('pointerdown', () => {
+      this.interactWithNPC(npcData.name || 'Villageois');
+    });
 
-    npc.npcData = npcData;
-    this.npcs = this.npcs || [];
-    this.npcs.push(npc);
-  }
-
-  createInteractiveObject(objData) {
-    const obj = this.add.rectangle(
-      objData.x + objData.width / 2,
-      objData.y + objData.height / 2,
-      objData.width,
-      objData.height,
-      0xf39c12
-    ).setAlpha(0.5);
-
-    obj.objData = objData;
-    this.interactiveObjects = this.interactiveObjects || [];
-    this.interactiveObjects.push(obj);
-  }
-
-  handleInteraction() {
-    const player = this.playerManager.getMyPlayer();
-    if (!player) return;
-
-    for (const npc of this.npcs || []) {
-      if (Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y) < 50) {
-        this.interactWithNPC(npc.npcData.name);
-        return;
-      }
-    }
-
-    for (const obj of this.interactiveObjects || []) {
-      if (Phaser.Math.Distance.Between(player.x, player.y, obj.x, obj.y) < 50) {
-        this.interactWithObject(obj.objData.name);
-        return;
-      }
-    }
+    console.log(`👤 NPC créé : ${npcData.name || 'Sans nom'}`, npc);
   }
 
   interactWithNPC(npcName) {
-    const messages = {
-      Assistant: 'Je m\'occupe de la maison.',
-      Gardien: 'Je veille sur cette maison.',
+    console.log(`💬 Interaction avec ${npcName}`);
+    const dialogues = {
+      Maire: "Bienvenue à GreenRoot ! C'est un village paisible.",
+      Marchand: "J'ai de super objets à vendre ! Revenez plus tard.",
+      Enfant: "J'ai vu des Pokémon près de la forêt !",
+      Villageois: "Bonjour ! Belle journée, n'est-ce pas ?",
+      Professeur: "Rendez-vous au laboratoire si vous voulez un Pokémon !",
     };
-    this.showSimpleDialog(npcName, messages[npcName] || 'Bonjour !');
-  }
+    const message = dialogues[npcName] || 'Bonjour, voyageur !';
+    const dialogueBox = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY + 100,
+      `${npcName}: "${message}"`,
+      {
+        fontSize: '14px',
+        fontFamily: 'monospace',
+        color: '#ffffff',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: { x: 10, y: 8 },
+        wordWrap: { width: 300 },
+      }
+    ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
 
-  interactWithObject(objName) {
-    const messages = {
-      Meuble: 'Un beau meuble ancien.',
-      Tableau: 'Un tableau accroché au mur.',
-    };
-    this.showSimpleDialog('Système', messages[objName] || 'Vous examinez l\'objet.');
-  }
-
-  showSimpleDialog(speaker, message) {
-    const dialog = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY + 100, `${speaker}: "${message}"`, {
-      fontSize: '14px',
-      fontFamily: 'monospace',
-      color: '#ffffff',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      padding: { x: 10, y: 8 },
-      wordWrap: { width: 350 }
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
-
-    this.time.delayedCall(3000, () => dialog.destroy());
+    this.time.delayedCall(3000, () => {
+      dialogueBox.destroy();
+    });
   }
 
   cleanup() {
     this.transitionCooldowns = {};
-    this.npcs = [];
-    this.interactiveObjects = [];
     super.cleanup();
   }
 }
