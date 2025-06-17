@@ -473,18 +473,20 @@ this.playGameBtn.addEventListener('click', async () => {
             console.log("2️⃣ suiProvider:", suiProvider);
 
             const message = `Connexion à PokeWorld: ${Date.now()}`;
-            // Essaye direct en string !
-let sigResult = await suiProvider.signMessage({ message });
-            let signature;
-            if (typeof sigResult.signature === "string") {
-                signature = sigResult.signature;
-            } else if (sigResult.signature && sigResult.signature.signature) {
-                signature = sigResult.signature.signature;
-            } else if (sigResult.signature) {
-                signature = sigResult.signature;
-            } else {
-                throw new Error("Impossible de récupérer la signature du wallet.");
-            }
+            const messageBytes = new TextEncoder().encode(message);
+
+            console.log("3️⃣ Message à signer:", message);
+            console.log("3️⃣bis Message encodé:", messageBytes);
+
+            // Appel signMessage avec la bonne syntaxe (message: Uint8Array)
+            const sigResult = await suiProvider.signMessage({
+                message: messageBytes
+            });
+
+            console.log("4️⃣ Résultat complet de signature:", sigResult);
+
+            // La signature (Sui) est dans sigResult.signature
+            const signature = sigResult.signature;
             console.log("5️⃣ Signature extraite:", signature);
 
             const client = new Colyseus.Client("wss://pokerune.cloud/api");
@@ -496,16 +498,21 @@ let sigResult = await suiProvider.signMessage({ message });
             console.log("8️⃣ Avant envoi authenticate:", {
                 address: this.currentAccount.address,
                 signature,
-                message
+                message,
+                // Optionnel: bytes du message
+                messageBytes: Array.from(messageBytes)
             });
 
             room.send("authenticate", {
                 address: this.currentAccount.address,
                 signature,
-                message
+                message,
+                // Optionnel pour debug/vérif serveur
+                messageBytes: Array.from(messageBytes)
             });
 
             room.onMessage((msg) => {
+                console.log("9️⃣ Message reçu du serveur:", msg);
                 if (msg.status === "ok") {
                     alert("Authentification réussie ! Adresse : " + msg.address);
                 } else {
@@ -514,8 +521,17 @@ let sigResult = await suiProvider.signMessage({ message });
             });
 
         } catch (err) {
-            console.error("Erreur lors de la signature ou de l'envoi :", err);
-            alert("Erreur d'authentification SUI: " + (err && err.message ? err.message : err));
+            console.error("❌ Erreur lors de la signature ou de l'envoi :", err);
+            // Gestion d'erreur plus lisible
+            let errorMessage = "Erreur d'authentification SUI: ";
+            if (err.code === 4001) {
+                errorMessage += "Signature refusée par l'utilisateur";
+            } else if (err.message) {
+                errorMessage += err.message;
+            } else {
+                errorMessage += JSON.stringify(err);
+            }
+            alert(errorMessage);
         }
     } else {
         alert("Connecte ton wallet pour jouer.");
