@@ -31,6 +31,18 @@
       "growthRate": "Medium Slow",
       "captureRate": 45,
       "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Professor Oak's Lab",
+          "rarity": "Guaranteed",
+          "method": "Starter Choice",
+          "level_range": "5",
+          "encounter_rate": "100%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "catch_rate_modifier": 1.0
+        }
+      ],
       "learnset": [
         {"moveId": "scratch", "level": 1},
         {"moveId": "growl", "level": 1},
@@ -78,6 +90,18 @@
       "growthRate": "Medium Slow",
       "captureRate": 45,
       "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Evolution Only",
+          "rarity": "N/A",
+          "method": "Evolution",
+          "level_range": "16+",
+          "encounter_rate": "0%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "catch_rate_modifier": 1.0
+        }
+      ],
       "learnset": [
         {"moveId": "scratch", "level": 1},
         {"moveId": "growl", "level": 1},
@@ -126,6 +150,18 @@
       "growthRate": "Medium Slow",
       "captureRate": 45,
       "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Evolution Only",
+          "rarity": "N/A",
+          "method": "Evolution",
+          "level_range": "36+",
+          "encounter_rate": "0%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "catch_rate_modifier": 1.0
+        }
+      ],
       "learnset": [
         {"moveId": "scratch", "level": 1},
         {"moveId": "growl", "level": 1},
