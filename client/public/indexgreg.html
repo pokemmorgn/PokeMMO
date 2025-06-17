@@ -553,8 +553,71 @@
                         console.log('🔗 Connexion établie:', data);
                     });
 
+                    // AJOUT: Configuration des listeners Phantom pour détecter les changements de compte
+                    this.setupPhantomListeners();
+
                 } catch (error) {
                     console.error('❌ Erreur setup listeners:', error);
+                }
+            }
+
+            async setupPhantomListeners() {
+                try {
+                    await this.waitForPhantom();
+                    
+                    if (window.phantom?.sui) {
+                        // Écouter les changements de compte (si supporté)
+                        if (typeof window.phantom.sui.on === 'function') {
+                            window.phantom.sui.on('accountChanged', (account) => {
+                                console.log('🔄 Changement de compte détecté:', account);
+                                if (this.isAuthenticated) {
+                                    this.showError('Compte Phantom changé - veuillez vous reconnecter');
+                                    this.logout();
+                                }
+                            });
+
+                            window.phantom.sui.on('disconnect', () => {
+                                console.log('🔓 Déconnexion Phantom détectée');
+                                if (this.isAuthenticated) {
+                                    this.logout();
+                                }
+                            });
+                        }
+
+                        // Vérification périodique du compte actuel
+                        setInterval(() => {
+                            this.checkAccountConsistency();
+                        }, 5000);
+                    }
+                } catch (error) {
+                    console.error('Erreur lors de la configuration des listeners Phantom:', error);
+                }
+            }
+
+            async checkAccountConsistency() {
+                if (!this.isAuthenticated || !this.currentWallet || !window.phantom?.sui) return;
+
+                try {
+                    const suiProvider = window.phantom.sui;
+                    let currentAddress = null;
+
+                    // Vérifier l'adresse actuelle dans Phantom
+                    if (suiProvider.publicKey) {
+                        currentAddress = suiProvider.publicKey.toString();
+                    } else if (suiProvider._accounts && suiProvider._accounts.length > 0) {
+                        currentAddress = suiProvider._accounts[0].address;
+                    } else if (window.phantom._state?.accounts?.sui && window.phantom._state.accounts.sui.length > 0) {
+                        currentAddress = window.phantom._state.accounts.sui[0].address;
+                    }
+
+                    // Si l'adresse a changé, déconnecter l'utilisateur
+                    if (currentAddress && this.currentWallet.address !== currentAddress) {
+                        console.log('⚠️ Compte Phantom changé - déconnexion automatique');
+                        this.showError('Le compte Phantom a changé. Veuillez vous reconnecter.');
+                        this.logout();
+                    }
+                } catch (error) {
+                    console.error('Erreur lors de la vérification de consistance:', error);
                 }
             }
 
@@ -601,25 +664,53 @@
 
             async connectPhantom() {
                 try {
-                    // CORRECTION: Utiliser la nouvelle API Phantom
+                    // CORRECTION: Utiliser l'API Phantom correcte pour Sui
                     if (!window.phantom?.sui) {
                         throw new Error('Phantom Wallet avec support Sui non détecté');
                     }
 
                     const suiProvider = window.phantom.sui;
-                    
-                    // Connexion avec la nouvelle API
-                    const resp = await suiProvider.connect();
-                    console.log('✅ Phantom connecté:', resp);
+                    console.log('🔗 Tentative de connexion Phantom Sui...');
 
-                    // Récupération de l'adresse depuis la réponse
+                    // Utiliser requestAccount() comme dans votre indexgreg.html qui fonctionne
+                    let response = null;
+                    
+                    try {
+                        response = await suiProvider.requestAccount();
+                        console.log('✅ Réponse requestAccount:', response);
+                    } catch (error) {
+                        console.log('⚠️ Erreur requestAccount, tentative de récupération...', error);
+                        
+                        // Essayer de récupérer le compte actuel malgré l'erreur
+                        await this.refreshCurrentAccount();
+                        
+                        if (this.currentWallet) {
+                            console.log('✅ Compte récupéré malgré l\'erreur');
+                            return this.currentWallet;
+                        } else {
+                            throw error;
+                        }
+                    }
+
+                    // Traitement de la réponse (même logique que votre indexgreg.html)
                     let address = null;
-                    if (resp.accounts && resp.accounts.length > 0) {
-                        address = resp.accounts[0].address;
-                    } else if (resp.account) {
-                        address = resp.account.address;
-                    } else if (resp.address) {
-                        address = resp.address;
+                    if (response && response.address) {
+                        address = response.address;
+                    } else if (response && typeof response === 'string') {
+                        address = response;
+                    } else if (response && response.publicKey) {
+                        address = response.publicKey.toString();
+                    } else if (suiProvider.publicKey) {
+                        address = suiProvider.publicKey.toString();
+                    }
+
+                    // Dernière tentative - méthodes alternatives comme dans indexgreg.html
+                    if (!address) {
+                        if (suiProvider._accounts && suiProvider._accounts.length > 0) {
+                            address = suiProvider._accounts[0].address;
+                        } else if (window.phantom._state?.accounts?.sui && window.phantom._state.accounts.sui.length > 0) {
+                            address = window.phantom._state.accounts.sui[0].address;
+                        }
                     }
 
                     if (!address) {
@@ -632,6 +723,40 @@
                 } catch (error) {
                     console.error('❌ Erreur connexion Phantom:', error);
                     throw new Error('Échec de la connexion Phantom: ' + error.message);
+                }
+            }
+
+            async refreshCurrentAccount() {
+                try {
+                    if (!window.phantom?.sui) return;
+
+                    const suiProvider = window.phantom.sui;
+                    
+                    // Méthodes de récupération du compte actuel (inspirées de indexgreg.html)
+                    let address = null;
+
+                    // Méthode 1: Vérifier publicKey
+                    if (suiProvider.publicKey) {
+                        address = suiProvider.publicKey.toString();
+                    }
+                    
+                    // Méthode 2: Vérifier _accounts
+                    else if (suiProvider._accounts && suiProvider._accounts.length > 0) {
+                        address = suiProvider._accounts[0].address;
+                    }
+                    
+                    // Méthode 3: Vérifier l'état global de Phantom
+                    else if (window.phantom._state?.accounts?.sui && window.phantom._state.accounts.sui.length > 0) {
+                        address = window.phantom._state.accounts.sui[0].address;
+                    }
+
+                    if (address) {
+                        this.currentWallet = { address };
+                        console.log('✅ Compte actuel récupéré:', address);
+                    }
+
+                } catch (error) {
+                    console.error('Erreur lors de la récupération du compte actuel:', error);
                 }
             }
 
@@ -709,7 +834,8 @@
                 this.challengeMessage = null;
 
                 try {
-                    if (window.phantom?.sui?.disconnect) {
+                    // CORRECTION: Utiliser la méthode de déconnexion correcte
+                    if (window.phantom?.sui && typeof window.phantom.sui.disconnect === 'function') {
                         window.phantom.sui.disconnect();
                     }
                 } catch (error) {
