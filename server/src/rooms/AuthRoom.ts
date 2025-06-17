@@ -106,13 +106,24 @@ export class AuthRoom extends Room<AuthState> {
     // On ne la convertit pas en Uint8Array
     // const signatureBytes = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0)); // A retirer
 
-    // Appeler verifyPersonalMessage avec la signature en string
-    const publicKey = await verifyPersonalMessage(messageBytes, signature, address);
+   // Ne pas passer 'address' en 3e argument, car ce n'est pas prévu
+const publicKey = await verifyPersonalMessage(messageBytes, signature);
 
-    const isValid = publicKey != null;
+// Vérifie si la signature est valide (publicKey non null)
+const isValid = publicKey != null;
 
-    console.log("🔍 Résultat vérification:", isValid);
-    return isValid;
+// Si besoin, vérifie que la clé publique correspond à l'adresse attendue (fonction à écrire)
+if (isValid) {
+  const derivedAddress = publicKey.toSuiAddress?.(); // si méthode dispo, sinon adapter
+  if (derivedAddress !== address) {
+    console.warn("Adresse dérivée ne correspond pas à l'adresse fournie");
+    return false;
+  }
+}
+
+console.log("🔍 Résultat vérification:", isValid);
+return isValid;
+
   } catch (error) {
     console.error("❌ Erreur vérification Slush:", error);
 
