@@ -517,7 +517,7 @@ applyVisualSettings() {
       break;
 
     default:
-      if (this.cameraManager) this.cameraManager.setZoom(1);
+     
       const playerDefault = this.playerManager?.getMyPlayer();
       if (playerDefault) playerDefault.setScale(1);
   }
