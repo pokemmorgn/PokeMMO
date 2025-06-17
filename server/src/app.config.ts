@@ -24,12 +24,12 @@ let globalMoveManager: MoveManager;
 export default config({
   initializeGameServer: (gameServer) => {
     //---------------- AUTH SYSTEM----------------------//
-    gameServer.define('AuthRoom', AuthRoom),
+    gameServer.define('AuthRoom', AuthRoom);
     //---------------- AUTH SYSTEM----------------------//
     // Définition des rooms par zone
-    gameServer.define('Road1Room', Road1Room),
-    gameServer.define('BeachRoom', BeachRoom),
-    gameServer.define('VillageRoom', VillageRoom),
+    gameServer.define('Road1Room', Road1Room);
+    gameServer.define('BeachRoom', BeachRoom);
+    gameServer.define('VillageRoom', VillageRoom);
     gameServer.define('VillageLabRoom', VillageLabRoom);
   },
 
