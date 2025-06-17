@@ -24,7 +24,7 @@ let globalMoveManager: MoveManager;
 export default config({
   initializeGameServer: (gameServer) => {
     //---------------- AUTH SYSTEM----------------------//
-    gameServer.define('AuthRoom', AuthRoom);
+    gameServer.define('AuthRoom', AuthRoom),
     //---------------- AUTH SYSTEM----------------------//
     // Définition des rooms par zone
     gameServer.define('Road1Room', Road1Room),
