@@ -467,52 +467,54 @@
 this.playGameBtn.addEventListener('click', async () => {
     if (this.currentAccount && this.currentAccount.address) {
         try {
-  const suiProvider = window.phantom.sui;
-  const message = `Connexion à PokeWorld: ${Date.now()}`;
-  const msgBytes = new TextEncoder().encode(message);
-  let sigResult = await suiProvider.signMessage({ message: msgBytes });
+            const suiProvider = window.phantom.sui;
+            const message = `Connexion à PokeWorld: ${Date.now()}`;
+            const msgBytes = new TextEncoder().encode(message);
+            let sigResult = await suiProvider.signMessage({ message: msgBytes });
 
-  let signature;
-  if (typeof sigResult.signature === "string") {
-    signature = sigResult.signature;
-  } else if (sigResult.signature && sigResult.signature.signature) {
-    signature = sigResult.signature.signature;
-  } else if (sigResult.signature) {
-    signature = sigResult.signature;
-  } else {
-    throw new Error("Impossible de récupérer la signature du wallet.");
-  }
+            let signature;
+            if (typeof sigResult.signature === "string") {
+                signature = sigResult.signature;
+            } else if (sigResult.signature && sigResult.signature.signature) {
+                signature = sigResult.signature.signature;
+            } else if (sigResult.signature) {
+                signature = sigResult.signature;
+            } else {
+                throw new Error("Impossible de récupérer la signature du wallet.");
+            }
 
-  console.log("Avant envoi authenticate:", {
-    address: this.currentAccount.address,
-    signature,
-    message
-  });
-
-  room.send("authenticate", {
-    address: this.currentAccount.address,
-    signature,
-    message
-  });
-
-} catch (error) {
-  console.error("Erreur lors de la signature ou de l'envoi :", error);
-  alert("Erreur d'authentification : " + error.message);
-}
-}
-
-            const client = new Colyseus.Client("wss://pokerune.cloud/api"); // <-- adapte l'URL
+            // 👇 Création du client et de la room dans le même try !
+            const client = new Colyseus.Client("wss://pokerune.cloud/api"); 
             const room = await client.joinOrCreate("AuthRoom");
 
             console.log("Avant envoi authenticate:", {
-  address: this.currentAccount.address,
-  signature,
-  message
-});
-room.send("authenticate", {
-  address: this.currentAccount.address,
-  signature,
-  message
+                address: this.currentAccount.address,
+                signature,
+                message
+            });
+
+            room.send("authenticate", {
+                address: this.currentAccount.address,
+                signature,
+                message
+            });
+
+            room.onMessage((msg) => {
+                if (msg.status === "ok") {
+                    alert("Authentification réussie ! Adresse : " + msg.address);
+                    // location.href = "index.html?wallet=" + encodeURIComponent(this.currentAccount.address);
+                } else {
+                    alert(msg.reason || "Erreur d'authentification.");
+                }
+            });
+
+        } catch (err) {
+            console.error("Erreur lors de la signature ou de l'envoi :", err);
+            alert("Erreur d'authentification SUI: " + (err.message || err));
+        }
+    } else {
+        alert("Connecte ton wallet pour jouer.");
+    }
 });
 
             room.onMessage((msg) => {
