@@ -470,87 +470,140 @@
                 this.playBtn.addEventListener('click', () => this.startGame());
             }
 
-           async connectToAuthServer() {
-    try {
-        console.log('🔐 Tentative de connexion à wss://pokerune.cloud/api...');
-        
-        this.client = new Colyseus.Client("wss://pokerune.cloud/api");
-        console.log('✅ Client Colyseus créé');
+            async connectToAuthServer() {
+                try {
+                    console.log('🔐 Tentative de connexion à wss://pokerune.cloud:2567...');
+                    
+                    this.client = new Colyseus.Client("wss://pokerune.cloud:2567");
+                    console.log('✅ Client Colyseus créé');
 
-        this.authRoom = await this.client.joinOrCreate('AuthRoom');
-        console.log('✅ AuthRoom rejointe:', this.authRoom.sessionId);
-        this.sessionId = this.authRoom.sessionId;
+                    this.authRoom = await this.client.joinOrCreate('AuthRoom');
+                    console.log('✅ AuthRoom rejointe:', this.authRoom.sessionId);
+                    this.sessionId = this.authRoom.sessionId;
 
-        this.serverStatus.textContent = 'Serveur: Connecté';
-        this.serverStatus.classList.add('connected');
-        document.getElementById('authRoomStatus').textContent = '✅';
-        document.getElementById('sessionId').textContent = this.sessionId.substring(0, 8) + '...';
+                    this.serverStatus.textContent = 'Serveur: Connecté';
+                    this.serverStatus.classList.add('connected');
+                    document.getElementById('authRoomStatus').textContent = '✅';
+                    document.getElementById('sessionId').textContent = this.sessionId.substring(0, 8) + '...';
 
-        this.setupAuthRoomListeners();
-        console.log('✅ Connecté au serveur d\'authentification');
+                    this.setupAuthRoomListeners();
+                    console.log('✅ Connecté au serveur d\'authentification');
 
-    } catch (error) {
-        console.error('❌ Erreur connexion serveur:', error);
-        this.showError('Impossible de se connecter au serveur d\'authentification');
-    }
-}
-
-            setupAuthRoomListeners() {
-                // ... (Aucune modif, copie/colle tout le reste de ta classe ici inchangé) ...
-                // (Ne supprime rien, ne touche pas le reste !)
-                this.authRoom.onMessage('authChallenge', (data) => {
-                    this.challengeMessage = data.message;
-                    this.signMessage(data.message);
-                });
-                this.authRoom.onMessage('authSuccess', (data) => {
-                    this.handleAuthSuccess(data);
-                });
-                this.authRoom.onMessage('authError', (data) => {
-                    this.showError(data.error);
-                    this.setLoadingState(false);
-                    document.getElementById('signatureStatus').textContent = 'Erreur: ' + data.code;
-                });
-                this.authRoom.onMessage('authStatus', (data) => {
-                    if (data.isAuthenticated) {
-                        this.isAuthenticated = true;
-                        this.currentWallet = { address: data.walletAddress };
-                        this.updateAuthenticatedState();
-                    }
-                });
-                this.authRoom.onMessage('connectionEstablished', (data) => {});
+                } catch (error) {
+                    console.error('❌ Erreur connexion serveur:', error);
+                    this.showError('Impossible de se connecter au serveur d\'authentification');
+                    // Retry après 5 secondes
+                    setTimeout(() => {
+                        this.connectToAuthServer();
+                    }, 5000);
+                }
             }
 
-            async handleAuthFlow() { /* ... inchangé ... */ 
+            setupAuthRoomListeners() {
+                try {
+                    // Gestion des erreurs de room
+                    this.authRoom.onError((code, message) => {
+                        console.error(`❌ Erreur AuthRoom [${code}]:`, message);
+                        this.showError(`Erreur serveur: ${message}`);
+                        this.setLoadingState(false);
+                    });
+
+                    // Gestion de la déconnexion
+                    this.authRoom.onLeave((code) => {
+                        console.log(`🔌 Déconnexion AuthRoom [${code}]`);
+                        this.serverStatus.textContent = 'Serveur: Déconnecté';
+                        this.serverStatus.classList.remove('connected');
+                        document.getElementById('authRoomStatus').textContent = '❌';
+                        
+                        // Tentative de reconnexion
+                        setTimeout(() => {
+                            this.connectToAuthServer();
+                        }, 3000);
+                    });
+
+                    // Messages du serveur
+                    this.authRoom.onMessage('authChallenge', (data) => {
+                        console.log('📨 Défi reçu:', data);
+                        this.challengeMessage = data.message;
+                        this.signMessage(data.message);
+                    });
+
+                    this.authRoom.onMessage('authSuccess', (data) => {
+                        console.log('✅ Auth success:', data);
+                        this.handleAuthSuccess(data);
+                    });
+
+                    this.authRoom.onMessage('authError', (data) => {
+                        console.error('❌ Auth error:', data);
+                        this.showError(data.error);
+                        this.setLoadingState(false);
+                        document.getElementById('signatureStatus').textContent = 'Erreur: ' + data.code;
+                    });
+
+                    this.authRoom.onMessage('authStatus', (data) => {
+                        console.log('📊 Auth status:', data);
+                        if (data.isAuthenticated) {
+                            this.isAuthenticated = true;
+                            this.currentWallet = { address: data.walletAddress };
+                            this.updateAuthenticatedState();
+                        }
+                    });
+
+                    this.authRoom.onMessage('connectionEstablished', (data) => {
+                        console.log('🔗 Connexion établie:', data);
+                    });
+
+                } catch (error) {
+                    console.error('❌ Erreur setup listeners:', error);
+                }
+            }
+
+            async handleAuthFlow() {
                 if (this.isAuthenticated) {
                     this.logout();
                     return;
                 }
+
                 try {
                     this.setLoadingState(true);
                     this.updateStatus('connecting', 'Connexion à Phantom...');
+                    
                     await this.waitForPhantom();
+                    
                     if (!window.phantom?.sui) {
                         throw new Error('Phantom Wallet avec support Sui requis');
                     }
+
                     this.updateStatus('connecting', 'Connexion au wallet...');
                     const walletData = await this.connectPhantom();
                     this.currentWallet = walletData;
+
+                    // Vérifier la connexion au serveur
+                    if (!this.authRoom) {
+                        throw new Error('Pas de connexion au serveur');
+                    }
+
                     this.updateStatus('pending', 'Demande de signature...');
+                    
                     this.authRoom.send('requestChallenge', {
                         walletAddress: walletData.address
                     });
+                    
                     document.getElementById('signatureStatus').textContent = 'Défi demandé...';
+
                 } catch (error) {
+                    console.error('❌ Erreur auth flow:', error);
                     this.showError(error.message);
                     this.setLoadingState(false);
                     this.updateStatus('disconnected', 'Erreur de connexion');
                 }
             }
 
-            async connectPhantom() { /* ... inchangé ... */
+            async connectPhantom() {
                 try {
                     const suiProvider = window.phantom.sui;
                     const response = await suiProvider.requestAccount();
+                    
                     let address = null;
                     if (response && response.address) {
                         address = response.address;
@@ -559,44 +612,62 @@
                     } else if (suiProvider.publicKey) {
                         address = suiProvider.publicKey.toString();
                     }
+
                     if (!address) {
                         throw new Error('Impossible de récupérer l\'adresse du wallet');
                     }
+
+                    console.log('✅ Phantom connecté:', address);
                     return { address };
+
                 } catch (error) {
                     throw new Error('Échec de la connexion Phantom: ' + error.message);
                 }
             }
 
-            async signMessage(message) { /* ... inchangé ... */
+            async signMessage(message) {
                 try {
                     this.updateStatus('pending', 'Signature en cours...');
                     document.getElementById('signatureStatus').textContent = 'Demande signature...';
+
                     const suiProvider = window.phantom.sui;
                     if (!suiProvider.signMessage) {
                         throw new Error('Fonction de signature non disponible');
                     }
+
                     const messageBytes = new TextEncoder().encode(message);
                     const signatureResponse = await suiProvider.signMessage({
                         message: messageBytes
                     });
+
+                    console.log('✅ Signature obtenue:', signatureResponse);
                     document.getElementById('signatureStatus').textContent = 'Signature obtenue';
+
+                    // Vérifier la connexion au serveur
+                    if (!this.authRoom) {
+                        throw new Error('Connexion serveur perdue');
+                    }
+
                     this.authRoom.send('verifyAuth', {
                         walletAddress: this.currentWallet.address,
                         signature: signatureResponse.signature,
                         message: message,
                         timestamp: Date.now()
                     });
+
                     this.updateStatus('pending', 'Vérification serveur...');
                     document.getElementById('signatureStatus').textContent = 'Vérification...';
+
                 } catch (error) {
+                    console.error('❌ Erreur signature:', error);
                     this.showError('Erreur lors de la signature: ' + error.message);
                     this.setLoadingState(false);
                     document.getElementById('signatureStatus').textContent = 'Erreur signature';
                 }
             }
 
-            handleAuthSuccess(data) { /* ... inchangé ... */
+            handleAuthSuccess(data) {
+                console.log('🎉 Authentification réussie:', data);
                 this.isAuthenticated = true;
                 this.currentWallet = { address: data.walletAddress };
                 this.playerData = data.playerData;
@@ -605,7 +676,7 @@
                 document.getElementById('signatureStatus').textContent = 'Authentifié ✅';
             }
 
-            updateAuthenticatedState() { /* ... inchangé ... */
+            updateAuthenticatedState() {
                 this.setLoadingState(false);
                 this.updateStatus('connected', 'Authentifié');
                 this.authInfo.classList.add('active');
@@ -615,16 +686,21 @@
                 this.playBtn.classList.add('active');
             }
 
-            logout() { /* ... inchangé ... */
+            logout() {
+                console.log('🔓 Déconnexion...');
                 this.isAuthenticated = false;
                 this.currentWallet = null;
                 this.playerData = null;
                 this.challengeMessage = null;
+
                 try {
                     if (window.phantom?.sui?.disconnect) {
                         window.phantom.sui.disconnect();
                     }
-                } catch (error) {}
+                } catch (error) {
+                    console.warn('Erreur déconnexion Phantom:', error);
+                }
+
                 this.updateStatus('disconnected', 'Déconnecté');
                 this.authInfo.classList.remove('active');
                 this.playBtn.classList.remove('active');
@@ -634,20 +710,22 @@
                 this.hideMessages();
             }
 
-            startGame() { /* ... inchangé ... */
+            startGame() {
                 if (!this.isAuthenticated || !this.playerData) {
                     this.showError('Vous devez être authentifié pour jouer');
                     return;
                 }
+
                 const gameParams = new URLSearchParams({
                     wallet: this.currentWallet.address,
                     authenticated: 'true',
                     session: this.sessionId
                 });
+
                 window.location.href = `game.html?${gameParams.toString()}`;
             }
 
-            updateStatus(status, message) { /* ... inchangé ... */
+            updateStatus(status, message) {
                 this.statusDot.className = 'status-dot';
                 if (status !== 'disconnected') {
                     this.statusDot.classList.add(status);
@@ -655,7 +733,8 @@
                 this.authStatus.textContent = this.getStatusText(status);
                 this.authDetails.textContent = message;
             }
-            getStatusText(status) { /* ... inchangé ... */
+
+            getStatusText(status) {
                 switch (status) {
                     case 'connected': return 'Authentifié';
                     case 'connecting': return 'Connexion...';
@@ -663,7 +742,8 @@
                     default: return 'Non connecté';
                 }
             }
-            setLoadingState(loading) { /* ... inchangé ... */
+
+            setLoadingState(loading) {
                 if (loading) {
                     this.connectBtn.style.display = 'none';
                     this.loading.style.display = 'block';
@@ -672,7 +752,8 @@
                     this.loading.style.display = 'none';
                 }
             }
-            showError(message) { /* ... inchangé ... */
+
+            showError(message) {
                 this.hideMessages();
                 this.errorMessage.textContent = message;
                 this.errorMessage.style.display = 'block';
@@ -680,7 +761,8 @@
                     this.errorMessage.style.display = 'none';
                 }, 5000);
             }
-            showSuccess(message) { /* ... inchangé ... */
+
+            showSuccess(message) {
                 this.hideMessages();
                 this.successMessage.textContent = message;
                 this.successMessage.style.display = 'block';
@@ -688,18 +770,22 @@
                     this.successMessage.style.display = 'none';
                 }, 3000);
             }
-            hideMessages() { /* ... inchangé ... */
+
+            hideMessages() {
                 this.errorMessage.style.display = 'none';
                 this.successMessage.style.display = 'none';
             }
-            async waitForPhantom(timeout = 10000) { /* ... inchangé ... */
+
+            async waitForPhantom(timeout = 10000) {
                 return new Promise((resolve, reject) => {
                     if (window.phantom) {
                         resolve();
                         return;
                     }
+
                     let attempts = 0;
                     const maxAttempts = timeout / 100;
+
                     const checkPhantom = () => {
                         attempts++;
                         if (window.phantom) {
@@ -710,21 +796,28 @@
                             setTimeout(checkPhantom, 100);
                         }
                     };
+
                     checkPhantom();
                 });
             }
-            async startDiagnostics() { /* ... inchangé ... */
+
+            async startDiagnostics() {
                 await this.updateDiagnostics();
                 setInterval(() => {
                     this.updateDiagnostics();
                 }, 3000);
             }
-            async updateDiagnostics() { /* ... inchangé ... */
+
+            async updateDiagnostics() {
                 try {
                     await this.waitForPhantom(1000);
-                } catch (error) {}
+                } catch (error) {
+                    // Phantom pas détecté
+                }
+
                 const phantomInstalled = !!window.phantom;
                 const suiSupport = !!(window.phantom && window.phantom.sui);
+
                 document.getElementById('phantomInstalled').textContent = phantomInstalled ? '✅' : '❌';
                 document.getElementById('suiSupport').textContent = suiSupport ? '✅' : '❌';
             }
