@@ -3,892 +3,237 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Slush Wallet - Sui Network</title>
+    <title>Debug Sui Wallet</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #4fd1c5 0%, #319795 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .bg-particles {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: 1;
-        }
-
-        .particle {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            animation: float 6s ease-in-out infinite;
-        }
-
-        .particle:nth-child(1) {
-            width: 4px;
-            height: 4px;
-            top: 20%;
-            left: 20%;
-            animation-delay: 0s;
-        }
-
-        .particle:nth-child(2) {
-            width: 6px;
-            height: 6px;
-            top: 40%;
-            left: 60%;
-            animation-delay: 1s;
-        }
-
-        .particle:nth-child(3) {
-            width: 3px;
-            height: 3px;
-            top: 70%;
-            left: 30%;
-            animation-delay: 2s;
-        }
-
-        @keyframes float {
-            0%,
-            100% {
-                transform: translateY(0px) rotate(0deg);
-                opacity: 0.7;
-            }
-            50% {
-                transform: translateY(-20px) rotate(180deg);
-                opacity: 1;
-            }
-        }
-
-        .container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            padding: 48px 40px;
-            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.15);
-            width: 100%;
-            max-width: 600px;
-            position: relative;
-            z-index: 10;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            animation: slideUp 0.8s ease-out;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(40px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .logo {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #4fd1c5, #2c7a7b);
-            border-radius: 20px;
-            margin: 0 auto 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            font-weight: bold;
-            color: white;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .title {
-            font-size: 28px;
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 8px;
-            background: linear-gradient(135deg, #1f2937, #2c7a7b);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .subtitle {
-            font-size: 16px;
-            color: #6b7280;
-            line-height: 1.5;
-        }
-
-        .account-selector {
-            background: linear-gradient(135deg, #e6fffa, #b2f5ea);
-            border: 2px solid #81e6d9;
-            border-radius: 16px;
+            font-family: monospace;
             padding: 20px;
-            margin-bottom: 24px;
+            background: #000;
+            color: #0f0;
         }
-
-        .account-info {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
-
-        .account-status {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #ef4444;
-        }
-
-        .status-dot.connected {
-            background: #10b981;
-            animation: pulse 2s infinite;
-        }
-
-        .status-dot.connecting {
-            background: #f59e0b;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes pulse {
-            0%,
-            100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.5;
-            }
-        }
-
-        @keyframes spin {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .account-text h3 {
-            color: #2d3748;
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .account-text p {
-            color: #6b7280;
-            font-size: 14px;
-        }
-
-        .refresh-btn {
-            background: #f3f4f6;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 12px;
-            color: #6b7280;
-            transition: all 0.2s ease;
-        }
-
-        .refresh-btn:hover {
-            background: #e5e7eb;
-            border-color: #9ca3af;
-        }
-
-        .connect-section {
-            margin-bottom: 32px;
-        }
-
-        .connect-button {
-            width: 100%;
-            background: linear-gradient(135deg, #4fd1c5, #319795);
-            color: white;
+        button {
+            background: #0f0;
+            color: #000;
             border: none;
-            border-radius: 16px;
-            padding: 18px 24px;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 8px 24px rgba(79, 209, 197, 0.3);
-        }
-
-        .connect-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 32px rgba(79, 209, 197, 0.4);
-        }
-
-        .connect-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .connect-button.disconnect {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            margin-top: 20px;
-        }
-
-        .spinner {
-            width: 32px;
-            height: 32px;
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #4fd1c5;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 12px;
-        }
-
-        .wallet-info {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 24px;
-            display: none;
-            position: relative;
-        }
-
-        .wallet-info.active {
-            display: block;
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .wallet-address {
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 14px;
-            color: #2c7a7b;
-            background: white;
-            padding: 12px 48px 12px 12px;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
-            word-break: break-all;
-            margin-top: 8px;
-            position: relative;
-        }
-
-        .copy-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: #4fd1c5;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 4px 8px;
-            font-size: 10px;
+            padding: 10px;
+            margin: 5px;
             cursor: pointer;
         }
-
-        .copy-btn:hover {
-            background: #319795;
+        .log {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #0f0;
         }
-
-        .debug-section {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 24px;
-            font-size: 12px;
-            color: #6b7280;
-        }
-
-        .debug-title {
-            font-weight: 600;
-            color: #374151;
-            margin-bottom: 8px;
-        }
-
-        .debug-item {
-            margin-bottom: 4px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .install-prompt {
-            background: #fef3c7;
-            border: 1px solid #fcd34d;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 24px;
-            text-align: center;
-        }
-
-        .install-prompt h4 {
-            color: #92400e;
-            margin-bottom: 8px;
-        }
-
-        .install-prompt p {
-            color: #78350f;
-            font-size: 14px;
-            margin-bottom: 12px;
-        }
-
-        .install-btn {
-            background: #f59e0b;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 8px 16px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .install-btn:hover {
-            background: #d97706;
-            transform: translateY(-1px);
-        }
-
-        @media (max-width: 640px) {
-            .container {
-                margin: 20px;
-                padding: 32px 24px;
-            }
+        .error { color: #f00; border-color: #f00; }
+        .success { color: #0f0; border-color: #0f0; }
+        .info { color: #ff0; border-color: #ff0; }
+        pre {
+            background: #111;
+            padding: 10px;
+            overflow: auto;
         }
     </style>
-    <script src="https://unpkg.com/colyseus.js@0.15.0/dist/colyseus.js"></script>
 </head>
 <body>
-    <div class="bg-particles">
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-    </div>
+    <h1>🔍 Debug Sui Wallet</h1>
+    <div id="logs"></div>
 
-    <div class="container">
-        <div class="header">
-            <div class="logo">S</div>
-            <h1 class="title">Slush Wallet</h1>
-            <p class="subtitle">Wallet officiel Sui pour une authentification sécurisée</p>
-        </div>
-
-        <div class="install-prompt" id="installPrompt" style="display: none;">
-            <h4>⚠️ Slush Wallet non détecté</h4>
-            <p>Installez Slush Wallet pour continuer</p>
-            <button class="install-btn" onclick="installSlush()">Installer Slush Wallet</button>
-        </div>
-
-        <div class="account-selector">
-            <div class="account-info">
-                <div class="account-status">
-                    <div class="status-dot" id="statusDot"></div>
-                    <div class="account-text">
-                        <h3 id="accountStatus">Non connecté</h3>
-                        <p id="accountDetails">Connectez votre wallet Slush</p>
-                    </div>
-                </div>
-                <button class="refresh-btn" id="refreshBtn">🔄 Actualiser</button>
-            </div>
-        </div>
-
-        <div class="connect-section">
-            <button class="connect-button" id="connectBtn">🔗 Se connecter à Slush</button>
-
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p style="color: #6b7280;">Connexion en cours...</p>
-            </div>
-
-            <div class="wallet-info" id="walletInfo">
-                <h4 style="color: #374151; margin-bottom: 8px;">✅ Compte connecté</h4>
-                <p style="color: #6b7280; font-size: 14px;">Adresse du compte actuel :</p>
-                <div class="wallet-address" id="walletAddress">
-                    <button class="copy-btn" onclick="copyAddress()">Copy</button>
-                </div>
-            </div>
-        </div>
-
-        <button
-            id="playGameBtn"
-            class="connect-button"
-            style="display:none; margin-top:24px; background: linear-gradient(135deg, #10b981, #059669);"
-        >
-            🎮 Jouer
-        </button>
-
-        <div class="debug-section">
-            <div class="debug-title">🔧 Diagnostic Slush Wallet</div>
-            <div class="debug-item">
-                <span>Wallet installé:</span>
-                <span id="slushInstalled">❌</span>
-            </div>
-            <div class="debug-item">
-                <span>Permissions:</span>
-                <span id="hasPermissions">Non vérifié</span>
-            </div>
-            <div class="debug-item">
-                <span>Comptes disponibles:</span>
-                <span id="accountCount">0</span>
-            </div>
-            <div class="debug-item">
-                <span>Compte actif:</span>
-                <span id="activeAccount">Aucun</span>
-            </div>
-            <div class="debug-item">
-                <span>Méthodes API:</span>
-                <span id="apiMethods">Non disponible</span>
-            </div>
-        </div>
-    </div>
+    <button onclick="checkEverything()">🔍 Tout vérifier</button>
+    <button onclick="forceConnect()">⚡ Forcer connexion</button>
+    <button onclick="checkExtension()">🧩 Vérifier extension</button>
+    <button onclick="location.reload()">🔄 Rafraîchir</button>
 
     <script>
-        class SlushWalletManager {
-            constructor() {
-                this.currentAccount = null;
-                this.isConnected = false;
-                this.wallet = null;
+        const log = (msg, type = 'info') => {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            document.getElementById('logs').appendChild(div);
+            console.log(msg);
+        };
 
-                this.initializeElements();
-                this.initializeEventListeners();
-                this.startDiagnostics();
+        // Check immédiat
+        log('🚀 Démarrage du débogage...', 'info');
+
+        function checkEverything() {
+            log('=== VÉRIFICATION COMPLÈTE ===', 'info');
+            
+            // 1. Check direct
+            log('1️⃣ Vérification directe:', 'info');
+            log(`window.sui: ${typeof window.sui}`, window.sui ? 'success' : 'error');
+            log(`window.suiWallet: ${typeof window.suiWallet}`, window.suiWallet ? 'success' : 'error');
+            log(`window.SuiWallet: ${typeof window.SuiWallet}`, window.SuiWallet ? 'success' : 'error');
+            
+            // 2. Check wallet-standard
+            log('2️⃣ Vérification wallet-standard:', 'info');
+            if (window['wallet-standard']) {
+                log('wallet-standard trouvé!', 'success');
+                const ws = window['wallet-standard'];
+                log(`Propriétés: ${Object.keys(ws).join(', ')}`, 'info');
+            } else {
+                log('wallet-standard non trouvé', 'error');
             }
-
-            initializeElements() {
-                this.connectBtn = document.getElementById("connectBtn");
-                this.loading = document.getElementById("loading");
-                this.walletInfo = document.getElementById("walletInfo");
-                this.walletAddress = document.getElementById("walletAddress");
-                this.statusDot = document.getElementById("statusDot");
-                this.accountStatus = document.getElementById("accountStatus");
-                this.accountDetails = document.getElementById("accountDetails");
-                this.refreshBtn = document.getElementById("refreshBtn");
-                this.playGameBtn = document.getElementById("playGameBtn");
-                this.installPrompt = document.getElementById("installPrompt");
+            
+            // 3. Recherche globale
+            log('3️⃣ Recherche globale Sui:', 'info');
+            const suiObjects = [];
+            for (let key in window) {
+                if (key.toLowerCase().includes('sui') || key.toLowerCase().includes('wallet')) {
+                    suiObjects.push(key);
+                }
             }
-
-            initializeEventListeners() {
-                this.connectBtn.addEventListener("click", () =>
-                    this.handleConnectionToggle()
-                );
-                this.refreshBtn.addEventListener("click", () => this.refreshAccounts());
-
-                this.playGameBtn.addEventListener("click", async () => {
-                    if (this.currentAccount && this.currentAccount.address) {
-                        try {
-                            console.log("1️⃣ Début authentification Slush");
-
-                            if (!this.wallet) {
-                                throw new Error("Wallet Slush non disponible");
-                            }
-
-                            const message = `Connexion à PokeWorld: ${Date.now()}`;
-                            console.log("2️⃣ Message à signer:", message);
-
-                            const messageBytes = new TextEncoder().encode(message);
-                            console.log("3️⃣ Message encodé:", messageBytes);
-
-                            console.log("4️⃣ Signature en cours...");
-                            const signResult = await this.wallet.signMessage({
-                                message: messageBytes,
-                                account: this.currentAccount.address,
-                            });
-
-                            console.log("5️⃣ Résultat signature:", signResult);
-                            const signature = signResult.signature;
-
-                            console.log("6️⃣ Connexion à Colyseus...");
-                            const client = new Colyseus.Client("wss://pokerune.cloud/api");
-                            const room = await client.joinOrCreate("AuthRoom");
-                            console.log("7️⃣ Room rejointe");
-
-                            const authData = {
-                                address: this.currentAccount.address,
-                                signature: signature,
-                                message: message,
-                                walletType: "slush",
-                                timestamp: Date.now(),
-                            };
-
-                            console.log("8️⃣ Envoi authentification:", authData);
-                            room.send("authenticate", authData);
-
-                            room.onMessage((type, msg) => {
-                                console.log("9️⃣ Message reçu:", type, msg);
-
-                                if (type === "authenticated" || (msg && msg.status === "ok")) {
-                                    alert(
-                                        `✅ Authentification réussie!\nAdresse: ${this.currentAccount.address.substring(
-                                            0,
-                                            8
-                                        )}...`
-                                    );
-                                } else if (type === "error" || (msg && msg.status === "error")) {
-                                    alert("❌ Erreur: " + (msg.reason || msg.message || "Authentification échouée"));
-                                }
-                            });
-
-                            room.onError((code, message) => {
-                                console.error("❌ Erreur room:", code, message);
-                                alert(`Erreur connexion: ${message || code}`);
-                            });
-                        } catch (err) {
-                            console.error("❌ Erreur:", err);
-                            alert("Erreur: " + (err.message || "Vérifiez la console"));
+            if (suiObjects.length > 0) {
+                log(`Objets trouvés: ${suiObjects.join(', ')}`, 'success');
+                
+                // Examiner chaque objet
+                suiObjects.forEach(key => {
+                    try {
+                        const obj = window[key];
+                        if (obj && typeof obj === 'object') {
+                            log(`${key}: ${JSON.stringify(Object.keys(obj)).substring(0, 100)}...`, 'info');
                         }
-                    } else {
-                        alert("Connectez votre wallet Slush pour jouer.");
-                    }
+                    } catch (e) {}
                 });
+            } else {
+                log('Aucun objet Sui ou wallet détecté dans window', 'error');
+            }
+            
+            // 4. Check des événements
+            log('4️⃣ Test des événements:', 'info');
+            const testEvent = new Event('wallet-standard:app-ready');
+            window.dispatchEvent(testEvent);
+            
+            // 5. Injection manuelle
+            log('5️⃣ Tentative d\'accès via l\'API standard:', 'info');
+            checkWalletStandard();
+        }
+
+        function checkWalletStandard() {
+            // Nouvelle API wallet-standard
+            if (window['wallet-standard']) {
+                const { get } = window['wallet-standard'];
+                if (typeof get === 'function') {
+                    const wallets = get();
+                    if (wallets && wallets.length) {
+                        log(`Wallets trouvés via standard: ${wallets.length}`, 'success');
+                        wallets.forEach((wallet, i) => {
+                            log(`Wallet ${i}: ${wallet.name} - ${wallet.chains?.join(', ')}`, 'info');
+                            if (wallet.chains?.includes('sui:mainnet') || wallet.chains?.includes('sui:devnet')) {
+                                log('✅ Wallet Sui trouvé!', 'success');
+                                window.detectedSuiWallet = wallet;
                             }
-
-            async handleConnectionToggle() {
-                if (this.isConnected) {
-                    this.disconnect();
+                        });
+                    } else {
+                        log('Aucun wallet retourné par wallet-standard.get()', 'error');
+                    }
                 } else {
-                    await this.connect();
+                    log('wallet-standard.get() n\'est pas une fonction', 'error');
                 }
-            }
-
-            async connect() {
-                try {
-                    this.setLoadingState(true);
-
-                    // Détection wallet Slush
-                    if (!this.wallet) {
-                        await this.checkWalletAvailability();
-                    }
-
-                    if (!this.wallet) {
-                        throw new Error(
-                            "Slush Wallet non détecté. Veuillez l'installer depuis Chrome Web Store."
-                        );
-                    }
-
-                    console.log("🔗 Connexion à Slush Wallet...");
-
-                    try {
-                        // Demander permissions
-                        const permissions = await this.wallet.requestPermissions();
-                        console.log("✅ Permissions accordées:", permissions);
-
-                        // Récupérer comptes
-                        const accounts = await this.wallet.getAccounts();
-                        console.log("📋 Comptes disponibles:", accounts);
-
-                        if (accounts.length === 0) {
-                            throw new Error("Aucun compte trouvé dans Slush Wallet");
-                        }
-
-                        // Choisir premier compte
-                        const address = accounts[0];
-                        this.currentAccount = { address };
-                        this.updateConnectedState(address);
-                    } catch (error) {
-                        // Alternative si erreur
-                        if (this.wallet.hasPermissions && (await this.wallet.hasPermissions())) {
-                            const accounts = await this.wallet.getAccounts();
-                            if (accounts.length > 0) {
-                                this.currentAccount = { address: accounts[0] };
-                                this.updateConnectedState(accounts[0]);
-                                return;
-                            }
-                        }
-                        throw error;
-                    }
-                } catch (error) {
-                    console.error("❌ Erreur de connexion:", error);
-                    this.setLoadingState(false);
-                    this.showError(error.message);
-                }
-            }
-
-            updateConnectedState(address) {
-                this.isConnected = true;
-                this.currentAccount = { address };
-
-                if (this.playGameBtn) this.playGameBtn.style.display = "block";
-
-                this.setLoadingState(false);
-                this.statusDot.classList.add("connected");
-                this.accountStatus.textContent = "Connecté";
-                this.accountDetails.textContent = `${address.substring(0, 8)}...${address.substring(
-                    address.length - 6
-                )}`;
-
-                this.walletInfo.classList.add("active");
-                // Afficher adresse avec bouton copier (bouton déclenche la fonction globale copyAddress)
-                this.walletAddress.innerHTML = `
-                    ${address}
-                    <button class="copy-btn" onclick="copyAddress()">Copy</button>
-                `;
-
-                this.connectBtn.textContent = "🔓 Se déconnecter";
-                this.connectBtn.classList.add("disconnect");
-
-                this.saveConnectionState();
-
-                console.log("✅ État connecté mis à jour:", address);
-            }
-
-            disconnect() {
-                try {
-                    if (this.wallet && typeof this.wallet.disconnect === "function") {
-                        this.wallet.disconnect();
-                    }
-                } catch (error) {
-                    console.log("Erreur lors de la déconnexion:", error);
-                }
-                this.handleDisconnection();
-            }
-
-            handleDisconnection() {
-                this.isConnected = false;
-                this.currentAccount = null;
-
-                if (this.playGameBtn) this.playGameBtn.style.display = "none";
-
-                this.statusDot.classList.remove("connected", "connecting");
-                this.accountStatus.textContent = "Non connecté";
-                this.accountDetails.textContent = "Connectez votre wallet Slush";
-
-                this.walletInfo.classList.remove("active");
-
-                this.connectBtn.textContent = "🔗 Se connecter à Slush";
-                this.connectBtn.classList.remove("disconnect");
-
-                localStorage.removeItem("slush_sui_connection");
-
-                console.log("🔓 Déconnexion effectuée");
-            }
-
-            setLoadingState(loading) {
-                if (loading) {
-                    this.connectBtn.style.display = "none";
-                    this.loading.style.display = "block";
-                    this.statusDot.classList.add("connecting");
-                } else {
-                    this.connectBtn.style.display = "block";
-                    this.loading.style.display = "none";
-                    this.statusDot.classList.remove("connecting");
-                }
-            }
-
-            showError(message) {
-                alert("Erreur: " + message);
-
-                if (message.includes("non détecté") || message.includes("non installé")) {
-                    this.installPrompt.style.display = "block";
-                }
-            }
-
-            async refreshAccounts() {
-                console.log("🔄 Actualisation...");
-                await this.updateDiagnostics();
-
-                if (this.isConnected && this.wallet) {
-                    try {
-                        const accounts = await this.wallet.getAccounts();
-                        if (accounts.length > 0 && accounts[0] !== this.currentAccount.address) {
-                            this.currentAccount = { address: accounts[0] };
-                            this.updateConnectedState(accounts[0]);
-                        }
-                    } catch (error) {
-                        console.error("Erreur lors de l'actualisation:", error);
-                    }
-                }
-            }
-
-            saveConnectionState() {
-                try {
-                    const state = {
-                        isConnected: this.isConnected,
-                        address: this.currentAccount?.address,
-                        lastConnected: Date.now(),
-                    };
-                    localStorage.setItem("slush_sui_connection", JSON.stringify(state));
-                } catch (error) {
-                    console.error("Erreur sauvegarde:", error);
-                }
-            }
-
-            loadConnectionState() {
-                try {
-                    const saved = localStorage.getItem("slush_sui_connection");
-                    if (saved) {
-                        const state = JSON.parse(saved);
-                        if (
-                            state.lastConnected &&
-                            Date.now() - state.lastConnected < 24 * 60 * 60 * 1000
-                        ) {
-                            return state;
-                        }
-                    }
-                } catch (error) {
-                    console.error("Erreur chargement:", error);
-                }
-                return null;
-            }
-
-            async checkWalletAvailability() {
-                // Détecter l'objet Slush Wallet
-                this.wallet = window.sui || window.suiWallet || null;
-
-                if (!this.wallet) {
-                    if (document.readyState !== "complete") {
-                        return; // Attendre le chargement complet
-                    }
-                    this.installPrompt.style.display = "block";
-                    return false;
-                } else {
-                    this.installPrompt.style.display = "none";
-                    return true;
-                }
-            }
-
-            async startDiagnostics() {
-                await this.updateDiagnostics();
-
-                setInterval(() => {
-                    this.updateDiagnostics();
-                }, 5000);
-
-                const savedState = this.loadConnectionState();
-                if (savedState && savedState.address) {
-                    console.log("🔄 Tentative de restauration de la connexion...");
-                    setTimeout(async () => {
-                        if (await this.checkWalletAvailability()) {
-                            await this.connect();
-                        }
-                    }, 2000);
-                }
-            }
-
-            async updateDiagnostics() {
-                await this.checkWalletAvailability();
-
-                const hasSlush = !!this.wallet;
-                document.getElementById("slushInstalled").textContent = hasSlush ? "✅" : "❌";
-
-                if (hasSlush) {
-                    let hasPerms = false;
-                    try {
-                        if (this.wallet.hasPermissions) {
-                            hasPerms = await this.wallet.hasPermissions();
-                        }
-                    } catch (e) {}
-
-                    document.getElementById("hasPermissions").textContent = hasPerms ? "✅" : "❌";
-
-                    let accountCount = 0;
-                    try {
-                        if (hasPerms) {
-                            const accounts = await this.wallet.getAccounts();
-                            accountCount = accounts.length;
-                        }
-                    } catch (e) {}
-
-                    document.getElementById("accountCount").textContent = accountCount;
-
-                    const methods = Object.getOwnPropertyNames(this.wallet)
-                        .filter((prop) => typeof this.wallet[prop] === "function")
-                        .slice(0, 5)
-                        .join(", ");
-
-                    document.getElementById("apiMethods").textContent = methods || "Aucune";
-                } else {
-                    document.getElementById("hasPermissions").textContent = "N/A";
-                    document.getElementById("accountCount").textContent = "0";
-                    document.getElementById("apiMethods").textContent = "Non disponible";
-                }
-
-                const activeAccount = this.currentAccount
-                    ? `${this.currentAccount.address.substring(0, 8)}...`
-                    : "Aucun";
-                document.getElementById("activeAccount").textContent = activeAccount;
+            } else {
+                log('wallet-standard non disponible', 'error');
             }
         }
 
-        // Fonction globale pour copier l'adresse dans le presse-papiers
-        function copyAddress() {
-            const addressElem = document.getElementById("walletAddress");
-            let addressText = addressElem.textContent || "";
-            // Enlever le texte "Copy"
-            addressText = addressText.replace("Copy", "").trim();
-            if (!addressText) return;
+        async function forceConnect() {
+            log('⚡ Tentative de connexion forcée...', 'info');
+            
+            // Essayer toutes les méthodes possibles
+            const attempts = [
+                { name: 'window.sui', obj: window.sui },
+                { name: 'window.suiWallet', obj: window.suiWallet },
+                { name: 'window.SuiWallet', obj: window.SuiWallet },
+                { name: 'detected wallet', obj: window.detectedSuiWallet }
+            ];
+            
+            for (const attempt of attempts) {
+                if (attempt.obj) {
+                    log(`Tentative avec ${attempt.name}...`, 'info');
+                    try {
+                        // Essayer requestPermissions
+                        if (attempt.obj.requestPermissions) {
+                            const perms = await attempt.obj.requestPermissions();
+                            log(`✅ Permissions obtenues: ${JSON.stringify(perms)}`, 'success');
+                        }
+                        
+                        // Essayer getAccounts
+                        if (attempt.obj.getAccounts) {
+                            const accounts = await attempt.obj.getAccounts();
+                            log(`✅ Comptes: ${JSON.stringify(accounts)}`, 'success');
+                            return;
+                        }
+                        
+                        // Essayer connect (wallet-standard)
+                        if (attempt.obj.features && attempt.obj.features['standard:connect']) {
+                            const connectFeature = attempt.obj.features['standard:connect'];
+                            const result = await connectFeature.connect();
+                            log(`✅ Connecté via standard: ${JSON.stringify(result)}`, 'success');
+                            return;
+                        }
+                    } catch (e) {
+                        log(`❌ Erreur ${attempt.name}: ${e.message}`, 'error');
+                    }
+                }
+            }
+            
+            log('❌ Aucune méthode de connexion n\'a fonctionné', 'error');
+        }
 
-            navigator.clipboard.writeText(addressText).then(() => {
-                const btn = document.querySelector(".copy-btn");
-                if (!btn) return;
-                const originalText = btn.textContent;
-                btn.textContent = "Copié!";
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                }, 1000);
+        function checkExtension() {
+            log('🧩 Vérification de l\'extension...', 'info');
+            
+            // Créer une iframe pour vérifier
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = 'chrome-extension://opcgpfmipidbgpenhmajoajpbobppdil/favicon.ico';
+            iframe.onload = () => {
+                log('✅ Extension détectée via favicon', 'success');
+                iframe.remove();
+            };
+            iframe.onerror = () => {
+                log('❌ Extension non accessible', 'error');
+                iframe.remove();
+            };
+            document.body.appendChild(iframe);
+            
+            // Vérifier aussi via fetch
+            fetch('chrome-extension://opcgpfmipidbgpenhmajoajpbobppdil/manifest.json')
+                .then(() => log('✅ Manifest accessible', 'success'))
+                .catch(() => log('❌ Manifest non accessible - Normal si l\'extension a des restrictions', 'info'));
+        }
+
+        // Attendre et revérifier
+        let checkCount = 0;
+        const interval = setInterval(() => {
+            checkCount++;
+            const found = window.sui || window.suiWallet || window.SuiWallet;
+            if (found) {
+                log(`✅ Wallet trouvé après ${checkCount} secondes!`, 'success');
+                clearInterval(interval);
+                checkEverything();
+            } else if (checkCount >= 10) {
+                log('⏱️ Timeout après 10 secondes', 'error');
+                clearInterval(interval);
+            }
+        }, 1000);
+
+        // Écouter tous les événements possibles
+        const events = [
+            'wallet-standard:app-ready',
+            'wallet-standard:register-wallet',
+            'sui-wallet-ready',
+            'DOMContentLoaded',
+            'load'
+        ];
+
+        events.forEach(event => {
+            window.addEventListener(event, () => {
+                log(`📡 Event reçu: ${event}`, 'info');
+                setTimeout(checkEverything, 100);
             });
-        }
-
-        // Ouvre le lien vers la page d'installation de Slush Wallet
-        function installSlush() {
-            window.open(
-                "https://chrome.google.com/webstore/detail/sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil",
-                "_blank"
-            );
-        }
-
-        let app;
-        window.addEventListener("load", () => {
-            setTimeout(() => {
-                app = new SlushWalletManager();
-                console.log("🚀 Application Slush Wallet initialisée");
-            }, 1000);
         });
 
-        // Event custom pour détection wallet injecté après chargement
-        window.addEventListener("sui-wallet-loaded", () => {
-            console.log("🔗 Slush Wallet détecté");
-            if (app) {
-                app.checkWalletAvailability();
-            }
-        });
+        // Check initial après un délai
+        setTimeout(checkEverything, 2000);
     </script>
 </body>
 </html>
