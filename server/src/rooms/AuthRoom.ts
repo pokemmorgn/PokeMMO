@@ -82,28 +82,27 @@ export class AuthRoom extends Room<AuthState> {
   }
 
   async verifySlushSignature(address: string, signature: string, message: string): Promise<boolean> {
-    try {
-      const messageBytes = new TextEncoder().encode(message);
+  try {
+    const messageBytes = new TextEncoder().encode(message);
 
-      // Convertir la signature base64 en Uint8Array
-      const signatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+    // Passer directement la signature base64 en string, sans la convertir
+    const publicKey = await verifyPersonalMessage(messageBytes, signature);
 
-      const publicKey = await verifyPersonalMessage(messageBytes, signatureBytes);
+    if (!publicKey) return false;
 
-      if (!publicKey) return false;
-
-      const derivedAddress = publicKey.toSuiAddress?.();
-      if (derivedAddress !== address) {
-        console.warn("Adresse dérivée ne correspond pas à l'adresse fournie");
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Erreur vérification Slush:", error);
+    const derivedAddress = publicKey.toSuiAddress?.();
+    if (derivedAddress !== address) {
+      console.warn("Adresse dérivée ne correspond pas à l'adresse fournie");
       return false;
     }
+
+    return true;
+  } catch (error) {
+    console.error("Erreur vérification Slush:", error);
+    return false;
   }
+}
+
 
   async manualSuiVerification(address: string, signature: string, message: string): Promise<boolean> {
     try {
