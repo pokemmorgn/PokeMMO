@@ -181,7 +181,7 @@ export class BeachScene extends BaseZoneScene {
       this.tweens.add({
         targets: starter,
         x: x - 96,
-        duration: 700,
+        duration: 2500,
         ease: 'Sine.easeInOut',
         onComplete: () => {
           starter.play(`${pokemonName}_Walk_left`);
