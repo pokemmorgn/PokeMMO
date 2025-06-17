@@ -4,7 +4,7 @@ import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
 import { VillageScene } from "./scenes/zones/VillageScene.js";
 import { Road1Scene } from './scenes/zones/Road1Scene.js'; // ✅ Import de Road1Scene
-import { import Phaser from 'phaser';
+
 import AnimatedTiles from 'phaser-animated-tiles/dist/AnimatedTiles.js';
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
