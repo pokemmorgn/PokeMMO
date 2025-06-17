@@ -9,6 +9,7 @@ import { BeachRoom } from "./rooms/BeachRoom";
 import { VillageRoom } from "./rooms/VillageRoom";
 import { Road1Room } from "./rooms/Road1Room";
 import { VillageLabRoom } from "./rooms/VillageLabRoom";
+import { VillageHouse1Room } from "./rooms/VillageHouse1Room";
 import { connectDB } from "./db";
 import { AuthRoom } from "./rooms/AuthRoom";
 import { MoveManager } from "./managers/MoveManager";
@@ -24,6 +25,7 @@ export default config({
     gameServer.define('BeachRoom', BeachRoom);
     gameServer.define('VillageRoom', VillageRoom);
     gameServer.define('VillageLabRoom', VillageLabRoom);
+gameServer.define('VillageHouse1Room', VillageHouse1Room);
   },
 
   initializeExpress: (app) => {
