@@ -66,7 +66,7 @@ const config = {
 const game = new Phaser.Game(config);
 window.game = game; // Pour debug si besoin
 
-export default game; } from './scenes/zones/VillageLabScene.js'; // ✅
+
 
 // 🔒 Récupérer l'adresse du wallet SUI si présente dans l'URL
 function getWalletFromUrl() {
