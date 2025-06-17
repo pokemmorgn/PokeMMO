@@ -72,7 +72,7 @@ export class VillageLabScene extends BaseZoneScene {
     const initData = this.scene.settings.data;
     const spawnLayer = this.map.getObjectLayer('SpawnPoint');
     if (spawnLayer) {
-      const spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Laboratory');
+      const spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Labo');
       if (spawnPoint) {
         player.x = spawnPoint.x + spawnPoint.width / 2;
         player.y = spawnPoint.y + spawnPoint.height / 2;
