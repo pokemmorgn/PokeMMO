@@ -474,7 +474,7 @@
     try {
         console.log('🔐 Tentative de connexion à wss://pokerune.cloud:2567...');
         
-        this.client = new Colyseus.Client("wss://pokerune.cloud");
+        this.client = new Colyseus.Client("wss://pokerune.cloud/api");
         console.log('✅ Client Colyseus créé');
 
         this.authRoom = await this.client.joinOrCreate('AuthRoom');
