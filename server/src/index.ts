@@ -1,24 +1,28 @@
-import fs from "fs";
-import https from "https";
-import { Server } from "colyseus";
-import appConfig from "./app.config";
+/**
+ * Point d’entrée du serveur Colyseus
+ * ──────────────────────────────────
+ * 1.  Création d’un serveur **HTTP** local (pas de TLS ici)
+ * 2.  Lancement de Colyseus + Express via `@colyseus/tools`
+ * 3.  Écoute uniquement sur localhost:2567
+ *
+ * La couche HTTPS est terminée par Nginx ➜ voir la conf Nginx (proxy_pass).
+ */
 
-const sslOptions = {
-  key: fs.readFileSync("/home/ubuntu/pokerune_certs/privkey.pem"),
-  cert: fs.readFileSync("/home/ubuntu/pokerune_certs/fullchain.pem"),
-};
+import http from "http";
+import { listen } from "@colyseus/tools";      // helper Colyseus
+import appConfig from "./app.config";          // ta configuration (rooms, express, etc.)
 
-const httpsServer = https.createServer(sslOptions);
+// ────────────────────────────────────────────────────────────
+// 1. Création d’un serveur HTTP « nu » (Node.js natif)
+const server = http.createServer();            // !! PAS https.createServer !!
 
-const gameServer = new Server({
-  server: httpsServer,
-});
-
-(async () => {
-  if (appConfig.initializeGameServer) appConfig.initializeGameServer(gameServer);
-  if (appConfig.beforeListen) await appConfig.beforeListen();
-
-  httpsServer.listen(2567, () => {
-    console.log("✅ Serveur HTTPS lancé sur https://pokerune.cloud:2567");
+// 2. Lancement de Colyseus + Express sur ce serveur
+listen(appConfig, { server, port: 2567 })      // le port doit rester 2567
+  .then(() => {
+    // 3. Log de démarrage
+    console.log("✅ Colyseus HTTP prêt sur http://localhost:2567");
+  })
+  .catch((err) => {
+    console.error("❌ Erreur au démarrage du serveur Colyseus :", err);
+    process.exit(1);
   });
-})();
