@@ -474,7 +474,7 @@
                 try {
                     console.log('🔐 Connexion au serveur d\'authentification...');
                     // CORRECTION: Ajout explicite du "window." pour être 100% compatible avec la version browser Colyseus
-                    this.client = new window.Colyseus.Client('wss://vps-8ca3aa34.vps.ovh.net:2567');
+                    this.client = new window.Colyseus.Client('wss://pokerune.cloud:2567');
                     this.authRoom = await this.client.joinOrCreate('AuthRoom');
                     this.sessionId = this.authRoom.sessionId;
 
