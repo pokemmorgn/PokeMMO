@@ -2,19 +2,18 @@ import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { PlayerData } from "../models/PlayerData";
 
-export class VillageLabRoom extends Room {
+export class VillageLabRoom extends Room<PokeWorldState> {
   maxClients = 50;
 
-  onCreate(options) {
+  onCreate(options: any): void {
     this.setState(new PokeWorldState());
 
-    // Sauvegarde automatique toutes les 30 secondes
     this.clock.setInterval(() => {
       this.saveAllPlayers();
       console.log(`[${new Date().toISOString()}] Sauvegarde automatique de tous les joueurs (VillageLab)`);
     }, 30000);
 
-    this.onMessage("move", (client, data) => {
+    this.onMessage("move", (client, data: { x: number; y: number }) => {
       const player = this.state.players.get(client.sessionId);
       if (player) {
         player.x = data.x;
@@ -22,21 +21,15 @@ export class VillageLabRoom extends Room {
       }
     });
 
-    this.onMessage("changeZone", async (client, data) => {
+    this.onMessage("changeZone", async (client: Client, data: { targetZone: string; direction: string }) => {
       console.log(`[VillageLabRoom] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
 
       let spawnX = 300, spawnY = 200;
 
-      // Configuration des spawns selon la zone de destination
-      if (data.targetZone === 'VillageScene') {
-        spawnX = 400;
-        spawnY = 300;
-      } else if (data.targetZone === 'ProfessorOffice') {
-        spawnX = 150;
-        spawnY = 100;
-      } else if (data.targetZone === 'LabStorage') {
-        spawnX = 200;
-        spawnY = 250;
+      switch (data.targetZone) {
+        case 'VillageScene': spawnX = 400; spawnY = 300; break;
+        case 'ProfessorOffice': spawnX = 150; spawnY = 100; break;
+        case 'LabStorage': spawnX = 200; spawnY = 250; break;
       }
 
       const player = this.state.players.get(client.sessionId);
@@ -44,7 +37,6 @@ export class VillageLabRoom extends Room {
         this.state.players.delete(client.sessionId);
         console.log(`[VillageLabRoom] Joueur ${client.sessionId} supprimé pour transition`);
 
-        // Important : lastMap doit être le nom EXACT attendu côté client (ex: VillageLabScene)
         await PlayerData.updateOne(
           { username: player.name },
           { $set: { lastX: spawnX, lastY: spawnY, lastMap: data.targetZone } }
@@ -63,8 +55,7 @@ export class VillageLabRoom extends Room {
       console.log(`[VillageLabRoom] Transition envoyée: ${data.targetZone} à (${spawnX}, ${spawnY})`);
     });
 
-    // Messages spécifiques au laboratoire
-    this.onMessage("interactWithProfessor", (client) => {
+    this.onMessage("interactWithProfessor", (client: Client) => {
       console.log(`[VillageLabRoom] ${client.sessionId} interagit avec le professeur`);
       client.send("professorDialog", {
         message: "Bonjour ! Bienvenue dans mon laboratoire !",
@@ -72,11 +63,10 @@ export class VillageLabRoom extends Room {
       });
     });
 
-    this.onMessage("selectStarter", async (client, data) => {
+    this.onMessage("selectStarter", async (client: Client, data: { pokemon: string }) => {
       const player = this.state.players.get(client.sessionId);
       if (player) {
         console.log(`[VillageLabRoom] ${player.name} sélectionne ${data.pokemon} comme starter`);
-        // Ici, ajouter la logique pour donner le Pokémon au joueur
         client.send("starterReceived", {
           pokemon: data.pokemon,
           message: `Félicitations ! Vous avez reçu ${data.pokemon} !`,
@@ -87,9 +77,9 @@ export class VillageLabRoom extends Room {
     console.log("[VillageLabRoom] Room créée :", this.roomId);
   }
 
-  async saveAllPlayers() {
+  async saveAllPlayers(): Promise<void> {
     try {
-      for (const [sessionId, player] of this.state.players) {
+      for (const [_, player] of this.state.players.entries()) {
         await PlayerData.updateOne(
           { username: player.name },
           { $set: { lastX: player.x, lastY: player.y, lastMap: "VillageLabScene" } }
@@ -101,13 +91,16 @@ export class VillageLabRoom extends Room {
     }
   }
 
-  async onJoin(client, options) {
+  async onJoin(client: Client, options: any): Promise<void> {
     const username = options.username || "Anonymous";
 
-    // Vérifier si le joueur existe déjà dans cette room
-    const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
+    const existingPlayer = Array.from(this.state.players.values() as Iterable<Player>)
+      .find(p => p.name === username);
+
     if (existingPlayer) {
-      const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
+      const oldSessionId = Array.from(this.state.players.entries() as Iterable<[string, Player]>)
+        .find(([_, p]) => p.name === username)?.[0];
+
       if (oldSessionId) {
         this.state.players.delete(oldSessionId);
         console.log(`[VillageLabRoom] Ancien joueur ${username} supprimé (sessionId: ${oldSessionId})`);
@@ -116,13 +109,17 @@ export class VillageLabRoom extends Room {
 
     let playerData = await PlayerData.findOne({ username });
     if (!playerData) {
-      playerData = await PlayerData.create({ username, lastX: 300, lastY: 200, lastMap: "VillageLabScene" });
+      playerData = await PlayerData.create({
+        username,
+        lastX: 300,
+        lastY: 200,
+        lastMap: "VillageLabScene"
+      });
     }
 
     const player = new Player();
     player.name = username;
 
-    // Gestion des positions de spawn
     if (options.spawnX !== undefined && options.spawnY !== undefined) {
       player.x = options.spawnX;
       player.y = options.spawnY;
@@ -137,14 +134,13 @@ export class VillageLabRoom extends Room {
     this.state.players.set(client.sessionId, player);
     console.log(`[VillageLabRoom] ${username} est entré dans le laboratoire avec sessionId: ${client.sessionId}`);
 
-    // Message de bienvenue spécifique au lab
     client.send("welcomeToLab", {
       message: "Bienvenue dans le laboratoire du Professeur !",
-      canReceiveStarter: true // ou logique pour vérifier si le joueur peut recevoir un starter
+      canReceiveStarter: true
     });
   }
 
-  async onLeave(client) {
+  async onLeave(client: Client): Promise<void> {
     const player = this.state.players.get(client.sessionId);
     if (player) {
       await PlayerData.updateOne(
@@ -156,9 +152,8 @@ export class VillageLabRoom extends Room {
     }
   }
 
-  onDispose() {
+  onDispose(): void {
     console.log("[VillageLabRoom] Room fermée :", this.roomId);
-    // Sauvegarder tous les joueurs avant fermeture
     this.saveAllPlayers();
   }
 }
