@@ -1,0 +1,169 @@
+{
+  "family": "magnemite",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 81,
+      "name": "Magnemite",
+      "types": ["Electric"],
+      "baseStats": {
+        "hp": 25,
+        "attack": 35,
+        "defense": 70,
+        "specialAttack": 95,
+        "specialDefense": 55,
+        "speed": 45
+      },
+      "abilities": ["magnet_pull"],
+      "hiddenAbility": null,
+      "height": 0.3,
+      "weight": 6.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/81.png",
+      "description": "Uses anti-gravity to stay suspended. Appears without warning and uses Thunder Wave and similar moves.",
+      "category": "Magnet Pokémon",
+      "genderRatio": {
+        "male": 0.0,
+        "female": 0.0
+      },
+      "eggGroups": ["Mineral"],
+      "hatchTime": 5120,
+      "baseExperience": 65,
+      "growthRate": "Medium Fast",
+      "captureRate": 190,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Power Plant",
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "21-23",
+          "encounter_rate": "40%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "sonic_boom", "level": 6},
+        {"moveId": "thunder_shock", "level": 11},
+        {"moveId": "supersonic", "level": 16},
+        {"moveId": "thunder_wave", "level": 21},
+        {"moveId": "swift", "level": 27},
+        {"moveId": "screech", "level": 33},
+        {"moveId": "thunder", "level": 39}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 82,
+        "method": "level",
+        "requirement": 30
+      }
+    },
+    {
+      "id": 82,
+      "name": "Magneton",
+      "types": ["Electric"],
+      "baseStats": {
+        "hp": 50,
+        "attack": 60,
+        "defense": 95,
+        "specialAttack": 120,
+        "specialDefense": 70,
+        "speed": 70
+      },
+      "abilities": ["magnet_pull"],
+      "hiddenAbility": null,
+      "height": 1.0,
+      "weight": 60.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/82.png",
+      "description": "Formed by several Magnemite linking together. They frequently appear when sunspots flare up.",
+      "category": "Magnet Pokémon",
+      "genderRatio": {
+        "male": 0.0,
+        "female": 0.0
+      },
+      "eggGroups": ["Mineral"],
+      "hatchTime": 5120,
+      "baseExperience": 163,
+      "growthRate": "Medium Fast",
+      "captureRate": 60,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Power Plant",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "32-34",
+          "encounter_rate": "15%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        },
+        {
+          "location": "Cerulean Cave",
+          "rarity": "Uncommon",
+          "method": "Wild Encounter",
+          "level_range": "64-67",
+          "encounter_rate": "20%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "sonic_boom", "level": 1},
+        {"moveId": "thunder_shock", "level": 1},
+        {"moveId": "supersonic", "level": 1},
+        {"moveId": "thunder_wave", "level": 1},
+        {"moveId": "swift", "level": 27},
+        {"moveId": "screech", "level": 35},
+        {"moveId": "thunder", "level": 43}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 81
+      }
+    }
+  ]
+}
