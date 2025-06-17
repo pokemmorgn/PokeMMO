@@ -499,6 +499,7 @@ this.playGameBtn.addEventListener('click', async () => {
   console.error("Erreur lors de la signature ou de l'envoi :", error);
   alert("Erreur d'authentification : " + error.message);
 }
+}
 
             const client = new Colyseus.Client("wss://pokerune.cloud/api"); // <-- adapte l'URL
             const room = await client.joinOrCreate("AuthRoom");
