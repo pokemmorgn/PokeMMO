@@ -24,7 +24,7 @@ export class PlayerManager {
     if (!this.scene.textures.exists('BoyWalk')) {
       const graphics = this.scene.add.graphics();
       graphics.fillStyle(0xff0000);
-      graphics.fillRect(0, 0, 48, 48);
+      graphics.fillRect(0, 0, 32, 32);
       graphics.generateTexture('player_placeholder', 32, 32);
       graphics.destroy();
       const player = this.scene.add.sprite(x, y, 'player_placeholder').setOrigin(0.5, 1).setScale(1);
