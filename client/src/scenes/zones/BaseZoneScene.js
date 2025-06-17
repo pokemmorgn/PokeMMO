@@ -175,14 +175,23 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   setupScene() {
-    console.log('— DEBUT setupScene —');
-    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
-    this.cameras.main.setZoom(1);
-    this.cameras.main.setBackgroundColor('#2d5a3d');
-    this.cameras.main.setRoundPixels(true);
+  console.log('— DEBUT setupScene —');
+  this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
 
-    this.cameraManager = new CameraManager(this);
+  // Zoom automatique selon taille map et taille canvas Phaser
+  const baseWidth = this.scale.width;   // largeur canvas Phaser (ex: 800)
+  const baseHeight = this.scale.height; // hauteur canvas Phaser (ex: 600)
 
+  const zoomX = baseWidth / this.map.widthInPixels;
+  const zoomY = baseHeight / this.map.heightInPixels;
+  const zoom = Math.min(zoomX, zoomY);
+
+  this.cameras.main.setZoom(zoom);
+
+  this.cameras.main.setBackgroundColor('#2d5a3d');
+  this.cameras.main.setRoundPixels(true);
+
+  this.cameraManager = new CameraManager(this);
     let retry = 0;
     const MAX_RETRY = 60;
 
