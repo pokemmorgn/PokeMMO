@@ -35,31 +35,54 @@
         {
           "location": "Viridian Forest",
           "rarity": "Common",
-          "method": "Wild Grass",
-          "level_range": "3-5"
+          "method": "Wild Encounter",
+          "level_range": "3-5",
+          "encounter_rate": "45%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
         },
         {
           "location": "Route 2",
-          "rarity": "Common", 
-          "method": "Wild Grass",
-          "level_range": "3-4"
-        },
-        {
-          "location": "Route 24",
-          "rarity": "Uncommon",
-          "method": "Wild Grass", 
-          "level_range": "7-8"
-        },
-        {
-          "location": "Route 25",
-          "rarity": "Uncommon",
-          "method": "Wild Grass",
-          "level_range": "8-10"
+          "rarity": "Common",
+          "method": "Wild Encounter",
+          "level_range": "3-4",
+          "encounter_rate": "35%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
         }
       ],
       "learnset": [
         {"moveId": "poison_sting", "level": 1},
-        {"moveId": "string_shot", "level": 1}
+        {"moveId": "string_shot", "level": 1},
+        {"moveId": "bug_bite", "level": 15}
       ],
       "evolution": {
         "canEvolve": true,
@@ -81,6 +104,7 @@
         "speed": 35
       },
       "abilities": ["shed_skin"],
+      "hiddenAbility": null,
       "height": 0.6,
       "weight": 10.0,
       "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/14.png",
@@ -100,14 +124,25 @@
         {
           "location": "Viridian Forest",
           "rarity": "Uncommon",
-          "method": "Wild Grass",
-          "level_range": "4-6"
-        },
-        {
-          "location": "Route 2",
-          "rarity": "Rare",
-          "method": "Wild Grass",
-          "level_range": "4-5"
+          "method": "Wild Encounter",
+          "level_range": "4-6",
+          "encounter_rate": "20%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
         }
       ],
       "learnset": [
@@ -138,7 +173,7 @@
       "height": 1.0,
       "weight": 29.5,
       "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/15.png",
-      "description": "Flies at high speed and attacks using its large venomous stingers on its forelegs and tail.",
+      "description": "Its best attack involves flying around at high speed, striking with poison needles, then flying off.",
       "category": "Poison Bee Pokémon",
       "genderRatio": {
         "male": 50.0,
@@ -152,20 +187,43 @@
       "baseHappiness": 70,
       "catchLocations": [
         {
-          "location": "Viridian Forest",
-          "rarity": "Rare",
-          "method": "Wild Grass",
-          "level_range": "7-9"
+          "location": "Evolution Only",
+          "rarity": "N/A",
+          "method": "Evolution",
+          "level_range": "10+",
+          "encounter_rate": "0%",
+          "time_of_day": "Any",
+          "season": "Any",
+          "ball_effectiveness": {
+            "poke_ball": 1.0,
+            "great_ball": 1.5,
+            "ultra_ball": 2.0,
+            "master_ball": 255.0
+          },
+          "status_modifiers": {
+            "normal": 1.0,
+            "sleep": 2.5,
+            "freeze": 2.5,
+            "paralysis": 1.5,
+            "burn": 1.5,
+            "poison": 1.5
+          }
         }
       ],
       "learnset": [
+        {"moveId": "twineedle", "level": 1},
         {"moveId": "fury_attack", "level": 1},
-        {"moveId": "focus_energy", "level": 1},
-        {"moveId": "twineedle", "level": 16},
-        {"moveId": "rage", "level": 20},
-        {"moveId": "pursuit", "level": 25},
-        {"moveId": "pin_missile", "level": 30},
-        {"moveId": "agility", "level": 35}
+        {"moveId": "rage", "level": 13},
+        {"moveId": "pursuit", "level": 16},
+        {"moveId": "focus_energy", "level": 19},
+        {"moveId": "venoshock", "level": 22},
+        {"moveId": "assurance", "level": 25},
+        {"moveId": "toxic_spikes", "level": 28},
+        {"moveId": "pin_missile", "level": 31},
+        {"moveId": "poison_jab", "level": 34},
+        {"moveId": "agility", "level": 37},
+        {"moveId": "endeavor", "level": 40},
+        {"moveId": "fell_stinger", "level": 43}
       ],
       "evolution": {
         "canEvolve": false,
