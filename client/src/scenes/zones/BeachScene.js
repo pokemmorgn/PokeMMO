@@ -1,12 +1,55 @@
 // ===============================================
-// BeachScene.js - Intro starter carré + dialogue en bas + cooldown
+// BeachScene.js - Intro starter Bulbizarre animé + dialogue en bas + cooldown
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
+
+// Mini-manager pour 2x4 Pokémon spritesheet (tu peux le sortir en fichier à part)
+class PokemonSpriteManager {
+  constructor(scene) {
+    this.scene = scene;
+  }
+
+  loadSpritesheet(pokemonName) {
+    const key = `${pokemonName}_Walk`;
+    if (!this.scene.textures.exists(key)) {
+      this.scene.load.spritesheet(key, `assets/pokemon/${pokemonName}.png`, {
+        frameWidth: 32,
+        frameHeight: 32,
+      });
+      this.scene.load.once('complete', () => this.createAnimations(key));
+      this.scene.load.start();
+    } else {
+      this.createAnimations(key);
+    }
+  }
+
+  createPokemonSprite(pokemonName, x, y, direction = "left") {
+    const key = `${pokemonName}_Walk`;
+    this.createAnimations(key);
+    const sprite = this.scene.add.sprite(x, y, key, 0).setOrigin(0.5, 1);
+    sprite.setDepth(5);
+    sprite.direction = direction;
+    sprite.pokemonAnimKey = `${key}_${direction}`;
+    sprite.play(sprite.pokemonAnimKey);
+    return sprite;
+  }
+
+  createAnimations(key) {
+    const anims = this.scene.anims;
+    if (!anims.exists(`${key}_up`)) {
+      anims.create({ key: `${key}_up`, frames: anims.generateFrameNumbers(key, { start: 0, end: 1 }), frameRate: 6, repeat: -1 });
+      anims.create({ key: `${key}_down`, frames: anims.generateFrameNumbers(key, { start: 2, end: 3 }), frameRate: 6, repeat: -1 });
+      anims.create({ key: `${key}_left`, frames: anims.generateFrameNumbers(key, { start: 4, end: 5 }), frameRate: 6, repeat: -1 });
+      anims.create({ key: `${key}_right`, frames: anims.generateFrameNumbers(key, { start: 6, end: 7 }), frameRate: 6, repeat: -1 });
+    }
+  }
+}
 
 export class BeachScene extends BaseZoneScene {
   constructor() {
     super('BeachScene', 'GreenRootBeach');
     this.transitionCooldowns = {};
+    this.pokemonSpriteManager = null; // Ajout
   }
 
   setupZoneTransitions() {
@@ -97,26 +140,42 @@ export class BeachScene extends BaseZoneScene {
     }
   }
 
-  startIntroSequence(player) {
-    // Starter (carré bleu) qui s’approche du joueur
-    this.spawnStarterPokemon(player.x + 48, player.y);
+  create() {
+    super.create();
+    this.pokemonSpriteManager = new PokemonSpriteManager(this); // Ajout
+    this.setupBeachEvents();
   }
 
-  spawnStarterPokemon(x, y) {
-    const starter = this.add.rectangle(x, y, 24, 24, 0x66ccff)
-      .setStrokeStyle(2, 0xffffff)
-      .setDepth(5);
+  // === Changement ici ===
+  startIntroSequence(player) {
+    // Affiche Bulbizarre animé qui arrive vers la gauche
+    this.spawnStarterPokemon(player.x + 48, player.y, '001_Bulbasaur', 'left');
+  }
 
-    // Animation pour venir à côté du joueur
-    this.tweens.add({
-      targets: starter,
-      x: x - 36,
-      duration: 700,
-      ease: 'Sine.easeInOut',
-      onComplete: () => {
-        this.showIntroDialogue(starter);
+  spawnStarterPokemon(x, y, pokemonName, direction = "left") {
+    this.pokemonSpriteManager.loadSpritesheet(pokemonName);
+
+    // Petite astuce : attendre que le spritesheet soit chargé
+    const trySpawn = () => {
+      if (this.textures.exists(`${pokemonName}_Walk`)) {
+        const starter = this.pokemonSpriteManager.createPokemonSprite(pokemonName, x, y, direction);
+
+        // Animation pour venir à côté du joueur
+        this.tweens.add({
+          targets: starter,
+          x: x - 36,
+          duration: 700,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            starter.play(`${pokemonName}_Walk_left`);
+            this.showIntroDialogue(starter);
+          }
+        });
+      } else {
+        this.time.delayedCall(50, trySpawn); // Wait until loaded
       }
-    });
+    };
+    trySpawn();
   }
 
   showIntroDialogue(starter) {
@@ -132,17 +191,12 @@ export class BeachScene extends BaseZoneScene {
       }
     ).setDepth(1000).setOrigin(0.5);
 
-    // Après 2s, retire le carré et le texte
+    // Après 2s, retire le Pokémon et le texte
     this.time.delayedCall(2000, () => {
       starter.destroy();
       textBox.destroy();
-      // Enchaîner la suite ici si tu veux (ex : mouvement auto vers le village)
+      // Ici tu peux enchaîner vers le déplacement auto ou la suite
     });
-  }
-
-  create() {
-    super.create();
-    this.setupBeachEvents();
   }
 
   setupBeachEvents() {
