@@ -1,0 +1,176 @@
+{
+  "family": "caterpie",
+  "region": "kanto",
+  "pokemon": [
+    {
+      "id": 10,
+      "name": "Caterpie",
+      "types": ["Bug"],
+      "baseStats": {
+        "hp": 45,
+        "attack": 30,
+        "defense": 35,
+        "specialAttack": 20,
+        "specialDefense": 20,
+        "speed": 45
+      },
+      "abilities": ["shield_dust"],
+      "hiddenAbility": "run_away",
+      "height": 0.3,
+      "weight": 2.9,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10.png",
+      "description": "Its short feet are tipped with suction pads that enable it to tirelessly climb slopes and walls.",
+      "category": "Worm Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Bug"],
+      "hatchTime": 3840,
+      "baseExperience": 39,
+      "growthRate": "Medium Fast",
+      "captureRate": 255,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Viridian Forest",
+          "rarity": "Common",
+          "method": "Wild Grass",
+          "level_range": "3-5"
+        },
+        {
+          "location": "Route 2",
+          "rarity": "Common", 
+          "method": "Wild Grass",
+          "level_range": "3-4"
+        },
+        {
+          "location": "Route 24",
+          "rarity": "Uncommon",
+          "method": "Wild Grass", 
+          "level_range": "7-8"
+        },
+        {
+          "location": "Route 25",
+          "rarity": "Uncommon",
+          "method": "Wild Grass",
+          "level_range": "8-10"
+        }
+      ],
+      "learnset": [
+        {"moveId": "tackle", "level": 1},
+        {"moveId": "string_shot", "level": 1}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 11,
+        "method": "level",
+        "requirement": 7
+      }
+    },
+    {
+      "id": 11,
+      "name": "Metapod",
+      "types": ["Bug"],
+      "baseStats": {
+        "hp": 50,
+        "attack": 20,
+        "defense": 55,
+        "specialAttack": 25,
+        "specialDefense": 25,
+        "speed": 30
+      },
+      "abilities": ["shed_skin"],
+      "height": 0.7,
+      "weight": 9.9,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/11.png",
+      "description": "This Pokémon is vulnerable to attack while its shell is soft, exposing its weak and tender body.",
+      "category": "Cocoon Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Bug"],
+      "hatchTime": 3840,
+      "baseExperience": 72,
+      "growthRate": "Medium Fast",
+      "captureRate": 120,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Viridian Forest",
+          "rarity": "Uncommon",
+          "method": "Wild Grass",
+          "level_range": "4-6"
+        },
+        {
+          "location": "Route 2",
+          "rarity": "Rare",
+          "method": "Wild Grass",
+          "level_range": "4-5"
+        }
+      ],
+      "learnset": [
+        {"moveId": "harden", "level": 1}
+      ],
+      "evolution": {
+        "canEvolve": true,
+        "evolvesInto": 12,
+        "method": "level",
+        "requirement": 10,
+        "evolvesFrom": 10
+      }
+    },
+    {
+      "id": 12,
+      "name": "Butterfree",
+      "types": ["Bug", "Flying"],
+      "baseStats": {
+        "hp": 60,
+        "attack": 45,
+        "defense": 50,
+        "specialAttack": 90,
+        "specialDefense": 80,
+        "speed": 70
+      },
+      "abilities": ["compound_eyes"],
+      "hiddenAbility": "tinted_lens",
+      "height": 1.1,
+      "weight": 32.0,
+      "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/12.png",
+      "description": "In battle, it flaps its wings at high speed to release highly toxic dust into the air.",
+      "category": "Butterfly Pokémon",
+      "genderRatio": {
+        "male": 50.0,
+        "female": 50.0
+      },
+      "eggGroups": ["Bug"],
+      "hatchTime": 3840,
+      "baseExperience": 178,
+      "growthRate": "Medium Fast",
+      "captureRate": 45,
+      "baseHappiness": 70,
+      "catchLocations": [
+        {
+          "location": "Viridian Forest",
+          "rarity": "Rare",
+          "method": "Wild Grass",
+          "level_range": "7-9"
+        }
+      ],
+      "learnset": [
+        {"moveId": "confusion", "level": 1},
+        {"moveId": "gust", "level": 1},
+        {"moveId": "sleep_powder", "level": 12},
+        {"moveId": "stun_spore", "level": 13},
+        {"moveId": "psybeam", "level": 14},
+        {"moveId": "whirlwind", "level": 15},
+        {"moveId": "psychic", "level": 18}
+      ],
+      "evolution": {
+        "canEvolve": false,
+        "evolvesFrom": 11
+      }
+    }
+  ]
+}
