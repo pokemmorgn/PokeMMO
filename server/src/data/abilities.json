@@ -1,1 +1,236 @@
-
+{
+  "overgrow": {
+    "name": "Overgrow",
+    "description": "Powers up Grass-type moves when the Pokémon's HP is low.",
+    "effect": "When HP is below 1/3, Grass-type moves deal 50% more damage.",
+    "trigger": "hp_below_33",
+    "introduced": "Generation III"
+  },
+  "blaze": {
+    "name": "Blaze",
+    "description": "Powers up Fire-type moves when the Pokémon's HP is low.",
+    "effect": "When HP is below 1/3, Fire-type moves deal 50% more damage.",
+    "trigger": "hp_below_33",
+    "introduced": "Generation III"
+  },
+  "torrent": {
+    "name": "Torrent",
+    "description": "Powers up Water-type moves when the Pokémon's HP is low.",
+    "effect": "When HP is below 1/3, Water-type moves deal 50% more damage.",
+    "trigger": "hp_below_33",
+    "introduced": "Generation III"
+  },
+  "swarm": {
+    "name": "Swarm",
+    "description": "Powers up Bug-type moves when the Pokémon's HP is low.",
+    "effect": "When HP is below 1/3, Bug-type moves deal 50% more damage.",
+    "trigger": "hp_below_33",
+    "introduced": "Generation III"
+  },
+  "keen_eye": {
+    "name": "Keen Eye",
+    "description": "The Pokémon's keen eyes prevent its accuracy from being lowered.",
+    "effect": "Prevents accuracy reduction.",
+    "trigger": "stat_change_immunity",
+    "introduced": "Generation III"
+  },
+  "intimidate": {
+    "name": "Intimidate",
+    "description": "The Pokémon intimidates opposing Pokémon upon entering battle, lowering their Attack stat.",
+    "effect": "Lowers the Attack stat of all opposing Pokémon by 1 stage when switching in.",
+    "trigger": "on_switch_in",
+    "introduced": "Generation III"
+  },
+  "static": {
+    "name": "Static",
+    "description": "The Pokémon may paralyze attackers that make direct contact.",
+    "effect": "30% chance to paralyze the attacker when hit by a contact move.",
+    "trigger": "on_contact_received",
+    "chance": 30,
+    "introduced": "Generation III"
+  },
+  "lightning_rod": {
+    "name": "Lightning Rod",
+    "description": "The Pokémon draws in all Electric-type moves to boost its Sp. Atk stat.",
+    "effect": "Draws all Electric-type moves to this Pokémon and raises Special Attack by 1 stage when hit by Electric moves.",
+    "trigger": "move_redirect",
+    "type_attracted": "Electric",
+    "introduced": "Generation III"
+  },
+  "sand_veil": {
+    "name": "Sand Veil",
+    "description": "Boosts the Pokémon's evasiveness in a sandstorm.",
+    "effect": "Increases evasiveness by 20% during sandstorm. Immune to sandstorm damage.",
+    "trigger": "weather_sandstorm",
+    "introduced": "Generation III"
+  },
+  "poison_point": {
+    "name": "Poison Point",
+    "description": "The Pokémon may poison attackers that make direct contact.",
+    "effect": "30% chance to poison the attacker when hit by a contact move.",
+    "trigger": "on_contact_received",
+    "chance": 30,
+    "introduced": "Generation III"
+  },
+  "inner_focus": {
+    "name": "Inner Focus",
+    "description": "The Pokémon's intense focus prevents it from flinching.",
+    "effect": "Prevents flinching.",
+    "trigger": "status_immunity",
+    "introduced": "Generation III"
+  },
+  "clear_body": {
+    "name": "Clear Body",
+    "description": "Prevents other Pokémon's moves or Abilities from lowering the Pokémon's stats.",
+    "effect": "Prevents stat reduction from opponent's moves and abilities.",
+    "trigger": "stat_change_immunity",
+    "introduced": "Generation III"
+  },
+  "natural_cure": {
+    "name": "Natural Cure",
+    "description": "All status conditions heal when the Pokémon switches out.",
+    "effect": "Cures all status conditions when switching out.",
+    "trigger": "on_switch_out",
+    "introduced": "Generation III"
+  },
+  "serene_grace": {
+    "name": "Serene Grace",
+    "description": "Raises the likelihood of additional effects occurring when the Pokémon uses its moves.",
+    "effect": "Doubles the chance of moves' secondary effects occurring.",
+    "trigger": "move_effect_boost",
+    "multiplier": 2,
+    "introduced": "Generation III"
+  },
+  "swift_swim": {
+    "name": "Swift Swim",
+    "description": "Boosts the Pokémon's Speed stat in rain.",
+    "effect": "Doubles Speed during rain.",
+    "trigger": "weather_rain",
+    "introduced": "Generation III"
+  },
+  "chlorophyll": {
+    "name": "Chlorophyll",
+    "description": "Boosts the Pokémon's Speed stat in harsh sunlight.",
+    "effect": "Doubles Speed during sunny weather.",
+    "trigger": "weather_sun",
+    "introduced": "Generation III"
+  },
+  "huge_power": {
+    "name": "Huge Power",
+    "description": "Doubles the Pokémon's Attack stat.",
+    "effect": "Doubles physical Attack stat.",
+    "trigger": "stat_modifier",
+    "stat": "attack",
+    "multiplier": 2,
+    "introduced": "Generation III"
+  },
+  "wonder_guard": {
+    "name": "Wonder Guard",
+    "description": "Only supereffective moves will hit.",
+    "effect": "Only takes damage from super effective moves, direct damage, and status conditions.",
+    "trigger": "damage_immunity",
+    "introduced": "Generation III"
+  },
+  "levitate": {
+    "name": "Levitate",
+    "description": "By floating in the air, the Pokémon receives full immunity to all Ground-type moves.",
+    "effect": "Immune to Ground-type moves and entry hazards like Spikes.",
+    "trigger": "type_immunity",
+    "immune_to": "Ground",
+    "introduced": "Generation III"
+  },
+  "effect_spore": {
+    "name": "Effect Spore",
+    "description": "Contact with the Pokémon may inflict poison, sleep, or paralysis on the attacker.",
+    "effect": "30% chance to inflict poison, sleep, or paralysis when hit by a contact move.",
+    "trigger": "on_contact_received",
+    "chance": 30,
+    "effects": ["poison", "sleep", "paralysis"],
+    "introduced": "Generation III"
+  },
+  "synchronize": {
+    "name": "Synchronize",
+    "description": "The attacker will receive the same status condition if it inflicts a burn, poison, or paralysis to the Pokémon.",
+    "effect": "When inflicted with burn, poison, or paralysis, the attacker receives the same condition.",
+    "trigger": "status_reflection",
+    "introduced": "Generation III"
+  },
+  "sturdy": {
+    "name": "Sturdy",
+    "description": "The Pokémon cannot be knocked out by a single hit.",
+    "effect": "Cannot be knocked out in one hit when at full HP. Immune to OHKO moves.",
+    "trigger": "damage_prevention",
+    "introduced": "Generation III"
+  },
+  "rock_head": {
+    "name": "Rock Head",
+    "description": "Protects the Pokémon from recoil damage.",
+    "effect": "Prevents recoil damage from moves.",
+    "trigger": "recoil_immunity",
+    "introduced": "Generation III"
+  },
+  "water_absorb": {
+    "name": "Water Absorb",
+    "description": "Restores HP if hit by a Water-type move.",
+    "effect": "Restores 25% of max HP when hit by Water-type moves instead of taking damage.",
+    "trigger": "type_absorption",
+    "absorbs": "Water",
+    "introduced": "Generation III"
+  },
+  "volt_absorb": {
+    "name": "Volt Absorb",
+    "description": "Restores HP if hit by an Electric-type move.",
+    "effect": "Restores 25% of max HP when hit by Electric-type moves instead of taking damage.",
+    "trigger": "type_absorption",
+    "absorbs": "Electric",
+    "introduced": "Generation III"
+  },
+  "flash_fire": {
+    "name": "Flash Fire",
+    "description": "Powers up Fire-type moves if hit by one.",
+    "effect": "Immune to Fire-type moves. When hit by a Fire move, Fire-type moves deal 50% more damage.",
+    "trigger": "type_immunity_boost",
+    "immune_to": "Fire",
+    "boost_type": "Fire",
+    "introduced": "Generation III"
+  },
+  "shield_dust": {
+    "name": "Shield Dust",
+    "description": "Blocks the additional effects of attacks taken.",
+    "effect": "Prevents secondary effects of moves used against this Pokémon.",
+    "trigger": "secondary_effect_immunity",
+    "introduced": "Generation III"
+  },
+  "own_tempo": {
+    "name": "Own Tempo",
+    "description": "Prevents the Pokémon from becoming confused.",
+    "effect": "Prevents confusion.",
+    "trigger": "status_immunity",
+    "introduced": "Generation III"
+  },
+  "suction_cups": {
+    "name": "Suction Cups",
+    "description": "This Pokémon cannot be forced to switch out by opponent's moves.",
+    "effect": "Prevents forced switching from moves like Roar and Whirlwind.",
+    "trigger": "switch_prevention",
+    "introduced": "Generation III"
+  },
+  "guts": {
+    "name": "Guts",
+    "description": "Boosts the Attack stat if the Pokémon has a status condition.",
+    "effect": "Increases Attack by 50% when afflicted with a status condition.",
+    "trigger": "status_boost",
+    "stat": "attack",
+    "multiplier": 1.5,
+    "introduced": "Generation III"
+  },
+  "marvel_scale": {
+    "name": "Marvel Scale",
+    "description": "Boosts the Defense stat if the Pokémon has a status condition.",
+    "effect": "Increases Defense by 50% when afflicted with a status condition.",
+    "trigger": "status_boost",
+    "stat": "defense",
+    "multiplier": 1.5,
+    "introduced": "Generation III"
+  }
+}
