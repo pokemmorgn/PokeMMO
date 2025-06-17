@@ -2,6 +2,7 @@
 // VillageLabScene.js - Laboratoire du Professeur avec logique de transition
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
+import { CameraManager } from '../../camera/CameraManager.js';
 
 export class VillageLabScene extends BaseZoneScene {
   constructor() {
