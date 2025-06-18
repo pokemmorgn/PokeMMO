@@ -153,20 +153,73 @@ export class PlayerManager {
     this.performUpdate(state);
   }
 
-  performUpdate(state) {
+ performUpdate(state) {
+  if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
+  // Supprimer les joueurs déconnectés
+  const currentSessionIds = new Set();
+  state.players.forEach((playerState, sessionId) => {
+    currentSessionIds.add(sessionId);
+  });
+  // Créer une copie pour éviter les modifications pendant l'itération
+  const playersToCheck = Array.from(this.players.keys());
+  playersToCheck.forEach(sessionId => {
+    if (!currentSessionIds.has(sessionId)) {
+      this.removePlayer(sessionId);
+    }
+  });
+
+  // Mettre à jour ou créer les joueurs
+  state.players.forEach((playerState, sessionId) => {
     if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
-    // Supprimer les joueurs déconnectés
-    const currentSessionIds = new Set();
-    state.players.forEach((playerState, sessionId) => {
-      currentSessionIds.add(sessionId);
-    });
-    // Créer une copie pour éviter les modifications pendant l'itération
-    const playersToCheck = Array.from(this.players.keys());
-    playersToCheck.forEach(sessionId => {
-      if (!currentSessionIds.has(sessionId)) {
-        this.removePlayer(sessionId);
+
+    let player = this.players.get(sessionId);
+
+    if (!player) {
+      // Créer un nouveau joueur
+      player = this.createPlayer(sessionId, playerState.x, playerState.y);
+    } else {
+      // Vérifier que le sprite existe toujours dans la scène
+      if (!player.scene || player.scene !== this.scene) {
+        this.players.delete(sessionId);
+        player = this.createPlayer(sessionId, playerState.x, playerState.y);
+        return;
       }
-    });
+
+      // Lerp position
+      const lerpFactor = 0.2;
+      player.x += (playerState.x - player.x) * lerpFactor;
+      player.y += (playerState.y - player.y) * lerpFactor;
+
+      // FIX ANIMATION IDLE
+      if (playerState.isMoving !== undefined) {
+        player.isMoving = playerState.isMoving;
+
+        if (playerState.direction) {
+          player.lastDirection = playerState.direction;
+        }
+
+        // -- Animation automatique selon état --
+        if (player.isMoving && player.lastDirection) {
+          const walkAnim = `walk_${player.lastDirection}`;
+          if (this.scene.anims.exists(walkAnim) && player.anims.currentAnim?.key !== walkAnim) {
+            player.play(walkAnim);
+          }
+        } else if (!player.isMoving && player.lastDirection) {
+          const idleAnim = `idle_${player.lastDirection}`;
+          if (this.scene.anims.exists(idleAnim) && player.anims.currentAnim?.key !== idleAnim) {
+            player.play(idleAnim);
+          }
+        }
+      }
+
+      // Indicateur vert pour le joueur local
+      if (player.indicator && !this.isDestroyed) {
+        player.indicator.x = player.x;
+        player.indicator.y = player.y - 24;
+      }
+    }
+  });
+}
 
     // Mettre à jour ou créer les joueurs
     state.players.forEach((playerState, sessionId) => {
