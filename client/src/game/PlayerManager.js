@@ -43,16 +43,20 @@ export class PlayerManager {
     const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1).setOrigin(0.5, 1).setScale(1);
     player.setDepth(5);
     player.sessionId = sessionId;
-// Petite hitbox, bien centrée sur les pieds :
-player.body.setSize(12, 8);
-player.body.setOffset(10, 24);
-// Debug hitbox optionnel
-player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
+    // Petite hitbox, bien centrée sur les pieds :
+    player.body.setSize(12, 8);
+    player.body.setOffset(10, 24);
+    // Debug hitbox optionnel
+    player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
 
     // Animation idle par défaut (face bas, frame centrale)
     if (this.scene.anims.exists('idle_down')) player.play('idle_down');
     player.lastDirection = 'down';
     player.isMoving = false;
+
+    // ⭐️ Initialisation des positions cibles (nécessaire pour le lerp)
+    player.targetX = x;
+    player.targetY = y;
 
     // Indicateur vert pour le joueur local
     if (sessionId === this.mySessionId) {
@@ -66,76 +70,76 @@ player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
     return player;
   }
 
- createAnimations() {
-  const anims = this.scene.anims;
+  createAnimations() {
+    const anims = this.scene.anims;
 
-  if (!anims.exists('walk_down')) {
-    anims.create({
-      key: 'walk_down',
-      frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }),
-      frameRate: 15,
-      repeat: -1,
-    });
-  }
-  if (!anims.exists('walk_left')) {
-    anims.create({
-      key: 'walk_left',
-      frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }),
-      frameRate: 15,
-      repeat: -1,
-    });
-  }
-  if (!anims.exists('walk_right')) {
-    anims.create({
-      key: 'walk_right',
-      frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }),
-      frameRate: 15,
-      repeat: -1,
-    });
-  }
-  if (!anims.exists('walk_up')) {
-    anims.create({
-      key: 'walk_up',
-      frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 14 }),
-      frameRate: 15,
-      repeat: -1,
-    });
-  }
+    if (!anims.exists('walk_down')) {
+      anims.create({
+        key: 'walk_down',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+    if (!anims.exists('walk_left')) {
+      anims.create({
+        key: 'walk_left',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+    if (!anims.exists('walk_right')) {
+      anims.create({
+        key: 'walk_right',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+    if (!anims.exists('walk_up')) {
+      anims.create({
+        key: 'walk_up',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 14 }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
 
-  // Idles
-  if (!anims.exists('idle_down')) {
-    anims.create({
-      key: 'idle_down',
-      frames: [{ key: 'BoyWalk', frame: 1 }],
-      frameRate: 1,
-      repeat: 0,
-    });
+    // Idles
+    if (!anims.exists('idle_down')) {
+      anims.create({
+        key: 'idle_down',
+        frames: [{ key: 'BoyWalk', frame: 1 }],
+        frameRate: 1,
+        repeat: 0,
+      });
+    }
+    if (!anims.exists('idle_left')) {
+      anims.create({
+        key: 'idle_left',
+        frames: [{ key: 'BoyWalk', frame: 5 }],
+        frameRate: 1,
+        repeat: 0,
+      });
+    }
+    if (!anims.exists('idle_right')) {
+      anims.create({
+        key: 'idle_right',
+        frames: [{ key: 'BoyWalk', frame: 9 }],
+        frameRate: 1,
+        repeat: 0,
+      });
+    }
+    if (!anims.exists('idle_up')) {
+      anims.create({
+        key: 'idle_up',
+        frames: [{ key: 'BoyWalk', frame: 13 }],
+        frameRate: 1,
+        repeat: 0,
+      });
+    }
   }
-  if (!anims.exists('idle_left')) {
-    anims.create({
-      key: 'idle_left',
-      frames: [{ key: 'BoyWalk', frame: 5 }],
-      frameRate: 1,
-      repeat: 0,
-    });
-  }
-  if (!anims.exists('idle_right')) {
-    anims.create({
-      key: 'idle_right',
-      frames: [{ key: 'BoyWalk', frame: 9 }],
-      frameRate: 1,
-      repeat: 0,
-    });
-  }
-  if (!anims.exists('idle_up')) {
-    anims.create({
-      key: 'idle_up',
-      frames: [{ key: 'BoyWalk', frame: 13 }],
-      frameRate: 1,
-      repeat: 0,
-    });
-  }
-}
 
   updatePlayers(state) {
     if (this.isDestroyed) return;
@@ -180,41 +184,53 @@ player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
           player = this.createPlayer(sessionId, playerState.x, playerState.y);
           return;
         }
+      }
 
-        const lerpFactor = 0.2; // Ajuste entre 0.1 (plus lent) et 0.5 (plus rapide)
+      // ⭐️ Ici, au lieu de faire du lerp directement, on stocke la cible
+      player.targetX = playerState.x;
+      player.targetY = playerState.y;
 
-player.x += (playerState.x - player.x) * lerpFactor;
-player.y += (playerState.y - player.y) * lerpFactor;
+      // Gérer les animations en fonction du mouvement
+      if (playerState.isMoving !== undefined) {
+        player.isMoving = playerState.isMoving;
 
-        // Gérer les animations en fonction du mouvement
-        if (playerState.isMoving !== undefined) {
-          player.isMoving = playerState.isMoving;
+        if (playerState.direction && playerState.direction !== player.lastDirection) {
+          player.lastDirection = playerState.direction;
 
-          if (playerState.direction && playerState.direction !== player.lastDirection) {
-            player.lastDirection = playerState.direction;
-
-            // Jouer l'animation appropriée
-            if (player.isMoving) {
-              const walkAnim = `walk_${playerState.direction}`;
-              if (this.scene.anims.exists(walkAnim) && player.anims.currentAnim?.key !== walkAnim) {
-                player.play(walkAnim);
-              }
-            } else {
-              const idleAnim = `idle_${playerState.direction}`;
-              if (this.scene.anims.exists(idleAnim) && player.anims.currentAnim?.key !== idleAnim) {
-                player.play(idleAnim);
-              }
+          // Jouer l'animation appropriée
+          if (player.isMoving) {
+            const walkAnim = `walk_${playerState.direction}`;
+            if (this.scene.anims.exists(walkAnim) && player.anims.currentAnim?.key !== walkAnim) {
+              player.play(walkAnim);
+            }
+          } else {
+            const idleAnim = `idle_${playerState.direction}`;
+            if (this.scene.anims.exists(idleAnim) && player.anims.currentAnim?.key !== idleAnim) {
+              player.play(idleAnim);
             }
           }
         }
+      }
 
-        // Indicateur "cercle vert" pour ton joueur : il suit le joueur
-        if (player.indicator && !this.isDestroyed) {
-          player.indicator.x = player.x;
-          player.indicator.y = player.y - 24;
-        }
+      // Indicateur "cercle vert" pour ton joueur : il suit le joueur
+      if (player.indicator && !this.isDestroyed) {
+        player.indicator.x = player.x;
+        player.indicator.y = player.y - 24;
       }
     });
+  }
+
+  // ⭐️ Nouvelle méthode update pour le lerp continu
+  update() {
+    const lerpFactor = 0.18; // Ajuste selon ton ressenti
+    for (const [sessionId, player] of this.players) {
+      if (sessionId !== this.mySessionId) {
+        if (player.targetX !== undefined && player.targetY !== undefined) {
+          player.x += (player.targetX - player.x) * lerpFactor;
+          player.y += (player.targetY - player.y) * lerpFactor;
+        }
+      }
+    }
   }
 
   removePlayer(sessionId) {
