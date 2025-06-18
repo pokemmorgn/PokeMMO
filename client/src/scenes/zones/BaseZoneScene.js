@@ -240,23 +240,19 @@ export class BaseZoneScene extends Phaser.Scene {
 
 setupZoneTransitions() {
   const worldsLayer = this.map.getObjectLayer('Worlds');
-  if (!worldsLayer) {
-    console.warn("[Transition] Couche Worlds non trouvée !");
-    return;
-  }
+  if (!worldsLayer) return;
 
+  // Configuration des transitions par scène
   const transitionConfig = this.getTransitionConfig();
-  console.log("[Transition] transitionConfig =", transitionConfig);
+  
   worldsLayer.objects.forEach(obj => {
-    console.log("[Transition] Objet dans Worlds:", obj.name);
     const transition = transitionConfig[obj.name];
     if (transition) {
-      console.log(`[Transition] Création zone pour ${obj.name} -> ${transition.targetScene} (${transition.direction})`);
       this.createTransitionZone(obj, transition.targetScene, transition.direction);
     }
   });
 }
-  
+
 // Méthode à override dans chaque scène
 getTransitionConfig() {
   return {}; // À définir dans les sous-classes
