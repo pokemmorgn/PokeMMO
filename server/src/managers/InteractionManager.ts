@@ -1,28 +1,26 @@
-// server/src/managers/InteractionManager.ts
+import { NpcManager } from "./NPCManager";
 
 export class InteractionManager {
-  constructor(npcManager) {
-    this.npcManager = npcManager; // pour accéder à la liste/infos des npcs
+  private npcManager: NpcManager;
+  constructor(npcManager: NpcManager) {
+    this.npcManager = npcManager;
   }
 
-  // Interaction principale
-  handleNpcInteraction(player, npcId) {
+  handleNpcInteraction(player, npcId: number) {
     const npc = this.npcManager.getNpcById(npcId);
     if (!npc) return { type: "error", message: "NPC inconnu." };
 
-    // Vérifier la distance (ex : 64px)
+    // Optionnel : vérifie la distance, etc.
     const dx = Math.abs(player.x - npc.x);
     const dy = Math.abs(player.y - npc.y);
     if (dx > 64 || dy > 64) return { type: "error", message: "Trop loin du NPC." };
 
-    // Logique : on renvoie le type d’interaction selon le npc
-    // (ici tu peux faire évoluer selon le jeu : dialogue, shop, soins...)
+    // Exemple de logique de réponse (à adapter selon tes propriétés)
     if (npc.properties.shop) {
       return { type: "shop", shopId: npc.properties.shop };
     } else if (npc.properties.healer) {
       return { type: "heal", message: "Vos Pokémon sont soignés !" };
     } else {
-      // Dialogue par défaut
       return { type: "dialogue", lines: [npc.properties.dialogue || "Bonjour !"] };
     }
   }
