@@ -35,18 +35,19 @@ export class AuthRoom extends Room<AuthState> {
           if (timeDiff > 5 * 60 * 1000) throw new Error("Signature expirée");
         }
 
-        let isValid = false;
+let isValid = false;
 
-        // 🔑 Phantom >= v25.9, Slush & SuiWallet = même signature SUI, vérifiable côté serveur
-        if (
-          walletType === "slush" ||
-          walletType === "phantom" ||
-          walletType === "suiwallet"
-        ) {
-          isValid = await this.verifySlushSignature(address, signature, message);
-        } else {
-          isValid = false;
-        }
+if (
+  walletType === "slush" ||
+  walletType === "phantom" ||
+  walletType === "suiwallet" ||
+  walletType === "sui-standard" ||
+  walletType === "walletconnect"
+) {
+  isValid = await this.verifySlushSignature(address, signature, message);
+} else {
+  isValid = false;
+}
 
         if (!isValid) throw new Error("Signature invalide");
 
