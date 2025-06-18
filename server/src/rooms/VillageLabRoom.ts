@@ -12,7 +12,7 @@ export class VillageLabRoom extends BaseRoom {
   // Calcul du spawn selon la zone de destination
   protected calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number } {
   switch (spawnData.targetZone) {
-    case "BeachScene":
+    case "VillageLab":
       return { x: spawnData.targetX ?? 248, y: spawnData.targetY ?? 360 };
     // autres cas
     default:
