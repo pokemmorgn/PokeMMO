@@ -5,7 +5,7 @@ import { BaseRoom } from "./BaseRoom";
 import type { SpawnData } from "./BaseRoom"; // Import du type SpawnData
 
 export class Road1Room extends BaseRoom {
-  protected mapName = "Road1Room";
+ public mapName = "Road1Room";
   protected defaultX = 342;
   protected defaultY = 618;
 
