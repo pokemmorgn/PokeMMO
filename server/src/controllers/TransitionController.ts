@@ -38,7 +38,7 @@ export class TransitionController {
       targetY: data.targetY,
     });
 
-    console.log(`[TransitionController] Transition ${player.name} (${this.room.getMapName()}) -> ${data.targetZone} (${spawnPosition.x},${spawnPosition.y})`);
+    console.log(`[TransitionController] Transition ${player.name} (${this.room.mapName}) -> ${data.targetZone} (${spawnPosition.x},${spawnPosition.y})`);
 
     // Téléporte le joueur en désactivant les contrôles anticheat
     this.room.movementController.handleMove(
