@@ -457,13 +457,6 @@ class PhantomMultiAccountManager {
         this.colyseusClient = new Colyseus.Client("wss://pokerune.cloud/ws");
     }
 
-// Instanciation
-let app;
-window.addEventListener('DOMContentLoaded', () => {
-    app = new PhantomMultiAccountManager();
-    console.log('🚀 Application initialisée');
-});
-
     initializeElements() {
         this.connectBtn = document.getElementById('connectBtn');
         this.loading = document.getElementById('loading');
