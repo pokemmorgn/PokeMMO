@@ -130,15 +130,16 @@ export class NetworkManager {
     if (this.callbacks.onConnect) this.callbacks.onConnect();
   }
 
-  sendMove(x, y) {
-    if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen && !this.isTransitioning) {
-      const now = Date.now();
-      if (!this.lastSendTime || now - this.lastSendTime > 50) {
-        this.room.send("move", { x, y });
-        this.lastSendTime = now;
-      }
+ sendMove(x, y, direction, isMoving) {
+  if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen && !this.isTransitioning) {
+    const now = Date.now();
+    if (!this.lastSendTime || now - this.lastSendTime > 50) {
+      this.room.send("move", { x, y, direction, isMoving });
+      this.lastSendTime = now;
     }
   }
+}
+
 
   sendMessage(type, data) {
     if (this.isConnected && this.room && !this.isTransitioning) {
