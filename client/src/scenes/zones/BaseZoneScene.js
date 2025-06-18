@@ -489,7 +489,7 @@ export class BaseZoneScene extends Phaser.Scene {
     if (moved) {
       const now = Date.now();
       if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-        this.networkManager.sendMove(myPlayer.x, myPlayer.y);
+this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirection, moved);
         this.lastMoveTime = now;
       }
     }
