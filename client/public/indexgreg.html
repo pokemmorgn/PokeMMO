@@ -444,32 +444,60 @@
 window._suiWalletData = null;
 window._wcConnector = null;
 
-// ==== Connexion SUI WALLET DESKTOP (Phantom, Suiet, Ethos, etc) ====
+// ==== Connexion Phantom (Desktop Chrome Extension) ====
+async function connectPhantom() {
+    document.getElementById('loading').style.display = 'block';
+    const phantom = window.phantom?.sui;
+    if (!phantom) {
+        alert("Phantom Sui non détecté !");
+        document.getElementById('loading').style.display = 'none';
+        return;
+    }
+    try {
+        await phantom.connect();
+        const account = await phantom.getAccount();
+        const address = account.address || account.publicKey?.toString();
+        showWalletInfo({ name: "Phantom" }, address, 'phantom');
+        window._suiWalletData = { wallet: phantom, account, address, mode: 'phantom' };
+        document.getElementById('playGameBtn').style.display = 'inline-block';
+    } catch (e) {
+        alert("Connexion Phantom refusée !");
+    }
+    document.getElementById('loading').style.display = 'none';
+}
+
+// ==== Connexion autres Wallets desktop SUI Standard ====
 async function connectSuiWallet() {
-    // Récupère la liste des wallets desktop
+    document.getElementById('loading').style.display = 'block';
     const wallets = window.walletStandard?.getWallets().get() || [];
-    if (wallets.length > 0) {
-        // Propose le premier wallet dispo (ou à toi de faire une UI de choix)
-        const wallet = wallets[0];
+    // Ignore Phantom si détecté (on privilégie le bouton dédié)
+    const nonPhantom = wallets.filter(w => (w.name || "").toLowerCase() !== "phantom");
+    if (nonPhantom.length > 0) {
+        document.getElementById('mobileConnectBtn').style.display = 'none';
+        document.getElementById('connectBtn').style.display = 'none';
+        document.getElementById('loading').style.display = 'none';
+        const wallet = nonPhantom[0];
         try {
             await wallet.connect();
         } catch (e) {
-            alert("Connexion au wallet refusée !");
+            alert("Connexion refusée !");
+            document.getElementById('loading').style.display = 'none';
             return;
         }
         const account = wallet.accounts[0];
         const address = account.address;
-
         showWalletInfo(wallet, address, 'desktop');
         window._suiWalletData = { wallet, account, address, mode: 'desktop' };
         document.getElementById('playGameBtn').style.display = 'inline-block';
         return;
     }
-    // Si aucun wallet desktop, propose WalletConnect mobile (QR)
-    showWalletConnectOption();
+    // Affiche bouton mobile/QR
+    document.getElementById('mobileConnectBtn').style.display = 'block';
+    document.getElementById('connectBtn').style.display = 'none';
+    document.getElementById('loading').style.display = 'none';
 }
 
-// ==== Connexion mobile WalletConnect 1.x (QR code) ====
+// ==== WalletConnect 1.x (mobile QR code) ====
 function showWalletConnectOption() {
     if (!window.WalletConnect) {
         alert("WalletConnect non chargé !");
@@ -479,7 +507,6 @@ function showWalletConnectOption() {
         window._wcConnector.killSession();
         window._wcConnector = null;
     }
-    // Instancie WalletConnect
     const connector = new window.WalletConnect.default({
         bridge: "https://bridge.walletconnect.org",
         qrcodeModal: window.WalletConnectQRCodeModal.default,
@@ -495,12 +522,12 @@ function showWalletConnectOption() {
             alert("Erreur WalletConnect : " + error.message);
             return;
         }
-        // Pour SUI, accounts = [adresse]
         const { accounts } = payload.params[0];
         if (accounts && accounts.length > 0) {
             showWalletInfo(null, accounts[0], 'mobile');
             window._suiWalletData = { connector, address: accounts[0], mode: 'mobile' };
             document.getElementById('playGameBtn').style.display = 'inline-block';
+            document.getElementById('mobileConnectBtn').style.display = 'none';
         }
     });
 
@@ -514,11 +541,10 @@ function showWalletInfo(wallet, address, mode) {
     document.getElementById('walletInfo').style.display = 'block';
     document.getElementById('walletAddress').innerHTML =
         address + ' <button class="copy-btn" onclick="copyAddress()">Copy</button>';
-    document.getElementById('accountDetails').textContent =
-        " (" + (wallet?.name || (mode === 'mobile' ? 'WalletConnect mobile' : 'Wallet')) + " - " + address.slice(0, 8) + "…)";
-    document.getElementById('walletStatus').textContent = '✅ Connecté';
-    document.getElementById('connectBtn').textContent = '🔓 Déconnecter';
-    document.getElementById('connectBtn').onclick = disconnectWallet;
+    document.getElementById('phantomConnectBtn').textContent = '🔓 Déconnecter';
+    document.getElementById('phantomConnectBtn').onclick = disconnectWallet;
+    document.getElementById('connectBtn').style.display = 'none';
+    document.getElementById('mobileConnectBtn').style.display = 'none';
 }
 
 // ==== Déconnexion ====
@@ -529,9 +555,10 @@ function disconnectWallet() {
     }
     window._suiWalletData = null;
     document.getElementById('walletInfo').style.display = 'none';
-    document.getElementById('walletStatus').textContent = '';
-    document.getElementById('connectBtn').textContent = '🔗 Se connecter à SUI';
-    document.getElementById('connectBtn').onclick = connectSuiWallet;
+    document.getElementById('phantomConnectBtn').textContent = '🦄 Connexion Phantom (Chrome)';
+    document.getElementById('phantomConnectBtn').onclick = connectPhantom;
+    document.getElementById('connectBtn').style.display = '';
+    document.getElementById('mobileConnectBtn').style.display = '';
     document.getElementById('playGameBtn').style.display = 'none';
 }
 
@@ -560,13 +587,15 @@ async function authenticateAndPlay() {
     let signature;
 
     try {
-        if (mode === 'desktop' && wallet) {
-            // Standard SUI desktop
+        if (mode === 'phantom' && wallet) {
+            const encoded = new TextEncoder().encode(message);
+            const signed = await wallet.signMessage(encoded, "utf8");
+            signature = signed.signature;
+        } else if (mode === 'desktop' && wallet) {
             const encoded = new TextEncoder().encode(message);
             const result = await wallet.signMessage({ message: encoded });
             signature = result.signature;
         } else if (mode === 'mobile' && connector && connector.connected) {
-            // WalletConnect mobile (SUI Wallet mobile, Suiet, Surf, etc.)
             const msgHex = Array.from(new TextEncoder().encode(message))
                 .map(b => b.toString(16).padStart(2, '0')).join('');
             const result = await connector.sendCustomRequest({
@@ -589,7 +618,7 @@ async function authenticateAndPlay() {
         address,
         signature,
         message,
-        walletType: mode === 'mobile' ? "walletconnect" : "sui-standard",
+        walletType: mode,
         timestamp: Date.now(),
     });
 
@@ -610,11 +639,10 @@ async function authenticateAndPlay() {
 
 // ==== Bind boutons ====
 window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('phantomConnectBtn').onclick = connectPhantom;
     document.getElementById('connectBtn').onclick = connectSuiWallet;
     document.getElementById('mobileConnectBtn').onclick = showWalletConnectOption;
     document.getElementById('playGameBtn').onclick = authenticateAndPlay;
 });
-</script>
-
 </body>
 </html>
