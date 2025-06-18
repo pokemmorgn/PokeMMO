@@ -63,7 +63,7 @@ export class NetworkManager {
       case 'Road1Scene': newRoomName = 'Road1Room'; break;
       case 'VillageLabScene': newRoomName = 'VillageLabRoom'; break;
       case 'VillageHouse1Scene': newRoomName = 'VillageHouse1Room'; break; 
-      case 'LavandiaRoom': newRoomName = 'LavandiaRoom'; break;
+      case 'LavandiaScene': newRoomName = 'LavandiaRoom'; break;
       default: newRoomName = 'DefaultRoom';
     }
 
