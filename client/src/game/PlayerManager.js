@@ -17,7 +17,15 @@ export class PlayerManager {
     return this.players.get(this.mySessionId) || null;
   }
 
-  createPlayer(sessionId, x, y) {
+  /**
+   * Crée le joueur (sprite et texte du nom)
+   * @param {string} sessionId 
+   * @param {number} x 
+   * @param {number} y 
+   * @param {string} name 
+   * @returns {object}
+   */
+  createPlayer(sessionId, x, y, name = "Player") {
     if (this.isDestroyed) return null;
 
     // Placeholder si spritesheet manquant
@@ -27,10 +35,18 @@ export class PlayerManager {
       graphics.fillRect(0, 0, 32, 32);
       graphics.generateTexture('player_placeholder', 32, 32);
       graphics.destroy();
-      const player = this.scene.add.sprite(x, y, 'player_placeholder').setOrigin(0.5, 1).setScale(1);
-      player.setDepth(5);
-      this.players.set(sessionId, player);
-      return player;
+      const sprite = this.scene.add.sprite(x, y, 'player_placeholder').setOrigin(0.5, 1).setScale(1);
+      sprite.setDepth(5);
+      // Texte du nom même sur placeholder
+      const nameText = this.scene.add.text(x, y - 36, name, {
+        font: '14px Arial',
+        fill: '#fff',
+        stroke: '#222',
+        strokeThickness: 3,
+        align: 'center'
+      }).setOrigin(0.5, 1).setDepth(1000);
+      this.players.set(sessionId, { sprite, nameText });
+      return this.players.get(sessionId);
     }
 
     // Crée les animations une seule fois
@@ -40,34 +56,45 @@ export class PlayerManager {
     }
 
     // Sprite physique joueur
-    const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1).setOrigin(0.5, 1).setScale(1);
-    player.setDepth(5);
-    player.sessionId = sessionId;
+    const sprite = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1).setOrigin(0.5, 1).setScale(1);
+    sprite.setDepth(5);
+    sprite.sessionId = sessionId;
     // Petite hitbox, bien centrée sur les pieds :
-    player.body.setSize(12, 8);
-    player.body.setOffset(10, 24);
+    sprite.body.setSize(12, 8);
+    sprite.body.setOffset(10, 24);
     // Debug hitbox optionnel
-    player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
+    sprite.body.debugShowBody = true;
+    sprite.body.debugBodyColor = 0xff0000;
 
     // Animation idle par défaut (face bas, frame centrale)
-    if (this.scene.anims.exists('idle_down')) player.play('idle_down');
-    player.lastDirection = 'down';
-    player.isMoving = false;
+    if (this.scene.anims.exists('idle_down')) sprite.play('idle_down');
+    sprite.lastDirection = 'down';
+    sprite.isMoving = false;
 
     // ⭐️ Initialisation des positions cibles (nécessaire pour le lerp)
-    player.targetX = x;
-    player.targetY = y;
+    sprite.targetX = x;
+    sprite.targetY = y;
+
+    // Nom du joueur affiché au-dessus
+    const nameText = this.scene.add.text(x, y - 36, name, {
+      font: '14px Arial',
+      fill: '#fff',
+      stroke: '#222',
+      strokeThickness: 3,
+      align: 'center'
+    }).setOrigin(0.5, 1).setDepth(1000);
 
     // Indicateur vert pour le joueur local
     if (sessionId === this.mySessionId) {
-      const indicator = this.scene.add.circle(player.x, player.y - 24, 3, 0x00ff00)
+      const indicator = this.scene.add.circle(sprite.x, sprite.y - 24, 3, 0x00ff00)
         .setDepth(1001)
         .setStrokeStyle(1, 0x004400);
-      player.indicator = indicator;
+      sprite.indicator = indicator;
     }
-   
-    this.players.set(sessionId, player);
-    return player;
+
+    // On stocke sprite + nameText (important pour les updates et destroy)
+    this.players.set(sessionId, { sprite, nameText });
+    return this.players.get(sessionId);
   }
 
   createAnimations() {
@@ -153,149 +180,116 @@ export class PlayerManager {
     this.performUpdate(state);
   }
 
-performUpdate(state) {
-  if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
-
-  // Supprimer les joueurs déconnectés
-  const currentSessionIds = new Set();
-  state.players.forEach((playerState, sessionId) => {
-    currentSessionIds.add(sessionId);
-  });
-  const playersToCheck = Array.from(this.players.keys());
-  playersToCheck.forEach(sessionId => {
-    if (!currentSessionIds.has(sessionId)) {
-      this.removePlayer(sessionId);
-    }
-  });
-
-  // Mettre à jour ou créer les joueurs
-  state.players.forEach((playerState, sessionId) => {
+  performUpdate(state) {
     if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
 
-    let player = this.players.get(sessionId);
-
-    if (!player) {
-      player = this.createPlayer(sessionId, playerState.x, playerState.y);
-    } else {
-      if (!player.scene || player.scene !== this.scene) {
-        this.players.delete(sessionId);
-        player = this.createPlayer(sessionId, playerState.x, playerState.y);
-        return;
+    // Supprimer les joueurs déconnectés
+    const currentSessionIds = new Set();
+    state.players.forEach((playerState, sessionId) => {
+      currentSessionIds.add(sessionId);
+    });
+    const playersToCheck = Array.from(this.players.keys());
+    playersToCheck.forEach(sessionId => {
+      if (!currentSessionIds.has(sessionId)) {
+        this.removePlayer(sessionId);
       }
-    }
+    });
 
-    // Stocker la position cible
-    player.targetX = playerState.x;
-    player.targetY = playerState.y;
+    // Mettre à jour ou créer les joueurs
+    state.players.forEach((playerState, sessionId) => {
+      if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
 
-    // Gérer les animations proprement
-    if (playerState.isMoving !== undefined) {
-      player.isMoving = playerState.isMoving;
-    }
-    if (playerState.direction) {
-      player.lastDirection = playerState.direction;
-    }
+      let playerObj = this.players.get(sessionId);
 
-    if (player.isMoving && player.lastDirection) {
-      const walkAnim = `walk_${player.lastDirection}`;
-      if (this.scene.anims.exists(walkAnim)) {
-        // Toujours jouer l'anim (repart du début) pour éviter le freeze
-        player.anims.play(walkAnim, true);
+      // On récupère le nom
+      const playerName = playerState.name || "Player";
+
+      if (!playerObj) {
+        playerObj = this.createPlayer(sessionId, playerState.x, playerState.y, playerName);
+      } else {
+        if (!playerObj.sprite.scene || playerObj.sprite.scene !== this.scene) {
+          this.players.delete(sessionId);
+          playerObj = this.createPlayer(sessionId, playerState.x, playerState.y, playerName);
+          return;
+        }
       }
-    } else if (!player.isMoving && player.lastDirection) {
-      const idleAnim = `idle_${player.lastDirection}`;
-      if (this.scene.anims.exists(idleAnim)) {
-        // Toujours jouer l'anim idle pour remettre en pause
-        player.anims.play(idleAnim, true);
+
+      // Met à jour la position cible
+      playerObj.sprite.targetX = playerState.x;
+      playerObj.sprite.targetY = playerState.y;
+
+      // Met à jour le texte du nom (au cas où le nom change en live)
+      if (playerObj.nameText && playerObj.nameText.text !== playerName) {
+        playerObj.nameText.setText(playerName);
       }
-    }
 
-    // Mettre à jour l’indicateur
-    if (player.indicator && !this.isDestroyed) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 24;
-    }
-  });
+      // Met à jour la position du texte au-dessus du sprite
+      playerObj.nameText.setPosition(playerObj.sprite.x, playerObj.sprite.y - 36);
 
+      // Reste de l'update (anims, indicateur, etc.)
+      if (playerState.isMoving !== undefined) {
+        playerObj.sprite.isMoving = playerState.isMoving;
+      }
+      if (playerState.direction) {
+        playerObj.sprite.lastDirection = playerState.direction;
+      }
 
+      if (playerObj.sprite.isMoving && playerObj.sprite.lastDirection) {
+        const walkAnim = `walk_${playerObj.sprite.lastDirection}`;
+        if (this.scene.anims.exists(walkAnim)) {
+          playerObj.sprite.anims.play(walkAnim, true);
+        }
+      } else if (!playerObj.sprite.isMoving && playerObj.sprite.lastDirection) {
+        const idleAnim = `idle_${playerObj.sprite.lastDirection}`;
+        if (this.scene.anims.exists(idleAnim)) {
+          playerObj.sprite.anims.play(idleAnim, true);
+        }
+      }
 
-
-state.players.forEach((playerState, sessionId) => {
-  if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
-
-  let player = this.players.get(sessionId);
-
-  if (!player) {
-    player = this.createPlayer(sessionId, playerState.x, playerState.y);
-  } else {
-    if (!player.scene || player.scene !== this.scene) {
-      this.players.delete(sessionId);
-      player = this.createPlayer(sessionId, playerState.x, playerState.y);
-      return;
-    }
+      if (playerObj.sprite.indicator && !this.isDestroyed) {
+        playerObj.sprite.indicator.x = playerObj.sprite.x;
+        playerObj.sprite.indicator.y = playerObj.sprite.y - 24;
+      }
+    });
   }
 
-  player.targetX = playerState.x;
-  player.targetY = playerState.y;
-
-  if (playerState.isMoving !== undefined) {
-    player.isMoving = playerState.isMoving;
-
-    if (playerState.direction) {
-      player.lastDirection = playerState.direction;
-    }
-
-    // Joue toujours l'animation adaptée à l'état isMoving, même si direction est la même
-    if (player.isMoving) {
-      const walkAnim = `walk_${player.lastDirection}`;
-      if (this.scene.anims.exists(walkAnim) && player.anims.currentAnim?.key !== walkAnim) {
-        player.play(walkAnim);
-      }
-    } else {
-      const idleAnim = `idle_${player.lastDirection}`;
-      if (this.scene.anims.exists(idleAnim) && player.anims.currentAnim?.key !== idleAnim) {
-        player.play(idleAnim);
-      }
-    }
-  }
-
-  if (player.indicator && !this.isDestroyed) {
-    player.indicator.x = player.x;
-    player.indicator.y = player.y - 24;
-  }
-});
-
-  }
-
-  // ⭐️ Nouvelle méthode update pour le lerp continu
+  // ⭐️ Nouvelle méthode update pour le lerp continu (et texte du nom qui suit)
   update() {
     const lerpFactor = 0.18; // Ajuste selon ton ressenti
-    for (const [sessionId, player] of this.players) {
+    for (const [sessionId, playerObj] of this.players) {
       if (sessionId !== this.mySessionId) {
-        if (player.targetX !== undefined && player.targetY !== undefined) {
-          player.x += (player.targetX - player.x) * lerpFactor;
-          player.y += (player.targetY - player.y) * lerpFactor;
+        if (playerObj.sprite.targetX !== undefined && playerObj.sprite.targetY !== undefined) {
+          playerObj.sprite.x += (playerObj.sprite.targetX - playerObj.sprite.x) * lerpFactor;
+          playerObj.sprite.y += (playerObj.sprite.targetY - playerObj.sprite.y) * lerpFactor;
         }
+        // Update la position du nameText pour qu'il suive toujours
+        playerObj.nameText.setPosition(playerObj.sprite.x, playerObj.sprite.y - 36);
+      } else {
+        // Même pour le joueur local (si tu veux le name flottant en permanence)
+        playerObj.nameText.setPosition(playerObj.sprite.x, playerObj.sprite.y - 36);
       }
     }
   }
 
   removePlayer(sessionId) {
     if (this.isDestroyed) return;
-    const player = this.players.get(sessionId);
-    if (player) {
+    const playerObj = this.players.get(sessionId);
+    if (playerObj) {
       // Arrêter les animations
-      if (player.anims && player.anims.isPlaying) {
-        player.anims.stop();
+      if (playerObj.sprite.anims && playerObj.sprite.anims.isPlaying) {
+        playerObj.sprite.anims.stop();
       }
-
-      if (player.indicator) {
-        try { player.indicator.destroy(); } catch (e) {}
+      if (playerObj.sprite.indicator) {
+        try { playerObj.sprite.indicator.destroy(); } catch (e) {}
       }
-      if (player.body && player.body.destroy) {
-        try { player.body.destroy(); } catch (e) {}
+      if (playerObj.sprite.body && playerObj.sprite.body.destroy) {
+        try { playerObj.sprite.body.destroy(); } catch (e) {}
       }
-      try { player.destroy(); } catch (e) {}
+      try { playerObj.sprite.destroy(); } catch (e) {}
+      // N'oublie pas de destroy le nameText !
+      if (playerObj.nameText) {
+        try { playerObj.nameText.destroy(); } catch (e) {}
+      }
       this.players.delete(sessionId);
     }
   }
@@ -322,14 +316,14 @@ state.players.forEach((playerState, sessionId) => {
 
   getPlayerInfo(sessionId) {
     if (this.isDestroyed) return null;
-    const player = this.players.get(sessionId);
-    if (player) {
+    const playerObj = this.players.get(sessionId);
+    if (playerObj) {
       return {
-        x: player.x,
-        y: player.y,
+        x: playerObj.sprite.x,
+        y: playerObj.sprite.y,
         isMyPlayer: sessionId === this.mySessionId,
-        direction: player.lastDirection,
-        isMoving: player.isMoving
+        direction: playerObj.sprite.lastDirection,
+        isMoving: playerObj.sprite.isMoving
       };
     }
     return null;
