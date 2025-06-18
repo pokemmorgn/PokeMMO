@@ -549,7 +549,23 @@ export class BaseZoneScene extends Phaser.Scene {
       });
     });
   }
+createTransitionZone(obj, targetScene, direction) {
+  const zone = this.add.zone(obj.x, obj.y, obj.width, obj.height)
+    .setOrigin(0, 0)
+    .setInteractive();
+  this.physics.add.existing(zone);
+  zone.body.setAllowGravity(false);
+  zone.body.setImmovable(true);
 
+  zone.targetScene = targetScene;
+  zone.direction = direction;
+
+  this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
+    this.transitionToZone(targetScene, direction);
+  }, null, this);
+
+  console.log(`[${this.scene.key}] Zone de transition créée vers ${targetScene} (${direction})`);
+}
   cleanup() {
     console.log(`[${this.scene.key}] Nettoyage en cours...`);
 
