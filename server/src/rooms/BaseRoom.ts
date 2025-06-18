@@ -1,6 +1,3 @@
-// ===============================================
-// BaseRoom.ts - Classe parent pour toutes les rooms
-// ===============================================
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { PlayerData } from "../models/PlayerData";
@@ -9,24 +6,27 @@ import { MovementController } from "../controllers/MovementController";
 import { TransitionController } from "../controllers/TransitionController";
 import { InteractionManager } from "../managers/InteractionManager";
 
+type SpawnData = {
+  targetZone: string;
+  targetSpawn?: string;
+  targetX?: number;
+  targetY?: number;
+};
+
 export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
-  public abstract mapName: string;
-  public abstract defaultX: number;
-  public abstract defaultY: number;
-  public abstract calculateSpawnPosition(targetZone: string): { x: number, y: number };
+
+  protected abstract mapName: string;
+  protected abstract defaultX: number;
+  protected abstract defaultY: number;
 
   protected npcManager: NpcManager;
   public movementController: MovementController;
   public transitionController: TransitionController;
   protected interactionManager: InteractionManager;
 
-    public abstract calculateSpawnPosition(spawnData: {
-    targetZone: string,
-    targetSpawn?: string,
-    targetX?: number,
-    targetY?: number
-  }): { x: number, y: number };
+  // Méthode abstraite qui doit être définie dans chaque room fille
+  protected abstract calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number };
 
   onCreate(options: any) {
     this.setState(new PokeWorldState());
@@ -37,14 +37,10 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     this.movementController = new MovementController();
     this.transitionController = new TransitionController(this);
 
-    // Sauvegarde automatique
     this.clock.setInterval(() => {
       this.saveAllPlayers();
     }, 30000);
 
-
-    
-    // --- Gestion interaction NPC ---
     this.onMessage("npcInteract", (client, data: { npcId: number }) => {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
@@ -52,7 +48,6 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       client.send("npcInteractionResult", result);
     });
 
-    // --- Gestion des mouvements ---
     this.onMessage("move", (client, data) => {
       const player = this.state.players.get(client.sessionId);
       if (player) {
@@ -69,7 +64,6 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       }
     });
 
-    // --- Gestion des transitions de zones via TransitionController ---
     this.onMessage("changeZone", (client, data) => {
       this.transitionController.handleTransition(client, data);
     });
@@ -93,7 +87,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     const username = options.username || "Anonymous";
     client.send("npcList", this.npcManager.getAllNpcs());
 
-    // Remove old duplicate player
+    // Supprime un éventuel joueur en double
     const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
     if (existingPlayer) {
       const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
@@ -103,7 +97,6 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       }
     }
 
-    // Recherche des données sauvegardées
     let playerData = await PlayerData.findOne({ username });
     if (!playerData) {
       const mapName = this.mapName.replace('Room', '');
@@ -118,9 +111,8 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     const player = new Player();
     player.name = username;
     (player as any).justSpawned = true;
-    (player as any).isTransitioning = false; // Reset du flag ici !
+    (player as any).isTransitioning = false;
 
-    // Spawn via transition ou dernière position connue
     if (options.spawnX !== undefined && options.spawnY !== undefined) {
       player.x = options.spawnX;
       player.y = options.spawnY;
