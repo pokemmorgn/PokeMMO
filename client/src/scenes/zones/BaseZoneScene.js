@@ -16,6 +16,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.animatedObjects = null;
     this.zoneChangedHandler = null; // Référence du handler
     this.lastMoveTime = 0; // Throttling des mouvements
+    this.playerSpeed = 120; // <--- AJOUTE CETTE LIGNE ICI
+
   }
 
   preload() {
