@@ -407,6 +407,9 @@
 <button id="playGameBtn" class="connect-button" style="display:none; margin-top:24px;">
   🎮 Jouer
 </button>
+        <button id="guestBtn" class="connect-button" style="background:linear-gradient(135deg,#60a5fa,#64748b);margin-top:10px;">
+  👤 Jouer en tant qu'invité
+</button>
         <div class="debug-section">
             <div class="debug-title">🔧 Diagnostic Phantom</div>
             <div class="debug-item">
@@ -434,6 +437,8 @@
 
     <script src="https://unpkg.com/colyseus.js/dist/colyseus.js"></script>
 
+<script src="https://unpkg.com/colyseus.js/dist/colyseus.js"></script>
+
 <script>
 class PhantomMultiAccountManager {
     constructor() {
@@ -458,13 +463,14 @@ class PhantomMultiAccountManager {
         this.accountDetails = document.getElementById('accountDetails');
         this.refreshBtn = document.getElementById('refreshBtn');
         this.playGameBtn = document.getElementById('playGameBtn');
+        this.guestBtn = document.getElementById('guestBtn');
     }
 
     initializeEventListeners() {
         this.connectBtn.addEventListener('click', () => this.handleConnectionToggle());
         this.refreshBtn.addEventListener('click', () => this.refreshAccounts());
-        
         this.playGameBtn.addEventListener('click', () => this.authenticateAndPlay());
+        this.guestBtn.addEventListener('click', () => this.playAsGuest());
         this.setupPhantomListeners();
     }
 
@@ -763,60 +769,61 @@ class PhantomMultiAccountManager {
     }
 
     async authenticateAndPlay() {
-    if (!this.currentAccount?.address) {
-        alert("Connecte ton wallet pour jouer.");
-        return;
-    }
+        if (!this.currentAccount?.address) {
+            alert("Connecte ton wallet pour jouer.");
+            return;
+        }
 
-    let room;
-    try {
-        this.setLoadingState(true);
+        let room;
+        try {
+            this.setLoadingState(true);
 
-       const address = this.currentAccount.address;
-const message = `PokeWorld Auth ${Date.now()}`;
-const encodedMessage = new TextEncoder().encode(message);
-const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
+            const address = this.currentAccount.address;
+            const message = `PokeWorld Auth ${Date.now()}`;
+            const encodedMessage = new TextEncoder().encode(message);
+            const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
 
-// Prends directement signed.signature (base64 SUI-OK)
-const signatureBase64 = signed.signature; // PAS de slice, PAS de modif
+            // Prends directement signed.signature (base64 SUI-OK)
+            const signatureBase64 = signed.signature;
 
-// ...envoie signatureBase64 au serveur comme avant
+            // Connexion au serveur Colyseus AuthRoom
+            room = await this.colyseusClient.joinOrCreate("AuthRoom");
 
+            // Envoi du payload
+            room.send("authenticate", {
+                address,
+                signature: signatureBase64,
+                message,
+                walletType: "phantom",
+                timestamp: Date.now()
+            });
 
-        // Connexion au serveur Colyseus AuthRoom
-        room = await this.colyseusClient.joinOrCreate("AuthRoom");
+            room.onMessage("authenticated", (data) => {
+                if (data.status === "ok") {
+                    alert("Authentification réussie !");
+                    window.location.href = "index.html?wallet=" + encodeURIComponent(address);
+                } else {
+                    alert("Erreur d'authentification");
+                }
+            });
 
-        // Envoi du payload
-        room.send("authenticate", {
-            address,
-            signature: signatureBase64,
-            message,
-            walletType: "phantom",
-            timestamp: Date.now()
-        });
+            room.onMessage("error", (error) => {
+                alert("Erreur serveur : " + error.reason);
+                room.leave();
+                this.setLoadingState(false);
+            });
 
-        room.onMessage("authenticated", (data) => {
-            if (data.status === "ok") {
-                alert("Authentification réussie !");
-                window.location.href = "index.html?wallet=" + encodeURIComponent(address);
-            } else {
-                alert("Erreur d'authentification");
-            }
-        });
-
-        room.onMessage("error", (error) => {
-            alert("Erreur serveur : " + error.reason);
-            room.leave();
+        } catch (error) {
             this.setLoadingState(false);
-        });
-
-    } catch (error) {
-        this.setLoadingState(false);
-        alert("Erreur lors de la connexion : " + (error.message || error));
-        // room n'est pas défini donc ne pas tenter d'appeler room.leave()
+            alert("Erreur lors de la connexion : " + (error.message || error));
+        }
     }
-}
 
+    playAsGuest() {
+        // Génère un identifiant guest unique et redirige
+        const guestId = "guest_" + Math.random().toString(36).substring(2, 10);
+        window.location.href = "index.html?wallet=" + encodeURIComponent(guestId) + "&guest=1";
+    }
 }
 
 // Copier l'adresse dans le presse-papier
