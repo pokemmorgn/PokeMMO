@@ -6,7 +6,36 @@ export class VillageScene extends BaseZoneScene {
     this.transitionCooldowns = {};
   }
 
-  
+  setupZoneTransitions() {
+  const worldsLayer = this.map.getObjectLayer('Worlds');
+  if (!worldsLayer) return;
+
+  worldsLayer.objects.forEach(obj => {
+    const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
+    const directionProp = obj.properties?.find(p => p.name === 'direction');
+    if (!targetZoneProp) return;
+
+    const targetZone = targetZoneProp.value;
+    const direction = directionProp ? directionProp.value : 'north';
+
+    // Crée la zone physique Phaser pour détecter le joueur
+    const zone = this.add.zone(
+      obj.x + obj.width / 2,
+      obj.y + obj.height / 2,
+      obj.width,
+      obj.height
+    );
+    this.physics.world.enable(zone);
+    zone.body.setAllowGravity(false);
+    zone.body.setImmovable(true);
+
+    // Surlap avec joueur => demande transition au serveur
+    this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
+      if (!this.networkManager) return;
+      this.networkManager.requestZoneTransition(targetZone, direction);
+    });
+  });
+}
     const doorLayer = this.map.getObjectLayer('Door');
     if (doorLayer) {
       const labDoor = doorLayer.objects.find(obj => obj.name === 'Labo');
