@@ -21,7 +21,7 @@ export class NpcManager {
   }
 
   loadNpcsFromMap(mapPath: string) {
-    // 👇 Correction ici : chemin absolu basé sur le dossier du fichier actuel
+    // Correction ici : chemin absolu basé sur le dossier du fichier actuel
     const resolvedPath = path.resolve(__dirname, mapPath);
     if (!fs.existsSync(resolvedPath)) {
       throw new Error(`NpcManager: Le fichier map n'existe pas : ${resolvedPath}`);
@@ -49,7 +49,11 @@ export class NpcManager {
     }
   }
 
-  getAllNpcs() {
+  getAllNpcs(): NpcData[] {
     return this.npcs;
+  }
+
+  getNpcById(id: number): NpcData | undefined {
+    return this.npcs.find(npc => npc.id === id);
   }
 }
