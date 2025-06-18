@@ -12,7 +12,7 @@ public calculateSpawnPosition(targetZone: string): { x: number, y: number } {
   switch (targetZone) {
     case "VillageScene":
       return { x: 337, y: 616 }; // Position où spawn le joueur s'il vient de BeachScene
-    case "Lavandia":
+    case "LavandiaScene":
       return { x: 198, y: 22 };
     default:
       return { x: this.defaultX, y: this.defaultY };
