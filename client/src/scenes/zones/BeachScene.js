@@ -52,6 +52,7 @@ export class BeachScene extends BaseZoneScene {
     this.time.delayedCall(2000, () => {
       console.log("🏖️ Bienvenue sur la plage de GreenRoot !");
     });
+    this.setupZoneTransitions();
   }
 
   // --- Configuration des transitions ---
