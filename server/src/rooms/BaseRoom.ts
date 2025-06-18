@@ -16,7 +16,7 @@ type SpawnData = {
 export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
 
-  protected abstract mapName: string;
+public mapName: string;
   protected abstract defaultX: number;
   protected abstract defaultY: number;
 
@@ -26,7 +26,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   protected interactionManager: InteractionManager;
 
   // Méthode abstraite qui doit être définie dans chaque room fille
-  protected abstract calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number };
+public calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number };
 
   onCreate(options: any) {
     this.setState(new PokeWorldState());
