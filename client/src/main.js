@@ -6,6 +6,7 @@ import { VillageScene } from "./scenes/zones/VillageScene.js";
 import { Road1Scene } from './scenes/zones/Road1Scene.js'; // ✅ Import de Road1Scene
 import { VillageLabScene } from './scenes/zones/VillageLabScene.js'; // ✅
 import { VillageHouse1Scene } from './scenes/zones/VillageHouse1Scene.js'; // ✅
+import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 
 function getWalletFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -37,7 +38,8 @@ const config = {
     VillageScene,
     Road1Scene,
     VillageLabScene,
-    VillageHouse1Scene
+    VillageHouse1Scene,
+    LavandiaScene
   ],
   physics: {
     default: 'arcade',
