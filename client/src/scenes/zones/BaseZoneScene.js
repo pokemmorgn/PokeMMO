@@ -688,6 +688,8 @@ createDevMenu() {
   }).setScrollFactor(0);
   this.devMenu.add(txt);
 
+  // Affiche toujours le menu pour debug :
+this.devMenu.setVisible(true)
   // Met à jour la vitesse affichée
   this.time.addEvent({
     delay: 250,
