@@ -12,7 +12,9 @@ export class VillageRoom extends BaseRoom {
   protected defaultY = 445;
 
   // Logique de calcul du point de spawn selon la zone d'arrivée
-  public calculateSpawnPosition(targetZone: string): { x: number, y: number } {
+ public calculateSpawnPosition(spawnData: SpawnData): { x: number, y: number } {
+  const targetZone = spawnData.targetZone;
+
   switch (targetZone) {
     case "BeachScene":
       return { x: 428, y: 445 }; // Position où spawn le joueur s'il vient de BeachScene
@@ -22,6 +24,7 @@ export class VillageRoom extends BaseRoom {
       return { x: this.defaultX, y: this.defaultY };
   }
 }
+
 
 
   // Optionnel : Ajoute de la logique custom si besoin
