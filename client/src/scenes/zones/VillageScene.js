@@ -48,60 +48,7 @@ export class VillageScene extends BaseZoneScene {
     }
   }
 
-  createTransitionZone(transitionObj, targetScene, direction) {
-    const transitionZone = this.add.zone(
-      transitionObj.x + transitionObj.width / 2,
-      transitionObj.y + transitionObj.height / 2,
-      transitionObj.width,
-      transitionObj.height
-    );
-
-    this.physics.world.enable(transitionZone);
-    transitionZone.body.setAllowGravity(false);
-    transitionZone.body.setImmovable(true);
-
-    console.log(`🚪 Zone de transition créée vers ${targetScene} (${direction})`, transitionZone);
-
-    let overlapCreated = false;
-
-    const checkPlayerInterval = this.time.addEvent({
-      delay: 100,
-      loop: true,
-      callback: () => {
-        const myPlayer = this.playerManager.getMyPlayer();
-        if (myPlayer && !overlapCreated) {
-          overlapCreated = true;
-
-          this.physics.add.overlap(myPlayer, transitionZone, () => {
-            const cooldownKey = `${targetScene}_${direction}`;
-            if (this.transitionCooldowns[cooldownKey] || this.isTransitioning) {
-              console.log(`[Transition] Cooldown actif ou déjà en transition vers ${targetScene}`);
-              return;
-            }
-
-            this.transitionCooldowns[cooldownKey] = true;
-            console.log(`[Transition] Demande transition vers ${targetScene} (${direction})`);
-
-            transitionZone.body.enable = false;
-
-            this.networkManager.requestZoneTransition(targetScene, direction);
-
-            this.time.delayedCall(3000, () => {
-              if (this.transitionCooldowns) {
-                delete this.transitionCooldowns[cooldownKey];
-              }
-              if (transitionZone.body) {
-                transitionZone.body.enable = true;
-              }
-            });
-          });
-
-          checkPlayerInterval.remove();
-          console.log(`✅ Overlap créé pour transition vers ${targetScene}`);
-        }
-      }
-    });
-  }
+ 
 
   positionPlayer(player) {
     const initData = this.scene.settings.data;
