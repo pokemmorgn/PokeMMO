@@ -312,18 +312,23 @@
     }
 
     #typing-indicator {
-      position: absolute;
-      bottom: 45px;
-      left: 16px;
+      position: relative;
+      padding: 4px 16px 0 16px;
       font-size: 11px;
       color: rgba(255, 255, 255, 0.6);
       font-style: italic;
       opacity: 0;
       transition: opacity 0.3s ease;
+      height: 0;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.02);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     #typing-indicator.show {
       opacity: 1;
+      height: 20px;
+      padding: 4px 16px;
     }
 
     .typing-dots {
@@ -526,10 +531,6 @@
       </div>
     </div>
     
-    <div id="typing-indicator">
-      <span class="typing-dots">PikachuMaster is typing</span>
-    </div>
-    
     <div id="chat-messages">
       <!-- Example messages -->
       <div class="chat-message system">
@@ -541,6 +542,10 @@
         <span class="chat-text">Anyone up for a battle? <span class="pokemon-emoji">⚡</span></span>
         <span class="chat-timestamp">2:23 PM</span>
       </div>
+    </div>
+    
+    <div id="typing-indicator">
+      <span class="typing-dots">PikachuMaster is typing</span>
     </div>
     
     <div id="chat-input-container">
