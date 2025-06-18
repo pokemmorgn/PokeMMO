@@ -219,7 +219,7 @@ export class PlayerManager {
       }
     }
   });
-}
+
 
     // Mettre à jour ou créer les joueurs
     state.players.forEach((playerState, sessionId) => {
