@@ -54,8 +54,10 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       const player = this.state.players.get(client.sessionId);
       if (player) {
         // Passage par MovementController pour valider (vitesse, tp, etc.)
-        const moveResult = this.movementController.handleMove(client.sessionId, player, data);
+const skipAnticheat = (player as any).justSpawned === true;
+const moveResult = this.movementController.handleMove(client.sessionId, player, data, skipAnticheat);
 
+if (skipAnticheat) (player as any).justSpawned = false;
         player.x = moveResult.x;
         player.y = moveResult.y;
         if ('direction' in moveResult) player.direction = moveResult.direction;
@@ -179,7 +181,8 @@ this.onMessage("changeZone", async (client, data: { targetZone: string, directio
     
     const player = new Player();
     player.name = username;
-    
+    (player as any).justSpawned = true;
+
     // Spawn depuis transition ou depuis la dernière position sauvegardée
     if (options.spawnX !== undefined && options.spawnY !== undefined) {
       player.x = options.spawnX;
