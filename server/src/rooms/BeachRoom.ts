@@ -1,7 +1,8 @@
-// ===============================================
-// BeachRoom.ts - Version simplifiée héritant de BaseRoom
-// ===============================================
+// BeachRoom.ts
 import { BaseRoom } from "./BaseRoom";
+
+// IMPORTANT: importer SpawnData depuis le fichier où il est défini (ou redéfinir ici)
+import type { SpawnData } from "./BaseRoom"; // adapte le chemin selon ta structure
 
 export class BeachRoom extends BaseRoom {
   protected mapName = "BeachRoom";
@@ -9,14 +10,13 @@ export class BeachRoom extends BaseRoom {
   protected defaultY = 48;
 
   public calculateSpawnPosition(spawnData: SpawnData): { x: number, y: number } {
-  const targetZone = spawnData.targetZone;
+    const targetZone = spawnData.targetZone;
 
-  switch (targetZone) {
-    case "VillageScene":
-      return { x: 62, y: 50 }; // Position où spawn le joueur s'il vient de BeachScene
-      return { x: this.defaultX, y: this.defaultY };
+    switch (targetZone) {
+      case "VillageScene":
+        return { x: 62, y: 50 }; // position quand on vient de VillageScene
+      default:
+        return { x: this.defaultX, y: this.defaultY };
+    }
   }
-}
-
-
 }
