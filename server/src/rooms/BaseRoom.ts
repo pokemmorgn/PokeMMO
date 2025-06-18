@@ -7,7 +7,6 @@ import { PlayerData } from "../models/PlayerData";
 import { NpcManager, NpcData } from "../managers/NPCManager";
 import { MovementController } from "../controllers/MovementController";
 // TODO: Adapter le chemin et le nom si tu as un MapManager (sinon à remplacer par un stub/minimum)
-import { MapManager } from "../managers/MapManager";
 
 export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
