@@ -5,7 +5,7 @@ import { BaseRoom } from "./BaseRoom";
 import type { SpawnData } from "./BaseRoom"; // adapte le chemin selon ta structure
 
 export class BeachRoom extends BaseRoom {
-  protected mapName = "BeachRoom";
+  public mapName = "BeachRoom";
   protected defaultX = 52;
   protected defaultY = 48;
 
