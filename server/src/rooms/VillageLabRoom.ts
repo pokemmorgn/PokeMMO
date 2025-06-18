@@ -3,6 +3,7 @@
 // ===============================================
 import { BaseRoom } from "./BaseRoom";
 import { Client } from "@colyseus/core";
+import type { SpawnData } from "./BaseRoom"; // Import du type SpawnData
 
 export class VillageLabRoom extends BaseRoom {
   protected mapName = "VillageLabRoom";
