@@ -66,6 +66,40 @@ export class PlayerManager {
       player.indicator = indicator;
     }
 
+    // 🏷️ AJOUT : Label du nom du joueur
+    const displayName = playerName || sessionId.substring(0, 8);
+    const nameConfig = this.scene.game.config.ui?.nameLabel || {
+      fontSize: '12px',
+      fontFamily: 'monospace',
+      color: '#ffffff',
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      padding: { x: 4, y: 2 },
+      offsetY: -45
+    };
+
+    // Couleur spéciale selon le type de joueur
+    let nameColor = nameConfig.color;
+    if (sessionId === this.mySessionId) {
+      nameColor = nameConfig.colors?.self || '#00ff00'; // Vert pour soi-même
+    } else {
+      nameColor = nameConfig.colors?.others || '#ffffff'; // Blanc pour les autres
+    }
+
+    const nameLabel = this.scene.add.text(
+      player.x, 
+      player.y + nameConfig.offsetY, 
+      displayName, 
+      {
+        fontSize: nameConfig.fontSize,
+        fontFamily: nameConfig.fontFamily,
+        color: nameColor,
+        backgroundColor: nameConfig.backgroundColor,
+        padding: nameConfig.padding
+      }
+    ).setOrigin(0.5, 1).setDepth(1002);
+
+    player.nameLabel = nameLabel;
+
     this.players.set(sessionId, player);
     return player;
   }
