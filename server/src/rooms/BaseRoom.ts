@@ -21,6 +21,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   
   protected npcManager: NpcManager;
   protected movementController: MovementController;
+  protected interactionManager: InteractionManager;
 
   onCreate(options: any) {
     this.setState(new PokeWorldState());
