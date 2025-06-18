@@ -474,6 +474,12 @@ onPlayerPositioned(player, initData) {
     };
 
     this.networkManager.onZoneChanged(this.zoneChangedHandler);
+
+      this.networkManager.onMessage("npcList", (npcList) => {
+    if (this.npcManager) {
+      this.npcManager.spawnNpcs(npcList);
+    }
+  });
   }
 
   update() {
