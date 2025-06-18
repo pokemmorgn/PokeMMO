@@ -4,6 +4,7 @@
 import { Client } from "@colyseus/core";
 import { BaseRoom } from "./BaseRoom";
 import { PokeWorldState } from "../schema/PokeWorldState";
+import type { SpawnData } from "./BaseRoom";
 
 export class VillageRoom extends BaseRoom {
   // Propriétés obligatoires à définir
