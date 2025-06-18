@@ -18,15 +18,15 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   preload() {
-  const ext = 'tmj';
-  this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
+    const ext = 'tmj';
+    this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
 
-  // Charger le spritesheet du joueur (32x32 par frame)
-  this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
-    frameWidth: 32,
-    frameHeight: 32,
-  });
-}
+    // Charger le spritesheet du joueur (32x32 par frame)
+    this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+  }
 
   create() {
     console.log(`🌍 Creating zone: ${this.scene.key}`);
@@ -50,7 +50,6 @@ export class BaseZoneScene extends Phaser.Scene {
       console.log(`[${this.scene.key}] Shutdown - nettoyage`);
       this.cleanup();
     });
-    // Événement avant destruction
     this.events.on('destroy', () => {
       console.log(`[${this.scene.key}] Destroy - nettoyage final`);
       this.cleanup();
@@ -59,7 +58,7 @@ export class BaseZoneScene extends Phaser.Scene {
 
   getExistingNetwork() {
     // Liste des scènes qui pourraient avoir le NetworkManager
-    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene, Lavandia'];
+    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene', 'Lavandia'];
     for (const sceneName of scenesToCheck) {
       const scene = this.scene.manager.getScene(sceneName);
       if (scene && scene.networkManager) {
@@ -81,7 +80,6 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log('— DEBUT loadMap —');
     this.map = this.make.tilemap({ key: this.mapKey });
 
-    // DEBUG LOGS : Tilesets & Layers
     console.log("========== [DEBUG] Chargement de la map ==========");
     console.log("Clé de la map (mapKey):", this.mapKey);
     console.log("Tilesets trouvés dans la map:", this.map.tilesets.map(ts => ts.name));
@@ -175,23 +173,20 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   setupScene() {
-  console.log('— DEBUT setupScene —');
-  this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+    console.log('— DEBUT setupScene —');
+    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
 
-  // Zoom automatique selon taille map et taille canvas Phaser
-  const baseWidth = this.scale.width;   // largeur canvas Phaser (ex: 800)
-  const baseHeight = this.scale.height; // hauteur canvas Phaser (ex: 600)
+    const baseWidth = this.scale.width;
+    const baseHeight = this.scale.height;
+    const zoomX = baseWidth / this.map.widthInPixels;
+    const zoomY = baseHeight / this.map.heightInPixels;
+    const zoom = Math.min(zoomX, zoomY);
 
-  const zoomX = baseWidth / this.map.widthInPixels;
-  const zoomY = baseHeight / this.map.heightInPixels;
-  const zoom = Math.min(zoomX, zoomY);
+    this.cameras.main.setZoom(zoom);
+    this.cameras.main.setBackgroundColor('#2d5a3d');
+    this.cameras.main.setRoundPixels(true);
 
-  this.cameras.main.setZoom(zoom);
-
-  this.cameras.main.setBackgroundColor('#2d5a3d');
-  this.cameras.main.setRoundPixels(true);
-
-  this.cameraManager = new CameraManager(this);
+    this.cameraManager = new CameraManager(this);
     let retry = 0;
     const MAX_RETRY = 60;
 
@@ -204,7 +199,9 @@ export class BaseZoneScene extends Phaser.Scene {
       delay: 100,
       loop: true,
       callback: () => {
-        const myPlayer = this.playerManager?.getMyPlayer();
+        const myPlayerObj = this.playerManager?.getMyPlayer();
+        const myPlayer = myPlayerObj?.sprite;
+
         if (myPlayer) {
           myPlayer.setDepth(3.5);
           this.positionPlayer(myPlayer);
@@ -238,62 +235,57 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-setupZoneTransitions() {
-  const worldsLayer = this.map.getObjectLayer('Worlds');
-  if (!worldsLayer) return;
+  setupZoneTransitions() {
+    const worldsLayer = this.map.getObjectLayer('Worlds');
+    if (!worldsLayer) return;
 
-  // Configuration des transitions par scène
-  const transitionConfig = this.getTransitionConfig();
+    const transitionConfig = this.getTransitionConfig();
   
-  worldsLayer.objects.forEach(obj => {
-    const transition = transitionConfig[obj.name];
-    if (transition) {
-      this.createTransitionZone(obj, transition.targetScene, transition.direction);
+    worldsLayer.objects.forEach(obj => {
+      const transition = transitionConfig[obj.name];
+      if (transition) {
+        this.createTransitionZone(obj, transition.targetScene, transition.direction);
+      }
+    });
+  }
+
+  // À override dans chaque scène
+  getTransitionConfig() {
+    return {}; // À définir dans les sous-classes
+  }
+
+  positionPlayer(player) {
+    const initData = this.scene.settings.data;
+  
+    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+      player.x = initData.spawnX;
+      player.y = initData.spawnY;
+    } else {
+      const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+      player.x = defaultPos.x;
+      player.y = defaultPos.y;
     }
-  });
-}
 
-// Méthode à override dans chaque scène
-getTransitionConfig() {
-  return {}; // À définir dans les sous-classes
-}
+    if (player.indicator) {
+      player.indicator.x = player.x;
+      player.indicator.y = player.y - 32;
+    }
 
-positionPlayer(player) {
-  const initData = this.scene.settings.data;
-  
-  // Position par défaut ou depuis spawn data
-  if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-    player.x = initData.spawnX;
-    player.y = initData.spawnY;
-  } else {
-    // Utiliser les positions par défaut de la scène
-    const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-    player.x = defaultPos.x;
-    player.y = defaultPos.y;
+    if (this.networkManager) {
+      this.networkManager.sendMove(player.x, player.y);
+    }
+
+    this.onPlayerPositioned(player, initData);
   }
 
-  // Logique commune pour l'indicateur
-  if (player.indicator) {
-    player.indicator.x = player.x;
-    player.indicator.y = player.y - 32;
+  // À override dans les sous-classes
+  getDefaultSpawnPosition(fromZone) {
+    return { x: 100, y: 100 };
   }
 
-  if (this.networkManager) {
-    this.networkManager.sendMove(player.x, player.y);
+  onPlayerPositioned(player, initData) {
+    // Hook spécifique, ex: intro BeachScene
   }
-
-  // Hook pour logique spécifique (intro, etc.)
-  this.onPlayerPositioned(player, initData);
-}
-
-// À override dans les sous-classes
-getDefaultSpawnPosition(fromZone) {
-  return { x: 100, y: 100 }; // Valeurs par défaut
-}
-
-onPlayerPositioned(player, initData) {
-  // Hook pour logique spécifique (intro dans BeachScene)
-}
 
   async initializeNetwork() {
     const getWalletFromUrl = () => {
@@ -347,10 +339,10 @@ onPlayerPositioned(player, initData) {
         case 'road1':
           roomName = 'Road1Room';
           break;
-          case 'house1':
+        case 'house1':
           roomName = 'VillageHouse1Room';
           break;
-          case 'lavandua':
+        case 'lavandia':
           roomName = 'LavandiaRoom';
           break;
         default:
@@ -445,7 +437,8 @@ onPlayerPositioned(player, initData) {
     this.networkManager.onStateChange((state) => {
       this.playerManager.updatePlayers(state);
       if (!this.cameraFollowing) {
-        const myPlayer = this.playerManager.getMyPlayer();
+        const myPlayerObj = this.playerManager.getMyPlayer();
+        const myPlayer = myPlayerObj?.sprite;
         if (myPlayer && this.cameraManager) {
           this.cameraManager.followPlayer(myPlayer);
           this.cameraFollowing = true;
@@ -478,7 +471,7 @@ onPlayerPositioned(player, initData) {
   }
 
   update() {
-   if (this.playerManager) this.playerManager.update();  // <--- AJOUTE ÇA ICI
+    if (this.playerManager) this.playerManager.update();
 
     if (this.cameraManager) this.cameraManager.update();
 
@@ -486,7 +479,8 @@ onPlayerPositioned(player, initData) {
       this.sys.animatedTiles.update();
     }
 
-    const myPlayer = this.playerManager?.getMyPlayer();
+    const myPlayerObj = this.playerManager?.getMyPlayer();
+    const myPlayer = myPlayerObj?.sprite;
     if (myPlayer && this.coordsText) {
       this.coordsText.setText(`Player: x:${Math.round(myPlayer.x)}, y:${Math.round(myPlayer.y)}`);
     }
@@ -501,15 +495,14 @@ onPlayerPositioned(player, initData) {
 
   handleMovement(myPlayerState) {
     const speed = 120;
-    const myPlayer = this.playerManager.getMyPlayer();
+    const myPlayerObj = this.playerManager.getMyPlayer();
+    const myPlayer = myPlayerObj?.sprite;
     if (!myPlayer) return;
 
     let vx = 0, vy = 0;
     let moved = false, direction = null;
 
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      vx = -speed; moved = true; direction = 'left';
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+        if (this.cursors.right.isDown || this.wasd.D.isDown) {
       vx = speed; moved = true; direction = 'right';
     }
     if (this.cursors.up.isDown || this.wasd.W.isDown) {
@@ -532,13 +525,13 @@ onPlayerPositioned(player, initData) {
     if (moved) {
       const now = Date.now();
       if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirection, moved);
+        this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirection, moved);
         this.lastMoveTime = now;
       }
     }
   }
 
-    transitionToZone(targetScene, fromDirection = null) {
+  transitionToZone(targetScene, fromDirection = null) {
     if (this.isTransitioning) {
       console.log(`[${this.scene.key}] Transition déjà en cours, ignorée`);
       return;
