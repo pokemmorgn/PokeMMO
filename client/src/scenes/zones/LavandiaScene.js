@@ -25,6 +25,60 @@ export class LavandiaScene extends BaseZoneScene {
       console.warn("[LavandiaScene] Calque d'objets 'Worlds' introuvable");
     }
   }
+export class BaseZoneScene extends Phaser.Scene {
+  // ... tout ton code ...
+
+  createTransitionZone(transitionObj, targetScene, direction) {
+    const sceneName = this.scene.key || 'BaseZoneScene';
+    console.log(`[${sceneName}] createTransitionZone vers ${targetScene}, direction ${direction}`);
+
+    const transitionZone = this.add.zone(
+      transitionObj.x + transitionObj.width / 2,
+      transitionObj.y + transitionObj.height / 2,
+      transitionObj.width,
+      transitionObj.height
+    );
+
+    this.physics.world.enable(transitionZone);
+    transitionZone.body.setAllowGravity(false);
+    transitionZone.body.setImmovable(true);
+
+    let overlapCreated = false;
+    
+    const checkPlayerInterval = this.time.addEvent({
+      delay: 100,
+      loop: true,
+      callback: () => {
+        const myPlayer = this.playerManager.getMyPlayer();
+        if (myPlayer && !overlapCreated) {
+          console.log(`[${sceneName}] Joueur trouvé, création overlap avec zone de transition`);
+          overlapCreated = true;
+          this.physics.add.overlap(myPlayer, transitionZone, () => {
+            console.log(`[${sceneName}] Overlap détecté avec zone vers ${targetScene}`);
+            const cooldownKey = `${targetScene}_${direction}`;
+            if (this.transitionCooldowns[cooldownKey] || this.isTransitioning) {
+              console.log(`[${sceneName}] Transition en cooldown ou déjà en cours, on ignore`);
+              return;
+            }
+            this.transitionCooldowns[cooldownKey] = true;
+            transitionZone.body.enable = false;
+            this.networkManager.requestZoneTransition(targetScene, direction);
+
+            this.time.delayedCall(3000, () => {
+              if (this.transitionCooldowns) {
+                delete this.transitionCooldowns[cooldownKey];
+                console.log(`[${sceneName}] Cooldown supprimé pour ${cooldownKey}`);
+              }
+              if (transitionZone.body) {
+                transitionZone.body.enable = true;
+              }
+            });
+          });
+          checkPlayerInterval.remove();
+        }
+      },
+    });
+  }
 
   positionPlayer(player) {
     // On récupère la position de SpawnPoint_Lavandiabottom dans la map
