@@ -21,14 +21,13 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   public transitionController: TransitionController;
   protected interactionManager: InteractionManager;
 
-    public calculateSpawnPosition(targetZone: string): { x: number, y: number } {
-  switch(targetZone) {
-    case "VillageScene":
-      return { x: 428, y: 445 };  // ta position exacte pour VillageScene
-    default:
-      return { x: this.defaultX, y: this.defaultY };  // fallback
-  }
-}
+    public abstract calculateSpawnPosition(spawnData: {
+    targetZone: string,
+    targetSpawn?: string,
+    targetX?: number,
+    targetY?: number
+  }): { x: number, y: number };
+
   onCreate(options: any) {
     this.setState(new PokeWorldState());
     console.log(`🔥 DEBUT onCreate ${this.mapName}`);
