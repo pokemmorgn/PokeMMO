@@ -4,6 +4,7 @@
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { PlayerData } from "../models/PlayerData";
+import { NpcManager, NpcData } from "../managers/NpcManager";
 
 export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
@@ -15,12 +16,18 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
 
   // Méthode abstraite pour calculer les positions de spawn selon la zone cible
   protected abstract calculateSpawnPosition(targetZone: string): { x: number, y: number };
+  
+  protected npcManager: NpcManager;
 
   onCreate(options: any) {
     this.setState(new PokeWorldState());
 
     console.log(`🔥 DEBUT onCreate ${this.mapName}`);
 
+  // Initialise le NpcManager
+  this.npcManager = new NpcManager(`assets/maps/${this.mapName.replace('Room', '').toLowerCase()}.tmj`);
+  console.log(`[${this.mapName}] NPCs chargés :`, this.npcManager.getAllNpcs());
+    
     // Sauvegarde automatique toutes les 30 secondes
     this.clock.setInterval(() => {
       console.log(`🔥🔥🔥 TIMER - Appel saveAllPlayers - ${new Date().toISOString()}`);
@@ -107,7 +114,8 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     
     const username = options.username || "Anonymous";
     console.log('🔍 DEBUG username utilisé:', username);
-    
+
+    client.send("npcList", this.npcManager.getAllNpcs());
     // Vérifie si joueur avec même nom existe déjà, supprime-le si oui
     const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
     if (existingPlayer) {
