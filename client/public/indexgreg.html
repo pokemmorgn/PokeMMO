@@ -183,7 +183,7 @@
         .connect-section {
             margin-bottom: 32px;
         }
-        
+
         .connect-button {
             width: 100%;
             background: linear-gradient(135deg, #8b5cf6, #6366f1);
@@ -389,11 +389,7 @@
             <button class="connect-button" id="connectBtn">
                 🔗 Se connecter à Phantom
             </button>
-             <!-- AJOUT WalletConnect ici -->
-<!-- Place ce div dans ton HTML où tu veux que le modal apparaisse -->
-<div id="web3modal"></div>
-<button id="mobileConnectBtn">📱 Connexion Wallet (Mobile)</button>
-
+            
             <div class="loading" id="loading">
                 <div class="spinner"></div>
                 <p style="color: #6b7280;">Connexion en cours...</p>
@@ -437,25 +433,19 @@
     </div>
 
     <script src="https://unpkg.com/colyseus.js/dist/colyseus.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/client@1.7.1/dist/umd/index.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@walletconnect/qrcode-modal@1.7.1/dist/umd/index.min.js"></script>
-
 
 <script>
 class PhantomMultiAccountManager {
     constructor() {
         this.currentAccount = null;
         this.isConnected = false;
-
-        this.walletConnector = null;
-        this.walletConnectBtn = document.getElementById('walletConnectBtn');
-
+        
         this.initializeElements();
         this.initializeEventListeners();
         this.startDiagnostics();
-
+        
         // Initialiser client Colyseus (adapter l'URL à ton serveur)
-        this.colyseusClient = new Colyseus.Client("wss://pokerune.cloud/ws");
+        this.colyseusClient = new Colyseus.Client("wss://pokerune.cloud/ws"); 
     }
 
     initializeElements() {
@@ -468,67 +458,16 @@ class PhantomMultiAccountManager {
         this.accountDetails = document.getElementById('accountDetails');
         this.refreshBtn = document.getElementById('refreshBtn');
         this.playGameBtn = document.getElementById('playGameBtn');
-        this.walletConnectBtn = document.getElementById('walletConnectBtn');
     }
 
     initializeEventListeners() {
         this.connectBtn.addEventListener('click', () => this.handleConnectionToggle());
         this.refreshBtn.addEventListener('click', () => this.refreshAccounts());
+        
         this.playGameBtn.addEventListener('click', () => this.authenticateAndPlay());
-        this.walletConnectBtn.addEventListener('click', () => this.handleWalletConnect());
         this.setupPhantomListeners();
     }
 
-    // ---- WalletConnect ----
-    async handleWalletConnect() {
-        if (this.walletConnector && this.walletConnector.connected) {
-            await this.walletConnector.killSession();
-            this.handleDisconnection();
-            return;
-        }
-
-        // Instancie WalletConnect (version 1.x)
-        this.walletConnector = new window.WalletConnect.default({
-            bridge: "https://bridge.walletconnect.org",
-            qrcodeModal: window.WalletConnectQRCodeModal.default,
-        });
-
-        if (!this.walletConnector.connected) {
-            await this.walletConnector.createSession();
-        }
-
-        this.walletConnector.on("connect", (error, payload) => {
-            if (error) {
-                console.error(error);
-                return;
-            }
-            const { accounts } = payload.params[0];
-            if (accounts && accounts.length > 0) {
-                this.currentAccount = { address: accounts[0] };
-                this.isConnected = true;
-                this.updateConnectedState(accounts[0]);
-            }
-        });
-
-        this.walletConnector.on("session_update", (error, payload) => {
-            if (error) {
-                console.error(error);
-                return;
-            }
-            const { accounts } = payload.params[0];
-            if (accounts && accounts.length > 0) {
-                this.currentAccount = { address: accounts[0] };
-                this.updateConnectedState(accounts[0]);
-            }
-        });
-
-        this.walletConnector.on("disconnect", (error) => {
-            if (error) console.error(error);
-            this.handleDisconnection();
-        });
-    }
-
-    // ---- Phantom listeners + méthodes (inchangé) ----
     async setupPhantomListeners() {
         try {
             await this.waitForPhantom();
@@ -683,9 +622,8 @@ class PhantomMultiAccountManager {
     disconnect() {
         try {
             if (window.phantom?.sui?.disconnect) window.phantom.sui.disconnect();
-            if (this.walletConnector && this.walletConnector.connected) this.walletConnector.killSession();
         } catch (error) {
-            console.error('Erreur lors de la déconnexion Phantom ou WalletConnect:', error);
+            console.error('Erreur lors de la déconnexion Phantom:', error);
         }
         this.handleDisconnection();
     }
@@ -805,7 +743,7 @@ class PhantomMultiAccountManager {
                 .filter(prop => typeof suiProvider[prop] === 'function')
                 .slice(0, 3)
                 .join(', ');
-
+            
             document.getElementById('apiMethods').textContent = methods || 'Aucune';
 
             let accountCount = 0;
@@ -824,94 +762,101 @@ class PhantomMultiAccountManager {
         }
     }
 
-    // ---- Signature et authentification ----
     async authenticateAndPlay() {
-        if (!this.currentAccount?.address) {
-            alert("Connecte ton wallet pour jouer.");
-            return;
-        }
+    if (!this.currentAccount?.address) {
+        alert("Connecte ton wallet pour jouer.");
+        return;
+    }
 
+    let room;
+    try {
         this.setLoadingState(true);
 
-        const address = this.currentAccount.address;
-        const message = `PokeWorld Auth ${Date.now()}`;
-        let signatureBase64;
-        let walletType = "phantom";
+       const address = this.currentAccount.address;
+const message = `PokeWorld Auth ${Date.now()}`;
+const encodedMessage = new TextEncoder().encode(message);
+const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
 
-        try {
-            if (this.walletConnector && this.walletConnector.connected) {
-                // WalletConnect: demande signature via SUI Wallet mobile
-                const msgHex = Buffer.from(message, "utf8").toString("hex");
-                // SUI Wallet mobile attend { message: "hexstring" }
-                const result = await this.walletConnector.sendCustomRequest({
-                    method: "sui_signMessage",
-                    params: [{ message: msgHex }],
-                });
-                signatureBase64 = result.signature || result; // SUI wallet renvoie { signature }
-                walletType = "walletconnect";
-            } else if (window.phantom?.sui) {
-                // Phantom extension desktop
-                const encodedMessage = new TextEncoder().encode(message);
-                const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
-                signatureBase64 = signed.signature; // base64 SUI OK
-                walletType = "phantom";
+// Prends directement signed.signature (base64 SUI-OK)
+const signatureBase64 = signed.signature; // PAS de slice, PAS de modif
+
+// ...envoie signatureBase64 au serveur comme avant
+
+
+        // Connexion au serveur Colyseus AuthRoom
+        room = await this.colyseusClient.joinOrCreate("AuthRoom");
+
+        // Envoi du payload
+        room.send("authenticate", {
+            address,
+            signature: signatureBase64,
+            message,
+            walletType: "phantom",
+            timestamp: Date.now()
+        });
+
+        room.onMessage("authenticated", (data) => {
+            if (data.status === "ok") {
+                alert("Authentification réussie !");
+                window.location.href = "index.html?wallet=" + encodeURIComponent(address);
             } else {
-                throw new Error("Aucun wallet connecté");
+                alert("Erreur d'authentification");
             }
+        });
 
-            const room = await this.colyseusClient.joinOrCreate("AuthRoom");
-            room.send("authenticate", {
-                address,
-                signature: signatureBase64,
-                message,
-                walletType,
-                timestamp: Date.now(),
-            });
-
-            room.onMessage("authenticated", (data) => {
-                if (data.status === "ok") {
-                    alert("Authentification réussie !");
-                    window.location.href = "index.html?wallet=" + encodeURIComponent(address);
-                } else {
-                    alert("Erreur d'authentification");
-                }
-            });
-
-            room.onMessage("error", (error) => {
-                alert("Erreur serveur : " + error.reason);
-                room.leave();
-                this.setLoadingState(false);
-            });
-        } catch (error) {
+        room.onMessage("error", (error) => {
+            alert("Erreur serveur : " + error.reason);
+            room.leave();
             this.setLoadingState(false);
-            alert("Erreur lors de la connexion : " + (error.message || error));
-        }
+        });
+
+    } catch (error) {
+        this.setLoadingState(false);
+        alert("Erreur lors de la connexion : " + (error.message || error));
+        // room n'est pas défini donc ne pas tenter d'appeler room.leave()
     }
 }
 
-</script>
-<script>
-// Fonction globale à part, PAS dans la classe !
+}
+
+// Copier l'adresse dans le presse-papier
 function copyAddress() {
     const address = document.getElementById('walletAddress').textContent.replace('Copy', '');
     navigator.clipboard.writeText(address).then(() => {
         const btn = document.querySelector('.copy-btn');
-        if (btn) {
-            const originalText = btn.textContent;
-            btn.textContent = 'Copié!';
-            setTimeout(() => {
-                btn.textContent = originalText;
-            }, 1000);
-        }
+        const originalText = btn.textContent;
+        btn.textContent = 'Copié!';
+        setTimeout(() => {
+            btn.textContent = originalText;
+        }, 1000);
     });
 }
 
-// Instanciation de la classe, une fois le DOM chargé
+// Initialiser l'application au chargement
 let app;
-window.addEventListener('DOMContentLoaded', () => {
-    app = new PhantomMultiAccountManager();
-    console.log('🚀 Application initialisée');
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        app = new PhantomMultiAccountManager();
+        console.log('🚀 Application initialisée');
+    }, 1000);
+});
+
+window.addEventListener('phantom_injected', () => {
+    if (!app) {
+        setTimeout(() => {
+            app = new PhantomMultiAccountManager();
+            console.log('🚀 Application initialisée via événement');
+        }, 500);
+    }
+});
+
+window.addEventListener('focus', () => {
+    if (app && app.isConnected) {
+        setTimeout(() => app.checkCurrentAccount(), 500);
+    }
 });
 </script>
+
+
 </body>
 </html>
