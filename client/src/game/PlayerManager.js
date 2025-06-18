@@ -8,6 +8,13 @@ export class PlayerManager {
     this.isDestroyed = false;
     this.animsCreated = false;
     console.log("PlayerManager initialisé pour", scene.scene.key);
+
+    // Ajoute la gestion du snap serveur
+    if (scene.networkManager && scene.networkManager.room) {
+      scene.networkManager.room.onMessage("snap", (data) => {
+        this.snapMyPlayerTo(data.x, data.y);
+      });
+    }
   }
 
   setMySessionId(sessionId) { this.mySessionId = sessionId; }
@@ -15,6 +22,23 @@ export class PlayerManager {
   getMyPlayer() {
     if (this.isDestroyed) return null;
     return this.players.get(this.mySessionId) || null;
+  }
+
+  snapMyPlayerTo(x, y) {
+    const player = this.getMyPlayer();
+    if (!player) return;
+
+    // Snap doux (lerp rapide)
+    player.targetX = x;
+    player.targetY = y;
+    player.snapLerpTimer = 0.20; // Lerp rapide sur 200ms (peux ajuster)
+
+    // Si vraiment trop loin (ex: gros rollback), tu peux forcer direct :
+    if (Math.abs(player.x - x) > 64 || Math.abs(player.y - y) > 64) {
+      player.x = x;
+      player.y = y;
+      player.snapLerpTimer = 0;
+    }
   }
 
   createPlayer(sessionId, x, y) {
@@ -57,6 +81,7 @@ export class PlayerManager {
     // ⭐️ Initialisation des positions cibles (nécessaire pour le lerp)
     player.targetX = x;
     player.targetY = y;
+    player.snapLerpTimer = 0; // Pour snap smooth
 
     // Indicateur vert pour le joueur local
     if (sessionId === this.mySessionId) {
@@ -153,128 +178,92 @@ export class PlayerManager {
     this.performUpdate(state);
   }
 
-performUpdate(state) {
-  if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
-
-  // Supprimer les joueurs déconnectés
-  const currentSessionIds = new Set();
-  state.players.forEach((playerState, sessionId) => {
-    currentSessionIds.add(sessionId);
-  });
-  const playersToCheck = Array.from(this.players.keys());
-  playersToCheck.forEach(sessionId => {
-    if (!currentSessionIds.has(sessionId)) {
-      this.removePlayer(sessionId);
-    }
-  });
-
-  // Mettre à jour ou créer les joueurs
-  state.players.forEach((playerState, sessionId) => {
+  performUpdate(state) {
     if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
 
-    let player = this.players.get(sessionId);
+    // Supprimer les joueurs déconnectés
+    const currentSessionIds = new Set();
+    state.players.forEach((playerState, sessionId) => {
+      currentSessionIds.add(sessionId);
+    });
+    const playersToCheck = Array.from(this.players.keys());
+    playersToCheck.forEach(sessionId => {
+      if (!currentSessionIds.has(sessionId)) {
+        this.removePlayer(sessionId);
+      }
+    });
 
-    if (!player) {
-      player = this.createPlayer(sessionId, playerState.x, playerState.y);
-    } else {
-      if (!player.scene || player.scene !== this.scene) {
-        this.players.delete(sessionId);
+    // Mettre à jour ou créer les joueurs
+    state.players.forEach((playerState, sessionId) => {
+      if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
+
+      let player = this.players.get(sessionId);
+
+      if (!player) {
         player = this.createPlayer(sessionId, playerState.x, playerState.y);
-        return;
+      } else {
+        if (!player.scene || player.scene !== this.scene) {
+          this.players.delete(sessionId);
+          player = this.createPlayer(sessionId, playerState.x, playerState.y);
+          return;
+        }
       }
-    }
 
-    // Stocker la position cible
-    player.targetX = playerState.x;
-    player.targetY = playerState.y;
+      // Stocker la position cible
+      player.targetX = playerState.x;
+      player.targetY = playerState.y;
 
-    // Gérer les animations proprement
-    if (playerState.isMoving !== undefined) {
-      player.isMoving = playerState.isMoving;
-    }
-    if (playerState.direction) {
-      player.lastDirection = playerState.direction;
-    }
-
-    if (player.isMoving && player.lastDirection) {
-      const walkAnim = `walk_${player.lastDirection}`;
-      if (this.scene.anims.exists(walkAnim)) {
-        // Toujours jouer l'anim (repart du début) pour éviter le freeze
-        player.anims.play(walkAnim, true);
+      // Gérer les animations proprement
+      if (playerState.isMoving !== undefined) {
+        player.isMoving = playerState.isMoving;
       }
-    } else if (!player.isMoving && player.lastDirection) {
-      const idleAnim = `idle_${player.lastDirection}`;
-      if (this.scene.anims.exists(idleAnim)) {
-        // Toujours jouer l'anim idle pour remettre en pause
-        player.anims.play(idleAnim, true);
+      if (playerState.direction) {
+        player.lastDirection = playerState.direction;
       }
-    }
 
-    // Mettre à jour l’indicateur
-    if (player.indicator && !this.isDestroyed) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 24;
-    }
-  });
+      if (player.isMoving && player.lastDirection) {
+        const walkAnim = `walk_${player.lastDirection}`;
+        if (this.scene.anims.exists(walkAnim)) {
+          // Toujours jouer l'anim (repart du début) pour éviter le freeze
+          player.anims.play(walkAnim, true);
+        }
+      } else if (!player.isMoving && player.lastDirection) {
+        const idleAnim = `idle_${player.lastDirection}`;
+        if (this.scene.anims.exists(idleAnim)) {
+          // Toujours jouer l'anim idle pour remettre en pause
+          player.anims.play(idleAnim, true);
+        }
+      }
 
-
-
-
-state.players.forEach((playerState, sessionId) => {
-  if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
-
-  let player = this.players.get(sessionId);
-
-  if (!player) {
-    player = this.createPlayer(sessionId, playerState.x, playerState.y);
-  } else {
-    if (!player.scene || player.scene !== this.scene) {
-      this.players.delete(sessionId);
-      player = this.createPlayer(sessionId, playerState.x, playerState.y);
-      return;
-    }
+      // Mettre à jour l’indicateur
+      if (player.indicator && !this.isDestroyed) {
+        player.indicator.x = player.x;
+        player.indicator.y = player.y - 24;
+      }
+    });
   }
 
-  player.targetX = playerState.x;
-  player.targetY = playerState.y;
-
-  if (playerState.isMoving !== undefined) {
-    player.isMoving = playerState.isMoving;
-
-    if (playerState.direction) {
-      player.lastDirection = playerState.direction;
-    }
-
-    // Joue toujours l'animation adaptée à l'état isMoving, même si direction est la même
-    if (player.isMoving) {
-      const walkAnim = `walk_${player.lastDirection}`;
-      if (this.scene.anims.exists(walkAnim) && player.anims.currentAnim?.key !== walkAnim) {
-        player.play(walkAnim);
-      }
-    } else {
-      const idleAnim = `idle_${player.lastDirection}`;
-      if (this.scene.anims.exists(idleAnim) && player.anims.currentAnim?.key !== idleAnim) {
-        player.play(idleAnim);
-      }
-    }
-  }
-
-  if (player.indicator && !this.isDestroyed) {
-    player.indicator.x = player.x;
-    player.indicator.y = player.y - 24;
-  }
-});
-
-  }
-
-  // ⭐️ Nouvelle méthode update pour le lerp continu
-  update() {
-    const lerpFactor = 0.18; // Ajuste selon ton ressenti
+  // ⭐️ Nouvelle méthode update pour le lerp continu et snap smooth
+  update(delta = 16) {
     for (const [sessionId, player] of this.players) {
+      // Joueurs autres que moi : lerp normal
       if (sessionId !== this.mySessionId) {
         if (player.targetX !== undefined && player.targetY !== undefined) {
-          player.x += (player.targetX - player.x) * lerpFactor;
-          player.y += (player.targetY - player.y) * lerpFactor;
+          player.x += (player.targetX - player.x) * 0.18;
+          player.y += (player.targetY - player.y) * 0.18;
+        }
+      } else {
+        // Mon joueur : snap smooth si snap en cours
+        if (player.snapLerpTimer && player.snapLerpTimer > 0) {
+          const fastLerp = 0.45; // Accélère le lerp pendant le snap
+          player.x += (player.targetX - player.x) * fastLerp;
+          player.y += (player.targetY - player.y) * fastLerp;
+          player.snapLerpTimer -= delta / 1000;
+          if (Math.abs(player.x - player.targetX) < 2 && Math.abs(player.y - player.targetY) < 2) {
+            player.x = player.targetX;
+            player.y = player.targetY;
+            player.snapLerpTimer = 0;
+          }
         }
       }
     }
