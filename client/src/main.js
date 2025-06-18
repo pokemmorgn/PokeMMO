@@ -11,7 +11,11 @@ import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 // === Colyseus.js ===
 import { Client } from 'colyseus.js';
 
-const ENDPOINT = location.protocol.replace("http", "ws") + '//' + location.hostname + ':2567';
+const ENDPOINT =
+  (location.protocol === "https:" ? "wss://" : "ws://") +
+  location.hostname +
+  (location.port ? ":" + location.port : "") +
+  "/ws";
 const colyseus = new Client(ENDPOINT);
 
 function getWalletFromUrl() {
