@@ -2,6 +2,7 @@
 // Road1Room.ts - Room Route 1, héritant de BaseRoom
 // ===============================================
 import { BaseRoom } from "./BaseRoom";
+import type { SpawnData } from "./BaseRoom"; // Import du type SpawnData
 
 export class Road1Room extends BaseRoom {
   protected mapName = "Road1Room";
