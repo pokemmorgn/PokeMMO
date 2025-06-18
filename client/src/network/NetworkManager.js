@@ -128,6 +128,14 @@ export class NetworkManager {
       }
     });
 
+    // Enregistre les callbacks onMessage définis avant la connexion
+if (this._pendingMessages && this._pendingMessages.length > 0) {
+  this._pendingMessages.forEach(({ type, callback }) => {
+    this.room.onMessage(type, callback);
+  });
+  this._pendingMessages = [];
+}
+
     if (this.callbacks.onConnect) this.callbacks.onConnect();
   }
 
@@ -182,6 +190,17 @@ export class NetworkManager {
     }
     this.callbacks.onZoneChanged = null;
   }
+
+  onMessage(type, callback) {
+  // On écoute le message custom sur la room Colyseus
+  if (this.room) {
+    this.room.onMessage(type, callback);
+  } else {
+    // Si pas encore connecté, on garde le callback pour l'enregistrer plus tard
+    if (!this._pendingMessages) this._pendingMessages = [];
+    this._pendingMessages.push({ type, callback });
+  }
+}
 
   getSessionId() {
     return this.sessionId;
