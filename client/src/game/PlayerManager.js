@@ -65,20 +65,7 @@ export class PlayerManager {
         .setStrokeStyle(1, 0x004400);
       player.indicator = indicator;
     }
-
-      // 🏷️ AJOUT : Label du nom du joueur
-    const displayName = playerName || sessionId.substring(0, 8);
-    const nameLabel = this.scene.add.text(player.x, player.y - 45, displayName, {
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      color: '#ffffff',
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      padding: { x: 4, y: 2 }
-    }).setOrigin(0.5, 1).setDepth(1002);
-
-    player.nameLabel = nameLabel;
-
-    
+   
     this.players.set(sessionId, player);
     return player;
   }
