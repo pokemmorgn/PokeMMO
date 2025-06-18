@@ -456,20 +456,6 @@ class PhantomMultiAccountManager {
         // Initialiser client Colyseus (adapter l'URL à ton serveur)
         this.colyseusClient = new Colyseus.Client("wss://pokerune.cloud/ws");
     }
-// Fonction de copie (pour le bouton Copy)
-function copyAddress() {
-    const address = document.getElementById('walletAddress').textContent.replace('Copy', '');
-    navigator.clipboard.writeText(address).then(() => {
-        const btn = document.querySelector('.copy-btn');
-        if (btn) {
-            const originalText = btn.textContent;
-            btn.textContent = 'Copié!';
-            setTimeout(() => {
-                btn.textContent = originalText;
-            }, 1000);
-        }
-    });
-}
 
 // Instanciation
 let app;
@@ -910,6 +896,28 @@ window.addEventListener('DOMContentLoaded', () => {
 }
 
 </script>
+<script>
+// Fonction globale à part, PAS dans la classe !
+function copyAddress() {
+    const address = document.getElementById('walletAddress').textContent.replace('Copy', '');
+    navigator.clipboard.writeText(address).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        if (btn) {
+            const originalText = btn.textContent;
+            btn.textContent = 'Copié!';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 1000);
+        }
+    });
+}
 
+// Instanciation de la classe, une fois le DOM chargé
+let app;
+window.addEventListener('DOMContentLoaded', () => {
+    app = new PhantomMultiAccountManager();
+    console.log('🚀 Application initialisée');
+});
+</script>
 </body>
 </html>
