@@ -437,6 +437,8 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   update() {
+   if (this.playerManager) this.playerManager.update();  // <--- AJOUTE ÇA ICI
+
     if (this.cameraManager) this.cameraManager.update();
 
     if (this.sys.animatedTiles && typeof this.sys.animatedTiles.update === 'function') {
