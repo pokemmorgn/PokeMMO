@@ -1,5 +1,3 @@
-// src/server/controllers/MovementController.ts
-
 type MoveData = {
   x: number;
   y: number;
@@ -30,14 +28,29 @@ export class MovementController {
    * @param sessionId 
    * @param playerState État actuel serveur du joueur
    * @param data Mouvement proposé par le client
+   * @param skipAnticheat Passer à true pour ignorer l'anticheat (ex: TP, zone change)
    * @returns Mouvement validé/corrigé par le serveur
    */
   handleMove(
     sessionId: string,
     playerState: PlayerState,
-    data: MoveData
+    data: MoveData,
+    skipAnticheat: boolean = false // <- virgule ajoutée, paramètre optionnel !
   ): { x: number; y: number; direction: string; isMoving: boolean; snapped: boolean } {
     const now = Date.now();
+
+    // Ajout : Bypass anticheat pour TP/zone change
+    if (skipAnticheat) {
+      this.lastMoves.set(sessionId, { x: data.x, y: data.y, t: now });
+      return {
+        x: data.x,
+        y: data.y,
+        direction: data.direction,
+        isMoving: data.isMoving,
+        snapped: false
+      };
+    }
+
     const lastMove = this.lastMoves.get(sessionId) || { x: playerState.x, y: playerState.y, t: now - 100 };
     const dt = Math.max((now - lastMove.t) / 1000, 0.016); // secondes, min 16ms
 
