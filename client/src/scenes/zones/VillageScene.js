@@ -7,35 +7,37 @@ export class VillageScene extends BaseZoneScene {
   }
 
   setupZoneTransitions() {
-  const worldsLayer = this.map.getObjectLayer('Worlds');
-  if (!worldsLayer) return;
+    // Gestion du layer Worlds pour transitions classiques
+    const worldsLayer = this.map.getObjectLayer('Worlds');
+    if (worldsLayer) {
+      worldsLayer.objects.forEach(obj => {
+        const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
+        const directionProp = obj.properties?.find(p => p.name === 'direction');
+        if (!targetZoneProp) return;
 
-  worldsLayer.objects.forEach(obj => {
-    const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
-    const directionProp = obj.properties?.find(p => p.name === 'direction');
-    if (!targetZoneProp) return;
+        const targetZone = targetZoneProp.value;
+        const direction = directionProp ? directionProp.value : 'north';
 
-    const targetZone = targetZoneProp.value;
-    const direction = directionProp ? directionProp.value : 'north';
+        // Crée la zone physique Phaser pour détecter le joueur
+        const zone = this.add.zone(
+          obj.x + obj.width / 2,
+          obj.y + obj.height / 2,
+          obj.width,
+          obj.height
+        );
+        this.physics.world.enable(zone);
+        zone.body.setAllowGravity(false);
+        zone.body.setImmovable(true);
 
-    // Crée la zone physique Phaser pour détecter le joueur
-    const zone = this.add.zone(
-      obj.x + obj.width / 2,
-      obj.y + obj.height / 2,
-      obj.width,
-      obj.height
-    );
-    this.physics.world.enable(zone);
-    zone.body.setAllowGravity(false);
-    zone.body.setImmovable(true);
+        // Overlap avec joueur => demande transition au serveur
+        this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
+          if (!this.networkManager) return;
+          this.networkManager.requestZoneTransition(targetZone, direction);
+        });
+      });
+    }
 
-    // Surlap avec joueur => demande transition au serveur
-    this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
-      if (!this.networkManager) return;
-      this.networkManager.requestZoneTransition(targetZone, direction);
-    });
-  });
-}
+    // Gestion du layer Door pour transitions vers Labo et House1
     const doorLayer = this.map.getObjectLayer('Door');
     if (doorLayer) {
       const labDoor = doorLayer.objects.find(obj => obj.name === 'Labo');
@@ -47,7 +49,6 @@ export class VillageScene extends BaseZoneScene {
         console.log("Objets disponibles dans Door:", doorLayer.objects.map(obj => obj.name));
       }
 
-      // ✅ AJOUT : Transition vers VillageHouse1
       const house1Door = doorLayer.objects.find(obj => obj.name === 'House1');
       if (house1Door) {
         this.createTransitionZone(house1Door, 'VillageHouse1Scene', 'inside');
@@ -59,8 +60,6 @@ export class VillageScene extends BaseZoneScene {
       console.warn(`⚠️ Layer 'Door' non trouvé`);
     }
   }
-
- 
 
   positionPlayer(player) {
     const initData = this.scene.settings.data;
@@ -75,7 +74,6 @@ export class VillageScene extends BaseZoneScene {
       } else if (initData?.fromZone === 'VillageLabScene') {
         spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Labo');
       } else if (initData?.fromZone === 'VillageHouse1Scene') {
-        // ✅ AJOUT : Spawn depuis la maison
         spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_House1');
       } else {
         spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_GRbottom');
