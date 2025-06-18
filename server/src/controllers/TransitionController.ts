@@ -1,77 +1,141 @@
-// src/server/controllers/TransitionController.ts
-
-import { Client } from "@colyseus/core";
-import { PlayerData } from "../models/PlayerData";
-import { BaseRoom } from "../rooms/BaseRoom";
+import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
+import { PlayerData } from "../models/PlayerData";
+import { NpcManager } from "../managers/NPCManager";
+import { MovementController } from "../controllers/MovementController";
+import { TransitionController } from "../controllers/TransitionController";
+import { InteractionManager } from "../managers/InteractionManager";
 
-// Ajoute ici les champs dont tu as besoin (targetSpawn, targetX, targetY...)
-type TransitionData = {
+type SpawnData = {
   targetZone: string;
-  direction: string;
   targetSpawn?: string;
   targetX?: number;
   targetY?: number;
 };
 
-export class TransitionController {
-  room: BaseRoom;
+export abstract class BaseRoom extends Room<PokeWorldState> {
+  maxClients = 100;
 
-  constructor(room: BaseRoom) {
-    this.room = room;
-  }
+  protected abstract mapName: string;
+  protected abstract defaultX: number;
+  protected abstract defaultY: number;
 
-  async handleTransition(client: Client, data: TransitionData) {
-    const player = this.room.state.players.get(client.sessionId) as Player | undefined;
+  protected npcManager: NpcManager;
+  public movementController: MovementController;
+  public transitionController: TransitionController;
+  protected interactionManager: InteractionManager;
 
-    if (!player || (player as any).isTransitioning) {
-      console.warn(`[TransitionController] Transition ignorée : déjà en cours pour ${player?.name}`);
-      return;
-    }
+  // La méthode abstraite attend un seul objet SpawnData
+  protected abstract calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number };
 
-    (player as any).isTransitioning = true;
+  onCreate(options: any) {
+    this.setState(new PokeWorldState());
+    console.log(`🔥 DEBUT onCreate ${this.mapName}`);
 
-    // ---> Adapte ici pour passer targetSpawn, targetX, targetY
-    const spawnPosition = this.room.calculateSpawnPosition(
-      data.targetZone,
-      data.targetSpawn,
-      data.targetX,
-      data.targetY
-    );
+    this.npcManager = new NpcManager(`../assets/maps/${this.mapName.replace('Room', '').toLowerCase()}.tmj`);
+    this.interactionManager = new InteractionManager(this.npcManager);
+    this.movementController = new MovementController();
+    this.transitionController = new TransitionController(this);
 
-    console.log(`[TransitionController] Transition ${player.name} (${this.room.mapName}) -> ${data.targetZone} (${spawnPosition.x},${spawnPosition.y})`);
+    this.clock.setInterval(() => {
+      this.saveAllPlayers();
+    }, 30000);
 
-    // Désactive anticheat, TP le joueur, sauvegarde, etc.
-    this.room.movementController.handleMove(
-      client.sessionId,
-      player,
-      { x: spawnPosition.x, y: spawnPosition.y, direction: player.direction, isMoving: false },
-      true // skipAnticheat
-    );
-    player.x = spawnPosition.x;
-    player.y = spawnPosition.y;
-    player.isMoving = false;
-
-    // On enlève le joueur (il sera réinstancié à l'arrivée)
-    this.room.state.players.delete(client.sessionId);
-    this.room.movementController?.resetPlayer?.(client.sessionId);
-
-    await PlayerData.updateOne(
-      { username: player.name },
-      { $set: { lastX: spawnPosition.x, lastY: spawnPosition.y, lastMap: data.targetZone } }
-    );
-
-    client.send("zoneChanged", {
-      targetZone: data.targetZone,
-      fromZone: this.room.mapName.replace('Room', 'Scene'),
-      direction: data.direction,
-      spawnX: spawnPosition.x,
-      spawnY: spawnPosition.y
+    this.onMessage("npcInteract", (client, data: { npcId: number }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+      const result = this.interactionManager.handleNpcInteraction(player, data.npcId);
+      client.send("npcInteractionResult", result);
     });
 
-    // Le flag sera reset à la prochaine connexion
-    console.log(`[TransitionController] Transition terminée pour ${player.name}`);
+    this.onMessage("move", (client, data) => {
+      const player = this.state.players.get(client.sessionId);
+      if (player) {
+        const skipAnticheat = (player as any).justSpawned === true;
+        const moveResult = this.movementController.handleMove(client.sessionId, player, data, skipAnticheat);
+        if (skipAnticheat) (player as any).justSpawned = false;
+        player.x = moveResult.x;
+        player.y = moveResult.y;
+        if ('direction' in moveResult) player.direction = moveResult.direction;
+        if ('isMoving' in moveResult) player.isMoving = moveResult.isMoving;
+        if (moveResult.snapped) {
+          client.send("snap", { x: moveResult.x, y: moveResult.y });
+        }
+      }
+    });
+
+    this.onMessage("changeZone", (client, data) => {
+      this.transitionController.handleTransition(client, data);
+    });
+  }
+
+  async saveAllPlayers() {
+    if (this.state.players.size === 0) return;
+    try {
+      for (const [sessionId, player] of this.state.players) {
+        await PlayerData.updateOne(
+          { username: player.name },
+          { $set: { lastX: player.x, lastY: player.y, lastMap: this.mapName.replace('Room', '') } }
+        );
+      }
+    } catch (error) {
+      console.error(`❌ Erreur saveAllPlayers ${this.mapName}:`, error);
+    }
+  }
+
+  async onJoin(client: Client, options: any) {
+    const username = options.username || "Anonymous";
+    client.send("npcList", this.npcManager.getAllNpcs());
+
+    // Remove old duplicate player
+    const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
+    if (existingPlayer) {
+      const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
+      if (oldSessionId) {
+        this.state.players.delete(oldSessionId);
+        this.movementController?.resetPlayer?.(oldSessionId);
+      }
+    }
+
+    let playerData = await PlayerData.findOne({ username });
+    if (!playerData) {
+      const mapName = this.mapName.replace('Room', '');
+      playerData = await PlayerData.create({
+        username,
+        lastX: this.defaultX,
+        lastY: this.defaultY,
+        lastMap: mapName
+      });
+    }
+
+    const player = new Player();
+    player.name = username;
+    (player as any).justSpawned = true;
+    (player as any).isTransitioning = false;
+
+    if (options.spawnX !== undefined && options.spawnY !== undefined) {
+      player.x = options.spawnX;
+      player.y = options.spawnY;
+    } else {
+      player.x = playerData.lastX;
+      player.y = playerData.lastY;
+    }
+    player.map = this.mapName.replace('Room', '');
+    this.state.players.set(client.sessionId, player);
+  }
+
+  async onLeave(client: Client) {
+    const player = this.state.players.get(client.sessionId);
+    if (player) {
+      await PlayerData.updateOne({ username: player.name }, {
+        $set: { lastX: player.x, lastY: player.y, lastMap: player.map }
+      });
+      this.movementController?.resetPlayer?.(client.sessionId);
+      this.state.players.delete(client.sessionId);
+    }
+  }
+
+  async onDispose() {
+    await this.saveAllPlayers();
   }
 }
-
-export default TransitionController;
