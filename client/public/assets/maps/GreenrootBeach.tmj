@@ -207,38 +207,40 @@
          "y":0
         }, 
         {
-         "draworder":"topdown",
-         "id":5,
-         "name":"Worlds",
-         "objects":[
-                {
-                 "height":15.3333333333333,
-                 "id":4,
-                 "name":"GR",
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":74,
-                 "x":0,
-                 "y":0
-                }],
-         "opacity":1,
-         "properties":[
-                {
-                 "name":"targetSpawn",
-                 "type":"string",
-                 "value":"FromBeach"
-                }, 
-                {
-                 "name":"targetZone",
-                 "type":"string",
-                 "value":"VillageScene"
-                }],
-         "type":"objectgroup",
-         "visible":true,
-         "x":0,
-         "y":0
-        }, 
+  "draworder": "topdown",
+  "id": 5,
+  "name": "Worlds",
+  "objects": [
+    {
+      "height": 15.3333333333333,
+      "id": 4,
+      "name": "GR",
+      "rotation": 0,
+      "type": "",
+      "visible": true,
+      "width": 74,
+      "x": 0,
+      "y": 0,
+      "properties": [                   
+        {
+          "name": "targetSpawn",
+          "type": "string",
+          "value": "FromBeach"
+        },
+        {
+          "name": "targetZone",
+          "type": "string",
+          "value": "VillageScene"
+        }
+      ]
+    }
+  ],
+  "opacity": 1,
+  "type": "objectgroup",
+  "visible": true,
+  "x": 0,
+  "y": 0
+},
         {
          "draworder":"topdown",
          "id":7,
