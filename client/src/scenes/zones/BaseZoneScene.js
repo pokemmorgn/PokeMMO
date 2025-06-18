@@ -16,7 +16,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.animatedObjects = null;
     this.zoneChangedHandler = null; // Référence du handler
     this.lastMoveTime = 0; // Throttling des mouvements
-    this.playerSpeed = 120; // <--- AJOUTE CETTE LIGNE ICI
 
   }
 
@@ -565,7 +564,7 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
   }
 
   handleMovement(myPlayerState) {
-    const speed = this.playerSpeed;
+    const speed = 120;
     const myPlayer = this.playerManager.getMyPlayer();
     if (!myPlayer) return;
 
