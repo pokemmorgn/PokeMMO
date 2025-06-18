@@ -10,15 +10,15 @@ export class VillageLabRoom extends BaseRoom {
   protected defaultY = 200;
 
   // Calcul du spawn selon la zone de destination
-  protected calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number } {
-  switch (spawnData.targetZone) {
-    case "VillageLab":
-      return { x: spawnData.targetX ?? 248, y: spawnData.targetY ?? 360 };
-    // autres cas
+public calculateSpawnPosition(targetZone: string): { x: number, y: number } {
+  switch (targetZone) {
+    case "VillageScene":
+      return { x: 248, y: 364 }; // Position où spawn le joueur s'il vient de BeachScene
     default:
       return { x: this.defaultX, y: this.defaultY };
   }
 }
+
 
 
   // Ajout des messages custom (interactions labo)
