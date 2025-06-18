@@ -73,15 +73,26 @@ export class BeachScene extends BaseZoneScene {
   }
 
   // --- Gère la transition vers VillageScene ---
-  setupZoneTransitions() {
-    const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (worldsLayer) {
-      const greenRootObj = worldsLayer.objects.find(obj => obj.name === 'GR');
-      if (greenRootObj) {
-        this.createTransitionZone(greenRootObj, 'VillageScene', 'north');
-      }
-    }
-  }
+ setupZoneTransitions() {
+  const worldsLayer = this.map.getObjectLayer('Worlds');
+  if (!worldsLayer) return;
+
+  worldsLayer.objects.forEach(obj => {
+    const targetZone = obj.properties?.find(p => p.name === 'targetZone')?.value;
+    if (!targetZone) return;
+
+    const zone = this.add.zone(obj.x + obj.width / 2, obj.y + obj.height / 2, obj.width, obj.height);
+    this.physics.world.enable(zone);
+    zone.body.setAllowGravity(false);
+    zone.body.setImmovable(true);
+
+    this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
+      // Envoi au serveur la demande de changement de zone
+      this.networkManager.requestZoneTransition(targetZone, obj.properties?.find(p => p.name === 'direction')?.value || null);
+    });
+  });
+}
+
 
 
 
