@@ -566,7 +566,7 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
   }
 
   handleMovement(myPlayerState) {
-    const speed = 120;
+    const speed = this.playerSpeed;
     const myPlayer = this.playerManager.getMyPlayer();
     if (!myPlayer) return;
 
@@ -696,11 +696,6 @@ createDevMenu() {
       }
     }
   });
-}
-
-  // Petite notice
-  const notice = this.add.text(10, 145, "F1 = Ouvrir/fermer le menu", { fontSize: "12px", fill: "#ccc" });
-  this.devMenu.add(notice);
 }
   
   cleanup() {
