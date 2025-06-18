@@ -73,5 +73,3 @@ export class TransitionController {
     console.log(`[TransitionController] Transition terminée pour ${player.name}`);
   }
 }
-
-export default TransitionController;
