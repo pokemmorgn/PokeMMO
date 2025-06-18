@@ -11,14 +11,14 @@ import { InteractionManager } from "../managers/InteractionManager";
 
 export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
-  protected abstract mapName: string;
-  protected abstract defaultX: number;
-  protected abstract defaultY: number;
-  protected abstract calculateSpawnPosition(targetZone: string): { x: number, y: number };
+  public abstract mapName: string;
+  public abstract defaultX: number;
+  public abstract defaultY: number;
+  public abstract calculateSpawnPosition(targetZone: string): { x: number, y: number };
 
   protected npcManager: NpcManager;
-  protected movementController: MovementController;
-  protected transitionController: TransitionController;
+  public movementController: MovementController;
+  public transitionController: TransitionController;
   protected interactionManager: InteractionManager;
 
   onCreate(options: any) {
