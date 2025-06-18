@@ -8,10 +8,9 @@ import { VillageLabScene } from './scenes/zones/VillageLabScene.js';
 import { VillageHouse1Scene } from './scenes/zones/VillageHouse1Scene.js';
 import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 
-// === AJOUT Colyseus.js ===
+// === Colyseus.js ===
 import { Client } from 'colyseus.js';
 
-// Pour debug local, change le port/endpoint si besoin !
 const ENDPOINT = location.protocol.replace("http", "ws") + '//' + location.hostname + ':2567';
 const colyseus = new Client(ENDPOINT);
 
@@ -71,32 +70,36 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
-window.game = game; // Pour debug si besoin
+window.game = game;
 
-// ==== Connexion à Colyseus + gestion chat ====
+// ==== Connexion Colyseus ====
 
-let room = null;
+// 1. Room de jeu (exemple, selon tes besoins)
+let gameRoom = null;
+
+// 2. Room de chat global
+let worldChat = null;
 
 (async () => {
   try {
-    // Change "pokeworld" si ton nom de room est différent
-    room = await colyseus.joinOrCreate("pokeworld", { username: window.username });
-    window.room = room;
-    console.log("✅ Connecté à la room Colyseus");
+    // Connexion à la WorldChatRoom
+    worldChat = await colyseus.joinOrCreate("worldchat", { username: window.username });
+    window.worldChat = worldChat;
+    console.log("✅ Connecté à la WorldChatRoom");
 
-    // Ajoute l’écouteur pour recevoir les messages de chat
-    room.onMessage("chat", data => addChatMessage(data));
+    // Écoute les messages de chat global
+    worldChat.onMessage("chat", data => addChatMessage(data));
   } catch (e) {
     alert("Impossible de rejoindre le serveur : " + e.message);
     throw e;
   }
 })();
 
-// Gestion envoi du chat
+// Gestion envoi du chat — on utilise worldChat !
 const chatInput = document.getElementById("chat-input");
 chatInput.addEventListener("keydown", function(e) {
-  if (e.key === "Enter" && chatInput.value.trim() && room) {
-    room.send("chat", { message: chatInput.value });
+  if (e.key === "Enter" && chatInput.value.trim() && worldChat) {
+    worldChat.send("chat", { message: chatInput.value });
     chatInput.value = "";
   }
 });
