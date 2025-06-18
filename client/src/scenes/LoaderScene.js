@@ -13,7 +13,7 @@ export class LoaderScene extends Phaser.Scene {
     this.load.tilemapTiledJSON('GreenRootBeach', 'assets/maps/GreenrootBeach.tmj');
     this.load.tilemapTiledJSON('Greenroot', 'assets/maps/Greenroot.tmj');
     this.load.tilemapTiledJSON('ProfLaboInt', 'assets/maps/GRLabo.tmj');
-    this.load.tilemapTiledJSON('House1', 'assets/maps/VillageHouse1.tmj');
+    this.load.tilemapTiledJSON('VillageHouse1', 'assets/maps/VillageHouse1.tmj');
 
     // ✅ Tilesets
     this.load.image('Assets', 'assets/sprites/Assets.png');
@@ -95,7 +95,7 @@ export class LoaderScene extends Phaser.Scene {
           case 'road1':
             this.scene.start('Road1Scene');
             break;
-            case 'house1':
+            case 'villagehouse1':
             this.scene.start('VillageHouse1Scene');
             break;
           default:
