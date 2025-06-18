@@ -4,7 +4,7 @@
 import { BaseRoom } from "./BaseRoom";
 
 export class BeachRoom extends BaseRoom {
-  protected roomName = "BeachRoom";
+  protected mapName = "BeachRoom";
   protected defaultX = 52;
   protected defaultY = 48;
 
