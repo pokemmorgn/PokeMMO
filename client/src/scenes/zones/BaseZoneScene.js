@@ -636,7 +636,7 @@ createDevMenu() {
   });
 
   // Création du conteneur menu dev
-  this.devMenu = this.add.container(8, 8).setDepth(9999).setVisible(false);
+this.devMenu = this.add.container(8, 8).setDepth(9999).setVisible(false).setScrollFactor(0);
 
   // Fond compact
   const bg = this.add.rectangle(0, 0, 170, 70, 0x222244, 0.96)
