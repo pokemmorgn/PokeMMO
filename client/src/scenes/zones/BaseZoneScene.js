@@ -236,18 +236,8 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   setupZoneTransitions() {
-    const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (!worldsLayer) return;
-
-    const transitionConfig = this.getTransitionConfig();
-  
-    worldsLayer.objects.forEach(obj => {
-      const transition = transitionConfig[obj.name];
-      if (transition) {
-        this.createTransitionZone(obj, transition.targetScene, transition.direction);
-      }
-    });
-  }
+  // à override dans les sous-classes
+}
 
   // À override dans chaque scène
   getTransitionConfig() {
