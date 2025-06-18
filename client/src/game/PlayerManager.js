@@ -220,56 +220,51 @@ performUpdate(state) {
 
 
 
-    // Mettre à jour ou créer les joueurs
-    state.players.forEach((playerState, sessionId) => {
-      if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
+state.players.forEach((playerState, sessionId) => {
+  if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
 
-      let player = this.players.get(sessionId);
+  let player = this.players.get(sessionId);
 
-      if (!player) {
-        // Créer un nouveau joueur
-        player = this.createPlayer(sessionId, playerState.x, playerState.y);
-      } else {
-        // Vérifier que le sprite existe toujours dans la scène
-        if (!player.scene || player.scene !== this.scene) {
-          this.players.delete(sessionId);
-          player = this.createPlayer(sessionId, playerState.x, playerState.y);
-          return;
-        }
+  if (!player) {
+    player = this.createPlayer(sessionId, playerState.x, playerState.y);
+  } else {
+    if (!player.scene || player.scene !== this.scene) {
+      this.players.delete(sessionId);
+      player = this.createPlayer(sessionId, playerState.x, playerState.y);
+      return;
+    }
+  }
+
+  player.targetX = playerState.x;
+  player.targetY = playerState.y;
+
+  if (playerState.isMoving !== undefined) {
+    player.isMoving = playerState.isMoving;
+
+    if (playerState.direction) {
+      player.lastDirection = playerState.direction;
+    }
+
+    // Joue toujours l'animation adaptée à l'état isMoving, même si direction est la même
+    if (player.isMoving) {
+      const walkAnim = `walk_${player.lastDirection}`;
+      if (this.scene.anims.exists(walkAnim) && player.anims.currentAnim?.key !== walkAnim) {
+        player.play(walkAnim);
       }
-
-      // ⭐️ Ici, au lieu de faire du lerp directement, on stocke la cible
-      player.targetX = playerState.x;
-      player.targetY = playerState.y;
-
-      // Gérer les animations en fonction du mouvement
-      if (playerState.isMoving !== undefined) {
-        player.isMoving = playerState.isMoving;
-
-        if (playerState.direction && playerState.direction !== player.lastDirection) {
-          player.lastDirection = playerState.direction;
-
-          // Jouer l'animation appropriée
-          if (player.isMoving) {
-            const walkAnim = `walk_${playerState.direction}`;
-            if (this.scene.anims.exists(walkAnim) && player.anims.currentAnim?.key !== walkAnim) {
-              player.play(walkAnim);
-            }
-          } else {
-            const idleAnim = `idle_${playerState.direction}`;
-            if (this.scene.anims.exists(idleAnim) && player.anims.currentAnim?.key !== idleAnim) {
-              player.play(idleAnim);
-            }
-          }
-        }
+    } else {
+      const idleAnim = `idle_${player.lastDirection}`;
+      if (this.scene.anims.exists(idleAnim) && player.anims.currentAnim?.key !== idleAnim) {
+        player.play(idleAnim);
       }
+    }
+  }
 
-      // Indicateur "cercle vert" pour ton joueur : il suit le joueur
-      if (player.indicator && !this.isDestroyed) {
-        player.indicator.x = player.x;
-        player.indicator.y = player.y - 24;
-      }
-    });
+  if (player.indicator && !this.isDestroyed) {
+    player.indicator.x = player.x;
+    player.indicator.y = player.y - 24;
+  }
+});
+
   }
 
   // ⭐️ Nouvelle méthode update pour le lerp continu
