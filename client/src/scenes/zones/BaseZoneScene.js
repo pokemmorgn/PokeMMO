@@ -412,6 +412,22 @@ onPlayerPositioned(player, initData) {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,S,A,D');
     this.input.keyboard.enableGlobalCapture();
+
+    // Appuie sur "E" pour interagir avec le NPC le plus proche
+  this.input.keyboard.on("keydown-E", () => {
+  const myPlayer = this.playerManager.getMyPlayer();
+  if (!myPlayer || !this.npcManager) return;
+
+  // Cherche le NPC le plus proche dans un rayon de 64px (tu peux ajuster)
+  const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
+  if (npc) {
+    // Envoie la demande d’interaction au serveur
+    this.networkManager.sendNpcInteract(npc.id);
+    // Optionnel : feedback local (bip, highlight, etc.)
+    // this.npcManager.highlightNpc(npc.id); 
+  }
+});
+
   }
 
   createUI() {
@@ -457,6 +473,24 @@ onPlayerPositioned(player, initData) {
       }
     });
 
+    // Quand le serveur répond à l’interaction NPC
+this.networkManager.onMessage("npcInteractionResult", (result) => {
+  // Exemple d’affichage (adapte selon type/type de result)
+  if (result.type === "dialogue") {
+    // Affiche la bulle/dialogue à l’écran
+    alert(result.lines ? result.lines.join("\n") : result.message);
+  } else if (result.type === "shop") {
+    alert("Ouverture du shop: " + result.shopId);
+  } else if (result.type === "heal") {
+    alert(result.message || "Vos Pokémon sont soignés !");
+  } else if (result.type === "error") {
+    alert("Erreur: " + result.message);
+  } else {
+    alert(JSON.stringify(result));
+  }
+});
+
+    
     this.networkManager.onDisconnect(() => {
       this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nDisconnected`);
     });
