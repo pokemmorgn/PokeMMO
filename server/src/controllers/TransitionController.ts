@@ -1,16 +1,21 @@
 // src/server/controllers/TransitionController.ts
 
+import { Client } from "@colyseus/core";
 import { PlayerData } from "../models/PlayerData";
+import { BaseRoom } from "../rooms/BaseRoom";
+import { PokeWorldState, Player } from "../schema/PokeWorldState";
+
+type TransitionData = { targetZone: string; direction: string };
 
 export class TransitionController {
-  room: any; // Typiquement BaseRoom, à typer selon ton projet
+  room: BaseRoom;
 
-  constructor(room) {
+  constructor(room: BaseRoom) {
     this.room = room;
   }
 
-  async handleTransition(client, data) {
-    const player = this.room.state.players.get(client.sessionId);
+  async handleTransition(client: Client, data: TransitionData) {
+    const player = this.room.state.players.get(client.sessionId) as Player | undefined;
 
     if (!player || (player as any).isTransitioning) {
       console.warn(`[TransitionController] Transition ignorée : déjà en cours pour ${player?.name}`);
