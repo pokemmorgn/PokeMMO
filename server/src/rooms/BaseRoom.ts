@@ -21,7 +21,6 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
 
   protected npcManager: NpcManager;
   protected movementController: MovementController;
-  protected mapManager: MapManager; // Ajout pour collision
 
   onCreate(options: any) {
     this.setState(new PokeWorldState());
