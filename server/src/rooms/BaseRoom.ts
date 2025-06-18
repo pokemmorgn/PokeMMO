@@ -76,42 +76,37 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       const spawnPosition = this.calculateSpawnPosition(data.targetZone);
 
 
-const player = this.state.players.get(client.sessionId);
-if (player) {
-  const result = this.movementController.handleMove(
-    client.sessionId,
-    player,
-    { x: targetX, y: targetY, direction: player.direction, isMoving: false },
-    true // <- skipAnticheat !
-  );
-  player.x = result.x;
-  player.y = result.y;
-  player.direction = result.direction;
-  player.isMoving = result.isMoving;
+this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
+  console.log(`[${this.mapName}] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
 
-  // Envoie un message au client pour confirmer le TP
-  client.send("teleported", { x: result.x, y: result.y });
+  // Calcul position spawn dans la zone cible
+  const spawnPosition = this.calculateSpawnPosition(data.targetZone);
 
-  // (Seulement si tu retires le joueur ensuite, sinon pas besoin)
-  this.state.players.delete(client.sessionId);
-  this.movementController?.resetPlayer?.(client.sessionId);
+  const player = this.state.players.get(client.sessionId);
+  if (player) {
+    this.state.players.delete(client.sessionId);
+    this.movementController?.resetPlayer?.(client.sessionId);
 
-        // Sauvegarde position + map cible dans la DB
-        await PlayerData.updateOne(
-          { username: player.name },
-          { $set: { lastX: spawnPosition.x, lastY: spawnPosition.y, lastMap: data.targetZone } }
-        );
-        console.log(`[${this.mapName}] Sauvegarde position et map (${spawnPosition.x}, ${spawnPosition.y}) dans ${data.targetZone} pour ${player.name}`);
-      }
+    // Sauvegarde position + map cible dans la DB
+    await PlayerData.updateOne(
+      { username: player.name },
+      { $set: { lastX: spawnPosition.x, lastY: spawnPosition.y, lastMap: data.targetZone } }
+    );
+    console.log(`[${this.mapName}] Sauvegarde position et map (${spawnPosition.x}, ${spawnPosition.y}) dans ${data.targetZone} pour ${player.name}`);
+  }
 
-      // Envoi confirmation au client
-      client.send("zoneChanged", {
-        targetZone: data.targetZone,
-        fromZone: this.mapName.replace('Room', 'Scene'), // BeachRoom -> BeachScene
-        direction: data.direction,
-        spawnX: spawnPosition.x,
-        spawnY: spawnPosition.y
-      });
+  // Envoi confirmation au client
+  client.send("zoneChanged", {
+    targetZone: data.targetZone,
+    fromZone: this.mapName.replace('Room', 'Scene'), // BeachRoom -> BeachScene
+    direction: data.direction,
+    spawnX: spawnPosition.x,
+    spawnY: spawnPosition.y
+  });
+
+  console.log(`[${this.mapName}] Transition envoyée: ${data.targetZone} à (${spawnPosition.x}, ${spawnPosition.y})`);
+});
+
 
       console.log(`[${this.mapName}] Transition envoyée: ${data.targetZone} à (${spawnPosition.x}, ${spawnPosition.y})`);
     });
