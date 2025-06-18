@@ -6,7 +6,7 @@ import { Client } from "@colyseus/core";
 import type { SpawnData } from "./BaseRoom"; // Import du type SpawnData
 
 export class VillageHouse1Room extends BaseRoom {
-  protected mapName = "VillageHouse1Room";
+  public mapName = "VillageHouse1Room";
   protected defaultX = 300;
   protected defaultY = 200;
 
