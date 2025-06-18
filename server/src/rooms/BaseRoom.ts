@@ -58,52 +58,50 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     });
 
     // --- Gestion des transitions de zones ---
-    this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
-      const player = this.state.players.get(client.sessionId);
+  this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
+  const player = this.state.players.get(client.sessionId);
 
-      // Protection anti double transition
-      if (player && (player as any).isTransitioning) {
-        console.log(`[${this.mapName}] Transition ignorée (déjà en cours) pour ${player.name}`);
-        return;
-      }
-      if (player) (player as any).isTransitioning = true;
+  if (player && (player as any).isTransitioning) {
+    console.warn(`[ROOM][${this.mapName}] Transition ignorée : déjà en cours pour ${player.name}`);
+    return;
+  }
+  if (player) (player as any).isTransitioning = true;
 
-      const spawnPosition = this.calculateSpawnPosition(data.targetZone);
+  const spawnPosition = this.calculateSpawnPosition(data.targetZone);
 
-      if (player) {
-        // Désactive anticheat uniquement pour la TP de transition
-        this.movementController.handleMove(
-          client.sessionId,
-          player,
-          { x: spawnPosition.x, y: spawnPosition.y, direction: player.direction, isMoving: false },
-          true
-        );
-        player.x = spawnPosition.x;
-        player.y = spawnPosition.y;
-        player.isMoving = false;
+  if (player) {
+    console.log(`[ROOM][${this.mapName}] [ANTICHEAT] Désactive anticheat pour TP zone -> ${data.targetZone}`);
+    this.movementController.handleMove(
+      client.sessionId,
+      player,
+      { x: spawnPosition.x, y: spawnPosition.y, direction: player.direction, isMoving: false },
+      true // skipAnticheat
+    );
+    player.x = spawnPosition.x;
+    player.y = spawnPosition.y;
+    player.isMoving = false;
 
-        // Retire le joueur de la room (Colyseus le recrée dans la suivante)
-        this.state.players.delete(client.sessionId);
-        this.movementController?.resetPlayer?.(client.sessionId);
+    this.state.players.delete(client.sessionId);
+    this.movementController?.resetPlayer?.(client.sessionId);
 
-        // Sauvegarde la position en base
-        await PlayerData.updateOne(
-          { username: player.name },
-          { $set: { lastX: spawnPosition.x, lastY: spawnPosition.y, lastMap: data.targetZone } }
-        );
-      }
+    await PlayerData.updateOne(
+      { username: player.name },
+      { $set: { lastX: spawnPosition.x, lastY: spawnPosition.y, lastMap: data.targetZone } }
+    );
+    console.log(`[ROOM][${this.mapName}] Sauvegarde pos/map (${spawnPosition.x}, ${spawnPosition.y}) pour ${player.name} dans ${data.targetZone}`);
+  }
 
-      // Répond au client pour la transition (il va se reconnecter à la nouvelle room)
-      client.send("zoneChanged", {
-        targetZone: data.targetZone,
-        fromZone: this.mapName.replace('Room', 'Scene'),
-        direction: data.direction,
-        spawnX: spawnPosition.x,
-        spawnY: spawnPosition.y
-      });
-    });
+  client.send("zoneChanged", {
+    targetZone: data.targetZone,
+    fromZone: this.mapName.replace('Room', 'Scene'),
+    direction: data.direction,
+    spawnX: spawnPosition.x,
+    spawnY: spawnPosition.y
+  });
 
-    console.log(`[${this.mapName}] Room créée :`, this.roomId);
+  console.log(`[ROOM][${this.mapName}] Transition envoyée: ${data.targetZone} -> (${spawnPosition.x}, ${spawnPosition.y})`);
+});
+
   }
 
   async saveAllPlayers() {
