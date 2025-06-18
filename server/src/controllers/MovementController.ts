@@ -14,20 +14,14 @@ type PlayerState = {
   isMoving: boolean;
 };
 
-interface IMapManager {
-  checkCollision(x: number, y: number): boolean;
-}
-
 type LastMove = { x: number; y: number; t: number };
 
 export class MovementController {
-  private mapManager: IMapManager;
   private lastMoves: Map<string, LastMove>;
   private readonly MAX_SPEED: number = 400; // px/sec, à adapter
   private readonly POS_EPSILON: number = 6; // px, marge snap
 
-  constructor(mapManager: IMapManager) {
-    this.mapManager = mapManager;
+  constructor() {
     this.lastMoves = new Map();
   }
 
@@ -65,17 +59,7 @@ export class MovementController {
       };
     }
 
-    // 2. Vérifie la collision
-    if (this.mapManager && this.mapManager.checkCollision(data.x, data.y)) {
-      this.lastMoves.set(sessionId, { x: playerState.x, y: playerState.y, t: now });
-      return {
-        x: playerState.x,
-        y: playerState.y,
-        direction: playerState.direction,
-        isMoving: false,
-        snapped: true
-      };
-    }
+    // 2. (Optionnel) Collision ici plus tard
 
     // 3. Mouvement autorisé
     this.lastMoves.set(sessionId, { x: data.x, y: data.y, t: now });
