@@ -21,6 +21,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   public transitionController: TransitionController;
   protected interactionManager: InteractionManager;
 
+
   onCreate(options: any) {
     this.setState(new PokeWorldState());
     console.log(`🔥 DEBUT onCreate ${this.mapName}`);
