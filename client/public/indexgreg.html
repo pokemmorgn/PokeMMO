@@ -772,15 +772,16 @@ class PhantomMultiAccountManager {
     try {
         this.setLoadingState(true);
 
-        const address = this.currentAccount.address;
-        const message = `PokeWorld Auth ${Date.now()}`;
-        const encodedMessage = new TextEncoder().encode(message);
-        const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
+       const address = this.currentAccount.address;
+const message = `PokeWorld Auth ${Date.now()}`;
+const encodedMessage = new TextEncoder().encode(message);
+const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
 
-        // Fix Phantom Sui header (voir message précédent)
-        let sigBytes = Uint8Array.from(atob(signed.signature), c => c.charCodeAt(0));
-        sigBytes = sigBytes.slice(1);
-        const signatureBase64 = btoa(String.fromCharCode(...sigBytes));
+// Prends directement signed.signature (base64 SUI-OK)
+const signatureBase64 = signed.signature; // PAS de slice, PAS de modif
+
+// ...envoie signatureBase64 au serveur comme avant
+
 
         // Connexion au serveur Colyseus AuthRoom
         room = await this.colyseusClient.joinOrCreate("AuthRoom");
