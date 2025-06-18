@@ -1,246 +1,335 @@
-import { Client } from "colyseus.js";
-import { GAME_CONFIG } from "../config/gameConfig.js";
+// src/game/PlayerManager.js - Spritesheet 3x4 (bas-gauche-droite-haut), 100% Phaser 3 compatible
 
-export class NetworkManager {
-  constructor(username) {
-    this.client = new Client(GAME_CONFIG.server.url);
-    this.username = username;
-    this.room = null;
-    this.sessionId = null;
-    this.isConnected = false;
-    this.isTransitioning = false; // ✅ Flag de transition
-    this.lastSendTime = 0; // ✅ Pour le throttling
-    this.callbacks = {
-      onConnect: null,
-      onStateChange: null,
-      onPlayerData: null,
-      onDisconnect: null,
-      onZoneChanged: null,
-    };
-    this.zoneChangedListeners = []; // Gestion des listeners
-  }
+export class PlayerManager {
+  constructor(scene) {
+    this.scene = scene;
+    this.players = new Map();
+    this.mySessionId = null;
+    this.isDestroyed = false;
+    this.animsCreated = false;
+    console.log("PlayerManager initialisé pour", scene.scene.key);
 
-  async connect(roomName = null) {
-    try {
-      const targetRoomName = roomName || GAME_CONFIG.server.roomName;
-      if (!targetRoomName) throw new Error("Room name is required");
-
-      if (this.room) {
-        await this.disconnect();
-      }
-
-      console.log(`[NetworkManager] Connexion à la room: ${targetRoomName}`);
-      this.room = await this.client.joinOrCreate(targetRoomName, {
-        username: this.username,
+    // Ajoute la gestion du snap serveur
+    if (scene.networkManager && scene.networkManager.room) {
+      scene.networkManager.room.onMessage("snap", (data) => {
+        this.snapMyPlayerTo(data.x, data.y);
       });
-
-      this.sessionId = this.room.sessionId;
-      this.isConnected = true;
-      this.isTransitioning = false;
-
-      this.setupRoomListeners();
-
-      return true;
-    } catch (error) {
-      console.error("❌ Connection error:", error);
-      return false;
     }
   }
 
-  async handleZoneTransition(data) {
-    if (this.isTransitioning) {
-      console.log(`[NetworkManager] Transition déjà en cours, ignorée`);
-      return;
+  setMySessionId(sessionId) { this.mySessionId = sessionId; }
+
+  getMyPlayer() {
+    if (this.isDestroyed) return null;
+    return this.players.get(this.mySessionId) || null;
+  }
+
+  snapMyPlayerTo(x, y) {
+    const player = this.getMyPlayer();
+    if (!player) return;
+
+    // Snap doux (lerp rapide)
+    player.targetX = x;
+    player.targetY = y;
+    player.snapLerpTimer = 0.20; // Lerp rapide sur 200ms (peux ajuster)
+
+    // Si vraiment trop loin (ex: gros rollback), tu peux forcer direct :
+    if (Math.abs(player.x - x) > 64 || Math.abs(player.y - y) > 64) {
+      player.x = x;
+      player.y = y;
+      player.snapLerpTimer = 0;
+    }
+  }
+
+  createPlayer(sessionId, x, y) {
+    if (this.isDestroyed) return null;
+
+    // Placeholder si spritesheet manquant
+    if (!this.scene.textures.exists('BoyWalk')) {
+      const graphics = this.scene.add.graphics();
+      graphics.fillStyle(0xff0000);
+      graphics.fillRect(0, 0, 32, 32);
+      graphics.generateTexture('player_placeholder', 32, 32);
+      graphics.destroy();
+      const player = this.scene.add.sprite(x, y, 'player_placeholder').setOrigin(0.5, 1).setScale(1);
+      player.setDepth(5);
+      this.players.set(sessionId, player);
+      return player;
     }
 
-    this.isTransitioning = true;
-    console.log(`[NetworkManager] Début transition vers ${data.targetZone}`);
-
-    let newRoomName = '';
-    switch(data.targetZone) {
-      case 'BeachScene': newRoomName = 'BeachRoom'; break;
-      case 'VillageScene': newRoomName = 'VillageRoom'; break;
-      case 'Road1Scene': newRoomName = 'Road1Room'; break;
-      case 'VillageLabScene': newRoomName = 'VillageLabRoom'; break;
-      case 'VillageHouse1Scene': newRoomName = 'VillageHouse1Room'; break; 
-      case 'LavandiaScene': newRoomName = 'LavandiaRoom'; break;
-      default: newRoomName = 'DefaultRoom';
+    // Crée les animations une seule fois
+    if (!this.animsCreated) {
+      this.createAnimations();
+      this.animsCreated = true;
     }
 
-    try {
-      if (this.room) {
-        console.log(`[NetworkManager] Quitte la room actuelle: ${this.room.name}`);
-        await this.room.leave();
-        this.room = null;
-      }
+    // Sprite physique joueur
+    const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1).setOrigin(0.5, 1).setScale(1);
+    player.setDepth(5);
+    player.sessionId = sessionId;
+    // Petite hitbox, bien centrée sur les pieds :
+    player.body.setSize(12, 8);
+    player.body.setOffset(10, 24);
+    // Debug hitbox optionnel
+    player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+    // Animation idle par défaut (face bas, frame centrale)
+    if (this.scene.anims.exists('idle_down')) player.play('idle_down');
+    player.lastDirection = 'down';
+    player.isMoving = false;
 
-      console.log(`[NetworkManager] Connexion à la nouvelle room: ${newRoomName}`);
-      this.room = await this.client.joinOrCreate(newRoomName, {
-        username: this.username,
-        spawnX: data.spawnX,
-        spawnY: data.spawnY,
-        fromZone: data.fromZone
+    // ⭐️ Initialisation des positions cibles (nécessaire pour le lerp)
+    player.targetX = x;
+    player.targetY = y;
+    player.snapLerpTimer = 0; // Pour snap smooth
+
+    // Indicateur vert pour le joueur local
+    if (sessionId === this.mySessionId) {
+      const indicator = this.scene.add.circle(player.x, player.y - 24, 3, 0x00ff00)
+        .setDepth(1001)
+        .setStrokeStyle(1, 0x004400);
+      player.indicator = indicator;
+    }
+
+    this.players.set(sessionId, player);
+    return player;
+  }
+
+  createAnimations() {
+    const anims = this.scene.anims;
+
+    if (!anims.exists('walk_down')) {
+      anims.create({
+        key: 'walk_down',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }),
+        frameRate: 15,
+        repeat: -1,
       });
-
-      this.sessionId = this.room.sessionId;
-      this.isConnected = true;
-
-      this.setupRoomListeners();
-
-      this.isTransitioning = false;
-
-      if (this.callbacks.onZoneChanged) {
-        this.callbacks.onZoneChanged(data);
-      }
-
-      console.log(`[NetworkManager] Transition réseau terminée vers ${newRoomName}`);
-
-    } catch (error) {
-      console.error(`[NetworkManager] Erreur lors de la transition de room:`, error);
-      this.isTransitioning = false;
-      this.connect('BeachRoom');
     }
-  }
-
-  setupRoomListeners() {
-    if (!this.room) return;
-
-    this.room.onStateChange((state) => {
-      if (this.callbacks.onStateChange) this.callbacks.onStateChange(state);
-    });
-
-    this.room.onMessage("playerData", (data) => {
-      if (this.callbacks.onPlayerData) this.callbacks.onPlayerData(data);
-    });
-
-    this.room.onMessage("zoneChanged", (data) => {
-      console.log(`[NetworkManager] Réception zoneChanged:`, data);
-      this.handleZoneTransition(data);
-    });
-
-    this.room.onLeave(() => {
-      console.log(`[NetworkManager] Déconnexion de la room`);
-      if (!this.isTransitioning) {
-        this.isConnected = false;
-        if (this.callbacks.onDisconnect) this.callbacks.onDisconnect();
-      }
-    });
-
-    // Enregistre les callbacks onMessage définis avant la connexion
-if (this._pendingMessages && this._pendingMessages.length > 0) {
-  this._pendingMessages.forEach(({ type, callback }) => {
-    this.room.onMessage(type, callback);
-  });
-  this._pendingMessages = [];
-}
-
-    if (this.callbacks.onConnect) this.callbacks.onConnect();
-  }
-
- sendMove(x, y, direction, isMoving) {
-  if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen && !this.isTransitioning) {
-    const now = Date.now();
-    if (!this.lastSendTime || now - this.lastSendTime > 50) {
-      this.room.send("move", { x, y, direction, isMoving });
-      this.lastSendTime = now;
-    }
-  }
-}
-
-
-  sendMessage(type, data) {
-    if (this.isConnected && this.room && !this.isTransitioning) {
-      this.room.send(type, data);
-    }
-  }
-
-  onConnect(callback) {
-    this.callbacks.onConnect = callback;
-  }
-  
-  onStateChange(callback) {
-    this.callbacks.onStateChange = callback;
-  }
-  
-  onPlayerData(callback) {
-    this.callbacks.onPlayerData = callback;
-  }
-  
-  onDisconnect(callback) {
-    this.callbacks.onDisconnect = callback;
-  }
-  
-  onZoneChanged(callback) {
-    this.callbacks.onZoneChanged = callback;
-    if (!this.zoneChangedListeners.includes(callback)) {
-      this.zoneChangedListeners.push(callback);
-    }
-  }
-
-  offZoneChanged(callback = null) {
-    if (callback) {
-      const index = this.zoneChangedListeners.indexOf(callback);
-      if (index > -1) {
-        this.zoneChangedListeners.splice(index, 1);
-      }
-    } else {
-      this.zoneChangedListeners.length = 0;
-    }
-    this.callbacks.onZoneChanged = null;
-  }
-
-  onMessage(type, callback) {
-  // On écoute le message custom sur la room Colyseus
-  if (this.room) {
-    this.room.onMessage(type, callback);
-  } else {
-    // Si pas encore connecté, on garde le callback pour l'enregistrer plus tard
-    if (!this._pendingMessages) this._pendingMessages = [];
-    this._pendingMessages.push({ type, callback });
-  }
-}
-
-  getSessionId() {
-    return this.sessionId;
-  }
-
-  requestZoneTransition(targetZone, direction = "north") {
-    if (this.isConnected && this.room && !this.isTransitioning) {
-      console.log(`[Network] Demande de changement de zone vers ${targetZone} (${direction})`);
-      this.room.send("changeZone", {
-        targetZone,
-        direction,
+    if (!anims.exists('walk_left')) {
+      anims.create({
+        key: 'walk_left',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }),
+        frameRate: 15,
+        repeat: -1,
       });
-    } else {
-      console.warn(`[Network] Impossible de changer de zone: connected=${this.isConnected}, transitioning=${this.isTransitioning}`);
+    }
+    if (!anims.exists('walk_right')) {
+      anims.create({
+        key: 'walk_right',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+    if (!anims.exists('walk_up')) {
+      anims.create({
+        key: 'walk_up',
+        frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 14 }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
+
+    // Idles
+    if (!anims.exists('idle_down')) {
+      anims.create({
+        key: 'idle_down',
+        frames: [{ key: 'BoyWalk', frame: 1 }],
+        frameRate: 1,
+        repeat: 0,
+      });
+    }
+    if (!anims.exists('idle_left')) {
+      anims.create({
+        key: 'idle_left',
+        frames: [{ key: 'BoyWalk', frame: 5 }],
+        frameRate: 1,
+        repeat: 0,
+      });
+    }
+    if (!anims.exists('idle_right')) {
+      anims.create({
+        key: 'idle_right',
+        frames: [{ key: 'BoyWalk', frame: 9 }],
+        frameRate: 1,
+        repeat: 0,
+      });
+    }
+    if (!anims.exists('idle_up')) {
+      anims.create({
+        key: 'idle_up',
+        frames: [{ key: 'BoyWalk', frame: 13 }],
+        frameRate: 1,
+        repeat: 0,
+      });
     }
   }
 
-  getPlayerState(sessionId) {
-    if (this.room && this.room.state && this.room.state.players) {
-      return this.room.state.players.get(sessionId);
+  updatePlayers(state) {
+    if (this.isDestroyed) return;
+    if (!this.scene || !this.scene.scene.isActive()) return;
+    if (this.scene.networkManager && this.scene.networkManager.isTransitioning) return;
+    if (!state || !state.players) return;
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
+      this.updateTimeout = null;
+    }
+    this.performUpdate(state);
+  }
+
+  performUpdate(state) {
+    if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
+
+    // Supprimer les joueurs déconnectés
+    const currentSessionIds = new Set();
+    state.players.forEach((playerState, sessionId) => {
+      currentSessionIds.add(sessionId);
+    });
+    const playersToCheck = Array.from(this.players.keys());
+    playersToCheck.forEach(sessionId => {
+      if (!currentSessionIds.has(sessionId)) {
+        this.removePlayer(sessionId);
+      }
+    });
+
+    // Mettre à jour ou créer les joueurs
+    state.players.forEach((playerState, sessionId) => {
+      if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
+
+      let player = this.players.get(sessionId);
+
+      if (!player) {
+        player = this.createPlayer(sessionId, playerState.x, playerState.y);
+      } else {
+        if (!player.scene || player.scene !== this.scene) {
+          this.players.delete(sessionId);
+          player = this.createPlayer(sessionId, playerState.x, playerState.y);
+          return;
+        }
+      }
+
+      // Stocker la position cible
+      player.targetX = playerState.x;
+      player.targetY = playerState.y;
+
+      // Gérer les animations proprement
+      if (playerState.isMoving !== undefined) {
+        player.isMoving = playerState.isMoving;
+      }
+      if (playerState.direction) {
+        player.lastDirection = playerState.direction;
+      }
+
+      if (player.isMoving && player.lastDirection) {
+        const walkAnim = `walk_${player.lastDirection}`;
+        if (this.scene.anims.exists(walkAnim)) {
+          // Toujours jouer l'anim (repart du début) pour éviter le freeze
+          player.anims.play(walkAnim, true);
+        }
+      } else if (!player.isMoving && player.lastDirection) {
+        const idleAnim = `idle_${player.lastDirection}`;
+        if (this.scene.anims.exists(idleAnim)) {
+          // Toujours jouer l'anim idle pour remettre en pause
+          player.anims.play(idleAnim, true);
+        }
+      }
+
+      // Mettre à jour l’indicateur
+      if (player.indicator && !this.isDestroyed) {
+        player.indicator.x = player.x;
+        player.indicator.y = player.y - 24;
+      }
+    });
+  }
+
+  // ⭐️ Nouvelle méthode update pour le lerp continu et snap smooth
+  update(delta = 16) {
+    for (const [sessionId, player] of this.players) {
+      // Joueurs autres que moi : lerp normal
+      if (sessionId !== this.mySessionId) {
+        if (player.targetX !== undefined && player.targetY !== undefined) {
+          player.x += (player.targetX - player.x) * 0.18;
+          player.y += (player.targetY - player.y) * 0.18;
+        }
+      } else {
+        // Mon joueur : snap smooth si snap en cours
+        if (player.snapLerpTimer && player.snapLerpTimer > 0) {
+          const fastLerp = 0.45; // Accélère le lerp pendant le snap
+          player.x += (player.targetX - player.x) * fastLerp;
+          player.y += (player.targetY - player.y) * fastLerp;
+          player.snapLerpTimer -= delta / 1000;
+          if (Math.abs(player.x - player.targetX) < 2 && Math.abs(player.y - player.targetY) < 2) {
+            player.x = player.targetX;
+            player.y = player.targetY;
+            player.snapLerpTimer = 0;
+          }
+        }
+      }
+    }
+  }
+
+  removePlayer(sessionId) {
+    if (this.isDestroyed) return;
+    const player = this.players.get(sessionId);
+    if (player) {
+      // Arrêter les animations
+      if (player.anims && player.anims.isPlaying) {
+        player.anims.stop();
+      }
+
+      if (player.indicator) {
+        try { player.indicator.destroy(); } catch (e) {}
+      }
+      if (player.body && player.body.destroy) {
+        try { player.body.destroy(); } catch (e) {}
+      }
+      try { player.destroy(); } catch (e) {}
+      this.players.delete(sessionId);
+    }
+  }
+
+  clearAllPlayers() {
+    if (this.isDestroyed) return;
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
+      this.updateTimeout = null;
+    }
+    const playersToRemove = Array.from(this.players.keys());
+    playersToRemove.forEach(sessionId => this.removePlayer(sessionId));
+    this.players.clear();
+    this.mySessionId = null;
+  }
+
+  getAllPlayers() {
+    return this.isDestroyed ? [] : Array.from(this.players.values());
+  }
+
+  getPlayerCount() {
+    return this.isDestroyed ? 0 : this.players.size;
+  }
+
+  getPlayerInfo(sessionId) {
+    if (this.isDestroyed) return null;
+    const player = this.players.get(sessionId);
+    if (player) {
+      return {
+        x: player.x,
+        y: player.y,
+        isMyPlayer: sessionId === this.mySessionId,
+        direction: player.lastDirection,
+        isMoving: player.isMoving
+      };
     }
     return null;
   }
 
-  async disconnect() {
-    if (this.room) {
-      this.isConnected = false;
-      this.isTransitioning = false;
-      this.offZoneChanged();
-      try {
-        await this.room.leave();
-      } catch (error) {
-        console.warn("Erreur lors de la déconnexion:", error);
-      }
-      this.room = null;
-      this.sessionId = null;
+  destroy() {
+    this.isDestroyed = true;
+    this.clearAllPlayers();
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
+      this.updateTimeout = null;
     }
-  }
-
-  resetTransitionFlag() {
-    this.isTransitioning = false;
   }
 }
