@@ -6,6 +6,7 @@ import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { PlayerData } from "../models/PlayerData";
 import { NpcManager } from "../managers/NPCManager";
 import { MovementController } from "../controllers/MovementController";
+import { TransitionController } from "../controllers/TransitionController";
 import { InteractionManager } from "../managers/InteractionManager";
 
 export abstract class BaseRoom extends Room<PokeWorldState> {
@@ -17,6 +18,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
 
   protected npcManager: NpcManager;
   protected movementController: MovementController;
+  protected transitionController: TransitionController;
   protected interactionManager: InteractionManager;
 
   onCreate(options: any) {
@@ -26,6 +28,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     this.npcManager = new NpcManager(`../assets/maps/${this.mapName.replace('Room', '').toLowerCase()}.tmj`);
     this.interactionManager = new InteractionManager(this.npcManager);
     this.movementController = new MovementController();
+    this.transitionController = new TransitionController(this);
 
     // Sauvegarde automatique
     this.clock.setInterval(() => {
@@ -57,51 +60,10 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       }
     });
 
-    // --- Gestion des transitions de zones ---
-  this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
-  const player = this.state.players.get(client.sessionId);
-
-  if (player && (player as any).isTransitioning) {
-    console.warn(`[ROOM][${this.mapName}] Transition ignorée : déjà en cours pour ${player.name}`);
-    return;
-  }
-  if (player) (player as any).isTransitioning = true;
-
-  const spawnPosition = this.calculateSpawnPosition(data.targetZone);
-
-  if (player) {
-    console.log(`[ROOM][${this.mapName}] [ANTICHEAT] Désactive anticheat pour TP zone -> ${data.targetZone}`);
-    this.movementController.handleMove(
-      client.sessionId,
-      player,
-      { x: spawnPosition.x, y: spawnPosition.y, direction: player.direction, isMoving: false },
-      true // skipAnticheat
-    );
-    player.x = spawnPosition.x;
-    player.y = spawnPosition.y;
-    player.isMoving = false;
-
-    this.state.players.delete(client.sessionId);
-    this.movementController?.resetPlayer?.(client.sessionId);
-
-    await PlayerData.updateOne(
-      { username: player.name },
-      { $set: { lastX: spawnPosition.x, lastY: spawnPosition.y, lastMap: data.targetZone } }
-    );
-    console.log(`[ROOM][${this.mapName}] Sauvegarde pos/map (${spawnPosition.x}, ${spawnPosition.y}) pour ${player.name} dans ${data.targetZone}`);
-  }
-
-  client.send("zoneChanged", {
-    targetZone: data.targetZone,
-    fromZone: this.mapName.replace('Room', 'Scene'),
-    direction: data.direction,
-    spawnX: spawnPosition.x,
-    spawnY: spawnPosition.y
-  });
-
-  console.log(`[ROOM][${this.mapName}] Transition envoyée: ${data.targetZone} -> (${spawnPosition.x}, ${spawnPosition.y})`);
-});
-
+    // --- Gestion des transitions de zones via TransitionController ---
+    this.onMessage("changeZone", (client, data) => {
+      this.transitionController.handleTransition(client, data);
+    });
   }
 
   async saveAllPlayers() {
