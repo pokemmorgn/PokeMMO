@@ -27,7 +27,10 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
 
   // Méthode abstraite à implémenter dans chaque room fille
   public abstract calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number };
-
+  // OU garde protected et ajoute cette méthode
+  public getMapName(): string {
+    return this.mapName;
+  }
   onCreate(options: any) {
     this.setState(new PokeWorldState());
     console.log(`🔥 DEBUT onCreate ${this.mapName}`);
