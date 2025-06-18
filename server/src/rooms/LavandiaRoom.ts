@@ -3,7 +3,7 @@ import { BaseRoom } from "./BaseRoom";
 import type { SpawnData } from "./BaseRoom"; // Import du type SpawnData
 
 export class LavandiaRoom extends BaseRoom {
-  protected mapName = "LavandiaRoom";
+  public mapName = "LavandiaRoom";
   protected defaultX = 350;
   protected defaultY = 750;
 
