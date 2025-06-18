@@ -418,17 +418,15 @@ onPlayerPositioned(player, initData) {
     this.input.keyboard.enableGlobalCapture();
 
     // Appuie sur "E" pour interagir avec le NPC le plus proche
-  this.input.keyboard.on("keydown-E", () => {
+this.input.keyboard.on("keydown-E", () => {
   const myPlayer = this.playerManager.getMyPlayer();
   if (!myPlayer || !this.npcManager) return;
 
-  // Cherche le NPC le plus proche dans un rayon de 64px (tu peux ajuster)
   const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
   if (npc) {
-    // Envoie la demande d’interaction au serveur
+    // 🔥 Mémorise le dernier NPC ciblé pour le dialogue
+    this.npcManager.lastInteractedNpc = npc;
     this.networkManager.sendNpcInteract(npc.id);
-    // Optionnel : feedback local (bip, highlight, etc.)
-    // this.npcManager.highlightNpc(npc.id); 
   }
 });
 
