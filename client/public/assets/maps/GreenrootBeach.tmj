@@ -234,17 +234,6 @@
                  "y":0
                 }],
          "opacity":1,
-         "properties":[
-                {
-                 "name":"targetSpawn",
-                 "type":"string",
-                 "value":"FromBeach"
-                }, 
-                {
-                 "name":"targetZone",
-                 "type":"string",
-                 "value":"VillageScene"
-                }],
          "type":"objectgroup",
          "visible":true,
          "x":0,
