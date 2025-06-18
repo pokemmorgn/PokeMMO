@@ -676,8 +676,15 @@
       }
       
       addMessage(username, text, timestamp = null, type = 'normal') {
+        console.log('Adding message:', { username, text, type }); // Debug
+        
         const messageDiv = document.createElement('div');
-        messageDiv.className = `chat-message new ${type}`;
+        messageDiv.className = `chat-message new`;
+        
+        // Add type class if not normal
+        if (type !== 'normal') {
+          messageDiv.classList.add(type);
+        }
         
         const time = timestamp || new Date().toLocaleTimeString('en-US', { 
           hour: 'numeric', 
@@ -685,31 +692,32 @@
           hour12: true
         });
         
-        let userHTML = '';
-        if (type !== 'system') {
-          userHTML = `<span class="chat-username`;
-          if (Math.random() < 0.7 && username !== 'You') {
-            const level = Math.floor(Math.random() * 50) + 1;
-            userHTML += ` level" data-level="Lv.${level}`;
-          } else if (username === 'You') {
-            // Give player a level too
-            userHTML += ` level" data-level="Lv.25`;
-          }
-          userHTML += `">${username}</span>`;
-        }
-        
         if (type === 'system') {
           messageDiv.innerHTML = `
             <span class="chat-text">${text}</span>
             <span class="chat-timestamp">${time}</span>
           `;
         } else {
+          // Normal user message (including "You")
+          let levelBadge = '';
+          if (username === 'You') {
+            levelBadge = ' level" data-level="Lv.25"';
+          } else if (Math.random() < 0.7) {
+            const level = Math.floor(Math.random() * 50) + 1;
+            levelBadge = ` level" data-level="Lv.${level}"`;
+          } else {
+            levelBadge = '"';
+          }
+          
           messageDiv.innerHTML = `
-            ${userHTML}
+            <span class="chat-username${levelBadge}>${username}</span>
             <span class="chat-text">${text}</span>
             <span class="chat-timestamp">${time}</span>
           `;
         }
+        
+        console.log('Message HTML:', messageDiv.outerHTML); // Debug
+        console.log('Message classes:', messageDiv.className); // Debug
         
         this.chatMessages.appendChild(messageDiv);
         this.scrollToBottom();
