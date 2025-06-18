@@ -341,7 +341,7 @@ onPlayerPositioned(player, initData) {
         case 'village':
           roomName = 'VillageRoom';
           break;
-        case 'proflaboint':
+        case 'villagelab':
           roomName = 'VillageLabRoom';
           break;
         case 'road1':
