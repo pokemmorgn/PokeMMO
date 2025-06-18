@@ -1,4 +1,4 @@
-// src/config/gameConfig.js - Style PokeMMO avec labels de nom
+// src/config/gameConfig.js - Style PokeMMO
 export const GAME_CONFIG = {
   // Taille du canvas - style PokeMMO
   width: 800,
@@ -10,10 +10,10 @@ export const GAME_CONFIG = {
   roundPixels: true,
   antialias: false,
   
-  server: {
-    url: `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`,
-    roomName: ""
-  },
+server: {
+  url: `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`,
+  roomName: ""
+},
   
   // Configuration de la caméra - style top-down RPG
   camera: {
@@ -60,21 +60,13 @@ export const GAME_CONFIG = {
   
   // Interface utilisateur
   ui: {
-    // 🏷️ Configuration des labels de nom des joueurs
     nameLabel: {
-      fontSize: '12px',
+      fontSize: '14px',
       fontFamily: 'monospace', // Police pixel
       color: '#ffffff',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
       padding: { x: 6, y: 3 },
-      offsetY: -45, // Distance au-dessus du joueur
-      // Couleurs spéciales selon le type de joueur
-      colors: {
-        self: '#00ff00',      // Vert pour soi-même
-        others: '#ffffff',    // Blanc pour les autres
-        admin: '#ffff00',     // Jaune pour les admins
-        moderator: '#ff8800'  // Orange pour les modérateurs
-      }
+      offsetY: -40
     },
     
     // HUD comme PokeMMO
