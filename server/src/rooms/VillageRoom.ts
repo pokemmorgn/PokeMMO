@@ -8,7 +8,7 @@ import type { SpawnData } from "./BaseRoom";
 
 export class VillageRoom extends BaseRoom {
   // Propriétés obligatoires à définir
-  protected mapName = "VillageRoom";
+  public mapName = "VillageRoom";
   protected defaultX = 428;   // position par défaut
   protected defaultY = 445;
 
