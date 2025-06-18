@@ -8,21 +8,18 @@ export class Road1Room extends BaseRoom {
   protected defaultX = 342;
   protected defaultY = 618;
 
-  protected calculateSpawnPosition(targetZone: string): { x: number, y: number } {
-    switch (targetZone) {
-      case 'BeachScene':
-        return { x: 52, y: 48 };
-      case 'VillageScene':
-        return { x: 342, y: 618 };
-      case 'Forest1Scene':
-        return { x: 100, y: 200 };
-      case 'Cave1Scene':
-        return { x: 300, y: 100 };
-      default:
-        // fallback à une position par défaut si la cible n’est pas connue
-        return { x: this.defaultX, y: this.defaultY };
-    }
+public calculateSpawnPosition(targetZone: string): { x: number, y: number } {
+  switch (targetZone) {
+    case "VillageScene":
+      return { x: 337, y: 616 }; // Position où spawn le joueur s'il vient de BeachScene
+    case "Lavandia":
+      return { x: 198, y: 22 };
+    default:
+      return { x: this.defaultX, y: this.defaultY };
   }
+}
+
+
 
   onCreate(options: any) {
     super.onCreate(options);
