@@ -22,11 +22,13 @@ export class Road1Scene extends BaseZoneScene {
         console.warn("[Road1Scene] Objet 'GR' introuvable dans 'Worlds'");
       }
 
+      // Transition vers Lavandia
       const lavandiaExit = worldsLayer.objects.find(obj => obj.name === 'Lavandia');
       if (lavandiaExit) {
-        console.log("🚨 Transition Lavandia pas encore implémentée");
+        console.log("[Road1Scene] Création zone de transition vers LavandiaScene");
+        this.createTransitionZone(lavandiaExit, 'LavandiaScene', 'north');
       } else {
-        console.log("[Road1Scene] Objet 'Lavandia' non trouvé dans 'Worlds'");
+        console.warn("[Road1Scene] Objet 'Lavandia' non trouvé dans 'Worlds'");
       }
     } else {
       console.warn("[Road1Scene] Calque d'objets 'Worlds' introuvable");
@@ -89,10 +91,31 @@ export class Road1Scene extends BaseZoneScene {
   }
 
   positionPlayer(player) {
-    console.log(`[Road1Scene] positionPlayer appelée avec coords serveur (${player.x}, ${player.y})`);
-    player.x = 342;
-    player.y = 618;
-    console.log(`[Road1Scene] position forcée à (${player.x}, ${player.y})`);
+    // Essaie de deviner la provenance pour ajuster le spawn
+    let fromZone = "";
+    if (this.networkManager && typeof this.networkManager.getLastZone === "function") {
+      fromZone = this.networkManager.getLastZone();
+    } else if (player.fromZone) {
+      fromZone = player.fromZone;
+    }
+
+    if (fromZone === "LavandiaScene") {
+      // Spawn via SpointPoint_Road1top
+      const spawnObj = this.map.getObjectLayer('SpawnPoint')?.objects.find(obj => obj.name === 'SpointPoint_Road1top');
+      if (spawnObj) {
+        player.x = spawnObj.x + (spawnObj.width || 0) / 2;
+        player.y = spawnObj.y + (spawnObj.height || 0) / 2;
+        console.log(`[Road1Scene] positionné via SpointPoint_Road1top à (${player.x}, ${player.y})`);
+      } else {
+        player.x = 342;
+        player.y = 618;
+        console.warn("[Road1Scene] SpointPoint_Road1top non trouvé, position par défaut utilisée");
+      }
+    } else {
+      player.x = 342;
+      player.y = 618;
+      console.log(`[Road1Scene] position forcée à (${player.x}, ${player.y})`);
+    }
 
     if (player.indicator) {
       player.indicator.x = player.x;
@@ -141,12 +164,8 @@ export class Road1Scene extends BaseZoneScene {
         
         if (playerState) {
           console.log("[Road1Scene] 🔧 Données joueur existantes, création forcée");
-          const correctedState = {
-            ...playerState,
-            x: 342,
-            y: 618
-          };
-          this.playerManager.createPlayer(sessionId, correctedState);
+          this.playerManager.createPlayer(sessionId, playerState);
+          this.positionPlayer(this.playerManager.getMyPlayer());
         } else {
           console.log("[Road1Scene] 🔧 Création d'un état joueur par défaut");
           const defaultState = {
@@ -156,6 +175,7 @@ export class Road1Scene extends BaseZoneScene {
             name: sessionId.substring(0, 8)
           };
           this.playerManager.createPlayer(sessionId, defaultState);
+          this.positionPlayer(this.playerManager.getMyPlayer());
         }
       }
 
