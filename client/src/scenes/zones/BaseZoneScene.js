@@ -433,13 +433,18 @@ onPlayerPositioned(player, initData) {
   }
 
   setupNetwork() {
-    if (!this.networkManager) return;
+  if (!this.networkManager) return;
 
-    this.networkManager.onConnect(() => {
-      this.mySessionId = this.networkManager.getSessionId();
-      this.playerManager.setMySessionId(this.mySessionId);
-      this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
+  this.networkManager.onConnect(() => {
+    this.mySessionId = this.networkManager.getSessionId();
+    this.playerManager.setMySessionId(this.mySessionId);
+    this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
+
+    // <-- AJOUTE ICI !
+    this.networkManager.onMessage("snap", (data) => {
+      this.playerManager.snapMyPlayerTo(data.x, data.y);
     });
+  });
 
     this.networkManager.onStateChange((state) => {
       this.playerManager.updatePlayers(state);
