@@ -10,7 +10,7 @@ import { VillageRoom } from "./rooms/VillageRoom";
 import { Road1Room } from "./rooms/Road1Room";
 import { VillageLabRoom } from "./rooms/VillageLabRoom";
 import { VillageHouse1Room } from "./rooms/VillageHouse1Room";
-import { Lavandia } from "./rooms/LavandiaRoom";
+import { LavandiaRoom } from "./rooms/LavandiaRoom";
 import { connectDB } from "./db";
 import { AuthRoom } from "./rooms/AuthRoom";
 import { MoveManager } from "./managers/MoveManager";
