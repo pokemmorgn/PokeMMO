@@ -6,7 +6,7 @@ import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { PlayerData } from "../models/PlayerData";
 import { NpcManager, NpcData } from "../managers/NPCManager";
 import { MovementController } from "../controllers/MovementController";
-// TODO: Adapter le chemin et le nom si tu as un MapManager (sinon à remplacer par un stub/minimum)
+// Tu n'as plus besoin de MapManager ici
 
 export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
@@ -31,9 +31,8 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     this.npcManager = new NpcManager(`../assets/maps/${this.mapName.replace('Room', '').toLowerCase()}.tmj`);
     console.log(`[${this.mapName}] NPCs chargés :`, this.npcManager.getAllNpcs());
 
-    // Initialise la MapManager et MovementController
-    this.mapManager = new MapManager(`../assets/maps/${this.mapName.replace('Room', '').toLowerCase()}.tmj`);
-    this.movementController = new MovementController(this.mapManager);
+    // Initialise le MovementController sans MapManager
+    this.movementController = new MovementController();
 
     // Sauvegarde automatique toutes les 30 secondes
     this.clock.setInterval(() => {
@@ -45,7 +44,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     this.onMessage("move", (client, data) => {
       const player = this.state.players.get(client.sessionId);
       if (player) {
-        // ✅ Utilise le MovementController pour valider
+        // ✅ Utilise le MovementController pour valider (stub sans map pour l’instant)
         const moveResult = this.movementController.handleMove(client.sessionId, player, data);
 
         player.x = moveResult.x;
@@ -72,6 +71,9 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       const player = this.state.players.get(client.sessionId);
       if (player) {
         this.state.players.delete(client.sessionId);
+        // Reset le MovementController pour éviter les "ghost snaps"
+        this.movementController?.resetPlayer?.(client.sessionId);
+
         console.log(`[${this.mapName}] Joueur ${client.sessionId} supprimé pour transition`);
 
         // Sauvegarde position + map cible dans la DB
@@ -137,7 +139,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
       if (oldSessionId) {
         this.state.players.delete(oldSessionId);
-        // Optionnel : reset le MovementController pour éviter les "ghost snaps"
+        // Optionnel : reset le MovementController pour éviter les "ghost snaps"
         this.movementController?.resetPlayer?.(oldSessionId);
         console.log(`[${this.mapName}] Ancien joueur ${username} supprimé (sessionId: ${oldSessionId})`);
       }
