@@ -120,6 +120,25 @@
   </div>
 </div>
   <!-- Ton script JS principal -->
+  <script>
+  // === Fonction JS pour afficher le dialogue d’un NPC ===
+  function showNpcDialogue({ portrait, name, text }) {
+    const box = document.getElementById("dialogue-box");
+    const npcPortrait = document.getElementById("npc-portrait");
+    const npcName = document.getElementById("npc-name");
+    const npcText = document.getElementById("npc-text");
+
+    box.style.display = "";
+    npcPortrait.innerHTML = portrait
+      ? `<img src="${portrait}" alt="${name}" style="max-width:64px;max-height:64px;">`
+      : "";
+
+    npcName.innerText = name || "";
+    npcText.innerText = text || "";
+
+    box.onclick = () => (box.style.display = "none");
+  }
+</script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
