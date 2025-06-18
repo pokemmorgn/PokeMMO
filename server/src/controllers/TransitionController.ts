@@ -64,7 +64,7 @@ export class TransitionController {
     // Envoie la confirmation au client avec la nouvelle zone et position de spawn
     client.send("zoneChanged", {
       targetZone: data.targetZone,
-      fromZone: this.room.getMapName().replace('Room', 'Scene'),
+      fromZone: this.room.mapName.replace('Room', 'Scene'),
       direction: data.direction,
       spawnX: spawnPosition.x,
       spawnY: spawnPosition.y
