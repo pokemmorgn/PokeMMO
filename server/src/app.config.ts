@@ -15,6 +15,7 @@ import { connectDB } from "./db";
 import { AuthRoom } from "./rooms/AuthRoom";
 import { MoveManager } from "./managers/MoveManager";
 import { PokemonManager } from "./managers/PokemonManager";
+import { WorldChatRoom } from "./rooms/WorldChatRoom";
 
 let globalPokemonManager: PokemonManager;
 let globalMoveManager: MoveManager;
@@ -28,6 +29,7 @@ export default config({
     gameServer.define('VillageLabRoom', VillageLabRoom);
 gameServer.define('VillageHouse1Room', VillageHouse1Room);
 gameServer.define('LavandiaRoom', LavandiaRoom);
+gameServer.define('worldchat', WorldChatRoom);
   },
 
   initializeExpress: (app) => {
