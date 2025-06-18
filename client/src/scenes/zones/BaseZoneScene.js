@@ -623,73 +623,80 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
     });
   }
 
-  createDevMenu() {
-  // Ne crée qu'une seule fois
+createDevMenu() {
   if (this.devMenuCreated) return;
   this.devMenuCreated = true;
 
-  // Touche F1 pour toggle le menu dev
+  // Valeur initiale vitesse si non déjà présente
+  if (this.playerSpeed === undefined) this.playerSpeed = 120;
+
+  // Touche F1 pour toggle le menu
   this.input.keyboard.on('keydown-F1', () => {
     this.devMenu.setVisible(!this.devMenu.visible);
   });
 
-  // DevMenu container
-  this.devMenu = this.add.container(100, 100).setDepth(9999).setVisible(false);
+  // Création du conteneur menu dev
+  this.devMenu = this.add.container(8, 8).setDepth(9999).setVisible(false);
 
-  // Fond
-  const bg = this.add.rectangle(0, 0, 260, 170, 0x222244, 0.96).setOrigin(0);
+  // Fond compact
+  const bg = this.add.rectangle(0, 0, 170, 70, 0x222244, 0.96)
+    .setOrigin(0)
+    .setScrollFactor(0);
   this.devMenu.add(bg);
 
-  // Titre
-  const titre = this.add.text(10, 8, "DEBUG MENU", { fontSize: "16px", fill: "#fff" });
-  this.devMenu.add(titre);
-
-  // Affichage vitesse
-  this.devSpeedText = this.add.text(10, 36, `Vitesse: ${this.playerSpeed || 120}`, { fontSize: "14px", fill: "#fff" });
+  // Texte vitesse
+  this.devSpeedText = this.add.text(8, 6, `SPD: ${this.playerSpeed}`, {
+    fontSize: "13px", fill: "#fff"
+  }).setScrollFactor(0);
   this.devMenu.add(this.devSpeedText);
 
-  // Bouton vitesse ++
-  const btnSpeedUp = this.add.text(10, 62, "[+] Vitesse +100", { fontSize: "14px", fill: "#5f5" })
+  // Bouton + rapide
+  const btnUp = this.add.text(8, 28, "[+]", { fontSize: "15px", fill: "#5f5" })
     .setInteractive()
     .on("pointerdown", () => {
-      this.playerSpeed += 100;
-      this.devSpeedText.setText(`Vitesse: ${this.playerSpeed}`);
-    });
-  this.devMenu.add(btnSpeedUp);
+      this.playerSpeed += 50;
+      this.devSpeedText.setText(`SPD: ${this.playerSpeed}`);
+    }).setScrollFactor(0);
+  this.devMenu.add(btnUp);
 
-  // Bouton vitesse --
-  const btnSpeedDown = this.add.text(130, 62, "[-] Vitesse -100", { fontSize: "14px", fill: "#f55" })
+  // Bouton - lent
+  const btnDown = this.add.text(44, 28, "[-]", { fontSize: "15px", fill: "#f55" })
     .setInteractive()
     .on("pointerdown", () => {
-      this.playerSpeed = Math.max(10, this.playerSpeed - 100);
-      this.devSpeedText.setText(`Vitesse: ${this.playerSpeed}`);
-    });
-  this.devMenu.add(btnSpeedDown);
+      this.playerSpeed = Math.max(10, this.playerSpeed - 50);
+      this.devSpeedText.setText(`SPD: ${this.playerSpeed}`);
+    }).setScrollFactor(0);
+  this.devMenu.add(btnDown);
 
-  // Bouton téléportation
-  const btnTeleport = this.add.text(10, 100, "[TP] 100 px à droite", { fontSize: "14px", fill: "#9cf" })
+  // Bouton TP droite
+  const btnTP = this.add.text(84, 28, "[→ +100]", { fontSize: "13px", fill: "#9cf" })
     .setInteractive()
     .on("pointerdown", () => {
       const myPlayer = this.playerManager.getMyPlayer();
       if (myPlayer) {
         myPlayer.x += 100;
-        myPlayer.y += 0;
         this.networkManager.sendMove(myPlayer.x, myPlayer.y, "right", true);
       }
-    });
-  this.devMenu.add(btnTeleport);
+    }).setScrollFactor(0);
+  this.devMenu.add(btnTP);
 
-  // Affiche la position en live (optionnel)
+  // Info aide
+  const txt = this.add.text(8, 54, "F1: Ouvrir menu", {
+    fontSize: "11px", fill: "#ccc"
+  }).setScrollFactor(0);
+  this.devMenu.add(txt);
+
+  // Met à jour la vitesse affichée
   this.time.addEvent({
-    delay: 200,
+    delay: 250,
     loop: true,
     callback: () => {
-      const myPlayer = this.playerManager?.getMyPlayer();
-      if (myPlayer && this.devMenu.visible) {
-        this.devSpeedText.setText(`Vitesse: ${this.playerSpeed} | Pos: ${Math.round(myPlayer.x)},${Math.round(myPlayer.y)}`);
+      if (this.devMenu.visible) {
+        this.devSpeedText.setText(`SPD: ${this.playerSpeed}`);
       }
     }
   });
+}
 
   // Petite notice
   const notice = this.add.text(10, 145, "F1 = Ouvrir/fermer le menu", { fontSize: "12px", fill: "#ccc" });
