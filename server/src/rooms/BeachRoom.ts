@@ -8,7 +8,9 @@ export class BeachRoom extends BaseRoom {
   protected defaultX = 52;
   protected defaultY = 48;
 
-  public calculateSpawnPosition(targetZone: string): { x: number, y: number } {
+  public calculateSpawnPosition(spawnData: SpawnData): { x: number, y: number } {
+  const targetZone = spawnData.targetZone;
+
   switch (targetZone) {
     case "VillageScene":
       return { x: 62, y: 50 }; // Position où spawn le joueur s'il vient de BeachScene
