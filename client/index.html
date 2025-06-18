@@ -685,12 +685,18 @@
           hour12: true
         });
         
-        let userHTML = `<span class="chat-username`;
-        if (type === 'normal' && Math.random() < 0.7) {
-          const level = Math.floor(Math.random() * 50) + 1;
-          userHTML += ` level" data-level="Lv.${level}`;
+        let userHTML = '';
+        if (type !== 'system') {
+          userHTML = `<span class="chat-username`;
+          if (Math.random() < 0.7 && username !== 'You') {
+            const level = Math.floor(Math.random() * 50) + 1;
+            userHTML += ` level" data-level="Lv.${level}`;
+          } else if (username === 'You') {
+            // Give player a level too
+            userHTML += ` level" data-level="Lv.25`;
+          }
+          userHTML += `">${username}</span>`;
         }
-        userHTML += `">${username}</span>`;
         
         if (type === 'system') {
           messageDiv.innerHTML = `
