@@ -78,9 +78,27 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       // Supprime joueur de cette room (transition)
       const player = this.state.players.get(client.sessionId);
       if (player) {
-        this.state.players.delete(client.sessionId);
-        // Optionnel : reset le MovementController pour éviter les "ghost snaps"
-        this.movementController?.resetPlayer?.(client.sessionId);
+        // Exemple : appel d'un téléporteur dans la même room
+// Téléportation du joueur dans la même room (ex: téléporteur, event...)
+const player = this.state.players.get(client.sessionId);
+if (player) {
+  const result = this.movementController.handleMove(
+    client.sessionId,
+    player,
+    { x: targetX, y: targetY, direction: player.direction, isMoving: false },
+    true // <- skipAnticheat !
+  );
+  player.x = result.x;
+  player.y = result.y;
+  player.direction = result.direction;
+  player.isMoving = result.isMoving;
+
+  // Envoie un message au client pour confirmer le TP
+  client.send("teleported", { x: result.x, y: result.y });
+
+  // (Seulement si tu retires le joueur ensuite, sinon pas besoin)
+  this.state.players.delete(client.sessionId);
+  this.movementController?.resetPlayer?.(client.sessionId);
 
         // Sauvegarde position + map cible dans la DB
         await PlayerData.updateOne(
