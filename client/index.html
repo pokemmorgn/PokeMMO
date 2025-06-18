@@ -38,9 +38,20 @@
     }
 
     #chat-window.minimized #chat-messages,
-    #chat-window.minimized #chat-input-container,
-    #chat-window.minimized #typing-indicator {
-      display: none;
+    #chat-window.minimized #typing-indicator,
+    #chat-window.minimized #chat-input-container {
+      display: none !important;
+    }
+
+    #chat-window.minimized #chat-header {
+      cursor: pointer;
+    }
+
+    #chat-window.minimized #chat-header:hover {
+      background: linear-gradient(90deg, 
+        rgba(120, 170, 255, 0.25) 0%, 
+        rgba(170, 120, 255, 0.25) 50%, 
+        rgba(120, 170, 255, 0.25) 100%);
     }
 
     #chat-window.hidden {
@@ -726,11 +737,14 @@
       }
       
       toggleMinimize() {
+        console.log('Minimize clicked, current state:', this.isMinimized); // Debug
         if (this.isHidden) return; // Can't minimize when hidden
         
         this.isMinimized = !this.isMinimized;
-        this.chatWindow.classList.toggle('minimized');
+        this.chatWindow.classList.toggle('minimized', this.isMinimized);
         this.minimizeBtn.textContent = this.isMinimized ? '+' : '−';
+        
+        console.log('New minimize state:', this.isMinimized); // Debug
         
         if (!this.isMinimized) {
           // Focus input when expanding
@@ -739,9 +753,10 @@
       }
       
       toggleHide() {
+        console.log('Hide clicked, current state:', this.isHidden); // Debug
         this.isHidden = !this.isHidden;
-        this.chatWindow.classList.toggle('hidden');
-        this.chatToggle.classList.toggle('show');
+        this.chatWindow.classList.toggle('hidden', this.isHidden);
+        this.chatToggle.classList.toggle('show', this.isHidden);
         
         // Reset minimized state when showing
         if (!this.isHidden && this.isMinimized) {
@@ -749,6 +764,8 @@
           this.chatWindow.classList.remove('minimized');
           this.minimizeBtn.textContent = '−';
         }
+        
+        console.log('New hide state:', this.isHidden); // Debug
         
         // Focus input when showing
         if (!this.isHidden) {
