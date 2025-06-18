@@ -1,7 +1,22 @@
+import { Room, Client } from "@colyseus/core";
+import { PokeWorldState, Player } from "../schema/PokeWorldState";
+import { PlayerData } from "../models/PlayerData";
+import { NpcManager } from "../managers/NPCManager";
+import { MovementController } from "../controllers/MovementController";
+import { TransitionController } from "../controllers/TransitionController";
+import { InteractionManager } from "../managers/InteractionManager";
+
+export type SpawnData = {
+  targetZone: string;
+  targetSpawn?: string;
+  targetX?: number;
+  targetY?: number;
+};
+
 export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
 
-  public abstract mapName: string; // doit être abstract pour forcer la définition dans les classes filles
+  protected abstract mapName: string;
   protected abstract defaultX: number;
   protected abstract defaultY: number;
 
@@ -10,7 +25,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   public transitionController: TransitionController;
   protected interactionManager: InteractionManager;
 
-  // Méthode abstraite, signature seulement (pas d'accolades ni corps)
+  // Méthode abstraite à implémenter dans chaque room fille
   public abstract calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number };
 
   onCreate(options: any) {
@@ -22,18 +37,19 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     this.movementController = new MovementController();
     this.transitionController = new TransitionController(this);
 
+    // Sauvegarde automatique toutes les 30 secondes
     this.clock.setInterval(() => {
       this.saveAllPlayers();
     }, 30000);
 
-    this.onMessage("npcInteract", (client, data: { npcId: number }) => {
+    this.onMessage("npcInteract", (client: Client, data: { npcId: number }) => {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
       const result = this.interactionManager.handleNpcInteraction(player, data.npcId);
       client.send("npcInteractionResult", result);
     });
 
-    this.onMessage("move", (client, data) => {
+    this.onMessage("move", (client: Client, data: any) => {
       const player = this.state.players.get(client.sessionId);
       if (player) {
         const skipAnticheat = (player as any).justSpawned === true;
@@ -49,7 +65,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       }
     });
 
-    this.onMessage("changeZone", (client, data) => {
+    this.onMessage("changeZone", (client: Client, data: any) => {
       this.transitionController.handleTransition(client, data);
     });
   }
@@ -72,7 +88,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     const username = options.username || "Anonymous";
     client.send("npcList", this.npcManager.getAllNpcs());
 
-    // Supprime un éventuel joueur en double
+    // Supprime un joueur en double si existant
     const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
     if (existingPlayer) {
       const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
