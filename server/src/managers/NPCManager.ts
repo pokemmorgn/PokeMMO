@@ -21,7 +21,12 @@ export class NpcManager {
   }
 
   loadNpcsFromMap(mapPath: string) {
-    const mapData = JSON.parse(fs.readFileSync(mapPath, "utf-8"));
+    // 👇 Correction ici : chemin absolu basé sur le dossier du fichier actuel
+    const resolvedPath = path.resolve(__dirname, mapPath);
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`NpcManager: Le fichier map n'existe pas : ${resolvedPath}`);
+    }
+    const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
     const npcLayer = mapData.layers.find((l: any) => l.name === "npcs");
     if (!npcLayer || !npcLayer.objects) return;
 
