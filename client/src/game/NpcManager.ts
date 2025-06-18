@@ -16,19 +16,22 @@ interface NpcVisuals {
 
 export class NpcManager {
   private scene: Phaser.Scene;
-  private npcs: Map<number, NpcVisuals>;
+  private npcVisuals: Map<number, NpcVisuals>;
+  private npcData: Map<number, NpcData>;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
-    this.npcs = new Map();
+    this.npcVisuals = new Map();
+    this.npcData = new Map();
   }
 
   clearAllNpcs(): void {
-    this.npcs.forEach(({ sprite, nameText }) => {
+    this.npcVisuals.forEach(({ sprite, nameText }) => {
       sprite.destroy();
       nameText.destroy();
     });
-    this.npcs.clear();
+    this.npcVisuals.clear();
+    this.npcData.clear();
   }
 
   spawnNpcs(npcList: NpcData[]): void {
@@ -63,6 +66,33 @@ export class NpcManager {
       .setOrigin(0.5, 1)
       .setDepth(4.1);
 
-    this.npcs.set(npc.id, { sprite, nameText });
+    this.npcVisuals.set(npc.id, { sprite, nameText });
+    this.npcData.set(npc.id, npc);
+  }
+
+  // Trouve le NPC le plus proche du joueur (coordonnées world, rayon en pixels)
+  getClosestNpc(playerX: number, playerY: number, maxDist = 64): NpcData | null {
+    let closest: { npc: NpcData; dist: number } | null = null;
+    this.npcData.forEach((npc, id) => {
+      const visuals = this.npcVisuals.get(id);
+      if (!visuals) return;
+      const dx = visuals.sprite.x - playerX;
+      const dy = visuals.sprite.y - playerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= maxDist && (!closest || dist < closest.dist)) {
+        closest = { npc, dist };
+      }
+    });
+    return closest ? closest.npc : null;
+  }
+
+  // Optionnel : Pour effet de surbrillance, focus, etc.
+  getNpcVisuals(npcId: number): NpcVisuals | undefined {
+    return this.npcVisuals.get(npcId);
+  }
+
+  // Optionnel : Pour dialoguer, lire les propriétés, etc.
+  getNpcData(npcId: number): NpcData | undefined {
+    return this.npcData.get(npcId);
   }
 }
