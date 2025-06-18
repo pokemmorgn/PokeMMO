@@ -90,7 +90,7 @@ export class LoaderScene extends Phaser.Scene {
           case 'village':
             this.scene.start('VillageScene');
             break;
-          case 'proflaboint':
+          case 'villagelab':
             this.scene.start('VillageLabScene');
             break;
           case 'road1':
