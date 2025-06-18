@@ -62,7 +62,8 @@ export class NetworkManager {
       case 'VillageScene': newRoomName = 'VillageRoom'; break;
       case 'Road1Scene': newRoomName = 'Road1Room'; break;
       case 'VillageLabScene': newRoomName = 'VillageLabRoom'; break;
-      case 'VillageHouse1Scene': newRoomName = 'VillageHouse1Room'; break; // <-- Ajout VillageHouse1
+      case 'VillageHouse1Scene': newRoomName = 'VillageHouse1Room'; break; 
+      case 'LavandiaRoom': newRoomName = 'LavandiaRoom'; break;
       default: newRoomName = 'DefaultRoom';
     }
 
