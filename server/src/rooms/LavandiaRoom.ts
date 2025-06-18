@@ -10,7 +10,7 @@ export class LavandiaRoom extends BaseRoom {
 
  public calculateSpawnPosition(targetZone: string): { x: number, y: number } {
   switch (targetZone) {
-    case "BeachScene":
+    case "Road1Scene":
       return { x: 82, y: 911 }; // Position où spawn le joueur s'il vient de BeachScene
     default:
       return { x: this.defaultX, y: this.defaultY };
