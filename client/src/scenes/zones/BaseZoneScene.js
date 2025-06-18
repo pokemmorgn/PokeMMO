@@ -39,6 +39,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.setupInputs();
     this.createUI();
 
+      this.createDevMenu();  // <-- ajoute ce call ici
+
     // Gestion réseau simplifiée
     if (this.scene.key === 'BeachScene') {
       this.initializeNetwork();
@@ -621,6 +623,79 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
     });
   }
 
+  createDevMenu() {
+  // Ne crée qu'une seule fois
+  if (this.devMenuCreated) return;
+  this.devMenuCreated = true;
+
+  // Touche F1 pour toggle le menu dev
+  this.input.keyboard.on('keydown-F1', () => {
+    this.devMenu.setVisible(!this.devMenu.visible);
+  });
+
+  // DevMenu container
+  this.devMenu = this.add.container(100, 100).setDepth(9999).setVisible(false);
+
+  // Fond
+  const bg = this.add.rectangle(0, 0, 260, 170, 0x222244, 0.96).setOrigin(0);
+  this.devMenu.add(bg);
+
+  // Titre
+  const titre = this.add.text(10, 8, "DEBUG MENU", { fontSize: "16px", fill: "#fff" });
+  this.devMenu.add(titre);
+
+  // Affichage vitesse
+  this.devSpeedText = this.add.text(10, 36, `Vitesse: ${this.playerSpeed || 120}`, { fontSize: "14px", fill: "#fff" });
+  this.devMenu.add(this.devSpeedText);
+
+  // Bouton vitesse ++
+  const btnSpeedUp = this.add.text(10, 62, "[+] Vitesse +100", { fontSize: "14px", fill: "#5f5" })
+    .setInteractive()
+    .on("pointerdown", () => {
+      this.playerSpeed += 100;
+      this.devSpeedText.setText(`Vitesse: ${this.playerSpeed}`);
+    });
+  this.devMenu.add(btnSpeedUp);
+
+  // Bouton vitesse --
+  const btnSpeedDown = this.add.text(130, 62, "[-] Vitesse -100", { fontSize: "14px", fill: "#f55" })
+    .setInteractive()
+    .on("pointerdown", () => {
+      this.playerSpeed = Math.max(10, this.playerSpeed - 100);
+      this.devSpeedText.setText(`Vitesse: ${this.playerSpeed}`);
+    });
+  this.devMenu.add(btnSpeedDown);
+
+  // Bouton téléportation
+  const btnTeleport = this.add.text(10, 100, "[TP] 100 px à droite", { fontSize: "14px", fill: "#9cf" })
+    .setInteractive()
+    .on("pointerdown", () => {
+      const myPlayer = this.playerManager.getMyPlayer();
+      if (myPlayer) {
+        myPlayer.x += 100;
+        myPlayer.y += 0;
+        this.networkManager.sendMove(myPlayer.x, myPlayer.y, "right", true);
+      }
+    });
+  this.devMenu.add(btnTeleport);
+
+  // Affiche la position en live (optionnel)
+  this.time.addEvent({
+    delay: 200,
+    loop: true,
+    callback: () => {
+      const myPlayer = this.playerManager?.getMyPlayer();
+      if (myPlayer && this.devMenu.visible) {
+        this.devSpeedText.setText(`Vitesse: ${this.playerSpeed} | Pos: ${Math.round(myPlayer.x)},${Math.round(myPlayer.y)}`);
+      }
+    }
+  });
+
+  // Petite notice
+  const notice = this.add.text(10, 145, "F1 = Ouvrir/fermer le menu", { fontSize: "12px", fill: "#ccc" });
+  this.devMenu.add(notice);
+}
+  
   cleanup() {
     console.log(`[${this.scene.key}] Nettoyage en cours...`);
 
