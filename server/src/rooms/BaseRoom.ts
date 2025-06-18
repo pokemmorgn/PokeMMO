@@ -25,7 +25,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     console.log(`🔥 DEBUT onCreate ${this.mapName}`);
 
   // Initialise le NpcManager
-  this.npcManager = new NpcManager(`assets/maps/${this.mapName.replace('Room', '').toLowerCase()}.tmj`);
+  this.npcManager = new NpcManager(`../assets/maps/${this.mapName.replace('Room', '').toLowerCase()}.tmj`);
   console.log(`[${this.mapName}] NPCs chargés :`, this.npcManager.getAllNpcs());
     
     // Sauvegarde automatique toutes les 30 secondes
