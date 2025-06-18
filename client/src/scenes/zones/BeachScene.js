@@ -73,22 +73,33 @@ export class BeachScene extends BaseZoneScene {
   }
 
   // --- Gère la transition vers VillageScene ---
- setupZoneTransitions() {
+setupZoneTransitions() {
   const worldsLayer = this.map.getObjectLayer('Worlds');
   if (!worldsLayer) return;
 
   worldsLayer.objects.forEach(obj => {
-    const targetZone = obj.properties?.find(p => p.name === 'targetZone')?.value;
-    if (!targetZone) return;
+    const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
+    const directionProp = obj.properties?.find(p => p.name === 'direction');
+    if (!targetZoneProp) return;
 
-    const zone = this.add.zone(obj.x + obj.width / 2, obj.y + obj.height / 2, obj.width, obj.height);
+    const targetZone = targetZoneProp.value;
+    const direction = directionProp ? directionProp.value : 'north';
+
+    // Crée la zone physique Phaser pour détecter le joueur
+    const zone = this.add.zone(
+      obj.x + obj.width / 2,
+      obj.y + obj.height / 2,
+      obj.width,
+      obj.height
+    );
     this.physics.world.enable(zone);
     zone.body.setAllowGravity(false);
     zone.body.setImmovable(true);
 
+    // Surlap avec joueur => demande transition au serveur
     this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
-      // Envoi au serveur la demande de changement de zone
-      this.networkManager.requestZoneTransition(targetZone, obj.properties?.find(p => p.name === 'direction')?.value || null);
+      if (!this.networkManager) return;
+      this.networkManager.requestZoneTransition(targetZone, direction);
     });
   });
 }
