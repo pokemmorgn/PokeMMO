@@ -1,3 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phantom Multi-Account - Sui Network</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bg-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .particle:nth-child(1) { width: 4px; height: 4px; top: 20%; left: 20%; animation-delay: 0s; }
+        .particle:nth-child(2) { width: 6px; height: 6px; top: 40%; left: 60%; animation-delay: 1s; }
+        .particle:nth-child(3) { width: 3px; height: 3px; top: 70%; left: 30%; animation-delay: 2s; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; }
+            50% { transform: translateY(-20px) rotate(180deg); opacity: 1; }
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 48px 40px;
+            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            max-width: 600px;
+            position: relative;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: slideUp 0.8s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #9333ea, #3b82f6);
+            border-radius: 20px;
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #1f2937, #4f46e5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .account-selector {
+            background: linear-gradient(135deg, #f0f4ff, #e0e7ff);
+            border: 2px solid #c7d2fe;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .account-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .account-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connecting {
+            background: #f59e0b;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .account-text h3 {
+            color: #3730a3;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .account-text p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .refresh-btn {
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #6b7280;
+            transition: all 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+
+        .connect-section {
+            margin-bottom: 32px;
+        }
+
+        .connect-button {
+            width: 100%;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            padding: 18px 24px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+        }
+
+        .connect-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(139, 92, 246, 0.4);
+        }
+
+        .connect-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .connect-button.disconnect {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        .wallet-info {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 24px;
+            display: none;
+        }
+
+        .wallet-info.active {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .wallet-address {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            color: #4338ca;
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            word-break: break-all;
+            margin-top: 8px;
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .copy-btn:hover {
+            background: #7c3aed;
+        }
+
+        .debug-section {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 24px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .debug-title {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .debug-item {
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .account-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            margin-top: 12px;
+        }
+
+        .account-item {
+            padding: 12px;
+            border-bottom: 1px solid #f3f4f6;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .account-item:hover {
+            background: #f8fafc;
+        }
+
+        .account-item.active {
+            background: #eff6ff;
+            border-left: 3px solid #3b82f6;
+        }
+
+        .account-item:last-child {
+            border-bottom: none;
+        }
+
+        .account-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .account-address-short {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                margin: 20px;
+                padding: 32px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo">P</div>
+            <h1 class="title">Phantom Multi-Account</h1>
+            <p class="subtitle">Connectez-vous avec n'importe quel compte Phantom Sui</p>
+        </div>
+
+        <div class="account-selector">
+            <div class="account-info">
+                <div class="account-status">
+                    <div class="status-dot" id="statusDot"></div>
+                    <div class="account-text">
+                        <h3 id="accountStatus">Non connecté</h3>
+                        <p id="accountDetails">Sélectionnez un compte Phantom</p>
+                    </div>
+                </div>
+                <button class="refresh-btn" id="refreshBtn">🔄 Actualiser</button>
+            </div>
+            
+            <div class="account-list" id="accountList" style="display: none;">
+                <!-- Liste des comptes sera générée ici -->
+            </div>
+        </div>
+
+        <div class="connect-section">
+            <button class="connect-button" id="connectBtn">
+                🔗 Se connecter à Phantom
+            </button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="color: #6b7280;">Connexion en cours...</p>
+            </div>
+
+            <div class="wallet-info" id="walletInfo">
+                <h4 style="color: #374151; margin-bottom: 8px;">✅ Compte connecté</h4>
+                <p style="color: #6b7280; font-size: 14px;">Adresse du compte actuel :</p>
+                <div class="wallet-address" id="walletAddress">
+                    <button class="copy-btn" onclick="copyAddress()">Copy</button>
+                </div>
+            </div>
+        </div>
+<!-- Le bouton "JOUER" doit être là, juste après wallet-info -->
+<button id="playGameBtn" class="connect-button" style="display:none; margin-top:24px;">
+  🎮 Jouer
+</button>
+        <div class="debug-section">
+            <div class="debug-title">🔧 Diagnostic Phantom</div>
+            <div class="debug-item">
+                <span>Extension installée:</span>
+                <span id="phantomInstalled">❌</span>
+            </div>
+            <div class="debug-item">
+                <span>Support Sui:</span>
+                <span id="suiSupport">❌</span>
+            </div>
+            <div class="debug-item">
+                <span>Comptes détectés:</span>
+                <span id="accountCount">0</span>
+            </div>
+            <div class="debug-item">
+                <span>Compte actif:</span>
+                <span id="activeAccount">Aucun</span>
+            </div>
+            <div class="debug-item">
+                <span>Méthodes API:</span>
+                <span id="apiMethods">Non disponible</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/colyseus.js/dist/colyseus.js"></script>
+
 <script>
 window._suiWalletData = null;
 
@@ -111,3 +547,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('playGameBtn').onclick = authenticateAndPlay;
 });
 </script>
+
+
+</body>
+</html>
