@@ -381,28 +381,35 @@
             </div>
         </div>
 
-        <div class="connect-section">
-            <button class="connect-button" id="connectBtn">
-                🔗 Se connecter à SUI
-            </button>
-            <button class="connect-button" id="mobileConnectBtn" style="display:none; margin-top:12px;">
-                📱 Connexion Wallet Mobile (QR)
-            </button>
+<div class="connect-section">
+    <!-- Phantom SUI extension desktop -->
+    <button class="connect-button" id="phantomConnectBtn">
+        🦄 Connexion Phantom (Chrome)
+    </button>
+    <!-- WalletConnect QR code (mobile) -->
+    <button class="connect-button" id="mobileConnectBtn" style="display:none; margin-top:12px;">
+        📱 Connexion Wallet Mobile (QR)
+    </button>
+    <!-- Connexion fallback général SUI (optionnel) -->
+    <button class="connect-button" id="connectBtn" style="display:none; margin-top:12px;">
+        🔗 Se connecter à SUI générique
+    </button>
 
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p style="color: #6b7280;">Connexion en cours...</p>
-            </div>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p style="color: #6b7280;">Connexion en cours...</p>
+    </div>
 
-            <div class="wallet-info" id="walletInfo">
-                <h4 style="color: #374151; margin-bottom: 8px;">✅ Compte connecté</h4>
-                <p style="color: #6b7280; font-size: 14px;">Adresse du compte actuel :</p>
-                <div class="wallet-address" id="walletAddress"></div>
-            </div>
-            <button id="playGameBtn" class="connect-button" style="display:none; margin-top:24px;">
-                🎮 Jouer
-            </button>
-        </div>
+    <div class="wallet-info" id="walletInfo">
+        <h4 style="color: #374151; margin-bottom: 8px;">✅ Compte connecté</h4>
+        <p style="color: #6b7280; font-size: 14px;">Adresse du compte actuel :</p>
+        <div class="wallet-address" id="walletAddress"></div>
+    </div>
+    <button id="playGameBtn" class="connect-button" style="display:none; margin-top:24px;">
+        🎮 Jouer
+    </button>
+</div>
+
         <div class="debug-section">
             <div class="debug-title">🔧 Diagnostic Phantom</div>
             <div class="debug-item">
@@ -442,7 +449,7 @@ async function connectSuiWallet() {
     // Récupère la liste des wallets desktop
     const wallets = window.walletStandard?.getWallets().get() || [];
     if (wallets.length > 0) {
-        // On propose le premier wallet dispo (ou tu peux faire une UI de choix)
+        // Propose le premier wallet dispo (ou à toi de faire une UI de choix)
         const wallet = wallets[0];
         try {
             await wallet.connect();
@@ -458,11 +465,11 @@ async function connectSuiWallet() {
         document.getElementById('playGameBtn').style.display = 'inline-block';
         return;
     }
-    // Si aucun wallet desktop, propose WalletConnect mobile
+    // Si aucun wallet desktop, propose WalletConnect mobile (QR)
     showWalletConnectOption();
 }
 
-// ==== WALLETCONNECT 1.x (mobile, QR code) ====
+// ==== Connexion mobile WalletConnect 1.x (QR code) ====
 function showWalletConnectOption() {
     if (!window.WalletConnect) {
         alert("WalletConnect non chargé !");
@@ -604,6 +611,7 @@ async function authenticateAndPlay() {
 // ==== Bind boutons ====
 window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('connectBtn').onclick = connectSuiWallet;
+    document.getElementById('mobileConnectBtn').onclick = showWalletConnectOption;
     document.getElementById('playGameBtn').onclick = authenticateAndPlay;
 });
 </script>
