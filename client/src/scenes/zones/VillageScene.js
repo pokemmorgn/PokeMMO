@@ -6,24 +6,7 @@ export class VillageScene extends BaseZoneScene {
     this.transitionCooldowns = {};
   }
 
-  setupZoneTransitions() {
-    const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (worldsLayer) {
-      const beachExit = worldsLayer.objects.find(obj => obj.name === 'GRbeach');
-      if (beachExit) {
-        this.createTransitionZone(beachExit, 'BeachScene', 'south');
-      }
-
-      const roadExit = worldsLayer.objects.find(obj => obj.name === 'Road_1');
-      if (roadExit) {
-        this.createTransitionZone(roadExit, 'Road1Scene', 'east');
-        console.log(`🛣️ Transition vers Road1 trouvée !`);
-      } else {
-        console.warn(`⚠️ Objet 'Road_1' non trouvé dans le layer Worlds`);
-        console.log("Objets disponibles dans Worlds:", worldsLayer.objects.map(obj => obj.name));
-      }
-    }
-
+  
     const doorLayer = this.map.getObjectLayer('Door');
     if (doorLayer) {
       const labDoor = doorLayer.objects.find(obj => obj.name === 'Labo');
