@@ -25,8 +25,6 @@ export class LavandiaScene extends BaseZoneScene {
       console.warn("[LavandiaScene] Calque d'objets 'Worlds' introuvable");
     }
   }
-export class BaseZoneScene extends Phaser.Scene {
-  // ... tout ton code ...
 
   createTransitionZone(transitionObj, targetScene, direction) {
     const sceneName = this.scene.key || 'BaseZoneScene';
