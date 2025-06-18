@@ -1,6 +1,7 @@
 import { NetworkManager } from "../../network/NetworkManager.js";
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
+import { NpcManager } from "../../game/NpcManager";
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -372,6 +373,7 @@ onPlayerPositioned(player, initData) {
 
   setupManagers() {
     this.playerManager = new PlayerManager(this);
+    this.npcManager = new NpcManager(this);
     if (this.mySessionId) {
       this.playerManager.setMySessionId(this.mySessionId);
     }
@@ -437,6 +439,12 @@ onPlayerPositioned(player, initData) {
       this.mySessionId = this.networkManager.getSessionId();
       this.playerManager.setMySessionId(this.mySessionId);
       this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
+    });
+
+    this.networkManager.onMessage("npcList", (npcList: NpcData[]) => {
+  if (this.npcManager) {
+    this.npcManager.spawnNpcs(npcList);
+      }
     });
 
     this.networkManager.onStateChange((state) => {
@@ -564,6 +572,10 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
 
     if (this.playerManager) {
       this.playerManager.clearAllPlayers();
+    }
+
+    if (this.npcManager) {
+    this.npcManager.clearAllNpcs();
     }
 
     if (this.animatedObjects) {
