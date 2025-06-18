@@ -6,6 +6,7 @@ import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { PlayerData } from "../models/PlayerData";
 import { NpcManager, NpcData } from "../managers/NPCManager";
 import { MovementController } from "../controllers/MovementController"; // <-- à créer/importer
+import { InteractionManager } from "../managers/InteractionManager";
 
 export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
@@ -29,7 +30,8 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     // Initialise le NpcManager
     this.npcManager = new NpcManager(`../assets/maps/${this.mapName.replace('Room', '').toLowerCase()}.tmj`);
     console.log(`[${this.mapName}] NPCs chargés :`, this.npcManager.getAllNpcs());
-    
+
+    this.interactionManager = new InteractionManager(this.npcManager);
     // Initialise le MovementController (collision simple ou à améliorer plus tard)
     this.movementController = new MovementController();
 
@@ -39,6 +41,13 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       this.saveAllPlayers();
     }, 30000);
 
+    this.onMessage("npcInteract", (client, data: { npcId: number }) => {
+  const player = this.state.players.get(client.sessionId);
+  if (!player) return;
+  const result = this.interactionManager.handleNpcInteraction(player, data.npcId);
+  client.send("npcInteractionResult", result);
+  });
+    
     // Handler pour les mouvements avec MovementController
     this.onMessage("move", (client, data) => {
       const player = this.state.players.get(client.sessionId);
