@@ -475,20 +475,40 @@ onPlayerPositioned(player, initData) {
 
     // Quand le serveur répond à l’interaction NPC
 this.networkManager.onMessage("npcInteractionResult", (result) => {
-  // Exemple d’affichage (adapte selon type/type de result)
   if (result.type === "dialogue") {
-    // Affiche la bulle/dialogue à l’écran
-    alert(result.lines ? result.lines.join("\n") : result.message);
+    showNpcDialogue({
+      portrait: result.portrait || `assets/npc/${result.npcName?.toLowerCase() || 'unknown'}.png`, // adapte ce chemin !
+      name: result.npcName || "???",
+      text: result.lines ? result.lines[0] : result.message
+    });
   } else if (result.type === "shop") {
-    alert("Ouverture du shop: " + result.shopId);
+    // TODO: affiche une fenêtre shop
+    showNpcDialogue({
+      portrait: result.portrait || "assets/ui/shop_icon.png",
+      name: "Shop",
+      text: "Ouverture du shop: " + result.shopId
+    });
   } else if (result.type === "heal") {
-    alert(result.message || "Vos Pokémon sont soignés !");
+    showNpcDialogue({
+      portrait: result.portrait || "assets/ui/heal_icon.png",
+      name: "???",
+      text: result.message || "Vos Pokémon sont soignés !"
+    });
   } else if (result.type === "error") {
-    alert("Erreur: " + result.message);
+    showNpcDialogue({
+      portrait: null,
+      name: "Erreur",
+      text: result.message
+    });
   } else {
-    alert(JSON.stringify(result));
+    showNpcDialogue({
+      portrait: null,
+      name: "???",
+      text: JSON.stringify(result)
+    });
   }
 });
+
 
     
     this.networkManager.onDisconnect(() => {
