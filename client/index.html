@@ -31,34 +31,30 @@
       overflow: hidden;
     }
 
-    #chat-window::before {
-      content: '';
-      position: absolute;
+    #chat-header {
+      position: relative;
       top: 0;
       left: 0;
       right: 0;
       height: 40px;
       background: linear-gradient(90deg, 
-        rgba(100, 150, 255, 0.1) 0%, 
-        rgba(150, 100, 255, 0.1) 50%, 
-        rgba(100, 150, 255, 0.1) 100%);
+        rgba(100, 150, 255, 0.2) 0%, 
+        rgba(150, 100, 255, 0.2) 50%, 
+        rgba(100, 150, 255, 0.2) 100%);
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       display: flex;
       align-items: center;
       padding-left: 16px;
       font-size: 14px;
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.8);
-      z-index: 1;
-    }
-
-    #chat-window::before {
-      content: '💬 Chat Global';
+      color: rgba(255, 255, 255, 0.9);
+      z-index: 10;
+      flex-shrink: 0;
     }
 
     #chat-messages {
       flex: 1;
-      padding: 50px 16px 8px 16px;
+      padding: 8px 16px;
       overflow-y: auto;
       color: #eee;
       font-size: 14px;
@@ -257,25 +253,21 @@
 <body>
   <!-- Fenêtre de chat MMO -->
   <div id="chat-window">
+    <div id="chat-header">💬 Global Chat</div>
     <div id="chat-messages">
-      <!-- Messages d'exemple -->
+      <!-- Example messages -->
       <div class="chat-message">
-        <span class="chat-username">Dresseur_Kanto</span>
-        <span class="chat-text">Salut tout le monde! Quelqu'un pour un combat?</span>
-        <span class="chat-timestamp">14:23</span>
+        <span class="chat-username">KantoTrainer</span>
+        <span class="chat-text">Anyone up for a battle?</span>
+        <span class="chat-timestamp">2:23 PM</span>
       </div>
       <div class="chat-message">
         <span class="chat-username">PikachuMaster</span>
-        <span class="chat-text">Je suis partant! Où est-ce qu'on se retrouve?</span>
-        <span class="chat-timestamp">14:24</span>
-      </div>
-      <div class="chat-message">
-        <span class="chat-username">TeamRocket_Jessie</span>
-        <span class="chat-text">Préparez-vous au combat! 😈</span>
-        <span class="chat-timestamp">14:25</span>
+        <span class="chat-text">I'm in! Where should we meet?</span>
+        <span class="chat-timestamp">2:24 PM</span>
       </div>
     </div>
-    <input id="chat-input" type="text" placeholder="Tapez votre message et appuyez sur Entrée..." autocomplete="off" />
+    <input id="chat-input" type="text" placeholder="Type your message and press Enter..." autocomplete="off" />
   </div>
 
   <!-- Boîte de dialogue NPC -->
