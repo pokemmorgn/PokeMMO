@@ -21,7 +21,14 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   public transitionController: TransitionController;
   protected interactionManager: InteractionManager;
 
-
+    public calculateSpawnPosition(targetZone: string): { x: number, y: number } {
+  switch(targetZone) {
+    case "VillageScene":
+      return { x: 428, y: 445 };  // ta position exacte pour VillageScene
+    default:
+      return { x: this.defaultX, y: this.defaultY };  // fallback
+  }
+}
   onCreate(options: any) {
     this.setState(new PokeWorldState());
     console.log(`🔥 DEBUT onCreate ${this.mapName}`);
@@ -36,14 +43,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       this.saveAllPlayers();
     }, 30000);
 
-    public calculateSpawnPosition(targetZone: string): { x: number, y: number } {
-  switch(targetZone) {
-    case "VillageScene":
-      return { x: 428, y: 445 };  // ta position exacte pour VillageScene
-    default:
-      return { x: this.defaultX, y: this.defaultY };  // fallback
-  }
-}
+
     
     // --- Gestion interaction NPC ---
     this.onMessage("npcInteract", (client, data: { npcId: number }) => {
