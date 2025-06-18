@@ -29,6 +29,17 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
       overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #chat-window.minimized {
+      height: 50px;
+      width: 200px;
+    }
+
+    #chat-window.minimized #chat-messages,
+    #chat-window.minimized #chat-input {
+      display: none;
     }
 
     #chat-header {
@@ -44,12 +55,52 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       display: flex;
       align-items: center;
-      padding-left: 16px;
+      justify-content: space-between;
+      padding: 0 16px;
       font-size: 14px;
       font-weight: 600;
       color: rgba(255, 255, 255, 0.9);
       z-index: 10;
       flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    #chat-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #chat-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 12px;
+      transition: all 0.2s ease;
+    }
+
+    .chat-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      transform: scale(1.05);
+    }
+
+    #online-count {
+      background: rgba(34, 197, 94, 0.2);
+      color: #22c55e;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 500;
     }
 
     #chat-messages {
@@ -89,6 +140,8 @@
       border-left: 2px solid rgba(100, 150, 255, 0.6);
       transition: all 0.2s ease;
       font-size: 13px;
+      position: relative;
+      overflow: hidden;
     }
 
     .chat-message:hover {
@@ -96,11 +149,45 @@
       transform: translateX(2px);
     }
 
+    .chat-message.system {
+      border-left-color: rgba(34, 197, 94, 0.6);
+      background: rgba(34, 197, 94, 0.1);
+      font-style: italic;
+    }
+
+    .chat-message.battle {
+      border-left-color: rgba(239, 68, 68, 0.6);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .chat-message.trade {
+      border-left-color: rgba(245, 158, 11, 0.6);
+      background: rgba(245, 158, 11, 0.1);
+    }
+
     .chat-username {
       font-weight: 600;
       color: #64a6ff;
       margin-right: 8px;
       text-shadow: 0 0 8px rgba(100, 166, 255, 0.3);
+      cursor: pointer;
+    }
+
+    .chat-username:hover {
+      color: #80b8ff;
+      text-shadow: 0 0 12px rgba(100, 166, 255, 0.5);
+    }
+
+    .chat-username.level::after {
+      content: attr(data-level);
+      background: linear-gradient(45deg, #ffd700, #ffed4a);
+      color: #1a1a1a;
+      font-size: 9px;
+      font-weight: bold;
+      padding: 1px 4px;
+      border-radius: 8px;
+      margin-left: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     }
 
     .chat-text {
@@ -108,21 +195,39 @@
     }
 
     .chat-timestamp {
-      font-size: 11px;
+      font-size: 10px;
       color: rgba(255, 255, 255, 0.4);
       float: right;
       margin-top: 2px;
     }
 
+    .pokemon-emoji {
+      font-size: 16px;
+      margin: 0 2px;
+      display: inline-block;
+      animation: bounce 0.5s ease-in-out;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-2px); }
+    }
+
+    #chat-input-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
     #chat-input {
       border: none;
-      padding: 10px 16px;
+      padding: 10px 50px 10px 16px;
       background: rgba(40, 50, 70, 0.8);
       color: #fff;
       border-radius: 0 0 14px 14px;
       outline: none;
       font-size: 14px;
-      width: calc(100% - 32px);
+      width: calc(100% - 66px);
       border-top: 1px solid rgba(255, 255, 255, 0.1);
       transition: all 0.3s ease;
       position: relative;
@@ -138,20 +243,102 @@
       color: rgba(255, 255, 255, 0.5);
     }
 
+    #char-counter {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      pointer-events: none;
+    }
+
+    #char-counter.warning {
+      color: #f59e0b;
+    }
+
+    #char-counter.danger {
+      color: #ef4444;
+    }
+
+    #typing-indicator {
+      position: absolute;
+      bottom: 45px;
+      left: 16px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+      font-style: italic;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    #typing-indicator.show {
+      opacity: 1;
+    }
+
+    .typing-dots {
+      display: inline-block;
+    }
+
+    .typing-dots::after {
+      content: '...';
+      animation: typing 1.5s infinite;
+    }
+
+    @keyframes typing {
+      0%, 60% { content: '...'; }
+      20% { content: '.'; }
+      40% { content: '..'; }
+    }
+
     /* Animation d'apparition des messages */
     @keyframes messageAppear {
       from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(10px) scale(0.95);
       }
       to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
       }
     }
 
     .chat-message.new {
-      animation: messageAppear 0.3s ease-out;
+      animation: messageAppear 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes messageLeave {
+      from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+      }
+    }
+
+    .chat-message.leaving {
+      animation: messageLeave 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Sound wave animation for chat activity */
+    .sound-wave {
+      display: inline-block;
+      width: 3px;
+      height: 3px;
+      background: #22c55e;
+      border-radius: 50%;
+      margin: 0 1px;
+      animation: soundWave 1s infinite ease-in-out;
+    }
+
+    .sound-wave:nth-child(2) { animation-delay: 0.1s; }
+    .sound-wave:nth-child(3) { animation-delay: 0.2s; }
+
+    @keyframes soundWave {
+      0%, 100% { transform: scaleY(1); opacity: 0.5; }
+      50% { transform: scaleY(1.5); opacity: 1; }
     }
 
     /* Style pour la boîte de dialogue NPC */
@@ -248,29 +435,65 @@
         radial-gradient(circle at 80% 70%, rgba(150, 100, 255, 0.1) 0%, transparent 50%);
       pointer-events: none;
     }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+      #chat-window {
+        width: calc(100vw - 40px);
+        left: 20px;
+        right: 20px;
+      }
+      
+      #dialogue-box {
+        min-width: calc(100vw - 40px);
+        left: 20px;
+        right: 20px;
+        transform: none;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- Fenêtre de chat MMO -->
+  <!-- Chat Window -->
   <div id="chat-window">
-    <div id="chat-header">💬 Global Chat</div>
-    <div id="chat-messages">
-      <!-- Example messages -->
-      <div class="chat-message">
-        <span class="chat-username">KantoTrainer</span>
-        <span class="chat-text">Anyone up for a battle?</span>
-        <span class="chat-timestamp">2:23 PM</span>
+    <div id="chat-header">
+      <div id="chat-title">
+        <span>💬 Global Chat</span>
+        <div class="sound-wave"></div>
+        <div class="sound-wave"></div>
+        <div class="sound-wave"></div>
       </div>
-      <div class="chat-message">
-        <span class="chat-username">PikachuMaster</span>
-        <span class="chat-text">I'm in! Where should we meet?</span>
-        <span class="chat-timestamp">2:24 PM</span>
+      <div id="chat-controls">
+        <span id="online-count">🟢 42 online</span>
+        <button class="chat-btn" id="minimize-btn">−</button>
+        <button class="chat-btn" id="settings-btn">⚙️</button>
       </div>
     </div>
-    <input id="chat-input" type="text" placeholder="Type your message and press Enter..." autocomplete="off" />
+    
+    <div id="typing-indicator">
+      <span class="typing-dots">PikachuMaster is typing</span>
+    </div>
+    
+    <div id="chat-messages">
+      <!-- Example messages -->
+      <div class="chat-message system">
+        <span class="chat-text">🎮 Welcome to PokeWorld! Press T to test NPC dialogue.</span>
+        <span class="chat-timestamp">2:20 PM</span>
+      </div>
+      <div class="chat-message">
+        <span class="chat-username level" data-level="Lv.45">KantoTrainer</span>
+        <span class="chat-text">Anyone up for a battle? <span class="pokemon-emoji">⚡</span></span>
+        <span class="chat-timestamp">2:23 PM</span>
+      </div>
+    </div>
+    
+    <div id="chat-input-container">
+      <input id="chat-input" type="text" placeholder="Type your message and press Enter..." autocomplete="off" maxlength="200" />
+      <span id="char-counter">200</span>
+    </div>
   </div>
 
-  <!-- Boîte de dialogue NPC -->
+  <!-- NPC Dialogue Box -->
   <div id="dialogue-box" style="display:none;">
     <div id="npc-portrait"></div>
     <div id="npc-dialogue">
@@ -281,7 +504,216 @@
 
   <!-- Scripts -->
   <script>
-    // === Fonction JS pour afficher le dialogue d'un NPC ===
+    // === Chat Enhancement System ===
+    
+    class PokeChatSystem {
+      constructor() {
+        this.chatMessages = document.getElementById('chat-messages');
+        this.chatInput = document.getElementById('chat-input');
+        this.charCounter = document.getElementById('char-counter');
+        this.typingIndicator = document.getElementById('typing-indicator');
+        this.chatWindow = document.getElementById('chat-window');
+        this.minimizeBtn = document.getElementById('minimize-btn');
+        this.onlineCount = document.getElementById('online-count');
+        
+        this.maxMessages = 50;
+        this.isMinimized = false;
+        this.typingTimeout = null;
+        this.messageHistory = [];
+        
+        this.pokemonEmojis = ['⚡', '🔥', '💧', '🌱', '🌟', '👻', '🦋', '🐉', '⭐', '💎'];
+        this.currentOnline = 42;
+        
+        this.initializeEventListeners();
+        this.simulateActivity();
+      }
+      
+      initializeEventListeners() {
+        // Input handling
+        this.chatInput.addEventListener('input', (e) => this.handleInput(e));
+        this.chatInput.addEventListener('keypress', (e) => this.handleKeyPress(e));
+        this.chatInput.addEventListener('focus', () => this.showTypingIndicator());
+        this.chatInput.addEventListener('blur', () => this.hideTypingIndicator());
+        
+        // Chat controls
+        this.minimizeBtn.addEventListener('click', () => this.toggleMinimize());
+        document.getElementById('settings-btn').addEventListener('click', () => this.showSettings());
+        
+        // Header click to toggle
+        document.getElementById('chat-header').addEventListener('click', () => {
+          if (this.isMinimized) this.toggleMinimize();
+        });
+      }
+      
+      handleInput(e) {
+        const length = e.target.value.length;
+        const remaining = 200 - length;
+        
+        this.charCounter.textContent = remaining;
+        this.charCounter.className = '';
+        
+        if (remaining < 50) this.charCounter.classList.add('warning');
+        if (remaining < 20) this.charCounter.classList.add('danger');
+        
+        // Simulate typing indicator for other users
+        if (length > 0) {
+          this.showTypingIndicator('You are typing');
+          clearTimeout(this.typingTimeout);
+          this.typingTimeout = setTimeout(() => this.hideTypingIndicator(), 2000);
+        }
+      }
+      
+      handleKeyPress(e) {
+        if (e.key === 'Enter' && this.chatInput.value.trim()) {
+          this.sendMessage(this.chatInput.value.trim());
+          this.chatInput.value = '';
+          this.charCounter.textContent = '200';
+          this.charCounter.className = '';
+        }
+      }
+      
+      sendMessage(text) {
+        // Add random Pokemon emoji occasionally
+        if (Math.random() < 0.3) {
+          const emoji = this.pokemonEmojis[Math.floor(Math.random() * this.pokemonEmojis.length)];
+          text += ` <span class="pokemon-emoji">${emoji}</span>`;
+        }
+        
+        this.addMessage('You', text, null, 'normal');
+        this.hideTypingIndicator();
+        
+        // Simulate responses
+        setTimeout(() => this.simulateResponse(), 1000 + Math.random() * 3000);
+      }
+      
+      addMessage(username, text, timestamp = null, type = 'normal') {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message new ${type}`;
+        
+        const time = timestamp || new Date().toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true
+        });
+        
+        let userHTML = `<span class="chat-username`;
+        if (type === 'normal' && Math.random() < 0.7) {
+          const level = Math.floor(Math.random() * 50) + 1;
+          userHTML += ` level" data-level="Lv.${level}`;
+        }
+        userHTML += `">${username}</span>`;
+        
+        if (type === 'system') {
+          messageDiv.innerHTML = `
+            <span class="chat-text">${text}</span>
+            <span class="chat-timestamp">${time}</span>
+          `;
+        } else {
+          messageDiv.innerHTML = `
+            ${userHTML}
+            <span class="chat-text">${text}</span>
+            <span class="chat-timestamp">${time}</span>
+          `;
+        }
+        
+        this.chatMessages.appendChild(messageDiv);
+        this.scrollToBottom();
+        
+        // Remove animation class
+        setTimeout(() => messageDiv.classList.remove('new'), 400);
+        
+        // Manage message limit
+        this.messageHistory.push(messageDiv);
+        if (this.messageHistory.length > this.maxMessages) {
+          const oldMessage = this.messageHistory.shift();
+          oldMessage.classList.add('leaving');
+          setTimeout(() => oldMessage.remove(), 300);
+        }
+        
+        // Play sound effect (simulation)
+        this.playMessageSound();
+      }
+      
+      scrollToBottom() {
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+      }
+      
+      showTypingIndicator(text = 'PikachuMaster is typing') {
+        this.typingIndicator.querySelector('.typing-dots').textContent = text;
+        this.typingIndicator.classList.add('show');
+      }
+      
+      hideTypingIndicator() {
+        this.typingIndicator.classList.remove('show');
+      }
+      
+      toggleMinimize() {
+        this.isMinimized = !this.isMinimized;
+        this.chatWindow.classList.toggle('minimized');
+        this.minimizeBtn.textContent = this.isMinimized ? '+' : '−';
+      }
+      
+      showSettings() {
+        // Placeholder for settings menu
+        this.addMessage('System', '⚙️ Settings menu coming soon!', null, 'system');
+      }
+      
+      simulateResponse() {
+        const responses = [
+          'Great battle! Good game! 🎮',
+          'Looking for rare Pokemon trades! 💎',
+          'Anyone know where to find Mewtwo? 🤔',
+          'Just caught a shiny Pikachu! ⚡✨',
+          'Gym battle in 5 minutes, who\'s in? ⚔️',
+          'Thanks for the trade! 👍',
+          'This game is awesome! 🌟'
+        ];
+        
+        const users = ['PikachuMaster', 'TeamRocket_James', 'MistyWaterLily', 'BrockTheRock', 'AshKetchum92'];
+        const user = users[Math.floor(Math.random() * users.length)];
+        const response = responses[Math.floor(Math.random() * responses.length)];
+        
+        this.showTypingIndicator(`${user} is typing`);
+        setTimeout(() => {
+          this.addMessage(user, response);
+          this.hideTypingIndicator();
+        }, 1000 + Math.random() * 2000);
+      }
+      
+      simulateActivity() {
+        // Simulate online count changes
+        setInterval(() => {
+          const change = Math.floor(Math.random() * 6) - 2; // -2 to +3
+          this.currentOnline = Math.max(20, Math.min(100, this.currentOnline + change));
+          this.onlineCount.textContent = `🟢 ${this.currentOnline} online`;
+        }, 10000);
+        
+        // Simulate random system messages
+        setTimeout(() => {
+          this.addMessage('System', '🎉 Daily tournament starting in 10 minutes!', null, 'system');
+        }, 15000);
+        
+        // Simulate automatic responses
+        setTimeout(() => {
+          this.addMessage('Professor_Oak', 'Welcome to the world of Pokémon! 🌟', null, 'normal');
+        }, 3000);
+        
+        setTimeout(() => {
+          this.addMessage('Nurse_Joy', 'Don\'t forget to heal your Pokémon regularly! 💊', null, 'normal');
+        }, 8000);
+      }
+      
+      playMessageSound() {
+        // Simulate sound effect with visual feedback
+        const soundWaves = document.querySelectorAll('.sound-wave');
+        soundWaves.forEach(wave => {
+          wave.style.animation = 'none';
+          setTimeout(() => wave.style.animation = 'soundWave 1s infinite ease-in-out', 10);
+        });
+      }
+    }
+    
+    // === NPC Dialogue System ===
     function showNpcDialogue({ portrait, name, text }) {
       const box = document.getElementById("dialogue-box");
       const npcPortrait = document.getElementById("npc-portrait");
@@ -297,60 +729,17 @@
       
       box.onclick = () => (box.style.display = "none");
     }
-
-    // === Fonctionnalité chat améliorée ===
-    const chatMessages = document.getElementById('chat-messages');
-    const chatInput = document.getElementById('chat-input');
-
-    // Fonction pour ajouter un message
-    function addMessage(username, text, timestamp = null) {
-      const messageDiv = document.createElement('div');
-      messageDiv.className = 'chat-message new';
-      
-      const time = timestamp || new Date().toLocaleTimeString('fr-FR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-      
-      messageDiv.innerHTML = `
-        <span class="chat-username">${username}</span>
-        <span class="chat-text">${text}</span>
-        <span class="chat-timestamp">${time}</span>
-      `;
-      
-      chatMessages.appendChild(messageDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-      
-      // Retirer la classe d'animation après l'animation
-      setTimeout(() => {
-        messageDiv.classList.remove('new');
-      }, 300);
-    }
-
-    // Gestion de l'envoi de messages
-    chatInput.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter' && this.value.trim()) {
-        addMessage('Vous', this.value.trim());
-        this.value = '';
-      }
-    });
-
-    // Exemple de messages automatiques (simulation)
-    setTimeout(() => {
-      addMessage('Professeur_Chen', 'Bienvenue dans le monde des Pokémon!');
-    }, 2000);
-
-    setTimeout(() => {
-      addMessage('Infirmière_Joëlle', 'N\'oubliez pas de soigner vos Pokémon régulièrement!');
-    }, 5000);
-
-    // Test de la boîte de dialogue NPC (clic pour tester)
+    
+    // Initialize chat system
+    const pokeChat = new PokeChatSystem();
+    
+    // Test NPC dialogue (press 't' to test)
     document.addEventListener('keypress', function(e) {
       if (e.key === 't' || e.key === 'T') {
         showNpcDialogue({
-          portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=NPC',
-          name: 'Professeur Chen',
-          text: 'Bonjour jeune dresseur! Prêt pour ton aventure Pokémon?'
+          portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=OAK',
+          name: 'Professor Oak',
+          text: 'Hello young trainer! Ready for your Pokémon adventure? Press here to close this dialogue.'
         });
       }
     });
