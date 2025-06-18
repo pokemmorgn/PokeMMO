@@ -75,11 +75,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       // Calcul position spawn dans la zone cible
       const spawnPosition = this.calculateSpawnPosition(data.targetZone);
 
-      // Supprime joueur de cette room (transition)
-      const player = this.state.players.get(client.sessionId);
-      if (player) {
-        // Exemple : appel d'un téléporteur dans la même room
-// Téléportation du joueur dans la même room (ex: téléporteur, event...)
+
 const player = this.state.players.get(client.sessionId);
 if (player) {
   const result = this.movementController.handleMove(
