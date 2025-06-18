@@ -112,7 +112,7 @@ export class VillageScene extends BaseZoneScene {
       if (initData?.fromZone === 'BeachScene') {
         spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_GRbottom');
       } else if (initData?.fromZone === 'Road1Scene') {
-        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_GRtop') ||
+        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_GRtop');
       } else if (initData?.fromZone === 'VillageLabScene') {
         spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Labo');
       } else if (initData?.fromZone === 'VillageHouse1Scene') {
