@@ -238,24 +238,66 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-  setupZoneTransitions() {
-    // à override dans les sous-classes
+setupZoneTransitions() {
+  const worldsLayer = this.map.getObjectLayer('Worlds');
+  if (!worldsLayer) {
+    console.warn("[Transition] Couche Worlds non trouvée !");
+    return;
   }
 
-  positionPlayer(player) {
-    const serverX = player.x || 100;
-    const serverY = player.y || 100;
-
-    if (this.scene.settings.data.spawnX !== undefined && this.scene.settings.data.spawnY !== undefined) {
-      player.x = this.scene.settings.data.spawnX;
-      player.y = this.scene.settings.data.spawnY;
-      console.log(`Position appliquée via spawnX/spawnY: (${player.x}, ${player.y})`);
-    } else {
-      player.x = serverX;
-      player.y = serverY;
-      console.log(`Position appliquée depuis serveur: (${player.x}, ${player.y})`);
+  const transitionConfig = this.getTransitionConfig();
+  console.log("[Transition] transitionConfig =", transitionConfig);
+  worldsLayer.objects.forEach(obj => {
+    console.log("[Transition] Objet dans Worlds:", obj.name);
+    const transition = transitionConfig[obj.name];
+    if (transition) {
+      console.log(`[Transition] Création zone pour ${obj.name} -> ${transition.targetScene} (${transition.direction})`);
+      this.createTransitionZone(obj, transition.targetScene, transition.direction);
     }
+  });
+}
+  
+// Méthode à override dans chaque scène
+getTransitionConfig() {
+  return {}; // À définir dans les sous-classes
+}
+
+positionPlayer(player) {
+  const initData = this.scene.settings.data;
+  
+  // Position par défaut ou depuis spawn data
+  if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+    player.x = initData.spawnX;
+    player.y = initData.spawnY;
+  } else {
+    // Utiliser les positions par défaut de la scène
+    const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+    player.x = defaultPos.x;
+    player.y = defaultPos.y;
   }
+
+  // Logique commune pour l'indicateur
+  if (player.indicator) {
+    player.indicator.x = player.x;
+    player.indicator.y = player.y - 32;
+  }
+
+  if (this.networkManager) {
+    this.networkManager.sendMove(player.x, player.y);
+  }
+
+  // Hook pour logique spécifique (intro, etc.)
+  this.onPlayerPositioned(player, initData);
+}
+
+// À override dans les sous-classes
+getDefaultSpawnPosition(fromZone) {
+  return { x: 100, y: 100 }; // Valeurs par défaut
+}
+
+onPlayerPositioned(player, initData) {
+  // Hook pour logique spécifique (intro dans BeachScene)
+}
 
   async initializeNetwork() {
     const getWalletFromUrl = () => {
