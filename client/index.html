@@ -112,7 +112,11 @@
     <div id="chat-messages"></div>
     <input id="chat-input" type="text" placeholder="Appuyez sur Entrée pour parler..." autocomplete="off" />
   </div>
-  <div id="dialogue-box" style="display:none;">
+  <div id="dialogue-box"
+     style="display:none;position:absolute;
+            bottom:120px; /* ← Mets ici la valeur souhaitée */
+            left:50%;transform:translateX(-50%);
+            width:400px;z-index:999;">
   <div id="npc-portrait"></div>
   <div id="npc-dialogue">
     <span id="npc-name"></span>
