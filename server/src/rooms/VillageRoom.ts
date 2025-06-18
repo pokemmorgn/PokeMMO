@@ -8,21 +8,21 @@ import { PokeWorldState } from "../schema/PokeWorldState";
 export class VillageRoom extends BaseRoom {
   // Propriétés obligatoires à définir
   protected mapName = "VillageRoom";
-  protected defaultX = 200;   // position par défaut
-  protected defaultY = 150;
+  protected defaultX = 428;   // position par défaut
+  protected defaultY = 445;
 
   // Logique de calcul du point de spawn selon la zone d'arrivée
-  protected calculateSpawnPosition(targetZone: string): { x: number, y: number } {
-    // Ajuste les coordonnées selon la zone cible
-    switch (targetZone) {
-      case "BeachScene":
-        return { x: 100, y: 100 };
-      case "Road1Scene":
-        return { x: 342, y: 618 };
-      default:
-        return { x: this.defaultX, y: this.defaultY };
-    }
+  public calculateSpawnPosition(targetZone: string): { x: number, y: number } {
+  switch (targetZone) {
+    case "BeachScene":
+      return { x: 428, y: 445 }; // Position où spawn le joueur s'il vient de BeachScene
+    case "Road1Scene":
+      return { x: 150, y: 26 };
+    default:
+      return { x: this.defaultX, y: this.defaultY };
   }
+}
+
 
   // Optionnel : Ajoute de la logique custom si besoin
   // Si tu veux faire des logs à la création ou autres
