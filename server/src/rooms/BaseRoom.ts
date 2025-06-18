@@ -4,7 +4,7 @@
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { PlayerData } from "../models/PlayerData";
-import { NpcManager, NpcData } from "../managers/NPCManager";
+import { NpcManager } from "../managers/NPCManager";
 import { MovementController } from "../controllers/MovementController";
 import { InteractionManager } from "../managers/InteractionManager";
 
@@ -14,7 +14,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   protected abstract defaultX: number;
   protected abstract defaultY: number;
   protected abstract calculateSpawnPosition(targetZone: string): { x: number, y: number };
-  
+
   protected npcManager: NpcManager;
   protected movementController: MovementController;
   protected interactionManager: InteractionManager;
@@ -24,26 +24,23 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     console.log(`🔥 DEBUT onCreate ${this.mapName}`);
 
     this.npcManager = new NpcManager(`../assets/maps/${this.mapName.replace('Room', '').toLowerCase()}.tmj`);
-    console.log(`[${this.mapName}] NPCs chargés :`, this.npcManager.getAllNpcs());
-
     this.interactionManager = new InteractionManager(this.npcManager);
     this.movementController = new MovementController();
 
     // Sauvegarde automatique
     this.clock.setInterval(() => {
-      console.log(`🔥🔥🔥 TIMER - Appel saveAllPlayers - ${new Date().toISOString()}`);
       this.saveAllPlayers();
     }, 30000);
 
-    // Interaction NPC
+    // --- Gestion interaction NPC ---
     this.onMessage("npcInteract", (client, data: { npcId: number }) => {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
       const result = this.interactionManager.handleNpcInteraction(player, data.npcId);
       client.send("npcInteractionResult", result);
     });
-    
-    // Handler mouvements joueurs
+
+    // --- Gestion des mouvements ---
     this.onMessage("move", (client, data) => {
       const player = this.state.players.get(client.sessionId);
       if (player) {
@@ -60,37 +57,43 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       }
     });
 
-    // Handler changement de zone (transition)
+    // --- Gestion des transitions de zones ---
     this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
-      console.log(`[${this.mapName}] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
+      const player = this.state.players.get(client.sessionId);
+
+      // Protection anti double transition
+      if (player && (player as any).isTransitioning) {
+        console.log(`[${this.mapName}] Transition ignorée (déjà en cours) pour ${player.name}`);
+        return;
+      }
+      if (player) (player as any).isTransitioning = true;
+
       const spawnPosition = this.calculateSpawnPosition(data.targetZone);
 
-      const player = this.state.players.get(client.sessionId);
       if (player) {
-        // Désactive l'anticheat uniquement pour ce déplacement de transition
+        // Désactive anticheat uniquement pour la TP de transition
         this.movementController.handleMove(
           client.sessionId,
           player,
           { x: spawnPosition.x, y: spawnPosition.y, direction: player.direction, isMoving: false },
-          true // skipAnticheat
+          true
         );
         player.x = spawnPosition.x;
         player.y = spawnPosition.y;
         player.isMoving = false;
 
-        // Enlève le joueur de la room (Colyseus va le recréer dans la prochaine room)
+        // Retire le joueur de la room (Colyseus le recrée dans la suivante)
         this.state.players.delete(client.sessionId);
         this.movementController?.resetPlayer?.(client.sessionId);
 
-        // Sauvegarde la position en BDD
+        // Sauvegarde la position en base
         await PlayerData.updateOne(
           { username: player.name },
           { $set: { lastX: spawnPosition.x, lastY: spawnPosition.y, lastMap: data.targetZone } }
         );
-        console.log(`[${this.mapName}] Sauvegarde position et map (${spawnPosition.x}, ${spawnPosition.y}) dans ${data.targetZone} pour ${player.name}`);
       }
 
-      // Envoie confirmation au client (il se reconnectera à la nouvelle room)
+      // Répond au client pour la transition (il va se reconnecter à la nouvelle room)
       client.send("zoneChanged", {
         targetZone: data.targetZone,
         fromZone: this.mapName.replace('Room', 'Scene'),
@@ -98,37 +101,30 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
         spawnX: spawnPosition.x,
         spawnY: spawnPosition.y
       });
-
-      console.log(`[${this.mapName}] Transition envoyée: ${data.targetZone} à (${spawnPosition.x}, ${spawnPosition.y})`);
     });
 
     console.log(`[${this.mapName}] Room créée :`, this.roomId);
-    console.log(`🔥 FIN onCreate ${this.mapName}`);
   }
 
   async saveAllPlayers() {
-    console.log(`🟡🟡🟡 saveAllPlayers APPELEE pour ${this.mapName}`);
-    console.log('🟡 Nombre de joueurs:', this.state.players.size);
     if (this.state.players.size === 0) return;
     try {
       for (const [sessionId, player] of this.state.players) {
         await PlayerData.updateOne(
-          { username: player.name }, 
+          { username: player.name },
           { $set: { lastX: player.x, lastY: player.y, lastMap: this.mapName.replace('Room', '') } }
         );
       }
-      console.log('✅ saveAllPlayers terminée');
     } catch (error) {
       console.error(`❌ Erreur saveAllPlayers ${this.mapName}:`, error);
     }
   }
 
   async onJoin(client: Client, options: any) {
-    console.log(`🔍 DEBUG onJoin ${this.mapName} - options reçues:`, options);
     const username = options.username || "Anonymous";
     client.send("npcList", this.npcManager.getAllNpcs());
 
-    // Retire un ancien joueur avec le même nom
+    // Remove old duplicate player
     const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
     if (existingPlayer) {
       const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
@@ -137,24 +133,25 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
         this.movementController?.resetPlayer?.(oldSessionId);
       }
     }
-    
-    // Recherche les données sauvegardées
+
+    // Recherche des données sauvegardées
     let playerData = await PlayerData.findOne({ username });
     if (!playerData) {
       const mapName = this.mapName.replace('Room', '');
-      playerData = await PlayerData.create({ 
-        username, 
-        lastX: this.defaultX, 
-        lastY: this.defaultY, 
-        lastMap: mapName 
+      playerData = await PlayerData.create({
+        username,
+        lastX: this.defaultX,
+        lastY: this.defaultY,
+        lastMap: mapName
       });
     }
-    
+
     const player = new Player();
     player.name = username;
     (player as any).justSpawned = true;
+    (player as any).isTransitioning = false; // Reset du flag ici !
 
-    // Spawn via transition ou via dernière position
+    // Spawn via transition ou dernière position connue
     if (options.spawnX !== undefined && options.spawnY !== undefined) {
       player.x = options.spawnX;
       player.y = options.spawnY;
@@ -162,7 +159,6 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       player.x = playerData.lastX;
       player.y = playerData.lastY;
     }
-    
     player.map = this.mapName.replace('Room', '');
     this.state.players.set(client.sessionId, player);
   }
