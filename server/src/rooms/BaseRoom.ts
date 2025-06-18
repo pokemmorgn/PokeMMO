@@ -1,22 +1,7 @@
-import { Room, Client } from "@colyseus/core";
-import { PokeWorldState, Player } from "../schema/PokeWorldState";
-import { PlayerData } from "../models/PlayerData";
-import { NpcManager } from "../managers/NPCManager";
-import { MovementController } from "../controllers/MovementController";
-import { TransitionController } from "../controllers/TransitionController";
-import { InteractionManager } from "../managers/InteractionManager";
-
-type SpawnData = {
-  targetZone: string;
-  targetSpawn?: string;
-  targetX?: number;
-  targetY?: number;
-};
-
 export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
 
-public mapName: string;
+  public abstract mapName: string; // doit être abstract pour forcer la définition dans les classes filles
   protected abstract defaultX: number;
   protected abstract defaultY: number;
 
@@ -25,8 +10,8 @@ public mapName: string;
   public transitionController: TransitionController;
   protected interactionManager: InteractionManager;
 
-  // Méthode abstraite qui doit être définie dans chaque room fille
-public calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number };
+  // Méthode abstraite, signature seulement (pas d'accolades ni corps)
+  public abstract calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number };
 
   onCreate(options: any) {
     this.setState(new PokeWorldState());
