@@ -5,7 +5,14 @@ import { PlayerData } from "../models/PlayerData";
 import { BaseRoom } from "../rooms/BaseRoom";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 
-type TransitionData = { targetZone: string; direction: string };
+// Ajoute ici les champs dont tu as besoin (targetSpawn, targetX, targetY...)
+type TransitionData = {
+  targetZone: string;
+  direction: string;
+  targetSpawn?: string;
+  targetX?: number;
+  targetY?: number;
+};
 
 export class TransitionController {
   room: BaseRoom;
@@ -24,7 +31,13 @@ export class TransitionController {
 
     (player as any).isTransitioning = true;
 
-    const spawnPosition = this.room.calculateSpawnPosition(data.targetZone);
+    // ---> Adapte ici pour passer targetSpawn, targetX, targetY
+    const spawnPosition = this.room.calculateSpawnPosition(
+      data.targetZone,
+      data.targetSpawn,
+      data.targetX,
+      data.targetY
+    );
 
     console.log(`[TransitionController] Transition ${player.name} (${this.room.mapName}) -> ${data.targetZone} (${spawnPosition.x},${spawnPosition.y})`);
 
