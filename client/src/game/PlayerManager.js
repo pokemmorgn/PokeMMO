@@ -216,7 +216,7 @@ performUpdate(state) {
       player.indicator.y = player.y - 24;
     }
   });
-}
+
 
 
 
