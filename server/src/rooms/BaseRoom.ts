@@ -9,7 +9,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
   
   // Propriétés abstraites que chaque room enfant doit définir
-  protected abstract roomName: string;
+  protected abstract mapName: string;
   protected abstract defaultX: number;
   protected abstract defaultY: number;
 
@@ -19,7 +19,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   onCreate(options: any) {
     this.setState(new PokeWorldState());
 
-    console.log(`🔥 DEBUT onCreate ${this.roomName}`);
+    console.log(`🔥 DEBUT onCreate ${this.mapName}`);
 
     // Sauvegarde automatique toutes les 30 secondes
     this.clock.setInterval(() => {
@@ -41,7 +41,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
 
     // Handler pour les changements de zone
     this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
-      console.log(`[${this.roomName}] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
+      console.log(`[${this.mapName}] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
 
       // Calcul position spawn dans la zone cible
       const spawnPosition = this.calculateSpawnPosition(data.targetZone);
@@ -50,34 +50,34 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       const player = this.state.players.get(client.sessionId);
       if (player) {
         this.state.players.delete(client.sessionId);
-        console.log(`[${this.roomName}] Joueur ${client.sessionId} supprimé pour transition`);
+        console.log(`[${this.mapName}] Joueur ${client.sessionId} supprimé pour transition`);
 
         // Sauvegarde position + map cible dans la DB
         await PlayerData.updateOne(
           { username: player.name },
           { $set: { lastX: spawnPosition.x, lastY: spawnPosition.y, lastMap: data.targetZone } }
         );
-        console.log(`[${this.roomName}] Sauvegarde position et map (${spawnPosition.x}, ${spawnPosition.y}) dans ${data.targetZone} pour ${player.name}`);
+        console.log(`[${this.mapName}] Sauvegarde position et map (${spawnPosition.x}, ${spawnPosition.y}) dans ${data.targetZone} pour ${player.name}`);
       }
 
       // Envoi confirmation au client
       client.send("zoneChanged", {
         targetZone: data.targetZone,
-        fromZone: this.roomName.replace('Room', 'Scene'), // BeachRoom -> BeachScene
+        fromZone: this.mapName.replace('Room', 'Scene'), // BeachRoom -> BeachScene
         direction: data.direction,
         spawnX: spawnPosition.x,
         spawnY: spawnPosition.y
       });
 
-      console.log(`[${this.roomName}] Transition envoyée: ${data.targetZone} à (${spawnPosition.x}, ${spawnPosition.y})`);
+      console.log(`[${this.mapName}] Transition envoyée: ${data.targetZone} à (${spawnPosition.x}, ${spawnPosition.y})`);
     });
 
-    console.log(`[${this.roomName}] Room créée :`, this.roomId);
-    console.log(`🔥 FIN onCreate ${this.roomName}`);
+    console.log(`[${this.mapName}] Room créée :`, this.roomId);
+    console.log(`🔥 FIN onCreate ${this.mapName}`);
   }
 
   async saveAllPlayers() {
-    console.log(`🟡🟡🟡 saveAllPlayers APPELEE pour ${this.roomName}`);
+    console.log(`🟡🟡🟡 saveAllPlayers APPELEE pour ${this.mapName}`);
     console.log('🟡 Nombre de joueurs:', this.state.players.size);
     
     if (this.state.players.size === 0) {
@@ -91,19 +91,19 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
         
         const result = await PlayerData.updateOne(
           { username: player.name }, 
-          { $set: { lastX: player.x, lastY: player.y, lastMap: this.roomName.replace('Room', '') } }
+          { $set: { lastX: player.x, lastY: player.y, lastMap: this.mapName.replace('Room', '') } }
         );
         
         console.log(`✅ ${player.name} sauvegardé - MongoDB result:`, result.modifiedCount);
       }
       console.log('✅ saveAllPlayers terminée');
     } catch (error) {
-      console.error(`❌ Erreur saveAllPlayers ${this.roomName}:`, error);
+      console.error(`❌ Erreur saveAllPlayers ${this.mapName}:`, error);
     }
   }
 
   async onJoin(client: Client, options: any) {
-    console.log(`🔍 DEBUG onJoin ${this.roomName} - options reçues:`, options);
+    console.log(`🔍 DEBUG onJoin ${this.mapName} - options reçues:`, options);
     
     const username = options.username || "Anonymous";
     console.log('🔍 DEBUG username utilisé:', username);
@@ -114,7 +114,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
       if (oldSessionId) {
         this.state.players.delete(oldSessionId);
-        console.log(`[${this.roomName}] Ancien joueur ${username} supprimé (sessionId: ${oldSessionId})`);
+        console.log(`[${this.mapName}] Ancien joueur ${username} supprimé (sessionId: ${oldSessionId})`);
       }
     }
     
@@ -125,7 +125,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     
     if (!playerData) {
       console.log('🔍 DEBUG - Création nouveau playerData');
-      const mapName = this.roomName.replace('Room', '');
+      const mapName = this.mapName.replace('Room', '');
       playerData = await PlayerData.create({ 
         username, 
         lastX: this.defaultX, 
@@ -142,16 +142,16 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     if (options.spawnX !== undefined && options.spawnY !== undefined) {
       player.x = options.spawnX;
       player.y = options.spawnY;
-      console.log(`[${this.roomName}] ${username} spawn à (${options.spawnX}, ${options.spawnY}) depuis ${options.fromZone}`);
+      console.log(`[${this.mapName}] ${username} spawn à (${options.spawnX}, ${options.spawnY}) depuis ${options.fromZone}`);
     } else {
       player.x = playerData.lastX;
       player.y = playerData.lastY;
-      console.log(`[${this.roomName}] ${username} spawn à position sauvegardée (${player.x}, ${player.y})`);
+      console.log(`[${this.mapName}] ${username} spawn à position sauvegardée (${player.x}, ${player.y})`);
     }
     
-    player.map = this.roomName.replace('Room', '');
+    player.map = this.mapName.replace('Room', '');
     this.state.players.set(client.sessionId, player);
-    console.log(`[${this.roomName}] ${username} est entré avec sessionId: ${client.sessionId}`);
+    console.log(`[${this.mapName}] ${username} est entré avec sessionId: ${client.sessionId}`);
   }
 
   async onLeave(client: Client) {
@@ -160,13 +160,13 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       await PlayerData.updateOne({ username: player.name }, {
         $set: { lastX: player.x, lastY: player.y, lastMap: player.map }
       });
-      console.log(`[${this.roomName}] ${player.name} a quitté (sauvé à ${player.x}, ${player.y} sur ${player.map})`);
+      console.log(`[${this.mapName}] ${player.name} a quitté (sauvé à ${player.x}, ${player.y} sur ${player.map})`);
       this.state.players.delete(client.sessionId);
     }
   }
 
   async onDispose() {
-    console.log(`[${this.roomName}] Room fermée - sauvegarde finale`);
+    console.log(`[${this.mapName}] Room fermée - sauvegarde finale`);
     await this.saveAllPlayers();
   }
 }
