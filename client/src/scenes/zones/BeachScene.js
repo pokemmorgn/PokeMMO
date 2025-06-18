@@ -85,7 +85,7 @@ setupZoneTransitions() {
     const targetZone = targetZoneProp.value;
     const direction = directionProp ? directionProp.value : 'north';
 
-    // Crée la zone physique Phaser pour détecter le joueur
+    // Création de la zone physique
     const zone = this.add.zone(
       obj.x + obj.width / 2,
       obj.y + obj.height / 2,
@@ -96,16 +96,13 @@ setupZoneTransitions() {
     zone.body.setAllowGravity(false);
     zone.body.setImmovable(true);
 
-    // Surlap avec joueur => demande transition au serveur
+    // Détection de l’overlap avec le joueur
     this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
       if (!this.networkManager) return;
       this.networkManager.requestZoneTransition(targetZone, direction);
     });
   });
 }
-
-
-
 
   // --- Gère le placement joueur au spawn ---
   positionPlayer(player) {
