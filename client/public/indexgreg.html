@@ -435,116 +435,425 @@
     <script src="https://unpkg.com/colyseus.js/dist/colyseus.js"></script>
 
 <script>
-window._suiWalletData = null;
+class PhantomMultiAccountManager {
+    constructor() {
+        this.currentAccount = null;
+        this.isConnected = false;
+        
+        this.initializeElements();
+        this.initializeEventListeners();
+        this.startDiagnostics();
+        
+        // Initialiser client Colyseus (adapter l'URL à ton serveur)
+        this.colyseusClient = new Colyseus.Client("wss://pokerune.cloud/ws"); 
+    }
 
-// Détecter et connecter SUI Wallet
-async function connectSuiWallet() {
-    // Cherche les wallets compatibles SUI installés
-    const wallets = window.walletStandard?.getWallets().get() || [];
-    if (!wallets.length) {
-        alert("Aucun wallet SUI détecté (Phantom, Suiet, Ethos...)");
+    initializeElements() {
+        this.connectBtn = document.getElementById('connectBtn');
+        this.loading = document.getElementById('loading');
+        this.walletInfo = document.getElementById('walletInfo');
+        this.walletAddress = document.getElementById('walletAddress');
+        this.statusDot = document.getElementById('statusDot');
+        this.accountStatus = document.getElementById('accountStatus');
+        this.accountDetails = document.getElementById('accountDetails');
+        this.refreshBtn = document.getElementById('refreshBtn');
+        this.playGameBtn = document.getElementById('playGameBtn');
+    }
+
+    initializeEventListeners() {
+        this.connectBtn.addEventListener('click', () => this.handleConnectionToggle());
+        this.refreshBtn.addEventListener('click', () => this.refreshAccounts());
+        
+        this.playGameBtn.addEventListener('click', () => this.authenticateAndPlay());
+        this.setupPhantomListeners();
+    }
+
+    async setupPhantomListeners() {
+        try {
+            await this.waitForPhantom();
+
+            if (window.phantom?.sui && typeof window.phantom.sui.on === 'function') {
+                window.phantom.sui.on('accountChanged', (account) => this.handleAccountChanged(account));
+                window.phantom.sui.on('connect', (account) => this.handleAccountChanged(account));
+                window.phantom.sui.on('disconnect', () => this.handleDisconnection());
+            }
+
+            setInterval(() => {
+                this.checkCurrentAccount();
+            }, 2000);
+        } catch (error) {
+            console.error('Erreur lors de la configuration des listeners:', error);
+        }
+    }
+
+    async handleAccountChanged(accountData) {
+        if (accountData && accountData.address) {
+            this.currentAccount = accountData;
+            this.updateConnectedState(accountData.address);
+        } else if (Array.isArray(accountData) && accountData.length > 0) {
+            this.currentAccount = accountData[0];
+            this.updateConnectedState(accountData[0].address);
+        } else {
+            await this.refreshCurrentAccount();
+        }
+    }
+
+    async refreshCurrentAccount() {
+        try {
+            if (!window.phantom?.sui) return;
+
+            const suiProvider = window.phantom.sui;
+            if (suiProvider.isConnected && typeof suiProvider.getAccount === 'function') {
+                const account = await suiProvider.getAccount();
+                if (account && account.address) {
+                    this.currentAccount = account;
+                    this.updateConnectedState(account.address);
+                    return;
+                }
+            }
+
+            if (suiProvider.publicKey) {
+                const address = suiProvider.publicKey.toString();
+                this.currentAccount = { address };
+                this.updateConnectedState(address);
+                return;
+            }
+
+            if (suiProvider._accounts && suiProvider._accounts.length > 0) {
+                this.currentAccount = suiProvider._accounts[0];
+                this.updateConnectedState(this.currentAccount.address);
+                return;
+            }
+
+            if (window.phantom._state?.accounts?.sui && window.phantom._state.accounts.sui.length > 0) {
+                this.currentAccount = window.phantom._state.accounts.sui[0];
+                this.updateConnectedState(this.currentAccount.address);
+                return;
+            }
+        } catch (error) {
+            console.error('Erreur lors de la récupération du compte actuel:', error);
+        }
+    }
+
+    async checkCurrentAccount() {
+        if (!this.isConnected || !window.phantom?.sui) return;
+
+        try {
+            const suiProvider = window.phantom.sui;
+            let currentAddress = null;
+
+            if (suiProvider.publicKey) currentAddress = suiProvider.publicKey.toString();
+            else if (suiProvider._accounts && suiProvider._accounts.length > 0) currentAddress = suiProvider._accounts[0].address;
+            else if (window.phantom._state?.accounts?.sui && window.phantom._state.accounts.sui.length > 0) currentAddress = window.phantom._state.accounts.sui[0].address;
+
+            if (currentAddress && this.currentAccount?.address !== currentAddress) {
+                this.currentAccount = { address: currentAddress };
+                this.updateConnectedState(currentAddress);
+            }
+        } catch (error) {
+            console.error('Erreur lors de la vérification du compte actuel:', error);
+        }
+    }
+
+    async handleConnectionToggle() {
+        if (this.isConnected) {
+            this.disconnect();
+        } else {
+            await this.connect();
+        }
+    }
+
+    async connect() {
+        try {
+            this.setLoadingState(true);
+            await this.waitForPhantom();
+
+            if (!window.phantom) throw new Error('Phantom Wallet non installé');
+            if (!window.phantom.sui) throw new Error('Support Sui non activé dans Phantom');
+
+            const suiProvider = window.phantom.sui;
+            let response = null;
+
+            try {
+                response = await suiProvider.requestAccount();
+            } catch (error) {
+                await this.refreshCurrentAccount();
+                if (this.currentAccount) response = this.currentAccount;
+                else throw error;
+            }
+
+            let address = null;
+            if (response?.address) address = response.address;
+            else if (typeof response === 'string') address = response;
+            else if (response?.publicKey) address = response.publicKey.toString();
+            else {
+                await this.refreshCurrentAccount();
+                if (this.currentAccount) address = this.currentAccount.address;
+            }
+
+            if (!address) throw new Error('Impossible de récupérer l\'adresse du compte');
+
+            this.currentAccount = { address };
+            this.updateConnectedState(address);
+        } catch (error) {
+            this.setLoadingState(false);
+            this.showError(error.message || error);
+        }
+    }
+
+    updateConnectedState(address) {
+        this.isConnected = true;
+        this.currentAccount = { address };
+        const playBtn = document.getElementById('playGameBtn');
+        if (playBtn) playBtn.style.display = 'block';
+
+        this.setLoadingState(false);
+        this.statusDot.classList.add('connected');
+        this.accountStatus.textContent = 'Connecté';
+        this.accountDetails.textContent = `${address.substring(0, 8)}...${address.substring(address.length - 6)}`;
+        this.walletInfo.classList.add('active');
+        this.walletAddress.innerHTML = `${address} <button class="copy-btn" onclick="copyAddress()">Copy</button>`;
+        this.connectBtn.textContent = '🔓 Se déconnecter';
+        this.connectBtn.classList.add('disconnect');
+
+        this.saveConnectionState();
+    }
+
+    disconnect() {
+        try {
+            if (window.phantom?.sui?.disconnect) window.phantom.sui.disconnect();
+        } catch (error) {
+            console.error('Erreur lors de la déconnexion Phantom:', error);
+        }
+        this.handleDisconnection();
+    }
+
+    handleDisconnection() {
+        this.isConnected = false;
+        this.currentAccount = null;
+        const playBtn = document.getElementById('playGameBtn');
+        if (playBtn) playBtn.style.display = 'none';
+
+        this.statusDot.classList.remove('connected', 'connecting');
+        this.accountStatus.textContent = 'Non connecté';
+        this.accountDetails.textContent = 'Sélectionnez un compte Phantom';
+        this.walletInfo.classList.remove('active');
+        this.connectBtn.textContent = '🔗 Se connecter à Phantom';
+        this.connectBtn.classList.remove('disconnect');
+
+        localStorage.removeItem('phantom_sui_connection');
+    }
+
+    setLoadingState(loading) {
+        if (loading) {
+            this.connectBtn.style.display = 'none';
+            this.loading.style.display = 'block';
+            this.statusDot.classList.add('connecting');
+        } else {
+            this.connectBtn.style.display = 'block';
+            this.loading.style.display = 'none';
+            this.statusDot.classList.remove('connecting');
+        }
+    }
+
+    showError(message) {
+        alert('Erreur: ' + message);
+    }
+
+    async refreshAccounts() {
+        await this.updateDiagnostics();
+        if (this.isConnected) await this.refreshCurrentAccount();
+    }
+
+    saveConnectionState() {
+        try {
+            const state = {
+                isConnected: this.isConnected,
+                address: this.currentAccount?.address,
+                lastConnected: Date.now()
+            };
+            localStorage.setItem('phantom_sui_connection', JSON.stringify(state));
+        } catch (error) {
+            console.error('Erreur sauvegarde:', error);
+        }
+    }
+
+    loadConnectionState() {
+        try {
+            const saved = localStorage.getItem('phantom_sui_connection');
+            if (saved) {
+                const state = JSON.parse(saved);
+                if (state.lastConnected && Date.now() - state.lastConnected < 24 * 60 * 60 * 1000) {
+                    return state;
+                }
+            }
+        } catch (error) {
+            console.error('Erreur chargement:', error);
+        }
+        return null;
+    }
+
+    async waitForPhantom(timeout = 10000) {
+        return new Promise((resolve, reject) => {
+            if (window.phantom) return resolve();
+
+            let attempts = 0;
+            const maxAttempts = timeout / 100;
+
+            const checkPhantom = () => {
+                attempts++;
+                if (window.phantom) resolve();
+                else if (attempts >= maxAttempts) reject(new Error('Timeout: Phantom non détecté'));
+                else setTimeout(checkPhantom, 100);
+            };
+
+            checkPhantom();
+        });
+    }
+
+    async startDiagnostics() {
+        await this.updateDiagnostics();
+
+        setInterval(() => {
+            this.updateDiagnostics();
+        }, 5000);
+
+        const savedState = this.loadConnectionState();
+        if (savedState && savedState.address) {
+            await this.refreshCurrentAccount();
+        }
+    }
+
+    async updateDiagnostics() {
+        try {
+            await this.waitForPhantom(1000);
+        } catch {
+            // Phantom pas installé
+        }
+
+        const phantomInstalled = !!window.phantom;
+        const suiSupport = !!(window.phantom && window.phantom.sui);
+
+        document.getElementById('phantomInstalled').textContent = phantomInstalled ? '✅' : '❌';
+        document.getElementById('suiSupport').textContent = suiSupport ? '✅' : '❌';
+
+        if (suiSupport) {
+            const suiProvider = window.phantom.sui;
+            const methods = Object.getOwnPropertyNames(suiProvider)
+                .filter(prop => typeof suiProvider[prop] === 'function')
+                .slice(0, 3)
+                .join(', ');
+            
+            document.getElementById('apiMethods').textContent = methods || 'Aucune';
+
+            let accountCount = 0;
+            if (suiProvider._accounts) accountCount = suiProvider._accounts.length;
+            else if (window.phantom._state?.accounts?.sui) accountCount = window.phantom._state.accounts.sui.length;
+            document.getElementById('accountCount').textContent = accountCount;
+
+            const activeAccount = this.currentAccount ?
+                `${this.currentAccount.address.substring(0, 8)}...` :
+                'Aucun';
+            document.getElementById('activeAccount').textContent = activeAccount;
+        } else {
+            document.getElementById('apiMethods').textContent = 'Non disponible';
+            document.getElementById('accountCount').textContent = '0';
+            document.getElementById('activeAccount').textContent = 'Aucun';
+        }
+    }
+
+    async authenticateAndPlay() {
+    if (!this.currentAccount?.address) {
+        alert("Connecte ton wallet pour jouer.");
         return;
     }
 
-    // Si plusieurs wallets détectés, on peut afficher une liste ici (TODO)
-    const wallet = wallets[0];
+    let room;
     try {
-        await wallet.connect();
-    } catch (e) {
-        alert("Connexion au wallet refusée !");
-        return;
+        this.setLoadingState(true);
+
+       const address = this.currentAccount.address;
+const message = `PokeWorld Auth ${Date.now()}`;
+const encodedMessage = new TextEncoder().encode(message);
+const signed = await window.phantom.sui.signMessage(encodedMessage, "utf8");
+
+// Prends directement signed.signature (base64 SUI-OK)
+const signatureBase64 = signed.signature; // PAS de slice, PAS de modif
+
+// ...envoie signatureBase64 au serveur comme avant
+
+
+        // Connexion au serveur Colyseus AuthRoom
+        room = await this.colyseusClient.joinOrCreate("AuthRoom");
+
+        // Envoi du payload
+        room.send("authenticate", {
+            address,
+            signature: signatureBase64,
+            message,
+            walletType: "phantom",
+            timestamp: Date.now()
+        });
+
+        room.onMessage("authenticated", (data) => {
+            if (data.status === "ok") {
+                alert("Authentification réussie !");
+                window.location.href = "index.html?wallet=" + encodeURIComponent(address);
+            } else {
+                alert("Erreur d'authentification");
+            }
+        });
+
+        room.onMessage("error", (error) => {
+            alert("Erreur serveur : " + error.reason);
+            room.leave();
+            this.setLoadingState(false);
+        });
+
+    } catch (error) {
+        this.setLoadingState(false);
+        alert("Erreur lors de la connexion : " + (error.message || error));
+        // room n'est pas défini donc ne pas tenter d'appeler room.leave()
     }
-
-    const account = wallet.accounts[0];
-    const address = account.address;
-
-    // Affichage infos UI
-    document.getElementById('walletInfo').style.display = 'block';
-    document.getElementById('walletAddress').innerHTML =
-        address + ' <button class="copy-btn" onclick="copyAddress()">Copy</button>';
-    document.getElementById('accountDetails').textContent =
-        " (" + (wallet.name || "Wallet") + " - " + address.slice(0, 8) + "…)";
-    document.getElementById('walletStatus').textContent = '✅ Connecté';
-    document.getElementById('connectBtn').textContent = '🔓 Déconnecter';
-    document.getElementById('connectBtn').onclick = disconnectWallet;
-
-    window._suiWalletData = { wallet, account, address };
-    document.getElementById('playGameBtn').style.display = 'inline-block';
 }
 
-// Déconnexion UI (optionnel : wallet.disconnect() si supporté)
-function disconnectWallet() {
-    window._suiWalletData = null;
-    document.getElementById('walletInfo').style.display = 'none';
-    document.getElementById('walletStatus').textContent = '';
-    document.getElementById('connectBtn').textContent = '🔗 Se connecter à SUI';
-    document.getElementById('connectBtn').onclick = connectSuiWallet;
-    document.getElementById('playGameBtn').style.display = 'none';
 }
 
-// Copier adresse dans le presse-papiers
+// Copier l'adresse dans le presse-papier
 function copyAddress() {
     const address = document.getElementById('walletAddress').textContent.replace('Copy', '');
     navigator.clipboard.writeText(address).then(() => {
         const btn = document.querySelector('.copy-btn');
-        if (btn) {
-            const originalText = btn.textContent;
-            btn.textContent = 'Copié!';
-            setTimeout(() => { btn.textContent = originalText; }, 1000);
-        }
+        const originalText = btn.textContent;
+        btn.textContent = 'Copié!';
+        setTimeout(() => {
+            btn.textContent = originalText;
+        }, 1000);
     });
 }
 
-// Lancer authentification Colyseus (avec signature)
-async function authenticateAndPlay() {
-    const { wallet, address } = window._suiWalletData || {};
-    if (!wallet || !address) {
-        alert("Connecte ton wallet avant de jouer.");
-        return;
+// Initialiser l'application au chargement
+let app;
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        app = new PhantomMultiAccountManager();
+        console.log('🚀 Application initialisée');
+    }, 1000);
+});
+
+window.addEventListener('phantom_injected', () => {
+    if (!app) {
+        setTimeout(() => {
+            app = new PhantomMultiAccountManager();
+            console.log('🚀 Application initialisée via événement');
+        }, 500);
     }
+});
 
-    // Génère un message + signature anti-rejeu
-    const message = `PokeWorld Auth ${Date.now()}`;
-    const encoded = new TextEncoder().encode(message);
-    let signature;
-    try {
-        const result = await wallet.signMessage({ message: encoded });
-        signature = result.signature;
-    } catch (e) {
-        alert("Signature refusée !");
-        return;
+window.addEventListener('focus', () => {
+    if (app && app.isConnected) {
+        setTimeout(() => app.checkCurrentAccount(), 500);
     }
-
-    // Colyseus AuthRoom (modifie l'URL si besoin)
-    const client = new Colyseus.Client("wss://pokerune.cloud/ws");
-    const room = await client.joinOrCreate("AuthRoom");
-    room.send("authenticate", {
-        address,
-        signature,
-        message,
-        walletType: "sui-standard",
-        timestamp: Date.now(),
-    });
-
-    room.onMessage("authenticated", (data) => {
-        if (data.status === "ok") {
-            alert("Authentification réussie !");
-            window.location.href = "index.html?wallet=" + encodeURIComponent(address);
-        } else {
-            alert("Erreur d'authentification");
-        }
-    });
-
-    room.onMessage("error", (error) => {
-        alert("Erreur serveur : " + error.reason);
-        room.leave();
-    });
-}
-
-// Bind boutons au chargement du DOM
-window.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('connectBtn').onclick = connectSuiWallet;
-    document.getElementById('playGameBtn').onclick = authenticateAndPlay;
 });
 </script>
 
