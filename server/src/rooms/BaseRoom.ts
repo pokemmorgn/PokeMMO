@@ -70,15 +70,7 @@ if (skipAnticheat) (player as any).justSpawned = false;
       }
     });
 
-    // Handler pour les changements de zone (inchangé)
-    this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
-      console.log(`[${this.mapName}] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
-
-      // Calcul position spawn dans la zone cible
-      const spawnPosition = this.calculateSpawnPosition(data.targetZone);
-
-
-this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
+  this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
   console.log(`[${this.mapName}] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
 
   // Calcul position spawn dans la zone cible
@@ -86,6 +78,22 @@ this.onMessage("changeZone", async (client, data: { targetZone: string, directio
 
   const player = this.state.players.get(client.sessionId);
   if (player) {
+    // ===> Désactive l'anticheat pour la TP de transition
+    this.movementController.handleMove(
+      client.sessionId,
+      player,
+      { x: spawnPosition.x, y: spawnPosition.y, direction: player.direction, isMoving: false },
+      true // <- skipAnticheat: true ici !
+    );
+    player.x = spawnPosition.x;
+    player.y = spawnPosition.y;
+    // player.direction reste inchangé, ou tu peux l'adapter si tu veux
+    player.isMoving = false;
+
+    // Tu peux informer le client si besoin ici (optionnel)
+    // client.send("teleported", { x: player.x, y: player.y });
+
+    // Puis transition normale
     this.state.players.delete(client.sessionId);
     this.movementController?.resetPlayer?.(client.sessionId);
 
@@ -100,7 +108,7 @@ this.onMessage("changeZone", async (client, data: { targetZone: string, directio
   // Envoi confirmation au client
   client.send("zoneChanged", {
     targetZone: data.targetZone,
-    fromZone: this.mapName.replace('Room', 'Scene'), // BeachRoom -> BeachScene
+    fromZone: this.mapName.replace('Room', 'Scene'),
     direction: data.direction,
     spawnX: spawnPosition.x,
     spawnY: spawnPosition.y
