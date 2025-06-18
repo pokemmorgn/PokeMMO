@@ -32,6 +32,10 @@ export class LoaderScene extends Phaser.Scene {
 
     // Npcs
     this.load.spritesheet('OldMan', 'assets/npc/OldMan.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('Scientist', 'assets/npc/Scientist.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('OldLady', 'assets/npc/OldLady.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('BrownGuy', 'assets/npc/BrownGuy.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('BlondeGirl', 'assets/npc/BlondeGirl.png', { frameWidth: 32, frameHeight: 32 });
 
     // Charger le spritesheet du joueur (32x32 par frame)
     this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
