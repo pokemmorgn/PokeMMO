@@ -11,7 +11,6 @@ export class AuthState extends Schema {
 }
 
 export class AuthRoom extends Room<AuthState> {
-  // Stockage temporaire des clients authentifiés
   private authenticatedClients: Map<string, string> = new Map();
 
   onCreate(options: any) {
@@ -27,42 +26,33 @@ export class AuthRoom extends Room<AuthState> {
 
       try {
         const { address, signature, message, walletType } = payload;
-
-        if (!address || !signature || !message) {
-          throw new Error("Données d'authentification manquantes");
-        }
+        if (!address || !signature || !message) throw new Error("Données d'authentification manquantes");
 
         if (payload.timestamp) {
           const messageTime = parseInt(message.match(/\d+$/)?.[0] || "0");
           const currentTime = Date.now();
           const timeDiff = Math.abs(currentTime - messageTime);
-          if (timeDiff > 5 * 60 * 1000) {
-            throw new Error("Signature expirée");
-          }
+          if (timeDiff > 5 * 60 * 1000) throw new Error("Signature expirée");
         }
 
         let isValid = false;
 
-if (walletType === "slush" || walletType === "suiwallet") {
-    // Sui wallet & Slush : vraie vérif Sui
-    isValid = await this.verifySlushSignature(address, signature, message);
-} else if (walletType === "phantom") {
-    // Phantom : vérif simplifiée (la signature Phantom n'est PAS compatible Sui)
-    isValid = await this.verifyPhantomSignature(address, signature, message);
-} else {
-    isValid = false; // rejet tout le reste
-}
+        // 🔑 Phantom >= v25.9, Slush & SuiWallet = même signature SUI, vérifiable côté serveur
+        if (
+          walletType === "slush" ||
+          walletType === "phantom" ||
+          walletType === "suiwallet"
+        ) {
+          isValid = await this.verifySlushSignature(address, signature, message);
+        } else {
+          isValid = false;
+        }
 
-if (!isValid) {
-    throw new Error("Signature invalide");
-}
-
+        if (!isValid) throw new Error("Signature invalide");
 
         console.log("✅ Authentification réussie pour", address);
-
         this.authenticatedClients.set(client.sessionId, address);
         (client as any).auth = { address, walletType };
-
         this.state.address = address;
         this.state.connectedPlayers = this.authenticatedClients.size;
         this.state.message = `${this.authenticatedClients.size} joueur(s) connecté(s)`;
@@ -85,82 +75,30 @@ if (!isValid) {
     });
   }
 
+  // Signature Sui universelle (Phantom récent, Slush, SuiWallet)
   async verifySlushSignature(address: string, signature: string, message: string): Promise<boolean> {
-  try {
-    const messageBytes = new TextEncoder().encode(message);
-
-    // Passer directement la signature base64 en string, sans la convertir
-    const publicKey = await verifyPersonalMessage(messageBytes, signature);
-
-    if (!publicKey) return false;
-
-    const derivedAddress = publicKey.toSuiAddress?.();
-    if (derivedAddress !== address) {
-      console.warn("Adresse dérivée ne correspond pas à l'adresse fournie");
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Erreur vérification Slush:", error);
-    return false;
-  }
-}
-
-
-  async manualSuiVerification(address: string, signature: string, message: string): Promise<boolean> {
     try {
       const messageBytes = new TextEncoder().encode(message);
-      const prefix = new TextEncoder().encode("Sui Signed Message:\n");
-      const fullMessage = new Uint8Array(prefix.length + messageBytes.length);
-      fullMessage.set(prefix);
-      fullMessage.set(messageBytes, prefix.length);
+      const publicKey = await verifyPersonalMessage(messageBytes, signature); // signature base64 Sui
 
-      return (
-        address.startsWith("0x") &&
-        address.length === 66 &&
-        signature.length > 0 &&
-        message.includes("PokeWorld")
-      );
-    } catch (error) {
-      console.error("Erreur vérification manuelle:", error);
-      return false;
-    }
-  }
-
-  async verifyAlternativeAuth(address: string, signature: string, message: string): Promise<boolean> {
-    try {
-      const decoded = atob(signature);
-      const parts = decoded.split(":");
-
-      if (parts.length >= 3 && parts[0] === address) {
-        return message.includes("PokeWorld");
+      if (!publicKey) return false;
+      const derivedAddress = publicKey.toSuiAddress?.();
+      if (derivedAddress !== address) {
+        console.warn("Adresse dérivée ne correspond pas à l'adresse fournie");
+        return false;
       }
-      return false;
+      return true;
     } catch (error) {
-      console.error("Erreur vérification alternative:", error);
+      console.error("Erreur vérification Sui-compatible:", error);
       return false;
     }
   }
-async verifyPhantomSignature(address: string, signature: string, message: string): Promise<boolean> {
-    // Vérification basique (on ne peut pas vérifier la vraie signature Phantom côté serveur)
-    return (
-        address.startsWith("0x") &&
-        address.length === 66 &&
-        signature.length > 0 &&
-        message.includes("PokeWorld")
-    );
-}
 
   disconnectClient(client: Client, reason: string) {
     console.log("🚫 Déconnexion client:", reason);
     client.send("error", { status: "error", reason });
     setTimeout(() => {
-      try {
-        client.leave();
-      } catch {
-        // Client déjà parti
-      }
+      try { client.leave(); } catch {}
     }, 500);
   }
 
