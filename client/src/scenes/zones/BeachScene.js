@@ -1,5 +1,5 @@
 // ===============================================
-// BeachScene.js - Version simplifiée utilisant BaseZoneScene
+// BeachScene.js - Intro Bulbizarre animé + dialogue + transition + blocage joueur
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 
@@ -61,6 +61,7 @@ class PokemonSpriteManager {
 export class BeachScene extends BaseZoneScene {
   constructor() {
     super('BeachScene', 'GreenRootBeach');
+    this.transitionCooldowns = {};
     this.pokemonSpriteManager = null;
     this._introBlocked = false;
   }
@@ -71,31 +72,17 @@ export class BeachScene extends BaseZoneScene {
     this.setupBeachEvents();
   }
 
-  // Override : Configuration des transitions spécifiques à Beach
-  getTransitionConfig() {
-    return {
-      'GR': {
-        targetScene: 'VillageScene',
-        direction: 'north'
+  // --- Gère la transition vers VillageScene ---
+  setupZoneTransitions() {
+    const worldsLayer = this.map.getObjectLayer('Worlds');
+    if (worldsLayer) {
+      const greenRootObj = worldsLayer.objects.find(obj => obj.name === 'GR');
+      if (greenRootObj) {
+        this.createTransitionZone(greenRootObj, 'VillageScene', 'north');
       }
-    };
-  }
-
-  // Override : Position de spawn par défaut
-  getDefaultSpawnPosition(fromZone) {
-    // Position par défaut si pas de données spécifiques
-    return { x: 52, y: 48 };
-  }
-
-  // Override : Logique spécifique après positionnement du joueur
-  onPlayerPositioned(player, initData) {
-    // Intro seulement si spawn direct depuis menu (pas une transition)
-    if (!initData?.fromZone) {
-      this.startIntroSequence(player);
     }
   }
 
-  // Override : Création personnalisée des zones de transition
   createTransitionZone(transitionObj, targetScene, direction) {
     const zone = this.add.zone(
       transitionObj.x + transitionObj.width / 2,
@@ -142,6 +129,24 @@ export class BeachScene extends BaseZoneScene {
     });
   }
 
+  // --- Gère le placement joueur au spawn ---
+  positionPlayer(player) {
+    const initData = this.scene.settings.data;
+
+    if (initData?.fromZone === 'VillageScene' || initData?.fromZone) {
+      player.x = 52;
+      player.y = 48;
+    }
+    if (player.indicator) {
+      player.indicator.x = player.x;
+      player.indicator.y = player.y - 32;
+    }
+    if (this.networkManager) this.networkManager.sendMove(player.x, player.y);
+
+    // Intro : seulement si spawn direct depuis menu (pas une transition)
+    if (!initData?.fromZone) this.startIntroSequence(player);
+  }
+
   // ==================== INTRO ANIMÉE ======================
   startIntroSequence(player) {
     // 1. Bloque les entrées joueur (clavier + collisions)
@@ -149,19 +154,20 @@ export class BeachScene extends BaseZoneScene {
     if (player.body) player.body.enable = false;
     this._introBlocked = true;
 
-    // 2. Tourne le joueur vers la droite
+    // 2. Tourne le joueur vers la droite (ex : anim ou frame statique)
     if (player.anims && player.anims.currentAnim?.key !== 'walk_right') {
       if (this.anims.exists('walk_right')) player.play('walk_right');
     }
 
     // 3. Bulbizarre spawn loin à droite, arrive devant le joueur
     const spawnX = player.x + 120;
-    const arriveX = player.x + 24;
+    const arriveX = player.x + 24; // devant le joueur
     const y = player.y;
 
     this.spawnStarterPokemon(spawnX, y, '001_Bulbasaur', 'left', player, arriveX);
   }
 
+  // Bulbizarre entre, pause, repart au nord
   spawnStarterPokemon(x, y, pokemonName, direction = "left", player = null, arriveX = null) {
     this.pokemonSpriteManager.loadSpritesheet(pokemonName);
 
@@ -176,7 +182,7 @@ export class BeachScene extends BaseZoneScene {
           duration: 2200,
           ease: 'Sine.easeInOut',
           onUpdate: () => {
-            // Forcer l'anim du joueur vers la droite
+            // Forcer l’anim du joueur vers la droite
             if (player.anims && player.anims.currentAnim?.key !== 'walk_right') {
               if (this.anims.exists('walk_right')) player.play('walk_right');
             }
@@ -195,9 +201,10 @@ export class BeachScene extends BaseZoneScene {
   }
 
   showIntroDialogue(starter, player) {
+    // Dialogue
     const textBox = this.add.text(
       starter.x, starter.y - 32,
-      "Salut ! Tu viens d'arriver ? Je t'emmène au village !",
+      "Salut ! Tu viens d’arriver ? Je t’emmène au village !",
       {
         fontSize: "13px",
         color: "#fff",
@@ -220,7 +227,7 @@ export class BeachScene extends BaseZoneScene {
         },
         onComplete: () => {
           starter.destroy();
-          // Débloque le joueur !
+          // Débloque le joueur !
           this.input.keyboard.enabled = true;
           if (player.body) player.body.enable = true;
           this._introBlocked = false;
@@ -236,15 +243,8 @@ export class BeachScene extends BaseZoneScene {
     });
   }
 
-  // Override du cleanup pour nettoyer les éléments spécifiques à Beach
   cleanup() {
-    // Nettoyage spécifique à BeachScene
-    if (this._introBlocked) {
-      this.input.keyboard.enabled = true;
-      this._introBlocked = false;
-    }
-    
-    // Appel du cleanup parent
+    this.transitionCooldowns = {};
     super.cleanup();
   }
 }
