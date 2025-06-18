@@ -44,6 +44,66 @@
     #chat-input::placeholder {
       color: #aaa;
     }
+
+    #dialogue-box {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 480px;
+  max-width: 720px;
+  background: #244c74ee;
+  border: 4px solid #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 32px #000a;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  z-index: 99;
+  font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+}
+
+#npc-portrait {
+  width: 96px;
+  height: 96px;
+  background: #fff;
+  border: 2px solid #244c74;
+  border-radius: 12px;
+  margin: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#npc-portrait img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 10px;
+}
+
+#npc-dialogue {
+  flex: 1;
+  padding: 14px 18px 14px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#npc-name {
+  font-weight: bold;
+  font-size: 18px;
+  color: #ffff80;
+  margin-bottom: 8px;
+  text-shadow: 1px 2px 0 #222, 0 0 8px #f1f191;
+}
+
+#npc-text {
+  color: #fff;
+  font-size: 17px;
+  text-shadow: 1px 1px 0 #222;
+  line-height: 1.4;
+}
   </style>
 </head>
 <body>
