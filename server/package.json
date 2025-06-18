@@ -13,7 +13,7 @@
   "build": "npm run clean && tsc && cp -r src/assets build/assets",
   "clean": "rimraf build",
   "test": "mocha -r tsx test/**_test.ts --exit --timeout 15000"
-}
+},
   "author": "",
   "license": "UNLICENSED",
   "bugs": {
