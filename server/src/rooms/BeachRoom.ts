@@ -19,13 +19,17 @@ export class BeachRoom extends Room<PokeWorldState> {
       this.saveAllPlayers();
     }, 30000);
 
-    this.onMessage("move", (client, data: { x: number, y: number }) => {
-      const player = this.state.players.get(client.sessionId);
-      if (player) {
-        player.x = data.x;
-        player.y = data.y;
-      }
-    });
+    this.onMessage("move", (client, data) => {
+  const player = this.state.players.get(client.sessionId);
+  if (player) {
+    player.x = data.x;
+    player.y = data.y;
+    // Ajoute ces lignes :
+    if ('direction' in data) player.direction = data.direction;
+    if ('isMoving' in data) player.isMoving = data.isMoving;
+  }
+});
+
 
     this.onMessage("changeZone", async (client, data: { targetZone: string, direction: string }) => {
       console.log(`[BeachRoom] Demande changement de zone de ${client.sessionId} vers ${data.targetZone} (${data.direction})`);
