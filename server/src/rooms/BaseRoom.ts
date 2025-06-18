@@ -4,7 +4,7 @@
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { PlayerData } from "../models/PlayerData";
-import { NpcManager, NpcData } from "../managers/NpcManager";
+import { NpcManager, NpcData } from "../managers/NPCManager";
 
 export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
