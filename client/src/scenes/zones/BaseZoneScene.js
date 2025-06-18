@@ -41,7 +41,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.setupInputs();
     this.createUI();
 
-      this.createDevMenu();  // <-- ajoute ce call ici
 
     // Gestion réseau simplifiée
     if (this.scene.key === 'BeachScene') {
@@ -622,83 +621,6 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
       });
     });
   }
-
-createDevMenu() {
-  if (this.devMenuCreated) return;
-  this.devMenuCreated = true;
-
-  // Valeur initiale vitesse si non déjà présente
-  if (this.playerSpeed === undefined) this.playerSpeed = 120;
-
-  // Touche F1 pour toggle le menu
-  this.input.keyboard.on('keydown-F1', () => {
-    this.devMenu.setVisible(!this.devMenu.visible);
-  });
-
-  // Création du conteneur menu dev
-this.devMenu = this.add.container(8, 8).setDepth(9999).setVisible(false).setScrollFactor(0);
-
-  // Fond compact
-  const bg = this.add.rectangle(0, 0, 170, 70, 0x222244, 0.96)
-    .setOrigin(0)
-    .setScrollFactor(0);
-  this.devMenu.add(bg);
-
-  // Texte vitesse
-  this.devSpeedText = this.add.text(8, 6, `SPD: ${this.playerSpeed}`, {
-    fontSize: "13px", fill: "#fff"
-  }).setScrollFactor(0);
-  this.devMenu.add(this.devSpeedText);
-
-  // Bouton + rapide
-  const btnUp = this.add.text(8, 28, "[+]", { fontSize: "15px", fill: "#5f5" })
-    .setInteractive()
-    .on("pointerdown", () => {
-      this.playerSpeed += 50;
-      this.devSpeedText.setText(`SPD: ${this.playerSpeed}`);
-    }).setScrollFactor(0);
-  this.devMenu.add(btnUp);
-
-  // Bouton - lent
-  const btnDown = this.add.text(44, 28, "[-]", { fontSize: "15px", fill: "#f55" })
-    .setInteractive()
-    .on("pointerdown", () => {
-      this.playerSpeed = Math.max(10, this.playerSpeed - 50);
-      this.devSpeedText.setText(`SPD: ${this.playerSpeed}`);
-    }).setScrollFactor(0);
-  this.devMenu.add(btnDown);
-
-  // Bouton TP droite
-  const btnTP = this.add.text(84, 28, "[→ +100]", { fontSize: "13px", fill: "#9cf" })
-    .setInteractive()
-    .on("pointerdown", () => {
-      const myPlayer = this.playerManager.getMyPlayer();
-      if (myPlayer) {
-        myPlayer.x += 100;
-        this.networkManager.sendMove(myPlayer.x, myPlayer.y, "right", true);
-      }
-    }).setScrollFactor(0);
-  this.devMenu.add(btnTP);
-
-  // Info aide
-  const txt = this.add.text(8, 54, "F1: Ouvrir menu", {
-    fontSize: "11px", fill: "#ccc"
-  }).setScrollFactor(0);
-  this.devMenu.add(txt);
-
-  // Affiche toujours le menu pour debug :
-this.devMenu.setVisible(true)
-  // Met à jour la vitesse affichée
-  this.time.addEvent({
-    delay: 250,
-    loop: true,
-    callback: () => {
-      if (this.devMenu.visible) {
-        this.devSpeedText.setText(`SPD: ${this.playerSpeed}`);
-      }
-    }
-  });
-}
   
   cleanup() {
     console.log(`[${this.scene.key}] Nettoyage en cours...`);
