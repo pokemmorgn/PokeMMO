@@ -441,11 +441,12 @@ onPlayerPositioned(player, initData) {
       this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
     });
 
-    this.networkManager.onMessage("npcList", (npcList: NpcData[]) => {
+this.networkManager.onMessage("npcList", (npcList) => {
   if (this.npcManager) {
     this.npcManager.spawnNpcs(npcList);
-      }
-    });
+  }
+});
+
 
     this.networkManager.onStateChange((state) => {
       this.playerManager.updatePlayers(state);
