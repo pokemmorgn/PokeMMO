@@ -65,7 +65,7 @@ export class PlayerManager {
         .setStrokeStyle(1, 0x004400);
       player.indicator = indicator;
     }
-   
+
     this.players.set(sessionId, player);
     return player;
   }
@@ -197,13 +197,13 @@ performUpdate(state) {
     }
 
     if (player.isMoving && player.lastDirection) {
-      const walkAnim = walk_${player.lastDirection};
+      const walkAnim = `walk_${player.lastDirection}`;
       if (this.scene.anims.exists(walkAnim)) {
         // Toujours jouer l'anim (repart du début) pour éviter le freeze
         player.anims.play(walkAnim, true);
       }
     } else if (!player.isMoving && player.lastDirection) {
-      const idleAnim = idle_${player.lastDirection};
+      const idleAnim = `idle_${player.lastDirection}`;
       if (this.scene.anims.exists(idleAnim)) {
         // Toujours jouer l'anim idle pour remettre en pause
         player.anims.play(idleAnim, true);
@@ -247,12 +247,12 @@ state.players.forEach((playerState, sessionId) => {
 
     // Joue toujours l'animation adaptée à l'état isMoving, même si direction est la même
     if (player.isMoving) {
-      const walkAnim = walk_${player.lastDirection};
+      const walkAnim = `walk_${player.lastDirection}`;
       if (this.scene.anims.exists(walkAnim) && player.anims.currentAnim?.key !== walkAnim) {
         player.play(walkAnim);
       }
     } else {
-      const idleAnim = idle_${player.lastDirection};
+      const idleAnim = `idle_${player.lastDirection}`;
       if (this.scene.anims.exists(idleAnim) && player.anims.currentAnim?.key !== idleAnim) {
         player.play(idleAnim);
       }
