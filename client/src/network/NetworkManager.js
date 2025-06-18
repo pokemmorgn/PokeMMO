@@ -149,6 +149,13 @@ if (this._pendingMessages && this._pendingMessages.length > 0) {
   }
 }
 
+  sendNpcInteract(npcId) {
+  if (this.isConnected && this.room && !this.isTransitioning) {
+    this.room.send("npcInteract", { npcId });
+  }
+}
+
+
 
   sendMessage(type, data) {
     if (this.isConnected && this.room && !this.isTransitioning) {
