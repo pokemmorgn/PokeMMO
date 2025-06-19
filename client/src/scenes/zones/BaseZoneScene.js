@@ -242,95 +242,48 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
 setupZoneTransitions() {
-    const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (!worldsLayer) {
-      console.warn("Layer 'Worlds' non trouvé dans la map");
-      return;
-    }
+  const worldsLayer = this.map.getObjectLayer('Worlds');
+  if (!worldsLayer) return;
 
-    const player = this.playerManager.getMyPlayer();
-    if (!player) {
-      console.warn("Player non encore créé, impossible d'ajouter les overlaps de transition");
-      // Retry avec délai
-      this.time.delayedCall(100, () => this.setupZoneTransitions());
-      return;
-    }
-    if (!player.body) {
-      console.warn("Player.body non créé, impossible d'ajouter les overlaps de transition");
-      // Retry avec délai
-      this.time.delayedCall(100, () => this.setupZoneTransitions());
-      return;
-    }
+  const player = this.playerManager.getMyPlayer();
+  if (!player  !player.body) {
+    this.time.delayedCall(100, () => this.setupZoneTransitions());
+    return;
+  }
 
-    worldsLayer.objects.forEach(obj => {
-      const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
-      const directionProp = obj.properties?.find(p => p.name === 'direction');
-      if (!targetZoneProp) {
-        console.warn(`Objet ${obj.name || obj.id} dans 'Worlds' sans propriété targetZone, ignoré`);
-        return;
+  worldsLayer.objects.forEach(obj => {
+    if (!obj.name) return; // chaque sortie doit avoir un nom dans Tiled !
+
+    const zone = this.add.zone(
+      obj.x + (obj.width ? obj.width / 2 : 0),
+      obj.y + (obj.height ? obj.height / 2 : 0),
+      obj.width  32,
+      obj.height || 32
+    );
+    this.physics.world.enable(zone);
+    zone.body.setAllowGravity(false);
+    zone.body.setImmovable(true);
+
+    let overlapTriggered = false;
+    this.physics.add.overlap(player, zone, () => {
+      if (overlapTriggered) return;
+      overlapTriggered = true;
+      if (this.networkManager && !this.isTransitioning) {
+        this.isTransitioning = true;
+        this.networkManager.requestZoneTransition({ targetSpawn: obj.name });
       }
-
-      const targetZone = targetZoneProp.value;
-      const direction = directionProp ? directionProp.value : 'north';
-
-      console.log(`Création zone transition vers ${targetZone} à (${obj.x},${obj.y}) taille ${obj.width}x${obj.height}`);
-
-      const zone = this.add.zone(
-        obj.x + obj.width / 2,
-        obj.y + obj.height / 2,
-        obj.width,
-        obj.height
-      );
-      this.physics.world.enable(zone);
-      zone.body.setAllowGravity(false);
-      zone.body.setImmovable(true);
-
-      this.physics.add.overlap(player, zone, () => {
-        if (!this.networkManager) {
-          console.warn("networkManager non défini, transition ignorée");
-          return;
-        }
-        console.log(`Overlap détecté, demande de transition vers ${targetZone} (${direction})`);
-        this.networkManager.requestZoneTransition(targetZone, direction);
+      this.time.delayedCall(800, () => {
+        overlapTriggered = false;
+        this.isTransitioning = false;
       });
     });
-  }
+  });
+}
 
 // Méthode à override dans chaque scène
 getTransitionConfig() {
   return {}; // À définir dans les sous-classes
 }
-createTransitionZone(transitionObj, targetScene, direction) {
-  const zone = this.add.zone(
-    transitionObj.x + transitionObj.width / 2,
-    transitionObj.y + transitionObj.height / 2,
-    transitionObj.width,
-    transitionObj.height
-  );
-
-  this.physics.world.enable(zone);
-  zone.body.setAllowGravity(false);
-  zone.body.setImmovable(true);
-
-  let transitionTriggered = false;
-
-  this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
-    if (transitionTriggered) return;
-    transitionTriggered = true;
-
-    console.log(`[${this.scene.key}] Overlap detected, requesting transition to ${targetScene} (${direction})`);
-
-    if (this.networkManager && this.networkManager.connected && !this.networkManager.transitioning) {
-      this.networkManager.requestZoneTransition({
-        targetZone: targetScene,
-        direction: direction
-      });
-    } else {
-      console.warn(`[${this.scene.key}] Cannot transition: either not connected or already transitioning.`);
-    }
-  });
-}
-
 positionPlayer(player) {
   const initData = this.scene.settings.data;
   
