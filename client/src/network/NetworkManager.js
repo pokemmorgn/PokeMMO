@@ -100,7 +100,8 @@ export class NetworkManager {
               spawnX: data.targetX,
               spawnY: data.targetY,
               spawnPoint: data.spawnPoint,
-              networkManager: this // ✅ NOUVEAU: Passer le NetworkManager
+              networkManager: this, // ✅ NOUVEAU: Passer le NetworkManager
+              newSessionId: this.sessionId // ✅ NOUVEAU: Passer le sessionId actuel
             });
           }
         }
@@ -115,7 +116,7 @@ export class NetworkManager {
     }
   }
 
-  // ✅ AMÉLIORATION: Transition avec meilleure gestion des erreurs
+  // ✅ AMÉLIORATION: Transition avec meilleure gestion des erreurs et sessionId
   async handleZoneTransition(data) {
     if (this.isTransitioning) {
       console.log(`[NetworkManager] Transition déjà en cours, ignorée`);
@@ -125,47 +126,17 @@ export class NetworkManager {
     this.isTransitioning = true;
     console.log(`[NetworkManager] Début transition vers ${data.targetZone}`);
 
+    // ✅ CORRECTION 1 : Sauvegarder l'ancien sessionId pour debug
+    const oldSessionId = this.sessionId;
+    
     // Nouveau : on traduit targetZone en clé de room et en clé de scène !
     const zoneKey = (data.targetZone || "").toLowerCase();
-    let newRoomName = "";
+    let newRoomName = this.getTargetRoomName(zoneKey);
     let sceneKey = ZONE_TO_SCENE[zoneKey] || "BeachScene"; // fallback
 
-    switch(zoneKey) {
-      case "beach":
-      case "beachscene":
-        newRoomName = "BeachRoom";
-        break;
-      case "village":
-      case "villagescene":
-        newRoomName = "VillageRoom";
-        break;
-      case "road1":
-      case "road1scene":
-        newRoomName = "Road1Room";
-        break;
-      case "villagelab":
-      case "villagelabscene":
-        newRoomName = "VillageLabRoom";
-        break;
-      case "villagehouse1":
-      case "villagehouse1scene":
-        newRoomName = "VillageHouse1Room";
-        break;
-      case "lavandia":
-      case "lavandiascene":
-        newRoomName = "LavandiaRoom";
-        break;
-      default:
-        newRoomName = "BeachRoom";
-        console.warn(`[NetworkManager] Nom de zone inconnu: ${data.targetZone}, fallback vers BeachRoom`);
-    }
-
     try {
-      // ✅ AMÉLIORATION: Sauvegarder l'état avant transition
-      const oldSessionId = this.sessionId;
-      
       if (this.room) {
-        console.log(`[NetworkManager] Quitte la room actuelle: ${this.room.name}`);
+        console.log(`[NetworkManager] Quitte la room actuelle: ${this.room.name} (sessionId: ${oldSessionId})`);
         await this.room.leave();
         this.room = null;
       }
@@ -186,14 +157,18 @@ export class NetworkManager {
         previousSessionId: oldSessionId
       });
 
-      this.sessionId = this.room.sessionId;
+      // ✅ CORRECTION 2 : Mettre à jour sessionId IMMÉDIATEMENT
+      const newSessionId = this.room.sessionId;
+      this.sessionId = newSessionId;
       this.isConnected = true;
+
+      console.log(`[NetworkManager] ✅ SessionId mis à jour: ${oldSessionId} → ${newSessionId}`);
 
       // ✅ IMPORTANT: Reconfigurer les listeners AVANT la transition Phaser
       this.setupRoomListeners();
 
       // ✅ AMÉLIORATION: Transition Phaser après configuration réseau
-      this.performPhaseTransition(sceneKey, data);
+      this.performPhaseTransition(sceneKey, data, newSessionId);
 
       console.log(`[NetworkManager] Transition réseau terminée vers ${newRoomName}`);
 
@@ -208,8 +183,39 @@ export class NetworkManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Séparer la transition Phaser
-  performPhaseTransition(sceneKey, data) {
+  // ✅ NOUVELLE MÉTHODE: Mapper les zones vers les noms de rooms
+  getTargetRoomName(zoneKey) {
+    switch(zoneKey) {
+      case "beach":
+      case "beachscene":
+        return "BeachRoom";
+      case "village":
+      case "villagescene":
+        return "VillageRoom";
+      case "road1":
+      case "road1scene":
+        return "Road1Room";
+      case "villagelab":
+      case "villagelabscene":
+        return "VillageLabRoom";
+      case "villagehouse1":
+      case "villagehouse1scene":
+        return "VillageHouse1Room";
+      case "lavandia":
+      case "lavandiascene":
+        return "LavandiaRoom";
+      default:
+        return "BeachRoom";
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mapper les zones vers les clés de scènes
+  getTargetSceneKey(zoneKey) {
+    return ZONE_TO_SCENE[zoneKey] || "BeachScene";
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Séparer la transition Phaser avec sessionId
+  performPhaseTransition(sceneKey, data, newSessionId) {
     this.isTransitioning = false; // Libérer le flag avant la transition Phaser
     
     if (window.Phaser && window.Phaser.GAMES && window.Phaser.GAMES.length) {
@@ -221,7 +227,8 @@ export class NetworkManager {
             fromZone: data.fromZone,
             spawnX: data.spawnX,
             spawnY: data.spawnY,
-            networkManager: this // ✅ NOUVEAU: Passer le NetworkManager
+            networkManager: this, // ✅ NOUVEAU: Passer le NetworkManager
+            newSessionId: newSessionId // ✅ NOUVEAU: Passer explicitement le nouveau sessionId
           });
         }, 100);
       }
@@ -352,7 +359,7 @@ export class NetworkManager {
     return null;
   }
 
-  // ✅ NOUVEAU: Méthode de reconnexion
+  // ✅ NOUVEAU: Méthode de reconnexion améliorée
   async reconnect(roomName = "BeachRoom") {
     console.log(`[NetworkManager] Tentative de reconnexion à ${roomName}`);
     this.isTransitioning = false;
@@ -388,5 +395,15 @@ export class NetworkManager {
 
   resetTransitionFlag() {
     this.isTransitioning = false;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Debug des informations réseau
+  debugNetworkState() {
+    console.log("%c[NetworkManager] 🔍 Debug Network State:", "color:blue; font-weight:bold");
+    console.log("- sessionId:", this.sessionId);
+    console.log("- isConnected:", this.isConnected);
+    console.log("- isTransitioning:", this.isTransitioning);
+    console.log("- room:", this.room?.name || "null");
+    console.log("- connection state:", this.room?.connection?.readyState || "null");
   }
 }
