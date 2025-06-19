@@ -30,19 +30,21 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-  create() {
+create() {
     console.log(`🌍 Creating zone: ${this.scene.key}`);
     console.log(`📊 Scene data:`, this.scene.settings.data);
 
     this.createPlayerAnimations();
     this.setupManagers();
     
-    // ✅ NOUVEAU: Initialiser le réseau EN PREMIER
-    this.initializeNetworkFirst().then(() => {
-        // Ensuite charger la map et le reste
-        this.loadMap();
-        this.setupInputs();
-        this.createUI();
+    // ✅ CORRECTION: Charger d'abord la map, PUIS initialiser le réseau
+    this.loadMapFirst().then(() => {
+        // Map chargée, maintenant on peut initialiser le réseau
+        this.initializeNetworkFirst().then(() => {
+            // Réseau prêt, maintenant setup final
+            this.setupInputs();
+            this.createUI();
+        });
     });
 
     // Nettoyage amélioré
@@ -54,7 +56,29 @@ export class BaseZoneScene extends Phaser.Scene {
         console.log(`[${this.scene.key}] Destroy - nettoyage final`);
         this.cleanup();
     });
-  }
+}
+
+// ✅ NOUVELLE MÉTHODE: Charger la map en premier
+async loadMapFirst() {
+    return new Promise((resolve) => {
+        console.log(`[${this.scene.key}] 🗺️ Chargement map en priorité...`);
+        
+        // Charger la map de façon synchrone
+        this.loadMap();
+        
+        // Attendre que la map soit complètement chargée
+        const checkMapLoaded = () => {
+            if (this.map && this.layers && Object.keys(this.layers).length > 0) {
+                console.log(`[${this.scene.key}] ✅ Map chargée avec ${Object.keys(this.layers).length} layers`);
+                resolve();
+            } else {
+                setTimeout(checkMapLoaded, 50);
+            }
+        };
+        
+        checkMapLoaded();
+    });
+}
 
   // ✅ NOUVELLE MÉTHODE: Initialiser le réseau en premier
   async initializeNetworkFirst() {
@@ -274,7 +298,7 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  setupScene() {
+setupScene() {
     console.log('— DEBUT setupScene —');
     this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
 
@@ -291,9 +315,29 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.cameraManager = new CameraManager(this);
     
-    // ✅ NOUVEAU: Attendre que le joueur ET le réseau soient prêts
-    this.waitForPlayerAndNetwork();
-  }
+    // ✅ CORRECTION: S'assurer que le NetworkManager est configuré AVANT d'attendre le joueur
+    if (!this.networkManager || !this.networkManager.isConnected) {
+        console.warn(`[${this.scene.key}] ⚠️ setupScene appelé sans NetworkManager prêt, attente...`);
+        
+        // Attendre que le NetworkManager soit prêt
+        let attempts = 0;
+        const waitForNetwork = () => {
+            attempts++;
+            if (this.networkManager && this.networkManager.isConnected) {
+                console.log(`[${this.scene.key}] ✅ NetworkManager prêt après ${attempts} tentatives`);
+                this.waitForPlayerAndNetwork();
+            } else if (attempts < 20) {
+                setTimeout(waitForNetwork, 100);
+            } else {
+                console.error(`[${this.scene.key}] ❌ Timeout: NetworkManager toujours pas prêt`);
+            }
+        };
+        waitForNetwork();
+    } else {
+        // NetworkManager déjà prêt
+        this.waitForPlayerAndNetwork();
+    }
+}
 
   // ✅ NOUVELLE MÉTHODE: Attendre joueur + réseau
   waitForPlayerAndNetwork() {
@@ -604,7 +648,7 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   // ✅ AMÉLIORATION: setupNetwork avec meilleure gestion des états
-  setupNetwork() {
+setupNetwork() {
     if (!this.networkManager) {
         console.error(`[${this.scene.key}] ❌ setupNetwork appelé sans NetworkManager`);
         return;
@@ -638,6 +682,49 @@ export class BaseZoneScene extends Phaser.Scene {
             }
         });   
     });
+
+    // ✅ CORRECTION MAJEURE: onStateChange intelligent qui vérifie la scène active
+    this.networkManager.onStateChange((state) => {
+        // ✅ NOUVEAU: Seulement traiter si cette scène est ACTIVE
+        if (!this.scene.isActive()) {
+            console.log(`[${this.scene.key}] 🚫 Ignoré - scène inactive`);
+            return;
+        }
+
+        if (!state || !state.players) {
+            console.warn(`[${this.scene.key}] ⚠️ État réseau invalide reçu`);
+            return;
+        }
+        
+        console.log(`[${this.scene.key}] 📡 Mise à jour état réseau - ${state.players.size} joueurs`);
+        
+        if (this.playerManager && this.mySessionId) {
+            this.playerManager.updatePlayers(state);
+
+            const myPlayer = this.playerManager.getMyPlayer();
+            if (myPlayer) {
+                console.log(`[${this.scene.key}] ✅ Mon joueur synchronisé à (${myPlayer.x}, ${myPlayer.y})`);
+                
+                // ✅ NOUVEAU: Ne configurer la caméra qu'une seule fois
+                if (!this.cameraFollowing) {
+                    console.log(`[${this.scene.key}] 📹 Configuration initiale de la caméra`);
+                    this.cameraManager.followPlayer(myPlayer);
+                    this.cameraFollowing = true;
+                }
+            } else {
+                console.warn(`[${this.scene.key}] ⚠️ Mon joueur non trouvé dans l'état réseau (SessionId: ${this.mySessionId})`);
+                
+                // ✅ NOUVEAU: Debug pour comprendre pourquoi le joueur est manquant
+                console.log(`[${this.scene.key}] 🔍 Debug - SessionIds disponibles:`, Array.from(state.players.keys()));
+            }
+        } else {
+            console.warn(`[${this.scene.key}] ⚠️ PlayerManager ou SessionId manquant`);
+        }
+    });
+
+    // Centraliser les listeners de messages
+    this.setupMessageListeners();
+}
 
     // ✅ IMPORTANT: onStateChange plus robuste
     this.networkManager.onStateChange((state) => {
@@ -998,50 +1085,60 @@ export class BaseZoneScene extends Phaser.Scene {
   }
   
   // ✅ AMÉLIORATION: Cleanup plus robuste
-  cleanup() {
+cleanup() {
     console.log(`[${this.scene.key}] Nettoyage en cours...`);
 
     // ✅ IMPORTANT: Sauvegarder le NetworkManager avant tout nettoyage
     if (this.networkManager) {
-      window.globalNetworkManager = this.networkManager;
-      console.log(`[${this.scene.key}] NetworkManager sauvegardé dans window.globalNetworkManager`);
+        window.globalNetworkManager = this.networkManager;
+        console.log(`[${this.scene.key}] NetworkManager sauvegardé dans window.globalNetworkManager`);
     }
 
-    // ✅ IMPORTANT: Ne pas détruire le NetworkManager, juste nettoyer les listeners
-    if (this.networkManager && this.zoneChangedHandler) {
-      this.networkManager.offZoneChanged(this.zoneChangedHandler);
-      this.zoneChangedHandler = null;
+    // ✅ NOUVEAU: Nettoyer TOUS les listeners de cette scène
+    if (this.networkManager) {
+        // Supprimer le listener onStateChange spécifique à cette scène
+        if (this.networkManager.callbacks && this.networkManager.callbacks.onStateChange) {
+            // Créer une nouvelle fonction qui filtre par scène active
+            const originalCallback = this.networkManager.callbacks.onStateChange;
+            this.networkManager.callbacks.onStateChange = (state) => {
+                // Seulement appeler si cette scène est active
+                if (this.scene.isActive()) {
+                    originalCallback(state);
+                }
+            };
+        }
+        
+        if (this.zoneChangedHandler) {
+            this.networkManager.offZoneChanged(this.zoneChangedHandler);
+            this.zoneChangedHandler = null;
+        }
     }
 
     // Nettoyer les joueurs SANS effacer mySessionId
     if (this.playerManager) {
-      // ✅ NOUVEAU: Sauvegarder mySessionId avant nettoyage
-      const savedSessionId = this.playerManager.mySessionId;
-      this.playerManager.clearAllPlayers();
-      this.playerManager.mySessionId = savedSessionId; // Restaurer
+        const savedSessionId = this.playerManager.mySessionId;
+        this.playerManager.clearAllPlayers();
+        this.playerManager.mySessionId = savedSessionId;
     }
 
     if (this.npcManager) {
-      this.npcManager.clearAllNpcs();
+        this.npcManager.clearAllNpcs();
     }
 
     if (this.animatedObjects) {
-      this.animatedObjects.clear(true, true);
-      this.animatedObjects = null;
+        this.animatedObjects.clear(true, true);
+        this.animatedObjects = null;
     }
 
     if (this.loadTimer) {
-      this.loadTimer.remove(false);
-      this.loadTimer = null;
+        this.loadTimer.remove(false);
+        this.loadTimer = null;
     }
 
     this.time.removeAllEvents();
     this.cameraFollowing = false;
     this.isTransitioning = false;
-    
-    // ✅ IMPORTANT: Ne PAS mettre this.networkManager = null
-    // Garder la référence pour les autres scènes
-  }
+}
 
   // ✅ DEBUG: Fonction pour surveiller l'état
   checkSceneState() {
