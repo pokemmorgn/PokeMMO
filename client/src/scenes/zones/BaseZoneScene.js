@@ -1084,8 +1084,7 @@ export class BaseZoneScene extends Phaser.Scene {
     // Assurer que le CSS mobile est chargé
     ensureMobileInteractCSS();
     
-    // Nouveau système d'input unifié
-    this.inputManager = new InputManager(this);
+    
     
     // Configuration du callback de mouvement
     this.inputManager.onMove((deltaX, deltaY, direction) => {
