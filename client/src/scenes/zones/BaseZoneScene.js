@@ -17,32 +17,28 @@ export class BaseZoneScene extends Phaser.Scene {
     this.animatedObjects = null;
     this.zoneChangedHandler = null; // Référence du handler
     this.lastMoveTime = 0; // Throttling des mouvements
-      this.hasPlayerAppeared = false; // <- flag pour la première apparition
-
-
   }
 
   preload() {
-  const ext = 'tmj';
-  this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
+    const ext = 'tmj';
+    this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
 
-  // Charger le spritesheet du joueur (32x32 par frame)
-  this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
-    frameWidth: 32,
-    frameHeight: 32,
-  });
-}
+    // Charger le spritesheet du joueur (32x32 par frame)
+    this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+  }
 
   create() {
     console.log(`🌍 Creating zone: ${this.scene.key}`);
     console.log(`📊 Scene data:`, this.scene.settings.data);
 
-this.createPlayerAnimations();
-this.setupManagers();     // <-- d'abord les managers
-this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
-this.setupInputs();
-this.createUI();
-
+    this.createPlayerAnimations();
+    this.setupManagers();     // <-- d'abord les managers
+    this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
+    this.setupInputs();
+    this.createUI();
 
     // Gestion réseau simplifiée
     if (this.scene.key === 'BeachScene') {
@@ -63,12 +59,26 @@ this.createUI();
     });
   }
 
+  // ✅ AMÉLIORATION: Récupération du NetworkManager avec vérification des données de scène
   getExistingNetwork() {
-    // Liste des scènes qui pourraient avoir le NetworkManager
-    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene'];
+    // ✅ NOUVEAU: Vérifier d'abord les données de scène
+    const sceneData = this.scene.settings.data;
+    if (sceneData && sceneData.networkManager) {
+      console.log(`[${this.scene.key}] NetworkManager reçu via sceneData`);
+      this.networkManager = sceneData.networkManager;
+      this.mySessionId = this.networkManager.getSessionId();
+      if (this.playerManager) {
+        this.playerManager.setMySessionId(this.mySessionId);
+      }
+      this.setupNetwork();
+      return;
+    }
+
+    // Sinon, chercher dans les autres scènes
+    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene', 'LavandiaScene'];
     for (const sceneName of scenesToCheck) {
       const scene = this.scene.manager.getScene(sceneName);
-      if (scene && scene.networkManager) {
+      if (scene && scene.networkManager && scene.networkManager.isConnected) {
         this.networkManager = scene.networkManager;
         this.mySessionId = this.networkManager.getSessionId();
         if (this.playerManager) {
@@ -127,23 +137,24 @@ this.createUI();
         this.layers[layerData.name] = layer;
         layer.setDepth(depthOrder[layerData.name] ?? 0);
       });
-// === Debug: Affichage des zones de téléport ===
-const teleportZones =
-  this.map.objects
-    ?.find(layer => layer.name === "Worlds")
-    ?.objects
-    ?.filter(obj => obj.name === "teleport") || [];
 
-teleportZones.forEach(obj => {
-  const rect = this.add.rectangle(
-    obj.x + obj.width / 2,
-    obj.y + obj.height / 2,
-    obj.width,
-    obj.height,
-    0xff0000, 0.25 // Rouge, transparence 25%
-  ).setDepth(999);
-  rect.setStrokeStyle(2, 0xffffff); // Contour blanc pour bien voir
-});
+      // === Debug: Affichage des zones de téléport ===
+      const teleportZones =
+        this.map.objects
+          ?.find(layer => layer.name === "Worlds")
+          ?.objects
+          ?.filter(obj => obj.name === "teleport") || [];
+
+      teleportZones.forEach(obj => {
+        const rect = this.add.rectangle(
+          obj.x + obj.width / 2,
+          obj.y + obj.height / 2,
+          obj.width,
+          obj.height,
+          0xff0000, 0.25 // Rouge, transparence 25%
+        ).setDepth(999);
+        rect.setStrokeStyle(2, 0xffffff); // Contour blanc pour bien voir
+      });
 
       if (this.sys.animatedTiles) {
         this.sys.animatedTiles.init(this.map);
@@ -162,7 +173,6 @@ teleportZones.forEach(obj => {
 
       this.setupAnimatedObjects();
       this.setupScene();
-      // ✅ SUPPRIMÉ : setupZoneTransitions() - Plus besoin !
     };
 
     if (needsLoading) {
@@ -198,23 +208,23 @@ teleportZones.forEach(obj => {
   }
 
   setupScene() {
-  console.log('— DEBUT setupScene —');
-  this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+    console.log('— DEBUT setupScene —');
+    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
 
-  // Zoom automatique selon taille map et taille canvas Phaser
-  const baseWidth = this.scale.width;   // largeur canvas Phaser (ex: 800)
-  const baseHeight = this.scale.height; // hauteur canvas Phaser (ex: 600)
+    // Zoom automatique selon taille map et taille canvas Phaser
+    const baseWidth = this.scale.width;   // largeur canvas Phaser (ex: 800)
+    const baseHeight = this.scale.height; // hauteur canvas Phaser (ex: 600)
 
-  const zoomX = baseWidth / this.map.widthInPixels;
-  const zoomY = baseHeight / this.map.heightInPixels;
-  const zoom = Math.min(zoomX, zoomY);
+    const zoomX = baseWidth / this.map.widthInPixels;
+    const zoomY = baseHeight / this.map.heightInPixels;
+    const zoom = Math.min(zoomX, zoomY);
 
-  this.cameras.main.setZoom(zoom);
+    this.cameras.main.setZoom(zoom);
 
-  this.cameras.main.setBackgroundColor('#2d5a3d');
-  this.cameras.main.setRoundPixels(true);
+    this.cameras.main.setBackgroundColor('#2d5a3d');
+    this.cameras.main.setRoundPixels(true);
 
-  this.cameraManager = new CameraManager(this);
+    this.cameraManager = new CameraManager(this);
     let retry = 0;
     const MAX_RETRY = 60;
 
@@ -260,44 +270,52 @@ teleportZones.forEach(obj => {
     });
   }
 
-// ✅ SUPPRIMÉ : getTransitionConfig() - Plus besoin !
+  // ✅ AMÉLIORATION: Meilleure gestion des positions
+  positionPlayer(player) {
+    const initData = this.scene.settings.data;
+    
+    // Position par défaut ou depuis spawn data
+    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+      console.log(`[${this.scene.key}] Position depuis serveur: ${initData.spawnX}, ${initData.spawnY}`);
+      player.x = initData.spawnX;
+      player.y = initData.spawnY;
+    } else {
+      // Utiliser les positions par défaut de la scène
+      const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+      console.log(`[${this.scene.key}] Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
+      player.x = defaultPos.x;
+      player.y = defaultPos.y;
+    }
 
-positionPlayer(player) {
-  const initData = this.scene.settings.data;
-  
-  // Position par défaut ou depuis spawn data
-  if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-    player.x = initData.spawnX;
-    player.y = initData.spawnY;
-  } else {
-    // Utiliser les positions par défaut de la scène
-    const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-    player.x = defaultPos.x;
-    player.y = defaultPos.y;
+    // ✅ NOUVEAU: Vérifier que le joueur est visible
+    player.setVisible(true);
+    player.setActive(true);
+    player.setDepth(5);
+
+    // Logique commune pour l'indicateur
+    if (player.indicator) {
+      player.indicator.x = player.x;
+      player.indicator.y = player.y - 32;
+      player.indicator.setVisible(true);
+    }
+
+    // ✅ AMÉLIORATION: Envoyer position seulement si connecté
+    if (this.networkManager && this.networkManager.isConnected) {
+      this.networkManager.sendMove(player.x, player.y);
+    }
+
+    // Hook pour logique spécifique (intro, etc.)
+    this.onPlayerPositioned(player, initData);
   }
 
-  // Logique commune pour l'indicateur
-  if (player.indicator) {
-    player.indicator.x = player.x;
-    player.indicator.y = player.y - 32;
+  // À override dans les sous-classes
+  getDefaultSpawnPosition(fromZone) {
+    return { x: 100, y: 100 }; // Valeurs par défaut
   }
 
-  if (this.networkManager) {
-    this.networkManager.sendMove(player.x, player.y);
+  onPlayerPositioned(player, initData) {
+    // Hook pour logique spécifique (intro dans BeachScene)
   }
-
-  // Hook pour logique spécifique (intro, etc.)
-  this.onPlayerPositioned(player, initData);
-}
-
-// À override dans les sous-classes
-getDefaultSpawnPosition(fromZone) {
-  return { x: 100, y: 100 }; // Valeurs par défaut
-}
-
-onPlayerPositioned(player, initData) {
-  // Hook pour logique spécifique (intro dans BeachScene)
-}
 
   async initializeNetwork() {
     const getWalletFromUrl = () => {
@@ -351,8 +369,12 @@ onPlayerPositioned(player, initData) {
         case 'road1':
           roomName = 'Road1Room';
           break;
-          case 'house1':
+        case 'house1':
+        case 'villagehouse1':
           roomName = 'VillageHouse1Room';
+          break;
+        case 'lavandia':
+          roomName = 'LavandiaRoom';
           break;
         default:
           roomName = 'BeachRoom';
@@ -417,18 +439,17 @@ onPlayerPositioned(player, initData) {
     this.input.keyboard.enableGlobalCapture();
 
     // Appuie sur "E" pour interagir avec le NPC le plus proche
-this.input.keyboard.on("keydown-E", () => {
-  const myPlayer = this.playerManager.getMyPlayer();
-  if (!myPlayer || !this.npcManager) return;
+    this.input.keyboard.on("keydown-E", () => {
+      const myPlayer = this.playerManager.getMyPlayer();
+      if (!myPlayer || !this.npcManager) return;
 
-  const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
-  if (npc) {
-    // 🔥 Mémorise le dernier NPC ciblé pour le dialogue
-    this.npcManager.lastInteractedNpc = npc;
-    this.networkManager.sendNpcInteract(npc.id);
-  }
-});
-
+      const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
+      if (npc) {
+        // 🔥 Mémorise le dernier NPC ciblé pour le dialogue
+        this.npcManager.lastInteractedNpc = npc;
+        this.networkManager.sendNpcInteract(npc.id);
+      }
+    });
   }
 
   createUI() {
@@ -449,167 +470,73 @@ this.input.keyboard.on("keydown-E", () => {
     }).setScrollFactor(0).setDepth(1000).setOrigin(1, 0);
   }
 
+  // ✅ AMÉLIORATION: setupNetwork avec meilleure gestion des états
   setupNetwork() {
-  if (!this.networkManager) return;
+    if (!this.networkManager) return;
 
-  this.networkManager.onConnect(() => {
-    this.mySessionId = this.networkManager.getSessionId();
-    this.playerManager.setMySessionId(this.mySessionId);
-    this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
-
-      if (!window.questSystem) {
-    try {
-      // Prends la room Colyseus, ou adapte si ce n'est pas le bon champ
-      const gameRoom = this.networkManager.room || this.networkManager.gameRoom;
-      window.questSystem = new QuestSystem(this, gameRoom);
-      console.log("✅ [QuestSystem] Initialisé dans window :", window.questSystem);
-    } catch (e) {
-      console.error("❌ Erreur init QuestSystem :", e);
-    }
-  } else {
-    console.log("ℹ️ [QuestSystem] Déjà présent", window.questSystem);
-  }
-    
-    // <-- AJOUTE ICI !
-    this.networkManager.onMessage("snap", (data) => {
-      this.playerManager.snapMyPlayerTo(data.x, data.y);
-    });   
-  });
-
-this.networkManager.onStateChange((state) => {
-  this.playerManager.updatePlayers(state);
-
-  const myPlayer = this.playerManager.getMyPlayer();
-
-  if (!myPlayer) {
-    console.warn(`[${this.scene.key}] [onStateChange] Aucun player trouvé après updatePlayers!`);
-    return;
-  }
-
-  // On ne fait tout ça QU'UNE SEULE FOIS à l'arrivée sur la scène
-  if (!this.hasPlayerAppeared) {
-    this.hasPlayerAppeared = true;
-    this.positionPlayer(myPlayer);
-    this.cameraManager.followPlayer(myPlayer);
-    this.cameraFollowing = true;
-    console.log(`[${this.scene.key}] [onStateChange] Mon player existe enfin ! (${myPlayer.x}, ${myPlayer.y})`);
-  }
-});
-    // Quand le serveur répond à l'interaction NPC
-this.networkManager.onMessage("npcInteractionResult", (result) => {
-  console.log("🟢 [npcInteractionResult] Reçu :", result);
-
-  if (result.type === "dialogue") {
-    console.log("➡️ Type = dialogue");
-    let npcName = "???";
-    let spriteName = null;
-    let portrait = result.portrait; // peut-être null/undefined
-    if (result.npcId && this.npcManager) {
-      console.log("🔍 Recherche NPC dans npcManager:", result.npcId, this.npcManager);
-      const npc = this.npcManager.getNpcData(result.npcId);
-      if (npc) {
-        npcName = npc.name;
-        spriteName = npc.sprite;
-        console.log("✅ NPC trouvé :", npc);
-        if (!portrait && spriteName) {
-          portrait = `/assets/portrait/${spriteName}Portrait.png`;
-          console.log("🖼️ Portrait reconstruit :", portrait);
-        }
-      } else {
-        console.warn("❌ NPC introuvable pour id", result.npcId);
+    this.networkManager.onConnect(() => {
+      this.mySessionId = this.networkManager.getSessionId();
+      if (this.playerManager) {
+        this.playerManager.setMySessionId(this.mySessionId);
       }
-    }
-    console.log("💬 Affiche dialogue :", { portrait, npcName, lines: result.lines || [result.message] });
-    showNpcDialogue({
-      portrait: portrait || "/assets/portrait/unknownPortrait.png",
-      name: npcName,
-      lines: result.lines || [result.message]
-    });
-  }
-  else if (result.type === "shop") {
-    console.log("➡️ Type = shop", result);
-    showNpcDialogue({
-      portrait: result.portrait || "assets/ui/shop_icon.png",
-      name: "Shop",
-      text: "Ouverture du shop: " + result.shopId
-    });
-  }
-  else if (result.type === "heal") {
-    console.log("➡️ Type = heal", result);
-    showNpcDialogue({
-      portrait: result.portrait || "assets/ui/heal_icon.png",
-      name: "???",
-      text: result.message || "Vos Pokémon sont soignés !"
-    });
-  }
-  else if (result.type === "questGiver" || result.type === "questComplete" || result.type === "questProgress") {
-    console.log(`➡️ Type = ${result.type} (Appel QuestSystem)`, result, "window.questSystem =", window.questSystem);
-    if (window.questSystem && typeof window.questSystem.handleNpcInteraction === 'function') {
-      window.questSystem.handleNpcInteraction(result);
-      return; // On s'arrête ici, rien d'autre à faire
-    } else {
-      console.warn("❌ QuestSystem non initialisé ou handleNpcInteraction manquant");
-    }
-  }
-  else if (result.type === "error") {
-    console.log("➡️ Type = error", result);
-    showNpcDialogue({
-      portrait: null,
-      name: "Erreur",
-      text: result.message
-    });
-  }
-  else {
-    console.warn("⚠️ Type inconnu, dump complet :", result);
-    showNpcDialogue({
-      portrait: null,
-      name: "???",
-      text: JSON.stringify(result)
-    });
-  }
-});
+      this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
 
-    
-    this.networkManager.onDisconnect(() => {
-      this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nDisconnected`);
+      // Système de quêtes
+      if (!window.questSystem) {
+        try {
+          const gameRoom = this.networkManager.room || this.networkManager.gameRoom;
+          window.questSystem = new QuestSystem(this, gameRoom);
+          console.log("✅ [QuestSystem] Initialisé");
+        } catch (e) {
+          console.error("❌ Erreur init QuestSystem:", e);
+        }
+      }
+      
+      // ✅ NOUVEAU: Snap pour correction de position
+      this.networkManager.onMessage("snap", (data) => {
+        if (this.playerManager) {
+          this.playerManager.snapMyPlayerTo(data.x, data.y);
+        }
+      });   
     });
 
-    // ✅ NOUVEAU : Écouter les téléportations automatiques du serveur
+    this.networkManager.onStateChange((state) => {
+      if (!state || !state.players) return;
+      
+      // ✅ AMÉLIORATION: Vérifier que le PlayerManager existe
+      if (this.playerManager) {
+        this.playerManager.updatePlayers(state);
+
+        const myPlayer = this.playerManager.getMyPlayer();
+        if (myPlayer && !this.cameraFollowing) {
+          console.log(`[${this.scene.key}] Joueur trouvé, configuration caméra`);
+          this.cameraManager.followPlayer(myPlayer);
+          this.cameraFollowing = true;
+          this.positionPlayer(myPlayer);
+        }
+      }
+    });
+
+    // ✅ Centraliser les listeners de messages
+    this.setupMessageListeners();
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Centraliser les listeners de messages
+  setupMessageListeners() {
+    // Messages NPC
+    this.networkManager.onMessage("npcInteractionResult", (result) => {
+      this.handleNpcInteraction(result);
+    });
+
+    // Téléportations automatiques
     this.networkManager.onMessage("teleport_success", (data) => {
       console.log(`🌀 [${this.scene.key}] Téléportation reçue:`, data);
-      
-      // Mapping entre targetMap et la clé réelle de la scène Phaser
-      const MAP_TO_SCENE = {
-        beach: "BeachScene",
-        village: "VillageScene", 
-        villagelab: "VillageLabScene",
-        road1: "Road1Scene",
-        villagehouse1: "VillageHouse1Scene",
-        lavandia: "LavandiaScene"
-      };
-
-      const targetMapKey = (data.targetMap || "").toLowerCase();
-      const nextSceneKey = MAP_TO_SCENE[targetMapKey] || "BeachScene";
-
-      if (nextSceneKey && nextSceneKey !== this.scene.key) {
-        console.log(`🌀 [${this.scene.key}] Transition automatique vers ${nextSceneKey}`);
-        
-        this.cleanup();
-        
-        // Démarrer la nouvelle scène avec les nouvelles coordonnées
-        this.scene.start(nextSceneKey, {
-          fromZone: this.scene.key,
-          spawnX: data.targetX,
-          spawnY: data.targetY,
-          spawnPoint: data.spawnPoint
-        });
-      }
+      this.handleAutoTeleport(data);
     });
 
     // ✅ OPTIONNEL : Écouter les échecs de téléportation
     this.networkManager.onMessage("teleport_failed", (data) => {
       console.warn(`❌ [${this.scene.key}] Téléportation échouée:`, data.reason);
-      // Optionnel : afficher un message à l'utilisateur
     });
 
     // ✅ GARDER l'ancien système pour compatibilité avec changeZone manuel
@@ -645,23 +572,153 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
           fromZone: this.scene.key,
           fromDirection: data.fromDirection || null,
           spawnX: data.spawnX,
-          spawnY: data.spawnY
+          spawnY: data.spawnY,
+          networkManager: this.networkManager // ✅ NOUVEAU: Passer le NetworkManager
         });
       }
     };
 
     this.networkManager.onZoneChanged(this.zoneChangedHandler);
 
-      this.networkManager.onMessage("npcList", (npcList) => {
-    if (this.npcManager) {
-      this.npcManager.spawnNpcs(npcList);
+    // Liste des NPCs
+    this.networkManager.onMessage("npcList", (npcList) => {
+      if (this.npcManager) {
+        this.npcManager.spawnNpcs(npcList);
+      }
+    });
+
+    // Déconnexion
+    this.networkManager.onDisconnect(() => {
+      this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nDisconnected`);
+    });
+  }
+
+  // ✅ NOUVEAU: Gérer les téléportations automatiques
+  handleAutoTeleport(data) {
+    // Mapping entre targetMap et la clé réelle de la scène Phaser
+    const MAP_TO_SCENE = {
+      beach: "BeachScene",
+      village: "VillageScene", 
+      villagelab: "VillageLabScene",
+      road1: "Road1Scene",
+      villagehouse1: "VillageHouse1Scene",
+      lavandia: "LavandiaScene"
+    };
+
+    const targetMapKey = (data.targetMap || "").toLowerCase();
+    const nextSceneKey = MAP_TO_SCENE[targetMapKey] || "BeachScene";
+
+    if (nextSceneKey && nextSceneKey !== this.scene.key) {
+      console.log(`🌀 [${this.scene.key}] Transition automatique vers ${nextSceneKey}`);
+      
+      this.cleanup();
+      
+      // Démarrer la nouvelle scène avec les nouvelles coordonnées
+      this.scene.start(nextSceneKey, {
+        fromZone: this.scene.key,
+        spawnX: data.targetX,
+        spawnY: data.targetY,
+        spawnPoint: data.spawnPoint,
+        networkManager: this.networkManager // ✅ NOUVEAU: Passer le NetworkManager
+      });
     }
-  });
+  }
+
+  // ✅ NOUVEAU: Gérer les interactions NPC
+  handleNpcInteraction(result) {
+    console.log("🟢 [npcInteractionResult] Reçu :", result);
+
+    if (result.type === "dialogue") {
+      console.log("➡️ Type = dialogue");
+      let npcName = "???";
+      let spriteName = null;
+      let portrait = result.portrait; // peut-être null/undefined
+      if (result.npcId && this.npcManager) {
+        console.log("🔍 Recherche NPC dans npcManager:", result.npcId, this.npcManager);
+        const npc = this.npcManager.getNpcData(result.npcId);
+        if (npc) {
+          npcName = npc.name;
+          spriteName = npc.sprite;
+          console.log("✅ NPC trouvé :", npc);
+          if (!portrait && spriteName) {
+            portrait = `/assets/portrait/${spriteName}Portrait.png`;
+            console.log("🖼️ Portrait reconstruit :", portrait);
+          }
+        } else {
+          console.warn("❌ NPC introuvable pour id", result.npcId);
+        }
+      }
+      console.log("💬 Affiche dialogue :", { portrait, npcName, lines: result.lines || [result.message] });
+      
+      // Vérifier que showNpcDialogue existe
+      if (typeof window.showNpcDialogue === 'function') {
+        window.showNpcDialogue({
+          portrait: portrait || "/assets/portrait/unknownPortrait.png",
+          name: npcName,
+          lines: result.lines || [result.message]
+        });
+      } else {
+        console.warn("showNpcDialogue function not found");
+      }
+    }
+    else if (result.type === "shop") {
+      console.log("➡️ Type = shop", result);
+      if (typeof window.showNpcDialogue === 'function') {
+        window.showNpcDialogue({
+          portrait: result.portrait || "assets/ui/shop_icon.png",
+          name: "Shop",
+          text: "Ouverture du shop: " + result.shopId
+        });
+      }
+    }
+    else if (result.type === "heal") {
+      console.log("➡️ Type = heal", result);
+      if (typeof window.showNpcDialogue === 'function') {
+        window.showNpcDialogue({
+          portrait: result.portrait || "assets/ui/heal_icon.png",
+          name: "???",
+          text: result.message || "Vos Pokémon sont soignés !"
+        });
+      }
+    }
+    else if (result.type === "questGiver" || result.type === "questComplete" || result.type === "questProgress") {
+      console.log(`➡️ Type = ${result.type} (Appel QuestSystem)`, result, "window.questSystem =", window.questSystem);
+      if (window.questSystem && typeof window.questSystem.handleNpcInteraction === 'function') {
+        window.questSystem.handleNpcInteraction(result);
+        return; // On s'arrête ici, rien d'autre à faire
+      } else {
+        console.warn("❌ QuestSystem non initialisé ou handleNpcInteraction manquant");
+      }
+    }
+    else if (result.type === "error") {
+      console.log("➡️ Type = error", result);
+      if (typeof window.showNpcDialogue === 'function') {
+        window.showNpcDialogue({
+          portrait: null,
+          name: "Erreur",
+          text: result.message
+        });
+      }
+    }
+    else {
+      console.warn("⚠️ Type inconnu, dump complet :", result);
+      if (typeof window.showNpcDialogue === 'function') {
+        window.showNpcDialogue({
+          portrait: null,
+          name: "???",
+          text: JSON.stringify(result)
+        });
+      }
+    }
   }
 
   update() {
-   if (this.playerManager) this.playerManager.update();  // <--- AJOUTE ÇA ICI
+    // ✅ NOUVEAU: Vérification périodique de l'état du joueur
+    if (this.time.now % 1000 < 16) { // Chaque seconde environ
+      this.checkPlayerState();
+    }
 
+    if (this.playerManager) this.playerManager.update();
     if (this.cameraManager) this.cameraManager.update();
 
     if (this.sys.animatedTiles && typeof this.sys.animatedTiles.update === 'function') {
@@ -679,6 +736,41 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
     if (!myPlayerState) return;
 
     this.handleMovement(myPlayerState);
+  }
+
+  // ✅ NOUVEAU: Méthode pour vérifier l'état du joueur
+  checkPlayerState() {
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.warn(`[${this.scene.key}] Joueur manquant!`);
+      return false;
+    }
+    
+    let fixed = false;
+    
+    if (!myPlayer.visible) {
+      console.warn(`[${this.scene.key}] Joueur invisible, restauration`);
+      myPlayer.setVisible(true);
+      fixed = true;
+    }
+    
+    if (!myPlayer.active) {
+      console.warn(`[${this.scene.key}] Joueur inactif, restauration`);
+      myPlayer.setActive(true);
+      fixed = true;
+    }
+    
+    if (myPlayer.indicator && !myPlayer.indicator.visible) {
+      console.warn(`[${this.scene.key}] Indicateur invisible, restauration`);
+      myPlayer.indicator.setVisible(true);
+      fixed = true;
+    }
+    
+    if (fixed) {
+      console.log(`[${this.scene.key}] État du joueur corrigé`);
+    }
+    
+    return true;
   }
 
   handleMovement(myPlayerState) {
@@ -714,13 +806,13 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
     if (moved) {
       const now = Date.now();
       if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirection, moved);
+        this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirection, moved);
         this.lastMoveTime = now;
       }
     }
   }
 
-     transitionToZone(targetScene, fromDirection = null) {
+  transitionToZone(targetScene, fromDirection = null) {
     if (this.isTransitioning) {
       console.log(`[${this.scene.key}] Transition déjà en cours, ignorée`);
       return;
@@ -734,21 +826,28 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
       console.log(`[${this.scene.key}] Lancement de la nouvelle scène ${targetScene}`);
       this.scene.start(targetScene, {
         fromZone: this.scene.key,
-        fromDirection: fromDirection
+        fromDirection: fromDirection,
+        networkManager: this.networkManager // ✅ NOUVEAU: Passer le NetworkManager
       });
     });
   }
-
+  
+  // ✅ AMÉLIORATION: Cleanup plus robuste
   cleanup() {
     console.log(`[${this.scene.key}] Nettoyage en cours...`);
 
+    // ✅ IMPORTANT: Ne pas détruire le NetworkManager, juste nettoyer les listeners
     if (this.networkManager && this.zoneChangedHandler) {
       this.networkManager.offZoneChanged(this.zoneChangedHandler);
       this.zoneChangedHandler = null;
     }
 
+    // Nettoyer les joueurs SANS effacer mySessionId
     if (this.playerManager) {
+      // ✅ NOUVEAU: Sauvegarder mySessionId avant nettoyage
+      const savedSessionId = this.playerManager.mySessionId;
       this.playerManager.clearAllPlayers();
+      this.playerManager.mySessionId = savedSessionId; // Restaurer
     }
 
     if (this.npcManager) {
@@ -766,9 +865,7 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
     }
 
     this.time.removeAllEvents();
-
     this.cameraFollowing = false;
     this.isTransitioning = false;
-    this.hasPlayerAppeared = false;   // <- ICI, à la racine de cleanup
   }
 }
