@@ -174,7 +174,7 @@
                 {
                  "height":9.33333333333333,
                  "id":8,
-                 "name":"Road_1",
+                 "name":"teleport",
                  "properties":[
                         {
                          "name":"targetSpawn",
@@ -231,17 +231,17 @@
                 {
                  "height":38.6667,
                  "id":86,
-                 "name":"Labo",
+                 "name":"teleport",
                  "properties":[
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"FromVillageScene"
+                         "value":"Fromvillage"
                         }, 
                         {
                          "name":"targetZone",
                          "type":"string",
-                         "value":"VillageLabScene"
+                         "value":"villagelab"
                         }],
                  "rotation":0,
                  "type":"",
@@ -253,17 +253,17 @@
                 {
                  "height":32,
                  "id":87,
-                 "name":"House1",
+                 "name":"teleport",
                  "properties":[
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"FromVillageScene"
+                         "value":"Fromvillage"
                         }, 
                         {
                          "name":"targetZone",
                          "type":"string",
-                         "value":"VillageHouse1Scene"
+                         "value":"villagehouse1"
                         }],
                  "rotation":0,
                  "type":"",
@@ -275,7 +275,18 @@
                 {
                  "height":25.3333,
                  "id":88,
-                 "name":"House2",
+                 "name":"teleport",
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"Fromvillage"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"villagehouse2"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
@@ -286,7 +297,18 @@
                 {
                  "height":39.5,
                  "id":89,
-                 "name":"Florist",
+                 "name":"teleport",
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"Fromvillage"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"villageflorist"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
@@ -316,6 +338,121 @@
                  "width":0,
                  "x":430,
                  "y":438.666666666667
+                }, 
+                {
+                 "height":0,
+                 "id":94,
+                 "name":"spawn",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"Fromvillageflorist"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"village"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":246,
+                 "y":361.333333333333
+                }, 
+                {
+                 "height":0,
+                 "id":95,
+                 "name":"spawn",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"Fromvillagelab"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"village"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":161.333333333333,
+                 "y":248.666666666667
+                }, 
+                {
+                 "height":0,
+                 "id":96,
+                 "name":"spawn",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"Fromvillagehouse1"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"village"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":44.6666666666667,
+                 "y":104
+                }, 
+                {
+                 "height":0,
+                 "id":97,
+                 "name":"spawn",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"Fromvillagehouse2"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"village"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":367.333333333333,
+                 "y":129.333333333333
+                }, 
+                {
+                 "height":0,
+                 "id":98,
+                 "name":"spawn",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"Fromroad1"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"village"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":148.666666666667,
+                 "y":41.3333333333333
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -438,7 +575,7 @@
          "y":0
         }],
  "nextlayerid":15,
- "nextobjectid":93,
+ "nextobjectid":99,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
