@@ -1,42 +1,93 @@
-// server/src/models/PlayerQuest.ts
+// server/src/types/QuestTypes.ts
 
-import mongoose from "mongoose";
+export interface QuestObjective {
+  id: string;
+  type: 'collect' | 'defeat' | 'talk' | 'reach';
+  description: string;
+  target?: string; // ID de l'objet, Pokémon, NPC, ou zone
+  targetName?: string; // Nom affiché à l'utilisateur
+  currentAmount: number;
+  requiredAmount: number;
+  completed: boolean;
+}
 
-const QuestObjectiveProgressSchema = new mongoose.Schema({
-  objectiveId: { type: String, required: true },
-  currentAmount: { type: Number, default: 0 },
-  completed: { type: Boolean, default: false }
-});
+export interface QuestReward {
+  type: 'gold' | 'item' | 'pokemon' | 'experience';
+  itemId?: string;
+  amount?: number;
+  pokemonId?: number;
+}
 
-const PlayerQuestProgressSchema = new mongoose.Schema({
-  questId: { type: String, required: true },
-  currentStepIndex: { type: Number, default: 0 },
-  objectives: { type: Map, of: mongoose.Schema.Types.Mixed, default: new Map() },
-  status: { 
-    type: String, 
-    enum: ['active', 'completed', 'failed'], 
-    default: 'active' 
-  },
-  startedAt: { type: Date, default: Date.now },
-  completedAt: { type: Date }
-});
+export interface QuestStep {
+  id: string;
+  name: string;
+  description: string;
+  objectives: QuestObjective[];
+  rewards?: QuestReward[];
+  completed: boolean;
+}
 
-const PlayerQuestSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  activeQuests: [PlayerQuestProgressSchema],
-  completedQuests: [{ 
-    questId: String, 
-    completedAt: Date,
-    stepCount: Number 
-  }],
-  lastQuestCompletions: [{ // Pour les quêtes répétables
-    questId: String,
-    lastCompletedAt: Date
-  }]
-});
+export interface Quest {
+  id: string;
+  name: string;
+  description: string;
+  category: 'main' | 'side' | 'daily' | 'repeatable';
+  prerequisites?: string[]; // IDs des quêtes requises
+  steps: QuestStep[];
+  currentStepIndex: number;
+  status: 'available' | 'active' | 'completed' | 'failed';
+  startNpcId?: number;
+  endNpcId?: number;
+  isRepeatable: boolean;
+  cooldownHours?: number; // Pour les quêtes répétables
+  lastCompletedAt?: Date;
+}
 
-// Index pour les requêtes fréquentes
-PlayerQuestSchema.index({ username: 1 });
-PlayerQuestSchema.index({ "activeQuests.questId": 1 });
+export interface PlayerQuestProgress {
+  questId: string;
+  currentStepIndex: number;
+  objectives: Map<string, {
+    currentAmount: number;
+    completed: boolean;
+  }>;
+  status: 'active' | 'completed' | 'failed';
+  startedAt: Date;
+  completedAt?: Date;
+}
 
-export const PlayerQuest = mongoose.model("PlayerQuest", PlayerQuestSchema);
+// Types pour les événements de progression
+export interface QuestProgressEvent {
+  type: 'collect' | 'defeat' | 'talk' | 'reach';
+  targetId?: string;
+  amount?: number;
+  location?: { x: number; y: number; map: string };
+  pokemonId?: number;
+  npcId?: number;
+}
+
+// Interface pour les définitions de quêtes (JSON)
+export interface QuestDefinition {
+  id: string;
+  name: string;
+  description: string;
+  category: 'main' | 'side' | 'daily' | 'repeatable';
+  prerequisites?: string[];
+  startNpcId?: number;
+  endNpcId?: number;
+  isRepeatable: boolean;
+  cooldownHours?: number;
+  steps: {
+    id: string;
+    name: string;
+    description: string;
+    objectives: {
+      id: string;
+      type: 'collect' | 'defeat' | 'talk' | 'reach';
+      description: string;
+      target?: string;
+      targetName?: string;
+      requiredAmount: number;
+    }[];
+    rewards?: QuestReward[];
+  }[];
+}
