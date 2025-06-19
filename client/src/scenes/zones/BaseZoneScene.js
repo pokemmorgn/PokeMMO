@@ -30,34 +30,60 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-  create() {
-    console.log(`🌍 Creating zone: ${this.scene.key}`);
-    console.log(`📊 Scene data:`, this.scene.settings.data);
+create() {
+  console.log(`🌍 Creating zone: ${this.scene.key}`);
+  console.log(`📊 Scene data:`, this.scene.settings.data);
 
-    this.createPlayerAnimations();
-    this.setupManagers();     // <-- d'abord les managers
-    this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
-    this.setupInputs();
-    this.createUI();
-    this.myPlayerReady = false;
-    // Gestion réseau simplifiée
-    if (this.scene.key === 'BeachScene') {
-      this.initializeNetwork();
-    } else {
-      this.getExistingNetwork();
-    }
+  this.createPlayerAnimations();
+  this.setupManagers();     // <-- d'abord les managers
+  this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
+  this.setupInputs();
+  this.createUI();
 
-    // Nettoyage amélioré
-    this.events.on('shutdown', () => {
-      console.log(`[${this.scene.key}] Shutdown - nettoyage`);
-      this.cleanup();
-    });
-    // Événement avant destruction
-    this.events.on('destroy', () => {
-      console.log(`[${this.scene.key}] Destroy - nettoyage final`);
-      this.cleanup();
+  this.myPlayerReady = false;
+
+  // Gestion réseau simplifiée
+  if (this.scene.key === 'BeachScene') {
+    this.initializeNetwork();
+  } else {
+    this.getExistingNetwork();
+  }
+
+  // 🔥 HOOK : détection joueur local prêt
+  // (attention, ce hook est appelé à chaque spawn ou reconnexion !)
+  if (this.playerManager) {
+    this.playerManager.onMyPlayerReady((myPlayer) => {
+      // Ne lance cette logique qu’une fois par apparition
+      if (!this.myPlayerReady) {
+        this.myPlayerReady = true;
+        console.log(`[${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
+
+        // Caméra sur le joueur
+        this.cameraManager.followPlayer(myPlayer);
+        this.cameraFollowing = true;
+
+        // Positionnement (point d’entrée, zone, etc)
+        this.positionPlayer(myPlayer);
+
+        // Appel d’un hook personnalisable pour la scène héritée
+        if (typeof this.onPlayerReady === 'function') {
+          this.onPlayerReady(myPlayer);
+        }
+      }
     });
   }
+
+  // Nettoyage amélioré
+  this.events.on('shutdown', () => {
+    console.log(`[${this.scene.key}] Shutdown - nettoyage`);
+    this.cleanup();
+  });
+  this.events.on('destroy', () => {
+    console.log(`[${this.scene.key}] Destroy - nettoyage final`);
+    this.cleanup();
+  });
+}
+
 
   // ✅ AMÉLIORATION: Récupération du NetworkManager avec vérification des données de scène
   getExistingNetwork() {
