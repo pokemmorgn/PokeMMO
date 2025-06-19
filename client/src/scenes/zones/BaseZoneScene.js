@@ -516,7 +516,7 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
     showNpcDialogue({
       portrait: portrait || "/assets/portrait/unknownPortrait.png",
       name: npcName,
-      text: result.lines ? result.lines[0] : result.message
+      lines: result.lines || [result.message]
     });
   }
   else if (result.type === "shop") {
