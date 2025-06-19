@@ -6,43 +6,50 @@ import fs from "fs";
 import path from "path";
 
 // Cache pour ne pas relire à chaque fois
-const mapCache: Record<string, any> = {};
+const mapCache = {};
+
+/**
+ * Normalise un nom de map ("BeachRoom", "BeachScene", "beach") => "beach"
+ */
+function normalizeMapName(name) {
+  return name.toLowerCase().replace(/room|scene/gi, '');
+}
 
 /**
  * Charge une map TMJ depuis le dossier maps (cache si déjà lue)
  */
-function loadMap(mapName: string): any {
-  if (!mapCache[mapName]) {
+function loadMap(mapName) {
+  const cleanName = normalizeMapName(mapName);
+  if (!mapCache[cleanName]) {
     // Attention, adapte le chemin si besoin !
-    const mapPath = path.join(__dirname, "../assets/maps/", `${mapName}.tmj`);
+    const mapPath = path.join(__dirname, "../assets/maps/", `${cleanName}.tmj`);
     if (!fs.existsSync(mapPath)) {
       throw new Error(`[TransitionController] Map manquante: ${mapPath}`);
     }
-    mapCache[mapName] = JSON.parse(fs.readFileSync(mapPath, "utf-8"));
+    mapCache[cleanName] = JSON.parse(fs.readFileSync(mapPath, "utf-8"));
   }
-  return mapCache[mapName];
+  return mapCache[cleanName];
 }
 
 /**
  * Récupère un objet dans le layer Worlds selon son nom (ou propriété custom)
  */
-function findWorldObject(mapName: string, objectName: string): any {
+function findWorldObject(mapName, objectName) {
   const mapData = loadMap(mapName);
   const worldsLayer = mapData.layers.find(
-    (l: any) => l.name === "Worlds" && l.type === "objectgroup"
+    l => l.name === "Worlds" && l.type === "objectgroup"
   );
   if (!worldsLayer) return null;
   // Peut adapter ici si tu veux chercher par propriété au lieu de name
-  return worldsLayer.objects.find((obj: any) => obj.name === objectName);
+  return worldsLayer.objects.find(obj => obj.name === objectName);
 }
 
 /**
  * Cherche une propriété personnalisée d'un objet Tiled (array → value)
  */
-function getProperty(obj: any, key: string): string | undefined {
-  // Propriétés custom de Tiled sont sous obj.properties (array)
+function getProperty(obj, key) {
   if (!obj.properties) return undefined;
-  const prop = obj.properties.find((p: any) => p.name === key);
+  const prop = obj.properties.find(p => p.name === key);
   return prop?.value;
 }
 
@@ -68,7 +75,7 @@ export class TransitionController {
     (player as any).isTransitioning = true;
 
     // On récupère l'objet de sortie dans la map actuelle, layer Worlds
-    const currentMapName = this.room.mapName.toLowerCase(); // ex: 'village'
+    const currentMapName = normalizeMapName(this.room.mapName);
     const exitName = data.targetSpawn;
     const exitObj = findWorldObject(currentMapName, exitName);
 
@@ -91,7 +98,7 @@ export class TransitionController {
     }
 
     // On cherche l'objet d'arrivée dans la map cible (targetZone)
-    const entryObj = findWorldObject(targetZone.toLowerCase(), targetSpawn);
+    const entryObj = findWorldObject(normalizeMapName(targetZone), targetSpawn);
 
     if (!entryObj) {
       console.warn(`[TransitionController] DENIED: point d'arrivée '${targetSpawn}' absent de '${targetZone}'`);
