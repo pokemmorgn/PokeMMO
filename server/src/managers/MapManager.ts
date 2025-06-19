@@ -161,29 +161,34 @@ private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
         };
     }
 
-    public teleportPlayer(playerId: string, fromMap: string, playerX: number, playerY: number): TeleportResult | null {
-        const teleport = this.checkTeleportCollision(fromMap, playerX, playerY);
-        
-        if (!teleport) {
-            return null;
-        }
-
-        const destination = this.getTeleportDestination(teleport);
-        
-        if (!destination) {
-            return null;
-        }
-
-        console.log(`🌀 Téléportation: ${playerId} de ${fromMap} vers ${destination.mapName}`);
-        
-        return {
-            success: true,
-            targetMap: destination.mapName,
-            targetX: destination.x,
-            targetY: destination.y,
-            spawnPoint: destination.spawnPoint
-        };
+public teleportPlayer(playerId: string, fromMap: string, playerX: number, playerY: number): TeleportResult | null {
+    console.log(`[TELEPORT] Appel pour playerId=${playerId}, fromMap=${fromMap}, pos=(${playerX},${playerY})`);
+    
+    const teleport = this.checkTeleportCollision(fromMap, playerX, playerY);
+    if (!teleport) {
+        console.warn(`[TELEPORT] Aucun téléport trouvé à cette position.`);
+        return null;
     }
+    console.log(`[TELEPORT] Téléport trouvé:`, teleport);
+
+    const destination = this.getTeleportDestination(teleport);
+    if (!destination) {
+        console.error(`[TELEPORT] Aucune destination trouvée pour téléport (targetZone=${teleport.targetZone}, targetSpawn=${teleport.targetSpawn})`);
+        return null;
+    }
+    console.log(`[TELEPORT] Destination trouvée:`, destination);
+
+    console.log(`🌀 Téléportation: ${playerId} de ${fromMap} vers ${destination.mapName} [${destination.x},${destination.y}] (spawn: ${destination.spawnPoint})`);
+    
+    return {
+        success: true,
+        targetMap: destination.mapName,
+        targetX: destination.x,
+        targetY: destination.y,
+        spawnPoint: destination.spawnPoint
+    };
+}
+
 
     public getMapData(mapName: string): TiledMap | undefined {
         return this.maps.get(mapName);
