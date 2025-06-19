@@ -649,21 +649,22 @@
 
   <script>
     // Boîte de dialogue NPC simple
-    window.showNpcDialogue = function({ portrait, name, text }) {
-      const box = document.getElementById("dialogue-box");
-      const npcPortrait = document.getElementById("npc-portrait");
-      const npcName = document.getElementById("npc-name");
-      const npcText = document.getElementById("npc-text");
-      
-      box.style.display = "flex";
-      npcPortrait.innerHTML = portrait
-        ? <img src="${portrait}" alt="${name}" style="max-width:80px;max-height:80px;">
-        : "";
-      npcName.innerText = name || "";
-      npcText.innerText = text || "";
-      
-      box.onclick = () => (box.style.display = "none");
-    };
+window.showNpcDialogue = function({ portrait, name, text }) {
+  const box = document.getElementById("dialogue-box");
+  const npcPortrait = document.getElementById("npc-portrait");
+  const npcName = document.getElementById("npc-name");
+  const npcText = document.getElementById("npc-text");
+  
+  box.style.display = "flex";
+  npcPortrait.innerHTML = portrait
+    ? `<img src="${portrait}" alt="${name}" style="max-width:80px;max-height:80px;">`
+    : "";
+  npcName.innerText = name || "";
+  npcText.innerText = text || "";
+  
+  box.onclick = () => (box.style.display = "none");
+};
+
 
     // Dialogue test (modifié pour éviter le conflit avec la touche T du chat)
     document.addEventListener('keypress', function(e) {
