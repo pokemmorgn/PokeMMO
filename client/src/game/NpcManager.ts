@@ -80,21 +80,21 @@ export class NpcManager {
       .setScale(1);
 
 // Création du nom du NPC, sans background, avec ombre pour la lisibilité
-// Version sans fond avec police stylée
+// Version fantasy avec effet magique
 const nameText = this.scene.add.text(npc.x, npc.y - 35, npc.name, {
-  fontFamily: "Courier New", // Police monospace pour un côté rétro/cyberpunk
+  fontFamily: "Georgia",     // Police serif pour un côté medieval
   fontSize: "10px",
-  color: "#00ff88",          // Vert néon typique des jeux
+  color: "#ffd700",          // Or pour un côté précieux
   fontStyle: "bold",
   align: "center",
-  stroke: "#003322",         // Contour vert foncé
-  strokeThickness: 2
+  stroke: "#8B4513",         // Contour brun
+  strokeThickness: 1.5
 })
   .setOrigin(0.5, 1)
   .setDepth(4.1);
 
-// Effet de glow vert
-nameText.setShadow(0, 0, "#00ff88", 3, false, true);
+// Effet de lueur dorée
+nameText.setShadow(0, 1, "#ffa500", 4, false, true);
 
     // Effet de survol pour le NPC
     sprite.setInteractive();
