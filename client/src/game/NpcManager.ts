@@ -80,20 +80,30 @@ export class NpcManager {
       .setScale(1);
 
 // Création du nom du NPC, sans background, avec ombre pour la lisibilité
-const nameText = this.scene.add.text(npc.x, npc.y - 42, npc.name, {
-  fontFamily: "Arial", // Mets ta police custom ici si tu en as une
-  fontSize: "16px",    // Plus gros pour plus de lisibilité
-  color: "#fff",       // Blanc
-  fontStyle: "bold",   // En gras
-  align: "center",
-  stroke: "#000",      // Léger contour noir
-  strokeThickness: 3   // Épaisseur du contour
-})
-  .setOrigin(0.5, 1)
-  .setDepth(4.1);
+const nameContainer = this.scene.add.container(npc.x, npc.y - 42);
 
-// Ajout d'une ombre portée noire (léger flou)
-nameText.setShadow(0, 2, "#000", 4, true, true);
+// Arrière-plan avec effet de verre
+const nameBg = this.scene.add.graphics()
+  .fillStyle(0x1e1e1e, 0.8)
+  .lineStyle(1, 0x404040, 0.6)
+  .fillRoundedRect(-40, -12, 80, 20, 10)
+  .strokeRoundedRect(-40, -12, 80, 20, 10);
+
+// Texte principal
+const nameText = this.scene.add.text(0, -2, npc.name, {
+  fontFamily: "Arial",
+  fontSize: "11px",
+  color: "#e8e8e8",
+  fontStyle: "bold",
+  align: "center"
+})
+  .setOrigin(0.5, 0.5);
+
+// Petit point décoratif
+const decorDot = this.scene.add.circle(-nameText.width/2 - 8, -2, 2, 0x4a9eff);
+
+nameContainer.add([nameBg, nameText, decorDot]);
+nameContainer.setDepth(4.1);
 
     // Effet de survol pour le NPC
     sprite.setInteractive();
