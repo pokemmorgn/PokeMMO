@@ -1,5 +1,5 @@
 // ===============================================
-// VillageLabScene.js - Laboratoire du Professeur (Colyseus MMO)
+// VillageLabScene.js - Version corrigée
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 
@@ -7,6 +7,21 @@ export class VillageLabScene extends BaseZoneScene {
   constructor() {
     super('VillageLabScene', 'VillageLab');
     this.transitionCooldowns = {};
+  }
+
+  // ✅ AMÉLIORATION: Position par défaut pour VillageLabScene
+  getDefaultSpawnPosition(fromZone) {
+    switch(fromZone) {
+      case 'VillageScene':
+        return { x: 200, y: 300 }; // Entrée depuis le village
+      default:
+        return { x: 200, y: 300 }; // Position par défaut
+    }
+  }
+
+  // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
+  onPlayerPositioned(player, initData) {
+    console.log(`[VillageLabScene] Joueur positionné à (${player.x}, ${player.y})`);
   }
 
   create() {
@@ -27,36 +42,7 @@ export class VillageLabScene extends BaseZoneScene {
     console.log("⚙️ Setup NPCs...");
     this.setupNPCs();
 
-    
-
     console.log("🚨 FIN VillageLabScene.create()");
-  }
-
- 
-
-  positionPlayer(player) {
-    console.log("🔄 positionPlayer appelé");
-    const initData = this.scene.settings.data;
-    console.log("Init data:", initData);
-
-    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-      player.x = initData.spawnX;
-      player.y = initData.spawnY;
-      console.log(`Position du joueur fixée depuis données serveur à (${player.x}, ${player.y})`);
-    } else {
-      console.log("⚠️ Pas de coordonnées spawn reçues, position du joueur non modifiée");
-    }
-
-    if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-      console.log("Position indicateur mise à jour");
-    }
-
-    if (this.networkManager) {
-      this.networkManager.sendMove(player.x, player.y);
-      console.log("Position joueur envoyée au serveur");
-    }
   }
 
   setupLabEvents() {
@@ -156,7 +142,7 @@ export class VillageLabScene extends BaseZoneScene {
   // === Gestion du dialogue professeur & starter via serveur ===
 
   showProfessorDialog(data) {
-    // Simple : à adapter selon ce que tu veux côté UI
+    // Simple : à adapter selon ce que tu veux côté UI
     const dialogBox = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY,
