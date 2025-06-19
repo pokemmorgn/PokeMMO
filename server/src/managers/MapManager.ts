@@ -98,13 +98,11 @@ private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
         }
     }
         console.log(`[MapManager] Téléports trouvés sur la map "${mapName}":`);
-for (const [teleportKey, teleport] of this.teleports) {
+    for (const [teleportKey, teleport] of this.teleports) {
         if (teleport.mapName === mapName) {
             console.log(`  - ${teleportKey}:`, teleport);
         }
     }
-}
-
 }
 
 
