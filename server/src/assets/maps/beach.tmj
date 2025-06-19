@@ -214,7 +214,7 @@
                 {
                  "height":15.3333333333333,
                  "id":4,
-                 "name":"GR",
+                 "name":"teleport",
                  "properties":[
                         {
                          "name":"targetSpawn",
@@ -232,29 +232,29 @@
                  "width":74,
                  "x":0,
                  "y":0
-                }],
-         "opacity":1,
-         "type":"objectgroup",
-         "visible":true,
-         "x":0,
-         "y":0
-        }, 
-        {
-         "draworder":"topdown",
-         "id":7,
-         "name":"SpawnPoints",
-         "objects":[
+                }, 
                 {
                  "height":0,
-                 "id":3,
-                 "name":"SpawnPoint_BCHtop",
+                 "id":82,
+                 "name":"spawn",
                  "point":true,
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"Fromvillage"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"beach"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":62.6666666666667,
-                 "y":50.6666666666667
+                 "x":61.3333333333333,
+                 "y":40.6666666666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -263,7 +263,7 @@
          "y":0
         }],
  "nextlayerid":9,
- "nextobjectid":82,
+ "nextobjectid":85,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
