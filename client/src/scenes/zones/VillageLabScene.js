@@ -11,20 +11,6 @@ export class VillageLabScene extends BaseZoneScene {
     this.professorInteracted = false;
   }
 
-  setupZoneTransitions() {
-    const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (worldsLayer) {
-      const villageExit = worldsLayer.objects.find(obj => obj.name === 'GR');
-      if (villageExit) {
-        this.createTransitionZone(villageExit, 'VillageScene', 'south');
-        console.log('🏘️ Transition vers Village trouvée !');
-      } else {
-        console.warn('⚠️ Objet "GR" non trouvé dans le layer Worlds');
-        console.log('Objets disponibles dans Worlds:', worldsLayer.objects.map(obj => obj.name));
-      }
-    }
-  }
-
   createTransitionZone(transitionObj, targetScene, direction) {
     const transitionZone = this.add.zone(
       transitionObj.x + transitionObj.width / 2,
