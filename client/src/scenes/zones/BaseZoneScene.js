@@ -36,7 +36,7 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log(`📊 Scene data:`, this.scene.settings.data);
 
 this.createPlayerAnimations();
-this.setupManagers();     // <-- d’abord les managers
+this.setupManagers();     // <-- d'abord les managers
 this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
 this.setupInputs();
 this.createUI();
@@ -143,7 +143,7 @@ this.createUI();
 
       this.setupAnimatedObjects();
       this.setupScene();
-      this.setupZoneTransitions();
+      // ✅ SUPPRIMÉ : setupZoneTransitions() - Plus besoin !
     };
 
     if (needsLoading) {
@@ -242,11 +242,8 @@ this.createUI();
     });
   }
 
+// ✅ SUPPRIMÉ : getTransitionConfig() - Plus besoin !
 
-// Méthode à override dans chaque scène
-getTransitionConfig() {
-  return {}; // À définir dans les sous-classes
-}
 positionPlayer(player) {
   const initData = this.scene.settings.data;
   
@@ -472,7 +469,7 @@ this.input.keyboard.on("keydown-E", () => {
       }
     });
 
-    // Quand le serveur répond à l’interaction NPC
+    // Quand le serveur répond à l'interaction NPC
 this.networkManager.onMessage("npcInteractionResult", (result) => {
   console.log("🟢 [npcInteractionResult] Reçu :", result);
 
@@ -516,7 +513,7 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
     showNpcDialogue({
       portrait: result.portrait || "assets/ui/heal_icon.png",
       name: "???",
-      text: result.message || "Vos Pokémon sont soignés !"
+      text: result.message || "Vos Pokémon sont soignés !"
     });
   }
   else if (result.type === "questGiver" || result.type === "questComplete" || result.type === "questProgress") {
@@ -551,42 +548,81 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
       this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nDisconnected`);
     });
 
-    this.zoneChangedHandler = (data) => {
-  console.log(`[${this.scene.key}] Zone changée reçue:`, data);
+    // ✅ NOUVEAU : Écouter les téléportations automatiques du serveur
+    this.networkManager.onMessage("teleport_success", (data) => {
+      console.log(`🌀 [${this.scene.key}] Téléportation reçue:`, data);
+      
+      // Mapping entre targetMap et la clé réelle de la scène Phaser
+      const MAP_TO_SCENE = {
+        beach: "BeachScene",
+        village: "VillageScene", 
+        villagelab: "VillageLabScene",
+        road1: "Road1Scene",
+        villagehouse1: "VillageHouse1Scene",
+        lavandia: "LavandiaScene"
+      };
 
-  // Mapping entre targetZone et la clé réelle de la scène Phaser
-  const ZONE_TO_SCENE = {
-    beach: "BeachScene",
-    beachscene: "BeachScene",
-    greenrootbeach: "BeachScene",
-    village: "VillageScene",
-    villagescene: "VillageScene",
-    villagelab: "VillageLabScene",
-    villagelabscene: "VillageLabScene",
-    road1: "Road1Scene",
-    road1scene: "Road1Scene",
-    villagehouse1: "VillageHouse1Scene",
-    villagehouse1scene: "VillageHouse1Scene",
-    lavandia: "LavandiaScene",
-    lavandiascene: "LavandiaScene"
-  };
+      const targetMapKey = (data.targetMap || "").toLowerCase();
+      const nextSceneKey = MAP_TO_SCENE[targetMapKey] || "BeachScene";
 
-  const targetZoneKey = (data.targetZone || "").toLowerCase();
-  const nextSceneKey = ZONE_TO_SCENE[targetZoneKey] || "BeachScene";
-
-  if (nextSceneKey && nextSceneKey !== this.scene.key) {
-    console.log(`[${this.scene.key}] Changement vers ${nextSceneKey}`);
-
-    this.cleanup();
-
-    this.scene.start(nextSceneKey, {
-      fromZone: this.scene.key,
-      fromDirection: data.fromDirection || null,
-      spawnX: data.spawnX,
-      spawnY: data.spawnY
+      if (nextSceneKey && nextSceneKey !== this.scene.key) {
+        console.log(`🌀 [${this.scene.key}] Transition automatique vers ${nextSceneKey}`);
+        
+        this.cleanup();
+        
+        // Démarrer la nouvelle scène avec les nouvelles coordonnées
+        this.scene.start(nextSceneKey, {
+          fromZone: this.scene.key,
+          spawnX: data.targetX,
+          spawnY: data.targetY,
+          spawnPoint: data.spawnPoint
+        });
+      }
     });
-  }
-};
+
+    // ✅ OPTIONNEL : Écouter les échecs de téléportation
+    this.networkManager.onMessage("teleport_failed", (data) => {
+      console.warn(`❌ [${this.scene.key}] Téléportation échouée:`, data.reason);
+      // Optionnel : afficher un message à l'utilisateur
+    });
+
+    // ✅ GARDER l'ancien système pour compatibilité avec changeZone manuel
+    this.zoneChangedHandler = (data) => {
+      console.log(`[${this.scene.key}] Zone changée reçue (ancien système):`, data);
+
+      // Mapping entre targetZone et la clé réelle de la scène Phaser
+      const ZONE_TO_SCENE = {
+        beach: "BeachScene",
+        beachscene: "BeachScene",
+        greenrootbeach: "BeachScene",
+        village: "VillageScene",
+        villagescene: "VillageScene",
+        villagelab: "VillageLabScene",
+        villagelabscene: "VillageLabScene",
+        road1: "Road1Scene",
+        road1scene: "Road1Scene",
+        villagehouse1: "VillageHouse1Scene",
+        villagehouse1scene: "VillageHouse1Scene",
+        lavandia: "LavandiaScene",
+        lavandiascene: "LavandiaScene"
+      };
+
+      const targetZoneKey = (data.targetZone || "").toLowerCase();
+      const nextSceneKey = ZONE_TO_SCENE[targetZoneKey] || "BeachScene";
+
+      if (nextSceneKey && nextSceneKey !== this.scene.key) {
+        console.log(`[${this.scene.key}] Changement vers ${nextSceneKey}`);
+
+        this.cleanup();
+
+        this.scene.start(nextSceneKey, {
+          fromZone: this.scene.key,
+          fromDirection: data.fromDirection || null,
+          spawnX: data.spawnX,
+          spawnY: data.spawnY
+        });
+      }
+    };
 
     this.networkManager.onZoneChanged(this.zoneChangedHandler);
 
