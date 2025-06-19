@@ -1,20 +1,29 @@
-// BeachRoom.ts
-import { BaseRoom } from "./BaseRoom";
-import type { SpawnData } from "./BaseRoom";
 
-export class BeachRoom extends BaseRoom {
+// ==========================================
+// BeachRoom.ts - Version avec support des channels
+// ==========================================
+import { BaseChannelRoom } from "./BaseChannelRoom";
+
+export class BeachRoom extends BaseChannelRoom {
   public mapName = "BeachRoom";
   protected defaultX = 52;
   protected defaultY = 48;
 
-  // ✅ La méthode calculateSpawnPosition héritée de BaseRoom va automatiquement :
-  // 1. Chercher les spawns via le système de transition (objets "spawn" dans Tiled)
-  // 2. Utiliser les coordonnées spécifiques si fournies
-  // 3. Utiliser les valeurs par défaut en dernier recours
+  onCreate(options: any) {
+    super.onCreate(options);
+    console.log(`🏖️ BeachRoom créée [Channel ${this.channelIndex}]:`, this.roomId);
+    
+    // Logique spécifique à Beach si nécessaire
+    this.setupBeachSpecificFeatures();
+  }
 
-  // ✅ PLUS BESOIN DE TOUT ÇA ! Le système automatique s'en charge :
-  // - getDestinationSpawnPosition() 
-  // - getNamedSpawnPosition()
-  // - getSpawnFromOrigin()
-  // - calculateSpawnPosition()
+  private setupBeachSpecificFeatures() {
+    // Exemple : événements spéciaux à la plage
+    this.clock.setTimeout(() => {
+      this.broadcast("environmentMessage", {
+        message: `🌊 Bienvenue sur la plage ! [Channel ${this.channelIndex + 1}]`,
+        type: "info"
+      });
+    }, 2000);
+  }
 }
