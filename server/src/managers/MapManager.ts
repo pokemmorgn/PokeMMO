@@ -129,7 +129,7 @@ private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
     }
 
  public checkTeleportCollision(mapName: string, playerX: number, playerY: number): Teleport | null {
-     mapName = mapName.toLowerCase(); // <--- AJOUTE CETTE LIGNE
+     mapName = mapName.toLowerCase();
       console.log(`[DEBUG] checkTeleportCollision appelé pour map=${mapName} pos=(${playerX},${playerY})`);
     for (const [teleportKey, teleport] of this.teleports) {
         if (teleport.mapName === mapName) {
