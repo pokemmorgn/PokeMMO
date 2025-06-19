@@ -1,5 +1,5 @@
 // ==========================================
-// types/MapTypes.ts - Types et interfaces
+// types/MapTypes.ts - Types pour les maps
 // ==========================================
 
 export interface TiledProperty {
@@ -24,9 +24,6 @@ export interface TiledLayer {
     name: string;
     type: string;
     objects?: TiledObject[];
-    data?: number[];
-    width?: number;
-    height?: number;
 }
 
 export interface TiledMap {
@@ -35,7 +32,6 @@ export interface TiledMap {
     tilewidth: number;
     tileheight: number;
     layers: TiledLayer[];
-    tilesets: any[];
 }
 
 export interface Teleport {
@@ -44,17 +40,16 @@ export interface Teleport {
     y: number;
     width: number;
     height: number;
-    fromzone: string;
-    targetzone: string;
-    targetspawn: string;
+    targetSpawn: string;
+    targetZone: string;
 }
 
 export interface Spawn {
     mapName: string;
     x: number;
     y: number;
-    targetspawn: string;
-    targetzone: string;
+    targetSpawn: string;
+    targetZone: string;
 }
 
 export interface TeleportResult {
@@ -63,8 +58,4 @@ export interface TeleportResult {
     targetX: number;
     targetY: number;
     spawnPoint: string;
-}
-
-export interface ParsedProperties {
-    [key: string]: string | number | boolean;
 }
