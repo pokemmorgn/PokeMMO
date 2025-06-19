@@ -554,21 +554,41 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
     });
 
     this.zoneChangedHandler = (data) => {
-      console.log(`[${this.scene.key}] Zone changée reçue:`, data);
+  console.log(`[${this.scene.key}] Zone changée reçue:`, data);
 
-      if (data.targetZone && data.targetZone !== this.scene.key) {
-        console.log(`[${this.scene.key}] Changement vers ${data.targetZone}`);
+  // Mapping entre targetZone et la clé réelle de la scène Phaser
+  const ZONE_TO_SCENE = {
+    beach: "BeachScene",
+    beachscene: "BeachScene",
+    greenrootbeach: "BeachScene",
+    village: "VillageScene",
+    villagescene: "VillageScene",
+    villagelab: "VillageLabScene",
+    villagelabscene: "VillageLabScene",
+    road1: "Road1Scene",
+    road1scene: "Road1Scene",
+    villagehouse1: "VillageHouse1Scene",
+    villagehouse1scene: "VillageHouse1Scene",
+    lavandia: "LavandiaScene",
+    lavandiascene: "LavandiaScene"
+  };
 
-        this.cleanup();
+  const targetZoneKey = (data.targetZone || "").toLowerCase();
+  const nextSceneKey = ZONE_TO_SCENE[targetZoneKey] || "BeachScene";
 
-        this.scene.start(data.targetZone, {
-          fromZone: this.scene.key,
-          fromDirection: data.fromDirection || null,
-          spawnX: data.spawnX,
-          spawnY: data.spawnY
-        });
-      }
-    };
+  if (nextSceneKey && nextSceneKey !== this.scene.key) {
+    console.log(`[${this.scene.key}] Changement vers ${nextSceneKey}`);
+
+    this.cleanup();
+
+    this.scene.start(nextSceneKey, {
+      fromZone: this.scene.key,
+      fromDirection: data.fromDirection || null,
+      spawnX: data.spawnX,
+      spawnY: data.spawnY
+    });
+  }
+};
 
     this.networkManager.onZoneChanged(this.zoneChangedHandler);
 
