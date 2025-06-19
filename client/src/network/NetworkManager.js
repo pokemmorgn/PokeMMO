@@ -63,7 +63,9 @@ export class NetworkManager {
     newRoomName = 'BeachRoom';
     break;
   case 'village':
-  case 'villagescene':
+case 'villagescene':
+case 'VillageScene'.toLowerCase():
+case 'Village'.toLowerCase():
     newRoomName = 'VillageRoom';
     break;
   case 'road1':
