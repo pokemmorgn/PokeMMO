@@ -68,18 +68,18 @@ private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
 
                 // Essayons de détecter automatiquement
                 if (properties.targetZone && properties.targetSpawn) {
-                   if (obj.name?.toLowerCase().includes('spawn')) {
-    // Spawn
-    const spawnKey = `${properties.targetZone.toLowerCase()}_${properties.targetSpawn.toLowerCase()}`;
-    this.spawns.set(spawnKey, {
-        mapName: properties.targetZone as string,
-        x: obj.x,
-        y: obj.y,
-        targetSpawn: properties.targetSpawn as string,
-        targetZone: properties.targetZone as string
-    });
-    console.log(`[MapManager] Spawn ajouté: ${spawnKey}`);
-} else {
+                    if (obj.name?.toLowerCase().includes('spawn')) {
+                        // Spawn
+                        const spawnKey = `${properties.targetZone}_${properties.targetSpawn}`;
+                        this.spawns.set(spawnKey, {
+                            mapName: properties.targetZone as string,
+                            x: obj.x,
+                            y: obj.y,
+                            targetSpawn: properties.targetSpawn as string,
+                            targetZone: properties.targetZone as string
+                        });
+                        console.log(`[MapManager] Spawn ajouté: ${spawnKey}`);
+                    } else {
                         // Teleport (fallback si pas explicitement marqué spawn)
                         const teleportKey = `${mapName}_teleport_${obj.id}`;
                         this.teleports.set(teleportKey, {
