@@ -275,17 +275,17 @@ export class QuestSystem {
     `;
 
     // Sélection automatique si une seule quête
-    let defaultSelectedId = null;
-    if (quests.length === 1) {
-      const onlyOption = dialog.querySelector('.quest-option');
-      const acceptBtn = dialog.querySelector('.quest-btn-accept');
-      if (onlyOption && acceptBtn) {
-        onlyOption.classList.add('selected');
-        acceptBtn.disabled = false;
-        defaultSelectedId = onlyOption.dataset.questId;
-        onlyOption.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }
-    }
+let selectedQuestId = null;
+
+if (quests.length === 1) {
+  const onlyOption = dialog.querySelector('.quest-option');
+  if (onlyOption) {
+    onlyOption.classList.add('selected');
+    selectedQuestId = onlyOption.dataset.questId;   // <--- CORRECTION ICI !
+    acceptBtn.disabled = false;
+    onlyOption.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+}
 
     this.styleQuestDialog(dialog);
     this.addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId);
