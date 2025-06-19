@@ -1,5 +1,5 @@
 // src/data/PokemonData.ts
-import pokemonIndex from 'pokemon/pokemon-index.json';
+import pokemonIndex from './pokemon/pokemon-index.json';
 
 // Types pour la structure de vos données
 interface PokemonMove {
