@@ -9,17 +9,17 @@ export class VillageScene extends BaseZoneScene {
   create() {
     console.log("🚨 DEBUT VillageScene.create()");
     super.create();
-     // LOG CRUCIAL : est-ce que PlayerManager connaît déjà ton joueur après le create du parent ?
-  if (this.playerManager) {
-    console.log("[DEBUG] PlayerManager (VillageScene):", this.playerManager.players);
-    // Essaie de log le player courant
-    const myPlayer = this.playerManager.getMyPlayer && this.playerManager.getMyPlayer();
-    if (myPlayer) {
-      console.log("[DEBUG] Mon player existe déjà (juste après super.create()):", myPlayer.x, myPlayer.y, myPlayer);
-    } else {
-      console.warn("[DEBUG] Mon player n'existe PAS après super.create()");
+    // LOG CRUCIAL : est-ce que PlayerManager connaît déjà ton joueur après le create du parent ?
+    if (this.playerManager) {
+      console.log("[DEBUG] PlayerManager (VillageScene):", this.playerManager.players);
+      // Essaie de log le player courant
+      const myPlayer = this.playerManager.getMyPlayer && this.playerManager.getMyPlayer();
+      if (myPlayer) {
+        console.log("[DEBUG] Mon player existe déjà (juste après super.create()):", myPlayer.x, myPlayer.y, myPlayer);
+      } else {
+        console.warn("[DEBUG] Mon player n'existe PAS après super.create()");
+      }
     }
-  }
     console.log("✅ BaseZoneScene.create() appelé");
 
     this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
@@ -35,36 +35,33 @@ export class VillageScene extends BaseZoneScene {
     console.log("⚙️ Setup NPCs...");
     this.setupNPCs();
 
-   
-
     console.log("🚨 FIN VillageScene.create()");
   }
 
-  
-
-  positionPlayer(player) {
-    console.log("🔄 positionPlayer appelé");
-    const initData = this.scene.settings.data;
-    console.log("Init data:", initData);
-
-    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-      player.x = initData.spawnX;
-      player.y = initData.spawnY;
-      console.log(`Position du joueur fixée depuis données serveur à (${player.x}, ${player.y})`);
-    } else {
-      console.log("⚠️ Pas de coordonnées spawn reçues, position du joueur non modifiée");
-      // Plus aucun fallback ici, la position ne change pas si pas reçue
+  // ✅ AMÉLIORATION: Position par défaut pour VillageScene
+  getDefaultSpawnPosition(fromZone) {
+    // Position par défaut selon la zone d'origine
+    switch(fromZone) {
+      case 'BeachScene':
+        return { x: 100, y: 200 }; // Entrée depuis la plage
+      case 'Road1Scene':
+        return { x: 300, y: 100 }; // Entrée depuis la route
+      case 'VillageLabScene':
+        return { x: 150, y: 150 }; // Sortie du laboratoire
+      default:
+        return { x: 200, y: 200 }; // Position centrale par défaut
     }
+  }
 
-    if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-      console.log("Position indicateur mise à jour");
-    }
-
-    if (this.networkManager) {
-      this.networkManager.sendMove(player.x, player.y);
-      console.log("Position joueur envoyée au serveur");
+  // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
+  onPlayerPositioned(player, initData) {
+    console.log(`[VillageScene] Joueur positionné à (${player.x}, ${player.y})`);
+    
+    // Logique spécifique selon la provenance
+    if (initData?.fromZone === 'BeachScene') {
+      console.log("[VillageScene] Arrivée depuis la plage");
+    } else if (initData?.fromZone === 'VillageLabScene') {
+      console.log("[VillageScene] Sortie du laboratoire");
     }
   }
 
