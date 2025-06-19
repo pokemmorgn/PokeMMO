@@ -16,6 +16,8 @@ import { AuthRoom } from "./rooms/AuthRoom";
 import { MoveManager } from "./managers/MoveManager";
 import { PokemonManager } from "./managers/PokemonManager";
 import { WorldChatRoom } from "./rooms/WorldChatRoom";
+import { getServerConfig } from "./config/serverConfig";
+import { PlayerQuest } from "./models/PlayerQuest";
 
 let globalPokemonManager: PokemonManager;
 let globalMoveManager: MoveManager;
@@ -69,6 +71,13 @@ gameServer.define('worldchat', WorldChatRoom);
     try {
       await connectDB();
       console.log("✅ Connected to MongoDB: pokeworld");
+    // === ICI TON RESET QUESTS ===
+    const config = getServerConfig();
+    if (config.autoresetQuest) {
+      await PlayerQuest.deleteMany({});
+      console.log("🔥 PlayerQuest vidé (auto-reset activé)");
+    }
+    // ============================
       console.log("🔄 Initialisation du MoveManager...");
       globalMoveManager = new MoveManager({
         basePath: './src/data',
