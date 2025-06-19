@@ -560,12 +560,12 @@ export class QuestSystem {
     });
 
     // Accepter la quête
-    acceptBtn.addEventListener('click', () => {
-      if (selectedQuestId && onSelectQuest) {
-        onSelectQuest(selectedQuestId);
-      }
-      dialog.remove();
-    });
+acceptBtn.addEventListener('click', () => {
+  if (selectedQuestId && onSelectQuest) {
+    onSelectQuest(selectedQuestId);
+  }
+  dialog.remove(); // ← ferme toujours la fenêtre
+});
 
     // Fermeture avec Escape
     const handleEscape = (e) => {
