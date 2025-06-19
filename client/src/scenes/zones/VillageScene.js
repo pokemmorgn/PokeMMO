@@ -33,24 +33,24 @@ export class VillageScene extends BaseZoneScene {
   }
 
   setupZoneTransitions() {
-  if (!this.playerManager) {
-    console.warn("playerManager non encore initialisé, retry dans 100ms");
-    this.time.delayedCall(100, () => this.setupZoneTransitions());
-    return;
-  }
+    if (!this.playerManager) {
+      console.warn("playerManager non encore initialisé, retry dans 100ms");
+      this.time.delayedCall(100, () => this.setupZoneTransitions());
+      return;
+    }
 
-  const worldsLayer = this.map.getObjectLayer('Worlds');
-  if (!worldsLayer) {
-    console.warn("Layer 'Worlds' non trouvé");
-    return;
-  }
+    const worldsLayer = this.map.getObjectLayer('Worlds');
+    if (!worldsLayer) {
+      console.warn("Layer 'Worlds' non trouvé");
+      return;
+    }
 
-  const player = this.playerManager.getMyPlayer();
-  if (!player) {
-    console.warn("Player non encore créé, retry dans 100ms");
-    this.time.delayedCall(100, () => this.setupZoneTransitions());
-    return;
-  }
+    const player = this.playerManager.getMyPlayer();
+    if (!player) {
+      console.warn("Player non encore créé, retry dans 100ms");
+      this.time.delayedCall(100, () => this.setupZoneTransitions());
+      return;
+    }
     console.log(`🎮 Joueur récupéré: position (${player.x}, ${player.y})`);
 
     if (!player.body) {
@@ -123,60 +123,13 @@ export class VillageScene extends BaseZoneScene {
     console.log("🔄 positionPlayer appelé");
     const initData = this.scene.settings.data;
     console.log("Init data:", initData);
-    const spawnLayer = this.map.getObjectLayer('SpawnPoint');
-    let spawnPoint = null;
 
-    if (spawnLayer) {
-      console.log("SpawnPoint layer trouvé");
-      if (initData?.fromZone === 'BeachScene') {
-        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_GRbottom');
-        console.log("Spawn depuis BeachScene:", spawnPoint);
-      } else if (initData?.fromZone === 'Road1Scene') {
-        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_GRtop');
-        console.log("Spawn depuis Road1Scene:", spawnPoint);
-      } else if (initData?.fromZone === 'VillageLabScene') {
-        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Labo');
-        console.log("Spawn depuis VillageLabScene:", spawnPoint);
-      } else if (initData?.fromZone === 'VillageHouse1Scene') {
-        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_House1');
-        console.log("Spawn depuis VillageHouse1Scene:", spawnPoint);
-      } else {
-        spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_GRbottom');
-        console.log("Spawn par défaut:", spawnPoint);
-      }
-
-      if (spawnPoint) {
-        player.x = spawnPoint.x + spawnPoint.width / 2;
-        player.y = spawnPoint.y + spawnPoint.height / 2;
-        console.log(`Position du joueur fixée à (${player.x}, ${player.y})`);
-      } else {
-        player.x = 200;
-        player.y = 150;
-        console.warn("⚠️ Aucun spawnPoint trouvé, position par défaut (200,150) utilisée");
-      }
+    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+      player.x = initData.spawnX;
+      player.y = initData.spawnY;
+      console.log(`Position du joueur fixée depuis données serveur à (${player.x}, ${player.y})`);
     } else {
-      console.warn("⚠️ Pas de layer SpawnPoint, fallback position selon fromZone");
-      if (initData?.fromZone === 'BeachScene') {
-        player.x = 150;
-        player.y = 200;
-        console.log("Position fallback BeachScene (150,200)");
-      } else if (initData?.fromZone === 'Road1Scene') {
-        player.x = 100;
-        player.y = 150;
-        console.log("Position fallback Road1Scene (100,150)");
-      } else if (initData?.fromZone === 'VillageLabScene') {
-        player.x = 250;
-        player.y = 180;
-        console.log("Position fallback VillageLabScene (250,180)");
-      } else if (initData?.fromZone === 'VillageHouse1Scene') {
-        player.x = 220;
-        player.y = 160;
-        console.log("Position fallback VillageHouse1Scene (220,160)");
-      } else {
-        player.x = 200;
-        player.y = 150;
-        console.log("Position fallback défaut (200,150)");
-      }
+      console.log("⚠️ Pas de coordonnées spawn reçues, position du joueur non modifiée");
     }
 
     if (player.indicator) {
