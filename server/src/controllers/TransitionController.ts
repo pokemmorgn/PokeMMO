@@ -78,6 +78,9 @@ function extractExitName(targetSpawn: any): string {
   
   if (targetSpawn && typeof targetSpawn === "object") {
     // Si c'est un objet, essaie différentes propriétés possibles
+    if (typeof targetSpawn.targetSpawn === "string") {
+      return targetSpawn.targetSpawn;
+    }
     if (typeof targetSpawn.name === "string") {
       return targetSpawn.name;
     }
@@ -97,7 +100,7 @@ function extractExitName(targetSpawn: any): string {
 }
 
 type TransitionData = {
-  targetSpawn?: string | { name?: string; exitName?: string; target?: string } | any;
+  targetSpawn?: string | { targetSpawn?: string; name?: string; exitName?: string; target?: string } | any;
 };
 
 export class TransitionController {
