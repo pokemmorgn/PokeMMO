@@ -37,6 +37,8 @@ export class TransitionController {
       targetSpawn: data.targetSpawn,
       targetX: data.targetX,
       targetY: data.targetY,
+      fromZone: this.room.mapName  // ✅ AJOUTEZ CETTE LIGNE
+
     });
 
     console.log(`[TransitionController] Transition ${player.name} (${this.room.mapName}) -> ${data.targetZone} (${spawnPosition.x},${spawnPosition.y})`);
