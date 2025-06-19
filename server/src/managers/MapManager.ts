@@ -26,17 +26,26 @@ export class MapManager {
     /**
      * Charge une map spécifique depuis un fichier
      */
-    public loadMap(mapName: string, mapPath: string): void {
-        try {
-            console.log(`📍 Chargement de la map ${mapName} depuis ${mapPath}`);
-            
-const resolvedPath = path.resolve(__dirname, mapPath);
-console.log(`[MapManager] Résolution du chemin: ${mapPath} → ${resolvedPath}`);
+    public loadMap(mapName: string, mapPath: string): boolean {
+        const resolvedPath = path.resolve(__dirname, mapPath);
+        console.log(`[MapManager] Résolution du chemin: ${mapPath} → ${resolvedPath}`);
 
-if (!fs.existsSync(resolvedPath)) {
-    console.error(`❌ Fichier de map introuvable: ${resolvedPath}`);
-    return;
-}
+        if (!fs.existsSync(resolvedPath)) {
+            console.error(`[MapManager] ❌ Fichier de map introuvable: ${resolvedPath}`);
+            return false;
+        }
+
+        // Si déjà en cache, retourne true
+        if (this.mapCache[mapName]) {
+            console.log(`[MapManager] Map "${mapName}" déjà en cache.`);
+            return true;
+        }
+
+        const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
+        this.mapCache[mapName] = mapData;
+        console.log(`✅ Map ${mapName} chargée avec succès`);
+        return true;
+    }
 
 const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
             this.maps.set(mapName, mapData);
