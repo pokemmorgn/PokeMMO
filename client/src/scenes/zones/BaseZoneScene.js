@@ -247,7 +247,10 @@ setupZoneTransitions() {
     console.warn(`[${this.scene.key}] Layer 'Worlds' non trouvé`);
     return;
   }
-
+// Debug visuel forcé (à retirer après test)
+const debugRect = this.add.rectangle(zone.x, zone.y, zone.width, zone.height)
+  .setStrokeStyle(3, 0xff0000, 0.8)
+  .setDepth(1000);
   const player = this.playerManager.getMyPlayer();
   if (!player || !player.body) {
     console.warn(`[${this.scene.key}] Player ou player.body non trouvé, retry dans 100ms`);
