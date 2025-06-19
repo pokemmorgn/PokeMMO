@@ -20,7 +20,34 @@ const OwnedPokemonSchema = new mongoose.Schema({
   slot: { type: Number }, // 0-5 si dans la team
   box: { type: Number, default: 0 }, // numéro de boîte PC
   caughtAt: { type: Date, default: Date.now },
-  // Tu ajoutes des champs plus tard si besoin
+  gender: { type: String }, // Ajouté pour exemple ("male", "female", "unknown")
+  // Ajoute ici tous les autres champs plus tard
 });
 
+export interface IOwnedPokemon {
+  _id: any; // mongoose.Types.ObjectId si tu veux être strict
+  owner: string;
+  pokemonId: number;
+  level: number;
+  nature: string;
+  ivs: {
+    hp: number;
+    attack: number;
+    defense: number;
+    spAttack: number;
+    spDefense: number;
+    speed: number;
+  };
+  moves: string[];
+  nickname?: string;
+  shiny?: boolean;
+  isInTeam?: boolean;
+  slot?: number;
+  box?: number;
+  caughtAt?: Date;
+  gender?: string;
+  // Ajoute ici les autres champs à synchroniser
+}
+
 export const OwnedPokemon = mongoose.model("OwnedPokemon", OwnedPokemonSchema);
+export type { IOwnedPokemon };
