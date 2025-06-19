@@ -148,43 +148,87 @@
   </div>
 
 <script>
-  // Boîte de dialogue NPC simple
-  window.showNpcDialogue = function({ portrait, name, text }) {
+  // Dialogue state global
+  window._npcDialogueState = {
+    lines: [],
+    page: 0,
+    onClose: null
+  };
+
+  // Affiche le dialogue NPC, accepte lines: [string] OU text: string
+  window.showNpcDialogue = function({ portrait, name, lines, text, onClose }) {
     const box = document.getElementById("dialogue-box");
     const npcPortrait = document.getElementById("npc-portrait");
     const npcName = document.getElementById("npc-name");
     const npcText = document.getElementById("npc-text");
+    
+    // Multi-page setup
+    window._npcDialogueState.lines = Array.isArray(lines) && lines.length ? lines : [text || ""];
+    window._npcDialogueState.page = 0;
+    window._npcDialogueState.onClose = typeof onClose === "function" ? onClose : null;
     
     box.style.display = "flex";
     npcPortrait.innerHTML = portrait
       ? `<img src="${portrait}" alt="${name}" style="max-width:80px;max-height:80px;">`
       : "";
     npcName.innerText = name || "";
-    npcText.innerText = text || "";
-    
-    box.onclick = () => (box.style.display = "none");
+    npcText.innerText = window._npcDialogueState.lines[0] || "";
+
+    // Close with click
+    box.onclick = () => closeDialogue();
   };
 
-  // Ouvre un dialogue de test avec T (si le chat n'est pas focus)
+  function advanceDialogue() {
+    const box = document.getElementById("dialogue-box");
+    const npcText = document.getElementById("npc-text");
+    if (box.style.display === "none") return;
+    window._npcDialogueState.page++;
+    if (window._npcDialogueState.page >= window._npcDialogueState.lines.length) {
+      closeDialogue();
+    } else {
+      npcText.innerText = window._npcDialogueState.lines[window._npcDialogueState.page];
+    }
+  }
+
+  function closeDialogue() {
+    const box = document.getElementById("dialogue-box");
+    box.style.display = "none";
+    if (window._npcDialogueState.onClose) {
+      window._npcDialogueState.onClose();
+    }
+  }
+
+  // T pour test si chat non focus
   document.addEventListener('keypress', function(e) {
     if ((e.key === 't' || e.key === 'T') && typeof window.isChatFocused === "function" && !window.isChatFocused()) {
       window.showNpcDialogue({
         portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=OAK',
         name: 'Professor Oak',
-        text: 'Hello young trainer! Ready for your Pokémon adventure? Press here to close this dialogue.'
+        lines: [
+          'Hello young trainer!',
+          'Ready for your Pokémon adventure?',
+          'Press E to continue, or click/Esc to close.'
+        ]
       });
     }
   });
 
-  // Fermer la boîte de dialogue avec E ou ESC
+  // E pour avancer, ESC pour fermer
   document.addEventListener('keydown', function(e) {
     const box = document.getElementById('dialogue-box');
     if (!box || box.style.display === 'none') return;
+    // Bloque si chat ouvert
+    if (typeof window.isChatFocused === "function" && window.isChatFocused()) return;
+
     if (
-      e.code === 'KeyE' || e.key === 'e' || e.key === 'E' ||
-      e.key === 'Escape' || e.code === 'Escape'
+      e.code === 'KeyE' || e.key === 'e' || e.key === 'E'
     ) {
-      box.style.display = 'none';
+      advanceDialogue();
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    else if (e.key === 'Escape' || e.code === 'Escape') {
+      closeDialogue();
       e.preventDefault();
       e.stopPropagation();
     }
