@@ -70,7 +70,7 @@ private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
                 if (properties.targetZone && properties.targetSpawn) {
                     if (obj.name?.toLowerCase().includes('spawn')) {
                         // Spawn
-                        const spawnKey = `${properties.targetZone}_${properties.targetSpawn}`;
+                        const spawnKey = `${properties.targetZone.toLowerCase()}_${properties.targetSpawn.toLowerCase()}`;
                         this.spawns.set(spawnKey, {
                             mapName: properties.targetZone as string,
                             x: obj.x,
