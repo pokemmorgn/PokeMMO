@@ -30,12 +30,15 @@ export class MapManager {
         try {
             console.log(`📍 Chargement de la map ${mapName} depuis ${mapPath}`);
             
-            if (!fs.existsSync(mapPath)) {
-                console.error(`❌ Fichier de map introuvable: ${mapPath}`);
-                return;
-            }
+const resolvedPath = path.resolve(__dirname, mapPath);
+console.log(`[MapManager] Résolution du chemin: ${mapPath} → ${resolvedPath}`);
 
-            const mapData: TiledMap = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+if (!fs.existsSync(resolvedPath)) {
+    console.error(`❌ Fichier de map introuvable: ${resolvedPath}`);
+    return;
+}
+
+const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
             this.maps.set(mapName, mapData);
             this.extractTeleportsAndSpawns(mapName, mapData);
             
