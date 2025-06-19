@@ -1,11 +1,12 @@
 import mongoose from "mongoose";
 
+// Dans votre schéma, corrigez la syntaxe (enlevez le ? qui n'est pas valide dans un schéma Mongoose)
 const OwnedPokemonSchema = new mongoose.Schema({
-  owner: { type: String, required: true }, // username, userId ou wallet
-  pokemonId: { type: Number, required: true }, // id dex national (ex: 25)
+  owner: { type: String, required: true },
+  pokemonId: { type: Number, required: true },
   level: { type: Number, default: 1 },
   nature: { type: String, default: "Hardy" },
-  ivs: { // <--- PAS de ? ici
+  ivs: { // Enlevez le ? ici - utilisez plutôt required: false ou default
     hp: { type: Number, default: 0 },
     attack: { type: Number, default: 0 },
     defense: { type: Number, default: 0 },
@@ -13,24 +14,24 @@ const OwnedPokemonSchema = new mongoose.Schema({
     spDefense: { type: Number, default: 0 },
     speed: { type: Number, default: 0 },
   },
-  moves: [{ type: String }], // ex: ["tackle", "tail_whip"]
+  moves: [{ type: String }],
   nickname: { type: String },
   shiny: { type: Boolean, default: false },
   isInTeam: { type: Boolean, default: false },
-  slot: { type: Number }, // 0-5 si dans la team
-  box: { type: Number, default: 0 }, // numéro de boîte PC
+  slot: { type: Number },
+  box: { type: Number, default: 0 },
   caughtAt: { type: Date, default: Date.now },
-  gender: { type: String }, // Ajouté pour exemple ("male", "female", "unknown")
-  // Ajoute ici tous les autres champs plus tard
+  gender: { type: String },
 });
 
+// Ou si vous voulez vraiment que ivs soit optionnel, modifiez l'interface :
 export interface IOwnedPokemon {
-  _id: any; // mongoose.Types.ObjectId si tu veux être strict
+  _id: any;
   owner: string;
   pokemonId: number;
   level: number;
   nature: string;
-  ivs: {
+  ivs?: { // Rendez-le optionnel ici aussi
     hp: number;
     attack: number;
     defense: number;
@@ -46,7 +47,6 @@ export interface IOwnedPokemon {
   box?: number;
   caughtAt?: Date;
   gender?: string;
-  // Ajoute ici les autres champs à synchroniser
 }
 
 export const OwnedPokemon = mongoose.model("OwnedPokemon", OwnedPokemonSchema);
