@@ -34,11 +34,11 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log(`🌍 Creating zone: ${this.scene.key}`);
     console.log(`📊 Scene data:`, this.scene.settings.data);
 
-    this.createPlayerAnimations();
-    this.loadMap();
-    this.setupManagers();
-    this.setupInputs();
-    this.createUI();
+this.createPlayerAnimations();
+this.setupManagers();     // <-- d’abord les managers
+this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
+this.setupInputs();
+this.createUI();
 
 
     // Gestion réseau simplifiée
