@@ -80,24 +80,35 @@ export class NpcManager {
       .setScale(1);
 
 // Création du nom du NPC, sans background, avec ombre pour la lisibilité
-const nameContainer = this.scene.add.container(npc.x, npc.y - 42);
-
-// Arrière-plan avec effet de verre
-const nameBg = this.scene.add.graphics()
-  .fillStyle(0x1e1e1e, 0.8)
-  .lineStyle(1, 0x404040, 0.6)
-  .fillRoundedRect(-40, -12, 80, 20, 10)
-  .strokeRoundedRect(-40, -12, 80, 20, 10);
-
-// Texte principal
-const nameText = this.scene.add.text(0, -2, npc.name, {
+const nameText = this.scene.add.text(npc.x, npc.y - 42, npc.name, {
   fontFamily: "Arial",
-  fontSize: "11px",
-  color: "#e8e8e8",
+  fontSize: "12px",        // Police réduite
+  color: "#ffffff",
   fontStyle: "bold",
-  align: "center"
+  align: "center",
+  stroke: "#1a1a1a",      // Contour gris foncé plus doux
+  strokeThickness: 2       // Contour plus fin
 })
-  .setOrigin(0.5, 0.5);
+  .setOrigin(0.5, 1)
+  .setDepth(4.1);
+
+// Ombre plus subtile et moderne
+nameText.setShadow(1, 2, "#000000", 6, false, true);
+
+// Ajout d'un arrière-plan semi-transparent arrondi
+const nameBg = this.scene.add.graphics()
+  .fillStyle(0x000000, 0.6)  // Noir avec 60% d'opacité
+  .fillRoundedRect(
+    npc.x - (nameText.width / 2) - 8,  // Position X centrée avec padding
+    npc.y - 50,                         // Position Y au-dessus du texte
+    nameText.width + 16,                // Largeur avec padding
+    20,                                 // Hauteur
+    8                                   // Coins arrondis
+  )
+  .setDepth(4.0);  // Derrière le texte
+
+// Optionnel : effet de glow subtil
+nameText.setTint(0xf0f0f0);  // Légèrement moins blanc pour un effet plus doux
 
 // Petit point décoratif
 const decorDot = this.scene.add.circle(-nameText.width/2 - 8, -2, 2, 0x4a9eff);
