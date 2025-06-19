@@ -1,7 +1,22 @@
 import { Client } from "colyseus.js";
 import { GAME_CONFIG } from "../config/gameConfig.js";
 
-
+// Mapping zone (targetZone serveur) => clé de scène Phaser
+const ZONE_TO_SCENE = {
+  beach: "BeachScene",
+  beachscene: "BeachScene",
+  greenrootbeach: "BeachScene", // Si jamais tu envoies ce nom
+  village: "VillageScene",
+  villagescene: "VillageScene",
+  villagelab: "VillageLabScene",
+  villagelabscene: "VillageLabScene",
+  road1: "Road1Scene",
+  road1scene: "Road1Scene",
+  villagehouse1: "VillageHouse1Scene",
+  villagehouse1scene: "VillageHouse1Scene",
+  lavandia: "LavandiaScene",
+  lavandiascene: "LavandiaScene"
+};
 
 export class NetworkManager {
   constructor(username) {
