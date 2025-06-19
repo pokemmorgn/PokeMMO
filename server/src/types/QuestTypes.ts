@@ -2,10 +2,11 @@
 
 export interface QuestObjective {
   id: string;
-  type: 'collect' | 'defeat' | 'talk' | 'reach';
+  type: 'collect' | 'defeat' | 'talk' | 'reach' | 'deliver';
   description: string;
-  target?: string; // ID de l'objet, Pokémon, NPC, ou zone
-  targetName?: string; // Nom affiché à l'utilisateur
+  target?: string;
+  targetName?: string;
+  itemId?: string;
   currentAmount: number;
   requiredAmount: number;
   completed: boolean;
@@ -32,34 +33,31 @@ export interface Quest {
   name: string;
   description: string;
   category: 'main' | 'side' | 'daily' | 'repeatable';
-  prerequisites?: string[]; // IDs des quêtes requises
+  prerequisites?: string[];
   steps: QuestStep[];
   currentStepIndex: number;
   status: 'available' | 'active' | 'completed' | 'failed';
   startNpcId?: number;
   endNpcId?: number;
   isRepeatable: boolean;
-  cooldownHours?: number; // Pour les quêtes répétables
+  cooldownHours?: number;
   lastCompletedAt?: Date;
 }
 
 export interface PlayerQuestProgress {
   questId: string;
   currentStepIndex: number;
-  objectives: {
-    [objectiveId: string]: {
-      currentAmount: number;
-      completed: boolean;
-    };
-  };
+  objectives: Map<string, {
+    currentAmount: number;
+    completed: boolean;
+  }>;
   status: 'active' | 'completed' | 'failed';
   startedAt: Date;
   completedAt?: Date;
 }
 
-// Types pour les événements de progression
 export interface QuestProgressEvent {
-  type: 'collect' | 'defeat' | 'talk' | 'reach';
+  type: 'collect' | 'defeat' | 'talk' | 'reach' | 'deliver';
   targetId?: string;
   amount?: number;
   location?: { x: number; y: number; map: string };
@@ -67,7 +65,6 @@ export interface QuestProgressEvent {
   npcId?: number;
 }
 
-// Interface pour les définitions de quêtes (JSON)
 export interface QuestDefinition {
   id: string;
   name: string;
@@ -84,10 +81,11 @@ export interface QuestDefinition {
     description: string;
     objectives: {
       id: string;
-      type: 'collect' | 'defeat' | 'talk' | 'reach';
+      type: 'collect' | 'defeat' | 'talk' | 'reach' | 'deliver';
       description: string;
       target?: string;
       targetName?: string;
+      itemId?: string;
       requiredAmount: number;
     }[];
     rewards?: QuestReward[];
