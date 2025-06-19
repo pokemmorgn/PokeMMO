@@ -108,7 +108,7 @@ export class BeachScene extends BaseZoneScene {
     if (!this._introTriggered && !initData?.fromZone) {
       this._introTriggered = true;
       this.time.delayedCall(1500, () => {
-        this.startIntroSequence(player);
+    //    this.startIntroSequence(player);
       });
     }
   }
