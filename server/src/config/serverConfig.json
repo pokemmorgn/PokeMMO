@@ -23,5 +23,7 @@
   "starterLevel": 5,
 
   "chatEnabled": true,
-  "chatCooldown": 2
+  "chatCooldown": 2,
+
+  "autoresetQuest": true
 }
