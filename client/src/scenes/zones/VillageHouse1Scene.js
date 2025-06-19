@@ -1,19 +1,19 @@
-// ===============================================
-// VillageHouse1Scene.js - Maison 1 avec logique de transition
-// ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 
 export class VillageHouse1Scene extends BaseZoneScene {
   constructor() {
-    super('VillageHouse1Scene', 'House1Interior'); // clé map House1Interior (à adapter)
+    super('VillageHouse1Scene', 'House1Interior');
     this.transitionCooldowns = {};
+    this.npcs = [];
+    this.interactiveObjects = [];
   }
 
- setupZoneTransitions() {
+  setupZoneTransitions() {
+    const retrySetup = () => this.time.delayedCall(100, () => this.setupZoneTransitions());
+
     if (!this.playerManager) {
       console.warn("playerManager non encore initialisé, retry dans 100ms");
-      this.time.delayedCall(100, () => this.setupZoneTransitions());
-      return;
+      return retrySetup();
     }
 
     const worldsLayer = this.map.getObjectLayer('Worlds');
@@ -25,15 +25,13 @@ export class VillageHouse1Scene extends BaseZoneScene {
     const player = this.playerManager.getMyPlayer();
     if (!player) {
       console.warn("Player non encore créé, retry dans 100ms");
-      this.time.delayedCall(100, () => this.setupZoneTransitions());
-      return;
+      return retrySetup();
     }
     console.log(`🎮 Joueur récupéré: position (${player.x}, ${player.y})`);
 
     if (!player.body) {
       console.warn("⚠️ Player.body non créé, retry setupZoneTransitions dans 100ms");
-      this.time.delayedCall(100, () => this.setupZoneTransitions());
-      return;
+      return retrySetup();
     }
     console.log("✅ Player.body présent, création des zones de transition");
 
@@ -69,9 +67,9 @@ export class VillageHouse1Scene extends BaseZoneScene {
         this.networkManager.requestZoneTransition(targetZone, direction);
       });
     });
+  }
 
   positionPlayer(player) {
-    const initData = this.scene.settings.data;
     const spawnLayer = this.map.getObjectLayer('SpawnPoint');
     if (spawnLayer) {
       const spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_House1');
@@ -80,7 +78,6 @@ export class VillageHouse1Scene extends BaseZoneScene {
         player.y = spawnPoint.y + spawnPoint.height / 2;
         console.log(`🏠 Joueur positionné au SpawnPoint_House1: ${player.x}, ${player.y}`);
       } else {
-        // fallback si pas trouvé
         player.x = 300;
         player.y = 200;
       }
@@ -129,8 +126,7 @@ export class VillageHouse1Scene extends BaseZoneScene {
     if (layer) {
       layer.objects.forEach(obj => this.createInteractiveObject(obj));
     }
-
-    this.input.keyboard.on('keydown-E', () => this.handleInteraction());
+    this.input.keyboard.on('keydown-E', this.handleInteraction, this);
   }
 
   createNPC(npcData) {
@@ -139,10 +135,10 @@ export class VillageHouse1Scene extends BaseZoneScene {
       npcData.y + npcData.height / 2,
       npcData.width,
       npcData.height,
-      0x3498db // couleur par défaut
+      0x3498db
     );
 
-    const label = this.add.text(
+    this.add.text(
       npc.x,
       npc.y - 30,
       npcData.name || 'NPC',
@@ -158,8 +154,6 @@ export class VillageHouse1Scene extends BaseZoneScene {
     npc.setInteractive();
     npc.on('pointerdown', () => this.interactWithNPC(npcData.name || 'Assistant'));
 
-    npc.npcData = npcData;
-    this.npcs = this.npcs || [];
     this.npcs.push(npc);
   }
 
@@ -173,7 +167,6 @@ export class VillageHouse1Scene extends BaseZoneScene {
     ).setAlpha(0.5);
 
     obj.objData = objData;
-    this.interactiveObjects = this.interactiveObjects || [];
     this.interactiveObjects.push(obj);
   }
 
@@ -181,16 +174,16 @@ export class VillageHouse1Scene extends BaseZoneScene {
     const player = this.playerManager.getMyPlayer();
     if (!player) return;
 
-    for (const npc of this.npcs || []) {
+    for (const npc of this.npcs) {
       if (Phaser.Math.Distance.Between(player.x, player.y, npc.x, npc.y) < 50) {
-        this.interactWithNPC(npc.npcData.name);
+        this.interactWithNPC(npc.npcData?.name || 'Assistant');
         return;
       }
     }
 
-    for (const obj of this.interactiveObjects || []) {
+    for (const obj of this.interactiveObjects) {
       if (Phaser.Math.Distance.Between(player.x, player.y, obj.x, obj.y) < 50) {
-        this.interactWithObject(obj.objData.name);
+        this.interactWithObject(obj.objData?.name || 'Objet');
         return;
       }
     }
@@ -200,7 +193,6 @@ export class VillageHouse1Scene extends BaseZoneScene {
     const messages = {
       Assistant: 'Je m\'occupe de la maison.',
       Gardien: 'Je veille sur cette maison.',
-      // Ajoute plus si besoin
     };
     this.showSimpleDialog(npcName, messages[npcName] || 'Bonjour !');
   }
@@ -209,7 +201,6 @@ export class VillageHouse1Scene extends BaseZoneScene {
     const messages = {
       Meuble: 'Un beau meuble ancien.',
       Tableau: 'Un tableau accroché au mur.',
-      // Ajoute plus si besoin
     };
     this.showSimpleDialog('Système', messages[objName] || 'Vous examinez l\'objet.');
   }
@@ -229,8 +220,9 @@ export class VillageHouse1Scene extends BaseZoneScene {
 
   cleanup() {
     this.transitionCooldowns = {};
-    this.npcs = [];
-    this.interactiveObjects = [];
+    this.npcs.length = 0;
+    this.interactiveObjects.length = 0;
+    this.input.keyboard.off('keydown-E', this.handleInteraction, this);
     super.cleanup();
   }
 }
