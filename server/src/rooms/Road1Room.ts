@@ -52,8 +52,8 @@ export class Road1Room extends BaseRoom {
   private getDestinationSpawnPosition(targetZone: string, targetSpawn?: string): { x: number, y: number } | null {
     const destinationSpawns: Record<string, { x: number, y: number }> = {
       // Position dans le village quand on va vers le village depuis Route 1
-      'VillageScene': { x: 131, y: 0 },
-      'VillageRoom': { x: 131, y: 0 },
+      'VillageScene': { x: 131.33, y: 0 },
+      'VillageRoom': { x: 131.33, y: 0 },
       
       // Position dans Lavandia quand on va vers Lavandia depuis Route 1
       'LavandiaScene': { x: 56, y: 941 },
@@ -63,7 +63,7 @@ export class Road1Room extends BaseRoom {
     // Si on a un spawn nommé spécifique
     if (targetSpawn) {
       const specificSpawns: Record<string, { x: number, y: number }> = {
-        'FromRoad1Scene': { x: 131, y: 0 }, // Village
+        'FromRoad1Scene': { x: 131.33, y: 0 }, // Village
         'FromRoad1ToLavandia': { x: 56, y: 941 }, // Lavandia
       };
       if (specificSpawns[targetSpawn]) {
