@@ -120,8 +120,6 @@ if (playerData.team && playerData.team.length > 0) {
   teamPokemons = await OwnedPokemon.find({ _id: { $in: playerData.team } });
 }
 
-player.team = new ArraySchema(...teamPokemons.map(convertOwnedPokemonToTeam));
-
   const player = new Player();
   player.name = username;
   (player as any).justSpawned = true;
