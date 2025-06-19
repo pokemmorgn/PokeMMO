@@ -201,7 +201,8 @@ this.onMessage("npcInteract", (client: Client, data: { npcId: number }) => {
   async onJoin(client: Client, options: any) {
     console.log("🔥 [onJoin] Nouvelle connexion !", options.username);
     const username = options.username || "Anonymous";
-    client.send("npcList", this.npcManager.getAllNpcs());
+    console.log("✅ [onJoin] Joueur créé à", player.x, player.y, "dans", this.mapName);
+client.send("npcList", this.npcManager.getAllNpcs());
 
     // Supprime un joueur en double si existant
     const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
