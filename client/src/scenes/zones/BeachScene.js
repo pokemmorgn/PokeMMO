@@ -84,19 +84,21 @@ export class BeachScene extends BaseZoneScene {
     return globalBlock || this._introBlocked;
   }
 
+  // ✅ AMÉLIORATION: Position par défaut pour BeachScene
+  getDefaultSpawnPosition(fromZone) {
+    // Position par défaut selon la zone d'origine
+    if (fromZone === 'VillageScene' || fromZone) {
+      return { x: 52, y: 48 };
+    }
+    return { x: 52, y: 48 }; // Position par défaut
+  }
+
   // --- Gère le placement joueur au spawn ---
   positionPlayer(player) {
     const initData = this.scene.settings.data;
-    // Spawn selon la zone d'origine
-    if (initData?.fromZone === 'VillageScene' || initData?.fromZone) {
-      player.x = 52;
-      player.y = 48;
-    }
-    if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-    }
-    if (this.networkManager) this.networkManager.sendMove(player.x, player.y);
+    
+    // ✅ AMÉLIORATION: Utiliser la méthode parent avec position par défaut
+    super.positionPlayer(player);
 
     // 🎬 Déclencher l'intro automatiquement (seulement si pas déjà fait)
     if (!this._introTriggered && !initData?.fromZone) {
@@ -105,6 +107,12 @@ export class BeachScene extends BaseZoneScene {
         // this.startIntroSequence(player); // Décommente si tu veux l'intro auto
       });
     }
+  }
+
+  // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
+  onPlayerPositioned(player, initData) {
+    // Logique spécifique à BeachScene si nécessaire
+    console.log(`[BeachScene] Joueur positionné à (${player.x}, ${player.y})`);
   }
 
   // ==================== INTRO ANIMÉE ======================
