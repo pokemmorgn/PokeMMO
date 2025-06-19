@@ -499,24 +499,27 @@ this.input.keyboard.on("keydown-E", () => {
 this.networkManager.onMessage("npcInteractionResult", (result) => {
   if (result.type === "dialogue") {
     let npcName = "???";
-    let portrait = result.portrait;
-    // On cherche côté client le nom réel
+    let spriteName = null;
+    let portrait = result.portrait; // peut-être null/undefined
     if (result.npcId && this.npcManager) {
       const npc = this.npcManager.getNpcData(result.npcId);
       if (npc) {
         npcName = npc.name;
-        if (!portrait && npc.sprite) {
-          portrait = `assets/npc/${npc.sprite}.png`; // adapte selon ton système !
+        spriteName = npc.sprite;
+        // 1. Portrait fourni explicitement ? (ex : event spécial)
+        // 2. Sinon, construit l’URL par convention
+        if (!portrait && spriteName) {
+          portrait = `/assets/portrait/${spriteName}Portrait.png`;
         }
       }
     }
     showNpcDialogue({
-      portrait: portrait || `assets/npc/${npcName.toLowerCase() || 'unknown'}.png`,
+      portrait: portrait || "/assets/portrait/unknownPortrait.png",
       name: npcName,
       text: result.lines ? result.lines[0] : result.message
     });
-    
-  } else if (result.type === "shop") {
+  }
+  else if (result.type === "shop") {
     // TODO: affiche une fenêtre shop
     showNpcDialogue({
       portrait: result.portrait || "assets/ui/shop_icon.png",
