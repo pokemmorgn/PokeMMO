@@ -9,22 +9,67 @@ export class LavandiaScene extends BaseZoneScene {
     console.log("[LavandiaScene] Constructor appelé");
   }
 
-  setupZoneTransitions() {
-    console.log("[LavandiaScene] setupZoneTransitions appelé");
-    const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (worldsLayer) {
-      console.log(`[LavandiaScene] Objects dans 'Worlds' : ${worldsLayer.objects.length}`);
-      // Transition retour vers Road1
-      const road1Exit = worldsLayer.objects.find(obj => obj.name === 'Road1');
-      if (road1Exit) {
-        this.createTransitionZone(road1Exit, 'Road1Scene', 'east');
-      } else {
-        console.warn("[LavandiaScene] Objet 'Road1' introuvable dans 'Worlds'");
-      }
-    } else {
-      console.warn("[LavandiaScene] Calque d'objets 'Worlds' introuvable");
+   setupZoneTransitions() {
+    if (!this.playerManager) {
+      console.warn("playerManager non encore initialisé, retry dans 100ms");
+      this.time.delayedCall(100, () => this.setupZoneTransitions());
+      return;
     }
-  }
+
+    const worldsLayer = this.map.getObjectLayer('Worlds');
+    if (!worldsLayer) {
+      console.warn("Layer 'Worlds' non trouvé");
+      return;
+    }
+
+    const player = this.playerManager.getMyPlayer();
+    if (!player) {
+      console.warn("Player non encore créé, retry dans 100ms");
+      this.time.delayedCall(100, () => this.setupZoneTransitions());
+      return;
+    }
+    console.log(`🎮 Joueur récupéré: position (${player.x}, ${player.y})`);
+
+    if (!player.body) {
+      console.warn("⚠️ Player.body non créé, retry setupZoneTransitions dans 100ms");
+      this.time.delayedCall(100, () => this.setupZoneTransitions());
+      return;
+    }
+    console.log("✅ Player.body présent, création des zones de transition");
+
+    worldsLayer.objects.forEach(obj => {
+      const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
+      const directionProp = obj.properties?.find(p => p.name === 'direction');
+      if (!targetZoneProp) {
+        console.warn(`⚠️ Objet ${obj.name || obj.id} dans 'Worlds' sans propriété targetZone, ignoré`);
+        return;
+      }
+
+      const targetZone = targetZoneProp.value;
+      const direction = directionProp ? directionProp.value : 'north';
+
+      console.log(`➡️ Création zone transition vers ${targetZone} à (${obj.x},${obj.y}), taille ${obj.width}x${obj.height}`);
+
+      const zone = this.add.zone(
+        obj.x + obj.width / 2,
+        obj.y + obj.height / 2,
+        obj.width,
+        obj.height
+      );
+      this.physics.world.enable(zone);
+      zone.body.setAllowGravity(false);
+      zone.body.setImmovable(true);
+
+      this.physics.add.overlap(player, zone, () => {
+        if (!this.networkManager) {
+          console.warn("⚠️ networkManager non défini, transition ignorée");
+          return;
+        }
+        console.log(`↪️ Overlap détecté avec zone transition vers ${targetZone} (${direction})`);
+        this.networkManager.requestZoneTransition(targetZone, direction);
+      });
+    });
+
 
   createTransitionZone(transitionObj, targetScene, direction) {
     const sceneName = this.scene.key || 'BaseZoneScene';
