@@ -197,6 +197,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   }
 
   async onJoin(client: Client, options: any) {
+    console.log("🔥 [onJoin] Nouvelle connexion !", options.username);
     const username = options.username || "Anonymous";
     client.send("npcList", this.npcManager.getAllNpcs());
 
