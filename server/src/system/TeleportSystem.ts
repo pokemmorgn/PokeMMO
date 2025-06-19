@@ -9,7 +9,7 @@ import { TeleportResult, TiledMap } from '../types/MapTypes';
 export class TeleportSystem {
     private mapManager: MapManager;
 
-    constructor(mapsDirectory: string = './assets/maps') {
+constructor(mapsDirectory: string = './build/assets/maps') {
         this.mapManager = new MapManager(mapsDirectory);
     }
 
