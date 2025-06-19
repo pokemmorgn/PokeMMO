@@ -64,14 +64,14 @@ export class BeachScene extends BaseZoneScene {
     this.transitionCooldowns = {};
     this.pokemonSpriteManager = null;
     this._introBlocked = false;
-    this._introTriggered = false; // Pour éviter les intros multiples
+    this._introTriggered = false;
   }
 
   async create() {
     super.create();
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.setupBeachEvents();
-
+  }
 
   update() {
     if (this.shouldBlockInput()) return;
@@ -79,16 +79,15 @@ export class BeachScene extends BaseZoneScene {
   }
 
   shouldBlockInput() {
-    return (
-      window.shouldBlockInput() ||
-      this._introBlocked
-    );
+    // window.shouldBlockInput peut ne pas exister !
+    const globalBlock = typeof window.shouldBlockInput === "function" ? window.shouldBlockInput() : false;
+    return globalBlock || this._introBlocked;
   }
 
-  
   // --- Gère le placement joueur au spawn ---
   positionPlayer(player) {
     const initData = this.scene.settings.data;
+    // Spawn selon la zone d'origine
     if (initData?.fromZone === 'VillageScene' || initData?.fromZone) {
       player.x = 52;
       player.y = 48;
@@ -98,12 +97,12 @@ export class BeachScene extends BaseZoneScene {
       player.indicator.y = player.y - 32;
     }
     if (this.networkManager) this.networkManager.sendMove(player.x, player.y);
-    
+
     // 🎬 Déclencher l'intro automatiquement (seulement si pas déjà fait)
     if (!this._introTriggered && !initData?.fromZone) {
       this._introTriggered = true;
       this.time.delayedCall(1500, () => {
-    //    this.startIntroSequence(player);
+        // this.startIntroSequence(player); // Décommente si tu veux l'intro auto
       });
     }
   }
@@ -115,9 +114,12 @@ export class BeachScene extends BaseZoneScene {
     if (player.body) player.body.enable = false;
     this._introBlocked = true;
 
+    // Animation du joueur (droite)
     if (player.anims && player.anims.currentAnim?.key !== 'walk_right') {
       if (this.anims.exists('walk_right')) player.play('walk_right');
     }
+
+    // Spawn du Pokémon starter
     const spawnX = player.x + 120;
     const arriveX = player.x + 24;
     const y = player.y;
