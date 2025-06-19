@@ -536,6 +536,11 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
   }
   else if (result.type === "questGiver" || result.type === "questComplete" || result.type === "questProgress") {
     // ROUTE TOUT VERS QuestSystem
+      showNpcDialogue({
+      portrait: result.portrait || "assets/ui/heal_icon.png",
+      name: "???",
+      text: result.message || "Vos Pokémon sont soignés !"
+    });
     if (window.questSystem) {
       window.questSystem.handleNpcInteraction(result);
       return; // On s'arrête ici, rien d'autre à faire
