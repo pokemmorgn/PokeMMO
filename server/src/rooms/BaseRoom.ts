@@ -110,40 +110,6 @@ async onJoin(client: Client, options: any) {
       lastMap: mapName
     });
   }
-
-  // === Ajout TeamManager ===
-  const teamManager = new TeamManager(username);
-  const teamPokemons = await teamManager.getTeamFull(); // Détails des OwnedPokemon de la team
-
-  const player = new Player();
-  player.name = username;
-  (player as any).justSpawned = true;
-  (player as any).isTransitioning = false;
-
-  if (options.spawnX !== undefined && options.spawnY !== undefined) {
-    player.x = options.spawnX;
-    player.y = options.spawnY;
-  } else {
-    player.x = playerData.lastX;
-    player.y = playerData.lastY;
-  }
-  player.map = this.mapName.replace('Room', '');
-
-// === Ajout : team dans le state ===
-const teamArray = new ArraySchema<TeamPokemon>(
-  ...teamPokemons.map(poke => {
-    const teamPoke = new TeamPokemon();
-    teamPoke.id = poke._id.toString();
-    teamPoke.pokemonId = poke.pokemonId;
-    teamPoke.level = poke.level;
-    teamPoke.nickname = poke.nickname;
-    teamPoke.shiny = poke.shiny;
-    // ... autres champs si besoin
-    return teamPoke;
-  })
-);
-player.team = teamArray;
-
   this.state.players.set(client.sessionId, player);
 }
 
