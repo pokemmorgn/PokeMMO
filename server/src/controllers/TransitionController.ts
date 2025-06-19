@@ -1,17 +1,53 @@
-// src/controllers/TransitionController.ts
-
 import { Client } from "@colyseus/core";
 import { PlayerData } from "../models/PlayerData";
 import { BaseRoom } from "../rooms/BaseRoom";
 import { Player } from "../schema/PokeWorldState";
+import fs from "fs";
+import path from "path";
+
+// Cache pour ne pas relire à chaque fois
+const mapCache: Record<string, any> = {};
+
+/**
+ * Charge une map TMJ depuis le dossier maps (cache si déjà lue)
+ */
+function loadMap(mapName: string): any {
+  if (!mapCache[mapName]) {
+    // Attention, adapte le chemin si besoin !
+    const mapPath = path.join(__dirname, "../assets/maps/", `${mapName}.tmj`);
+    if (!fs.existsSync(mapPath)) {
+      throw new Error(`[TransitionController] Map manquante: ${mapPath}`);
+    }
+    mapCache[mapName] = JSON.parse(fs.readFileSync(mapPath, "utf-8"));
+  }
+  return mapCache[mapName];
+}
+
+/**
+ * Récupère un objet dans le layer Worlds selon son nom (ou propriété custom)
+ */
+function findWorldObject(mapName: string, objectName: string): any {
+  const mapData = loadMap(mapName);
+  const worldsLayer = mapData.layers.find(
+    (l: any) => l.name === "Worlds" && l.type === "objectgroup"
+  );
+  if (!worldsLayer) return null;
+  // Peut adapter ici si tu veux chercher par propriété au lieu de name
+  return worldsLayer.objects.find((obj: any) => obj.name === objectName);
+}
+
+/**
+ * Cherche une propriété personnalisée d'un objet Tiled (array → value)
+ */
+function getProperty(obj: any, key: string): string | undefined {
+  // Propriétés custom de Tiled sont sous obj.properties (array)
+  if (!obj.properties) return undefined;
+  const prop = obj.properties.find((p: any) => p.name === key);
+  return prop?.value;
+}
 
 type TransitionData = {
-  targetZone: string;
-  direction: string;
-  targetSpawn?: string;
-  targetX?: number;
-  targetY?: number;
-  fromZone?: string;
+  targetSpawn?: string; // Côté client, tu peux lui envoyer juste le nom de la sortie (ex: "Road_1")
 };
 
 export class TransitionController {
@@ -31,46 +67,63 @@ export class TransitionController {
 
     (player as any).isTransitioning = true;
 
-    // Calcule la position de spawn selon la room cible et les données reçues
-    const spawnPosition = this.room.calculateSpawnPosition({
-      targetZone: data.targetZone,
-      targetSpawn: data.targetSpawn,
-      targetX: data.targetX,
-      targetY: data.targetY,
-      fromZone: this.room.mapName  // ✅ AJOUTEZ CETTE LIGNE
+    // On récupère l'objet de sortie dans la map actuelle, layer Worlds
+    const currentMapName = this.room.mapName.toLowerCase(); // ex: 'village'
+    const exitName = data.targetSpawn;
+    const exitObj = findWorldObject(currentMapName, exitName);
 
-    });
+    if (!exitObj) {
+      console.warn(`[TransitionController] DENIED: sortie '${exitName}' absente de la map '${currentMapName}'`);
+      client.send("transitionDenied", { reason: "Sortie introuvable côté serveur" });
+      (player as any).isTransitioning = false;
+      return;
+    }
 
-    console.log(`[TransitionController] Transition ${player.name} (${this.room.mapName}) -> ${data.targetZone} (${spawnPosition.x},${spawnPosition.y})`);
+    // Propriétés custom de l'objet (définies dans Tiled !)
+    const targetZone = getProperty(exitObj, "targetZone");
+    const targetSpawn = getProperty(exitObj, "targetSpawn");
 
-    // Téléporte le joueur en désactivant les contrôles anticheat
-    this.room.movementController.handleMove(
-      client.sessionId,
-      player,
-      { x: spawnPosition.x, y: spawnPosition.y, direction: player.direction, isMoving: false },
-      true // skipAnticheat
-    );
-    player.x = spawnPosition.x;
-    player.y = spawnPosition.y;
-    player.isMoving = false;
+    if (!targetZone || !targetSpawn) {
+      console.warn(`[TransitionController] DENIED: targetZone/targetSpawn manquant sur la sortie '${exitName}'`);
+      client.send("transitionDenied", { reason: "Propriétés de transition absentes" });
+      (player as any).isTransitioning = false;
+      return;
+    }
 
-    // Supprime le joueur de la room actuelle (il sera récréé dans la nouvelle)
+    // On cherche l'objet d'arrivée dans la map cible (targetZone)
+    const entryObj = findWorldObject(targetZone.toLowerCase(), targetSpawn);
+
+    if (!entryObj) {
+      console.warn(`[TransitionController] DENIED: point d'arrivée '${targetSpawn}' absent de '${targetZone}'`);
+      client.send("transitionDenied", { reason: "Entrée introuvable dans la map cible" });
+      (player as any).isTransitioning = false;
+      return;
+    }
+
+    // Utilise les coordonnées exactes du point d'entrée
+    const spawnX = entryObj.x;
+    const spawnY = entryObj.y;
+
+    // Ici tu peux aussi prendre des propriétés custom sur le point d'entrée (genre direction)
+
+    console.log(`[TransitionController] Transition ${player.name} (${currentMapName}) -> ${targetZone} via '${exitName}' (${spawnX},${spawnY})`);
+
     this.room.state.players.delete(client.sessionId);
     this.room.movementController?.resetPlayer?.(client.sessionId);
 
-    // Sauvegarde la position dans la base de données
+    // Mets à jour la position dans la base Mongo
     await PlayerData.updateOne(
       { username: player.name },
-      { $set: { lastX: spawnPosition.x, lastY: spawnPosition.y, lastMap: data.targetZone } }
+      { $set: { lastX: spawnX, lastY: spawnY, lastMap: targetZone } }
     );
 
-    // Envoie la confirmation au client avec la nouvelle zone et position de spawn
+    // Envoie au client les infos pour charger la nouvelle zone
     client.send("zoneChanged", {
-      targetZone: data.targetZone,
-      fromZone: this.room.mapName.replace('Room', 'Scene'),
-      direction: data.direction,
-      spawnX: spawnPosition.x,
-      spawnY: spawnPosition.y
+      targetZone: targetZone,
+      fromZone: this.room.mapName,
+      spawnX: spawnX,
+      spawnY: spawnY,
+      entryName: targetSpawn // optionnel pour debug
     });
 
     console.log(`[TransitionController] Transition terminée pour ${player.name}`);
