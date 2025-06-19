@@ -23,9 +23,6 @@ export class MovementController {
     this.lastMoves = new Map();
   }
 
-  /**
-   * Valide et applique un mouvement demandé par un joueur
-   */
   handleMove(
     sessionId: string,
     playerState: PlayerState,
@@ -34,9 +31,7 @@ export class MovementController {
   ): { x: number; y: number; direction: string; isMoving: boolean; snapped: boolean } {
     const now = Date.now();
 
-    // 1. TP/transition/skip anticheat
     if (skipAnticheat) {
-      console.log(`[ANTICHEAT][${sessionId}] skipAnticheat=TRUE - Accepting TP to (${data.x},${data.y})`);
       this.lastMoves.set(sessionId, { x: data.x, y: data.y, t: now });
       return {
         x: data.x,
@@ -55,9 +50,6 @@ export class MovementController {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const speed = dist / dt;
 
-    console.log(`[ANTICHEAT][${sessionId}] Player (${playerState.x},${playerState.y}) -> (${data.x},${data.y}), dt=${dt.toFixed(3)}s, speed=${speed.toFixed(1)}px/s`);
-
-    // 2. Vérif de la vitesse
     if (speed > this.MAX_SPEED) {
       console.warn(`[ANTICHEAT][${sessionId}] CHEAT DETECTED: speed=${speed.toFixed(1)}px/s > max=${this.MAX_SPEED}, snap to (${playerState.x},${playerState.y})`);
       this.lastMoves.set(sessionId, { x: playerState.x, y: playerState.y, t: now });
@@ -70,11 +62,7 @@ export class MovementController {
       };
     }
 
-    // 3. (Optionnel) Collision check ici
-
-    // 4. Mouvement accepté
     this.lastMoves.set(sessionId, { x: data.x, y: data.y, t: now });
-    console.log(`[ANTICHEAT][${sessionId}] Mouvement accepté vers (${data.x},${data.y})`);
     return {
       x: data.x,
       y: data.y,
