@@ -58,7 +58,7 @@ export interface PlayerQuestProgress {
 
 // Types pour les événements de progression
 export interface QuestProgressEvent {
-  type: 'collect' | 'defeat' | 'talk' | 'reach';
+  type: 'collect' | 'defeat' | 'talk' | 'reach' | 'deliver';
   targetId?: string;
   amount?: number;
   location?: { x: number; y: number; map: string };
@@ -83,10 +83,11 @@ export interface QuestDefinition {
     description: string;
     objectives: {
       id: string;
-      type: 'collect' | 'defeat' | 'talk' | 'reach';
+      type: 'collect' | 'defeat' | 'talk' | 'reach' | 'deliver';
       description: string;
       target?: string;
       targetName?: string;
+      itemId?: string;
       requiredAmount: number;
     }[];
     rewards?: QuestReward[];
