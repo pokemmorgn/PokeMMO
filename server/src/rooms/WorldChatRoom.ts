@@ -8,6 +8,11 @@ class WorldChatState extends Schema {
 export class WorldChatRoom extends Room<WorldChatState> {
   maxClients = 200;
 
+  broadcastOnlineCount() {
+  this.broadcast("onlineCount", { count: this.state.players.size });
+}
+
+  
   onCreate(options: any): void {
     this.setState(new WorldChatState());
 
@@ -16,7 +21,7 @@ export class WorldChatRoom extends Room<WorldChatState> {
       this.broadcast("chat", {
         author: username,
         message: data.message,
-        timestamp: new Date().toISOString(), // <-- Ici !
+        timestamp: new Date().toISOString(),
         type: "normal"
       });
     });
@@ -28,9 +33,10 @@ export class WorldChatRoom extends Room<WorldChatState> {
     this.broadcast("chat", {
       author: "SYSTEM",
       message: `${options.username} a rejoint le chat !`,
-      timestamp: new Date().toISOString(), // <-- Ici aussi !
+      timestamp: new Date().toISOString(),
       type: "system"
     });
+    this.broadcastOnlineCount(); //
   }
 
   onLeave(client: Client): void {
@@ -39,8 +45,9 @@ export class WorldChatRoom extends Room<WorldChatState> {
     this.broadcast("chat", {
       author: "SYSTEM",
       message: `${username || "Un joueur"} a quitté le chat.`,
-      timestamp: new Date().toISOString(), // <-- Ici aussi !
+      timestamp: new Date().toISOString(),
       type: "system"
     });
+    this.broadcastOnlineCount(); //
   }
 }
