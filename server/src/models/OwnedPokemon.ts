@@ -5,7 +5,7 @@ const OwnedPokemonSchema = new mongoose.Schema({
   pokemonId: { type: Number, required: true }, // id dex national (ex: 25)
   level: { type: Number, default: 1 },
   nature: { type: String, default: "Hardy" },
-  ivs?: { // <--- optionnel !
+  ivs: { // <--- PAS de ? ici
     hp: { type: Number, default: 0 },
     attack: { type: Number, default: 0 },
     defense: { type: Number, default: 0 },
