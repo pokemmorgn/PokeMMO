@@ -127,7 +127,7 @@ export class NetworkManager {
   targetSpawn: data.entryName,
   targetZone: data.targetZone
 });
-      });
+    
 
       this.sessionId = this.room.sessionId;
       this.isConnected = true;
