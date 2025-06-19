@@ -35,12 +35,6 @@ class PokeChatSystem {
       }
     });
 
-    if (this.chatToggle) {
-    this.chatToggle.addEventListener('click', () => {
-      console.log('[CHAT] bulle cliquée');
-      this.toggleHide();
-    });
-  }
     // Gestion du compteur de caractères
     this.chatInput.addEventListener('input', (e) => {
       const length = e.target.value.length;
@@ -59,7 +53,22 @@ class PokeChatSystem {
       this.hideBtn.addEventListener('click', () => this.toggleHide());
     }
     if (this.chatToggle) {
-      this.chatToggle.addEventListener('click', () => this.toggleHide());
+      this.chatToggle.addEventListener('click', () => {
+        // Quand on clique sur la bulle, on doit forcément "ouvrir" le chat en mode normal
+        if (this.isHidden) {
+          this.isHidden = false;
+          this.chatWindow.classList.remove('hidden');
+          this.chatToggle.classList.remove('show');
+          // Si on était minimisé, on enlève le minimized
+          if (this.isMinimized) {
+            this.isMinimized = false;
+            this.chatWindow.classList.remove('minimized');
+            if (this.minimizeBtn)
+              this.minimizeBtn.textContent = '−';
+          }
+          setTimeout(() => this.chatInput.focus(), 500);
+        }
+      });
     }
   }
 
