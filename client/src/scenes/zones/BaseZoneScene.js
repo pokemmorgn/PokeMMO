@@ -17,6 +17,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.animatedObjects = null;
     this.zoneChangedHandler = null; // Référence du handler
     this.lastMoveTime = 0; // Throttling des mouvements
+      this.hasPlayerAppeared = false; // <- flag pour la première apparition
+
 
   }
 
@@ -474,29 +476,25 @@ this.input.keyboard.on("keydown-E", () => {
     });   
   });
 
-    this.networkManager.onStateChange((state) => {
+this.networkManager.onStateChange((state) => {
   this.playerManager.updatePlayers(state);
 
   const myPlayer = this.playerManager.getMyPlayer();
 
-  // Log pour débug :
   if (!myPlayer) {
     console.warn(`[${this.scene.key}] [onStateChange] Aucun player trouvé après updatePlayers!`);
     return;
-  } else {
-    console.log(`[${this.scene.key}] [onStateChange] Mon player existe enfin ! (${myPlayer.x}, ${myPlayer.y})`);
   }
 
-  // NE FAIS ces actions qu'à l'apparition du joueur !
-  if (!this.cameraFollowing) {
+  // On ne fait tout ça QU'UNE SEULE FOIS à l'arrivée sur la scène
+  if (!this.hasPlayerAppeared) {
+    this.hasPlayerAppeared = true;
+    this.positionPlayer(myPlayer);
     this.cameraManager.followPlayer(myPlayer);
     this.cameraFollowing = true;
+    console.log(`[${this.scene.key}] [onStateChange] Mon player existe enfin ! (${myPlayer.x}, ${myPlayer.y})`);
   }
-
-  // Positionne le joueur après une transition (toujours ici pour être sûr que le player existe)
-  this.positionPlayer(myPlayer);
 });
-
     // Quand le serveur répond à l'interaction NPC
 this.networkManager.onMessage("npcInteractionResult", (result) => {
   console.log("🟢 [npcInteractionResult] Reçu :", result);
@@ -771,5 +769,7 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
 
     this.cameraFollowing = false;
     this.isTransitioning = false;
+      this.hasPlayerAppeared = false;
+
   }
 }
