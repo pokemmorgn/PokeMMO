@@ -18,6 +18,7 @@ class PokeChatSystem {
     this.isHidden = false;
 
     this.initListeners();
+    console.log('[CHAT] PokeChatSystem initialized');
   }
 
   initListeners() {
@@ -45,31 +46,45 @@ class PokeChatSystem {
       if (remaining < 20) this.charCounter.classList.add('danger');
     });
 
-    // Minimize/Hide
+    // Minimize/Hide buttons
     if (this.minimizeBtn) {
-      this.minimizeBtn.addEventListener('click', () => this.toggleMinimize());
-    }
-    if (this.hideBtn) {
-      this.hideBtn.addEventListener('click', () => this.toggleHide());
-    }
-    if (this.chatToggle) {
-      this.chatToggle.addEventListener('click', () => {
-        // Quand on clique sur la bulle, on doit forcément "ouvrir" le chat en mode normal
-        if (this.isHidden) {
-          this.isHidden = false;
-          this.chatWindow.classList.remove('hidden');
-          this.chatToggle.classList.remove('show');
-          // Si on était minimisé, on enlève le minimized
-          if (this.isMinimized) {
-            this.isMinimized = false;
-            this.chatWindow.classList.remove('minimized');
-            if (this.minimizeBtn)
-              this.minimizeBtn.textContent = '−';
-          }
-          setTimeout(() => this.chatInput.focus(), 500);
-        }
+      this.minimizeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleMinimize();
       });
     }
+    
+    if (this.hideBtn) {
+      this.hideBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleHide();
+      });
+    }
+
+    // Toggle button (la bulle qui apparaît quand le chat est caché)
+    if (this.chatToggle) {
+      this.chatToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('[CHAT] Toggle button clicked');
+        this.toggleHide();
+      });
+    }
+
+    // Clic sur le header pour minimize/deminimize (seulement si minimized)
+    if (this.chatWindow) {
+      const chatHeader = this.chatWindow.querySelector('#chat-header');
+      if (chatHeader) {
+        chatHeader.addEventListener('click', (e) => {
+          // On ne toggle que si le chat est minimized
+          if (this.isMinimized) {
+            e.stopPropagation();
+            this.toggleMinimize();
+          }
+        });
+      }
+    }
+
+    console.log('[CHAT] Event listeners initialized');
   }
 
   // Ajoute un message stylé dans le chat
@@ -124,15 +139,23 @@ class PokeChatSystem {
     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
   }
 
-  // Optionnel: minimize/hide
+  // Toggle minimize/deminimize
   toggleMinimize() {
     this.isMinimized = !this.isMinimized;
     this.chatWindow.classList.toggle('minimized', this.isMinimized);
-    if (this.minimizeBtn)
+    
+    if (this.minimizeBtn) {
       this.minimizeBtn.textContent = this.isMinimized ? '+' : '−';
-    if (!this.isMinimized) setTimeout(() => this.chatInput.focus(), 100);
+    }
+    
+    if (!this.isMinimized) {
+      setTimeout(() => this.chatInput.focus(), 100);
+    }
+    
+    console.log('[CHAT] Minimized:', this.isMinimized);
   }
 
+  // Toggle hide/show
   toggleHide() {
     this.isHidden = !this.isHidden;
     this.chatWindow.classList.toggle('hidden', this.isHidden);
@@ -141,21 +164,32 @@ class PokeChatSystem {
     if (this.chatToggle) {
       if (this.isHidden) {
         this.chatToggle.classList.add('show');
+        console.log('[CHAT] Chat hidden, toggle button shown');
       } else {
         this.chatToggle.classList.remove('show');
+        console.log('[CHAT] Chat shown, toggle button hidden');
       }
     }
 
-    // focus quand visible
-    if (!this.isHidden) setTimeout(() => this.chatInput.focus(), 500);
+    // Focus quand visible
+    if (!this.isHidden) {
+      setTimeout(() => {
+        if (this.chatInput) {
+          this.chatInput.focus();
+        }
+      }, 500);
+    }
 
     // Quand on montre le chat, on enlève le "minimized"
     if (!this.isHidden && this.isMinimized) {
       this.isMinimized = false;
       this.chatWindow.classList.remove('minimized');
-      if (this.minimizeBtn)
+      if (this.minimizeBtn) {
         this.minimizeBtn.textContent = '−';
+      }
     }
+    
+    console.log('[CHAT] Hidden:', this.isHidden);
   }
 }
 
