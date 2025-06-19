@@ -289,7 +289,7 @@ export class PlayerManager {
     }
   }
 
-  clearAllPlayers() {
+clearAllPlayers() {
     if (this.isDestroyed) return;
     if (this.updateTimeout) {
       clearTimeout(this.updateTimeout);
@@ -298,8 +298,10 @@ export class PlayerManager {
     const playersToRemove = Array.from(this.players.keys());
     playersToRemove.forEach(sessionId => this.removePlayer(sessionId));
     this.players.clear();
-    this.mySessionId = null;
-  }
+    // Surtout NE PAS remettre this.mySessionId à null ici !
+    // this.mySessionId = null;   <--- SUPPRIME cette ligne
+}
+
 
   getAllPlayers() {
     return this.isDestroyed ? [] : Array.from(this.players.values());
