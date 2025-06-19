@@ -9,34 +9,51 @@ export class PlayerManager {
     this.animsCreated = false;
     this._myPlayerIsReady = false;
     this._myPlayerReadyCallback = null;
-    console.log("PlayerManager initialisé pour", scene.scene.key);
+    console.log("%c[PlayerManager] Initialisé pour", "color:orange", scene.scene.key);
 
     // Ajoute la gestion du snap serveur
     if (scene.networkManager && scene.networkManager.room) {
+      console.log("[PlayerManager] Ajout du listener snap sur networkManager.room");
       scene.networkManager.room.onMessage("snap", (data) => {
+        console.log("[PlayerManager] Reçu SNAP (onMessage) :", data);
         this.snapMyPlayerTo(data.x, data.y);
       });
     }
   }
 
-  setMySessionId(sessionId) { this.mySessionId = sessionId; }
+  setMySessionId(sessionId) {
+    console.log("[PlayerManager] setMySessionId:", sessionId);
+    this.mySessionId = sessionId;
+  }
 
   getMyPlayer() {
-    if (this.isDestroyed) return null;
-    return this.players.get(this.mySessionId) || null;
+    if (this.isDestroyed) {
+      console.warn("[PlayerManager] getMyPlayer: MANAGER DETRUIT");
+      return null;
+    }
+    const p = this.players.get(this.mySessionId) || null;
+    if (!p) {
+      console.warn("[PlayerManager] getMyPlayer: Aucun joueur trouvé pour sessionId", this.mySessionId);
+    }
+    return p;
   }
 
   snapMyPlayerTo(x, y) {
     const player = this.getMyPlayer();
-    if (!player) return;
+    if (!player) {
+      console.warn("[PlayerManager] snapMyPlayerTo: Aucun joueur local");
+      return;
+    }
+    console.log("[PlayerManager] snapMyPlayerTo", { x, y, oldX: player.x, oldY: player.y });
 
     // Snap doux (lerp rapide)
     player.targetX = x;
     player.targetY = y;
-    player.snapLerpTimer = 0.20; // Lerp rapide sur 200ms (peux ajuster)
+    player.snapLerpTimer = 0.20; // Lerp rapide sur 200ms
 
     // Si vraiment trop loin (ex: gros rollback), tu peux forcer direct :
     if (Math.abs(player.x - x) > 64 || Math.abs(player.y - y) > 64) {
+      console.log("[PlayerManager] Snap forcé (rollback > 64px)");
       player.x = x;
       player.y = y;
       player.snapLerpTimer = 0;
@@ -44,7 +61,10 @@ export class PlayerManager {
   }
 
   createPlayer(sessionId, x, y) {
-    if (this.isDestroyed) return null;
+    if (this.isDestroyed) {
+      console.error("[PlayerManager] createPlayer appelé alors que destroy déjà fait!");
+      return null;
+    }
 
     // Placeholder si spritesheet manquant
     if (!this.scene.textures.exists('BoyWalk')) {
@@ -56,11 +76,13 @@ export class PlayerManager {
       const player = this.scene.add.sprite(x, y, 'player_placeholder').setOrigin(0.5, 1).setScale(1);
       player.setDepth(5);
       this.players.set(sessionId, player);
+      console.log("[PlayerManager] Placeholder créé pour", sessionId);
       return player;
     }
 
     // Crée les animations une seule fois
     if (!this.animsCreated) {
+      console.log("[PlayerManager] Création des animations BoyWalk");
       this.createAnimations();
       this.animsCreated = true;
     }
@@ -69,135 +91,99 @@ export class PlayerManager {
     const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1).setOrigin(0.5, 1).setScale(1);
     player.setDepth(5);
     player.sessionId = sessionId;
-    // Petite hitbox, bien centrée sur les pieds :
     player.body.setSize(12, 8);
     player.body.setOffset(10, 24);
-    // Debug hitbox optionnel
     player.body.debugShowBody = true;
     player.body.debugBodyColor = 0xff0000;
 
-    // Animation idle par défaut (face bas, frame centrale)
     if (this.scene.anims.exists('idle_down')) player.play('idle_down');
     player.lastDirection = 'down';
     player.isMoving = false;
 
-    // ⭐️ Initialisation des positions cibles (nécessaire pour le lerp)
     player.targetX = x;
     player.targetY = y;
-    player.snapLerpTimer = 0; // Pour snap smooth
-
-    // ✅ S'assurer que le joueur est visible et actif
+    player.snapLerpTimer = 0;
     player.setVisible(true);
     player.setActive(true);
 
     // --- CORRECTION : Indicateur vert, toujours détruire l'ancien s'il existe ---
     if (sessionId === this.mySessionId) {
-      // Cherche s'il existe un indicateur orphelin et détruis-le
       if (player.indicator) { player.indicator.destroy(); }
-      // Pour le cas où l'ancien joueur (avant transition) avait laissé un indicateur
-      // on les détruit tous (patch bourrin)
+      // Detruit tous les "Arc" verts restants (patch bourrin)
       this.scene.children.list
         .filter(obj => obj && obj.type === "Arc" && obj.fillColor === 0x00ff00)
         .forEach(obj => { try { obj.destroy(); } catch(e){} });
-      // Maintenant on crée l'indicateur frais
       const indicator = this.scene.add.circle(player.x, player.y - 24, 3, 0x00ff00)
         .setDepth(1001)
         .setStrokeStyle(1, 0x004400);
       player.indicator = indicator;
       indicator.setVisible(true);
-      // Log pour vérif
-      console.log('[PlayerManager] Indicateur local créé pour', sessionId, indicator);
+      console.log("[PlayerManager] Indicateur local créé pour", sessionId, indicator);
     }
 
     this.players.set(sessionId, player);
-    console.log(`[PlayerManager] Joueur créé: ${sessionId} à (${x}, ${y})`);
+    console.log(`[PlayerManager] Joueur créé: ${sessionId} à (${x}, ${y}) (players.size=${this.players.size})`);
+    this.logPlayers();
     return player;
+  }
+
+  logPlayers() {
+    console.log("[PlayerManager] Map joueurs =", Array.from(this.players.keys()));
   }
 
   createAnimations() {
     const anims = this.scene.anims;
     if (!anims.exists('walk_down')) {
-      anims.create({
-        key: 'walk_down',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }),
-        frameRate: 15,
-        repeat: -1,
-      });
+      anims.create({ key: 'walk_down', frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }), frameRate: 15, repeat: -1 });
     }
     if (!anims.exists('walk_left')) {
-      anims.create({
-        key: 'walk_left',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }),
-        frameRate: 15,
-        repeat: -1,
-      });
+      anims.create({ key: 'walk_left', frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }), frameRate: 15, repeat: -1 });
     }
     if (!anims.exists('walk_right')) {
-      anims.create({
-        key: 'walk_right',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }),
-        frameRate: 15,
-        repeat: -1,
-      });
+      anims.create({ key: 'walk_right', frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }), frameRate: 15, repeat: -1 });
     }
     if (!anims.exists('walk_up')) {
-      anims.create({
-        key: 'walk_up',
-        frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 14 }),
-        frameRate: 15,
-        repeat: -1,
-      });
+      anims.create({ key: 'walk_up', frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 14 }), frameRate: 15, repeat: -1 });
     }
     // Idles
-    if (!anims.exists('idle_down')) {
-      anims.create({
-        key: 'idle_down',
-        frames: [{ key: 'BoyWalk', frame: 1 }],
-        frameRate: 1,
-        repeat: 0,
-      });
-    }
-    if (!anims.exists('idle_left')) {
-      anims.create({
-        key: 'idle_left',
-        frames: [{ key: 'BoyWalk', frame: 5 }],
-        frameRate: 1,
-        repeat: 0,
-      });
-    }
-    if (!anims.exists('idle_right')) {
-      anims.create({
-        key: 'idle_right',
-        frames: [{ key: 'BoyWalk', frame: 9 }],
-        frameRate: 1,
-        repeat: 0,
-      });
-    }
-    if (!anims.exists('idle_up')) {
-      anims.create({
-        key: 'idle_up',
-        frames: [{ key: 'BoyWalk', frame: 13 }],
-        frameRate: 1,
-        repeat: 0,
-      });
-    }
+    if (!anims.exists('idle_down')) anims.create({ key: 'idle_down', frames: [{ key: 'BoyWalk', frame: 1 }], frameRate: 1, repeat: 0 });
+    if (!anims.exists('idle_left')) anims.create({ key: 'idle_left', frames: [{ key: 'BoyWalk', frame: 5 }], frameRate: 1, repeat: 0 });
+    if (!anims.exists('idle_right')) anims.create({ key: 'idle_right', frames: [{ key: 'BoyWalk', frame: 9 }], frameRate: 1, repeat: 0 });
+    if (!anims.exists('idle_up')) anims.create({ key: 'idle_up', frames: [{ key: 'BoyWalk', frame: 13 }], frameRate: 1, repeat: 0 });
   }
 
   updatePlayers(state) {
-    if (this.isDestroyed) return;
-    if (!this.scene || !this.scene.scene.isActive()) return;
-    if (this.scene.networkManager && this.scene.networkManager.isTransitioning) return;
-    if (!state || !state.players) return;
+    if (this.isDestroyed) {
+      console.warn("[PlayerManager] updatePlayers: MANAGER DETRUIT");
+      return;
+    }
+    if (!this.scene || !this.scene.scene.isActive()) {
+      console.warn("[PlayerManager] updatePlayers: SCENE INACTIVE");
+      return;
+    }
+    if (this.scene.networkManager && this.scene.networkManager.isTransitioning) {
+      console.warn("[PlayerManager] updatePlayers: TRANSITION EN COURS");
+      return;
+    }
+    if (!state || !state.players) {
+      console.warn("[PlayerManager] updatePlayers: Pas de state ou players");
+      return;
+    }
     if (this.updateTimeout) {
       clearTimeout(this.updateTimeout);
       this.updateTimeout = null;
     }
+    console.log("[PlayerManager] updatePlayers() appelé, joueurs state.size =", state.players.size);
     this.performUpdate(state);
   }
 
   performUpdate(state) {
-    if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
-
+    if (this.isDestroyed || !this.scene?.scene?.isActive()) {
+      console.warn("[PlayerManager] performUpdate: MANAGER DETRUIT OU SCENE INACTIVE");
+      return;
+    }
+    // --- LOG important
+    this.logPlayers();
     // Supprimer les joueurs déconnectés
     const currentSessionIds = new Set();
     state.players.forEach((playerState, sessionId) => {
@@ -206,20 +192,21 @@ export class PlayerManager {
     const playersToCheck = Array.from(this.players.keys());
     playersToCheck.forEach(sessionId => {
       if (!currentSessionIds.has(sessionId)) {
+        console.warn("[PlayerManager] Suppression du joueur absent dans le state:", sessionId);
         this.removePlayer(sessionId);
       }
     });
 
     // Mettre à jour ou créer les joueurs
     state.players.forEach((playerState, sessionId) => {
-      if (this.isDestroyed || !this.scene?.scene?.isActive()) return;
-
       let player = this.players.get(sessionId);
 
       if (!player) {
+        console.log("[PlayerManager] Aucun player pour", sessionId, "--> création");
         player = this.createPlayer(sessionId, playerState.x, playerState.y);
       } else {
         if (!player.scene || player.scene !== this.scene) {
+          console.warn("[PlayerManager] player.scene !== this.scene pour", sessionId, " (RE-creation forcée)");
           this.players.delete(sessionId);
           player = this.createPlayer(sessionId, playerState.x, playerState.y);
           return;
@@ -238,23 +225,15 @@ export class PlayerManager {
       player.targetY = playerState.y;
 
       // Gérer les animations proprement
-      if (playerState.isMoving !== undefined) {
-        player.isMoving = playerState.isMoving;
-      }
-      if (playerState.direction) {
-        player.lastDirection = playerState.direction;
-      }
+      if (playerState.isMoving !== undefined) player.isMoving = playerState.isMoving;
+      if (playerState.direction) player.lastDirection = playerState.direction;
 
       if (player.isMoving && player.lastDirection) {
         const walkAnim = `walk_${player.lastDirection}`;
-        if (this.scene.anims.exists(walkAnim)) {
-          player.anims.play(walkAnim, true);
-        }
+        if (this.scene.anims.exists(walkAnim)) player.anims.play(walkAnim, true);
       } else if (!player.isMoving && player.lastDirection) {
         const idleAnim = `idle_${player.lastDirection}`;
-        if (this.scene.anims.exists(idleAnim)) {
-          player.anims.play(idleAnim, true);
-        }
+        if (this.scene.anims.exists(idleAnim)) player.anims.play(idleAnim, true);
       }
     });
 
@@ -266,9 +245,12 @@ export class PlayerManager {
     ) {
       this._myPlayerIsReady = true;
       if (this._myPlayerReadyCallback) {
+        console.log("[PlayerManager] onMyPlayerReady callback déclenché!");
         this._myPlayerReadyCallback(this.players.get(this.mySessionId));
       }
     }
+    // --- LOG fin update
+    this.logPlayers();
   }
 
   // ⭐️ update = lerp + SYNC INDICATOR à chaque frame !
@@ -276,12 +258,13 @@ export class PlayerManager {
     for (const [sessionId, player] of this.players) {
       if (!player || !player.scene) continue;
 
-      // --- Correction ici : l’indicateur suit toujours le joueur ---
+      // Correction : l’indicateur suit toujours le joueur
       if (player.indicator) {
         player.indicator.x = player.x;
         player.indicator.y = player.y - 24;
       }
 
+      // Joueurs autres que moi : lerp normal
       if (sessionId !== this.mySessionId) {
         if (player.targetX !== undefined && player.targetY !== undefined) {
           player.x += (player.targetX - player.x) * 0.18;
@@ -305,38 +288,41 @@ export class PlayerManager {
   }
 
   removePlayer(sessionId) {
-    if (this.isDestroyed) return;
+    if (this.isDestroyed) {
+      console.warn("[PlayerManager] removePlayer: MANAGER DETRUIT");
+      return;
+    }
     const player = this.players.get(sessionId);
     if (player) {
-      // Arrêter les animations
-      if (player.anims && player.anims.isPlaying) {
-        player.anims.stop();
-      }
-      // Détruit l’indicateur proprement
-      if (player.indicator) {
-        try { player.indicator.destroy(); } catch (e) {}
-      }
-      if (player.body && player.body.destroy) {
-        try { player.body.destroy(); } catch (e) {}
-      }
+      console.warn(`[PlayerManager] removePlayer: destruction du sprite pour ${sessionId}`);
+      if (player.anims && player.anims.isPlaying) player.anims.stop();
+      if (player.indicator) { try { player.indicator.destroy(); } catch (e) {} }
+      if (player.body && player.body.destroy) { try { player.body.destroy(); } catch (e) {} }
       try { player.destroy(); } catch (e) {}
       this.players.delete(sessionId);
+      this.logPlayers();
+    } else {
+      console.warn(`[PlayerManager] removePlayer: appelé mais joueur introuvable ${sessionId}`);
     }
   }
 
   clearAllPlayers() {
-    if (this.isDestroyed) return;
+    if (this.isDestroyed) {
+      console.warn("[PlayerManager] clearAllPlayers: MANAGER DETRUIT");
+      return;
+    }
     if (this.updateTimeout) {
       clearTimeout(this.updateTimeout);
       this.updateTimeout = null;
     }
-
     const savedSessionId = this.mySessionId;
     const playersToRemove = Array.from(this.players.keys());
+    console.log("[PlayerManager] clearAllPlayers() appelé, suppression de:", playersToRemove);
     playersToRemove.forEach(sessionId => this.removePlayer(sessionId));
     this.players.clear();
     this.mySessionId = savedSessionId;
     this._myPlayerIsReady = false;
+    this.logPlayers();
     console.log(`[PlayerManager] Joueurs nettoyés, sessionId conservé: ${this.mySessionId}`);
   }
 
@@ -403,6 +389,7 @@ export class PlayerManager {
 
   destroy() {
     this.isDestroyed = true;
+    console.warn("[PlayerManager] destroy() appelé");
     this.clearAllPlayers();
     if (this.updateTimeout) {
       clearTimeout(this.updateTimeout);
