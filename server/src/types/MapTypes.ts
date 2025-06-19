@@ -1,3 +1,7 @@
+// ==========================================
+// types/MapTypes.ts - Types et interfaces
+// ==========================================
+
 export interface TiledProperty {
     name: string;
     value: string | number | boolean;
