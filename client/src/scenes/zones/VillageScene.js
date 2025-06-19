@@ -24,10 +24,7 @@ export class VillageScene extends BaseZoneScene {
     console.log("⚙️ Setup NPCs...");
     this.setupNPCs();
 
-    this.time.delayedCall(100, () => {
-      console.log("⚙️ Setup zone transitions...");
-      this.setupZoneTransitions();
-    });
+   
 
     console.log("🚨 FIN VillageScene.create()");
   }
