@@ -1,5 +1,5 @@
 // ==========================================
-// types/MapTypes.ts - Types pour les maps
+// types/MapTypes.ts - Types et interfaces
 // ==========================================
 
 export interface TiledProperty {
