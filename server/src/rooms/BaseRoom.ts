@@ -129,15 +129,20 @@ async onJoin(client: Client, options: any) {
   }
   player.map = this.mapName.replace('Room', '');
 
-  // === Ajout : team dans le state ===
-  player.team = teamPokemons.map(poke => ({
-    id: poke._id.toString(),
-    pokemonId: poke.pokemonId,
-    level: poke.level,
-    nickname: poke.nickname,
-    shiny: poke.shiny,
-    // Ajoute ici ce que tu veux exposer au client pour chaque Pokémon de la team
-  }));
+// === Ajout : team dans le state ===
+const teamArray = new ArraySchema<TeamPokemon>(
+  ...teamPokemons.map(poke => {
+    const teamPoke = new TeamPokemon();
+    teamPoke.id = poke._id.toString();
+    teamPoke.pokemonId = poke.pokemonId;
+    teamPoke.level = poke.level;
+    teamPoke.nickname = poke.nickname;
+    teamPoke.shiny = poke.shiny;
+    // ... autres champs si besoin
+    return teamPoke;
+  })
+);
+player.team = teamArray;
 
   this.state.players.set(client.sessionId, player);
 }
