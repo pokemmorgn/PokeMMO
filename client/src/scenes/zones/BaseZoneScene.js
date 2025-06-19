@@ -243,84 +243,40 @@ this.createUI();
   }
 setupZoneTransitions() {
   const worldsLayer = this.map.getObjectLayer('Worlds');
-  if (!worldsLayer) {
-    console.warn(`[${this.scene.key}] Layer 'Worlds' non trouvé`);
-    return;
-  }
+  if (!worldsLayer) return;
 
-  const player = this.playerManager.getMyPlayer();
-  if (!player || !player.body) {
-    console.warn(`[${this.scene.key}] Player ou player.body non trouvé, retry dans 100ms`);
-    this.time.delayedCall(100, () => this.setupZoneTransitions());
-    return;
-  }
+  worldsLayer.objects.forEach(obj => {
+    // On ne prend QUE les objets de sortie (qui ont targetZone/targetSpawn côté Tiled)
+    const hasTransition =
+      obj.properties?.some(p => p.name === "targetZone") &&
+      obj.properties?.some(p => p.name === "targetSpawn");
+    if (!hasTransition) return;
 
-  console.log(`[${this.scene.key}] ✅ Création des zones de transition, ${worldsLayer.objects.length} objets trouvés`);
-
-  worldsLayer.objects.forEach((obj, index) => {
-    // ✅ Vérifier que l'objet a un nom
-    if (!obj.name) {
-      console.warn(`[${this.scene.key}] ⚠️ Objet ${index} sans nom dans layer Worlds ignoré:`, obj);
-      return;
-    }
-
-    console.log(`[${this.scene.key}] ➡️ Création zone transition pour sortie '${obj.name}' à (${obj.x},${obj.y}), taille: ${obj.width}x${obj.height}`);
-
-    // ✅ Créer la zone de transition
     const transitionZone = this.add.zone(
-      obj.x + (obj.width ? obj.width / 2 : 16),
-      obj.y + (obj.height ? obj.height / 2 : 16),
+      obj.x + (obj.width || 0) / 2,
+      obj.y + (obj.height || 0) / 2,
       obj.width || 32,
       obj.height || 32
     );
-    
     this.physics.world.enable(transitionZone);
     transitionZone.body.setAllowGravity(false);
     transitionZone.body.setImmovable(true);
 
-    // ✅ Debug visuel (optionnel - retirez ces lignes si vous ne voulez pas voir les zones)
-    const debugRect = this.add.rectangle(
-      transitionZone.x, 
-      transitionZone.y, 
-      transitionZone.width, 
-      transitionZone.height
-    )
-    .setStrokeStyle(3, 0xff0000, 0.6)
-    .setFillStyle(0xff0000, 0.1)
-    .setDepth(1000);
-
-    let overlapTriggered = false;
-    
-    // ✅ Créer l'overlap avec le joueur
-    this.physics.add.overlap(player, transitionZone, () => {
-      if (overlapTriggered || this.isTransitioning) {
-        console.log(`[${this.scene.key}] Transition ignorée (déjà en cours ou cooldown)`);
-        return;
+    this.physics.add.overlap(
+      this.playerManager.getMyPlayer(),
+      transitionZone,
+      () => {
+        if (!transitionZone.hasTriggered) {
+          transitionZone.hasTriggered = true;
+          // On envoie juste le nom de l’objet détecté !
+          this.networkManager.send("zoneTransition", { targetSpawn: obj.name });
+          this.time.delayedCall(500, () => (transitionZone.hasTriggered = false));
+        }
       }
-      
-      overlapTriggered = true;
-      this.isTransitioning = true;
-      
-      console.log(`[${this.scene.key}] 🚀 Transition demandée via sortie '${obj.name}'`);
-      
-      // ✅ Envoie le nom de la sortie au TransitionController via le serveur
-      if (this.networkManager) {
-        this.networkManager.requestZoneTransition(obj.name);
-      } else {
-        console.error(`[${this.scene.key}] NetworkManager non disponible pour la transition`);
-      }
-      
-      // Cooldown pour éviter les transitions multiples
-      this.time.delayedCall(1000, () => {
-        overlapTriggered = false;
-        this.isTransitioning = false;
-        console.log(`[${this.scene.key}] Cooldown transition terminé pour '${obj.name}'`);
-      });
-    });
+    );
   });
-
-  console.log(`[${this.scene.key}] ✅ ${worldsLayer.objects.length} zones de transition configurées`);
 }
+
 // Méthode à override dans chaque scène
 getTransitionConfig() {
   return {}; // À définir dans les sous-classes
