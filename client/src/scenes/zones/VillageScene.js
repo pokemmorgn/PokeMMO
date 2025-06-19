@@ -1,4 +1,6 @@
 import { BaseZoneScene } from './BaseZoneScene.js';
+import { PlayerManager } from './PlayerManager.js';
+
 
 export class VillageScene extends BaseZoneScene {
   constructor() {
