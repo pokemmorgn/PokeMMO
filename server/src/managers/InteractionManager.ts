@@ -24,10 +24,14 @@ export class InteractionManager {
   }
 
   async handleNpcInteraction(player: Player, npcId: number): Promise<NpcInteractionResult> {
+    console.log(`🔍 DEBUG: Interaction avec NPC ${npcId} par ${player.name}`);
+    
     const npc: NpcData | undefined = this.npcManager.getNpcById(npcId);
     if (!npc) {
       return { type: "error", message: "NPC inconnu." };
     }
+
+    console.log(`🔍 DEBUG: NPC trouvé: ${npc.name}, propriétés:`, npc.properties);
 
     // Vérifie la proximité (par exemple 64px)
     const dx = Math.abs(player.x - npc.x);
@@ -44,16 +48,21 @@ export class InteractionManager {
       npcId: npcId
     });
 
+    console.log(`🔍 DEBUG: Progression quêtes:`, questProgress);
+
     // Vérifier les quêtes disponibles pour ce NPC
     const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
+    console.log(`🔍 DEBUG: Quêtes disponibles pour NPC ${npcId}:`, availableQuests);
     
     // Vérifier les quêtes à rendre auprès de ce NPC
     const completableQuests = await this.getCompletableQuestsForNpc(player.name, npcId);
+    console.log(`🔍 DEBUG: Quêtes à rendre pour NPC ${npcId}:`, completableQuests);
 
     // === PRIORITÉ AUX QUÊTES ===
     
     // Si il y a des quêtes à rendre, priorité à ça
     if (completableQuests.length > 0) {
+      console.log(`✅ DEBUG: Retourne questComplete`);
       return {
         type: "questComplete",
         message: "Félicitations ! Vous avez terminé une quête !",
@@ -64,6 +73,7 @@ export class InteractionManager {
 
     // Si il y a des quêtes disponibles, les proposer
     if (availableQuests.length > 0) {
+      console.log(`✅ DEBUG: Retourne questGiver`);
       return {
         type: "questGiver",
         message: "J'ai quelque chose pour vous...",
@@ -76,6 +86,7 @@ export class InteractionManager {
     if (questProgress.length > 0) {
       const progressMessages = questProgress.map(p => p.message).filter(Boolean);
       if (progressMessages.length > 0) {
+        console.log(`✅ DEBUG: Retourne questProgress`);
         return {
           type: "questProgress",
           message: progressMessages.join("\n"),
@@ -83,6 +94,8 @@ export class InteractionManager {
         };
       }
     }
+
+    console.log(`⚠️ DEBUG: Aucune quête, retourne comportement normal`);
 
     // === COMPORTEMENT NPC NORMAL ===
     
