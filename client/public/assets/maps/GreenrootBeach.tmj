@@ -219,12 +219,12 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"FromBeachScene"
+                         "value":"Frombeach"
                         }, 
                         {
                          "name":"targetZone",
                          "type":"string",
-                         "value":"VillageScene"
+                         "value":"village"
                         }],
                  "rotation":0,
                  "type":"",

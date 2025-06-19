@@ -526,12 +526,12 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"FromLavandiaScene"
+                         "value":"Fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
                          "type":"string",
-                         "value":"Road1Scene"
+                         "value":"road1"
                         }],
                  "rotation":0,
                  "type":"",
@@ -704,6 +704,17 @@
                  "width":61,
                  "x":450.166666666667,
                  "y":151.16685
+                }, 
+                {
+                 "height":104,
+                 "id":70,
+                 "name":"CelebiTemple",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":18.5,
+                 "x":0.5,
+                 "y":515.5
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -712,7 +723,7 @@
          "y":0
         }],
  "nextlayerid":16,
- "nextobjectid":70,
+ "nextobjectid":71,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

@@ -179,12 +179,12 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"FromVillageHouse1Scene"
+                         "value":"Fromvillagehouse1"
                         }, 
                         {
                          "name":"targetZone",
                          "type":"string",
-                         "value":"VillageScene"
+                         "value":"village"
                         }],
                  "rotation":0,
                  "type":"",

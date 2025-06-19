@@ -262,12 +262,12 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"FromVillageScene"
+                         "value":"Fromvillage"
                         }, 
                         {
                          "name":"targetZone",
                          "type":"string",
-                         "value":"Road1Scene"
+                         "value":"road1"
                         }],
                  "rotation":0,
                  "type":"",
@@ -297,12 +297,12 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"FromVillageScene"
+                         "value":"Fromvillage"
                         }, 
                         {
                          "name":"targetZone",
                          "type":"string",
-                         "value":"BeachScene"
+                         "value":"beach"
                         }],
                  "rotation":0,
                  "type":"",
@@ -498,7 +498,7 @@
          "y":0
         }],
  "nextlayerid":15,
- "nextobjectid":90,
+ "nextobjectid":91,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

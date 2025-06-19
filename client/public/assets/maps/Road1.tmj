@@ -254,12 +254,12 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"FromRoad1Scene"
+                         "value":"Fromroad1"
                         }, 
                         {
                          "name":"targetZone",
                          "type":"string",
-                         "value":"VillageScene"
+                         "value":"village"
                         }],
                  "rotation":0,
                  "type":"",
@@ -276,12 +276,12 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"FromRoad1Scene"
+                         "value":"Fromroad1"
                         }, 
                         {
                          "name":"targetZone",
                          "type":"string",
-                         "value":"LavandiaScene"
+                         "value":"lavandia"
                         }],
                  "rotation":0,
                  "type":"",
