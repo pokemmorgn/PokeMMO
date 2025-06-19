@@ -14,7 +14,6 @@ import { Client } from 'colyseus.js';
 // === Chat System ===
 import PokeChatSystem from './network/PokeChatSystem.js';
 
-// --- Endpoint dynamique ---
 const ENDPOINT =
   (location.protocol === "https:" ? "wss://" : "ws://") +
   location.hostname +
@@ -95,9 +94,6 @@ let pokeChat = null;
     pokeChat = new PokeChatSystem(worldChat, window.username);
     window.pokeChat = pokeChat;
 
-    // --- SUPPRIMÉ L'EVENT LISTENER DUPLIQUÉ ---
-    // Le PokeChatSystem gère déjà le toggle dans sa classe
-
     // Réception des messages du serveur
     worldChat.onMessage("chat", data => {
       // data: { author, message, timestamp, type }
@@ -108,44 +104,6 @@ let pokeChat = null;
         data.type || "normal"
       );
     });
-
-    // ======== MESSAGES AUTOMATIQUES (simulateActivity) ========
-    // Bienvenue
-    pokeChat.addMessage('System', '🎮 Welcome to PokeWorld! Press T to test NPC dialogue.', null, 'system');
-    pokeChat.addMessage('KantoTrainer', 'Anyone up for a battle? <span class="pokemon-emoji">⚡</span>', null, 'normal');
-    
-    // Messages de tournoi, etc.
-    setTimeout(() => {
-      pokeChat.addMessage('System', '🎉 Daily tournament starting in 10 minutes!', null, 'system');
-    }, 15000);
-
-    setTimeout(() => {
-      pokeChat.addMessage('Professor_Oak', 'Welcome to the world of Pokémon! 🌟', null, 'normal');
-    }, 3000);
-
-    setTimeout(() => {
-      pokeChat.addMessage('Nurse_Joy', 'Don\'t forget to heal your Pokémon regularly! 💊', null, 'normal');
-    }, 8000);
-
-    // --- EXEMPLE : simulate random system messages régulièrement
-    setInterval(() => {
-      if (!pokeChat) return;
-      const tips = [
-        "Tip: You can use Ctrl+M to minimize the chat.",
-        "Tip: Trade safely, only with trusted players!",
-        "Tip: Press T to open a dialogue with Professor Oak."
-      ];
-      const msg = tips[Math.floor(Math.random() * tips.length)];
-      pokeChat.addMessage("System", msg, null, "system");
-    }, 60000);
-
-    // --- EXEMPLE : Simule le compteur online (optionnel)
-    setInterval(() => {
-      if (!pokeChat) return;
-      // Fake random online count
-      let n = Math.floor(Math.random() * 80) + 20;
-      pokeChat.onlineCount.textContent = `🟢 ${n} online`;
-    }, 10000);
 
   } catch (e) {
     alert("Impossible de rejoindre le serveur : " + e.message);
