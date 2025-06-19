@@ -11,6 +11,10 @@ import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 // === Colyseus.js ===
 import { Client } from 'colyseus.js';
 
+// === Import du chat séparé ===
+import { initPokeChat } from './network/PokeChatSystem.js';
+
+// --- Endpoint dynamique ---
 const ENDPOINT =
   (location.protocol === "https:" ? "wss://" : "ws://") +
   location.hostname +
@@ -31,7 +35,6 @@ if (!username) {
     throw new Error("Aucun pseudo fourni.");
   }
 }
-
 window.username = username;
 
 const config = {
@@ -76,45 +79,27 @@ const config = {
 const game = new Phaser.Game(config);
 window.game = game;
 
-// ==== Connexion Colyseus ====
-
-// 1. Room de jeu (exemple, selon tes besoins)
-let gameRoom = null;
-
-// 2. Room de chat global
-let worldChat = null;
-
+// ==== Connexion Colyseus + Chat ====
 (async () => {
   try {
     // Connexion à la WorldChatRoom
-    worldChat = await colyseus.joinOrCreate("worldchat", { username: window.username });
+    const worldChat = await colyseus.joinOrCreate("worldchat", { username: window.username });
     window.worldChat = worldChat;
     console.log("✅ Connecté à la WorldChatRoom");
 
-    // Écoute les messages de chat global
-    worldChat.onMessage("chat", data => addChatMessage(data));
+    // Initialise le chat stylé via le module séparé
+    initPokeChat(worldChat, window.username);
+
   } catch (e) {
     alert("Impossible de rejoindre le serveur : " + e.message);
     throw e;
   }
 })();
 
-// Gestion envoi du chat — on utilise worldChat !
-const chatInput = document.getElementById("chat-input");
-chatInput.addEventListener("keydown", function(e) {
-  if (e.key === "Enter" && chatInput.value.trim() && worldChat) {
-    worldChat.send("chat", { message: chatInput.value });
-    chatInput.value = "";
-  }
-});
-
-// Affichage d’un message dans le chat
-function addChatMessage({ author, message }) {
-  const chatMessages = document.getElementById("chat-messages");
-  const el = document.createElement("div");
-  el.innerHTML = `<b style="color:#8cf;">${author}:</b> ${message}`;
-  chatMessages.appendChild(el);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
 export default game;
+
+// === FONCTION UTILITAIRE POUR LE JEU ===
+// Utilisez cette fonction dans vos scènes Phaser pour vérifier si le chat a le focus
+window.isChatFocused = function() {
+  return window.pokeChat ? window.pokeChat.hasFocus() : false;
+};
