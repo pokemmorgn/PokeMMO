@@ -1,5 +1,5 @@
 // ==========================================
-// controllers/TransitionController.ts - Import des types
+// src/controllers/TransitionController.ts - Utilisation simplifiée
 // ==========================================
 
 import { Room, Client } from "@colyseus/core";
@@ -10,9 +10,31 @@ export class TransitionController {
     private mapManager: MapManager;
     private room: Room;
 
-    constructor(room: Room, mapsDirectory: string = './assets/maps') {
+    constructor(room: Room) {
         this.room = room;
-        this.mapManager = new MapManager(mapsDirectory);
+        this.mapManager = new MapManager();
+        
+        // Charger la map de cette room
+        this.loadCurrentMap();
+    }
+
+    /**
+     * Charge la map de la room actuelle
+     */
+    private loadCurrentMap(): void {
+        const roomName = (this.room as any).mapName || 'unknown';
+        const mapName = roomName.replace('Room', '').toLowerCase();
+        const mapPath = `../assets/maps/${mapName}.tmj`;
+        
+        this.mapManager.loadMap(mapName, mapPath);
+    }
+
+    /**
+     * Charge une map supplémentaire (pour les destinations)
+     */
+    public loadAdditionalMap(mapName: string): void {
+        const mapPath = `../assets/maps/${mapName.toLowerCase()}.tmj`;
+        this.mapManager.loadMap(mapName, mapPath);
     }
 
     public checkAutoTeleport(client: Client, player: any): boolean {
@@ -24,6 +46,9 @@ export class TransitionController {
         );
 
         if (teleportResult && teleportResult.success) {
+            // Charger la map de destination si elle n'est pas encore chargée
+            this.loadAdditionalMap(teleportResult.targetMap);
+            
             this.executeTeleport(client, player, teleportResult);
             return true;
         }
@@ -43,6 +68,9 @@ export class TransitionController {
         );
 
         if (teleportResult && teleportResult.success) {
+            // Charger la map de destination si elle n'est pas encore chargée
+            this.loadAdditionalMap(teleportResult.targetMap);
+            
             this.executeTeleport(client, player, teleportResult);
         } else {
             client.send("teleport_failed", { 
@@ -72,6 +100,8 @@ export class TransitionController {
     }
 
     public getSpawnPoint(mapName: string, spawnName?: string): { x: number; y: number } | null {
+        // Charger la map si elle n'est pas encore chargée
+        this.loadAdditionalMap(mapName);
         return this.mapManager.getSpawnPoint(mapName, spawnName);
     }
 
