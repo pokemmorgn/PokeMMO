@@ -50,4 +50,3 @@ export interface IOwnedPokemon {
 }
 
 export const OwnedPokemon = mongoose.model("OwnedPokemon", OwnedPokemonSchema);
-export type { IOwnedPokemon };
