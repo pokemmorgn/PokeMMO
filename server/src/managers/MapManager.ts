@@ -183,10 +183,21 @@ export class MapManager {
         return this.maps.get(mapName);
     }
 
+// ==========================================
+// Ajout dans MapManager.ts - Méthode getSpawnPoint
+// ==========================================
+
     /**
-     * Liste toutes les maps disponibles
+     * Obtient un point de spawn spécifique
      */
-    public getAllMapNames(): string[] {
-        return Array.from(this.maps.keys());
+    public getSpawnPoint(mapName: string, spawnName?: string): { x: number; y: number } | null {
+        if (spawnName) {
+            const spawnKey = `${mapName}_${spawnName}`;
+            const spawn = this.spawns.get(spawnKey);
+            if (spawn) {
+                return { x: spawn.x, y: spawn.y };
+            }
+        }
+        return null;
     }
 }
