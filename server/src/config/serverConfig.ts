@@ -28,6 +28,8 @@ export interface ServerConfig {
 
   chatEnabled: boolean;
   chatCooldown: number;
+
+  autoresetQuest?: boolean;
 }
 
 // La config lue en mémoire (unique, pour tout le serveur)
