@@ -276,7 +276,6 @@ setupZoneTransitions() {
         overlapTriggered = false;
         this.isTransitioning = false;
       });
-    });
   });
 }
 
