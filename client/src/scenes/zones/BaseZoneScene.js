@@ -243,16 +243,28 @@ this.createUI();
   }
 setupZoneTransitions() {
   const worldsLayer = this.map.getObjectLayer('Worlds');
-  if (!worldsLayer) return;
+  if (!worldsLayer) {
+    console.warn(`[${this.scene.key}] Layer 'Worlds' non trouvé`);
+    return;
+  }
 
   const player = this.playerManager.getMyPlayer();
   if (!player || !player.body) {
+    console.warn(`[${this.scene.key}] Player ou player.body non trouvé, retry dans 100ms`);
     this.time.delayedCall(100, () => this.setupZoneTransitions());
     return;
   }
 
+  console.log(`[${this.scene.key}] ✅ Création des zones de transition`);
+
   worldsLayer.objects.forEach(obj => {
-    if (!obj.name) return; // chaque sortie doit avoir un nom dans Tiled !
+    // ✅ IMPORTANT : Vérifier que l'objet a un nom (requis par TransitionController)
+    if (!obj.name) {
+      console.warn(`[${this.scene.key}] ⚠️ Objet sans nom dans layer Worlds ignoré:`, obj);
+      return;
+    }
+
+    console.log(`[${this.scene.key}] ➡️ Création zone transition pour sortie '${obj.name}' à (${obj.x},${obj.y})`);
 
     const zone = this.add.zone(
       obj.x + (obj.width ? obj.width / 2 : 0),
@@ -260,24 +272,57 @@ setupZoneTransitions() {
       obj.width || 32,
       obj.height || 32
     );
+    
     this.physics.world.enable(zone);
     zone.body.setAllowGravity(false);
     zone.body.setImmovable(true);
 
+    // Debug visuel (optionnel)
+    if (this.sys.game.config.physics.arcade.debug) {
+      const debugRect = this.add.rectangle(zone.x, zone.y, zone.width, zone.height)
+        .setStrokeStyle(2, 0xff0000, 0.5)
+        .setDepth(1000);
+    }
+
     let overlapTriggered = false;
+    
     this.physics.add.overlap(player, zone, () => {
-      if (overlapTriggered) return;
-      overlapTriggered = true;
-      if (this.networkManager && !this.isTransitioning) {
-        this.isTransitioning = true;
-        this.networkManager.requestZoneTransition({ targetSpawn: obj.name });
+      if (overlapTriggered || this.isTransitioning) {
+        console.log(`[${this.scene.key}] Transition ignorée (déjà en cours ou cooldown)`);
+        return;
       }
+      
+      overlapTriggered = true;
+      this.isTransitioning = true;
+      
+      console.log(`[${this.scene.key}] 🚀 Transition demandée via sortie '${obj.name}'`);
+      
+      // ✅ Envoie le nom de la sortie au TransitionController
+      this.networkManager.requestZoneTransition(obj.name);
+      
+      // Cooldown pour éviter les transitions multiples
       this.time.delayedCall(800, () => {
         overlapTriggered = false;
         this.isTransitioning = false;
       });
     });
   });
+
+  console.log(`[${this.scene.key}] ✅ ${worldsLayer.objects.length} zones de transition configurées`);
+}
+
+// ✅ Également, corrigez la méthode requestZoneTransition dans NetworkManager.js :
+// Dans NetworkManager.js, ligne ~190 environ :
+
+requestZoneTransition(exitName) {
+  if (this.isConnected && this.room && !this.isTransitioning) {
+    console.log(`[NetworkManager] 🚀 Demande de transition via la sortie '${exitName}'`);
+    this.room.send("changeZone", {
+      targetSpawn: exitName  // ✅ Envoie le nom de la sortie au serveur
+    });
+  } else {
+    console.warn(`[NetworkManager] ❌ Impossible de changer de zone: connected=${this.isConnected}, transitioning=${this.isTransitioning}`);
+  }
 }
 
 // Méthode à override dans chaque scène
