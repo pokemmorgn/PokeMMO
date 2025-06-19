@@ -6,7 +6,7 @@ export class TeamPokemon extends Schema {
   @type("number") level: number;
   @type("string") nickname: string;
   @type("boolean") shiny: boolean;
-  // + autres champs si besoin
+  @type("string") gender: string;
 }
 
 export class Player extends Schema {
