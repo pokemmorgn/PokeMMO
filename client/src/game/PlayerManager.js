@@ -1,4 +1,5 @@
 // src/game/PlayerManager.js - Spritesheet 3x4 (bas-gauche-droite-haut), 100% Phaser 3 compatible
+// ✅ VERSION CORRIGÉE POUR LE PROBLÈME DE SESSIONID
 
 export class PlayerManager {
   constructor(scene) {
@@ -23,7 +24,39 @@ export class PlayerManager {
 
   setMySessionId(sessionId) {
     console.log("[PlayerManager] setMySessionId:", sessionId);
+    
+    // ✅ CORRECTION 1 : Si le sessionId change, effectuer un nettoyage sélectif
+    if (this.mySessionId && this.mySessionId !== sessionId) {
+      console.log(`[PlayerManager] ⚠️ SessionId changé: ${this.mySessionId} → ${sessionId}`);
+      
+      // Conserver le joueur local si il existe, mais changer sa clé
+      const myPlayer = this.players.get(this.mySessionId);
+      if (myPlayer) {
+        console.log(`[PlayerManager] 🔄 Migration du joueur vers le nouveau sessionId`);
+        this.players.delete(this.mySessionId);
+        this.players.set(sessionId, myPlayer);
+        myPlayer.sessionId = sessionId; // Mettre à jour la référence interne
+        
+        // ✅ NOUVEAU: Préserver l'état du joueur
+        myPlayer.setVisible(true);
+        myPlayer.setActive(true);
+        if (myPlayer.indicator) {
+          myPlayer.indicator.setVisible(true);
+        }
+      }
+      
+      // Nettoyer les autres joueurs (ils appartiennent à l'ancienne room)
+      const playersToRemove = Array.from(this.players.keys()).filter(id => id !== sessionId);
+      playersToRemove.forEach(id => {
+        if (id !== sessionId) {
+          console.log(`[PlayerManager] 🗑️ Suppression ancien joueur: ${id}`);
+          this.removePlayer(id);
+        }
+      });
+    }
+    
     this.mySessionId = sessionId;
+    this._myPlayerIsReady = false; // Reset du flag pour la nouvelle connexion
   }
 
   getMyPlayer() {
@@ -31,11 +64,37 @@ export class PlayerManager {
       console.warn("[PlayerManager] getMyPlayer: MANAGER DETRUIT");
       return null;
     }
-    const p = this.players.get(this.mySessionId) || null;
-    if (!p) {
-      console.warn("[PlayerManager] getMyPlayer: Aucun joueur trouvé pour sessionId", this.mySessionId);
+    
+    const player = this.players.get(this.mySessionId) || null;
+    if (!player) {
+      // ✅ CORRECTION 2 : Debug amélioré pour identifier le problème
+      console.warn("[PlayerManager] getMyPlayer: Aucun joueur trouvé pour mySessionId", this.mySessionId, "| Sessions:", Array.from(this.players.keys()));
+      this.debugPlayerState();
     }
-    return p;
+    return player;
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Debug de l'état des joueurs
+  debugPlayerState() {
+    console.log("%c[PlayerManager] 🔍 DEBUG État des joueurs:", "color:red; font-weight:bold");
+    console.log("- mySessionId:", this.mySessionId);
+    console.log("- players.size:", this.players.size);
+    console.log("- sessionIds disponibles:", Array.from(this.players.keys()));
+    
+    if (this.scene.networkManager) {
+      console.log("- networkManager.sessionId:", this.scene.networkManager.getSessionId());
+      console.log("- networkManager.isConnected:", this.scene.networkManager.isConnected);
+    }
+    
+    this.players.forEach((player, sessionId) => {
+      console.log(`- Joueur ${sessionId}:`, {
+        x: player.x,
+        y: player.y,
+        visible: player.visible,
+        active: player.active,
+        hasIndicator: !!player.indicator
+      });
+    });
   }
 
   snapMyPlayerTo(x, y) {
@@ -66,6 +125,17 @@ export class PlayerManager {
       return null;
     }
 
+    // ✅ CORRECTION 3 : Vérifier si le joueur existe déjà (éviter les doublons)
+    if (this.players.has(sessionId)) {
+      console.log(`[PlayerManager] Joueur ${sessionId} existe déjà, mise à jour position`);
+      const existingPlayer = this.players.get(sessionId);
+      existingPlayer.x = x;
+      existingPlayer.y = y;
+      existingPlayer.setVisible(true);
+      existingPlayer.setActive(true);
+      return existingPlayer;
+    }
+
     // Placeholder si spritesheet manquant
     if (!this.scene.textures.exists('BoyWalk')) {
       const graphics = this.scene.add.graphics();
@@ -75,6 +145,7 @@ export class PlayerManager {
       graphics.destroy();
       const player = this.scene.add.sprite(x, y, 'player_placeholder').setOrigin(0.5, 1).setScale(1);
       player.setDepth(5);
+      player.sessionId = sessionId;
       this.players.set(sessionId, player);
       console.log("[PlayerManager] Placeholder créé pour", sessionId);
       return player;
@@ -106,7 +177,7 @@ export class PlayerManager {
     player.setVisible(true);
     player.setActive(true);
 
-    // --- CORRECTION : Indicateur vert, toujours détruire l'ancien s'il existe ---
+    // ✅ CORRECTION 4 : Indicateur vert, toujours détruire l'ancien s'il existe
     if (sessionId === this.mySessionId) {
       if (player.indicator) { player.indicator.destroy(); }
       // Detruit tous les "Arc" verts restants (patch bourrin)
@@ -127,8 +198,14 @@ export class PlayerManager {
     return player;
   }
 
+  // ✅ AMÉLIORATION : Logs plus détaillés
   logPlayers() {
-    console.log("[PlayerManager] Map joueurs =", Array.from(this.players.keys()));
+    const playerList = Array.from(this.players.keys());
+    console.log(`[PlayerManager] 👥 Map joueurs: [${playerList.join(', ')}] | Mon sessionId: ${this.mySessionId}`);
+    
+    if (playerList.length > 0 && this.mySessionId && !playerList.includes(this.mySessionId)) {
+      console.warn(`[PlayerManager] ⚠️ Mon sessionId ${this.mySessionId} n'est pas dans la liste des joueurs!`);
+    }
   }
 
   createAnimations() {
@@ -169,11 +246,27 @@ export class PlayerManager {
       console.warn("[PlayerManager] updatePlayers: Pas de state ou players");
       return;
     }
+    
+    // ✅ CORRECTION 5 : Vérification de synchronisation sessionId
+    if (this.scene.networkManager) {
+      const currentNetworkSessionId = this.scene.networkManager.getSessionId();
+      if (this.mySessionId !== currentNetworkSessionId) {
+        console.warn(`[PlayerManager] ⚠️ SessionId désynchronisé dans updatePlayers:`, {
+          mySessionId: this.mySessionId,
+          networkSessionId: currentNetworkSessionId
+        });
+        this.setMySessionId(currentNetworkSessionId);
+      }
+    }
+    
     if (this.updateTimeout) {
       clearTimeout(this.updateTimeout);
       this.updateTimeout = null;
     }
+    
     console.log("[PlayerManager] updatePlayers() appelé, joueurs state.size =", state.players.size);
+    console.log("[PlayerManager] Recherche de mySessionId =", this.mySessionId, "dans state:", Array.from(state.players.keys()));
+    
     this.performUpdate(state);
   }
 
@@ -182,13 +275,15 @@ export class PlayerManager {
       console.warn("[PlayerManager] performUpdate: MANAGER DETRUIT OU SCENE INACTIVE");
       return;
     }
-    // --- LOG important
+
     this.logPlayers();
+
     // Supprimer les joueurs déconnectés
     const currentSessionIds = new Set();
     state.players.forEach((playerState, sessionId) => {
       currentSessionIds.add(sessionId);
     });
+    
     const playersToCheck = Array.from(this.players.keys());
     playersToCheck.forEach(sessionId => {
       if (!currentSessionIds.has(sessionId)) {
@@ -213,7 +308,7 @@ export class PlayerManager {
         }
       }
 
-      // Vérifier et restaurer la visibilité
+      // ✅ CORRECTION 6 : Vérifier et restaurer la visibilité
       if (!player.visible) {
         console.warn(`[PlayerManager] Joueur ${sessionId} invisible, restauration`);
         player.setVisible(true);
@@ -237,19 +332,17 @@ export class PlayerManager {
       }
     });
 
-    // --- NOTIFIE si le joueur local vient juste d'être créé ---
-    if (
-      this.mySessionId &&
-      this.players.has(this.mySessionId) &&
-      !this._myPlayerIsReady
-    ) {
+    // ✅ CORRECTION 7 : Notification joueur local prêt avec vérification sessionId
+    if (this.mySessionId && this.players.has(this.mySessionId) && !this._myPlayerIsReady) {
       this._myPlayerIsReady = true;
+      console.log(`[PlayerManager] ✅ Mon joueur est prêt avec sessionId: ${this.mySessionId}`);
+      
       if (this._myPlayerReadyCallback) {
         console.log("[PlayerManager] onMyPlayerReady callback déclenché!");
         this._myPlayerReadyCallback(this.players.get(this.mySessionId));
       }
     }
-    // --- LOG fin update
+    
     this.logPlayers();
   }
 
@@ -258,7 +351,7 @@ export class PlayerManager {
     for (const [sessionId, player] of this.players) {
       if (!player || !player.scene) continue;
 
-      // Correction : l’indicateur suit toujours le joueur
+      // ✅ CORRECTION 8 : L'indicateur suit toujours le joueur
       if (player.indicator) {
         player.indicator.x = player.x;
         player.indicator.y = player.y - 24;
@@ -329,9 +422,11 @@ export class PlayerManager {
   getAllPlayers() {
     return this.isDestroyed ? [] : Array.from(this.players.values());
   }
+  
   getPlayerCount() {
     return this.isDestroyed ? 0 : this.players.size;
   }
+  
   getPlayerInfo(sessionId) {
     if (this.isDestroyed) return null;
     const player = this.players.get(sessionId);
@@ -347,6 +442,7 @@ export class PlayerManager {
     return null;
   }
 
+  // ✅ NOUVELLE MÉTHODE : Vérification périodique de l'état du joueur
   checkPlayerState() {
     const myPlayer = this.getMyPlayer();
     if (!myPlayer) {
@@ -384,6 +480,17 @@ export class PlayerManager {
     ) {
       this._myPlayerIsReady = true;
       callback(this.players.get(this.mySessionId));
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Forcer la synchronisation du sessionId
+  forceSyncSessionId() {
+    if (this.scene.networkManager) {
+      const networkSessionId = this.scene.networkManager.getSessionId();
+      if (this.mySessionId !== networkSessionId) {
+        console.log(`[PlayerManager] 🔄 Synchronisation forcée du sessionId: ${this.mySessionId} → ${networkSessionId}`);
+        this.setMySessionId(networkSessionId);
+      }
     }
   }
 
