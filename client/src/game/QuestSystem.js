@@ -277,22 +277,22 @@ showQuestGiverDialog(data) {
         </div>
       </div>
     `;
-// Sélection automatique s’il n’y a qu’une quête
+// Sélection automatique si une seule quête
+let defaultSelectedId = null;
 if (quests.length === 1) {
-  // Récupère le bloc unique
   const onlyOption = dialog.querySelector('.quest-option');
-  const acceptBtn = dialog.querySelector('.quest-btn-accept');
-  if (onlyOption && acceptBtn) {
+  if (onlyOption) {
     onlyOption.classList.add('selected');
-    acceptBtn.disabled = false;
-    // Pour UX : scroller jusqu’à l’option, focus, etc.
+    defaultSelectedId = onlyOption.dataset.questId;
+    // Optionnel pour UX
     onlyOption.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 }
-    this.styleQuestDialog(dialog);
-    this.addQuestDialogListeners(dialog, onSelectQuest);
-    
-    return dialog;
+
+this.styleQuestDialog(dialog);
+this.addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId);
+
+return dialog;
   }
 
   createQuestCompleteDialog(message, rewards) {
@@ -529,13 +529,17 @@ if (quests.length === 1) {
   }
 
   addQuestDialogListeners(dialog, onSelectQuest) {
-    let selectedQuestId = null;
+    let selectedQuestId = defaultSelectedId;
 
     // Fermeture du dialog
     const closeBtn = dialog.querySelector('.quest-dialog-close');
     const cancelBtn = dialog.querySelector('.quest-btn-cancel');
     const acceptBtn = dialog.querySelector('.quest-btn-accept');
 
+  if (defaultSelectedId && acceptBtn) {
+    acceptBtn.disabled = false;
+  }
+    
     if (closeBtn) {
       closeBtn.addEventListener('click', () => dialog.remove());
     }
