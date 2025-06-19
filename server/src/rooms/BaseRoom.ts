@@ -1,5 +1,3 @@
-// server/src/rooms/BaseRoom.ts - Mise à jour avec les managers
-
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { PlayerData } from "../models/PlayerData";
@@ -7,10 +5,6 @@ import { NpcManager } from "../managers/NPCManager";
 import { MovementController } from "../controllers/MovementController";
 import { TransitionController } from "../controllers/TransitionController";
 import { InteractionManager } from "../managers/InteractionManager";
-// ⭐ NOUVEAUX IMPORTS
-import { PokemonManager } from "../managers/PokemonManager";
-import { MoveManager } from "../managers/MoveManager";
-import { TeamManager } from "../managers/TeamManager";
 
 export type SpawnData = {
   targetZone: string;
@@ -22,7 +16,7 @@ export type SpawnData = {
 export abstract class BaseRoom extends Room<PokeWorldState> {
   maxClients = 100;
 
-  public abstract mapName: string;
+public abstract mapName: string;
   protected abstract defaultX: number;
   protected abstract defaultY: number;
 
@@ -30,53 +24,15 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   public movementController: MovementController;
   public transitionController: TransitionController;
   protected interactionManager: InteractionManager;
-  
-  // ⭐ NOUVEAUX MANAGERS
-  protected pokemonManager: PokemonManager;
-  protected moveManager: MoveManager;
-  protected teamManager: TeamManager;
 
+  // Méthode abstraite à implémenter dans chaque room fille
   public abstract calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number };
+  // OU garde protected et ajoute cette méthode
 
-  async onCreate(options: any) {
+  onCreate(options: any) {
     this.setState(new PokeWorldState());
     console.log(`🔥 DEBUT onCreate ${this.mapName}`);
 
-    // ⭐ INITIALISATION DES NOUVEAUX MANAGERS
-    try {
-      // Initialise les managers de données Pokémon
-      this.pokemonManager = new PokemonManager({
-        basePath: './src/data/pokemon',
-        enableCache: true
-      });
-      
-      this.moveManager = new MoveManager({
-        basePath: './src/data',
-        useDevFallback: true,
-        enableCache: true
-      });
-
-      // Charge les index au démarrage
-      await this.pokemonManager.loadPokemonIndex();
-      await this.moveManager.loadMoveIndex();
-      
-      console.log(`✅ PokemonManager et MoveManager initialisés pour ${this.mapName}`);
-
-      // Initialise le gestionnaire d'équipes
-      this.teamManager = new TeamManager(
-        this.state,
-        this.pokemonManager,
-        this.moveManager
-      );
-      
-      console.log(`✅ TeamManager initialisé pour ${this.mapName}`);
-      
-    } catch (error) {
-      console.error(`❌ Erreur lors de l'initialisation des managers Pokémon:`, error);
-      // Continue sans les fonctionnalités Pokémon si erreur
-    }
-
-    // Managers existants
     this.npcManager = new NpcManager(`../assets/maps/${this.mapName.replace('Room', '').toLowerCase()}.tmj`);
     this.interactionManager = new InteractionManager(this.npcManager);
     this.movementController = new MovementController();
@@ -87,10 +43,6 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       this.saveAllPlayers();
     }, 30000);
 
-    // ⭐ NOUVEAUX MESSAGES POKÉMON
-    this.setupPokemonMessages();
-
-    // Messages existants
     this.onMessage("npcInteract", (client: Client, data: { npcId: number }) => {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
@@ -117,111 +69,6 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     this.onMessage("changeZone", (client: Client, data: any) => {
       this.transitionController.handleTransition(client, data);
     });
-  }
-
-  // ⭐ CONFIGURATION DES MESSAGES POKÉMON
-  private setupPokemonMessages(): void {
-    if (!this.teamManager) return;
-
-    // Demander l'équipe du joueur
-    this.onMessage("getTeam", async (client: Client) => {
-      try {
-        const team = await this.teamManager.getPlayerTeam(client.sessionId);
-        client.send("teamData", {
-          success: true,
-          team: team ? this.teamManager.serializeTeam(team) : null
-        });
-      } catch (error) {
-        console.error(`Erreur lors de la récupération de l'équipe:`, error);
-        client.send("teamData", { success: false, error: "Erreur serveur" });
-      }
-    });
-
-    // Changer le Pokémon actif
-    this.onMessage("setActivePokemon", async (client: Client, data: { index: number }) => {
-      try {
-        const result = await this.teamManager.setActivePokemon(client.sessionId, data.index);
-        client.send("teamUpdate", {
-          success: true,
-          action: "setActive",
-          activePokemon: data.index
-        });
-        
-        // Notifie les autres joueurs du changement (optionnel)
-        this.broadcast("playerTeamUpdate", {
-          sessionId: client.sessionId,
-          activePokemon: data.index
-        }, { except: client });
-        
-      } catch (error) {
-        console.error(`Erreur lors du changement de Pokémon actif:`, error);
-        client.send("teamUpdate", { 
-          success: false, 
-          action: "setActive", 
-          error: error.message 
-        });
-      }
-    });
-
-    // Donner un Pokémon starter (pour test)
-    this.onMessage("getStarter", async (client: Client, data: { pokemonId?: number }) => {
-      try {
-        const pokemonId = data.pokemonId || 1; // Bulbasaur par défaut
-        const result = await this.teamManager.giveStarterPokemon(client.sessionId, pokemonId);
-        
-        if (result.success) {
-          client.send("starterReceived", {
-            success: true,
-            pokemon: result.pokemon,
-            message: `Vous avez reçu ${result.pokemon?.nickname || 'un Pokémon'} !`
-          });
-          
-          // Envoie l'équipe mise à jour
-          const team = await this.teamManager.getPlayerTeam(client.sessionId);
-          client.send("teamData", {
-            success: true,
-            team: team ? this.teamManager.serializeTeam(team) : null
-          });
-        } else {
-          client.send("starterReceived", {
-            success: false,
-            error: result.error
-          });
-        }
-      } catch (error) {
-        console.error(`Erreur lors de l'attribution du starter:`, error);
-        client.send("starterReceived", { 
-          success: false, 
-          error: "Erreur serveur" 
-        });
-      }
-    });
-
-    // Soigner l'équipe (pour les centres Pokémon)
-    this.onMessage("healTeam", async (client: Client) => {
-      try {
-        await this.teamManager.healPlayerTeam(client.sessionId);
-        client.send("teamHealed", {
-          success: true,
-          message: "Votre équipe a été soignée !"
-        });
-        
-        // Envoie l'équipe mise à jour
-        const team = await this.teamManager.getPlayerTeam(client.sessionId);
-        client.send("teamData", {
-          success: true,
-          team: team ? this.teamManager.serializeTeam(team) : null
-        });
-      } catch (error) {
-        console.error(`Erreur lors des soins:`, error);
-        client.send("teamHealed", { 
-          success: false, 
-          error: "Erreur serveur" 
-        });
-      }
-    });
-
-    console.log(`✅ Messages Pokémon configurés pour ${this.mapName}`);
   }
 
   async saveAllPlayers() {
@@ -277,16 +124,6 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     }
     player.map = this.mapName.replace('Room', '');
     this.state.players.set(client.sessionId, player);
-
-    // ⭐ INITIALISE L'ÉQUIPE DU JOUEUR
-    if (this.teamManager) {
-      try {
-        await this.teamManager.initializePlayerTeam(client.sessionId, username);
-        console.log(`✅ Équipe initialisée pour ${username}`);
-      } catch (error) {
-        console.error(`❌ Erreur lors de l'initialisation de l'équipe pour ${username}:`, error);
-      }
-    }
   }
 
   async onLeave(client: Client) {
@@ -302,13 +139,5 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
 
   async onDispose() {
     await this.saveAllPlayers();
-    
-    // ⭐ NETTOYAGE DES MANAGERS POKÉMON
-    if (this.pokemonManager) {
-      this.pokemonManager.clearCache();
-    }
-    if (this.moveManager) {
-      this.moveManager.clearCache();
-    }
   }
 }
