@@ -9,63 +9,7 @@ export class Road1Scene extends BaseZoneScene {
     console.log("[Road1Scene] Constructor appelé");
   }
 
-  // <-- fermeture correcte de setupZoneTransitions
-
-  createTransitionZone(transitionObj, targetScene, direction) {
-    console.log(`[Road1Scene] createTransitionZone vers ${targetScene}, direction ${direction}`);
-    const transitionZone = this.add.zone(
-      transitionObj.x + transitionObj.width / 2,
-      transitionObj.y + transitionObj.height / 2,
-      transitionObj.width,
-      transitionObj.height
-    );
-
-    this.physics.world.enable(transitionZone);
-    transitionZone.body.setAllowGravity(false);
-    transitionZone.body.setImmovable(true);
-
-    let overlapCreated = false;
-
-    const checkPlayerInterval = this.time.addEvent({
-      delay: 100,
-      loop: true,
-      callback: () => {
-        const myPlayer = this.playerManager.getMyPlayer();
-
-        if (myPlayer && !overlapCreated) {
-          console.log("[Road1Scene] Joueur trouvé, création overlap avec zone de transition");
-          overlapCreated = true;
-
-          this.physics.add.overlap(myPlayer, transitionZone, () => {
-            console.log(`[Road1Scene] Overlap détecté avec zone vers ${targetScene}`);
-            const cooldownKey = `${targetScene}_${direction}`;
-            if (this.transitionCooldowns[cooldownKey] || this.isTransitioning) {
-              console.log("[Road1Scene] Transition en cooldown ou déjà en cours, on ignore");
-              return;
-            }
-
-            this.transitionCooldowns[cooldownKey] = true;
-            transitionZone.body.enable = false;
-
-            this.networkManager.requestZoneTransition(targetScene, direction);
-
-            this.time.delayedCall(3000, () => {
-              if (this.transitionCooldowns) {
-                delete this.transitionCooldowns[cooldownKey];
-                console.log(`[Road1Scene] Cooldown supprimé pour ${cooldownKey}`);
-              }
-              if (transitionZone.body) {
-                transitionZone.body.enable = true;
-              }
-            });
-          });
-
-          checkPlayerInterval.remove();
-        }
-      },
-    });
-  }
-
+  
   positionPlayer(player) {
     // Essaie de deviner la provenance pour ajuster le spawn
     let fromZone = "";
