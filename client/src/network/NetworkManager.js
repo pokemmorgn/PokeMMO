@@ -119,10 +119,14 @@ export class NetworkManager {
 
       console.log(`[NetworkManager] Connexion à la nouvelle room: ${newRoomName}`);
       this.room = await this.client.joinOrCreate(newRoomName, {
-        username: this.username,
-        spawnX: data.spawnX,
-        spawnY: data.spawnY,
-        fromZone: data.fromZone
+        this.room = await this.client.joinOrCreate(newRoomName, {
+  username: this.username,
+  spawnX: data.spawnX,
+  spawnY: data.spawnY,
+  fromZone: data.fromZone,
+  targetSpawn: data.entryName,
+  targetZone: data.targetZone
+});
       });
 
       this.sessionId = this.room.sessionId;
