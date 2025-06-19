@@ -3,16 +3,18 @@
 // ==========================================
 
 import { Room, Client } from "@colyseus/core";
-import { MapManager } from '../managers/MapManager';
+// CHANGE ICI ↓
+import { GlobalMapManager } from '../managers/MapManager';
 import { TeleportResult, TiledMap } from '../types/MapTypes';
 
 export class TransitionController {
-    private mapManager: MapManager;
+    // CHANGE ICI ↓
+    private mapManager = GlobalMapManager;
     private room: Room;
 
     constructor(room: Room) {
         this.room = room;
-        this.mapManager = new MapManager();
+        // SUPPRIME cette ligne : this.mapManager = new MapManager();
         
         console.log("[TRANSITIONCONTROLLER] Constructeur appelé, initialisation mapManager.");
         // Charger la map de cette room
@@ -22,18 +24,16 @@ export class TransitionController {
     /**
      * Charge la map de la room actuelle
      */
-private loadCurrentMap(): void {
-    const roomName = (this.room as any).mapName || 'unknown';
-    const mapName = roomName.replace('Room', '').toLowerCase();
-    const mapPath = `../assets/maps/${mapName}.tmj`;
+    private loadCurrentMap(): void {
+        const roomName = (this.room as any).mapName || 'unknown';
+        const mapName = roomName.replace('Room', '').toLowerCase();
+        const mapPath = `../assets/maps/${mapName}.tmj`;
 
-    console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] roomName: ${roomName}, mapName: ${mapName}, mapPath: ${mapPath}`);
+        console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] roomName: ${roomName}, mapName: ${mapName}, mapPath: ${mapPath}`);
 
-    // On récupère le résultat dans "loaded"
-    const loaded = this.mapManager.loadMap(mapName, mapPath);
-}
-
-
+        // On récupère le résultat dans "loaded"
+        const loaded = this.mapManager.loadMap(mapName, mapPath);
+    }
 
     /**
      * Charge une map supplémentaire (pour les destinations)
