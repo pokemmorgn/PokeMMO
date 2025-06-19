@@ -77,62 +77,7 @@ export class BeachScene extends BaseZoneScene {
     });
   }
 
-  // --- Gère la transition vers VillageScene ---
-  setupZoneTransitions() {
-    const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (!worldsLayer) {
-      console.warn("Layer 'Worlds' non trouvé dans la map");
-      return;
-    }
-
-    const player = this.playerManager.getMyPlayer();
-    if (!player) {
-      console.warn("Player non encore créé, impossible d'ajouter les overlaps de transition");
-      // Retry avec délai
-      this.time.delayedCall(100, () => this.setupZoneTransitions());
-      return;
-    }
-    if (!player.body) {
-      console.warn("Player.body non créé, impossible d'ajouter les overlaps de transition");
-      // Retry avec délai
-      this.time.delayedCall(100, () => this.setupZoneTransitions());
-      return;
-    }
-
-    worldsLayer.objects.forEach(obj => {
-      const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
-      const directionProp = obj.properties?.find(p => p.name === 'direction');
-      if (!targetZoneProp) {
-        console.warn(`Objet ${obj.name || obj.id} dans 'Worlds' sans propriété targetZone, ignoré`);
-        return;
-      }
-
-      const targetZone = targetZoneProp.value;
-      const direction = directionProp ? directionProp.value : 'north';
-
-      console.log(`Création zone transition vers ${targetZone} à (${obj.x},${obj.y}) taille ${obj.width}x${obj.height}`);
-
-      const zone = this.add.zone(
-        obj.x + obj.width / 2,
-        obj.y + obj.height / 2,
-        obj.width,
-        obj.height
-      );
-      this.physics.world.enable(zone);
-      zone.body.setAllowGravity(false);
-      zone.body.setImmovable(true);
-
-      this.physics.add.overlap(player, zone, () => {
-        if (!this.networkManager) {
-          console.warn("networkManager non défini, transition ignorée");
-          return;
-        }
-        console.log(`Overlap détecté, demande de transition vers ${targetZone} (${direction})`);
-        this.networkManager.requestZoneTransition(targetZone, direction);
-      });
-    });
-  }
-
+  
   // --- Gère le placement joueur au spawn ---
   positionPlayer(player) {
     const initData = this.scene.settings.data;
