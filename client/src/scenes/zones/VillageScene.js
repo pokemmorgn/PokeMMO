@@ -1,5 +1,4 @@
 import { BaseZoneScene } from './BaseZoneScene.js';
-import { PlayerManager } from '../../game/PlayerManager.js';
 
 
 export class VillageScene extends BaseZoneScene {
@@ -8,12 +7,12 @@ export class VillageScene extends BaseZoneScene {
     this.transitionCooldowns = {};
   }
 
-  create() {
+ create() {
   console.log("🚨 DEBUT VillageScene.create()");
-  super.create();
+  super.create(); // appelle BaseZoneScene.create() qui crée playerManager
 
-  // Création systématique au début
-  this.playerManager = new PlayerManager(this);
+  // Supprime cette ligne, BaseZoneScene s’en charge déjà :
+  // this.playerManager = new PlayerManager(this);
 
   this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
     font: '18px monospace',
@@ -25,14 +24,12 @@ export class VillageScene extends BaseZoneScene {
   this.setupVillageEvents();
   this.setupNPCs();
 
-  // Setup transitions avec délai pour attendre la création du joueur
   this.time.delayedCall(100, () => {
     this.setupZoneTransitions();
   });
 
   console.log("🚨 FIN VillageScene.create()");
 }
-
 
   setupZoneTransitions() {
     // Gestion du layer Worlds pour transitions classiques
