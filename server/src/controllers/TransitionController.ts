@@ -33,7 +33,6 @@ function loadMap(mapName: string): any {
   return mapCache[cleanName];
 }
 
-
 /**
  * Récupère un objet dans le layer Worlds selon son nom (ou propriété custom)
  */
@@ -57,7 +56,6 @@ function findWorldObject(mapName: string, objectName: string): any | null {
   return foundObj;
 }
 
-
 /**
  * Cherche une propriété personnalisée d'un objet Tiled (array → value)
  */
@@ -67,8 +65,39 @@ function getProperty(obj: any, key: string): any {
   return prop?.value;
 }
 
+/**
+ * Extrait le nom de la sortie depuis les données de transition
+ */
+function extractExitName(targetSpawn: any): string {
+  // Debug: log what we received
+  console.log(`[TransitionController] Données targetSpawn reçues:`, typeof targetSpawn, targetSpawn);
+  
+  if (typeof targetSpawn === "string") {
+    return targetSpawn;
+  }
+  
+  if (targetSpawn && typeof targetSpawn === "object") {
+    // Si c'est un objet, essaie différentes propriétés possibles
+    if (typeof targetSpawn.name === "string") {
+      return targetSpawn.name;
+    }
+    if (typeof targetSpawn.exitName === "string") {
+      return targetSpawn.exitName;
+    }
+    if (typeof targetSpawn.target === "string") {
+      return targetSpawn.target;
+    }
+    
+    // Si aucune propriété connue, log l'objet pour debug
+    console.warn(`[TransitionController] Objet targetSpawn inconnu:`, Object.keys(targetSpawn));
+  }
+  
+  console.warn(`[TransitionController] targetSpawn invalide:`, targetSpawn);
+  return "";
+}
+
 type TransitionData = {
-  targetSpawn?: string; // Côté client, tu peux lui envoyer juste le nom de la sortie (ex: "Road_1")
+  targetSpawn?: string | { name?: string; exitName?: string; target?: string } | any;
 };
 
 export class TransitionController {
@@ -90,12 +119,16 @@ export class TransitionController {
 
     // On récupère l'objet de sortie dans la map actuelle, layer Worlds
     const currentMapName = normalizeMapName(this.room.mapName);
-const exitName = typeof data.targetSpawn === "string"
-  ? data.targetSpawn
-  : (data.targetSpawn && typeof data.targetSpawn.name === "string"
-      ? data.targetSpawn.name
-      : "");
-const exitObj = findWorldObject(currentMapName, exitName);
+    const exitName = extractExitName(data.targetSpawn);
+    
+    if (!exitName) {
+      console.warn(`[TransitionController] DENIED: nom de sortie vide ou invalide`);
+      client.send("transitionDenied", { reason: "Nom de sortie invalide" });
+      (player as any).isTransitioning = false;
+      return;
+    }
+    
+    const exitObj = findWorldObject(currentMapName, exitName);
 
     if (!exitObj) {
       console.warn(`[TransitionController] DENIED: sortie '${exitName}' absente de la map '${currentMapName}'`);
