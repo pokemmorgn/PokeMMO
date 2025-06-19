@@ -1,72 +1,101 @@
 {
-  "_comment": "Fichier à placer dans server/data/quests/quests.json",
+  "_comment": "Fichier à placer dans server/assets/data/quests.json",
   "quests": [
-{
-  "id": "side_fishing_introduction",
-  "name": "A Hint of River",
-  "description": "Bob wants to get back into fishing, but he's missing some gear. Give him a hand.",
-  "category": "side",
-  "startNpcId": 12,
-  "endNpcId": 12,
-  "isRepeatable": false,
-  "steps": [
     {
-      "id": "step_1",
-      "name": "Talk to Bob",
-      "description": "Meet Bob near the pond south of the village.",
-      "objectives": [
+      "id": "side_fishing_introduction",
+      "name": "A Hint of River",
+      "description": "Bob wants to get back into fishing, but he's missing some gear. Give him a hand.",
+      "category": "side",
+      "startNpcId": 12,
+      "endNpcId": 12,
+      "isRepeatable": false,
+      "steps": [
         {
-          "id": "talk_to_bob",
-          "type": "talk",
-          "description": "Talk to Bob",
-          "target": "12",
-          "targetName": "Bob",
-          "requiredAmount": 1
-        }
-      ],
-      "rewards": []
-    },
-    {
-      "id": "step_2",
-      "name": "Get the Fishing Line",
-      "description": "Buy a spool of fishing line from the shop in the first town.",
-      "objectives": [
+          "id": "step_1",
+          "name": "Talk to Bob",
+          "description": "Meet Bob near the pond south of the village.",
+          "objectives": [
+            {
+              "id": "talk_to_bob",
+              "type": "talk",
+              "description": "Talk to Bob",
+              "target": "12",
+              "targetName": "Bob",
+              "requiredAmount": 1
+            }
+          ],
+          "rewards": []
+        },
         {
-          "id": "obtain_fishing_line",
-          "type": "collect",
-          "description": "Obtain a spool of fishing line",
-          "target": "fishing_line",
-          "targetName": "Fishing Line",
-          "requiredAmount": 1
-        }
-      ],
-      "rewards": []
-    },
-    {
-      "id": "step_3",
-      "name": "Bring Back the Line",
-      "description": "Return to Bob with the fishing line.",
-      "objectives": [
+          "id": "step_2",
+          "name": "Get the Fishing Line",
+          "description": "Buy a spool of fishing line from the shop in the first town.",
+          "objectives": [
+            {
+              "id": "obtain_fishing_line",
+              "type": "collect",
+              "description": "Obtain a spool of fishing line",
+              "target": "fishing_line",
+              "targetName": "Fishing Line",
+              "requiredAmount": 1
+            }
+          ],
+          "rewards": []
+        },
         {
-          "id": "return_fishing_line",
-          "type": "deliver",
-          "description": "Give the fishing line to Bob",
-          "target": "12",
-          "targetName": "Bob",
-          "requiredAmount": 1,
-          "itemId": "fishing_line"
-        }
-      ],
-      "rewards": [
-        {
-          "type": "item",
-          "itemId": "fishing_rod_basic",
-          "amount": 1
+          "id": "step_3",
+          "name": "Bring Back the Line",
+          "description": "Return to Bob with the fishing line.",
+          "objectives": [
+            {
+              "id": "return_fishing_line",
+              "type": "talk",
+              "description": "Give the fishing line to Bob (parler à Bob avec l'objet)",
+              "target": "12",
+              "targetName": "Bob",
+              "requiredAmount": 1
+            }
+          ],
+          "rewards": [
+            {
+              "type": "item",
+              "itemId": "fishing_rod_basic",
+              "amount": 1
+            }
+          ]
         }
       ]
-    }
-  ]
-}
+    },
+    {
+      "id": "tutorial_first_steps",
+      "name": "Premiers pas",
+      "description": "Découvrez les bases du monde Pokémon",
+      "category": "main",
+      "startNpcId": 1,
+      "endNpcId": 1,
+      "isRepeatable": false,
+      "steps": [
+        {
+          "id": "step_1",
+          "name": "Parler au Professeur Oak",
+          "description": "Rendez-vous chez le Professeur Oak pour commencer votre aventure",
+          "objectives": [
+            {
+              "id": "talk_to_oak",
+              "type": "talk",
+              "description": "Parler au Professeur Oak",
+              "target": "1",
+              "targetName": "Professeur Oak",
+              "requiredAmount": 1
+            }
+          ],
+          "rewards": [
+            {
+              "type": "gold",
+              "amount": 100
+            }
+          ]
+        },
         {
           "id": "step_2",
           "name": "Explorer le village",
