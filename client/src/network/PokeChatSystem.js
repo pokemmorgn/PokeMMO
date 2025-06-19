@@ -58,11 +58,8 @@ class PokeChatSystem {
     const isMe = (author === this.username || author === "You");
     const msgDiv = document.createElement('div');
     msgDiv.className = `chat-message new${type !== 'normal' ? ' ' + type : ''}`;
-    const time = timestamp || new Date().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+let dateObj = timestamp ? new Date(timestamp) : new Date();
+const time = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     // Construction du nom d'utilisateur + badge de niveau
     let userClass = "chat-username";
