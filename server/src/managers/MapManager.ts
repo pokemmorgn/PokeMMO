@@ -178,7 +178,6 @@ export class MapManager {
         }
         console.log(`[TELEPORT] Téléport trouvé:`, teleport);
 
-        this.loadAdditionalMap(teleport.targetZone.toLowerCase());
         const destination = this.getTeleportDestination(teleport);
         if (!destination) {
             console.error(`[TELEPORT] Aucune destination trouvée pour téléport (targetZone=${teleport.targetZone}, targetSpawn=${teleport.targetSpawn})`);
