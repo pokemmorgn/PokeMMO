@@ -16,23 +16,93 @@ class PokeChatSystem {
     this.messageHistory = [];
     this.isMinimized = false;
     this.isHidden = false;
+    this.isChatFocused = false; // NOUVEAU: pour gérer le focus
 
     this.initListeners();
+    this.createKeyboardHint(); // Crée l'élément de hint
     console.log('[CHAT] PokeChatSystem initialized');
   }
 
+  // Crée l'élément pour afficher les raccourcis clavier
+  createKeyboardHint() {
+    this.keyboardHint = document.createElement('div');
+    this.keyboardHint.className = 'keyboard-hint';
+    this.keyboardHint.innerHTML = `
+      <kbd>T</kbd> Open chat • <kbd>ESC</kbd> Close chat • <kbd>Enter</kbd> Send message
+    `;
+    document.body.appendChild(this.keyboardHint);
+  }
+
   initListeners() {
-    // Envoi du message au serveur Colyseus
+    // =========================
+    // GESTION DU FOCUS CHAT/JEU
+    // =========================
+    
+    // Quand on clique dans le chat input, on active le mode chat
+    this.chatInput.addEventListener('focus', () => {
+      this.isChatFocused = true;
+      this.chatInput.classList.add('chat-focused');
+      this.chatWindow.classList.add('chat-active');
+      this.showKeyboardHint();
+      console.log('[CHAT] Chat focused - Game input disabled');
+    });
+
+    // Quand on quitte le chat input, on réactive le jeu
+    this.chatInput.addEventListener('blur', () => {
+      this.isChatFocused = false;
+      this.chatInput.classList.remove('chat-focused');
+      this.chatWindow.classList.remove('chat-active');
+      this.hideKeyboardHint();
+      console.log('[CHAT] Chat unfocused - Game input enabled');
+    });
+
+    // Empêche les touches du jeu quand on tape dans le chat
     this.chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && this.chatInput.value.trim() && this.room) {
-        const text = this.chatInput.value.trim();
-        this.room.send('chat', {
-          author: this.username,
-          message: text
-        });
-        this.chatInput.value = '';
-        this.charCounter.textContent = '200';
-        this.charCounter.className = '';
+      // Empêche la propagation vers Phaser pour toutes les touches sauf certaines
+      e.stopPropagation();
+      
+      if (e.key === 'Enter') {
+        if (this.chatInput.value.trim() && this.room) {
+          const text = this.chatInput.value.trim();
+          this.room.send('chat', {
+            author: this.username,
+            message: text
+          });
+          this.chatInput.value = '';
+          this.charCounter.textContent = '200';
+          this.charCounter.className = '';
+        }
+        // Retire le focus du chat après envoi
+        this.chatInput.blur();
+        e.preventDefault();
+      }
+      
+      if (e.key === 'Escape') {
+        // Escape pour sortir du chat
+        this.chatInput.blur();
+        e.preventDefault();
+      }
+    });
+
+    // Empêche aussi les keyup dans le chat
+    this.chatInput.addEventListener('keyup', (e) => {
+      e.stopPropagation();
+    });
+
+    // =========================
+    // RACCOURCI POUR OUVRIR LE CHAT
+    // =========================
+    
+    // Écoute globale pour ouvrir le chat avec 'T' ou 'Enter'
+    document.addEventListener('keydown', (e) => {
+      // Si le chat est déjà focus, on ne fait rien
+      if (this.isChatFocused) return;
+      
+      // Si on appuie sur T ou Enter, on ouvre le chat
+      if ((e.key === 't' || e.key === 'T' || e.key === 'Enter') && !this.isHidden) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.openChat();
       }
     });
 
@@ -190,6 +260,52 @@ class PokeChatSystem {
     }
     
     console.log('[CHAT] Hidden:', this.isHidden);
+  }
+
+  // =========================
+  // MÉTHODES POUR GÉRER LE FOCUS
+  // =========================
+  
+  // Ouvre le chat et donne le focus
+  openChat() {
+    if (this.isHidden) {
+      this.toggleHide();
+    }
+    if (this.isMinimized) {
+      this.toggleMinimize();
+    }
+    
+    setTimeout(() => {
+      this.chatInput.focus();
+      this.chatInput.select(); // Sélectionne le texte s'il y en a
+    }, 100);
+    
+    console.log('[CHAT] Chat opened and focused');
+  }
+
+  // Ferme le chat et retire le focus
+  closeChat() {
+    this.chatInput.blur();
+    console.log('[CHAT] Chat closed and unfocused');
+  }
+
+  // Vérifie si le chat a le focus
+  hasFocus() {
+    return this.isChatFocused;
+  }
+
+  // Affiche le hint des raccourcis clavier
+  showKeyboardHint() {
+    if (this.keyboardHint) {
+      this.keyboardHint.classList.add('show');
+    }
+  }
+
+  // Cache le hint des raccourcis clavier
+  hideKeyboardHint() {
+    if (this.keyboardHint) {
+      this.keyboardHint.classList.remove('show');
+    }
   }
 }
 
