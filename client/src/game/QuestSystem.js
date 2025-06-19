@@ -1,5 +1,3 @@
-// client/src/game/QuestSystem.js
-
 import { QuestJournalUI } from '../components/QuestJournalUI.js';
 
 export class QuestSystem {
@@ -195,23 +193,21 @@ export class QuestSystem {
     }
   }
 
-showQuestGiverDialog(data) {
-  console.log("💬 Affichage dialogue quête:", data);
+  showQuestGiverDialog(data) {
+    console.log("💬 Affichage dialogue quête:", data);
+    
+    if (!data.availableQuests || data.availableQuests.length === 0) {
+      console.log("⚠️ Aucune quête disponible");
+      return;
+    }
 
-  // Pour tester, commente temporairement la condition
-  // if (!data.availableQuests || data.availableQuests.length === 0) {
-  //   console.log("⚠️ Aucune quête disponible");
-  //   return;
-  // }
+    // Créer une interface pour choisir parmi les quêtes disponibles
+    const questDialog = this.createQuestDialog('Quêtes disponibles', data.availableQuests, (questId) => {
+      this.startQuest(questId);
+    });
 
-  // Créer une interface pour choisir parmi les quêtes disponibles
-  const questDialog = this.createQuestDialog('Quêtes disponibles', data.availableQuests, (questId) => {
-    this.startQuest(questId);
-  });
-
-  document.body.appendChild(questDialog);
-}
-
+    document.body.appendChild(questDialog);
+  }
 
   showQuestCompleteDialog(data) {
     const message = data.message || "Félicitations ! Vous avez terminé une quête !";
@@ -277,22 +273,24 @@ showQuestGiverDialog(data) {
         </div>
       </div>
     `;
-// Sélection automatique si une seule quête
-let defaultSelectedId = null;
-if (quests.length === 1) {
-  const onlyOption = dialog.querySelector('.quest-option');
-  if (onlyOption) {
-    onlyOption.classList.add('selected');
-    defaultSelectedId = onlyOption.dataset.questId;
-    // Optionnel pour UX
-    onlyOption.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }
-}
 
-this.styleQuestDialog(dialog);
-this.addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId);
+    // Sélection automatique si une seule quête
+    let defaultSelectedId = null;
+    if (quests.length === 1) {
+      const onlyOption = dialog.querySelector('.quest-option');
+      const acceptBtn = dialog.querySelector('.quest-btn-accept');
+      if (onlyOption && acceptBtn) {
+        onlyOption.classList.add('selected');
+        acceptBtn.disabled = false;
+        defaultSelectedId = onlyOption.dataset.questId;
+        onlyOption.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }
 
-return dialog;
+    this.styleQuestDialog(dialog);
+    this.addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId);
+
+    return dialog;
   }
 
   createQuestCompleteDialog(message, rewards) {
@@ -528,7 +526,7 @@ return dialog;
     }
   }
 
-  addQuestDialogListeners(dialog, onSelectQuest) {
+  addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
     let selectedQuestId = defaultSelectedId;
 
     // Fermeture du dialog
@@ -536,10 +534,10 @@ return dialog;
     const cancelBtn = dialog.querySelector('.quest-btn-cancel');
     const acceptBtn = dialog.querySelector('.quest-btn-accept');
 
-  if (defaultSelectedId && acceptBtn) {
-    acceptBtn.disabled = false;
-  }
-    
+    if (defaultSelectedId && acceptBtn) {
+      acceptBtn.disabled = false;
+    }
+
     if (closeBtn) {
       closeBtn.addEventListener('click', () => dialog.remove());
     }
