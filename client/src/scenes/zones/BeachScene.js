@@ -72,11 +72,6 @@ export class BeachScene extends BaseZoneScene {
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.setupBeachEvents();
 
-    // Appel setupZoneTransitions _après_ un délai pour s'assurer que le joueur est créé
-    this.time.delayedCall(100, () => {
-      this.setupZoneTransitions();
-    });
-  }
 
   update() {
     if (this.shouldBlockInput()) return;
