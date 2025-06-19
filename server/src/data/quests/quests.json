@@ -1,8 +1,8 @@
 {
-  "_comment": "Fichier à placer dans server/data/quests.json",
+  "_comment": "Fichier à placer dans server/data/quests/quests.json",
   "quests": [
     {
-      "id": "side_fishing_introduction",
+      "id": "quest_fishingrod",
       "name": "A Hint of River",
       "description": "Bob wants to get back into fishing, but he's missing some gear. Give him a hand.",
       "category": "side",
