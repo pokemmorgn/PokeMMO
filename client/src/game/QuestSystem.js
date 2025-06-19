@@ -275,17 +275,20 @@ export class QuestSystem {
     `;
 
     // Sélection automatique si une seule quête
-    let defaultSelectedId = null;
-    if (quests.length === 1) {
-      const onlyOption = dialog.querySelector('.quest-option');
-      const acceptBtn = dialog.querySelector('.quest-btn-accept');
-      if (onlyOption && acceptBtn) {
-        onlyOption.classList.add('selected');
-        acceptBtn.disabled = false;
-        defaultSelectedId = onlyOption.dataset.questId;
-        onlyOption.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }
+  let defaultSelectedId = null;
+  if (quests.length === 1) {
+    const onlyOption = dialog.querySelector('.quest-option');
+    const acceptBtn = dialog.querySelector('.quest-btn-accept');
+    if (onlyOption && acceptBtn) {
+      onlyOption.classList.add('selected');
+      acceptBtn.disabled = false;
+      defaultSelectedId = onlyOption.dataset.questId;
+      setTimeout(() => {
+        onlyOption.focus();
+        acceptBtn.focus();
+      }, 0);
     }
+  }
 
     this.styleQuestDialog(dialog);
     this.addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId);
@@ -559,7 +562,10 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
 
   // Accepter la quête
   acceptBtn.addEventListener('click', () => {
-    // Fix : Si rien n'est sélectionné mais qu'il y a une seule option, on prend la seule présente
+    // Fix : Si rien n'est sélectionné mais qu'on a un defaultSelectedId, utilise-le
+    if (!selectedQuestId && defaultSelectedId) {
+      selectedQuestId = defaultSelectedId;
+    }
     if (!selectedQuestId) {
       const selectedOption = dialog.querySelector('.quest-option.selected') || dialog.querySelector('.quest-option');
       if (selectedOption) {
