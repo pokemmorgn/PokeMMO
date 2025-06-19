@@ -526,19 +526,30 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
       name: "Shop",
       text: "Ouverture du shop: " + result.shopId
     });
-  } else if (result.type === "heal") {
+  }
+  else if (result.type === "heal") {
     showNpcDialogue({
       portrait: result.portrait || "assets/ui/heal_icon.png",
       name: "???",
       text: result.message || "Vos Pokémon sont soignés !"
     });
-  } else if (result.type === "error") {
+  }
+  else if (result.type === "questGiver" || result.type === "questComplete" || result.type === "questProgress") {
+    // ROUTE TOUT VERS QuestSystem
+    if (window.questSystem) {
+      window.questSystem.handleNpcInteraction(result);
+      return; // On s'arrête ici, rien d'autre à faire
+    }
+  }
+  else if (result.type === "error") {
     showNpcDialogue({
       portrait: null,
       name: "Erreur",
       text: result.message
     });
-  } else {
+  }
+  else {
+    // Pour debug uniquement, retire ou commente en prod
     showNpcDialogue({
       portrait: null,
       name: "???",
@@ -546,6 +557,7 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
     });
   }
 });
+
 
 
     
