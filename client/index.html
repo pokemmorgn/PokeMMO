@@ -855,6 +855,10 @@
     
     // Initialize chat system
     const pokeChat = new PokeChatSystem();
+
+  pokeChat.addMessage('System', '🎮 Welcome to PokeWorld! Press T to test NPC dialogue.', null, 'system');
+  pokeChat.addMessage('KantoTrainer', 'Anyone up for a battle? <span class="pokemon-emoji">⚡</span>', null, 'normal');
+
     
     // Test NPC dialogue (press 't' to test)
     document.addEventListener('keypress', function(e) {
