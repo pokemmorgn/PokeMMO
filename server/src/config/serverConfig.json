@@ -1,0 +1,27 @@
+{
+  "xpRate": 2,
+  "lootRate": 1.5,
+  "captureRate": 1.2,
+  "shinyRate": 0.000244,
+  "moneyRate": 1.0,
+
+  "playerMoveSpeed": 120,
+  "mountMoveSpeed": 180,
+  "npcMoveSpeed": 100,
+  "encounterStepRate": 30,
+
+  "maxPlayersPerRoom": 100,
+  "allowPVP": true,
+  "onJoinSpawnLastPlace": true,
+
+  "eventXpBonusActive": false,
+  "eventCaptureBonusActive": false,
+  "maintenanceMode": false,
+
+  "maxTeamSize": 6,
+  "starterList": [1, 4, 7],
+  "starterLevel": 5,
+
+  "chatEnabled": true,
+  "chatCooldown": 2
+}
