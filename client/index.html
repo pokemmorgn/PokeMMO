@@ -147,36 +147,49 @@
     </div>
   </div>
 
-  <script>
-    // Boîte de dialogue NPC simple
-    window.showNpcDialogue = function({ portrait, name, text }) {
-      const box = document.getElementById("dialogue-box");
-      const npcPortrait = document.getElementById("npc-portrait");
-      const npcName = document.getElementById("npc-name");
-      const npcText = document.getElementById("npc-text");
-      
-      box.style.display = "flex";
-      npcPortrait.innerHTML = portrait
-        ? `<img src="${portrait}" alt="${name}" style="max-width:80px;max-height:80px;">`
-        : "";
-      npcName.innerText = name || "";
-      npcText.innerText = text || "";
-      
-      box.onclick = () => (box.style.display = "none");
-    };
+<script>
+  // Boîte de dialogue NPC simple
+  window.showNpcDialogue = function({ portrait, name, text }) {
+    const box = document.getElementById("dialogue-box");
+    const npcPortrait = document.getElementById("npc-portrait");
+    const npcName = document.getElementById("npc-name");
+    const npcText = document.getElementById("npc-text");
+    
+    box.style.display = "flex";
+    npcPortrait.innerHTML = portrait
+      ? `<img src="${portrait}" alt="${name}" style="max-width:80px;max-height:80px;">`
+      : "";
+    npcName.innerText = name || "";
+    npcText.innerText = text || "";
+    
+    box.onclick = () => (box.style.display = "none");
+  };
 
-    // Dialogue test (modifié pour éviter le conflit avec la touche T du chat)
-    document.addEventListener('keypress', function(e) {
-      // Vérifie si le chat n'a pas le focus avant de déclencher le dialogue
-      if ((e.key === 't' || e.key === 'T') && !window.isChatFocused()) {
-        window.showNpcDialogue({
-          portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=OAK',
-          name: 'Professor Oak',
-          text: 'Hello young trainer! Ready for your Pokémon adventure? Press here to close this dialogue.'
-        });
-      }
-    });
-  </script>
+  // Ouvre un dialogue de test avec T (si le chat n'est pas focus)
+  document.addEventListener('keypress', function(e) {
+    if ((e.key === 't' || e.key === 'T') && typeof window.isChatFocused === "function" && !window.isChatFocused()) {
+      window.showNpcDialogue({
+        portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=OAK',
+        name: 'Professor Oak',
+        text: 'Hello young trainer! Ready for your Pokémon adventure? Press here to close this dialogue.'
+      });
+    }
+  });
+
+  // Fermer la boîte de dialogue avec E ou ESC
+  document.addEventListener('keydown', function(e) {
+    const box = document.getElementById('dialogue-box');
+    if (!box || box.style.display === 'none') return;
+    if (
+      e.code === 'KeyE' || e.key === 'e' || e.key === 'E' ||
+      e.key === 'Escape' || e.code === 'Escape'
+    ) {
+      box.style.display = 'none';
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+</script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
