@@ -53,8 +53,7 @@ async function loadPokemonFamily(familyPath: string): Promise<PokemonFamily | nu
   }
 
   try {
-    // Simule le chargement du fichier JSON (dans un vrai projet, vous utiliseriez import() ou fetch())
-    // Pour l'instant, on va simuler avec les données que vous avez montrées
+    // Import dynamique des fichiers de famille
     const familyData = await import(`./pokemon/${familyPath}.json`);
     familyCache.set(familyPath, familyData.default);
     return familyData.default;
@@ -68,7 +67,7 @@ async function loadPokemonFamily(familyPath: string): Promise<PokemonFamily | nu
  * Trouve un Pokémon par son ID
  */
 export async function getPokemonById(pokemonId: number): Promise<PokemonData | null> {
-  const familyPath = pokemonIndex[pokemonId as keyof typeof pokemonIndex];
+  const familyPath = pokemonIndex[pokemonId.toString() as keyof typeof pokemonIndex];
   if (!familyPath) {
     console.error(`Pokémon ID ${pokemonId} non trouvé dans l'index`);
     return null;
