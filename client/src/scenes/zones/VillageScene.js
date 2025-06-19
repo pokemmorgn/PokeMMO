@@ -33,20 +33,24 @@ export class VillageScene extends BaseZoneScene {
   }
 
   setupZoneTransitions() {
-    console.log("🛠️ setupZoneTransitions appelé");
-    const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (!worldsLayer) {
-      console.warn("⚠️ Layer 'Worlds' non trouvé dans la map");
-      return;
-    }
-    console.log(`🌍 Layer 'Worlds' trouvé, ${worldsLayer.objects.length} objets`);
+  if (!this.playerManager) {
+    console.warn("playerManager non encore initialisé, retry dans 100ms");
+    this.time.delayedCall(100, () => this.setupZoneTransitions());
+    return;
+  }
 
-    const player = this.playerManager.getMyPlayer();
-    if (!player) {
-      console.warn("⚠️ Player non encore créé, retry setupZoneTransitions dans 100ms");
-      this.time.delayedCall(100, () => this.setupZoneTransitions());
-      return;
-    }
+  const worldsLayer = this.map.getObjectLayer('Worlds');
+  if (!worldsLayer) {
+    console.warn("Layer 'Worlds' non trouvé");
+    return;
+  }
+
+  const player = this.playerManager.getMyPlayer();
+  if (!player) {
+    console.warn("Player non encore créé, retry dans 100ms");
+    this.time.delayedCall(100, () => this.setupZoneTransitions());
+    return;
+  }
     console.log(`🎮 Joueur récupéré: position (${player.x}, ${player.y})`);
 
     if (!player.body) {
