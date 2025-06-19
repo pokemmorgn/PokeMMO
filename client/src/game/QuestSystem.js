@@ -277,7 +277,18 @@ showQuestGiverDialog(data) {
         </div>
       </div>
     `;
-
+// Sélection automatique s’il n’y a qu’une quête
+if (quests.length === 1) {
+  // Récupère le bloc unique
+  const onlyOption = dialog.querySelector('.quest-option');
+  const acceptBtn = dialog.querySelector('.quest-btn-accept');
+  if (onlyOption && acceptBtn) {
+    onlyOption.classList.add('selected');
+    acceptBtn.disabled = false;
+    // Pour UX : scroller jusqu’à l’option, focus, etc.
+    onlyOption.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+}
     this.styleQuestDialog(dialog);
     this.addQuestDialogListeners(dialog, onSelectQuest);
     
