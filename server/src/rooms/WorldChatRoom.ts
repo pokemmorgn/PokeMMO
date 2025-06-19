@@ -16,7 +16,7 @@ export class WorldChatRoom extends Room<WorldChatState> {
       this.broadcast("chat", {
         author: username,
         message: data.message,
-        timestamp: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+        timestamp: new Date().toISOString(), // <-- Ici !
         type: "normal"
       });
     });
@@ -28,7 +28,7 @@ export class WorldChatRoom extends Room<WorldChatState> {
     this.broadcast("chat", {
       author: "SYSTEM",
       message: `${options.username} a rejoint le chat !`,
-      timestamp: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date().toISOString(), // <-- Ici aussi !
       type: "system"
     });
   }
@@ -39,7 +39,7 @@ export class WorldChatRoom extends Room<WorldChatState> {
     this.broadcast("chat", {
       author: "SYSTEM",
       message: `${username || "Un joueur"} a quitté le chat.`,
-      timestamp: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date().toISOString(), // <-- Ici aussi !
       type: "system"
     });
   }
