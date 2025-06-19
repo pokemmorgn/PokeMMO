@@ -1,5 +1,5 @@
 // ===============================================
-// BeachScene.js - Intro Bulbizarre animé + dialogue + transition + blocage joueur + Starter HUD
+// BeachScene.js - Beach + Starter HUD + Intro + Dialogue
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 
@@ -72,8 +72,8 @@ export class BeachScene extends BaseZoneScene {
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.setupBeachEvents();
 
-    // === CONNEXION À LA ROOM DE JEU ET INITIALISATION DU STARTER HUD ===
-    await this.initializeGameConnection();
+    // === Starter HUD & Events branchés sur la connexion NetworkManager ===
+    this.setupStarterHudAndEvents();
 
     // Appel setupZoneTransitions _après_ un délai pour s'assurer que le joueur est créé
     this.time.delayedCall(100, () => {
@@ -81,46 +81,25 @@ export class BeachScene extends BaseZoneScene {
     });
   }
 
-  // === NOUVELLE MÉTHODE: Connexion au jeu et init du HUD ===
-  async initializeGameConnection() {
-    try {
-      // Connexion à la BeachRoom (remplacez par le nom de votre room)
-      this.gameRoom = await window.colyseus.joinOrCreate("BeachRoom", { 
-        username: window.username 
-      });
-
-      console.log("✅ Connecté à BeachRoom");
-
-      // Initialiser le HUD de sélection de starter
-      if (!this._starterHudInitialized) {
-        window.initStarterHUD(this.gameRoom);
-        this._starterHudInitialized = true;
-        
-        // Écouter les événements du starter
-        this.setupStarterEventListeners();
-      }
-
-      // Stocker la room pour les autres méthodes
-      window.currentGameRoom = this.gameRoom;
-
-    } catch (error) {
-      console.error("❌ Erreur de connexion à BeachRoom:", error);
+  setupStarterHudAndEvents() {
+    // 🔥 Utilise toujours le NetworkManager du parent (1 seule room Colyseus !)
+    // Si HUD pas déjà branché, on l’instancie
+    if (!this._starterHudInitialized && this.networkManager && this.networkManager.room) {
+      window.initStarterHUD(this.networkManager.room);
+      this._starterHudInitialized = true;
+      this.setupStarterEventListeners(this.networkManager.room);
     }
   }
 
-  // === ÉCOUTE DES ÉVÉNEMENTS DU STARTER ===
-  setupStarterEventListeners() {
-    if (!this.gameRoom) return;
+  setupStarterEventListeners(room) {
+    // Par sécurité, on “unbind” les anciens listeners si nécessaire
+    if (!room) return;
 
     // Quand le starter est sélectionné avec succès
-    this.gameRoom.onMessage("starterSelectionResult", (data) => {
+    room.onMessage("starterSelectionResult", (data) => {
       if (data.success) {
         console.log("🎉 Starter sélectionné avec succès!");
-        
-        // Afficher le Pokémon reçu dans le jeu
         this.showPokemonReceived(data.pokemon);
-        
-        // Démarrer l'intro animée après la sélection du starter
         this.time.delayedCall(1000, () => {
           const player = this.playerManager.getMyPlayer();
           if (player && !this._introBlocked) {
@@ -131,9 +110,8 @@ export class BeachScene extends BaseZoneScene {
     });
 
     // Message de bienvenue
-    this.gameRoom.onMessage("welcomeMessage", (data) => {
+    room.onMessage("welcomeMessage", (data) => {
       console.log("📨 Message de bienvenue:", data.message);
-      
       // Si le joueur a déjà des Pokémon, démarrer l'intro directement
       if (!data.isNewPlayer && data.teamCount > 0) {
         this.time.delayedCall(500, () => {
@@ -146,13 +124,11 @@ export class BeachScene extends BaseZoneScene {
     });
   }
 
-  // === NOUVELLE MÉTHODE: Afficher le Pokémon reçu ===
+  // === Afficher le Pokémon reçu ===
   showPokemonReceived(pokemonData) {
     console.log("🎁 Pokémon reçu:", pokemonData);
-    
     if (!pokemonData || !pokemonData.pokemonId) return;
 
-    // Afficher un message temporaire
     const congratsText = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY - 50,
@@ -166,7 +142,6 @@ export class BeachScene extends BaseZoneScene {
       }
     ).setOrigin(0.5).setDepth(1000);
 
-    // Animation d'apparition
     congratsText.setAlpha(0);
     this.tweens.add({
       targets: congratsText,
@@ -176,7 +151,6 @@ export class BeachScene extends BaseZoneScene {
       ease: 'Back.easeOut',
       yoyo: true,
       onComplete: () => {
-        // Faire disparaître après 3 secondes
         this.time.delayedCall(2000, () => {
           this.tweens.add({
             targets: congratsText,
@@ -189,22 +163,15 @@ export class BeachScene extends BaseZoneScene {
     });
   }
 
-  // === MÉTHODE MISE À JOUR: Update avec blocage pour le HUD ===
   update() {
-    // Vérifier si les contrôles doivent être bloqués (chat, starter HUD, ou intro)
-    if (this.shouldBlockInput()) {
-      return;
-    }
-
-    // Votre logique d'update existante
+    if (this.shouldBlockInput()) return;
     super.update();
   }
 
-  // === NOUVELLE MÉTHODE: Vérifier si les inputs doivent être bloqués ===
   shouldBlockInput() {
     return (
-      window.shouldBlockInput() || // Chat ou HUD starter ouvert
-      this._introBlocked           // Intro animée en cours
+      window.shouldBlockInput() ||
+      this._introBlocked
     );
   }
 
@@ -218,14 +185,10 @@ export class BeachScene extends BaseZoneScene {
 
     const player = this.playerManager.getMyPlayer();
     if (!player) {
-      console.warn("Player non encore créé, impossible d'ajouter les overlaps de transition");
-      // Retry avec délai
       this.time.delayedCall(100, () => this.setupZoneTransitions());
       return;
     }
     if (!player.body) {
-      console.warn("Player.body non créé, impossible d'ajouter les overlaps de transition");
-      // Retry avec délai
       this.time.delayedCall(100, () => this.setupZoneTransitions());
       return;
     }
@@ -233,15 +196,10 @@ export class BeachScene extends BaseZoneScene {
     worldsLayer.objects.forEach(obj => {
       const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
       const directionProp = obj.properties?.find(p => p.name === 'direction');
-      if (!targetZoneProp) {
-        console.warn(`Objet ${obj.name || obj.id} dans 'Worlds' sans propriété targetZone, ignoré`);
-        return;
-      }
+      if (!targetZoneProp) return;
 
       const targetZone = targetZoneProp.value;
       const direction = directionProp ? directionProp.value : 'north';
-
-      console.log(`Création zone transition vers ${targetZone} à (${obj.x},${obj.y}) taille ${obj.width}x${obj.height}`);
 
       const zone = this.add.zone(
         obj.x + obj.width / 2,
@@ -254,16 +212,8 @@ export class BeachScene extends BaseZoneScene {
       zone.body.setImmovable(true);
 
       this.physics.add.overlap(player, zone, () => {
-        // Bloquer les transitions si le HUD est ouvert
-        if (this.shouldBlockInput()) {
-          return;
-        }
-
-        if (!this.networkManager) {
-          console.warn("networkManager non défini, transition ignorée");
-          return;
-        }
-        console.log(`Overlap détecté, demande de transition vers ${targetZone} (${direction})`);
+        if (this.shouldBlockInput()) return;
+        if (!this.networkManager) return;
         this.networkManager.requestZoneTransition(targetZone, direction);
       });
     });
@@ -272,7 +222,6 @@ export class BeachScene extends BaseZoneScene {
   // --- Gère le placement joueur au spawn ---
   positionPlayer(player) {
     const initData = this.scene.settings.data;
-
     if (initData?.fromZone === 'VillageScene' || initData?.fromZone) {
       player.x = 52;
       player.y = 48;
@@ -282,55 +231,40 @@ export class BeachScene extends BaseZoneScene {
       player.indicator.y = player.y - 32;
     }
     if (this.networkManager) this.networkManager.sendMove(player.x, player.y);
-
-    // === MODIFICATION: L'intro se déclenchera après la sélection du starter ===
-    // Plus besoin de démarrer l'intro ici, elle sera déclenchée par les événements du starter
+    // L’intro se déclenche via le HUD/event
   }
 
   // ==================== INTRO ANIMÉE ======================
   startIntroSequence(player) {
-    // Vérifier que le joueur a bien un starter avant de démarrer l'intro
     if (window.starterHUD && window.starterHUD.isVisible) {
       console.log("🚫 HUD de starter ouvert, intro reportée");
       return;
     }
-
     console.log("🎬 Démarrage de l'intro animée");
-
-    // 1. Bloque les entrées joueur (clavier + collisions)
     this.input.keyboard.enabled = false;
     if (player.body) player.body.enable = false;
     this._introBlocked = true;
 
-    // 2. Tourne le joueur vers la droite (ex : anim ou frame statique)
     if (player.anims && player.anims.currentAnim?.key !== 'walk_right') {
       if (this.anims.exists('walk_right')) player.play('walk_right');
     }
-
-    // 3. Bulbizarre spawn loin à droite, arrive devant le joueur
     const spawnX = player.x + 120;
-    const arriveX = player.x + 24; // devant le joueur
+    const arriveX = player.x + 24;
     const y = player.y;
-
     this.spawnStarterPokemon(spawnX, y, '001_Bulbasaur', 'left', player, arriveX);
   }
 
-  // Bulbizarre entre, pause, repart au nord
   spawnStarterPokemon(x, y, pokemonName, direction = "left", player = null, arriveX = null) {
     this.pokemonSpriteManager.loadSpritesheet(pokemonName);
-
     const trySpawn = () => {
       if (this.textures.exists(`${pokemonName}_Walk`)) {
         const starter = this.pokemonSpriteManager.createPokemonSprite(pokemonName, x, y, direction);
-
-        // Avance lentement vers le joueur
         this.tweens.add({
           targets: starter,
           x: arriveX ?? (x - 36),
           duration: 2200,
           ease: 'Sine.easeInOut',
           onUpdate: () => {
-            // Forcer l'anim du joueur vers la droite
             if (player.anims && player.anims.currentAnim?.key !== 'walk_right') {
               if (this.anims.exists('walk_right')) player.play('walk_right');
             }
@@ -349,21 +283,17 @@ export class BeachScene extends BaseZoneScene {
   }
 
   showIntroDialogue(starter, player) {
-    // Dialogue adapté selon si le joueur vient de choisir son starter
     const messages = [
       "Salut ! Tu viens d'arriver ?",
       "Parfait ! Je vais t'emmener au village !",
       "Suis-moi !"
     ];
-
     let messageIndex = 0;
     const showNextMessage = () => {
       if (messageIndex >= messages.length) {
-        // Fin des dialogues, Bulbizarre part
         this.finishIntroSequence(starter, player);
         return;
       }
-
       const textBox = this.add.text(
         starter.x, starter.y - 32,
         messages[messageIndex],
@@ -374,21 +304,16 @@ export class BeachScene extends BaseZoneScene {
           padding: { x: 6, y: 4 }
         }
       ).setDepth(1000).setOrigin(0.5);
-
       messageIndex++;
-
-      // Afficher chaque message pendant 2 secondes
       this.time.delayedCall(2000, () => {
         textBox.destroy();
         showNextMessage();
       });
     };
-
     showNextMessage();
   }
 
   finishIntroSequence(starter, player) {
-    // Bulbizarre part vers le nord
     this.tweens.add({
       targets: starter,
       y: starter.y - 90,
@@ -399,7 +324,6 @@ export class BeachScene extends BaseZoneScene {
       },
       onComplete: () => {
         starter.destroy();
-        // Débloque le joueur !
         this.input.keyboard.enabled = true;
         if (player.body) player.body.enable = true;
         this._introBlocked = false;
@@ -415,7 +339,6 @@ export class BeachScene extends BaseZoneScene {
     });
   }
 
-  // === MÉTHODE POUR DÉCLENCHER MANUELLEMENT LE HUD (pour NPC plus tard) ===
   triggerStarterSelection() {
     if (window.starterHUD) {
       window.starterHUD.show();
