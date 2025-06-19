@@ -21,7 +21,15 @@ export class StarterSelectionHUD {
 
   showStarterSelection(data) {
     console.log("🎮 Affichage du HUD de sélection de starter");
-    
+
+    // 1️⃣ Empêche l'affichage si déjà starter
+    if (data.alreadyHasStarter) {
+      alert("Vous avez déjà choisi un starter !");
+      this.hide();
+      this.enablePlayerControls();
+      return;
+    }
+
     if (this.isVisible) {
       this.hide();
     }
@@ -42,14 +50,15 @@ export class StarterSelectionHUD {
       position: fixed;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 100vh;
       background: rgba(0, 0, 0, 0.8);
       display: flex;
       justify-content: center;
       align-items: center;
       z-index: 1000;
       font-family: 'Orbitron', 'Arial', sans-serif;
+      overflow: auto;
     `;
 
     const selectionPanel = document.createElement('div');
@@ -57,11 +66,13 @@ export class StarterSelectionHUD {
       background: linear-gradient(135deg, #4a90e2, #7b68ee);
       border: 4px solid #ffd700;
       border-radius: 20px;
-      padding: 30px;
-      max-width: 800px;
+      padding: 4vw 2vw;
+      max-width: 90vw;
+      min-width: 300px;
       text-align: center;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
       color: white;
+      position: relative;
     `;
 
     // Titre et message
@@ -113,12 +124,17 @@ export class StarterSelectionHUD {
       background: white;
       border: 3px solid #ddd;
       border-radius: 15px;
-      padding: 20px;
+      padding: 3vw 1vw;
       cursor: pointer;
       transition: all 0.3s ease;
       color: #333;
-      min-width: 200px;
+      min-width: 180px;
+      max-width: 250px;
       box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 10px;
     `;
 
     // Image du Pokémon
@@ -126,8 +142,8 @@ export class StarterSelectionHUD {
     image.src = starter.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${starter.id}.png`;
     image.alt = starter.name;
     image.style.cssText = `
-      width: 120px;
-      height: 120px;
+      width: min(18vw, 120px);
+      height: min(18vw, 120px);
       image-rendering: pixelated;
       margin-bottom: 15px;
     `;
@@ -188,6 +204,7 @@ export class StarterSelectionHUD {
       font-size: 1.1em;
       transition: all 0.3s ease;
       box-shadow: 0 3px 10px rgba(238, 90, 36, 0.3);
+      margin-top: 10px;
     `;
 
     // Événements
@@ -241,7 +258,7 @@ export class StarterSelectionHUD {
 
   selectStarter(starterId) {
     console.log(`🎯 Sélection du starter ${starterId}`);
-    
+
     // Désactiver tous les boutons pour éviter les clics multiples
     const buttons = this.hudElement?.querySelectorAll('button');
     if (buttons) {
@@ -261,16 +278,26 @@ export class StarterSelectionHUD {
     if (data.success) {
       // Afficher un message de succès
       this.showSuccessMessage(data);
-      
+
       // Masquer le HUD après un délai
       setTimeout(() => {
         this.hide();
         this.enablePlayerControls();
       }, 3000);
     } else {
+      // Si l'erreur indique que le joueur a déjà un starter, on ferme le HUD
+      if (data.message && data.message.toLowerCase().includes('déjà un starter')) {
+        this.showErrorMessage(data.message);
+        setTimeout(() => {
+          this.hide();
+          this.enablePlayerControls();
+        }, 2000);
+        return;
+      }
+
       // Afficher l'erreur et permettre de refaire la sélection
       this.showErrorMessage(data.message);
-      
+
       // Réactiver les boutons
       const buttons = this.hudElement?.querySelectorAll('button');
       if (buttons) {
@@ -300,6 +327,7 @@ export class StarterSelectionHUD {
       font-size: 1.5em;
       font-weight: bold;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      z-index: 1001;
     `;
 
     successDiv.innerHTML = `
@@ -311,7 +339,7 @@ export class StarterSelectionHUD {
   }
 
   showErrorMessage(message) {
-    // Version simple avec alert - vous pouvez améliorer avec un joli popup
+    // Version simple avec alert
     alert(message);
   }
 
