@@ -118,22 +118,24 @@ export class QuestManager {
     }
 
     // Créer la progression de quête
-    const questProgress: PlayerQuestProgress = {
-      questId,
-      currentStepIndex: 0,
-      objectives: {},
-      status: 'active',
-      startedAt: new Date()
-    };
-
+    const objectivesMap = new Map();
+    
     // Initialiser les objectifs de la première étape
     const firstStep = definition.steps[0];
     for (const objective of firstStep.objectives) {
-      questProgress.objectives[objective.id] = {
+      objectivesMap.set(objective.id, {
         currentAmount: 0,
         completed: false
-      };
+      });
     }
+
+    const questProgress = {
+      questId,
+      currentStepIndex: 0,
+      objectives: objectivesMap,
+      status: 'active' as const,
+      startedAt: new Date()
+    };
 
     // Sauvegarder en base
     let playerQuests = await PlayerQuest.findOne({ username });
@@ -180,19 +182,23 @@ export class QuestManager {
 
       // Vérifier chaque objectif de l'étape actuelle
       for (const objective of currentStep.objectives) {
-        if (questProgress.objectives[objective.id]?.completed) continue;
+        const progressKey = objective.id;
+        const progressData = questProgress.objectives.get(progressKey);
+        
+        if (progressData?.completed) continue;
 
         if (this.checkObjectiveProgress(objective, event)) {
-          const progress = questProgress.objectives[objective.id];
-          progress.currentAmount = Math.min(
-            progress.currentAmount + (event.amount || 1),
+          const currentProgress = progressData || { currentAmount: 0, completed: false };
+          currentProgress.currentAmount = Math.min(
+            currentProgress.currentAmount + (event.amount || 1),
             objective.requiredAmount
           );
 
-          if (progress.currentAmount >= objective.requiredAmount) {
-            progress.completed = true;
+          if (currentProgress.currentAmount >= objective.requiredAmount) {
+            currentProgress.completed = true;
           }
           
+          questProgress.objectives.set(progressKey, currentProgress);
           stepModified = true;
         }
       }
@@ -200,7 +206,7 @@ export class QuestManager {
       // Vérifier si l'étape est complétée
       if (stepModified) {
         const allObjectivesCompleted = currentStep.objectives.every(
-          obj => questProgress.objectives[obj.id]?.completed
+          obj => questProgress.objectives.get(obj.id)?.completed
         );
 
         if (allObjectivesCompleted) {
@@ -220,10 +226,10 @@ export class QuestManager {
             // Initialiser les objectifs de la prochaine étape
             const nextStep = definition.steps[questProgress.currentStepIndex];
             for (const objective of nextStep.objectives) {
-              questProgress.objectives[objective.id] = {
+              questProgress.objectives.set(objective.id, {
                 currentAmount: 0,
                 completed: false
-              };
+              });
             }
 
             results.push({
@@ -276,7 +282,7 @@ export class QuestManager {
 
   private async completeQuest(
     username: string, 
-    questProgress: PlayerQuestProgress, 
+    questProgress: any, 
     playerQuests: any
   ): Promise<void> {
     const definition = this.questDefinitions.get(questProgress.questId);
@@ -310,7 +316,7 @@ export class QuestManager {
 
     // Retirer des quêtes actives
     playerQuests.activeQuests = playerQuests.activeQuests.filter(
-      (q: PlayerQuestProgress) => q.questId !== questProgress.questId
+      (q: any) => q.questId !== questProgress.questId
     );
 
     console.log(`🎉 ${username} a terminé la quête: ${definition.name}`);
@@ -336,7 +342,7 @@ export class QuestManager {
     return activeQuests;
   }
 
-  private buildQuestFromProgress(definition: QuestDefinition, progress: PlayerQuestProgress): Quest {
+  private buildQuestFromProgress(definition: QuestDefinition, progress: any): Quest {
     const quest: Quest = {
       id: definition.id,
       name: definition.name,
@@ -348,16 +354,16 @@ export class QuestManager {
         name: stepDef.name,
         description: stepDef.description,
         objectives: stepDef.objectives.map(objDef => {
-          const objProgress = progress.objectives[objDef.id];
+          const objProgress = progress.objectives.get(objDef.id) || { currentAmount: 0, completed: false };
           return {
             id: objDef.id,
             type: objDef.type,
             description: objDef.description,
             target: objDef.target,
             targetName: objDef.targetName,
-            currentAmount: objProgress?.currentAmount || 0,
+            currentAmount: objProgress.currentAmount || 0,
             requiredAmount: objDef.requiredAmount,
-            completed: objProgress?.completed || false
+            completed: objProgress.completed || false
           };
         }),
         rewards: stepDef.rewards,
