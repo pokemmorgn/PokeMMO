@@ -1,0 +1,206 @@
+{
+  "_comment": "Fichier à placer dans server/data/quests/quests.json",
+  "quests": [
+    {
+      "id": "tutorial_first_steps",
+      "name": "Premiers pas",
+      "description": "Découvrez les bases du monde Pokémon",
+      "category": "main",
+      "startNpcId": 1,
+      "endNpcId": 1,
+      "isRepeatable": false,
+      "steps": [
+        {
+          "id": "step_1",
+          "name": "Parler au Professeur Oak",
+          "description": "Rendez-vous chez le Professeur Oak pour commencer votre aventure",
+          "objectives": [
+            {
+              "id": "talk_to_oak",
+              "type": "talk",
+              "description": "Parler au Professeur Oak",
+              "target": "1",
+              "targetName": "Professeur Oak",
+              "requiredAmount": 1
+            }
+          ],
+          "rewards": [
+            {
+              "type": "gold",
+              "amount": 100
+            }
+          ]
+        },
+        {
+          "id": "step_2",
+          "name": "Explorer le village",
+          "description": "Familiarisez-vous avec votre environnement",
+          "objectives": [
+            {
+              "id": "reach_village_center",
+              "type": "reach",
+              "description": "Aller au centre du village",
+              "target": "village_center",
+              "targetName": "Centre du village",
+              "requiredAmount": 1
+            }
+          ],
+          "rewards": [
+            {
+              "type": "gold",
+              "amount": 50
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "berry_collector",
+      "name": "Collecteur de baies",
+      "description": "Rassemblez des baies pour les Pokémon affamés",
+      "category": "side",
+      "startNpcId": 5,
+      "endNpcId": 5,
+      "isRepeatable": true,
+      "cooldownHours": 24,
+      "steps": [
+        {
+          "id": "collect_berries",
+          "name": "Collecter des baies",
+          "description": "Trouvez et ramassez 10 baies Oran",
+          "objectives": [
+            {
+              "id": "collect_oran_berries",
+              "type": "collect",
+              "description": "Collecter des baies Oran",
+              "target": "oran_berry",
+              "targetName": "Baie Oran",
+              "requiredAmount": 10
+            }
+          ],
+          "rewards": [
+            {
+              "type": "gold",
+              "amount": 200
+            },
+            {
+              "type": "item",
+              "itemId": "potion",
+              "amount": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pokemon_trainer_challenge",
+      "name": "Défi du dresseur",
+      "description": "Prouvez votre valeur en combat",
+      "category": "main",
+      "prerequisites": ["tutorial_first_steps"],
+      "startNpcId": 10,
+      "endNpcId": 10,
+      "isRepeatable": false,
+      "steps": [
+        {
+          "id": "defeat_wild_pokemon",
+          "name": "Combats sauvages",
+          "description": "Battez 5 Pokémon sauvages pour vous entraîner",
+          "objectives": [
+            {
+              "id": "defeat_5_wild",
+              "type": "defeat",
+              "description": "Vaincre des Pokémon sauvages",
+              "target": "wild",
+              "targetName": "Pokémon sauvages",
+              "requiredAmount": 5
+            }
+          ],
+          "rewards": [
+            {
+              "type": "experience",
+              "amount": 100
+            }
+          ]
+        },
+        {
+          "id": "defeat_specific_pokemon",
+          "name": "Combat spécialisé",
+          "description": "Battez 3 Rattata pour maîtriser la stratégie",
+          "objectives": [
+            {
+              "id": "defeat_rattata",
+              "type": "defeat",
+              "description": "Vaincre des Rattata",
+              "target": "19",
+              "targetName": "Rattata",
+              "requiredAmount": 3
+            }
+          ],
+          "rewards": [
+            {
+              "type": "pokemon",
+              "pokemonId": 25
+            },
+            {
+              "type": "gold",
+              "amount": 500
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "daily_exploration",
+      "name": "Exploration quotidienne",
+      "description": "Explorez différentes zones chaque jour",
+      "category": "daily",
+      "isRepeatable": true,
+      "cooldownHours": 24,
+      "steps": [
+        {
+          "id": "visit_zones",
+          "name": "Visiter les zones",
+          "description": "Visitez 3 zones différentes aujourd'hui",
+          "objectives": [
+            {
+              "id": "visit_beach",
+              "type": "reach",
+              "description": "Visiter la plage",
+              "target": "beach",
+              "targetName": "Plage",
+              "requiredAmount": 1
+            },
+            {
+              "id": "visit_village",
+              "type": "reach",
+              "description": "Visiter le village",
+              "target": "village",
+              "targetName": "Village",
+              "requiredAmount": 1
+            },
+            {
+              "id": "visit_route1",
+              "type": "reach",
+              "description": "Visiter la Route 1",
+              "target": "road1",
+              "targetName": "Route 1",
+              "requiredAmount": 1
+            }
+          ],
+          "rewards": [
+            {
+              "type": "gold",
+              "amount": 150
+            },
+            {
+              "type": "item",
+              "itemId": "pokeball",
+              "amount": 5
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
