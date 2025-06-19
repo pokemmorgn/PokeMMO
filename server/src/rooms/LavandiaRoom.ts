@@ -71,8 +71,8 @@ export class LavandiaRoom extends BaseRoom {
   private getNamedSpawnPosition(spawnName: string): { x: number, y: number } | null {
     const namedSpawns: Record<string, { x: number, y: number }> = {
       // Spawn quand on vient de Route 1
-      'FromRoad1Scene': { x: 82, y: 911 },
-      'FromRoad1': { x: 82, y: 911 },
+      'FromRoad1Scene': { x: 56, y: 941 },
+      'FromRoad1': { x: 56, y: 941 },
       
       // Spawn par défaut
       'Default': { x: this.defaultX, y: this.defaultY },
