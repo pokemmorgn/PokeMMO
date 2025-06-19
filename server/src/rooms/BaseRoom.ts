@@ -5,6 +5,7 @@ import { NpcManager } from "../managers/NPCManager";
 import { MovementController } from "../controllers/MovementController";
 import { TransitionController } from "../controllers/TransitionController";
 import { InteractionManager } from "../managers/InteractionManager";
+import { TeamManager } from "../managers/TeamManager";
 
 export type SpawnData = {
   targetZone: string;
@@ -85,46 +86,62 @@ public abstract mapName: string;
     }
   }
 
-  async onJoin(client: Client, options: any) {
-    const username = options.username || "Anonymous";
-    client.send("npcList", this.npcManager.getAllNpcs());
+async onJoin(client: Client, options: any) {
+  const username = options.username || "Anonymous";
+  client.send("npcList", this.npcManager.getAllNpcs());
 
-    // Supprime un joueur en double si existant
-    const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
-    if (existingPlayer) {
-      const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
-      if (oldSessionId) {
-        this.state.players.delete(oldSessionId);
-        this.movementController?.resetPlayer?.(oldSessionId);
-      }
+  // Supprime un joueur en double si existant
+  const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
+  if (existingPlayer) {
+    const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
+    if (oldSessionId) {
+      this.state.players.delete(oldSessionId);
+      this.movementController?.resetPlayer?.(oldSessionId);
     }
-
-    let playerData = await PlayerData.findOne({ username });
-    if (!playerData) {
-      const mapName = this.mapName.replace('Room', '');
-      playerData = await PlayerData.create({
-        username,
-        lastX: this.defaultX,
-        lastY: this.defaultY,
-        lastMap: mapName
-      });
-    }
-
-    const player = new Player();
-    player.name = username;
-    (player as any).justSpawned = true;
-    (player as any).isTransitioning = false;
-
-    if (options.spawnX !== undefined && options.spawnY !== undefined) {
-      player.x = options.spawnX;
-      player.y = options.spawnY;
-    } else {
-      player.x = playerData.lastX;
-      player.y = playerData.lastY;
-    }
-    player.map = this.mapName.replace('Room', '');
-    this.state.players.set(client.sessionId, player);
   }
+
+  let playerData = await PlayerData.findOne({ username });
+  if (!playerData) {
+    const mapName = this.mapName.replace('Room', '');
+    playerData = await PlayerData.create({
+      username,
+      lastX: this.defaultX,
+      lastY: this.defaultY,
+      lastMap: mapName
+    });
+  }
+
+  // === Ajout TeamManager ===
+  const teamManager = new TeamManager(username);
+  const teamPokemons = await teamManager.getTeamFull(); // Détails des OwnedPokemon de la team
+
+  const player = new Player();
+  player.name = username;
+  (player as any).justSpawned = true;
+  (player as any).isTransitioning = false;
+
+  if (options.spawnX !== undefined && options.spawnY !== undefined) {
+    player.x = options.spawnX;
+    player.y = options.spawnY;
+  } else {
+    player.x = playerData.lastX;
+    player.y = playerData.lastY;
+  }
+  player.map = this.mapName.replace('Room', '');
+
+  // === Ajout : team dans le state ===
+  player.team = teamPokemons.map(poke => ({
+    id: poke._id.toString(),
+    pokemonId: poke.pokemonId,
+    level: poke.level,
+    nickname: poke.nickname,
+    shiny: poke.shiny,
+    // Ajoute ici ce que tu veux exposer au client pour chaque Pokémon de la team
+  }));
+
+  this.state.players.set(client.sessionId, player);
+}
+
 
   async onLeave(client: Client) {
     const player = this.state.players.get(client.sessionId);
