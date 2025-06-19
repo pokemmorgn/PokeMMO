@@ -79,18 +79,21 @@ export class NpcManager {
       .setDepth(4)
       .setScale(1);
 
-    // Style amélioré pour le nom du NPC
-    const nameText = this.scene.add.text(npc.x, npc.y - 40, npc.name, {
-      fontFamily: "Arial",
-      fontSize: "12px",
-      color: "#ffffff",
-      backgroundColor: "#000000cc",
-      padding: { left: 6, right: 6, top: 2, bottom: 2 },
-      stroke: "#000000",
-      strokeThickness: 1
-    } as Phaser.Types.GameObjects.Text.TextStyle)
-      .setOrigin(0.5, 1)
-      .setDepth(4.1);
+// Création du nom du NPC, sans background, avec ombre pour la lisibilité
+const nameText = this.scene.add.text(npc.x, npc.y - 42, npc.name, {
+  fontFamily: "Arial", // Mets ta police custom ici si tu en as une
+  fontSize: "16px",    // Plus gros pour plus de lisibilité
+  color: "#fff",       // Blanc
+  fontStyle: "bold",   // En gras
+  align: "center",
+  stroke: "#000",      // Léger contour noir
+  strokeThickness: 3   // Épaisseur du contour
+})
+  .setOrigin(0.5, 1)
+  .setDepth(4.1);
+
+// Ajout d'une ombre portée noire (léger flou)
+nameText.setShadow(0, 2, "#000", 4, true, true);
 
     // Effet de survol pour le NPC
     sprite.setInteractive();
