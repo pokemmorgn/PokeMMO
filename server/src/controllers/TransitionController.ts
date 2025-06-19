@@ -31,12 +31,6 @@ private loadCurrentMap(): void {
 
     // On récupère le résultat dans "loaded"
     const loaded = this.mapManager.loadMap(mapName, mapPath);
-
-    if (loaded) {
-        console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] ✅ Map "${mapName}" chargée avec succès.`);
-    } else {
-        console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] ❌ Map "${mapName}" introuvable (${mapPath}).`);
-    }
 }
 
 
