@@ -110,8 +110,25 @@ public abstract mapName: string;
       username,
       lastX: this.defaultX,
       lastY: this.defaultY,
-      lastMap: mapName
+      lastMap: mapName,
+      team: []
     });
+    // ==== Création et don d'un Pokémon starter (exemple: Bulbizarre id: 1) ====
+  const starter = await OwnedPokemon.create({
+    owner: username,
+    pokemonId: 1,         // ← CHANGE ICI le numéro pour ton starter préféré
+    level: 5,
+    nature: "Hardy",
+    ivs: { hp: 12, attack: 10, defense: 11, spAttack: 10, spDefense: 10, speed: 10 },
+    moves: ["tackle", "growl"],
+    shiny: false,
+    isInTeam: true,
+    slot: 0,
+  });
+
+  // Ajoute le starter à la team du PlayerData
+  playerData.team = [starter._id];
+  await playerData.save();
   }
 
   // === Récupération des Pokémon de la team depuis la BDD ===
