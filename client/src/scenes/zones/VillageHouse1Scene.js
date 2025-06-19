@@ -4,8 +4,8 @@ export class VillageHouse1Scene extends BaseZoneScene {
   constructor() {
     super('VillageHouse1Scene', 'House1Interior');
     this.transitionCooldowns = {};
-    this.npcs = [];
-    this.interactiveObjects = [];
+    this.npcs = []; // initialise ici
+    this.interactiveObjects = []; // initialise ici
   }
 
   setupZoneTransitions() {
@@ -154,6 +154,7 @@ export class VillageHouse1Scene extends BaseZoneScene {
     npc.setInteractive();
     npc.on('pointerdown', () => this.interactWithNPC(npcData.name || 'Assistant'));
 
+    npc.npcData = npcData; // important pour handleInteraction
     this.npcs.push(npc);
   }
 
