@@ -49,8 +49,7 @@ gameServer.define('worldchat', WorldChatRoom);
       lastX: player.lastX,
       lastY: player.lastY,
       gold: player.gold,
-      pokemons: player.pokemons,
-      walletAddress: player.walletAddress  // <-- Ajout ici
+      walletAddress: player.walletAddress
     });
   } catch (err) {
     res.status(500).json({ error: "Erreur serveur" });
