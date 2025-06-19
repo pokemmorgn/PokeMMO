@@ -316,6 +316,18 @@
                  "width":0,
                  "x":430,
                  "y":438.666666666667
+                }, 
+                {
+                 "height":0,
+                 "id":93,
+                 "name":"spawnfallback",
+                 "point":true,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":379.333333333333,
+                 "y":405.333333333333
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -438,7 +450,7 @@
          "y":0
         }],
  "nextlayerid":15,
- "nextobjectid":93,
+ "nextobjectid":94,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
