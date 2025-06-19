@@ -1,13 +1,11 @@
 // ==========================================
-// managers/MapManager.ts - Import des types
+// src/managers/MapManager.ts - Chargement à la demande
 // ==========================================
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { 
     TiledMap, 
-    TiledLayer, 
-    TiledObject, 
     TiledProperty, 
     Teleport, 
     Spawn, 
@@ -15,39 +13,47 @@ import {
 } from '../types/MapTypes';
 
 export class MapManager {
-    private mapsDirectory: string;
     private maps: Map<string, TiledMap>;
     private teleports: Map<string, Teleport>;
     private spawns: Map<string, Spawn>;
 
-    constructor(mapsDirectory: string = './maps') {
-        this.mapsDirectory = mapsDirectory;
+    constructor() {
         this.maps = new Map<string, TiledMap>();
         this.teleports = new Map<string, Teleport>();
         this.spawns = new Map<string, Spawn>();
-        
-        this.loadAllMaps();
-        this.buildTeleportNetwork();
     }
 
-    private loadAllMaps(): void {
+    /**
+     * Charge une map spécifique depuis un fichier
+     */
+    public loadMap(mapName: string, mapPath: string): void {
         try {
-            const mapFiles = fs.readdirSync(this.mapsDirectory)
-                .filter((file: string) => file.endsWith('.json'));
-
-            for (const mapFile of mapFiles) {
-                const mapPath = path.join(this.mapsDirectory, mapFile);
-                const mapData: TiledMap = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
-                const mapName = path.basename(mapFile, '.json');
-                
-                this.maps.set(mapName, mapData);
-                this.extractTeleportsAndSpawns(mapName, mapData);
+            console.log(`📍 Chargement de la map ${mapName} depuis ${mapPath}`);
+            
+            if (!fs.existsSync(mapPath)) {
+                console.error(`❌ Fichier de map introuvable: ${mapPath}`);
+                return;
             }
 
-            console.log(`✅ Chargé ${this.maps.size} maps avec ${this.teleports.size} téléports et ${this.spawns.size} spawns`);
+            const mapData: TiledMap = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+            this.maps.set(mapName, mapData);
+            this.extractTeleportsAndSpawns(mapName, mapData);
+            
+            console.log(`✅ Map ${mapName} chargée avec succès`);
+            
         } catch (error) {
-            console.error('❌ Erreur lors du chargement des maps:', error);
+            console.error(`❌ Erreur lors du chargement de la map ${mapName}:`, error);
         }
+    }
+
+    /**
+     * Charge plusieurs maps en une fois
+     */
+    public loadMaps(mapConfigs: Array<{ name: string; path: string }>): void {
+        for (const config of mapConfigs) {
+            this.loadMap(config.name, config.path);
+        }
+        this.buildTeleportNetwork();
     }
 
     private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
@@ -56,6 +62,7 @@ export class MapManager {
                 for (const obj of layer.objects) {
                     const properties = this.parseProperties(obj.properties || []);
                     
+                    // Gérer les téléports (nom = "teleport")
                     if (obj.name === 'teleport' && properties.targetSpawn && properties.targetZone) {
                         const teleportKey = `${mapName}_teleport_${obj.id}`;
                         this.teleports.set(teleportKey, {
@@ -69,6 +76,7 @@ export class MapManager {
                         });
                     }
                     
+                    // Gérer les spawns (nom = "spawn")
                     if (obj.name === 'spawn' && properties.targetSpawn && properties.targetZone) {
                         const spawnKey = `${properties.targetZone}_${properties.targetSpawn}`;
                         this.spawns.set(spawnKey, {
