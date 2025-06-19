@@ -54,47 +54,48 @@ class PokeChatSystem {
   }
 
   // Ajoute un message stylé dans le chat
-  addMessage(author, message, timestamp = null, type = 'normal') {
-    const isMe = (author === this.username || author === "You");
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `chat-message new${type !== 'normal' ? ' ' + type : ''}`;
-let dateObj = timestamp ? new Date(timestamp) : new Date();
-const time = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+addMessage(author, message, timestamp = null, type = 'normal') {
+  const isMe = (author === this.username || author === "You");
+  const msgDiv = document.createElement('div');
+  msgDiv.className = `chat-message new${type !== 'normal' ? ' ' + type : ''}`;
 
-    // Construction du nom d'utilisateur + badge de niveau
-    let userClass = "chat-username";
-    let extraAttrs = "";
-    if (isMe) {
-      userClass += " level";
-      extraAttrs = ' data-level="You"';
-    }
-    // Ajoute ici la gestion du niveau pour les autres joueurs si tu veux (cf. commentaire plus bas)
+  let dateObj = timestamp ? new Date(timestamp) : new Date();
+  const time = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
-    if (type === 'system') {
-      msgDiv.innerHTML = `
-        <span class="chat-text">${message}</span>
-        <span class="chat-timestamp">${time}</span>
-      `;
-    } else {
-      msgDiv.innerHTML = `
-        <span class="${userClass}"${extraAttrs}>${isMe ? "You" : author}</span>
-        <span class="chat-text">${message}</span>
-        <span class="chat-timestamp">${time}</span>
-      `;
-    }
-
-    this.chatMessages.appendChild(msgDiv);
-    this.scrollToBottom();
-    setTimeout(() => msgDiv.classList.remove('new'), 400);
-
-    // Gère la limite de messages
-    this.messageHistory.push(msgDiv);
-    if (this.messageHistory.length > this.maxMessages) {
-      const oldMsg = this.messageHistory.shift();
-      oldMsg.classList.add('leaving');
-      setTimeout(() => oldMsg.remove(), 300);
-    }
+  // Construction du nom d'utilisateur + badge de niveau
+  let userClass = "chat-username";
+  let extraAttrs = "";
+  if (isMe) {
+    userClass += " level";
+    extraAttrs = ' data-level="You"';
   }
+
+  if (type === 'system') {
+    msgDiv.innerHTML = `
+      <span class="chat-text">${message}</span>
+      <span class="chat-timestamp">${time}</span>
+    `;
+  } else {
+    msgDiv.innerHTML = `
+      <span class="${userClass}"${extraAttrs}>${isMe ? "You" : author}</span>
+      <span class="chat-text">${message}</span>
+      <span class="chat-timestamp">${time}</span>
+    `;
+  }
+
+  this.chatMessages.appendChild(msgDiv);
+  this.scrollToBottom();
+  setTimeout(() => msgDiv.classList.remove('new'), 400);
+
+  // Gère la limite de messages
+  this.messageHistory.push(msgDiv);
+  if (this.messageHistory.length > this.maxMessages) {
+    const oldMsg = this.messageHistory.shift();
+    oldMsg.classList.add('leaving');
+    setTimeout(() => oldMsg.remove(), 300);
+  }
+}
+
 
   scrollToBottom() {
     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
