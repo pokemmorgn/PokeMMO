@@ -56,8 +56,8 @@ export class VillageRoom extends BaseRoom {
       'BeachRoom': { x: 62, y: 50 },
       
       // Positions dans Route 1 quand on vient du village
-      'Road1Scene': { x: 337, y: 616 },
-      'Road1Room': { x: 337, y: 616 },
+      'Road1Scene': { x: 337, y: 616 }, // ✅ Correct
+      'Road1Room': { x: 337, y: 616 },  // ✅ Correct
       
       // Positions dans le labo quand on vient du village
       'VillageLabScene': { x: 248, y: 364 },
@@ -88,9 +88,9 @@ export class VillageRoom extends BaseRoom {
       'FromBeachScene': { x: 428, y: 445 },
       'FromBeach': { x: 428, y: 445 },
       
-      // Spawn quand on vient de Route 1
-      'FromRoad1Scene': { x: 150, y: 26 },
-      'FromRoad1': { x: 150, y: 26 },
+      // ✅ CORRIGER : Spawn quand on vient de Route 1  
+      'FromRoad1Scene': { x: 131.33, y: 0 }, // ✅ Bonne position !
+      'FromRoad1': { x: 131.33, y: 0 },      // ✅ Bonne position !
       
       // Spawn par défaut
       'Default': { x: this.defaultX, y: this.defaultY },
@@ -108,7 +108,7 @@ export class VillageRoom extends BaseRoom {
         return { x: 428, y: 445 }; // Position quand on vient de la plage
       case "Road1Room":  
       case "Road1Scene":
-        return { x: 150, y: 26 }; // Position quand on vient de Route 1
+        return { x: 131.33, y: 0 }; // ✅ CORRIGER : Position quand on vient de Route 1
       default:
         return { x: this.defaultX, y: this.defaultY };
     }
