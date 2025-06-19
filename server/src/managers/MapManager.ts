@@ -144,24 +144,30 @@ private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
 }
 
 
-    public getTeleportDestination(teleport: Teleport): { mapName: string; x: number; y: number; spawnPoint: string } | null {
-        const spawnKey = `${teleport.targetZone}_${teleport.targetSpawn}`;
-        const targetSpawn = this.spawns.get(spawnKey);
-        
-        if (!targetSpawn) {
-            console.error(`❌ Spawn de destination introuvable: ${spawnKey}`);
-            return null;
-        }
+public getTeleportDestination(teleport: Teleport): { mapName: string; x: number; y: number; spawnPoint: string } | null {
+    // Normalise la casse
+    const spawnKey = `${teleport.targetZone.toLowerCase()}_${teleport.targetSpawn.toLowerCase()}`;
+    console.log(`[DEBUG SPAWN] Recherche du spawnKey: "${spawnKey}"`);
+    console.log(`[DEBUG SPAWN] Liste des spawns chargés:`, [...this.spawns.keys()]);
 
-        return {
-            mapName: targetSpawn.mapName,
-            x: targetSpawn.x,
-            y: targetSpawn.y,
-            spawnPoint: targetSpawn.targetSpawn
-        };
+    const targetSpawn = this.spawns.get(spawnKey);
+    
+    if (!targetSpawn) {
+        console.error(`❌ Spawn de destination introuvable: ${spawnKey}`);
+        return null;
     }
 
+    return {
+        mapName: targetSpawn.mapName,
+        x: targetSpawn.x,
+        y: targetSpawn.y,
+        spawnPoint: targetSpawn.targetSpawn
+    };
+}
+
+
 public teleportPlayer(playerId: string, fromMap: string, playerX: number, playerY: number): TeleportResult | null {
+    fromMap = fromMap.toLowerCase();
     console.log(`[TELEPORT] Appel pour playerId=${playerId}, fromMap=${fromMap}, pos=(${playerX},${playerY})`);
     
     const teleport = this.checkTeleportCollision(fromMap, playerX, playerY);
