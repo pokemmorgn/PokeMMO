@@ -95,9 +95,8 @@ let pokeChat = null;
     pokeChat = new PokeChatSystem(worldChat, window.username);
     window.pokeChat = pokeChat;
 
-    // --- GESTION BULLE HIDE/SHOW ---
-    const chatToggle = document.getElementById('chat-toggle');
-    chatToggle.addEventListener('click', () => pokeChat.toggleHide());
+    // --- SUPPRIMÉ L'EVENT LISTENER DUPLIQUÉ ---
+    // Le PokeChatSystem gère déjà le toggle dans sa classe
 
     // Réception des messages du serveur
     worldChat.onMessage("chat", data => {
@@ -114,6 +113,7 @@ let pokeChat = null;
     // Bienvenue
     pokeChat.addMessage('System', '🎮 Welcome to PokeWorld! Press T to test NPC dialogue.', null, 'system');
     pokeChat.addMessage('KantoTrainer', 'Anyone up for a battle? <span class="pokemon-emoji">⚡</span>', null, 'normal');
+    
     // Messages de tournoi, etc.
     setTimeout(() => {
       pokeChat.addMessage('System', '🎉 Daily tournament starting in 10 minutes!', null, 'system');
@@ -127,7 +127,7 @@ let pokeChat = null;
       pokeChat.addMessage('Nurse_Joy', 'Don\'t forget to heal your Pokémon regularly! 💊', null, 'normal');
     }, 8000);
 
-    // --- EXEMPLE : simulate random system messages régulièrement
+    // --- EXEMPLE : simulate random system messages régulièrement
     setInterval(() => {
       if (!pokeChat) return;
       const tips = [
