@@ -79,34 +79,40 @@ export class NpcManager {
       .setDepth(4)
       .setScale(1);
 
-// Création du nom du NPC, sans background, avec ombre pour la lisibilité
-// Version fantasy avec effet magique
-const nameText = this.scene.add.text(npc.x, npc.y - 35, npc.name, {
-  fontFamily: "Georgia",     // Police serif pour un côté medieval
+// Version compacte
+const nameContainer = this.scene.add.container(npc.x, npc.y - 42);
+
+// Calcul dynamique de la taille basé sur le texte
+const tempText = this.scene.add.text(0, 0, npc.name, {
+  fontFamily: "Arial",
   fontSize: "10px",
-  color: "#ffd700",          // Or pour un côté précieux
+  fontStyle: "bold"
+});
+const textWidth = tempText.width;
+tempText.destroy(); // On supprime le texte temporaire
+
+// Arrière-plan ajusté au texte
+const nameBg = this.scene.add.graphics()
+  .fillStyle(0x1e1e1e, 0.8)
+  .lineStyle(1, 0x404040, 0.6)
+  .fillRoundedRect(-(textWidth/2) - 6, -8, textWidth + 12, 14, 6)
+  .strokeRoundedRect(-(textWidth/2) - 6, -8, textWidth + 12, 14, 6);
+
+// Texte principal plus petit
+const nameText = this.scene.add.text(0, -1, npc.name, {
+  fontFamily: "Arial",
+  fontSize: "10px",
+  color: "#e8e8e8",
   fontStyle: "bold",
-  align: "center",
-  stroke: "#8B4513",         // Contour brun
-  strokeThickness: 1.5
+  align: "center"
 })
-  .setOrigin(0.5, 1)
-  .setDepth(4.1);
+  .setOrigin(0.5, 0.5);
 
-// Effet de lueur dorée
-nameText.setShadow(0, 1, "#ffa500", 4, false, true);
+// Point décoratif plus petit et mieux positionné
+const decorDot = this.scene.add.circle(-(textWidth/2) - 3, -1, 1.5, 0x4a9eff);
 
-    // Effet de survol pour le NPC
-    sprite.setInteractive();
-    sprite.on('pointerover', () => {
-      sprite.setTint(0xffff88); // Légère teinte jaune au survol
-      nameText.setStyle({ backgroundColor: "#004400cc" });
-    });
-
-    sprite.on('pointerout', () => {
-      sprite.clearTint();
-      nameText.setStyle({ backgroundColor: "#000000cc" });
-    });
+nameContainer.add([nameBg, nameText, decorDot]);
+nameContainer.setDepth(4.1);
 
     // Stockage des références
     this.npcVisuals.set(npc.id, { sprite, nameText });
