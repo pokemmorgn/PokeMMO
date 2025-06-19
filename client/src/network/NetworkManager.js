@@ -57,15 +57,35 @@ export class NetworkManager {
     console.log(`[NetworkManager] Début transition vers ${data.targetZone}`);
 
     let newRoomName = '';
-    switch(data.targetZone) {
-      case 'BeachScene': newRoomName = 'BeachRoom'; break;
-      case 'VillageScene': newRoomName = 'VillageRoom'; break;
-      case 'Road1Scene': newRoomName = 'Road1Room'; break;
-      case 'VillageLabScene': newRoomName = 'VillageLabRoom'; break;
-      case 'VillageHouse1Scene': newRoomName = 'VillageHouse1Room'; break; 
-      case 'LavandiaScene': newRoomName = 'LavandiaRoom'; break;
-      default: newRoomName = 'DefaultRoom';
-    }
+    switch(data.targetZone.toLowerCase()) {
+  case 'beach':
+  case 'beachscene':
+    newRoomName = 'BeachRoom';
+    break;
+  case 'village':
+  case 'villagescene':
+    newRoomName = 'VillageRoom';
+    break;
+  case 'road1':
+  case 'road1scene':
+    newRoomName = 'Road1Room';
+    break;
+  case 'villagelab':
+  case 'villagelabscene':
+    newRoomName = 'VillageLabRoom';
+    break;
+  case 'villagehouse1':
+  case 'villagehouse1scene':
+    newRoomName = 'VillageHouse1Room';
+    break;
+  case 'lavandia':
+  case 'lavandiascene':
+    newRoomName = 'LavandiaRoom';
+    break;
+  default:
+    newRoomName = 'BeachRoom';  // fallback sûr
+    console.warn(`[NetworkManager] Nom de zone inconnu: ${data.targetZone}, fallback vers BeachRoom`);
+}
 
     try {
       if (this.room) {
