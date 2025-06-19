@@ -1,5 +1,5 @@
 {
-  "_comment": "Fichier à placer dans server/assets/data/quests.json",
+  "_comment": "Fichier à placer dans server/data/quests.json",
   "quests": [
     {
       "id": "side_fishing_introduction",
@@ -49,10 +49,11 @@
           "objectives": [
             {
               "id": "return_fishing_line",
-              "type": "talk",
-              "description": "Give the fishing line to Bob (parler à Bob avec l'objet)",
+              "type": "deliver",
+              "description": "Give the fishing line to Bob",
               "target": "12",
               "targetName": "Bob",
+              "itemId": "fishing_line",
               "requiredAmount": 1
             }
           ],
