@@ -9,31 +9,7 @@ export class Road1Scene extends BaseZoneScene {
     console.log("[Road1Scene] Constructor appelé");
   }
 
-  setupZoneTransitions() {
-    console.log("[Road1Scene] setupZoneTransitions appelé");
-    const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (worldsLayer) {
-      console.log(`[Road1Scene] Objects dans 'Worlds' : ${worldsLayer.objects.length}`);
-      const villageExit = worldsLayer.objects.find(obj => obj.name === 'GR');
-      if (villageExit) {
-        console.log("[Road1Scene] Création zone de transition vers VillageScene");
-        this.createTransitionZone(villageExit, 'VillageScene', 'west');
-      } else {
-        console.warn("[Road1Scene] Objet 'GR' introuvable dans 'Worlds'");
-      }
-
-      // Transition vers Lavandia
-      const lavandiaExit = worldsLayer.objects.find(obj => obj.name === 'Lavandia');
-      if (lavandiaExit) {
-        console.log("[Road1Scene] Création zone de transition vers LavandiaScene");
-        this.createTransitionZone(lavandiaExit, 'LavandiaScene', 'north');
-      } else {
-        console.warn("[Road1Scene] Objet 'Lavandia' non trouvé dans 'Worlds'");
-      }
-    } else {
-      console.warn("[Road1Scene] Calque d'objets 'Worlds' introuvable");
-    }
-  }
+  
 
   createTransitionZone(transitionObj, targetScene, direction) {
     console.log(`[Road1Scene] createTransitionZone vers ${targetScene}, direction ${direction}`);
