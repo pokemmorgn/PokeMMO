@@ -214,6 +214,13 @@ export class InteractionManager {
             location: { x: data.x, y: data.y, map: data.map }
           });
 
+        case 'deliver':
+          return await this.questManager.updateQuestProgress(username, {
+            type: 'deliver',
+            npcId: data.npcId,
+            targetId: data.targetId
+          });
+
         default:
           return [];
       }
@@ -222,4 +229,3 @@ export class InteractionManager {
       return [];
     }
   }
-}
