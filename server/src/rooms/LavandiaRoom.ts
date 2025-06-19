@@ -76,7 +76,7 @@ export class LavandiaRoom extends BaseRoom {
       
       // Spawn par défaut
       'Default': { x: this.defaultX, y: this.defaultY },
-      'LavandiaEntrance': { x: 350, y: 750 },
+      'LavandiaEntrance': { x: 56, y: 941 },
     };
     
     return namedSpawns[spawnName] || null;
@@ -87,7 +87,7 @@ export class LavandiaRoom extends BaseRoom {
     switch (fromZone) {
       case "Road1Room":
       case "Road1Scene":
-        return { x: 82, y: 911 }; // Position quand on vient de Route 1
+        return { x: 56, y: 941 }; // Position quand on vient de Route 1
       default:
         return { x: this.defaultX, y: this.defaultY };
     }
