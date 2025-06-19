@@ -603,6 +603,16 @@ export class QuestSystem {
     }
   }
 
+  triggerDeliverEvent(npcId, itemId) {
+    if (this.gameRoom) {
+      this.gameRoom.send("questProgress", {
+        type: 'deliver',
+        npcId: npcId,
+        targetId: itemId
+      });
+    }
+  }
+
   // === MÉTHODES D'INTERFACE ===
 
   openQuestJournal() {
