@@ -6,7 +6,7 @@ import { MovementController } from "../controllers/MovementController";
 import { TransitionController } from "../controllers/TransitionController";
 import { InteractionManager } from "../managers/InteractionManager";
 
-import { OwnedPokemon } from "../models/OwnedPokemon";
+import { OwnedPokemon, IOwnedPokemon } from "../models/OwnedPokemon";
 import { convertOwnedPokemonToTeam } from "../utils/convertOwnedPokemonToTeam";
 import { ArraySchema } from "@colyseus/schema";
 
