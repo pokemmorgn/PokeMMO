@@ -35,6 +35,12 @@ class PokeChatSystem {
       }
     });
 
+    if (this.chatToggle) {
+    this.chatToggle.addEventListener('click', () => {
+      console.log('[CHAT] bulle cliquée');
+      this.toggleHide();
+    });
+  }
     // Gestion du compteur de caractères
     this.chatInput.addEventListener('input', (e) => {
       const length = e.target.value.length;
