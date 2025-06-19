@@ -29,7 +29,8 @@ private loadCurrentMap(): void {
 
     console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] roomName: ${roomName}, mapName: ${mapName}, mapPath: ${mapPath}`);
 
-    const loaded = this.mapManager.loadMap(mapName, mapPath); // <-- Ici !
+    // On récupère le résultat dans "loaded"
+    const loaded = this.mapManager.loadMap(mapName, mapPath);
 
     if (loaded) {
         console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] ✅ Map "${mapName}" chargée avec succès.`);
@@ -37,6 +38,7 @@ private loadCurrentMap(): void {
         console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] ❌ Map "${mapName}" introuvable (${mapPath}).`);
     }
 }
+
 
 
     /**
