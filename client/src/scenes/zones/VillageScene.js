@@ -9,7 +9,9 @@ export class VillageScene extends BaseZoneScene {
   create() {
     console.log("🚨 DEBUT VillageScene.create()");
     super.create();
-
+  if (!this.playerManager) {
+    this.playerManager = new PlayerManager(this);
+  }
     this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
       font: '18px monospace',
       fill: '#000000',
