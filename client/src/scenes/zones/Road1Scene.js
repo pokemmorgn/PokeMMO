@@ -9,7 +9,7 @@ export class Road1Scene extends BaseZoneScene {
     console.log("[Road1Scene] Constructor appelé");
   }
 
-   setupZoneTransitions() {
+  setupZoneTransitions() {
     if (!this.playerManager) {
       console.warn("playerManager non encore initialisé, retry dans 100ms");
       this.time.delayedCall(100, () => this.setupZoneTransitions());
@@ -70,6 +70,7 @@ export class Road1Scene extends BaseZoneScene {
       });
     });
 
+  } // <-- fermeture correcte de setupZoneTransitions
 
   createTransitionZone(transitionObj, targetScene, direction) {
     console.log(`[Road1Scene] createTransitionZone vers ${targetScene}, direction ${direction}`);
@@ -85,17 +86,17 @@ export class Road1Scene extends BaseZoneScene {
     transitionZone.body.setImmovable(true);
 
     let overlapCreated = false;
-    
+
     const checkPlayerInterval = this.time.addEvent({
       delay: 100,
       loop: true,
       callback: () => {
         const myPlayer = this.playerManager.getMyPlayer();
-        
+
         if (myPlayer && !overlapCreated) {
           console.log("[Road1Scene] Joueur trouvé, création overlap avec zone de transition");
           overlapCreated = true;
-          
+
           this.physics.add.overlap(myPlayer, transitionZone, () => {
             console.log(`[Road1Scene] Overlap détecté avec zone vers ${targetScene}`);
             const cooldownKey = `${targetScene}_${direction}`;
@@ -119,7 +120,7 @@ export class Road1Scene extends BaseZoneScene {
               }
             });
           });
-          
+
           checkPlayerInterval.remove();
         }
       },
@@ -176,12 +177,12 @@ export class Road1Scene extends BaseZoneScene {
   ensurePlayerIsCreated() {
     const checkPlayer = () => {
       const myPlayer = this.playerManager?.getMyPlayer();
-      
+
       if (myPlayer) {
         console.log("[Road1Scene] ✅ Joueur trouvé, on stop la vérification");
         return;
       }
-      
+
       this.playerCreationAttempts++;
       console.log(`[Road1Scene] 🔄 Tentative ${this.playerCreationAttempts}/${this.maxPlayerCreationAttempts} - Joueur non trouvé`);
 
@@ -197,7 +198,7 @@ export class Road1Scene extends BaseZoneScene {
       if (this.networkManager && this.networkManager.getSessionId()) {
         const sessionId = this.networkManager.getSessionId();
         const playerState = this.networkManager.getPlayerState(sessionId);
-        
+
         if (playerState) {
           console.log("[Road1Scene] 🔧 Données joueur existantes, création forcée");
           this.playerManager.createPlayer(sessionId, playerState);
