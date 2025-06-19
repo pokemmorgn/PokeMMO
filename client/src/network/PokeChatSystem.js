@@ -10,7 +10,12 @@ export function initPokeChat(room, username) {
       data.type || "normal"
     );
   });
-
+  
+  // Réception du nombre de joueurs en ligne (vrai nombre live !)
+  room.onMessage("onlineCount", data => {
+    window.pokeChat.onlineCount.textContent = `🟢 ${data.count} online`;
+  });
+  
   // ======== MESSAGES AUTOMATIQUES (simulateActivity) ========
   window.pokeChat.addMessage('System', '🎮 Welcome to PokeWorld! Press T to test NPC dialogue.', null, 'system');
   window.pokeChat.addMessage('KantoTrainer', 'Anyone up for a battle? <span class="pokemon-emoji">⚡</span>', null, 'normal');
@@ -37,12 +42,6 @@ export function initPokeChat(room, username) {
     const msg = tips[Math.floor(Math.random() * tips.length)];
     window.pokeChat.addMessage("System", msg, null, "system");
   }, 60000);
-
-  setInterval(() => {
-    if (!window.pokeChat) return;
-    let n = Math.floor(Math.random() * 80) + 20;
-    window.pokeChat.onlineCount.textContent = `🟢 ${n} online`;
-  }, 10000);
 
   return window.pokeChat;
 }
