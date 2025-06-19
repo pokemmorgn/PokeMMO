@@ -1,5 +1,5 @@
 import { TeamPokemon } from "../schema/PokeWorldState";
-import { IOwnedPokemon } from "../models/OwnedPokemon"; // ou ton interface
+import { IOwnedPokemon } from "../models/OwnedPokemon";
 
 export function convertOwnedPokemonToTeam(poke: IOwnedPokemon): TeamPokemon {
   const teamPoke = new TeamPokemon();
