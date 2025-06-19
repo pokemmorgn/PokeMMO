@@ -22,35 +22,30 @@ export class TransitionController {
     /**
      * Charge la map de la room actuelle
      */
-private loadCurrentMap(): void {
-    const roomName = (this.room as any).mapName || 'unknown';
-    const mapName = roomName.replace('Room', '').toLowerCase();
-    const mapPath = `../assets/maps/${mapName}.tmj`;
+    private loadCurrentMap(): void {
+        const roomName = (this.room as any).mapName || 'unknown';
+        const mapName = roomName.replace('Room', '').toLowerCase();
+        const mapPath = `../assets/maps/${mapName}.tmj`;
 
-    console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] roomName: ${roomName}, mapName: ${mapName}, mapPath: ${mapPath}`);
-    const loaded = this.mapManager.loadMap(mapName, mapPath);
+        console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] roomName: ${roomName}, mapName: ${mapName}, mapPath: ${mapPath}`);
 
-    if (loaded) {
+        this.mapManager.loadMap(mapName, mapPath);
+
+     if (loaded) {
         console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] ✅ Map "${mapName}" chargée avec succès.`);
     } else {
         console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] ❌ Map "${mapName}" introuvable (${mapPath}).`);
     }
-}
+    }
 
     /**
      * Charge une map supplémentaire (pour les destinations)
      */
-public loadAdditionalMap(mapName: string): void {
-    const mapPath = `../assets/maps/${mapName.toLowerCase()}.tmj`;
-    console.log(`[TRANSITIONCONTROLLER] [loadAdditionalMap] mapName: ${mapName}, mapPath: ${mapPath}`);
-    const loaded = this.mapManager.loadMap(mapName, mapPath);
-
-    if (loaded) {
-        console.log(`[TRANSITIONCONTROLLER] [loadAdditionalMap] ✅ Map "${mapName}" chargée avec succès.`);
-    } else {
-        console.log(`[TRANSITIONCONTROLLER] [loadAdditionalMap] ❌ Map "${mapName}" introuvable (${mapPath}).`);
+    public loadAdditionalMap(mapName: string): void {
+        const mapPath = `../assets/maps/${mapName.toLowerCase()}.tmj`;
+        console.log(`[TRANSITIONCONTROLLER] [loadAdditionalMap] mapName: ${mapName}, mapPath: ${mapPath}`);
+        this.mapManager.loadMap(mapName, mapPath);
     }
-}
 
     public checkAutoTeleport(client: Client, player: any): boolean {
         console.log(`[TRANSITIONCONTROLLER] [checkAutoTeleport] sessionId: ${client.sessionId}, player.map: ${player.map}, pos: (${player.x}, ${player.y})`);
