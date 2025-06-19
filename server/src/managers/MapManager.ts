@@ -167,34 +167,48 @@ export class MapManager {
         };
     }
 
-    public teleportPlayer(playerId: string, fromMap: string, playerX: number, playerY: number): TeleportResult | null {
-        fromMap = fromMap.toLowerCase();
-        console.log(`[TELEPORT] Appel pour playerId=${playerId}, fromMap=${fromMap}, pos=(${playerX},${playerY})`);
-        
-        const teleport = this.checkTeleportCollision(fromMap, playerX, playerY);
-        if (!teleport) {
-            console.warn(`[TELEPORT] Aucun téléport trouvé à cette position.`);
-            return null;
+    public ensureMapLoaded(mapName: string): void {
+    mapName = mapName.toLowerCase();
+    if (!this.maps.has(mapName)) {
+        // Chemin standard (adapte si besoin)
+        const mapPath = `../assets/maps/${mapName}.tmj`;
+        this.loadMap(mapName, mapPath);
         }
-        console.log(`[TELEPORT] Téléport trouvé:`, teleport);
-
-        const destination = this.getTeleportDestination(teleport);
-        if (!destination) {
-            console.error(`[TELEPORT] Aucune destination trouvée pour téléport (targetZone=${teleport.targetZone}, targetSpawn=${teleport.targetSpawn})`);
-            return null;
-        }
-        console.log(`[TELEPORT] Destination trouvée:`, destination);
-
-        console.log(`🌀 Téléportation: ${playerId} de ${fromMap} vers ${destination.mapName} [${destination.x},${destination.y}] (spawn: ${destination.spawnPoint})`);
-        
-        return {
-            success: true,
-            targetMap: destination.mapName,
-            targetX: destination.x,
-            targetY: destination.y,
-            spawnPoint: destination.spawnPoint
-        };
     }
+
+    
+public teleportPlayer(playerId: string, fromMap: string, playerX: number, playerY: number): TeleportResult | null {
+    fromMap = fromMap.toLowerCase();
+    console.log(`[TELEPORT] Appel pour playerId=${playerId}, fromMap=${fromMap}, pos=(${playerX},${playerY})`);
+    
+    const teleport = this.checkTeleportCollision(fromMap, playerX, playerY);
+    if (!teleport) {
+        console.warn(`[TELEPORT] Aucun téléport trouvé à cette position.`);
+        return null;
+    }
+    console.log(`[TELEPORT] Téléport trouvé:`, teleport);
+
+    // ⚡️ Charge la map de destination si besoin (avant de chercher le spawn)
+    this.ensureMapLoaded(teleport.targetZone);
+
+    const destination = this.getTeleportDestination(teleport);
+    if (!destination) {
+        console.error(`[TELEPORT] Aucune destination trouvée pour téléport (targetZone=${teleport.targetZone}, targetSpawn=${teleport.targetSpawn})`);
+        return null;
+    }
+    console.log(`[TELEPORT] Destination trouvée:`, destination);
+
+    console.log(`🌀 Téléportation: ${playerId} de ${fromMap} vers ${destination.mapName} [${destination.x},${destination.y}] (spawn: ${destination.spawnPoint})`);
+    
+    return {
+        success: true,
+        targetMap: destination.mapName,
+        targetX: destination.x,
+        targetY: destination.y,
+        spawnPoint: destination.spawnPoint
+    };
+}
+
 
     public getMapData(mapName: string): TiledMap | undefined {
         mapName = mapName.toLowerCase();
