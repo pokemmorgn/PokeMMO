@@ -80,7 +80,7 @@ export class NpcManager {
       .setScale(1);
 
 // Version style pixel art inspirée de l'image
-const nameContainer = this.scene.add.container(npc.x, npc.y - 42);
+const nameContainer = this.scene.add.container(npc.x -15, npc.y - 42);
 
 // Calcul dynamique de la taille basé sur le texte (réduit de 20%)
 const tempText = this.scene.add.text(0, 0, npc.name, {
