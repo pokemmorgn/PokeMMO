@@ -52,19 +52,19 @@ export class Road1Room extends BaseRoom {
   private getDestinationSpawnPosition(targetZone: string, targetSpawn?: string): { x: number, y: number } | null {
     const destinationSpawns: Record<string, { x: number, y: number }> = {
       // Position dans le village quand on va vers le village depuis Route 1
-      'VillageScene': { x: 150, y: 26 },
-      'VillageRoom': { x: 150, y: 26 },
+      'VillageScene': { x: 131, y: 0 },
+      'VillageRoom': { x: 131, y: 0 },
       
       // Position dans Lavandia quand on va vers Lavandia depuis Route 1
-      'LavandiaScene': { x: 82, y: 911 },
-      'LavandiaRoom': { x: 82, y: 911 },
+      'LavandiaScene': { x: 56, y: 941 },
+      'LavandiaRoom': { x: 56, y: 941 },
     };
     
     // Si on a un spawn nommé spécifique
     if (targetSpawn) {
       const specificSpawns: Record<string, { x: number, y: number }> = {
-        'FromRoad1Scene': { x: 150, y: 26 }, // Village
-        'FromRoad1ToLavandia': { x: 82, y: 911 }, // Lavandia
+        'FromRoad1Scene': { x: 131, y: 0 }, // Village
+        'FromRoad1ToLavandia': { x: 56, y: 941 }, // Lavandia
       };
       if (specificSpawns[targetSpawn]) {
         return specificSpawns[targetSpawn];
@@ -78,12 +78,12 @@ export class Road1Room extends BaseRoom {
   private getNamedSpawnPosition(spawnName: string): { x: number, y: number } | null {
     const namedSpawns: Record<string, { x: number, y: number }> = {
       // Spawn quand on vient du village
-      'FromVillageScene': { x: 337, y: 616 },
-      'FromVillage': { x: 337, y: 616 },
+      'FromVillageScene': { x: 307, y: 630 },
+      'FromVillage': { x: 307, y: 630 },
       
       // Spawn quand on vient de Lavandia
-      'FromLavandiaScene': { x: 198, y: 22 },
-      'FromLavandia': { x: 198, y: 22 },
+      'FromLavandiaScene': { x: 185, y: -0 },
+      'FromLavandia': { x: 185, y: -0 },
       
       // Spawn par défaut
       'Default': { x: this.defaultX, y: this.defaultY },
