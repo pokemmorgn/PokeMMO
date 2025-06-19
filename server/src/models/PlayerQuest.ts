@@ -2,7 +2,7 @@
 
 import mongoose, { Document } from "mongoose";
 
-// Interfaces TypeScript d'abord
+// Interfaces TypeScript
 export interface IPlayerQuestProgress {
   questId: string;
   currentStepIndex: number;
@@ -30,12 +30,6 @@ export interface IPlayerQuest extends Document {
 }
 
 // Schémas MongoDB
-const QuestObjectiveProgressSchema = new mongoose.Schema({
-  objectiveId: { type: String, required: true },
-  currentAmount: { type: Number, default: 0 },
-  completed: { type: Boolean, default: false }
-});
-
 const PlayerQuestProgressSchema = new mongoose.Schema({
   questId: { type: String, required: true },
   currentStepIndex: { type: Number, default: 0 },
@@ -57,7 +51,7 @@ const PlayerQuestSchema = new mongoose.Schema({
     completedAt: Date,
     stepCount: Number 
   }],
-  lastQuestCompletions: [{ // Pour les quêtes répétables
+  lastQuestCompletions: [{ 
     questId: String,
     lastCompletedAt: Date
   }]
