@@ -16,7 +16,7 @@ export class TransitionController {
         this.room = room;
         // SUPPRIME cette ligne : this.mapManager = new MapManager();
         
-        console.log("[TRANSITIONCONTROLLER] Constructeur appelé, initialisation mapManager.");
+      //  console.log("[TRANSITIONCONTROLLER] Constructeur appelé, initialisation mapManager.");
         // Charger la map de cette room
         this.loadCurrentMap();
     }
@@ -29,13 +29,13 @@ private loadCurrentMap(): void {
     const mapName = roomName.replace('Room', '').toLowerCase();
     const mapPath = `../assets/maps/${mapName}.tmj`;
 
-    console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] roomName: ${roomName}, mapName: ${mapName}, mapPath: ${mapPath}`);
+    //console.log(`[TRANSITIONCONTROLLER] [loadCurrentMap] roomName: ${roomName}, mapName: ${mapName}, mapPath: ${mapPath}`);
 
     this.mapManager.loadMap(mapName, mapPath);
 
     // Vérification immédiate
     const allLoaded = this.mapManager.getAllMapNames();
-    console.log(`[TRANSITIONCONTROLLER] Maps chargées actuellement:`, allLoaded);
+//    console.log(`[TRANSITIONCONTROLLER] Maps chargées actuellement:`, allLoaded);
 }
 
     /**
@@ -43,12 +43,12 @@ private loadCurrentMap(): void {
      */
     public loadAdditionalMap(mapName: string): void {
         const mapPath = `../assets/maps/${mapName.toLowerCase()}.tmj`;
-        console.log(`[TRANSITIONCONTROLLER] [loadAdditionalMap] mapName: ${mapName}, mapPath: ${mapPath}`);
+  //      console.log(`[TRANSITIONCONTROLLER] [loadAdditionalMap] mapName: ${mapName}, mapPath: ${mapPath}`);
         this.mapManager.loadMap(mapName, mapPath);
     }
 
     public checkAutoTeleport(client: Client, player: any): boolean {
-        console.log(`[TRANSITIONCONTROLLER] [checkAutoTeleport] sessionId: ${client.sessionId}, player.map: ${player.map}, pos: (${player.x}, ${player.y})`);
+  //      console.log(`[TRANSITIONCONTROLLER] [checkAutoTeleport] sessionId: ${client.sessionId}, player.map: ${player.map}, pos: (${player.x}, ${player.y})`);
         const teleportResult = this.mapManager.teleportPlayer(
             client.sessionId,
             player.map,
@@ -64,18 +64,18 @@ private loadCurrentMap(): void {
             this.executeTeleport(client, player, teleportResult);
             return true;
         }
-        console.log(`[TRANSITIONCONTROLLER] [checkAutoTeleport] Aucun téléport trouvé.`);
+    //    console.log(`[TRANSITIONCONTROLLER] [checkAutoTeleport] Aucun téléport trouvé.`);
         return false;
     }
 
     public handleTransition(client: Client, data: any): void {
         const player = this.room.state.players.get(client.sessionId);
         if (!player) {
-            console.log(`[TRANSITIONCONTROLLER] [handleTransition] Aucun player pour sessionId: ${client.sessionId}`);
+    //        console.log(`[TRANSITIONCONTROLLER] [handleTransition] Aucun player pour sessionId: ${client.sessionId}`);
             return;
         }
 
-        console.log(`[TRANSITIONCONTROLLER] [handleTransition] Demande de transition pour player: ${player.name}, map: ${player.map}, pos: (${data.x || player.x}, ${data.y || player.y})`);
+  //      console.log(`[TRANSITIONCONTROLLER] [handleTransition] Demande de transition pour player: ${player.name}, map: ${player.map}, pos: (${data.x || player.x}, ${data.y || player.y})`);
         const teleportResult = this.mapManager.teleportPlayer(
             client.sessionId,
             player.map,
@@ -90,7 +90,7 @@ private loadCurrentMap(): void {
             
             this.executeTeleport(client, player, teleportResult);
         } else {
-            console.log(`[TRANSITIONCONTROLLER] [handleTransition] Échec de transition pour ${player.name}`);
+     //       console.log(`[TRANSITIONCONTROLLER] [handleTransition] Échec de transition pour ${player.name}`);
             client.send("teleport_failed", { 
                 reason: "Aucun téléport à cette position" 
             });
@@ -115,11 +115,11 @@ private loadCurrentMap(): void {
             mapData: newMapData
         });
 
-        console.log(`[TRANSITIONCONTROLLER] ✅ ${player.name} téléporté vers ${teleportResult.targetMap} [${teleportResult.targetX}, ${teleportResult.targetY}]`);
+     //   console.log(`[TRANSITIONCONTROLLER] ✅ ${player.name} téléporté vers ${teleportResult.targetMap} [${teleportResult.targetX}, ${teleportResult.targetY}]`);
     }
 
     public getSpawnPoint(mapName: string, spawnName?: string): { x: number; y: number } | null {
-        console.log(`[TRANSITIONCONTROLLER] [getSpawnPoint] mapName: ${mapName}, spawnName: ${spawnName}`);
+    //    console.log(`[TRANSITIONCONTROLLER] [getSpawnPoint] mapName: ${mapName}, spawnName: ${spawnName}`);
         // Charger la map si elle n'est pas encore chargée
         this.loadAdditionalMap(mapName);
         const spawn = this.mapManager.getSpawnPoint(mapName, spawnName);
@@ -128,7 +128,7 @@ private loadCurrentMap(): void {
     }
 
     public getMapData(mapName: string): TiledMap | undefined {
-        console.log(`[TRANSITIONCONTROLLER] [getMapData] mapName: ${mapName}`);
+    //    console.log(`[TRANSITIONCONTROLLER] [getMapData] mapName: ${mapName}`);
         return this.mapManager.getMapData(mapName);
     }
 }
