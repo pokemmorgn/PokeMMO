@@ -125,6 +125,23 @@ this.createUI();
         this.layers[layerData.name] = layer;
         layer.setDepth(depthOrder[layerData.name] ?? 0);
       });
+// === Debug: Affichage des zones de téléport ===
+const teleportZones =
+  this.map.objects
+    ?.find(layer => layer.name === "Worlds")
+    ?.objects
+    ?.filter(obj => obj.name === "teleport") || [];
+
+teleportZones.forEach(obj => {
+  const rect = this.add.rectangle(
+    obj.x + obj.width / 2,
+    obj.y + obj.height / 2,
+    obj.width,
+    obj.height,
+    0xff0000, 0.25 // Rouge, transparence 25%
+  ).setDepth(999);
+  rect.setStrokeStyle(2, 0xffffff); // Contour blanc pour bien voir
+});
 
       if (this.sys.animatedTiles) {
         this.sys.animatedTiles.init(this.map);
