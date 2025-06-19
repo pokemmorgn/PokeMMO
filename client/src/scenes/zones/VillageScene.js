@@ -33,32 +33,7 @@ export class VillageScene extends BaseZoneScene {
   }
 
 
-    // Layer Door
-    const doorLayer = this.map.getObjectLayer('Door');
-    if (!doorLayer) {
-      console.warn("⚠️ Layer 'Door' non trouvé");
-      return;
-    }
-    console.log(`🚪 Layer 'Door' trouvé, ${doorLayer.objects.length} objets`);
-
-    const labDoor = doorLayer.objects.find(obj => obj.name === 'Labo');
-    if (labDoor) {
-      this.createTransitionZone(labDoor, 'VillageLabScene', 'north');
-      console.log("🧪 Transition vers Laboratoire trouvée !");
-    } else {
-      console.warn("⚠️ Objet 'Labo' non trouvé dans 'Door'");
-      console.log("Objets dans Door:", doorLayer.objects.map(o => o.name));
-    }
-
-    const house1Door = doorLayer.objects.find(obj => obj.name === 'House1');
-    if (house1Door) {
-      this.createTransitionZone(house1Door, 'VillageHouse1Scene', 'inside');
-      console.log("🏠 Transition vers VillageHouse1 trouvée !");
-    } else {
-      console.warn("⚠️ Objet 'House1' non trouvé dans 'Door'");
-    }
-  }
-
+    
   positionPlayer(player) {
     console.log("🔄 positionPlayer appelé");
     const initData = this.scene.settings.data;
