@@ -497,22 +497,29 @@ this.input.keyboard.on("keydown-E", () => {
 
     // Quand le serveur répond à l’interaction NPC
 this.networkManager.onMessage("npcInteractionResult", (result) => {
+  console.log("🟢 [npcInteractionResult] Reçu :", result);
+
   if (result.type === "dialogue") {
+    console.log("➡️ Type = dialogue");
     let npcName = "???";
     let spriteName = null;
     let portrait = result.portrait; // peut-être null/undefined
     if (result.npcId && this.npcManager) {
+      console.log("🔍 Recherche NPC dans npcManager:", result.npcId, this.npcManager);
       const npc = this.npcManager.getNpcData(result.npcId);
       if (npc) {
         npcName = npc.name;
         spriteName = npc.sprite;
-        // 1. Portrait fourni explicitement ? (ex : event spécial)
-        // 2. Sinon, construit l’URL par convention
+        console.log("✅ NPC trouvé :", npc);
         if (!portrait && spriteName) {
           portrait = `/assets/portrait/${spriteName}Portrait.png`;
+          console.log("🖼️ Portrait reconstruit :", portrait);
         }
+      } else {
+        console.warn("❌ NPC introuvable pour id", result.npcId);
       }
     }
+    console.log("💬 Affiche dialogue :", { portrait, npcName, lines: result.lines || [result.message] });
     showNpcDialogue({
       portrait: portrait || "/assets/portrait/unknownPortrait.png",
       name: npcName,
@@ -520,7 +527,7 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
     });
   }
   else if (result.type === "shop") {
-    // TODO: affiche une fenêtre shop
+    console.log("➡️ Type = shop", result);
     showNpcDialogue({
       portrait: result.portrait || "assets/ui/shop_icon.png",
       name: "Shop",
@@ -528,6 +535,7 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
     });
   }
   else if (result.type === "heal") {
+    console.log("➡️ Type = heal", result);
     showNpcDialogue({
       portrait: result.portrait || "assets/ui/heal_icon.png",
       name: "???",
@@ -535,13 +543,16 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
     });
   }
   else if (result.type === "questGiver" || result.type === "questComplete" || result.type === "questProgress") {
-    // ROUTE TOUT VERS QuestSystem
-    if (window.questSystem) {
+    console.log(`➡️ Type = ${result.type} (Appel QuestSystem)`, result, "window.questSystem =", window.questSystem);
+    if (window.questSystem && typeof window.questSystem.handleNpcInteraction === 'function') {
       window.questSystem.handleNpcInteraction(result);
       return; // On s'arrête ici, rien d'autre à faire
+    } else {
+      console.warn("❌ QuestSystem non initialisé ou handleNpcInteraction manquant");
     }
   }
   else if (result.type === "error") {
+    console.log("➡️ Type = error", result);
     showNpcDialogue({
       portrait: null,
       name: "Erreur",
@@ -549,7 +560,7 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
     });
   }
   else {
-    // Pour debug uniquement, retire ou commente en prod
+    console.warn("⚠️ Type inconnu, dump complet :", result);
     showNpcDialogue({
       portrait: null,
       name: "???",
@@ -557,8 +568,6 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
     });
   }
 });
-
-
 
     
     this.networkManager.onDisconnect(() => {
