@@ -1,6 +1,23 @@
 import { Client } from "colyseus.js";
 import { GAME_CONFIG } from "../config/gameConfig.js";
 
+// Mapping zone (targetZone serveur) => clé de scène Phaser
+const ZONE_TO_SCENE = {
+  beach: "BeachScene",
+  beachscene: "BeachScene",
+  greenrootbeach: "BeachScene", // Si jamais tu envoies ce nom
+  village: "VillageScene",
+  villagescene: "VillageScene",
+  villagelab: "VillageLabScene",
+  villagelabscene: "VillageLabScene",
+  road1: "Road1Scene",
+  road1scene: "Road1Scene",
+  villagehouse1: "VillageHouse1Scene",
+  villagehouse1scene: "VillageHouse1Scene",
+  lavandia: "LavandiaScene",
+  lavandiascene: "LavandiaScene"
+};
+
 export class NetworkManager {
   constructor(username) {
     this.client = new Client(GAME_CONFIG.server.url);
@@ -8,8 +25,8 @@ export class NetworkManager {
     this.room = null;
     this.sessionId = null;
     this.isConnected = false;
-    this.isTransitioning = false; // ✅ Flag de transition
-    this.lastSendTime = 0; // ✅ Pour le throttling
+    this.isTransitioning = false;
+    this.lastSendTime = 0;
     this.callbacks = {
       onConnect: null,
       onStateChange: null,
@@ -17,7 +34,7 @@ export class NetworkManager {
       onDisconnect: null,
       onZoneChanged: null,
     };
-    this.zoneChangedListeners = []; // Gestion des listeners
+    this.zoneChangedListeners = [];
   }
 
   async connect(roomName = null) {
@@ -56,38 +73,40 @@ export class NetworkManager {
     this.isTransitioning = true;
     console.log(`[NetworkManager] Début transition vers ${data.targetZone}`);
 
-    let newRoomName = '';
-    switch(data.targetZone.toLowerCase()) {
-  case 'beach':
-  case 'beachscene':
-    newRoomName = 'BeachRoom';
-    break;
-  case 'village':
-case 'villagescene':
-case 'VillageScene'.toLowerCase():
-case 'Village'.toLowerCase():
-    newRoomName = 'VillageRoom';
-    break;
-  case 'road1':
-  case 'road1scene':
-    newRoomName = 'Road1Room';
-    break;
-  case 'villagelab':
-  case 'villagelabscene':
-    newRoomName = 'VillageLabRoom';
-    break;
-  case 'villagehouse1':
-  case 'villagehouse1scene':
-    newRoomName = 'VillageHouse1Room';
-    break;
-  case 'lavandia':
-  case 'lavandiascene':
-    newRoomName = 'LavandiaRoom';
-    break;
-  default:
-    newRoomName = 'BeachRoom';  // fallback sûr
-    console.warn(`[NetworkManager] Nom de zone inconnu: ${data.targetZone}, fallback vers BeachRoom`);
-}
+    // Nouveau : on traduit targetZone en clé de room et en clé de scène !
+    const zoneKey = (data.targetZone || "").toLowerCase();
+    let newRoomName = "";
+    let sceneKey = ZONE_TO_SCENE[zoneKey] || "BeachScene"; // fallback
+
+    switch(zoneKey) {
+      case "beach":
+      case "beachscene":
+        newRoomName = "BeachRoom";
+        break;
+      case "village":
+      case "villagescene":
+        newRoomName = "VillageRoom";
+        break;
+      case "road1":
+      case "road1scene":
+        newRoomName = "Road1Room";
+        break;
+      case "villagelab":
+      case "villagelabscene":
+        newRoomName = "VillageLabRoom";
+        break;
+      case "villagehouse1":
+      case "villagehouse1scene":
+        newRoomName = "VillageHouse1Room";
+        break;
+      case "lavandia":
+      case "lavandiascene":
+        newRoomName = "LavandiaRoom";
+        break;
+      default:
+        newRoomName = "BeachRoom";
+        console.warn(`[NetworkManager] Nom de zone inconnu: ${data.targetZone}, fallback vers BeachRoom`);
+    }
 
     try {
       if (this.room) {
@@ -113,7 +132,19 @@ case 'Village'.toLowerCase():
 
       this.isTransitioning = false;
 
-      if (this.callbacks.onZoneChanged) {
+      // === Appel la transition de scène Phaser (au lieu de laisser à l'ancien callback)
+      if (window.Phaser && window.Phaser.GAMES && window.Phaser.GAMES.length) {
+        // Accès à l'instance Phaser active
+        const game = window.Phaser.GAMES[0];
+        if (game && game.scene && game.scene.start) {
+          game.scene.start(sceneKey, {
+            fromZone: data.fromZone,
+            spawnX: data.spawnX,
+            spawnY: data.spawnY
+          });
+        }
+      } else if (this.callbacks.onZoneChanged) {
+        // Fallback custom si besoin
         this.callbacks.onZoneChanged(data);
       }
 
@@ -122,7 +153,7 @@ case 'Village'.toLowerCase():
     } catch (error) {
       console.error(`[NetworkManager] Erreur lors de la transition de room:`, error);
       this.isTransitioning = false;
-      this.connect('BeachRoom');
+      this.connect("BeachRoom");
     }
   }
 
@@ -151,33 +182,31 @@ case 'Village'.toLowerCase():
     });
 
     // Enregistre les callbacks onMessage définis avant la connexion
-if (this._pendingMessages && this._pendingMessages.length > 0) {
-  this._pendingMessages.forEach(({ type, callback }) => {
-    this.room.onMessage(type, callback);
-  });
-  this._pendingMessages = [];
-}
+    if (this._pendingMessages && this._pendingMessages.length > 0) {
+      this._pendingMessages.forEach(({ type, callback }) => {
+        this.room.onMessage(type, callback);
+      });
+      this._pendingMessages = [];
+    }
 
     if (this.callbacks.onConnect) this.callbacks.onConnect();
   }
 
- sendMove(x, y, direction, isMoving) {
-  if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen && !this.isTransitioning) {
-    const now = Date.now();
-    if (!this.lastSendTime || now - this.lastSendTime > 50) {
-      this.room.send("move", { x, y, direction, isMoving });
-      this.lastSendTime = now;
+  sendMove(x, y, direction, isMoving) {
+    if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen && !this.isTransitioning) {
+      const now = Date.now();
+      if (!this.lastSendTime || now - this.lastSendTime > 50) {
+        this.room.send("move", { x, y, direction, isMoving });
+        this.lastSendTime = now;
+      }
     }
   }
-}
 
   sendNpcInteract(npcId) {
-  if (this.isConnected && this.room && !this.isTransitioning) {
-    this.room.send("npcInteract", { npcId });
+    if (this.isConnected && this.room && !this.isTransitioning) {
+      this.room.send("npcInteract", { npcId });
+    }
   }
-}
-
-
 
   sendMessage(type, data) {
     if (this.isConnected && this.room && !this.isTransitioning) {
@@ -185,22 +214,10 @@ if (this._pendingMessages && this._pendingMessages.length > 0) {
     }
   }
 
-  onConnect(callback) {
-    this.callbacks.onConnect = callback;
-  }
-  
-  onStateChange(callback) {
-    this.callbacks.onStateChange = callback;
-  }
-  
-  onPlayerData(callback) {
-    this.callbacks.onPlayerData = callback;
-  }
-  
-  onDisconnect(callback) {
-    this.callbacks.onDisconnect = callback;
-  }
-  
+  onConnect(callback) { this.callbacks.onConnect = callback; }
+  onStateChange(callback) { this.callbacks.onStateChange = callback; }
+  onPlayerData(callback) { this.callbacks.onPlayerData = callback; }
+  onDisconnect(callback) { this.callbacks.onDisconnect = callback; }
   onZoneChanged(callback) {
     this.callbacks.onZoneChanged = callback;
     if (!this.zoneChangedListeners.includes(callback)) {
@@ -221,34 +238,26 @@ if (this._pendingMessages && this._pendingMessages.length > 0) {
   }
 
   onMessage(type, callback) {
-  // On écoute le message custom sur la room Colyseus
-  if (this.room) {
-    this.room.onMessage(type, callback);
-  } else {
-    // Si pas encore connecté, on garde le callback pour l'enregistrer plus tard
-    if (!this._pendingMessages) this._pendingMessages = [];
-    this._pendingMessages.push({ type, callback });
-  }
-}
-
-  getSessionId() {
-    return this.sessionId;
+    if (this.room) {
+      this.room.onMessage(type, callback);
+    } else {
+      if (!this._pendingMessages) this._pendingMessages = [];
+      this._pendingMessages.push({ type, callback });
+    }
   }
 
-  /**
- * Demande de transition de zone : n’envoie QUE le nom de la sortie ("Road_1", "GRbeach", etc.)
- * Côté serveur, tout est vérifié avec la map.
- */
-requestZoneTransition(exitName) {
-  if (this.isConnected && this.room && !this.isTransitioning) {
-    console.log(`[Network] Demande de transition via la sortie '${exitName}'`);
-    this.room.send("changeZone", {
-      targetSpawn: exitName, // seul param utile, c'est le nom de l'objet Tiled !
-    });
-  } else {
-    console.warn(`[Network] Impossible de changer de zone: connected=${this.isConnected}, transitioning=${this.isTransitioning}`);
+  getSessionId() { return this.sessionId; }
+
+  requestZoneTransition(exitName) {
+    if (this.isConnected && this.room && !this.isTransitioning) {
+      console.log(`[Network] Demande de transition via la sortie '${exitName}'`);
+      this.room.send("changeZone", {
+        targetSpawn: exitName,
+      });
+    } else {
+      console.warn(`[Network] Impossible de changer de zone: connected=${this.isConnected}, transitioning=${this.isTransitioning}`);
+    }
   }
-}
 
   getPlayerState(sessionId) {
     if (this.room && this.room.state && this.room.state.players) {
