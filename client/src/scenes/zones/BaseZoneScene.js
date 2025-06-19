@@ -228,7 +228,6 @@ teleportZones.forEach(obj => {
         const myPlayer = this.playerManager?.getMyPlayer();
         if (myPlayer) {
           myPlayer.setDepth(3.5);
-          this.positionPlayer(myPlayer);
 
           if (this.worldLayer) {
             const debugGraphics = this.add.graphics();
@@ -476,15 +475,27 @@ this.input.keyboard.on("keydown-E", () => {
   });
 
     this.networkManager.onStateChange((state) => {
-      this.playerManager.updatePlayers(state);
-      if (!this.cameraFollowing) {
-        const myPlayer = this.playerManager.getMyPlayer();
-        if (myPlayer && this.cameraManager) {
-          this.cameraManager.followPlayer(myPlayer);
-          this.cameraFollowing = true;
-        }
-      }
-    });
+  this.playerManager.updatePlayers(state);
+
+  const myPlayer = this.playerManager.getMyPlayer();
+
+  // Log pour débug :
+  if (!myPlayer) {
+    console.warn(`[${this.scene.key}] [onStateChange] Aucun player trouvé après updatePlayers!`);
+    return;
+  } else {
+    console.log(`[${this.scene.key}] [onStateChange] Mon player existe enfin ! (${myPlayer.x}, ${myPlayer.y})`);
+  }
+
+  // NE FAIS ces actions qu'à l'apparition du joueur !
+  if (!this.cameraFollowing) {
+    this.cameraManager.followPlayer(myPlayer);
+    this.cameraFollowing = true;
+  }
+
+  // Positionne le joueur après une transition (toujours ici pour être sûr que le player existe)
+  this.positionPlayer(myPlayer);
+});
 
     // Quand le serveur répond à l'interaction NPC
 this.networkManager.onMessage("npcInteractionResult", (result) => {
