@@ -99,12 +99,9 @@ private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
     }
         console.log(`[MapManager] Téléports trouvés sur la map "${mapName}":`);
 for (const [teleportKey, teleport] of this.teleports) {
-    if (teleport.mapName === mapName) {
-        const xOk = playerX >= teleport.x && playerX < teleport.x + teleport.width;
-        const yOk = playerY >= teleport.y && playerY < teleport.y + teleport.height;
-        const inZone = xOk && yOk;
-        console.log(`[DEBUG TELEPORT] Teleport ${teleportKey} (${teleport.x},${teleport.y},${teleport.width},${teleport.height}) vs joueur (${playerX},${playerY}) => xOk:${xOk} yOk:${yOk} => inZone:${inZone}`);
-        if (inZone) return teleport;
+        if (teleport.mapName === mapName) {
+            console.log(`  - ${teleportKey}:`, teleport);
+        }
     }
 }
 
