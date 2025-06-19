@@ -32,7 +32,7 @@ export function initPokeChat(room, username) {
   // Messages automatiques (seulement si le chat est activé)
   setTimeout(() => {
     if (window.pokeChat.serverConfig.chatEnabled) {
-      window.pokeChat.addMessage('System', '🎮 Welcome to PokeWorld! Press T to test NPC dialogue.', null, 'system');
+      window.pokeChat.addMessage('System', '🎮 Welcome to PokeWorld!', null, 'system');
       window.pokeChat.addMessage('KantoTrainer', 'Anyone up for a battle? <span class="pokemon-emoji">⚡</span>', null, 'normal');
     }
   }, 1000);
