@@ -33,8 +33,6 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   public transitionController: TransitionController;
   protected interactionManager: InteractionManager;
 
-  // Méthode abstraite à implémenter dans chaque room fille
-  public abstract calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number };
 
   onCreate(options: any) {
     this.setState(new PokeWorldState());
@@ -450,20 +448,5 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     await this.saveAllPlayers();
   }
 
-  // ✅ NOUVEAU : Méthode améliorée pour calculateSpawnPosition
-  public calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number } {
-    // Essayer d'obtenir le spawn depuis le système de transition
-    if (spawnData.targetSpawn && spawnData.targetZone) {
-      const spawnPoint = this.transitionController.getSpawnPoint(spawnData.targetZone, spawnData.targetSpawn);
-      if (spawnPoint) {
-        return spawnPoint;
-      }
-    }
-
-    // Fallback vers les coordonnées spécifiques ou par défaut
-    return {
-      x: spawnData.targetX ?? this.defaultX,
-      y: spawnData.targetY ?? this.defaultY
-    };
   }
-}
+
