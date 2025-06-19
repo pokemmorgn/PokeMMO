@@ -16,19 +16,19 @@ export class BaseZoneScene extends Phaser.Scene {
     this.animatedObjects = null;
     this.zoneChangedHandler = null; // Référence du handler
     this.lastMoveTime = 0; // Throttling des mouvements
-    this.lastNpcDebug = 0; // Pour le debug périodique des NPCs
+
   }
 
   preload() {
-    const ext = 'tmj';
-    this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
+  const ext = 'tmj';
+  this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
 
-    // Charger le spritesheet du joueur (32x32 par frame)
-    this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
-      frameWidth: 32,
-      frameHeight: 32,
-    });
-  }
+  // Charger le spritesheet du joueur (32x32 par frame)
+  this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
+    frameWidth: 32,
+    frameHeight: 32,
+  });
+}
 
   create() {
     console.log(`🌍 Creating zone: ${this.scene.key}`);
@@ -39,6 +39,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.setupManagers();
     this.setupInputs();
     this.createUI();
+
 
     // Gestion réseau simplifiée
     if (this.scene.key === 'BeachScene') {
@@ -61,7 +62,7 @@ export class BaseZoneScene extends Phaser.Scene {
 
   getExistingNetwork() {
     // Liste des scènes qui pourraient avoir le NetworkManager
-    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene', 'LavandiaScene'];
+    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene'];
     for (const sceneName of scenesToCheck) {
       const scene = this.scene.manager.getScene(sceneName);
       if (scene && scene.networkManager) {
@@ -177,23 +178,23 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   setupScene() {
-    console.log('— DEBUT setupScene —');
-    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+  console.log('— DEBUT setupScene —');
+  this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
 
-    // Zoom automatique selon taille map et taille canvas Phaser
-    const baseWidth = this.scale.width;   // largeur canvas Phaser (ex: 800)
-    const baseHeight = this.scale.height; // hauteur canvas Phaser (ex: 600)
+  // Zoom automatique selon taille map et taille canvas Phaser
+  const baseWidth = this.scale.width;   // largeur canvas Phaser (ex: 800)
+  const baseHeight = this.scale.height; // hauteur canvas Phaser (ex: 600)
 
-    const zoomX = baseWidth / this.map.widthInPixels;
-    const zoomY = baseHeight / this.map.heightInPixels;
-    const zoom = Math.min(zoomX, zoomY);
+  const zoomX = baseWidth / this.map.widthInPixels;
+  const zoomY = baseHeight / this.map.heightInPixels;
+  const zoom = Math.min(zoomX, zoomY);
 
-    this.cameras.main.setZoom(zoom);
+  this.cameras.main.setZoom(zoom);
 
-    this.cameras.main.setBackgroundColor('#2d5a3d');
-    this.cameras.main.setRoundPixels(true);
+  this.cameras.main.setBackgroundColor('#2d5a3d');
+  this.cameras.main.setRoundPixels(true);
 
-    this.cameraManager = new CameraManager(this);
+  this.cameraManager = new CameraManager(this);
     let retry = 0;
     const MAX_RETRY = 60;
 
@@ -240,7 +241,7 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-  setupZoneTransitions() {
+setupZoneTransitions() {
     const worldsLayer = this.map.getObjectLayer('Worlds');
     if (!worldsLayer) {
       console.warn("Layer 'Worlds' non trouvé dans la map");
@@ -295,78 +296,77 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-  // Méthode à override dans chaque scène
-  getTransitionConfig() {
-    return {}; // À définir dans les sous-classes
-  }
+// Méthode à override dans chaque scène
+getTransitionConfig() {
+  return {}; // À définir dans les sous-classes
+}
+createTransitionZone(transitionObj, targetScene, direction) {
+  const zone = this.add.zone(
+    transitionObj.x + transitionObj.width / 2,
+    transitionObj.y + transitionObj.height / 2,
+    transitionObj.width,
+    transitionObj.height
+  );
 
-  createTransitionZone(transitionObj, targetScene, direction) {
-    const zone = this.add.zone(
-      transitionObj.x + transitionObj.width / 2,
-      transitionObj.y + transitionObj.height / 2,
-      transitionObj.width,
-      transitionObj.height
-    );
+  this.physics.world.enable(zone);
+  zone.body.setAllowGravity(false);
+  zone.body.setImmovable(true);
 
-    this.physics.world.enable(zone);
-    zone.body.setAllowGravity(false);
-    zone.body.setImmovable(true);
+  let transitionTriggered = false;
 
-    let transitionTriggered = false;
+  this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
+    if (transitionTriggered) return;
+    transitionTriggered = true;
 
-    this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
-      if (transitionTriggered) return;
-      transitionTriggered = true;
+    console.log(`[${this.scene.key}] Overlap detected, requesting transition to ${targetScene} (${direction})`);
 
-      console.log(`[${this.scene.key}] Overlap detected, requesting transition to ${targetScene} (${direction})`);
-
-      if (this.networkManager && this.networkManager.connected && !this.networkManager.transitioning) {
-        this.networkManager.requestZoneTransition({
-          targetZone: targetScene,
-          direction: direction
-        });
-      } else {
-        console.warn(`[${this.scene.key}] Cannot transition: either not connected or already transitioning.`);
-      }
-    });
-  }
-
-  positionPlayer(player) {
-    const initData = this.scene.settings.data;
-    
-    // Position par défaut ou depuis spawn data
-    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-      player.x = initData.spawnX;
-      player.y = initData.spawnY;
+    if (this.networkManager && this.networkManager.connected && !this.networkManager.transitioning) {
+      this.networkManager.requestZoneTransition({
+        targetZone: targetScene,
+        direction: direction
+      });
     } else {
-      // Utiliser les positions par défaut de la scène
-      const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-      player.x = defaultPos.x;
-      player.y = defaultPos.y;
+      console.warn(`[${this.scene.key}] Cannot transition: either not connected or already transitioning.`);
     }
+  });
+}
 
-    // Logique commune pour l'indicateur
-    if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-    }
-
-    if (this.networkManager) {
-      this.networkManager.sendMove(player.x, player.y);
-    }
-
-    // Hook pour logique spécifique (intro, etc.)
-    this.onPlayerPositioned(player, initData);
+positionPlayer(player) {
+  const initData = this.scene.settings.data;
+  
+  // Position par défaut ou depuis spawn data
+  if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+    player.x = initData.spawnX;
+    player.y = initData.spawnY;
+  } else {
+    // Utiliser les positions par défaut de la scène
+    const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+    player.x = defaultPos.x;
+    player.y = defaultPos.y;
   }
 
-  // À override dans les sous-classes
-  getDefaultSpawnPosition(fromZone) {
-    return { x: 100, y: 100 }; // Valeurs par défaut
+  // Logique commune pour l'indicateur
+  if (player.indicator) {
+    player.indicator.x = player.x;
+    player.indicator.y = player.y - 32;
   }
 
-  onPlayerPositioned(player, initData) {
-    // Hook pour logique spécifique (intro dans BeachScene)
+  if (this.networkManager) {
+    this.networkManager.sendMove(player.x, player.y);
   }
+
+  // Hook pour logique spécifique (intro, etc.)
+  this.onPlayerPositioned(player, initData);
+}
+
+// À override dans les sous-classes
+getDefaultSpawnPosition(fromZone) {
+  return { x: 100, y: 100 }; // Valeurs par défaut
+}
+
+onPlayerPositioned(player, initData) {
+  // Hook pour logique spécifique (intro dans BeachScene)
+}
 
   async initializeNetwork() {
     const getWalletFromUrl = () => {
@@ -420,11 +420,8 @@ export class BaseZoneScene extends Phaser.Scene {
         case 'road1':
           roomName = 'Road1Room';
           break;
-        case 'house1':
+          case 'house1':
           roomName = 'VillageHouse1Room';
-          break;
-        case 'lavandia':
-          roomName = 'LavandiaRoom';
           break;
         default:
           roomName = 'BeachRoom';
@@ -489,22 +486,18 @@ export class BaseZoneScene extends Phaser.Scene {
     this.input.keyboard.enableGlobalCapture();
 
     // Appuie sur "E" pour interagir avec le NPC le plus proche
-    this.input.keyboard.on("keydown-E", () => {
-      if (window.shouldBlockInput()) return; // Évite l'interaction si chat ouvert
+this.input.keyboard.on("keydown-E", () => {
+  const myPlayer = this.playerManager.getMyPlayer();
+  if (!myPlayer || !this.npcManager) return;
 
-      const myPlayer = this.playerManager.getMyPlayer();
-      if (!myPlayer || !this.npcManager) return;
+  const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
+  if (npc) {
+    // 🔥 Mémorise le dernier NPC ciblé pour le dialogue
+    this.npcManager.lastInteractedNpc = npc;
+    this.networkManager.sendNpcInteract(npc.id);
+  }
+});
 
-      const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
-      if (npc) {
-        console.log(`🤝 Interaction avec le NPC: ${npc.name} (ID: ${npc.id})`);
-        // 🔥 Mémorise le dernier NPC ciblé pour le dialogue
-        this.npcManager.lastInteractedNpc = npc;
-        this.networkManager.sendNpcInteract(npc.id);
-      } else {
-        console.log("❌ Aucun NPC à proximité pour interagir");
-      }
-    });
   }
 
   createUI() {
@@ -526,21 +519,18 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   setupNetwork() {
-    if (!this.networkManager) return;
+  if (!this.networkManager) return;
 
-    this.networkManager.onConnect(() => {
-      this.mySessionId = this.networkManager.getSessionId();
-      this.playerManager.setMySessionId(this.mySessionId);
-      this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
+  this.networkManager.onConnect(() => {
+    this.mySessionId = this.networkManager.getSessionId();
+    this.playerManager.setMySessionId(this.mySessionId);
+    this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
 
-      // Gestion du snap pour le joueur
-      this.networkManager.onMessage("snap", (data) => {
-        this.playerManager.snapMyPlayerTo(data.x, data.y);
-      });
-
-      // 🆕 Demander la liste des NPCs au serveur
-      this.networkManager.room.send("requestNpcList");
-    });
+    // <-- AJOUTE ICI !
+    this.networkManager.onMessage("snap", (data) => {
+      this.playerManager.snapMyPlayerTo(data.x, data.y);
+    });   
+  });
 
     this.networkManager.onStateChange((state) => {
       this.playerManager.updatePlayers(state);
@@ -553,57 +543,44 @@ export class BaseZoneScene extends Phaser.Scene {
       }
     });
 
-    // 🆕 Gestion améliorée des interactions NPC
-    this.networkManager.onMessage("npcInteractionResult", (result) => {
-      console.log("📨 Résultat interaction NPC:", result);
-      
-      if (result.type === "dialogue") {
-        // Utilise la fonction globale pour afficher le dialogue
-        if (window.showNpcDialogue) {
-          window.showNpcDialogue({
-            portrait: this.getNpcPortraitPath(result.npcName || result.npcSprite),
-            name: result.npcName || "???",
-            text: result.lines ? result.lines[0] : result.message
-          });
-        } else {
-          console.warn("❌ showNpcDialogue non trouvé dans window");
-          alert(`${result.npcName || "NPC"}: ${result.message}`);
-        }
-      } else if (result.type === "shop") {
-        window.showNpcDialogue({
-          portrait: this.getNpcPortraitPath("shop"),
-          name: "Boutique",
-          text: `Bienvenue dans la boutique ! (Shop ID: ${result.shopId})`
-        });
-      } else if (result.type === "heal") {
-        window.showNpcDialogue({
-          portrait: this.getNpcPortraitPath("nurse"),
-          name: "Infirmière",
-          text: result.message || "Vos Pokémon sont soignés !"
-        });
-      } else if (result.type === "starter") {
-        // Afficher le HUD de sélection de starter
-        if (window.starterHUD) {
-          window.starterHUD.show();
-        } else {
-          console.warn("⚠️ HUD de starter non initialisé");
-        }
-      } else if (result.type === "error") {
-        window.showNpcDialogue({
-          portrait: null,
-          name: "Erreur",
-          text: result.message
-        });
-      } else {
-        // Fallback pour types non reconnus
-        window.showNpcDialogue({
-          portrait: null,
-          name: result.npcName || "???",
-          text: JSON.stringify(result, null, 2)
-        });
-      }
+    // Quand le serveur répond à l’interaction NPC
+this.networkManager.onMessage("npcInteractionResult", (result) => {
+  if (result.type === "dialogue") {
+    showNpcDialogue({
+      portrait: result.portrait || `assets/npc/${result.npcName?.toLowerCase() || 'unknown'}.png`, // adapte ce chemin !
+      name: result.npcName || "???",
+      text: result.lines ? result.lines[0] : result.message
     });
+  } else if (result.type === "shop") {
+    // TODO: affiche une fenêtre shop
+    showNpcDialogue({
+      portrait: result.portrait || "assets/ui/shop_icon.png",
+      name: "Shop",
+      text: "Ouverture du shop: " + result.shopId
+    });
+  } else if (result.type === "heal") {
+    showNpcDialogue({
+      portrait: result.portrait || "assets/ui/heal_icon.png",
+      name: "???",
+      text: result.message || "Vos Pokémon sont soignés !"
+    });
+  } else if (result.type === "error") {
+    showNpcDialogue({
+      portrait: null,
+      name: "Erreur",
+      text: result.message
+    });
+  } else {
+    showNpcDialogue({
+      portrait: null,
+      name: "???",
+      text: JSON.stringify(result)
+    });
+  }
+});
 
+
+    
     this.networkManager.onDisconnect(() => {
       this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nDisconnected`);
     });
@@ -627,61 +604,17 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.networkManager.onZoneChanged(this.zoneChangedHandler);
 
-    // 🆕 Gestion améliorée de la liste des NPCs
-    this.networkManager.onMessage("npcList", (npcList) => {
-      console.log("📋 Réception liste NPCs:", npcList);
-      if (this.npcManager && Array.isArray(npcList)) {
-        this.npcManager.spawnNpcs(npcList);
-        console.log(`✅ ${npcList.length} NPCs spawned`);
-      } else {
-        console.warn("⚠️ NpcManager non initialisé ou liste invalide");
-      }
-    });
-
-    // Debug des NPCs toutes les 10 secondes (en développement)
-    if (process.env.NODE_ENV === 'development') {
-      this.time.addEvent({
-        delay: 10000,
-        loop: true,
-        callback: () => {
-          if (this.npcManager) {
-            this.npcManager.debugNpcs();
-          }
-        }
-      });
+      this.networkManager.onMessage("npcList", (npcList) => {
+    if (this.npcManager) {
+      this.npcManager.spawnNpcs(npcList);
     }
-  }
-
-  // 🆕 Méthode utilitaire pour obtenir le chemin du portrait NPC
-  getNpcPortraitPath(npcName) {
-    if (!npcName) return null;
-    
-    // Mapping des noms vers les sprites
-    const portraitMap = {
-      'OldMan': 'assets/npc/OldMan.png',
-      'Scientist': 'assets/npc/Scientist.png',
-      'OldLady': 'assets/npc/OldLady.png',
-      'BrownGuy': 'assets/npc/BrownGuy.png',
-      'BlondeGirl': 'assets/npc/BlondeGirl.png',
-      'shop': 'assets/ui/shop_icon.png',
-      'nurse': 'assets/ui/heal_icon.png'
-    };
-    
-    return portraitMap[npcName] || `assets/npc/${npcName.toLowerCase()}.png`;
+  });
   }
 
   update() {
-    if (this.playerManager) this.playerManager.update();
+   if (this.playerManager) this.playerManager.update();  // <--- AJOUTE ÇA ICI
 
     if (this.cameraManager) this.cameraManager.update();
-
-    // 🆕 Highlight du NPC le plus proche
-    if (this.npcManager && this.playerManager) {
-      const myPlayer = this.playerManager.getMyPlayer();
-      if (myPlayer) {
-        this.npcManager.highlightClosestNpc(myPlayer.x, myPlayer.y, 64);
-      }
-    }
 
     if (this.sys.animatedTiles && typeof this.sys.animatedTiles.update === 'function') {
       this.sys.animatedTiles.update();
@@ -698,17 +631,6 @@ export class BaseZoneScene extends Phaser.Scene {
     if (!myPlayerState) return;
 
     this.handleMovement(myPlayerState);
-
-    // Debug NPCs périodique (uniquement en développement)
-    if (!this.lastNpcDebug || Date.now() - this.lastNpcDebug > 30000) { // Toutes les 30 secondes
-      this.lastNpcDebug = Date.now();
-      if (this.npcManager && myPlayer) {
-        const allNpcs = this.npcManager.getAllNpcs();
-        if (allNpcs.length > 0) {
-          console.log(`📊 [${this.scene.key}] ${allNpcs.length} NPCs actifs`);
-        }
-      }
-    }
   }
 
   handleMovement(myPlayerState) {
@@ -744,13 +666,13 @@ export class BaseZoneScene extends Phaser.Scene {
     if (moved) {
       const now = Date.now();
       if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-        this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirection, moved);
+this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirection, moved);
         this.lastMoveTime = now;
       }
     }
   }
 
-  transitionToZone(targetScene, fromDirection = null) {
+    transitionToZone(targetScene, fromDirection = null) {
     if (this.isTransitioning) {
       console.log(`[${this.scene.key}] Transition déjà en cours, ignorée`);
       return;
@@ -781,9 +703,8 @@ export class BaseZoneScene extends Phaser.Scene {
       this.playerManager.clearAllPlayers();
     }
 
-    // 🆕 Nettoyage des NPCs
     if (this.npcManager) {
-      this.npcManager.clearAllNpcs();
+    this.npcManager.clearAllNpcs();
     }
 
     if (this.animatedObjects) {
