@@ -32,6 +32,7 @@ export class QuestSystem {
     // Interaction NPC avec quêtes
     this.gameRoom.onMessage("npcInteractionResult", (data) => {
       this.handleNpcInteraction(data);
+      console.log("handleNpcInteraction appelé", data);
     });
 
     // Résultat de démarrage de quête
