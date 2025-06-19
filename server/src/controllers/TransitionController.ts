@@ -36,33 +36,21 @@ function loadMap(mapName: string): any {
 /**
  * Récupère un objet dans le layer Worlds selon sa propriété targetSpawn
  */
-function findWorldObjectByTargetSpawn(mapName: string, targetSpawnValue: string): any | null {
+function findWorldObject(mapName: string, valueToFind: string): any | null {
   const mapData = loadMap(mapName);
   const worldsLayer = mapData.layers.find(
     (l: any) => l.name === "Worlds" && l.type === "objectgroup"
   );
   if (!worldsLayer) {
-    console.warn(`[TransitionController] Layer 'Worlds' introuvable dans la map '${mapName}'. Layers dispos:`, mapData.layers.map((l: any) => l.name));
+    console.warn(`[TransitionController] Layer 'Worlds' introuvable dans la map '${mapName}'.`);
     return null;
   }
-  console.log(`[TransitionController] Layer 'Worlds' trouvé dans '${mapName}'. ${worldsLayer.objects.length} objets.`);
-
-  // Cherche un objet qui a la propriété targetSpawn avec la valeur correspondante
-  const foundObj = worldsLayer.objects.find((obj: any) => {
-    const objTargetSpawn = getProperty(obj, "targetSpawn");
-    return objTargetSpawn === targetSpawnValue;
-  });
-
-  if (foundObj) {
-    console.log(`[TransitionController] Objet avec targetSpawn='${targetSpawnValue}' trouvé:`, foundObj);
-  } else {
-    console.warn(`[TransitionController] Aucun objet avec targetSpawn='${targetSpawnValue}' trouvé. Objets et leurs targetSpawn:`);
-    worldsLayer.objects.forEach((obj: any) => {
-      const objTargetSpawn = getProperty(obj, "targetSpawn");
-      console.warn(`  - Nom: '${obj.name}', targetSpawn: '${objTargetSpawn}'`);
-    });
-  }
-  return foundObj;
+  // Cherche par propriété "targetSpawn" OU par nom (pour compatibilité)
+  const foundObj = worldsLayer.objects.find((obj: any) =>
+    obj.name === valueToFind ||
+    (obj.properties && obj.properties.some((p: any) => p.name === "targetSpawn" && p.value === valueToFind))
+  );
+  return foundObj || null;
 }
 
 /**
