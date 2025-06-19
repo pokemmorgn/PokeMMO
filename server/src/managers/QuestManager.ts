@@ -2,7 +2,7 @@
 
 import fs from "fs";
 import path from "path";
-import { PlayerQuest } from "../models/PlayerQuest";
+import { PlayerQuest, IPlayerQuest, IPlayerQuestProgress } from "../models/PlayerQuest";
 import { 
   QuestDefinition, 
   Quest, 
@@ -52,8 +52,8 @@ export class QuestManager {
 
   async getAvailableQuests(username: string): Promise<QuestDefinition[]> {
     const playerQuests = await PlayerQuest.findOne({ username });
-    const completedQuestIds = playerQuests?.completedQuests.map(q => q.questId) || [];
-    const activeQuestIds = playerQuests?.activeQuests.map(q => q.questId) || [];
+    const completedQuestIds = playerQuests?.completedQuests.map((q: any) => q.questId) || [];
+    const activeQuestIds = playerQuests?.activeQuests.map((q: any) => q.questId) || [];
 
     const available: QuestDefinition[] = [];
 
@@ -183,7 +183,13 @@ export class QuestManager {
       // Vérifier chaque objectif de l'étape actuelle
       for (const objective of currentStep.objectives) {
         const progressKey = objective.id;
-        const progressData = questProgress.objectives.get(progressKey);
+        
+        // Accès sécurisé à la Map MongoDB
+        const objectivesMap = questProgress.objectives instanceof Map 
+          ? questProgress.objectives 
+          : new Map(Object.entries(questProgress.objectives || {}));
+        
+        const progressData = objectivesMap.get(progressKey);
         
         if (progressData?.completed) continue;
 
@@ -198,15 +204,20 @@ export class QuestManager {
             currentProgress.completed = true;
           }
           
-          questProgress.objectives.set(progressKey, currentProgress);
+          objectivesMap.set(progressKey, currentProgress);
+          questProgress.objectives = objectivesMap;
           stepModified = true;
         }
       }
 
       // Vérifier si l'étape est complétée
       if (stepModified) {
+        const objectivesMap = questProgress.objectives instanceof Map 
+          ? questProgress.objectives 
+          : new Map(Object.entries(questProgress.objectives || {}));
+
         const allObjectivesCompleted = currentStep.objectives.every(
-          obj => questProgress.objectives.get(obj.id)?.completed
+          obj => objectivesMap.get(obj.id)?.completed
         );
 
         if (allObjectivesCompleted) {
@@ -226,11 +237,12 @@ export class QuestManager {
             // Initialiser les objectifs de la prochaine étape
             const nextStep = definition.steps[questProgress.currentStepIndex];
             for (const objective of nextStep.objectives) {
-              questProgress.objectives.set(objective.id, {
+              objectivesMap.set(objective.id, {
                 currentAmount: 0,
                 completed: false
               });
             }
+            questProgress.objectives = objectivesMap;
 
             results.push({
               questId: questProgress.questId,
@@ -354,7 +366,13 @@ export class QuestManager {
         name: stepDef.name,
         description: stepDef.description,
         objectives: stepDef.objectives.map(objDef => {
-          const objProgress = progress.objectives.get(objDef.id) || { currentAmount: 0, completed: false };
+          // Gestion sécurisée de la Map MongoDB
+          const objectivesMap = progress.objectives instanceof Map 
+            ? progress.objectives 
+            : new Map(Object.entries(progress.objectives || {}));
+          
+          const objProgress = objectivesMap.get(objDef.id) || { currentAmount: 0, completed: false };
+          
           return {
             id: objDef.id,
             type: objDef.type,
