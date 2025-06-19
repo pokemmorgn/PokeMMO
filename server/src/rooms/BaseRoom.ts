@@ -48,11 +48,12 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       this.saveAllPlayers();
     }, 30000);
 
-    this.onMessage("npcInteract", (client: Client, data: { npcId: number }) => {
-      const player = this.state.players.get(client.sessionId);
-      if (!player) return;
-      const result = this.interactionManager.handleNpcInteraction(player, data.npcId);
-      client.send("npcInteractionResult", result);
+this.onMessage("npcInteract", (client: Client, data: { npcId: number }) => {
+  const player = this.state.players.get(client.sessionId);
+  if (!player) return;
+  const result = this.interactionManager.handleNpcInteraction(player, data.npcId);
+
+  client.send("npcInteractionResult", { ...result, npcId: data.npcId });
     });
 
     this.onMessage("move", (client: Client, data: any) => {
