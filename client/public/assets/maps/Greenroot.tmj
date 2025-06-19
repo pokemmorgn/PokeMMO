@@ -339,12 +339,12 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"FromVillage"
+                         "value":"FromVillageScene"
                         }, 
                         {
                          "name":"targetZone",
                          "type":"string",
-                         "value":"Road1"
+                         "value":"Road1Scene"
                         }],
                  "rotation":0,
                  "type":"",
