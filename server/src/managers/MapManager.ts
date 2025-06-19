@@ -191,3 +191,5 @@ const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
         return null;
     }
 }
+
+export const GlobalMapManager = new MapManager();
