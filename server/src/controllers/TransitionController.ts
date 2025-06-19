@@ -34,9 +34,11 @@ function loadMap(mapName: string): any {
 }
 
 /**
- * Récupère un objet dans le layer Worlds selon sa propriété targetSpawn
+ * Récupère un objet dans le layer Worlds selon
+ * - soit son nom (searchByProperty=false, pour la sortie côté map d’origine)
+ * - soit la valeur de la propriété "targetSpawn" (searchByProperty=true, pour l’entrée côté map de destination)
  */
-function findWorldObject(mapName: string, valueToFind: string): any | null {
+function findWorldObject(mapName: string, valueToFind: string, searchByProperty: boolean = false): any | null {
   const mapData = loadMap(mapName);
   const worldsLayer = mapData.layers.find(
     (l: any) => l.name === "Worlds" && l.type === "objectgroup"
@@ -45,15 +47,28 @@ function findWorldObject(mapName: string, valueToFind: string): any | null {
     console.warn(`[TransitionController] Layer 'Worlds' introuvable dans la map '${mapName}'.`);
     return null;
   }
-  // Cherche par propriété "targetSpawn" OU par nom (pour compatibilité)
-  const foundObj = worldsLayer.objects.find((obj: any) =>
-    obj.name === valueToFind ||
-    (obj.properties && obj.properties.some((p: any) => p.name === "targetSpawn" && p.value === valueToFind))
-  );
-  return foundObj || null;
+  if (searchByProperty) {
+    // Cherche par propriété "targetSpawn"
+    const obj = worldsLayer.objects.find((obj: any) =>
+      obj.properties && obj.properties.some((p: any) => p.name === "targetSpawn" && p.value === valueToFind)
+    );
+    if (!obj) {
+      console.warn(`[TransitionController] Aucun objet avec targetSpawn='${valueToFind}' trouvé. Objets et leurs targetSpawn:`);
+      worldsLayer.objects.forEach((o: any) => {
+        const val = o.properties?.find((p: any) => p.name === "targetSpawn")?.value;
+        console.warn(`  - Nom: '${o.name}', targetSpawn: '${val}'`);
+      });
+    }
+    return obj || null;
+  } else {
+    // Cherche par nom
+    const obj = worldsLayer.objects.find((obj: any) => obj.name === valueToFind);
+    if (!obj) {
+      console.warn(`[TransitionController] Aucun objet nommé '${valueToFind}' trouvé. Objets dispos:`, worldsLayer.objects.map((o: any) => o.name));
+    }
+    return obj || null;
+  }
 }
-
-
 
 /**
  * Cherche une propriété personnalisée d'un objet Tiled (array → value)
@@ -65,18 +80,17 @@ function getProperty(obj: any, key: string): any {
 }
 
 /**
- * Extrait le nom de la sortie depuis les données de transition
+ * Extrait le nom de la sortie depuis les données de transition (normalement une string)
  */
 function extractExitName(targetSpawn: any): string {
   // Debug: log what we received
   console.log(`[TransitionController] Données targetSpawn reçues:`, typeof targetSpawn, targetSpawn);
-  
+
   if (typeof targetSpawn === "string") {
     return targetSpawn;
   }
-  
+
   if (targetSpawn && typeof targetSpawn === "object") {
-    // Si c'est un objet, essaie différentes propriétés possibles
     if (typeof targetSpawn.targetSpawn === "string") {
       return targetSpawn.targetSpawn;
     }
@@ -89,11 +103,9 @@ function extractExitName(targetSpawn: any): string {
     if (typeof targetSpawn.target === "string") {
       return targetSpawn.target;
     }
-    
-    // Si aucune propriété connue, log l'objet pour debug
     console.warn(`[TransitionController] Objet targetSpawn inconnu:`, Object.keys(targetSpawn));
   }
-  
+
   console.warn(`[TransitionController] targetSpawn invalide:`, targetSpawn);
   return "";
 }
@@ -119,19 +131,18 @@ export class TransitionController {
 
     (player as any).isTransitioning = true;
 
-    // On récupère l'objet de sortie dans la map actuelle, layer Worlds
+    // 1. On récupère l'objet de sortie dans la map actuelle (par nom)
     const currentMapName = normalizeMapName(this.room.mapName);
     const exitName = extractExitName(data.targetSpawn);
-    
+
     if (!exitName) {
       console.warn(`[TransitionController] DENIED: nom de sortie vide ou invalide`);
       client.send("transitionDenied", { reason: "Nom de sortie invalide" });
       (player as any).isTransitioning = false;
       return;
     }
-    
-    // Cherche l'objet qui a la propriété targetSpawn correspondante
-    const exitObj = findWorldObjectByTargetSpawn(currentMapName, exitName);
+
+    const exitObj = findWorldObject(currentMapName, exitName, false);
 
     if (!exitObj) {
       console.warn(`[TransitionController] DENIED: sortie '${exitName}' absente de la map '${currentMapName}'`);
@@ -140,7 +151,7 @@ export class TransitionController {
       return;
     }
 
-    // Propriétés custom de l'objet (définies dans Tiled !)
+    // 2. Propriétés custom de l'objet (définies dans Tiled !)
     const targetZone = getProperty(exitObj, "targetZone");
     const targetSpawn = getProperty(exitObj, "targetSpawn");
 
@@ -151,8 +162,8 @@ export class TransitionController {
       return;
     }
 
-    // On cherche l'objet d'arrivée dans la map cible (targetZone)
-    const entryObj = findWorldObject(normalizeMapName(targetZone), targetSpawn);
+    // 3. On cherche l'objet d'arrivée dans la map cible, par propriété "targetSpawn"
+    const entryObj = findWorldObject(normalizeMapName(targetZone), targetSpawn, true);
 
     if (!entryObj) {
       console.warn(`[TransitionController] DENIED: point d'arrivée '${targetSpawn}' absent de '${targetZone}'`);
