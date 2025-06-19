@@ -287,6 +287,11 @@ export class QuestManager {
       case 'reach':
         return event.type === 'reach' && event.targetId === objective.target;
       
+      case 'deliver':
+        return event.type === 'deliver' && 
+               event.npcId?.toString() === objective.target && 
+               event.targetId === objective.itemId;
+      
       default:
         return false;
     }
