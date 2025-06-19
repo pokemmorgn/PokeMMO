@@ -275,17 +275,17 @@ export class QuestSystem {
     `;
 
     // Sélection automatique si une seule quête
-let selectedQuestId = null;
-
-if (quests.length === 1) {
-  const onlyOption = dialog.querySelector('.quest-option');
-  if (onlyOption) {
-    onlyOption.classList.add('selected');
-    selectedQuestId = onlyOption.dataset.questId;   // <--- CORRECTION ICI !
-    acceptBtn.disabled = false;
-    onlyOption.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }
-}
+    let defaultSelectedId = null;
+    if (quests.length === 1) {
+      const onlyOption = dialog.querySelector('.quest-option');
+      const acceptBtn = dialog.querySelector('.quest-btn-accept');
+      if (onlyOption && acceptBtn) {
+        onlyOption.classList.add('selected');
+        acceptBtn.disabled = false;
+        defaultSelectedId = onlyOption.dataset.questId;
+        onlyOption.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }
 
     this.styleQuestDialog(dialog);
     this.addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId);
@@ -526,54 +526,56 @@ if (quests.length === 1) {
     }
   }
 
-addQuestDialogListeners(dialog, onSelectQuest) {
-  let selectedQuestId = null;
+  addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
+    let selectedQuestId = defaultSelectedId;
 
-  // Fermeture du dialog
-  const closeBtn = dialog.querySelector('.quest-dialog-close');
-  const cancelBtn = dialog.querySelector('.quest-btn-cancel');
-  const acceptBtn = dialog.querySelector('.quest-btn-accept');
+    // Fermeture du dialog
+    const closeBtn = dialog.querySelector('.quest-dialog-close');
+    const cancelBtn = dialog.querySelector('.quest-btn-cancel');
+    const acceptBtn = dialog.querySelector('.quest-btn-accept');
 
-  if (closeBtn) closeBtn.addEventListener('click', () => dialog.remove());
-  if (cancelBtn) cancelBtn.addEventListener('click', () => dialog.remove());
-
-  // Sélection auto si une seule quête
-  const options = dialog.querySelectorAll('.quest-option');
-  if (options.length === 1) {
-    const onlyOption = options[0];
-    onlyOption.classList.add('selected');
-    selectedQuestId = onlyOption.dataset.questId;    // <-- ESSENTIEL !
-    acceptBtn.disabled = false;
-    onlyOption.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }
-
-  // Sélection des quêtes (clic)
-  options.forEach(option => {
-    option.addEventListener('click', () => {
-      options.forEach(opt => opt.classList.remove('selected'));
-      option.classList.add('selected');
-      selectedQuestId = option.dataset.questId;
+    if (defaultSelectedId && acceptBtn) {
       acceptBtn.disabled = false;
+    }
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => dialog.remove());
+    }
+    
+    cancelBtn.addEventListener('click', () => dialog.remove());
+
+    // Sélection des quêtes
+    dialog.querySelectorAll('.quest-option').forEach(option => {
+      option.addEventListener('click', () => {
+        // Retirer la sélection précédente
+        dialog.querySelectorAll('.quest-option').forEach(opt => 
+          opt.classList.remove('selected')
+        );
+        
+        // Sélectionner la nouvelle option
+        option.classList.add('selected');
+        selectedQuestId = option.dataset.questId;
+        acceptBtn.disabled = false;
+      });
     });
-  });
 
-  // Accepter la quête
-  acceptBtn.addEventListener('click', () => {
-    if (selectedQuestId && onSelectQuest) {
-      onSelectQuest(selectedQuestId);
-    }
-    dialog.remove();
-  });
-
-  // Fermeture avec Escape
-  const handleEscape = (e) => {
-    if (e.key === 'Escape') {
+    // Accepter la quête
+    acceptBtn.addEventListener('click', () => {
+      if (selectedQuestId && onSelectQuest) {
+        onSelectQuest(selectedQuestId);
+      }
       dialog.remove();
-      document.removeEventListener('keydown', handleEscape);
-    }
-  };
-  document.addEventListener('keydown', handleEscape);
-}
+    });
+
+    // Fermeture avec Escape
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        dialog.remove();
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+  }
 
   handleRegularNpcInteraction(data) {
     // Gestion des interactions NPC normales (dialogue, shop, heal)
