@@ -93,12 +93,14 @@ export class NetworkManager {
               activeScene.cleanup();
             }
             
+            // ✅ AMÉLIORATION: Passer le NetworkManager dans les données de scène
             // Démarrer la nouvelle scène
             activeScene.scene.start(sceneKey, {
               fromZone: activeScene.scene.key,
               spawnX: data.targetX,
               spawnY: data.targetY,
-              spawnPoint: data.spawnPoint
+              spawnPoint: data.spawnPoint,
+              networkManager: this // ✅ NOUVEAU: Passer le NetworkManager
             });
           }
         }
@@ -113,6 +115,7 @@ export class NetworkManager {
     }
   }
 
+  // ✅ AMÉLIORATION: Transition avec meilleure gestion des erreurs
   async handleZoneTransition(data) {
     if (this.isTransitioning) {
       console.log(`[NetworkManager] Transition déjà en cours, ignorée`);
@@ -158,55 +161,72 @@ export class NetworkManager {
     }
 
     try {
+      // ✅ AMÉLIORATION: Sauvegarder l'état avant transition
+      const oldSessionId = this.sessionId;
+      
       if (this.room) {
         console.log(`[NetworkManager] Quitte la room actuelle: ${this.room.name}`);
         await this.room.leave();
         this.room = null;
       }
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // ✅ NOUVEAU: Délai plus long pour éviter les conflits de connexion
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       console.log(`[NetworkManager] Connexion à la nouvelle room: ${newRoomName}`);
       
-        this.room = await this.client.joinOrCreate(newRoomName, {
-  username: this.username,
-  spawnX: data.spawnX,
-  spawnY: data.spawnY,
-  fromZone: data.fromZone,
-  targetSpawn: data.entryName,
-  targetZone: data.targetZone
-});
-    
+      this.room = await this.client.joinOrCreate(newRoomName, {
+        username: this.username,
+        spawnX: data.spawnX,
+        spawnY: data.spawnY,
+        fromZone: data.fromZone,
+        targetSpawn: data.entryName,
+        targetZone: data.targetZone,
+        // ✅ NOUVEAU: Passer l'ancien sessionId pour continuité
+        previousSessionId: oldSessionId
+      });
 
       this.sessionId = this.room.sessionId;
       this.isConnected = true;
 
+      // ✅ IMPORTANT: Reconfigurer les listeners AVANT la transition Phaser
       this.setupRoomListeners();
 
-      this.isTransitioning = false;
-
-      // === Appel la transition de scène Phaser (au lieu de laisser à l'ancien callback)
-      if (window.Phaser && window.Phaser.GAMES && window.Phaser.GAMES.length) {
-        // Accès à l'instance Phaser active
-        const game = window.Phaser.GAMES[0];
-        if (game && game.scene && game.scene.start) {
-          game.scene.start(sceneKey, {
-            fromZone: data.fromZone,
-            spawnX: data.spawnX,
-            spawnY: data.spawnY
-          });
-        }
-      } else if (this.callbacks.onZoneChanged) {
-        // Fallback custom si besoin
-        this.callbacks.onZoneChanged(data);
-      }
+      // ✅ AMÉLIORATION: Transition Phaser après configuration réseau
+      this.performPhaseTransition(sceneKey, data);
 
       console.log(`[NetworkManager] Transition réseau terminée vers ${newRoomName}`);
 
     } catch (error) {
       console.error(`[NetworkManager] Erreur lors de la transition de room:`, error);
       this.isTransitioning = false;
-      this.connect("BeachRoom");
+      // ✅ AMÉLIORATION: Fallback plus robuste
+      setTimeout(() => {
+        console.log(`[NetworkManager] Tentative de reconnexion après erreur`);
+        this.connect("BeachRoom");
+      }, 1000);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Séparer la transition Phaser
+  performPhaseTransition(sceneKey, data) {
+    this.isTransitioning = false; // Libérer le flag avant la transition Phaser
+    
+    if (window.Phaser && window.Phaser.GAMES && window.Phaser.GAMES.length) {
+      const game = window.Phaser.GAMES[0];
+      if (game && game.scene) {
+        // ✅ NOUVEAU: Délai pour éviter les conflits
+        setTimeout(() => {
+          game.scene.start(sceneKey, {
+            fromZone: data.fromZone,
+            spawnX: data.spawnX,
+            spawnY: data.spawnY,
+            networkManager: this // ✅ NOUVEAU: Passer le NetworkManager
+          });
+        }, 100);
+      }
+    } else if (this.callbacks.onZoneChanged) {
+      this.callbacks.onZoneChanged(data);
     }
   }
 
@@ -330,6 +350,25 @@ export class NetworkManager {
       return this.room.state.players.get(sessionId);
     }
     return null;
+  }
+
+  // ✅ NOUVEAU: Méthode de reconnexion
+  async reconnect(roomName = "BeachRoom") {
+    console.log(`[NetworkManager] Tentative de reconnexion à ${roomName}`);
+    this.isTransitioning = false;
+    this.isConnected = false;
+    
+    if (this.room) {
+      try {
+        await this.room.leave();
+      } catch (e) {
+        console.warn("Erreur lors de la déconnexion avant reconnexion:", e);
+      }
+      this.room = null;
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return this.connect(roomName);
   }
 
   async disconnect() {
