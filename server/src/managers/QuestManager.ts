@@ -23,7 +23,7 @@ export interface QuestUpdateResult {
 export class QuestManager {
   private questDefinitions: Map<string, QuestDefinition> = new Map();
 
-  constructor(questDataPath: string = "../assets/data/quests.json") {
+  constructor(questDataPath: string = "../data/quests/quests.json") {
     this.loadQuestDefinitions(questDataPath);
   }
 
