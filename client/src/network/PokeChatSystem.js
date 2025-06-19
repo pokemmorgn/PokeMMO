@@ -1,7 +1,60 @@
+export function initPokeChat(room, username) {
+  window.pokeChat = new PokeChatSystem(room, username);
+
+  // Réception des messages du serveur
+  room.onMessage("chat", data => {
+    window.pokeChat.addMessage(
+      data.author,
+      data.message,
+      data.timestamp,
+      data.type || "normal"
+    );
+  });
+
+  // ======== MESSAGES AUTOMATIQUES (simulateActivity) ========
+  window.pokeChat.addMessage('System', '🎮 Welcome to PokeWorld! Press T to test NPC dialogue.', null, 'system');
+  window.pokeChat.addMessage('KantoTrainer', 'Anyone up for a battle? <span class="pokemon-emoji">⚡</span>', null, 'normal');
+
+  setTimeout(() => {
+    window.pokeChat.addMessage('System', '🎉 Daily tournament starting in 10 minutes!', null, 'system');
+  }, 15000);
+
+  setTimeout(() => {
+    window.pokeChat.addMessage('Professor_Oak', 'Welcome to the world of Pokémon! 🌟', null, 'normal');
+  }, 3000);
+
+  setTimeout(() => {
+    window.pokeChat.addMessage('Nurse_Joy', 'Don\'t forget to heal your Pokémon regularly! 💊', null, 'normal');
+  }, 8000);
+
+  setInterval(() => {
+    if (!window.pokeChat) return;
+    const tips = [
+      "Tip: You can use Ctrl+M to minimize the chat.",
+      "Tip: Trade safely, only with trusted players!",
+      "Tip: Press T to open a dialogue with Professor Oak."
+    ];
+    const msg = tips[Math.floor(Math.random() * tips.length)];
+    window.pokeChat.addMessage("System", msg, null, "system");
+  }, 60000);
+
+  setInterval(() => {
+    if (!window.pokeChat) return;
+    let n = Math.floor(Math.random() * 80) + 20;
+    window.pokeChat.onlineCount.textContent = `🟢 ${n} online`;
+  }, 10000);
+
+  return window.pokeChat;
+}
+
+// ======================
+// Classe PokeChatSystem
+// ======================
+
 class PokeChatSystem {
   constructor(room, username) {
-    this.room = room; // Colyseus room
-    this.username = username; // Ton pseudo local
+    this.room = room;
+    this.username = username;
     this.chatMessages = document.getElementById('chat-messages');
     this.chatInput = document.getElementById('chat-input');
     this.charCounter = document.getElementById('char-counter');
@@ -16,14 +69,13 @@ class PokeChatSystem {
     this.messageHistory = [];
     this.isMinimized = false;
     this.isHidden = false;
-    this.isChatFocused = false; // NOUVEAU: pour gérer le focus
+    this.isChatFocused = false;
 
     this.initListeners();
-    this.createKeyboardHint(); // Crée l'élément de hint
+    this.createKeyboardHint();
     console.log('[CHAT] PokeChatSystem initialized');
   }
 
-  // Crée l'élément pour afficher les raccourcis clavier
   createKeyboardHint() {
     this.keyboardHint = document.createElement('div');
     this.keyboardHint.className = 'keyboard-hint';
@@ -34,11 +86,6 @@ class PokeChatSystem {
   }
 
   initListeners() {
-    // =========================
-    // GESTION DU FOCUS CHAT/JEU
-    // =========================
-    
-    // Quand on clique dans le chat input, on active le mode chat
     this.chatInput.addEventListener('focus', () => {
       this.isChatFocused = true;
       this.chatInput.classList.add('chat-focused');
@@ -47,7 +94,6 @@ class PokeChatSystem {
       console.log('[CHAT] Chat focused - Game input disabled');
     });
 
-    // Quand on quitte le chat input, on réactive le jeu
     this.chatInput.addEventListener('blur', () => {
       this.isChatFocused = false;
       this.chatInput.classList.remove('chat-focused');
@@ -56,11 +102,9 @@ class PokeChatSystem {
       console.log('[CHAT] Chat unfocused - Game input enabled');
     });
 
-    // Empêche les touches du jeu quand on tape dans le chat
     this.chatInput.addEventListener('keydown', (e) => {
-      // Empêche la propagation vers Phaser pour toutes les touches sauf certaines
       e.stopPropagation();
-      
+
       if (e.key === 'Enter') {
         if (this.chatInput.value.trim() && this.room) {
           const text = this.chatInput.value.trim();
@@ -72,33 +116,23 @@ class PokeChatSystem {
           this.charCounter.textContent = '200';
           this.charCounter.className = '';
         }
-        // Retire le focus du chat après envoi
         this.chatInput.blur();
         e.preventDefault();
       }
-      
+
       if (e.key === 'Escape') {
-        // Escape pour sortir du chat
         this.chatInput.blur();
         e.preventDefault();
       }
     });
 
-    // Empêche aussi les keyup dans le chat
     this.chatInput.addEventListener('keyup', (e) => {
       e.stopPropagation();
     });
 
-    // =========================
-    // RACCOURCI POUR OUVRIR LE CHAT
-    // =========================
-    
-    // Écoute globale pour ouvrir le chat avec 'T' ou 'Enter'
     document.addEventListener('keydown', (e) => {
-      // Si le chat est déjà focus, on ne fait rien
       if (this.isChatFocused) return;
-      
-      // Si on appuie sur T ou Enter, on ouvre le chat
+
       if ((e.key === 't' || e.key === 'T' || e.key === 'Enter') && !this.isHidden) {
         e.preventDefault();
         e.stopPropagation();
@@ -106,7 +140,6 @@ class PokeChatSystem {
       }
     });
 
-    // Gestion du compteur de caractères
     this.chatInput.addEventListener('input', (e) => {
       const length = e.target.value.length;
       const remaining = 200 - length;
@@ -116,14 +149,13 @@ class PokeChatSystem {
       if (remaining < 20) this.charCounter.classList.add('danger');
     });
 
-    // Minimize/Hide buttons
     if (this.minimizeBtn) {
       this.minimizeBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.toggleMinimize();
       });
     }
-    
+
     if (this.hideBtn) {
       this.hideBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -131,7 +163,6 @@ class PokeChatSystem {
       });
     }
 
-    // Toggle button (la bulle qui apparaît quand le chat est caché)
     if (this.chatToggle) {
       this.chatToggle.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -140,12 +171,10 @@ class PokeChatSystem {
       });
     }
 
-    // Clic sur le header pour minimize/deminimize (seulement si minimized)
     if (this.chatWindow) {
       const chatHeader = this.chatWindow.querySelector('#chat-header');
       if (chatHeader) {
         chatHeader.addEventListener('click', (e) => {
-          // On ne toggle que si le chat est minimized
           if (this.isMinimized) {
             e.stopPropagation();
             this.toggleMinimize();
@@ -157,21 +186,18 @@ class PokeChatSystem {
     console.log('[CHAT] Event listeners initialized');
   }
 
-  // Ajoute un message stylé dans le chat
   addMessage(author, message, timestamp = null, type = 'normal') {
     const isMe = (author === this.username || author === "You");
     const msgDiv = document.createElement('div');
     msgDiv.className = `chat-message new${type !== 'normal' ? ' ' + type : ''}`;
 
     let dateObj = timestamp ? new Date(timestamp) : new Date();
-    // Format: 07:14 au lieu de 7:14
     const time = dateObj.toLocaleTimeString(undefined, {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false // For 24h format with leading zeros
+      hour12: false
     });
 
-    // Construction du nom d'utilisateur + badge de niveau
     let userClass = "chat-username";
     let extraAttrs = "";
     if (isMe) {
@@ -196,7 +222,6 @@ class PokeChatSystem {
     this.scrollToBottom();
     setTimeout(() => msgDiv.classList.remove('new'), 400);
 
-    // Gère la limite de messages
     this.messageHistory.push(msgDiv);
     if (this.messageHistory.length > this.maxMessages) {
       const oldMsg = this.messageHistory.shift();
@@ -209,28 +234,25 @@ class PokeChatSystem {
     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
   }
 
-  // Toggle minimize/deminimize
   toggleMinimize() {
     this.isMinimized = !this.isMinimized;
     this.chatWindow.classList.toggle('minimized', this.isMinimized);
-    
+
     if (this.minimizeBtn) {
       this.minimizeBtn.textContent = this.isMinimized ? '+' : '−';
     }
-    
+
     if (!this.isMinimized) {
       setTimeout(() => this.chatInput.focus(), 100);
     }
-    
+
     console.log('[CHAT] Minimized:', this.isMinimized);
   }
 
-  // Toggle hide/show
   toggleHide() {
     this.isHidden = !this.isHidden;
     this.chatWindow.classList.toggle('hidden', this.isHidden);
 
-    // Affiche/masque la bulle "chat-toggle"
     if (this.chatToggle) {
       if (this.isHidden) {
         this.chatToggle.classList.add('show');
@@ -241,7 +263,6 @@ class PokeChatSystem {
       }
     }
 
-    // Focus quand visible
     if (!this.isHidden) {
       setTimeout(() => {
         if (this.chatInput) {
@@ -250,7 +271,6 @@ class PokeChatSystem {
       }, 500);
     }
 
-    // Quand on montre le chat, on enlève le "minimized"
     if (!this.isHidden && this.isMinimized) {
       this.isMinimized = false;
       this.chatWindow.classList.remove('minimized');
@@ -258,15 +278,10 @@ class PokeChatSystem {
         this.minimizeBtn.textContent = '−';
       }
     }
-    
+
     console.log('[CHAT] Hidden:', this.isHidden);
   }
 
-  // =========================
-  // MÉTHODES POUR GÉRER LE FOCUS
-  // =========================
-  
-  // Ouvre le chat et donne le focus
   openChat() {
     if (this.isHidden) {
       this.toggleHide();
@@ -274,39 +289,33 @@ class PokeChatSystem {
     if (this.isMinimized) {
       this.toggleMinimize();
     }
-    
+
     setTimeout(() => {
       this.chatInput.focus();
-      this.chatInput.select(); // Sélectionne le texte s'il y en a
+      this.chatInput.select();
     }, 100);
-    
+
     console.log('[CHAT] Chat opened and focused');
   }
 
-  // Ferme le chat et retire le focus
   closeChat() {
     this.chatInput.blur();
     console.log('[CHAT] Chat closed and unfocused');
   }
 
-  // Vérifie si le chat a le focus
   hasFocus() {
     return this.isChatFocused;
   }
 
-  // Affiche le hint des raccourcis clavier
   showKeyboardHint() {
     if (this.keyboardHint) {
       this.keyboardHint.classList.add('show');
     }
   }
 
-  // Cache le hint des raccourcis clavier
   hideKeyboardHint() {
     if (this.keyboardHint) {
       this.keyboardHint.classList.remove('show');
     }
   }
 }
-
-export default PokeChatSystem;
