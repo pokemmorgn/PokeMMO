@@ -546,16 +546,15 @@ this.input.keyboard.on("keydown-E", () => {
     // Quand le serveur répond à l’interaction NPC
 this.networkManager.onMessage("npcInteractionResult", (result) => {
   if (result.type === "dialogue") {
-    // 🔥 Cherche le vrai NPC côté client (on suppose que tu as reçu npcId)
     let npcName = "???";
     let portrait = result.portrait;
+    // On cherche côté client le nom réel
     if (result.npcId && this.npcManager) {
       const npc = this.npcManager.getNpcData(result.npcId);
       if (npc) {
         npcName = npc.name;
-        // Optionnel: fabrique le portrait à partir du sprite du NPC si pas fourni
         if (!portrait && npc.sprite) {
-          portrait = `assets/npc/${npc.sprite}.png`;
+          portrait = `assets/npc/${npc.sprite}.png`; // adapte selon ton système !
         }
       }
     }
@@ -564,6 +563,7 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
       name: npcName,
       text: result.lines ? result.lines[0] : result.message
     });
+    
   } else if (result.type === "shop") {
     // TODO: affiche une fenêtre shop
     showNpcDialogue({
