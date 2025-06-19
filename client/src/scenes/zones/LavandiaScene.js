@@ -6,12 +6,12 @@ export class LavandiaScene extends BaseZoneScene {
     this.transitionCooldowns = {};
     this.playerCreationAttempts = 0;
     this.maxPlayerCreationAttempts = 10;
-    console.log("[LavandiaScene] Constructor appelé");
+    console.log('[LavandiaScene] Constructor appelé');
   }
 
   setupZoneTransitions() {
     if (!this.playerManager) {
-      console.warn("playerManager non encore initialisé, retry dans 100ms");
+      console.warn('playerManager non encore initialisé, retry dans 100ms');
       this.time.delayedCall(100, () => this.setupZoneTransitions());
       return;
     }
@@ -24,18 +24,18 @@ export class LavandiaScene extends BaseZoneScene {
 
     const player = this.playerManager.getMyPlayer();
     if (!player) {
-      console.warn("Player non encore créé, retry dans 100ms");
+      console.warn('Player non encore créé, retry dans 100ms');
       this.time.delayedCall(100, () => this.setupZoneTransitions());
       return;
     }
     console.log(`🎮 Joueur récupéré: position (${player.x}, ${player.y})`);
 
     if (!player.body) {
-      console.warn("⚠️ Player.body non créé, retry setupZoneTransitions dans 100ms");
+      console.warn('⚠️ Player.body non créé, retry setupZoneTransitions dans 100ms');
       this.time.delayedCall(100, () => this.setupZoneTransitions());
       return;
     }
-    console.log("✅ Player.body présent, création des zones de transition");
+    console.log('✅ Player.body présent, création des zones de transition');
 
     worldsLayer.objects.forEach(obj => {
       const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
@@ -44,7 +44,6 @@ export class LavandiaScene extends BaseZoneScene {
         console.warn(`⚠️ Objet ${obj.name || obj.id} dans 'Worlds' sans propriété targetZone, ignoré`);
         return;
       }
-
       const targetZone = targetZoneProp.value;
       const direction = directionProp ? directionProp.value : 'north';
 
@@ -62,7 +61,7 @@ export class LavandiaScene extends BaseZoneScene {
 
       this.physics.add.overlap(player, zone, () => {
         if (!this.networkManager) {
-          console.warn("⚠️ networkManager non défini, transition ignorée");
+          console.warn('⚠️ networkManager non défini, transition ignorée');
           return;
         }
         console.log(`↪️ Overlap détecté avec zone transition vers ${targetZone} (${direction})`);
@@ -81,13 +80,12 @@ export class LavandiaScene extends BaseZoneScene {
       transitionObj.width,
       transitionObj.height
     );
-
     this.physics.world.enable(transitionZone);
     transitionZone.body.setAllowGravity(false);
     transitionZone.body.setImmovable(true);
 
     let overlapCreated = false;
-    
+
     const checkPlayerInterval = this.time.addEvent({
       delay: 100,
       loop: true,
@@ -119,30 +117,11 @@ export class LavandiaScene extends BaseZoneScene {
           });
           checkPlayerInterval.remove();
         }
-      },
+      }
     });
   }
 
-  positionPlayer(player) {
-    const spawnObj = this.map.getObjectLayer('Worlds')?.objects.find(obj => obj.name === 'SpawnPoint_Lavandiabottom');
-    if (spawnObj) {
-      player.x = spawnObj.x + (spawnObj.width || 0) / 2;
-      player.y = spawnObj.y + (spawnObj.height || 0) / 2;
-      console.log(`[LavandiaScene] positionné via SpawnPoint_Lavandiabottom à (${player.x}, ${player.y})`);
-    } else {
-      player.x = 350;
-      player.y = 750;
-      console.warn("[LavandiaScene] SpawnPoint_Lavandiabottom non trouvé, position par défaut utilisée");
-    }
-
-    if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-    }
-    if (this.networkManager) {
-      this.networkManager.sendMove(player.x, player.y);
-    }
-  }
+  // ✅ SUPPRIMÉ : positionPlayer() - Le serveur gère les positions maintenant
 
   create() {
     super.create();
@@ -166,11 +145,9 @@ export class LavandiaScene extends BaseZoneScene {
         const playerState = this.networkManager.getPlayerState(sessionId);
         if (playerState) {
           this.playerManager.createPlayer(sessionId, playerState);
-          this.positionPlayer(this.playerManager.getMyPlayer());
         } else {
           const defaultState = { sessionId: sessionId, name: sessionId.substring(0, 8) };
           this.playerManager.createPlayer(sessionId, defaultState);
-          this.positionPlayer(this.playerManager.getMyPlayer());
         }
       }
       this.time.delayedCall(500, checkPlayer);
