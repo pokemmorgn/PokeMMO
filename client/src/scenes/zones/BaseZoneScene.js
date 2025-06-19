@@ -1,7 +1,7 @@
 import { NetworkManager } from "../../network/NetworkManager.js";
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
-import { NpcManager } from "../../game/NpcManager.js";
+import { NpcManager } from "../../game/NpcManager.ts";
 import { InputManager } from "../../input/InputManager.js";
 import { MobileInteractButton, ensureMobileInteractCSS } from "../../components/MobileInteractButton.js";
 
