@@ -8,6 +8,8 @@ export class Player extends Schema {
   // 👇 AJOUTE pour les anims
   @type("string") direction: string = "down";
   @type("boolean") isMoving: boolean = false;
+  @type([ "string" ]) team: ArraySchema<any>;
+
 }
 
 export class PokeWorldState extends Schema {
