@@ -43,7 +43,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     this.questManager = new QuestManager(`../data/quests/quests.json`);
     this.interactionManager = new InteractionManager(this.npcManager, this.questManager);
     this.movementController = new MovementController();
-    this.transitionController = new TransitionController(this, `./assets/maps`);
+this.transitionController = new TransitionController(this);
 
     // Sauvegarde automatique toutes les 30 secondes
     this.clock.setInterval(() => {
