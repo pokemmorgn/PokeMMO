@@ -28,7 +28,7 @@ export class MapManager {
      */
     public loadMap(mapName: string, mapPath: string): void {
         try {
-            console.log(📍 Chargement de la map ${mapName} depuis ${mapPath});
+            console.log(`📍 Chargement de la map ${mapName} depuis ${mapPath}`);
             
 const resolvedPath = path.resolve(__dirname, mapPath);
 console.log(`[MapManager] Résolution du chemin: ${mapPath} → ${resolvedPath}`);
@@ -39,15 +39,13 @@ if (!fs.existsSync(resolvedPath)) {
 }
 
 const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
-
-            const mapData: TiledMap = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
             this.maps.set(mapName, mapData);
             this.extractTeleportsAndSpawns(mapName, mapData);
             
-            console.log(✅ Map ${mapName} chargée avec succès);
+            console.log(`✅ Map ${mapName} chargée avec succès`);
             
         } catch (error) {
-            console.error(❌ Erreur lors du chargement de la map ${mapName}:, error);
+            console.error(`❌ Erreur lors du chargement de la map ${mapName}:`, error);
         }
     }
 
@@ -69,7 +67,7 @@ const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
                     
                     // Gérer les téléports (nom = "teleport")
                     if (obj.name === 'teleport' && properties.targetSpawn && properties.targetZone) {
-                        const teleportKey = ${mapName}_teleport_${obj.id};
+                        const teleportKey = `${mapName}_teleport_${obj.id}`;
                         this.teleports.set(teleportKey, {
                             mapName,
                             x: obj.x,
@@ -83,7 +81,7 @@ const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
                     
                     // Gérer les spawns (nom = "spawn")
                     if (obj.name === 'spawn' && properties.targetSpawn && properties.targetZone) {
-                        const spawnKey = ${properties.targetZone}_${properties.targetSpawn};
+                        const spawnKey = `${properties.targetZone}_${properties.targetSpawn}`;
                         this.spawns.set(spawnKey, {
                             mapName: properties.targetZone as string,
                             x: obj.x,
@@ -108,13 +106,13 @@ const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
     private buildTeleportNetwork(): void {
         console.log('\n🔗 Réseau de téléportation:');
         for (const [teleportKey, teleport] of this.teleports) {
-            const spawnKey = ${teleport.targetZone}_${teleport.targetSpawn};
+            const spawnKey = `${teleport.targetZone}_${teleport.targetSpawn}`;
             const targetSpawn = this.spawns.get(spawnKey);
             
             if (targetSpawn) {
-                console.log(  ${teleport.mapName} → ${targetSpawn.mapName}(${targetSpawn.targetSpawn}));
+                console.log(`  ${teleport.mapName} → ${targetSpawn.mapName}(${targetSpawn.targetSpawn})`);
             } else {
-                console.warn(  ⚠️  Spawn manquant pour: ${spawnKey});
+                console.warn(`  ⚠️  Spawn manquant pour: ${spawnKey}`);
             }
         }
     }
@@ -134,11 +132,11 @@ const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
     }
 
     public getTeleportDestination(teleport: Teleport): { mapName: string; x: number; y: number; spawnPoint: string } | null {
-        const spawnKey = ${teleport.targetZone}_${teleport.targetSpawn};
+        const spawnKey = `${teleport.targetZone}_${teleport.targetSpawn}`;
         const targetSpawn = this.spawns.get(spawnKey);
         
         if (!targetSpawn) {
-            console.error(❌ Spawn de destination introuvable: ${spawnKey});
+            console.error(`❌ Spawn de destination introuvable: ${spawnKey}`);
             return null;
         }
 
@@ -163,7 +161,7 @@ const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
             return null;
         }
 
-        console.log(🌀 Téléportation: ${playerId} de ${fromMap} vers ${destination.mapName});
+        console.log(`🌀 Téléportation: ${playerId} de ${fromMap} vers ${destination.mapName}`);
         
         return {
             success: true,
@@ -184,7 +182,7 @@ const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
 
     public getSpawnPoint(mapName: string, spawnName?: string): { x: number; y: number } | null {
         if (spawnName) {
-            const spawnKey = ${mapName}_${spawnName};
+            const spawnKey = `${mapName}_${spawnName}`;
             const spawn = this.spawns.get(spawnKey);
             if (spawn) {
                 return { x: spawn.x, y: spawn.y };
