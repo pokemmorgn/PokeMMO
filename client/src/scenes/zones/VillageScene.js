@@ -9,6 +9,17 @@ export class VillageScene extends BaseZoneScene {
   create() {
     console.log("🚨 DEBUT VillageScene.create()");
     super.create();
+     // LOG CRUCIAL : est-ce que PlayerManager connaît déjà ton joueur après le create du parent ?
+  if (this.playerManager) {
+    console.log("[DEBUG] PlayerManager (VillageScene):", this.playerManager.players);
+    // Essaie de log le player courant
+    const myPlayer = this.playerManager.getMyPlayer && this.playerManager.getMyPlayer();
+    if (myPlayer) {
+      console.log("[DEBUG] Mon player existe déjà (juste après super.create()):", myPlayer.x, myPlayer.y, myPlayer);
+    } else {
+      console.warn("[DEBUG] Mon player n'existe PAS après super.create()");
+    }
+  }
     console.log("✅ BaseZoneScene.create() appelé");
 
     this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
