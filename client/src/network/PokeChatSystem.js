@@ -1,6 +1,11 @@
 export function initPokeChat(room, username) {
   window.pokeChat = new PokeChatSystem(room, username);
 
+  // ✅ NOUVEAU : Réception de la config serveur
+  room.onMessage("serverConfig", data => {
+    window.pokeChat.updateServerConfig(data);
+  });
+
   // Réception des messages du serveur
   room.onMessage("chat", data => {
     window.pokeChat.addMessage(
@@ -16,37 +21,21 @@ export function initPokeChat(room, username) {
     window.pokeChat.onlineCount.textContent = `🟢 ${data.count} online`;
   });
 
-  // ⭐ NOUVEAU : Gestion des erreurs de chat
+  // Gestion des erreurs de chat
   room.onMessage("chatError", data => {
     window.pokeChat.showError(data.message);
   });
+
+  // ✅ Demander la config au serveur
+  room.send("requestConfig");
   
-  // Messages automatiques
-  window.pokeChat.addMessage('System', '🎮 Welcome to PokeWorld! Press T to test NPC dialogue.', null, 'system');
-  window.pokeChat.addMessage('KantoTrainer', 'Anyone up for a battle? <span class="pokemon-emoji">⚡</span>', null, 'normal');
-
+  // Messages automatiques (seulement si le chat est activé)
   setTimeout(() => {
-    window.pokeChat.addMessage('System', '🎉 Daily tournament starting in 10 minutes!', null, 'system');
-  }, 15000);
-
-  setTimeout(() => {
-    window.pokeChat.addMessage('Professor_Oak', 'Welcome to the world of Pokémon! 🌟', null, 'normal');
-  }, 3000);
-
-  setTimeout(() => {
-    window.pokeChat.addMessage('Nurse_Joy', 'Don\'t forget to heal your Pokémon regularly! 💊', null, 'normal');
-  }, 8000);
-
-  setInterval(() => {
-    if (!window.pokeChat) return;
-    const tips = [
-      "Tip: You can use Ctrl+M to minimize the chat.",
-      "Tip: Trade safely, only with trusted players!",
-      "Tip: Press T to open a dialogue with Professor Oak."
-    ];
-    const msg = tips[Math.floor(Math.random() * tips.length)];
-    window.pokeChat.addMessage("System", msg, null, "system");
-  }, 60000);
+    if (window.pokeChat.serverConfig.chatEnabled) {
+      window.pokeChat.addMessage('System', '🎮 Welcome to PokeWorld! Press T to test NPC dialogue.', null, 'system');
+      window.pokeChat.addMessage('KantoTrainer', 'Anyone up for a battle? <span class="pokemon-emoji">⚡</span>', null, 'normal');
+    }
+  }, 1000);
 
   return window.pokeChat;
 }
@@ -74,19 +63,62 @@ class PokeChatSystem {
     this.chatToggle = document.getElementById('chat-toggle');
     this.onlineCount = document.getElementById('online-count');
 
+    // ✅ NOUVEAU : Config serveur
+    this.serverConfig = {
+      chatEnabled: true,
+      chatCooldown: 2,
+      maxTeamSize: 6,
+      xpRate: 2
+    };
+
     this.maxMessages = 50;
     this.messageHistory = [];
     this.isMinimized = false;
     this.isHidden = false;
     this.isChatFocused = false;
-    this.isDisabled = false; // ⭐ NOUVEAU : État de désactivation
-    this.lastSentTime = 0; // ⭐ NOUVEAU : Timestamp du dernier message
-    this.cooldownTimer = null; // ⭐ NOUVEAU : Timer de cooldown
+    this.isDisabled = false;
+    this.lastSentTime = 0;
+    this.cooldownTimer = null;
 
     this.initListeners();
     this.createKeyboardHint();
-    this.createErrorDisplay(); // ⭐ NOUVEAU
+    this.createErrorDisplay();
     console.log('[CHAT] PokeChatSystem initialized');
+  }
+
+  // ✅ NOUVEAU : Mettre à jour la config depuis le serveur
+  updateServerConfig(config) {
+    this.serverConfig = { ...this.serverConfig, ...config };
+    console.log('[CHAT] Server config updated:', this.serverConfig);
+    
+    // Appliquer les changements immédiatement
+    if (!this.serverConfig.chatEnabled) {
+      this.disableChat("Chat disabled by server");
+    } else {
+      this.enableChat();
+    }
+    
+    // Mettre à jour l'UI selon la config
+    this.updateUIBasedOnConfig();
+  }
+
+  // ✅ NOUVEAU : Mettre à jour l'UI selon la config
+  updateUIBasedOnConfig() {
+    const chatTitle = document.querySelector('#chat-title span');
+    if (chatTitle) {
+      chatTitle.textContent = this.serverConfig.chatEnabled 
+        ? '💬 Global Chat' 
+        : '🚫 Chat Disabled';
+    }
+    
+    // Afficher un indicateur du taux d'XP dans le chat
+    if (this.serverConfig.xpRate !== 1) {
+      setTimeout(() => {
+        this.addMessage('System', 
+          `🎊 Server bonus: ${this.serverConfig.xpRate}x XP Rate active!`, 
+          null, 'system');
+      }, 2000);
+    }
   }
 
   createKeyboardHint() {
@@ -98,7 +130,6 @@ class PokeChatSystem {
     document.body.appendChild(this.keyboardHint);
   }
 
-  // ⭐ NOUVEAU : Créer l'élément d'affichage des erreurs
   createErrorDisplay() {
     this.errorDisplay = document.createElement('div');
     this.errorDisplay.className = 'chat-error-display';
@@ -160,7 +191,6 @@ class PokeChatSystem {
     document.body.appendChild(this.errorDisplay);
   }
 
-  // ⭐ NOUVEAU : Afficher une erreur
   showError(message) {
     this.errorDisplay.textContent = message;
     this.errorDisplay.classList.add('show');
@@ -176,7 +206,6 @@ class PokeChatSystem {
     console.log('[CHAT] Error displayed:', message);
   }
 
-  // ⭐ NOUVEAU : Désactiver temporairement le chat
   disableChat(reason = "Chat disabled") {
     this.isDisabled = true;
     this.chatInput.disabled = true;
@@ -185,7 +214,6 @@ class PokeChatSystem {
     console.log('[CHAT] Chat disabled:', reason);
   }
 
-  // ⭐ NOUVEAU : Réactiver le chat
   enableChat() {
     this.isDisabled = false;
     this.chatInput.disabled = false;
@@ -194,7 +222,6 @@ class PokeChatSystem {
     console.log('[CHAT] Chat enabled');
   }
 
-  // ⭐ NOUVEAU : Démarrer un cooldown visuel
   startCooldown(seconds) {
     this.chatInput.classList.add('chat-input-cooldown');
     this.chatInput.placeholder = `Wait ${seconds}s before sending another message...`;
@@ -238,6 +265,12 @@ class PokeChatSystem {
       e.stopPropagation();
 
       if (e.key === 'Enter') {
+        // ✅ Vérifier la config serveur
+        if (!this.serverConfig.chatEnabled) {
+          this.showError("Chat is disabled by server.");
+          return;
+        }
+
         if (this.isDisabled) {
           this.showError("Chat is currently disabled.");
           return;
@@ -246,9 +279,19 @@ class PokeChatSystem {
         if (this.chatInput.value.trim() && this.room) {
           const text = this.chatInput.value.trim();
           
-          // ⭐ NOUVEAU : Validation côté client
+          // Validation côté client
           if (text.length > 200) {
             this.showError("Message too long (max 200 characters).");
+            return;
+          }
+          
+          // ✅ Vérifier le cooldown côté client
+          const now = Date.now();
+          const timeSinceLastMessage = (now - this.lastSentTime) / 1000;
+          if (timeSinceLastMessage < this.serverConfig.chatCooldown) {
+            const remaining = Math.ceil(this.serverConfig.chatCooldown - timeSinceLastMessage);
+            this.showError(`Please wait ${remaining}s before sending another message.`);
+            this.startCooldown(remaining);
             return;
           }
           
@@ -258,7 +301,7 @@ class PokeChatSystem {
             message: text
           });
           
-          this.lastSentTime = Date.now();
+          this.lastSentTime = now;
           this.chatInput.value = '';
           this.charCounter.textContent = '200';
           this.charCounter.className = '';
