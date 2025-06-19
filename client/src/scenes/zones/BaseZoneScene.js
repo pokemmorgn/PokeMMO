@@ -530,6 +530,19 @@ this.input.keyboard.on("keydown-E", () => {
     this.networkManager.onMessage("snap", (data) => {
       this.playerManager.snapMyPlayerTo(data.x, data.y);
     });
+
+          if (this.scene.key === 'BeachScene' && !this._starterHudInitialized) {
+        // Initialiser le HUD du starter
+        window.initStarterHUD(this.networkManager.room);
+        this._starterHudInitialized = true;
+
+        // Branche les events du starter (logique de BeachScene mais tu peux l'externaliser)
+        if (typeof this.setupStarterEventListeners === "function") {
+          this.setupStarterEventListeners(this.networkManager.room);
+        }
+      }
+
+    
   });
 
     this.networkManager.onStateChange((state) => {
