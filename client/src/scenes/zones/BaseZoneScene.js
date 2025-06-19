@@ -1,7 +1,9 @@
 import { NetworkManager } from "../../network/NetworkManager.js";
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
-import { NpcManager } from "../../game/NpcManager";
+import { NpcManager } from "../../game/NpcManager.js";
+import { InputManager } from "../../input/InputManager.js";
+import { MobileInteractButton, ensureMobileInteractCSS } from "../../components/MobileInteractButton.js";
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -17,32 +19,47 @@ export class BaseZoneScene extends Phaser.Scene {
     this.zoneChangedHandler = null; // Référence du handler
     this.lastMoveTime = 0; // Throttling des mouvements
 
+    // Nouveau : gestionnaire d'input unifié et bouton mobile
+    this.inputManager = null;
+    this.mobileInteractButton = null;
+    this.isMobile = this.detectMobile();
+    this._introBlocked = false; // Pour les séquences d'intro
+  }
+
+  detectMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           ('ontouchstart' in window) ||
+           (navigator.maxTouchPoints > 0);
   }
 
   preload() {
-  const ext = 'tmj';
-  this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
+    const ext = 'tmj';
+    this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
 
-  // Charger le spritesheet du joueur (32x32 par frame)
-  this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
-    frameWidth: 32,
-    frameHeight: 32,
-  });
-}
+    // Charger le spritesheet du joueur (32x32 par frame)
+    this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+  }
 
   create() {
     console.log(`🌍 Creating zone: ${this.scene.key}`);
     console.log(`📊 Scene data:`, this.scene.settings.data);
 
-this.createPlayerAnimations();
-this.setupManagers();     // <-- d’abord les managers
-if (this.mySessionId) {
-  this.playerManager.setMySessionId(this.mySessionId);
-}
-this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
-this.setupInputs();
-this.createUI();
+    this.createPlayerAnimations();
+    this.setupManagers();     // <-- d'abord les managers
+    if (this.mySessionId) {
+      this.playerManager.setMySessionId(this.mySessionId);
+    }
+    this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
+    this.setupInputs();       // <-- Nouveau système d'input mobile
+    this.createUI();
 
+    // Nouveau : gestion des événements d'orientation mobile
+    if (this.isMobile) {
+      this.setupMobileEvents();
+    }
 
     // Gestion réseau simplifiée
     if (this.scene.key === 'BeachScene') {
@@ -63,9 +80,87 @@ this.createUI();
     });
   }
 
+  setupMobileEvents() {
+    // Gestion de l'orientation
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => {
+        this.handleOrientationChange();
+        this.repositionMobileUI();
+      }, 100);
+    });
+
+    // Gestion du redimensionnement de fenêtre
+    window.addEventListener('resize', () => {
+      if (this.inputManager) {
+        this.inputManager.handleResize();
+      }
+    });
+
+    // Désactivation du zoom pinch sur mobile
+    document.addEventListener('touchmove', (e) => {
+      if (e.scale !== 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // Prévenir le scroll sur mobile lors du jeu
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchend', (e) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+  }
+
+  repositionMobileUI() {
+    const camera = this.cameras.main;
+    
+    // Repositionner les éléments UI pour mobile
+    if (this.coordsText) {
+      this.coordsText.setPosition(camera.width - 16, 16);
+    }
+
+    if (this.infoText) {
+      this.infoText.setPosition(16, 16);
+    }
+
+    // Repositionner le joystick si nécessaire
+    if (this.inputManager) {
+      let joystickX, joystickY;
+      
+      if (window.orientation === 90 || window.orientation === -90) {
+        // Mode paysage
+        joystickX = 120;
+        joystickY = camera.height - 80;
+      } else {
+        // Mode portrait
+        joystickX = 80;
+        joystickY = camera.height - 120;
+      }
+      
+      this.inputManager.repositionJoystick(joystickX, joystickY);
+    }
+
+    // Repositionner le bouton d'interaction
+    if (this.mobileInteractButton) {
+      this.mobileInteractButton.reposition();
+    }
+  }
+
+  handleOrientationChange() {
+    if (this.inputManager && this.isMobile) {
+      this.inputManager.handleResize();
+    }
+  }
+
   getExistingNetwork() {
     // Liste des scènes qui pourraient avoir le NetworkManager
-    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene'];
+    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene', 'LavandiaScene'];
     for (const sceneName of scenesToCheck) {
       const scene = this.scene.manager.getScene(sceneName);
       if (scene && scene.networkManager) {
@@ -181,23 +276,23 @@ this.createUI();
   }
 
   setupScene() {
-  console.log('— DEBUT setupScene —');
-  this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+    console.log('— DEBUT setupScene —');
+    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
 
-  // Zoom automatique selon taille map et taille canvas Phaser
-  const baseWidth = this.scale.width;   // largeur canvas Phaser (ex: 800)
-  const baseHeight = this.scale.height; // hauteur canvas Phaser (ex: 600)
+    // Zoom automatique selon taille map et taille canvas Phaser
+    const baseWidth = this.scale.width;   // largeur canvas Phaser (ex: 800)
+    const baseHeight = this.scale.height; // hauteur canvas Phaser (ex: 600)
 
-  const zoomX = baseWidth / this.map.widthInPixels;
-  const zoomY = baseHeight / this.map.heightInPixels;
-  const zoom = Math.min(zoomX, zoomY);
+    const zoomX = baseWidth / this.map.widthInPixels;
+    const zoomY = baseHeight / this.map.heightInPixels;
+    const zoom = Math.min(zoomX, zoomY);
 
-  this.cameras.main.setZoom(zoom);
+    this.cameras.main.setZoom(zoom);
 
-  this.cameras.main.setBackgroundColor('#2d5a3d');
-  this.cameras.main.setRoundPixels(true);
+    this.cameras.main.setBackgroundColor('#2d5a3d');
+    this.cameras.main.setRoundPixels(true);
 
-  this.cameraManager = new CameraManager(this);
+    this.cameraManager = new CameraManager(this);
     let retry = 0;
     const MAX_RETRY = 60;
 
@@ -243,85 +338,87 @@ this.createUI();
       }
     });
   }
-setupZoneTransitions() {
-  const worldsLayer = this.map.getObjectLayer('Worlds');
-  if (!worldsLayer) return;
 
-  const player = this.playerManager.getMyPlayer();
-  if (!player || !player.body) {
-    this.time.delayedCall(100, () => this.setupZoneTransitions());
-    return;
-  }
+  setupZoneTransitions() {
+    const worldsLayer = this.map.getObjectLayer('Worlds');
+    if (!worldsLayer) return;
 
-  worldsLayer.objects.forEach(obj => {
-    if (!obj.name) return; // chaque sortie doit avoir un nom dans Tiled !
+    const player = this.playerManager.getMyPlayer();
+    if (!player || !player.body) {
+      this.time.delayedCall(100, () => this.setupZoneTransitions());
+      return;
+    }
 
-    const zone = this.add.zone(
-      obj.x + (obj.width ? obj.width / 2 : 0),
-      obj.y + (obj.height ? obj.height / 2 : 0),
-      obj.width || 32,
-      obj.height || 32
-    );
-    this.physics.world.enable(zone);
-    zone.body.setAllowGravity(false);
-    zone.body.setImmovable(true);
+    worldsLayer.objects.forEach(obj => {
+      if (!obj.name) return; // chaque sortie doit avoir un nom dans Tiled !
 
-    let overlapTriggered = false;
-    this.physics.add.overlap(player, zone, () => {
-      if (overlapTriggered) return;
-      overlapTriggered = true;
-      if (this.networkManager && !this.isTransitioning) {
-        this.isTransitioning = true;
-        this.networkManager.requestZoneTransition({ targetSpawn: obj.name });
-      }
-      this.time.delayedCall(800, () => {
-        overlapTriggered = false;
-        this.isTransitioning = false;
+      const zone = this.add.zone(
+        obj.x + (obj.width ? obj.width / 2 : 0),
+        obj.y + (obj.height ? obj.height / 2 : 0),
+        obj.width || 32,
+        obj.height || 32
+      );
+      this.physics.world.enable(zone);
+      zone.body.setAllowGravity(false);
+      zone.body.setImmovable(true);
+
+      let overlapTriggered = false;
+      this.physics.add.overlap(player, zone, () => {
+        if (overlapTriggered) return;
+        overlapTriggered = true;
+        if (this.networkManager && !this.isTransitioning) {
+          this.isTransitioning = true;
+          this.networkManager.requestZoneTransition(obj.name);
+        }
+        this.time.delayedCall(800, () => {
+          overlapTriggered = false;
+          this.isTransitioning = false;
+        });
       });
     });
-  });
-}
-
-// Méthode à override dans chaque scène
-getTransitionConfig() {
-  return {}; // À définir dans les sous-classes
-}
-positionPlayer(player) {
-  const initData = this.scene.settings.data;
-  
-  // Position par défaut ou depuis spawn data
-  if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-    player.x = initData.spawnX;
-    player.y = initData.spawnY;
-  } else {
-    // Utiliser les positions par défaut de la scène
-    const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-    player.x = defaultPos.x;
-    player.y = defaultPos.y;
   }
 
-  // Logique commune pour l'indicateur
-  if (player.indicator) {
-    player.indicator.x = player.x;
-    player.indicator.y = player.y - 32;
+  // Méthode à override dans chaque scène
+  getTransitionConfig() {
+    return {}; // À définir dans les sous-classes
   }
 
-  if (this.networkManager) {
-    this.networkManager.sendMove(player.x, player.y);
+  positionPlayer(player) {
+    const initData = this.scene.settings.data;
+    
+    // Position par défaut ou depuis spawn data
+    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+      player.x = initData.spawnX;
+      player.y = initData.spawnY;
+    } else {
+      // Utiliser les positions par défaut de la scène
+      const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+      player.x = defaultPos.x;
+      player.y = defaultPos.y;
+    }
+
+    // Logique commune pour l'indicateur
+    if (player.indicator) {
+      player.indicator.x = player.x;
+      player.indicator.y = player.y - 32;
+    }
+
+    if (this.networkManager) {
+      this.networkManager.sendMove(player.x, player.y);
+    }
+
+    // Hook pour logique spécifique (intro, etc.)
+    this.onPlayerPositioned(player, initData);
   }
 
-  // Hook pour logique spécifique (intro, etc.)
-  this.onPlayerPositioned(player, initData);
-}
+  // À override dans les sous-classes
+  getDefaultSpawnPosition(fromZone) {
+    return { x: 100, y: 100 }; // Valeurs par défaut
+  }
 
-// À override dans les sous-classes
-getDefaultSpawnPosition(fromZone) {
-  return { x: 100, y: 100 }; // Valeurs par défaut
-}
-
-onPlayerPositioned(player, initData) {
-  // Hook pour logique spécifique (intro dans BeachScene)
-}
+  onPlayerPositioned(player, initData) {
+    // Hook pour logique spécifique (intro dans BeachScene)
+  }
 
   async initializeNetwork() {
     const getWalletFromUrl = () => {
@@ -375,8 +472,12 @@ onPlayerPositioned(player, initData) {
         case 'road1':
           roomName = 'Road1Room';
           break;
-          case 'house1':
+        case 'villagehouse1':
+        case 'house1':
           roomName = 'VillageHouse1Room';
+          break;
+        case 'lavandia':
+          roomName = 'LavandiaRoom';
           break;
         default:
           roomName = 'BeachRoom';
@@ -436,28 +537,110 @@ onPlayerPositioned(player, initData) {
   }
 
   setupInputs() {
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.wasd = this.input.keyboard.addKeys('W,S,A,D');
-    this.input.keyboard.enableGlobalCapture();
+    // Assurer que le CSS mobile est chargé
+    ensureMobileInteractCSS();
+    
+    // Nouveau système d'input unifié
+    this.inputManager = new InputManager(this);
+    
+    // Configuration du callback de mouvement
+    this.inputManager.onMove((deltaX, deltaY, direction) => {
+      this.handleInputMovement(deltaX, deltaY, direction);
+    });
 
-    // Appuie sur "E" pour interagir avec le NPC le plus proche
-this.input.keyboard.on("keydown-E", () => {
-  const myPlayer = this.playerManager.getMyPlayer();
-  if (!myPlayer || !this.npcManager) return;
+    // Bouton d'interaction mobile
+    if (this.isMobile) {
+      this.mobileInteractButton = new MobileInteractButton(this);
+    }
 
-  const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
-  if (npc) {
-    // 🔥 Mémorise le dernier NPC ciblé pour le dialogue
-    this.npcManager.lastInteractedNpc = npc;
-    this.networkManager.sendNpcInteract(npc.id);
+    // Interaction NPC (E key) - garder l'ancien système
+    this.input.keyboard.on("keydown-E", () => {
+      if (this.shouldBlockInput()) return;
+      this.handleInteractionInput();
+    });
+
+    console.log(`⌨️ Input system setup completed (Mobile: ${this.isMobile})`);
   }
-});
 
+  handleInputMovement(deltaX, deltaY, direction) {
+    if (this.shouldBlockInput()) return;
+    
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer || !myPlayer.body) return;
+
+    const speed = 120;
+    const movement = this.inputManager.getCurrentMovement();
+    
+    if (movement.source === 'joystick') {
+      // Mouvement continu pour le joystick
+      myPlayer.body.setVelocity(deltaX * 60, deltaY * 60); // Conversion pour Phaser physics
+    } else {
+      // Mouvement par direction pour le clavier
+      let vx = 0, vy = 0;
+      
+      switch(direction) {
+        case 'left': vx = -speed; break;
+        case 'right': vx = speed; break;
+        case 'up': vy = -speed; break;
+        case 'down': vy = speed; break;
+      }
+      
+      myPlayer.body.setVelocity(vx, vy);
+    }
+
+    // Gestion des animations
+    if (movement.isMoving && direction) {
+      myPlayer.play(`walk_${direction}`, true);
+      this.lastDirection = direction;
+      myPlayer.isMovingLocally = true;
+    } else {
+      myPlayer.play(`idle_${this.lastDirection}`, true);
+      myPlayer.isMovingLocally = false;
+    }
+
+    // Envoyer au serveur (avec throttling)
+    if (movement.isMoving) {
+      const now = Date.now();
+      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+        this.networkManager.sendMove(
+          myPlayer.x, 
+          myPlayer.y, 
+          direction || this.lastDirection, 
+          movement.isMoving
+        );
+        this.lastMoveTime = now;
+      }
+    }
+  }
+
+  handleInteractionInput() {
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer || !this.npcManager) return;
+
+    const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
+    if (npc) {
+      this.npcManager.lastInteractedNpc = npc;
+      this.networkManager.sendNpcInteract(npc.id);
+      
+      // Feedback mobile
+      if (this.mobileInteractButton) {
+        this.mobileInteractButton.flash('success');
+        this.mobileInteractButton.showTooltip(`Talking to ${npc.name}`);
+      }
+    }
+  }
+
+  shouldBlockInput() {
+    return (
+      window.shouldBlockInput() ||
+      this._introBlocked ||
+      (typeof window.isChatFocused === 'function' && window.isChatFocused())
+    );
   }
 
   createUI() {
     this.infoText = this.add.text(16, 16, `PokeWorld MMO\n${this.scene.key}`, {
-      fontSize: '14px',
+      fontSize: this.isMobile ? '12px' : '14px',
       fontFamily: 'monospace',
       color: '#fff',
       backgroundColor: 'rgba(0, 50, 0, 0.8)',
@@ -465,27 +648,42 @@ this.input.keyboard.on("keydown-E", () => {
     }).setScrollFactor(0).setDepth(1000);
 
     this.coordsText = this.add.text(this.scale.width - 16, 16, 'Player: x:0, y:0', {
-      fontSize: '14px',
+      fontSize: this.isMobile ? '10px' : '14px',
       fontFamily: 'monospace',
       color: '#fff',
       backgroundColor: 'rgba(255, 0, 0, 0.8)',
       padding: { x: 6, y: 4 }
     }).setScrollFactor(0).setDepth(1000).setOrigin(1, 0);
+
+    // Ajouter un bouton de debug pour toggler le joystick (seulement en mode debug)
+    if (window.location.search.includes('debug=true')) {
+      this.debugJoystickBtn = this.add.text(this.scale.width / 2, 16, '🕹️ Toggle Joystick', {
+        fontSize: '12px',
+        fontFamily: 'monospace',
+        color: '#fff',
+        backgroundColor: 'rgba(100, 100, 100, 0.8)',
+        padding: { x: 8, y: 4 }
+      }).setScrollFactor(0).setDepth(1000).setOrigin(0.5, 0).setInteractive();
+
+      this.debugJoystickBtn.on('pointerdown', () => {
+        this.toggleMobileControls();
+      });
+    }
   }
 
   setupNetwork() {
-  if (!this.networkManager) return;
+    if (!this.networkManager) return;
 
-  this.networkManager.onConnect(() => {
-    this.mySessionId = this.networkManager.getSessionId();
-    this.playerManager.setMySessionId(this.mySessionId);
-    this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
+    this.networkManager.onConnect(() => {
+      this.mySessionId = this.networkManager.getSessionId();
+      this.playerManager.setMySessionId(this.mySessionId);
+      this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
 
-    // <-- AJOUTE ICI !
-    this.networkManager.onMessage("snap", (data) => {
-      this.playerManager.snapMyPlayerTo(data.x, data.y);
-    });   
-  });
+      // Snap des positions
+      this.networkManager.onMessage("snap", (data) => {
+        this.playerManager.snapMyPlayerTo(data.x, data.y);
+      });   
+    });
 
     this.networkManager.onStateChange((state) => {
       this.playerManager.updatePlayers(state);
@@ -498,114 +696,117 @@ this.input.keyboard.on("keydown-E", () => {
       }
     });
 
-    // Quand le serveur répond à l’interaction NPC
-this.networkManager.onMessage("npcInteractionResult", (result) => {
-  if (result.type === "dialogue") {
-    let npcName = "???";
-    let spriteName = null;
-    let portrait = result.portrait; // peut-être null/undefined
-    if (result.npcId && this.npcManager) {
-      const npc = this.npcManager.getNpcData(result.npcId);
-      if (npc) {
-        npcName = npc.name;
-        spriteName = npc.sprite;
-        // 1. Portrait fourni explicitement ? (ex : event spécial)
-        // 2. Sinon, construit l’URL par convention
-        if (!portrait && spriteName) {
-          portrait = `/assets/portrait/${spriteName}Portrait.png`;
+    // Quand le serveur répond à l'interaction NPC
+    this.networkManager.onMessage("npcInteractionResult", (result) => {
+      if (result.type === "dialogue") {
+        let npcName = "???";
+        let spriteName = null;
+        let portrait = result.portrait; // peut-être null/undefined
+        if (result.npcId && this.npcManager) {
+          const npc = this.npcManager.getNpcData(result.npcId);
+          if (npc) {
+            npcName = npc.name;
+            spriteName = npc.sprite;
+            // 1. Portrait fourni explicitement ? (ex : event spécial)
+            // 2. Sinon, construit l'URL par convention
+            if (!portrait && spriteName) {
+              portrait = `/assets/portrait/${spriteName}Portrait.png`;
+            }
+          }
         }
+        window.showNpcDialogue({
+          portrait: portrait || "/assets/portrait/unknownPortrait.png",
+          name: npcName,
+          lines: result.lines || [result.message]
+        });
       }
-    }
-    showNpcDialogue({
-      portrait: portrait || "/assets/portrait/unknownPortrait.png",
-      name: npcName,
-      lines: result.lines || [result.message]
+      else if (result.type === "shop") {
+        // TODO: affiche une fenêtre shop
+        window.showNpcDialogue({
+          portrait: result.portrait || "assets/ui/shop_icon.png",
+          name: "Shop",
+          text: "Ouverture du shop: " + result.shopId
+        });
+      } else if (result.type === "heal") {
+        window.showNpcDialogue({
+          portrait: result.portrait || "assets/ui/heal_icon.png",
+          name: "???",
+          text: result.message || "Vos Pokémon sont soignés !"
+        });
+      } else if (result.type === "error") {
+        window.showNpcDialogue({
+          portrait: null,
+          name: "Erreur",
+          text: result.message
+        });
+      } else {
+        window.showNpcDialogue({
+          portrait: null,
+          name: "???",
+          text: JSON.stringify(result)
+        });
+      }
     });
-  }
-  else if (result.type === "shop") {
-    // TODO: affiche une fenêtre shop
-    showNpcDialogue({
-      portrait: result.portrait || "assets/ui/shop_icon.png",
-      name: "Shop",
-      text: "Ouverture du shop: " + result.shopId
-    });
-  } else if (result.type === "heal") {
-    showNpcDialogue({
-      portrait: result.portrait || "assets/ui/heal_icon.png",
-      name: "???",
-      text: result.message || "Vos Pokémon sont soignés !"
-    });
-  } else if (result.type === "error") {
-    showNpcDialogue({
-      portrait: null,
-      name: "Erreur",
-      text: result.message
-    });
-  } else {
-    showNpcDialogue({
-      portrait: null,
-      name: "???",
-      text: JSON.stringify(result)
-    });
-  }
-});
-
-
     
     this.networkManager.onDisconnect(() => {
       this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nDisconnected`);
     });
 
     this.zoneChangedHandler = (data) => {
-  console.log(`[${this.scene.key}] Zone changée reçue:`, data);
+      console.log(`[${this.scene.key}] Zone changée reçue:`, data);
 
-  // Mapping entre targetZone et la clé réelle de la scène Phaser
-  const ZONE_TO_SCENE = {
-    beach: "BeachScene",
-    beachscene: "BeachScene",
-    greenrootbeach: "BeachScene",
-    village: "VillageScene",
-    villagescene: "VillageScene",
-    villagelab: "VillageLabScene",
-    villagelabscene: "VillageLabScene",
-    road1: "Road1Scene",
-    road1scene: "Road1Scene",
-    villagehouse1: "VillageHouse1Scene",
-    villagehouse1scene: "VillageHouse1Scene",
-    lavandia: "LavandiaScene",
-    lavandiascene: "LavandiaScene"
-  };
+      // Mapping entre targetZone et la clé réelle de la scène Phaser
+      const ZONE_TO_SCENE = {
+        beach: "BeachScene",
+        beachscene: "BeachScene",
+        greenrootbeach: "BeachScene",
+        village: "VillageScene",
+        villagescene: "VillageScene",
+        villagelab: "VillageLabScene",
+        villagelabscene: "VillageLabScene",
+        road1: "Road1Scene",
+        road1scene: "Road1Scene",
+        villagehouse1: "VillageHouse1Scene",
+        villagehouse1scene: "VillageHouse1Scene",
+        lavandia: "LavandiaScene",
+        lavandiascene: "LavandiaScene"
+      };
 
-  const targetZoneKey = (data.targetZone || "").toLowerCase();
-  const nextSceneKey = ZONE_TO_SCENE[targetZoneKey] || "BeachScene";
+      const targetZoneKey = (data.targetZone || "").toLowerCase();
+      const nextSceneKey = ZONE_TO_SCENE[targetZoneKey] || "BeachScene";
 
-  if (nextSceneKey && nextSceneKey !== this.scene.key) {
-    console.log(`[${this.scene.key}] Changement vers ${nextSceneKey}`);
+      if (nextSceneKey && nextSceneKey !== this.scene.key) {
+        console.log(`[${this.scene.key}] Changement vers ${nextSceneKey}`);
 
-    this.cleanup();
+        this.cleanup();
 
-    this.scene.start(nextSceneKey, {
-      fromZone: this.scene.key,
-      fromDirection: data.fromDirection || null,
-      spawnX: data.spawnX,
-      spawnY: data.spawnY
-    });
-  }
-};
+        this.scene.start(nextSceneKey, {
+          fromZone: this.scene.key,
+          fromDirection: data.fromDirection || null,
+          spawnX: data.spawnX,
+          spawnY: data.spawnY
+        });
+      }
+    };
 
     this.networkManager.onZoneChanged(this.zoneChangedHandler);
 
-      this.networkManager.onMessage("npcList", (npcList) => {
-    if (this.npcManager) {
-      this.npcManager.spawnNpcs(npcList);
-    }
-  });
+    this.networkManager.onMessage("npcList", (npcList) => {
+      if (this.npcManager) {
+        this.npcManager.spawnNpcs(npcList);
+      }
+    });
   }
 
   update() {
-   if (this.playerManager) this.playerManager.update();  // <--- AJOUTE ÇA ICI
+    if (this.playerManager) this.playerManager.update();
 
     if (this.cameraManager) this.cameraManager.update();
+
+    // Mettre à jour le bouton d'interaction mobile
+    if (this.mobileInteractButton) {
+      this.mobileInteractButton.update();
+    }
 
     if (this.sys.animatedTiles && typeof this.sys.animatedTiles.update === 'function') {
       this.sys.animatedTiles.update();
@@ -616,54 +817,59 @@ this.networkManager.onMessage("npcInteractionResult", (result) => {
       this.coordsText.setText(`Player: x:${Math.round(myPlayer.x)}, y:${Math.round(myPlayer.y)}`);
     }
 
-    if (!this.networkManager?.getSessionId()) return;
-
-    const myPlayerState = this.networkManager.getPlayerState(this.networkManager.getSessionId());
-    if (!myPlayerState) return;
-
-    this.handleMovement(myPlayerState);
-  }
-
-  handleMovement(myPlayerState) {
-    const speed = 120;
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (!myPlayer) return;
-
-    let vx = 0, vy = 0;
-    let moved = false, direction = null;
-
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      vx = -speed; moved = true; direction = 'left';
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-      vx = speed; moved = true; direction = 'right';
-    }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) {
-      vy = -speed; moved = true; direction = 'up';
-    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-      vy = speed; moved = true; direction = 'down';
+    // Ne pas traiter les inputs si bloqué
+    if (this.shouldBlockInput()) {
+      if (myPlayer && myPlayer.body) {
+        myPlayer.body.setVelocity(0, 0);
+      }
+      return;
     }
 
-    myPlayer.body.setVelocity(vx, vy);
-
-    if (moved && direction) {
-      myPlayer.play(`walk_${direction}`, true);
-      this.lastDirection = direction;
-      myPlayer.isMovingLocally = true;
-    } else {
-      myPlayer.play(`idle_${this.lastDirection}`, true);
-      myPlayer.isMovingLocally = false;
-    }
-
-    if (moved) {
-      const now = Date.now();
-      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirection, moved);
-        this.lastMoveTime = now;
+    // Le mouvement est maintenant géré par InputManager dans handleInputMovement
+    // Garder uniquement la logique réseau
+    if (this.networkManager?.getSessionId()) {
+      const myPlayerState = this.networkManager.getPlayerState(this.networkManager.getSessionId());
+      if (myPlayerState) {
+        this.handleMovementUpdate(myPlayerState);
       }
     }
   }
 
-    transitionToZone(targetScene, fromDirection = null) {
+  handleMovementUpdate(myPlayerState) {
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer) return;
+
+    // L'InputManager gère maintenant tout le mouvement
+    // Cette méthode peut être simplifiée
+    const movement = this.inputManager.getCurrentMovement();
+    
+    if (!movement.isMoving) {
+      myPlayer.body.setVelocity(0, 0);
+      myPlayer.play(`idle_${this.lastDirection}`, true);
+      myPlayer.isMovingLocally = false;
+    }
+  }
+
+  // Méthodes utilitaires pour les contrôles mobiles
+  showMobileControls() {
+    if (this.inputManager) {
+      this.inputManager.showJoystick();
+    }
+  }
+
+  hideMobileControls() {
+    if (this.inputManager) {
+      this.inputManager.hideJoystick();
+    }
+  }
+
+  toggleMobileControls() {
+    if (this.inputManager) {
+      this.inputManager.toggleJoystick();
+    }
+  }
+
+  transitionToZone(targetScene, fromDirection = null) {
     if (this.isTransitioning) {
       console.log(`[${this.scene.key}] Transition déjà en cours, ignorée`);
       return;
@@ -695,7 +901,7 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
     }
 
     if (this.npcManager) {
-    this.npcManager.clearAllNpcs();
+      this.npcManager.clearAllNpcs();
     }
 
     if (this.animatedObjects) {
@@ -708,9 +914,73 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
       this.loadTimer = null;
     }
 
+    // Nouveau : nettoyage des composants mobile
+    if (this.inputManager) {
+      this.inputManager.destroy();
+      this.inputManager = null;
+    }
+
+    if (this.mobileInteractButton) {
+      this.mobileInteractButton.destroy();
+      this.mobileInteractButton = null;
+    }
+
+    // Nettoyer les event listeners mobile
+    if (this.isMobile) {
+      window.removeEventListener('orientationchange', this.handleOrientationChange);
+      window.removeEventListener('resize', this.repositionMobileUI);
+    }
+
     this.time.removeAllEvents();
 
     this.cameraFollowing = false;
     this.isTransitioning = false;
+  }
+
+  // Méthodes utilitaires pour debug et contrôle
+  isMobileDevice() {
+    return this.isMobile;
+  }
+
+  getInputSource() {
+    return this.inputManager ? this.inputManager.getInputSource() : null;
+  }
+
+  isPlayerMoving() {
+    return this.inputManager ? this.inputManager.isMoving() : false;
+  }
+
+  getCurrentDirection() {
+    return this.inputManager ? this.inputManager.getDirection() : this.lastDirection;
+  }
+
+  // Méthode pour forcer l'affichage des contrôles mobile (debug)
+  forceShowMobileControls(show = true) {
+    if (this.mobileInteractButton) {
+      this.mobileInteractButton.setForceShow(show);
+    }
+    if (this.inputManager) {
+      if (show) {
+        this.inputManager.showJoystick();
+      } else if (!this.isMobile) {
+        this.inputManager.hideJoystick();
+      }
+    }
+  }
+
+  // Méthode pour obtenir des infos de debug
+  getDebugInfo() {
+    const myPlayer = this.playerManager?.getMyPlayer();
+    return {
+      scene: this.scene.key,
+      isMobile: this.isMobile,
+      isConnected: !!this.networkManager?.getSessionId(),
+      playerPosition: myPlayer ? { x: Math.round(myPlayer.x), y: Math.round(myPlayer.y) } : null,
+      inputSource: this.getInputSource(),
+      isMoving: this.isPlayerMoving(),
+      direction: this.getCurrentDirection(),
+      cameraFollowing: this.cameraFollowing,
+      mobileControlsActive: this.mobileInteractButton ? this.mobileInteractButton.isActive() : false
+    };
   }
 }
