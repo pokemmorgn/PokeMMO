@@ -486,3 +486,120 @@
     width: auto;
   }
 }
+/* Messages d'erreur dans le chat */
+.chat-message.error {
+  border-left-color: rgba(239, 68, 68, 0.6);
+  background: rgba(239, 68, 68, 0.15);
+  color: #fecaca;
+  animation: errorShake 0.5s ease-in-out;
+}
+
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* État de désactivation du chat input */
+.chat-input-disabled {
+  background: rgba(60, 40, 40, 0.8) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  cursor: not-allowed !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+.chat-input-disabled::placeholder {
+  color: rgba(239, 68, 68, 0.7) !important;
+  font-style: italic;
+}
+
+/* État de cooldown */
+.chat-input-cooldown {
+  background: rgba(245, 158, 11, 0.2) !important;
+  border-color: rgba(245, 158, 11, 0.5) !important;
+  animation: cooldownPulse 1s ease-in-out infinite;
+}
+
+.chat-input-cooldown::placeholder {
+  color: rgba(245, 158, 11, 0.8) !important;
+  font-weight: 500;
+}
+
+@keyframes cooldownPulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+    border-color: rgba(245, 158, 11, 0.5);
+  }
+  50% { 
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.7);
+  }
+}
+
+/* Notification d'erreur flottante */
+.chat-error-display {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(145deg, rgba(239, 68, 68, 0.95), rgba(185, 28, 28, 0.95));
+  border: 2px solid rgba(239, 68, 68, 0.8);
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  z-index: 3000;
+  backdrop-filter: blur(8px);
+  box-shadow: 
+    0 8px 32px rgba(239, 68, 68, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: 350px;
+  text-align: center;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.chat-error-display.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.chat-error-display::before {
+  content: "⚠️";
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+/* Animation d'attention quand le chat est désactivé */
+#chat-window.chat-disabled {
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+#chat-window.chat-disabled #chat-header {
+  background: linear-gradient(90deg, 
+    rgba(239, 68, 68, 0.2) 0%, 
+    rgba(185, 28, 28, 0.2) 50%, 
+    rgba(239, 68, 68, 0.2) 100%);
+}
+
+/* Responsive pour les notifications d'erreur */
+@media (max-width: 768px) {
+  .chat-error-display {
+    left: 20px;
+    right: 20px;
+    top: 20px;
+    max-width: none;
+    transform: translateY(-100%);
+  }
+  
+  .chat-error-display.show {
+    transform: translateY(0);
+  }
+}
