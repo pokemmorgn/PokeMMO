@@ -1,617 +1,239 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PokéWorld - Interface Complète</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8" />
+  <title>PokeWorld - Multiplayer Game</title>
+  <link rel="stylesheet" href="/chat.css">
+  <style>
+    body {
+      background-color: black;
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
 
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #87CEEB 0%, #98FB98 100%);
-            min-height: 100vh;
-            overflow: hidden;
-        }
+    /* Style pour la boîte de dialogue NPC UNIQUEMENT */
+    #dialogue-box {
+      position: absolute;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 500px;
+      max-width: 750px;
+      background: linear-gradient(145deg, rgba(36, 76, 116, 0.95), rgba(25, 55, 95, 0.95));
+      border: 3px solid rgba(255, 255, 255, 0.8);
+      border-radius: 20px;
+      box-shadow: 
+        0 8px 40px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(255, 255, 255, 0.2),
+        inset 0 2px 0 rgba(255, 255, 255, 0.3);
+       display: flex;
+      flex-direction: row;
+      align-items: center; 
+      z-index: 99;
+      font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+      backdrop-filter: blur(8px);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
 
-        /* Menu Principal */
-        #main-menu {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(145deg, #4a90e2, #357abd);
-            border: 3px solid #fff;
-            border-radius: 15px;
-            padding: 15px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-            z-index: 100;
-        }
+    #dialogue-box:hover {
+      transform: translateX(-50%) scale(1.02);
+      box-shadow: 
+        0 12px 50px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(255, 255, 255, 0.3),
+        inset 0 2px 0 rgba(255, 255, 255, 0.4);
+    }
 
-        .menu-button {
-            display: block;
-            width: 120px;
-            padding: 10px;
-            margin: 5px 0;
-            background: linear-gradient(145deg, #ff6b6b, #ee5a52);
-            color: white;
-            border: 2px solid #fff;
-            border-radius: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            text-decoration: none;
-        }
+    #npc-portrait {
+      width: 100px;
+      height: 100px;
+      background: linear-gradient(145deg, #fff, #f0f0f0);
+      border: 3px solid rgba(36, 76, 116, 0.8);
+      border-radius: 16px;
+      margin: 14px;
+      overflow: hidden;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 
+        0 4px 16px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
 
-        .menu-button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
+    #npc-portrait img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 12px;
+    }
 
-        /* Interface Pokédex */
-        #pokedex {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 600px;
-            height: 400px;
-            background: linear-gradient(145deg, #dc143c, #b91c3c);
-            border: 4px solid #000;
-            border-radius: 20px;
-            display: none;
-            z-index: 200;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
-        }
+    #npc-dialogue {
+      flex: 1;
+      padding: 16px 20px 16px 0;
+      display: flex;
+      flex-direction: column;
+    }
 
-        .pokedex-screen {
-            position: absolute;
-            top: 60px;
-            left: 40px;
-            width: 300px;
-            height: 200px;
-            background: #000;
-            border: 3px solid #333;
-            border-radius: 10px;
-            overflow: hidden;
-        }
+    #npc-name {
+      font-weight: bold;
+      font-size: 19px;
+      color: #ffff80;
+      margin-bottom: 10px;
+      text-shadow: 
+        1px 2px 0 #222, 
+        0 0 12px rgba(241, 241, 145, 0.8),
+        0 0 24px rgba(241, 241, 145, 0.4);
+    }
 
-        .pokedex-info {
-            position: absolute;
-            top: 60px;
-            right: 40px;
-            width: 180px;
-            height: 200px;
-            background: #1a1a1a;
-            border: 2px solid #333;
-            border-radius: 10px;
-            padding: 15px;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-        }
+    #npc-text {
+      color: #fff;
+      font-size: 16px;
+      text-shadow: 1px 1px 0 #222, 0 0 8px rgba(255, 255, 255, 0.3);
+      line-height: 1.5;
+    }
 
-        /* Interface Sac */
-        #bag {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 500px;
-            height: 350px;
-            background: linear-gradient(145deg, #8B4513, #654321);
-            border: 4px solid #000;
-            border-radius: 15px;
-            display: none;
-            z-index: 200;
-            padding: 20px;
-        }
-
-        .bag-tabs {
-            display: flex;
-            margin-bottom: 20px;
-        }
-
-        .bag-tab {
-            flex: 1;
-            padding: 10px;
-            background: #654321;
-            color: white;
-            border: 2px solid #000;
-            cursor: pointer;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        .bag-tab.active {
-            background: #DAA520;
-            color: #000;
-        }
-
-        .bag-items {
-            height: 200px;
-            background: #F5F5DC;
-            border: 2px solid #000;
-            border-radius: 10px;
-            padding: 15px;
-            overflow-y: auto;
-        }
-
-        .item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px;
-            margin: 5px 0;
-            background: white;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .item:hover {
-            background: #e0e0e0;
-        }
-
-        /* Interface Équipe Pokémon */
-        #team {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 600px;
-            height: 400px;
-            background: linear-gradient(145deg, #4169E1, #1E3A8A);
-            border: 4px solid #000;
-            border-radius: 15px;
-            display: none;
-            z-index: 200;
-            padding: 20px;
-        }
-
-        .pokemon-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            height: 100%;
-        }
-
-        .pokemon-slot {
-            background: linear-gradient(145deg, #fff, #f0f0f0);
-            border: 3px solid #000;
-            border-radius: 15px;
-            padding: 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .pokemon-slot:hover {
-            transform: scale(1.05);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-        }
-
-        .pokemon-sprite {
-            width: 80px;
-            height: 80px;
-            background: #ddd;
-            border-radius: 50%;
-            margin: 0 auto 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-
-        /* HUD du joueur */
-        #player-hud {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            border: 2px solid #fff;
-            min-width: 200px;
-        }
-
-        .hud-info {
-            margin: 5px 0;
-        }
-
-        .money {
-            color: #FFD700;
-            font-weight: bold;
-        }
-
-        /* Boutons de fermeture */
-        .close-btn {
-            position: absolute;
-            top: 10px;
-            right: 15px;
-            background: #ff4444;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        .close-btn:hover {
-            background: #cc0000;
-        }
-
-        /* Animations */
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translate(-50%, -60%);
-            }
-            to {
-                opacity: 1;
-                transform: translate(-50%, -50%);
-            }
-        }
-
-        .interface-open {
-            animation: slideIn 0.3s ease-out;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            #pokedex, #bag, #team {
-                width: 90vw;
-                height: 80vh;
-            }
-            
-            #main-menu {
-                top: 10px;
-                right: 10px;
-            }
-            
-            #player-hud {
-                top: 10px;
-                left: 10px;
-                font-size: 14px;
-            }
-        }
-
-        /* Map/Game Area */
-        #game-area {
-            width: 100vw;
-            height: 100vh;
-            background: 
-                radial-gradient(circle at 20% 30%, rgba(34, 139, 34, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 80% 70%, rgba(34, 139, 34, 0.2) 0%, transparent 50%),
-                linear-gradient(135deg, #87CEEB 0%, #98FB98 50%, #90EE90 100%);
-            position: relative;
-        }
-
-        /* Éléments décoratifs sur la carte */
-        .map-element {
-            position: absolute;
-            border-radius: 50%;
-        }
-
-        .tree {
-            width: 40px;
-            height: 40px;
-            background: #228B22;
-            border: 2px solid #006400;
-        }
-
-        .rock {
-            width: 30px;
-            height: 30px;
-            background: #696969;
-            border: 2px solid #2F4F4F;
-        }
-
-        .water {
-            width: 60px;
-            height: 60px;
-            background: #4169E1;
-            border: 2px solid #191970;
-        }
-    </style>
+    /* Responsive design pour dialogue uniquement */
+    @media (max-width: 768px) {
+      #dialogue-box {
+        min-width: calc(100vw - 40px);
+        left: 20px;
+        right: 20px;
+        transform: none;
+      }
+    }
+  </style>
 </head>
 <body>
-    <!-- Zone de jeu principale -->
-    <div id="game-area">
-        <!-- Éléments décoratifs de la carte -->
-        <div class="map-element tree" style="top: 15%; left: 25%;"></div>
-        <div class="map-element tree" style="top: 35%; left: 60%;"></div>
-        <div class="map-element tree" style="top: 70%; left: 20%;"></div>
-        <div class="map-element rock" style="top: 45%; left: 35%;"></div>
-        <div class="map-element rock" style="top: 25%; left: 75%;"></div>
-        <div class="map-element water" style="top: 60%; left: 70%;"></div>
+  <!-- Chat Toggle Button (appears when chat is hidden) -->
+  <div id="chat-toggle">
+    <span id="chat-toggle-icon">💬</span>
+  </div>
+
+  <!-- Chat Window -->
+  <div id="chat-window">
+    <div id="chat-header">
+      <div id="chat-title">
+        <span>💬 Global Chat</span>
+        <div class="sound-wave"></div>
+        <div class="sound-wave"></div>
+        <div class="sound-wave"></div>
+      </div>
+      <div id="chat-controls">
+        <span id="online-count">🟢 42 online</span>
+        <button class="chat-btn" id="minimize-btn">−</button>
+        <button class="chat-btn" id="hide-btn">←</button>
+        <button class="chat-btn" id="settings-btn">⚙️</button>
+      </div>
     </div>
-
-    <!-- HUD du joueur -->
-    <div id="player-hud">
-        <div class="hud-info">👤 <strong>Ash</strong></div>
-        <div class="hud-info">🎖️ Niveau: 15</div>
-        <div class="hud-info money">💰 12,450 ₽</div>
-        <div class="hud-info">📍 Route 1</div>
-        <div class="hud-info">⏰ 14:23</div>
+    
+    <div id="chat-messages"></div>
+    
+    <div id="typing-indicator">
+      <span class="typing-dots">PikachuMaster is typing</span>
     </div>
-
-    <!-- Menu principal -->
-    <div id="main-menu">
-        <button class="menu-button" onclick="openInterface('pokedex')">📖 Pokédex</button>
-        <button class="menu-button" onclick="openInterface('team')">⚡ Équipe</button>
-        <button class="menu-button" onclick="openInterface('bag')">🎒 Sac</button>
-        <button class="menu-button" onclick="saveGame()">💾 Sauvegarder</button>
-        <button class="menu-button" onclick="showSettings()">⚙️ Options</button>
+    
+    <div id="chat-input-container">
+      <input id="chat-input" type="text" placeholder="Type your message and press Enter..." autocomplete="off" maxlength="200" />
+      <span id="char-counter">200</span>
     </div>
+  </div>
 
-    <!-- Interface Pokédex -->
-    <div id="pokedex">
-        <button class="close-btn" onclick="closeInterface('pokedex')">&times;</button>
-        <div class="pokedex-screen">
-            <div style="padding: 20px; color: white; text-align: center;">
-                <h2 style="color: #00ff00; margin-bottom: 20px;">POKÉDEX</h2>
-                <div style="background: #333; padding: 15px; border-radius: 10px;">
-                    <div style="font-size: 48px; margin-bottom: 10px;">🔥</div>
-                    <div style="color: #ffff00; font-weight: bold;">SALAMÈCHE #004</div>
-                    <div style="color: #ccc; font-size: 12px; margin-top: 10px;">
-                        Type: Feu<br>
-                        Taille: 0.6m<br>
-                        Poids: 8.5kg
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="pokedex-info">
-            <div style="color: #00ff00; font-weight: bold; margin-bottom: 10px;">DONNÉES:</div>
-            <div style="margin-bottom: 8px;">Vus: 87/151</div>
-            <div style="margin-bottom: 8px;">Capturés: 23/151</div>
-            <div style="margin-bottom: 15px;">Progression: 15%</div>
-            
-            <div style="color: #ffff00; font-weight: bold; margin-bottom: 8px;">DESCRIPTION:</div>
-            <div style="font-size: 10px; line-height: 1.3;">
-                Il préfère les objets chauds. Quand il pleut, de la vapeur sort de sa queue.
-            </div>
-        </div>
+  <!-- NPC Dialogue Box -->
+  <div id="dialogue-box" style="display:none;">
+    <div id="npc-portrait"></div>
+    <div id="npc-dialogue">
+      <span id="npc-name"></span>
+      <span id="npc-text"></span>
     </div>
+  </div>
 
-    <!-- Interface Sac -->
-    <div id="bag">
-        <button class="close-btn" onclick="closeInterface('bag')">&times;</button>
-        <div class="bag-tabs">
-            <div class="bag-tab active" onclick="switchBagTab('items')">Objets</div>
-            <div class="bag-tab" onclick="switchBagTab('pokeballs')">Pokéballs</div>
-            <div class="bag-tab" onclick="switchBagTab('medicines')">Soins</div>
-            <div class="bag-tab" onclick="switchBagTab('berries')">Baies</div>
-        </div>
-        <div class="bag-items" id="bag-content">
-            <div class="item">
-                <span>🔴 Pokéball</span>
-                <span>x15</span>
-            </div>
-            <div class="item">
-                <span>🟡 Super Ball</span>
-                <span>x8</span>
-            </div>
-            <div class="item">
-                <span>🟣 Hyper Ball</span>
-                <span>x3</span>
-            </div>
-            <div class="item">
-                <span>💊 Potion</span>
-                <span>x12</span>
-            </div>
-            <div class="item">
-                <span>💉 Super Potion</span>
-                <span>x5</span>
-            </div>
-            <div class="item">
-                <span>🍒 Baie Ceriz</span>
-                <span>x7</span>
-            </div>
-        </div>
-    </div>
+<script>
+  // Dialogue state global
+  window._npcDialogueState = {
+    lines: [],
+    page: 0,
+    onClose: null
+  };
 
-    <!-- Interface Équipe -->
-    <div id="team">
-        <button class="close-btn" onclick="closeInterface('team')">&times;</button>
-        <h2 style="color: white; text-align: center; margin-bottom: 20px;">👥 Mon Équipe Pokémon</h2>
-        <div class="pokemon-grid">
-            <div class="pokemon-slot" onclick="selectPokemon(1)">
-                <div class="pokemon-sprite">🔥</div>
-                <div style="font-weight: bold;">Salamèche</div>
-                <div style="font-size: 12px; color: #666;">Niv. 16</div>
-                <div style="width: 100%; height: 8px; background: #ddd; border-radius: 4px; margin-top: 5px;">
-                    <div style="width: 75%; height: 100%; background: #4CAF50; border-radius: 4px;"></div>
-                </div>
-            </div>
-            
-            <div class="pokemon-slot" onclick="selectPokemon(2)">
-                <div class="pokemon-sprite">💧</div>
-                <div style="font-weight: bold;">Carapuce</div>
-                <div style="font-size: 12px; color: #666;">Niv. 14</div>
-                <div style="width: 100%; height: 8px; background: #ddd; border-radius: 4px; margin-top: 5px;">
-                    <div style="width: 60%; height: 100%; background: #2196F3; border-radius: 4px;"></div>
-                </div>
-            </div>
-            
-            <div class="pokemon-slot" onclick="selectPokemon(3)">
-                <div class="pokemon-sprite">🌿</div>
-                <div style="font-weight: bold;">Bulbizarre</div>
-                <div style="font-size: 12px; color: #666;">Niv. 13</div>
-                <div style="width: 100%; height: 8px; background: #ddd; border-radius: 4px; margin-top: 5px;">
-                    <div style="width: 45%; height: 100%; background: #4CAF50; border-radius: 4px;"></div>
-                </div>
-            </div>
-            
-            <div class="pokemon-slot" style="opacity: 0.3;">
-                <div class="pokemon-sprite">❓</div>
-                <div style="font-weight: bold;">Slot libre</div>
-                <div style="font-size: 12px; color: #666;">---</div>
-            </div>
-            
-            <div class="pokemon-slot" style="opacity: 0.3;">
-                <div class="pokemon-sprite">❓</div>
-                <div style="font-weight: bold;">Slot libre</div>
-                <div style="font-size: 12px; color: #666;">---</div>
-            </div>
-            
-            <div class="pokemon-slot" style="opacity: 0.3;">
-                <div class="pokemon-sprite">❓</div>
-                <div style="font-weight: bold;">Slot libre</div>
-                <div style="font-size: 12px; color: #666;">---</div>
-            </div>
-        </div>
-    </div>
+  // Affiche le dialogue NPC, accepte lines: [string] OU text: string
+  window.showNpcDialogue = function({ portrait, name, lines, text, onClose }) {
+    const box = document.getElementById("dialogue-box");
+    const npcPortrait = document.getElementById("npc-portrait");
+    const npcName = document.getElementById("npc-name");
+    const npcText = document.getElementById("npc-text");
+    
+    // Multi-page setup
+    window._npcDialogueState.lines = Array.isArray(lines) && lines.length ? lines : [text || ""];
+    window._npcDialogueState.page = 0;
+    window._npcDialogueState.onClose = typeof onClose === "function" ? onClose : null;
+    
+    box.style.display = "flex";
+    npcPortrait.innerHTML = portrait
+      ? `<img src="${portrait}" alt="${name}" style="max-width:80px;max-height:80px;">`
+      : "";
+    npcName.innerText = name || "";
+    npcText.innerText = window._npcDialogueState.lines[0] || "";
 
-    <script>
-        // Gestion des interfaces
-        function openInterface(interfaceName) {
-            // Fermer toutes les autres interfaces
-            ['pokedex', 'bag', 'team'].forEach(name => {
-                const element = document.getElementById(name);
-                if (name !== interfaceName) {
-                    element.style.display = 'none';
-                }
-            });
-            
-            // Ouvrir l'interface demandée
-            const targetInterface = document.getElementById(interfaceName);
-            targetInterface.style.display = 'block';
-            targetInterface.classList.add('interface-open');
-            
-            // Effets sonores (simulation)
-            playSound('menu_open');
-        }
+    // Close with click
+    box.onclick = () => closeDialogue();
+  };
 
-        function closeInterface(interfaceName) {
-            const targetInterface = document.getElementById(interfaceName);
-            targetInterface.style.display = 'none';
-            playSound('menu_close');
-        }
+  function advanceDialogue() {
+    const box = document.getElementById("dialogue-box");
+    const npcText = document.getElementById("npc-text");
+    if (box.style.display === "none") return;
+    window._npcDialogueState.page++;
+    if (window._npcDialogueState.page >= window._npcDialogueState.lines.length) {
+      closeDialogue();
+    } else {
+      npcText.innerText = window._npcDialogueState.lines[window._npcDialogueState.page];
+    }
+  }
 
-        // Gestion du sac
-        function switchBagTab(tabName) {
-            // Mettre à jour les onglets
-            document.querySelectorAll('.bag-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
+  function closeDialogue() {
+    const box = document.getElementById("dialogue-box");
+    box.style.display = "none";
+    if (window._npcDialogueState.onClose) {
+      window._npcDialogueState.onClose();
+    }
+  }
 
-            // Changer le contenu selon l'onglet
-            const bagContent = document.getElementById('bag-content');
-            const items = {
-                items: [
-                    { name: '🗝️ Clé Mystère', count: 1 },
-                    { name: '📦 Boîte Rare', count: 3 },
-                    { name: '💎 Pierre Évolution', count: 2 }
-                ],
-                pokeballs: [
-                    { name: '🔴 Pokéball', count: 15 },
-                    { name: '🟡 Super Ball', count: 8 },
-                    { name: '🟣 Hyper Ball', count: 3 },
-                    { name: '⚡ Rapide Ball', count: 2 }
-                ],
-                medicines: [
-                    { name: '💊 Potion', count: 12 },
-                    { name: '💉 Super Potion', count: 5 },
-                    { name: '🩹 Hyper Potion', count: 2 },
-                    { name: '💖 Rappel', count: 3 }
-                ],
-                berries: [
-                    { name: '🍒 Baie Ceriz', count: 7 },
-                    { name: '🍑 Baie Maron', count: 4 },
-                    { name: '🥭 Baie Pêcha', count: 6 },
-                    { name: '🍇 Baie Oran', count: 9 }
-                ]
-            };
+  // T pour test si chat non focus
+  document.addEventListener('keypress', function(e) {
+    if ((e.key === 't' || e.key === 'T') && typeof window.isChatFocused === "function" && !window.isChatFocused()) {
+      window.showNpcDialogue({
+        portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=OAK',
+        name: 'Professor Oak',
+        lines: [
+          'Hello young trainer!',
+          'Ready for your Pokémon adventure?',
+          'Press E to continue, or click/Esc to close.'
+        ]
+      });
+    }
+  });
 
-            bagContent.innerHTML = items[tabName].map(item => 
-                `<div class="item" onclick="useItem('${item.name}')">
-                    <span>${item.name}</span>
-                    <span>x${item.count}</span>
-                </div>`
-            ).join('');
-        }
+  // E pour avancer, ESC pour fermer
+  document.addEventListener('keydown', function(e) {
+    const box = document.getElementById('dialogue-box');
+    if (!box || box.style.display === 'none') return;
+    // Bloque si chat ouvert
+    if (typeof window.isChatFocused === "function" && window.isChatFocused()) return;
 
-        function useItem(itemName) {
-            alert(`Vous avez utilisé : ${itemName}`);
-            playSound('item_use');
-        }
-
-        function selectPokemon(slot) {
-            const pokemonNames = ['', 'Salamèche', 'Carapuce', 'Bulbizarre'];
-            if (slot <= 3) {
-                alert(`Vous avez sélectionné ${pokemonNames[slot]} !`);
-                playSound('pokemon_select');
-            }
-        }
-
-        function saveGame() {
-            alert('Partie sauvegardée !');
-            playSound('save');
-        }
-
-        function showSettings() {
-            alert('Menu des options (à implémenter)');
-            playSound('menu_open');
-        }
-
-        // Simulation des effets sonores
-        function playSound(soundName) {
-            console.log(`🔊 Son joué: ${soundName}`);
-        }
-
-        // Raccourcis clavier
-        document.addEventListener('keydown', function(e) {
-            switch(e.key) {
-                case 'p':
-                case 'P':
-                    openInterface('pokedex');
-                    break;
-                case 'e':
-                case 'E':
-                    openInterface('team');
-                    break;
-                case 'b':
-                case 'B':
-                    openInterface('bag');
-                    break;
-                case 'Escape':
-                    ['pokedex', 'bag', 'team'].forEach(name => {
-                        closeInterface(name);
-                    });
-                    break;
-            }
-        });
-
-        // Mise à jour de l'heure en temps réel
-        function updateTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('fr-FR', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-            });
-            
-            const timeElement = document.querySelector('#player-hud .hud-info:last-child');
-            if (timeElement) {
-                timeElement.innerHTML = `⏰ ${timeString}`;
-            }
-        }
-
-        // Mettre à jour l'heure toutes les minutes
-        setInterval(updateTime, 60000);
-        updateTime(); // Initialiser immédiatement
-
-        console.log('🎮 Interface Pokémon chargée !');
-        console.log('🎹 Raccourcis: P=Pokédex, E=Équipe, B=Sac, Esc=Fermer');
-    </script>
+    if (
+      e.code === 'KeyE' || e.key === 'e' || e.key === 'E'
+    ) {
+      advanceDialogue();
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    else if (e.key === 'Escape' || e.code === 'Escape') {
+      closeDialogue();
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+</script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
