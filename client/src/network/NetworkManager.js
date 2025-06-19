@@ -213,17 +213,20 @@ if (this._pendingMessages && this._pendingMessages.length > 0) {
     return this.sessionId;
   }
 
-  requestZoneTransition(targetZone, direction = "north") {
-    if (this.isConnected && this.room && !this.isTransitioning) {
-      console.log(`[Network] Demande de changement de zone vers ${targetZone} (${direction})`);
-      this.room.send("changeZone", {
-        targetZone,
-        direction,
-      });
-    } else {
-      console.warn(`[Network] Impossible de changer de zone: connected=${this.isConnected}, transitioning=${this.isTransitioning}`);
-    }
+  /**
+ * Demande de transition de zone : n’envoie QUE le nom de la sortie ("Road_1", "GRbeach", etc.)
+ * Côté serveur, tout est vérifié avec la map.
+ */
+requestZoneTransition(exitName) {
+  if (this.isConnected && this.room && !this.isTransitioning) {
+    console.log(`[Network] Demande de transition via la sortie '${exitName}'`);
+    this.room.send("changeZone", {
+      targetSpawn: exitName, // seul param utile, c'est le nom de l'objet Tiled !
+    });
+  } else {
+    console.warn(`[Network] Impossible de changer de zone: connected=${this.isConnected}, transitioning=${this.isTransitioning}`);
   }
+}
 
   getPlayerState(sessionId) {
     if (this.room && this.room.state && this.room.state.players) {
