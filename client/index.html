@@ -59,6 +59,51 @@
       opacity: 0;
     }
 
+    /* Indication visuelle quand le chat a le focus */
+    #chat-input.chat-focused {
+      background: rgba(50, 60, 80, 0.95) !important;
+      box-shadow: 0 0 0 3px rgba(100, 150, 255, 0.7) !important;
+      border-top: 1px solid rgba(100, 150, 255, 0.5) !important;
+    }
+
+    /* Animation du contour quand le chat est actif */
+    #chat-window.chat-active {
+      border-color: rgba(100, 150, 255, 0.6);
+      box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        0 0 20px rgba(100, 150, 255, 0.3);
+    }
+
+    /* Indicateur de focus dans le header */
+    #chat-window.chat-active #chat-header::before {
+      content: "💬 Typing mode - Press ESC to return to game";
+      position: absolute;
+      top: -25px;
+      left: 0;
+      right: 0;
+      background: rgba(100, 150, 255, 0.9);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px 12px 0 0;
+      font-size: 11px;
+      text-align: center;
+      font-weight: 500;
+      animation: focusNotification 0.3s ease;
+    }
+
+    @keyframes focusNotification {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     #chat-toggle {
       position: fixed;
       bottom: 180px;
@@ -407,6 +452,39 @@
       50% { transform: scaleY(1.5); opacity: 1; }
     }
 
+    /* Style pour les raccourcis clavier */
+    .keyboard-hint {
+      position: fixed;
+      bottom: 340px;
+      left: 20px;
+      background: rgba(25, 30, 45, 0.9);
+      border: 1px solid rgba(100, 150, 255, 0.3);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(5px);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s ease;
+      z-index: 1998;
+    }
+
+    .keyboard-hint.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .keyboard-hint kbd {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-family: monospace;
+      font-size: 10px;
+      color: #64a6ff;
+    }
+
     /* Style pour la boîte de dialogue NPC */
     #dialogue-box {
       position: absolute;
@@ -516,6 +594,12 @@
         right: 20px;
         transform: none;
       }
+
+      .keyboard-hint {
+        left: 20px;
+        right: 20px;
+        width: auto;
+      }
     }
   </style>
 </head>
@@ -563,7 +647,6 @@
     </div>
   </div>
 
-  <!-- Tu ne mets plus de classe JS ici ! -->
   <script>
     // Boîte de dialogue NPC simple
     window.showNpcDialogue = function({ portrait, name, text }) {
@@ -581,9 +664,11 @@
       
       box.onclick = () => (box.style.display = "none");
     };
-    // Dialogue test (appelle showNpcDialogue quand tu veux, ex: dans ton main.js)
+
+    // Dialogue test (modifié pour éviter le conflit avec la touche T du chat)
     document.addEventListener('keypress', function(e) {
-      if (e.key === 't' || e.key === 'T') {
+      // Vérifie si le chat n'a pas le focus avant de déclencher le dialogue
+      if ((e.key === 't' || e.key === 'T') && !window.isChatFocused()) {
         window.showNpcDialogue({
           portrait: 'https://via.placeholder.com/80x80/4a90e2/ffffff?text=OAK',
           name: 'Professor Oak',
