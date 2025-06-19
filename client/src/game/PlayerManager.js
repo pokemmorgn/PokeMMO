@@ -7,8 +7,8 @@ export class PlayerManager {
     this.mySessionId = null;
     this.isDestroyed = false;
     this.animsCreated = false;
-    this._myPlayerIsReady = false;             // <--- Flag ajouté
-    this._myPlayerReadyCallback = null;        // <--- Pour le hook
+    this._myPlayerIsReady = false;
+    this._myPlayerReadyCallback = null;
     console.log("PlayerManager initialisé pour", scene.scene.key);
 
     // Ajoute la gestion du snap serveur
@@ -73,7 +73,7 @@ export class PlayerManager {
     player.body.setSize(12, 8);
     player.body.setOffset(10, 24);
     // Debug hitbox optionnel
-    player.body.debugShowBody = true; 
+    player.body.debugShowBody = true;
     player.body.debugBodyColor = 0xff0000;
 
     // Animation idle par défaut (face bas, frame centrale)
@@ -86,17 +86,27 @@ export class PlayerManager {
     player.targetY = y;
     player.snapLerpTimer = 0; // Pour snap smooth
 
-    // ✅ NOUVEAU: S'assurer que le joueur est visible et actif
+    // ✅ S'assurer que le joueur est visible et actif
     player.setVisible(true);
     player.setActive(true);
 
-    // Indicateur vert pour le joueur local
+    // --- CORRECTION : Indicateur vert, toujours détruire l'ancien s'il existe ---
     if (sessionId === this.mySessionId) {
+      // Cherche s'il existe un indicateur orphelin et détruis-le
+      if (player.indicator) { player.indicator.destroy(); }
+      // Pour le cas où l'ancien joueur (avant transition) avait laissé un indicateur
+      // on les détruit tous (patch bourrin)
+      this.scene.children.list
+        .filter(obj => obj && obj.type === "Arc" && obj.fillColor === 0x00ff00)
+        .forEach(obj => { try { obj.destroy(); } catch(e){} });
+      // Maintenant on crée l'indicateur frais
       const indicator = this.scene.add.circle(player.x, player.y - 24, 3, 0x00ff00)
         .setDepth(1001)
         .setStrokeStyle(1, 0x004400);
       player.indicator = indicator;
       indicator.setVisible(true);
+      // Log pour vérif
+      console.log('[PlayerManager] Indicateur local créé pour', sessionId, indicator);
     }
 
     this.players.set(sessionId, player);
@@ -106,7 +116,6 @@ export class PlayerManager {
 
   createAnimations() {
     const anims = this.scene.anims;
-
     if (!anims.exists('walk_down')) {
       anims.create({
         key: 'walk_down',
@@ -139,7 +148,6 @@ export class PlayerManager {
         repeat: -1,
       });
     }
-
     // Idles
     if (!anims.exists('idle_down')) {
       anims.create({
@@ -218,7 +226,7 @@ export class PlayerManager {
         }
       }
 
-      // ✅ NOUVEAU: Vérifier et restaurer la visibilité
+      // Vérifier et restaurer la visibilité
       if (!player.visible) {
         console.warn(`[PlayerManager] Joueur ${sessionId} invisible, restauration`);
         player.setVisible(true);
@@ -240,22 +248,13 @@ export class PlayerManager {
       if (player.isMoving && player.lastDirection) {
         const walkAnim = `walk_${player.lastDirection}`;
         if (this.scene.anims.exists(walkAnim)) {
-          // Toujours jouer l'anim (repart du début) pour éviter le freeze
           player.anims.play(walkAnim, true);
         }
       } else if (!player.isMoving && player.lastDirection) {
         const idleAnim = `idle_${player.lastDirection}`;
         if (this.scene.anims.exists(idleAnim)) {
-          // Toujours jouer l'anim idle pour remettre en pause
           player.anims.play(idleAnim, true);
         }
-      }
-
-      // Mettre à jour l'indicateur
-      if (player.indicator && !this.isDestroyed) {
-        player.indicator.x = player.x;
-        player.indicator.y = player.y - 24;
-        player.indicator.setVisible(true);
       }
     });
 
@@ -272,13 +271,17 @@ export class PlayerManager {
     }
   }
 
-  // ⭐️ Nouvelle méthode update pour le lerp continu et snap smooth
+  // ⭐️ update = lerp + SYNC INDICATOR à chaque frame !
   update(delta = 16) {
     for (const [sessionId, player] of this.players) {
-      // ✅ NOUVEAU: Vérifications de sécurité
       if (!player || !player.scene) continue;
 
-      // Joueurs autres que moi : lerp normal
+      // --- Correction ici : l’indicateur suit toujours le joueur ---
+      if (player.indicator) {
+        player.indicator.x = player.x;
+        player.indicator.y = player.y - 24;
+      }
+
       if (sessionId !== this.mySessionId) {
         if (player.targetX !== undefined && player.targetY !== undefined) {
           player.x += (player.targetX - player.x) * 0.18;
@@ -287,7 +290,7 @@ export class PlayerManager {
       } else {
         // Mon joueur : snap smooth si snap en cours
         if (player.snapLerpTimer && player.snapLerpTimer > 0) {
-          const fastLerp = 0.45; // Accélère le lerp pendant le snap
+          const fastLerp = 0.45;
           player.x += (player.targetX - player.x) * fastLerp;
           player.y += (player.targetY - player.y) * fastLerp;
           player.snapLerpTimer -= delta / 1000;
@@ -309,7 +312,7 @@ export class PlayerManager {
       if (player.anims && player.anims.isPlaying) {
         player.anims.stop();
       }
-
+      // Détruit l’indicateur proprement
       if (player.indicator) {
         try { player.indicator.destroy(); } catch (e) {}
       }
@@ -321,35 +324,28 @@ export class PlayerManager {
     }
   }
 
-  // ✅ CORRECTION MAJEURE: Ne plus effacer mySessionId
   clearAllPlayers() {
     if (this.isDestroyed) return;
     if (this.updateTimeout) {
       clearTimeout(this.updateTimeout);
       this.updateTimeout = null;
     }
-    
-    // ✅ NOUVEAU: Sauvegarder mySessionId avant nettoyage
+
     const savedSessionId = this.mySessionId;
-    
     const playersToRemove = Array.from(this.players.keys());
     playersToRemove.forEach(sessionId => this.removePlayer(sessionId));
     this.players.clear();
-    
-    // ✅ CORRECTION: Restaurer mySessionId au lieu de le mettre à null
     this.mySessionId = savedSessionId;
-    this._myPlayerIsReady = false; // Reset flag hook à chaque cleanup
+    this._myPlayerIsReady = false;
     console.log(`[PlayerManager] Joueurs nettoyés, sessionId conservé: ${this.mySessionId}`);
   }
 
   getAllPlayers() {
     return this.isDestroyed ? [] : Array.from(this.players.values());
   }
-
   getPlayerCount() {
     return this.isDestroyed ? 0 : this.players.size;
   }
-
   getPlayerInfo(sessionId) {
     if (this.isDestroyed) return null;
     const player = this.players.get(sessionId);
@@ -365,45 +361,36 @@ export class PlayerManager {
     return null;
   }
 
-  // ✅ NOUVEAU: Méthode pour vérifier et corriger l'état du joueur
   checkPlayerState() {
     const myPlayer = this.getMyPlayer();
     if (!myPlayer) {
       console.warn(`[PlayerManager] Joueur manquant!`);
       return false;
     }
-    
     let fixed = false;
-    
     if (!myPlayer.visible) {
       console.warn(`[PlayerManager] Joueur invisible, restauration`);
       myPlayer.setVisible(true);
       fixed = true;
     }
-    
     if (!myPlayer.active) {
       console.warn(`[PlayerManager] Joueur inactif, restauration`);
       myPlayer.setActive(true);
       fixed = true;
     }
-    
     if (myPlayer.indicator && !myPlayer.indicator.visible) {
       console.warn(`[PlayerManager] Indicateur invisible, restauration`);
       myPlayer.indicator.setVisible(true);
       fixed = true;
     }
-    
     if (fixed) {
       console.log(`[PlayerManager] État du joueur corrigé`);
     }
-    
     return true;
   }
 
-  // --- HOOK de notification quand le joueur local apparaît ---
   onMyPlayerReady(callback) {
     this._myPlayerReadyCallback = callback;
-    // Au cas où on l'ajoute après que le joueur soit déjà là
     if (
       this.mySessionId &&
       this.players.has(this.mySessionId) &&
