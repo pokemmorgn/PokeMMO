@@ -1,6 +1,6 @@
 import { Room, Client } from "@colyseus/core";
 import { Schema, MapSchema, type } from "@colyseus/schema";
-import { serverConfig } from "../config/serverConfig";
+import { getServerConfig } from "../config/serverConfig";
 
 class WorldChatState extends Schema {
   @type({ map: "string" }) players = new MapSchema<string>();
@@ -18,8 +18,10 @@ export class WorldChatRoom extends Room<WorldChatState> {
     this.setState(new WorldChatState());
 
     this.onMessage("chat", (client: Client, data: any) => {
+      const config = getServerConfig(); // ✅ Utilisation correcte
+
       // Vérifier si le chat est activé
-      if (!serverConfig.chatEnabled) {
+      if (!config.chatEnabled) {
         client.send("chatError", { 
           message: "Le chat est actuellement désactivé." 
         });
@@ -31,8 +33,8 @@ export class WorldChatRoom extends Room<WorldChatState> {
       const lastMessage = this.lastMessageTime.get(client.sessionId) || 0;
       const timeSinceLastMessage = (now - lastMessage) / 1000; // en secondes
 
-      if (timeSinceLastMessage < serverConfig.chatCooldown) {
-        const remainingCooldown = Math.ceil(serverConfig.chatCooldown - timeSinceLastMessage);
+      if (timeSinceLastMessage < config.chatCooldown) {
+        const remainingCooldown = Math.ceil(config.chatCooldown - timeSinceLastMessage);
         client.send("chatError", { 
           message: `Veuillez attendre ${remainingCooldown}s avant d'envoyer un nouveau message.` 
         });
@@ -68,14 +70,36 @@ export class WorldChatRoom extends Room<WorldChatState> {
         type: "normal"
       });
     });
+
+    // ✅ NOUVEAU : Message pour demander la config
+    this.onMessage("requestConfig", (client: Client) => {
+      const config = getServerConfig();
+      client.send("serverConfig", {
+        chatEnabled: config.chatEnabled,
+        chatCooldown: config.chatCooldown,
+        maxTeamSize: config.maxTeamSize,
+        xpRate: config.xpRate,
+        // Ajoutez d'autres configs que le client doit connaître
+      });
+    });
   }
 
   onJoin(client: Client, options: any): void {
+    const config = getServerConfig();
+    
     client.auth = { username: options.username };
     this.state.players.set(client.sessionId, options.username);
     
+    // ✅ Envoyer la config au client dès qu'il rejoint
+    client.send("serverConfig", {
+      chatEnabled: config.chatEnabled,
+      chatCooldown: config.chatCooldown,
+      maxTeamSize: config.maxTeamSize,
+      xpRate: config.xpRate,
+    });
+    
     // Message de bienvenue seulement si le chat est activé
-    if (serverConfig.chatEnabled) {
+    if (config.chatEnabled) {
       this.broadcast("chat", {
         author: "SYSTEM",
         message: `${options.username} a rejoint le chat !`,
@@ -88,6 +112,7 @@ export class WorldChatRoom extends Room<WorldChatState> {
   }
 
   onLeave(client: Client): void {
+    const config = getServerConfig();
     const username = this.state.players.get(client.sessionId);
     this.state.players.delete(client.sessionId);
     
@@ -95,7 +120,7 @@ export class WorldChatRoom extends Room<WorldChatState> {
     this.lastMessageTime.delete(client.sessionId);
     
     // Message de départ seulement si le chat est activé
-    if (serverConfig.chatEnabled) {
+    if (config.chatEnabled) {
       this.broadcast("chat", {
         author: "SYSTEM",
         message: `${username || "Un joueur"} a quitté le chat.`,
