@@ -39,7 +39,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
     this.setupInputs();
     this.createUI();
-
+    this.myPlayerReady = false;
     // Gestion réseau simplifiée
     if (this.scene.key === 'BeachScene') {
       this.initializeNetwork();
@@ -500,22 +500,26 @@ export class BaseZoneScene extends Phaser.Scene {
       });   
     });
 
-    this.networkManager.onStateChange((state) => {
-      if (!state || !state.players) return;
-      
-      // ✅ AMÉLIORATION: Vérifier que le PlayerManager existe
-      if (this.playerManager) {
-        this.playerManager.updatePlayers(state);
+this.networkManager.onStateChange((state) => {
+  if (!state || !state.players) return;
+  if (!this.playerManager) return;
 
-        const myPlayer = this.playerManager.getMyPlayer();
-        if (myPlayer && !this.cameraFollowing) {
-          console.log(`[${this.scene.key}] Joueur trouvé, configuration caméra`);
-          this.cameraManager.followPlayer(myPlayer);
-          this.cameraFollowing = true;
-          this.positionPlayer(myPlayer);
-        }
-      }
-    });
+  this.playerManager.updatePlayers(state);
+
+  const myPlayer = this.playerManager.getMyPlayer();
+
+  // On n’exécute qu’une fois quand le joueur apparaît
+  if (myPlayer && !this.myPlayerReady) {
+    this.myPlayerReady = true;
+    console.log(`[${this.scene.key}] Joueur trouvé, configuration caméra`);
+    this.cameraManager.followPlayer(myPlayer);
+    this.cameraFollowing = true;
+    this.positionPlayer(myPlayer);
+
+    // 👉 Ajoute ici tout ce qui ne doit être fait qu’une fois !
+  }
+});
+
 
     // ✅ Centraliser les listeners de messages
     this.setupMessageListeners();
