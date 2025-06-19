@@ -115,10 +115,12 @@ public abstract mapName: string;
   }
 
   // === Récupération des Pokémon de la team depuis la BDD ===
-  let teamPokemons = [];
-  if (playerData.team && playerData.team.length > 0) {
-    teamPokemons = await OwnedPokemon.find({ _id: { $in: playerData.team } });
-  }
+let teamPokemons: IOwnedPokemon[] = [];
+if (playerData.team && playerData.team.length > 0) {
+  teamPokemons = await OwnedPokemon.find({ _id: { $in: playerData.team } });
+}
+
+player.team = new ArraySchema(...teamPokemons.map(convertOwnedPokemonToTeam));
 
   const player = new Player();
   player.name = username;
