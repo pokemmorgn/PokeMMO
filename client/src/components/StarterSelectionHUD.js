@@ -49,7 +49,7 @@ export class StarterSelectionHUD {
       justify-content: center;
       align-items: center;
       z-index: 1000;
-      font-family: 'Pokemon', Arial, sans-serif;
+      font-family: 'Orbitron', 'Arial', sans-serif;
     `;
 
     const selectionPanel = document.createElement('div');
@@ -108,6 +108,7 @@ export class StarterSelectionHUD {
 
   createStarterCard(starter) {
     const card = document.createElement('div');
+    card.className = 'starter-card';
     card.style.cssText = `
       background: white;
       border: 3px solid #ddd;
@@ -285,6 +286,7 @@ export class StarterSelectionHUD {
     if (!this.hudElement) return;
 
     const successDiv = document.createElement('div');
+    successDiv.className = 'starter-success-message';
     successDiv.style.cssText = `
       position: absolute;
       top: 50%;
