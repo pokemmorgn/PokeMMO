@@ -260,6 +260,36 @@ setupZoneTransitions() {
 getTransitionConfig() {
   return {}; // À définir dans les sous-classes
 }
+createTransitionZone(transitionObj, targetScene, direction) {
+  const zone = this.add.zone(
+    transitionObj.x + transitionObj.width / 2,
+    transitionObj.y + transitionObj.height / 2,
+    transitionObj.width,
+    transitionObj.height
+  );
+
+  this.physics.world.enable(zone);
+  zone.body.setAllowGravity(false);
+  zone.body.setImmovable(true);
+
+  let transitionTriggered = false;
+
+  this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
+    if (transitionTriggered) return;
+    transitionTriggered = true;
+
+    console.log(`[${this.scene.key}] Overlap detected, requesting transition to ${targetScene} (${direction})`);
+
+    if (this.networkManager && this.networkManager.connected && !this.networkManager.transitioning) {
+      this.networkManager.requestZoneTransition({
+        targetZone: targetScene,
+        direction: direction
+      });
+    } else {
+      console.warn(`[${this.scene.key}] Cannot transition: either not connected or already transitioning.`);
+    }
+  });
+}
 
 positionPlayer(player) {
   const initData = this.scene.settings.data;
