@@ -17,6 +17,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.animatedObjects = null;
     this.zoneChangedHandler = null; // Référence du handler
     this.lastMoveTime = 0; // Throttling des mouvements
+    this.myPlayerReady = false; // ✅ NOUVEAU: Flag pour éviter la double initialisation
   }
 
   preload() {
@@ -30,109 +31,106 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-create() {
-  console.log(`🌍 Creating zone: ${this.scene.key}`);
-  console.log(`📊 Scene data:`, this.scene.settings.data);
+  create() {
+    console.log(`🌍 Creating zone: ${this.scene.key}`);
+    console.log(`📊 Scene data:`, this.scene.settings.data);
 
-  this.createPlayerAnimations();
-  this.setupManagers();     // <-- d'abord les managers
-  this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
-  this.setupInputs();
-  this.createUI();
+    this.createPlayerAnimations();
+    this.setupManagers();     // <-- d'abord les managers
+    this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
+    this.setupInputs();
+    this.createUI();
 
-  this.myPlayerReady = false;
+    this.myPlayerReady = false;
 
-  // Gestion réseau simplifiée
-  if (this.scene.key === 'BeachScene') {
-    this.initializeNetwork();
-  } else {
-    this.getExistingNetwork();
-  }
+    // Gestion réseau simplifiée
+    if (this.scene.key === 'BeachScene') {
+      this.initializeNetwork();
+    } else {
+      this.getExistingNetwork();
+    }
 
-  // 🔥 HOOK : détection joueur local prêt
-  // (attention, ce hook est appelé à chaque spawn ou reconnexion !)
-  if (this.playerManager) {
-    this.playerManager.onMyPlayerReady((myPlayer) => {
-      // Ne lance cette logique qu’une fois par apparition
-      if (!this.myPlayerReady) {
-        this.myPlayerReady = true;
-        console.log(`[${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
+    // 🔥 HOOK : détection joueur local prêt
+    // (attention, ce hook est appelé à chaque spawn ou reconnexion !)
+    if (this.playerManager) {
+      this.playerManager.onMyPlayerReady((myPlayer) => {
+        // Ne lance cette logique qu'une fois par apparition
+        if (!this.myPlayerReady) {
+          this.myPlayerReady = true;
+          console.log(`[${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
 
-        // Caméra sur le joueur
-        this.cameraManager.followPlayer(myPlayer);
-        this.cameraFollowing = true;
+          // Caméra sur le joueur
+          this.cameraManager.followPlayer(myPlayer);
+          this.cameraFollowing = true;
 
-        // Positionnement (point d’entrée, zone, etc)
-        this.positionPlayer(myPlayer);
+          // Positionnement (point d'entrée, zone, etc)
+          this.positionPlayer(myPlayer);
 
-        // Appel d’un hook personnalisable pour la scène héritée
-        if (typeof this.onPlayerReady === 'function') {
-          this.onPlayerReady(myPlayer);
+          // Appel d'un hook personnalisable pour la scène héritée
+          if (typeof this.onPlayerReady === 'function') {
+            this.onPlayerReady(myPlayer);
+          }
         }
-      }
+      });
+    }
+
+    // Nettoyage amélioré
+    this.events.on('shutdown', () => {
+      console.log(`[${this.scene.key}] Shutdown - nettoyage`);
+      this.cleanup();
+    });
+    this.events.on('destroy', () => {
+      console.log(`[${this.scene.key}] Destroy - nettoyage final`);
+      this.cleanup();
     });
   }
 
-  // Nettoyage amélioré
-  this.events.on('shutdown', () => {
-    console.log(`[${this.scene.key}] Shutdown - nettoyage`);
-    this.cleanup();
-  });
-  this.events.on('destroy', () => {
-    console.log(`[${this.scene.key}] Destroy - nettoyage final`);
-    this.cleanup();
-  });
-}
-
-
   // ✅ AMÉLIORATION: Récupération du NetworkManager avec vérification des données de scène
-getExistingNetwork() {
-  const sceneData = this.scene.settings.data;
-  
-  if (sceneData && sceneData.networkManager) {
-    console.log(`[${this.scene.key}] NetworkManager reçu via sceneData`);
-    this.networkManager = sceneData.networkManager;
+  getExistingNetwork() {
+    const sceneData = this.scene.settings.data;
     
-    // ✅ CORRECTION 1 : Prioriser le sessionId depuis les données de scène
-    if (sceneData.newSessionId) {
-      console.log(`[${this.scene.key}] Utilisation du nouveau sessionId: ${sceneData.newSessionId}`);
-      this.mySessionId = sceneData.newSessionId;
-    } else {
-      this.mySessionId = this.networkManager.getSessionId();
-    }
-    
-    // ✅ CORRECTION 2 : Toujours mettre à jour le PlayerManager
-    if (this.playerManager) {
-      this.playerManager.setMySessionId(this.mySessionId);
-      console.log(`[${this.scene.key}] PlayerManager sessionId mis à jour: ${this.mySessionId}`);
-    }
-    
-    this.setupNetwork();
-    return;
-  }
-
-  // Sinon, chercher dans les autres scènes (logique existante)
-  const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene', 'LavandiaScene'];
-  for (const sceneName of scenesToCheck) {
-    const scene = this.scene.manager.getScene(sceneName);
-    if (scene && scene.networkManager && scene.networkManager.isConnected) {
-      this.networkManager = scene.networkManager;
-      this.mySessionId = this.networkManager.getSessionId();
+    // ✅ CORRECTION 1 : Vérifier d'abord les données de scène
+    if (sceneData && sceneData.networkManager) {
+      console.log(`[${this.scene.key}] NetworkManager reçu via sceneData`);
+      this.networkManager = sceneData.networkManager;
       
+      // ✅ CORRECTION 2 : Prioriser le sessionId depuis les données de scène
+      if (sceneData.newSessionId) {
+        console.log(`[${this.scene.key}] ✅ Utilisation du nouveau sessionId: ${sceneData.newSessionId}`);
+        this.mySessionId = sceneData.newSessionId;
+      } else {
+        this.mySessionId = this.networkManager.getSessionId();
+        console.log(`[${this.scene.key}] SessionId depuis NetworkManager: ${this.mySessionId}`);
+      }
+      
+      // ✅ CORRECTION 3 : Toujours mettre à jour le PlayerManager
       if (this.playerManager) {
         this.playerManager.setMySessionId(this.mySessionId);
+        console.log(`[${this.scene.key}] PlayerManager sessionId mis à jour: ${this.mySessionId}`);
       }
       
       this.setupNetwork();
-      console.log(`[${this.scene.key}] NetworkManager récupéré de ${sceneName}, sessionId: ${this.mySessionId}`);
       return;
     }
-  }
-  
-  console.warn(`[${this.scene.key}] Aucun NetworkManager trouvé, initialisation...`);
-  this.initializeNetwork();
-}
 
+    // Sinon, chercher dans les autres scènes
+    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene', 'LavandiaScene'];
+    for (const sceneName of scenesToCheck) {
+      const scene = this.scene.manager.getScene(sceneName);
+      if (scene && scene.networkManager && scene.networkManager.isConnected) {
+        this.networkManager = scene.networkManager;
+        this.mySessionId = this.networkManager.getSessionId();
+        if (this.playerManager) {
+          this.playerManager.setMySessionId(this.mySessionId);
+        }
+        this.setupNetwork();
+        console.log(`[${this.scene.key}] NetworkManager récupéré de ${sceneName}, sessionId: ${this.mySessionId}`);
+        return;
+      }
+    }
+    console.warn(`[${this.scene.key}] Aucun NetworkManager trouvé, initialisation...`);
+    this.initializeNetwork();
+  }
 
   loadMap() {
     console.log('— DEBUT loadMap —');
@@ -511,83 +509,73 @@ getExistingNetwork() {
     }).setScrollFactor(0).setDepth(1000).setOrigin(1, 0);
   }
 
-  // ✅ AMÉLIORATION: setupNetwork avec meilleure gestion des états
-setupNetwork() {
-  if (!this.networkManager) return;
+  // ✅ AMÉLIORATION: setupNetwork avec meilleure gestion des états et sessionId
+  setupNetwork() {
+    if (!this.networkManager) return;
 
-  this.networkManager.onConnect(() => {
-    // ✅ CORRECTION 3 : Re-synchroniser le sessionId à chaque connexion
-    const currentSessionId = this.networkManager.getSessionId();
-    if (this.mySessionId !== currentSessionId) {
-      console.log(`[${this.scene.key}] SessionId désynchronisé, mise à jour: ${this.mySessionId} → ${currentSessionId}`);
-      this.mySessionId = currentSessionId;
+    this.networkManager.onConnect(() => {
+      // ✅ CORRECTION 4 : Re-synchroniser le sessionId à chaque connexion
+      const currentSessionId = this.networkManager.getSessionId();
+      if (this.mySessionId !== currentSessionId) {
+        console.log(`[${this.scene.key}] SessionId désynchronisé, mise à jour: ${this.mySessionId} → ${currentSessionId}`);
+        this.mySessionId = currentSessionId;
+        
+        if (this.playerManager) {
+          this.playerManager.setMySessionId(this.mySessionId);
+        }
+      }
       
-      if (this.playerManager) {
-        this.playerManager.setMySessionId(this.mySessionId);
+      this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
+
+      // Système de quêtes
+      if (!window.questSystem) {
+        try {
+          const gameRoom = this.networkManager.room || this.networkManager.gameRoom;
+          window.questSystem = new QuestSystem(this, gameRoom);
+          console.log("✅ [QuestSystem] Initialisé");
+        } catch (e) {
+          console.error("❌ Erreur init QuestSystem:", e);
+        }
       }
-    }
-    
-    this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
+      
+      // ✅ NOUVEAU: Snap pour correction de position
+      this.networkManager.onMessage("snap", (data) => {
+        if (this.playerManager) {
+          this.playerManager.snapMyPlayerTo(data.x, data.y);
+        }
+      });   
+    });
 
-    // Système de quêtes
-    if (!window.questSystem) {
-      try {
-        const gameRoom = this.networkManager.room || this.networkManager.gameRoom;
-        window.questSystem = new QuestSystem(this, gameRoom);
-        console.log("✅ [QuestSystem] Initialisé");
-      } catch (e) {
-        console.error("❌ Erreur init QuestSystem:", e);
+    this.networkManager.onStateChange((state) => {
+      if (!state || !state.players) return;
+      if (!this.playerManager) return;
+
+      // ✅ CORRECTION 5 : Vérifier la synchronisation sessionId avant updatePlayers
+      const currentNetworkSessionId = this.networkManager.getSessionId();
+      if (this.playerManager.mySessionId !== currentNetworkSessionId) {
+        console.warn(`[${this.scene.key}] SessionId désynchronisé dans onStateChange, correction:`, {
+          playerManager: this.playerManager.mySessionId,
+          network: currentNetworkSessionId
+        });
+        this.playerManager.setMySessionId(currentNetworkSessionId);
+        this.mySessionId = currentNetworkSessionId;
       }
-    }
-    
-    this.networkManager.onMessage("snap", (data) => {
-      if (this.playerManager) {
-        this.playerManager.snapMyPlayerTo(data.x, data.y);
+
+      this.playerManager.updatePlayers(state);
+
+      const myPlayer = this.playerManager.getMyPlayer();
+
+      // On n'exécute qu'une fois quand le joueur apparaît
+      if (myPlayer && !this.myPlayerReady) {
+        this.myPlayerReady = true;
+        console.log(`[${this.scene.key}] Joueur trouvé avec sessionId: ${this.mySessionId}, configuration caméra`);
+        this.cameraManager.followPlayer(myPlayer);
+        this.cameraFollowing = true;
+        this.positionPlayer(myPlayer);
+
+        // 👉 Ajoute ici tout ce qui ne doit être fait qu'une fois !
       }
-    });   
-  });
-
-  this.networkManager.onStateChange((state) => {
-    if (!state || !state.players) return;
-    if (!this.playerManager) return;
-
-    // ✅ CORRECTION 4 : Vérifier la synchronisation sessionId avant updatePlayers
-    const currentNetworkSessionId = this.networkManager.getSessionId();
-    if (this.playerManager.mySessionId !== currentNetworkSessionId) {
-      console.warn(`[${this.scene.key}] SessionId désynchronisé dans onStateChange, correction:`, {
-        playerManager: this.playerManager.mySessionId,
-        network: currentNetworkSessionId
-      });
-      this.playerManager.setMySessionId(currentNetworkSessionId);
-      this.mySessionId = currentNetworkSessionId;
-    }
-
-    this.playerManager.updatePlayers(state);
-
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (myPlayer && !this.myPlayerReady) {
-      this.myPlayerReady = true;
-      console.log(`[${this.scene.key}] Joueur trouvé avec sessionId: ${this.mySessionId}`);
-      this.cameraManager.followPlayer(myPlayer);
-      this.cameraFollowing = true;
-      this.positionPlayer(myPlayer);
-    }
-  });
-
-  // Centraliser les listeners de messages
-  this.setupMessageListeners();
-}
-
-// ✅ NOUVELLE MÉTHODE : Debugging des sessionIds
-debugSessionIds() {
-  console.log(`[${this.scene.key}] 🔍 Debug SessionIds:`, {
-    sceneSessionId: this.mySessionId,
-    networkManagerSessionId: this.networkManager?.getSessionId(),
-    playerManagerSessionId: this.playerManager?.mySessionId,
-    playersInMap: this.playerManager ? Array.from(this.playerManager.players.keys()) : []
-  });
-}
-
+    });
 
     // ✅ Centraliser les listeners de messages
     this.setupMessageListeners();
@@ -645,7 +633,8 @@ debugSessionIds() {
           fromDirection: data.fromDirection || null,
           spawnX: data.spawnX,
           spawnY: data.spawnY,
-          networkManager: this.networkManager // ✅ NOUVEAU: Passer le NetworkManager
+          networkManager: this.networkManager, // ✅ NOUVEAU: Passer le NetworkManager
+          newSessionId: this.networkManager.getSessionId() // ✅ NOUVEAU: Passer le sessionId
         });
       }
     };
@@ -691,7 +680,8 @@ debugSessionIds() {
         spawnX: data.targetX,
         spawnY: data.targetY,
         spawnPoint: data.spawnPoint,
-        networkManager: this.networkManager // ✅ NOUVEAU: Passer le NetworkManager
+        networkManager: this.networkManager, // ✅ NOUVEAU: Passer le NetworkManager
+        newSessionId: this.networkManager.getSessionId() // ✅ NOUVEAU: Passer le sessionId
       });
     }
   }
@@ -899,7 +889,8 @@ debugSessionIds() {
       this.scene.start(targetScene, {
         fromZone: this.scene.key,
         fromDirection: fromDirection,
-        networkManager: this.networkManager // ✅ NOUVEAU: Passer le NetworkManager
+        networkManager: this.networkManager, // ✅ NOUVEAU: Passer le NetworkManager
+        newSessionId: this.networkManager?.getSessionId() // ✅ NOUVEAU: Passer le sessionId
       });
     });
   }
@@ -939,5 +930,30 @@ debugSessionIds() {
     this.time.removeAllEvents();
     this.cameraFollowing = false;
     this.isTransitioning = false;
+    this.myPlayerReady = false; // ✅ NOUVEAU: Reset du flag
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Debug des sessionIds
+  debugSessionIds() {
+    console.log(`[${this.scene.key}] 🔍 Debug SessionIds:`, {
+      sceneSessionId: this.mySessionId,
+      networkManagerSessionId: this.networkManager?.getSessionId(),
+      playerManagerSessionId: this.playerManager?.mySessionId,
+      playersInMap: this.playerManager ? Array.from(this.playerManager.players.keys()) : []
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Forcer la synchronisation des sessionIds
+  forceSyncSessionIds() {
+    if (this.networkManager && this.playerManager) {
+      const networkSessionId = this.networkManager.getSessionId();
+      console.log(`[${this.scene.key}] 🔄 Synchronisation forcée des sessionIds vers: ${networkSessionId}`);
+      
+      this.mySessionId = networkSessionId;
+      this.playerManager.setMySessionId(networkSessionId);
+      
+      // Forcer aussi dans le PlayerManager
+      this.playerManager.forceSyncSessionId();
+    }
   }
 }
