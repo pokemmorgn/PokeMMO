@@ -6,22 +6,22 @@ export class VillageScene extends BaseZoneScene {
     this.transitionCooldowns = {};
   }
 
-  create() {
-    console.log("🚨 DEBUT VillageScene.create()");
-    super.create();
-    // LOG CRUCIAL : est-ce que PlayerManager connaît déjà ton joueur après le create du parent ?
-    if (this.playerManager) {
-      console.log("[DEBUG] PlayerManager (VillageScene):", this.playerManager.players);
-      // Essaie de log le player courant
-      const myPlayer = this.playerManager.getMyPlayer && this.playerManager.getMyPlayer();
-      if (myPlayer) {
-        console.log("[DEBUG] Mon player existe déjà (juste après super.create()):", myPlayer.x, myPlayer.y, myPlayer);
-      } else {
-        console.warn("[DEBUG] Mon player n'existe PAS après super.create()");
-      }
+  // Position par défaut selon la provenance
+  getDefaultSpawnPosition(fromZone) {
+    switch(fromZone) {
+      case 'BeachScene':        return { x: 100, y: 200 };
+      case 'Road1Scene':        return { x: 300, y: 100 };
+      case 'VillageLabScene':   return { x: 150, y: 150 };
+      default:                  return { x: 200, y: 200 };
     }
-    console.log("✅ BaseZoneScene.create() appelé");
+  }
 
+  // 🔥 HOOK appelé UNE FOIS dès que le joueur local est prêt et positionné
+  onPlayerReady(myPlayer) {
+    // Log ou actions d'arrivée personnalisées
+    console.log(`[VillageScene] Mon joueur est prêt à (${myPlayer.x}, ${myPlayer.y})`);
+
+    // Affichage instructions (exemple)
     this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
       font: '18px monospace',
       fill: '#000000',
@@ -29,40 +29,10 @@ export class VillageScene extends BaseZoneScene {
       backgroundColor: '#ffffff',
     }).setScrollFactor(0).setDepth(30);
 
-    console.log("⚙️ Setup village events...");
+    // Evénements d'accueil custom
     this.setupVillageEvents();
-
-    console.log("⚙️ Setup NPCs...");
+    // Placement des NPCs (peut dépendre de la map déjà chargée)
     this.setupNPCs();
-
-    console.log("🚨 FIN VillageScene.create()");
-  }
-
-  // ✅ AMÉLIORATION: Position par défaut pour VillageScene
-  getDefaultSpawnPosition(fromZone) {
-    // Position par défaut selon la zone d'origine
-    switch(fromZone) {
-      case 'BeachScene':
-        return { x: 100, y: 200 }; // Entrée depuis la plage
-      case 'Road1Scene':
-        return { x: 300, y: 100 }; // Entrée depuis la route
-      case 'VillageLabScene':
-        return { x: 150, y: 150 }; // Sortie du laboratoire
-      default:
-        return { x: 200, y: 200 }; // Position centrale par défaut
-    }
-  }
-
-  // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
-  onPlayerPositioned(player, initData) {
-    console.log(`[VillageScene] Joueur positionné à (${player.x}, ${player.y})`);
-    
-    // Logique spécifique selon la provenance
-    if (initData?.fromZone === 'BeachScene') {
-      console.log("[VillageScene] Arrivée depuis la plage");
-    } else if (initData?.fromZone === 'VillageLabScene') {
-      console.log("[VillageScene] Sortie du laboratoire");
-    }
   }
 
   setupVillageEvents() {
@@ -80,9 +50,7 @@ export class VillageScene extends BaseZoneScene {
     const npcLayer = this.map.getObjectLayer('NPCs');
     if (npcLayer) {
       console.log(`Layer NPCs trouvé avec ${npcLayer.objects.length} NPC(s)`);
-      npcLayer.objects.forEach(npcObj => {
-        this.createNPC(npcObj);
-      });
+      npcLayer.objects.forEach(npcObj => this.createNPC(npcObj));
     } else {
       console.warn("⚠️ Layer 'NPCs' non trouvé");
     }
