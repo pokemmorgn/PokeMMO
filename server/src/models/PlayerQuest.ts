@@ -29,23 +29,21 @@ export interface IPlayerQuest extends Document {
   }[];
 }
 
-// Schémas MongoDB
-const PlayerQuestProgressSchema = new mongoose.Schema({
-  questId: { type: String, required: true },
-  currentStepIndex: { type: Number, default: 0 },
-  objectives: { type: Map, of: mongoose.Schema.Types.Mixed, default: new Map() },
-  status: { 
-    type: String, 
-    enum: ['active', 'completed', 'failed'], 
-    default: 'active' 
-  },
-  startedAt: { type: Date, default: Date.now },
-  completedAt: { type: Date }
-});
-
+// Schéma MongoDB avec structure inline
 const PlayerQuestSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
-  activeQuests: [PlayerQuestProgressSchema],
+  activeQuests: [{
+    questId: { type: String, required: true },
+    currentStepIndex: { type: Number, default: 0 },
+    objectives: { type: Map, of: mongoose.Schema.Types.Mixed, default: new Map() },
+    status: { 
+      type: String, 
+      enum: ['active', 'completed', 'failed'], 
+      default: 'active' 
+    },
+    startedAt: { type: Date, default: Date.now },
+    completedAt: { type: Date }
+  }],
   completedQuests: [{ 
     questId: String, 
     completedAt: Date,
