@@ -3,11 +3,11 @@ import mongoose from "mongoose";
 const PlayerDataSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   gold: { type: Number, default: 0 },
-  pokemons: [{ type: String }],        // Liste des Pokémon attrapés
-  lastX: { type: Number, default: 300 }, // Position X sauvegardée
-  lastY: { type: Number, default: 300 }, // Position Y sauvegardée
-  lastMap: { type: String, default: "Beach" }, // <-- Ajout du champ pour la map
-  walletAddress: { type: String, unique: true, sparse: true } // Wallet adresse
+  team: [{ type: mongoose.Schema.Types.ObjectId, ref: "OwnedPokemon" }], // <-- Ajouté ici !
+  lastX: { type: Number, default: 300 },
+  lastY: { type: Number, default: 300 },
+  lastMap: { type: String, default: "Beach" },
+  walletAddress: { type: String, unique: true, sparse: true }
 });
 
 export const PlayerData = mongoose.model("PlayerData", PlayerDataSchema);
