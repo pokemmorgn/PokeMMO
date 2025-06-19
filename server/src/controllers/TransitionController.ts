@@ -21,15 +21,18 @@ function normalizeMapName(name: string): string {
 function loadMap(mapName: string): any {
   const cleanName = normalizeMapName(mapName);
   if (!mapCache[cleanName]) {
-    // Attention, adapte le chemin si besoin !
     const mapPath = path.join(__dirname, "../assets/maps/", `${cleanName}.tmj`);
     if (!fs.existsSync(mapPath)) {
       throw new Error(`[TransitionController] Map manquante: ${mapPath}`);
     }
+    console.log(`[TransitionController] Chargement map '${cleanName}' depuis ${mapPath}`);
     mapCache[cleanName] = JSON.parse(fs.readFileSync(mapPath, "utf-8"));
+  } else {
+    console.log(`[TransitionController] Map '${cleanName}' chargée depuis le cache`);
   }
   return mapCache[cleanName];
 }
+
 
 /**
  * Récupère un objet dans le layer Worlds selon son nom (ou propriété custom)
@@ -39,10 +42,21 @@ function findWorldObject(mapName: string, objectName: string): any | null {
   const worldsLayer = mapData.layers.find(
     (l: any) => l.name === "Worlds" && l.type === "objectgroup"
   );
-  if (!worldsLayer) return null;
-  // Peut adapter ici si tu veux chercher par propriété au lieu de name
-  return worldsLayer.objects.find((obj: any) => obj.name === objectName);
+  if (!worldsLayer) {
+    console.warn(`[TransitionController] Layer 'Worlds' introuvable dans la map '${mapName}'. Layers dispos:`, mapData.layers.map((l: any) => l.name));
+    return null;
+  }
+  console.log(`[TransitionController] Layer 'Worlds' trouvé dans '${mapName}'. ${worldsLayer.objects.length} objets.`);
+
+  const foundObj = worldsLayer.objects.find((obj: any) => obj.name === objectName);
+  if (foundObj) {
+    console.log(`[TransitionController] Objet '${objectName}' trouvé dans Worlds:`, foundObj);
+  } else {
+    console.warn(`[TransitionController] Objet '${objectName}' NON trouvé dans Worlds. Objets dispos:`, worldsLayer.objects.map((o: any) => o.name));
+  }
+  return foundObj;
 }
+
 
 /**
  * Cherche une propriété personnalisée d'un objet Tiled (array → value)
