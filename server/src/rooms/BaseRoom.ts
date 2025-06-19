@@ -2,6 +2,7 @@ import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { PlayerData } from "../models/PlayerData";
 import { NpcManager } from "../managers/NPCManager";
+import { QuestManager } from "../managers/QuestManager";
 import { MovementController } from "../controllers/MovementController";
 import { TransitionController } from "../controllers/TransitionController";
 import { InteractionManager } from "../managers/InteractionManager";
@@ -27,6 +28,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   protected abstract defaultY: number;
 
   protected npcManager: NpcManager;
+  protected questManager: QuestManager;
   public movementController: MovementController;
   public transitionController: TransitionController;
   protected interactionManager: InteractionManager;
@@ -38,8 +40,10 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     this.setState(new PokeWorldState());
     console.log(`🔥 DEBUT onCreate ${this.mapName}`);
 
+    // Initialisation des managers
     this.npcManager = new NpcManager(`../assets/maps/${this.mapName.replace('Room', '').toLowerCase()}.tmj`);
-    this.interactionManager = new InteractionManager(this.npcManager);
+    this.questManager = new QuestManager(`../assets/data/quests.json`);
+    this.interactionManager = new InteractionManager(this.npcManager, this.questManager);
     this.movementController = new MovementController();
     this.transitionController = new TransitionController(this);
 
@@ -48,13 +52,80 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       this.saveAllPlayers();
     }, 30000);
 
-this.onMessage("npcInteract", (client: Client, data: { npcId: number }) => {
-  const player = this.state.players.get(client.sessionId);
-  if (!player) return;
-  const result = this.interactionManager.handleNpcInteraction(player, data.npcId);
+    // === HANDLERS DE MESSAGES ===
 
-  client.send("npcInteractionResult", { ...result, npcId: data.npcId });
+    // Handler pour interaction NPC avec quêtes
+    this.onMessage("npcInteract", async (client: Client, data: { npcId: number }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+      
+      const result = await this.interactionManager.handleNpcInteraction(player, data.npcId);
+      client.send("npcInteractionResult", { ...result, npcId: data.npcId });
     });
+
+    // === HANDLERS SPÉCIFIQUES AUX QUÊTES ===
+
+    this.onMessage("startQuest", async (client: Client, data: { questId: string }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+
+      const result = await this.interactionManager.handleQuestStart(player.name, data.questId);
+      client.send("questStartResult", result);
+
+      // Notifier la progression à tous les clients si nécessaire
+      if (result.success) {
+        this.broadcast("questUpdate", {
+          player: player.name,
+          action: "started",
+          questId: data.questId
+        }, { except: client });
+      }
+    });
+
+    this.onMessage("getActiveQuests", async (client: Client) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+
+      const activeQuests = await this.questManager.getActiveQuests(player.name);
+      client.send("activeQuestsList", { quests: activeQuests });
+    });
+
+    this.onMessage("getAvailableQuests", async (client: Client) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+
+      const availableQuests = await this.questManager.getAvailableQuests(player.name);
+      client.send("availableQuestsList", { quests: availableQuests });
+    });
+
+    // Handler pour événements de progression de quête
+    this.onMessage("questProgress", async (client: Client, data: any) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+
+      const results = await this.interactionManager.updatePlayerProgress(
+        player.name, 
+        data.type, 
+        data
+      );
+
+      if (results.length > 0) {
+        client.send("questProgressUpdate", results);
+        
+        // Notifier les récompenses si il y en a
+        for (const result of results) {
+          if (result.rewards && result.rewards.length > 0) {
+            client.send("questRewards", {
+              questId: result.questId,
+              rewards: result.rewards,
+              message: result.message
+            });
+          }
+        }
+      }
+    });
+
+    // === HANDLERS EXISTANTS ===
 
     this.onMessage("move", (client: Client, data: any) => {
       const player = this.state.players.get(client.sessionId);
@@ -69,6 +140,9 @@ this.onMessage("npcInteract", (client: Client, data: { npcId: number }) => {
         if (moveResult.snapped) {
           client.send("snap", { x: moveResult.x, y: moveResult.y });
         }
+
+        // Vérifier la progression des quêtes de type "reach"
+        this.handleZoneReachProgress(player.name, player.x, player.y);
       }
     });
 
@@ -134,6 +208,9 @@ this.onMessage("npcInteract", (client: Client, data: { npcId: number }) => {
 
         console.log(`✅ ${player.name} a reçu ${starterNames[data.starterId]} (niveau ${starterPokemon.level}, shiny: ${starterPokemon.shiny})`);
 
+        // Déclencher la quête tutoriel si elle existe
+        this.triggerTutorialQuest(client, player.name);
+
       } catch (error) {
         console.error(`❌ Erreur sélection starter pour ${player.name}:`, error);
         client.send("starterSelectionResult", { 
@@ -184,6 +261,39 @@ this.onMessage("npcInteract", (client: Client, data: { npcId: number }) => {
     });
   }
 
+  // === MÉTHODES UTILITAIRES POUR LES QUÊTES ===
+
+  private async triggerTutorialQuest(client: Client, username: string): Promise<void> {
+    try {
+      // Démarrer automatiquement la quête tutoriel si disponible
+      const tutorialQuest = await this.questManager.startQuest(username, "tutorial_first_steps");
+      if (tutorialQuest) {
+        client.send("questStarted", {
+          quest: tutorialQuest,
+          message: "Nouvelle quête disponible !"
+        });
+      }
+    } catch (error) {
+      console.error("❌ Erreur démarrage quête tutoriel:", error);
+    }
+  }
+
+  private async handleZoneReachProgress(username: string, x: number, y: number): Promise<void> {
+    // Cette méthode sera appelée lors des mouvements pour vérifier
+    // si le joueur atteint certaines zones pour les quêtes
+    const currentMap = this.mapName.replace('Room', '').toLowerCase();
+    
+    // Mettre à jour la progression des quêtes de type "reach"
+    await this.interactionManager.updatePlayerProgress(username, 'reach', {
+      zoneId: currentMap,
+      x: x,
+      y: y,
+      map: currentMap
+    });
+  }
+
+  // === MÉTHODES EXISTANTES ===
+
   async saveAllPlayers() {
     if (this.state.players.size === 0) return;
     try {
@@ -201,8 +311,9 @@ this.onMessage("npcInteract", (client: Client, data: { npcId: number }) => {
   async onJoin(client: Client, options: any) {
     console.log("🔥 [onJoin] Nouvelle connexion !", options.username);
     const username = options.username || "Anonymous";
-    console.log("✅ [onJoin] Joueur créé à", player.x, player.y, "dans", this.mapName);
-client.send("npcList", this.npcManager.getAllNpcs());
+    
+    // Envoyer les NPCs
+    client.send("npcList", this.npcManager.getAllNpcs());
 
     // Supprime un joueur en double si existant
     const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
@@ -255,7 +366,15 @@ client.send("npcList", this.npcManager.getAllNpcs());
 
     this.state.players.set(client.sessionId, player);
 
-    // ===== GESTION DE L'AFFICHAGE DU HUD DE STARTER =====
+    // === ENVOI DES QUÊTES AU CLIENT ===
+    
+    // Envoyer les quêtes actives
+    const activeQuests = await this.questManager.getActiveQuests(username);
+    if (activeQuests.length > 0) {
+      client.send("activeQuestsList", { quests: activeQuests });
+    }
+
+    // === GESTION DE L'AFFICHAGE DU HUD DE STARTER ===
     
     if (isNewPlayer || teamPokemons.length === 0) {
       // Nouveau joueur ou joueur sans Pokémon -> Afficher le HUD de sélection
