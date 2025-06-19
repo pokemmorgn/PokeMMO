@@ -9,7 +9,32 @@ export class VillageLabScene extends BaseZoneScene {
     this.transitionCooldowns = {};
     this.professorInteracted = false;
   }
+create() {
+    console.log("🚨 DEBUT VillageScene.create()");
+    super.create();
+    console.log("✅ BaseZoneScene.create() appelé");
 
+    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
+      font: '18px monospace',
+      fill: '#000000',
+      padding: { x: 20, y: 10 },
+      backgroundColor: '#ffffff',
+    }).setScrollFactor(0).setDepth(30);
+
+    console.log("⚙️ Setup village events...");
+    this.setupVillageEvents();
+
+    console.log("⚙️ Setup NPCs...");
+    this.setupNPCs();
+
+    this.time.delayedCall(100, () => {
+      console.log("⚙️ Setup zone transitions...");
+      this.setupZoneTransitions();
+    });
+
+    console.log("🚨 FIN VillageScene.create()");
+  }
+  
   setupZoneTransitions() {
     const worldsLayer = this.map.getObjectLayer('Worlds');
     if (!worldsLayer) {
@@ -138,25 +163,7 @@ export class VillageLabScene extends BaseZoneScene {
     }
   }
 
-  create() {
-    console.log('🚨 DEBUT VillageLabScene.create()');
-    super.create();
-
-    this.add
-      .text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "E" to interact', {
-        font: '18px monospace',
-        fill: '#000000',
-        padding: { x: 20, y: 10 },
-        backgroundColor: '#ffffff',
-      })
-      .setScrollFactor(0)
-      .setDepth(30);
-
-    this.setupLabEvents();
-    this.setupNPCs();
-    this.setupInteractiveObjects();
-  }
-
+  
   setupLabEvents() {
     this.time.delayedCall(1000, () => {
       if (this.infoText) {
