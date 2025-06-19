@@ -2,7 +2,7 @@ import { NetworkManager } from "../../network/NetworkManager.js";
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager";
-import { QuestSystem } from "../game/QuestSystem.js";
+import { QuestSystem } from "../../game/QuestSystem.js";
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
