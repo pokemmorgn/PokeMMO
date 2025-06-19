@@ -71,7 +71,8 @@ export class PlayerManager {
     player.body.setSize(12, 8);
     player.body.setOffset(10, 24);
     // Debug hitbox optionnel
-    player.body.debugShowBody = true; player.body.debugBodyColor = 0xff0000;
+    player.body.debugShowBody = true; 
+    player.body.debugBodyColor = 0xff0000;
 
     // Animation idle par défaut (face bas, frame centrale)
     if (this.scene.anims.exists('idle_down')) player.play('idle_down');
@@ -83,15 +84,21 @@ export class PlayerManager {
     player.targetY = y;
     player.snapLerpTimer = 0; // Pour snap smooth
 
+    // ✅ NOUVEAU: S'assurer que le joueur est visible et actif
+    player.setVisible(true);
+    player.setActive(true);
+
     // Indicateur vert pour le joueur local
     if (sessionId === this.mySessionId) {
       const indicator = this.scene.add.circle(player.x, player.y - 24, 3, 0x00ff00)
         .setDepth(1001)
         .setStrokeStyle(1, 0x004400);
       player.indicator = indicator;
+      indicator.setVisible(true);
     }
 
     this.players.set(sessionId, player);
+    console.log(`[PlayerManager] Joueur créé: ${sessionId} à (${x}, ${y})`);
     return player;
   }
 
@@ -209,6 +216,13 @@ export class PlayerManager {
         }
       }
 
+      // ✅ NOUVEAU: Vérifier et restaurer la visibilité
+      if (!player.visible) {
+        console.warn(`[PlayerManager] Joueur ${sessionId} invisible, restauration`);
+        player.setVisible(true);
+        player.setActive(true);
+      }
+
       // Stocker la position cible
       player.targetX = playerState.x;
       player.targetY = playerState.y;
@@ -235,10 +249,11 @@ export class PlayerManager {
         }
       }
 
-      // Mettre à jour l’indicateur
+      // Mettre à jour l'indicateur
       if (player.indicator && !this.isDestroyed) {
         player.indicator.x = player.x;
         player.indicator.y = player.y - 24;
+        player.indicator.setVisible(true);
       }
     });
   }
@@ -246,6 +261,9 @@ export class PlayerManager {
   // ⭐️ Nouvelle méthode update pour le lerp continu et snap smooth
   update(delta = 16) {
     for (const [sessionId, player] of this.players) {
+      // ✅ NOUVEAU: Vérifications de sécurité
+      if (!player || !player.scene) continue;
+
       // Joueurs autres que moi : lerp normal
       if (sessionId !== this.mySessionId) {
         if (player.targetX !== undefined && player.targetY !== undefined) {
@@ -289,19 +307,25 @@ export class PlayerManager {
     }
   }
 
-clearAllPlayers() {
+  // ✅ CORRECTION MAJEURE: Ne plus effacer mySessionId
+  clearAllPlayers() {
     if (this.isDestroyed) return;
     if (this.updateTimeout) {
       clearTimeout(this.updateTimeout);
       this.updateTimeout = null;
     }
+    
+    // ✅ NOUVEAU: Sauvegarder mySessionId avant nettoyage
+    const savedSessionId = this.mySessionId;
+    
     const playersToRemove = Array.from(this.players.keys());
     playersToRemove.forEach(sessionId => this.removePlayer(sessionId));
     this.players.clear();
-    // Surtout NE PAS remettre this.mySessionId à null ici !
-    this.mySessionId = null;   <--- SUPPRIME cette ligne
-}
-
+    
+    // ✅ CORRECTION: Restaurer mySessionId au lieu de le mettre à null
+    this.mySessionId = savedSessionId;
+    console.log(`[PlayerManager] Joueurs nettoyés, sessionId conservé: ${this.mySessionId}`);
+  }
 
   getAllPlayers() {
     return this.isDestroyed ? [] : Array.from(this.players.values());
@@ -324,6 +348,41 @@ clearAllPlayers() {
       };
     }
     return null;
+  }
+
+  // ✅ NOUVEAU: Méthode pour vérifier et corriger l'état du joueur
+  checkPlayerState() {
+    const myPlayer = this.getMyPlayer();
+    if (!myPlayer) {
+      console.warn(`[PlayerManager] Joueur manquant!`);
+      return false;
+    }
+    
+    let fixed = false;
+    
+    if (!myPlayer.visible) {
+      console.warn(`[PlayerManager] Joueur invisible, restauration`);
+      myPlayer.setVisible(true);
+      fixed = true;
+    }
+    
+    if (!myPlayer.active) {
+      console.warn(`[PlayerManager] Joueur inactif, restauration`);
+      myPlayer.setActive(true);
+      fixed = true;
+    }
+    
+    if (myPlayer.indicator && !myPlayer.indicator.visible) {
+      console.warn(`[PlayerManager] Indicateur invisible, restauration`);
+      myPlayer.indicator.setVisible(true);
+      fixed = true;
+    }
+    
+    if (fixed) {
+      console.log(`[PlayerManager] État du joueur corrigé`);
+    }
+    
+    return true;
   }
 
   destroy() {
