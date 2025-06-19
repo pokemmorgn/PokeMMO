@@ -1,9 +1,18 @@
 // ==========================================
-// MapManager.ts - Gestionnaire des transitions
+// managers/MapManager.ts - Import des types
 // ==========================================
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { 
+    TiledMap, 
+    TiledLayer, 
+    TiledObject, 
+    TiledProperty, 
+    Teleport, 
+    Spawn, 
+    TeleportResult 
+} from '../types/MapTypes';
 
 export class MapManager {
     private mapsDirectory: string;
@@ -21,9 +30,6 @@ export class MapManager {
         this.buildTeleportNetwork();
     }
 
-    /**
-     * Charge toutes les maps depuis le répertoire
-     */
     private loadAllMaps(): void {
         try {
             const mapFiles = fs.readdirSync(this.mapsDirectory)
@@ -44,16 +50,12 @@ export class MapManager {
         }
     }
 
-    /**
-     * Extrait les téléports et spawns d'une map Tiled
-     */
     private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
         for (const layer of mapData.layers) {
             if (layer.type === 'objectgroup' && layer.objects) {
                 for (const obj of layer.objects) {
                     const properties = this.parseProperties(obj.properties || []);
                     
-                    // Gérer les téléports (nom = "teleport")
                     if (obj.name === 'teleport' && properties.targetSpawn && properties.targetZone) {
                         const teleportKey = `${mapName}_teleport_${obj.id}`;
                         this.teleports.set(teleportKey, {
@@ -67,7 +69,6 @@ export class MapManager {
                         });
                     }
                     
-                    // Gérer les spawns (nom = "spawn")
                     if (obj.name === 'spawn' && properties.targetSpawn && properties.targetZone) {
                         const spawnKey = `${properties.targetZone}_${properties.targetSpawn}`;
                         this.spawns.set(spawnKey, {
@@ -83,9 +84,6 @@ export class MapManager {
         }
     }
 
-    /**
-     * Parse les propriétés Tiled
-     */
     private parseProperties(properties: TiledProperty[]): { [key: string]: string | number | boolean } {
         const parsed: { [key: string]: string | number | boolean } = {};
         for (const prop of properties) {
@@ -94,9 +92,6 @@ export class MapManager {
         return parsed;
     }
 
-    /**
-     * Construit le réseau de téléportation
-     */
     private buildTeleportNetwork(): void {
         console.log('\n🔗 Réseau de téléportation:');
         for (const [teleportKey, teleport] of this.teleports) {
@@ -111,13 +106,9 @@ export class MapManager {
         }
     }
 
-    /**
-     * Vérifie si un joueur est sur un téléport
-     */
     public checkTeleportCollision(mapName: string, playerX: number, playerY: number): Teleport | null {
         for (const [teleportKey, teleport] of this.teleports) {
             if (teleport.mapName === mapName) {
-                // Vérification de collision rectangle
                 if (playerX >= teleport.x && 
                     playerX < teleport.x + teleport.width &&
                     playerY >= teleport.y && 
@@ -129,9 +120,6 @@ export class MapManager {
         return null;
     }
 
-    /**
-     * Obtient la destination d'un téléport
-     */
     public getTeleportDestination(teleport: Teleport): { mapName: string; x: number; y: number; spawnPoint: string } | null {
         const spawnKey = `${teleport.targetZone}_${teleport.targetSpawn}`;
         const targetSpawn = this.spawns.get(spawnKey);
@@ -149,9 +137,6 @@ export class MapManager {
         };
     }
 
-    /**
-     * Effectue une téléportation
-     */
     public teleportPlayer(playerId: string, fromMap: string, playerX: number, playerY: number): TeleportResult | null {
         const teleport = this.checkTeleportCollision(fromMap, playerX, playerY);
         
@@ -176,20 +161,14 @@ export class MapManager {
         };
     }
 
-    /**
-     * Obtient les données d'une map
-     */
     public getMapData(mapName: string): TiledMap | undefined {
         return this.maps.get(mapName);
     }
 
-// ==========================================
-// Ajout dans MapManager.ts - Méthode getSpawnPoint
-// ==========================================
+    public getAllMapNames(): string[] {
+        return Array.from(this.maps.keys());
+    }
 
-    /**
-     * Obtient un point de spawn spécifique
-     */
     public getSpawnPoint(mapName: string, spawnName?: string): { x: number; y: number } | null {
         if (spawnName) {
             const spawnKey = `${mapName}_${spawnName}`;
@@ -200,4 +179,3 @@ export class MapManager {
         }
         return null;
     }
-}
