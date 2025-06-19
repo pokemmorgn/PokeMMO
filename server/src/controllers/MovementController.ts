@@ -16,7 +16,7 @@ type LastMove = { x: number; y: number; t: number };
 
 export class MovementController {
   private lastMoves: Map<string, LastMove>;
-  private readonly MAX_SPEED: number = 400; // px/sec
+  private readonly MAX_SPEED: number = 190; // px/sec
   private readonly POS_EPSILON: number = 6; // px
 
   constructor() {
