@@ -45,7 +45,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     this.questManager = new QuestManager(`../data/quests/quests.json`);
     this.interactionManager = new InteractionManager(this.npcManager, this.questManager);
     this.movementController = new MovementController();
-    this.transitionController = new TransitionController(this);
+    this.transitionController = new TransitionController(this, `./assets/maps`);
 
     // Sauvegarde automatique toutes les 30 secondes
     this.clock.setInterval(() => {
@@ -140,6 +140,9 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
         if (moveResult.snapped) {
           client.send("snap", { x: moveResult.x, y: moveResult.y });
         }
+
+        // ✅ NOUVEAU : Vérifier les téléports automatiques
+        this.transitionController.checkAutoTeleport(client, player);
 
         // Vérifier la progression des quêtes de type "reach"
         this.handleZoneReachProgress(player.name, player.x, player.y);
@@ -313,17 +316,16 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     const username = options.username || "Anonymous";
     
     // Envoyer les NPCs
-const availableQuests = await this.questManager.getAvailableQuests(username);
-const rawNpcs = this.npcManager.getAllNpcs();
-const npcListWithQuests = rawNpcs.map(npc => {
-  const questsForNpc = availableQuests.filter(q => q.startNpcId === npc.id);
-  return {
-    ...npc,
-    availableQuests: questsForNpc.map(q => q.id),
-  };
-});
-client.send("npcList", npcListWithQuests);
-
+    const availableQuests = await this.questManager.getAvailableQuests(username);
+    const rawNpcs = this.npcManager.getAllNpcs();
+    const npcListWithQuests = rawNpcs.map(npc => {
+      const questsForNpc = availableQuests.filter(q => q.startNpcId === npc.id);
+      return {
+        ...npc,
+        availableQuests: questsForNpc.map(q => q.id),
+      };
+    });
+    client.send("npcList", npcListWithQuests);
 
     // Supprime un joueur en double si existant
     const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
@@ -446,5 +448,22 @@ client.send("npcList", npcListWithQuests);
 
   async onDispose() {
     await this.saveAllPlayers();
+  }
+
+  // ✅ NOUVEAU : Méthode améliorée pour calculateSpawnPosition
+  public calculateSpawnPosition(spawnData: SpawnData): { x: number; y: number } {
+    // Essayer d'obtenir le spawn depuis le système de transition
+    if (spawnData.targetSpawn && spawnData.targetZone) {
+      const spawnPoint = this.transitionController.getSpawnPoint(spawnData.targetZone, spawnData.targetSpawn);
+      if (spawnPoint) {
+        return spawnPoint;
+      }
+    }
+
+    // Fallback vers les coordonnées spécifiques ou par défaut
+    return {
+      x: spawnData.targetX ?? this.defaultX,
+      y: spawnData.targetY ?? this.defaultY
+    };
   }
 }
