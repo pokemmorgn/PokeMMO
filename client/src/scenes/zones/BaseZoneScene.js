@@ -240,7 +240,44 @@ export class BaseZoneScene extends Phaser.Scene {
       }
     });
   }
+setupZoneTransitions() {
+  const worldsLayer = this.map.getObjectLayer('Worlds');
+  if (!worldsLayer) return;
 
+  const player = this.playerManager.getMyPlayer();
+  if (!player || !player.body) {
+    this.time.delayedCall(100, () => this.setupZoneTransitions());
+    return;
+  }
+
+  worldsLayer.objects.forEach(obj => {
+    if (!obj.name) return; // chaque sortie doit avoir un nom dans Tiled !
+
+    const zone = this.add.zone(
+      obj.x + (obj.width ? obj.width / 2 : 0),
+      obj.y + (obj.height ? obj.height / 2 : 0),
+      obj.width || 32,
+      obj.height || 32
+    );
+    this.physics.world.enable(zone);
+    zone.body.setAllowGravity(false);
+    zone.body.setImmovable(true);
+
+    let overlapTriggered = false;
+    this.physics.add.overlap(player, zone, () => {
+      if (overlapTriggered) return;
+      overlapTriggered = true;
+      if (this.networkManager && !this.isTransitioning) {
+        this.isTransitioning = true;
+        this.networkManager.requestZoneTransition({ targetSpawn: obj.name });
+      }
+      this.time.delayedCall(800, () => {
+        overlapTriggered = false;
+        this.isTransitioning = false;
+      });
+    });
+  });
+}
 
 // Méthode à override dans chaque scène
 getTransitionConfig() {
