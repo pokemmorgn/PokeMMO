@@ -17,6 +17,9 @@ import { initPokeChat } from './network/PokeChatSystem.js';
 // === Import du HUD de sélection de starter ===
 import { StarterSelectionHUD } from './components/StarterSelectionHUD.js';
 
+// === Import du système de quêtes ===
+import { QuestSystem } from './game/QuestSystem.js';
+
 // --- Endpoint dynamique ---
 const ENDPOINT =
   (location.protocol === "https:" ? "wss://" : "ws://") +
@@ -63,7 +66,7 @@ const config = {
     default: 'arcade',
     arcade: {
       gravity: { y: 0 },
-      debug: true
+      debug: false // Désactivé pour la production
     }
   },
   plugins: {
@@ -162,7 +165,7 @@ const styleSheet = document.createElement('style');
 styleSheet.textContent = starterHudCSS;
 document.head.appendChild(styleSheet);
 
-// ==== Connexion Colyseus + Chat + Starter HUD ====
+// ==== Connexion Colyseus + Chat + Starter HUD + Quest System ====
 (async () => {
   try {
     // Connexion à la WorldChatRoom
@@ -173,13 +176,11 @@ document.head.appendChild(styleSheet);
     // Initialise le chat stylé via le module séparé
     initPokeChat(worldChat, window.username);
 
-    // === CONNEXION AU JEU ET INITIALISATION DU HUD STARTER ===
+    // === CONNEXION AU JEU ET INITIALISATION DES SYSTÈMES ===
     
-    // Note: Cette partie sera probablement dans vos scènes Phaser
-    // Mais pour l'exemple, on montre comment l'intégrer ici
-    
-    // Variable globale pour stocker le HUD de starter
+    // Variables globales pour stocker les systèmes
     window.starterHUD = null;
+    window.questSystemGlobal = null;
     
     // Fonction globale pour initialiser le HUD de starter (à appeler depuis vos scènes)
     window.initStarterHUD = function(gameRoom) {
@@ -190,12 +191,21 @@ document.head.appendChild(styleSheet);
         // Écouter les événements additionnels si nécessaire
         gameRoom.onMessage("welcomeMessage", (data) => {
           console.log("📨 Message de bienvenue:", data.message);
-          // Vous pouvez afficher le message dans votre UI Phaser si besoin
         });
         
         return window.starterHUD;
       }
       return window.starterHUD;
+    };
+
+    // Fonction globale pour initialiser le système de quêtes
+    window.initQuestSystem = function(scene, gameRoom) {
+      if (!window.questSystemGlobal) {
+        console.log("🎯 Initialisation du système de quêtes global");
+        window.questSystemGlobal = new QuestSystem(scene, gameRoom);
+        return window.questSystemGlobal;
+      }
+      return window.questSystemGlobal;
     };
 
     // Fonction pour déclencher manuellement la sélection de starter (pour les NPCs)
@@ -207,7 +217,37 @@ document.head.appendChild(styleSheet);
       }
     };
 
-    console.log("🎯 Système de starter prêt ! Utilisez window.initStarterHUD(room) dans vos scènes");
+    // === FONCTIONS GLOBALES POUR LES QUÊTES ===
+    
+    window.openQuestJournal = function() {
+      if (window.questSystemGlobal) {
+        window.questSystemGlobal.openQuestJournal();
+      } else {
+        console.warn("⚠️ Système de quêtes non initialisé");
+      }
+    };
+
+    window.triggerQuestCollect = function(itemId, amount = 1) {
+      if (window.questSystemGlobal) {
+        window.questSystemGlobal.triggerCollectEvent(itemId, amount);
+      }
+    };
+
+    window.triggerQuestDefeat = function(pokemonId) {
+      if (window.questSystemGlobal) {
+        window.questSystemGlobal.triggerDefeatEvent(pokemonId);
+      }
+    };
+
+    window.triggerQuestReach = function(zoneId, x, y, map) {
+      if (window.questSystemGlobal) {
+        window.questSystemGlobal.triggerReachEvent(zoneId, x, y, map);
+      }
+    };
+
+    console.log("🎯 Système de starter et quêtes prêt !");
+    console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
+    console.log("🎮 Utilisez window.initStarterHUD(room) et window.initQuestSystem(scene, room) dans vos scènes");
 
   } catch (e) {
     alert("Impossible de rejoindre le serveur : " + e.message);
@@ -221,15 +261,3 @@ export default game;
 
 // Vérifier si le chat a le focus
 window.isChatFocused = function() {
-  return window.pokeChat ? window.pokeChat.hasFocus() : false;
-};
-
-// Vérifier si le HUD de starter est ouvert (utile pour bloquer les contrôles dans Phaser)
-window.isStarterHUDOpen = function() {
-  return window.starterHUD ? window.starterHUD.isVisible : false;
-};
-
-// Fonction utilitaire pour les scènes Phaser
-window.shouldBlockInput = function() {
-  return window.isChatFocused() || window.isStarterHUDOpen();
-};
