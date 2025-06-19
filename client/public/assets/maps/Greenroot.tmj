@@ -168,89 +168,6 @@
         }, 
         {
          "draworder":"topdown",
-         "id":7,
-         "name":"SpawnPoint",
-         "objects":[
-                {
-                 "height":0,
-                 "id":1,
-                 "name":"SpawnPoint_GRbottom",
-                 "point":true,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":428.666666666667,
-                 "y":445.333333333333
-                }, 
-                {
-                 "height":0,
-                 "id":9,
-                 "name":"SpawnPoint_GRtop",
-                 "point":true,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":150,
-                 "y":26
-                }, 
-                {
-                 "height":0,
-                 "id":78,
-                 "name":"SpawnPoint_Labo",
-                 "point":true,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":161.333333333334,
-                 "y":248
-                }, 
-                {
-                 "height":0,
-                 "id":79,
-                 "name":"SpawnPoint_House1",
-                 "point":true,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":47,
-                 "y":108
-                }, 
-                {
-                 "height":0,
-                 "id":81,
-                 "name":"SpawnPoint_Florist",
-                 "point":true,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":244.5,
-                 "y":356.5
-                }, 
-                {
-                 "height":0,
-                 "id":84,
-                 "name":"SpawnPoint_House2",
-                 "point":true,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":366,
-                 "y":124.666666666667
-                }],
-         "opacity":1,
-         "type":"objectgroup",
-         "visible":false,
-         "x":0,
-         "y":0
-        }, 
-        {
-         "draworder":"topdown",
          "id":9,
          "name":"Worlds",
          "objects":[
@@ -279,7 +196,7 @@
                 {
                  "height":0,
                  "id":85,
-                 "name":"GRbeach",
+                 "name":"teleport",
                  "polygon":[
                         {
                          "x":0,
@@ -376,6 +293,29 @@
                  "width":26,
                  "x":231.999816666667,
                  "y":297.249983333333
+                }, 
+                {
+                 "height":0,
+                 "id":91,
+                 "name":"spawn",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"Frombeach"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"village"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":430,
+                 "y":438.666666666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -498,7 +438,7 @@
          "y":0
         }],
  "nextlayerid":15,
- "nextobjectid":91,
+ "nextobjectid":93,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
