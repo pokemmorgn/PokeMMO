@@ -313,7 +313,17 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     const username = options.username || "Anonymous";
     
     // Envoyer les NPCs
-    client.send("npcList", this.npcManager.getAllNpcs());
+const availableQuests = await this.questManager.getAvailableQuests(username);
+const rawNpcs = this.npcManager.getAllNpcs();
+const npcListWithQuests = rawNpcs.map(npc => {
+  const questsForNpc = availableQuests.filter(q => q.startNpcId === npc.id);
+  return {
+    ...npc,
+    availableQuests: questsForNpc.map(q => q.id),
+  };
+});
+client.send("npcList", npcListWithQuests);
+
 
     // Supprime un joueur en double si existant
     const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
