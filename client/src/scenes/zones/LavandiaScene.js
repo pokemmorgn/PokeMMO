@@ -9,7 +9,7 @@ export class LavandiaScene extends BaseZoneScene {
     console.log("[LavandiaScene] Constructor appelé");
   }
 
-   setupZoneTransitions() {
+  setupZoneTransitions() {
     if (!this.playerManager) {
       console.warn("playerManager non encore initialisé, retry dans 100ms");
       this.time.delayedCall(100, () => this.setupZoneTransitions());
@@ -69,7 +69,7 @@ export class LavandiaScene extends BaseZoneScene {
         this.networkManager.requestZoneTransition(targetZone, direction);
       });
     });
-
+  }
 
   createTransitionZone(transitionObj, targetScene, direction) {
     const sceneName = this.scene.key || 'BaseZoneScene';
@@ -124,14 +124,12 @@ export class LavandiaScene extends BaseZoneScene {
   }
 
   positionPlayer(player) {
-    // On récupère la position de SpawnPoint_Lavandiabottom dans la map
     const spawnObj = this.map.getObjectLayer('Worlds')?.objects.find(obj => obj.name === 'SpawnPoint_Lavandiabottom');
     if (spawnObj) {
       player.x = spawnObj.x + (spawnObj.width || 0) / 2;
       player.y = spawnObj.y + (spawnObj.height || 0) / 2;
       console.log(`[LavandiaScene] positionné via SpawnPoint_Lavandiabottom à (${player.x}, ${player.y})`);
     } else {
-      // Fallback : coords par défaut si le spawnpoint n’existe pas
       player.x = 350;
       player.y = 750;
       console.warn("[LavandiaScene] SpawnPoint_Lavandiabottom non trouvé, position par défaut utilisée");
@@ -167,7 +165,6 @@ export class LavandiaScene extends BaseZoneScene {
         const sessionId = this.networkManager.getSessionId();
         const playerState = this.networkManager.getPlayerState(sessionId);
         if (playerState) {
-          // Utilise positionPlayer pour positionner via spawnpoint
           this.playerManager.createPlayer(sessionId, playerState);
           this.positionPlayer(this.playerManager.getMyPlayer());
         } else {
