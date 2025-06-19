@@ -6,58 +6,105 @@ export class VillageScene extends BaseZoneScene {
     this.transitionCooldowns = {};
   }
 
+  create() {
+    console.log("🚨 DEBUT VillageScene.create()");
+    super.create();
+
+    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
+      font: '18px monospace',
+      fill: '#000000',
+      padding: { x: 20, y: 10 },
+      backgroundColor: '#ffffff',
+    }).setScrollFactor(0).setDepth(30);
+
+    this.setupVillageEvents();
+    this.setupNPCs();
+
+    // Setup transitions avec délai pour attendre la création du joueur
+    this.time.delayedCall(100, () => {
+      this.setupZoneTransitions();
+    });
+
+    console.log("🚨 FIN VillageScene.create()");
+  }
+
   setupZoneTransitions() {
     // Gestion du layer Worlds pour transitions classiques
     const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (worldsLayer) {
-      worldsLayer.objects.forEach(obj => {
-        const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
-        const directionProp = obj.properties?.find(p => p.name === 'direction');
-        if (!targetZoneProp) return;
-
-        const targetZone = targetZoneProp.value;
-        const direction = directionProp ? directionProp.value : 'north';
-
-        // Crée la zone physique Phaser pour détecter le joueur
-        const zone = this.add.zone(
-          obj.x + obj.width / 2,
-          obj.y + obj.height / 2,
-          obj.width,
-          obj.height
-        );
-        this.physics.world.enable(zone);
-        zone.body.setAllowGravity(false);
-        zone.body.setImmovable(true);
-
-        // Overlap avec joueur => demande transition au serveur
-        this.physics.add.overlap(this.playerManager.getMyPlayer(), zone, () => {
-          if (!this.networkManager) return;
-          this.networkManager.requestZoneTransition(targetZone, direction);
-        });
-      });
+    if (!worldsLayer) {
+      console.warn("Layer 'Worlds' non trouvé dans la map");
+      return;
     }
+
+    const player = this.playerManager.getMyPlayer();
+    if (!player) {
+      console.warn("Player non encore créé, impossible d'ajouter les overlaps de transition");
+      // Retry avec délai
+      this.time.delayedCall(100, () => this.setupZoneTransitions());
+      return;
+    }
+    if (!player.body) {
+      console.warn("Player.body non créé, impossible d'ajouter les overlaps de transition");
+      // Retry avec délai
+      this.time.delayedCall(100, () => this.setupZoneTransitions());
+      return;
+    }
+
+    worldsLayer.objects.forEach(obj => {
+      const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
+      const directionProp = obj.properties?.find(p => p.name === 'direction');
+      if (!targetZoneProp) {
+        console.warn(`Objet ${obj.name || obj.id} dans 'Worlds' sans propriété targetZone, ignoré`);
+        return;
+      }
+
+      const targetZone = targetZoneProp.value;
+      const direction = directionProp ? directionProp.value : 'north';
+
+      console.log(`Création zone transition vers ${targetZone} à (${obj.x},${obj.y}) taille ${obj.width}x${obj.height}`);
+
+      const zone = this.add.zone(
+        obj.x + obj.width / 2,
+        obj.y + obj.height / 2,
+        obj.width,
+        obj.height
+      );
+      this.physics.world.enable(zone);
+      zone.body.setAllowGravity(false);
+      zone.body.setImmovable(true);
+
+      this.physics.add.overlap(player, zone, () => {
+        if (!this.networkManager) {
+          console.warn("networkManager non défini, transition ignorée");
+          return;
+        }
+        console.log(`Overlap détecté, demande de transition vers ${targetZone} (${direction})`);
+        this.networkManager.requestZoneTransition(targetZone, direction);
+      });
+    });
 
     // Gestion du layer Door pour transitions vers Labo et House1
     const doorLayer = this.map.getObjectLayer('Door');
-    if (doorLayer) {
-      const labDoor = doorLayer.objects.find(obj => obj.name === 'Labo');
-      if (labDoor) {
-        this.createTransitionZone(labDoor, 'VillageLabScene', 'north');
-        console.log(`🧪 Transition vers Laboratoire trouvée !`);
-      } else {
-        console.warn(`⚠️ Objet 'Labo' non trouvé dans le layer Door`);
-        console.log("Objets disponibles dans Door:", doorLayer.objects.map(obj => obj.name));
-      }
-
-      const house1Door = doorLayer.objects.find(obj => obj.name === 'House1');
-      if (house1Door) {
-        this.createTransitionZone(house1Door, 'VillageHouse1Scene', 'inside');
-        console.log(`🏠 Transition vers VillageHouse1 trouvée !`);
-      } else {
-        console.warn(`⚠️ Objet 'House1' non trouvé dans le layer Door`);
-      }
-    } else {
+    if (!doorLayer) {
       console.warn(`⚠️ Layer 'Door' non trouvé`);
+      return;
+    }
+
+    const labDoor = doorLayer.objects.find(obj => obj.name === 'Labo');
+    if (labDoor) {
+      this.createTransitionZone(labDoor, 'VillageLabScene', 'north');
+      console.log(`🧪 Transition vers Laboratoire trouvée !`);
+    } else {
+      console.warn(`⚠️ Objet 'Labo' non trouvé dans le layer Door`);
+      console.log("Objets disponibles dans Door:", doorLayer.objects.map(obj => obj.name));
+    }
+
+    const house1Door = doorLayer.objects.find(obj => obj.name === 'House1');
+    if (house1Door) {
+      this.createTransitionZone(house1Door, 'VillageHouse1Scene', 'inside');
+      console.log(`🏠 Transition vers VillageHouse1 trouvée !`);
+    } else {
+      console.warn(`⚠️ Objet 'House1' non trouvé dans le layer Door`);
     }
   }
 
@@ -114,23 +161,6 @@ export class VillageScene extends BaseZoneScene {
     if (this.networkManager) {
       this.networkManager.sendMove(player.x, player.y);
     }
-  }
-
-  create() {
-    console.log("🚨 DEBUT VillageScene.create()");
-    super.create();
-
-    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
-      font: '18px monospace',
-      fill: '#000000',
-      padding: { x: 20, y: 10 },
-      backgroundColor: '#ffffff',
-    }).setScrollFactor(0).setDepth(30);
-
-    this.setupVillageEvents();
-    this.setupNPCs();
-
-    console.log("🚨 FIN VillageScene.create()");
   }
 
   setupVillageEvents() {
