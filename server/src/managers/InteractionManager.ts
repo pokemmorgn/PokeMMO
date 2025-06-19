@@ -229,3 +229,5 @@ export class InteractionManager {
       return [];
     }
   }
+}
+
