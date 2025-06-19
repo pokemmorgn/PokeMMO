@@ -1,5 +1,5 @@
 // ===============================================
-// BeachScene.js - Beach + Starter HUD + Intro + Dialogue
+// BeachScene.js - Beach + Intro automatique (sans starter automatique)
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 
@@ -64,7 +64,7 @@ export class BeachScene extends BaseZoneScene {
     this.transitionCooldowns = {};
     this.pokemonSpriteManager = null;
     this._introBlocked = false;
-    this._starterHudInitialized = false;
+    this._introTriggered = false; // Pour éviter les intros multiples
   }
 
   async create() {
@@ -72,94 +72,9 @@ export class BeachScene extends BaseZoneScene {
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.setupBeachEvents();
 
-    // === Starter HUD & Events branchés sur la connexion NetworkManager ===
-    this.setupStarterHudAndEvents();
-
     // Appel setupZoneTransitions _après_ un délai pour s'assurer que le joueur est créé
     this.time.delayedCall(100, () => {
       this.setupZoneTransitions();
-    });
-  }
-
-  setupStarterHudAndEvents() {
-    // 🔥 Utilise toujours le NetworkManager du parent (1 seule room Colyseus !)
-    // Si HUD pas déjà branché, on l’instancie
-    if (!this._starterHudInitialized && this.networkManager && this.networkManager.room) {
-      window.initStarterHUD(this.networkManager.room);
-      this._starterHudInitialized = true;
-      this.setupStarterEventListeners(this.networkManager.room);
-    }
-  }
-
-  setupStarterEventListeners(room) {
-    // Par sécurité, on “unbind” les anciens listeners si nécessaire
-    if (!room) return;
-
-    // Quand le starter est sélectionné avec succès
-    room.onMessage("starterSelectionResult", (data) => {
-      if (data.success) {
-        console.log("🎉 Starter sélectionné avec succès!");
-        this.showPokemonReceived(data.pokemon);
-        this.time.delayedCall(1000, () => {
-          const player = this.playerManager.getMyPlayer();
-          if (player && !this._introBlocked) {
-            this.startIntroSequence(player);
-          }
-        });
-      }
-    });
-
-    // Message de bienvenue
-    room.onMessage("welcomeMessage", (data) => {
-      console.log("📨 Message de bienvenue:", data.message);
-      // Si le joueur a déjà des Pokémon, démarrer l'intro directement
-      if (!data.isNewPlayer && data.teamCount > 0) {
-        this.time.delayedCall(500, () => {
-          const player = this.playerManager.getMyPlayer();
-          if (player && !this._introBlocked) {
-            this.startIntroSequence(player);
-          }
-        });
-      }
-    });
-  }
-
-  // === Afficher le Pokémon reçu ===
-  showPokemonReceived(pokemonData) {
-    console.log("🎁 Pokémon reçu:", pokemonData);
-    if (!pokemonData || !pokemonData.pokemonId) return;
-
-    const congratsText = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY - 50,
-      `🎉 Vous avez reçu ${pokemonData.name}! 🎉`,
-      {
-        fontSize: "20px",
-        color: "#ffd700",
-        stroke: "#000",
-        strokeThickness: 2,
-        fontWeight: "bold"
-      }
-    ).setOrigin(0.5).setDepth(1000);
-
-    congratsText.setAlpha(0);
-    this.tweens.add({
-      targets: congratsText,
-      alpha: 1,
-      scale: { from: 0.5, to: 1.2 },
-      duration: 800,
-      ease: 'Back.easeOut',
-      yoyo: true,
-      onComplete: () => {
-        this.time.delayedCall(2000, () => {
-          this.tweens.add({
-            targets: congratsText,
-            alpha: 0,
-            duration: 500,
-            onComplete: () => congratsText.destroy()
-          });
-        });
-      }
     });
   }
 
@@ -231,15 +146,18 @@ export class BeachScene extends BaseZoneScene {
       player.indicator.y = player.y - 32;
     }
     if (this.networkManager) this.networkManager.sendMove(player.x, player.y);
-    // L’intro se déclenche via le HUD/event
+    
+    // 🎬 Déclencher l'intro automatiquement (seulement si pas déjà fait)
+    if (!this._introTriggered && !initData?.fromZone) {
+      this._introTriggered = true;
+      this.time.delayedCall(1500, () => {
+        this.startIntroSequence(player);
+      });
+    }
   }
 
   // ==================== INTRO ANIMÉE ======================
   startIntroSequence(player) {
-    if (window.starterHUD && window.starterHUD.isVisible) {
-      console.log("🚫 HUD de starter ouvert, intro reportée");
-      return;
-    }
     console.log("🎬 Démarrage de l'intro animée");
     this.input.keyboard.enabled = false;
     if (player.body) player.body.enable = false;
@@ -339,6 +257,7 @@ export class BeachScene extends BaseZoneScene {
     });
   }
 
+  // 🎮 Méthode pour déclencher manuellement le starter (via NPC, bouton, etc.)
   triggerStarterSelection() {
     if (window.starterHUD) {
       window.starterHUD.show();
@@ -349,7 +268,7 @@ export class BeachScene extends BaseZoneScene {
 
   cleanup() {
     this.transitionCooldowns = {};
-    this._starterHudInitialized = false;
+    this._introTriggered = false;
     super.cleanup();
   }
 }
