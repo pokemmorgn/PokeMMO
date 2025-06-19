@@ -720,7 +720,7 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
     }
   }
 
-    transitionToZone(targetScene, fromDirection = null) {
+     transitionToZone(targetScene, fromDirection = null) {
     if (this.isTransitioning) {
       console.log(`[${this.scene.key}] Transition déjà en cours, ignorée`);
       return;
@@ -738,7 +738,7 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
       });
     });
   }
-  
+
   cleanup() {
     console.log(`[${this.scene.key}] Nettoyage en cours...`);
 
@@ -752,7 +752,7 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
     }
 
     if (this.npcManager) {
-    this.npcManager.clearAllNpcs();
+      this.npcManager.clearAllNpcs();
     }
 
     if (this.animatedObjects) {
@@ -769,7 +769,6 @@ this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirec
 
     this.cameraFollowing = false;
     this.isTransitioning = false;
-      this.hasPlayerAppeared = false;
-
+    this.hasPlayerAppeared = false;   // <- ICI, à la racine de cleanup
   }
 }
