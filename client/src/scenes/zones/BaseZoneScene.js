@@ -36,6 +36,9 @@ export class BaseZoneScene extends Phaser.Scene {
 
 this.createPlayerAnimations();
 this.setupManagers();     // <-- d’abord les managers
+if (this.mySessionId) {
+  this.playerManager.setMySessionId(this.mySessionId);
+}
 this.loadMap();           // <-- puis charger la map et setupZoneTransitions()
 this.setupInputs();
 this.createUI();
