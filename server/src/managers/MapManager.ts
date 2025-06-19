@@ -128,19 +128,19 @@ private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
         }
     }
 
-    public checkTeleportCollision(mapName: string, playerX: number, playerY: number): Teleport | null {
-        for (const [teleportKey, teleport] of this.teleports) {
-            if (teleport.mapName === mapName) {
-                if (playerX >= teleport.x && 
-                    playerX < teleport.x + teleport.width &&
-                    playerY >= teleport.y && 
-                    playerY < teleport.y + teleport.height) {
-                    return teleport;
-                }
-            }
+ public checkTeleportCollision(mapName: string, playerX: number, playerY: number): Teleport | null {
+    for (const [teleportKey, teleport] of this.teleports) {
+        if (teleport.mapName === mapName) {
+            const xOk = playerX >= teleport.x && playerX < teleport.x + teleport.width;
+            const yOk = playerY >= teleport.y && playerY < teleport.y + teleport.height;
+            const inZone = xOk && yOk;
+            console.log(`[DEBUG TELEPORT] Teleport ${teleportKey} (${teleport.x},${teleport.y},${teleport.width},${teleport.height}) vs joueur (${playerX},${playerY}) => xOk:${xOk} yOk:${yOk} => inZone:${inZone}`);
+            if (inZone) return teleport;
         }
-        return null;
     }
+    return null;
+}
+
 
     public getTeleportDestination(teleport: Teleport): { mapName: string; x: number; y: number; spawnPoint: string } | null {
         const spawnKey = `${teleport.targetZone}_${teleport.targetSpawn}`;
