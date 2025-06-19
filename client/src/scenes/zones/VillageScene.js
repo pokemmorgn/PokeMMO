@@ -130,6 +130,7 @@ export class VillageScene extends BaseZoneScene {
       console.log(`Position du joueur fixée depuis données serveur à (${player.x}, ${player.y})`);
     } else {
       console.log("⚠️ Pas de coordonnées spawn reçues, position du joueur non modifiée");
+      // Plus aucun fallback ici, la position ne change pas si pas reçue
     }
 
     if (player.indicator) {
