@@ -1,5 +1,5 @@
 // ===============================================
-// BeachScene.js - Intro Bulbizarre animé + dialogue + transition + blocage joueur
+// BeachScene.js - Intro Bulbizarre animé + dialogue + transition + blocage joueur + Starter HUD
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 
@@ -64,17 +64,148 @@ export class BeachScene extends BaseZoneScene {
     this.transitionCooldowns = {};
     this.pokemonSpriteManager = null;
     this._introBlocked = false;
+    this._starterHudInitialized = false;
   }
 
-  create() {
+  async create() {
     super.create();
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.setupBeachEvents();
+
+    // === CONNEXION À LA ROOM DE JEU ET INITIALISATION DU STARTER HUD ===
+    await this.initializeGameConnection();
 
     // Appel setupZoneTransitions _après_ un délai pour s'assurer que le joueur est créé
     this.time.delayedCall(100, () => {
       this.setupZoneTransitions();
     });
+  }
+
+  // === NOUVELLE MÉTHODE: Connexion au jeu et init du HUD ===
+  async initializeGameConnection() {
+    try {
+      // Connexion à la BeachRoom (remplacez par le nom de votre room)
+      this.gameRoom = await window.colyseus.joinOrCreate("BeachRoom", { 
+        username: window.username 
+      });
+
+      console.log("✅ Connecté à BeachRoom");
+
+      // Initialiser le HUD de sélection de starter
+      if (!this._starterHudInitialized) {
+        window.initStarterHUD(this.gameRoom);
+        this._starterHudInitialized = true;
+        
+        // Écouter les événements du starter
+        this.setupStarterEventListeners();
+      }
+
+      // Stocker la room pour les autres méthodes
+      window.currentGameRoom = this.gameRoom;
+
+    } catch (error) {
+      console.error("❌ Erreur de connexion à BeachRoom:", error);
+    }
+  }
+
+  // === ÉCOUTE DES ÉVÉNEMENTS DU STARTER ===
+  setupStarterEventListeners() {
+    if (!this.gameRoom) return;
+
+    // Quand le starter est sélectionné avec succès
+    this.gameRoom.onMessage("starterSelectionResult", (data) => {
+      if (data.success) {
+        console.log("🎉 Starter sélectionné avec succès!");
+        
+        // Afficher le Pokémon reçu dans le jeu
+        this.showPokemonReceived(data.pokemon);
+        
+        // Démarrer l'intro animée après la sélection du starter
+        this.time.delayedCall(1000, () => {
+          const player = this.playerManager.getMyPlayer();
+          if (player && !this._introBlocked) {
+            this.startIntroSequence(player);
+          }
+        });
+      }
+    });
+
+    // Message de bienvenue
+    this.gameRoom.onMessage("welcomeMessage", (data) => {
+      console.log("📨 Message de bienvenue:", data.message);
+      
+      // Si le joueur a déjà des Pokémon, démarrer l'intro directement
+      if (!data.isNewPlayer && data.teamCount > 0) {
+        this.time.delayedCall(500, () => {
+          const player = this.playerManager.getMyPlayer();
+          if (player && !this._introBlocked) {
+            this.startIntroSequence(player);
+          }
+        });
+      }
+    });
+  }
+
+  // === NOUVELLE MÉTHODE: Afficher le Pokémon reçu ===
+  showPokemonReceived(pokemonData) {
+    console.log("🎁 Pokémon reçu:", pokemonData);
+    
+    if (!pokemonData || !pokemonData.pokemonId) return;
+
+    // Afficher un message temporaire
+    const congratsText = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY - 50,
+      `🎉 Vous avez reçu ${pokemonData.name}! 🎉`,
+      {
+        fontSize: "20px",
+        color: "#ffd700",
+        stroke: "#000",
+        strokeThickness: 2,
+        fontWeight: "bold"
+      }
+    ).setOrigin(0.5).setDepth(1000);
+
+    // Animation d'apparition
+    congratsText.setAlpha(0);
+    this.tweens.add({
+      targets: congratsText,
+      alpha: 1,
+      scale: { from: 0.5, to: 1.2 },
+      duration: 800,
+      ease: 'Back.easeOut',
+      yoyo: true,
+      onComplete: () => {
+        // Faire disparaître après 3 secondes
+        this.time.delayedCall(2000, () => {
+          this.tweens.add({
+            targets: congratsText,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => congratsText.destroy()
+          });
+        });
+      }
+    });
+  }
+
+  // === MÉTHODE MISE À JOUR: Update avec blocage pour le HUD ===
+  update() {
+    // Vérifier si les contrôles doivent être bloqués (chat, starter HUD, ou intro)
+    if (this.shouldBlockInput()) {
+      return;
+    }
+
+    // Votre logique d'update existante
+    super.update();
+  }
+
+  // === NOUVELLE MÉTHODE: Vérifier si les inputs doivent être bloqués ===
+  shouldBlockInput() {
+    return (
+      window.shouldBlockInput() || // Chat ou HUD starter ouvert
+      this._introBlocked           // Intro animée en cours
+    );
   }
 
   // --- Gère la transition vers VillageScene ---
@@ -123,6 +254,11 @@ export class BeachScene extends BaseZoneScene {
       zone.body.setImmovable(true);
 
       this.physics.add.overlap(player, zone, () => {
+        // Bloquer les transitions si le HUD est ouvert
+        if (this.shouldBlockInput()) {
+          return;
+        }
+
         if (!this.networkManager) {
           console.warn("networkManager non défini, transition ignorée");
           return;
@@ -147,18 +283,26 @@ export class BeachScene extends BaseZoneScene {
     }
     if (this.networkManager) this.networkManager.sendMove(player.x, player.y);
 
-    // Intro : seulement si spawn direct depuis menu (pas une transition)
-    if (!initData?.fromZone) this.startIntroSequence(player);
+    // === MODIFICATION: L'intro se déclenchera après la sélection du starter ===
+    // Plus besoin de démarrer l'intro ici, elle sera déclenchée par les événements du starter
   }
 
   // ==================== INTRO ANIMÉE ======================
   startIntroSequence(player) {
+    // Vérifier que le joueur a bien un starter avant de démarrer l'intro
+    if (window.starterHUD && window.starterHUD.isVisible) {
+      console.log("🚫 HUD de starter ouvert, intro reportée");
+      return;
+    }
+
+    console.log("🎬 Démarrage de l'intro animée");
+
     // 1. Bloque les entrées joueur (clavier + collisions)
     this.input.keyboard.enabled = false;
     if (player.body) player.body.enable = false;
     this._introBlocked = true;
 
-    // 2. Tourne le joueur vers la droite (ex : anim ou frame statique)
+    // 2. Tourne le joueur vers la droite (ex : anim ou frame statique)
     if (player.anims && player.anims.currentAnim?.key !== 'walk_right') {
       if (this.anims.exists('walk_right')) player.play('walk_right');
     }
@@ -186,7 +330,7 @@ export class BeachScene extends BaseZoneScene {
           duration: 2200,
           ease: 'Sine.easeInOut',
           onUpdate: () => {
-            // Forcer l’anim du joueur vers la droite
+            // Forcer l'anim du joueur vers la droite
             if (player.anims && player.anims.currentAnim?.key !== 'walk_right') {
               if (this.anims.exists('walk_right')) player.play('walk_right');
             }
@@ -205,39 +349,63 @@ export class BeachScene extends BaseZoneScene {
   }
 
   showIntroDialogue(starter, player) {
-    // Dialogue
-    const textBox = this.add.text(
-      starter.x, starter.y - 32,
-      "Salut ! Tu viens d’arriver ? Je t’emmène au village !",
-      {
-        fontSize: "13px",
-        color: "#fff",
-        backgroundColor: "#114",
-        padding: { x: 6, y: 4 }
+    // Dialogue adapté selon si le joueur vient de choisir son starter
+    const messages = [
+      "Salut ! Tu viens d'arriver ?",
+      "Parfait ! Je vais t'emmener au village !",
+      "Suis-moi !"
+    ];
+
+    let messageIndex = 0;
+    const showNextMessage = () => {
+      if (messageIndex >= messages.length) {
+        // Fin des dialogues, Bulbizarre part
+        this.finishIntroSequence(starter, player);
+        return;
       }
-    ).setDepth(1000).setOrigin(0.5);
 
-    // 2s pause devant le joueur, puis Bulbizarre part vers le nord
-    this.time.delayedCall(2000, () => {
-      textBox.destroy();
-
-      this.tweens.add({
-        targets: starter,
-        y: starter.y - 90,
-        duration: 1600,
-        ease: 'Sine.easeInOut',
-        onStart: () => {
-          starter.play(`${starter.texture.key}_up`, true);
-        },
-        onComplete: () => {
-          starter.destroy();
-          // Débloque le joueur !
-          this.input.keyboard.enabled = true;
-          if (player.body) player.body.enable = true;
-          this._introBlocked = false;
-          if (player.anims && this.anims.exists('idle_down')) player.play('idle_down');
+      const textBox = this.add.text(
+        starter.x, starter.y - 32,
+        messages[messageIndex],
+        {
+          fontSize: "13px",
+          color: "#fff",
+          backgroundColor: "#114",
+          padding: { x: 6, y: 4 }
         }
+      ).setDepth(1000).setOrigin(0.5);
+
+      messageIndex++;
+
+      // Afficher chaque message pendant 2 secondes
+      this.time.delayedCall(2000, () => {
+        textBox.destroy();
+        showNextMessage();
       });
+    };
+
+    showNextMessage();
+  }
+
+  finishIntroSequence(starter, player) {
+    // Bulbizarre part vers le nord
+    this.tweens.add({
+      targets: starter,
+      y: starter.y - 90,
+      duration: 1600,
+      ease: 'Sine.easeInOut',
+      onStart: () => {
+        starter.play(`${starter.texture.key}_up`, true);
+      },
+      onComplete: () => {
+        starter.destroy();
+        // Débloque le joueur !
+        this.input.keyboard.enabled = true;
+        if (player.body) player.body.enable = true;
+        this._introBlocked = false;
+        if (player.anims && this.anims.exists('idle_down')) player.play('idle_down');
+        console.log("✅ Intro terminée, joueur débloqué");
+      }
     });
   }
 
@@ -247,8 +415,18 @@ export class BeachScene extends BaseZoneScene {
     });
   }
 
+  // === MÉTHODE POUR DÉCLENCHER MANUELLEMENT LE HUD (pour NPC plus tard) ===
+  triggerStarterSelection() {
+    if (window.starterHUD) {
+      window.starterHUD.show();
+    } else {
+      console.warn("⚠️ HUD de starter non initialisé");
+    }
+  }
+
   cleanup() {
     this.transitionCooldowns = {};
+    this._starterHudInitialized = false;
     super.cleanup();
   }
 }
