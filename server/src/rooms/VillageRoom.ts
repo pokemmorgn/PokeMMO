@@ -5,7 +5,7 @@ import { PokeWorldState } from "../schema/PokeWorldState";
 import type { SpawnData } from "./BaseRoom";
 
 export class VillageRoom extends BaseRoom {
-  public mapName = "VillageRoom";
+  public mapName = "village";
   protected defaultX = 428;
   protected defaultY = 445;
 
