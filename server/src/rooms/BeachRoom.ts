@@ -3,7 +3,7 @@ import { BaseRoom } from "./BaseRoom";
 import type { SpawnData } from "./BaseRoom";
 
 export class BeachRoom extends BaseRoom {
-  public mapName = "beach";
+  public mapName = "BeachRoom";
   protected defaultX = 52;
   protected defaultY = 48;
 
