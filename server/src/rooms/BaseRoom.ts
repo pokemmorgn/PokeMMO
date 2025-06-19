@@ -6,6 +6,10 @@ import { MovementController } from "../controllers/MovementController";
 import { TransitionController } from "../controllers/TransitionController";
 import { InteractionManager } from "../managers/InteractionManager";
 
+import { OwnedPokemon } from "../models/OwnedPokemon";
+import { convertOwnedPokemonToTeam } from "../utils/convertOwnedPokemonToTeam";
+import { ArraySchema } from "@colyseus/schema";
+
 export type SpawnData = {
   targetZone: string;
   targetSpawn?: string;
@@ -86,46 +90,56 @@ public abstract mapName: string;
   }
 
   async onJoin(client: Client, options: any) {
-    const username = options.username || "Anonymous";
-    client.send("npcList", this.npcManager.getAllNpcs());
+  const username = options.username || "Anonymous";
+  client.send("npcList", this.npcManager.getAllNpcs());
 
-    // Supprime un joueur en double si existant
-    const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
-    if (existingPlayer) {
-      const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
-      if (oldSessionId) {
-        this.state.players.delete(oldSessionId);
-        this.movementController?.resetPlayer?.(oldSessionId);
-      }
+  // Supprime un joueur en double si existant
+  const existingPlayer = Array.from(this.state.players.values()).find(p => p.name === username);
+  if (existingPlayer) {
+    const oldSessionId = Array.from(this.state.players.entries()).find(([_, p]) => p.name === username)?.[0];
+    if (oldSessionId) {
+      this.state.players.delete(oldSessionId);
+      this.movementController?.resetPlayer?.(oldSessionId);
     }
-
-    let playerData = await PlayerData.findOne({ username });
-    if (!playerData) {
-      const mapName = this.mapName.replace('Room', '');
-      playerData = await PlayerData.create({
-        username,
-        lastX: this.defaultX,
-        lastY: this.defaultY,
-        lastMap: mapName
-      });
-    }
-
-    const player = new Player();
-    player.name = username;
-    (player as any).justSpawned = true;
-    (player as any).isTransitioning = false;
-
-    if (options.spawnX !== undefined && options.spawnY !== undefined) {
-      player.x = options.spawnX;
-      player.y = options.spawnY;
-    } else {
-      player.x = playerData.lastX;
-      player.y = playerData.lastY;
-    }
-    player.map = this.mapName.replace('Room', '');
-    this.state.players.set(client.sessionId, player);
   }
 
+  let playerData = await PlayerData.findOne({ username });
+  if (!playerData) {
+    const mapName = this.mapName.replace('Room', '');
+    playerData = await PlayerData.create({
+      username,
+      lastX: this.defaultX,
+      lastY: this.defaultY,
+      lastMap: mapName
+    });
+  }
+
+  // === Récupération des Pokémon de la team depuis la BDD ===
+  let teamPokemons = [];
+  if (playerData.team && playerData.team.length > 0) {
+    teamPokemons = await OwnedPokemon.find({ _id: { $in: playerData.team } });
+  }
+
+  const player = new Player();
+  player.name = username;
+  (player as any).justSpawned = true;
+  (player as any).isTransitioning = false;
+
+  if (options.spawnX !== undefined && options.spawnY !== undefined) {
+    player.x = options.spawnX;
+    player.y = options.spawnY;
+  } else {
+    player.x = playerData.lastX;
+    player.y = playerData.lastY;
+  }
+  player.map = this.mapName.replace('Room', '');
+
+  // === Injection de la team synchronisée ===
+  player.team = new ArraySchema(...teamPokemons.map(convertOwnedPokemonToTeam));
+
+  this.state.players.set(client.sessionId, player);
+}
+  
   async onLeave(client: Client) {
     const player = this.state.players.get(client.sessionId);
     if (player) {
