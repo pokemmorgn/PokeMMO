@@ -64,6 +64,55 @@ export class NetworkManager {
     }
   }
 
+  // ✅ NOUVEAU : Handler pour les téléportations automatiques du serveur
+  handleAutoTeleport(data) {
+    if (this.isTransitioning) {
+      console.log(`[NetworkManager] Transition automatique ignorée (déjà en cours)`);
+      return;
+    }
+
+    this.isTransitioning = true;
+    console.log(`🌀 [NetworkManager] Téléportation automatique reçue:`, data);
+
+    // Mapping map → scène
+    const targetMapKey = (data.targetMap || "").toLowerCase();
+    const sceneKey = ZONE_TO_SCENE[targetMapKey] || "BeachScene";
+
+    try {
+      // Accès à l'instance Phaser pour changer de scène
+      if (window.Phaser && window.Phaser.GAMES && window.Phaser.GAMES.length) {
+        const game = window.Phaser.GAMES[0];
+        if (game && game.scene) {
+          // Trouver la scène active
+          const activeScene = game.scene.getScenes().find(scene => scene.scene.isActive());
+          if (activeScene && activeScene.scene.key !== sceneKey) {
+            console.log(`🌀 [NetworkManager] Changement automatique vers ${sceneKey}`);
+            
+            // Nettoyer la scène actuelle si elle a une méthode cleanup
+            if (activeScene.cleanup) {
+              activeScene.cleanup();
+            }
+            
+            // Démarrer la nouvelle scène
+            activeScene.scene.start(sceneKey, {
+              fromZone: activeScene.scene.key,
+              spawnX: data.targetX,
+              spawnY: data.targetY,
+              spawnPoint: data.spawnPoint
+            });
+          }
+        }
+      }
+
+      this.isTransitioning = false;
+      console.log(`✅ [NetworkManager] Téléportation automatique terminée`);
+
+    } catch (error) {
+      console.error(`❌ [NetworkManager] Erreur téléportation automatique:`, error);
+      this.isTransitioning = false;
+    }
+  }
+
   async handleZoneTransition(data) {
     if (this.isTransitioning) {
       console.log(`[NetworkManager] Transition déjà en cours, ignorée`);
@@ -172,8 +221,21 @@ export class NetworkManager {
       if (this.callbacks.onPlayerData) this.callbacks.onPlayerData(data);
     });
 
+    // ✅ NOUVEAU : Écouter les téléportations automatiques
+    this.room.onMessage("teleport_success", (data) => {
+      console.log(`🌀 [NetworkManager] teleport_success reçu:`, data);
+      this.handleAutoTeleport(data);
+    });
+
+    // ✅ NOUVEAU : Écouter les échecs de téléportation
+    this.room.onMessage("teleport_failed", (data) => {
+      console.warn(`❌ [NetworkManager] teleport_failed:`, data.reason);
+      // Optionnel : afficher un message à l'utilisateur
+    });
+
+    // ✅ GARDER : L'ancien système pour compatibilité
     this.room.onMessage("zoneChanged", (data) => {
-      console.log(`[NetworkManager] Réception zoneChanged:`, data);
+      console.log(`[NetworkManager] Réception zoneChanged (ancien système):`, data);
       this.handleZoneTransition(data);
     });
 
