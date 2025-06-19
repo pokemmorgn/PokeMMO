@@ -1,9 +1,10 @@
 // ==========================================
-// TransitionController.ts - Contrôleur de transition pour BaseRoom
+// controllers/TransitionController.ts - Import des types
 // ==========================================
 
 import { Room, Client } from "@colyseus/core";
 import { MapManager } from '../managers/MapManager';
+import { TeleportResult, TiledMap } from '../types/MapTypes';
 
 export class TransitionController {
     private mapManager: MapManager;
@@ -14,9 +15,6 @@ export class TransitionController {
         this.mapManager = new MapManager(mapsDirectory);
     }
 
-    /**
-     * Vérifie et exécute une téléportation automatique lors du mouvement
-     */
     public checkAutoTeleport(client: Client, player: any): boolean {
         const teleportResult = this.mapManager.teleportPlayer(
             client.sessionId,
@@ -33,9 +31,6 @@ export class TransitionController {
         return false;
     }
 
-    /**
-     * Gère les transitions manuelles (message "changeZone")
-     */
     public handleTransition(client: Client, data: any): void {
         const player = this.room.state.players.get(client.sessionId);
         if (!player) return;
@@ -56,21 +51,15 @@ export class TransitionController {
         }
     }
 
-    /**
-     * Exécute la téléportation
-     */
-    private executeTeleport(client: Client, player: any, teleportResult: any): void {
-        // Mettre à jour la position du joueur
+    private executeTeleport(client: Client, player: any, teleportResult: TeleportResult): void {
         player.x = teleportResult.targetX;
         player.y = teleportResult.targetY;
         player.map = teleportResult.targetMap;
         player.isMoving = false;
-        (player as any).justSpawned = true; // Pour éviter l'anticheat au spawn
+        (player as any).justSpawned = true;
 
-        // Envoyer les données de la nouvelle map
         const newMapData = this.mapManager.getMapData(teleportResult.targetMap);
         
-        // Envoyer la confirmation au client
         client.send("teleport_success", {
             targetMap: teleportResult.targetMap,
             targetX: teleportResult.targetX,
@@ -82,17 +71,11 @@ export class TransitionController {
         console.log(`✅ ${player.name} téléporté vers ${teleportResult.targetMap}`);
     }
 
-    /**
-     * Obtient un point de spawn spécifique
-     */
     public getSpawnPoint(mapName: string, spawnName?: string): { x: number; y: number } | null {
         return this.mapManager.getSpawnPoint(mapName, spawnName);
     }
 
-    /**
-     * Obtient les données d'une map
-     */
-    public getMapData(mapName: string): any {
+    public getMapData(mapName: string): TiledMap | undefined {
         return this.mapManager.getMapData(mapName);
     }
 }
