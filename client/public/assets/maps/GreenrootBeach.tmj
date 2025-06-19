@@ -219,7 +219,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Frombeach"
+                         "value":"frombeach"
                         }, 
                         {
                          "name":"targetZone",
@@ -242,7 +242,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromvillage"
+                         "value":"fromvillage"
                         }, 
                         {
                          "name":"targetZone",

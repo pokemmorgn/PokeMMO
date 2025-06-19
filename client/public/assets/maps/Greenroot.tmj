@@ -179,7 +179,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromvillage"
+                         "value":"fromvillage"
                         }, 
                         {
                          "name":"targetZone",
@@ -214,7 +214,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromvillage"
+                         "value":"fromvillage"
                         }, 
                         {
                          "name":"targetZone",
@@ -236,7 +236,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromvillage"
+                         "value":"fromvillage"
                         }, 
                         {
                          "name":"targetZone",
@@ -258,7 +258,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromvillage"
+                         "value":"fromvillage"
                         }, 
                         {
                          "name":"targetZone",
@@ -280,7 +280,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromvillage"
+                         "value":"fromvillage"
                         }, 
                         {
                          "name":"targetZone",
@@ -302,7 +302,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromvillage"
+                         "value":"fromvillage"
                         }, 
                         {
                          "name":"targetZone",
@@ -325,7 +325,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Frombeach"
+                         "value":"frombeach"
                         }, 
                         {
                          "name":"targetZone",
@@ -348,7 +348,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromvillageflorist"
+                         "value":"fromvillageflorist"
                         }, 
                         {
                          "name":"targetZone",
@@ -371,7 +371,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromvillagelab"
+                         "value":"fromvillagelab"
                         }, 
                         {
                          "name":"targetZone",
@@ -394,7 +394,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromvillagehouse1"
+                         "value":"fromvillagehouse1"
                         }, 
                         {
                          "name":"targetZone",
@@ -417,7 +417,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromvillagehouse2"
+                         "value":"fromvillagehouse2"
                         }, 
                         {
                          "name":"targetZone",
@@ -440,7 +440,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromroad1"
+                         "value":"fromroad1"
                         }, 
                         {
                          "name":"targetZone",
