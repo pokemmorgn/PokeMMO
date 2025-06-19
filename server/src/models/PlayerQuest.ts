@@ -11,7 +11,7 @@ const QuestObjectiveProgressSchema = new mongoose.Schema({
 const PlayerQuestProgressSchema = new mongoose.Schema({
   questId: { type: String, required: true },
   currentStepIndex: { type: Number, default: 0 },
-  objectives: [QuestObjectiveProgressSchema],
+  objectives: { type: Map, of: mongoose.Schema.Types.Mixed, default: new Map() },
   status: { 
     type: String, 
     enum: ['active', 'completed', 'failed'], 
