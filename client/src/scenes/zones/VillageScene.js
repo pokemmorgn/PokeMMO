@@ -9,28 +9,30 @@ export class VillageScene extends BaseZoneScene {
   }
 
   create() {
-    console.log("🚨 DEBUT VillageScene.create()");
-    super.create();
-  if (!this.playerManager) {
-    this.playerManager = new PlayerManager(this);
-  }
-    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
-      font: '18px monospace',
-      fill: '#000000',
-      padding: { x: 20, y: 10 },
-      backgroundColor: '#ffffff',
-    }).setScrollFactor(0).setDepth(30);
+  console.log("🚨 DEBUT VillageScene.create()");
+  super.create();
 
-    this.setupVillageEvents();
-    this.setupNPCs();
+  // Création systématique au début
+  this.playerManager = new PlayerManager(this);
 
-    // Setup transitions avec délai pour attendre la création du joueur
-    this.time.delayedCall(100, () => {
-      this.setupZoneTransitions();
-    });
+  this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
+    font: '18px monospace',
+    fill: '#000000',
+    padding: { x: 20, y: 10 },
+    backgroundColor: '#ffffff',
+  }).setScrollFactor(0).setDepth(30);
 
-    console.log("🚨 FIN VillageScene.create()");
-  }
+  this.setupVillageEvents();
+  this.setupNPCs();
+
+  // Setup transitions avec délai pour attendre la création du joueur
+  this.time.delayedCall(100, () => {
+    this.setupZoneTransitions();
+  });
+
+  console.log("🚨 FIN VillageScene.create()");
+}
+
 
   setupZoneTransitions() {
     // Gestion du layer Worlds pour transitions classiques
