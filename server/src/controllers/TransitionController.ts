@@ -6,19 +6,19 @@ import fs from "fs";
 import path from "path";
 
 // Cache pour ne pas relire à chaque fois
-const mapCache = {};
+const mapCache: { [key: string]: any } = {};
 
 /**
  * Normalise un nom de map ("BeachRoom", "BeachScene", "beach") => "beach"
  */
-function normalizeMapName(name) {
+function normalizeMapName(name: string): string {
   return name.toLowerCase().replace(/room|scene/gi, '');
 }
 
 /**
  * Charge une map TMJ depuis le dossier maps (cache si déjà lue)
  */
-function loadMap(mapName) {
+function loadMap(mapName: string): any {
   const cleanName = normalizeMapName(mapName);
   if (!mapCache[cleanName]) {
     // Attention, adapte le chemin si besoin !
@@ -34,22 +34,22 @@ function loadMap(mapName) {
 /**
  * Récupère un objet dans le layer Worlds selon son nom (ou propriété custom)
  */
-function findWorldObject(mapName, objectName) {
+function findWorldObject(mapName: string, objectName: string): any | null {
   const mapData = loadMap(mapName);
   const worldsLayer = mapData.layers.find(
-    l => l.name === "Worlds" && l.type === "objectgroup"
+    (l: any) => l.name === "Worlds" && l.type === "objectgroup"
   );
   if (!worldsLayer) return null;
   // Peut adapter ici si tu veux chercher par propriété au lieu de name
-  return worldsLayer.objects.find(obj => obj.name === objectName);
+  return worldsLayer.objects.find((obj: any) => obj.name === objectName);
 }
 
 /**
  * Cherche une propriété personnalisée d'un objet Tiled (array → value)
  */
-function getProperty(obj, key) {
+function getProperty(obj: any, key: string): any {
   if (!obj.properties) return undefined;
-  const prop = obj.properties.find(p => p.name === key);
+  const prop = obj.properties.find((p: any) => p.name === key);
   return prop?.value;
 }
 
@@ -77,7 +77,7 @@ export class TransitionController {
     // On récupère l'objet de sortie dans la map actuelle, layer Worlds
     const currentMapName = normalizeMapName(this.room.mapName);
     const exitName = data.targetSpawn;
-    const exitObj = findWorldObject(currentMapName, exitName);
+    const exitObj = findWorldObject(currentMapName, exitName as string);
 
     if (!exitObj) {
       console.warn(`[TransitionController] DENIED: sortie '${exitName}' absente de la map '${currentMapName}'`);
