@@ -60,7 +60,7 @@ addMessage(author, message, timestamp = null, type = 'normal') {
   msgDiv.className = `chat-message new${type !== 'normal' ? ' ' + type : ''}`;
 
   let dateObj = timestamp ? new Date(timestamp) : new Date();
-  const time = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const time = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
 
   // Construction du nom d'utilisateur + badge de niveau
   let userClass = "chat-username";
