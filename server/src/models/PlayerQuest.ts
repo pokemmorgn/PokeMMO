@@ -1,50 +1,9 @@
-// server/src/types/QuestTypes.ts
+// server/src/models/PlayerQuest.ts
 
-export interface QuestObjective {
-  id: string;
-  type: 'collect' | 'defeat' | 'talk' | 'reach' | 'deliver';
-  description: string;
-  target?: string; // ID de l'objet, Pokémon, NPC, ou zone
-  targetName?: string; // Nom affiché à l'utilisateur
-  itemId?: string; // Pour les quêtes de type "deliver"
-  currentAmount: number;
-  requiredAmount: number;
-  completed: boolean;
-}
+import mongoose, { Document } from "mongoose";
 
-export interface QuestReward {
-  type: 'gold' | 'item' | 'pokemon' | 'experience';
-  itemId?: string;
-  amount?: number;
-  pokemonId?: number;
-}
-
-export interface QuestStep {
-  id: string;
-  name: string;
-  description: string;
-  objectives: QuestObjective[];
-  rewards?: QuestReward[];
-  completed: boolean;
-}
-
-export interface Quest {
-  id: string;
-  name: string;
-  description: string;
-  category: 'main' | 'side' | 'daily' | 'repeatable';
-  prerequisites?: string[]; // IDs des quêtes requises
-  steps: QuestStep[];
-  currentStepIndex: number;
-  status: 'available' | 'active' | 'completed' | 'failed';
-  startNpcId?: number;
-  endNpcId?: number;
-  isRepeatable: boolean;
-  cooldownHours?: number; // Pour les quêtes répétables
-  lastCompletedAt?: Date;
-}
-
-export interface PlayerQuestProgress {
+// Interfaces TypeScript d'abord
+export interface IPlayerQuestProgress {
   questId: string;
   currentStepIndex: number;
   objectives: Map<string, {
@@ -56,40 +15,57 @@ export interface PlayerQuestProgress {
   completedAt?: Date;
 }
 
-// Types pour les événements de progression
-export interface QuestProgressEvent {
-  type: 'collect' | 'defeat' | 'talk' | 'reach' | 'deliver';
-  targetId?: string;
-  amount?: number;
-  location?: { x: number; y: number; map: string };
-  pokemonId?: number;
-  npcId?: number;
-}
-
-// Interface pour les définitions de quêtes (JSON)
-export interface QuestDefinition {
-  id: string;
-  name: string;
-  description: string;
-  category: 'main' | 'side' | 'daily' | 'repeatable';
-  prerequisites?: string[];
-  startNpcId?: number;
-  endNpcId?: number;
-  isRepeatable: boolean;
-  cooldownHours?: number;
-  steps: {
-    id: string;
-    name: string;
-    description: string;
-    objectives: {
-      id: string;
-      type: 'collect' | 'defeat' | 'talk' | 'reach' | 'deliver';
-      description: string;
-      target?: string;
-      targetName?: string;
-      itemId?: string;
-      requiredAmount: number;
-    }[];
-    rewards?: QuestReward[];
+export interface IPlayerQuest extends Document {
+  username: string;
+  activeQuests: IPlayerQuestProgress[];
+  completedQuests: {
+    questId: string;
+    completedAt: Date;
+    stepCount: number;
+  }[];
+  lastQuestCompletions: {
+    questId: string;
+    lastCompletedAt: Date;
   }[];
 }
+
+// Schémas MongoDB
+const QuestObjectiveProgressSchema = new mongoose.Schema({
+  objectiveId: { type: String, required: true },
+  currentAmount: { type: Number, default: 0 },
+  completed: { type: Boolean, default: false }
+});
+
+const PlayerQuestProgressSchema = new mongoose.Schema({
+  questId: { type: String, required: true },
+  currentStepIndex: { type: Number, default: 0 },
+  objectives: { type: Map, of: mongoose.Schema.Types.Mixed, default: new Map() },
+  status: { 
+    type: String, 
+    enum: ['active', 'completed', 'failed'], 
+    default: 'active' 
+  },
+  startedAt: { type: Date, default: Date.now },
+  completedAt: { type: Date }
+});
+
+const PlayerQuestSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  activeQuests: [PlayerQuestProgressSchema],
+  completedQuests: [{ 
+    questId: String, 
+    completedAt: Date,
+    stepCount: Number 
+  }],
+  lastQuestCompletions: [{ // Pour les quêtes répétables
+    questId: String,
+    lastCompletedAt: Date
+  }]
+});
+
+// Index pour les requêtes fréquentes
+PlayerQuestSchema.index({ username: 1 });
+PlayerQuestSchema.index({ "activeQuests.questId": 1 });
+
+// Export du modèle
+export const PlayerQuest = mongoose.model<IPlayerQuest>("PlayerQuest", PlayerQuestSchema);
