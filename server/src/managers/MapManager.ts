@@ -1,5 +1,5 @@
 // ==========================================
-// MapManager.ts - Gestionnaire des maps et transitions
+// MapManager.ts - Gestionnaire des transitions
 // ==========================================
 
 import * as fs from 'fs';
@@ -48,37 +48,34 @@ export class MapManager {
      * Extrait les téléports et spawns d'une map Tiled
      */
     private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
-        // Parcourir tous les layers de la map
         for (const layer of mapData.layers) {
             if (layer.type === 'objectgroup' && layer.objects) {
                 for (const obj of layer.objects) {
-                    // Vérifier les propriétés personnalisées
                     const properties = this.parseProperties(obj.properties || []);
                     
-                    // Gérer les téléports
-                    if (properties.type === 'teleport' && properties.targetzone && properties.fromzone) {
-                        const teleportKey = `${mapName}_${properties.fromzone}`;
+                    // Gérer les téléports (nom = "teleport")
+                    if (obj.name === 'teleport' && properties.targetSpawn && properties.targetZone) {
+                        const teleportKey = `${mapName}_teleport_${obj.id}`;
                         this.teleports.set(teleportKey, {
                             mapName,
                             x: obj.x,
                             y: obj.y,
                             width: obj.width || 32,
                             height: obj.height || 32,
-                            fromzone: properties.fromzone as string,
-                            targetzone: properties.targetzone as string,
-                            targetspawn: (properties.targetspawn as string) || (properties.fromzone as string)
+                            targetSpawn: properties.targetSpawn as string,
+                            targetZone: properties.targetZone as string
                         });
                     }
                     
-                    // Gérer les spawns
-                    if (properties.type === 'spawn' && properties.targetspawn && properties.targetzone) {
-                        const spawnKey = `${properties.targetzone}_${properties.targetspawn}`;
+                    // Gérer les spawns (nom = "spawn")
+                    if (obj.name === 'spawn' && properties.targetSpawn && properties.targetZone) {
+                        const spawnKey = `${properties.targetZone}_${properties.targetSpawn}`;
                         this.spawns.set(spawnKey, {
-                            mapName: properties.targetzone as string,
+                            mapName: properties.targetZone as string,
                             x: obj.x,
                             y: obj.y,
-                            targetspawn: properties.targetspawn as string,
-                            targetzone: properties.targetzone as string
+                            targetSpawn: properties.targetSpawn as string,
+                            targetZone: properties.targetZone as string
                         });
                     }
                 }
@@ -87,10 +84,10 @@ export class MapManager {
     }
 
     /**
-     * Parse les propriétés Tiled en objet JavaScript
+     * Parse les propriétés Tiled
      */
-    private parseProperties(properties: TiledProperty[]): ParsedProperties {
-        const parsed: ParsedProperties = {};
+    private parseProperties(properties: TiledProperty[]): { [key: string]: string | number | boolean } {
+        const parsed: { [key: string]: string | number | boolean } = {};
         for (const prop of properties) {
             parsed[prop.name] = prop.value;
         }
@@ -103,11 +100,11 @@ export class MapManager {
     private buildTeleportNetwork(): void {
         console.log('\n🔗 Réseau de téléportation:');
         for (const [teleportKey, teleport] of this.teleports) {
-            const spawnKey = `${teleport.targetzone}_${teleport.targetspawn}`;
+            const spawnKey = `${teleport.targetZone}_${teleport.targetSpawn}`;
             const targetSpawn = this.spawns.get(spawnKey);
             
             if (targetSpawn) {
-                console.log(`  ${teleport.mapName}(${teleport.fromzone}) → ${targetSpawn.mapName}(${targetSpawn.targetspawn})`);
+                console.log(`  ${teleport.mapName} → ${targetSpawn.mapName}(${targetSpawn.targetSpawn})`);
             } else {
                 console.warn(`  ⚠️  Spawn manquant pour: ${spawnKey}`);
             }
@@ -120,7 +117,7 @@ export class MapManager {
     public checkTeleportCollision(mapName: string, playerX: number, playerY: number): Teleport | null {
         for (const [teleportKey, teleport] of this.teleports) {
             if (teleport.mapName === mapName) {
-                // Vérification de collision simple (rectangle)
+                // Vérification de collision rectangle
                 if (playerX >= teleport.x && 
                     playerX < teleport.x + teleport.width &&
                     playerY >= teleport.y && 
@@ -136,7 +133,7 @@ export class MapManager {
      * Obtient la destination d'un téléport
      */
     public getTeleportDestination(teleport: Teleport): { mapName: string; x: number; y: number; spawnPoint: string } | null {
-        const spawnKey = `${teleport.targetzone}_${teleport.targetspawn}`;
+        const spawnKey = `${teleport.targetZone}_${teleport.targetSpawn}`;
         const targetSpawn = this.spawns.get(spawnKey);
         
         if (!targetSpawn) {
@@ -148,27 +145,27 @@ export class MapManager {
             mapName: targetSpawn.mapName,
             x: targetSpawn.x,
             y: targetSpawn.y,
-            spawnPoint: targetSpawn.targetspawn
+            spawnPoint: targetSpawn.targetSpawn
         };
     }
 
     /**
      * Effectue une téléportation
      */
-    public teleportPlayer(player: { id: string; name?: string }, fromMap: string, playerX: number, playerY: number): TeleportResult | null {
+    public teleportPlayer(playerId: string, fromMap: string, playerX: number, playerY: number): TeleportResult | null {
         const teleport = this.checkTeleportCollision(fromMap, playerX, playerY);
         
         if (!teleport) {
-            return null; // Pas de téléport à cette position
+            return null;
         }
 
         const destination = this.getTeleportDestination(teleport);
         
         if (!destination) {
-            return null; // Destination invalide
+            return null;
         }
 
-        console.log(`🌀 Téléportation: ${player.id} de ${fromMap} vers ${destination.mapName}`);
+        console.log(`🌀 Téléportation: ${playerId} de ${fromMap} vers ${destination.mapName}`);
         
         return {
             success: true,
@@ -191,16 +188,5 @@ export class MapManager {
      */
     public getAllMapNames(): string[] {
         return Array.from(this.maps.keys());
-    }
-
-    /**
-     * Recharge toutes les maps (utile pour le dev)
-     */
-    public reloadMaps(): void {
-        this.maps.clear();
-        this.teleports.clear();
-        this.spawns.clear();
-        this.loadAllMaps();
-        this.buildTeleportNetwork();
     }
 }
