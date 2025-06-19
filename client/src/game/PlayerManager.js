@@ -7,6 +7,8 @@ export class PlayerManager {
     this.mySessionId = null;
     this.isDestroyed = false;
     this.animsCreated = false;
+    this._myPlayerIsReady = false;             // <--- Flag ajouté
+    this._myPlayerReadyCallback = null;        // <--- Pour le hook
     console.log("PlayerManager initialisé pour", scene.scene.key);
 
     // Ajoute la gestion du snap serveur
@@ -256,6 +258,18 @@ export class PlayerManager {
         player.indicator.setVisible(true);
       }
     });
+
+    // --- NOTIFIE si le joueur local vient juste d'être créé ---
+    if (
+      this.mySessionId &&
+      this.players.has(this.mySessionId) &&
+      !this._myPlayerIsReady
+    ) {
+      this._myPlayerIsReady = true;
+      if (this._myPlayerReadyCallback) {
+        this._myPlayerReadyCallback(this.players.get(this.mySessionId));
+      }
+    }
   }
 
   // ⭐️ Nouvelle méthode update pour le lerp continu et snap smooth
@@ -324,6 +338,7 @@ export class PlayerManager {
     
     // ✅ CORRECTION: Restaurer mySessionId au lieu de le mettre à null
     this.mySessionId = savedSessionId;
+    this._myPlayerIsReady = false; // Reset flag hook à chaque cleanup
     console.log(`[PlayerManager] Joueurs nettoyés, sessionId conservé: ${this.mySessionId}`);
   }
 
@@ -383,6 +398,20 @@ export class PlayerManager {
     }
     
     return true;
+  }
+
+  // --- HOOK de notification quand le joueur local apparaît ---
+  onMyPlayerReady(callback) {
+    this._myPlayerReadyCallback = callback;
+    // Au cas où on l'ajoute après que le joueur soit déjà là
+    if (
+      this.mySessionId &&
+      this.players.has(this.mySessionId) &&
+      !this._myPlayerIsReady
+    ) {
+      this._myPlayerIsReady = true;
+      callback(this.players.get(this.mySessionId));
+    }
   }
 
   destroy() {
