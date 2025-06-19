@@ -195,21 +195,23 @@ export class QuestSystem {
     }
   }
 
-  showQuestGiverDialog(data) {
-    console.log("💬 Affichage dialogue quête:", data);
-    
-    if (!data.availableQuests || data.availableQuests.length === 0) {
-      console.log("⚠️ Aucune quête disponible");
-      return;
-    }
+showQuestGiverDialog(data) {
+  console.log("💬 Affichage dialogue quête:", data);
 
-    // Créer une interface pour choisir parmi les quêtes disponibles
-    const questDialog = this.createQuestDialog('Quêtes disponibles', data.availableQuests, (questId) => {
-      this.startQuest(questId);
-    });
+  // Pour tester, commente temporairement la condition
+  // if (!data.availableQuests || data.availableQuests.length === 0) {
+  //   console.log("⚠️ Aucune quête disponible");
+  //   return;
+  // }
 
-    document.body.appendChild(questDialog);
-  }
+  // Créer une interface pour choisir parmi les quêtes disponibles
+  const questDialog = this.createQuestDialog('Quêtes disponibles', data.availableQuests, (questId) => {
+    this.startQuest(questId);
+  });
+
+  document.body.appendChild(questDialog);
+}
+
 
   showQuestCompleteDialog(data) {
     const message = data.message || "Félicitations ! Vous avez terminé une quête !";
