@@ -59,14 +59,28 @@ const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
         this.buildTeleportNetwork();
     }
 
-    private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
-        for (const layer of mapData.layers) {
-            if (layer.type === 'objectgroup' && layer.objects) {
-                for (const obj of layer.objects) {
-                    const properties = this.parseProperties(obj.properties || []);
-                    
-                    // Gérer les téléports (nom = "teleport")
-                    if (obj.name === 'teleport' && properties.targetSpawn && properties.targetZone) {
+private extractTeleportsAndSpawns(mapName: string, mapData: TiledMap): void {
+    for (const layer of mapData.layers) {
+        if (layer.type === 'objectgroup' && layer.objects) {
+            for (const obj of layer.objects) {
+                console.log(`[MapManager] OBJ: name=${obj.name}, type=${obj.type}, props=`, obj.properties);
+                const properties = this.parseProperties(obj.properties || []);
+
+                // Essayons de détecter automatiquement
+                if (properties.targetZone && properties.targetSpawn) {
+                    if (obj.name?.toLowerCase().includes('spawn')) {
+                        // Spawn
+                        const spawnKey = `${properties.targetZone}_${properties.targetSpawn}`;
+                        this.spawns.set(spawnKey, {
+                            mapName: properties.targetZone as string,
+                            x: obj.x,
+                            y: obj.y,
+                            targetSpawn: properties.targetSpawn as string,
+                            targetZone: properties.targetZone as string
+                        });
+                        console.log(`[MapManager] Spawn ajouté: ${spawnKey}`);
+                    } else {
+                        // Teleport (fallback si pas explicitement marqué spawn)
                         const teleportKey = `${mapName}_teleport_${obj.id}`;
                         this.teleports.set(teleportKey, {
                             mapName,
@@ -77,23 +91,14 @@ const mapData: TiledMap = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
                             targetSpawn: properties.targetSpawn as string,
                             targetZone: properties.targetZone as string
                         });
-                    }
-                    
-                    // Gérer les spawns (nom = "spawn")
-                    if (obj.name === 'spawn' && properties.targetSpawn && properties.targetZone) {
-                        const spawnKey = `${properties.targetZone}_${properties.targetSpawn}`;
-                        this.spawns.set(spawnKey, {
-                            mapName: properties.targetZone as string,
-                            x: obj.x,
-                            y: obj.y,
-                            targetSpawn: properties.targetSpawn as string,
-                            targetZone: properties.targetZone as string
-                        });
+                        console.log(`[MapManager] Teleport ajouté: ${teleportKey}`);
                     }
                 }
             }
         }
     }
+}
+
 
     private parseProperties(properties: TiledProperty[]): { [key: string]: string | number | boolean } {
         const parsed: { [key: string]: string | number | boolean } = {};
