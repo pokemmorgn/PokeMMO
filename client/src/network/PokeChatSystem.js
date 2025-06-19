@@ -64,10 +64,14 @@ class PokeChatSystem {
       hour12: true
     });
 
-    // Badges de niveau (juste exemple, tu peux custom)
-    let levelBadge = '';
-    if (isMe) levelBadge = ' level" data-level="You';
-    else levelBadge = '"';
+    // Construction du nom d'utilisateur + badge de niveau
+    let userClass = "chat-username";
+    let extraAttrs = "";
+    if (isMe) {
+      userClass += " level";
+      extraAttrs = ' data-level="You"';
+    }
+    // Ajoute ici la gestion du niveau pour les autres joueurs si tu veux (cf. commentaire plus bas)
 
     if (type === 'system') {
       msgDiv.innerHTML = `
@@ -76,11 +80,12 @@ class PokeChatSystem {
       `;
     } else {
       msgDiv.innerHTML = `
-        <span class="chat-username${levelBadge}>${isMe ? "You" : author}</span>
+        <span class="${userClass}"${extraAttrs}>${isMe ? "You" : author}</span>
         <span class="chat-text">${message}</span>
         <span class="chat-timestamp">${time}</span>
       `;
     }
+
     this.chatMessages.appendChild(msgDiv);
     this.scrollToBottom();
     setTimeout(() => msgDiv.classList.remove('new'), 400);
