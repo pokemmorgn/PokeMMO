@@ -90,8 +90,12 @@ export class TransitionController {
 
     // On récupère l'objet de sortie dans la map actuelle, layer Worlds
     const currentMapName = normalizeMapName(this.room.mapName);
-    const exitName = data.targetSpawn;
-    const exitObj = findWorldObject(currentMapName, exitName as string);
+const exitName = typeof data.targetSpawn === "string"
+  ? data.targetSpawn
+  : (data.targetSpawn && typeof data.targetSpawn.name === "string"
+      ? data.targetSpawn.name
+      : "");
+const exitObj = findWorldObject(currentMapName, exitName);
 
     if (!exitObj) {
       console.warn(`[TransitionController] DENIED: sortie '${exitName}' absente de la map '${currentMapName}'`);
