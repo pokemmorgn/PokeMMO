@@ -698,6 +698,17 @@
                  "height":19,
                  "id":1,
                  "name":"Road1",
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"FromLavandiaScene"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"Road1Scene"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,

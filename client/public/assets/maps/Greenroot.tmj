@@ -175,6 +175,17 @@
                  "height":38.6666666666663,
                  "id":72,
                  "name":"Labo",
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"FromVillageScene"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"VillageLabScene"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
@@ -186,12 +197,23 @@
                  "height":32,
                  "id":76,
                  "name":"House1",
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"FromVillageScene"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"VillageHouse1Scene"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
                  "width":20,
-                 "x":36.3333333333333,
-                 "y":53.8333333333333
+                 "x":35.6666666666666,
+                 "y":49.1666666666666
                 }, 
                 {
                  "height":25.3333333333333,

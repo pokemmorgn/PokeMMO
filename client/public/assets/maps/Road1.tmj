@@ -272,6 +272,17 @@
                  "height":8.66666666666667,
                  "id":5,
                  "name":"Lavandia",
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"FromRoad1Scene"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"LavandiaScene"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
