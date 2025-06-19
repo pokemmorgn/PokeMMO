@@ -332,28 +332,6 @@
          "name":"Worlds",
          "objects":[
                 {
-                 "height":5.5,
-                 "id":5,
-                 "name":"GRbeach",
-                 "properties":[
-                        {
-                         "name":"targetSpawn",
-                         "type":"string",
-                         "value":"FromVillageScene"
-                        }, 
-                        {
-                         "name":"targetZone",
-                         "type":"string",
-                         "value":"BeachScene"
-                        }],
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":86.6666666666667,
-                 "x":393.333333333333,
-                 "y":474.5
-                }, 
-                {
                  "height":9.33333333333333,
                  "id":8,
                  "name":"Road_1",
@@ -376,15 +354,39 @@
                  "y":0
                 }, 
                 {
-                 "height":67.4999999999999,
-                 "id":17,
+                 "height":0,
+                 "id":85,
                  "name":"GRbeach",
+                 "polygon":[
+                        {
+                         "x":0,
+                         "y":0
+                        }, 
+                        {
+                         "x":52.6666666666667,
+                         "y":-56.6666666666667
+                        }, 
+                        {
+                         "x":52.6666666666667,
+                         "y":-1.33333333333337
+                        }],
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"FromVillageScene"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"BeachScene"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":6.00003333333332,
-                 "x":473.999983333333,
-                 "y":405.25
+                 "width":0,
+                 "x":427.333333333333,
+                 "y":480
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -507,7 +509,7 @@
          "y":0
         }],
  "nextlayerid":15,
- "nextobjectid":85,
+ "nextobjectid":86,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
