@@ -21,13 +21,16 @@ export class TransitionController {
     /**
      * Charge la map de la room actuelle
      */
-    private loadCurrentMap(): void {
-        const roomName = (this.room as any).mapName || 'unknown';
-        const mapName = roomName.replace('Room', '').toLowerCase();
-        const mapPath = `../assets/maps/${mapName}.tmj`;
-        
-        this.mapManager.loadMap(mapName, mapPath);
-    }
+private loadCurrentMap(): void {
+    const roomName = (this.room as any).mapName || 'unknown';
+    const mapName = roomName.replace('Room', '').toLowerCase();
+    const mapPath = `../assets/maps/${mapName}.tmj`;
+
+    console.log(`[loadCurrentMap] roomName: ${roomName}, mapName: ${mapName}, mapPath: ${mapPath}`);
+
+    this.mapManager.loadMap(mapName, mapPath);
+}
+
 
     /**
      * Charge une map supplémentaire (pour les destinations)
