@@ -9,6 +9,7 @@ class PokeChatSystem {
     this.chatWindow = document.getElementById('chat-window');
     this.minimizeBtn = document.getElementById('minimize-btn');
     this.hideBtn = document.getElementById('hide-btn');
+    this.chatToggle = document.getElementById('chat-toggle');
     this.onlineCount = document.getElementById('online-count');
 
     this.maxMessages = 50;
@@ -44,58 +45,65 @@ class PokeChatSystem {
       if (remaining < 20) this.charCounter.classList.add('danger');
     });
 
-    // Minimize/Hide (à garder, si tu as les boutons dans ton HTML)
+    // Minimize/Hide
     if (this.minimizeBtn) {
       this.minimizeBtn.addEventListener('click', () => this.toggleMinimize());
     }
     if (this.hideBtn) {
       this.hideBtn.addEventListener('click', () => this.toggleHide());
     }
+    if (this.chatToggle) {
+      this.chatToggle.addEventListener('click', () => this.toggleHide());
+    }
   }
 
   // Ajoute un message stylé dans le chat
-addMessage(author, message, timestamp = null, type = 'normal') {
-  const isMe = (author === this.username || author === "You");
-  const msgDiv = document.createElement('div');
-  msgDiv.className = `chat-message new${type !== 'normal' ? ' ' + type : ''}`;
+  addMessage(author, message, timestamp = null, type = 'normal') {
+    const isMe = (author === this.username || author === "You");
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chat-message new${type !== 'normal' ? ' ' + type : ''}`;
 
-  let dateObj = timestamp ? new Date(timestamp) : new Date();
-  const time = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
+    let dateObj = timestamp ? new Date(timestamp) : new Date();
+    // Format: 07:14 au lieu de 7:14
+    const time = dateObj.toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false // For 24h format with leading zeros
+    });
 
-  // Construction du nom d'utilisateur + badge de niveau
-  let userClass = "chat-username";
-  let extraAttrs = "";
-  if (isMe) {
-    userClass += " level";
-    extraAttrs = ' data-level="You"';
+    // Construction du nom d'utilisateur + badge de niveau
+    let userClass = "chat-username";
+    let extraAttrs = "";
+    if (isMe) {
+      userClass += " level";
+      extraAttrs = ' data-level="You"';
+    }
+
+    if (type === 'system') {
+      msgDiv.innerHTML = `
+        <span class="chat-text">${message}</span>
+        <span class="chat-timestamp">${time}</span>
+      `;
+    } else {
+      msgDiv.innerHTML = `
+        <span class="${userClass}"${extraAttrs}>${isMe ? "You" : author}</span>
+        <span class="chat-text">${message}</span>
+        <span class="chat-timestamp">${time}</span>
+      `;
+    }
+
+    this.chatMessages.appendChild(msgDiv);
+    this.scrollToBottom();
+    setTimeout(() => msgDiv.classList.remove('new'), 400);
+
+    // Gère la limite de messages
+    this.messageHistory.push(msgDiv);
+    if (this.messageHistory.length > this.maxMessages) {
+      const oldMsg = this.messageHistory.shift();
+      oldMsg.classList.add('leaving');
+      setTimeout(() => oldMsg.remove(), 300);
+    }
   }
-
-  if (type === 'system') {
-    msgDiv.innerHTML = `
-      <span class="chat-text">${message}</span>
-      <span class="chat-timestamp">${time}</span>
-    `;
-  } else {
-    msgDiv.innerHTML = `
-      <span class="${userClass}"${extraAttrs}>${isMe ? "You" : author}</span>
-      <span class="chat-text">${message}</span>
-      <span class="chat-timestamp">${time}</span>
-    `;
-  }
-
-  this.chatMessages.appendChild(msgDiv);
-  this.scrollToBottom();
-  setTimeout(() => msgDiv.classList.remove('new'), 400);
-
-  // Gère la limite de messages
-  this.messageHistory.push(msgDiv);
-  if (this.messageHistory.length > this.maxMessages) {
-    const oldMsg = this.messageHistory.shift();
-    oldMsg.classList.add('leaving');
-    setTimeout(() => oldMsg.remove(), 300);
-  }
-}
-
 
   scrollToBottom() {
     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
@@ -113,8 +121,26 @@ addMessage(author, message, timestamp = null, type = 'normal') {
   toggleHide() {
     this.isHidden = !this.isHidden;
     this.chatWindow.classList.toggle('hidden', this.isHidden);
+
+    // Affiche/masque la bulle "chat-toggle"
+    if (this.chatToggle) {
+      if (this.isHidden) {
+        this.chatToggle.classList.add('show');
+      } else {
+        this.chatToggle.classList.remove('show');
+      }
+    }
+
     // focus quand visible
     if (!this.isHidden) setTimeout(() => this.chatInput.focus(), 500);
+
+    // Quand on montre le chat, on enlève le "minimized"
+    if (!this.isHidden && this.isMinimized) {
+      this.isMinimized = false;
+      this.chatWindow.classList.remove('minimized');
+      if (this.minimizeBtn)
+        this.minimizeBtn.textContent = '−';
+    }
   }
 }
 
