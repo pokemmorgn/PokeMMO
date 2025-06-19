@@ -60,9 +60,13 @@ export class QuestSystem {
   }
 
   handleNpcInteraction(data) {
+    console.log("🎯 Interaction NPC reçue:", data);
+    
     switch (data.type) {
       case 'questGiver':
-        this.showQuestGiverDialog(data);
+        // FIX: Parser les données de quêtes disponibles
+        const parsedData = this.parseNpcQuestData(data);
+        this.showQuestGiverDialog(parsedData);
         break;
         
       case 'questComplete':
@@ -80,8 +84,123 @@ export class QuestSystem {
     }
   }
 
+  // NOUVELLE MÉTHODE: Parse les données de quêtes NPC
+  parseNpcQuestData(data) {
+    console.log("🔍 Parsing NPC quest data:", data);
+    
+    try {
+      let availableQuests = data.availableQuests || [];
+      
+      // Si availableQuests est une string JSON, la parser
+      if (typeof availableQuests === 'string') {
+        console.log("📝 Parsing string JSON:", availableQuests);
+        availableQuests = JSON.parse(availableQuests);
+      }
+      
+      // Si ce n'est toujours pas un array, essayer de l'extraire
+      if (!Array.isArray(availableQuests)) {
+        console.warn("⚠️ availableQuests n'est pas un array:", typeof availableQuests);
+        
+        // Peut-être que c'est un objet avec une propriété quests
+        if (availableQuests.quests && Array.isArray(availableQuests.quests)) {
+          availableQuests = availableQuests.quests;
+        } else {
+          availableQuests = [];
+        }
+      }
+
+      // Normaliser chaque quête
+      const normalizedQuests = availableQuests.map(quest => this.normalizeQuestData(quest));
+      
+      console.log("✅ Quêtes NPC parsées:", normalizedQuests);
+      
+      return {
+        ...data,
+        availableQuests: normalizedQuests
+      };
+      
+    } catch (error) {
+      console.error("❌ Erreur lors du parsing des quêtes NPC:", error);
+      return {
+        ...data,
+        availableQuests: []
+      };
+    }
+  }
+
+  // NOUVELLE MÉTHODE: Normalise une quête individuelle
+  normalizeQuestData(quest) {
+    try {
+      // Si la quête est une string JSON, la parser
+      if (typeof quest === 'string') {
+        quest = JSON.parse(quest);
+      }
+
+      // Structure normalisée
+      const normalized = {
+        id: quest.id || `quest_${Date.now()}`,
+        name: quest.name || 'Quête sans nom',
+        description: quest.description || 'Pas de description disponible',
+        category: quest.category || 'side',
+        steps: []
+      };
+
+      // Normaliser les étapes si elles existent
+      if (quest.steps && Array.isArray(quest.steps)) {
+        normalized.steps = quest.steps.map((step, index) => {
+          try {
+            if (typeof step === 'string') {
+              step = JSON.parse(step);
+            }
+            
+            return {
+              id: step.id || `step_${index}`,
+              name: step.name || `Étape ${index + 1}`,
+              description: step.description || 'Pas de description',
+              rewards: step.rewards || []
+            };
+          } catch (err) {
+            console.warn("⚠️ Erreur step:", err);
+            return {
+              id: `step_${index}`,
+              name: `Étape ${index + 1}`,
+              description: 'Description non disponible',
+              rewards: []
+            };
+          }
+        });
+      } else if (quest.steps) {
+        // Si steps n'est pas un array mais existe
+        console.warn("⚠️ Steps n'est pas un array:", quest.steps);
+        normalized.steps = [{
+          id: 'step_0',
+          name: 'Première étape',
+          description: quest.steps.description || 'Description non disponible',
+          rewards: quest.steps.rewards || []
+        }];
+      }
+
+      return normalized;
+
+    } catch (error) {
+      console.error("❌ Erreur normalizeQuestData:", error, quest);
+      return {
+        id: 'error_quest',
+        name: 'Quête (Erreur)',
+        description: 'Cette quête n\'a pas pu être chargée correctement.',
+        category: 'error',
+        steps: []
+      };
+    }
+  }
+
   showQuestGiverDialog(data) {
-    if (!data.availableQuests || data.availableQuests.length === 0) return;
+    console.log("💬 Affichage dialogue quête:", data);
+    
+    if (!data.availableQuests || data.availableQuests.length === 0) {
+      console.log("⚠️ Aucune quête disponible");
+      return;
+    }
 
     // Créer une interface pour choisir parmi les quêtes disponibles
     const questDialog = this.createQuestDialog('Quêtes disponibles', data.availableQuests, (questId) => {
@@ -100,8 +219,46 @@ export class QuestSystem {
   }
 
   createQuestDialog(title, quests, onSelectQuest) {
+    console.log("🎨 Création dialogue avec quêtes:", quests);
+    
     const dialog = document.createElement('div');
     dialog.className = 'quest-dialog-overlay';
+    
+    const questsHTML = quests.map(quest => {
+      // S'assurer que nous avons des données valides
+      const questName = quest.name || 'Quête sans nom';
+      const questDesc = quest.description || 'Pas de description';
+      const questCategory = quest.category || 'side';
+      const firstStep = quest.steps && quest.steps[0] ? quest.steps[0] : null;
+      
+      console.log("🎯 Génération HTML pour quête:", questName);
+      
+      return `
+        <div class="quest-option" data-quest-id="${quest.id}">
+          <div class="quest-option-header">
+            <strong>${questName}</strong>
+            <span class="quest-category ${questCategory}">${questCategory.toUpperCase()}</span>
+          </div>
+          <p class="quest-option-description">${questDesc}</p>
+          ${firstStep ? `
+            <div class="quest-option-steps">
+              <strong>Première étape :</strong> ${firstStep.description || 'Non spécifiée'}
+            </div>
+            ${firstStep.rewards && firstStep.rewards.length > 0 ? `
+              <div class="quest-option-rewards">
+                <strong>Récompenses :</strong> 
+                ${firstStep.rewards.map(r => this.formatReward(r)).join(', ')}
+              </div>
+            ` : ''}
+          ` : `
+            <div class="quest-option-steps">
+              <strong>Première étape :</strong> Information non disponible
+            </div>
+          `}
+        </div>
+      `;
+    }).join('');
+
     dialog.innerHTML = `
       <div class="quest-dialog">
         <div class="quest-dialog-header">
@@ -109,24 +266,7 @@ export class QuestSystem {
           <button class="quest-dialog-close">✕</button>
         </div>
         <div class="quest-dialog-content">
-          ${quests.map(quest => `
-            <div class="quest-option" data-quest-id="${quest.id}">
-              <div class="quest-option-header">
-                <strong>${quest.name}</strong>
-                <span class="quest-category ${quest.category}">${quest.category?.toUpperCase()}</span>
-              </div>
-              <p class="quest-option-description">${quest.description}</p>
-              <div class="quest-option-steps">
-                <strong>Première étape :</strong> ${quest.steps[0]?.description || 'Non spécifiée'}
-              </div>
-              ${quest.steps[0]?.rewards ? `
-                <div class="quest-option-rewards">
-                  <strong>Récompenses :</strong> 
-                  ${quest.steps[0].rewards.map(r => this.formatReward(r)).join(', ')}
-                </div>
-              ` : ''}
-            </div>
-          `).join('')}
+          ${questsHTML}
         </div>
         <div class="quest-dialog-actions">
           <button class="quest-btn-cancel">Annuler</button>
@@ -427,6 +567,8 @@ export class QuestSystem {
       case 'dialogue':
         if (data.lines && data.lines.length > 0) {
           this.showDialogue(data.lines);
+        } else if (data.message) {
+          this.showDialogue([data.message]);
         }
         break;
         
@@ -437,6 +579,12 @@ export class QuestSystem {
         
       case 'heal':
         this.showNotification(data.message, 'success');
+        break;
+        
+      default:
+        // Fallback: afficher les données comme texte si on ne sait pas quoi en faire
+        console.warn("⚠️ Type d'interaction NPC inconnu:", data.type, data);
+        this.showDialogue([data.message || 'Interaction non reconnue']);
         break;
     }
   }
@@ -496,18 +644,33 @@ export class QuestSystem {
     }
   }
 
+  // AMÉLIORATION: Meilleure gestion des récompenses
   formatReward(reward) {
-    switch (reward.type) {
-      case 'gold':
-        return `💰 ${reward.amount} pièces`;
-      case 'item':
-        return `📦 ${reward.itemId} x${reward.amount || 1}`;
-      case 'pokemon':
-        return `🎁 Pokémon spécial`;
-      case 'experience':
-        return `⭐ ${reward.amount} XP`;
-      default:
-        return `🎁 Récompense`;
+    try {
+      // Si reward est une string JSON, la parser
+      if (typeof reward === 'string') {
+        reward = JSON.parse(reward);
+      }
+      
+      const type = reward.type || 'unknown';
+      const amount = reward.amount || 1;
+      
+      switch (type) {
+        case 'gold':
+          return `💰 ${amount} pièces`;
+        case 'item':
+          const itemId = reward.itemId || reward.item || 'Objet inconnu';
+          return `📦 ${itemId} x${amount}`;
+        case 'pokemon':
+          return `🎁 Pokémon spécial`;
+        case 'experience':
+          return `⭐ ${amount} XP`;
+        default:
+          return `🎁 Récompense (${type})`;
+      }
+    } catch (error) {
+      console.warn("⚠️ Erreur formatReward:", error, reward);
+      return `🎁 Récompense`;
     }
   }
 
