@@ -127,7 +127,7 @@
         }, 
         {
          "data":[0, 0, 0, 0, 0, 0, 4462, 542, 543, 0, 0, 0, 0, 0, 541, 542, 543, 0, 0, 541, 542, 4367, 4368, 4369, 4370, 4371, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 4507, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4412, 4413, 4414, 4415, 4416, 541, 542, 543, 0,
+            0, 0, 0, 0, 0, 0, 4507, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4412, 4413, 4414, 4415, 4416, 4417, 542, 543, 0,
             0, 0, 0, 0, 0, 0, 4552, 0, 0, 0, 541, 542, 543, 0, 0, 0, 0, 0, 0, 0, 0, 4457, 4458, 4459, 4460, 4461, 4462, 0, 0, 0,
             543, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 541, 542, 543, 0, 0, 0, 0, 0, 0, 0, 4507, 0, 0, 0,
             0, 0, 0, 4202, 0, 0, 0, 0, 0, 0, 0, 0, 0, 541, 542, 543, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4552, 0, 0, 0,
@@ -163,83 +163,6 @@
          "type":"tilelayer",
          "visible":true,
          "width":30,
-         "x":0,
-         "y":0
-        }, 
-        {
-         "draworder":"topdown",
-         "id":12,
-         "name":"Door",
-         "objects":[
-                {
-                 "height":38.6666666666663,
-                 "id":72,
-                 "name":"Labo",
-                 "properties":[
-                        {
-                         "name":"targetSpawn",
-                         "type":"string",
-                         "value":"FromVillageScene"
-                        }, 
-                        {
-                         "name":"targetZone",
-                         "type":"string",
-                         "value":"VillageLabScene"
-                        }],
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":30,
-                 "x":145.541666666666,
-                 "y":186.625
-                }, 
-                {
-                 "height":32,
-                 "id":76,
-                 "name":"House1",
-                 "properties":[
-                        {
-                         "name":"targetSpawn",
-                         "type":"string",
-                         "value":"FromVillageScene"
-                        }, 
-                        {
-                         "name":"targetZone",
-                         "type":"string",
-                         "value":"VillageHouse1Scene"
-                        }],
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":20,
-                 "x":35.6666666666666,
-                 "y":49.1666666666666
-                }, 
-                {
-                 "height":25.3333333333333,
-                 "id":77,
-                 "name":"House2",
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":24,
-                 "x":353.666666666667,
-                 "y":82
-                }, 
-                {
-                 "height":39.5,
-                 "id":80,
-                 "name":"Florist",
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":26,
-                 "x":232,
-                 "y":296.5
-                }],
-         "opacity":1,
-         "type":"objectgroup",
-         "visible":true,
          "x":0,
          "y":0
         }, 
@@ -322,7 +245,7 @@
                 }],
          "opacity":1,
          "type":"objectgroup",
-         "visible":true,
+         "visible":false,
          "x":0,
          "y":0
         }, 
@@ -387,6 +310,72 @@
                  "width":0,
                  "x":427.333333333333,
                  "y":480
+                }, 
+                {
+                 "height":38.6667,
+                 "id":86,
+                 "name":"Labo",
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"FromVillageScene"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"VillageLabScene"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":30,
+                 "x":145.541816666667,
+                 "y":187.374983333333
+                }, 
+                {
+                 "height":32,
+                 "id":87,
+                 "name":"House1",
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"FromVillageScene"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"VillageHouse1Scene"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":20,
+                 "x":35.6665166666667,
+                 "y":49.9166833333333
+                }, 
+                {
+                 "height":25.3333,
+                 "id":88,
+                 "name":"House2",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":24,
+                 "x":353.666816666667,
+                 "y":82.7499833333333
+                }, 
+                {
+                 "height":39.5,
+                 "id":89,
+                 "name":"Florist",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":26,
+                 "x":231.999816666667,
+                 "y":297.249983333333
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -509,7 +498,7 @@
          "y":0
         }],
  "nextlayerid":15,
- "nextobjectid":86,
+ "nextobjectid":90,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
