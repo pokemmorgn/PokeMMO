@@ -103,7 +103,7 @@ export class NetworkManager {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       console.log(`[NetworkManager] Connexion à la nouvelle room: ${newRoomName}`);
-      this.room = await this.client.joinOrCreate(newRoomName, {
+      
         this.room = await this.client.joinOrCreate(newRoomName, {
   username: this.username,
   spawnX: data.spawnX,
