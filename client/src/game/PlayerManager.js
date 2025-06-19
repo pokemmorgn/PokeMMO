@@ -299,7 +299,7 @@ clearAllPlayers() {
     playersToRemove.forEach(sessionId => this.removePlayer(sessionId));
     this.players.clear();
     // Surtout NE PAS remettre this.mySessionId à null ici !
-    // this.mySessionId = null;   <--- SUPPRIME cette ligne
+    this.mySessionId = null;   <--- SUPPRIME cette ligne
 }
 
 
