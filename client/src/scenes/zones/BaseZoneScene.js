@@ -478,6 +478,19 @@ this.input.keyboard.on("keydown-E", () => {
     this.playerManager.setMySessionId(this.mySessionId);
     this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nConnected!`);
 
+      if (!window.questSystem) {
+    try {
+      // Prends la room Colyseus, ou adapte si ce n'est pas le bon champ
+      const gameRoom = this.networkManager.room || this.networkManager.gameRoom;
+      window.questSystem = new QuestSystem(this, gameRoom);
+      console.log("✅ [QuestSystem] Initialisé dans window :", window.questSystem);
+    } catch (e) {
+      console.error("❌ Erreur init QuestSystem :", e);
+    }
+  } else {
+    console.log("ℹ️ [QuestSystem] Déjà présent", window.questSystem);
+  }
+    
     // <-- AJOUTE ICI !
     this.networkManager.onMessage("snap", (data) => {
       this.playerManager.snapMyPlayerTo(data.x, data.y);
