@@ -80,41 +80,21 @@ export class NpcManager {
       .setScale(1);
 
 // Création du nom du NPC, sans background, avec ombre pour la lisibilité
-const nameText = this.scene.add.text(npc.x, npc.y - 42, npc.name, {
-  fontFamily: "Arial",
-  fontSize: "12px",        // Police réduite
-  color: "#ffffff",
+// Version sans fond avec police stylée
+const nameText = this.scene.add.text(npc.x, npc.y - 35, npc.name, {
+  fontFamily: "Courier New", // Police monospace pour un côté rétro/cyberpunk
+  fontSize: "10px",
+  color: "#00ff88",          // Vert néon typique des jeux
   fontStyle: "bold",
   align: "center",
-  stroke: "#1a1a1a",      // Contour gris foncé plus doux
-  strokeThickness: 2       // Contour plus fin
+  stroke: "#003322",         // Contour vert foncé
+  strokeThickness: 2
 })
   .setOrigin(0.5, 1)
   .setDepth(4.1);
 
-// Ombre plus subtile et moderne
-nameText.setShadow(1, 2, "#000000", 6, false, true);
-
-// Ajout d'un arrière-plan semi-transparent arrondi
-const nameBg = this.scene.add.graphics()
-  .fillStyle(0x000000, 0.6)  // Noir avec 60% d'opacité
-  .fillRoundedRect(
-    npc.x - (nameText.width / 2) - 8,  // Position X centrée avec padding
-    npc.y - 50,                         // Position Y au-dessus du texte
-    nameText.width + 16,                // Largeur avec padding
-    20,                                 // Hauteur
-    8                                   // Coins arrondis
-  )
-  .setDepth(4.0);  // Derrière le texte
-
-// Optionnel : effet de glow subtil
-nameText.setTint(0xf0f0f0);  // Légèrement moins blanc pour un effet plus doux
-
-// Petit point décoratif
-const decorDot = this.scene.add.circle(-nameText.width/2 - 8, -2, 2, 0x4a9eff);
-
-nameContainer.add([nameBg, nameText, decorDot]);
-nameContainer.setDepth(4.1);
+// Effet de glow vert
+nameText.setShadow(0, 0, "#00ff88", 3, false, true);
 
     // Effet de survol pour le NPC
     sprite.setInteractive();
