@@ -90,50 +90,7 @@ export class BeachScene extends BaseZoneScene {
     );
   }
 
-  // --- Gère la transition vers VillageScene ---
-  setupZoneTransitions() {
-    const worldsLayer = this.map.getObjectLayer('Worlds');
-    if (!worldsLayer) {
-      console.warn("Layer 'Worlds' non trouvé dans la map");
-      return;
-    }
-
-    const player = this.playerManager.getMyPlayer();
-    if (!player) {
-      this.time.delayedCall(100, () => this.setupZoneTransitions());
-      return;
-    }
-    if (!player.body) {
-      this.time.delayedCall(100, () => this.setupZoneTransitions());
-      return;
-    }
-
-    worldsLayer.objects.forEach(obj => {
-      const targetZoneProp = obj.properties?.find(p => p.name === 'targetZone');
-      const directionProp = obj.properties?.find(p => p.name === 'direction');
-      if (!targetZoneProp) return;
-
-      const targetZone = targetZoneProp.value;
-      const direction = directionProp ? directionProp.value : 'north';
-
-      const zone = this.add.zone(
-        obj.x + obj.width / 2,
-        obj.y + obj.height / 2,
-        obj.width,
-        obj.height
-      );
-      this.physics.world.enable(zone);
-      zone.body.setAllowGravity(false);
-      zone.body.setImmovable(true);
-
-      this.physics.add.overlap(player, zone, () => {
-        if (this.shouldBlockInput()) return;
-        if (!this.networkManager) return;
-        this.networkManager.requestZoneTransition(targetZone, direction);
-      });
-    });
-  }
-
+  
   // --- Gère le placement joueur au spawn ---
   positionPlayer(player) {
     const initData = this.scene.settings.data;
