@@ -3,7 +3,6 @@
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 
-
 export class VillageLabScene extends BaseZoneScene {
   constructor() {
     super('VillageLabScene', 'VillageLab');
@@ -11,7 +10,7 @@ export class VillageLabScene extends BaseZoneScene {
     this.professorInteracted = false;
   }
 
-   setupZoneTransitions() {
+  setupZoneTransitions() {
     if (!this.playerManager) {
       console.warn("playerManager non encore initialisé, retry dans 100ms");
       this.time.delayedCall(100, () => this.setupZoneTransitions());
@@ -71,6 +70,7 @@ export class VillageLabScene extends BaseZoneScene {
         this.networkManager.requestZoneTransition(targetZone, direction);
       });
     });
+  }
 
   createTransitionZone(transitionObj, targetScene, direction) {
     const transitionZone = this.add.zone(
@@ -117,7 +117,6 @@ export class VillageLabScene extends BaseZoneScene {
   }
 
   positionPlayer(player) {
-    const initData = this.scene.settings.data;
     const spawnLayer = this.map.getObjectLayer('SpawnPoint');
     if (spawnLayer) {
       const spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_Labo');
@@ -128,10 +127,12 @@ export class VillageLabScene extends BaseZoneScene {
       } else {
         player.x = 300;
         player.y = 200;
+        console.warn("⚠️ SpawnPoint_Labo non trouvé, position par défaut utilisée");
       }
     } else {
       player.x = 300;
       player.y = 200;
+      console.warn("⚠️ Pas de layer SpawnPoint, position par défaut utilisée");
     }
 
     if (player.indicator) {
@@ -387,8 +388,6 @@ export class VillageLabScene extends BaseZoneScene {
 
     this.time.delayedCall(3000, () => dialog.destroy());
   }
-
-  
 
   cleanup() {
     this.transitionCooldowns = {};
