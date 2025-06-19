@@ -245,6 +245,12 @@ document.head.appendChild(styleSheet);
       }
     };
 
+    window.triggerQuestDeliver = function(npcId, itemId) {
+      if (window.questSystemGlobal) {
+        window.questSystemGlobal.triggerDeliverEvent(npcId, itemId);
+      }
+    };
+
     console.log("🎯 Système de starter et quêtes prêt !");
     console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
     console.log("🎮 Utilisez window.initStarterHUD(room) et window.initQuestSystem(scene, room) dans vos scènes");
@@ -261,3 +267,28 @@ export default game;
 
 // Vérifier si le chat a le focus
 window.isChatFocused = function() {
+  return window.pokeChat ? window.pokeChat.hasFocus() : false;
+};
+
+// Vérifier si le HUD de starter est ouvert (utile pour bloquer les contrôles dans Phaser)
+window.isStarterHUDOpen = function() {
+  return window.starterHUD ? window.starterHUD.isVisible : false;
+};
+
+// Vérifier si le journal de quêtes est ouvert
+window.isQuestJournalOpen = function() {
+  return window.questSystemGlobal ? window.questSystemGlobal.isQuestJournalOpen() : false;
+};
+
+// Fonction utilitaire pour les scènes Phaser
+window.shouldBlockInput = function() {
+  return window.isChatFocused() || window.isStarterHUDOpen() || window.isQuestJournalOpen();
+};
+
+// Vérifier si le joueur peut interagir (utile pour les contrôles de jeu)
+window.canPlayerInteract = function() {
+  if (window.questSystemGlobal) {
+    return window.questSystemGlobal.canPlayerInteract();
+  }
+  return !window.shouldBlockInput();
+};
