@@ -16,6 +16,7 @@ export type SpawnData = {
   targetSpawn?: string;
   targetX?: number;
   targetY?: number;
+  fromZone?: string;
 };
 
 export abstract class BaseRoom extends Room<PokeWorldState> {
