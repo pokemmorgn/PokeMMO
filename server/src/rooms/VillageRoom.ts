@@ -12,6 +12,15 @@ export class VillageRoom extends BaseRoom {
   public calculateSpawnPosition(spawnData: SpawnData): { x: number, y: number } {
     console.log(`[VillageRoom] calculateSpawnPosition appelé avec:`, spawnData);
     
+    // ✅ NOUVEAU : Si on va vers une autre zone (targetZone), calculer la position dans cette zone
+    if (spawnData.targetZone) {
+      const destinationSpawn = this.getDestinationSpawnPosition(spawnData.targetZone, spawnData.targetSpawn);
+      if (destinationSpawn) {
+        console.log(`[VillageRoom] Destination '${spawnData.targetZone}': (${destinationSpawn.x}, ${destinationSpawn.y})`);
+        return destinationSpawn;
+      }
+    }
+    
     // ✅ Priorité 1 : Coordonnées explicites
     if (spawnData.targetX !== undefined && spawnData.targetY !== undefined) {
       console.log(`[VillageRoom] Utilisation coordonnées explicites: (${spawnData.targetX}, ${spawnData.targetY})`);
@@ -39,7 +48,40 @@ export class VillageRoom extends BaseRoom {
     return { x: this.defaultX, y: this.defaultY };
   }
 
-  // ✅ NOUVEAU : Gestion des spawns nommés
+  // ✅ NOUVEAU : Calculer la position dans la zone de destination
+  private getDestinationSpawnPosition(targetZone: string, targetSpawn?: string): { x: number, y: number } | null {
+    const destinationSpawns: Record<string, { x: number, y: number }> = {
+      // Positions dans la plage quand on vient du village
+      'BeachScene': { x: 62, y: 50 },
+      'BeachRoom': { x: 62, y: 50 },
+      
+      // Positions dans Route 1 quand on vient du village
+      'Road1Scene': { x: 337, y: 616 },
+      'Road1Room': { x: 337, y: 616 },
+      
+      // Positions dans le labo quand on vient du village
+      'VillageLabScene': { x: 248, y: 364 },
+      'VillageLabRoom': { x: 248, y: 364 },
+      
+      // Positions dans la maison quand on vient du village
+      'VillageHouse1Scene': { x: 181, y: 281 },
+      'VillageHouse1Room': { x: 181, y: 281 },
+    };
+    
+    // Si on a un spawn nommé spécifique, on peut le gérer ici aussi
+    if (targetSpawn) {
+      const specificSpawns: Record<string, { x: number, y: number }> = {
+        'FromVillageScene': { x: 62, y: 50 }, // Position spécifique dans la plage
+      };
+      if (specificSpawns[targetSpawn]) {
+        return specificSpawns[targetSpawn];
+      }
+    }
+    
+    return destinationSpawns[targetZone] || null;
+  }
+
+  // ✅ Gestion des spawns nommés (pour quand on arrive au village)
   private getNamedSpawnPosition(spawnName: string): { x: number, y: number } | null {
     const namedSpawns: Record<string, { x: number, y: number }> = {
       // Spawn quand on vient de la plage
@@ -58,7 +100,7 @@ export class VillageRoom extends BaseRoom {
     return namedSpawns[spawnName] || null;
   }
 
-  // ✅ Spawn basé sur la zone d'origine (fallback)
+  // ✅ Spawn basé sur la zone d'origine (fallback pour arrivées au village)
   private getSpawnFromOrigin(fromZone: string): { x: number, y: number } {
     switch (fromZone) {
       case "BeachRoom":
