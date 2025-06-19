@@ -1,12 +1,12 @@
+// src/models/OwnedPokemon.ts
 import mongoose from "mongoose";
 
-// Dans votre schéma, corrigez la syntaxe (enlevez le ? qui n'est pas valide dans un schéma Mongoose)
 const OwnedPokemonSchema = new mongoose.Schema({
   owner: { type: String, required: true },
   pokemonId: { type: Number, required: true },
   level: { type: Number, default: 1 },
   nature: { type: String, default: "Hardy" },
-  ivs: { // Enlevez le ? ici - utilisez plutôt required: false ou default
+  ivs: { // Plus d'optionnel, toujours présent avec des valeurs par défaut
     hp: { type: Number, default: 0 },
     attack: { type: Number, default: 0 },
     defense: { type: Number, default: 0 },
@@ -24,14 +24,13 @@ const OwnedPokemonSchema = new mongoose.Schema({
   gender: { type: String },
 });
 
-// Ou si vous voulez vraiment que ivs soit optionnel, modifiez l'interface :
 export interface IOwnedPokemon {
   _id: any;
   owner: string;
   pokemonId: number;
   level: number;
   nature: string;
-  ivs?: { // Rendez-le optionnel ici aussi
+  ivs: { // Plus optionnel non plus
     hp: number;
     attack: number;
     defense: number;
@@ -49,4 +48,4 @@ export interface IOwnedPokemon {
   gender?: string;
 }
 
-export const OwnedPokemon = mongoose.model("OwnedPokemon", OwnedPokemonSchema);
+export const OwnedPokemon = mongoose.model<IOwnedPokemon>("OwnedPokemon", OwnedPokemonSchema);
