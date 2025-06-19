@@ -82,10 +82,10 @@ export class NpcManager {
 // Version style pixel art inspirée de l'image
 const nameContainer = this.scene.add.container(npc.x, npc.y - 42);
 
-// Calcul dynamique de la taille basé sur le texte
+// Calcul dynamique de la taille basé sur le texte (réduit de 20%)
 const tempText = this.scene.add.text(0, 0, npc.name, {
   fontFamily: "monospace", // Police monospace pour l'effet pixel
-  fontSize: "12px",
+  fontSize: "10px", // Réduit de 12px à 10px
   fontStyle: "bold"
 });
 const textWidth = tempText.width;
@@ -99,42 +99,42 @@ const bgColor = 0xF5E6B3;      // Beige clair du centre
 const borderColor = 0xB8935A;   // Bordure dorée/marron
 const shadowColor = 0x8B6F47;   // Ombre plus foncée
 
-// Création du fond avec effet de profondeur
+// Création du fond avec effet de profondeur (réduit de 20%)
 nameBg
   // Ombre portée
   .fillStyle(shadowColor, 0.6)
-  .fillRoundedRect(-(textWidth/2) - 8 + 2, -9 + 2, textWidth + 16, 18, 8)
+  .fillRoundedRect(-(textWidth/2) - 6.4 + 1.6, -7.2 + 1.6, textWidth + 12.8, 14.4, 6.4)
   
   // Fond principal
   .fillStyle(bgColor, 0.95)
-  .fillRoundedRect(-(textWidth/2) - 8, -9, textWidth + 16, 18, 8)
+  .fillRoundedRect(-(textWidth/2) - 6.4, -7.2, textWidth + 12.8, 14.4, 6.4)
   
   // Bordure extérieure foncée
-  .lineStyle(2, shadowColor, 0.8)
-  .strokeRoundedRect(-(textWidth/2) - 8, -9, textWidth + 16, 18, 8)
+  .lineStyle(1.6, shadowColor, 0.8)
+  .strokeRoundedRect(-(textWidth/2) - 6.4, -7.2, textWidth + 12.8, 14.4, 6.4)
   
   // Bordure intérieure claire pour l'effet de relief
-  .lineStyle(1, 0xFFFFDD, 0.6)
-  .strokeRoundedRect(-(textWidth/2) - 7, -8, textWidth + 14, 16, 7);
+  .lineStyle(0.8, 0xFFFFDD, 0.6)
+  .strokeRoundedRect(-(textWidth/2) - 5.6, -6.4, textWidth + 11.2, 12.8, 5.6);
 
-// Texte principal avec style pixel
-const nameText = this.scene.add.text(0, -1, npc.name, {
+// Texte principal avec style pixel (réduit de 20%)
+const nameText = this.scene.add.text(0, -0.8, npc.name, {
   fontFamily: "monospace", // Police monospace pour l'aspect pixel
-  fontSize: "12px",
+  fontSize: "10px", // Réduit de 12px à 10px
   color: "#2B1810", // Marron foncé comme dans l'image
   fontStyle: "bold",
   align: "center",
   // Ajout d'un léger contour pour la lisibilité
   stroke: "#F5E6B3",
-  strokeThickness: 1
+  strokeThickness: 0.8 // Réduit de 1 à 0.8
 })
   .setOrigin(0.5, 0.5);
 
-// Petits points décoratifs aux coins (style pixel art)
-const decorDot1 = this.scene.add.rectangle(-(textWidth/2) - 5, -6, 2, 2, borderColor);
-const decorDot2 = this.scene.add.rectangle((textWidth/2) + 5, -6, 2, 2, borderColor);
-const decorDot3 = this.scene.add.rectangle(-(textWidth/2) - 5, 4, 2, 2, borderColor);
-const decorDot4 = this.scene.add.rectangle((textWidth/2) + 5, 4, 2, 2, borderColor);
+// Petits points décoratifs aux coins (style pixel art, réduits de 20%)
+const decorDot1 = this.scene.add.rectangle(-(textWidth/2) - 4, -4.8, 1.6, 1.6, borderColor);
+const decorDot2 = this.scene.add.rectangle((textWidth/2) + 4, -4.8, 1.6, 1.6, borderColor);
+const decorDot3 = this.scene.add.rectangle(-(textWidth/2) - 4, 3.2, 1.6, 1.6, borderColor);
+const decorDot4 = this.scene.add.rectangle((textWidth/2) + 4, 3.2, 1.6, 1.6, borderColor);
 
 nameContainer.add([nameBg, nameText, decorDot1, decorDot2, decorDot3, decorDot4]);
 nameContainer.setDepth(4.1);
