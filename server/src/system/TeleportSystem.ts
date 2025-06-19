@@ -3,6 +3,8 @@
 // ==========================================
 
 import { Room, Client } from 'colyseus';
+import { MapManager } from '../managers/MapManager';
+import { TeleportResult, TiledMap } from '../types/MapTypes';
 
 export class TeleportSystem {
     private mapManager: MapManager;
