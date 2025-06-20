@@ -6,6 +6,7 @@ import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager";
 import { QuestSystem } from "../../game/QuestSystem.js";
+import { InventorySystem } from "../../game/InventorySystem.js";
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -128,7 +129,9 @@ useExistingNetworkManager(networkManager, sceneData = null) {
   
   this.setupNetworkHandlers();
   this.networkSetupComplete = true;
-  
+
+  // Chargement de l'inventaire
+  this.initializeInventorySystem();
   // ✅ NOUVEAU: Vérifier immédiatement l'état du réseau
   this.verifyNetworkState();
   
@@ -155,6 +158,95 @@ this.time.delayedCall(300, () => {
 
 }
 
+    // ✅ NOUVELLE MÉTHODE: Initialisation du système d'inventaire
+  initializeInventorySystem() {
+    if (this.inventoryInitialized || !this.networkManager?.room) {
+      console.log(`⚠️ [${this.scene.key}] Inventaire déjà initialisé ou pas de room`);
+      return;
+    }
+
+    try {
+      console.log(`🎒 [${this.scene.key}] Initialisation du système d'inventaire...`);
+      
+      // ✅ Créer le système d'inventaire avec la room du NetworkManager
+      this.inventorySystem = new InventorySystem(this, this.networkManager.room);
+      
+      // ✅ Configurer la langue en anglais
+      if (this.inventorySystem.inventoryUI) {
+        this.inventorySystem.inventoryUI.currentLanguage = 'en';
+      }
+      
+      // ✅ Rendre accessible globalement
+      window.inventorySystem = this.inventorySystem;
+      window.inventorySystemGlobal = this.inventorySystem;
+      
+      // ✅ Setup des événements d'inventaire spécifiques à la scène
+      this.setupInventoryEventHandlers();
+      
+      // ✅ Connecter l'inventaire standalone au serveur (rétrocompatibilité)
+      if (typeof window.connectInventoryToServer === 'function') {
+        window.connectInventoryToServer(this.networkManager.room);
+      }
+      
+      this.inventoryInitialized = true;
+      console.log(`✅ [${this.scene.key}] Système d'inventaire initialisé`);
+      
+      // ✅ Test automatique après initialisation
+      this.time.delayedCall(2000, () => {
+        this.testInventoryConnection();
+      });
+      
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
+    }
+  }
+    // ✅ NOUVELLE MÉTHODE: Setup des événements d'inventaire
+  setupInventoryEventHandlers() {
+    if (!this.networkManager?.room) return;
+
+    console.log(`🎒 [${this.scene.key}] Configuration des événements d'inventaire...`);
+
+    // ✅ Écouter les messages d'inventaire du serveur
+    this.networkManager.room.onMessage("inventoryData", (data) => {
+      console.log(`🎒 [${this.scene.key}] Données d'inventaire reçues:`, data);
+    });
+
+    this.networkManager.room.onMessage("inventoryUpdate", (data) => {
+      console.log(`🔄 [${this.scene.key}] Mise à jour inventaire:`, data);
+      
+      // ✅ Afficher une notification dans la scène
+      if (data.type === 'add') {
+        this.showNotification(`+${data.quantity} ${data.itemId}`, 'success');
+      } else if (data.type === 'remove') {
+        this.showNotification(`-${data.quantity} ${data.itemId}`, 'info');
+      }
+    });
+
+    this.networkManager.room.onMessage("itemPickup", (data) => {
+      console.log(`🎁 [${this.scene.key}] Objet ramassé:`, data);
+      this.showNotification(`Picked up: ${data.itemId} x${data.quantity}`, 'success');
+      
+      // ✅ Effet visuel de ramassage
+      this.showPickupEffect(data);
+    });
+
+    this.networkManager.room.onMessage("itemUseResult", (data) => {
+      console.log(`🎯 [${this.scene.key}] Résultat utilisation objet:`, data);
+      
+      if (data.success) {
+        this.showNotification(data.message || "Item used successfully", 'success');
+      } else {
+        this.showNotification(data.message || "Cannot use this item", 'error');
+      }
+    });
+
+    this.networkManager.room.onMessage("inventoryError", (data) => {
+      console.error(`❌ [${this.scene.key}] Erreur inventaire:`, data);
+      this.showNotification(data.message, 'error');
+    });
+
+    console.log(`✅ [${this.scene.key}] Événements d'inventaire configurés`);
+  }
 
   // ✅ NOUVELLE MÉTHODE: Chercher un NetworkManager existant
   findExistingNetworkManager() {
