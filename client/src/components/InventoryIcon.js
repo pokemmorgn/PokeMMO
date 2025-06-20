@@ -238,12 +238,12 @@ export class InventoryIcon {
     });
 
     // Keyboard shortcut (I for Inventory)
-  document.addEventListener('keydown', (e) => {
-    if (e.key.toLowerCase() === 'i' && this.canOpenInventory()) {
-      e.preventDefault();
-      this.handleClick(); // Will call .toggle() on the InventoryUI
-    }
-  });
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'i' && this.canOpenInventory()) {
+    e.preventDefault();
+    this.handleClick(); // toggle
+  }
+});
   }
 
   handleClick() {
