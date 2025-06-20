@@ -499,6 +499,12 @@ export class BaseZoneScene extends Phaser.Scene {
     // Nettoyage de la scène actuelle
     this.cleanup();
 
+
+console.log("==== [performSceneTransition] JUSTE AVANT scene.start ====");
+console.log("NetworkManager sessionId :", this.networkManager.getSessionId());
+console.log("State Colyseus :", this.networkManager.room?.state?.players ? Array.from(this.networkManager.room.state.players.keys()) : 'no state');
+console.log("==== FIN LOG ====");
+    
     // Démarrer la nouvelle scène avec les données
     this.scene.start(targetScene, {
       fromZone: this.zoneName,
