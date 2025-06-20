@@ -800,50 +800,57 @@ setupNetworkHandlers() {
   }
 
   // ✅ AMÉLIORATION: Gestion du mouvement avec désactivation du délai de grâce
-  handleMovement(myPlayerState) {
-    const speed = 120;
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (!myPlayer) return;
+handleMovement(myPlayerState) {
+  const speed = 120;
+  const myPlayer = this.playerManager.getMyPlayer();
+  if (!myPlayer) return;
 
-    let vx = 0, vy = 0;
-    let moved = false, direction = null;
+  let vx = 0, vy = 0;
+  let moved = false, direction = null;
 
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      vx = -speed; moved = true; direction = 'left';
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-      vx = speed; moved = true; direction = 'right';
+  if (this.cursors.left.isDown || this.wasd.A.isDown) {
+    vx = -speed; moved = true; direction = 'left';
+  } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+    vx = speed; moved = true; direction = 'right';
+  }
+  if (this.cursors.up.isDown || this.wasd.W.isDown) {
+    vy = -speed; moved = true; direction = 'up';
+  } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+    vy = speed; moved = true; direction = 'down';
+  }
+
+  myPlayer.body.setVelocity(vx, vy);
+
+  if (moved && direction) {
+    myPlayer.play(`walk_${direction}`, true);
+    this.lastDirection = direction;
+    myPlayer.isMovingLocally = true;
+    
+    // Désactiver le délai de grâce dès que le joueur bouge
+    if (this.spawnGraceTime > 0) {
+      this.spawnGraceTime = 0;
+      console.log(`🏃 [${this.scene.key}] Joueur bouge, délai de grâce désactivé`);
     }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) {
-      vy = -speed; moved = true; direction = 'up';
-    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-      vy = speed; moved = true; direction = 'down';
-    }
+  } else {
+    myPlayer.play(`idle_${this.lastDirection}`, true);
+    myPlayer.isMovingLocally = false;
+  }
 
-    myPlayer.body.setVelocity(vx, vy);
-
-    if (moved && direction) {
-      myPlayer.play(`walk_${direction}`, true);
-      this.lastDirection = direction;
-      myPlayer.isMovingLocally = true;
-      
-      // Désactiver le délai de grâce dès que le joueur bouge
-      if (this.spawnGraceTime > 0) {
-        this.spawnGraceTime = 0;
-        console.log(`🏃 [${this.scene.key}] Joueur bouge, délai de grâce désactivé`);
-      }
-    } else {
-      myPlayer.play(`idle_${this.lastDirection}`, true);
-      myPlayer.isMovingLocally = false;
-    }
-
-    if (moved) {
-      const now = Date.now();
-      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-        this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirection, moved);
-        this.lastMoveTime = now;
-      }
+  if (moved) {
+    const now = Date.now();
+    if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+      // 💡 PATCH: Ajoute la zone courante (this.zoneName) à sendMove
+      this.networkManager.sendMove(
+        myPlayer.x,
+        myPlayer.y,
+        direction || this.lastDirection,
+        moved,
+        this.zoneName // <- AJOUT ICI
+      );
+      this.lastMoveTime = now;
     }
   }
+}
 
   // === MÉTHODES EXISTANTES CONSERVÉES ===
 
