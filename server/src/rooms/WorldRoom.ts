@@ -2,11 +2,14 @@
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { ZoneManager } from "../managers/ZoneManager";
+import { NpcManager } from "../managers/NPCManager";
 import { InventoryManager } from "../managers/InventoryManager"; 
 import { getItemData, getItemPocket } from "../utils/ItemDB";
 
+
 export class WorldRoom extends Room<PokeWorldState> {
   private zoneManager!: ZoneManager;
+  private npcManagers: Map<string, NpcManager> = new Map();
   
   // Limite pour auto-scaling
   maxClients = 50;
@@ -23,6 +26,8 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.zoneManager = new ZoneManager(this);
     console.log(`✅ ZoneManager initialisé`);
 
+    this.initializeNpcManagers();
+    
     // Messages handlers
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
@@ -30,6 +35,31 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
   }
 
+    private initializeNpcManagers() {
+    const zones = ['beach', 'village', 'villagelab', 'villagehouse1', 'road1', 'lavandia'];
+    
+    zones.forEach(zoneName => {
+      try {
+        const mapPath = `../assets/maps/${zoneName}.tmj`;
+        const npcManager = new NpcManager(mapPath);
+        this.npcManagers.set(zoneName, npcManager);
+        console.log(`✅ NPCs chargés pour ${zoneName}: ${npcManager.getAllNpcs().length}`);
+      } catch (error) {
+        console.warn(`⚠️ Impossible de charger les NPCs pour ${zoneName}:`, error);
+      }
+    });
+  }
+
+    async onPlayerJoinZone(client: Client, zoneName: string) {
+    // ✅ ENVOYER LES NPCS DEPUIS LE FICHIER .TMJ
+    const npcManager = this.npcManagers.get(zoneName);
+    if (npcManager) {
+      const npcs = npcManager.getAllNpcs();
+      client.send("npcList", npcs);
+      console.log(`📤 ${npcs.length} NPCs envoyés pour ${zoneName}`);
+    }
+  }
+  
   private setupMessageHandlers() {
     console.log(`📨 === SETUP MESSAGE HANDLERS ===`);
 
