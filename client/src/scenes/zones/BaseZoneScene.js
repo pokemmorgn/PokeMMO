@@ -246,12 +246,41 @@ this.time.delayedCall(300, () => {
       
       this.inventoryInitialized = true;
       console.log(`✅ [${this.scene.key}] Système d'inventaire initialisé`);
+
+            // ✅ Test automatique après initialisation
+      this.time.delayedCall(2000, () => {
+        this.testInventoryConnection();
+      });
+      
             
     } catch (error) {
       console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
     }
   }
 
+    // ✅ NOUVELLE MÉTHODE: Test de connexion inventaire
+  testInventoryConnection() {
+    if (!this.inventorySystem || !this.networkManager?.room) {
+      console.warn(`⚠️ [${this.scene.key}] Cannot test inventory: no system or room`);
+      return;
+    }
+
+    console.log(`🧪 [${this.scene.key}] Test de connexion inventaire...`);
+    
+    // ✅ Demander les données d'inventaire
+    this.inventorySystem.requestInventoryData();
+    
+    // ✅ Test d'ajout d'objet (pour le debug)
+    if (this.scene.key === 'BeachScene') {
+      this.time.delayedCall(3000, () => {
+        console.log(`🧪 [${this.scene.key}] Test ajout d'objets de départ...`);
+        this.networkManager.room.send("testAddItem", { itemId: "poke_ball", quantity: 3 });
+        this.networkManager.room.send("testAddItem", { itemId: "potion", quantity: 2 });
+        this.networkManager.room.send("testAddItem", { itemId: "town_map", quantity: 1 });
+      });
+    }
+  }
+  
    // ✅ NOUVELLE MÉTHODE: Setup des événements d'inventaire
   setupInventoryEventHandlers() { }
   
