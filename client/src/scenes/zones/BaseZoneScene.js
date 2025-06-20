@@ -418,24 +418,30 @@ setupNetworkHandlers() {
   }
 
   // ✅ NOUVELLE MÉTHODE: Gestion du joueur local depuis le state
-  handleMyPlayerFromState() {
+ handleMyPlayerFromState() {
     if (this.myPlayerReady) return;
     
     const myPlayer = this.playerManager.getMyPlayer();
     if (myPlayer && !this.myPlayerReady) {
-      this.myPlayerReady = true;
-      console.log(`✅ [${this.scene.key}] Joueur local trouvé: ${this.mySessionId}`);
-      
-      this.cameraManager.followPlayer(myPlayer);
-      this.cameraFollowing = true;
-      this.positionPlayer(myPlayer);
-      
-      if (typeof this.onPlayerReady === 'function') {
-        this.onPlayerReady(myPlayer);
-      }
+        this.myPlayerReady = true;
+        console.log(`✅ [${this.scene.key}] Joueur local trouvé: ${this.mySessionId}`);
+        
+        // ✅ CORRECTION: S'assurer que le joueur est visible
+        if (!myPlayer.visible) {
+            console.log(`🔧 [${this.scene.key}] Forcer visibilité joueur local`);
+            myPlayer.setVisible(true);
+            myPlayer.setActive(true);
+        }
+        
+        this.cameraManager.followPlayer(myPlayer);
+        this.cameraFollowing = true;
+        this.positionPlayer(myPlayer);
+        
+        if (typeof this.onPlayerReady === 'function') {
+            this.onPlayerReady(myPlayer);
+        }
     }
-  }
-
+}
   // ✅ NOUVELLE MÉTHODE: Setup des handlers WorldRoom
   setupWorldRoomHandlers() {
   this.networkManager.onZoneData((data) => {
