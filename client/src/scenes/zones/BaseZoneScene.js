@@ -216,50 +216,6 @@ this.time.delayedCall(300, () => {
 
     // ✅ NOUVELLE MÉTHODE: Initialisation du système d'inventaire
 initializeInventorySystem() {
-  if (window.inventorySystem) {
-    // ✅ Réutiliser l’instance déjà existante !
-    console.log(`[${this.scene.key}] Réutilisation de l’inventaire global existant`);
-    // Met à jour la room si besoin !
-    if (this.networkManager?.room) {
-      window.inventorySystem.gameRoom = this.networkManager.room;
-      window.inventorySystem.setupServerListeners(); // pour relier la nouvelle room
-    }
-    this.inventorySystem = window.inventorySystem;
-    this.inventoryInitialized = true;
-    return;
-  }
-
-  // Sinon, création normale :
-  try {
-    console.log(`🎒 [${this.scene.key}] Initialisation du système d'inventaire...`);
-    this.inventorySystem = new InventorySystem(this, this.networkManager.room);
-
-    // Config langue
-    if (this.inventorySystem.inventoryUI) {
-      this.inventorySystem.inventoryUI.currentLanguage = 'en';
-    }
-
-    // Global
-    window.inventorySystem = this.inventorySystem;
-    window.inventorySystemGlobal = this.inventorySystem;
-
-    this.setupInventoryEventHandlers();
-
-    if (typeof window.connectInventoryToServer === 'function') {
-      window.connectInventoryToServer(this.networkManager.room);
-    }
-
-    this.inventoryInitialized = true;
-    console.log(`✅ [${this.scene.key}] Système d'inventaire initialisé`);
-
-    // Test après init
-    this.time.delayedCall(2000, () => {
-      this.testInventoryConnection();
-    });
-
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
-  }
 }
 
 
