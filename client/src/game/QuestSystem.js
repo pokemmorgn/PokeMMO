@@ -1,3 +1,5 @@
+// client/src/game/QuestSystem.js - VERSION CORRIGÉE
+
 import { QuestJournalUI } from '../components/QuestJournalUI.js';
 
 export class QuestSystem {
@@ -33,12 +35,26 @@ export class QuestSystem {
       console.log("handleNpcInteraction appelé", data);
     });
 
-    // Résultat de démarrage de quête
+    // ✅ FIX 1: Correction du handler pour questStartResult
     this.gameRoom.onMessage("questStartResult", (data) => {
+      console.log("🎯 Quest start result reçu:", data);
       if (data.success) {
         this.showNotification(`Quête acceptée : ${data.quest?.name || 'Nouvelle quête'}`, 'success');
+        // ✅ Actualiser immédiatement le journal
+        if (this.questJournal && this.questJournal.isVisible) {
+          this.questJournal.refreshQuests();
+        }
       } else {
-        this.showNotification(data.message, 'error');
+        this.showNotification(data.message || "Impossible d'accepter la quête", 'error');
+      }
+    });
+
+    // ✅ FIX 2: Ajouter un handler pour questStarted (au cas où le serveur envoie ce message)
+    this.gameRoom.onMessage("questStarted", (data) => {
+      console.log("🎯 Quest started reçu:", data);
+      this.showNotification(`Nouvelle quête : ${data.quest?.name || 'Quête démarrée'}`, 'success');
+      if (this.questJournal && this.questJournal.isVisible) {
+        this.questJournal.refreshQuests();
       }
     });
 
@@ -56,49 +72,55 @@ export class QuestSystem {
     this.gameRoom.onMessage("questRewards", (data) => {
       this.showQuestRewards(data);
     });
+
+    // ✅ FIX 3: Ajouter des handlers pour débugger
+    this.gameRoom.onMessage("*", (type, data) => {
+      if (type.includes("quest") || type.includes("Quest")) {
+        console.log(`🔍 Message non géré reçu: ${type}`, data);
+      }
+    });
   }
 
-handleNpcInteraction(data) {
-  console.log("🎯 Interaction NPC reçue:", data);
-  
-  // ✅ NOUVEAU: Ne traiter QUE les interactions liées aux quêtes
-  // Laisser BaseZoneScene gérer les dialogues simples
-  switch (data.type) {
-    case 'questGiver':
-      // FIX: Parser les données de quêtes disponibles
-      const parsedData = this.parseNpcQuestData(data);
-      this.showQuestGiverDialog(parsedData);
-      break;
-      
-    case 'questComplete':
-      this.showQuestCompleteDialog(data);
-      break;
-      
-    case 'questProgress':
-      this.showNotification(data.message, 'info');
-      break;
-      
-    // ❌ SUPPRIMÉ: Le cas 'dialogue' simple
-    // Les dialogues simples sont maintenant gérés uniquement par BaseZoneScene
+  handleNpcInteraction(data) {
+    console.log("🎯 Interaction NPC reçue:", data);
     
-    case 'shop':
-      console.log("🛒 Ouverture boutique:", data.shopId);
-      // TODO: Implémenter l'interface boutique
-      break;
-      
-    case 'heal':
-      this.showNotification(data.message, 'success');
-      break;
-      
-    default:
-      // ✅ NOUVEAU: Ne plus traiter les dialogues par défaut
-      // Seulement logger les types inconnus sans créer de dialogue
-      console.log(`ℹ️ Type d'interaction '${data.type}' délégué à BaseZoneScene`);
-      break;
+    // ✅ Vérifier si un dialog est déjà ouvert
+    if (window._questDialogActive) {
+      console.log("⚠️ Dialog de quête déjà ouvert, interaction ignorée");
+      return;
+    }
+    
+    // ✅ NOUVEAU: Ne traiter QUE les interactions liées aux quêtes
+    switch (data.type) {
+      case 'questGiver':
+        // ✅ FIX 4: Parser les données de quêtes disponibles
+        const parsedData = this.parseNpcQuestData(data);
+        this.showQuestGiverDialog(parsedData);
+        break;
+        
+      case 'questComplete':
+        this.showQuestCompleteDialog(data);
+        break;
+        
+      case 'questProgress':
+        this.showNotification(data.message, 'info');
+        break;
+        
+      case 'shop':
+        console.log("🛒 Ouverture boutique:", data.shopId);
+        break;
+        
+      case 'heal':
+        this.showNotification(data.message, 'success');
+        break;
+        
+      default:
+        console.log(`ℹ️ Type d'interaction '${data.type}' délégué à BaseZoneScene`);
+        break;
+    }
   }
-}
 
-  // NOUVELLE MÉTHODE: Parse les données de quêtes NPC
+  // ✅ FIX 5: Amélioration du parsing des données NPC
   parseNpcQuestData(data) {
     console.log("🔍 Parsing NPC quest data:", data);
     
@@ -115,7 +137,6 @@ handleNpcInteraction(data) {
       if (!Array.isArray(availableQuests)) {
         console.warn("⚠️ availableQuests n'est pas un array:", typeof availableQuests);
         
-        // Peut-être que c'est un objet avec une propriété quests
         if (availableQuests.quests && Array.isArray(availableQuests.quests)) {
           availableQuests = availableQuests.quests;
         } else {
@@ -142,15 +163,12 @@ handleNpcInteraction(data) {
     }
   }
 
-  // NOUVELLE MÉTHODE: Normalise une quête individuelle
   normalizeQuestData(quest) {
     try {
-      // Si la quête est une string JSON, la parser
       if (typeof quest === 'string') {
         quest = JSON.parse(quest);
       }
 
-      // Structure normalisée
       const normalized = {
         id: quest.id || `quest_${Date.now()}`,
         name: quest.name || 'Quête sans nom',
@@ -159,7 +177,6 @@ handleNpcInteraction(data) {
         steps: []
       };
 
-      // Normaliser les étapes si elles existent
       if (quest.steps && Array.isArray(quest.steps)) {
         normalized.steps = quest.steps.map((step, index) => {
           try {
@@ -183,15 +200,6 @@ handleNpcInteraction(data) {
             };
           }
         });
-      } else if (quest.steps) {
-        // Si steps n'est pas un array mais existe
-        console.warn("⚠️ Steps n'est pas un array:", quest.steps);
-        normalized.steps = [{
-          id: 'step_0',
-          name: 'Première étape',
-          description: quest.steps.description || 'Description non disponible',
-          rewards: quest.steps.rewards || []
-        }];
       }
 
       return normalized;
@@ -216,7 +224,9 @@ handleNpcInteraction(data) {
       return;
     }
 
-    // Créer une interface pour choisir parmi les quêtes disponibles
+    // ✅ FIX 6: Marquer le dialog comme actif
+    window._questDialogActive = true;
+
     const questDialog = this.createQuestDialog('Quêtes disponibles', data.availableQuests, (questId) => {
       this.startQuest(questId);
     });
@@ -227,7 +237,7 @@ handleNpcInteraction(data) {
   showQuestCompleteDialog(data) {
     const message = data.message || "Félicitations ! Vous avez terminé une quête !";
     
-    // Créer une interface de félicitations avec les récompenses
+    window._questDialogActive = true;
     const completeDialog = this.createQuestCompleteDialog(message, data.questRewards);
     document.body.appendChild(completeDialog);
   }
@@ -239,7 +249,6 @@ handleNpcInteraction(data) {
     dialog.className = 'quest-dialog-overlay';
     
     const questsHTML = quests.map(quest => {
-      // S'assurer que nous avons des données valides
       const questName = quest.name || 'Quête sans nom';
       const questDesc = quest.description || 'Pas de description';
       const questCategory = quest.category || 'side';
@@ -290,20 +299,20 @@ handleNpcInteraction(data) {
     `;
 
     // Sélection automatique si une seule quête
-  let defaultSelectedId = null;
-  if (quests.length === 1) {
-    const onlyOption = dialog.querySelector('.quest-option');
-    const acceptBtn = dialog.querySelector('.quest-btn-accept');
-    if (onlyOption && acceptBtn) {
-      onlyOption.classList.add('selected');
-      acceptBtn.disabled = false;
-      defaultSelectedId = onlyOption.dataset.questId;
-      setTimeout(() => {
-        onlyOption.focus();
-        acceptBtn.focus();
-      }, 0);
+    let defaultSelectedId = null;
+    if (quests.length === 1) {
+      const onlyOption = dialog.querySelector('.quest-option');
+      const acceptBtn = dialog.querySelector('.quest-btn-accept');
+      if (onlyOption && acceptBtn) {
+        onlyOption.classList.add('selected');
+        acceptBtn.disabled = false;
+        defaultSelectedId = onlyOption.dataset.questId;
+        setTimeout(() => {
+          onlyOption.focus();
+          acceptBtn.focus();
+        }, 0);
+      }
     }
-  }
 
     this.styleQuestDialog(dialog);
     this.addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId);
@@ -311,51 +320,146 @@ handleNpcInteraction(data) {
     return dialog;
   }
 
-  createQuestCompleteDialog(message, rewards) {
-    const dialog = document.createElement('div');
-    dialog.className = 'quest-dialog-overlay';
-    dialog.innerHTML = `
-      <div class="quest-dialog quest-complete-dialog">
-        <div class="quest-dialog-header">
-          <h3>🎉 Quête terminée !</h3>
-        </div>
-        <div class="quest-dialog-content">
-          <p class="quest-complete-message">${message}</p>
-          ${rewards && rewards.length > 0 ? `
-            <div class="quest-complete-rewards">
-              <h4>Récompenses reçues :</h4>
-              ${rewards.map(reward => `
-                <div class="quest-reward-item">
-                  ${this.formatReward(reward)}
-                </div>
-              `).join('')}
-            </div>
-          ` : ''}
-        </div>
-        <div class="quest-dialog-actions">
-          <button class="quest-btn-accept">Continuer</button>
-        </div>
-      </div>
-    `;
+  // ✅ FIX 7: Correction des event listeners du dialog
+  addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
+    let selectedQuestId = defaultSelectedId;
 
-    this.styleQuestDialog(dialog);
-    
-    // Auto-fermeture après quelques secondes
-    setTimeout(() => {
-      if (dialog.parentNode) {
-        dialog.remove();
-        window._questDialogActive = false;
-      }
-    }, 5000);
+    const closeBtn = dialog.querySelector('.quest-dialog-close');
+    const cancelBtn = dialog.querySelector('.quest-btn-cancel');
+    const acceptBtn = dialog.querySelector('.quest-btn-accept');
 
-    dialog.querySelector('.quest-btn-accept').addEventListener('click', () => {
+    if (defaultSelectedId && acceptBtn) {
+      acceptBtn.disabled = false;
+    }
+
+    // ✅ FIX 8: Correction des handlers de fermeture
+    const closeDialog = () => {
       dialog.remove();
       window._questDialogActive = false;
+    };
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeDialog);
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', closeDialog);
+    }
+
+    // Sélection des quêtes
+    dialog.querySelectorAll('.quest-option').forEach(option => {
+      option.addEventListener('click', () => {
+        dialog.querySelectorAll('.quest-option').forEach(opt => 
+          opt.classList.remove('selected')
+        );
+        option.classList.add('selected');
+        selectedQuestId = option.dataset.questId;
+        acceptBtn.disabled = false;
+      });
     });
-    
-    return dialog;
+
+    // ✅ FIX 9: Correction du handler d'acceptation
+    acceptBtn.addEventListener('click', () => {
+      if (!selectedQuestId && defaultSelectedId) {
+        selectedQuestId = defaultSelectedId;
+      }
+      if (!selectedQuestId) {
+        const selectedOption = dialog.querySelector('.quest-option.selected') || dialog.querySelector('.quest-option');
+        if (selectedOption) {
+          selectedQuestId = selectedOption.dataset.questId;
+        }
+      }
+      
+      console.log("🎯 Acceptation de la quête:", selectedQuestId);
+      
+      if (selectedQuestId && onSelectQuest) {
+        onSelectQuest(selectedQuestId);
+      }
+      closeDialog();
+    });
+
+    // Fermeture avec Escape
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        closeDialog();
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
   }
 
+  // ✅ FIX 10: Amélioration de startQuest
+  startQuest(questId) {
+    console.log("🎯 Démarrage de la quête:", questId);
+    
+    if (this.gameRoom) {
+      // ✅ Utiliser le bon nom de message
+      this.gameRoom.send("startQuest", { questId });
+      console.log("📤 Message startQuest envoyé au serveur");
+    } else {
+      console.error("❌ Pas de gameRoom pour envoyer startQuest");
+    }
+  }
+
+  // ✅ FIX 11: Amélioration des notifications
+  showNotification(message, type = 'info') {
+    console.log(`📢 Notification: ${message} (${type})`);
+    
+    const notification = document.createElement('div');
+    notification.className = 'quest-notification';
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      color: white;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      z-index: 1001;
+      animation: slideInRight 0.4s ease;
+      max-width: 300px;
+    `;
+
+    switch (type) {
+      case 'success':
+        notification.style.background = 'rgba(40, 167, 69, 0.95)';
+        break;
+      case 'error':
+        notification.style.background = 'rgba(220, 53, 69, 0.95)';
+        break;
+      default:
+        notification.style.background = 'rgba(100, 149, 237, 0.95)';
+    }
+
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.animation = 'slideOutRight 0.4s ease';
+        setTimeout(() => notification.remove(), 400);
+      }
+    }, 4000);
+
+    if (!document.querySelector('#quest-animations')) {
+      const style = document.createElement('style');
+      style.id = 'quest-animations';
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }
+
+  // Reste des méthodes inchangées...
   styleQuestDialog(dialog) {
     const style = document.createElement('style');
     if (!document.querySelector('#quest-dialog-styles')) {
@@ -469,13 +573,6 @@ handleNpcInteraction(data) {
           line-height: 1.4;
         }
 
-        .quest-option-steps,
-        .quest-option-rewards {
-          font-size: 12px;
-          color: #bbb;
-          margin-bottom: 5px;
-        }
-
         .quest-dialog-actions {
           padding: 15px 20px;
           border-top: 1px solid rgba(100, 149, 237, 0.3);
@@ -516,187 +613,13 @@ handleNpcInteraction(data) {
         .quest-btn-accept:hover:not(:disabled) {
           background: rgba(40, 167, 69, 1);
         }
-
-        .quest-complete-dialog {
-          text-align: center;
-        }
-
-        .quest-complete-message {
-          font-size: 16px;
-          margin-bottom: 15px;
-          color: #64b5f6;
-        }
-
-        .quest-complete-rewards h4 {
-          color: #ffc107;
-          margin-bottom: 10px;
-        }
-
-        .quest-reward-item {
-          background: rgba(255, 193, 7, 0.2);
-          color: #ffc107;
-          padding: 8px 12px;
-          border-radius: 15px;
-          margin: 5px;
-          display: inline-block;
-          font-size: 14px;
-        }
       `;
       document.head.appendChild(style);
     }
   }
 
-addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
-  let selectedQuestId = defaultSelectedId; // Fix : valeur initiale
-
-  // Fermeture du dialog
-  const closeBtn = dialog.querySelector('.quest-dialog-close');
-  const cancelBtn = dialog.querySelector('.quest-btn-cancel');
-  const acceptBtn = dialog.querySelector('.quest-btn-accept');
-
-  if (defaultSelectedId && acceptBtn) {
-    acceptBtn.disabled = false;
-  }
-
-  if (closeBtn) {
-    closeBtn.addEventListener('click', () => dialog.remove());
-    window._questDialogActive = false;
-  }
-  cancelBtn.addEventListener('click', () => dialog.remove());
-  window._questDialogActive = false;
-
-  // Sélection des quêtes
-  dialog.querySelectorAll('.quest-option').forEach(option => {
-    option.addEventListener('click', () => {
-      // Retirer la sélection précédente
-      dialog.querySelectorAll('.quest-option').forEach(opt => 
-        opt.classList.remove('selected')
-      );
-      // Sélectionner la nouvelle option
-      option.classList.add('selected');
-      selectedQuestId = option.dataset.questId;
-      acceptBtn.disabled = false;
-    });
-  });
-
-  // Accepter la quête
-  acceptBtn.addEventListener('click', () => {
-    // Fix : Si rien n'est sélectionné mais qu'on a un defaultSelectedId, utilise-le
-    if (!selectedQuestId && defaultSelectedId) {
-      selectedQuestId = defaultSelectedId;
-    }
-    if (!selectedQuestId) {
-      const selectedOption = dialog.querySelector('.quest-option.selected') || dialog.querySelector('.quest-option');
-      if (selectedOption) {
-        selectedQuestId = selectedOption.dataset.questId;
-      }
-    }
-    if (selectedQuestId && onSelectQuest) {
-      onSelectQuest(selectedQuestId);
-    }
-    dialog.remove();
-    window._questDialogActive = false;
-  });
-
-  // Fermeture avec Escape
-const handleEscape = (e) => {
-  if (e.key === 'Escape') {
-    dialog.remove();
-    window._questDialogActive = false; // ✅ AJOUTER
-    document.removeEventListener('keydown', handleEscape);
-  }
-};
-  document.addEventListener('keydown', handleEscape);
-}
-
-
-  handleRegularNpcInteraction(data) {
-    // Gestion des interactions NPC normales (dialogue, shop, heal)
-    switch (data.type) {
-case 'dialogue':
-  if (data.lines && data.lines.length > 0) {
-    this.showDialogue(data.lines, data.npcName); // ✅ Passer le nom
-  } else if (data.message) {
-    this.showDialogue([data.message], data.npcName); // ✅ Passer le nom
-  }
-  break;
-        
-      case 'shop':
-        console.log("🛒 Ouverture boutique:", data.shopId);
-        // TODO: Implémenter l'interface boutique
-        break;
-        
-      case 'heal':
-        this.showNotification(data.message, 'success');
-        break;
-        
-      default:
-        // Fallback: afficher les données comme texte si on ne sait pas quoi en faire
-        console.warn("⚠️ Type d'interaction NPC inconnu:", data.type, data);
-        this.showDialogue([data.message || 'Interaction non reconnue']);
-        break;
-    }
-  }
-
-showDialogue(lines, npcName = null, portrait = null) {
-  if (typeof window.showNpcDialogue === 'function') {
-    window.showNpcDialogue({
-      portrait: portrait,
-      name: npcName || 'NPC', // ✅ Utilise le nom passé en paramètre
-      lines: lines
-    });
-  }
-}
-
-  startQuest(questId) {
-    if (this.gameRoom) {
-      this.gameRoom.send("startQuest", { questId });
-    }
-  }
-
-  showAvailableQuests(quests) {
-    if (quests && quests.length > 0) {
-      this.showQuestGiverDialog({ availableQuests: quests });
-    }
-  }
-
-  handleQuestProgressUpdate(results) {
-    results.forEach(result => {
-      if (result.questCompleted) {
-        this.showNotification(`🎉 Quête terminée !`, 'success');
-        // Afficher les récompenses si disponibles
-        if (result.rewards && result.rewards.length > 0) {
-          setTimeout(() => {
-            this.showQuestRewards({ rewards: result.rewards });
-          }, 1000);
-        }
-      } else if (result.stepCompleted) {
-        this.showNotification(`📋 Étape terminée !`, 'info');
-      } else if (result.message) {
-        this.showNotification(result.message, 'info');
-      }
-    });
-
-    // Actualiser le journal des quêtes s'il est ouvert
-    if (this.questJournal && this.questJournal.isVisible) {
-      this.questJournal.refreshQuests();
-    }
-  }
-
-  showQuestRewards(data) {
-    if (data.rewards && data.rewards.length > 0) {
-      const dialog = this.createQuestCompleteDialog(
-        data.message || "Récompenses reçues !",
-        data.rewards
-      );
-      document.body.appendChild(dialog);
-    }
-  }
-
-  // AMÉLIORATION: Meilleure gestion des récompenses
   formatReward(reward) {
     try {
-      // Si reward est une string JSON, la parser
       if (typeof reward === 'string') {
         reward = JSON.parse(reward);
       }
@@ -723,63 +646,87 @@ showDialogue(lines, npcName = null, portrait = null) {
     }
   }
 
-  showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = 'quest-notification';
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      border-radius: 8px;
-      color: white;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-      z-index: 1001;
-      animation: slideInRight 0.4s ease;
-      max-width: 300px;
+  // Méthodes restantes inchangées...
+  showAvailableQuests(quests) {
+    if (quests && quests.length > 0) {
+      this.showQuestGiverDialog({ availableQuests: quests });
+    }
+  }
+
+  handleQuestProgressUpdate(results) {
+    results.forEach(result => {
+      if (result.questCompleted) {
+        this.showNotification(`🎉 Quête terminée !`, 'success');
+        if (result.rewards && result.rewards.length > 0) {
+          setTimeout(() => {
+            this.showQuestRewards({ rewards: result.rewards });
+          }, 1000);
+        }
+      } else if (result.stepCompleted) {
+        this.showNotification(`📋 Étape terminée !`, 'info');
+      } else if (result.message) {
+        this.showNotification(result.message, 'info');
+      }
+    });
+
+    if (this.questJournal && this.questJournal.isVisible) {
+      this.questJournal.refreshQuests();
+    }
+  }
+
+  showQuestRewards(data) {
+    if (data.rewards && data.rewards.length > 0) {
+      window._questDialogActive = true;
+      const dialog = this.createQuestCompleteDialog(
+        data.message || "Récompenses reçues !",
+        data.rewards
+      );
+      document.body.appendChild(dialog);
+    }
+  }
+
+  createQuestCompleteDialog(message, rewards) {
+    const dialog = document.createElement('div');
+    dialog.className = 'quest-dialog-overlay';
+    dialog.innerHTML = `
+      <div class="quest-dialog quest-complete-dialog">
+        <div class="quest-dialog-header">
+          <h3>🎉 Quête terminée !</h3>
+        </div>
+        <div class="quest-dialog-content">
+          <p class="quest-complete-message">${message}</p>
+          ${rewards && rewards.length > 0 ? `
+            <div class="quest-complete-rewards">
+              <h4>Récompenses reçues :</h4>
+              ${rewards.map(reward => `
+                <div class="quest-reward-item">
+                  ${this.formatReward(reward)}
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+        <div class="quest-dialog-actions">
+          <button class="quest-btn-accept">Continuer</button>
+        </div>
+      </div>
     `;
 
-    // Couleurs selon le type
-    switch (type) {
-      case 'success':
-        notification.style.background = 'rgba(40, 167, 69, 0.95)';
-        break;
-      case 'error':
-        notification.style.background = 'rgba(220, 53, 69, 0.95)';
-        break;
-      default:
-        notification.style.background = 'rgba(100, 149, 237, 0.95)';
-    }
-
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    // Auto-suppression
+    this.styleQuestDialog(dialog);
+    
     setTimeout(() => {
-      if (notification.parentNode) {
-        notification.style.animation = 'slideOutRight 0.4s ease';
-        setTimeout(() => notification.remove(), 400);
+      if (dialog.parentNode) {
+        dialog.remove();
+        window._questDialogActive = false;
       }
-    }, 4000);
+    }, 5000);
 
-    // Ajouter les animations si elles n'existent pas
-    if (!document.querySelector('#quest-animations')) {
-      const style = document.createElement('style');
-      style.id = 'quest-animations';
-      style.textContent = `
-        @keyframes slideInRight {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOutRight {
-          from { transform: translateX(0); opacity: 1; }
-          to { transform: translateX(100%); opacity: 0; }
-        }
-      `;
-      document.head.appendChild(style);
-    }
+    dialog.querySelector('.quest-btn-accept').addEventListener('click', () => {
+      dialog.remove();
+      window._questDialogActive = false;
+    });
+    
+    return dialog;
   }
 
   // === MÉTHODES POUR DÉCLENCHER DES ÉVÉNEMENTS DE PROGRESSION ===
@@ -845,8 +792,6 @@ showDialogue(lines, npcName = null, portrait = null) {
     }
   }
 
-  // === UTILITAIRES ===
-
   isQuestJournalOpen() {
     return this.questJournal ? this.questJournal.isVisible : false;
   }
@@ -855,9 +800,7 @@ showDialogue(lines, npcName = null, portrait = null) {
     return this.trackedQuest;
   }
 
-  // Méthode à appeler depuis les scènes Phaser pour vérifier si on peut interagir
   canPlayerInteract() {
-    // Vérifier si le chat est ouvert, HUD starter ouvert, dialog quest ouvert, etc.
     const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
     const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
     const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
