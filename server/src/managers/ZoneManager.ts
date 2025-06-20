@@ -25,7 +25,7 @@ export class ZoneManager {
     this.loadZone('beach', new BeachZone(this.room));
     this.loadZone('village', new VillageZone(this.room));
     this.loadZone('villagelab', new VillageLabZone(this.room));
-    this.loadZone('Villagehouse1', new Villagehouse1(this.room));
+    this.loadZone('villagehouse1', new Villagehouse1(this.room));
     // TODO: Ajouter autres zones
 
     console.log(`✅ ${this.zones.size} zones chargées:`, Array.from(this.zones.keys()));
