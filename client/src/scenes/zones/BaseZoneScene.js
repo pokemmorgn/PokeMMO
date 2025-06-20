@@ -253,67 +253,6 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log(`✅ [${this.scene.key}] Événements d'inventaire configurés`);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Effet visuel de ramassage
-  showPickupEffect(data) {
-    const myPlayer = this.playerManager?.getMyPlayer();
-    if (!myPlayer) return;
-
-    // ✅ Créer un effet de texte qui monte
-    const effectText = this.add.text(
-      myPlayer.x,
-      myPlayer.y - 20,
-      `+${data.quantity} ${data.itemId}`,
-      {
-        fontSize: '14px',
-        fontFamily: 'Arial',
-        color: '#00ff00',
-        stroke: '#000000',
-        strokeThickness: 2
-      }
-    ).setDepth(1000);
-
-    // ✅ Animation du texte
-    this.tweens.add({
-      targets: effectText,
-      y: myPlayer.y - 60,
-      alpha: 0,
-      duration: 1500,
-      ease: 'Power2',
-      onComplete: () => {
-        effectText.destroy();
-      }
-    });
-
-    // ✅ Effet de particules simple
-    this.createSimpleParticleEffect(myPlayer.x, myPlayer.y - 10);
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Effet de particules simple
-  createSimpleParticleEffect(x, y) {
-    // Créer quelques cercles colorés qui disparaissent
-    for (let i = 0; i < 5; i++) {
-      const particle = this.add.circle(
-        x + Phaser.Math.Between(-10, 10),
-        y + Phaser.Math.Between(-10, 10),
-        3,
-        0xffdd00
-      ).setDepth(999);
-
-      this.tweens.add({
-        targets: particle,
-        scaleX: 0,
-        scaleY: 0,
-        alpha: 0,
-        duration: 800,
-        delay: i * 100,
-        ease: 'Power2',
-        onComplete: () => {
-          particle.destroy();
-        }
-      });
-    }
-  }
-
   // ✅ NOUVELLE MÉTHODE: Test de connexion inventaire
   testInventoryConnection() {
     if (!this.inventorySystem || !this.networkManager?.room) {
@@ -634,31 +573,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.inventoryInitialized = false;
     
     console.log(`✅ [${this.scene.key}] Nettoyage terminé`);
-  }
-
-  // ✅ AMÉLIORATION: Setup du scene avec objets ramassables
-  setupScene() {
-    console.log('— DEBUT setupScene —');
-    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
-
-    const baseWidth = this.scale.width;
-    const baseHeight = this.scale.height;
-    const zoomX = baseWidth / this.map.widthInPixels;
-    const zoomY = baseHeight / this.map.heightInPixels;
-    const zoom = Math.min(zoomX, zoomY);
-
-    this.cameras.main.setZoom(zoom);
-    this.cameras.main.setBackgroundColor('#2d5a3d');
-    this.cameras.main.setRoundPixels(true);
-
-    this.cameraManager = new CameraManager(this);
-    
-    // ✅ NOUVEAU: Créer des objets ramassables dans certaines scènes
-    if (this.scene.key === 'BeachScene') {
-      this.time.delayedCall(3000, () => {
-        this.createWorldItems();
-      });
-    }
   }
 
   // ✅ AMÉLIORATION: UI avec informations d'inventaire
