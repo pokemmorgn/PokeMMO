@@ -287,14 +287,16 @@ this.room.onMessage("snap", (data) => {
     this.isTransitioning = false;
   }
 
-  // ✅ AMÉLIORATION: sendMove avec vérification transition allégée
- sendMove 
-  sendNpcInteract(npcId) {
-    if (this.isConnected && this.room && !this.transitionState.isActive) {
-      console.log(`[NetworkManager] 💬 Interaction NPC: ${npcId}`);
-      this.room.send("npcInteract", { npcId });
+  // Ajoute ça dans ta classe NetworkManager !
+sendMove(x, y, direction, isMoving) {
+  if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen) {
+    const now = Date.now();
+    if (!this.lastSendTime || now - this.lastSendTime > 50) {
+      this.room.send("playerMove", { x, y, direction, isMoving });
+      this.lastSendTime = now;
     }
   }
+}
 
   startQuest(questId) {
     if (this.isConnected && this.room && !this.transitionState.isActive) {
