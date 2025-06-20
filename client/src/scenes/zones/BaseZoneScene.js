@@ -337,64 +337,71 @@ initializeInventorySystem() {
   }
 
   // ✅ AMÉLIORATION: Setup des handlers réseau avec vérifications
-  setupNetworkHandlers() {
-    if (!this.networkManager) return;
+setupNetworkHandlers() {
+  if (!this.networkManager) return;
 
-    console.log(`📡 [${this.scene.key}] Configuration handlers réseau...`);
+  console.log(`📡 [${this.scene.key}] Configuration handlers réseau...`);
 
-    // ✅ NOUVEAU: Handler de connexion amélioré
-    this.networkManager.onConnect(() => {
-      console.log(`✅ [${this.scene.key}] Connexion établie`);
+  // ✅ NOUVEAU: Handler de connexion amélioré
+  this.networkManager.onConnect(() => {
+    console.log(`✅ [${this.scene.key}] Connexion établie`);
+    
+    // Vérifier et synchroniser le sessionId
+    const currentSessionId = this.networkManager.getSessionId();
+    if (this.mySessionId !== currentSessionId) {
+      console.log(`🔄 [${this.scene.key}] Mise à jour sessionId: ${this.mySessionId} → ${currentSessionId}`);
+      this.mySessionId = currentSessionId;
       
-      // Vérifier et synchroniser le sessionId
-      const currentSessionId = this.networkManager.getSessionId();
-      if (this.mySessionId !== currentSessionId) {
-        console.log(`🔄 [${this.scene.key}] Mise à jour sessionId: ${this.mySessionId} → ${currentSessionId}`);
-        this.mySessionId = currentSessionId;
-        
-        if (this.playerManager) {
-          this.playerManager.setMySessionId(this.mySessionId);
-        }
+      if (this.playerManager) {
+        this.playerManager.setMySessionId(this.mySessionId);
       }
-      
-      this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nConnected to WorldRoom!`);
+    }
+    
+    this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nConnected to WorldRoom!`);
 
-      this.networkManager.onMessage("questStatuses", (data) => {
-  console.log("📋 Statuts de quêtes reçus:", data);
-  if (this.npcManager) {
-    this.npcManager.updateQuestIndicators(data.questStatuses);
-  }
-});
-      // Quest system
-      this.initializeQuestSystem();
-    });
-
-    // ✅ AMÉLIORATION: Handler d'état avec protection
-    this.networkManager.onStateChange((state) => {
-      if (!this.isSceneReady || !this.networkSetupComplete) {
-        console.log(`⏳ [${this.scene.key}] State reçu mais scène pas prête, ignoré`);
-        return;
+    this.networkManager.onMessage("questStatuses", (data) => {
+      console.log("📋 Statuts de quêtes reçus:", data);
+      if (this.npcManager) {
+        this.npcManager.updateQuestIndicators(data.questStatuses);
       }
-      
-      if (!state || !state.players) return;
-      if (!this.playerManager) return;
-
-      // ✅ CORRECTION: Vérification sessionId avant chaque update
-      this.synchronizeSessionId();
-      
-      this.playerManager.updatePlayers(state);
-
-      // ✅ AMÉLIORATION: Gestion du joueur local
-      this.handleMyPlayerFromState();
     });
+    
+    // Quest system
+    this.initializeQuestSystem();
+  });
 
-    // Handlers de zone WorldRoom
-    this.setupWorldRoomHandlers();
+  // ✅ AMÉLIORATION: Handler d'état avec protection
+  this.networkManager.onStateChange((state) => {
+    if (!this.isSceneReady || !this.networkSetupComplete) {
+      console.log(`⏳ [${this.scene.key}] State reçu mais scène pas prête, ignoré`);
+      return;
+    }
+    
+    // ✅ NOUVEAU: Debug du state reçu
+    console.log(`📊 [${this.scene.key}] State reçu:`, {
+      playersCount: state.players?.size || 0,
+      isFiltered: !!state.players,
+      type: state.players instanceof Map ? 'Map' : 'Object'
+    });
+    
+    if (!state || !state.players) return;
+    if (!this.playerManager) return;
 
-    // Handlers existants
-    this.setupExistingHandlers();
-  }
+    // ✅ CORRECTION: Vérification sessionId avant chaque update
+    this.synchronizeSessionId();
+    
+    this.playerManager.updatePlayers(state);
 
+    // ✅ AMÉLIORATION: Gestion du joueur local
+    this.handleMyPlayerFromState();
+  });
+
+  // Handlers de zone WorldRoom
+  this.setupWorldRoomHandlers();
+
+  // Handlers existants
+  this.setupExistingHandlers();
+}
   // ✅ NOUVELLE MÉTHODE: Synchronisation sessionId
   synchronizeSessionId() {
     if (!this.networkManager) return;
