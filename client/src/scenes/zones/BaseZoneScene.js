@@ -22,7 +22,10 @@ export class BaseZoneScene extends Phaser.Scene {
     this.lastMoveTime = 0;
     this.myPlayerReady = false;
     this.isTransitioning = false;
-    
+
+    // Inventaire
+    this.inventorySystem = null;
+    this.inventoryInitialized = false;
     // ✅ NOUVEAU : Délai de grâce après spawn
     this.spawnGraceTime = 0;
     this.spawnGraceDuration = 2000; // 2 secondes
@@ -132,6 +135,7 @@ useExistingNetworkManager(networkManager, sceneData = null) {
 
   // Chargement de l'inventaire
   this.initializeInventorySystem();
+  
   // ✅ NOUVEAU: Vérifier immédiatement l'état du réseau
   this.verifyNetworkState();
   
