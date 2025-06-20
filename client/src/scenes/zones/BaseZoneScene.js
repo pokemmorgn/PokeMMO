@@ -132,27 +132,19 @@ useExistingNetworkManager(networkManager, sceneData = null) {
   // ✅ NOUVEAU: Vérifier immédiatement l'état du réseau
   this.verifyNetworkState();
   
-  // ✅ AJOUT: Correction de la désynchronisation de zone
-  this.time.delayedCall(200, () => {
-    if (!this.networkManager.checkZoneSynchronization(this.scene.key)) {
-      console.log(`🔄 [${this.scene.key}] Correction désynchronisation détectée`);
-      this.networkManager.forceZoneSynchronization(this.scene.key);
-    }
-  });
-  
-  // ❌ SUPPRIMER CETTE PARTIE QUI FAIT PLANTER :
-  /*
-  this.time.delayedCall(400, () => {
-    if (this.networkManager && this.networkManager.isConnected) {
-      console.log(`🔄 [${this.scene.key}] Demande explicite des NPCs de zone`);
-      
-      // Forcer une demande de zone data pour récupérer les NPCs
-      this.networkManager.room?.send("requestZoneData", { 
-        zone: this.networkManager.currentZone 
-      });
-    }
-  });
-  */
+ // ✅ AJOUT: Déclencher une mise à jour de zone après sync
+this.time.delayedCall(300, () => {
+  if (this.networkManager && this.networkManager.isConnected) {
+    console.log(`🔄 [${this.scene.key}] Déclencher mise à jour serveur`);
+    
+    // Petit mouvement pour forcer le serveur à renvoyer les données
+    const currentZone = this.networkManager.currentZone;
+    this.networkManager.sendMove(52, 48, 'down', false);
+    
+    console.log(`✅ [${this.scene.key}] Mouvement envoyé pour zone: ${currentZone}`);
+  }
+});
+
 }
 
 
