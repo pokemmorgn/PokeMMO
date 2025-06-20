@@ -589,14 +589,6 @@ export class InventoryUI {
         this.hide();
       }
     });
-    // Fermeture avec ESC
-document.addEventListener('keydown', (e) => {
-  if (e.key.toLowerCase() === 'i' && this.canOpenInventory()) {
-    e.preventDefault();
-          this.hide();
-  }
-});
-
     // Changement de poche
     this.overlay.querySelectorAll('.pocket-tab').forEach(tab => {
       tab.addEventListener('click', () => {
