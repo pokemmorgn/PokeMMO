@@ -269,6 +269,43 @@ private handleTransitionRequest(client: Client, request: TransitionRequest) {
     return;
   }
 
+  // ✅ NOUVEAU : Logging détaillé de l'état
+  console.log(`🌀 [${this.mapName}] === ÉTAT DE TRANSITION ===`);
+  console.log(`🎯 Joueur: ${player.name} (Session: ${client.sessionId})`);
+  console.log(`🏠 Room serveur actuelle: ${this.mapName}`);
+  console.log(`📍 Position joueur: (${player.x}, ${player.y})`);
+  console.log(`🔄 Demande transition:`, {
+    from: request.fromZone,
+    to: request.targetZone,
+    targetRoom: request.targetRoom
+  });
+
+  // ✅ NOUVEAU : Vérifier la cohérence client/serveur
+  const expectedPlayerRoom = this.mapZoneToRoom(request.fromZone.replace('Scene', ''));
+  if (expectedPlayerRoom !== this.mapName) {
+    console.error(`🚨 [${this.mapName}] DÉSYNCHRONISATION DÉTECTÉE !`);
+    console.error(`   Client pense être dans: ${request.fromZone} (${expectedPlayerRoom})`);
+    console.error(`   Serveur a le joueur dans: ${this.mapName}`);
+    
+    // ✅ OPTION 1 : Forcer la resynchronisation
+    console.log(`🔧 [${this.mapName}] Tentative de resynchronisation...`);
+    
+    // Dire au client où il est vraiment
+    const realCurrentZone = this.mapName.replace('Room', 'Scene');
+    client.send("forceZoneSync", {
+      currentZone: realCurrentZone,
+      playerPosition: { x: player.x, y: player.y },
+      message: "Position resynchronisée avec le serveur"
+    });
+    
+    client.send("transitionDenied", { 
+      reason: "Resynchronisation required",
+      currentZone: realCurrentZone
+    });
+    return;
+  }
+
+  // ✅ RESTE DU CODE EXISTANT...
   console.log(`🌀 [${this.mapName}] Validation transition de ${player.name}:`, {
     from: this.mapName,
     to: request.targetZone,
@@ -290,7 +327,7 @@ private handleTransitionRequest(client: Client, request: TransitionRequest) {
   // === VALIDATION 2 : Anti-spam ===
   const now = Date.now();
   const lastTransition = (player as any).lastTransitionTime || 0;
-  if (now - lastTransition < 1000) { // Cooldown 1 seconde
+  if (now - lastTransition < 1000) {
     console.warn(`❌ [${this.mapName}] Transition trop rapide pour ${player.name}`);
     client.send("transitionDenied", { reason: "Transition cooldown" });
     return;
@@ -303,11 +340,10 @@ private handleTransitionRequest(client: Client, request: TransitionRequest) {
     return;
   }
 
-  // === VALIDATION 4 : Proximité (DÉSACTIVÉE EN MODE DEBUG) ===
-  const DEBUG_MODE = true; // ✅ Variable de debug explicite
+  // === VALIDATION 4 : Proximité (MODE DEBUG) ===
+  const DEBUG_MODE = true;
   
   if (!DEBUG_MODE) {
-    // Mode production : vérifier la proximité
     const nearTransition = this.isPlayerNearTransition(player.x, player.y);
     if (!nearTransition) {
       console.warn(`❌ [${this.mapName}] ${player.name} pas près d'une zone de transition (${player.x}, ${player.y})`);
@@ -317,7 +353,6 @@ private handleTransitionRequest(client: Client, request: TransitionRequest) {
       return;
     }
   } else {
-    // Mode debug : log mais autoriser quand même
     const nearTransition = this.isPlayerNearTransition(player.x, player.y);
     if (!nearTransition) {
       console.warn(`⚠️ [${this.mapName}] ${player.name} pas près d'une zone de transition (${player.x}, ${player.y})`);
@@ -338,6 +373,20 @@ private handleTransitionRequest(client: Client, request: TransitionRequest) {
 
   // Sauvegarder la nouvelle position dans la DB
   this.updatePlayerLocation(player.name, request);
+}
+
+// ✅ AJOUTER cette méthode helper
+private mapZoneToRoom(zoneName: string): string {
+  const mapping: Record<string, string> = {
+    'beach': 'BeachRoom',
+    'village': 'VillageRoom', 
+    'villagelab': 'VillageLabRoom',
+    'road1': 'Road1Room',
+    'villagehouse1': 'VillageHouse1Room',
+    'lavandia': 'LavandiaRoom'
+  };
+  
+  return mapping[zoneName.toLowerCase()] || zoneName + 'Room';
 }
 
   // ✅ CORRIGÉE : Définir les destinations valides pour chaque zone
