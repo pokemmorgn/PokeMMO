@@ -1,4 +1,4 @@
-// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC CORRECTIONS QUÊTES --- 
+// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC CORRECTIONS QUÊTES
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { ZoneManager } from "../managers/ZoneManager";
@@ -389,24 +389,8 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
 
-      // ✅ FIX: Vérifier si la méthode existe
-      let activeQuests: Quest[] = [];
-      try {
-        const zoneManagerAny = this.zoneManager as any;
-        if (typeof zoneManagerAny.getActiveQuests === 'function') {
-          activeQuests = await zoneManagerAny.getActiveQuests(player.name);
-        } else {
-          console.warn("⚠️ getActiveQuests method not found in ZoneManager");
-        }
-      } catch (error) {
-        console.error("❌ Erreur lors de la récupération des quêtes actives:", error);
-      }(player.name);
-        } else {
-          console.warn("⚠️ getActiveQuests method not found in ZoneManager");
-        }
-      } catch (error) {
-        console.error("❌ Erreur lors de la récupération des quêtes actives:", error);
-      }
+      // ✅ FIX: Utiliser directement la méthode de délégation du ZoneManager
+      const activeQuests = await this.zoneManager.getActiveQuests(player.name);
       
       console.log(`📤 Envoi de ${activeQuests.length} quêtes actives`);
       client.send("activeQuestsList", {
@@ -429,17 +413,8 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
 
-      // ✅ FIX: Vérifier si la méthode existe
-      let availableQuests: Quest[] = [];
-      try {
-        if (typeof this.zoneManager.getAvailableQuests === 'function') {
-          availableQuests = await this.zoneManager.getAvailableQuests(player.name);
-        } else {
-          console.warn("⚠️ getAvailableQuests method not found in ZoneManager");
-        }
-      } catch (error) {
-        console.error("❌ Erreur lors de la récupération des quêtes disponibles:", error);
-      }
+      // ✅ FIX: Utiliser directement la méthode de délégation du ZoneManager
+      const availableQuests = await this.zoneManager.getAvailableQuests(player.name);
       
       console.log(`📤 Envoi de ${availableQuests.length} quêtes disponibles`);
       client.send("availableQuestsList", {
@@ -461,17 +436,8 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
 
-      // ✅ FIX: Vérifier si la méthode existe
-      let results: any[] = [];
-      try {
-        if (typeof this.zoneManager.updateQuestProgress === 'function') {
-          results = await this.zoneManager.updateQuestProgress(player.name, data);
-        } else {
-          console.warn("⚠️ updateQuestProgress method not found in ZoneManager");
-        }
-      } catch (error) {
-        console.error("❌ Erreur lors de la mise à jour de progression:", error);
-      }
+      // ✅ FIX: Utiliser directement la méthode de délégation du ZoneManager
+      const results = await this.zoneManager.updateQuestProgress(player.name, data);
       
       if (results && results.length > 0) {
         console.log(`📤 Envoi questProgressUpdate:`, results);
@@ -489,17 +455,8 @@ export class WorldRoom extends Room<PokeWorldState> {
   // ✅ NOUVELLE MÉTHODE: Mettre à jour les statuts de quête
   private async updateQuestStatuses(username: string) {
     try {
-      // ✅ FIX: Vérifier si la méthode existe
-      let questStatuses: any[] = [];
-      try {
-        if (typeof this.zoneManager.getQuestStatuses === 'function') {
-          questStatuses = await this.zoneManager.getQuestStatuses(username);
-        } else {
-          console.warn("⚠️ getQuestStatuses method not found in ZoneManager");
-        }
-      } catch (error) {
-        console.error("❌ Erreur lors de la récupération des statuts de quête:", error);
-      }
+      // ✅ FIX: Utiliser directement la méthode de délégation du ZoneManager
+      const questStatuses = await this.zoneManager.getQuestStatuses(username);
       
       // Envoyer les statuts de quête à tous les clients de la zone
       this.broadcast("questStatuses", {
@@ -521,20 +478,9 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`🐛 [DEBUG QUETES] Joueur: ${player.name}`);
     
     try {
-      // ✅ FIX: Debug avec vérification des méthodes et typage correct
-      let activeQuests: Quest[] = [];
-      let availableQuests: Quest[] = [];
-      
-      try {
-        if (typeof this.zoneManager.getActiveQuests === 'function') {
-          activeQuests = await this.zoneManager.getActiveQuests(player.name);
-        }
-        if (typeof this.zoneManager.getAvailableQuests === 'function') {
-          availableQuests = await this.zoneManager.getAvailableQuests(player.name);
-        }
-      } catch (error) {
-        console.error("❌ Erreur lors du debug des quêtes:", error);
-      }
+      // ✅ FIX: Debug avec les méthodes de délégation du ZoneManager
+      const activeQuests = await this.zoneManager.getActiveQuests(player.name);
+      const availableQuests = await this.zoneManager.getAvailableQuests(player.name);
       
       console.log(`🐛 [DEBUG] Quêtes actives (${activeQuests.length}):`, 
         activeQuests.map((q: Quest) => ({ id: q.id, name: q.name, step: q.currentStepIndex })));
