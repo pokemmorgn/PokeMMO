@@ -146,6 +146,17 @@ this.room.onStateChange((state) => {
    this.callbacks.onStateChange(state);
  }
 });
+    // ✅ AJOUTEZ ce listener pour le state filtré
+this.room.onMessage("filteredState", (state) => {
+    console.log(`📊 [NetworkManager] State filtré reçu:`, {
+        playersCount: state.players?.size || 0,
+        zone: this.currentZone
+    });
+    
+    if (this.callbacks.onStateChange) {
+        this.callbacks.onStateChange(state);
+    }
+});
 // ✅ NOUVEAU: Forcer le state initial après connexion
     this.room.onStateChange.once((state) => {
         console.log(`🎯 [NetworkManager] ÉTAT INITIAL reçu:`, state);
