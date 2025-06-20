@@ -1,9 +1,10 @@
-// ===== server/src/rooms/managers/ZoneManager.ts =====
+// ===== server/src/managers/ZoneManager.ts =====
 import { Client } from "@colyseus/core";
-import { WorldRoom } from "../WorldRoom";
-import { IZone } from "../zones/IZone";
-import { BeachZone } from "../zones/BeachZone";
-import { VillageZone } from "../zones/VillageZone";
+import { WorldRoom } from "../rooms/WorldRoom"; // Chemin corrigé
+import { IZone } from "../rooms/zones/IZone"; // Chemin corrigé
+import { BeachZone } from "../rooms/zones/BeachZone"; // Chemin corrigé
+import { VillageZone } from "../rooms/zones/VillageZone"; // Chemin corrigé
+import { Player } from "../schema/PokeWorldState"; // Import du type Player
 
 export class ZoneManager {
   private zones = new Map<string, IZone>();
@@ -38,7 +39,7 @@ export class ZoneManager {
     console.log(`👤 Client: ${client.sessionId}`);
     console.log(`📍 Data:`, data);
 
-    const player = this.room.state.players.get(client.sessionId);
+    const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) {
       console.error(`❌ Player not found: ${client.sessionId}`);
       client.send("transitionResult", { success: false, reason: "Player not found" });
@@ -123,7 +124,7 @@ export class ZoneManager {
   handleNpcInteraction(client: Client, npcId: number) {
     console.log(`💬 === NPC INTERACTION HANDLER ===`);
     
-    const player = this.room.state.players.get(client.sessionId);
+    const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) {
       console.error(`❌ Player not found: ${client.sessionId}`);
       return;
@@ -141,7 +142,7 @@ export class ZoneManager {
   handleQuestStart(client: Client, questId: string) {
     console.log(`🎯 === QUEST START HANDLER ===`);
     
-    const player = this.room.state.players.get(client.sessionId);
+    const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) {
       console.error(`❌ Player not found: ${client.sessionId}`);
       return;
@@ -157,9 +158,9 @@ export class ZoneManager {
   }
 
   // Méthodes utilitaires
-  getPlayersInZone(zoneName: string) {
+  getPlayersInZone(zoneName: string): Player[] {
     const playersInZone = Array.from(this.room.state.players.values())
-      .filter(player => player.currentZone === zoneName);
+      .filter((player: Player) => player.currentZone === zoneName);
     
     console.log(`📊 Players in zone ${zoneName}: ${playersInZone.length}`);
     return playersInZone;
@@ -170,8 +171,8 @@ export class ZoneManager {
     
     const playersInZone = this.getPlayersInZone(zoneName);
     const sessionsInZone = Array.from(this.room.state.players.entries())
-      .filter(([_, player]) => player.currentZone === zoneName)
-      .map(([sessionId, _]) => sessionId);
+      .filter(([_, player]: [string, Player]) => player.currentZone === zoneName)
+      .map(([sessionId, _]: [string, Player]) => sessionId);
     
     this.room.broadcast(message, data, { 
       except: sessionsInZone.length === this.room.clients.length ? undefined : sessionsInZone 
