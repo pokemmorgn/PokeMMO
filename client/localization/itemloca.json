@@ -149,5 +149,4 @@
     "kr": { "name": "풀회복약", "description": "HP와 상태이상을 모두 회복한다." },
     "zh": { "name": "全满药剂", "description": "回复全部HP并治愈异常状态。" }
   }
-  // ...Tu peux continuer avec tous les objets 1G (Key Items, TMs, etc) selon le même format.
 }
