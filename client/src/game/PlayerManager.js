@@ -283,81 +283,95 @@ getMyPlayer() {
     this.performUpdate(state);
   }
 
-  performUpdate(state) {
-    if (this.isDestroyed || !this.scene?.scene?.isActive()) {
-      console.warn("[PlayerManager] performUpdate: MANAGER DETRUIT OU SCENE INACTIVE");
-      return;
+ performUpdate(state) {
+  if (this.isDestroyed || !this.scene?.scene?.isActive()) {
+    console.warn("[PlayerManager] performUpdate: MANAGER DETRUIT OU SCENE INACTIVE");
+    return;
+  }
+
+  this.logPlayers();
+
+  // Supprimer les joueurs déconnectés
+  const currentSessionIds = new Set();
+  state.players.forEach((playerState, sessionId) => {
+    currentSessionIds.add(sessionId);
+  });
+
+  const playersToCheck = Array.from(this.players.keys());
+  playersToCheck.forEach(sessionId => {
+    if (!currentSessionIds.has(sessionId)) {
+      console.warn("[PlayerManager] Suppression du joueur absent dans le state:", sessionId);
+      this.removePlayer(sessionId);
     }
+  });
 
-    this.logPlayers();
-
-    // Supprimer les joueurs déconnectés
-    const currentSessionIds = new Set();
-    state.players.forEach((playerState, sessionId) => {
-      currentSessionIds.add(sessionId);
-    });
-    
-    const playersToCheck = Array.from(this.players.keys());
-    playersToCheck.forEach(sessionId => {
-      if (!currentSessionIds.has(sessionId)) {
-        console.warn("[PlayerManager] Suppression du joueur absent dans le state:", sessionId);
+  // Mettre à jour ou créer les joueurs
+  state.players.forEach((playerState, sessionId) => {
+    // === FILTRE PAR ZONE ===
+    // Si le joueur n'est pas dans la zone de la scène courante ET que ce n'est pas nous-même, on ignore !
+    if (
+      playerState.currentZone !== this.scene.zoneName &&
+      sessionId !== this.mySessionId
+    ) {
+      // S'il existe déjà dans cette scène, on le retire (il a quitté la zone)
+      if (this.players.has(sessionId)) {
         this.removePlayer(sessionId);
       }
-    });
+      return;
+    }
+    // === FIN FILTRE ===
 
-    // Mettre à jour ou créer les joueurs
-    state.players.forEach((playerState, sessionId) => {
-      let player = this.players.get(sessionId);
+    let player = this.players.get(sessionId);
 
-      if (!player) {
-        console.log("[PlayerManager] Aucun player pour", sessionId, "--> création");
+    if (!player) {
+      console.log("[PlayerManager] Aucun player pour", sessionId, "--> création");
+      player = this.createPlayer(sessionId, playerState.x, playerState.y);
+    } else {
+      if (!player.scene || player.scene !== this.scene) {
+        console.warn("[PlayerManager] player.scene !== this.scene pour", sessionId, " (RE-creation forcée)");
+        this.players.delete(sessionId);
         player = this.createPlayer(sessionId, playerState.x, playerState.y);
-      } else {
-        if (!player.scene || player.scene !== this.scene) {
-          console.warn("[PlayerManager] player.scene !== this.scene pour", sessionId, " (RE-creation forcée)");
-          this.players.delete(sessionId);
-          player = this.createPlayer(sessionId, playerState.x, playerState.y);
-          return;
-        }
-      }
-
-      // ✅ CORRECTION 6 : Vérifier et restaurer la visibilité
-      if (!player.visible) {
-        console.warn(`[PlayerManager] Joueur ${sessionId} invisible, restauration`);
-        player.setVisible(true);
-        player.setActive(true);
-      }
-
-      // Stocker la position cible
-      player.targetX = playerState.x;
-      player.targetY = playerState.y;
-
-      // Gérer les animations proprement
-      if (playerState.isMoving !== undefined) player.isMoving = playerState.isMoving;
-      if (playerState.direction) player.lastDirection = playerState.direction;
-
-      if (player.isMoving && player.lastDirection) {
-        const walkAnim = `walk_${player.lastDirection}`;
-        if (this.scene.anims.exists(walkAnim)) player.anims.play(walkAnim, true);
-      } else if (!player.isMoving && player.lastDirection) {
-        const idleAnim = `idle_${player.lastDirection}`;
-        if (this.scene.anims.exists(idleAnim)) player.anims.play(idleAnim, true);
-      }
-    });
-
-    // ✅ CORRECTION 7 : Notification joueur local prêt avec vérification sessionId
-    if (this.mySessionId && this.players.has(this.mySessionId) && !this._myPlayerIsReady) {
-      this._myPlayerIsReady = true;
-      console.log(`[PlayerManager] ✅ Mon joueur est prêt avec sessionId: ${this.mySessionId}`);
-      
-      if (this._myPlayerReadyCallback) {
-        console.log("[PlayerManager] onMyPlayerReady callback déclenché!");
-        this._myPlayerReadyCallback(this.players.get(this.mySessionId));
+        return;
       }
     }
-    
-    this.logPlayers();
+
+    // ✅ CORRECTION 6 : Vérifier et restaurer la visibilité
+    if (!player.visible) {
+      console.warn(`[PlayerManager] Joueur ${sessionId} invisible, restauration`);
+      player.setVisible(true);
+      player.setActive(true);
+    }
+
+    // Stocker la position cible
+    player.targetX = playerState.x;
+    player.targetY = playerState.y;
+
+    // Gérer les animations proprement
+    if (playerState.isMoving !== undefined) player.isMoving = playerState.isMoving;
+    if (playerState.direction) player.lastDirection = playerState.direction;
+
+    if (player.isMoving && player.lastDirection) {
+      const walkAnim = `walk_${player.lastDirection}`;
+      if (this.scene.anims.exists(walkAnim)) player.anims.play(walkAnim, true);
+    } else if (!player.isMoving && player.lastDirection) {
+      const idleAnim = `idle_${player.lastDirection}`;
+      if (this.scene.anims.exists(idleAnim)) player.anims.play(idleAnim, true);
+    }
+  });
+
+  // ✅ CORRECTION 7 : Notification joueur local prêt avec vérification sessionId
+  if (this.mySessionId && this.players.has(this.mySessionId) && !this._myPlayerIsReady) {
+    this._myPlayerIsReady = true;
+    console.log(`[PlayerManager] ✅ Mon joueur est prêt avec sessionId: ${this.mySessionId}`);
+
+    if (this._myPlayerReadyCallback) {
+      console.log("[PlayerManager] onMyPlayerReady callback déclenché!");
+      this._myPlayerReadyCallback(this.players.get(this.mySessionId));
+    }
   }
+
+  this.logPlayers();
+}
 
   // ⭐️ update = lerp + SYNC INDICATOR à chaque frame !
   update(delta = 16) {
