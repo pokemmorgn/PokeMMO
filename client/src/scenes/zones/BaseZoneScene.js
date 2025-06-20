@@ -140,6 +140,18 @@ useExistingNetworkManager(networkManager, sceneData = null) {
       this.networkManager.forceZoneSynchronization(this.scene.key);
     }
   });
+
+  // ✅ AJOUT FINAL: Demander les NPCs après synchronisation
+  this.time.delayedCall(400, () => {
+    if (this.networkManager && this.networkManager.isConnected) {
+      console.log(`🔄 [${this.scene.key}] Demande explicite des NPCs de zone`);
+      
+      // Forcer une demande de zone data pour récupérer les NPCs
+      this.networkManager.room?.send("requestZoneData", { 
+        zone: this.networkManager.currentZone 
+      });
+    }
+  });
 }
 
   // ✅ NOUVELLE MÉTHODE: Chercher un NetworkManager existant
