@@ -1,4 +1,4 @@
-import { Inventory, IInventory } from "../models/Inventory";
+import { Inventory, IInventory, IInventoryItem } from "../models/Inventory";
 import { getItemData, isValidItemId, getItemPocket } from "../utils/ItemDB";
 import { EventDispatcher } from "../utils/EventDispatcher";
 
@@ -22,7 +22,7 @@ const MAX_SLOTS_PER_POCKET = 30;
 // Helper pour accéder/créer la bonne poche
 function getPocketList(inv: IInventory, pocket: string) {
   if (!inv[pocket]) inv[pocket] = [];
-  return inv[pocket] as { itemId: string; quantity: number }[];
+  return inv[pocket] as IInventoryItem[];
 }
 
 export class InventoryManager {
@@ -33,7 +33,7 @@ export class InventoryManager {
     if (!inv) {
       inv = await Inventory.create(Object.fromEntries([
         ["username", username],
-        ...ALL_POCKETS.map(pocket => [pocket, []])
+        ...ALL_POCKETS.map<[string, IInventoryItem[]]>(pocket => [pocket, [] as IInventoryItem[]])
       ]));
     }
     return inv;
@@ -48,7 +48,7 @@ export class InventoryManager {
     const inv = await InventoryManager.getInventory(username);
     const list = getPocketList(inv, pocket);
 
-    const hasItem = list.find(i => i.itemId === itemId);
+    const hasItem = list.find((i: IInventoryItem) => i.itemId === itemId);
 
     if (!hasItem && list.length >= MAX_SLOTS_PER_POCKET)
       throw new Error(`[InventoryManager] Poche "${pocket}" pleine (${MAX_SLOTS_PER_POCKET} slots max)`);
@@ -80,7 +80,7 @@ export class InventoryManager {
     const pocket = getItemPocket(itemId);
     const inv = await InventoryManager.getInventory(username);
     const list = getPocketList(inv, pocket);
-    const item = list.find(i => i.itemId === itemId);
+    const item = list.find((i: IInventoryItem) => i.itemId === itemId);
 
     if (!item) return false;
     if (!itemData.stackable && qty > 1)
@@ -89,7 +89,7 @@ export class InventoryManager {
 
     item.quantity -= qty;
     if (item.quantity <= 0) {
-      const idx = list.findIndex(i => i.itemId === itemId);
+      const idx = list.findIndex((i: IInventoryItem) => i.itemId === itemId);
       if (idx >= 0) list.splice(idx, 1);
     }
     await inv.save();
@@ -102,7 +102,7 @@ export class InventoryManager {
     const pocket = getItemPocket(itemId);
     const inv = await InventoryManager.getInventory(username);
     const list = getPocketList(inv, pocket);
-    const item = list.find(i => i.itemId === itemId);
+    const item = list.find((i: IInventoryItem) => i.itemId === itemId);
     return item ? item.quantity : 0;
   }
 
@@ -123,7 +123,7 @@ export class InventoryManager {
   static async getItemsByPocket(username: string, pocket: string): Promise<{ itemId: string; quantity: number; data: any }[]> {
     const inv = await InventoryManager.getInventory(username);
     const list = getPocketList(inv, pocket);
-    return list.map(i => ({
+    return list.map((i: IInventoryItem) => ({
       itemId: i.itemId,
       quantity: i.quantity,
       data: getItemData(i.itemId)
@@ -136,7 +136,7 @@ export class InventoryManager {
     const grouped: Record<string, { itemId: string; quantity: number; data: any }[]> = {};
     for (const pocket of ALL_POCKETS) {
       const list = getPocketList(inv, pocket);
-      grouped[pocket] = list.map(i => ({
+      grouped[pocket] = list.map((i: IInventoryItem) => ({
         itemId: i.itemId,
         quantity: i.quantity,
         data: getItemData(i.itemId)
@@ -165,9 +165,9 @@ export class InventoryManager {
   // Sauvegarde/export inventaire complet (sans _id, ni __v)
   static async exportInventory(username: string): Promise<any> {
     const inv = await InventoryManager.getInventory(username);
-    const raw = {};
+    const raw: { [key: string]: any } = {};
     for (const pocket of ALL_POCKETS) {
-      raw[pocket] = inv[pocket]?.map(i => ({ itemId: i.itemId, quantity: i.quantity })) || [];
+      raw[pocket] = inv[pocket]?.map((i: IInventoryItem) => ({ itemId: i.itemId, quantity: i.quantity })) || [];
     }
     raw["username"] = username;
     return raw;
@@ -178,7 +178,7 @@ export class InventoryManager {
     let inv = await Inventory.findOne({ username });
     if (!inv) inv = await Inventory.create({ username });
     for (const pocket of ALL_POCKETS) {
-      inv[pocket] = (data[pocket] || []).map(i => ({ itemId: i.itemId, quantity: i.quantity }));
+      inv[pocket] = (data[pocket] || []).map((i: { itemId: string; quantity: number }) => ({ itemId: i.itemId, quantity: i.quantity }));
     }
     await inv.save();
   }
