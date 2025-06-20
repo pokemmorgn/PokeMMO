@@ -25,7 +25,7 @@ interface Spawn {
   y: number;
 }
 
-export class VillageZone implements IZone {
+export class VillageLabZone implements IZone {
   private room: WorldRoom;
   private npcs: NPC[] = [];
 
