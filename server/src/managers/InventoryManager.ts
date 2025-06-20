@@ -1,16 +1,29 @@
 import { Inventory, IInventory } from "../models/Inventory";
-import { getItemData, isValidItemId } from "../utils/ItemDB";
+import { getItemData, isValidItemId, getItemPocket } from "../utils/ItemDB";
 import { EventDispatcher } from "../utils/EventDispatcher";
 
-// Type des events de l’inventaire
+// Type des events d’inventaire
 type InventoryEvents = {
   addItem: { username: string; itemId: string; quantity: number };
   removeItem: { username: string; itemId: string; quantity: number };
   clear: { username: string };
 };
 
-// Limite d’items (slots max, façon 1G)
-const MAX_INVENTORY_SLOTS = 30;
+// Liste de toutes les poches gérées (adapter ici pour ajouter/enlever des pockets)
+const ALL_POCKETS = [
+  "items", "medicine", "balls", "berries", "key_items",
+  "tms", "battle_items", "valuables", "held_items"
+] as const;
+type PocketName = typeof ALL_POCKETS[number];
+
+// Limite de slots PAR POCHE (modifie si tu veux un total global)
+const MAX_SLOTS_PER_POCKET = 30;
+
+// Helper pour récupérer la poche, et l’instancier si besoin
+function getPocketList(inv: IInventory, pocket: string) {
+  if (!inv[pocket]) inv[pocket] = [];
+  return inv[pocket] as { itemId: string; quantity: number }[];
+}
 
 export class InventoryManager {
   static events = new EventDispatcher<InventoryEvents>();
@@ -18,7 +31,11 @@ export class InventoryManager {
   static async getInventory(username: string): Promise<IInventory> {
     let inv = await Inventory.findOne({ username });
     if (!inv) {
-      inv = await Inventory.create({ username, items: [] });
+      // Création avec toutes les poches vides
+      inv = await Inventory.create(Object.fromEntries([
+        ["username", username],
+        ...ALL_POCKETS.map(pocket => [pocket, []])
+      ]));
     }
     return inv;
   }
@@ -28,27 +45,27 @@ export class InventoryManager {
     if (qty <= 0) throw new Error(`[InventoryManager] Quantité négative ou nulle interdite`);
 
     const itemData = getItemData(itemId);
+    const pocket = getItemPocket(itemId);
     const inv = await InventoryManager.getInventory(username);
+    const list = getPocketList(inv, pocket);
 
-    // Limite de slots
-    const hasItem = inv.items.find(i => i.itemId === itemId);
-    if (!hasItem && inv.items.length >= MAX_INVENTORY_SLOTS)
-      throw new Error(`[InventoryManager] Inventaire plein (${MAX_INVENTORY_SLOTS} slots max)`);
+    const hasItem = list.find(i => i.itemId === itemId);
+
+    if (!hasItem && list.length >= MAX_SLOTS_PER_POCKET)
+      throw new Error(`[InventoryManager] Poche "${pocket}" pleine (${MAX_SLOTS_PER_POCKET} slots max)`);
 
     if (!itemData.stackable) {
-      // Non stackable : 1 seul exemplaire possible
       if (hasItem)
         throw new Error(`[InventoryManager] "${itemId}" déjà possédé (objet non stackable)`);
-      inv.items.push({ itemId, quantity: 1 });
+      list.push({ itemId, quantity: 1 });
       await inv.save();
       InventoryManager.events.emit("addItem", { username, itemId, quantity: 1 });
       return inv;
     } else {
-      // Stackable
       if (hasItem) {
         hasItem.quantity += qty;
       } else {
-        inv.items.push({ itemId, quantity: qty });
+        list.push({ itemId, quantity: qty });
       }
       await inv.save();
       InventoryManager.events.emit("addItem", { username, itemId, quantity: qty });
@@ -61,8 +78,10 @@ export class InventoryManager {
     if (qty <= 0) throw new Error(`[InventoryManager] Quantité négative ou nulle interdite`);
 
     const itemData = getItemData(itemId);
+    const pocket = getItemPocket(itemId);
     const inv = await InventoryManager.getInventory(username);
-    const item = inv.items.find(i => i.itemId === itemId);
+    const list = getPocketList(inv, pocket);
+    const item = list.find(i => i.itemId === itemId);
 
     if (!item) return false;
     if (!itemData.stackable && qty > 1)
@@ -71,7 +90,8 @@ export class InventoryManager {
 
     item.quantity -= qty;
     if (item.quantity <= 0) {
-      inv.items = inv.items.filter(i => i.itemId !== itemId);
+      const idx = list.findIndex(i => i.itemId === itemId);
+      if (idx >= 0) list.splice(idx, 1);
     }
     await inv.save();
     InventoryManager.events.emit("removeItem", { username, itemId, quantity: qty });
@@ -80,28 +100,65 @@ export class InventoryManager {
 
   static async getItemCount(username: string, itemId: string): Promise<number> {
     if (!isValidItemId(itemId)) return 0;
+    const pocket = getItemPocket(itemId);
     const inv = await InventoryManager.getInventory(username);
-    const item = inv.items.find(i => i.itemId === itemId);
+    const list = getPocketList(inv, pocket);
+    const item = list.find(i => i.itemId === itemId);
     return item ? item.quantity : 0;
   }
 
-  static async getAllItems(username: string): Promise<{ itemId: string; quantity: number; data: any }[]> {
+  // Retourne tous les items, toutes poches confondues (format à plat)
+  static async getAllItems(username: string): Promise<{ itemId: string; quantity: number; data: any; pocket: string }[]> {
     const inv = await InventoryManager.getInventory(username);
-    return inv.items.map(i => ({
+    const result: { itemId: string; quantity: number; data: any; pocket: string }[] = [];
+    for (const pocket of ALL_POCKETS) {
+      const list = getPocketList(inv, pocket);
+      for (const i of list) {
+        result.push({ itemId: i.itemId, quantity: i.quantity, data: getItemData(i.itemId), pocket });
+      }
+    }
+    return result;
+  }
+
+  // Lister les items d’une seule poche (parfait pour UI “onglets”)
+  static async getItemsByPocket(username: string, pocket: string): Promise<{ itemId: string; quantity: number; data: any }[]> {
+    const inv = await InventoryManager.getInventory(username);
+    const list = getPocketList(inv, pocket);
+    return list.map(i => ({
       itemId: i.itemId,
       quantity: i.quantity,
       data: getItemData(i.itemId)
     }));
   }
 
-  static async hasFreeSlot(username: string): Promise<boolean> {
+  // Retourner tout l’inventaire, groupé par poche
+  static async getAllItemsGroupedByPocket(username: string): Promise<Record<string, { itemId: string; quantity: number; data: any }[]>> {
     const inv = await InventoryManager.getInventory(username);
-    return inv.items.length < MAX_INVENTORY_SLOTS;
+    const grouped: Record<string, { itemId: string; quantity: number; data: any }[]> = {};
+    for (const pocket of ALL_POCKETS) {
+      const list = getPocketList(inv, pocket);
+      grouped[pocket] = list.map(i => ({
+        itemId: i.itemId,
+        quantity: i.quantity,
+        data: getItemData(i.itemId)
+      }));
+    }
+    return grouped;
   }
 
+  // Vérifie si une poche a un slot libre
+  static async hasFreeSlot(username: string, pocket: string): Promise<boolean> {
+    const inv = await InventoryManager.getInventory(username);
+    const list = getPocketList(inv, pocket);
+    return list.length < MAX_SLOTS_PER_POCKET;
+  }
+
+  // Vide tout l’inventaire (toutes poches)
   static async clear(username: string) {
     const inv = await InventoryManager.getInventory(username);
-    inv.items = [];
+    for (const pocket of ALL_POCKETS) {
+      inv[pocket] = [];
+    }
     await inv.save();
     InventoryManager.events.emit("clear", { username });
   }
