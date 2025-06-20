@@ -1,4 +1,5 @@
-// client/src/scenes/zones/BaseZoneScene.js - VERSION SIMPLIFIÉE
+// client/src/scenes/zones/BaseZoneScene.js - VERSION COMPLÈTE CORRIGÉE
+
 import { NetworkManager } from "../../network/NetworkManager.js";
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
@@ -18,7 +19,11 @@ export class BaseZoneScene extends Phaser.Scene {
     this.animatedObjects = null;
     this.lastMoveTime = 0;
     this.myPlayerReady = false;
-    this.isTransitioning = false; // ✅ NOUVEAU : Flag local de transition
+    this.isTransitioning = false;
+    
+    // ✅ NOUVEAU : Délai de grâce après spawn
+    this.spawnGraceTime = 0;
+    this.spawnGraceDuration = 2000; // 2 secondes
   }
 
   preload() {
@@ -43,7 +48,7 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.myPlayerReady = false;
 
-    // ✅ NOUVEAU : Setup des zones de transition
+    // ✅ CORRIGÉ : Setup des zones de transition
     this.setupZoneTransitions();
 
     // Gestion réseau simplifiée
@@ -82,7 +87,7 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-  // ✅ NOUVEAU : Setup des zones de transition depuis Tiled
+  // ✅ CORRIGÉ : Setup des zones de transition depuis Tiled
   setupZoneTransitions() {
     if (!this.map) {
       console.warn(`[${this.scene.key}] setupZoneTransitions appelé avant loadMap`);
@@ -113,6 +118,13 @@ export class BaseZoneScene extends Phaser.Scene {
         return;
       }
 
+      // ✅ CORRIGÉ : Vérifier qu'on ne va pas vers notre propre zone
+      const targetSceneName = this.mapZoneToScene(targetZone);
+      if (targetSceneName === this.scene.key) {
+        console.warn(`[${this.scene.key}] ⚠️ Zone ${index} pointe vers elle-même (${targetZone} → ${targetSceneName}), ignorée`);
+        return;
+      }
+
       // Créer une zone invisible pour la détection
       const teleportZone = this.add.zone(
         zone.x + (zone.width || 32) / 2, 
@@ -134,26 +146,38 @@ export class BaseZoneScene extends Phaser.Scene {
         ).setDepth(999);
       }
 
-      // Stocker les données de transition
+      // ✅ CORRIGÉ : Stocker les données de transition avec validation
       teleportZone.transitionData = {
-        targetZone: this.mapZoneToScene(targetZone),
-        targetRoom: this.mapZoneToRoom(targetZone),
+        targetZone: targetSceneName, // SCÈNE de destination
+        targetRoom: this.mapZoneToRoom(targetZone), // ROOM de destination 
         spawnPoint,
         targetX: targetX ? parseFloat(targetX) : undefined,
         targetY: targetY ? parseFloat(targetY) : undefined,
-        fromZone: this.scene.key
+        fromZone: this.scene.key // SCÈNE actuelle
       };
 
-      console.log(`[${this.scene.key}] Transition zone ${index} setup:`, teleportZone.transitionData);
+      console.log(`[${this.scene.key}] ✅ Transition zone ${index} setup:`, teleportZone.transitionData);
     });
   }
 
-  // ✅ NOUVEAU : Vérifier les collisions avec les zones de transition
+  // ✅ CORRIGÉ : Vérifier les collisions avec les zones de transition
   checkTransitionCollisions() {
     if (!this.playerManager || this.isTransitioning) return;
 
+    // ✅ NOUVEAU : Ne pas vérifier les transitions pendant le délai de grâce
+    const now = Date.now();
+    if (this.spawnGraceTime > 0 && now < this.spawnGraceTime) {
+      return; // Encore dans le délai de grâce
+    }
+
     const myPlayer = this.playerManager.getMyPlayer();
     if (!myPlayer) return;
+
+    // ✅ NOUVEAU : Vérifier si le joueur bouge (éviter déclenchement statique)
+    const isMoving = myPlayer.isMovingLocally || myPlayer.isMoving;
+    if (!isMoving) {
+      return; // Ne déclencher les transitions que si le joueur bouge
+    }
 
     // Vérifier tous les objets avec transitionData
     this.children.list.forEach(child => {
@@ -163,17 +187,30 @@ export class BaseZoneScene extends Phaser.Scene {
         const zoneBounds = child.getBounds();
 
         if (Phaser.Geom.Rectangle.Overlaps(playerBounds, zoneBounds)) {
-          console.log(`🌀 [${this.scene.key}] Collision détectée avec zone de transition`);
+          console.log(`🌀 [${this.scene.key}] Collision détectée avec zone de transition vers ${child.transitionData.targetZone}`);
+          
+          // ✅ VALIDATION : Ne pas transitionner vers soi-même
+          if (child.transitionData.targetZone === this.scene.key) {
+            console.warn(`[${this.scene.key}] ⚠️ Tentative de transition vers soi-même ignorée`);
+            return;
+          }
+          
           this.handleZoneTransition(child.transitionData);
         }
       }
     });
   }
 
-  // ✅ NOUVEAU : Gérer la transition (client-first)
+  // ✅ CORRIGÉ : Gérer la transition (client-first)
   async handleZoneTransition(transitionData) {
     if (this.isTransitioning) {
       console.log(`[${this.scene.key}] Transition déjà en cours`);
+      return;
+    }
+
+    // ✅ VALIDATION SUPPLÉMENTAIRE : Vérifier qu'on ne va pas vers soi-même
+    if (transitionData.targetZone === this.scene.key) {
+      console.warn(`[${this.scene.key}] ⚠️ Transition vers soi-même bloquée`);
       return;
     }
 
@@ -197,7 +234,7 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  // ✅ NOUVEAU : Exécuter la transition côté client
+  // ✅ CORRIGÉ : Exécuter la transition côté client
   async performTransition(transitionData) {
     console.log(`🚀 [${this.scene.key}] Exécution transition vers ${transitionData.targetZone}`);
 
@@ -232,7 +269,7 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-  // ✅ UTILITAIRES : Mapping des zones
+  // ✅ CORRIGÉ : Mapping des zones avec validation
   mapZoneToScene(zoneName) {
     const mapping = {
       'beach': 'BeachScene',
@@ -248,7 +285,10 @@ export class BaseZoneScene extends Phaser.Scene {
       'lavandia': 'LavandiaScene',
       'lavandiascene': 'LavandiaScene'
     };
-    return mapping[zoneName.toLowerCase()] || zoneName;
+    
+    const result = mapping[zoneName.toLowerCase()] || zoneName;
+    console.log(`🗺️ [${this.scene.key}] mapZoneToScene: ${zoneName} → ${result}`);
+    return result;
   }
 
   mapZoneToRoom(zoneName) {
@@ -266,7 +306,10 @@ export class BaseZoneScene extends Phaser.Scene {
       'lavandia': 'LavandiaRoom',
       'lavandiascene': 'LavandiaRoom'
     };
-    return mapping[zoneName.toLowerCase()] || zoneName + 'Room';
+    
+    const result = mapping[zoneName.toLowerCase()] || zoneName + 'Room';
+    console.log(`🏠 [${this.scene.key}] mapZoneToRoom: ${zoneName} → ${result}`);
+    return result;
   }
 
   getProperty(object, propertyName) {
@@ -275,7 +318,7 @@ export class BaseZoneScene extends Phaser.Scene {
     return prop ? prop.value : null;
   }
 
-  // ✅ MÉTHODES EXISTANTES CONSERVÉES (légèrement modifiées)
+  // ✅ MÉTHODES EXISTANTES CONSERVÉES
 
   getExistingNetwork() {
     const sceneData = this.scene.settings.data;
@@ -379,7 +422,6 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   setupAnimatedObjects() {
-    // Méthode existante conservée
     if (this.map.objects && this.map.objects.length > 0) {
       this.map.objects.forEach(objectLayer => {
         objectLayer.objects.forEach(obj => {
@@ -419,10 +461,11 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.cameraManager = new CameraManager(this);
 
-    // ✅ NOUVEAU : Setup des transitions après que la map soit chargée
+    // ✅ IMPORTANT : Setup des transitions après que la map soit chargée
     this.setupZoneTransitions();
   }
 
+  // ✅ CORRIGÉ : Position du joueur avec délai de grâce
   positionPlayer(player) {
     const initData = this.scene.settings.data;
     
@@ -447,6 +490,10 @@ export class BaseZoneScene extends Phaser.Scene {
       player.indicator.setVisible(true);
     }
 
+    // ✅ NOUVEAU : Activer le délai de grâce après spawn
+    this.spawnGraceTime = Date.now() + this.spawnGraceDuration;
+    console.log(`[${this.scene.key}] 🛡️ Délai de grâce activé pour ${this.spawnGraceDuration}ms`);
+
     if (this.networkManager && this.networkManager.isConnected) {
       this.networkManager.sendMove(player.x, player.y);
     }
@@ -462,7 +509,6 @@ export class BaseZoneScene extends Phaser.Scene {
     // Hook pour logique spécifique
   }
 
-  // ✅ MÉTHODES CONSERVÉES (setupManagers, createPlayerAnimations, setupInputs, etc.)
   setupManagers() {
     this.playerManager = new PlayerManager(this);
     this.npcManager = new NpcManager(this);
@@ -544,7 +590,7 @@ export class BaseZoneScene extends Phaser.Scene {
     if (this.playerManager) this.playerManager.update();
     if (this.cameraManager) this.cameraManager.update();
 
-    // ✅ NOUVEAU : Vérifier les transitions
+    // ✅ IMPORTANT : Vérifier les transitions
     this.checkTransitionCollisions();
 
     if (this.sys.animatedTiles && typeof this.sys.animatedTiles.update === 'function') {
@@ -563,7 +609,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.handleMovement(myPlayerState);
   }
 
-  // ✅ RESTE DES MÉTHODES EXISTANTES CONSERVÉES
   async initializeNetwork() {
     const getWalletFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
@@ -805,6 +850,7 @@ export class BaseZoneScene extends Phaser.Scene {
     return true;
   }
 
+  // ✅ CORRIGÉ : Gestion du mouvement avec désactivation du délai de grâce
   handleMovement(myPlayerState) {
     const speed = 120;
     const myPlayer = this.playerManager.getMyPlayer();
@@ -830,6 +876,12 @@ export class BaseZoneScene extends Phaser.Scene {
       myPlayer.play(`walk_${direction}`, true);
       this.lastDirection = direction;
       myPlayer.isMovingLocally = true;
+      
+      // ✅ NOUVEAU : Désactiver le délai de grâce dès que le joueur bouge
+      if (this.spawnGraceTime > 0) {
+        this.spawnGraceTime = 0;
+        console.log(`[${this.scene.key}] 🏃 Joueur bouge, délai de grâce désactivé`);
+      }
     } else {
       myPlayer.play(`idle_${this.lastDirection}`, true);
       myPlayer.isMovingLocally = false;
@@ -871,5 +923,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.cameraFollowing = false;
     this.isTransitioning = false;
     this.myPlayerReady = false;
+    
+    // ✅ NOUVEAU : Reset du délai de grâce
+    this.spawnGraceTime = 0;
   }
 }
