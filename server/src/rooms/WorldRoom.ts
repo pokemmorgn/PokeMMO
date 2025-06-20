@@ -88,12 +88,17 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
       console.log(`✅ Joueur ${player.name} créé`);
 
-      try {
-    const inv = await InventoryManager.addItem(player.name, "poke_ball", 5);
-    console.log(`🎒 [INVENTAIRE] ${player.name} possède:`, inv.items);
-      } catch (err) {
-    console.error(`❌ [INVENTAIRE] Erreur d'ajout d'objet pour ${player.name}:`, err);
-        }
+try {
+  const inv = await InventoryManager.addItem(player.name, "poke_ball", 5);
+
+  // OU : groupé par poche (prêt pour une UI avec onglets)
+  const grouped = await InventoryManager.getAllItemsGroupedByPocket(player.name);
+  console.log(`🎒 [INVENTAIRE groupé par poche] ${player.name}:`, grouped);
+
+} catch (err) {
+  console.error(`❌ [INVENTAIRE] Erreur d'ajout d'objet pour ${player.name}:`, err);
+}
+
       
       // Faire entrer le joueur dans sa zone initiale
       await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
