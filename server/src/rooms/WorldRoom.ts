@@ -775,26 +775,42 @@ private getFilteredStateForClient(client: Client): any {
 
     const playerZone = player.currentZone;
     
-    // Créer un state filtré avec seulement les joueurs de la même zone
-    const filteredPlayers = new Map();
+    // ✅ CORRECTION CRITIQUE: Utiliser un Object simple au lieu d'un Map
+    const filteredPlayersObject: { [key: string]: any } = {};
     
     this.state.players.forEach((otherPlayer, sessionId) => {
-        // ✅ CORRECTION: Toujours inclure le joueur du client EN PREMIER
+        // ✅ Toujours inclure le joueur du client EN PREMIER
         if (sessionId === client.sessionId) {
-            filteredPlayers.set(sessionId, otherPlayer);
+            filteredPlayersObject[sessionId] = {
+                id: otherPlayer.id,
+                name: otherPlayer.name,
+                x: otherPlayer.x,
+                y: otherPlayer.y,
+                currentZone: otherPlayer.currentZone,
+                direction: otherPlayer.direction,
+                isMoving: otherPlayer.isMoving
+            };
             return;
         }
         
         // ✅ Inclure les autres joueurs de la même zone
         if (otherPlayer.currentZone === playerZone) {
-            filteredPlayers.set(sessionId, otherPlayer);
+            filteredPlayersObject[sessionId] = {
+                id: otherPlayer.id,
+                name: otherPlayer.name,
+                x: otherPlayer.x,
+                y: otherPlayer.y,
+                currentZone: otherPlayer.currentZone,
+                direction: otherPlayer.direction,
+                isMoving: otherPlayer.isMoving
+            };
         }
     });
 
-    console.log(`📊 [WorldRoom] Filtered state pour ${client.sessionId}: ${filteredPlayers.size} joueurs (zone: ${playerZone})`);
+    console.log(`📊 [WorldRoom] Filtered state pour ${client.sessionId}: ${Object.keys(filteredPlayersObject).length} joueurs (zone: ${playerZone})`);
     
     return {
-        players: filteredPlayers
+        players: filteredPlayersObject  // ✅ Object simple, pas Map
     };
 }
 
