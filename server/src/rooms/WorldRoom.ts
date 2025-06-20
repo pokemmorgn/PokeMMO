@@ -754,7 +754,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.error(`❌ Erreur lors de la vérification d'objet:`, error);
       return false;
     }
-  }
+  
   private getFilteredStateForClient(client: Client): any {
   const player = this.state.players.get(client.sessionId);
   if (!player) return null;
@@ -819,4 +819,5 @@ private scheduleFilteredStateUpdate() {
   }, 50);
 }
 }
+
  
