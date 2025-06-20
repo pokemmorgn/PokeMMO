@@ -10,48 +10,38 @@ import { Villageflorist } from "../rooms/zones/Villageflorist";
 import { Player } from "../schema/PokeWorldState";
 
 // ✅ AJOUT DES IMPORTS POUR LES INTERACTIONS
-import { InteractionManager } from "./InteractionManager";
 import { QuestManager } from "./QuestManager";
 
 export class ZoneManager {
   private zones = new Map<string, IZone>();
   private room: WorldRoom;
   
-  // ✅ AJOUT DES MANAGERS POUR LES INTERACTIONS
-  private interactionManager: InteractionManager;
+  // ✅ AJOUT DU QUEST MANAGER
   private questManager: QuestManager;
 
   constructor(room: WorldRoom) {
     this.room = room;
     console.log(`🗺️ === ZONE MANAGER INIT ===`);
     
-    // ✅ INITIALISER LES MANAGERS D'INTERACTION
-    this.initializeInteractionManagers();
+    // ✅ INITIALISER LE QUEST MANAGER
+    this.initializeQuestManager();
     
     this.loadAllZones();
   }
 
-  // ✅ NOUVELLE MÉTHODE : Initialiser les managers d'interaction
-  private initializeInteractionManagers() {
+  // ✅ MÉTHODE SIMPLIFIÉE : Initialiser le quest manager
+  private initializeQuestManager() {
     try {
-      // Utiliser le même système que BaseRoom
       this.questManager = new QuestManager(`../data/quests/quests.json`);
-      
-      // L'InteractionManager a besoin d'un NpcManager, on prendra celui de la zone courante
-      // Pour l'instant, on crée avec un placeholder
-      const placeholderNpcManager = this.room.getNpcManager("beach"); // Fallback
-      this.interactionManager = new InteractionManager(placeholderNpcManager, this.questManager);
-      
-      console.log(`✅ Managers d'interaction initialisés`);
+      console.log(`✅ QuestManager initialisé`);
     } catch (error) {
-      console.error(`❌ Erreur initialisation managers d'interaction:`, error);
+      console.error(`❌ Erreur initialisation QuestManager:`, error);
     }
   }
 
   private loadAllZones() {
     console.log(`🏗️ Chargement des zones...`);
 
-    // Charger toutes les zones
     this.loadZone('beach', new BeachZone(this.room));
     this.loadZone('village', new VillageZone(this.room));
     this.loadZone('villagelab', new VillageLabZone(this.room));
@@ -84,7 +74,6 @@ export class ZoneManager {
 
     console.log(`🔄 Transition: ${fromZone} → ${toZone}`);
 
-    // Vérifier que la zone de destination existe
     const targetZone = this.zones.get(toZone);
     if (!targetZone) {
       console.error(`❌ Zone de destination inconnue: ${toZone}`);
@@ -93,25 +82,21 @@ export class ZoneManager {
     }
 
     try {
-      // Sortir de l'ancienne zone
       if (fromZone && fromZone !== toZone) {
         console.log(`📤 Sortie de zone: ${fromZone}`);
         this.onPlayerLeaveZone(client, fromZone);
       }
 
-      // Mettre à jour la position du joueur
       player.currentZone = toZone;
-      player.map = toZone; // Compatibilité
+      player.map = toZone;
       if (data.spawnX !== undefined) player.x = data.spawnX;
       if (data.spawnY !== undefined) player.y = data.spawnY;
 
       console.log(`📍 Position mise à jour: (${player.x}, ${player.y}) dans ${toZone}`);
 
-      // Entrer dans la nouvelle zone
       console.log(`📥 Entrée dans zone: ${toZone}`);
       await this.onPlayerJoinZone(client, toZone);
 
-      // Confirmer la transition
       client.send("transitionResult", { 
         success: true, 
         currentZone: toZone,
@@ -134,10 +119,7 @@ export class ZoneManager {
     const zone = this.zones.get(zoneName);
     if (zone) {
       await zone.onPlayerEnter(client);
-      
-      // ✅ ENVOYER LES NPCS DEPUIS WORLDROOM
       await this.room.onPlayerJoinZone(client, zoneName);
-      
       console.log(`✅ Player entered zone: ${zoneName}`);
     } else {
       console.error(`❌ Zone not found: ${zoneName}`);
@@ -158,55 +140,20 @@ export class ZoneManager {
     }
   }
 
-  // ✅ CORRECTION MAJEURE : Gestion des interactions NPC
-async handleNpcInteraction(client: Client, npcId: number) {
-  console.log(`💬 === NPC INTERACTION HANDLER ===`);
-  
-  const player = this.room.state.players.get(client.sessionId) as Player;
-  if (!player) {
-    console.error(`❌ Player not found: ${client.sessionId}`);
-    return;
-  }
-
-  const npcManager = this.room.getNpcManager(player.currentZone);
-  if (!npcManager) {
-    console.error(`❌ NPCManager not found for zone: ${player.currentZone}`);
-    return;
-  }
-
-  const npc = npcManager.getNpcById(npcId);
-  if (!npc) {
-    console.error(`❌ NPC not found: ${npcId}`);
-    return;
-  }
-
-  // ✅ NOUVELLE LOGIQUE : Vérifier les quêtes d'abord
-  if (npc.properties?.questId) {
-    const availableQuests = await this.questManager.getAvailableQuests(player.name);
-    const npcQuest = availableQuests.find(q => q.id === npc.properties.questId);
+  // ✅ GESTION DES INTERACTIONS NPC AVEC LOGIQUE DE QUÊTES
+  async handleNpcInteraction(client: Client, npcId: number) {
+    console.log(`💬 === NPC INTERACTION HANDLER ===`);
     
-    if (npcQuest) {
-      // ✅ Proposer la quête
+    const player = this.room.state.players.get(client.sessionId) as Player;
+    if (!player) {
+      console.error(`❌ Player not found: ${client.sessionId}`);
       client.send("npcInteractionResult", {
-        type: "questGiver",
-        availableQuests: [npcQuest],
-        npcId: npcId
+        type: "error",
+        message: "Joueur non trouvé"
       });
       return;
     }
-  }
 
-  // ✅ Dialogue normal si pas de quête
-  const dialogueLines = ["Bonjour ! Comment allez-vous ?"]; // TODO: Récupérer depuis dialogueId
-  
-  client.send("npcInteractionResult", {
-    type: "dialogue",
-    lines: dialogueLines,
-    npcId: npcId
-  });
-}
-
-    // ✅ RÉCUPÉRER LE NPCMANAGER DE LA ZONE ACTUELLE
     const npcManager = this.room.getNpcManager(player.currentZone);
     if (!npcManager) {
       console.error(`❌ NPCManager not found for zone: ${player.currentZone}`);
@@ -217,10 +164,9 @@ async handleNpcInteraction(client: Client, npcId: number) {
       return;
     }
 
-    // ✅ VÉRIFIER QUE LE NPC EXISTE
     const npc = npcManager.getNpcById(npcId);
     if (!npc) {
-      console.error(`❌ NPC not found: ${npcId} in zone: ${player.currentZone}`);
+      console.error(`❌ NPC not found: ${npcId}`);
       client.send("npcInteractionResult", {
         type: "error",
         message: "NPC introuvable"
@@ -231,18 +177,39 @@ async handleNpcInteraction(client: Client, npcId: number) {
     console.log(`💬 Interaction avec NPC: ${npc.name} dans ${player.currentZone}`);
 
     try {
-      // ✅ UTILISER LE SYSTÈME D'INTERACTION COMME BASEROOM
-      // Mettre à jour l'InteractionManager avec le bon NpcManager
-      this.interactionManager = new InteractionManager(npcManager, this.questManager);
+      // ✅ LOGIQUE DE QUÊTES : Vérifier si le NPC a une quête à donner
+      if (npc.properties?.questId) {
+        console.log(`🎯 NPC ${npc.name} a une quête: ${npc.properties.questId}`);
+        
+        const availableQuests = await this.questManager.getAvailableQuests(player.name);
+        const npcQuest = availableQuests.find(q => q.id === npc.properties.questId);
+        
+        if (npcQuest) {
+          console.log(`✅ Quête ${npcQuest.id} disponible pour ${player.name}`);
+          
+          client.send("npcInteractionResult", {
+            type: "questGiver",
+            availableQuests: [npcQuest],
+            npcId: npcId,
+            npcName: npc.name
+          });
+          return;
+        } else {
+          console.log(`⚠️ Quête ${npc.properties.questId} non disponible pour ${player.name}`);
+        }
+      }
+
+      // ✅ DIALOGUE NORMAL si pas de quête disponible
+      const dialogueLines = this.getDialogueForNpc(npc);
       
-      const result = await this.interactionManager.handleNpcInteraction(player, npcId);
-      
-      client.send("npcInteractionResult", { 
-        ...result, 
-        npcId: npcId 
+      client.send("npcInteractionResult", {
+        type: "dialogue",
+        lines: dialogueLines,
+        npcId: npcId,
+        npcName: npc.name
       });
       
-      console.log(`✅ Interaction NPC ${npcId} réussie pour ${player.name}`);
+      console.log(`✅ Dialogue envoyé pour ${npc.name}`);
       
     } catch (error) {
       console.error(`❌ Erreur interaction NPC ${npcId}:`, error);
@@ -253,7 +220,23 @@ async handleNpcInteraction(client: Client, npcId: number) {
     }
   }
 
-  // ✅ CORRECTION : Gestion des quêtes
+  // ✅ MÉTHODE HELPER : Récupérer le dialogue d'un NPC
+  private getDialogueForNpc(npc: any): string[] {
+    // TODO: Implémenter la récupération depuis dialogueId
+    if (npc.properties?.dialogueId) {
+      // Pour l'instant, dialogue par défaut
+      switch (npc.properties.dialogueId) {
+        case 'greeting_bob':
+          return ["Salut ! Je suis Bob, le pêcheur local.", "J'espère que tu aimes la pêche !"];
+        default:
+          return [`Bonjour ! Je suis ${npc.name}.`];
+      }
+    }
+    
+    return [`Bonjour ! Je suis ${npc.name}.`];
+  }
+
+  // ✅ GESTION DES QUÊTES
   async handleQuestStart(client: Client, questId: string) {
     console.log(`🎯 === QUEST START HANDLER ===`);
     console.log(`👤 Client: ${client.sessionId}`);
@@ -270,21 +253,29 @@ async handleNpcInteraction(client: Client, npcId: number) {
     }
 
     try {
-      // ✅ UTILISER LE SYSTÈME DE QUÊTES COMME BASEROOM
-      const result = await this.interactionManager.handleQuestStart(player.name, questId);
+      const quest = await this.questManager.startQuest(player.name, questId);
       
-      client.send("questStartResult", result);
-      
-      if (result.success) {
+      if (quest) {
+        client.send("questStartResult", {
+          success: true,
+          quest: quest,
+          message: `Quête "${quest.name}" démarrée !`
+        });
+        
         // Broadcaster aux autres joueurs
         this.broadcastToZone(player.currentZone, "questUpdate", {
           player: player.name,
           action: "started",
           questId: questId
         });
+        
+        console.log(`✅ Quête ${questId} démarrée pour ${player.name}`);
+      } else {
+        client.send("questStartResult", {
+          success: false,
+          message: "Impossible de démarrer cette quête"
+        });
       }
-      
-      console.log(`✅ Quête ${questId} démarrée pour ${player.name}: ${result.success}`);
       
     } catch (error) {
       console.error(`❌ Erreur démarrage quête ${questId}:`, error);
@@ -307,15 +298,11 @@ async handleNpcInteraction(client: Client, npcId: number) {
   broadcastToZone(zoneName: string, message: string, data: any) {
     console.log(`📡 Broadcasting to zone ${zoneName}: ${message}`);
     
-    const playersInZone = this.getPlayersInZone(zoneName);
-    
-    // Obtenir les clients dans cette zone
     const clientsInZone = this.room.clients.filter(client => {
       const player = this.room.state.players.get(client.sessionId) as Player;
       return player && player.currentZone === zoneName;
     });
     
-    // Broadcaster à tous les clients de la zone
     clientsInZone.forEach(client => {
       client.send(message, data);
     });
