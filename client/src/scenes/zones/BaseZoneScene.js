@@ -1195,7 +1195,11 @@ initializeInventorySystem() {
       let spriteName = null;
       let portrait = result.portrait;
       if (result.npcId && this.npcManager) {
+  console.log("🐛 DEBUG: result.npcId =", result.npcId);
+  console.log("🐛 DEBUG: NPCs disponibles:", this.npcManager.getAllNpcs().map(n => ({id: n.id, name: n.name})));
+  
         const npc = this.npcManager.getNpcData(result.npcId);
+        console.log("🐛 DEBUG: NPC trouvé =", npc);
         if (npc) {
           npcName = npc.name;
           spriteName = npc.sprite;
