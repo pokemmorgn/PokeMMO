@@ -319,15 +319,14 @@ export class BaseZoneScene extends Phaser.Scene {
 this.networkManager.onNpcList((npcs) => {
   console.log(`🤖 [${this.scene.key}] NPCs reçus: ${npcs.length}`);
   
-  // ✅ NOUVEAU: Filtrer les NPCs par zone
-  const myZoneNpcs = npcs.filter(npc => {
-    // Logique pour déterminer si le NPC appartient à cette zone
-    // Ou vérifier si la zone courante correspond
-    return true; // Pour l'instant, à adapter selon ton système
-  });
+  // ✅ FILTRE: Ignorer si pas la bonne zone
+  if (this.networkManager.currentZone !== this.zoneKey) {
+    console.log(`🚫 [${this.scene.key}] NPCs ignorés: zone serveur=${this.networkManager.currentZone} ≠ scène=${this.zoneKey}`);
+    return;
+  }
   
-  if (this.npcManager && myZoneNpcs.length > 0) {
-    this.npcManager.spawnNpcs(myZoneNpcs);
+  if (this.npcManager && npcs.length > 0) {
+    this.npcManager.spawnNpcs(npcs);
   }
 });
 
