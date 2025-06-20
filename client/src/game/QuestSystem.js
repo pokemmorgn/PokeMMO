@@ -344,11 +344,13 @@ handleNpcInteraction(data) {
     setTimeout(() => {
       if (dialog.parentNode) {
         dialog.remove();
+        window._questDialogActive = false;
       }
     }, 5000);
 
     dialog.querySelector('.quest-btn-accept').addEventListener('click', () => {
       dialog.remove();
+      window._questDialogActive = false;
     });
     
     return dialog;
@@ -558,8 +560,10 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
 
   if (closeBtn) {
     closeBtn.addEventListener('click', () => dialog.remove());
+    window._questDialogActive = false;
   }
   cancelBtn.addEventListener('click', () => dialog.remove());
+  window._questDialogActive = false;
 
   // Sélection des quêtes
   dialog.querySelectorAll('.quest-option').forEach(option => {
@@ -591,15 +595,17 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
       onSelectQuest(selectedQuestId);
     }
     dialog.remove();
+    window._questDialogActive = false;
   });
 
   // Fermeture avec Escape
-  const handleEscape = (e) => {
-    if (e.key === 'Escape') {
-      dialog.remove();
-      document.removeEventListener('keydown', handleEscape);
-    }
-  };
+const handleEscape = (e) => {
+  if (e.key === 'Escape') {
+    dialog.remove();
+    window._questDialogActive = false; // ✅ AJOUTER
+    document.removeEventListener('keydown', handleEscape);
+  }
+};
   document.addEventListener('keydown', handleEscape);
 }
 
