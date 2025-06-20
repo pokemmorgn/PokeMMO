@@ -312,6 +312,7 @@ export class BaseZoneScene extends Phaser.Scene {
       
       if (this.playerManager) {
         this.playerManager.setMySessionId(this.mySessionId);
+        console.log(`[${this.scene.key}] [DEBUG] setMySessionId appelé avec:`, this.mySessionId);
       }
       
       this.setupNetworkWorldRoom();
@@ -503,7 +504,8 @@ export class BaseZoneScene extends Phaser.Scene {
       fromZone: this.zoneName,
       spawnX: result.position?.x,
       spawnY: result.position?.y,
-      networkManager: this.networkManager
+      networkManager: this.networkManager,
+      mySessionId: this.mySessionId, // AJOUTE cette ligne
     });
   }
 
