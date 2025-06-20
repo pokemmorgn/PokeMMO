@@ -271,30 +271,68 @@ export class PlayerManager {
     console.log("[PlayerManager] ✅ Indicateur local créé pour", player.sessionId);
   }
 
-  updatePlayers(state) {
+ updatePlayers(state) {
     if (this.isDestroyed || !state || !state.players) {
-      return;
+        return;
     }
     
     if (!this.scene || !this.scene.scene.isActive()) {
-      console.warn("[PlayerManager] updatePlayers: SCENE INACTIVE");
-      return;
+        console.warn("[PlayerManager] updatePlayers: SCENE INACTIVE");
+        return;
     }
     
-    // ✅ CORRECTION CRITIQUE: Ne plus bloquer pendant les transitions
-    // Le joueur doit pouvoir apparaître même pendant une transition
+    // ✅ CORRECTION: Ne pas bloquer pendant les transitions
     if (this.scene.networkManager && this.scene.networkManager.isTransitionActive) {
-      console.log("[PlayerManager] updatePlayers: Transition en cours, mais traitement autorisé");
-      // On continue quand même pour permettre l'apparition du joueur
+        console.log("[PlayerManager] updatePlayers: Transition en cours, traitement autorisé");
     }
 
-    // ✅ AMÉLIORATION 5: Synchronisation sessionId améliorée
+    // ✅ AMÉLIORATION: Synchronisation sessionId AVANT le traitement
     this.synchronizeSessionId();
     
     this._lastStateUpdate = Date.now();
+    
+    // ✅ CORRECTION CRITIQUE: Toujours traiter notre joueur en premier
+    this.ensureMyPlayerExists(state);
+    
     this.performUpdate(state);
-  }
+}
 
+  ensureMyPlayerExists(state) {
+    const effectiveSessionId = this._pendingSessionId || this.mySessionId;
+    if (!effectiveSessionId) return;
+    
+    // ✅ Convertir en Map si nécessaire
+    let playersMap;
+    if (state.players instanceof Map) {
+        playersMap = state.players;
+    } else if (state.players && typeof state.players === 'object') {
+        playersMap = new Map(Object.entries(state.players));
+    } else {
+        return;
+    }
+    
+    // ✅ Vérifier si notre joueur existe dans le state
+    const myPlayerState = playersMap.get(effectiveSessionId);
+    if (myPlayerState) {
+        // ✅ Créer/mettre à jour notre joueur IMMÉDIATEMENT
+        let myPlayer = this.players.get(effectiveSessionId);
+        if (!myPlayer) {
+            console.log(`🔧 [PlayerManager] Création urgente du joueur local: ${effectiveSessionId}`);
+            myPlayer = this.createPlayer(effectiveSessionId, myPlayerState.x, myPlayerState.y);
+        }
+        
+        if (myPlayer) {
+            // ✅ S'assurer qu'il est visible
+            if (!myPlayer.visible) {
+                console.log(`🔧 [PlayerManager] Restauration visibilité joueur local`);
+                myPlayer.setVisible(true);
+                myPlayer.setActive(true);
+            }
+        }
+    }
+}
+
+  
   // ✅ NOUVELLE MÉTHODE: Synchronisation intelligente du sessionId
   synchronizeSessionId() {
     if (!this.scene.networkManager) return;
@@ -395,22 +433,31 @@ updateOrCreatePlayer(sessionId, playerState) {
 shouldDisplayPlayer(sessionId, playerState) {
     // ✅ TOUJOURS afficher notre propre joueur (même sans zone)
     if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+        console.log(`✅ [PlayerManager] Affichage joueur local: ${sessionId}`);
         return true;
     }
     
-    // ✅ Pour les autres, simple vérification zone
+    // ✅ Pour les autres, vérification zone plus permissive
     const myCurrentZone = this.scene.zoneName || this.scene.networkManager?.currentZone;
     const playerZone = playerState.currentZone;
     
-    // Si pas d'info de zone, afficher quand même (temporaire)
-    if (!playerZone || !myCurrentZone) {
+    // ✅ CORRECTION CRITIQUE: Si pas d'info de zone, afficher quand même (évite la disparition)
+    if (!playerZone && !myCurrentZone) {
+        console.log(`⚠️ [PlayerManager] Pas d'info zone, affichage autorisé pour ${sessionId}`);
+        return true;
+    }
+    
+    // ✅ Si le joueur n'a pas de zone, l'afficher (transition en cours)
+    if (!playerZone) {
+        console.log(`🔄 [PlayerManager] Joueur ${sessionId} sans zone, affichage autorisé (transition)`);
         return true;
     }
     
     // Afficher seulement si même zone
-    return playerZone === myCurrentZone;
+    const shouldShow = playerZone === myCurrentZone;
+    console.log(`🔍 [PlayerManager] Zone check: ${playerZone} === ${myCurrentZone} = ${shouldShow}`);
+    return shouldShow;
 }
-
   // ✅ NOUVELLE MÉTHODE: Mise à jour des données du joueur depuis le state
   updatePlayerFromState(player, playerState) {
     // Position cible
