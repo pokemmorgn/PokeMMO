@@ -32,7 +32,6 @@ export class Villagehouse1 /* ICI */ implements IZone {
   constructor(room: WorldRoom) {
     this.room = room;
     
-    this.setupNPCs();
     this.setupEvents();
     
   }
