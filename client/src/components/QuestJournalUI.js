@@ -1,4 +1,4 @@
-// client/src/components/QuestJournalUI.js
+// client/src/components/QuestJournalUI.js - VERSION CORRIGÉE
 
 export class QuestJournalUI {
   constructor(gameRoom) {
@@ -13,7 +13,6 @@ export class QuestJournalUI {
   }
 
   createUI() {
-    // Conteneur principal du journal
     this.questJournal = document.createElement('div');
     this.questJournal.id = 'quest-journal';
     this.questJournal.innerHTML = `
@@ -44,7 +43,6 @@ export class QuestJournalUI {
       </div>
     `;
 
-    // Appliquer les styles
     this.questJournal.style.cssText = `
       position: fixed;
       top: 10%;
@@ -360,7 +358,6 @@ export class QuestJournalUI {
         to { transform: translateX(0); }
       }
 
-      /* Scrollbar styling */
       .quest-list::-webkit-scrollbar,
       .quest-details::-webkit-scrollbar {
         width: 6px;
@@ -382,29 +379,24 @@ export class QuestJournalUI {
   }
 
   setupEventListeners() {
-    // Fermeture du journal
     this.questJournal.querySelector('#close-quest-journal').addEventListener('click', () => {
       this.hide();
     });
 
-    // Onglets
     this.questJournal.querySelectorAll('.quest-tab').forEach(tab => {
       tab.addEventListener('click', (e) => {
         this.switchTab(e.target.dataset.tab);
       });
     });
 
-    // Actualiser
     this.questJournal.querySelector('#refresh-quests').addEventListener('click', () => {
       this.refreshQuests();
     });
 
-    // Suivre quête
     this.questJournal.querySelector('#track-quest').addEventListener('click', () => {
       this.trackSelectedQuest();
     });
 
-    // Raccourci clavier
     document.addEventListener('keydown', (e) => {
       if (e.key === 'q' || e.key === 'Q') {
         if (typeof window.isChatFocused === 'function' && !window.isChatFocused()) {
@@ -417,19 +409,33 @@ export class QuestJournalUI {
   setupRoomListeners() {
     if (!this.gameRoom) return;
 
-    // Écouter les mises à jour de quêtes
+    // ✅ FIX 1: Correction des listeners pour les quêtes actives
     this.gameRoom.onMessage("activeQuestsList", (data) => {
+      console.log("📋 Liste des quêtes actives reçue:", data);
       this.activeQuests = data.quests || [];
       this.updateQuestList();
     });
 
+    // ✅ FIX 2: Écouter les mises à jour de quête
     this.gameRoom.onMessage("questProgressUpdate", (results) => {
+      console.log("📈 Progression de quête mise à jour:", results);
       this.handleQuestProgress(results);
     });
 
+    // ✅ FIX 3: Écouter les nouvelles quêtes
     this.gameRoom.onMessage("questStarted", (data) => {
+      console.log("🆕 Nouvelle quête démarrée:", data);
       this.showNotification(`Nouvelle quête : ${data.quest.name}`, 'success');
       this.refreshQuests();
+    });
+
+    // ✅ FIX 4: Écouter les résultats de démarrage de quête
+    this.gameRoom.onMessage("questStartResult", (data) => {
+      console.log("🎯 Résultat de démarrage de quête:", data);
+      if (data.success) {
+        this.showNotification(`Quête acceptée : ${data.quest?.name || 'Nouvelle quête'}`, 'success');
+        this.refreshQuests();
+      }
     });
 
     this.gameRoom.onMessage("questRewards", (data) => {
@@ -441,11 +447,13 @@ export class QuestJournalUI {
     this.isVisible = true;
     this.questJournal.style.right = '20px';
     this.refreshQuests();
+    console.log("📖 Journal des quêtes ouvert");
   }
 
   hide() {
     this.isVisible = false;
     this.questJournal.style.right = '-450px';
+    console.log("📖 Journal des quêtes fermé");
   }
 
   toggle() {
@@ -457,13 +465,11 @@ export class QuestJournalUI {
   }
 
   switchTab(tabName) {
-    // Mettre à jour l'onglet actif
     this.questJournal.querySelectorAll('.quest-tab').forEach(tab => {
       tab.classList.remove('active');
     });
     this.questJournal.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
 
-    // Charger le contenu approprié
     switch (tabName) {
       case 'active':
         this.loadActiveQuests();
@@ -477,27 +483,36 @@ export class QuestJournalUI {
     }
   }
 
+  // ✅ FIX 5: Amélioration du chargement des quêtes actives
   loadActiveQuests() {
+    console.log("📋 Chargement des quêtes actives...");
     if (this.gameRoom) {
       this.gameRoom.send("getActiveQuests");
+    } else {
+      console.warn("⚠️ Pas de gameRoom pour charger les quêtes actives");
     }
   }
 
   loadCompletedQuests() {
+    console.log("📋 Chargement des quêtes terminées...");
     // TODO: Implémenter la récupération des quêtes complétées
     this.updateQuestList([]);
   }
 
   loadAvailableQuests() {
+    console.log("📋 Chargement des quêtes disponibles...");
     if (this.gameRoom) {
       this.gameRoom.send("getAvailableQuests");
     }
   }
 
+  // ✅ FIX 6: Amélioration de la mise à jour de la liste des quêtes
   updateQuestList(quests = this.activeQuests) {
+    console.log("📝 Mise à jour de la liste des quêtes:", quests);
+    
     const questList = this.questJournal.querySelector('.quest-list');
     
-    if (quests.length === 0) {
+    if (!quests || quests.length === 0) {
       questList.innerHTML = '<div class="quest-empty">Aucune quête trouvée</div>';
       this.updateQuestDetails(null);
       return;
@@ -509,9 +524,9 @@ export class QuestJournalUI {
       
       return `
         <div class="quest-item" data-quest-index="${index}">
-          <div class="quest-item-title">${quest.name}</div>
+          <div class="quest-item-title">${quest.name || 'Quête sans nom'}</div>
           <div class="quest-item-progress">${progress.completed}/${progress.total} objectifs</div>
-          <div class="quest-item-category ${categoryClass}">${quest.category?.toUpperCase() || 'SIDE'}</div>
+          <div class="quest-item-category ${categoryClass}">${(quest.category || 'side').toUpperCase()}</div>
         </div>
       `;
     }).join('');
@@ -530,16 +545,16 @@ export class QuestJournalUI {
   }
 
   selectQuest(index) {
-    // Mettre à jour l'interface
     this.questJournal.querySelectorAll('.quest-item').forEach((item, i) => {
       item.classList.toggle('selected', i === index);
     });
 
     this.currentQuestIndex = index;
-    this.updateQuestDetails(this.activeQuests[index]);
-    
-    // Activer le bouton de suivi
-    this.questJournal.querySelector('#track-quest').disabled = false;
+    const quest = this.activeQuests[index];
+    if (quest) {
+      this.updateQuestDetails(quest);
+      this.questJournal.querySelector('#track-quest').disabled = false;
+    }
   }
 
   updateQuestDetails(quest) {
@@ -550,13 +565,14 @@ export class QuestJournalUI {
       return;
     }
 
-    const currentStep = quest.steps[quest.currentStepIndex];
+    console.log("📄 Mise à jour des détails de la quête:", quest);
+
     const isCompleted = quest.currentStepIndex >= quest.steps.length;
 
     detailsContainer.innerHTML = `
       <div class="quest-details-content">
-        <div class="quest-title">${quest.name}</div>
-        <div class="quest-description">${quest.description}</div>
+        <div class="quest-title">${quest.name || 'Quête sans nom'}</div>
+        <div class="quest-description">${quest.description || 'Pas de description'}</div>
         
         ${quest.steps.map((step, index) => {
           const isCurrent = index === quest.currentStepIndex;
@@ -565,22 +581,22 @@ export class QuestJournalUI {
           
           return `
             <div class="quest-step ${stepClass}">
-              <div class="quest-step-title">${step.name}</div>
-              <div class="quest-step-description">${step.description}</div>
+              <div class="quest-step-title">${step.name || `Étape ${index + 1}`}</div>
+              <div class="quest-step-description">${step.description || ''}</div>
               
-              ${step.objectives.map(obj => {
-                const progress = Math.min(obj.currentAmount, obj.requiredAmount);
-                const percentage = (progress / obj.requiredAmount) * 100;
+              ${step.objectives ? step.objectives.map(obj => {
+                const progress = Math.min(obj.currentAmount || 0, obj.requiredAmount || 1);
+                const percentage = ((progress / (obj.requiredAmount || 1)) * 100);
                 
                 return `
                   <div class="quest-objective ${obj.completed ? 'completed' : ''}">
-                    ${obj.description} (${progress}/${obj.requiredAmount})
+                    ${obj.description || 'Objectif'} (${progress}/${obj.requiredAmount || 1})
                     <div class="quest-progress-bar">
                       <div class="quest-progress-fill" style="width: ${percentage}%"></div>
                     </div>
                   </div>
                 `;
-              }).join('')}
+              }).join('') : ''}
               
               ${step.rewards && step.rewards.length > 0 ? `
                 <div class="quest-rewards">
@@ -603,34 +619,49 @@ export class QuestJournalUI {
     let completed = 0;
     let total = 0;
     
+    if (!quest.steps) return { completed: 0, total: 0 };
+    
     quest.steps.forEach((step, stepIndex) => {
-      step.objectives.forEach(obj => {
-        total++;
-        if (stepIndex < quest.currentStepIndex || obj.completed) {
-          completed++;
-        }
-      });
+      if (step.objectives) {
+        step.objectives.forEach(obj => {
+          total++;
+          if (stepIndex < quest.currentStepIndex || obj.completed) {
+            completed++;
+          }
+        });
+      }
     });
     
     return { completed, total };
   }
 
   formatReward(reward) {
-    switch (reward.type) {
-      case 'gold':
-        return `💰 ${reward.amount} pièces`;
-      case 'item':
-        return `📦 ${reward.itemId} x${reward.amount || 1}`;
-      case 'pokemon':
-        return `🎁 Pokémon spécial`;
-      case 'experience':
-        return `⭐ ${reward.amount} XP`;
-      default:
-        return `🎁 Récompense mystère`;
+    try {
+      if (typeof reward === 'string') {
+        reward = JSON.parse(reward);
+      }
+      
+      switch (reward.type) {
+        case 'gold':
+          return `💰 ${reward.amount} pièces`;
+        case 'item':
+          return `📦 ${reward.itemId || reward.item || 'Objet'} x${reward.amount || 1}`;
+        case 'pokemon':
+          return `🎁 Pokémon spécial`;
+        case 'experience':
+          return `⭐ ${reward.amount} XP`;
+        default:
+          return `🎁 Récompense mystère`;
+      }
+    } catch (error) {
+      console.warn("⚠️ Erreur formatReward:", error);
+      return `🎁 Récompense`;
     }
   }
 
   handleQuestProgress(results) {
+    if (!Array.isArray(results)) return;
+    
     results.forEach(result => {
       if (result.questCompleted) {
         this.showNotification(`Quête terminée : ${result.questId}`, 'success');
@@ -653,6 +684,8 @@ export class QuestJournalUI {
   }
 
   showNotification(message, type = 'info') {
+    console.log(`📢 Notification journal: ${message} (${type})`);
+    
     const notification = document.createElement('div');
     notification.className = 'quest-notification';
     notification.textContent = message;
@@ -668,11 +701,15 @@ export class QuestJournalUI {
     document.body.appendChild(notification);
     
     setTimeout(() => {
-      notification.remove();
+      if (notification.parentNode) {
+        notification.remove();
+      }
     }, 4000);
   }
 
+  // ✅ FIX 7: Amélioration du rafraîchissement
   refreshQuests() {
+    console.log("🔄 Rafraîchissement des quêtes...");
     this.loadActiveQuests();
   }
 
