@@ -244,22 +244,32 @@ export class TransitionManager {
 
     // Calculer la position de spawn (chargement depuis fichier .tmj)
     const spawnPosition = await this.calculateSpawnPosition(teleportData.targetSpawn, teleportData.targetZone);
+// ✅ AJOUTEZ CES LIGNES AVANT scene.start()
+    if (this.scene.networkManager) {
+        this.scene.networkManager._localTransitionInProgress = true;
+        
+        // Envoyer position au serveur AVANT transition
+        const myPlayer = this.scene.playerManager?.getMyPlayer();
+        if (myPlayer && this.scene.networkManager.isConnected) {
+            this.scene.networkManager.sendMove(
+                spawnPosition.x, 
+                spawnPosition.y, 
+                'down', 
+                false
+            );
+        }
+    }
 
-    console.log(`🚀 [TransitionManager] Transition LOCALE vers: ${targetScene}`);
-    console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
-
-    // ✅ DONNÉES 100% LOCALES - pas de NetworkManager
-   // ✅ DONNÉES LOCALES + NetworkManager pour préserver la connexion
-const transitionData = {
-  fromZone: this.currentZone,
-  fromTransition: true,
-  spawnX: spawnPosition.x,
-  spawnY: spawnPosition.y,
-  spawnPoint: teleportData.targetSpawn,
-  localTransition: true,
-  networkManager: this.scene.networkManager,  // ✅ Passer le NetworkManager
-  mySessionId: this.scene.mySessionId         // ✅ Passer le sessionId
-};
+    const transitionData = {
+        fromZone: this.currentZone,
+        fromTransition: true,
+        localTransition: true,
+        spawnX: spawnPosition.x,
+        spawnY: spawnPosition.y,
+        networkManager: this.scene.networkManager,
+        mySessionId: this.scene.mySessionId,
+        forcePlayerSync: true  // ✅ FLAG CRITIQUE
+    };
 
     console.log(`🌀 [TransitionManager] ✅ Transition LOCALE - aucune donnée serveur transmise`);
 
