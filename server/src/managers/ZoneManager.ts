@@ -142,99 +142,145 @@ export class ZoneManager {
 
   // ✅ GESTION DES INTERACTIONS NPC AVEC LOGIQUE DE QUÊTES
   async handleNpcInteraction(client: Client, npcId: number) {
-    console.log(`💬 === NPC INTERACTION HANDLER ===`);
+  console.log(`💬 === NPC INTERACTION HANDLER ===`);
+  
+  const player = this.room.state.players.get(client.sessionId) as Player;
+  if (!player) {
+    console.error(`❌ Player not found: ${client.sessionId}`);
+    return;
+  }
+
+  const npcManager = this.room.getNpcManager(player.currentZone);
+  if (!npcManager) {
+    console.error(`❌ NPCManager not found for zone: ${player.currentZone}`);
+    return;
+  }
+
+  const npc = npcManager.getNpcById(npcId);
+  if (!npc) {
+    console.error(`❌ NPC not found: ${npcId}`);
+    return;
+  }
+
+  console.log(`💬 Interaction avec NPC: ${npc.name} dans ${player.currentZone}`);
+
+  try {
+    // ✅ 1. VÉRIFIER LE STATUT DES QUÊTES DE CE NPC
+    const questStatus = await this.getQuestStatusForNpc(player.name, npc);
     
-    const player = this.room.state.players.get(client.sessionId) as Player;
-    if (!player) {
-      console.error(`❌ Player not found: ${client.sessionId}`);
-      client.send("npcInteractionResult", {
-        type: "error",
-        message: "Joueur non trouvé"
-      });
-      return;
-    }
-
-    const npcManager = this.room.getNpcManager(player.currentZone);
-    if (!npcManager) {
-      console.error(`❌ NPCManager not found for zone: ${player.currentZone}`);
-      client.send("npcInteractionResult", {
-        type: "error",
-        message: "NPCs non disponibles dans cette zone"
-      });
-      return;
-    }
-
-    const npc = npcManager.getNpcById(npcId);
-    if (!npc) {
-      console.error(`❌ NPC not found: ${npcId}`);
-      client.send("npcInteractionResult", {
-        type: "error",
-        message: "NPC introuvable"
-      });
-      return;
-    }
-
-    console.log(`💬 Interaction avec NPC: ${npc.name} dans ${player.currentZone}`);
-
-    try {
-      // ✅ LOGIQUE DE QUÊTES : Vérifier si le NPC a une quête à donner
-      if (npc.properties?.questId) {
-        console.log(`🎯 NPC ${npc.name} a une quête: ${npc.properties.questId}`);
+    switch (questStatus.type) {
+      case 'questAvailable':
+        // ✅ Quête disponible à prendre
+        client.send("npcInteractionResult", {
+          type: "questGiver",
+          availableQuests: questStatus.quests,
+          npcId: npcId,
+          npcName: npc.name
+        });
+        break;
         
-        const availableQuests = await this.questManager.getAvailableQuests(player.name);
-        const npcQuest = availableQuests.find(q => q.id === npc.properties.questId);
+      case 'questReadyToComplete':
+        // ✅ Quête prête à rendre
+        client.send("npcInteractionResult", {
+          type: "questComplete", 
+          questId: questStatus.questId,
+          npcId: npcId,
+          npcName: npc.name,
+          message: `Félicitations ! Vous avez terminé la quête !`
+        });
+        break;
         
-        if (npcQuest) {
-          console.log(`✅ Quête ${npcQuest.id} disponible pour ${player.name}`);
-          
-          client.send("npcInteractionResult", {
-            type: "questGiver",
-            availableQuests: [npcQuest],
-            npcId: npcId,
-            npcName: npc.name
-          });
-          return;
-        } else {
-          console.log(`⚠️ Quête ${npc.properties.questId} non disponible pour ${player.name}`);
-        }
-      }
+      case 'questInProgress':
+        // ✅ Quête en cours - dialogue normal
+        const progressDialogue = this.getProgressDialogueForNpc(npc, questStatus.quest);
+        client.send("npcInteractionResult", {
+          type: "dialogue",
+          lines: progressDialogue,
+          npcId: npcId,
+          npcName: npc.name
+        });
+        break;
+        
+      case 'noQuest':
+      default:
+        // ✅ Pas de quête - dialogue normal
+        const dialogueLines = this.getDialogueForNpc(npc);
+        client.send("npcInteractionResult", {
+          type: "dialogue",
+          lines: dialogueLines,
+          npcId: npcId,
+          npcName: npc.name
+        });
+        break;
+    }
+    
+  } catch (error) {
+    console.error(`❌ Erreur interaction NPC ${npcId}:`, error);
+    client.send("npcInteractionResult", {
+      type: "error",
+      message: "Erreur lors de l'interaction avec le NPC"
+    });
+  }
+}
 
-      // ✅ DIALOGUE NORMAL si pas de quête disponible
-      const dialogueLines = this.getDialogueForNpc(npc);
-      
-      client.send("npcInteractionResult", {
-        type: "dialogue",
-        lines: dialogueLines,
-        npcId: npcId,
-        npcName: npc.name
-      });
-      
-      console.log(`✅ Dialogue envoyé pour ${npc.name}`);
-      
-    } catch (error) {
-      console.error(`❌ Erreur interaction NPC ${npcId}:`, error);
-      client.send("npcInteractionResult", {
-        type: "error",
-        message: "Erreur lors de l'interaction avec le NPC"
-      });
+// ✅ MÉTHODE OPTIMISÉE: Analyser le statut des quêtes pour un NPC
+private async getQuestStatusForNpc(username: string, npc: any) {
+  if (!npc.properties?.questId) {
+    return { type: 'noQuest' };
+  }
+
+  const questId = npc.properties.questId;
+  
+  // ✅ UTILISER LE QUESTMANAGER EXISTANT - plus efficace !
+  const availableQuests = await this.questManager.getAvailableQuests(username);
+  const availableQuest = availableQuests.find(q => q.id === questId);
+  
+  if (availableQuest) {
+    return { type: 'questAvailable', quests: [availableQuest] };
+  }
+
+  // ✅ Vérifier les quêtes actives
+  const activeQuests = await this.questManager.getActiveQuests(username);
+  const activeQuest = activeQuests.find(q => q.id === questId);
+  
+  if (activeQuest) {
+    // Vérifier si prête à compléter
+    if (this.isQuestReadyToComplete(activeQuest)) {
+      return { type: 'questReadyToComplete', questId, quest: activeQuest };
+    } else {
+      return { type: 'questInProgress', quest: activeQuest };
     }
   }
 
-  // ✅ MÉTHODE HELPER : Récupérer le dialogue d'un NPC
-  private getDialogueForNpc(npc: any): string[] {
-    // TODO: Implémenter la récupération depuis dialogueId
-    if (npc.properties?.dialogueId) {
-      // Pour l'instant, dialogue par défaut
-      switch (npc.properties.dialogueId) {
-        case 'greeting_bob':
-          return ["Salut ! Je suis Bob, le pêcheur local.", "J'espère que tu aimes la pêche !"];
-        default:
-          return [`Bonjour ! Je suis ${npc.name}.`];
-      }
-    }
-    
-    return [`Bonjour ! Je suis ${npc.name}.`];
+  // ✅ Pas de quête pour ce NPC
+  return { type: 'noQuest' };
+}
+
+// ✅ MÉTHODE OPTIMISÉE: Vérifier si une quête est prête à compléter
+private isQuestReadyToComplete(quest: any): boolean {
+  const currentStep = quest.steps[quest.currentStepIndex];
+  if (!currentStep) return false;
+
+  // ✅ Vérifier que tous les objectifs de l'étape courante sont complétés
+  return currentStep.objectives.every((obj: any) => obj.completed);
+}
+
+// ✅ NOUVELLE MÉTHODE: Dialogue spécifique pendant une quête
+private getProgressDialogueForNpc(npc: any, quest: any): string[] {
+  // Dialogues spécifiques selon la quête en cours
+  if (quest.questId === 'quest_fishingrod') {
+    return [
+      "Comment va votre recherche de matériel de pêche ?",
+      "J'ai vraiment hâte de retourner pêcher !"
+    ];
   }
+  
+  // Dialogue générique pour quête en cours
+  return [
+    `Comment avance votre mission ?`,
+    `Revenez me voir quand vous aurez terminé !`
+  ];
+}
 
   // ✅ GESTION DES QUÊTES
   async handleQuestStart(client: Client, questId: string) {
