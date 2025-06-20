@@ -378,6 +378,383 @@ function switchToPocket(pocketName) {
   currentPocket = pocketName;
   
   // Mettre à jour les onglets
+  if (inventoryOverlay) {
+    const tabs = inventoryOverlay.querySelectorAll('.pocket-tab');
+    tabs.forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.pocket === pocketName);
+    });
+  }
+  
+  updateInventoryDisplay();
+  console.log('📂 Poche changée:', pocketName);
+}
+
+// Mettre à jour l'affichage de l'inventaire
+function updateInventoryDisplay() {
+  if (!inventoryOverlay) return;
+  
+  const itemsGrid = inventoryOverlay.querySelector('#items-grid');
+  const pocketData = inventoryData[currentPocket] || [];
+  
+  itemsGrid.innerHTML = '';
+  
+  if (pocketData.length === 0) {
+    itemsGrid.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #888;">
+        <div style="font-size: 48px; margin-bottom: 15px; opacity: 0.3;">📭</div>
+        <p>Aucun objet dans cette poche</p>
+      </div>
+    `;
+  } else {
+    pocketData.forEach((item, index) => {
+      const itemElement = createItemElement(item, index);
+      itemsGrid.appendChild(itemElement);
+    });
+  }
+  
+  // Mettre à jour le compteur
+  const countElement = inventoryOverlay.querySelector('#pocket-count');
+  if (countElement) {
+    countElement.textContent = `${pocketData.length} objets`;
+  }
+}
+
+// Créer un élément d'objet
+function createItemElement(item, index) {
+  const itemElement = document.createElement('div');
+  itemElement.className = 'item-slot';
+  itemElement.dataset.itemId = item.itemId;
+  
+  const itemIcon = getItemIcon(item.itemId);
+  const itemName = formatItemName(item.itemId);
+  
+  itemElement.innerHTML = `
+    <div class="item-icon">${itemIcon}</div>
+    <div class="item-name">${itemName}</div>
+    ${item.quantity > 1 ? `<div class="item-quantity">${item.quantity}</div>` : ''}
+  `;
+  
+  itemElement.addEventListener('click', () => {
+    selectItem(itemElement, item);
+  });
+  
+  return itemElement;
+}
+
+// Sélectionner un objet
+function selectItem(element, item) {
+  if (!inventoryOverlay) return;
+  
+  // Désélectionner tous les autres
+  inventoryOverlay.querySelectorAll('.item-slot').forEach(slot => {
+    slot.classList.remove('selected');
+  });
+  
+  // Sélectionner celui-ci
+  element.classList.add('selected');
+  
+  // Activer le bouton utiliser
+  const useBtn = inventoryOverlay.querySelector('#use-item-btn');
+  if (useBtn) {
+    useBtn.disabled = false;
+  }
+  
+  console.log('🎯 Objet sélectionné:', item.itemId);
+}
+
+// Obtenir l'icône d'un objet
+function getItemIcon(itemId) {
+  const iconMap = {
+    'poke_ball': '⚪', 'great_ball': '🟡', 'ultra_ball': '🟠', 'master_ball': '🟣',
+    'potion': '💊', 'super_potion': '💉', 'hyper_potion': '🧪', 'max_potion': '🍼',
+    'antidote': '🟢', 'parlyz_heal': '🟡', 'awakening': '🔵', 'burn_heal': '🔴',
+    'bicycle': '🚲', 'town_map': '🗺️', 'old_rod': '🎣'
+  };
+  return iconMap[itemId] || '📦';
+}
+
+// Formater le nom d'un objet
+function formatItemName(itemId) {
+  return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+// Afficher une notification
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    z-index: 1002;
+    max-width: 300px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  `;
+
+  switch (type) {
+    case 'success':
+      notification.style.background = 'rgba(40, 167, 69, 0.95)';
+      break;
+    case 'error':
+      notification.style.background = 'rgba(220, 53, 69, 0.95)';
+      break;
+    default:
+      notification.style.background = 'rgba(74, 144, 226, 0.95)';
+  }
+
+  notification.textContent = message;
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.remove();
+    }
+  }, 3000);
+}
+
+// Fonctions utilitaires
+function canOpenInventory() {
+  const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
+  const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
+  const dialogueOpen = document.querySelector('#dialogue-box')?.style.display !== 'none';
+  
+  return !questDialogOpen && !chatOpen && !dialogueOpen;
+}
+
+function isInventoryVisible() {
+  return inventoryOverlay && !inventoryOverlay.classList.contains('hidden');
+}
+
+function openInventory() {
+  console.log('🎒 Ouverture de l\'inventaire');
+  if (inventoryOverlay) {
+    inventoryOverlay.classList.remove('hidden');
+    isVisible = true;
+    
+    // Demander les données à jour
+    requestInventoryData();
+  }
+}
+
+function hideInventory() {
+  console.log('🎒 Fermeture de l\'inventaire');
+  if (inventoryOverlay) {
+    inventoryOverlay.classList.add('hidden');
+    isVisible = false;
+  }
+}
+
+function toggleInventory() {
+  if (isInventoryVisible()) {
+    hideInventory();
+  } else {
+    openInventory();
+  }
+}
+
+// Configuration des événements globaux
+function setupGlobalEvents() {
+  // Raccourci clavier I
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'i' && canOpenInventory()) {
+      e.preventDefault();
+      toggleInventory();
+    }
+    // Fermeture avec ESC
+    if (e.key === 'Escape' && isInventoryVisible()) {
+      hideInventory();
+    }
+  });
+}
+
+// Initialisation
+function initializeInventorySystem() {
+  createInventoryIcon();
+  createInventoryInterface();
+  setupGlobalEvents();
+  connectToServer();
+
+  // Exposer les fonctions globalement
+  window.openInventory = openInventory;
+  window.hideInventory = hideInventory;
+  window.toggleInventory = toggleInventory;
+  window.testAddItem = testAddItem;
+
+  // Simuler un système d'inventaire basique
+  window.inventorySystem = {
+    toggle: toggleInventory,
+    show: openInventory,
+    hide: hideInventory,
+    isOpen: isInventoryVisible,
+    canPlayerInteract: () => !isInventoryVisible() && canOpenInventory(),
+    testAdd: testAddItem,
+    refresh: requestInventoryData
+  };
+
+  console.log('✅ Système d\'inventaire basique créé');
+}
+
+// Fonction d'initialisation avec gameRoom
+window.initializeInventory = function(gameRoom) {
+  console.log('🎒 Initialisation avec gameRoom:', gameRoom);
+  // Le système est déjà créé, on peut juste logger
+};
+
+// Initialisation immédiate
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeInventorySystem);
+} else {
+  initializeInventorySystem();
+}
+
+console.log('✅ Module inventory.js chargé');if (document.getElementById('inventory-overlay')) {
+    return;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'inventory-overlay';
+  overlay.className = 'inventory-overlay hidden';
+
+  overlay.innerHTML = `
+    <div class="inventory-container">
+      <div class="inventory-header">
+        <div class="inventory-title">
+          <span>🎒 Sac</span>
+        </div>
+        <div class="inventory-controls">
+          <button class="inventory-close-btn">✕</button>
+        </div>
+      </div>
+
+      <div class="inventory-content">
+        <div class="inventory-sidebar">
+          <div class="pocket-tabs">
+            <div class="pocket-tab active" data-pocket="items">
+              <div class="pocket-icon">📦</div>
+              <span>Objets</span>
+            </div>
+            <div class="pocket-tab" data-pocket="medicine">
+              <div class="pocket-icon">💊</div>
+              <span>Soins</span>
+            </div>
+            <div class="pocket-tab" data-pocket="balls">
+              <div class="pocket-icon">⚪</div>
+              <span>Poké Balls</span>
+            </div>
+            <div class="pocket-tab" data-pocket="berries">
+              <div class="pocket-icon">🍇</div>
+              <span>Baies</span>
+            </div>
+            <div class="pocket-tab" data-pocket="key_items">
+              <div class="pocket-icon">🗝️</div>
+              <span>Objets Clés</span>
+            </div>
+            <div class="pocket-tab" data-pocket="tms">
+              <div class="pocket-icon">💿</div>
+              <span>CTs/CSs</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="inventory-main">
+          <div class="items-grid" id="items-grid">
+            <div class="loading-message" style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #87ceeb;">
+              <h3>🔄 Chargement de l'inventaire...</h3>
+              <p style="color: #ccc;">Connexion au serveur en cours...</p>
+            </div>
+          </div>
+          
+          <div class="item-details" id="item-details">
+            <div class="no-selection">
+              <div class="no-selection-icon">📋</div>
+              <p>Sélectionnez un objet pour voir ses détails</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="inventory-footer">
+        <div class="pocket-info">
+          <span id="pocket-count">0 objets</span>
+          <span id="pocket-limit">/ 30 max</span>
+        </div>
+        <div class="inventory-actions">
+          <button class="inventory-btn" id="use-item-btn" disabled>Utiliser</button>
+          <button class="inventory-btn secondary" id="refresh-btn">Actualiser</button>
+          <button class="inventory-btn secondary" id="test-btn">Test</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Événements
+  const closeBtn = overlay.querySelector('.inventory-close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      hideInventory();
+    });
+  }
+
+  // Bouton actualiser
+  const refreshBtn = overlay.querySelector('#refresh-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      requestInventoryData();
+      showNotification("Inventaire actualisé", "info");
+    });
+  }
+
+  // Bouton test
+  const testBtn = overlay.querySelector('#test-btn');
+  if (testBtn) {
+    testBtn.addEventListener('click', () => {
+      testAddItem("poke_ball", 5);
+      testAddItem("potion", 3);
+      testAddItem("bicycle", 1);
+    });
+  }
+
+  // Bouton utiliser
+  const useBtn = overlay.querySelector('#use-item-btn');
+  if (useBtn) {
+    useBtn.addEventListener('click', () => {
+      const selected = overlay.querySelector('.item-slot.selected');
+      if (selected) {
+        const itemId = selected.dataset.itemId;
+        useItem(itemId);
+      }
+    });
+  }
+
+  // Fermeture en cliquant à l'extérieur
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      hideInventory();
+    }
+  });
+
+  // Événements des onglets
+  const tabs = overlay.querySelectorAll('.pocket-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      switchToPocket(tab.dataset.pocket);
+    });
+  });
+
+  document.body.appendChild(overlay);
+  inventoryOverlay = overlay;
+  console.log('✅ Interface d\'inventaire créée');
+}
+
+// Changer de poche
+function switchToPocket(pocketName) {
+  currentPocket = pocketName;
+  
+  // Mettre à jour les onglets
   const tabs = inventoryOverlay.querySelectorAll('.pocket-tab');
   tabs.forEach(tab => {
     tab.classList.toggle('active', tab.dataset.pocket === pocketName);
