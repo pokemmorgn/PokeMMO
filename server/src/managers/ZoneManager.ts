@@ -1,22 +1,51 @@
 // ===== server/src/managers/ZoneManager.ts =====
 import { Client } from "@colyseus/core";
-import { WorldRoom } from "../rooms/WorldRoom"; // Chemin corrigé
-import { IZone } from "../rooms/zones/IZone"; // Chemin corrigé
-import { BeachZone } from "../rooms/zones/BeachZone"; // Chemin corrigé
-import { VillageZone } from "../rooms/zones/VillageZone"; // Chemin corrigé
-import { VillageLabZone } from "../rooms/zones/VillageLabZone"; // Chemin corrigé
-import { Villagehouse1 } from "../rooms/zones/Villagehouse1"; // Chemin corrigé
-import { Villageflorist } from "../rooms/zones/Villageflorist"; // Chemin corrigé
-import { Player } from "../schema/PokeWorldState"; // Import du type Player
+import { WorldRoom } from "../rooms/WorldRoom";
+import { IZone } from "../rooms/zones/IZone";
+import { BeachZone } from "../rooms/zones/BeachZone";
+import { VillageZone } from "../rooms/zones/VillageZone";
+import { VillageLabZone } from "../rooms/zones/VillageLabZone";
+import { Villagehouse1 } from "../rooms/zones/Villagehouse1";
+import { Villageflorist } from "../rooms/zones/Villageflorist";
+import { Player } from "../schema/PokeWorldState";
+
+// ✅ AJOUT DES IMPORTS POUR LES INTERACTIONS
+import { InteractionManager } from "./InteractionManager";
+import { QuestManager } from "./QuestManager";
+
 export class ZoneManager {
   private zones = new Map<string, IZone>();
   private room: WorldRoom;
+  
+  // ✅ AJOUT DES MANAGERS POUR LES INTERACTIONS
+  private interactionManager: InteractionManager;
+  private questManager: QuestManager;
 
   constructor(room: WorldRoom) {
     this.room = room;
     console.log(`🗺️ === ZONE MANAGER INIT ===`);
     
+    // ✅ INITIALISER LES MANAGERS D'INTERACTION
+    this.initializeInteractionManagers();
+    
     this.loadAllZones();
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Initialiser les managers d'interaction
+  private initializeInteractionManagers() {
+    try {
+      // Utiliser le même système que BaseRoom
+      this.questManager = new QuestManager(`../data/quests/quests.json`);
+      
+      // L'InteractionManager a besoin d'un NpcManager, on prendra celui de la zone courante
+      // Pour l'instant, on crée avec un placeholder
+      const placeholderNpcManager = this.room.getNpcManager("beach"); // Fallback
+      this.interactionManager = new InteractionManager(placeholderNpcManager, this.questManager);
+      
+      console.log(`✅ Managers d'interaction initialisés`);
+    } catch (error) {
+      console.error(`❌ Erreur initialisation managers d'interaction:`, error);
+    }
   }
 
   private loadAllZones() {
@@ -28,7 +57,6 @@ export class ZoneManager {
     this.loadZone('villagelab', new VillageLabZone(this.room));
     this.loadZone('villagehouse1', new Villagehouse1(this.room));
     this.loadZone('villageflorist', new Villageflorist(this.room));
-    // TODO: Ajouter autres zones
 
     console.log(`✅ ${this.zones.size} zones chargées:`, Array.from(this.zones.keys()));
   }
@@ -106,7 +134,10 @@ export class ZoneManager {
     const zone = this.zones.get(zoneName);
     if (zone) {
       await zone.onPlayerEnter(client);
+      
+      // ✅ ENVOYER LES NPCS DEPUIS WORLDROOM
       await this.room.onPlayerJoinZone(client, zoneName);
+      
       console.log(`✅ Player entered zone: ${zoneName}`);
     } else {
       console.error(`❌ Zone not found: ${zoneName}`);
@@ -127,39 +158,108 @@ export class ZoneManager {
     }
   }
 
-  handleNpcInteraction(client: Client, npcId: number) {
+  // ✅ CORRECTION MAJEURE : Gestion des interactions NPC
+  async handleNpcInteraction(client: Client, npcId: number) {
     console.log(`💬 === NPC INTERACTION HANDLER ===`);
+    console.log(`👤 Client: ${client.sessionId}`);
+    console.log(`🤖 NPC ID: ${npcId}`);
     
     const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) {
       console.error(`❌ Player not found: ${client.sessionId}`);
+      client.send("npcInteractionResult", {
+        type: "error",
+        message: "Joueur non trouvé"
+      });
       return;
     }
 
-    const currentZone = this.zones.get(player.currentZone);
-    if (currentZone) {
-      console.log(`🤖 Delegating NPC interaction to zone: ${player.currentZone}`);
-      currentZone.onNpcInteract(client, npcId);
-    } else {
-      console.error(`❌ Current zone not found: ${player.currentZone}`);
+    // ✅ RÉCUPÉRER LE NPCMANAGER DE LA ZONE ACTUELLE
+    const npcManager = this.room.getNpcManager(player.currentZone);
+    if (!npcManager) {
+      console.error(`❌ NPCManager not found for zone: ${player.currentZone}`);
+      client.send("npcInteractionResult", {
+        type: "error",
+        message: "NPCs non disponibles dans cette zone"
+      });
+      return;
+    }
+
+    // ✅ VÉRIFIER QUE LE NPC EXISTE
+    const npc = npcManager.getNpcById(npcId);
+    if (!npc) {
+      console.error(`❌ NPC not found: ${npcId} in zone: ${player.currentZone}`);
+      client.send("npcInteractionResult", {
+        type: "error",
+        message: "NPC introuvable"
+      });
+      return;
+    }
+
+    console.log(`💬 Interaction avec NPC: ${npc.name} dans ${player.currentZone}`);
+
+    try {
+      // ✅ UTILISER LE SYSTÈME D'INTERACTION COMME BASEROOM
+      // Mettre à jour l'InteractionManager avec le bon NpcManager
+      this.interactionManager = new InteractionManager(npcManager, this.questManager);
+      
+      const result = await this.interactionManager.handleNpcInteraction(player, npcId);
+      
+      client.send("npcInteractionResult", { 
+        ...result, 
+        npcId: npcId 
+      });
+      
+      console.log(`✅ Interaction NPC ${npcId} réussie pour ${player.name}`);
+      
+    } catch (error) {
+      console.error(`❌ Erreur interaction NPC ${npcId}:`, error);
+      client.send("npcInteractionResult", {
+        type: "error",
+        message: "Erreur lors de l'interaction avec le NPC"
+      });
     }
   }
 
-  handleQuestStart(client: Client, questId: string) {
+  // ✅ CORRECTION : Gestion des quêtes
+  async handleQuestStart(client: Client, questId: string) {
     console.log(`🎯 === QUEST START HANDLER ===`);
+    console.log(`👤 Client: ${client.sessionId}`);
+    console.log(`📜 Quest ID: ${questId}`);
     
     const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) {
       console.error(`❌ Player not found: ${client.sessionId}`);
+      client.send("questStartResult", {
+        success: false,
+        message: "Joueur non trouvé"
+      });
       return;
     }
 
-    const currentZone = this.zones.get(player.currentZone);
-    if (currentZone) {
-      console.log(`📜 Delegating quest start to zone: ${player.currentZone}`);
-      currentZone.onQuestStart(client, questId);
-    } else {
-      console.error(`❌ Current zone not found: ${player.currentZone}`);
+    try {
+      // ✅ UTILISER LE SYSTÈME DE QUÊTES COMME BASEROOM
+      const result = await this.interactionManager.handleQuestStart(player.name, questId);
+      
+      client.send("questStartResult", result);
+      
+      if (result.success) {
+        // Broadcaster aux autres joueurs
+        this.broadcastToZone(player.currentZone, "questUpdate", {
+          player: player.name,
+          action: "started",
+          questId: questId
+        });
+      }
+      
+      console.log(`✅ Quête ${questId} démarrée pour ${player.name}: ${result.success}`);
+      
+    } catch (error) {
+      console.error(`❌ Erreur démarrage quête ${questId}:`, error);
+      client.send("questStartResult", {
+        success: false,
+        message: "Erreur lors du démarrage de la quête"
+      });
     }
   }
 
@@ -172,22 +272,22 @@ export class ZoneManager {
     return playersInZone;
   }
 
-broadcastToZone(zoneName: string, message: string, data: any) {
-  console.log(`📡 Broadcasting to zone ${zoneName}: ${message}`);
-  
-  const playersInZone = this.getPlayersInZone(zoneName);
-  
-  // Obtenir les clients dans cette zone (pas les IDs de session)
-  const clientsInZone = this.room.clients.filter(client => {
-    const player = this.room.state.players.get(client.sessionId) as Player;
-    return player && player.currentZone === zoneName;
-  });
-  
-  // Broadcaster à tous les clients de la zone
-  clientsInZone.forEach(client => {
-    client.send(message, data);
-  });
-  
-  console.log(`📤 Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
-}
+  broadcastToZone(zoneName: string, message: string, data: any) {
+    console.log(`📡 Broadcasting to zone ${zoneName}: ${message}`);
+    
+    const playersInZone = this.getPlayersInZone(zoneName);
+    
+    // Obtenir les clients dans cette zone
+    const clientsInZone = this.room.clients.filter(client => {
+      const player = this.room.state.players.get(client.sessionId) as Player;
+      return player && player.currentZone === zoneName;
+    });
+    
+    // Broadcaster à tous les clients de la zone
+    clientsInZone.forEach(client => {
+      client.send(message, data);
+    });
+    
+    console.log(`📤 Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
+  }
 }
