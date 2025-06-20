@@ -117,6 +117,33 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
+      public getNpcManager(zoneName: string): NpcManager | undefined {
+    const npcManager = this.npcManagers.get(zoneName);
+    if (!npcManager) {
+      console.warn(`⚠️ [WorldRoom] NpcManager non trouvé pour la zone: ${zoneName}`);
+      console.log(`📋 [WorldRoom] Zones disponibles:`, Array.from(this.npcManagers.keys()));
+    }
+    return npcManager;
+  }
+
+  // ✅ MÉTHODE UTILITAIRE : Lister toutes les zones avec NPCs
+  public getAvailableNpcZones(): string[] {
+    return Array.from(this.npcManagers.keys());
+  }
+
+  // ✅ MÉTHODE DEBUG : Afficher le statut des NPCs
+  public debugNpcManagers(): void {
+    console.log(`🔍 [WorldRoom] === DEBUG NPC MANAGERS ===`);
+    this.npcManagers.forEach((npcManager, zoneName) => {
+      const npcs = npcManager.getAllNpcs();
+      console.log(`🌍 Zone: ${zoneName} - ${npcs.length} NPCs`);
+      npcs.forEach(npc => {
+        console.log(`  🤖 NPC ${npc.id}: ${npc.name} at (${npc.x}, ${npc.y})`);
+      });
+    });
+    console.log(`=======================================`);
+  }
+  
     // Utiliser un objet
     this.onMessage("useItem", async (client, data) => {
       try {
