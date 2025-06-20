@@ -368,11 +368,6 @@ private getValidDestinations(): string[] {
   return validDestinations;
 }
     
-    const validDestinations = connections[this.mapName] || [];
-    console.log(`🗺️ [${this.mapName}] Destinations configurées:`, validDestinations);
-    return validDestinations;
-  }
-
   // ✅ CORRIGÉE : Vérification de proximité avec logs de debug
   private isPlayerNearTransition(playerX: number, playerY: number): boolean {
     const transitionZones = this.getTransitionZonesForMap();
