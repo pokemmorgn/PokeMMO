@@ -630,12 +630,17 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
     player.x = data.x;
     player.y = data.y;
     player.direction = data.direction;
+    
+    // ✅ AJOUT: Garder la zone synchronisée
+    if (data.currentZone) {
+        player.currentZone = data.currentZone;
+    }
 
     // Debug occasionnel (1 fois sur 10)
     if (Math.random() < 0.1) {
-      console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
+        console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
     }
-  }
+}
 
   // === MÉTHODES POUR LES EFFETS D'OBJETS ===
 
