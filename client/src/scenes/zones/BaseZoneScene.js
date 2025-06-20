@@ -1,13 +1,11 @@
-// client/src/scenes/zones/BaseZoneScene.js - VERSION AVEC INVENTAIRE INTÉGRÉ
-// ✅ Ajout de l'intégration complète du système d'inventaire
+// client/src/scenes/zones/BaseZoneScene.js - VERSION WORLDROOM CORRIGÉE
+// ✅ Corrections pour la synchronisation et les transitions fluides
 
 import { NetworkManager } from "../../network/NetworkManager.js";
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager";
 import { QuestSystem } from "../../game/QuestSystem.js";
-// ✅ NOUVEAU: Import du système d'inventaire
-import { InventorySystem } from "../../game/InventorySystem.js";
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -24,15 +22,11 @@ export class BaseZoneScene extends Phaser.Scene {
     this.myPlayerReady = false;
     this.isTransitioning = false;
     
-    // ✅ NOUVEAU: Système d'inventaire
-    this.inventorySystem = null;
-    this.inventoryInitialized = false;
-    
-    // ✅ NOUVEAU: Délai de grâce après spawn
+    // ✅ NOUVEAU : Délai de grâce après spawn
     this.spawnGraceTime = 0;
     this.spawnGraceDuration = 2000; // 2 secondes
     
-    // ✅ NOUVEAU: Gestion des états de transition
+    // ✅ NOUVEAU : Gestion des états de transition
     this.transitionState = {
       isInProgress: false,
       targetZone: null,
@@ -40,7 +34,7 @@ export class BaseZoneScene extends Phaser.Scene {
       maxDuration: 10000 // 10 secondes max
     };
     
-    // ✅ NOUVEAU: Zone mapping et état
+    // ✅ NOUVEAU : Zone mapping et état
     this.zoneName = this.mapSceneToZone(sceneKey);
     this.isSceneReady = false;
     this.networkSetupComplete = false;
@@ -113,582 +107,54 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  useExistingNetworkManager(networkManager, sceneData = null) {
-    this.networkManager = networkManager;
-    this.mySessionId = networkManager.getSessionId();
+useExistingNetworkManager(networkManager, sceneData = null) {
+  this.networkManager = networkManager;
+  this.mySessionId = networkManager.getSessionId();
+  
+  console.log(`📡 [${this.scene.key}] SessionId récupéré: ${this.mySessionId}`);
+  
+  // ✅ CORRECTION CRITIQUE: Synchroniser le PlayerManager IMMÉDIATEMENT
+  if (this.playerManager) {
+    console.log(`🔄 [${this.scene.key}] Synchronisation PlayerManager...`);
+    this.playerManager.setMySessionId(this.mySessionId);
     
-    console.log(`📡 [${this.scene.key}] SessionId récupéré: ${this.mySessionId}`);
-    
-    // ✅ CORRECTION CRITIQUE: Synchroniser le PlayerManager IMMÉDIATEMENT
-    if (this.playerManager) {
-      console.log(`🔄 [${this.scene.key}] Synchronisation PlayerManager...`);
-      this.playerManager.setMySessionId(this.mySessionId);
-      
-      // ✅ NOUVEAU: Forcer une resynchronisation si nécessaire
-      if (sceneData?.fromTransition) {
-        this.time.delayedCall(100, () => {
-          this.playerManager.forceResynchronization();
-        });
-      }
-    }
-    
-    this.setupNetworkHandlers();
-    this.networkSetupComplete = true;
-    
-    // ✅ NOUVEAU: Initialiser l'inventaire avec la connexion réseau
-    this.initializeInventorySystem();
-    
-    // ✅ NOUVEAU: Vérifier immédiatement l'état du réseau
-    this.verifyNetworkState();
-    
-    // ✅ AJOUT: Déclencher une mise à jour de zone après sync
-    this.time.delayedCall(300, () => {
-      console.log(`🔄 [${this.scene.key}] Vérifier NPCs stockés...`);
-      
-      // ✅ NOUVEAU: Utiliser les NPCs stockés si ils correspondent à notre zone
-      if (this.networkManager.lastReceivedNpcs && 
-          this.networkManager.lastReceivedZoneData && 
-          this.networkManager.lastReceivedZoneData.zone === this.networkManager.currentZone) {
-        
-        console.log(`🎯 [${this.scene.key}] NPCs trouvés en cache pour zone: ${this.networkManager.currentZone}`);
-        
-        // Déclencher manuellement le spawn des NPCs
-        if (this.npcManager) {
-          this.npcManager.spawnNpcs(this.networkManager.lastReceivedNpcs);
-        }
-      } else {
-        console.log(`⚠️ [${this.scene.key}] Aucun NPC en cache pour zone: ${this.networkManager.currentZone}`);
-      }
-    });
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Initialisation du système d'inventaire
-  initializeInventorySystem() {
-    if (this.inventoryInitialized || !this.networkManager?.room) {
-      console.log(`⚠️ [${this.scene.key}] Inventaire déjà initialisé ou pas de room`);
-      return;
-    }
-
-    try {
-      console.log(`🎒 [${this.scene.key}] Initialisation du système d'inventaire...`);
-      
-      // ✅ Créer le système d'inventaire avec la room du NetworkManager
-      this.inventorySystem = new InventorySystem(this, this.networkManager.room);
-      
-      // ✅ Configurer la langue en anglais
-      if (this.inventorySystem.inventoryUI) {
-        this.inventorySystem.inventoryUI.currentLanguage = 'en';
-      }
-      
-      // ✅ Rendre accessible globalement
-      window.inventorySystem = this.inventorySystem;
-      window.inventorySystemGlobal = this.inventorySystem;
-      
-      // ✅ Setup des événements d'inventaire spécifiques à la scène
-      this.setupInventoryEventHandlers();
-      
-      // ✅ Connecter l'inventaire standalone au serveur (rétrocompatibilité)
-      if (typeof window.connectInventoryToServer === 'function') {
-        window.connectInventoryToServer(this.networkManager.room);
-      }
-      
-      this.inventoryInitialized = true;
-      console.log(`✅ [${this.scene.key}] Système d'inventaire initialisé`);
-      
-      // ✅ Test automatique après initialisation
-      this.time.delayedCall(2000, () => {
-        this.testInventoryConnection();
-      });
-      
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Setup des événements d'inventaire
-  setupInventoryEventHandlers() {
-    if (!this.networkManager?.room) return;
-
-    console.log(`🎒 [${this.scene.key}] Configuration des événements d'inventaire...`);
-
-    // ✅ Écouter les messages d'inventaire du serveur
-    this.networkManager.room.onMessage("inventoryData", (data) => {
-      console.log(`🎒 [${this.scene.key}] Données d'inventaire reçues:`, data);
-    });
-
-    this.networkManager.room.onMessage("inventoryUpdate", (data) => {
-      console.log(`🔄 [${this.scene.key}] Mise à jour inventaire:`, data);
-      
-      // ✅ Afficher une notification dans la scène
-      if (data.type === 'add') {
-        this.showNotification(`+${data.quantity} ${data.itemId}`, 'success');
-      } else if (data.type === 'remove') {
-        this.showNotification(`-${data.quantity} ${data.itemId}`, 'info');
-      }
-    });
-
-    this.networkManager.room.onMessage("itemPickup", (data) => {
-      console.log(`🎁 [${this.scene.key}] Objet ramassé:`, data);
-      this.showNotification(`Picked up: ${data.itemId} x${data.quantity}`, 'success');
-      
-      // ✅ Effet visuel de ramassage
-      this.showPickupEffect(data);
-    });
-
-    this.networkManager.room.onMessage("itemUseResult", (data) => {
-      console.log(`🎯 [${this.scene.key}] Résultat utilisation objet:`, data);
-      
-      if (data.success) {
-        this.showNotification(data.message || "Item used successfully", 'success');
-      } else {
-        this.showNotification(data.message || "Cannot use this item", 'error');
-      }
-    });
-
-    this.networkManager.room.onMessage("inventoryError", (data) => {
-      console.error(`❌ [${this.scene.key}] Erreur inventaire:`, data);
-      this.showNotification(data.message, 'error');
-    });
-
-    console.log(`✅ [${this.scene.key}] Événements d'inventaire configurés`);
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Effet visuel de ramassage
-  showPickupEffect(data) {
-    const myPlayer = this.playerManager?.getMyPlayer();
-    if (!myPlayer) return;
-
-    // ✅ Créer un effet de texte qui monte
-    const effectText = this.add.text(
-      myPlayer.x,
-      myPlayer.y - 20,
-      `+${data.quantity} ${data.itemId}`,
-      {
-        fontSize: '14px',
-        fontFamily: 'Arial',
-        color: '#00ff00',
-        stroke: '#000000',
-        strokeThickness: 2
-      }
-    ).setDepth(1000);
-
-    // ✅ Animation du texte
-    this.tweens.add({
-      targets: effectText,
-      y: myPlayer.y - 60,
-      alpha: 0,
-      duration: 1500,
-      ease: 'Power2',
-      onComplete: () => {
-        effectText.destroy();
-      }
-    });
-
-    // ✅ Effet de particules simple
-    this.createSimpleParticleEffect(myPlayer.x, myPlayer.y - 10);
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Effet de particules simple
-  createSimpleParticleEffect(x, y) {
-    // Créer quelques cercles colorés qui disparaissent
-    for (let i = 0; i < 5; i++) {
-      const particle = this.add.circle(
-        x + Phaser.Math.Between(-10, 10),
-        y + Phaser.Math.Between(-10, 10),
-        3,
-        0xffdd00
-      ).setDepth(999);
-
-      this.tweens.add({
-        targets: particle,
-        scaleX: 0,
-        scaleY: 0,
-        alpha: 0,
-        duration: 800,
-        delay: i * 100,
-        ease: 'Power2',
-        onComplete: () => {
-          particle.destroy();
-        }
+    // ✅ NOUVEAU: Forcer une resynchronisation si nécessaire
+    if (sceneData?.fromTransition) {
+      this.time.delayedCall(100, () => {
+        this.playerManager.forceResynchronization();
       });
     }
   }
+  
+  this.setupNetworkHandlers();
+  this.networkSetupComplete = true;
+  
+  // ✅ NOUVEAU: Vérifier immédiatement l'état du réseau
+  this.verifyNetworkState();
+  
+ // ✅ AJOUT: Déclencher une mise à jour de zone après sync
+// ✅ AJOUT: Déclencher une mise à jour de zone après sync
+this.time.delayedCall(300, () => {
+ console.log(`🔄 [${this.scene.key}] Vérifier NPCs stockés...`);
+ 
+ // ✅ NOUVEAU: Utiliser les NPCs stockés si ils correspondent à notre zone
+ if (this.networkManager.lastReceivedNpcs && 
+     this.networkManager.lastReceivedZoneData && 
+     this.networkManager.lastReceivedZoneData.zone === this.networkManager.currentZone) {
+   
+   console.log(`🎯 [${this.scene.key}] NPCs trouvés en cache pour zone: ${this.networkManager.currentZone}`);
+   
+   // Déclencher manuellement le spawn des NPCs
+   if (this.npcManager) {
+     this.npcManager.spawnNpcs(this.networkManager.lastReceivedNpcs);
+   }
+ } else {
+   console.log(`⚠️ [${this.scene.key}] Aucun NPC en cache pour zone: ${this.networkManager.currentZone}`);
+ }
+});
 
-  // ✅ NOUVELLE MÉTHODE: Test de connexion inventaire
-  testInventoryConnection() {
-    if (!this.inventorySystem || !this.networkManager?.room) {
-      console.warn(`⚠️ [${this.scene.key}] Cannot test inventory: no system or room`);
-      return;
-    }
+}
 
-    console.log(`🧪 [${this.scene.key}] Test de connexion inventaire...`);
-    
-    // ✅ Demander les données d'inventaire
-    this.inventorySystem.requestInventoryData();
-    
-    // ✅ Test d'ajout d'objet (pour le debug)
-    if (this.scene.key === 'BeachScene') {
-      this.time.delayedCall(3000, () => {
-        console.log(`🧪 [${this.scene.key}] Test ajout d'objets de départ...`);
-        this.networkManager.room.send("testAddItem", { itemId: "poke_ball", quantity: 3 });
-        this.networkManager.room.send("testAddItem", { itemId: "potion", quantity: 2 });
-        this.networkManager.room.send("testAddItem", { itemId: "town_map", quantity: 1 });
-      });
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Créer des objets ramassables dans le monde
-  createWorldItems() {
-    console.log(`🎁 [${this.scene.key}] Création d'objets dans le monde...`);
-    
-    // ✅ Exemple: Créer quelques objets ramassables pour tester
-    const itemsToCreate = [
-      { itemId: 'poke_ball', x: 150, y: 150 },
-      { itemId: 'potion', x: 200, y: 180 },
-      { itemId: 'antidote', x: 120, y: 200 }
-    ];
-
-    itemsToCreate.forEach((itemData, index) => {
-      this.createWorldItem(itemData.itemId, itemData.x, itemData.y);
-    });
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Créer un objet individuel dans le monde
-  createWorldItem(itemId, x, y) {
-    // ✅ Créer un sprite pour l'objet
-    const itemSprite = this.add.circle(x, y, 8, 0xffdd00);
-    itemSprite.setDepth(3);
-    itemSprite.setInteractive();
-    
-    // ✅ Ajouter un effet de brillance
-    itemSprite.setStrokeStyle(2, 0xffffff);
-    
-    // ✅ Animation de clignotement
-    this.tweens.add({
-      targets: itemSprite,
-      alpha: 0.6,
-      duration: 1000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-    
-    // ✅ Stocker les données de l'objet
-    itemSprite.itemData = {
-      itemId: itemId,
-      x: x,
-      y: y
-    };
-    
-    // ✅ Gérer l'interaction
-    itemSprite.on('pointerdown', () => {
-      this.attemptPickupItem(itemSprite);
-    });
-    
-    // ✅ Ajouter à un groupe pour la gestion
-    if (!this.worldItems) {
-      this.worldItems = this.add.group();
-    }
-    this.worldItems.add(itemSprite);
-    
-    console.log(`🎁 [${this.scene.key}] Objet créé: ${itemId} à (${x}, ${y})`);
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Tentative de ramassage d'objet
-  attemptPickupItem(itemSprite) {
-    const myPlayer = this.playerManager?.getMyPlayer();
-    if (!myPlayer) {
-      console.warn(`⚠️ [${this.scene.key}] Pas de joueur pour ramasser l'objet`);
-      return;
-    }
-
-    // ✅ Vérifier la distance
-    const distance = Phaser.Math.Distance.Between(
-      myPlayer.x, myPlayer.y,
-      itemSprite.x, itemSprite.y
-    );
-    
-    if (distance > 50) {
-      this.showNotification("Too far from item", 'warning');
-      console.log(`🚫 [${this.scene.key}] Trop loin de l'objet: ${distance}px`);
-      return;
-    }
-
-    // ✅ Envoyer la requête de ramassage au serveur
-    if (this.networkManager?.room) {
-      console.log(`📤 [${this.scene.key}] Envoi requête pickup:`, itemSprite.itemData);
-      
-      this.networkManager.room.send("pickupItem", {
-        itemId: itemSprite.itemData.itemId,
-        quantity: 1,
-        x: itemSprite.itemData.x,
-        y: itemSprite.itemData.y
-      });
-      
-      // ✅ Supprimer l'objet du monde immédiatement (feedback visuel)
-      itemSprite.destroy();
-      
-      // ✅ Effet visuel de ramassage
-      this.showPickupEffect({
-        itemId: itemSprite.itemData.itemId,
-        quantity: 1
-      });
-      
-    } else {
-      console.warn(`⚠️ [${this.scene.key}] Pas de connexion serveur pour ramasser l'objet`);
-      this.showNotification("No server connection", 'error');
-    }
-  }
-
-  // ✅ AMÉLIORATION: Setup des inputs avec inventaire
-  setupInputs() {
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.wasd = this.input.keyboard.addKeys('W,S,A,D');
-    this.input.keyboard.enableGlobalCapture();
-
-    // ✅ Interaction NPC existante
-    this.input.keyboard.on("keydown-E", () => {
-      // ✅ Bloquer si l'inventaire est ouvert
-      if (window.shouldBlockInput && window.shouldBlockInput()) {
-        return;
-      }
-      
-      const myPlayer = this.playerManager.getMyPlayer();
-      if (!myPlayer || !this.npcManager) return;
-
-      const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
-      if (npc) {
-        this.npcManager.lastInteractedNpc = npc;
-        this.networkManager.sendNpcInteract(npc.id);
-      } else {
-        // ✅ Si pas de NPC, chercher des objets ramassables
-        this.checkForNearbyItems(myPlayer);
-      }
-    });
-
-    // ✅ NOUVEAU: Raccourci inventaire
-    this.input.keyboard.on("keydown-I", (event) => {
-      if (window.shouldBlockInput && window.shouldBlockInput()) {
-        return;
-      }
-      
-      event.preventDefault();
-      if (window.toggleInventory) {
-        window.toggleInventory();
-      } else if (this.inventorySystem) {
-        this.inventorySystem.toggleInventory();
-      }
-    });
-
-    // ✅ NOUVEAU: Raccourci journal des quêtes
-    this.input.keyboard.on("keydown-Q", (event) => {
-      if (window.shouldBlockInput && window.shouldBlockInput()) {
-        return;
-      }
-      
-      event.preventDefault();
-      if (window.openQuestJournal) {
-        window.openQuestJournal();
-      }
-    });
-
-    // ✅ NOUVEAU: Raccourci de debug inventaire
-    this.input.keyboard.on("keydown-T", (event) => {
-      if (window.shouldBlockInput && window.shouldBlockInput()) {
-        return;
-      }
-      
-      if (event.ctrlKey) {
-        event.preventDefault();
-        this.testInventoryConnection();
-      }
-    });
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Chercher des objets ramassables à proximité
-  checkForNearbyItems(player) {
-    if (!this.worldItems) return;
-
-    let closestItem = null;
-    let closestDistance = Infinity;
-
-    this.worldItems.children.entries.forEach(item => {
-      const distance = Phaser.Math.Distance.Between(
-        player.x, player.y,
-        item.x, item.y
-      );
-      
-      if (distance < 50 && distance < closestDistance) {
-        closestDistance = distance;
-        closestItem = item;
-      }
-    });
-
-    if (closestItem) {
-      console.log(`🎁 [${this.scene.key}] Objet ramassable trouvé: ${closestItem.itemData.itemId}`);
-      this.attemptPickupItem(closestItem);
-    }
-  }
-
-  // ✅ AMÉLIORATION: Gestion du mouvement avec vérification d'inventaire
-  handleMovement(myPlayerState) {
-    // ✅ Bloquer le mouvement si l'inventaire est ouvert
-    if (window.shouldBlockInput && window.shouldBlockInput()) {
-      const myPlayer = this.playerManager.getMyPlayer();
-      if (myPlayer) {
-        myPlayer.body.setVelocity(0, 0);
-        myPlayer.play(`idle_${this.lastDirection}`, true);
-        myPlayer.isMovingLocally = false;
-      }
-      return;
-    }
-
-    const speed = 120;
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (!myPlayer) return;
-
-    let vx = 0, vy = 0;
-    let moved = false, direction = null;
-
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      vx = -speed; moved = true; direction = 'left';
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-      vx = speed; moved = true; direction = 'right';
-    }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) {
-      vy = -speed; moved = true; direction = 'up';
-    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-      vy = speed; moved = true; direction = 'down';
-    }
-
-    myPlayer.body.setVelocity(vx, vy);
-
-    if (moved && direction) {
-      myPlayer.play(`walk_${direction}`, true);
-      this.lastDirection = direction;
-      myPlayer.isMovingLocally = true;
-      
-      // Désactiver le délai de grâce dès que le joueur bouge
-      if (this.spawnGraceTime > 0) {
-        this.spawnGraceTime = 0;
-        console.log(`🏃 [${this.scene.key}] Joueur bouge, délai de grâce désactivé`);
-      }
-    } else {
-      myPlayer.play(`idle_${this.lastDirection}`, true);
-      myPlayer.isMovingLocally = false;
-    }
-
-    if (moved) {
-      const now = Date.now();
-      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-        this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirection, moved);
-        this.lastMoveTime = now;
-      }
-    }
-  }
-
-  // ✅ AMÉLIORATION: Cleanup avec inventaire
-  cleanup() {
-    console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
-
-    // ✅ NOUVEAU: Nettoyage conditionnel selon le type de fermeture
-    const isTransition = this.networkManager && this.networkManager.isTransitionActive;
-    
-    if (!isTransition) {
-      // Nettoyage complet seulement si ce n'est pas une transition
-      if (this.playerManager) {
-        this.playerManager.clearAllPlayers();
-      }
-      
-      // ✅ NOUVEAU: Nettoyer l'inventaire seulement en cas de fermeture complète
-      if (this.inventorySystem && !window.inventorySystemGlobal) {
-        this.inventorySystem.destroy();
-        this.inventorySystem = null;
-      }
-    } else {
-      // En transition, préserver les données critiques
-      console.log(`🔄 [${this.scene.key}] Nettoyage léger pour transition`);
-      
-      // ✅ L'inventaire reste global et n'est pas nettoyé en transition
-    }
-
-    if (this.npcManager) {
-      this.npcManager.clearAllNpcs();
-    }
-
-    if (this.animatedObjects) {
-      this.animatedObjects.clear(true, true);
-      this.animatedObjects = null;
-    }
-
-    if (this.worldItems) {
-      this.worldItems.clear(true, true);
-      this.worldItems = null;
-    }
-
-    this.time.removeAllEvents();
-    this.cameraFollowing = false;
-    this.myPlayerReady = false;
-    this.isSceneReady = false;
-    this.networkSetupComplete = false;
-    this.inventoryInitialized = false;
-    
-    console.log(`✅ [${this.scene.key}] Nettoyage terminé`);
-  }
-
-  // ✅ AMÉLIORATION: Setup du scene avec objets ramassables
-  setupScene() {
-    console.log('— DEBUT setupScene —');
-    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
-
-    const baseWidth = this.scale.width;
-    const baseHeight = this.scale.height;
-    const zoomX = baseWidth / this.map.widthInPixels;
-    const zoomY = baseHeight / this.map.heightInPixels;
-    const zoom = Math.min(zoomX, zoomY);
-
-    this.cameras.main.setZoom(zoom);
-    this.cameras.main.setBackgroundColor('#2d5a3d');
-    this.cameras.main.setRoundPixels(true);
-
-    this.cameraManager = new CameraManager(this);
-    
-    // ✅ NOUVEAU: Créer des objets ramassables dans certaines scènes
-    if (this.scene.key === 'BeachScene') {
-      this.time.delayedCall(3000, () => {
-        this.createWorldItems();
-      });
-    }
-  }
-
-  // ✅ AMÉLIORATION: UI avec informations d'inventaire
-  createUI() {
-    this.infoText = this.add.text(16, 16, `PokeWorld MMO\n${this.scene.key}`, {
-      fontSize: '14px',
-      fontFamily: 'monospace',
-      color: '#fff',
-      backgroundColor: 'rgba(0, 50, 0, 0.8)',
-      padding: { x: 8, y: 6 }
-    }).setScrollFactor(0).setDepth(1000);
-
-    this.coordsText = this.add.text(this.scale.width - 16, 16, 'Player: x:0, y:0', {
-      fontSize: '14px',
-      fontFamily: 'monospace',
-      color: '#fff',
-      backgroundColor: 'rgba(255, 0, 0, 0.8)',
-      padding: { x: 6, y: 4 }
-    }).setScrollFactor(0).setDepth(1000).setOrigin(1, 0);
-
-    // ✅ NOUVEAU: Texte d'aide pour l'inventaire
-    this.helpText = this.add.text(16, this.scale.height - 60, 
-      'I: Inventory  Q: Quests  E: Interact  Ctrl+T: Test Inventory', {
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      color: '#ccc',
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      padding: { x: 6, y: 4 }
-    }).setScrollFactor(0).setDepth(1000);
-  }
 
   // ✅ NOUVELLE MÉTHODE: Chercher un NetworkManager existant
   findExistingNetworkManager() {
@@ -729,10 +195,6 @@ export class BaseZoneScene extends Phaser.Scene {
           this.playerManager.setMySessionId(this.mySessionId);
         }
         this.networkSetupComplete = true;
-        
-        // ✅ NOUVEAU: Initialiser l'inventaire après connexion réussie
-        this.initializeInventorySystem();
-        
         console.log(`✅ [${this.scene.key}] Connexion réussie: ${this.mySessionId}`);
       } else {
         throw new Error("Échec de connexion au serveur");
@@ -803,7 +265,7 @@ export class BaseZoneScene extends Phaser.Scene {
         }
       }
       
-      this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nConnected to WorldRoom!\nInventory: ${this.inventoryInitialized ? 'Ready' : 'Loading...'}`);
+      this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nConnected to WorldRoom!`);
 
       // Quest system
       this.initializeQuestSystem();
@@ -871,34 +333,34 @@ export class BaseZoneScene extends Phaser.Scene {
 
   // ✅ NOUVELLE MÉTHODE: Setup des handlers WorldRoom
   setupWorldRoomHandlers() {
-    this.networkManager.onZoneData((data) => {
-      console.log(`🗺️ [${this.scene.key}] Zone data reçue:`, data);
-      this.handleZoneData(data);
-    });
+  this.networkManager.onZoneData((data) => {
+    console.log(`🗺️ [${this.scene.key}] Zone data reçue:`, data);
+    this.handleZoneData(data);
+  });
 
-    this.networkManager.onNpcList((npcs) => {
-      console.log(`🤖 [${this.scene.key}] NPCs reçus: ${npcs.length}`);
-      
-      // ✅ FIX 1: Normalisation des noms de zones plus robuste
-      const currentSceneZone = this.normalizeZoneName(this.scene.key);
-      const serverZone = this.networkManager.currentZone;
-      
-      console.log(`🔍 [${this.scene.key}] Comparaison zones: scene="${currentSceneZone}" vs server="${serverZone}"`);
-      
-      // ✅ FIX 2: Accepter les NPCs si on est dans la bonne zone OU si c'est juste après une transition
-      const isCorrectZone = currentSceneZone === serverZone;
-      const isRecentTransition = Date.now() - (this._lastTransitionTime || 0) < 3000; // 3 secondes de grâce
-      
-      if (!isCorrectZone && !isRecentTransition) {
-        console.log(`🚫 [${this.scene.key}] NPCs ignorés: zone serveur=${serverZone} ≠ scène=${currentSceneZone}`);
-        return;
-      }
-      
-      if (this.npcManager && npcs.length > 0) {
-        console.log(`✅ [${this.scene.key}] Spawn de ${npcs.length} NPCs`);
-        this.npcManager.spawnNpcs(npcs);
-      }
-    });
+  this.networkManager.onNpcList((npcs) => {
+    console.log(`🤖 [${this.scene.key}] NPCs reçus: ${npcs.length}`);
+    
+    // ✅ FIX 1: Normalisation des noms de zones plus robuste
+    const currentSceneZone = this.normalizeZoneName(this.scene.key);
+    const serverZone = this.networkManager.currentZone;
+    
+    console.log(`🔍 [${this.scene.key}] Comparaison zones: scene="${currentSceneZone}" vs server="${serverZone}"`);
+    
+    // ✅ FIX 2: Accepter les NPCs si on est dans la bonne zone OU si c'est juste après une transition
+    const isCorrectZone = currentSceneZone === serverZone;
+    const isRecentTransition = Date.now() - (this._lastTransitionTime || 0) < 3000; // 3 secondes de grâce
+    
+    if (!isCorrectZone && !isRecentTransition) {
+      console.log(`🚫 [${this.scene.key}] NPCs ignorés: zone serveur=${serverZone} ≠ scène=${currentSceneZone}`);
+      return;
+    }
+    
+    if (this.npcManager && npcs.length > 0) {
+      console.log(`✅ [${this.scene.key}] Spawn de ${npcs.length} NPCs`);
+      this.npcManager.spawnNpcs(npcs);
+    }
+  });
 
     this.networkManager.onTransitionSuccess((result) => {
       console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
@@ -1008,31 +470,31 @@ export class BaseZoneScene extends Phaser.Scene {
 
   // ✅ AMÉLIORATION: Gestion des succès de transition
   handleTransitionSuccess(result) {
-    console.log(`✅ [${this.scene.key}] === TRANSITION RÉUSSIE ===`);
-    console.log(`📍 Destination: ${result.currentZone}`);
-    console.log(`📊 Résultat:`, result);
+  console.log(`✅ [${this.scene.key}] === TRANSITION RÉUSSIE ===`);
+  console.log(`📍 Destination: ${result.currentZone}`);
+  console.log(`📊 Résultat:`, result);
+  
+  // ✅ FIX 3: Marquer le moment de transition pour la grâce des NPCs
+  this._lastTransitionTime = Date.now();
+  
+  const targetScene = this.mapZoneToScene(result.currentZone);
+  
+  if (targetScene === this.scene.key) {
+    console.log(`📍 [${this.scene.key}] Repositionnement dans la même scène`);
+    this.repositionPlayerAfterTransition(result);
     
-    // ✅ FIX 3: Marquer le moment de transition pour la grâce des NPCs
-    this._lastTransitionTime = Date.now();
-    
-    const targetScene = this.mapZoneToScene(result.currentZone);
-    
-    if (targetScene === this.scene.key) {
-      console.log(`📍 [${this.scene.key}] Repositionnement dans la même scène`);
-      this.repositionPlayerAfterTransition(result);
-      
-      // ✅ FIX 4: Forcer le rechargement des NPCs après repositionnement
-      this.time.delayedCall(500, () => {
-        if (this.networkManager?.lastReceivedNpcs) {
-          console.log(`🔄 [${this.scene.key}] Rechargement forcé des NPCs`);
-          this.npcManager?.spawnNpcs(this.networkManager.lastReceivedNpcs);
-        }
-      });
-    } else {
-      console.log(`🚀 [${this.scene.key}] Changement vers: ${targetScene}`);
-      this.performSceneTransition(targetScene, result);
-    }
+    // ✅ FIX 4: Forcer le rechargement des NPCs après repositionnement
+    this.time.delayedCall(500, () => {
+      if (this.networkManager?.lastReceivedNpcs) {
+        console.log(`🔄 [${this.scene.key}] Rechargement forcé des NPCs`);
+        this.npcManager?.spawnNpcs(this.networkManager.lastReceivedNpcs);
+      }
+    });
+  } else {
+    console.log(`🚀 [${this.scene.key}] Changement vers: ${targetScene}`);
+    this.performSceneTransition(targetScene, result);
   }
+}
 
   // ✅ NOUVELLE MÉTHODE: Repositionnement du joueur
   repositionPlayerAfterTransition(result) {
@@ -1072,8 +534,7 @@ export class BaseZoneScene extends Phaser.Scene {
       spawnY: result.position?.y,
       networkManager: this.networkManager,
       mySessionId: this.mySessionId,
-      preservePlayer: true, // ✅ NOUVEAU: Flag pour préserver le joueur
-      inventorySystem: this.inventorySystem // ✅ NOUVEAU: Transférer l'inventaire
+      preservePlayer: true // ✅ NOUVEAU: Flag pour préserver le joueur
     };
     
     console.log(`📦 [${this.scene.key}] Données de transition:`, transitionData);
@@ -1097,13 +558,7 @@ export class BaseZoneScene extends Phaser.Scene {
       this.animatedObjects = null;
     }
     
-    // ✅ NOUVEAU: Nettoyer les objets du monde
-    if (this.worldItems) {
-      this.worldItems.clear(true, true);
-      this.worldItems = null;
-    }
-    
-    // ✅ IMPORTANT: NE PAS nettoyer le PlayerManager, NetworkManager ni InventorySystem
+    // ✅ IMPORTANT: NE PAS nettoyer le PlayerManager ni le NetworkManager
     // Ils seront transférés à la nouvelle scène
     
     this.cameraFollowing = false;
@@ -1257,6 +712,100 @@ export class BaseZoneScene extends Phaser.Scene {
     this.handleMovement(myPlayerState);
   }
 
+  // ✅ AMÉLIORATION: Nettoyage optimisé
+  cleanup() {
+    console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
+
+    // ✅ NOUVEAU: Nettoyage conditionnel selon le type de fermeture
+    const isTransition = this.networkManager && this.networkManager.isTransitionActive;
+    
+    if (!isTransition) {
+      // Nettoyage complet seulement si ce n'est pas une transition
+      if (this.playerManager) {
+        this.playerManager.clearAllPlayers();
+      }
+    } else {
+      // En transition, préserver les données critiques
+      console.log(`🔄 [${this.scene.key}] Nettoyage léger pour transition`);
+    }
+
+    if (this.npcManager) {
+      this.npcManager.clearAllNpcs();
+    }
+
+    if (this.animatedObjects) {
+      this.animatedObjects.clear(true, true);
+      this.animatedObjects = null;
+    }
+
+    this.time.removeAllEvents();
+    this.cameraFollowing = false;
+    this.myPlayerReady = false;
+    this.isSceneReady = false;
+    this.networkSetupComplete = false;
+    
+    console.log(`✅ [${this.scene.key}] Nettoyage terminé`);
+  }
+
+  // ✅ AMÉLIORATION: Setup des handlers de nettoyage
+  setupCleanupHandlers() {
+    this.events.on('shutdown', () => {
+      console.log(`📤 [${this.scene.key}] Shutdown - nettoyage`);
+      this.cleanup();
+    });
+    
+    this.events.on('destroy', () => {
+      console.log(`💀 [${this.scene.key}] Destroy - nettoyage final`);
+      this.cleanup();
+    });
+  }
+
+  // ✅ AMÉLIORATION: Gestion du mouvement avec désactivation du délai de grâce
+  handleMovement(myPlayerState) {
+    const speed = 120;
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer) return;
+
+    let vx = 0, vy = 0;
+    let moved = false, direction = null;
+
+    if (this.cursors.left.isDown || this.wasd.A.isDown) {
+      vx = -speed; moved = true; direction = 'left';
+    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+      vx = speed; moved = true; direction = 'right';
+    }
+    if (this.cursors.up.isDown || this.wasd.W.isDown) {
+      vy = -speed; moved = true; direction = 'up';
+    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+      vy = speed; moved = true; direction = 'down';
+    }
+
+    myPlayer.body.setVelocity(vx, vy);
+
+    if (moved && direction) {
+      myPlayer.play(`walk_${direction}`, true);
+      this.lastDirection = direction;
+      myPlayer.isMovingLocally = true;
+      
+      // Désactiver le délai de grâce dès que le joueur bouge
+      if (this.spawnGraceTime > 0) {
+        this.spawnGraceTime = 0;
+        console.log(`🏃 [${this.scene.key}] Joueur bouge, délai de grâce désactivé`);
+      }
+    } else {
+      myPlayer.play(`idle_${this.lastDirection}`, true);
+      myPlayer.isMovingLocally = false;
+    }
+
+    if (moved) {
+      const now = Date.now();
+      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+        this.networkManager.sendMove(myPlayer.x, myPlayer.y, direction || this.lastDirection, moved);
+        this.lastMoveTime = now;
+      }
+    }
+  }
+
   // === MÉTHODES EXISTANTES CONSERVÉES ===
 
   // Mapping scene → zone
@@ -1287,7 +836,7 @@ export class BaseZoneScene extends Phaser.Scene {
     return mapping[zoneName.toLowerCase()] || zoneName;
   }
 
-  // Normalisation des noms de zones
+  // === AJOUTE LA ICI ===
   normalizeZoneName(sceneName) {
     const mapping = {
       'BeachScene': 'beach',
@@ -1446,6 +995,23 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
+  setupScene() {
+    console.log('— DEBUT setupScene —');
+    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+
+    const baseWidth = this.scale.width;
+    const baseHeight = this.scale.height;
+    const zoomX = baseWidth / this.map.widthInPixels;
+    const zoomY = baseHeight / this.map.heightInPixels;
+    const zoom = Math.min(zoomX, zoomY);
+
+    this.cameras.main.setZoom(zoom);
+    this.cameras.main.setBackgroundColor('#2d5a3d');
+    this.cameras.main.setRoundPixels(true);
+
+    this.cameraManager = new CameraManager(this);
+  }
+
   getDefaultSpawnPosition(fromZone) {
     return { x: 100, y: 100 };
   }
@@ -1489,6 +1055,41 @@ export class BaseZoneScene extends Phaser.Scene {
       frameRate: 10, repeat: -1
     });
     this.anims.create({ key: 'idle_down', frames: [{ key: 'dude', frame: 5 }], frameRate: 1 });
+  }
+
+  setupInputs() {
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.wasd = this.input.keyboard.addKeys('W,S,A,D');
+    this.input.keyboard.enableGlobalCapture();
+
+    this.input.keyboard.on("keydown-E", () => {
+      const myPlayer = this.playerManager.getMyPlayer();
+      if (!myPlayer || !this.npcManager) return;
+
+      const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
+      if (npc) {
+        this.npcManager.lastInteractedNpc = npc;
+        this.networkManager.sendNpcInteract(npc.id);
+      }
+    });
+  }
+
+  createUI() {
+    this.infoText = this.add.text(16, 16, `PokeWorld MMO\n${this.scene.key}`, {
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: '#fff',
+      backgroundColor: 'rgba(0, 50, 0, 0.8)',
+      padding: { x: 8, y: 6 }
+    }).setScrollFactor(0).setDepth(1000);
+
+    this.coordsText = this.add.text(this.scale.width - 16, 16, 'Player: x:0, y:0', {
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: '#fff',
+      backgroundColor: 'rgba(255, 0, 0, 0.8)',
+      padding: { x: 6, y: 4 }
+    }).setScrollFactor(0).setDepth(1000).setOrigin(1, 0);
   }
 
   handleZoneData(data) {
@@ -1562,24 +1163,6 @@ export class BaseZoneScene extends Phaser.Scene {
         return;
       }
     }
-    // ✅ NOUVEAU: Gestion des interactions qui donnent des objets
-    else if (result.type === "giveItem") {
-      console.log(`🎁 [${this.scene.key}] NPC donne objet:`, result);
-      
-      if (typeof window.showNpcDialogue === 'function') {
-        const itemText = result.items ? 
-          `You received: ${result.items.map(item => `${item.quantity} ${item.itemId}`).join(', ')}!` :
-          result.message || "You received an item!";
-          
-        window.showNpcDialogue({
-          portrait: result.portrait || "/assets/portrait/unknownPortrait.png",
-          name: result.npcName || "???",
-          text: itemText
-        });
-      }
-      
-      // Les objets seront automatiquement ajoutés via les messages serveur
-    }
     else if (result.type === "error") {
       if (typeof window.showNpcDialogue === 'function') {
         window.showNpcDialogue({
@@ -1643,7 +1226,7 @@ export class BaseZoneScene extends Phaser.Scene {
       {
         fontSize: '16px',
         fontFamily: 'Arial',
-        color: type === 'error' ? '#ff4444' : type === 'warning' ? '#ffaa44' : type === 'success' ? '#44ff44' : '#ffffff',
+        color: type === 'error' ? '#ff4444' : type === 'warning' ? '#ffaa44' : '#44ff44',
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
         padding: { x: 10, y: 5 }
       }
