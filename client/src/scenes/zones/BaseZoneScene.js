@@ -116,7 +116,24 @@ export class BaseZoneScene extends Phaser.Scene {
 useExistingNetworkManager(networkManager, sceneData = null) {
   this.networkManager = networkManager;
   this.mySessionId = networkManager.getSessionId();
-  
+  // ✅ AJOUTEZ CES LIGNES
+    if (sceneData?.forcePlayerSync) {
+        console.log(`🔄 [${this.scene.key}] Sync forcée détectée`);
+        
+        // Créer le joueur immédiatement avec les bonnes coordonnées
+        if (this.playerManager && sceneData.spawnX && sceneData.spawnY) {
+            const player = this.playerManager.createPlayer(
+                this.mySessionId, 
+                sceneData.spawnX, 
+                sceneData.spawnY
+            );
+            if (player) {
+                player.setVisible(true);
+                player.setActive(true);
+                console.log(`✅ [${this.scene.key}] Joueur créé immédiatement: (${sceneData.spawnX}, ${sceneData.spawnY})`);
+            }
+        }
+    }
   console.log(`📡 [${this.scene.key}] SessionId récupéré: ${this.mySessionId}`);
   
   // ✅ CORRECTION CRITIQUE: Synchroniser le PlayerManager IMMÉDIATEMENT
