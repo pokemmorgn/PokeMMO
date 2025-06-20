@@ -213,7 +213,7 @@ getMyPlayer() {
   // ✅ AMÉLIORATION : Logs plus détaillés
   logPlayers() {
     const playerList = Array.from(this.players.keys());
-    console.log(`[PlayerManager] 👥 Map joueurs: [${playerList.join(', ')}] | Mon sessionId: ${this.mySessionId}`);
+    //console.log(`[PlayerManager] 👥 Map joueurs: [${playerList.join(', ')}] | Mon sessionId: ${this.mySessionId}`);
     
     if (playerList.length > 0 && this.mySessionId && !playerList.includes(this.mySessionId)) {
       console.warn(`[PlayerManager] ⚠️ Mon sessionId ${this.mySessionId} n'est pas dans la liste des joueurs!`);
