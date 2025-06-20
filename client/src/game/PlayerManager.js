@@ -230,6 +230,7 @@ export class PlayerManager {
   }
 
   updatePlayers(state) {
+    console.log("State keys:", Array.from(state.players.keys()), "mySessionId:", this.mySessionId);
     if (this.isDestroyed) {
       console.warn("[PlayerManager] updatePlayers: MANAGER DETRUIT");
       return;
