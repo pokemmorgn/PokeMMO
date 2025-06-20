@@ -107,7 +107,6 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
- // ✅ NOUVELLE MÉTHODE: Utiliser un NetworkManager existant
 useExistingNetworkManager(networkManager, sceneData = null) {
   this.networkManager = networkManager;
   this.mySessionId = networkManager.getSessionId();
@@ -140,8 +139,9 @@ useExistingNetworkManager(networkManager, sceneData = null) {
       this.networkManager.forceZoneSynchronization(this.scene.key);
     }
   });
-
-  // ✅ AJOUT FINAL: Demander les NPCs après synchronisation
+  
+  // ❌ SUPPRIMER CETTE PARTIE QUI FAIT PLANTER :
+  /*
   this.time.delayedCall(400, () => {
     if (this.networkManager && this.networkManager.isConnected) {
       console.log(`🔄 [${this.scene.key}] Demande explicite des NPCs de zone`);
@@ -152,7 +152,9 @@ useExistingNetworkManager(networkManager, sceneData = null) {
       });
     }
   });
+  */
 }
+
 
   // ✅ NOUVELLE MÉTHODE: Chercher un NetworkManager existant
   findExistingNetworkManager() {
