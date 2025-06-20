@@ -172,38 +172,49 @@
          "name":"Worlds",
          "objects":[
                 {
-                 "height":17.5,
+                 "height":11.5,
                  "id":1,
-                 "name":"GR",
+                 "name":"teleport",
+                 "properties":[
+                        {
+                         "name":"targetspawn",
+                         "type":"string",
+                         "value":"fromvillageflorist"
+                        }, 
+                        {
+                         "name":"targetzone",
+                         "type":"string",
+                         "value":"village"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":41.5,
-                 "x":225.5,
-                 "y":368.5
-                }],
-         "opacity":1,
-         "type":"objectgroup",
-         "visible":true,
-         "x":0,
-         "y":0
-        }, 
-        {
-         "draworder":"topdown",
-         "id":6,
-         "name":"SpawnPoint",
-         "objects":[
+                 "width":38.8333333333333,
+                 "x":228.166666666667,
+                 "y":379.166666666667
+                }, 
                 {
                  "height":0,
-                 "id":2,
-                 "name":"SpawnPoint_Florist",
+                 "id":4,
+                 "name":"spawn",
                  "point":true,
+                 "properties":[
+                        {
+                         "name":"targetSpawn",
+                         "type":"string",
+                         "value":"fromvillage"
+                        }, 
+                        {
+                         "name":"targetZone",
+                         "type":"string",
+                         "value":"villageflorist"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":249.166666666667,
-                 "y":352.333333333333
+                 "x":244,
+                 "y":350.666666666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -326,7 +337,7 @@
          "y":0
         }],
  "nextlayerid":8,
- "nextobjectid":4,
+ "nextobjectid":5,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

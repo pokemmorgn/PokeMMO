@@ -172,38 +172,49 @@
          "name":"Worlds",
          "objects":[
                 {
-                 "height":19,
+                 "height":11,
                  "id":1,
-                 "name":"GR",
+                 "name":"teleport",
+                 "properties":[
+                        {
+                         "name":"targetspawn",
+                         "type":"string",
+                         "value":"fromvillage"
+                        }, 
+                        {
+                         "name":"targetzone",
+                         "type":"string",
+                         "value":"villagehouse2"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
                  "width":31.5,
                  "x":233.5,
-                 "y":349.5
-                }],
-         "opacity":1,
-         "type":"objectgroup",
-         "visible":true,
-         "x":0,
-         "y":0
-        }, 
-        {
-         "draworder":"topdown",
-         "id":6,
-         "name":"SpawnPoint",
-         "objects":[
+                 "y":357.5
+                }, 
                 {
                  "height":0,
-                 "id":2,
-                 "name":"SpawnPoint_House2",
+                 "id":5,
+                 "name":"spawn",
                  "point":true,
+                 "properties":[
+                        {
+                         "name":"targetspawn",
+                         "type":"string",
+                         "value":"fromvillage"
+                        }, 
+                        {
+                         "name":"targetzone",
+                         "type":"string",
+                         "value":"villagehouse2"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":220,
-                 "y":315.5
+                 "x":229.5,
+                 "y":329.5
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -429,7 +440,7 @@
          "y":0
         }],
  "nextlayerid":8,
- "nextobjectid":5,
+ "nextobjectid":8,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
