@@ -376,5 +376,4 @@
     "usable_in_field": false,
     "stackable": false
   }
-  // TMs et HMs : ajoute-les sur demande (ex : "tm01", "hm01", ...), sinon le fichier serait énorme
 }
