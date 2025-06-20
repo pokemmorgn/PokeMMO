@@ -7,6 +7,7 @@ export class TeamPokemon extends Schema {
   @type("string") nickname: string;
   @type("boolean") shiny: boolean;
   @type("string") gender: string;
+   @type("string") currentZone!: string; // ✅ NOUVELLE PROPRIÉTÉ AJOUTÉE
 }
 
 export class Player extends Schema {
