@@ -341,6 +341,12 @@ initializeInventorySystem() {
       
       this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nConnected to WorldRoom!`);
 
+      this.networkManager.onMessage("questStatuses", (data) => {
+  console.log("📋 Statuts de quêtes reçus:", data);
+  if (this.npcManager) {
+    this.npcManager.updateQuestIndicators(data.questStatuses);
+  }
+});
       // Quest system
       this.initializeQuestSystem();
     });
@@ -1190,6 +1196,11 @@ initializeInventorySystem() {
   handleNpcInteraction(result) {
     console.log("🟢 [npcInteractionResult] Reçu :", result);
 
+     if (window._questDialogActive) {
+    console.log("⚠️ Fenêtre de quête déjà ouverte, interaction ignorée");
+    return;
+  }
+    
     if (result.type === "dialogue") {
       let npcName = "???";
       let spriteName = null;
