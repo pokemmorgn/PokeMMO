@@ -808,41 +808,46 @@ this.time.delayedCall(300, () => {
 
   // === MÉTHODES EXISTANTES CONSERVÉES ===
 
-normalizeZoneName(sceneName) {
-  const mapping = {
-    'BeachScene': 'beach',
-    'VillageScene': 'village',
-    'VillageLabScene': 'villagelab',
-    'Road1Scene': 'road1',
-    'VillageHouse1Scene': 'villagehouse1',
-    'LavandiaScene': 'lavandia'
-  };
-  return mapping[sceneName] || sceneName.toLowerCase();
-}
+  // === MÉTHODES UTILITAIRES ===
+  normalizeZoneName(sceneName) {
+    const mapping = {
+      'BeachScene': 'beach',
+      'VillageScene': 'village',
+      'VillageLabScene': 'villagelab',
+      'Road1Scene': 'road1',
+      'VillageHouse1Scene': 'villagehouse1',
+      'LavandiaScene': 'lavandia'
+    };
+    return mapping[sceneName] || sceneName.toLowerCase();
+  }
 
-mapSceneToZone(sceneName) {
-  const mapping = {
-    'BeachScene': 'beach',
-    'VillageScene': 'village',
-    'VillageLabScene': 'villagelab',
-    'Road1Scene': 'road1',
-    'VillageHouse1Scene': 'villagehouse1',
-    'LavandiaScene': 'lavandia'
-  };
-  return mapping[sceneName] || sceneName.toLowerCase();
-}
+  mapSceneToZone(sceneName) {
+    const mapping = {
+      'BeachScene': 'beach',
+      'VillageScene': 'village',
+      'VillageLabScene': 'villagelab',
+      'Road1Scene': 'road1',
+      'VillageHouse1Scene': 'villagehouse1',
+      'LavandiaScene': 'lavandia'
+    };
+    return mapping[sceneName] || sceneName.toLowerCase();
+  }
 
-mapZoneToScene(zoneName) {
-  const mapping = {
-    'beach': 'BeachScene',
-    'village': 'VillageScene',
-    'villagelab': 'VillageLabScene',
-    'road1': 'Road1Scene',
-    'villagehouse1': 'VillageHouse1Scene',
-    'lavandia': 'LavandiaScene'
-  };
-  return mapping[zoneName.toLowerCase()] || zoneName;
-}
+  mapZoneToScene(zoneName) {
+    const mapping = {
+      'beach': 'BeachScene',
+      'village': 'VillageScene',
+      'villagelab': 'VillageLabScene',
+      'road1': 'Road1Scene',
+      'villagehouse1': 'VillageHouse1Scene',
+      'lavandia': 'LavandiaScene'
+    };
+    return mapping[zoneName.toLowerCase()] || zoneName;
+  }
+
+} 
+
+
   setupZoneTransitions() {
     if (!this.map) {
       console.warn(`[${this.scene.key}] setupZoneTransitions appelé avant loadMap`);
