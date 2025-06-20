@@ -288,17 +288,7 @@ this.room.onMessage("snap", (data) => {
   }
 
   // ✅ AMÉLIORATION: sendMove avec vérification transition allégée
-  sendMove(x, y, direction, isMoving) {
-    if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen) {
-      // ✅ NOUVEAU: Permettre les mouvements même en transition (sinon le joueur ne peut pas bouger après transition)
-      const now = Date.now();
-      if (!this.lastSendTime || now - this.lastSendTime > 50) {
-        this.room.send("playerMove", { x, y, direction, isMoving });
-        this.lastSendTime = now;
-      }
-    }
-  }
-
+ sendMove 
   sendNpcInteract(npcId) {
     if (this.isConnected && this.room && !this.transitionState.isActive) {
       console.log(`[NetworkManager] 💬 Interaction NPC: ${npcId}`);
