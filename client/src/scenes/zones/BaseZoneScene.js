@@ -205,54 +205,6 @@ this.time.delayedCall(300, () => {
     }
   }
   
-  // ✅ NOUVELLE MÉTHODE: Setup des événements d'inventaire
-  setupInventoryEventHandlers() {
-    if (!this.networkManager?.room) return;
-
-    console.log(`🎒 [${this.scene.key}] Configuration des événements d'inventaire...`);
-
-    // ✅ Écouter les messages d'inventaire du serveur
-    this.networkManager.room.onMessage("inventoryData", (data) => {
-      console.log(`🎒 [${this.scene.key}] Données d'inventaire reçues:`, data);
-    });
-
-    this.networkManager.room.onMessage("inventoryUpdate", (data) => {
-      console.log(`🔄 [${this.scene.key}] Mise à jour inventaire:`, data);
-      
-      // ✅ Afficher une notification dans la scène
-      if (data.type === 'add') {
-        this.showNotification(`+${data.quantity} ${data.itemId}`, 'success');
-      } else if (data.type === 'remove') {
-        this.showNotification(`-${data.quantity} ${data.itemId}`, 'info');
-      }
-    });
-
-    this.networkManager.room.onMessage("itemPickup", (data) => {
-      console.log(`🎁 [${this.scene.key}] Objet ramassé:`, data);
-      this.showNotification(`Picked up: ${data.itemId} x${data.quantity}`, 'success');
-      
-      // ✅ Effet visuel de ramassage
-      this.showPickupEffect(data);
-    });
-
-    this.networkManager.room.onMessage("itemUseResult", (data) => {
-      console.log(`🎯 [${this.scene.key}] Résultat utilisation objet:`, data);
-      
-      if (data.success) {
-        this.showNotification(data.message || "Item used successfully", 'success');
-      } else {
-        this.showNotification(data.message || "Cannot use this item", 'error');
-      }
-    });
-
-    this.networkManager.room.onMessage("inventoryError", (data) => {
-      console.error(`❌ [${this.scene.key}] Erreur inventaire:`, data);
-      this.showNotification(data.message, 'error');
-    });
-
-    console.log(`✅ [${this.scene.key}] Événements d'inventaire configurés`);
-  }
-
   // ✅ NOUVELLE MÉTHODE: Chercher un NetworkManager existant
   findExistingNetworkManager() {
     const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene', 'LavandiaScene'];
