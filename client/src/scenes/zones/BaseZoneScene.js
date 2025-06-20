@@ -246,12 +246,7 @@ this.time.delayedCall(300, () => {
       
       this.inventoryInitialized = true;
       console.log(`✅ [${this.scene.key}] Système d'inventaire initialisé`);
-      
-      // ✅ Test automatique après initialisation
-      this.time.delayedCall(2000, () => {
-        this.testInventoryConnection();
-      });
-      
+            
     } catch (error) {
       console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
     }
