@@ -7,6 +7,8 @@ import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager";
 import { QuestSystem } from "../../game/QuestSystem.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
+import { TransitionIntegration } from '../transitions/TransitionIntegration.js';
+
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -67,9 +69,6 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.myPlayerReady = false;
     this.isSceneReady = true;
-
-    // ✅ AMÉLIORATION 1: Setup des zones de transition après la map
-    this.setupZoneTransitions();
 
     // ✅ AMÉLIORATION 2: Gestion réseau améliorée
     this.initializeNetworking();
@@ -514,39 +513,6 @@ initializeInventorySystem() {
     }
   }
 
-  // ✅ AMÉLIORATION: Gestion des transitions avec état
-  async handleZoneTransition(transitionData) {
-    // ✅ CORRECTION: Utiliser la nouvelle API du NetworkManager
-    if (this.networkManager && this.networkManager.isTransitionActive) {
-      console.log(`⚠️ [${this.scene.key}] Transition déjà en cours via NetworkManager`);
-      return;
-    }
-
-    if (transitionData.targetZone === this.zoneName) {
-      console.warn(`⚠️ [${this.scene.key}] Transition vers soi-même bloquée`);
-      return;
-    }
-
-    console.log(`🌀 [${this.scene.key}] === DÉBUT TRANSITION ===`);
-    console.log(`📍 Destination: ${transitionData.targetZone}`);
-    console.log(`📊 Data:`, transitionData);
-
-    try {
-      const success = this.networkManager.moveToZone(
-        transitionData.targetZone,
-        transitionData.targetX,
-        transitionData.targetY
-      );
-
-      if (!success) {
-        throw new Error("Impossible d'envoyer la requête de transition");
-      }
-
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur transition:`, error);
-      this.showNotification(`Erreur: ${error.message}`, "error");
-    }
-  }
 
   // ✅ AMÉLIORATION: Gestion des succès de transition
   handleTransitionSuccess(result) {
@@ -691,46 +657,7 @@ initializeInventorySystem() {
     this.onPlayerPositioned(player, initData);
   }
 
-  // ✅ AMÉLIORATION: Vérification des collisions avec état de transition
-  checkTransitionCollisions() {
-    // ✅ CORRECTION: Utiliser la nouvelle API du NetworkManager
-    if (!this.playerManager || (this.networkManager && this.networkManager.isTransitionActive)) return;
-
-    // Ne pas vérifier pendant le délai de grâce
-    const now = Date.now();
-    if (this.spawnGraceTime > 0 && now < this.spawnGraceTime) {
-      return;
-    }
-
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (!myPlayer) return;
-
-    // Vérifier si le joueur bouge
-    const isMoving = myPlayer.isMovingLocally || myPlayer.isMoving;
-    if (!isMoving) {
-      return;
-    }
-
-    // Vérifier toutes les zones de transition
-    this.children.list.forEach(child => {
-      if (child.transitionData && child.body) {
-        const playerBounds = myPlayer.getBounds();
-        const zoneBounds = child.getBounds();
-
-        if (Phaser.Geom.Rectangle.Overlaps(playerBounds, zoneBounds)) {
-          console.log(`🌀 [${this.scene.key}] Collision transition vers ${child.transitionData.targetZone}`);
-          
-          if (child.transitionData.targetZone === this.zoneName) {
-            console.warn(`⚠️ [${this.scene.key}] Tentative de transition vers soi-même ignorée`);
-            return;
-          }
-          
-          this.handleZoneTransition(child.transitionData);
-        }
-      }
-    });
-  }
-
+ 
   // ✅ NOUVELLE MÉTHODE: Initialisation du système de quêtes
   initializeQuestSystem() {
     if (!window.questSystem && this.networkManager?.room) {
@@ -765,6 +692,7 @@ initializeInventorySystem() {
 
   // ✅ AMÉLIORATION: Update avec vérifications d'état
   update() {
+    TransitionIntegration.setupTransitions(this);
     // Vérifications périodiques
     if (this.time.now % 1000 < 16) {
       this.checkPlayerState();
@@ -794,6 +722,8 @@ initializeInventorySystem() {
 
   // ✅ AMÉLIORATION: Nettoyage optimisé
   cleanup() {
+    TransitionIntegration.setupTransitions(this);
+
     console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
 
     // ✅ NOUVEAU: Nettoyage conditionnel selon le type de fermeture
@@ -929,61 +859,7 @@ initializeInventorySystem() {
     return mapping[sceneName] || sceneName.toLowerCase();
   }
   
-  setupZoneTransitions() {
-    if (!this.map) {
-      console.warn(`[${this.scene.key}] setupZoneTransitions appelé avant loadMap`);
-      return;
-    }
 
-    const transitionLayer = this.map.getObjectLayer('Transitions') || 
-                           this.map.getObjectLayer('Teleports') || 
-                           this.map.getObjectLayer('Worlds');
-
-    if (!transitionLayer) {
-      console.log(`[${this.scene.key}] Aucun layer de transitions trouvé`);
-      return;
-    }
-
-    console.log(`[${this.scene.key}] Found ${transitionLayer.objects.length} transition zones`);
-
-    transitionLayer.objects.forEach((zone, index) => {
-      const targetZone = this.getProperty(zone, 'targetzone') || this.getProperty(zone, 'targetMap');
-      const spawnPoint = this.getProperty(zone, 'targetzpawn') || this.getProperty(zone, 'spawnPoint');
-      const targetX = this.getProperty(zone, 'targetX');
-      const targetY = this.getProperty(zone, 'targetY');
-
-      if (!targetZone) {
-        console.warn(`[${this.scene.key}] Zone ${index} sans targetZone/targetMap`);
-        return;
-      }
-
-      const targetZoneName = this.mapSceneToZone(this.mapZoneToScene(targetZone));
-      if (targetZoneName === this.zoneName) {
-        console.warn(`[${this.scene.key}] ⚠️ Zone ${index} pointe vers elle-même (${targetZone} → ${targetZoneName}), ignorée`);
-        return;
-      }
-
-      const teleportZone = this.add.zone(
-        zone.x + (zone.width || 32) / 2, 
-        zone.y + (zone.height || 32) / 2, 
-        zone.width || 32, 
-        zone.height || 32
-      );
-
-      this.physics.world.enableBody(teleportZone, Phaser.Physics.Arcade.STATIC_BODY);
-      teleportZone.body.setSize(zone.width || 32, zone.height || 32);
-
-      teleportZone.transitionData = {
-        targetZone: targetZoneName,
-        spawnPoint,
-        targetX: targetX ? parseFloat(targetX) : undefined,
-        targetY: targetY ? parseFloat(targetY) : undefined,
-        fromZone: this.zoneName
-      };
-
-      console.log(`[${this.scene.key}] ✅ Transition zone ${index} setup:`, teleportZone.transitionData);
-    });
-  }
 
   getProperty(object, propertyName) {
     if (!object.properties) return null;
@@ -1076,6 +952,7 @@ initializeInventorySystem() {
   }
 
   setupScene() {
+    TransitionIntegration.setupTransitions(this);
     console.log('— DEBUT setupScene —');
     this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
 
