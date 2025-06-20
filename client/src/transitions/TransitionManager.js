@@ -93,23 +93,7 @@ export class TransitionManager {
     }
   }
 
-  // ✅ TRAITER UN TÉLÉPORT
-  processTeleport(obj, index, layerName) {
-    const targetZone = this.getProperty(obj, 'targetzone');
-    const targetSpawn = this.getProperty(obj, 'targetspawn');
 
-    if (!targetZone) {
-      console.warn(`🌀 [TransitionManager] ⚠️ Téléport ${index} (${layerName}) sans 'targetzone'`);
-      return;
-    }
-
-    const teleport = {
-      id: `teleport_${layerName}_${index}`,
-      type: 'teleport',
-      x: obj.x,
-      y: obj.y,
-      width: obj.width || 32,
-      height: obj.height || 32,
   // ✅ TRAITER UN TELEPORT
   processTeleport(obj, index, layerName) {
     const targetZone = this.getProperty(obj, 'targetzone');
