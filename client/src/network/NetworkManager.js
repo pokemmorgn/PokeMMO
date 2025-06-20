@@ -288,15 +288,22 @@ this.room.onMessage("snap", (data) => {
   }
 
   // Ajoute ça dans ta classe NetworkManager !
-sendMove(x, y, direction, isMoving) {
+sendMove(x, y, direction, isMoving, currentZone = this.currentZone) {
   if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen) {
     const now = Date.now();
     if (!this.lastSendTime || now - this.lastSendTime > 50) {
-      this.room.send("playerMove", { x, y, direction, isMoving });
+      this.room.send("playerMove", { 
+        x, 
+        y, 
+        direction, 
+        isMoving,
+        currentZone // <-- AJOUT FONDAMENTAL !
+      });
       this.lastSendTime = now;
     }
   }
 }
+
 
   startQuest(questId) {
     if (this.isConnected && this.room && !this.transitionState.isActive) {
