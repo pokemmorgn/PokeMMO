@@ -1,7 +1,8 @@
 // ===== server/src/rooms/WorldRoom.ts =====
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
-import { ZoneManager } from "../managers/ZoneManager"; // Chemin corrigé
+import { ZoneManager } from "../managers/ZoneManager";
+import { InventoryManager } from "../managers/InventoryManager"; 
 
 export class WorldRoom extends Room<PokeWorldState> {
   private zoneManager!: ZoneManager;
@@ -87,6 +88,13 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
       console.log(`✅ Joueur ${player.name} créé`);
 
+      try {
+    const inv = await InventoryManager.addItem(player.name, "poke_ball", 5);
+    console.log(`🎒 [INVENTAIRE] ${player.name} possède:`, inv.items);
+      } catch (err) {
+    console.error(`❌ [INVENTAIRE] Erreur d'ajout d'objet pour ${player.name}:`, err);
+        }
+      
       // Faire entrer le joueur dans sa zone initiale
       await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
       
