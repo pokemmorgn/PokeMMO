@@ -25,7 +25,9 @@ export class WorldRoom extends Room<PokeWorldState> {
   
   // Limite pour auto-scaling
   maxClients = 50;
-
+  private lastStateUpdate = 0;
+  private stateUpdateInterval = 100;
+  
   onCreate(options: any) {
     console.log(`🌍 === WORLDROOM CRÉATION ===`);
     console.log(`📊 Options:`, options);
@@ -128,6 +130,29 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.zoneManager.handleNpcInteraction(client, data.npcId);
     });
 
+    this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
+  console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
+  console.log(`👤 Client: ${client.sessionId}`);
+  console.log(`📍 Nouvelle zone: ${data.newZone} à (${data.x}, ${data.y})`);
+  
+  const player = this.state.players.get(client.sessionId);
+  if (player) {
+    const oldZone = player.currentZone;
+    
+    // Mettre à jour la zone et position du joueur
+    player.currentZone = data.newZone;
+    player.x = data.x;
+    player.y = data.y;
+    
+    console.log(`✅ ${player.name}: ${oldZone} → ${data.newZone}`);
+    
+    // Envoyer les NPCs de la nouvelle zone
+    this.onPlayerJoinZone(client, data.newZone);
+    
+    // Déclencher une mise à jour du state filtré
+    this.scheduleFilteredStateUpdate();
+  }
+});
     // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
 
     // Démarrage de quête
@@ -494,73 +519,71 @@ export class WorldRoom extends Room<PokeWorldState> {
   }
 
   async onJoin(client: Client, options: any = {}) {
-    console.log(`👤 === PLAYER JOIN ===`);
-    console.log(`🔑 Session: ${client.sessionId}`);
-    console.log(`📊 Options:`, options);
+  console.log(`👤 === PLAYER JOIN ===`);
+  console.log(`🔑 Session: ${client.sessionId}`);
+  console.log(`📊 Options:`, options);
 
+  try {
+    // Créer le joueur
+    const player = new Player();
+    
+    // Données de base
+    player.id = client.sessionId;
+    player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
+    player.x = options.spawnX || 52;
+    player.y = options.spawnY || 48;
+    
+    // Zone de spawn
+    player.currentZone = options.spawnZone || "beach";
+    console.log(`🌍 Zone de spawn: ${player.currentZone}`);
+    
+    // Compatibilité avec l'ancien système
+    player.map = player.currentZone;
+    
+    // Ajouter au state
+    this.state.players.set(client.sessionId, player);
+    
+    console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+    console.log(`✅ Joueur ${player.name} créé`);
+
+    // Configuration inventaire de départ
     try {
-      // Créer le joueur
-      const player = new Player();
+      console.log(`🎒 Configuration inventaire de départ pour ${player.name}`);
       
-      // Données de base
-      player.id = client.sessionId;
-      player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
-      player.x = options.spawnX || 52;
-      player.y = options.spawnY || 48;
+      await InventoryManager.addItem(player.name, "poke_ball", 5);
+      await InventoryManager.addItem(player.name, "potion", 3);
       
-      // Zone de spawn
-      player.currentZone = options.spawnZone || "beach";
-      console.log(`🌍 Zone de spawn: ${player.currentZone}`);
-      
-      // Compatibilité avec l'ancien système
-      player.map = player.currentZone;
-      
-      // Ajouter au state
-      this.state.players.set(client.sessionId, player);
-      
-      console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
-      console.log(`✅ Joueur ${player.name} créé`);
-
-      // === CONFIGURATION INVENTAIRE DE DÉPART ===
-      try {
-        console.log(`🎒 Configuration inventaire de départ pour ${player.name}`);
-        
-        // Donne les objets de départ
-        await InventoryManager.addItem(player.name, "poke_ball", 5);
-        await InventoryManager.addItem(player.name, "potion", 3);
-        
-        // Ne donne la town_map que si le joueur ne l'a pas déjà
-        const hasMap = await InventoryManager.getItemCount(player.name, "town_map");
-        if (hasMap === 0) {
-          await InventoryManager.addItem(player.name, "town_map", 1);
-        }
-
-        // Afficher l'inventaire groupé par poche
-        const grouped = await InventoryManager.getAllItemsGroupedByPocket(player.name);
-        console.log(`🎒 [INVENTAIRE groupé par poche] ${player.name}:`, grouped);
-        
-        console.log(`✅ Objets de départ ajoutés pour ${player.name}`);
-      } catch (err) {
-        console.error(`❌ [INVENTAIRE] Erreur lors de l'ajout d'objets de départ pour ${player.name}:`, err);
+      const hasMap = await InventoryManager.getItemCount(player.name, "town_map");
+      if (hasMap === 0) {
+        await InventoryManager.addItem(player.name, "town_map", 1);
       }
-      
-      // Faire entrer le joueur dans sa zone initiale
-      await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
-      
-      // ✅ Envoyer les statuts de quête initiaux après un délai
-      this.clock.setTimeout(() => {
-        this.updateQuestStatuses(player.name);
-      }, 1000);
-      
-      console.log(`🎉 ${player.name} a rejoint le monde !`);
 
-    } catch (error) {
-      console.error(`❌ Erreur lors du join:`, error);
+      const grouped = await InventoryManager.getAllItemsGroupedByPocket(player.name);
+      console.log(`🎒 [INVENTAIRE groupé par poche] ${player.name}:`, grouped);
       
-      // En cas d'erreur, faire quitter le client
-      client.leave(1000, "Erreur lors de la connexion");
+      console.log(`✅ Objets de départ ajoutés pour ${player.name}`);
+    } catch (err) {
+      console.error(`❌ [INVENTAIRE] Erreur lors de l'ajout d'objets de départ pour ${player.name}:`, err);
     }
+    
+    // Faire entrer le joueur dans sa zone initiale
+    await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
+    
+    // ✅ NOUVEAU: Démarrer les updates de state filtré
+    this.scheduleFilteredStateUpdate();
+    
+    // Envoyer les statuts de quête initiaux après un délai
+    this.clock.setTimeout(() => {
+      this.updateQuestStatuses(player.name);
+    }, 1000);
+    
+    console.log(`🎉 ${player.name} a rejoint le monde !`);
+
+  } catch (error) {
+    console.error(`❌ Erreur lors du join:`, error);
+    client.leave(1000, "Erreur lors de la connexion");
   }
+}
 
   onLeave(client: Client, consented: boolean) {
     console.log(`👋 === PLAYER LEAVE ===`);
@@ -732,5 +755,52 @@ export class WorldRoom extends Room<PokeWorldState> {
       return false;
     }
   }
+  private getFilteredStateForClient(client: Client): any {
+  const player = this.state.players.get(client.sessionId);
+  if (!player) return null;
+
+  const playerZone = player.currentZone;
+  
+  // Créer un state filtré avec seulement les joueurs de la même zone
+  const filteredPlayers = new Map();
+  
+  this.state.players.forEach((otherPlayer, sessionId) => {
+    if (otherPlayer.currentZone === playerZone) {
+      filteredPlayers.set(sessionId, otherPlayer);
+    }
+  });
+
+  return {
+    players: filteredPlayers
+  };
+}
+
+private sendFilteredState() {
+  const now = Date.now();
+  
+  // Throttle : max 1 update toutes les 100ms
+  if (now - this.lastStateUpdate < this.stateUpdateInterval) {
+    return;
+  }
+  
+  this.lastStateUpdate = now;
+  
+  // Envoyer un state filtré à chaque client selon sa zone
+  this.clients.forEach(client => {
+    const filteredState = this.getFilteredStateForClient(client);
+    if (filteredState) {
+      client.send("filteredState", filteredState);
+    }
+  });
+  
+  console.log(`📤 States filtrés envoyés à ${this.clients.length} clients`);
+}
+
+private scheduleFilteredStateUpdate() {
+  // Programmer une mise à jour dans 50ms (pour regrouper les changements)
+  this.clock.setTimeout(() => {
+    this.sendFilteredState();
+  }, 50);
+}
 }
  
