@@ -20,6 +20,9 @@ import { StarterSelectionHUD } from './components/StarterSelectionHUD.js';
 // === Import du système de quêtes ===
 import { QuestSystem } from './game/QuestSystem.js';
 
+// === ✅ Import du système d'inventaire ===
+import { InventorySystem } from './game/InventorySystem.js';
+
 // --- Endpoint dynamique ---
 const ENDPOINT =
   (location.protocol === "https:" ? "wss://" : "ws://") +
@@ -165,7 +168,7 @@ const styleSheet = document.createElement('style');
 styleSheet.textContent = starterHudCSS;
 document.head.appendChild(styleSheet);
 
-// ==== Connexion Colyseus + Chat + Starter HUD + Quest System ====
+// ==== Connexion Colyseus + Chat + Starter HUD + Quest System + ✅ Inventory System ====
 (async () => {
   try {
     // Connexion à la WorldChatRoom
@@ -181,6 +184,33 @@ document.head.appendChild(styleSheet);
     // Variables globales pour stocker les systèmes
     window.starterHUD = null;
     window.questSystemGlobal = null;
+    window.inventorySystemGlobal = null; // ✅ Ajout du système d'inventaire global
+    
+    // ✅ Fonction globale pour initialiser le système d'inventaire
+    window.initInventorySystem = function(gameRoom) {
+      if (!window.inventorySystemGlobal) {
+        console.log("🎒 Initialisation du système d'inventaire global");
+        window.inventorySystemGlobal = new InventorySystem(null, gameRoom);
+        
+        // Configurer la langue en anglais
+        if (window.inventorySystemGlobal.inventoryUI) {
+          window.inventorySystemGlobal.inventoryUI.currentLanguage = 'en';
+          console.log("🌐 Langue de l'inventaire définie sur: English");
+        }
+        
+        // Rendre accessible globalement
+        window.inventorySystem = window.inventorySystemGlobal;
+        
+        // ✅ Connecter l'inventaire standalone au serveur (rétrocompatibilité)
+        if (typeof window.connectInventoryToServer === 'function') {
+          window.connectInventoryToServer(gameRoom);
+        }
+        
+        console.log("✅ Système d'inventaire initialisé et connecté");
+        return window.inventorySystemGlobal;
+      }
+      return window.inventorySystemGlobal;
+    };
     
     // Fonction globale pour initialiser le HUD de starter (à appeler depuis vos scènes)
     window.initStarterHUD = function(gameRoom) {
@@ -206,6 +236,27 @@ document.head.appendChild(styleSheet);
         return window.questSystemGlobal;
       }
       return window.questSystemGlobal;
+    };
+
+    // ✅ Fonction globale pour initialiser TOUS les systèmes d'un coup
+    window.initAllGameSystems = function(scene, gameRoom) {
+      console.log("🎮 Initialisation de tous les systèmes de jeu...");
+      
+      // Initialiser l'inventaire
+      window.initInventorySystem(gameRoom);
+      
+      // Initialiser les quêtes
+      window.initQuestSystem(scene, gameRoom);
+      
+      // Initialiser le starter HUD
+      window.initStarterHUD(gameRoom);
+      
+      console.log("✅ Tous les systèmes initialisés!");
+      return {
+        inventory: window.inventorySystemGlobal,
+        quests: window.questSystemGlobal,
+        starter: window.starterHUD
+      };
     };
 
     // Fonction pour déclencher manuellement la sélection de starter (pour les NPCs)
@@ -251,9 +302,71 @@ document.head.appendChild(styleSheet);
       }
     };
 
-    console.log("🎯 Système de starter et quêtes prêt !");
+    // === ✅ FONCTIONS GLOBALES POUR L'INVENTAIRE ===
+    
+    window.openInventory = function() {
+      if (window.inventorySystemGlobal) {
+        window.inventorySystemGlobal.openInventory();
+      } else {
+        console.warn("⚠️ Système d'inventaire non initialisé");
+      }
+    };
+    
+    window.toggleInventory = function() {
+      if (window.inventorySystemGlobal) {
+        window.inventorySystemGlobal.toggleInventory();
+      } else if (typeof window.toggleInventory === 'function') {
+        // Fallback vers l'inventaire standalone
+        window.toggleInventory();
+      } else {
+        console.warn("⚠️ Aucun système d'inventaire disponible");
+      }
+    };
+    
+    window.addItemToPlayer = function(itemId, quantity = 1) {
+      if (window.inventorySystemGlobal) {
+        window.inventorySystemGlobal.onItemPickup(itemId, quantity);
+      }
+    };
+    
+    window.useItem = function(itemId) {
+      if (window.inventorySystemGlobal) {
+        window.inventorySystemGlobal.useItem(itemId);
+      }
+    };
+    
+    window.hasItem = function(itemId) {
+      if (window.inventorySystemGlobal) {
+        return window.inventorySystemGlobal.hasItem(itemId);
+      }
+      return false;
+    };
+
+    // === ✅ FONCTIONS DE TEST POUR L'INVENTAIRE ===
+    
+    window.testInventory = function() {
+      console.log("🧪 Test de l'inventaire...");
+      if (window.inventorySystemGlobal) {
+        window.inventorySystemGlobal.toggleInventory();
+      } else {
+        console.warn("❌ Système d'inventaire non initialisé");
+      }
+    };
+
+    window.testAddItem = function(itemId = 'poke_ball', quantity = 1) {
+      console.log(`🧪 Test ajout d'objet: ${itemId} x${quantity}`);
+      if (window.worldChat && window.worldChat.connection && window.worldChat.connection.isOpen) {
+        // Utiliser la WorldRoom au lieu de worldChat pour les objets
+        console.log("⚠️ Utilisez une GameRoom pour tester l'ajout d'objets");
+      } else {
+        console.warn("❌ Pas de connexion serveur pour tester l'ajout d'objets");
+      }
+    };
+
+    console.log("🎯 Système de starter, quêtes et inventaire prêt !");
     console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
-    console.log("🎮 Utilisez window.initStarterHUD(room) et window.initQuestSystem(scene, room) dans vos scènes");
+    console.log("🎒 Utilisez 'I' pour ouvrir l'inventaire en jeu");
+    console.log("🎮 Utilisez window.initAllGameSystems(scene, gameRoom) dans vos scènes pour tout initialiser");
 
   } catch (e) {
     alert("Impossible de rejoindre le serveur : " + e.message);
@@ -280,15 +393,67 @@ window.isQuestJournalOpen = function() {
   return window.questSystemGlobal ? window.questSystemGlobal.isQuestJournalOpen() : false;
 };
 
+// ✅ Vérifier si l'inventaire est ouvert
+window.isInventoryOpen = function() {
+  if (window.inventorySystemGlobal) {
+    return window.inventorySystemGlobal.isInventoryOpen();
+  }
+  // Fallback vers l'inventaire standalone
+  if (typeof window.isInventoryVisible === 'function') {
+    return window.isInventoryVisible();
+  }
+  return false;
+};
+
 // Fonction utilitaire pour les scènes Phaser
 window.shouldBlockInput = function() {
-  return window.isChatFocused() || window.isStarterHUDOpen() || window.isQuestJournalOpen();
+  return window.isChatFocused() || 
+         window.isStarterHUDOpen() || 
+         window.isQuestJournalOpen() ||
+         window.isInventoryOpen(); // ✅ Ajout de l'inventaire
 };
 
 // Vérifier si le joueur peut interagir (utile pour les contrôles de jeu)
 window.canPlayerInteract = function() {
+  // Priorité au système d'inventaire s'il existe
+  if (window.inventorySystemGlobal) {
+    return window.inventorySystemGlobal.canPlayerInteract();
+  }
+  
+  // Fallback vers le système de quêtes
   if (window.questSystemGlobal) {
     return window.questSystemGlobal.canPlayerInteract();
   }
+  
+  // Fallback basique
   return !window.shouldBlockInput();
+};
+
+// ✅ Fonction utilitaire pour obtenir des informations sur l'état du jeu
+window.getGameSystemsStatus = function() {
+  return {
+    chat: {
+      initialized: !!window.pokeChat,
+      focused: window.isChatFocused()
+    },
+    inventory: {
+      initialized: !!window.inventorySystemGlobal,
+      open: window.isInventoryOpen()
+    },
+    quests: {
+      initialized: !!window.questSystemGlobal,
+      journalOpen: window.isQuestJournalOpen()
+    },
+    starter: {
+      initialized: !!window.starterHUD,
+      open: window.isStarterHUDOpen()
+    },
+    canInteract: window.canPlayerInteract(),
+    inputBlocked: window.shouldBlockInput()
+  };
+};
+
+// ✅ Fonction de debug pour afficher l'état de tous les systèmes
+window.debugGameSystems = function() {
+  console.log("🔍 État des systèmes de jeu:", window.getGameSystemsStatus());
 };
