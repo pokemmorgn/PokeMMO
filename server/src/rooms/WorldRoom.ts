@@ -6,6 +6,19 @@ import { NpcManager } from "../managers/NPCManager";
 import { InventoryManager } from "../managers/InventoryManager"; 
 import { getItemData, getItemPocket } from "../utils/ItemDB";
 
+// Interfaces pour typer les réponses des quêtes
+interface QuestStartResult {
+  success: boolean;
+  message: string;
+  quest?: any;
+}
+
+interface Quest {
+  id: string;
+  name: string;
+  currentStepIndex?: number;
+}
+
 export class WorldRoom extends Room<PokeWorldState> {
   private zoneManager!: ZoneManager;
   private npcManagers: Map<string, NpcManager> = new Map();
@@ -340,13 +353,32 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
 
-      const result = await this.zoneManager.handleQuestStart(client, data.questId);
+      // ✅ FIX: Vérifier si la méthode existe et gérer le type de retour
+      let result: QuestStartResult;
+      try {
+        if (typeof this.zoneManager.handleQuestStart === 'function') {
+          const questResult = await this.zoneManager.handleQuestStart(client, data.questId);
+          result = questResult as QuestStartResult;
+        } else {
+          // Fallback si la méthode n'existe pas encore
+          result = {
+            success: false,
+            message: "Système de quêtes non disponible"
+          };
+        }
+      } catch (error) {
+        console.error("❌ Erreur dans handleQuestStart du ZoneManager:", error);
+        result = {
+          success: false,
+          message: "Erreur lors du démarrage de la quête"
+        };
+      }
       
       console.log(`📤 Envoi questStartResult:`, result);
       client.send("questStartResult", result);
       
       // Si succès, envoyer aussi questStarted pour compatibilité
-      if (result.success) {
+      if (result.success && result.quest) {
         client.send("questStarted", {
           quest: result.quest,
           message: result.message
@@ -375,8 +407,17 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
 
-      // Utiliser le ZoneManager pour obtenir les quêtes actives
-      const activeQuests = await this.zoneManager.getActiveQuests(player.name);
+      // ✅ FIX: Vérifier si la méthode existe
+      let activeQuests: Quest[] = [];
+      try {
+        if (typeof this.zoneManager.getActiveQuests === 'function') {
+          activeQuests = await this.zoneManager.getActiveQuests(player.name);
+        } else {
+          console.warn("⚠️ getActiveQuests method not found in ZoneManager");
+        }
+      } catch (error) {
+        console.error("❌ Erreur lors de la récupération des quêtes actives:", error);
+      }
       
       console.log(`📤 Envoi de ${activeQuests.length} quêtes actives`);
       client.send("activeQuestsList", {
@@ -399,8 +440,17 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
 
-      // Utiliser le ZoneManager pour obtenir les quêtes disponibles
-      const availableQuests = await this.zoneManager.getAvailableQuests(player.name);
+      // ✅ FIX: Vérifier si la méthode existe
+      let availableQuests: Quest[] = [];
+      try {
+        if (typeof this.zoneManager.getAvailableQuests === 'function') {
+          availableQuests = await this.zoneManager.getAvailableQuests(player.name);
+        } else {
+          console.warn("⚠️ getAvailableQuests method not found in ZoneManager");
+        }
+      } catch (error) {
+        console.error("❌ Erreur lors de la récupération des quêtes disponibles:", error);
+      }
       
       console.log(`📤 Envoi de ${availableQuests.length} quêtes disponibles`);
       client.send("availableQuestsList", {
@@ -422,8 +472,17 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
 
-      // Utiliser le ZoneManager pour la progression de quête
-      const results = await this.zoneManager.updateQuestProgress(player.name, data);
+      // ✅ FIX: Vérifier si la méthode existe
+      let results: any[] = [];
+      try {
+        if (typeof this.zoneManager.updateQuestProgress === 'function') {
+          results = await this.zoneManager.updateQuestProgress(player.name, data);
+        } else {
+          console.warn("⚠️ updateQuestProgress method not found in ZoneManager");
+        }
+      } catch (error) {
+        console.error("❌ Erreur lors de la mise à jour de progression:", error);
+      }
       
       if (results && results.length > 0) {
         console.log(`📤 Envoi questProgressUpdate:`, results);
@@ -441,8 +500,17 @@ export class WorldRoom extends Room<PokeWorldState> {
   // ✅ NOUVELLE MÉTHODE: Mettre à jour les statuts de quête
   private async updateQuestStatuses(username: string) {
     try {
-      // Utiliser le ZoneManager pour obtenir les statuts
-      const questStatuses = await this.zoneManager.getQuestStatuses(username);
+      // ✅ FIX: Vérifier si la méthode existe
+      let questStatuses: any[] = [];
+      try {
+        if (typeof this.zoneManager.getQuestStatuses === 'function') {
+          questStatuses = await this.zoneManager.getQuestStatuses(username);
+        } else {
+          console.warn("⚠️ getQuestStatuses method not found in ZoneManager");
+        }
+      } catch (error) {
+        console.error("❌ Erreur lors de la récupération des statuts de quête:", error);
+      }
       
       // Envoyer les statuts de quête à tous les clients de la zone
       this.broadcast("questStatuses", {
@@ -464,15 +532,26 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`🐛 [DEBUG QUETES] Joueur: ${player.name}`);
     
     try {
-      // Debug via ZoneManager
-      const activeQuests = await this.zoneManager.getActiveQuests(player.name);
-      const availableQuests = await this.zoneManager.getAvailableQuests(player.name);
+      // ✅ FIX: Debug avec vérification des méthodes et typage correct
+      let activeQuests: Quest[] = [];
+      let availableQuests: Quest[] = [];
+      
+      try {
+        if (typeof this.zoneManager.getActiveQuests === 'function') {
+          activeQuests = await this.zoneManager.getActiveQuests(player.name);
+        }
+        if (typeof this.zoneManager.getAvailableQuests === 'function') {
+          availableQuests = await this.zoneManager.getAvailableQuests(player.name);
+        }
+      } catch (error) {
+        console.error("❌ Erreur lors du debug des quêtes:", error);
+      }
       
       console.log(`🐛 [DEBUG] Quêtes actives (${activeQuests.length}):`, 
-        activeQuests.map(q => ({ id: q.id, name: q.name, step: q.currentStepIndex })));
+        activeQuests.map((q: Quest) => ({ id: q.id, name: q.name, step: q.currentStepIndex })));
       
       console.log(`🐛 [DEBUG] Quêtes disponibles (${availableQuests.length}):`, 
-        availableQuests.map(q => ({ id: q.id, name: q.name })));
+        availableQuests.map((q: Quest) => ({ id: q.id, name: q.name })));
         
     } catch (error) {
       console.error(`🐛 [DEBUG] Erreur debug quêtes:`, error);
