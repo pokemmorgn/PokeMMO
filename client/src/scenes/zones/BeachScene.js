@@ -1,123 +1,90 @@
-// ===============================================
-// BeachScene.js - Beach + Intro automatique (sans starter automatique)
-// ===============================================
+// client/src/scenes/zones/BeachScene.js - VERSION REFACTORISÉE
+// ✅ Exemple d'adaptation d'une scène existante
+
 import { BaseZoneScene } from './BaseZoneScene.js';
 
-// === Mini-manager pour spritesheets Pokémon 2x4 (27x27px) ===
-class PokemonSpriteManager {
-  constructor(scene) { this.scene = scene; }
-
-  loadSpritesheet(pokemonName) {
-    const key = `${pokemonName}_Walk`;
-    if (!this.scene.textures.exists(key)) {
-      this.scene.load.spritesheet(key, `assets/pokemon/${pokemonName}.png`, {
-        frameWidth: 27, frameHeight: 27,
-      });
-      this.scene.load.once('complete', () => this.createAnimations(key));
-      this.scene.load.start();
-    } else {
-      this.createAnimations(key);
-    }
-  }
-
-  createPokemonSprite(pokemonName, x, y, direction = "left") {
-    const key = `${pokemonName}_Walk`;
-    this.createAnimations(key);
-    const sprite = this.scene.add.sprite(x, y, key, 0).setOrigin(0.5, 1);
-    sprite.setDepth(5);
-    sprite.direction = direction;
-    sprite.pokemonAnimKey = `${key}_${direction}`;
-    sprite.play(sprite.pokemonAnimKey);
-    return sprite;
-  }
-
-  createAnimations(key) {
-    const anims = this.scene.anims;
-    if (anims.exists(`${key}_down`)) return;
-    anims.create({
-      key: `${key}_up`,
-      frames: [{ key, frame: 0 }, { key, frame: 1 }],
-      frameRate: 6, repeat: -1
-    });
-    anims.create({
-      key: `${key}_down`,
-      frames: [{ key, frame: 2 }, { key, frame: 3 }],
-      frameRate: 6, repeat: -1
-    });
-    anims.create({
-      key: `${key}_left`,
-      frames: [{ key, frame: 4 }, { key, frame: 5 }],
-      frameRate: 6, repeat: -1
-    });
-    anims.create({
-      key: `${key}_right`,
-      frames: [{ key, frame: 6 }, { key, frame: 7 }],
-      frameRate: 6, repeat: -1
-    });
-  }
-}
-
-// ====================== BeachScene ==========================
 export class BeachScene extends BaseZoneScene {
   constructor() {
     super('BeachScene', 'GreenRootBeach');
-    this.transitionCooldowns = {};
+    
+    // Propriétés spécifiques à BeachScene
     this.pokemonSpriteManager = null;
     this._introBlocked = false;
     this._introTriggered = false;
   }
 
   async create() {
-    super.create();
-    this.pokemonSpriteManager = new PokemonSpriteManager(this);
-    this.setupBeachEvents();
-  }
-
-  update() {
-    if (this.shouldBlockInput()) return;
-    super.update();
-  }
-
-  shouldBlockInput() {
-    // window.shouldBlockInput peut ne pas exister !
-    const globalBlock = typeof window.shouldBlockInput === "function" ? window.shouldBlockInput() : false;
-    return globalBlock || this._introBlocked;
-  }
-
-  // ✅ AMÉLIORATION: Position par défaut pour BeachScene
-  getDefaultSpawnPosition(fromZone) {
-    // Position par défaut selon la zone d'origine
-    if (fromZone === 'VillageScene' || fromZone) {
-      return { x: 52, y: 48 };
-    }
-    return { x: 52, y: 48 }; // Position par défaut
-  }
-
-  // --- Gère le placement joueur au spawn ---
-  positionPlayer(player) {
-    const initData = this.scene.settings.data;
+    // Appeler le create de la classe parent
+    await super.create();
     
-    // ✅ AMÉLIORATION: Utiliser la méthode parent avec position par défaut
-    super.positionPlayer(player);
+    // Initialisation spécifique à BeachScene
+    await this.initializeBeachSpecific();
+  }
 
-    // 🎬 Déclencher l'intro automatiquement (seulement si pas déjà fait)
+  async initializeBeachSpecific() {
+    console.log("🏖️ Initialisation spécifique à BeachScene...");
+    
+    // Initialiser le gestionnaire de sprites Pokémon
+    const { PokemonSpriteManager } = await import('./PokemonSpriteManager.js');
+    this.pokemonSpriteManager = new PokemonSpriteManager(this);
+    
+    // Setup des événements spécifiques à la plage
+    this.setupBeachEvents();
+    
+    console.log("✅ BeachScene initialisée");
+  }
+
+  // === HOOKS SPÉCIFIQUES ===
+  
+  // Hook appelé quand le joueur est prêt
+  onPlayerReady(myPlayer) {
+    console.log(`🏖️ Joueur prêt sur la plage à (${myPlayer.x}, ${myPlayer.y})`);
+    
+    // Déclencher l'intro automatiquement si pas déjà fait
+    const initData = this.scene.settings.data;
     if (!this._introTriggered && !initData?.fromZone) {
       this._introTriggered = true;
       this.time.delayedCall(1500, () => {
-        // this.startIntroSequence(player); // Décommente si tu veux l'intro auto
+        // this.startIntroSequence(myPlayer); // Décommente si tu veux l'intro
       });
     }
   }
 
-  // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
+  // Hook appelé après positionnement du joueur
   onPlayerPositioned(player, initData) {
-    // Logique spécifique à BeachScene si nécessaire
-    console.log(`[BeachScene] Joueur positionné à (${player.x}, ${player.y})`);
+    console.log(`🏖️ Joueur positionné sur la plage`);
+    
+    // Logique spécifique de positionnement si nécessaire
+    if (initData?.fromVillage) {
+      // Animation ou dialogue spécial de retour du village
+      this.showNotification("Retour sur la plage !", "info");
+    }
   }
 
-  // ==================== INTRO ANIMÉE ======================
+  // === MÉTHODES SPÉCIFIQUES À LA PLAGE ===
+  
+  setupBeachEvents() {
+    this.time.delayedCall(2000, () => {
+      console.log("🏖️ Bienvenue sur la plage de GreenRoot !");
+      this.updateInfoText(`PokeWorld MMO\nBeach Scene\nBienvenue !`);
+    });
+  }
+
+  // Méthode pour déclencher manuellement le starter (via NPC, bouton, etc.)
+  triggerStarterSelection() {
+    if (window.starterHUD) {
+      window.starterHUD.show();
+    } else {
+      console.warn("⚠️ HUD de starter non initialisé");
+    }
+  }
+
+  // === INTRO ANIMÉE (OPTIONNELLE) ===
+  
   startIntroSequence(player) {
     console.log("🎬 Démarrage de l'intro animée");
+    
+    // Bloquer les contrôles
     this.input.keyboard.enabled = false;
     if (player.body) player.body.enable = false;
     this._introBlocked = true;
@@ -135,10 +102,14 @@ export class BeachScene extends BaseZoneScene {
   }
 
   spawnStarterPokemon(x, y, pokemonName, direction = "left", player = null, arriveX = null) {
+    if (!this.pokemonSpriteManager) return;
+    
     this.pokemonSpriteManager.loadSpritesheet(pokemonName);
+    
     const trySpawn = () => {
       if (this.textures.exists(`${pokemonName}_Walk`)) {
         const starter = this.pokemonSpriteManager.createPokemonSprite(pokemonName, x, y, direction);
+        
         this.tweens.add({
           targets: starter,
           x: arriveX ?? (x - 36),
@@ -168,12 +139,14 @@ export class BeachScene extends BaseZoneScene {
       "Parfait ! Je vais t'emmener au village !",
       "Suis-moi !"
     ];
+    
     let messageIndex = 0;
     const showNextMessage = () => {
       if (messageIndex >= messages.length) {
         this.finishIntroSequence(starter, player);
         return;
       }
+      
       const textBox = this.add.text(
         starter.x, starter.y - 32,
         messages[messageIndex],
@@ -184,13 +157,11 @@ export class BeachScene extends BaseZoneScene {
           padding: { x: 6, y: 4 }
         }
       ).setDepth(1000).setOrigin(0.5);
+      
       messageIndex++;
       this.time.delayedCall(2000, () => {
         textBox.destroy();
         showNextMessage();
-      });
-    };
-    showNextMessage();
   }
 
   finishIntroSequence(starter, player) {
@@ -213,24 +184,100 @@ export class BeachScene extends BaseZoneScene {
     });
   }
 
-  setupBeachEvents() {
-    this.time.delayedCall(2000, () => {
-      console.log("🏖️ Bienvenue sur la plage de GreenRoot !");
-    });
+  // === OVERRIDE DES MÉTHODES DE MOUVEMENT SI NÉCESSAIRE ===
+  
+  update(time, delta) {
+    // Vérifier si on doit bloquer les inputs à cause de l'intro
+    if (this.shouldBlockInput()) return;
+    
+    // Appeler l'update de la classe parent
+    super.update(time, delta);
   }
 
-  // 🎮 Méthode pour déclencher manuellement le starter (via NPC, bouton, etc.)
-  triggerStarterSelection() {
-    if (window.starterHUD) {
-      window.starterHUD.show();
+  shouldBlockInput() {
+    // Vérifier les blocages globaux ET spécifiques à BeachScene
+    const globalBlock = typeof window.shouldBlockInput === "function" ? window.shouldBlockInput() : false;
+    return globalBlock || this._introBlocked;
+  }
+
+  // === NETTOYAGE SPÉCIFIQUE ===
+  
+  cleanup() {
+    // Nettoyer les propriétés spécifiques
+    this._introTriggered = false;
+    this._introBlocked = false;
+    
+    // Appeler le cleanup parent
+    super.cleanup();
+  }
+
+  destroy() {
+    // Nettoyer le gestionnaire de sprites Pokémon
+    this.pokemonSpriteManager = null;
+    
+    // Appeler le destroy parent
+    super.destroy();
+  }
+}
+
+// === GESTIONNAIRE DE SPRITES POKÉMON (MINI-CLASSE) ===
+
+class PokemonSpriteManager {
+  constructor(scene) { 
+    this.scene = scene; 
+  }
+
+  loadSpritesheet(pokemonName) {
+    const key = `${pokemonName}_Walk`;
+    if (!this.scene.textures.exists(key)) {
+      this.scene.load.spritesheet(key, `assets/pokemon/${pokemonName}.png`, {
+        frameWidth: 27, 
+        frameHeight: 27,
+      });
+      this.scene.load.once('complete', () => this.createAnimations(key));
+      this.scene.load.start();
     } else {
-      console.warn("⚠️ HUD de starter non initialisé");
+      this.createAnimations(key);
     }
   }
 
-  cleanup() {
-    this.transitionCooldowns = {};
-    this._introTriggered = false;
-    super.cleanup();
+  createPokemonSprite(pokemonName, x, y, direction = "left") {
+    const key = `${pokemonName}_Walk`;
+    this.createAnimations(key);
+    const sprite = this.scene.add.sprite(x, y, key, 0).setOrigin(0.5, 1);
+    sprite.setDepth(5);
+    sprite.direction = direction;
+    sprite.pokemonAnimKey = `${key}_${direction}`;
+    sprite.play(sprite.pokemonAnimKey);
+    return sprite;
   }
-}
+
+  createAnimations(key) {
+    const anims = this.scene.anims;
+    if (anims.exists(`${key}_down`)) return;
+    
+    anims.create({
+      key: `${key}_up`,
+      frames: [{ key, frame: 0 }, { key, frame: 1 }],
+      frameRate: 6, repeat: -1
+    });
+    anims.create({
+      key: `${key}_down`,
+      frames: [{ key, frame: 2 }, { key, frame: 3 }],
+      frameRate: 6, repeat: -1
+    });
+    anims.create({
+      key: `${key}_left`,
+      frames: [{ key, frame: 4 }, { key, frame: 5 }],
+      frameRate: 6, repeat: -1
+    });
+    anims.create({
+      key: `${key}_right`,
+      frames: [{ key, frame: 6 }, { key, frame: 7 }],
+      frameRate: 6, repeat: -1
+    });
+  }
+}NextMessage();
+      });
+    };
+    show
