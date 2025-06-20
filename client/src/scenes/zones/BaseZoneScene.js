@@ -1721,3 +1721,4 @@ export class BaseZoneScene extends Phaser.Scene {
     
     return false;
   }
+}
