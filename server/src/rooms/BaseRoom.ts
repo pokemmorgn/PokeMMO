@@ -305,9 +305,11 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     const nearTransition = this.isPlayerNearTransition(player.x, player.y);
     if (!nearTransition) {
       console.warn(`❌ [${this.mapName}] ${player.name} pas près d'une zone de transition (${player.x}, ${player.y})`);
-      const zones = this.getTransitionZonesForMap();
-      console.warn(`📍 [${this.mapName}] Zones de transition disponibles:`, zones);
-      client.send("transitionDenied", { reason: "Not near transition zone" });
+        // ✅ TEMPORAIRE : Désactiver pour debug
+  console.warn(`💡 [${this.mapName}] Mode debug - transition autorisée malgré la distance`);
+       // const zones = this.getTransitionZonesForMap();
+      //console.warn(`📍 [${this.mapName}] Zones de transition disponibles:`, zones);
+      //client.send("transitionDenied", { reason: "Not near transition zone" });
       return;
     }
 
