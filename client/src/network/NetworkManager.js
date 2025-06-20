@@ -14,6 +14,8 @@ export class NetworkManager {
     this.isTransitioning = false;
     this.lastSendTime = 0;
     this.currentZone = null;
+    this.lastReceivedNpcs = null;
+this.lastReceivedZoneData = null;
     
     // ✅ NOUVEAU: Gestion améliorée des transitions
     this.transitionState = {
@@ -86,71 +88,74 @@ export class NetworkManager {
       }
     });
 
-    // Liste des NPCs
-    this.room.onMessage("npcList", (npcs) => {
-      console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
-      
-      if (this.callbacks.onNpcList) {
-        this.callbacks.onNpcList(npcs);
-      }
-    });
+// Liste des NPCs
+this.room.onMessage("npcList", (npcs) => {
+ console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
+ 
+ // ✅ NOUVEAU: Stocker les NPCs reçus
+ this.lastReceivedNpcs = npcs;
+ 
+ if (this.callbacks.onNpcList) {
+   this.callbacks.onNpcList(npcs);
+ }
+});
 
-    // ✅ AMÉLIORATION: Gestion des résultats de transition
-    this.room.onMessage("transitionResult", (result) => {
-      console.log(`🌀 [NetworkManager] === TRANSITION RESULT ===`);
-      console.log(`📊 Résultat:`, result);
-      
-      if (result.success) {
-        console.log(`✅ [NetworkManager] Transition réussie vers: ${result.currentZone}`);
-        this.currentZone = result.currentZone;
-        
-        // ✅ CORRECTION CRITIQUE: Reset de l'état de transition AVANT le callback
-        this.resetTransitionState();
-        
-        if (this.callbacks.onTransitionSuccess) {
-          this.callbacks.onTransitionSuccess(result);
-        }
-      } else {
-        console.error(`❌ [NetworkManager] Transition échouée: ${result.reason}`);
-        
-        // ✅ CORRECTION: Reset même en cas d'échec
-        this.resetTransitionState();
-        
-        if (this.callbacks.onTransitionError) {
-          this.callbacks.onTransitionError(result);
-        }
-      }
-    });
+// ✅ AMÉLIORATION: Gestion des résultats de transition
+this.room.onMessage("transitionResult", (result) => {
+ console.log(`🌀 [NetworkManager] === TRANSITION RESULT ===`);
+ console.log(`📊 Résultat:`, result);
+ 
+ if (result.success) {
+   console.log(`✅ [NetworkManager] Transition réussie vers: ${result.currentZone}`);
+   this.currentZone = result.currentZone;
+   
+   // ✅ CORRECTION CRITIQUE: Reset de l'état de transition AVANT le callback
+   this.resetTransitionState();
+   
+   if (this.callbacks.onTransitionSuccess) {
+     this.callbacks.onTransitionSuccess(result);
+   }
+ } else {
+   console.error(`❌ [NetworkManager] Transition échouée: ${result.reason}`);
+   
+   // ✅ CORRECTION: Reset même en cas d'échec
+   this.resetTransitionState();
+   
+   if (this.callbacks.onTransitionError) {
+     this.callbacks.onTransitionError(result);
+   }
+ }
+});
 
-    // Interactions NPC
-    this.room.onMessage("npcInteractionResult", (result) => {
-      console.log(`💬 [NetworkManager] NPC interaction:`, result);
-      
-      if (this.callbacks.onNpcInteraction) {
-        this.callbacks.onNpcInteraction(result);
-      }
-    });
+// Interactions NPC
+this.room.onMessage("npcInteractionResult", (result) => {
+ console.log(`💬 [NetworkManager] NPC interaction:`, result);
+ 
+ if (this.callbacks.onNpcInteraction) {
+   this.callbacks.onNpcInteraction(result);
+ }
+});
 
-    // ✅ AMÉLIORATION: État des joueurs avec protection transition
-    this.room.onStateChange((state) => {
-      // ✅ NOUVEAU: Permettre les updates même en transition (pour que le joueur apparaisse)
-      if (this.callbacks.onStateChange) {
-        this.callbacks.onStateChange(state);
-      }
-    });
+// ✅ AMÉLIORATION: État des joueurs avec protection transition
+this.room.onStateChange((state) => {
+ // ✅ NOUVEAU: Permettre les updates même en transition (pour que le joueur apparaisse)
+ if (this.callbacks.onStateChange) {
+   this.callbacks.onStateChange(state);
+ }
+});
 
-    // Messages existants
-    this.room.onMessage("playerData", (data) => {
-      if (this.callbacks.onPlayerData) {
-        this.callbacks.onPlayerData(data);
-      }
-    });
+// Messages existants
+this.room.onMessage("playerData", (data) => {
+ if (this.callbacks.onPlayerData) {
+   this.callbacks.onPlayerData(data);
+ }
+});
 
-    this.room.onMessage("snap", (data) => {
-      if (this.callbacks.onSnap) {
-        this.callbacks.onSnap(data);
-      }
-    });
+this.room.onMessage("snap", (data) => {
+ if (this.callbacks.onSnap) {
+   this.callbacks.onSnap(data);
+ }
+});
 
     this.room.onLeave(() => {
       console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
