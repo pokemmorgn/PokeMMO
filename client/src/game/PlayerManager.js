@@ -10,6 +10,7 @@ export class PlayerManager {
     this.animsCreated = false;
     this._myPlayerIsReady = false;
     this._myPlayerReadyCallback = null;
+    this._hasWarnedMissingPlayer = false;
     console.log("%c[PlayerManager] Initialisé pour", "color:orange", scene.scene.key);
 
     // Ajoute la gestion du snap serveur
@@ -59,20 +60,31 @@ export class PlayerManager {
     this._myPlayerIsReady = false; // Reset du flag pour la nouvelle connexion
   }
 
-  getMyPlayer() {
-    if (this.isDestroyed) {
-      console.warn("[PlayerManager] getMyPlayer: MANAGER DETRUIT");
-      return null;
-    }
-    
-    const player = this.players.get(this.mySessionId) || null;
-    if (!player) {
-      // ✅ CORRECTION 2 : Debug amélioré pour identifier le problème
+getMyPlayer() {
+  if (this.isDestroyed) {
+    console.warn("[PlayerManager] getMyPlayer: MANAGER DETRUIT");
+    return null;
+  }
+  
+  const player = this.players.get(this.mySessionId) || null;
+
+  if (!player) {
+    // ✅ Un seul warning tant que le joueur est absent
+    if (!this._hasWarnedMissingPlayer) {
+      this._hasWarnedMissingPlayer = true;
       console.warn("[PlayerManager] getMyPlayer: Aucun joueur trouvé pour mySessionId", this.mySessionId, "| Sessions:", Array.from(this.players.keys()));
       this.debugPlayerState();
     }
-    return player;
+  } else {
+    // ✅ Réinitialise le flag quand le joueur réapparaît
+    if (this._hasWarnedMissingPlayer) {
+      this._hasWarnedMissingPlayer = false;
+    }
   }
+
+  return player;
+}
+
 
   // ✅ NOUVELLE MÉTHODE : Debug de l'état des joueurs
   debugPlayerState() {
