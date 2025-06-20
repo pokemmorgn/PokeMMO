@@ -636,7 +636,32 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log(`✅ [${this.scene.key}] Nettoyage terminé`);
   }
 
- // ✅ AMÉLIORATION: UI avec informations d'inventaire
+  // ✅ AMÉLIORATION: Setup du scene avec objets ramassables
+  setupScene() {
+    console.log('— DEBUT setupScene —');
+    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+
+    const baseWidth = this.scale.width;
+    const baseHeight = this.scale.height;
+    const zoomX = baseWidth / this.map.widthInPixels;
+    const zoomY = baseHeight / this.map.heightInPixels;
+    const zoom = Math.min(zoomX, zoomY);
+
+    this.cameras.main.setZoom(zoom);
+    this.cameras.main.setBackgroundColor('#2d5a3d');
+    this.cameras.main.setRoundPixels(true);
+
+    this.cameraManager = new CameraManager(this);
+    
+    // ✅ NOUVEAU: Créer des objets ramassables dans certaines scènes
+    if (this.scene.key === 'BeachScene') {
+      this.time.delayedCall(3000, () => {
+        this.createWorldItems();
+      });
+    }
+  }
+
+  // ✅ AMÉLIORATION: UI avec informations d'inventaire
   createUI() {
     this.infoText = this.add.text(16, 16, `PokeWorld MMO\n${this.scene.key}`, {
       fontSize: '14px',
