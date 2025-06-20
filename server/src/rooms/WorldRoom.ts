@@ -25,6 +25,8 @@ export class WorldRoom extends Room<PokeWorldState> {
   
   // Limite pour auto-scaling
   maxClients = 50;
+  private lastStateUpdate = 0;
+  private stateUpdateInterval = 100;
 
   onCreate(options: any) {
     console.log(`🌍 === WORLDROOM CRÉATION ===`);
@@ -128,6 +130,30 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.zoneManager.handleNpcInteraction(client, data.npcId);
     });
 
+    // ✅ AJOUTER CE HANDLER
+this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
+  console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
+  console.log(`👤 Client: ${client.sessionId}`);
+  console.log(`📍 Nouvelle zone: ${data.newZone} à (${data.x}, ${data.y})`);
+  
+  const player = this.state.players.get(client.sessionId);
+  if (player) {
+    const oldZone = player.currentZone;
+    
+    // Mettre à jour la zone et position du joueur
+    player.currentZone = data.newZone;
+    player.x = data.x;
+    player.y = data.y;
+    
+    console.log(`✅ ${player.name}: ${oldZone} → ${data.newZone}`);
+    
+    // Envoyer les NPCs de la nouvelle zone
+    this.onPlayerJoinZone(client, data.newZone);
+    
+    // Déclencher une mise à jour du state filtré
+    this.scheduleFilteredStateUpdate();
+  }
+});
     // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
 
     // Démarrage de quête
@@ -546,6 +572,8 @@ export class WorldRoom extends Room<PokeWorldState> {
       
       // Faire entrer le joueur dans sa zone initiale
       await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
+      this.scheduleFilteredStateUpdate();
+
       
       // ✅ Envoyer les statuts de quête initiaux après un délai
       this.clock.setTimeout(() => {
@@ -731,6 +759,54 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.error(`❌ Erreur lors de la vérification d'objet:`, error);
       return false;
     }
+  }
+   // ✅ NOUVELLES MÉTHODES: Filtrage par zone
+  private getFilteredStateForClient(client: Client): any {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return null;
+
+    const playerZone = player.currentZone;
+    
+    // Créer un state filtré avec seulement les joueurs de la même zone
+    const filteredPlayers = new Map();
+    
+    this.state.players.forEach((otherPlayer, sessionId) => {
+      if (otherPlayer.currentZone === playerZone) {
+        filteredPlayers.set(sessionId, otherPlayer);
+      }
+    });
+
+    return {
+      players: filteredPlayers
+    };
+  }
+
+  private sendFilteredState() {
+    const now = Date.now();
+    
+    // Throttle : max 1 update toutes les 100ms
+    if (now - this.lastStateUpdate < this.stateUpdateInterval) {
+      return;
+    }
+    
+    this.lastStateUpdate = now;
+    
+    // Envoyer un state filtré à chaque client selon sa zone
+    this.clients.forEach(client => {
+      const filteredState = this.getFilteredStateForClient(client);
+      if (filteredState) {
+        client.send("filteredState", filteredState);
+      }
+    });
+    
+    console.log(`📤 States filtrés envoyés à ${this.clients.length} clients`);
+  }
+
+  private scheduleFilteredStateUpdate() {
+    // Programmer une mise à jour dans 50ms (pour regrouper les changements)
+    this.clock.setTimeout(() => {
+      this.sendFilteredState();
+    }, 50);
   }
 }
  
