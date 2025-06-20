@@ -319,11 +319,13 @@ export class BaseZoneScene extends Phaser.Scene {
 this.networkManager.onNpcList((npcs) => {
   console.log(`🤖 [${this.scene.key}] NPCs reçus: ${npcs.length}`);
   
-  // ✅ FILTRE: Ignorer si pas la bonne zone
-if (this.networkManager.currentZone !== this.scene.key.toLowerCase()) {
-  console.log(`🚫 [${this.scene.key}] NPCs ignorés: zone serveur=${this.networkManager.currentZone} ≠ scène=${this.scene.key.toLowerCase()}`);
-  return;
-}
+  // ✅ CORRECTION: Enlever "scene" du nom
+  const sceneZone = this.scene.key.toLowerCase().replace('scene', '');
+  
+  if (this.networkManager.currentZone !== sceneZone) {
+    console.log(`🚫 [${this.scene.key}] NPCs ignorés: zone serveur=${this.networkManager.currentZone} ≠ scène=${sceneZone}`);
+    return;
+  }
   
   if (this.npcManager && npcs.length > 0) {
     this.npcManager.spawnNpcs(npcs);
