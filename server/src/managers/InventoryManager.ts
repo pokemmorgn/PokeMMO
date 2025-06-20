@@ -1,9 +1,7 @@
 import { Inventory, IInventory } from "../models/Inventory";
+import { ITEMS } from "../utils/ItemDB";
 
 export class InventoryManager {
-  /**
-   * Récupère l'inventaire du joueur, le crée s'il n'existe pas.
-   */
   static async getInventory(username: string): Promise<IInventory> {
     let inv = await Inventory.findOne({ username });
     if (!inv) {
@@ -12,32 +10,41 @@ export class InventoryManager {
     return inv;
   }
 
-  /**
-   * Ajoute une quantité d'objet à l'inventaire du joueur.
-   * Si l'objet existe déjà, on incrémente. Sinon, on l'ajoute.
-   */
   static async addItem(username: string, itemId: string, qty: number = 1): Promise<IInventory> {
+    // ----- CHECK: l'item existe-t-il dans la db ?
+    const itemData = ITEMS[itemId];
+    if (!itemData) throw new Error(`[InventoryManager] Item "${itemId}" inconnu !`);
+
     const inv = await InventoryManager.getInventory(username);
-    const item = inv.items.find(i => i.itemId === itemId);
-    if (item) {
-      item.quantity += qty;
+
+    // ----- CHECK: stackable ou pas
+    if (itemData.stackable) {
+      const item = inv.items.find(i => i.itemId === itemId);
+      if (item) {
+        item.quantity += qty;
+      } else {
+        inv.items.push({ itemId, quantity: qty });
+      }
     } else {
-      inv.items.push({ itemId, quantity: qty });
+      // Non stackable : on ajoute une instance à chaque fois (ou refuser si déjà possédé)
+      const already = inv.items.find(i => i.itemId === itemId);
+      if (already) throw new Error(`[InventoryManager] "${itemId}" déjà possédé (non stackable)`);
+      inv.items.push({ itemId, quantity: 1 });
     }
+
     await inv.save();
     return inv;
   }
 
-  /**
-   * Retire une quantité d'objet. Supprime l'objet si quantité <= 0.
-   * Retourne true si succès, false si l'objet n'existait pas ou pas assez.
-   */
   static async removeItem(username: string, itemId: string, qty: number = 1): Promise<boolean> {
+    // ----- CHECK: l'item existe-t-il dans la db ?
+    const itemData = ITEMS[itemId];
+    if (!itemData) throw new Error(`[InventoryManager] Item "${itemId}" inconnu !`);
+
     const inv = await InventoryManager.getInventory(username);
     const item = inv.items.find(i => i.itemId === itemId);
-    if (!item || item.quantity < qty) {
-      return false;
-    }
+    if (!item || item.quantity < qty) return false;
+
     item.quantity -= qty;
     if (item.quantity <= 0) {
       inv.items = inv.items.filter(i => i.itemId !== itemId);
@@ -46,18 +53,13 @@ export class InventoryManager {
     return true;
   }
 
-  /**
-   * Renvoie la quantité d'un objet possédé.
-   */
   static async getItemCount(username: string, itemId: string): Promise<number> {
+    // Optionnel : check existence dans ITEMS
     const inv = await InventoryManager.getInventory(username);
     const item = inv.items.find(i => i.itemId === itemId);
     return item ? item.quantity : 0;
   }
 
-  /**
-   * Renvoie l'inventaire complet (liste des items stackés).
-   */
   static async getAllItems(username: string): Promise<{ itemId: string; quantity: number }[]> {
     const inv = await InventoryManager.getInventory(username);
     return inv.items.map(i => ({ itemId: i.itemId, quantity: i.quantity }));
