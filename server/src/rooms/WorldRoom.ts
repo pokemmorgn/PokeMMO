@@ -767,6 +767,10 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
   }
    // ✅ NOUVELLES MÉTHODES: Filtrage par zone
   private getFilteredStateForClient(client: Client): any {
+        if (sessionId === client.sessionId) {
+        filteredPlayers.set(sessionId, otherPlayer);
+        return;
+    }
     const player = this.state.players.get(client.sessionId);
     if (!player) return null;
 
