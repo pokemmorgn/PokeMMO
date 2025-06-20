@@ -291,26 +291,26 @@ export class BaseZoneScene extends Phaser.Scene {
     return result;
   }
 
-  mapZoneToRoom(zoneName) {
-    const mapping = {
-      'beach': 'BeachRoom',
-      'beachscene': 'BeachRoom',
-      'village': 'VillageRoom',
-      'villagescene': 'VillageRoom', 
-      'villagelab': 'VillageLabRoom',
-      'villagelabscene': 'VillageLabRoom',
-      'road1': 'Road1Room',
-      'road1scene': 'Road1Room',
-      'villagehouse1': 'VillageHouse1Room',
-      'villagehouse1scene': 'VillageHouse1Room',
-      'lavandia': 'LavandiaRoom',
-      'lavandiascene': 'LavandiaRoom'
-    };
-    
-    const result = mapping[zoneName.toLowerCase()] || zoneName + 'Room';
-    console.log(`🏠 [${this.scene.key}] mapZoneToRoom: ${zoneName} → ${result}`);
-    return result;
-  }
+mapZoneToRoom(zoneName) {
+  const mapping = {
+    'beach': 'BeachRoom',
+    'beachscene': 'BeachRoom',
+    'village': 'VillageRoom',
+    'villagescene': 'VillageRoom', 
+    'villagelab': 'VillageLabRoom',
+    'villagelabscene': 'VillageLabRoom',
+    'road1': 'Road1Room',
+    'road1scene': 'Road1Room',
+    'villagehouse1': 'VillageHouse1Room',
+    'villagehouse1scene': 'VillageHouse1Room',
+    'lavandia': 'LavandiaRoom',
+    'lavandiascene': 'LavandiaRoom'
+  };
+  
+  const result = mapping[zoneName.toLowerCase()] || zoneName + 'Room';
+  console.log(`🏠 [${this.mapName}] mapZoneToRoom: ${zoneName} → ${result}`);
+  return result;
+}
 
   getProperty(object, propertyName) {
     if (!object.properties) return null;
