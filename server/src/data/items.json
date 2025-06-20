@@ -1,0 +1,380 @@
+{
+  "poke_ball": {
+    "id": "poke_ball",
+    "type": "ball",
+    "price": 200,
+    "sell_price": 100,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+  "great_ball": {
+    "id": "great_ball",
+    "type": "ball",
+    "price": 600,
+    "sell_price": 300,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+  "ultra_ball": {
+    "id": "ultra_ball",
+    "type": "ball",
+    "price": 1200,
+    "sell_price": 600,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+  "master_ball": {
+    "id": "master_ball",
+    "type": "ball",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+  "safari_ball": {
+    "id": "safari_ball",
+    "type": "ball",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": true,
+    "usable_in_field": false,
+    "stackable": true
+  },
+  "potion": {
+    "id": "potion",
+    "type": "medicine",
+    "price": 300,
+    "sell_price": 150,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": true,
+    "heal_amount": 20
+  },
+  "super_potion": {
+    "id": "super_potion",
+    "type": "medicine",
+    "price": 700,
+    "sell_price": 350,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": true,
+    "heal_amount": 50
+  },
+  "hyper_potion": {
+    "id": "hyper_potion",
+    "type": "medicine",
+    "price": 1200,
+    "sell_price": 600,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": true,
+    "heal_amount": 200
+  },
+  "max_potion": {
+    "id": "max_potion",
+    "type": "medicine",
+    "price": 2500,
+    "sell_price": 1250,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": true,
+    "heal_amount": "full"
+  },
+  "full_restore": {
+    "id": "full_restore",
+    "type": "medicine",
+    "price": 3000,
+    "sell_price": 1500,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": true,
+    "heal_amount": "full",
+    "status_cure": ["all"]
+  },
+  "revive": {
+    "id": "revive",
+    "type": "medicine",
+    "price": 1500,
+    "sell_price": 750,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true,
+    "revive_amount": 0.5
+  },
+  "max_revive": {
+    "id": "max_revive",
+    "type": "medicine",
+    "price": 4000,
+    "sell_price": 2000,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true,
+    "revive_amount": 1.0
+  },
+  "antidote": {
+    "id": "antidote",
+    "type": "status",
+    "price": 100,
+    "sell_price": 50,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": true,
+    "status_cure": ["poison"]
+  },
+  "parlyz_heal": {
+    "id": "parlyz_heal",
+    "type": "status",
+    "price": 200,
+    "sell_price": 100,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": true,
+    "status_cure": ["paralysis"]
+  },
+  "awakening": {
+    "id": "awakening",
+    "type": "status",
+    "price": 250,
+    "sell_price": 125,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": true,
+    "status_cure": ["sleep"]
+  },
+  "burn_heal": {
+    "id": "burn_heal",
+    "type": "status",
+    "price": 250,
+    "sell_price": 125,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": true,
+    "status_cure": ["burn"]
+  },
+  "ice_heal": {
+    "id": "ice_heal",
+    "type": "status",
+    "price": 250,
+    "sell_price": 125,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": true,
+    "status_cure": ["freeze"]
+  },
+  "full_heal": {
+    "id": "full_heal",
+    "type": "status",
+    "price": 600,
+    "sell_price": 300,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": true,
+    "status_cure": ["all"]
+  },
+  "escape_rope": {
+    "id": "escape_rope",
+    "type": "utility",
+    "price": 550,
+    "sell_price": 275,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true
+  },
+  "repel": {
+    "id": "repel",
+    "type": "utility",
+    "price": 350,
+    "sell_price": 175,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true,
+    "effect_steps": 100
+  },
+  "super_repel": {
+    "id": "super_repel",
+    "type": "utility",
+    "price": 500,
+    "sell_price": 250,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true,
+    "effect_steps": 200
+  },
+  "max_repel": {
+    "id": "max_repel",
+    "type": "utility",
+    "price": 700,
+    "sell_price": 350,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": true,
+    "effect_steps": 250
+  },
+  "bike_voucher": {
+    "id": "bike_voucher",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": false,
+    "stackable": false
+  },
+  "bicycle": {
+    "id": "bicycle",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "town_map": {
+    "id": "town_map",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "itemfinder": {
+    "id": "itemfinder",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "old_rod": {
+    "id": "old_rod",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "good_rod": {
+    "id": "good_rod",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "super_rod": {
+    "id": "super_rod",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "card_key": {
+    "id": "card_key",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "lift_key": {
+    "id": "lift_key",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "ss_ticket": {
+    "id": "ss_ticket",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "secret_key": {
+    "id": "secret_key",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "poke_flute": {
+    "id": "poke_flute",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": true,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "silph_scope": {
+    "id": "silph_scope",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "exp_share": {
+    "id": "exp_share",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": false,
+    "stackable": false
+  },
+  "coin_case": {
+    "id": "coin_case",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": true,
+    "stackable": false
+  },
+  "dome_fossil": {
+    "id": "dome_fossil",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": false,
+    "stackable": false
+  },
+  "helix_fossil": {
+    "id": "helix_fossil",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": false,
+    "stackable": false
+  },
+  "old_amber": {
+    "id": "old_amber",
+    "type": "key_item",
+    "price": null,
+    "sell_price": null,
+    "usable_in_battle": false,
+    "usable_in_field": false,
+    "stackable": false
+  }
+  // TMs et HMs : ajoute-les sur demande (ex : "tm01", "hm01", ...), sinon le fichier serait énorme
+}
