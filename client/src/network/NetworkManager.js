@@ -1,4 +1,6 @@
-// client/src/network/NetworkManager.js - VERSION WORLDROOM
+// client/src/network/NetworkManager.js - VERSION WORLDROOM CORRIGÉE
+// ✅ Corrections pour les états de transition et synchronisation
+
 import { Client } from "colyseus.js";
 import { GAME_CONFIG } from "../config/gameConfig.js";
 
@@ -11,7 +13,17 @@ export class NetworkManager {
     this.isConnected = false;
     this.isTransitioning = false;
     this.lastSendTime = 0;
-    this.currentZone = null; // ✅ NOUVEAU : Zone actuelle
+    this.currentZone = null;
+    
+    // ✅ NOUVEAU: Gestion améliorée des transitions
+    this.transitionState = {
+      isActive: false,
+      targetZone: null,
+      startTime: 0,
+      timeout: null,
+      maxDuration: 8000 // 8 secondes max
+    };
+    
     this.callbacks = {
       onConnect: null,
       onStateChange: null,
@@ -20,7 +32,6 @@ export class NetworkManager {
     };
   }
 
-  // ✅ MODIFIÉ : Connexion unique à WorldRoom
   async connect(spawnZone = "beach", spawnData = {}) {
     try {
       console.log(`[NetworkManager] 🔌 Connexion à WorldRoom...`);
@@ -30,7 +41,6 @@ export class NetworkManager {
         await this.disconnect();
       }
 
-      // ✅ CHANGEMENT MAJEUR : Une seule room "world"
       const roomOptions = {
         name: this.username,
         spawnZone: spawnZone,
@@ -45,8 +55,10 @@ export class NetworkManager {
       
       this.sessionId = this.room.sessionId;
       this.isConnected = true;
-      this.isTransitioning = false;
       this.currentZone = spawnZone;
+      
+      // ✅ CORRECTION: Reset des états de transition lors de la connexion
+      this.resetTransitionState();
 
       console.log(`[NetworkManager] ✅ Connecté à WorldRoom! SessionId: ${this.sessionId}`);
 
@@ -64,18 +76,17 @@ export class NetworkManager {
 
     console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
 
-    // ✅ NOUVEAU : Données de zone
+    // Zone data
     this.room.onMessage("zoneData", (data) => {
       console.log(`🗺️ [NetworkManager] Zone data reçue:`, data);
       this.currentZone = data.zone;
       
-      // Notifier la scène
       if (this.callbacks.onZoneData) {
         this.callbacks.onZoneData(data);
       }
     });
 
-    // ✅ NOUVEAU : Liste des NPCs
+    // Liste des NPCs
     this.room.onMessage("npcList", (npcs) => {
       console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
       
@@ -84,20 +95,26 @@ export class NetworkManager {
       }
     });
 
-    // ✅ NOUVEAU : Résultat des transitions
+    // ✅ AMÉLIORATION: Gestion des résultats de transition
     this.room.onMessage("transitionResult", (result) => {
-      console.log(`🌀 [NetworkManager] Transition result:`, result);
+      console.log(`🌀 [NetworkManager] === TRANSITION RESULT ===`);
+      console.log(`📊 Résultat:`, result);
       
       if (result.success) {
+        console.log(`✅ [NetworkManager] Transition réussie vers: ${result.currentZone}`);
         this.currentZone = result.currentZone;
-        console.log(`✅ Zone actuelle: ${this.currentZone}`);
+        
+        // ✅ CORRECTION CRITIQUE: Reset de l'état de transition AVANT le callback
+        this.resetTransitionState();
         
         if (this.callbacks.onTransitionSuccess) {
           this.callbacks.onTransitionSuccess(result);
         }
       } else {
-        console.error(`❌ Transition échouée: ${result.reason}`);
-        this.isTransitioning = false;
+        console.error(`❌ [NetworkManager] Transition échouée: ${result.reason}`);
+        
+        // ✅ CORRECTION: Reset même en cas d'échec
+        this.resetTransitionState();
         
         if (this.callbacks.onTransitionError) {
           this.callbacks.onTransitionError(result);
@@ -105,7 +122,7 @@ export class NetworkManager {
       }
     });
 
-    // ✅ NOUVEAU : Résultats d'interactions NPC
+    // Interactions NPC
     this.room.onMessage("npcInteractionResult", (result) => {
       console.log(`💬 [NetworkManager] NPC interaction:`, result);
       
@@ -114,14 +131,15 @@ export class NetworkManager {
       }
     });
 
-    // État des joueurs (conservé)
+    // ✅ AMÉLIORATION: État des joueurs avec protection transition
     this.room.onStateChange((state) => {
+      // ✅ NOUVEAU: Permettre les updates même en transition (pour que le joueur apparaisse)
       if (this.callbacks.onStateChange) {
         this.callbacks.onStateChange(state);
       }
     });
 
-    // Messages existants (conservés)
+    // Messages existants
     this.room.onMessage("playerData", (data) => {
       if (this.callbacks.onPlayerData) {
         this.callbacks.onPlayerData(data);
@@ -136,7 +154,7 @@ export class NetworkManager {
 
     this.room.onLeave(() => {
       console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
-      if (!this.isTransitioning) {
+      if (!this.transitionState.isActive) {
         this.isConnected = false;
         if (this.callbacks.onDisconnect) {
           this.callbacks.onDisconnect();
@@ -151,16 +169,25 @@ export class NetworkManager {
     }
   }
 
-  // ✅ NOUVEAU : Transition entre zones (remplace changeZone)
+  // ✅ AMÉLIORATION: Transition entre zones avec gestion d'état
   moveToZone(targetZone, spawnX, spawnY) {
-    if (!this.isConnected || !this.room || this.isTransitioning) {
-      console.warn("[NetworkManager] ⚠️ Cannot move to zone - not connected or transitioning");
+    if (!this.isConnected || !this.room) {
+      console.warn("[NetworkManager] ⚠️ Cannot move to zone - not connected");
       return false;
     }
 
-    console.log(`[NetworkManager] 🌀 Demande transition: ${this.currentZone} → ${targetZone}`);
+    // ✅ NOUVEAU: Vérifier si une transition est déjà en cours
+    if (this.transitionState.isActive) {
+      console.warn(`[NetworkManager] ⚠️ Transition déjà en cours vers: ${this.transitionState.targetZone}`);
+      return false;
+    }
+
+    console.log(`[NetworkManager] 🌀 === DEMANDE TRANSITION ===`);
+    console.log(`📍 De: ${this.currentZone} vers: ${targetZone}`);
+    console.log(`📊 Position: (${spawnX}, ${spawnY})`);
     
-    this.isTransitioning = true;
+    // ✅ NOUVEAU: Marquer la transition comme active
+    this.startTransition(targetZone);
     
     this.room.send("moveToZone", {
       targetZone: targetZone,
@@ -171,9 +198,60 @@ export class NetworkManager {
     return true;
   }
 
-  // ✅ MODIFIÉ : Messages pour WorldRoom
+  // ✅ NOUVELLE MÉTHODE: Démarrer une transition
+  startTransition(targetZone) {
+    console.log(`[NetworkManager] 🌀 Début transition vers: ${targetZone}`);
+    
+    // Nettoyer l'ancien timeout s'il existe
+    if (this.transitionState.timeout) {
+      clearTimeout(this.transitionState.timeout);
+    }
+    
+    this.transitionState = {
+      isActive: true,
+      targetZone: targetZone,
+      startTime: Date.now(),
+      timeout: setTimeout(() => {
+        console.error(`[NetworkManager] ⏰ Timeout transition vers: ${targetZone}`);
+        this.resetTransitionState();
+        
+        if (this.callbacks.onTransitionError) {
+          this.callbacks.onTransitionError({
+            success: false,
+            reason: "Timeout de transition"
+          });
+        }
+      }, this.transitionState.maxDuration),
+      maxDuration: 8000
+    };
+    
+    // ✅ CORRECTION: Ne plus utiliser isTransitioning global
+    this.isTransitioning = true;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Reset de l'état de transition
+  resetTransitionState() {
+    console.log(`[NetworkManager] 🔄 Reset de l'état de transition`);
+    
+    if (this.transitionState.timeout) {
+      clearTimeout(this.transitionState.timeout);
+    }
+    
+    this.transitionState = {
+      isActive: false,
+      targetZone: null,
+      startTime: 0,
+      timeout: null,
+      maxDuration: 8000
+    };
+    
+    this.isTransitioning = false;
+  }
+
+  // ✅ AMÉLIORATION: sendMove avec vérification transition allégée
   sendMove(x, y, direction, isMoving) {
-    if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen && !this.isTransitioning) {
+    if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen) {
+      // ✅ NOUVEAU: Permettre les mouvements même en transition (sinon le joueur ne peut pas bouger après transition)
       const now = Date.now();
       if (!this.lastSendTime || now - this.lastSendTime > 50) {
         this.room.send("playerMove", { x, y, direction, isMoving });
@@ -183,32 +261,30 @@ export class NetworkManager {
   }
 
   sendNpcInteract(npcId) {
-    if (this.isConnected && this.room && !this.isTransitioning) {
+    if (this.isConnected && this.room && !this.transitionState.isActive) {
       console.log(`[NetworkManager] 💬 Interaction NPC: ${npcId}`);
       this.room.send("npcInteract", { npcId });
     }
   }
 
   startQuest(questId) {
-    if (this.isConnected && this.room && !this.isTransitioning) {
+    if (this.isConnected && this.room && !this.transitionState.isActive) {
       console.log(`[NetworkManager] 🎯 Démarrage quête: ${questId}`);
       this.room.send("questStart", { questId });
     }
   }
 
   sendMessage(type, data) {
-    if (this.isConnected && this.room && !this.isTransitioning) {
+    if (this.isConnected && this.room && !this.transitionState.isActive) {
       this.room.send(type, data);
     }
   }
 
-  // ✅ MODIFIÉ : Callbacks pour WorldRoom
+  // Callbacks
   onConnect(callback) { this.callbacks.onConnect = callback; }
   onStateChange(callback) { this.callbacks.onStateChange = callback; }
   onPlayerData(callback) { this.callbacks.onPlayerData = callback; }
   onDisconnect(callback) { this.callbacks.onDisconnect = callback; }
-  
-  // ✅ NOUVEAUX : Callbacks spécifiques WorldRoom
   onZoneData(callback) { this.callbacks.onZoneData = callback; }
   onNpcList(callback) { this.callbacks.onNpcList = callback; }
   onTransitionSuccess(callback) { this.callbacks.onTransitionSuccess = callback; }
@@ -233,8 +309,10 @@ export class NetworkManager {
     return this.currentZone;
   }
 
-  // ✅ SUPPRIMÉ : changeZone (remplacé par moveToZone)
-  // La méthode changeZone n'est plus nécessaire car on reste dans la même room
+  // ✅ AMÉLIORATION: isTransitioning avec état détaillé
+  get isTransitionActive() {
+    return this.transitionState.isActive;
+  }
 
   getPlayerState(sessionId) {
     if (this.room && this.room.state && this.room.state.players) {
@@ -246,9 +324,11 @@ export class NetworkManager {
   async disconnect() {
     console.log(`[NetworkManager] 📤 Déconnexion demandée`);
     
+    // Reset des états
+    this.resetTransitionState();
+    
     if (this.room) {
       this.isConnected = false;
-      this.isTransitioning = false;
       
       try {
         const roomId = this.room.id;
@@ -264,18 +344,16 @@ export class NetworkManager {
     }
   }
 
-  resetTransitionFlag() {
-    console.log(`[NetworkManager] 🔄 Reset du flag de transition`);
-    this.isTransitioning = false;
-  }
+  // ✅ SUPPRIMÉ: resetTransitionFlag (remplacé par resetTransitionState)
 
-  // ✅ MODIFIÉ : Debug state pour WorldRoom
+  // ✅ AMÉLIORATION: Debug state avec info transition
   debugState() {
     console.log(`[NetworkManager] 🔍 === ÉTAT DEBUG WORLDROOM ===`);
     console.log(`👤 Username: ${this.username}`);
     console.log(`🆔 SessionId: ${this.sessionId}`);
     console.log(`🔌 isConnected: ${this.isConnected}`);
     console.log(`🌀 isTransitioning: ${this.isTransitioning}`);
+    console.log(`🎯 transitionState:`, this.transitionState);
     console.log(`🌍 currentZone: ${this.currentZone}`);
     console.log(`🏠 Room ID: ${this.room?.id || 'aucune'}`);
     console.log(`📡 Room connectée: ${this.room?.connection?.isOpen || false}`);
@@ -292,7 +370,6 @@ export class NetworkManager {
     console.log(`================================`);
   }
 
-  // ✅ NOUVEAU : Vérifier la synchronisation zone
   checkZoneSynchronization(currentScene) {
     if (!this.room || !this.sessionId) {
       console.warn(`[NetworkManager] ⚠️ Pas de room pour vérifier la sync zone`);
@@ -319,7 +396,6 @@ export class NetworkManager {
     return true;
   }
 
-  // ✅ NOUVEAU : Mapping scene → zone
   mapSceneToZone(sceneName) {
     const mapping = {
       'BeachScene': 'beach',
@@ -333,7 +409,6 @@ export class NetworkManager {
     return mapping[sceneName] || sceneName.toLowerCase();
   }
 
-  // ✅ NOUVEAU : Forcer une resynchronisation zone
   async forceZoneSynchronization(currentScene) {
     console.log(`[NetworkManager] 🔄 Forcer la resynchronisation zone...`);
     
