@@ -808,7 +808,7 @@ this.time.delayedCall(300, () => {
 
   // === MÉTHODES EXISTANTES CONSERVÉES ===
 
-  normalizeZoneName(sceneName) {
+normalizeZoneName(sceneName) {
   const mapping = {
     'BeachScene': 'beach',
     'VillageScene': 'village', 
