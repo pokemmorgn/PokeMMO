@@ -733,5 +733,4 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   }
 }
-}
  
