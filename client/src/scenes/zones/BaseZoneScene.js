@@ -216,21 +216,22 @@ this.time.delayedCall(300, () => {
 
     // ✅ NOUVELLE MÉTHODE: Initialisation du système d'inventaire
 initializeInventorySystem() {
-  // 1. Si déjà initialisé OU pas de room, on sort
-  if (this.inventoryInitialized || !this.networkManager?.room) {
-    console.log(`⚠️ [${this.scene.key}] Inventaire déjà initialisé ou pas de room`);
+  if (window.inventorySystem) {
+    // ✅ Réutiliser l’instance déjà existante !
+    console.log(`[${this.scene.key}] Réutilisation de l’inventaire global existant`);
+    // Met à jour la room si besoin !
+    if (this.networkManager?.room) {
+      window.inventorySystem.gameRoom = this.networkManager.room;
+      window.inventorySystem.setupServerListeners(); // pour relier la nouvelle room
+    }
+    this.inventorySystem = window.inventorySystem;
+    this.inventoryInitialized = true;
     return;
   }
 
+  // Sinon, création normale :
   try {
-    // === AJOUT : détruire toute UI précédente pour éviter les doublons ===
-    if (window.inventorySystem && typeof window.inventorySystem.destroy === "function") {
-      window.inventorySystem.destroy(); // détruire l'UI précédente proprement
-    }
-    // Si tu as créé une UI séparée en dehors de InventorySystem, fais pareil pour elle ici
-
     console.log(`🎒 [${this.scene.key}] Initialisation du système d'inventaire...`);
-
     this.inventorySystem = new InventorySystem(this, this.networkManager.room);
 
     // Config langue
@@ -260,6 +261,7 @@ initializeInventorySystem() {
     console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
   }
 }
+
 
 
     // ✅ NOUVELLE MÉTHODE: Test de connexion inventaire
