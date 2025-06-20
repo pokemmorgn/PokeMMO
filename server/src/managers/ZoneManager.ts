@@ -166,16 +166,22 @@ export class ZoneManager {
     return playersInZone;
   }
 
-  broadcastToZone(zoneName: string, message: string, data: any) {
-    console.log(`📡 Broadcasting to zone ${zoneName}: ${message}`);
-    
-    const playersInZone = this.getPlayersInZone(zoneName);
-    const sessionsInZone = Array.from(this.room.state.players.entries())
-      .filter(([_, player]: [string, Player]) => player.currentZone === zoneName)
-      .map(([sessionId, _]: [string, Player]) => sessionId);
-    
-    this.room.broadcast(message, data, { 
-      except: sessionsInZone.length === this.room.clients.length ? undefined : sessionsInZone 
-    });
-  }
+broadcastToZone(zoneName: string, message: string, data: any) {
+  console.log(`📡 Broadcasting to zone ${zoneName}: ${message}`);
+  
+  const playersInZone = this.getPlayersInZone(zoneName);
+  
+  // Obtenir les clients dans cette zone (pas les IDs de session)
+  const clientsInZone = this.room.clients.filter(client => {
+    const player = this.room.state.players.get(client.sessionId) as Player;
+    return player && player.currentZone === zoneName;
+  });
+  
+  // Broadcaster à tous les clients de la zone
+  clientsInZone.forEach(client => {
+    client.send(message, data);
+  });
+  
+  console.log(`📤 Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
+}
 }
