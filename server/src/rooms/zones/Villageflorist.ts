@@ -1,4 +1,4 @@
-// ===== server/src/rooms/zones/Villageflorist.ts.ts =====
+// ===== server/src/rooms/zones/Villageflorist.ts =====
 import { Client } from "@colyseus/core";
 import { IZone } from "./IZone";
 import { WorldRoom } from "../WorldRoom";
