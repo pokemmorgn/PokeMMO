@@ -133,16 +133,24 @@ useExistingNetworkManager(networkManager, sceneData = null) {
   this.verifyNetworkState();
   
  // ✅ AJOUT: Déclencher une mise à jour de zone après sync
+// ✅ AJOUT: Déclencher une mise à jour de zone après sync
 this.time.delayedCall(300, () => {
-  if (this.networkManager && this.networkManager.isConnected) {
-    console.log(`🔄 [${this.scene.key}] Déclencher mise à jour serveur`);
-    
-    // Petit mouvement pour forcer le serveur à renvoyer les données
-    const currentZone = this.networkManager.currentZone;
-    this.networkManager.sendMove(52, 48, 'down', false);
-    
-    console.log(`✅ [${this.scene.key}] Mouvement envoyé pour zone: ${currentZone}`);
-  }
+ console.log(`🔄 [${this.scene.key}] Vérifier NPCs stockés...`);
+ 
+ // ✅ NOUVEAU: Utiliser les NPCs stockés si ils correspondent à notre zone
+ if (this.networkManager.lastReceivedNpcs && 
+     this.networkManager.lastReceivedZoneData && 
+     this.networkManager.lastReceivedZoneData.zone === this.networkManager.currentZone) {
+   
+   console.log(`🎯 [${this.scene.key}] NPCs trouvés en cache pour zone: ${this.networkManager.currentZone}`);
+   
+   // Déclencher manuellement le spawn des NPCs
+   if (this.npcManager) {
+     this.npcManager.spawnNpcs(this.networkManager.lastReceivedNpcs);
+   }
+ } else {
+   console.log(`⚠️ [${this.scene.key}] Aucun NPC en cache pour zone: ${this.networkManager.currentZone}`);
+ }
 });
 
 }
