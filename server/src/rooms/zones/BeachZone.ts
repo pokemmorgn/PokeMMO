@@ -3,15 +3,6 @@ import { Client } from "@colyseus/core";
 import { IZone } from "./IZone";
 import { WorldRoom } from "../WorldRoom";
 
-interface NPC {
-  id: number;
-  name: string;
-  x: number;
-  y: number;
-  sprite: string;
-  dialogue: string[];
-}
-
 interface ZoneObject {
   id: number;
   type: string;
@@ -27,47 +18,19 @@ interface Spawn {
 
 export class BeachZone implements IZone {
   private room: WorldRoom;
-  private npcs: NPC[] = [];
 
   constructor(room: WorldRoom) {
     this.room = room;
     console.log(`🏖️ === BEACH ZONE INIT ===`);
     
-    this.setupNPCs();
     this.setupEvents();
     
     console.log(`✅ BeachZone initialisée`);
   }
 
-  private setupNPCs() {
-    console.log(`🤖 Setup Beach NPCs...`);
-    
-    // NPCs de la plage (à adapter depuis votre code)
-    this.npcs = [
-      {
-        id: 1,
-        name: "Fisherman",
-        x: 100,
-        y: 200,
-        sprite: "OldMan",
-        dialogue: ["Bonjour ! Belle journée pour pêcher !"]
-      },
-      {
-        id: 2, 
-        name: "Surfer",
-        x: 300,
-        y: 150,
-        sprite: "BrownGuy",
-        dialogue: ["Les vagues sont parfaites aujourd'hui !"]
-      }
-    ];
-
-    console.log(`✅ ${this.npcs.length} NPCs Beach configurés`);
-  }
-
   private setupEvents() {
     console.log(`⚡ Setup Beach events...`);
-    // TODO: Events spécifiques à la plage
+    // TODO: Events spécifiques à la plage (spawns d'objets, météo, etc.)
     console.log(`✅ Beach events configurés`);
   }
 
@@ -83,15 +46,15 @@ export class BeachZone implements IZone {
 
     console.log(`👤 ${player.name} entre sur la plage`);
 
-    // Envoyer les données de la zone
+    // Envoyer les données de la zone (musique, météo, spawns)
     const zoneData = this.getZoneData();
     client.send("zoneData", {
       zone: "beach",
       ...zoneData
     });
 
-    // Envoyer la liste des NPCs
-    client.send("npcList", this.npcs);
+    // ✅ LES NPCS SONT MAINTENANT GÉRÉS PAR WORLDROOM
+    // Ils seront envoyés automatiquement par WorldRoom.onPlayerJoinZone()
 
     console.log(`📤 Données Beach envoyées à ${player.name}`);
   }
@@ -105,7 +68,7 @@ export class BeachZone implements IZone {
       console.log(`👤 ${player.name} quitte la plage`);
     }
 
-    // Cleanup si nécessaire
+    // Cleanup si nécessaire (effets spéciaux, timers, etc.)
   }
 
   onNpcInteract(client: Client, npcId: number) {
@@ -113,27 +76,9 @@ export class BeachZone implements IZone {
     console.log(`👤 Client: ${client.sessionId}`);
     console.log(`🤖 NPC ID: ${npcId}`);
 
-    const npc = this.npcs.find(n => n.id === npcId);
-    if (!npc) {
-      console.error(`❌ NPC not found: ${npcId}`);
-      client.send("npcInteractionResult", {
-        type: "error",
-        message: "NPC introuvable"
-      });
-      return;
-    }
-
-    console.log(`💬 Interaction avec NPC: ${npc.name}`);
-
-    // Envoyer le dialogue
-    client.send("npcInteractionResult", {
-      type: "dialogue",
-      npcId: npcId,
-      npcName: npc.name,
-      lines: npc.dialogue
-    });
-
-    console.log(`✅ Dialogue envoyé pour ${npc.name}`);
+    // ✅ LES INTERACTIONS SONT GÉRÉES PAR LE SYSTÈME EXISTANT
+    // Cette méthode existe pour l'interface IZone mais délègue au système global
+    console.log(`➡️ Délégation de l'interaction NPC ${npcId} au système global`);
   }
 
   onQuestStart(client: Client, questId: string) {
@@ -141,22 +86,27 @@ export class BeachZone implements IZone {
     console.log(`👤 Client: ${client.sessionId}`);
     console.log(`📜 Quest: ${questId}`);
 
-    // TODO: Logique des quêtes spécifiques à la plage
-    client.send("questStartResult", {
-      success: false,
-      message: "Pas de quêtes disponibles sur la plage pour le moment"
-    });
+    // ✅ LES QUÊTES SONT GÉRÉES PAR LE SYSTÈME EXISTANT
+    console.log(`➡️ Délégation de la quête ${questId} au système global`);
   }
 
   getZoneData() {
     return {
-      npcs: this.npcs,
-      objects: [] as ZoneObject[], // Type explicite pour éviter l'erreur
+      // ✅ PLUS BESOIN DE npcs ICI, GÉRÉ PAR WORLDROOM
+      objects: [
+        { id: 1, type: "seashell", x: 150, y: 250 },
+        { id: 2, type: "driftwood", x: 400, y: 180 },
+        { id: 3, type: "beach_ball", x: 320, y: 200 }
+      ] as ZoneObject[],
       spawns: [
-        { name: "fromVillage", x: 52, y: 48 }
+        { name: "fromVillage", x: 52, y: 48 },
+        { name: "beachCenter", x: 200, y: 200 },
+        { name: "pier", x: 100, y: 150 }
       ] as Spawn[],
       music: "beach_theme",
-      weather: "sunny"
+      weather: "sunny",
+      ambientSounds: ["waves", "seagulls"],
+      timeOfDay: "day"
     };
   }
 }
