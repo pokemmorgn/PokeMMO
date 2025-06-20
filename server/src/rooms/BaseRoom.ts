@@ -259,72 +259,86 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
   }
 
   // ✅ CORRIGÉE : Méthode pour gérer les demandes de transition
-  private handleTransitionRequest(client: Client, request: TransitionRequest) {
-    const player = this.state.players.get(client.sessionId);
-    if (!player) {
-      console.warn(`❌ [${this.mapName}] Player not found pour transition`);
-      client.send("transitionDenied", { reason: "Player not found" });
-      return;
-    }
+// Dans BaseRoom.ts, remplacez la méthode handleTransitionRequest
 
-    console.log(`🌀 [${this.mapName}] Validation transition de ${player.name}:`, {
-      from: this.mapName,
-      to: request.targetZone,
-      targetRoom: request.targetRoom
-    });
+private handleTransitionRequest(client: Client, request: TransitionRequest) {
+  const player = this.state.players.get(client.sessionId);
+  if (!player) {
+    console.warn(`❌ [${this.mapName}] Player not found pour transition`);
+    client.send("transitionDenied", { reason: "Player not found" });
+    return;
+  }
 
-    // === VALIDATION 1 : Destination valide ===
-    const validDestinations = this.getValidDestinations();
-    console.log(`🔍 [${this.mapName}] Destinations valides:`, validDestinations);
-    console.log(`🎯 [${this.mapName}] Destination demandée:`, request.targetZone);
-    
-    if (!validDestinations.includes(request.targetZone)) {
-      console.warn(`❌ [${this.mapName}] Destination invalide: ${request.targetZone}`);
-      console.warn(`📋 [${this.mapName}] Destinations autorisées depuis ${this.mapName}:`, validDestinations);
-      client.send("transitionDenied", { reason: "Invalid destination" });
-      return;
-    }
+  console.log(`🌀 [${this.mapName}] Validation transition de ${player.name}:`, {
+    from: this.mapName,
+    to: request.targetZone,
+    targetRoom: request.targetRoom
+  });
 
-    // === VALIDATION 2 : Anti-spam ===
-    const now = Date.now();
-    const lastTransition = (player as any).lastTransitionTime || 0;
-    if (now - lastTransition < 1000) { // Cooldown 1 seconde
-      console.warn(`❌ [${this.mapName}] Transition trop rapide pour ${player.name}`);
-      client.send("transitionDenied", { reason: "Transition cooldown" });
-      return;
-    }
+  // === VALIDATION 1 : Destination valide ===
+  const validDestinations = this.getValidDestinations();
+  console.log(`🔍 [${this.mapName}] Destinations valides:`, validDestinations);
+  console.log(`🎯 [${this.mapName}] Destination demandée:`, request.targetZone);
+  
+  if (!validDestinations.includes(request.targetZone)) {
+    console.warn(`❌ [${this.mapName}] Destination invalide: ${request.targetZone}`);
+    console.warn(`📋 [${this.mapName}] Destinations autorisées depuis ${this.mapName}:`, validDestinations);
+    client.send("transitionDenied", { reason: "Invalid destination" });
+    return;
+  }
 
-    // === VALIDATION 3 : État du joueur ===
-    if ((player as any).isInBattle) {
-      console.warn(`❌ [${this.mapName}] ${player.name} en combat, transition refusée`);
-      client.send("transitionDenied", { reason: "Cannot transition during battle" });
-      return;
-    }
+  // === VALIDATION 2 : Anti-spam ===
+  const now = Date.now();
+  const lastTransition = (player as any).lastTransitionTime || 0;
+  if (now - lastTransition < 1000) { // Cooldown 1 seconde
+    console.warn(`❌ [${this.mapName}] Transition trop rapide pour ${player.name}`);
+    client.send("transitionDenied", { reason: "Transition cooldown" });
+    return;
+  }
 
-    // === VALIDATION 4 : Proximité (simple) ===
+  // === VALIDATION 3 : État du joueur ===
+  if ((player as any).isInBattle) {
+    console.warn(`❌ [${this.mapName}] ${player.name} en combat, transition refusée`);
+    client.send("transitionDenied", { reason: "Cannot transition during battle" });
+    return;
+  }
+
+  // === VALIDATION 4 : Proximité (DÉSACTIVÉE EN MODE DEBUG) ===
+  const DEBUG_MODE = true; // ✅ Variable de debug explicite
+  
+  if (!DEBUG_MODE) {
+    // Mode production : vérifier la proximité
     const nearTransition = this.isPlayerNearTransition(player.x, player.y);
     if (!nearTransition) {
       console.warn(`❌ [${this.mapName}] ${player.name} pas près d'une zone de transition (${player.x}, ${player.y})`);
-        // ✅ TEMPORAIRE : Désactiver pour debug
-  console.warn(`💡 [${this.mapName}] Mode debug - transition autorisée malgré la distance`);
-       // const zones = this.getTransitionZonesForMap();
-      //console.warn(`📍 [${this.mapName}] Zones de transition disponibles:`, zones);
-      //client.send("transitionDenied", { reason: "Not near transition zone" });
+      const zones = this.getTransitionZonesForMap();
+      console.warn(`📍 [${this.mapName}] Zones de transition disponibles:`, zones);
+      client.send("transitionDenied", { reason: "Not near transition zone" });
       return;
     }
-
-    // ✅ TRANSITION APPROUVÉE
-    (player as any).lastTransitionTime = now;
-    
-    console.log(`✅ [${this.mapName}] Transition approuvée pour ${player.name} vers ${request.targetZone}`);
-    client.send("transitionApproved", { 
-      approved: true,
-      transitionData: request 
-    });
-
-    // Sauvegarder la nouvelle position dans la DB
-    this.updatePlayerLocation(player.name, request);
+  } else {
+    // Mode debug : log mais autoriser quand même
+    const nearTransition = this.isPlayerNearTransition(player.x, player.y);
+    if (!nearTransition) {
+      console.warn(`⚠️ [${this.mapName}] ${player.name} pas près d'une zone de transition (${player.x}, ${player.y})`);
+      console.log(`🔧 [${this.mapName}] MODE DEBUG : Transition autorisée malgré la distance`);
+    } else {
+      console.log(`✅ [${this.mapName}] ${player.name} près d'une zone de transition`);
+    }
   }
+
+  // ✅ TRANSITION APPROUVÉE
+  (player as any).lastTransitionTime = now;
+  
+  console.log(`✅ [${this.mapName}] Transition approuvée pour ${player.name} vers ${request.targetZone}`);
+  client.send("transitionApproved", { 
+    approved: true,
+    transitionData: request 
+  });
+
+  // Sauvegarder la nouvelle position dans la DB
+  this.updatePlayerLocation(player.name, request);
+}
 
   // ✅ CORRIGÉE : Définir les destinations valides pour chaque zone
   private getValidDestinations(): string[] {
