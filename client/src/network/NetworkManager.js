@@ -157,6 +157,16 @@ this.room.onStateChange((state) => {
             this.callbacks.onStateChange(state);
         }
     });
+        this.room.onMessage("filteredState", (state) => {
+        console.log(`📊 [NetworkManager] State filtré reçu:`, {
+            playersCount: state.players?.size || 0,
+            zone: this.currentZone
+        });
+        
+        if (this.callbacks.onStateChange) {
+            this.callbacks.onStateChange(state);
+        }
+    });
 // Messages existants
 this.room.onMessage("playerData", (data) => {
  if (this.callbacks.onPlayerData) {
