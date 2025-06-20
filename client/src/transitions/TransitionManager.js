@@ -249,14 +249,17 @@ export class TransitionManager {
     console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
 
     // ✅ DONNÉES 100% LOCALES - pas de NetworkManager
-    const transitionData = {
-      fromZone: this.currentZone,
-      fromTransition: true,
-      spawnX: spawnPosition.x,
-      spawnY: spawnPosition.y,
-      spawnPoint: teleportData.targetSpawn,
-      localTransition: true // ✅ Flag pour indiquer que c'est local
-    };
+   // ✅ DONNÉES LOCALES + NetworkManager pour préserver la connexion
+const transitionData = {
+  fromZone: this.currentZone,
+  fromTransition: true,
+  spawnX: spawnPosition.x,
+  spawnY: spawnPosition.y,
+  spawnPoint: teleportData.targetSpawn,
+  localTransition: true,
+  networkManager: this.scene.networkManager,  // ✅ Passer le NetworkManager
+  mySessionId: this.scene.mySessionId         // ✅ Passer le sessionId
+};
 
     console.log(`🌀 [TransitionManager] ✅ Transition LOCALE - aucune donnée serveur transmise`);
 
