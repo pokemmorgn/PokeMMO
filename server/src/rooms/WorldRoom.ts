@@ -1,4 +1,4 @@
-// ===== server/src/rooms/WorldRoom.ts =====
+// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC CORRECTIONS QUÊTES
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { ZoneManager } from "../managers/ZoneManager";
@@ -57,6 +57,12 @@ export class WorldRoom extends Room<PokeWorldState> {
       client.send("npcList", npcs);
       console.log(`📤 ${npcs.length} NPCs envoyés pour ${zoneName}`);
     }
+
+    // ✅ ENVOYER LES STATUTS DE QUÊTE POUR CETTE ZONE
+    const player = this.state.players.get(client.sessionId);
+    if (player) {
+      this.updateQuestStatuses(player.name);
+    }
   }
 
   // ✅ MÉTHODES PUBLIQUES - CORRECTEMENT PLACÉES
@@ -109,13 +115,35 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.zoneManager.handleNpcInteraction(client, data.npcId);
     });
 
+    // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
+
     // Démarrage de quête
-    this.onMessage("questStart", (client, data) => {
+    this.onMessage("startQuest", (client, data) => {
       console.log(`🎯 === QUEST START REQUEST ===`);
-      this.zoneManager.handleQuestStart(client, data.questId);
+      this.handleStartQuest(client, data);
     });
 
-    // === NOUVEAUX HANDLERS POUR L'INVENTAIRE ===
+    // Récupérer les quêtes actives
+    this.onMessage("getActiveQuests", (client) => {
+      this.handleGetActiveQuests(client);
+    });
+
+    // Récupérer les quêtes disponibles
+    this.onMessage("getAvailableQuests", (client) => {
+      this.handleGetAvailableQuests(client);
+    });
+
+    // Progression de quête
+    this.onMessage("questProgress", (client, data) => {
+      this.handleQuestProgress(client, data);
+    });
+
+    // Debug des quêtes
+    this.onMessage("debugQuests", (client) => {
+      this.debugQuests(client);
+    });
+
+    // === HANDLERS POUR L'INVENTAIRE ===
 
     // Récupérer l'inventaire complet du joueur
     this.onMessage("getInventory", async (client) => {
@@ -294,7 +322,161 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
-    console.log(`✅ Tous les handlers configurés (y compris inventaire)`);
+    console.log(`✅ Tous les handlers configurés (y compris inventaire et quêtes)`);
+  }
+
+  // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
+
+  private async handleStartQuest(client: Client, data: { questId: string }) {
+    try {
+      console.log(`🎯 Démarrage de quête ${data.questId} pour ${client.sessionId}`);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("questStartResult", {
+          success: false,
+          message: "Joueur non trouvé"
+        });
+        return;
+      }
+
+      const result = await this.zoneManager.handleQuestStart(client, data.questId);
+      
+      console.log(`📤 Envoi questStartResult:`, result);
+      client.send("questStartResult", result);
+      
+      // Si succès, envoyer aussi questStarted pour compatibilité
+      if (result.success) {
+        client.send("questStarted", {
+          quest: result.quest,
+          message: result.message
+        });
+        
+        // Mettre à jour les statuts de quête pour tous les clients
+        this.updateQuestStatuses(player.name);
+      }
+      
+    } catch (error) {
+      console.error("❌ Erreur handleStartQuest:", error);
+      client.send("questStartResult", {
+        success: false,
+        message: "Erreur serveur lors du démarrage de la quête"
+      });
+    }
+  }
+
+  private async handleGetActiveQuests(client: Client) {
+    try {
+      console.log(`📋 Récupération des quêtes actives pour ${client.sessionId}`);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("activeQuestsList", { quests: [] });
+        return;
+      }
+
+      // Utiliser le ZoneManager pour obtenir les quêtes actives
+      const activeQuests = await this.zoneManager.getActiveQuests(player.name);
+      
+      console.log(`📤 Envoi de ${activeQuests.length} quêtes actives`);
+      client.send("activeQuestsList", {
+        quests: activeQuests
+      });
+      
+    } catch (error) {
+      console.error("❌ Erreur handleGetActiveQuests:", error);
+      client.send("activeQuestsList", { quests: [] });
+    }
+  }
+
+  private async handleGetAvailableQuests(client: Client) {
+    try {
+      console.log(`📋 Récupération des quêtes disponibles pour ${client.sessionId}`);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("availableQuestsList", { quests: [] });
+        return;
+      }
+
+      // Utiliser le ZoneManager pour obtenir les quêtes disponibles
+      const availableQuests = await this.zoneManager.getAvailableQuests(player.name);
+      
+      console.log(`📤 Envoi de ${availableQuests.length} quêtes disponibles`);
+      client.send("availableQuestsList", {
+        quests: availableQuests
+      });
+      
+    } catch (error) {
+      console.error("❌ Erreur handleGetAvailableQuests:", error);
+      client.send("availableQuestsList", { quests: [] });
+    }
+  }
+
+  private async handleQuestProgress(client: Client, data: any) {
+    try {
+      console.log(`📈 Progression de quête pour ${client.sessionId}:`, data);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        return;
+      }
+
+      // Utiliser le ZoneManager pour la progression de quête
+      const results = await this.zoneManager.updateQuestProgress(player.name, data);
+      
+      if (results && results.length > 0) {
+        console.log(`📤 Envoi questProgressUpdate:`, results);
+        client.send("questProgressUpdate", results);
+        
+        // Mettre à jour les statuts de quête
+        this.updateQuestStatuses(player.name);
+      }
+      
+    } catch (error) {
+      console.error("❌ Erreur handleQuestProgress:", error);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mettre à jour les statuts de quête
+  private async updateQuestStatuses(username: string) {
+    try {
+      // Utiliser le ZoneManager pour obtenir les statuts
+      const questStatuses = await this.zoneManager.getQuestStatuses(username);
+      
+      // Envoyer les statuts de quête à tous les clients de la zone
+      this.broadcast("questStatuses", {
+        questStatuses: questStatuses
+      });
+      
+      console.log(`📊 Statuts de quête mis à jour pour ${username}:`, questStatuses.length);
+      
+    } catch (error) {
+      console.error("❌ Erreur updateQuestStatuses:", error);
+    }
+  }
+
+  // ✅ MÉTHODE DE DEBUG POUR LES QUÊTES
+  private async debugQuests(client: Client) {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+    
+    console.log(`🐛 [DEBUG QUETES] Joueur: ${player.name}`);
+    
+    try {
+      // Debug via ZoneManager
+      const activeQuests = await this.zoneManager.getActiveQuests(player.name);
+      const availableQuests = await this.zoneManager.getAvailableQuests(player.name);
+      
+      console.log(`🐛 [DEBUG] Quêtes actives (${activeQuests.length}):`, 
+        activeQuests.map(q => ({ id: q.id, name: q.name, step: q.currentStepIndex })));
+      
+      console.log(`🐛 [DEBUG] Quêtes disponibles (${availableQuests.length}):`, 
+        availableQuests.map(q => ({ id: q.id, name: q.name })));
+        
+    } catch (error) {
+      console.error(`🐛 [DEBUG] Erreur debug quêtes:`, error);
+    }
   }
 
   async onJoin(client: Client, options: any = {}) {
@@ -350,6 +532,11 @@ export class WorldRoom extends Room<PokeWorldState> {
       
       // Faire entrer le joueur dans sa zone initiale
       await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
+      
+      // ✅ Envoyer les statuts de quête initiaux après un délai
+      this.clock.setTimeout(() => {
+        this.updateQuestStatuses(player.name);
+      }, 1000);
       
       console.log(`🎉 ${player.name} a rejoint le monde !`);
 
