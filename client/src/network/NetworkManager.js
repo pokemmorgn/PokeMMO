@@ -1,4 +1,4 @@
-// client/src/network/NetworkManager.js - VERSION CORRIGÉE
+// client/src/network/NetworkManager.js - VERSION COMPLÈTE AVEC DEBUG
 import { Client } from "colyseus.js";
 import { GAME_CONFIG } from "../config/gameConfig.js";
 
@@ -26,6 +26,7 @@ export class NetworkManager {
       if (!targetRoomName) throw new Error("Room name is required");
 
       if (this.room) {
+        console.log(`[NetworkManager] 🔌 Déconnexion de la room actuelle avant reconnexion`);
         await this.disconnect();
       }
 
@@ -121,6 +122,74 @@ export class NetworkManager {
     });
   }
 
+  // ✅ CORRIGÉ : Méthode pour changer de room (transitions entre zones) avec logs détaillés
+  async changeZone(targetRoomName, spawnData = {}) {
+    if (this.isTransitioning) {
+      console.log(`[NetworkManager] ⚠️ Transition déjà en cours`);
+      return false;
+    }
+
+    this.isTransitioning = true;
+    console.log(`[NetworkManager] 🔄 === DÉBUT CHANGEMENT DE ZONE ===`);
+    console.log(`[NetworkManager] 🏠 Room actuelle: ${this.room?.id || 'aucune'}`);
+    console.log(`[NetworkManager] 🎯 Room cible: ${targetRoomName}`);
+    console.log(`[NetworkManager] 👤 SessionId actuel: ${this.sessionId}`);
+    console.log(`[NetworkManager] 📦 SpawnData:`, spawnData);
+
+    try {
+      // Sauvegarder les infos actuelles
+      const oldRoomId = this.room?.id;
+      const oldSessionId = this.sessionId;
+      
+      console.log(`[NetworkManager] 📤 Quitter room: ${oldRoomId}`);
+      
+      // Quitter la room actuelle
+      if (this.room) {
+        await this.room.leave();
+        console.log(`[NetworkManager] ✅ Room ${oldRoomId} quittée`);
+        this.room = null;
+        this.sessionId = null;
+        this.isConnected = false;
+      }
+
+      // Délai court pour laisser le serveur traiter la déconnexion
+      console.log(`[NetworkManager] ⏳ Attente 200ms...`);
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      console.log(`[NetworkManager] 🔌 Connexion à la nouvelle room: ${targetRoomName}`);
+      
+      // Se connecter à la nouvelle room avec les données de spawn
+      this.room = await this.client.joinOrCreate(targetRoomName, {
+        username: this.username,
+        ...spawnData
+      });
+
+      this.sessionId = this.room.sessionId;
+      this.isConnected = true;
+      
+      console.log(`[NetworkManager] ✅ === CHANGEMENT RÉUSSI ===`);
+      console.log(`[NetworkManager] 🏠 Nouvelle room: ${this.room?.id}`);
+      console.log(`[NetworkManager] 👤 Nouveau sessionId: ${this.sessionId}`);
+      console.log(`[NetworkManager] 📊 Ancien sessionId: ${oldSessionId}`);
+      
+      if (oldSessionId !== this.sessionId) {
+        console.log(`[NetworkManager] 🔄 SessionId changé: ${oldSessionId} → ${this.sessionId}`);
+      }
+
+      // Reconfigurer les listeners pour la nouvelle room
+      this.setupRoomListeners();
+      
+      return true;
+    } catch (error) {
+      console.error(`[NetworkManager] 💥 Erreur changement de zone:`, error);
+      this.isConnected = false;
+      return false;
+    } finally {
+      this.isTransitioning = false;
+      console.log(`[NetworkManager] 🏁 Fin du processus de changement de zone`);
+    }
+  }
+
   sendMove(x, y, direction, isMoving) {
     if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen && !this.isTransitioning) {
       const now = Date.now();
@@ -161,48 +230,6 @@ export class NetworkManager {
     return this.sessionId; 
   }
 
-  // ✅ Méthode pour changer de room (transitions entre zones)
-  async changeZone(targetRoomName, spawnData = {}) {
-    if (this.isTransitioning) {
-      console.log(`[NetworkManager] ⚠️ Transition déjà en cours`);
-      return false;
-    }
-
-    this.isTransitioning = true;
-    console.log(`[NetworkManager] 🔄 Changement vers ${targetRoomName}`);
-
-    try {
-      // Sauvegarder les infos actuelles
-      const oldSessionId = this.sessionId;
-      
-      // Quitter la room actuelle
-      if (this.room) {
-        await this.room.leave();
-        this.room = null;
-        this.sessionId = null;
-      }
-
-      // Délai court
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Se connecter à la nouvelle room
-      const success = await this.connect(targetRoomName);
-      
-      if (success) {
-        console.log(`[NetworkManager] ✅ Changement réussi vers ${targetRoomName}, nouveau sessionId: ${this.sessionId}`);
-        return true;
-      } else {
-        console.error(`[NetworkManager] ❌ Échec du changement vers ${targetRoomName}`);
-        return false;
-      }
-    } catch (error) {
-      console.error(`[NetworkManager] 💥 Erreur changement de zone:`, error);
-      return false;
-    } finally {
-      this.isTransitioning = false;
-    }
-  }
-
   // ✅ Méthode pour obtenir l'état d'un joueur (existante mais vérifiée)
   getPlayerState(sessionId) {
     if (this.room && this.room.state && this.room.state.players) {
@@ -212,13 +239,16 @@ export class NetworkManager {
   }
 
   async disconnect() {
+    console.log(`[NetworkManager] 🔌 Déconnexion demandée`);
     if (this.room) {
       this.isConnected = false;
       this.isTransitioning = false;
       try {
+        console.log(`[NetworkManager] 📤 Quitter room: ${this.room.id}`);
         await this.room.leave();
+        console.log(`[NetworkManager] ✅ Room quittée`);
       } catch (error) {
-        console.warn("Erreur lors de la déconnexion:", error);
+        console.warn("⚠️ Erreur lors de la déconnexion:", error);
       }
       this.room = null;
       this.sessionId = null;
@@ -227,16 +257,61 @@ export class NetworkManager {
 
   resetTransitionFlag() {
     this.isTransitioning = false;
+    console.log(`[NetworkManager] 🚩 Flag de transition reset`);
   }
 
   // ✅ DEBUG : Méthode pour diagnostiquer l'état
   debugState() {
-    console.log(`[NetworkManager] 🔍 DEBUG:`, {
-      sessionId: this.sessionId,
-      isConnected: this.isConnected,
-      roomConnected: this.room?.connection?.isOpen,
-      roomId: this.room?.id,
-      isTransitioning: this.isTransitioning
-    });
+    console.log(`[NetworkManager] 🔍 === DEBUG STATE ===`);
+    console.log(`   sessionId: ${this.sessionId}`);
+    console.log(`   isConnected: ${this.isConnected}`);
+    console.log(`   roomConnected: ${this.room?.connection?.isOpen}`);
+    console.log(`   roomId: ${this.room?.id}`);
+    console.log(`   isTransitioning: ${this.isTransitioning}`);
+    console.log(`   username: ${this.username}`);
+    
+    if (this.room && this.room.state && this.room.state.players) {
+      console.log(`   playersInRoom: ${this.room.state.players.size}`);
+      const myPlayer = this.room.state.players.get(this.sessionId);
+      if (myPlayer) {
+        console.log(`   myPlayerPosition: (${myPlayer.x}, ${myPlayer.y})`);
+        console.log(`   myPlayerMap: ${myPlayer.map}`);
+      } else {
+        console.log(`   myPlayer: NOT FOUND`);
+      }
+    }
+    console.log(`[NetworkManager] 🔍 === END DEBUG ===`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Forcer la reconnexion en cas de problème
+  async forceReconnect(roomName) {
+    console.log(`[NetworkManager] 🔄 === RECONNEXION FORCÉE ===`);
+    this.debugState();
+    
+    try {
+      await this.disconnect();
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const success = await this.connect(roomName);
+      
+      if (success) {
+        console.log(`[NetworkManager] ✅ Reconnexion forcée réussie`);
+      } else {
+        console.error(`[NetworkManager] ❌ Échec de la reconnexion forcée`);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error(`[NetworkManager] 💥 Erreur lors de la reconnexion forcée:`, error);
+      return false;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Vérifier l'état de la connexion
+  isHealthy() {
+    return this.isConnected && 
+           this.room && 
+           this.room.connection && 
+           this.room.connection.isOpen && 
+           this.sessionId;
   }
 }
