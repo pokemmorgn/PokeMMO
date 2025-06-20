@@ -1,0 +1,153 @@
+{
+  "poke_ball": {
+    "en": { "name": "Poké Ball", "description": "A device for catching wild Pokémon." },
+    "fr": { "name": "Poké Ball", "description": "Permet de capturer les Pokémon sauvages." },
+    "de": { "name": "Pokéball", "description": "Fängt wilde Pokémon." },
+    "es": { "name": "Poké Ball", "description": "Sirve para atrapar Pokémon salvajes." },
+    "it": { "name": "Poké Ball", "description": "Usata per catturare i Pokémon selvatici." },
+    "jp": { "name": "モンスターボール", "description": "野生のポケモンを捕まえるボール。" },
+    "kr": { "name": "몬스터볼", "description": "야생 포켓몬을 잡는 볼." },
+    "zh": { "name": "精灵球", "description": "用于捕捉野生宝可梦的道具。" }
+  },
+  "great_ball": {
+    "en": { "name": "Great Ball", "description": "A good, high-performance Ball." },
+    "fr": { "name": "Super Ball", "description": "Ball capable de mieux attraper les Pokémon." },
+    "de": { "name": "Superball", "description": "Hat eine höhere Fangrate als ein Pokéball." },
+    "es": { "name": "Super Ball", "description": "Mejor que la Poké Ball." },
+    "it": { "name": "Mega Ball", "description": "Ottima Ball per catturare Pokémon." },
+    "jp": { "name": "スーパーボール", "description": "モンスターボールより性能が高い。" },
+    "kr": { "name": "슈퍼볼", "description": "몬스터볼보다 성능이 높다." },
+    "zh": { "name": "超级球", "description": "比精灵球性能更好。" }
+  },
+  "ultra_ball": {
+    "en": { "name": "Ultra Ball", "description": "An ultra-high performance Ball." },
+    "fr": { "name": "Hyper Ball", "description": "Ball très performante pour capturer les Pokémon." },
+    "de": { "name": "Hyperball", "description": "Sehr hohe Fangrate." },
+    "es": { "name": "Ultra Ball", "description": "Ball de alto rendimiento." },
+    "it": { "name": "Ultra Ball", "description": "Ball di altissima prestazione." },
+    "jp": { "name": "ハイパーボール", "description": "スーパーボールよりさらに性能が高い。" },
+    "kr": { "name": "하이퍼볼", "description": "슈퍼볼보다 더 좋은 볼." },
+    "zh": { "name": "高级球", "description": "性能更优越的宝可梦球。" }
+  },
+  "master_ball": {
+    "en": { "name": "Master Ball", "description": "The best Ball. It never fails." },
+    "fr": { "name": "Master Ball", "description": "Ball ultime qui ne rate jamais sa cible." },
+    "de": { "name": "Meisterball", "description": "Fängt jedes Pokémon ohne Fehlschlag." },
+    "es": { "name": "Master Ball", "description": "Ball que nunca falla." },
+    "it": { "name": "Master Ball", "description": "Non fallisce mai la cattura." },
+    "jp": { "name": "マスターボール", "description": "必ずポケモンを捕まえられる最高のボール。" },
+    "kr": { "name": "마스터볼", "description": "무조건 포켓몬을 잡는 볼." },
+    "zh": { "name": "大师球", "description": "必定捕捉的宝可梦球。" }
+  },
+  "safari_ball": {
+    "en": { "name": "Safari Ball", "description": "A Ball used only in the Safari Zone." },
+    "fr": { "name": "Safari Ball", "description": "Ball spéciale de la Zone Safari." },
+    "de": { "name": "Safari-Ball", "description": "Nur in der Safari-Zone einsetzbar." },
+    "es": { "name": "Safari Ball", "description": "Solo para la Zona Safari." },
+    "it": { "name": "Safari Ball", "description": "Solo nella Zona Safari." },
+    "jp": { "name": "サファリボール", "description": "サファリゾーンでのみ使えるボール。" },
+    "kr": { "name": "사파리볼", "description": "사파리존에서만 사용가능." },
+    "zh": { "name": "狩猎球", "description": "仅限狩猎区使用的宝可梦球。" }
+  },
+  "potion": {
+    "en": { "name": "Potion", "description": "Restores 20 HP." },
+    "fr": { "name": "Potion", "description": "Rend 20 PV." },
+    "de": { "name": "Trank", "description": "Stellt 20 KP wieder her." },
+    "es": { "name": "Poción", "description": "Restaura 20 PS." },
+    "it": { "name": "Pozione", "description": "Recupera 20 PS." },
+    "jp": { "name": "キズぐすり", "description": "HPを20回復する。" },
+    "kr": { "name": "상처약", "description": "HP를 20 회복한다." },
+    "zh": { "name": "伤药", "description": "回复20点HP。" }
+  },
+  "super_potion": {
+    "en": { "name": "Super Potion", "description": "Restores 50 HP." },
+    "fr": { "name": "Super Potion", "description": "Rend 50 PV." },
+    "de": { "name": "Supertrank", "description": "Stellt 50 KP wieder her." },
+    "es": { "name": "Superpoción", "description": "Restaura 50 PS." },
+    "it": { "name": "Superpozione", "description": "Recupera 50 PS." },
+    "jp": { "name": "いいキズぐすり", "description": "HPを50回復する。" },
+    "kr": { "name": "좋은상처약", "description": "HP를 50 회복한다." },
+    "zh": { "name": "好伤药", "description": "回复50点HP。" }
+  },
+  "hyper_potion": {
+    "en": { "name": "Hyper Potion", "description": "Restores 200 HP." },
+    "fr": { "name": "Hyper Potion", "description": "Rend 200 PV." },
+    "de": { "name": "Hypertrank", "description": "Stellt 200 KP wieder her." },
+    "es": { "name": "Hiperpoción", "description": "Restaura 200 PS." },
+    "it": { "name": "Iperpozione", "description": "Recupera 200 PS." },
+    "jp": { "name": "すごいキズぐすり", "description": "HPを200回復する。" },
+    "kr": { "name": "고급상처약", "description": "HP를 200 회복한다." },
+    "zh": { "name": "高级伤药", "description": "回复200点HP。" }
+  },
+  "max_potion": {
+    "en": { "name": "Max Potion", "description": "Fully restores HP." },
+    "fr": { "name": "Potion Max", "description": "Rend tous les PV." },
+    "de": { "name": "Top-Trank", "description": "Stellt alle KP wieder her." },
+    "es": { "name": "Poción Máxima", "description": "Restaura todos los PS." },
+    "it": { "name": "Pozione Max", "description": "Recupera tutti i PS." },
+    "jp": { "name": "まんたんのくすり", "description": "HPをすべて回復する。" },
+    "kr": { "name": "만병통치약", "description": "HP를 모두 회복한다." },
+    "zh": { "name": "全满药", "description": "回复全部HP。" }
+  },
+  "antidote": {
+    "en": { "name": "Antidote", "description": "Cures poison." },
+    "fr": { "name": "Antidote", "description": "Soigne l'empoisonnement." },
+    "de": { "name": "Gegengift", "description": "Heilt Vergiftung." },
+    "es": { "name": "Antídoto", "description": "Cura el envenenamiento." },
+    "it": { "name": "Antidoto", "description": "Cura l'avvelenamento." },
+    "jp": { "name": "どくけし", "description": "どく状態を回復する。" },
+    "kr": { "name": "독해독제", "description": "독 상태를 치료한다." },
+    "zh": { "name": "解毒药", "description": "治愈中毒状态。" }
+  },
+  "parlyz_heal": {
+    "en": { "name": "Parlyz Heal", "description": "Cures paralysis." },
+    "fr": { "name": "Anti-Para", "description": "Soigne la paralysie." },
+    "de": { "name": "Para-Heiler", "description": "Heilt Paralyse." },
+    "es": { "name": "Antiparaliz", "description": "Cura la parálisis." },
+    "it": { "name": "Antiparalisi", "description": "Cura la paralisi." },
+    "jp": { "name": "まひなおし", "description": "まひ状態を回復する。" },
+    "kr": { "name": "마비치료제", "description": "마비 상태를 치료한다." },
+    "zh": { "name": "解麻药", "description": "治愈麻痹状态。" }
+  },
+  "awakening": {
+    "en": { "name": "Awakening", "description": "Cures sleep." },
+    "fr": { "name": "Réveil", "description": "Soigne le sommeil." },
+    "de": { "name": "Aufwecker", "description": "Weckt schlafende Pokémon." },
+    "es": { "name": "Despertar", "description": "Despierta al Pokémon." },
+    "it": { "name": "Sveglia", "description": "Cura il sonno." },
+    "jp": { "name": "ねむけざまし", "description": "ねむり状態を回復する。" },
+    "kr": { "name": "잠깨움방울", "description": "잠든 상태를 깨운다." },
+    "zh": { "name": "觉醒药", "description": "治愈睡眠状态。" }
+  },
+  "burn_heal": {
+    "en": { "name": "Burn Heal", "description": "Cures burns." },
+    "fr": { "name": "Anti-Brûle", "description": "Soigne les brûlures." },
+    "de": { "name": "Feuerheiler", "description": "Heilt Verbrennungen." },
+    "es": { "name": "Antiquemar", "description": "Cura las quemaduras." },
+    "it": { "name": "Antiscottatura", "description": "Cura le scottature." },
+    "jp": { "name": "やけどなおし", "description": "やけど状態を回復する。" },
+    "kr": { "name": "화상치료제", "description": "화상 상태를 치료한다." },
+    "zh": { "name": "烧伤药", "description": "治愈烧伤状态。" }
+  },
+  "ice_heal": {
+    "en": { "name": "Ice Heal", "description": "Cures freezing." },
+    "fr": { "name": "Antigel", "description": "Soigne le gel." },
+    "de": { "name": "Eisheiler", "description": "Heilt Einfrieren." },
+    "es": { "name": "Antihielo", "description": "Cura el congelamiento." },
+    "it": { "name": "Antigelo", "description": "Cura il congelamento." },
+    "jp": { "name": "こおりなおし", "description": "こおり状態を回復する。" },
+    "kr": { "name": "얼음치료제", "description": "얼음 상태를 치료한다." },
+    "zh": { "name": "解冻药", "description": "治愈冰冻状态。" }
+  },
+  "full_restore": {
+    "en": { "name": "Full Restore", "description": "Fully restores HP and status." },
+    "fr": { "name": "Total Soin", "description": "Soigne tous les PV et toutes les altérations." },
+    "de": { "name": "Top-Genesung", "description": "Stellt KP & Status wieder her." },
+    "es": { "name": "Restaurar Todo", "description": "Restaura PS y estado." },
+    "it": { "name": "Guarigione Totale", "description": "Cura tutto e recupera PS." },
+    "jp": { "name": "かいふくのくすり", "description": "HPと状態異常を全て回復する。" },
+    "kr": { "name": "풀회복약", "description": "HP와 상태이상을 모두 회복한다." },
+    "zh": { "name": "全满药剂", "description": "回复全部HP并治愈异常状态。" }
+  }
+  // ...Tu peux continuer avec tous les objets 1G (Key Items, TMs, etc) selon le même format.
+}
