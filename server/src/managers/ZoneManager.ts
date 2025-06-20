@@ -6,6 +6,7 @@ import { BeachZone } from "../rooms/zones/BeachZone"; // Chemin corrigé
 import { VillageZone } from "../rooms/zones/VillageZone"; // Chemin corrigé
 import { VillageLabZone } from "../rooms/zones/VillageLabZone"; // Chemin corrigé
 import { Villagehouse1 } from "../rooms/zones/Villagehouse1"; // Chemin corrigé
+import { Villageflorist } from "../rooms/zones/Villageflorist"; // Chemin corrigé
 import { Player } from "../schema/PokeWorldState"; // Import du type Player
 export class ZoneManager {
   private zones = new Map<string, IZone>();
@@ -26,6 +27,7 @@ export class ZoneManager {
     this.loadZone('village', new VillageZone(this.room));
     this.loadZone('villagelab', new VillageLabZone(this.room));
     this.loadZone('villagehouse1', new Villagehouse1(this.room));
+    this.loadZone('villageflorist', new Villageflorist(this.room));
     // TODO: Ajouter autres zones
 
     console.log(`✅ ${this.zones.size} zones chargées:`, Array.from(this.zones.keys()));
