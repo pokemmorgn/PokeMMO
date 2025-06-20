@@ -11,7 +11,7 @@ export class InventoryUI {
     this.currentLanguage = 'fr'; // Par défaut français
     
     this.init();
-    this.loadLocalizations();
+   // this.loadLocalizations();
   }
 
   async loadLocalizations() {
