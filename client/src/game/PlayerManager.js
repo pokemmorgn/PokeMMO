@@ -384,22 +384,43 @@ export class PlayerManager {
     this.updatePlayerFromState(player, playerState);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Déterminer si un joueur doit être affiché
-  shouldDisplayPlayer(sessionId, playerState) {
+  // ✅ MÉTHODE CORRIGÉE: Déterminer si un joueur doit être affiché
+shouldDisplayPlayer(sessionId, playerState) {
     // Toujours afficher notre propre joueur
     if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
-      return true;
+        return true;
     }
     
-    // Pour les autres joueurs, vérifier la zone
-    if (playerState.currentZone && this.scene.zoneName) {
-      return playerState.currentZone === this.scene.zoneName;
+    // ✅ FILTRAGE STRICT par zone pour les autres joueurs
+    const myCurrentZone = this.scene.zoneName || this.scene.networkManager?.currentZone;
+    const playerZone = playerState.currentZone;
+    
+    // Debug optionnel (vous pouvez l'enlever après test)
+    if (this.scene.networkManager?.debugMode) {
+        console.log(`🔍 [PlayerManager] Filtrage joueur ${sessionId}:`);
+        console.log(`  - Ma zone: ${myCurrentZone}`);
+        console.log(`  - Zone joueur: ${playerZone}`);
     }
     
-    // Si pas d'info de zone, afficher par défaut
-    return true;
-  }
-
+    // ✅ CORRECTION 1: Si pas d'info de zone du joueur, NE PAS l'afficher
+    if (!playerZone) {
+        return false;
+    }
+    
+    // ✅ CORRECTION 2: Si pas d'info de ma zone, NE PAS afficher les autres
+    if (!myCurrentZone) {
+        return false;
+    }
+    
+    // ✅ CORRECTION 3: Afficher seulement si même zone
+    const sameZone = playerZone === myCurrentZone;
+    
+    if (!sameZone && this.scene.networkManager?.debugMode) {
+        console.log(`❌ [PlayerManager] Joueur ${sessionId} hors zone (${playerZone} ≠ ${myCurrentZone}), masqué`);
+    }
+    
+    return sameZone;
+}
   // ✅ NOUVELLE MÉTHODE: Mise à jour des données du joueur depuis le state
   updatePlayerFromState(player, playerState) {
     // Position cible
