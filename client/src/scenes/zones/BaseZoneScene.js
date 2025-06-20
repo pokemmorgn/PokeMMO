@@ -333,26 +333,34 @@ this.time.delayedCall(300, () => {
 
   // ✅ NOUVELLE MÉTHODE: Setup des handlers WorldRoom
   setupWorldRoomHandlers() {
-    this.networkManager.onZoneData((data) => {
-      console.log(`🗺️ [${this.scene.key}] Zone data reçue:`, data);
-      this.handleZoneData(data);
-    });
+  this.networkManager.onZoneData((data) => {
+    console.log(`🗺️ [${this.scene.key}] Zone data reçue:`, data);
+    this.handleZoneData(data);
+  });
 
-this.networkManager.onNpcList((npcs) => {
-  console.log(`🤖 [${this.scene.key}] NPCs reçus: ${npcs.length}`);
-  
-  // ✅ CORRECTION: Enlever "scene" du nom
-  const sceneZone = this.scene.key.toLowerCase().replace('scene', '');
-  
-  if (this.networkManager.currentZone !== sceneZone) {
-    console.log(`🚫 [${this.scene.key}] NPCs ignorés: zone serveur=${this.networkManager.currentZone} ≠ scène=${sceneZone}`);
-    return;
-  }
-  
-  if (this.npcManager && npcs.length > 0) {
-    this.npcManager.spawnNpcs(npcs);
-  }
-});
+  this.networkManager.onNpcList((npcs) => {
+    console.log(`🤖 [${this.scene.key}] NPCs reçus: ${npcs.length}`);
+    
+    // ✅ FIX 1: Normalisation des noms de zones plus robuste
+    const currentSceneZone = this.normalizeZoneName(this.scene.key);
+    const serverZone = this.networkManager.currentZone;
+    
+    console.log(`🔍 [${this.scene.key}] Comparaison zones: scene="${currentSceneZone}" vs server="${serverZone}"`);
+    
+    // ✅ FIX 2: Accepter les NPCs si on est dans la bonne zone OU si c'est juste après une transition
+    const isCorrectZone = currentSceneZone === serverZone;
+    const isRecentTransition = Date.now() - (this._lastTransitionTime || 0) < 3000; // 3 secondes de grâce
+    
+    if (!isCorrectZone && !isRecentTransition) {
+      console.log(`🚫 [${this.scene.key}] NPCs ignorés: zone serveur=${serverZone} ≠ scène=${currentSceneZone}`);
+      return;
+    }
+    
+    if (this.npcManager && npcs.length > 0) {
+      console.log(`✅ [${this.scene.key}] Spawn de ${npcs.length} NPCs`);
+      this.npcManager.spawnNpcs(npcs);
+    }
+  });
 
     this.networkManager.onTransitionSuccess((result) => {
       console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
@@ -462,22 +470,31 @@ this.networkManager.onNpcList((npcs) => {
 
   // ✅ AMÉLIORATION: Gestion des succès de transition
   handleTransitionSuccess(result) {
-    console.log(`✅ [${this.scene.key}] === TRANSITION RÉUSSIE ===`);
-    console.log(`📍 Destination: ${result.currentZone}`);
-    console.log(`📊 Résultat:`, result);
+  console.log(`✅ [${this.scene.key}] === TRANSITION RÉUSSIE ===`);
+  console.log(`📍 Destination: ${result.currentZone}`);
+  console.log(`📊 Résultat:`, result);
+  
+  // ✅ FIX 3: Marquer le moment de transition pour la grâce des NPCs
+  this._lastTransitionTime = Date.now();
+  
+  const targetScene = this.mapZoneToScene(result.currentZone);
+  
+  if (targetScene === this.scene.key) {
+    console.log(`📍 [${this.scene.key}] Repositionnement dans la même scène`);
+    this.repositionPlayerAfterTransition(result);
     
-    const targetScene = this.mapZoneToScene(result.currentZone);
-    
-    if (targetScene === this.scene.key) {
-      // Même scène, juste repositionner
-      console.log(`📍 [${this.scene.key}] Repositionnement dans la même scène`);
-      this.repositionPlayerAfterTransition(result);
-    } else {
-      // Changement de scène
-      console.log(`🚀 [${this.scene.key}] Changement vers: ${targetScene}`);
-      this.performSceneTransition(targetScene, result);
-    }
+    // ✅ FIX 4: Forcer le rechargement des NPCs après repositionnement
+    this.time.delayedCall(500, () => {
+      if (this.networkManager?.lastReceivedNpcs) {
+        console.log(`🔄 [${this.scene.key}] Rechargement forcé des NPCs`);
+        this.npcManager?.spawnNpcs(this.networkManager.lastReceivedNpcs);
+      }
+    });
+  } else {
+    console.log(`🚀 [${this.scene.key}] Changement vers: ${targetScene}`);
+    this.performSceneTransition(targetScene, result);
   }
+}
 
   // ✅ NOUVELLE MÉTHODE: Repositionnement du joueur
   repositionPlayerAfterTransition(result) {
@@ -791,6 +808,16 @@ this.networkManager.onNpcList((npcs) => {
 
   // === MÉTHODES EXISTANTES CONSERVÉES ===
 
+  normalizeZoneName(sceneName) {
+  const mapping = {
+    'BeachScene': 'beach',
+    'VillageScene': 'village', 
+    'VillageLabScene': 'villagelab',
+    'Road1Scene': 'road1',
+    'VillageHouse1Scene': 'villagehouse1',
+    'LavandiaScene': 'lavandia'
+  };
+    
   // Mapping scene → zone
   mapSceneToZone(sceneName) {
     const mapping = {
