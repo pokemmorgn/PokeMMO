@@ -592,13 +592,13 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
   handleRegularNpcInteraction(data) {
     // Gestion des interactions NPC normales (dialogue, shop, heal)
     switch (data.type) {
-      case 'dialogue':
-        if (data.lines && data.lines.length > 0) {
-          this.showDialogue(data.lines);
-        } else if (data.message) {
-          this.showDialogue([data.message]);
-        }
-        break;
+case 'dialogue':
+  if (data.lines && data.lines.length > 0) {
+    this.showDialogue(data.lines, data.npcName); // ✅ Passer le nom
+  } else if (data.message) {
+    this.showDialogue([data.message], data.npcName); // ✅ Passer le nom
+  }
+  break;
         
       case 'shop':
         console.log("🛒 Ouverture boutique:", data.shopId);
@@ -617,15 +617,15 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
     }
   }
 
-  showDialogue(lines) {
-    if (typeof window.showNpcDialogue === 'function') {
-      window.showNpcDialogue({
-        portrait: null,
-        name: 'NPC',
-        lines: lines
-      });
-    }
+showDialogue(lines, npcName = null, portrait = null) {
+  if (typeof window.showNpcDialogue === 'function') {
+    window.showNpcDialogue({
+      portrait: portrait,
+      name: npcName || 'NPC', // ✅ Utilise le nom passé en paramètre
+      lines: lines
+    });
   }
+}
 
   startQuest(questId) {
     if (this.gameRoom) {
