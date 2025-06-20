@@ -7,16 +7,18 @@ export interface IInventoryItem {
 
 export interface IInventory extends Document {
   username: string;
-  items: IInventoryItem[];         // Objets généraux/utilitaires/PP+, Repousse, Corde Sortie, etc.
-  medicine: IInventoryItem[];      // Soins purs (Potions, Rappel, etc.)
-  balls: IInventoryItem[];         // Poké Balls
-  berries: IInventoryItem[];       // Baies
-  key_items: IInventoryItem[];     // Objets clés/scénario (Vélo, Flûte, Fossile…)
-  tms: IInventoryItem[];           // CT/CS
-  battle_items: IInventoryItem[];  // X Attaque, X Défense, Poudre Soin, etc.
-  valuables: IInventoryItem[];     // Objets à vendre (Pépite, Perle…)
-  held_items: IInventoryItem[];    // Objets à tenir (Scope Lens, Restes…)
+  items: IInventoryItem[];
+  medicine: IInventoryItem[];
+  balls: IInventoryItem[];
+  berries: IInventoryItem[];
+  key_items: IInventoryItem[];
+  tms: IInventoryItem[];
+  battle_items: IInventoryItem[];
+  valuables: IInventoryItem[];
+  held_items: IInventoryItem[];
+  [pocket: string]: any;
 }
+
 
 const InventoryItemSchema = new Schema<IInventoryItem>({
   itemId: { type: String, required: true },
