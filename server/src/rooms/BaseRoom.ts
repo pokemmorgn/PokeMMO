@@ -1,4 +1,5 @@
-// server/src/rooms/BaseRoom.ts - VERSION SIMPLIFIÉE
+// server/src/rooms/BaseRoom.ts - VERSION CORRIGÉE POUR LES TRANSITIONS
+
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { PlayerData } from "../models/PlayerData";
@@ -20,7 +21,7 @@ export type SpawnData = {
   fromZone?: string;
 };
 
-// ✅ NOUVEAU : Interface pour les demandes de transition
+// Interface pour les demandes de transition
 interface TransitionRequest {
   targetZone: string;
   targetRoom: string;
@@ -59,8 +60,9 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
 
     // === HANDLERS DE MESSAGES ===
 
-    // ✅ NOUVEAU : Handler pour les demandes de transition
+    // ✅ CORRIGÉ : Handler pour les demandes de transition
     this.onMessage("requestTransition", (client: Client, data: TransitionRequest) => {
+      console.log(`🌀 [${this.mapName}] Demande de transition reçue:`, data);
       this.handleTransitionRequest(client, data);
     });
 
@@ -256,20 +258,29 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE : Gérer les demandes de transition (validation simple)
+  // ✅ CORRIGÉE : Méthode pour gérer les demandes de transition
   private handleTransitionRequest(client: Client, request: TransitionRequest) {
     const player = this.state.players.get(client.sessionId);
     if (!player) {
+      console.warn(`❌ [${this.mapName}] Player not found pour transition`);
       client.send("transitionDenied", { reason: "Player not found" });
       return;
     }
 
-    console.log(`🌀 [${this.mapName}] Demande de transition de ${player.name}:`, request);
+    console.log(`🌀 [${this.mapName}] Validation transition de ${player.name}:`, {
+      from: this.mapName,
+      to: request.targetZone,
+      targetRoom: request.targetRoom
+    });
 
     // === VALIDATION 1 : Destination valide ===
     const validDestinations = this.getValidDestinations();
+    console.log(`🔍 [${this.mapName}] Destinations valides:`, validDestinations);
+    console.log(`🎯 [${this.mapName}] Destination demandée:`, request.targetZone);
+    
     if (!validDestinations.includes(request.targetZone)) {
-      console.warn(`❌ Destination invalide: ${request.targetZone}`);
+      console.warn(`❌ [${this.mapName}] Destination invalide: ${request.targetZone}`);
+      console.warn(`📋 [${this.mapName}] Destinations autorisées depuis ${this.mapName}:`, validDestinations);
       client.send("transitionDenied", { reason: "Invalid destination" });
       return;
     }
@@ -278,13 +289,14 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     const now = Date.now();
     const lastTransition = (player as any).lastTransitionTime || 0;
     if (now - lastTransition < 1000) { // Cooldown 1 seconde
-      console.warn(`❌ Transition trop rapide pour ${player.name}`);
+      console.warn(`❌ [${this.mapName}] Transition trop rapide pour ${player.name}`);
       client.send("transitionDenied", { reason: "Transition cooldown" });
       return;
     }
 
     // === VALIDATION 3 : État du joueur ===
     if ((player as any).isInBattle) {
+      console.warn(`❌ [${this.mapName}] ${player.name} en combat, transition refusée`);
       client.send("transitionDenied", { reason: "Cannot transition during battle" });
       return;
     }
@@ -292,7 +304,9 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     // === VALIDATION 4 : Proximité (simple) ===
     const nearTransition = this.isPlayerNearTransition(player.x, player.y);
     if (!nearTransition) {
-      console.warn(`❌ ${player.name} pas près d'une zone de transition`);
+      console.warn(`❌ [${this.mapName}] ${player.name} pas près d'une zone de transition (${player.x}, ${player.y})`);
+      const zones = this.getTransitionZonesForMap();
+      console.warn(`📍 [${this.mapName}] Zones de transition disponibles:`, zones);
       client.send("transitionDenied", { reason: "Not near transition zone" });
       return;
     }
@@ -310,10 +324,11 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     this.updatePlayerLocation(player.name, request);
   }
 
-  // ✅ Définir les destinations valides pour chaque zone
+  // ✅ CORRIGÉE : Définir les destinations valides pour chaque zone
   private getValidDestinations(): string[] {
-    // Mapping simple basé sur le nom de la room
+    // ✅ IMPORTANT : Utiliser les noms de SCÈNES côté client, pas les noms de rooms
     const connections: Record<string, string[]> = {
+      // ✅ CORRIGÉ : Mapping avec les vrais noms de scènes
       'BeachRoom': ['VillageScene'],
       'VillageRoom': ['BeachScene', 'VillageLabScene', 'Road1Scene', 'VillageHouse1Scene'],
       'VillageLabRoom': ['VillageScene'],
@@ -322,24 +337,35 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
       'LavandiaRoom': ['Road1Scene']
     };
     
-    return connections[this.mapName] || [];
+    const validDestinations = connections[this.mapName] || [];
+    console.log(`🗺️ [${this.mapName}] Destinations configurées:`, validDestinations);
+    return validDestinations;
   }
 
-  // ✅ Vérification de proximité simple (remplace le MapManager complexe)
+  // ✅ CORRIGÉE : Vérification de proximité avec logs de debug
   private isPlayerNearTransition(playerX: number, playerY: number): boolean {
-    // Zones de transition connues pour chaque map (positions approximatives)
     const transitionZones = this.getTransitionZonesForMap();
+    console.log(`🔍 [${this.mapName}] Vérification proximité joueur (${playerX}, ${playerY})`);
+    console.log(`📍 [${this.mapName}] Zones de transition:`, transitionZones);
     
-    return transitionZones.some(zone => {
+    for (const zone of transitionZones) {
       const distance = Math.sqrt(
         Math.pow(playerX - zone.x, 2) + 
         Math.pow(playerY - zone.y, 2)
       );
-      return distance <= zone.radius;
-    });
+      console.log(`📏 [${this.mapName}] Distance vers zone (${zone.x}, ${zone.y}): ${distance.toFixed(2)}px (rayon: ${zone.radius}px)`);
+      
+      if (distance <= zone.radius) {
+        console.log(`✅ [${this.mapName}] Joueur dans zone de transition!`);
+        return true;
+      }
+    }
+    
+    console.log(`❌ [${this.mapName}] Joueur pas dans une zone de transition`);
+    return false;
   }
 
-  // ✅ Définition simple des zones de transition (remplace MapManager)
+  // ✅ AMÉLIORÉE : Définition des zones de transition avec plus de zones
   private getTransitionZonesForMap(): Array<{x: number, y: number, radius: number}> {
     const zones: Record<string, Array<{x: number, y: number, radius: number}>> = {
       'BeachRoom': [
@@ -369,10 +395,28 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
     return zones[this.mapName] || [];
   }
 
-  // ✅ Sauvegarde de la position (simplifié)
+  // ✅ CORRIGÉE : Sauvegarde de la position avec validation
   private async updatePlayerLocation(playerName: string, request: TransitionRequest) {
     try {
-      const targetMapName = request.targetZone.replace('Scene', '');
+      // ✅ CORRIGÉ : Mapping des noms de scènes vers les noms de maps pour la DB
+      const sceneToMapName: Record<string, string> = {
+        'BeachScene': 'Beach',
+        'VillageScene': 'Village',
+        'VillageLabScene': 'VillageLab',
+        'VillageHouse1Scene': 'VillageHouse1',
+        'Road1Scene': 'Road1',
+        'LavandiaScene': 'Lavandia'
+      };
+      
+      const targetMapName = sceneToMapName[request.targetZone] || request.targetZone.replace('Scene', '');
+      
+      console.log(`💾 [${this.mapName}] Sauvegarde position pour ${playerName}:`, {
+        targetZone: request.targetZone,
+        targetMapName: targetMapName,
+        targetX: request.targetX,
+        targetY: request.targetY
+      });
+      
       await PlayerData.updateOne(
         { username: playerName },
         { 
@@ -383,9 +427,10 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
           } 
         }
       );
-      console.log(`💾 Position sauvegardée pour ${playerName}: ${targetMapName}`);
+      
+      console.log(`✅ [${this.mapName}] Position sauvegardée pour ${playerName}: ${targetMapName} (${request.targetX || this.defaultX}, ${request.targetY || this.defaultY})`);
     } catch (error) {
-      console.error('❌ Erreur sauvegarde position:', error);
+      console.error(`❌ [${this.mapName}] Erreur sauvegarde position:`, error);
     }
   }
 
