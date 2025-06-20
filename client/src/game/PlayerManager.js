@@ -271,9 +271,7 @@ export class PlayerManager {
     console.log("[PlayerManager] ✅ Indicateur local créé pour", player.sessionId);
   }
 
-// client/src/game/PlayerManager.js - CORRECTION COMPLÈTE DES MÉTHODES
-
-updatePlayers(state) {
+  updatePlayers(state) {
     if (this.isDestroyed || !state || !state.players) {
       return;
     }
@@ -290,35 +288,15 @@ updatePlayers(state) {
       // On continue quand même pour permettre l'apparition du joueur
     }
 
-    // ✅ CORRECTION CRITIQUE: Gérer différents formats de state.players
-    let playersMap;
-    
-    if (state.players instanceof Map) {
-        // Cas 1: C'est déjà un Map (état normal de Colyseus)
-        playersMap = state.players;
-        console.log(`[PlayerManager] State reçu avec Map: ${playersMap.size} joueurs`);
-    } else if (Array.isArray(state.players)) {
-        // Cas 2: C'est un Array de [key, value] (filtered state format 2)
-        playersMap = new Map(state.players);
-        console.log(`[PlayerManager] State reçu avec Array, converti en Map: ${playersMap.size} joueurs`);
-    } else if (typeof state.players === 'object' && state.players !== null) {
-        // Cas 3: C'est un Object (filtered state format 1)
-        playersMap = new Map(Object.entries(state.players));
-        console.log(`[PlayerManager] State reçu avec Object, converti en Map: ${playersMap.size} joueurs`);
-    } else {
-        console.error("[PlayerManager] Format de state.players non reconnu:", typeof state.players, state.players);
-        return;
-    }
-
     // ✅ AMÉLIORATION 5: Synchronisation sessionId améliorée
     this.synchronizeSessionId();
     
     this._lastStateUpdate = Date.now();
-    this.performUpdate(playersMap); // ✅ Passer le Map au lieu du state complet
-}
+    this.performUpdate(state);
+  }
 
-// ✅ NOUVELLE MÉTHODE: Synchronisation intelligente du sessionId
-synchronizeSessionId() {
+  // ✅ NOUVELLE MÉTHODE: Synchronisation intelligente du sessionId
+  synchronizeSessionId() {
     if (!this.scene.networkManager) return;
     
     const currentNetworkSessionId = this.scene.networkManager.getSessionId();
@@ -345,22 +323,15 @@ synchronizeSessionId() {
         this.setMySessionId(currentNetworkSessionId);
       }
     }
-}
+  }
 
-// ✅ CORRECTION CRITIQUE: performUpdate qui accepte un Map
-performUpdate(playersMap) {
+  performUpdate(state) {
     if (this.isDestroyed || !this.scene?.scene?.isActive()) {
       return;
     }
 
-    // ✅ VÉRIFICATION: S'assurer qu'on a bien un Map
-    if (!(playersMap instanceof Map)) {
-        console.error("[PlayerManager] performUpdate: playersMap n'est pas un Map!", typeof playersMap, playersMap);
-        return;
-    }
-
     // Supprimer les joueurs déconnectés
-    const currentSessionIds = new Set(playersMap.keys()); // ✅ Maintenant c'est sûr d'appeler .keys()
+    const currentSessionIds = new Set(state.players.keys());
     const playersToRemove = Array.from(this.players.keys()).filter(sessionId => 
       !currentSessionIds.has(sessionId)
     );
@@ -371,102 +342,48 @@ performUpdate(playersMap) {
     });
 
     // Mettre à jour ou créer les joueurs
-    playersMap.forEach((playerState, sessionId) => { // ✅ Maintenant c'est sûr d'appeler .forEach()
+    state.players.forEach((playerState, sessionId) => {
       this.updateOrCreatePlayer(sessionId, playerState);
     });
 
     // ✅ AMÉLIORATION 6: Notification joueur local prêt avec vérifications multiples
     this.checkMyPlayerReady();
-}
+  }
 
-// ✅ NOUVELLE MÉTHODE: Debug du format reçu (pour diagnostic)
-debugPlayersFormat(players, context = "unknown") {
-    console.log(`%c[PlayerManager] 🔍 DEBUG ${context}:`, "color:orange; font-weight:bold");
-    console.log("- players:", typeof players, players);
-    console.log("- est Map:", players instanceof Map);
-    console.log("- est Array:", Array.isArray(players));
-    console.log("- est Object:", typeof players === 'object' && players !== null);
+  // ✅ NOUVELLE MÉTHODE: Mise à jour ou création de joueur
+  updateOrCreatePlayer(sessionId, playerState) {
+    // ✅ FILTRE PAR ZONE AMÉLIORÉ
+    const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
     
-    if (players instanceof Map) {
-        console.log("- Map.size:", players.size);
-        console.log("- Map.keys():", Array.from(players.keys()));
-    } else if (Array.isArray(players)) {
-        console.log("- Array.length:", players.length);
-        console.log("- Array[0]:", players[0]);
-    } else if (typeof players === 'object' && players !== null) {
-        console.log("- Object.keys():", Object.keys(players));
-        console.log("- Premier joueur:", Object.values(players)[0]);
-    }
-    console.log("================================");
-}
-
-// ✅ MÉTHODE DE RÉCUPÉRATION: Si le format est toujours incorrect
-handleCorruptedState(state) {
-    console.error("[PlayerManager] 🚨 État corrompu détecté, tentative de récupération...");
+    let player = this.players.get(sessionId);
     
-    // Debug approfondi
-    this.debugPlayersFormat(state.players, "CORRUPTED_STATE");
-    
-    // Tentative de nettoyage et resynchronisation
-    try {
-        // Forcer une resynchronisation complète
-        this.forceResynchronization();
-        
-        // Demander un nouvel état au serveur si possible
-        if (this.scene.networkManager && this.scene.networkManager.room) {
-            console.log("[PlayerManager] 🔄 Demande de resynchronisation serveur...");
-            // Le serveur devrait renvoyer un état propre
-        }
-        
-    } catch (error) {
-        console.error("[PlayerManager] ❌ Erreur lors de la récupération:", error);
+    if (!shouldShowPlayer) {
+      // Si le joueur ne devrait pas être affiché et qu'il existe, le cacher ou le supprimer
+      if (player && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
+        console.log(`[PlayerManager] 👻 Masquage joueur hors zone: ${sessionId}`);
+        this.removePlayer(sessionId);
+      }
+      return;
     }
-}
 
-// ✅ AMÉLIORATION: updateOrCreatePlayer avec gestion d'erreurs
-updateOrCreatePlayer(sessionId, playerState) {
-    try {
-        // ✅ FILTRE PAR ZONE AMÉLIORÉ
-        const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
-        
-        let player = this.players.get(sessionId);
-        
-        if (!shouldShowPlayer) {
-            // Si le joueur ne devrait pas être affiché et qu'il existe, le cacher ou le supprimer
-            if (player && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
-                console.log(`[PlayerManager] 👻 Masquage joueur hors zone: ${sessionId}`);
-                this.removePlayer(sessionId);
-            }
-            return;
-        }
-
-        if (!player) {
-            // Créer le joueur s'il n'existe pas
-            player = this.createPlayer(sessionId, playerState.x, playerState.y);
-            if (!player) return;
-        } else {
-            // Vérifier que le joueur est toujours valide
-            if (!player.scene || player.scene !== this.scene) {
-                console.warn(`[PlayerManager] 🔧 Recréation joueur invalide: ${sessionId}`);
-                this.players.delete(sessionId);
-                player = this.createPlayer(sessionId, playerState.x, playerState.y);
-                if (!player) return;
-            }
-        }
-
-        // Mettre à jour les données du joueur
-        this.updatePlayerFromState(player, playerState);
-        
-    } catch (error) {
-        console.error(`[PlayerManager] ❌ Erreur updateOrCreatePlayer pour ${sessionId}:`, error);
-        console.error("PlayerState:", playerState);
-        
-        // Tenter de nettoyer le joueur problématique
-        if (this.players.has(sessionId)) {
-            this.removePlayer(sessionId);
-        }
+    if (!player) {
+      // Créer le joueur s'il n'existe pas
+      player = this.createPlayer(sessionId, playerState.x, playerState.y);
+      if (!player) return;
+    } else {
+      // Vérifier que le joueur est toujours valide
+      if (!player.scene || player.scene !== this.scene) {
+        console.warn(`[PlayerManager] 🔧 Recréation joueur invalide: ${sessionId}`);
+        this.players.delete(sessionId);
+        player = this.createPlayer(sessionId, playerState.x, playerState.y);
+        if (!player) return;
+      }
     }
-}
+
+    // Mettre à jour les données du joueur
+    this.updatePlayerFromState(player, playerState);
+  }
+
   // ✅ NOUVELLE MÉTHODE: Déterminer si un joueur doit être affiché
   shouldDisplayPlayer(sessionId, playerState) {
     // Toujours afficher notre propre joueur
