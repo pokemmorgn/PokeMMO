@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>PokeWorld - Multiplayer Game</title>
   <link rel="stylesheet" href="/chat.css">
+  <link rel="stylesheet" href="/inventory.css">
   <style>
     body {
       background-color: black;
@@ -92,6 +93,31 @@
       line-height: 1.5;
     }
 
+    /* Ajustements pour l'intégration avec le système d'inventaire */
+    .inventory-overlay {
+      z-index: 1000;
+    }
+
+    .quest-dialog-overlay {
+      z-index: 1050;
+    }
+
+    .inventory-notification {
+      top: 80px !important;
+      right: 20px !important;
+    }
+
+    /* Animation au survol de l'icône d'inventaire */
+    .inventory-icon:hover {
+      filter: brightness(1.2);
+    }
+
+    /* Indicateur visuel quand l'inventaire est ouvert */
+    .inventory-icon.inventory-open .icon-background {
+      border-color: #87ceeb !important;
+      box-shadow: 0 0 20px rgba(135, 206, 235, 0.6) !important;
+    }
+
     /* Responsive design pour dialogue uniquement */
     @media (max-width: 768px) {
       #dialogue-box {
@@ -99,6 +125,18 @@
         left: 20px;
         right: 20px;
         transform: none;
+      }
+
+      /* Responsive pour l'icône d'inventaire sur mobile */
+      .inventory-icon {
+        bottom: 340px !important;
+        right: 15px !important;
+      }
+      
+      /* Si le chat est visible, déplacer l'icône */
+      #chat-window:not(.hidden) ~ .inventory-icon {
+        bottom: 15px !important;
+        right: 80px !important;
       }
     }
   </style>
@@ -234,6 +272,132 @@
     }
   });
 </script>
+
+  <!-- Script d'inventaire -->
+  <script src="/inventory.js"></script>
+
+  <!-- Script d'initialisation de l'inventaire -->
+  <script>
+    // Initialisation du système d'inventaire
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('🎒 Initialisation du système d\'inventaire...');
+      
+      // Attendre que le gameRoom soit disponible
+      function waitForGameRoom() {
+        if (window.gameRoom) {
+          // Initialiser l'inventaire
+          initializeInventory(window.gameRoom);
+          
+          // Ajouter les raccourcis clavier globaux
+          setupGlobalInventoryShortcuts();
+          
+          console.log('✅ Système d\'inventaire prêt !');
+        } else {
+          // Réessayer dans 100ms
+          setTimeout(waitForGameRoom, 100);
+        }
+      }
+      
+      waitForGameRoom();
+    });
+
+    // Raccourcis clavier globaux pour l'inventaire
+    function setupGlobalInventoryShortcuts() {
+      document.addEventListener('keydown', function(e) {
+        // Vérifier que le joueur peut interagir
+        if (!window.inventorySystem || !window.inventorySystem.canPlayerInteract()) {
+          return;
+        }
+        
+        switch(e.key.toLowerCase()) {
+          case 'i':
+            e.preventDefault();
+            window.inventorySystem.toggle();
+            break;
+          case 'b':
+            e.preventDefault();
+            window.inventorySystem.openToPocket('balls');
+            break;
+          case 'm':
+            e.preventDefault();
+            window.inventorySystem.openToPocket('medicine');
+            break;
+        }
+      });
+      
+      console.log('⌨️ Raccourcis clavier d\'inventaire configurés:');
+      console.log('   I = Ouvrir/Fermer le sac');
+      console.log('   B = Ouvrir directement les Poké Balls');
+      console.log('   M = Ouvrir directement les soins');
+    }
+
+    // Observer les changements d'état de l'inventaire pour mettre à jour l'icône
+    function setupInventoryStateObserver() {
+      const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.target.id === 'inventory-overlay') {
+            const isHidden = mutation.target.classList.contains('hidden');
+            const icon = document.querySelector('#inventory-icon');
+            
+            if (icon) {
+              icon.classList.toggle('inventory-open', !isHidden);
+            }
+          }
+        });
+      });
+
+      // Observer les changements de classe sur l'overlay d'inventaire
+      const checkForOverlay = setInterval(() => {
+        const overlay = document.querySelector('#inventory-overlay');
+        if (overlay) {
+          observer.observe(overlay, {
+            attributes: true,
+            attributeFilter: ['class']
+          });
+          clearInterval(checkForOverlay);
+        }
+      }, 100);
+    }
+
+    // Démarrer l'observer quand le DOM est prêt
+    document.addEventListener('DOMContentLoaded', setupInventoryStateObserver);
+
+    // Fonction utilitaire pour tester l'inventaire (développement)
+    window.testInventory = function() {
+      console.log('🧪 Test du système d\'inventaire...');
+      
+      if (window.inventorySystem) {
+        // Ouvrir l'inventaire
+        window.inventorySystem.show();
+        
+        // Simuler l'ajout d'objets (nécessite la communication serveur)
+        if (window.gameRoom) {
+          console.log('📤 Envoi de requête de test au serveur...');
+          // Le serveur doit gérer ce message pour les tests
+          window.gameRoom.send("testAddItem", { 
+            itemId: "poke_ball", 
+            quantity: 5 
+          });
+        }
+      } else {
+        console.warn('⚠️ Système d\'inventaire non initialisé');
+      }
+    };
+
+    // Fonction pour vérifier l'état de l'inventaire
+    window.inventoryStatus = function() {
+      if (window.inventorySystem) {
+        console.log('🎒 État du système d\'inventaire:');
+        console.log('   - Ouvert:', window.inventorySystem.isOpen());
+        console.log('   - Peut interagir:', window.inventorySystem.canPlayerInteract());
+        console.log('   - Poche actuelle:', window.inventorySystem.inventoryUI?.currentPocket);
+        console.log('   - Données:', window.inventorySystem.inventoryUI?.inventoryData);
+      } else {
+        console.log('❌ Système d\'inventaire non disponible');
+      }
+    };
+  </script>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
