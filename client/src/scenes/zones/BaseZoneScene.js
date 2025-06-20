@@ -214,6 +214,49 @@ this.time.delayedCall(300, () => {
     }
   }
 
+    // ✅ NOUVELLE MÉTHODE: Initialisation du système d'inventaire
+  initializeInventorySystem() {
+    if (this.inventoryInitialized || !this.networkManager?.room) {
+      console.log(`⚠️ [${this.scene.key}] Inventaire déjà initialisé ou pas de room`);
+      return;
+    }
+
+    try {
+      console.log(`🎒 [${this.scene.key}] Initialisation du système d'inventaire...`);
+      
+      // ✅ Créer le système d'inventaire avec la room du NetworkManager
+      this.inventorySystem = new InventorySystem(this, this.networkManager.room);
+      
+      // ✅ Configurer la langue en anglais
+      if (this.inventorySystem.inventoryUI) {
+        this.inventorySystem.inventoryUI.currentLanguage = 'en';
+      }
+      
+      // ✅ Rendre accessible globalement
+      window.inventorySystem = this.inventorySystem;
+      window.inventorySystemGlobal = this.inventorySystem;
+      
+      // ✅ Setup des événements d'inventaire spécifiques à la scène
+      this.setupInventoryEventHandlers();
+      
+      // ✅ Connecter l'inventaire standalone au serveur (rétrocompatibilité)
+      if (typeof window.connectInventoryToServer === 'function') {
+        window.connectInventoryToServer(this.networkManager.room);
+      }
+      
+      this.inventoryInitialized = true;
+      console.log(`✅ [${this.scene.key}] Système d'inventaire initialisé`);
+      
+      // ✅ Test automatique après initialisation
+      this.time.delayedCall(2000, () => {
+        this.testInventoryConnection();
+      });
+      
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
+    }
+  }
+  
   // ✅ NOUVELLE MÉTHODE: Préparer les données de connexion
   async prepareConnectionData() {
     const getWalletFromUrl = () => {
