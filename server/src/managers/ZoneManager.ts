@@ -11,6 +11,7 @@ import { Player } from "../schema/PokeWorldState";
 
 // ✅ AJOUT DES IMPORTS POUR LES INTERACTIONS
 import { QuestManager } from "./QuestManager";
+import { QuestProgressEvent } from "../types/QuestTypes";
 
 export class ZoneManager {
   private zones = new Map<string, IZone>();
@@ -340,8 +341,10 @@ export class ZoneManager {
     }
   }
 
-  // ✅ GESTION DES QUÊTES
-  async handleQuestStart(client: Client, questId: string) {
+  // ✅ === MÉTHODES DE DÉLÉGATION AU QUEST MANAGER ===
+  // Ces méthodes sont des proxies vers le QuestManager
+
+  async handleQuestStart(client: Client, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
     console.log(`🎯 === QUEST START HANDLER ===`);
     console.log(`👤 Client: ${client.sessionId}`);
     console.log(`📜 Quest ID: ${questId}`);
@@ -349,23 +352,16 @@ export class ZoneManager {
     const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) {
       console.error(`❌ Player not found: ${client.sessionId}`);
-      client.send("questStartResult", {
+      return {
         success: false,
         message: "Joueur non trouvé"
-      });
-      return;
+      };
     }
 
     try {
       const quest = await this.questManager.startQuest(player.name, questId);
       
       if (quest) {
-        client.send("questStartResult", {
-          success: true,
-          quest: quest,
-          message: `Quête "${quest.name}" démarrée !`
-        });
-        
         // ✅ NOUVEAU: Mettre à jour les indicateurs de quête après démarrage
         await this.sendQuestStatusesForZone(client, player.currentZone);
         
@@ -377,19 +373,98 @@ export class ZoneManager {
         });
         
         console.log(`✅ Quête ${questId} démarrée pour ${player.name}`);
+        
+        return {
+          success: true,
+          quest: quest,
+          message: `Quête "${quest.name}" démarrée !`
+        };
       } else {
-        client.send("questStartResult", {
+        return {
           success: false,
           message: "Impossible de démarrer cette quête"
-        });
+        };
       }
       
     } catch (error) {
       console.error(`❌ Erreur démarrage quête ${questId}:`, error);
-      client.send("questStartResult", {
+      return {
         success: false,
         message: "Erreur lors du démarrage de la quête"
-      });
+      };
+    }
+  }
+
+  // ✅ DÉLÉGATION: Récupérer les quêtes actives
+  async getActiveQuests(username: string): Promise<any[]> {
+    try {
+      return await this.questManager.getActiveQuests(username);
+    } catch (error) {
+      console.error(`❌ Erreur getActiveQuests:`, error);
+      return [];
+    }
+  }
+
+  // ✅ DÉLÉGATION: Récupérer les quêtes disponibles
+  async getAvailableQuests(username: string): Promise<any[]> {
+    try {
+      return await this.questManager.getAvailableQuests(username);
+    } catch (error) {
+      console.error(`❌ Erreur getAvailableQuests:`, error);
+      return [];
+    }
+  }
+
+  // ✅ DÉLÉGATION: Mettre à jour la progression des quêtes
+  async updateQuestProgress(username: string, event: QuestProgressEvent): Promise<any[]> {
+    try {
+      return await this.questManager.updateQuestProgress(username, event);
+    } catch (error) {
+      console.error(`❌ Erreur updateQuestProgress:`, error);
+      return [];
+    }
+  }
+
+  // ✅ DÉLÉGATION: Récupérer les statuts de quête pour un joueur
+  async getQuestStatuses(username: string): Promise<any[]> {
+    try {
+      const availableQuests = await this.questManager.getAvailableQuests(username);
+      const activeQuests = await this.questManager.getActiveQuests(username);
+      
+      const questStatuses: any[] = [];
+      
+      // Statuts pour les quêtes disponibles
+      for (const quest of availableQuests) {
+        if (quest.startNpcId) {
+          questStatuses.push({
+            npcId: quest.startNpcId,
+            type: 'questAvailable'
+          });
+        }
+      }
+      
+      // Statuts pour les quêtes actives
+      for (const quest of activeQuests) {
+        // Quête prête à être rendue
+        if (quest.currentStepIndex >= quest.steps.length && quest.endNpcId) {
+          questStatuses.push({
+            npcId: quest.endNpcId,
+            type: 'questReadyToComplete'
+          });
+        }
+        // Quête en cours avec des objectifs
+        else if (quest.endNpcId) {
+          questStatuses.push({
+            npcId: quest.endNpcId,
+            type: 'questInProgress'
+          });
+        }
+      }
+      
+      return questStatuses;
+    } catch (error) {
+      console.error(`❌ Erreur getQuestStatuses:`, error);
+      return [];
     }
   }
 
