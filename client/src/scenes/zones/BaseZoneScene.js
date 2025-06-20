@@ -107,32 +107,40 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Utiliser un NetworkManager existant
-  useExistingNetworkManager(networkManager, sceneData = null) {
-    this.networkManager = networkManager;
-    this.mySessionId = networkManager.getSessionId();
+ // ✅ NOUVELLE MÉTHODE: Utiliser un NetworkManager existant
+useExistingNetworkManager(networkManager, sceneData = null) {
+  this.networkManager = networkManager;
+  this.mySessionId = networkManager.getSessionId();
+  
+  console.log(`📡 [${this.scene.key}] SessionId récupéré: ${this.mySessionId}`);
+  
+  // ✅ CORRECTION CRITIQUE: Synchroniser le PlayerManager IMMÉDIATEMENT
+  if (this.playerManager) {
+    console.log(`🔄 [${this.scene.key}] Synchronisation PlayerManager...`);
+    this.playerManager.setMySessionId(this.mySessionId);
     
-    console.log(`📡 [${this.scene.key}] SessionId récupéré: ${this.mySessionId}`);
-    
-    // ✅ CORRECTION CRITIQUE: Synchroniser le PlayerManager IMMÉDIATEMENT
-    if (this.playerManager) {
-      console.log(`🔄 [${this.scene.key}] Synchronisation PlayerManager...`);
-      this.playerManager.setMySessionId(this.mySessionId);
-      
-      // ✅ NOUVEAU: Forcer une resynchronisation si nécessaire
-      if (sceneData?.fromTransition) {
-        this.time.delayedCall(100, () => {
-          this.playerManager.forceResynchronization();
-        });
-      }
+    // ✅ NOUVEAU: Forcer une resynchronisation si nécessaire
+    if (sceneData?.fromTransition) {
+      this.time.delayedCall(100, () => {
+        this.playerManager.forceResynchronization();
+      });
     }
-    
-    this.setupNetworkHandlers();
-    this.networkSetupComplete = true;
-    
-    // ✅ NOUVEAU: Vérifier immédiatement l'état du réseau
-    this.verifyNetworkState();
   }
+  
+  this.setupNetworkHandlers();
+  this.networkSetupComplete = true;
+  
+  // ✅ NOUVEAU: Vérifier immédiatement l'état du réseau
+  this.verifyNetworkState();
+  
+  // ✅ AJOUT: Correction de la désynchronisation de zone
+  this.time.delayedCall(200, () => {
+    if (!this.networkManager.checkZoneSynchronization(this.scene.key)) {
+      console.log(`🔄 [${this.scene.key}] Correction désynchronisation détectée`);
+      this.networkManager.forceZoneSynchronization(this.scene.key);
+    }
+  });
+}
 
   // ✅ NOUVELLE MÉTHODE: Chercher un NetworkManager existant
   findExistingNetworkManager() {
