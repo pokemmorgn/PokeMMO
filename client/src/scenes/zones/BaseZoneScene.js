@@ -58,6 +58,8 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   create() {
+      TransitionIntegration.setupTransitions(this);
+
     console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} (${this.zoneName}) ===`);
     console.log(`📊 Scene data reçue:`, this.scene.settings.data);
 
@@ -692,7 +694,7 @@ initializeInventorySystem() {
 
   // ✅ AMÉLIORATION: Update avec vérifications d'état
   update() {
-    TransitionIntegration.setupTransitions(this);
+  TransitionIntegration.updateTransitions(this);
     // Vérifications périodiques
     if (this.time.now % 1000 < 16) {
       this.checkPlayerState();
@@ -719,7 +721,7 @@ initializeInventorySystem() {
 
   // ✅ AMÉLIORATION: Nettoyage optimisé
   cleanup() {
-    TransitionIntegration.setupTransitions(this);
+  TransitionIntegration.cleanupTransitions(this);
 
     console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
 
