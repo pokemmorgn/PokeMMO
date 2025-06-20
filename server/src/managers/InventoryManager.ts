@@ -25,6 +25,43 @@ function getPocketList(inv: IInventory, pocket: string) {
   return inv[pocket] as IInventoryItem[];
 }
 
+// Correction automatique des poches lors du chargement d’inventaire
+async function fixInventoryPockets(inv: IInventory): Promise<boolean> {
+  let changed = false;
+  // Pour chaque poche…
+  for (const pocket of ALL_POCKETS) {
+    const list = getPocketList(inv, pocket);
+    // On copie pour pouvoir boucler même si on modifie
+    for (let idx = list.length - 1; idx >= 0; idx--) {
+      const i = list[idx];
+      // Si l’item n’existe plus, supprime-le
+      if (!isValidItemId(i.itemId)) {
+        list.splice(idx, 1);
+        changed = true;
+        continue;
+      }
+      // Si l’item est dans la mauvaise poche : déplace-le
+      const correctPocket = getItemPocket(i.itemId);
+      if (correctPocket !== pocket) {
+        // Ajoute ou fusionne dans la bonne poche
+        const dest = getPocketList(inv, correctPocket);
+        const existing = dest.find(x => x.itemId === i.itemId);
+        if (existing) existing.quantity += i.quantity;
+        else dest.push({ itemId: i.itemId, quantity: i.quantity });
+        // Supprime de la poche d’origine
+        list.splice(idx, 1);
+        changed = true;
+      }
+    }
+  }
+  // Enlève toutes les valeurs undefined/null sur les poches
+  for (const pocket of ALL_POCKETS) {
+    if (!Array.isArray(inv[pocket])) inv[pocket] = [];
+  }
+  if (changed) await inv.save();
+  return changed;
+}
+
 export class InventoryManager {
   static events = new EventDispatcher<InventoryEvents>();
 
@@ -35,6 +72,9 @@ export class InventoryManager {
         ["username", username],
         ...ALL_POCKETS.map<[string, IInventoryItem[]]>(pocket => [pocket, [] as IInventoryItem[]])
       ]));
+    } else {
+      // Vérifie et corrige les poches au chargement
+      await fixInventoryPockets(inv);
     }
     return inv;
   }
@@ -180,6 +220,7 @@ export class InventoryManager {
     for (const pocket of ALL_POCKETS) {
       inv[pocket] = (data[pocket] || []).map((i: { itemId: string; quantity: number }) => ({ itemId: i.itemId, quantity: i.quantity }));
     }
+    await fixInventoryPockets(inv); // Corrige après import
     await inv.save();
   }
 
