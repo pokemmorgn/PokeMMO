@@ -1014,6 +1014,19 @@ initializeInventorySystem() {
   }
 
   setupInputs() {
+    // Test transition forcée
+this.input.keyboard.on("keydown-SPACE", () => {
+  console.log("🧪 Test transition forcée");
+  if (this.transitionManager) {
+    // Simuler une transition manuelle
+    const fakeData = {
+      targetZone: 'village',
+      targetSpawn: 'frombeach',
+      fromZone: 'beach'
+    };
+    this.transitionManager.triggerTransition(fakeData);
+  }
+});
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,S,A,D');
     this.input.keyboard.enableGlobalCapture();
