@@ -939,8 +939,8 @@ initializeInventorySystem() {
     console.log(`[${this.scene.key}] Found ${transitionLayer.objects.length} transition zones`);
 
     transitionLayer.objects.forEach((zone, index) => {
-      const targetZone = this.getProperty(zone, 'targetZone') || this.getProperty(zone, 'targetMap');
-      const spawnPoint = this.getProperty(zone, 'targetSpawn') || this.getProperty(zone, 'spawnPoint');
+      const targetZone = this.getProperty(zone, 'targetzone') || this.getProperty(zone, 'targetMap');
+      const spawnPoint = this.getProperty(zone, 'targetzpawn') || this.getProperty(zone, 'spawnPoint');
       const targetX = this.getProperty(zone, 'targetX');
       const targetY = this.getProperty(zone, 'targetY');
 
