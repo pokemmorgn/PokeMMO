@@ -143,8 +143,8 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     // Debug occasionnel (1 fois sur 10)
     if (Math.random() < 0.1) {
-      console.log(`🚶 ${player.name}: (${player.x}, ${player.y})`);
-      console.log(`🌍 Zone: ${player.currentZone}`);
+    //  console.log(`🚶 ${player.name}: (${player.x}, ${player.y})`);
+    console.log(`🌍 ${player.name}:  Zone: ${player.currentZone}`);
     }
   }
 }
