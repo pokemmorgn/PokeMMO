@@ -159,20 +159,52 @@ export class ZoneManager {
   }
 
   // ✅ CORRECTION MAJEURE : Gestion des interactions NPC
-  async handleNpcInteraction(client: Client, npcId: number) {
-    console.log(`💬 === NPC INTERACTION HANDLER ===`);
-    console.log(`👤 Client: ${client.sessionId}`);
-    console.log(`🤖 NPC ID: ${npcId}`);
+async handleNpcInteraction(client: Client, npcId: number) {
+  console.log(`💬 === NPC INTERACTION HANDLER ===`);
+  
+  const player = this.room.state.players.get(client.sessionId) as Player;
+  if (!player) {
+    console.error(`❌ Player not found: ${client.sessionId}`);
+    return;
+  }
+
+  const npcManager = this.room.getNpcManager(player.currentZone);
+  if (!npcManager) {
+    console.error(`❌ NPCManager not found for zone: ${player.currentZone}`);
+    return;
+  }
+
+  const npc = npcManager.getNpcById(npcId);
+  if (!npc) {
+    console.error(`❌ NPC not found: ${npcId}`);
+    return;
+  }
+
+  // ✅ NOUVELLE LOGIQUE : Vérifier les quêtes d'abord
+  if (npc.properties?.questId) {
+    const availableQuests = await this.questManager.getAvailableQuests(player.name);
+    const npcQuest = availableQuests.find(q => q.id === npc.properties.questId);
     
-    const player = this.room.state.players.get(client.sessionId) as Player;
-    if (!player) {
-      console.error(`❌ Player not found: ${client.sessionId}`);
+    if (npcQuest) {
+      // ✅ Proposer la quête
       client.send("npcInteractionResult", {
-        type: "error",
-        message: "Joueur non trouvé"
+        type: "questGiver",
+        availableQuests: [npcQuest],
+        npcId: npcId
       });
       return;
     }
+  }
+
+  // ✅ Dialogue normal si pas de quête
+  const dialogueLines = ["Bonjour ! Comment allez-vous ?"]; // TODO: Récupérer depuis dialogueId
+  
+  client.send("npcInteractionResult", {
+    type: "dialogue",
+    lines: dialogueLines,
+    npcId: npcId
+  });
+}
 
     // ✅ RÉCUPÉRER LE NPCMANAGER DE LA ZONE ACTUELLE
     const npcManager = this.room.getNpcManager(player.currentZone);
