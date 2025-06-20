@@ -6,7 +6,6 @@ import { NpcManager } from "../managers/NPCManager";
 import { InventoryManager } from "../managers/InventoryManager"; 
 import { getItemData, getItemPocket } from "../utils/ItemDB";
 
-
 export class WorldRoom extends Room<PokeWorldState> {
   private zoneManager!: ZoneManager;
   private npcManagers: Map<string, NpcManager> = new Map();
@@ -35,7 +34,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
   }
 
-    private initializeNpcManagers() {
+  private initializeNpcManagers() {
     const zones = ['beach', 'village', 'villagelab', 'villagehouse1', 'road1', 'lavandia'];
     
     zones.forEach(zoneName => {
@@ -50,7 +49,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     });
   }
 
-    async onPlayerJoinZone(client: Client, zoneName: string) {
+  async onPlayerJoinZone(client: Client, zoneName: string) {
     // ✅ ENVOYER LES NPCS DEPUIS LE FICHIER .TMJ
     const npcManager = this.npcManagers.get(zoneName);
     if (npcManager) {
@@ -58,6 +57,32 @@ export class WorldRoom extends Room<PokeWorldState> {
       client.send("npcList", npcs);
       console.log(`📤 ${npcs.length} NPCs envoyés pour ${zoneName}`);
     }
+  }
+
+  // ✅ MÉTHODES PUBLIQUES - CORRECTEMENT PLACÉES
+  public getNpcManager(zoneName: string): NpcManager | undefined {
+    const npcManager = this.npcManagers.get(zoneName);
+    if (!npcManager) {
+      console.warn(`⚠️ [WorldRoom] NpcManager non trouvé pour la zone: ${zoneName}`);
+      console.log(`📋 [WorldRoom] Zones disponibles:`, Array.from(this.npcManagers.keys()));
+    }
+    return npcManager;
+  }
+
+  public getAvailableNpcZones(): string[] {
+    return Array.from(this.npcManagers.keys());
+  }
+
+  public debugNpcManagers(): void {
+    console.log(`🔍 [WorldRoom] === DEBUG NPC MANAGERS ===`);
+    this.npcManagers.forEach((npcManager, zoneName) => {
+      const npcs = npcManager.getAllNpcs();
+      console.log(`🌍 Zone: ${zoneName} - ${npcs.length} NPCs`);
+      npcs.forEach(npc => {
+        console.log(`  🤖 NPC ${npc.id}: ${npc.name} at (${npc.x}, ${npc.y})`);
+      });
+    });
+    console.log(`=======================================`);
   }
   
   private setupMessageHandlers() {
@@ -117,33 +142,6 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
-      public getNpcManager(zoneName: string): NpcManager | undefined {
-    const npcManager = this.npcManagers.get(zoneName);
-    if (!npcManager) {
-      console.warn(`⚠️ [WorldRoom] NpcManager non trouvé pour la zone: ${zoneName}`);
-      console.log(`📋 [WorldRoom] Zones disponibles:`, Array.from(this.npcManagers.keys()));
-    }
-    return npcManager;
-  }
-
-  // ✅ MÉTHODE UTILITAIRE : Lister toutes les zones avec NPCs
-  public getAvailableNpcZones(): string[] {
-    return Array.from(this.npcManagers.keys());
-  }
-
-  // ✅ MÉTHODE DEBUG : Afficher le statut des NPCs
-  public debugNpcManagers(): void {
-    console.log(`🔍 [WorldRoom] === DEBUG NPC MANAGERS ===`);
-    this.npcManagers.forEach((npcManager, zoneName) => {
-      const npcs = npcManager.getAllNpcs();
-      console.log(`🌍 Zone: ${zoneName} - ${npcs.length} NPCs`);
-      npcs.forEach(npc => {
-        console.log(`  🤖 NPC ${npc.id}: ${npc.name} at (${npc.x}, ${npc.y})`);
-      });
-    });
-    console.log(`=======================================`);
-  }
-  
     // Utiliser un objet
     this.onMessage("useItem", async (client, data) => {
       try {
@@ -319,7 +317,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`🌍 Zone de spawn: ${player.currentZone}`);
       
       // Compatibilité avec l'ancien système
-      player.map = player.currentZone; // Compatibilité
+      player.map = player.currentZone;
       
       // Ajouter au state
       this.state.players.set(client.sessionId, player);
@@ -331,18 +329,16 @@ export class WorldRoom extends Room<PokeWorldState> {
       try {
         console.log(`🎒 Configuration inventaire de départ pour ${player.name}`);
         
-      
-      // Donne les objets de départ
-      await InventoryManager.addItem(player.name, "poke_ball", 5);
-      await InventoryManager.addItem(player.name, "potion", 3);
-      
-      // Ne donne la town_map que si le joueur ne l’a pas déjà
-      const hasMap = await InventoryManager.getItemCount(player.name, "town_map");
-      if (hasMap === 0) {
-        await InventoryManager.addItem(player.name, "town_map", 1);
-      }
-
+        // Donne les objets de départ
+        await InventoryManager.addItem(player.name, "poke_ball", 5);
+        await InventoryManager.addItem(player.name, "potion", 3);
         
+        // Ne donne la town_map que si le joueur ne l'a pas déjà
+        const hasMap = await InventoryManager.getItemCount(player.name, "town_map");
+        if (hasMap === 0) {
+          await InventoryManager.addItem(player.name, "town_map", 1);
+        }
+
         // Afficher l'inventaire groupé par poche
         const grouped = await InventoryManager.getAllItemsGroupedByPocket(player.name);
         console.log(`🎒 [INVENTAIRE groupé par poche] ${player.name}:`, grouped);
@@ -408,16 +404,12 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     // Debug occasionnel (1 fois sur 10)
     if (Math.random() < 0.1) {
-    //  console.log(`🚶 ${player.name}: (${player.x}, ${player.y})`);
-    console.log(`🌍 ${player.name}:  Zone: ${player.currentZone}`);
+      console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
     }
   }
 
   // === MÉTHODES POUR LES EFFETS D'OBJETS ===
 
-  /**
-   * Applique l'effet d'un objet utilisé
-   */
   private async applyItemEffect(player: any, itemId: string, context: string): Promise<{ message?: string }> {
     const itemData = getItemData(itemId);
     
@@ -438,13 +430,8 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   }
 
-  /**
-   * Applique l'effet des objets de soin
-   */
   private async applyMedicineEffect(player: any, itemData: any): Promise<{ message?: string }> {
     // TODO: Implémenter la logique de soin des Pokémon
-    // Pour l'instant, juste un message
-    
     if (itemData.heal_amount) {
       const healAmount = itemData.heal_amount === 'full' ? 'tous les' : itemData.heal_amount;
       return { message: `Pokémon soigné de ${healAmount} PV !` };
@@ -458,19 +445,14 @@ export class WorldRoom extends Room<PokeWorldState> {
     return { message: "Pokémon soigné !" };
   }
 
-  /**
-   * Applique l'effet des objets utilitaires
-   */
   private async applyUtilityItemEffect(player: any, itemData: any, itemId: string): Promise<{ message?: string }> {
     switch (itemId) {
       case 'escape_rope':
-        // TODO: Téléporter le joueur au dernier Centre Pokémon
         return { message: "Vous êtes retourné au dernier Centre Pokémon !" };
         
       case 'repel':
       case 'super_repel':
       case 'max_repel':
-        // TODO: Activer l'effet Repousse
         const steps = itemData.effect_steps || 100;
         return { message: `Repousse activé pour ${steps} pas !` };
         
@@ -481,9 +463,6 @@ export class WorldRoom extends Room<PokeWorldState> {
 
   // === MÉTHODES UTILITAIRES POUR L'INVENTAIRE ===
 
-  /**
-   * Donner un objet à un joueur et notifier le client
-   */
   async giveItemToPlayer(playerName: string, itemId: string, quantity: number = 1): Promise<boolean> {
     try {
       await InventoryManager.addItem(playerName, itemId, quantity);
@@ -512,9 +491,6 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   }
 
-  /**
-   * Retirer un objet à un joueur
-   */
   async takeItemFromPlayer(playerName: string, itemId: string, quantity: number = 1): Promise<boolean> {
     try {
       const success = await InventoryManager.removeItem(playerName, itemId, quantity);
@@ -546,9 +522,6 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   }
 
-  /**
-   * Vérifier si un joueur possède un objet
-   */
   async playerHasItem(playerName: string, itemId: string, quantity: number = 1): Promise<boolean> {
     try {
       const count = await InventoryManager.getItemCount(playerName, itemId);
