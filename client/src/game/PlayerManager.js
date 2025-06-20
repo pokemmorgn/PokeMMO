@@ -363,7 +363,11 @@ export class PlayerManager {
     }
   }
 
- performUpdate(state) {
+// src/game/PlayerManager.js - CORRECTION FILTRAGE
+// ✅ Corrections pour éviter la suppression du joueur local
+
+// Dans performUpdate, remplacer la ligne qui filtre les clés réservées :
+performUpdate(state) {
     if (this.isDestroyed || !this.scene?.scene?.isActive()) {
         return;
     }
@@ -380,10 +384,14 @@ export class PlayerManager {
         return;
     }
 
-    // Supprimer les joueurs déconnectés
+    // ✅ CORRECTION CRITIQUE: Traitement spécial pour notre joueur
+    const effectiveSessionId = this._pendingSessionId || this.mySessionId;
+    
+    // Supprimer les joueurs déconnectés SAUF notre joueur
     const currentSessionIds = new Set(playersMap.keys());
     const playersToRemove = Array.from(this.players.keys()).filter(sessionId => 
-        !currentSessionIds.has(sessionId)
+        !currentSessionIds.has(sessionId) && 
+        sessionId !== effectiveSessionId // ✅ NE JAMAIS supprimer notre joueur
     );
     
     playersToRemove.forEach(sessionId => {
@@ -391,31 +399,107 @@ export class PlayerManager {
         this.removePlayer(sessionId);
     });
 
-    // Mettre à jour ou créer les joueurs
+    // ✅ FILTRAGE AMÉLIORÉ: Exclure les clés système ET protéger notre joueur
     const reservedKeys = ["$items", "$indexes", "deletedItems"];
-playersMap.forEach((playerState, sessionId) => {
-    if (reservedKeys.includes(sessionId)) return; // <--- FILTRE ESSENTIEL
-    this.updateOrCreatePlayer(sessionId, playerState);
-});
+    playersMap.forEach((playerState, sessionId) => {
+        if (reservedKeys.includes(sessionId)) return; // Ignorer les clés système
+        
+        // ✅ NOUVEAU: Traitement prioritaire pour notre joueur
+        if (sessionId === effectiveSessionId) {
+            console.log(`🎯 [PlayerManager] Traitement prioritaire joueur local: ${sessionId}`);
+            this.updateOrCreatePlayerLocal(sessionId, playerState);
+        } else {
+            this.updateOrCreatePlayer(sessionId, playerState);
+        }
+    });
 
     this.checkMyPlayerReady();
 }
 
-  // ✅ NOUVELLE MÉTHODE: Mise à jour ou création de joueur
-updateOrCreatePlayer(sessionId, playerState) {
-    const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
+// ✅ NOUVELLE MÉTHODE: Traitement spécial pour le joueur local
+updateOrCreatePlayerLocal(sessionId, playerState) {
     let player = this.players.get(sessionId);
     
-    // ✅ CRITIQUE: Supprimer immédiatement les joueurs hors zone
-    if (!shouldShowPlayer) {
-        if (player && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
-            console.log(`👻 [PlayerManager] Suppression joueur hors zone: ${sessionId}`);
-            this.removePlayer(sessionId);
+    // ✅ TOUJOURS créer/maintenir notre joueur, peu importe les conditions de zone
+    if (!player) {
+        console.log(`🛠️ [PlayerManager] Création forcée joueur local: ${sessionId}`);
+        player = this.createPlayer(sessionId, playerState.x, playerState.y);
+        if (!player) return;
+    } else {
+        // Vérifier la validité de la scène
+        if (!player.scene || player.scene !== this.scene) {
+            console.warn(`🔧 [PlayerManager] Recréation joueur local invalide: ${sessionId}`);
+            this.players.delete(sessionId);
+            player = this.createPlayer(sessionId, playerState.x, playerState.y);
+            if (!player) return;
         }
-        return; // ✅ IMPORTANT: Arrêter ici
+    }
+
+    // ✅ TOUJOURS s'assurer que notre joueur est visible et actif
+    if (!player.visible) {
+        console.log(`🔧 [PlayerManager] Forcer visibilité joueur local`);
+        player.setVisible(true);
+        player.setActive(true);
+    }
+
+    this.updatePlayerFromState(player, playerState);
+}
+
+// ✅ MÉTHODE CORRIGÉE: Ne pas supprimer les joueurs hors zone trop agressivement
+shouldDisplayPlayer(sessionId, playerState) {
+    // ✅ TOUJOURS afficher notre propre joueur
+    if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+        console.log(`✅ [PlayerManager] Affichage joueur local: ${sessionId}`);
+        return true;
     }
     
-    // Sinon, traitement normal du joueur de notre zone
+    // ✅ Pour les autres, vérification zone MOINS stricte
+    const myCurrentZone = this.scene.zoneName || this.scene.networkManager?.currentZone;
+    const playerZone = playerState.currentZone;
+    
+    // ✅ NOUVEAU: Si nous n'avons pas d'info de zone, être permissif
+    if (!myCurrentZone || !playerZone) {
+        console.log(`⚠️ [PlayerManager] Info zone manquante, affichage autorisé pour ${sessionId}`);
+        return true;
+    }
+    
+    // ✅ NOUVEAU: Délai de grâce de 3 secondes après une transition
+    const isRecentTransition = Date.now() - (this._lastTransitionTime || 0) < 3000;
+    if (isRecentTransition) {
+        console.log(`🔄 [PlayerManager] Délai de grâce transition, affichage autorisé pour ${sessionId}`);
+        return true;
+    }
+    
+    // Afficher seulement si même zone
+    const shouldShow = playerZone === myCurrentZone;
+    if (!shouldShow) {
+        console.log(`🚫 [PlayerManager] Joueur ${sessionId} filtré: ${playerZone} ≠ ${myCurrentZone}`);
+    }
+    return shouldShow;
+}
+
+// ✅ MÉTHODE CORRIGÉE: updateOrCreatePlayer avec protection
+updateOrCreatePlayer(sessionId, playerState) {
+    // ✅ NE PAS appliquer le filtrage de zone à notre propre joueur
+    const isMyPlayer = (sessionId === this.mySessionId || sessionId === this._pendingSessionId);
+    
+    if (!isMyPlayer) {
+        const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
+        
+        if (!shouldShowPlayer) {
+            // Supprimer seulement les AUTRES joueurs hors zone
+            const player = this.players.get(sessionId);
+            if (player) {
+                console.log(`👻 [PlayerManager] Suppression joueur hors zone: ${sessionId}`);
+                this.removePlayer(sessionId);
+            }
+            return; // ✅ IMPORTANT: Arrêter ici
+        }
+    }
+    
+    // Traitement normal pour tous les joueurs à afficher
+    let player = this.players.get(sessionId);
+    
     if (!player) {
         player = this.createPlayer(sessionId, playerState.x, playerState.y);
         if (!player) return;
