@@ -325,30 +325,41 @@ export class PlayerManager {
     }
   }
 
-  performUpdate(state) {
+ performUpdate(state) {
     if (this.isDestroyed || !this.scene?.scene?.isActive()) {
-      return;
+        return;
+    }
+
+    // ✅ NOUVEAU: Convertir l'objet en Map si nécessaire
+    let playersMap;
+    if (state.players instanceof Map) {
+        playersMap = state.players;
+    } else if (state.players && typeof state.players === 'object') {
+        // Convertir l'objet en Map
+        playersMap = new Map(Object.entries(state.players));
+    } else {
+        console.warn("[PlayerManager] State.players invalide:", typeof state.players);
+        return;
     }
 
     // Supprimer les joueurs déconnectés
-    const currentSessionIds = new Set(state.players.keys());
+    const currentSessionIds = new Set(playersMap.keys());
     const playersToRemove = Array.from(this.players.keys()).filter(sessionId => 
-      !currentSessionIds.has(sessionId)
+        !currentSessionIds.has(sessionId)
     );
     
     playersToRemove.forEach(sessionId => {
-      console.log("[PlayerManager] 🗑️ Suppression joueur déconnecté:", sessionId);
-      this.removePlayer(sessionId);
+        console.log("[PlayerManager] 🗑️ Suppression joueur déconnecté:", sessionId);
+        this.removePlayer(sessionId);
     });
 
     // Mettre à jour ou créer les joueurs
-    state.players.forEach((playerState, sessionId) => {
-      this.updateOrCreatePlayer(sessionId, playerState);
+    playersMap.forEach((playerState, sessionId) => {
+        this.updateOrCreatePlayer(sessionId, playerState);
     });
 
-    // ✅ AMÉLIORATION 6: Notification joueur local prêt avec vérifications multiples
     this.checkMyPlayerReady();
-  }
+}
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour ou création de joueur
 updateOrCreatePlayer(sessionId, playerState) {
