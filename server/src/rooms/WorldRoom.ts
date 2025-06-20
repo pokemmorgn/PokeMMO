@@ -770,9 +770,22 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   });
 
-  return {
-    players: filteredPlayers
+  const playersObject = {};
+filteredPlayers.forEach((player, sessionId) => {
+  playersObject[sessionId] = {
+    id: player.id,
+    name: player.name,
+    x: player.x,
+    y: player.y,
+    currentZone: player.currentZone,
+    direction: player.direction,
+    isMoving: player.isMoving
   };
+});
+
+return {
+  players: new Map(Object.entries(playersObject))
+};
 }
 
 private sendFilteredState() {
