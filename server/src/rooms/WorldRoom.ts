@@ -765,14 +765,13 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
       return false;
     }
   }
-   // ✅ NOUVELLES MÉTHODES: Filtrage par zone
-  private getFilteredStateForClient(client: Client): any {
-        if (sessionId === client.sessionId) {
-        filteredPlayers.set(sessionId, otherPlayer);
-        return;
-    }
+   // ✅ MÉTHODE CORRIGÉE: getFilteredStateForClient
+private getFilteredStateForClient(client: Client): any {
     const player = this.state.players.get(client.sessionId);
-    if (!player) return null;
+    if (!player) {
+        console.warn(`⚠️ [WorldRoom] Client ${client.sessionId} sans joueur pour filtered state`);
+        return null;
+    }
 
     const playerZone = player.currentZone;
     
@@ -780,15 +779,24 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
     const filteredPlayers = new Map();
     
     this.state.players.forEach((otherPlayer, sessionId) => {
-      if (otherPlayer.currentZone === playerZone) {
-        filteredPlayers.set(sessionId, otherPlayer);
-      }
+        // ✅ CORRECTION: Toujours inclure le joueur du client EN PREMIER
+        if (sessionId === client.sessionId) {
+            filteredPlayers.set(sessionId, otherPlayer);
+            return;
+        }
+        
+        // ✅ Inclure les autres joueurs de la même zone
+        if (otherPlayer.currentZone === playerZone) {
+            filteredPlayers.set(sessionId, otherPlayer);
+        }
     });
 
+    console.log(`📊 [WorldRoom] Filtered state pour ${client.sessionId}: ${filteredPlayers.size} joueurs (zone: ${playerZone})`);
+    
     return {
-      players: filteredPlayers
+        players: filteredPlayers
     };
-  }
+}
 
   private sendFilteredState() {
     const now = Date.now();
