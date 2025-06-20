@@ -16,6 +16,24 @@ export interface NpcInteractionResult {
   npcName?: string;
 }
 
+// Interface pour typer les étapes de quête
+interface QuestStep {
+  id: string;
+  name: string;
+  description: string;
+  objectives: any[];
+  rewards: any[];
+}
+
+// Interface pour typer les quêtes
+interface Quest {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  steps: QuestStep[];
+}
+
 export class InteractionManager {
   private npcManager: NpcManager;
   private questManager: QuestManager;
@@ -83,13 +101,13 @@ export class InteractionManager {
     if (availableQuests.length > 0) {
       console.log(`✅ DEBUG: Retourne questGiver`);
       
-      // ✅ FIX 4: Sérialisation correcte des quêtes disponibles
-      const serializedQuests = availableQuests.map(quest => ({
+      // ✅ FIX 4: Sérialisation correcte des quêtes disponibles avec typage
+      const serializedQuests = (availableQuests as Quest[]).map(quest => ({
         id: quest.id,
         name: quest.name,
         description: quest.description,
         category: quest.category,
-        steps: quest.steps.map(step => ({
+        steps: quest.steps.map((step: QuestStep) => ({
           id: step.id,
           name: step.name,
           description: step.description,
@@ -260,7 +278,7 @@ export class InteractionManager {
       console.error("❌ Erreur lors du démarrage de quête:", error);
       return {
         success: false,
-        message: `Erreur lors du démarrage de la quête: ${error.message}`
+        message: `Erreur lors du démarrage de la quête: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
       };
     }
   }
