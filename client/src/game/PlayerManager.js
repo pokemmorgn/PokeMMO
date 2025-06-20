@@ -393,14 +393,22 @@ updateOrCreatePlayer(sessionId, playerState) {
 
   // ✅ MÉTHODE CORRIGÉE: Déterminer si un joueur doit être affiché
 shouldDisplayPlayer(sessionId, playerState) {
-    // Toujours afficher notre propre joueur
+    // ✅ TOUJOURS afficher notre propre joueur (même sans zone)
     if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
         return true;
     }
     
-    // ✅ PLUS BESOIN DE FILTRAGE : Le serveur l'a déjà fait !
-    // Le state reçu contient déjà seulement les joueurs de notre zone
-    return true;
+    // ✅ Pour les autres, simple vérification zone
+    const myCurrentZone = this.scene.zoneName || this.scene.networkManager?.currentZone;
+    const playerZone = playerState.currentZone;
+    
+    // Si pas d'info de zone, afficher quand même (temporaire)
+    if (!playerZone || !myCurrentZone) {
+        return true;
+    }
+    
+    // Afficher seulement si même zone
+    return playerZone === myCurrentZone;
 }
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour des données du joueur depuis le state
