@@ -216,8 +216,50 @@ this.time.delayedCall(300, () => {
 
     // ✅ NOUVELLE MÉTHODE: Initialisation du système d'inventaire
 initializeInventorySystem() {
-}
+  // 1. Si déjà initialisé OU pas de room, on sort
+  if (this.inventoryInitialized || !this.networkManager?.room) {
+    console.log(`⚠️ [${this.scene.key}] Inventaire déjà initialisé ou pas de room`);
+    return;
+  }
 
+  try {
+    // === AJOUT : détruire toute UI précédente pour éviter les doublons ===
+    if (window.inventorySystem && typeof window.inventorySystem.destroy === "function") {
+      window.inventorySystem.destroy(); // détruire l'UI précédente proprement
+    }
+    // Si tu as créé une UI séparée en dehors de InventorySystem, fais pareil pour elle ici
+
+    console.log(`🎒 [${this.scene.key}] Initialisation du système d'inventaire...`);
+
+    this.inventorySystem = new InventorySystem(this, this.networkManager.room);
+
+    // Config langue
+    if (this.inventorySystem.inventoryUI) {
+      this.inventorySystem.inventoryUI.currentLanguage = 'en';
+    }
+
+    // Global
+    window.inventorySystem = this.inventorySystem;
+    window.inventorySystemGlobal = this.inventorySystem;
+
+    this.setupInventoryEventHandlers();
+
+    if (typeof window.connectInventoryToServer === 'function') {
+      window.connectInventoryToServer(this.networkManager.room);
+    }
+
+    this.inventoryInitialized = true;
+    console.log(`✅ [${this.scene.key}] Système d'inventaire initialisé`);
+
+    // Test après init
+    this.time.delayedCall(2000, () => {
+      this.testInventoryConnection();
+    });
+
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
+  }
+}
 
 
     // ✅ NOUVELLE MÉTHODE: Test de connexion inventaire
