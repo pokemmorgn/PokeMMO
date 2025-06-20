@@ -277,8 +277,8 @@ getMyPlayer() {
       this.updateTimeout = null;
     }
     
-    console.log("[PlayerManager] updatePlayers() appelé, joueurs state.size =", state.players.size);
-    console.log("[PlayerManager] Recherche de mySessionId =", this.mySessionId, "dans state:", Array.from(state.players.keys()));
+    // console.log("[PlayerManager] updatePlayers() appelé, joueurs state.size =", state.players.size);
+   // console.log("[PlayerManager] Recherche de mySessionId =", this.mySessionId, "dans state:", Array.from(state.players.keys()));
     
     this.performUpdate(state);
   }
