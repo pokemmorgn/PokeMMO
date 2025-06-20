@@ -299,7 +299,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -321,7 +321,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -343,7 +343,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -365,7 +365,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -387,7 +387,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -409,7 +409,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -431,7 +431,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -453,7 +453,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -475,7 +475,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -497,7 +497,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -519,7 +519,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -541,7 +541,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -563,7 +563,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -607,7 +607,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -629,7 +629,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -651,7 +651,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -673,7 +673,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetZone",
@@ -689,18 +689,6 @@
                 }, 
                 {
                  "height":0,
-                 "id":72,
-                 "name":"spawnfallback",
-                 "point":true,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":481,
-                 "y":607
-                }, 
-                {
-                 "height":0,
                  "id":73,
                  "name":"spawn",
                  "point":true,
@@ -708,7 +696,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromroad1"
+                         "value":"fromroad1"
                         }, 
                         {
                          "name":"targetZone",
@@ -731,7 +719,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromcelebitemple"
+                         "value":"fromcelebitemple"
                         }, 
                         {
                          "name":"targetZone",
@@ -742,8 +730,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":50,
-                 "y":561
+                 "x":44.6666666666667,
+                 "y":566.333333333333
                 }, 
                 {
                  "height":0,
@@ -754,7 +742,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromroad2"
+                         "value":"fromroad2"
                         }, 
                         {
                          "name":"targetZone",
@@ -765,8 +753,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":927,
-                 "y":565
+                 "x":923,
+                 "y":563.666666666667
                 }, 
                 {
                  "height":0,
@@ -777,7 +765,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiaanalysis"
+                         "value":"fromlavandiaanalysis"
                         }, 
                         {
                          "name":"targetZone",
@@ -800,7 +788,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiahouse4"
+                         "value":"fromlavandiahouse4"
                         }, 
                         {
                          "name":"targetZone",
@@ -823,7 +811,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiahouse3"
+                         "value":"fromlavandiahouse3"
                         }, 
                         {
                          "name":"targetZone",
@@ -846,7 +834,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiahouse2"
+                         "value":"fromlavandiahouse2"
                         }, 
                         {
                          "name":"targetZone",
@@ -869,7 +857,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiahouse1"
+                         "value":"fromlavandiahouse1"
                         }, 
                         {
                          "name":"targetZone",
@@ -892,7 +880,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiaequipmentshop"
+                         "value":"fromlavandiaequipmentshop"
                         }, 
                         {
                          "name":"targetZone",
@@ -915,7 +903,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiafurnitureshop"
+                         "value":"fromlavandiafurnitureshop"
                         }, 
                         {
                          "name":"targetZone",
@@ -938,7 +926,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiahouse9"
+                         "value":"fromlavandiahouse9"
                         }, 
                         {
                          "name":"targetZone",
@@ -961,7 +949,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandialavandiahouse8"
+                         "value":"fromlavandiahouse8"
                         }, 
                         {
                          "name":"targetZone",
@@ -984,7 +972,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiahouse7"
+                         "value":"fromlavandiahouse7"
                         }, 
                         {
                          "name":"targetZone",
@@ -1007,7 +995,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiahouse6"
+                         "value":"fromlavandiahouse6"
                         }, 
                         {
                          "name":"targetZone",
@@ -1030,7 +1018,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiahouse5"
+                         "value":"fromlavandiahouse5"
                         }, 
                         {
                          "name":"targetZone",
@@ -1053,7 +1041,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiashop"
+                         "value":"fromlavandiashop"
                         }, 
                         {
                          "name":"targetZone",
@@ -1076,7 +1064,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiahealingcenter"
+                         "value":"fromlavandiahealingcenter"
                         }, 
                         {
                          "name":"targetZone",
@@ -1099,7 +1087,7 @@
                         {
                          "name":"targetSpawn",
                          "type":"string",
-                         "value":"Fromlavandiaresearchlab"
+                         "value":"fromlavandiaresearchlab"
                         }, 
                         {
                          "name":"targetZone",
