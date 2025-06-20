@@ -896,6 +896,107 @@ mapZoneToRoom(zoneName) {
     }
   }
 
+  // Dans BaseZoneScene.js, ajouter dans setupMessageListeners()
+
+setupMessageListeners() {
+  // ✅ NOUVEAU : Handler pour la resynchronisation forcée
+  this.networkManager.onMessage("forceZoneSync", (data) => {
+    console.warn(`🔧 [${this.scene.key}] RESYNCHRONISATION FORCÉE !`);
+    console.warn(`   Serveur dit que nous sommes dans: ${data.currentZone}`);
+    console.warn(`   Client pensait être dans: ${this.scene.key}`);
+    
+    if (data.currentZone !== this.scene.key) {
+      console.log(`🚀 [${this.scene.key}] Changement de scène forcé vers: ${data.currentZone}`);
+      
+      // Nettoyer la scène actuelle
+      this.cleanup();
+      
+      // Aller vers la bonne scène
+      this.scene.start(data.currentZone, {
+        spawnX: data.playerPosition.x,
+        spawnY: data.playerPosition.y,
+        fromZone: 'resync',
+        networkManager: this.networkManager
+      });
+    } else {
+      // Même scène, juste repositionner le joueur
+      const myPlayer = this.playerManager.getMyPlayer();
+      if (myPlayer) {
+        myPlayer.x = data.playerPosition.x;
+        myPlayer.y = data.playerPosition.y;
+        console.log(`📍 [${this.scene.key}] Position du joueur resynchronisée`);
+      }
+    }
+    
+    // Afficher un message à l'utilisateur
+    if (data.message) {
+      // Si vous avez un système de notifications
+      this.showNotification(data.message, 'warning');
+    }
+  });
+
+  // ✅ NOUVEAU : Handler amélioré pour les refus de transition
+  this.networkManager.onMessage("transitionDenied", (data) => {
+    console.warn(`❌ [${this.scene.key}] Transition refusée:`, data.reason);
+    
+    if (data.reason === "Resynchronisation required" && data.currentZone) {
+      console.log(`🔄 [${this.scene.key}] Resynchronisation requise vers: ${data.currentZone}`);
+      
+      // Aller vers la zone où le serveur pense que nous sommes
+      this.cleanup();
+      this.scene.start(data.currentZone, {
+        fromZone: 'resync',
+        networkManager: this.networkManager
+      });
+    } else {
+      // Afficher l'erreur normale
+      this.showNotification(`Transition impossible: ${data.reason}`, 'error');
+    }
+    
+    this.isTransitioning = false;
+  });
+
+  // === HANDLERS EXISTANTS (conservés) ===
+  
+  this.networkManager.onMessage("npcInteractionResult", (result) => {
+    this.handleNpcInteraction(result);
+  });
+
+  this.networkManager.onMessage("npcList", (npcList) => {
+    if (this.npcManager) {
+      this.npcManager.spawnNpcs(npcList);
+    }
+  });
+
+  this.networkManager.onDisconnect(() => {
+    this.infoText.setText(`PokeWorld MMO\n${this.scene.key}\nDisconnected`);
+  });
+}
+
+// ✅ NOUVELLE MÉTHODE : Afficher une notification (si pas déjà existante)
+showNotification(message, type = 'info') {
+  // Créer une notification simple
+  const notification = this.add.text(
+    this.cameras.main.centerX,
+    50,
+    message,
+    {
+      fontSize: '16px',
+      fontFamily: 'Arial',
+      color: type === 'error' ? '#ff4444' : type === 'warning' ? '#ffaa44' : '#44ff44',
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      padding: { x: 10, y: 5 }
+    }
+  ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
+
+  // Auto-suppression
+  this.time.delayedCall(3000, () => {
+    if (notification && notification.scene) {
+      notification.destroy();
+    }
+  });
+}
+  
   cleanup() {
     console.log(`[${this.scene.key}] Nettoyage en cours...`);
 
