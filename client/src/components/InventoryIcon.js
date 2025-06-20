@@ -11,11 +11,11 @@ export class InventoryIcon {
   init() {
     this.createIcon();
     this.setupEventListeners();
-    console.log('🎒 Icône d\'inventaire créée');
+    console.log('🎒 Inventory icon created');
   }
 
   createIcon() {
-    // Créer l'icône
+    // Create the icon
     const icon = document.createElement('div');
     icon.id = 'inventory-icon';
     icon.className = 'ui-icon inventory-icon';
@@ -24,14 +24,14 @@ export class InventoryIcon {
         <div class="icon-content">
           <span class="icon-emoji">🎒</span>
         </div>
-        <div class="icon-label">Sac</div>
+        <div class="icon-label">Bag</div>
       </div>
       <div class="icon-notification" id="inventory-notification" style="display: none;">
         <span class="notification-count">!</span>
       </div>
     `;
 
-    // Ajouter à l'interface
+    // Add to UI
     document.body.appendChild(icon);
     this.iconElement = icon;
 
@@ -136,7 +136,7 @@ export class InventoryIcon {
         100% { transform: scale(1); }
       }
 
-      /* Animation d'ouverture */
+      /* Open animation */
       .inventory-icon.opening .icon-emoji {
         animation: bagOpen 0.6s ease;
       }
@@ -149,7 +149,7 @@ export class InventoryIcon {
         100% { transform: scale(1) rotate(0deg); }
       }
 
-      /* Position responsive */
+      /* Responsive position */
       @media (max-width: 768px) {
         .inventory-icon {
           bottom: 15px;
@@ -171,7 +171,7 @@ export class InventoryIcon {
         }
       }
 
-      /* États spéciaux */
+      /* Special states */
       .inventory-icon.disabled {
         opacity: 0.5;
         cursor: not-allowed;
@@ -184,7 +184,7 @@ export class InventoryIcon {
         transform: translateY(20px);
       }
 
-      /* Animation d'apparition */
+      /* Appear animation */
       .inventory-icon.appearing {
         animation: iconAppear 0.5s ease;
       }
@@ -200,7 +200,7 @@ export class InventoryIcon {
         }
       }
 
-      /* Effet de brillance périodique */
+      /* Periodic shine effect */
       .inventory-icon .icon-background::before {
         content: '';
         position: absolute;
@@ -229,7 +229,7 @@ export class InventoryIcon {
       this.handleClick();
     });
 
-    // Animation d'ouverture
+    // Open animation
     this.iconElement.addEventListener('click', () => {
       this.iconElement.classList.add('opening');
       setTimeout(() => {
@@ -237,7 +237,7 @@ export class InventoryIcon {
       }, 600);
     });
 
-    // Raccourci clavier (I pour Inventory)
+    // Keyboard shortcut (I for Inventory)
     document.addEventListener('keydown', (e) => {
       if (e.key.toLowerCase() === 'i' && this.canOpenInventory()) {
         e.preventDefault();
@@ -258,7 +258,7 @@ export class InventoryIcon {
   }
 
   canOpenInventory() {
-    // Vérifier si le joueur peut ouvrir l'inventaire
+    // Check if player can open inventory
     const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
     const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
     const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
@@ -268,7 +268,7 @@ export class InventoryIcon {
   }
 
   showCannotOpenMessage() {
-    // Créer un message temporaire
+    // Create a temporary message
     const message = document.createElement('div');
     message.style.cssText = `
       position: fixed;
@@ -283,11 +283,11 @@ export class InventoryIcon {
       animation: fadeInOut 2s ease;
       pointer-events: none;
     `;
-    message.textContent = 'Impossible d\'ouvrir le sac maintenant';
+    message.textContent = 'Cannot open the bag right now';
 
     document.body.appendChild(message);
 
-    // Ajouter l'animation
+    // Add animation
     if (!document.querySelector('#icon-animations')) {
       const style = document.createElement('style');
       style.id = 'icon-animations';
@@ -307,7 +307,7 @@ export class InventoryIcon {
     }, 2000);
   }
 
-  // Méthodes publiques pour gérer l'état de l'icône
+  // Public methods for icon state
 
   show() {
     this.iconElement.classList.remove('hidden');
@@ -342,7 +342,7 @@ export class InventoryIcon {
     }
   }
 
-  // Effet visuel quand un nouvel objet est ajouté
+  // Visual effect when a new item is added
   showNewItemEffect() {
     this.iconElement.style.animation = 'none';
     setTimeout(() => {
@@ -354,13 +354,13 @@ export class InventoryIcon {
     }, 1600);
   }
 
-  // Méthode pour changer la position (si nécessaire)
+  // Method to change position (if needed)
   setPosition(bottom, right) {
     this.iconElement.style.bottom = `${bottom}px`;
     this.iconElement.style.right = `${right}px`;
   }
 
-  // Méthode pour changer l'icône temporairement
+  // Method to temporarily change the icon
   setTemporaryIcon(emoji, duration = 2000) {
     const iconEmoji = this.iconElement.querySelector('.icon-emoji');
     const originalEmoji = iconEmoji.textContent;
@@ -374,12 +374,12 @@ export class InventoryIcon {
     }, duration);
   }
 
-  // Intégration avec le système d'inventaire
+  // Integration with inventory system
   onInventoryUpdate(updateData) {
     if (updateData.type === 'add') {
       this.showNewItemEffect();
       
-      // Afficher brièvement l'icône de l'objet ajouté
+      // Briefly show the icon of the added item
       const itemIcon = this.getItemIcon(updateData.itemId);
       if (itemIcon) {
         this.setTemporaryIcon(itemIcon, 1500);
@@ -388,7 +388,7 @@ export class InventoryIcon {
   }
 
   getItemIcon(itemId) {
-    // Même mapping que dans InventoryUI
+    // Same mapping as in InventoryUI
     const iconMap = {
       'poke_ball': '⚪',
       'great_ball': '🟡',
@@ -407,6 +407,6 @@ export class InventoryIcon {
     if (this.iconElement && this.iconElement.parentNode) {
       this.iconElement.remove();
     }
-    console.log('🎒 Icône d\'inventaire supprimée');
+    console.log('🎒 Inventory icon removed');
   }
 }
