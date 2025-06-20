@@ -297,7 +297,22 @@ this.room.onMessage("snap", (data) => {
       this.room.send(type, data);
     }
   }
-
+ notifyZoneChange(newZone, x, y) {
+    if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen) {
+        console.log(`📡 [NetworkManager] Notification changement zone: ${this.currentZone} → ${newZone}`);
+        
+        this.room.send("notifyZoneChange", {
+            newZone: newZone,
+            x: x,
+            y: y
+        });
+        
+        this.currentZone = newZone;
+        console.log(`✅ [NetworkManager] Zone mise à jour: ${newZone}`);
+    } else {
+        console.warn(`⚠️ [NetworkManager] Impossible de notifier changement zone - pas connecté`);
+    }
+  }
   // Callbacks
   onConnect(callback) { this.callbacks.onConnect = callback; }
   onStateChange(callback) { this.callbacks.onStateChange = callback; }
