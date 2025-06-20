@@ -274,128 +274,32 @@
 </script>
 
   <!-- Script d'inventaire -->
-  <script type="module" src="/inventory.js"></script>
+  <script src="/inventory.js"></script>
 
-  <!-- Script d'initialisation de l'inventaire -->
+  <!-- Script d'initialisation simplifié -->
   <script>
-    // Initialisation du système d'inventaire
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('🎒 Initialisation du système d\'inventaire...');
-      
-      // Attendre que le gameRoom soit disponible
-      function waitForGameRoom() {
-        if (window.gameRoom) {
-          // Initialiser l'inventaire
-          initializeInventory(window.gameRoom);
-          
-          // Ajouter les raccourcis clavier globaux
-          setupGlobalInventoryShortcuts();
-          
-          console.log('✅ Système d\'inventaire prêt !');
-        } else {
-          // Réessayer dans 100ms
-          setTimeout(waitForGameRoom, 100);
-        }
-      }
-      
-      waitForGameRoom();
-    });
+    console.log('🎮 Initialisation du jeu...');
 
-    // Raccourcis clavier globaux pour l'inventaire
-    function setupGlobalInventoryShortcuts() {
-      document.addEventListener('keydown', function(e) {
-        // Vérifier que le joueur peut interagir
-        if (!window.inventorySystem || !window.inventorySystem.canPlayerInteract()) {
-          return;
-        }
-        
-        switch(e.key.toLowerCase()) {
-          case 'i':
-            e.preventDefault();
-            window.inventorySystem.toggle();
-            break;
-          case 'b':
-            e.preventDefault();
-            window.inventorySystem.openToPocket('balls');
-            break;
-          case 'm':
-            e.preventDefault();
-            window.inventorySystem.openToPocket('medicine');
-            break;
-        }
-      });
-      
-      console.log('⌨️ Raccourcis clavier d\'inventaire configurés:');
-      console.log('   I = Ouvrir/Fermer le sac');
-      console.log('   B = Ouvrir directement les Poké Balls');
-      console.log('   M = Ouvrir directement les soins');
-    }
-
-    // Observer les changements d'état de l'inventaire pour mettre à jour l'icône
-    function setupInventoryStateObserver() {
-      const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-          if (mutation.target.id === 'inventory-overlay') {
-            const isHidden = mutation.target.classList.contains('hidden');
-            const icon = document.querySelector('#inventory-icon');
-            
-            if (icon) {
-              icon.classList.toggle('inventory-open', !isHidden);
-            }
-          }
-        });
-      });
-
-      // Observer les changements de classe sur l'overlay d'inventaire
-      const checkForOverlay = setInterval(() => {
-        const overlay = document.querySelector('#inventory-overlay');
-        if (overlay) {
-          observer.observe(overlay, {
-            attributes: true,
-            attributeFilter: ['class']
-          });
-          clearInterval(checkForOverlay);
-        }
-      }, 100);
-    }
-
-    // Démarrer l'observer quand le DOM est prêt
-    document.addEventListener('DOMContentLoaded', setupInventoryStateObserver);
-
-    // Fonction utilitaire pour tester l'inventaire (développement)
+    // Fonction de test simple
     window.testInventory = function() {
-      console.log('🧪 Test du système d\'inventaire...');
-      
+      console.log('🧪 Test de l\'inventaire');
       if (window.inventorySystem) {
-        // Ouvrir l'inventaire
-        window.inventorySystem.show();
-        
-        // Simuler l'ajout d'objets (nécessite la communication serveur)
-        if (window.gameRoom) {
-          console.log('📤 Envoi de requête de test au serveur...');
-          // Le serveur doit gérer ce message pour les tests
-          window.gameRoom.send("testAddItem", { 
-            itemId: "poke_ball", 
-            quantity: 5 
-          });
-        }
+        window.inventorySystem.toggle();
       } else {
-        console.warn('⚠️ Système d\'inventaire non initialisé');
+        console.warn('Système d\'inventaire non disponible');
       }
     };
 
-    // Fonction pour vérifier l'état de l'inventaire
-    window.inventoryStatus = function() {
-      if (window.inventorySystem) {
-        console.log('🎒 État du système d\'inventaire:');
-        console.log('   - Ouvert:', window.inventorySystem.isOpen());
-        console.log('   - Peut interagir:', window.inventorySystem.canPlayerInteract());
-        console.log('   - Poche actuelle:', window.inventorySystem.inventoryUI?.currentPocket);
-        console.log('   - Données:', window.inventorySystem.inventoryUI?.inventoryData);
-      } else {
-        console.log('❌ Système d\'inventaire non disponible');
-      }
-    };
+    // Test automatique après 2 secondes
+    setTimeout(function() {
+      console.log('🎒 État de l\'inventaire:', {
+        system: !!window.inventorySystem,
+        icon: !!document.getElementById('inventory-icon'),
+        overlay: !!document.getElementById('inventory-overlay')
+      });
+    }, 2000);
+
+    console.log('✅ Scripts chargés - Tapez testInventory() ou appuyez sur I');
   </script>
 
   <script type="module" src="/src/main.js"></script>
