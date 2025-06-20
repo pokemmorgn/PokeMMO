@@ -392,9 +392,11 @@ export class PlayerManager {
     });
 
     // Mettre à jour ou créer les joueurs
-    playersMap.forEach((playerState, sessionId) => {
-        this.updateOrCreatePlayer(sessionId, playerState);
-    });
+    const reservedKeys = ["$items", "$indexes", "deletedItems"];
+playersMap.forEach((playerState, sessionId) => {
+    if (reservedKeys.includes(sessionId)) return; // <--- FILTRE ESSENTIEL
+    this.updateOrCreatePlayer(sessionId, playerState);
+});
 
     this.checkMyPlayerReady();
 }
