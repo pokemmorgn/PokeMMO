@@ -1686,39 +1686,4 @@ export class BaseZoneScene extends Phaser.Scene {
       });
     }
   }
-
-  // Donner un objet au joueur (pour les NPCs)
-  giveItemToPlayer(itemId, quantity = 1) {
-    if (!this.networkManager?.room) {
-      console.warn(`⚠️ [${this.scene.key}] Cannot give item: no server connection`);
-      return false;
-    }
-
-    console.log(`🎁 [${this.scene.key}] Giving item to player: ${itemId} x${quantity}`);
-    
-    // Utiliser le système serveur pour donner l'objet
-    this.networkManager.room.send("testAddItem", {
-      itemId: itemId,
-      quantity: quantity
-    });
-    
-    return true;
-  }
-
-  // Vérifier si le joueur possède un objet
-  async checkPlayerHasItem(itemId, quantity = 1) {
-    if (window.inventorySystem && typeof window.inventorySystem.hasItem === 'function') {
-      return window.inventorySystem.hasItem(itemId);
-    }
-    
-    // Alternative : demander au serveur
-    if (this.networkManager?.room) {
-      return new Promise((resolve) => {
-        // TODO: Implémenter une vérification côté serveur
-        resolve(false);
-      });
-    }
-    
-    return false;
-  }
 }
