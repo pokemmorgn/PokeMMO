@@ -239,7 +239,7 @@ export class TransitionManager {
   }
 
   // ✅ ÉTAPE 5: Déclencher une transition
-  triggerTransition(teleportData) {
+  async triggerTransition(teleportData) {
     if (this.isTransitioning) {
       console.log(`🌀 [TransitionManager] ⚠️ Transition déjà en cours`);
       return;
@@ -261,8 +261,8 @@ export class TransitionManager {
       return;
     }
 
-    // Calculer la position de spawn
-    const spawnPosition = this.calculateSpawnPosition(teleportData.targetSpawn);
+    // Calculer la position de spawn (ASYNC maintenant)
+    const spawnPosition = await this.calculateSpawnPosition(teleportData.targetSpawn, teleportData.targetZone);
 
     console.log(`🚀 [TransitionManager] Changement vers: ${targetScene}`);
     console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
@@ -283,34 +283,104 @@ export class TransitionManager {
   }
 
   // ✅ CALCULER LA POSITION DE SPAWN
-  calculateSpawnPosition(targetSpawnName) {
-    // Position par défaut
-    let defaultPos = { x: 100, y: 100 };
+  async calculateSpawnPosition(targetSpawnName, targetZone) {
+    // Position par défaut si rien trouvé
+    const defaultPos = { x: 100, y: 100 };
 
     if (!targetSpawnName) {
       console.log(`🌀 [TransitionManager] Pas de spawn spécifique, position par défaut`);
       return defaultPos;
     }
 
-    // TODO: Ici on devrait charger la map cible et chercher l'objet spawn
-    // Pour l'instant, on simule avec des positions hardcodées pour le debug
-    
-    console.log(`🌀 [TransitionManager] ⚠️ [TODO] Charger spawn "${targetSpawnName}" depuis la map cible`);
-    console.log(`🌀 [TransitionManager] 💡 Position temporaire utilisée`);
+    console.log(`🌀 [TransitionManager] 🔍 Recherche spawn "${targetSpawnName}" dans zone "${targetZone}"`);
 
-    // Positions temporaires pour debug
-    const tempSpawns = {
-      'frombeach': { x: 52, y: 48 },
-      'fromvillage': { x: 200, y: 300 },
-      'fromroad1': { x: 150, y: 150 },
-      'fromlab': { x: 250, y: 200 }
-    };
+    try {
+      // Charger la map de la zone cible
+      const mapData = await this.loadTargetMap(targetZone);
+      if (!mapData) {
+        console.warn(`🌀 [TransitionManager] ❌ Impossible de charger la map pour "${targetZone}"`);
+        return defaultPos;
+      }
 
-    const position = tempSpawns[targetSpawnName.toLowerCase()] || defaultPos;
+      // Chercher l'objet spawn dans la map
+      const spawnPosition = this.findSpawnInMap(mapData, targetSpawnName);
+      if (spawnPosition) {
+        console.log(`🌀 [TransitionManager] ✅ Spawn "${targetSpawnName}" trouvé: (${spawnPosition.x}, ${spawnPosition.y})`);
+        return spawnPosition;
+      } else {
+        console.warn(`🌀 [TransitionManager] ⚠️ Spawn "${targetSpawnName}" non trouvé dans "${targetZone}"`);
+        return defaultPos;
+      }
+
+    } catch (error) {
+      console.error(`🌀 [TransitionManager] ❌ Erreur lors du chargement spawn:`, error);
+      return defaultPos;
+    }
+  }
+
+  // ✅ CHARGER LA MAP CIBLE
+  async loadTargetMap(targetZone) {
+    console.log(`🌀 [TransitionManager] 📥 Chargement map "${targetZone}.tmj"`);
+
+    try {
+      const response = await fetch(`assets/maps/${targetZone}.tmj`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const mapData = await response.json();
+      console.log(`🌀 [TransitionManager] ✅ Map "${targetZone}" chargée (${mapData.layers?.length || 0} layers)`);
+      
+      return mapData;
+    } catch (error) {
+      console.error(`🌀 [TransitionManager] ❌ Erreur chargement "${targetZone}.tmj":`, error);
+      return null;
+    }
+  }
+
+  // ✅ CHERCHER LE SPAWN DANS LA MAP
+  findSpawnInMap(mapData, targetSpawnName) {
+    if (!mapData.layers) {
+      console.warn(`🌀 [TransitionManager] ⚠️ Aucun layer dans la map`);
+      return null;
+    }
+
+    // Chercher dans tous les layers d'objets
+    for (const layer of mapData.layers) {
+      if (layer.type !== 'objectgroup' || !layer.objects) {
+        continue;
+      }
+
+      console.log(`🌀 [TransitionManager] 🔍 Scan layer "${layer.name}" (${layer.objects.length} objets)`);
+
+      // Chercher l'objet spawn
+      for (const obj of layer.objects) {
+        if (obj.name === 'spawn') {
+          // Vérifier si c'est le bon spawn
+          const spawnName = this.getPropertyFromObject(obj, 'name');
+          
+          if (spawnName === targetSpawnName) {
+            console.log(`🌀 [TransitionManager] 🎯 Spawn "${targetSpawnName}" trouvé dans layer "${layer.name}"`);
+            
+            return {
+              x: obj.x,
+              y: obj.y
+            };
+          }
+        }
+      }
+    }
+
+    console.warn(`🌀 [TransitionManager] ❌ Spawn "${targetSpawnName}" non trouvé dans la map`);
+    return null;
+  }
+
+  // ✅ HELPER: Récupérer une propriété d'un objet (pour les maps chargées)
+  getPropertyFromObject(obj, propertyName) {
+    if (!obj.properties) return null;
     
-    console.log(`🌀 [TransitionManager] 🎯 Spawn "${targetSpawnName}" → (${position.x}, ${position.y}) [TEMP]`);
-    
-    return position;
+    const prop = obj.properties.find(p => p.name === propertyName);
+    return prop ? prop.value : null;
   }
 
   // ✅ HELPER: Récupérer une propriété d'objet Tiled
