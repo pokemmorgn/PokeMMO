@@ -387,36 +387,11 @@ shouldDisplayPlayer(sessionId, playerState) {
         return true;
     }
     
-    // ✅ FILTRAGE STRICT par zone pour les autres joueurs
-    const myCurrentZone = this.scene.zoneName || this.scene.networkManager?.currentZone;
-    const playerZone = playerState.currentZone;
-    
-    // Debug optionnel (vous pouvez l'enlever après test)
-    if (this.scene.networkManager?.debugMode) {
-        console.log(`🔍 [PlayerManager] Filtrage joueur ${sessionId}:`);
-        console.log(`  - Ma zone: ${myCurrentZone}`);
-        console.log(`  - Zone joueur: ${playerZone}`);
-    }
-    
-    // ✅ CORRECTION 1: Si pas d'info de zone du joueur, NE PAS l'afficher
-    if (!playerZone) {
-        return false;
-    }
-    
-    // ✅ CORRECTION 2: Si pas d'info de ma zone, NE PAS afficher les autres
-    if (!myCurrentZone) {
-        return false;
-    }
-    
-    // ✅ CORRECTION 3: Afficher seulement si même zone
-    const sameZone = playerZone === myCurrentZone;
-    
-    if (!sameZone && this.scene.networkManager?.debugMode) {
-        console.log(`❌ [PlayerManager] Joueur ${sessionId} hors zone (${playerZone} ≠ ${myCurrentZone}), masqué`);
-    }
-    
-    return sameZone;
+    // ✅ PLUS BESOIN DE FILTRAGE : Le serveur l'a déjà fait !
+    // Le state reçu contient déjà seulement les joueurs de notre zone
+    return true;
 }
+
   // ✅ NOUVELLE MÉTHODE: Mise à jour des données du joueur depuis le state
   updatePlayerFromState(player, playerState) {
     // Position cible
