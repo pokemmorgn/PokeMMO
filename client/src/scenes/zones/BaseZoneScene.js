@@ -808,8 +808,7 @@ this.time.delayedCall(300, () => {
 
   // === MÉTHODES EXISTANTES CONSERVÉES ===
 
-  // === MÉTHODES UTILITAIRES ===
-
+  // Mapping scene → zone
   mapSceneToZone(sceneName) {
     const mapping = {
       'BeachScene': 'beach',
@@ -819,24 +818,23 @@ this.time.delayedCall(300, () => {
       'VillageHouse1Scene': 'villagehouse1',
       'LavandiaScene': 'lavandia'
     };
+    
     return mapping[sceneName] || sceneName.toLowerCase();
   }
 
+  // Mapping zone → scene
   mapZoneToScene(zoneName) {
     const mapping = {
       'beach': 'BeachScene',
-      'village': 'VillageScene',
+      'village': 'VillageScene', 
       'villagelab': 'VillageLabScene',
       'road1': 'Road1Scene',
       'villagehouse1': 'VillageHouse1Scene',
       'lavandia': 'LavandiaScene'
     };
+    
     return mapping[zoneName.toLowerCase()] || zoneName;
   }
-
-} 
-
-
   setupZoneTransitions() {
     if (!this.map) {
       console.warn(`[${this.scene.key}] setupZoneTransitions appelé avant loadMap`);
