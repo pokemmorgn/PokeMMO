@@ -341,17 +341,32 @@ private handleTransitionRequest(client: Client, request: TransitionRequest) {
 }
 
   // ✅ CORRIGÉE : Définir les destinations valides pour chaque zone
-  private getValidDestinations(): string[] {
-    // ✅ IMPORTANT : Utiliser les noms de SCÈNES côté client, pas les noms de rooms
-    const connections: Record<string, string[]> = {
-      // ✅ CORRIGÉ : Mapping avec les vrais noms de scènes
-      'BeachRoom': ['VillageScene'],
-      'VillageRoom': ['BeachScene', 'VillageLabScene', 'Road1Scene', 'VillageHouse1Scene'],
-      'VillageLabRoom': ['VillageScene'],
-      'VillageHouse1Room': ['VillageScene'],
-      'Road1Room': ['VillageScene', 'LavandiaScene'],
-      'LavandiaRoom': ['Road1Scene']
-    };
+private getValidDestinations(): string[] {
+  // ✅ CORRIGÉ : Mapping cohérent des destinations
+  const connections: Record<string, string[]> = {
+    // ✅ Depuis BeachRoom, on peut aller vers VillageScene
+    'BeachRoom': ['VillageScene'],
+    
+    // ✅ Depuis VillageRoom, on peut aller vers TOUTES les autres scènes connectées
+    'VillageRoom': ['BeachScene', 'VillageLabScene', 'Road1Scene', 'VillageHouse1Scene'],
+    
+    // ✅ Depuis VillageLabRoom, on peut retourner au village
+    'VillageLabRoom': ['VillageScene'],
+    
+    // ✅ Depuis VillageHouse1Room, on peut retourner au village  
+    'VillageHouse1Room': ['VillageScene'],
+    
+    // ✅ Depuis Road1Room, on peut aller au village et à Lavandia
+    'Road1Room': ['VillageScene', 'LavandiaScene'],
+    
+    // ✅ Depuis LavandiaRoom, on peut retourner à la route
+    'LavandiaRoom': ['Road1Scene']
+  };
+  
+  const validDestinations = connections[this.mapName] || [];
+  console.log(`🗺️ [${this.mapName}] Destinations configurées:`, validDestinations);
+  return validDestinations;
+}
     
     const validDestinations = connections[this.mapName] || [];
     console.log(`🗺️ [${this.mapName}] Destinations configurées:`, validDestinations);
