@@ -177,12 +177,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
-                         "value":"Fromvillagehouse1"
+                         "value":"fromvillagehouse1"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"village"
                         }],
@@ -191,7 +191,7 @@
                  "visible":true,
                  "width":20.5,
                  "x":169.166666666667,
-                 "y":236.833333333333
+                 "y":234.833333333333
                 }, 
                 {
                  "height":0,
@@ -200,12 +200,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
-                         "value":"Fromvillage"
+                         "value":"fromvillage"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"villagehouse1"
                         }],

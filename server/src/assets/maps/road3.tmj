@@ -177,12 +177,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromroad3"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"noctherbcave2"
                         }],
@@ -200,12 +200,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromnoctherbcave2"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"road3"
                         }],
@@ -222,12 +222,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromroad3"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"wraithmoor"
                         }],
@@ -245,12 +245,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromwraithmoor"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"road3"
                         }],
@@ -280,7 +280,7 @@
          "y":0
         }],
  "nextlayerid":7,
- "nextobjectid":5,
+ "nextobjectid":6,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
@@ -27512,7 +27512,7 @@
          "margin":0,
          "name":"AssetsExterior",
          "spacing":0,
-         "tilecount":525,
+         "tilecount":357,
          "tileheight":16,
          "tiles":[
                 {

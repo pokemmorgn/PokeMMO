@@ -172,17 +172,17 @@
          "name":"Worlds",
          "objects":[
                 {
-                 "height":17.3333333333333,
+                 "height":9.3333333333333,
                  "id":3,
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
-                         "value":"Fromvillagelab"
+                         "value":"fromvillagelab"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"village"
                         }],
@@ -191,7 +191,7 @@
                  "visible":true,
                  "width":33.3333333333333,
                  "x":227.166666666667,
-                 "y":383.833333333333
+                 "y":391.833333333333
                 }, 
                 {
                  "height":0,
@@ -200,12 +200,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
-                         "value":"Fromvillage"
+                         "value":"fromvillage"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"villagelab"
                         }],

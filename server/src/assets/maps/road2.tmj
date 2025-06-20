@@ -177,12 +177,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromroad2"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"noctherbcave1"
                         }],
@@ -199,12 +199,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromroad2"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -222,12 +222,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromnoctherbcave1"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"road2"
                         }],
@@ -245,12 +245,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"road2"
                         }],
@@ -27355,7 +27355,7 @@
          "margin":0,
          "name":"AssetsExterior",
          "spacing":0,
-         "tilecount":525,
+         "tilecount":357,
          "tileheight":16,
          "tiles":[
                 {

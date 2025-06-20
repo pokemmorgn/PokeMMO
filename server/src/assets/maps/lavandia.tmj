@@ -297,12 +297,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"road1"
                         }],
@@ -319,12 +319,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiahealingcenter"
                         }],
@@ -332,8 +332,8 @@
                  "type":"",
                  "visible":true,
                  "width":33.3333,
-                 "x":548.666666666667,
-                 "y":805.49985
+                 "x":550.916666666667,
+                 "y":801.74985
                 }, 
                 {
                  "height":34,
@@ -341,12 +341,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiashop"
                         }],
@@ -363,12 +363,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiaequipmentshop"
                         }],
@@ -376,8 +376,8 @@
                  "type":"",
                  "visible":true,
                  "width":30.6667,
-                 "x":127.333666666667,
-                 "y":482.83385
+                 "x":126.833666666667,
+                 "y":486.83385
                 }, 
                 {
                  "height":24,
@@ -385,12 +385,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiahouse1"
                         }],
@@ -407,12 +407,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiahouse2"
                         }],
@@ -429,12 +429,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiahouse3"
                         }],
@@ -442,8 +442,8 @@
                  "type":"",
                  "visible":true,
                  "width":23.3333,
-                 "x":531.999666666667,
-                 "y":500.16685
+                 "x":533.999666666667,
+                 "y":498.66685
                 }, 
                 {
                  "height":21.3333,
@@ -451,12 +451,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiahouse4"
                         }],
@@ -465,7 +465,7 @@
                  "visible":true,
                  "width":20,
                  "x":661.999666666667,
-                 "y":504.16685
+                 "y":505.16685
                 }, 
                 {
                  "height":33.3333,
@@ -473,12 +473,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiaanalysis"
                         }],
@@ -487,7 +487,7 @@
                  "visible":true,
                  "width":32,
                  "x":800,
-                 "y":482.833516666667
+                 "y":475.333516666667
                 }, 
                 {
                  "height":23.3333,
@@ -495,12 +495,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiahouse5"
                         }],
@@ -508,21 +508,21 @@
                  "type":"",
                  "visible":true,
                  "width":19.3333,
-                 "x":787.999666666667,
-                 "y":646.16685
+                 "x":789.999666666667,
+                 "y":647.16685
                 }, 
                 {
-                 "height":28,
+                 "height":22.5,
                  "id":64,
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiahouse6"
                         }],
@@ -530,52 +530,52 @@
                  "type":"",
                  "visible":true,
                  "width":21.3333,
-                 "x":660.666666666667,
-                 "y":645.49985
+                 "x":661.666666666667,
+                 "y":648.24985
                 }, 
                 {
-                 "height":27.3333,
+                 "height":23.0833,
                  "id":65,
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiarhouse7"
                         }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":28,
-                 "x":529.333666666667,
-                 "y":644.16685
+                 "width":17.5,
+                 "x":535.333666666667,
+                 "y":648.41685
                 }, 
                 {
-                 "height":26.6667,
+                 "height":22.9167,
                  "id":66,
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiahouse8"
                         }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":22,
-                 "x":403.333666666667,
-                 "y":645.49985
+                 "width":16.75,
+                 "x":406.583666666667,
+                 "y":647.99985
                 }, 
                 {
                  "height":26,
@@ -583,20 +583,20 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"Fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiahouse9"
                         }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":20.6667,
-                 "x":275.333666666667,
+                 "width":16.9167,
+                 "x":279.083666666667,
                  "y":644.83385
                 }, 
                 {
@@ -605,12 +605,12 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiafurnitureshop"
                         }],
@@ -622,46 +622,46 @@
                  "y":608.49985
                 }, 
                 {
-                 "height":58,
+                 "height":43.3333333333333,
                  "id":69,
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandiaresearchlab"
                         }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":61,
-                 "x":450.166666666667,
-                 "y":151.16685
+                 "width":53.0000000000001,
+                 "x":455.5,
+                 "y":159.833516666667
                 }, 
                 {
-                 "height":104,
+                 "height":98.5,
                  "id":70,
                  "name":"celebitemple",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"celebitemple"
                         }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":18.5,
+                 "width":9.5,
                  "x":0.5,
                  "y":515.5
                 }, 
@@ -671,21 +671,21 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandia"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"road2"
                         }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":15,
-                 "x":943,
-                 "y":517
+                 "width":9.5,
+                 "x":950,
+                 "y":516.5
                 }, 
                 {
                  "height":0,
@@ -694,12 +694,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromroad1"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -717,12 +717,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromcelebitemple"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -740,12 +740,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromroad2"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -763,12 +763,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiaanalysis"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -786,12 +786,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiahouse4"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -809,12 +809,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiahouse3"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -832,12 +832,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiahouse2"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -855,12 +855,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiahouse1"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -878,12 +878,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiaequipmentshop"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -901,12 +901,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiafurnitureshop"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -924,12 +924,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiahouse9"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -947,12 +947,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiahouse8"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -970,12 +970,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiahouse7"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -993,12 +993,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiahouse6"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -1016,12 +1016,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiahouse5"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -1039,12 +1039,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiashop"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -1062,12 +1062,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiahealingcenter"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],
@@ -1085,12 +1085,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromlavandiaresearchlab"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"lavandia"
                         }],

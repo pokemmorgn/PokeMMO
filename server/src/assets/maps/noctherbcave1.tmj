@@ -217,12 +217,12 @@
                  "name":"road2",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromnoctherbcave1"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"road2"
                         }],
@@ -239,21 +239,21 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromnoctherbcave1"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"noctherbcave2bis"
                         }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":20.6667,
-                 "x":29.66665,
-                 "y":10.33335
+                 "width":15.2121545454545,
+                 "x":32.5757409090909,
+                 "y":7.78789545454546
                 }, 
                 {
                  "height":23.3333,
@@ -261,21 +261,21 @@
                  "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromnoctherbcave1"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"noctherbcave2"
                         }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":20.6667,
-                 "x":588.333316666667,
-                 "y":11.0000166666667
+                 "width":15.9394272727272,
+                 "x":591.969680303031,
+                 "y":7.18183484848488
                 }, 
                 {
                  "height":0,
@@ -284,12 +284,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromnoctherbcave2bis"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"noctherbcave1"
                         }],
@@ -307,12 +307,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromnoctherbcave2"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"noctherbcave1"
                         }],
@@ -330,12 +330,12 @@
                  "point":true,
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
                          "value":"fromroad2"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"noctherbcave1"
                         }],
@@ -27466,7 +27466,7 @@
          "margin":0,
          "name":"AssetsExterior",
          "spacing":0,
-         "tilecount":525,
+         "tilecount":357,
          "tileheight":16,
          "tiles":[
                 {
