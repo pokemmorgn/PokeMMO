@@ -2,7 +2,7 @@ import { Inventory, IInventory } from "../models/Inventory";
 import { getItemData, isValidItemId } from "../utils/ItemDB";
 
 // À ajuster si tu veux une limite (ex: 20 slots max comme la 1G)
-const MAX_INVENTORY_SLOTS = 30;
+const MAX_INVENTORY_SLOTS = 100;
 
 export class InventoryManager {
   static async getInventory(username: string): Promise<IInventory> {
