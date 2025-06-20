@@ -274,10 +274,17 @@ export class WorldRoom extends Room<PokeWorldState> {
       try {
         console.log(`🎒 Configuration inventaire de départ pour ${player.name}`);
         
-        // Donner des objets de départ au nouveau joueur
-        await InventoryManager.addItem(player.name, "poke_ball", 5);
-        await InventoryManager.addItem(player.name, "potion", 3);
+      
+      // Donne les objets de départ
+      await InventoryManager.addItem(player.name, "poke_ball", 5);
+      await InventoryManager.addItem(player.name, "potion", 3);
+      
+      // Ne donne la town_map que si le joueur ne l’a pas déjà
+      const hasMap = await InventoryManager.getItemCount(player.name, "town_map");
+      if (hasMap === 0) {
         await InventoryManager.addItem(player.name, "town_map", 1);
+      }
+
         
         // Afficher l'inventaire groupé par poche
         const grouped = await InventoryManager.getAllItemsGroupedByPocket(player.name);
