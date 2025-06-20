@@ -258,8 +258,7 @@ this.time.delayedCall(300, () => {
   }
 
    // ✅ NOUVELLE MÉTHODE: Setup des événements d'inventaire
-  setupInventoryEventHandlers() {
-    if (!this.networkManager?.room) return;  }
+  setupInventoryEventHandlers() { }
   
   // ✅ NOUVELLE MÉTHODE: Préparer les données de connexion
   async prepareConnectionData() {
