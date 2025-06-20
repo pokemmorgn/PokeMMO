@@ -1655,35 +1655,4 @@ export class BaseZoneScene extends Phaser.Scene {
       }
     });
   }
-
-  // ✅ NOUVELLES MÉTHODES UTILITAIRES POUR L'INVENTAIRE
-
-  // Obtenir le statut de l'inventaire
-  getInventoryStatus() {
-    return {
-      initialized: this.inventoryInitialized,
-      system: !!this.inventorySystem,
-      global: !!window.inventorySystem,
-      canUse: this.inventoryInitialized && this.networkManager?.room
-    };
-  }
-
-  // Test rapide de l'inventaire depuis la console
-  debugInventory() {
-    console.log(`🎒 [${this.scene.key}] Debug inventaire:`, this.getInventoryStatus());
-    
-    if (this.inventorySystem) {
-      console.log(`📊 Système d'inventaire:`, {
-        isOpen: this.inventorySystem.isInventoryOpen(),
-        canInteract: this.inventorySystem.canPlayerInteract()
-      });
-    }
-    
-    if (window.inventorySystem) {
-      console.log(`🌍 Système global:`, {
-        isOpen: window.inventorySystem.isInventoryOpen(),
-        canInteract: window.inventorySystem.canPlayerInteract()
-      });
-    }
-  }
 }
