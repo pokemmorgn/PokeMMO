@@ -701,9 +701,6 @@ initializeInventorySystem() {
     if (this.playerManager) this.playerManager.update();
     if (this.cameraManager) this.cameraManager.update();
 
-    // Vérifier les transitions
-    this.checkTransitionCollisions();
-
     if (this.sys.animatedTiles && typeof this.sys.animatedTiles.update === 'function') {
       this.sys.animatedTiles.update();
     }
