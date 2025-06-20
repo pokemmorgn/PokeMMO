@@ -7,16 +7,18 @@ export class TeamPokemon extends Schema {
   @type("string") nickname: string;
   @type("boolean") shiny: boolean;
   @type("string") gender: string;
-   @type("string") currentZone!: string; // ✅ NOUVELLE PROPRIÉTÉ AJOUTÉE
+  // ❌ ENLEVER currentZone d'ici - c'est pour le TeamPokemon, pas le Player !
 }
 
 export class Player extends Schema {
+  @type("string") id: string = ""; // ✅ AJOUTÉ pour l'ID de session
   @type("number") x: number = 300;
   @type("number") y: number = 300;
   @type("string") map: string = "";
   @type("string") name: string = "";
   @type("string") direction: string = "down";
   @type("boolean") isMoving: boolean = false;
+  @type("string") currentZone: string = ""; // ✅ AJOUTÉ ICI dans Player
   @type([ TeamPokemon ]) team: ArraySchema<TeamPokemon> = new ArraySchema<TeamPokemon>();
 }
 
