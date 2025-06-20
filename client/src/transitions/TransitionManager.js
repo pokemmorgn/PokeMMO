@@ -238,14 +238,14 @@ export class TransitionManager {
     });
   }
 
-  // ✅ ÉTAPE 5: Déclencher une transition
+  // ✅ ÉTAPE 5: Déclencher une transition (100% LOCAL)
   async triggerTransition(teleportData) {
     if (this.isTransitioning) {
       console.log(`🌀 [TransitionManager] ⚠️ Transition déjà en cours`);
       return;
     }
 
-    console.log(`🌀 [TransitionManager] === TRANSITION DÉCLENCHÉE ===`);
+    console.log(`🌀 [TransitionManager] === TRANSITION 100% LOCALE ===`);
     console.log(`📍 De: ${teleportData.fromZone}`);
     console.log(`📍 Vers: ${teleportData.targetZone}`);
     console.log(`🎯 Spawn: ${teleportData.targetSpawn || 'défaut'}`);
@@ -261,22 +261,23 @@ export class TransitionManager {
       return;
     }
 
-    // Calculer la position de spawn (ASYNC maintenant)
+    // Calculer la position de spawn (chargement depuis fichier .tmj)
     const spawnPosition = await this.calculateSpawnPosition(teleportData.targetSpawn, teleportData.targetZone);
 
-    console.log(`🚀 [TransitionManager] Changement vers: ${targetScene}`);
+    console.log(`🚀 [TransitionManager] Transition LOCALE vers: ${targetScene}`);
     console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
 
-    // Préparer les données pour la nouvelle scène
+    // ✅ DONNÉES 100% LOCALES - pas de NetworkManager
     const transitionData = {
       fromZone: this.currentZone,
       fromTransition: true,
       spawnX: spawnPosition.x,
       spawnY: spawnPosition.y,
       spawnPoint: teleportData.targetSpawn,
-      networkManager: this.scene.networkManager,
-      mySessionId: this.scene.mySessionId
+      localTransition: true // ✅ Flag pour indiquer que c'est local
     };
+
+    console.log(`🌀 [TransitionManager] ✅ Transition LOCALE - aucune donnée serveur transmise`);
 
     // Démarrer la nouvelle scène
     this.scene.scene.start(targetScene, transitionData);
