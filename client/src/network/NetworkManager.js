@@ -79,14 +79,17 @@ this.lastReceivedZoneData = null;
     console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
 
     // Zone data
-    this.room.onMessage("zoneData", (data) => {
-      console.log(`🗺️ [NetworkManager] Zone data reçue:`, data);
-      this.currentZone = data.zone;
-      
-      if (this.callbacks.onZoneData) {
-        this.callbacks.onZoneData(data);
-      }
-    });
+this.room.onMessage("zoneData", (data) => {
+  console.log(`🗺️ [NetworkManager] Zone data reçue:`, data);
+  this.currentZone = data.zone;
+  
+  // ✅ NOUVEAU: Stocker les zone data
+  this.lastReceivedZoneData = data;
+  
+  if (this.callbacks.onZoneData) {
+    this.callbacks.onZoneData(data);
+  }
+});
 
 // Liste des NPCs
 this.room.onMessage("npcList", (npcs) => {
