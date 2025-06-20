@@ -1192,39 +1192,62 @@ this.input.keyboard.on("keydown-SPACE", () => {
     }
   }
 
-  checkPlayerState() {
+ checkPlayerState() {
     const myPlayer = this.playerManager?.getMyPlayer();
     if (!myPlayer) {
-      console.warn(`[${this.scene.key}] Joueur manquant!`);
-      return false;
+        console.warn(`[${this.scene.key}] Joueur manquant! Tentative de récupération...`);
+        
+        // ✅ NOUVEAU: Tentative de récupération automatique
+        if (this.playerManager && this.mySessionId) {
+            console.log(`🔧 [${this.scene.key}] Tentative de resynchronisation...`);
+            this.playerManager.forceResynchronization();
+        }
+        return false;
     }
     
     let fixed = false;
     
+    // ✅ Vérifications et corrections automatiques
     if (!myPlayer.visible) {
-      console.warn(`[${this.scene.key}] Joueur invisible, restauration`);
-      myPlayer.setVisible(true);
-      fixed = true;
+        console.warn(`[${this.scene.key}] Joueur invisible, restauration`);
+        myPlayer.setVisible(true);
+        fixed = true;
     }
     
     if (!myPlayer.active) {
-      console.warn(`[${this.scene.key}] Joueur inactif, restauration`);
-      myPlayer.setActive(true);
-      fixed = true;
+        console.warn(`[${this.scene.key}] Joueur inactif, restauration`);
+        myPlayer.setActive(true);
+        fixed = true;
     }
     
-    if (myPlayer.indicator && !myPlayer.indicator.visible) {
-      console.warn(`[${this.scene.key}] Indicateur invisible, restauration`);
-      myPlayer.indicator.setVisible(true);
-      fixed = true;
+    // ✅ Vérifier la profondeur
+    if (myPlayer.depth !== 5) {
+        myPlayer.setDepth(5);
+        fixed = true;
+    }
+    
+    if (myPlayer.indicator) {
+        if (!myPlayer.indicator.visible) {
+            console.warn(`[${this.scene.key}] Indicateur invisible, restauration`);
+            myPlayer.indicator.setVisible(true);
+            fixed = true;
+        }
+        
+        // ✅ Synchroniser la position de l'indicateur
+        if (Math.abs(myPlayer.indicator.x - myPlayer.x) > 1 || 
+            Math.abs(myPlayer.indicator.y - (myPlayer.y - 24)) > 1) {
+            myPlayer.indicator.x = myPlayer.x;
+            myPlayer.indicator.y = myPlayer.y - 24;
+            fixed = true;
+        }
     }
     
     if (fixed) {
-      console.log(`[${this.scene.key}] État du joueur corrigé`);
+        console.log(`[${this.scene.key}] État du joueur corrigé`);
     }
     
     return true;
-  }
+}
 
   showNotification(message, type = 'info') {
     const notification = this.add.text(
