@@ -770,22 +770,25 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   });
 
-  const playersObject = {};
-filteredPlayers.forEach((player, sessionId) => {
-  playersObject[sessionId] = {
-    id: player.id,
-    name: player.name,
-    x: player.x,
-    y: player.y,
-    currentZone: player.currentZone,
-    direction: player.direction,
-    isMoving: player.isMoving
-  };
-});
+  // ✅ SOLUTION : Typer correctement l'objet
+  const playersObject: { [key: string]: any } = {};
+  filteredPlayers.forEach((player, sessionId) => {
+    playersObject[sessionId] = {
+      id: player.id,
+      name: player.name,
+      x: player.x,
+      y: player.y,
+      currentZone: player.currentZone,
+      direction: player.direction,
+      isMoving: player.isMoving
+    };
+  });
 
-return {
-  players: new Map(Object.entries(playersObject))
-};
+  return {
+    players: new Map(Object.entries(playersObject))
+  };
+}
+
 }
 
 private sendFilteredState() {
