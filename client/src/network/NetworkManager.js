@@ -146,7 +146,17 @@ this.room.onStateChange((state) => {
    this.callbacks.onStateChange(state);
  }
 });
-
+// ✅ NOUVEAU: Forcer le state initial après connexion
+    this.room.onStateChange.once((state) => {
+        console.log(`🎯 [NetworkManager] ÉTAT INITIAL reçu:`, state);
+        console.log(`👥 Joueurs dans l'état initial:`, state.players.size);
+        
+        // Forcer l'appel du callback même pour l'état initial
+        if (this.callbacks.onStateChange && state.players.size > 0) {
+            console.log(`🔥 [NetworkManager] Force l'appel callback pour état initial`);
+            this.callbacks.onStateChange(state);
+        }
+    });
 // Messages existants
 this.room.onMessage("playerData", (data) => {
  if (this.callbacks.onPlayerData) {
