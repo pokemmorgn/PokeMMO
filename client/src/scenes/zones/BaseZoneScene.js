@@ -26,6 +26,7 @@ export class BaseZoneScene extends Phaser.Scene {
     // Inventaire
     this.inventorySystem = null;
     this.inventoryInitialized = false;
+    
     // ✅ NOUVEAU : Délai de grâce après spawn
     this.spawnGraceTime = 0;
     this.spawnGraceDuration = 2000; // 2 secondes
@@ -140,7 +141,6 @@ useExistingNetworkManager(networkManager, sceneData = null) {
   this.verifyNetworkState();
   
  // ✅ AJOUT: Déclencher une mise à jour de zone après sync
-// ✅ AJOUT: Déclencher une mise à jour de zone après sync
 this.time.delayedCall(300, () => {
  console.log(`🔄 [${this.scene.key}] Vérifier NPCs stockés...`);
  
@@ -204,7 +204,8 @@ this.time.delayedCall(300, () => {
       console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
     }
   }
-    // ✅ NOUVELLE MÉTHODE: Setup des événements d'inventaire
+  
+  // ✅ NOUVELLE MÉTHODE: Setup des événements d'inventaire
   setupInventoryEventHandlers() {
     if (!this.networkManager?.room) return;
 
@@ -291,6 +292,8 @@ this.time.delayedCall(300, () => {
           this.playerManager.setMySessionId(this.mySessionId);
         }
         this.networkSetupComplete = true;
+
+        this.initializeInventorySystem();
         console.log(`✅ [${this.scene.key}] Connexion réussie: ${this.mySessionId}`);
       } else {
         throw new Error("Échec de connexion au serveur");
