@@ -281,9 +281,11 @@ export class PlayerManager {
       return;
     }
     
-    if (this.scene.networkManager && this.scene.networkManager.isTransitioning) {
-      console.warn("[PlayerManager] updatePlayers: TRANSITION EN COURS");
-      return;
+    // ✅ CORRECTION CRITIQUE: Ne plus bloquer pendant les transitions
+    // Le joueur doit pouvoir apparaître même pendant une transition
+    if (this.scene.networkManager && this.scene.networkManager.isTransitionActive) {
+      console.log("[PlayerManager] updatePlayers: Transition en cours, mais traitement autorisé");
+      // On continue quand même pour permettre l'apparition du joueur
     }
 
     // ✅ AMÉLIORATION 5: Synchronisation sessionId améliorée
