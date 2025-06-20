@@ -106,6 +106,7 @@ export class ZoneManager {
     const zone = this.zones.get(zoneName);
     if (zone) {
       await zone.onPlayerEnter(client);
+      await this.room.onPlayerJoinZone(client, zoneName);
       console.log(`✅ Player entered zone: ${zoneName}`);
     } else {
       console.error(`❌ Zone not found: ${zoneName}`);
