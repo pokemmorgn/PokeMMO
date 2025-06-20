@@ -174,15 +174,15 @@
                 {
                  "height":24.5,
                  "id":9,
-                 "name":"GR",
+                 "name":"teleport",
                  "properties":[
                         {
-                         "name":"targetSpawn",
+                         "name":"targetspawn",
                          "type":"string",
-                         "value":"Fromvillagehouse1"
+                         "value":"fromvillagehouse1"
                         }, 
                         {
-                         "name":"targetZone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"village"
                         }],
@@ -191,7 +191,30 @@
                  "visible":true,
                  "width":20.5,
                  "x":169.166666666667,
-                 "y":236.833333333333
+                 "y":234.833333333333
+                }, 
+                {
+                 "height":0,
+                 "id":15,
+                 "name":"spawn",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"targetspawn",
+                         "type":"string",
+                         "value":"fromvillage"
+                        }, 
+                        {
+                         "name":"targetzone",
+                         "type":"string",
+                         "value":"villagehouse1"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":181.666666666667,
+                 "y":277
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -203,19 +226,7 @@
          "draworder":"topdown",
          "id":9,
          "name":"SpawnPoint",
-         "objects":[
-                {
-                 "height":0,
-                 "id":10,
-                 "name":"SpawnPoint_House1",
-                 "point":true,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":181,
-                 "y":281.5
-                }],
+         "objects":[],
          "opacity":1,
          "type":"objectgroup",
          "visible":true,
@@ -337,7 +348,7 @@
          "y":0
         }],
  "nextlayerid":11,
- "nextobjectid":15,
+ "nextobjectid":16,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
