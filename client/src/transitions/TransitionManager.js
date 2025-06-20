@@ -44,10 +44,7 @@ export class TransitionManager {
 
     // Chercher les layers contenant les objets
     const objectLayers = [
-      this.scene.map.getObjectLayer('World'),
-      this.scene.map.getObjectLayer('Objects'), 
-      this.scene.map.getObjectLayer('Teleports'),
-      this.scene.map.getObjectLayer('Transitions')
+      this.scene.map.getObjectLayer('Worlds')
     ].filter(layer => layer !== null);
 
     if (objectLayers.length === 0) {
