@@ -3,9 +3,31 @@ import { Client } from "@colyseus/core";
 import { IZone } from "./IZone";
 import { WorldRoom } from "../WorldRoom";
 
+interface NPC {
+  id: number;
+  name: string;
+  x: number;
+  y: number;
+  sprite: string;
+  dialogue: string[];
+}
+
+interface ZoneObject {
+  id: number;
+  type: string;
+  x: number;
+  y: number;
+}
+
+interface Spawn {
+  name: string;
+  x: number;
+  y: number;
+}
+
 export class BeachZone implements IZone {
   private room: WorldRoom;
-  private npcs: any[] = [];
+  private npcs: NPC[] = [];
 
   constructor(room: WorldRoom) {
     this.room = room;
@@ -129,10 +151,10 @@ export class BeachZone implements IZone {
   getZoneData() {
     return {
       npcs: this.npcs,
-      objects: [], // TODO: Objets interactifs
+      objects: [] as ZoneObject[], // Type explicite pour éviter l'erreur
       spawns: [
         { name: "fromVillage", x: 52, y: 48 }
-      ],
+      ] as Spawn[],
       music: "beach_theme",
       weather: "sunny"
     };
