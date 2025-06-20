@@ -25,13 +25,8 @@ let globalMoveManager: MoveManager;
 export default config({
   initializeGameServer: (gameServer) => {
     gameServer.define('AuthRoom', AuthRoom);
-    gameServer.define('Road1Room', Road1Room);
-    gameServer.define('BeachRoom', BeachRoom);
-    gameServer.define('VillageRoom', VillageRoom);
-    gameServer.define('VillageLabRoom', VillageLabRoom);
-gameServer.define('VillageHouse1Room', VillageHouse1Room);
-gameServer.define('LavandiaRoom', LavandiaRoom);
-gameServer.define('worldchat', WorldChatRoom);
+    gameServer.define('world', WorldRoom);
+    gameServer.define('worldchat', WorldChatRoom);
   },
 
   initializeExpress: (app) => {
