@@ -58,30 +58,45 @@ export class QuestSystem {
     });
   }
 
-  handleNpcInteraction(data) {
-    console.log("🎯 Interaction NPC reçue:", data);
+handleNpcInteraction(data) {
+  console.log("🎯 Interaction NPC reçue:", data);
+  
+  // ✅ NOUVEAU: Ne traiter QUE les interactions liées aux quêtes
+  // Laisser BaseZoneScene gérer les dialogues simples
+  switch (data.type) {
+    case 'questGiver':
+      // FIX: Parser les données de quêtes disponibles
+      const parsedData = this.parseNpcQuestData(data);
+      this.showQuestGiverDialog(parsedData);
+      break;
+      
+    case 'questComplete':
+      this.showQuestCompleteDialog(data);
+      break;
+      
+    case 'questProgress':
+      this.showNotification(data.message, 'info');
+      break;
+      
+    // ❌ SUPPRIMÉ: Le cas 'dialogue' simple
+    // Les dialogues simples sont maintenant gérés uniquement par BaseZoneScene
     
-    switch (data.type) {
-      case 'questGiver':
-        // FIX: Parser les données de quêtes disponibles
-        const parsedData = this.parseNpcQuestData(data);
-        this.showQuestGiverDialog(parsedData);
-        break;
-        
-      case 'questComplete':
-        this.showQuestCompleteDialog(data);
-        break;
-        
-      case 'questProgress':
-        this.showNotification(data.message, 'info');
-        break;
-        
-      default:
-        // Gestion normale des NPCs (dialogue, shop, etc.)
-        this.handleRegularNpcInteraction(data);
-        break;
-    }
+    case 'shop':
+      console.log("🛒 Ouverture boutique:", data.shopId);
+      // TODO: Implémenter l'interface boutique
+      break;
+      
+    case 'heal':
+      this.showNotification(data.message, 'success');
+      break;
+      
+    default:
+      // ✅ NOUVEAU: Ne plus traiter les dialogues par défaut
+      // Seulement logger les types inconnus sans créer de dialogue
+      console.log(`ℹ️ Type d'interaction '${data.type}' délégué à BaseZoneScene`);
+      break;
   }
+}
 
   // NOUVELLE MÉTHODE: Parse les données de quêtes NPC
   parseNpcQuestData(data) {
