@@ -38,6 +38,20 @@ export class InputManager {
         source: null
       };
     });
+
+    // RESET clavier aussi à chaque clic droit n'importe où (fix ultime)
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 2) { // bouton droit
+        this.scene.input.keyboard.resetKeys();
+        this.currentMovement = {
+          x: 0,
+          y: 0,
+          isMoving: false,
+          direction: null,
+          source: null
+        };
+      }
+    });
   }
 
   detectMobile() {
