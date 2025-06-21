@@ -241,16 +241,6 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`👤 From: ${client.sessionId}`);
     console.log(`📍 Data:`, data);
     
-    const player = this.state.players.get(client.sessionId);
-    if (!player) {
-      client.send("transitionResult", {
-        success: false,
-        reason: "Joueur non trouvé",
-        rollback: true
-      });
-      return;
-    }
-
     try {
       const result = await this.transitionService.validateTransition(client, player, data);
       
