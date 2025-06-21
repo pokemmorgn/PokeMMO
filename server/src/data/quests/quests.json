@@ -6,8 +6,8 @@
       "name": "A Hint of River",
       "description": "Bob wants to get back into fishing, but he's missing some gear. Give him a hand.",
       "category": "side",
-      "startNpcId": 82,
-      "endNpcId": 82,
+      "startNpcId": 87,
+      "endNpcId": 87,
       "isRepeatable": false,
       "autoComplete": false,
       "steps": [
@@ -20,7 +20,7 @@
               "id": "talk_to_bob",
               "type": "talk",
               "description": "Talk to Bob",
-              "target": "82",
+              "target": "87",
               "targetName": "Bob",
               "requiredAmount": 1
             }
@@ -52,7 +52,7 @@
               "id": "return_fishing_line",
               "type": "deliver",
               "description": "Give the fishing line to Bob",
-              "target": "82",
+              "target": "87",
               "targetName": "Bob",
               "itemId": "fishing_line",
               "requiredAmount": 1
