@@ -1050,35 +1050,64 @@ handleMovement(myPlayerState) {
     this.anims.create({ key: 'idle_down', frames: [{ key: 'dude', frame: 5 }], frameRate: 1 });
   }
 
-  setupInputs() {
-    // Test transition forcée
-this.input.keyboard.on("keydown-SPACE", () => {
-  console.log("🧪 Test transition forcée");
-  if (this.transitionManager) {
-    // Simuler une transition manuelle
-    const fakeData = {
-      targetZone: 'village',
-      targetSpawn: 'frombeach',
-      fromZone: 'beach'
-    };
-    this.transitionManager.triggerTransition(fakeData);
-  }
-});
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.wasd = this.input.keyboard.addKeys('W,S,A,D');
-    this.input.keyboard.enableGlobalCapture();
+setupInputs() {
+  // Test transition forcée
+  this.input.keyboard.on("keydown-SPACE", () => {
+    console.log("🧪 Test transition forcée");
+    if (this.transitionManager) {
+      const fakeData = {
+        targetZone: 'village',
+        targetSpawn: 'frombeach',
+        fromZone: 'beach'
+      };
+      this.transitionManager.triggerTransition(fakeData);
+    }
+  });
+  
+  this.cursors = this.input.keyboard.createCursorKeys();
+  this.wasd = this.input.keyboard.addKeys('W,S,A,D');
+  this.input.keyboard.enableGlobalCapture();
 
-    this.input.keyboard.on("keydown-E", () => {
-      const myPlayer = this.playerManager.getMyPlayer();
-      if (!myPlayer || !this.npcManager) return;
+  // ✅ CORRECTION: Interaction E avec vérifications complètes
+  this.input.keyboard.on("keydown-E", () => {
+    // ✅ Vérifier si un dialogue de quête est ouvert
+    if (window._questDialogActive) {
+      console.log("⚠️ Fenêtre de quête ouverte, interaction E bloquée");
+      return;
+    }
+    
+    // ✅ Vérifier si le chat a le focus
+    if (typeof window.isChatFocused === "function" && window.isChatFocused()) {
+      console.log("⚠️ Chat ouvert, interaction E bloquée");
+      return;
+    }
+    
+    // ✅ Vérifier si un dialogue NPC est ouvert
+    const dialogueBox = document.getElementById('dialogue-box');
+    if (dialogueBox && dialogueBox.style.display !== 'none') {
+      console.log("⚠️ Dialogue NPC ouvert, interaction avec environnement bloquée");
+      return;
+    }
+    
+    // ✅ Vérifier si l'inventaire est ouvert
+    if (typeof window.isInventoryOpen === "function" && window.isInventoryOpen()) {
+      console.log("⚠️ Inventaire ouvert, interaction E bloquée");
+      return;
+    }
 
-      const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
-      if (npc) {
-        this.npcManager.lastInteractedNpc = npc;
-        this.networkManager.sendNpcInteract(npc.id);
-      }
-    });
-  }
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer || !this.npcManager) return;
+
+    const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
+    if (npc) {
+      console.log(`🎯 Interaction avec NPC: ${npc.name}`);
+      this.npcManager.lastInteractedNpc = npc;
+      this.networkManager.sendNpcInteract(npc.id);
+    } else {
+      console.log("ℹ️ Aucun NPC à proximité pour interagir");
+    }
+  });
+}
 
   createUI() {
     this.infoText = this.add.text(16, 16, `PokeWorld MMO\n${this.scene.key}`, {
