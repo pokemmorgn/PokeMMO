@@ -1,10 +1,10 @@
-// client/src/notification.js - Logique de notification centralisée
+// client/src/notification.js - Centralized notification logic
 
 import { NotificationManager } from './components/NotificationManager.js';
 
 /**
- * Système de notification centralisé pour le jeu Pokémon
- * Gère toutes les notifications, préférences et intégrations
+ * Central notification system for the Pokémon game
+ * Handles all notifications, preferences, and integrations
  */
 export class GameNotificationSystem {
   constructor() {
@@ -12,44 +12,44 @@ export class GameNotificationSystem {
     this.isInitialized = false;
     this.preferences = this.getDefaultPreferences();
     
-    console.log("🔔 GameNotificationSystem créé");
+    console.log("🔔 GameNotificationSystem created");
   }
 
   /**
-   * Initialise le système de notification
+   * Initialize the notification system
    */
   init() {
     if (this.isInitialized) {
-      console.warn("⚠️ GameNotificationSystem déjà initialisé");
+      console.warn("⚠️ GameNotificationSystem already initialized");
       return this.notificationManager;
     }
 
-    console.log("🔔 Initialisation du système de notification...");
+    console.log("🔔 Initializing notification system...");
     
-    // Créer le NotificationManager
+    // Create NotificationManager
     this.notificationManager = new NotificationManager();
     
-    // Charger les préférences utilisateur
+    // Load user preferences
     this.loadPreferences();
     
-    // Configurer le NotificationManager
+    // Apply NotificationManager config
     this.applyPreferences();
     
-    // Rendre accessible globalement
+    // Expose globally
     window.NotificationManager = this.notificationManager;
     
-    // Marquer comme initialisé
+    // Mark as initialized
     this.isInitialized = true;
     
-    // Notification de bienvenue
+    // Welcome notification
     this.showWelcomeNotification();
     
-    console.log("✅ Système de notification initialisé et disponible globalement");
+    console.log("✅ Notification system initialized and globally available");
     return this.notificationManager;
   }
 
   /**
-   * Préférences par défaut
+   * Default preferences
    */
   getDefaultPreferences() {
     return {
@@ -65,7 +65,7 @@ export class GameNotificationSystem {
   }
 
   /**
-   * Applique les préférences au NotificationManager
+   * Apply preferences to NotificationManager
    */
   applyPreferences() {
     if (!this.notificationManager) return;
@@ -74,16 +74,16 @@ export class GameNotificationSystem {
     this.notificationManager.setDefaultDuration(this.preferences.defaultDuration);
     this.notificationManager.maxNotifications = this.preferences.maxNotifications;
     
-    console.log("🔧 Préférences appliquées:", this.preferences);
+    console.log("🔧 Preferences applied:", this.preferences);
   }
 
   /**
-   * Affiche une notification de bienvenue
+   * Show welcome notification
    */
   showWelcomeNotification() {
     if (window.username && this.notificationManager) {
       this.notificationManager.success(
-        `Bienvenue ${window.username} !`,
+        `Welcome ${window.username}!`,
         {
           duration: 4000,
           bounce: true,
@@ -94,7 +94,7 @@ export class GameNotificationSystem {
   }
 
   /**
-   * Sauvegarde les préférences dans localStorage
+   * Save preferences to localStorage
    */
   savePreferences() {
     try {
@@ -102,19 +102,19 @@ export class GameNotificationSystem {
       
       if (this.notificationManager) {
         this.notificationManager.info(
-          "Préférences sauvegardées",
+          "Preferences saved",
           { duration: 2000 }
         );
       }
       
-      console.log("💾 Préférences de notification sauvegardées:", this.preferences);
+      console.log("💾 Notification preferences saved:", this.preferences);
     } catch (error) {
-      console.error("❌ Erreur sauvegarde préférences:", error);
+      console.error("❌ Error saving preferences:", error);
     }
   }
 
   /**
-   * Charge les préférences depuis localStorage
+   * Load preferences from localStorage
    */
   loadPreferences() {
     try {
@@ -122,17 +122,17 @@ export class GameNotificationSystem {
       if (saved) {
         const loadedPreferences = JSON.parse(saved);
         this.preferences = { ...this.preferences, ...loadedPreferences };
-        console.log("📂 Préférences de notification chargées:", this.preferences);
+        console.log("📂 Notification preferences loaded:", this.preferences);
         return true;
       }
     } catch (error) {
-      console.warn("⚠️ Erreur chargement préférences notifications:", error);
+      console.warn("⚠️ Error loading notification preferences:", error);
     }
     return false;
   }
 
   /**
-   * Configure les préférences
+   * Configure preferences
    */
   configure(newPreferences = {}) {
     this.preferences = { ...this.preferences, ...newPreferences };
@@ -140,7 +140,7 @@ export class GameNotificationSystem {
     
     if (this.notificationManager) {
       this.notificationManager.success(
-        "Notifications configurées !",
+        "Notifications configured!",
         {
           duration: 2000,
           position: this.preferences.defaultPosition
@@ -148,13 +148,13 @@ export class GameNotificationSystem {
       );
     }
     
-    console.log("🔔 Configuration des notifications appliquée:", this.preferences);
+    console.log("🔔 Notification configuration applied:", this.preferences);
   }
 
-  // === MÉTHODES DE NOTIFICATION SPÉCIALISÉES ===
+  // === SPECIALIZED NOTIFICATION METHODS ===
 
   /**
-   * Notification de connexion à une zone
+   * Notification: Entered a zone
    */
   onZoneEntered(zoneName) {
     if (!this.preferences.enableGameEvents || !this.notificationManager) return;
@@ -169,7 +169,7 @@ export class GameNotificationSystem {
   }
 
   /**
-   * Notification d'interaction NPC
+   * Notification: NPC interaction
    */
   onNpcInteraction(npcName, interactionType) {
     if (!this.preferences.enableGameEvents || !this.notificationManager) return;
@@ -186,7 +186,7 @@ export class GameNotificationSystem {
   }
 
   /**
-   * Notifications d'actions du joueur
+   * Player action notifications
    */
   onPlayerAction(action, details = {}) {
     if (!this.preferences.enableGameEvents || !this.notificationManager) return;
@@ -197,43 +197,43 @@ export class GameNotificationSystem {
     
     switch (action) {
       case 'levelUp':
-        message = `Niveau ${details.level} atteint !`;
+        message = `Level ${details.level} reached!`;
         type = 'success';
         options.bounce = true;
         options.duration = 4000;
         break;
         
       case 'pokemonCaught':
-        message = `${details.pokemonName} capturé !`;
+        message = `${details.pokemonName} caught!`;
         type = 'success';
         options.bounce = true;
         options.duration = 3000;
         break;
         
       case 'battleWon':
-        message = "Combat gagné !";
+        message = "Battle won!";
         type = 'success';
         options.duration = 3000;
         break;
         
       case 'battleLost':
-        message = "Combat perdu...";
+        message = "Battle lost...";
         type = 'warning';
         options.duration = 3000;
         break;
         
       case 'questCompleted':
-        // ✅ FIX: NE PAS montrer de notification ici, c'est géré par QuestSystem
-        console.log("🔕 Notification questCompleted ignorée (gérée par QuestSystem)");
+        // ✅ FIX: DO NOT show notification here, handled by QuestSystem
+        console.log("🔕 questCompleted notification ignored (handled by QuestSystem)");
         return;
         
       case 'questStarted':
-        // ✅ FIX: NE PAS montrer de notification ici, c'est géré par QuestSystem
-        console.log("🔕 Notification questStarted ignorée (gérée par QuestSystem)");
+        // ✅ FIX: DO NOT show notification here, handled by QuestSystem
+        console.log("🔕 questStarted notification ignored (handled by QuestSystem)");
         return;
         
       case 'error':
-        message = details.message || "Une erreur est survenue";
+        message = details.message || "An error has occurred";
         type = 'error';
         options.duration = 4000;
         break;
@@ -246,19 +246,19 @@ export class GameNotificationSystem {
   }
 
   /**
-   * Notification de système initialisé
+   * Notification: System initialized
    */
   onSystemInitialized(systemName) {
     if (!this.notificationManager) return;
     
     const messages = {
-      'inventory': 'Système d\'inventaire initialisé',
-      'quests': 'Système de quêtes initialisé',
-      'starter': 'Sélection de starter prête',
-      'all': 'Tous les systèmes sont prêts !'
+      'inventory': 'Inventory system initialized',
+      'quests': 'Quest system initialized',
+      'starter': 'Starter selection ready',
+      'all': 'All systems are ready!'
     };
     
-    const message = messages[systemName] || `Système ${systemName} initialisé`;
+    const message = messages[systemName] || `System ${systemName} initialized`;
     const position = systemName === 'all' ? 'top-center' : 'bottom-right';
     const bounce = systemName === 'all';
     
@@ -269,10 +269,10 @@ export class GameNotificationSystem {
     });
   }
 
-  // === MÉTHODES PUBLIQUES POUR LES DÉVELOPPEURS ===
+  // === PUBLIC METHODS FOR DEVELOPERS ===
 
   /**
-   * Affiche une notification personnalisée
+   * Show a custom notification
    */
   show(message, type = 'info', options = {}) {
     if (this.notificationManager) {
@@ -283,7 +283,7 @@ export class GameNotificationSystem {
   }
 
   /**
-   * Affiche une alerte importante
+   * Show an important alert
    */
   showAlert(message, options = {}) {
     if (this.notificationManager) {
@@ -299,7 +299,7 @@ export class GameNotificationSystem {
   }
 
   /**
-   * Affiche un achievement
+   * Show an achievement
    */
   showAchievement(achievement, options = {}) {
     if (this.notificationManager) {
@@ -315,25 +315,25 @@ export class GameNotificationSystem {
     }
   }
 
-  // === MÉTHODES DE TEST ===
+  // === TEST METHODS ===
 
   /**
-   * Teste tous les types de notifications
+   * Test all notification types
    */
   testAllTypes() {
     if (!this.notificationManager) {
-      console.warn("⚠️ NotificationManager non initialisé");
+      console.warn("⚠️ NotificationManager not initialized");
       return;
     }
 
     const tests = [
       () => this.notificationManager.info("Test Info", { position: 'top-right' }),
-      () => this.notificationManager.success("Test Succès", { position: 'top-center' }),
-      () => this.notificationManager.warning("Test Avertissement", { position: 'top-left' }),
-      () => this.notificationManager.error("Test Erreur", { position: 'bottom-left' }),
-      () => this.notificationManager.quest("Test Quête", { position: 'bottom-center', bounce: true }),
-      () => this.notificationManager.inventory("Test Inventaire", { position: 'bottom-right' }),
-      () => this.notificationManager.achievement("Test Achievement !", { bounce: true, sound: true })
+      () => this.notificationManager.success("Test Success", { position: 'top-center' }),
+      () => this.notificationManager.warning("Test Warning", { position: 'top-left' }),
+      () => this.notificationManager.error("Test Error", { position: 'bottom-left' }),
+      () => this.notificationManager.quest("Test Quest", { position: 'bottom-center', bounce: true }),
+      () => this.notificationManager.inventory("Test Inventory", { position: 'bottom-right' }),
+      () => this.notificationManager.achievement("Test Achievement!", { bounce: true, sound: true })
     ];
     
     tests.forEach((test, index) => {
@@ -342,47 +342,47 @@ export class GameNotificationSystem {
   }
 
   /**
-   * Teste les notifications de base
+   * Test basic notifications
    */
   testBasic() {
     if (!this.notificationManager) return;
     
-    this.notificationManager.info("Test notification info", { duration: 2000 });
+    this.notificationManager.info("Test info notification", { duration: 2000 });
     
     setTimeout(() => {
-      this.notificationManager.success("Test notification succès", { duration: 2000 });
+      this.notificationManager.success("Test success notification", { duration: 2000 });
     }, 500);
     
     setTimeout(() => {
-      this.notificationManager.warning("Test notification avertissement", { duration: 2000 });
+      this.notificationManager.warning("Test warning notification", { duration: 2000 });
     }, 1000);
     
     setTimeout(() => {
-      this.notificationManager.error("Test notification erreur", { duration: 2000 });
+      this.notificationManager.error("Test error notification", { duration: 2000 });
     }, 1500);
   }
 
   /**
-   * Teste une notification de quête
+   * Test quest notification
    */
   testQuest() {
     if (!this.notificationManager) return;
     
     this.notificationManager.questNotification(
-      "Quête Test",
+      "Quest Test",
       "started",
       {
         duration: 4000,
         bounce: true,
         onClick: () => {
-          this.notificationManager.info("Journal des quêtes cliqué !", { duration: 2000 });
+          this.notificationManager.info("Quest journal clicked!", { duration: 2000 });
         }
       }
     );
   }
 
   /**
-   * Teste une notification d'inventaire
+   * Test inventory notification
    */
   testInventory() {
     if (!this.notificationManager) return;
@@ -394,47 +394,47 @@ export class GameNotificationSystem {
       {
         duration: 3000,
         onClick: () => {
-          this.notificationManager.info("Inventaire cliqué !", { duration: 2000 });
+          this.notificationManager.info("Inventory clicked!", { duration: 2000 });
         }
       }
     );
   }
 
   /**
-   * Efface toutes les notifications
+   * Clear all notifications
    */
   clearAll() {
     if (this.notificationManager) {
       this.notificationManager.clear();
-      console.log("🧹 Toutes les notifications supprimées");
+      console.log("🧹 All notifications cleared");
     }
   }
 
   // === GETTERS ===
 
   /**
-   * Retourne le NotificationManager
+   * Get NotificationManager
    */
   getManager() {
     return this.notificationManager;
   }
 
   /**
-   * Vérifie si le système est initialisé
+   * Check if the system is initialized
    */
   isReady() {
     return this.isInitialized && this.notificationManager !== null;
   }
 
   /**
-   * Retourne les préférences actuelles
+   * Get current preferences
    */
   getPreferences() {
     return { ...this.preferences };
   }
 
   /**
-   * Retourne le statut du système
+   * Get system status
    */
   getStatus() {
     return {
@@ -446,60 +446,60 @@ export class GameNotificationSystem {
   }
 }
 
-// === FONCTIONS UTILITAIRES POUR L'INTÉGRATION ===
+// === UTILITY FUNCTIONS FOR INTEGRATION ===
 
 /**
- * Crée et initialise le système de notification global
+ * Create and initialize the global notification system
  */
 export function initializeGameNotifications() {
   if (window.gameNotificationSystem) {
-    console.warn("⚠️ Système de notification déjà initialisé");
+    console.warn("⚠️ Notification system already initialized");
     return window.gameNotificationSystem;
   }
   
-  console.log("🔔 Création du système de notification global...");
+  console.log("🔔 Creating global notification system...");
   
   const system = new GameNotificationSystem();
   system.init();
   
-  // Rendre accessible globalement
+  // Make globally accessible
   window.gameNotificationSystem = system;
   
-  // Créer les fonctions globales de convenance
+  // Setup global convenience functions
   setupGlobalNotificationFunctions(system);
   
-  console.log("✅ Système de notification global prêt");
+  console.log("✅ Global notification system ready");
   return system;
 }
 
 /**
- * Configure les fonctions globales de notification
+ * Setup global notification functions
  */
 function setupGlobalNotificationFunctions(system) {
-  // Fonctions de base
+  // Basic functions
   window.showGameNotification = (message, type, options) => system.show(message, type, options);
   window.showGameAlert = (message, options) => system.showAlert(message, options);
   window.showGameAchievement = (message, options) => system.showAchievement(message, options);
   
-  // Fonctions de test
+  // Test functions
   window.testNotifications = () => system.testBasic();
   window.testAllNotifications = () => system.testAllTypes();
   window.testQuestNotification = () => system.testQuest();
   window.testItemNotification = () => system.testInventory();
   
-  // Fonctions de configuration
+  // Configuration functions
   window.configureNotifications = (config) => system.configure(config);
   window.saveNotificationPreferences = () => system.savePreferences();
   window.loadNotificationPreferences = () => system.loadPreferences();
   window.clearAllNotifications = () => system.clearAll();
   
-  // Fonctions d'événements de jeu
+  // Game event functions
   window.onZoneEntered = (zoneName) => system.onZoneEntered(zoneName);
   window.onNpcInteraction = (npcName, type) => system.onNpcInteraction(npcName, type);
   window.onPlayerAction = (action, details) => system.onPlayerAction(action, details);
   window.onSystemInitialized = (systemName) => system.onSystemInitialized(systemName);
   
-  // ✅ NOUVELLES FONCTIONS pour gérer la déduplication des quêtes
+  // ✅ NEW: Quest deduplication helpers
   window.resetQuestNotificationCooldowns = () => {
     if (window.questSystem && typeof window.questSystem.resetNotificationCooldowns === 'function') {
       window.questSystem.resetNotificationCooldowns();
@@ -518,14 +518,14 @@ function setupGlobalNotificationFunctions(system) {
     }
   };
   
-  // Fonction de debug
+  // Debug function
   window.debugNotificationSystem = () => {
     const status = system.getStatus();
-    console.log("🔍 État du système de notification:", status);
+    console.log("🔍 Notification system status:", status);
     
     if (system.notificationManager) {
       system.show(
-        `Debug: Système ${status.initialized ? 'prêt' : 'non prêt'}`,
+        `Debug: System is ${status.initialized ? 'ready' : 'not ready'}`,
         'info',
         { duration: 3000, position: 'top-left' }
       );
@@ -534,66 +534,66 @@ function setupGlobalNotificationFunctions(system) {
     return status;
   };
   
-  // Fonction pour changer la position par défaut
+  // Change default position
   window.setNotificationPosition = (position) => {
     system.configure({ defaultPosition: position });
   };
   
-  console.log("🔗 Fonctions globales de notification configurées");
+  console.log("🔗 Global notification functions configured");
 }
 
 /**
- * Instructions pour les développeurs
+ * Developer instructions
  */
 export function showNotificationInstructions() {
   console.log(`
-🔔 === SYSTÈME DE NOTIFICATION PRÊT ===
-Fonctions disponibles:
+🔔 === NOTIFICATION SYSTEM READY ===
+Available functions:
 
 === Tests ===
-• window.testNotifications() - Tests de base
-• window.testAllNotifications() - Test complet avec positions
-• window.testQuestNotification() - Test notification de quête
-• window.testItemNotification() - Test notification d'inventaire
-• window.clearAllNotifications() - Nettoie tout
+• window.testNotifications() - Basic tests
+• window.testAllNotifications() - Full test with positions
+• window.testQuestNotification() - Quest notification test
+• window.testItemNotification() - Inventory notification test
+• window.clearAllNotifications() - Clear all
 
 === Configuration ===
-• window.configureNotifications(config) - Configure les préférences
-• window.saveNotificationPreferences() - Sauvegarde
-• window.loadNotificationPreferences() - Chargement
-• window.setNotificationPosition(position) - Change la position
+• window.configureNotifications(config) - Configure preferences
+• window.saveNotificationPreferences() - Save
+• window.loadNotificationPreferences() - Load
+• window.setNotificationPosition(position) - Change position
 
 === Notifications ===
-• window.showGameNotification(msg, type, options) - Notification personnalisée
-• window.showGameAlert(msg, options) - Alerte importante
+• window.showGameNotification(msg, type, options) - Custom notification
+• window.showGameAlert(msg, options) - Important alert
 • window.showGameAchievement(msg, options) - Achievement
 
-=== Événements de jeu ===
-• window.onZoneEntered(zoneName) - Entrée dans une zone
-• window.onNpcInteraction(npcName, type) - Interaction NPC
-• window.onPlayerAction(action, details) - Action du joueur
-• window.onSystemInitialized(systemName) - Système initialisé
+=== Game Events ===
+• window.onZoneEntered(zoneName) - Zone entry
+• window.onNpcInteraction(npcName, type) - NPC interaction
+• window.onPlayerAction(action, details) - Player action
+• window.onSystemInitialized(systemName) - System initialized
 
-=== ✅ NOUVEAU: Déduplication des quêtes ===
-• window.resetQuestNotificationCooldowns() - Réinitialise les cooldowns
-• window.debugQuestNotifications() - Debug du système de quêtes
-• window.setQuestNotificationCooldown(ms) - Change le délai (défaut: 2000ms)
+=== ✅ NEW: Quest deduplication ===
+• window.resetQuestNotificationCooldowns() - Reset cooldowns
+• window.debugQuestNotifications() - Quest notification debug
+• window.setQuestNotificationCooldown(ms) - Change delay (default: 2000ms)
 
 === Debug ===
-• window.debugNotificationSystem() - Debug du système
-• window.debugQuestNotifications() - Debug spécifique aux quêtes
+• window.debugNotificationSystem() - Notification system debug
+• window.debugQuestNotifications() - Quest-specific debug
 
-=== Positions disponibles ===
+=== Available positions ===
 top-right, top-left, top-center, bottom-right, bottom-left, bottom-center
 
-=== Types disponibles ===
+=== Available types ===
 info, success, error, warning, quest, inventory, achievement
 
-=== ✅ RÉSOLUTION DU PROBLÈME DE DOUBLE NOTIFICATION ===
-Le système de déduplication empêche maintenant les notifications en double.
-Si vous avez encore des doublons, utilisez:
-• window.resetQuestNotificationCooldowns() - pour réinitialiser
-• window.setQuestNotificationCooldown(5000) - pour augmenter le délai
+=== ✅ DOUBLE NOTIFICATION ISSUE RESOLVED ===
+The deduplication system now prevents duplicate notifications.
+If you still have duplicates, use:
+• window.resetQuestNotificationCooldowns() - to reset
+• window.setQuestNotificationCooldown(5000) - to increase the delay
 =========================================
   `);
 }
