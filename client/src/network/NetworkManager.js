@@ -74,155 +74,171 @@ this.lastReceivedZoneData = null;
       return false;
     }
   }
-setupRoomListeners() {
-  if (!this.room) return;
 
-  console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
+  setupRoomListeners() {
+    if (!this.room) return;
 
-  // Zone data
-  this.room.onMessage("zoneData", (data) => {
-    console.log(`🗺️ [NetworkManager] Zone data reçue:`, data);
-    this.currentZone = data.zone;
-    
-    // ✅ NOUVEAU: Stocker les zone data
-    this.lastReceivedZoneData = data;
-    
-    if (this.callbacks.onZoneData) {
-      this.callbacks.onZoneData(data);
-    }
-  });
+    console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
 
-  // ✅ NOUVEAU: Handler pour les résultats de transition du ZoneManager
-  this.room.onMessage("transitionResult", (result) => {
-    console.log(`🔍 [NetworkManager] Résultat transition ZoneManager:`, result);
-    
-    if (result.success) {
-      console.log(`✅ [NetworkManager] Transition réussie vers: ${result.currentZone}`);
-      this.currentZone = result.currentZone;
-      
-      // Reset l'état de transition
-      this.resetTransitionState();
-      
-      if (this.callbacks.onTransitionSuccess) {
-        this.callbacks.onTransitionSuccess(result);
-      }
-    } else {
-      console.error(`❌ [NetworkManager] Transition échouée: ${result.reason}`);
-      this.resetTransitionState();
-      
-      if (this.callbacks.onTransitionError) {
-        this.callbacks.onTransitionError(result);
-      }
-    }
-  });
+    // Zone data
+this.room.onMessage("zoneData", (data) => {
+  console.log(`🗺️ [NetworkManager] Zone data reçue:`, data);
+  this.currentZone = data.zone;
+  
+  // ✅ NOUVEAU: Stocker les zone data
+  this.lastReceivedZoneData = data;
+  
+  if (this.callbacks.onZoneData) {
+    this.callbacks.onZoneData(data);
+  }
+});
 
-  // Liste des NPCs
-  this.room.onMessage("npcList", (npcs) => {
-    console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
-    
-    // ✅ NOUVEAU: Stocker les NPCs reçus
-    this.lastReceivedNpcs = npcs;
-    
-    if (this.callbacks.onNpcList) {
-      this.callbacks.onNpcList(npcs);
-    }
-  });
+// Liste des NPCs
+this.room.onMessage("npcList", (npcs) => {
+ console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
+ 
+ // ✅ NOUVEAU: Stocker les NPCs reçus
+ this.lastReceivedNpcs = npcs;
+ 
+ if (this.callbacks.onNpcList) {
+   this.callbacks.onNpcList(npcs);
+ }
+});
 
-  // Interactions NPC
-  this.room.onMessage("npcInteractionResult", (result) => {
-    console.log(`💬 [NetworkManager] NPC interaction:`, result);
-    
-    if (this.callbacks.onNpcInteraction) {
-      this.callbacks.onNpcInteraction(result);
-    }
-  });
+// Handler pour les résultats de validation de transition
+this.room.onMessage("transitionResult", (result) => {
+  console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
+  
+  // ✅ CORRECTION: Synchroniser la zone immédiatement
+  if (result.success && result.currentZone) {
+    console.log(`🔄 [NetworkManager] Sync zone: ${this.currentZone} → ${result.currentZone}`);
+    this.currentZone = result.currentZone;
+  }
+  
+  if (this.onTransitionValidation) {
+    this.onTransitionValidation(result);
+  }
+  
+  // ✅ Garder aussi les anciens callbacks si tu les utilises
+  if (result.success && this.callbacks.onTransitionSuccess) {
+    this.callbacks.onTransitionSuccess(result);
+  } else if (!result.success && this.callbacks.onTransitionError) {
+    this.callbacks.onTransitionError(result);
+  }
+});
 
-  // ✅ AMÉLIORATION: État des joueurs avec protection transition
-  this.room.onStateChange((state) => {
-    // ✅ NOUVEAU: Permettre les updates même en transition (pour que le joueur apparaisse)
-    if (this.callbacks.onStateChange) {
-      this.callbacks.onStateChange(state);
-    }
-  });
+// Interactions NPC
+this.room.onMessage("npcInteractionResult", (result) => {
+ console.log(`💬 [NetworkManager] NPC interaction:`, result);
+ 
+ if (this.callbacks.onNpcInteraction) {
+   this.callbacks.onNpcInteraction(result);
+ }
+});
 
-  // ✅ AJOUTEZ ce listener pour le state filtré
-  this.room.onMessage("filteredState", (state) => {
+// ✅ AMÉLIORATION: État des joueurs avec protection transition
+this.room.onStateChange((state) => {
+ // ✅ NOUVEAU: Permettre les updates même en transition (pour que le joueur apparaisse)
+ if (this.callbacks.onStateChange) {
+   this.callbacks.onStateChange(state);
+ }
+});
+    // ✅ AJOUTEZ ce listener pour le state filtré
+this.room.onMessage("filteredState", (state) => {
     console.log(`📊 [NetworkManager] State filtré reçu:`, {
-      playersCount: state.players?.size || 0,
-      zone: this.currentZone
+        playersCount: state.players?.size || 0,
+        zone: this.currentZone
     });
     
     if (this.callbacks.onStateChange) {
-      this.callbacks.onStateChange(state);
+        this.callbacks.onStateChange(state);
     }
-  });
+});
+// ✅ NOUVEAU: Forcer le state initial après connexion
+    this.room.onStateChange.once((state) => {
+        console.log(`🎯 [NetworkManager] ÉTAT INITIAL reçu:`, state);
+        console.log(`👥 Joueurs dans l'état initial:`, state.players.size);
+        
+        // Forcer l'appel du callback même pour l'état initial
+        if (this.callbacks.onStateChange && state.players.size > 0) {
+            console.log(`🔥 [NetworkManager] Force l'appel callback pour état initial`);
+            this.callbacks.onStateChange(state);
+        }
+    });
+        this.room.onMessage("filteredState", (state) => {
+        console.log(`📊 [NetworkManager] State filtré reçu:`, {
+            playersCount: state.players?.size || 0,
+            zone: this.currentZone
+        });
+        
+        if (this.callbacks.onStateChange) {
+            this.callbacks.onStateChange(state);
+        }
+    });
+// Messages existants
+this.room.onMessage("playerData", (data) => {
+ if (this.callbacks.onPlayerData) {
+   this.callbacks.onPlayerData(data);
+ }
+});
 
-  // ✅ NOUVEAU: Forcer le state initial après connexion
-  this.room.onStateChange.once((state) => {
-    console.log(`🎯 [NetworkManager] ÉTAT INITIAL reçu:`, state);
-    console.log(`👥 Joueurs dans l'état initial:`, state.players.size);
-    
-    // Forcer l'appel du callback même pour l'état initial
-    if (this.callbacks.onStateChange && state.players.size > 0) {
-      console.log(`🔥 [NetworkManager] Force l'appel callback pour état initial`);
-      this.callbacks.onStateChange(state);
-    }
-  });
-
-  // Messages existants
-  this.room.onMessage("playerData", (data) => {
-    if (this.callbacks.onPlayerData) {
-      this.callbacks.onPlayerData(data);
-    }
-  });
-
-  this.room.onMessage("snap", (data) => {
-    if (this.callbacks.onSnap) {
-      this.callbacks.onSnap(data);
-    }
-  });
-
-  this.room.onLeave(() => {
-    console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
-    if (!this.transitionState.isActive) {
-      this.isConnected = false;
-      if (this.callbacks.onDisconnect) {
-        this.callbacks.onDisconnect();
-      }
-    }
-  });
-
-  // Appeler onConnect après configuration
-  if (this.callbacks.onConnect) {
-    console.log(`[NetworkManager] 🎯 Connexion établie`);
-    this.callbacks.onConnect();
+this.room.onMessage("snap", (data) => {
+ if (this.callbacks.onSnap) {
+   this.callbacks.onSnap(data);
+ }
+});
+this.room.onMessage("transitionResult", (result) => {
+  console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
+  
+  if (this.callbacks.onTransitionValidation) {
+    this.callbacks.onTransitionValidation(result);
   }
-}
+});
+    this.room.onLeave(() => {
+      console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
+      if (!this.transitionState.isActive) {
+        this.isConnected = false;
+        if (this.callbacks.onDisconnect) {
+          this.callbacks.onDisconnect();
+        }
+      }
+    });
+
+    // Appeler onConnect après configuration
+    if (this.callbacks.onConnect) {
+      console.log(`[NetworkManager] 🎯 Connexion établie`);
+      this.callbacks.onConnect();
+    }
+  }
+
   // ✅ AMÉLIORATION: Transition entre zones avec gestion d'état
   moveToZone(targetZone, spawnX, spawnY) {
-  if (!this.isConnected || !this.room) {
-    console.warn("[NetworkManager] ⚠️ Cannot move to zone - not connected");
-    return false;
+    if (!this.isConnected || !this.room) {
+      console.warn("[NetworkManager] ⚠️ Cannot move to zone - not connected");
+      return false;
+    }
+
+    // ✅ NOUVEAU: Vérifier si une transition est déjà en cours
+    if (this.transitionState.isActive) {
+      console.warn(`[NetworkManager] ⚠️ Transition déjà en cours vers: ${this.transitionState.targetZone}`);
+      return false;
+    }
+
+    console.log(`[NetworkManager] 🌀 === DEMANDE TRANSITION ===`);
+    console.log(`📍 De: ${this.currentZone} vers: ${targetZone}`);
+    console.log(`📊 Position: (${spawnX}, ${spawnY})`);
+    
+    // ✅ NOUVEAU: Marquer la transition comme active
+    this.startTransition(targetZone);
+    
+    this.room.send("moveToZone", {
+      targetZone: targetZone,
+      spawnX: spawnX,
+      spawnY: spawnY
+    });
+
+    return true;
   }
-
-  if (this.transitionState.isActive) {
-    console.warn(`[NetworkManager] ⚠️ Transition déjà en cours vers: ${this.transitionState.targetZone}`);
-    return false;
-  }
-
-  console.log(`[NetworkManager] 🌀 === DEMANDE TRANSITION SERVEUR ===`);
-  console.log(`📍 De: ${this.currentZone} vers: ${targetZone}`);
-  
-  // ✅ CORRECTION: Utiliser le nouveau message du serveur
-  this.room.send("moveToZone", {
-    targetZone: targetZone,
-    spawnX: spawnX,
-    spawnY: spawnY
-  });
-
-  this.startTransition(targetZone);
-  return true;
-}
 
   // ✅ NOUVELLE MÉTHODE: Démarrer une transition
   startTransition(targetZone) {
