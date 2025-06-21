@@ -253,25 +253,30 @@
   });
 
   // E pour avancer, ESC pour fermer
-  document.addEventListener('keydown', function(e) {
-    const box = document.getElementById('dialogue-box');
-    if (!box || box.style.display === 'none') return;
-    // Bloque si chat ouvert
-    if (typeof window.isChatFocused === "function" && window.isChatFocused()) return;
+document.addEventListener('keydown', function(e) {
+  const box = document.getElementById('dialogue-box');
+  if (!box || box.style.display === 'none') return;
+  
+  // ✅ NOUVEAU: Bloquer si chat ouvert
+  if (typeof window.isChatFocused === "function" && window.isChatFocused()) return;
 
-    if (
-      e.code === 'KeyE' || e.key === 'e' || e.key === 'E'
-    ) {
-      advanceDialogue();
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    else if (e.key === 'Escape' || e.code === 'Escape') {
-      closeDialogue();
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  });
+  // ✅ NOUVEAU: Vérifier si une fenêtre de quête est ouverte
+  if (window._questDialogActive) {
+    console.log("⚠️ Fenêtre de quête ouverte, E bloqué pour dialogue");
+    return;
+  }
+
+  if (e.code === 'KeyE' || e.key === 'e' || e.key === 'E') {
+    advanceDialogue();
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  else if (e.key === 'Escape' || e.code === 'Escape') {
+    closeDialogue();
+    e.preventDefault();
+    e.stopPropagation();
+  }
+});
 </script>
 
   <!-- Script d'initialisation simplifié -->
