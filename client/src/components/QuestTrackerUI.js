@@ -745,26 +745,38 @@ export class QuestTrackerUI {
 
   // Update quest distance (for location-based objectives)
   updateQuestDistances(playerX, playerY) {
+    let hasDistanceChanges = false;
+    
     this.trackedQuests.forEach(quest => {
       if (quest.targetLocation) {
         const dx = quest.targetLocation.x - playerX;
         const dy = quest.targetLocation.y - playerY;
-        quest.distance = Math.sqrt(dx * dx + dy * dy);
+        const newDistance = Math.sqrt(dx * dx + dy * dy);
+        
+        // ✅ FIX: Seulement mettre à jour si la distance a significativement changé
+        if (!quest.distance || Math.abs(quest.distance - newDistance) > 10) {
+          quest.distance = newDistance;
+          hasDistanceChanges = true;
+        }
       }
     });
     
-    // Update display if distances changed significantly
-    this.updateQuests(Array.from(this.trackedQuests.values()));
+    // ✅ FIX: Seulement mettre à jour l'affichage si nécessaire
+    if (hasDistanceChanges) {
+      this.updateQuests(Array.from(this.trackedQuests.values()));
+    }
   }
 
   // Update quest timers
   updateQuestTimers() {
     let hasTimers = false;
+    let needsUpdate = false;
     
     this.trackedQuests.forEach(quest => {
       if (quest.timeLimit && quest.timeRemaining > 0) {
         quest.timeRemaining--;
         hasTimers = true;
+        needsUpdate = true;
         
         if (quest.timeRemaining <= 0) {
           // Quest expired
@@ -773,7 +785,8 @@ export class QuestTrackerUI {
       }
     });
     
-    if (hasTimers) {
+    // ✅ FIX: Seulement mettre à jour si il y a vraiment des changements
+    if (hasTimers && needsUpdate) {
       this.updateQuests(Array.from(this.trackedQuests.values()));
     }
   }
