@@ -23,7 +23,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.animatedObjects = null;
     this.lastMoveTime = 0;
     this.myPlayerReady = false;
-    this.isTransitioning = false;
 
     // Inventaire
     this.inventorySystem = null;
@@ -32,14 +31,7 @@ export class BaseZoneScene extends Phaser.Scene {
     // ✅ NOUVEAU : Délai de grâce après spawn
     this.spawnGraceTime = 0;
     this.spawnGraceDuration = 2000; // 2 secondes
-    
-    // ✅ NOUVEAU : Gestion des états de transition
-    this.transitionState = {
-      isInProgress: false,
-      targetZone: null,
-      startTime: 0,
-      maxDuration: 10000 // 10 secondes max
-    };
+
     
     // ✅ NOUVEAU : Zone mapping et état
     this.zoneName = this.mapSceneToZone(sceneKey);
@@ -487,7 +479,6 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.networkManager.onTransitionSuccess((result) => {
       console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
-      this.handleTransitionSuccess(result);
     });
 
     this.networkManager.onTransitionError((result) => {
@@ -555,103 +546,6 @@ export class BaseZoneScene extends Phaser.Scene {
         this.playerManager.forceResynchronization();
       });
     }
-  }
-
-  // ✅ AMÉLIORATION: Gestion des succès de transition
-  handleTransitionSuccess(result) {
-    console.log(`✅ [${this.scene.key}] === TRANSITION RÉUSSIE ===`);
-    console.log(`📍 Destination: ${result.currentZone}`);
-    console.log(`📊 Résultat:`, result);
-    
-    // ✅ FIX 3: Marquer le moment de transition pour la grâce des NPCs
-    this._lastTransitionTime = Date.now();
-    
-    const targetScene = this.mapZoneToScene(result.currentZone);
-    
-    if (targetScene === this.scene.key) {
-      console.log(`📍 [${this.scene.key}] Repositionnement dans la même scène`);
-      this.repositionPlayerAfterTransition(result);
-      
-      // ✅ FIX 4: Forcer le rechargement des NPCs après repositionnement
-      this.time.delayedCall(500, () => {
-        if (this.networkManager?.lastReceivedNpcs) {
-          console.log(`🔄 [${this.scene.key}] Rechargement forcé des NPCs`);
-          this.npcManager?.spawnNpcs(this.networkManager.lastReceivedNpcs);
-        }
-      });
-    } else {
-      console.log(`🚀 [${this.scene.key}] Changement vers: ${targetScene}`);
-      this.performSceneTransition(targetScene, result);
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Repositionnement du joueur
-  repositionPlayerAfterTransition(result) {
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (myPlayer && result.position) {
-      myPlayer.x = result.position.x;
-      myPlayer.y = result.position.y;
-      myPlayer.targetX = result.position.x;
-      myPlayer.targetY = result.position.y;
-      
-      // Mettre à jour la caméra
-      if (this.cameraManager) {
-        this.cameraManager.snapToPlayer();
-      }
-      
-      console.log(`📍 [${this.scene.key}] Position mise à jour: (${result.position.x}, ${result.position.y})`);
-    }
-    
-    // Délai de grâce après repositionnement
-    this.spawnGraceTime = Date.now() + this.spawnGraceDuration;
-  }
-
-  // ✅ AMÉLIORATION: Changement de scène optimisé
-  performSceneTransition(targetScene, result) {
-    console.log(`🚀 [${this.scene.key}] === CHANGEMENT DE SCÈNE ===`);
-    console.log(`📍 Vers: ${targetScene}`);
-    console.log(`📊 Data:`, result);
-    
-    // ✅ CORRECTION CRITIQUE: Nettoyage minimal pour préserver les données
-    this.prepareForTransition();
-    
-   // Démarrer la nouvelle scène avec TOUTES les données nécessaires
-const transitionData = {
-  fromZone: this.zoneName,
-  fromTransition: true,  // ← AJOUTER CETTE LIGNE
-  networkManager: this.networkManager,
-  mySessionId: this.mySessionId,
-  preservePlayer: true // ✅ NOUVEAU: Flag pour préserver le joueur
-};
-    
-    console.log(`📦 [${this.scene.key}] Données de transition:`, transitionData);
-    
-    this.scene.start(targetScene, transitionData);
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Préparation pour transition
-  prepareForTransition() {
-    console.log(`🔧 [${this.scene.key}] Préparation pour transition...`);
-    
-    // ✅ CORRECTION: NE PAS faire de cleanup complet
-    // On ne nettoie que ce qui est spécifique à cette scène
-    
-    // Arrêter les timers locaux
-    this.time.removeAllEvents();
-    
-    // Nettoyer les objets animés locaux
-    if (this.animatedObjects) {
-      this.animatedObjects.clear(true, true);
-      this.animatedObjects = null;
-    }
-    
-    // ✅ IMPORTANT: NE PAS nettoyer le PlayerManager ni le NetworkManager
-    // Ils seront transférés à la nouvelle scène
-    
-    this.cameraFollowing = false;
-    this.myPlayerReady = false;
-    
-    console.log(`✅ [${this.scene.key}] Préparation terminée`);
   }
 
   // ✅ AMÉLIORATION: Position du joueur avec données de transition
@@ -854,11 +748,10 @@ const transitionData = {
       if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
         // 💡 PATCH: Ajoute la zone courante (this.zoneName) à sendMove
         this.networkManager.sendMove(
-          myPlayer.x,
-          myPlayer.y,
-          direction || this.lastDirection,
-          moved,
-          this.zoneName // <- AJOUT ICI
+        myPlayer.x,
+        myPlayer.y,
+        direction || this.lastDirection,
+        moved
         );
         this.lastMoveTime = now;
       }
@@ -999,7 +892,6 @@ const transitionData = {
   }
 
   setupScene() {
-    TransitionIntegration.setupTransitions(this);
     console.log('— DEBUT setupScene —');
     this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
 
@@ -1062,18 +954,6 @@ const transitionData = {
   }
 
   setupInputs() {
-    // Test transition forcée
-    this.input.keyboard.on("keydown-SPACE", () => {
-      console.log("🧪 Test transition forcée");
-      if (this.transitionManager) {
-        const fakeData = {
-          targetZone: 'village',
-          targetSpawn: 'frombeach',
-          fromZone: 'beach'
-        };
-        this.transitionManager.triggerTransition(fakeData);
-      }
-    });
     
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,S,A,D');
