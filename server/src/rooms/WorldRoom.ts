@@ -249,7 +249,10 @@ export class WorldRoom extends Room<PokeWorldState> {
           player.currentZone = result.currentZone!;
           player.x = result.position.x;
           player.y = result.position.y;
-          
+          console.log(`🔧 [WorldRoom] IMMÉDIATEMENT APRÈS UPDATE:`);
+console.log(`  - player.currentZone: ${player.currentZone}`);
+console.log(`  - result.currentZone: ${result.currentZone}`);
+console.log(`  - player position: (${player.x}, ${player.y})`);
           console.log(`✅ Transition validée: ${player.name} ${oldZone} → ${player.currentZone}`);
           
           // Notifier le changement de zone
