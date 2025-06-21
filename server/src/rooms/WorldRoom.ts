@@ -206,7 +206,19 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`📨 === SETUP MESSAGE HANDLERS ===`);
 
     // === HANDLERS EXISTANTS ===
-    
+    this.onMessage("requestInitialState", (client, data: { zone: string }) => {
+  console.log(`📡 [WorldRoom] Demande état initial de ${client.sessionId} pour zone: ${data.zone}`);
+  
+  // Envoyer immédiatement l'état filtré pour cette zone
+  const player = this.state.players.get(client.sessionId);
+  if (player && player.currentZone === data.zone) {
+    const filteredState = this.getFilteredStateForClient(client);
+    if (filteredState) {
+      client.send("filteredState", filteredState);
+      console.log(`✅ [WorldRoom] État initial envoyé à ${client.sessionId}`);
+    }
+  }
+});
     // Mouvement du joueur
    // Mouvement du joueur
   this.onMessage("playerMove", (client, data) => {
@@ -272,12 +284,6 @@ console.log(`  - player position: (${player.x}, ${player.y})`);
       });
     }
   });
-
-  // ✅ HANDLER MANQUANT - Notification de changement de zone
-  this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
-    console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
-    console.log(`👤 Client: ${client.sessionId}`);
-    console.log(`📍 Nouvelle zone: ${data.newZone} à (${data.x}, ${data.y})`);
     
     const player = this.state.players.get(client.sessionId);
     if (player) {
