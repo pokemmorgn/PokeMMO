@@ -292,7 +292,7 @@
          "name":"Worlds",
          "objects":[
                 {
-                 "height":17.5,
+                 "height":29.2272727272727,
                  "id":1,
                  "name":"teleport",
                  "properties":[
@@ -309,9 +309,9 @@
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":18.75,
-                 "x":918,
-                 "y":364.083333333333
+                 "width":25.6590909090908,
+                 "x":914.393939393939,
+                 "y":355.022727272727
                 }, 
                 {
                  "height":54,
