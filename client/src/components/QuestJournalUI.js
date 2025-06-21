@@ -397,6 +397,8 @@ setupEventListeners() {
     this.trackSelectedQuest();
   });
 
+}
+
   setupRoomListeners() {
     if (!this.gameRoom) return;
 
