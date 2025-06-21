@@ -1,8 +1,8 @@
-// server/src/models/PlayerQuest.ts
+// server/src/models/PlayerQuest.ts - VERSION CORRIGÉE
 
 import mongoose, { Document } from "mongoose";
 
-// Interfaces TypeScript
+// Interfaces TypeScript MISES À JOUR
 export interface IPlayerQuestProgress {
   questId: string;
   currentStepIndex: number;
@@ -10,7 +10,7 @@ export interface IPlayerQuestProgress {
     currentAmount: number;
     completed: boolean;
   }>;
-  status: 'active' | 'completed' | 'failed';
+  status: 'active' | 'readyToComplete' | 'completed' | 'failed'; // ✅ AJOUT readyToComplete
   startedAt: Date;
   completedAt?: Date;
 }
@@ -29,7 +29,7 @@ export interface IPlayerQuest extends Document {
   }[];
 }
 
-// Schéma MongoDB avec structure inline
+// ✅ SCHÉMA MONGODB CORRIGÉ
 const PlayerQuestSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   activeQuests: [{
@@ -38,7 +38,7 @@ const PlayerQuestSchema = new mongoose.Schema({
     objectives: { type: Map, of: mongoose.Schema.Types.Mixed, default: new Map() },
     status: { 
       type: String, 
-      enum: ['active', 'completed', 'failed'], 
+      enum: ['active', 'readyToComplete', 'completed', 'failed'], // ✅ AJOUT readyToComplete
       default: 'active' 
     },
     startedAt: { type: Date, default: Date.now },
