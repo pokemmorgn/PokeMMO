@@ -26,6 +26,9 @@ import { InventorySystem } from './game/InventorySystem.js';
 // === ✅ NOUVEAU: Import du système de notification centralisé ===
 import { initializeGameNotifications, showNotificationInstructions } from './notification.js';
 
+// === ✅ NOUVEAU: Import du debug de notifications ===
+import './debug-notifications.js';
+
 // --- Endpoint dynamique ---
 const ENDPOINT =
   (location.protocol === "https:" ? "wss://" : "ws://") +
@@ -323,6 +326,7 @@ document.head.appendChild(styleSheet);
     window.triggerQuestCollect = function(itemId, amount = 1) {
       if (window.questSystemGlobal) {
         window.questSystemGlobal.triggerCollectEvent(itemId, amount);
+        // ✅ FIX: NE PAS ajouter de notification ici, c'est déjà géré dans triggerCollectEvent
       } else {
         // Fallback
         window.showGameNotification(`Objet collecté: ${itemId} x${amount}`, "inventory", {
@@ -334,6 +338,7 @@ document.head.appendChild(styleSheet);
     window.triggerQuestDefeat = function(pokemonId) {
       if (window.questSystemGlobal) {
         window.questSystemGlobal.triggerDefeatEvent(pokemonId);
+        // ✅ FIX: NE PAS ajouter de notification ici, c'est déjà géré dans triggerDefeatEvent
       } else {
         window.onPlayerAction('battleWon', { pokemonId });
       }
@@ -342,6 +347,7 @@ document.head.appendChild(styleSheet);
     window.triggerQuestReach = function(zoneId, x, y, map) {
       if (window.questSystemGlobal) {
         window.questSystemGlobal.triggerReachEvent(zoneId, x, y, map);
+        // ✅ FIX: NE PAS ajouter de notification ici, c'est déjà géré dans triggerReachEvent
       } else {
         window.onZoneEntered(zoneId);
       }
@@ -350,6 +356,7 @@ document.head.appendChild(styleSheet);
     window.triggerQuestDeliver = function(npcId, itemId) {
       if (window.questSystemGlobal) {
         window.questSystemGlobal.triggerDeliverEvent(npcId, itemId);
+        // ✅ FIX: NE PAS ajouter de notification ici, c'est déjà géré dans triggerDeliverEvent
       } else {
         window.showGameNotification(`Objet livré: ${itemId}`, "success", {
           duration: 3000
