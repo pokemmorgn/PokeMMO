@@ -369,7 +369,10 @@ setupNetworkHandlers() {
     // Quest system
     this.initializeQuestSystem();
   });
-
+this.networkManager.onTransitionValidation((result) => {
+  console.log(`🔍 [${this.scene.key}] Résultat validation transition:`, result);
+  // Le TransitionManager s'occupe de la logique
+});
   // ✅ AMÉLIORATION: Handler d'état avec protection
   this.networkManager.onStateChange((state) => {
     if (!this.isSceneReady || !this.networkSetupComplete) {
