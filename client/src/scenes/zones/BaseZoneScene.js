@@ -113,6 +113,9 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
+  useExistingNetworkManager(networkManager, sceneData = null) {
+  this.networkManager = networkManager;
+  this.mySessionId = networkManager.getSessionId();
 // ✅ AJOUT: Gestion du rollback dans useExistingNetworkManager
 if (sceneData?.isRollback && sceneData?.restorePlayerState) {
   console.log(`🔄 [${this.scene.key}] Rollback détecté, restauration état joueur`);
