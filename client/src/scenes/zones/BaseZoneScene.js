@@ -927,6 +927,8 @@ handleMovement(myPlayerState) {
         return this.map.addTilesetImage(ts.name, ts.name);
       });
 
+      showNotification("TEST BASEZONE", "info");
+      
       this.layers = {};
       const depthOrder = {
         'BelowPlayer': 1,
