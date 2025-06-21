@@ -56,7 +56,7 @@ export class QuestSystem {
       console.log("handleNpcInteraction appelé", data);
     });
 
-    // ✅ FIX 1: UN SEUL HANDLER pour les résultats de quête avec déduplication
+    // ✅ FIX: UN SEUL HANDLER pour les résultats de quête avec déduplication
     this.gameRoom.onMessage("questStartResult", (data) => {
       console.log("🎯 Quest start result reçu:", data);
       
@@ -89,13 +89,8 @@ export class QuestSystem {
       }
     });
 
-    // ✅ FIX 2: Handler questStarted OPTIONNEL (pour éviter les doublons)
-    this.gameRoom.onMessage("questStarted", (data) => {
-      console.log("🎯 Quest started reçu:", data);
-      
-      // ✅ NOUVEAU: Vérifier si ce n'est pas un doublon avec questStartResult
-      const questId = data.quest?.id || data.quest?.name || 'unknown';
-      
+    // ✅ FIX: SUPPRIMÉ LE HANDLER questStarted pour éviter les doublons
+    // Le handler questStartResult suffit amplement
 
     // Liste des quêtes disponibles pour un NPC
     this.gameRoom.onMessage("availableQuestsList", (data) => {
