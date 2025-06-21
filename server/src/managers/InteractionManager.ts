@@ -1,6 +1,5 @@
-// server/src/managers/InteractionManager.ts - VERSION CORRIGÉE
+// server/src/managers/InteractionManager.ts - VERSION MISE À JOUR
 
-import { NpcManager, NpcData } from "./NPCManager";
 import { QuestManager } from "./QuestManager";
 import { Player } from "../schema/PokeWorldState";
 
@@ -14,100 +13,109 @@ export interface NpcInteractionResult {
   questProgress?: any[];
   npcId?: number;
   npcName?: string;
-}
-
-// Interface pour typer les étapes de quête
-interface QuestStep {
-  id: string;
-  name: string;
-  description: string;
-  objectives: any[];
-  rewards: any[];
-}
-
-// Interface pour typer les quêtes
-interface Quest {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  steps: QuestStep[];
+  questId?: string;
+  questName?: string;
 }
 
 export class InteractionManager {
-  public npcManager: NpcManager;          // <= était "private", passe en "public"
+  private getNpcManager: (zoneName: string) => any;
   private questManager: QuestManager;
 
-  constructor(npcManager: NpcManager, questManager: QuestManager) {
-    this.npcManager = npcManager;
+  constructor(getNpcManager: (zoneName: string) => any, questManager: QuestManager) {
+    this.getNpcManager = getNpcManager;
     this.questManager = questManager;
   }
 
   async handleNpcInteraction(player: Player, npcId: number): Promise<NpcInteractionResult> {
-    console.log(`🔍 DEBUG: Interactionnnn avec NPC ${npcId} par ${player.name}`);
+    console.log(`🔍 === INTERACTION MANAGER ===`);
+    console.log(`👤 Player: ${player.name}`);
+    console.log(`🤖 NPC ID: ${npcId}`);
     
-    const npc: NpcData | undefined = this.npcManager.getNpcById(npcId);
+    // Récupérer le NPC
+    const npcManager = this.getNpcManager(player.currentZone);
+    if (!npcManager) {
+      return { type: "error", message: "NPCs non disponibles dans cette zone." };
+    }
+
+    const npc = npcManager.getNpcById(npcId);
     if (!npc) {
       return { type: "error", message: "NPC inconnu." };
     }
 
-    console.log(`🔍 DEBUG: NPC trouvé: ${npc.name}, propriétés:`, npc.properties);
+    console.log(`🔍 NPC trouvé: ${npc.name}, propriétés:`, npc.properties);
 
-    // Vérifie la proximité (par exemple 64px)
+    // Vérifier la proximité (64px)
     const dx = Math.abs(player.x - npc.x);
     const dy = Math.abs(player.y - npc.y);
     if (dx > 64 || dy > 64) {
       return { type: "error", message: "Trop loin du NPC." };
     }
 
-    // === GESTION DES QUÊTES ===
+    // ✅ === NOUVELLE LOGIQUE : TOUJOURS DÉCLENCHER TALK PROGRESS ===
     
-    // ✅ FIX 1: Amélioration de la progression des quêtes
+    console.log(`💬 Déclenchement updateQuestProgress pour talk avec NPC ${npcId}`);
+    
     let questProgress: any[] = [];
     try {
       questProgress = await this.questManager.updateQuestProgress(player.name, {
         type: 'talk',
-        npcId: npcId
-      });
-      console.log(`🔍 DEBUG: Progression quêtes:`, questProgress);
-    } catch (error) {
-      console.error(`❌ Erreur lors de la mise à jour de progression:`, error);
-    }
-
-    // ✅ FIX 2: Vérification des quêtes disponibles améliorée
-    const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
-    console.log(`🔍 DEBUG: Quêtes disponibles pour NPC ${npcId}:`, availableQuests);
-    
-    // ✅ FIX 3: Vérification des quêtes à rendre améliorée
-    const completableQuests = await this.getCompletableQuestsForNpc(player.name, npcId);
-    console.log(`🔍 DEBUG: Quêtes à rendre pour NPC ${npcId}:`, completableQuests);
-
-    // === PRIORITÉ AUX QUÊTES ===
-    
-    // Si il y a des quêtes à rendre, priorité à ça
-    if (completableQuests.length > 0) {
-      console.log(`✅ DEBUG: Retourne questComplete`);
-      return {
-        type: "questComplete",
-        message: "Félicitations ! Vous avez terminé une quête !",
-        questRewards: completableQuests,
-        questProgress: questProgress,
         npcId: npcId,
-        npcName: npc.name
-      };
+        targetId: npcId.toString()
+      });
+      console.log(`📊 Résultats progression quêtes:`, questProgress);
+    } catch (error) {
+      console.error(`❌ Erreur lors de updateQuestProgress:`, error);
     }
 
-    // Si il y a des quêtes disponibles, les proposer
-    if (availableQuests.length > 0) {
-      console.log(`✅ DEBUG: Retourne questGiver`);
+    // ✅ === VÉRIFIER LES QUÊTES APRÈS PROGRESSION ===
+    
+    // 1. Vérifier les quêtes prêtes à compléter manuellement
+    const readyToCompleteQuests = await this.getReadyToCompleteQuestsForNpc(player.name, npcId);
+    
+    if (readyToCompleteQuests.length > 0) {
+      console.log(`🎉 Quêtes prêtes à compléter: ${readyToCompleteQuests.length}`);
       
-      // ✅ FIX 4: Sérialisation correcte des quêtes disponibles avec typage
-      const serializedQuests = (availableQuests as Quest[]).map(quest => ({
+      // Compléter automatiquement toutes les quêtes prêtes
+      const completionResults = [];
+      for (const quest of readyToCompleteQuests) {
+        const result = await this.questManager.completeQuestManually(player.name, quest.id);
+        if (result) {
+          completionResults.push(result);
+        }
+      }
+      
+      if (completionResults.length > 0) {
+        const totalRewards = completionResults.reduce((acc, result) => {
+          return [...acc, ...(result.questRewards || [])];
+        }, []);
+        
+        const questNames = completionResults.map(r => r.questName).join(', ');
+        
+        return {
+          type: "questComplete",
+          questId: completionResults[0].questId,
+          questName: questNames,
+          questRewards: totalRewards,
+          questProgress: questProgress,
+          npcId: npcId,
+          npcName: npc.name,
+          message: `Félicitations ! Vous avez terminé : ${questNames}`
+        };
+      }
+    }
+
+    // 2. Vérifier les quêtes disponibles
+    const availableQuests = await this.getAvailableQuestsForNpc(player.name, npcId);
+    
+    if (availableQuests.length > 0) {
+      console.log(`📋 Quêtes disponibles: ${availableQuests.length}`);
+      
+      const serializedQuests = availableQuests.map(quest => ({
         id: quest.id,
         name: quest.name,
         description: quest.description,
         category: quest.category,
-        steps: quest.steps.map((step: QuestStep) => ({
+        steps: quest.steps.map((step: any) => ({
           id: step.id,
           name: step.name,
           description: step.description,
@@ -126,42 +134,47 @@ export class InteractionManager {
       };
     }
 
-    // Si il y a eu des progressions de quête, les mentionner
-    if (questProgress.length > 0) {
-      const progressMessages = questProgress.map(p => p.message).filter(Boolean);
-      if (progressMessages.length > 0) {
-        console.log(`✅ DEBUG: Retourne questProgress`);
-        return {
-          type: "questProgress",
-          message: progressMessages.join("\n"),
-          questProgress: questProgress,
-          npcId: npcId,
-          npcName: npc.name
-        };
-      }
+    // 3. Vérifier les quêtes en cours
+    const activeQuests = await this.questManager.getActiveQuests(player.name);
+    const questsForThisNpc = activeQuests.filter(q => 
+      q.startNpcId === npcId || q.endNpcId === npcId
+    );
+
+    if (questsForThisNpc.length > 0) {
+      console.log(`📈 Quêtes en cours pour ce NPC: ${questsForThisNpc.length}`);
+      
+      const progressDialogue = this.getProgressDialogueForNpc(npc, questsForThisNpc[0]);
+      return {
+        type: "dialogue",
+        lines: progressDialogue,
+        npcId: npcId,
+        npcName: npc.name,
+        questProgress: questProgress
+      };
     }
 
-    console.log(`⚠️ DEBUG: Aucune quête, retourne comportement normal`);
-
-    // === COMPORTEMENT NPC NORMAL ===
+    // ✅ === COMPORTEMENT NPC NORMAL ===
     
+    console.log(`💬 Aucune quête, dialogue normal`);
+
     // Types d'interaction classiques selon les propriétés du NPC
     if (npc.properties.shop) {
       return { 
         type: "shop", 
         shopId: npc.properties.shop,
         npcId: npcId,
-        npcName: npc.name
+        npcName: npc.name,
+        questProgress: questProgress
       };
     } else if (npc.properties.healer) {
       return { 
         type: "heal", 
         message: "Vos Pokémon sont soignés !",
         npcId: npcId,
-        npcName: npc.name
+        npcName: npc.name,
+        questProgress: questProgress
       };
     } else if (npc.properties.dialogue) {
-      // Dialogue peut être string ou tableau de strings
       const lines = Array.isArray(npc.properties.dialogue)
         ? npc.properties.dialogue
         : [npc.properties.dialogue];
@@ -169,17 +182,15 @@ export class InteractionManager {
         type: "dialogue", 
         lines,
         npcId: npcId,
-        npcName: npc.name
+        npcName: npc.name,
+        questProgress: questProgress
       };
     } else {
-      // Dialogue par défaut avec mention des quêtes s'il y en avait
-      let defaultMessage = "Bonjour !";
-      if (questProgress.length > 0) {
-        defaultMessage += " (Progression de quête mise à jour)";
-      }
+      // Dialogue par défaut
+      const defaultDialogue = await this.getDefaultDialogueForNpc(npc);
       return { 
         type: "dialogue", 
-        lines: [defaultMessage],
+        lines: defaultDialogue,
         questProgress: questProgress,
         npcId: npcId,
         npcName: npc.name
@@ -187,7 +198,8 @@ export class InteractionManager {
     }
   }
 
-  // ✅ FIX 5: Amélioration de la récupération des quêtes disponibles
+  // ✅ === MÉTHODES HELPER AMÉLIORÉES ===
+
   private async getAvailableQuestsForNpc(username: string, npcId: number): Promise<any[]> {
     try {
       const questsForNpc = this.questManager.getQuestsForNpc(npcId);
@@ -196,7 +208,6 @@ export class InteractionManager {
       console.log(`🔍 Quêtes pour NPC ${npcId}:`, questsForNpc.length);
       console.log(`🔍 Quêtes disponibles pour ${username}:`, availableQuests.length);
       
-      // Filtrer les quêtes disponibles qui peuvent être données par ce NPC
       const result = availableQuests.filter(quest => 
         questsForNpc.some(npcQuest => 
           npcQuest.id === quest.id && npcQuest.startNpcId === npcId
@@ -211,50 +222,103 @@ export class InteractionManager {
     }
   }
 
-  // ✅ FIX 6: Amélioration de la récupération des quêtes à terminer
-  private async getCompletableQuestsForNpc(username: string, npcId: number): Promise<any[]> {
+  // ✅ NOUVELLE MÉTHODE : Récupérer les quêtes prêtes à compléter manuellement
+  private async getReadyToCompleteQuestsForNpc(username: string, npcId: number): Promise<any[]> {
     try {
       const activeQuests = await this.questManager.getActiveQuests(username);
       
-      console.log(`🔍 Quêtes actives pour ${username}:`, activeQuests.length);
-      
-      // Filtrer les quêtes actives qui peuvent être rendues à ce NPC
-      const completableQuests = activeQuests.filter(quest => {
+      const readyQuests = activeQuests.filter(quest => {
         // Vérifier si c'est le bon NPC pour rendre la quête
         if (quest.endNpcId !== npcId) return false;
         
-        // Vérifier si la quête est terminée
-        const isQuestComplete = quest.currentStepIndex >= quest.steps.length;
-        
-        if (isQuestComplete) {
-          console.log(`🎉 Quête ${quest.id} est complète et peut être rendue à NPC ${npcId}`);
-          return true;
-        }
-        
-        // Vérifier si l'étape actuelle est complète
-        const currentStep = quest.steps[quest.currentStepIndex];
-        if (currentStep) {
-          const allObjectivesCompleted = currentStep.objectives.every(obj => obj.completed);
-          if (allObjectivesCompleted) {
-            console.log(`📋 Étape actuelle de la quête ${quest.id} est complète`);
-            return true;
-          }
-        }
-        
-        return false;
+        // Vérifier si la quête est marquée comme prête à compléter
+        return quest.status === 'readyToComplete';
       });
 
-      console.log(`🔍 Quêtes complétables pour NPC ${npcId}:`, completableQuests.length);
-      return completableQuests;
+      console.log(`🎉 Quêtes prêtes à compléter pour NPC ${npcId}:`, readyQuests.length);
+      return readyQuests;
     } catch (error) {
-      console.error(`❌ Erreur getCompletableQuestsForNpc:`, error);
+      console.error(`❌ Erreur getReadyToCompleteQuestsForNpc:`, error);
       return [];
     }
   }
 
-  // === MÉTHODES UTILITAIRES POUR LES QUÊTES ===
+  private getProgressDialogueForNpc(npc: any, quest: any): string[] {
+    // Dialogues spécifiques selon la quête en cours
+    if (quest.id === 'quest_fishingrod') {
+      return [
+        "Comment va votre recherche de matériel de pêche ?",
+        "J'ai vraiment hâte de retourner pêcher !"
+      ];
+    }
+    
+    if (quest.id === 'tutorial_first_steps') {
+      return [
+        "Comment avance votre apprentissage ?",
+        "N'hésitez pas si vous avez des questions !"
+      ];
+    }
+    
+    // Dialogue générique pour quête en cours
+    return [
+      `Comment avance votre mission "${quest.name}" ?`,
+      `Revenez me voir quand vous aurez terminé !`
+    ];
+  }
 
-  // ✅ FIX 7: Amélioration du démarrage de quête
+  private async getDefaultDialogueForNpc(npc: any): Promise<string[]> {
+    // 1. Vérifier si le NPC a un dialogueId
+    if (npc.properties?.dialogueId) {
+      const dialogues = await this.getDialogueById(npc.properties.dialogueId);
+      if (dialogues.length > 0) {
+        return dialogues;
+      }
+    }
+    
+    // 2. Dialogue par défaut basé sur le type de NPC
+    if (npc.properties?.shop) {
+      return [
+        `Bienvenue dans ma boutique !`,
+        `Regardez mes marchandises !`
+      ];
+    }
+    
+    if (npc.properties?.healer) {
+      return [
+        `Voulez-vous que je soigne vos Pokémon ?`,
+        `Ils seront en pleine forme !`
+      ];
+    }
+    
+    // 3. Dialogue générique par défaut
+    return [
+      `Bonjour ! Je suis ${npc.name}.`,
+      `Belle journée pour une aventure !`
+    ];
+  }
+
+  private async getDialogueById(dialogueId: string): Promise<string[]> {
+    // TODO: Charger depuis un fichier JSON ou base de données
+    const dialogueMap: { [key: string]: string[] } = {
+      'greeting_bob': [
+        "Salut ! Je suis Bob, le pêcheur local.",
+        "J'espère que tu aimes la pêche comme moi !"
+      ],
+      'greeting_oak': [
+        "Bonjour jeune dresseur !",
+        "Prêt pour de nouvelles aventures ?"
+      ],
+      'shop_keeper': [
+        "Bienvenue dans ma boutique !",
+        "J'ai tout ce qu'il faut pour votre aventure !"
+      ]
+    };
+    
+    return dialogueMap[dialogueId] || [];
+  }
+
+  // ✅ === MÉTHODES POUR LES QUÊTES ===
+
   async handleQuestStart(username: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
     try {
       console.log(`🎯 Tentative de démarrage de quête ${questId} pour ${username}`);
@@ -282,26 +346,6 @@ export class InteractionManager {
       };
     }
   }
-
-  async handleQuestComplete(username: string, questId: string): Promise<{ success: boolean; message: string; rewards?: any[] }> {
-    try {
-      // Cette méthode serait appelée depuis le QuestManager
-      // Pour l'instant, on peut juste renvoyer un message de succès
-      return {
-        success: true,
-        message: "Quête terminée avec succès !",
-        rewards: [] // Les récompenses seraient gérées par le QuestManager
-      };
-    } catch (error) {
-      console.error("❌ Erreur lors de la completion de quête:", error);
-      return {
-        success: false,
-        message: "Erreur lors de la completion de la quête."
-      };
-    }
-  }
-
-  // === MÉTHODES POUR PROGRESSION AUTOMATIQUE ===
 
   async updatePlayerProgress(username: string, eventType: string, data: any): Promise<any[]> {
     try {
@@ -343,7 +387,6 @@ export class InteractionManager {
     }
   }
 
-  // ✅ FIX 8: Nouvelle méthode pour obtenir les statuts de quête pour un joueur
   async getQuestStatuses(username: string): Promise<any[]> {
     try {
       const availableQuests = await this.questManager.getAvailableQuests(username);
@@ -364,7 +407,7 @@ export class InteractionManager {
       // Statuts pour les quêtes actives
       for (const quest of activeQuests) {
         // Quête prête à être rendue
-        if (quest.currentStepIndex >= quest.steps.length && quest.endNpcId) {
+        if (quest.status === 'readyToComplete' && quest.endNpcId) {
           questStatuses.push({
             npcId: quest.endNpcId,
             type: 'questReadyToComplete'
