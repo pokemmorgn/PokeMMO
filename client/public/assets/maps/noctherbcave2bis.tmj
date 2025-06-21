@@ -202,7 +202,7 @@
          "name":"cavefog",
          "opacity":0.94,
          "type":"imagelayer",
-         "visible":false,
+         "visible":true,
          "x":0,
          "y":0
         }],
