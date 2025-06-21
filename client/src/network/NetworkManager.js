@@ -305,6 +305,12 @@ sendMove(x, y, direction, isMoving) {
     }
   }
 
+   sendNpcInteract(npcId) {
+    if (this.isConnected && this.room && !this.isTransitioning) {
+      this.room.send("npcInteract", { npcId });
+    }
+  }
+  
   sendMessage(type, data) {
     if (this.isConnected && this.room && !this.transitionState.isActive) {
       this.room.send(type, data);
