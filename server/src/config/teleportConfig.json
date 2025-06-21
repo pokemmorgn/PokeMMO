@@ -135,7 +135,7 @@
       "message": {
         "failure": "Vous devez être niveau 5+ pour accéder à la Route 1"
       },
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "road1_to_village",
