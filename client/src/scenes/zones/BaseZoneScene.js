@@ -54,6 +54,8 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   create() {
+      if (window.showLoadingOverlay) window.showLoadingOverlay("Chargement de la zone...");
+
     TransitionIntegration.setupTransitions(this);
 
     console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} (zone en attente serveur) ===`);
@@ -491,6 +493,10 @@ export class BaseZoneScene extends Phaser.Scene {
     };
     
     // Changer vers la bonne scène
+if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
+this.scene.start(correctScene, transitionData);
+
+
     this.scene.start(correctScene, transitionData);
   }
 
@@ -517,6 +523,8 @@ export class BaseZoneScene extends Phaser.Scene {
     if (myPlayer && !this.myPlayerReady) {
       this.myPlayerReady = true;
       console.log(`✅ [${this.scene.key}] Joueur local trouvé: ${this.mySessionId}`);
+          if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+
       
       // ✅ CORRECTION: S'assurer que le joueur est visible
       if (!myPlayer.visible) {
@@ -698,6 +706,8 @@ export class BaseZoneScene extends Phaser.Scene {
 
   // ✅ NOUVELLE MÉTHODE: Affichage d'état d'erreur
   showErrorState(message) {
+      if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+
     this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\n${message}`);
     
     // Ajouter un bouton de retry si nécessaire
