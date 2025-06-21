@@ -658,47 +658,48 @@ export class BaseZoneScene extends Phaser.Scene {
 
   // ✅ AMÉLIORATION: Position du joueur avec données de transition
 positionPlayer(player) {
+    // On cherche toujours la vraie position serveur
     const initData = this.scene.settings.data;
+    let pos = null;
 
-    console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
-    console.log(`📊 InitData:`, initData);
-
-    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-        console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
-        player.x = initData.spawnX;
-        player.y = initData.spawnY;
-        player.targetX = initData.spawnX;
-        player.targetY = initData.spawnY;
+    // Privilégie la position issue de la transition serveur
+    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined && !(initData.spawnX === 100 && initData.spawnY === 100)) {
+        pos = { x: initData.spawnX, y: initData.spawnY };
+        console.log(`[${this.scene.key}] Position depuis données de transition serveur:`, pos);
+    } else if (player.x && player.y && !(player.x === 100 && player.y === 100)) {
+        // Fallback : garde la position actuelle du player si elle est crédible
+        pos = { x: player.x, y: player.y };
+        console.log(`[${this.scene.key}] Position player conservée:`, pos);
     } else {
-        const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-        console.log(`📍 Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
-        player.x = defaultPos.x;
-        player.y = defaultPos.y;
-        player.targetX = defaultPos.x;
-        player.targetY = defaultPos.y;
+        // Dernier recours, fallback par défaut (rare)
+        pos = this.getDefaultSpawnPosition(initData?.fromZone);
+        console.log(`[${this.scene.key}] Fallback position par défaut:`, pos);
     }
+
+    player.x = pos.x;
+    player.y = pos.y;
+    player.targetX = pos.x;
+    player.targetY = pos.y;
 
     player.setVisible(true);
     player.setActive(true);
     player.setDepth(5);
 
     if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-      player.indicator.setVisible(true);
+        player.indicator.x = player.x;
+        player.indicator.y = player.y - 32;
+        player.indicator.setVisible(true);
     }
 
-    // Délai de grâce après spawn
     this.spawnGraceTime = Date.now() + this.spawnGraceDuration;
     console.log(`🛡️ [${this.scene.key}] Délai de grâce activé pour ${this.spawnGraceDuration}ms`);
 
-    // Envoyer la position au serveur
     if (this.networkManager && this.networkManager.isConnected) {
-      this.networkManager.sendMove(player.x, player.y, 'down', false);
+        this.networkManager.sendMove(player.x, player.y, 'down', false);
     }
 
     this.onPlayerPositioned(player, initData);
-  }
+}
 
   // ✅ NOUVELLE MÉTHODE: Initialisation du système de quêtes
   initializeQuestSystem() {
