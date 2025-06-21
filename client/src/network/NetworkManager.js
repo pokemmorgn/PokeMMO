@@ -190,7 +190,13 @@ this.room.onMessage("snap", (data) => {
    this.callbacks.onSnap(data);
  }
 });
-
+this.room.onMessage("transitionResult", (result) => {
+  console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
+  
+  if (this.callbacks.onTransitionValidation) {
+    this.callbacks.onTransitionValidation(result);
+  }
+});
     this.room.onLeave(() => {
       console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
       if (!this.transitionState.isActive) {
@@ -343,6 +349,8 @@ sendMove(x, y, direction, isMoving) {
   onTransitionError(callback) { this.callbacks.onTransitionError = callback; }
   onNpcInteraction(callback) { this.callbacks.onNpcInteraction = callback; }
   onSnap(callback) { this.callbacks.onSnap = callback; }
+  onTransitionValidation(callback) { this.callbacks.onTransitionValidation = callback; }
+
 
   onMessage(type, callback) {
     if (this.room) {
