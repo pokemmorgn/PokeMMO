@@ -6,15 +6,6 @@ export class VillageScene extends BaseZoneScene {
     this.transitionCooldowns = {};
   }
 
-  // Position par défaut selon la provenance
-  getDefaultSpawnPosition(fromZone) {
-    switch(fromZone) {
-      case 'BeachScene':        return { x: 100, y: 200 };
-      case 'Road1Scene':        return { x: 300, y: 100 };
-      case 'VillageLabScene':   return { x: 150, y: 150 };
-      default:                  return { x: 200, y: 200 };
-    }
-  }
 
   // 🔥 HOOK appelé UNE FOIS dès que le joueur local est prêt et positionné
   onPlayerReady(myPlayer) {
