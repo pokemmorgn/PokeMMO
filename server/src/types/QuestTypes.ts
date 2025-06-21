@@ -10,6 +10,7 @@ export interface QuestObjective {
   currentAmount: number;
   requiredAmount: number;
   completed: boolean;
+  validationDialogue?: string[]; // ✅ NOUVEAU: Dialogue quand objectif validé
 }
 
 export interface QuestReward {
@@ -77,6 +78,11 @@ export interface QuestDefinition {
   isRepeatable: boolean;
   cooldownHours?: number;
   autoComplete?: boolean; // ✅ NOUVEAU FLAG
+  dialogues?: { // ✅ NOUVEAU: Dialogues spécifiques
+    questOffer?: string[];
+    questInProgress?: string[];
+    questComplete?: string[];
+  };
   steps: {
     id: string;
     name: string;
@@ -89,6 +95,7 @@ export interface QuestDefinition {
       targetName?: string;
       itemId?: string;
       requiredAmount: number;
+      validationDialogue?: string[]; // ✅ NOUVEAU: Dialogue de validation
     }[];
     rewards?: QuestReward[];
   }[];
