@@ -221,12 +221,6 @@ export class InventoryIcon {
         animation: shine 3s infinite;
       }
 
-      @keyframes shine {
-        0%, 90% { opacity: 0; transform: translateX(-100%); }
-        50% { opacity: 1; transform: translateX(100%); }
-        100% { opacity: 0; transform: translateX(100%); }
-      }
-
       /* ✅ NOUVEAU: Style pour l'indicateur de groupe d'icônes */
       .ui-icons-group {
         position: fixed;
