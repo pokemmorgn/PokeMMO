@@ -2,11 +2,13 @@
 
 import { QuestManager } from "./QuestManager";
 import { Player } from "../schema/PokeWorldState";
+import { ShopManager } from "./ShopManager";
 
 export interface NpcInteractionResult {
   type: string;
   message?: string;
   shopId?: string;
+  shopData?: any;
   lines?: string[];
   availableQuests?: any[];
   questRewards?: any[];
@@ -20,10 +22,16 @@ export interface NpcInteractionResult {
 export class InteractionManager {
   private getNpcManager: (zoneName: string) => any;
   private questManager: QuestManager;
+  private shopManager: ShopManager;
 
-  constructor(getNpcManager: (zoneName: string) => any, questManager: QuestManager) {
+ constructor(
+    getNpcManager: (zoneName: string) => any, 
+    questManager: QuestManager,
+    shopManager: ShopManager // ✅ NOUVEAU PARAMÈTRE
+  ) {
     this.getNpcManager = getNpcManager;
     this.questManager = questManager;
+    this.shopManager = shopManager; // ✅ INITIALISATION
   }
 
   async handleNpcInteraction(player: Player, npcId: number): Promise<NpcInteractionResult> {
@@ -220,7 +228,104 @@ export class InteractionManager {
       };
     }
   }
+  // ✅ === NOUVELLE MÉTHODE : GESTION DES MARCHANDS ===
+  private async handleMerchantInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
+    console.log(`🏪 === INTERACTION MARCHAND ===`);
+    
+    // Récupérer le shop ID depuis les propriétés du NPC
+    const shopId = npc.properties.shopId || npc.properties.shop;
+    
+    if (!shopId) {
+      console.error(`❌ NPC marchand ${npcId} sans shopId`);
+      return {
+        type: "error",
+        message: "Ce marchand n'a pas de boutique configurée."
+      };
+    }
 
+    // Récupérer les données du shop
+    const shopCatalog = this.shopManager.getShopCatalog(shopId, player.level || 1);
+    
+    if (!shopCatalog) {
+      console.error(`❌ Shop ${shopId} introuvable`);
+      return {
+        type: "error",
+        message: "Boutique indisponible."
+      };
+    }
+
+    console.log(`✅ Shop ${shopId} chargé: ${shopCatalog.availableItems.length} objets disponibles`);
+
+    // TODO: Récupérer l'argent du joueur depuis la base de données
+    const playerGold = player.gold || 1000; // Valeur temporaire
+
+    return {
+      type: "shop",
+      shopId: shopId,
+      shopData: {
+        shopInfo: shopCatalog.shopInfo,
+        items: shopCatalog.availableItems,
+        playerGold: playerGold,
+        playerLevel: player.level || 1
+      },
+      npcId: npcId,
+      npcName: npc.name,
+      message: `Bienvenue dans ${shopCatalog.shopInfo.name} !`
+    };
+  }
+
+  // ✅ === NOUVELLE MÉTHODE : TRANSACTIONS SHOP ===
+  async handleShopTransaction(
+    player: Player, 
+    shopId: string, 
+    action: 'buy' | 'sell',
+    itemId: string,
+    quantity: number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    newGold?: number;
+    itemsChanged?: any[];
+    shopStockChanged?: any[];
+  }> {
+    console.log(`💰 === TRANSACTION SHOP ===`);
+    console.log(`👤 Player: ${player.name}, Shop: ${shopId}, Action: ${action}, Item: ${itemId}, Qty: ${quantity}`);
+
+    // TODO: Récupérer l'argent et l'inventaire du joueur depuis la DB
+    const playerGold = player.gold || 1000;
+    const playerLevel = player.level || 1;
+
+    if (action === 'buy') {
+      const result = await this.shopManager.buyItem(shopId, itemId, quantity, playerGold, playerLevel);
+      
+      if (result.success) {
+        // TODO: Mettre à jour l'argent du joueur dans la DB
+        // TODO: Ajouter l'objet à l'inventaire du joueur
+        console.log(`✅ Achat réussi: ${quantity}x ${itemId}`);
+      }
+      
+      return result;
+      
+    } else if (action === 'sell') {
+      // TODO: Vérifier la quantité possédée par le joueur
+      const playerHasQuantity = 10; // Valeur temporaire
+      
+      const result = await this.shopManager.sellItem(shopId, itemId, quantity, playerHasQuantity);
+      
+      if (result.success) {
+        // TODO: Mettre à jour l'argent du joueur dans la DB
+        // TODO: Retirer l'objet de l'inventaire du joueur
+        console.log(`✅ Vente réussie: ${quantity}x ${itemId}`);
+      }
+      
+      return result;
+    }
+
+    return {
+      success: false,
+      message: "Action non reconnue"
+    };
+  }
   // ✅ === NOUVELLE MÉTHODE: Vérifier validation objectif talk ===
 private async checkTalkObjectiveValidation(username: string, npcId: number): Promise<NpcInteractionResult | null> {
   try {
