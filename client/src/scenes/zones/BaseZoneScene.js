@@ -436,6 +436,7 @@ export class BaseZoneScene extends Phaser.Scene {
     if (myPlayer && !this.myPlayerReady) {
       this.myPlayerReady = true;
       console.log(`✅ [${this.scene.key}] Joueur local trouvé: ${this.mySessionId}`);
+      console.log(`📍 [${this.scene.key}] Position serveur: (${myPlayer.x}, ${myPlayer.y})`);
       
       // ✅ CORRECTION: S'assurer que le joueur est visible
       if (!myPlayer.visible) {
@@ -444,15 +445,26 @@ export class BaseZoneScene extends Phaser.Scene {
         myPlayer.setActive(true);
       }
       
+      // ✅ NOUVEAU : Respecter la position serveur
+      myPlayer.targetX = myPlayer.x;
+      myPlayer.targetY = myPlayer.y;
+      
       this.cameraManager.followPlayer(myPlayer);
       this.cameraFollowing = true;
-      this.positionPlayer(myPlayer);
+      
+      // ✅ CORRECTION : Ne pas repositionner si le joueur vient du serveur
+      const initData = this.scene.settings.data;
+      if (!initData?.fromTransition && !initData?.spawnX) {
+        console.log(`📍 [${this.scene.key}] Position initiale du serveur acceptée`);
+      } else {
+        this.positionPlayer(myPlayer);
+      }
       
       if (typeof this.onPlayerReady === 'function') {
         this.onPlayerReady(myPlayer);
       }
     }
-  }
+}
 
   // ✅ NOUVELLE MÉTHODE: Setup des handlers WorldRoom
   setupWorldRoomHandlers() {
@@ -661,23 +673,37 @@ positionPlayer(player) {
     const initData = this.scene.settings.data;
 
     console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
-    console.log(`📊 InitData:`, initData);
+    console.log(`📊 InitData complet:`, initData);
 
+    // ✅ CORRECTION PRIORITÉ : Données de transition d'abord
     if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-        console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
+        console.log(`🎯 [${this.scene.key}] Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
         player.x = initData.spawnX;
         player.y = initData.spawnY;
         player.targetX = initData.spawnX;
         player.targetY = initData.spawnY;
-    } else {
+    }
+    // ✅ NOUVEAU : Vérifier si le joueur a déjà une position serveur
+    else if (player.x !== undefined && player.y !== undefined && 
+             (player.x !== 0 || player.y !== 0)) {
+        console.log(`🌍 [${this.scene.key}] Position depuis serveur: ${player.x}, ${player.y}`);
+        // Ne pas modifier - le joueur a déjà sa position du serveur
+        player.targetX = player.x;
+        player.targetY = player.y;
+    }
+    // ✅ Seulement en dernier recours : position par défaut
+    else {
         const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-        console.log(`📍 Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
+        console.log(`🏠 [${this.scene.key}] Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
         player.x = defaultPos.x;
         player.y = defaultPos.y;
         player.targetX = defaultPos.x;
         player.targetY = defaultPos.y;
     }
 
+    // ✅ IMPORTANT : Ne pas envoyer sendMove immédiatement après spawn
+    // Le serveur fait autorité sur la position
+    
     player.setVisible(true);
     player.setActive(true);
     player.setDepth(5);
@@ -692,13 +718,16 @@ positionPlayer(player) {
     this.spawnGraceTime = Date.now() + this.spawnGraceDuration;
     console.log(`🛡️ [${this.scene.key}] Délai de grâce activé pour ${this.spawnGraceDuration}ms`);
 
-    // Envoyer la position au serveur
-    if (this.networkManager && this.networkManager.isConnected) {
-      this.networkManager.sendMove(player.x, player.y, 'down', false);
-    }
+    // ✅ CORRECTION : Attendre avant d'envoyer la position au serveur
+    this.time.delayedCall(500, () => {
+        if (this.networkManager && this.networkManager.isConnected) {
+            console.log(`📤 [${this.scene.key}] Confirmation position au serveur: ${player.x}, ${player.y}`);
+            this.networkManager.sendMove(player.x, player.y, 'down', false);
+        }
+    });
 
     this.onPlayerPositioned(player, initData);
-  }
+}
 
   // ✅ NOUVELLE MÉTHODE: Initialisation du système de quêtes
   initializeQuestSystem() {
