@@ -13,9 +13,9 @@ export class VillageLabScene extends BaseZoneScene {
   getDefaultSpawnPosition(fromZone) {
     switch(fromZone) {
       case 'VillageScene':
-        return { x: 200, y: 300 }; // Entrée depuis le village
+        return { x: 50, y: 100 }; // Entrée depuis le village
       default:
-        return { x: 200, y: 300 }; // Position par défaut
+        return { x: 50, y: 100 }; // Position par défaut
     }
   }
 
