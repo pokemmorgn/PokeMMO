@@ -223,7 +223,13 @@ export class GameNotificationSystem {
         break;
         
       case 'questCompleted':
-        // Géré par le QuestSystem
+        // ✅ FIX: NE PAS montrer de notification ici, c'est géré par QuestSystem
+        console.log("🔕 Notification questCompleted ignorée (gérée par QuestSystem)");
+        return;
+        
+      case 'questStarted':
+        // ✅ FIX: NE PAS montrer de notification ici, c'est géré par QuestSystem
+        console.log("🔕 Notification questStarted ignorée (gérée par QuestSystem)");
         return;
         
       case 'error':
