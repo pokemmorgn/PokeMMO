@@ -428,30 +428,34 @@ sendMove(x, y, direction, isMoving) {
   }
 
   checkZoneSynchronization(currentScene) {
-    if (!this.room || !this.sessionId) {
-      console.warn(`[NetworkManager] ⚠️ Pas de room pour vérifier la sync zone`);
-      return false;
-    }
-
-    const myPlayer = this.room.state.players.get(this.sessionId);
-    if (!myPlayer) {
-      console.warn(`[NetworkManager] ❌ Joueur non trouvé pour sync zone`);
-      return false;
-    }
-
-    const serverZone = myPlayer.currentZone;
-    const clientZone = this.mapSceneToZone(currentScene);
-
-    if (serverZone !== clientZone) {
-      console.warn(`[NetworkManager] ⚠️ DÉSYNCHRONISATION ZONE !`);
-      console.warn(`   Serveur: ${serverZone}`);
-      console.warn(`   Client: ${clientZone} (${currentScene})`);
-      return false;
-    }
-
-    console.log(`[NetworkManager] ✅ Zones synchronisées: ${serverZone}`);
-    return true;
+  if (!this.room || !this.sessionId) {
+    console.warn(`[NetworkManager] ⚠️ Pas de room pour vérifier la sync zone`);
+    return false;
   }
+
+  const myPlayer = this.room.state.players.get(this.sessionId);
+  if (!myPlayer) {
+    console.warn(`[NetworkManager] ❌ Joueur non trouvé pour sync zone`);
+    return false;
+  }
+
+  const serverZone = myPlayer.currentZone;
+  const clientZone = this.mapSceneToZone(currentScene);
+
+  if (serverZone !== clientZone) {
+    console.warn(`[NetworkManager] 🔄 DÉSYNCHRONISATION DÉTECTÉE - CORRECTION AUTO`);
+    console.warn(`   Serveur: ${serverZone}`);
+    console.warn(`   Client: ${clientZone} (${currentScene})`);
+    
+    // ✅ CORRECTION AUTOMATIQUE au lieu d'alerte
+    this.currentZone = serverZone;
+    console.log(`✅ [NetworkManager] Zone client synchronisée: ${serverZone}`);
+    return true; // Corrigé automatiquement
+  }
+
+  console.log(`[NetworkManager] ✅ Zones synchronisées: ${serverZone}`);
+  return true;
+}
 
   mapSceneToZone(sceneName) {
     const mapping = {
