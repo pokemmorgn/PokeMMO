@@ -206,19 +206,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`📨 === SETUP MESSAGE HANDLERS ===`);
 
     // === HANDLERS EXISTANTS ===
-    this.onMessage("requestInitialState", (client, data: { zone: string }) => {
-  console.log(`📡 [WorldRoom] Demande état initial de ${client.sessionId} pour zone: ${data.zone}`);
-  
-  // Envoyer immédiatement l'état filtré pour cette zone
-  const player = this.state.players.get(client.sessionId);
-  if (player && player.currentZone === data.zone) {
-    const filteredState = this.getFilteredStateForClient(client);
-    if (filteredState) {
-      client.send("filteredState", filteredState);
-      console.log(`✅ [WorldRoom] État initial envoyé à ${client.sessionId}`);
-    }
-  }
-});
+    
     // Mouvement du joueur
    // Mouvement du joueur
   this.onMessage("playerMove", (client, data) => {
