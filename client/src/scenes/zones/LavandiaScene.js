@@ -2,7 +2,7 @@ import { BaseZoneScene } from './BaseZoneScene.js';
 
 export class LavandiaScene extends BaseZoneScene {
   constructor() {
-    super('LavandiaScene', 'Lavandia');
+    super('LavandiaScene', 'lavandia');
     this.transitionCooldowns = {};
     this.playerCreationAttempts = 0;
     this.maxPlayerCreationAttempts = 10;
