@@ -1,4 +1,4 @@
-// client/src/components/InventoryIcon.js
+// client/src/components/InventoryIcon.js - Version mise à jour
 
 export class InventoryIcon {
   constructor(inventoryUI) {
@@ -47,7 +47,7 @@ export class InventoryIcon {
       .inventory-icon {
         position: fixed;
         bottom: 20px;
-        right: 20px;
+        right: 20px; /* Position principale pour l'inventaire */
         width: 70px;
         height: 80px;
         cursor: pointer;
@@ -149,7 +149,7 @@ export class InventoryIcon {
         100% { transform: scale(1) rotate(0deg); }
       }
 
-      /* Responsive position */
+      /* ✅ NOUVEAU: Responsive position avec ajustement pour l'icône de quête */
       @media (max-width: 768px) {
         .inventory-icon {
           bottom: 15px;
@@ -170,6 +170,13 @@ export class InventoryIcon {
           font-size: 10px;
         }
       }
+
+      /* ✅ NOUVEAU: Quand les deux icônes sont présentes, ajuster l'espacement */
+      .inventory-icon.with-quest-icon {
+        right: 20px; /* Garde la position principale */
+      }
+
+      /* L'icône de quête sera positionnée à droite: 100px (à côté) */
 
       /* Special states */
       .inventory-icon.disabled {
@@ -219,6 +226,47 @@ export class InventoryIcon {
         50% { opacity: 1; transform: translateX(100%); }
         100% { opacity: 0; transform: translateX(100%); }
       }
+
+      /* ✅ NOUVEAU: Style pour l'indicateur de groupe d'icônes */
+      .ui-icons-group {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        z-index: 500;
+      }
+
+      /* ✅ NOUVEAU: Ajustements quand dans un groupe */
+      .ui-icons-group .inventory-icon,
+      .ui-icons-group .quest-icon {
+        position: relative;
+        bottom: auto;
+        right: auto;
+        margin: 0;
+      }
+
+      /* ✅ NOUVEAU: Animation de groupe lors de l'ajout/suppression d'icônes */
+      .ui-icons-group.adding-icon {
+        animation: groupExpand 0.3s ease;
+      }
+
+      .ui-icons-group.removing-icon {
+        animation: groupContract 0.3s ease;
+      }
+
+      @keyframes groupExpand {
+        0% { transform: scale(0.95); }
+        50% { transform: scale(1.02); }
+        100% { transform: scale(1); }
+      }
+
+      @keyframes groupContract {
+        0% { transform: scale(1); }
+        50% { transform: scale(0.98); }
+        100% { transform: scale(1); }
+      }
     `;
 
     document.head.appendChild(style);
@@ -238,12 +286,12 @@ export class InventoryIcon {
     });
 
     // Keyboard shortcut (I for Inventory)
-document.addEventListener('keydown', (e) => {
-  if (e.key.toLowerCase() === 'i' && this.canOpenInventory()) {
-    e.preventDefault();
-    this.handleClick(); // toggle
-  }
-});
+    document.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'i' && this.canOpenInventory()) {
+        e.preventDefault();
+        this.handleClick();
+      }
+    });
   }
 
   handleClick() {
@@ -307,6 +355,68 @@ document.addEventListener('keydown', (e) => {
     }, 2000);
   }
 
+  // ✅ NOUVELLE MÉTHODE: Gérer le positionnement en groupe
+  setupIconGroup() {
+    // Chercher l'icône de quête
+    const questIcon = document.querySelector('#quest-icon');
+    
+    if (questIcon) {
+      // Créer un conteneur pour les icônes si il n'existe pas
+      let iconsGroup = document.querySelector('.ui-icons-group');
+      
+      if (!iconsGroup) {
+        iconsGroup = document.createElement('div');
+        iconsGroup.className = 'ui-icons-group';
+        document.body.appendChild(iconsGroup);
+      }
+
+      // Déplacer les icônes dans le groupe
+      if (this.iconElement.parentNode !== iconsGroup) {
+        iconsGroup.appendChild(this.iconElement);
+        iconsGroup.classList.add('adding-icon');
+        setTimeout(() => iconsGroup.classList.remove('adding-icon'), 300);
+      }
+      
+      if (questIcon.parentNode !== iconsGroup) {
+        iconsGroup.appendChild(questIcon);
+      }
+
+      console.log('🎒 Icônes groupées ensemble');
+    } else {
+      // Si pas d'icône de quête, remettre l'inventaire à sa position normale
+      this.resetToDefaultPosition();
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Remettre à la position par défaut
+  resetToDefaultPosition() {
+    const iconsGroup = document.querySelector('.ui-icons-group');
+    
+    if (iconsGroup && this.iconElement.parentNode === iconsGroup) {
+      // Remettre l'icône dans le body à sa position normale
+      document.body.appendChild(this.iconElement);
+      
+      // Supprimer le groupe s'il est vide
+      if (iconsGroup.children.length === 0) {
+        iconsGroup.remove();
+      }
+      
+      console.log('🎒 Icône d\'inventaire remise à sa position par défaut');
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Vérifier et ajuster le positionnement
+  checkAndAdjustPosition() {
+    // Vérifier périodiquement si l'icône de quête existe
+    const questIcon = document.querySelector('#quest-icon');
+    
+    if (questIcon && !document.querySelector('.ui-icons-group')) {
+      this.setupIconGroup();
+    } else if (!questIcon && document.querySelector('.ui-icons-group')) {
+      this.resetToDefaultPosition();
+    }
+  }
+
   // Public methods for icon state
 
   show() {
@@ -315,10 +425,20 @@ document.addEventListener('keydown', (e) => {
     setTimeout(() => {
       this.iconElement.classList.remove('appearing');
     }, 500);
+    
+    // ✅ Vérifier le positionnement après apparition
+    setTimeout(() => {
+      this.checkAndAdjustPosition();
+    }, 100);
   }
 
   hide() {
     this.iconElement.classList.add('hidden');
+    
+    // ✅ Réajuster le groupe après disparition
+    setTimeout(() => {
+      this.checkAndAdjustPosition();
+    }, 300);
   }
 
   setEnabled(enabled) {
@@ -356,8 +476,16 @@ document.addEventListener('keydown', (e) => {
 
   // Method to change position (if needed)
   setPosition(bottom, right) {
-    this.iconElement.style.bottom = `${bottom}px`;
-    this.iconElement.style.right = `${right}px`;
+    // ✅ Si l'icône est dans un groupe, ajuster le groupe
+    const iconsGroup = document.querySelector('.ui-icons-group');
+    
+    if (iconsGroup && this.iconElement.parentNode === iconsGroup) {
+      iconsGroup.style.bottom = `${bottom}px`;
+      iconsGroup.style.right = `${right}px`;
+    } else {
+      this.iconElement.style.bottom = `${bottom}px`;
+      this.iconElement.style.right = `${right}px`;
+    }
   }
 
   // Method to temporarily change the icon
@@ -403,10 +531,75 @@ document.addEventListener('keydown', (e) => {
     return iconMap[itemId] || '📦';
   }
 
+  // ✅ NOUVELLE MÉTHODE: Observer les changements d'icônes
+  startPositionObserver() {
+    // Observer pour détecter l'ajout/suppression de l'icône de quête
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.id === 'quest-icon') {
+            console.log('🎒 Icône de quête détectée, ajustement du positionnement');
+            setTimeout(() => this.setupIconGroup(), 100);
+          }
+        });
+        
+        mutation.removedNodes.forEach((node) => {
+          if (node.id === 'quest-icon') {
+            console.log('🎒 Icône de quête supprimée, repositionnement');
+            setTimeout(() => this.resetToDefaultPosition(), 100);
+          }
+        });
+      });
+    });
+
+    // Observer les changements dans le body
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    // Stocker l'observer pour pouvoir l'arrêter
+    this.positionObserver = observer;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Arrêter l'observation
+  stopPositionObserver() {
+    if (this.positionObserver) {
+      this.positionObserver.disconnect();
+      this.positionObserver = null;
+    }
+  }
+
   destroy() {
+    // ✅ Arrêter l'observer
+    this.stopPositionObserver();
+    
+    // ✅ Nettoyer le groupe si nécessaire
+    const iconsGroup = document.querySelector('.ui-icons-group');
+    if (iconsGroup && this.iconElement.parentNode === iconsGroup) {
+      // Remettre les autres icônes dans le body
+      Array.from(iconsGroup.children).forEach(child => {
+        if (child !== this.iconElement) {
+          document.body.appendChild(child);
+        }
+      });
+      iconsGroup.remove();
+    }
+    
     if (this.iconElement && this.iconElement.parentNode) {
       this.iconElement.remove();
     }
     console.log('🎒 Inventory icon removed');
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Initialiser avec observateur
+  initWithPositionObserver() {
+    this.init();
+    this.startPositionObserver();
+    
+    // Vérifier immédiatement le positionnement
+    setTimeout(() => {
+      this.checkAndAdjustPosition();
+    }, 100);
   }
 }
