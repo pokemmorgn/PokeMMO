@@ -55,7 +55,7 @@ export class InteractionManager {
     
     const talkValidationResult = await this.checkTalkObjectiveValidation(player.name, npcId);
     if (talkValidationResult) {
-      console.log(`💬 Objectif talk validé pour NPC ${npcId}`);
+      console.log(`💬 Objectif talk validé pour NPC ${npcId} - ARRÊT DU FLOW`);
       return talkValidationResult;
     }
 
