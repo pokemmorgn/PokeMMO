@@ -161,7 +161,27 @@ export class QuestSystem {
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE: Ajouter une quête au tracker
+  // ✅ NOUVELLE MÉTHODE: Vérifier si les quêtes ont changé
+  hasQuestsChanged(newQuests) {
+    if (this.activeQuests.length !== newQuests.length) {
+      return true;
+    }
+    
+    // Vérifier si le contenu a changé
+    for (let i = 0; i < newQuests.length; i++) {
+      const newQuest = newQuests[i];
+      const oldQuest = this.activeQuests[i];
+      
+      if (!oldQuest || 
+          oldQuest.id !== newQuest.id || 
+          oldQuest.currentStepIndex !== newQuest.currentStepIndex ||
+          JSON.stringify(oldQuest.steps) !== JSON.stringify(newQuest.steps)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
   addQuestToTracker(quest) {
     if (!this.questTracker) return;
     
@@ -1153,6 +1173,17 @@ export class QuestSystem {
   // ✅ MÉTHODES DE NETTOYAGE ET DESTRUCTION
   destroy() {
     console.log("💀 Destruction du système de quêtes");
+    
+    // ✅ FIX: Nettoyer les timers
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+    
+    if (this.distanceInterval) {
+      clearInterval(this.distanceInterval);
+      this.distanceInterval = null;
+    }
     
     // Nettoyer les composants UI
     if (this.questIcon) {
