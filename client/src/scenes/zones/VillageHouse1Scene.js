@@ -2,7 +2,7 @@ import { BaseZoneScene } from './BaseZoneScene.js';
 
 export class VillageHouse1Scene extends BaseZoneScene {
   constructor() {
-    super('VillageHouse1Scene', 'House1Interior');
+    super('VillageHouse1Scene', 'villagehouse1');
     this.transitionCooldowns = {};
     this.npcs = []; // initialise ici
     this.interactiveObjects = []; // initialise ici
