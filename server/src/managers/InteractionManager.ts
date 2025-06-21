@@ -225,18 +225,30 @@ export class InteractionManager {
   private async checkTalkObjectiveValidation(username: string, npcId: number): Promise<NpcInteractionResult | null> {
     try {
       const activeQuests = await this.questManager.getActiveQuests(username);
+      console.log(`🔍 [checkTalkObjective] Quêtes actives: ${activeQuests.length}`);
       
       for (const quest of activeQuests) {
         const currentStep = quest.steps[quest.currentStepIndex];
         if (!currentStep) continue;
         
-        // Chercher des objectifs talk pour ce NPC
+        console.log(`🔍 [checkTalkObjective] Quête: ${quest.name}, étape: ${quest.currentStepIndex}`);
+        console.log(`🔍 [checkTalkObjective] Objectifs de l'étape:`, currentStep.objectives.map(obj => ({
+          id: obj.id,
+          type: obj.type,
+          target: obj.target,
+          completed: obj.completed
+        })));
+        
+        // Chercher des objectifs talk pour ce NPC dans l'étape COURANTE
         for (const objective of currentStep.objectives) {
+          console.log(`🔍 [checkTalkObjective] Vérification objectif: ${objective.id}`);
+          console.log(`🔍 [checkTalkObjective] Type: ${objective.type}, Target: ${objective.target}, NpcId: ${npcId}, Completed: ${objective.completed}`);
+          
           if (objective.type === 'talk' && 
               objective.target === npcId.toString() && 
-              !objective.completed) {
+              !objective.completed) { // ✅ SEULEMENT les objectifs non complétés
             
-            console.log(`🎯 Objectif talk trouvé: ${objective.description}`);
+            console.log(`🎯 [checkTalkObjective] MATCH ! Objectif talk trouvé: ${objective.description}`);
             
             // Déclencher la progression
             const progressResults = await this.questManager.updateQuestProgress(username, {
@@ -247,6 +259,7 @@ export class InteractionManager {
             
             if (progressResults.length > 0) {
               const result = progressResults[0];
+              console.log(`📊 [checkTalkObjective] Résultat progression:`, result);
               
               // Si l'objectif a été complété, utiliser le dialogue de validation
               if (result.objectiveCompleted) {
@@ -254,6 +267,8 @@ export class InteractionManager {
                   "Merci de m'avoir parlé !",
                   "C'était exactement ce qu'il fallait faire."
                 ];
+                
+                console.log(`✅ [checkTalkObjective] Objectif complété ! Dialogue de validation:`, validationDialogue);
                 
                 return {
                   type: "dialogue",
@@ -265,11 +280,14 @@ export class InteractionManager {
                 };
               }
             }
+          } else {
+            console.log(`❌ [checkTalkObjective] Pas de match pour objectif ${objective.id}`);
           }
         }
       }
       
-      return null; // Aucun objectif talk à valider
+      console.log(`❌ [checkTalkObjective] Aucun objectif talk à valider dans l'étape courante`);
+      return null; // Aucun objectif talk à valider dans l'étape courante
       
     } catch (error) {
       console.error(`❌ Erreur checkTalkObjectiveValidation:`, error);
