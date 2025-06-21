@@ -262,6 +262,8 @@ export class TransitionManager {
       this.scene.networkManager.room.send("validateTransition", validationRequest);
     }
 
+    // ✅ DÉMARRER LA NOUVELLE SCÈNE (position temporaire)
+    this.scene.scene.start(targetScene, transitionData);
   }
 
   // ✅ SETUP LISTENER VALIDATION (inchangé)
@@ -283,21 +285,17 @@ export class TransitionManager {
         if (result.success) {
           console.log(`✅ [TransitionManager] Transition validée par le serveur`);
           
-          if (result.success) {
-  console.log(`✅ [TransitionManager] Transition validée par le serveur`);
-  const sceneKey = this.zoneToScene[result.currentZone];
-  const transitionData = {
-    fromZone: teleportData.fromZone,
-    fromTransition: true,
-    spawnX: result.position.x,
-    spawnY: result.position.y,
-    networkManager: this.scene.networkManager,
-    mySessionId: this.scene.mySessionId,
-    forcePlayerSync: true
-  };
-  this.scene.scene.start(sceneKey, transitionData);
-}
- else {
+          if (result.position) {
+            const currentPlayer = this.scene.playerManager?.getMyPlayer();
+            if (currentPlayer) {
+              console.log(`🔧 [TransitionManager] Correction position serveur:`, result.position);
+              currentPlayer.x = result.position.x;
+              currentPlayer.y = result.position.y;
+              currentPlayer.targetX = result.position.x;
+              currentPlayer.targetY = result.position.y;
+            }
+          }
+        } else {
           console.error(`❌ [TransitionManager] Transition refusée: ${result.reason}`);
           
           if (result.rollback) {
