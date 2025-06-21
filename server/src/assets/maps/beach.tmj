@@ -369,6 +369,109 @@
                  "width":0,
                  "x":398.666666666667,
                  "y":67.3333333333333
+                }, 
+                {
+                 "height":0,
+                 "id":89,
+                 "name":"Jeff",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"animation",
+                         "type":"string",
+                         "value":"stand"
+                        }, 
+                        {
+                         "name":"battleSprite",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"dialogueId",
+                         "type":"string",
+                         "value":"greeting_jeff"
+                        }, 
+                        {
+                         "name":"direction",
+                         "type":"string",
+                         "value":"down"
+                        }, 
+                        {
+                         "name":"eventTrigger",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"givesItem",
+                         "type":"bool",
+                         "value":false
+                        }, 
+                        {
+                         "name":"interactionZone",
+                         "type":"object",
+                         "value":0
+                        }, 
+                        {
+                         "name":"isHealer",
+                         "type":"bool",
+                         "value":false
+                        }, 
+                        {
+                         "name":"isVisible",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"itemId",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"itemQuantity",
+                         "type":"int",
+                         "value":0
+                        }, 
+                        {
+                         "name":"movePattern",
+                         "type":"string",
+                         "value":"idle"
+                        }, 
+                        {
+                         "name":"npcType",
+                         "type":"string",
+                         "value":"merchant"
+                        }, 
+                        {
+                         "name":"questId",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"repeatDialogue",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"shopId",
+                         "type":"string",
+                         "value":"lavandiashop"
+                        }, 
+                        {
+                         "name":"sprite",
+                         "type":"string",
+                         "value":"OldMan"
+                        }, 
+                        {
+                         "name":"trainerId",
+                         "type":"int",
+                         "value":0
+                        }],
+                 "rotation":0,
+                 "type":"npc",
+                 "visible":true,
+                 "width":0,
+                 "x":442,
+                 "y":63.3333333333333
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -377,7 +480,7 @@
          "y":0
         }],
  "nextlayerid":10,
- "nextobjectid":89,
+ "nextobjectid":90,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
