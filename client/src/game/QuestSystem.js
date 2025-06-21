@@ -9,7 +9,8 @@ export class QuestSystem {
     this.questJournal = null;
     this.trackedQuest = null;
     this.questNotifications = [];
-    
+
+    this.notificationManager = window.NotificationManager;
     this.init();
   }
 
@@ -23,7 +24,7 @@ export class QuestSystem {
     // Rendre le système accessible globalement
     window.questSystem = this;
     
-    console.log("🎯 Système de quêtes initialisé");
+    console.log("🎯 Système de quêtes initialisé avec NotificationManager");
   }
 
   setupServerListeners() {
@@ -55,6 +56,35 @@ export class QuestSystem {
       this.showNotification(`Nouvelle quête : ${data.quest?.name || 'Quête démarrée'}`, 'success');
       if (this.questJournal && this.questJournal.isVisible) {
         this.questJournal.refreshQuests();
+      }
+    });
+
+    this.gameRoom.onMessage("questStartResult", (data) => {
+      console.log("🎯 Quest start result reçu:", data);
+      if (data.success) {
+        // ✅ Utiliser le NotificationManager pour les quêtes
+        this.notificationManager.questNotification(
+          data.quest?.name || 'Nouvelle quête',
+          'started',
+          {
+            duration: 5000,
+            closable: true,
+            onClick: () => {
+              // Ouvrir le journal des quêtes au clic
+              this.openQuestJournal();
+            }
+          }
+        );
+        
+        // Actualiser le journal
+        if (this.questJournal && this.questJournal.isVisible) {
+          this.questJournal.refreshQuests();
+        }
+      } else {
+        this.notificationManager.error(
+          data.message || "Impossible d'accepter la quête",
+          { duration: 4000 }
+        );
       }
     });
 
@@ -695,29 +725,59 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
     }
   }
 
-  // Méthodes restantes inchangées...
+// === MÉTHODES UTILITAIRES  ===
   showAvailableQuests(quests) {
     if (quests && quests.length > 0) {
+      // ✅ Notification discrète pour les quêtes disponibles
+      this.notificationManager.info(
+        `${quests.length} quête(s) disponible(s)`,
+        {
+          duration: 3000,
+          position: 'bottom-right'
+        }
+      );
+      
       this.showQuestGiverDialog({ availableQuests: quests });
     }
   }
 
   handleQuestProgressUpdate(results) {
+    if (!Array.isArray(results)) return;
+    
     results.forEach(result => {
       if (result.questCompleted) {
-        this.showNotification(`🎉 Quête terminée !`, 'success');
+        // ✅ Notification spéciale pour quête terminée
+        this.notificationManager.questNotification(
+          result.questId,
+          'completed',
+          {
+            duration: 6000,
+            bounce: true,
+            sound: true,
+            onClick: () => this.openQuestJournal()
+          }
+        );
+        
+        // Afficher les récompenses si disponibles
         if (result.rewards && result.rewards.length > 0) {
           setTimeout(() => {
             this.showQuestRewards({ rewards: result.rewards });
           }, 1000);
         }
       } else if (result.stepCompleted) {
-        this.showNotification(`📋 Étape terminée !`, 'info');
+        this.notificationManager.quest(
+          `Étape terminée !`,
+          {
+            duration: 3000,
+            onClick: () => this.openQuestJournal()
+          }
+        );
       } else if (result.message) {
-        this.showNotification(result.message, 'info');
+        this.notificationManager.info(result.message, { duration: 3000 });
       }
     });
-
+    
+    // Actualiser la liste
     if (this.questJournal && this.questJournal.isVisible) {
       this.questJournal.refreshQuests();
     }
@@ -726,6 +786,21 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
   showQuestRewards(data) {
     if (data.rewards && data.rewards.length > 0) {
       window._questDialogActive = true;
+      
+      const rewardText = data.rewards.map(r => this.formatReward(r)).join(', ');
+      
+      // ✅ Notification spéciale pour les récompenses
+      this.notificationManager.achievement(
+        `Récompenses reçues : ${rewardText}`,
+        {
+          duration: 8000,
+          persistent: false,
+          bounce: true,
+          sound: true
+        }
+      );
+      
+      // Créer aussi le dialogue traditionnel
       const dialog = this.createQuestCompleteDialog(
         data.message || "Récompenses reçues !",
         data.rewards
@@ -778,7 +853,54 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
     return dialog;
   }
 
-  // === MÉTHODES POUR DÉCLENCHER DES ÉVÉNEMENTS DE PROGRESSION ===
+  // === NOUVELLES MÉTHODES POUR DIFFÉRENTS TYPES DE NOTIFICATIONS ===
+  
+   notifyQuestObjectiveProgress(questName, objectiveName, current, required) {
+    const message = `${questName}: ${objectiveName} (${current}/${required})`;
+    this.notificationManager.quest(message, {
+      duration: 2500,
+      position: 'bottom-center'
+    });
+  }
+
+  notifyQuestStepCompleted(questName, stepName) {
+    this.notificationManager.success(
+      `${questName}: ${stepName} terminée !`,
+      {
+        duration: 4000,
+        bounce: true
+      }
+    );
+  }
+
+  notifyQuestFailed(questName, reason) {
+    this.notificationManager.questNotification(
+      questName,
+      'failed',
+      {
+        duration: 5000,
+        onClick: () => this.openQuestJournal()
+      }
+    );
+    
+    if (reason) {
+      setTimeout(() => {
+        this.notificationManager.warning(reason, { duration: 4000 });
+      }, 500);
+    }
+  }
+
+  notifyQuestTimeLimit(questName, timeRemaining) {
+    this.notificationManager.warning(
+      `${questName}: ${timeRemaining} restant !`,
+      {
+        duration: 3000,
+        position: 'top-center'
+      }
+    );
+  }
+  
+ // === MÉTHODES POUR DÉCLENCHER DES ÉVÉNEMENTS DE PROGRESSION ===
 
   triggerCollectEvent(itemId, amount = 1) {
     if (this.gameRoom) {
@@ -787,6 +909,16 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
         itemId: itemId,
         amount: amount
       });
+      
+      // ✅ Notification immédiate de collecte pour le feedback
+      this.notificationManager.info(
+        `Objet collecté: ${itemId} x${amount}`,
+        {
+          duration: 2000,
+          position: 'bottom-right',
+          type: 'inventory'
+        }
+      );
     }
   }
 
@@ -796,6 +928,16 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
         type: 'defeat',
         pokemonId: pokemonId
       });
+      
+      // ✅ Notification de combat
+      this.notificationManager.show(
+        `Pokémon vaincu !`,
+        {
+          type: 'battle',
+          duration: 2000,
+          position: 'bottom-center'
+        }
+      );
     }
   }
 
@@ -808,6 +950,15 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
         y: y,
         map: map
       });
+      
+      // ✅ Notification de zone
+      this.notificationManager.info(
+        `Zone visitée: ${zoneId}`,
+        {
+          duration: 2000,
+          position: 'top-center'
+        }
+      );
     }
   }
 
@@ -818,6 +969,14 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
         npcId: npcId,
         targetId: itemId
       });
+      
+      // ✅ Notification de livraison
+      this.notificationManager.success(
+        `Objet livré: ${itemId}`,
+        {
+          duration: 3000
+        }
+      );
     }
   }
 
