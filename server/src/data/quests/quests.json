@@ -1,5 +1,5 @@
 {
-  "_comment": "Fichier à placer dans server/data/quests/quests.json",
+  "_comment": "Fichier à placer dans server/data/quests/quests.json - AVEC AUTOCOMPLETE",
   "quests": [
     {
       "id": "quest_fishingrod",
@@ -9,6 +9,7 @@
       "startNpcId": 82,
       "endNpcId": 82,
       "isRepeatable": false,
+      "autoComplete": false,
       "steps": [
         {
           "id": "step_1",
@@ -75,6 +76,7 @@
       "startNpcId": 1,
       "endNpcId": 1,
       "isRepeatable": false,
+      "autoComplete": false,
       "steps": [
         {
           "id": "step_1",
@@ -129,6 +131,7 @@
       "endNpcId": 5,
       "isRepeatable": true,
       "cooldownHours": 24,
+      "autoComplete": true,
       "steps": [
         {
           "id": "collect_berries",
@@ -167,6 +170,7 @@
       "startNpcId": 10,
       "endNpcId": 10,
       "isRepeatable": false,
+      "autoComplete": false,
       "steps": [
         {
           "id": "defeat_wild_pokemon",
@@ -223,6 +227,7 @@
       "category": "daily",
       "isRepeatable": true,
       "cooldownHours": 24,
+      "autoComplete": true,
       "steps": [
         {
           "id": "visit_zones",
@@ -263,6 +268,45 @@
               "type": "item",
               "itemId": "pokeball",
               "amount": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "simple_talk_quest",
+      "name": "Test de dialogue",
+      "description": "Une quête simple pour tester les objectifs talk",
+      "category": "side",
+      "startNpcId": 1,
+      "endNpcId": 1,
+      "isRepeatable": true,
+      "cooldownHours": 1,
+      "autoComplete": true,
+      "steps": [
+        {
+          "id": "just_talk",
+          "name": "Parler au Professeur",
+          "description": "Simplement parler au Professeur Oak",
+          "objectives": [
+            {
+              "id": "talk_to_oak_simple",
+              "type": "talk",
+              "description": "Parler au Professeur Oak",
+              "target": "1",
+              "targetName": "Professeur Oak",
+              "requiredAmount": 1
+            }
+          ],
+          "rewards": [
+            {
+              "type": "gold",
+              "amount": 25
+            },
+            {
+              "type": "item",
+              "itemId": "potion",
+              "amount": 1
             }
           ]
         }
