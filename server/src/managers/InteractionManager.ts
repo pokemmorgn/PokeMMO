@@ -44,7 +44,7 @@ export class InteractionManager {
   }
 
   async handleNpcInteraction(player: Player, npcId: number): Promise<NpcInteractionResult> {
-    console.log(`🔍 DEBUG: Interaction avec NPC ${npcId} par ${player.name}`);
+    console.log(`🔍 DEBUG: Interactionnnn avec NPC ${npcId} par ${player.name}`);
     
     const npc: NpcData | undefined = this.npcManager.getNpcById(npcId);
     if (!npc) {
