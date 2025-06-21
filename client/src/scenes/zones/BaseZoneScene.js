@@ -926,8 +926,6 @@ handleMovement(myPlayerState) {
       this.phaserTilesets = this.map.tilesets.map(ts => {
         return this.map.addTilesetImage(ts.name, ts.name);
       });
-
-      showNotification("TEST BASEZONE", "info");
       
       this.layers = {};
       const depthOrder = {
