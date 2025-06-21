@@ -1,0 +1,242 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-01T00:00:00.000Z",
+  "globalSettings": {
+    "enableValidation": true,
+    "enableProximityCheck": true,
+    "enableCooldowns": false,
+    "defaultCooldownMinutes": 1,
+    "enableLevelRestrictions": true,
+    "enableVipRestrictions": false,
+    "logTransitions": true
+  },
+  "zones": {
+    "beach": {
+      "name": "beach",
+      "displayName": "Plage de départ",
+      "minLevel": 1,
+      "description": "Zone de départ pour les nouveaux dresseurs"
+    },
+    "village": {
+      "name": "village", 
+      "displayName": "Village Pokémon",
+      "minLevel": 1,
+      "description": "Centre du village avec Centre Pokémon"
+    },
+    "villagelab": {
+      "name": "villagelab",
+      "displayName": "Laboratoire du Professeur",
+      "minLevel": 1,
+      "description": "Laboratoire de recherche Pokémon"
+    },
+    "villagehouse1": {
+      "name": "villagehouse1",
+      "displayName": "Maison du village",
+      "minLevel": 1,
+      "description": "Maison d'habitant du village"
+    },
+    "road1": {
+      "name": "road1",
+      "displayName": "Route 1",
+      "minLevel": 5,
+      "description": "Première route sauvage"
+    },
+    "lavandia": {
+      "name": "lavandia",
+      "displayName": "Ville de Lavandia",
+      "minLevel": 15,
+      "vipOnly": false,
+      "description": "Ville mystérieuse aux tours fantômes"
+    }
+  },
+  "rules": [
+    {
+      "id": "beach_to_village",
+      "name": "Plage vers Village",
+      "description": "Transition libre entre la plage et le village",
+      "fromZone": "beach",
+      "toZone": "village",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "village_to_beach",
+      "name": "Village vers Plage", 
+      "description": "Retour libre vers la plage",
+      "fromZone": "village",
+      "toZone": "beach",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "village_to_lab",
+      "name": "Village vers Laboratoire",
+      "description": "Accès libre au laboratoire",
+      "fromZone": "village",
+      "toZone": "villagelab",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lab_to_village",
+      "name": "Laboratoire vers Village",
+      "description": "Retour libre vers le village",
+      "fromZone": "villagelab",
+      "toZone": "village",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "village_to_house1",
+      "name": "Village vers Maison",
+      "description": "Accès libre à la maison",
+      "fromZone": "village",
+      "toZone": "villagehouse1",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house1_to_village",
+      "name": "Maison vers Village",
+      "description": "Sortie libre de la maison",
+      "fromZone": "villagehouse1",
+      "toZone": "village",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "village_to_road1",
+      "name": "Village vers Route 1",
+      "description": "Accès à la première route sauvage",
+      "fromZone": "village",
+      "toZone": "road1",
+      "conditions": {
+        "minLevel": 5,
+        "proximityCheck": { "enabled": true }
+      },
+      "message": {
+        "failure": "Vous devez être niveau 5+ pour accéder à la Route 1"
+      },
+      "enabled": true
+    },
+    {
+      "id": "road1_to_village",
+      "name": "Route 1 vers Village",
+      "description": "Retour libre vers le village",
+      "fromZone": "road1",
+      "toZone": "village",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "road1_to_lavandia",
+      "name": "Route 1 vers Lavandia",
+      "description": "Accès à Lavandia pour les dresseurs expérimentés",
+      "fromZone": "road1",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 15,
+        "requiredQuests": ["starter_quest"],
+        "proximityCheck": { "enabled": true },
+        "cooldown": { "enabled": true, "durationMinutes": 2 }
+      },
+      "message": {
+        "failure": "Vous devez être niveau 15+ et avoir terminé la quête starter pour accéder à Lavandia"
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_road1",
+      "name": "Lavandia vers Route 1",
+      "description": "Retour vers la Route 1",
+      "fromZone": "lavandia",
+      "toZone": "road1",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "beach_to_road1_vip",
+      "name": "Plage vers Route 1 (VIP)",
+      "description": "Accès direct VIP de la plage à la Route 1",
+      "fromZone": "beach",
+      "toZone": "road1",
+      "conditions": {
+        "minLevel": 1,
+        "vipOnly": true,
+        "proximityCheck": { "enabled": true }
+      },
+      "message": {
+        "success": "Téléportation VIP vers Route 1 !",
+        "failure": "Accès VIP requis pour cette téléportation"
+      },
+      "enabled": false
+    },
+    {
+      "id": "night_only_example",
+      "name": "Exemple transition nocturne",
+      "description": "Exemple de transition autorisée uniquement la nuit",
+      "fromZone": "village",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 10,
+        "timeRestrictions": {
+          "enabled": true,
+          "allowedHours": [22, 23, 0, 1, 2, 3, 4, 5]
+        },
+        "proximityCheck": { "enabled": true }
+      },
+      "message": {
+        "failure": "Cette transition n'est disponible que la nuit (22h-6h)"
+      },
+      "enabled": false
+    },
+    {
+      "id": "weekend_only_example",
+      "name": "Exemple transition weekend",
+      "description": "Exemple de transition autorisée uniquement le weekend",
+      "fromZone": "road1",
+      "toZone": "beach",
+      "conditions": {
+        "minLevel": 1,
+        "timeRestrictions": {
+          "enabled": true,
+          "allowedDays": [0, 6]
+        },
+        "proximityCheck": { "enabled": true }
+      },
+      "message": {
+        "failure": "Cette téléportation spéciale n'est disponible que le weekend"
+      },
+      "enabled": false
+    }
+  ],
+  "emergencyOverride": {
+    "enabled": false,
+    "allowAllTransitions": false,
+    "reason": "Aucun override actif"
+  }
+}
