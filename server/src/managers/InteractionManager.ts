@@ -35,7 +35,7 @@ interface Quest {
 }
 
 export class InteractionManager {
-  private npcManager: NpcManager;
+  public npcManager: NpcManager;          // <= était "private", passe en "public"
   private questManager: QuestManager;
 
   constructor(npcManager: NpcManager, questManager: QuestManager) {
