@@ -63,6 +63,19 @@ export class QuestSystem {
       if (data.success) {
         // ✅ Vérifier la déduplication avant d'afficher
         const questId = data.quest?.id || data.quest?.name || 'unknown';
+        if (this.shouldShowNotification('questStart', questId)) {
+          this.notificationManager.questNotification(
+            data.quest?.name || 'Nouvelle quête',
+            'started',
+            {
+              duration: 5000,
+              closable: true,
+              onClick: () => {
+                this.openQuestJournal();
+              }
+            }
+          );
+        }
         
         // Actualiser le journal
         if (this.questJournal && this.questJournal.isVisible) {
