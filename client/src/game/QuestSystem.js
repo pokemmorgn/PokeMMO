@@ -1,4 +1,4 @@
-// client/src/game/QuestSystem.js - VERSION MISE À JOUR AVEC NOTIFICATIONMANAGER
+// client/src/game/QuestSystem.js - VERSION CORRIGÉE SANS DOUBLONS
 
 import { QuestJournalUI } from '../components/QuestJournalUI.js';
 
@@ -10,7 +10,7 @@ export class QuestSystem {
     this.trackedQuest = null;
     this.questNotifications = [];
 
-    // ✅ NOUVEAU: Utiliser le NotificationManager global
+    // ✅ Utiliser le NotificationManager global
     this.notificationManager = window.NotificationManager;
     if (!this.notificationManager) {
       console.warn("⚠️ NotificationManager non trouvé, créer une instance");
@@ -26,6 +26,10 @@ export class QuestSystem {
         achievement: (message, options) => console.log(`[ACHIEVEMENT] ${message}`)
       };
     }
+    
+    // ✅ NOUVEAU: Système de déduplication des notifications
+    this.lastNotificationTime = new Map();
+    this.notificationCooldown = 2000; // 2 secondes entre notifications similaires
     
     this.init();
   }
@@ -52,23 +56,26 @@ export class QuestSystem {
       console.log("handleNpcInteraction appelé", data);
     });
 
-    // ✅ AMÉLIORATION: Tous les handlers de quête utilisent NotificationManager
+    // ✅ FIX 1: UN SEUL HANDLER pour les résultats de quête avec déduplication
     this.gameRoom.onMessage("questStartResult", (data) => {
       console.log("🎯 Quest start result reçu:", data);
+      
       if (data.success) {
-        // ✅ Utiliser le NotificationManager pour les quêtes
-        this.notificationManager.questNotification(
-          data.quest?.name || 'Nouvelle quête',
-          'started',
-          {
-            duration: 5000,
-            closable: true,
-            onClick: () => {
-              // Ouvrir le journal des quêtes au clic
-              this.openQuestJournal();
+        // ✅ Vérifier la déduplication avant d'afficher
+        const questId = data.quest?.id || data.quest?.name || 'unknown';
+        if (this.shouldShowNotification('questStart', questId)) {
+          this.notificationManager.questNotification(
+            data.quest?.name || 'Nouvelle quête',
+            'started',
+            {
+              duration: 5000,
+              closable: true,
+              onClick: () => {
+                this.openQuestJournal();
+              }
             }
-          }
-        );
+          );
+        }
         
         // Actualiser le journal
         if (this.questJournal && this.questJournal.isVisible) {
@@ -82,18 +89,27 @@ export class QuestSystem {
       }
     });
 
-    // ✅ Handler pour questStarted (au cas où le serveur envoie ce message)
+    // ✅ FIX 2: Handler questStarted OPTIONNEL (pour éviter les doublons)
     this.gameRoom.onMessage("questStarted", (data) => {
       console.log("🎯 Quest started reçu:", data);
-      this.notificationManager.questNotification(
-        data.quest?.name || 'Quête démarrée',
-        'started',
-        {
-          duration: 4000,
-          bounce: true,
-          onClick: () => this.openQuestJournal()
-        }
-      );
+      
+      // ✅ NOUVEAU: Vérifier si ce n'est pas un doublon avec questStartResult
+      const questId = data.quest?.id || data.quest?.name || 'unknown';
+      
+      // ✅ Ne montrer la notification QUE si questStartResult n'a pas été reçu récemment
+      if (this.shouldShowNotification('questStart', questId)) {
+        this.notificationManager.questNotification(
+          data.quest?.name || 'Quête démarrée',
+          'started',
+          {
+            duration: 4000,
+            bounce: true,
+            onClick: () => this.openQuestJournal()
+          }
+        );
+      } else {
+        console.log("🔕 Notification questStarted ignorée (doublon détecté)");
+      }
       
       if (this.questJournal && this.questJournal.isVisible) {
         this.questJournal.refreshQuests();
@@ -105,17 +121,17 @@ export class QuestSystem {
       this.showAvailableQuests(data.quests);
     });
 
-    // ✅ AMÉLIORATION: Progression de quête avec NotificationManager
+    // Progression de quête
     this.gameRoom.onMessage("questProgressUpdate", (results) => {
       this.handleQuestProgressUpdate(results);
     });
 
-    // ✅ AMÉLIORATION: Notifications de quêtes terminées
+    // Notifications de quêtes terminées
     this.gameRoom.onMessage("questRewards", (data) => {
       this.showQuestRewards(data);
     });
 
-    // ✅ Handler pour débugger
+    // Handler pour débugger
     this.gameRoom.onMessage("*", (type, data) => {
       if (type.includes("quest") || type.includes("Quest")) {
         console.log(`🔍 Message non géré reçu: ${type}`, data);
@@ -123,19 +139,34 @@ export class QuestSystem {
     });
   }
 
+  // ✅ NOUVELLE MÉTHODE: Système de déduplication intelligent
+  shouldShowNotification(type, questId) {
+    const key = `${type}_${questId}`;
+    const now = Date.now();
+    const lastTime = this.lastNotificationTime.get(key);
+    
+    // Si pas de notification récente ou si le cooldown est écoulé
+    if (!lastTime || (now - lastTime) > this.notificationCooldown) {
+      this.lastNotificationTime.set(key, now);
+      return true;
+    }
+    
+    console.log(`🔕 Notification dédupliquée: ${key} (${now - lastTime}ms depuis la dernière)`);
+    return false;
+  }
+
   handleNpcInteraction(data) {
     console.log("🎯 Interaction NPC reçue:", data);
     
-    // ✅ Vérifier si un dialog est déjà ouvert
+    // Vérifier si un dialog est déjà ouvert
     if (window._questDialogActive) {
       console.log("⚠️ Dialog de quête déjà ouvert, interaction ignorée");
       return;
     }
     
-    // ✅ Ne traiter QUE les interactions liées aux quêtes
+    // Ne traiter QUE les interactions liées aux quêtes
     switch (data.type) {
       case 'questGiver':
-        // ✅ Parser les données de quêtes disponibles
         const parsedData = this.parseNpcQuestData(data);
         this.showQuestGiverDialog(parsedData);
         break;
@@ -145,7 +176,10 @@ export class QuestSystem {
         break;
         
       case 'questProgress':
-        this.notificationManager.info(data.message, { duration: 3000 });
+        // ✅ Déduplication pour les messages de progression aussi
+        if (this.shouldShowNotification('questProgress', data.message)) {
+          this.notificationManager.info(data.message, { duration: 3000 });
+        }
         break;
         
       case 'shop':
@@ -162,20 +196,18 @@ export class QuestSystem {
     }
   }
 
-  // ✅ Parsing des données NPC amélioré
+  // ✅ Parsing des données NPC (inchangé)
   parseNpcQuestData(data) {
     console.log("🔍 Parsing NPC quest data:", data);
     
     try {
       let availableQuests = data.availableQuests || [];
       
-      // Si availableQuests est une string JSON, la parser
       if (typeof availableQuests === 'string') {
         console.log("📝 Parsing string JSON:", availableQuests);
         availableQuests = JSON.parse(availableQuests);
       }
       
-      // Si ce n'est toujours pas un array, essayer de l'extraire
       if (!Array.isArray(availableQuests)) {
         console.warn("⚠️ availableQuests n'est pas un array:", typeof availableQuests);
         
@@ -186,7 +218,6 @@ export class QuestSystem {
         }
       }
 
-      // Normaliser chaque quête
       const normalizedQuests = availableQuests.map(quest => this.normalizeQuestData(quest));
       
       console.log("✅ Quêtes NPC parsées:", normalizedQuests);
@@ -266,7 +297,6 @@ export class QuestSystem {
       return;
     }
 
-    // ✅ Marquer le dialog comme actif
     window._questDialogActive = true;
 
     const questDialog = this.createQuestDialog('Quêtes disponibles', data.availableQuests, (questId) => {
@@ -362,7 +392,6 @@ export class QuestSystem {
     return dialog;
   }
 
-  // ✅ Event listeners du dialog améliorés
   addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
     let selectedQuestId = defaultSelectedId;
 
@@ -374,7 +403,6 @@ export class QuestSystem {
       acceptBtn.disabled = false;
     }
 
-    // ✅ Handlers de fermeture
     const closeDialog = () => {
       dialog.remove();
       window._questDialogActive = false;
@@ -402,7 +430,6 @@ export class QuestSystem {
       });
     });
 
-    // ✅ Handler d'acceptation
     const acceptQuest = () => {
       if (!selectedQuestId && defaultSelectedId) {
         selectedQuestId = defaultSelectedId;
@@ -424,9 +451,8 @@ export class QuestSystem {
 
     acceptBtn.addEventListener('click', acceptQuest);
 
-    // ✅ Gestion clavier pour le dialogue de quête
+    // Gestion clavier
     const handleKeydown = (e) => {
-      // ✅ Vérifier que le dialogue est toujours ouvert
       if (!dialog || !dialog.parentNode) {
         document.removeEventListener('keydown', handleKeydown);
         return;
@@ -447,12 +473,10 @@ export class QuestSystem {
           e.preventDefault();
           e.stopPropagation();
           
-          // Vérifier si une quête est sélectionnée ou s'il y en a qu'une seule
           if (selectedQuestId || defaultSelectedId) {
             console.log(`✅ Acceptation via ${e.key}: ${selectedQuestId || defaultSelectedId}`);
             acceptQuest();
           } else {
-            // Sélectionner la première quête disponible
             const firstOption = dialog.querySelector('.quest-option');
             if (firstOption) {
               firstOption.click();
@@ -469,17 +493,13 @@ export class QuestSystem {
       }
     };
 
-    // ✅ Ajouter le listener keyboard
     document.addEventListener('keydown', handleKeydown);
-    
-    // ✅ Focus automatique sur le dialogue pour capturer les touches
     dialog.tabIndex = -1;
     dialog.focus();
 
     console.log(`📋 Event listeners configurés pour dialogue quête (selectedId: ${selectedQuestId})`);
   }
 
-  // ✅ Navigation dans les options de quête
   navigateQuestOptions(dialog, direction) {
     const options = dialog.querySelectorAll('.quest-option');
     if (options.length === 0) return;
@@ -495,7 +515,6 @@ export class QuestSystem {
     if (newIndex < 0) newIndex = options.length - 1;
     if (newIndex >= options.length) newIndex = 0;
 
-    // Cliquer sur la nouvelle option
     options[newIndex].click();
   }
 
@@ -503,7 +522,6 @@ export class QuestSystem {
     console.log("🎯 Démarrage de la quête:", questId);
     
     if (this.gameRoom) {
-      // ✅ Utiliser le bon nom de message
       this.gameRoom.send("startQuest", { questId });
       console.log("📤 Message startQuest envoyé au serveur");
     } else {
@@ -697,18 +715,20 @@ export class QuestSystem {
     }
   }
 
-  // === MÉTHODES AVEC NOTIFICATIONMANAGER ===
+  // === MÉTHODES AVEC NOTIFICATIONMANAGER ET DÉDUPLICATION ===
   
   showAvailableQuests(quests) {
     if (quests && quests.length > 0) {
-      // ✅ Notification discrète pour les quêtes disponibles
-      this.notificationManager.info(
-        `${quests.length} quête(s) disponible(s)`,
-        {
-          duration: 3000,
-          position: 'bottom-right'
-        }
-      );
+      // ✅ Déduplication pour les quêtes disponibles
+      if (this.shouldShowNotification('availableQuests', quests.length)) {
+        this.notificationManager.info(
+          `${quests.length} quête(s) disponible(s)`,
+          {
+            duration: 3000,
+            position: 'bottom-right'
+          }
+        );
+      }
       
       this.showQuestGiverDialog({ availableQuests: quests });
     }
@@ -719,34 +739,44 @@ export class QuestSystem {
     
     results.forEach(result => {
       if (result.questCompleted) {
-        // ✅ Notification spéciale pour quête terminée
-        this.notificationManager.questNotification(
-          result.questId,
-          'completed',
-          {
-            duration: 6000,
-            bounce: true,
-            sound: true,
-            onClick: () => this.openQuestJournal()
+        // ✅ Déduplication pour les quêtes terminées
+        const questId = result.questId || 'unknown';
+        if (this.shouldShowNotification('questCompleted', questId)) {
+          this.notificationManager.questNotification(
+            result.questId,
+            'completed',
+            {
+              duration: 6000,
+              bounce: true,
+              sound: true,
+              onClick: () => this.openQuestJournal()
+            }
+          );
+          
+          // Afficher les récompenses si disponibles
+          if (result.rewards && result.rewards.length > 0) {
+            setTimeout(() => {
+              this.showQuestRewards({ rewards: result.rewards });
+            }, 1000);
           }
-        );
-        
-        // Afficher les récompenses si disponibles
-        if (result.rewards && result.rewards.length > 0) {
-          setTimeout(() => {
-            this.showQuestRewards({ rewards: result.rewards });
-          }, 1000);
         }
       } else if (result.stepCompleted) {
-        this.notificationManager.quest(
-          `Étape terminée !`,
-          {
-            duration: 3000,
-            onClick: () => this.openQuestJournal()
-          }
-        );
+        // ✅ Déduplication pour les étapes terminées
+        const stepId = `${result.questId || 'unknown'}_step`;
+        if (this.shouldShowNotification('stepCompleted', stepId)) {
+          this.notificationManager.quest(
+            `Étape terminée !`,
+            {
+              duration: 3000,
+              onClick: () => this.openQuestJournal()
+            }
+          );
+        }
       } else if (result.message) {
-        this.notificationManager.info(result.message, { duration: 3000 });
+        // ✅ Déduplication pour les messages de progression
+        if (this.shouldShowNotification('questProgress', result.message)) {
+          this.notificationManager.info(result.message, { duration: 3000 });
+        }
       }
     });
     
@@ -762,16 +792,18 @@ export class QuestSystem {
       
       const rewardText = data.rewards.map(r => this.formatReward(r)).join(', ');
       
-      // ✅ Notification spéciale pour les récompenses
-      this.notificationManager.achievement(
-        `Récompenses reçues : ${rewardText}`,
-        {
-          duration: 8000,
-          persistent: false,
-          bounce: true,
-          sound: true
-        }
-      );
+      // ✅ Déduplication pour les récompenses
+      if (this.shouldShowNotification('questRewards', rewardText)) {
+        this.notificationManager.achievement(
+          `Récompenses reçues : ${rewardText}`,
+          {
+            duration: 8000,
+            persistent: false,
+            bounce: true,
+            sound: true
+          }
+        );
+      }
       
       // Créer aussi le dialogue traditionnel
       const dialog = this.createQuestCompleteDialog(
@@ -826,51 +858,63 @@ export class QuestSystem {
     return dialog;
   }
 
-  // === NOUVELLES MÉTHODES POUR DIFFÉRENTS TYPES DE NOTIFICATIONS ===
+  // === NOUVELLES MÉTHODES POUR DIFFÉRENTS TYPES DE NOTIFICATIONS AVEC DÉDUPLICATION ===
   
   notifyQuestObjectiveProgress(questName, objectiveName, current, required) {
-    const message = `${questName}: ${objectiveName} (${current}/${required})`;
-    this.notificationManager.quest(message, {
-      duration: 2500,
-      position: 'bottom-center'
-    });
+    const progressKey = `${questName}_${objectiveName}_${current}_${required}`;
+    if (this.shouldShowNotification('questObjective', progressKey)) {
+      const message = `${questName}: ${objectiveName} (${current}/${required})`;
+      this.notificationManager.quest(message, {
+        duration: 2500,
+        position: 'bottom-center'
+      });
+    }
   }
 
   notifyQuestStepCompleted(questName, stepName) {
-    this.notificationManager.success(
-      `${questName}: ${stepName} terminée !`,
-      {
-        duration: 4000,
-        bounce: true
-      }
-    );
+    const stepKey = `${questName}_${stepName}`;
+    if (this.shouldShowNotification('stepCompleted', stepKey)) {
+      this.notificationManager.success(
+        `${questName}: ${stepName} terminée !`,
+        {
+          duration: 4000,
+          bounce: true
+        }
+      );
+    }
   }
 
   notifyQuestFailed(questName, reason) {
-    this.notificationManager.questNotification(
-      questName,
-      'failed',
-      {
-        duration: 5000,
-        onClick: () => this.openQuestJournal()
+    const failKey = questName;
+    if (this.shouldShowNotification('questFailed', failKey)) {
+      this.notificationManager.questNotification(
+        questName,
+        'failed',
+        {
+          duration: 5000,
+          onClick: () => this.openQuestJournal()
+        }
+      );
+      
+      if (reason) {
+        setTimeout(() => {
+          this.notificationManager.warning(reason, { duration: 4000 });
+        }, 500);
       }
-    );
-    
-    if (reason) {
-      setTimeout(() => {
-        this.notificationManager.warning(reason, { duration: 4000 });
-      }, 500);
     }
   }
 
   notifyQuestTimeLimit(questName, timeRemaining) {
-    this.notificationManager.warning(
-      `${questName}: ${timeRemaining} restant !`,
-      {
-        duration: 3000,
-        position: 'top-center'
-      }
-    );
+    const timeKey = `${questName}_${timeRemaining}`;
+    if (this.shouldShowNotification('questTimeLimit', timeKey)) {
+      this.notificationManager.warning(
+        `${questName}: ${timeRemaining} restant !`,
+        {
+          duration: 3000,
+          position: 'top-center'
+        }
+      );
+    }
   }
   
   // === MÉTHODES POUR DÉCLENCHER DES ÉVÉNEMENTS DE PROGRESSION ===
@@ -883,15 +927,18 @@ export class QuestSystem {
         amount: amount
       });
       
-      // ✅ Notification immédiate de collecte pour le feedback
-      this.notificationManager.info(
-        `Objet collecté: ${itemId} x${amount}`,
-        {
-          duration: 2000,
-          position: 'bottom-right',
-          type: 'inventory'
-        }
-      );
+      // ✅ Notification immédiate de collecte (avec déduplication)
+      const collectKey = `${itemId}_${amount}`;
+      if (this.shouldShowNotification('itemCollect', collectKey)) {
+        this.notificationManager.info(
+          `Objet collecté: ${itemId} x${amount}`,
+          {
+            duration: 2000,
+            position: 'bottom-right',
+            type: 'inventory'
+          }
+        );
+      }
     }
   }
 
@@ -902,15 +949,17 @@ export class QuestSystem {
         pokemonId: pokemonId
       });
       
-      // ✅ Notification de combat
-      this.notificationManager.show(
-        `Pokémon vaincu !`,
-        {
-          type: 'battle',
-          duration: 2000,
-          position: 'bottom-center'
-        }
-      );
+      // ✅ Notification de combat (avec déduplication)
+      if (this.shouldShowNotification('pokemonDefeat', pokemonId)) {
+        this.notificationManager.show(
+          `Pokémon vaincu !`,
+          {
+            type: 'battle',
+            duration: 2000,
+            position: 'bottom-center'
+          }
+        );
+      }
     }
   }
 
@@ -924,14 +973,16 @@ export class QuestSystem {
         map: map
       });
       
-      // ✅ Notification de zone
-      this.notificationManager.info(
-        `Zone visitée: ${zoneId}`,
-        {
-          duration: 2000,
-          position: 'top-center'
-        }
-      );
+      // ✅ Notification de zone (avec déduplication)
+      if (this.shouldShowNotification('zoneReach', zoneId)) {
+        this.notificationManager.info(
+          `Zone visitée: ${zoneId}`,
+          {
+            duration: 2000,
+            position: 'top-center'
+          }
+        );
+      }
     }
   }
 
@@ -943,13 +994,16 @@ export class QuestSystem {
         targetId: itemId
       });
       
-      // ✅ Notification de livraison
-      this.notificationManager.success(
-        `Objet livré: ${itemId}`,
-        {
-          duration: 3000
-        }
-      );
+      // ✅ Notification de livraison (avec déduplication)
+      const deliverKey = `${npcId}_${itemId}`;
+      if (this.shouldShowNotification('itemDeliver', deliverKey)) {
+        this.notificationManager.success(
+          `Objet livré: ${itemId}`,
+          {
+            duration: 3000
+          }
+        );
+      }
     }
   }
 
@@ -987,5 +1041,64 @@ export class QuestSystem {
     const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
     
     return !questDialogOpen && !chatOpen && !starterHudOpen;
+  }
+
+  // === MÉTHODES DE DEBUG POUR LA DÉDUPLICATION ===
+
+  /**
+   * Réinitialise le système de déduplication
+   */
+  resetNotificationCooldowns() {
+    this.lastNotificationTime.clear();
+    console.log("🔄 Cooldowns de notification réinitialisés");
+  }
+
+  /**
+   * Affiche l'état actuel du système de déduplication
+   */
+  debugNotificationSystem() {
+    console.log("🔍 État du système de déduplication des notifications:");
+    console.log("- Cooldown actuel:", this.notificationCooldown, "ms");
+    console.log("- Notifications en cooldown:", this.lastNotificationTime.size);
+    
+    if (this.lastNotificationTime.size > 0) {
+      console.log("- Détails des cooldowns:");
+      const now = Date.now();
+      this.lastNotificationTime.forEach((time, key) => {
+        const remaining = Math.max(0, this.notificationCooldown - (now - time));
+        console.log(`  ${key}: ${remaining}ms restant`);
+      });
+    }
+
+    // ✅ Notification de debug
+    if (this.notificationManager) {
+      this.notificationManager.info(
+        `Debug: ${this.lastNotificationTime.size} notifications en cooldown`,
+        {
+          duration: 3000,
+          position: 'top-left'
+        }
+      );
+    }
+  }
+
+  /**
+   * Configure le délai de déduplication
+   */
+  setNotificationCooldown(milliseconds) {
+    const oldCooldown = this.notificationCooldown;
+    this.notificationCooldown = milliseconds;
+    
+    console.log(`🔧 Cooldown notification changé: ${oldCooldown}ms → ${milliseconds}ms`);
+    
+    if (this.notificationManager) {
+      this.notificationManager.info(
+        `Cooldown mis à jour: ${milliseconds}ms`,
+        {
+          duration: 2000,
+          position: 'bottom-left'
+        }
+      );
+    }
   }
 }
