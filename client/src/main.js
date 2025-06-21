@@ -475,14 +475,15 @@ document.head.appendChild(styleSheet);
     // Afficher les instructions dans la console
     showNotificationInstructions();
     
-    // Notification finale
-    setTimeout(() => {
-      window.showGameNotification("Système de jeu prêt !", "success", {
-        duration: 3000,
-        position: 'top-center',
-        bounce: true
-      });
-    }, 2000);
+// Final notification
+setTimeout(() => {
+  window.showGameNotification("Game system ready!", "success", {
+    duration: 3000,
+    position: 'top-center',
+    bounce: true
+  });
+}, 2000);
+
 
     console.log("🎯 Tous les systèmes initialisés !");
     console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
