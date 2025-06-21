@@ -79,6 +79,35 @@ this.lastReceivedZoneData = null;
     if (!this.room) return;
 
     console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
+this.room.onStateChange.once((state) => {
+  console.log(`🎯 [NetworkManager] ÉTAT INITIAL forcé:`, {
+    playersCount: state.players?.size || 0,
+    mySessionId: this.sessionId,
+    hasMyPlayer: state.players?.has(this.sessionId)
+  });
+  
+  // Convertir en format filtré et envoyer immédiatement
+  const filteredState = {
+    players: new Map()
+  };
+  
+  // Ajouter seulement les joueurs de la zone actuelle
+  state.players.forEach((player, sessionId) => {
+    if (player.currentZone === this.currentZone) {
+      filteredState.players.set(sessionId, player);
+    }
+  });
+  
+  console.log(`🔥 [NetworkManager] Force callback avec ${filteredState.players.size} joueurs`);
+  
+  if (this.callbacks.onStateChange && filteredState.players.size > 0) {
+    this.callbacks.onStateChange(filteredState);
+  }
+});
+    this.room.onJoin(() => {
+  console.log(`📡 [NetworkManager] Demande état initial pour zone: ${this.currentZone}`);
+  this.room.send("requestInitialState", { zone: this.currentZone });
+});
 
     // Zone data
 this.room.onMessage("zoneData", (data) => {
