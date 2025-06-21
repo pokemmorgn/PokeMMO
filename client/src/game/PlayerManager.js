@@ -210,24 +210,74 @@ export class PlayerManager {
   }
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour d'un joueur existant
-  updateExistingPlayer(player, x, y) {
-    player.x = x;
-    player.y = y;
-    player.targetX = x;
-    player.targetY = y;
+  updateExistingPlayer(player, playerData, isMyPlayer) {
+    // ✅ Mise à jour normale avec l'objet playerData directement
+    const newX = playerData.x;
+    const newY = playerData.y;
+    const newDirection = playerData.direction || 'down';
+    const isMoving = playerData.isMoving || false;
+
+    // Détecter les changements de position
+    const positionChanged = Math.abs(player.x - newX) > 1 || Math.abs(player.y - newY) > 1;
     
-    // Restaurer la visibilité si nécessaire
-    if (!player.visible) {
-      console.log("[PlayerManager] 🔧 Restauration visibilité joueur existant");
-      player.setVisible(true);
-      player.setActive(true);
+    if (positionChanged && !isMyPlayer) {
+        console.log(`[PlayerManager] 📍 ${player.name || player.sessionId}: (${player.x}, ${player.y}) → (${newX}, ${newY})`);
+        
+        // Interpolation fluide pour les autres joueurs
+        this.scene.tweens.add({
+            targets: player,
+            x: newX,
+            y: newY,
+            duration: 150,
+            ease: 'Linear'
+        });
+        
+        if (player.indicator) {
+            this.scene.tweens.add({
+                targets: player.indicator,
+                x: newX,
+                y: newY - 24,
+                duration: 150,
+                ease: 'Linear'
+            });
+        }
+    } else if (isMyPlayer) {
+        // ✅ Pour mon joueur: position serveur fait autorité seulement si très différente
+        const significantChange = Math.abs(player.x - newX) > 32 || Math.abs(player.y - newY) > 32;
+        
+        if (significantChange) {
+            console.log(`[PlayerManager] 🔧 Correction position majeure: (${player.x}, ${player.y}) → (${newX}, ${newY})`);
+            player.x = newX;
+            player.y = newY;
+            player.targetX = newX;
+            player.targetY = newY;
+            
+            if (player.indicator) {
+                player.indicator.x = newX;
+                player.indicator.y = newY - 24;
+            }
+        }
     }
-    
-    // Vérifier l'indicateur pour le joueur local
-    if ((player.sessionId === this.mySessionId || player.sessionId === this._pendingSessionId) && !player.indicator) {
-      this.createLocalPlayerIndicator(player);
+
+    // Mettre à jour les propriétés
+    if (playerData.name && player.name !== playerData.name) {
+        player.name = playerData.name;
+        this.updatePlayerLabel(player);
     }
-  }
+
+    // Animations
+    if (isMoving && !isMyPlayer) {
+        const animKey = `walk_${newDirection}`;
+        if (player.anims.exists(animKey)) {
+            player.play(animKey, true);
+        }
+    } else if (!isMoving && !isMyPlayer) {
+        const idleKey = `idle_${newDirection}`;
+        if (player.anims.exists(idleKey)) {
+            player.play(idleKey, true);
+        }
+    }
+}
 
   // ✅ NOUVELLE MÉTHODE: Création de joueur placeholder
   createPlaceholderPlayer(sessionId, x, y) {
@@ -286,7 +336,7 @@ export class PlayerManager {
         // État normal avec Map
         playersToProcess = Array.from(state.players.entries());
         console.log(`[PlayerManager] État Map avec ${state.players.size} joueurs`);
-    } else if (typeof state.players === 'object') {
+    } else if (typeof state.players === 'object' && state.players !== null) {
         // État filtré avec objet
         playersToProcess = Object.entries(state.players);
         console.log(`[PlayerManager] État filtré avec ${playersToProcess.length} joueurs`);
@@ -295,8 +345,9 @@ export class PlayerManager {
         return;
     }
 
-    // Traitement unifié
+    // ✅ Traitement unifié avec le bon format
     playersToProcess.forEach(([sessionId, playerData]) => {
+        // ✅ IMPORTANT: Passer directement playerData, pas state.players
         this.performUpdate(sessionId, playerData);
     });
 }
@@ -330,30 +381,7 @@ export class PlayerManager {
     }
   }
 
-  performUpdate(state) {
-    if (this.isDestroyed || !this.scene?.scene?.isActive()) {
-      return;
-    }
-
-    // Supprimer les joueurs déconnectés
-    const currentSessionIds = new Set(state.players.keys());
-    const playersToRemove = Array.from(this.players.keys()).filter(sessionId => 
-      !currentSessionIds.has(sessionId)
-    );
-    
-    playersToRemove.forEach(sessionId => {
-      console.log("[PlayerManager] 🗑️ Suppression joueur déconnecté:", sessionId);
-      this.removePlayer(sessionId);
-    });
-
-    // Mettre à jour ou créer les joueurs
-    state.players.forEach((playerState, sessionId) => {
-      this.updateOrCreatePlayer(sessionId, playerState);
-    });
-
-    // ✅ AMÉLIORATION 6: Notification joueur local prêt avec vérifications multiples
-    this.checkMyPlayerReady();
-  }
+  performUpdate
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour ou création de joueur
   updateOrCreatePlayer(sessionId, playerState) {
