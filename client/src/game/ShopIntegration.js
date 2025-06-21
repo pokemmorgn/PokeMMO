@@ -36,7 +36,6 @@ export class ShopIntegration {
 
       // 3. ✅ Setup des événements et raccourcis
       this.setupShopEventHandlers();
-      this.setupShopKeyboardShortcuts();
       this.setupShopNetworkHandlers(networkManager);
 
       // 4. ✅ Marquer comme initialisé
