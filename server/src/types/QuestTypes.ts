@@ -1,4 +1,4 @@
-// server/src/types/QuestTypes.ts
+// server/src/types/QuestTypes.ts - VERSION MISE À JOUR
 
 export interface QuestObjective {
   id: string;
@@ -36,7 +36,7 @@ export interface Quest {
   prerequisites?: string[];
   steps: QuestStep[];
   currentStepIndex: number;
-  status: 'available' | 'active' | 'completed' | 'failed';
+  status: 'available' | 'active' | 'readyToComplete' | 'completed' | 'failed'; // ✅ AJOUT readyToComplete
   startNpcId?: number;
   endNpcId?: number;
   isRepeatable: boolean;
@@ -51,7 +51,7 @@ export interface PlayerQuestProgress {
     currentAmount: number;
     completed: boolean;
   }>;
-  status: 'active' | 'completed' | 'failed';
+  status: 'active' | 'readyToComplete' | 'completed' | 'failed'; // ✅ AJOUT readyToComplete
   startedAt: Date;
   completedAt?: Date;
 }
@@ -63,6 +63,7 @@ export interface QuestProgressEvent {
   location?: { x: number; y: number; map: string };
   pokemonId?: number;
   npcId?: number;
+  questId?: string; // ✅ NOUVEAU pour completion manuelle
 }
 
 export interface QuestDefinition {
@@ -75,6 +76,7 @@ export interface QuestDefinition {
   endNpcId?: number;
   isRepeatable: boolean;
   cooldownHours?: number;
+  autoComplete?: boolean; // ✅ NOUVEAU FLAG
   steps: {
     id: string;
     name: string;
