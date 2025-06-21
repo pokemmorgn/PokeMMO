@@ -233,9 +233,6 @@ export class TransitionManager {
     const transitionData = {
       fromZone: this.currentZone,
       fromTransition: true,
-      localTransition: true,
-      spawnX: temporarySpawnPosition.x, // ← Position temporaire
-      spawnY: temporarySpawnPosition.y, // ← Position temporaire
       networkManager: this.scene.networkManager,
       mySessionId: this.scene.mySessionId,
       forcePlayerSync: true,
@@ -315,8 +312,6 @@ export class TransitionManager {
     const rollbackData = {
       fromTransition: true,
       isRollback: true,
-      spawnX: originalState.player.x,
-      spawnY: originalState.player.y,
       networkManager: this.scene.networkManager,
       mySessionId: this.scene.mySessionId,
       forcePlayerSync: true,
