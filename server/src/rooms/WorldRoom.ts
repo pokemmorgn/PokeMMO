@@ -208,66 +208,92 @@ export class WorldRoom extends Room<PokeWorldState> {
     // === HANDLERS EXISTANTS ===
     
     // Mouvement du joueur
-    this.onMessage("playerMove", (client, data) => {
-      this.handlePlayerMove(client, data);
-    });
+   // Mouvement du joueur
+  this.onMessage("playerMove", (client, data) => {
+    this.handlePlayerMove(client, data);
+  });
 
-    // Transition entre zones
-   // Validation de transition (nouvelle approche sécurisée)
-this.onMessage("validateTransition", async (client, data: TransitionRequest) => {
-  console.log(`🔍 === VALIDATION TRANSITION REQUEST ===`);
-  console.log(`👤 From: ${client.sessionId}`);
-  console.log(`📍 Data:`, data);
-  
-  const player = this.state.players.get(client.sessionId);
-  if (!player) {
-    client.send("transitionResult", {
-      success: false,
-      reason: "Joueur non trouvé",
-      rollback: true
-    });
-    return;
-  }
-
-  try {
-    const result = await this.transitionService.validateTransition(client, player, data);
+  // ✅ HANDLER MANQUANT - Transition entre zones (ancien système)
+  this.onMessage("moveToZone", async (client, data) => {
+    console.log(`🌀 === MOVE TO ZONE REQUEST (ANCIEN SYSTÈME) ===`);
+    console.log(`👤 Client: ${client.sessionId}`);
+    console.log(`📍 Data:`, data);
     
-    if (result.success) {
-      // Mettre à jour la position du joueur sur le serveur
-      if (result.position) {
-        const oldZone = player.currentZone;
-        player.currentZone = result.currentZone!;
-        player.x = result.position.x;
-        player.y = result.position.y;
-        
-        console.log(`✅ Transition validée: ${player.name} ${oldZone} → ${player.currentZone}`);
-        
-        // Notifier le changement de zone
-        this.onPlayerJoinZone(client, player.currentZone);
-        this.scheduleFilteredStateUpdate();
-      }
+    // Déléguer au ZoneManager
+    await this.zoneManager.handleZoneTransition(client, data);
+  });
+
+  // ✅ VALIDATION de transition (nouveau système sécurisé)
+  this.onMessage("validateTransition", async (client, data: TransitionRequest) => {
+    console.log(`🔍 === VALIDATION TRANSITION REQUEST ===`);
+    console.log(`👤 From: ${client.sessionId}`);
+    console.log(`📍 Data:`, data);
+    
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("transitionResult", {
+        success: false,
+        reason: "Joueur non trouvé",
+        rollback: true
+      });
+      return;
     }
-    
-    client.send("transitionResult", result);
-    
-  } catch (error) {
-    console.error(`❌ Erreur validation transition:`, error);
-    client.send("transitionResult", {
-      success: false,
-      reason: "Erreur serveur lors de la validation",
-      rollback: true
-    });
-  }
-});
 
-// Debug transition service
-this.onMessage("debugTransitions", (client, data) => {
-  if (data.zone) {
-    this.transitionService.debugZoneData(data.zone);
-  } else {
-    console.log(`🔍 [TransitionService] Stats:`, this.transitionService.getZoneStats());
-  }
-});
+    try {
+      const result = await this.transitionService.validateTransition(client, player, data);
+      
+      if (result.success) {
+        // Mettre à jour la position du joueur sur le serveur
+        if (result.position) {
+          const oldZone = player.currentZone;
+          player.currentZone = result.currentZone!;
+          player.x = result.position.x;
+          player.y = result.position.y;
+          
+          console.log(`✅ Transition validée: ${player.name} ${oldZone} → ${player.currentZone}`);
+          
+          // Notifier le changement de zone
+          this.onPlayerJoinZone(client, player.currentZone);
+          this.scheduleFilteredStateUpdate();
+        }
+      }
+      
+      client.send("transitionResult", result);
+      
+    } catch (error) {
+      console.error(`❌ Erreur validation transition:`, error);
+      client.send("transitionResult", {
+        success: false,
+        reason: "Erreur serveur lors de la validation",
+        rollback: true
+      });
+    }
+  });
+
+  // ✅ HANDLER MANQUANT - Notification de changement de zone
+  this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
+    console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
+    console.log(`👤 Client: ${client.sessionId}`);
+    console.log(`📍 Nouvelle zone: ${data.newZone} à (${data.x}, ${data.y})`);
+    
+    const player = this.state.players.get(client.sessionId);
+    if (player) {
+      const oldZone = player.currentZone;
+      
+      // Mettre à jour la zone et position du joueur
+      player.currentZone = data.newZone;
+      player.x = data.x;
+      player.y = data.y;
+      
+      console.log(`✅ ${player.name}: ${oldZone} → ${data.newZone}`);
+      
+      // Envoyer les NPCs de la nouvelle zone
+      this.onPlayerJoinZone(client, data.newZone);
+      
+      // Déclencher une mise à jour du state filtré
+      this.scheduleFilteredStateUpdate();
+    }
+  });
 
     // Interaction avec NPC
     this.onMessage("npcInteract", (client, data) => {
