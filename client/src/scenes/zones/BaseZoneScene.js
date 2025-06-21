@@ -618,9 +618,6 @@ export class BaseZoneScene extends Phaser.Scene {
     // Démarrer la nouvelle scène avec TOUTES les données nécessaires
     const transitionData = {
       fromZone: this.zoneName,
-      fromTransition: true,
-      spawnX: result.position?.x,
-      spawnY: result.position?.y,
       networkManager: this.networkManager,
       mySessionId: this.mySessionId,
       preservePlayer: true // ✅ NOUVEAU: Flag pour préserver le joueur
