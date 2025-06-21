@@ -5,6 +5,8 @@ import { ZoneManager } from "../managers/ZoneManager";
 import { NpcManager } from "../managers/NPCManager";
 import { InventoryManager } from "../managers/InventoryManager"; 
 import { getItemData, getItemPocket } from "../utils/ItemDB";
+import { TransitionService, TransitionRequest } from "../services/TransitionService";
+
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
@@ -22,7 +24,8 @@ interface Quest {
 export class WorldRoom extends Room<PokeWorldState> {
   private zoneManager!: ZoneManager;
   private npcManagers: Map<string, NpcManager> = new Map();
-  
+  private transitionService!: TransitionService;
+
   // Limite pour auto-scaling
   maxClients = 50;
   private lastStateUpdate = 0;
@@ -41,7 +44,8 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`✅ ZoneManager initialisé`);
 
     this.initializeNpcManagers();
-    
+    this.transitionService = new TransitionService(this.npcManagers);
+    console.log(`✅ TransitionService initialisé`);
     // Messages handlers
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
@@ -209,12 +213,61 @@ export class WorldRoom extends Room<PokeWorldState> {
     });
 
     // Transition entre zones
-    this.onMessage("moveToZone", (client, data) => {
-      console.log(`🌀 === ZONE TRANSITION REQUEST ===`);
-      console.log(`👤 From: ${client.sessionId}`);
-      console.log(`📍 Data:`, data);
-      this.zoneManager.handleZoneTransition(client, data);
+   // Validation de transition (nouvelle approche sécurisée)
+this.onMessage("validateTransition", async (client, data: TransitionRequest) => {
+  console.log(`🔍 === VALIDATION TRANSITION REQUEST ===`);
+  console.log(`👤 From: ${client.sessionId}`);
+  console.log(`📍 Data:`, data);
+  
+  const player = this.state.players.get(client.sessionId);
+  if (!player) {
+    client.send("transitionResult", {
+      success: false,
+      reason: "Joueur non trouvé",
+      rollback: true
     });
+    return;
+  }
+
+  try {
+    const result = await this.transitionService.validateTransition(client, player, data);
+    
+    if (result.success) {
+      // Mettre à jour la position du joueur sur le serveur
+      if (result.position) {
+        const oldZone = player.currentZone;
+        player.currentZone = result.currentZone!;
+        player.x = result.position.x;
+        player.y = result.position.y;
+        
+        console.log(`✅ Transition validée: ${player.name} ${oldZone} → ${player.currentZone}`);
+        
+        // Notifier le changement de zone
+        this.onPlayerJoinZone(client, player.currentZone);
+        this.scheduleFilteredStateUpdate();
+      }
+    }
+    
+    client.send("transitionResult", result);
+    
+  } catch (error) {
+    console.error(`❌ Erreur validation transition:`, error);
+    client.send("transitionResult", {
+      success: false,
+      reason: "Erreur serveur lors de la validation",
+      rollback: true
+    });
+  }
+});
+
+// Debug transition service
+this.onMessage("debugTransitions", (client, data) => {
+  if (data.zone) {
+    this.transitionService.debugZoneData(data.zone);
+  } else {
+    console.log(`🔍 [TransitionService] Stats:`, this.transitionService.getZoneStats());
+  }
+});
 
     // Interaction avec NPC
     this.onMessage("npcInteract", (client, data) => {
