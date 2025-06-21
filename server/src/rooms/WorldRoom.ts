@@ -235,12 +235,22 @@ export class WorldRoom extends Room<PokeWorldState> {
     await this.zoneManager.handleZoneTransition(client, data);
   });
 
-  // ✅ VALIDATION de transition (nouveau système sécurisé)
+ // ✅ VALIDATION de transition (nouveau système sécurisé)
   this.onMessage("validateTransition", async (client, data: TransitionRequest) => {
     console.log(`🔍 === VALIDATION TRANSITION REQUEST ===`);
     console.log(`👤 From: ${client.sessionId}`);
     console.log(`📍 Data:`, data);
-    
+
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("transitionResult", {
+        success: false,
+        reason: "Joueur non trouvé",
+        rollback: true
+      });
+      return;
+    }
+
     try {
       const result = await this.transitionService.validateTransition(client, player, data);
       
@@ -252,9 +262,9 @@ export class WorldRoom extends Room<PokeWorldState> {
           player.x = result.position.x;
           player.y = result.position.y;
           console.log(`🔧 [WorldRoom] IMMÉDIATEMENT APRÈS UPDATE:`);
-console.log(`  - player.currentZone: ${player.currentZone}`);
-console.log(`  - result.currentZone: ${result.currentZone}`);
-console.log(`  - player position: (${player.x}, ${player.y})`);
+          console.log(`  - player.currentZone: ${player.currentZone}`);
+          console.log(`  - result.currentZone: ${result.currentZone}`);
+          console.log(`  - player position: (${player.x}, ${player.y})`);
           console.log(`✅ Transition validée: ${player.name} ${oldZone} → ${player.currentZone}`);
           
           // Notifier le changement de zone
@@ -272,6 +282,37 @@ console.log(`  - player position: (${player.x}, ${player.y})`);
         reason: "Erreur serveur lors de la validation",
         rollback: true
       });
+    }
+  });
+
+  // Interaction avec NPC
+  this.onMessage("npcInteract", (client, data) => {
+    console.log(`💬 === NPC INTERACTION REQUEST ===`);
+    this.zoneManager.handleNpcInteraction(client, data.npcId);
+  });
+
+  // ✅ HANDLER POUR notifyZoneChange
+  this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
+    console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
+    console.log(`👤 Client: ${client.sessionId}`);
+    console.log(`📍 Nouvelle zone: ${data.newZone} à (${data.x}, ${data.y})`);
+    
+    const player = this.state.players.get(client.sessionId);
+    if (player) {
+      const oldZone = player.currentZone;
+      
+      // Mettre à jour la zone et position du joueur
+      player.currentZone = data.newZone;
+      player.x = data.x;
+      player.y = data.y;
+      
+      console.log(`✅ ${player.name}: ${oldZone} → ${data.newZone}`);
+      
+      // Envoyer les NPCs de la nouvelle zone
+      this.onPlayerJoinZone(client, data.newZone);
+      
+      // Déclencher une mise à jour du state filtré
+      this.scheduleFilteredStateUpdate();
     }
   });
     
