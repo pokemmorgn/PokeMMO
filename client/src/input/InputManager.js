@@ -23,6 +23,21 @@ export class InputManager {
     };
     
     this.setupInput();
+
+    // Désactive le menu contextuel (clic droit) pour éviter les bugs de touche coincée
+    this.scene.input.mouse.disableContextMenu();
+
+    // Réinitialise les touches si le joueur perd le focus (ex : alt-tab)
+    window.addEventListener('blur', () => {
+      this.scene.input.keyboard.resetKeys();
+      this.currentMovement = {
+        x: 0,
+        y: 0,
+        isMoving: false,
+        direction: null,
+        source: null
+      };
+    });
   }
 
   detectMobile() {
