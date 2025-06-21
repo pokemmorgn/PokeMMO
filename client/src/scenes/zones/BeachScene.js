@@ -60,7 +60,7 @@ class PokemonSpriteManager {
 // ====================== BeachScene ==========================
 export class BeachScene extends BaseZoneScene {
   constructor() {
-    super('BeachScene', 'GreenRootBeach');
+    super('BeachScene', 'beach');
     this.transitionCooldowns = {};
     this.pokemonSpriteManager = null;
     this._introBlocked = false;
