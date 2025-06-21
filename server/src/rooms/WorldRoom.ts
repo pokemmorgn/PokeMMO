@@ -273,6 +273,43 @@ console.log(`  - player position: (${player.x}, ${player.y})`);
     }
   });
 
+    // ✅ NOUVEAU HANDLER : Répondre aux demandes de zone
+  this.onMessage("requestCurrentZone", (client, data) => {
+    console.log(`📍 [WorldRoom] === DEMANDE ZONE ACTUELLE ===`);
+    console.log(`👤 Client: ${client.sessionId}`);
+    console.log(`📊 Data:`, data);
+    
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
+      console.error(`❌ [WorldRoom] Joueur introuvable: ${client.sessionId}`);
+      client.send("currentZone", {
+        zone: "beach", // Zone par défaut
+        x: 52,
+        y: 48,
+        error: "Joueur non trouvé, zone par défaut",
+        sceneKey: data.sceneKey,
+        timestamp: Date.now()
+      });
+      return;
+    }
+    
+    // ✅ ENVOYER LA VÉRITÉ DU SERVEUR
+    const response = {
+      zone: player.currentZone,
+      x: player.x,
+      y: player.y,
+      timestamp: Date.now(),
+      sceneKey: data.sceneKey
+    };
+    
+    console.log(`📤 [WorldRoom] === ENVOI ZONE OFFICIELLE ===`);
+    console.log(`🎯 Zone serveur: ${response.zone}`);
+    console.log(`📍 Position: (${response.x}, ${response.y})`);
+    console.log(`📺 Scène demandée: ${response.sceneKey}`);
+    
+    client.send("currentZone", response);
+  });
+    
   // ✅ HANDLER MANQUANT - Notification de changement de zone
   this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
     console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
