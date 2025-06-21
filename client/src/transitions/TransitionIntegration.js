@@ -1,42 +1,42 @@
 // client/src/transitions/TransitionIntegration.js
-// ✅ INTÉGRATION 100% LOCALE - AUCUNE INTERACTION SERVEUR
+// ✅ INTÉGRATION SIMPLIFIÉE POUR SYSTÈME DYNAMIQUE
 
 import { TransitionManager } from './TransitionManager.js';
 
 export class TransitionIntegration {
   
-  // ✅ MÉTHODE 1: Initialiser dans BaseZoneScene.create()
+  // ✅ SETUP DANS BaseZoneScene.create()
   static setupTransitions(scene) {
-    console.log(`🔌 [TransitionIntegration] Setup LOCAL pour ${scene.scene.key}`);
+    console.log(`🔌 [TransitionIntegration] Setup dynamique pour ${scene.scene.key}`);
     
     // Créer le TransitionManager
     scene.transitionManager = new TransitionManager(scene);
     
-    // L'initialiser après que la map soit chargée
+    // Initialiser quand la map est prête
     if (scene.map) {
       scene.transitionManager.initialize();
+      console.log(`🔌 [TransitionIntegration] ✅ TransitionManager initialisé immédiatement`);
     } else {
-      // Attendre que la map soit prête
-      const checkMap = () => {
+      // Attendre que la map soit chargée
+      const waitForMap = () => {
         if (scene.map) {
           scene.transitionManager.initialize();
+          console.log(`🔌 [TransitionIntegration] ✅ TransitionManager initialisé après chargement map`);
         } else {
-          scene.time.delayedCall(100, checkMap);
+          scene.time.delayedCall(100, waitForMap);
         }
       };
-      checkMap();
+      waitForMap();
     }
-    
-    console.log(`🔌 [TransitionIntegration] ✅ Setup LOCAL terminé - aucune dépendance serveur`);
   }
 
-  // ✅ MÉTHODE 2: Vérifier les collisions dans BaseZoneScene.update()
+  // ✅ UPDATE DANS BaseZoneScene.update()
   static updateTransitions(scene) {
-    if (!scene.transitionManager || !scene.transitionManager.isActive) {
+    if (!scene.transitionManager?.isActive) {
       return;
     }
 
-    // ✅ RÉCUPÉRER LE JOUEUR DEPUIS PLAYERMANAGER (pas du serveur)
+    // Récupérer le joueur local
     const myPlayer = scene.playerManager?.getMyPlayer();
     if (!myPlayer) {
       return;
@@ -46,23 +46,24 @@ export class TransitionIntegration {
     scene.transitionManager.checkCollisions(myPlayer);
   }
 
-  // ✅ MÉTHODE 3: Nettoyer dans BaseZoneScene.cleanup()
+  // ✅ NETTOYAGE DANS BaseZoneScene.cleanup()
   static cleanupTransitions(scene) {
     if (scene.transitionManager) {
-      console.log(`🔌 [TransitionIntegration] Nettoyage LOCAL ${scene.scene.key}`);
+      console.log(`🔌 [TransitionIntegration] Nettoyage ${scene.scene.key}`);
       scene.transitionManager.destroy();
       scene.transitionManager = null;
     }
   }
 
-  // ✅ MÉTHODE 4: Activer/désactiver temporairement
+  // ✅ CONTRÔLE EXTERNE
   static setTransitionsActive(scene, active) {
     if (scene.transitionManager) {
       scene.transitionManager.setActive(active);
+      console.log(`🔌 [TransitionIntegration] Transitions ${active ? 'activées' : 'désactivées'}`);
     }
   }
 
-  // ✅ MÉTHODE 5: Debug - afficher les infos
+  // ✅ DEBUG
   static debugTransitions(scene) {
     if (scene.transitionManager) {
       scene.transitionManager.debugInfo();
@@ -71,22 +72,54 @@ export class TransitionIntegration {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Vérifier si on peut faire des transitions locales
-  static canDoLocalTransitions(scene) {
-    // Vérifier que les éléments nécessaires sont présents
+  // ✅ VÉRIFICATION DE SANTÉ
+  static checkTransitionHealth(scene) {
+    if (!scene.transitionManager) {
+      console.warn(`🔌 [TransitionIntegration] ⚠️ TransitionManager manquant`);
+      return false;
+    }
+
     const hasPlayerManager = !!scene.playerManager;
     const hasPlayer = !!scene.playerManager?.getMyPlayer();
     const hasMap = !!scene.map;
+    const hasNetwork = !!scene.networkManager?.room;
     
-    const canTransition = hasPlayerManager && hasPlayer && hasMap;
+    const isHealthy = hasPlayerManager && hasPlayer && hasMap && hasNetwork;
     
-    if (!canTransition) {
-      console.warn(`🔌 [TransitionIntegration] ⚠️ Transition locale impossible:`);
+    if (!isHealthy) {
+      console.warn(`🔌 [TransitionIntegration] ⚠️ Santé transitions:`);
       console.warn(`  - PlayerManager: ${hasPlayerManager}`);
       console.warn(`  - Player: ${hasPlayer}`);
       console.warn(`  - Map: ${hasMap}`);
+      console.warn(`  - Network: ${hasNetwork}`);
     }
     
-    return canTransition;
+    return isHealthy;
+  }
+
+  // ✅ FORCER RESCAN DES TÉLÉPORTS
+  static rescanTeleports(scene) {
+    if (scene.transitionManager) {
+      console.log(`🔌 [TransitionIntegration] 🔄 Rescan des téléports...`);
+      scene.transitionManager.destroy();
+      scene.transitionManager = new TransitionManager(scene);
+      scene.transitionManager.initialize();
+      console.log(`🔌 [TransitionIntegration] ✅ Rescan terminé`);
+    }
+  }
+
+  // ✅ OBTENIR INFOS DE DEBUG
+  static getDebugInfo(scene) {
+    if (!scene.transitionManager) {
+      return { error: "Aucun TransitionManager" };
+    }
+
+    return {
+      isActive: scene.transitionManager.isActive,
+      isTransitioning: scene.transitionManager.isTransitioning,
+      currentZone: scene.transitionManager.currentZone,
+      teleportCount: scene.transitionManager.teleportZones.size,
+      hasLoadingOverlay: !!scene.transitionManager.loadingOverlay
+    };
   }
 }
