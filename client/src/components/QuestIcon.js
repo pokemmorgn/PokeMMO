@@ -239,10 +239,15 @@ export class QuestIcon {
       this.handleClick();
     });
 
-    // Quest journal keyboard shortcut (Q)
+    // ✅ FIX: Raccourci clavier Q corrigé pour éviter les conflits
     document.addEventListener('keydown', (e) => {
-      if (e.key.toLowerCase() === 'q' && this.canOpenQuestJournal()) {
+      // ✅ Vérifier que c'est bien la touche Q et pas dans un input
+      if (e.key.toLowerCase() === 'q' && 
+          !e.target.matches('input, textarea, [contenteditable]') &&
+          this.canOpenQuestJournal()) {
         e.preventDefault();
+        e.stopPropagation();
+        console.log('📖 Touche Q pressée - ouverture journal des quêtes');
         this.handleClick();
       }
     });
