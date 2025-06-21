@@ -659,7 +659,10 @@ export class BaseZoneScene extends Phaser.Scene {
     
     console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
     console.log(`📊 InitData:`, initData);
-    
+      if (initData?.fromTransition && player.x && player.y) {
+    console.log(`📍 Position serveur conservée: (${player.x}, ${player.y})`);
+    return;
+  }
     if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
       console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
       player.x = initData.spawnX;
