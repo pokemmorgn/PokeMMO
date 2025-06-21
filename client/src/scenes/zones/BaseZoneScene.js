@@ -615,13 +615,14 @@ export class BaseZoneScene extends Phaser.Scene {
     // ✅ CORRECTION CRITIQUE: Nettoyage minimal pour préserver les données
     this.prepareForTransition();
     
-    // Démarrer la nouvelle scène avec TOUTES les données nécessaires
-    const transitionData = {
-      fromZone: this.zoneName,
-      networkManager: this.networkManager,
-      mySessionId: this.mySessionId,
-      preservePlayer: true // ✅ NOUVEAU: Flag pour préserver le joueur
-    };
+   // Démarrer la nouvelle scène avec TOUTES les données nécessaires
+const transitionData = {
+  fromZone: this.zoneName,
+  fromTransition: true,  // ← AJOUTER CETTE LIGNE
+  networkManager: this.networkManager,
+  mySessionId: this.mySessionId,
+  preservePlayer: true // ✅ NOUVEAU: Flag pour préserver le joueur
+};
     
     console.log(`📦 [${this.scene.key}] Données de transition:`, transitionData);
     
