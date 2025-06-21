@@ -1,4 +1,4 @@
-// client/src/game/QuestSystem.js - VERSION CORRIGÉE
+// client/src/game/QuestSystem.js - VERSION MISE À JOUR AVEC NOTIFICATIONMANAGER
 
 import { QuestJournalUI } from '../components/QuestJournalUI.js';
 
@@ -10,7 +10,23 @@ export class QuestSystem {
     this.trackedQuest = null;
     this.questNotifications = [];
 
+    // ✅ NOUVEAU: Utiliser le NotificationManager global
     this.notificationManager = window.NotificationManager;
+    if (!this.notificationManager) {
+      console.warn("⚠️ NotificationManager non trouvé, créer une instance");
+      // Fallback: créer une instance si pas trouvée
+      this.notificationManager = {
+        show: (message, options) => console.log(`[QUEST] ${message}`),
+        success: (message, options) => console.log(`[QUEST SUCCESS] ${message}`),
+        error: (message, options) => console.log(`[QUEST ERROR] ${message}`),
+        warning: (message, options) => console.log(`[QUEST WARNING] ${message}`),
+        info: (message, options) => console.log(`[QUEST INFO] ${message}`),
+        quest: (message, options) => console.log(`[QUEST] ${message}`),
+        questNotification: (questName, action, options) => console.log(`[QUEST] ${questName} - ${action}`),
+        achievement: (message, options) => console.log(`[ACHIEVEMENT] ${message}`)
+      };
+    }
+    
     this.init();
   }
 
@@ -36,29 +52,7 @@ export class QuestSystem {
       console.log("handleNpcInteraction appelé", data);
     });
 
-    // ✅ FIX 1: Correction du handler pour questStartResult
-    this.gameRoom.onMessage("questStartResult", (data) => {
-      console.log("🎯 Quest start result reçu:", data);
-      if (data.success) {
-        this.showNotification(`Quête acceptée : ${data.quest?.name || 'Nouvelle quête'}`, 'success');
-        // ✅ Actualiser immédiatement le journal
-        if (this.questJournal && this.questJournal.isVisible) {
-          this.questJournal.refreshQuests();
-        }
-      } else {
-        this.showNotification(data.message || "Impossible d'accepter la quête", 'error');
-      }
-    });
-
-    // ✅ FIX 2: Ajouter un handler pour questStarted (au cas où le serveur envoie ce message)
-    this.gameRoom.onMessage("questStarted", (data) => {
-      console.log("🎯 Quest started reçu:", data);
-      this.showNotification(`Nouvelle quête : ${data.quest?.name || 'Quête démarrée'}`, 'success');
-      if (this.questJournal && this.questJournal.isVisible) {
-        this.questJournal.refreshQuests();
-      }
-    });
-
+    // ✅ AMÉLIORATION: Tous les handlers de quête utilisent NotificationManager
     this.gameRoom.onMessage("questStartResult", (data) => {
       console.log("🎯 Quest start result reçu:", data);
       if (data.success) {
@@ -88,22 +82,40 @@ export class QuestSystem {
       }
     });
 
+    // ✅ Handler pour questStarted (au cas où le serveur envoie ce message)
+    this.gameRoom.onMessage("questStarted", (data) => {
+      console.log("🎯 Quest started reçu:", data);
+      this.notificationManager.questNotification(
+        data.quest?.name || 'Quête démarrée',
+        'started',
+        {
+          duration: 4000,
+          bounce: true,
+          onClick: () => this.openQuestJournal()
+        }
+      );
+      
+      if (this.questJournal && this.questJournal.isVisible) {
+        this.questJournal.refreshQuests();
+      }
+    });
+
     // Liste des quêtes disponibles pour un NPC
     this.gameRoom.onMessage("availableQuestsList", (data) => {
       this.showAvailableQuests(data.quests);
     });
 
-    // Progression de quête
+    // ✅ AMÉLIORATION: Progression de quête avec NotificationManager
     this.gameRoom.onMessage("questProgressUpdate", (results) => {
       this.handleQuestProgressUpdate(results);
     });
 
-    // Notifications de quêtes terminées
+    // ✅ AMÉLIORATION: Notifications de quêtes terminées
     this.gameRoom.onMessage("questRewards", (data) => {
       this.showQuestRewards(data);
     });
 
-    // ✅ FIX 3: Ajouter des handlers pour débugger
+    // ✅ Handler pour débugger
     this.gameRoom.onMessage("*", (type, data) => {
       if (type.includes("quest") || type.includes("Quest")) {
         console.log(`🔍 Message non géré reçu: ${type}`, data);
@@ -120,10 +132,10 @@ export class QuestSystem {
       return;
     }
     
-    // ✅ NOUVEAU: Ne traiter QUE les interactions liées aux quêtes
+    // ✅ Ne traiter QUE les interactions liées aux quêtes
     switch (data.type) {
       case 'questGiver':
-        // ✅ FIX 4: Parser les données de quêtes disponibles
+        // ✅ Parser les données de quêtes disponibles
         const parsedData = this.parseNpcQuestData(data);
         this.showQuestGiverDialog(parsedData);
         break;
@@ -133,7 +145,7 @@ export class QuestSystem {
         break;
         
       case 'questProgress':
-        this.showNotification(data.message, 'info');
+        this.notificationManager.info(data.message, { duration: 3000 });
         break;
         
       case 'shop':
@@ -141,7 +153,7 @@ export class QuestSystem {
         break;
         
       case 'heal':
-        this.showNotification(data.message, 'success');
+        this.notificationManager.success(data.message, { duration: 3000 });
         break;
         
       default:
@@ -150,7 +162,7 @@ export class QuestSystem {
     }
   }
 
-  // ✅ FIX 5: Amélioration du parsing des données NPC
+  // ✅ Parsing des données NPC amélioré
   parseNpcQuestData(data) {
     console.log("🔍 Parsing NPC quest data:", data);
     
@@ -254,7 +266,7 @@ export class QuestSystem {
       return;
     }
 
-    // ✅ FIX 6: Marquer le dialog comme actif
+    // ✅ Marquer le dialog comme actif
     window._questDialogActive = true;
 
     const questDialog = this.createQuestDialog('Quêtes disponibles', data.availableQuests, (questId) => {
@@ -350,123 +362,143 @@ export class QuestSystem {
     return dialog;
   }
 
-  // ✅ FIX 7: Correction des event listeners du dialog
-addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
-  let selectedQuestId = defaultSelectedId;
+  // ✅ Event listeners du dialog améliorés
+  addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
+    let selectedQuestId = defaultSelectedId;
 
-  const closeBtn = dialog.querySelector('.quest-dialog-close');
-  const cancelBtn = dialog.querySelector('.quest-btn-cancel');
-  const acceptBtn = dialog.querySelector('.quest-btn-accept');
+    const closeBtn = dialog.querySelector('.quest-dialog-close');
+    const cancelBtn = dialog.querySelector('.quest-btn-cancel');
+    const acceptBtn = dialog.querySelector('.quest-btn-accept');
 
-  if (defaultSelectedId && acceptBtn) {
-    acceptBtn.disabled = false;
-  }
-
-  // ✅ FIX: Correction des handlers de fermeture
-  const closeDialog = () => {
-    dialog.remove();
-    window._questDialogActive = false;
-    console.log("📋 Dialogue de quête fermé");
-  };
-
-  if (closeBtn) {
-    closeBtn.addEventListener('click', closeDialog);
-  }
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', closeDialog);
-  }
-
-  // Sélection des quêtes
-  dialog.querySelectorAll('.quest-option').forEach(option => {
-    option.addEventListener('click', () => {
-      dialog.querySelectorAll('.quest-option').forEach(opt => 
-        opt.classList.remove('selected')
-      );
-      option.classList.add('selected');
-      selectedQuestId = option.dataset.questId;
+    if (defaultSelectedId && acceptBtn) {
       acceptBtn.disabled = false;
-      
-      console.log(`📋 Quête sélectionnée: ${selectedQuestId}`);
+    }
+
+    // ✅ Handlers de fermeture
+    const closeDialog = () => {
+      dialog.remove();
+      window._questDialogActive = false;
+      console.log("📋 Dialogue de quête fermé");
+    };
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeDialog);
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', closeDialog);
+    }
+
+    // Sélection des quêtes
+    dialog.querySelectorAll('.quest-option').forEach(option => {
+      option.addEventListener('click', () => {
+        dialog.querySelectorAll('.quest-option').forEach(opt => 
+          opt.classList.remove('selected')
+        );
+        option.classList.add('selected');
+        selectedQuestId = option.dataset.questId;
+        acceptBtn.disabled = false;
+        
+        console.log(`📋 Quête sélectionnée: ${selectedQuestId}`);
+      });
     });
-  });
 
-  // ✅ CORRECTION: Handler d'acceptation
-  const acceptQuest = () => {
-    if (!selectedQuestId && defaultSelectedId) {
-      selectedQuestId = defaultSelectedId;
-    }
-    if (!selectedQuestId) {
-      const selectedOption = dialog.querySelector('.quest-option.selected') || dialog.querySelector('.quest-option');
-      if (selectedOption) {
-        selectedQuestId = selectedOption.dataset.questId;
+    // ✅ Handler d'acceptation
+    const acceptQuest = () => {
+      if (!selectedQuestId && defaultSelectedId) {
+        selectedQuestId = defaultSelectedId;
       }
-    }
-    
-    console.log("🎯 Acceptation de la quête:", selectedQuestId);
-    
-    if (selectedQuestId && onSelectQuest) {
-      onSelectQuest(selectedQuestId);
-    }
-    closeDialog();
-  };
-
-  acceptBtn.addEventListener('click', acceptQuest);
-
-  // ✅ NOUVEAU: Gestion clavier pour le dialogue de quête
-  const handleKeydown = (e) => {
-    // ✅ VÉRIFIER QUE LE DIALOGUE EST TOUJOURS OUVERT
-    if (!dialog || !dialog.parentNode) {
-      document.removeEventListener('keydown', handleKeydown);
-      return;
-    }
-
-    console.log(`⌨️ Touche pressée dans dialogue quête: ${e.key}`);
-
-    switch (e.key) {
-      case 'Escape':
-        e.preventDefault();
-        e.stopPropagation();
-        closeDialog();
-        break;
-        
-      case 'Enter':
-      case 'e':
-      case 'E':
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Vérifier si une quête est sélectionnée ou s'il y en a qu'une seule
-        if (selectedQuestId || defaultSelectedId) {
-          console.log(`✅ Acceptation via ${e.key}: ${selectedQuestId || defaultSelectedId}`);
-          acceptQuest();
-        } else {
-          // Sélectionner la première quête disponible
-          const firstOption = dialog.querySelector('.quest-option');
-          if (firstOption) {
-            firstOption.click();
-          }
+      if (!selectedQuestId) {
+        const selectedOption = dialog.querySelector('.quest-option.selected') || dialog.querySelector('.quest-option');
+        if (selectedOption) {
+          selectedQuestId = selectedOption.dataset.questId;
         }
-        break;
-        
-      case 'ArrowUp':
-      case 'ArrowDown':
-        e.preventDefault();
-        e.stopPropagation();
-        this.navigateQuestOptions(dialog, e.key === 'ArrowDown' ? 1 : -1);
-        break;
-    }
-  };
+      }
+      
+      console.log("🎯 Acceptation de la quête:", selectedQuestId);
+      
+      if (selectedQuestId && onSelectQuest) {
+        onSelectQuest(selectedQuestId);
+      }
+      closeDialog();
+    };
 
-  // ✅ AJOUTER LE LISTENER KEYBOARD
-  document.addEventListener('keydown', handleKeydown);
-  
-  // ✅ FOCUS AUTOMATIQUE sur le dialogue pour capturer les touches
-  dialog.tabIndex = -1;
-  dialog.focus();
+    acceptBtn.addEventListener('click', acceptQuest);
 
-  console.log(`📋 Event listeners configurés pour dialogue quête (selectedId: ${selectedQuestId})`);
-}
-  // ✅ FIX 10: Amélioration de startQuest
+    // ✅ Gestion clavier pour le dialogue de quête
+    const handleKeydown = (e) => {
+      // ✅ Vérifier que le dialogue est toujours ouvert
+      if (!dialog || !dialog.parentNode) {
+        document.removeEventListener('keydown', handleKeydown);
+        return;
+      }
+
+      console.log(`⌨️ Touche pressée dans dialogue quête: ${e.key}`);
+
+      switch (e.key) {
+        case 'Escape':
+          e.preventDefault();
+          e.stopPropagation();
+          closeDialog();
+          break;
+          
+        case 'Enter':
+        case 'e':
+        case 'E':
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Vérifier si une quête est sélectionnée ou s'il y en a qu'une seule
+          if (selectedQuestId || defaultSelectedId) {
+            console.log(`✅ Acceptation via ${e.key}: ${selectedQuestId || defaultSelectedId}`);
+            acceptQuest();
+          } else {
+            // Sélectionner la première quête disponible
+            const firstOption = dialog.querySelector('.quest-option');
+            if (firstOption) {
+              firstOption.click();
+            }
+          }
+          break;
+          
+        case 'ArrowUp':
+        case 'ArrowDown':
+          e.preventDefault();
+          e.stopPropagation();
+          this.navigateQuestOptions(dialog, e.key === 'ArrowDown' ? 1 : -1);
+          break;
+      }
+    };
+
+    // ✅ Ajouter le listener keyboard
+    document.addEventListener('keydown', handleKeydown);
+    
+    // ✅ Focus automatique sur le dialogue pour capturer les touches
+    dialog.tabIndex = -1;
+    dialog.focus();
+
+    console.log(`📋 Event listeners configurés pour dialogue quête (selectedId: ${selectedQuestId})`);
+  }
+
+  // ✅ Navigation dans les options de quête
+  navigateQuestOptions(dialog, direction) {
+    const options = dialog.querySelectorAll('.quest-option');
+    if (options.length === 0) return;
+
+    let currentIndex = -1;
+    options.forEach((option, index) => {
+      if (option.classList.contains('selected')) {
+        currentIndex = index;
+      }
+    });
+
+    let newIndex = currentIndex + direction;
+    if (newIndex < 0) newIndex = options.length - 1;
+    if (newIndex >= options.length) newIndex = 0;
+
+    // Cliquer sur la nouvelle option
+    options[newIndex].click();
+  }
+
   startQuest(questId) {
     console.log("🎯 Démarrage de la quête:", questId);
     
@@ -479,66 +511,6 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
     }
   }
 
-  // ✅ FIX 11: Amélioration des notifications
-  showNotification(message, type = 'info') {
-    console.log(`📢 Notification: ${message} (${type})`);
-    
-    const notification = document.createElement('div');
-    notification.className = 'quest-notification';
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      border-radius: 8px;
-      color: white;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-      z-index: 1001;
-      animation: slideInRight 0.4s ease;
-      max-width: 300px;
-    `;
-
-    switch (type) {
-      case 'success':
-        notification.style.background = 'rgba(40, 167, 69, 0.95)';
-        break;
-      case 'error':
-        notification.style.background = 'rgba(220, 53, 69, 0.95)';
-        break;
-      default:
-        notification.style.background = 'rgba(100, 149, 237, 0.95)';
-    }
-
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.style.animation = 'slideOutRight 0.4s ease';
-        setTimeout(() => notification.remove(), 400);
-      }
-    }, 4000);
-
-    if (!document.querySelector('#quest-animations')) {
-      const style = document.createElement('style');
-      style.id = 'quest-animations';
-      style.textContent = `
-        @keyframes slideInRight {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOutRight {
-          from { transform: translateX(0); opacity: 1; }
-          to { transform: translateX(100%); opacity: 0; }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-  }
-
-  // Reste des méthodes inchangées...
   styleQuestDialog(dialog) {
     const style = document.createElement('style');
     if (!document.querySelector('#quest-dialog-styles')) {
@@ -725,7 +697,8 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
     }
   }
 
-// === MÉTHODES UTILITAIRES  ===
+  // === MÉTHODES AVEC NOTIFICATIONMANAGER ===
+  
   showAvailableQuests(quests) {
     if (quests && quests.length > 0) {
       // ✅ Notification discrète pour les quêtes disponibles
@@ -855,7 +828,7 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
 
   // === NOUVELLES MÉTHODES POUR DIFFÉRENTS TYPES DE NOTIFICATIONS ===
   
-   notifyQuestObjectiveProgress(questName, objectiveName, current, required) {
+  notifyQuestObjectiveProgress(questName, objectiveName, current, required) {
     const message = `${questName}: ${objectiveName} (${current}/${required})`;
     this.notificationManager.quest(message, {
       duration: 2500,
@@ -900,7 +873,7 @@ addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
     );
   }
   
- // === MÉTHODES POUR DÉCLENCHER DES ÉVÉNEMENTS DE PROGRESSION ===
+  // === MÉTHODES POUR DÉCLENCHER DES ÉVÉNEMENTS DE PROGRESSION ===
 
   triggerCollectEvent(itemId, amount = 1) {
     if (this.gameRoom) {
