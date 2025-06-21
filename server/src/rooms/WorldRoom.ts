@@ -1,4 +1,4 @@
-// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC CORRECTIONS QUÊTES + SHOPS
+// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC CORRECTIONS QUÊTES
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { ZoneManager } from "../managers/ZoneManager";
@@ -223,30 +223,29 @@ export class WorldRoom extends Room<PokeWorldState> {
     });
 
     // ✅ AJOUTER CE HANDLER
-    this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
-      console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
-      console.log(`👤 Client: ${client.sessionId}`);
-      console.log(`📍 Nouvelle zone: ${data.newZone} à (${data.x}, ${data.y})`);
-      
-      const player = this.state.players.get(client.sessionId);
-      if (player) {
-        const oldZone = player.currentZone;
-        
-        // Mettre à jour la zone et position du joueur
-        player.currentZone = data.newZone;
-        player.x = data.x;
-        player.y = data.y;
-        
-        console.log(`✅ ${player.name}: ${oldZone} → ${data.newZone}`);
-        
-        // Envoyer les NPCs de la nouvelle zone
-        this.onPlayerJoinZone(client, data.newZone);
-        
-        // Déclencher une mise à jour du state filtré
-        this.scheduleFilteredStateUpdate();
-      }
-    });
-
+this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
+  console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
+  console.log(`👤 Client: ${client.sessionId}`);
+  console.log(`📍 Nouvelle zone: ${data.newZone} à (${data.x}, ${data.y})`);
+  
+  const player = this.state.players.get(client.sessionId);
+  if (player) {
+    const oldZone = player.currentZone;
+    
+    // Mettre à jour la zone et position du joueur
+    player.currentZone = data.newZone;
+    player.x = data.x;
+    player.y = data.y;
+    
+    console.log(`✅ ${player.name}: ${oldZone} → ${data.newZone}`);
+    
+    // Envoyer les NPCs de la nouvelle zone
+    this.onPlayerJoinZone(client, data.newZone);
+    
+    // Déclencher une mise à jour du state filtré
+    this.scheduleFilteredStateUpdate();
+  }
+});
     // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
 
     // Démarrage de quête
@@ -273,26 +272,6 @@ export class WorldRoom extends Room<PokeWorldState> {
     // Debug des quêtes
     this.onMessage("debugQuests", (client) => {
       this.debugQuests(client);
-    });
-
-    // ✅ === NOUVEAUX HANDLERS POUR LES SHOPS ===
-
-    // Transaction shop (achat/vente)
-    this.onMessage("shopTransaction", (client, data) => {
-      console.log(`🛒 [WorldRoom] Transaction shop reçue:`, data);
-      this.handleShopTransaction(client, data);
-    });
-
-    // Récupérer le catalogue d'un shop
-    this.onMessage("getShopCatalog", (client, data) => {
-      console.log(`🏪 [WorldRoom] Demande de catalogue shop: ${data.shopId}`);
-      this.handleGetShopCatalog(client, data.shopId);
-    });
-
-    // Rafraîchir un shop (restock)
-    this.onMessage("refreshShop", (client, data) => {
-      console.log(`🔄 [WorldRoom] Rafraîchissement shop: ${data.shopId}`);
-      this.handleRefreshShop(client, data.shopId);
     });
 
     // === HANDLERS POUR L'INVENTAIRE ===
@@ -474,110 +453,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
-    console.log(`✅ Tous les handlers configurés (y compris inventaire, quêtes et shops)`);
-  }
-
-  // ✅ === NOUVEAUX HANDLERS POUR LES SHOPS ===
-
-  private async handleShopTransaction(client: Client, data: {
-    shopId: string;
-    action: 'buy' | 'sell';
-    itemId: string;
-    quantity: number;
-  }) {
-    try {
-      const player = this.state.players.get(client.sessionId);
-      if (!player) {
-        client.send("shopTransactionResult", {
-          success: false,
-          message: "Joueur non trouvé"
-        });
-        return;
-      }
-
-      console.log(`🛒 ${player.name} ${data.action} ${data.quantity}x ${data.itemId} dans shop ${data.shopId}`);
-
-      // Déléguer au ZoneManager
-      await this.zoneManager.handleShopTransaction(client, data);
-
-    } catch (error) {
-      console.error(`❌ Erreur handleShopTransaction:`, error);
-      client.send("shopTransactionResult", {
-        success: false,
-        message: "Erreur lors de la transaction"
-      });
-    }
-  }
-
-  private async handleGetShopCatalog(client: Client, shopId: string) {
-    try {
-      const player = this.state.players.get(client.sessionId);
-      if (!player) {
-        client.send("shopCatalogResult", {
-          success: false,
-          message: "Joueur non trouvé"
-        });
-        return;
-      }
-
-      const shopManager = this.zoneManager.getShopManager();
-      const catalog = shopManager.getShopCatalog(shopId, player.level || 1);
-
-      if (catalog) {
-        client.send("shopCatalogResult", {
-          success: true,
-          shopId: shopId,
-          catalog: catalog,
-          playerGold: player.gold || 1000
-        });
-        console.log(`✅ Catalogue shop ${shopId} envoyé à ${client.sessionId}`);
-      } else {
-        client.send("shopCatalogResult", {
-          success: false,
-          message: "Shop introuvable"
-        });
-      }
-
-    } catch (error) {
-      console.error(`❌ Erreur getShopCatalog:`, error);
-      client.send("shopCatalogResult", {
-        success: false,
-        message: "Erreur lors de la récupération du catalogue"
-      });
-    }
-  }
-
-  private async handleRefreshShop(client: Client, shopId: string) {
-    try {
-      const shopManager = this.zoneManager.getShopManager();
-      const wasRestocked = shopManager.restockShop(shopId);
-
-      if (wasRestocked) {
-        // Renvoyer le catalogue mis à jour
-        await this.handleGetShopCatalog(client, shopId);
-        
-        client.send("shopRefreshResult", {
-          success: true,
-          message: "Magasin restocké !",
-          restocked: true
-        });
-        
-        console.log(`🔄 Shop ${shopId} restocké pour ${client.sessionId}`);
-      } else {
-        client.send("shopRefreshResult", {
-          success: true,
-          message: "Pas de restock nécessaire",
-          restocked: false
-        });
-      }
-
-    } catch (error) {
-      console.error(`❌ Erreur refreshShop:`, error);
-      client.send("shopRefreshResult", {
-        success: false,
-        message: "Erreur lors du rafraîchissement"
-      });
-    }
+    console.log(`✅ Tous les handlers configurés (y compris inventaire et quêtes)`);
   }
 
   // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
@@ -742,6 +618,342 @@ export class WorldRoom extends Room<PokeWorldState> {
     } catch (error) {
       console.error(`🐛 [DEBUG] Erreur debug quêtes:`, error);
     }
+  }
+
+  // ✅ HELPER POUR BROADCASTER À UNE ZONE
+  private broadcastToZone(zoneName: string, message: string, data: any) {
+    console.log(`📡 [WorldRoom] Broadcasting to zone ${zoneName}: ${message}`);
+    
+    const clientsInZone = this.clients.filter(client => {
+      const player = this.state.players.get(client.sessionId);
+      return player && player.currentZone === zoneName;
+    });
+    
+    clientsInZone.forEach(client => {
+      client.send(message, data);
+    });
+    
+    console.log(`📤 [WorldRoom] Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
+  }
+
+  async onJoin(client: Client, options: any = {}) {
+    console.log(`👤 === PLAYER JOIN ===`);
+    console.log(`🔑 Session: ${client.sessionId}`);
+    console.log(`📊 Options:`, options);
+
+    try {
+      // Créer le joueur
+      const player = new Player();
+      
+      // Données de base
+      player.id = client.sessionId;
+      player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
+      player.x = options.spawnX || 52;
+      player.y = options.spawnY || 48;
+      
+      // Zone de spawn
+      player.currentZone = options.spawnZone || "beach";
+      console.log(`🌍 Zone de spawn: ${player.currentZone}`);
+      
+      // Compatibilité avec l'ancien système
+      player.map = player.currentZone;
+      
+      // Ajouter au state
+      this.state.players.set(client.sessionId, player);
+      
+      console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      console.log(`✅ Joueur ${player.name} créé`);
+
+      // === CONFIGURATION INVENTAIRE DE DÉPART ===
+      try {
+        console.log(`🎒 Configuration inventaire de départ pour ${player.name}`);
+        
+        // Donne les objets de départ
+        await InventoryManager.addItem(player.name, "poke_ball", 5);
+        await InventoryManager.addItem(player.name, "potion", 3);
+        
+        // Ne donne la town_map que si le joueur ne l'a pas déjà
+        const hasMap = await InventoryManager.getItemCount(player.name, "town_map");
+        if (hasMap === 0) {
+          await InventoryManager.addItem(player.name, "town_map", 1);
+        }
+
+        // Afficher l'inventaire groupé par poche
+        const grouped = await InventoryManager.getAllItemsGroupedByPocket(player.name);
+        console.log(`🎒 [INVENTAIRE groupé par poche] ${player.name}:`, grouped);
+        
+        console.log(`✅ Objets de départ ajoutés pour ${player.name}`);
+      } catch (err) {
+        console.error(`❌ [INVENTAIRE] Erreur lors de l'ajout d'objets de départ pour ${player.name}:`, err);
+      }
+      
+      // Faire entrer le joueur dans sa zone initiale
+      await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
+      this.scheduleFilteredStateUpdate();
+
+      
+      // ✅ CORRECTION: Utiliser la nouvelle méthode avec délai
+      this.clock.setTimeout(async () => {
+        await this.updateQuestStatusesFixed(player.name, client);
+      }, 2000);
+      
+      console.log(`🎉 ${player.name} a rejoint le monde !`);
+
+    } catch (error) {
+      console.error(`❌ Erreur lors du join:`, error);
+      
+      // En cas d'erreur, faire quitter le client
+      client.leave(1000, "Erreur lors de la connexion");
     }
-   }
-  
+  }
+
+  onLeave(client: Client, consented: boolean) {
+    console.log(`👋 === PLAYER LEAVE ===`);
+    console.log(`🔑 Session: ${client.sessionId}`);
+    console.log(`✅ Consenti: ${consented}`);
+
+    const player = this.state.players.get(client.sessionId);
+    if (player) {
+      console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      
+      // Supprimer du state
+      this.state.players.delete(client.sessionId);
+      console.log(`🗑️ Joueur ${player.name} supprimé du state`);
+    }
+
+    console.log(`👋 Client ${client.sessionId} déconnecté`);
+  }
+
+  onDispose() {
+    console.log(`💀 === WORLDROOM DISPOSE ===`);
+    console.log(`👥 Joueurs restants: ${this.state.players.size}`);
+    
+    // Sauvegarder les données des joueurs restants
+    this.state.players.forEach((player, sessionId) => {
+      console.log(`💾 Sauvegarde joueur: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+    });
+
+    console.log(`✅ WorldRoom fermée`);
+  }
+
+  private handlePlayerMove(client: Client, data: any) {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    // Mettre à jour la position
+    player.x = data.x;
+    player.y = data.y;
+    player.direction = data.direction;
+    
+    // ✅ AJOUT: Garder la zone synchronisée
+    if (data.currentZone) {
+        player.currentZone = data.currentZone;
+    }
+
+    // Debug occasionnel (1 fois sur 10)
+    if (Math.random() < 0.1) {
+        console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
+    }
+  }
+
+  // === MÉTHODES POUR LES EFFETS D'OBJETS ===
+
+  private async applyItemEffect(player: any, itemId: string, context: string): Promise<{ message?: string }> {
+    const itemData = getItemData(itemId);
+    
+    console.log(`🎯 Application effet ${itemId} pour ${player.name}`);
+    
+    switch (itemData.type) {
+      case 'medicine':
+        return await this.applyMedicineEffect(player, itemData);
+        
+      case 'item':
+        return await this.applyUtilityItemEffect(player, itemData, itemId);
+        
+      case 'ball':
+        return { message: `${itemId} utilisé (effet Poké Ball non implémenté)` };
+        
+      default:
+        return { message: `${itemId} utilisé (effet générique)` };
+    }
+  }
+
+  private async applyMedicineEffect(player: any, itemData: any): Promise<{ message?: string }> {
+    // TODO: Implémenter la logique de soin des Pokémon
+    if (itemData.heal_amount) {
+      const healAmount = itemData.heal_amount === 'full' ? 'tous les' : itemData.heal_amount;
+      return { message: `Pokémon soigné de ${healAmount} PV !` };
+    }
+    
+    if (itemData.status_cure) {
+      const curedStatus = Array.isArray(itemData.status_cure) ? itemData.status_cure.join(', ') : itemData.status_cure;
+      return { message: `Statut ${curedStatus} guéri !` };
+    }
+    
+    return { message: "Pokémon soigné !" };
+  }
+
+  private async applyUtilityItemEffect(player: any, itemData: any, itemId: string): Promise<{ message?: string }> {
+    switch (itemId) {
+      case 'escape_rope':
+        return { message: "Vous êtes retourné au dernier Centre Pokémon !" };
+        
+      case 'repel':
+      case 'super_repel':
+      case 'max_repel':
+        const steps = itemData.effect_steps || 100;
+        return { message: `Repousse activé pour ${steps} pas !` };
+        
+      default:
+        return { message: `${itemId} utilisé !` };
+    }
+  }
+
+  // === MÉTHODES UTILITAIRES POUR L'INVENTAIRE ===
+
+  async giveItemToPlayer(playerName: string, itemId: string, quantity: number = 1): Promise<boolean> {
+    try {
+      await InventoryManager.addItem(playerName, itemId, quantity);
+      
+      // Trouver le client pour la notification
+      for (const [sessionId, player] of this.state.players.entries()) {
+        if (player.name === playerName) {
+          const client = this.clients.find(c => c.sessionId === sessionId);
+          if (client) {
+            client.send("inventoryUpdate", {
+              type: "add",
+              itemId: itemId,
+              quantity: quantity,
+              pocket: getItemPocket(itemId)
+            });
+          }
+          break;
+        }
+      }
+      
+      console.log(`✅ Donné ${quantity} ${itemId} à ${playerName}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Erreur lors du don d'objet:`, error);
+      return false;
+    }
+  }
+
+  async takeItemFromPlayer(playerName: string, itemId: string, quantity: number = 1): Promise<boolean> {
+    try {
+      const success = await InventoryManager.removeItem(playerName, itemId, quantity);
+      
+      if (success) {
+        // Trouver le client pour la notification
+        for (const [sessionId, player] of this.state.players.entries()) {
+          if (player.name === playerName) {
+            const client = this.clients.find(c => c.sessionId === sessionId);
+            if (client) {
+              client.send("inventoryUpdate", {
+                type: "remove",
+                itemId: itemId,
+                quantity: quantity,
+                pocket: getItemPocket(itemId)
+              });
+            }
+            break;
+          }
+        }
+        
+        console.log(`✅ Retiré ${quantity} ${itemId} à ${playerName}`);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error(`❌ Erreur lors du retrait d'objet:`, error);
+      return false;
+    }
+  }
+
+  async playerHasItem(playerName: string, itemId: string, quantity: number = 1): Promise<boolean> {
+    try {
+      const count = await InventoryManager.getItemCount(playerName, itemId);
+      return count >= quantity;
+    } catch (error) {
+      console.error(`❌ Erreur lors de la vérification d'objet:`, error);
+      return false;
+    }
+  }
+
+  // ✅ MÉTHODE CORRIGÉE: getFilteredStateForClient
+  private getFilteredStateForClient(client: Client): any {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
+        console.warn(`⚠️ [WorldRoom] Client ${client.sessionId} sans joueur pour filtered state`);
+        return null;
+    }
+
+    const playerZone = player.currentZone;
+    
+    // ✅ CORRECTION CRITIQUE: Utiliser un Object simple au lieu d'un Map
+    const filteredPlayersObject: { [key: string]: any } = {};
+    
+    this.state.players.forEach((otherPlayer, sessionId) => {
+        // ✅ Toujours inclure le joueur du client EN PREMIER
+        if (sessionId === client.sessionId) {
+            filteredPlayersObject[sessionId] = {
+                id: otherPlayer.id,
+                name: otherPlayer.name,
+                x: otherPlayer.x,
+                y: otherPlayer.y,
+                currentZone: otherPlayer.currentZone,
+                direction: otherPlayer.direction,
+                isMoving: otherPlayer.isMoving
+            };
+            return;
+        }
+        
+        // ✅ Inclure les autres joueurs de la même zone
+        if (otherPlayer.currentZone === playerZone) {
+            filteredPlayersObject[sessionId] = {
+                id: otherPlayer.id,
+                name: otherPlayer.name,
+                x: otherPlayer.x,
+                y: otherPlayer.y,
+                currentZone: otherPlayer.currentZone,
+                direction: otherPlayer.direction,
+                isMoving: otherPlayer.isMoving
+            };
+        }
+    });
+
+    console.log(`📊 [WorldRoom] Filtered state pour ${client.sessionId}: ${Object.keys(filteredPlayersObject).length} joueurs (zone: ${playerZone})`);
+    
+    return {
+        players: filteredPlayersObject  // ✅ Object simple, pas Map
+    };
+  }
+
+  private sendFilteredState() {
+    const now = Date.now();
+    
+    // Throttle : max 1 update toutes les 100ms
+    if (now - this.lastStateUpdate < this.stateUpdateInterval) {
+      return;
+    }
+    
+    this.lastStateUpdate = now;
+    
+    // Envoyer un state filtré à chaque client selon sa zone
+    this.clients.forEach(client => {
+      const filteredState = this.getFilteredStateForClient(client);
+      if (filteredState) {
+        client.send("filteredState", filteredState);
+      }
+    });
+    
+    console.log(`📤 States filtrés envoyés à ${this.clients.length} clients`);
+  }
+
+  private scheduleFilteredStateUpdate() {
+    // Programmer une mise à jour dans 50ms (pour regrouper les changements)
+    this.clock.setTimeout(() => {
+      this.sendFilteredState();
+    }, 50);
+  }
+}
