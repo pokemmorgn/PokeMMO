@@ -1,0 +1,357 @@
+{
+  "_comment": "Définitions des magasins PokeWorld",
+  "shops": [
+    {
+      "id": "village_general_store",
+      "name": "Magasin Général du Village",
+      "type": "general",
+      "description": "Le magasin principal du village. On y trouve tout ce dont un dresseur débutant a besoin.",
+      "npcId": 100,
+      "buyMultiplier": 1.0,
+      "sellMultiplier": 0.5,
+      "currency": "gold",
+      "restockInterval": 1440,
+      "items": [
+        {
+          "itemId": "potion",
+          "stock": 50
+        },
+        {
+          "itemId": "super_potion",
+          "stock": 30,
+          "unlockLevel": 5
+        },
+        {
+          "itemId": "antidote",
+          "stock": 20
+        },
+        {
+          "itemId": "paralyz_heal",
+          "stock": 20
+        },
+        {
+          "itemId": "awakening",
+          "stock": 15
+        },
+        {
+          "itemId": "burn_heal",
+          "stock": 15
+        },
+        {
+          "itemId": "ice_heal",
+          "stock": 15
+        },
+        {
+          "itemId": "escape_rope",
+          "stock": 10
+        },
+        {
+          "itemId": "repel",
+          "stock": 25
+        },
+        {
+          "itemId": "super_repel",
+          "stock": 15,
+          "unlockLevel": 8
+        },
+        {
+          "itemId": "fishing_line",
+          "customPrice": 500,
+          "stock": 10,
+          "unlockQuest": "talk_to_fisherman"
+        }
+      ]
+    },
+    
+    {
+      "id": "village_pokemart",
+      "name": "Poké Mart du Village",
+      "type": "pokemart",
+      "description": "Spécialiste en Poké Balls et équipements de capture.",
+      "npcId": 101,
+      "buyMultiplier": 1.0,
+      "sellMultiplier": 0.4,
+      "currency": "gold",
+      "restockInterval": 720,
+      "items": [
+        {
+          "itemId": "poke_ball",
+          "stock": 100
+        },
+        {
+          "itemId": "great_ball",
+          "stock": 50,
+          "unlockLevel": 10
+        },
+        {
+          "itemId": "ultra_ball",
+          "stock": 20,
+          "unlockLevel": 20
+        },
+        {
+          "itemId": "potion",
+          "stock": 30
+        },
+        {
+          "itemId": "super_potion",
+          "stock": 20,
+          "unlockLevel": 5
+        },
+        {
+          "itemId": "hyper_potion",
+          "stock": 10,
+          "unlockLevel": 15
+        },
+        {
+          "itemId": "max_potion",
+          "stock": 5,
+          "unlockLevel": 25
+        },
+        {
+          "itemId": "revive",
+          "stock": 15,
+          "unlockLevel": 10
+        },
+        {
+          "itemId": "max_revive",
+          "stock": 5,
+          "unlockLevel": 30
+        }
+      ]
+    },
+
+    {
+      "id": "beach_fishing_shop",
+      "name": "Boutique du Pêcheur",
+      "type": "specialist",
+      "description": "Tout l'équipement nécessaire pour la pêche et les activités aquatiques.",
+      "npcId": 87,
+      "buyMultiplier": 0.9,
+      "sellMultiplier": 0.6,
+      "currency": "gold",
+      "restockInterval": 2880,
+      "items": [
+        {
+          "itemId": "fishing_line",
+          "customPrice": 400,
+          "stock": 20
+        },
+        {
+          "itemId": "old_rod",
+          "customPrice": 1000,
+          "stock": 5,
+          "unlockQuest": "fishing_basics"
+        },
+        {
+          "itemId": "good_rod",
+          "customPrice": 5000,
+          "stock": 3,
+          "unlockLevel": 15,
+          "unlockQuest": "intermediate_fishing"
+        },
+        {
+          "itemId": "super_rod",
+          "customPrice": 15000,
+          "stock": 1,
+          "unlockLevel": 30,
+          "unlockQuest": "master_fishing"
+        },
+        {
+          "itemId": "dive_ball",
+          "customPrice": 1000,
+          "stock": 10,
+          "unlockLevel": 12
+        },
+        {
+          "itemId": "net_ball",
+          "customPrice": 1000,
+          "stock": 10,
+          "unlockLevel": 12
+        },
+        {
+          "itemId": "potion",
+          "stock": 15
+        },
+        {
+          "itemId": "super_potion",
+          "stock": 10,
+          "unlockLevel": 5
+        }
+      ]
+    },
+
+    {
+      "id": "village_herb_shop",
+      "name": "Herboristerie du Village",
+      "type": "specialist",
+      "description": "Baies fraîches et remèdes naturels pour vos Pokémon.",
+      "npcId": 102,
+      "buyMultiplier": 1.2,
+      "sellMultiplier": 0.7,
+      "currency": "gold",
+      "restockInterval": 360,
+      "items": [
+        {
+          "itemId": "oran_berry",
+          "customPrice": 20,
+          "stock": 50
+        },
+        {
+          "itemId": "sitrus_berry",
+          "customPrice": 100,
+          "stock": 20,
+          "unlockLevel": 8
+        },
+        {
+          "itemId": "pecha_berry",
+          "customPrice": 30,
+          "stock": 30
+        },
+        {
+          "itemId": "cheri_berry",
+          "customPrice": 30,
+          "stock": 30
+        },
+        {
+          "itemId": "chesto_berry",
+          "customPrice": 30,
+          "stock": 30
+        },
+        {
+          "itemId": "rawst_berry",
+          "customPrice": 30,
+          "stock": 30
+        },
+        {
+          "itemId": "aspear_berry",
+          "customPrice": 30,
+          "stock": 30
+        },
+        {
+          "itemId": "leppa_berry",
+          "customPrice": 80,
+          "stock": 15,
+          "unlockLevel": 12
+        },
+        {
+          "itemId": "revival_herb",
+          "customPrice": 2800,
+          "stock": 3,
+          "unlockLevel": 20
+        },
+        {
+          "itemId": "energy_powder",
+          "customPrice": 500,
+          "stock": 10,
+          "unlockLevel": 10
+        }
+      ]
+    },
+
+    {
+      "id": "secret_shop",
+      "name": "Marché Noir",
+      "type": "black_market",
+      "description": "Des objets rares et coûteux pour les dresseurs expérimentés...",
+      "npcId": 999,
+      "buyMultiplier": 2.0,
+      "sellMultiplier": 1.2,
+      "currency": "gold",
+      "restockInterval": 10080,
+      "items": [
+        {
+          "itemId": "master_ball",
+          "customPrice": 100000,
+          "stock": 1,
+          "unlockLevel": 50
+        },
+        {
+          "itemId": "rare_candy",
+          "customPrice": 50000,
+          "stock": 3,
+          "unlockLevel": 40
+        },
+        {
+          "itemId": "pp_max",
+          "customPrice": 25000,
+          "stock": 5,
+          "unlockLevel": 35
+        },
+        {
+          "itemId": "sacred_ash",
+          "customPrice": 75000,
+          "stock": 1,
+          "unlockLevel": 45
+        },
+        {
+          "itemId": "nugget",
+          "customPrice": 20000,
+          "stock": 2,
+          "unlockLevel": 25
+        },
+        {
+          "itemId": "big_nugget",
+          "customPrice": 80000,
+          "stock": 1,
+          "unlockLevel": 40
+        }
+      ]
+    },
+
+    {
+      "id": "tm_shop",
+      "name": "Boutique de CTs",
+      "type": "specialist", 
+      "description": "Capsules Techniques pour apprendre de nouvelles attaques à vos Pokémon.",
+      "npcId": 103,
+      "buyMultiplier": 1.5,
+      "sellMultiplier": 0.3,
+      "currency": "gold",
+      "restockInterval": 1440,
+      "items": [
+        {
+          "itemId": "tm01_focus_punch",
+          "customPrice": 3000,
+          "stock": 1,
+          "unlockLevel": 15
+        },
+        {
+          "itemId": "tm02_dragon_claw",
+          "customPrice": 8000,
+          "stock": 1,
+          "unlockLevel": 25
+        },
+        {
+          "itemId": "tm05_roar",
+          "customPrice": 1000,
+          "stock": 3,
+          "unlockLevel": 8
+        },
+        {
+          "itemId": "tm06_toxic",
+          "customPrice": 5000,
+          "stock": 2,
+          "unlockLevel": 20
+        },
+        {
+          "itemId": "tm10_hidden_power",
+          "customPrice": 12000,
+          "stock": 1,
+          "unlockLevel": 30
+        },
+        {
+          "itemId": "tm15_hyper_beam",
+          "customPrice": 15000,
+          "stock": 1,
+          "unlockLevel": 35
+        },
+        {
+          "itemId": "tm20_safeguard",
+          "customPrice": 4000,
+          "stock": 2,
+          "unlockLevel": 18
+        }
+      ]
+    }
+  ]
+}
