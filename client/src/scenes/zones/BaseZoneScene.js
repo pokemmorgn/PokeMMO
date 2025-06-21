@@ -134,7 +134,6 @@ if (sceneData?.isRollback && sceneData?.restorePlayerState) {
     }
   }
 }
-  console.log(`📡 [${this.scene.key}] SessionId récupéré: ${this.mySessionId}`);
   
   // ✅ CORRECTION CRITIQUE: Synchroniser le PlayerManager IMMÉDIATEMENT
   if (this.playerManager) {
