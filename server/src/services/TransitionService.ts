@@ -306,43 +306,40 @@ export class TransitionService {
 
     if (!mapData.layers) return;
 
-    mapData.layers.forEach((layer: any) => {
-      if (layer.type === 'objectgroup' && layer.objects) {
-        layer.objects.forEach((obj: any) => {
-          const objName = (obj.name || '').toLowerCase();
-          
-          if (objName === 'teleport') {
-            const targetZone = this.getProperty(obj, 'targetzone');
-            const targetSpawn = this.getProperty(obj, 'targetspawn');
-            
-            if (targetZone) {
-              teleports.push({
-                id: `${zoneName}_${obj.id}`,
-                x: obj.x,
-                y: obj.y,
-                width: obj.width || 32,
-                height: obj.height || 32,
-                targetZone: targetZone,
-                targetSpawn: targetSpawn
-              });
-              
-              console.log(`📍 [TransitionService] Teleport ${zoneName}_${obj.id}: (${obj.x}, ${obj.y}) → ${targetZone}/"${targetSpawn || 'AUCUN'}"`);
-            }
-          } else if (objName === 'spawn') {
-  const spawnKey = this.getProperty(obj, 'targetspawn');
-  spawns.push({
-    name: spawnKey || 'default', // fallback sur 'default'
-    x: obj.x,
-    y: obj.y,
-    zone: zoneName
-  });
-
-
-}
-          }
+mapData.layers.forEach((layer: any) => {
+  if (layer.type === 'objectgroup' && layer.objects) {
+    layer.objects.forEach((obj: any) => {
+      const objName = (obj.name || '').toLowerCase();
+      
+      if (objName === 'teleport') {
+        const targetZone = this.getProperty(obj, 'targetzone');
+        const targetSpawn = this.getProperty(obj, 'targetspawn');
+        
+        if (targetZone) {
+          teleports.push({
+            id: `${zoneName}_${obj.id}`,
+            x: obj.x,
+            y: obj.y,
+            width: obj.width || 32,
+            height: obj.height || 32,
+            targetZone: targetZone,
+            targetSpawn: targetSpawn
+          });
+          console.log(`📍 [TransitionService] Teleport ${zoneName}_${obj.id}: (${obj.x}, ${obj.y}) → ${targetZone}/"${targetSpawn || 'AUCUN'}"`);
+        }
+      } else if (objName === 'spawn') {
+        const spawnKey = this.getProperty(obj, 'targetspawn');
+        spawns.push({
+          name: spawnKey || 'default', // fallback sur 'default'
+          x: obj.x,
+          y: obj.y,
+          zone: zoneName
         });
+        console.log(`🎯 [TransitionService] Spawn "${spawnKey || 'default'}": (${obj.x}, ${obj.y}) dans ${zoneName}`);
       }
     });
+  }
+});
 
     this.teleportData.set(zoneName, teleports);
     this.spawnData.set(zoneName, spawns);
