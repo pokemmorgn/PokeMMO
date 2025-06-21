@@ -114,17 +114,6 @@ export class ShopIntegration {
     console.log(`✅ [${this.scene.scene.key}] Événements shop configurés`);
   }
 
-  // ✅ Setup des raccourcis clavier pour le shop
-  setupShopKeyboardShortcuts() {
-    if (!this.scene.input || !this.scene.input.keyboard) return;
-
-    // Raccourci S pour ouvrir un shop à proximité
-    this.scene.input.keyboard.on("keydown-S", () => {
-      this.handleShopShortcut();
-    });
-
-    console.log(`⌨️ [${this.scene.scene.key}] Raccourcis shop configurés (S = ouvrir shop)`);
-  }
 
   // ✅ Setup des handlers réseau pour le shop
   setupShopNetworkHandlers(networkManager) {
