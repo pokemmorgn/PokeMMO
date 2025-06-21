@@ -376,7 +376,7 @@ export class QuestManager {
     const questRewards = this.calculateFinalQuestRewards(definition);
     
     // ✅ VÉRIFIER LE FLAG AUTO-COMPLETE
-    const autoComplete = definition.autoComplete !== false; // Par défaut true
+    const autoComplete = definition.autoComplete !== false; // Par défaut true si non défini
     
     if (autoComplete) {
       console.log(`🤖 Auto-completion activée pour ${definition.name}`);
