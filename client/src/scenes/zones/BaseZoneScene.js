@@ -113,27 +113,27 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-useExistingNetworkManager(networkManager, sceneData = null) {
-  this.networkManager = networkManager;
-  this.mySessionId = networkManager.getSessionId();
-  // ✅ AJOUTEZ CES LIGNES
-    if (sceneData?.forcePlayerSync) {
-        console.log(`🔄 [${this.scene.key}] Sync forcée détectée`);
-        
-        // Créer le joueur immédiatement avec les bonnes coordonnées
-        if (this.playerManager && sceneData.spawnX && sceneData.spawnY) {
-            const player = this.playerManager.createPlayer(
-                this.mySessionId, 
-                sceneData.spawnX, 
-                sceneData.spawnY
-            );
-            if (player) {
-                player.setVisible(true);
-                player.setActive(true);
-                console.log(`✅ [${this.scene.key}] Joueur créé immédiatement: (${sceneData.spawnX}, ${sceneData.spawnY})`);
-            }
-        }
+// ✅ AJOUT: Gestion du rollback dans useExistingNetworkManager
+if (sceneData?.isRollback && sceneData?.restorePlayerState) {
+  console.log(`🔄 [${this.scene.key}] Rollback détecté, restauration état joueur`);
+  
+  if (this.playerManager && sceneData.spawnX && sceneData.spawnY) {
+    const player = this.playerManager.createPlayer(
+      this.mySessionId, 
+      sceneData.spawnX, 
+      sceneData.spawnY
+    );
+    if (player) {
+      // Restaurer l'état complet du joueur
+      player.setVisible(sceneData.restorePlayerState.visible);
+      player.setActive(sceneData.restorePlayerState.active);
+      player.targetX = sceneData.restorePlayerState.targetX;
+      player.targetY = sceneData.restorePlayerState.targetY;
+      
+      console.log(`✅ [${this.scene.key}] État joueur restauré après rollback`);
     }
+  }
+}
   console.log(`📡 [${this.scene.key}] SessionId récupéré: ${this.mySessionId}`);
   
   // ✅ CORRECTION CRITIQUE: Synchroniser le PlayerManager IMMÉDIATEMENT
