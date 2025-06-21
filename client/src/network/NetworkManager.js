@@ -1,5 +1,5 @@
-// client/src/network/NetworkManager.js - VERSION WORLDROOM CORRIGÉE
-// ✅ Corrections pour les états de transition et synchronisation
+// client/src/network/NetworkManager.js - VERSION WORLDROOM SANS TRANSITIONS
+// ✅ Système de réseau de base sans gestion automatique des transitions
 
 import { Client } from "colyseus.js";
 import { GAME_CONFIG } from "../config/gameConfig.js";
@@ -15,11 +15,7 @@ export class NetworkManager {
     this.lastSendTime = 0;
     this.currentZone = null;
     this.lastReceivedNpcs = null;
-this.lastReceivedZoneData = null;
-      this.onTransitionValidation = null; // ✅ AJOUTER CETTE LIGNE
-
-    
-   
+    this.lastReceivedZoneData = null;
     
     this.callbacks = {
       onConnect: null,
@@ -53,7 +49,6 @@ this.lastReceivedZoneData = null;
       this.sessionId = this.room.sessionId;
       this.isConnected = true;
       this.currentZone = spawnZone;
-      
 
       console.log(`[NetworkManager] ✅ Connecté à WorldRoom! SessionId: ${this.sessionId}`);
 
@@ -72,98 +67,89 @@ this.lastReceivedZoneData = null;
     console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
 
     // Zone data
-this.room.onMessage("zoneData", (data) => {
-  console.log(`🗺️ [NetworkManager] Zone data reçue:`, data);
-  this.currentZone = data.zone;
-  
-  // ✅ NOUVEAU: Stocker les zone data
-  this.lastReceivedZoneData = data;
-  
-  if (this.callbacks.onZoneData) {
-    this.callbacks.onZoneData(data);
-  }
-});
+    this.room.onMessage("zoneData", (data) => {
+      console.log(`🗺️ [NetworkManager] Zone data reçue:`, data);
+      this.currentZone = data.zone;
+      
+      // Stocker les zone data
+      this.lastReceivedZoneData = data;
+      
+      if (this.callbacks.onZoneData) {
+        this.callbacks.onZoneData(data);
+      }
+    });
 
-// Liste des NPCs
-this.room.onMessage("npcList", (npcs) => {
- console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
- 
- // ✅ NOUVEAU: Stocker les NPCs reçus
- this.lastReceivedNpcs = npcs;
- 
- if (this.callbacks.onNpcList) {
-   this.callbacks.onNpcList(npcs);
- }
-});
+    // Liste des NPCs
+    this.room.onMessage("npcList", (npcs) => {
+      console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
+      
+      // Stocker les NPCs reçus
+      this.lastReceivedNpcs = npcs;
+      
+      if (this.callbacks.onNpcList) {
+        this.callbacks.onNpcList(npcs);
+      }
+    });
 
-/
-// Interactions NPC
-this.room.onMessage("npcInteractionResult", (result) => {
- console.log(`💬 [NetworkManager] NPC interaction:`, result);
- 
- if (this.callbacks.onNpcInteraction) {
-   this.callbacks.onNpcInteraction(result);
- }
-});
+    // Interactions NPC
+    this.room.onMessage("npcInteractionResult", (result) => {
+      console.log(`💬 [NetworkManager] NPC interaction:`, result);
+      
+      if (this.callbacks.onNpcInteraction) {
+        this.callbacks.onNpcInteraction(result);
+      }
+    });
 
-// ✅ AMÉLIORATION: État des joueurs avec protection transition
-this.room.onStateChange((state) => {
- // ✅ NOUVEAU: Permettre les updates même en transition (pour que le joueur apparaisse)
- if (this.callbacks.onStateChange) {
-   this.callbacks.onStateChange(state);
- }
-});
-    // ✅ AJOUTEZ ce listener pour le state filtré
-this.room.onMessage("filteredState", (state) => {
-    console.log(`📊 [NetworkManager] State filtré reçu:`, {
+    // État des joueurs
+    this.room.onStateChange((state) => {
+      if (this.callbacks.onStateChange) {
+        this.callbacks.onStateChange(state);
+      }
+    });
+
+    // State filtré
+    this.room.onMessage("filteredState", (state) => {
+      console.log(`📊 [NetworkManager] State filtré reçu:`, {
         playersCount: state.players?.size || 0,
         zone: this.currentZone
-    });
-    
-    if (this.callbacks.onStateChange) {
+      });
+      
+      if (this.callbacks.onStateChange) {
         this.callbacks.onStateChange(state);
-    }
-});
-// ✅ NOUVEAU: Forcer le state initial après connexion
-    this.room.onStateChange.once((state) => {
-        console.log(`🎯 [NetworkManager] ÉTAT INITIAL reçu:`, state);
-        console.log(`👥 Joueurs dans l'état initial:`, state.players.size);
-        
-        // Forcer l'appel du callback même pour l'état initial
-        if (this.callbacks.onStateChange && state.players.size > 0) {
-            console.log(`🔥 [NetworkManager] Force l'appel callback pour état initial`);
-            this.callbacks.onStateChange(state);
-        }
+      }
     });
-        this.room.onMessage("filteredState", (state) => {
-        console.log(`📊 [NetworkManager] State filtré reçu:`, {
-            playersCount: state.players?.size || 0,
-            zone: this.currentZone
-        });
-        
-        if (this.callbacks.onStateChange) {
-            this.callbacks.onStateChange(state);
-        }
-    });
-// Messages existants
-this.room.onMessage("playerData", (data) => {
- if (this.callbacks.onPlayerData) {
-   this.callbacks.onPlayerData(data);
- }
-});
 
-this.room.onMessage("snap", (data) => {
- if (this.callbacks.onSnap) {
-   this.callbacks.onSnap(data);
- }
-});
+    // Forcer le state initial après connexion
+    this.room.onStateChange.once((state) => {
+      console.log(`🎯 [NetworkManager] ÉTAT INITIAL reçu:`, state);
+      console.log(`👥 Joueurs dans l'état initial:`, state.players.size);
+      
+      // Forcer l'appel du callback même pour l'état initial
+      if (this.callbacks.onStateChange && state.players.size > 0) {
+        console.log(`🔥 [NetworkManager] Force l'appel callback pour état initial`);
+        this.callbacks.onStateChange(state);
+      }
+    });
+
+    // Messages existants
+    this.room.onMessage("playerData", (data) => {
+      if (this.callbacks.onPlayerData) {
+        this.callbacks.onPlayerData(data);
+      }
+    });
+
+    this.room.onMessage("snap", (data) => {
+      if (this.callbacks.onSnap) {
+        this.callbacks.onSnap(data);
+      }
+    });
 
     this.room.onLeave(() => {
       console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
       this.isConnected = false;
-if (this.callbacks.onDisconnect) {
-  this.callbacks.onDisconnect();
-}
+      if (this.callbacks.onDisconnect) {
+        this.callbacks.onDisconnect();
+      }
     });
 
     // Appeler onConnect après configuration
@@ -173,56 +159,31 @@ if (this.callbacks.onDisconnect) {
     }
   }
 
- 
-    // ✅ NOUVEAU: Vérifier si une transition est déjà en cours
-    if (this.transitionState.isActive) {
-      console.warn(`[NetworkManager] ⚠️ Transition déjà en cours vers: ${this.transitionState.targetZone}`);
-      return false;
-    }
-
-    console.log(`[NetworkManager] 🌀 === DEMANDE TRANSITION ===`);
-    console.log(`📍 De: ${this.currentZone} vers: ${targetZone}`);
-    console.log(`📊 Position: (${spawnX}, ${spawnY})`);
-    
-
-    
-    this.room.send("moveToZone", {
-      targetZone: targetZone,
-      spawnX: spawnX,
-      spawnY: spawnY
-    });
-
-    return true;
-  }
-
-
-
-  // Ajoute ça dans ta classe NetworkManager !
-sendMove(x, y, direction, isMoving) {
-  if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen) {
-    const now = Date.now();
-    if (!this.lastSendTime || now - this.lastSendTime > 50) {
-      this.room.send("playerMove", { x, y, direction, isMoving });
-      this.lastSendTime = now;
+  sendMove(x, y, direction, isMoving) {
+    if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen) {
+      const now = Date.now();
+      if (!this.lastSendTime || now - this.lastSendTime > 50) {
+        this.room.send("playerMove", { x, y, direction, isMoving });
+        this.lastSendTime = now;
+      }
     }
   }
-}
 
   startQuest(questId) {
-    if (this.isConnected && this.room && !this.transitionState.isActive) {
+    if (this.isConnected && this.room) {
       console.log(`[NetworkManager] 🎯 Démarrage quête: ${questId}`);
       this.room.send("questStart", { questId });
     }
   }
 
-   sendNpcInteract(npcId) {
-    if (this.isConnected && this.room && !this.isTransitioning) {
+  sendNpcInteract(npcId) {
+    if (this.isConnected && this.room) {
       this.room.send("npcInteract", { npcId });
     }
   }
   
   sendMessage(type, data) {
-    if (this.isConnected && this.room && !this.transitionState.isActive) {
+    if (this.isConnected && this.room) {
       this.room.send(type, data);
     }
   }
@@ -236,7 +197,6 @@ sendMove(x, y, direction, isMoving) {
   onNpcList(callback) { this.callbacks.onNpcList = callback; }
   onNpcInteraction(callback) { this.callbacks.onNpcInteraction = callback; }
   onSnap(callback) { this.callbacks.onSnap = callback; }
-
 
   onMessage(type, callback) {
     if (this.room) {
@@ -255,7 +215,6 @@ sendMove(x, y, direction, isMoving) {
     return this.currentZone;
   }
 
-
   getPlayerState(sessionId) {
     if (this.room && this.room.state && this.room.state.players) {
       return this.room.state.players.get(sessionId);
@@ -266,7 +225,6 @@ sendMove(x, y, direction, isMoving) {
   async disconnect() {
     console.log(`[NetworkManager] 📤 Déconnexion demandée`);
     
-    // Reset des états    
     if (this.room) {
       this.isConnected = false;
       
@@ -284,15 +242,12 @@ sendMove(x, y, direction, isMoving) {
     }
   }
 
-
-  // ✅ AMÉLIORATION: Debug state avec info transition
   debugState() {
     console.log(`[NetworkManager] 🔍 === ÉTAT DEBUG WORLDROOM ===`);
     console.log(`👤 Username: ${this.username}`);
     console.log(`🆔 SessionId: ${this.sessionId}`);
     console.log(`🔌 isConnected: ${this.isConnected}`);
     console.log(`🌀 isTransitioning: ${this.isTransitioning}`);
-    console.log(`🎯 transitionState:`, this.transitionState);
     console.log(`🌍 currentZone: ${this.currentZone}`);
     console.log(`🏠 Room ID: ${this.room?.id || 'aucune'}`);
     console.log(`📡 Room connectée: ${this.room?.connection?.isOpen || false}`);
@@ -310,34 +265,34 @@ sendMove(x, y, direction, isMoving) {
   }
 
   checkZoneSynchronization(currentScene) {
-  if (!this.room || !this.sessionId) {
-    console.warn(`[NetworkManager] ⚠️ Pas de room pour vérifier la sync zone`);
-    return false;
+    if (!this.room || !this.sessionId) {
+      console.warn(`[NetworkManager] ⚠️ Pas de room pour vérifier la sync zone`);
+      return false;
+    }
+
+    const myPlayer = this.room.state.players.get(this.sessionId);
+    if (!myPlayer) {
+      console.warn(`[NetworkManager] ❌ Joueur non trouvé pour sync zone`);
+      return false;
+    }
+
+    const serverZone = myPlayer.currentZone;
+    const clientZone = this.mapSceneToZone(currentScene);
+
+    if (serverZone !== clientZone) {
+      console.warn(`[NetworkManager] 🔄 DÉSYNCHRONISATION DÉTECTÉE - CORRECTION AUTO`);
+      console.warn(`   Serveur: ${serverZone}`);
+      console.warn(`   Client: ${clientZone} (${currentScene})`);
+      
+      // Correction automatique
+      this.currentZone = serverZone;
+      console.log(`✅ [NetworkManager] Zone client synchronisée: ${serverZone}`);
+      return true;
+    }
+
+    console.log(`[NetworkManager] ✅ Zones synchronisées: ${serverZone}`);
+    return true;
   }
-
-  const myPlayer = this.room.state.players.get(this.sessionId);
-  if (!myPlayer) {
-    console.warn(`[NetworkManager] ❌ Joueur non trouvé pour sync zone`);
-    return false;
-  }
-
-  const serverZone = myPlayer.currentZone;
-  const clientZone = this.mapSceneToZone(currentScene);
-
-  if (serverZone !== clientZone) {
-    console.warn(`[NetworkManager] 🔄 DÉSYNCHRONISATION DÉTECTÉE - CORRECTION AUTO`);
-    console.warn(`   Serveur: ${serverZone}`);
-    console.warn(`   Client: ${clientZone} (${currentScene})`);
-    
-    // ✅ CORRECTION AUTOMATIQUE au lieu d'alerte
-    this.currentZone = serverZone;
-    console.log(`✅ [NetworkManager] Zone client synchronisée: ${serverZone}`);
-    return true; // Corrigé automatiquement
-  }
-
-  console.log(`[NetworkManager] ✅ Zones synchronisées: ${serverZone}`);
-  return true;
-}
 
   mapSceneToZone(sceneName) {
     const mapping = {
