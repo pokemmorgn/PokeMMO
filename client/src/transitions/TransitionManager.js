@@ -282,20 +282,35 @@ export class TransitionManager {
         clearTimeout(validationTimeout);
         this.isTransitioning = false;
 
-        if (result.success) {
-          console.log(`✅ [TransitionManager] Transition validée par le serveur`);
-          
-          if (result.position) {
-            const currentPlayer = this.scene.playerManager?.getMyPlayer();
-            if (currentPlayer) {
-              console.log(`🔧 [TransitionManager] Correction position serveur:`, result.position);
-              currentPlayer.x = result.position.x;
-              currentPlayer.y = result.position.y;
-              currentPlayer.targetX = result.position.x;
-              currentPlayer.targetY = result.position.y;
-            }
-          }
-        } else {
+     if (result.success) {
+  console.log(`✅ [TransitionManager] Transition validée par le serveur`);
+  
+  if (result.position) {
+    // ✅ CORRECTION: Vérifier le bon manager de joueur
+    const currentScene = this.scene.scene.manager.getScene(this.zoneToScene[result.currentZone]);
+    const currentPlayer = currentScene?.playerManager?.getMyPlayer();
+    
+    if (currentPlayer) {
+      console.log(`🔧 [TransitionManager] Correction position:`, result.position);
+      console.log(`🔧 [TransitionManager] Position avant: (${currentPlayer.x}, ${currentPlayer.y})`);
+      
+      currentPlayer.x = result.position.x;
+      currentPlayer.y = result.position.y;
+      currentPlayer.targetX = result.position.x;
+      currentPlayer.targetY = result.position.y;
+      
+      console.log(`🔧 [TransitionManager] Position après: (${currentPlayer.x}, ${currentPlayer.y})`);
+      
+      // ✅ Mettre à jour l'indicateur
+      if (currentPlayer.indicator) {
+        currentPlayer.indicator.x = currentPlayer.x;
+        currentPlayer.indicator.y = currentPlayer.y - 24;
+      }
+    } else {
+      console.warn(`❌ [TransitionManager] Joueur introuvable pour correction position`);
+    }
+  }
+} else {
           console.error(`❌ [TransitionManager] Transition refusée: ${result.reason}`);
           
           if (result.rollback) {
