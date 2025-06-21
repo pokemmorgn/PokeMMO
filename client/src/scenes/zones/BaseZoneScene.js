@@ -598,7 +598,9 @@ this.scene.start(correctScene, transitionData);
       console.error(`❌ [${this.scene.key}] Transition échouée:`, result);
       this.handleTransitionError(result);
     });
-
+if (this.networkManager?.room) {
+  this.networkManager.room.send("forceStateRefresh");
+}
     this.networkManager.onNpcInteraction((result) => {
       console.log(`💬 [${this.scene.key}] NPC interaction:`, result);
       this.handleNpcInteraction(result);
