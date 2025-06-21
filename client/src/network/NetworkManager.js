@@ -75,21 +75,27 @@ this.lastReceivedZoneData = null;
     }
   }
 
-  setupRoomListeners() {
-    if (!this.room) return;
-
-    console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
-
-    // Zone data
-this.room.onMessage("zoneData", (data) => {
-  console.log(`🗺️ [NetworkManager] Zone data reçue:`, data);
-  this.currentZone = data.zone;
+  // ✅ NOUVEAU: Handler pour les résultats de transition du ZoneManager
+this.room.onMessage("transitionResult", (result) => {
+  console.log(`🔍 [NetworkManager] Résultat transition ZoneManager:`, result);
   
-  // ✅ NOUVEAU: Stocker les zone data
-  this.lastReceivedZoneData = data;
-  
-  if (this.callbacks.onZoneData) {
-    this.callbacks.onZoneData(data);
+  if (result.success) {
+    console.log(`✅ [NetworkManager] Transition réussie vers: ${result.currentZone}`);
+    this.currentZone = result.currentZone;
+    
+    // Reset l'état de transition
+    this.resetTransitionState();
+    
+    if (this.callbacks.onTransitionSuccess) {
+      this.callbacks.onTransitionSuccess(result);
+    }
+  } else {
+    console.error(`❌ [NetworkManager] Transition échouée: ${result.reason}`);
+    this.resetTransitionState();
+    
+    if (this.callbacks.onTransitionError) {
+      this.callbacks.onTransitionError(result);
+    }
   }
 });
 
@@ -213,32 +219,29 @@ this.room.onMessage("transitionResult", (result) => {
 
   // ✅ AMÉLIORATION: Transition entre zones avec gestion d'état
   moveToZone(targetZone, spawnX, spawnY) {
-    if (!this.isConnected || !this.room) {
-      console.warn("[NetworkManager] ⚠️ Cannot move to zone - not connected");
-      return false;
-    }
-
-    // ✅ NOUVEAU: Vérifier si une transition est déjà en cours
-    if (this.transitionState.isActive) {
-      console.warn(`[NetworkManager] ⚠️ Transition déjà en cours vers: ${this.transitionState.targetZone}`);
-      return false;
-    }
-
-    console.log(`[NetworkManager] 🌀 === DEMANDE TRANSITION ===`);
-    console.log(`📍 De: ${this.currentZone} vers: ${targetZone}`);
-    console.log(`📊 Position: (${spawnX}, ${spawnY})`);
-    
-    // ✅ NOUVEAU: Marquer la transition comme active
-    this.startTransition(targetZone);
-    
-    this.room.send("moveToZone", {
-      targetZone: targetZone,
-      spawnX: spawnX,
-      spawnY: spawnY
-    });
-
-    return true;
+  if (!this.isConnected || !this.room) {
+    console.warn("[NetworkManager] ⚠️ Cannot move to zone - not connected");
+    return false;
   }
+
+  if (this.transitionState.isActive) {
+    console.warn(`[NetworkManager] ⚠️ Transition déjà en cours vers: ${this.transitionState.targetZone}`);
+    return false;
+  }
+
+  console.log(`[NetworkManager] 🌀 === DEMANDE TRANSITION SERVEUR ===`);
+  console.log(`📍 De: ${this.currentZone} vers: ${targetZone}`);
+  
+  // ✅ CORRECTION: Utiliser le nouveau message du serveur
+  this.room.send("moveToZone", {
+    targetZone: targetZone,
+    spawnX: spawnX,
+    spawnY: spawnY
+  });
+
+  this.startTransition(targetZone);
+  return true;
+}
 
   // ✅ NOUVELLE MÉTHODE: Démarrer une transition
   startTransition(targetZone) {
