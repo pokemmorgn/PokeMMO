@@ -493,6 +493,25 @@ function setupGlobalNotificationFunctions(system) {
   window.onPlayerAction = (action, details) => system.onPlayerAction(action, details);
   window.onSystemInitialized = (systemName) => system.onSystemInitialized(systemName);
   
+  // ✅ NOUVELLES FONCTIONS pour gérer la déduplication des quêtes
+  window.resetQuestNotificationCooldowns = () => {
+    if (window.questSystem && typeof window.questSystem.resetNotificationCooldowns === 'function') {
+      window.questSystem.resetNotificationCooldowns();
+    }
+  };
+  
+  window.debugQuestNotifications = () => {
+    if (window.questSystem && typeof window.questSystem.debugNotificationSystem === 'function') {
+      window.questSystem.debugNotificationSystem();
+    }
+  };
+  
+  window.setQuestNotificationCooldown = (milliseconds) => {
+    if (window.questSystem && typeof window.questSystem.setNotificationCooldown === 'function') {
+      window.questSystem.setNotificationCooldown(milliseconds);
+    }
+  };
+  
   // Fonction de debug
   window.debugNotificationSystem = () => {
     const status = system.getStatus();
@@ -549,14 +568,26 @@ Fonctions disponibles:
 • window.onPlayerAction(action, details) - Action du joueur
 • window.onSystemInitialized(systemName) - Système initialisé
 
+=== ✅ NOUVEAU: Déduplication des quêtes ===
+• window.resetQuestNotificationCooldowns() - Réinitialise les cooldowns
+• window.debugQuestNotifications() - Debug du système de quêtes
+• window.setQuestNotificationCooldown(ms) - Change le délai (défaut: 2000ms)
+
 === Debug ===
 • window.debugNotificationSystem() - Debug du système
+• window.debugQuestNotifications() - Debug spécifique aux quêtes
 
 === Positions disponibles ===
 top-right, top-left, top-center, bottom-right, bottom-left, bottom-center
 
 === Types disponibles ===
 info, success, error, warning, quest, inventory, achievement
+
+=== ✅ RÉSOLUTION DU PROBLÈME DE DOUBLE NOTIFICATION ===
+Le système de déduplication empêche maintenant les notifications en double.
+Si vous avez encore des doublons, utilisez:
+• window.resetQuestNotificationCooldowns() - pour réinitialiser
+• window.setQuestNotificationCooldown(5000) - pour augmenter le délai
 =========================================
   `);
 }
