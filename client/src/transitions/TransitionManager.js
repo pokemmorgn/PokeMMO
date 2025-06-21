@@ -1,12 +1,13 @@
 // client/src/transitions/TransitionManager.js
-// ✅ NOUVEAU SYSTÈME DE TRANSITION 100% LOCAL
-// Remplace entièrement l'ancien système
+// ✅ SYSTÈME DE TRANSITION AVEC VALIDATION SERVEUR
+// Prédiction locale + validation serveur + rollback
 
 export class TransitionManager {
   constructor(scene) {
     this.scene = scene;
     this.isActive = false;
     this.debugMode = true;
+    this.isTransitioning = false;
     
     // Collections des éléments de transition
     this.teleport = new Map(); // objets "teleport" avec targetzone/targetspawn
@@ -30,7 +31,7 @@ export class TransitionManager {
     
     this.currentZone = this.sceneToZone[scene.scene.key] || 'unknown';
     
-    console.log(`🌀 [TransitionManager] Nouveau système initialisé pour ${this.currentZone}`);
+    console.log(`🌀 [TransitionManager] Système avec validation serveur initialisé pour ${this.currentZone}`);
   }
 
   // ✅ ÉTAPE 1: Scanner la map et extraire tous les éléments
@@ -89,7 +90,6 @@ export class TransitionManager {
       this.processSpawn(obj, index, layerName);
     }
   }
-
 
   // ✅ TRAITER UN TELEPORT
   processTeleport(obj, index, layerName) {
@@ -204,7 +204,7 @@ export class TransitionManager {
 
   // ✅ ÉTAPE 4: Vérifier les collisions avec le joueur
   checkCollisions(player) {
-    if (!this.isActive || !player) return;
+    if (!this.isActive || !player || this.isTransitioning) return;
 
     this.zones.forEach((zone) => {
       if (!zone.transitionData) return;
@@ -219,71 +219,188 @@ export class TransitionManager {
     });
   }
 
-  // ✅ ÉTAPE 5: Déclencher une transition (100% LOCAL)
+  // ✅ ÉTAPE 5: Déclencher une transition avec validation serveur
   async triggerTransition(teleportData) {
     if (this.isTransitioning) {
       console.log(`🌀 [TransitionManager] ⚠️ Transition déjà en cours`);
       return;
     }
 
-    console.log(`🌀 [TransitionManager] === TRANSITION 100% LOCALE ===`);
+    console.log(`🌀 [TransitionManager] === TRANSITION AVEC VALIDATION SERVEUR ===`);
     console.log(`📍 De: ${teleportData.fromZone}`);
     console.log(`📍 Vers: ${teleportData.targetZone}`);
     console.log(`🎯 Spawn: ${teleportData.targetSpawn || 'défaut'}`);
 
     this.isTransitioning = true;
 
-    // Calculer la scène cible
+    // Obtenir la position actuelle du joueur
+    const myPlayer = this.scene.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.error(`🌀 [TransitionManager] ❌ Joueur local introuvable`);
+      this.isTransitioning = false;
+      return;
+    }
+
+    // ✅ PREDICTION LOCALE: Faire la transition immédiatement pour la fluidité
     const targetScene = this.zoneToScene[teleportData.targetZone];
-    
     if (!targetScene) {
       console.error(`🌀 [TransitionManager] ❌ Scene inconnue pour zone: ${teleportData.targetZone}`);
       this.isTransitioning = false;
       return;
     }
 
-    // Calculer la position de spawn (chargement depuis fichier .tmj)
-   // Calculer la position de spawn (chargement depuis fichier .tmj)
-const spawnPosition = await this.calculateSpawnPosition(teleportData.targetSpawn, teleportData.targetZone);
+    // Calculer la position de spawn
+    const spawnPosition = await this.calculateSpawnPosition(teleportData.targetSpawn, teleportData.targetZone);
 
-// ✅ NOUVEAU: Notifier le serveur du changement de zone AVANT la transition
-if (this.scene.networkManager) {
-    this.scene.networkManager._localTransitionInProgress = true;
+    console.log(`🚀 [TransitionManager] Prédiction locale: transition immédiate`);
     
-    // Notifier le serveur du changement de zone
-    this.scene.networkManager.notifyZoneChange(
-        teleportData.targetZone,
-        spawnPosition.x,
-        spawnPosition.y
-    );
-    
-    // Envoyer position au serveur AVANT transition (optionnel)
-    const myPlayer = this.scene.playerManager?.getMyPlayer();
-    if (myPlayer && this.scene.networkManager.isConnected) {
-        this.scene.networkManager.sendMove(
-            spawnPosition.x, 
-            spawnPosition.y, 
-            'down', 
-            false
-        );
+    const transitionData = {
+      fromZone: this.currentZone,
+      fromTransition: true,
+      localTransition: true,
+      spawnX: spawnPosition.x,
+      spawnY: spawnPosition.y,
+      networkManager: this.scene.networkManager,
+      mySessionId: this.scene.mySessionId,
+      forcePlayerSync: true,
+      pendingValidation: true // ✅ NOUVEAU: Flag pour indiquer qu'on attend la validation serveur
+    };
+
+    // ✅ NOUVEAU: Setup du listener pour la validation serveur
+    this.setupValidationListener(teleportData, myPlayer, targetScene, transitionData);
+
+    // ✅ ENVOYER LA DEMANDE DE VALIDATION AU SERVEUR
+    if (this.scene.networkManager && this.scene.networkManager.isConnected) {
+      const validationRequest = {
+        fromZone: teleportData.fromZone,
+        targetZone: teleportData.targetZone,
+        targetSpawn: teleportData.targetSpawn,
+        playerX: myPlayer.x,
+        playerY: myPlayer.y,
+        teleportId: teleportData.id
+      };
+
+      console.log(`📤 [TransitionManager] Envoi demande validation:`, validationRequest);
+      this.scene.networkManager.room.send("validateTransition", validationRequest);
     }
-}
 
-const transitionData = {
-    fromZone: this.currentZone,
-    fromTransition: true,
-    localTransition: true,
-    spawnX: spawnPosition.x,
-    spawnY: spawnPosition.y,
-    networkManager: this.scene.networkManager,
-    mySessionId: this.scene.mySessionId,
-    forcePlayerSync: true  // ✅ FLAG CRITIQUE
-};
-
-    console.log(`🌀 [TransitionManager] ✅ Transition LOCALE - aucune donnée serveur transmise`);
-
-    // Démarrer la nouvelle scène
+    // Démarrer la nouvelle scène immédiatement (prédiction)
     this.scene.scene.start(targetScene, transitionData);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Setup du listener de validation
+  setupValidationListener(teleportData, myPlayer, targetScene, transitionData) {
+    console.log(`👂 [TransitionManager] Setup listener de validation...`);
+    
+    // Timeout de sécurité
+    const validationTimeout = setTimeout(() => {
+      console.warn(`⏰ [TransitionManager] Timeout validation - transition acceptée par défaut`);
+      this.isTransitioning = false;
+    }, 5000);
+
+    // Listener pour le résultat de validation
+    const validationHandler = (result) => {
+      console.log(`📨 [TransitionManager] Résultat validation reçu:`, result);
+      
+      clearTimeout(validationTimeout);
+      this.isTransitioning = false;
+
+      if (result.success) {
+        console.log(`✅ [TransitionManager] Transition validée par le serveur`);
+        // La transition a déjà été faite en prédiction, tout va bien
+        
+        // Synchroniser avec la position serveur si différente
+        if (result.position) {
+          const currentPlayer = this.scene.playerManager?.getMyPlayer();
+          if (currentPlayer && 
+              (Math.abs(currentPlayer.x - result.position.x) > 5 || 
+               Math.abs(currentPlayer.y - result.position.y) > 5)) {
+            
+            console.log(`🔧 [TransitionManager] Correction position serveur:`, result.position);
+            currentPlayer.x = result.position.x;
+            currentPlayer.y = result.position.y;
+            currentPlayer.targetX = result.position.x;
+            currentPlayer.targetY = result.position.y;
+          }
+        }
+      } else {
+        console.error(`❌ [TransitionManager] Transition refusée: ${result.reason}`);
+        
+        // ✅ ROLLBACK: Revenir à la scène précédente
+        if (result.rollback) {
+          this.performRollback(teleportData.fromZone, myPlayer);
+        }
+        
+        // Afficher l'erreur au joueur
+        this.showTransitionError(result.reason);
+      }
+
+      // Nettoyer le listener
+      if (this.scene.networkManager?.room) {
+        this.scene.networkManager.room.off("transitionResult", validationHandler);
+      }
+    };
+
+    // Attacher le listener
+    if (this.scene.networkManager?.room) {
+      this.scene.networkManager.room.on("transitionResult", validationHandler);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Rollback en cas de refus
+  performRollback(originalZone, originalPlayer) {
+    console.log(`🔄 [TransitionManager] === ROLLBACK VERS ${originalZone} ===`);
+    
+    const originalScene = this.zoneToScene[originalZone];
+    if (!originalScene) {
+      console.error(`❌ [TransitionManager] Scene de rollback introuvable: ${originalZone}`);
+      return;
+    }
+
+    // Données pour le rollback
+    const rollbackData = {
+      fromTransition: true,
+      isRollback: true,
+      spawnX: originalPlayer.x,
+      spawnY: originalPlayer.y,
+      networkManager: this.scene.networkManager,
+      mySessionId: this.scene.mySessionId,
+      forcePlayerSync: true
+    };
+
+    console.log(`🔄 [TransitionManager] Retour à ${originalScene}`);
+    this.scene.scene.start(originalScene, rollbackData);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Afficher une erreur de transition
+  showTransitionError(reason) {
+    if (typeof this.scene.showNotification === 'function') {
+      this.scene.showNotification(`Transition refusée: ${reason}`, 'error');
+    } else {
+      console.error(`🚫 [TransitionManager] ${reason}`);
+      
+      // Fallback: créer une notification temporaire
+      if (this.scene.add && this.scene.cameras) {
+        const notification = this.scene.add.text(
+          this.scene.cameras.main.centerX,
+          50,
+          `Transition refusée: ${reason}`,
+          {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ff4444',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: { x: 10, y: 5 }
+          }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
+
+        this.scene.time.delayedCall(3000, () => {
+          if (notification && notification.scene) {
+            notification.destroy();
+          }
+        });
+      }
+    }
   }
 
   // ✅ CALCULER LA POSITION DE SPAWN
@@ -430,6 +547,7 @@ const transitionData = {
     this.spawn.clear();
     this.zones.clear();
     this.isActive = false;
+    this.isTransitioning = false;
     
     console.log(`🌀 [TransitionManager] ✅ Nettoyé`);
   }
