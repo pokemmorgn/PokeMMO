@@ -297,7 +297,7 @@ export class InteractionManager {
   }
 
   // ✅ === MÉTHODE HELPER: Récupérer nom NPC ===
-  private async getNpcName(npcId: number): string {
+  private async getNpcName(npcId: number): Promise<string> {
     // TODO: Récupérer depuis le NPCManager si besoin
     const npcNames: { [key: number]: string } = {
       1: "Professeur Oak",
