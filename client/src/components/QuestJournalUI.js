@@ -433,7 +433,7 @@ export class QuestJournalUI {
     this.gameRoom.onMessage("questStartResult", (data) => {
       console.log("🎯 Résultat de démarrage de quête:", data);
       if (data.success) {
-        this.showNotification(`Quête acceptée : ${data.quest?.name || 'Nouvelle quête'}`, 'success');
+   //     this.showNotification(`Quête acceptée : ${data.quest?.name || 'Nouvelle quête'}`, 'success');
         this.refreshQuests();
       }
     });
