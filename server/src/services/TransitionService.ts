@@ -114,7 +114,17 @@ private extractTeleportsFromNpcManager(zoneName: string, npcManager: NpcManager)
               y: obj.y,
               zone: zoneName
             });
-            
+            // ✅ AJOUTER ICI - Log détaillé des spawns trouvés
+console.log(`🎯 [TransitionService] === SPAWNS DÉTAILLÉS POUR ${zoneName.toUpperCase()} ===`);
+if (spawns.length === 0) {
+  console.log(`❌ Aucun spawn trouvé dans ${zoneName}`);
+} else {
+  spawns.forEach((spawn, index) => {
+    console.log(`  ${index + 1}. "${spawn.name}" à (${spawn.x}, ${spawn.y})`);
+  });
+}
+console.log(`📊 Total: ${spawns.length} spawns dans ${zoneName}`);
+console.log(`===============================================`);
             console.log(`🎯 [TransitionService] Spawn "${spawnName}": (${obj.x}, ${obj.y}) dans ${zoneName}`);
           }
         }
@@ -273,7 +283,18 @@ private extractTeleportsFromNpcManager(zoneName: string, npcManager: NpcManager)
 }
   // ✅ CALCUL DE LA POSITION DE SPAWN
   private calculateSpawnPosition(targetZone: string, targetSpawn?: string): { x: number; y: number } | null {
+      console.log(`🔍 [TransitionService] === RECHERCHE SPAWN ===`);
+  console.log(`Zone cible: ${targetZone}`);
+  console.log(`Spawn recherché: ${targetSpawn || 'AUCUN (par défaut)'}`);
     const spawns = this.spawnData.get(targetZone);
+    if (spawns && spawns.length > 0) {
+    console.log(`📋 Spawns disponibles dans ${targetZone}:`);
+    spawns.forEach((spawn, index) => {
+      console.log(`  ${index + 1}. "${spawn.name}" à (${spawn.x}, ${spawn.y})`);
+    });
+  } else {
+    console.log(`❌ Aucun spawn disponible dans ${targetZone}`);
+  }
     if (!spawns) {
       console.warn(`⚠️ [TransitionService] Aucun spawn trouvé pour ${targetZone}`);
       return { x: 100, y: 100 }; // Position par défaut
