@@ -475,10 +475,10 @@ export class NotificationManager {
   // Notification pour les quêtes
   questNotification(questName, action = 'started', options = {}) {
     const actionText = {
-      started: 'Quête acceptéeee',
-      completed: 'Quête terminée',
-      failed: 'Quête échouée',
-      updated: 'Progression de quête'
+started:   'Quest accepted',
+completed: 'Quest completed',
+failed:    'Quest failed',
+updated:   'Quest progress'
     };
 
     const message = `${actionText[action]}: ${questName}`;
