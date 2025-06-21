@@ -207,19 +207,6 @@ export class InventoryIcon {
         }
       }
 
-      /* Periodic shine effect */
-      .inventory-icon .icon-background::before {
-        content: '';
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-        border-radius: 17px;
-        opacity: 0;
-        animation: shine 3s infinite;
-      }
 
       /* ✅ NOUVEAU: Style pour l'indicateur de groupe d'icônes */
       .ui-icons-group {
