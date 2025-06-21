@@ -657,25 +657,25 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   // ✅ AMÉLIORATION: Position du joueur avec données de transition
-  positionPlayer(player) {
+positionPlayer(player) {
     const initData = this.scene.settings.data;
-    
+
     console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
     console.log(`📊 InitData:`, initData);
-    
+
     if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-      console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
-      player.x = initData.spawnX;
-      player.y = initData.spawnY;
-      player.targetX = initData.spawnX;
-      player.targetY = initData.spawnY;
+        console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
+        player.x = initData.spawnX;
+        player.y = initData.spawnY;
+        player.targetX = initData.spawnX;
+        player.targetY = initData.spawnY;
     } else {
-      const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-      console.log(`📍 Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
-      player.x = defaultPos.x;
-      player.y = defaultPos.y;
-      player.targetX = defaultPos.x;
-      player.targetY = defaultPos.y;
+        const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+        console.log(`📍 Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
+        player.x = defaultPos.x;
+        player.y = defaultPos.y;
+        player.targetX = defaultPos.x;
+        player.targetY = defaultPos.y;
     }
 
     player.setVisible(true);
