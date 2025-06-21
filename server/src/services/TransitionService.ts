@@ -105,15 +105,15 @@ private extractTeleportsFromNpcManager(zoneName: string, npcManager: NpcManager)
           }
         } else if (objName === 'spawn') {
           // ✅ CORRECTION: Utiliser obj.name directement ou propriété spawnname
-          const spawnName = this.getProperty(obj, 'spawnname') || obj.name;
-          
-          if (spawnName && spawnName !== 'spawn') { // Éviter le nom générique "spawn"
-            spawns.push({
-              name: spawnName,
-              x: obj.x,
-              y: obj.y,
-              zone: zoneName
-            });
+          const spawnName = this.getProperty(obj, 'targetspawn'); // ← Au lieu de 'spawnname'
+            
+  if (spawnName) { // ← Au lieu de "spawnName !== 'spawn'"
+    spawns.push({
+      name: spawnName,
+      x: obj.x,
+      y: obj.y,
+      zone: zoneName
+    });
             // ✅ AJOUTER ICI - Log détaillé des spawns trouvés
 console.log(`🎯 [TransitionService] === SPAWNS DÉTAILLÉS POUR ${zoneName.toUpperCase()} ===`);
 if (spawns.length === 0) {
