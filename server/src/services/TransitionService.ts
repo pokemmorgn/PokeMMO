@@ -336,7 +336,7 @@ export class TransitionService {
     y: obj.y,
     zone: zoneName
   });
-}
+
 
 }
           }
