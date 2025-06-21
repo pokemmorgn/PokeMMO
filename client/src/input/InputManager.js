@@ -58,6 +58,20 @@ export class InputManager {
     // Reset des touches Phaser
     this.scene.input.keyboard.resetKeys();
     
+    // NOUVEAU: Forcer l'arrêt de toutes les touches individuellement
+    if (this.cursors) {
+      this.cursors.left.reset();
+      this.cursors.right.reset();
+      this.cursors.up.reset();
+      this.cursors.down.reset();
+    }
+    
+    if (this.wasdKeys) {
+      Object.values(this.wasdKeys).forEach(key => {
+        if (key && key.reset) key.reset();
+      });
+    }
+    
     // Reset du mouvement actuel
     this.currentMovement = {
       x: 0,
@@ -72,13 +86,31 @@ export class InputManager {
       this.mobileJoystick.reset();
     }
 
+    // NOUVEAU: Notifier la scène du reset
+    if (this.scene && this.scene.player) {
+      // Arrêter l'animation du joueur
+      if (this.scene.player.anims) {
+        this.scene.player.anims.stop();
+      }
+      
+      // Arrêter la vélocité si c'est un physics body
+      if (this.scene.player.body) {
+        this.scene.player.body.setVelocity(0, 0);
+      }
+      
+      // Callback personnalisé pour la scène
+      if (this.scene.onPlayerMovementReset) {
+        this.scene.onPlayerMovementReset();
+      }
+    }
+
     // Callback pour notifier l'arrêt
     this.triggerMoveCallback();
 
     // Remet le flag à false après un court délai
     setTimeout(() => {
       this.forceStop = false;
-    }, 100);
+    }, 150);
   }
 
   detectMobile() {
