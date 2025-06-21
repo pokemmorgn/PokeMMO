@@ -274,6 +274,26 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
       this.debugQuests(client);
     });
 
+    // ✅ === NOUVEAUX HANDLERS POUR LES SHOPS ===
+
+    // Transaction shop (achat/vente)
+    this.onMessage("shopTransaction", (client, data) => {
+      console.log(`🛒 [WorldRoom] Transaction shop reçue:`, data);
+      this.handleShopTransaction(client, data);
+    });
+
+    // Récupérer le catalogue d'un shop
+    this.onMessage("getShopCatalog", (client, data) => {
+      console.log(`🏪 [WorldRoom] Demande de catalogue shop: ${data.shopId}`);
+      this.handleGetShopCatalog(client, data.shopId);
+    });
+
+    // Rafraîchir un shop (restock)
+    this.onMessage("refreshShop", (client, data) => {
+      console.log(`🔄 [WorldRoom] Rafraîchissement shop: ${data.shopId}`);
+      this.handleRefreshShop(client, data.shopId);
+    });
+    
     // === HANDLERS POUR L'INVENTAIRE ===
 
     // Récupérer l'inventaire complet du joueur
@@ -620,6 +640,109 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
     }
   }
 
+  // ✅ === NOUVEAUX HANDLERS POUR LES SHOPS ===
+
+  private async handleShopTransaction(client: Client, data: {
+    shopId: string;
+    action: 'buy' | 'sell';
+    itemId: string;
+    quantity: number;
+  }) {
+    try {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("shopTransactionResult", {
+          success: false,
+          message: "Joueur non trouvé"
+        });
+        return;
+      }
+
+      console.log(`🛒 ${player.name} ${data.action} ${data.quantity}x ${data.itemId} dans shop ${data.shopId}`);
+
+      // Déléguer au ZoneManager
+      await this.zoneManager.handleShopTransaction(client, data);
+
+    } catch (error) {
+      console.error(`❌ Erreur handleShopTransaction:`, error);
+      client.send("shopTransactionResult", {
+        success: false,
+        message: "Erreur lors de la transaction"
+      });
+    }
+  }
+
+  private async handleGetShopCatalog(client: Client, shopId: string) {
+    try {
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("shopCatalogResult", {
+          success: false,
+          message: "Joueur non trouvé"
+        });
+        return;
+      }
+
+      const shopManager = this.zoneManager.getShopManager();
+      const catalog = shopManager.getShopCatalog(shopId, player.level || 1);
+
+      if (catalog) {
+        client.send("shopCatalogResult", {
+          success: true,
+          shopId: shopId,
+          catalog: catalog,
+          playerGold: player.gold || 1000
+        });
+        console.log(`✅ Catalogue shop ${shopId} envoyé à ${client.sessionId}`);
+      } else {
+        client.send("shopCatalogResult", {
+          success: false,
+          message: "Shop introuvable"
+        });
+      }
+
+    } catch (error) {
+      console.error(`❌ Erreur getShopCatalog:`, error);
+      client.send("shopCatalogResult", {
+        success: false,
+        message: "Erreur lors de la récupération du catalogue"
+      });
+    }
+  }
+
+  private async handleRefreshShop(client: Client, shopId: string) {
+    try {
+      const shopManager = this.zoneManager.getShopManager();
+      const wasRestocked = shopManager.restockShop(shopId);
+
+      if (wasRestocked) {
+        // Renvoyer le catalogue mis à jour
+        await this.handleGetShopCatalog(client, shopId);
+        
+        client.send("shopRefreshResult", {
+          success: true,
+          message: "Magasin restocké !",
+          restocked: true
+        });
+        
+        console.log(`🔄 Shop ${shopId} restocké pour ${client.sessionId}`);
+      } else {
+        client.send("shopRefreshResult", {
+          success: true,
+          message: "Pas de restock nécessaire",
+          restocked: false
+        });
+      }
+
+    } catch (error) {
+      console.error(`❌ Erreur refreshShop:`, error);
+      client.send("shopRefreshResult", {
+        success: false,
+        message: "Erreur lors du rafraîchissement"
+      });
+    }
+  }
+  
   // ✅ HELPER POUR BROADCASTER À UNE ZONE
   private broadcastToZone(zoneName: string, message: string, data: any) {
     console.log(`📡 [WorldRoom] Broadcasting to zone ${zoneName}: ${message}`);
@@ -657,11 +780,16 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
       
       // Compatibilité avec l'ancien système
       player.map = player.currentZone;
-      
+    // ✅ NOUVELLES PROPRIÉTÉS SHOP
+      player.level = options.level || 1;
+      player.gold = options.gold || 1000;
+      player.experience = options.experience || 0;
+      player.title = options.title || "Dresseur Débutant";
       // Ajouter au state
       this.state.players.set(client.sessionId, player);
       
       console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      console.log(`💰 Level: ${player.level}, Gold: ${player.gold}`);
       console.log(`✅ Joueur ${player.name} créé`);
 
       // === CONFIGURATION INVENTAIRE DE DÉPART ===
@@ -714,7 +842,8 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
 
     const player = this.state.players.get(client.sessionId);
     if (player) {
-      console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      console.log(`💰 Stats finales: Level ${player.level}, ${player.gold} gold`);
       
       // Supprimer du state
       this.state.players.delete(client.sessionId);
@@ -880,6 +1009,64 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
     }
   }
 
+  // ✅ === NOUVELLES MÉTHODES UTILITAIRES POUR LES SHOPS ===
+
+  async updatePlayerGold(playerName: string, newGold: number): Promise<boolean> {
+    try {
+      // Trouver le joueur dans le state
+      for (const [sessionId, player] of this.state.players.entries()) {
+        if (player.name === playerName) {
+          player.gold = Math.max(0, newGold); // Pas d'or négatif
+          
+          // Notifier le client
+          const client = this.clients.find(c => c.sessionId === sessionId);
+          if (client) {
+            client.send("goldUpdate", {
+              newGold: player.gold
+            });
+          }
+          
+          console.log(`💰 Or mis à jour pour ${playerName}: ${player.gold} gold`);
+          return true;
+        }
+      }
+      
+      console.warn(`⚠️ Joueur ${playerName} non trouvé pour mise à jour de l'or`);
+      return false;
+    } catch (error) {
+      console.error(`❌ Erreur updatePlayerGold:`, error);
+      return false;
+    }
+  }
+
+  async getPlayerGold(playerName: string): Promise<number> {
+    try {
+      for (const [sessionId, player] of this.state.players.entries()) {
+        if (player.name === playerName) {
+          return player.gold || 0;
+        }
+      }
+      return 0;
+    } catch (error) {
+      console.error(`❌ Erreur getPlayerGold:`, error);
+      return 0;
+    }
+  }
+
+  async getPlayerLevel(playerName: string): Promise<number> {
+    try {
+      for (const [sessionId, player] of this.state.players.entries()) {
+        if (player.name === playerName) {
+          return player.level || 1;
+        }
+      }
+      return 1;
+    } catch (error) {
+      console.error(`❌ Erreur getPlayerLevel:`, error);
+      return 1;
+    }
+  }
+  
   // ✅ MÉTHODE CORRIGÉE: getFilteredStateForClient
   private getFilteredStateForClient(client: Client): any {
     const player = this.state.players.get(client.sessionId);
@@ -903,7 +1090,9 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
                 y: otherPlayer.y,
                 currentZone: otherPlayer.currentZone,
                 direction: otherPlayer.direction,
-                isMoving: otherPlayer.isMoving
+                isMoving: otherPlayer.isMoving,
+                level: otherPlayer.level,
+                gold: otherPlayer.gold
             };
             return;
         }
@@ -917,7 +1106,10 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
                 y: otherPlayer.y,
                 currentZone: otherPlayer.currentZone,
                 direction: otherPlayer.direction,
-                isMoving: otherPlayer.isMoving
+                isMoving: otherPlayer.isMoving,
+                level: otherPlayer.level,
+                // ✅ NE PAS inclure l'or des autres joueurs pour la sécurité
+                // gold: otherPlayer.gold  
             };
         }
     });
@@ -950,10 +1142,28 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
     console.log(`📤 States filtrés envoyés à ${this.clients.length} clients`);
   }
 
-  private scheduleFilteredStateUpdate() {
+private scheduleFilteredStateUpdate() {
     // Programmer une mise à jour dans 50ms (pour regrouper les changements)
     this.clock.setTimeout(() => {
       this.sendFilteredState();
     }, 50);
+  }
+
+  // ✅ === MÉTHODES D'ACCÈS AUX MANAGERS ===
+
+  getZoneManager(): ZoneManager {
+    return this.zoneManager;
+  }
+
+  getShopManager() {
+    return this.zoneManager.getShopManager();
+  }
+
+  getQuestManager() {
+    return this.zoneManager.getQuestManager();
+  }
+
+  getInteractionManager() {
+    return this.zoneManager.getInteractionManager();
   }
 }
