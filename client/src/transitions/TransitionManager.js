@@ -344,29 +344,36 @@ setupValidationListener(teleportData, myPlayer, targetScene, transitionData) {
   }
 }
   // ✅ NOUVELLE MÉTHODE: Rollback en cas de refus
-  performRollback(originalZone, originalPlayer) {
-    console.log(`🔄 [TransitionManager] === ROLLBACK VERS ${originalZone} ===`);
-    
-    const originalScene = this.zoneToScene[originalZone];
-    if (!originalScene) {
-      console.error(`❌ [TransitionManager] Scene de rollback introuvable: ${originalZone}`);
-      return;
-    }
-
-    // Données pour le rollback
-    const rollbackData = {
-      fromTransition: true,
-      isRollback: true,
-      spawnX: originalPlayer.x,
-      spawnY: originalPlayer.y,
-      networkManager: this.scene.networkManager,
-      mySessionId: this.scene.mySessionId,
-      forcePlayerSync: true
-    };
-
-    console.log(`🔄 [TransitionManager] Retour à ${originalScene}`);
-    this.scene.scene.start(originalScene, rollbackData);
+  // ✅ NOUVELLE MÉTHODE: Rollback en cas de refus
+performRollback(originalZone, originalPlayer) {
+  console.log(`🔄 [TransitionManager] === ROLLBACK VERS ${originalZone} ===`);
+  
+  const originalScene = this.zoneToScene[originalZone];
+  if (!originalScene) {
+    console.error(`❌ [TransitionManager] Scene de rollback introuvable: ${originalZone}`);
+    return;
   }
+
+  // ✅ CORRECTION: Récupérer la position ACTUELLE du joueur dans la nouvelle scène
+  const currentPlayer = this.scene.playerManager?.getMyPlayer();
+  const rollbackX = currentPlayer ? currentPlayer.x : (originalPlayer.x || 100);
+  const rollbackY = currentPlayer ? currentPlayer.y : (originalPlayer.y || 100);
+
+  // Données pour le rollback
+  const rollbackData = {
+    fromTransition: true,
+    isRollback: true,
+    spawnX: rollbackX,
+    spawnY: rollbackY,
+    networkManager: this.scene.networkManager,
+    mySessionId: this.scene.mySessionId,
+    forcePlayerSync: true,
+    rollbackFrom: this.scene.scene.key // ✅ Indiquer d'où on revient
+  };
+
+  console.log(`🔄 [TransitionManager] Rollback vers ${originalScene} à (${rollbackX}, ${rollbackY})`);
+  this.scene.scene.start(originalScene, rollbackData);
+}
 
   // ✅ NOUVELLE MÉTHODE: Afficher une erreur de transition
   // ✅ NOUVELLE MÉTHODE: Afficher une erreur de transition
