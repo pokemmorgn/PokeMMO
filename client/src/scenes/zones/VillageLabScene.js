@@ -5,7 +5,7 @@ import { BaseZoneScene } from './BaseZoneScene.js';
 
 export class VillageLabScene extends BaseZoneScene {
   constructor() {
-    super('VillageLabScene', 'VillageLab');
+    super('VillageLabScene', 'villagelab');
     this.transitionCooldowns = {};
   }
 
