@@ -271,30 +271,35 @@ export class PlayerManager {
     console.log("[PlayerManager] ✅ Indicateur local créé pour", player.sessionId);
   }
 
-  updatePlayers(state) {
-    if (this.isDestroyed || !state || !state.players) {
-      return;
-    }
-    
-    if (!this.scene || !this.scene.scene.isActive()) {
-      console.warn("[PlayerManager] updatePlayers: SCENE INACTIVE");
-      return;
-    }
-    
-    // ✅ CORRECTION CRITIQUE: Ne plus bloquer pendant les transitions
-    // Le joueur doit pouvoir apparaître même pendant une transition
-    if (this.scene.networkManager && this.scene.networkManager.isTransitionActive) {
-      console.log("[PlayerManager] updatePlayers: Transition en cours, mais traitement autorisé");
-      // On continue quand même pour permettre l'apparition du joueur
+ updatePlayers(state) {
+    if (!state || !state.players) {
+        console.warn('[PlayerManager] State invalide reçu:', state);
+        return;
     }
 
-    // ✅ AMÉLIORATION 5: Synchronisation sessionId améliorée
-    this.synchronizeSessionId();
-    
-    this._lastStateUpdate = Date.now();
-    this.performUpdate(state);
-  }
+    console.log(`[PlayerManager] 📊 Mise à jour des joueurs`);
 
+    // ✅ CORRECTION: Gérer à la fois Map et Object
+    let playersToProcess;
+    
+    if (state.players instanceof Map) {
+        // État normal avec Map
+        playersToProcess = Array.from(state.players.entries());
+        console.log(`[PlayerManager] État Map avec ${state.players.size} joueurs`);
+    } else if (typeof state.players === 'object') {
+        // État filtré avec objet
+        playersToProcess = Object.entries(state.players);
+        console.log(`[PlayerManager] État filtré avec ${playersToProcess.length} joueurs`);
+    } else {
+        console.warn('[PlayerManager] Type de players non supporté:', typeof state.players);
+        return;
+    }
+
+    // Traitement unifié
+    playersToProcess.forEach(([sessionId, playerData]) => {
+        this.performUpdate(sessionId, playerData);
+    });
+}
   // ✅ NOUVELLE MÉTHODE: Synchronisation intelligente du sessionId
   synchronizeSessionId() {
     if (!this.scene.networkManager) return;
