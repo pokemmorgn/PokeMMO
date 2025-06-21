@@ -185,88 +185,126 @@ export class TransitionManager {
   }
 
   // ✅ DÉCLENCHER TRANSITION AVEC LOADING
-  async triggerTransition(teleportData) {
-    if (this.isTransitioning) {
-      console.log(`🌀 [TransitionManager] ⚠️ Transition déjà en cours`);
-      return;
-    }
-
-    console.log(`🌀 [TransitionManager] === DÉBUT TRANSITION ===`);
-    console.log(`📍 De: ${teleportData.fromZone}`);
-    console.log(`📍 Vers: ${teleportData.targetZone}`);
-    console.log(`🎯 TargetSpawn: ${teleportData.targetSpawn}`);
-
-    this.isTransitioning = true;
-    this.transitionStartTime = Date.now();
-
-    // ✅ AFFICHER LE LOADING
-    this.showLoadingOverlay(teleportData);
-
-    // Obtenir la position du joueur
-    const myPlayer = this.scene.playerManager?.getMyPlayer();
-    if (!myPlayer) {
-      console.error(`🌀 [TransitionManager] ❌ Joueur local introuvable`);
-      this.hideLoadingOverlay();
-      this.isTransitioning = false;
-      return;
-    }
-
-    // ✅ SETUP TIMEOUT DE SÉCURITÉ
-    const timeoutHandle = setTimeout(() => {
-      console.error(`🌀 [TransitionManager] ⏰ TIMEOUT DE TRANSITION`);
-      this.hideLoadingOverlay();
-      this.showErrorPopup("Timeout de transition (10s)");
-      this.isTransitioning = false;
-    }, this.transitionTimeout);
-
-    // ✅ SETUP LISTENER DE VALIDATION
-    this.setupTransitionListener(teleportData, timeoutHandle);
-
-    // ✅ ENVOYER DEMANDE AU SERVEUR
-    if (this.scene.networkManager?.room) {
-      const request = {
-        fromZone: teleportData.fromZone,
-        targetZone: teleportData.targetZone,
-        playerX: myPlayer.x,
-        playerY: myPlayer.y,
-        teleportId: teleportData.id
-      };
-
-      console.log(`📤 [TransitionManager] Envoi demande serveur:`, request);
-      this.scene.networkManager.room.send("validateTransition", request);
-    } else {
-      console.error(`🌀 [TransitionManager] ❌ Pas de connexion serveur`);
-      clearTimeout(timeoutHandle);
-      this.hideLoadingOverlay();
-      this.showErrorPopup("Pas de connexion serveur");
-      this.isTransitioning = false;
-    }
+async triggerTransition(teleportData) {
+  if (this.isTransitioning) {
+    console.log(`🌀 [TransitionManager] ⚠️ Transition déjà en cours`);
+    return;
   }
 
-  // ✅ SETUP LISTENER POUR RÉPONSE SERVEUR
-  setupTransitionListener(teleportData, timeoutHandle) {
-    console.log(`👂 [TransitionManager] Setup listener validation...`);
+  console.log(`🌀 [TransitionManager] === DÉBUT TRANSITION ===`);
+  console.log(`📍 De: ${teleportData.fromZone}`);
+  console.log(`📍 Vers: ${teleportData.targetZone}`);
+  console.log(`🎯 TargetSpawn: ${teleportData.targetSpawn}`);
 
-    if (!this.scene.networkManager?.room) return;
+  this.isTransitioning = true;
+  this.transitionStartTime = Date.now();
 
-    // Handler pour la réponse du serveur
-    const handleTransitionResult = (result) => {
-      console.log(`📨 [TransitionManager] Résultat serveur reçu:`, result);
-      
-      clearTimeout(timeoutHandle);
-      
-      if (result.success) {
-        console.log(`✅ [TransitionManager] Transition validée!`);
-        this.handleTransitionSuccess(result, teleportData);
-      } else {
-        console.error(`❌ [TransitionManager] Transition refusée: ${result.reason}`);
-        this.handleTransitionError(result);
-      }
+  // ✅ AFFICHER LE LOADING IMMÉDIATEMENT (avant toute validation)
+  this.showLoadingOverlay(teleportData);
+
+  // ✅ NOUVEAU: Vérifier et corriger la désynchronisation AVANT d'envoyer
+  const correctionResult = await this.checkAndCorrectZoneDesync(teleportData);
+  if (!correctionResult.success) {
+    this.hideLoadingOverlay();
+    this.showErrorPopup(correctionResult.reason);
+    this.isTransitioning = false;
+    return;
+  }
+
+  // ✅ Utiliser les données corrigées
+  const correctedTeleportData = correctionResult.correctedData;
+
+  // Obtenir la position du joueur
+  const myPlayer = this.scene.playerManager?.getMyPlayer();
+  if (!myPlayer) {
+    console.error(`🌀 [TransitionManager] ❌ Joueur local introuvable`);
+    this.hideLoadingOverlay();
+    this.showErrorPopup("Joueur local introuvable");
+    this.isTransitioning = false;
+    return;
+  }
+
+  // ✅ SETUP TIMEOUT DE SÉCURITÉ
+  const timeoutHandle = setTimeout(() => {
+    console.error(`🌀 [TransitionManager] ⏰ TIMEOUT DE TRANSITION`);
+    this.hideLoadingOverlay();
+    this.showErrorPopup("Timeout de transition (10s)");
+    this.isTransitioning = false;
+  }, this.transitionTimeout);
+
+  // ✅ SETUP LISTENER DE VALIDATION
+  this.setupTransitionListener(correctedTeleportData, timeoutHandle);
+
+  // ✅ ENVOYER DEMANDE AU SERVEUR AVEC DONNÉES CORRIGÉES
+  if (this.scene.networkManager?.room) {
+    const request = {
+      fromZone: correctedTeleportData.fromZone, // ✅ Zone corrigée
+      targetZone: correctedTeleportData.targetZone,
+      playerX: myPlayer.x,
+      playerY: myPlayer.y,
+      teleportId: correctedTeleportData.id
     };
 
-    // ✅ UTILISER LE CALLBACK DU NETWORKMANAGER
-    this.scene.networkManager.onTransitionValidation = handleTransitionResult;
+    console.log(`📤 [TransitionManager] Envoi demande serveur (corrigée):`, request);
+    this.scene.networkManager.room.send("validateTransition", request);
+  } else {
+    console.error(`🌀 [TransitionManager] ❌ Pas de connexion serveur`);
+    clearTimeout(timeoutHandle);
+    this.hideLoadingOverlay();
+    this.showErrorPopup("Pas de connexion serveur");
+    this.isTransitioning = false;
   }
+}
+
+// ✅ NOUVELLE MÉTHODE: Vérifier et corriger la désynchronisation
+async checkAndCorrectZoneDesync(teleportData) {
+  console.log(`🔄 [TransitionManager] === VÉRIFICATION DÉSYNC ===`);
+  
+  // Obtenir la zone serveur et client
+  const clientZone = this.scene.zoneName; // Zone de la scène actuelle
+  const serverZone = this.scene.networkManager?.getCurrentZone(); // Zone du serveur
+  
+  console.log(`🔍 [TransitionManager] Client zone: ${clientZone}`);
+  console.log(`🔍 [TransitionManager] Server zone: ${serverZone}`);
+  console.log(`🔍 [TransitionManager] Teleport fromZone: ${teleportData.fromZone}`);
+  
+  // Si tout est synchronisé, pas de problème
+  if (clientZone === serverZone && serverZone === teleportData.fromZone) {
+    console.log(`✅ [TransitionManager] Zones synchronisées`);
+    return {
+      success: true,
+      correctedData: teleportData
+    };
+  }
+  
+  // ✅ CORRECTION AUTOMATIQUE
+  console.warn(`⚠️ [TransitionManager] DÉSYNCHRONISATION DÉTECTÉE - CORRECTION AUTO`);
+  console.warn(`   Client: ${clientZone}`);
+  console.warn(`   Serveur: ${serverZone}`);
+  console.warn(`   Téléport: ${teleportData.fromZone}`);
+  
+  // Utiliser la zone du serveur comme référence (plus fiable)
+  const correctedFromZone = serverZone || clientZone;
+  
+  // Mettre à jour le NetworkManager
+  if (this.scene.networkManager) {
+    this.scene.networkManager.currentZone = correctedFromZone;
+    console.log(`🔧 [TransitionManager] Zone NetworkManager mise à jour: ${correctedFromZone}`);
+  }
+  
+  // Créer les données de téléport corrigées
+  const correctedTeleportData = {
+    ...teleportData,
+    fromZone: correctedFromZone
+  };
+  
+  console.log(`✅ [TransitionManager] Correction appliquée: ${teleportData.fromZone} → ${correctedFromZone}`);
+  
+  return {
+    success: true,
+    correctedData: correctedTeleportData
+  };
+}
 
   // ✅ SUCCÈS DE TRANSITION
   handleTransitionSuccess(result, teleportData) {
