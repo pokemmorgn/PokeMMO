@@ -366,44 +366,50 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
 
   // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
 
-  private async handleStartQuest(client: Client, data: { questId: string }) {
-    try {
-      console.log(`🎯 Démarrage de quête ${data.questId} pour ${client.sessionId}`);
-      
-      const player = this.state.players.get(client.sessionId);
-      if (!player) {
-        client.send("questStartResult", {
-          success: false,
-          message: "Joueur non trouvé"
-        });
-        return;
-      }
-
-      // ✅ FIX: Utiliser directement la méthode de délégation du ZoneManager
-      const result = await this.zoneManager.handleQuestStart(client, data.questId);
-      
-      console.log(`📤 Envoi questStartResult:`, result);
-      client.send("questStartResult", result);
-      
-      // Si succès, envoyer aussi questStarted pour compatibilité
-      if (result.success && result.quest) {
-        client.send("questStarted", {
-          quest: result.quest,
-          message: result.message
-        });
-        
-        // Mettre à jour les statuts de quête pour tous les clients
-        this.updateQuestStatuses(player.name);
-      }
-      
-    } catch (error) {
-      console.error("❌ Erreur handleStartQuest:", error);
+private async handleStartQuest(client: Client, data: { questId: string }) {
+  try {
+    console.log(`🎯 Démarrage de quête ${data.questId} pour ${client.sessionId}`);
+    
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
       client.send("questStartResult", {
         success: false,
-        message: "Erreur serveur lors du démarrage de la quête"
+        message: "Joueur non trouvé"
+      });
+      return;
+    }
+
+    // ✅ FIX: Utiliser directement la méthode de délégation du ZoneManager
+    const result = await this.zoneManager.handleQuestStart(client, data.questId);
+    
+    console.log(`📤 Envoi questStartResult:`, result);
+    
+    // ✅ CORRECTION: ENVOYER UN SEUL MESSAGE
+    client.send("questStartResult", result);
+    
+    // ✅ SUPPRIMÉ: Plus besoin d'envoyer questStarted séparément
+    /*
+    if (result.success && result.quest) {
+      client.send("questStarted", {
+        quest: result.quest,
+        message: result.message
       });
     }
+    */
+    
+    // ✅ Mettre à jour les statuts de quête pour tous les clients si succès
+    if (result.success) {
+      this.updateQuestStatuses(player.name);
+    }
+    
+  } catch (error) {
+    console.error("❌ Erreur handleStartQuest:", error);
+    client.send("questStartResult", {
+      success: false,
+      message: "Erreur serveur lors du démarrage de la quête"
+    });
   }
+}
 
   private async handleGetActiveQuests(client: Client) {
     try {
