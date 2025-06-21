@@ -321,72 +321,121 @@ export class QuestSystem {
   }
 
   // ✅ FIX 7: Correction des event listeners du dialog
-  addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
-    let selectedQuestId = defaultSelectedId;
+addQuestDialogListeners(dialog, onSelectQuest, defaultSelectedId = null) {
+  let selectedQuestId = defaultSelectedId;
 
-    const closeBtn = dialog.querySelector('.quest-dialog-close');
-    const cancelBtn = dialog.querySelector('.quest-btn-cancel');
-    const acceptBtn = dialog.querySelector('.quest-btn-accept');
+  const closeBtn = dialog.querySelector('.quest-dialog-close');
+  const cancelBtn = dialog.querySelector('.quest-btn-cancel');
+  const acceptBtn = dialog.querySelector('.quest-btn-accept');
 
-    if (defaultSelectedId && acceptBtn) {
-      acceptBtn.disabled = false;
-    }
-
-    // ✅ FIX 8: Correction des handlers de fermeture
-    const closeDialog = () => {
-      dialog.remove();
-      window._questDialogActive = false;
-    };
-
-    if (closeBtn) {
-      closeBtn.addEventListener('click', closeDialog);
-    }
-    if (cancelBtn) {
-      cancelBtn.addEventListener('click', closeDialog);
-    }
-
-    // Sélection des quêtes
-    dialog.querySelectorAll('.quest-option').forEach(option => {
-      option.addEventListener('click', () => {
-        dialog.querySelectorAll('.quest-option').forEach(opt => 
-          opt.classList.remove('selected')
-        );
-        option.classList.add('selected');
-        selectedQuestId = option.dataset.questId;
-        acceptBtn.disabled = false;
-      });
-    });
-
-    // ✅ FIX 9: Correction du handler d'acceptation
-    acceptBtn.addEventListener('click', () => {
-      if (!selectedQuestId && defaultSelectedId) {
-        selectedQuestId = defaultSelectedId;
-      }
-      if (!selectedQuestId) {
-        const selectedOption = dialog.querySelector('.quest-option.selected') || dialog.querySelector('.quest-option');
-        if (selectedOption) {
-          selectedQuestId = selectedOption.dataset.questId;
-        }
-      }
-      
-      console.log("🎯 Acceptation de la quête:", selectedQuestId);
-      
-      if (selectedQuestId && onSelectQuest) {
-        onSelectQuest(selectedQuestId);
-      }
-      closeDialog();
-    });
-
-    // Fermeture avec Escape
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') {
-        closeDialog();
-        document.removeEventListener('keydown', handleEscape);
-      }
-    };
-    document.addEventListener('keydown', handleEscape);
+  if (defaultSelectedId && acceptBtn) {
+    acceptBtn.disabled = false;
   }
 
+  // ✅ FIX: Correction des handlers de fermeture
+  const closeDialog = () => {
+    dialog.remove();
+    window._questDialogActive = false;
+    console.log("📋 Dialogue de quête fermé");
+  };
+
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeDialog);
+  }
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', closeDialog);
+  }
+
+  // Sélection des quêtes
+  dialog.querySelectorAll('.quest-option').forEach(option => {
+    option.addEventListener('click', () => {
+      dialog.querySelectorAll('.quest-option').forEach(opt => 
+        opt.classList.remove('selected')
+      );
+      option.classList.add('selected');
+      selectedQuestId = option.dataset.questId;
+      acceptBtn.disabled = false;
+      
+      console.log(`📋 Quête sélectionnée: ${selectedQuestId}`);
+    });
+  });
+
+  // ✅ CORRECTION: Handler d'acceptation
+  const acceptQuest = () => {
+    if (!selectedQuestId && defaultSelectedId) {
+      selectedQuestId = defaultSelectedId;
+    }
+    if (!selectedQuestId) {
+      const selectedOption = dialog.querySelector('.quest-option.selected') || dialog.querySelector('.quest-option');
+      if (selectedOption) {
+        selectedQuestId = selectedOption.dataset.questId;
+      }
+    }
+    
+    console.log("🎯 Acceptation de la quête:", selectedQuestId);
+    
+    if (selectedQuestId && onSelectQuest) {
+      onSelectQuest(selectedQuestId);
+    }
+    closeDialog();
+  };
+
+  acceptBtn.addEventListener('click', acceptQuest);
+
+  // ✅ NOUVEAU: Gestion clavier pour le dialogue de quête
+  const handleKeydown = (e) => {
+    // ✅ VÉRIFIER QUE LE DIALOGUE EST TOUJOURS OUVERT
+    if (!dialog || !dialog.parentNode) {
+      document.removeEventListener('keydown', handleKeydown);
+      return;
+    }
+
+    console.log(`⌨️ Touche pressée dans dialogue quête: ${e.key}`);
+
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault();
+        e.stopPropagation();
+        closeDialog();
+        break;
+        
+      case 'Enter':
+      case 'e':
+      case 'E':
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Vérifier si une quête est sélectionnée ou s'il y en a qu'une seule
+        if (selectedQuestId || defaultSelectedId) {
+          console.log(`✅ Acceptation via ${e.key}: ${selectedQuestId || defaultSelectedId}`);
+          acceptQuest();
+        } else {
+          // Sélectionner la première quête disponible
+          const firstOption = dialog.querySelector('.quest-option');
+          if (firstOption) {
+            firstOption.click();
+          }
+        }
+        break;
+        
+      case 'ArrowUp':
+      case 'ArrowDown':
+        e.preventDefault();
+        e.stopPropagation();
+        this.navigateQuestOptions(dialog, e.key === 'ArrowDown' ? 1 : -1);
+        break;
+    }
+  };
+
+  // ✅ AJOUTER LE LISTENER KEYBOARD
+  document.addEventListener('keydown', handleKeydown);
+  
+  // ✅ FOCUS AUTOMATIQUE sur le dialogue pour capturer les touches
+  dialog.tabIndex = -1;
+  dialog.focus();
+
+  console.log(`📋 Event listeners configurés pour dialogue quête (selectedId: ${selectedQuestId})`);
+}
   // ✅ FIX 10: Amélioration de startQuest
   startQuest(questId) {
     console.log("🎯 Démarrage de la quête:", questId);
