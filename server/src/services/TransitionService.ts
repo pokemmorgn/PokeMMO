@@ -330,15 +330,14 @@ export class TransitionService {
             }
           } else if (objName === 'spawn') {
   const spawnKey = this.getProperty(obj, 'targetspawn');
-  if (spawnKey) {
-    spawns.push({
-      name: spawnKey,   // clé logique du spawn (la propriété, pas le nom objet)
-      x: obj.x,
-      y: obj.y,
-      zone: zoneName
-    });
-    // log
-  }
+  spawns.push({
+    name: spawnKey || 'default', // fallback sur 'default'
+    x: obj.x,
+    y: obj.y,
+    zone: zoneName
+  });
+}
+
 }
           }
         });
