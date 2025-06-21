@@ -276,6 +276,11 @@ export class TransitionManager {
 
         if (result.success) {
           console.log(`✅ [TransitionManager] Transition validée par le serveur`);
+            // ✅ FORCER LA SYNCHRONISATION DE ZONE IMMÉDIATEMENT
+  if (this.scene.networkManager && result.currentZone) {
+    console.log(`🔄 [TransitionManager] Force sync zone: ${this.scene.networkManager.currentZone} → ${result.currentZone}`);
+    this.scene.networkManager.currentZone = result.currentZone;
+  }
               this.scene.scene.start(targetScene, transitionData);
 
           if (result.position) {
