@@ -369,27 +369,29 @@ setupValidationListener(teleportData, myPlayer, targetScene, transitionData) {
   }
 
   // ✅ NOUVELLE MÉTHODE: Afficher une erreur de transition
-  showTransitionError(reason) {
-    if (typeof this.scene.showNotification === 'function') {
-      this.scene.showNotification(`Transition refusée: ${reason}`, 'error');
-    } else {
-      console.error(`🚫 [TransitionManager] ${reason}`);
-      
-      // Fallback: créer une notification temporaire
-      if (this.scene.add && this.scene.cameras) {
-        const notification = this.scene.add.text(
-          this.scene.cameras.main.centerX,
-          50,
-          `Transition refusée: ${reason}`,
-          {
-            fontSize: '16px',
-            fontFamily: 'Arial',
-            color: '#ff4444',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            padding: { x: 10, y: 5 }
-          }
-        ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
+  // ✅ NOUVELLE MÉTHODE: Afficher une erreur de transition
+showTransitionError(reason) {
+  console.error(`🚫 [TransitionManager] ${reason}`);
+  
+  if (typeof this.scene.showNotification === 'function') {
+    this.scene.showNotification(`Transition refusée: ${reason}`, 'error');
+  } else {
+    // ✅ CORRECTION: Vérifier que les objets existent avant de les utiliser
+    if (this.scene.add && this.scene.cameras && this.scene.cameras.main) {
+      const notification = this.scene.add.text(
+        this.scene.cameras.main.worldView.centerX || this.scene.scale.width / 2,
+        50,
+        `Transition refusée: ${reason}`,
+        {
+          fontSize: '16px',
+          fontFamily: 'Arial',
+          color: '#ff4444',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          padding: { x: 10, y: 5 }
+        }
+      ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
 
+      if (this.scene.time) {
         this.scene.time.delayedCall(3000, () => {
           if (notification && notification.scene) {
             notification.destroy();
@@ -398,6 +400,7 @@ setupValidationListener(teleportData, myPlayer, targetScene, transitionData) {
       }
     }
   }
+}
 
   // ✅ CALCULER LA POSITION DE SPAWN
   async calculateSpawnPosition(targetSpawnName, targetZone) {
