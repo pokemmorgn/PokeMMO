@@ -570,58 +570,32 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   // ✅ AMÉLIORATION: Gestion des succès de transition
-  // ✅ CORRECTION: handleTransitionSuccess pour ZoneManager côté serveur
-// Sans modification de la logique NPCs
-
-handleTransitionSuccess(result) {
-  console.log(`✅ [${this.scene.key}] === TRANSITION RÉUSSIE (ZoneManager) ===`);
-  console.log(`📍 Nouvelle zone: ${result.currentZone}`);
-  console.log(`📊 Position serveur: (${result.position?.x}, ${result.position?.y})`);
-  
-  // ✅ Marquer le moment de transition pour la grâce des NPCs (conservé tel quel)
-  this._lastTransitionTime = Date.now();
-  
-  const targetScene = this.mapZoneToScene(result.currentZone);
-  
-  if (targetScene === this.scene.key) {
-    console.log(`📍 [${this.scene.key}] Repositionnement dans la même scène`);
+  handleTransitionSuccess(result) {
+    console.log(`✅ [${this.scene.key}] === TRANSITION RÉUSSIE ===`);
+    console.log(`📍 Destination: ${result.currentZone}`);
+    console.log(`📊 Résultat:`, result);
     
-    // ✅ CORRECTION: Appliquer directement la position serveur
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (myPlayer && result.position) {
-      console.log(`🔧 [${this.scene.key}] Application position serveur: (${result.position.x}, ${result.position.y})`);
+    // ✅ FIX 3: Marquer le moment de transition pour la grâce des NPCs
+    this._lastTransitionTime = Date.now();
+    
+    const targetScene = this.mapZoneToScene(result.currentZone);
+    
+    if (targetScene === this.scene.key) {
+      console.log(`📍 [${this.scene.key}] Repositionnement dans la même scène`);
+      this.repositionPlayerAfterTransition(result);
       
-      myPlayer.x = result.position.x;
-      myPlayer.y = result.position.y;
-      myPlayer.targetX = result.position.x;
-      myPlayer.targetY = result.position.y;
-      
-      if (myPlayer.indicator) {
-        myPlayer.indicator.x = result.position.x;
-        myPlayer.indicator.y = result.position.y - 24;
-      }
-      
-      // Mettre à jour la caméra
-      if (this.cameraManager) {
-        this.cameraManager.snapToPlayer();
-      }
-      
-      console.log(`✅ [${this.scene.key}] Position appliquée: (${myPlayer.x}, ${myPlayer.y})`);
+      // ✅ FIX 4: Forcer le rechargement des NPCs après repositionnement
+      this.time.delayedCall(500, () => {
+        if (this.networkManager?.lastReceivedNpcs) {
+          console.log(`🔄 [${this.scene.key}] Rechargement forcé des NPCs`);
+          this.npcManager?.spawnNpcs(this.networkManager.lastReceivedNpcs);
+        }
+      });
+    } else {
+      console.log(`🚀 [${this.scene.key}] Changement vers: ${targetScene}`);
+      this.performSceneTransition(targetScene, result);
     }
-    
-    // ✅ NPCs: Code conservé tel quel
-    this.time.delayedCall(500, () => {
-      if (this.networkManager?.lastReceivedNpcs) {
-        console.log(`🔄 [${this.scene.key}] Rechargement forcé des NPCs`);
-        this.npcManager?.spawnNpcs(this.networkManager.lastReceivedNpcs);
-      }
-    });
-    
-  } else {
-    console.log(`🚀 [${this.scene.key}] Changement vers: ${targetScene}`);
-    this.performSceneTransition(targetScene, result);
   }
-}
 
   // ✅ NOUVELLE MÉTHODE: Repositionnement du joueur
 
