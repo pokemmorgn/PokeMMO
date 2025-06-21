@@ -381,7 +381,26 @@ performRollback(originalZone, originalPlayer) {
   console.log(`🔄 [TransitionManager] Rollback vers ${originalScene} à (${rollbackX}, ${rollbackY})`);
   this.scene.scene.start(originalScene, rollbackData);
 }
+// ✅ NOUVELLE MÉTHODE: Rollback amélioré
+performRollbackImproved(originalState) {
+  console.log(`🔄 [TransitionManager] === ROLLBACK AMÉLIORÉ ===`);
+  console.log(`📍 Retour vers: ${originalState.scene} (${originalState.zone})`);
+  
+  // Données pour le rollback avec l'état original complet
+  const rollbackData = {
+    fromTransition: true,
+    isRollback: true,
+    spawnX: originalState.player.x,
+    spawnY: originalState.player.y,
+    networkManager: this.scene.networkManager,
+    mySessionId: this.scene.mySessionId,
+    forcePlayerSync: true,
+    restorePlayerState: originalState.player // ✅ Restaurer l'état complet
+  };
 
+  console.log(`🔄 [TransitionManager] Rollback vers ${originalState.scene}`);
+  this.scene.scene.start(originalState.scene, rollbackData);
+}
   // ✅ NOUVELLE MÉTHODE: Afficher une erreur de transition
   // ✅ NOUVELLE MÉTHODE: Afficher une erreur de transition
 showTransitionError(reason) {
