@@ -1,4 +1,6 @@
 // server/src/services/TransitionService.ts
+// ✅ VERSION SÉCURISÉE AVEC VALIDATION CROISÉE TÉLÉPORT-SPAWN
+
 import { Client } from "@colyseus/core";
 import { NpcManager } from "../managers/NPCManager";
 import { Player } from "../schema/PokeWorldState";
@@ -21,6 +23,10 @@ export interface TransitionResult {
   position?: { x: number; y: number };
   currentZone?: string;
   rollback?: boolean;
+  // ✅ NOUVEAUX CHAMPS POUR DEBUG
+  validatedTeleport?: TeleportData;
+  originalSpawn?: string;
+  finalSpawn?: string;
 }
 
 export interface TeleportData {
@@ -47,107 +53,18 @@ export class TransitionService {
     console.log(`🔄 [TransitionService] Initialisé avec ${this.teleportData.size} zones`);
   }
 
-  // ✅ CHARGEMENT DES DONNÉES DE TOUTES LES MAPS
- private loadAllMapsData() {
-  console.log(`🔄 [TransitionService] Chargement depuis NPCManagers...`);
-  
-  this.npcManagers.forEach((npcManager, zoneName) => {
-    try {
-      // Utiliser les données déjà chargées par NPCManager
-      this.extractTeleportsFromNpcManager(zoneName, npcManager);
-    } catch (error) {
-      console.warn(`⚠️ [TransitionService] Erreur extraction ${zoneName}:`, error);
-    }
-  });
-
-  console.log(`✅ [TransitionService] Données extraites de ${this.teleportData.size} NPCManagers`);
-}
-
- // ✅ EXTRACTION DEPUIS NPCMANAGER
-private extractTeleportsFromNpcManager(zoneName: string, npcManager: NpcManager) {
-  // Accéder aux données de map déjà chargées
-  const mapPath = path.resolve(__dirname, `../assets/maps/${zoneName}.tmj`);
-  
-  if (!fs.existsSync(mapPath)) {
-    console.warn(`⚠️ [TransitionService] Map non trouvée: ${mapPath}`);
-    return;
-  }
-
-  const mapData = JSON.parse(fs.readFileSync(mapPath, 'utf-8'));
-  
-  const teleports: TeleportData[] = [];
-  const spawns: any[] = [];
-
-  if (!mapData.layers) return;
-
-  // Chercher dans tous les layers d'objets
-  mapData.layers.forEach((layer: any) => {
-    if (layer.type === 'objectgroup' && layer.objects) {
-      layer.objects.forEach((obj: any) => {
-        const objName = (obj.name || '').toLowerCase();
-        
-        if (objName === 'teleport') {
-          const targetZone = this.getProperty(obj, 'targetzone');
-          const targetSpawn = this.getProperty(obj, 'targetspawn');
-          
-          if (targetZone) {
-            teleports.push({
-              id: `${zoneName}_${obj.id}`,
-              x: obj.x,
-              y: obj.y,
-              width: obj.width || 32,
-              height: obj.height || 32,
-              targetZone: targetZone,
-              targetSpawn: targetSpawn
-            });
-            
-            console.log(`📍 [TransitionService] Teleport ${zoneName}_${obj.id}: (${obj.x}, ${obj.y}) → ${targetZone}/${targetSpawn}`);
-          }
-        } else if (objName === 'spawn') {
-          // ✅ CORRECTION: Utiliser obj.name directement ou propriété spawnname
-          const spawnName = this.getProperty(obj, 'targetspawn'); // ← Au lieu de 'spawnname'
-            
-  if (spawnName) { // ← Au lieu de "spawnName !== 'spawn'"
-    spawns.push({
-      name: spawnName,
-      x: obj.x,
-      y: obj.y,
-      zone: zoneName
-    });
-            // ✅ AJOUTER ICI - Log détaillé des spawns trouvés
-console.log(`🎯 [TransitionService] === SPAWNS DÉTAILLÉS POUR ${zoneName.toUpperCase()} ===`);
-if (spawns.length === 0) {
-  console.log(`❌ Aucun spawn trouvé dans ${zoneName}`);
-} else {
-  spawns.forEach((spawn, index) => {
-    console.log(`  ${index + 1}. "${spawn.name}" à (${spawn.x}, ${spawn.y})`);
-  });
-}
-console.log(`📊 Total: ${spawns.length} spawns dans ${zoneName}`);
-console.log(`===============================================`);
-            console.log(`🎯 [TransitionService] Spawn "${spawnName}": (${obj.x}, ${obj.y}) dans ${zoneName}`);
-          }
-        }
-      });
-    }
-  });
-
-  this.teleportData.set(zoneName, teleports);
-  this.spawnData.set(zoneName, spawns);
-  
-  console.log(`📊 [TransitionService] ${zoneName}: ${teleports.length} téléports, ${spawns.length} spawns chargés`);
-}
-
-  // ✅ VALIDATION PRINCIPALE D'UNE TRANSITION
+  // ✅ VALIDATION PRINCIPALE AVEC SÉCURITÉ RENFORCÉE
   async validateTransition(client: Client, player: Player, request: TransitionRequest): Promise<TransitionResult> {
-    console.log(`🔍 [TransitionService] === VALIDATION TRANSITION ===`);
+    console.log(`🔍 [TransitionService] === VALIDATION TRANSITION SÉCURISÉE ===`);
     console.log(`👤 Joueur: ${player.name} (${client.sessionId})`);
     console.log(`📍 ${request.fromZone} → ${request.targetZone}`);
     console.log(`📊 Position: (${request.playerX}, ${request.playerY})`);
+    console.log(`🎯 Spawn demandé par client: "${request.targetSpawn || 'AUCUN'}"`);
 
     try {
       // 1. Vérifier que les zones existent
       if (!this.teleportData.has(request.fromZone)) {
+        console.error(`❌ [TransitionService] Zone source inconnue: ${request.fromZone}`);
         return {
           success: false,
           reason: `Zone source inconnue: ${request.fromZone}`,
@@ -156,6 +73,7 @@ console.log(`===============================================`);
       }
 
       if (!this.teleportData.has(request.targetZone)) {
+        console.error(`❌ [TransitionService] Zone de destination inconnue: ${request.targetZone}`);
         return {
           success: false,
           reason: `Zone de destination inconnue: ${request.targetZone}`,
@@ -163,35 +81,51 @@ console.log(`===============================================`);
         };
       }
 
-      // 2. Vérifier les règles de configuration
+      // 2. ✅ NOUVELLE ÉTAPE : Validation croisée téléport-spawn (SÉCURITÉ CRITIQUE)
+      const teleportValidation = this.validateTeleportAndSpawn(request);
+      if (!teleportValidation.success) {
+        return teleportValidation;
+      }
+
+      // 3. Récupérer le téléport validé
+      const validatedTeleport = teleportValidation.validatedTeleport!;
+      console.log(`✅ [TransitionService] Téléport validé: ${validatedTeleport.id}`);
+      console.log(`🎯 [TransitionService] Spawn autorisé: "${validatedTeleport.targetSpawn || 'DÉFAUT'}"`);
+
+      // 4. Vérifier les règles de configuration
       const configValidation = await this.validateConfigRules(player, request);
       if (!configValidation.success) {
         return configValidation;
       }
 
-      // 3. Vérifier la proximité du téléport
-      const teleportValidation = this.validateTeleportProximity(request);
-      if (!teleportValidation.success) {
-        return teleportValidation;
-      }
+      // 5. ✅ UTILISER LE SPAWN DU TÉLÉPORT, PAS DU CLIENT
+      const authorizedSpawn = validatedTeleport.targetSpawn;
+      console.log(`🔒 [TransitionService] Spawn final (serveur fait autorité): "${authorizedSpawn || 'DÉFAUT'}"`);
 
-      // 4. Calculer la position de spawn
-      const spawnPosition = this.calculateSpawnPosition(request.targetZone, request.targetSpawn);
+      // 6. Calculer la position de spawn avec le spawn autorisé
+      const spawnPosition = this.calculateSpawnPosition(request.targetZone, authorizedSpawn);
       if (!spawnPosition) {
+        console.error(`❌ [TransitionService] Position de spawn introuvable: "${authorizedSpawn || 'DÉFAUT'}"`);
         return {
           success: false,
-          reason: `Position de spawn introuvable: ${request.targetSpawn || 'défaut'}`,
+          reason: `Position de spawn introuvable: ${authorizedSpawn || 'défaut'}`,
           rollback: true
         };
       }
 
-      // 5. Validation réussie
-      console.log(`✅ [TransitionService] Transition validée: ${request.fromZone} → ${request.targetZone}`);
+      // 7. Validation réussie
+      console.log(`✅ [TransitionService] === TRANSITION VALIDÉE ===`);
+      console.log(`📍 Position finale: (${spawnPosition.x}, ${spawnPosition.y})`);
+      console.log(`🎯 Spawn utilisé: "${authorizedSpawn || 'DÉFAUT'}"`);
       
       return {
         success: true,
         position: spawnPosition,
-        currentZone: request.targetZone
+        currentZone: request.targetZone,
+        // ✅ DONNÉES DE DEBUG
+        validatedTeleport: validatedTeleport,
+        originalSpawn: request.targetSpawn,
+        finalSpawn: authorizedSpawn
       };
 
     } catch (error) {
@@ -204,25 +138,238 @@ console.log(`===============================================`);
     }
   }
 
-  // ✅ VALIDATION DES RÈGLES DE CONFIGURATION
+  // ✅ NOUVELLE MÉTHODE : Validation croisée téléport-spawn (CŒUR DE LA SÉCURITÉ)
+  private validateTeleportAndSpawn(request: TransitionRequest): TransitionResult & { validatedTeleport?: TeleportData } {
+    console.log(`🔒 [TransitionService] === VALIDATION CROISÉE TÉLÉPORT-SPAWN ===`);
+    
+    const teleports = this.teleportData.get(request.fromZone);
+    if (!teleports) {
+      console.error(`❌ [TransitionService] Aucun téléport trouvé dans ${request.fromZone}`);
+      return {
+        success: false,
+        reason: "Aucun téléport trouvé dans cette zone",
+        rollback: true
+      };
+    }
+
+    console.log(`🔍 [TransitionService] Vérification de ${teleports.length} téléports dans ${request.fromZone}`);
+
+    // Chercher un téléport valide à proximité ET avec la bonne destination
+    const validTeleport = teleports.find(teleport => {
+      console.log(`🔍 [TransitionService] Test téléport ${teleport.id}:`);
+      console.log(`  📍 Position: (${teleport.x}, ${teleport.y}) taille: ${teleport.width}x${teleport.height}`);
+      console.log(`  🌍 Zone cible: ${teleport.targetZone} (demandé: ${request.targetZone})`);
+      console.log(`  🎯 Spawn cible: "${teleport.targetSpawn || 'AUCUN'}" (demandé: "${request.targetSpawn || 'AUCUN'}")`);
+      
+      // Vérification 1: Zone de destination
+      if (teleport.targetZone !== request.targetZone) {
+        console.log(`  ❌ Zone mismatch: téléport → ${teleport.targetZone}, demandé → ${request.targetZone}`);
+        return false;
+      }
+      
+      // ✅ VÉRIFICATION CRITIQUE 2: Spawn de destination
+      if (request.targetSpawn && teleport.targetSpawn !== request.targetSpawn) {
+        console.warn(`  🚨 [SÉCURITÉ] TENTATIVE DE MANIPULATION DE SPAWN DÉTECTÉE !`);
+        console.warn(`    Téléport autorisé: "${teleport.targetSpawn || 'AUCUN'}"`);
+        console.warn(`    Client a demandé: "${request.targetSpawn}"`);
+        console.warn(`    Joueur potentiellement malveillant ou bug client`);
+        return false;
+      }
+      
+      // Vérification 3: Proximité physique
+      const teleportCenterX = teleport.x + (teleport.width / 2);
+      const teleportCenterY = teleport.y + (teleport.height / 2);
+      const playerCenterX = request.playerX + 16;
+      const playerCenterY = request.playerY + 16;
+      
+      const distance = Math.sqrt(
+        Math.pow(playerCenterX - teleportCenterX, 2) + 
+        Math.pow(playerCenterY - teleportCenterY, 2)
+      );
+      
+      const maxDistance = Math.max(teleport.width, teleport.height) + 50;
+      
+      console.log(`  📏 Distance: ${distance.toFixed(2)}px (max: ${maxDistance}px)`);
+      
+      if (distance > maxDistance) {
+        console.log(`  ❌ Trop éloigné: ${distance.toFixed(2)} > ${maxDistance}`);
+        return false;
+      }
+      
+      console.log(`  ✅ Téléport VALIDE : toutes les vérifications passées`);
+      return true;
+    });
+
+    if (!validTeleport) {
+      console.error(`❌ [TransitionService] === AUCUN TÉLÉPORT VALIDE ===`);
+      console.error(`  Zone: ${request.fromZone} → ${request.targetZone}`);
+      console.error(`  Position: (${request.playerX}, ${request.playerY})`);
+      console.error(`  Spawn demandé: "${request.targetSpawn || 'AUCUN'}"`);
+      console.error(`  Téléports disponibles:`);
+      teleports.forEach(t => {
+        console.error(`    - ${t.id}: (${t.x}, ${t.y}) → ${t.targetZone}/"${t.targetSpawn || 'AUCUN'}"`);
+      });
+      
+      return {
+        success: false,
+        reason: "Aucun téléport valide à cette position avec cette destination",
+        rollback: true
+      };
+    }
+
+    console.log(`✅ [TransitionService] === TÉLÉPORT SÉCURISÉ TROUVÉ ===`);
+    console.log(`  ID: ${validTeleport.id}`);
+    console.log(`  Zone: ${validTeleport.targetZone}`);
+    console.log(`  Spawn: "${validTeleport.targetSpawn || 'DÉFAUT'}"`);
+
+    return { 
+      success: true,
+      validatedTeleport: validTeleport
+    };
+  }
+
+  // ✅ CALCUL DE SPAWN AVEC LOGS DÉTAILLÉS
+  private calculateSpawnPosition(targetZone: string, authorizedSpawn?: string): { x: number; y: number } | null {
+    console.log(`🎯 [TransitionService] === CALCUL POSITION SPAWN ===`);
+    console.log(`🌍 Zone cible: ${targetZone}`);
+    console.log(`🎯 Spawn autorisé: "${authorizedSpawn || 'AUCUN (chercher défaut)'}"`);
+    
+    const spawns = this.spawnData.get(targetZone);
+    if (!spawns || spawns.length === 0) {
+      console.warn(`⚠️ [TransitionService] Aucun spawn configuré dans ${targetZone}`);
+      console.log(`🔄 [TransitionService] Utilisation position de fallback: (100, 100)`);
+      return { x: 100, y: 100 };
+    }
+
+    console.log(`📋 [TransitionService] Spawns disponibles dans ${targetZone} (${spawns.length}):`);
+    spawns.forEach((spawn, index) => {
+      console.log(`  ${index + 1}. "${spawn.name}" à (${spawn.x}, ${spawn.y})`);
+    });
+
+    // Si un spawn spécifique est autorisé, le chercher
+    if (authorizedSpawn) {
+      const namedSpawn = spawns.find(spawn => spawn.name === authorizedSpawn);
+      if (namedSpawn) {
+        console.log(`✅ [TransitionService] Spawn trouvé: "${authorizedSpawn}" → (${namedSpawn.x}, ${namedSpawn.y})`);
+        return { x: namedSpawn.x, y: namedSpawn.y };
+      } else {
+        console.warn(`⚠️ [TransitionService] Spawn "${authorizedSpawn}" introuvable !`);
+        console.log(`📋 [TransitionService] Spawns existants: ${spawns.map(s => `"${s.name}"`).join(', ')}`);
+      }
+    }
+
+    // Chercher un spawn "default" ou "main"
+    const defaultSpawn = spawns.find(spawn => 
+      spawn.name === 'default' || 
+      spawn.name === 'main' || 
+      spawn.name === 'spawn'
+    );
+    
+    if (defaultSpawn) {
+      console.log(`✅ [TransitionService] Spawn par défaut trouvé: "${defaultSpawn.name}" → (${defaultSpawn.x}, ${defaultSpawn.y})`);
+      return { x: defaultSpawn.x, y: defaultSpawn.y };
+    }
+
+    // Prendre le premier spawn disponible
+    const firstSpawn = spawns[0];
+    console.warn(`⚠️ [TransitionService] Aucun spawn spécifique, utilisation du premier: "${firstSpawn.name}" → (${firstSpawn.x}, ${firstSpawn.y})`);
+    return { x: firstSpawn.x, y: firstSpawn.y };
+  }
+
+  // ✅ MÉTHODES EXISTANTES CONSERVÉES (sans changement)
+  private loadAllMapsData() {
+    console.log(`🔄 [TransitionService] Chargement depuis NPCManagers...`);
+    
+    this.npcManagers.forEach((npcManager, zoneName) => {
+      try {
+        this.extractTeleportsFromNpcManager(zoneName, npcManager);
+      } catch (error) {
+        console.warn(`⚠️ [TransitionService] Erreur extraction ${zoneName}:`, error);
+      }
+    });
+
+    console.log(`✅ [TransitionService] Données extraites de ${this.teleportData.size} NPCManagers`);
+  }
+
+  private extractTeleportsFromNpcManager(zoneName: string, npcManager: NpcManager) {
+    const mapPath = path.resolve(__dirname, `../assets/maps/${zoneName}.tmj`);
+    
+    if (!fs.existsSync(mapPath)) {
+      console.warn(`⚠️ [TransitionService] Map non trouvée: ${mapPath}`);
+      return;
+    }
+
+    const mapData = JSON.parse(fs.readFileSync(mapPath, 'utf-8'));
+    
+    const teleports: TeleportData[] = [];
+    const spawns: any[] = [];
+
+    if (!mapData.layers) return;
+
+    mapData.layers.forEach((layer: any) => {
+      if (layer.type === 'objectgroup' && layer.objects) {
+        layer.objects.forEach((obj: any) => {
+          const objName = (obj.name || '').toLowerCase();
+          
+          if (objName === 'teleport') {
+            const targetZone = this.getProperty(obj, 'targetzone');
+            const targetSpawn = this.getProperty(obj, 'targetspawn');
+            
+            if (targetZone) {
+              teleports.push({
+                id: `${zoneName}_${obj.id}`,
+                x: obj.x,
+                y: obj.y,
+                width: obj.width || 32,
+                height: obj.height || 32,
+                targetZone: targetZone,
+                targetSpawn: targetSpawn
+              });
+              
+              console.log(`📍 [TransitionService] Teleport ${zoneName}_${obj.id}: (${obj.x}, ${obj.y}) → ${targetZone}/"${targetSpawn || 'AUCUN'}"`);
+            }
+          } else if (objName === 'spawn') {
+            const spawnName = this.getProperty(obj, 'targetspawn') || obj.name;
+            
+            if (spawnName && spawnName !== 'spawn') {
+              spawns.push({
+                name: spawnName,
+                x: obj.x,
+                y: obj.y,
+                zone: zoneName
+              });
+              
+              console.log(`🎯 [TransitionService] Spawn "${spawnName}": (${obj.x}, ${obj.y}) dans ${zoneName}`);
+            }
+          }
+        });
+      }
+    });
+
+    this.teleportData.set(zoneName, teleports);
+    this.spawnData.set(zoneName, spawns);
+    
+    console.log(`📊 [TransitionService] ${zoneName}: ${teleports.length} téléports, ${spawns.length} spawns chargés`);
+  }
+
   private async validateConfigRules(player: Player, request: TransitionRequest): Promise<TransitionResult> {
     const context: ValidationContext = {
       playerName: player.name,
-      playerLevel: 1, // TODO: Récupérer le vrai niveau
+      playerLevel: player.level || 1,
       currentZone: request.fromZone,
       targetZone: request.targetZone,
       playerX: request.playerX,
       playerY: request.playerY,
-      hasVipAccess: false, // TODO: Vérifier le statut VIP
-      completedQuests: [], // TODO: Récupérer les quêtes complétées
-      inventory: [], // TODO: Récupérer l'inventaire
-      badges: [] // TODO: Récupérer les badges
+      hasVipAccess: false,
+      completedQuests: [],
+      inventory: [],
+      badges: []
     };
 
     const canTransition = await this.config.canPlayerTransition(context);
     
     if (!canTransition.allowed) {
-      console.log(`❌ [TransitionService] Transition refusée: ${canTransition.reason}`);
+      console.log(`❌ [TransitionService] Transition refusée par config: ${canTransition.reason}`);
       return {
         success: false,
         reason: canTransition.reason,
@@ -233,104 +380,13 @@ console.log(`===============================================`);
     return { success: true };
   }
 
-  // ✅ VALIDATION DE LA PROXIMITÉ DU TÉLÉPORT
-  private validateTeleportProximity(request: TransitionRequest): TransitionResult {
-  const teleports = this.teleportData.get(request.fromZone);
-  if (!teleports) {
-    return {
-      success: false,
-      reason: "Aucun téléport trouvé dans cette zone",
-      rollback: true
-    };
-  }
-
-  console.log(`🔍 [TransitionService] Vérification proximité pour ${teleports.length} téléports`);
-
-  // Chercher un téléport valide à proximité
-  const validTeleport = teleports.find(teleport => {
-    if (teleport.targetZone !== request.targetZone) return false;
-    
-    // ✅ VALIDATION PLUS TOLÉRANTE AVEC DISTANCE
-    const teleportCenterX = teleport.x + (teleport.width / 2);
-    const teleportCenterY = teleport.y + (teleport.height / 2);
-    const playerCenterX = request.playerX + 16;
-    const playerCenterY = request.playerY + 16;
-    
-    const distance = Math.sqrt(
-      Math.pow(playerCenterX - teleportCenterX, 2) + 
-      Math.pow(playerCenterY - teleportCenterY, 2)
-    );
-    
-    // Distance maximale = taille du téléport + 50px de tolérance
-    const maxDistance = Math.max(teleport.width, teleport.height) + 50;
-    
-    console.log(`📏 Téléport ${teleport.id}: distance=${distance.toFixed(2)}, max=${maxDistance}`);
-    
-    return distance <= maxDistance;
-  });
-
-  if (!validTeleport) {
-    console.log(`❌ [TransitionService] Aucun téléport valide à proximité`);
-    return {
-      success: false,
-      reason: "Aucun téléport valide à cette position",
-      rollback: true
-    };
-  }
-
-  console.log(`✅ [TransitionService] Téléport valide trouvé: ${validTeleport.id}`);
-  return { success: true };
-}
-  // ✅ CALCUL DE LA POSITION DE SPAWN
-  private calculateSpawnPosition(targetZone: string, targetSpawn?: string): { x: number; y: number } | null {
-      console.log(`🔍 [TransitionService] === RECHERCHE SPAWN ===`);
-  console.log(`Zone cible: ${targetZone}`);
-  console.log(`Spawn recherché: ${targetSpawn || 'AUCUN (par défaut)'}`);
-    const spawns = this.spawnData.get(targetZone);
-    if (spawns && spawns.length > 0) {
-    console.log(`📋 Spawns disponibles dans ${targetZone}:`);
-    spawns.forEach((spawn, index) => {
-      console.log(`  ${index + 1}. "${spawn.name}" à (${spawn.x}, ${spawn.y})`);
-    });
-  } else {
-    console.log(`❌ Aucun spawn disponible dans ${targetZone}`);
-  }
-    if (!spawns) {
-      console.warn(`⚠️ [TransitionService] Aucun spawn trouvé pour ${targetZone}`);
-      return { x: 100, y: 100 }; // Position par défaut
-    }
-
-    if (targetSpawn) {
-      const namedSpawn = spawns.find(spawn => spawn.name === targetSpawn);
-      if (namedSpawn) {
-        console.log(`✅ [TransitionService] Spawn "${targetSpawn}" trouvé: (${namedSpawn.x}, ${namedSpawn.y})`);
-        return { x: namedSpawn.x, y: namedSpawn.y };
-      } else {
-        console.warn(`⚠️ [TransitionService] Spawn "${targetSpawn}" non trouvé dans ${targetZone}`);
-      }
-    }
-
-    // Prendre le premier spawn disponible
-    if (spawns.length > 0) {
-      const defaultSpawn = spawns[0];
-      console.log(`✅ [TransitionService] Spawn par défaut: (${defaultSpawn.x}, ${defaultSpawn.y})`);
-      return { x: defaultSpawn.x, y: defaultSpawn.y };
-    }
-
-    // Position de fallback
-    console.warn(`⚠️ [TransitionService] Aucun spawn trouvé, position par défaut`);
-    return { x: 100, y: 100 };
-  }
-
-  // ✅ HELPER: Récupérer une propriété d'objet
   private getProperty(object: any, propertyName: string): any {
     if (!object.properties) return null;
     const prop = object.properties.find((p: any) => p.name === propertyName);
     return prop ? prop.value : null;
   }
 
-  // ✅ MÉTHODES PUBLIQUES POUR LE DEBUG
-
+  // ✅ MÉTHODES DE DEBUG AMÉLIORÉES
   public debugZoneData(zoneName: string): void {
     console.log(`🔍 [TransitionService] === DEBUG ${zoneName.toUpperCase()} ===`);
     
@@ -339,13 +395,15 @@ console.log(`===============================================`);
     
     console.log(`📍 TÉLÉPORTS (${teleports?.length || 0}):`);
     teleports?.forEach(teleport => {
-      console.log(`  - ${teleport.id}: (${teleport.x}, ${teleport.y}) → ${teleport.targetZone} ${teleport.targetSpawn || ''}`);
+      console.log(`  - ${teleport.id}: (${teleport.x}, ${teleport.y}) → ${teleport.targetZone}/"${teleport.targetSpawn || 'AUCUN'}"`);
     });
     
     console.log(`🎯 SPAWNS (${spawns?.length || 0}):`);
     spawns?.forEach(spawn => {
       console.log(`  - "${spawn.name}": (${spawn.x}, ${spawn.y})`);
     });
+    
+    console.log(`=======================================`);
   }
 
   public getAllZoneData(): any {
