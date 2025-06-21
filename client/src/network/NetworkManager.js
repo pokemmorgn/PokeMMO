@@ -11,12 +11,22 @@ export class NetworkManager {
     this.room = null;
     this.sessionId = null;
     this.isConnected = false;
+    this.isTransitioning = false;
     this.lastSendTime = 0;
     this.currentZone = null;
     this.lastReceivedNpcs = null;
 this.lastReceivedZoneData = null;
+      this.onTransitionValidation = null; // ✅ AJOUTER CETTE LIGNE
 
     
+    // ✅ NOUVEAU: Gestion améliorée des transitions
+    this.transitionState = {
+      isActive: false,
+      targetZone: null,
+      startTime: 0,
+      timeout: null,
+      maxDuration: 8000 // 8 secondes max
+    };
     
     this.callbacks = {
       onConnect: null,
@@ -51,7 +61,8 @@ this.lastReceivedZoneData = null;
       this.isConnected = true;
       this.currentZone = spawnZone;
       
-
+      // ✅ CORRECTION: Reset des états de transition lors de la connexion
+      this.resetTransitionState();
 
       console.log(`[NetworkManager] ✅ Connecté à WorldRoom! SessionId: ${this.sessionId}`);
 
@@ -92,6 +103,28 @@ this.room.onMessage("npcList", (npcs) => {
  if (this.callbacks.onNpcList) {
    this.callbacks.onNpcList(npcs);
  }
+});
+
+// Handler pour les résultats de validation de transition
+this.room.onMessage("transitionResult", (result) => {
+  console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
+  
+  // ✅ CORRECTION: Synchroniser la zone immédiatement
+  if (result.success && result.currentZone) {
+    console.log(`🔄 [NetworkManager] Sync zone: ${this.currentZone} → ${result.currentZone}`);
+    this.currentZone = result.currentZone;
+  }
+  
+  if (this.onTransitionValidation) {
+    this.onTransitionValidation(result);
+  }
+  
+  // ✅ Garder aussi les anciens callbacks si tu les utilises
+  if (result.success && this.callbacks.onTransitionSuccess) {
+    this.callbacks.onTransitionSuccess(result);
+  } else if (!result.success && this.callbacks.onTransitionError) {
+    this.callbacks.onTransitionError(result);
+  }
 });
 
 // Interactions NPC
@@ -154,7 +187,13 @@ this.room.onMessage("snap", (data) => {
    this.callbacks.onSnap(data);
  }
 });
-
+this.room.onMessage("transitionResult", (result) => {
+  console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
+  
+  if (this.callbacks.onTransitionValidation) {
+    this.callbacks.onTransitionValidation(result);
+  }
+});
     this.room.onLeave(() => {
       console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
       if (!this.transitionState.isActive) {
@@ -172,8 +211,84 @@ this.room.onMessage("snap", (data) => {
     }
   }
 
+  // ✅ AMÉLIORATION: Transition entre zones avec gestion d'état
+  moveToZone(targetZone, spawnX, spawnY) {
+    if (!this.isConnected || !this.room) {
+      console.warn("[NetworkManager] ⚠️ Cannot move to zone - not connected");
+      return false;
+    }
 
- 
+    // ✅ NOUVEAU: Vérifier si une transition est déjà en cours
+    if (this.transitionState.isActive) {
+      console.warn(`[NetworkManager] ⚠️ Transition déjà en cours vers: ${this.transitionState.targetZone}`);
+      return false;
+    }
+
+    console.log(`[NetworkManager] 🌀 === DEMANDE TRANSITION ===`);
+    console.log(`📍 De: ${this.currentZone} vers: ${targetZone}`);
+    console.log(`📊 Position: (${spawnX}, ${spawnY})`);
+    
+    // ✅ NOUVEAU: Marquer la transition comme active
+    this.startTransition(targetZone);
+    
+    this.room.send("moveToZone", {
+      targetZone: targetZone,
+      spawnX: spawnX,
+      spawnY: spawnY
+    });
+
+    return true;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Démarrer une transition
+  startTransition(targetZone) {
+    console.log(`[NetworkManager] 🌀 Début transition vers: ${targetZone}`);
+    
+    // Nettoyer l'ancien timeout s'il existe
+    if (this.transitionState.timeout) {
+      clearTimeout(this.transitionState.timeout);
+    }
+    
+    this.transitionState = {
+      isActive: true,
+      targetZone: targetZone,
+      startTime: Date.now(),
+      timeout: setTimeout(() => {
+        console.error(`[NetworkManager] ⏰ Timeout transition vers: ${targetZone}`);
+        this.resetTransitionState();
+        
+        if (this.callbacks.onTransitionError) {
+          this.callbacks.onTransitionError({
+            success: false,
+            reason: "Timeout de transition"
+          });
+        }
+      }, this.transitionState.maxDuration),
+      maxDuration: 8000
+    };
+    
+    // ✅ CORRECTION: Ne plus utiliser isTransitioning global
+    this.isTransitioning = true;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Reset de l'état de transition
+  resetTransitionState() {
+    console.log(`[NetworkManager] 🔄 Reset de l'état de transition`);
+    
+    if (this.transitionState.timeout) {
+      clearTimeout(this.transitionState.timeout);
+    }
+    
+    this.transitionState = {
+      isActive: false,
+      targetZone: null,
+      startTime: 0,
+      timeout: null,
+      maxDuration: 8000
+    };
+    
+    this.isTransitioning = false;
+  }
 
   // Ajoute ça dans ta classe NetworkManager !
 sendMove(x, y, direction, isMoving) {
@@ -204,7 +319,22 @@ sendMove(x, y, direction, isMoving) {
       this.room.send(type, data);
     }
   }
-
+ notifyZoneChange(newZone, x, y) {
+    if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen) {
+        console.log(`📡 [NetworkManager] Notification changement zone: ${this.currentZone} → ${newZone}`);
+        
+        this.room.send("notifyZoneChange", {
+            newZone: newZone,
+            x: x,
+            y: y
+        });
+        
+        this.currentZone = newZone;
+        console.log(`✅ [NetworkManager] Zone mise à jour: ${newZone}`);
+    } else {
+        console.warn(`⚠️ [NetworkManager] Impossible de notifier changement zone - pas connecté`);
+    }
+  }
   // Callbacks
   onConnect(callback) { this.callbacks.onConnect = callback; }
   onStateChange(callback) { this.callbacks.onStateChange = callback; }
@@ -212,8 +342,11 @@ sendMove(x, y, direction, isMoving) {
   onDisconnect(callback) { this.callbacks.onDisconnect = callback; }
   onZoneData(callback) { this.callbacks.onZoneData = callback; }
   onNpcList(callback) { this.callbacks.onNpcList = callback; }
+  onTransitionSuccess(callback) { this.callbacks.onTransitionSuccess = callback; }
+  onTransitionError(callback) { this.callbacks.onTransitionError = callback; }
   onNpcInteraction(callback) { this.callbacks.onNpcInteraction = callback; }
   onSnap(callback) { this.callbacks.onSnap = callback; }
+  onTransitionValidation(callback) { this.callbacks.onTransitionValidation = callback; }
 
 
   onMessage(type, callback) {
