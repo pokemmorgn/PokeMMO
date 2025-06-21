@@ -185,86 +185,52 @@ export class TransitionManager {
   }
 
   // ✅ DÉCLENCHER TRANSITION (SIMPLIFIÉ - SERVEUR ONLY)
-  async triggerTransition(teleportData) {
-    if (this.isTransitioning) {
-      console.log(`🌀 [TransitionManager] ⚠️ Transition déjà en cours`);
-      return;
-    }
-
-    console.log(`🌀 [TransitionManager] === DEMANDE TRANSITION SERVEUR ===`);
-    console.log(`📍 De: ${teleportData.fromZone}`);
-    console.log(`📍 Vers: ${teleportData.targetZone}`);
-    console.log(`🎯 Spawn: ${teleportData.targetSpawn || 'défaut'}`);
-
-    this.isTransitioning = true;
-
-    // Obtenir la position actuelle du joueur
-    const myPlayer = this.scene.playerManager?.getMyPlayer();
-    if (!myPlayer) {
-      console.error(`🌀 [TransitionManager] ❌ Joueur local introuvable`);
-      this.isTransitioning = false;
-      return;
-    }
-
-    // ✅ SAUVEGARDE POUR ROLLBACK
-    const originalState = {
-      zone: this.currentZone,
-      scene: this.scene.scene.key,
-      player: {
-        x: myPlayer.x,
-        y: myPlayer.y,
-        targetX: myPlayer.targetX,
-        targetY: myPlayer.targetY,
-        visible: myPlayer.visible,
-        active: myPlayer.active
-      }
-    };
-
-    const targetScene = this.zoneToScene[teleportData.targetZone];
-    if (!targetScene) {
-      console.error(`🌀 [TransitionManager] ❌ Scene inconnue pour zone: ${teleportData.targetZone}`);
-      this.isTransitioning = false;
-      return;
-    }
-
-    // ✅ POSITION TEMPORAIRE (sera corrigée par le serveur)
-    const temporarySpawnPosition = { x: 100, y: 100 };
-
-    console.log(`🚀 [TransitionManager] Transition temporaire, validation serveur en cours...`);
-    
-    const transitionData = {
-      fromZone: this.currentZone,
-      fromTransition: true,
-      localTransition: true,
-      spawnX: temporarySpawnPosition.x, // ← Position temporaire
-      spawnY: temporarySpawnPosition.y, // ← Position temporaire
-      networkManager: this.scene.networkManager,
-      mySessionId: this.scene.mySessionId,
-      forcePlayerSync: true,
-      pendingValidation: true
-    };
-
-    // ✅ SETUP LISTENER POUR VALIDATION
-    this.setupValidationListener(teleportData, originalState, targetScene, transitionData);
-
-    // ✅ ENVOYER DEMANDE AU SERVEUR
-    if (this.scene.networkManager && this.scene.networkManager.isConnected) {
-      const validationRequest = {
-        fromZone: teleportData.fromZone,
-        targetZone: teleportData.targetZone,
-        targetSpawn: teleportData.targetSpawn,
-        playerX: myPlayer.x,
-        playerY: myPlayer.y,
-        teleportId: teleportData.id
-      };
-
-      console.log(`📤 [TransitionManager] Envoi demande validation:`, validationRequest);
-      this.scene.networkManager.room.send("validateTransition", validationRequest);
-    }
-
-    // ✅ DÉMARRER LA NOUVELLE SCÈNE (position temporaire)
-    this.scene.scene.start(targetScene, transitionData);
+  // ✅ DÉCLENCHER TRANSITION (POUR ZONEMANAGER SERVEUR)
+async triggerTransition(teleportData) {
+  if (this.isTransitioning) {
+    console.log(`🌀 [TransitionManager] ⚠️ Transition déjà en cours`);
+    return;
   }
+
+  console.log(`🌀 [TransitionManager] === DEMANDE TRANSITION ZONEMANAGER ===`);
+  console.log(`📍 De: ${teleportData.fromZone}`);
+  console.log(`📍 Vers: ${teleportData.targetZone}`);
+  console.log(`🎯 Spawn: ${teleportData.targetSpawn || 'défaut'}`);
+
+  this.isTransitioning = true;
+
+  const myPlayer = this.scene.playerManager?.getMyPlayer();
+  if (!myPlayer) {
+    console.error(`🌀 [TransitionManager] ❌ Joueur local introuvable`);
+    this.isTransitioning = false;
+    return;
+  }
+
+  // ✅ CORRECTION: Utiliser moveToZone au lieu de validateTransition
+  if (this.scene.networkManager && this.scene.networkManager.isConnected) {
+    const moveRequest = {
+      targetZone: teleportData.targetZone,
+      spawnX: myPlayer.x,
+      spawnY: myPlayer.y
+    };
+
+    console.log(`📤 [TransitionManager] Envoi moveToZone:`, moveRequest);
+    this.scene.networkManager.room.send("moveToZone", moveRequest);
+    
+    // ✅ Le ZoneManager va gérer la transition et renvoyer transitionResult
+    // Plus besoin de changer de scène côté client
+    
+  } else {
+    console.error(`❌ [TransitionManager] NetworkManager non connecté`);
+    this.isTransitioning = false;
+    return;
+  }
+
+  // ✅ Reset après un délai (le serveur gèrera la suite)
+  setTimeout(() => {
+    this.isTransitioning = false;
+  }, 1000);
+}
 
   // ✅ SETUP LISTENER VALIDATION (inchangé)
   setupValidationListener(teleportData, originalState, targetScene, transitionData) {
