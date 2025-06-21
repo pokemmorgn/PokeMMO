@@ -1,5 +1,5 @@
 // server/src/services/TransitionService.ts
-// ✅ VERSION SIMPLIFIÉE SANS TARGET SPAWN - COORDONNÉES FIXES SEULEMENT
+// ✅ VERSION AVEC SYSTÈME SPAWN DYNAMIQUE VIA OBJETS TILED
 
 import { Client } from "@colyseus/core";
 import { NpcManager } from "../managers/NPCManager";
@@ -32,11 +32,22 @@ export interface TeleportData {
   width: number;
   height: number;
   targetZone: string;
+  targetSpawn: string; // ✅ AJOUT targetSpawn
+}
+
+export interface SpawnData {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  targetSpawn: string; // ✅ Propriété pour matcher avec le téléport
 }
 
 export class TransitionService {
   private npcManagers: Map<string, NpcManager>;
   private teleportData: Map<string, TeleportData[]> = new Map();
+  private spawnData: Map<string, SpawnData[]> = new Map(); // ✅ NOUVEAU: Cache des spawns
   private config: TeleportConfig;
 
   constructor(npcManagers: Map<string, NpcManager>) {
@@ -47,9 +58,9 @@ export class TransitionService {
     console.log(`🔄 [TransitionService] Initialisé avec ${this.teleportData.size} zones`);
   }
 
-  // ✅ VALIDATION SIMPLIFIÉE - PAS DE TARGETSPAWN
+  // ✅ VALIDATION AVEC SYSTÈME SPAWN DYNAMIQUE
   async validateTransition(client: Client, player: Player, request: TransitionRequest): Promise<TransitionResult> {
-    console.log(`🔍 [TransitionService] === VALIDATION TRANSITION SIMPLIFIÉE ===`);
+    console.log(`🔍 [TransitionService] === VALIDATION TRANSITION DYNAMIQUE ===`);
     console.log(`👤 Joueur: ${player.name} (${client.sessionId})`);
     console.log(`📍 ${request.fromZone} → ${request.targetZone}`);
     console.log(`📊 Position: (${request.playerX}, ${request.playerY})`);
@@ -65,6 +76,15 @@ export class TransitionService {
         };
       }
 
+      if (!this.spawnData.has(request.targetZone)) {
+        console.error(`❌ [TransitionService] Zone cible sans spawns: ${request.targetZone}`);
+        return {
+          success: false,
+          reason: `Zone cible sans spawns: ${request.targetZone}`,
+          rollback: true
+        };
+      }
+
       // 2. Validation physique du téléport (collision + destination)
       const teleportValidation = this.validateTeleportCollision(request);
       if (!teleportValidation.success) {
@@ -74,6 +94,7 @@ export class TransitionService {
       // 3. Récupérer le téléport validé
       const validatedTeleport = teleportValidation.validatedTeleport!;
       console.log(`✅ [TransitionService] Téléport validé: ${validatedTeleport.id}`);
+      console.log(`🎯 [TransitionService] TargetSpawn demandé: ${validatedTeleport.targetSpawn}`);
 
       // 4. Vérifier les règles de configuration
       const configValidation = await this.validateConfigRules(player, request);
@@ -81,20 +102,20 @@ export class TransitionService {
         return configValidation;
       }
 
-      // 5. Calculer la position de spawn FIXE selon la zone de destination
-      const spawnPosition = this.calculateFixedSpawnPosition(request.targetZone, request.fromZone);
+      // 5. ✅ NOUVEAU: Trouver le spawn correspondant dans la zone de destination
+      const spawnPosition = this.findTargetSpawn(request.targetZone, validatedTeleport.targetSpawn);
       if (!spawnPosition) {
-        console.error(`❌ [TransitionService] Position de spawn introuvable pour: ${request.targetZone}`);
+        console.error(`❌ [TransitionService] Spawn introuvable: ${request.targetZone} avec targetSpawn="${validatedTeleport.targetSpawn}"`);
         return {
           success: false,
-          reason: `Position de spawn introuvable pour: ${request.targetZone}`,
+          reason: `Position de spawn introuvable: targetSpawn="${validatedTeleport.targetSpawn}"`,
           rollback: true
         };
       }
 
       // 6. Validation réussie
-      console.log(`✅ [TransitionService] === TRANSITION VALIDÉE ===`);
-      console.log(`📍 Position finale FIXE: (${spawnPosition.x}, ${spawnPosition.y})`);
+      console.log(`✅ [TransitionService] === TRANSITION VALIDÉE AVEC SPAWN DYNAMIQUE ===`);
+      console.log(`📍 Position spawn: (${spawnPosition.x}, ${spawnPosition.y})`);
       
       return {
         success: true,
@@ -113,7 +134,7 @@ export class TransitionService {
     }
   }
 
-  // ✅ VALIDATION TÉLÉPORT SIMPLIFIÉE (collision + destination)
+  // ✅ VALIDATION TÉLÉPORT AVEC targetSpawn
   private validateTeleportCollision(request: TransitionRequest): TransitionResult & { validatedTeleport?: TeleportData } {
     console.log(`🔒 [TransitionService] === VALIDATION COLLISION TÉLÉPORT ===`);
     
@@ -134,6 +155,7 @@ export class TransitionService {
       console.log(`🔍 [TransitionService] Test téléport ${teleport.id}:`);
       console.log(`  📍 Position: (${teleport.x}, ${teleport.y}) taille: ${teleport.width}x${teleport.height}`);
       console.log(`  🌍 Zone cible: ${teleport.targetZone} (demandé: ${request.targetZone})`);
+      console.log(`  🎯 TargetSpawn: ${teleport.targetSpawn}`);
       
       // Vérification 1: Zone de destination
       if (teleport.targetZone !== request.targetZone) {
@@ -171,7 +193,7 @@ export class TransitionService {
       console.error(`  Position: (${request.playerX}, ${request.playerY})`);
       console.error(`  Téléports disponibles:`);
       teleports.forEach(t => {
-        console.error(`    - ${t.id}: (${t.x}, ${t.y}) → ${t.targetZone}`);
+        console.error(`    - ${t.id}: (${t.x}, ${t.y}) → ${t.targetZone} [${t.targetSpawn}]`);
       });
       
       return {
@@ -184,6 +206,7 @@ export class TransitionService {
     console.log(`✅ [TransitionService] === TÉLÉPORT TROUVÉ ===`);
     console.log(`  ID: ${validTeleport.id}`);
     console.log(`  Zone: ${validTeleport.targetZone}`);
+    console.log(`  TargetSpawn: ${validTeleport.targetSpawn}`);
 
     return { 
       success: true,
@@ -191,91 +214,56 @@ export class TransitionService {
     };
   }
 
-  // ✅ CALCUL DE SPAWN AVEC COORDONNÉES FIXES SELON ZONE DE DESTINATION ET D'ORIGINE
-  private calculateFixedSpawnPosition(targetZone: string, fromZone: string): { x: number; y: number } | null {
-    console.log(`[TransitionService] Calcul spawn FIXE: ${fromZone} → ${targetZone}`);
+  // ✅ NOUVEAU: Recherche du spawn correspondant au targetSpawn
+  private findTargetSpawn(targetZone: string, targetSpawn: string): { x: number; y: number } | null {
+    console.log(`[TransitionService] Recherche spawn: zone="${targetZone}" targetSpawn="${targetSpawn}"`);
     
-    // ✅ BEACH - Position fixe unique
-    if (targetZone === "beach") {
-      console.log(`[TransitionService] => SPAWN FIXE beach : (61.33, 40.67)`);
-      return { x: 61.33, y: 40.67 };
+    const spawns = this.spawnData.get(targetZone);
+    if (!spawns || spawns.length === 0) {
+      console.error(`❌ [TransitionService] Aucun spawn dans la zone: ${targetZone}`);
+      return null;
     }
+
+    console.log(`🔍 [TransitionService] ${spawns.length} spawns disponibles dans ${targetZone}:`);
+    spawns.forEach(spawn => {
+      console.log(`  - ${spawn.id}: targetSpawn="${spawn.targetSpawn}" pos=(${spawn.x}, ${spawn.y})`);
+    });
+
+    // Chercher le spawn avec le bon targetSpawn
+    const matchingSpawn = spawns.find(spawn => spawn.targetSpawn === targetSpawn);
     
-    // ✅ VILLAGE - Position selon zone d'origine
-    if (targetZone === "village") {
-      if (fromZone === "beach") {
-        console.log(`[TransitionService] => SPAWN FIXE village depuis beach : (430.00, 438.67)`);
-        return { x: 430.00, y: 438.67 };
+    if (!matchingSpawn) {
+      console.error(`❌ [TransitionService] Aucun spawn trouvé avec targetSpawn="${targetSpawn}" dans ${targetZone}`);
+      
+      // Fallback: prendre le premier spawn disponible
+      if (spawns.length > 0) {
+        console.warn(`⚠️ [TransitionService] Utilisation du spawn par défaut: ${spawns[0].id}`);
+        return { x: spawns[0].x, y: spawns[0].y };
       }
-      if (fromZone === "villagelab") {
-        console.log(`[TransitionService] => SPAWN FIXE village depuis villagelab : (160.67, 248.00)`);
-        return { x: 160.67, y: 248.00 };
-      }
-      if (fromZone === "villagehouse1") {
-        console.log(`[TransitionService] => SPAWN FIXE village depuis villagehouse1 : (47.33, 98.67)`);
-        return { x: 47.33, y: 98.67 };
-      }
-      if (fromZone === "road1") {
-        console.log(`[TransitionService] => SPAWN FIXE village depuis road1 : (200, 150)`);
-        return { x: 200, y: 150 };
-      }
-      console.log(`[TransitionService] => SPAWN village par défaut : (130, 270)`);
-      return { x: 130, y: 270 };
+      
+      return null;
     }
-    
-    // ✅ VILLAGELAB - Position fixe unique
-    if (targetZone === "villagelab") {
-      console.log(`[TransitionService] => SPAWN FIXE villagelab : (242.52, 358.00)`);
-      return { x: 242.52, y: 358.00 };
-    }
-    
-    // ✅ VILLAGEHOUSE1 - Position fixe unique
-    if (targetZone === "villagehouse1") {
-      console.log(`[TransitionService] => SPAWN FIXE villagehouse1 : (181.00, 278.00)`);
-      return { x: 181.00, y: 278.00 };
-    }
-    
-    // ✅ ROAD1 - Position selon zone d'origine
-    if (targetZone === "road1") {
-      if (fromZone === "village") {
-        console.log(`[TransitionService] => SPAWN FIXE road1 depuis village : (100, 400)`);
-        return { x: 100, y: 400 };
-      }
-      if (fromZone === "lavandia") {
-        console.log(`[TransitionService] => SPAWN FIXE road1 depuis lavandia : (800, 200)`);
-        return { x: 800, y: 200 };
-      }
-      console.log(`[TransitionService] => SPAWN road1 par défaut : (150, 350)`);
-      return { x: 150, y: 350 };
-    }
-    
-    // ✅ LAVANDIA - Position fixe unique
-    if (targetZone === "lavandia") {
-      console.log(`[TransitionService] => SPAWN FIXE lavandia : (300, 300)`);
-      return { x: 300, y: 300 };
-    }
-    
-    // Fallback par défaut
-    console.log(`[TransitionService] => SPAWN fallback pour zone inconnue ${targetZone} : (100, 100)`);
-    return { x: 100, y: 100 };
+
+    console.log(`✅ [TransitionService] Spawn trouvé: ${matchingSpawn.id} à (${matchingSpawn.x}, ${matchingSpawn.y})`);
+    return { x: matchingSpawn.x, y: matchingSpawn.y };
   }
 
-  // ✅ CHARGEMENT DES TÉLÉPORTS SANS TARGETSPAWN
+  // ✅ CHARGEMENT DES TÉLÉPORTS ET SPAWNS
   private loadAllMapsData() {
-    console.log(`🔄 [TransitionService] Chargement téléports depuis NPCManagers...`);
+    console.log(`🔄 [TransitionService] Chargement téléports et spawns depuis NPCManagers...`);
     
     this.npcManagers.forEach((npcManager, zoneName) => {
       try {
-        this.extractTeleportsFromNpcManager(zoneName, npcManager);
+        this.extractTeleportsAndSpawnsFromNpcManager(zoneName, npcManager);
       } catch (error) {
         console.warn(`⚠️ [TransitionService] Erreur extraction ${zoneName}:`, error);
       }
     });
 
-    console.log(`✅ [TransitionService] Téléports extraits de ${this.teleportData.size} NPCManagers`);
+    console.log(`✅ [TransitionService] Données extraites de ${this.teleportData.size} zones`);
   }
 
-  private extractTeleportsFromNpcManager(zoneName: string, npcManager: NpcManager) {
+  private extractTeleportsAndSpawnsFromNpcManager(zoneName: string, npcManager: NpcManager) {
     const mapPath = path.resolve(__dirname, `../assets/maps/${zoneName}.tmj`);
     
     if (!fs.existsSync(mapPath)) {
@@ -286,6 +274,7 @@ export class TransitionService {
     const mapData = JSON.parse(fs.readFileSync(mapPath, 'utf-8'));
     
     const teleports: TeleportData[] = [];
+    const spawns: SpawnData[] = [];
 
     if (!mapData.layers) return;
 
@@ -294,30 +283,49 @@ export class TransitionService {
         layer.objects.forEach((obj: any) => {
           const objName = (obj.name || '').toLowerCase();
           
-          // ✅ CHARGER SEULEMENT LES TÉLÉPORTS (pas les spawns)
+          // ✅ CHARGER LES TÉLÉPORTS
           if (objName === 'teleport') {
             const targetZone = this.getProperty(obj, 'targetzone');
+            const targetSpawn = this.getProperty(obj, 'targetspawn');
             
-            if (targetZone) {
+            if (targetZone && targetSpawn) {
               teleports.push({
-                id: `${zoneName}_${obj.id}`,
+                id: `${zoneName}_teleport_${obj.id}`,
                 x: obj.x,
                 y: obj.y,
                 width: obj.width || 32,
                 height: obj.height || 32,
-                targetZone: targetZone
+                targetZone: targetZone,
+                targetSpawn: targetSpawn
               });
-              console.log(`📍 [TransitionService] Téléport ${zoneName}_${obj.id}: (${obj.x}, ${obj.y}) → ${targetZone}`);
+              console.log(`📍 [TransitionService] Téléport ${zoneName}_teleport_${obj.id}: (${obj.x}, ${obj.y}) → ${targetZone}[${targetSpawn}]`);
             }
           }
-          // ✅ IGNORER LES SPAWNS - coordonnées fixes utilisées
+          
+          // ✅ CHARGER LES SPAWNS
+          else if (objName === 'spawn') {
+            const targetSpawn = this.getProperty(obj, 'targetspawn');
+            
+            if (targetSpawn) {
+              spawns.push({
+                id: `${zoneName}_spawn_${obj.id}`,
+                x: obj.x,
+                y: obj.y,
+                width: obj.width || 32,
+                height: obj.height || 32,
+                targetSpawn: targetSpawn
+              });
+              console.log(`🎯 [TransitionService] Spawn ${zoneName}_spawn_${obj.id}: targetSpawn="${targetSpawn}" à (${obj.x}, ${obj.y})`);
+            }
+          }
         });
       }
     });
 
     this.teleportData.set(zoneName, teleports);
+    this.spawnData.set(zoneName, spawns);
     
-    console.log(`📊 [TransitionService] ${zoneName}: ${teleports.length} téléports chargés (coordonnées fixes utilisées)`);
+    console.log(`📊 [TransitionService] ${zoneName}: ${teleports.length} téléports, ${spawns.length} spawns chargés`);
   }
 
   // ✅ MÉTHODES CONSERVÉES SANS CHANGEMENT
@@ -355,18 +363,23 @@ export class TransitionService {
     return prop ? prop.value : null;
   }
 
-  // ✅ MÉTHODES DE DEBUG SIMPLIFIÉES
+  // ✅ MÉTHODES DE DEBUG AMÉLIORÉES
   public debugZoneData(zoneName: string): void {
     console.log(`🔍 [TransitionService] === DEBUG ${zoneName.toUpperCase()} ===`);
     
     const teleports = this.teleportData.get(zoneName);
+    const spawns = this.spawnData.get(zoneName);
     
     console.log(`📍 TÉLÉPORTS (${teleports?.length || 0}):`);
     teleports?.forEach(teleport => {
-      console.log(`  - ${teleport.id}: (${teleport.x}, ${teleport.y}) → ${teleport.targetZone}`);
+      console.log(`  - ${teleport.id}: (${teleport.x}, ${teleport.y}) → ${teleport.targetZone}[${teleport.targetSpawn}]`);
     });
     
-    console.log(`🎯 SPAWNS: Coordonnées fixes utilisées dans calculateFixedSpawnPosition()`);
+    console.log(`🎯 SPAWNS (${spawns?.length || 0}):`);
+    spawns?.forEach(spawn => {
+      console.log(`  - ${spawn.id}: targetSpawn="${spawn.targetSpawn}" à (${spawn.x}, ${spawn.y})`);
+    });
+    
     console.log(`=======================================`);
   }
 
@@ -374,9 +387,10 @@ export class TransitionService {
     const result: any = {};
     
     this.teleportData.forEach((teleports, zoneName) => {
+      const spawns = this.spawnData.get(zoneName) || [];
       result[zoneName] = {
         teleports: teleports,
-        spawns: "Coordonnées fixes utilisées"
+        spawns: spawns
       };
     });
     
@@ -387,9 +401,10 @@ export class TransitionService {
     const stats: any = {};
     
     this.teleportData.forEach((teleports, zoneName) => {
+      const spawns = this.spawnData.get(zoneName) || [];
       stats[zoneName] = {
         teleportCount: teleports.length,
-        spawnMode: "coordonnées fixes"
+        spawnCount: spawns.length
       };
     });
     
