@@ -328,6 +328,20 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
     this.scheduleFilteredStateUpdate();
   }
 });
+
+    this.onMessage("requestInitialState", (client, data: { zone: string }) => {
+  console.log(`📡 [WorldRoom] Demande état initial de ${client.sessionId} pour zone: ${data.zone}`);
+  
+  // Envoyer immédiatement l'état filtré pour cette zone
+  const player = this.state.players.get(client.sessionId);
+  if (player && player.currentZone === data.zone) {
+    const filteredState = this.getFilteredStateForClient(client);
+    if (filteredState) {
+      client.send("filteredState", filteredState);
+      console.log(`✅ [WorldRoom] État initial envoyé à ${client.sessionId}`);
+    }
+  }
+});
     // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
 
     // Démarrage de quête
