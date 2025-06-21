@@ -1,5 +1,6 @@
 // client/src/scenes/zones/BaseZoneScene.js - VERSION WORLDROOM CORRIGÉE AVEC SHOP
 // ✅ Corrections pour la synchronisation et les transitions fluides + Intégration shop
+// ✅ NOUVEAU: Le serveur dicte la zone au client
 
 import { NetworkManager } from "../../network/NetworkManager.js";
 import { PlayerManager } from "../../game/PlayerManager.js";
@@ -32,9 +33,9 @@ export class BaseZoneScene extends Phaser.Scene {
     this.spawnGraceTime = 0;
     this.spawnGraceDuration = 2000; // 2 secondes
 
-    
-    // ✅ NOUVEAU : Zone mapping et état
-    this.zoneName = this.mapSceneToZone(sceneKey);
+    // ✅ NOUVEAU : Zone mapping et état - LE SERVEUR DICTE
+    this.zoneName = null; // ❌ SUPPRIMÉ: this.mapSceneToZone(sceneKey)
+    this.serverZoneConfirmed = false; // ✅ Flag pour savoir si le serveur a confirmé
     this.isSceneReady = false;
     this.networkSetupComplete = false;
 
@@ -55,7 +56,7 @@ export class BaseZoneScene extends Phaser.Scene {
   create() {
     TransitionIntegration.setupTransitions(this);
 
-    console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} (${this.zoneName}) ===`);
+    console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} (zone en attente serveur) ===`);
     console.log(`📊 Scene data reçue:`, this.scene.settings.data);
 
     this.createPlayerAnimations();
@@ -87,6 +88,9 @@ export class BaseZoneScene extends Phaser.Scene {
     if (sceneData?.networkManager) {
       console.log(`📡 [${this.scene.key}] NetworkManager reçu via transition`);
       this.useExistingNetworkManager(sceneData.networkManager, sceneData);
+      
+      // ✅ NOUVEAU : Demander immédiatement la zone au serveur
+      this.requestServerZone();
       return;
     }
     
@@ -95,6 +99,9 @@ export class BaseZoneScene extends Phaser.Scene {
     if (existingNetworkManager) {
       console.log(`📡 [${this.scene.key}] NetworkManager trouvé dans autre scène`);
       this.useExistingNetworkManager(existingNetworkManager);
+      
+      // ✅ NOUVEAU : Demander immédiatement la zone au serveur
+      this.requestServerZone();
       return;
     }
     
@@ -106,6 +113,24 @@ export class BaseZoneScene extends Phaser.Scene {
       console.error(`❌ [${this.scene.key}] Aucun NetworkManager disponible et pas BeachScene!`);
       this.showErrorState("Erreur: Connexion réseau manquante");
     }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Demander la zone au serveur
+  requestServerZone() {
+    console.log(`📍 [${this.scene.key}] === DEMANDE ZONE AU SERVEUR ===`);
+    
+    if (!this.networkManager?.room) {
+      console.error(`❌ [${this.scene.key}] Pas de connexion pour demander la zone`);
+      return;
+    }
+    
+    // Envoyer une demande de zone au serveur
+    this.networkManager.room.send("requestCurrentZone", {
+      sceneKey: this.scene.key,
+      timestamp: Date.now()
+    });
+    
+    console.log(`📤 [${this.scene.key}] Demande de zone envoyée au serveur`);
   }
 
   useExistingNetworkManager(networkManager, sceneData = null) {
@@ -344,9 +369,53 @@ export class BaseZoneScene extends Phaser.Scene {
 
     console.log(`📡 [${this.scene.key}] Configuration handlers réseau...`);
 
+    // ✅ NOUVEAU : Handler pour recevoir la zone officielle du serveur
+    this.networkManager.onMessage("currentZone", (data) => {
+      console.log(`📍 [${this.scene.key}] === ZONE REÇUE DU SERVEUR ===`);
+      console.log(`🎯 Zone serveur: ${data.zone}`);
+      console.log(`📊 Position serveur: (${data.x}, ${data.y})`);
+      
+      // ✅ APPLIQUER LA VÉRITÉ DU SERVEUR
+      const oldZone = this.zoneName;
+      this.zoneName = data.zone;
+      this.serverZoneConfirmed = true;
+      
+      console.log(`🔄 [${this.scene.key}] Zone mise à jour: ${oldZone} → ${this.zoneName}`);
+      
+      // ✅ Si la scène ne correspond pas à la zone serveur, correction
+      const expectedScene = this.mapZoneToScene(this.zoneName);
+      if (expectedScene && expectedScene !== this.scene.key) {
+        console.warn(`⚠️ [${this.scene.key}] SCÈNE INCORRECTE !`);
+        console.warn(`   Scène actuelle: ${this.scene.key}`);
+        console.warn(`   Scène attendue: ${expectedScene}`);
+        
+        // ✅ REDIRECTION AUTOMATIQUE vers la bonne scène
+        this.redirectToCorrectScene(expectedScene, data);
+        return;
+      }
+      
+      // ✅ Synchroniser le PlayerManager avec la zone confirmée
+      if (this.playerManager) {
+        this.playerManager.currentZone = this.zoneName;
+        this.playerManager.forceResynchronization();
+      }
+      
+      // ✅ Synchroniser le TransitionManager
+      if (this.transitionManager) {
+        this.transitionManager.currentZone = this.zoneName;
+      }
+      
+      console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
+    });
+
     // ✅ NOUVEAU: Handler de connexion amélioré
     this.networkManager.onConnect(() => {
       console.log(`✅ [${this.scene.key}] Connexion établie`);
+      
+      // ✅ IMMÉDIATEMENT demander la zone au serveur
+      setTimeout(() => {
+        this.requestServerZone();
+      }, 100);
       
       // Vérifier et synchroniser le sessionId
       const currentSessionId = this.networkManager.getSessionId();
@@ -403,6 +472,26 @@ export class BaseZoneScene extends Phaser.Scene {
 
     // Handlers existants
     this.setupExistingHandlers();
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Redirection vers la bonne scène
+  redirectToCorrectScene(correctScene, serverData) {
+    console.log(`🚀 [${this.scene.key}] === REDIRECTION AUTOMATIQUE ===`);
+    console.log(`📍 Vers: ${correctScene}`);
+    
+    const transitionData = {
+      fromZone: serverData.zone,
+      fromTransition: true,
+      networkManager: this.networkManager,
+      mySessionId: this.mySessionId,
+      spawnX: serverData.x,
+      spawnY: serverData.y,
+      serverForced: true, // ✅ Flag pour indiquer que c'est forcé par le serveur
+      preservePlayer: true
+    };
+    
+    // Changer vers la bonne scène
+    this.scene.start(correctScene, transitionData);
   }
 
   // ✅ NOUVELLE MÉTHODE: Synchronisation sessionId
