@@ -134,8 +134,16 @@ export class ZoneManager {
       await zone.onPlayerEnter(client);
       await this.room.onPlayerJoinZone(client, zoneName);
       
-      // ✅ DÉLÉGATION : Envoyer les statuts de quêtes
-      await this.sendQuestStatusesForZone(client, zoneName);
+      // ✅ CORRECTION: ENVOYER LES STATUTS DE QUÊTES AVEC DÉLAI
+      const player = this.room.state.players.get(client.sessionId);
+      if (player) {
+        console.log(`🎯 [ZoneManager] Programmation quest statuses pour ${player.name}`);
+        
+        // ✅ ESSAYER PLUSIEURS FOIS AVEC DÉLAIS CROISSANTS
+        setTimeout(() => this.sendQuestStatusesForZone(client, zoneName), 1000);
+        setTimeout(() => this.sendQuestStatusesForZone(client, zoneName), 3000);
+        setTimeout(() => this.sendQuestStatusesForZone(client, zoneName), 5000);
+      }
       
       console.log(`✅ Player entered zone: ${zoneName}`);
     } else {
