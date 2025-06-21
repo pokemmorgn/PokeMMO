@@ -1,5 +1,5 @@
 // server/src/services/TransitionService.ts
-// ✅ VERSION SÉCURISÉE AVEC VALIDATION CROISÉE TÉLÉPORT-SPAWN
+// ✅ VERSION SIMPLIFIÉE SANS TARGET SPAWN - COORDONNÉES FIXES SEULEMENT
 
 import { Client } from "@colyseus/core";
 import { NpcManager } from "../managers/NPCManager";
@@ -11,7 +11,6 @@ import path from "path";
 export interface TransitionRequest {
   fromZone: string;
   targetZone: string;
-  targetSpawn?: string;
   playerX: number;
   playerY: number;
   teleportId?: string;
@@ -23,10 +22,7 @@ export interface TransitionResult {
   position?: { x: number; y: number };
   currentZone?: string;
   rollback?: boolean;
-  // ✅ NOUVEAUX CHAMPS POUR DEBUG
   validatedTeleport?: TeleportData;
-  originalSpawn?: string;
-  finalSpawn?: string;
 }
 
 export interface TeleportData {
@@ -36,13 +32,11 @@ export interface TeleportData {
   width: number;
   height: number;
   targetZone: string;
-  targetSpawn?: string;
 }
 
 export class TransitionService {
   private npcManagers: Map<string, NpcManager>;
   private teleportData: Map<string, TeleportData[]> = new Map();
-  private spawnData: Map<string, any[]> = new Map();
   private config: TeleportConfig;
 
   constructor(npcManagers: Map<string, NpcManager>) {
@@ -53,13 +47,12 @@ export class TransitionService {
     console.log(`🔄 [TransitionService] Initialisé avec ${this.teleportData.size} zones`);
   }
 
-  // ✅ VALIDATION PRINCIPALE AVEC SÉCURITÉ RENFORCÉE
+  // ✅ VALIDATION SIMPLIFIÉE - PAS DE TARGETSPAWN
   async validateTransition(client: Client, player: Player, request: TransitionRequest): Promise<TransitionResult> {
-    console.log(`🔍 [TransitionService] === VALIDATION TRANSITION SÉCURISÉE ===`);
+    console.log(`🔍 [TransitionService] === VALIDATION TRANSITION SIMPLIFIÉE ===`);
     console.log(`👤 Joueur: ${player.name} (${client.sessionId})`);
     console.log(`📍 ${request.fromZone} → ${request.targetZone}`);
     console.log(`📊 Position: (${request.playerX}, ${request.playerY})`);
-    console.log(`🎯 Spawn demandé par client: "${request.targetSpawn || 'AUCUN'}"`);
 
     try {
       // 1. Vérifier que les zones existent
@@ -72,17 +65,8 @@ export class TransitionService {
         };
       }
 
-      if (!this.teleportData.has(request.targetZone)) {
-        console.error(`❌ [TransitionService] Zone de destination inconnue: ${request.targetZone}`);
-        return {
-          success: false,
-          reason: `Zone de destination inconnue: ${request.targetZone}`,
-          rollback: true
-        };
-      }
-
-      // 2. ✅ NOUVELLE ÉTAPE : Validation croisée téléport-spawn (SÉCURITÉ CRITIQUE)
-      const teleportValidation = this.validateTeleportAndSpawn(request);
+      // 2. Validation physique du téléport (collision + destination)
+      const teleportValidation = this.validateTeleportCollision(request);
       if (!teleportValidation.success) {
         return teleportValidation;
       }
@@ -90,7 +74,6 @@ export class TransitionService {
       // 3. Récupérer le téléport validé
       const validatedTeleport = teleportValidation.validatedTeleport!;
       console.log(`✅ [TransitionService] Téléport validé: ${validatedTeleport.id}`);
-      console.log(`🎯 [TransitionService] Spawn autorisé: "${validatedTeleport.targetSpawn || 'DÉFAUT'}"`);
 
       // 4. Vérifier les règles de configuration
       const configValidation = await this.validateConfigRules(player, request);
@@ -98,34 +81,26 @@ export class TransitionService {
         return configValidation;
       }
 
-      // 5. ✅ UTILISER LE SPAWN DU TÉLÉPORT, PAS DU CLIENT
-      const authorizedSpawn = validatedTeleport.targetSpawn;
-      console.log(`🔒 [TransitionService] Spawn final (serveur fait autorité): "${authorizedSpawn || 'DÉFAUT'}"`);
-
-      // 6. Calculer la position de spawn avec le spawn autorisé
-      const spawnPosition = this.calculateSpawnPosition(request.targetZone, authorizedSpawn);
+      // 5. Calculer la position de spawn FIXE selon la zone de destination
+      const spawnPosition = this.calculateFixedSpawnPosition(request.targetZone, request.fromZone);
       if (!spawnPosition) {
-        console.error(`❌ [TransitionService] Position de spawn introuvable: "${authorizedSpawn || 'DÉFAUT'}"`);
+        console.error(`❌ [TransitionService] Position de spawn introuvable pour: ${request.targetZone}`);
         return {
           success: false,
-          reason: `Position de spawn introuvable: ${authorizedSpawn || 'défaut'}`,
+          reason: `Position de spawn introuvable pour: ${request.targetZone}`,
           rollback: true
         };
       }
 
-      // 7. Validation réussie
+      // 6. Validation réussie
       console.log(`✅ [TransitionService] === TRANSITION VALIDÉE ===`);
-      console.log(`📍 Position finale: (${spawnPosition.x}, ${spawnPosition.y})`);
-      console.log(`🎯 Spawn utilisé: "${authorizedSpawn || 'DÉFAUT'}"`);
+      console.log(`📍 Position finale FIXE: (${spawnPosition.x}, ${spawnPosition.y})`);
       
       return {
         success: true,
         position: spawnPosition,
         currentZone: request.targetZone,
-        // ✅ DONNÉES DE DEBUG
-        validatedTeleport: validatedTeleport,
-        originalSpawn: request.targetSpawn,
-        finalSpawn: authorizedSpawn
+        validatedTeleport: validatedTeleport
       };
 
     } catch (error) {
@@ -138,9 +113,9 @@ export class TransitionService {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : Validation croisée téléport-spawn (CŒUR DE LA SÉCURITÉ)
-  private validateTeleportAndSpawn(request: TransitionRequest): TransitionResult & { validatedTeleport?: TeleportData } {
-    console.log(`🔒 [TransitionService] === VALIDATION CROISÉE TÉLÉPORT-SPAWN ===`);
+  // ✅ VALIDATION TÉLÉPORT SIMPLIFIÉE (collision + destination)
+  private validateTeleportCollision(request: TransitionRequest): TransitionResult & { validatedTeleport?: TeleportData } {
+    console.log(`🔒 [TransitionService] === VALIDATION COLLISION TÉLÉPORT ===`);
     
     const teleports = this.teleportData.get(request.fromZone);
     if (!teleports) {
@@ -159,7 +134,6 @@ export class TransitionService {
       console.log(`🔍 [TransitionService] Test téléport ${teleport.id}:`);
       console.log(`  📍 Position: (${teleport.x}, ${teleport.y}) taille: ${teleport.width}x${teleport.height}`);
       console.log(`  🌍 Zone cible: ${teleport.targetZone} (demandé: ${request.targetZone})`);
-      console.log(`  🎯 Spawn cible: "${teleport.targetSpawn || 'AUCUN'}" (demandé: "${request.targetSpawn || 'AUCUN'}")`);
       
       // Vérification 1: Zone de destination
       if (teleport.targetZone !== request.targetZone) {
@@ -167,16 +141,7 @@ export class TransitionService {
         return false;
       }
       
-      // ✅ VÉRIFICATION CRITIQUE 2: Spawn de destination
-      if (request.targetSpawn && teleport.targetSpawn !== request.targetSpawn) {
-        console.warn(`  🚨 [SÉCURITÉ] TENTATIVE DE MANIPULATION DE SPAWN DÉTECTÉE !`);
-        console.warn(`    Téléport autorisé: "${teleport.targetSpawn || 'AUCUN'}"`);
-        console.warn(`    Client a demandé: "${request.targetSpawn}"`);
-        console.warn(`    Joueur potentiellement malveillant ou bug client`);
-        return false;
-      }
-      
-      // Vérification 3: Proximité physique
+      // Vérification 2: Proximité physique
       const teleportCenterX = teleport.x + (teleport.width / 2);
       const teleportCenterY = teleport.y + (teleport.height / 2);
       const playerCenterX = request.playerX + 16;
@@ -196,7 +161,7 @@ export class TransitionService {
         return false;
       }
       
-      console.log(`  ✅ Téléport VALIDE : toutes les vérifications passées`);
+      console.log(`  ✅ Téléport VALIDE : collision + destination OK`);
       return true;
     });
 
@@ -204,10 +169,9 @@ export class TransitionService {
       console.error(`❌ [TransitionService] === AUCUN TÉLÉPORT VALIDE ===`);
       console.error(`  Zone: ${request.fromZone} → ${request.targetZone}`);
       console.error(`  Position: (${request.playerX}, ${request.playerY})`);
-      console.error(`  Spawn demandé: "${request.targetSpawn || 'AUCUN'}"`);
       console.error(`  Téléports disponibles:`);
       teleports.forEach(t => {
-        console.error(`    - ${t.id}: (${t.x}, ${t.y}) → ${t.targetZone}/"${t.targetSpawn || 'AUCUN'}"`);
+        console.error(`    - ${t.id}: (${t.x}, ${t.y}) → ${t.targetZone}`);
       });
       
       return {
@@ -217,10 +181,9 @@ export class TransitionService {
       };
     }
 
-    console.log(`✅ [TransitionService] === TÉLÉPORT SÉCURISÉ TROUVÉ ===`);
+    console.log(`✅ [TransitionService] === TÉLÉPORT TROUVÉ ===`);
     console.log(`  ID: ${validTeleport.id}`);
     console.log(`  Zone: ${validTeleport.targetZone}`);
-    console.log(`  Spawn: "${validTeleport.targetSpawn || 'DÉFAUT'}"`);
 
     return { 
       success: true,
@@ -228,46 +191,78 @@ export class TransitionService {
     };
   }
 
-  // ✅ CALCUL DE SPAWN AVEC LOGS DÉTAILLÉS
-private calculateSpawnPosition(targetZone: string, authorizedSpawn?: string): { x: number; y: number } | null {
-  console.log(`[TransitionService] Appel calculateSpawnPosition: targetZone="${targetZone}", authorizedSpawn="${authorizedSpawn}"`);
-  
-  if (targetZone === "beach") {
-    console.log(`[TransitionService] => SPAWN FIXE beach : 61.33, 40.67`);
-    return { x: 61.33, y: 40.67 };
-  }
-  if (targetZone === "village") {
-    if (authorizedSpawn === "frombeach") {
-      console.log(`[TransitionService] => SPAWN FIXE village (frombeach) : 430.00, 438.67`);
-      return { x: 430.00, y: 438.67 };
+  // ✅ CALCUL DE SPAWN AVEC COORDONNÉES FIXES SELON ZONE DE DESTINATION ET D'ORIGINE
+  private calculateFixedSpawnPosition(targetZone: string, fromZone: string): { x: number; y: number } | null {
+    console.log(`[TransitionService] Calcul spawn FIXE: ${fromZone} → ${targetZone}`);
+    
+    // ✅ BEACH - Position fixe unique
+    if (targetZone === "beach") {
+      console.log(`[TransitionService] => SPAWN FIXE beach : (61.33, 40.67)`);
+      return { x: 61.33, y: 40.67 };
     }
-    if (authorizedSpawn === "fromvillagelab") {
-      console.log(`[TransitionService] => SPAWN FIXE village (fromvillagelab) : 160.67, 248.00`);
-      return { x: 160.67, y: 248.00 };
+    
+    // ✅ VILLAGE - Position selon zone d'origine
+    if (targetZone === "village") {
+      if (fromZone === "beach") {
+        console.log(`[TransitionService] => SPAWN FIXE village depuis beach : (430.00, 438.67)`);
+        return { x: 430.00, y: 438.67 };
+      }
+      if (fromZone === "villagelab") {
+        console.log(`[TransitionService] => SPAWN FIXE village depuis villagelab : (160.67, 248.00)`);
+        return { x: 160.67, y: 248.00 };
+      }
+      if (fromZone === "villagehouse1") {
+        console.log(`[TransitionService] => SPAWN FIXE village depuis villagehouse1 : (47.33, 98.67)`);
+        return { x: 47.33, y: 98.67 };
+      }
+      if (fromZone === "road1") {
+        console.log(`[TransitionService] => SPAWN FIXE village depuis road1 : (200, 150)`);
+        return { x: 200, y: 150 };
+      }
+      console.log(`[TransitionService] => SPAWN village par défaut : (130, 270)`);
+      return { x: 130, y: 270 };
     }
-    if (authorizedSpawn === "fromvillagehouse1") {
-      console.log(`[TransitionService] => SPAWN FIXE village (fromvillagehouse1) : 47.33, 98.67`);
-      return { x: 47.33, y: 98.67 };
+    
+    // ✅ VILLAGELAB - Position fixe unique
+    if (targetZone === "villagelab") {
+      console.log(`[TransitionService] => SPAWN FIXE villagelab : (242.52, 358.00)`);
+      return { x: 242.52, y: 358.00 };
     }
-    console.log(`[TransitionService] => SPAWN village inconnu, fallback 130, 270`);
-    return { x: 130, y: 270 };
+    
+    // ✅ VILLAGEHOUSE1 - Position fixe unique
+    if (targetZone === "villagehouse1") {
+      console.log(`[TransitionService] => SPAWN FIXE villagehouse1 : (181.00, 278.00)`);
+      return { x: 181.00, y: 278.00 };
+    }
+    
+    // ✅ ROAD1 - Position selon zone d'origine
+    if (targetZone === "road1") {
+      if (fromZone === "village") {
+        console.log(`[TransitionService] => SPAWN FIXE road1 depuis village : (100, 400)`);
+        return { x: 100, y: 400 };
+      }
+      if (fromZone === "lavandia") {
+        console.log(`[TransitionService] => SPAWN FIXE road1 depuis lavandia : (800, 200)`);
+        return { x: 800, y: 200 };
+      }
+      console.log(`[TransitionService] => SPAWN road1 par défaut : (150, 350)`);
+      return { x: 150, y: 350 };
+    }
+    
+    // ✅ LAVANDIA - Position fixe unique
+    if (targetZone === "lavandia") {
+      console.log(`[TransitionService] => SPAWN FIXE lavandia : (300, 300)`);
+      return { x: 300, y: 300 };
+    }
+    
+    // Fallback par défaut
+    console.log(`[TransitionService] => SPAWN fallback pour zone inconnue ${targetZone} : (100, 100)`);
+    return { x: 100, y: 100 };
   }
-  if (targetZone === "villagelab") {
-    console.log(`[TransitionService] => SPAWN FIXE villagelab : 242.52, 358.00`);
-    return { x: 242.52, y: 358.00 };
-  }
-  if (targetZone === "villagehouse1") {
-    console.log(`[TransitionService] => SPAWN FIXE villagehouse1 : 181.00, 278.00`);
-    return { x: 181.00, y: 278.00 };
-  }
-  console.log(`[TransitionService] => SPAWN fallback (100, 100)`);
-  return { x: 100, y: 100 };
-}
 
-
-  // ✅ MÉTHODES EXISTANTES CONSERVÉES (sans changement)
+  // ✅ CHARGEMENT DES TÉLÉPORTS SANS TARGETSPAWN
   private loadAllMapsData() {
-    console.log(`🔄 [TransitionService] Chargement depuis NPCManagers...`);
+    console.log(`🔄 [TransitionService] Chargement téléports depuis NPCManagers...`);
     
     this.npcManagers.forEach((npcManager, zoneName) => {
       try {
@@ -277,7 +272,7 @@ private calculateSpawnPosition(targetZone: string, authorizedSpawn?: string): { 
       }
     });
 
-    console.log(`✅ [TransitionService] Données extraites de ${this.teleportData.size} NPCManagers`);
+    console.log(`✅ [TransitionService] Téléports extraits de ${this.teleportData.size} NPCManagers`);
   }
 
   private extractTeleportsFromNpcManager(zoneName: string, npcManager: NpcManager) {
@@ -291,51 +286,41 @@ private calculateSpawnPosition(targetZone: string, authorizedSpawn?: string): { 
     const mapData = JSON.parse(fs.readFileSync(mapPath, 'utf-8'));
     
     const teleports: TeleportData[] = [];
-    const spawns: any[] = [];
 
     if (!mapData.layers) return;
 
-mapData.layers.forEach((layer: any) => {
-  if (layer.type === 'objectgroup' && layer.objects) {
-    layer.objects.forEach((obj: any) => {
-      const objName = (obj.name || '').toLowerCase();
-      
-      if (objName === 'teleport') {
-        const targetZone = this.getProperty(obj, 'targetzone');
-        const targetSpawn = this.getProperty(obj, 'targetspawn');
-        
-        if (targetZone) {
-          teleports.push({
-            id: `${zoneName}_${obj.id}`,
-            x: obj.x,
-            y: obj.y,
-            width: obj.width || 32,
-            height: obj.height || 32,
-            targetZone: targetZone,
-            targetSpawn: targetSpawn
-          });
-          console.log(`📍 [TransitionService] Teleport ${zoneName}_${obj.id}: (${obj.x}, ${obj.y}) → ${targetZone}/"${targetSpawn || 'AUCUN'}"`);
-        }
-      } else if (objName === 'spawn') {
-        const spawnKey = this.getProperty(obj, 'targetspawn');
-        spawns.push({
-          name: spawnKey || 'default', // fallback sur 'default'
-          x: obj.x,
-          y: obj.y,
-          zone: zoneName
+    mapData.layers.forEach((layer: any) => {
+      if (layer.type === 'objectgroup' && layer.objects) {
+        layer.objects.forEach((obj: any) => {
+          const objName = (obj.name || '').toLowerCase();
+          
+          // ✅ CHARGER SEULEMENT LES TÉLÉPORTS (pas les spawns)
+          if (objName === 'teleport') {
+            const targetZone = this.getProperty(obj, 'targetzone');
+            
+            if (targetZone) {
+              teleports.push({
+                id: `${zoneName}_${obj.id}`,
+                x: obj.x,
+                y: obj.y,
+                width: obj.width || 32,
+                height: obj.height || 32,
+                targetZone: targetZone
+              });
+              console.log(`📍 [TransitionService] Téléport ${zoneName}_${obj.id}: (${obj.x}, ${obj.y}) → ${targetZone}`);
+            }
+          }
+          // ✅ IGNORER LES SPAWNS - coordonnées fixes utilisées
         });
-        console.log(`🎯 [TransitionService] Spawn "${spawnKey || 'default'}": (${obj.x}, ${obj.y}) dans ${zoneName}`);
       }
     });
-  }
-});
 
     this.teleportData.set(zoneName, teleports);
-    this.spawnData.set(zoneName, spawns);
     
-    console.log(`📊 [TransitionService] ${zoneName}: ${teleports.length} téléports, ${spawns.length} spawns chargés`);
+    console.log(`📊 [TransitionService] ${zoneName}: ${teleports.length} téléports chargés (coordonnées fixes utilisées)`);
   }
 
+  // ✅ MÉTHODES CONSERVÉES SANS CHANGEMENT
   private async validateConfigRules(player: Player, request: TransitionRequest): Promise<TransitionResult> {
     const context: ValidationContext = {
       playerName: player.name,
@@ -370,23 +355,18 @@ mapData.layers.forEach((layer: any) => {
     return prop ? prop.value : null;
   }
 
-  // ✅ MÉTHODES DE DEBUG AMÉLIORÉES
+  // ✅ MÉTHODES DE DEBUG SIMPLIFIÉES
   public debugZoneData(zoneName: string): void {
     console.log(`🔍 [TransitionService] === DEBUG ${zoneName.toUpperCase()} ===`);
     
     const teleports = this.teleportData.get(zoneName);
-    const spawns = this.spawnData.get(zoneName);
     
     console.log(`📍 TÉLÉPORTS (${teleports?.length || 0}):`);
     teleports?.forEach(teleport => {
-      console.log(`  - ${teleport.id}: (${teleport.x}, ${teleport.y}) → ${teleport.targetZone}/"${teleport.targetSpawn || 'AUCUN'}"`);
+      console.log(`  - ${teleport.id}: (${teleport.x}, ${teleport.y}) → ${teleport.targetZone}`);
     });
     
-    console.log(`🎯 SPAWNS (${spawns?.length || 0}):`);
-    spawns?.forEach(spawn => {
-      console.log(`  - "${spawn.name}": (${spawn.x}, ${spawn.y})`);
-    });
-    
+    console.log(`🎯 SPAWNS: Coordonnées fixes utilisées dans calculateFixedSpawnPosition()`);
     console.log(`=======================================`);
   }
 
@@ -396,7 +376,7 @@ mapData.layers.forEach((layer: any) => {
     this.teleportData.forEach((teleports, zoneName) => {
       result[zoneName] = {
         teleports: teleports,
-        spawns: this.spawnData.get(zoneName) || []
+        spawns: "Coordonnées fixes utilisées"
       };
     });
     
@@ -407,10 +387,9 @@ mapData.layers.forEach((layer: any) => {
     const stats: any = {};
     
     this.teleportData.forEach((teleports, zoneName) => {
-      const spawns = this.spawnData.get(zoneName) || [];
       stats[zoneName] = {
         teleportCount: teleports.length,
-        spawnCount: spawns.length
+        spawnMode: "coordonnées fixes"
       };
     });
     
