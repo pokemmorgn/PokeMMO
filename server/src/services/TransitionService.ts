@@ -332,12 +332,12 @@ export class TransitionService {
   const spawnKey = this.getProperty(obj, 'targetspawn');
   if (spawnKey) {
     spawns.push({
-      name: spawnKey,   // c’est bien la clé logique du spawn
+      name: spawnKey,   // clé logique du spawn (la propriété, pas le nom objet)
       x: obj.x,
       y: obj.y,
       zone: zoneName
     });
-    console.log(`🎯 [TransitionService] Spawn "${spawnKey}": (${obj.x}, ${obj.y}) dans ${zoneName}`);
+    // log
   }
 }
           }
