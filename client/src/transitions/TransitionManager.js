@@ -256,8 +256,6 @@ export class TransitionManager {
       this.scene.networkManager.room.send("validateTransition", validationRequest);
     }
 
-    // ✅ DÉMARRER LA NOUVELLE SCÈNE (position temporaire)
-    this.scene.scene.start(targetScene, transitionData);
   }
 
   // ✅ SETUP LISTENER VALIDATION (inchangé)
@@ -278,7 +276,8 @@ export class TransitionManager {
 
         if (result.success) {
           console.log(`✅ [TransitionManager] Transition validée par le serveur`);
-          
+              this.scene.scene.start(targetScene, transitionData);
+
           if (result.position) {
             const currentPlayer = this.scene.playerManager?.getMyPlayer();
             if (currentPlayer) {
