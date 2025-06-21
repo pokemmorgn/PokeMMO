@@ -318,6 +318,18 @@ export class ZoneManager {
     console.log(`📤 Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
   }
 
+  // ✅ === DÉLÉGATION POUR STATUTS DE QUÊTES ===
+
+  async getQuestStatuses(username: string): Promise<any[]> {
+    try {
+      // ✅ DÉLÉGATION à InteractionManager
+      return await this.interactionManager.getQuestStatuses(username);
+    } catch (error) {
+      console.error(`❌ Erreur getQuestStatuses:`, error);
+      return [];
+    }
+  }
+
   // ✅ Accesseurs pour les managers (si besoin)
   getQuestManager(): QuestManager {
     return this.questManager;
