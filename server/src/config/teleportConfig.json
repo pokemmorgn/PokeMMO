@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "lastUpdated": "2025-01-01T00:00:00.000Z",
   "globalSettings": {
     "enableValidation": true,
@@ -15,38 +15,54 @@
       "name": "beach",
       "displayName": "Plage de départ",
       "minLevel": 1,
-      "description": "Zone de départ pour les nouveaux dresseurs"
+      "description": "Zone de départ pour les nouveaux dresseurs",
+      "fixedSpawn": { "x": 61.33, "y": 40.67 }
     },
     "village": {
       "name": "village", 
       "displayName": "Village Pokémon",
       "minLevel": 1,
-      "description": "Centre du village avec Centre Pokémon"
+      "description": "Centre du village avec Centre Pokémon",
+      "fixedSpawns": {
+        "fromBeach": { "x": 430.00, "y": 438.67 },
+        "fromVillagelab": { "x": 160.67, "y": 248.00 },
+        "fromVillagehouse1": { "x": 47.33, "y": 98.67 },
+        "fromRoad1": { "x": 200, "y": 150 },
+        "default": { "x": 130, "y": 270 }
+      }
     },
     "villagelab": {
       "name": "villagelab",
       "displayName": "Laboratoire du Professeur",
       "minLevel": 1,
-      "description": "Laboratoire de recherche Pokémon"
+      "description": "Laboratoire de recherche Pokémon",
+      "fixedSpawn": { "x": 242.52, "y": 358.00 }
     },
     "villagehouse1": {
       "name": "villagehouse1",
       "displayName": "Maison du village",
       "minLevel": 1,
-      "description": "Maison d'habitant du village"
+      "description": "Maison d'habitant du village",
+      "fixedSpawn": { "x": 181.00, "y": 278.00 }
     },
     "road1": {
       "name": "road1",
       "displayName": "Route 1",
-      "minLevel": 5,
-      "description": "Première route sauvage"
+      "minLevel": 1,
+      "description": "Première route sauvage",
+      "fixedSpawns": {
+        "fromVillage": { "x": 100, "y": 400 },
+        "fromLavandia": { "x": 800, "y": 200 },
+        "default": { "x": 150, "y": 350 }
+      }
     },
     "lavandia": {
       "name": "lavandia",
       "displayName": "Ville de Lavandia",
-      "minLevel": 15,
+      "minLevel": 1,
       "vipOnly": false,
-      "description": "Ville mystérieuse aux tours fantômes"
+      "description": "Ville mystérieuse aux tours fantômes",
+      "fixedSpawn": { "x": 300, "y": 300 }
     }
   },
   "rules": [
@@ -238,5 +254,14 @@
     "enabled": false,
     "allowAllTransitions": false,
     "reason": "Aucun override actif"
+  },
+  "notes": {
+    "spawnSystem": "Système de spawn simplifié avec coordonnées fixes",
+    "changes": [
+      "Suppression complète du système targetSpawn",
+      "Utilisation de coordonnées fixes définies dans calculateFixedSpawnPosition()",
+      "Les positions de spawn sont déterminées par la zone de destination et d'origine",
+      "Plus besoin d'objets spawn dans les maps Tiled"
+    ]
   }
 }
