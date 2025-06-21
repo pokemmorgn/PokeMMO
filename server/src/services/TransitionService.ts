@@ -329,18 +329,17 @@ export class TransitionService {
               console.log(`📍 [TransitionService] Teleport ${zoneName}_${obj.id}: (${obj.x}, ${obj.y}) → ${targetZone}/"${targetSpawn || 'AUCUN'}"`);
             }
           } else if (objName === 'spawn') {
-            const spawnName = this.getProperty(obj, 'targetspawn') || obj.name;
-            
-            if (spawnName && spawnName !== 'spawn') {
-              spawns.push({
-                name: spawnName,
-                x: obj.x,
-                y: obj.y,
-                zone: zoneName
-              });
-              
-              console.log(`🎯 [TransitionService] Spawn "${spawnName}": (${obj.x}, ${obj.y}) dans ${zoneName}`);
-            }
+  const spawnKey = this.getProperty(obj, 'targetspawn');
+  if (spawnKey) {
+    spawns.push({
+      name: spawnKey,   // c’est bien la clé logique du spawn
+      x: obj.x,
+      y: obj.y,
+      zone: zoneName
+    });
+    console.log(`🎯 [TransitionService] Spawn "${spawnKey}": (${obj.x}, ${obj.y}) dans ${zoneName}`);
+  }
+}
           }
         });
       }
