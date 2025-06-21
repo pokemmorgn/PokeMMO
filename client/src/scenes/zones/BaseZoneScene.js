@@ -551,15 +551,14 @@ setupNetworkHandlers() {
   // ✅ AMÉLIORATION: Gestion des succès de transition
  // ✅ MÉTHODES DE TRANSITION AVEC LOGS DÉTAILLÉS POUR DEBUG
 
+// ✅ FIX : Attendre que le joueur soit créé avant repositionnement
+
 handleTransitionSuccess(result) {
   console.log(`✅ [${this.scene.key}] === TRANSITION RÉUSSIE ===`);
   console.log(`📍 Destination: ${result.currentZone}`);
   console.log(`📊 Résultat COMPLET:`, result);
   console.log(`📍 Position reçue du serveur:`, result.position);
-  console.log(`🎯 Spawn original client:`, result.originalSpawn);
-  console.log(`🎯 Spawn final serveur:`, result.finalSpawn);
   
-  // ✅ FIX 3: Marquer le moment de transition pour la grâce des NPCs
   this._lastTransitionTime = Date.now();
   
   const targetScene = this.mapZoneToScene(result.currentZone);
@@ -568,160 +567,179 @@ handleTransitionSuccess(result) {
   if (targetScene === this.scene.key) {
     console.log(`📍 [${this.scene.key}] === REPOSITIONNEMENT DANS MÊME SCÈNE ===`);
     
-    // ✅ VÉRIFICATION AVANT REPOSITIONNEMENT
-    const myPlayer = this.playerManager.getMyPlayer();
-    console.log(`👤 Joueur trouvé:`, !!myPlayer);
-    console.log(`📍 Position AVANT repositionnement:`, myPlayer ? `(${myPlayer.x}, ${myPlayer.y})` : 'AUCUN JOUEUR');
-    console.log(`🎯 TargetX/Y AVANT:`, myPlayer ? `(${myPlayer.targetX}, ${myPlayer.targetY})` : 'AUCUN JOUEUR');
+    // ✅ NOUVEAU : Attendre que le joueur soit disponible
+    this.waitForPlayerAndReposition(result);
+    
+  } else {
+    console.log(`🚀 [${this.scene.key}] === CHANGEMENT DE SCÈNE ===`);
+    this.performSceneTransition(targetScene, result);
+  }
+}
+
+// ✅ NOUVELLE MÉTHODE : Attendre le joueur avec timeout
+waitForPlayerAndReposition(result, attempt = 1, maxAttempts = 20) {
+  console.log(`⏳ [${this.scene.key}] Tentative ${attempt}/${maxAttempts} de trouver le joueur...`);
+  
+  const myPlayer = this.playerManager.getMyPlayer();
+  
+  if (myPlayer) {
+    console.log(`✅ [${this.scene.key}] Joueur trouvé à la tentative ${attempt} !`);
+    console.log(`📍 Position AVANT repositionnement: (${myPlayer.x}, ${myPlayer.y})`);
     
     this.repositionPlayerAfterTransition(result);
     
-    // ✅ VÉRIFICATION APRÈS REPOSITIONNEMENT
-    console.log(`📍 Position APRÈS repositionnement:`, myPlayer ? `(${myPlayer.x}, ${myPlayer.y})` : 'AUCUN JOUEUR');
-    console.log(`🎯 TargetX/Y APRÈS:`, myPlayer ? `(${myPlayer.targetX}, ${myPlayer.targetY})` : 'AUCUN JOUEUR');
-    
-    // ✅ FIX 4: Forcer le rechargement des NPCs après repositionnement
+    // Forcer le rechargement des NPCs après repositionnement
     this.time.delayedCall(500, () => {
       if (this.networkManager?.lastReceivedNpcs) {
         console.log(`🔄 [${this.scene.key}] Rechargement forcé des NPCs`);
         this.npcManager?.spawnNpcs(this.networkManager.lastReceivedNpcs);
       }
     });
+    
+  } else if (attempt < maxAttempts) {
+    console.log(`⏳ [${this.scene.key}] Joueur pas encore disponible, retry dans 100ms...`);
+    console.log(`🔍 [${this.scene.key}] État PlayerManager: ${this.playerManager?.players?.size || 0} joueurs`);
+    
+    // Retry dans 100ms
+    this.time.delayedCall(100, () => {
+      this.waitForPlayerAndReposition(result, attempt + 1, maxAttempts);
+    });
+    
   } else {
-    console.log(`🚀 [${this.scene.key}] === CHANGEMENT DE SCÈNE ===`);
-    console.log(`🚀 Vers: ${targetScene}`);
-    this.performSceneTransition(targetScene, result);
+    console.error(`❌ [${this.scene.key}] TIMEOUT : Joueur introuvable après ${maxAttempts} tentatives !`);
+    console.error(`🔍 [${this.scene.key}] État final PlayerManager:`);
+    console.error(`  - mySessionId: ${this.mySessionId}`);
+    console.error(`  - players.size: ${this.playerManager?.players?.size || 0}`);
+    console.error(`  - networkManager.isConnected: ${this.networkManager?.isConnected}`);
+    console.error(`  - networkManager.currentZone: ${this.networkManager?.currentZone}`);
+    
+    // ✅ FALLBACK : Forcer une resynchronisation et réessayer UNE FOIS
+    console.log(`🔄 [${this.scene.key}] FALLBACK : Forcer resynchronisation et dernier essai...`);
+    
+    if (this.playerManager) {
+      this.playerManager.forceResynchronization();
+    }
+    
+    // Dernier essai dans 500ms
+    this.time.delayedCall(500, () => {
+      const finalPlayer = this.playerManager.getMyPlayer();
+      if (finalPlayer) {
+        console.log(`🎯 [${this.scene.key}] FALLBACK RÉUSSI : Joueur trouvé !`);
+        this.repositionPlayerAfterTransition(result);
+      } else {
+        console.error(`💀 [${this.scene.key}] FALLBACK ÉCHOUÉ : Impossible de trouver le joueur`);
+        
+        // ✅ DERNIER RECOURS : Créer le joueur manuellement
+        this.createPlayerAsLastResort(result);
+      }
+    });
   }
 }
 
-// ✅ REPOSITIONNEMENT AVEC LOGS DÉTAILLÉS
+// ✅ DERNIER RECOURS : Créer le joueur manuellement
+createPlayerAsLastResort(result) {
+  console.log(`🚨 [${this.scene.key}] === DERNIER RECOURS : CRÉATION MANUELLE ===`);
+  
+  if (!this.playerManager || !this.mySessionId) {
+    console.error(`❌ [${this.scene.key}] PlayerManager ou SessionId manquant !`);
+    return;
+  }
+  
+  try {
+    // Créer le joueur avec la position de transition
+    const player = this.playerManager.createPlayer(
+      this.mySessionId,
+      result.position?.x || 100,
+      result.position?.y || 100
+    );
+    
+    if (player) {
+      console.log(`✅ [${this.scene.key}] Joueur créé manuellement à (${player.x}, ${player.y})`);
+      
+      // S'assurer qu'il est visible et actif
+      player.setVisible(true);
+      player.setActive(true);
+      player.setDepth(5);
+      
+      // Faire suivre la caméra
+      if (this.cameraManager) {
+        this.cameraManager.followPlayer(player);
+        this.cameraManager.snapToPlayer();
+      }
+      
+      this.myPlayerReady = true;
+      console.log(`🎉 [${this.scene.key}] Joueur de secours créé avec succès !`);
+      
+    } else {
+      console.error(`❌ [${this.scene.key}] Échec de création du joueur de secours`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur création joueur de secours:`, error);
+  }
+}
+
+// ✅ REPOSITIONNEMENT SIMPLIFIÉ (le joueur existe forcément)
 repositionPlayerAfterTransition(result) {
   console.log(`📍 [${this.scene.key}] === DÉBUT REPOSITIONNEMENT ===`);
-  console.log(`📊 Résultat reçu:`, result);
-  console.log(`📍 Position dans résultat:`, result.position);
   
   const myPlayer = this.playerManager.getMyPlayer();
-  console.log(`👤 [${this.scene.key}] Joueur trouvé:`, !!myPlayer);
   
   if (!myPlayer) {
-    console.error(`❌ [${this.scene.key}] AUCUN JOUEUR TROUVÉ pour repositionnement !`);
-    console.log(`🔍 [${this.scene.key}] PlayerManager:`, !!this.playerManager);
-    console.log(`🔍 [${this.scene.key}] MySessionId:`, this.mySessionId);
-    
-    // Tentative de récupération
-    if (this.playerManager && this.mySessionId) {
-      console.log(`🔄 [${this.scene.key}] Tentative de forcer resynchronisation...`);
-      this.playerManager.forceResynchronization();
-    }
+    console.error(`❌ [${this.scene.key}] ERREUR CRITIQUE : Joueur introuvable au repositionnement !`);
     return;
   }
   
   if (!result.position) {
-    console.error(`❌ [${this.scene.key}] AUCUNE POSITION dans le résultat !`);
-    console.log(`📊 [${this.scene.key}] Résultat complet:`, JSON.stringify(result, null, 2));
+    console.error(`❌ [${this.scene.key}] ERREUR : Aucune position dans le résultat !`);
     return;
   }
   
-  // ✅ LOGS DÉTAILLÉS AVANT MODIFICATION
-  console.log(`📍 [${this.scene.key}] === ÉTAT AVANT REPOSITIONNEMENT ===`);
-  console.log(`👤 Joueur ID:`, myPlayer.name || myPlayer.id);
-  console.log(`📍 Position actuelle: (${myPlayer.x}, ${myPlayer.y})`);
-  console.log(`🎯 Target actuel: (${myPlayer.targetX}, ${myPlayer.targetY})`);
-  console.log(`👁️ Visible:`, myPlayer.visible);
-  console.log(`⚡ Active:`, myPlayer.active);
-  console.log(`🏷️ Depth:`, myPlayer.depth);
+  console.log(`📍 [${this.scene.key}] Position AVANT: (${myPlayer.x}, ${myPlayer.y})`);
+  console.log(`🎯 [${this.scene.key}] Position CIBLE: (${result.position.x}, ${result.position.y})`);
   
-  console.log(`📍 [${this.scene.key}] === POSITION DE DESTINATION ===`);
-  console.log(`🎯 Nouvelle position: (${result.position.x}, ${result.position.y})`);
-  console.log(`🎯 Type des coordonnées: x=${typeof result.position.x}, y=${typeof result.position.y}`);
-  
-  // ✅ APPLIQUER LA NOUVELLE POSITION
-  console.log(`🔄 [${this.scene.key}] Application de la nouvelle position...`);
-  
+  // Appliquer la nouvelle position
   myPlayer.x = result.position.x;
   myPlayer.y = result.position.y;
   myPlayer.targetX = result.position.x;
   myPlayer.targetY = result.position.y;
   
-  // ✅ LOGS DÉTAILLÉS APRÈS MODIFICATION
-  console.log(`📍 [${this.scene.key}] === ÉTAT APRÈS REPOSITIONNEMENT ===`);
-  console.log(`📍 Position finale: (${myPlayer.x}, ${myPlayer.y})`);
-  console.log(`🎯 Target final: (${myPlayer.targetX}, ${myPlayer.targetY})`);
+  console.log(`📍 [${this.scene.key}] Position APRÈS: (${myPlayer.x}, ${myPlayer.y})`);
   
-  // ✅ VÉRIFICATION QUE LES VALEURS ONT BIEN CHANGÉ
-  const positionChanged = (myPlayer.x === result.position.x && myPlayer.y === result.position.y);
-  console.log(`✅ [${this.scene.key}] Position changée avec succès:`, positionChanged);
-  
-  if (!positionChanged) {
-    console.error(`❌ [${this.scene.key}] ÉCHEC DU REPOSITIONNEMENT !`);
-    console.error(`Expected: (${result.position.x}, ${result.position.y})`);
-    console.error(`Actual: (${myPlayer.x}, ${myPlayer.y})`);
-  }
-  
-  // ✅ S'ASSURER QUE LE JOUEUR EST VISIBLE
+  // S'assurer que le joueur est visible
   if (!myPlayer.visible) {
-    console.log(`👁️ [${this.scene.key}] Joueur invisible, restauration visibilité`);
     myPlayer.setVisible(true);
+    console.log(`👁️ [${this.scene.key}] Visibilité restaurée`);
   }
   
   if (!myPlayer.active) {
-    console.log(`⚡ [${this.scene.key}] Joueur inactif, restauration activité`);
     myPlayer.setActive(true);
+    console.log(`⚡ [${this.scene.key}] Activité restaurée`);
   }
   
-  // ✅ VÉRIFIER ET CORRIGER LA DEPTH
-  if (myPlayer.depth !== 5) {
-    console.log(`🏷️ [${this.scene.key}] Correction depth: ${myPlayer.depth} → 5`);
-    myPlayer.setDepth(5);
-  }
-  
-  // ✅ GESTION DE L'INDICATEUR
+  // Mettre à jour l'indicateur
   if (myPlayer.indicator) {
-    console.log(`🏷️ [${this.scene.key}] Mise à jour indicateur joueur`);
     myPlayer.indicator.x = myPlayer.x;
     myPlayer.indicator.y = myPlayer.y - 24;
-    
-    if (!myPlayer.indicator.visible) {
-      console.log(`👁️ [${this.scene.key}] Indicateur invisible, restauration`);
-      myPlayer.indicator.setVisible(true);
-    }
-  } else {
-    console.warn(`⚠️ [${this.scene.key}] Aucun indicateur trouvé sur le joueur`);
+    myPlayer.indicator.setVisible(true);
   }
   
-  // ✅ METTRE À JOUR LA CAMÉRA
-  console.log(`📷 [${this.scene.key}] Mise à jour caméra...`);
+  // Mettre à jour la caméra
   if (this.cameraManager) {
-    console.log(`📷 [${this.scene.key}] CameraManager trouvé, snap vers joueur`);
     this.cameraManager.snapToPlayer();
-    
-    // ✅ VÉRIFICATION DE LA POSITION CAMÉRA
-    const cam = this.cameras.main;
-    console.log(`📷 [${this.scene.key}] Position caméra après snap: (${cam.scrollX}, ${cam.scrollY})`);
-  } else {
-    console.warn(`⚠️ [${this.scene.key}] CameraManager non trouvé !`);
-    
-    // Fallback : centrer manuellement la caméra
-    console.log(`📷 [${this.scene.key}] Fallback: centrage manuel caméra`);
-    this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
+    console.log(`📷 [${this.scene.key}] Caméra mise à jour`);
   }
   
-  // ✅ NOTIFIER LE SERVEUR DE LA NOUVELLE POSITION
-  console.log(`📡 [${this.scene.key}] Notification serveur de la position finale...`);
-  if (this.networkManager && this.networkManager.isConnected) {
+  // Notifier le serveur
+  if (this.networkManager?.isConnected) {
     this.networkManager.sendMove(myPlayer.x, myPlayer.y, 'down', false);
-    console.log(`📡 [${this.scene.key}] Position envoyée au serveur: (${myPlayer.x}, ${myPlayer.y})`);
-  } else {
-    console.warn(`⚠️ [${this.scene.key}] NetworkManager non connecté, pas de notification serveur`);
+    console.log(`📡 [${this.scene.key}] Position envoyée au serveur`);
   }
   
-  // Délai de grâce après repositionnement
   this.spawnGraceTime = Date.now() + this.spawnGraceDuration;
-  console.log(`🛡️ [${this.scene.key}] Délai de grâce activé pour ${this.spawnGraceDuration}ms`);
-  
   console.log(`✅ [${this.scene.key}] === REPOSITIONNEMENT TERMINÉ ===`);
-  console.log(`📍 Position finale confirmée: (${myPlayer.x}, ${myPlayer.y})`);
 }
+
   // ✅ AMÉLIORATION: Changement de scène optimisé
   performSceneTransition(targetScene, result) {
     console.log(`🚀 [${this.scene.key}] === CHANGEMENT DE SCÈNE ===`);
