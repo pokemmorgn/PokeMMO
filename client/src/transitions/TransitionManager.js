@@ -1,6 +1,6 @@
 // client/src/transitions/TransitionManager.js
-// ✅ SYSTÈME DE TRANSITION AVEC VALIDATION SERVEUR PURE
-// Le client ne calcule RIEN, il fait juste la détection de collision et attend le serveur
+// ✅ SYSTÈME DE TRANSITION SIMPLIFIÉ SANS TARGETSPAWN
+// Le client ne gère que la collision et la zone de destination
 
 export class TransitionManager {
   constructor(scene) {
@@ -10,7 +10,7 @@ export class TransitionManager {
     this.isTransitioning = false;
     
     // Collections des éléments de transition (LOCAL seulement pour collision)
-    this.teleport = new Map(); // objets "teleport" avec targetzone/targetspawn
+    this.teleport = new Map(); // objets "teleport" avec targetzone seulement
     this.zones = new Map();    // zones physiques créées
     
     // Mapping zone ↔ scene
@@ -30,12 +30,12 @@ export class TransitionManager {
     
     this.currentZone = this.sceneToZone[scene.scene.key] || 'unknown';
     
-    console.log(`🌀 [TransitionManager] Système client pur initialisé pour ${this.currentZone}`);
+    console.log(`🌀 [TransitionManager] Système client simplifié initialisé pour ${this.currentZone}`);
   }
 
   // ✅ INITIALISATION: Scanner seulement les teleports (pour collision)
   initialize() {
-    console.log(`🌀 [TransitionManager] === INITIALISATION CLIENT ===`);
+    console.log(`🌀 [TransitionManager] === INITIALISATION CLIENT SIMPLIFIÉE ===`);
     
     if (!this.scene.map) {
       console.error(`🌀 [TransitionManager] ❌ Aucune map trouvée!`);
@@ -64,12 +64,12 @@ export class TransitionManager {
         if (objName === 'teleport') {
           this.processTeleport(obj, index, layer.name);
         }
-        // ✅ PAS DE TRAITEMENT DES SPAWNS CÔTÉ CLIENT
+        // ✅ IGNORER LES SPAWNS - Le serveur gère les coordonnées fixes
       });
     });
 
     console.log(`🌀 [TransitionManager] ✅ Scan terminé:`);
-    console.log(`  📍 ${this.teleport.size} teleports trouvés`);
+    console.log(`  📍 ${this.teleport.size} teleports trouvés (spawns ignorés)`);
 
     // Créer les zones physiques pour collision
     this.createPhysicalZones();
@@ -82,10 +82,9 @@ export class TransitionManager {
     return true;
   }
 
-  // ✅ TRAITER UN TELEPORT (pour collision seulement)
+  // ✅ TRAITER UN TELEPORT SIMPLIFIÉ (pas de targetSpawn)
   processTeleport(obj, index, layerName) {
     const targetZone = this.getProperty(obj, 'targetzone');
-    const targetSpawn = this.getProperty(obj, 'targetspawn');
 
     if (!targetZone) {
       console.warn(`🌀 [TransitionManager] ⚠️ Teleport ${index} (${layerName}) sans 'targetzone'`);
@@ -100,13 +99,12 @@ export class TransitionManager {
       width: obj.width || 32,
       height: obj.height || 32,
       targetZone: targetZone,
-      targetSpawn: targetSpawn,
       fromZone: this.currentZone
     };
 
     this.teleport.set(teleport.id, teleport);
     
-    console.log(`🌀 [TransitionManager] 📍 Teleport "${teleport.id}": ${this.currentZone} → ${targetZone} ${targetSpawn ? `(spawn: ${targetSpawn})` : ''}`);
+    console.log(`🌀 [TransitionManager] 📍 Teleport "${teleport.id}": ${this.currentZone} → ${targetZone}`);
   }
 
   // ✅ CRÉER ZONES PHYSIQUES (pour collision)
@@ -142,7 +140,7 @@ export class TransitionManager {
     console.log(`🌀 [TransitionManager] ✅ ${this.zones.size} zones collision créées`);
   }
 
-  // ✅ DEBUG VISUEL
+  // ✅ DEBUG VISUEL SIMPLIFIÉ
   createDebugRect(zone, teleportData) {
     const debugRect = this.scene.add.rectangle(
       zone.x, zone.y,
@@ -152,7 +150,7 @@ export class TransitionManager {
     debugRect.setDepth(999);
     debugRect.setScrollFactor(0, 0);
     
-    // Texte de debug
+    // Texte de debug simplifié
     const debugText = this.scene.add.text(
       zone.x, zone.y - 20,
       `→ ${teleportData.targetZone}`,
@@ -184,17 +182,17 @@ export class TransitionManager {
     });
   }
 
-  // ✅ DÉCLENCHER TRANSITION (SIMPLIFIÉ - SERVEUR ONLY)
+  // ✅ DÉCLENCHER TRANSITION SIMPLIFIÉ (sans targetSpawn)
   async triggerTransition(teleportData) {
     if (this.isTransitioning) {
       console.log(`🌀 [TransitionManager] ⚠️ Transition déjà en cours`);
       return;
     }
 
-    console.log(`🌀 [TransitionManager] === DEMANDE TRANSITION SERVEUR ===`);
+    console.log(`🌀 [TransitionManager] === DEMANDE TRANSITION SIMPLIFIÉE ===`);
     console.log(`📍 De: ${teleportData.fromZone}`);
     console.log(`📍 Vers: ${teleportData.targetZone}`);
-    console.log(`🎯 Spawn: ${teleportData.targetSpawn || 'défaut'}`);
+    console.log(`🎯 Position: Coordonnées fixes utilisées par le serveur`);
 
     this.isTransitioning = true;
 
@@ -227,10 +225,10 @@ export class TransitionManager {
       return;
     }
 
-    // ✅ POSITION TEMPORAIRE (sera corrigée par le serveur)
+    // ✅ POSITION TEMPORAIRE (sera corrigée par le serveur avec les coordonnées fixes)
     const temporarySpawnPosition = { x: 100, y: 100 };
 
-    console.log(`🚀 [TransitionManager] Transition temporaire, validation serveur en cours...`);
+    console.log(`🚀 [TransitionManager] Transition temporaire, serveur déterminera la position finale...`);
     
     const transitionData = {
       fromZone: this.currentZone,
@@ -247,18 +245,17 @@ export class TransitionManager {
     // ✅ SETUP LISTENER POUR VALIDATION
     this.setupValidationListener(teleportData, originalState, targetScene, transitionData);
 
-    // ✅ ENVOYER DEMANDE AU SERVEUR
+    // ✅ ENVOYER DEMANDE AU SERVEUR (sans targetSpawn)
     if (this.scene.networkManager && this.scene.networkManager.isConnected) {
       const validationRequest = {
         fromZone: teleportData.fromZone,
         targetZone: teleportData.targetZone,
-        targetSpawn: teleportData.targetSpawn,
         playerX: myPlayer.x,
         playerY: myPlayer.y,
         teleportId: teleportData.id
       };
 
-      console.log(`📤 [TransitionManager] Envoi demande validation:`, validationRequest);
+      console.log(`📤 [TransitionManager] Envoi demande validation simplifiée:`, validationRequest);
       this.scene.networkManager.room.send("validateTransition", validationRequest);
     }
 
@@ -288,7 +285,7 @@ export class TransitionManager {
           if (result.position) {
             const currentPlayer = this.scene.playerManager?.getMyPlayer();
             if (currentPlayer) {
-              console.log(`🔧 [TransitionManager] Correction position serveur:`, result.position);
+              console.log(`🔧 [TransitionManager] Position finale (coordonnées fixes):`, result.position);
               currentPlayer.x = result.position.x;
               currentPlayer.y = result.position.y;
               currentPlayer.targetX = result.position.x;
@@ -370,20 +367,22 @@ export class TransitionManager {
     return prop ? prop.value : null;
   }
 
-  // ✅ DEBUG (simplifié)
+  // ✅ DEBUG SIMPLIFIÉ (sans spawns)
   debugInfo() {
-    console.log(`🌀 [TransitionManager] === DEBUG CLIENT ===`);
+    console.log(`🌀 [TransitionManager] === DEBUG CLIENT SIMPLIFIÉ ===`);
     console.log(`Zone actuelle: ${this.currentZone}`);
     
     console.log(`📍 TELEPORTS (${this.teleport.size}):`);
     this.teleport.forEach((teleport, id) => {
-      console.log(`  - ${id}: (${teleport.x}, ${teleport.y}) → ${teleport.targetZone} ${teleport.targetSpawn || ''}`);
+      console.log(`  - ${id}: (${teleport.x}, ${teleport.y}) → ${teleport.targetZone}`);
     });
     
     console.log(`⚡ ZONES COLLISION (${this.zones.size}):`);
     this.zones.forEach((zone, id) => {
       console.log(`  - ${id}: zone collision active`);
     });
+    
+    console.log(`🎯 SPAWNS: Gérés par le serveur avec coordonnées fixes`);
   }
 
   // ✅ NETTOYAGE (simplifié)
