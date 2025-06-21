@@ -1,12 +1,16 @@
-// client/src/game/QuestSystem.js - VERSION CORRIGÉE SANS DOUBLONS
+// client/src/game/QuestSystem.js - VERSION MISE À JOUR avec icône et tracker
 
 import { QuestJournalUI } from '../components/QuestJournalUI.js';
+import { QuestIcon } from '../components/QuestIcon.js';
+import { QuestTrackerUI } from '../components/QuestTrackerUI.js';
 
 export class QuestSystem {
   constructor(scene, gameRoom) {
     this.scene = scene;
     this.gameRoom = gameRoom;
     this.questJournal = null;
+    this.questIcon = null;
+    this.questTracker = null;
     this.trackedQuest = null;
     this.questNotifications = [];
 
@@ -14,7 +18,6 @@ export class QuestSystem {
     this.notificationManager = window.NotificationManager;
     if (!this.notificationManager) {
       console.warn("⚠️ NotificationManager non trouvé, créer une instance");
-      // Fallback: créer une instance si pas trouvée
       this.notificationManager = {
         show: (message, options) => console.log(`[QUEST] ${message}`),
         success: (message, options) => console.log(`[QUEST SUCCESS] ${message}`),
@@ -27,9 +30,12 @@ export class QuestSystem {
       };
     }
     
-    // ✅ NOUVEAU: Système de déduplication des notifications
+    // ✅ Système de déduplication des notifications
     this.lastNotificationTime = new Map();
-    this.notificationCooldown = 2000; // 2 secondes entre notifications similaires
+    this.notificationCooldown = 2000;
+    
+    // ✅ NOUVEAU: Stockage des quêtes actives pour le tracker
+    this.activeQuests = [];
     
     this.init();
   }
@@ -38,13 +44,43 @@ export class QuestSystem {
     // Créer l'interface du journal
     this.questJournal = new QuestJournalUI(this.gameRoom);
     
+    // ✅ NOUVEAU: Créer l'icône de quête
+    this.questIcon = new QuestIcon(this);
+    
+    // ✅ NOUVEAU: Créer le tracker de quêtes
+    this.questTracker = new QuestTrackerUI(this);
+    this.questTracker.connectToQuestSystem(this);
+    
     // Écouter les événements du serveur
     this.setupServerListeners();
+    
+    // ✅ NOUVEAU: Setup des timers pour le tracker
+    this.setupTrackerTimers();
     
     // Rendre le système accessible globalement
     window.questSystem = this;
     
-    console.log("🎯 Système de quêtes initialisé avec NotificationManager");
+    console.log("🎯 Système de quêtes initialisé avec icône et tracker");
+  }
+
+  // ✅ NOUVEAU: Setup des timers pour les quêtes
+  setupTrackerTimers() {
+    // Timer pour mettre à jour les quêtes avec limite de temps
+    setInterval(() => {
+      if (this.questTracker) {
+        this.questTracker.updateQuestTimers();
+      }
+    }, 1000);
+
+    // Timer pour mettre à jour les distances des quêtes (si le joueur a bougé)
+    setInterval(() => {
+      if (this.questTracker && this.scene && this.scene.playerManager) {
+        const player = this.scene.playerManager.getMyPlayer();
+        if (player) {
+          this.questTracker.updateQuestDistances(player.x, player.y);
+        }
+      }
+    }, 2000);
   }
 
   setupServerListeners() {
@@ -53,17 +89,18 @@ export class QuestSystem {
     // Interaction NPC avec quêtes
     this.gameRoom.onMessage("npcInteractionResult", (data) => {
       this.handleNpcInteraction(data);
-      console.log("handleNpcInteraction appelé", data);
     });
 
-    // ✅ FIX: UN SEUL HANDLER pour les résultats de quête avec déduplication
+    // ✅ Résultats de début de quête
     this.gameRoom.onMessage("questStartResult", (data) => {
       console.log("🎯 Quest start result reçu:", data);
       
       if (data.success) {
-        // ✅ Vérifier la déduplication avant d'afficher
         const questId = data.quest?.id || data.quest?.name || 'unknown';
         if (this.shouldShowNotification('questStart', questId)) {
+          // ✅ Animation de l'icône
+          this.questIcon.onNewQuest();
+          
           this.notificationManager.questNotification(
             data.quest?.name || 'Nouvelle quête',
             'started',
@@ -75,6 +112,11 @@ export class QuestSystem {
               }
             }
           );
+        }
+        
+        // ✅ NOUVEAU: Ajouter au tracker
+        if (data.quest) {
+          this.addQuestToTracker(data.quest);
         }
         
         // Actualiser le journal
@@ -89,39 +131,97 @@ export class QuestSystem {
       }
     });
 
-    // ✅ FIX: SUPPRIMÉ LE HANDLER questStarted pour éviter les doublons
-    // Le handler questStartResult suffit amplement
-
-    // Liste des quêtes disponibles pour un NPC
-    this.gameRoom.onMessage("availableQuestsList", (data) => {
-      this.showAvailableQuests(data.quests);
+    // ✅ Liste des quêtes actives
+    this.gameRoom.onMessage("activeQuestsList", (data) => {
+      console.log("📋 Liste des quêtes actives reçue:", data);
+      this.activeQuests = data.quests || [];
+      
+      // Mettre à jour le journal
+      if (this.questJournal) {
+        this.questJournal.updateQuestList(this.activeQuests);
+      }
+      
+      // ✅ NOUVEAU: Mettre à jour le tracker
+      if (this.questTracker) {
+        this.questTracker.updateQuests(this.activeQuests);
+      }
+      
+      // ✅ NOUVEAU: Mettre à jour l'icône selon l'état des quêtes
+      this.updateQuestIconState();
     });
 
-    // Progression de quête
+    // ✅ Progression de quête
     this.gameRoom.onMessage("questProgressUpdate", (results) => {
       this.handleQuestProgressUpdate(results);
     });
 
-    // Notifications de quêtes terminées
+    // ✅ Récompenses de quête
     this.gameRoom.onMessage("questRewards", (data) => {
       this.showQuestRewards(data);
     });
-
-    // Handler pour débugger
-    this.gameRoom.onMessage("*", (type, data) => {
-      if (type.includes("quest") || type.includes("Quest")) {
-        console.log(`🔍 Message non géré reçu: ${type}`, data);
-      }
-    });
   }
 
-  // ✅ NOUVELLE MÉTHODE: Système de déduplication intelligent
+  // ✅ NOUVELLE MÉTHODE: Ajouter une quête au tracker
+  addQuestToTracker(quest) {
+    if (!this.questTracker) return;
+    
+    console.log("📊 Ajout de quête au tracker:", quest.name);
+    
+    // Enrichir la quête avec des données supplémentaires pour le tracker
+    const enrichedQuest = {
+      ...quest,
+      level: quest.level || this.calculateQuestLevel(quest),
+      distance: quest.targetLocation ? this.calculateQuestDistance(quest) : null,
+      timeRemaining: quest.timeLimit || null
+    };
+    
+    this.questTracker.onQuestAdded(enrichedQuest);
+    this.updateQuestIconState();
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Calculer le niveau d'une quête
+  calculateQuestLevel(quest) {
+    // Logique pour déterminer le niveau basé sur la difficulté, zone, etc.
+    if (quest.difficulty) {
+      const levelMap = { easy: '1-5', medium: '6-10', hard: '11-15', expert: '16+' };
+      return levelMap[quest.difficulty] || '';
+    }
+    return '';
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Calculer la distance d'une quête
+  calculateQuestDistance(quest) {
+    if (!quest.targetLocation || !this.scene?.playerManager) return null;
+    
+    const player = this.scene.playerManager.getMyPlayer();
+    if (!player) return null;
+    
+    const dx = quest.targetLocation.x - player.x;
+    const dy = quest.targetLocation.y - player.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mettre à jour l'état de l'icône
+  updateQuestIconState() {
+    if (!this.questIcon) return;
+    
+    const hasActiveQuests = this.activeQuests.length > 0;
+    this.questIcon.updateActiveQuestState(hasActiveQuests);
+    
+    // Compter les nouvelles quêtes ou quêtes prêtes à être terminées
+    const newOrReadyQuests = this.activeQuests.filter(quest => 
+      quest.isNew || quest.currentStepIndex >= quest.steps.length
+    ).length;
+    
+    this.questIcon.updateNotificationCount(newOrReadyQuests);
+  }
+
+  // ✅ Système de déduplication existant (inchangé)
   shouldShowNotification(type, questId) {
     const key = `${type}_${questId}`;
     const now = Date.now();
     const lastTime = this.lastNotificationTime.get(key);
     
-    // Si pas de notification récente ou si le cooldown est écoulé
     if (!lastTime || (now - lastTime) > this.notificationCooldown) {
       this.lastNotificationTime.set(key, now);
       return true;
@@ -131,16 +231,305 @@ export class QuestSystem {
     return false;
   }
 
+  // ✅ Gestion des mises à jour de progression (améliorée)
+  handleQuestProgressUpdate(results) {
+    if (!Array.isArray(results)) return;
+    
+    results.forEach(result => {
+      if (result.questCompleted) {
+        const questId = result.questId || 'unknown';
+        if (this.shouldShowNotification('questCompleted', questId)) {
+          // ✅ Animation de l'icône
+          this.questIcon.onQuestCompleted();
+          
+          this.notificationManager.questNotification(
+            result.questId,
+            'completed',
+            {
+              duration: 6000,
+              bounce: true,
+              sound: true,
+              onClick: () => this.openQuestJournal()
+            }
+          );
+          
+          // ✅ NOUVEAU: Notifier le tracker
+          if (this.questTracker) {
+            const quest = this.activeQuests.find(q => q.id === result.questId);
+            if (quest) {
+              quest.currentStepIndex = quest.steps.length; // Marquer comme terminée
+              this.questTracker.onQuestCompleted(quest);
+            }
+          }
+          
+          // Afficher les récompenses si disponibles
+          if (result.rewards && result.rewards.length > 0) {
+            setTimeout(() => {
+              this.showQuestRewards({ rewards: result.rewards });
+            }, 1000);
+          }
+        }
+      } else if (result.stepCompleted) {
+        const stepId = `${result.questId || 'unknown'}_step`;
+        if (this.shouldShowNotification('stepCompleted', stepId)) {
+          // ✅ Animation de l'icône
+          this.questIcon.onQuestProgress();
+          
+          this.notificationManager.quest(
+            `Étape terminée !`,
+            {
+              duration: 3000,
+              onClick: () => this.openQuestJournal()
+            }
+          );
+          
+          // ✅ NOUVEAU: Mettre à jour le tracker
+          if (this.questTracker) {
+            const quest = this.activeQuests.find(q => q.id === result.questId);
+            if (quest) {
+              quest.currentStepIndex = result.newStepIndex || quest.currentStepIndex + 1;
+              this.questTracker.onQuestUpdated(quest);
+            }
+          }
+        }
+      } else if (result.message) {
+        if (this.shouldShowNotification('questProgress', result.message)) {
+          this.notificationManager.info(result.message, { duration: 3000 });
+          
+          // ✅ NOUVEAU: Animation légère de progression
+          this.questIcon.onQuestProgress();
+        }
+      }
+    });
+    
+    // Actualiser la liste
+    if (this.questJournal && this.questJournal.isVisible) {
+      this.questJournal.refreshQuests();
+    }
+    
+    // ✅ NOUVEAU: Actualiser l'état de l'icône
+    this.updateQuestIconState();
+  }
+
+  // ✅ Méthodes d'interface mises à jour
+  openQuestJournal() {
+    if (this.questJournal) {
+      this.questJournal.show();
+    }
+  }
+
+  closeQuestJournal() {
+    if (this.questJournal) {
+      this.questJournal.hide();
+    }
+  }
+
+  toggleQuestJournal() {
+    if (this.questJournal) {
+      this.questJournal.toggle();
+    }
+  }
+
+  // ✅ NOUVELLES MÉTHODES: Gestion du tracker
+  showQuestTracker() {
+    if (this.questTracker) {
+      this.questTracker.show();
+    }
+  }
+
+  hideQuestTracker() {
+    if (this.questTracker) {
+      this.questTracker.hide();
+    }
+  }
+
+  toggleQuestTracker() {
+    if (this.questTracker) {
+      this.questTracker.toggle();
+    }
+  }
+
+  // ✅ NOUVELLES MÉTHODES: Gestion de l'icône
+  showQuestIcon() {
+    if (this.questIcon) {
+      this.questIcon.show();
+    }
+  }
+
+  hideQuestIcon() {
+    if (this.questIcon) {
+      this.questIcon.hide();
+    }
+  }
+
+  // ✅ Méthodes pour déclencher des événements de progression (améliorées)
+  triggerCollectEvent(itemId, amount = 1) {
+    if (this.gameRoom) {
+      this.gameRoom.send("questProgress", {
+        type: 'collect',
+        itemId: itemId,
+        amount: amount
+      });
+      
+      const collectKey = `${itemId}_${amount}`;
+      if (this.shouldShowNotification('itemCollect', collectKey)) {
+        this.notificationManager.info(
+          `Objet collecté: ${itemId} x${amount}`,
+          {
+            duration: 2000,
+            position: 'bottom-right',
+            type: 'inventory'
+          }
+        );
+      }
+    }
+  }
+
+  triggerDefeatEvent(pokemonId) {
+    if (this.gameRoom) {
+      this.gameRoom.send("questProgress", {
+        type: 'defeat',
+        pokemonId: pokemonId
+      });
+      
+      if (this.shouldShowNotification('pokemonDefeat', pokemonId)) {
+        this.notificationManager.show(
+          `Pokémon vaincu !`,
+          {
+            type: 'battle',
+            duration: 2000,
+            position: 'bottom-center'
+          }
+        );
+      }
+    }
+  }
+
+  triggerReachEvent(zoneId, x, y, map) {
+    if (this.gameRoom) {
+      this.gameRoom.send("questProgress", {
+        type: 'reach',
+        zoneId: zoneId,
+        x: x,
+        y: y,
+        map: map
+      });
+      
+      if (this.shouldShowNotification('zoneReach', zoneId)) {
+        this.notificationManager.info(
+          `Zone visitée: ${zoneId}`,
+          {
+            duration: 2000,
+            position: 'top-center'
+          }
+        );
+      }
+    }
+  }
+
+  triggerDeliverEvent(npcId, itemId) {
+    if (this.gameRoom) {
+      this.gameRoom.send("questProgress", {
+        type: 'deliver',
+        npcId: npcId,
+        targetId: itemId
+      });
+      
+      const deliverKey = `${npcId}_${itemId}`;
+      if (this.shouldShowNotification('itemDeliver', deliverKey)) {
+        this.notificationManager.success(
+          `Objet livré: ${itemId}`,
+          {
+            duration: 3000
+          }
+        );
+      }
+    }
+  }
+
+  // ✅ MÉTHODES DE CONFIGURATION DU TRACKER
+  setMaxTrackedQuests(max) {
+    if (this.questTracker) {
+      this.questTracker.setMaxTrackedQuests(max);
+    }
+  }
+
+  setTrackerPosition(x, y) {
+    if (this.questTracker) {
+      this.questTracker.setPosition(x, y);
+    }
+  }
+
+  // ✅ Méthodes utilitaires pour l'interface
+  isQuestJournalOpen() {
+    return this.questJournal ? this.questJournal.isVisible : false;
+  }
+
+  canPlayerInteract() {
+    const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
+    const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
+    const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
+    
+    return !questDialogOpen && !chatOpen && !starterHudOpen;
+  }
+
+  // ✅ Méthodes de debug pour la déduplication (inchangées)
+  resetNotificationCooldowns() {
+    this.lastNotificationTime.clear();
+    console.log("🔄 Cooldowns de notification réinitialisés");
+  }
+
+  debugNotificationSystem() {
+    console.log("🔍 État du système de déduplication des notifications:");
+    console.log("- Cooldown actuel:", this.notificationCooldown, "ms");
+    console.log("- Notifications en cooldown:", this.lastNotificationTime.size);
+    
+    if (this.lastNotificationTime.size > 0) {
+      console.log("- Détails des cooldowns:");
+      const now = Date.now();
+      this.lastNotificationTime.forEach((time, key) => {
+        const remaining = Math.max(0, this.notificationCooldown - (now - time));
+        console.log(`  ${key}: ${remaining}ms restant`);
+      });
+    }
+
+    if (this.notificationManager) {
+      this.notificationManager.info(
+        `Debug: ${this.lastNotificationTime.size} notifications en cooldown`,
+        {
+          duration: 3000,
+          position: 'top-left'
+        }
+      );
+    }
+  }
+
+  setNotificationCooldown(milliseconds) {
+    const oldCooldown = this.notificationCooldown;
+    this.notificationCooldown = milliseconds;
+    
+    console.log(`🔧 Cooldown notification changé: ${oldCooldown}ms → ${milliseconds}ms`);
+    
+    if (this.notificationManager) {
+      this.notificationManager.info(
+        `Cooldown mis à jour: ${milliseconds}ms`,
+        {
+          duration: 2000,
+          position: 'bottom-left'
+        }
+      );
+    }
+  }
+
+  // ✅ NOUVELLES MÉTHODES: Gestion des événements NPC (conservées du code original)
   handleNpcInteraction(data) {
     console.log("🎯 Interaction NPC reçue:", data);
     
-    // Vérifier si un dialog est déjà ouvert
     if (window._questDialogActive) {
       console.log("⚠️ Dialog de quête déjà ouvert, interaction ignorée");
       return;
     }
     
-    // Ne traiter QUE les interactions liées aux quêtes
     switch (data.type) {
       case 'questGiver':
         const parsedData = this.parseNpcQuestData(data);
@@ -152,7 +541,6 @@ export class QuestSystem {
         break;
         
       case 'questProgress':
-        // ✅ Déduplication pour les messages de progression aussi
         if (this.shouldShowNotification('questProgress', data.message)) {
           this.notificationManager.info(data.message, { duration: 3000 });
         }
@@ -172,7 +560,6 @@ export class QuestSystem {
     }
   }
 
-  // ✅ Parsing des données NPC (inchangé)
   parseNpcQuestData(data) {
     console.log("🔍 Parsing NPC quest data:", data);
     
@@ -223,6 +610,7 @@ export class QuestSystem {
         name: quest.name || 'Quête sans nom',
         description: quest.description || 'Pas de description disponible',
         category: quest.category || 'side',
+        level: quest.level || '',
         steps: []
       };
 
@@ -300,6 +688,7 @@ export class QuestSystem {
       const questName = quest.name || 'Quête sans nom';
       const questDesc = quest.description || 'Pas de description';
       const questCategory = quest.category || 'side';
+      const questLevel = quest.level ? `[${quest.level}]` : '';
       const firstStep = quest.steps && quest.steps[0] ? quest.steps[0] : null;
       
       console.log("🎯 Génération HTML pour quête:", questName);
@@ -307,7 +696,7 @@ export class QuestSystem {
       return `
         <div class="quest-option" data-quest-id="${quest.id}">
           <div class="quest-option-header">
-            <strong>${questName}</strong>
+            <strong>${questName} ${questLevel}</strong>
             <span class="quest-category ${questCategory}">${questCategory.toUpperCase()}</span>
           </div>
           <p class="quest-option-description">${questDesc}</p>
@@ -691,84 +1080,12 @@ export class QuestSystem {
     }
   }
 
-  // === MÉTHODES AVEC NOTIFICATIONMANAGER ET DÉDUPLICATION ===
-  
-  showAvailableQuests(quests) {
-    if (quests && quests.length > 0) {
-      // ✅ Déduplication pour les quêtes disponibles
-      if (this.shouldShowNotification('availableQuests', quests.length)) {
-        this.notificationManager.info(
-          `${quests.length} quête(s) disponible(s)`,
-          {
-            duration: 3000,
-            position: 'bottom-right'
-          }
-        );
-      }
-      
-      this.showQuestGiverDialog({ availableQuests: quests });
-    }
-  }
-
-  handleQuestProgressUpdate(results) {
-    if (!Array.isArray(results)) return;
-    
-    results.forEach(result => {
-      if (result.questCompleted) {
-        // ✅ Déduplication pour les quêtes terminées
-        const questId = result.questId || 'unknown';
-        if (this.shouldShowNotification('questCompleted', questId)) {
-          this.notificationManager.questNotification(
-            result.questId,
-            'completed',
-            {
-              duration: 6000,
-              bounce: true,
-              sound: true,
-              onClick: () => this.openQuestJournal()
-            }
-          );
-          
-          // Afficher les récompenses si disponibles
-          if (result.rewards && result.rewards.length > 0) {
-            setTimeout(() => {
-              this.showQuestRewards({ rewards: result.rewards });
-            }, 1000);
-          }
-        }
-      } else if (result.stepCompleted) {
-        // ✅ Déduplication pour les étapes terminées
-        const stepId = `${result.questId || 'unknown'}_step`;
-        if (this.shouldShowNotification('stepCompleted', stepId)) {
-          this.notificationManager.quest(
-            `Étape terminée !`,
-            {
-              duration: 3000,
-              onClick: () => this.openQuestJournal()
-            }
-          );
-        }
-      } else if (result.message) {
-        // ✅ Déduplication pour les messages de progression
-        if (this.shouldShowNotification('questProgress', result.message)) {
-          this.notificationManager.info(result.message, { duration: 3000 });
-        }
-      }
-    });
-    
-    // Actualiser la liste
-    if (this.questJournal && this.questJournal.isVisible) {
-      this.questJournal.refreshQuests();
-    }
-  }
-
   showQuestRewards(data) {
     if (data.rewards && data.rewards.length > 0) {
       window._questDialogActive = true;
       
       const rewardText = data.rewards.map(r => this.formatReward(r)).join(', ');
       
-      // ✅ Déduplication pour les récompenses
       if (this.shouldShowNotification('questRewards', rewardText)) {
         this.notificationManager.achievement(
           `Récompenses reçues : ${rewardText}`,
@@ -781,7 +1098,6 @@ export class QuestSystem {
         );
       }
       
-      // Créer aussi le dialogue traditionnel
       const dialog = this.createQuestCompleteDialog(
         data.message || "Récompenses reçues !",
         data.rewards
@@ -834,247 +1150,31 @@ export class QuestSystem {
     return dialog;
   }
 
-  // === NOUVELLES MÉTHODES POUR DIFFÉRENTS TYPES DE NOTIFICATIONS AVEC DÉDUPLICATION ===
-  
-  notifyQuestObjectiveProgress(questName, objectiveName, current, required) {
-    const progressKey = `${questName}_${objectiveName}_${current}_${required}`;
-    if (this.shouldShowNotification('questObjective', progressKey)) {
-      const message = `${questName}: ${objectiveName} (${current}/${required})`;
-      this.notificationManager.quest(message, {
-        duration: 2500,
-        position: 'bottom-center'
-      });
+  // ✅ MÉTHODES DE NETTOYAGE ET DESTRUCTION
+  destroy() {
+    console.log("💀 Destruction du système de quêtes");
+    
+    // Nettoyer les composants UI
+    if (this.questIcon) {
+      this.questIcon.destroy();
+      this.questIcon = null;
     }
-  }
-
-  notifyQuestStepCompleted(questName, stepName) {
-    const stepKey = `${questName}_${stepName}`;
-    if (this.shouldShowNotification('stepCompleted', stepKey)) {
-      this.notificationManager.success(
-        `${questName}: ${stepName} terminée !`,
-        {
-          duration: 4000,
-          bounce: true
-        }
-      );
+    
+    if (this.questTracker) {
+      this.questTracker.destroy();
+      this.questTracker = null;
     }
-  }
-
-  notifyQuestFailed(questName, reason) {
-    const failKey = questName;
-    if (this.shouldShowNotification('questFailed', failKey)) {
-      this.notificationManager.questNotification(
-        questName,
-        'failed',
-        {
-          duration: 5000,
-          onClick: () => this.openQuestJournal()
-        }
-      );
-      
-      if (reason) {
-        setTimeout(() => {
-          this.notificationManager.warning(reason, { duration: 4000 });
-        }, 500);
-      }
-    }
-  }
-
-  notifyQuestTimeLimit(questName, timeRemaining) {
-    const timeKey = `${questName}_${timeRemaining}`;
-    if (this.shouldShowNotification('questTimeLimit', timeKey)) {
-      this.notificationManager.warning(
-        `${questName}: ${timeRemaining} restant !`,
-        {
-          duration: 3000,
-          position: 'top-center'
-        }
-      );
-    }
-  }
-  
-  // === MÉTHODES POUR DÉCLENCHER DES ÉVÉNEMENTS DE PROGRESSION ===
-
-  triggerCollectEvent(itemId, amount = 1) {
-    if (this.gameRoom) {
-      this.gameRoom.send("questProgress", {
-        type: 'collect',
-        itemId: itemId,
-        amount: amount
-      });
-      
-      // ✅ Notification immédiate de collecte (avec déduplication)
-      const collectKey = `${itemId}_${amount}`;
-      if (this.shouldShowNotification('itemCollect', collectKey)) {
-        this.notificationManager.info(
-          `Objet collecté: ${itemId} x${amount}`,
-          {
-            duration: 2000,
-            position: 'bottom-right',
-            type: 'inventory'
-          }
-        );
-      }
-    }
-  }
-
-  triggerDefeatEvent(pokemonId) {
-    if (this.gameRoom) {
-      this.gameRoom.send("questProgress", {
-        type: 'defeat',
-        pokemonId: pokemonId
-      });
-      
-      // ✅ Notification de combat (avec déduplication)
-      if (this.shouldShowNotification('pokemonDefeat', pokemonId)) {
-        this.notificationManager.show(
-          `Pokémon vaincu !`,
-          {
-            type: 'battle',
-            duration: 2000,
-            position: 'bottom-center'
-          }
-        );
-      }
-    }
-  }
-
-  triggerReachEvent(zoneId, x, y, map) {
-    if (this.gameRoom) {
-      this.gameRoom.send("questProgress", {
-        type: 'reach',
-        zoneId: zoneId,
-        x: x,
-        y: y,
-        map: map
-      });
-      
-      // ✅ Notification de zone (avec déduplication)
-      if (this.shouldShowNotification('zoneReach', zoneId)) {
-        this.notificationManager.info(
-          `Zone visitée: ${zoneId}`,
-          {
-            duration: 2000,
-            position: 'top-center'
-          }
-        );
-      }
-    }
-  }
-
-  triggerDeliverEvent(npcId, itemId) {
-    if (this.gameRoom) {
-      this.gameRoom.send("questProgress", {
-        type: 'deliver',
-        npcId: npcId,
-        targetId: itemId
-      });
-      
-      // ✅ Notification de livraison (avec déduplication)
-      const deliverKey = `${npcId}_${itemId}`;
-      if (this.shouldShowNotification('itemDeliver', deliverKey)) {
-        this.notificationManager.success(
-          `Objet livré: ${itemId}`,
-          {
-            duration: 3000
-          }
-        );
-      }
-    }
-  }
-
-  // === MÉTHODES D'INTERFACE ===
-
-  openQuestJournal() {
+    
     if (this.questJournal) {
-      this.questJournal.show();
-    }
-  }
-
-  closeQuestJournal() {
-    if (this.questJournal) {
+      // Le QuestJournalUI n'a pas de méthode destroy, on le cache
       this.questJournal.hide();
+      this.questJournal = null;
     }
-  }
-
-  toggleQuestJournal() {
-    if (this.questJournal) {
-      this.questJournal.toggle();
-    }
-  }
-
-  isQuestJournalOpen() {
-    return this.questJournal ? this.questJournal.isVisible : false;
-  }
-
-  getCurrentTrackedQuest() {
-    return this.trackedQuest;
-  }
-
-  canPlayerInteract() {
-    const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
-    const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    const starterHudOpen = typeof window.isStarterHUDOpen === 'function' ? window.isStarterHUDOpen() : false;
     
-    return !questDialogOpen && !chatOpen && !starterHudOpen;
-  }
-
-  // === MÉTHODES DE DEBUG POUR LA DÉDUPLICATION ===
-
-  /**
-   * Réinitialise le système de déduplication
-   */
-  resetNotificationCooldowns() {
+    // Nettoyer les données
+    this.activeQuests = [];
     this.lastNotificationTime.clear();
-    console.log("🔄 Cooldowns de notification réinitialisés");
-  }
-
-  /**
-   * Affiche l'état actuel du système de déduplication
-   */
-  debugNotificationSystem() {
-    console.log("🔍 État du système de déduplication des notifications:");
-    console.log("- Cooldown actuel:", this.notificationCooldown, "ms");
-    console.log("- Notifications en cooldown:", this.lastNotificationTime.size);
     
-    if (this.lastNotificationTime.size > 0) {
-      console.log("- Détails des cooldowns:");
-      const now = Date.now();
-      this.lastNotificationTime.forEach((time, key) => {
-        const remaining = Math.max(0, this.notificationCooldown - (now - time));
-        console.log(`  ${key}: ${remaining}ms restant`);
-      });
-    }
-
-    // ✅ Notification de debug
-    if (this.notificationManager) {
-      this.notificationManager.info(
-        `Debug: ${this.lastNotificationTime.size} notifications en cooldown`,
-        {
-          duration: 3000,
-          position: 'top-left'
-        }
-      );
-    }
-  }
-
-  /**
-   * Configure le délai de déduplication
-   */
-  setNotificationCooldown(milliseconds) {
-    const oldCooldown = this.notificationCooldown;
-    this.notificationCooldown = milliseconds;
-    
-    console.log(`🔧 Cooldown notification changé: ${oldCooldown}ms → ${milliseconds}ms`);
-    
-    if (this.notificationManager) {
-      this.notificationManager.info(
-        `Cooldown mis à jour: ${milliseconds}ms`,
-        {
-          duration: 2000,
-          position: 'bottom-left'
-        }
-      );
-    }
+    console.log("✅ Système de quêtes détruit");
   }
 }
