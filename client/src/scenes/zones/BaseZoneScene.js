@@ -495,9 +495,6 @@ export class BaseZoneScene extends Phaser.Scene {
     // Changer vers la bonne scène
 if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
 this.scene.start(correctScene, transitionData);
-
-
-    this.scene.start(correctScene, transitionData);
   }
 
   // ✅ NOUVELLE MÉTHODE: Synchronisation sessionId
