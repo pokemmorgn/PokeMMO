@@ -10,6 +10,9 @@ export class InputManager {
     this.mobileJoystick = null;
     this.isMobile = this.detectMobile();
     
+    // Flag pour forcer l'arrêt du mouvement
+    this.forceStop = false;
+    
     this.callbacks = {
       onMove: null
     };
@@ -29,29 +32,53 @@ export class InputManager {
 
     // Réinitialise les touches si le joueur perd le focus (ex : alt-tab)
     window.addEventListener('blur', () => {
-      this.scene.input.keyboard.resetKeys();
-      this.currentMovement = {
-        x: 0,
-        y: 0,
-        isMoving: false,
-        direction: null,
-        source: null
-      };
+      this.resetMovement();
     });
 
-    // RESET clavier aussi à chaque clic droit n'importe où (fix ultime)
+    // RESET complet à chaque clic droit n'importe où
     window.addEventListener('mousedown', (e) => {
       if (e.button === 2) { // bouton droit
-        this.scene.input.keyboard.resetKeys();
-        this.currentMovement = {
-          x: 0,
-          y: 0,
-          isMoving: false,
-          direction: null,
-          source: null
-        };
+        this.resetMovement();
       }
     });
+
+    // Reset aussi sur contextmenu (au cas où)
+    window.addEventListener('contextmenu', (e) => {
+      this.resetMovement();
+    });
+  }
+
+  // Méthode centralisée pour reset complet du mouvement
+  resetMovement() {
+    console.log('🛑 Reset mouvement forcé');
+    
+    // Flag pour forcer l'arrêt
+    this.forceStop = true;
+    
+    // Reset des touches Phaser
+    this.scene.input.keyboard.resetKeys();
+    
+    // Reset du mouvement actuel
+    this.currentMovement = {
+      x: 0,
+      y: 0,
+      isMoving: false,
+      direction: null,
+      source: null
+    };
+
+    // Reset du joystick si présent
+    if (this.mobileJoystick) {
+      this.mobileJoystick.reset();
+    }
+
+    // Callback pour notifier l'arrêt
+    this.triggerMoveCallback();
+
+    // Remet le flag à false après un court délai
+    setTimeout(() => {
+      this.forceStop = false;
+    }, 100);
   }
 
   detectMobile() {
@@ -134,6 +161,9 @@ export class InputManager {
   }
 
   handleJoystickInput(input) {
+    // Si on force l'arrêt, ignore le joystick
+    if (this.forceStop) return;
+
     const speed = GAME_CONFIG.player.speed;
     const moveX = input.x * speed;
     const moveY = input.y * speed;
@@ -159,6 +189,15 @@ export class InputManager {
   }
 
   update(currentX, currentY) {
+    // Si on force l'arrêt, retourne un mouvement vide
+    if (this.forceStop) {
+      return {
+        moved: false,
+        newX: currentX,
+        newY: currentY
+      };
+    }
+
     if (this.mobileJoystick && this.mobileJoystick.isMoving()) {
       return this.currentMovement;
     }
@@ -166,11 +205,42 @@ export class InputManager {
   }
 
   handleKeyboardInput(currentX, currentY) {
+    // Si on force l'arrêt, ne traite pas les touches
+    if (this.forceStop) {
+      return {
+        moved: false,
+        newX: currentX,
+        newY: currentY
+      };
+    }
+
     const speed = GAME_CONFIG.player.speed;
     let newX = currentX;
     let newY = currentY;
     let moved = false;
     let direction = null;
+
+    // Vérification supplémentaire : si toutes les touches sont relâchées, force l'arrêt
+    const anyKeyPressed = this.cursors.left.isDown || this.cursors.right.isDown || 
+                         this.cursors.up.isDown || this.cursors.down.isDown ||
+                         this.wasdKeys.A?.isDown || this.wasdKeys.Q?.isDown ||
+                         this.wasdKeys.D?.isDown || this.wasdKeys.W?.isDown ||
+                         this.wasdKeys.Z?.isDown || this.wasdKeys.S?.isDown;
+
+    if (!anyKeyPressed) {
+      this.currentMovement = {
+        x: 0,
+        y: 0,
+        isMoving: false,
+        direction: null,
+        source: 'keyboard'
+      };
+      return {
+        moved: false,
+        newX: currentX,
+        newY: currentY
+      };
+    }
 
     // On regarde le mapping dynamique (AZERTY: ZQSD, QWERTY: WASD)
     if (this.cursors.left.isDown || this.wasdKeys.A?.isDown || this.wasdKeys.Q?.isDown) {
@@ -233,6 +303,9 @@ export class InputManager {
   }
 
   isKeyDown(key) {
+    // Si on force l'arrêt, aucune touche n'est considérée comme pressée
+    if (this.forceStop) return false;
+
     switch(key.toLowerCase()) {
       case 'left': return this.cursors.left.isDown || this.wasdKeys.A?.isDown || this.wasdKeys.Q?.isDown;
       case 'right': return this.cursors.right.isDown || this.wasdKeys.D?.isDown;
@@ -243,15 +316,15 @@ export class InputManager {
   }
 
   isMoving() {
-    return this.currentMovement.isMoving;
+    return !this.forceStop && this.currentMovement.isMoving;
   }
 
   getDirection() {
-    return this.currentMovement.direction;
+    return this.forceStop ? null : this.currentMovement.direction;
   }
 
   getInputSource() {
-    return this.currentMovement.source;
+    return this.forceStop ? null : this.currentMovement.source;
   }
 
   showJoystick() {
