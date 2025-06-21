@@ -16,6 +16,8 @@ export class NetworkManager {
     this.currentZone = null;
     this.lastReceivedNpcs = null;
 this.lastReceivedZoneData = null;
+      this.onTransitionValidation = null; // ✅ AJOUTER CETTE LIGNE
+
     
     // ✅ NOUVEAU: Gestion améliorée des transitions
     this.transitionState = {
@@ -103,31 +105,21 @@ this.room.onMessage("npcList", (npcs) => {
  }
 });
 
-// ✅ AMÉLIORATION: Gestion des résultats de transition
+// Handler pour les résultats de validation de transition
 this.room.onMessage("transitionResult", (result) => {
- console.log(`🌀 [NetworkManager] === TRANSITION RESULT ===`);
- console.log(`📊 Résultat:`, result);
- 
- if (result.success) {
-   console.log(`✅ [NetworkManager] Transition réussie vers: ${result.currentZone}`);
-   this.currentZone = result.currentZone;
-   
-   // ✅ CORRECTION CRITIQUE: Reset de l'état de transition AVANT le callback
-   this.resetTransitionState();
-   
-   if (this.callbacks.onTransitionSuccess) {
-     this.callbacks.onTransitionSuccess(result);
-   }
- } else {
-   console.error(`❌ [NetworkManager] Transition échouée: ${result.reason}`);
-   
-   // ✅ CORRECTION: Reset même en cas d'échec
-   this.resetTransitionState();
-   
-   if (this.callbacks.onTransitionError) {
-     this.callbacks.onTransitionError(result);
-   }
- }
+  console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
+  
+  // ✅ Appeler le callback de validation si défini
+  if (this.onTransitionValidation) {
+    this.onTransitionValidation(result);
+  }
+  
+  // ✅ Garder aussi les anciens callbacks si tu les utilises
+  if (result.success && this.callbacks.onTransitionSuccess) {
+    this.callbacks.onTransitionSuccess(result);
+  } else if (!result.success && this.callbacks.onTransitionError) {
+    this.callbacks.onTransitionError(result);
+  }
 });
 
 // Interactions NPC
