@@ -64,19 +64,111 @@ export class WorldRoom extends Room<PokeWorldState> {
     });
   }
 
+  // ✅ MÉTHODE CORRIGÉE AVEC DEBUG ET DÉLAI
   async onPlayerJoinZone(client: Client, zoneName: string) {
+    console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE ===`);
+    console.log(`👤 Client: ${client.sessionId}`);
+    console.log(`🌍 Zone: ${zoneName}`);
+
     // ✅ ENVOYER LES NPCS DEPUIS LE FICHIER .TMJ
     const npcManager = this.npcManagers.get(zoneName);
     if (npcManager) {
       const npcs = npcManager.getAllNpcs();
       client.send("npcList", npcs);
       console.log(`📤 ${npcs.length} NPCs envoyés pour ${zoneName}`);
+    } else {
+      console.warn(`⚠️ [WorldRoom] Aucun NPCManager trouvé pour ${zoneName}`);
     }
 
-    // ✅ ENVOYER LES STATUTS DE QUÊTE POUR CETTE ZONE
+    // ✅ CORRECTION CRITIQUE: DÉLAI POUR LES STATUTS DE QUÊTE
     const player = this.state.players.get(client.sessionId);
     if (player) {
-      this.updateQuestStatuses(player.name);
+      console.log(`🎯 [WorldRoom] Programmation mise à jour quest statuses pour ${player.name}`);
+      
+      // ✅ DÉLAI PLUS LONG pour s'assurer que tout est initialisé
+      this.clock.setTimeout(async () => {
+        console.log(`⏰ [WorldRoom] Exécution différée des quest statuses pour ${player.name}`);
+        await this.updateQuestStatusesFixed(player.name, client);
+      }, 2000); // 2 secondes au lieu de 1
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Mise à jour quest statuses avec debug
+  private async updateQuestStatusesFixed(username: string, client?: Client) {
+    try {
+      console.log(`📊 [WorldRoom] === UPDATE QUEST STATUSES ===`);
+      console.log(`👤 Username: ${username}`);
+      
+      // ✅ VÉRIFIER QUE LE ZONE MANAGER EST INITIALISÉ
+      if (!this.zoneManager) {
+        console.error(`❌ [WorldRoom] ZoneManager non initialisé !`);
+        return;
+      }
+      
+      // ✅ VÉRIFIER QUE LE QUEST MANAGER EST ACCESSIBLE
+      const questManager = this.zoneManager.getQuestManager();
+      if (!questManager) {
+        console.error(`❌ [WorldRoom] QuestManager non accessible !`);
+        return;
+      }
+      
+      console.log(`✅ [WorldRoom] Managers OK, récupération quest statuses...`);
+      
+      // ✅ APPELER DIRECTEMENT LE QUEST MANAGER POUR DEBUG
+      const availableQuests = await questManager.getAvailableQuests(username);
+      const activeQuests = await questManager.getActiveQuests(username);
+      
+      console.log(`📋 [WorldRoom] Quêtes disponibles: ${availableQuests.length}`);
+      console.log(`📈 [WorldRoom] Quêtes actives: ${activeQuests.length}`);
+      
+      // ✅ CALCULER MANUELLEMENT LES STATUTS POUR DEBUG
+      const questStatuses: any[] = [];
+      
+      // Statuts pour les quêtes disponibles
+      for (const quest of availableQuests) {
+        if (quest.startNpcId) {
+          questStatuses.push({
+            npcId: quest.startNpcId,
+            type: 'questAvailable'
+          });
+          console.log(`➕ [WorldRoom] Quête disponible: ${quest.name} pour NPC ${quest.startNpcId}`);
+        }
+      }
+      
+      // Statuts pour les quêtes actives
+      for (const quest of activeQuests) {
+        if (quest.status === 'readyToComplete' && quest.endNpcId) {
+          questStatuses.push({
+            npcId: quest.endNpcId,
+            type: 'questReadyToComplete'
+          });
+          console.log(`🎉 [WorldRoom] Quête prête: ${quest.name} pour NPC ${quest.endNpcId}`);
+        } else if (quest.endNpcId) {
+          questStatuses.push({
+            npcId: quest.endNpcId,
+            type: 'questInProgress'
+          });
+          console.log(`📈 [WorldRoom] Quête en cours: ${quest.name} pour NPC ${quest.endNpcId}`);
+        }
+      }
+      
+      console.log(`📊 [WorldRoom] Total quest statuses: ${questStatuses.length}`, questStatuses);
+      
+      if (questStatuses.length > 0) {
+        // ✅ ENVOYER À TOUS LES CLIENTS OU JUSTE CELUI SPÉCIFIÉ
+        if (client) {
+          client.send("questStatuses", { questStatuses });
+          console.log(`📤 [WorldRoom] Quest statuses envoyés à ${client.sessionId}`);
+        } else {
+          this.broadcast("questStatuses", { questStatuses });
+          console.log(`📡 [WorldRoom] Quest statuses broadcastés`);
+        }
+      } else {
+        console.log(`ℹ️ [WorldRoom] Aucun quest status à envoyer pour ${username}`);
+      }
+      
+    } catch (error) {
+      console.error(`❌ [WorldRoom] Erreur updateQuestStatusesFixed:`, error);
     }
   }
 
@@ -366,50 +458,71 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
 
   // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
 
-private async handleStartQuest(client: Client, data: { questId: string }) {
-  try {
-    console.log(`🎯 Démarrage de quête ${data.questId} pour ${client.sessionId}`);
-    
-    const player = this.state.players.get(client.sessionId);
-    if (!player) {
+  // ✅ CORRECTION DANS handleStartQuest 
+  private async handleStartQuest(client: Client, data: { questId: string }) {
+    try {
+      console.log(`🎯 [WorldRoom] Démarrage de quête ${data.questId} pour ${client.sessionId}`);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("questStartResult", {
+          success: false,
+          message: "Joueur non trouvé"
+        });
+        return;
+      }
+
+      // ✅ UTILISER DIRECTEMENT LE QUEST MANAGER POUR DEBUG
+      const questManager = this.zoneManager.getQuestManager();
+      if (!questManager) {
+        console.error(`❌ [WorldRoom] QuestManager non accessible`);
+        client.send("questStartResult", {
+          success: false,
+          message: "Système de quêtes non disponible"
+        });
+        return;
+      }
+
+      // ✅ DÉMARRER LA QUÊTE DIRECTEMENT
+      const quest = await questManager.startQuest(player.name, data.questId);
+      
+      if (quest) {
+        console.log(`✅ [WorldRoom] Quête ${data.questId} démarrée pour ${player.name}`);
+        
+        const result = {
+          success: true,
+          quest: quest,
+          message: `Quête "${quest.name}" démarrée !`
+        };
+        
+        client.send("questStartResult", result);
+        
+        // ✅ METTRE À JOUR LES STATUTS IMMÉDIATEMENT
+        await this.updateQuestStatusesFixed(player.name);
+        
+        // ✅ BROADCASTER AUX AUTRES JOUEURS DE LA ZONE
+        this.broadcastToZone(player.currentZone, "questUpdate", {
+          player: player.name,
+          action: "started",
+          questId: data.questId
+        });
+        
+      } else {
+        console.log(`❌ [WorldRoom] Impossible de démarrer ${data.questId} pour ${player.name}`);
+        client.send("questStartResult", {
+          success: false,
+          message: "Impossible de démarrer cette quête"
+        });
+      }
+      
+    } catch (error) {
+      console.error("❌ [WorldRoom] Erreur handleStartQuest:", error);
       client.send("questStartResult", {
         success: false,
-        message: "Joueur non trouvé"
-      });
-      return;
-    }
-
-    // ✅ FIX: Utiliser directement la méthode de délégation du ZoneManager
-    const result = await this.zoneManager.handleQuestStart(client, data.questId);
-    
-    console.log(`📤 Envoi questStartResult:`, result);
-    
-    // ✅ CORRECTION: ENVOYER UN SEUL MESSAGE
-    client.send("questStartResult", result);
-    
-    // ✅ SUPPRIMÉ: Plus besoin d'envoyer questStarted séparément
-    /*
-    if (result.success && result.quest) {
-      client.send("questStarted", {
-        quest: result.quest,
-        message: result.message
+        message: "Erreur serveur lors du démarrage de la quête"
       });
     }
-    */
-    
-    // ✅ Mettre à jour les statuts de quête pour tous les clients si succès
-    if (result.success) {
-      this.updateQuestStatuses(player.name);
-    }
-    
-  } catch (error) {
-    console.error("❌ Erreur handleStartQuest:", error);
-    client.send("questStartResult", {
-      success: false,
-      message: "Erreur serveur lors du démarrage de la quête"
-    });
   }
-}
 
   private async handleGetActiveQuests(client: Client) {
     try {
@@ -476,29 +589,11 @@ private async handleStartQuest(client: Client, data: { questId: string }) {
         client.send("questProgressUpdate", results);
         
         // Mettre à jour les statuts de quête
-        this.updateQuestStatuses(player.name);
+        await this.updateQuestStatusesFixed(player.name);
       }
       
     } catch (error) {
       console.error("❌ Erreur handleQuestProgress:", error);
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Mettre à jour les statuts de quête
-  private async updateQuestStatuses(username: string) {
-    try {
-      // ✅ FIX: Utiliser directement la méthode de délégation du ZoneManager
-      const questStatuses = await this.zoneManager.getQuestStatuses(username);
-      
-      // Envoyer les statuts de quête à tous les clients de la zone
-      this.broadcast("questStatuses", {
-        questStatuses: questStatuses
-      });
-      
-      console.log(`📊 Statuts de quête mis à jour pour ${username}:`, questStatuses.length);
-      
-    } catch (error) {
-      console.error("❌ Erreur updateQuestStatuses:", error);
     }
   }
 
@@ -523,6 +618,22 @@ private async handleStartQuest(client: Client, data: { questId: string }) {
     } catch (error) {
       console.error(`🐛 [DEBUG] Erreur debug quêtes:`, error);
     }
+  }
+
+  // ✅ HELPER POUR BROADCASTER À UNE ZONE
+  private broadcastToZone(zoneName: string, message: string, data: any) {
+    console.log(`📡 [WorldRoom] Broadcasting to zone ${zoneName}: ${message}`);
+    
+    const clientsInZone = this.clients.filter(client => {
+      const player = this.state.players.get(client.sessionId);
+      return player && player.currentZone === zoneName;
+    });
+    
+    clientsInZone.forEach(client => {
+      client.send(message, data);
+    });
+    
+    console.log(`📤 [WorldRoom] Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
   }
 
   async onJoin(client: Client, options: any = {}) {
@@ -581,10 +692,10 @@ private async handleStartQuest(client: Client, data: { questId: string }) {
       this.scheduleFilteredStateUpdate();
 
       
-      // ✅ Envoyer les statuts de quête initiaux après un délai
-      this.clock.setTimeout(() => {
-        this.updateQuestStatuses(player.name);
-      }, 1000);
+      // ✅ CORRECTION: Utiliser la nouvelle méthode avec délai
+      this.clock.setTimeout(async () => {
+        await this.updateQuestStatusesFixed(player.name, client);
+      }, 2000);
       
       console.log(`🎉 ${player.name} a rejoint le monde !`);
 
@@ -604,9 +715,6 @@ private async handleStartQuest(client: Client, data: { questId: string }) {
     const player = this.state.players.get(client.sessionId);
     if (player) {
       console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
-      
-      // Notifier la zone que le joueur part
-      this.zoneManager.onPlayerLeaveZone(client, player.currentZone);
       
       // Supprimer du state
       this.state.players.delete(client.sessionId);
@@ -646,7 +754,7 @@ private async handleStartQuest(client: Client, data: { questId: string }) {
     if (Math.random() < 0.1) {
         console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
     }
-}
+  }
 
   // === MÉTHODES POUR LES EFFETS D'OBJETS ===
 
@@ -771,8 +879,9 @@ private async handleStartQuest(client: Client, data: { questId: string }) {
       return false;
     }
   }
-   // ✅ MÉTHODE CORRIGÉE: getFilteredStateForClient
-private getFilteredStateForClient(client: Client): any {
+
+  // ✅ MÉTHODE CORRIGÉE: getFilteredStateForClient
+  private getFilteredStateForClient(client: Client): any {
     const player = this.state.players.get(client.sessionId);
     if (!player) {
         console.warn(`⚠️ [WorldRoom] Client ${client.sessionId} sans joueur pour filtered state`);
@@ -818,7 +927,7 @@ private getFilteredStateForClient(client: Client): any {
     return {
         players: filteredPlayersObject  // ✅ Object simple, pas Map
     };
-}
+  }
 
   private sendFilteredState() {
     const now = Date.now();
@@ -848,4 +957,3 @@ private getFilteredStateForClient(client: Client): any {
     }, 50);
   }
 }
- 
