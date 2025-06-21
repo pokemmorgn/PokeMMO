@@ -1,6 +1,6 @@
 // client/src/transitions/TransitionManager.js
-// ✅ SYSTÈME DE TRANSITION AVEC VALIDATION SERVEUR
-// Prédiction locale + validation serveur + rollback
+// ✅ SYSTÈME DE TRANSITION AVEC VALIDATION SERVEUR PURE
+// Le client ne calcule RIEN, il fait juste la détection de collision et attend le serveur
 
 export class TransitionManager {
   constructor(scene) {
@@ -9,9 +9,8 @@ export class TransitionManager {
     this.debugMode = true;
     this.isTransitioning = false;
     
-    // Collections des éléments de transition
+    // Collections des éléments de transition (LOCAL seulement pour collision)
     this.teleport = new Map(); // objets "teleport" avec targetzone/targetspawn
-    this.spawn = new Map();    // objets "spawn" avec leur nom
     this.zones = new Map();    // zones physiques créées
     
     // Mapping zone ↔ scene
@@ -31,12 +30,12 @@ export class TransitionManager {
     
     this.currentZone = this.sceneToZone[scene.scene.key] || 'unknown';
     
-    console.log(`🌀 [TransitionManager] Système avec validation serveur initialisé pour ${this.currentZone}`);
+    console.log(`🌀 [TransitionManager] Système client pur initialisé pour ${this.currentZone}`);
   }
 
-  // ✅ ÉTAPE 1: Scanner la map et extraire tous les éléments
+  // ✅ INITIALISATION: Scanner seulement les teleports (pour collision)
   initialize() {
-    console.log(`🌀 [TransitionManager] === INITIALISATION ===`);
+    console.log(`🌀 [TransitionManager] === INITIALISATION CLIENT ===`);
     
     if (!this.scene.map) {
       console.error(`🌀 [TransitionManager] ❌ Aucune map trouvée!`);
@@ -55,23 +54,26 @@ export class TransitionManager {
 
     console.log(`🌀 [TransitionManager] 📋 ${objectLayers.length} layers d'objets trouvés`);
 
-    // Scanner tous les objets de tous les layers
+    // Scanner SEULEMENT les teleports
     objectLayers.forEach(layer => {
       console.log(`🌀 [TransitionManager] 📂 Scan layer "${layer.name}" (${layer.objects.length} objets)`);
       
       layer.objects.forEach((obj, index) => {
-        this.processObject(obj, index, layer.name);
+        const objName = (obj.name || '').toLowerCase();
+        
+        if (objName === 'teleport') {
+          this.processTeleport(obj, index, layer.name);
+        }
+        // ✅ PAS DE TRAITEMENT DES SPAWNS CÔTÉ CLIENT
       });
     });
 
     console.log(`🌀 [TransitionManager] ✅ Scan terminé:`);
-    console.log(`  📍 ${this.teleport.size} teleport trouvés`);
-    console.log(`  🎯 ${this.spawn.size} spawn trouvés`);
+    console.log(`  📍 ${this.teleport.size} teleports trouvés`);
 
-    // Créer les zones physiques
+    // Créer les zones physiques pour collision
     this.createPhysicalZones();
     
-    // Debug
     if (this.debugMode) {
       this.debugInfo();
     }
@@ -80,18 +82,7 @@ export class TransitionManager {
     return true;
   }
 
-  // ✅ ÉTAPE 2: Analyser chaque objet
-  processObject(obj, index, layerName) {
-    const objName = (obj.name || '').toLowerCase();
-    
-    if (objName === 'teleport') {
-      this.processTeleport(obj, index, layerName);
-    } else if (objName === 'spawn') {
-      this.processSpawn(obj, index, layerName);
-    }
-  }
-
-  // ✅ TRAITER UN TELEPORT
+  // ✅ TRAITER UN TELEPORT (pour collision seulement)
   processTeleport(obj, index, layerName) {
     const targetZone = this.getProperty(obj, 'targetzone');
     const targetSpawn = this.getProperty(obj, 'targetspawn');
@@ -118,35 +109,9 @@ export class TransitionManager {
     console.log(`🌀 [TransitionManager] 📍 Teleport "${teleport.id}": ${this.currentZone} → ${targetZone} ${targetSpawn ? `(spawn: ${targetSpawn})` : ''}`);
   }
 
-  // ✅ TRAITER UN SPAWN
-  processSpawn(obj, index, layerName) {
-    // Récupérer le nom du spawn depuis plusieurs sources possibles
-    const spawnName = this.getProperty(obj, 'name') || 
-                     this.getProperty(obj, 'spawnname') ||
-                     obj.name;
-
-    if (!spawnName) {
-      console.warn(`🌀 [TransitionManager] ⚠️ Spawn ${index} (${layerName}) sans nom`);
-      return;
-    }
-
-    const spawn = {
-      id: `spawn_${layerName}_${index}`,
-      type: 'spawn',
-      name: spawnName,
-      x: obj.x,
-      y: obj.y,
-      zone: this.currentZone
-    };
-
-    this.spawn.set(spawnName, spawn);
-    
-    console.log(`🌀 [TransitionManager] 🎯 Spawn "${spawnName}": (${spawn.x}, ${spawn.y}) dans ${this.currentZone}`);
-  }
-
-  // ✅ ÉTAPE 3: Créer les zones physiques pour les teleport
+  // ✅ CRÉER ZONES PHYSIQUES (pour collision)
   createPhysicalZones() {
-    console.log(`🌀 [TransitionManager] === CRÉATION ZONES PHYSIQUES ===`);
+    console.log(`🌀 [TransitionManager] === CRÉATION ZONES COLLISION ===`);
 
     this.teleport.forEach((teleportData) => {
       // Créer une zone invisible Phaser
@@ -171,13 +136,13 @@ export class TransitionManager {
 
       this.zones.set(teleportData.id, zone);
       
-      console.log(`🌀 [TransitionManager] ✅ Zone physique "${teleportData.id}" créée`);
+      console.log(`🌀 [TransitionManager] ✅ Zone collision "${teleportData.id}" créée`);
     });
 
-    console.log(`🌀 [TransitionManager] ✅ ${this.zones.size} zones physiques créées`);
+    console.log(`🌀 [TransitionManager] ✅ ${this.zones.size} zones collision créées`);
   }
 
-  // ✅ CRÉER RECTANGLE DE DEBUG
+  // ✅ DEBUG VISUEL
   createDebugRect(zone, teleportData) {
     const debugRect = this.scene.add.rectangle(
       zone.x, zone.y,
@@ -202,7 +167,7 @@ export class TransitionManager {
     debugText.setOrigin(0.5);
   }
 
-  // ✅ ÉTAPE 4: Vérifier les collisions avec le joueur
+  // ✅ VÉRIFIER COLLISIONS (inchangé)
   checkCollisions(player) {
     if (!this.isActive || !player || this.isTransitioning) return;
 
@@ -219,324 +184,185 @@ export class TransitionManager {
     });
   }
 
-  // ✅ ÉTAPE 5: Déclencher une transition avec validation serveur
+  // ✅ DÉCLENCHER TRANSITION (SIMPLIFIÉ - SERVEUR ONLY)
   async triggerTransition(teleportData) {
-  if (this.isTransitioning) {
-    console.log(`🌀 [TransitionManager] ⚠️ Transition déjà en cours`);
-    return;
-  }
-
-  console.log(`🌀 [TransitionManager] === TRANSITION AVEC VALIDATION SERVEUR ===`);
-  console.log(`📍 De: ${teleportData.fromZone}`);
-  console.log(`📍 Vers: ${teleportData.targetZone}`);
-  console.log(`🎯 Spawn: ${teleportData.targetSpawn || 'défaut'}`);
-
-  this.isTransitioning = true;
-
-  // Obtenir la position actuelle du joueur
-  const myPlayer = this.scene.playerManager?.getMyPlayer();
-  if (!myPlayer) {
-    console.error(`🌀 [TransitionManager] ❌ Joueur local introuvable`);
-    this.isTransitioning = false;
-    return;
-  }
-
-  // ✅ SAUVEGARDE COMPLÈTE DE L'ÉTAT ORIGINAL
-  const originalState = {
-    zone: this.currentZone,
-    scene: this.scene.scene.key,
-    player: {
-      x: myPlayer.x,
-      y: myPlayer.y,
-      targetX: myPlayer.targetX,
-      targetY: myPlayer.targetY,
-      visible: myPlayer.visible,
-      active: myPlayer.active
+    if (this.isTransitioning) {
+      console.log(`🌀 [TransitionManager] ⚠️ Transition déjà en cours`);
+      return;
     }
-  };
 
-  const targetScene = this.zoneToScene[teleportData.targetZone];
-  if (!targetScene) {
-    console.error(`🌀 [TransitionManager] ❌ Scene inconnue pour zone: ${teleportData.targetZone}`);
-    this.isTransitioning = false;
-    return;
-  }
+    console.log(`🌀 [TransitionManager] === DEMANDE TRANSITION SERVEUR ===`);
+    console.log(`📍 De: ${teleportData.fromZone}`);
+    console.log(`📍 Vers: ${teleportData.targetZone}`);
+    console.log(`🎯 Spawn: ${teleportData.targetSpawn || 'défaut'}`);
 
-  // Calculer la position de spawn
-  const spawnPosition = await this.calculateSpawnPosition(teleportData.targetSpawn, teleportData.targetZone);
+    this.isTransitioning = true;
 
-  console.log(`🚀 [TransitionManager] Prédiction locale: transition immédiate`);
-  
-  const transitionData = {
-    fromZone: this.currentZone,
-    fromTransition: true,
-    localTransition: true,
-    spawnX: spawnPosition.x,
-    spawnY: spawnPosition.y,
-    networkManager: this.scene.networkManager,
-    mySessionId: this.scene.mySessionId,
-    forcePlayerSync: true,
-    pendingValidation: true
-  };
-
-  // ✅ PASSER L'ÉTAT ORIGINAL AU LISTENER
-  this.setupValidationListener(teleportData, originalState, targetScene, transitionData);
-
-  // ✅ ENVOYER LA DEMANDE DE VALIDATION AU SERVEUR
-  if (this.scene.networkManager && this.scene.networkManager.isConnected) {
-    const validationRequest = {
-      fromZone: teleportData.fromZone,
-      targetZone: teleportData.targetZone,
-      targetSpawn: teleportData.targetSpawn,
-      playerX: myPlayer.x,
-      playerY: myPlayer.y,
-      teleportId: teleportData.id
-    };
-
-    console.log(`📤 [TransitionManager] Envoi demande validation:`, validationRequest);
-    this.scene.networkManager.room.send("validateTransition", validationRequest);
-  }
-
-  // Démarrer la nouvelle scène immédiatement (prédiction)
-  this.scene.scene.start(targetScene, transitionData);
-}
-
-  // ✅ NOUVELLE MÉTHODE: Setup du listener de validation
-  // ✅ CORRECTION: Setup du listener de validation
-setupValidationListener(teleportData, originalState, targetScene, transitionData) {
-  console.log(`👂 [TransitionManager] Setup listener de validation...`);
-  
-  const validationTimeout = setTimeout(() => {
-    console.warn(`⏰ [TransitionManager] Timeout validation - transition acceptée par défaut`);
-    this.isTransitioning = false;
-  }, 5000);
-
-  if (this.scene.networkManager?.room) {
-    const validationHandler = (result) => {
-      console.log(`📨 [TransitionManager] Résultat validation reçu:`, result);
-      
-      clearTimeout(validationTimeout);
+    // Obtenir la position actuelle du joueur
+    const myPlayer = this.scene.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.error(`🌀 [TransitionManager] ❌ Joueur local introuvable`);
       this.isTransitioning = false;
+      return;
+    }
 
-      if (result.success) {
-        console.log(`✅ [TransitionManager] Transition validée par le serveur`);
-        
-        if (result.position) {
-          const currentPlayer = this.scene.playerManager?.getMyPlayer();
-          if (currentPlayer && 
-              (Math.abs(currentPlayer.x - result.position.x) > 5 || 
-               Math.abs(currentPlayer.y - result.position.y) > 5)) {
-            
-            console.log(`🔧 [TransitionManager] Correction position serveur:`, result.position);
-            currentPlayer.x = result.position.x;
-            currentPlayer.y = result.position.y;
-            currentPlayer.targetX = result.position.x;
-            currentPlayer.targetY = result.position.y;
-          }
-        }
-      } else {
-        console.error(`❌ [TransitionManager] Transition refusée: ${result.reason}`);
-        
-        // ✅ ROLLBACK AMÉLIORÉ
-        if (result.rollback) {
-          this.performRollbackImproved(originalState);
-        }
-        
-        this.showTransitionError(result.reason);
+    // ✅ SAUVEGARDE POUR ROLLBACK
+    const originalState = {
+      zone: this.currentZone,
+      scene: this.scene.scene.key,
+      player: {
+        x: myPlayer.x,
+        y: myPlayer.y,
+        targetX: myPlayer.targetX,
+        targetY: myPlayer.targetY,
+        visible: myPlayer.visible,
+        active: myPlayer.active
       }
     };
 
-    this.scene.networkManager.onTransitionValidation = validationHandler;
-  }
-}
-
-  // ✅ NOUVELLE MÉTHODE: Rollback en cas de refus
-  // ✅ NOUVELLE MÉTHODE: Rollback en cas de refus
-performRollback(originalZone, originalPlayer) {
-  console.log(`🔄 [TransitionManager] === ROLLBACK VERS ${originalZone} ===`);
-  
-  const originalScene = this.zoneToScene[originalZone];
-  if (!originalScene) {
-    console.error(`❌ [TransitionManager] Scene de rollback introuvable: ${originalZone}`);
-    return;
-  }
-
-  // ✅ CORRECTION: Récupérer la position ACTUELLE du joueur dans la nouvelle scène
-  const currentPlayer = this.scene.playerManager?.getMyPlayer();
-  const rollbackX = currentPlayer ? currentPlayer.x : (originalPlayer.x || 100);
-  const rollbackY = currentPlayer ? currentPlayer.y : (originalPlayer.y || 100);
-
-  // Données pour le rollback
-  const rollbackData = {
-    fromTransition: true,
-    isRollback: true,
-    spawnX: rollbackX,
-    spawnY: rollbackY,
-    networkManager: this.scene.networkManager,
-    mySessionId: this.scene.mySessionId,
-    forcePlayerSync: true,
-    rollbackFrom: this.scene.scene.key // ✅ Indiquer d'où on revient
-  };
-
-  console.log(`🔄 [TransitionManager] Rollback vers ${originalScene} à (${rollbackX}, ${rollbackY})`);
-  this.scene.scene.start(originalScene, rollbackData);
-}
-// ✅ NOUVELLE MÉTHODE: Rollback amélioré
-performRollbackImproved(originalState) {
-  console.log(`🔄 [TransitionManager] === ROLLBACK AMÉLIORÉ ===`);
-  console.log(`📍 Retour vers: ${originalState.scene} (${originalState.zone})`);
-  
-  // Données pour le rollback avec l'état original complet
-  const rollbackData = {
-    fromTransition: true,
-    isRollback: true,
-    spawnX: originalState.player.x,
-    spawnY: originalState.player.y,
-    networkManager: this.scene.networkManager,
-    mySessionId: this.scene.mySessionId,
-    forcePlayerSync: true,
-    restorePlayerState: originalState.player // ✅ Restaurer l'état complet
-  };
-
-  console.log(`🔄 [TransitionManager] Rollback vers ${originalState.scene}`);
-  this.scene.scene.start(originalState.scene, rollbackData);
-}
-  // ✅ NOUVELLE MÉTHODE: Afficher une erreur de transition
-  // ✅ NOUVELLE MÉTHODE: Afficher une erreur de transition
-showTransitionError(reason) {
-  console.error(`🚫 [TransitionManager] ${reason}`);
-  
-  if (typeof this.scene.showNotification === 'function') {
-    this.scene.showNotification(`Transition refusée: ${reason}`, 'error');
-  } else {
-    // ✅ CORRECTION: Vérifier que les objets existent avant de les utiliser
-    if (this.scene.add && this.scene.cameras && this.scene.cameras.main) {
-      const notification = this.scene.add.text(
-        this.scene.cameras.main.worldView.centerX || this.scene.scale.width / 2,
-        50,
-        `Transition refusée: ${reason}`,
-        {
-          fontSize: '16px',
-          fontFamily: 'Arial',
-          color: '#ff4444',
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          padding: { x: 10, y: 5 }
-        }
-      ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
-
-      if (this.scene.time) {
-        this.scene.time.delayedCall(3000, () => {
-          if (notification && notification.scene) {
-            notification.destroy();
-          }
-        });
-      }
-    }
-  }
-}
-
-  // ✅ CALCULER LA POSITION DE SPAWN
-  async calculateSpawnPosition(targetSpawnName, targetZone) {
-    // Position par défaut si rien trouvé
-    const defaultPos = { x: 100, y: 100 };
-
-    if (!targetSpawnName) {
-      console.log(`🌀 [TransitionManager] Pas de spawn spécifique, position par défaut`);
-      return defaultPos;
+    const targetScene = this.zoneToScene[teleportData.targetZone];
+    if (!targetScene) {
+      console.error(`🌀 [TransitionManager] ❌ Scene inconnue pour zone: ${teleportData.targetZone}`);
+      this.isTransitioning = false;
+      return;
     }
 
-    console.log(`🌀 [TransitionManager] 🔍 Recherche spawn "${targetSpawnName}" dans zone "${targetZone}"`);
+    // ✅ POSITION TEMPORAIRE (sera corrigée par le serveur)
+    const temporarySpawnPosition = { x: 100, y: 100 };
 
-    try {
-      // Charger la map de la zone cible
-      const mapData = await this.loadTargetMap(targetZone);
-      if (!mapData) {
-        console.warn(`🌀 [TransitionManager] ❌ Impossible de charger la map pour "${targetZone}"`);
-        return defaultPos;
-      }
-
-      // Chercher l'objet spawn dans la map
-      const spawnPosition = this.findSpawnInMap(mapData, targetSpawnName);
-      if (spawnPosition) {
-        console.log(`🌀 [TransitionManager] ✅ Spawn "${targetSpawnName}" trouvé: (${spawnPosition.x}, ${spawnPosition.y})`);
-        return spawnPosition;
-      } else {
-        console.warn(`🌀 [TransitionManager] ⚠️ Spawn "${targetSpawnName}" non trouvé dans "${targetZone}"`);
-        return defaultPos;
-      }
-
-    } catch (error) {
-      console.error(`🌀 [TransitionManager] ❌ Erreur lors du chargement spawn:`, error);
-      return defaultPos;
-    }
-  }
-
-  // ✅ CHARGER LA MAP CIBLE
-  async loadTargetMap(targetZone) {
-    console.log(`🌀 [TransitionManager] 📥 Chargement map "${targetZone}.tmj"`);
-
-    try {
-      const response = await fetch(`assets/maps/${targetZone}.tmj`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const mapData = await response.json();
-      console.log(`🌀 [TransitionManager] ✅ Map "${targetZone}" chargée (${mapData.layers?.length || 0} layers)`);
-      
-      return mapData;
-    } catch (error) {
-      console.error(`🌀 [TransitionManager] ❌ Erreur chargement "${targetZone}.tmj":`, error);
-      return null;
-    }
-  }
-
-  // ✅ CHERCHER LE SPAWN DANS LA MAP
-  findSpawnInMap(mapData, targetSpawnName) {
-    if (!mapData.layers) {
-      console.warn(`🌀 [TransitionManager] ⚠️ Aucun layer dans la map`);
-      return null;
-    }
-
-    // Chercher dans tous les layers d'objets
-    for (const layer of mapData.layers) {
-      if (layer.type !== 'objectgroup' || !layer.objects) {
-        continue;
-      }
-
-      console.log(`🌀 [TransitionManager] 🔍 Scan layer "${layer.name}" (${layer.objects.length} objets)`);
-
-      // Chercher l'objet spawn
-      for (const obj of layer.objects) {
-        if (obj.name === 'spawn') {
-          // Vérifier si c'est le bon spawn
-          const spawnName = this.getPropertyFromObject(obj, 'name');
-          
-          if (spawnName === targetSpawnName) {
-            console.log(`🌀 [TransitionManager] 🎯 Spawn "${targetSpawnName}" trouvé dans layer "${layer.name}"`);
-            
-            return {
-              x: obj.x,
-              y: obj.y
-            };
-          }
-        }
-      }
-    }
-
-    console.warn(`🌀 [TransitionManager] ❌ Spawn "${targetSpawnName}" non trouvé dans la map`);
-    return null;
-  }
-
-  // ✅ HELPER: Récupérer une propriété d'un objet (pour les maps chargées)
-  getPropertyFromObject(obj, propertyName) {
-    if (!obj.properties) return null;
+    console.log(`🚀 [TransitionManager] Transition temporaire, validation serveur en cours...`);
     
-    const prop = obj.properties.find(p => p.name === propertyName);
-    return prop ? prop.value : null;
+    const transitionData = {
+      fromZone: this.currentZone,
+      fromTransition: true,
+      localTransition: true,
+      spawnX: temporarySpawnPosition.x, // ← Position temporaire
+      spawnY: temporarySpawnPosition.y, // ← Position temporaire
+      networkManager: this.scene.networkManager,
+      mySessionId: this.scene.mySessionId,
+      forcePlayerSync: true,
+      pendingValidation: true
+    };
+
+    // ✅ SETUP LISTENER POUR VALIDATION
+    this.setupValidationListener(teleportData, originalState, targetScene, transitionData);
+
+    // ✅ ENVOYER DEMANDE AU SERVEUR
+    if (this.scene.networkManager && this.scene.networkManager.isConnected) {
+      const validationRequest = {
+        fromZone: teleportData.fromZone,
+        targetZone: teleportData.targetZone,
+        targetSpawn: teleportData.targetSpawn,
+        playerX: myPlayer.x,
+        playerY: myPlayer.y,
+        teleportId: teleportData.id
+      };
+
+      console.log(`📤 [TransitionManager] Envoi demande validation:`, validationRequest);
+      this.scene.networkManager.room.send("validateTransition", validationRequest);
+    }
+
+    // ✅ DÉMARRER LA NOUVELLE SCÈNE (position temporaire)
+    this.scene.scene.start(targetScene, transitionData);
   }
 
-  // ✅ HELPER: Récupérer une propriété d'objet Tiled
+  // ✅ SETUP LISTENER VALIDATION (inchangé)
+  setupValidationListener(teleportData, originalState, targetScene, transitionData) {
+    console.log(`👂 [TransitionManager] Setup listener de validation...`);
+    
+    const validationTimeout = setTimeout(() => {
+      console.warn(`⏰ [TransitionManager] Timeout validation - transition acceptée par défaut`);
+      this.isTransitioning = false;
+    }, 5000);
+
+    if (this.scene.networkManager?.room) {
+      const validationHandler = (result) => {
+        console.log(`📨 [TransitionManager] Résultat validation reçu:`, result);
+        
+        clearTimeout(validationTimeout);
+        this.isTransitioning = false;
+
+        if (result.success) {
+          console.log(`✅ [TransitionManager] Transition validée par le serveur`);
+          
+          if (result.position) {
+            const currentPlayer = this.scene.playerManager?.getMyPlayer();
+            if (currentPlayer) {
+              console.log(`🔧 [TransitionManager] Correction position serveur:`, result.position);
+              currentPlayer.x = result.position.x;
+              currentPlayer.y = result.position.y;
+              currentPlayer.targetX = result.position.x;
+              currentPlayer.targetY = result.position.y;
+            }
+          }
+        } else {
+          console.error(`❌ [TransitionManager] Transition refusée: ${result.reason}`);
+          
+          if (result.rollback) {
+            this.performRollbackImproved(originalState);
+          }
+          
+          this.showTransitionError(result.reason);
+        }
+      };
+
+      this.scene.networkManager.onTransitionValidation = validationHandler;
+    }
+  }
+
+  // ✅ ROLLBACK (inchangé)
+  performRollbackImproved(originalState) {
+    console.log(`🔄 [TransitionManager] === ROLLBACK AMÉLIORÉ ===`);
+    console.log(`📍 Retour vers: ${originalState.scene} (${originalState.zone})`);
+    
+    const rollbackData = {
+      fromTransition: true,
+      isRollback: true,
+      spawnX: originalState.player.x,
+      spawnY: originalState.player.y,
+      networkManager: this.scene.networkManager,
+      mySessionId: this.scene.mySessionId,
+      forcePlayerSync: true,
+      restorePlayerState: originalState.player
+    };
+
+    console.log(`🔄 [TransitionManager] Rollback vers ${originalState.scene}`);
+    this.scene.scene.start(originalState.scene, rollbackData);
+  }
+
+  // ✅ AFFICHAGE ERREUR (inchangé)
+  showTransitionError(reason) {
+    console.error(`🚫 [TransitionManager] ${reason}`);
+    
+    if (typeof this.scene.showNotification === 'function') {
+      this.scene.showNotification(`Transition refusée: ${reason}`, 'error');
+    } else {
+      if (this.scene.add && this.scene.cameras && this.scene.cameras.main) {
+        const notification = this.scene.add.text(
+          this.scene.cameras.main.worldView.centerX || this.scene.scale.width / 2,
+          50,
+          `Transition refusée: ${reason}`,
+          {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ff4444',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: { x: 10, y: 5 }
+          }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
+
+        if (this.scene.time) {
+          this.scene.time.delayedCall(3000, () => {
+            if (notification && notification.scene) {
+              notification.destroy();
+            }
+          });
+        }
+      }
+    }
+  }
+
+  // ✅ HELPER (inchangé)
   getProperty(object, propertyName) {
     if (!object.properties) return null;
     
@@ -544,28 +370,23 @@ showTransitionError(reason) {
     return prop ? prop.value : null;
   }
 
-  // ✅ DEBUG: Afficher toutes les infos
+  // ✅ DEBUG (simplifié)
   debugInfo() {
-    console.log(`🌀 [TransitionManager] === DEBUG INFO ===`);
+    console.log(`🌀 [TransitionManager] === DEBUG CLIENT ===`);
     console.log(`Zone actuelle: ${this.currentZone}`);
     
-    console.log(`📍 TELEPORT (${this.teleport.size}):`);
+    console.log(`📍 TELEPORTS (${this.teleport.size}):`);
     this.teleport.forEach((teleport, id) => {
       console.log(`  - ${id}: (${teleport.x}, ${teleport.y}) → ${teleport.targetZone} ${teleport.targetSpawn || ''}`);
     });
     
-    console.log(`🎯 SPAWN (${this.spawn.size}):`);
-    this.spawn.forEach((spawn, name) => {
-      console.log(`  - "${name}": (${spawn.x}, ${spawn.y})`);
-    });
-    
-    console.log(`⚡ ZONES PHYSIQUES (${this.zones.size}):`);
+    console.log(`⚡ ZONES COLLISION (${this.zones.size}):`);
     this.zones.forEach((zone, id) => {
-      console.log(`  - ${id}: zone physique active`);
+      console.log(`  - ${id}: zone collision active`);
     });
   }
 
-  // ✅ NETTOYAGE
+  // ✅ NETTOYAGE (simplifié)
   destroy() {
     console.log(`🌀 [TransitionManager] Nettoyage...`);
     
@@ -576,7 +397,6 @@ showTransitionError(reason) {
     });
     
     this.teleport.clear();
-    this.spawn.clear();
     this.zones.clear();
     this.isActive = false;
     this.isTransitioning = false;
@@ -584,7 +404,7 @@ showTransitionError(reason) {
     console.log(`🌀 [TransitionManager] ✅ Nettoyé`);
   }
 
-  // ✅ SETTER pour désactiver les transitions temporairement
+  // ✅ SETTER (inchangé)
   setActive(active) {
     this.isActive = active;
     console.log(`🌀 [TransitionManager] ${active ? 'Activé' : 'Désactivé'}`);
