@@ -63,6 +63,8 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.createPlayerAnimations();
     this.setupManagers();
+    this.initPlayerSpawnFromSceneData();
+
     this.loadMap();
     this.setupInputs();
     this.createUI();
@@ -79,6 +81,23 @@ export class BaseZoneScene extends Phaser.Scene {
     // Nettoyage amélioré
     this.setupCleanupHandlers();
   }
+initPlayerSpawnFromSceneData() {
+  const data = this.scene.settings.data || {};
+  const sessionId = this.mySessionId;
+  let spawnX = 52, spawnY = 48;
+
+  // Si transition de zone, coordonnées transmises
+  if (typeof data.spawnX === 'number') spawnX = data.spawnX;
+  if (typeof data.spawnY === 'number') spawnY = data.spawnY;
+
+  // Création réelle du joueur (évite de doubler le joueur si déjà présent)
+  if (this.playerManager && !this.playerManager.getMyPlayer()) {
+    this.playerManager.createPlayer(sessionId, spawnX, spawnY);
+    console.log(`[BaseZoneScene] Joueur spawn à (${spawnX}, ${spawnY})`);
+  } else {
+    console.log(`[BaseZoneScene] Joueur déjà présent ou playerManager manquant.`);
+  }
+}
 
   // ✅ NOUVELLE MÉTHODE: Initialisation réseau intelligente
   initializeNetworking() {
