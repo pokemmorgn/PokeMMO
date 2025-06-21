@@ -283,3 +283,4 @@ private async getNpcName(npcId: number): string {
   
   return npcNames[npcId] || `NPC #${npcId}`;
 }
+}
