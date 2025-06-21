@@ -742,3 +742,4 @@ export class WorldRoom extends Room<PokeWorldState> {
     } catch (error) {
       console.error(`🐛 [DEBUG] Erreur debug quêtes:`, error);
     }
+    }
