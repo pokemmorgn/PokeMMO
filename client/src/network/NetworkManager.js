@@ -74,7 +74,23 @@ this.lastReceivedZoneData = null;
       return false;
     }
   }
+setupRoomListeners() {
+  if (!this.room) return;
 
+  console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
+
+  // Zone data
+  this.room.onMessage("zoneData", (data) => {
+    console.log(`🗺️ [NetworkManager] Zone data reçue:`, data);
+    this.currentZone = data.zone;
+    
+    // ✅ NOUVEAU: Stocker les zone data
+    this.lastReceivedZoneData = data;
+    
+    if (this.callbacks.onZoneData) {
+      this.callbacks.onZoneData(data);
+    }
+  });
   // ✅ NOUVEAU: Handler pour les résultats de transition du ZoneManager
 this.room.onMessage("transitionResult", (result) => {
   console.log(`🔍 [NetworkManager] Résultat transition ZoneManager:`, result);
