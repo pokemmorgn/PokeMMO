@@ -1,4 +1,4 @@
-// client/src/game/InventorySystem.js
+// client/src/game/InventorySystem.js - Adaptations pour NotificationManager
 
 import { InventoryUI } from '../components/InventoryUI.js';
 import { InventoryIcon } from '../components/InventoryIcon.js';
@@ -9,6 +9,9 @@ export class InventorySystem {
     this.gameRoom = gameRoom;
     this.inventoryUI = null;
     this.inventoryIcon = null;
+    
+    // ✅ NOUVEAU: Référence au NotificationManager
+    this.notificationManager = window.NotificationManager;
     
     this.init();
   }
@@ -26,7 +29,7 @@ export class InventorySystem {
     // Rendre le système accessible globalement
     window.inventorySystem = this;
     
-    console.log("🎒 Système d'inventaire initialisé");
+    console.log("🎒 Système d'inventaire initialisé avec NotificationManager");
   }
 
   setupInteractions() {
@@ -48,27 +51,288 @@ export class InventorySystem {
       this.inventoryUI.updateInventoryData(data);
     });
 
-    // Mises à jour d'inventaire en temps réel
+    // ✅ NOUVEAU: Mises à jour d'inventaire avec NotificationManager
     this.gameRoom.onMessage("inventoryUpdate", (data) => {
       this.inventoryUI.handleInventoryUpdate(data);
       this.inventoryIcon.onInventoryUpdate(data);
+      
+      // ✅ Notification via NotificationManager
+      this.showInventoryNotification(data);
     });
 
-    // Résultat d'utilisation d'objet
+    // ✅ NOUVEAU: Résultat d'utilisation d'objet
     this.gameRoom.onMessage("itemUseResult", (data) => {
       this.inventoryUI.handleItemUseResult(data);
+      
+      if (data.success) {
+        this.notificationManager.inventory(
+          data.message || "Objet utilisé avec succès",
+          { duration: 3000 }
+        );
+      } else {
+        this.notificationManager.error(
+          data.message || "Impossible d'utiliser cet objet",
+          { duration: 4000 }
+        );
+      }
     });
 
-    // Notification d'objet ramassé
+    // ✅ NOUVEAU: Notification d'objet ramassé
     this.gameRoom.onMessage("itemPickup", (data) => {
       this.showPickupNotification(data);
     });
 
-    // Erreurs d'inventaire
+    // ✅ NOUVEAU: Erreurs d'inventaire
     this.gameRoom.onMessage("inventoryError", (data) => {
-      this.inventoryUI.showNotification(data.message, "error");
+      this.notificationManager.error(data.message, { duration: 4000 });
     });
   }
+
+  // ✅ NOUVELLE MÉTHODE: Notifications d'inventaire intelligentes
+  showInventoryNotification(data) {
+    const itemName = this.inventoryUI.getItemName(data.itemId);
+    const isAdd = data.type === "add";
+    const isRemove = data.type === "remove";
+    
+    if (isAdd) {
+      // ✅ Notification d'ajout d'objet
+      this.notificationManager.itemNotification(
+        itemName,
+        data.quantity,
+        'obtained',
+        {
+          duration: 3000,
+          position: 'bottom-right',
+          onClick: () => {
+            // Ouvrir l'inventaire à la bonne poche
+            this.openInventoryToPocket(data.pocket);
+          }
+        }
+      );
+      
+      // ✅ Effet spécial pour les objets rares/importants
+      if (this.isImportantItem(data.itemId)) {
+        setTimeout(() => {
+          this.notificationManager.achievement(
+            `Objet rare obtenu: ${itemName}!`,
+            {
+              duration: 6000,
+              bounce: true,
+              sound: true
+            }
+          );
+        }, 500);
+      }
+      
+    } else if (isRemove) {
+      // ✅ Notification de perte/utilisation d'objet (plus discrète)
+      this.notificationManager.itemNotification(
+        itemName,
+        data.quantity,
+        'used',
+        {
+          duration: 2000,
+          position: 'bottom-right'
+        }
+      );
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Notification de ramassage
+  showPickupNotification(data) {
+    const itemName = this.inventoryUI.getItemName(data.itemId);
+    
+    this.notificationManager.itemNotification(
+      itemName,
+      data.quantity,
+      'obtained',
+      {
+        duration: 3000,
+        position: 'bottom-center',
+        bounce: true,
+        onClick: () => this.openInventory()
+      }
+    );
+    
+    // Effet visuel sur l'icône
+    this.inventoryIcon.showNewItemEffect();
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Déterminer si un objet est important
+  isImportantItem(itemId) {
+    const importantItems = [
+      'master_ball',
+      'town_map',
+      'bike_voucher',
+      'bicycle',
+      'exp_share',
+      'old_amber',
+      'dome_fossil',
+      'helix_fossil',
+      'poke_flute',
+      'silph_scope'
+    ];
+    return importantItems.includes(itemId);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Notification d'inventaire plein
+  onInventoryFull(pocketName) {
+    this.notificationManager.warning(
+      `Poche ${pocketName} pleine ! Impossible d'ajouter plus d'objets.`,
+      {
+        duration: 5000,
+        position: 'top-center',
+        onClick: () => this.openInventoryToPocket(pocketName)
+      }
+    );
+    
+    // Effet visuel sur l'icône
+    this.inventoryIcon.setTemporaryIcon('⚠️', 3000);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Notification d'objet important obtenu
+  onImportantItemObtained(itemId) {
+    const itemName = this.inventoryUI.getItemName(itemId);
+    
+    // ✅ Utiliser le système d'achievement
+    this.notificationManager.achievement(
+      `Objet important obtenu: ${itemName}!`,
+      {
+        duration: 8000,
+        bounce: true,
+        sound: true,
+        persistent: false,
+        onClick: () => this.openInventory()
+      }
+    );
+    
+    // Effet visuel marquant
+    this.inventoryIcon.setTemporaryIcon('⭐', 5000);
+  }
+
+  // === NOUVELLES MÉTHODES POUR DIFFÉRENTS TYPES DE NOTIFICATIONS ===
+
+  notifyItemCombined(item1, item2, result) {
+    this.notificationManager.success(
+      `${item1} + ${item2} = ${result}`,
+      {
+        duration: 4000,
+        type: 'inventory'
+      }
+    );
+  }
+
+  notifyItemExpired(itemName) {
+    this.notificationManager.warning(
+      `${itemName} a expiré`,
+      {
+        duration: 4000,
+        onClick: () => this.openInventory()
+      }
+    );
+  }
+
+  notifyLowItemCount(itemName, count) {
+    this.notificationManager.warning(
+      `Stock faible: ${itemName} (${count} restant)`,
+      {
+        duration: 3000,
+        position: 'bottom-left'
+      }
+    );
+  }
+
+  notifyAutoUse(itemName, effect) {
+    this.notificationManager.info(
+      `${itemName} utilisé automatiquement: ${effect}`,
+      {
+        duration: 3000,
+        type: 'inventory'
+      }
+    );
+  }
+
+  // === MÉTHODES POUR LES REPELS ET OBJETS SPÉCIAUX ===
+
+  notifyRepelActivated(repelType, steps) {
+    this.notificationManager.inventory(
+      `${repelType} activé pour ${steps} pas`,
+      {
+        duration: 4000,
+        position: 'top-center'
+      }
+    );
+  }
+
+  notifyRepelWearing() {
+    this.notificationManager.warning(
+      "L'effet du Repousse se dissipe...",
+      {
+        duration: 3000,
+        position: 'top-center'
+      }
+    );
+  }
+
+  notifyRepelExpired() {
+    this.notificationManager.error(
+      "L'effet du Repousse a pris fin",
+      {
+        duration: 3000,
+        position: 'top-center',
+        onClick: () => this.openInventoryToPocket('items')
+      }
+    );
+  }
+
+  // === MÉTHODES POUR LES POKÉ BALLS ===
+
+  notifyPokeBallUsed(ballType, result) {
+    const messages = {
+      success: `${ballType} : Pokémon capturé !`,
+      failed: `${ballType} : Le Pokémon s'est échappé`,
+      critical: `${ballType} : Capture critique !`
+    };
+
+    const types = {
+      success: 'success',
+      failed: 'warning',
+      critical: 'achievement'
+    };
+
+    this.notificationManager.show(
+      messages[result] || `${ballType} utilisé`,
+      {
+        type: types[result] || 'info',
+        duration: result === 'critical' ? 6000 : 4000,
+        bounce: result === 'critical',
+        sound: result === 'success' || result === 'critical'
+      }
+    );
+  }
+
+  // === MÉTHODES POUR LES OBJETS DE SOIN ===
+
+  notifyHealingItemUsed(itemName, pokemonName, effect) {
+    this.notificationManager.success(
+      `${pokemonName} soigné avec ${itemName}: ${effect}`,
+      {
+        duration: 4000,
+        type: 'inventory'
+      }
+    );
+  }
+
+  notifyStatusCured(pokemonName, status, itemName) {
+    this.notificationManager.success(
+      `${pokemonName}: ${status} guéri avec ${itemName}`,
+      {
+        duration: 4000
+      }
+    );
+  }
+
+  // === MÉTHODES CONSERVÉES ET ADAPTÉES ===
 
   setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
@@ -83,10 +347,20 @@ export class InventorySystem {
         case 'b':
           e.preventDefault();
           this.openInventoryToPocket('balls');
+          // ✅ Notification de raccourci
+          this.notificationManager.info(
+            "Poche Poké Balls ouverte",
+            { duration: 1500, position: 'bottom-center' }
+          );
           break;
         case 'm':
           e.preventDefault();
           this.openInventoryToPocket('medicine');
+          // ✅ Notification de raccourci
+          this.notificationManager.info(
+            "Poche Soins ouverte",
+            { duration: 1500, position: 'bottom-center' }
+          );
           break;
       }
     });
@@ -123,7 +397,7 @@ export class InventorySystem {
     }
   }
 
-  // === MÉTHODES PUBLIQUES ===
+  // === MÉTHODES PUBLIQUES INCHANGÉES ===
 
   toggleInventory() {
     if (this.inventoryUI) {
@@ -153,7 +427,6 @@ export class InventorySystem {
     return this.inventoryUI ? this.inventoryUI.isVisible : false;
   }
 
-  // Utiliser un objet programmatiquement
   useItem(itemId, context = "field") {
     if (this.gameRoom) {
       this.gameRoom.send("useItem", {
@@ -163,38 +436,16 @@ export class InventorySystem {
     }
   }
 
-  // Demander les données d'inventaire
   requestInventoryData() {
     if (this.gameRoom) {
       this.gameRoom.send("getInventory");
     }
   }
 
-  // === NOTIFICATIONS ET EFFETS ===
-
-  showPickupNotification(data) {
-    const itemName = this.inventoryUI.getItemName(data.itemId);
-    const message = `Ramassé: ${itemName} x${data.quantity}`;
-    
-    this.inventoryUI.showNotification(message, "success");
-    this.inventoryIcon.showNewItemEffect();
-  }
-
-  showItemNotification(itemId, quantity, type = "add") {
-    const itemName = this.inventoryUI.getItemName(itemId);
-    const prefix = type === "add" ? "+" : "-";
-    const message = `${prefix}${quantity} ${itemName}`;
-    
-    this.inventoryUI.showNotification(message, type === "add" ? "success" : "info");
-  }
-
-  // === INTÉGRATION AVEC LE JEU ===
-
   canPlayerInteract() {
     return this.inventoryUI.canPlayerInteract();
   }
 
-  // Méthode appelée quand le joueur ramasse un objet dans le monde
   onItemPickup(itemId, quantity = 1) {
     this.showPickupNotification({ itemId, quantity });
     
@@ -207,20 +458,22 @@ export class InventorySystem {
     }
   }
 
-  // Méthode appelée depuis les scenes Phaser pour vérifier si on peut ouvrir des menus
   canOpenMenus() {
     return !this.isInventoryOpen() && this.canPlayerInteract();
   }
 
-  // === GESTION DES OBJETS SPÉCIAUX ===
+  // === MÉTHODES POUR L'UTILISATION AUTOMATIQUE ===
 
-  // Utilisation automatique d'objets (comme les Repel)
   useItemAutomatically(itemId) {
     this.useItem(itemId, "field");
+    
+    // ✅ Notification d'utilisation automatique
+    const itemName = this.inventoryUI.getItemName(itemId);
+    this.notifyAutoUse(itemName, "Utilisé automatiquement");
+    
     console.log(`🎒 Utilisation automatique: ${itemId}`);
   }
 
-  // Vérifier si le joueur a un objet spécifique
   hasItem(itemId) {
     if (!this.inventoryUI.inventoryData) return false;
     
@@ -231,7 +484,6 @@ export class InventorySystem {
     return false;
   }
 
-  // Obtenir la quantité d'un objet
   getItemCount(itemId) {
     if (!this.inventoryUI.inventoryData) return 0;
     
@@ -244,13 +496,14 @@ export class InventorySystem {
 
   // === MÉTHODES POUR LES COMBATS ===
 
-  // Ouvrir l'inventaire en mode combat (uniquement objets utilisables)
   openBattleInventory() {
     // TODO: Implémenter une version combat de l'inventaire
-    console.log("🎒 Mode combat de l'inventaire pas encore implémenté");
+    this.notificationManager.info(
+      "Mode combat de l'inventaire pas encore implémenté",
+      { duration: 3000 }
+    );
   }
 
-  // Utiliser un objet en combat
   useBattleItem(itemId, targetPokemon = null) {
     if (this.gameRoom) {
       this.gameRoom.send("useBattleItem", {
@@ -263,20 +516,17 @@ export class InventorySystem {
 
   // === MÉTHODES POUR LES POKÉ BALLS ===
 
-  // Obtenir la liste des Poké Balls disponibles
   getAvailablePokeBalls() {
     const ballsData = this.inventoryUI.inventoryData.balls || [];
     return ballsData.filter(ball => ball.quantity > 0);
   }
 
-  // Utiliser une Poké Ball (en combat)
   usePokeBall(ballId) {
     this.useBattleItem(ballId);
   }
 
   // === MÉTHODES POUR LES OBJETS DE SOIN ===
 
-  // Obtenir la liste des objets de soin utilisables
   getHealingItems() {
     const medicineData = this.inventoryUI.inventoryData.medicine || [];
     return medicineData.filter(item => 
@@ -286,7 +536,6 @@ export class InventorySystem {
     );
   }
 
-  // Utiliser automatiquement le meilleur objet de soin
   useAutoHeal(pokemonHp, pokemonMaxHp) {
     const healingItems = this.getHealingItems();
     
@@ -303,6 +552,13 @@ export class InventorySystem {
       const healAmount = item.data.heal_amount === 'full' ? pokemonMaxHp : item.data.heal_amount;
       if (healAmount >= missingHp) {
         this.useItem(item.itemId, "field");
+        
+        // ✅ Notification d'auto-heal
+        this.notifyAutoUse(
+          this.inventoryUI.getItemName(item.itemId),
+          `${healAmount === pokemonMaxHp ? 'Soin complet' : healAmount + ' PV'}`
+        );
+        
         return item.itemId;
       }
     }
@@ -310,111 +566,51 @@ export class InventorySystem {
     // Si aucun objet parfait, utiliser le plus petit disponible
     if (sortedItems.length > 0) {
       this.useItem(sortedItems[0].itemId, "field");
+      
+      this.notifyAutoUse(
+        this.inventoryUI.getItemName(sortedItems[0].itemId),
+        "Meilleur soin disponible"
+      );
+      
       return sortedItems[0].itemId;
     }
+
+    // ✅ Notification si aucun objet de soin
+    this.notificationManager.warning(
+      "Aucun objet de soin disponible",
+      {
+        duration: 3000,
+        onClick: () => this.openInventoryToPocket('medicine')
+      }
+    );
 
     return null;
   }
 
   // === MÉTHODES POUR LES OBJETS CLÉS ===
 
-  // Vérifier si le joueur a un objet clé spécifique
   hasKeyItem(keyItemId) {
     const keyItems = this.inventoryUI.inventoryData.key_items || [];
     return keyItems.some(item => item.itemId === keyItemId);
   }
 
-  // Utiliser un objet clé (par exemple, une clé pour ouvrir une porte)
   useKeyItem(keyItemId) {
     if (this.hasKeyItem(keyItemId)) {
       this.useItem(keyItemId, "field");
+      
+      // ✅ Notification d'utilisation d'objet clé
+      this.notificationManager.info(
+        `Objet clé utilisé: ${this.inventoryUI.getItemName(keyItemId)}`,
+        { duration: 4000 }
+      );
+      
       return true;
+    } else {
+      this.notificationManager.error(
+        `Objet clé manquant: ${this.inventoryUI.getItemName(keyItemId)}`,
+        { duration: 4000 }
+      );
+      return false;
     }
-    return false;
-  }
-
-  // === GESTION DES ÉVÉNEMENTS SPÉCIAUX ===
-
-  // Déclencher un effet quand l'inventaire devient plein
-  onInventoryFull(pocketName) {
-    this.inventoryUI.showNotification(
-      `Poche ${pocketName} pleine ! Impossible d'ajouter plus d'objets.`,
-      "error"
-    );
-    
-    // Effet visuel sur l'icône
-    this.inventoryIcon.setTemporaryIcon('⚠️', 3000);
-  }
-
-  // Déclencher un effet quand un objet important est obtenu
-  onImportantItemObtained(itemId) {
-    const itemName = this.inventoryUI.getItemName(itemId);
-    
-    // Notification spéciale
-    this.showSpecialNotification(`Objet important obtenu: ${itemName}!`);
-    
-    // Effet visuel marquant
-    this.inventoryIcon.setTemporaryIcon('⭐', 5000);
-  }
-
-  showSpecialNotification(message) {
-    // Créer une notification spéciale plus visible
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: linear-gradient(45deg, #ffd700, #ffed4a);
-      color: #000;
-      padding: 20px 30px;
-      border-radius: 15px;
-      font-size: 18px;
-      font-weight: bold;
-      text-align: center;
-      z-index: 1003;
-      box-shadow: 0 10px 30px rgba(255, 215, 0, 0.5);
-      animation: specialNotification 3s ease;
-      border: 3px solid #fff;
-    `;
-    notification.textContent = message;
-
-    document.body.appendChild(notification);
-
-    // Ajouter l'animation si elle n'existe pas
-    if (!document.querySelector('#special-notification-styles')) {
-      const style = document.createElement('style');
-      style.id = 'special-notification-styles';
-      style.textContent = `
-        @keyframes specialNotification {
-          0% { 
-            opacity: 0; 
-            transform: translate(-50%, -50%) scale(0.5); 
-          }
-          10% { 
-            opacity: 1; 
-            transform: translate(-50%, -50%) scale(1.1); 
-          }
-          20% { 
-            transform: translate(-50%, -50%) scale(1); 
-          }
-          80% { 
-            opacity: 1; 
-            transform: translate(-50%, -50%) scale(1); 
-          }
-          100% { 
-            opacity: 0; 
-            transform: translate(-50%, -50%) scale(0.8); 
-          }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.remove();
-      }
-    }, 3000);
   }
 }
