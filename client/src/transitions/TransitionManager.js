@@ -283,16 +283,7 @@ export class TransitionManager {
   }
               this.scene.scene.start(targetScene, transitionData);
 
-          if (result.position) {
-            const currentPlayer = this.scene.playerManager?.getMyPlayer();
-            if (currentPlayer) {
-              console.log(`🔧 [TransitionManager] Position finale (coordonnées fixes):`, result.position);
-              currentPlayer.x = result.position.x;
-              currentPlayer.y = result.position.y;
-              currentPlayer.targetX = result.position.x;
-              currentPlayer.targetY = result.position.y;
-            }
-          }
+
         } else {
           console.error(`❌ [TransitionManager] Transition refusée: ${result.reason}`);
           
