@@ -63,8 +63,6 @@ export class QuestSystem {
       if (data.success) {
         // ✅ Vérifier la déduplication avant d'afficher
         const questId = data.quest?.id || data.quest?.name || 'unknown';
-          );
-        }
         
         // Actualiser le journal
         if (this.questJournal && this.questJournal.isVisible) {
