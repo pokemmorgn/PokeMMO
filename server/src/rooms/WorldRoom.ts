@@ -205,14 +205,14 @@ export class WorldRoom extends Room<PokeWorldState> {
         { itemId: "poke_ball", quantity: 10, data: { type: "ball" } },
         { itemId: "great_ball", quantity: 3, data: { type: "ball" } }
       ],
-      berries: [],
+      berries: [] as any[],
       key_items: [
         { itemId: "fishing_line", quantity: 1, data: { type: "key_item" } }
       ],
-      tms: [],
-      battle_items: [],
-      valuables: [],
-      held_items: []
+      tms: [] as any[],
+      battle_items: [] as any[],
+      valuables: [] as any[],
+      held_items: [] as any[]
     };
 
     client.send("inventoryData", mockInventory);
