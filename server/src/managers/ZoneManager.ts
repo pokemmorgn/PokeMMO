@@ -1,4 +1,5 @@
-// ===== server/src/managers/ZoneManager.ts - VERSION REFACTORISÉE =====
+// server/src/managers/ZoneManager.ts - VERSION COMPLÈTE AVEC SHOP
+
 import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { IZone } from "../rooms/zones/IZone";
@@ -9,8 +10,9 @@ import { Villagehouse1 } from "../rooms/zones/Villagehouse1";
 import { Villageflorist } from "../rooms/zones/Villageflorist";
 import { Player } from "../schema/PokeWorldState";
 
-// ✅ IMPORTS POUR DÉLÉGATION
+// ✅ IMPORTS POUR DÉLÉGATION AVEC SHOP
 import { QuestManager } from "./QuestManager";
+import { ShopManager } from "./ShopManager"; // ✅ IMPORT SHOP
 import { InteractionManager } from "./InteractionManager";
 import { QuestProgressEvent } from "../types/QuestTypes";
 
@@ -18,8 +20,9 @@ export class ZoneManager {
   private zones = new Map<string, IZone>();
   private room: WorldRoom;
   
-  // ✅ DÉLÉGATION PURE - Plus de logique quest ici
+  // ✅ DÉLÉGATION AVEC SHOP
   private questManager: QuestManager;
+  private shopManager: ShopManager; // ✅ NOUVEAU MANAGER
   private interactionManager: InteractionManager;
 
   constructor(room: WorldRoom) {
@@ -31,19 +34,24 @@ export class ZoneManager {
     this.loadAllZones();
   }
 
-  // ✅ INITIALISATION SIMPLIFIÉE
+  // ✅ INITIALISATION AVEC SHOP
   private initializeManagers() {
     try {
       // Créer le QuestManager
       this.questManager = new QuestManager(`../data/quests/quests.json`);
       console.log(`✅ QuestManager initialisé`);
       
-      // Créer l'InteractionManager avec délégation
+      // ✅ NOUVEAU: Créer le ShopManager
+      this.shopManager = new ShopManager(`../data/shops/shops.json`, `../data/items/items.json`);
+      console.log(`✅ ShopManager initialisé`);
+      
+      // Créer l'InteractionManager avec délégation SHOP
       this.interactionManager = new InteractionManager(
         this.room.getNpcManager.bind(this.room), // Délégation pour récupérer NPCs
-        this.questManager // Référence au QuestManager
+        this.questManager, // Référence au QuestManager
+        this.shopManager  // ✅ NOUVEAU: Référence au ShopManager
       );
-      console.log(`✅ InteractionManager initialisé`);
+      console.log(`✅ InteractionManager initialisé avec ShopManager`);
       
     } catch (error) {
       console.error(`❌ Erreur initialisation managers:`, error);
@@ -134,12 +142,10 @@ export class ZoneManager {
       await zone.onPlayerEnter(client);
       await this.room.onPlayerJoinZone(client, zoneName);
       
-      // ✅ CORRECTION: ENVOYER LES STATUTS DE QUÊTES AVEC DÉLAI
       const player = this.room.state.players.get(client.sessionId);
       if (player) {
         console.log(`🎯 [ZoneManager] Programmation quest statuses pour ${player.name}`);
         
-        // ✅ ESSAYER PLUSIEURS FOIS AVEC DÉLAIS CROISSANTS
         setTimeout(() => this.sendQuestStatusesForZone(client, zoneName), 1000);
         setTimeout(() => this.sendQuestStatusesForZone(client, zoneName), 3000);
         setTimeout(() => this.sendQuestStatusesForZone(client, zoneName), 5000);
@@ -165,10 +171,10 @@ export class ZoneManager {
     }
   }
 
-  // ✅ === DÉLÉGATION PURE POUR INTERACTIONS NPC ===
+  // ✅ === DÉLÉGATION PURE POUR INTERACTIONS NPC (AVEC SHOP) ===
 
   async handleNpcInteraction(client: Client, npcId: number) {
-    console.log(`💬 === NPC INTERACTION (DÉLÉGATION) ===`);
+    console.log(`💬 === NPC INTERACTION (DÉLÉGATION AVEC SHOP) ===`);
     
     const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) {
@@ -181,13 +187,13 @@ export class ZoneManager {
     }
 
     try {
-      // ✅ DÉLÉGATION COMPLÈTE à InteractionManager
+      // ✅ DÉLÉGATION COMPLÈTE à InteractionManager (avec shop)
       const result = await this.interactionManager.handleNpcInteraction(player, npcId);
       
       console.log(`📤 Envoi résultat interaction:`, result.type);
       client.send("npcInteractionResult", result);
       
-      // ✅ Si il y a eu des progressions de quête, mettre à jour les statuts
+      // Si il y a eu des progressions de quête, mettre à jour les statuts
       if (result.questProgress && result.questProgress.length > 0) {
         client.send("questProgressUpdate", result.questProgress);
         await this.sendQuestStatusesForZone(client, player.currentZone);
@@ -198,6 +204,66 @@ export class ZoneManager {
       client.send("npcInteractionResult", {
         type: "error",
         message: "Erreur lors de l'interaction avec le NPC"
+      });
+    }
+  }
+
+  // ✅ === NOUVELLE MÉTHODE : GESTION DES TRANSACTIONS SHOP ===
+
+  async handleShopTransaction(client: Client, data: {
+    shopId: string;
+    action: 'buy' | 'sell';
+    itemId: string;
+    quantity: number;
+  }) {
+    console.log(`🛒 === SHOP TRANSACTION ===`);
+    console.log(`👤 Client: ${client.sessionId}`);
+    console.log(`📦 Data:`, data);
+
+    const player = this.room.state.players.get(client.sessionId) as Player;
+    if (!player) {
+      console.error(`❌ Player not found: ${client.sessionId}`);
+      client.send("shopTransactionResult", {
+        success: false,
+        message: "Joueur non trouvé"
+      });
+      return;
+    }
+
+    try {
+      // ✅ DÉLÉGATION à InteractionManager pour la transaction
+      const result = await this.interactionManager.handleShopTransaction(
+        player,
+        data.shopId,
+        data.action,
+        data.itemId,
+        data.quantity
+      );
+
+      console.log(`📤 Résultat transaction shop:`, result.success ? 'SUCCESS' : 'FAILED');
+      client.send("shopTransactionResult", result);
+
+      // Si la transaction a réussi, mettre à jour les données du joueur
+      if (result.success) {
+        console.log(`💰 Transaction réussie: ${data.action} ${data.quantity}x ${data.itemId}`);
+        
+        // Mettre à jour l'or du joueur si spécifié
+        if (result.newGold !== undefined) {
+          player.gold = result.newGold;
+          console.log(`💰 Nouvel or du joueur: ${player.gold}`);
+        }
+        
+        // TODO: Intégrer avec le système d'inventaire
+        // if (result.itemsChanged) {
+        //   // Mettre à jour l'inventaire du joueur
+        // }
+      }
+
+    } catch (error) {
+      console.error(`❌ Erreur transaction shop:`, error);
+      client.send("shopTransactionResult", {
+        success: false,
+        message: "Erreur lors de la transaction"
       });
     }
   }
@@ -216,14 +282,11 @@ export class ZoneManager {
     }
 
     try {
-      // ✅ DÉLÉGATION COMPLÈTE à QuestManager
       const quest = await this.questManager.startQuest(player.name, questId);
       
       if (quest) {
-        // Mettre à jour les statuts de quête après démarrage
         await this.sendQuestStatusesForZone(client, player.currentZone);
         
-        // Broadcaster aux autres joueurs de la zone
         this.broadcastToZone(player.currentZone, "questUpdate", {
           player: player.name,
           action: "started",
@@ -283,13 +346,11 @@ export class ZoneManager {
 
   // ✅ === MÉTHODES UTILITAIRES (RESPONSABILITÉ ZONE) ===
 
-  // ✅ DÉLÉGATION : Envoyer les statuts de quêtes pour une zone
   private async sendQuestStatusesForZone(client: Client, zoneName: string) {
     const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) return;
 
     try {
-      // ✅ DÉLÉGATION à InteractionManager pour récupérer les statuts
       const questStatuses = await this.interactionManager.getQuestStatuses(player.name);
       
       if (questStatuses.length > 0) {
@@ -302,7 +363,6 @@ export class ZoneManager {
     }
   }
 
-  // Méthodes utilitaires conservées
   getPlayersInZone(zoneName: string): Player[] {
     const playersInZone = Array.from(this.room.state.players.values())
       .filter((player: Player) => player.currentZone === zoneName);
@@ -326,11 +386,8 @@ export class ZoneManager {
     console.log(`📤 Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
   }
 
-  // ✅ === DÉLÉGATION POUR STATUTS DE QUÊTES ===
-
   async getQuestStatuses(username: string): Promise<any[]> {
     try {
-      // ✅ DÉLÉGATION à InteractionManager
       return await this.interactionManager.getQuestStatuses(username);
     } catch (error) {
       console.error(`❌ Erreur getQuestStatuses:`, error);
@@ -338,9 +395,13 @@ export class ZoneManager {
     }
   }
 
-  // ✅ Accesseurs pour les managers (si besoin)
+  // ✅ Accesseurs pour les managers
   getQuestManager(): QuestManager {
     return this.questManager;
+  }
+
+  getShopManager(): ShopManager { // ✅ NOUVEAU ACCESSEUR
+    return this.shopManager;
   }
 
   getInteractionManager(): InteractionManager {
