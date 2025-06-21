@@ -2,7 +2,7 @@ import { BaseZoneScene } from './BaseZoneScene.js';
 
 export class Road1Scene extends BaseZoneScene {
   constructor() {
-    super('Road1Scene', 'Road1');
+    super('Road1Scene', 'road1');
     this.transitionCooldowns = {};
     this.playerCreationAttempts = 0;
     this.maxPlayerCreationAttempts = 10;
