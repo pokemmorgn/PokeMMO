@@ -11,22 +11,12 @@ export class NetworkManager {
     this.room = null;
     this.sessionId = null;
     this.isConnected = false;
-    this.isTransitioning = false;
     this.lastSendTime = 0;
     this.currentZone = null;
     this.lastReceivedNpcs = null;
 this.lastReceivedZoneData = null;
-      this.onTransitionValidation = null; // ✅ AJOUTER CETTE LIGNE
 
     
-    // ✅ NOUVEAU: Gestion améliorée des transitions
-    this.transitionState = {
-      isActive: false,
-      targetZone: null,
-      startTime: 0,
-      timeout: null,
-      maxDuration: 8000 // 8 secondes max
-    };
     
     this.callbacks = {
       onConnect: null,
@@ -61,8 +51,7 @@ this.lastReceivedZoneData = null;
       this.isConnected = true;
       this.currentZone = spawnZone;
       
-      // ✅ CORRECTION: Reset des états de transition lors de la connexion
-      this.resetTransitionState();
+
 
       console.log(`[NetworkManager] ✅ Connecté à WorldRoom! SessionId: ${this.sessionId}`);
 
@@ -103,28 +92,6 @@ this.room.onMessage("npcList", (npcs) => {
  if (this.callbacks.onNpcList) {
    this.callbacks.onNpcList(npcs);
  }
-});
-
-// Handler pour les résultats de validation de transition
-this.room.onMessage("transitionResult", (result) => {
-  console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
-  
-  // ✅ CORRECTION: Synchroniser la zone immédiatement
-  if (result.success && result.currentZone) {
-    console.log(`🔄 [NetworkManager] Sync zone: ${this.currentZone} → ${result.currentZone}`);
-    this.currentZone = result.currentZone;
-  }
-  
-  if (this.onTransitionValidation) {
-    this.onTransitionValidation(result);
-  }
-  
-  // ✅ Garder aussi les anciens callbacks si tu les utilises
-  if (result.success && this.callbacks.onTransitionSuccess) {
-    this.callbacks.onTransitionSuccess(result);
-  } else if (!result.success && this.callbacks.onTransitionError) {
-    this.callbacks.onTransitionError(result);
-  }
 });
 
 // Interactions NPC
@@ -187,13 +154,7 @@ this.room.onMessage("snap", (data) => {
    this.callbacks.onSnap(data);
  }
 });
-this.room.onMessage("transitionResult", (result) => {
-  console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
-  
-  if (this.callbacks.onTransitionValidation) {
-    this.callbacks.onTransitionValidation(result);
-  }
-});
+
     this.room.onLeave(() => {
       console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
       if (!this.transitionState.isActive) {
