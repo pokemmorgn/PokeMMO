@@ -1,14 +1,14 @@
-// server/src/managers/InteractionManager.ts - VERSION COMPLÈTE CORRIGÉE
+// server/src/managers/InteractionManager.ts - VERSION COMPLÈTE AVEC SHOP
 
 import { QuestManager } from "./QuestManager";
+import { ShopManager } from "./ShopManager"; // ✅ IMPORT SHOP
 import { Player } from "../schema/PokeWorldState";
-import { ShopManager } from "./ShopManager";
 
 export interface NpcInteractionResult {
   type: string;
   message?: string;
   shopId?: string;
-  shopData?: any;
+  shopData?: any; // ✅ NOUVEAU : Données du shop
   lines?: string[];
   availableQuests?: any[];
   questRewards?: any[];
@@ -22,9 +22,9 @@ export interface NpcInteractionResult {
 export class InteractionManager {
   private getNpcManager: (zoneName: string) => any;
   private questManager: QuestManager;
-  private shopManager: ShopManager;
+  private shopManager: ShopManager; // ✅ NOUVEAU MANAGER
 
- constructor(
+  constructor(
     getNpcManager: (zoneName: string) => any, 
     questManager: QuestManager,
     shopManager: ShopManager // ✅ NOUVEAU PARAMÈTRE
@@ -59,7 +59,13 @@ export class InteractionManager {
       return { type: "error", message: "Trop loin du NPC." };
     }
 
-    // ✅ === NOUVELLE LOGIQUE : VÉRIFIER D'ABORD LES OBJECTIFS TALK ===
+    // ✅ === NOUVEAU : VÉRIFIER SI C'EST UN MARCHAND ===
+    if (npc.properties.npcType === 'merchant' || npc.properties.shopId) {
+      console.log(`🏪 NPC Marchand détecté`);
+      return await this.handleMerchantInteraction(player, npc, npcId);
+    }
+
+    // ✅ === LOGIQUE EXISTANTE : VÉRIFIER D'ABORD LES OBJECTIFS TALK ===
     
     const talkValidationResult = await this.checkTalkObjectiveValidation(player.name, npcId);
     if (talkValidationResult) {
@@ -120,7 +126,7 @@ export class InteractionManager {
           questProgress: questProgress,
           npcId: npcId,
           npcName: npc.name,
-          lines: completionDialogue, // ✅ NOUVEAU: Dialogue spécifique
+          lines: completionDialogue,
           message: `Félicitations ! Vous avez terminé : ${questNames}`
         };
       }
@@ -132,7 +138,6 @@ export class InteractionManager {
     if (availableQuests.length > 0) {
       console.log(`📋 Quêtes disponibles: ${availableQuests.length}`);
       
-      // ✅ NOUVEAU: Utiliser le dialogue d'offre de la première quête
       const firstQuest = availableQuests[0];
       const questOfferDialogue = this.getQuestDialogue(firstQuest, 'questOffer');
       
@@ -152,8 +157,8 @@ export class InteractionManager {
 
       return {
         type: "questGiver",
-        message: questOfferDialogue.join(' '), // ✅ NOUVEAU: Message d'offre
-        lines: questOfferDialogue, // ✅ NOUVEAU: Dialogue complet
+        message: questOfferDialogue.join(' '),
+        lines: questOfferDialogue,
         availableQuests: serializedQuests,
         questProgress: questProgress,
         npcId: npcId,
@@ -170,7 +175,6 @@ export class InteractionManager {
     if (questsForThisNpc.length > 0) {
       console.log(`📈 Quêtes en cours pour ce NPC: ${questsForThisNpc.length}`);
       
-      // ✅ NOUVEAU: Utiliser le dialogue de progression de la quête
       const firstQuest = questsForThisNpc[0];
       const questDefinition = this.questManager.getQuestDefinition(firstQuest.id);
       const progressDialogue = this.getQuestDialogue(questDefinition, 'questInProgress');
@@ -228,6 +232,7 @@ export class InteractionManager {
       };
     }
   }
+
   // ✅ === NOUVELLE MÉTHODE : GESTION DES MARCHANDS ===
   private async handleMerchantInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
     console.log(`🏪 === INTERACTION MARCHAND ===`);
@@ -326,92 +331,90 @@ export class InteractionManager {
       message: "Action non reconnue"
     };
   }
-  // ✅ === NOUVELLE MÉTHODE: Vérifier validation objectif talk ===
-private async checkTalkObjectiveValidation(username: string, npcId: number): Promise<NpcInteractionResult | null> {
-  try {
-    const activeQuests = await this.questManager.getActiveQuests(username);
-    console.log(`🔍 [checkTalkObjective] Quêtes actives: ${activeQuests.length}`);
-    
-    for (const quest of activeQuests) {
-      const currentStep = quest.steps[quest.currentStepIndex];
-      if (!currentStep) continue;
+
+  // ✅ === MÉTHODE EXISTANTE : Vérifier validation objectif talk ===
+  private async checkTalkObjectiveValidation(username: string, npcId: number): Promise<NpcInteractionResult | null> {
+    try {
+      const activeQuests = await this.questManager.getActiveQuests(username);
+      console.log(`🔍 [checkTalkObjective] Quêtes actives: ${activeQuests.length}`);
       
-      console.log(`🔍 [checkTalkObjective] Quête: ${quest.name}, étape: ${quest.currentStepIndex}`);
-      console.log(`🔍 [checkTalkObjective] Objectifs de l'étape:`, currentStep.objectives.map(obj => ({
-        id: obj.id,
-        type: obj.type,
-        target: obj.target,
-        completed: obj.completed
-      })));
-      
-      // Chercher des objectifs talk pour ce NPC dans l'étape COURANTE
-      for (const objective of currentStep.objectives) {
-        console.log(`🔍 [checkTalkObjective] Vérification objectif: ${objective.id}`);
-        console.log(`🔍 [checkTalkObjective] Type: ${objective.type}, Target: ${objective.target}, NpcId: ${npcId}, Completed: ${objective.completed}`);
+      for (const quest of activeQuests) {
+        const currentStep = quest.steps[quest.currentStepIndex];
+        if (!currentStep) continue;
         
-        if (objective.type === 'talk' && 
-            objective.target === npcId.toString() && 
-            !objective.completed) { // ✅ SEULEMENT les objectifs non complétés
+        console.log(`🔍 [checkTalkObjective] Quête: ${quest.name}, étape: ${quest.currentStepIndex}`);
+        console.log(`🔍 [checkTalkObjective] Objectifs de l'étape:`, currentStep.objectives.map(obj => ({
+          id: obj.id,
+          type: obj.type,
+          target: obj.target,
+          completed: obj.completed
+        })));
+        
+        // Chercher des objectifs talk pour ce NPC dans l'étape COURANTE
+        for (const objective of currentStep.objectives) {
+          console.log(`🔍 [checkTalkObjective] Vérification objectif: ${objective.id}`);
+          console.log(`🔍 [checkTalkObjective] Type: ${objective.type}, Target: ${objective.target}, NpcId: ${npcId}, Completed: ${objective.completed}`);
           
-          console.log(`🎯 [checkTalkObjective] MATCH ! Objectif talk trouvé: ${objective.description}`);
-          
-          // Déclencher la progression
-          const progressResults = await this.questManager.updateQuestProgress(username, {
-            type: 'talk',
-            npcId: npcId,
-            targetId: npcId.toString()
-          });
-          
-          console.log(`📊 [checkTalkObjective] Résultats progression:`, progressResults);
-          
-          if (progressResults.length > 0) {
-            const result = progressResults[0];
-            console.log(`📊 [checkTalkObjective] Résultat principal:`, result);
+          if (objective.type === 'talk' && 
+              objective.target === npcId.toString() && 
+              !objective.completed) {
             
-            // ✅ CORRECTION: Vérifier si l'objectif OU l'étape ont été complétés
-            if (result.objectiveCompleted || result.stepCompleted) {
-              // Récupérer le dialogue de validation depuis l'objectif ou utiliser un défaut
-              const validationDialogue = (objective as any).validationDialogue || [
-                "Parfait ! Merci de m'avoir parlé !",
-                "C'était exactement ce qu'il fallait faire."
-              ];
+            console.log(`🎯 [checkTalkObjective] MATCH ! Objectif talk trouvé: ${objective.description}`);
+            
+            // Déclencher la progression
+            const progressResults = await this.questManager.updateQuestProgress(username, {
+              type: 'talk',
+              npcId: npcId,
+              targetId: npcId.toString()
+            });
+            
+            console.log(`📊 [checkTalkObjective] Résultats progression:`, progressResults);
+            
+            if (progressResults.length > 0) {
+              const result = progressResults[0];
+              console.log(`📊 [checkTalkObjective] Résultat principal:`, result);
               
-              console.log(`✅ [checkTalkObjective] Objectif/Étape complété(e) ! Dialogue de validation:`, validationDialogue);
-              
-              return {
-                type: "dialogue",
-                lines: validationDialogue,
-                npcId: npcId,
-                npcName: await this.getNpcName(npcId),
-                questProgress: progressResults,
-                message: result.message
-              };
+              // ✅ CORRECTION: Vérifier si l'objectif OU l'étape ont été complétés
+              if (result.objectiveCompleted || result.stepCompleted) {
+                const validationDialogue = (objective as any).validationDialogue || [
+                  "Parfait ! Merci de m'avoir parlé !",
+                  "C'était exactement ce qu'il fallait faire."
+                ];
+                
+                console.log(`✅ [checkTalkObjective] Objectif/Étape complété(e) ! Dialogue de validation:`, validationDialogue);
+                
+                return {
+                  type: "dialogue",
+                  lines: validationDialogue,
+                  npcId: npcId,
+                  npcName: await this.getNpcName(npcId),
+                  questProgress: progressResults,
+                  message: result.message
+                };
+              } else {
+                console.log(`⏳ [checkTalkObjective] Progression enregistrée mais objectif pas encore complété`);
+                return null;
+              }
             } else {
-              console.log(`⏳ [checkTalkObjective] Progression enregistrée mais objectif pas encore complété`);
-              // Continuer le flow normal car l'objectif n'est pas encore terminé
+              console.log(`❌ [checkTalkObjective] Aucun résultat de progression`);
               return null;
             }
-          } else {
-            console.log(`❌ [checkTalkObjective] Aucun résultat de progression`);
-            return null;
           }
         }
       }
+      
+      console.log(`❌ [checkTalkObjective] Aucun objectif talk à valider dans l'étape courante`);
+      return null;
+      
+    } catch (error) {
+      console.error(`❌ Erreur checkTalkObjectiveValidation:`, error);
+      return null;
     }
-    
-    console.log(`❌ [checkTalkObjective] Aucun objectif talk à valider dans l'étape courante`);
-    return null; // Aucun objectif talk à valider dans l'étape courante
-    
-  } catch (error) {
-    console.error(`❌ Erreur checkTalkObjectiveValidation:`, error);
-    return null;
   }
-}
 
-  // ✅ === NOUVELLE MÉTHODE: Récupérer dialogue de quête ===
+  // ✅ === MÉTHODE EXISTANTE : Récupérer dialogue de quête ===
   private getQuestDialogue(questDefinition: any, dialogueType: 'questOffer' | 'questInProgress' | 'questComplete'): string[] {
     if (!questDefinition?.dialogues?.[dialogueType]) {
-      // Dialogues par défaut selon le type
       switch (dialogueType) {
         case 'questOffer':
           return ["J'ai quelque chose pour vous...", "Acceptez-vous cette mission ?"];
@@ -427,9 +430,8 @@ private async checkTalkObjectiveValidation(username: string, npcId: number): Pro
     return questDefinition.dialogues[dialogueType];
   }
 
-  // ✅ === MÉTHODE HELPER: Récupérer nom NPC ===
+  // ✅ === MÉTHODE HELPER : Récupérer nom NPC ===
   private async getNpcName(npcId: number): Promise<string> {
-    // TODO: Récupérer depuis le NPCManager si besoin
     const npcNames: { [key: number]: string } = {
       1: "Professeur Oak",
       87: "Bob le pêcheur", 
@@ -464,16 +466,12 @@ private async checkTalkObjectiveValidation(username: string, npcId: number): Pro
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : Récupérer les quêtes prêtes à compléter manuellement
   private async getReadyToCompleteQuestsForNpc(username: string, npcId: number): Promise<any[]> {
     try {
       const activeQuests = await this.questManager.getActiveQuests(username);
       
       const readyQuests = activeQuests.filter(quest => {
-        // Vérifier si c'est le bon NPC pour rendre la quête
         if (quest.endNpcId !== npcId) return false;
-        
-        // Vérifier si la quête est marquée comme prête à compléter
         return quest.status === 'readyToComplete';
       });
 
@@ -486,7 +484,6 @@ private async checkTalkObjectiveValidation(username: string, npcId: number): Pro
   }
 
   private async getDefaultDialogueForNpc(npc: any): Promise<string[]> {
-    // 1. Vérifier si le NPC a un dialogueId
     if (npc.properties?.dialogueId) {
       const dialogues = await this.getDialogueById(npc.properties.dialogueId);
       if (dialogues.length > 0) {
@@ -494,7 +491,6 @@ private async checkTalkObjectiveValidation(username: string, npcId: number): Pro
       }
     }
     
-    // 2. Dialogue par défaut basé sur le type de NPC
     if (npc.properties?.shop) {
       return [
         `Bienvenue dans ma boutique !`,
@@ -509,7 +505,6 @@ private async checkTalkObjectiveValidation(username: string, npcId: number): Pro
       ];
     }
     
-    // 3. Dialogue générique par défaut
     return [
       `Bonjour ! Je suis ${npc.name}.`,
       `Belle journée pour une aventure !`
@@ -517,7 +512,6 @@ private async checkTalkObjectiveValidation(username: string, npcId: number): Pro
   }
 
   private async getDialogueById(dialogueId: string): Promise<string[]> {
-    // TODO: Charger depuis un fichier JSON ou base de données
     const dialogueMap: { [key: string]: string[] } = {
       'greeting_bob': [
         "Salut ! Je suis Bob, le pêcheur local.",
@@ -625,14 +619,12 @@ private async checkTalkObjectiveValidation(username: string, npcId: number): Pro
       
       // Statuts pour les quêtes actives
       for (const quest of activeQuests) {
-        // Quête prête à être rendue
         if (quest.status === 'readyToComplete' && quest.endNpcId) {
           questStatuses.push({
             npcId: quest.endNpcId,
             type: 'questReadyToComplete'
           });
         }
-        // Quête en cours avec des objectifs
         else if (quest.endNpcId) {
           questStatuses.push({
             npcId: quest.endNpcId,
