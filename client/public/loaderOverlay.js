@@ -1,10 +1,10 @@
 // loaderOverlay.js
 
 (function () {
-  // Création du DOM loader une seule fois
   let overlay = null;
 
   function createOverlay(text) {
+    console.log("[loaderOverlay] Création overlay…");
     overlay = document.createElement('div');
     overlay.id = 'global-loading-overlay';
     overlay.style.position = 'fixed';
@@ -43,23 +43,36 @@
 
     // Animation CSS (spinner)
     if (!document.getElementById('loader-overlay-css')) {
+      console.log("[loaderOverlay] Ajout CSS spinner");
       const style = document.createElement('style');
       style.id = 'loader-overlay-css';
       style.innerHTML = `
-        @keyframes spin { 0% { transform: rotate(0deg);} 100% {transform: rotate(360deg);}}
+        @keyframes spin { 0% { transform: rotate(0deg);} 100% {transform: rotate(360deg);} }
       `;
       document.head.appendChild(style);
     }
     document.body.appendChild(overlay);
+    console.log("[loaderOverlay] Overlay ajouté au DOM");
   }
 
   window.showLoadingOverlay = function (text) {
-    if (!overlay) createOverlay(text);
-    else overlay.style.display = 'flex';
-    if (text && overlay) overlay.children[1].innerText = text;
+    console.log("[loaderOverlay] showLoadingOverlay", {overlay, text});
+    if (!overlay) {
+      createOverlay(text);
+    } else {
+      overlay.style.display = 'flex';
+      if (text) overlay.children[1].innerText = text;
+      console.log("[loaderOverlay] Overlay affiché");
+    }
   };
 
   window.hideLoadingOverlay = function () {
-    if (overlay) overlay.style.display = 'none';
+    console.log("[loaderOverlay] hideLoadingOverlay", {overlay});
+    if (overlay) {
+      overlay.style.display = 'none';
+      console.log("[loaderOverlay] Overlay caché");
+    } else {
+      console.log("[loaderOverlay] Aucun overlay à cacher");
+    }
   };
 })();
