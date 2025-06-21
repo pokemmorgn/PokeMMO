@@ -505,24 +505,87 @@ setupNetworkHandlers() {
   }
 
   // ✅ AMÉLIORATION: Setup du handler joueur prêt
-  setupPlayerReadyHandler() {
-    if (!this.playerManager) return;
-    
-    this.playerManager.onMyPlayerReady((myPlayer) => {
-      if (!this.myPlayerReady) {
-        this.myPlayerReady = true;
-        console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
+ setupPlayerReadyHandler() {
+  if (!this.playerManager) return;
+  
+  this.playerManager.onMyPlayerReady((myPlayer) => {
+    if (!this.myPlayerReady) {
+      this.myPlayerReady = true;
+      console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
 
-        this.cameraManager.followPlayer(myPlayer);
-        this.cameraFollowing = true;
+      this.cameraManager.followPlayer(myPlayer);
+      this.cameraFollowing = true;
+      
+      // ✅ NOUVEAU : Vérifier si c'est une transition en cours
+      const initData = this.scene.settings.data;
+      const isFromTransition = initData?.fromTransition;
+      const hasValidPosition = myPlayer.x !== 0 && myPlayer.y !== 0; // Position déjà définie par le serveur
+      
+      console.log(`🔍 [${this.scene.key}] Analyse du positionnement:`);
+      console.log(`  - fromTransition: ${!!isFromTransition}`);
+      console.log(`  - Position joueur: (${myPlayer.x}, ${myPlayer.y})`);
+      console.log(`  - Position valide: ${hasValidPosition}`);
+      
+      // ✅ LOGIQUE CONDITIONNELLE : Ne repositionner QUE si nécessaire
+      if (isFromTransition && hasValidPosition) {
+        console.log(`🎯 [${this.scene.key}] TRANSITION : Position serveur conservée (${myPlayer.x}, ${myPlayer.y})`);
+        console.log(`🚫 [${this.scene.key}] Skip positionPlayer() pour éviter l'écrasement`);
+        
+        // ✅ S'assurer que le joueur est bien configuré sans changer sa position
+        this.ensurePlayerVisibility(myPlayer);
+        
+      } else {
+        console.log(`📍 [${this.scene.key}] SPAWN NORMAL : Application du positionnement initial`);
         this.positionPlayer(myPlayer);
-
-        if (typeof this.onPlayerReady === 'function') {
-          this.onPlayerReady(myPlayer);
-        }
       }
-    });
+
+      if (typeof this.onPlayerReady === 'function') {
+        this.onPlayerReady(myPlayer);
+      }
+    }
+  });
+}
+
+// ✅ NOUVELLE MÉTHODE : S'assurer de la visibilité sans changer la position
+ensurePlayerVisibility(player) {
+  console.log(`👁️ [${this.scene.key}] === CONFIGURATION VISIBILITÉ JOUEUR ===`);
+  console.log(`📍 Position conservée: (${player.x}, ${player.y})`);
+  
+  // S'assurer que le joueur est visible et actif
+  if (!player.visible) {
+    player.setVisible(true);
+    console.log(`👁️ [${this.scene.key}] Visibilité activée`);
   }
+  
+  if (!player.active) {
+    player.setActive(true);
+    console.log(`⚡ [${this.scene.key}] Activité activée`);
+  }
+  
+  // Définir la profondeur
+  player.setDepth(5);
+  
+  // S'assurer que l'indicateur est bien positionné
+  if (player.indicator) {
+    player.indicator.x = player.x;
+    player.indicator.y = player.y - 24;
+    player.indicator.setVisible(true);
+    console.log(`🏷️ [${this.scene.key}] Indicateur positionné`);
+  }
+  
+  // Délai de grâce
+  this.spawnGraceTime = Date.now() + this.spawnGraceDuration;
+  console.log(`🛡️ [${this.scene.key}] Délai de grâce activé`);
+  
+  // Notifier le serveur de la position actuelle (sans la changer)
+  if (this.networkManager?.isConnected) {
+    this.networkManager.sendMove(player.x, player.y, 'down', false);
+    console.log(`📡 [${this.scene.key}] Position confirmée au serveur: (${player.x}, ${player.y})`);
+  }
+  
+  console.log(`✅ [${this.scene.key}] Joueur configuré sans changement de position`);
+}
+
 
   // ✅ AMÉLIORATION: Vérification de l'état réseau
   verifyNetworkState() {
@@ -742,28 +805,30 @@ repositionPlayerAfterTransition(result) {
 
   // ✅ AMÉLIORATION: Changement de scène optimisé
   performSceneTransition(targetScene, result) {
-    console.log(`🚀 [${this.scene.key}] === CHANGEMENT DE SCÈNE ===`);
-    console.log(`📍 Vers: ${targetScene}`);
-    console.log(`📊 Data:`, result);
-    
-    // ✅ CORRECTION CRITIQUE: Nettoyage minimal pour préserver les données
-    this.prepareForTransition();
-    
-    // Démarrer la nouvelle scène avec TOUTES les données nécessaires
-    const transitionData = {
-      fromZone: this.zoneName,
-      fromTransition: true,
-      spawnX: result.position?.x,
-      spawnY: result.position?.y,
-      networkManager: this.networkManager,
-      mySessionId: this.mySessionId,
-      preservePlayer: true // ✅ NOUVEAU: Flag pour préserver le joueur
-    };
-    
-    console.log(`📦 [${this.scene.key}] Données de transition:`, transitionData);
-    
-    this.scene.start(targetScene, transitionData);
-  }
+  console.log(`🚀 [${this.scene.key}] === CHANGEMENT DE SCÈNE ===`);
+  console.log(`📍 Vers: ${targetScene}`);
+  console.log(`📊 Data:`, result);
+  
+  this.prepareForTransition();
+  
+  // ✅ CORRECTION CRITIQUE : Utiliser la VRAIE position du serveur
+  const transitionData = {
+    fromZone: this.zoneName,
+    fromTransition: true,
+    // ✅ NOUVEAU : Utiliser la position validée par le serveur
+    spawnX: result.position?.x || 100,
+    spawnY: result.position?.y || 100,
+    networkManager: this.networkManager,
+    mySessionId: this.mySessionId,
+    preservePlayer: true,
+    // ✅ NOUVEAU : Flag pour indiquer position serveur valide
+    hasServerPosition: !!(result.position?.x && result.position?.y)
+  };
+  
+  console.log(`📦 [${this.scene.key}] Données de transition:`, transitionData);
+  
+  this.scene.start(targetScene, transitionData);
+}
 
   // ✅ NOUVELLE MÉTHODE: Préparation pour transition
   prepareForTransition() {
@@ -791,49 +856,62 @@ repositionPlayerAfterTransition(result) {
   }
 
   // ✅ AMÉLIORATION: Position du joueur avec données de transition
-  positionPlayer(player) {
-    const initData = this.scene.settings.data;
+ positionPlayer(player) {
+  const initData = this.scene.settings.data;
+  
+  console.log(`📍 [${this.scene.key}] === POSITIONNEMENT JOUEUR ===`);
+  console.log(`📊 InitData:`, initData);
+  
+  // ✅ PROTECTION : Ne pas repositionner si position serveur valide
+  const hasValidServerPosition = player.x !== 0 && player.y !== 0;
+  const isFromTransition = initData?.fromTransition;
+  
+  if (isFromTransition && hasValidServerPosition) {
+    console.log(`🚫 [${this.scene.key}] PROTECTION : Position serveur préservée (${player.x}, ${player.y})`);
+    console.log(`🚫 [${this.scene.key}] Skip repositionnement pour éviter écrasement`);
     
-    console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
-    console.log(`📊 InitData:`, initData);
-    
-    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-      console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
-      player.x = initData.spawnX;
-      player.y = initData.spawnY;
-      player.targetX = initData.spawnX;
-      player.targetY = initData.spawnY;
-    } else {
-      const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-      console.log(`📍 Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
-      player.x = defaultPos.x;
-      player.y = defaultPos.y;
-      player.targetX = defaultPos.x;
-      player.targetY = defaultPos.y;
-    }
-
-    player.setVisible(true);
-    player.setActive(true);
-    player.setDepth(5);
-
-    if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-      player.indicator.setVisible(true);
-    }
-
-    // Délai de grâce après spawn
-    this.spawnGraceTime = Date.now() + this.spawnGraceDuration;
-    console.log(`🛡️ [${this.scene.key}] Délai de grâce activé pour ${this.spawnGraceDuration}ms`);
-
-    // Envoyer la position au serveur
-    if (this.networkManager && this.networkManager.isConnected) {
-      this.networkManager.sendMove(player.x, player.y, 'down', false);
-    }
-
-    this.onPlayerPositioned(player, initData);
+    // Juste configurer sans changer la position
+    this.ensurePlayerVisibility(player);
+    return;
+  }
+  
+  // ✅ POSITIONNEMENT NORMAL (spawn initial, pas de transition)
+  console.log(`📍 [${this.scene.key}] Positionnement normal...`);
+  
+  if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+    console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
+    player.x = initData.spawnX;
+    player.y = initData.spawnY;
+    player.targetX = initData.spawnX;
+    player.targetY = initData.spawnY;
+  } else {
+    const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+    console.log(`📍 Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
+    player.x = defaultPos.x;
+    player.y = defaultPos.y;
+    player.targetX = defaultPos.x;
+    player.targetY = defaultPos.y;
   }
 
+  player.setVisible(true);
+  player.setActive(true);
+  player.setDepth(5);
+
+  if (player.indicator) {
+    player.indicator.x = player.x;
+    player.indicator.y = player.y - 32;
+    player.indicator.setVisible(true);
+  }
+
+  this.spawnGraceTime = Date.now() + this.spawnGraceDuration;
+  console.log(`🛡️ [${this.scene.key}] Délai de grâce activé pour ${this.spawnGraceDuration}ms`);
+
+  if (this.networkManager?.isConnected) {
+    this.networkManager.sendMove(player.x, player.y, 'down', false);
+  }
+
+  this.onPlayerPositioned(player, initData);
+}
  
   // ✅ NOUVELLE MÉTHODE: Initialisation du système de quêtes
   initializeQuestSystem() {
