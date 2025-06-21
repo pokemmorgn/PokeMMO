@@ -657,11 +657,11 @@ setupEventListeners() {
     
     results.forEach(result => {
       if (result.questCompleted) {
-        this.showNotification(`Quête terminée : ${result.questId}`, 'success');
+      //  this.showNotification(`Quête terminée : ${result.questId}`, 'success');
       } else if (result.stepCompleted) {
-        this.showNotification(`Étape terminée !`, 'info');
+     //   this.showNotification(`Étape terminée !`, 'info');
       } else if (result.message) {
-        this.showNotification(result.message, 'info');
+      //   this.showNotification(result.message, 'info');
       }
     });
     
