@@ -1,337 +1,667 @@
-// PlayerManager.js - VERSION COMPLÈTE CORRIGÉE
+// src/game/PlayerManager.js - VERSION CORRIGÉE POUR WORLDROOM
+// ✅ Corrections pour la synchronisation et les transitions de zones
 
 export class PlayerManager {
   constructor(scene) {
     this.scene = scene;
     this.players = new Map();
     this.mySessionId = null;
-    this.myPlayerReadyCallback = null;
+    this.isDestroyed = false;
+    this.animsCreated = false;
+    this._myPlayerIsReady = false;
+    this._myPlayerReadyCallback = null;
+    this._hasWarnedMissingPlayer = false;
+    
+    // ✅ NOUVEAU: Système de synchronisation amélioré
+    this._pendingSessionId = null;
+    this._isResynchronizing = false;
+    this._lastStateUpdate = 0;
+    
+    console.log("%c[PlayerManager] Initialisé pour", "color:orange", scene.scene.key);
+
+    // Gestion du snap serveur
+    if (scene.networkManager && scene.networkManager.room) {
+      console.log("[PlayerManager] Ajout du listener snap sur networkManager.room");
+      scene.networkManager.room.onMessage("snap", (data) => {
+        console.log("[PlayerManager] Reçu SNAP (onMessage) :", data);
+        this.snapMyPlayerTo(data.x, data.y);
+      });
+    }
   }
 
   setMySessionId(sessionId) {
-    console.log(`[PlayerManager] 🆔 Mon sessionId défini: ${sessionId}`);
-    this.mySessionId = sessionId;
+    console.log("[PlayerManager] setMySessionId:", sessionId, "| Ancien:", this.mySessionId);
     
-    // Vérifier si mon joueur existe déjà
-    const existingPlayer = this.players.get(sessionId);
-    if (existingPlayer) {
-      console.log(`[PlayerManager] ✅ Mon joueur trouvé rétroactivement: ${sessionId}`);
-      this.setupMyPlayer(existingPlayer);
-    }
-  }
-
-  // ✅ MÉTHODE CORRIGÉE: updatePlayers
-  updatePlayers(state) {
-    if (!state || !state.players) {
-      console.warn('[PlayerManager] State invalide reçu:', state);
+    // ✅ AMÉLIORATION 1: Gestion plus intelligente du changement de sessionId
+    if (this.mySessionId === sessionId) {
+      console.log("[PlayerManager] SessionId identique, pas de changement nécessaire");
       return;
     }
 
-    console.log(`[PlayerManager] 📊 Mise à jour des joueurs`);
-
-    // ✅ CORRECTION: Gérer à la fois Map et Object
-    let playersToProcess;
-    
-    if (state.players instanceof Map) {
-      // État normal avec Map
-      playersToProcess = Array.from(state.players.entries());
-      console.log(`[PlayerManager] État Map avec ${state.players.size} joueurs`);
-    } else if (typeof state.players === 'object' && state.players !== null) {
-      // État filtré avec objet
-      playersToProcess = Object.entries(state.players);
-      console.log(`[PlayerManager] État filtré avec ${playersToProcess.length} joueurs`);
+    // Si on a déjà un sessionId différent, préparer la migration
+    if (this.mySessionId && this.mySessionId !== sessionId) {
+      console.log(`[PlayerManager] ⚠️ Migration sessionId: ${this.mySessionId} → ${sessionId}`);
+      this._pendingSessionId = sessionId;
+      this.migratePlayerSession(this.mySessionId, sessionId);
     } else {
-      console.warn('[PlayerManager] Type de players non supporté:', typeof state.players);
-      return;
+      // Premier sessionId ou pas d'ancien joueur
+      this.mySessionId = sessionId;
+      this._pendingSessionId = null;
     }
-
-    // ✅ Traitement unifié avec le bon format
-    playersToProcess.forEach(([sessionId, playerData]) => {
-      // ✅ IMPORTANT: Passer directement playerData, pas state.players
-      this.performUpdate(sessionId, playerData);
-    });
-  }
-
-  // ✅ MÉTHODE CORRIGÉE: performUpdate
-  performUpdate(sessionId, playerData) {
-    // ✅ CORRECTION: playerData est maintenant directement l'objet joueur
-    if (!playerData) {
-      console.warn(`[PlayerManager] PlayerData manquant pour ${sessionId}`);
-      return;
-    }
-
-    console.log(`[PlayerManager] 🔄 Update joueur ${sessionId}:`, {
-      x: playerData.x,
-      y: playerData.y,
-      zone: playerData.currentZone
-    });
-
-    const isMyPlayer = sessionId === this.mySessionId;
-    let player = this.players.get(sessionId);
-
-    if (!player) {
-      // ✅ Créer nouveau joueur avec playerData directement
-      player = this.createPlayer(sessionId, playerData.x, playerData.y);
-      if (!player) {
-        console.error(`[PlayerManager] ❌ Échec création joueur ${sessionId}`);
-        return;
-      }
-
-      // ✅ Appliquer les propriétés du joueur
-      if (playerData.name) player.name = playerData.name;
-      if (playerData.currentZone) player.currentZone = playerData.currentZone;
-      
-      console.log(`[PlayerManager] 🆕 Nouveau joueur créé: ${sessionId}`);
-      
-      if (isMyPlayer) {
-        this.setupMyPlayer(player);
-      }
-    } else {
-      // ✅ Mettre à jour joueur existant avec playerData directement
-      this.updateExistingPlayer(player, playerData, isMyPlayer);
-    }
-  }
-
-  // ✅ MÉTHODE CORRIGÉE: updateExistingPlayer
-  updateExistingPlayer(player, playerData, isMyPlayer) {
-    // ✅ Mise à jour normale avec l'objet playerData directement
-    const newX = playerData.x;
-    const newY = playerData.y;
-    const newDirection = playerData.direction || 'down';
-    const isMoving = playerData.isMoving || false;
-
-    // Détecter les changements de position
-    const positionChanged = Math.abs(player.x - newX) > 1 || Math.abs(player.y - newY) > 1;
     
-    if (positionChanged && !isMyPlayer) {
-      console.log(`[PlayerManager] 📍 ${player.name || player.sessionId}: (${player.x}, ${player.y}) → (${newX}, ${newY})`);
-      
-      // Interpolation fluide pour les autres joueurs
-      this.scene.tweens.add({
-        targets: player,
-        x: newX,
-        y: newY,
-        duration: 150,
-        ease: 'Linear'
-      });
-      
-      if (player.indicator) {
-        this.scene.tweens.add({
-          targets: player.indicator,
-          x: newX,
-          y: newY - 24,
-          duration: 150,
-          ease: 'Linear'
-        });
-      }
-    } else if (isMyPlayer) {
-      // ✅ Pour mon joueur: position serveur fait autorité seulement si très différente
-      const significantChange = Math.abs(player.x - newX) > 32 || Math.abs(player.y - newY) > 32;
-      
-      if (significantChange) {
-        console.log(`[PlayerManager] 🔧 Correction position majeure: (${player.x}, ${player.y}) → (${newX}, ${newY})`);
-        player.x = newX;
-        player.y = newY;
-        player.targetX = newX;
-        player.targetY = newY;
-        
-        if (player.indicator) {
-          player.indicator.x = newX;
-          player.indicator.y = newY - 24;
-        }
-      }
-    }
-
-    // Mettre à jour les propriétés
-    if (playerData.name && player.name !== playerData.name) {
-      player.name = playerData.name;
-      this.updatePlayerLabel(player);
-    }
-
-    // Animations
-    if (isMoving && !isMyPlayer) {
-      const animKey = `walk_${newDirection}`;
-      if (player.anims.exists(animKey)) {
-        player.play(animKey, true);
-      }
-    } else if (!isMoving && !isMyPlayer) {
-      const idleKey = `idle_${newDirection}`;
-      if (player.anims.exists(idleKey)) {
-        player.play(idleKey, true);
-      }
-    }
+    this._myPlayerIsReady = false;
   }
 
-  createPlayer(sessionId, x, y) {
-    console.log(`[PlayerManager] 🆕 Création nouveau joueur: ${sessionId} à (${x}, ${y})`);
+  // ✅ NOUVELLE MÉTHODE: Migration intelligente entre sessions
+  migratePlayerSession(oldSessionId, newSessionId) {
+    console.log(`[PlayerManager] 🔄 Migration du joueur: ${oldSessionId} → ${newSessionId}`);
+    
+    const oldPlayer = this.players.get(oldSessionId);
+    if (oldPlayer) {
+      // Conserver les données importantes du joueur
+      const playerData = {
+        x: oldPlayer.x,
+        y: oldPlayer.y,
+        visible: oldPlayer.visible,
+        active: oldPlayer.active,
+        lastDirection: oldPlayer.lastDirection,
+        isMoving: oldPlayer.isMoving,
+        indicator: oldPlayer.indicator
+      };
+      
+      // Supprimer l'ancienne entrée
+      this.players.delete(oldSessionId);
+      
+      // Mettre à jour les références
+      oldPlayer.sessionId = newSessionId;
+      this.players.set(newSessionId, oldPlayer);
+      
+      // Restaurer la visibilité si nécessaire
+      if (!oldPlayer.visible) {
+        oldPlayer.setVisible(true);
+        oldPlayer.setActive(true);
+      }
+      
+      console.log(`[PlayerManager] ✅ Joueur migré avec succès`);
+    }
+    
+    // Nettoyer les autres joueurs obsolètes (de l'ancienne room)
+    const playersToClean = Array.from(this.players.keys()).filter(id => 
+      id !== newSessionId && id !== oldSessionId
+    );
+    
+    if (playersToClean.length > 0) {
+      console.log(`[PlayerManager] 🗑️ Nettoyage de ${playersToClean.length} joueurs obsolètes`);
+      playersToClean.forEach(id => this.removePlayer(id));
+    }
+    
+    this.mySessionId = newSessionId;
+    this._pendingSessionId = null;
+  }
 
-    if (!this.scene.textures.exists('dude')) {
-      console.error(`[PlayerManager] ❌ Texture 'dude' non trouvée`);
+  getMyPlayer() {
+    if (this.isDestroyed) {
+      console.warn("[PlayerManager] getMyPlayer: MANAGER DETRUIT");
       return null;
     }
+    
+    // ✅ AMÉLIORATION 2: Vérifier d'abord le sessionId en attente
+    const sessionIdToCheck = this._pendingSessionId || this.mySessionId;
+    const player = this.players.get(sessionIdToCheck) || null;
 
-    // Créer les animations si nécessaire
-    this.createPlayerAnimations();
-
-    const player = this.scene.physics.add.sprite(x, y, 'dude');
-    player.sessionId = sessionId;
-    player.targetX = x;
-    player.targetY = y;
-    player.setDepth(5);
-    player.name = sessionId;
-    player.currentZone = null;
-    player.isMovingLocally = false;
-
-    // Créer l'indicateur local (toujours visible)
-    this.createLocalIndicator(player);
-
-    this.players.set(sessionId, player);
-    console.log(`[PlayerManager] ✅ Joueur créé: ${sessionId} (total: ${this.players.size})`);
+    if (!player) {
+      if (!this._hasWarnedMissingPlayer) {
+        this._hasWarnedMissingPlayer = true;
+        console.warn("[PlayerManager] getMyPlayer: Aucun joueur trouvé pour sessionId", sessionIdToCheck);
+        console.warn("Sessions disponibles:", Array.from(this.players.keys()));
+        this.debugPlayerState();
+      }
+    } else {
+      if (this._hasWarnedMissingPlayer) {
+        this._hasWarnedMissingPlayer = false;
+        console.log("[PlayerManager] ✅ Joueur retrouvé!");
+      }
+    }
 
     return player;
   }
 
-  createPlayerAnimations() {
-    if (this.scene.anims.exists('walk_left')) return;
-
-    console.log('[PlayerManager] Création des animations BoyWalk');
-
-    this.scene.anims.create({
-      key: 'walk_left',
-      frames: this.scene.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
-      frameRate: 10,
-      repeat: -1
-    });
-
-    this.scene.anims.create({
-      key: 'idle_left',
-      frames: [{ key: 'dude', frame: 4 }],
-      frameRate: 1
-    });
-
-    this.scene.anims.create({
-      key: 'walk_right',
-      frames: this.scene.anims.generateFrameNumbers('dude', { start: 5, end: 8 }),
-      frameRate: 10,
-      repeat: -1
-    });
-
-    this.scene.anims.create({
-      key: 'idle_right',
-      frames: [{ key: 'dude', frame: 5 }],
-      frameRate: 1
-    });
-
-    this.scene.anims.create({
-      key: 'walk_up',
-      frames: this.scene.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
-      frameRate: 10,
-      repeat: -1
-    });
-
-    this.scene.anims.create({
-      key: 'idle_up',
-      frames: [{ key: 'dude', frame: 4 }],
-      frameRate: 1
-    });
-
-    this.scene.anims.create({
-      key: 'walk_down',
-      frames: this.scene.anims.generateFrameNumbers('dude', { start: 5, end: 8 }),
-      frameRate: 10,
-      repeat: -1
-    });
-
-    this.scene.anims.create({
-      key: 'idle_down',
-      frames: [{ key: 'dude', frame: 5 }],
-      frameRate: 1
+  debugPlayerState() {
+    console.log("%c[PlayerManager] 🔍 DEBUG État des joueurs:", "color:red; font-weight:bold");
+    console.log("- mySessionId:", this.mySessionId);
+    console.log("- _pendingSessionId:", this._pendingSessionId);
+    console.log("- players.size:", this.players.size);
+    console.log("- sessionIds disponibles:", Array.from(this.players.keys()));
+    
+    if (this.scene.networkManager) {
+      console.log("- networkManager.sessionId:", this.scene.networkManager.getSessionId());
+      console.log("- networkManager.isConnected:", this.scene.networkManager.isConnected);
+      console.log("- networkManager.currentZone:", this.scene.networkManager.getCurrentZone());
+    }
+    
+    this.players.forEach((player, sessionId) => {
+      console.log(`- Joueur ${sessionId}:`, {
+        x: player.x,
+        y: player.y,
+        visible: player.visible,
+        active: player.active,
+        hasIndicator: !!player.indicator,
+        sessionIdMatch: sessionId === this.mySessionId
+      });
     });
   }
 
-  createLocalIndicator(player) {
-    const indicator = this.scene.add.circle(
-      player.x, 
-      player.y - 24, 
-      8, 
-      0x00ff00, 
-      0.8
-    );
+  createPlayer(sessionId, x, y) {
+    if (this.isDestroyed) {
+      console.error("[PlayerManager] createPlayer appelé alors que destroy déjà fait!");
+      return null;
+    }
+
+    // ✅ AMÉLIORATION 3: Vérifier si le joueur existe déjà
+    if (this.players.has(sessionId)) {
+      console.log(`[PlayerManager] Joueur ${sessionId} existe déjà, mise à jour position`);
+      const existingPlayer = this.players.get(sessionId);
+      this.updateExistingPlayer(existingPlayer, x, y);
+      return existingPlayer;
+    }
+
+    console.log(`[PlayerManager] 🆕 Création nouveau joueur: ${sessionId} à (${x}, ${y})`);
+
+    // Placeholder si spritesheet manquant
+    if (!this.scene.textures.exists('BoyWalk')) {
+      return this.createPlaceholderPlayer(sessionId, x, y);
+    }
+
+    // Crée les animations une seule fois
+    if (!this.animsCreated) {
+      console.log("[PlayerManager] Création des animations BoyWalk");
+      this.createAnimations();
+      this.animsCreated = true;
+    }
+
+    // Sprite physique joueur
+    const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1).setOrigin(0.5, 1).setScale(1);
+    player.setDepth(5);
+    player.sessionId = sessionId;
+    player.body.setSize(12, 8);
+    player.body.setOffset(10, 24);
+    player.body.debugShowBody = true;
+    player.body.debugBodyColor = 0xff0000;
+
+    if (this.scene.anims.exists('idle_down')) player.play('idle_down');
+    player.lastDirection = 'down';
+    player.isMoving = false;
+
+    player.targetX = x;
+    player.targetY = y;
+    player.snapLerpTimer = 0;
+    player.setVisible(true);
+    player.setActive(true);
+
+    // ✅ AMÉLIORATION 4: Indicateur local optimisé
+    if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+      this.createLocalPlayerIndicator(player);
+    }
+
+    this.players.set(sessionId, player);
+    console.log(`[PlayerManager] ✅ Joueur créé: ${sessionId} (total: ${this.players.size})`);
     
-    indicator.setDepth(10);
-    indicator.setVisible(true);
-    
-    player.indicator = indicator;
-    console.log(`[PlayerManager] ✅ Indicateur local créé pour ${player.sessionId}`);
+    return player;
   }
 
-  setupMyPlayer(player) {
-    console.log(`[PlayerManager] ✅ Mon joueur est prêt avec sessionId: ${player.sessionId}`);
+  // ✅ NOUVELLE MÉTHODE: Mise à jour d'un joueur existant
+  updateExistingPlayer(player, x, y) {
+    player.x = x;
+    player.y = y;
+    player.targetX = x;
+    player.targetY = y;
     
-    if (this.myPlayerReadyCallback) {
-      console.log(`[PlayerManager] 🎯 Callback onMyPlayerReady déclenché!`);
-      this.myPlayerReadyCallback(player);
+    // Restaurer la visibilité si nécessaire
+    if (!player.visible) {
+      console.log("[PlayerManager] 🔧 Restauration visibilité joueur existant");
+      player.setVisible(true);
+      player.setActive(true);
+    }
+    
+    // Vérifier l'indicateur pour le joueur local
+    if ((player.sessionId === this.mySessionId || player.sessionId === this._pendingSessionId) && !player.indicator) {
+      this.createLocalPlayerIndicator(player);
     }
   }
 
-  onMyPlayerReady(callback) {
-    this.myPlayerReadyCallback = callback;
+  // ✅ NOUVELLE MÉTHODE: Création de joueur placeholder
+  createPlaceholderPlayer(sessionId, x, y) {
+    const graphics = this.scene.add.graphics();
+    graphics.fillStyle(0xff0000);
+    graphics.fillRect(0, 0, 32, 32);
+    graphics.generateTexture('player_placeholder', 32, 32);
+    graphics.destroy();
+    
+    const player = this.scene.add.sprite(x, y, 'player_placeholder').setOrigin(0.5, 1).setScale(1);
+    player.setDepth(5);
+    player.sessionId = sessionId;
+    player.targetX = x;
+    player.targetY = y;
+    
+    this.players.set(sessionId, player);
+    console.log("[PlayerManager] Placeholder créé pour", sessionId);
+    return player;
   }
 
-  getMyPlayer() {
-    if (!this.mySessionId) return null;
-    return this.players.get(this.mySessionId);
+  // ✅ NOUVELLE MÉTHODE: Création optimisée de l'indicateur local
+  createLocalPlayerIndicator(player) {
+    // Nettoyer l'ancien indicateur
+    if (player.indicator) {
+      try { player.indicator.destroy(); } catch(e) {}
+    }
+    
+    // Nettoyer tous les anciens indicateurs verts (sécurité)
+    this.scene.children.list
+      .filter(obj => obj && obj.type === "Arc" && obj.fillColor === 0x00ff00)
+      .forEach(obj => { try { obj.destroy(); } catch(e) {} });
+    
+    // Créer le nouvel indicateur
+    const indicator = this.scene.add.circle(player.x, player.y - 24, 3, 0x00ff00)
+      .setDepth(1001)
+      .setStrokeStyle(1, 0x004400);
+    
+    player.indicator = indicator;
+    indicator.setVisible(true);
+    
+    console.log("[PlayerManager] ✅ Indicateur local créé pour", player.sessionId);
+  }
+
+  updatePlayers(state) {
+    if (this.isDestroyed || !state || !state.players) {
+      return;
+    }
+    
+    if (!this.scene || !this.scene.scene.isActive()) {
+      console.warn("[PlayerManager] updatePlayers: SCENE INACTIVE");
+      return;
+    }
+    
+    // ✅ CORRECTION CRITIQUE: Ne plus bloquer pendant les transitions
+    // Le joueur doit pouvoir apparaître même pendant une transition
+    if (this.scene.networkManager && this.scene.networkManager.isTransitionActive) {
+      console.log("[PlayerManager] updatePlayers: Transition en cours, mais traitement autorisé");
+      // On continue quand même pour permettre l'apparition du joueur
+    }
+
+    // ✅ AMÉLIORATION 5: Synchronisation sessionId améliorée
+    this.synchronizeSessionId();
+    
+    this._lastStateUpdate = Date.now();
+    this.performUpdate(state);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Synchronisation intelligente du sessionId
+  synchronizeSessionId() {
+    if (!this.scene.networkManager) return;
+    
+    const currentNetworkSessionId = this.scene.networkManager.getSessionId();
+    
+    // Si on a un sessionId en attente, l'activer maintenant
+    if (this._pendingSessionId && this._pendingSessionId === currentNetworkSessionId) {
+      console.log(`[PlayerManager] ✅ Activation sessionId en attente: ${this._pendingSessionId}`);
+      this.mySessionId = this._pendingSessionId;
+      this._pendingSessionId = null;
+      this._isResynchronizing = false;
+      return;
+    }
+    
+    // Vérifier la désynchronisation normale
+    if (this.mySessionId !== currentNetworkSessionId) {
+      console.warn(`[PlayerManager] ⚠️ SessionId désynchronisé:`, {
+        mySessionId: this.mySessionId,
+        networkSessionId: currentNetworkSessionId,
+        pending: this._pendingSessionId
+      });
+      
+      if (!this._isResynchronizing) {
+        this._isResynchronizing = true;
+        this.setMySessionId(currentNetworkSessionId);
+      }
+    }
+  }
+
+  performUpdate(state) {
+    if (this.isDestroyed || !this.scene?.scene?.isActive()) {
+      return;
+    }
+
+    // Supprimer les joueurs déconnectés
+    const currentSessionIds = new Set(state.players.keys());
+    const playersToRemove = Array.from(this.players.keys()).filter(sessionId => 
+      !currentSessionIds.has(sessionId)
+    );
+    
+    playersToRemove.forEach(sessionId => {
+      console.log("[PlayerManager] 🗑️ Suppression joueur déconnecté:", sessionId);
+      this.removePlayer(sessionId);
+    });
+
+    // Mettre à jour ou créer les joueurs
+    state.players.forEach((playerState, sessionId) => {
+      this.updateOrCreatePlayer(sessionId, playerState);
+    });
+
+    // ✅ AMÉLIORATION 6: Notification joueur local prêt avec vérifications multiples
+    this.checkMyPlayerReady();
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mise à jour ou création de joueur
+  updateOrCreatePlayer(sessionId, playerState) {
+    // ✅ FILTRE PAR ZONE AMÉLIORÉ
+    const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
+    
+    let player = this.players.get(sessionId);
+    
+    if (!shouldShowPlayer) {
+      // Si le joueur ne devrait pas être affiché et qu'il existe, le cacher ou le supprimer
+      if (player && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
+        console.log(`[PlayerManager] 👻 Masquage joueur hors zone: ${sessionId}`);
+        this.removePlayer(sessionId);
+      }
+      return;
+    }
+
+    if (!player) {
+      // Créer le joueur s'il n'existe pas
+      player = this.createPlayer(sessionId, playerState.x, playerState.y);
+      if (!player) return;
+    } else {
+      // Vérifier que le joueur est toujours valide
+      if (!player.scene || player.scene !== this.scene) {
+        console.warn(`[PlayerManager] 🔧 Recréation joueur invalide: ${sessionId}`);
+        this.players.delete(sessionId);
+        player = this.createPlayer(sessionId, playerState.x, playerState.y);
+        if (!player) return;
+      }
+    }
+
+    // Mettre à jour les données du joueur
+    this.updatePlayerFromState(player, playerState);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Déterminer si un joueur doit être affiché
+  shouldDisplayPlayer(sessionId, playerState) {
+    // Toujours afficher notre propre joueur
+    if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+      return true;
+    }
+    
+    // Pour les autres joueurs, vérifier la zone
+    if (playerState.currentZone && this.scene.zoneName) {
+      return playerState.currentZone === this.scene.zoneName;
+    }
+    
+    // Si pas d'info de zone, afficher par défaut
+    return true;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mise à jour des données du joueur depuis le state
+  updatePlayerFromState(player, playerState) {
+    // Position cible
+    player.targetX = playerState.x;
+    player.targetY = playerState.y;
+
+    // États du mouvement
+    if (playerState.isMoving !== undefined) player.isMoving = playerState.isMoving;
+    if (playerState.direction) player.lastDirection = playerState.direction;
+
+    // Restaurer la visibilité si nécessaire
+    if (!player.visible) {
+      console.warn(`[PlayerManager] 🔧 Restauration visibilité: ${player.sessionId}`);
+      player.setVisible(true);
+      player.setActive(true);
+    }
+
+    // Animations
+    this.updatePlayerAnimation(player);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mise à jour des animations
+  updatePlayerAnimation(player) {
+    if (player.isMoving && player.lastDirection) {
+      const walkAnim = `walk_${player.lastDirection}`;
+      if (this.scene.anims.exists(walkAnim)) {
+        player.anims.play(walkAnim, true);
+      }
+    } else if (!player.isMoving && player.lastDirection) {
+      const idleAnim = `idle_${player.lastDirection}`;
+      if (this.scene.anims.exists(idleAnim)) {
+        player.anims.play(idleAnim, true);
+      }
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
+  checkMyPlayerReady() {
+    const effectiveSessionId = this._pendingSessionId || this.mySessionId;
+    
+    if (effectiveSessionId && this.players.has(effectiveSessionId) && !this._myPlayerIsReady) {
+      this._myPlayerIsReady = true;
+      console.log(`[PlayerManager] ✅ Mon joueur est prêt avec sessionId: ${effectiveSessionId}`);
+
+      if (this._myPlayerReadyCallback) {
+        console.log("[PlayerManager] 🎯 Callback onMyPlayerReady déclenché!");
+        this._myPlayerReadyCallback(this.players.get(effectiveSessionId));
+      }
+    }
+  }
+
+  // ⭐️ update = lerp + SYNC INDICATOR à chaque frame !
+  update(delta = 16) {
+    for (const [sessionId, player] of this.players) {
+      if (!player || !player.scene) continue;
+
+      // ✅ AMÉLIORATION 7: L'indicateur suit toujours le joueur
+      if (player.indicator) {
+        player.indicator.x = player.x;
+        player.indicator.y = player.y - 24;
+      }
+
+      // Interpolation de position
+      this.updatePlayerPosition(player, sessionId, delta);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mise à jour de la position du joueur
+  updatePlayerPosition(player, sessionId, delta) {
+    const isMyPlayer = (sessionId === this.mySessionId || sessionId === this._pendingSessionId);
+    
+    if (!isMyPlayer) {
+      // Autres joueurs : lerp normal
+      if (player.targetX !== undefined && player.targetY !== undefined) {
+        player.x += (player.targetX - player.x) * 0.18;
+        player.y += (player.targetY - player.y) * 0.18;
+      }
+    } else {
+      // Mon joueur : snap smooth si snap en cours
+      if (player.snapLerpTimer && player.snapLerpTimer > 0) {
+        const fastLerp = 0.45;
+        player.x += (player.targetX - player.x) * fastLerp;
+        player.y += (player.targetY - player.y) * fastLerp;
+        player.snapLerpTimer -= delta / 1000;
+        
+        if (Math.abs(player.x - player.targetX) < 2 && Math.abs(player.y - player.targetY) < 2) {
+          player.x = player.targetX;
+          player.y = player.targetY;
+          player.snapLerpTimer = 0;
+        }
+      }
+    }
   }
 
   snapMyPlayerTo(x, y) {
-    const myPlayer = this.getMyPlayer();
-    if (!myPlayer) return;
+    const player = this.getMyPlayer();
+    if (!player) {
+      console.warn("[PlayerManager] snapMyPlayerTo: Aucun joueur local");
+      return;
+    }
+    
+    console.log("[PlayerManager] snapMyPlayerTo", { x, y, oldX: player.x, oldY: player.y });
 
-    console.log(`[PlayerManager] 📍 Snap mon joueur vers: (${x}, ${y})`);
-    myPlayer.x = x;
-    myPlayer.y = y;
-    myPlayer.targetX = x;
-    myPlayer.targetY = y;
+    player.targetX = x;
+    player.targetY = y;
+    player.snapLerpTimer = 0.20;
 
-    if (myPlayer.indicator) {
-      myPlayer.indicator.x = x;
-      myPlayer.indicator.y = y - 24;
+    // Snap forcé si trop loin
+    if (Math.abs(player.x - x) > 64 || Math.abs(player.y - y) > 64) {
+      console.log("[PlayerManager] Snap forcé (rollback > 64px)");
+      player.x = x;
+      player.y = y;
+      player.snapLerpTimer = 0;
     }
   }
 
-  updatePlayerLabel(player) {
-    // Logique pour mettre à jour le label du joueur si nécessaire
-  }
-
-  forceResynchronization() {
-    console.log(`[PlayerManager] 🔄 Force resynchronisation...`);
-    // Logique de resynchronisation si nécessaire
+  removePlayer(sessionId) {
+    if (this.isDestroyed) return;
+    
+    const player = this.players.get(sessionId);
+    if (player) {
+      console.log(`[PlayerManager] 🗑️ Suppression joueur: ${sessionId}`);
+      
+      if (player.anims && player.anims.isPlaying) player.anims.stop();
+      if (player.indicator) { try { player.indicator.destroy(); } catch (e) {} }
+      if (player.body && player.body.destroy) { try { player.body.destroy(); } catch (e) {} }
+      try { player.destroy(); } catch (e) {}
+      
+      this.players.delete(sessionId);
+    }
   }
 
   clearAllPlayers() {
-    console.log(`[PlayerManager] 🧹 Nettoyage de tous les joueurs...`);
+    if (this.isDestroyed) return;
     
-    this.players.forEach((player) => {
-      if (player.indicator) {
-        player.indicator.destroy();
-      }
-      player.destroy();
-    });
+    console.log("[PlayerManager] 🧹 Nettoyage de tous les joueurs");
     
+    const savedSessionId = this.mySessionId;
+    const savedPendingSessionId = this._pendingSessionId;
+    
+    Array.from(this.players.keys()).forEach(sessionId => this.removePlayer(sessionId));
     this.players.clear();
-    this.mySessionId = null;
-    this.myPlayerReadyCallback = null;
+    
+    // Restaurer les IDs de session
+    this.mySessionId = savedSessionId;
+    this._pendingSessionId = savedPendingSessionId;
+    this._myPlayerIsReady = false;
+    this._isResynchronizing = false;
+    
+    console.log(`[PlayerManager] ✅ Nettoyage terminé, sessionId conservé: ${this.mySessionId}`);
   }
 
-  update() {
-    // Logique d'update si nécessaire
+  // ✅ NOUVELLE MÉTHODE: Forcer la resynchronisation
+  forceResynchronization() {
+    console.log("[PlayerManager] 🔄 Forcer la resynchronisation...");
+    
+    this._isResynchronizing = false;
+    this._myPlayerIsReady = false;
+    this._hasWarnedMissingPlayer = false;
+    
+    if (this.scene.networkManager) {
+      const networkSessionId = this.scene.networkManager.getSessionId();
+      if (this.mySessionId !== networkSessionId) {
+        console.log(`[PlayerManager] 🔄 Correction sessionId: ${this.mySessionId} → ${networkSessionId}`);
+        this.setMySessionId(networkSessionId);
+      }
+    }
+    
+    this.debugPlayerState();
+  }
+
+  // Méthodes existantes conservées
+  createAnimations() {
+    const anims = this.scene.anims;
+    if (!anims.exists('walk_down')) {
+      anims.create({ key: 'walk_down', frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }), frameRate: 15, repeat: -1 });
+    }
+    if (!anims.exists('walk_left')) {
+      anims.create({ key: 'walk_left', frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }), frameRate: 15, repeat: -1 });
+    }
+    if (!anims.exists('walk_right')) {
+      anims.create({ key: 'walk_right', frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }), frameRate: 15, repeat: -1 });
+    }
+    if (!anims.exists('walk_up')) {
+      anims.create({ key: 'walk_up', frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 14 }), frameRate: 15, repeat: -1 });
+    }
+    if (!anims.exists('idle_down')) anims.create({ key: 'idle_down', frames: [{ key: 'BoyWalk', frame: 1 }], frameRate: 1, repeat: 0 });
+    if (!anims.exists('idle_left')) anims.create({ key: 'idle_left', frames: [{ key: 'BoyWalk', frame: 5 }], frameRate: 1, repeat: 0 });
+    if (!anims.exists('idle_right')) anims.create({ key: 'idle_right', frames: [{ key: 'BoyWalk', frame: 9 }], frameRate: 1, repeat: 0 });
+    if (!anims.exists('idle_up')) anims.create({ key: 'idle_up', frames: [{ key: 'BoyWalk', frame: 13 }], frameRate: 1, repeat: 0 });
+  }
+
+  logPlayers() {
+    const playerList = Array.from(this.players.keys());
+    if (playerList.length > 0 && this.mySessionId && !playerList.includes(this.mySessionId)) {
+      console.warn(`[PlayerManager] ⚠️ Mon sessionId ${this.mySessionId} n'est pas dans la liste!`);
+    }
   }
 
   getAllPlayers() {
-    return Array.from(this.players.values());
+    return this.isDestroyed ? [] : Array.from(this.players.values());
+  }
+  
+  getPlayerCount() {
+    return this.isDestroyed ? 0 : this.players.size;
+  }
+  
+  getPlayerInfo(sessionId) {
+    if (this.isDestroyed) return null;
+    const player = this.players.get(sessionId);
+    if (player) {
+      return {
+        x: player.x,
+        y: player.y,
+        isMyPlayer: sessionId === this.mySessionId || sessionId === this._pendingSessionId,
+        direction: player.lastDirection,
+        isMoving: player.isMoving
+      };
+    }
+    return null;
   }
 
-  getPlayerCount() {
-    return this.players.size;
+  checkPlayerState() {
+    const myPlayer = this.getMyPlayer();
+    if (!myPlayer) return false;
+    
+    let fixed = false;
+    if (!myPlayer.visible) {
+      console.warn(`[PlayerManager] Joueur invisible, restauration`);
+      myPlayer.setVisible(true);
+      fixed = true;
+    }
+    if (!myPlayer.active) {
+      console.warn(`[PlayerManager] Joueur inactif, restauration`);
+      myPlayer.setActive(true);
+      fixed = true;
+    }
+    if (myPlayer.indicator && !myPlayer.indicator.visible) {
+      console.warn(`[PlayerManager] Indicateur invisible, restauration`);
+      myPlayer.indicator.setVisible(true);
+      fixed = true;
+    }
+    if (fixed) {
+      console.log(`[PlayerManager] État du joueur corrigé`);
+    }
+    return true;
+  }
+
+  onMyPlayerReady(callback) {
+    this._myPlayerReadyCallback = callback;
+    
+    // Vérifier immédiatement si le joueur est déjà prêt
+    const effectiveSessionId = this._pendingSessionId || this.mySessionId;
+    if (effectiveSessionId && this.players.has(effectiveSessionId) && !this._myPlayerIsReady) {
+      this._myPlayerIsReady = true;
+      callback(this.players.get(effectiveSessionId));
+    }
+  }
+
+  destroy() {
+    this.isDestroyed = true;
+    console.warn("[PlayerManager] destroy() appelé");
+    this.clearAllPlayers();
   }
 }
