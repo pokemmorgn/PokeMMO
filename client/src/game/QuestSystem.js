@@ -96,25 +96,6 @@ export class QuestSystem {
       // ✅ NOUVEAU: Vérifier si ce n'est pas un doublon avec questStartResult
       const questId = data.quest?.id || data.quest?.name || 'unknown';
       
-      // ✅ Ne montrer la notification QUE si questStartResult n'a pas été reçu récemment
-      if (this.shouldShowNotification('questStart', questId)) {
-        this.notificationManager.questNotification(
-          data.quest?.name || 'Quête démarrée',
-          'started',
-          {
-            duration: 4000,
-            bounce: true,
-            onClick: () => this.openQuestJournal()
-          }
-        );
-      } else {
-        console.log("🔕 Notification questStarted ignorée (doublon détecté)");
-      }
-      
-      if (this.questJournal && this.questJournal.isVisible) {
-        this.questJournal.refreshQuests();
-      }
-    });
 
     // Liste des quêtes disponibles pour un NPC
     this.gameRoom.onMessage("availableQuestsList", (data) => {
