@@ -122,11 +122,14 @@ export class QuestManager {
 
     const objectivesMap = new Map();
     const firstStep = definition.steps[0];
+    
+    // ✅ CORRECTION: Créer les objectifs avec currentAmount = 0 et completed = false
     for (const objective of firstStep.objectives) {
       objectivesMap.set(objective.id, {
         currentAmount: 0,
-        completed: false
+        completed: false // ✅ IMPORTANT: Pas encore complété !
       });
+      console.log(`📋 Objectif créé: ${objective.id} (${objective.type}) - Non complété`);
     }
 
     const questProgress = {
@@ -151,6 +154,7 @@ export class QuestManager {
 
     await playerQuests.save();
     console.log(`✅ ${username} a commencé la quête: ${definition.name}`);
+    console.log(`📋 Objectifs de la première étape créés et prêts à être validés`);
     
     return this.buildQuestFromProgress(definition, questProgress);
   }
