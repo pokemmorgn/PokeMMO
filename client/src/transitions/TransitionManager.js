@@ -289,16 +289,19 @@ export class TransitionManager {
   }
 
   // ✅ NOUVELLE MÉTHODE: Setup du listener de validation
-  setupValidationListener(teleportData, myPlayer, targetScene, transitionData) {
-    console.log(`👂 [TransitionManager] Setup listener de validation...`);
-    
-    // Timeout de sécurité
-    const validationTimeout = setTimeout(() => {
-      console.warn(`⏰ [TransitionManager] Timeout validation - transition acceptée par défaut`);
-      this.isTransitioning = false;
-    }, 5000);
+  // ✅ CORRECTION: Setup du listener de validation
+setupValidationListener(teleportData, myPlayer, targetScene, transitionData) {
+  console.log(`👂 [TransitionManager] Setup listener de validation...`);
+  
+  // Timeout de sécurité
+  const validationTimeout = setTimeout(() => {
+    console.warn(`⏰ [TransitionManager] Timeout validation - transition acceptée par défaut`);
+    this.isTransitioning = false;
+  }, 5000);
 
-    // Listener pour le résultat de validation
+  // ✅ CORRECTION: Utiliser onMessage au lieu de on/off
+  if (this.scene.networkManager?.room) {
+    // Créer un handler unique pour cette transition
     const validationHandler = (result) => {
       console.log(`📨 [TransitionManager] Résultat validation reçu:`, result);
       
@@ -334,19 +337,12 @@ export class TransitionManager {
         // Afficher l'erreur au joueur
         this.showTransitionError(result.reason);
       }
-
-      // Nettoyer le listener
-      if (this.scene.networkManager?.room) {
-        this.scene.networkManager.room.off("transitionResult", validationHandler);
-      }
     };
 
-    // Attacher le listener
-    if (this.scene.networkManager?.room) {
-      this.scene.networkManager.room.on("transitionResult", validationHandler);
-    }
+    // ✅ CORRECTION: Utiliser le système de callbacks du NetworkManager
+    this.scene.networkManager.onTransitionValidation = validationHandler;
   }
-
+}
   // ✅ NOUVELLE MÉTHODE: Rollback en cas de refus
   performRollback(originalZone, originalPlayer) {
     console.log(`🔄 [TransitionManager] === ROLLBACK VERS ${originalZone} ===`);
