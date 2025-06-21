@@ -229,52 +229,28 @@ export class TransitionService {
   }
 
   // ✅ CALCUL DE SPAWN AVEC LOGS DÉTAILLÉS
-  private calculateSpawnPosition(targetZone: string, authorizedSpawn?: string): { x: number; y: number } | null {
-    console.log(`🎯 [TransitionService] === CALCUL POSITION SPAWN ===`);
-    console.log(`🌍 Zone cible: ${targetZone}`);
-    console.log(`🎯 Spawn autorisé: "${authorizedSpawn || 'AUCUN (chercher défaut)'}"`);
-    
-    const spawns = this.spawnData.get(targetZone);
-    if (!spawns || spawns.length === 0) {
-      console.warn(`⚠️ [TransitionService] Aucun spawn configuré dans ${targetZone}`);
-      console.log(`🔄 [TransitionService] Utilisation position de fallback: (100, 100)`);
-      return { x: 100, y: 100 };
-    }
-
-    console.log(`📋 [TransitionService] Spawns disponibles dans ${targetZone} (${spawns.length}):`);
-    spawns.forEach((spawn, index) => {
-      console.log(`  ${index + 1}. "${spawn.name}" à (${spawn.x}, ${spawn.y})`);
-    });
-
-    // Si un spawn spécifique est autorisé, le chercher
-    if (authorizedSpawn) {
-      const namedSpawn = spawns.find(spawn => spawn.name === authorizedSpawn);
-      if (namedSpawn) {
-        console.log(`✅ [TransitionService] Spawn trouvé: "${authorizedSpawn}" → (${namedSpawn.x}, ${namedSpawn.y})`);
-        return { x: namedSpawn.x, y: namedSpawn.y };
-      } else {
-        console.warn(`⚠️ [TransitionService] Spawn "${authorizedSpawn}" introuvable !`);
-        console.log(`📋 [TransitionService] Spawns existants: ${spawns.map(s => `"${s.name}"`).join(', ')}`);
-      }
-    }
-
-    // Chercher un spawn "default" ou "main"
-    const defaultSpawn = spawns.find(spawn => 
-      spawn.name === 'default' || 
-      spawn.name === 'main' || 
-      spawn.name === 'spawn'
-    );
-    
-    if (defaultSpawn) {
-      console.log(`✅ [TransitionService] Spawn par défaut trouvé: "${defaultSpawn.name}" → (${defaultSpawn.x}, ${defaultSpawn.y})`);
-      return { x: defaultSpawn.x, y: defaultSpawn.y };
-    }
-
-    // Prendre le premier spawn disponible
-    const firstSpawn = spawns[0];
-    console.warn(`⚠️ [TransitionService] Aucun spawn spécifique, utilisation du premier: "${firstSpawn.name}" → (${firstSpawn.x}, ${firstSpawn.y})`);
-    return { x: firstSpawn.x, y: firstSpawn.y };
+private calculateSpawnPosition(targetZone: string, authorizedSpawn?: string): { x: number; y: number } | null {
+  // Utilise authorizedSpawn pour différencier les entrées selon la provenance
+  if (targetZone === "beach") {
+    return { x: 61.33, y: 40.67 };
   }
+  if (targetZone === "village") {
+    if (authorizedSpawn === "frombeach")        return { x: 430.00, y: 438.67 };
+    if (authorizedSpawn === "fromvillagelab")   return { x: 160.67, y: 248.00 };
+    if (authorizedSpawn === "fromvillagehouse1")return { x: 47.33,  y: 98.67 };
+    // fallback si provenance inconnue
+    return { x: 130, y: 270 };
+  }
+  if (targetZone === "villagelab") {
+    return { x: 242.52, y: 358.00 };
+  }
+  if (targetZone === "villagehouse1") {
+    return { x: 181.00, y: 278.00 };
+  }
+  // fallback
+  return { x: 100, y: 100 };
+}
+
 
   // ✅ MÉTHODES EXISTANTES CONSERVÉES (sans changement)
   private loadAllMapsData() {
