@@ -109,7 +109,12 @@ this.room.onMessage("npcList", (npcs) => {
 this.room.onMessage("transitionResult", (result) => {
   console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
   
-  // ✅ Appeler le callback de validation si défini
+  // ✅ CORRECTION: Synchroniser la zone immédiatement
+  if (result.success && result.currentZone) {
+    console.log(`🔄 [NetworkManager] Sync zone: ${this.currentZone} → ${result.currentZone}`);
+    this.currentZone = result.currentZone;
+  }
+  
   if (this.onTransitionValidation) {
     this.onTransitionValidation(result);
   }
