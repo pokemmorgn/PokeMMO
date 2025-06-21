@@ -378,33 +378,24 @@ export class QuestJournalUI {
     document.head.appendChild(style);
   }
 
-  setupEventListeners() {
-    this.questJournal.querySelector('#close-quest-journal').addEventListener('click', () => {
-      this.hide();
-    });
+setupEventListeners() {
+  this.questJournal.querySelector('#close-quest-journal').addEventListener('click', () => {
+    this.hide();
+  });
 
-    this.questJournal.querySelectorAll('.quest-tab').forEach(tab => {
-      tab.addEventListener('click', (e) => {
-        this.switchTab(e.target.dataset.tab);
-      });
+  this.questJournal.querySelectorAll('.quest-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      this.switchTab(e.target.dataset.tab);
     });
+  });
 
-    this.questJournal.querySelector('#refresh-quests').addEventListener('click', () => {
-      this.refreshQuests();
-    });
+  this.questJournal.querySelector('#refresh-quests').addEventListener('click', () => {
+    this.refreshQuests();
+  });
 
-    this.questJournal.querySelector('#track-quest').addEventListener('click', () => {
-      this.trackSelectedQuest();
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'q' || e.key === 'Q') {
-        if (typeof window.isChatFocused === 'function' && !window.isChatFocused()) {
-          this.toggle();
-        }
-      }
-    });
-  }
+  this.questJournal.querySelector('#track-quest').addEventListener('click', () => {
+    this.trackSelectedQuest();
+  });
 
   setupRoomListeners() {
     if (!this.gameRoom) return;
