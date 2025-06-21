@@ -230,24 +230,37 @@ export class TransitionService {
 
   // ✅ CALCUL DE SPAWN AVEC LOGS DÉTAILLÉS
 private calculateSpawnPosition(targetZone: string, authorizedSpawn?: string): { x: number; y: number } | null {
-  // Utilise authorizedSpawn pour différencier les entrées selon la provenance
+  console.log(`[TransitionService] Appel calculateSpawnPosition: targetZone="${targetZone}", authorizedSpawn="${authorizedSpawn}"`);
+  
   if (targetZone === "beach") {
+    console.log(`[TransitionService] => SPAWN FIXE beach : 61.33, 40.67`);
     return { x: 61.33, y: 40.67 };
   }
   if (targetZone === "village") {
-    if (authorizedSpawn === "frombeach")        return { x: 430.00, y: 438.67 };
-    if (authorizedSpawn === "fromvillagelab")   return { x: 160.67, y: 248.00 };
-    if (authorizedSpawn === "fromvillagehouse1")return { x: 47.33,  y: 98.67 };
-    // fallback si provenance inconnue
+    if (authorizedSpawn === "frombeach") {
+      console.log(`[TransitionService] => SPAWN FIXE village (frombeach) : 430.00, 438.67`);
+      return { x: 430.00, y: 438.67 };
+    }
+    if (authorizedSpawn === "fromvillagelab") {
+      console.log(`[TransitionService] => SPAWN FIXE village (fromvillagelab) : 160.67, 248.00`);
+      return { x: 160.67, y: 248.00 };
+    }
+    if (authorizedSpawn === "fromvillagehouse1") {
+      console.log(`[TransitionService] => SPAWN FIXE village (fromvillagehouse1) : 47.33, 98.67`);
+      return { x: 47.33, y: 98.67 };
+    }
+    console.log(`[TransitionService] => SPAWN village inconnu, fallback 130, 270`);
     return { x: 130, y: 270 };
   }
   if (targetZone === "villagelab") {
+    console.log(`[TransitionService] => SPAWN FIXE villagelab : 242.52, 358.00`);
     return { x: 242.52, y: 358.00 };
   }
   if (targetZone === "villagehouse1") {
+    console.log(`[TransitionService] => SPAWN FIXE villagehouse1 : 181.00, 278.00`);
     return { x: 181.00, y: 278.00 };
   }
-  // fallback
+  console.log(`[TransitionService] => SPAWN fallback (100, 100)`);
   return { x: 100, y: 100 };
 }
 
