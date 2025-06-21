@@ -129,13 +129,13 @@
       "fromZone": "village",
       "toZone": "road1",
       "conditions": {
-        "minLevel": 5,
+        "minLevel": 1,
         "proximityCheck": { "enabled": true }
       },
       "message": {
         "failure": "Vous devez être niveau 5+ pour accéder à la Route 1"
       },
-      "enabled": false
+      "enabled": true
     },
     {
       "id": "road1_to_village",
@@ -156,7 +156,7 @@
       "fromZone": "road1",
       "toZone": "lavandia",
       "conditions": {
-        "minLevel": 15,
+        "minLevel": 1,
         "requiredQuests": ["starter_quest"],
         "proximityCheck": { "enabled": true },
         "cooldown": { "enabled": true, "durationMinutes": 2 }
@@ -202,7 +202,7 @@
       "fromZone": "village",
       "toZone": "lavandia",
       "conditions": {
-        "minLevel": 10,
+        "minLevel": 1,
         "timeRestrictions": {
           "enabled": true,
           "allowedHours": [22, 23, 0, 1, 2, 3, 4, 5]
