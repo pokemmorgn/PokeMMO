@@ -1,4 +1,4 @@
-// ===== server/src/managers/ZoneManager.ts =====
+// ===== server/src/managers/ZoneManager.ts - VERSION REFACTORISÉE =====
 import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { IZone } from "../rooms/zones/IZone";
@@ -9,34 +9,44 @@ import { Villagehouse1 } from "../rooms/zones/Villagehouse1";
 import { Villageflorist } from "../rooms/zones/Villageflorist";
 import { Player } from "../schema/PokeWorldState";
 
-// ✅ AJOUT DES IMPORTS POUR LES INTERACTIONS
+// ✅ IMPORTS POUR DÉLÉGATION
 import { QuestManager } from "./QuestManager";
+import { InteractionManager } from "./InteractionManager";
 import { QuestProgressEvent } from "../types/QuestTypes";
 
 export class ZoneManager {
   private zones = new Map<string, IZone>();
   private room: WorldRoom;
   
-  // ✅ AJOUT DU QUEST MANAGER
+  // ✅ DÉLÉGATION PURE - Plus de logique quest ici
   private questManager: QuestManager;
+  private interactionManager: InteractionManager;
 
   constructor(room: WorldRoom) {
     this.room = room;
     console.log(`🗺️ === ZONE MANAGER INIT ===`);
     
-    // ✅ INITIALISER LE QUEST MANAGER
-    this.initializeQuestManager();
-    
+    // ✅ Initialiser les managers de délégation
+    this.initializeManagers();
     this.loadAllZones();
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE : Initialiser le quest manager
-  private initializeQuestManager() {
+  // ✅ INITIALISATION SIMPLIFIÉE
+  private initializeManagers() {
     try {
+      // Créer le QuestManager
       this.questManager = new QuestManager(`../data/quests/quests.json`);
       console.log(`✅ QuestManager initialisé`);
+      
+      // Créer l'InteractionManager avec délégation
+      this.interactionManager = new InteractionManager(
+        this.room.getNpcManager.bind(this.room), // Délégation pour récupérer NPCs
+        this.questManager // Référence au QuestManager
+      );
+      console.log(`✅ InteractionManager initialisé`);
+      
     } catch (error) {
-      console.error(`❌ Erreur initialisation QuestManager:`, error);
+      console.error(`❌ Erreur initialisation managers:`, error);
     }
   }
 
@@ -57,6 +67,8 @@ export class ZoneManager {
     this.zones.set(zoneName, zone);
     console.log(`✅ Zone ${zoneName} chargée`);
   }
+
+  // ✅ === GESTION DES TRANSITIONS (RESPONSABILITÉ ZONE) ===
 
   async handleZoneTransition(client: Client, data: any) {
     console.log(`🌀 === ZONE TRANSITION HANDLER ===`);
@@ -122,7 +134,7 @@ export class ZoneManager {
       await zone.onPlayerEnter(client);
       await this.room.onPlayerJoinZone(client, zoneName);
       
-      // ✅ NOUVEAU: Envoyer les statuts de quêtes pour les NPCs de cette zone
+      // ✅ DÉLÉGATION : Envoyer les statuts de quêtes
       await this.sendQuestStatusesForZone(client, zoneName);
       
       console.log(`✅ Player entered zone: ${zoneName}`);
@@ -145,9 +157,10 @@ export class ZoneManager {
     }
   }
 
-  // ✅ GESTION DES INTERACTIONS NPC AVEC LOGIQUE DE QUÊTES
+  // ✅ === DÉLÉGATION PURE POUR INTERACTIONS NPC ===
+
   async handleNpcInteraction(client: Client, npcId: number) {
-    console.log(`💬 === NPC INTERACTION HANDLER ===`);
+    console.log(`💬 === NPC INTERACTION (DÉLÉGATION) ===`);
     
     const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) {
@@ -159,76 +172,17 @@ export class ZoneManager {
       return;
     }
 
-    const npcManager = this.room.getNpcManager(player.currentZone);
-    if (!npcManager) {
-      console.error(`❌ NPCManager not found for zone: ${player.currentZone}`);
-      client.send("npcInteractionResult", {
-        type: "error",
-        message: "NPCs non disponibles dans cette zone"
-      });
-      return;
-    }
-
-    const npc = npcManager.getNpcById(npcId);
-    if (!npc) {
-      console.error(`❌ NPC not found: ${npcId}`);
-      client.send("npcInteractionResult", {
-        type: "error",
-        message: "NPC introuvable"
-      });
-      return;
-    }
-
-    console.log(`💬 Interaction avec NPC: ${npc.name} dans ${player.currentZone}`);
-
     try {
-      // ✅ 1. VÉRIFIER LE STATUT DES QUÊTES DE CE NPC
-      const questStatus = await this.getQuestStatusForNpc(player.name, npc);
+      // ✅ DÉLÉGATION COMPLÈTE à InteractionManager
+      const result = await this.interactionManager.handleNpcInteraction(player, npcId);
       
-      switch (questStatus.type) {
-        case 'questAvailable':
-          // ✅ Quête disponible à prendre
-          client.send("npcInteractionResult", {
-            type: "questGiver",
-            availableQuests: questStatus.quests,
-            npcId: npcId,
-            npcName: npc.name
-          });
-          break;
-          
-        case 'questReadyToComplete':
-          // ✅ Quête prête à rendre
-          client.send("npcInteractionResult", {
-            type: "questComplete", 
-            questId: questStatus.questId,
-            npcId: npcId,
-            npcName: npc.name,
-            message: `Félicitations ! Vous avez terminé la quête !`
-          });
-          break;
-          
-        case 'questInProgress':
-          // ✅ Quête en cours - dialogue normal
-          const progressDialogue = this.getProgressDialogueForNpc(npc, questStatus.quest);
-          client.send("npcInteractionResult", {
-            type: "dialogue",
-            lines: progressDialogue,
-            npcId: npcId,
-            npcName: npc.name
-          });
-          break;
-          
-        case 'noQuest':
-        default:
-          // ✅ Pas de quête - dialogue normal
-          const dialogueLines = this.getDialogueForNpc(npc);
-          client.send("npcInteractionResult", {
-            type: "dialogue",
-            lines: dialogueLines,
-            npcId: npcId,
-            npcName: npc.name
-          });
-          break;
+      console.log(`📤 Envoi résultat interaction:`, result.type);
+      client.send("npcInteractionResult", result);
+      
+      // ✅ Si il y a eu des progressions de quête, mettre à jour les statuts
+      if (result.questProgress && result.questProgress.length > 0) {
+        client.send("questProgressUpdate", result.questProgress);
+        await this.sendQuestStatusesForZone(client, player.currentZone);
       }
       
     } catch (error) {
@@ -240,118 +194,13 @@ export class ZoneManager {
     }
   }
 
-  // ✅ MÉTHODE OPTIMISÉE: Analyser le statut des quêtes pour un NPC
-  private async getQuestStatusForNpc(username: string, npc: any) {
-    if (!npc.properties?.questId) {
-      return { type: 'noQuest' };
-    }
-
-    const questId = npc.properties.questId;
-    
-    // ✅ UTILISER LE QUESTMANAGER EXISTANT - plus efficace !
-    const availableQuests = await this.questManager.getAvailableQuests(username);
-    const availableQuest = availableQuests.find(q => q.id === questId);
-    
-    if (availableQuest) {
-      return { type: 'questAvailable', quests: [availableQuest] };
-    }
-
-    // ✅ Vérifier les quêtes actives
-    const activeQuests = await this.questManager.getActiveQuests(username);
-    const activeQuest = activeQuests.find(q => q.id === questId);
-    
-    if (activeQuest) {
-      // Vérifier si prête à compléter
-      if (this.isQuestReadyToComplete(activeQuest)) {
-        return { type: 'questReadyToComplete', questId, quest: activeQuest };
-      } else {
-        return { type: 'questInProgress', quest: activeQuest };
-      }
-    }
-
-    // ✅ Pas de quête pour ce NPC
-    return { type: 'noQuest' };
-  }
-
-  // ✅ MÉTHODE OPTIMISÉE: Vérifier si une quête est prête à compléter
-  private isQuestReadyToComplete(quest: any): boolean {
-    const currentStep = quest.steps[quest.currentStepIndex];
-    if (!currentStep) return false;
-
-    // ✅ Vérifier que tous les objectifs de l'étape courante sont complétés
-    return currentStep.objectives.every((obj: any) => obj.completed);
-  }
-
-  // ✅ MÉTHODE HELPER : Récupérer le dialogue d'un NPC
-  private getDialogueForNpc(npc: any): string[] {
-    // TODO: Implémenter la récupération depuis dialogueId
-    if (npc.properties?.dialogueId) {
-      // Pour l'instant, dialogue par défaut
-      switch (npc.properties.dialogueId) {
-        case 'greeting_bob':
-          return ["Salut ! Je suis Bob, le pêcheur local.", "J'espère que tu aimes la pêche !"];
-        default:
-          return [`Bonjour ! Je suis ${npc.name}.`];
-      }
-    }
-    
-    return [`Bonjour ! Je suis ${npc.name}.`];
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Dialogue spécifique pendant une quête
-  private getProgressDialogueForNpc(npc: any, quest: any): string[] {
-    // Dialogues spécifiques selon la quête en cours
-    if (quest.id === 'quest_fishingrod') {
-      return [
-        "Comment va votre recherche de matériel de pêche ?",
-        "J'ai vraiment hâte de retourner pêcher !"
-      ];
-    }
-    
-    // Dialogue générique pour quête en cours
-    return [
-      `Comment avance votre mission ?`,
-      `Revenez me voir quand vous aurez terminé !`
-    ];
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Envoyer les statuts de quêtes
-  private async sendQuestStatusesForZone(client: Client, zoneName: string) {
-    const player = this.room.state.players.get(client.sessionId) as Player;
-    if (!player) return;
-
-    const npcManager = this.room.getNpcManager(zoneName);
-    if (!npcManager) return;
-
-    const npcs = npcManager.getAllNpcs();
-    const questStatuses = [];
-
-    for (const npc of npcs) {
-      if (npc.properties?.questId) {
-        const status = await this.getQuestStatusForNpc(player.name, npc);
-        questStatuses.push({
-          npcId: npc.id,
-          type: status.type
-        });
-      }
-    }
-
-    if (questStatuses.length > 0) {
-      client.send("questStatuses", { questStatuses });
-    }
-  }
-
-  // ✅ === MÉTHODES DE DÉLÉGATION AU QUEST MANAGER ===
-  // Ces méthodes sont des proxies vers le QuestManager
+  // ✅ === DÉLÉGATION PURE POUR QUÊTES ===
 
   async handleQuestStart(client: Client, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
-    console.log(`🎯 === QUEST START HANDLER ===`);
-    console.log(`👤 Client: ${client.sessionId}`);
-    console.log(`📜 Quest ID: ${questId}`);
+    console.log(`🎯 === QUEST START (DÉLÉGATION) ===`);
     
     const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) {
-      console.error(`❌ Player not found: ${client.sessionId}`);
       return {
         success: false,
         message: "Joueur non trouvé"
@@ -359,20 +208,19 @@ export class ZoneManager {
     }
 
     try {
+      // ✅ DÉLÉGATION COMPLÈTE à QuestManager
       const quest = await this.questManager.startQuest(player.name, questId);
       
       if (quest) {
-        // ✅ NOUVEAU: Mettre à jour les indicateurs de quête après démarrage
+        // Mettre à jour les statuts de quête après démarrage
         await this.sendQuestStatusesForZone(client, player.currentZone);
         
-        // Broadcaster aux autres joueurs
+        // Broadcaster aux autres joueurs de la zone
         this.broadcastToZone(player.currentZone, "questUpdate", {
           player: player.name,
           action: "started",
           questId: questId
         });
-        
-        console.log(`✅ Quête ${questId} démarrée pour ${player.name}`);
         
         return {
           success: true,
@@ -395,7 +243,7 @@ export class ZoneManager {
     }
   }
 
-  // ✅ DÉLÉGATION: Récupérer les quêtes actives
+  // ✅ DÉLÉGATION : Récupérer les quêtes actives
   async getActiveQuests(username: string): Promise<any[]> {
     try {
       return await this.questManager.getActiveQuests(username);
@@ -405,7 +253,7 @@ export class ZoneManager {
     }
   }
 
-  // ✅ DÉLÉGATION: Récupérer les quêtes disponibles
+  // ✅ DÉLÉGATION : Récupérer les quêtes disponibles
   async getAvailableQuests(username: string): Promise<any[]> {
     try {
       return await this.questManager.getAvailableQuests(username);
@@ -415,7 +263,7 @@ export class ZoneManager {
     }
   }
 
-  // ✅ DÉLÉGATION: Mettre à jour la progression des quêtes
+  // ✅ DÉLÉGATION : Mettre à jour la progression des quêtes
   async updateQuestProgress(username: string, event: QuestProgressEvent): Promise<any[]> {
     try {
       return await this.questManager.updateQuestProgress(username, event);
@@ -425,50 +273,28 @@ export class ZoneManager {
     }
   }
 
-  // ✅ DÉLÉGATION: Récupérer les statuts de quête pour un joueur
-  async getQuestStatuses(username: string): Promise<any[]> {
+  // ✅ === MÉTHODES UTILITAIRES (RESPONSABILITÉ ZONE) ===
+
+  // ✅ DÉLÉGATION : Envoyer les statuts de quêtes pour une zone
+  private async sendQuestStatusesForZone(client: Client, zoneName: string) {
+    const player = this.room.state.players.get(client.sessionId) as Player;
+    if (!player) return;
+
     try {
-      const availableQuests = await this.questManager.getAvailableQuests(username);
-      const activeQuests = await this.questManager.getActiveQuests(username);
+      // ✅ DÉLÉGATION à InteractionManager pour récupérer les statuts
+      const questStatuses = await this.interactionManager.getQuestStatuses(player.name);
       
-      const questStatuses: any[] = [];
-      
-      // Statuts pour les quêtes disponibles
-      for (const quest of availableQuests) {
-        if (quest.startNpcId) {
-          questStatuses.push({
-            npcId: quest.startNpcId,
-            type: 'questAvailable'
-          });
-        }
+      if (questStatuses.length > 0) {
+        client.send("questStatuses", { questStatuses });
+        console.log(`📊 Statuts de quête envoyés pour ${zoneName}: ${questStatuses.length}`);
       }
       
-      // Statuts pour les quêtes actives
-      for (const quest of activeQuests) {
-        // Quête prête à être rendue
-        if (quest.currentStepIndex >= quest.steps.length && quest.endNpcId) {
-          questStatuses.push({
-            npcId: quest.endNpcId,
-            type: 'questReadyToComplete'
-          });
-        }
-        // Quête en cours avec des objectifs
-        else if (quest.endNpcId) {
-          questStatuses.push({
-            npcId: quest.endNpcId,
-            type: 'questInProgress'
-          });
-        }
-      }
-      
-      return questStatuses;
     } catch (error) {
-      console.error(`❌ Erreur getQuestStatuses:`, error);
-      return [];
+      console.error(`❌ Erreur sendQuestStatusesForZone:`, error);
     }
   }
 
-  // Méthodes utilitaires
+  // Méthodes utilitaires conservées
   getPlayersInZone(zoneName: string): Player[] {
     const playersInZone = Array.from(this.room.state.players.values())
       .filter((player: Player) => player.currentZone === zoneName);
@@ -490,5 +316,14 @@ export class ZoneManager {
     });
     
     console.log(`📤 Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
+  }
+
+  // ✅ Accesseurs pour les managers (si besoin)
+  getQuestManager(): QuestManager {
+    return this.questManager;
+  }
+
+  getInteractionManager(): InteractionManager {
+    return this.interactionManager;
   }
 }
