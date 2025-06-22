@@ -1,4 +1,4 @@
-// server/src/managers/ZoneManager.ts - VERSION COMPLÈTE AVEC SHOP
+// server/src/managers/ZoneManager.ts - VERSION COMPLÈTE AVEC COLLISIONS ET SHOP
 
 import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
@@ -10,49 +10,42 @@ import { Villagehouse1 } from "../rooms/zones/Villagehouse1";
 import { Villageflorist } from "../rooms/zones/Villageflorist";
 import { Player } from "../schema/PokeWorldState";
 
-// ✅ IMPORTS POUR DÉLÉGATION AVEC SHOP
 import { QuestManager } from "./QuestManager";
-import { ShopManager } from "./ShopManager"; // ✅ IMPORT SHOP
+import { ShopManager } from "./ShopManager";
 import { InteractionManager } from "./InteractionManager";
 import { QuestProgressEvent } from "../types/QuestTypes";
 
+// COLLISION MANAGER
+import { CollisionManager } from "./CollisionManager";
+
 export class ZoneManager {
   private zones = new Map<string, IZone>();
+  private collisions = new Map<string, CollisionManager>(); // <--- NOUVEAU
+
   private room: WorldRoom;
-  
-  // ✅ DÉLÉGATION AVEC SHOP
   private questManager: QuestManager;
-  private shopManager: ShopManager; // ✅ NOUVEAU MANAGER
+  private shopManager: ShopManager;
   private interactionManager: InteractionManager;
 
   constructor(room: WorldRoom) {
     this.room = room;
     console.log(`🗺️ === ZONE MANAGER INIT ===`);
-    
-    // ✅ Initialiser les managers de délégation
     this.initializeManagers();
     this.loadAllZones();
   }
 
-  // ✅ INITIALISATION AVEC SHOP
   private initializeManagers() {
     try {
-      // Créer le QuestManager
       this.questManager = new QuestManager(`../data/quests/quests.json`);
       console.log(`✅ QuestManager initialisé`);
-      
-      // ✅ NOUVEAU: Créer le ShopManager
       this.shopManager = new ShopManager(`../data/shops/shops.json`, `../data/items/items.json`);
       console.log(`✅ ShopManager initialisé`);
-      
-      // Créer l'InteractionManager avec délégation SHOP
       this.interactionManager = new InteractionManager(
-        this.room.getNpcManager.bind(this.room), // Délégation pour récupérer NPCs
-        this.questManager, // Référence au QuestManager
-        this.shopManager  // ✅ NOUVEAU: Référence au ShopManager
+        this.room.getNpcManager.bind(this.room),
+        this.questManager,
+        this.shopManager
       );
       console.log(`✅ InteractionManager initialisé avec ShopManager`);
-      
     } catch (error) {
       console.error(`❌ Erreur initialisation managers:`, error);
     }
@@ -62,10 +55,19 @@ export class ZoneManager {
     console.log(`🏗️ Chargement des zones...`);
 
     this.loadZone('beach', new BeachZone(this.room));
+    this.collisions.set('beach', new CollisionManager("../maps/beach.json"));
+
     this.loadZone('village', new VillageZone(this.room));
+    this.collisions.set('village', new CollisionManager("../maps/village.json"));
+
     this.loadZone('villagelab', new VillageLabZone(this.room));
+    this.collisions.set('villagelab', new CollisionManager("../maps/villagelab.json"));
+
     this.loadZone('villagehouse1', new Villagehouse1(this.room));
+    this.collisions.set('villagehouse1', new CollisionManager("../maps/villagehouse1.json"));
+
     this.loadZone('villageflorist', new Villageflorist(this.room));
+    this.collisions.set('villageflorist', new CollisionManager("../maps/villageflorist.json"));
 
     console.log(`✅ ${this.zones.size} zones chargées:`, Array.from(this.zones.keys()));
   }
@@ -76,7 +78,12 @@ export class ZoneManager {
     console.log(`✅ Zone ${zoneName} chargée`);
   }
 
-  // ✅ === GESTION DES TRANSITIONS (RESPONSABILITÉ ZONE) ===
+  // ACCESSEUR COLLISION
+  getCollisionManager(zoneName: string): CollisionManager | undefined {
+    return this.collisions.get(zoneName);
+  }
+
+  // ======================= RESTE DU FICHIER INCHANGÉ =======================
 
   async handleZoneTransition(client: Client, data: any) {
     console.log(`🌀 === ZONE TRANSITION HANDLER ===`);
@@ -171,8 +178,6 @@ export class ZoneManager {
     }
   }
 
-  // ✅ === DÉLÉGATION PURE POUR INTERACTIONS NPC (AVEC SHOP) ===
-
   async handleNpcInteraction(client: Client, npcId: number) {
     console.log(`💬 === NPC INTERACTION (DÉLÉGATION AVEC SHOP) ===`);
     
@@ -187,18 +192,13 @@ export class ZoneManager {
     }
 
     try {
-      // ✅ DÉLÉGATION COMPLÈTE à InteractionManager (avec shop)
       const result = await this.interactionManager.handleNpcInteraction(player, npcId);
-      
       console.log(`📤 Envoi résultat interaction:`, result.type);
       client.send("npcInteractionResult", result);
-      
-      // Si il y a eu des progressions de quête, mettre à jour les statuts
       if (result.questProgress && result.questProgress.length > 0) {
         client.send("questProgressUpdate", result.questProgress);
         await this.sendQuestStatusesForZone(client, player.currentZone);
       }
-      
     } catch (error) {
       console.error(`❌ Erreur interaction NPC ${npcId}:`, error);
       client.send("npcInteractionResult", {
@@ -207,8 +207,6 @@ export class ZoneManager {
       });
     }
   }
-
-  // ✅ === NOUVELLE MÉTHODE : GESTION DES TRANSACTIONS SHOP ===
 
   async handleShopTransaction(client: Client, data: {
     shopId: string;
@@ -231,7 +229,6 @@ export class ZoneManager {
     }
 
     try {
-      // ✅ DÉLÉGATION à InteractionManager pour la transaction
       const result = await this.interactionManager.handleShopTransaction(
         player,
         data.shopId,
@@ -239,26 +236,15 @@ export class ZoneManager {
         data.itemId,
         data.quantity
       );
-
       console.log(`📤 Résultat transaction shop:`, result.success ? 'SUCCESS' : 'FAILED');
       client.send("shopTransactionResult", result);
-
-      // Si la transaction a réussi, mettre à jour les données du joueur
       if (result.success) {
         console.log(`💰 Transaction réussie: ${data.action} ${data.quantity}x ${data.itemId}`);
-        
-        // Mettre à jour l'or du joueur si spécifié
         if (result.newGold !== undefined) {
           player.gold = result.newGold;
           console.log(`💰 Nouvel or du joueur: ${player.gold}`);
         }
-        
-        // TODO: Intégrer avec le système d'inventaire
-        // if (result.itemsChanged) {
-        //   // Mettre à jour l'inventaire du joueur
-        // }
       }
-
     } catch (error) {
       console.error(`❌ Erreur transaction shop:`, error);
       client.send("shopTransactionResult", {
@@ -268,11 +254,8 @@ export class ZoneManager {
     }
   }
 
-  // ✅ === DÉLÉGATION PURE POUR QUÊTES ===
-
   async handleQuestStart(client: Client, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
     console.log(`🎯 === QUEST START (DÉLÉGATION) ===`);
-    
     const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) {
       return {
@@ -283,16 +266,13 @@ export class ZoneManager {
 
     try {
       const quest = await this.questManager.startQuest(player.name, questId);
-      
       if (quest) {
         await this.sendQuestStatusesForZone(client, player.currentZone);
-        
         this.broadcastToZone(player.currentZone, "questUpdate", {
           player: player.name,
           action: "started",
           questId: questId
         });
-        
         return {
           success: true,
           quest: quest,
@@ -304,7 +284,6 @@ export class ZoneManager {
           message: "Impossible de démarrer cette quête"
         };
       }
-      
     } catch (error) {
       console.error(`❌ Erreur démarrage quête ${questId}:`, error);
       return {
@@ -314,7 +293,6 @@ export class ZoneManager {
     }
   }
 
-  // ✅ DÉLÉGATION : Récupérer les quêtes actives
   async getActiveQuests(username: string): Promise<any[]> {
     try {
       return await this.questManager.getActiveQuests(username);
@@ -324,7 +302,6 @@ export class ZoneManager {
     }
   }
 
-  // ✅ DÉLÉGATION : Récupérer les quêtes disponibles
   async getAvailableQuests(username: string): Promise<any[]> {
     try {
       return await this.questManager.getAvailableQuests(username);
@@ -334,7 +311,6 @@ export class ZoneManager {
     }
   }
 
-  // ✅ DÉLÉGATION : Mettre à jour la progression des quêtes
   async updateQuestProgress(username: string, event: QuestProgressEvent): Promise<any[]> {
     try {
       return await this.questManager.updateQuestProgress(username, event);
@@ -344,20 +320,15 @@ export class ZoneManager {
     }
   }
 
-  // ✅ === MÉTHODES UTILITAIRES (RESPONSABILITÉ ZONE) ===
-
   private async sendQuestStatusesForZone(client: Client, zoneName: string) {
     const player = this.room.state.players.get(client.sessionId) as Player;
     if (!player) return;
-
     try {
       const questStatuses = await this.interactionManager.getQuestStatuses(player.name);
-      
       if (questStatuses.length > 0) {
         client.send("questStatuses", { questStatuses });
         console.log(`📊 Statuts de quête envoyés pour ${zoneName}: ${questStatuses.length}`);
       }
-      
     } catch (error) {
       console.error(`❌ Erreur sendQuestStatusesForZone:`, error);
     }
@@ -366,23 +337,19 @@ export class ZoneManager {
   getPlayersInZone(zoneName: string): Player[] {
     const playersInZone = Array.from(this.room.state.players.values())
       .filter((player: Player) => player.currentZone === zoneName);
-    
     console.log(`📊 Players in zone ${zoneName}: ${playersInZone.length}`);
     return playersInZone;
   }
 
   broadcastToZone(zoneName: string, message: string, data: any) {
     console.log(`📡 Broadcasting to zone ${zoneName}: ${message}`);
-    
     const clientsInZone = this.room.clients.filter(client => {
       const player = this.room.state.players.get(client.sessionId) as Player;
       return player && player.currentZone === zoneName;
     });
-    
     clientsInZone.forEach(client => {
       client.send(message, data);
     });
-    
     console.log(`📤 Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
   }
 
@@ -395,15 +362,12 @@ export class ZoneManager {
     }
   }
 
-  // ✅ Accesseurs pour les managers
   getQuestManager(): QuestManager {
     return this.questManager;
   }
-
-  getShopManager(): ShopManager { // ✅ NOUVEAU ACCESSEUR
+  getShopManager(): ShopManager {
     return this.shopManager;
   }
-
   getInteractionManager(): InteractionManager {
     return this.interactionManager;
   }
