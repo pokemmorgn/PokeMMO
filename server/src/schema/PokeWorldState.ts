@@ -37,6 +37,10 @@ export class PokeWorldState extends Schema {
   players = new MapSchema<Player>();
   
   // Propriétés globales du monde
+  @type("number") gameHour: number = 12;
+  @type("boolean") isDayTime: boolean = true;
+
+  //PAS ENCORE UTILISER
   @type("string") worldTime: string = "day";
   @type("string") weather: string = "clear";
   @type("number") serverTime: number = Date.now();
