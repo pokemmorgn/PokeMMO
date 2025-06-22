@@ -105,8 +105,16 @@ getMyPlayer() {
     return null;
   }
   
+  // ✅ DEBUG DÉTAILLÉ (une seule fois)
+  console.log(`🔍 [PlayerManager] getMyPlayer debug:`);
+  console.log(`- this.mySessionId: "${this.mySessionId}"`);
+  console.log(`- this._pendingSessionId: "${this._pendingSessionId}"`);
+  console.log(`- players disponibles:`, Array.from(this.players.keys()));
+  
   // ✅ AMÉLIORATION 2: Vérifier d'abord le sessionId en attente
   const sessionIdToCheck = this._pendingSessionId || this.mySessionId;
+  console.log(`- sessionIdToCheck: "${sessionIdToCheck}"`);
+  
   const player = this.players.get(sessionIdToCheck) || null;
 
   // ✅ DEBUG PLUS DÉTAILLÉ
