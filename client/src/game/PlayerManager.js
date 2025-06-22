@@ -441,7 +441,6 @@ export class PlayerManager {
     const effectiveSessionId = this._pendingSessionId || this.mySessionId;
     
     if (effectiveSessionId && this.players.has(effectiveSessionId) && !this._myPlayerIsReady) {
-      console.log("[DEBUG] checkMyPlayerReady() déclenché !");
       this._myPlayerIsReady = true;
       console.log(`[PlayerManager] ✅ Mon joueur est prêt avec sessionId: ${effectiveSessionId}`);
 
@@ -553,35 +552,24 @@ export class PlayerManager {
     console.log(`[PlayerManager] ✅ Nettoyage terminé, sessionId conservé: ${this.mySessionId}`);
   }
 
- forceResynchronization() {
-  console.log("[PlayerManager] 🔄 Forcer la resynchronisation...");
-  
-  // ✅ CORRECTION: Flag pour éviter les boucles infinies
-  if (this._isResynchronizing) {
-    console.log("[PlayerManager] ⚠️ Resynchronisation déjà en cours, ignoré");
-    return;
-  }
-  
-  this._isResynchronizing = true;
-  this._myPlayerIsReady = false;
-  this._hasWarnedMissingPlayer = false;
-  
-  if (this.scene.networkManager) {
-    const networkSessionId = this.scene.networkManager.getSessionId();
-    if (this.mySessionId !== networkSessionId) {
-      console.log(`[PlayerManager] 🔄 Correction sessionId: ${this.mySessionId} → ${networkSessionId}`);
-      this.setMySessionId(networkSessionId);
-    }
-  }
-  
-  this.debugPlayerState();
-  
-  // ✅ CORRECTION: Délai avant de remettre le flag à false
-  setTimeout(() => {
+  // ✅ NOUVELLE MÉTHODE: Forcer la resynchronisation
+  forceResynchronization() {
+    console.log("[PlayerManager] 🔄 Forcer la resynchronisation...");
+    
     this._isResynchronizing = false;
-    console.log("[PlayerManager] ✅ Resynchronisation terminée");
-  }, 1000);
-}
+    this._myPlayerIsReady = false;
+    this._hasWarnedMissingPlayer = false;
+    
+    if (this.scene.networkManager) {
+      const networkSessionId = this.scene.networkManager.getSessionId();
+      if (this.mySessionId !== networkSessionId) {
+        console.log(`[PlayerManager] 🔄 Correction sessionId: ${this.mySessionId} → ${networkSessionId}`);
+        this.setMySessionId(networkSessionId);
+      }
+    }
+    
+    this.debugPlayerState();
+  }
 
   // Méthodes existantes conservées
   createAnimations() {
