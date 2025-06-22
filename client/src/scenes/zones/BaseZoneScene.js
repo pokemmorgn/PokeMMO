@@ -275,14 +275,36 @@ export class BaseZoneScene extends Phaser.Scene {
       console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.currentZone}`);
     });
 
-    // ✅ HANDLER 2 : CONNEXION ÉTABLIE
+    // ✅ HANDLER 2 : CONNEXION ÉTABLIE - AMÉLIORÉ
     this.networkManager.onConnect(() => {
       console.log(`✅ [${this.scene.key}] Connexion établie`);
       
-      // ✅ DEMANDER ZONE IMMÉDIATEMENT
-      setTimeout(() => {
-        this.requestServerZone();
-      }, 100);
+      // ✅ VÉRIFIER SI C'EST UNE RECONNEXION
+      const currentSessionId = this.networkManager.getSessionId();
+      if (this.mySessionId && this.mySessionId !== currentSessionId) {
+        console.log(`🔄 [${this.scene.key}] RECONNEXION DÉTECTÉE`);
+        console.log(`📍 Ancien SessionId: ${this.mySessionId}`);
+        console.log(`📍 Nouveau SessionId: ${currentSessionId}`);
+        
+        // ✅ Mettre à jour le sessionId
+        this.mySessionId = currentSessionId;
+        if (this.playerManager) {
+          this.playerManager.setMySessionId(this.mySessionId);
+        }
+        
+        // ✅ Reset état du joueur
+        this.myPlayerReady = false;
+        
+        // ✅ Forcer resynchronisation
+        this.time.delayedCall(500, () => {
+          this.handleMissingPlayer();
+        });
+      } else {
+        // ✅ DEMANDER ZONE IMMÉDIATEMENT (première connexion)
+        setTimeout(() => {
+          this.requestServerZone();
+        }, 100);
+      }
       
       this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nConnected to WorldRoom!`);
       this.initializeQuestSystem();
@@ -351,9 +373,19 @@ export class BaseZoneScene extends Phaser.Scene {
       }
     });
 
-    // ✅ HANDLER 9 : DÉCONNEXION
+    // ✅ HANDLER 9 : DÉCONNEXION - AMÉLIORÉ
     this.networkManager.onDisconnect(() => {
-      this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nDisconnected from WorldRoom`);
+      console.log(`❌ [${this.scene.key}] Déconnexion détectée`);
+      this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nConnexion perdue...\nTentative reconnexion...`);
+      
+      // ✅ NOUVEAU : Marquer joueur comme non prêt
+      this.myPlayerReady = false;
+      
+      // ✅ NOUVEAU : Désactiver temporairement les transitions
+      if (this.transitionManager) {
+        this.transitionManager.setActive(false);
+        console.log(`🚫 [${this.scene.key}] Transitions désactivées (déconnexion)`);
+      }
     });
 
     console.log(`📡 [${this.scene.key}] ✅ Handlers configurés`);
