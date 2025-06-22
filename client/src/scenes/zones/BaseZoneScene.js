@@ -1,13 +1,15 @@
-// client/src/scenes/zones/BaseZoneScene.js - VERSION CENTRALISÉE PRÊTE À L'EMPLOI
+// client/src/scenes/zones/BaseZoneScene.js - VERSION WORLDROOM CORRIGÉE AVEC SHOP
+// ✅ Corrections pour la synchronisation et les transitions fluides + Intégration shop
+// ✅ NOUVEAU: Le serveur dicte la zone au client
 
+import { NetworkManager } from "../../network/NetworkManager.js";
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager";
 import { QuestSystem } from "../../game/QuestSystem.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
-import { TransitionManager } from '../../transitions/TransitionManager.js';
-import { integrateShopToScene } from "../../game/ShopIntegration.js";
+import { integrateShopToScene } from "../../game/ShopIntegration.js"; // ✅ AJOUT SHOP
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -15,30 +17,36 @@ export class BaseZoneScene extends Phaser.Scene {
     this.mapKey = mapKey;
     this.phaserTilesets = [];
     this.layers = {};
-
-    // État principal
-    this.mySessionId = null;
-    this.networkManager = null;
-    this.isSceneReady = false;
-    this.myPlayerReady = false;
-    this.currentZone = null;
-    this.serverZoneConfirmed = false;
-
-    // Systèmes de jeu
-    this.inventorySystem = null;
-    this.shopIntegration = null;
-    this.questSystem = null;
-
     this.cameraFollowing = false;
     this.lastDirection = 'down';
+    this.mySessionId = null;
+    this.loadTimer = null;
+    this.animatedObjects = null;
     this.lastMoveTime = 0;
+    this.myPlayerReady = false;
 
-    console.log(`🎮 [${sceneKey}] === CONSTRUCTION SCÈNE CENTRALISÉE ===`);
+    // Inventaire
+    this.inventorySystem = null;
+    this.inventoryInitialized = false;
+    
+    // ✅ NOUVEAU : Délai de grâce après spawn
+    this.spawnGraceTime = 0;
+    this.spawnGraceDuration = 2000; // 2 secondes
+
+    // ✅ NOUVEAU : Zone mapping et état - LE SERVEUR DICTE
+    this.zoneName = null; // ❌ SUPPRIMÉ: this.mapSceneToZone(sceneKey)
+    this.serverZoneConfirmed = false; // ✅ Flag pour savoir si le serveur a confirmé
+    this.isSceneReady = false;
+    this.networkSetupComplete = false;
+
+    // ✅ SHOP : Référence d'intégration (sera créée dans initialize)
+    this.shopIntegration = null;
   }
 
   preload() {
     const ext = 'tmj';
     this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
+
     this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
       frameWidth: 32,
       frameHeight: 32,
@@ -46,322 +54,985 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   create() {
-    if (window.showLoadingOverlay) window.showLoadingOverlay("Chargement de la zone...");
+      if (window.showLoadingOverlay) window.showLoadingOverlay("Chargement de la zone...");
 
-    // Animations, map, inputs, UI
-    this.createAnimations();
+    TransitionIntegration.setupTransitions(this);
+
+    console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} (zone en attente serveur) ===`);
+    console.log(`📊 Scene data reçue:`, this.scene.settings.data);
+
+    this.createPlayerAnimations();
+    this.setupManagers();
+    this.initPlayerSpawnFromSceneData();
+
     this.loadMap();
     this.setupInputs();
     this.createUI();
-    this.setupManagers();
 
-    // Transition manager unique
-    if (!this.transitionManager) {
-      this.transitionManager = new TransitionManager(this);
-      this.transitionManager.initialize();
-    }
-
-    // --- 💡 CONNECTION COLYSEUS CENTRALISÉE ---
-    this.networkManager = window.globalNetworkManager; // On prend l’instance unique
-    this.mySessionId = this.networkManager.getSessionId();
-
-    // On passe le NetworkManager déjà connecté
-    this.useExistingNetwork(this.networkManager, this.scene.settings.data);
-
+    this.myPlayerReady = false;
     this.isSceneReady = true;
+
+    // ✅ AMÉLIORATION 2: Gestion réseau améliorée
+    this.initializeNetworking();
+
+    // ✅ AMÉLIORATION 3: Hook joueur local avec vérifications
+    this.setupPlayerReadyHandler();
+
+    // Nettoyage amélioré
     this.setupCleanupHandlers();
-
-    console.log(`🎮 [${this.scene.key}] ✅ Création terminée`);
   }
+initPlayerSpawnFromSceneData() {
+  const data = this.scene.settings.data || {};
+  const sessionId = this.mySessionId;
+  let spawnX = 52, spawnY = 48;
 
-  useExistingNetwork(networkManager, sceneData = null) {
-    this.networkManager = networkManager;
-    this.mySessionId = networkManager.getSessionId();
+  // Si transition de zone, coordonnées transmises
+  if (typeof data.spawnX === 'number') spawnX = data.spawnX;
+  if (typeof data.spawnY === 'number') spawnY = data.spawnY;
 
-    // Setup player manager
-    if (this.playerManager) {
-      this.playerManager.setMySessionId(this.mySessionId);
+  // Création réelle du joueur (évite de doubler le joueur si déjà présent)
+  if (this.playerManager && !this.playerManager.getMyPlayer()) {
+    this.playerManager.createPlayer(sessionId, spawnX, spawnY);
+    console.log(`[BaseZoneScene] Joueur spawn à (${spawnX}, ${spawnY})`);
+  } else {
+    console.log(`[BaseZoneScene] Joueur déjà présent ou playerManager manquant.`);
+  }
+}
+
+  // ✅ NOUVELLE MÉTHODE: Initialisation réseau intelligente
+  initializeNetworking() {
+    console.log(`📡 [${this.scene.key}] Initialisation networking...`);
+    
+    const sceneData = this.scene.settings.data;
+    
+    // Cas 1: NetworkManager fourni via sceneData (transition normale)
+    if (sceneData?.networkManager) {
+      console.log(`📡 [${this.scene.key}] NetworkManager reçu via transition`);
+      this.useExistingNetworkManager(sceneData.networkManager, sceneData);
+      
+      // ✅ NOUVEAU : Demander immédiatement la zone au serveur
+      this.requestServerZone();
+      return;
     }
-
-    this.setupNetworkHandlers();
-
-    // Init inventaire/quests (toujours depuis globals)
-    this.initializeInventorySystem();
-    integrateShopToScene(this, this.networkManager);
-    this.initializeQuestSystem();
-
-    // Zone demandée au serveur
-    this.requestServerZone();
-
-    if (sceneData?.fromTransition) {
-      this.handleTransitionData(sceneData);
+    
+    // Cas 2: Chercher dans les autres scènes
+    const existingNetworkManager = this.findExistingNetworkManager();
+    if (existingNetworkManager) {
+      console.log(`📡 [${this.scene.key}] NetworkManager trouvé dans autre scène`);
+      this.useExistingNetworkManager(existingNetworkManager);
+      
+      // ✅ NOUVEAU : Demander immédiatement la zone au serveur
+      this.requestServerZone();
+      return;
+    }
+    
+    // Cas 3: Première connexion (BeachScene uniquement)
+    if (this.scene.key === 'BeachScene') {
+      console.log(`📡 [${this.scene.key}] Première connexion WorldRoom`);
+      this.initializeNewNetworkConnection();
+    } else {
+      console.error(`❌ [${this.scene.key}] Aucun NetworkManager disponible et pas BeachScene!`);
+      this.showErrorState("Erreur: Connexion réseau manquante");
     }
   }
 
-  setupNetworkHandlers() {
-    // HANDLERS COLYSEUS
-    this.networkManager.onCurrentZone((data) => {
-      this.currentZone = data.zone;
-      this.serverZoneConfirmed = true;
-
-      const expectedScene = this.mapZoneToScene(this.currentZone);
-      if (expectedScene && expectedScene !== this.scene.key) {
-        this.redirectToCorrectScene(expectedScene, data);
-        return;
-      }
-      if (this.playerManager) this.playerManager.currentZone = this.currentZone;
-      if (this.transitionManager) this.transitionManager.currentZone = this.currentZone;
-    });
-
-    this.networkManager.onConnect(() => {
-      this.mySessionId = this.networkManager.getSessionId();
-      if (this.playerManager) this.playerManager.setMySessionId(this.mySessionId);
-      this.myPlayerReady = false;
-      setTimeout(() => this.requestServerZone(), 100);
-      this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nConnected to WorldRoom!`);
-      this.initializeQuestSystem();
-    });
-
-    this.networkManager.onStateChange((state) => {
-      if (!this.isSceneReady) return;
-      if (!state?.players || !this.playerManager) return;
-      this.playerManager.updatePlayers(state);
-      this.handleMyPlayerFromState();
-      if (!this.myPlayerReady && this.mySessionId) {
-        this.time.delayedCall(100, () => {
-          if (!this.myPlayerReady) this.handleMissingPlayer();
-        });
-      }
-    });
-
-    this.networkManager.onZoneData((data) => {
-      if (data.zone === this.currentZone) this.handleZoneData(data);
-    });
-
-    this.networkManager.onNpcList((npcs) => {
-      if (this.npcManager && npcs.length > 0) this.npcManager.spawnNpcs(npcs);
-    });
-
-    this.networkManager.onNpcInteraction((result) => this.handleNpcInteraction(result));
-    this.networkManager.onSnap((data) => {
-      if (this.playerManager) this.playerManager.snapMyPlayerTo(data.x, data.y);
-    });
-    this.networkManager.onDisconnect(() => {
-      this.myPlayerReady = false;
-      if (this.transitionManager) this.transitionManager.setActive(false);
-    });
-  }
-
+  // ✅ NOUVELLE MÉTHODE : Demander la zone au serveur
   requestServerZone() {
-    if (!this.networkManager?.room) return;
+    console.log(`📍 [${this.scene.key}] === DEMANDE ZONE AU SERVEUR ===`);
+    
+    if (!this.networkManager?.room) {
+      console.error(`❌ [${this.scene.key}] Pas de connexion pour demander la zone`);
+      return;
+    }
+    
+    // Envoyer une demande de zone au serveur
     this.networkManager.room.send("requestCurrentZone", {
       sceneKey: this.scene.key,
       timestamp: Date.now()
     });
+    
+    console.log(`📤 [${this.scene.key}] Demande de zone envoyée au serveur`);
   }
 
+  useExistingNetworkManager(networkManager, sceneData = null) {
+    this.networkManager = networkManager;
+    this.mySessionId = networkManager.getSessionId();
+
+    // ✅ AJOUT: Gestion du rollback dans useExistingNetworkManager
+    if (sceneData?.isRollback && sceneData?.restorePlayerState) {
+      console.log(`🔄 [${this.scene.key}] Rollback détecté, restauration état joueur`);
+      
+      if (this.playerManager && sceneData.spawnX && sceneData.spawnY) {
+        const player = this.playerManager.createPlayer(
+          this.mySessionId, 
+          sceneData.spawnX, 
+          sceneData.spawnY
+        );
+        if (player) {
+          // Restaurer l'état complet du joueur
+          player.setVisible(sceneData.restorePlayerState.visible);
+          player.setActive(sceneData.restorePlayerState.active);
+          player.targetX = sceneData.restorePlayerState.targetX;
+          player.targetY = sceneData.restorePlayerState.targetY;
+          
+          console.log(`✅ [${this.scene.key}] État joueur restauré après rollback`);
+        }
+      }
+    }
+    
+    // ✅ CORRECTION CRITIQUE: Synchroniser le PlayerManager IMMÉDIATEMENT
+    if (this.playerManager) {
+      console.log(`🔄 [${this.scene.key}] Synchronisation PlayerManager...`);
+      this.playerManager.setMySessionId(this.mySessionId);
+      
+      // ✅ NOUVEAU: Forcer une resynchronisation si nécessaire
+      if (sceneData?.fromTransition) {
+        this.time.delayedCall(100, () => {
+          this.playerManager.forceResynchronization();
+        });
+      }
+    }
+    
+    this.setupNetworkHandlers();
+    this.networkSetupComplete = true;
+
+    // Chargement de l'inventaire
+    this.initializeInventorySystem();
+    
+    // ✅ AJOUT SHOP : Intégration shop en une ligne
+    integrateShopToScene(this, networkManager);
+    
+    // ✅ NOUVEAU: Vérifier immédiatement l'état du réseau
+    this.verifyNetworkState();
+    
+    // ✅ AJOUT: Déclencher une mise à jour de zone après sync
+    this.time.delayedCall(300, () => {
+      console.log(`🔄 [${this.scene.key}] Vérifier NPCs stockés...`);
+      
+      // ✅ NOUVEAU: Utiliser les NPCs stockés si ils correspondent à notre zone
+      if (this.networkManager.lastReceivedNpcs && 
+          this.networkManager.lastReceivedZoneData && 
+          this.networkManager.lastReceivedZoneData.zone === this.networkManager.currentZone) {
+        
+        console.log(`🎯 [${this.scene.key}] NPCs trouvés en cache pour zone: ${this.networkManager.currentZone}`);
+        
+        // Déclencher manuellement le spawn des NPCs
+        if (this.npcManager) {
+          this.npcManager.spawnNpcs(this.networkManager.lastReceivedNpcs);
+        }
+      } else {
+        console.log(`⚠️ [${this.scene.key}] Aucun NPC en cache pour zone: ${this.networkManager.currentZone}`);
+      }
+    });
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Chercher un NetworkManager existant
+  findExistingNetworkManager() {
+    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene', 'LavandiaScene'];
+    
+    for (const sceneName of scenesToCheck) {
+      if (sceneName === this.scene.key) continue;
+      
+      const scene = this.scene.manager.getScene(sceneName);
+      if (scene?.networkManager?.isConnected) {
+        console.log(`📡 [${this.scene.key}] NetworkManager trouvé dans: ${sceneName}`);
+        return scene.networkManager;
+      }
+    }
+    
+    return null;
+  }
+
+  // ✅ AMÉLIORATION: Nouvelle connexion réseau avec gestion d'erreurs
+  async initializeNewNetworkConnection() {
+    try {
+      const connectionData = await this.prepareConnectionData();
+      
+      this.networkManager = new NetworkManager(connectionData.identifier);
+      this.setupNetworkHandlers();
+      
+      const connected = await this.networkManager.connect(
+        connectionData.spawnZone, 
+        { 
+          spawnX: connectionData.lastX, 
+          spawnY: connectionData.lastY 
+        }
+      );
+      
+      if (connected) {
+        this.mySessionId = this.networkManager.getSessionId();
+        if (this.playerManager) {
+          this.playerManager.setMySessionId(this.mySessionId);
+        }
+        this.networkSetupComplete = true;
+
+        this.initializeInventorySystem();
+
+        // ✅ AJOUT SHOP : Intégration shop en une ligne
+        integrateShopToScene(this, this.networkManager);
+
+        console.log(`✅ [${this.scene.key}] Connexion réussie: ${this.mySessionId}`);
+      } else {
+        throw new Error("Échec de connexion au serveur");
+      }
+      
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur connexion:`, error);
+      this.showErrorState(`Erreur de connexion: ${error.message}`);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Initialisation du système d'inventaire
+  initializeInventorySystem() {
+    if (window.inventorySystem) {
+      // ✅ Réutiliser l'instance déjà existante !
+      console.log(`[${this.scene.key}] Réutilisation de l'inventaire global existant`);
+      // Met à jour la room si besoin !
+      if (this.networkManager?.room) {
+        window.inventorySystem.gameRoom = this.networkManager.room;
+        window.inventorySystem.setupServerListeners(); // pour relier la nouvelle room
+      }
+      this.inventorySystem = window.inventorySystem;
+      this.inventoryInitialized = true;
+      return;
+    }
+
+    // Sinon, création normale :
+    try {
+      console.log(`🎒 [${this.scene.key}] Initialisation du système d'inventaire...`);
+      this.inventorySystem = new InventorySystem(this, this.networkManager.room);
+
+      // Config langue
+      if (this.inventorySystem.inventoryUI) {
+        this.inventorySystem.inventoryUI.currentLanguage = 'en';
+      }
+
+      // Global
+      window.inventorySystem = this.inventorySystem;
+      window.inventorySystemGlobal = this.inventorySystem;
+
+      this.setupInventoryEventHandlers();
+
+      if (typeof window.connectInventoryToServer === 'function') {
+        window.connectInventoryToServer(this.networkManager.room);
+      }
+
+      this.inventoryInitialized = true;
+      console.log(`✅ [${this.scene.key}] Système d'inventaire initialisé`);
+
+      // Test après init
+      this.time.delayedCall(2000, () => {
+        this.testInventoryConnection();
+      });
+
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Test de connexion inventaire
+  testInventoryConnection() {
+    if (!this.inventorySystem || !this.networkManager?.room) {
+      console.warn(`⚠️ [${this.scene.key}] Cannot test inventory: no system or room`);
+      return;
+    }
+
+    console.log(`🧪 [${this.scene.key}] Test de connexion inventaire...`);
+    
+    // ✅ Demander les données d'inventaire
+    this.inventorySystem.requestInventoryData();
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Setup des événements d'inventaire
+  setupInventoryEventHandlers() { }
+  
+  // ✅ NOUVELLE MÉTHODE: Préparer les données de connexion
+  async prepareConnectionData() {
+    const getWalletFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('wallet');
+    };
+
+    const fetchLastPosition = async (identifier) => {
+      try {
+        const res = await fetch(`/api/playerData?username=${encodeURIComponent(identifier)}`);
+        if (res.ok) {
+          const data = await res.json();
+          return {
+            lastMap: data.lastMap || 'beach',
+            lastX: data.lastX !== undefined ? data.lastX : 52,
+            lastY: data.lastY !== undefined ? data.lastY : 48
+          };
+        }
+      } catch (e) {
+        console.warn("Erreur récupération dernière position", e);
+      }
+      return { lastMap: 'beach', lastX: 52, lastY: 48 };
+    };
+
+    let identifier = getWalletFromUrl();
+    if (!identifier && window.app?.currentAccount?.address) {
+      identifier = window.app.currentAccount.address;
+    }
+    if (!identifier) {
+      throw new Error("Aucun wallet connecté");
+    }
+
+    const { lastMap, lastX, lastY } = await fetchLastPosition(identifier);
+    const spawnZone = this.mapSceneToZone(this.mapZoneToScene(lastMap));
+
+    return { identifier, spawnZone, lastX, lastY };
+  }
+
+  // ✅ AMÉLIORATION: Setup des handlers réseau avec vérifications
+  setupNetworkHandlers() {
+    if (!this.networkManager) return;
+
+    console.log(`📡 [${this.scene.key}] Configuration handlers réseau...`);
+
+    // ✅ NOUVEAU : Handler pour recevoir la zone officielle du serveur
+    this.networkManager.onMessage("currentZone", (data) => {
+      console.log(`📍 [${this.scene.key}] === ZONE REÇUE DU SERVEUR ===`);
+      console.log(`🎯 Zone serveur: ${data.zone}`);
+      console.log(`📊 Position serveur: (${data.x}, ${data.y})`);
+      
+      // ✅ APPLIQUER LA VÉRITÉ DU SERVEUR
+      const oldZone = this.zoneName;
+      this.zoneName = data.zone;
+      this.serverZoneConfirmed = true;
+      
+      console.log(`🔄 [${this.scene.key}] Zone mise à jour: ${oldZone} → ${this.zoneName}`);
+      
+      // ✅ Si la scène ne correspond pas à la zone serveur, correction
+      const expectedScene = this.mapZoneToScene(this.zoneName);
+      if (expectedScene && expectedScene !== this.scene.key) {
+        console.warn(`⚠️ [${this.scene.key}] SCÈNE INCORRECTE !`);
+        console.warn(`   Scène actuelle: ${this.scene.key}`);
+        console.warn(`   Scène attendue: ${expectedScene}`);
+        
+        // ✅ REDIRECTION AUTOMATIQUE vers la bonne scène
+        this.redirectToCorrectScene(expectedScene, data);
+        return;
+      }
+      
+      // ✅ Synchroniser le PlayerManager avec la zone confirmée
+      if (this.playerManager) {
+        this.playerManager.currentZone = this.zoneName;
+        this.playerManager.forceResynchronization();
+      }
+      
+      // ✅ Synchroniser le TransitionManager
+      if (this.transitionManager) {
+        this.transitionManager.currentZone = this.zoneName;
+      }
+      
+      console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
+    });
+
+    // ✅ NOUVEAU: Handler de connexion amélioré
+    this.networkManager.onConnect(() => {
+      console.log(`✅ [${this.scene.key}] Connexion établie`);
+      
+      // ✅ IMMÉDIATEMENT demander la zone au serveur
+      setTimeout(() => {
+        this.requestServerZone();
+      }, 100);
+      
+      // Vérifier et synchroniser le sessionId
+      const currentSessionId = this.networkManager.getSessionId();
+      if (this.mySessionId !== currentSessionId) {
+        console.log(`🔄 [${this.scene.key}] Mise à jour sessionId: ${this.mySessionId} → ${currentSessionId}`);
+        this.mySessionId = currentSessionId;
+        
+        if (this.playerManager) {
+          this.playerManager.setMySessionId(this.mySessionId);
+        }
+      }
+      
+      this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nConnected to WorldRoom!`);
+
+      this.networkManager.onMessage("questStatuses", (data) => {
+        console.log("📋 Statuts de quêtes reçus:", data);
+        if (this.npcManager) {
+          this.npcManager.updateQuestIndicators(data.questStatuses);
+        }
+      });
+      
+      // Quest system
+      this.initializeQuestSystem();
+    });
+
+    // ✅ AMÉLIORATION: Handler d'état avec protection
+    this.networkManager.onStateChange((state) => {
+      if (!this.isSceneReady || !this.networkSetupComplete) {
+        console.log(`⏳ [${this.scene.key}] State reçu mais scène pas prête, ignoré`);
+        return;
+      }
+      
+      // ✅ NOUVEAU: Debug du state reçu
+      console.log(`📊 [${this.scene.key}] State reçu:`, {
+        playersCount: state.players?.size || 0,
+        isFiltered: !!state.players,
+        type: state.players instanceof Map ? 'Map' : 'Object'
+      });
+      
+      if (!state || !state.players) return;
+      if (!this.playerManager) return;
+
+      // ✅ CORRECTION: Vérification sessionId avant chaque update
+      this.synchronizeSessionId();
+      
+      this.playerManager.updatePlayers(state);
+
+      // ✅ AMÉLIORATION: Gestion du joueur local
+      this.handleMyPlayerFromState();
+    });
+
+    // Handlers de zone WorldRoom
+    this.setupWorldRoomHandlers();
+
+    // Handlers existants
+    this.setupExistingHandlers();
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Redirection vers la bonne scène
+  redirectToCorrectScene(correctScene, serverData) {
+    console.log(`🚀 [${this.scene.key}] === REDIRECTION AUTOMATIQUE ===`);
+    console.log(`📍 Vers: ${correctScene}`);
+    
+    const transitionData = {
+      fromZone: serverData.zone,
+      fromTransition: true,
+      networkManager: this.networkManager,
+      mySessionId: this.mySessionId,
+      spawnX: serverData.x,
+      spawnY: serverData.y,
+      serverForced: true, // ✅ Flag pour indiquer que c'est forcé par le serveur
+      preservePlayer: true
+    };
+    
+    // Changer vers la bonne scène
+if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
+this.scene.start(correctScene, transitionData);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Synchronisation sessionId
+  synchronizeSessionId() {
+    if (!this.networkManager) return;
+    
+    const currentNetworkSessionId = this.networkManager.getSessionId();
+    if (this.mySessionId !== currentNetworkSessionId) {
+      console.warn(`⚠️ [${this.scene.key}] SessionId désynchronisé: ${this.mySessionId} → ${currentNetworkSessionId}`);
+      this.mySessionId = currentNetworkSessionId;
+      
+      if (this.playerManager) {
+        this.playerManager.setMySessionId(this.mySessionId);
+      }
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Gestion du joueur local depuis le state
   handleMyPlayerFromState() {
     if (this.myPlayerReady) return;
-    if (!this.networkManager?.isConnected) return;
-
-    const playerData = this.networkManager?.state?.players?.get(this.mySessionId);
-    let myPlayer = this.playerManager.getMyPlayer();
-
-    if (myPlayer && playerData) {
+    
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (myPlayer && !this.myPlayerReady) {
       this.myPlayerReady = true;
-      if (window.hideLoadingOverlay) window.hideLoadingOverlay();
-      myPlayer.setVisible(true);
-      myPlayer.setActive(true);
-      myPlayer.setDepth(5);
+      console.log(`✅ [${this.scene.key}] Joueur local trouvé: ${this.mySessionId}`);
+          if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+
+      
+      // ✅ CORRECTION: S'assurer que le joueur est visible
+      if (!myPlayer.visible) {
+        console.log(`🔧 [${this.scene.key}] Forcer visibilité joueur local`);
+        myPlayer.setVisible(true);
+        myPlayer.setActive(true);
+      }
+      
       this.cameraManager.followPlayer(myPlayer);
       this.cameraFollowing = true;
       this.positionPlayer(myPlayer);
-      if (typeof this.onPlayerReady === 'function') this.onPlayerReady(myPlayer);
-      if (window.pendingSceneStop) {
-        this.scene.scene.stop(window.pendingSceneStop);
-        window.pendingSceneStop = null;
+      
+      if (typeof this.onPlayerReady === 'function') {
+        this.onPlayerReady(myPlayer);
       }
-      return;
-    }
-    if (!myPlayer && playerData) {
-      myPlayer = this.playerManager.createPlayer(this.mySessionId, playerData.x, playerData.y);
-      this.handleMyPlayerFromState();
-      return;
-    }
-    if (!playerData) {
-      if (!this._waitingForPlayer) {
-        this._waitingForPlayer = true;
-        if (window.showLoadingOverlay) window.showLoadingOverlay("Connexion à la nouvelle zone...");
-      }
-      return;
     }
   }
 
-  handleMissingPlayer() {
-    if (!this.mySessionId || !this.networkManager?.isConnected) return;
-    if (this.networkManager.room) {
-      this.networkManager.room.send("requestSync", {
-        sessionId: this.mySessionId,
-        currentZone: this.networkManager.getCurrentZone()
-      });
-    }
-    this.time.delayedCall(500, () => {
-      if (!this.myPlayerReady && this.playerManager) {
-        this.playerManager.forceResynchronization();
-        this.time.delayedCall(1000, () => {
-          if (!this.myPlayerReady) this.createEmergencyPlayer();
-        });
+  // ✅ NOUVELLE MÉTHODE: Setup des handlers WorldRoom
+  setupWorldRoomHandlers() {
+    this.networkManager.onZoneData((data) => {
+      console.log(`🗺️ [${this.scene.key}] Zone data reçue:`, data);
+      this.handleZoneData(data);
+    });
+
+    this.networkManager.onNpcList((npcs) => {
+      console.log(`🤖 [${this.scene.key}] NPCs reçus: ${npcs.length}`);
+      
+      // ✅ FIX 1: Normalisation des noms de zones plus robuste
+      const currentSceneZone = this.normalizeZoneName(this.scene.key);
+      const serverZone = this.networkManager.currentZone;
+      
+      console.log(`🔍 [${this.scene.key}] Comparaison zones: scene="${currentSceneZone}" vs server="${serverZone}"`);
+      
+      // ✅ FIX 2: Accepter les NPCs si on est dans la bonne zone OU si c'est juste après une transition
+      const isCorrectZone = currentSceneZone === serverZone;
+      const isRecentTransition = Date.now() - (this._lastTransitionTime || 0) < 3000; // 3 secondes de grâce
+      
+      if (!isCorrectZone && !isRecentTransition) {
+        console.log(`🚫 [${this.scene.key}] NPCs ignorés: zone serveur=${serverZone} ≠ scène=${currentSceneZone}`);
+        return;
+      }
+      
+      if (this.npcManager && npcs.length > 0) {
+        console.log(`✅ [${this.scene.key}] Spawn de ${npcs.length} NPCs`);
+        this.npcManager.spawnNpcs(npcs);
+      }
+    });
+
+    this.networkManager.onTransitionSuccess((result) => {
+      console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
+    });
+
+    this.networkManager.onTransitionError((result) => {
+      console.error(`❌ [${this.scene.key}] Transition échouée:`, result);
+      this.handleTransitionError(result);
+    });
+if (this.networkManager?.room) {
+  this.networkManager.room.send("forceStateRefresh");
+}
+    this.networkManager.onNpcInteraction((result) => {
+      console.log(`💬 [${this.scene.key}] NPC interaction:`, result);
+      this.handleNpcInteraction(result);
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Setup des handlers existants
+  setupExistingHandlers() {
+    this.networkManager.onSnap((data) => {
+      if (this.playerManager) {
+        this.playerManager.snapMyPlayerTo(data.x, data.y);
+      }
+    });
+
+    this.networkManager.onDisconnect(() => {
+      this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nDisconnected from WorldRoom`);
+    });
+  }
+
+  // ✅ AMÉLIORATION: Setup du handler joueur prêt
+  setupPlayerReadyHandler() {
+    if (!this.playerManager) return;
+    
+    this.playerManager.onMyPlayerReady((myPlayer) => {
+      if (!this.myPlayerReady) {
+        this.myPlayerReady = true;
+        console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
+
+        this.cameraManager.followPlayer(myPlayer);
+        this.cameraFollowing = true;
+        this.positionPlayer(myPlayer);
+
+        if (typeof this.onPlayerReady === 'function') {
+          this.onPlayerReady(myPlayer);
+        }
       }
     });
   }
 
-  createEmergencyPlayer() {
-    if (!this.playerManager || this.myPlayerReady) return;
-    const initData = this.scene.settings.data;
-    let spawnX = 52, spawnY = 48;
-    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-      spawnX = initData.spawnX;
-      spawnY = initData.spawnY;
+  // ✅ AMÉLIORATION: Vérification de l'état réseau
+  verifyNetworkState() {
+    if (!this.networkManager) {
+      console.error(`❌ [${this.scene.key}] NetworkManager manquant`);
+      return;
     }
-    const emergencyPlayer = this.playerManager.createPlayer(this.mySessionId, spawnX, spawnY);
-    if (emergencyPlayer) {
-      emergencyPlayer.setVisible(true);
-      emergencyPlayer.setActive(true);
-      emergencyPlayer.setDepth(5);
-      this.cameraManager.followPlayer(emergencyPlayer);
-      this.cameraFollowing = true;
-      this.myPlayerReady = true;
-      if (window.hideLoadingOverlay) window.hideLoadingOverlay();
-      if (this.networkManager?.isConnected) {
-        this.networkManager.sendMove(spawnX, spawnY, 'down', false);
-      }
-      if (typeof this.onPlayerReady === 'function') this.onPlayerReady(emergencyPlayer);
+    
+    console.log(`🔍 [${this.scene.key}] Vérification état réseau...`);
+    
+    // Débugger l'état
+    this.networkManager.debugState();
+    
+    // Vérifier la synchronisation des zones
+    this.networkManager.checkZoneSynchronization(this.scene.key);
+    
+    // Forcer une resynchronisation si nécessaire
+    if (this.playerManager) {
+      this.time.delayedCall(500, () => {
+        this.playerManager.forceResynchronization();
+      });
     }
   }
 
+  // ✅ AMÉLIORATION: Position du joueur avec données de transition
   positionPlayer(player) {
     const initData = this.scene.settings.data;
-    let finalX, finalY;
-    if (initData?.fromTransition && (initData.spawnX !== undefined || initData.spawnY !== undefined)) {
-      finalX = initData.spawnX;
-      finalY = initData.spawnY;
+    
+    console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
+    console.log(`📊 InitData:`, initData);
+      if (initData?.fromTransition && player.x && player.y) {
+    console.log(`📍 Position serveur conservée: (${player.x}, ${player.y})`);
+    return;
+  }
+    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+      console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
+      player.x = initData.spawnX;
+      player.y = initData.spawnY;
+      player.targetX = initData.spawnX;
+      player.targetY = initData.spawnY;
+    } else {
+      const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+      console.log(`📍 Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
+      player.x = defaultPos.x;
+      player.y = defaultPos.y;
+      player.targetX = defaultPos.x;
+      player.targetY = defaultPos.y;
     }
-    else if (initData?.serverResult?.position) {
-      finalX = initData.serverResult.position.x;
-      finalY = initData.serverResult.position.y;
-    }
-    else {
-      const defaultPos = this.getDefaultSpawnPosition();
-      finalX = defaultPos.x;
-      finalY = defaultPos.y;
-    }
-    player.x = finalX;
-    player.y = finalY;
-    player.targetX = finalX;
-    player.targetY = finalY;
+
     player.setVisible(true);
     player.setActive(true);
     player.setDepth(5);
+
     if (player.indicator) {
-      player.indicator.x = finalX;
-      player.indicator.y = finalY - 32;
+      player.indicator.x = player.x;
+      player.indicator.y = player.y - 32;
       player.indicator.setVisible(true);
     }
-    if (this.networkManager?.isConnected) {
-      this.networkManager.sendMove(finalX, finalY, 'down', false);
+
+    // Délai de grâce après spawn
+    this.spawnGraceTime = Date.now() + this.spawnGraceDuration;
+    console.log(`🛡️ [${this.scene.key}] Délai de grâce activé pour ${this.spawnGraceDuration}ms`);
+
+    // Envoyer la position au serveur
+    if (this.networkManager && this.networkManager.isConnected) {
+      this.networkManager.sendMove(player.x, player.y, 'down', false);
     }
+
+    this.onPlayerPositioned(player, initData);
   }
 
-  handleZoneData(data) {
-    if (data.music && this.sound) {
-      this.sound.stopAll();
-      this.sound.play(data.music, { loop: true, volume: 0.5 });
-    }
-  }
-
-  handleNpcInteraction(result) {
-    if (window._questDialogActive) return;
-    if (result.type === "shop") {
-      if (this.shopIntegration?.getShopSystem()) {
-        this.shopIntegration.handleShopNpcInteraction(result);
-        return;
-      }
-    }
-    if (result.type === "dialogue") {
-      let npcName = "???";
-      let portrait = result.portrait;
-      if (result.npcId && this.npcManager) {
-        const npc = this.npcManager.getNpcData(result.npcId);
-        if (npc) {
-          npcName = npc.name;
-          if (!portrait && npc.sprite) portrait = `/assets/portrait/${npc.sprite}Portrait.png`;
-        }
-      }
-      if (typeof window.showNpcDialogue === 'function') {
-        window.showNpcDialogue({
-          portrait: portrait || "/assets/portrait/unknownPortrait.png",
-          name: npcName,
-          lines: result.lines || [result.message]
-        });
-      }
-    }
-    else if (result.type === "questGiver" || result.type === "questComplete" || result.type === "questProgress") {
-      if (window.questSystem?.handleNpcInteraction) {
-        window.questSystem.handleNpcInteraction(result);
-      }
-    }
-    else {
-      if (typeof window.showNpcDialogue === 'function') {
-        window.showNpcDialogue({
-          portrait: null,
-          name: "???",
-          text: result.message || JSON.stringify(result)
-        });
-      }
-    }
-  }
-
-  initializeInventorySystem() {
-    // Toujours utiliser le global déjà créé
-    if (window.inventorySystem) {
-      if (this.networkManager?.room) {
-        window.inventorySystem.gameRoom = this.networkManager.room;
-        window.inventorySystem.setupServerListeners();
-      }
-      this.inventorySystem = window.inventorySystem;
-      return;
-    }
-    try {
-      this.inventorySystem = new InventorySystem(this, this.networkManager.room);
-      if (this.inventorySystem.inventoryUI) {
-        this.inventorySystem.inventoryUI.currentLanguage = 'en';
-      }
-      window.inventorySystem = this.inventorySystem;
-      window.inventorySystemGlobal = this.inventorySystem;
-      if (typeof window.connectInventoryToServer === 'function') {
-        window.connectInventoryToServer(this.networkManager.room);
-      }
-      this.time.delayedCall(2000, () => {
-        this.inventorySystem?.requestInventoryData();
-      });
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur inventaire:`, error);
-    }
-  }
-
+  // ✅ NOUVELLE MÉTHODE: Initialisation du système de quêtes
   initializeQuestSystem() {
-    // Toujours utiliser le global déjà créé
     if (!window.questSystem && this.networkManager?.room) {
       try {
         window.questSystem = new QuestSystem(this, this.networkManager.room);
-        this.questSystem = window.questSystem;
+        console.log("✅ [QuestSystem] Initialisé");
       } catch (e) {
-        console.error("❌ Erreur QuestSystem:", e);
+        console.error("❌ Erreur init QuestSystem:", e);
       }
     }
   }
 
-  // --- UTILITAIRES --- (à adapter selon tes besoins)
+  // ✅ NOUVELLE MÉTHODE: Affichage d'état d'erreur
+  showErrorState(message) {
+      if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+
+    this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\n${message}`);
+    
+    // Ajouter un bouton de retry si nécessaire
+    this.time.delayedCall(5000, () => {
+      if (!this.networkSetupComplete) {
+        console.log(`🔄 [${this.scene.key}] Tentative de reconnexion...`);
+        this.initializeNetworking();
+      }
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mise à jour du texte d'info
+  updateInfoText(text) {
+    if (this.infoText) {
+      this.infoText.setText(text);
+    }
+  }
+
+  // ✅ AMÉLIORATION: Update avec vérifications d'état
+  update() {
+    TransitionIntegration.updateTransitions(this);
+    // Vérifications périodiques
+    if (this.time.now % 1000 < 16) {
+      this.checkPlayerState();
+    }
+
+    if (this.playerManager) this.playerManager.update();
+    if (this.cameraManager) this.cameraManager.update();
+
+    if (this.sys.animatedTiles && typeof this.sys.animatedTiles.update === 'function') {
+      this.sys.animatedTiles.update();
+    }
+
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (myPlayer && this.coordsText) {
+      this.coordsText.setText(`Player: x:${Math.round(myPlayer.x)}, y:${Math.round(myPlayer.y)}`);
+    }
+
+    if (!this.networkManager?.getSessionId()) return;
+    const myPlayerState = this.networkManager.getPlayerState(this.networkManager.getSessionId());
+    if (!myPlayerState) return;
+
+    this.handleMovement(myPlayerState);
+  }
+
+  // ✅ AMÉLIORATION: Nettoyage optimisé
+  cleanup() {
+    TransitionIntegration.cleanupTransitions(this);
+
+    console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
+
+    // ✅ NOUVEAU: Nettoyage conditionnel selon le type de fermeture
+    const isTransition = this.networkManager && this.networkManager.isTransitionActive;
+    
+    if (!isTransition) {
+      // Nettoyage complet seulement si ce n'est pas une transition
+      if (this.playerManager) {
+        this.playerManager.clearAllPlayers();
+      }
+    } else {
+      // En transition, préserver les données critiques
+      console.log(`🔄 [${this.scene.key}] Nettoyage léger pour transition`);
+    }
+
+    // ✅ SHOP: Le ShopIntegration se gère automatiquement via ses event handlers
+
+    if (this.npcManager) {
+      this.npcManager.clearAllNpcs();
+    }
+
+    if (this.animatedObjects) {
+      this.animatedObjects.clear(true, true);
+      this.animatedObjects = null;
+    }
+
+    this.time.removeAllEvents();
+    this.cameraFollowing = false;
+    this.myPlayerReady = false;
+    this.isSceneReady = false;
+    this.networkSetupComplete = false;
+    
+    console.log(`✅ [${this.scene.key}] Nettoyage terminé`);
+  }
+
+  // ✅ AMÉLIORATION: Setup des handlers de nettoyage
+  setupCleanupHandlers() {
+    this.events.on('shutdown', () => {
+      console.log(`📤 [${this.scene.key}] Shutdown - nettoyage`);
+      this.cleanup();
+    });
+    
+    this.events.on('destroy', () => {
+      console.log(`💀 [${this.scene.key}] Destroy - nettoyage final`);
+      this.cleanup();
+    });
+  }
+
+  // ✅ AMÉLIORATION: Gestion du mouvement avec désactivation du délai de grâce
+  handleMovement(myPlayerState) {
+    const speed = 120;
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer) return;
+
+    let vx = 0, vy = 0;
+    let moved = false, direction = null;
+
+    if (this.cursors.left.isDown || this.wasd.A.isDown) {
+      vx = -speed; moved = true; direction = 'left';
+    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+      vx = speed; moved = true; direction = 'right';
+    }
+    if (this.cursors.up.isDown || this.wasd.W.isDown) {
+      vy = -speed; moved = true; direction = 'up';
+    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+      vy = speed; moved = true; direction = 'down';
+    }
+
+    myPlayer.body.setVelocity(vx, vy);
+
+    if (moved && direction) {
+      myPlayer.play(`walk_${direction}`, true);
+      this.lastDirection = direction;
+      myPlayer.isMovingLocally = true;
+      
+      // Désactiver le délai de grâce dès que le joueur bouge
+      if (this.spawnGraceTime > 0) {
+        this.spawnGraceTime = 0;
+        console.log(`🏃 [${this.scene.key}] Joueur bouge, délai de grâce désactivé`);
+      }
+    } else {
+      myPlayer.play(`idle_${this.lastDirection}`, true);
+      myPlayer.isMovingLocally = false;
+    }
+
+    if (moved) {
+      const now = Date.now();
+      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+        // 💡 PATCH: Ajoute la zone courante (this.zoneName) à sendMove
+        this.networkManager.sendMove(
+        myPlayer.x,
+        myPlayer.y,
+        direction || this.lastDirection,
+        moved
+        );
+        this.lastMoveTime = now;
+      }
+    }
+  }
+
+  // === MÉTHODES EXISTANTES CONSERVÉES ===
+
+  // Mapping scene → zone
+  mapSceneToZone(sceneName) {
+    const mapping = {
+      'BeachScene': 'beach',
+      'VillageScene': 'village',
+      'VillageLabScene': 'villagelab',
+      'Road1Scene': 'road1',
+      'VillageHouse1Scene': 'villagehouse1',
+      'LavandiaScene': 'lavandia'
+    };
+    
+    return mapping[sceneName] || sceneName.toLowerCase();
+  }
+
+  // Mapping zone → scene
+  mapZoneToScene(zoneName) {
+    const mapping = {
+      'beach': 'BeachScene',
+      'village': 'VillageScene', 
+      'villagelab': 'VillageLabScene',
+      'road1': 'Road1Scene',
+      'villagehouse1': 'VillageHouse1Scene',
+      'lavandia': 'LavandiaScene'
+    };
+    
+    return mapping[zoneName.toLowerCase()] || zoneName;
+  }
+
+  // Normalisation des noms de zones
+  normalizeZoneName(sceneName) {
+    const mapping = {
+      'BeachScene': 'beach',
+      'VillageScene': 'village',
+      'VillageLabScene': 'villagelab',
+      'Road1Scene': 'road1',
+      'VillageHouse1Scene': 'villagehouse1',
+      'LavandiaScene': 'lavandia'
+    };
+    return mapping[sceneName] || sceneName.toLowerCase();
+  }
+
+  getProperty(object, propertyName) {
+    if (!object.properties) return null;
+    const prop = object.properties.find(p => p.name === propertyName);
+    return prop ? prop.value : null;
+  }
+
+  loadMap() {
+    console.log('— DEBUT loadMap —');
+    this.map = this.make.tilemap({ key: this.mapKey });
+
+    console.log("========== [DEBUG] Chargement de la map ==========");
+    console.log("Clé de la map (mapKey):", this.mapKey);
+    console.log("Tilesets trouvés dans la map:", this.map.tilesets.map(ts => ts.name));
+    console.log("Layers dans la map:", this.map.layers.map(l => l.name));
+    console.log("==============================================");
+
+    let needsLoading = false;
+    this.map.tilesets.forEach(tileset => {
+      if (!this.textures.exists(tileset.name)) {
+        console.log(`[DEBUG] --> Chargement tileset "${tileset.name}"`);
+        this.load.image(tileset.name, `assets/sprites/${tileset.name}.png`);
+        needsLoading = true;
+      }
+    });
+
+    const finishLoad = () => {
+      this.phaserTilesets = this.map.tilesets.map(ts => {
+        return this.map.addTilesetImage(ts.name, ts.name);
+      });
+      
+      this.layers = {};
+      const depthOrder = {
+        'BelowPlayer': 1,
+        'BelowPlayer2': 2,
+        'World': 3,
+        'AbovePlayer': 4,
+        'Grass': 1.5
+      };
+
+      this.map.layers.forEach(layerData => {
+        const layer = this.map.createLayer(layerData.name, this.phaserTilesets, 0, 0);
+        this.layers[layerData.name] = layer;
+        layer.setDepth(depthOrder[layerData.name] ?? 0);
+      });
+
+      if (this.sys.animatedTiles) {
+        this.sys.animatedTiles.init(this.map);
+      }
+
+      this.worldLayer = this.layers['World'];
+      if (this.worldLayer) {
+        this.worldLayer.setCollisionByProperty({ collides: true });
+      }
+
+      this.setupAnimatedObjects();
+      this.setupScene();
+    };
+
+    if (needsLoading) {
+      this.load.once('complete', finishLoad);
+      this.load.start();
+    } else {
+      finishLoad();
+    }
+  }
+
+  setupAnimatedObjects() {
+    if (this.map.objects && this.map.objects.length > 0) {
+      this.map.objects.forEach(objectLayer => {
+        objectLayer.objects.forEach(obj => {
+          if (obj.gid) {
+            const sprite = this.add.sprite(obj.x, obj.y - obj.height, 'dude');
+            if (obj.properties && obj.properties.length > 0) {
+              const animationProp = obj.properties.find(prop => prop.name === 'animation');
+              if (animationProp && animationProp.value) {
+                if (this.anims.exists(animationProp.value)) {
+                  sprite.play(animationProp.value);
+                }
+              }
+            }
+            if (!this.animatedObjects) {
+              this.animatedObjects = this.add.group();
+            }
+            this.animatedObjects.add(sprite);
+          }
+        });
+      });
+    }
+  }
+
+  setupScene() {
+    console.log('— DEBUT setupScene —');
+    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+
+    const baseWidth = this.scale.width;
+    const baseHeight = this.scale.height;
+    const zoomX = baseWidth / this.map.widthInPixels;
+    const zoomY = baseHeight / this.map.heightInPixels;
+    const zoom = Math.min(zoomX, zoomY);
+
+    this.cameras.main.setZoom(zoom);
+    this.cameras.main.setBackgroundColor('#2d5a3d');
+    this.cameras.main.setRoundPixels(true);
+
+    this.cameraManager = new CameraManager(this);
+  }
+
+  getDefaultSpawnPosition(fromZone) {
+    return { x: 100, y: 100 };
+  }
+
+  onPlayerPositioned(player, initData) {
+    // Hook pour logique spécifique
+  }
+
   setupManagers() {
     this.playerManager = new PlayerManager(this);
     this.npcManager = new NpcManager(this);
@@ -370,7 +1041,7 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  createAnimations() {
+  createPlayerAnimations() {
     if (!this.textures.exists('dude') || this.anims.exists('walk_left')) return;
 
     this.anims.create({
@@ -400,25 +1071,54 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   setupInputs() {
+    
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,S,A,D');
     this.input.keyboard.enableGlobalCapture();
 
-    // INTERACTION E
+    // ✅ CORRECTION: Interaction E avec vérifications complètes
     this.input.keyboard.on("keydown-E", () => {
-      if (window._questDialogActive) return;
-      if (typeof window.isChatFocused === "function" && window.isChatFocused()) return;
+      // ✅ Vérifier si un dialogue de quête est ouvert
+      if (window._questDialogActive) {
+        console.log("⚠️ Fenêtre de quête ouverte, interaction E bloquée");
+        return;
+      }
+      
+      // ✅ Vérifier si le chat a le focus
+      if (typeof window.isChatFocused === "function" && window.isChatFocused()) {
+        console.log("⚠️ Chat ouvert, interaction E bloquée");
+        return;
+      }
+      
+      // ✅ Vérifier si un dialogue NPC est ouvert
       const dialogueBox = document.getElementById('dialogue-box');
-      if (dialogueBox && dialogueBox.style.display !== 'none') return;
-      if (typeof window.isInventoryOpen === "function" && window.isInventoryOpen()) return;
-      if (this.isShopOpen()) return;
+      if (dialogueBox && dialogueBox.style.display !== 'none') {
+        console.log("⚠️ Dialogue NPC ouvert, interaction avec environnement bloquée");
+        return;
+      }
+      
+      // ✅ Vérifier si l'inventaire est ouvert
+      if (typeof window.isInventoryOpen === "function" && window.isInventoryOpen()) {
+        console.log("⚠️ Inventaire ouvert, interaction E bloquée");
+        return;
+      }
 
-      const myPlayer = this.playerManager?.getMyPlayer();
+      // ✅ SHOP: Vérifier si le shop est ouvert
+      if (this.isShopOpen()) {
+        console.log("⚠️ Shop ouvert, interaction E bloquée");
+        return;
+      }
+
+      const myPlayer = this.playerManager.getMyPlayer();
       if (!myPlayer || !this.npcManager) return;
+
       const npc = this.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 64);
       if (npc) {
+        console.log(`🎯 Interaction avec NPC: ${npc.name}`);
         this.npcManager.lastInteractedNpc = npc;
-        this.networkManager?.sendNpcInteract(npc.id);
+        this.networkManager.sendNpcInteract(npc.id);
+      } else {
+        console.log("ℹ️ Aucun NPC à proximité pour interagir");
       }
     });
   }
@@ -441,142 +1141,174 @@ export class BaseZoneScene extends Phaser.Scene {
     }).setScrollFactor(0).setDepth(1000).setOrigin(1, 0);
   }
 
-  loadMap() {
-    this.map = this.make.tilemap({ key: this.mapKey });
-    let needsLoading = false;
-    this.map.tilesets.forEach(tileset => {
-      if (!this.textures.exists(tileset.name)) {
-        this.load.image(tileset.name, `assets/sprites/${tileset.name}.png`);
-        needsLoading = true;
+  handleZoneData(data) {
+    console.log(`🗺️ [${this.scene.key}] Handling zone data for: ${data.zone}`);
+    
+    if (data.zone !== this.zoneName) {
+      console.warn(`[${this.scene.key}] Zone data pour ${data.zone} mais nous sommes dans ${this.zoneName}`);
+      return;
+    }
+
+    if (data.music && this.sound) {
+      this.sound.stopAll();
+      this.sound.play(data.music, { loop: true, volume: 0.5 });
+    }
+
+    console.log(`✅ [${this.scene.key}] Zone data appliquée`);
+  }
+
+  handleTransitionError(result) {
+    console.error(`❌ [${this.scene.key}] Erreur transition: ${result.reason}`);
+    this.showNotification(`Transition impossible: ${result.reason}`, 'error');
+  }
+
+  // ✅ SHOP: Gestion améliorée des interactions NPC avec shop
+  handleNpcInteraction(result) {
+    console.log("🟢 [npcInteractionResult] Reçu :", result);
+
+    if (window._questDialogActive) {
+      console.log("⚠️ Fenêtre de quête déjà ouverte, interaction ignorée");
+      return;
+    }
+
+    // ✅ SHOP: Gestion des shops via ShopIntegration
+    if (result.type === "shop") {
+      if (this.shopIntegration && this.shopIntegration.getShopSystem()) {
+        console.log(`🏪 [${this.scene.key}] Délégation shop à ShopIntegration`);
+        this.shopIntegration.handleShopNpcInteraction(result);
+        return;
       }
-    });
-
-    const finishLoad = () => {
-      this.phaserTilesets = this.map.tilesets.map(ts => this.map.addTilesetImage(ts.name, ts.name));
-      this.layers = {};
-      const depthOrder = { 'BelowPlayer': 1, 'BelowPlayer2': 2, 'World': 3, 'AbovePlayer': 4, 'Grass': 1.5 };
-      this.map.layers.forEach(layerData => {
-        const layer = this.map.createLayer(layerData.name, this.phaserTilesets, 0, 0);
-        this.layers[layerData.name] = layer;
-        layer.setDepth(depthOrder[layerData.name] ?? 0);
-      });
-      if (this.sys.animatedTiles) this.sys.animatedTiles.init(this.map);
-      this.worldLayer = this.layers['World'];
-      if (this.worldLayer) this.worldLayer.setCollisionByProperty({ collides: true });
-      this.setupScene();
-    };
-
-    if (needsLoading) {
-      this.load.once('complete', finishLoad);
-      this.load.start();
-    } else {
-      finishLoad();
+      
+      // Fallback si pas d'intégration
+      console.warn(`⚠️ [${this.scene.key}] Shop reçu mais pas d'intégration shop`);
+      if (typeof window.showNpcDialogue === 'function') {
+        window.showNpcDialogue({
+          portrait: result.portrait || "assets/ui/shop_icon.png",
+          name: "Shop",
+          text: "Ouverture du shop: " + result.shopId
+        });
+      }
+      return;
     }
-  }
-
-  setupScene() {
-    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
-    const baseWidth = this.scale.width;
-    const baseHeight = this.scale.height;
-    const zoomX = baseWidth / this.map.widthInPixels;
-    const zoomY = baseHeight / this.map.heightInPixels;
-    const zoom = Math.min(zoomX, zoomY);
-    this.cameras.main.setZoom(zoom);
-    this.cameras.main.setBackgroundColor('#2d5a3d');
-    this.cameras.main.setRoundPixels(true);
-    this.cameraManager = new CameraManager(this);
-  }
-
-  // --- CLEANUP ---
-  cleanup() {
-    TransitionIntegration.cleanupTransitions(this);
-    const isTransition = this.networkManager?.isTransitioning();
-    if (!isTransition) {
-      if (this.playerManager) this.playerManager.clearAllPlayers();
+    
+    if (result.type === "dialogue") {
+      let npcName = "???";
+      let spriteName = null;
+      let portrait = result.portrait;
+      if (result.npcId && this.npcManager) {
+        console.log("🐛 DEBUG: result.npcId =", result.npcId);
+        console.log("🐛 DEBUG: NPCs disponibles:", this.npcManager.getAllNpcs().map(n => ({id: n.id, name: n.name})));
+        
+        const npc = this.npcManager.getNpcData(result.npcId);
+        console.log("🐛 DEBUG: NPC trouvé =", npc);
+        if (npc) {
+          npcName = npc.name;
+          spriteName = npc.sprite;
+          if (!portrait && spriteName) {
+            portrait = `/assets/portrait/${spriteName}Portrait.png`;
+          }
+        }
+      }
+      
+      if (typeof window.showNpcDialogue === 'function') {
+        window.showNpcDialogue({
+          portrait: portrait || "/assets/portrait/unknownPortrait.png",
+          name: npcName,
+          lines: result.lines || [result.message]
+        });
+      }
     }
-    if (this.npcManager) this.npcManager.clearAllNpcs();
-    this.time.removeAllEvents();
-    this.cameraFollowing = false;
-    this.myPlayerReady = false;
-    this.isSceneReady = false;
-    this.serverZoneConfirmed = false;
-  }
-  setupCleanupHandlers() {
-    this.events.on('shutdown', () => this.cleanup());
-    this.events.on('destroy', () => this.cleanup());
-  }
-
-  // --- UPDATE ---
-  update() {
-    TransitionIntegration.updateTransitions(this);
-    if (this.transitionManager && this.playerManager?.getMyPlayer()) {
-      this.transitionManager.checkCollisions(this.playerManager.getMyPlayer());
+    else if (result.type === "heal") {
+      if (typeof window.showNpcDialogue === 'function') {
+        window.showNpcDialogue({
+          portrait: result.portrait || "assets/ui/heal_icon.png",
+          name: "???",
+          text: result.message || "Vos Pokémon sont soignés !"
+        });
+      }
     }
-    if (this.playerManager) this.playerManager.update();
-    if (this.cameraManager) this.cameraManager.update();
-    if (this.sys.animatedTiles?.update) this.sys.animatedTiles.update();
-    const myPlayer = this.playerManager?.getMyPlayer();
-    if (myPlayer && this.coordsText) {
-      this.coordsText.setText(`Player: x:${Math.round(myPlayer.x)}, y:${Math.round(myPlayer.y)}`);
+    else if (result.type === "questGiver" || result.type === "questComplete" || result.type === "questProgress") {
+      if (window.questSystem && typeof window.questSystem.handleNpcInteraction === 'function') {
+        window.questSystem.handleNpcInteraction(result);
+        return;
+      }
     }
-    this.handleMovement();
-  }
-
-  handleMovement() {
-    const myPlayer = this.playerManager?.getMyPlayer();
-    if (!myPlayer) return;
-
-    const speed = 120;
-    let vx = 0, vy = 0;
-    let moved = false, direction = null;
-
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      vx = -speed; moved = true; direction = 'left';
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-      vx = speed; moved = true; direction = 'right';
+    else if (result.type === "error") {
+      if (typeof window.showNpcDialogue === 'function') {
+        window.showNpcDialogue({
+          portrait: null,
+          name: "Erreur",
+          text: result.message
+        });
+      }
     }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) {
-      vy = -speed; moved = true; direction = 'up';
-    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-      vy = speed; moved = true; direction = 'down';
-    }
-
-    myPlayer.body.setVelocity(vx, vy);
-
-    if (moved && direction) {
-      myPlayer.play(`walk_${direction}`, true);
-      this.lastDirection = direction;
-      myPlayer.isMovingLocally = true;
-    } else {
-      myPlayer.play(`idle_${this.lastDirection}`, true);
-      myPlayer.isMovingLocally = false;
-    }
-
-    if (moved) {
-      const now = Date.now();
-      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-        this.networkManager?.sendMove(
-          myPlayer.x,
-          myPlayer.y,
-          direction || this.lastDirection,
-          moved
-        );
-        this.lastMoveTime = now;
+    else {
+      console.warn("⚠️ Type inconnu:", result);
+      if (typeof window.showNpcDialogue === 'function') {
+        window.showNpcDialogue({
+          portrait: null,
+          name: "???",
+          text: JSON.stringify(result)
+        });
       }
     }
   }
 
-  // --- UTILS ---
-  updateInfoText(text) {
-    if (this.infoText) this.infoText.setText(text);
-  }
-
-  showError(message) {
-    if (window.hideLoadingOverlay) window.hideLoadingOverlay();
-    this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\n${message}`);
-    this.time.delayedCall(5000, () => {
-      this.initializeNetworking?.();
-    });
+  checkPlayerState() {
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.warn(`[${this.scene.key}] Joueur manquant! Tentative de récupération...`);
+      
+      // ✅ NOUVEAU: Tentative de récupération automatique
+      if (this.playerManager && this.mySessionId) {
+        console.log(`🔧 [${this.scene.key}] Tentative de resynchronisation...`);
+        this.playerManager.forceResynchronization();
+      }
+      return false;
+    }
+    
+    let fixed = false;
+    
+    // ✅ Vérifications et corrections automatiques
+    if (!myPlayer.visible) {
+      console.warn(`[${this.scene.key}] Joueur invisible, restauration`);
+      myPlayer.setVisible(true);
+      fixed = true;
+    }
+    
+    if (!myPlayer.active) {
+      console.warn(`[${this.scene.key}] Joueur inactif, restauration`);
+      myPlayer.setActive(true);
+      fixed = true;
+    }
+    
+    // ✅ Vérifier la profondeur
+    if (myPlayer.depth !== 5) {
+      myPlayer.setDepth(5);
+      fixed = true;
+    }
+    
+    if (myPlayer.indicator) {
+      if (!myPlayer.indicator.visible) {
+        console.warn(`[${this.scene.key}] Indicateur invisible, restauration`);
+        myPlayer.indicator.setVisible(true);
+        fixed = true;
+      }
+      
+      // ✅ Synchroniser la position de l'indicateur
+      if (Math.abs(myPlayer.indicator.x - myPlayer.x) > 1 || 
+          Math.abs(myPlayer.indicator.y - (myPlayer.y - 24)) > 1) {
+        myPlayer.indicator.x = myPlayer.x;
+        myPlayer.indicator.y = myPlayer.y - 24;
+        fixed = true;
+      }
+    }
+    
+    if (fixed) {
+      console.log(`[${this.scene.key}] État du joueur corrigé`);
+    }
+    
+    return true;
   }
 
   showNotification(message, type = 'info') {
@@ -594,77 +1326,26 @@ export class BaseZoneScene extends Phaser.Scene {
     ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
 
     this.time.delayedCall(3000, () => {
-      if (notification?.scene) notification.destroy();
+      if (notification && notification.scene) {
+        notification.destroy();
+      }
     });
   }
 
-  getDefaultSpawnPosition() {
-    return { x: 52, y: 48 };
-  }
-
-  // --- ZONE <-> SCENE ---
-  mapSceneToZone(sceneName) {
-    const mapping = {
-      'BeachScene': 'beach',
-      'VillageScene': 'village',
-      'VillageLabScene': 'villagelab',
-      'Road1Scene': 'road1',
-      'VillageHouse1Scene': 'villagehouse1',
-      'LavandiaScene': 'lavandia'
-    };
-    return mapping[sceneName] || sceneName.toLowerCase();
-  }
-  mapZoneToScene(zoneName) {
-    const mapping = {
-      'beach': 'BeachScene',
-      'village': 'VillageScene',
-      'villagelab': 'VillageLabScene',
-      'road1': 'Road1Scene',
-      'villagehouse1': 'VillageHouse1Scene',
-      'lavandia': 'LavandiaScene'
-    };
-    return mapping[zoneName?.toLowerCase()] || null;
-  }
-
+  // ✅ SHOP: Méthodes utilitaires pour l'accès au système shop
   getShopSystem() {
     return this.shopIntegration?.getShopSystem() || null;
   }
+
   isShopOpen() {
     return this.shopIntegration?.getShopSystem()?.isShopOpen() || false;
   }
+
   debugShop() {
-    if (this.shopIntegration) this.shopIntegration.debugShopState();
-  }
-
-  // HOOKS POUR CLASSES ENFANTS
-  onPlayerReady(player) {
-    this.hasStoppedPreviousScene = false;
-    const previousSceneKey = this.initData?.fromScene;
-    if (previousSceneKey && previousSceneKey !== this.scene.key) {
-      const onFirstMove = (event) => {
-        if (!this.hasStoppedPreviousScene) {
-          this.hasStoppedPreviousScene = true;
-          if (this.scene.isActive(previousSceneKey)) {
-            this.scene.stop(previousSceneKey);
-          }
-          this.input.keyboard.off('keydown', onFirstMove, this);
-        }
-      };
-      this.input.keyboard.on('keydown', onFirstMove, this);
+    if (this.shopIntegration) {
+      this.shopIntegration.debugShopState();
+    } else {
+      console.log(`🔍 [${this.scene.key}] Aucune intégration shop`);
     }
-  }
-
-  debugState() {
-    console.log(`🔍 [${this.scene.key}] === DEBUG ÉTAT ===`);
-    console.log(`🎮 Scène prête: ${this.isSceneReady}`);
-    console.log(`👤 Joueur prêt: ${this.myPlayerReady}`);
-    console.log(`🆔 SessionId: ${this.mySessionId}`);
-    console.log(`📍 Zone courante: ${this.currentZone}`);
-    console.log(`✅ Zone confirmée: ${this.serverZoneConfirmed}`);
-    console.log(`📡 NetworkManager: ${!!this.networkManager}`);
-    console.log(`🔌 Connecté: ${this.networkManager?.isConnected || false}`);
-    console.log(`🌀 En transition: ${this.networkManager?.isTransitioning() || false}`);
-    if (this.networkManager) this.networkManager.debugState?.();
-    if (this.transitionManager) this.transitionManager.debugInfo?.();
   }
 }
