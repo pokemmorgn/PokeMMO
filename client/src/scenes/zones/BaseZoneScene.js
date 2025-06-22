@@ -376,6 +376,22 @@ export class BaseZoneScene extends Phaser.Scene {
       console.log(`✅ [${this.scene.key}] Joueur local trouvé: ${this.mySessionId}`);
       if (window.hideLoadingOverlay) window.hideLoadingOverlay();
 
+          // ✅ DEBUG CAMÉRA
+    console.log(`🎥 [${this.scene.key}] Debug caméra:`, {
+      cameraManager: !!this.cameraManager,
+      cameraFollowing: this.cameraFollowing,
+      playerX: myPlayer.x,
+      playerY: myPlayer.y
+    });
+    
+    // ✅ FORCER le suivi caméra
+    if (!this.cameraFollowing && this.cameraManager) {
+      console.log(`[${this.scene.key}] 🎥 FORCER suivi caméra depuis state`);
+      this.cameraManager.followPlayer(myPlayer);
+      this.cameraFollowing = true;
+      console.log(`[${this.scene.key}] 🎥 Caméra activée !`);
+    }
+      
       // ✅ S'assurer que le joueur est visible
       if (!myPlayer.visible) {
         console.log(`🔧 [${this.scene.key}] Forcer visibilité joueur local`);
