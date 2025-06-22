@@ -1,6 +1,6 @@
 // client/src/scenes/zones/BaseZoneScene.js - VERSION WORLDROOM CORRIGÉE AVEC SHOP
 // ✅ Utilise la connexion établie dans main.js au lieu de créer une nouvelle connexion
-// ✅ FIX: Ajout de la méthode onPlayerReady manquante
+// ✅ FIX: Ajout de la méthode onPlayerReady manquante + correction syntaxe
 
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
@@ -696,6 +696,30 @@ export class BaseZoneScene extends Phaser.Scene {
     return mapping[sceneName] || sceneName.toLowerCase();
   }
 
+  mapZoneToScene(zoneName) {
+    const mapping = {
+      'beach': 'BeachScene',
+      'village': 'VillageScene', 
+      'villagelab': 'VillageLabScene',
+      'road1': 'Road1Scene',
+      'villagehouse1': 'VillageHouse1Scene',
+      'lavandia': 'LavandiaScene'
+    };
+    return mapping[zoneName.toLowerCase()] || zoneName;
+  }
+
+  normalizeZoneName(sceneName) {
+    const mapping = {
+      'BeachScene': 'beach',
+      'VillageScene': 'village',
+      'VillageLabScene': 'villagelab',
+      'Road1Scene': 'road1',
+      'VillageHouse1Scene': 'villagehouse1',
+      'LavandiaScene': 'lavandia'
+    };
+    return mapping[sceneName] || sceneName.toLowerCase();
+  }
+
   getProperty(object, propertyName) {
     if (!object.properties) return null;
     const prop = object.properties.find(p => p.name === propertyName);
@@ -1101,30 +1125,6 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-  mapZoneToScene(zoneName) {
-    const mapping = {
-      'beach': 'BeachScene',
-      'village': 'VillageScene', 
-      'villagelab': 'VillageLabScene',
-      'road1': 'Road1Scene',
-      'villagehouse1': 'VillageHouse1Scene',
-      'lavandia': 'LavandiaScene'
-    };
-    return mapping[zoneName.toLowerCase()] || zoneName;
-  }
-
-  normalizeZoneName(sceneName) {
-    const mapping = {
-      'BeachScene': 'beach',
-      'VillageScene': 'village',
-      'VillageLabScene': 'villagelab',
-      'Road1Scene': 'road1',
-      'VillageHouse1Scene': 'villagehouse1',
-      'LavandiaScene': 'lavandia'
-    };
-    return mapping[sceneName] || sceneName.toLowerCase();
-  }
-
   // ✅ Méthodes utilitaires pour l'accès au système shop
   getShopSystem() {
     return this.shopIntegration?.getShopSystem() || null;
@@ -1141,28 +1141,4 @@ export class BaseZoneScene extends Phaser.Scene {
       console.log(`🔍 [${this.scene.key}] Aucune intégration shop`);
     }
   }
-}toLowerCase();
-  }
-
-  mapZoneToScene(zoneName) {
-    const mapping = {
-      'beach': 'BeachScene',
-      'village': 'VillageScene', 
-      'villagelab': 'VillageLabScene',
-      'road1': 'Road1Scene',
-      'villagehouse1': 'VillageHouse1Scene',
-      'lavandia': 'LavandiaScene'
-    };
-    return mapping[zoneName.toLowerCase()] || zoneName;
-  }
-
-  normalizeZoneName(sceneName) {
-    const mapping = {
-      'BeachScene': 'beach',
-      'VillageScene': 'village',
-      'VillageLabScene': 'villagelab',
-      'Road1Scene': 'road1',
-      'VillageHouse1Scene': 'villagehouse1',
-      'LavandiaScene': 'lavandia'
-    };
-    return mapping[sceneName] || sceneName.
+}
