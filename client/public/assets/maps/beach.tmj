@@ -243,11 +243,6 @@
                          "name":"targetspawn",
                          "type":"string",
                          "value":"fromvillage"
-                        }, 
-                        {
-                         "name":"targetzone",
-                         "type":"string",
-                         "value":"beach"
                         }],
                  "rotation":0,
                  "type":"",
@@ -479,8 +474,8 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":10,
- "nextobjectid":90,
+ "nextlayerid":11,
+ "nextobjectid":91,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

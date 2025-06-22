@@ -238,11 +238,6 @@
                          "name":"targetspawn",
                          "type":"string",
                          "value":"frombeach"
-                        }, 
-                        {
-                         "name":"targetzone",
-                         "type":"string",
-                         "value":"village"
                         }],
                  "rotation":0,
                  "type":"",
@@ -554,7 +549,7 @@
                         {
                          "name":"sprite",
                          "type":"string",
-                         "value":"OldMan"
+                         "value":"bobvillage"
                         }, 
                         {
                          "name":"trainerId",
