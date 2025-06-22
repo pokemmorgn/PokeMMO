@@ -372,8 +372,8 @@ export class TransitionManager {
 
       // ✅ STRATÉGIE AGGRESSIVE POUR RETÉLÉPORTATION
       if (this.transitionStrategy === 'aggressive') {
-        await this.aggressiveSceneTransition(targetSceneKey, result);
-      } else if (this.transitionStrategy === 'recreate') {
+    await this.cleanSceneRestart(targetSceneKey, result); // ← Force clean au lieu d'aggressive
+} else if (this.transitionStrategy === 'recreate') {
         await this.fullSceneRecreation(targetSceneKey, result);
       } else {
         await this.cleanSceneRestart(targetSceneKey, result);
