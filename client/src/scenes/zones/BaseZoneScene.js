@@ -77,7 +77,7 @@ export class BaseZoneScene extends Phaser.Scene {
 
     // ✅ NOUVEAU: Timer de vérification caméra
 this.time.addEvent({
-  delay: 1000,
+  delay: 100,
   callback: this.checkCameraActivation,
   callbackScope: this,
   repeat: 5 // Vérifier 5 fois max
