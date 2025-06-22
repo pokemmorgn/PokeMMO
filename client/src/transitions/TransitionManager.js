@@ -378,6 +378,29 @@ handleTransitionSuccess(result, teleportData) {
     // La scène cible existe déjà (potentiellement inactive/zombie)
     console.log(`[TransitionManager] ⚠️ La scène ${targetScene} existe déjà, remove() forcé avant start`);
     this.scene.scene.remove(targetScene);
+
+    // === AJOUT: Réenregistrer la classe de la scène ===
+    // ⚠️ À adapter si besoin selon tes imports réels (doit être au début du fichier !)
+    const sceneClassMap = {
+      'BeachScene': BeachScene,
+      'VillageScene': VillageScene,
+      'VillageLabScene': VillageLabScene,
+      'Road1Scene': Road1Scene,
+      'VillageHouse1Scene': VillageHouse1Scene,
+      'LavandiaScene': LavandiaScene
+    };
+
+    const sceneClass = sceneClassMap[targetScene];
+    if (sceneClass) {
+      this.scene.scene.add(targetScene, sceneClass, false);
+      console.log(`[TransitionManager] ✅ Scène ${targetScene} réenregistrée après remove`);
+    } else {
+      console.error(`[TransitionManager] ❌ Impossible de réenregistrer la scène: ${targetScene}`);
+      this.showErrorPopup(`Impossible de réenregistrer la scène: ${targetScene}`);
+      this.isTransitioning = false;
+      this.hideLoadingOverlay();
+      return;
+    }
   }
 
   console.log(`[TransitionManager] 🚀 Changement vers: ${targetScene}`);
@@ -395,6 +418,7 @@ handleTransitionSuccess(result, teleportData) {
   // LE LOADING SERA MASQUÉ PAR LA NOUVELLE SCÈNE
   this.scene.scene.start(targetScene, transitionData);
 }
+
 
 
   // ✅ ERREUR DE TRANSITION
