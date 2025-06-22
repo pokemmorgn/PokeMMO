@@ -15,7 +15,6 @@ export class Player extends Schema {
   @type("string") id: string = ""; // ID de session
   @type("number") x: number = 300;
   @type("number") y: number = 300;
-  @type("string") map: string = "";
   @type("string") name: string = "";
   @type("string") direction: string = "down";
   @type("boolean") isMoving: boolean = false;
