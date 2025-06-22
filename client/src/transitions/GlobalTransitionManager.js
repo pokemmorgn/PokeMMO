@@ -879,90 +879,143 @@ export class GlobalTransitionManager {
   }
 
   // ✅ NOUVELLE MÉTHODE : Vérifier et corriger position spawn
-  checkAndFixSpawnPosition(player, result) {
-    console.log(`🔍 [GlobalTransitionManager] === VÉRIFICATION SPAWN SÉCURISÉ ===`);
+ checkAndFixSpawnPosition(player, result) {
+  console.log(`🔍 [GlobalTransitionManager] === VÉRIFICATION SPAWN SÉCURISÉ ===`);
+  
+  let spawnX = result.position?.x || player.x;
+  let spawnY = result.position?.y || player.y;
+  
+  console.log(`📍 Position serveur originale: (${spawnX}, ${spawnY})`);
+  
+  // Vérifier collision avec TOUS les téléports de la scène cible
+  let isOnTeleport = false;
+  let conflictingTeleports = [];
+  
+  this.teleportZones.forEach((teleportData) => {
+    if (teleportData.sceneKey !== this.currentScene.scene.key) return;
     
-    let spawnX = result.position?.x || player.x;
-    let spawnY = result.position?.y || player.y;
+    // ✅ NOUVELLE LOGIQUE : Ajouter une marge de sécurité
+    const SAFETY_MARGIN = 40; // 40 pixels de marge
     
-    console.log(`📍 Position serveur originale: (${spawnX}, ${spawnY})`);
+    // Simuler la position du joueur avec marge
+    const playerBounds = {
+      x: spawnX - 16 - SAFETY_MARGIN,
+      y: spawnY - 32 - SAFETY_MARGIN,
+      width: 32 + (SAFETY_MARGIN * 2),
+      height: 32 + (SAFETY_MARGIN * 2)
+    };
     
-    // Vérifier collision avec TOUS les téléports de la scène cible
-    let isOnTeleport = false;
-    let conflictingTeleports = [];
+    const teleportBounds = {
+      x: teleportData.x,
+      y: teleportData.y,
+      width: teleportData.width,
+      height: teleportData.height
+    };
     
-    this.teleportZones.forEach((teleportData) => {
-      if (teleportData.sceneKey !== this.currentScene.scene.key) return;
-      
-      // Simuler la position du joueur
-      const playerBounds = {
-        x: spawnX - 16,
-        y: spawnY - 32,
-        width: 32,
-        height: 32
-      };
-      
-      const teleportBounds = {
-        x: teleportData.x,
-        y: teleportData.y,
-        width: teleportData.width,
-        height: teleportData.height
-      };
-      
-      const collision = (
-        playerBounds.x < teleportBounds.x + teleportBounds.width &&
-        playerBounds.x + playerBounds.width > teleportBounds.x &&
-        playerBounds.y < teleportBounds.y + teleportBounds.height &&
-        playerBounds.y + playerBounds.height > teleportBounds.y
-      );
-      
-      if (collision) {
-        isOnTeleport = true;
-        conflictingTeleports.push(teleportData);
-        console.warn(`⚠️ [GlobalTransitionManager] SPAWN SUR TÉLÉPORT: ${teleportData.id}`);
-        console.warn(`   Zone téléport: (${teleportData.x}, ${teleportData.y}) ${teleportData.width}x${teleportData.height}`);
-        console.warn(`   Destination: ${teleportData.targetZone}[${teleportData.targetSpawn}]`);
-      }
-    });
+    const collision = (
+      playerBounds.x < teleportBounds.x + teleportBounds.width &&
+      playerBounds.x + playerBounds.width > teleportBounds.x &&
+      playerBounds.y < teleportBounds.y + teleportBounds.height &&
+      playerBounds.y + playerBounds.height > teleportBounds.y
+    );
     
-    // Si spawn sur téléport → décaler la position
-    if (isOnTeleport && conflictingTeleports.length > 0) {
-      console.log(`🚨 [GlobalTransitionManager] === CORRECTION POSITION SPAWN ===`);
-      console.log(`🚨 Téléports en conflit: ${conflictingTeleports.length}`);
-      
-      const primaryTeleport = conflictingTeleports[0];
-      
-      // Décaler de 80 pixels dans la direction opposée au téléport
-      const teleportCenterX = primaryTeleport.x + primaryTeleport.width / 2;
-      const teleportCenterY = primaryTeleport.y + primaryTeleport.height / 2;
-      
-      const deltaX = spawnX - teleportCenterX;
-      const deltaY = spawnY - teleportCenterY;
-      
-      console.log(`🚨 Delta depuis centre téléport: (${deltaX}, ${deltaY})`);
-      
-      // Décaler dans la direction opposée
-      if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        // Décaler horizontalement
-        spawnX += deltaX > 0 ? 80 : -80;
-        console.log(`🚨 Décalage horizontal: ${deltaX > 0 ? '+80' : '-80'}`);
-      } else {
-        // Décaler verticalement
-        spawnY += deltaY > 0 ? 80 : -80;
-        console.log(`🚨 Décalage vertical: ${deltaY > 0 ? '+80' : '-80'}`);
-      }
-      
-      console.log(`🔧 [GlobalTransitionManager] Position corrigée: (${spawnX}, ${spawnY})`);
-      
-      // Prolonger la protection spawn
-      this.activateSpawnProtection(5000); // 5 secondes
-      console.log(`🛡️ [GlobalTransitionManager] Protection spawn prolongée à 5s`);
+    if (collision) {
+      isOnTeleport = true;
+      conflictingTeleports.push(teleportData);
+      console.warn(`⚠️ [GlobalTransitionManager] SPAWN TROP PROCHE TÉLÉPORT: ${teleportData.id}`);
+      console.warn(`   Zone téléport: (${teleportData.x}, ${teleportData.y}) ${teleportData.width}x${teleportData.height}`);
+      console.warn(`   Position joueur: (${spawnX}, ${spawnY})`);
+      console.warn(`   Distance: ${Math.sqrt(Math.pow(spawnX - (teleportData.x + teleportData.width/2), 2) + Math.pow(spawnY - (teleportData.y + teleportData.height/2), 2))} pixels`);
+    }
+  });
+  
+  // Si spawn sur/près téléport → décaler la position
+  if (isOnTeleport && conflictingTeleports.length > 0) {
+    console.log(`🚨 [GlobalTransitionManager] === CORRECTION POSITION SPAWN ===`);
+    console.log(`🚨 Téléports en conflit: ${conflictingTeleports.length}`);
+    
+    const primaryTeleport = conflictingTeleports[0];
+    
+    // ✅ DÉCALAGE PLUS IMPORTANT : 120 pixels minimum
+    const SAFE_DISTANCE = 120;
+    
+    const teleportCenterX = primaryTeleport.x + primaryTeleport.width / 2;
+    const teleportCenterY = primaryTeleport.y + primaryTeleport.height / 2;
+    
+    const deltaX = spawnX - teleportCenterX;
+    const deltaY = spawnY - teleportCenterY;
+    
+    console.log(`🚨 Delta depuis centre téléport: (${deltaX}, ${deltaY})`);
+    
+    // ✅ NOUVELLE LOGIQUE : Toujours décaler dans la direction qui éloigne le plus
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Décaler horizontalement avec distance sûre
+      spawnX += deltaX > 0 ? SAFE_DISTANCE : -SAFE_DISTANCE;
+      console.log(`🚨 Décalage horizontal sécurisé: ${deltaX > 0 ? '+' : '-'}${SAFE_DISTANCE}`);
     } else {
-      console.log(`✅ [GlobalTransitionManager] Position spawn sécurisée, aucune correction nécessaire`);
+      // Décaler verticalement avec distance sûre
+      spawnY += deltaY > 0 ? SAFE_DISTANCE : -SAFE_DISTANCE;
+      console.log(`🚨 Décalage vertical sécurisé: ${deltaY > 0 ? '+' : '-'}${SAFE_DISTANCE}`);
     }
     
-    return { x: spawnX, y: spawnY, wasCorrected: isOnTeleport };
+    // ✅ VÉRIFICATION SUPPLÉMENTAIRE : S'assurer qu'on n'est pas sur un autre téléport
+    let attempts = 0;
+    while (attempts < 3) {
+      let stillConflicting = false;
+      
+      this.teleportZones.forEach((teleportData) => {
+        if (teleportData.sceneKey !== this.currentScene.scene.key) return;
+        
+        const playerBounds = {
+          x: spawnX - 16,
+          y: spawnY - 32,
+          width: 32,
+          height: 32
+        };
+        
+        const teleportBounds = {
+          x: teleportData.x,
+          y: teleportData.y,
+          width: teleportData.width,
+          height: teleportData.height
+        };
+        
+        const collision = (
+          playerBounds.x < teleportBounds.x + teleportBounds.width &&
+          playerBounds.x + playerBounds.width > teleportBounds.x &&
+          playerBounds.y < teleportBounds.y + teleportBounds.height &&
+          playerBounds.y + playerBounds.height > teleportBounds.y
+        );
+        
+        if (collision) {
+          stillConflicting = true;
+        }
+      });
+      
+      if (!stillConflicting) {
+        break;
+      }
+      
+      // Décaler encore plus loin
+      spawnX += deltaX > 0 ? 60 : -60;
+      spawnY += deltaY > 0 ? 60 : -60;
+      attempts++;
+      
+      console.warn(`🔄 Tentative ${attempts + 1}: Décalage supplémentaire vers (${spawnX}, ${spawnY})`);
+    }
+    
+    console.log(`🔧 [GlobalTransitionManager] Position finale corrigée: (${spawnX}, ${spawnY})`);
+    
+    // ✅ PROTECTION SPAWN LONGUE
+    this.activateSpawnProtection(8000); // 8 secondes de protection
+    console.log(`🛡️ [GlobalTransitionManager] Protection spawn renforcée à 8s`);
+    
+  } else {
+    console.log(`✅ [GlobalTransitionManager] Position spawn sécurisée, aucune correction nécessaire`);
   }
+  
+  return { x: spawnX, y: spawnY, wasCorrected: isOnTeleport };
+}
 
   // ✅ NOUVELLE MÉTHODE : Vérifier sécurité post-repositionnement
   verifyRepositionSafety(player) {
