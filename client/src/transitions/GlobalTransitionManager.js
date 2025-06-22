@@ -211,30 +211,37 @@ export class GlobalTransitionManager {
   }
 
   // ✅ CHECK COLLISIONS GLOBAL
-  checkCollisions(player) {
-    if (!this.isActive || !player || this.isTransitioning || !this.currentScene) return;
+checkCollisions(player) {
+  if (!this.isActive || !player || this.isTransitioning || !this.currentScene) return;
 
-    // ✅ Vérifier délai de grâce GLOBAL
-    const now = Date.now();
-    if (this.graceTime > now) {
-      if (!this.lastGraceLogTime || now - this.lastGraceLogTime > 2000) {
-        const remaining = Math.ceil((this.graceTime - now) / 1000);
-        console.log(`🛡️ [GlobalTransitionManager] Délai de grâce: ${remaining}s restantes`);
-        this.lastGraceLogTime = now;
-      }
+  const now = Date.now();
+
+  // ➤ Protéger TOUTE détection pendant la grace
+  if (this.graceTime > now) {
+    if (!this.lastGraceLogTime || now - this.lastGraceLogTime > 2000) {
+      const remaining = Math.ceil((this.graceTime - now) / 1000);
+      console.log(`🛡️ [GlobalTransitionManager] Délai de grâce: ${remaining}s restantes`);
+      this.lastGraceLogTime = now;
+    }
+    return;
+  }
+
+  this.teleportZones.forEach((teleportData) => {
+    if (teleportData.sceneKey !== this.currentScene.scene.key) return;
+
+    // ➤ Ignore le téléport sur lequel on vient d'arriver pendant la grace
+    if (this.lastTeleportId && teleportData.id === this.lastTeleportId) {
+      // Facultatif: Ajoute un log debug
+      // console.log(`🛑 [GlobalTransitionManager] Ignore collision avec dernier téléport utilisé (${teleportData.id})`);
       return;
     }
 
-    // ✅ Vérifier seulement les téléports de la scène actuelle
-    this.teleportZones.forEach((teleportData) => {
-      if (teleportData.sceneKey !== this.currentScene.scene.key) return;
-      
-      if (this.isPlayerCollidingWithTeleport(player, teleportData)) {
-        console.log(`💥 [GlobalTransitionManager] COLLISION: ${teleportData.id}!`);
-        this.triggerTransition(teleportData);
-      }
-    });
-  }
+    if (this.isPlayerCollidingWithTeleport(player, teleportData)) {
+      console.log(`💥 [GlobalTransitionManager] COLLISION: ${teleportData.id}!`);
+      this.triggerTransition(teleportData);
+    }
+  });
+}
 
   // ✅ Collision (identique)
   isPlayerCollidingWithTeleport(player, teleportData) {
@@ -285,6 +292,8 @@ export class GlobalTransitionManager {
 
     console.log(`📍 [GlobalTransitionManager] Transition: ${teleportData.fromZone} → ${teleportData.targetZone}`);
 
+    this.lastTeleportId = teleportData.id;
+    
     this.isTransitioning = true;
     this.currentTransitionData = teleportData;
 
@@ -403,6 +412,11 @@ export class GlobalTransitionManager {
     // ✅ ACTIVER DÉLAI DE GRÂCE GLOBAL
     this.activateGracePeriod();
 
+      // ➤ Réinitialise l'ID après la période de grâce
+  setTimeout(() => {
+    this.lastTeleportId = null;
+  }, this.graceDuration + 100); // 100ms de marge
+    
     // ✅ Changement de scène
     if (targetScene !== this.currentScene.scene.key) {
       console.log(`🔄 [GlobalTransitionManager] Changement: ${this.currentScene.scene.key} → ${targetScene}`);
