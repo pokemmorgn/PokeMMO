@@ -1233,6 +1233,26 @@ export class BaseZoneScene extends Phaser.Scene {
     return this.shopIntegration?.getShopSystem() || null;
   }
 
+  // Ajoute cette méthode dans BaseZoneScene.js
+forceActivateCamera() {
+  const myPlayer = this.playerManager?.getMyPlayer();
+  
+  console.log(`🎥 [${this.scene.key}] === FORCE ACTIVATION CAMÉRA ===`);
+  console.log(`- Player exists: ${!!myPlayer}`);
+  console.log(`- CameraManager exists: ${!!this.cameraManager}`);
+  console.log(`- CameraFollowing: ${this.cameraFollowing}`);
+  
+  if (myPlayer && this.cameraManager && !this.cameraFollowing) {
+    console.log(`🎥 [${this.scene.key}] 🚀 ACTIVATION CAMÉRA FORCÉE`);
+    this.cameraManager.followPlayer(myPlayer);
+    this.cameraFollowing = true;
+    
+    // Snap la caméra immédiatement
+    this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
+    console.log(`✅ [${this.scene.key}] Caméra activée et centrée !`);
+  }
+}
+  
   isShopOpen() {
     return this.shopIntegration?.getShopSystem()?.isShopOpen() || false;
   }
