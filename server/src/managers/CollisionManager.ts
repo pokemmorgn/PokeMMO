@@ -11,6 +11,7 @@ export class CollisionManager {
   }
 
   loadCollisionsFromMap(mapPath: string) {
+    // Force .tmj et le chemin absolu
     const fileName = mapPath.endsWith('.tmj') ? mapPath : mapPath.replace(/\.[^.]+$/, '') + '.tmj';
     const resolvedPath = path.resolve(__dirname, "../../build/assets/maps", fileName);
 
@@ -25,23 +26,25 @@ export class CollisionManager {
     this.tileHeight = mapData.tileheight;
 
     let collisionsCount = 0;
+
+    // Support : objets "collides" sur les objectgroups
     for (const layer of mapData.layers) {
-      if (layer.type !== "objectgroup" || !layer.objects) continue;
+      if (layer.type === "objectgroup" && Array.isArray(layer.objects)) {
+        for (const obj of layer.objects) {
+          if (
+            obj.properties &&
+            obj.properties.some((p: any) => p.name === "collides" && p.value === true)
+          ) {
+            const startX = Math.floor(obj.x / this.tileWidth);
+            const startY = Math.floor(obj.y / this.tileHeight);
+            const width = Math.max(1, Math.ceil((obj.width || this.tileWidth) / this.tileWidth));
+            const height = Math.max(1, Math.ceil((obj.height || this.tileHeight) / this.tileHeight));
 
-      for (const obj of layer.objects) {
-        if (
-          obj.properties &&
-          obj.properties.some((p: any) => p.name === "collides" && p.value === true)
-        ) {
-          const startX = Math.floor(obj.x / this.tileWidth);
-          const startY = Math.floor(obj.y / this.tileHeight);
-          const width = Math.max(1, Math.ceil((obj.width || this.tileWidth) / this.tileWidth));
-          const height = Math.max(1, Math.ceil((obj.height || this.tileHeight) / this.tileHeight));
-
-          for (let x = 0; x < width; x++) {
-            for (let y = 0; y < height; y++) {
-              this.collisionTiles.add(`${startX + x},${startY + y}`);
-              collisionsCount++;
+            for (let dx = 0; dx < width; dx++) {
+              for (let dy = 0; dy < height; dy++) {
+                this.collisionTiles.add(`${startX + dx},${startY + dy}`);
+                collisionsCount++;
+              }
             }
           }
         }
