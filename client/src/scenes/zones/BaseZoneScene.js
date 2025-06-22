@@ -715,50 +715,75 @@ isSceneStillValid(expectedScene) {
     });
   }
 
-  handleMovement(myPlayerState) {
-    const speed = 120;
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (!myPlayer) return;
+ handleMovement(myPlayerState) {
+  const speed = 120;
+  const myPlayer = this.playerManager.getMyPlayer();
+  if (!myPlayer) return;
 
-    let vx = 0, vy = 0;
-    let moved = false, direction = null;
+  let vx = 0, vy = 0;
+  let moved = false, direction = null;
 
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      vx = -speed; moved = true; direction = 'left';
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-      vx = speed; moved = true; direction = 'right';
-    }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) {
-      vy = -speed; moved = true; direction = 'up';
-    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-      vy = speed; moved = true; direction = 'down';
-    }
-
-    myPlayer.body.setVelocity(vx, vy);
-
-    if (moved && direction) {
-      myPlayer.play(`walk_${direction}`, true);
-      this.lastDirection = direction;
-      myPlayer.isMovingLocally = true;
-    } else {
-      myPlayer.play(`idle_${this.lastDirection}`, true);
-      myPlayer.isMovingLocally = false;
-    }
-
-    if (moved) {
-      const now = Date.now();
-      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-        this.networkManager.sendMove(
-          myPlayer.x,
-          myPlayer.y,
-          direction || this.lastDirection,
-          moved
-        );
-        this.lastMoveTime = now;
-      }
-    }
+  if (this.cursors.left.isDown || this.wasd.A.isDown) {
+    vx = -speed; moved = true; direction = 'left';
+  } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+    vx = speed; moved = true; direction = 'right';
+  }
+  if (this.cursors.up.isDown || this.wasd.W.isDown) {
+    vy = -speed; moved = true; direction = 'up';
+  } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+    vy = speed; moved = true; direction = 'down';
   }
 
+  // ✅ VÉRIFICATION COLLISION - MOUVEMENT FLUIDE CONTRE LES MURS
+  if (moved && this.clientCollisionManager) {
+    // Vérifier chaque axe séparément pour permettre le glissement
+    const deltaTime = 1/60;
+    const nextX = myPlayer.x + (vx * deltaTime);
+    const nextY = myPlayer.y + (vy * deltaTime);
+    
+    // Vérifier X uniquement
+    if (vx !== 0 && this.clientCollisionManager.isBlocked(nextX, myPlayer.y)) {
+      vx = 0; // Bloquer seulement l'axe X
+      console.log(`🚫 [ClientCollision] Axe X bloqué`);
+    }
+    
+    // Vérifier Y uniquement  
+    if (vy !== 0 && this.clientCollisionManager.isBlocked(myPlayer.x, nextY)) {
+      vy = 0; // Bloquer seulement l'axe Y
+      console.log(`🚫 [ClientCollision] Axe Y bloqué`);
+    }
+    
+    // Si les deux axes sont bloqués, pas de mouvement
+    moved = (vx !== 0 || vy !== 0);
+  }
+
+  // Appliquer la vélocité (peut être partiellement bloquée)
+  myPlayer.body.setVelocity(vx, vy);
+
+  // Animations basées sur l'input original (pas la vélocité finale)
+  if (moved && direction) {
+    myPlayer.play(`walk_${direction}`, true);
+    this.lastDirection = direction;
+    myPlayer.isMovingLocally = true;
+  } else {
+    myPlayer.play(`idle_${this.lastDirection}`, true);
+    myPlayer.isMovingLocally = false;
+  }
+
+  // Envoi réseau seulement si mouvement réel
+  if (moved) {
+    const now = Date.now();
+    if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+      this.networkManager.sendMove(
+        myPlayer.x,
+        myPlayer.y,
+        direction || this.lastDirection,
+        moved
+      );
+      this.lastMoveTime = now;
+    }
+  }
+}
   // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
   mapSceneToZone(sceneName) {
