@@ -33,6 +33,9 @@ export class BaseZoneScene extends Phaser.Scene {
     this.isSceneReady = false;
     this.networkSetupComplete = false;
 
+    //grace
+    this.justArrivedAtZone = false; // <--- ajoute ici
+
     // Shop
     this.shopIntegration = null;
   }
