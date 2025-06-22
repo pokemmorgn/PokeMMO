@@ -1101,6 +1101,30 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
+  mapZoneToScene(zoneName) {
+    const mapping = {
+      'beach': 'BeachScene',
+      'village': 'VillageScene', 
+      'villagelab': 'VillageLabScene',
+      'road1': 'Road1Scene',
+      'villagehouse1': 'VillageHouse1Scene',
+      'lavandia': 'LavandiaScene'
+    };
+    return mapping[zoneName.toLowerCase()] || zoneName;
+  }
+
+  normalizeZoneName(sceneName) {
+    const mapping = {
+      'BeachScene': 'beach',
+      'VillageScene': 'village',
+      'VillageLabScene': 'villagelab',
+      'Road1Scene': 'road1',
+      'VillageHouse1Scene': 'villagehouse1',
+      'LavandiaScene': 'lavandia'
+    };
+    return mapping[sceneName] || sceneName.toLowerCase();
+  }
+
   // ✅ Méthodes utilitaires pour l'accès au système shop
   getShopSystem() {
     return this.shopIntegration?.getShopSystem() || null;
@@ -1142,4 +1166,3 @@ export class BaseZoneScene extends Phaser.Scene {
       'LavandiaScene': 'lavandia'
     };
     return mapping[sceneName] || sceneName.
-      }
