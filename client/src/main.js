@@ -8,6 +8,7 @@ import { VillageLabScene } from './scenes/zones/VillageLabScene.js';
 import { VillageHouse1Scene } from './scenes/zones/VillageHouse1Scene.js';
 import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 
+
 // === Colyseus.js ===
 import { Client } from 'colyseus.js';
 
@@ -36,7 +37,11 @@ const ENDPOINT =
   (location.port ? ":" + location.port : "") +
   "/ws";
 
-const colyseus = new Client(ENDPOINT);
+if (!window.colyseus) {
+  window.colyseus = new Client(ENDPOINT);
+}
+
+window.currentGameRoom = null; // tu la set après chaque join
 
 function getWalletFromUrl() {
   const params = new URLSearchParams(window.location.search);
