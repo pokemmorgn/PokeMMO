@@ -179,17 +179,17 @@ const config = {
   VillageScene,
   VillageLabScene,
   VillageHouse1Scene,
-  VillageHouse2Scene,
-  VillageFloristScene,
+//  VillageHouse2Scene,
+//  VillageFloristScene,
 
   // Beach
   BeachScene,
 
   // Road
   Road1Scene,
-  Road1HouseScene,
-  Road2Scene,
-  Road3Scene,
+//  Road1HouseScene,
+//  Road2Scene,
+//  Road3Scene,
 
   // Lavandia
   LavandiaScene,
@@ -212,9 +212,9 @@ const config = {
   LavandiaShopScene,
 
   // NoctherCave
-  NoctherCave1Scene,
-  NoctherCave2Scene,
-  NoctherCave2BisScene
+//  NoctherCave1Scene,
+//  NoctherCave2Scene,
+//  NoctherCave2BisScene
 ],
   physics: {
     default: 'arcade',
