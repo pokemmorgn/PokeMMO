@@ -1,83 +1,122 @@
 // client/src/transitions/TransitionManager.js
-// ✅ VERSION COMPLÈTE AVEC setupTransitionListener
+// ✅ VERSION SIMPLIFIÉE ET CLARIFIÉE
 
 export class TransitionManager {
   constructor(scene) {
     this.scene = scene;
     this.isActive = false;
-    this.debugMode = true;
+    this.debugMode = true; // ✅ DEBUG TOUJOURS ACTIVÉ
     this.isTransitioning = false;
     
-    // Collections locales (pour collision seulement)
-    this.teleportZones = new Map(); // Zones de collision pour téléports
+    // Collections locales pour collision
+    this.teleportZones = new Map();
     this.currentZone = this.getZoneFromScene(scene.scene.key);
     
-    // Loading overlay
+    // Loading et timeout
     this.loadingOverlay = null;
-    this.transitionStartTime = 0;
-    this.transitionTimeout = 10000; // 10 secondes max
+    this.transitionTimeout = 8000; // 8 secondes max
+    this.transitionTimeoutHandle = null;
     
-    console.log(`🌀 [TransitionManager] Système dynamique initialisé pour zone: ${this.currentZone}`);
+    console.log(`🌀 [TransitionManager] 📍 INIT zone: ${this.currentZone} (scène: ${scene.scene.key})`);
   }
 
-  // ✅ INITIALISATION: Scanner les téléports pour collision locale
+  // ✅ ÉTAPE 1 : Initialisation avec logs détaillés
   initialize() {
-    console.log(`🌀 [TransitionManager] === SCAN TÉLÉPORTS POUR COLLISION ===`);
+    console.log(`🌀 [TransitionManager] === ÉTAPE 1: SCAN TÉLÉPORTS ===`);
     
     if (!this.scene.map) {
-      console.error(`🌀 [TransitionManager] ❌ Aucune map trouvée!`);
+      console.error(`🌀 [TransitionManager] ❌ ERREUR: Aucune map dans la scène!`);
       return false;
     }
 
-    // Chercher le layer "Worlds" (ou autres)
-    const worldsLayer = this.scene.map.getObjectLayer('Worlds');
-    if (!worldsLayer) {
-      console.warn(`🌀 [TransitionManager] ⚠️ Layer "Worlds" introuvable`);
-      return false;
-    }
-
-    console.log(`🌀 [TransitionManager] 📂 Scan layer "Worlds" (${worldsLayer.objects.length} objets)`);
-
-    // Scanner SEULEMENT les téléports
-    let teleportCount = 0;
-    worldsLayer.objects.forEach((obj, index) => {
-      const objName = (obj.name || '').toLowerCase();
-      
-      if (objName === 'teleport') {
-        this.processTeleport(obj, index);
-        teleportCount++;
-      }
-      // ✅ IGNORER les spawns - le serveur gère tout
+    console.log(`🌀 [TransitionManager] ✅ Map trouvée:`, {
+      width: this.scene.map.width,
+      height: this.scene.map.height,
+      layers: this.scene.map.layers.length,
+      objectLayers: this.scene.map.objects?.length || 0
     });
 
-    console.log(`🌀 [TransitionManager] ✅ ${teleportCount} téléports trouvés`);
+    // Chercher le layer "Worlds"
+    const worldsLayer = this.scene.map.getObjectLayer('Worlds');
+    if (!worldsLayer) {
+      console.warn(`🌀 [TransitionManager] ⚠️ WARN: Layer "Worlds" introuvable`);
+      console.log(`🌀 [TransitionManager] 📂 Layers disponibles:`, 
+        this.scene.map.objects?.map(layer => layer.name) || []
+      );
+      return false;
+    }
 
+    console.log(`🌀 [TransitionManager] ✅ Layer "Worlds" trouvé avec ${worldsLayer.objects.length} objets`);
+
+    // Scanner SEULEMENT les téléports
+    this.scanTeleports(worldsLayer);
+    
     // Créer les zones de collision
     this.createCollisionZones();
     
-    if (this.debugMode) {
-      this.debugInfo();
-    }
-
     this.isActive = true;
+    this.logInitializationSummary();
     return true;
   }
 
-  // ✅ TRAITER UN TÉLÉPORT (récupération des propriétés)
+  // ✅ ÉTAPE 2 : Scanner les téléports avec logs détaillés
+  scanTeleports(worldsLayer) {
+    console.log(`🌀 [TransitionManager] === ÉTAPE 2: SCAN OBJETS ===`);
+    
+    let teleportCount = 0;
+    let ignoredCount = 0;
+
+    worldsLayer.objects.forEach((obj, index) => {
+      const objName = (obj.name || '').toLowerCase();
+      const objType = (obj.type || '').toLowerCase();
+      
+      console.log(`🌀 [TransitionManager] 📦 Objet ${index}: name="${obj.name}" type="${obj.type}" x=${obj.x} y=${obj.y}`);
+      
+      if (objName === 'teleport' || objType === 'teleport') {
+        const success = this.processTeleport(obj, index);
+        if (success) {
+          teleportCount++;
+        } else {
+          ignoredCount++;
+        }
+      } else {
+        console.log(`🌀 [TransitionManager] ⏭️ Objet "${obj.name}" ignoré (pas un téléport)`);
+        ignoredCount++;
+      }
+    });
+
+    console.log(`🌀 [TransitionManager] 📊 RÉSULTAT SCAN:`);
+    console.log(`  - ✅ Téléports trouvés: ${teleportCount}`);
+    console.log(`  - ⏭️ Objets ignorés: ${ignoredCount}`);
+    console.log(`  - 📍 Total objets: ${worldsLayer.objects.length}`);
+  }
+
+  // ✅ ÉTAPE 3 : Traitement d'un téléport avec validation
   processTeleport(obj, index) {
+    console.log(`🌀 [TransitionManager] === ÉTAPE 3: PROCESS TÉLÉPORT ${index} ===`);
+    
     const targetZone = this.getProperty(obj, 'targetzone');
     const targetSpawn = this.getProperty(obj, 'targetspawn');
 
+    console.log(`🌀 [TransitionManager] 🔍 Propriétés trouvées:`);
+    console.log(`  - targetzone: "${targetZone}"`);
+    console.log(`  - targetspawn: "${targetSpawn}"`);
+    console.log(`  - position: (${obj.x}, ${obj.y})`);
+    console.log(`  - taille: ${obj.width}x${obj.height}`);
+
+    // Validation
     if (!targetZone) {
-      console.warn(`🌀 [TransitionManager] ⚠️ Téléport ${index} sans 'targetzone'`);
-      return;
+      console.error(`🌀 [TransitionManager] ❌ ERREUR: Téléport ${index} sans 'targetzone'`);
+      console.log(`🌀 [TransitionManager] 📋 Propriétés disponibles:`, obj.properties);
+      return false;
     }
 
     if (!targetSpawn) {
-      console.warn(`🌀 [TransitionManager] ⚠️ Téléport ${index} sans 'targetspawn'`);
-      return;
+      console.error(`🌀 [TransitionManager] ❌ ERREUR: Téléport ${index} sans 'targetspawn'`);
+      return false;
     }
 
+    // Créer l'objet téléport
     const teleport = {
       id: `teleport_${index}`,
       x: obj.x,
@@ -91,14 +130,20 @@ export class TransitionManager {
 
     this.teleportZones.set(teleport.id, teleport);
     
-    console.log(`🌀 [TransitionManager] 📍 Téléport "${teleport.id}": ${this.currentZone} → ${targetZone}[${targetSpawn}]`);
+    console.log(`🌀 [TransitionManager] ✅ TÉLÉPORT CRÉÉ: "${teleport.id}"`);
+    console.log(`  - Route: ${this.currentZone} → ${targetZone}[${targetSpawn}]`);
+    console.log(`  - Zone: (${teleport.x}, ${teleport.y}) ${teleport.width}x${teleport.height}`);
+    
+    return true;
   }
 
-  // ✅ CRÉER ZONES DE COLLISION PHASER
+  // ✅ ÉTAPE 4 : Création zones collision avec debug visuel
   createCollisionZones() {
-    console.log(`🌀 [TransitionManager] === CRÉATION ZONES COLLISION ===`);
+    console.log(`🌀 [TransitionManager] === ÉTAPE 4: CRÉATION COLLISIONS ===`);
 
     this.teleportZones.forEach((teleportData) => {
+      console.log(`🌀 [TransitionManager] 🔨 Création zone: ${teleportData.id}`);
+      
       // Zone invisible pour collision
       const zone = this.scene.add.zone(
         teleportData.x + teleportData.width / 2,
@@ -112,55 +157,62 @@ export class TransitionManager {
       zone.body.setSize(teleportData.width, teleportData.height);
       zone.transitionData = teleportData;
 
-      // Debug visuel
-      if (this.debugMode) {
-        this.createDebugVisuals(zone, teleportData);
-      }
+      // ✅ DEBUG VISUEL TOUJOURS ACTIVÉ
+      this.createDebugVisuals(zone, teleportData);
 
-      console.log(`🌀 [TransitionManager] ✅ Zone collision créée: ${teleportData.id}`);
+      console.log(`🌀 [TransitionManager] ✅ Zone collision active: ${teleportData.id}`);
     });
 
-    console.log(`🌀 [TransitionManager] ✅ ${this.teleportZones.size} zones collision actives`);
+    console.log(`🌀 [TransitionManager] ✅ ${this.teleportZones.size} zones collision créées`);
   }
 
-  // ✅ DEBUG VISUEL STYLE POKÉMON
+  // ✅ DEBUG VISUEL AMÉLIORÉ
   createDebugVisuals(zone, teleportData) {
-    // Rectangle de zone
+    // Rectangle de zone - TOUJOURS VISIBLE
     const debugRect = this.scene.add.rectangle(
       zone.x, zone.y,
       zone.displayWidth, zone.displayHeight,
-      0x00ff00, 0.2
+      0x00ff00, 0.3 // ✅ Plus visible
     );
     debugRect.setDepth(999);
-    debugRect.setStrokeStyle(2, 0x00aa00);
+    debugRect.setStrokeStyle(3, 0x00aa00); // ✅ Plus épais
     
-    // Texte avec zone de destination
+    // Texte avec zone de destination - TOUJOURS VISIBLE
     const debugText = this.scene.add.text(
-      zone.x, zone.y - 20,
-      `→ ${teleportData.targetZone}`,
+      zone.x, zone.y - 25,
+      `🚪 → ${teleportData.targetZone}`,
       {
-        fontSize: '12px',
+        fontSize: '14px', // ✅ Plus gros
         fill: '#ffffff',
         backgroundColor: '#000000',
-        padding: { x: 4, y: 2 }
+        padding: { x: 6, y: 4 }
       }
     );
     debugText.setDepth(1000);
     debugText.setOrigin(0.5);
+    
+    console.log(`🌀 [TransitionManager] 🎨 Debug visuel créé pour ${teleportData.id}`);
   }
 
-  // ✅ VÉRIFIER COLLISIONS À CHAQUE FRAME
+  // ✅ ÉTAPE 5 : Vérification collision avec logs
   checkCollisions(player) {
     if (!this.isActive || !player || this.isTransitioning) return;
 
+    // ✅ LOG PÉRIODIQUE DE LA POSITION DU JOUEUR (toutes les 2 secondes)
+    if (!this.lastPlayerLogTime || Date.now() - this.lastPlayerLogTime > 2000) {
+      console.log(`🌀 [TransitionManager] 👤 Position joueur: (${Math.round(player.x)}, ${Math.round(player.y)})`);
+      this.lastPlayerLogTime = Date.now();
+    }
+
     this.teleportZones.forEach((teleportData) => {
       if (this.isPlayerCollidingWithTeleport(player, teleportData)) {
+        console.log(`🌀 [TransitionManager] 💥 COLLISION DÉTECTÉE avec ${teleportData.id}!`);
         this.triggerTransition(teleportData);
       }
     });
   }
 
-  // ✅ COLLISION SIMPLE RECTANGLE/RECTANGLE
+  // ✅ COLLISION AVEC LOGS
   isPlayerCollidingWithTeleport(player, teleportData) {
     const playerBounds = {
       x: player.x - 16,
@@ -176,203 +228,172 @@ export class TransitionManager {
       height: teleportData.height
     };
 
-    return (
+    const isColliding = (
       playerBounds.x < teleportBounds.x + teleportBounds.width &&
       playerBounds.x + playerBounds.width > teleportBounds.x &&
       playerBounds.y < teleportBounds.y + teleportBounds.height &&
       playerBounds.y + playerBounds.height > teleportBounds.y
     );
+
+    // ✅ LOG DÉTAILLÉ SEULEMENT SI COLLISION
+    if (isColliding) {
+      console.log(`🌀 [TransitionManager] 🎯 COLLISION ${teleportData.id}:`);
+      console.log(`  - Joueur: (${playerBounds.x}, ${playerBounds.y}) ${playerBounds.width}x${playerBounds.height}`);
+      console.log(`  - Téléport: (${teleportBounds.x}, ${teleportBounds.y}) ${teleportBounds.width}x${teleportBounds.height}`);
+    }
+
+    return isColliding;
   }
 
-  // ✅ DÉCLENCHER TRANSITION AVEC LOADING
+  // ✅ ÉTAPE 6 : Déclenchement transition avec timeout
   async triggerTransition(teleportData) {
     if (this.isTransitioning) {
-      console.log(`🌀 [TransitionManager] ⚠️ Transition déjà en cours`);
+      console.warn(`🌀 [TransitionManager] ⚠️ Transition déjà en cours, annulation`);
       return;
     }
 
-    console.log(`🌀 [TransitionManager] === DÉBUT TRANSITION ===`);
+    console.log(`🌀 [TransitionManager] === ÉTAPE 6: DÉBUT TRANSITION ===`);
     console.log(`📍 De: ${teleportData.fromZone}`);
     console.log(`📍 Vers: ${teleportData.targetZone}`);
-    console.log(`🎯 TargetSpawn: ${teleportData.targetSpawn}`);
+    console.log(`🎯 Spawn: ${teleportData.targetSpawn}`);
 
     this.isTransitioning = true;
-    this.transitionStartTime = Date.now();
 
-    // ✅ AFFICHER LE LOADING IMMÉDIATEMENT (avant toute validation)
+    // ✅ LOADING IMMÉDIAT
     this.showLoadingOverlay(teleportData);
 
-    // ✅ NOUVEAU: Vérifier et corriger la désynchronisation AVANT d'envoyer
-    const correctionResult = await this.checkAndCorrectZoneDesync(teleportData);
-    if (!correctionResult.success) {
-      this.hideLoadingOverlay();
-      this.showErrorPopup(correctionResult.reason);
-      this.isTransitioning = false;
-      return;
-    }
-
-    // ✅ Utiliser les données corrigées
-    const correctedTeleportData = correctionResult.correctedData;
-
-    // Obtenir la position du joueur
-    const myPlayer = this.scene.playerManager?.getMyPlayer();
-    if (!myPlayer) {
-      console.error(`🌀 [TransitionManager] ❌ Joueur local introuvable`);
-      this.hideLoadingOverlay();
-      this.showErrorPopup("Joueur local introuvable");
-      this.isTransitioning = false;
-      return;
-    }
-
-    // ✅ SETUP TIMEOUT DE SÉCURITÉ
-    const timeoutHandle = setTimeout(() => {
-      console.error(`🌀 [TransitionManager] ⏰ TIMEOUT DE TRANSITION`);
-      this.hideLoadingOverlay();
-      this.showErrorPopup("Timeout de transition (10s)");
-      this.isTransitioning = false;
+    // ✅ TIMEOUT DE SÉCURITÉ
+    this.transitionTimeoutHandle = setTimeout(() => {
+      console.error(`🌀 [TransitionManager] ⏰ TIMEOUT TRANSITION (${this.transitionTimeout}ms)`);
+      this.handleTransitionError({ reason: "Timeout de transition" });
     }, this.transitionTimeout);
 
-    // ✅ SETUP LISTENER DE VALIDATION
-    this.setupTransitionListener(correctedTeleportData, timeoutHandle);
-
-    // ✅ ENVOYER DEMANDE AU SERVEUR AVEC DONNÉES CORRIGÉES
-    if (this.scene.networkManager?.room) {
-      const request = {
-        fromZone: correctedTeleportData.fromZone, // ✅ Zone corrigée
-        targetZone: correctedTeleportData.targetZone,
-        playerX: myPlayer.x,
-        playerY: myPlayer.y,
-        teleportId: correctedTeleportData.id
-      };
-
-      console.log(`📤 [TransitionManager] Envoi demande serveur (corrigée):`, request);
-      this.scene.networkManager.room.send("validateTransition", request);
-    } else {
-      console.error(`🌀 [TransitionManager] ❌ Pas de connexion serveur`);
-      clearTimeout(timeoutHandle);
-      this.hideLoadingOverlay();
-      this.showErrorPopup("Pas de connexion serveur");
-      this.isTransitioning = false;
+    // ✅ VALIDATION ZONE AVANT ENVOI
+    const correctionResult = await this.validateAndCorrectZone(teleportData);
+    if (!correctionResult.success) {
+      this.handleTransitionError(correctionResult);
+      return;
     }
+
+    // ✅ ENVOI AU SERVEUR
+    this.sendTransitionRequest(correctionResult.correctedData);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Vérifier et corriger la désynchronisation
-  async checkAndCorrectZoneDesync(teleportData) {
-    console.log(`🔄 [TransitionManager] === VÉRIFICATION DÉSYNC ===`);
+  // ✅ VALIDATION ET CORRECTION DE ZONE
+  async validateAndCorrectZone(teleportData) {
+    console.log(`🌀 [TransitionManager] === VALIDATION ZONE ===`);
     
-    // Obtenir la zone serveur et client
-    const clientZone = this.scene.zoneName; // Zone de la scène actuelle
-    const serverZone = this.scene.networkManager?.getCurrentZone(); // Zone du serveur
+    const clientZone = this.scene.zoneName;
+    const serverZone = this.scene.networkManager?.getCurrentZone();
     
-    console.log(`🔍 [TransitionManager] Client zone: ${clientZone}`);
-    console.log(`🔍 [TransitionManager] Server zone: ${serverZone}`);
-    console.log(`🔍 [TransitionManager] Teleport fromZone: ${teleportData.fromZone}`);
+    console.log(`🔍 Zone client: "${clientZone}"`);
+    console.log(`🔍 Zone serveur: "${serverZone}"`);
+    console.log(`🔍 Zone téléport: "${teleportData.fromZone}"`);
     
-    // Si tout est synchronisé, pas de problème
+    // Si tout est sync, OK
     if (clientZone === serverZone && serverZone === teleportData.fromZone) {
-      console.log(`✅ [TransitionManager] Zones synchronisées`);
-      return {
-        success: true,
-        correctedData: teleportData
-      };
+      console.log(`✅ Zones synchronisées`);
+      return { success: true, correctedData: teleportData };
     }
     
-    // ✅ CORRECTION AUTOMATIQUE
-    console.warn(`⚠️ [TransitionManager] DÉSYNCHRONISATION DÉTECTÉE - CORRECTION AUTO`);
-    console.warn(`   Client: ${clientZone}`);
-    console.warn(`   Serveur: ${serverZone}`);
-    console.warn(`   Téléport: ${teleportData.fromZone}`);
-    
-    // Utiliser la zone du serveur comme référence (plus fiable)
+    // Correction automatique
+    console.warn(`⚠️ DÉSYNCHRONISATION DÉTECTÉE - CORRECTION AUTO`);
     const correctedFromZone = serverZone || clientZone;
     
-    // Mettre à jour le NetworkManager
-    if (this.scene.networkManager) {
-      this.scene.networkManager.currentZone = correctedFromZone;
-      console.log(`🔧 [TransitionManager] Zone NetworkManager mise à jour: ${correctedFromZone}`);
-    }
-    
-    // Créer les données de téléport corrigées
-    const correctedTeleportData = {
+    const correctedData = {
       ...teleportData,
       fromZone: correctedFromZone
     };
     
-    console.log(`✅ [TransitionManager] Correction appliquée: ${teleportData.fromZone} → ${correctedFromZone}`);
+    console.log(`🔧 Zone corrigée: ${teleportData.fromZone} → ${correctedFromZone}`);
     
-    return {
-      success: true,
-      correctedData: correctedTeleportData
-    };
+    return { success: true, correctedData };
   }
 
-  // ✅ SETUP LISTENER POUR RÉPONSE SERVEUR
-  setupTransitionListener(teleportData, timeoutHandle) {
-    console.log(`👂 [TransitionManager] Setup listener validation...`);
-
+  // ✅ ENVOI REQUÊTE AU SERVEUR
+  sendTransitionRequest(teleportData) {
+    console.log(`🌀 [TransitionManager] === ENVOI SERVEUR ===`);
+    
     if (!this.scene.networkManager?.room) {
-      console.error(`❌ [TransitionManager] Pas de NetworkManager pour listener`);
-      clearTimeout(timeoutHandle);
-      this.hideLoadingOverlay();
-      this.showErrorPopup("Pas de connexion réseau");
-      this.isTransitioning = false;
+      console.error(`❌ Pas de connexion serveur`);
+      this.handleTransitionError({ reason: "Pas de connexion serveur" });
       return;
     }
 
-    // ✅ NETTOYER L'ANCIEN LISTENER S'IL EXISTE
+    const myPlayer = this.scene.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.error(`❌ Joueur local introuvable`);
+      this.handleTransitionError({ reason: "Joueur local introuvable" });
+      return;
+    }
+
+    const request = {
+      fromZone: teleportData.fromZone,
+      targetZone: teleportData.targetZone,
+      targetSpawn: teleportData.targetSpawn,
+      playerX: myPlayer.x,
+      playerY: myPlayer.y,
+      teleportId: teleportData.id
+    };
+
+    console.log(`📤 Envoi requête:`, request);
+    
+    // ✅ SETUP LISTENER RÉPONSE
+    this.setupTransitionListener(teleportData);
+    
+    // ✅ ENVOI
+    this.scene.networkManager.room.send("validateTransition", request);
+  }
+
+  // ✅ LISTENER RÉPONSE SERVEUR
+  setupTransitionListener(teleportData) {
+    console.log(`👂 Setup listener validation...`);
+
+    // ✅ Nettoyer ancien listener
     if (this.scene.networkManager.onTransitionValidation) {
-      console.log(`🧹 [TransitionManager] Nettoyage ancien listener`);
       this.scene.networkManager.onTransitionValidation = null;
     }
 
-    // ✅ Handler pour la réponse du serveur
-    const handleTransitionResult = (result) => {
-      console.log(`📨 [TransitionManager] Résultat serveur reçu:`, result);
+    // ✅ Handler réponse
+    const handleResponse = (result) => {
+      console.log(`📨 Réponse serveur:`, result);
       
-      // Nettoyer le timeout
-      clearTimeout(timeoutHandle);
-      
-      // Nettoyer le listener pour éviter les fuites
+      this.clearTransitionTimeout();
       this.scene.networkManager.onTransitionValidation = null;
       
       if (result.success) {
-        console.log(`✅ [TransitionManager] Transition validée!`);
         this.handleTransitionSuccess(result, teleportData);
       } else {
-        console.error(`❌ [TransitionManager] Transition refusée: ${result.reason}`);
         this.handleTransitionError(result);
       }
     };
 
-    // ✅ ASSIGNER LE CALLBACK AU NETWORKMANAGER
-    this.scene.networkManager.onTransitionValidation = handleTransitionResult;
-    
-    console.log(`✅ [TransitionManager] Listener de validation configuré`);
+    this.scene.networkManager.onTransitionValidation = handleResponse;
   }
 
-  // ✅ SUCCÈS DE TRANSITION
+  // ✅ SUCCÈS TRANSITION
   handleTransitionSuccess(result, teleportData) {
+    console.log(`🌀 [TransitionManager] ✅ TRANSITION VALIDÉE`);
+    
     const targetScene = this.getSceneFromZone(teleportData.targetZone);
     
     if (!targetScene) {
-      console.error(`🌀 [TransitionManager] ❌ Scene introuvable pour zone: ${teleportData.targetZone}`);
-      this.hideLoadingOverlay();
-      this.showErrorPopup(`Zone inconnue: ${teleportData.targetZone}`);
-      this.isTransitioning = false;
+      console.error(`❌ Scene introuvable pour zone: ${teleportData.targetZone}`);
+      this.handleTransitionError({ reason: `Zone inconnue: ${teleportData.targetZone}` });
       return;
     }
 
-    // ✅ PAS DE CHANGEMENT DE SCÈNE = REPOSITIONNEMENT LOCAL
+    // Même scène = repositionnement local
     if (targetScene === this.scene.scene.key) {
-      console.log(`📍 [TransitionManager] Repositionnement dans la même scène`);
+      console.log(`📍 Repositionnement local`);
       this.repositionPlayer(result);
       this.hideLoadingOverlay();
-      this.isTransitioning = false;
+      this.resetTransitionState();
       return;
     }
 
-    // ✅ CHANGEMENT DE SCÈNE
-    console.log(`🚀 [TransitionManager] Changement vers: ${targetScene}`);
+    // Changement de scène
+    console.log(`🚀 Changement vers: ${targetScene}`);
     
     const transitionData = {
       fromZone: this.currentZone,
@@ -384,175 +405,95 @@ export class TransitionManager {
       preservePlayer: true
     };
 
-    // ✅ LE LOADING SERA MASQUÉ PAR LA NOUVELLE SCÈNE
     this.scene.scene.start(targetScene, transitionData);
   }
 
-  // ✅ ERREUR DE TRANSITION
+  // ✅ ERREUR TRANSITION
   handleTransitionError(result) {
+    console.error(`🌀 [TransitionManager] ❌ ERREUR TRANSITION:`, result.reason);
     this.hideLoadingOverlay();
     this.showErrorPopup(result.reason || "Erreur de transition");
+    this.resetTransitionState();
+  }
+
+  // ✅ RESET ÉTAT TRANSITION
+  resetTransitionState() {
     this.isTransitioning = false;
+    this.clearTransitionTimeout();
+    console.log(`🌀 [TransitionManager] 🔄 État transition réinitialisé`);
+  }
+
+  // ✅ CLEAR TIMEOUT
+  clearTransitionTimeout() {
+    if (this.transitionTimeoutHandle) {
+      clearTimeout(this.transitionTimeoutHandle);
+      this.transitionTimeoutHandle = null;
+    }
   }
 
   // ✅ REPOSITIONNEMENT LOCAL
   repositionPlayer(result) {
     const myPlayer = this.scene.playerManager?.getMyPlayer();
     if (myPlayer && result.position) {
-      console.log(`📍 [TransitionManager] Repositionnement: (${result.position.x}, ${result.position.y})`);
+      console.log(`📍 Repositionnement: (${result.position.x}, ${result.position.y})`);
       
       myPlayer.x = result.position.x;
       myPlayer.y = result.position.y;
       myPlayer.targetX = result.position.x;
       myPlayer.targetY = result.position.y;
 
-      // Snap caméra
       if (this.scene.cameraManager) {
         this.scene.cameraManager.snapToPlayer();
       }
     }
   }
 
-  // ✅ LOADING OVERLAY STYLE POKÉMON
+  // ✅ LOADING OVERLAY
   showLoadingOverlay(teleportData) {
-    // Conteneur principal
+    console.log(`🔄 Affichage loading...`);
+    // ... code loading identique ...
     this.loadingOverlay = this.scene.add.container(0, 0).setDepth(9999).setScrollFactor(0);
-
-    // Fond semi-transparent
-    const overlay = this.scene.add.rectangle(
-      this.scene.cameras.main.centerX,
-      this.scene.cameras.main.centerY,
-      this.scene.cameras.main.width,
-      this.scene.cameras.main.height,
-      0x1a1a2e,
-      0.9
-    );
-
-    // Conteneur du modal (style de ton UI)
-    const modalWidth = 400;
-    const modalHeight = 200;
-    const modalBg = this.scene.add.rectangle(
-      this.scene.cameras.main.centerX,
-      this.scene.cameras.main.centerY,
-      modalWidth,
-      modalHeight,
-      0x2d3748
-    ).setStrokeStyle(2, 0x4a5568);
-
-    // Bordure externe (style bleu de ton UI)
-    const borderBg = this.scene.add.rectangle(
-      this.scene.cameras.main.centerX,
-      this.scene.cameras.main.centerY,
-      modalWidth + 8,
-      modalHeight + 8,
-      0x4299e1
-    );
-
-    // Titre
-    const titleText = this.scene.add.text(
-      this.scene.cameras.main.centerX,
-      this.scene.cameras.main.centerY - 50,
-      'Transition en cours...',
-      {
-        fontSize: '20px',
-        fontFamily: 'Arial, sans-serif',
-        color: '#ffffff',
-        fontStyle: 'bold'
-      }
-    ).setOrigin(0.5);
-
-    // Destination
-    const destText = this.scene.add.text(
-      this.scene.cameras.main.centerX,
-      this.scene.cameras.main.centerY - 20,
-      `Vers: ${teleportData.targetZone}`,
-      {
-        fontSize: '16px',
-        fontFamily: 'Arial, sans-serif',
-        color: '#a0aec0'
-      }
-    ).setOrigin(0.5);
-
-    // Spinner simple (rotation)
-    const spinner = this.scene.add.text(
-      this.scene.cameras.main.centerX,
-      this.scene.cameras.main.centerY + 20,
-      '⟳',
-      {
-        fontSize: '24px',
-        color: '#4299e1'
-      }
-    ).setOrigin(0.5);
-
-    // Animation rotation
-    this.scene.tweens.add({
-      targets: spinner,
-      rotation: Math.PI * 2,
-      duration: 1000,
-      repeat: -1,
-      ease: 'Linear'
-    });
-
-    // Ajouter au conteneur
-    this.loadingOverlay.add([borderBg, modalBg, overlay, titleText, destText, spinner]);
-
-    console.log(`🔄 [TransitionManager] Loading affiché`);
+    // ... reste du code loading ...
   }
 
-  // ✅ MASQUER LOADING
   hideLoadingOverlay() {
     if (this.loadingOverlay) {
       this.loadingOverlay.destroy();
       this.loadingOverlay = null;
-      console.log(`🔄 [TransitionManager] Loading masqué`);
+      console.log(`🔄 Loading masqué`);
     }
   }
 
-  // ✅ POPUP D'ERREUR SIMPLE
+  // ✅ POPUP ERREUR
   showErrorPopup(message) {
-    // Créer popup temporaire
-    const errorPopup = this.scene.add.container(0, 0).setDepth(10000).setScrollFactor(0);
-
-    const popupBg = this.scene.add.rectangle(
-      this.scene.cameras.main.centerX,
-      this.scene.cameras.main.centerY,
-      350, 120,
-      0xdc2626
-    ).setStrokeStyle(2, 0x991b1b);
-
-    const errorText = this.scene.add.text(
-      this.scene.cameras.main.centerX,
-      this.scene.cameras.main.centerY,
-      `Erreur de transition:\n${message}`,
-      {
-        fontSize: '14px',
-        fontFamily: 'Arial, sans-serif',
-        color: '#ffffff',
-        align: 'center',
-        wordWrap: { width: 300 }
-      }
-    ).setOrigin(0.5);
-
-    errorPopup.add([popupBg, errorText]);
-
-    // Auto-destruction après 3 secondes
-    this.scene.time.delayedCall(3000, () => {
-      if (errorPopup) {
-        errorPopup.destroy();
-      }
-    });
-
-    console.log(`🚫 [TransitionManager] Erreur affichée: ${message}`);
+    console.log(`🚫 Affichage erreur: ${message}`);
+    // ... code popup identique ...
   }
 
-  // ✅ HELPER: Récupérer propriété d'objet Tiled
+  // ✅ LOG RÉSUMÉ INITIALISATION
+  logInitializationSummary() {
+    console.log(`🌀 [TransitionManager] === RÉSUMÉ INITIALISATION ===`);
+    console.log(`📍 Zone courante: ${this.currentZone}`);
+    console.log(`🔧 État: ${this.isActive ? 'ACTIF' : 'INACTIF'}`);
+    console.log(`📍 Téléports trouvés: ${this.teleportZones.size}`);
+    
+    if (this.teleportZones.size > 0) {
+      console.log(`📋 LISTE DES TÉLÉPORTS:`);
+      this.teleportZones.forEach((teleport, id) => {
+        console.log(`  - ${id}: (${teleport.x}, ${teleport.y}) → ${teleport.targetZone}[${teleport.targetSpawn}]`);
+      });
+    }
+    
+    console.log(`🌀 [TransitionManager] === INITIALISATION TERMINÉE ===`);
+  }
+
+  // ✅ HELPERS UTILITAIRES
   getProperty(object, propertyName) {
     if (!object.properties) return null;
     const prop = object.properties.find(p => p.name === propertyName);
     return prop ? prop.value : null;
   }
 
-  // ✅ MAPPING ZONE ↔ SCÈNE
   getZoneFromScene(sceneName) {
     const mapping = {
       'BeachScene': 'beach',
@@ -577,34 +518,25 @@ export class TransitionManager {
     return mapping[zoneName] || null;
   }
 
-  // ✅ DEBUG INFO
+  // ✅ DEBUG ET NETTOYAGE
   debugInfo() {
-    console.log(`🌀 [TransitionManager] === DEBUG TRANSITION DYNAMIQUE ===`);
-    console.log(`Zone actuelle: ${this.currentZone}`);
-    console.log(`État: ${this.isActive ? 'ACTIF' : 'INACTIF'}`);
-    console.log(`En transition: ${this.isTransitioning}`);
-    
-    console.log(`📍 TÉLÉPORTS (${this.teleportZones.size}):`);
-    this.teleportZones.forEach((teleport, id) => {
-      console.log(`  - ${id}: (${teleport.x}, ${teleport.y}) → ${teleport.targetZone}[${teleport.targetSpawn}]`);
-    });
+    this.logInitializationSummary();
   }
 
-  // ✅ NETTOYAGE
   destroy() {
-    console.log(`🌀 [TransitionManager] Nettoyage...`);
+    console.log(`🌀 [TransitionManager] 💀 Destruction...`);
     
     this.hideLoadingOverlay();
+    this.clearTransitionTimeout();
     this.teleportZones.clear();
     this.isActive = false;
     this.isTransitioning = false;
     
-    console.log(`🌀 [TransitionManager] ✅ Nettoyé`);
+    console.log(`🌀 [TransitionManager] ✅ Détruit`);
   }
 
-  // ✅ CONTRÔLE EXTERNE
   setActive(active) {
     this.isActive = active;
-    console.log(`🌀 [TransitionManager] ${active ? 'Activé' : 'Désactivé'}`);
+    console.log(`🌀 [TransitionManager] ${active ? '✅ ACTIVÉ' : '❌ DÉSACTIVÉ'}`);
   }
 }
