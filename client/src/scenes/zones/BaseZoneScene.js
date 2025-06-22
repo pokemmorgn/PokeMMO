@@ -320,16 +320,9 @@ export class BaseZoneScene extends Phaser.Scene {
       }
     });
 
-    // ✅ HANDLER 6 : TRANSITIONS
-    this.networkManager.onTransitionValidation((result) => {
-      console.log(`🌀 [${this.scene.key}] Validation transition:`, result);
-      
-      if (result.success) {
-        this.handleTransitionSuccess(result);
-      } else {
-        this.handleTransitionError(result);
-      }
-    });
+    // ✅ HANDLER 6 : TRANSITIONS - GÉRÉ PAR TRANSITIONMANAGER
+    // Le TransitionManager gère déjà les callbacks onTransitionValidation
+    // Pas besoin de handler ici pour éviter les conflits
 
     // ✅ HANDLER 7 : INTERACTIONS NPC
     this.networkManager.onNpcInteraction((result) => {
@@ -496,10 +489,10 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  // ✅ GESTION TRANSITIONS
+  // ✅ GESTION TRANSITIONS - DÉLÉGUÉE AU TRANSITIONMANAGER
   handleTransitionSuccess(result) {
-    console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
-    // Le TransitionManager gère déjà tout
+    console.log(`✅ [${this.scene.key}] Transition réussie (délégué au TransitionManager):`, result);
+    // Le TransitionManager gère le changement de scène automatiquement
   }
 
   handleTransitionError(result) {
