@@ -10,6 +10,8 @@ import { VillageHouse1Scene } from './scenes/zones/VillageHouse1Scene.js';
 import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 import { TimeService } from './services/TimeService.js';
 
+// ✅ NOUVEAU: Import du SceneRegistry
+import { SceneRegistry } from './scenes/SceneRegistry.js';
 
 // === Colyseus.js ===
 import { Client } from 'colyseus.js';
@@ -57,6 +59,84 @@ if (!username) {
 }
 window.username = username;
 
+// ✅ NOUVEAU: Fonction d'initialisation du système de scènes
+async function initializeSceneSystem() {
+  console.log("🏗️ [MAIN] === INITIALISATION SYSTÈME DE SCÈNES ===");
+  
+  const registry = SceneRegistry.getInstance();
+  
+  // ✅ Enregistrer toutes les classes de scènes dans le registry
+  console.log("📝 [MAIN] Enregistrement des classes de scènes...");
+  registry.registerSceneClass('beach', BeachScene);
+  registry.registerSceneClass('village', VillageScene);
+  registry.registerSceneClass('villagelab', VillageLabScene);
+  registry.registerSceneClass('road1', Road1Scene);
+  registry.registerSceneClass('villagehouse1', VillageHouse1Scene);
+  registry.registerSceneClass('lavandia', LavandiaScene);
+  
+  console.log("✅ [MAIN] Toutes les scènes enregistrées dans le registry");
+  
+  // ✅ Exposer globalement pour l'utilisation dans les transitions
+  window.sceneRegistry = registry;
+  
+  // ✅ Ajouter des fonctions utilitaires globales
+  window.switchToZone = async function(zoneName, transitionData = {}) {
+    const sceneKey = registry.getSceneKey(zoneName);
+    console.log(`🔄 [MAIN] Changement vers zone: ${zoneName} (${sceneKey})`);
+    
+    // Vérifier si la scène existe
+    const targetScene = window.game.scene.getScene(sceneKey);
+    if (!targetScene) {
+      console.error(`❌ [MAIN] Scène ${sceneKey} introuvable`);
+      return false;
+    }
+    
+    // Redémarrage propre
+    if (window.game.scene.isActive(sceneKey)) {
+      window.game.scene.stop(sceneKey);
+    }
+    
+    window.game.scene.start(sceneKey, {
+      fromTransition: true,
+      networkManager: window.globalNetworkManager,
+      ...transitionData
+    });
+    
+    return true;
+  };
+  
+  window.restartCurrentZone = function() {
+    const currentScene = window.game.scene.getScenes(true)[0];
+    if (currentScene) {
+      const sceneKey = currentScene.scene.key;
+      console.log(`🔄 [MAIN] Redémarrage zone actuelle: ${sceneKey}`);
+      window.game.scene.restart(sceneKey);
+    }
+  };
+  
+  window.listAvailableZones = function() {
+    const zones = registry.getAvailableZones();
+    console.log(`🌍 [MAIN] Zones disponibles:`, zones);
+    return zones;
+  };
+  
+  window.debugSceneRegistry = function() {
+    console.log(`🔍 [MAIN] === DEBUG SCENE REGISTRY ===`);
+    registry.debugInfo();
+    
+    // Vérifier aussi les scènes dans Phaser
+    const phaserScenes = Object.keys(window.game?.scene?.manager?.keys || {});
+    console.log(`🎬 Scènes Phaser:`, phaserScenes);
+    
+    return {
+      registryZones: registry.getAvailableZones(),
+      phaserScenes: phaserScenes
+    };
+  };
+  
+  return registry;
+}
+
 // === CONFIG PHASER ===
 const config = {
   type: Phaser.AUTO,
@@ -66,6 +146,7 @@ const config = {
   pixelArt: true,
   roundPixels: true,
   antialias: false,
+  // ✅ GARDER TOUTES LES SCÈNES pour éviter les problèmes de "scène introuvable"
   scene: [
     LoaderScene,
     BeachScene,
@@ -144,36 +225,58 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     // ✅ 4. RÉCUPÉRER LA ROOM DEPUIS LE NETWORKMANAGER
     window.currentGameRoom = window.globalNetworkManager.room;
     console.log("✅ Connecté à la WorldRoom via NetworkManager:", window.currentGameRoom.sessionId);
-    // ✅ AJOUTER CES LIGNES
-console.log("🕐 Connexion du TimeService au serveur...");
-TimeService.getInstance().connectToRoom(window.currentGameRoom);
-
-
-console.log("🔍 [DEBUG] SessionId après connexion:");
-console.log("- NetworkManager sessionId:", window.globalNetworkManager.getSessionId());
-console.log("- Room sessionId:", window.globalNetworkManager.room?.sessionId);
-console.log("- Room existe:", !!window.globalNetworkManager.room);
-console.log("- NetworkManager connecté:", window.globalNetworkManager.isConnected);
     
-    // ✅ 5. CONNEXION AU CHAT (SÉPARÉE)
+    // ✅ 5. CONNEXION DU TIMESERVICE
+    console.log("🕐 Connexion du TimeService au serveur...");
+    TimeService.getInstance().connectToRoom(window.currentGameRoom);
+
+    console.log("🔍 [DEBUG] SessionId après connexion:");
+    console.log("- NetworkManager sessionId:", window.globalNetworkManager.getSessionId());
+    console.log("- Room sessionId:", window.globalNetworkManager.room?.sessionId);
+    console.log("- Room existe:", !!window.globalNetworkManager.room);
+    console.log("- NetworkManager connecté:", window.globalNetworkManager.isConnected);
+    
+    // ✅ 6. INITIALISER LE SYSTÈME DE SCÈNES AVANT PHASER
+    console.log("🏗️ Initialisation du système de scènes...");
+    const sceneRegistry = await initializeSceneSystem();
+    console.log("✅ Système de scènes initialisé");
+    
+    // ✅ 7. CONNEXION AU CHAT (SÉPARÉE)
     console.log("💬 Connexion à la WorldChatRoom...");
     const worldChat = await client.joinOrCreate("worldchat", { username });
     window.worldChat = worldChat;
     console.log("✅ Connecté à la WorldChatRoom");
 
-    // 6. Initialise le chat
+    // 8. Initialise le chat
     initPokeChat(worldChat, window.username);
 
-    // 7. Lancement de Phaser APRES connexion réseau
+    // ✅ 9. LANCEMENT DE PHASER APRÈS TOUT LE SETUP
     console.log("🎮 Lancement de Phaser...");
     window.game = new Phaser.Game(config);
 
-    // 8. Setup global pour tes systèmes
+    // ✅ 10. VÉRIFIER QUE TOUTES LES SCÈNES SONT BIEN ENREGISTRÉES
+    setTimeout(() => {
+      console.log("🔍 [MAIN] Vérification des scènes Phaser...");
+      const phaserScenes = Object.keys(window.game.scene.manager.keys);
+      const registryZones = sceneRegistry.getAvailableZones();
+      
+      console.log(`🎬 Scènes dans Phaser: ${phaserScenes.length}`, phaserScenes);
+      console.log(`📋 Zones dans Registry: ${registryZones.length}`, registryZones);
+      
+      // Vérifier correspondance
+      registryZones.forEach(zone => {
+        const sceneKey = sceneRegistry.getSceneKey(zone);
+        const hasScene = phaserScenes.includes(sceneKey);
+        console.log(`   ${zone} (${sceneKey}): ${hasScene ? '✅' : '❌'}`);
+      });
+    }, 1000);
+
+    // ✅ 11. SETUP GLOBAL POUR TES SYSTÈMES (INCHANGÉ)
     window.starterHUD = null;
     window.questSystemGlobal = null;
     window.inventorySystemGlobal = null;
 
-    // 9. Expose helpers initAllGameSystems & cie
+    // 12. Expose helpers initAllGameSystems & cie (INCHANGÉ)
     window.initInventorySystem = function(gameRoom) {
       if (!window.inventorySystemGlobal) {
         window.inventorySystemGlobal = new InventorySystem(null, gameRoom || window.currentGameRoom);
@@ -226,7 +329,7 @@ console.log("- NetworkManager connecté:", window.globalNetworkManager.isConnect
       return { inventory, quests, starter };
     };
 
-    // === Fonctions d'accès rapide, notifications, tests etc ===
+    // === Fonctions d'accès rapide, notifications, tests etc === (INCHANGÉ)
     window.openInventory = function() {
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.openInventory();
@@ -277,16 +380,49 @@ console.log("- NetworkManager connecté:", window.globalNetworkManager.isConnect
       }
     };
 
+    // ✅ NOUVELLES FONCTIONS POUR TESTER LES TRANSITIONS
+    window.testTransition = function(targetZone = 'village') {
+      console.log(`🧪 [MAIN] Test transition vers: ${targetZone}`);
+      
+      if (window.sceneRegistry && window.sceneRegistry.hasZone(targetZone)) {
+        window.switchToZone(targetZone, { 
+          spawnX: 100, 
+          spawnY: 100,
+          testMode: true 
+        });
+        window.showGameNotification(`Test transition vers ${targetZone}`, "info", { duration: 2000, position: 'top-center' });
+      } else {
+        window.showGameAlert?.(`Zone ${targetZone} non disponible`);
+        console.error(`❌ [MAIN] Zone ${targetZone} non trouvée dans le registry`);
+      }
+    };
+    
+    window.forceTransition = function(targetZone) {
+      console.log(`🚀 [MAIN] Transition forcée vers: ${targetZone}`);
+      
+      // Obtenir la scène active
+      const activeScene = window.game.scene.getScenes(true)[0];
+      if (activeScene && activeScene.transitionManager) {
+        activeScene.transitionManager.forceTransition(targetZone);
+      } else {
+        console.warn(`⚠️ [MAIN] Aucun TransitionManager trouvé sur la scène active`);
+        // Fallback avec switch simple
+        window.switchToZone(targetZone);
+      }
+    };
+
     // === Notification d'aide et ready ===
     showNotificationInstructions();
     setTimeout(() => {
       window.showGameNotification("Game system ready!", "success", { duration: 3000, position: 'top-center', bounce: true });
     }, 2000);
 
-    console.log("🎯 Tous les systèmes initialisés !");
+    console.log("🎯 [MAIN] Tous les systèmes initialisés !");
     console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
     console.log("🎒 Utilisez 'I' pour ouvrir l'inventaire en jeu");
     console.log("🎮 Utilisez window.initAllGameSystems(scene, gameRoom) dans vos scènes pour tout initialiser");
+    console.log("🌍 Utilisez window.listAvailableZones() pour voir les zones disponibles");
+    console.log("🔄 Utilisez window.testTransition('village') pour tester les transitions");
     
     // ✅ DEBUG: Vérifier l'état du NetworkManager
     console.log("🔍 État du NetworkManager global:", {
@@ -306,7 +442,7 @@ console.log("- NetworkManager connecté:", window.globalNetworkManager.isConnect
 
 export default {}; // plus besoin d'exporter le game ici, il est sur window
 
-// === Fonctions utilitaires exposées (raccourcis) ===
+// === Fonctions utilitaires exposées (raccourcis) === (INCHANGÉ)
 window.isChatFocused = function() {
   return window.pokeChat ? window.pokeChat.hasFocus() : false;
 };
@@ -332,6 +468,8 @@ window.canPlayerInteract = function() {
   if (window.questSystemGlobal) return window.questSystemGlobal.canPlayerInteract();
   return !window.shouldBlockInput();
 };
+
+// ✅ FONCTION DEBUG AMÉLIORÉE
 window.getGameSystemsStatus = function() {
   const status = {
     chat: { initialized: !!window.pokeChat, focused: window.isChatFocused() },
@@ -349,11 +487,18 @@ window.getGameSystemsStatus = function() {
       manager: window.NotificationManager ? 'Available' : 'Not Available',
       ready: window.gameNotificationSystem ? window.gameNotificationSystem.isReady() : false
     },
+    // ✅ NOUVEAU: Info du SceneRegistry
+    sceneRegistry: {
+      initialized: !!window.sceneRegistry,
+      availableZones: window.sceneRegistry?.getAvailableZones() || [],
+      zoneCount: window.sceneRegistry?.getAvailableZones().length || 0
+    },
     canInteract: window.canPlayerInteract(),
     inputBlocked: window.shouldBlockInput()
   };
   return status;
 };
+
 window.debugGameSystems = function() {
   const status = window.getGameSystemsStatus();
   console.log("🔍 État des systèmes de jeu:", status);
@@ -367,12 +512,23 @@ window.debugGameSystems = function() {
     console.log("❌ NetworkManager global introuvable");
   }
   
+  // ✅ DEBUG SCENE REGISTRY
+  if (window.sceneRegistry) {
+    console.log("🏗️ Debug SceneRegistry:");
+    window.debugSceneRegistry();
+  } else {
+    console.log("❌ SceneRegistry global introuvable");
+  }
+  
   return status;
 };
+
 window.quickTestNotifications = function() {
   console.log("🧪 Test rapide des notifications...");
   window.testNotifications?.();
 };
+
+// ✅ AIDE AMÉLIORÉE
 window.showGameHelp = function() {
   window.showGameNotification?.("Aide affichée dans la console", "info", { duration: 3000, position: 'top-center' });
   console.log(`
@@ -390,23 +546,34 @@ window.showGameHelp = function() {
 • window.quickTestNotifications() - Test rapide
 • window.debugGameSystems() - Debug des systèmes
 
+=== Fonctions de transition (NOUVEAU) ===
+• window.testTransition('village') - Test transition vers village
+• window.forceTransition('beach') - Forcer transition
+• window.listAvailableZones() - Lister zones disponibles
+• window.switchToZone('road1') - Changer de zone manuellement
+• window.debugSceneRegistry() - Debug du système de scènes
+
 === Systèmes disponibles ===
 • Inventaire: ${!!window.inventorySystemGlobal}
 • Quêtes: ${!!window.questSystemGlobal}
 • Notifications: ${!!window.gameNotificationSystem}
 • Starter HUD: ${!!window.starterHUD}
 • NetworkManager: ${!!window.globalNetworkManager} (connecté: ${window.globalNetworkManager?.isConnected})
+• SceneRegistry: ${!!window.sceneRegistry} (zones: ${window.sceneRegistry?.getAvailableZones().length || 0})
 
 === Pour les développeurs ===
 • window.showNotificationInstructions() - Instructions complètes
 • window.debugNotificationSystem() - Debug notifications
 • window.getGameSystemsStatus() - Statut des systèmes
+• window.restartCurrentZone() - Redémarrer la zone actuelle
 ========================
   `);
 };
+
 console.log(`
 🎉 === POKÉMON MMO PRÊT ===
 Utilisez window.showGameHelp() pour l'aide complète
 Tous les systèmes sont initialisés et prêts !
+🔄 Support des transitions robustes intégré !
 ==============================
 `);
