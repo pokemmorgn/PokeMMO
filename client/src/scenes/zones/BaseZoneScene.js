@@ -505,16 +505,31 @@ export class BaseZoneScene extends Phaser.Scene {
     
     // ✅ Position par défaut ou depuis transition
     const initData = this.scene.settings.data;
-    const spawnX = initData?.spawnX || 52;
-    const spawnY = initData?.spawnY || 48;
+    let spawnX, spawnY;
     
-    console.log(`🚨 [${this.scene.key}] Création joueur urgence à (${spawnX}, ${spawnY})`);
+    // ✅ NOUVEAU : Vérifier toutes les sources de position
+    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+      spawnX = initData.spawnX;
+      spawnY = initData.spawnY;
+      console.log(`🚨 [${this.scene.key}] Position urgence depuis transition: (${spawnX}, ${spawnY})`);
+    } else if (initData?.serverResult?.position) {
+      spawnX = initData.serverResult.position.x;
+      spawnY = initData.serverResult.position.y;
+      console.log(`🚨 [${this.scene.key}] Position urgence depuis serverResult: (${spawnX}, ${spawnY})`);
+    } else {
+      const defaultPos = this.getDefaultSpawnPosition();
+      spawnX = defaultPos.x;
+      spawnY = defaultPos.y;
+      console.log(`🚨 [${this.scene.key}] Position urgence par défaut: (${spawnX}, ${spawnY})`);
+    }
+    
+    console.log(`🚨 [${this.scene.key}] Création joueur urgence FINALE à (${spawnX}, ${spawnY})`);
     
     try {
       const emergencyPlayer = this.playerManager.createPlayer(this.mySessionId, spawnX, spawnY);
       
       if (emergencyPlayer) {
-        console.log(`✅ [${this.scene.key}] Joueur d'urgence créé avec succès`);
+        console.log(`✅ [${this.scene.key}] Joueur d'urgence créé avec succès à (${spawnX}, ${spawnY})`);
         
         // ✅ Configuration immédiate
         emergencyPlayer.setVisible(true);
@@ -528,8 +543,9 @@ export class BaseZoneScene extends Phaser.Scene {
         
         if (window.hideLoadingOverlay) window.hideLoadingOverlay();
         
-        // ✅ Notifier le serveur de la position
+        // ✅ Notifier le serveur de la position FINALE
         if (this.networkManager?.isConnected) {
+          console.log(`📤 [${this.scene.key}] Envoi position urgence au serveur: (${spawnX}, ${spawnY})`);
           this.networkManager.sendMove(spawnX, spawnY, 'down', false);
         }
         
@@ -546,34 +562,43 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  // ✅ POSITION DU JOUEUR
+  // ✅ POSITION DU JOUEUR - CORRIGÉE POUR TRANSITIONS
   positionPlayer(player) {
     const initData = this.scene.settings.data;
     
-    console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
+    console.log(`📍 [${this.scene.key}] === POSITIONNEMENT JOUEUR ===`);
+    console.log(`📊 InitData:`, initData);
+    console.log(`👤 Position actuelle joueur: (${player.x}, ${player.y})`);
     
-    // ✅ CAS 1 : Position serveur (transition)
-    if (initData?.fromTransition && player.x && player.y) {
-      console.log(`📍 Position serveur conservée: (${player.x}, ${player.y})`);
-      return;
+    let finalX, finalY;
+    
+    // ✅ CAS 1 : Transition avec spawn serveur (PRIORITÉ ABSOLUE)
+    if (initData?.fromTransition && (initData.spawnX !== undefined || initData.spawnY !== undefined)) {
+      finalX = initData.spawnX;
+      finalY = initData.spawnY;
+      console.log(`📍 [${this.scene.key}] Position depuis SERVEUR (transition): (${finalX}, ${finalY})`);
     }
-    
-    // ✅ CAS 2 : Position depuis transition
-    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-      console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
-      player.x = initData.spawnX;
-      player.y = initData.spawnY;
-      player.targetX = initData.spawnX;
-      player.targetY = initData.spawnY;
-    } else {
-      // ✅ CAS 3 : Position par défaut
+    // ✅ CAS 2 : Données serveur dans serverResult
+    else if (initData?.serverResult?.position) {
+      finalX = initData.serverResult.position.x;
+      finalY = initData.serverResult.position.y;
+      console.log(`📍 [${this.scene.key}] Position depuis serverResult: (${finalX}, ${finalY})`);
+    }
+    // ✅ CAS 3 : Position par défaut
+    else {
       const defaultPos = this.getDefaultSpawnPosition();
-      console.log(`📍 Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
-      player.x = defaultPos.x;
-      player.y = defaultPos.y;
-      player.targetX = defaultPos.x;
-      player.targetY = defaultPos.y;
+      finalX = defaultPos.x;
+      finalY = defaultPos.y;
+      console.log(`📍 [${this.scene.key}] Position par défaut: (${finalX}, ${finalY})`);
     }
+
+    // ✅ APPLIQUER LA POSITION FINALE
+    console.log(`🎯 [${this.scene.key}] POSITION FINALE: (${finalX}, ${finalY})`);
+    
+    player.x = finalX;
+    player.y = finalY;
+    player.targetX = finalX;
+    player.targetY = finalY;
 
     // ✅ FINALISER
     player.setVisible(true);
@@ -581,15 +606,18 @@ export class BaseZoneScene extends Phaser.Scene {
     player.setDepth(5);
 
     if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
+      player.indicator.x = finalX;
+      player.indicator.y = finalY - 32;
       player.indicator.setVisible(true);
     }
 
-    // ✅ ENVOYER AU SERVEUR
+    // ✅ ENVOYER AU SERVEUR LA POSITION CONFIRMÉE
     if (this.networkManager?.isConnected) {
-      this.networkManager.sendMove(player.x, player.y, 'down', false);
+      console.log(`📤 [${this.scene.key}] Envoi position au serveur: (${finalX}, ${finalY})`);
+      this.networkManager.sendMove(finalX, finalY, 'down', false);
     }
+    
+    console.log(`✅ [${this.scene.key}] Joueur positionné à: (${finalX}, ${finalY})`);
   }
 
   // ✅ GÉRER DONNÉES DE TRANSITION - AMÉLIORÉ
