@@ -9,7 +9,6 @@ import { VillageLabScene } from './scenes/zones/VillageLabScene.js';
 import { VillageHouse1Scene } from './scenes/zones/VillageHouse1Scene.js';
 import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 import { TimeService } from '../services/TimeService.js';
-import { DayNightManager } from '../game/DayNightManager.js';
 
 
 // === Colyseus.js ===
