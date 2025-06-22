@@ -131,6 +131,11 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log(`✅ [${this.scene.key}] Systèmes de jeu initialisés`);
   }
 
+  onPlayerReady(player) {
+  // Hook vide par défaut. Sera utilisé si défini dans une scène spécifique.
+  console.log(`[${this.scene.key}] ✅ Hook onPlayerReady déclenché pour`, player.sessionId);
+}
+  
   initPlayerSpawnFromSceneData() {
     const data = this.scene.settings.data || {};
     const sessionId = this.mySessionId;
