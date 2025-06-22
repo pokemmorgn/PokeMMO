@@ -19,7 +19,7 @@ export class TransitionManager {
     this.currentTransitionData = null;
     
     // ✅ NOUVEAU : Délai de grâce après transition
-    this.graceTime = 0;
+    this.graceTime = Date.now() + 3000; // 3 secondes de grâce au démarrage
     this.graceDuration = 2000; // 2 secondes sans collision après transition
     
     console.log(`🌀 [TransitionManager] 📍 INIT zone: ${this.currentZone} (scène: ${scene.scene.key})`);
