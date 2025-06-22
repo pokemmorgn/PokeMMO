@@ -267,29 +267,41 @@ this.events.once('destroy', this.cleanup, this);
 
   // ✅ MÉTHODE EXISTANTE: Redirection vers la bonne scène
 redirectToCorrectScene(correctScene, serverData) {
-  console.log('=== REDIRECTION DEBUG ===');
-  console.log('FROM:', this.scene.key, 'TO:', correctScene);
-  console.log('serverData:', serverData);
+  console.warn('=== [DEBUG] REDIRECTION SCENE ===');
+  console.warn('FROM:', this.scene.key, 'TO:', correctScene);
+  console.warn('serverData:', serverData);
+
+  const transitionData = {
+    fromZone: serverData.zone,
+    fromTransition: true,
+    networkManager: this.networkManager,
+    mySessionId: this.mySessionId,
+    spawnX: serverData.x,
+    spawnY: serverData.y,
+    serverForced: true,
+    preservePlayer: true
+  };
+
+  if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
+
+  // Log la pile d'appel au moment du changement
+  console.warn('[DEBUG] SCENE.START called', {
+    fromScene: this.scene.key,
+    toScene: correctScene,
+    transitionData
+  });
+  console.trace();
+
   this.scene.start(correctScene, transitionData);
+
+  // Log le state de la scène un peu après
   setTimeout(() => {
-    console.log('APRES SCENE.START', this.scene.key);
-  }, 1000);
-
-
-    const transitionData = {
-      fromZone: serverData.zone,
-      fromTransition: true,
-      networkManager: this.networkManager,
-      mySessionId: this.mySessionId,
-      spawnX: serverData.x,
-      spawnY: serverData.y,
-      serverForced: true,
-      preservePlayer: true
-    };
-    
-    if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
-    this.scene.start(correctScene, transitionData);
-  }
+    console.warn('[DEBUG] APRES SCENE.START', {
+      activeScenes: Object.keys(this.scene.manager.keys).filter(k => this.scene.manager.isActive(k)),
+      currentScene: this.scene.key
+    });
+  }, 500);
+}
 
   // ✅ MÉTHODE EXISTANTE: Synchronisation sessionId
   synchronizeSessionId() {
