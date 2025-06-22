@@ -215,7 +215,7 @@ const config = {
   NoctherCave1Scene,
   NoctherCave2Scene,
   NoctherCave2BisScene
-]
+],
   physics: {
     default: 'arcade',
     arcade: {
