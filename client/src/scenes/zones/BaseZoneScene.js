@@ -11,7 +11,11 @@ import { integrateShopToScene } from "../../game/ShopIntegration.js";
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
-    super({ key: sceneKey });
+super({ key: sceneKey });
+console.log(
+  `[DEBUG REBOOT SCENE] BaseZoneScene.constructor() — Nouvelle instance de ${sceneKey} à ${Date.now()}`,
+  { sceneKey, stack: new Error().stack }
+);
     this.mapKey = mapKey;
     this.phaserTilesets = [];
     this.layers = {};
@@ -29,6 +33,9 @@ export class BaseZoneScene extends Phaser.Scene {
     this.shopIntegration = null;
     console.log(`[BASESCENE:${sceneKey}] === CONSTRUCTION SCÈNE GLOBALE ===`);
   }
+
+
+
 
   preload() {
     const ext = 'tmj';
