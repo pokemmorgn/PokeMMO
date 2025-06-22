@@ -1,12 +1,18 @@
-// client/src/network/NetworkManager.js - VERSION LOGGÉE [NETWORKMANAGER]
-// ✅ GESTION DÉCONNEXION + RECONNEXION AUTOMATIQUE + LOGS DEBUG COMPLETS
+// client/src/network/NetworkManager.js - VERSION COLYSEUS UNIQUE [SINGLETON]
 
-import { Client } from "colyseus.js";
+// import { Client } from "colyseus.js"; // ❌ Plus besoin !
 import { GAME_CONFIG } from "../config/gameConfig.js";
 
 export class NetworkManager {
-  constructor(username) {
-    this.client = new Client(GAME_CONFIG.server.url);
+  /**
+   * @param {Client} colyseusClient  Instance unique de Colyseus (créée dans main.js)
+   * @param {string} username
+   */
+  constructor(colyseusClient, username) {
+    if (!colyseusClient || typeof colyseusClient.joinOrCreate !== "function") {
+      throw new Error("NetworkManager: colyseusClient invalide !");
+    }
+    this.client = colyseusClient; // ✅ PAS de new Client ici !
     this.username = username;
     this.room = null;
     this.sessionId = null;
