@@ -620,9 +620,21 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log(`✅ [${this.scene.key}] Joueur positionné à: (${finalX}, ${finalY})`);
   }
 
-  // ✅ GÉRER DONNÉES DE TRANSITION - AMÉLIORÉ
+  // ✅ GÉRER DONNÉES DE TRANSITION - AVEC DÉLAI DE GRÂCE
   handleTransitionData(sceneData) {
     console.log(`🔄 [${this.scene.key}] Gestion données transition:`, sceneData);
+    
+    // ✅ NOUVEAU : Activer délai de grâce après transition
+    if (sceneData.fromTransition) {
+      console.log(`🛡️ [${this.scene.key}] Activation délai de grâce post-transition...`);
+      
+      this.time.delayedCall(500, () => {
+        if (this.transitionManager) {
+          this.transitionManager.activateGracePeriod(3000); // 3 secondes
+          console.log(`🛡️ [${this.scene.key}] Délai de grâce activé: aucune transition pendant 3s`);
+        }
+      });
+    }
     
     // ✅ ROLLBACK
     if (sceneData.isRollback && sceneData.restorePlayerState && this.playerManager) {
@@ -651,7 +663,7 @@ export class BaseZoneScene extends Phaser.Scene {
       });
     }
     
-    // ✅ NOUVEAU : RÉACTIVER TRANSITIONS APRÈS CHANGEMENT DE SCÈNE
+    // ✅ RÉACTIVER TRANSITIONS APRÈS CHANGEMENT DE SCÈNE
     if (sceneData.fromTransition) {
       console.log(`🔄 [${this.scene.key}] Post-transition: vérification TransitionManager...`);
       
