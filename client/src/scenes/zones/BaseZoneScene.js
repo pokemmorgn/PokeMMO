@@ -9,6 +9,7 @@ import { NpcManager } from "../../game/NpcManager";
 import { QuestSystem } from "../../game/QuestSystem.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
+import { TransitionManager } from '../../transitions/TransitionManager.js'; // ✅ AJOUTÉ
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
 
 export class BaseZoneScene extends Phaser.Scene {
@@ -559,7 +560,7 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  // ✅ GÉRER DONNÉES DE TRANSITION
+  // ✅ GÉRER DONNÉES DE TRANSITION - AMÉLIORÉ
   handleTransitionData(sceneData) {
     console.log(`🔄 [${this.scene.key}] Gestion données transition:`, sceneData);
     
@@ -589,6 +590,62 @@ export class BaseZoneScene extends Phaser.Scene {
         this.playerManager.forceResynchronization();
       });
     }
+    
+    // ✅ NOUVEAU : RÉACTIVER TRANSITIONS APRÈS CHANGEMENT DE SCÈNE
+    if (sceneData.fromTransition) {
+      console.log(`🔄 [${this.scene.key}] Post-transition: vérification TransitionManager...`);
+      
+      this.time.delayedCall(500, () => {
+        this.ensureTransitionsActive();
+      });
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : S'assurer que les transitions sont actives
+  ensureTransitionsActive() {
+    console.log(`🔧 [${this.scene.key}] === VÉRIFICATION TRANSITIONS ===`);
+    
+    if (!this.transitionManager) {
+      console.warn(`⚠️ [${this.scene.key}] TransitionManager manquant!`);
+      return;
+    }
+    
+    // ✅ Debug état
+    console.log(`🔍 [${this.scene.key}] État TransitionManager:`);
+    console.log(`  - isActive: ${this.transitionManager.isActive}`);
+    console.log(`  - isTransitioning: ${this.transitionManager.isTransitioning}`);
+    console.log(`  - teleportZones: ${this.transitionManager.teleportZones.size}`);
+    
+    // ✅ Réactiver si nécessaire
+    if (!this.transitionManager.isActive) {
+      console.log(`🔧 [${this.scene.key}] Réactivation TransitionManager...`);
+      this.transitionManager.setActive(true);
+    }
+    
+    // ✅ Reset état transition si bloqué
+    if (this.transitionManager.isTransitioning) {
+      console.log(`🔧 [${this.scene.key}] Reset état transition bloqué...`);
+      this.transitionManager.isTransitioning = false;
+    }
+    
+    // ✅ Réinitialiser si pas de téléports
+    if (this.transitionManager.teleportZones.size === 0) {
+      console.log(`🔧 [${this.scene.key}] Aucun téléport trouvé, réinitialisation...`);
+      
+      if (this.map) {
+        this.transitionManager.destroy();
+        this.transitionManager = new TransitionManager(this);
+        this.transitionManager.initialize();
+        
+        console.log(`✅ [${this.scene.key}] TransitionManager réinitialisé`);
+      } else {
+        console.warn(`⚠️ [${this.scene.key}] Map pas encore chargée pour réinit transitions`);
+      }
+    }
+    
+    // ✅ Log final
+    console.log(`✅ [${this.scene.key}] Vérification transitions terminée`);
+    this.transitionManager.debugInfo();
   }
 
   // ✅ GESTION TRANSITIONS - DÉLÉGUÉE AU TRANSITIONMANAGER
