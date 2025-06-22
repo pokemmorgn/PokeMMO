@@ -1,5 +1,5 @@
-// client/src/network/NetworkManager.js - VERSION SIMPLIFIÉE TRANSITIONS
-// ✅ UNE SEULE SOURCE DE VÉRITÉ : LE SERVEUR DICTE LA ZONE
+// client/src/network/NetworkManager.js - VERSION CORRIGÉE CALLBACKS
+// ✅ AJOUT DE LA MÉTHODE onTransitionValidation MANQUANTE
 
 import { Client } from "colyseus.js";
 import { GAME_CONFIG } from "../config/gameConfig.js";
@@ -12,25 +12,27 @@ export class NetworkManager {
     this.sessionId = null;
     this.isConnected = false;
     
-    // ✅ SIMPLIFIÉ: Une seule variable pour les transitions
     this.isTransitionActive = false;
     this.transitionStartTime = 0;
-    
-    // ✅ SIMPLIFIÉ: Zone dictée par le serveur uniquement
-    this.currentZone = null; // ❌ PLUS DE LOGIQUE CLIENT
+    this.currentZone = null;
     
     this.lastSendTime = 0;
     this.callbacks = {
       onConnect: null,
       onStateChange: null,
       onDisconnect: null,
-      onCurrentZone: null, // ✅ CALLBACK ZONE SERVEUR
+      onCurrentZone: null,
+      onZoneData: null,
+      onNpcList: null,
+      onNpcInteraction: null,
+      onSnap: null,
+      onTransitionValidation: null // ✅ AJOUTÉ
     };
     
     console.log(`📡 [NetworkManager] Initialisé pour: ${username}`);
   }
 
-  // ✅ CONNEXION SIMPLIFIÉE
+  // ✅ CONNEXION (identique)
   async connect(spawnZone = "beach", spawnData = {}) {
     try {
       console.log(`📡 [NetworkManager] === CONNEXION WORLDROOM ===`);
@@ -53,9 +55,6 @@ export class NetworkManager {
       this.sessionId = this.room.sessionId;
       this.isConnected = true;
       
-      // ✅ IMPORTANT: Ne PAS définir currentZone ici
-      // Le serveur va nous l'envoyer via "currentZone"
-      
       console.log(`📡 [NetworkManager] ✅ Connecté! SessionId: ${this.sessionId}`);
 
       this.setupRoomListeners();
@@ -67,22 +66,20 @@ export class NetworkManager {
     }
   }
 
-  // ✅ LISTENERS SIMPLIFIÉS
+  // ✅ LISTENERS CORRIGÉS
   setupRoomListeners() {
     if (!this.room) return;
 
     console.log(`📡 [NetworkManager] Setup listeners...`);
 
-    // ✅ LISTENER 1: Zone actuelle (CRITIQUE)
+    // ✅ LISTENER 1: Zone actuelle
     this.room.onMessage("currentZone", (data) => {
       console.log(`📍 [NetworkManager] === ZONE SERVEUR REÇUE ===`);
       console.log(`🎯 Zone: ${data.zone}`);
       console.log(`📊 Position: (${data.x}, ${data.y})`);
       
-      // ✅ APPLIQUER LA VÉRITÉ DU SERVEUR
       this.currentZone = data.zone;
       
-      // ✅ TRANSMETTRE À LA SCÈNE
       if (this.callbacks.onCurrentZone) {
         this.callbacks.onCurrentZone(data);
       }
@@ -110,7 +107,7 @@ export class NetworkManager {
     // ✅ LISTENER 4: Zone data
     this.room.onMessage("zoneData", (data) => {
       console.log(`📡 [NetworkManager] Zone data: ${data.zone}`);
-      this.currentZone = data.zone; // ✅ SYNC
+      this.currentZone = data.zone;
       
       if (this.callbacks.onZoneData) {
         this.callbacks.onZoneData(data);
@@ -126,14 +123,13 @@ export class NetworkManager {
       }
     });
 
-    // ✅ LISTENER 6: Validation transition (SIMPLIFIÉ)
+    // ✅ LISTENER 6: Validation transition (CORRIGÉ)
     this.room.onMessage("transitionResult", (result) => {
       console.log(`📡 [NetworkManager] === RÉSULTAT TRANSITION ===`);
       console.log(`✅ Succès: ${result.success}`);
       
       if (result.success) {
         console.log(`🎯 Nouvelle zone: ${result.currentZone}`);
-        // ✅ METTRE À JOUR IMMÉDIATEMENT
         this.currentZone = result.currentZone;
         this.isTransitionActive = false;
       } else {
@@ -141,9 +137,13 @@ export class NetworkManager {
         this.isTransitionActive = false;
       }
       
-      // ✅ CALLBACK UNIQUE
+      // ✅ NOUVEAU : APPEL DIRECT DU CALLBACK TRANSITION
+      console.log(`📞 [NetworkManager] Appel callback transition...`);
       if (this.callbacks.onTransitionValidation) {
+        console.log(`📞 [NetworkManager] ✅ Callback trouvé, appel...`);
         this.callbacks.onTransitionValidation(result);
+      } else {
+        console.warn(`📞 [NetworkManager] ⚠️ Aucun callback transition enregistré!`);
       }
     });
 
@@ -201,11 +201,9 @@ export class NetworkManager {
     console.log(`📍 Vers: ${targetZone}`);
     console.log(`📊 Position: (${spawnX}, ${spawnY})`);
     
-    // ✅ MARQUER TRANSITION ACTIVE
     this.isTransitionActive = true;
     this.transitionStartTime = Date.now();
     
-    // ✅ ENVOYER AU SERVEUR
     this.room.send("moveToZone", {
       targetZone: targetZone,
       spawnX: spawnX,
@@ -215,7 +213,7 @@ export class NetworkManager {
     return true;
   }
 
-  // ✅ VALIDATION TRANSITION (utilisée par TransitionManager)
+  // ✅ VALIDATION TRANSITION
   validateTransition(request) {
     if (!this.isConnected || !this.room) {
       console.warn("📡 [NetworkManager] ⚠️ Pas connecté pour validation");
@@ -225,17 +223,15 @@ export class NetworkManager {
     console.log(`📡 [NetworkManager] === VALIDATION TRANSITION ===`);
     console.log(`📤 Requête:`, request);
     
-    // ✅ MARQUER TRANSITION ACTIVE
     this.isTransitionActive = true;
     this.transitionStartTime = Date.now();
     
-    // ✅ ENVOYER AU SERVEUR
     this.room.send("validateTransition", request);
     
     return true;
   }
 
-  // ✅ MÉTHODES DE COMMUNICATION SIMPLIFIÉES
+  // ✅ COMMUNICATION
   sendMove(x, y, direction, isMoving) {
     if (this.isConnected && this.room && !this.isTransitionActive) {
       const now = Date.now();
@@ -258,7 +254,6 @@ export class NetworkManager {
     }
   }
 
-  // ✅ DEMANDER ZONE ACTUELLE
   requestCurrentZone(sceneKey) {
     if (this.isConnected && this.room) {
       console.log(`📡 [NetworkManager] Demande zone pour: ${sceneKey}`);
@@ -270,7 +265,7 @@ export class NetworkManager {
     }
   }
 
-  // ✅ GETTERS SIMPLIFIÉS
+  // ✅ GETTERS
   getSessionId() { 
     return this.sessionId; 
   }
@@ -292,7 +287,12 @@ export class NetworkManager {
   onNpcList(callback) { this.callbacks.onNpcList = callback; }
   onNpcInteraction(callback) { this.callbacks.onNpcInteraction = callback; }
   onSnap(callback) { this.callbacks.onSnap = callback; }
-  onTransitionValidation(callback) { this.callbacks.onTransitionValidation = callback; }
+  
+  // ✅ NOUVEAU : CALLBACK TRANSITION VALIDATION
+  onTransitionValidation(callback) { 
+    console.log(`📞 [NetworkManager] Enregistrement callback transition:`, !!callback);
+    this.callbacks.onTransitionValidation = callback; 
+  }
 
   // ✅ HELPER POUR ONMESSAGE
   onMessage(type, callback) {
@@ -301,7 +301,7 @@ export class NetworkManager {
     }
   }
 
-  // ✅ DEBUG SIMPLIFIÉ
+  // ✅ DEBUG
   debugState() {
     console.log(`📡 [NetworkManager] === DEBUG ===`);
     console.log(`👤 Username: ${this.username}`);
@@ -312,13 +312,19 @@ export class NetworkManager {
     console.log(`🏠 Room ID: ${this.room?.id || 'aucune'}`);
     console.log(`👥 Joueurs: ${this.room?.state?.players?.size || 0}`);
     
+    // ✅ NOUVEAU : Debug callbacks
+    console.log(`📞 Callbacks enregistrés:`);
+    Object.keys(this.callbacks).forEach(key => {
+      console.log(`  - ${key}: ${!!this.callbacks[key]}`);
+    });
+    
     if (this.isTransitionActive) {
       const elapsed = Date.now() - this.transitionStartTime;
       console.log(`⏱️ Transition depuis: ${elapsed}ms`);
     }
   }
 
-  // ✅ DÉCONNEXION SIMPLIFIÉE
+  // ✅ DÉCONNEXION
   async disconnect() {
     console.log(`📡 [NetworkManager] Déconnexion...`);
     
