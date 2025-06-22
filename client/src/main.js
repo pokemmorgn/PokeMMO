@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import AnimatedTiles from 'phaser-animated-tiles/dist/AnimatedTiles.js';
+import { NetworkManager } from "./network/NetworkManager.js";
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
 import { VillageScene } from "./scenes/zones/VillageScene.js";
@@ -58,6 +59,10 @@ if (!username) {
 }
 
 window.username = username;
+
+// Crée et expose le network manager unique pour tout le client
+window.globalNetworkManager = new NetworkManager(window.colyseus, window.username);
+
 
 const config = {
   type: Phaser.AUTO,
