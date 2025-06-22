@@ -68,7 +68,11 @@ export class BaseZoneScene extends Phaser.Scene {
     this.setupManagers();
     
     // ✅ ÉTAPE 3 : Intégrations
-    TransitionIntegration.setupTransitions(this);
+if (!this.transitionManager) {
+  this.transitionManager = new TransitionManager(this);
+  this.transitionManager.initialize();
+  console.log(`[DEBUG] TransitionManager (re)créé dans create()`);
+}
     
     // ✅ ÉTAPE 4 : Réseau (LE PLUS CRITIQUE)
     this.initializeNetworking();
@@ -548,7 +552,12 @@ export class BaseZoneScene extends Phaser.Scene {
           console.log(`📤 [${this.scene.key}] Envoi position urgence au serveur: (${spawnX}, ${spawnY})`);
           this.networkManager.sendMove(spawnX, spawnY, 'down', false);
         }
-        
+        if (!this.transitionManager) {
+  this.transitionManager = new TransitionManager(this);
+  this.transitionManager.initialize();
+  console.log(`[DEBUG] TransitionManager réinitialisé après urgence`);
+}
+
         if (typeof this.onPlayerReady === 'function') {
           this.onPlayerReady(emergencyPlayer);
         }
@@ -854,6 +863,9 @@ export class BaseZoneScene extends Phaser.Scene {
   update() {
     TransitionIntegration.updateTransitions(this);
 
+    if (this.transitionManager && this.playerManager?.getMyPlayer()) {
+  this.transitionManager.checkCollisions(this.playerManager.getMyPlayer());
+}
     // ✅ NOUVEAU : Vérification périodique de l'état du joueur
     if (this.time.now % 2000 < 16) { // Toutes les 2 secondes
       this.checkPlayerHealth();
