@@ -396,7 +396,13 @@ getMyPlayer() {
     if (playerState.currentZone && this.scene.zoneName) {
       return playerState.currentZone === this.scene.zoneName;
     }
-    
+
+    if (playerState.currentZone && this.scene.zoneName) {
+  if (sessionId !== this.mySessionId && playerState.currentZone !== this.scene.zoneName) {
+    console.log(`[PlayerManager] Joueur ${sessionId} masqué, zone différente (${playerState.currentZone} ≠ ${this.scene.zoneName})`);
+    return false;
+  }
+}
     // Si pas d'info de zone, afficher par défaut
     return true;
   }
