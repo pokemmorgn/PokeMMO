@@ -737,7 +737,6 @@ if (this.map) {
 
   // === UPDATE ===
   update() {
-  Update du GlobalTransitionManager
   if (this.globalTransitionManager) {     // ← Commente ces lignes
   const myPlayer = this.playerManager?.getMyPlayer();
     if (myPlayer) {
