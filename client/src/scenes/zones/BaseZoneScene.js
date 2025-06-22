@@ -35,9 +35,6 @@ export class BaseZoneScene extends Phaser.Scene {
 
     // Shop
     this.shopIntegration = null;
-
-    // ✅ NOUVEAU: Flag pour éviter les doubles spawns
-    this.playerSpawnInitialized = false;
   }
 
   preload() {
@@ -60,13 +57,13 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.createPlayerAnimations();
     this.setupManagers();
+    this.initPlayerSpawnFromSceneData();
 
     this.loadMap();
     this.setupInputs();
     this.createUI();
 
     this.myPlayerReady = false;
-    this.playerSpawnInitialized = false;
     this.isSceneReady = true;
 
     // ✅ UTILISER LA CONNEXION EXISTANTE AU LIEU DE CRÉER UNE NOUVELLE
@@ -75,16 +72,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.setupPlayerReadyHandler();
     this.setupCleanupHandlers();
 
-    // ✅ NOUVEAU: Timer de vérification caméra
-this.time.addEvent({
-  delay: 1000,
-  callback: this.checkCameraActivation,
-  callbackScope: this,
-  repeat: 5 // Vérifier 5 fois max
-});
-    
     this.events.once('shutdown', this.cleanup, this);
-    this.events.once('destroy', this.cleanup, this);
+this.events.once('destroy', this.cleanup, this);
   }
 
   // ✅ NOUVELLE MÉTHODE: Utiliser la connexion existante de main.js
@@ -114,7 +103,7 @@ this.time.addEvent({
       isConnected: this.networkManager.isConnected,
       currentZone: this.networkManager.getCurrentZone()
     });
-    
+
     // ✅ Configuration des handlers réseau
     this.setupNetworkHandlers();
     this.networkSetupComplete = true;
@@ -146,25 +135,13 @@ this.time.addEvent({
   }
 
   onPlayerReady(player) {
-    // Hook vide par défaut. Sera utilisé si défini dans une scène spécifique.
-    console.log(`[${this.scene.key}] ✅ onPlayerReady appelé pour ${player.sessionId}`);
-    console.log(`[${this.scene.key}] ✅ Hook onPlayerReady déclenché pour`, player.sessionId);
-  }
+  // Hook vide par défaut. Sera utilisé si défini dans une scène spécifique.
+      console.log(`[${this.scene.key}] ✅ onPlayerReady appelé pour ${player.sessionId}`);
+  console.log(`[${this.scene.key}] ✅ Hook onPlayerReady déclenché pour`, player.sessionId);
+}
   
-  // ✅ MÉTHODE MODIFIÉE: Ne pas créer de joueur ici si pas nécessaire
   initPlayerSpawnFromSceneData() {
-    // ✅ PROTECTION CONTRE DOUBLE SPAWN
-    if (this.playerSpawnInitialized) {
-      console.log(`[${this.scene.key}] ⚠️ Spawn déjà initialisé, ignorer`);
-      return;
-    }
-
     const data = this.scene.settings.data || {};
-    if (!this.mySessionId) {
-      console.warn(`[${this.scene.key}] ⚠️ mySessionId manquant, impossible de créer le joueur`);
-      return;
-    }
-
     const sessionId = this.mySessionId;
     let spawnX = 52, spawnY = 48;
 
@@ -172,48 +149,15 @@ this.time.addEvent({
     if (typeof data.spawnX === 'number') spawnX = data.spawnX;
     if (typeof data.spawnY === 'number') spawnY = data.spawnY;
 
-    // ✅ NOUVEAU: Vérifier si le joueur existe déjà avant de le créer
-    const existingPlayer = this.playerManager?.getMyPlayer();
-    if (existingPlayer) {
-      console.log(`[${this.scene.key}] ✅ Joueur existant trouvé, pas de nouvelle création`);
-      this.playerSpawnInitialized = true;
-      
-      // Juste repositionner si nécessaire
-      if (data.spawnX !== undefined && data.spawnY !== undefined) {
-        existingPlayer.x = spawnX;
-        existingPlayer.y = spawnY;
-        existingPlayer.targetX = spawnX;
-        existingPlayer.targetY = spawnY;
-        console.log(`[${this.scene.key}] Joueur repositionné à (${spawnX}, ${spawnY})`);
-      }
-      return;
-    }
-
-    // Création réelle du joueur seulement si absent
-    if (this.playerManager) {
+    // Création réelle du joueur (évite de doubler le joueur si déjà présent)
+    if (this.playerManager && !this.playerManager.getMyPlayer()) {
       this.playerManager.createPlayer(sessionId, spawnX, spawnY);
-      this.playerSpawnInitialized = true;
-      console.log(`[${this.scene.key}] ✅ Nouveau joueur spawn à (${spawnX}, ${spawnY})`);
+      console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY})`);
     } else {
-      console.warn(`[${this.scene.key}] ⚠️ PlayerManager manquant, impossible de créer le joueur`);
+      console.log(`[${this.scene.key}] Joueur déjà présent ou playerManager manquant.`);
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Vérification automatique de la caméra
-checkCameraActivation() {
-  if (this.cameraFollowing) return; // Déjà activée
-  
-  const myPlayer = this.playerManager?.getMyPlayer();
-  
-  if (myPlayer && this.cameraManager && !this.cameraFollowing) {
-    console.log(`🎥 [${this.scene.key}] 🚀 Auto-activation caméra (timer)`);
-    this.cameraManager.followPlayer(myPlayer);
-    this.cameraFollowing = true;
-    this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
-    console.log(`✅ [${this.scene.key}] Caméra auto-activée !`);
-  }
-}
-  
   // ✅ MÉTHODE MODIFIÉE: Demander la zone au serveur
   requestServerZone() {
     console.log(`📍 [${this.scene.key}] === DEMANDE ZONE AU SERVEUR ===`);
@@ -232,7 +176,7 @@ checkCameraActivation() {
     console.log(`📤 [${this.scene.key}] Demande de zone envoyée au serveur`);
   }
 
-  // ✅ MÉTHODE MODIFIÉE: Setup des handlers réseau avec spawn conditionnel
+  // ✅ MÉTHODE MODIFIÉE: Setup des handlers réseau
   setupNetworkHandlers() {
     if (!this.networkManager) return;
 
@@ -261,12 +205,6 @@ checkCameraActivation() {
         return;
       }
       
-      // ✅ NOUVEAU: Initialiser le spawn seulement après confirmation de zone
-      if (!this.playerSpawnInitialized) {
-        console.log(`[${this.scene.key}] 🎯 Zone confirmée, initialisation spawn...`);
-        this.initPlayerSpawnFromSceneData();
-      }
-      
       // ✅ Synchroniser le PlayerManager avec la zone confirmée
       if (this.playerManager) {
         this.playerManager.currentZone = this.zoneName;
@@ -274,36 +212,6 @@ checkCameraActivation() {
       }
       
       console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
-    });
-
-    // ✅ NOUVEAU: Handler pour confirmation de mon joueur
-    this.networkManager.onMyPlayerConfirmed((playerData) => {
-      console.log(`👤 [${this.scene.key}] === MON JOUEUR CONFIRMÉ ===`);
-      console.log(`📊 Player data:`, playerData);
-      
-      // ✅ Créer le joueur avec les données serveur si pas encore fait
-      if (!this.playerSpawnInitialized && this.playerManager) {
-        console.log(`[${this.scene.key}] 🎯 Création joueur avec données serveur...`);
-        
-        const player = this.playerManager.createPlayer(
-          this.mySessionId, 
-          playerData.x, 
-          playerData.y
-        );
-        
-        if (player) {
-          this.playerSpawnInitialized = true;
-          
-          // ✅ FORCER le suivi caméra immédiatement
-          if (this.cameraManager && !this.cameraFollowing) {
-            console.log(`[${this.scene.key}] 🎥 Activation suivi caméra forcé`);
-            this.cameraManager.followPlayer(player);
-            this.cameraFollowing = true;
-          }
-          
-          console.log(`✅ [${this.scene.key}] Joueur créé et caméra activée`);
-        }
-      }
     });
 
     // ✅ Handler d'état avec protection
@@ -383,15 +291,9 @@ checkCameraActivation() {
     }
   }
 
-  // ✅ MÉTHODE MODIFIÉE: Gestion du joueur local avec spawn conditionnel
+  // ✅ MÉTHODE EXISTANTE: Gestion du joueur local depuis le state
   handleMyPlayerFromState() {
     if (this.myPlayerReady) return;
-    
-    // ✅ D'abord essayer de créer le joueur si pas encore fait
-    if (!this.playerSpawnInitialized) {
-      console.log(`[${this.scene.key}] 🎯 Tentative création joueur depuis state...`);
-      this.initPlayerSpawnFromSceneData();
-    }
     
     const myPlayer = this.playerManager.getMyPlayer();
     if (myPlayer && !this.myPlayerReady) {
@@ -399,30 +301,6 @@ checkCameraActivation() {
       console.log(`✅ [${this.scene.key}] Joueur local trouvé: ${this.mySessionId}`);
       if (window.hideLoadingOverlay) window.hideLoadingOverlay();
 
-          // ✅ DEBUG CAMÉRA
-    console.log(`🎥 [${this.scene.key}] Debug caméra:`, {
-      cameraManager: !!this.cameraManager,
-      cameraFollowing: this.cameraFollowing,
-      playerX: myPlayer.x,
-      playerY: myPlayer.y
-    });
-    
-// ✅ FORCER le suivi caméra ABSOLUMENT
-if (!this.cameraFollowing && this.cameraManager) {
-  console.log(`[${this.scene.key}] 🎥 FORCER suivi caméra depuis state`);
-  this.cameraManager.followPlayer(myPlayer);
-  this.cameraFollowing = true;
-  
-  // ✅ SNAP IMMÉDIAT de la caméra
-  this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
-  console.log(`[${this.scene.key}] 🎥 Caméra activée et centrée !`);
-} else if (this.cameraFollowing && this.cameraManager && this.cameraManager.target !== myPlayer) {
-  // ✅ CORRECTION: Si la caméra suit déjà mais pas le bon joueur
-  console.log(`[${this.scene.key}] 🔧 Correction cible caméra`);
-  this.cameraManager.followPlayer(myPlayer);
-  this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
-}
-      
       // ✅ S'assurer que le joueur est visible
       if (!myPlayer.visible) {
         console.log(`🔧 [${this.scene.key}] Forcer visibilité joueur local`);
@@ -430,13 +308,8 @@ if (!this.cameraFollowing && this.cameraManager) {
         myPlayer.setActive(true);
       }
       
-      // ✅ FORCER le suivi caméra
-      if (!this.cameraFollowing) {
-        console.log(`[${this.scene.key}] 🎥 Activation suivi caméra depuis state`);
-        this.cameraManager.followPlayer(myPlayer);
-        this.cameraFollowing = true;
-      }
-      
+      this.cameraManager.followPlayer(myPlayer);
+      this.cameraFollowing = true;
       this.positionPlayer(myPlayer);
       
       if (typeof this.onPlayerReady === 'function') {
@@ -569,7 +442,7 @@ if (!this.cameraFollowing && this.cameraManager) {
     }
   }
 
-  // ✅ MÉTHODE MODIFIÉE: Setup du handler joueur prêt avec meilleur timing
+  // ✅ MÉTHODE EXISTANTE: Setup du handler joueur prêt
   setupPlayerReadyHandler() {
     if (!this.playerManager) return;
     
@@ -578,13 +451,8 @@ if (!this.cameraFollowing && this.cameraManager) {
         this.myPlayerReady = true;
         console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
 
-        // ✅ FORCER ABSOLUMENT le suivi caméra
-        if (!this.cameraFollowing) {
-          console.log(`[${this.scene.key}] 🎥 FORCER suivi caméra depuis callback`);
-          this.cameraManager.followPlayer(myPlayer);
-          this.cameraFollowing = true;
-        }
-        
+        this.cameraManager.followPlayer(myPlayer);
+        this.cameraFollowing = true;
         this.positionPlayer(myPlayer);
 
         if (typeof this.onPlayerReady === 'function') {
@@ -704,27 +572,26 @@ if (!this.cameraFollowing && this.cameraManager) {
 
     this.handleMovement(myPlayerState);
   }
-
-  isSceneStillValid(expectedScene) {
-    return this.scene && this.scene.key === expectedScene && this.scene.isActive();
-  }
+isSceneStillValid(expectedScene) {
+  return this.scene && this.scene.key === expectedScene && this.scene.isActive();
+}
   
   cleanup() {
     TransitionIntegration.cleanupTransitions(this);
 
-    // ✅ Stoppe cette scène pour éviter qu'elle reste active
-    if (this.scene.isActive(this.scene.key)) {
-      this.scene.stop(this.scene.key);
-      console.log(`[${this.scene.key}] ⛔ Scene stoppée (cleanup)`);
-    }
+      // ✅ Stoppe cette scène pour éviter qu’elle reste active
+  if (this.scene.isActive(this.scene.key)) {
+    this.scene.stop(this.scene.key);
+    console.log(`[${this.scene.key}] ⛔ Scene stoppée (cleanup)`);
+  }
 
-    // ✅ Désactive les écouteurs de messages réseau
-    if (this.networkManager?.room) {
-      this.networkManager.room.removeAllListeners("currentZone");
-      this.networkManager.room.removeAllListeners("snap");
-      this.networkManager.room.removeAllListeners("questStatuses");
-      console.log(`[${this.scene.key}] 🎧 Nettoyage des écouteurs réseau`);
-    }
+  // ✅ Désactive les écouteurs de messages réseau
+  if (this.networkManager?.room) {
+    this.networkManager.room.removeAllListeners("currentZone");
+    this.networkManager.room.removeAllListeners("snap");
+    this.networkManager.room.removeAllListeners("questStatuses");
+    console.log(`[${this.scene.key}] 🎧 Nettoyage des écouteurs réseau`);
+     }
     console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
 
     const isTransition = this.networkManager && this.networkManager.isTransitionActive;
@@ -749,7 +616,6 @@ if (!this.cameraFollowing && this.cameraManager) {
     this.time.removeAllEvents();
     this.cameraFollowing = false;
     this.myPlayerReady = false;
-    this.playerSpawnInitialized = false;
     this.isSceneReady = false;
     this.networkSetupComplete = false;
     
@@ -1264,26 +1130,6 @@ if (!this.cameraFollowing && this.cameraManager) {
     return this.shopIntegration?.getShopSystem() || null;
   }
 
-  // Ajoute cette méthode dans BaseZoneScene.js
-forceActivateCamera() {
-  const myPlayer = this.playerManager?.getMyPlayer();
-  
-  console.log(`🎥 [${this.scene.key}] === FORCE ACTIVATION CAMÉRA ===`);
-  console.log(`- Player exists: ${!!myPlayer}`);
-  console.log(`- CameraManager exists: ${!!this.cameraManager}`);
-  console.log(`- CameraFollowing: ${this.cameraFollowing}`);
-  
-  if (myPlayer && this.cameraManager && !this.cameraFollowing) {
-    console.log(`🎥 [${this.scene.key}] 🚀 ACTIVATION CAMÉRA FORCÉE`);
-    this.cameraManager.followPlayer(myPlayer);
-    this.cameraFollowing = true;
-    
-    // Snap la caméra immédiatement
-    this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
-    console.log(`✅ [${this.scene.key}] Caméra activée et centrée !`);
-  }
-}
-  
   isShopOpen() {
     return this.shopIntegration?.getShopSystem()?.isShopOpen() || false;
   }
