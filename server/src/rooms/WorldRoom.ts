@@ -45,6 +45,12 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.initializeNpcManagers();
     this.transitionService = new TransitionService(this.npcManagers);
     console.log(`✅ TransitionService initialisé`);
+
+    // ✅ AJOUTER SEULEMENT ÇA
+  this.clock.setInterval(() => {
+    this.state.gameHour = (this.state.gameHour + 1) % 24;
+    this.state.isDayTime = this.state.gameHour >= 9 && this.state.gameHour < 21;
+  }, 60000);
     
     // Messages handlers
     this.setupMessageHandlers();
