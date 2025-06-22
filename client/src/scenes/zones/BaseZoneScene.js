@@ -136,6 +136,7 @@ this.events.once('destroy', this.cleanup, this);
 
   onPlayerReady(player) {
   // Hook vide par défaut. Sera utilisé si défini dans une scène spécifique.
+      console.log(`[${this.scene.key}] ✅ onPlayerReady appelé pour ${player.sessionId}`);
   console.log(`[${this.scene.key}] ✅ Hook onPlayerReady déclenché pour`, player.sessionId);
 }
   
