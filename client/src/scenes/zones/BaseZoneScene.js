@@ -71,6 +71,9 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.setupPlayerReadyHandler();
     this.setupCleanupHandlers();
+
+    this.events.once('shutdown', this.cleanup, this);
+this.events.once('destroy', this.cleanup, this);
   }
 
   // ✅ NOUVELLE MÉTHODE: Utiliser la connexion existante de main.js
