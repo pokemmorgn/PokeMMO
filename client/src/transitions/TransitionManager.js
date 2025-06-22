@@ -326,19 +326,28 @@ export class TransitionManager {
     console.log(`🚀 [TransitionManager] === CHANGEMENT DE SCÈNE (LAUNCH) ===`);
     console.log(`📍 De: ${this.scene.scene.key} → ${targetScene}`);
     
+    // ✅ AMÉLIORATION : S'assurer que les coordonnées spawn sont passées correctement
+    const spawnX = result.position?.x;
+    const spawnY = result.position?.y;
+    
+    console.log(`📍 [TransitionManager] Position spawn du serveur:`);
+    console.log(`  - result.position:`, result.position);
+    console.log(`  - spawnX: ${spawnX}`);
+    console.log(`  - spawnY: ${spawnY}`);
+    
     const transitionData = {
       fromZone: this.currentZone,
       fromTransition: true,
       networkManager: this.scene.networkManager,
       mySessionId: this.scene.mySessionId,
-      spawnX: result.position?.x,
-      spawnY: result.position?.y,
+      spawnX: spawnX, // ✅ Position serveur
+      spawnY: spawnY, // ✅ Position serveur
       preservePlayer: true,
       teleportData: teleportData,
-      serverResult: result
+      serverResult: result // ✅ Données complètes du serveur
     };
 
-    console.log(`📤 [TransitionManager] Données transition:`, transitionData);
+    console.log(`📤 [TransitionManager] Données transition complètes:`, transitionData);
     
     try {
       // ✅ MÉTHODE 1 : LAUNCH + STOP (préserve les connexions)
