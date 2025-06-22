@@ -240,7 +240,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.setupExistingHandlers();
 
     // ✅ FORCER UNE PREMIÈRE SYNCHRONISATION
-    });
   }
 
   // ✅ MÉTHODE EXISTANTE: Redirection vers la bonne scène
