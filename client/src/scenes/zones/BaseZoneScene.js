@@ -193,10 +193,8 @@ export class BaseZoneScene extends Phaser.Scene {
       
       // ✅ Si la scène ne correspond pas à la zone serveur, correction
       const expectedScene = this.mapZoneToScene(this.zoneName);
-      if (expectedScene && expectedScene !== this.scene.key) {
-        console.warn(`⚠️ [${this.scene.key}] SCÈNE INCORRECTE !`);
-        console.warn(`   Scène actuelle: ${this.scene.key}`);
-        console.warn(`   Scène attendue: ${expectedScene}`);
+      if (!this.isSceneStillValid(expectedScene)) {
+        console.warn(`[${this.scene.key}] 🔄 Redirection nécessaire → ${expectedScene}`);
         
         // ✅ REDIRECTION AUTOMATIQUE vers la bonne scène
         this.redirectToCorrectScene(expectedScene, data);
@@ -570,7 +568,10 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.handleMovement(myPlayerState);
   }
-
+isSceneStillValid(expectedScene) {
+  return this.scene && this.scene.key === expectedScene && this.scene.isActive();
+}
+  
   cleanup() {
     TransitionIntegration.cleanupTransitions(this);
 
