@@ -920,6 +920,15 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
       player.title = options.title || "Dresseur Débutant";
       // Ajouter au state
       this.state.players.set(client.sessionId, player);
+      console.log("DEBUG: Nombre de joueurs dans le state après ajout:", this.state.players.size);
+
+      client.send("playerSpawned", {
+        id: client.sessionId,
+        name: player.name,
+        x: player.x,
+        y: player.y,
+        currentZone: player.currentZone
+      });
       
       console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
       console.log(`💰 Level: ${player.level}, Gold: ${player.gold}`);
