@@ -9,7 +9,6 @@ import { VillageLabScene } from './scenes/zones/VillageLabScene.js';
 import { VillageHouse1Scene } from './scenes/zones/VillageHouse1Scene.js';
 import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 
-
 // === Colyseus.js ===
 import { Client } from 'colyseus.js';
 
@@ -63,7 +62,7 @@ window.username = username;
 // Crée et expose le network manager unique pour tout le client
 window.globalNetworkManager = new NetworkManager(window.colyseus, window.username);
 
-
+// === CONFIG PHASER (ne pas lancer ici !)
 const config = {
   type: Phaser.AUTO,
   width: 800,
@@ -102,9 +101,6 @@ const config = {
     autoCenter: Phaser.Scale.CENTER_BOTH
   }
 };
-
-const game = new Phaser.Game(config);
-window.game = game;
 
 // === CSS pour le HUD de sélection de starter ===
 const starterHudCSS = `
@@ -186,6 +182,7 @@ document.head.appendChild(styleSheet);
 console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
 
 // ==== Connexion Colyseus + Initialisation des systèmes ====
+// 🚨 NE PAS LANCER Phaser AVANT D’AVOIR UN NETWORK CONNECTÉ 🚨
 (async () => {
   try {
     // ✅ ÉTAPE 1: Initialiser le système de notification AVANT tout le reste
@@ -200,8 +197,18 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     // Initialise le chat stylé
     initPokeChat(worldChat, window.username);
 
-    // === INITIALISATION DES SYSTÈMES DE JEU ===
-    
+    // ✅ Connexion MMO principale AVANT Phaser
+    console.log("🌐 Connexion à la WorldRoom...");
+    const connected = await window.globalNetworkManager.connect("beach");
+    if (!connected) {
+      window.showGameAlert("Impossible de se connecter à la WorldRoom !");
+      throw new Error("Connexion WorldRoom échouée");
+    }
+    console.log("✅ Connecté à la WorldRoom");
+
+    // 4. Lancement de Phaser UNIQUEMENT après la connexion réussie
+    window.game = new Phaser.Game(config);
+
     // Variables globales pour stocker les systèmes
     window.starterHUD = null;
     window.questSystemGlobal = null;
@@ -213,40 +220,28 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
         console.log("🎒 Initialisation du système d'inventaire global");
         window.inventorySystemGlobal = new InventorySystem(null, gameRoom);
         
-        // Configurer la langue
         if (window.inventorySystemGlobal.inventoryUI) {
           window.inventorySystemGlobal.inventoryUI.currentLanguage = 'en';
           console.log("🌐 Langue de l'inventaire définie sur: English");
         }
         
-        // Rendre accessible globalement
         window.inventorySystem = window.inventorySystemGlobal;
-        
-        // Connecter l'inventaire standalone (rétrocompatibilité)
         if (typeof window.connectInventoryToServer === 'function') {
           window.connectInventoryToServer(gameRoom);
         }
-        
-        // ✅ Notification via le système centralisé
         window.onSystemInitialized('inventory');
-        
         console.log("✅ Système d'inventaire initialisé");
         return window.inventorySystemGlobal;
       }
       return window.inventorySystemGlobal;
     };
     
-    // ✅ Fonction globale pour initialiser le HUD de starter
     window.initStarterHUD = function(gameRoom) {
       if (!window.starterHUD) {
         console.log("🎮 Initialisation du HUD de sélection de starter");
         window.starterHUD = new StarterSelectionHUD(gameRoom);
-        
-        // Écouter les événements additionnels
         gameRoom.onMessage("welcomeMessage", (data) => {
           console.log("📨 Message de bienvenue:", data.message);
-          
-          // ✅ Utiliser le système de notification centralisé
           if (window.gameNotificationSystem) {
             window.gameNotificationSystem.show(
               data.message || "Bienvenue dans le jeu !",
@@ -259,43 +254,30 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
             );
           }
         });
-        
-        // ✅ Notification d'initialisation
         window.onSystemInitialized('starter');
-        
         return window.starterHUD;
       }
       return window.starterHUD;
     };
 
-    // ✅ Fonction globale pour initialiser le système de quêtes
     window.initQuestSystem = function(scene, gameRoom) {
       if (!window.questSystemGlobal) {
         console.log("🎯 Initialisation du système de quêtes global");
         window.questSystemGlobal = new QuestSystem(scene, gameRoom);
-        
-        // ✅ Notification d'initialisation
         window.onSystemInitialized('quests');
-        
         return window.questSystemGlobal;
       }
       return window.questSystemGlobal;
     };
 
-    // ✅ Fonction globale pour initialiser TOUS les systèmes
     window.initAllGameSystems = function(scene, gameRoom) {
       console.log("🎮 Initialisation de tous les systèmes de jeu...");
-      
-      // Initialiser tous les systèmes
       const inventory = window.initInventorySystem(gameRoom);
       const quests = window.initQuestSystem(scene, gameRoom);
       const starter = window.initStarterHUD(gameRoom);
-      
-      // ✅ Notification globale d'initialisation via le système centralisé
       setTimeout(() => {
         window.onSystemInitialized('all');
       }, 1000);
-      
       console.log("✅ Tous les systèmes initialisés!");
       return {
         inventory: inventory,
@@ -304,9 +286,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       };
     };
 
-    // === FONCTIONS POUR LES SYSTÈMES ===
-
-    // Fonction pour déclencher manuellement la sélection de starter
     window.showStarterSelection = function() {
       if (window.starterHUD) {
         window.starterHUD.show();
@@ -320,8 +299,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       }
     };
 
-    // === FONCTIONS GLOBALES POUR LES QUÊTES ===
-    
     window.openQuestJournal = function() {
       if (window.questSystemGlobal) {
         window.questSystemGlobal.openQuestJournal();
@@ -338,9 +315,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     window.triggerQuestCollect = function(itemId, amount = 1) {
       if (window.questSystemGlobal) {
         window.questSystemGlobal.triggerCollectEvent(itemId, amount);
-        // ✅ FIX: NE PAS ajouter de notification ici, c'est déjà géré dans triggerCollectEvent
       } else {
-        // Fallback
         window.showGameNotification(`Objet collecté: ${itemId} x${amount}`, "inventory", {
           duration: 2000
         });
@@ -350,7 +325,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     window.triggerQuestDefeat = function(pokemonId) {
       if (window.questSystemGlobal) {
         window.questSystemGlobal.triggerDefeatEvent(pokemonId);
-        // ✅ FIX: NE PAS ajouter de notification ici, c'est déjà géré dans triggerDefeatEvent
       } else {
         window.onPlayerAction('battleWon', { pokemonId });
       }
@@ -359,7 +333,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     window.triggerQuestReach = function(zoneId, x, y, map) {
       if (window.questSystemGlobal) {
         window.questSystemGlobal.triggerReachEvent(zoneId, x, y, map);
-        // ✅ FIX: NE PAS ajouter de notification ici, c'est déjà géré dans triggerReachEvent
       } else {
         window.onZoneEntered(zoneId);
       }
@@ -368,7 +341,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     window.triggerQuestDeliver = function(npcId, itemId) {
       if (window.questSystemGlobal) {
         window.questSystemGlobal.triggerDeliverEvent(npcId, itemId);
-        // ✅ FIX: NE PAS ajouter de notification ici, c'est déjà géré dans triggerDeliverEvent
       } else {
         window.showGameNotification(`Objet livré: ${itemId}`, "success", {
           duration: 3000
@@ -376,8 +348,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       }
     };
 
-    // === FONCTIONS GLOBALES POUR L'INVENTAIRE ===
-    
     window.openInventory = function() {
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.openInventory();
@@ -395,7 +365,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       if (window.inventorySystemGlobal) {
         const wasOpen = window.inventorySystemGlobal.isInventoryOpen();
         window.inventorySystemGlobal.toggleInventory();
-        
         if (!wasOpen) {
           window.showGameNotification("Inventaire ouvert", "info", {
             duration: 1000,
@@ -403,7 +372,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
           });
         }
       } else if (typeof window.toggleInventoryStandalone === 'function') {
-        // Fallback vers l'inventaire standalone
         window.toggleInventoryStandalone();
       } else {
         console.warn("⚠️ Aucun système d'inventaire disponible");
@@ -414,9 +382,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     window.addItemToPlayer = function(itemId, quantity = 1) {
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.onItemPickup(itemId, quantity);
-        // La notification est gérée automatiquement par le système d'inventaire
       } else {
-        // Fallback
         window.showGameNotification(`+${quantity} ${itemId}`, "inventory", {
           duration: 3000,
           position: 'bottom-right'
@@ -443,19 +409,14 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       return false;
     };
 
-    // === FONCTIONS DE TEST SIMPLIFIÉES ===
-    
     window.testInventory = function() {
       console.log("🧪 Test de l'inventaire...");
-      
       window.showGameNotification("Test de l'inventaire en cours...", "info", {
         duration: 2000,
         position: 'top-center'
       });
-      
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.toggleInventory();
-        
         setTimeout(() => {
           window.showGameNotification("Test d'inventaire réussi !", "success", {
             duration: 2000,
@@ -469,12 +430,10 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
 
     window.testAddItem = function(itemId = 'poke_ball', quantity = 1) {
       console.log(`🧪 Test ajout d'objet: ${itemId} x${quantity}`);
-      
       window.showGameNotification(`Test ajout: ${itemId} x${quantity}`, "info", {
         duration: 2000,
         position: 'bottom-center'
       });
-      
       if (window.worldChat && window.worldChat.connection && window.worldChat.connection.isOpen) {
         window.showGameAlert("Utilisez une GameRoom pour tester l'ajout d'objets");
       } else {
@@ -482,20 +441,15 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       }
     };
 
-    // === AFFICHAGE DES INSTRUCTIONS ===
-    
-    // Afficher les instructions dans la console
     showNotificationInstructions();
     
-// Final notification
-setTimeout(() => {
-  window.showGameNotification("Game system ready!", "success", {
-    duration: 3000,
-    position: 'top-center',
-    bounce: true
-  });
-}, 2000);
-
+    setTimeout(() => {
+      window.showGameNotification("Game system ready!", "success", {
+        duration: 3000,
+        position: 'top-center',
+        bounce: true
+      });
+    }, 2000);
 
     console.log("🎯 Tous les systèmes initialisés !");
     console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
@@ -504,50 +458,41 @@ setTimeout(() => {
 
   } catch (e) {
     console.error("❌ Erreur d'initialisation:", e);
-    
-    // Afficher l'erreur via le système de notification si disponible
     if (window.gameNotificationSystem) {
       window.showGameAlert(`Erreur: ${e.message}`);
     } else {
       alert("Impossible de rejoindre le serveur : " + e.message);
     }
-    
     throw e;
   }
 })();
 
-export default game;
+export default {}; // plus besoin d’exporter le game ici, il est sur window
 
-// === FONCTIONS UTILITAIRES POUR LE JEU ===
+// === Les fonctions utilitaires (comme avant) ===
 
-// Vérifier si le chat a le focus
 window.isChatFocused = function() {
   return window.pokeChat ? window.pokeChat.hasFocus() : false;
 };
 
-// Vérifier si le HUD de starter est ouvert
 window.isStarterHUDOpen = function() {
   return window.starterHUD ? window.starterHUD.isVisible : false;
 };
 
-// Vérifier si le journal de quêtes est ouvert
 window.isQuestJournalOpen = function() {
   return window.questSystemGlobal ? window.questSystemGlobal.isQuestJournalOpen() : false;
 };
 
-// Vérifier si l'inventaire est ouvert
 window.isInventoryOpen = function() {
   if (window.inventorySystemGlobal) {
     return window.inventorySystemGlobal.isInventoryOpen();
   }
-  // Fallback vers l'inventaire standalone
   if (typeof window.isInventoryVisible === 'function') {
     return window.isInventoryVisible();
   }
   return false;
 };
 
-// Fonction utilitaire pour les scènes Phaser
 window.shouldBlockInput = function() {
   return window.isChatFocused() || 
          window.isStarterHUDOpen() || 
@@ -555,23 +500,16 @@ window.shouldBlockInput = function() {
          window.isInventoryOpen();
 };
 
-// Vérifier si le joueur peut interagir
 window.canPlayerInteract = function() {
-  // Priorité au système d'inventaire s'il existe
   if (window.inventorySystemGlobal) {
     return window.inventorySystemGlobal.canPlayerInteract();
   }
-  
-  // Fallback vers le système de quêtes
   if (window.questSystemGlobal) {
     return window.questSystemGlobal.canPlayerInteract();
   }
-  
-  // Fallback basique
   return !window.shouldBlockInput();
 };
 
-// Fonction utilitaire pour obtenir des informations sur l'état du jeu
 window.getGameSystemsStatus = function() {
   const status = {
     chat: {
@@ -598,29 +536,20 @@ window.getGameSystemsStatus = function() {
     canInteract: window.canPlayerInteract(),
     inputBlocked: window.shouldBlockInput()
   };
-  
   return status;
 };
 
-// Fonction de debug pour afficher l'état de tous les systèmes
 window.debugGameSystems = function() {
   const status = window.getGameSystemsStatus();
   console.log("🔍 État des systèmes de jeu:", status);
-  
-  // Utiliser le système de notification pour le debug
   if (window.debugNotificationSystem) {
     window.debugNotificationSystem();
   }
-  
   return status;
 };
 
-// === RACCOURCIS POUR LES DÉVELOPPEURS ===
-
-// Fonction pour tester rapidement les notifications
 window.quickTestNotifications = function() {
   console.log("🧪 Test rapide des notifications...");
-  
   if (window.testNotifications) {
     window.testNotifications();
   } else {
@@ -628,7 +557,6 @@ window.quickTestNotifications = function() {
   }
 };
 
-// Fonction pour afficher l'aide
 window.showGameHelp = function() {
   if (window.gameNotificationSystem) {
     window.showGameNotification("Aide affichée dans la console", "info", {
@@ -636,7 +564,6 @@ window.showGameHelp = function() {
       position: 'top-center'
     });
   }
-  
   console.log(`
 🎮 === AIDE DU JEU ===
 
@@ -666,7 +593,6 @@ window.showGameHelp = function() {
   `);
 };
 
-// === MESSAGE FINAL ===
 console.log(`
 🎉 === POKÉMON MMO PRÊT ===
 Utilisez window.showGameHelp() pour l'aide complète
