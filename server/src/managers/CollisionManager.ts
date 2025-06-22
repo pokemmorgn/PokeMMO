@@ -14,11 +14,11 @@ export class CollisionManager {
     this.loadCollisionsFromMap(mapPath);
   }
 
-  loadCollisionsFromMap(mapPath: string) {
-    const resolvedPath = path.resolve(__dirname, mapPath);
-    if (!fs.existsSync(resolvedPath)) {
-      throw new Error(`CollisionManager: Le fichier map n'existe pas : ${resolvedPath}`);
-    }
+loadCollisionsFromMap(mapPath: string) {
+  const resolvedPath = path.resolve(process.cwd(), "assets/maps", mapPath);
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`CollisionManager: Le fichier map n'existe pas : ${resolvedPath}`);
+  }
     const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
     this.width = mapData.width;
     this.height = mapData.height;
