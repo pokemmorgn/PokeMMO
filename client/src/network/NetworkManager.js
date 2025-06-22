@@ -213,10 +213,17 @@ export class NetworkManager {
     return true;
   }
 
-  // ✅ VALIDATION TRANSITION
+  // ✅ VÉRIFICATION CONNEXION AVANT ENVOI
   validateTransition(request) {
     if (!this.isConnected || !this.room) {
       console.warn("📡 [NetworkManager] ⚠️ Pas connecté pour validation");
+      
+      // ✅ NOUVEAU : Tentative reconnexion si déconnecté
+      if (!this.isConnected) {
+        console.log("📡 [NetworkManager] Tentative reconnexion automatique...");
+        this.attemptReconnection();
+      }
+      
       return false;
     }
 
@@ -226,9 +233,14 @@ export class NetworkManager {
     this.isTransitionActive = true;
     this.transitionStartTime = Date.now();
     
-    this.room.send("validateTransition", request);
-    
-    return true;
+    try {
+      this.room.send("validateTransition", request);
+      return true;
+    } catch (error) {
+      console.error(`❌ [NetworkManager] Erreur envoi transition:`, error);
+      this.handleTransitionDisconnect();
+      return false;
+    }
   }
 
   // ✅ COMMUNICATION
@@ -324,7 +336,85 @@ export class NetworkManager {
     }
   }
 
-  // ✅ DÉCONNEXION
+  // ✅ NOUVELLE MÉTHODE : Gestion déconnexion pendant transition
+  handleTransitionDisconnect() {
+    console.log(`🔧 [NetworkManager] === GESTION DÉCONNEXION TRANSITION ===`);
+    
+    // ✅ Marquer comme déconnecté
+    this.isConnected = false;
+    
+    // ✅ Arrêter la transition
+    this.isTransitionActive = false;
+    
+    // ✅ Notifier l'erreur au TransitionManager
+    if (this.callbacks.onTransitionValidation) {
+      console.log(`📞 [NetworkManager] Notifier erreur transition...`);
+      this.callbacks.onTransitionValidation({
+        success: false,
+        reason: "Connexion perdue pendant la transition"
+      });
+    }
+    
+    // ✅ Tentative de reconnexion automatique après délai
+    console.log(`🔄 [NetworkManager] Tentative reconnexion dans 2 secondes...`);
+    
+    setTimeout(() => {
+      this.attemptReconnection();
+    }, 2000);
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Tentative de reconnexion
+  async attemptReconnection() {
+    console.log(`🔄 [NetworkManager] === TENTATIVE RECONNEXION ===`);
+    
+    if (this.isConnected) {
+      console.log(`✅ [NetworkManager] Déjà reconnecté`);
+      return;
+    }
+    
+    try {
+      // ✅ Nettoyer l'ancienne connexion
+      if (this.room) {
+        try {
+          await this.room.leave();
+        } catch (e) {
+          // Ignorer erreurs de déconnexion
+        }
+        this.room = null;
+      }
+      
+      // ✅ Nouvelle connexion avec zone actuelle
+      const roomOptions = {
+        name: this.username,
+        spawnZone: this.currentZone || "beach",
+        reconnect: true // Flag pour le serveur
+      };
+      
+      console.log(`📡 [NetworkManager] Reconnexion avec options:`, roomOptions);
+      
+      this.room = await this.client.joinOrCreate("world", roomOptions);
+      this.sessionId = this.room.sessionId;
+      this.isConnected = true;
+      
+      console.log(`✅ [NetworkManager] Reconnexion réussie! Nouveau SessionId: ${this.sessionId}`);
+      
+      // ✅ Reconfigurer les listeners
+      this.setupRoomListeners();
+      
+      // ✅ Notifier la reconnexion
+      if (this.callbacks.onConnect) {
+        this.callbacks.onConnect();
+      }
+      
+    } catch (error) {
+      console.error(`❌ [NetworkManager] Échec reconnexion:`, error);
+      
+      // ✅ Réessayer après délai plus long
+      setTimeout(() => {
+        this.attemptReconnection();
+      }, 5000);
+    }
+  }
   async disconnect() {
     console.log(`📡 [NetworkManager] Déconnexion...`);
     
