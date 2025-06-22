@@ -834,11 +834,15 @@ isSceneStillValid(expectedScene) {
         'Grass': 1.5
       };
 
-      this.map.layers.forEach(layerData => {
-        const layer = this.map.createLayer(layerData.name, this.phaserTilesets, 0, 0);
-        this.layers[layerData.name] = layer;
-        layer.setDepth(depthOrder[layerData.name] ?? 0);
-      });
+ this.map.layers.forEach(layerData => {
+    const layer = this.map.createLayer(layerData.name, this.phaserTilesets, 0, 0);
+    this.layers[layerData.name] = layer;
+    
+    const depth = depthOrder[layerData.name] ?? 0;
+    layer.setDepth(depth);
+    
+    console.log(`📐 [${this.scene.key}] Layer "${layerData.name}" depth: ${depth}`);
+  });
 
       if (this.sys.animatedTiles) {
         this.sys.animatedTiles.init(this.map);
@@ -1156,8 +1160,8 @@ isSceneStillValid(expectedScene) {
       fixed = true;
     }
     
-    if (myPlayer.depth !== 5) {
-      myPlayer.setDepth(5);
+    if (myPlayer.depth !== 3.5) {
+      myPlayer.setDepth(3.5);
       fixed = true;
     }
     
