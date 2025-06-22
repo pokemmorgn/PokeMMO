@@ -8,6 +8,9 @@ import { Road1Scene } from './scenes/zones/Road1Scene.js';
 import { VillageLabScene } from './scenes/zones/VillageLabScene.js';
 import { VillageHouse1Scene } from './scenes/zones/VillageHouse1Scene.js';
 import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
+import { TimeService } from '../services/TimeService.js';
+import { DayNightManager } from '../game/DayNightManager.js';
+
 
 // === Colyseus.js ===
 import { Client } from 'colyseus.js';
@@ -142,6 +145,10 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     // ✅ 4. RÉCUPÉRER LA ROOM DEPUIS LE NETWORKMANAGER
     window.currentGameRoom = window.globalNetworkManager.room;
     console.log("✅ Connecté à la WorldRoom via NetworkManager:", window.currentGameRoom.sessionId);
+    // ✅ AJOUTER CES LIGNES
+console.log("🕐 Connexion du TimeService au serveur...");
+TimeService.getInstance().connectToRoom(window.currentGameRoom);
+
 
 console.log("🔍 [DEBUG] SessionId après connexion:");
 console.log("- NetworkManager sessionId:", window.globalNetworkManager.getSessionId());
