@@ -313,6 +313,9 @@ export class TransitionManager {
     
     const targetZone = result.currentZone || teleportData.targetZone;
     const targetScene = this.getSceneFromZone(targetZone);
+
+    console.log(`🚀 [TransitionManager] === CHANGEMENT DE SCÈNE (LAUNCH) ===`);
+    console.log(`📍 De: ${this.scene.scene.key} → ${targetScene}`);
     
     if (!targetScene) {
       console.error(`❌ Scene introuvable pour zone: ${targetZone}`);
