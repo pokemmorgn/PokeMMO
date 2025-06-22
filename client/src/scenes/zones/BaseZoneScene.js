@@ -1,6 +1,5 @@
 // client/src/scenes/zones/BaseZoneScene.js - VERSION WORLDROOM CORRIGÉE AVEC SHOP
-// ✅ Corrections pour la synchronisation et les transitions fluides + Intégration shop
-// ✅ NOUVEAU: Le serveur dicte la zone au client
+// ✅ Utilise la connexion établie dans main.js au lieu de créer une nouvelle connexion
 
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
@@ -8,7 +7,7 @@ import { NpcManager } from "../../game/NpcManager";
 import { QuestSystem } from "../../game/QuestSystem.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
-import { integrateShopToScene } from "../../game/ShopIntegration.js"; // ✅ AJOUT SHOP
+import { integrateShopToScene } from "../../game/ShopIntegration.js";
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -28,17 +27,13 @@ export class BaseZoneScene extends Phaser.Scene {
     this.inventorySystem = null;
     this.inventoryInitialized = false;
     
-    // ✅ NOUVEAU : Délai de grâce après spawn
-    this.spawnGraceTime = 0;
-    this.spawnGraceDuration = 2000; // 2 secondes
-
-    // ✅ NOUVEAU : Zone mapping et état - LE SERVEUR DICTE
-    this.zoneName = null; // ❌ SUPPRIMÉ: this.mapSceneToZone(sceneKey)
-    this.serverZoneConfirmed = false; // ✅ Flag pour savoir si le serveur a confirmé
+    // Zone et état réseau
+    this.zoneName = null;
+    this.serverZoneConfirmed = false;
     this.isSceneReady = false;
     this.networkSetupComplete = false;
 
-    // ✅ SHOP : Référence d'intégration (sera créée dans initialize)
+    // Shop
     this.shopIntegration = null;
   }
 
@@ -53,11 +48,11 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   create() {
-      if (window.showLoadingOverlay) window.showLoadingOverlay("Chargement de la zone...");
+    if (window.showLoadingOverlay) window.showLoadingOverlay("Chargement de la zone...");
 
     TransitionIntegration.setupTransitions(this);
 
-    console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} (zone en attente serveur) ===`);
+    console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} ===`);
     console.log(`📊 Scene data reçue:`, this.scene.settings.data);
 
     this.createPlayerAnimations();
@@ -71,73 +66,90 @@ export class BaseZoneScene extends Phaser.Scene {
     this.myPlayerReady = false;
     this.isSceneReady = true;
 
-    // ✅ AMÉLIORATION 2: Gestion réseau améliorée
-    this.initializeNetworking();
+    // ✅ UTILISER LA CONNEXION EXISTANTE AU LIEU DE CRÉER UNE NOUVELLE
+    this.initializeWithExistingConnection();
 
-    // ✅ AMÉLIORATION 3: Hook joueur local avec vérifications
     this.setupPlayerReadyHandler();
-
-    // Nettoyage amélioré
     this.setupCleanupHandlers();
   }
-initPlayerSpawnFromSceneData() {
-  const data = this.scene.settings.data || {};
-  const sessionId = this.mySessionId;
-  let spawnX = 52, spawnY = 48;
 
-  // Si transition de zone, coordonnées transmises
-  if (typeof data.spawnX === 'number') spawnX = data.spawnX;
-  if (typeof data.spawnY === 'number') spawnY = data.spawnY;
-
-  // Création réelle du joueur (évite de doubler le joueur si déjà présent)
-  if (this.playerManager && !this.playerManager.getMyPlayer()) {
-    this.playerManager.createPlayer(sessionId, spawnX, spawnY);
-    console.log(`[BaseZoneScene] Joueur spawn à (${spawnX}, ${spawnY})`);
-  } else {
-    console.log(`[BaseZoneScene] Joueur déjà présent ou playerManager manquant.`);
-  }
-}
-
-  // ✅ NOUVELLE MÉTHODE: Initialisation réseau intelligente
-  initializeNetworking() {
-    console.log(`📡 [${this.scene.key}] Initialisation networking...`);
+  // ✅ NOUVELLE MÉTHODE: Utiliser la connexion existante de main.js
+  initializeWithExistingConnection() {
+    console.log(`📡 [${this.scene.key}] === UTILISATION CONNEXION EXISTANTE ===`);
     
-    const sceneData = this.scene.settings.data;
-    
-    // Cas 1: NetworkManager fourni via sceneData (transition normale)
-    if (sceneData?.networkManager) {
-      console.log(`📡 [${this.scene.key}] NetworkManager reçu via transition`);
-      this.useExistingNetworkManager(sceneData.networkManager, sceneData);
-      
-      // ✅ NOUVEAU : Demander immédiatement la zone au serveur
-      this.requestServerZone();
+    // ✅ Vérifier que le NetworkManager global existe
+    if (!window.globalNetworkManager) {
+      console.error(`❌ [${this.scene.key}] NetworkManager global manquant!`);
+      this.showErrorState("NetworkManager global introuvable");
       return;
     }
-    
-    // Cas 2: Chercher dans les autres scènes
-    const existingNetworkManager = this.findExistingNetworkManager();
-    if (existingNetworkManager) {
-      console.log(`📡 [${this.scene.key}] NetworkManager trouvé dans autre scène`);
-      this.useExistingNetworkManager(existingNetworkManager);
-      
-      // ✅ NOUVEAU : Demander immédiatement la zone au serveur
-      this.requestServerZone();
+
+    // ✅ Vérifier que la connexion est active
+    if (!window.globalNetworkManager.isConnected) {
+      console.error(`❌ [${this.scene.key}] NetworkManager global non connecté!`);
+      this.showErrorState("Connexion réseau inactive");
       return;
     }
-    
-// Cas 3: Prend le NetworkManager global s'il existe
-if (window.globalNetworkManager) {
-  console.log(`📡 [${this.scene.key}] Utilisation du NetworkManager global`);
-  this.useExistingNetworkManager(window.globalNetworkManager, sceneData);
-  // ✅ NOUVEAU : Demander immédiatement la zone au serveur
-  this.requestServerZone();
-} else {
-  console.error(`❌ [${this.scene.key}] Aucun NetworkManager global disponible !`);
-  this.showErrorState("Erreur: Connexion réseau manquante");
-}
+
+    // ✅ Utiliser le NetworkManager global existant
+    this.networkManager = window.globalNetworkManager;
+    this.mySessionId = this.networkManager.getSessionId();
+
+    console.log(`✅ [${this.scene.key}] NetworkManager récupéré:`, {
+      sessionId: this.mySessionId,
+      isConnected: this.networkManager.isConnected,
+      currentZone: this.networkManager.getCurrentZone()
+    });
+
+    // ✅ Configuration des handlers réseau
+    this.setupNetworkHandlers();
+    this.networkSetupComplete = true;
+
+    // ✅ Initialiser les systèmes de jeu
+    this.initializeGameSystems();
+
+    // ✅ Demander immédiatement la zone au serveur
+    this.requestServerZone();
+
+    // ✅ Vérifier l'état du réseau
+    this.verifyNetworkState();
   }
 
-  // ✅ NOUVELLE MÉTHODE : Demander la zone au serveur
+  // ✅ NOUVELLE MÉTHODE: Initialiser tous les systèmes de jeu
+  initializeGameSystems() {
+    console.log(`🎮 [${this.scene.key}] Initialisation des systèmes de jeu...`);
+
+    // Inventaire
+    this.initializeInventorySystem();
+    
+    // Shop
+    integrateShopToScene(this, this.networkManager);
+    
+    // Quêtes (sera initialisé après connexion)
+    this.initializeQuestSystem();
+
+    console.log(`✅ [${this.scene.key}] Systèmes de jeu initialisés`);
+  }
+
+  initPlayerSpawnFromSceneData() {
+    const data = this.scene.settings.data || {};
+    const sessionId = this.mySessionId;
+    let spawnX = 52, spawnY = 48;
+
+    // Si transition de zone, coordonnées transmises
+    if (typeof data.spawnX === 'number') spawnX = data.spawnX;
+    if (typeof data.spawnY === 'number') spawnY = data.spawnY;
+
+    // Création réelle du joueur (évite de doubler le joueur si déjà présent)
+    if (this.playerManager && !this.playerManager.getMyPlayer()) {
+      this.playerManager.createPlayer(sessionId, spawnX, spawnY);
+      console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY})`);
+    } else {
+      console.log(`[${this.scene.key}] Joueur déjà présent ou playerManager manquant.`);
+    }
+  }
+
+  // ✅ MÉTHODE MODIFIÉE: Demander la zone au serveur
   requestServerZone() {
     console.log(`📍 [${this.scene.key}] === DEMANDE ZONE AU SERVEUR ===`);
     
@@ -155,204 +167,13 @@ if (window.globalNetworkManager) {
     console.log(`📤 [${this.scene.key}] Demande de zone envoyée au serveur`);
   }
 
-  useExistingNetworkManager(networkManager, sceneData = null) {
-    this.networkManager = networkManager;
-    this.mySessionId = networkManager.getSessionId();
-
-    // ✅ AJOUT: Gestion du rollback dans useExistingNetworkManager
-    if (sceneData?.isRollback && sceneData?.restorePlayerState) {
-      console.log(`🔄 [${this.scene.key}] Rollback détecté, restauration état joueur`);
-      
-      if (this.playerManager && sceneData.spawnX && sceneData.spawnY) {
-        const player = this.playerManager.createPlayer(
-          this.mySessionId, 
-          sceneData.spawnX, 
-          sceneData.spawnY
-        );
-        if (player) {
-          // Restaurer l'état complet du joueur
-          player.setVisible(sceneData.restorePlayerState.visible);
-          player.setActive(sceneData.restorePlayerState.active);
-          player.targetX = sceneData.restorePlayerState.targetX;
-          player.targetY = sceneData.restorePlayerState.targetY;
-          
-          console.log(`✅ [${this.scene.key}] État joueur restauré après rollback`);
-        }
-      }
-    }
-    
-    // ✅ CORRECTION CRITIQUE: Synchroniser le PlayerManager IMMÉDIATEMENT
-    if (this.playerManager) {
-      console.log(`🔄 [${this.scene.key}] Synchronisation PlayerManager...`);
-      this.playerManager.setMySessionId(this.mySessionId);
-      
-      // ✅ NOUVEAU: Forcer une resynchronisation si nécessaire
-      if (sceneData?.fromTransition) {
-        this.time.delayedCall(100, () => {
-          this.playerManager.forceResynchronization();
-        });
-      }
-    }
-    
-    this.setupNetworkHandlers();
-    this.networkSetupComplete = true;
-
-    // Chargement de l'inventaire
-    this.initializeInventorySystem();
-    
-    // ✅ AJOUT SHOP : Intégration shop en une ligne
-    integrateShopToScene(this, networkManager);
-    
-    // ✅ NOUVEAU: Vérifier immédiatement l'état du réseau
-    this.verifyNetworkState();
-    
-    // ✅ AJOUT: Déclencher une mise à jour de zone après sync
-    this.time.delayedCall(300, () => {
-      console.log(`🔄 [${this.scene.key}] Vérifier NPCs stockés...`);
-      
-      // ✅ NOUVEAU: Utiliser les NPCs stockés si ils correspondent à notre zone
-      if (this.networkManager.lastReceivedNpcs && 
-          this.networkManager.lastReceivedZoneData && 
-          this.networkManager.lastReceivedZoneData.zone === this.networkManager.currentZone) {
-        
-        console.log(`🎯 [${this.scene.key}] NPCs trouvés en cache pour zone: ${this.networkManager.currentZone}`);
-        
-        // Déclencher manuellement le spawn des NPCs
-        if (this.npcManager) {
-          this.npcManager.spawnNpcs(this.networkManager.lastReceivedNpcs);
-        }
-      } else {
-        console.log(`⚠️ [${this.scene.key}] Aucun NPC en cache pour zone: ${this.networkManager.currentZone}`);
-      }
-    });
-  }
-  
-  // ✅ NOUVELLE MÉTHODE: Chercher un NetworkManager existant
-  findExistingNetworkManager() {
-    const scenesToCheck = ['BeachScene', 'VillageScene', 'Road1Scene', 'VillageLabScene', 'VillageHouse1Scene', 'LavandiaScene'];
-    
-    for (const sceneName of scenesToCheck) {
-      if (sceneName === this.scene.key) continue;
-      
-      const scene = this.scene.manager.getScene(sceneName);
-      if (scene?.networkManager?.isConnected) {
-        console.log(`📡 [${this.scene.key}] NetworkManager trouvé dans: ${sceneName}`);
-        return scene.networkManager;
-      }
-    }
-    
-    return null;
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Initialisation du système d'inventaire
-  initializeInventorySystem() {
-    if (window.inventorySystem) {
-      // ✅ Réutiliser l'instance déjà existante !
-      console.log(`[${this.scene.key}] Réutilisation de l'inventaire global existant`);
-      // Met à jour la room si besoin !
-      if (this.networkManager?.room) {
-        window.inventorySystem.gameRoom = this.networkManager.room;
-        window.inventorySystem.setupServerListeners(); // pour relier la nouvelle room
-      }
-      this.inventorySystem = window.inventorySystem;
-      this.inventoryInitialized = true;
-      return;
-    }
-
-    // Sinon, création normale :
-    try {
-      console.log(`🎒 [${this.scene.key}] Initialisation du système d'inventaire...`);
-      this.inventorySystem = new InventorySystem(this, this.networkManager.room);
-
-      // Config langue
-      if (this.inventorySystem.inventoryUI) {
-        this.inventorySystem.inventoryUI.currentLanguage = 'en';
-      }
-
-      // Global
-      window.inventorySystem = this.inventorySystem;
-      window.inventorySystemGlobal = this.inventorySystem;
-
-      this.setupInventoryEventHandlers();
-
-      if (typeof window.connectInventoryToServer === 'function') {
-        window.connectInventoryToServer(this.networkManager.room);
-      }
-
-      this.inventoryInitialized = true;
-      console.log(`✅ [${this.scene.key}] Système d'inventaire initialisé`);
-
-      // Test après init
-      this.time.delayedCall(2000, () => {
-        this.testInventoryConnection();
-      });
-
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Test de connexion inventaire
-  testInventoryConnection() {
-    if (!this.inventorySystem || !this.networkManager?.room) {
-      console.warn(`⚠️ [${this.scene.key}] Cannot test inventory: no system or room`);
-      return;
-    }
-
-    console.log(`🧪 [${this.scene.key}] Test de connexion inventaire...`);
-    
-    // ✅ Demander les données d'inventaire
-    this.inventorySystem.requestInventoryData();
-  }
-  
-  // ✅ NOUVELLE MÉTHODE: Setup des événements d'inventaire
-  setupInventoryEventHandlers() { }
-  
-  // ✅ NOUVELLE MÉTHODE: Préparer les données de connexion
-  async prepareConnectionData() {
-    const getWalletFromUrl = () => {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('wallet');
-    };
-
-    const fetchLastPosition = async (identifier) => {
-      try {
-        const res = await fetch(`/api/playerData?username=${encodeURIComponent(identifier)}`);
-        if (res.ok) {
-          const data = await res.json();
-          return {
-            lastMap: data.lastMap || 'beach',
-            lastX: data.lastX !== undefined ? data.lastX : 52,
-            lastY: data.lastY !== undefined ? data.lastY : 48
-          };
-        }
-      } catch (e) {
-        console.warn("Erreur récupération dernière position", e);
-      }
-      return { lastMap: 'beach', lastX: 52, lastY: 48 };
-    };
-
-    let identifier = getWalletFromUrl();
-    if (!identifier && window.app?.currentAccount?.address) {
-      identifier = window.app.currentAccount.address;
-    }
-    if (!identifier) {
-      throw new Error("Aucun wallet connecté");
-    }
-
-    const { lastMap, lastX, lastY } = await fetchLastPosition(identifier);
-    const spawnZone = this.mapSceneToZone(this.mapZoneToScene(lastMap));
-
-    return { identifier, spawnZone, lastX, lastY };
-  }
-
-  // ✅ AMÉLIORATION: Setup des handlers réseau avec vérifications
+  // ✅ MÉTHODE MODIFIÉE: Setup des handlers réseau
   setupNetworkHandlers() {
     if (!this.networkManager) return;
 
     console.log(`📡 [${this.scene.key}] Configuration handlers réseau...`);
 
-    // ✅ NOUVEAU : Handler pour recevoir la zone officielle du serveur
+    // ✅ Handler pour recevoir la zone officielle du serveur
     this.networkManager.onMessage("currentZone", (data) => {
       console.log(`📍 [${this.scene.key}] === ZONE REÇUE DU SERVEUR ===`);
       console.log(`🎯 Zone serveur: ${data.zone}`);
@@ -383,55 +204,16 @@ if (window.globalNetworkManager) {
         this.playerManager.forceResynchronization();
       }
       
-      // ✅ Synchroniser le TransitionManager
-      if (this.transitionManager) {
-        this.transitionManager.currentZone = this.zoneName;
-      }
-      
       console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
     });
 
-    // ✅ NOUVEAU: Handler de connexion amélioré
-    this.networkManager.onConnect(() => {
-      console.log(`✅ [${this.scene.key}] Connexion établie`);
-      
-      // ✅ IMMÉDIATEMENT demander la zone au serveur
-      setTimeout(() => {
-        this.requestServerZone();
-      }, 100);
-      
-      // Vérifier et synchroniser le sessionId
-      const currentSessionId = this.networkManager.getSessionId();
-      if (this.mySessionId !== currentSessionId) {
-        console.log(`🔄 [${this.scene.key}] Mise à jour sessionId: ${this.mySessionId} → ${currentSessionId}`);
-        this.mySessionId = currentSessionId;
-        
-        if (this.playerManager) {
-          this.playerManager.setMySessionId(this.mySessionId);
-        }
-      }
-      
-      this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nConnected to WorldRoom!`);
-
-      this.networkManager.onMessage("questStatuses", (data) => {
-        console.log("📋 Statuts de quêtes reçus:", data);
-        if (this.npcManager) {
-          this.npcManager.updateQuestIndicators(data.questStatuses);
-        }
-      });
-      
-      // Quest system
-      this.initializeQuestSystem();
-    });
-
-    // ✅ AMÉLIORATION: Handler d'état avec protection
+    // ✅ Handler d'état avec protection
     this.networkManager.onStateChange((state) => {
       if (!this.isSceneReady || !this.networkSetupComplete) {
         console.log(`⏳ [${this.scene.key}] State reçu mais scène pas prête, ignoré`);
         return;
       }
       
-      // ✅ NOUVEAU: Debug du state reçu
       console.log(`📊 [${this.scene.key}] State reçu:`, {
         playersCount: state.players?.size || 0,
         isFiltered: !!state.players,
@@ -441,12 +223,12 @@ if (window.globalNetworkManager) {
       if (!state || !state.players) return;
       if (!this.playerManager) return;
 
-      // ✅ CORRECTION: Vérification sessionId avant chaque update
+      // ✅ Synchroniser sessionId
       this.synchronizeSessionId();
       
       this.playerManager.updatePlayers(state);
 
-      // ✅ AMÉLIORATION: Gestion du joueur local
+      // ✅ Gestion du joueur local
       this.handleMyPlayerFromState();
     });
 
@@ -455,9 +237,19 @@ if (window.globalNetworkManager) {
 
     // Handlers existants
     this.setupExistingHandlers();
+
+    // ✅ FORCER UNE PREMIÈRE SYNCHRONISATION
+    this.time.delayedCall(500, () => {
+      console.log(`🔄 [${this.scene.key}] Forcer synchronisation initiale...`);
+      if (this.networkManager.room) {
+        this.networkManager.room.send("requestInitialState", { 
+          zone: this.networkManager.getCurrentZone() 
+        });
+      }
+    });
   }
 
-  // ✅ NOUVELLE MÉTHODE : Redirection vers la bonne scène
+  // ✅ MÉTHODE EXISTANTE: Redirection vers la bonne scène
   redirectToCorrectScene(correctScene, serverData) {
     console.log(`🚀 [${this.scene.key}] === REDIRECTION AUTOMATIQUE ===`);
     console.log(`📍 Vers: ${correctScene}`);
@@ -469,16 +261,15 @@ if (window.globalNetworkManager) {
       mySessionId: this.mySessionId,
       spawnX: serverData.x,
       spawnY: serverData.y,
-      serverForced: true, // ✅ Flag pour indiquer que c'est forcé par le serveur
+      serverForced: true,
       preservePlayer: true
     };
     
-    // Changer vers la bonne scène
-if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
-this.scene.start(correctScene, transitionData);
+    if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
+    this.scene.start(correctScene, transitionData);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Synchronisation sessionId
+  // ✅ MÉTHODE EXISTANTE: Synchronisation sessionId
   synchronizeSessionId() {
     if (!this.networkManager) return;
     
@@ -493,7 +284,7 @@ this.scene.start(correctScene, transitionData);
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Gestion du joueur local depuis le state
+  // ✅ MÉTHODE EXISTANTE: Gestion du joueur local depuis le state
   handleMyPlayerFromState() {
     if (this.myPlayerReady) return;
     
@@ -501,10 +292,9 @@ this.scene.start(correctScene, transitionData);
     if (myPlayer && !this.myPlayerReady) {
       this.myPlayerReady = true;
       console.log(`✅ [${this.scene.key}] Joueur local trouvé: ${this.mySessionId}`);
-          if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+      if (window.hideLoadingOverlay) window.hideLoadingOverlay();
 
-      
-      // ✅ CORRECTION: S'assurer que le joueur est visible
+      // ✅ S'assurer que le joueur est visible
       if (!myPlayer.visible) {
         console.log(`🔧 [${this.scene.key}] Forcer visibilité joueur local`);
         myPlayer.setVisible(true);
@@ -521,7 +311,7 @@ this.scene.start(correctScene, transitionData);
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Setup des handlers WorldRoom
+  // ✅ MÉTHODE EXISTANTE: Setup des handlers WorldRoom
   setupWorldRoomHandlers() {
     this.networkManager.onZoneData((data) => {
       console.log(`🗺️ [${this.scene.key}] Zone data reçue:`, data);
@@ -531,15 +321,13 @@ this.scene.start(correctScene, transitionData);
     this.networkManager.onNpcList((npcs) => {
       console.log(`🤖 [${this.scene.key}] NPCs reçus: ${npcs.length}`);
       
-      // ✅ FIX 1: Normalisation des noms de zones plus robuste
       const currentSceneZone = this.normalizeZoneName(this.scene.key);
       const serverZone = this.networkManager.currentZone;
       
       console.log(`🔍 [${this.scene.key}] Comparaison zones: scene="${currentSceneZone}" vs server="${serverZone}"`);
       
-      // ✅ FIX 2: Accepter les NPCs si on est dans la bonne zone OU si c'est juste après une transition
       const isCorrectZone = currentSceneZone === serverZone;
-      const isRecentTransition = Date.now() - (this._lastTransitionTime || 0) < 3000; // 3 secondes de grâce
+      const isRecentTransition = Date.now() - (this._lastTransitionTime || 0) < 3000;
       
       if (!isCorrectZone && !isRecentTransition) {
         console.log(`🚫 [${this.scene.key}] NPCs ignorés: zone serveur=${serverZone} ≠ scène=${currentSceneZone}`);
@@ -560,16 +348,14 @@ this.scene.start(correctScene, transitionData);
       console.error(`❌ [${this.scene.key}] Transition échouée:`, result);
       this.handleTransitionError(result);
     });
-if (this.networkManager?.room) {
-  this.networkManager.room.send("forceStateRefresh");
-}
+
     this.networkManager.onNpcInteraction((result) => {
       console.log(`💬 [${this.scene.key}] NPC interaction:`, result);
       this.handleNpcInteraction(result);
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE: Setup des handlers existants
+  // ✅ MÉTHODE EXISTANTE: Setup des handlers existants
   setupExistingHandlers() {
     this.networkManager.onSnap((data) => {
       if (this.playerManager) {
@@ -582,7 +368,74 @@ if (this.networkManager?.room) {
     });
   }
 
-  // ✅ AMÉLIORATION: Setup du handler joueur prêt
+  // ✅ MÉTHODE EXISTANTE: Initialisation du système d'inventaire
+  initializeInventorySystem() {
+    if (window.inventorySystem) {
+      console.log(`[${this.scene.key}] Réutilisation de l'inventaire global existant`);
+      if (this.networkManager?.room) {
+        window.inventorySystem.gameRoom = this.networkManager.room;
+        window.inventorySystem.setupServerListeners();
+      }
+      this.inventorySystem = window.inventorySystem;
+      this.inventoryInitialized = true;
+      return;
+    }
+
+    try {
+      console.log(`🎒 [${this.scene.key}] Initialisation du système d'inventaire...`);
+      this.inventorySystem = new InventorySystem(this, this.networkManager.room);
+
+      if (this.inventorySystem.inventoryUI) {
+        this.inventorySystem.inventoryUI.currentLanguage = 'en';
+      }
+
+      window.inventorySystem = this.inventorySystem;
+      window.inventorySystemGlobal = this.inventorySystem;
+
+      this.setupInventoryEventHandlers();
+
+      if (typeof window.connectInventoryToServer === 'function') {
+        window.connectInventoryToServer(this.networkManager.room);
+      }
+
+      this.inventoryInitialized = true;
+      console.log(`✅ [${this.scene.key}] Système d'inventaire initialisé`);
+
+      this.time.delayedCall(2000, () => {
+        this.testInventoryConnection();
+      });
+
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur initialisation inventaire:`, error);
+    }
+  }
+
+  // ✅ MÉTHODE EXISTANTE: Test de connexion inventaire
+  testInventoryConnection() {
+    if (!this.inventorySystem || !this.networkManager?.room) {
+      console.warn(`⚠️ [${this.scene.key}] Cannot test inventory: no system or room`);
+      return;
+    }
+
+    console.log(`🧪 [${this.scene.key}] Test de connexion inventaire...`);
+    this.inventorySystem.requestInventoryData();
+  }
+  
+  setupInventoryEventHandlers() { }
+  
+  // ✅ MÉTHODE EXISTANTE: Initialisation du système de quêtes
+  initializeQuestSystem() {
+    if (!window.questSystem && this.networkManager?.room) {
+      try {
+        window.questSystem = new QuestSystem(this, this.networkManager.room);
+        console.log("✅ [QuestSystem] Initialisé");
+      } catch (e) {
+        console.error("❌ Erreur init QuestSystem:", e);
+      }
+    }
+  }
+
+  // ✅ MÉTHODE EXISTANTE: Setup du handler joueur prêt
   setupPlayerReadyHandler() {
     if (!this.playerManager) return;
     
@@ -602,7 +455,7 @@ if (this.networkManager?.room) {
     });
   }
 
-  // ✅ AMÉLIORATION: Vérification de l'état réseau
+  // ✅ MÉTHODE EXISTANTE: Vérification de l'état réseau
   verifyNetworkState() {
     if (!this.networkManager) {
       console.error(`❌ [${this.scene.key}] NetworkManager manquant`);
@@ -611,13 +464,9 @@ if (this.networkManager?.room) {
     
     console.log(`🔍 [${this.scene.key}] Vérification état réseau...`);
     
-    // Débugger l'état
     this.networkManager.debugState();
-    
-    // Vérifier la synchronisation des zones
     this.networkManager.checkZoneSynchronization(this.scene.key);
     
-    // Forcer une resynchronisation si nécessaire
     if (this.playerManager) {
       this.time.delayedCall(500, () => {
         this.playerManager.forceResynchronization();
@@ -625,16 +474,18 @@ if (this.networkManager?.room) {
     }
   }
 
-  // ✅ AMÉLIORATION: Position du joueur avec données de transition
+  // ✅ MÉTHODE EXISTANTE: Position du joueur avec données de transition
   positionPlayer(player) {
     const initData = this.scene.settings.data;
     
     console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
     console.log(`📊 InitData:`, initData);
-      if (initData?.fromTransition && player.x && player.y) {
-    console.log(`📍 Position serveur conservée: (${player.x}, ${player.y})`);
-    return;
-  }
+    
+    if (initData?.fromTransition && player.x && player.y) {
+      console.log(`📍 Position serveur conservée: (${player.x}, ${player.y})`);
+      return;
+    }
+    
     if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
       console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
       player.x = initData.spawnX;
@@ -660,11 +511,6 @@ if (this.networkManager?.room) {
       player.indicator.setVisible(true);
     }
 
-    // Délai de grâce après spawn
-    this.spawnGraceTime = Date.now() + this.spawnGraceDuration;
-    console.log(`🛡️ [${this.scene.key}] Délai de grâce activé pour ${this.spawnGraceDuration}ms`);
-
-    // Envoyer la position au serveur
     if (this.networkManager && this.networkManager.isConnected) {
       this.networkManager.sendMove(player.x, player.y, 'down', false);
     }
@@ -672,44 +518,31 @@ if (this.networkManager?.room) {
     this.onPlayerPositioned(player, initData);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Initialisation du système de quêtes
-  initializeQuestSystem() {
-    if (!window.questSystem && this.networkManager?.room) {
-      try {
-        window.questSystem = new QuestSystem(this, this.networkManager.room);
-        console.log("✅ [QuestSystem] Initialisé");
-      } catch (e) {
-        console.error("❌ Erreur init QuestSystem:", e);
-      }
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Affichage d'état d'erreur
+  // ✅ MÉTHODE EXISTANTE: Affichage d'état d'erreur
   showErrorState(message) {
-      if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+    if (window.hideLoadingOverlay) window.hideLoadingOverlay();
 
     this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\n${message}`);
     
-    // Ajouter un bouton de retry si nécessaire
     this.time.delayedCall(5000, () => {
       if (!this.networkSetupComplete) {
         console.log(`🔄 [${this.scene.key}] Tentative de reconnexion...`);
-        this.initializeNetworking();
+        this.initializeWithExistingConnection();
       }
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE: Mise à jour du texte d'info
+  // ✅ MÉTHODE EXISTANTE: Mise à jour du texte d'info
   updateInfoText(text) {
     if (this.infoText) {
       this.infoText.setText(text);
     }
   }
 
-  // ✅ AMÉLIORATION: Update avec vérifications d'état
+  // ✅ Reste des méthodes existantes inchangées...
   update() {
     TransitionIntegration.updateTransitions(this);
-    // Vérifications périodiques
+    
     if (this.time.now % 1000 < 16) {
       this.checkPlayerState();
     }
@@ -733,26 +566,20 @@ if (this.networkManager?.room) {
     this.handleMovement(myPlayerState);
   }
 
-  // ✅ AMÉLIORATION: Nettoyage optimisé
   cleanup() {
     TransitionIntegration.cleanupTransitions(this);
 
     console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
 
-    // ✅ NOUVEAU: Nettoyage conditionnel selon le type de fermeture
     const isTransition = this.networkManager && this.networkManager.isTransitionActive;
     
     if (!isTransition) {
-      // Nettoyage complet seulement si ce n'est pas une transition
       if (this.playerManager) {
         this.playerManager.clearAllPlayers();
       }
     } else {
-      // En transition, préserver les données critiques
       console.log(`🔄 [${this.scene.key}] Nettoyage léger pour transition`);
     }
-
-    // ✅ SHOP: Le ShopIntegration se gère automatiquement via ses event handlers
 
     if (this.npcManager) {
       this.npcManager.clearAllNpcs();
@@ -772,7 +599,6 @@ if (this.networkManager?.room) {
     console.log(`✅ [${this.scene.key}] Nettoyage terminé`);
   }
 
-  // ✅ AMÉLIORATION: Setup des handlers de nettoyage
   setupCleanupHandlers() {
     this.events.on('shutdown', () => {
       console.log(`📤 [${this.scene.key}] Shutdown - nettoyage`);
@@ -785,7 +611,6 @@ if (this.networkManager?.room) {
     });
   }
 
-  // ✅ AMÉLIORATION: Gestion du mouvement avec désactivation du délai de grâce
   handleMovement(myPlayerState) {
     const speed = 120;
     const myPlayer = this.playerManager.getMyPlayer();
@@ -811,12 +636,6 @@ if (this.networkManager?.room) {
       myPlayer.play(`walk_${direction}`, true);
       this.lastDirection = direction;
       myPlayer.isMovingLocally = true;
-      
-      // Désactiver le délai de grâce dès que le joueur bouge
-      if (this.spawnGraceTime > 0) {
-        this.spawnGraceTime = 0;
-        console.log(`🏃 [${this.scene.key}] Joueur bouge, délai de grâce désactivé`);
-      }
     } else {
       myPlayer.play(`idle_${this.lastDirection}`, true);
       myPlayer.isMovingLocally = false;
@@ -825,21 +644,19 @@ if (this.networkManager?.room) {
     if (moved) {
       const now = Date.now();
       if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-        // 💡 PATCH: Ajoute la zone courante (this.zoneName) à sendMove
         this.networkManager.sendMove(
-        myPlayer.x,
-        myPlayer.y,
-        direction || this.lastDirection,
-        moved
+          myPlayer.x,
+          myPlayer.y,
+          direction || this.lastDirection,
+          moved
         );
         this.lastMoveTime = now;
       }
     }
   }
 
-  // === MÉTHODES EXISTANTES CONSERVÉES ===
+  // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
-  // Mapping scene → zone
   mapSceneToZone(sceneName) {
     const mapping = {
       'BeachScene': 'beach',
@@ -849,11 +666,9 @@ if (this.networkManager?.room) {
       'VillageHouse1Scene': 'villagehouse1',
       'LavandiaScene': 'lavandia'
     };
-    
     return mapping[sceneName] || sceneName.toLowerCase();
   }
 
-  // Mapping zone → scene
   mapZoneToScene(zoneName) {
     const mapping = {
       'beach': 'BeachScene',
@@ -863,11 +678,9 @@ if (this.networkManager?.room) {
       'villagehouse1': 'VillageHouse1Scene',
       'lavandia': 'LavandiaScene'
     };
-    
     return mapping[zoneName.toLowerCase()] || zoneName;
   }
 
-  // Normalisation des noms de zones
   normalizeZoneName(sceneName) {
     const mapping = {
       'BeachScene': 'beach',
@@ -1033,39 +846,38 @@ if (this.networkManager?.room) {
   }
 
   setupInputs() {
-    
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,S,A,D');
     this.input.keyboard.enableGlobalCapture();
 
-    // ✅ CORRECTION: Interaction E avec vérifications complètes
+    // ✅ Interaction E avec vérifications complètes
     this.input.keyboard.on("keydown-E", () => {
-      // ✅ Vérifier si un dialogue de quête est ouvert
+      // Vérifier si un dialogue de quête est ouvert
       if (window._questDialogActive) {
         console.log("⚠️ Fenêtre de quête ouverte, interaction E bloquée");
         return;
       }
       
-      // ✅ Vérifier si le chat a le focus
+      // Vérifier si le chat a le focus
       if (typeof window.isChatFocused === "function" && window.isChatFocused()) {
         console.log("⚠️ Chat ouvert, interaction E bloquée");
         return;
       }
       
-      // ✅ Vérifier si un dialogue NPC est ouvert
+      // Vérifier si un dialogue NPC est ouvert
       const dialogueBox = document.getElementById('dialogue-box');
       if (dialogueBox && dialogueBox.style.display !== 'none') {
         console.log("⚠️ Dialogue NPC ouvert, interaction avec environnement bloquée");
         return;
       }
       
-      // ✅ Vérifier si l'inventaire est ouvert
+      // Vérifier si l'inventaire est ouvert
       if (typeof window.isInventoryOpen === "function" && window.isInventoryOpen()) {
         console.log("⚠️ Inventaire ouvert, interaction E bloquée");
         return;
       }
 
-      // ✅ SHOP: Vérifier si le shop est ouvert
+      // Vérifier si le shop est ouvert
       if (this.isShopOpen()) {
         console.log("⚠️ Shop ouvert, interaction E bloquée");
         return;
@@ -1124,7 +936,7 @@ if (this.networkManager?.room) {
     this.showNotification(`Transition impossible: ${result.reason}`, 'error');
   }
 
-  // ✅ SHOP: Gestion améliorée des interactions NPC avec shop
+  // ✅ Gestion améliorée des interactions NPC avec shop
   handleNpcInteraction(result) {
     console.log("🟢 [npcInteractionResult] Reçu :", result);
 
@@ -1133,7 +945,7 @@ if (this.networkManager?.room) {
       return;
     }
 
-    // ✅ SHOP: Gestion des shops via ShopIntegration
+    // ✅ Gestion des shops via ShopIntegration
     if (result.type === "shop") {
       if (this.shopIntegration && this.shopIntegration.getShopSystem()) {
         console.log(`🏪 [${this.scene.key}] Délégation shop à ShopIntegration`);
@@ -1221,7 +1033,6 @@ if (this.networkManager?.room) {
     if (!myPlayer) {
       console.warn(`[${this.scene.key}] Joueur manquant! Tentative de récupération...`);
       
-      // ✅ NOUVEAU: Tentative de récupération automatique
       if (this.playerManager && this.mySessionId) {
         console.log(`🔧 [${this.scene.key}] Tentative de resynchronisation...`);
         this.playerManager.forceResynchronization();
@@ -1231,7 +1042,6 @@ if (this.networkManager?.room) {
     
     let fixed = false;
     
-    // ✅ Vérifications et corrections automatiques
     if (!myPlayer.visible) {
       console.warn(`[${this.scene.key}] Joueur invisible, restauration`);
       myPlayer.setVisible(true);
@@ -1244,7 +1054,6 @@ if (this.networkManager?.room) {
       fixed = true;
     }
     
-    // ✅ Vérifier la profondeur
     if (myPlayer.depth !== 5) {
       myPlayer.setDepth(5);
       fixed = true;
@@ -1257,7 +1066,6 @@ if (this.networkManager?.room) {
         fixed = true;
       }
       
-      // ✅ Synchroniser la position de l'indicateur
       if (Math.abs(myPlayer.indicator.x - myPlayer.x) > 1 || 
           Math.abs(myPlayer.indicator.y - (myPlayer.y - 24)) > 1) {
         myPlayer.indicator.x = myPlayer.x;
@@ -1294,7 +1102,7 @@ if (this.networkManager?.room) {
     });
   }
 
-  // ✅ SHOP: Méthodes utilitaires pour l'accès au système shop
+  // ✅ Méthodes utilitaires pour l'accès au système shop
   getShopSystem() {
     return this.shopIntegration?.getShopSystem() || null;
   }
