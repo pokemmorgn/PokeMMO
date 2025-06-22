@@ -26,14 +26,14 @@ import { LavandiaHouse8Scene } from './scenes/zones/LavandiaHouse8Scene.js';
 import { LavandiaHouse9Scene } from './scenes/zones/LavandiaHouse9Scene.js';
 import { LavandiaResearchLabScene } from './scenes/zones/LavandiaResearchLabScene.js';
 import { LavandiaShopScene } from './scenes/zones/LavandiaShopScene.js';
-import { NoctherCave1Scene } from './scenes/zones/NoctherCave1Scene.js';
-import { NoctherCave2Scene } from './scenes/zones/NoctherCave2Scene.js';
-import { NoctherCave2BisScene } from './scenes/zones/NoctherCave2BisScene.js';
-import { Road1HouseScene } from './scenes/zones/Road1HouseScene.js';
-import { Road2Scene } from './scenes/zones/Road2Scene.js';
-import { Road3Scene } from './scenes/zones/Road3Scene.js';
-import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
-import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
+//import { NoctherCave1Scene } from './scenes/zones/NoctherCave1Scene.js';
+//import { NoctherCave2Scene } from './scenes/zones/NoctherCave2Scene.js';
+//import { NoctherCave2BisScene } from './scenes/zones/NoctherCave2BisScene.js';
+//import { Road1HouseScene } from './scenes/zones/Road1HouseScene.js';
+//import { Road2Scene } from './scenes/zones/Road2Scene.js';
+//import { Road3Scene } from './scenes/zones/Road3Scene.js';
+//import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
+//import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
 
 // ✅ NOUVEAU: Import du SceneRegistry
 import { SceneRegistry } from './scenes/SceneRegistry.js';
