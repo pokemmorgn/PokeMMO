@@ -27,9 +27,10 @@ export class GlobalTransitionManager {
     console.log(`🌍 [GlobalTransitionManager] Créé - Instance globale unique`);
   }
 
-  // ✅ ATTACHER À UNE SCÈNE
+  // ✅ ATTACHER À UNE SCÈNE - CORRIGÉ
   attachToScene(scene) {
-    console.log(`🔗 [GlobalTransitionManager] Attachement à: ${scene.scene.key}`);
+    console.log(`🔗 [GlobalTransitionManager] === ATTACHEMENT À SCÈNE ===`);
+    console.log(`📍 Scène: ${scene.scene.key}`);
     
     // Détacher de l'ancienne scène si nécessaire
     if (this.currentScene) {
@@ -37,7 +38,27 @@ export class GlobalTransitionManager {
     }
     
     this.currentScene = scene;
-    this.currentZone = this.getZoneFromScene(scene.scene.key);
+    
+    // ✅ CORRECTION 1: Obtenir la zone depuis plusieurs sources
+    const sceneZone = this.getZoneFromScene(scene.scene.key);
+    const networkZone = scene.networkManager?.getCurrentZone();
+    const serverZone = scene.currentZone;
+    
+    console.log(`🔍 [GlobalTransitionManager] Sources de zone:`);
+    console.log(`  - Scene calculée: ${sceneZone}`);
+    console.log(`  - NetworkManager: ${networkZone}`);
+    console.log(`  - Server zone: ${serverZone}`);
+    
+    // ✅ CORRECTION 2: Priorité au serveur, sinon calculée
+    this.currentZone = serverZone || networkZone || sceneZone;
+    
+    console.log(`🎯 [GlobalTransitionManager] Zone finale: ${this.currentZone}`);
+    
+    if (!this.currentZone) {
+      console.error(`❌ [GlobalTransitionManager] ERREUR: Aucune zone déterminée!`);
+      this.currentZone = sceneZone; // Fallback
+      console.log(`🔧 [GlobalTransitionManager] Fallback zone: ${this.currentZone}`);
+    }
     
     // ✅ Scan des téléports dans la nouvelle scène
     this.scanSceneForTeleports(scene);
@@ -109,7 +130,7 @@ export class GlobalTransitionManager {
     console.log(`🔍 [GlobalTransitionManager] ${teleportCount} téléports trouvés dans ${scene.scene.key}`);
   }
 
-  // ✅ Process téléport (adapté)
+  // ✅ Process téléport (corrigé)
   processTeleport(obj, index, scene) {
     const targetZone = this.getProperty(obj, 'targetzone');
     const targetSpawn = this.getProperty(obj, 'targetspawn');
@@ -119,16 +140,23 @@ export class GlobalTransitionManager {
       return false;
     }
 
+    // ✅ CORRECTION 3: Vérifier que currentZone est définie
+    if (!this.currentZone) {
+      console.error(`❌ [GlobalTransitionManager] currentZone undefined! Recalcul...`);
+      this.currentZone = this.getZoneFromScene(scene.scene.key);
+      console.log(`🔧 [GlobalTransitionManager] Zone recalculée: ${this.currentZone}`);
+    }
+
     const teleport = {
       id: `${scene.scene.key}_teleport_${index}`,
-      sceneKey: scene.scene.key, // ✅ NOUVEAU: Identifier la scène
+      sceneKey: scene.scene.key,
       x: obj.x,
       y: obj.y,
       width: obj.width || 32,
       height: obj.height || 32,
       targetZone: targetZone,
       targetSpawn: targetSpawn,
-      fromZone: this.currentZone
+      fromZone: this.currentZone // ✅ Utilisera la zone vérifiée
     };
 
     this.teleportZones.set(teleport.id, teleport);
@@ -232,7 +260,7 @@ export class GlobalTransitionManager {
     );
   }
 
-  // ✅ DÉCLENCHEMENT TRANSITION (simplifié)
+  // ✅ DÉCLENCHEMENT TRANSITION CORRIGÉ
   async triggerTransition(teleportData) {
     if (this.isTransitioning) {
       console.warn(`⚠️ [GlobalTransitionManager] Transition déjà en cours`);
@@ -240,7 +268,22 @@ export class GlobalTransitionManager {
     }
 
     console.log(`🚀 [GlobalTransitionManager] === DÉBUT TRANSITION ===`);
-    console.log(`📍 De: ${teleportData.fromZone} → ${teleportData.targetZone}`);
+    console.log(`📊 Données téléport:`, teleportData);
+    
+    // ✅ CORRECTION 4: Vérifier les données avant envoi
+    if (!teleportData.fromZone) {
+      console.error(`❌ [GlobalTransitionManager] fromZone manquante! Recalcul...`);
+      teleportData.fromZone = this.currentZone || this.getZoneFromScene(this.currentScene.scene.key);
+      console.log(`🔧 [GlobalTransitionManager] fromZone corrigée: ${teleportData.fromZone}`);
+    }
+    
+    if (!teleportData.fromZone) {
+      console.error(`❌ [GlobalTransitionManager] Impossible de déterminer la zone source!`);
+      this.handleTransitionError({ reason: "Zone source inconnue: " + teleportData.fromZone });
+      return;
+    }
+
+    console.log(`📍 [GlobalTransitionManager] Transition: ${teleportData.fromZone} → ${teleportData.targetZone}`);
 
     this.isTransitioning = true;
     this.currentTransitionData = teleportData;
