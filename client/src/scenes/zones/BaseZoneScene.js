@@ -418,7 +418,6 @@ handleMyPlayerFromState() {
       console.warn(`[${this.scene.key}] ⚠️ playerState introuvable pour ${this.mySessionId}`);
     }
   }
- });
 
   // ✅ Maintenant que le joueur est là, on poursuit
   if (myPlayer && !this.myPlayerReady) {
@@ -459,44 +458,6 @@ handleMyPlayerFromState() {
   }
 }
 
-    
-// ✅ FORCER le suivi caméra ABSOLUMENT
-if (!this.cameraFollowing && this.cameraManager) {
-  console.log(`[${this.scene.key}] 🎥 FORCER suivi caméra depuis state`);
-  this.cameraManager.followPlayer(myPlayer);
-  this.cameraFollowing = true;
-  
-  // ✅ SNAP IMMÉDIAT de la caméra
-  this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
-  console.log(`[${this.scene.key}] 🎥 Caméra activée et centrée !`);
-} else if (this.cameraFollowing && this.cameraManager && this.cameraManager.target !== myPlayer) {
-  // ✅ CORRECTION: Si la caméra suit déjà mais pas le bon joueur
-  console.log(`[${this.scene.key}] 🔧 Correction cible caméra`);
-  this.cameraManager.followPlayer(myPlayer);
-  this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
-}
-      
-      // ✅ S'assurer que le joueur est visible
-      if (!myPlayer.visible) {
-        console.log(`🔧 [${this.scene.key}] Forcer visibilité joueur local`);
-        myPlayer.setVisible(true);
-        myPlayer.setActive(true);
-      }
-      
-      // ✅ FORCER le suivi caméra
-      if (!this.cameraFollowing) {
-        console.log(`[${this.scene.key}] 🎥 Activation suivi caméra depuis state`);
-        this.cameraManager.followPlayer(myPlayer);
-        this.cameraFollowing = true;
-      }
-      
-      this.positionPlayer(myPlayer);
-      
-      if (typeof this.onPlayerReady === 'function') {
-        this.onPlayerReady(myPlayer);
-      }
-    }
-  }
 
   // ✅ MÉTHODE EXISTANTE: Setup des handlers WorldRoom
   setupWorldRoomHandlers() {
