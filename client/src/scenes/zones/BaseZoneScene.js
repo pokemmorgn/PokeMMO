@@ -931,6 +931,10 @@ isSceneStillValid(expectedScene) {
     this.cameras.main.setRoundPixels(true);
 
     this.cameraManager = new CameraManager(this);
+    this.clientCollisionManager = new ClientCollisionManager(this);
+  if (this.clientCollisionManager.loadCollisionsFromTilemap()) {
+    console.log(`✅ [${this.scene.key}] Collisions client chargées`);
+  }
   }
 
   getDefaultSpawnPosition(fromZone) {
