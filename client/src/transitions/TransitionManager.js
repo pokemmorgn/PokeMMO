@@ -322,6 +322,8 @@ export class TransitionManager {
       this.handleTransitionError({ reason: `Zone inconnue: ${targetZone}` });
       return;
     }
+      const delayBeforeSwitch = 500; // 150ms à adapter selon ton ressenti
+  await new Promise((resolve) => setTimeout(resolve, delayBeforeSwitch));
 
     console.log(`🎯 [TransitionManager] Zone cible: ${targetZone}`);
     console.log(`🎬 [TransitionManager] Scène cible: ${targetScene}`);
