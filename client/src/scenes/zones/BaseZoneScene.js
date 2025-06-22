@@ -56,7 +56,7 @@ console.log(
     this.setupInputs();
     this.createUI();
     this.setupManagers();
-   // this.initializeGlobalTransitions();
+    this.initializeGlobalTransitions();
     this.initializeNetworking();
     this.isSceneReady = true;
     this.setupCleanupHandlers();
