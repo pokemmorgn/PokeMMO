@@ -216,7 +216,7 @@ checkCollisions(player) {
 
   const now = Date.now();
 
-  // ➤ Protéger TOUTE détection pendant la grace
+  // ➤ Protéger TOUTE détection pendant la grâce
   if (this.graceTime > now) {
     if (!this.lastGraceLogTime || now - this.lastGraceLogTime > 2000) {
       const remaining = Math.ceil((this.graceTime - now) / 1000);
@@ -225,6 +225,24 @@ checkCollisions(player) {
     }
     return;
   }
+
+  this.teleportZones.forEach((teleportData) => {
+    if (teleportData.sceneKey !== this.currentScene.scene.key) return;
+
+    // ➤ NOUVEAU : Ignore le dernier téléport utilisé
+    if (this.lastTeleportId && teleportData.id === this.lastTeleportId) {
+      // (log facultatif)
+      // console.log(`🛑 Ignore collision avec le téléport utilisé: ${teleportData.id}`);
+      return;
+    }
+
+    if (this.isPlayerCollidingWithTeleport(player, teleportData)) {
+      console.log(`💥 [GlobalTransitionManager] COLLISION: ${teleportData.id}!`);
+      this.triggerTransition(teleportData);
+    }
+  });
+}
+
 
   this.teleportZones.forEach((teleportData) => {
     if (teleportData.sceneKey !== this.currentScene.scene.key) return;
