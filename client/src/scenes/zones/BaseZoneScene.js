@@ -57,7 +57,6 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.createPlayerAnimations();
     this.setupManagers();
-    this.initPlayerSpawnFromSceneData();
 
     this.loadMap();
     this.setupInputs();
@@ -103,6 +102,8 @@ this.events.once('destroy', this.cleanup, this);
       isConnected: this.networkManager.isConnected,
       currentZone: this.networkManager.getCurrentZone()
     });
+    
+  this.initPlayerSpawnFromSceneData();
 
     // ✅ Configuration des handlers réseau
     this.setupNetworkHandlers();
@@ -142,6 +143,10 @@ this.events.once('destroy', this.cleanup, this);
   
   initPlayerSpawnFromSceneData() {
     const data = this.scene.settings.data || {};
+      if (!this.mySessionId) {
+    console.warn(`[${this.scene.key}] ⚠️ mySessionId manquant, impossible de créer le joueur`);
+    return;
+  }
     const sessionId = this.mySessionId;
     let spawnX = 52, spawnY = 48;
 
