@@ -173,6 +173,8 @@ const styleSheet = document.createElement('style');
 styleSheet.textContent = starterHudCSS;
 document.head.appendChild(styleSheet);
 
+console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
+
 // ==== Connexion Colyseus + Initialisation des systèmes ====
 (async () => {
   try {
