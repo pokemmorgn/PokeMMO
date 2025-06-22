@@ -436,18 +436,6 @@ redirectToCorrectScene(correctScene, serverData) {
         this.playerManager.snapMyPlayerTo(data.x, data.y);
       }
     });
-this.networkManager.onMessage("forcePlayerPosition", (data) => {
-  const myPlayer = this.playerManager?.getMyPlayer();
-  if (myPlayer) {
-    myPlayer.x = data.x;
-    myPlayer.y = data.y;
-    myPlayer.direction = data.direction;
-    if (typeof myPlayer.setPosition === "function") myPlayer.setPosition(data.x, data.y);
-    if (this.cameraManager?.snapToPlayer) this.cameraManager.snapToPlayer();
-    // Optionnel : animation rollback/notification ici
-  }
-  console.log(`[forcePlayerPosition] Correction instantanée à (${data.x}, ${data.y})`);
-});
     this.networkManager.onDisconnect(() => {
       this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nDisconnected from WorldRoom`);
     });
@@ -736,27 +724,22 @@ isSceneStillValid(expectedScene) {
 
   // ✅ VÉRIFICATION COLLISION - MOUVEMENT FLUIDE CONTRE LES MURS
   if (moved && this.clientCollisionManager) {
-    // Vérifier chaque axe séparément pour permettre le glissement
-    const deltaTime = 1/60;
-    const nextX = myPlayer.x + (vx * deltaTime);
-    const nextY = myPlayer.y + (vy * deltaTime);
-    
-    // Vérifier X uniquement
-    if (vx !== 0 && this.clientCollisionManager.isBlocked(nextX, myPlayer.y)) {
-      vx = 0; // Bloquer seulement l'axe X
-      console.log(`🚫 [ClientCollision] Axe X bloqué`);
-    }
-    
-    // Vérifier Y uniquement  
-    if (vy !== 0 && this.clientCollisionManager.isBlocked(myPlayer.x, nextY)) {
-      vy = 0; // Bloquer seulement l'axe Y
-      console.log(`🚫 [ClientCollision] Axe Y bloqué`);
-    }
-    
-    // Si les deux axes sont bloqués, pas de mouvement
-    moved = (vx !== 0 || vy !== 0);
+  const deltaTime = 1/60;
+  const nextX = myPlayer.x + (vx * deltaTime);
+  const nextY = myPlayer.y + (vy * deltaTime);
+  
+  // Bloquer X si collision
+  if (vx !== 0 && this.clientCollisionManager.isBlocked(nextX, myPlayer.y)) {
+    vx = 0;
   }
-
+  
+  // Bloquer Y si collision
+  if (vy !== 0 && this.clientCollisionManager.isBlocked(myPlayer.x, nextY)) {
+    vy = 0;
+  }
+  
+  moved = (vx !== 0 || vy !== 0);
+}
   // Appliquer la vélocité (peut être partiellement bloquée)
   myPlayer.body.setVelocity(vx, vy);
 
