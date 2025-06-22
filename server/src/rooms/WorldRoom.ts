@@ -937,8 +937,6 @@ export class WorldRoom extends Room<PokeWorldState> {
       player.currentZone = options.spawnZone || "beach";
       console.log(`🌍 Zone de spawn: ${player.currentZone}`);
       
-      // Compatibilité avec l'ancien système
-      player.map = player.currentZone;
       
       // ✅ NOUVELLES PROPRIÉTÉS SHOP
       player.level = options.level || 1;
