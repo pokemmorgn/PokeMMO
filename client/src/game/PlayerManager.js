@@ -417,6 +417,9 @@ getMyPlayer() {
     if (playerState.isMoving !== undefined) player.isMoving = playerState.isMoving;
     if (playerState.direction) player.lastDirection = playerState.direction;
 
+     // 🔥 AJOUTE LA SYNC ICI :
+    if (playerState.currentZone) player.currentZone = playerState.currentZone;
+
     // Restaurer la visibilité si nécessaire
     if (!player.visible) {
       console.warn(`[PlayerManager] 🔧 Restauration visibilité: ${player.sessionId}`);
