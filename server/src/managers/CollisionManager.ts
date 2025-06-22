@@ -1,57 +1,51 @@
-// server/src/managers/CollisionManager.ts
+// PokeMMO/server/src/managers/CollisionManager.ts
 
 import fs from "fs";
 import path from "path";
 
 export class CollisionManager {
-  private collisionGrid: boolean[][] = [];
-  public width: number = 0;
-  public height: number = 0;
-  private tileWidth: number = 32;   // adapte si besoin
+  private collisionTiles: Set<string> = new Set();
+  private tileWidth: number = 32;  // ajuste si besoin
   private tileHeight: number = 32;
 
   constructor(mapPath: string) {
     this.loadCollisionsFromMap(mapPath);
   }
 
-loadCollisionsFromMap(mapPath: string) {
-const resolvedPath = path.resolve(process.cwd(), "/build/assets/maps", mapPath);
-  if (!fs.existsSync(resolvedPath)) {
-    throw new Error(`CollisionManager: Le fichier map n'existe pas : ${resolvedPath}`);
-  }
+  loadCollisionsFromMap(mapPath: string) {
+    // Même logique que NpcManager pour le chemin
+    const resolvedPath = path.resolve(__dirname, mapPath);
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`CollisionManager: Le fichier map n'existe pas : ${resolvedPath}`);
+    }
     const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
-    this.width = mapData.width;
-    this.height = mapData.height;
+
+    // Remplace "Worlds" par le nom de ton calque collision si différent
+    const collisionLayer = mapData.layers.find((l: any) =>
+      l.name === "Worlds" && (
+        !l.properties || l.properties.some((p: any) => p.name === "collides" && p.value === true)
+      )
+    );
+    if (!collisionLayer || !collisionLayer.data) return;
+
     this.tileWidth = mapData.tilewidth;
     this.tileHeight = mapData.tileheight;
 
-    // Trouve le layer collision (propriété "collides" à true)
-    const collidesLayer = mapData.layers.find((l: any) =>
-      l.properties?.some((p: any) => p.name === "collides" && p.value === true)
-    );
-    if (!collidesLayer) throw new Error("CollisionManager: Aucun layer 'collides' trouvé.");
-
-    // Crée la grille
-    this.collisionGrid = [];
-    for (let y = 0; y < this.height; y++) {
-      this.collisionGrid[y] = [];
-      for (let x = 0; x < this.width; x++) {
-        // Pour les tile layers (data est un tableau 1D)
-        const idx = x + y * this.width;
-        const isBlocked = (collidesLayer.data && collidesLayer.data[idx] !== 0);
-        this.collisionGrid[y][x] = isBlocked;
+    for (let y = 0; y < collisionLayer.height; y++) {
+      for (let x = 0; x < collisionLayer.width; x++) {
+        const idx = y * collisionLayer.width + x;
+        if (collisionLayer.data[idx] !== 0) {
+          this.collisionTiles.add(`${x},${y}`);
+        }
       }
     }
   }
 
-  /**
-   * Vérifie si la case (coordonnées pixels) est bloquée
-   */
+  // Vérifie si une position x, y (en pixels) est bloquée
   isBlocked(x: number, y: number): boolean {
     const tx = Math.floor(x / this.tileWidth);
     const ty = Math.floor(y / this.tileHeight);
-    if (tx < 0 || tx >= this.width || ty < 0 || ty >= this.height) return true; // hors map = bloqué
-    return this.collisionGrid[ty][tx];
+    return this.collisionTiles.has(`${tx},${ty}`);
   }
 }
 
