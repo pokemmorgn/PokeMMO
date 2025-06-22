@@ -278,21 +278,28 @@ export class NetworkManager {
       }
     });
 
-    this.room.onMessage("transitionResult", (result) => {
-      console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
-      if (result.success && result.currentZone) {
-        console.log(`🔄 [NetworkManager] Sync zone: ${this.currentZone} → ${result.currentZone}`);
-        this.currentZone = result.currentZone;
-      }
-      if (this.onTransitionValidation) {
-        this.onTransitionValidation(result);
-      }
-      if (result.success && this.callbacks.onTransitionSuccess) {
-        this.callbacks.onTransitionSuccess(result);
-      } else if (!result.success && this.callbacks.onTransitionError) {
-        this.callbacks.onTransitionError(result);
-      }
-    });
+this.room.onMessage("transitionResult", (result) => {
+  console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
+
+  // Sync la zone côté client (important)
+  if (result.success && result.currentZone) {
+    console.log(`🔄 [NetworkManager] Sync zone: ${this.currentZone} → ${result.currentZone}`);
+    this.currentZone = result.currentZone;
+  }
+
+  // ✅ DÉLÈGUE à la propriété dynamique: utilisé par le TransitionManager !
+  if (this.onTransitionValidation) {
+    this.onTransitionValidation(result);
+  }
+
+  // Callbacks secondaires (optionnels)
+  if (result.success && this.callbacks.onTransitionSuccess) {
+    this.callbacks.onTransitionSuccess(result);
+  } else if (!result.success && this.callbacks.onTransitionError) {
+    this.callbacks.onTransitionError(result);
+  }
+});
+
 
     this.room.onMessage("npcInteractionResult", (result) => {
       console.log(`💬 [NetworkManager] NPC interaction:`, result);
