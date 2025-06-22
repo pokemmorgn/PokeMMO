@@ -143,6 +143,12 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     window.currentGameRoom = window.globalNetworkManager.room;
     console.log("✅ Connecté à la WorldRoom via NetworkManager:", window.currentGameRoom.sessionId);
 
+console.log("🔍 [DEBUG] SessionId après connexion:");
+console.log("- NetworkManager sessionId:", window.globalNetworkManager.getSessionId());
+console.log("- Room sessionId:", window.globalNetworkManager.room?.sessionId);
+console.log("- Room existe:", !!window.globalNetworkManager.room);
+console.log("- NetworkManager connecté:", window.globalNetworkManager.isConnected);
+    
     // ✅ 5. CONNEXION AU CHAT (SÉPARÉE)
     console.log("💬 Connexion à la WorldChatRoom...");
     const worldChat = await client.joinOrCreate("worldchat", { username });
