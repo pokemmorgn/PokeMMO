@@ -149,7 +149,13 @@ this.events.once('destroy', this.cleanup, this);
     if (typeof data.spawnX === 'number') spawnX = data.spawnX;
     if (typeof data.spawnY === 'number') spawnY = data.spawnY;
 
-    
+    // Création réelle du joueur (évite de doubler le joueur si déjà présent)
+    if (this.playerManager && !this.playerManager.getMyPlayer()) {
+      this.playerManager.createPlayer(sessionId, spawnX, spawnY);
+      console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY})`);
+    } else {
+      console.log(`[${this.scene.key}] Joueur déjà présent ou playerManager manquant.`);
+    }
   }
 
   // ✅ MÉTHODE MODIFIÉE: Demander la zone au serveur
