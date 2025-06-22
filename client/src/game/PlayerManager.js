@@ -104,6 +104,13 @@ export class PlayerManager {
       console.warn("[PlayerManager] getMyPlayer: MANAGER DETRUIT");
       return null;
     }
+
+      // ✅ DEBUG DÉTAILLÉ
+  console.log(`🔍 [PlayerManager] getMyPlayer debug:`);
+  console.log(`- this.mySessionId: "${this.mySessionId}"`);
+  console.log(`- this._pendingSessionId: "${this._pendingSessionId}"`);
+  console.log(`- sessionIdToCheck: "${this._pendingSessionId || this.mySessionId}"`);
+  console.log(`- players disponibles:`, Array.from(this.players.keys()));
     
     // ✅ AMÉLIORATION 2: Vérifier d'abord le sessionId en attente
     const sessionIdToCheck = this._pendingSessionId || this.mySessionId;
