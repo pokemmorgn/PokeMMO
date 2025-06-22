@@ -75,6 +75,14 @@ export class BaseZoneScene extends Phaser.Scene {
     this.setupPlayerReadyHandler();
     this.setupCleanupHandlers();
 
+    // ✅ NOUVEAU: Timer de vérification caméra
+this.time.addEvent({
+  delay: 1000,
+  callback: this.checkCameraActivation,
+  callbackScope: this,
+  repeat: 5 // Vérifier 5 fois max
+});
+    
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
   }
@@ -191,6 +199,21 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
+  // ✅ NOUVELLE MÉTHODE: Vérification automatique de la caméra
+checkCameraActivation() {
+  if (this.cameraFollowing) return; // Déjà activée
+  
+  const myPlayer = this.playerManager?.getMyPlayer();
+  
+  if (myPlayer && this.cameraManager && !this.cameraFollowing) {
+    console.log(`🎥 [${this.scene.key}] 🚀 Auto-activation caméra (timer)`);
+    this.cameraManager.followPlayer(myPlayer);
+    this.cameraFollowing = true;
+    this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
+    console.log(`✅ [${this.scene.key}] Caméra auto-activée !`);
+  }
+}
+  
   // ✅ MÉTHODE MODIFIÉE: Demander la zone au serveur
   requestServerZone() {
     console.log(`📍 [${this.scene.key}] === DEMANDE ZONE AU SERVEUR ===`);
