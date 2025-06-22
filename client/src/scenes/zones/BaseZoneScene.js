@@ -1,6 +1,5 @@
 // client/src/scenes/zones/BaseZoneScene.js - VERSION WORLDROOM CORRIGÉE AVEC SHOP
 // ✅ Utilise la connexion établie dans main.js au lieu de créer une nouvelle connexion
-// ✅ FIX: Ajout de la méthode onPlayerReady manquante + correction syntaxe
 
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
@@ -151,29 +150,22 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   // ✅ MÉTHODE MODIFIÉE: Demander la zone au serveur
-requestServerZone() {
-  console.log(`📍 [${this.scene.key}] === DEMANDE ZONE AU SERVEUR ===`);
-  
-  if (!this.networkManager?.room) {
-    console.error(`❌ [${this.scene.key}] Pas de connexion pour demander la zone`);
-    return;
+  requestServerZone() {
+    console.log(`📍 [${this.scene.key}] === DEMANDE ZONE AU SERVEUR ===`);
+    
+    if (!this.networkManager?.room) {
+      console.error(`❌ [${this.scene.key}] Pas de connexion pour demander la zone`);
+      return;
+    }
+    
+    // Envoyer une demande de zone au serveur
+    this.networkManager.room.send("requestCurrentZone", {
+      sceneKey: this.scene.key,
+      timestamp: Date.now()
+    });
+    
+    console.log(`📤 [${this.scene.key}] Demande de zone envoyée au serveur`);
   }
-  
-  // ✅ CORRECTION: Éviter les demandes multiples
-  if (this._zoneRequestSent && Date.now() - this._zoneRequestSent < 5000) {
-    console.log(`📍 [${this.scene.key}] Demande de zone déjà envoyée récemment, ignoré`);
-    return;
-  }
-  this._zoneRequestSent = Date.now();
-  
-  // Envoyer une demande de zone au serveur
-  this.networkManager.room.send("requestCurrentZone", {
-    sceneKey: this.scene.key,
-    timestamp: Date.now()
-  });
-  
-  console.log(`📤 [${this.scene.key}] Demande de zone envoyée au serveur`);
-}
 
   // ✅ MÉTHODE MODIFIÉE: Setup des handlers réseau
   setupNetworkHandlers() {
@@ -182,53 +174,38 @@ requestServerZone() {
     console.log(`📡 [${this.scene.key}] Configuration handlers réseau...`);
 
     // ✅ Handler pour recevoir la zone officielle du serveur
-this.networkManager.onMessage("currentZone", (data) => {
-  console.log(`📍 [${this.scene.key}] === ZONE REÇUE DU SERVEUR ===`);
-  console.log(`🎯 Zone serveur: ${data.zone}`);
-  console.log(`📊 Position serveur: (${data.x}, ${data.y})`);
-  
-  // ✅ CORRECTION CRITIQUE: Éviter les boucles infinies
-  if (this._lastZoneUpdate && Date.now() - this._lastZoneUpdate < 2000) {
-    console.log(`🔄 [${this.scene.key}] Zone reçue trop récemment, ignoré pour éviter la boucle`);
-    return;
-  }
-  this._lastZoneUpdate = Date.now();
-  
-  // ✅ APPLIQUER LA VÉRITÉ DU SERVEUR
-  const oldZone = this.zoneName;
-  this.zoneName = data.zone;
-  this.serverZoneConfirmed = true;
-  
-  console.log(`🔄 [${this.scene.key}] Zone mise à jour: ${oldZone} → ${this.zoneName}`);
-  
-  // ✅ Si la scène ne correspond pas à la zone serveur, correction
-  const expectedScene = this.mapZoneToScene(this.zoneName);
-  if (expectedScene && expectedScene !== this.scene.key) {
-    console.warn(`⚠️ [${this.scene.key}] SCÈNE INCORRECTE !`);
-    console.warn(`   Scène actuelle: ${this.scene.key}`);
-    console.warn(`   Scène attendue: ${expectedScene}`);
-    
-    // ✅ REDIRECTION AUTOMATIQUE vers la bonne scène
-    this.redirectToCorrectScene(expectedScene, data);
-    return;
-  }
-  
-  // ✅ Synchroniser le PlayerManager avec la zone confirmée SANS BOUCLE
-  if (this.playerManager) {
-    this.playerManager.currentZone = this.zoneName;
-    // ✅ CORRECTION: NE PLUS APPELER forceResynchronization ici !
-    // this.playerManager.forceResynchronization(); // ⚠️ SUPPRIMÉ
-    
-    // ✅ À la place, juste synchroniser le sessionId silencieusement
-    const networkSessionId = this.networkManager?.getSessionId();
-    if (networkSessionId && this.playerManager.mySessionId !== networkSessionId) {
-      console.log(`🔧 [${this.scene.key}] Sync sessionId silencieux: ${this.playerManager.mySessionId} → ${networkSessionId}`);
-      this.playerManager.setMySessionId(networkSessionId);
-    }
-  }
-  
-  console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
-});
+    this.networkManager.onMessage("currentZone", (data) => {
+      console.log(`📍 [${this.scene.key}] === ZONE REÇUE DU SERVEUR ===`);
+      console.log(`🎯 Zone serveur: ${data.zone}`);
+      console.log(`📊 Position serveur: (${data.x}, ${data.y})`);
+      
+      // ✅ APPLIQUER LA VÉRITÉ DU SERVEUR
+      const oldZone = this.zoneName;
+      this.zoneName = data.zone;
+      this.serverZoneConfirmed = true;
+      
+      console.log(`🔄 [${this.scene.key}] Zone mise à jour: ${oldZone} → ${this.zoneName}`);
+      
+      // ✅ Si la scène ne correspond pas à la zone serveur, correction
+      const expectedScene = this.mapZoneToScene(this.zoneName);
+      if (expectedScene && expectedScene !== this.scene.key) {
+        console.warn(`⚠️ [${this.scene.key}] SCÈNE INCORRECTE !`);
+        console.warn(`   Scène actuelle: ${this.scene.key}`);
+        console.warn(`   Scène attendue: ${expectedScene}`);
+        
+        // ✅ REDIRECTION AUTOMATIQUE vers la bonne scène
+        this.redirectToCorrectScene(expectedScene, data);
+        return;
+      }
+      
+      // ✅ Synchroniser le PlayerManager avec la zone confirmée
+      if (this.playerManager) {
+        this.playerManager.currentZone = this.zoneName;
+        this.playerManager.forceResynchronization();
+      }
+      
+      console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
+    });
 
     // ✅ Handler d'état avec protection
     this.networkManager.onStateChange((state) => {
@@ -262,6 +239,14 @@ this.networkManager.onMessage("currentZone", (data) => {
     this.setupExistingHandlers();
 
     // ✅ FORCER UNE PREMIÈRE SYNCHRONISATION
+    this.time.delayedCall(500, () => {
+      console.log(`🔄 [${this.scene.key}] Forcer synchronisation initiale...`);
+      if (this.networkManager.room) {
+        this.networkManager.room.send("requestInitialState", { 
+          zone: this.networkManager.getCurrentZone() 
+        });
+      }
+    });
   }
 
   // ✅ MÉTHODE EXISTANTE: Redirection vers la bonne scène
@@ -320,7 +305,6 @@ this.networkManager.onMessage("currentZone", (data) => {
       this.cameraFollowing = true;
       this.positionPlayer(myPlayer);
       
-      // ✅ FIX: Vérifier que la méthode existe avant de l'appeler
       if (typeof this.onPlayerReady === 'function') {
         this.onPlayerReady(myPlayer);
       }
@@ -464,7 +448,6 @@ this.networkManager.onMessage("currentZone", (data) => {
         this.cameraFollowing = true;
         this.positionPlayer(myPlayer);
 
-        // ✅ FIX: Vérifier que la méthode existe avant de l'appeler
         if (typeof this.onPlayerReady === 'function') {
           this.onPlayerReady(myPlayer);
         }
@@ -473,26 +456,24 @@ this.networkManager.onMessage("currentZone", (data) => {
   }
 
   // ✅ MÉTHODE EXISTANTE: Vérification de l'état réseau
- verifyNetworkState() {
-  if (!this.networkManager) {
-    console.error(`❌ [${this.scene.key}] NetworkManager manquant`);
-    return;
+  verifyNetworkState() {
+    if (!this.networkManager) {
+      console.error(`❌ [${this.scene.key}] NetworkManager manquant`);
+      return;
+    }
+    
+    console.log(`🔍 [${this.scene.key}] Vérification état réseau...`);
+    
+    this.networkManager.debugState();
+    this.networkManager.checkZoneSynchronization(this.scene.key);
+    
+    if (this.playerManager) {
+      this.time.delayedCall(500, () => {
+        this.playerManager.forceResynchronization();
+      });
+    }
   }
-  
-  console.log(`🔍 [${this.scene.key}] Vérification état réseau...`);
-  
-  this.networkManager.debugState();
-  this.networkManager.checkZoneSynchronization(this.scene.key);
-  
-  // ✅ CORRECTION: Pas de forceResynchronization automatique ici
-  if (this.playerManager && !this._resyncDone) {
-    this._resyncDone = true;
-    this.time.delayedCall(500, () => {
-      // ✅ Juste vérifier l'état, ne pas forcer une resync
-      this.playerManager.checkMyPlayerReady();
-    });
-  }
-}
+
   // ✅ MÉTHODE EXISTANTE: Position du joueur avec données de transition
   positionPlayer(player) {
     const initData = this.scene.settings.data;
@@ -534,10 +515,7 @@ this.networkManager.onMessage("currentZone", (data) => {
       this.networkManager.sendMove(player.x, player.y, 'down', false);
     }
 
-    // ✅ FIX: Appeler onPlayerPositioned seulement s'il existe
-    if (typeof this.onPlayerPositioned === 'function') {
-      this.onPlayerPositioned(player, initData);
-    }
+    this.onPlayerPositioned(player, initData);
   }
 
   // ✅ MÉTHODE EXISTANTE: Affichage d'état d'erreur
@@ -559,27 +537,6 @@ this.networkManager.onMessage("currentZone", (data) => {
     if (this.infoText) {
       this.infoText.setText(text);
     }
-  }
-
-  // ✅ FIX: NOUVELLE MÉTHODE - onPlayerReady par défaut
-  onPlayerReady(player) {
-    // Méthode par défaut qui peut être surchargée par les scènes spécifiques
-    console.log(`🎮 [${this.scene.key}] Joueur prêt par défaut: ${player.sessionId} à (${player.x}, ${player.y})`);
-    
-    // Les scènes spécifiques peuvent surcharger cette méthode pour:
-    // - Afficher des messages de bienvenue
-    // - Déclencher des événements spécifiques à la zone
-    // - Mettre à jour des éléments d'UI
-    // - Démarrer la musique de zone
-    // - etc.
-  }
-
-  // ✅ FIX: NOUVELLE MÉTHODE - onPlayerPositioned par défaut
-  onPlayerPositioned(player, initData) {
-    // Méthode par défaut qui peut être surchargée par les scènes spécifiques
-    console.log(`📍 [${this.scene.key}] Joueur positionné par défaut: ${player.sessionId}`);
-    
-    // Hook pour logique spécifique aux scènes
   }
 
   // ✅ Reste des méthodes existantes inchangées...
@@ -845,6 +802,10 @@ this.networkManager.onMessage("currentZone", (data) => {
 
   getDefaultSpawnPosition(fromZone) {
     return { x: 100, y: 100 };
+  }
+
+  onPlayerPositioned(player, initData) {
+    // Hook pour logique spécifique
   }
 
   setupManagers() {
