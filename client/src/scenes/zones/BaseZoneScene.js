@@ -709,59 +709,77 @@ isSceneStillValid(expectedScene) {
   if (!myPlayer) return;
 
   let vx = 0, vy = 0;
-  let moved = false, direction = null;
+  let inputDetected = false, direction = null;
 
+  // ✅ Détecter les inputs AVANT la collision
   if (this.cursors.left.isDown || this.wasd.A.isDown) {
-    vx = -speed; moved = true; direction = 'left';
+    vx = -speed; inputDetected = true; direction = 'left';
   } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-    vx = speed; moved = true; direction = 'right';
+    vx = speed; inputDetected = true; direction = 'right';
   }
   if (this.cursors.up.isDown || this.wasd.W.isDown) {
-    vy = -speed; moved = true; direction = 'up';
+    vy = -speed; inputDetected = true; direction = 'up';
   } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-    vy = speed; moved = true; direction = 'down';
+    vy = speed; inputDetected = true; direction = 'down';
   }
 
+  // ✅ Variables séparées pour mouvement et animation
+  let actuallyMoving = inputDetected;
+
   // ✅ VÉRIFICATION COLLISION - MOUVEMENT FLUIDE CONTRE LES MURS
-  if (moved && this.clientCollisionManager) {
-  const deltaTime = 1/60;
-  const nextX = myPlayer.x + (vx * deltaTime);
-  const nextY = myPlayer.y + (vy * deltaTime);
-  
-  // Bloquer X si collision
-  if (vx !== 0 && this.clientCollisionManager.isBlocked(nextX, myPlayer.y)) {
-    vx = 0;
+  if (inputDetected && this.clientCollisionManager) {
+    const deltaTime = 1/60;
+    const nextX = myPlayer.x + (vx * deltaTime);
+    const nextY = myPlayer.y + (vy * deltaTime);
+    
+    // Vérifier X uniquement
+    if (vx !== 0 && this.clientCollisionManager.isBlocked(nextX, myPlayer.y)) {
+      vx = 0; // Bloquer seulement l'axe X
+      console.log(`🚫 [ClientCollision] Axe X bloqué`);
+    }
+    
+    // Vérifier Y uniquement  
+    if (vy !== 0 && this.clientCollisionManager.isBlocked(myPlayer.x, nextY)) {
+      vy = 0; // Bloquer seulement l'axe Y
+      console.log(`🚫 [ClientCollision] Axe Y bloqué`);
+    }
+    
+    // ✅ actuallyMoving = vraiment en train de bouger (après collision)
+    actuallyMoving = (vx !== 0 || vy !== 0);
   }
-  
-  // Bloquer Y si collision
-  if (vy !== 0 && this.clientCollisionManager.isBlocked(myPlayer.x, nextY)) {
-    vy = 0;
-  }
-  
-  moved = (vx !== 0 || vy !== 0);
-}
+
   // Appliquer la vélocité (peut être partiellement bloquée)
   myPlayer.body.setVelocity(vx, vy);
 
-  // Animations basées sur l'input original (pas la vélocité finale)
-  if (moved && direction) {
-    myPlayer.play(`walk_${direction}`, true);
+  // ✅ ANIMATIONS BASÉES SUR L'INPUT, PAS LE MOUVEMENT RÉEL
+  if (inputDetected && direction) {
+    // ✅ TOUJOURS mettre à jour la direction, même si bloqué
     this.lastDirection = direction;
-    myPlayer.isMovingLocally = true;
+    
+    if (actuallyMoving) {
+      // Si on bouge vraiment, animation de marche
+      myPlayer.play(`walk_${direction}`, true);
+      myPlayer.isMovingLocally = true;
+    } else {
+      // Si bloqué mais input détecté, animation idle dans la nouvelle direction
+      myPlayer.play(`idle_${direction}`, true);
+      myPlayer.isMovingLocally = false;
+    }
   } else {
+    // Aucun input, idle dans la dernière direction
     myPlayer.play(`idle_${this.lastDirection}`, true);
     myPlayer.isMovingLocally = false;
   }
 
-  // Envoi réseau seulement si mouvement réel
-  if (moved) {
+  // ✅ Envoi réseau : direction même si pas de mouvement (pour rotation)
+  if (inputDetected) {
     const now = Date.now();
     if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
       this.networkManager.sendMove(
         myPlayer.x,
         myPlayer.y,
-        direction || this.lastDirection,
-        moved
+        direction, // ✅ Direction envoyée même si bloqué
+        actuallyMoving // ✅ Mouvement réel seulement
       );
       this.lastMoveTime = now;
     }
