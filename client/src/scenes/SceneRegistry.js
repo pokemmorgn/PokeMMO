@@ -168,6 +168,5 @@ export class SceneRegistry {
     this.registeredClasses.clear();
     this.classCache.clear();
     console.log(`🧹 [SceneRegistry] Tout nettoyé`);
-  }keys())}`);
   }
 }
