@@ -1,5 +1,5 @@
 // client/src/transitions/TransitionManager.js
-// ✅ VERSION COMPLÈTE AVEC GESTION ROBUSTE DES SCÈNES
+// ✅ VERSION AVEC FIX POUR RETÉLÉPORTATION VERS ZONES VISITÉES
 
 export class TransitionManager {
   constructor(scene) {
@@ -18,7 +18,7 @@ export class TransitionManager {
     this.transitionTimeout = 10000; // 10 secondes max
     
     // ✅ Stratégies de transition disponibles
-    this.transitionStrategy = 'clean'; // 'clean' ou 'recreate'
+    this.transitionStrategy = 'aggressive'; // 'clean', 'aggressive', ou 'recreate'
     
     console.log(`🌀 [TransitionManager] Système dynamique initialisé pour zone: ${this.currentZone}`);
   }
@@ -354,7 +354,7 @@ export class TransitionManager {
     console.log(`✅ [TransitionManager] Listener de validation configuré`);
   }
 
-  // ✅ SUCCÈS DE TRANSITION - VERSION ROBUSTE SANS IMPORT CIRCULAIRE
+  // ✅ SUCCÈS DE TRANSITION - VERSION AGGRESSIVE POUR ZONES VISITÉES
   async handleTransitionSuccess(result, teleportData) {
     try {
       const targetZone = teleportData.targetZone;
@@ -370,8 +370,10 @@ export class TransitionManager {
 
       console.log(`🎯 [TransitionManager] Transition vers: ${targetZone} (${targetSceneKey})`);
 
-      // ✅ STRATÉGIE DE TRANSITION SELON CONFIGURATION
-      if (this.transitionStrategy === 'recreate') {
+      // ✅ STRATÉGIE AGGRESSIVE POUR RETÉLÉPORTATION
+      if (this.transitionStrategy === 'aggressive') {
+        await this.aggressiveSceneTransition(targetSceneKey, result);
+      } else if (this.transitionStrategy === 'recreate') {
         await this.fullSceneRecreation(targetSceneKey, result);
       } else {
         await this.cleanSceneRestart(targetSceneKey, result);
@@ -385,7 +387,97 @@ export class TransitionManager {
     }
   }
 
-  // ✅ MÉTHODE 1: Redémarrage propre (Recommandée - évite les imports)
+  // ✅ NOUVELLE MÉTHODE: Transition aggressive pour zones visitées
+  async aggressiveSceneTransition(targetSceneKey, result) {
+    console.log(`⚡ [TransitionManager] === TRANSITION AGGRESSIVE ===`);
+    console.log(`🎯 Vers: ${targetSceneKey}`);
+
+    const sceneManager = this.scene.scene;
+
+    // ✅ ÉTAPE 1: Forcer l'arrêt de TOUTES les scènes actives sauf LoaderScene
+    const activeScenes = sceneManager.getScenes(true);
+    console.log(`🛑 [TransitionManager] Arrêt de ${activeScenes.length} scènes actives...`);
+    
+    activeScenes.forEach(scene => {
+      if (scene.scene.key !== 'LoaderScene' && scene.scene.key !== targetSceneKey) {
+        console.log(`⏹️ [TransitionManager] Stop ${scene.scene.key}`);
+        sceneManager.stop(scene.scene.key);
+      }
+    });
+
+    // ✅ ÉTAPE 2: Attendre que les scènes s'arrêtent
+    await this.waitForAllScenesStop(targetSceneKey);
+
+    // ✅ ÉTAPE 3: Vérifier si la scène cible existe
+    const targetScene = sceneManager.get(targetSceneKey);
+    
+    if (!targetScene) {
+      console.error(`❌ [TransitionManager] Scène ${targetSceneKey} n'existe pas dans Phaser!`);
+      console.error(`💡 Les scènes disponibles:`, Object.keys(sceneManager.keys));
+      this.hideLoadingOverlay();
+      this.showErrorPopup(`Scène ${targetSceneKey} non trouvée dans le jeu`);
+      this.isTransitioning = false;
+      return;
+    }
+
+    // ✅ ÉTAPE 4: Forcer l'arrêt de la scène cible si elle est active
+    if (sceneManager.isActive(targetSceneKey)) {
+      console.log(`⏹️ [TransitionManager] Arrêt forcé de ${targetSceneKey}...`);
+      sceneManager.stop(targetSceneKey);
+      await this.waitForSceneState(targetSceneKey, 'stopped');
+    }
+
+    // ✅ ÉTAPE 5: Si la scène est sleeping, la réveiller d'abord puis l'arrêter
+    if (sceneManager.isSleeping(targetSceneKey)) {
+      console.log(`😴 [TransitionManager] Réveil de ${targetSceneKey}...`);
+      sceneManager.wake(targetSceneKey);
+      await this.waitForSceneState(targetSceneKey, 'active');
+      
+      console.log(`⏹️ [TransitionManager] Arrêt après réveil de ${targetSceneKey}...`);
+      sceneManager.stop(targetSceneKey);
+      await this.waitForSceneState(targetSceneKey, 'stopped');
+    }
+
+    // ✅ ÉTAPE 6: Démarrer avec un délai pour s'assurer que tout est propre
+    setTimeout(() => {
+      this.startSceneWithData(targetSceneKey, result);
+    }, 100);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Attendre que toutes les scènes s'arrêtent
+  async waitForAllScenesStop(exceptSceneKey, maxWait = 3000) {
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      
+      const checkAllStopped = () => {
+        const elapsed = Date.now() - startTime;
+        
+        if (elapsed > maxWait) {
+          console.warn(`⏰ [TransitionManager] Timeout arrêt toutes scènes`);
+          resolve(false);
+          return;
+        }
+        
+        const activeScenes = this.scene.scene.getScenes(true);
+        const problematicScenes = activeScenes.filter(scene => 
+          scene.scene.key !== 'LoaderScene' && 
+          scene.scene.key !== exceptSceneKey
+        );
+        
+        if (problematicScenes.length === 0) {
+          console.log(`✅ [TransitionManager] Toutes les scènes sont arrêtées`);
+          resolve(true);
+        } else {
+          console.log(`⏳ [TransitionManager] ${problematicScenes.length} scènes encore actives...`);
+          setTimeout(checkAllStopped, 100);
+        }
+      };
+      
+      checkAllStopped();
+    });
+  }
+
+  // ✅ MÉTHODE 1: Redémarrage propre (pour scènes non visitées)
   async cleanSceneRestart(targetSceneKey, result) {
     console.log(`🔄 [TransitionManager] === REDÉMARRAGE PROPRE ===`);
     console.log(`🎯 Vers: ${targetSceneKey}`);
@@ -749,9 +841,10 @@ export class TransitionManager {
   }
 
   // ✅ CONFIGURATION
-  setTransitionStrategy(strategy = 'clean') {
+  setTransitionStrategy(strategy = 'aggressive') {
     this.transitionStrategy = strategy;
     console.log(`🔧 [TransitionManager] Stratégie transition: ${strategy}`);
+    console.log(`💡 [TransitionManager] Stratégies disponibles: 'clean', 'aggressive', 'recreate'`);
   }
 
   setDebugMode(enabled) {
@@ -776,6 +869,17 @@ export class TransitionManager {
     // Debug des scènes disponibles
     if (this.scene?.scene?.manager?.keys) {
       console.log(`🎬 SCÈNES DISPONIBLES:`, Object.keys(this.scene.scene.manager.keys));
+      
+      // État de chaque scène
+      Object.keys(this.scene.scene.manager.keys).forEach(sceneKey => {
+        const isActive = this.scene.scene.isActive(sceneKey);
+        const isSleeping = this.scene.scene.isSleeping(sceneKey);
+        let status = 'STOPPED';
+        if (isActive) status = 'ACTIVE';
+        else if (isSleeping) status = 'SLEEPING';
+        
+        console.log(`    ${sceneKey}: ${status}`);
+      });
     }
     
     // Debug du SceneRegistry s'il existe
@@ -858,6 +962,40 @@ export class TransitionManager {
       const hasScene = !!sceneManager.get(sceneKey);
       console.log(`  🗺️ ${zone} (${sceneKey}): ${hasScene ? '✅' : '❌'}`);
     });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Forcer l'arrêt de toutes les scènes problématiques
+  forceStopAllScenes(exceptSceneKey = null) {
+    console.log(`🛑 [TransitionManager] === ARRÊT FORCÉ TOUTES SCÈNES ===`);
+    
+    const sceneManager = this.scene.scene;
+    const allScenes = sceneManager.getScenes(true);
+    
+    console.log(`🛑 [TransitionManager] ${allScenes.length} scènes actives trouvées`);
+    
+    allScenes.forEach(scene => {
+      if (scene.scene.key !== 'LoaderScene' && scene.scene.key !== exceptSceneKey) {
+        console.log(`⏹️ [TransitionManager] Arrêt forcé: ${scene.scene.key}`);
+        sceneManager.stop(scene.scene.key);
+      }
+    });
+    
+    // Vérifier aussi les scènes sleeping
+    const sleepingScenes = sceneManager.getScenes(false).filter(scene => 
+      sceneManager.isSleeping(scene.scene.key) && 
+      scene.scene.key !== 'LoaderScene' && 
+      scene.scene.key !== exceptSceneKey
+    );
+    
+    console.log(`😴 [TransitionManager] ${sleepingScenes.length} scènes sleeping trouvées`);
+    
+    sleepingScenes.forEach(scene => {
+      console.log(`⏹️ [TransitionManager] Réveil + arrêt: ${scene.scene.key}`);
+      sceneManager.wake(scene.scene.key);
+      sceneManager.stop(scene.scene.key);
+    });
+    
+    console.log(`✅ [TransitionManager] Arrêt forcé terminé`);
   }
 
   // Lister toutes les transitions possibles depuis la zone actuelle
