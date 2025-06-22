@@ -401,7 +401,7 @@ export class TransitionManager {
     activeScenes.forEach(scene => {
       if (scene.scene.key !== 'LoaderScene' && scene.scene.key !== targetSceneKey) {
         console.log(`⏹️ [TransitionManager] Stop ${scene.scene.key}`);
-        sceneManager.stop(scene.scene.key);
+     //   sceneManager.stop(scene.scene.key);
       }
     });
 
