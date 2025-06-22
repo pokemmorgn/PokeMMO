@@ -15,7 +15,7 @@ export class CollisionManager {
   }
 
 loadCollisionsFromMap(mapPath: string) {
-const resolvedPath = path.resolve(process.cwd(), "server/build/assets/maps", mapPath);
+const resolvedPath = path.resolve(process.cwd(), "/build/assets/maps", mapPath);
   if (!fs.existsSync(resolvedPath)) {
     throw new Error(`CollisionManager: Le fichier map n'existe pas : ${resolvedPath}`);
   }
