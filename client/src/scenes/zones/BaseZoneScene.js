@@ -304,7 +304,7 @@ export class BaseZoneScene extends Phaser.Scene {
   setupNetworkHandlers() {
     console.log(`📡 [${this.scene.key}] === SETUP HANDLERS ===`);
     
-    // ✅ HANDLER 1 : ZONE OFFICIELLE DU SERVEUR
+    // ✅ HANDLER 1 : ZONE OFFICIELLE DU SERVEUR - AMÉLIORÉ
     this.networkManager.onCurrentZone((data) => {
       console.log(`📍 [${this.scene.key}] === ZONE SERVEUR REÇUE ===`);
       console.log(`🎯 Zone: ${data.zone}`);
@@ -312,6 +312,20 @@ export class BaseZoneScene extends Phaser.Scene {
       
       this.currentZone = data.zone;
       this.serverZoneConfirmed = true;
+      
+      // ✅ NOUVEAU : Synchroniser avec GlobalTransitionManager
+      if (this.globalTransitionManager) {
+        console.log(`🔄 [${this.scene.key}] Sync zone avec GlobalTransitionManager: ${data.zone}`);
+        this.globalTransitionManager.currentZone = data.zone;
+        
+        // ✅ Mettre à jour tous les téléports de cette scène
+        this.globalTransitionManager.teleportZones.forEach((teleport, id) => {
+          if (teleport.sceneKey === this.scene.key) {
+            teleport.fromZone = data.zone;
+            console.log(`🔧 [${this.scene.key}] Téléport ${id} mis à jour: fromZone = ${data.zone}`);
+          }
+        });
+      }
       
       // ✅ VÉRIFIER COHÉRENCE SCÈNE
       const expectedScene = this.mapZoneToScene(this.currentZone);
@@ -324,9 +338,6 @@ export class BaseZoneScene extends Phaser.Scene {
       // ✅ SYNCHRONISER MANAGERS
       if (this.playerManager) {
         this.playerManager.currentZone = this.currentZone;
-      }
-      if (this.globalTransitionManager) {
-        this.globalTransitionManager.currentZone = this.currentZone;
       }
       
       console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.currentZone}`);
