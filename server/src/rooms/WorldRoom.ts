@@ -948,6 +948,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       
       // ✅ ÉTAPE 1: Ajouter au state IMMÉDIATEMENT
       this.state.players.set(client.sessionId, player);
+      console.log("🧪 onJoin - client.sessionId =", client.sessionId);
       console.log(`✅ Joueur ${player.name} ajouté au state`);
       console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
 
