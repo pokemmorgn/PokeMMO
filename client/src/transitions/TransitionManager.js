@@ -1,14 +1,4 @@
 // client/src/transitions/TransitionManager.js
-// ✅ VERSION COMPLÈTE AVEC setupTransitionListener
-import { BeachScene } from '../scenes/zones/BeachScene.js';
-import { VillageScene } from '../scenes/zones/VillageScene.js';
-import { VillageLabScene } from '../scenes/zones/VillageLabScene.js';
-import { Road1Scene } from '../scenes/zones/Road1Scene.js';
-import { VillageHouse1Scene } from '../scenes/zones/VillageHouse1Scene.js';
-import { LavandiaScene } from '../scenes/zones/LavandiaScene.js';
-
-
-export class TransitionManager {
   constructor(scene) {
     this.scene = scene;
     this.isActive = false;
@@ -371,44 +361,14 @@ handleTransitionSuccess(result, teleportData) {
     return;
   }
 
-  // PAS DE CHANGEMENT DE SCÈNE = REPOSITIONNEMENT LOCAL
-  if (targetScene === this.scene.scene.key) {
-    console.log(`[TransitionManager] Repositionnement dans la même scène`);
-    this.repositionPlayer(result);
-    this.hideLoadingOverlay();
-    this.isTransitioning = false;
-    return;
+  // Si la scène est active, stoppe-la (évite remove sauf fuite mémoire !)
+  if (this.scene.scene.isActive(targetScene)) {
+    console.log(`[TransitionManager] ⚠️ La scène ${targetScene} est active, stop() avant start`);
+    this.scene.scene.stop(targetScene);
   }
 
-  // === PATCH PRINCIPAL ICI ===
-  if (this.scene.scene.manager.keys[targetScene]) {
-    // La scène cible existe déjà (potentiellement inactive/zombie)
-    console.log(`[TransitionManager] ⚠️ La scène ${targetScene} existe déjà, remove() forcé avant start`);
-    this.scene.scene.remove(targetScene);
-
-    // === AJOUT: Réenregistrer la classe de la scène ===
-    // ⚠️ À adapter si besoin selon tes imports réels (doit être au début du fichier !)
-    const sceneClassMap = {
-      'BeachScene': BeachScene,
-      'VillageScene': VillageScene,
-      'VillageLabScene': VillageLabScene,
-      'Road1Scene': Road1Scene,
-      'VillageHouse1Scene': VillageHouse1Scene,
-      'LavandiaScene': LavandiaScene
-    };
-
-    const sceneClass = sceneClassMap[targetScene];
-    if (sceneClass) {
-      this.scene.scene.add(targetScene, sceneClass, false);
-      console.log(`[TransitionManager] ✅ Scène ${targetScene} réenregistrée après remove`);
-    } else {
-      console.error(`[TransitionManager] ❌ Impossible de réenregistrer la scène: ${targetScene}`);
-      this.showErrorPopup(`Impossible de réenregistrer la scène: ${targetScene}`);
-      this.isTransitioning = false;
-      this.hideLoadingOverlay();
-      return;
-    }
-  }
+  // Facultatif : si tu as un vrai bug de scène "zombie" (jamais détruite proprement), tu peux remove puis re-add.
+  // Mais normalement ce n'est PAS nécessaire si ta scène nettoie tout bien dans shutdown/destroy.
 
   console.log(`[TransitionManager] 🚀 Changement vers: ${targetScene}`);
 
@@ -422,9 +382,9 @@ handleTransitionSuccess(result, teleportData) {
     preservePlayer: true
   };
 
-  // LE LOADING SERA MASQUÉ PAR LA NOUVELLE SCÈNE
   this.scene.scene.start(targetScene, transitionData);
 }
+
 
 
 
