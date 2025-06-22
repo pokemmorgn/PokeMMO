@@ -356,9 +356,40 @@ this.events.once('destroy', this.cleanup, this);
       }
     });
 
-    this.networkManager.onTransitionSuccess((result) => {
-      console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
+   this.networkManager.onTransitionSuccess((result) => {
+  console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
+
+  // 1. Déduire la scène attendue pour la zone cible
+  const targetScene = this.mapZoneToScene(result.currentZone || result.zone || result.targetZone);
+  console.log(`[Transition] Scene active: ${this.scene.key} | Scene cible: ${targetScene}`);
+
+  // 2. Si on n'est PAS dans la bonne scène => on bascule !
+  if (this.scene.key !== targetScene) {
+    console.warn(`[Transition] Redirection auto vers ${targetScene}`);
+    this.scene.start(targetScene, {
+      fromZone: this.zoneName,
+      fromTransition: true,
+      networkManager: this.networkManager,
+      mySessionId: this.mySessionId,
+      spawnX: result.position?.x,
+      spawnY: result.position?.y,
+      preservePlayer: true
     });
+  } else {
+    // Optionnel : repositionne le joueur si déjà dans la bonne scène
+    if (typeof this.positionPlayer === "function" && result.position) {
+      const myPlayer = this.playerManager?.getMyPlayer();
+      if (myPlayer) {
+        myPlayer.x = result.position.x;
+        myPlayer.y = result.position.y;
+        myPlayer.targetX = result.position.x;
+        myPlayer.targetY = result.position.y;
+        this.cameraManager?.snapToPlayer?.();
+      }
+    }
+  }
+});
+
 
     this.networkManager.onTransitionError((result) => {
       console.error(`❌ [${this.scene.key}] Transition échouée:`, result);
