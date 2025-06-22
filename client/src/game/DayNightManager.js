@@ -1,7 +1,7 @@
-// DayNightManager.js
-import { TimeService } from './TimeService.js';
+// client/src/managers/DayNightManager.js
+import { TimeService } from '../services/TimeService.js';
 
-class DayNightManager {
+export class DayNightManager {
   constructor(scene) {
     this.scene = scene;
     this.overlay = null;
@@ -16,7 +16,6 @@ class DayNightManager {
 
     TimeService.getInstance().onTimeChange((hour, isDayTime) => {
       this.updateOverlay(isDayTime);
-      console.log(`🌙 Client: ${hour}h - ${isDayTime ? 'Jour' : 'Nuit'}`);
     });
 
     const { isDayTime } = TimeService.getInstance().getCurrentTime();
@@ -25,6 +24,8 @@ class DayNightManager {
 
   updateOverlay(isDayTime) {
     if (!this.overlay) return;
+
+    // ✅ SIMPLE : Jour = pas de filtre, Nuit = filtre bleu
     this.overlay.setAlpha(isDayTime ? 0 : 0.5);
   }
 
@@ -34,5 +35,3 @@ class DayNightManager {
     }
   }
 }
-
-export { DayNightManager };
