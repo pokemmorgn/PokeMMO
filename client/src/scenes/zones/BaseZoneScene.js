@@ -175,38 +175,53 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log(`📡 [${this.scene.key}] Configuration handlers réseau...`);
 
     // ✅ Handler pour recevoir la zone officielle du serveur
-    this.networkManager.onMessage("currentZone", (data) => {
-      console.log(`📍 [${this.scene.key}] === ZONE REÇUE DU SERVEUR ===`);
-      console.log(`🎯 Zone serveur: ${data.zone}`);
-      console.log(`📊 Position serveur: (${data.x}, ${data.y})`);
-      
-      // ✅ APPLIQUER LA VÉRITÉ DU SERVEUR
-      const oldZone = this.zoneName;
-      this.zoneName = data.zone;
-      this.serverZoneConfirmed = true;
-      
-      console.log(`🔄 [${this.scene.key}] Zone mise à jour: ${oldZone} → ${this.zoneName}`);
-      
-      // ✅ Si la scène ne correspond pas à la zone serveur, correction
-      const expectedScene = this.mapZoneToScene(this.zoneName);
-      if (expectedScene && expectedScene !== this.scene.key) {
-        console.warn(`⚠️ [${this.scene.key}] SCÈNE INCORRECTE !`);
-        console.warn(`   Scène actuelle: ${this.scene.key}`);
-        console.warn(`   Scène attendue: ${expectedScene}`);
-        
-        // ✅ REDIRECTION AUTOMATIQUE vers la bonne scène
-        this.redirectToCorrectScene(expectedScene, data);
-        return;
-      }
-      
-      // ✅ Synchroniser le PlayerManager avec la zone confirmée
-      if (this.playerManager) {
-        this.playerManager.currentZone = this.zoneName;
-        this.playerManager.forceResynchronization();
-      }
-      
-      console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
-    });
+this.networkManager.onMessage("currentZone", (data) => {
+  console.log(`📍 [${this.scene.key}] === ZONE REÇUE DU SERVEUR ===`);
+  console.log(`🎯 Zone serveur: ${data.zone}`);
+  console.log(`📊 Position serveur: (${data.x}, ${data.y})`);
+  
+  // ✅ CORRECTION CRITIQUE: Éviter les boucles infinies
+  if (this._lastZoneUpdate && Date.now() - this._lastZoneUpdate < 2000) {
+    console.log(`🔄 [${this.scene.key}] Zone reçue trop récemment, ignoré pour éviter la boucle`);
+    return;
+  }
+  this._lastZoneUpdate = Date.now();
+  
+  // ✅ APPLIQUER LA VÉRITÉ DU SERVEUR
+  const oldZone = this.zoneName;
+  this.zoneName = data.zone;
+  this.serverZoneConfirmed = true;
+  
+  console.log(`🔄 [${this.scene.key}] Zone mise à jour: ${oldZone} → ${this.zoneName}`);
+  
+  // ✅ Si la scène ne correspond pas à la zone serveur, correction
+  const expectedScene = this.mapZoneToScene(this.zoneName);
+  if (expectedScene && expectedScene !== this.scene.key) {
+    console.warn(`⚠️ [${this.scene.key}] SCÈNE INCORRECTE !`);
+    console.warn(`   Scène actuelle: ${this.scene.key}`);
+    console.warn(`   Scène attendue: ${expectedScene}`);
+    
+    // ✅ REDIRECTION AUTOMATIQUE vers la bonne scène
+    this.redirectToCorrectScene(expectedScene, data);
+    return;
+  }
+  
+  // ✅ Synchroniser le PlayerManager avec la zone confirmée SANS BOUCLE
+  if (this.playerManager) {
+    this.playerManager.currentZone = this.zoneName;
+    // ✅ CORRECTION: NE PLUS APPELER forceResynchronization ici !
+    // this.playerManager.forceResynchronization(); // ⚠️ SUPPRIMÉ
+    
+    // ✅ À la place, juste synchroniser le sessionId silencieusement
+    const networkSessionId = this.networkManager?.getSessionId();
+    if (networkSessionId && this.playerManager.mySessionId !== networkSessionId) {
+      console.log(`🔧 [${this.scene.key}] Sync sessionId silencieux: ${this.playerManager.mySessionId} → ${networkSessionId}`);
+      this.playerManager.setMySessionId(networkSessionId);
+    }
+  }
+  
+  console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
+});
 
     // ✅ Handler d'état avec protection
     this.networkManager.onStateChange((state) => {
