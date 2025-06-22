@@ -1269,9 +1269,35 @@ handleMyPlayerFromState() {
   }
 
   // ✅ HOOKS POUR CLASSES ENFANTS
-  onPlayerReady(player) {
-    // Override dans les scènes spécifiques si nécessaire
+onPlayerReady(player) {
+  // ... ton code existant
+
+  // Utilise une variable d'instance pour éviter de la re-déclarer à chaque fois
+  this.hasStoppedPreviousScene = false;
+
+  // Récupération du nom de la scène précédente (doit être passé dans tes transitionData)
+  const previousSceneKey = this.initData?.fromScene;
+
+  // Petite sécurité : si on vient d'une autre scène
+  if (previousSceneKey && previousSceneKey !== this.scene.key) {
+    const onFirstMove = (event) => {
+      if (!this.hasStoppedPreviousScene) {
+        this.hasStoppedPreviousScene = true;
+        if (this.scene.isActive(previousSceneKey)) {
+          this.scene.stop(previousSceneKey);
+          console.log(`[TransitionManager] Scène précédente (${previousSceneKey}) stoppée après premier mouvement`);
+        }
+        // On retire le listener pour ne pas déclencher plusieurs fois
+        this.input.keyboard.off('keydown', onFirstMove, this);
+      }
+    };
+
+    // Ajoute le listener sur le clavier (après l'init du joueur)
+    this.input.keyboard.on('keydown', onFirstMove, this);
   }
+}
+
+
 
   // ✅ DEBUG
   debugState() {
