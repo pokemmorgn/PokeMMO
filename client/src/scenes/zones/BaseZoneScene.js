@@ -116,6 +116,15 @@ this.events.once('destroy', this.cleanup, this);
 
     // ✅ Vérifier l'état du réseau
     this.verifyNetworkState();
+
+      // CRITIQUE : Toujours refaire le setup après toute nouvelle room !
+  if (this.networkManager && this.networkManager.room) {
+    this.networkManager.setupRoomListeners();
+    this.networkManager.restoreCustomCallbacks?.();
+  }
+
+  this.setupNetworkHandlers();
+  this.networkSetupComplete = true;
   }
 
   // ✅ NOUVELLE MÉTHODE: Initialiser tous les systèmes de jeu
