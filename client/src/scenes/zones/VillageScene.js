@@ -9,6 +9,7 @@ export class VillageScene extends BaseZoneScene {
 
   // 🔥 HOOK appelé UNE FOIS dès que le joueur local est prêt et positionné
   onPlayerReady(myPlayer) {
+    super.onPlayerReady(myPlayer);
     // Log ou actions d'arrivée personnalisées
     console.log(`[VillageScene] Mon joueur est prêt à (${myPlayer.x}, ${myPlayer.y})`);
 
