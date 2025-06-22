@@ -6,7 +6,7 @@ import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager";
 import { QuestSystem } from "../../game/QuestSystem.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
-import { GlobalTransitionManager } from '../../transitions/GlobalTransitionManager.js';
+// import { GlobalTransitionManager } from '../../transitions/GlobalTransitionManager.js';
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
 
 export class BaseZoneScene extends Phaser.Scene {
