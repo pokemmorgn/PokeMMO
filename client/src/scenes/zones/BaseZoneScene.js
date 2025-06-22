@@ -287,7 +287,7 @@ export class BaseZoneScene extends Phaser.Scene {
       this.initializeQuestSystem();
     });
 
-    // ✅ HANDLER 3 : ÉTAT DU JEU
+    // ✅ HANDLER 3 : ÉTAT DU JEU - AMÉLIORÉ
     this.networkManager.onStateChange((state) => {
       if (!this.isSceneReady) {
         console.log(`⏳ [${this.scene.key}] State reçu mais scène pas prête`);
@@ -296,10 +296,23 @@ export class BaseZoneScene extends Phaser.Scene {
       
       if (!state?.players || !this.playerManager) return;
       
+      // ✅ LOG DU STATE REÇU
+      console.log(`📊 [${this.scene.key}] State reçu: ${state.players.size} joueurs`);
+      
       this.playerManager.updatePlayers(state);
       
-      // ✅ GÉRER JOUEUR LOCAL
+      // ✅ GÉRER JOUEUR LOCAL AVEC TIMEOUT
       this.handleMyPlayerFromState();
+      
+      // ✅ NOUVEAU : Si toujours pas de joueur après state, déclencher récupération
+      if (!this.myPlayerReady && this.mySessionId) {
+        this.time.delayedCall(100, () => {
+          if (!this.myPlayerReady) {
+            console.warn(`⚠️ [${this.scene.key}] Joueur toujours manquant après state update`);
+            this.handleMissingPlayer();
+          }
+        });
+      }
     });
 
     // ✅ HANDLER 4 : ZONE DATA
@@ -382,7 +395,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.scene.start(correctScene, transitionData);
   }
 
-  // ✅ GÉRER JOUEUR LOCAL DEPUIS STATE
+  // ✅ GÉRER JOUEUR LOCAL DEPUIS STATE - VERSION AMÉLIORÉE
   handleMyPlayerFromState() {
     if (this.myPlayerReady) return;
     
@@ -408,6 +421,95 @@ export class BaseZoneScene extends Phaser.Scene {
       if (typeof this.onPlayerReady === 'function') {
         this.onPlayerReady(myPlayer);
       }
+    } else if (!myPlayer && this.mySessionId) {
+      // ✅ NOUVEAU : Si pas de joueur mais sessionId existe, forcer création
+      console.warn(`⚠️ [${this.scene.key}] Joueur manquant pour sessionId: ${this.mySessionId}`);
+      this.handleMissingPlayer();
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Gérer les joueurs manquants
+  handleMissingPlayer() {
+    console.log(`🔧 [${this.scene.key}] === RÉCUPÉRATION JOUEUR MANQUANT ===`);
+    
+    // ✅ Vérifier si on a les bonnes données
+    if (!this.mySessionId || !this.networkManager?.isConnected) {
+      console.error(`❌ [${this.scene.key}] Données manquantes pour récupération joueur`);
+      return;
+    }
+    
+    // ✅ Demander resynchronisation au serveur
+    console.log(`📡 [${this.scene.key}] Demande de resynchronisation...`);
+    
+    if (this.networkManager.room) {
+      this.networkManager.room.send("requestSync", {
+        sessionId: this.mySessionId,
+        currentZone: this.networkManager.getCurrentZone()
+      });
+    }
+    
+    // ✅ Forcer refresh du state
+    this.time.delayedCall(500, () => {
+      if (!this.myPlayerReady && this.playerManager) {
+        console.log(`🔄 [${this.scene.key}] Force resynchronisation PlayerManager...`);
+        this.playerManager.forceResynchronization();
+        
+        // ✅ Si toujours pas de joueur, créer manuellement
+        this.time.delayedCall(1000, () => {
+          if (!this.myPlayerReady) {
+            this.createEmergencyPlayer();
+          }
+        });
+      }
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Création d'urgence du joueur
+  createEmergencyPlayer() {
+    console.log(`🚨 [${this.scene.key}] === CRÉATION JOUEUR D'URGENCE ===`);
+    
+    if (!this.playerManager || this.myPlayerReady) return;
+    
+    // ✅ Position par défaut ou depuis transition
+    const initData = this.scene.settings.data;
+    const spawnX = initData?.spawnX || 52;
+    const spawnY = initData?.spawnY || 48;
+    
+    console.log(`🚨 [${this.scene.key}] Création joueur urgence à (${spawnX}, ${spawnY})`);
+    
+    try {
+      const emergencyPlayer = this.playerManager.createPlayer(this.mySessionId, spawnX, spawnY);
+      
+      if (emergencyPlayer) {
+        console.log(`✅ [${this.scene.key}] Joueur d'urgence créé avec succès`);
+        
+        // ✅ Configuration immédiate
+        emergencyPlayer.setVisible(true);
+        emergencyPlayer.setActive(true);
+        emergencyPlayer.setDepth(5);
+        
+        // ✅ Caméra
+        this.cameraManager.followPlayer(emergencyPlayer);
+        this.cameraFollowing = true;
+        this.myPlayerReady = true;
+        
+        if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+        
+        // ✅ Notifier le serveur de la position
+        if (this.networkManager?.isConnected) {
+          this.networkManager.sendMove(spawnX, spawnY, 'down', false);
+        }
+        
+        if (typeof this.onPlayerReady === 'function') {
+          this.onPlayerReady(emergencyPlayer);
+        }
+      } else {
+        console.error(`❌ [${this.scene.key}] Échec création joueur d'urgence`);
+        this.showError("Erreur: Impossible de créer le joueur");
+      }
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur création joueur d'urgence:`, error);
+      this.showError(`Erreur joueur: ${error.message}`);
     }
   }
 
@@ -619,9 +721,14 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  // ✅ UPDATE SIMPLIFIÉ
+  // ✅ UPDATE SIMPLIFIÉ AVEC VÉRIFICATIONS
   update() {
     TransitionIntegration.updateTransitions(this);
+
+    // ✅ NOUVEAU : Vérification périodique de l'état du joueur
+    if (this.time.now % 2000 < 16) { // Toutes les 2 secondes
+      this.checkPlayerHealth();
+    }
 
     if (this.playerManager) this.playerManager.update();
     if (this.cameraManager) this.cameraManager.update();
@@ -638,6 +745,34 @@ export class BaseZoneScene extends Phaser.Scene {
 
     // ✅ MOUVEMENT
     this.handleMovement();
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Vérification santé du joueur
+  checkPlayerHealth() {
+    // ✅ Si on a un sessionId mais pas de joueur prêt
+    if (this.mySessionId && !this.myPlayerReady && this.networkManager?.isConnected) {
+      const myPlayer = this.playerManager?.getMyPlayer();
+      
+      if (!myPlayer) {
+        console.warn(`🏥 [${this.scene.key}] Vérification santé: Joueur manquant`);
+        this.handleMissingPlayer();
+      } else if (!myPlayer.visible || !myPlayer.active) {
+        console.warn(`🏥 [${this.scene.key}] Vérification santé: Joueur invisible/inactif`);
+        
+        // ✅ Restaurer visibilité
+        myPlayer.setVisible(true);
+        myPlayer.setActive(true);
+        myPlayer.setDepth(5);
+        
+        if (!this.myPlayerReady) {
+          this.myPlayerReady = true;
+          this.cameraManager.followPlayer(myPlayer);
+          this.cameraFollowing = true;
+          
+          if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+        }
+      }
+    }
   }
 
   // ✅ MOUVEMENT SIMPLIFIÉ
