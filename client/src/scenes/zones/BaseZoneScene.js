@@ -151,22 +151,29 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   // ✅ MÉTHODE MODIFIÉE: Demander la zone au serveur
-  requestServerZone() {
-    console.log(`📍 [${this.scene.key}] === DEMANDE ZONE AU SERVEUR ===`);
-    
-    if (!this.networkManager?.room) {
-      console.error(`❌ [${this.scene.key}] Pas de connexion pour demander la zone`);
-      return;
-    }
-    
-    // Envoyer une demande de zone au serveur
-    this.networkManager.room.send("requestCurrentZone", {
-      sceneKey: this.scene.key,
-      timestamp: Date.now()
-    });
-    
-    console.log(`📤 [${this.scene.key}] Demande de zone envoyée au serveur`);
+requestServerZone() {
+  console.log(`📍 [${this.scene.key}] === DEMANDE ZONE AU SERVEUR ===`);
+  
+  if (!this.networkManager?.room) {
+    console.error(`❌ [${this.scene.key}] Pas de connexion pour demander la zone`);
+    return;
   }
+  
+  // ✅ CORRECTION: Éviter les demandes multiples
+  if (this._zoneRequestSent && Date.now() - this._zoneRequestSent < 5000) {
+    console.log(`📍 [${this.scene.key}] Demande de zone déjà envoyée récemment, ignoré`);
+    return;
+  }
+  this._zoneRequestSent = Date.now();
+  
+  // Envoyer une demande de zone au serveur
+  this.networkManager.room.send("requestCurrentZone", {
+    sceneKey: this.scene.key,
+    timestamp: Date.now()
+  });
+  
+  console.log(`📤 [${this.scene.key}] Demande de zone envoyée au serveur`);
+}
 
   // ✅ MÉTHODE MODIFIÉE: Setup des handlers réseau
   setupNetworkHandlers() {
@@ -466,24 +473,26 @@ this.networkManager.onMessage("currentZone", (data) => {
   }
 
   // ✅ MÉTHODE EXISTANTE: Vérification de l'état réseau
-  verifyNetworkState() {
-    if (!this.networkManager) {
-      console.error(`❌ [${this.scene.key}] NetworkManager manquant`);
-      return;
-    }
-    
-    console.log(`🔍 [${this.scene.key}] Vérification état réseau...`);
-    
-    this.networkManager.debugState();
-    this.networkManager.checkZoneSynchronization(this.scene.key);
-    
-    if (this.playerManager) {
-      this.time.delayedCall(500, () => {
-        this.playerManager.forceResynchronization();
-      });
-    }
+ verifyNetworkState() {
+  if (!this.networkManager) {
+    console.error(`❌ [${this.scene.key}] NetworkManager manquant`);
+    return;
   }
-
+  
+  console.log(`🔍 [${this.scene.key}] Vérification état réseau...`);
+  
+  this.networkManager.debugState();
+  this.networkManager.checkZoneSynchronization(this.scene.key);
+  
+  // ✅ CORRECTION: Pas de forceResynchronization automatique ici
+  if (this.playerManager && !this._resyncDone) {
+    this._resyncDone = true;
+    this.time.delayedCall(500, () => {
+      // ✅ Juste vérifier l'état, ne pas forcer une resync
+      this.playerManager.checkMyPlayerReady();
+    });
+  }
+}
   // ✅ MÉTHODE EXISTANTE: Position du joueur avec données de transition
   positionPlayer(player) {
     const initData = this.scene.settings.data;
