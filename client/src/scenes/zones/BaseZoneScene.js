@@ -103,7 +103,7 @@ this.events.once('destroy', this.cleanup, this);
       currentZone: this.networkManager.getCurrentZone()
     });
     
-  this.initPlayerSpawnFromSceneData();
+ // this.initPlayerSpawnFromSceneData();
 
     // ✅ Configuration des handlers réseau
     this.setupNetworkHandlers();
@@ -448,24 +448,34 @@ this.events.once('destroy', this.cleanup, this);
   }
 
   // ✅ MÉTHODE EXISTANTE: Setup du handler joueur prêt
-  setupPlayerReadyHandler() {
-    if (!this.playerManager) return;
-    
-    this.playerManager.onMyPlayerReady((myPlayer) => {
-      if (!this.myPlayerReady) {
-        this.myPlayerReady = true;
-        console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
+setupPlayerReadyHandler() {
+  if (!this.playerManager) return;
+  
+  this.playerManager.onMyPlayerReady((myPlayer) => {
+    if (!this.myPlayerReady) {
+      this.myPlayerReady = true;
+      console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
 
-        this.cameraManager.followPlayer(myPlayer);
-        this.cameraFollowing = true;
-        this.positionPlayer(myPlayer);
+      // Ensure player is visible and active
+      myPlayer.setVisible(true);
+      myPlayer.setActive(true);
 
-        if (typeof this.onPlayerReady === 'function') {
-          this.onPlayerReady(myPlayer);
-        }
+      // Set up camera
+      this.cameraManager.followPlayer(myPlayer);
+      this.cameraFollowing = true;
+
+      // Position player based on scene data
+      this.positionPlayer(myPlayer);
+
+      if (typeof this.onPlayerReady === 'function') {
+        this.onPlayerReady(myPlayer);
       }
-    });
-  }
+
+      // Hide loading overlay
+      if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+    }
+  });
+}
 
   // ✅ MÉTHODE EXISTANTE: Vérification de l'état réseau
   verifyNetworkState() {
@@ -487,48 +497,48 @@ this.events.once('destroy', this.cleanup, this);
   }
 
   // ✅ MÉTHODE EXISTANTE: Position du joueur avec données de transition
-  positionPlayer(player) {
-    const initData = this.scene.settings.data;
-    
-    console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
-    console.log(`📊 InitData:`, initData);
-    
-    if (initData?.fromTransition && player.x && player.y) {
-      console.log(`📍 Position serveur conservée: (${player.x}, ${player.y})`);
-      return;
-    }
-    
-    if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-      console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
-      player.x = initData.spawnX;
-      player.y = initData.spawnY;
-      player.targetX = initData.spawnX;
-      player.targetY = initData.spawnY;
-    } else {
-      const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-      console.log(`📍 Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
-      player.x = defaultPos.x;
-      player.y = defaultPos.y;
-      player.targetX = defaultPos.x;
-      player.targetY = defaultPos.y;
-    }
-
-    player.setVisible(true);
-    player.setActive(true);
-    player.setDepth(5);
-
-    if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-      player.indicator.setVisible(true);
-    }
-
-    if (this.networkManager && this.networkManager.isConnected) {
-      this.networkManager.sendMove(player.x, player.y, 'down', false);
-    }
-
-    this.onPlayerPositioned(player, initData);
+positionPlayer(player) {
+  const initData = this.scene.settings.data;
+  
+  console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
+  console.log(`📊 InitData:`, initData);
+  
+  if (initData?.fromTransition && player.x && player.y) {
+    console.log(`📍 Position serveur conservée: (${player.x}, ${player.y})`);
+    return;
   }
+  
+  if (initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+    console.log(`📍 Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
+    player.x = initData.spawnX;
+    player.y = initData.spawnY;
+    player.targetX = initData.spawnX;
+    player.targetY = initData.spawnY;
+  } else {
+    const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+    console.log(`📍 Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
+    player.x = defaultPos.x;
+    player.y = defaultPos.y;
+    player.targetX = defaultPos.x;
+    player.targetY = defaultPos.y;
+  }
+
+  player.setVisible(true);
+  player.setActive(true);
+  player.setDepth(5);
+
+  if (player.indicator) {
+    player.indicator.x = player.x;
+    player.indicator.y = player.y - 24; // Adjusted to match PlayerManager
+    player.indicator.setVisible(true);
+  }
+
+  if (this.networkManager && this.networkManager.isConnected) {
+    this.networkManager.sendMove(player.x, player.y, 'down', false);
+  }
+
+  this.onPlayerPositioned(player, initData);
+}
 
   // ✅ MÉTHODE EXISTANTE: Affichage d'état d'erreur
   showErrorState(message) {
