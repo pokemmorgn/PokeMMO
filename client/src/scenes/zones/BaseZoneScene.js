@@ -274,7 +274,7 @@ redirectToCorrectScene(correctScene, serverData) {
   setTimeout(() => {
     console.log('APRES SCENE.START', this.scene.key);
   }, 1000);
-}
+
 
     const transitionData = {
       fromZone: serverData.zone,
