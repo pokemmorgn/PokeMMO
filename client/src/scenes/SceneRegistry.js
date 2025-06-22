@@ -9,7 +9,10 @@ export class SceneRegistry {
     this.classCache = new Map();
     this.importMap = new Map();
     
-    // Mapping zone → path d'import (pas de dépendance circulaire)
+    // ✅ NOUVEAU: Cache des classes pour éviter les imports dynamiques
+    this.registeredClasses = new Map();
+    
+    // Mapping zone → path d'import (fallback)
     this.setupImportMap();
   }
   
@@ -30,25 +33,39 @@ export class SceneRegistry {
     this.importMap.set('lavandia', () => import('./zones/LavandiaScene.js'));
   }
   
-  // ✅ Import dynamique avec cache
+  // ✅ NOUVEAU: Enregistrer une classe directement (évite import dynamique)
+  registerSceneClass(zoneName, SceneClass) {
+    this.registeredClasses.set(zoneName, SceneClass);
+    this.classCache.set(this.getSceneKey(zoneName), SceneClass);
+    console.log(`📝 [SceneRegistry] Classe enregistrée: ${zoneName} → ${SceneClass.name}`);
+  }
+  
+  // ✅ MÉTHODE MODIFIÉE: Essayer le cache d'abord, puis import dynamique
   async getSceneClass(zoneName) {
     const sceneKey = this.getSceneKey(zoneName);
     
-    // Vérifier le cache d'abord
+    // 1. Vérifier le cache des classes enregistrées
+    if (this.registeredClasses.has(zoneName)) {
+      console.log(`💾 [SceneRegistry] Classe trouvée dans le registry: ${zoneName}`);
+      return this.registeredClasses.get(zoneName);
+    }
+    
+    // 2. Vérifier le cache d'import
     if (this.classCache.has(sceneKey)) {
+      console.log(`💾 [SceneRegistry] Classe trouvée dans le cache: ${sceneKey}`);
       return this.classCache.get(sceneKey);
     }
     
-    // Import dynamique
+    // 3. Fallback: Import dynamique
     const importFn = this.importMap.get(zoneName);
     if (!importFn) {
-      throw new Error(`Zone inconnue: ${zoneName}`);
+      throw new Error(`Zone inconnue: ${zoneName} (pas de classe enregistrée ni d'import)`);
     }
     
     try {
-      console.log(`📦 [SceneRegistry] Import dynamique: ${zoneName}`);
+      console.log(`📦 [SceneRegistry] Fallback import dynamique: ${zoneName}`);
       const module = await importFn();
-      const SceneClass = module[sceneKey]; // Ex: module.BeachScene
+      const SceneClass = module[sceneKey];
       
       if (!SceneClass) {
         throw new Error(`Classe ${sceneKey} introuvable dans le module`);
@@ -56,7 +73,8 @@ export class SceneRegistry {
       
       // Mettre en cache
       this.classCache.set(sceneKey, SceneClass);
-      console.log(`✅ [SceneRegistry] Classe ${sceneKey} chargée et mise en cache`);
+      this.registeredClasses.set(zoneName, SceneClass);
+      console.log(`✅ [SceneRegistry] Import dynamique réussi: ${sceneKey}`);
       
       return SceneClass;
     } catch (error) {
@@ -123,10 +141,33 @@ export class SceneRegistry {
     console.log(`🧹 [SceneRegistry] Cache nettoyé`);
   }
   
-  // ✅ Debug
+  // ✅ Debug amélioré
   debugInfo() {
     console.log(`📋 [SceneRegistry] === DEBUG ===`);
-    console.log(`Zones disponibles: ${Array.from(this.importMap.keys())}`);
+    console.log(`Zones avec import dynamique: ${Array.from(this.importMap.keys())}`);
+    console.log(`Classes enregistrées: ${Array.from(this.registeredClasses.keys())}`);
     console.log(`Classes en cache: ${Array.from(this.classCache.keys())}`);
+  }
+  
+  // ✅ Vérifier si une zone est disponible
+  hasZone(zoneName) {
+    return this.registeredClasses.has(zoneName) || this.importMap.has(zoneName);
+  }
+  
+  // ✅ Lister toutes les zones disponibles
+  getAvailableZones() {
+    const zones = new Set([
+      ...this.registeredClasses.keys(),
+      ...this.importMap.keys()
+    ]);
+    return Array.from(zones);
+  }
+  
+  // ✅ Nettoyage complet
+  clearAll() {
+    this.registeredClasses.clear();
+    this.classCache.clear();
+    console.log(`🧹 [SceneRegistry] Tout nettoyé`);
+  }keys())}`);
   }
 }
