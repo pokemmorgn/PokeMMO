@@ -433,36 +433,45 @@ if (!this.transitionManager) {
   }
 
   // ✅ GÉRER JOUEUR LOCAL DEPUIS STATE - VERSION AMÉLIORÉE
-  handleMyPlayerFromState() {
-    if (this.myPlayerReady) return;
+handleMyPlayerFromState() {
+  if (this.myPlayerReady) return;
+  
+  const myPlayer = this.playerManager.getMyPlayer();
+  if (myPlayer && !this.myPlayerReady) {
+    this.myPlayerReady = true;
+    console.log(`✅ [${this.scene.key}] Joueur local trouvé: ${this.mySessionId}`);
     
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (myPlayer && !this.myPlayerReady) {
-      this.myPlayerReady = true;
-      console.log(`✅ [${this.scene.key}] Joueur local trouvé: ${this.mySessionId}`);
-      
-      if (window.hideLoadingOverlay) window.hideLoadingOverlay();
-      
-      // ✅ FORCER VISIBILITÉ
-      myPlayer.setVisible(true);
-      myPlayer.setActive(true);
-      myPlayer.setDepth(5);
-      
-      // ✅ CAMÉRA
-      this.cameraManager.followPlayer(myPlayer);
-      this.cameraFollowing = true;
-      
-      // ✅ POSITION
-      this.positionPlayer(myPlayer);
-      
-      if (typeof this.onPlayerReady === 'function') {
-        this.onPlayerReady(myPlayer);
-      }
-    } else if (!myPlayer && this.mySessionId) {
-      // ✅ NOUVEAU : Si pas de joueur mais sessionId existe, forcer création
-      console.warn(`⚠️ [${this.scene.key}] Joueur manquant pour sessionId: ${this.mySessionId}`);
-      this.handleMissingPlayer();
+    if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+    
+    // ✅ FORCER VISIBILITÉ
+    myPlayer.setVisible(true);
+    myPlayer.setActive(true);
+    myPlayer.setDepth(5);
+    
+    // ✅ CAMÉRA
+    this.cameraManager.followPlayer(myPlayer);
+    this.cameraFollowing = true;
+    
+    // ✅ POSITION
+    this.positionPlayer(myPlayer);
+    
+    if (typeof this.onPlayerReady === 'function') {
+      this.onPlayerReady(myPlayer);
     }
+
+    // ✅ ARRÊT DE L’ANCIENNE SCÈNE APRÈS INIT EFFECTIVE DU PLAYER
+    if (window.pendingSceneStop) {
+      this.scene.scene.stop(window.pendingSceneStop);
+      console.log(`[BaseZoneScene] Ancienne scène stoppée proprement après arrivée du joueur`);
+      window.pendingSceneStop = null;
+    }
+  } else if (!myPlayer && this.mySessionId) {
+    // ✅ NOUVEAU : Si pas de joueur mais sessionId existe, forcer création
+    console.warn(`⚠️ [${this.scene.key}] Joueur manquant pour sessionId: ${this.mySessionId}`);
+    this.handleMissingPlayer();
+  }
+}
+
   }
 
   // ✅ NOUVELLE MÉTHODE : Gérer les joueurs manquants
