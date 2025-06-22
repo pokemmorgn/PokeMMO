@@ -109,6 +109,11 @@ this.time.addEvent({
     this.networkManager = window.globalNetworkManager;
     this.mySessionId = this.networkManager.getSessionId();
 
+    // Ajouter :
+if (this.playerManager) {
+  this.playerManager.setMySessionId(this.mySessionId);
+}
+    
     console.log(`✅ [${this.scene.key}] NetworkManager récupéré:`, {
       sessionId: this.mySessionId,
       isConnected: this.networkManager.isConnected,
