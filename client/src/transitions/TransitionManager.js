@@ -15,8 +15,12 @@ export class TransitionManager {
     this.transitionTimeout = 8000;
     this.transitionTimeoutHandle = null;
     
-    // ✅ NOUVEAU : Stocker les données de transition en cours
+    // ✅ Stocker les données de transition en cours
     this.currentTransitionData = null;
+    
+    // ✅ NOUVEAU : Délai de grâce après transition
+    this.graceTime = 0;
+    this.graceDuration = 2000; // 2 secondes sans collision après transition
     
     console.log(`🌀 [TransitionManager] 📍 INIT zone: ${this.currentZone} (scène: ${scene.scene.key})`);
   }
@@ -141,13 +145,20 @@ export class TransitionManager {
     debugText.setOrigin(0.5);
   }
 
-  // ✅ Check collisions (identique)
+  // ✅ Check collisions AVEC DÉLAI DE GRÂCE
   checkCollisions(player) {
     if (!this.isActive || !player || this.isTransitioning) return;
 
-    if (!this.lastPlayerLogTime || Date.now() - this.lastPlayerLogTime > 2000) {
+    // ✅ NOUVEAU : Vérifier délai de grâce
+    const now = Date.now();
+    if (this.graceTime > now) {
+      // Encore en délai de grâce, pas de collision
+      return;
+    }
+
+    if (!this.lastPlayerLogTime || now - this.lastPlayerLogTime > 2000) {
       console.log(`🌀 [TransitionManager] 👤 Position joueur: (${Math.round(player.x)}, ${Math.round(player.y)})`);
-      this.lastPlayerLogTime = Date.now();
+      this.lastPlayerLogTime = now;
     }
 
     this.teleportZones.forEach((teleportData) => {
@@ -356,6 +367,9 @@ export class TransitionManager {
       // Lancer la nouvelle scène
       this.scene.scene.launch(targetScene, transitionData);
       
+      // ✅ NOUVEAU : Activer délai de grâce pour la nouvelle scène
+      this.setGraceTimeForScene(targetScene);
+      
       // Attendre que la nouvelle scène soit prête, puis arrêter l'ancienne
       this.scene.time.delayedCall(100, () => {
         console.log(`🛑 [TransitionManager] Arrêt de la scène actuelle: ${this.scene.scene.key}`);
@@ -401,7 +415,31 @@ export class TransitionManager {
     console.log(`🌀 [TransitionManager] 🔄 État transition réinitialisé`);
   }
 
-  // ✅ Clear timeout (identique)
+  // ✅ NOUVELLE MÉTHODE : Activer délai de grâce pour scène cible
+  setGraceTimeForScene(targetScene) {
+    console.log(`🛡️ [TransitionManager] Activation délai de grâce pour ${targetScene}...`);
+    
+    // ✅ Trouver la scène cible et activer son délai de grâce
+    this.scene.time.delayedCall(200, () => {
+      const targetSceneInstance = this.scene.scene.manager.getScene(targetScene);
+      if (targetSceneInstance?.transitionManager) {
+        const graceEndTime = Date.now() + this.graceDuration;
+        targetSceneInstance.transitionManager.graceTime = graceEndTime;
+        
+        console.log(`🛡️ [TransitionManager] Délai de grâce activé pour ${targetScene} jusqu'à ${graceEndTime}`);
+        console.log(`🛡️ [TransitionManager] Aucune transition possible pendant ${this.graceDuration}ms`);
+      }
+    });
+  }
+
+  // ✅ MÉTHODE POUR ACTIVER DÉLAI DE GRÂCE MANUEL
+  activateGracePeriod(duration = null) {
+    const graceDuration = duration || this.graceDuration;
+    this.graceTime = Date.now() + graceDuration;
+    
+    console.log(`🛡️ [TransitionManager] Délai de grâce activé manuellement pour ${graceDuration}ms`);
+    console.log(`🛡️ [TransitionManager] Fin prévue: ${this.graceTime}`);
+  }
   clearTransitionTimeout() {
     if (this.transitionTimeoutHandle) {
       clearTimeout(this.transitionTimeoutHandle);
