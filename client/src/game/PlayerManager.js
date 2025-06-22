@@ -553,24 +553,35 @@ export class PlayerManager {
     console.log(`[PlayerManager] ✅ Nettoyage terminé, sessionId conservé: ${this.mySessionId}`);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Forcer la resynchronisation
-  forceResynchronization() {
-    console.log("[PlayerManager] 🔄 Forcer la resynchronisation...");
-    
-    this._isResynchronizing = false;
-    this._myPlayerIsReady = false;
-    this._hasWarnedMissingPlayer = false;
-    
-    if (this.scene.networkManager) {
-      const networkSessionId = this.scene.networkManager.getSessionId();
-      if (this.mySessionId !== networkSessionId) {
-        console.log(`[PlayerManager] 🔄 Correction sessionId: ${this.mySessionId} → ${networkSessionId}`);
-        this.setMySessionId(networkSessionId);
-      }
-    }
-    
-    this.debugPlayerState();
+ forceResynchronization() {
+  console.log("[PlayerManager] 🔄 Forcer la resynchronisation...");
+  
+  // ✅ CORRECTION: Flag pour éviter les boucles infinies
+  if (this._isResynchronizing) {
+    console.log("[PlayerManager] ⚠️ Resynchronisation déjà en cours, ignoré");
+    return;
   }
+  
+  this._isResynchronizing = true;
+  this._myPlayerIsReady = false;
+  this._hasWarnedMissingPlayer = false;
+  
+  if (this.scene.networkManager) {
+    const networkSessionId = this.scene.networkManager.getSessionId();
+    if (this.mySessionId !== networkSessionId) {
+      console.log(`[PlayerManager] 🔄 Correction sessionId: ${this.mySessionId} → ${networkSessionId}`);
+      this.setMySessionId(networkSessionId);
+    }
+  }
+  
+  this.debugPlayerState();
+  
+  // ✅ CORRECTION: Délai avant de remettre le flag à false
+  setTimeout(() => {
+    this._isResynchronizing = false;
+    console.log("[PlayerManager] ✅ Resynchronisation terminée");
+  }, 1000);
+}
 
   // Méthodes existantes conservées
   createAnimations() {
