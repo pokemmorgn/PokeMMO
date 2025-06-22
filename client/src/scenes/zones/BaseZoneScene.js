@@ -574,6 +574,19 @@ export class BaseZoneScene extends Phaser.Scene {
   cleanup() {
     TransitionIntegration.cleanupTransitions(this);
 
+      // ✅ Stoppe cette scène pour éviter qu’elle reste active
+  if (this.scene.isActive(this.scene.key)) {
+    this.scene.stop(this.scene.key);
+    console.log(`[${this.scene.key}] ⛔ Scene stoppée (cleanup)`);
+  }
+
+  // ✅ Désactive les écouteurs de messages réseau
+  if (this.networkManager?.room) {
+    this.networkManager.room.removeAllListeners("currentZone");
+    this.networkManager.room.removeAllListeners("snap");
+    this.networkManager.room.removeAllListeners("questStatuses");
+    console.log(`[${this.scene.key}] 🎧 Nettoyage des écouteurs réseau`);
+    
     console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
 
     const isTransition = this.networkManager && this.networkManager.isTransitionActive;
