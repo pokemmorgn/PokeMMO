@@ -5,40 +5,47 @@ import path from "path";
 
 export class CollisionManager {
   private collisionTiles: Set<string> = new Set();
-  private tileWidth: number = 16;  // ajuste si besoin
+  private tileWidth: number = 16;
   private tileHeight: number = 16;
 
   constructor(mapPath: string) {
     this.loadCollisionsFromMap(mapPath);
   }
 
-loadCollisionsFromMap(mapPath: string) {
-  // Force l’extension .tmj
-  let fileName = mapPath.endsWith('.tmj') ? mapPath : mapPath.replace(/\.[^.]+$/, '') + '.tmj';
+  loadCollisionsFromMap(mapPath: string) {
+    const fileName = mapPath.endsWith('.tmj') ? mapPath : mapPath.replace(/\.[^.]+$/, '') + '.tmj';
+    const resolvedPath = path.resolve(__dirname, "../../build/assets/maps", fileName);
 
-  // Force le dossier build/assets/maps/ même si l’argument n’est pas bon
-  const resolvedPath = path.resolve(__dirname, "../../build/assets/maps", fileName);
-
-  if (!fs.existsSync(resolvedPath)) {
-    throw new Error(`CollisionManager: Le fichier map n'existe pas : ${resolvedPath}`);
-  }
-  const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
-
-    // Remplace "Worlds" par le nom de ton calque collision si différent
-const collisionLayer = mapData.layers.find((l: any) =>
-  l.properties && l.properties.some((p: any) => p.name === "collides" && p.value === true)
-);
-
-    if (!collisionLayer || !collisionLayer.data) return;
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`CollisionManager: Le fichier map n'existe pas : ${resolvedPath}`);
+    }
+    const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
 
     this.tileWidth = mapData.tilewidth;
     this.tileHeight = mapData.tileheight;
 
-    for (let y = 0; y < collisionLayer.height; y++) {
-      for (let x = 0; x < collisionLayer.width; x++) {
-        const idx = y * collisionLayer.width + x;
-        if (collisionLayer.data[idx] !== 0) {
-          this.collisionTiles.add(`${x},${y}`);
+    // Parcourt tous les layers de type objectgroup
+    for (const layer of mapData.layers) {
+      if (layer.type !== "objectgroup" || !layer.objects) continue;
+
+      for (const obj of layer.objects) {
+        if (
+          obj.properties &&
+          obj.properties.some((p: any) => p.name === "collides" && p.value === true)
+        ) {
+          // Ajoute chaque tile couverte par l'objet dans la set de collision
+          const startX = Math.floor(obj.x / this.tileWidth);
+          const startY = Math.floor(obj.y / this.tileHeight);
+
+          // Largeur/hauteur en tiles (par défaut 1x1 si absent)
+          const width = Math.max(1, Math.ceil((obj.width || this.tileWidth) / this.tileWidth));
+          const height = Math.max(1, Math.ceil((obj.height || this.tileHeight) / this.tileHeight));
+
+          for (let x = 0; x < width; x++) {
+            for (let y = 0; y < height; y++) {
+              this.collisionTiles.add(`${startX + x},${startY + y}`);
+            }
+          }
         }
       }
     }
