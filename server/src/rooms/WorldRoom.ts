@@ -6,6 +6,8 @@ import { NpcManager } from "../managers/NPCManager";
 import { InventoryManager } from "../managers/InventoryManager"; 
 import { getItemData, getItemPocket } from "../utils/ItemDB";
 import { TransitionService, TransitionRequest } from "../services/TransitionService";
+import { CollisionManager } from "../managers/CollisionManager";
+
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
