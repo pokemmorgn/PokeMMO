@@ -38,7 +38,7 @@ export class GlobalTransitionManager {
     console.log(`🌍 [GlobalTransitionManager] Créé - Instance globale unique`);
   }
 
-  // ✅ ATTACHEMENT AVEC PROTECTION SPAWN ET RESET TRANSITION
+  // ✅ ATTACHEMENT AVEC NETTOYAGE COMPLET DU LOADING
   attachToScene(scene) {
     console.log(`🔗 [GlobalTransitionManager] === ATTACHEMENT À SCÈNE ===`);
     console.log(`📍 Scène: ${scene.scene.key}`);
@@ -51,13 +51,13 @@ export class GlobalTransitionManager {
     
     this.currentScene = scene;
     
-    // ✅ RESET CRITIQUE : Arrêter toute transition en cours lors de l'attachement
-    if (this.isTransitioning) {
-      console.log(`🔄 [GlobalTransitionManager] RESET transition lors attachement nouvelle scène`);
-      this.isTransitioning = false;
-      this.hideLoadingOverlay();
-      this.clearTransitionTimeout();
-    }
+    // ✅ NETTOYAGE COMPLET LORS DE L'ATTACHEMENT - CRITIQUE !
+    console.log(`🧹 [GlobalTransitionManager] === NETTOYAGE COMPLET ===`);
+    this.isTransitioning = false;
+    this.hideLoadingOverlay(); // ✅ SUPPRIMER LE CARRÉ NOIR
+    this.clearTransitionTimeout(); // ✅ ANNULER LE TIMEOUT
+    this.currentTransitionData = null;
+    console.log(`🧹 [GlobalTransitionManager] Nettoyage terminé`);
     
     // ✅ Obtenir la zone depuis plusieurs sources
     const sceneZone = this.getZoneFromScene(scene.scene.key);
@@ -730,11 +730,41 @@ export class GlobalTransitionManager {
     this.loadingOverlay.add([bg, text]);
   }
 
+  // ✅ IMPROVED hideLoadingOverlay - DÉTRUIT TOUS LES OVERLAYS
   hideLoadingOverlay() {
+    console.log(`🧹 [GlobalTransitionManager] === NETTOYAGE LOADING OVERLAY ===`);
+    
     if (this.loadingOverlay) {
+      console.log(`🗑️ [GlobalTransitionManager] Destruction loadingOverlay principal`);
       this.loadingOverlay.destroy();
       this.loadingOverlay = null;
     }
+    
+    // ✅ NOUVEAU : Nettoyer TOUS les overlays potentiels dans la scène
+    if (this.currentScene) {
+      const allContainers = this.currentScene.children.list.filter(child => 
+        child.type === 'Container' && child.depth >= 9000
+      );
+      
+      allContainers.forEach((container, index) => {
+        console.log(`🗑️ [GlobalTransitionManager] Destruction container overlay ${index}`);
+        container.destroy();
+      });
+      
+      // ✅ Chercher rectangles noirs suspects
+      const blackRects = this.currentScene.children.list.filter(child => 
+        child.type === 'Rectangle' && 
+        child.fillColor === 0x000000 && 
+        child.depth >= 9000
+      );
+      
+      blackRects.forEach((rect, index) => {
+        console.log(`🗑️ [GlobalTransitionManager] Destruction rectangle noir ${index}`);
+        rect.destroy();
+      });
+    }
+    
+    console.log(`✅ [GlobalTransitionManager] Tous les overlays nettoyés`);
   }
 
   showErrorPopup(message) {
