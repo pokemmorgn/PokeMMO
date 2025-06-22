@@ -2,7 +2,6 @@
 // ✅ Corrections pour la synchronisation et les transitions fluides + Intégration shop
 // ✅ NOUVEAU: Le serveur dicte la zone au client
 
-import { NetworkManager } from "../../network/NetworkManager.js";
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager";
@@ -126,14 +125,16 @@ initPlayerSpawnFromSceneData() {
       return;
     }
     
-    // Cas 3: Première connexion (BeachScene uniquement)
-    if (this.scene.key === 'BeachScene') {
-      console.log(`📡 [${this.scene.key}] Première connexion WorldRoom`);
-      this.initializeNewNetworkConnection();
-    } else {
-      console.error(`❌ [${this.scene.key}] Aucun NetworkManager disponible et pas BeachScene!`);
-      this.showErrorState("Erreur: Connexion réseau manquante");
-    }
+// Cas 3: Prend le NetworkManager global s'il existe
+if (window.globalNetworkManager) {
+  console.log(`📡 [${this.scene.key}] Utilisation du NetworkManager global`);
+  this.useExistingNetworkManager(window.globalNetworkManager, sceneData);
+  // ✅ NOUVEAU : Demander immédiatement la zone au serveur
+  this.requestServerZone();
+} else {
+  console.error(`❌ [${this.scene.key}] Aucun NetworkManager global disponible !`);
+  this.showErrorState("Erreur: Connexion réseau manquante");
+}
   }
 
   // ✅ NOUVELLE MÉTHODE : Demander la zone au serveur
@@ -241,45 +242,6 @@ initPlayerSpawnFromSceneData() {
     }
     
     return null;
-  }
-
-  // ✅ AMÉLIORATION: Nouvelle connexion réseau avec gestion d'erreurs
-  async initializeNewNetworkConnection() {
-    try {
-      const connectionData = await this.prepareConnectionData();
-      
-      this.networkManager = new NetworkManager(connectionData.identifier);
-      this.setupNetworkHandlers();
-      
-      const connected = await this.networkManager.connect(
-        connectionData.spawnZone, 
-        { 
-          spawnX: connectionData.lastX, 
-          spawnY: connectionData.lastY 
-        }
-      );
-      
-      if (connected) {
-        this.mySessionId = this.networkManager.getSessionId();
-        if (this.playerManager) {
-          this.playerManager.setMySessionId(this.mySessionId);
-        }
-        this.networkSetupComplete = true;
-
-        this.initializeInventorySystem();
-
-        // ✅ AJOUT SHOP : Intégration shop en une ligne
-        integrateShopToScene(this, this.networkManager);
-
-        console.log(`✅ [${this.scene.key}] Connexion réussie: ${this.mySessionId}`);
-      } else {
-        throw new Error("Échec de connexion au serveur");
-      }
-      
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur connexion:`, error);
-      this.showErrorState(`Erreur de connexion: ${error.message}`);
-    }
   }
 
   // ✅ NOUVELLE MÉTHODE: Initialisation du système d'inventaire
