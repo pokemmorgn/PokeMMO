@@ -152,6 +152,8 @@ export class TransitionManager {
   // ✅ VÉRIFIER COLLISIONS À CHAQUE FRAME
   checkCollisions(player) {
     if (!this.isActive || !player || this.isTransitioning) return;
+      if (this.scene.justArrivedAtZone) return;
+
 
     this.teleportZones.forEach((teleportData) => {
       if (this.isPlayerCollidingWithTeleport(player, teleportData)) {
