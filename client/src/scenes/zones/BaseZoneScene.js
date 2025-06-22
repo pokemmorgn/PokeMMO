@@ -586,7 +586,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.networkManager.room.removeAllListeners("snap");
     this.networkManager.room.removeAllListeners("questStatuses");
     console.log(`[${this.scene.key}] 🎧 Nettoyage des écouteurs réseau`);
-    
+     }
     console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
 
     const isTransition = this.networkManager && this.networkManager.isTransitionActive;
