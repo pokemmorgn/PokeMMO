@@ -1,5 +1,12 @@
 // client/src/transitions/TransitionManager.js
 // ✅ VERSION COMPLÈTE AVEC setupTransitionListener
+import { BeachScene } from '../scenes/zones/BeachScene.js';
+import { VillageScene } from '../scenes/zones/VillageScene.js';
+import { VillageLabScene } from '../scenes/zones/VillageLabScene.js';
+import { Road1Scene } from '../scenes/zones/Road1Scene.js';
+import { VillageHouse1Scene } from '../scenes/zones/VillageHouse1Scene.js';
+import { LavandiaScene } from '../scenes/zones/LavandiaScene.js';
+
 
 export class TransitionManager {
   constructor(scene) {
