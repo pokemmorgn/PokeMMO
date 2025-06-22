@@ -5,8 +5,8 @@ import path from "path";
 
 export class CollisionManager {
   private collisionTiles: Set<string> = new Set();
-  private tileWidth: number = 32;  // ajuste si besoin
-  private tileHeight: number = 32;
+  private tileWidth: number = 16;  // ajuste si besoin
+  private tileHeight: number = 16;
 
   constructor(mapPath: string) {
     this.loadCollisionsFromMap(mapPath);
@@ -25,11 +25,10 @@ loadCollisionsFromMap(mapPath: string) {
   const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
 
     // Remplace "Worlds" par le nom de ton calque collision si différent
-    const collisionLayer = mapData.layers.find((l: any) =>
-      l.name === "Worlds" && (
-        !l.properties || l.properties.some((p: any) => p.name === "collides" && p.value === true)
-      )
-    );
+const collisionLayer = mapData.layers.find((l: any) =>
+  l.properties && l.properties.some((p: any) => p.name === "collides" && p.value === true)
+);
+
     if (!collisionLayer || !collisionLayer.data) return;
 
     this.tileWidth = mapData.tilewidth;
