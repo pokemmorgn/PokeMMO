@@ -306,7 +306,7 @@ export class TransitionManager {
   }
 
   // ✅ SUCCÈS TRANSITION CORRIGÉ - UTILISE LAUNCH AU LIEU DE START
-  handleTransitionSuccess(result, teleportData) {
+  async handleTransitionSuccess(result, teleportData) {
     console.log(`🌀 [TransitionManager] === TRANSITION VALIDÉE ===`);
     console.log(`📊 Résultat serveur:`, result);
     console.log(`📊 Données téléport:`, teleportData);
