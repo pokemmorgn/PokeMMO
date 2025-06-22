@@ -55,22 +55,29 @@ export class ZoneManager {
     console.log(`🏗️ Chargement des zones...`);
 
     this.loadZone('beach', new BeachZone(this.room));
-    this.collisions.set('beach', new CollisionManager("../maps/beach.json"));
+    console.log("[ZoneManager] Initialisation collisions pour beach");
+    this.collisions.set('beach', new CollisionManager("beach.tmj"));
 
     this.loadZone('village', new VillageZone(this.room));
-    this.collisions.set('village', new CollisionManager("../maps/village.json"));
+    console.log("[ZoneManager] Initialisation collisions pour village");
+    this.collisions.set('village', new CollisionManager("village.tmj"));
 
     this.loadZone('villagelab', new VillageLabZone(this.room));
-    this.collisions.set('villagelab', new CollisionManager("../maps/villagelab.json"));
+    console.log("[ZoneManager] Initialisation collisions pour villagelab");
+    this.collisions.set('villagelab', new CollisionManager("villagelab.tmj"));
 
     this.loadZone('villagehouse1', new Villagehouse1(this.room));
-    this.collisions.set('villagehouse1', new CollisionManager("../maps/villagehouse1.json"));
+    console.log("[ZoneManager] Initialisation collisions pour villagehouse1");
+    this.collisions.set('villagehouse1', new CollisionManager("villagehouse1.tmj"));
 
     this.loadZone('villageflorist', new Villageflorist(this.room));
-    this.collisions.set('villageflorist', new CollisionManager("../maps/villageflorist.json"));
+    console.log("[ZoneManager] Initialisation collisions pour villageflorist");
+    this.collisions.set('villageflorist', new CollisionManager("villageflorist.tmj"));
 
     console.log(`✅ ${this.zones.size} zones chargées:`, Array.from(this.zones.keys()));
-  }
+    console.log(`✅ Collisions chargées pour :`, Array.from(this.collisions.keys()));
+}
+
 
   private loadZone(zoneName: string, zone: IZone) {
     console.log(`📦 Chargement zone: ${zoneName}`);
