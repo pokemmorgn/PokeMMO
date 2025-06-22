@@ -1,5 +1,5 @@
-// client/src/network/NetworkManager.js - VERSION WORLDROOM CORRIGÉE POUR CLIENT GLOBAL
-// ✅ Support pour zone dictée par le serveur + client colyseus passé en param
+// client/src/network/NetworkManager.js - VERSION CORRIGÉE POUR PREMIER JOUEUR
+// ✅ Support robuste pour le premier joueur + zone dictée par le serveur
 
 import { GAME_CONFIG } from "../config/gameConfig.js";
 
@@ -9,7 +9,7 @@ export class NetworkManager {
    * @param {string} username - L'identifiant du joueur
    */
   constructor(colyseusClient, username) {
-    this.client = colyseusClient;   // ← Utilise le client Colyseus global
+    this.client = colyseusClient;
     this.username = username;
     this.room = null;
     this.sessionId = null;
@@ -20,6 +20,10 @@ export class NetworkManager {
     this.lastReceivedNpcs = null;
     this.lastReceivedZoneData = null;
     this.onTransitionValidation = null;
+
+    // ✅ NOUVEAU: Données de mon joueur
+    this.myPlayerData = null;
+    this.myPlayerConfirmed = false;
 
     this.transitionState = {
       isActive: false,
@@ -42,6 +46,9 @@ export class NetworkManager {
       onNpcInteraction: null,
       onSnap: null,
       onTransitionValidation: null,
+      // ✅ NOUVEAUX CALLBACKS POUR PREMIER JOUEUR
+      onMyPlayerConfirmed: null,
+      onMyPlayerMissing: null,
     };
   }
 
@@ -69,6 +76,8 @@ export class NetworkManager {
       this.sessionId = this.room.sessionId;
       this.isConnected = true;
       this.currentZone = spawnZone;
+      this.myPlayerConfirmed = false;
+      this.myPlayerData = null;
 
       this.resetTransitionState();
 
@@ -88,6 +97,102 @@ export class NetworkManager {
 
     console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
 
+    // ✅ NOUVEAU: Handler pour confirmation de spawn
+    this.room.onMessage("playerSpawned", (data) => {
+      console.log(`🎯 [NetworkManager] === JOUEUR SPAWNÉ ===`, data);
+      
+      if (data.isMyPlayer) {
+        console.log(`✅ [NetworkManager] Confirmation: MON joueur spawné !`);
+        
+        // Stocker les infos de mon joueur
+        this.myPlayerData = {
+          id: data.id,
+          name: data.name,
+          x: data.x,
+          y: data.y,
+          currentZone: data.currentZone,
+          level: data.level,
+          gold: data.gold
+        };
+        
+        this.myPlayerConfirmed = true;
+        
+        // ✅ DÉCLENCHER la création immédiate du PlayerManager
+        if (this.callbacks.onMyPlayerConfirmed) {
+          this.callbacks.onMyPlayerConfirmed(this.myPlayerData);
+        }
+        
+        // ✅ PROGRAMMER une vérification de sécurité
+        setTimeout(() => {
+          this.ensureMyPlayerExists();
+        }, 1000);
+      }
+    });
+
+    // ✅ NOUVEAU: Handler pour state forcé
+    this.room.onMessage("forcedStateSync", (data) => {
+      console.log(`🔄 [NetworkManager] === STATE FORCÉ REÇU ===`, data);
+      
+      // Convertir l'object en Map si nécessaire pour compatibilité
+      const playersMap = new Map();
+      
+      if (data.players) {
+        Object.entries(data.players).forEach(([sessionId, playerData]) => {
+          playersMap.set(sessionId, playerData);
+        });
+      }
+      
+      const stateWithMap = {
+        players: playersMap
+      };
+      
+      console.log(`📊 [NetworkManager] State forcé: ${playersMap.size} joueurs`);
+      console.log(`🎯 [NetworkManager] Mon joueur présent: ${playersMap.has(data.mySessionId)}`);
+      
+      if (this.callbacks.onStateChange) {
+        this.callbacks.onStateChange(stateWithMap);
+      }
+    });
+
+    // ✅ NOUVEAU: Handler pour réponse de state
+    this.room.onMessage("playerStateResponse", (data) => {
+      console.log(`📋 [NetworkManager] === RÉPONSE PLAYER STATE ===`, data);
+      
+      if (data.exists && data.isMyPlayer) {
+        console.log(`✅ [NetworkManager] Mon joueur confirmé par le serveur`);
+        this.myPlayerData = data;
+        this.myPlayerConfirmed = true;
+        
+        if (this.callbacks.onMyPlayerConfirmed) {
+          this.callbacks.onMyPlayerConfirmed(data);
+        }
+      } else {
+        console.error(`❌ [NetworkManager] Mon joueur n'existe pas sur le serveur !`);
+        this.myPlayerConfirmed = false;
+        
+        // Essayer de se reconnecter ou gérer l'erreur
+        if (this.callbacks.onMyPlayerMissing) {
+          this.callbacks.onMyPlayerMissing(data);
+        }
+      }
+    });
+
+    // ✅ NOUVEAU: Handler pour vérification de présence
+    this.room.onMessage("presenceCheck", (data) => {
+      console.log(`👻 [NetworkManager] === VÉRIFICATION PRÉSENCE ===`, data);
+      
+      if (!data.exists) {
+        console.error(`❌ [NetworkManager] JE NE SUIS PAS DANS LE STATE !`);
+        this.myPlayerConfirmed = false;
+        
+        // Demander une resync ou se reconnecter
+        this.requestPlayerState();
+      } else {
+        console.log(`✅ [NetworkManager] Ma présence confirmée`);
+        this.myPlayerConfirmed = true;
+      }
+    });
+
     this.room.onMessage("currentZone", (data) => {
       console.log(`📍 [NetworkManager] Zone actuelle reçue du serveur:`, data);
       this.currentZone = data.zone;
@@ -96,28 +201,63 @@ export class NetworkManager {
       }
     });
 
+    // ✅ AMÉLIORATION: onStateChange.once pour état initial
     this.room.onStateChange.once((state) => {
-      console.log(`🎯 [NetworkManager] ÉTAT INITIAL forcé:`, {
+      console.log(`🎯 [NetworkManager] === ÉTAT INITIAL REÇU ===`, {
         playersCount: state.players?.size || 0,
         mySessionId: this.sessionId,
-        hasMyPlayer: state.players?.has(this.sessionId)
+        hasMyPlayer: state.players?.has && state.players.has(this.sessionId)
       });
-      const filteredState = {
-        players: new Map()
-      };
-      state.players.forEach((player, sessionId) => {
-        if (player.currentZone === this.currentZone) {
-          filteredState.players.set(sessionId, player);
+      
+      // Vérifier si mon joueur est présent
+      if (state.players?.has && state.players.has(this.sessionId)) {
+        console.log(`✅ [NetworkManager] Mon joueur trouvé dans l'état initial`);
+        this.myPlayerConfirmed = true;
+        
+        const myPlayer = state.players.get(this.sessionId);
+        if (myPlayer && !this.myPlayerData) {
+          this.myPlayerData = {
+            id: myPlayer.id,
+            name: myPlayer.name,
+            x: myPlayer.x,
+            y: myPlayer.y,
+            currentZone: myPlayer.currentZone,
+            level: myPlayer.level,
+            gold: myPlayer.gold
+          };
+          
+          if (this.callbacks.onMyPlayerConfirmed) {
+            this.callbacks.onMyPlayerConfirmed(this.myPlayerData);
+          }
         }
-      });
-      console.log(`🔥 [NetworkManager] Force callback avec ${filteredState.players.size} joueurs`);
-      if (this.callbacks.onStateChange && filteredState.players.size > 0) {
-        this.callbacks.onStateChange(filteredState);
+      } else {
+        console.warn(`⚠️ [NetworkManager] Mon joueur absent de l'état initial`);
+        this.myPlayerConfirmed = false;
+        
+        // Programmer une vérification
+        setTimeout(() => {
+          this.ensureMyPlayerExists();
+        }, 500);
+      }
+      
+      if (this.callbacks.onStateChange && state.players?.size > 0) {
+        this.callbacks.onStateChange(state);
       }
     });
 
+    // ✅ AMÉLIORATION: onJoin avec vérification
     this.room.onJoin(() => {
-      console.log(`📡 [NetworkManager] Demande état initial pour zone: ${this.currentZone}`);
+      console.log(`📡 [NetworkManager] === REJOINT LA ROOM ===`);
+      
+      // Attendre un peu puis vérifier si on existe
+      setTimeout(() => {
+        if (!this.myPlayerConfirmed) {
+          console.log(`🔍 [NetworkManager] Vérification présence après join`);
+          this.checkMyPresence();
+        }
+      }, 1000);
+      
+      // Demander l'état initial
       this.room.send("requestInitialState", { zone: this.currentZone });
     });
 
@@ -169,20 +309,24 @@ export class NetworkManager {
 
     this.room.onMessage("filteredState", (state) => {
       console.log(`📊 [NetworkManager] State filtré reçu:`, {
-        playersCount: state.players?.size || 0,
+        playersCount: Object.keys(state.players || {}).length,
         zone: this.currentZone
       });
-      if (this.callbacks.onStateChange) {
-        this.callbacks.onStateChange(state);
+      
+      // Convertir l'object en Map pour compatibilité
+      const playersMap = new Map();
+      if (state.players) {
+        Object.entries(state.players).forEach(([sessionId, playerData]) => {
+          playersMap.set(sessionId, playerData);
+        });
       }
-    });
-
-    this.room.onStateChange.once((state) => {
-      console.log(`🎯 [NetworkManager] ÉTAT INITIAL reçu:`, state);
-      console.log(`👥 Joueurs dans l'état initial:`, state.players.size);
-      if (this.callbacks.onStateChange && state.players.size > 0) {
-        console.log(`🔥 [NetworkManager] Force l'appel callback pour état initial`);
-        this.callbacks.onStateChange(state);
+      
+      const stateWithMap = {
+        players: playersMap
+      };
+      
+      if (this.callbacks.onStateChange) {
+        this.callbacks.onStateChange(stateWithMap);
       }
     });
 
@@ -202,6 +346,8 @@ export class NetworkManager {
       console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
       if (!this.transitionState.isActive) {
         this.isConnected = false;
+        this.myPlayerConfirmed = false;
+        this.myPlayerData = null;
         if (this.callbacks.onDisconnect) {
           this.callbacks.onDisconnect();
         }
@@ -212,6 +358,66 @@ export class NetworkManager {
       console.log(`[NetworkManager] 🎯 Connexion établie`);
       this.callbacks.onConnect();
     }
+  }
+
+  // ✅ NOUVELLES MÉTHODES POUR PREMIER JOUEUR
+
+  ensureMyPlayerExists() {
+    console.log(`🔍 [NetworkManager] === VÉRIFICATION MON JOUEUR ===`);
+    console.log(`📊 State: confirmed=${this.myPlayerConfirmed}, data=${!!this.myPlayerData}`);
+    
+    if (!this.room || !this.sessionId) {
+      console.error(`❌ [NetworkManager] Pas de room/sessionId pour vérifier`);
+      return;
+    }
+    
+    // Vérifier dans le state local
+    const hasInState = this.room.state?.players?.has && this.room.state.players.has(this.sessionId);
+    
+    if (!hasInState || !this.myPlayerConfirmed) {
+      console.warn(`⚠️ [NetworkManager] Mon joueur absent ou non confirmé !`);
+      console.warn(`   Dans state: ${hasInState}`);
+      console.warn(`   Confirmé: ${this.myPlayerConfirmed}`);
+      
+      // Demander au serveur
+      this.requestPlayerState();
+      
+      // Programmer une nouvelle vérification
+      setTimeout(() => {
+        this.checkMyPresence();
+      }, 2000);
+    } else {
+      console.log(`✅ [NetworkManager] Mon joueur trouvé et confirmé`);
+    }
+  }
+
+  requestPlayerState() {
+    console.log(`📤 [NetworkManager] Demande resync player state`);
+    
+    if (this.room) {
+      this.room.send("requestPlayerState");
+    }
+  }
+
+  checkMyPresence() {
+    console.log(`📤 [NetworkManager] Vérification présence serveur`);
+    
+    if (this.room) {
+      this.room.send("checkMyPresence");
+    }
+  }
+
+  // ✅ NOUVEAUX CALLBACKS
+  onMyPlayerConfirmed(callback) { this.callbacks.onMyPlayerConfirmed = callback; }
+  onMyPlayerMissing(callback) { this.callbacks.onMyPlayerMissing = callback; }
+
+  // ✅ GETTER POUR VÉRIFIER L'ÉTAT
+  isMyPlayerReady() {
+    return this.myPlayerConfirmed && this.myPlayerData !== null;
+  }
+
+  getMyPlayerData() {
+    return this.myPlayerData;
   }
 
   // === Méthodes de gestion de transitions et communication ===
@@ -370,6 +576,9 @@ export class NetworkManager {
   async disconnect() {
     console.log(`[NetworkManager] 📤 Déconnexion demandée`);
     this.resetTransitionState();
+    this.myPlayerConfirmed = false;
+    this.myPlayerData = null;
+    
     if (this.room) {
       this.isConnected = false;
       try {
@@ -446,10 +655,16 @@ export class NetworkManager {
     console.log(`🏠 Room ID: ${this.room?.id || 'aucune'}`);
     console.log(`📡 Room connectée: ${this.room?.connection?.isOpen || false}`);
     console.log(`📊 Joueurs dans room: ${this.room?.state?.players?.size || 0}`);
+    
+    // ✅ NOUVEAU: Debug de mon joueur
+    console.log(`👤 === MON JOUEUR ===`);
+    console.log(`✅ Confirmé: ${this.myPlayerConfirmed}`);
+    console.log(`📊 Data:`, this.myPlayerData);
+    
     if (this.room?.state?.players && this.sessionId) {
       const myPlayer = this.room.state.players.get(this.sessionId);
       if (myPlayer) {
-        console.log(`🎮 Mon joueur: (${myPlayer.x}, ${myPlayer.y}) dans ${myPlayer.currentZone}`);
+        console.log(`🎮 Mon joueur dans state: (${myPlayer.x}, ${myPlayer.y}) dans ${myPlayer.currentZone}`);
       } else {
         console.log(`❌ Mon joueur non trouvé dans la room`);
       }
