@@ -8,7 +8,7 @@ import { Road1Scene } from './scenes/zones/Road1Scene.js';
 import { VillageLabScene } from './scenes/zones/VillageLabScene.js';
 import { VillageHouse1Scene } from './scenes/zones/VillageHouse1Scene.js';
 import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
-import { TimeService } from '../services/TimeService.js';
+import { TimeService } from './services/TimeService.js';
 
 
 // === Colyseus.js ===
