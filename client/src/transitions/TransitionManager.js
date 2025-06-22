@@ -269,11 +269,6 @@ export class TransitionManager {
   setupTransitionListener() {
     console.log(`👂 [TransitionManager] Setup listener validation...`);
 
-    // ✅ Nettoyer ancien listener
-    if (this.transitionResponseHandler) {
-      this.scene.networkManager.onTransitionValidation = null;
-    }
-
     // ✅ NOUVEAU : Handler réponse avec données stockées
     this.transitionResponseHandler = (result) => {
       console.log(`📨 [TransitionManager] === RÉPONSE SERVEUR ===`);
@@ -281,20 +276,20 @@ export class TransitionManager {
       
       this.clearTransitionTimeout();
       
-      // ✅ NOUVEAU : Nettoyer le handler pour éviter conflits
-      this.scene.networkManager.onTransitionValidation = null;
+      // ✅ NETTOYER LE HANDLER
+      this.scene.networkManager.onTransitionValidation(null);
       this.transitionResponseHandler = null;
       
       if (result.success) {
-        // ✅ NOUVEAU : Utiliser les données stockées ET la réponse serveur
+        // ✅ UTILISER LES DONNÉES STOCKÉES ET LA RÉPONSE SERVEUR
         this.handleTransitionSuccess(result, this.currentTransitionData);
       } else {
         this.handleTransitionError(result);
       }
     };
 
-    // ✅ Assigner le handler
-    this.scene.networkManager.onTransitionValidation = this.transitionResponseHandler;
+    // ✅ CORRECTION : UTILISER LA MÉTHODE AU LIEU D'ASSIGNATION DIRECTE
+    this.scene.networkManager.onTransitionValidation(this.transitionResponseHandler);
     
     console.log(`👂 [TransitionManager] ✅ Listener configuré`);
   }
@@ -369,12 +364,12 @@ export class TransitionManager {
   // ✅ RESET ÉTAT TRANSITION
   resetTransitionState() {
     this.isTransitioning = false;
-    this.currentTransitionData = null; // ✅ NOUVEAU
+    this.currentTransitionData = null;
     this.clearTransitionTimeout();
     
-    // ✅ NOUVEAU : Nettoyer le handler
+    // ✅ CORRECTION : NETTOYER LE HANDLER PROPREMENT
     if (this.transitionResponseHandler) {
-      this.scene.networkManager.onTransitionValidation = null;
+      this.scene.networkManager.onTransitionValidation(null);
       this.transitionResponseHandler = null;
     }
     
@@ -501,8 +496,9 @@ export class TransitionManager {
     this.isTransitioning = false;
     this.currentTransitionData = null;
     
+    // ✅ CORRECTION : NETTOYER LE HANDLER PROPREMENT
     if (this.transitionResponseHandler) {
-      this.scene.networkManager.onTransitionValidation = null;
+      this.scene.networkManager.onTransitionValidation(null);
       this.transitionResponseHandler = null;
     }
     
