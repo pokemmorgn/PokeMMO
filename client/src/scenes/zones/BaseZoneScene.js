@@ -703,7 +703,7 @@ isSceneStillValid(expectedScene) {
     });
   }
 
- handleMovement(myPlayerState) {
+handleMovement(myPlayerState) {
   const speed = 120;
   const myPlayer = this.playerManager.getMyPlayer();
   if (!myPlayer) return;
@@ -711,7 +711,7 @@ isSceneStillValid(expectedScene) {
   let vx = 0, vy = 0;
   let inputDetected = false, direction = null;
 
-  // Détecter les inputs
+  // ✅ Détecter les inputs AVANT la collision
   if (this.cursors.left.isDown || this.wasd.A.isDown) {
     vx = -speed; inputDetected = true; direction = 'left';
   } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
@@ -724,77 +724,74 @@ isSceneStillValid(expectedScene) {
   }
 
   let actuallyMoving = inputDetected;
-  let isBlocked = false;
 
-  // Vérification collision
+  // ✅ VÉRIFICATION COLLISION AVEC SLIDING
   if (inputDetected && this.clientCollisionManager) {
     const deltaTime = 1/60;
     const nextX = myPlayer.x + (vx * deltaTime);
     const nextY = myPlayer.y + (vy * deltaTime);
     
-    // Vérifier X
-    if (vx !== 0 && this.clientCollisionManager.isBlocked(nextX, myPlayer.y)) {
-      vx = 0;
-      isBlocked = true;
+    // Test mouvement diagonal complet d'abord
+    const canMoveDiagonal = this.clientCollisionManager.canMoveTo(nextX, nextY);
+    
+    if (!canMoveDiagonal) {
+      // Test mouvement horizontal seulement
+      const canMoveX = (vx !== 0) ? this.clientCollisionManager.canMoveTo(nextX, myPlayer.y) : false;
+      // Test mouvement vertical seulement  
+      const canMoveY = (vy !== 0) ? this.clientCollisionManager.canMoveTo(myPlayer.x, nextY) : false;
+      
+      if (canMoveX && !canMoveY) {
+        // ✅ Glisser horizontalement le long du mur vertical
+        vy = 0;
+        console.log(`🧱 [ClientCollision] Glissement horizontal`);
+      } else if (canMoveY && !canMoveX) {
+        // ✅ Glisser verticalement le long du mur horizontal
+        vx = 0;
+        console.log(`🧱 [ClientCollision] Glissement vertical`);
+      } else {
+        // Bloqué dans les deux directions
+        vx = 0;
+        vy = 0;
+        console.log(`🚫 [ClientCollision] Complètement bloqué`);
+      }
     }
     
-    // Vérifier Y
-    if (vy !== 0 && this.clientCollisionManager.isBlocked(myPlayer.x, nextY)) {
-      vy = 0;
-      isBlocked = true;
-    }
-    
+    // Recalculer si on bouge après les ajustements
     actuallyMoving = (vx !== 0 || vy !== 0);
   }
 
-  // Appliquer la vélocité
+  // Appliquer la vélocité finale
   myPlayer.body.setVelocity(vx, vy);
 
-  // ✅ ANIMATIONS AMÉLIORÉES avec feedback visuel
+  // ✅ ANIMATIONS : Direction basée sur l'input, mouvement sur la réalité
   if (inputDetected && direction) {
+    // ✅ TOUJOURS mettre à jour la direction, même si bloqué
     this.lastDirection = direction;
     
     if (actuallyMoving) {
-      // Mouvement normal
+      // Si on bouge vraiment (même en glissant), animation de marche
       myPlayer.play(`walk_${direction}`, true);
       myPlayer.isMovingLocally = true;
-      
-      // ✅ Remettre la couleur normale si elle était changée
-      myPlayer.clearTint();
-      
-    } else if (isBlocked) {
-      // ✅ Bloqué mais essaie de bouger = animation de "poussée"
-      myPlayer.play(`walk_${direction}`, true);
-      myPlayer.isMovingLocally = false;
-      
-      // ✅ Effet visuel : légère teinte rouge pour indiquer qu'on pousse
-      myPlayer.setTint(0xffaaaa);
-      
-      // ✅ Optionnel : petit effet de vibration
-      this.cameras.main.shake(50, 0.002);
-      
     } else {
-      // Idle normal
+      // Si complètement bloqué, idle dans la nouvelle direction
       myPlayer.play(`idle_${direction}`, true);
       myPlayer.isMovingLocally = false;
-      myPlayer.clearTint();
     }
   } else {
-    // Aucun input
+    // Aucun input, idle dans la dernière direction
     myPlayer.play(`idle_${this.lastDirection}`, true);
     myPlayer.isMovingLocally = false;
-    myPlayer.clearTint();
   }
 
-  // Envoi réseau
+  // ✅ Envoi réseau : direction même si pas de mouvement (pour rotation)
   if (inputDetected) {
     const now = Date.now();
     if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
       this.networkManager.sendMove(
         myPlayer.x,
         myPlayer.y,
-        direction,
-        actuallyMoving
+        direction, // ✅ Direction envoyée même si bloqué
+        actuallyMoving // ✅ Mouvement réel seulement
       );
       this.lastMoveTime = now;
     }
