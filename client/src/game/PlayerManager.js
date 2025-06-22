@@ -106,8 +106,8 @@ export class PlayerManager {
     }
     
     // ✅ AMÉLIORATION 2: Vérifier d'abord le sessionId en attente
-const sessionIdToCheck = this._pendingSessionId || this.mySessionId;
-const player = this.players.get(sessionIdToCheck) || null;
+    const sessionIdToCheck = this._pendingSessionId || this.mySessionId;
+    const player = this.players.get(sessionIdToCheck) || null;
 
     if (!player) {
       if (!this._hasWarnedMissingPlayer) {
@@ -351,34 +351,20 @@ const player = this.players.get(sessionIdToCheck) || null;
   }
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour ou création de joueur
-updateOrCreatePlayer(sessionId, playerState) {
-  const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
-  
-  let player = this.players.get(sessionId);
-  
-  if (!shouldShowPlayer) {
-    if (player && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
-      console.log(`[PlayerManager] 👻 Masquage joueur hors zone: ${sessionId}`);
-      this.removePlayer(sessionId);
+  updateOrCreatePlayer(sessionId, playerState) {
+    // ✅ FILTRE PAR ZONE AMÉLIORÉ
+    const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
+    
+    let player = this.players.get(sessionId);
+    
+    if (!shouldShowPlayer) {
+      // Si le joueur ne devrait pas être affiché et qu'il existe, le cacher ou le supprimer
+      if (player && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
+        console.log(`[PlayerManager] 👻 Masquage joueur hors zone: ${sessionId}`);
+        this.removePlayer(sessionId);
+      }
+      return;
     }
-    return;
-  }
-
-  if (!player) {
-    console.log(`[PlayerManager] 🆕 Création joueur pour sessionId: ${sessionId}`); // Add debug log
-    player = this.createPlayer(sessionId, playerState.x, playerState.y);
-    if (!player) return;
-  } else {
-    if (!player.scene || player.scene !== this.scene) {
-      console.warn(`[PlayerManager] 🔧 Recréation joueur invalide: ${sessionId}`);
-      this.players.delete(sessionId);
-      player = this.createPlayer(sessionId, playerState.x, playerState.y);
-      if (!player) return;
-    }
-  }
-
-  this.updatePlayerFromState(player, playerState);
-}
 
     if (!player) {
       // Créer le joueur s'il n'existe pas
@@ -451,19 +437,19 @@ updateOrCreatePlayer(sessionId, playerState) {
   }
 
   // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
-checkMyPlayerReady() {
-  const effectiveSessionId = this._pendingSessionId || this.mySessionId;
-  
-  if (effectiveSessionId && this.players.has(effectiveSessionId) && !this._myPlayerIsReady) {
-    this._myPlayerIsReady = true;
-    console.log(`[PlayerManager] ✅ Mon joueur est prêt avec sessionId: ${effectiveSessionId}`);
+  checkMyPlayerReady() {
+    const effectiveSessionId = this._pendingSessionId || this.mySessionId;
+    
+    if (effectiveSessionId && this.players.has(effectiveSessionId) && !this._myPlayerIsReady) {
+      this._myPlayerIsReady = true;
+      console.log(`[PlayerManager] ✅ Mon joueur est prêt avec sessionId: ${effectiveSessionId}`);
 
-    if (this._myPlayerReadyCallback) {
-      console.log("[PlayerManager] 🎯 Callback onMyPlayerReady déclenché!");
-      this._myPlayerReadyCallback(this.players.get(effectiveSessionId));
+      if (this._myPlayerReadyCallback) {
+        console.log("[PlayerManager] 🎯 Callback onMyPlayerReady déclenché!");
+        this._myPlayerReadyCallback(this.players.get(effectiveSessionId));
+      }
     }
   }
-}
 
   // ⭐️ update = lerp + SYNC INDICATOR à chaque frame !
   update(delta = 16) {
