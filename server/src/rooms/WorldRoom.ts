@@ -1067,25 +1067,36 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`✅ WorldRoom fermée`);
   }
 
-  private handlePlayerMove(client: Client, data: any) {
-    const player = this.state.players.get(client.sessionId);
-    if (!player) return;
+private handlePlayerMove(client: Client, data: any) {
+  const player = this.state.players.get(client.sessionId);
+  if (!player) return;
 
-    // Mettre à jour la position
-    player.x = data.x;
-    player.y = data.y;
-    player.direction = data.direction;
-    
-    // ✅ AJOUT: Garder la zone synchronisée
-    if (data.currentZone) {
-        player.currentZone = data.currentZone;
-    }
+  // Récupérer le CollisionManager de la zone courante
+  const collisionManager = this.zoneManager.getCollisionManager(player.currentZone);
 
-    // Debug occasionnel (1 fois sur 10)
-    if (Math.random() < 0.1) {
-        console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
-    }
+  // Check collision AVANT d'accepter le move
+  if (collisionManager && collisionManager.isBlocked(data.x, data.y)) {
+    // Mouvement interdit : on refuse la position et on peut notifier le client ici si tu veux
+    // Optionnel : snap le joueur à sa position précédente ou ne rien faire
+    return;
   }
+
+  // Si pas de collision, on applique le mouvement
+  player.x = data.x;
+  player.y = data.y;
+  player.direction = data.direction;
+
+  // Garder la zone synchronisée
+  if (data.currentZone) {
+    player.currentZone = data.currentZone;
+  }
+
+  // Debug occasionnel (1 fois sur 10)
+  if (Math.random() < 0.1) {
+    console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
+  }
+}
+
 
   // === MÉTHODES POUR LES EFFETS D'OBJETS ===
 
