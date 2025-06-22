@@ -240,13 +240,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.setupExistingHandlers();
 
     // ✅ FORCER UNE PREMIÈRE SYNCHRONISATION
-    this.time.delayedCall(500, () => {
-      console.log(`🔄 [${this.scene.key}] Forcer synchronisation initiale...`);
-      if (this.networkManager.room) {
-        this.networkManager.room.send("requestInitialState", { 
-          zone: this.networkManager.getCurrentZone() 
-        });
-      }
     });
   }
 
