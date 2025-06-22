@@ -463,48 +463,78 @@ if (this.map) {
     }
   }
 
-  positionPlayer(player) {
-    const initData = this.scene.settings.data;
-    console.log(`[BASESCENE:${this.scene.key}] 📍 === POSITIONNEMENT JOUEUR ===`);
-    console.log(`[BASESCENE:${this.scene.key}] 📊 InitData:`, initData);
-    console.log(`[BASESCENE:${this.scene.key}] 👤 Position actuelle joueur: (${player.x}, ${player.y})`);
-    let finalX, finalY;
-    if (initData?.fromTransition && (initData.spawnX !== undefined || initData.spawnY !== undefined)) {
-      finalX = initData.spawnX;
-      finalY = initData.spawnY;
-      console.log(`[BASESCENE:${this.scene.key}] 📍 Position depuis SERVEUR (transition): (${finalX}, ${finalY})`);
+positionPlayer(player) {
+  const initData = this.scene.settings.data;
+  console.log(`[BASESCENE:${this.scene.key}] 📍 === POSITIONNEMENT JOUEUR ===`);
+  console.log(`[BASESCENE:${this.scene.key}] 📊 InitData:`, initData);
+  console.log(`[BASESCENE:${this.scene.key}] 👤 Position actuelle joueur: (${player.x}, ${player.y})`);
+  
+  let finalX, finalY;
+  
+  if (initData?.fromTransition && (initData.spawnX !== undefined || initData.spawnY !== undefined)) {
+    finalX = initData.spawnX;
+    finalY = initData.spawnY;
+    console.log(`[BASESCENE:${this.scene.key}] 📍 Position depuis SERVEUR (transition): (${finalX}, ${finalY})`);
+  }
+  else if (initData?.serverResult?.position) {
+    finalX = initData.serverResult.position.x;
+    finalY = initData.serverResult.position.y;
+    console.log(`[BASESCENE:${this.scene.key}] 📍 Position depuis serverResult: (${finalX}, ${finalY})`);
+  }
+  else {
+    const defaultPos = this.getDefaultSpawnPosition();
+    finalX = defaultPos.x;
+    finalY = defaultPos.y;
+    console.log(`[BASESCENE:${this.scene.key}] 📍 Position par défaut: (${finalX}, ${finalY})`);
+  }
+  
+  // ✅ NOUVEAU : Vérification et correction position spawn
+  if (this.globalTransitionManager && initData?.fromTransition) {
+    console.log(`[BASESCENE:${this.scene.key}] 🔍 Vérification sécurité spawn...`);
+    
+    // Simuler la position pour vérifier les collisions
+    const mockResult = {
+      position: { x: finalX, y: finalY }
+    };
+    
+    const correctedPosition = this.globalTransitionManager.checkAndFixSpawnPosition(player, mockResult);
+    
+    if (correctedPosition.wasCorrected) {
+      console.warn(`[BASESCENE:${this.scene.key}] 🚨 Position spawn corrigée automatiquement!`);
+      console.warn(`[BASESCENE:${this.scene.key}] 📍 Ancienne: (${finalX}, ${finalY})`);
+      console.warn(`[BASESCENE:${this.scene.key}] 📍 Nouvelle: (${correctedPosition.x}, ${correctedPosition.y})`);
+      
+      finalX = correctedPosition.x;
+      finalY = correctedPosition.y;
     }
-    else if (initData?.serverResult?.position) {
-      finalX = initData.serverResult.position.x;
-      finalY = initData.serverResult.position.y;
-      console.log(`[BASESCENE:${this.scene.key}] 📍 Position depuis serverResult: (${finalX}, ${finalY})`);
-    }
-    else {
-      const defaultPos = this.getDefaultSpawnPosition();
-      finalX = defaultPos.x;
-      finalY = defaultPos.y;
-      console.log(`[BASESCENE:${this.scene.key}] 📍 Position par défaut: (${finalX}, ${finalY})`);
-    }
-    console.log(`[BASESCENE:${this.scene.key}] 🎯 POSITION FINALE: (${finalX}, ${finalY})`);
-    player.x = finalX;
-    player.y = finalY;
-    player.targetX = finalX;
-    player.targetY = finalY;
-    player.setVisible(true);
-    player.setActive(true);
-    player.setDepth(5);
-    if (player.indicator) {
-      player.indicator.x = finalX;
-      player.indicator.y = finalY - 32;
-      player.indicator.setVisible(true);
-    }
+  }
+  
+  console.log(`[BASESCENE:${this.scene.key}] 🎯 POSITION FINALE: (${finalX}, ${finalY})`);
+  
+  player.x = finalX;
+  player.y = finalY;
+  player.targetX = finalX;
+  player.targetY = finalY;
+  player.setVisible(true);
+  player.setActive(true);
+  player.setDepth(5);
+  
+  if (player.indicator) {
+    player.indicator.x = finalX;
+    player.indicator.y = finalY - 32;
+    player.indicator.setVisible(true);
+  }
+  
+  // ✅ DÉLAI AVANT ENVOI AU SERVEUR pour éviter conflicts
+  this.time.delayedCall(200, () => {
     if (this.networkManager?.isConnected) {
       console.log(`[BASESCENE:${this.scene.key}] 📤 Envoi position au serveur: (${finalX}, ${finalY})`);
       this.networkManager.sendMove(finalX, finalY, 'down', false);
     }
-    console.log(`[BASESCENE:${this.scene.key}] ✅ Joueur positionné à: (${finalX}, ${finalY})`);
-  }
-
+  });
+  
+  console.log(`[BASESCENE:${this.scene.key}] ✅ Joueur positionné à: (${finalX}, ${finalY})`);
+}
   handleTransitionData(sceneData) {
     console.log(`[BASESCENE:${this.scene.key}] 🔄 Gestion données transition:`, sceneData);
     if (sceneData.isRollback && sceneData.restorePlayerState && this.playerManager) {
