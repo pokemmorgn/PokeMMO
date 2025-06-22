@@ -418,7 +418,7 @@ handleMyPlayerFromState() {
       console.warn(`[${this.scene.key}] ⚠️ playerState introuvable pour ${this.mySessionId}`);
     }
   }
-}
+ });
 
   // ✅ Maintenant que le joueur est là, on poursuit
   if (myPlayer && !this.myPlayerReady) {
