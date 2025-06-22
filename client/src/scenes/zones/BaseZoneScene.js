@@ -434,7 +434,18 @@ redirectToCorrectScene(correctScene, serverData) {
         this.playerManager.snapMyPlayerTo(data.x, data.y);
       }
     });
-
+this.networkManager.onMessage("forcePlayerPosition", (data) => {
+  const myPlayer = this.playerManager?.getMyPlayer();
+  if (myPlayer) {
+    myPlayer.x = data.x;
+    myPlayer.y = data.y;
+    myPlayer.direction = data.direction;
+    if (typeof myPlayer.setPosition === "function") myPlayer.setPosition(data.x, data.y);
+    if (this.cameraManager?.snapToPlayer) this.cameraManager.snapToPlayer();
+    // Optionnel : animation rollback/notification ici
+  }
+  console.log(`[forcePlayerPosition] Correction instantanée à (${data.x}, ${data.y})`);
+});
     this.networkManager.onDisconnect(() => {
       this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nDisconnected from WorldRoom`);
     });
