@@ -99,11 +99,44 @@ export class PlayerManager {
     this._pendingSessionId = null;
   }
 
-  getMyPlayer() {
-    if (this.isDestroyed) {
-      console.warn("[PlayerManager] getMyPlayer: MANAGER DETRUIT");
-      return null;
+getMyPlayer() {
+  if (this.isDestroyed) {
+    console.warn("[PlayerManager] getMyPlayer: MANAGER DETRUIT");
+    return null;
+  }
+  
+  // ✅ AMÉLIORATION 2: Vérifier d'abord le sessionId en attente
+  const sessionIdToCheck = this._pendingSessionId || this.mySessionId;
+  const player = this.players.get(sessionIdToCheck) || null;
+
+  // ✅ DEBUG PLUS DÉTAILLÉ
+  if (player) {
+    console.log(`✅ [PlayerManager] Joueur trouvé:`, {
+      sessionId: player.sessionId,
+      x: player.x,
+      y: player.y,
+      visible: player.visible,
+      active: player.active,
+      hasIndicator: !!player.indicator,
+      hasBody: !!player.body
+    });
+    
+    // Reset le warning
+    if (this._hasWarnedMissingPlayer) {
+      this._hasWarnedMissingPlayer = false;
+      console.log("[PlayerManager] ✅ Joueur retrouvé!");
     }
+  } else {
+    if (!this._hasWarnedMissingPlayer) {
+      this._hasWarnedMissingPlayer = true;
+      console.warn("[PlayerManager] getMyPlayer: Aucun joueur trouvé pour sessionId", sessionIdToCheck);
+      console.warn("Sessions disponibles:", Array.from(this.players.keys()));
+      this.debugPlayerState();
+    }
+  }
+
+  return player;
+}
 
       // ✅ DEBUG DÉTAILLÉ
   console.log(`🔍 [PlayerManager] getMyPlayer debug:`);
