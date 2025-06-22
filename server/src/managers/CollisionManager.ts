@@ -17,7 +17,7 @@ loadCollisionsFromMap(mapPath: string) {
   let fileName = mapPath.endsWith('.tmj') ? mapPath : mapPath.replace(/\.[^.]+$/, '') + '.tmj';
 
   // Force le dossier build/assets/maps/ même si l’argument n’est pas bon
-  const resolvedPath = path.resolve(__dirname, "../../../build/assets/maps", fileName);
+  const resolvedPath = path.resolve(__dirname, "../../build/assets/maps", fileName);
 
   if (!fs.existsSync(resolvedPath)) {
     throw new Error(`CollisionManager: Le fichier map n'existe pas : ${resolvedPath}`);
