@@ -1,5 +1,5 @@
-// src/game/PlayerManager.js - VERSION CORRIGÉE POUR WORLDROOM
-// ✅ Corrections pour la synchronisation et les transitions de zones
+// src/game/PlayerManager.js - VERSION CORRIGÉE POUR TRANSITIONS
+// ✅ Corrections pour la synchronisation et la visibilité des autres joueurs après transition
 
 export class PlayerManager {
   constructor(scene) {
@@ -16,6 +16,11 @@ export class PlayerManager {
     this._pendingSessionId = null;
     this._isResynchronizing = false;
     this._lastStateUpdate = 0;
+    
+    // ✅ NOUVEAU: Gestion de zone pour filtrage
+    this.currentZone = null;
+    this._zoneConfirmed = false;
+    this._lastZoneUpdate = 0;
     
     console.log("%c[PlayerManager] Initialisé pour", "color:orange", scene.scene.key);
 
@@ -52,6 +57,95 @@ export class PlayerManager {
     this._myPlayerIsReady = false;
   }
 
+  // ✅ NOUVELLE MÉTHODE: Synchronisation de zone
+  setCurrentZone(zone) {
+    const oldZone = this.currentZone;
+    this.currentZone = zone;
+    this._zoneConfirmed = true;
+    this._lastZoneUpdate = Date.now();
+    
+    console.log(`[PlayerManager] 🌍 Zone mise à jour: ${oldZone} → ${zone}`);
+    
+    // ✅ FORCER un refresh des joueurs visibles après changement de zone
+    this.time.delayedCall(100, () => {
+      this.refreshPlayersVisibility();
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Actualiser la visibilité de tous les joueurs
+  refreshPlayersVisibility() {
+    console.log(`[PlayerManager] 🔄 Refresh visibilité joueurs pour zone: ${this.currentZone}`);
+    
+    let visibleCount = 0;
+    let hiddenCount = 0;
+    
+    this.players.forEach((player, sessionId) => {
+      // Toujours garder notre joueur visible
+      if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+        if (!player.visible) {
+          player.setVisible(true);
+          player.setActive(true);
+          console.log(`[PlayerManager] ✅ Mon joueur restauré: ${sessionId}`);
+        }
+        visibleCount++;
+        return;
+      }
+      
+      // ✅ VÉRIFIER SI LE JOUEUR DOIT ÊTRE VISIBLE DANS CETTE ZONE
+      const shouldBeVisible = this.shouldPlayerBeVisibleInCurrentZone(player, sessionId);
+      
+      if (shouldBeVisible && !player.visible) {
+        player.setVisible(true);
+        player.setActive(true);
+        visibleCount++;
+        console.log(`[PlayerManager] 👀 Joueur ${sessionId} rendu visible`);
+      } else if (!shouldBeVisible && player.visible) {
+        player.setVisible(false);
+        player.setActive(false);
+        hiddenCount++;
+        console.log(`[PlayerManager] 👻 Joueur ${sessionId} masqué (hors zone)`);
+      } else if (shouldBeVisible) {
+        visibleCount++;
+      } else {
+        hiddenCount++;
+      }
+    });
+    
+    console.log(`[PlayerManager] 📊 Visibilité: ${visibleCount} visibles, ${hiddenCount} masqués`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Vérifier si un joueur doit être visible dans la zone actuelle
+  shouldPlayerBeVisibleInCurrentZone(player, sessionId) {
+    // Notre joueur est toujours visible
+    if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+      return true;
+    }
+    
+    // Si pas de zone confirmée, afficher par défaut
+    if (!this._zoneConfirmed || !this.currentZone) {
+      return true;
+    }
+    
+    // ✅ VÉRIFIER LA ZONE DU JOUEUR via le networkManager
+    if (this.scene.networkManager?.room?.state?.players) {
+      const playerState = this.scene.networkManager.room.state.players.get(sessionId);
+      if (playerState && playerState.currentZone) {
+        const inSameZone = playerState.currentZone === this.currentZone;
+        console.log(`[PlayerManager] 🔍 Joueur ${sessionId}: zone="${playerState.currentZone}" vs actuelle="${this.currentZone}" → ${inSameZone ? 'VISIBLE' : 'MASQUÉ'}`);
+        return inSameZone;
+      }
+    }
+    
+    // Si pas d'info de zone sur le joueur, le masquer par sécurité après transition
+    if (this._lastZoneUpdate && (Date.now() - this._lastZoneUpdate) < 5000) {
+      console.log(`[PlayerManager] 🔍 Joueur ${sessionId}: pas d'info zone récente, masqué temporairement`);
+      return false;
+    }
+    
+    // Par défaut après délai, afficher
+    return true;
+  }
+
   // ✅ NOUVELLE MÉTHODE: Migration intelligente entre sessions
   migratePlayerSession(oldSessionId, newSessionId) {
     console.log(`[PlayerManager] 🔄 Migration du joueur: ${oldSessionId} → ${newSessionId}`);
@@ -85,47 +179,40 @@ export class PlayerManager {
       console.log(`[PlayerManager] ✅ Joueur migré avec succès`);
     }
     
-    // Nettoyer les autres joueurs obsolètes (de l'ancienne room)
-    const playersToClean = Array.from(this.players.keys()).filter(id => 
-      id !== newSessionId && id !== oldSessionId
-    );
-    
-    if (playersToClean.length > 0) {
-      console.log(`[PlayerManager] 🗑️ Nettoyage de ${playersToClean.length} joueurs obsolètes`);
-      playersToClean.forEach(id => this.removePlayer(id));
-    }
+    // ✅ NE PAS nettoyer les autres joueurs automatiquement - laisser le serveur décider
+    console.log(`[PlayerManager] ℹ️ Conservation des autres joueurs pour vérification serveur`);
     
     this.mySessionId = newSessionId;
     this._pendingSessionId = null;
   }
 
   // ✅ MÉTHODE CORRIGÉE ET NETTOYÉE
-getMyPlayer() {
-  if (this.isDestroyed) {
-    console.warn("[PlayerManager] getMyPlayer: MANAGER DETRUIT");
-    return null;
-  }
-  
-  const sessionIdToCheck = this._pendingSessionId || this.mySessionId;
-  const player = this.players.get(sessionIdToCheck) || null;
-
-  if (!player) {
-    if (!this._hasWarnedMissingPlayer) {
-      this._hasWarnedMissingPlayer = true;
-      console.warn("[PlayerManager] getMyPlayer: Aucun joueur trouvé pour sessionId", sessionIdToCheck);
-      console.warn("Sessions disponibles:", Array.from(this.players.keys()));
-      this.debugPlayerState();
+  getMyPlayer() {
+    if (this.isDestroyed) {
+      console.warn("[PlayerManager] getMyPlayer: MANAGER DETRUIT");
+      return null;
     }
-  } else {
-    // Reset le warning seulement
-    if (this._hasWarnedMissingPlayer) {
-      this._hasWarnedMissingPlayer = false;
-      console.log("[PlayerManager] ✅ Joueur retrouvé!");
-    }
-  }
+    
+    const sessionIdToCheck = this._pendingSessionId || this.mySessionId;
+    const player = this.players.get(sessionIdToCheck) || null;
 
-  return player;
-}
+    if (!player) {
+      if (!this._hasWarnedMissingPlayer) {
+        this._hasWarnedMissingPlayer = true;
+        console.warn("[PlayerManager] getMyPlayer: Aucun joueur trouvé pour sessionId", sessionIdToCheck);
+        console.warn("Sessions disponibles:", Array.from(this.players.keys()));
+        this.debugPlayerState();
+      }
+    } else {
+      // Reset le warning seulement
+      if (this._hasWarnedMissingPlayer) {
+        this._hasWarnedMissingPlayer = false;
+        console.log("[PlayerManager] ✅ Joueur retrouvé!");
+      }
+    }
+
+    return player;
+  }
 
   debugPlayerState() {
     console.log("%c[PlayerManager] 🔍 DEBUG État des joueurs:", "color:red; font-weight:bold");
@@ -133,6 +220,8 @@ getMyPlayer() {
     console.log("- _pendingSessionId:", this._pendingSessionId);
     console.log("- players.size:", this.players.size);
     console.log("- sessionIds disponibles:", Array.from(this.players.keys()));
+    console.log("- currentZone:", this.currentZone);
+    console.log("- _zoneConfirmed:", this._zoneConfirmed);
     
     if (this.scene.networkManager) {
       console.log("- networkManager.sessionId:", this.scene.networkManager.getSessionId());
@@ -141,7 +230,8 @@ getMyPlayer() {
     }
     
     this.players.forEach((player, sessionId) => {
-      console.log(`- Joueur ${sessionId}:`, {
+      const isMyPlayer = sessionId === this.mySessionId || sessionId === this._pendingSessionId;
+      console.log(`- Joueur ${sessionId}${isMyPlayer ? ' (MOI)' : ''}:`, {
         x: player.x,
         y: player.y,
         visible: player.visible,
@@ -196,12 +286,20 @@ getMyPlayer() {
     player.targetX = x;
     player.targetY = y;
     player.snapLerpTimer = 0;
-    player.setVisible(true);
-    player.setActive(true);
 
-    // ✅ AMÉLIORATION 4: Indicateur local optimisé
-    if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+    // ✅ VISIBILITÉ INITIALE basée sur la zone
+    const isMyPlayer = sessionId === this.mySessionId || sessionId === this._pendingSessionId;
+    if (isMyPlayer) {
+      player.setVisible(true);
+      player.setActive(true);
       this.createLocalPlayerIndicator(player);
+    } else {
+      // ✅ Pour les autres joueurs, vérifier s'ils doivent être visibles
+      const shouldBeVisible = this.shouldPlayerBeVisibleInCurrentZone(player, sessionId);
+      player.setVisible(shouldBeVisible);
+      player.setActive(shouldBeVisible);
+      
+      console.log(`[PlayerManager] 👀 Joueur ${sessionId} créé avec visibilité: ${shouldBeVisible}`);
     }
 
     this.players.set(sessionId, player);
@@ -217,11 +315,17 @@ getMyPlayer() {
     player.targetX = x;
     player.targetY = y;
     
-    // Restaurer la visibilité si nécessaire
-    if (!player.visible) {
+    // ✅ VÉRIFIER LA VISIBILITÉ SELON LA ZONE ACTUELLE
+    const shouldBeVisible = this.shouldPlayerBeVisibleInCurrentZone(player, player.sessionId);
+    
+    if (shouldBeVisible && !player.visible) {
       console.log("[PlayerManager] 🔧 Restauration visibilité joueur existant");
       player.setVisible(true);
       player.setActive(true);
+    } else if (!shouldBeVisible && player.visible) {
+      console.log("[PlayerManager] 👻 Masquage joueur hors zone");
+      player.setVisible(false);
+      player.setActive(false);
     }
     
     // Vérifier l'indicateur pour le joueur local
@@ -243,6 +347,11 @@ getMyPlayer() {
     player.sessionId = sessionId;
     player.targetX = x;
     player.targetY = y;
+    
+    // ✅ Visibilité selon zone
+    const shouldBeVisible = this.shouldPlayerBeVisibleInCurrentZone(player, sessionId);
+    player.setVisible(shouldBeVisible);
+    player.setActive(shouldBeVisible);
     
     this.players.set(sessionId, player);
     console.log("[PlayerManager] Placeholder créé pour", sessionId);
@@ -282,18 +391,42 @@ getMyPlayer() {
       return;
     }
     
-    // ✅ CORRECTION CRITIQUE: Ne plus bloquer pendant les transitions
-    // Le joueur doit pouvoir apparaître même pendant une transition
-    if (this.scene.networkManager && this.scene.networkManager.isTransitionActive) {
-      console.log("[PlayerManager] updatePlayers: Transition en cours, mais traitement autorisé");
-      // On continue quand même pour permettre l'apparition du joueur
-    }
-
     // ✅ AMÉLIORATION 5: Synchronisation sessionId améliorée
     this.synchronizeSessionId();
     
     this._lastStateUpdate = Date.now();
     this.performUpdate(state);
+    
+    // ✅ NOUVEAU: Après chaque update, vérifier la visibilité si on a une zone confirmée
+    if (this._zoneConfirmed && this.currentZone) {
+      this.ensurePlayersVisibilityCorrect();
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: S'assurer que la visibilité est correcte
+  ensurePlayersVisibilityCorrect() {
+    // Throttle cette vérification
+    if (!this._lastVisibilityCheck || (Date.now() - this._lastVisibilityCheck) > 1000) {
+      this._lastVisibilityCheck = Date.now();
+      
+      let correctionsMade = false;
+      
+      this.players.forEach((player, sessionId) => {
+        const shouldBeVisible = this.shouldPlayerBeVisibleInCurrentZone(player, sessionId);
+        
+        if (shouldBeVisible !== player.visible) {
+          player.setVisible(shouldBeVisible);
+          player.setActive(shouldBeVisible);
+          correctionsMade = true;
+          
+          console.log(`[PlayerManager] 🔧 Correction visibilité ${sessionId}: ${shouldBeVisible}`);
+        }
+      });
+      
+      if (correctionsMade) {
+        console.log(`[PlayerManager] ✅ Corrections de visibilité appliquées`);
+      }
+    }
   }
 
   // ✅ NOUVELLE MÉTHODE: Synchronisation intelligente du sessionId
@@ -353,22 +486,10 @@ getMyPlayer() {
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour ou création de joueur
   updateOrCreatePlayer(sessionId, playerState) {
-    // ✅ FILTRE PAR ZONE AMÉLIORÉ
-    const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
-    
     let player = this.players.get(sessionId);
     
-    if (!shouldShowPlayer) {
-      // Si le joueur ne devrait pas être affiché et qu'il existe, le cacher ou le supprimer
-      if (player && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
-        console.log(`[PlayerManager] 👻 Masquage joueur hors zone: ${sessionId}`);
-        this.removePlayer(sessionId);
-      }
-      return;
-    }
-
     if (!player) {
-      // Créer le joueur s'il n'existe pas
+      // ✅ CRÉER NOUVEAU JOUEUR avec visibilité basée sur la zone
       player = this.createPlayer(sessionId, playerState.x, playerState.y);
       if (!player) return;
     } else {
@@ -382,27 +503,11 @@ getMyPlayer() {
     }
 
     // Mettre à jour les données du joueur
-    this.updatePlayerFromState(player, playerState);
+    this.updatePlayerFromState(player, playerState, sessionId);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Déterminer si un joueur doit être affiché
-  shouldDisplayPlayer(sessionId, playerState) {
-    // Toujours afficher notre propre joueur
-    if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
-      return true;
-    }
-    
-    // Pour les autres joueurs, vérifier la zone
-    if (playerState.currentZone && this.scene.zoneName) {
-      return playerState.currentZone === this.scene.zoneName;
-    }
-    
-    // Si pas d'info de zone, afficher par défaut
-    return true;
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Mise à jour des données du joueur depuis le state
-  updatePlayerFromState(player, playerState) {
+  // ✅ MÉTHODE MODIFIÉE: Mise à jour des données du joueur depuis le state
+  updatePlayerFromState(player, playerState, sessionId) {
     // Position cible
     player.targetX = playerState.x;
     player.targetY = playerState.y;
@@ -411,15 +516,23 @@ getMyPlayer() {
     if (playerState.isMoving !== undefined) player.isMoving = playerState.isMoving;
     if (playerState.direction) player.lastDirection = playerState.direction;
 
-    // Restaurer la visibilité si nécessaire
-    if (!player.visible) {
-      console.warn(`[PlayerManager] 🔧 Restauration visibilité: ${player.sessionId}`);
+    // ✅ VÉRIFIER VISIBILITÉ SELON LA ZONE
+    const shouldBeVisible = this.shouldPlayerBeVisibleInCurrentZone(player, sessionId);
+    
+    if (shouldBeVisible && !player.visible) {
+      console.log(`[PlayerManager] 🔧 Restauration visibilité: ${sessionId}`);
       player.setVisible(true);
       player.setActive(true);
+    } else if (!shouldBeVisible && player.visible && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
+      console.log(`[PlayerManager] 👻 Masquage joueur hors zone: ${sessionId}`);
+      player.setVisible(false);
+      player.setActive(false);
     }
 
-    // Animations
-    this.updatePlayerAnimation(player);
+    // Animations seulement si visible
+    if (player.visible) {
+      this.updatePlayerAnimation(player);
+    }
   }
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour des animations
@@ -463,8 +576,10 @@ getMyPlayer() {
         player.indicator.y = player.y - 24;
       }
 
-      // Interpolation de position
-      this.updatePlayerPosition(player, sessionId, delta);
+      // Interpolation de position seulement si visible
+      if (player.visible) {
+        this.updatePlayerPosition(player, sessionId, delta);
+      }
     }
   }
 
@@ -540,17 +655,21 @@ getMyPlayer() {
     
     const savedSessionId = this.mySessionId;
     const savedPendingSessionId = this._pendingSessionId;
+    const savedZone = this.currentZone;
+    const savedZoneConfirmed = this._zoneConfirmed;
     
     Array.from(this.players.keys()).forEach(sessionId => this.removePlayer(sessionId));
     this.players.clear();
     
-    // Restaurer les IDs de session
+    // Restaurer les IDs de session et zone
     this.mySessionId = savedSessionId;
     this._pendingSessionId = savedPendingSessionId;
+    this.currentZone = savedZone;
+    this._zoneConfirmed = savedZoneConfirmed;
     this._myPlayerIsReady = false;
     this._isResynchronizing = false;
     
-    console.log(`[PlayerManager] ✅ Nettoyage terminé, sessionId conservé: ${this.mySessionId}`);
+    console.log(`[PlayerManager] ✅ Nettoyage terminé, données conservées: sessionId=${this.mySessionId}, zone=${this.currentZone}`);
   }
 
   // ✅ NOUVELLE MÉTHODE: Forcer la resynchronisation
@@ -567,9 +686,21 @@ getMyPlayer() {
         console.log(`[PlayerManager] 🔄 Correction sessionId: ${this.mySessionId} → ${networkSessionId}`);
         this.setMySessionId(networkSessionId);
       }
+      
+      // ✅ SYNCHRONISER LA ZONE AVEC LE NETWORKMANAGER
+      const networkZone = this.scene.networkManager.getCurrentZone();
+      if (networkZone && networkZone !== this.currentZone) {
+        console.log(`[PlayerManager] 🔄 Correction zone: ${this.currentZone} → ${networkZone}`);
+        this.setCurrentZone(networkZone);
+      }
     }
     
     this.debugPlayerState();
+    
+    // ✅ FORCER UN REFRESH DE VISIBILITÉ APRÈS RESYNC
+    this.time.delayedCall(200, () => {
+      this.refreshPlayersVisibility();
+    });
   }
 
   // Méthodes existantes conservées
@@ -617,7 +748,9 @@ getMyPlayer() {
         y: player.y,
         isMyPlayer: sessionId === this.mySessionId || sessionId === this._pendingSessionId,
         direction: player.lastDirection,
-        isMoving: player.isMoving
+        isMoving: player.isMoving,
+        visible: player.visible,
+        zone: this.currentZone
       };
     }
     return null;
@@ -658,6 +791,111 @@ getMyPlayer() {
       this._myPlayerIsReady = true;
       callback(this.players.get(effectiveSessionId));
     }
+  }
+
+  // ✅ NOUVELLES MÉTHODES UTILITAIRES POUR LA ZONE
+
+  getCurrentZone() {
+    return this.currentZone;
+  }
+
+  isZoneConfirmed() {
+    return this._zoneConfirmed;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Forcer l'affichage de tous les joueurs (debug)
+  forceShowAllPlayers() {
+    console.log("[PlayerManager] 🔧 FORCE: Affichage de tous les joueurs");
+    
+    this.players.forEach((player, sessionId) => {
+      if (!player.visible) {
+        player.setVisible(true);
+        player.setActive(true);
+        console.log(`[PlayerManager] 👀 Joueur ${sessionId} forcé visible`);
+      }
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Masquer les joueurs hors zone (debug)
+  hidePlayersOutsideZone() {
+    console.log("[PlayerManager] 👻 FORCE: Masquage joueurs hors zone");
+    
+    this.players.forEach((player, sessionId) => {
+      const shouldBeVisible = this.shouldPlayerBeVisibleInCurrentZone(player, sessionId);
+      
+      if (!shouldBeVisible && player.visible) {
+        player.setVisible(false);
+        player.setActive(false);
+        console.log(`[PlayerManager] 👻 Joueur ${sessionId} forcé masqué`);
+      }
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Debug de la visibilité
+  debugVisibility() {
+    console.log(`[PlayerManager] 🔍 === DEBUG VISIBILITÉ ===`);
+    console.log(`Zone actuelle: ${this.currentZone}`);
+    console.log(`Zone confirmée: ${this._zoneConfirmed}`);
+    
+    this.players.forEach((player, sessionId) => {
+      const isMyPlayer = sessionId === this.mySessionId || sessionId === this._pendingSessionId;
+      const shouldBeVisible = this.shouldPlayerBeVisibleInCurrentZone(player, sessionId);
+      
+      console.log(`Joueur ${sessionId}${isMyPlayer ? ' (MOI)' : ''}:`, {
+        visible: player.visible,
+        shouldBeVisible: shouldBeVisible,
+        correct: player.visible === shouldBeVisible
+      });
+      
+      // Obtenir la zone du joueur depuis le serveur
+      if (this.scene.networkManager?.room?.state?.players) {
+        const playerState = this.scene.networkManager.room.state.players.get(sessionId);
+        if (playerState) {
+          console.log(`  Zone serveur: ${playerState.currentZone}`);
+        }
+      }
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Statistiques de zone
+  getZoneStats() {
+    const stats = {
+      currentZone: this.currentZone,
+      confirmed: this._zoneConfirmed,
+      totalPlayers: this.players.size,
+      visiblePlayers: 0,
+      hiddenPlayers: 0,
+      myPlayer: null,
+      playersByZone: {}
+    };
+    
+    this.players.forEach((player, sessionId) => {
+      const isMyPlayer = sessionId === this.mySessionId || sessionId === this._pendingSessionId;
+      
+      if (player.visible) {
+        stats.visiblePlayers++;
+      } else {
+        stats.hiddenPlayers++;
+      }
+      
+      if (isMyPlayer) {
+        stats.myPlayer = sessionId;
+      }
+      
+      // Obtenir la zone du joueur
+      if (this.scene.networkManager?.room?.state?.players) {
+        const playerState = this.scene.networkManager.room.state.players.get(sessionId);
+        if (playerState && playerState.currentZone) {
+          const zone = playerState.currentZone;
+          if (!stats.playersByZone[zone]) {
+            stats.playersByZone[zone] = [];
+          }
+          stats.playersByZone[zone].push(sessionId);
+        }
+      }
+    });
+    
+    return stats;
   }
 
   destroy() {
