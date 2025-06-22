@@ -327,20 +327,28 @@ export class GlobalTransitionManager {
     this.currentScene.networkManager.room.send("validateTransition", request);
   }
 
-  // ✅ LISTENER RÉPONSE SERVEUR
+  // ✅ LISTENER RÉPONSE SERVEUR AVEC DEBUG DÉTAILLÉ
   setupTransitionListener() {
     console.log(`👂 [GlobalTransitionManager] Setup listener...`);
 
     this.transitionResponseHandler = (result) => {
       console.log(`📨 [GlobalTransitionManager] === RÉPONSE SERVEUR ===`);
+      console.log(`📊 Résultat reçu:`, result);
+      console.log(`✅ Succès: ${result?.success}`);
+      console.log(`🎯 Zone résultante: ${result?.currentZone}`);
+      console.log(`📍 Position: ${result?.position ? `(${result.position.x}, ${result.position.y})` : 'undefined'}`);
+      console.log(`❌ Erreur: ${result?.reason}`);
       
       this.clearTransitionTimeout();
       this.currentScene.networkManager.onTransitionValidation(null);
       
-      if (result.success) {
+      if (result?.success) {
         this.handleTransitionSuccess(result, this.currentTransitionData);
       } else {
-        this.handleTransitionError(result);
+        // ✅ AMÉLIORATION : Gestion d'erreur plus détaillée
+        const errorReason = result?.reason || "Erreur inconnue";
+        console.error(`❌ [GlobalTransitionManager] Erreur détaillée: "${errorReason}"`);
+        this.handleTransitionError({ reason: errorReason });
       }
     };
 
@@ -417,11 +425,19 @@ export class GlobalTransitionManager {
     }
   }
 
+  // ✅ ERREUR TRANSITION AVEC DEBUG
   handleTransitionError(result) {
-    console.error(`❌ [GlobalTransitionManager] Erreur:`, result.reason);
+    const reason = result?.reason || "Erreur inconnue";
+    console.error(`❌ [GlobalTransitionManager] === ERREUR TRANSITION ===`);
+    console.error(`📊 Données erreur complètes:`, result);
+    console.error(`📝 Raison: "${reason}"`);
+    
     this.hideLoadingOverlay();
-    this.showErrorPopup(result.reason);
+    this.showErrorPopup(reason);
     this.resetTransitionState();
+    
+    // ✅ NOUVEAU : Réactiver après erreur pour éviter les blocages
+    this.activateGracePeriod(1000); // 1 seconde de grâce après erreur
   }
 
   resetTransitionState() {
