@@ -10,12 +10,41 @@ export class LoaderScene extends Phaser.Scene {
     this.createLoadingBar();
 
     // ✅ Maps
-    this.load.tilemapTiledJSON('beach', 'assets/maps/beach.tmj');
-    this.load.tilemapTiledJSON('village', 'assets/maps/village.tmj');
-    this.load.tilemapTiledJSON('villagelab', 'assets/maps/villagelab.tmj');
-    this.load.tilemapTiledJSON('villagehouse1', 'assets/maps/villagehouse1.tmj');
-    this.load.tilemapTiledJSON('lavandia', 'assets/maps/lavandia.tmj');
-    this.load.tilemapTiledJSON('road1', 'assets/maps/road1.tmj');
+this.load.tilemapTiledJSON('beach', 'assets/maps/beach.tmj');
+
+this.load.tilemapTiledJSON('village', 'assets/maps/village.tmj');
+this.load.tilemapTiledJSON('villagelab', 'assets/maps/villagelab.tmj');
+this.load.tilemapTiledJSON('villagehouse1', 'assets/maps/villagehouse1.tmj');
+this.load.tilemapTiledJSON('villagehouse2', 'assets/maps/villagehouse2.tmj');
+this.load.tilemapTiledJSON('villageflorist', 'assets/maps/villageflorist.tmj');
+
+this.load.tilemapTiledJSON('road1', 'assets/maps/road1.tmj');
+this.load.tilemapTiledJSON('road1house', 'assets/maps/road1house.tmj');
+this.load.tilemapTiledJSON('road2', 'assets/maps/road2.tmj');
+this.load.tilemapTiledJSON('road3', 'assets/maps/road3.tmj');
+
+this.load.tilemapTiledJSON('lavandia', 'assets/maps/lavandia.tmj');
+this.load.tilemapTiledJSON('lavandiaanalysis', 'assets/maps/lavandiaanalysis.tmj');
+this.load.tilemapTiledJSON('lavandiabossroom', 'assets/maps/lavandiabossroom.tmj');
+this.load.tilemapTiledJSON('lavandiacelibtemple', 'assets/maps/lavandiacelibtemple.tmj');
+this.load.tilemapTiledJSON('lavandiaequipement', 'assets/maps/lavandiaequipement.tmj');
+this.load.tilemapTiledJSON('lavandiafurniture', 'assets/maps/lavandiafurniture.tmj');
+this.load.tilemapTiledJSON('lavandiahealingcenter', 'assets/maps/lavandiahealingcenter.tmj');
+this.load.tilemapTiledJSON('lavandiahouse1', 'assets/maps/lavandiahouse1.tmj');
+this.load.tilemapTiledJSON('lavandiahouse2', 'assets/maps/lavandiahouse2.tmj');
+this.load.tilemapTiledJSON('lavandiahouse3', 'assets/maps/lavandiahouse3.tmj');
+this.load.tilemapTiledJSON('lavandiahouse4', 'assets/maps/lavandiahouse4.tmj');
+this.load.tilemapTiledJSON('lavandiahouse5', 'assets/maps/lavandiahouse5.tmj');
+this.load.tilemapTiledJSON('lavandiahouse6', 'assets/maps/lavandiahouse6.tmj');
+this.load.tilemapTiledJSON('lavandiahouse7', 'assets/maps/lavandiahouse7.tmj');
+this.load.tilemapTiledJSON('lavandiahouse8', 'assets/maps/lavandiahouse8.tmj');
+this.load.tilemapTiledJSON('lavandiahouse9', 'assets/maps/lavandiahouse9.tmj');
+this.load.tilemapTiledJSON('lavandiaresearchlab', 'assets/maps/lavandiaresearchlab.tmj');
+this.load.tilemapTiledJSON('lavandiashop', 'assets/maps/lavandiashop.tmj');
+
+this.load.tilemapTiledJSON('nocthercave1', 'assets/maps/nocthercave1.tmj');
+this.load.tilemapTiledJSON('nocthercave2', 'assets/maps/nocthercave2.tmj');
+this.load.tilemapTiledJSON('nocthercave2bis', 'assets/maps/nocthercave2bis.tmj');
     // ✅ Tilesets
     this.load.image('Assets', 'assets/sprites/Assets.png');
     this.load.image('Greenroot', 'assets/sprites/Greenroot.png');
@@ -86,39 +115,124 @@ export class LoaderScene extends Phaser.Scene {
     }
 
     try {
-      const res = await fetch(`/api/playerData?username=${encodeURIComponent(identifier)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const lastMap = data.lastMap || 'Beach';
-        switch (lastMap.toLowerCase()) {
-          case 'beach':
-            this.scene.start('BeachScene');
-            break;
-          case 'village':
-            this.scene.start('VillageScene');
-            break;
-          case 'villagelab':
-            this.scene.start('VillageLabScene');
-            break;
-          case 'road1':
-            this.scene.start('Road1Scene');
-            break;
-            case 'villagehouse1':
-            this.scene.start('VillageHouse1Scene');
-            break;
-            case 'lavandia':
-            this.scene.start('LavandiaScene');
-            break;
-          default:
-            this.scene.start('BeachScene');
-        }
-      } else {
+  const res = await fetch(`/api/playerData?username=${encodeURIComponent(identifier)}`);
+  if (res.ok) {
+    const data = await res.json();
+    const lastMap = data.lastMap || 'Beach';
+    switch (lastMap.toLowerCase()) {
+      // Village
+      case 'village':
+        this.scene.start('VillageScene');
+        break;
+      case 'villagelab':
+        this.scene.start('VillageLabScene');
+        break;
+      case 'villagehouse1':
+        this.scene.start('VillageHouse1Scene');
+        break;
+      case 'villagehouse2':
+        this.scene.start('VillageHouse2Scene');
+        break;
+      case 'villageflorist':
+        this.scene.start('VillageFloristScene');
+        break;
+
+      // Beach
+      case 'beach':
         this.scene.start('BeachScene');
-      }
-    } catch (e) {
-      console.warn("Erreur API, démarrage BeachScene", e);
-      this.scene.start('BeachScene');
+        break;
+
+      // Road
+      case 'road1':
+        this.scene.start('Road1Scene');
+        break;
+      case 'road1house':
+        this.scene.start('Road1HouseScene');
+        break;
+      case 'road2':
+        this.scene.start('Road2Scene');
+        break;
+      case 'road3':
+        this.scene.start('Road3Scene');
+        break;
+
+      // Lavandia
+      case 'lavandia':
+        this.scene.start('LavandiaScene');
+        break;
+      case 'lavandiaanalysis':
+        this.scene.start('LavandiaAnalysisScene');
+        break;
+      case 'lavandiabossroom':
+        this.scene.start('LavandiaBossRoomScene');
+        break;
+      case 'lavandiacelibtemple':
+        this.scene.start('LavandiaCelibTempleScene');
+        break;
+      case 'lavandiaequipement':
+        this.scene.start('LavandiaEquipementScene');
+        break;
+      case 'lavandiafurniture':
+        this.scene.start('LavandiaFurnitureScene');
+        break;
+      case 'lavandiahealingcenter':
+        this.scene.start('LavandiaHealingCenterScene');
+        break;
+      case 'lavandiahouse1':
+        this.scene.start('LavandiaHouse1Scene');
+        break;
+      case 'lavandiahouse2':
+        this.scene.start('LavandiaHouse2Scene');
+        break;
+      case 'lavandiahouse3':
+        this.scene.start('LavandiaHouse3Scene');
+        break;
+      case 'lavandiahouse4':
+        this.scene.start('LavandiaHouse4Scene');
+        break;
+      case 'lavandiahouse5':
+        this.scene.start('LavandiaHouse5Scene');
+        break;
+      case 'lavandiahouse6':
+        this.scene.start('LavandiaHouse6Scene');
+        break;
+      case 'lavandiahouse7':
+        this.scene.start('LavandiaHouse7Scene');
+        break;
+      case 'lavandiahouse8':
+        this.scene.start('LavandiaHouse8Scene');
+        break;
+      case 'lavandiahouse9':
+        this.scene.start('LavandiaHouse9Scene');
+        break;
+      case 'lavandiaresearchlab':
+        this.scene.start('LavandiaResearchLabScene');
+        break;
+      case 'lavandiashop':
+        this.scene.start('LavandiaShopScene');
+        break;
+
+      // NoctherCave
+      case 'nocthercave1':
+        this.scene.start('NoctherCave1Scene');
+        break;
+      case 'nocthercave2':
+        this.scene.start('NoctherCave2Scene');
+        break;
+      case 'nocthercave2bis':
+        this.scene.start('NoctherCave2BisScene');
+        break;
+
+      default:
+        this.scene.start('BeachScene');
     }
+  } else {
+    this.scene.start('BeachScene');
+  }
+} catch (e) {
+  console.warn("Erreur API, démarrage BeachScene", e);
+  this.scene.start('BeachScene');
+}
   }
 
   createLoadingBar() {
