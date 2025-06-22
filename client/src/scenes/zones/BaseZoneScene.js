@@ -63,6 +63,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.createPlayerAnimations();
     this.setupManagers();
     this.initPlayerSpawnFromSceneData();
+this.justArrivedAtZone = true;
+this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
 
     this.loadMap();
     this.setupInputs();
