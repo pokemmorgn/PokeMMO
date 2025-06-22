@@ -38,7 +38,7 @@ export class GlobalTransitionManager {
     console.log(`🌍 [GlobalTransitionManager] Créé - Instance globale unique`);
   }
 
-  // ✅ ATTACHEMENT AVEC PROTECTION SPAWN ET DEBUG
+  // ✅ ATTACHEMENT AVEC PROTECTION SPAWN ET RESET TRANSITION
   attachToScene(scene) {
     console.log(`🔗 [GlobalTransitionManager] === ATTACHEMENT À SCÈNE ===`);
     console.log(`📍 Scène: ${scene.scene.key}`);
@@ -50,6 +50,14 @@ export class GlobalTransitionManager {
     }
     
     this.currentScene = scene;
+    
+    // ✅ RESET CRITIQUE : Arrêter toute transition en cours lors de l'attachement
+    if (this.isTransitioning) {
+      console.log(`🔄 [GlobalTransitionManager] RESET transition lors attachement nouvelle scène`);
+      this.isTransitioning = false;
+      this.hideLoadingOverlay();
+      this.clearTransitionTimeout();
+    }
     
     // ✅ Obtenir la zone depuis plusieurs sources
     const sceneZone = this.getZoneFromScene(scene.scene.key);
@@ -557,7 +565,7 @@ export class GlobalTransitionManager {
     this.currentScene.networkManager.onTransitionValidation(this.transitionResponseHandler);
   }
 
-  // ✅ SUCCÈS TRANSITION AVEC PROTECTIONS RENFORCÉES
+  // ✅ SUCCÈS TRANSITION AVEC PROTECTIONS RENFORCÉES ET RESET IMMÉDIAT
   handleTransitionSuccess(result, teleportData) {
     console.log(`✅ [GlobalTransitionManager] === TRANSITION VALIDÉE ===`);
     console.log(`⏰ Timestamp: ${new Date().toLocaleTimeString()}`);
@@ -570,6 +578,10 @@ export class GlobalTransitionManager {
       this.handleTransitionError({ reason: `Zone inconnue: ${targetZone}` });
       return;
     }
+
+    // ✅ RESET IMMÉDIAT DE L'ÉTAT TRANSITION - CRITIQUE!
+    this.isTransitioning = false;
+    console.log(`🔄 [GlobalTransitionManager] isTransitioning = false (IMMÉDIAT)`);
 
     // ✅ PROTECTIONS GLOBALES RENFORCÉES
     this.activateGracePeriod();
