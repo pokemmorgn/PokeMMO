@@ -644,6 +644,29 @@ export class NetworkManager {
     }
   }
 
+  // Ajoute ça à la fin de NetworkManager
+restoreCustomCallbacks() {
+  if (!this.room) return;
+  if (this.callbacks.onTransitionSuccess)
+    this.onTransitionSuccess(this.callbacks.onTransitionSuccess);
+  if (this.callbacks.onTransitionError)
+    this.onTransitionError(this.callbacks.onTransitionError);
+  if (this.callbacks.onNpcList)
+    this.onNpcList(this.callbacks.onNpcList);
+  if (this.callbacks.onTransitionValidation)
+    this.onTransitionValidation(this.callbacks.onTransitionValidation);
+  if (this.callbacks.onZoneData)
+    this.onZoneData(this.callbacks.onZoneData);
+  if (this.callbacks.onSnap)
+    this.onSnap(this.callbacks.onSnap);
+  if (this.callbacks.onNpcInteraction)
+    this.onNpcInteraction(this.callbacks.onNpcInteraction);
+  if (this.callbacks.onCurrentZone)
+    this.onCurrentZone(this.callbacks.onCurrentZone);
+  // Ajoute ici tout autre callback important...
+}
+
+  
   debugState() {
     console.log(`[NetworkManager] 🔍 === ÉTAT DEBUG WORLDROOM ===`);
     console.log(`👤 Username: ${this.username}`);
