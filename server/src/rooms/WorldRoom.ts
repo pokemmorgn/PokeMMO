@@ -1,4 +1,4 @@
-// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC CORRECTIONS QUÊTES
+// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC CORRECTIONS PREMIER JOUEUR
 import { Room, Client } from "@colyseus/core";
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { ZoneManager } from "../managers/ZoneManager";
@@ -6,7 +6,6 @@ import { NpcManager } from "../managers/NPCManager";
 import { InventoryManager } from "../managers/InventoryManager"; 
 import { getItemData, getItemPocket } from "../utils/ItemDB";
 import { TransitionService, TransitionRequest } from "../services/TransitionService";
-
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
@@ -46,6 +45,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.initializeNpcManagers();
     this.transitionService = new TransitionService(this.npcManagers);
     console.log(`✅ TransitionService initialisé`);
+    
     // Messages handlers
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
@@ -208,132 +208,131 @@ export class WorldRoom extends Room<PokeWorldState> {
     // === HANDLERS EXISTANTS ===
     
     // Mouvement du joueur
-   // Mouvement du joueur
-  this.onMessage("playerMove", (client, data) => {
-    this.handlePlayerMove(client, data);
-  });
+    this.onMessage("playerMove", (client, data) => {
+      this.handlePlayerMove(client, data);
+    });
 
-  // ✅ HANDLER MANQUANT - Transition entre zones (ancien système)
-  this.onMessage("moveToZone", async (client, data) => {
-    console.log(`🌀 === MOVE TO ZONE REQUEST (ANCIEN SYSTÈME) ===`);
-    console.log(`👤 Client: ${client.sessionId}`);
-    console.log(`📍 Data:`, data);
-    
-    // Déléguer au ZoneManager
-    await this.zoneManager.handleZoneTransition(client, data);
-  });
-
-  // ✅ VALIDATION de transition (nouveau système sécurisé)
-  this.onMessage("validateTransition", async (client, data: TransitionRequest) => {
-    console.log(`🔍 === VALIDATION TRANSITION REQUEST ===`);
-    console.log(`👤 From: ${client.sessionId}`);
-    console.log(`📍 Data:`, data);
-    
-    const player = this.state.players.get(client.sessionId);
-    if (!player) {
-      client.send("transitionResult", {
-        success: false,
-        reason: "Joueur non trouvé",
-        rollback: true
-      });
-      return;
-    }
-
-    try {
-      const result = await this.transitionService.validateTransition(client, player, data);
+    // ✅ HANDLER MANQUANT - Transition entre zones (ancien système)
+    this.onMessage("moveToZone", async (client, data) => {
+      console.log(`🌀 === MOVE TO ZONE REQUEST (ANCIEN SYSTÈME) ===`);
+      console.log(`👤 Client: ${client.sessionId}`);
+      console.log(`📍 Data:`, data);
       
-      if (result.success) {
-        // Mettre à jour la position du joueur sur le serveur
-        if (result.position) {
-          const oldZone = player.currentZone;
-          player.currentZone = result.currentZone!;
-          player.x = result.position.x;
-          player.y = result.position.y;
-          console.log(`🔧 [WorldRoom] IMMÉDIATEMENT APRÈS UPDATE:`);
-console.log(`  - player.currentZone: ${player.currentZone}`);
-console.log(`  - result.currentZone: ${result.currentZone}`);
-console.log(`  - player position: (${player.x}, ${player.y})`);
-          console.log(`✅ Transition validée: ${player.name} ${oldZone} → ${player.currentZone}`);
-          
-          // Notifier le changement de zone
-          this.onPlayerJoinZone(client, player.currentZone);
-          this.scheduleFilteredStateUpdate();
-        }
+      // Déléguer au ZoneManager
+      await this.zoneManager.handleZoneTransition(client, data);
+    });
+
+    // ✅ VALIDATION de transition (nouveau système sécurisé)
+    this.onMessage("validateTransition", async (client, data: TransitionRequest) => {
+      console.log(`🔍 === VALIDATION TRANSITION REQUEST ===`);
+      console.log(`👤 From: ${client.sessionId}`);
+      console.log(`📍 Data:`, data);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("transitionResult", {
+          success: false,
+          reason: "Joueur non trouvé",
+          rollback: true
+        });
+        return;
       }
-      
-      client.send("transitionResult", result);
-      
-    } catch (error) {
-      console.error(`❌ Erreur validation transition:`, error);
-      client.send("transitionResult", {
-        success: false,
-        reason: "Erreur serveur lors de la validation",
-        rollback: true
-      });
-    }
-  });
+
+      try {
+        const result = await this.transitionService.validateTransition(client, player, data);
+        
+        if (result.success) {
+          // Mettre à jour la position du joueur sur le serveur
+          if (result.position) {
+            const oldZone = player.currentZone;
+            player.currentZone = result.currentZone!;
+            player.x = result.position.x;
+            player.y = result.position.y;
+            console.log(`🔧 [WorldRoom] IMMÉDIATEMENT APRÈS UPDATE:`);
+            console.log(`  - player.currentZone: ${player.currentZone}`);
+            console.log(`  - result.currentZone: ${result.currentZone}`);
+            console.log(`  - player position: (${player.x}, ${player.y})`);
+            console.log(`✅ Transition validée: ${player.name} ${oldZone} → ${player.currentZone}`);
+            
+            // Notifier le changement de zone
+            this.onPlayerJoinZone(client, player.currentZone);
+            this.scheduleFilteredStateUpdate();
+          }
+        }
+        
+        client.send("transitionResult", result);
+        
+      } catch (error) {
+        console.error(`❌ Erreur validation transition:`, error);
+        client.send("transitionResult", {
+          success: false,
+          reason: "Erreur serveur lors de la validation",
+          rollback: true
+        });
+      }
+    });
 
     // ✅ NOUVEAU HANDLER : Répondre aux demandes de zone
-  this.onMessage("requestCurrentZone", (client, data) => {
-    console.log(`📍 [WorldRoom] === DEMANDE ZONE ACTUELLE ===`);
-    console.log(`👤 Client: ${client.sessionId}`);
-    console.log(`📊 Data:`, data);
-    
-    const player = this.state.players.get(client.sessionId);
-    if (!player) {
-      console.error(`❌ [WorldRoom] Joueur introuvable: ${client.sessionId}`);
-      client.send("currentZone", {
-        zone: "beach", // Zone par défaut
-        x: 52,
-        y: 48,
-        error: "Joueur non trouvé, zone par défaut",
-        sceneKey: data.sceneKey,
-        timestamp: Date.now()
-      });
-      return;
-    }
-    
-    // ✅ ENVOYER LA VÉRITÉ DU SERVEUR
-    const response = {
-      zone: player.currentZone,
-      x: player.x,
-      y: player.y,
-      timestamp: Date.now(),
-      sceneKey: data.sceneKey
-    };
-    
-    console.log(`📤 [WorldRoom] === ENVOI ZONE OFFICIELLE ===`);
-    console.log(`🎯 Zone serveur: ${response.zone}`);
-    console.log(`📍 Position: (${response.x}, ${response.y})`);
-    console.log(`📺 Scène demandée: ${response.sceneKey}`);
-    
-    client.send("currentZone", response);
-  });
-    
-  // ✅ HANDLER MANQUANT - Notification de changement de zone
-  this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
-    console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
-    console.log(`👤 Client: ${client.sessionId}`);
-    console.log(`📍 Nouvelle zone: ${data.newZone} à (${data.x}, ${data.y})`);
-    
-    const player = this.state.players.get(client.sessionId);
-    if (player) {
-      const oldZone = player.currentZone;
+    this.onMessage("requestCurrentZone", (client, data) => {
+      console.log(`📍 [WorldRoom] === DEMANDE ZONE ACTUELLE ===`);
+      console.log(`👤 Client: ${client.sessionId}`);
+      console.log(`📊 Data:`, data);
       
-      // Mettre à jour la zone et position du joueur
-      player.currentZone = data.newZone;
-      player.x = data.x;
-      player.y = data.y;
+      const player = this.state.players.get(client.sessionId);
+      if (!player) {
+        console.error(`❌ [WorldRoom] Joueur introuvable: ${client.sessionId}`);
+        client.send("currentZone", {
+          zone: "beach", // Zone par défaut
+          x: 52,
+          y: 48,
+          error: "Joueur non trouvé, zone par défaut",
+          sceneKey: data.sceneKey,
+          timestamp: Date.now()
+        });
+        return;
+      }
       
-      console.log(`✅ ${player.name}: ${oldZone} → ${data.newZone}`);
+      // ✅ ENVOYER LA VÉRITÉ DU SERVEUR
+      const response = {
+        zone: player.currentZone,
+        x: player.x,
+        y: player.y,
+        timestamp: Date.now(),
+        sceneKey: data.sceneKey
+      };
       
-      // Envoyer les NPCs de la nouvelle zone
-      this.onPlayerJoinZone(client, data.newZone);
+      console.log(`📤 [WorldRoom] === ENVOI ZONE OFFICIELLE ===`);
+      console.log(`🎯 Zone serveur: ${response.zone}`);
+      console.log(`📍 Position: (${response.x}, ${response.y})`);
+      console.log(`📺 Scène demandée: ${response.sceneKey}`);
       
-      // Déclencher une mise à jour du state filtré
-      this.scheduleFilteredStateUpdate();
-    }
-  });
+      client.send("currentZone", response);
+    });
+    
+    // ✅ HANDLER MANQUANT - Notification de changement de zone
+    this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
+      console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
+      console.log(`👤 Client: ${client.sessionId}`);
+      console.log(`📍 Nouvelle zone: ${data.newZone} à (${data.x}, ${data.y})`);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (player) {
+        const oldZone = player.currentZone;
+        
+        // Mettre à jour la zone et position du joueur
+        player.currentZone = data.newZone;
+        player.x = data.x;
+        player.y = data.y;
+        
+        console.log(`✅ ${player.name}: ${oldZone} → ${data.newZone}`);
+        
+        // Envoyer les NPCs de la nouvelle zone
+        this.onPlayerJoinZone(client, data.newZone);
+        
+        // Déclencher une mise à jour du state filtré
+        this.scheduleFilteredStateUpdate();
+      }
+    });
 
     // Interaction avec NPC
     this.onMessage("npcInteract", (client, data) => {
@@ -341,44 +340,70 @@ console.log(`  - player position: (${player.x}, ${player.y})`);
       this.zoneManager.handleNpcInteraction(client, data.npcId);
     });
 
-    // ✅ AJOUTER CE HANDLER
-this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
-  console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
-  console.log(`👤 Client: ${client.sessionId}`);
-  console.log(`📍 Nouvelle zone: ${data.newZone} à (${data.x}, ${data.y})`);
-  
-  const player = this.state.players.get(client.sessionId);
-  if (player) {
-    const oldZone = player.currentZone;
-    
-    // Mettre à jour la zone et position du joueur
-    player.currentZone = data.newZone;
-    player.x = data.x;
-    player.y = data.y;
-    
-    console.log(`✅ ${player.name}: ${oldZone} → ${data.newZone}`);
-    
-    // Envoyer les NPCs de la nouvelle zone
-    this.onPlayerJoinZone(client, data.newZone);
-    
-    // Déclencher une mise à jour du state filtré
-    this.scheduleFilteredStateUpdate();
-  }
-});
-
     this.onMessage("requestInitialState", (client, data: { zone: string }) => {
-  console.log(`📡 [WorldRoom] Demande état initial de ${client.sessionId} pour zone: ${data.zone}`);
-  
-  // Envoyer immédiatement l'état filtré pour cette zone
-  const player = this.state.players.get(client.sessionId);
-  if (player && player.currentZone === data.zone) {
-    const filteredState = this.getFilteredStateForClient(client);
-    if (filteredState) {
-      client.send("filteredState", filteredState);
-      console.log(`✅ [WorldRoom] État initial envoyé à ${client.sessionId}`);
-    }
-  }
-});
+      console.log(`📡 [WorldRoom] Demande état initial de ${client.sessionId} pour zone: ${data.zone}`);
+      
+      // Envoyer immédiatement l'état filtré pour cette zone
+      const player = this.state.players.get(client.sessionId);
+      if (player && player.currentZone === data.zone) {
+        const filteredState = this.getFilteredStateForClient(client);
+        if (filteredState) {
+          client.send("filteredState", filteredState);
+          console.log(`✅ [WorldRoom] État initial envoyé à ${client.sessionId}`);
+        }
+      }
+    });
+
+    // ✅ === NOUVEAUX HANDLERS POUR PREMIER JOUEUR ===
+
+    // ✅ NOUVEAU: Demande de resynchronisation forcée
+    this.onMessage("requestPlayerState", (client) => {
+      console.log(`🔄 [WorldRoom] Demande de resync de ${client.sessionId}`);
+      
+      const player = this.state.players.get(client.sessionId);
+      if (player) {
+        // Renvoyer les données du joueur
+        client.send("playerStateResponse", {
+          id: client.sessionId,
+          name: player.name,
+          x: player.x,
+          y: player.y,
+          currentZone: player.currentZone,
+          level: player.level,
+          gold: player.gold,
+          isMyPlayer: true,
+          exists: true
+        });
+        
+        // Et renvoyer le state complet
+        const filteredState = this.getFilteredStateForClient(client);
+        client.send("forcedStateSync", {
+          players: filteredState.players,
+          mySessionId: client.sessionId,
+          timestamp: Date.now()
+        });
+        
+        console.log(`✅ [WorldRoom] Resync envoyé à ${client.sessionId}`);
+      } else {
+        client.send("playerStateResponse", {
+          exists: false,
+          error: "Joueur non trouvé dans le state"
+        });
+      }
+    });
+
+    // ✅ NOUVEAU: Handler pour vérification de présence
+    this.onMessage("checkMyPresence", (client) => {
+      const exists = this.state.players.has(client.sessionId);
+      client.send("presenceCheck", {
+        exists: exists,
+        sessionId: client.sessionId,
+        totalPlayers: this.state.players.size
+      });
+      
+      console.log(`👻 [WorldRoom] Vérification présence ${client.sessionId}: ${exists}`);
+    });
+    
     // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
 
     // Démarrage de quête
@@ -892,6 +917,7 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
     console.log(`📤 [WorldRoom] Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
   }
 
+  // ✅ === MÉTHODE CORRIGÉE POUR PREMIER JOUEUR ===
   async onJoin(client: Client, options: any = {}) {
     console.log(`👤 === PLAYER JOIN ===`);
     console.log(`🔑 Session: ${client.sessionId}`);
@@ -911,19 +937,57 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
       player.currentZone = options.spawnZone || "beach";
       console.log(`🌍 Zone de spawn: ${player.currentZone}`);
       
-      // Compatibilité avec l'ancien système
-      player.map = player.currentZone;
-    // ✅ NOUVELLES PROPRIÉTÉS SHOP
+      
+      // ✅ NOUVELLES PROPRIÉTÉS SHOP
       player.level = options.level || 1;
       player.gold = options.gold || 1000;
       player.experience = options.experience || 0;
       player.title = options.title || "Dresseur Débutant";
-      // Ajouter au state
+      
+      // ✅ ÉTAPE 1: Ajouter au state IMMÉDIATEMENT
       this.state.players.set(client.sessionId, player);
+      console.log("🧪 onJoin - client.sessionId =", client.sessionId);
+      console.log(`✅ Joueur ${player.name} ajouté au state`);
+      console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
+
+      // ✅ ÉTAPE 2: CONFIRMER IMMÉDIATEMENT au client avec ses données
+      client.send("playerSpawned", {
+        id: client.sessionId,
+        name: player.name,
+        x: player.x,
+        y: player.y,
+        currentZone: player.currentZone,
+        level: player.level,
+        gold: player.gold,
+        // ✅ IMPORTANT: Flag que c'est son propre joueur
+        isMyPlayer: true,
+        totalPlayersInRoom: this.state.players.size
+      });
       
       console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
       console.log(`💰 Level: ${player.level}, Gold: ${player.gold}`);
-      console.log(`✅ Joueur ${player.name} créé`);
+      console.log(`✅ Joueur ${player.name} créé et confirmé`);
+
+      // ✅ ÉTAPE 3: FORCER une synchronisation du state après un très court délai
+      this.clock.setTimeout(() => {
+        console.log(`🔄 [WorldRoom] Force sync state pour ${client.sessionId}`);
+        
+        // Vérifier que le joueur est toujours dans le state
+        const playerInState = this.state.players.get(client.sessionId);
+        if (playerInState) {
+          // Envoyer un state complet et filtré
+          const filteredState = this.getFilteredStateForClient(client);
+          client.send("forcedStateSync", {
+            players: filteredState.players,
+            mySessionId: client.sessionId,
+            timestamp: Date.now()
+          });
+          
+          console.log(`✅ [WorldRoom] État forcé envoyé à ${client.sessionId}`);
+        } else {
+          console.error(`❌ [WorldRoom] Joueur ${client.sessionId} disparu du state !`);
+        }
+      }, 200); // 200ms de délai
 
       // === CONFIGURATION INVENTAIRE DE DÉPART ===
       try {
@@ -948,12 +1012,11 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
         console.error(`❌ [INVENTAIRE] Erreur lors de l'ajout d'objets de départ pour ${player.name}:`, err);
       }
       
-      // Faire entrer le joueur dans sa zone initiale
+      // ✅ ÉTAPE 4: Faire entrer le joueur dans sa zone initiale
       await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
       this.scheduleFilteredStateUpdate();
 
-      
-      // ✅ CORRECTION: Utiliser la nouvelle méthode avec délai
+      // ✅ ÉTAPE 5: Setup des quêtes avec délai
       this.clock.setTimeout(async () => {
         await this.updateQuestStatusesFixed(player.name, client);
       }, 2000);
@@ -975,7 +1038,7 @@ this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, 
 
     const player = this.state.players.get(client.sessionId);
     if (player) {
-console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
       console.log(`💰 Stats finales: Level ${player.level}, ${player.gold} gold`);
       
       // Supprimer du state
@@ -1275,7 +1338,7 @@ console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.curr
     console.log(`📤 States filtrés envoyés à ${this.clients.length} clients`);
   }
 
-private scheduleFilteredStateUpdate() {
+  private scheduleFilteredStateUpdate() {
     // Programmer une mise à jour dans 50ms (pour regrouper les changements)
     this.clock.setTimeout(() => {
       this.sendFilteredState();
