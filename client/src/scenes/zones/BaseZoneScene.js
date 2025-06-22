@@ -56,7 +56,7 @@ console.log(
     this.setupInputs();
     this.createUI();
     this.setupManagers();
-    this.initializeGlobalTransitions();
+   // this.initializeGlobalTransitions();
     this.initializeNetworking();
     this.isSceneReady = true;
     this.setupCleanupHandlers();
@@ -737,13 +737,13 @@ if (this.map) {
 
   // === UPDATE ===
   update() {
-    // Update du GlobalTransitionManager
-    if (this.globalTransitionManager) {
-      const myPlayer = this.playerManager?.getMyPlayer();
-      if (myPlayer) {
-        this.globalTransitionManager.checkCollisions(myPlayer);
-      }
-    }
+  // Update du GlobalTransitionManager
+  // if (this.globalTransitionManager) {     // ← Commente ces lignes
+  //   const myPlayer = this.playerManager?.getMyPlayer();
+  //   if (myPlayer) {
+  //     this.globalTransitionManager.checkCollisions(myPlayer);
+  //   }
+  // }
     // Vérification périodique de l'état du joueur
     if (this.time.now % 2000 < 16) {
       this.checkPlayerHealth();
