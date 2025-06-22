@@ -341,72 +341,197 @@ export class ShopSystem {
     return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   }
 
-  // ✅ SETUP DES RACCOURCIS CLAVIER
+  // ✅ SETUP DES RACCOURCIS CLAVIER - MODIFIÉ POUR LA TOUCHE L
   setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-      // Ne pas traiter les raccourcis si on ne peut pas interagir
-      if (!this.canPlayerInteract() && !this.isShopOpen()) return;
-
-      switch (e.key.toLowerCase()) {
-        case 's':
-          // Ouvrir/fermer le shop (si près d'un marchand)
-          if (!this.isShopOpen()) {
-            this.tryOpenNearbyShop();
-          } else {
-            this.closeShop();
-          }
-          e.preventDefault();
-          break;
-          
-        case 'escape':
-          // Fermer le shop si ouvert
-          if (this.isShopOpen()) {
-            this.closeShop();
-            e.preventDefault();
-          }
-          break;
+      // ✅ CONDITION RESTRICTIVE : Ne capturer L que dans des conditions très spécifiques
+      
+      // Si le shop est ouvert, traiter les raccourcis du shop
+      if (this.isShopOpen()) {
+        this.handleShopKeyboardShortcuts(e);
+        return;
       }
-    });
-
-    // Raccourcis quand le shop est ouvert
-    document.addEventListener('keydown', (e) => {
-      if (this.isShopOpen() && this.shopUI) {
-        const handled = this.shopUI.handleKeyPress(e.key);
-        if (handled) {
+      
+      // ✅ Pour ouvrir le shop avec L, il faut que TOUTES ces conditions soient vraies :
+      // 1. Le joueur ne bouge PAS (aucune touche de mouvement pressée)
+      // 2. Aucune autre interface n'est ouverte
+      // 3. Le joueur est stationnaire depuis au moins 500ms
+      // 4. Il y a un marchand à proximité
+      
+      if (e.key.toLowerCase() === 'l') {
+        // Vérifier si c'est un raccourci shop valide
+        if (this.shouldHandleShopShortcut()) {
+          this.tryOpenNearbyShop();
           e.preventDefault();
+          e.stopPropagation();
         }
-        
-        // Raccourcis supplémentaires
-        switch (e.key.toLowerCase()) {
-          case 'arrowup':
-          case 'arrowdown':
-            if (this.shopUI.navigateItems) {
-              this.shopUI.navigateItems(e.key === 'ArrowDown' ? 'next' : 'prev');
-              e.preventDefault();
-            }
-            break;
-            
-          case 'h':
-            // Afficher l'historique
-            this.showTransactionHistory();
-            e.preventDefault();
-            break;
-            
-          case 'p':
-            // Afficher les promotions
-            this.checkForPromotions();
-            e.preventDefault();
-            break;
-        }
+        // Sinon, laisser passer la touche L normalement
       }
     });
   }
 
-  // ✅ ESSAYER D'OUVRIR UN SHOP À PROXIMITÉ
+  // ✅ Nouvelle méthode pour déterminer si on doit traiter le raccourci shop
+  shouldHandleShopShortcut() {
+    // 1. Vérifier qu'aucune interface n'est ouverte
+    if (!this.canPlayerInteract()) {
+      return false;
+    }
+    
+    // 2. Vérifier qu'aucune touche de mouvement n'est pressée
+    if (this.areMovementKeysPressed()) {
+      return false;
+    }
+    
+    // 3. Vérifier que le joueur est près d'un marchand
+    if (!this.isNearMerchant()) {
+      return false;
+    }
+    
+    // 4. Vérifier un délai depuis le dernier mouvement (optionnel)
+    const timeSinceLastMovement = Date.now() - (window.lastMovementTime || 0);
+    if (timeSinceLastMovement < 300) { // 300ms de délai
+      return false;
+    }
+    
+    return true;
+  }
+
+  // ✅ Vérifier si des touches de mouvement sont pressées
+  areMovementKeysPressed() {
+    // Accéder au système de contrôles si disponible
+    if (window.gameControls && window.gameControls.pressedKeys) {
+      const movementKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'];
+      return movementKeys.some(key => window.gameControls.pressedKeys.has(key.toLowerCase()));
+    }
+    
+    // Fallback : vérifier directement
+    if (this.scene && this.scene.input && this.scene.input.keyboard) {
+      const cursors = this.scene.input.keyboard.cursors;
+      const wasd = this.scene.input.keyboard.addKeys('W,S,A,D');
+      
+      return (
+        cursors.left.isDown || cursors.right.isDown || 
+        cursors.up.isDown || cursors.down.isDown ||
+        wasd.W.isDown || wasd.A.isDown || wasd.S.isDown || wasd.D.isDown
+      );
+    }
+    
+    return false;
+  }
+
+  // ✅ Vérifier si le joueur est près d'un marchand
+  isNearMerchant() {
+    if (!this.scene || !this.scene.playerManager || !this.scene.npcManager) {
+      return false;
+    }
+
+    const myPlayer = this.scene.playerManager.getMyPlayer();
+    if (!myPlayer) return false;
+
+    // Chercher un NPC marchand à proximité (distance plus courte)
+    const nearbyNpc = this.scene.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 48); // 48px au lieu de 64
+    
+    if (!nearbyNpc) return false;
+    
+    // Vérifier si c'est un marchand
+    return !!(
+      nearbyNpc.properties?.npcType === 'merchant' ||
+      nearbyNpc.properties?.shopId ||
+      nearbyNpc.properties?.shop
+    );
+  }
+
+  // ✅ Gérer les raccourcis quand le shop est ouvert
+  handleShopKeyboardShortcuts(e) {
+    if (!this.shopUI) return;
+    
+    const handled = this.shopUI.handleKeyPress(e.key);
+    if (handled) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    
+    // Raccourcis supplémentaires
+    switch (e.key.toLowerCase()) {
+      case 'escape':
+        this.closeShop();
+        e.preventDefault();
+        e.stopPropagation();
+        break;
+        
+      case 'l':
+        // Fermer le shop avec L aussi
+        this.closeShop();
+        e.preventDefault();
+        e.stopPropagation();
+        break;
+        
+      case 'arrowup':
+      case 'arrowdown':
+        if (this.shopUI.navigateItems) {
+          this.shopUI.navigateItems(e.key === 'ArrowDown' ? 'next' : 'prev');
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        break;
+        
+      case 'h':
+        this.showTransactionHistory();
+        e.preventDefault();
+        e.stopPropagation();
+        break;
+        
+      case 'p':
+        this.checkForPromotions();
+        e.preventDefault();
+        e.stopPropagation();
+        break;
+    }
+  }
+
+  // ✅ Version améliorée de tryOpenNearbyShop
   tryOpenNearbyShop() {
     console.log("🏪 Recherche de marchand à proximité...");
     
-    this.showInfo("Approchez-vous d'un marchand et appuyez sur E pour interagir");
+    if (!this.scene || !this.scene.playerManager || !this.scene.npcManager) {
+      this.showInfo("Système de jeu non disponible");
+      return;
+    }
+
+    const myPlayer = this.scene.playerManager.getMyPlayer();
+    if (!myPlayer) {
+      this.showInfo("Joueur introuvable");
+      return;
+    }
+
+    // Chercher un NPC marchand à proximité
+    const nearbyNpc = this.scene.npcManager.getClosestNpc(myPlayer.x, myPlayer.y, 48);
+    
+    if (!nearbyNpc) {
+      this.showInfo("Aucun marchand à proximité - Approchez-vous et appuyez sur L");
+      return;
+    }
+    
+    // Vérifier si c'est un marchand
+    const isMerchant = !!(
+      nearbyNpc.properties?.npcType === 'merchant' ||
+      nearbyNpc.properties?.shopId ||
+      nearbyNpc.properties?.shop
+    );
+    
+    if (!isMerchant) {
+      this.showInfo("Ce NPC n'est pas un marchand");
+      return;
+    }
+    
+    // Déclencher l'interaction avec le marchand
+    console.log(`🏪 Ouverture shop via raccourci L avec NPC: ${nearbyNpc.name}`);
+    if (this.scene.networkManager) {
+      this.scene.networkManager.sendNpcInteract(nearbyNpc.id);
+    } else {
+      this.showError("Connexion réseau indisponible");
+    }
   }
 
   // ✅ INTÉGRATION AVEC LES AUTRES SYSTÈMES
