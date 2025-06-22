@@ -266,10 +266,16 @@ this.events.once('destroy', this.cleanup, this);
   }
 
   // ✅ MÉTHODE EXISTANTE: Redirection vers la bonne scène
-  redirectToCorrectScene(correctScene, serverData) {
-    console.log(`🚀 [${this.scene.key}] === REDIRECTION AUTOMATIQUE ===`);
-    console.log(`📍 Vers: ${correctScene}`);
-    
+redirectToCorrectScene(correctScene, serverData) {
+  console.log('=== REDIRECTION DEBUG ===');
+  console.log('FROM:', this.scene.key, 'TO:', correctScene);
+  console.log('serverData:', serverData);
+  this.scene.start(correctScene, transitionData);
+  setTimeout(() => {
+    console.log('APRES SCENE.START', this.scene.key);
+  }, 1000);
+}
+
     const transitionData = {
       fromZone: serverData.zone,
       fromTransition: true,
