@@ -273,76 +273,28 @@ getMyPlayer() {
   }
 
   updatePlayers(state) {
-  if (this.isDestroyed || !state || !state.players) {
-    return;
-  }
-  
-  if (!this.scene || !this.scene.scene.isActive()) {
-    console.warn("[PlayerManager] updatePlayers: SCENE INACTIVE");
-    return;
-  }
-  
-  // ✅ CORRECTION CRITIQUE: Ne plus bloquer pendant les transitions
-  if (this.scene.networkManager && this.scene.networkManager.isTransitionActive) {
-    console.log("[PlayerManager] updatePlayers: Transition en cours, mais traitement autorisé");
-  }
-
-  // ✅ AMÉLIORATION 5: Synchronisation sessionId améliorée
-  this.synchronizeSessionId();
-  
-  this._lastStateUpdate = Date.now();
-  
-  // ✅ NOUVELLE LOGIQUE: Gérer à la fois Map et Object
-  this.performUpdateWithFlexibleState(state);
-}
-// ✅ NOUVELLE MÉTHODE: Gestion flexible des types de state
-performUpdateWithFlexibleState(state) {
-  if (this.isDestroyed || !this.scene?.scene?.isActive()) {
-    return;
-  }
-
-  let playersData;
-  let currentSessionIds = new Set();
-
-  // ✅ DÉTECTER le type de données reçues
-  if (state.players instanceof Map) {
-    console.log("[PlayerManager] State reçu avec Map");
-    playersData = state.players;
-    currentSessionIds = new Set(state.players.keys());
-  } else if (typeof state.players === 'object' && state.players !== null) {
-    console.log("[PlayerManager] State reçu avec Object, conversion en Map");
-    playersData = new Map();
+    if (this.isDestroyed || !state || !state.players) {
+      return;
+    }
     
-    Object.entries(state.players).forEach(([sessionId, playerData]) => {
-      playersData.set(sessionId, playerData);
-      currentSessionIds.add(sessionId);
-    });
+    if (!this.scene || !this.scene.scene.isActive()) {
+      console.warn("[PlayerManager] updatePlayers: SCENE INACTIVE");
+      return;
+    }
     
-    console.log(`✅ [PlayerManager] ${playersData.size} joueurs convertis depuis Object`);
-  } else {
-    console.warn("[PlayerManager] ⚠️ Format de state.players non reconnu:", typeof state.players);
-    return;
+    // ✅ CORRECTION CRITIQUE: Ne plus bloquer pendant les transitions
+    // Le joueur doit pouvoir apparaître même pendant une transition
+    if (this.scene.networkManager && this.scene.networkManager.isTransitionActive) {
+      console.log("[PlayerManager] updatePlayers: Transition en cours, mais traitement autorisé");
+      // On continue quand même pour permettre l'apparition du joueur
+    }
+
+    // ✅ AMÉLIORATION 5: Synchronisation sessionId améliorée
+    this.synchronizeSessionId();
+    
+    this._lastStateUpdate = Date.now();
+    this.performUpdate(state);
   }
-
-  // Supprimer les joueurs déconnectés
-  const playersToRemove = Array.from(this.players.keys()).filter(sessionId => 
-    !currentSessionIds.has(sessionId)
-  );
-  
-  playersToRemove.forEach(sessionId => {
-    console.log("[PlayerManager] 🗑️ Suppression joueur déconnecté:", sessionId);
-    this.removePlayer(sessionId);
-  });
-
-  // Mettre à jour ou créer les joueurs
-  playersData.forEach((playerState, sessionId) => {
-    this.updateOrCreatePlayer(sessionId, playerState);
-  });
-
-  // ✅ AMÉLIORATION 6: Notification joueur local prêt avec vérifications multiples
-  this.checkMyPlayerReady();
-}
-
 
   // ✅ NOUVELLE MÉTHODE: Synchronisation intelligente du sessionId
   synchronizeSessionId() {
