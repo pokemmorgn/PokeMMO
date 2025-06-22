@@ -24,10 +24,10 @@ import { QuestSystem } from './game/QuestSystem.js';
 // === Import du système d'inventaire ===
 import { InventorySystem } from './game/InventorySystem.js';
 
-// === ✅ NOUVEAU: Import du système de notification centralisé ===
+// === Import du système de notification centralisé ===
 import { initializeGameNotifications, showNotificationInstructions } from './notification.js';
 
-// === ✅ NOUVEAU: Import du debug de notifications ===
+// === Import du debug de notifications ===
 import './debug-notifications.js';
 
 // --- Endpoint dynamique ---
@@ -37,11 +37,8 @@ const ENDPOINT =
   (location.port ? ":" + location.port : "") +
   "/ws";
 
-if (!window.colyseus) {
-  window.colyseus = new Client(ENDPOINT);
-}
-
-window.currentGameRoom = null; // tu la set après chaque join
+// 1. Instancie un client Colyseus
+const client = new Client(ENDPOINT);
 
 function getWalletFromUrl() {
   const params = new URLSearchParams(window.location.search);
@@ -56,13 +53,9 @@ if (!username) {
     throw new Error("Aucun pseudo fourni.");
   }
 }
-
 window.username = username;
 
-// Crée et expose le network manager unique pour tout le client
-window.globalNetworkManager = new NetworkManager(window.colyseus, window.username);
-
-// === CONFIG PHASER (ne pas lancer ici !)
+// === CONFIG PHASER (à lancer uniquement APRÈS connexion MMO) ===
 const config = {
   type: Phaser.AUTO,
   width: 800,
@@ -105,76 +98,19 @@ const config = {
 // === CSS pour le HUD de sélection de starter ===
 const starterHudCSS = `
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
-
-#starter-selection-hud {
-  font-family: 'Orbitron', 'Arial', sans-serif !important;
-  animation: fadeIn 0.5s ease-in-out;
-}
-
-#starter-selection-hud h1 {
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
-
-#starter-selection-hud img {
-  transition: transform 0.3s ease;
-}
-
-#starter-selection-hud img:hover {
-  transform: scale(1.1);
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.starter-card {
-  animation: slideUp 0.6s ease-out;
-}
-
+#starter-selection-hud { font-family: 'Orbitron', 'Arial', sans-serif !important; animation: fadeIn 0.5s ease-in-out; }
+#starter-selection-hud h1 { text-transform: uppercase; letter-spacing: 2px; }
+#starter-selection-hud img { transition: transform 0.3s ease; }
+#starter-selection-hud img:hover { transform: scale(1.1); }
+@keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+.starter-card { animation: slideUp 0.6s ease-out; }
 .starter-card:nth-child(1) { animation-delay: 0.1s; }
 .starter-card:nth-child(2) { animation-delay: 0.2s; }
 .starter-card:nth-child(3) { animation-delay: 0.3s; }
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.starter-success-message {
-  animation: bounceIn 0.8s ease-out;
-}
-
-@keyframes bounceIn {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.3);
-  }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.1);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
+@keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+.starter-success-message { animation: bounceIn 0.8s ease-out; }
+@keyframes bounceIn { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 `;
-
-// Injecter le CSS dans la page
 const styleSheet = document.createElement('style');
 styleSheet.textContent = starterHudCSS;
 document.head.appendChild(styleSheet);
@@ -185,349 +121,183 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
 // 🚨 NE PAS LANCER Phaser AVANT D’AVOIR UN NETWORK CONNECTÉ 🚨
 (async () => {
   try {
-    // ✅ ÉTAPE 1: Initialiser le système de notification AVANT tout le reste
+    // 1. Notifications
     const notificationSystem = initializeGameNotifications();
     console.log("✅ Système de notification initialisé");
 
-    // Connexion à la WorldChatRoom
-    const worldChat = await colyseus.joinOrCreate("worldchat", { username: window.username });
+    // 2. Connexion à la WorldRoom principale
+    console.log("🌐 Connexion à la WorldRoom...");
+    const gameRoom = await client.joinOrCreate("world", { username });
+    window.currentGameRoom = gameRoom; // Stocke la GameRoom globale
+    console.log("✅ Connecté à la WorldRoom", gameRoom.sessionId);
+
+    // 3. Connexion à la WorldChatRoom (optionnel, si tu veux du chat global)
+    const worldChat = await client.joinOrCreate("worldchat", { username });
     window.worldChat = worldChat;
     console.log("✅ Connecté à la WorldChatRoom");
 
-    // Initialise le chat stylé
+    // 4. Initialise le chat
     initPokeChat(worldChat, window.username);
 
-    // ✅ Connexion MMO principale AVANT Phaser
-    console.log("🌐 Connexion à la WorldRoom...");
-    const connected = await window.globalNetworkManager.connect("beach");
-    if (!connected) {
-      window.showGameAlert("Impossible de se connecter à la WorldRoom !");
-      throw new Error("Connexion WorldRoom échouée");
-    }
-    console.log("✅ Connecté à la WorldRoom");
+    // 5. NetworkManager (optionnel : tu peux aussi ne plus t’en servir)
+    window.globalNetworkManager = new NetworkManager(gameRoom, window.username);
 
-    // 4. Lancement de Phaser UNIQUEMENT après la connexion réussie
+    // 6. Lancement de Phaser APRES connexion réseau
     window.game = new Phaser.Game(config);
 
-    // Variables globales pour stocker les systèmes
+    // 7. Setup global pour tes systèmes
     window.starterHUD = null;
     window.questSystemGlobal = null;
     window.inventorySystemGlobal = null;
-    
-    // ✅ Fonction globale pour initialiser le système d'inventaire
+
+    // 8. Expose helpers initAllGameSystems & cie
     window.initInventorySystem = function(gameRoom) {
       if (!window.inventorySystemGlobal) {
-        console.log("🎒 Initialisation du système d'inventaire global");
         window.inventorySystemGlobal = new InventorySystem(null, gameRoom);
-        
         if (window.inventorySystemGlobal.inventoryUI) {
           window.inventorySystemGlobal.inventoryUI.currentLanguage = 'en';
-          console.log("🌐 Langue de l'inventaire définie sur: English");
         }
-        
         window.inventorySystem = window.inventorySystemGlobal;
         if (typeof window.connectInventoryToServer === 'function') {
           window.connectInventoryToServer(gameRoom);
         }
-        window.onSystemInitialized('inventory');
-        console.log("✅ Système d'inventaire initialisé");
+        window.onSystemInitialized && window.onSystemInitialized('inventory');
         return window.inventorySystemGlobal;
       }
       return window.inventorySystemGlobal;
     };
-    
     window.initStarterHUD = function(gameRoom) {
       if (!window.starterHUD) {
-        console.log("🎮 Initialisation du HUD de sélection de starter");
         window.starterHUD = new StarterSelectionHUD(gameRoom);
         gameRoom.onMessage("welcomeMessage", (data) => {
-          console.log("📨 Message de bienvenue:", data.message);
-          if (window.gameNotificationSystem) {
-            window.gameNotificationSystem.show(
-              data.message || "Bienvenue dans le jeu !",
-              'info',
-              {
-                duration: 5000,
-                position: 'top-center',
-                bounce: true
-              }
-            );
-          }
+          window.gameNotificationSystem?.show(
+            data.message || "Bienvenue dans le jeu !",
+            'info',
+            { duration: 5000, position: 'top-center', bounce: true }
+          );
         });
-        window.onSystemInitialized('starter');
+        window.onSystemInitialized && window.onSystemInitialized('starter');
         return window.starterHUD;
       }
       return window.starterHUD;
     };
-
     window.initQuestSystem = function(scene, gameRoom) {
       if (!window.questSystemGlobal) {
-        console.log("🎯 Initialisation du système de quêtes global");
         window.questSystemGlobal = new QuestSystem(scene, gameRoom);
-        window.onSystemInitialized('quests');
+        window.onSystemInitialized && window.onSystemInitialized('quests');
         return window.questSystemGlobal;
       }
       return window.questSystemGlobal;
     };
-
     window.initAllGameSystems = function(scene, gameRoom) {
-      console.log("🎮 Initialisation de tous les systèmes de jeu...");
       const inventory = window.initInventorySystem(gameRoom);
       const quests = window.initQuestSystem(scene, gameRoom);
       const starter = window.initStarterHUD(gameRoom);
       setTimeout(() => {
-        window.onSystemInitialized('all');
+        window.onSystemInitialized && window.onSystemInitialized('all');
       }, 1000);
-      console.log("✅ Tous les systèmes initialisés!");
-      return {
-        inventory: inventory,
-        quests: quests,
-        starter: starter
-      };
+      return { inventory, quests, starter };
     };
 
-    window.showStarterSelection = function() {
-      if (window.starterHUD) {
-        window.starterHUD.show();
-        window.showGameNotification("Sélection de starter disponible", "info", {
-          duration: 3000,
-          position: 'top-center'
-        });
-      } else {
-        console.warn("⚠️ HUD de starter non initialisé");
-        window.showGameAlert("HUD de starter non initialisé");
-      }
-    };
-
-    window.openQuestJournal = function() {
-      if (window.questSystemGlobal) {
-        window.questSystemGlobal.openQuestJournal();
-        window.showGameNotification("Journal des quêtes ouvert", "info", {
-          duration: 1500,
-          position: 'bottom-center'
-        });
-      } else {
-        console.warn("⚠️ Système de quêtes non initialisé");
-        window.showGameAlert("Système de quêtes non initialisé");
-      }
-    };
-
-    window.triggerQuestCollect = function(itemId, amount = 1) {
-      if (window.questSystemGlobal) {
-        window.questSystemGlobal.triggerCollectEvent(itemId, amount);
-      } else {
-        window.showGameNotification(`Objet collecté: ${itemId} x${amount}`, "inventory", {
-          duration: 2000
-        });
-      }
-    };
-
-    window.triggerQuestDefeat = function(pokemonId) {
-      if (window.questSystemGlobal) {
-        window.questSystemGlobal.triggerDefeatEvent(pokemonId);
-      } else {
-        window.onPlayerAction('battleWon', { pokemonId });
-      }
-    };
-
-    window.triggerQuestReach = function(zoneId, x, y, map) {
-      if (window.questSystemGlobal) {
-        window.questSystemGlobal.triggerReachEvent(zoneId, x, y, map);
-      } else {
-        window.onZoneEntered(zoneId);
-      }
-    };
-
-    window.triggerQuestDeliver = function(npcId, itemId) {
-      if (window.questSystemGlobal) {
-        window.questSystemGlobal.triggerDeliverEvent(npcId, itemId);
-      } else {
-        window.showGameNotification(`Objet livré: ${itemId}`, "success", {
-          duration: 3000
-        });
-      }
-    };
-
+    // === Fonctions d’accès rapide, notifications, tests etc ===
     window.openInventory = function() {
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.openInventory();
-        window.showGameNotification("Inventaire ouvert", "info", {
-          duration: 1500,
-          position: 'bottom-right'
-        });
+        window.showGameNotification("Inventaire ouvert", "info", { duration: 1500, position: 'bottom-right' });
       } else {
-        console.warn("⚠️ Système d'inventaire non initialisé");
-        window.showGameAlert("Système d'inventaire non initialisé");
+        window.showGameAlert?.("Système d'inventaire non initialisé");
       }
     };
-    
     window.toggleInventory = function() {
       if (window.inventorySystemGlobal) {
         const wasOpen = window.inventorySystemGlobal.isInventoryOpen();
         window.inventorySystemGlobal.toggleInventory();
         if (!wasOpen) {
-          window.showGameNotification("Inventaire ouvert", "info", {
-            duration: 1000,
-            position: 'bottom-right'
-          });
+          window.showGameNotification("Inventaire ouvert", "info", { duration: 1000, position: 'bottom-right' });
         }
-      } else if (typeof window.toggleInventoryStandalone === 'function') {
-        window.toggleInventoryStandalone();
       } else {
-        console.warn("⚠️ Aucun système d'inventaire disponible");
-        window.showGameAlert("Aucun système d'inventaire disponible");
+        window.showGameAlert?.("Aucun système d'inventaire disponible");
       }
     };
-    
-    window.addItemToPlayer = function(itemId, quantity = 1) {
-      if (window.inventorySystemGlobal) {
-        window.inventorySystemGlobal.onItemPickup(itemId, quantity);
+    window.openQuestJournal = function() {
+      if (window.questSystemGlobal) {
+        window.questSystemGlobal.openQuestJournal();
+        window.showGameNotification("Journal des quêtes ouvert", "info", { duration: 1500, position: 'bottom-center' });
       } else {
-        window.showGameNotification(`+${quantity} ${itemId}`, "inventory", {
-          duration: 3000,
-          position: 'bottom-right'
-        });
+        window.showGameAlert?.("Système de quêtes non initialisé");
       }
     };
-    
-    window.useItem = function(itemId) {
-      if (window.inventorySystemGlobal) {
-        window.inventorySystemGlobal.useItem(itemId);
-        window.showGameNotification(`Utilisation: ${itemId}`, "info", {
-          duration: 2000,
-          type: 'inventory'
-        });
+    window.showStarterSelection = function() {
+      if (window.starterHUD) {
+        window.starterHUD.show();
+        window.showGameNotification("Sélection de starter disponible", "info", { duration: 3000, position: 'top-center' });
       } else {
-        window.showGameAlert("Impossible d'utiliser l'objet");
+        window.showGameAlert?.("HUD de starter non initialisé");
       }
     };
-    
-    window.hasItem = function(itemId) {
-      if (window.inventorySystemGlobal) {
-        return window.inventorySystemGlobal.hasItem(itemId);
-      }
-      return false;
-    };
-
     window.testInventory = function() {
-      console.log("🧪 Test de l'inventaire...");
-      window.showGameNotification("Test de l'inventaire en cours...", "info", {
-        duration: 2000,
-        position: 'top-center'
-      });
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.toggleInventory();
         setTimeout(() => {
-          window.showGameNotification("Test d'inventaire réussi !", "success", {
-            duration: 2000,
-            position: 'top-center'
-          });
+          window.showGameNotification("Test d'inventaire réussi !", "success", { duration: 2000, position: 'top-center' });
         }, 500);
       } else {
-        window.showGameAlert("Système d'inventaire non initialisé");
+        window.showGameAlert?.("Système d'inventaire non initialisé");
       }
     };
+    // ...autres helpers selon tes besoins
 
-    window.testAddItem = function(itemId = 'poke_ball', quantity = 1) {
-      console.log(`🧪 Test ajout d'objet: ${itemId} x${quantity}`);
-      window.showGameNotification(`Test ajout: ${itemId} x${quantity}`, "info", {
-        duration: 2000,
-        position: 'bottom-center'
-      });
-      if (window.worldChat && window.worldChat.connection && window.worldChat.connection.isOpen) {
-        window.showGameAlert("Utilisez une GameRoom pour tester l'ajout d'objets");
-      } else {
-        window.showGameAlert("Pas de connexion serveur pour tester l'ajout d'objets");
-      }
-    };
-
+    // === Notification d’aide et ready ===
     showNotificationInstructions();
-    
     setTimeout(() => {
-      window.showGameNotification("Game system ready!", "success", {
-        duration: 3000,
-        position: 'top-center',
-        bounce: true
-      });
+      window.showGameNotification("Game system ready!", "success", { duration: 3000, position: 'top-center', bounce: true });
     }, 2000);
 
     console.log("🎯 Tous les systèmes initialisés !");
     console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
     console.log("🎒 Utilisez 'I' pour ouvrir l'inventaire en jeu");
     console.log("🎮 Utilisez window.initAllGameSystems(scene, gameRoom) dans vos scènes pour tout initialiser");
-
   } catch (e) {
     console.error("❌ Erreur d'initialisation:", e);
-    if (window.gameNotificationSystem) {
-      window.showGameAlert(`Erreur: ${e.message}`);
-    } else {
-      alert("Impossible de rejoindre le serveur : " + e.message);
-    }
+    window.showGameAlert?.(`Erreur: ${e.message}`) || alert("Impossible de rejoindre le serveur : " + e.message);
     throw e;
   }
 })();
 
 export default {}; // plus besoin d’exporter le game ici, il est sur window
 
-// === Les fonctions utilitaires (comme avant) ===
-
+// === Fonctions utilitaires exposées (raccourcis) ===
 window.isChatFocused = function() {
   return window.pokeChat ? window.pokeChat.hasFocus() : false;
 };
-
 window.isStarterHUDOpen = function() {
   return window.starterHUD ? window.starterHUD.isVisible : false;
 };
-
 window.isQuestJournalOpen = function() {
   return window.questSystemGlobal ? window.questSystemGlobal.isQuestJournalOpen() : false;
 };
-
 window.isInventoryOpen = function() {
-  if (window.inventorySystemGlobal) {
-    return window.inventorySystemGlobal.isInventoryOpen();
-  }
-  if (typeof window.isInventoryVisible === 'function') {
-    return window.isInventoryVisible();
-  }
+  if (window.inventorySystemGlobal) return window.inventorySystemGlobal.isInventoryOpen();
+  if (typeof window.isInventoryVisible === 'function') return window.isInventoryVisible();
   return false;
 };
-
 window.shouldBlockInput = function() {
-  return window.isChatFocused() || 
-         window.isStarterHUDOpen() || 
-         window.isQuestJournalOpen() ||
-         window.isInventoryOpen();
+  return window.isChatFocused() ||
+    window.isStarterHUDOpen() ||
+    window.isQuestJournalOpen() ||
+    window.isInventoryOpen();
 };
-
 window.canPlayerInteract = function() {
-  if (window.inventorySystemGlobal) {
-    return window.inventorySystemGlobal.canPlayerInteract();
-  }
-  if (window.questSystemGlobal) {
-    return window.questSystemGlobal.canPlayerInteract();
-  }
+  if (window.inventorySystemGlobal) return window.inventorySystemGlobal.canPlayerInteract();
+  if (window.questSystemGlobal) return window.questSystemGlobal.canPlayerInteract();
   return !window.shouldBlockInput();
 };
-
 window.getGameSystemsStatus = function() {
   const status = {
-    chat: {
-      initialized: !!window.pokeChat,
-      focused: window.isChatFocused()
-    },
-    inventory: {
-      initialized: !!window.inventorySystemGlobal,
-      open: window.isInventoryOpen()
-    },
-    quests: {
-      initialized: !!window.questSystemGlobal,
-      journalOpen: window.isQuestJournalOpen()
-    },
-    starter: {
-      initialized: !!window.starterHUD,
-      open: window.isStarterHUDOpen()
-    },
+    chat: { initialized: !!window.pokeChat, focused: window.isChatFocused() },
+    inventory: { initialized: !!window.inventorySystemGlobal, open: window.isInventoryOpen() },
+    quests: { initialized: !!window.questSystemGlobal, journalOpen: window.isQuestJournalOpen() },
+    starter: { initialized: !!window.starterHUD, open: window.isStarterHUDOpen() },
     notifications: {
       initialized: !!window.gameNotificationSystem,
       manager: window.NotificationManager ? 'Available' : 'Not Available',
@@ -538,32 +308,18 @@ window.getGameSystemsStatus = function() {
   };
   return status;
 };
-
 window.debugGameSystems = function() {
   const status = window.getGameSystemsStatus();
   console.log("🔍 État des systèmes de jeu:", status);
-  if (window.debugNotificationSystem) {
-    window.debugNotificationSystem();
-  }
+  window.debugNotificationSystem && window.debugNotificationSystem();
   return status;
 };
-
 window.quickTestNotifications = function() {
   console.log("🧪 Test rapide des notifications...");
-  if (window.testNotifications) {
-    window.testNotifications();
-  } else {
-    console.warn("⚠️ Système de notification non disponible");
-  }
+  window.testNotifications?.();
 };
-
 window.showGameHelp = function() {
-  if (window.gameNotificationSystem) {
-    window.showGameNotification("Aide affichée dans la console", "info", {
-      duration: 3000,
-      position: 'top-center'
-    });
-  }
+  window.showGameNotification?.("Aide affichée dans la console", "info", { duration: 3000, position: 'top-center' });
   console.log(`
 🎮 === AIDE DU JEU ===
 
@@ -592,7 +348,6 @@ window.showGameHelp = function() {
 ========================
   `);
 };
-
 console.log(`
 🎉 === POKÉMON MMO PRÊT ===
 Utilisez window.showGameHelp() pour l'aide complète
