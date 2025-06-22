@@ -1142,3 +1142,4 @@ export class BaseZoneScene extends Phaser.Scene {
       'LavandiaScene': 'lavandia'
     };
     return mapping[sceneName] || sceneName.
+      }
