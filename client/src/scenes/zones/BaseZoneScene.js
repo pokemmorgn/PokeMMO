@@ -384,13 +384,21 @@ export class BaseZoneScene extends Phaser.Scene {
       playerY: myPlayer.y
     });
     
-    // ✅ FORCER le suivi caméra
-    if (!this.cameraFollowing && this.cameraManager) {
-      console.log(`[${this.scene.key}] 🎥 FORCER suivi caméra depuis state`);
-      this.cameraManager.followPlayer(myPlayer);
-      this.cameraFollowing = true;
-      console.log(`[${this.scene.key}] 🎥 Caméra activée !`);
-    }
+// ✅ FORCER le suivi caméra ABSOLUMENT
+if (!this.cameraFollowing && this.cameraManager) {
+  console.log(`[${this.scene.key}] 🎥 FORCER suivi caméra depuis state`);
+  this.cameraManager.followPlayer(myPlayer);
+  this.cameraFollowing = true;
+  
+  // ✅ SNAP IMMÉDIAT de la caméra
+  this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
+  console.log(`[${this.scene.key}] 🎥 Caméra activée et centrée !`);
+} else if (this.cameraFollowing && this.cameraManager && this.cameraManager.target !== myPlayer) {
+  // ✅ CORRECTION: Si la caméra suit déjà mais pas le bon joueur
+  console.log(`[${this.scene.key}] 🔧 Correction cible caméra`);
+  this.cameraManager.followPlayer(myPlayer);
+  this.cameras.main.centerOn(myPlayer.x, myPlayer.y);
+}
       
       // ✅ S'assurer que le joueur est visible
       if (!myPlayer.visible) {
