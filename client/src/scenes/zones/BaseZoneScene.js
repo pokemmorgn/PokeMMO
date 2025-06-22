@@ -8,6 +8,8 @@ import { QuestSystem } from "../../game/QuestSystem.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
+import { DayNightManager } from '../../game/DayNightManager.js';
+
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -65,7 +67,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.loadMap();
     this.setupInputs();
     this.createUI();
-
+    this.dayNightManager = new DayNightManager(this);
     this.myPlayerReady = false;
     this.isSceneReady = true;
 
@@ -668,7 +670,10 @@ isSceneStillValid(expectedScene) {
     if (this.npcManager) {
       this.npcManager.clearAllNpcs();
     }
-
+    if (this.dayNightManager) {
+      this.dayNightManager.destroy();
+      this.dayNightManager = null;
+    }
     if (this.animatedObjects) {
       this.animatedObjects.clear(true, true);
       this.animatedObjects = null;
