@@ -12,13 +12,17 @@ export class CollisionManager {
     this.loadCollisionsFromMap(mapPath);
   }
 
-  loadCollisionsFromMap(mapPath: string) {
-    // Même logique que NpcManager pour le chemin
-    const resolvedPath = path.resolve(__dirname, mapPath);
-    if (!fs.existsSync(resolvedPath)) {
-      throw new Error(`CollisionManager: Le fichier map n'existe pas : ${resolvedPath}`);
-    }
-    const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
+loadCollisionsFromMap(mapPath: string) {
+  // Force l’extension .tmj
+  let fileName = mapPath.endsWith('.tmj') ? mapPath : mapPath.replace(/\.[^.]+$/, '') + '.tmj';
+
+  // Force le dossier build/assets/maps/ même si l’argument n’est pas bon
+  const resolvedPath = path.resolve(__dirname, "../../../build/assets/maps", fileName);
+
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`CollisionManager: Le fichier map n'existe pas : ${resolvedPath}`);
+  }
+  const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
 
     // Remplace "Worlds" par le nom de ton calque collision si différent
     const collisionLayer = mapData.layers.find((l: any) =>
