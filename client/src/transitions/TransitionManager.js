@@ -376,11 +376,12 @@ export class TransitionManager {
       // ✅ NOUVEAU : Activer délai de grâce pour la nouvelle scène
       this.setGraceTimeForScene(targetScene);
       
-      // Attendre que la nouvelle scène soit prête, puis arrêter l'ancienne
-      this.scene.time.delayedCall(100, () => {
-        console.log(`🛑 [TransitionManager] Arrêt de la scène actuelle: ${this.scene.scene.key}`);
-        this.scene.scene.stop();
-      });
+      // 🔥 NE STOPPE PAS IMMÉDIATEMENT L’ANCIENNE SCÈNE !
+      // À la place, passe le nom à fermer dans un global (ou sur window, simple et efficace pour debug)
+      window.pendingSceneStop = this.scene.scene.key; // nom de l’ancienne scène
+
+    console.log(`✅ [TransitionManager] Scene.launch() appelé, attente fermeture par la nouvelle scène`);
+
       
       console.log(`✅ [TransitionManager] Scene.launch() + stop() appelés avec succès`);
       
