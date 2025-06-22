@@ -106,8 +106,17 @@ export class PlayerManager {
     }
     
     // ✅ AMÉLIORATION 2: Vérifier d'abord le sessionId en attente
-    const sessionIdToCheck = this._pendingSessionId || this.mySessionId;
-    const player = this.players.get(sessionIdToCheck) || null;
+let player = null;
+
+// ✅ Vérifie en priorité le sessionId actif
+if (this.mySessionId && this.players.has(this.mySessionId)) {
+  player = this.players.get(this.mySessionId);
+}
+
+// ✅ Si non trouvé, tente avec pendingSessionId
+if (!player && this._pendingSessionId && this.players.has(this._pendingSessionId)) {
+  player = this.players.get(this._pendingSessionId);
+}
 
     if (!player) {
       if (!this._hasWarnedMissingPlayer) {
