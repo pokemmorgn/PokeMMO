@@ -471,9 +471,6 @@ handleMyPlayerFromState() {
     this.handleMissingPlayer();
   }
 }
-
-  }
-
   // ✅ NOUVELLE MÉTHODE : Gérer les joueurs manquants
   handleMissingPlayer() {
     console.log(`🔧 [${this.scene.key}] === RÉCUPÉRATION JOUEUR MANQUANT ===`);
