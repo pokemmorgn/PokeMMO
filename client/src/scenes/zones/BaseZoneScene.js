@@ -724,51 +724,68 @@ handleMyPlayerFromState() {
   }
   
   cleanup() {
-    TransitionIntegration.cleanupTransitions(this);
+  TransitionIntegration.cleanupTransitions(this);
 
-    // ✅ Stoppe cette scène pour éviter qu'elle reste active
-    if (this.scene.isActive(this.scene.key)) {
-      this.scene.stop(this.scene.key);
-      console.log(`[${this.scene.key}] ⛔ Scene stoppée (cleanup)`);
-    }
-
-    // ✅ Désactive les écouteurs de messages réseau
-    if (this.networkManager?.room) {
-      this.networkManager.room.removeAllListeners("currentZone");
-      this.networkManager.room.removeAllListeners("snap");
-      this.networkManager.room.removeAllListeners("questStatuses");
-      console.log(`[${this.scene.key}] 🎧 Nettoyage des écouteurs réseau`);
-    }
-    console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
-
-    const isTransition = this.networkManager && this.networkManager.isTransitionActive;
-    
-    if (!isTransition) {
-      if (this.playerManager) {
-        this.playerManager.clearAllPlayers();
-      }
-    } else {
-      console.log(`🔄 [${this.scene.key}] Nettoyage léger pour transition`);
-    }
-
-    if (this.npcManager) {
-      this.npcManager.clearAllNpcs();
-    }
-
-    if (this.animatedObjects) {
-      this.animatedObjects.clear(true, true);
-      this.animatedObjects = null;
-    }
-
-    this.time.removeAllEvents();
-    this.cameraFollowing = false;
-    this.myPlayerReady = false;
-    this.playerSpawnInitialized = false;
-    this.isSceneReady = false;
-    this.networkSetupComplete = false;
-    
-    console.log(`✅ [${this.scene.key}] Nettoyage terminé`);
+  // ✅ Stoppe cette scène pour éviter qu'elle reste active
+  if (this.scene.isActive(this.scene.key)) {
+    this.scene.stop(this.scene.key);
+    console.log(`[${this.scene.key}] ⛔ Scene stoppée (cleanup)`);
   }
+
+  // ✅ Désactive les écouteurs de messages réseau
+  if (this.networkManager?.room) {
+    this.networkManager.room.removeAllListeners("currentZone");
+    this.networkManager.room.removeAllListeners("snap");
+    this.networkManager.room.removeAllListeners("questStatuses");
+    console.log(`[${this.scene.key}] 🎧 Nettoyage des écouteurs réseau`);
+  }
+  console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
+
+  const isTransition = this.networkManager && this.networkManager.isTransitionActive;
+  
+  // ✅ CORRECTION : Ne nettoyer QUE les joueurs des autres zones lors d'une transition
+  if (isTransition) {
+    console.log(`🔄 [${this.scene.key}] Transition en cours - nettoyage sélectif des joueurs`);
+    
+    if (this.playerManager && this.mySessionId) {
+      // Garder uniquement mon joueur lors des transitions
+      const myPlayer = this.playerManager.getMyPlayer();
+      
+      // Supprimer les autres joueurs mais garder le mien
+      Array.from(this.playerManager.players.keys()).forEach(sessionId => {
+        if (sessionId !== this.mySessionId) {
+          console.log(`🗑️ [${this.scene.key}] Suppression joueur autre zone: ${sessionId}`);
+          this.playerManager.removePlayer(sessionId);
+        }
+      });
+      
+      console.log(`✅ [${this.scene.key}] Mon joueur conservé pour transition`);
+    }
+  } else {
+    // Nettoyage complet seulement si pas de transition
+    if (this.playerManager) {
+      this.playerManager.clearAllPlayers();
+    }
+  }
+
+  if (this.npcManager) {
+    this.npcManager.clearAllNpcs();
+  }
+
+  if (this.animatedObjects) {
+    this.animatedObjects.clear(true, true);
+    this.animatedObjects = null;
+  }
+
+  this.time.removeAllEvents();
+  this.cameraFollowing = false;
+  this.myPlayerReady = false;
+  this.playerSpawnInitialized = false;
+  this.isSceneReady = false;
+  this.networkSetupComplete = false;
+  
+  console.log(`✅ [${this.scene.key}] Nettoyage terminé`);
+}
 
   setupCleanupHandlers() {
     this.events.on('shutdown', () => {
