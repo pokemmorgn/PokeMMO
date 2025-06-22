@@ -295,9 +295,10 @@ export class GlobalTransitionManager {
     this.sendTransitionRequest(correctedData);
   }
 
-  // ✅ ENVOI REQUÊTE (adapté)
+  // ✅ ENVOI REQUÊTE CORRIGÉ AVEC DEBUG
   sendTransitionRequest(teleportData) {
-    console.log(`📤 [GlobalTransitionManager] Envoi requête transition...`);
+    console.log(`📤 [GlobalTransitionManager] === ENVOI REQUÊTE SERVEUR ===`);
+    console.log(`📊 Données téléport reçues:`, teleportData);
     
     if (!this.currentScene?.networkManager?.room) {
       console.error(`❌ Pas de connexion serveur`);
@@ -312,19 +313,49 @@ export class GlobalTransitionManager {
       return;
     }
 
+    // ✅ CORRECTION : S'assurer que fromZone est définie
+    let fromZone = teleportData.fromZone;
+    
+    if (!fromZone) {
+      console.warn(`⚠️ [GlobalTransitionManager] fromZone manquante, recalcul...`);
+      fromZone = this.currentZone || this.getZoneFromScene(this.currentScene.scene.key);
+      console.log(`🔧 [GlobalTransitionManager] fromZone recalculée: ${fromZone}`);
+    }
+    
+    if (!fromZone) {
+      console.error(`❌ [GlobalTransitionManager] Impossible de déterminer fromZone!`);
+      this.handleTransitionError({ reason: "Zone source indéterminée" });
+      return;
+    }
+
     const request = {
-      fromZone: teleportData.fromZone,
-      targetZone: teleportData.targetZone,
-      targetSpawn: teleportData.targetSpawn,
-      playerX: myPlayer.x,
-      playerY: myPlayer.y,
-      teleportId: teleportData.id
+      fromZone: fromZone,                    // ✅ Zone source vérifiée
+      targetZone: teleportData.targetZone,   // ✅ Zone cible
+      targetSpawn: teleportData.targetSpawn, // ✅ Point spawn
+      playerX: myPlayer.x,                   // ✅ Position X
+      playerY: myPlayer.y,                   // ✅ Position Y
+      teleportId: teleportData.id           // ✅ ID téléport
     };
+
+    console.log(`📤 [GlobalTransitionManager] === REQUÊTE FINALE ===`);
+    console.log(`📊 Requête complète:`, request);
+    console.log(`🔍 Détails:`);
+    console.log(`  - fromZone: "${request.fromZone}"`);
+    console.log(`  - targetZone: "${request.targetZone}"`);
+    console.log(`  - targetSpawn: "${request.targetSpawn}"`);
+    console.log(`  - position: (${request.playerX}, ${request.playerY})`);
+    console.log(`  - teleportId: "${request.teleportId}"`);
 
     // ✅ Setup listener
     this.setupTransitionListener();
     
-    this.currentScene.networkManager.room.send("validateTransition", request);
+    try {
+      this.currentScene.networkManager.room.send("validateTransition", request);
+      console.log(`✅ [GlobalTransitionManager] Requête envoyée avec succès`);
+    } catch (error) {
+      console.error(`❌ [GlobalTransitionManager] Erreur envoi:`, error);
+      this.handleTransitionError({ reason: `Erreur envoi: ${error.message}` });
+    }
   }
 
   // ✅ LISTENER RÉPONSE SERVEUR AVEC DEBUG DÉTAILLÉ
@@ -407,8 +438,42 @@ export class GlobalTransitionManager {
     console.log(`🛡️ [GlobalTransitionManager] Fin prévue: ${new Date(this.graceTime).toLocaleTimeString()}`);
   }
 
-  // ✅ MÉTHODES UTILITAIRES (identiques)
+  // ✅ VALIDATION ET CORRECTION ZONE AMÉLIORÉE
   validateAndCorrectZone(teleportData) {
+    console.log(`🔍 [GlobalTransitionManager] === VALIDATION ZONE ===`);
+    console.log(`📊 Données téléport entrée:`, teleportData);
+    console.log(`🎯 currentZone: ${this.currentZone}`);
+    console.log(`🏠 Scene zone: ${this.getZoneFromScene(this.currentScene.scene.key)}`);
+    
+    // ✅ CORRECTION 1: S'assurer que fromZone est définie
+    if (!teleportData.fromZone) {
+      console.warn(`⚠️ [GlobalTransitionManager] fromZone manquante dans teleportData`);
+      teleportData.fromZone = this.currentZone || this.getZoneFromScene(this.currentScene.scene.key);
+      console.log(`🔧 [GlobalTransitionManager] fromZone corrigée: ${teleportData.fromZone}`);
+    }
+    
+    // ✅ CORRECTION 2: Vérifier currentZone
+    if (!this.currentZone) {
+      console.warn(`⚠️ [GlobalTransitionManager] currentZone manquante`);
+      this.currentZone = this.getZoneFromScene(this.currentScene.scene.key);
+      console.log(`🔧 [GlobalTransitionManager] currentZone corrigée: ${this.currentZone}`);
+    }
+    
+    // ✅ CORRECTION 3: Synchroniser si différent
+    if (teleportData.fromZone !== this.currentZone) {
+      console.warn(`⚠️ [GlobalTransitionManager] Désynchronisation détectée:`);
+      console.warn(`  - teleportData.fromZone: ${teleportData.fromZone}`);
+      console.warn(`  - this.currentZone: ${this.currentZone}`);
+      
+      // Utiliser la zone la plus fiable
+      const reliableZone = this.currentZone || teleportData.fromZone;
+      teleportData.fromZone = reliableZone;
+      this.currentZone = reliableZone;
+      
+      console.log(`🔧 [GlobalTransitionManager] Zone synchronisée: ${reliableZone}`);
+    }
+    
+    console.log(`✅ [GlobalTransitionManager] Zone validée: ${teleportData.fromZone}`);
     return { success: true, correctedData: teleportData };
   }
 
