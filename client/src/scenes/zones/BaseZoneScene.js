@@ -9,7 +9,7 @@ import { InventorySystem } from "../../game/InventorySystem.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
 import { DayNightManager } from '../../game/DayNightManager.js';
-import { ClientCollisionManager } from "../../game/ClientCollisionManager.js";
+import { ClientCollisionManager } from "../../game/ClientCollisionsManager.js";
 
 
 
