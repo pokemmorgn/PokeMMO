@@ -294,13 +294,12 @@ export class TransitionManager {
     console.log(`👂 [TransitionManager] ✅ Listener configuré`);
   }
 
-  // ✅ SUCCÈS TRANSITION CORRIGÉ
+  // ✅ SUCCÈS TRANSITION CORRIGÉ - UTILISE LAUNCH AU LIEU DE START
   handleTransitionSuccess(result, teleportData) {
     console.log(`🌀 [TransitionManager] === TRANSITION VALIDÉE ===`);
     console.log(`📊 Résultat serveur:`, result);
     console.log(`📊 Données téléport:`, teleportData);
     
-    // ✅ NOUVEAU : Utiliser les données du serveur en priorité
     const targetZone = result.currentZone || teleportData.targetZone;
     const targetScene = this.getSceneFromZone(targetZone);
     
@@ -323,8 +322,8 @@ export class TransitionManager {
       return;
     }
 
-    // ✅ CHANGEMENT DE SCÈNE
-    console.log(`🚀 [TransitionManager] === CHANGEMENT DE SCÈNE ===`);
+    // ✅ NOUVEAU : UTILISER LAUNCH AU LIEU DE START POUR PRÉSERVER LA CONNEXION
+    console.log(`🚀 [TransitionManager] === CHANGEMENT DE SCÈNE (LAUNCH) ===`);
     console.log(`📍 De: ${this.scene.scene.key} → ${targetScene}`);
     
     const transitionData = {
@@ -335,21 +334,38 @@ export class TransitionManager {
       spawnX: result.position?.x,
       spawnY: result.position?.y,
       preservePlayer: true,
-      teleportData: teleportData, // ✅ NOUVEAU : Passer les données téléport
-      serverResult: result // ✅ NOUVEAU : Passer la réponse serveur
+      teleportData: teleportData,
+      serverResult: result
     };
 
     console.log(`📤 [TransitionManager] Données transition:`, transitionData);
     
-    // ✅ NOUVEAU : Log détaillé avant changement
-    console.log(`🔥 [TransitionManager] EXÉCUTION: this.scene.scene.start("${targetScene}", ...)`);
-    
     try {
-      this.scene.scene.start(targetScene, transitionData);
-      console.log(`✅ [TransitionManager] Scene.start() appelé avec succès`);
+      // ✅ MÉTHODE 1 : LAUNCH + STOP (préserve les connexions)
+      console.log(`🔥 [TransitionManager] EXÉCUTION: this.scene.scene.launch("${targetScene}", ...)`);
+      
+      // Lancer la nouvelle scène
+      this.scene.scene.launch(targetScene, transitionData);
+      
+      // Attendre que la nouvelle scène soit prête, puis arrêter l'ancienne
+      this.scene.time.delayedCall(100, () => {
+        console.log(`🛑 [TransitionManager] Arrêt de la scène actuelle: ${this.scene.scene.key}`);
+        this.scene.scene.stop();
+      });
+      
+      console.log(`✅ [TransitionManager] Scene.launch() + stop() appelés avec succès`);
+      
     } catch (error) {
       console.error(`❌ [TransitionManager] Erreur lors du changement de scène:`, error);
-      this.handleTransitionError({ reason: `Erreur changement scène: ${error.message}` });
+      
+      // ✅ FALLBACK : Utiliser start() si launch() échoue
+      console.log(`🔄 [TransitionManager] Fallback vers scene.start()...`);
+      try {
+        this.scene.scene.start(targetScene, transitionData);
+      } catch (fallbackError) {
+        console.error(`❌ [TransitionManager] Fallback échoué:`, fallbackError);
+        this.handleTransitionError({ reason: `Erreur changement scène: ${error.message}` });
+      }
     }
   }
 
