@@ -101,13 +101,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.networkManager = window.globalNetworkManager;
     this.mySessionId = this.networkManager.getSessionId();
 
-    console.log(`🔍 [${this.scene.key}] Debug SessionId détaillé:`);
-console.log(`- this.mySessionId: "${this.mySessionId}"`);
-console.log(`- networkManager.sessionId: "${this.networkManager.sessionId}"`);
-console.log(`- networkManager existe: ${!!this.networkManager}`);
-console.log(`- room existe: ${!!this.networkManager.room}`);
-console.log(`- room.sessionId: "${this.networkManager.room?.sessionId}"`);
-    
     console.log(`✅ [${this.scene.key}] NetworkManager récupéré:`, {
       sessionId: this.mySessionId,
       isConnected: this.networkManager.isConnected,
