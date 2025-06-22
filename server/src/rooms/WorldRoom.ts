@@ -1073,27 +1073,31 @@ private handlePlayerMove(client: Client, data: any) {
   const player = this.state.players.get(client.sessionId);
   if (!player) return;
 
-  // Récupérer le CollisionManager de la zone courante
+  // Collision manager pour la zone actuelle
   const collisionManager = this.zoneManager.getCollisionManager(player.currentZone);
 
-  // Check collision AVANT d'accepter le move
+  // Vérification collision AVANT de bouger
   if (collisionManager && collisionManager.isBlocked(data.x, data.y)) {
-    // Mouvement interdit : on refuse la position et on peut notifier le client ici si tu veux
-    // Optionnel : snap le joueur à sa position précédente ou ne rien faire
+    // Mouvement interdit : on renvoie la position serveur pour rollback client
+    client.send("forcePlayerPosition", {
+      x: player.x,
+      y: player.y,
+      direction: player.direction,
+      currentZone: player.currentZone
+    });
     return;
   }
 
-  // Si pas de collision, on applique le mouvement
+  // Si pas de collision, appliquer le mouvement
   player.x = data.x;
   player.y = data.y;
   player.direction = data.direction;
 
-  // Garder la zone synchronisée
   if (data.currentZone) {
     player.currentZone = data.currentZone;
   }
 
-  // Debug occasionnel (1 fois sur 10)
+  // Log occasionnel pour debug
   if (Math.random() < 0.1) {
     console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
   }
