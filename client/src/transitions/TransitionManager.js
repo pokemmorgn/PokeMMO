@@ -322,9 +322,7 @@ export class TransitionManager {
       this.handleTransitionError({ reason: `Zone inconnue: ${targetZone}` });
       return;
     }
-      const delayBeforeSwitch = 500; // 150ms à adapter selon ton ressenti
-  await new Promise((resolve) => setTimeout(resolve, delayBeforeSwitch));
-
+    
     console.log(`🎯 [TransitionManager] Zone cible: ${targetZone}`);
     console.log(`🎬 [TransitionManager] Scène cible: ${targetScene}`);
     console.log(`🏠 [TransitionManager] Scène actuelle: ${this.scene.scene.key}`);
@@ -341,7 +339,10 @@ export class TransitionManager {
     // ✅ NOUVEAU : UTILISER LAUNCH AU LIEU DE START POUR PRÉSERVER LA CONNEXION
     console.log(`🚀 [TransitionManager] === CHANGEMENT DE SCÈNE (LAUNCH) ===`);
     console.log(`📍 De: ${this.scene.scene.key} → ${targetScene}`);
-    
+
+    const delayBeforeSwitch = 500; // 150ms à adapter selon ton ressenti
+    await new Promise((resolve) => setTimeout(resolve, delayBeforeSwitch));
+
     // ✅ AMÉLIORATION : S'assurer que les coordonnées spawn sont passées correctement
     const spawnX = result.position?.x;
     const spawnY = result.position?.y;
