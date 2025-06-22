@@ -441,6 +441,7 @@ export class PlayerManager {
     const effectiveSessionId = this._pendingSessionId || this.mySessionId;
     
     if (effectiveSessionId && this.players.has(effectiveSessionId) && !this._myPlayerIsReady) {
+      console.log("[DEBUG] checkMyPlayerReady() déclenché !");
       this._myPlayerIsReady = true;
       console.log(`[PlayerManager] ✅ Mon joueur est prêt avec sessionId: ${effectiveSessionId}`);
 
