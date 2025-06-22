@@ -353,42 +353,49 @@ export class TransitionManager {
   }
 
   // ✅ SUCCÈS DE TRANSITION
-  handleTransitionSuccess(result, teleportData) {
-    const targetScene = this.getSceneFromZone(teleportData.targetZone);
-    
-    if (!targetScene) {
-      console.error(`🌀 [TransitionManager] ❌ Scene introuvable pour zone: ${teleportData.targetZone}`);
-      this.hideLoadingOverlay();
-      this.showErrorPopup(`Zone inconnue: ${teleportData.targetZone}`);
-      this.isTransitioning = false;
-      return;
-    }
+handleTransitionSuccess(result, teleportData) {
+  const targetScene = this.getSceneFromZone(teleportData.targetZone);
 
-    // ✅ PAS DE CHANGEMENT DE SCÈNE = REPOSITIONNEMENT LOCAL
-    if (targetScene === this.scene.scene.key) {
-      console.log(`📍 [TransitionManager] Repositionnement dans la même scène`);
-      this.repositionPlayer(result);
-      this.hideLoadingOverlay();
-      this.isTransitioning = false;
-      return;
-    }
-
-    // ✅ CHANGEMENT DE SCÈNE
-    console.log(`🚀 [TransitionManager] Changement vers: ${targetScene}`);
-    
-    const transitionData = {
-      fromZone: this.currentZone,
-      fromTransition: true,
-      networkManager: this.scene.networkManager,
-      mySessionId: this.scene.mySessionId,
-      spawnX: result.position?.x,
-      spawnY: result.position?.y,
-      preservePlayer: true
-    };
-
-    // ✅ LE LOADING SERA MASQUÉ PAR LA NOUVELLE SCÈNE
-    this.scene.scene.start(targetScene, transitionData);
+  if (!targetScene) {
+    console.error(`[TransitionManager] ❌ Scene introuvable pour zone: ${teleportData.targetZone}`);
+    this.hideLoadingOverlay();
+    this.showErrorPopup(`Zone inconnue: ${teleportData.targetZone}`);
+    this.isTransitioning = false;
+    return;
   }
+
+  // PAS DE CHANGEMENT DE SCÈNE = REPOSITIONNEMENT LOCAL
+  if (targetScene === this.scene.scene.key) {
+    console.log(`[TransitionManager] Repositionnement dans la même scène`);
+    this.repositionPlayer(result);
+    this.hideLoadingOverlay();
+    this.isTransitioning = false;
+    return;
+  }
+
+  // === PATCH PRINCIPAL ICI ===
+  if (this.scene.scene.manager.keys[targetScene]) {
+    // La scène cible existe déjà (potentiellement inactive/zombie)
+    console.log(`[TransitionManager] ⚠️ La scène ${targetScene} existe déjà, remove() forcé avant start`);
+    this.scene.scene.remove(targetScene);
+  }
+
+  console.log(`[TransitionManager] 🚀 Changement vers: ${targetScene}`);
+
+  const transitionData = {
+    fromZone: this.currentZone,
+    fromTransition: true,
+    networkManager: this.scene.networkManager,
+    mySessionId: this.scene.mySessionId,
+    spawnX: result.position?.x,
+    spawnY: result.position?.y,
+    preservePlayer: true
+  };
+
+  // LE LOADING SERA MASQUÉ PAR LA NOUVELLE SCÈNE
+  this.scene.scene.start(targetScene, transitionData);
+}
+
 
   // ✅ ERREUR DE TRANSITION
   handleTransitionError(result) {
