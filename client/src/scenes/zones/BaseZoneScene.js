@@ -435,42 +435,64 @@ if (!this.transitionManager) {
   // ✅ GÉRER JOUEUR LOCAL DEPUIS STATE - VERSION AMÉLIORÉE
 handleMyPlayerFromState() {
   if (this.myPlayerReady) return;
-  
-  const myPlayer = this.playerManager.getMyPlayer();
-  if (myPlayer && !this.myPlayerReady) {
+
+  // Cherche le player DANS LE STATE NETWORKMANAGER
+  const playerData = this.networkManager?.state?.players?.get(this.mySessionId);
+  let myPlayer = this.playerManager.getMyPlayer();
+
+  // Si le player existe déjà localement mais pas "ready", on finalise l'init
+  if (myPlayer && playerData) {
     this.myPlayerReady = true;
     console.log(`✅ [${this.scene.key}] Joueur local trouvé: ${this.mySessionId}`);
-    
+
     if (window.hideLoadingOverlay) window.hideLoadingOverlay();
-    
-    // ✅ FORCER VISIBILITÉ
+
+    // Forcer la visibilité
     myPlayer.setVisible(true);
     myPlayer.setActive(true);
     myPlayer.setDepth(5);
-    
-    // ✅ CAMÉRA
+
+    // Caméra et position (optionnel: reprends ta logique existante ici)
     this.cameraManager.followPlayer(myPlayer);
     this.cameraFollowing = true;
-    
-    // ✅ POSITION
     this.positionPlayer(myPlayer);
-    
+
     if (typeof this.onPlayerReady === 'function') {
       this.onPlayerReady(myPlayer);
     }
 
-    // ✅ ARRÊT DE L’ANCIENNE SCÈNE APRÈS INIT EFFECTIVE DU PLAYER
+    // Arrêt de l'ancienne scène proprement (une fois qu'on a le player)
     if (window.pendingSceneStop) {
       this.scene.scene.stop(window.pendingSceneStop);
       console.log(`[BaseZoneScene] Ancienne scène stoppée proprement après arrivée du joueur`);
       window.pendingSceneStop = null;
     }
-  } else if (!myPlayer && this.mySessionId) {
-    // ✅ NOUVEAU : Si pas de joueur mais sessionId existe, forcer création
-    console.warn(`⚠️ [${this.scene.key}] Joueur manquant pour sessionId: ${this.mySessionId}`);
-    this.handleMissingPlayer();
+    return;
+  }
+
+  // Si le joueur n'existe pas encore localement MAIS il est dans le state → on le crée
+  if (!myPlayer && playerData) {
+    // Création du player à la position donnée par le serveur (toujours !)
+    myPlayer = this.playerManager.createPlayer(this.mySessionId, playerData.x, playerData.y);
+
+    // Re-appel pour finaliser setup (ça passe dans la branche au-dessus)
+    this.handleMyPlayerFromState();
+    return;
+  }
+
+  // Si pas encore dans le state, on bloque et affiche un overlay
+  if (!playerData) {
+    // Affiche un loading si pas déjà visible
+    if (!this._waitingForPlayer) {
+      this._waitingForPlayer = true;
+      if (window.showLoadingOverlay) window.showLoadingOverlay("Connexion à la nouvelle zone...");
+      console.log(`[${this.scene.key}] Attente joueur dans le state serveur...`);
+    }
+    // On ne fait rien d'autre : on attend que Colyseus renvoie un state où le joueur est là
+    return;
   }
 }
+
   // ✅ NOUVELLE MÉTHODE : Gérer les joueurs manquants
   handleMissingPlayer() {
     console.log(`🔧 [${this.scene.key}] === RÉCUPÉRATION JOUEUR MANQUANT ===`);
