@@ -49,7 +49,8 @@ export class BaseZoneScene extends Phaser.Scene {
 
   create() {
     if (window.showLoadingOverlay) window.showLoadingOverlay("Chargement de la zone...");
-
+ // INIT ZONE LOCALE DIRECT
+    this.zoneName = this.mapSceneToZone(this.scene.key);
     TransitionIntegration.setupTransitions(this);
 
     console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} ===`);
