@@ -55,7 +55,7 @@ if (!username) {
 }
 window.username = username;
 
-// === CONFIG PHASER (à lancer uniquement APRÈS connexion MMO) ===
+// === CONFIG PHASER ===
 const config = {
   type: Phaser.AUTO,
   width: 800,
@@ -118,58 +118,70 @@ document.head.appendChild(styleSheet);
 console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
 
 // ==== Connexion Colyseus + Initialisation des systèmes ====
-// 🚨 NE PAS LANCER Phaser AVANT D’AVOIR UN NETWORK CONNECTÉ 🚨
+// 🚨 NE PAS LANCER Phaser AVANT D'AVOIR UN NETWORK CONNECTÉ 🚨
 (async () => {
   try {
     // 1. Notifications
     const notificationSystem = initializeGameNotifications();
     console.log("✅ Système de notification initialisé");
 
-    // 2. Connexion à la WorldRoom principale
-    console.log("🌐 Connexion à la WorldRoom...");
-    const gameRoom = await client.joinOrCreate("world", { username });
-    window.currentGameRoom = gameRoom; // Stocke la GameRoom globale
-    console.log("✅ Connecté à la WorldRoom", gameRoom.sessionId);
+    // ✅ 2. CRÉER LE NETWORKMANAGER GLOBAL ET SE CONNECTER
+    console.log("🌐 Création et connexion du NetworkManager global...");
+    window.globalNetworkManager = new NetworkManager(client, window.username);
+    
+    // ✅ 3. SE CONNECTER VIA LE NETWORKMANAGER (PAS EN PARALLÈLE)
+    const connectionSuccess = await window.globalNetworkManager.connect("beach", {
+      spawnX: 52,
+      spawnY: 48
+    });
+    
+    if (!connectionSuccess) {
+      throw new Error("Échec de connexion à la WorldRoom via NetworkManager");
+    }
+    
+    // ✅ 4. RÉCUPÉRER LA ROOM DEPUIS LE NETWORKMANAGER
+    window.currentGameRoom = window.globalNetworkManager.room;
+    console.log("✅ Connecté à la WorldRoom via NetworkManager:", window.currentGameRoom.sessionId);
 
-    // 3. Connexion à la WorldChatRoom (optionnel, si tu veux du chat global)
+    // ✅ 5. CONNEXION AU CHAT (SÉPARÉE)
+    console.log("💬 Connexion à la WorldChatRoom...");
     const worldChat = await client.joinOrCreate("worldchat", { username });
     window.worldChat = worldChat;
     console.log("✅ Connecté à la WorldChatRoom");
 
-    // 4. Initialise le chat
+    // 6. Initialise le chat
     initPokeChat(worldChat, window.username);
 
-    // 5. NetworkManager (optionnel : tu peux aussi ne plus t’en servir)
-    window.globalNetworkManager = new NetworkManager(gameRoom, window.username);
-
-    // 6. Lancement de Phaser APRES connexion réseau
+    // 7. Lancement de Phaser APRES connexion réseau
+    console.log("🎮 Lancement de Phaser...");
     window.game = new Phaser.Game(config);
 
-    // 7. Setup global pour tes systèmes
+    // 8. Setup global pour tes systèmes
     window.starterHUD = null;
     window.questSystemGlobal = null;
     window.inventorySystemGlobal = null;
 
-    // 8. Expose helpers initAllGameSystems & cie
+    // 9. Expose helpers initAllGameSystems & cie
     window.initInventorySystem = function(gameRoom) {
       if (!window.inventorySystemGlobal) {
-        window.inventorySystemGlobal = new InventorySystem(null, gameRoom);
+        window.inventorySystemGlobal = new InventorySystem(null, gameRoom || window.currentGameRoom);
         if (window.inventorySystemGlobal.inventoryUI) {
           window.inventorySystemGlobal.inventoryUI.currentLanguage = 'en';
         }
         window.inventorySystem = window.inventorySystemGlobal;
         if (typeof window.connectInventoryToServer === 'function') {
-          window.connectInventoryToServer(gameRoom);
+          window.connectInventoryToServer(gameRoom || window.currentGameRoom);
         }
         window.onSystemInitialized && window.onSystemInitialized('inventory');
         return window.inventorySystemGlobal;
       }
       return window.inventorySystemGlobal;
     };
+    
     window.initStarterHUD = function(gameRoom) {
       if (!window.starterHUD) {
-        window.starterHUD = new StarterSelectionHUD(gameRoom);
-        gameRoom.onMessage("welcomeMessage", (data) => {
+        window.starterHUD = new StarterSelectionHUD(gameRoom || window.currentGameRoom);
+        (gameRoom || window.currentGameRoom).onMessage("welcomeMessage", (data) => {
           window.gameNotificationSystem?.show(
             data.message || "Bienvenue dans le jeu !",
             'info',
@@ -181,25 +193,28 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       }
       return window.starterHUD;
     };
+    
     window.initQuestSystem = function(scene, gameRoom) {
       if (!window.questSystemGlobal) {
-        window.questSystemGlobal = new QuestSystem(scene, gameRoom);
+        window.questSystemGlobal = new QuestSystem(scene, gameRoom || window.currentGameRoom);
         window.onSystemInitialized && window.onSystemInitialized('quests');
         return window.questSystemGlobal;
       }
       return window.questSystemGlobal;
     };
+    
     window.initAllGameSystems = function(scene, gameRoom) {
-      const inventory = window.initInventorySystem(gameRoom);
-      const quests = window.initQuestSystem(scene, gameRoom);
-      const starter = window.initStarterHUD(gameRoom);
+      const roomToUse = gameRoom || window.currentGameRoom;
+      const inventory = window.initInventorySystem(roomToUse);
+      const quests = window.initQuestSystem(scene, roomToUse);
+      const starter = window.initStarterHUD(roomToUse);
       setTimeout(() => {
         window.onSystemInitialized && window.onSystemInitialized('all');
       }, 1000);
       return { inventory, quests, starter };
     };
 
-    // === Fonctions d’accès rapide, notifications, tests etc ===
+    // === Fonctions d'accès rapide, notifications, tests etc ===
     window.openInventory = function() {
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.openInventory();
@@ -208,6 +223,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
         window.showGameAlert?.("Système d'inventaire non initialisé");
       }
     };
+    
     window.toggleInventory = function() {
       if (window.inventorySystemGlobal) {
         const wasOpen = window.inventorySystemGlobal.isInventoryOpen();
@@ -219,6 +235,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
         window.showGameAlert?.("Aucun système d'inventaire disponible");
       }
     };
+    
     window.openQuestJournal = function() {
       if (window.questSystemGlobal) {
         window.questSystemGlobal.openQuestJournal();
@@ -227,6 +244,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
         window.showGameAlert?.("Système de quêtes non initialisé");
       }
     };
+    
     window.showStarterSelection = function() {
       if (window.starterHUD) {
         window.starterHUD.show();
@@ -235,6 +253,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
         window.showGameAlert?.("HUD de starter non initialisé");
       }
     };
+    
     window.testInventory = function() {
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.toggleInventory();
@@ -245,9 +264,8 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
         window.showGameAlert?.("Système d'inventaire non initialisé");
       }
     };
-    // ...autres helpers selon tes besoins
 
-    // === Notification d’aide et ready ===
+    // === Notification d'aide et ready ===
     showNotificationInstructions();
     setTimeout(() => {
       window.showGameNotification("Game system ready!", "success", { duration: 3000, position: 'top-center', bounce: true });
@@ -257,6 +275,16 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
     console.log("🎒 Utilisez 'I' pour ouvrir l'inventaire en jeu");
     console.log("🎮 Utilisez window.initAllGameSystems(scene, gameRoom) dans vos scènes pour tout initialiser");
+    
+    // ✅ DEBUG: Vérifier l'état du NetworkManager
+    console.log("🔍 État du NetworkManager global:", {
+      exists: !!window.globalNetworkManager,
+      isConnected: window.globalNetworkManager?.isConnected,
+      sessionId: window.globalNetworkManager?.getSessionId(),
+      currentZone: window.globalNetworkManager?.getCurrentZone(),
+      roomId: window.globalNetworkManager?.room?.id
+    });
+    
   } catch (e) {
     console.error("❌ Erreur d'initialisation:", e);
     window.showGameAlert?.(`Erreur: ${e.message}`) || alert("Impossible de rejoindre le serveur : " + e.message);
@@ -264,7 +292,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
   }
 })();
 
-export default {}; // plus besoin d’exporter le game ici, il est sur window
+export default {}; // plus besoin d'exporter le game ici, il est sur window
 
 // === Fonctions utilitaires exposées (raccourcis) ===
 window.isChatFocused = function() {
@@ -298,6 +326,12 @@ window.getGameSystemsStatus = function() {
     inventory: { initialized: !!window.inventorySystemGlobal, open: window.isInventoryOpen() },
     quests: { initialized: !!window.questSystemGlobal, journalOpen: window.isQuestJournalOpen() },
     starter: { initialized: !!window.starterHUD, open: window.isStarterHUDOpen() },
+    networkManager: {
+      initialized: !!window.globalNetworkManager,
+      connected: window.globalNetworkManager?.isConnected || false,
+      sessionId: window.globalNetworkManager?.getSessionId() || null,
+      currentZone: window.globalNetworkManager?.getCurrentZone() || null
+    },
     notifications: {
       initialized: !!window.gameNotificationSystem,
       manager: window.NotificationManager ? 'Available' : 'Not Available',
@@ -312,6 +346,15 @@ window.debugGameSystems = function() {
   const status = window.getGameSystemsStatus();
   console.log("🔍 État des systèmes de jeu:", status);
   window.debugNotificationSystem && window.debugNotificationSystem();
+  
+  // ✅ DEBUG SUPPLÉMENTAIRE NETWORKMANAGER
+  if (window.globalNetworkManager) {
+    console.log("📡 Debug NetworkManager:");
+    window.globalNetworkManager.debugState();
+  } else {
+    console.log("❌ NetworkManager global introuvable");
+  }
+  
   return status;
 };
 window.quickTestNotifications = function() {
@@ -340,6 +383,7 @@ window.showGameHelp = function() {
 • Quêtes: ${!!window.questSystemGlobal}
 • Notifications: ${!!window.gameNotificationSystem}
 • Starter HUD: ${!!window.starterHUD}
+• NetworkManager: ${!!window.globalNetworkManager} (connecté: ${window.globalNetworkManager?.isConnected})
 
 === Pour les développeurs ===
 • window.showNotificationInstructions() - Instructions complètes
