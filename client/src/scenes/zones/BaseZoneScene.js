@@ -436,6 +436,11 @@ if (!this.transitionManager) {
 handleMyPlayerFromState() {
   if (this.myPlayerReady) return;
 
+    if (!this.networkManager?.isConnected) {
+    console.warn(`[${this.scene.key}] NetworkManager non connecté, attente...`);
+    return;
+  }
+
   // Cherche le player DANS LE STATE NETWORKMANAGER
   const playerData = this.networkManager?.state?.players?.get(this.mySessionId);
   let myPlayer = this.playerManager.getMyPlayer();
