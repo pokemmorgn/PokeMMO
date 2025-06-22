@@ -9,6 +9,31 @@ import { VillageLabScene } from './scenes/zones/VillageLabScene.js';
 import { VillageHouse1Scene } from './scenes/zones/VillageHouse1Scene.js';
 import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 import { TimeService } from './services/TimeService.js';
+import { LavandiaAnalysisScene } from './scenes/zones/LavandiaAnalysisScene.js';
+import { LavandiaBossRoomScene } from './scenes/zones/LavandiaBossRoomScene.js';
+import { LavandiaCelibTempleScene } from './scenes/zones/LavandiaCelibTempleScene.js';
+import { LavandiaEquipementScene } from './scenes/zones/LavandiaEquipementScene.js';
+import { LavandiaFurnitureScene } from './scenes/zones/LavandiaFurnitureScene.js';
+import { LavandiaHealingCenterScene } from './scenes/zones/LavandiaHealingCenterScene.js';
+import { LavandiaHouse1Scene } from './scenes/zones/LavandiaHouse1Scene.js';
+import { LavandiaHouse2Scene } from './scenes/zones/LavandiaHouse2Scene.js';
+import { LavandiaHouse3Scene } from './scenes/zones/LavandiaHouse3Scene.js';
+import { LavandiaHouse4Scene } from './scenes/zones/LavandiaHouse4Scene.js';
+import { LavandiaHouse5Scene } from './scenes/zones/LavandiaHouse5Scene.js';
+import { LavandiaHouse6Scene } from './scenes/zones/LavandiaHouse6Scene.js';
+import { LavandiaHouse7Scene } from './scenes/zones/LavandiaHouse7Scene.js';
+import { LavandiaHouse8Scene } from './scenes/zones/LavandiaHouse8Scene.js';
+import { LavandiaHouse9Scene } from './scenes/zones/LavandiaHouse9Scene.js';
+import { LavandiaResearchLabScene } from './scenes/zones/LavandiaResearchLabScene.js';
+import { LavandiaShopScene } from './scenes/zones/LavandiaShopScene.js';
+import { NoctherCave1Scene } from './scenes/zones/NoctherCave1Scene.js';
+import { NoctherCave2Scene } from './scenes/zones/NoctherCave2Scene.js';
+import { NoctherCave2BisScene } from './scenes/zones/NoctherCave2BisScene.js';
+import { Road1HouseScene } from './scenes/zones/Road1HouseScene.js';
+import { Road2Scene } from './scenes/zones/Road2Scene.js';
+import { Road3Scene } from './scenes/zones/Road3Scene.js';
+import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
+import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
 
 // ✅ NOUVEAU: Import du SceneRegistry
 import { SceneRegistry } from './scenes/SceneRegistry.js';
@@ -148,14 +173,49 @@ const config = {
   antialias: false,
   // ✅ GARDER TOUTES LES SCÈNES pour éviter les problèmes de "scène introuvable"
   scene: [
-    LoaderScene,
-    BeachScene,
-    VillageScene,
-    Road1Scene,
-    VillageLabScene,
-    VillageHouse1Scene,
-    LavandiaScene
-  ],
+  LoaderScene,
+
+  // Village
+  VillageScene,
+  VillageLabScene,
+  VillageHouse1Scene,
+  VillageHouse2Scene,
+  VillageFloristScene,
+
+  // Beach
+  BeachScene,
+
+  // Road
+  Road1Scene,
+  Road1HouseScene,
+  Road2Scene,
+  Road3Scene,
+
+  // Lavandia
+  LavandiaScene,
+  LavandiaAnalysisScene,
+  LavandiaBossRoomScene,
+  LavandiaCelibTempleScene,
+  LavandiaEquipementScene,
+  LavandiaFurnitureScene,
+  LavandiaHealingCenterScene,
+  LavandiaHouse1Scene,
+  LavandiaHouse2Scene,
+  LavandiaHouse3Scene,
+  LavandiaHouse4Scene,
+  LavandiaHouse5Scene,
+  LavandiaHouse6Scene,
+  LavandiaHouse7Scene,
+  LavandiaHouse8Scene,
+  LavandiaHouse9Scene,
+  LavandiaResearchLabScene,
+  LavandiaShopScene,
+
+  // NoctherCave
+  NoctherCave1Scene,
+  NoctherCave2Scene,
+  NoctherCave2BisScene
+]
   physics: {
     default: 'arcade',
     arcade: {
