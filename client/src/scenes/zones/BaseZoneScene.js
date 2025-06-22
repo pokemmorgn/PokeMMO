@@ -70,13 +70,11 @@ console.log(
     if (sceneData?.globalTransitionManager) {
       console.log(`[BASESCENE:${this.scene.key}] 🌍 GlobalTransitionManager fourni via transition`);
       this.globalTransitionManager = sceneData.globalTransitionManager;
-      this.time.delayedCall(100, () => {
-        if (this.map) {
-          this.globalTransitionManager.attachToScene(this);
-        } else {
-          this.waitForMapAndAttach();
-        }
-      });
+if (this.map) {
+  this.globalTransitionManager.attachToScene(this);
+} else {
+  this.waitForMapAndAttach();
+}
       return;
     }
     if (window.globalTransitionManager) {
