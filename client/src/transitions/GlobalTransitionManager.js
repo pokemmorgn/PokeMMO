@@ -1,5 +1,5 @@
 // client/src/transitions/GlobalTransitionManager.js
-// ✅ VERSION GLOBALE - UN SEUL INSTANCE POUR TOUTE LA SESSION
+// ✅ VERSION COMPLÈTE AVEC DEBUG RENFORCÉ POUR DIAGNOSTIQUER LA BOUCLE
 
 export class GlobalTransitionManager {
   constructor() {
@@ -20,17 +20,29 @@ export class GlobalTransitionManager {
     // Données de transition en cours
     this.currentTransitionData = null;
     
-    // ✅ DÉLAI DE GRÂCE GLOBAL PERSISTENT
+    // ✅ DÉLAI DE GRÂCE GLOBAL AMÉLIORÉ
     this.graceTime = 0;
     this.graceDuration = 3000; // 3 secondes
+    
+    // ✅ NOUVEAU : Protection spawn sécurisé
+    this.lastTeleportId = null;
+    this.spawnProtectionTime = 0;
+    this.spawnProtectionDuration = 2000; // 2 secondes protection spawn
+    this.lastGraceLogTime = 0;
+    this.lastSpawnLogTime = 0;
+    
+    // ✅ DEBUG TRACKING
+    this.transitionHistory = [];
+    this.collisionAttempts = 0;
     
     console.log(`🌍 [GlobalTransitionManager] Créé - Instance globale unique`);
   }
 
-  // ✅ ATTACHER À UNE SCÈNE - CORRIGÉ
+  // ✅ ATTACHEMENT AVEC PROTECTION SPAWN ET DEBUG
   attachToScene(scene) {
     console.log(`🔗 [GlobalTransitionManager] === ATTACHEMENT À SCÈNE ===`);
     console.log(`📍 Scène: ${scene.scene.key}`);
+    console.log(`⏰ Timestamp: ${new Date().toLocaleTimeString()}`);
     
     // Détacher de l'ancienne scène si nécessaire
     if (this.currentScene) {
@@ -39,7 +51,7 @@ export class GlobalTransitionManager {
     
     this.currentScene = scene;
     
-    // ✅ CORRECTION 1: Obtenir la zone depuis plusieurs sources
+    // ✅ Obtenir la zone depuis plusieurs sources
     const sceneZone = this.getZoneFromScene(scene.scene.key);
     const networkZone = scene.networkManager?.getCurrentZone();
     const serverZone = scene.currentZone;
@@ -49,7 +61,7 @@ export class GlobalTransitionManager {
     console.log(`  - NetworkManager: ${networkZone}`);
     console.log(`  - Server zone: ${serverZone}`);
     
-    // ✅ CORRECTION 2: Priorité au serveur, sinon calculée
+    // Priorité au serveur, sinon calculée
     this.currentZone = serverZone || networkZone || sceneZone;
     
     console.log(`🎯 [GlobalTransitionManager] Zone finale: ${this.currentZone}`);
@@ -60,11 +72,53 @@ export class GlobalTransitionManager {
       console.log(`🔧 [GlobalTransitionManager] Fallback zone: ${this.currentZone}`);
     }
     
-    // ✅ Scan des téléports dans la nouvelle scène
+    // ✅ NOUVEAU : Activer protection spawn si transition récente
+    const sceneData = scene.scene.settings.data;
+    if (sceneData?.fromTransition) {
+      this.activateSpawnProtection();
+      console.log(`🛡️ [GlobalTransitionManager] Protection spawn activée pour transition`);
+      
+      // ✅ DEBUG: Log données de transition
+      console.log(`📊 [GlobalTransitionManager] Données transition:`, sceneData);
+    }
+    
+    // ✅ Reset compteur collisions pour nouvelle scène
+    this.collisionAttempts = 0;
+    
+    // Scan des téléports dans la nouvelle scène
     this.scanSceneForTeleports(scene);
     
     this.isActive = true;
     console.log(`✅ [GlobalTransitionManager] Attaché à ${scene.scene.key}, zone: ${this.currentZone}`);
+    
+    // ✅ NOUVEAU : Log état final pour debug
+    this.logAttachmentSummary();
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Résumé attachement
+  logAttachmentSummary() {
+    console.log(`📋 [GlobalTransitionManager] === RÉSUMÉ ATTACHEMENT ===`);
+    console.log(`🎯 Scène: ${this.currentScene?.scene.key}`);
+    console.log(`📍 Zone: ${this.currentZone}`);
+    console.log(`🔧 Actif: ${this.isActive}`);
+    console.log(`🛡️ Protection grâce: ${this.graceTime > Date.now() ? 'ACTIVE' : 'INACTIVE'}`);
+    console.log(`🛡️ Protection spawn: ${this.isSpawnProtected() ? 'ACTIVE' : 'INACTIVE'}`);
+    console.log(`🚪 Téléports: ${this.teleportZones.size}`);
+    console.log(`🔒 Dernier téléport: ${this.lastTeleportId || 'aucun'}`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Protection spawn
+  activateSpawnProtection(duration = null) {
+    const protectionDuration = duration || this.spawnProtectionDuration;
+    this.spawnProtectionTime = Date.now() + protectionDuration;
+    
+    console.log(`🛡️ [GlobalTransitionManager] PROTECTION SPAWN: ${protectionDuration}ms`);
+    console.log(`🛡️ [GlobalTransitionManager] Fin protection: ${new Date(this.spawnProtectionTime).toLocaleTimeString()}`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Vérifier protection spawn
+  isSpawnProtected() {
+    return this.spawnProtectionTime > Date.now();
   }
 
   // ✅ SCANNER UNE SCÈNE POUR SES TÉLÉPORTS
@@ -111,7 +165,7 @@ export class GlobalTransitionManager {
     console.log(`🗑️ [GlobalTransitionManager] ${toDelete.length} téléports supprimés pour ${sceneKey}`);
   }
 
-  // ✅ Scanner téléports (adapté)
+  // ✅ Scanner téléports
   scanTeleports(worldsLayer, scene) {
     let teleportCount = 0;
 
@@ -128,9 +182,26 @@ export class GlobalTransitionManager {
     });
 
     console.log(`🔍 [GlobalTransitionManager] ${teleportCount} téléports trouvés dans ${scene.scene.key}`);
+    
+    // ✅ Log détaillé des téléports pour debug
+    this.logTeleportDetails(scene.scene.key);
   }
 
-  // ✅ Process téléport (corrigé)
+  // ✅ NOUVELLE MÉTHODE : Log détails téléports
+  logTeleportDetails(sceneKey) {
+    console.log(`📋 [GlobalTransitionManager] === TÉLÉPORTS DÉTAILLÉS ===`);
+    
+    this.teleportZones.forEach((teleport) => {
+      if (teleport.sceneKey === sceneKey) {
+        console.log(`🚪 ${teleport.id}:`);
+        console.log(`   Position: (${teleport.x}, ${teleport.y})`);
+        console.log(`   Taille: ${teleport.width}x${teleport.height}`);
+        console.log(`   ${teleport.fromZone} → ${teleport.targetZone}[${teleport.targetSpawn}]`);
+      }
+    });
+  }
+
+  // ✅ Process téléport
   processTeleport(obj, index, scene) {
     const targetZone = this.getProperty(obj, 'targetzone');
     const targetSpawn = this.getProperty(obj, 'targetspawn');
@@ -140,7 +211,7 @@ export class GlobalTransitionManager {
       return false;
     }
 
-    // ✅ CORRECTION 3: Vérifier que currentZone est définie
+    // ✅ Vérifier que currentZone est définie
     if (!this.currentZone) {
       console.error(`❌ [GlobalTransitionManager] currentZone undefined! Recalcul...`);
       this.currentZone = this.getZoneFromScene(scene.scene.key);
@@ -156,7 +227,7 @@ export class GlobalTransitionManager {
       height: obj.height || 32,
       targetZone: targetZone,
       targetSpawn: targetSpawn,
-      fromZone: this.currentZone // ✅ Utilisera la zone vérifiée
+      fromZone: this.currentZone
     };
 
     this.teleportZones.set(teleport.id, teleport);
@@ -165,9 +236,8 @@ export class GlobalTransitionManager {
     return true;
   }
 
-  // ✅ Création zones collision (adapté)
+  // ✅ Création zones collision
   createCollisionZones(scene) {
-    // ✅ Créer seulement les zones pour cette scène
     this.teleportZones.forEach((teleportData) => {
       if (teleportData.sceneKey !== scene.scene.key) return;
       
@@ -186,7 +256,7 @@ export class GlobalTransitionManager {
     });
   }
 
-  // ✅ Debug visuel (adapté)
+  // ✅ Debug visuel
   createDebugVisuals(zone, teleportData, scene) {
     const debugRect = scene.add.rectangle(
       zone.x, zone.y,
@@ -210,58 +280,125 @@ export class GlobalTransitionManager {
     debugText.setOrigin(0.5);
   }
 
-  // ✅ CHECK COLLISIONS GLOBAL
-checkCollisions(player) {
-  if (!this.isActive || !player || this.isTransitioning || !this.currentScene) return;
-
-  const now = Date.now();
-
-  // ➤ Protéger TOUTE détection pendant la grâce
-  if (this.graceTime > now) {
-    if (!this.lastGraceLogTime || now - this.lastGraceLogTime > 2000) {
-      const remaining = Math.ceil((this.graceTime - now) / 1000);
-      console.log(`🛡️ [GlobalTransitionManager] Délai de grâce: ${remaining}s restantes`);
-      this.lastGraceLogTime = now;
+  // ✅ CHECK COLLISIONS AVEC DEBUG ULTRA DÉTAILLÉ
+  checkCollisions(player) {
+    // ✅ PREMIER CHECK : États basiques
+    if (!this.isActive) {
+      if (this.collisionAttempts % 120 === 0) { // Log toutes les 2 secondes environ
+        console.log(`🚫 [GlobalTransitionManager] INACTIF - pas de check collisions`);
+      }
+      this.collisionAttempts++;
+      return;
     }
-    return;
+
+    if (!player) {
+      if (this.collisionAttempts % 120 === 0) {
+        console.log(`👤 [GlobalTransitionManager] PAS DE JOUEUR - pas de check collisions`);
+      }
+      this.collisionAttempts++;
+      return;
+    }
+
+    if (this.isTransitioning) {
+      if (this.collisionAttempts % 60 === 0) {
+        console.log(`🌀 [GlobalTransitionManager] EN TRANSITION - pas de check collisions`);
+      }
+      this.collisionAttempts++;
+      return;
+    }
+
+    if (!this.currentScene) {
+      if (this.collisionAttempts % 120 === 0) {
+        console.log(`🎬 [GlobalTransitionManager] PAS DE SCÈNE - pas de check collisions`);
+      }
+      this.collisionAttempts++;
+      return;
+    }
+
+    const now = Date.now();
+
+    // ✅ PROTECTION 1 : Délai de grâce global
+    if (this.graceTime > now) {
+      if (!this.lastGraceLogTime || now - this.lastGraceLogTime > 2000) {
+        const remaining = Math.ceil((this.graceTime - now) / 1000);
+        console.log(`🛡️ [GlobalTransitionManager] Délai de grâce: ${remaining}s restantes`);
+        this.lastGraceLogTime = now;
+      }
+      this.collisionAttempts++;
+      return;
+    }
+
+    // ✅ PROTECTION 2 : Protection spawn
+    if (this.isSpawnProtected()) {
+      if (!this.lastSpawnLogTime || now - this.lastSpawnLogTime > 1000) {
+        const remaining = Math.ceil((this.spawnProtectionTime - now) / 1000);
+        console.log(`🛡️ [GlobalTransitionManager] Protection spawn: ${remaining}s restantes`);
+        this.lastSpawnLogTime = now;
+      }
+      this.collisionAttempts++;
+      return;
+    }
+
+    // ✅ LOG DÉTAILLÉ PÉRIODIQUE DE L'ÉTAT
+    if (this.collisionAttempts % 300 === 0) { // Toutes les 5 secondes environ
+      console.log(`🔍 [GlobalTransitionManager] === CHECK COLLISION ACTIF ===`);
+      console.log(`👤 Joueur: (${Math.round(player.x)}, ${Math.round(player.y)})`);
+      console.log(`🎬 Scène: ${this.currentScene.scene.key}`);
+      console.log(`🚪 Téléports dans cette scène: ${this.getTeleportsForCurrentScene().length}`);
+      console.log(`🔒 Dernier téléport ignoré: ${this.lastTeleportId || 'aucun'}`);
+    }
+
+    // ✅ DÉTECTION COLLISIONS AVEC DEBUG
+    let collisionDetected = false;
+    
+    this.teleportZones.forEach((teleportData) => {
+      if (teleportData.sceneKey !== this.currentScene.scene.key) return;
+
+      // ✅ PROTECTION 3 : Ignore le dernier téléport utilisé
+      if (this.lastTeleportId && teleportData.id === this.lastTeleportId) {
+        // Log occasionnel pour debug
+        if (this.collisionAttempts % 180 === 0) {
+          console.log(`🔒 [GlobalTransitionManager] Ignore téléport: ${teleportData.id}`);
+        }
+        return;
+      }
+
+      if (this.isPlayerCollidingWithTeleport(player, teleportData)) {
+        console.log(`💥 [GlobalTransitionManager] ========== COLLISION DÉTECTÉE ==========`);
+        console.log(`⏰ Timestamp: ${new Date().toLocaleTimeString()}`);
+        console.log(`🎯 Téléport: ${teleportData.id}`);
+        console.log(`📍 Position joueur: (${Math.round(player.x)}, ${Math.round(player.y)})`);
+        console.log(`📍 Zone téléport: (${teleportData.x}, ${teleportData.y}) ${teleportData.width}x${teleportData.height}`);
+        console.log(`🎯 Destination: ${teleportData.targetZone}[${teleportData.targetSpawn}]`);
+        console.log(`🛡️ Protections: grâce=${this.graceTime > now}, spawn=${this.isSpawnProtected()}`);
+        console.log(`🔒 Dernier téléport: ${this.lastTeleportId}`);
+        console.log(`===============================================`);
+        
+        collisionDetected = true;
+        this.triggerTransition(teleportData);
+      }
+    });
+
+    // ✅ Log si aucune collision (occasionnel)
+    if (!collisionDetected && this.collisionAttempts % 600 === 0) { // Toutes les 10 secondes
+      console.log(`✅ [GlobalTransitionManager] Aucune collision détectée (check ${this.collisionAttempts})`);
+    }
+
+    this.collisionAttempts++;
   }
 
-  this.teleportZones.forEach((teleportData) => {
-    if (teleportData.sceneKey !== this.currentScene.scene.key) return;
+  // ✅ NOUVELLE MÉTHODE : Obtenir téléports de la scène actuelle
+  getTeleportsForCurrentScene() {
+    const teleports = [];
+    this.teleportZones.forEach((teleport) => {
+      if (teleport.sceneKey === this.currentScene?.scene.key) {
+        teleports.push(teleport);
+      }
+    });
+    return teleports;
+  }
 
-    // ➤ NOUVEAU : Ignore le dernier téléport utilisé
-    if (this.lastTeleportId && teleportData.id === this.lastTeleportId) {
-      // (log facultatif)
-      // console.log(`🛑 Ignore collision avec le téléport utilisé: ${teleportData.id}`);
-      return;
-    }
-
-    if (this.isPlayerCollidingWithTeleport(player, teleportData)) {
-      console.log(`💥 [GlobalTransitionManager] COLLISION: ${teleportData.id}!`);
-      this.triggerTransition(teleportData);
-    }
-  });
-}
-
-
-  this.teleportZones.forEach((teleportData) => {
-    if (teleportData.sceneKey !== this.currentScene.scene.key) return;
-
-    // ➤ Ignore le téléport sur lequel on vient d'arriver pendant la grace
-    if (this.lastTeleportId && teleportData.id === this.lastTeleportId) {
-      // Facultatif: Ajoute un log debug
-      // console.log(`🛑 [GlobalTransitionManager] Ignore collision avec dernier téléport utilisé (${teleportData.id})`);
-      return;
-    }
-
-    if (this.isPlayerCollidingWithTeleport(player, teleportData)) {
-      console.log(`💥 [GlobalTransitionManager] COLLISION: ${teleportData.id}!`);
-      this.triggerTransition(teleportData);
-    }
-  });
-}
-
-  // ✅ Collision (identique)
+  // ✅ COLLISION AVEC DEBUG DÉTAILLÉ
   isPlayerCollidingWithTeleport(player, teleportData) {
     const playerBounds = {
       x: player.x - 16,
@@ -277,15 +414,17 @@ checkCollisions(player) {
       height: teleportData.height
     };
 
-    return (
+    const collision = (
       playerBounds.x < teleportBounds.x + teleportBounds.width &&
       playerBounds.x + playerBounds.width > teleportBounds.x &&
       playerBounds.y < teleportBounds.y + teleportBounds.height &&
       playerBounds.y + playerBounds.height > teleportBounds.y
     );
+
+    return collision;
   }
 
-  // ✅ DÉCLENCHEMENT TRANSITION SIMPLIFIÉ
+  // ✅ DÉCLENCHEMENT TRANSITION AVEC HISTORIQUE
   async triggerTransition(teleportData) {
     if (this.isTransitioning) {
       console.warn(`⚠️ [GlobalTransitionManager] Transition déjà en cours`);
@@ -293,9 +432,24 @@ checkCollisions(player) {
     }
 
     console.log(`🚀 [GlobalTransitionManager] === DÉBUT TRANSITION ===`);
-    console.log(`📊 Données téléport reçues:`, teleportData);
+    console.log(`⏰ Timestamp: ${new Date().toLocaleTimeString()}`);
+    console.log(`📊 Données téléport:`, teleportData);
     
-    // ✅ CORRECTION : Vérifier et corriger fromZone IMMÉDIATEMENT
+    // ✅ AJOUTER À L'HISTORIQUE
+    this.transitionHistory.push({
+      timestamp: Date.now(),
+      teleportId: teleportData.id,
+      from: teleportData.fromZone,
+      to: teleportData.targetZone,
+      spawn: teleportData.targetSpawn
+    });
+
+    // ✅ Limiter historique à 10 dernières transitions
+    if (this.transitionHistory.length > 10) {
+      this.transitionHistory.shift();
+    }
+
+    // ✅ VÉRIFIER ET CORRIGER fromZone
     if (!teleportData.fromZone) {
       console.error(`❌ [GlobalTransitionManager] fromZone manquante! Recalcul...`);
       teleportData.fromZone = this.currentZone || this.getZoneFromScene(this.currentScene.scene.key);
@@ -318,16 +472,14 @@ checkCollisions(player) {
     this.showLoadingOverlay(teleportData);
     this.setTransitionTimeout();
 
-    // ✅ SIMPLIFICATION : Plus besoin de validateAndCorrectZone
-    // Les données sont déjà corrigées ici
-    console.log(`📤 [GlobalTransitionManager] Envoi direct avec données corrigées...`);
+    console.log(`📤 [GlobalTransitionManager] Envoi requête serveur...`);
     this.sendTransitionRequest(teleportData);
   }
 
-  // ✅ ENVOI REQUÊTE CORRIGÉ AVEC DEBUG
+  // ✅ ENVOI REQUÊTE AVEC DEBUG
   sendTransitionRequest(teleportData) {
     console.log(`📤 [GlobalTransitionManager] === ENVOI REQUÊTE SERVEUR ===`);
-    console.log(`📊 Données téléport reçues:`, teleportData);
+    console.log(`📊 Données téléport:`, teleportData);
     
     if (!this.currentScene?.networkManager?.room) {
       console.error(`❌ Pas de connexion serveur`);
@@ -342,7 +494,7 @@ checkCollisions(player) {
       return;
     }
 
-    // ✅ CORRECTION : S'assurer que fromZone est définie
+    // ✅ S'assurer que fromZone est définie
     let fromZone = teleportData.fromZone;
     
     if (!fromZone) {
@@ -358,22 +510,16 @@ checkCollisions(player) {
     }
 
     const request = {
-      fromZone: fromZone,                    // ✅ Zone source vérifiée
-      targetZone: teleportData.targetZone,   // ✅ Zone cible
-      targetSpawn: teleportData.targetSpawn, // ✅ Point spawn
-      playerX: myPlayer.x,                   // ✅ Position X
-      playerY: myPlayer.y,                   // ✅ Position Y
-      teleportId: teleportData.id           // ✅ ID téléport
+      fromZone: fromZone,
+      targetZone: teleportData.targetZone,
+      targetSpawn: teleportData.targetSpawn,
+      playerX: myPlayer.x,
+      playerY: myPlayer.y,
+      teleportId: teleportData.id
     };
 
     console.log(`📤 [GlobalTransitionManager] === REQUÊTE FINALE ===`);
     console.log(`📊 Requête complète:`, request);
-    console.log(`🔍 Détails:`);
-    console.log(`  - fromZone: "${request.fromZone}"`);
-    console.log(`  - targetZone: "${request.targetZone}"`);
-    console.log(`  - targetSpawn: "${request.targetSpawn}"`);
-    console.log(`  - position: (${request.playerX}, ${request.playerY})`);
-    console.log(`  - teleportId: "${request.teleportId}"`);
 
     // ✅ Setup listener
     this.setupTransitionListener();
@@ -387,17 +533,14 @@ checkCollisions(player) {
     }
   }
 
-  // ✅ LISTENER RÉPONSE SERVEUR AVEC DEBUG DÉTAILLÉ
+  // ✅ LISTENER RÉPONSE SERVEUR
   setupTransitionListener() {
     console.log(`👂 [GlobalTransitionManager] Setup listener...`);
 
     this.transitionResponseHandler = (result) => {
       console.log(`📨 [GlobalTransitionManager] === RÉPONSE SERVEUR ===`);
+      console.log(`⏰ Timestamp: ${new Date().toLocaleTimeString()}`);
       console.log(`📊 Résultat reçu:`, result);
-      console.log(`✅ Succès: ${result?.success}`);
-      console.log(`🎯 Zone résultante: ${result?.currentZone}`);
-      console.log(`📍 Position: ${result?.position ? `(${result.position.x}, ${result.position.y})` : 'undefined'}`);
-      console.log(`❌ Erreur: ${result?.reason}`);
       
       this.clearTransitionTimeout();
       this.currentScene.networkManager.onTransitionValidation(null);
@@ -405,9 +548,8 @@ checkCollisions(player) {
       if (result?.success) {
         this.handleTransitionSuccess(result, this.currentTransitionData);
       } else {
-        // ✅ AMÉLIORATION : Gestion d'erreur plus détaillée
         const errorReason = result?.reason || "Erreur inconnue";
-        console.error(`❌ [GlobalTransitionManager] Erreur détaillée: "${errorReason}"`);
+        console.error(`❌ [GlobalTransitionManager] Erreur: "${errorReason}"`);
         this.handleTransitionError({ reason: errorReason });
       }
     };
@@ -415,9 +557,11 @@ checkCollisions(player) {
     this.currentScene.networkManager.onTransitionValidation(this.transitionResponseHandler);
   }
 
-  // ✅ SUCCÈS TRANSITION (adapté)
+  // ✅ SUCCÈS TRANSITION AVEC PROTECTIONS RENFORCÉES
   handleTransitionSuccess(result, teleportData) {
     console.log(`✅ [GlobalTransitionManager] === TRANSITION VALIDÉE ===`);
+    console.log(`⏰ Timestamp: ${new Date().toLocaleTimeString()}`);
+    console.log(`📊 Résultat serveur:`, result);
     
     const targetZone = result.currentZone || teleportData.targetZone;
     const targetScene = this.getSceneFromZone(targetZone);
@@ -427,13 +571,19 @@ checkCollisions(player) {
       return;
     }
 
-    // ✅ ACTIVER DÉLAI DE GRÂCE GLOBAL
+    // ✅ PROTECTIONS GLOBALES RENFORCÉES
     this.activateGracePeriod();
-
-      // ➤ Réinitialise l'ID après la période de grâce
-  setTimeout(() => {
-    this.lastTeleportId = null;
-  }, this.graceDuration + 100); // 100ms de marge
+    this.activateSpawnProtection();
+    
+    // ✅ Mémoriser le téléport utilisé
+    this.lastTeleportId = teleportData.id;
+    
+    // ✅ Réinitialiser l'ID après TOUTES les protections
+    const totalProtectionTime = Math.max(this.graceDuration, this.spawnProtectionDuration) + 500;
+    setTimeout(() => {
+      console.log(`🔓 [GlobalTransitionManager] Réinitialisation lastTeleportId: ${this.lastTeleportId}`);
+      this.lastTeleportId = null;
+    }, totalProtectionTime);
     
     // ✅ Changement de scène
     if (targetScene !== this.currentScene.scene.key) {
@@ -447,7 +597,8 @@ checkCollisions(player) {
         spawnX: result.position?.x,
         spawnY: result.position?.y,
         preservePlayer: true,
-        globalTransitionManager: this // ✅ SE PASSER DANS LES DONNÉES
+        globalTransitionManager: this,
+        needsSpawnProtection: true
       };
 
       this.currentScene.scene.launch(targetScene, transitionData);
@@ -463,6 +614,52 @@ checkCollisions(player) {
     }
   }
 
+  // ✅ REPOSITIONNEMENT AVEC VÉRIFICATION SÉCURITÉ
+  repositionPlayer(result) {
+    const myPlayer = this.currentScene.playerManager?.getMyPlayer();
+    if (myPlayer && result.position) {
+      console.log(`📍 [GlobalTransitionManager] === REPOSITIONNEMENT JOUEUR ===`);
+      console.log(`📊 Position avant: (${Math.round(myPlayer.x)}, ${Math.round(myPlayer.y)})`);
+      console.log(`📊 Position serveur: (${result.position.x}, ${result.position.y})`);
+      
+      myPlayer.x = result.position.x;
+      myPlayer.y = result.position.y;
+      myPlayer.targetX = result.position.x;
+      myPlayer.targetY = result.position.y;
+      
+      console.log(`📊 Position après: (${Math.round(myPlayer.x)}, ${Math.round(myPlayer.y)})`);
+      
+      this.checkPlayerSafePosition(myPlayer);
+    }
+  }
+
+  // ✅ VÉRIFIER POSITION SÉCURISÉE
+  checkPlayerSafePosition(player) {
+    console.log(`🔍 [GlobalTransitionManager] === VÉRIFICATION POSITION SÉCURISÉE ===`);
+    
+    let conflictFound = false;
+    
+    this.teleportZones.forEach((teleportData) => {
+      if (teleportData.sceneKey !== this.currentScene.scene.key) return;
+      
+      if (this.isPlayerCollidingWithTeleport(player, teleportData)) {
+        console.warn(`⚠️ [GlobalTransitionManager] JOUEUR SUR TÉLÉPORT: ${teleportData.id}`);
+        console.warn(`   Téléport: (${teleportData.x}, ${teleportData.y}) ${teleportData.width}x${teleportData.height}`);
+        console.warn(`   Joueur: (${Math.round(player.x)}, ${Math.round(player.y)})`);
+        conflictFound = true;
+      }
+    });
+    
+    if (conflictFound) {
+      console.warn(`🚨 [GlobalTransitionManager] POSITION DANGEREUSE DÉTECTÉE!`);
+      // Prolonger la protection spawn
+      this.activateSpawnProtection(5000); // 5 secondes supplémentaires
+      console.log(`🛡️ [GlobalTransitionManager] Protection spawn prolongée à 5s`);
+    } else {
+      console.log(`✅ [GlobalTransitionManager] Position sécurisée confirmée`);
+    }
+  }
+
   // ✅ DÉLAI DE GRÂCE GLOBAL
   activateGracePeriod(duration = null) {
     const graceDuration = duration || this.graceDuration;
@@ -470,51 +667,6 @@ checkCollisions(player) {
     
     console.log(`🛡️ [GlobalTransitionManager] DÉLAI DE GRÂCE GLOBAL: ${graceDuration}ms`);
     console.log(`🛡️ [GlobalTransitionManager] Fin prévue: ${new Date(this.graceTime).toLocaleTimeString()}`);
-  }
-
-  // ✅ VALIDATION ET CORRECTION ZONE - RETOUR CORRIGÉ
-  validateAndCorrectZone(teleportData) {
-    console.log(`🔍 [GlobalTransitionManager] === VALIDATION ZONE ===`);
-    console.log(`📊 Données téléport entrée:`, teleportData);
-    console.log(`🎯 currentZone: ${this.currentZone}`);
-    console.log(`🏠 Scene zone: ${this.getZoneFromScene(this.currentScene.scene.key)}`);
-    
-    // ✅ CORRECTION 1: Créer une copie des données pour éviter les mutations
-    const correctedData = { ...teleportData };
-    
-    // ✅ CORRECTION 2: S'assurer que fromZone est définie
-    if (!correctedData.fromZone) {
-      console.warn(`⚠️ [GlobalTransitionManager] fromZone manquante dans teleportData`);
-      correctedData.fromZone = this.currentZone || this.getZoneFromScene(this.currentScene.scene.key);
-      console.log(`🔧 [GlobalTransitionManager] fromZone corrigée: ${correctedData.fromZone}`);
-    }
-    
-    // ✅ CORRECTION 3: Vérifier currentZone
-    if (!this.currentZone) {
-      console.warn(`⚠️ [GlobalTransitionManager] currentZone manquante`);
-      this.currentZone = this.getZoneFromScene(this.currentScene.scene.key);
-      console.log(`🔧 [GlobalTransitionManager] currentZone corrigée: ${this.currentZone}`);
-    }
-    
-    // ✅ CORRECTION 4: Synchroniser si différent
-    if (correctedData.fromZone !== this.currentZone) {
-      console.warn(`⚠️ [GlobalTransitionManager] Désynchronisation détectée:`);
-      console.warn(`  - teleportData.fromZone: ${correctedData.fromZone}`);
-      console.warn(`  - this.currentZone: ${this.currentZone}`);
-      
-      // Utiliser la zone la plus fiable
-      const reliableZone = this.currentZone || correctedData.fromZone;
-      correctedData.fromZone = reliableZone;
-      this.currentZone = reliableZone;
-      
-      console.log(`🔧 [GlobalTransitionManager] Zone synchronisée: ${reliableZone}`);
-    }
-    
-    console.log(`✅ [GlobalTransitionManager] === DONNÉES CORRIGÉES ===`);
-    console.log(`📊 Données finales:`, correctedData);
-    console.log(`🔍 fromZone finale: "${correctedData.fromZone}"`);
-    
-    return { success: true, correctedData: correctedData };
   }
 
   setTransitionTimeout() {
@@ -534,6 +686,7 @@ checkCollisions(player) {
   handleTransitionError(result) {
     const reason = result?.reason || "Erreur inconnue";
     console.error(`❌ [GlobalTransitionManager] === ERREUR TRANSITION ===`);
+    console.error(`⏰ Timestamp: ${new Date().toLocaleTimeString()}`);
     console.error(`📊 Données erreur complètes:`, result);
     console.error(`📝 Raison: "${reason}"`);
     
@@ -541,24 +694,15 @@ checkCollisions(player) {
     this.showErrorPopup(reason);
     this.resetTransitionState();
     
-    // ✅ NOUVEAU : Réactiver après erreur pour éviter les blocages
+    // ✅ Réactiver après erreur pour éviter les blocages
     this.activateGracePeriod(1000); // 1 seconde de grâce après erreur
   }
 
   resetTransitionState() {
+    console.log(`🔄 [GlobalTransitionManager] Reset état transition`);
     this.isTransitioning = false;
     this.currentTransitionData = null;
     this.clearTransitionTimeout();
-  }
-
-  repositionPlayer(result) {
-    const myPlayer = this.currentScene.playerManager?.getMyPlayer();
-    if (myPlayer && result.position) {
-      myPlayer.x = result.position.x;
-      myPlayer.y = result.position.y;
-      myPlayer.targetX = result.position.x;
-      myPlayer.targetY = result.position.y;
-    }
   }
 
   showLoadingOverlay(teleportData) {
@@ -619,23 +763,131 @@ checkCollisions(player) {
 
   // ✅ CONTRÔLES EXTERNES
   setActive(active) {
-    this.isActive = active;
     console.log(`🌍 [GlobalTransitionManager] ${active ? 'ACTIVÉ' : 'DÉSACTIVÉ'}`);
+    this.isActive = active;
   }
 
+  // ✅ DEBUG INFO ULTRA COMPLET
   debugInfo() {
-    console.log(`🌍 [GlobalTransitionManager] === DEBUG ===`);
+    console.log(`🌍 [GlobalTransitionManager] === DEBUG COMPLET ===`);
+    console.log(`⏰ Timestamp: ${new Date().toLocaleTimeString()}`);
     console.log(`🎯 Scène actuelle: ${this.currentScene?.scene.key || 'aucune'}`);
     console.log(`📍 Zone actuelle: ${this.currentZone}`);
     console.log(`🔧 État: ${this.isActive ? 'ACTIF' : 'INACTIF'}`);
     console.log(`🌀 En transition: ${this.isTransitioning}`);
-    console.log(`🛡️ Délai de grâce: ${this.graceTime > Date.now() ? 'ACTIF' : 'INACTIF'}`);
-    console.log(`📍 Téléports totaux: ${this.teleportZones.size}`);
     
-    if (this.graceTime > Date.now()) {
-      const remaining = Math.ceil((this.graceTime - Date.now()) / 1000);
-      console.log(`🛡️ Délai restant: ${remaining}s`);
+    const now = Date.now();
+    
+    // Délai de grâce
+    if (this.graceTime > now) {
+      const remaining = Math.ceil((this.graceTime - now) / 1000);
+      console.log(`🛡️ Délai de grâce: ACTIF (${remaining}s)`);
+    } else {
+      console.log(`🛡️ Délai de grâce: INACTIF`);
     }
+    
+    // Protection spawn
+    if (this.isSpawnProtected()) {
+      const remaining = Math.ceil((this.spawnProtectionTime - now) / 1000);
+      console.log(`🛡️ Protection spawn: ACTIF (${remaining}s)`);
+    } else {
+      console.log(`🛡️ Protection spawn: INACTIF`);
+    }
+    
+    console.log(`🔒 Dernier téléport: ${this.lastTeleportId || 'aucun'}`);
+    console.log(`📍 Téléports totaux: ${this.teleportZones.size}`);
+    console.log(`🔍 Tentatives collision: ${this.collisionAttempts}`);
+    
+    // Position joueur
+    const myPlayer = this.currentScene?.playerManager?.getMyPlayer();
+    if (myPlayer) {
+      console.log(`👤 Position joueur: (${Math.round(myPlayer.x)}, ${Math.round(myPlayer.y)})`);
+      this.checkPlayerSafePosition(myPlayer);
+    }
+    
+    // Téléports de la scène actuelle
+    const currentTeleports = this.getTeleportsForCurrentScene();
+    console.log(`🚪 Téléports scène actuelle: ${currentTeleports.length}`);
+    currentTeleports.forEach((teleport, index) => {
+      console.log(`   ${index + 1}. ${teleport.id}: (${teleport.x},${teleport.y}) → ${teleport.targetZone}`);
+    });
+    
+    // Historique transitions
+    console.log(`📜 Historique transitions (${this.transitionHistory.length}):`);
+    this.transitionHistory.slice(-5).forEach((transition, index) => {
+      const time = new Date(transition.timestamp).toLocaleTimeString();
+      console.log(`   ${index + 1}. ${time}: ${transition.from} → ${transition.to} (${transition.teleportId})`);
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Log état complet pour diagnostic
+  diagnosticLog() {
+    console.log(`🏥 [GlobalTransitionManager] === DIAGNOSTIC COMPLET ===`);
+    
+    // État système
+    console.log(`🔧 ÉTAT SYSTÈME:`);
+    console.log(`   - GlobalTransitionManager actif: ${this.isActive}`);
+    console.log(`   - En transition: ${this.isTransitioning}`);
+    console.log(`   - Scène attachée: ${this.currentScene?.scene.key || 'aucune'}`);
+    console.log(`   - Zone courante: ${this.currentZone}`);
+    
+    // Protections
+    const now = Date.now();
+    console.log(`🛡️ PROTECTIONS:`);
+    console.log(`   - Délai de grâce: ${this.graceTime > now ? `ACTIF (${Math.ceil((this.graceTime - now) / 1000)}s)` : 'INACTIF'}`);
+    console.log(`   - Protection spawn: ${this.isSpawnProtected() ? `ACTIF (${Math.ceil((this.spawnProtectionTime - now) / 1000)}s)` : 'INACTIF'}`);
+    console.log(`   - Dernier téléport ignoré: ${this.lastTeleportId || 'aucun'}`);
+    
+    // Joueur
+    const myPlayer = this.currentScene?.playerManager?.getMyPlayer();
+    console.log(`👤 JOUEUR:`);
+    if (myPlayer) {
+      console.log(`   - Position: (${Math.round(myPlayer.x)}, ${Math.round(myPlayer.y)})`);
+      console.log(`   - Visible: ${myPlayer.visible}`);
+      console.log(`   - Actif: ${myPlayer.active}`);
+    } else {
+      console.log(`   - Joueur introuvable!`);
+    }
+    
+    // Téléports
+    const currentTeleports = this.getTeleportsForCurrentScene();
+    console.log(`🚪 TÉLÉPORTS SCÈNE ACTUELLE (${currentTeleports.length}):`);
+    currentTeleports.forEach((teleport) => {
+      const isColliding = myPlayer ? this.isPlayerCollidingWithTeleport(myPlayer, teleport) : false;
+      const isIgnored = this.lastTeleportId === teleport.id;
+      console.log(`   - ${teleport.id}:`);
+      console.log(`     Position: (${teleport.x}, ${teleport.y}) ${teleport.width}x${teleport.height}`);
+      console.log(`     Destination: ${teleport.targetZone}[${teleport.targetSpawn}]`);
+      console.log(`     Collision: ${isColliding ? 'OUI' : 'NON'}`);
+      console.log(`     Ignoré: ${isIgnored ? 'OUI' : 'NON'}`);
+    });
+    
+    // Statistiques
+    console.log(`📊 STATISTIQUES:`);
+    console.log(`   - Tentatives collision: ${this.collisionAttempts}`);
+    console.log(`   - Transitions historique: ${this.transitionHistory.length}`);
+    
+    if (this.transitionHistory.length > 0) {
+      const lastTransition = this.transitionHistory[this.transitionHistory.length - 1];
+      const timeSince = Math.floor((now - lastTransition.timestamp) / 1000);
+      console.log(`   - Dernière transition: il y a ${timeSince}s (${lastTransition.from} → ${lastTransition.to})`);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE : Forcer reset pour déblocage d'urgence
+  emergencyReset() {
+    console.log(`🚨 [GlobalTransitionManager] === RESET D'URGENCE ===`);
+    
+    this.isTransitioning = false;
+    this.graceTime = 0;
+    this.spawnProtectionTime = 0;
+    this.lastTeleportId = null;
+    this.currentTransitionData = null;
+    this.clearTransitionTimeout();
+    this.hideLoadingOverlay();
+    
+    console.log(`🚨 [GlobalTransitionManager] Reset d'urgence terminé`);
+    this.debugInfo();
   }
 
   destroy() {
@@ -644,6 +896,7 @@ checkCollisions(player) {
     this.hideLoadingOverlay();
     this.clearTransitionTimeout();
     this.teleportZones.clear();
+    this.transitionHistory = [];
     this.isActive = false;
     this.isTransitioning = false;
     this.currentTransitionData = null;
