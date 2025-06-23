@@ -385,34 +385,42 @@ handleShopInteraction(npc, data) {
 
   // === GÉNÉRATION DE LA DATA DE DIALOGUE, UNIFIÉE POUR TOUT ===
 
-  createDialogueData(npc, data) {
-    let npcName = "ERROR NAME";
-    let portrait = "/assets/portrait/unknownPortrait.png";
-    if (npc) {
-      npcName = npc.name || "ERROR NAME";
-      if (npc.sprite) {
-        portrait = `/assets/portrait/${npc.sprite}Portrait.png`;
-      }
-    }
-    // Si data force le portrait ou le nom, on override
-    if (data?.portrait) portrait = data.portrait;
-    if (data?.name) npcName = data.name;
-
-    let lines = ["..."];
-    if (data?.lines && Array.isArray(data.lines) && data.lines.length > 0) {
-      lines = data.lines;
-    } else if (data?.message) {
-      lines = [data.message];
-    } else if (npc && npc.defaultDialogue) {
-      lines = [npc.defaultDialogue];
-    }
-    return {
-      portrait,
-      name: npcName,
-      lines,
-      text: data?.text || null
-    };
+ createDialogueData(npc, data) {
+  let npcName = "PNJ";
+  let portrait = "/assets/portrait/defaultPortrait.png";
+  
+  // ✅ CORRECTION: Priorité aux données fournies
+  if (data?.name) {
+    npcName = data.name;
+  } else if (npc?.name) {
+    npcName = npc.name;
   }
+  
+  // ✅ CORRECTION: Gérer le portrait avec fallback
+  if (data?.portrait) {
+    portrait = data.portrait;
+  } else if (npc?.sprite) {
+    portrait = `/assets/portrait/${npc.sprite}Portrait.png`;
+  } else if (npc?.portrait) {
+    portrait = npc.portrait;
+  }
+
+  let lines = ["..."];
+  if (data?.lines && Array.isArray(data.lines) && data.lines.length > 0) {
+    lines = data.lines;
+  } else if (data?.message) {
+    lines = [data.message];
+  } else if (npc?.defaultDialogue) {
+    lines = [npc.defaultDialogue];
+  }
+  
+  return {
+    portrait,
+    name: npcName,
+    lines,
+    text: data?.text || null
+  };
+}
 
   createShopInteractionData(npc) {
     const shopId = npc.properties?.shopId ||
