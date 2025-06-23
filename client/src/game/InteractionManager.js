@@ -418,23 +418,31 @@ export class InteractionManager {
     }
   }
 
-  handleQuestInteraction(npc, data) {
-    console.log(`🎯 [InteractionManager] === GESTION QUÊTE ===`);
-    
-    if (!this.questSystem) {
-      console.warn(`⚠️ [InteractionManager] QuestSystem non disponible`);
-      this.handleDialogueInteraction(npc, data);
-      return;
-    }
-
-    try {
-      this.questSystem.handleNpcInteraction(data || npc);
-      console.log(`✅ [InteractionManager] Quête déléguée avec succès`);
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur quête:`, error);
-      this.handleDialogueInteraction(npc, data);
-    }
+handleQuestInteraction(npc, data) {
+  console.log(`🎯 [InteractionManager] === GESTION QUÊTE ===`);
+  
+  if (!this.questSystem) {
+    console.warn(`⚠️ [InteractionManager] QuestSystem non disponible`);
+    this.showMessage("Système de quêtes non disponible", 'error');
+    return;
   }
+
+  try {
+    // On suppose que handleNpcInteraction retourne true si une quête a été affichée,
+    // false ou un code spécial sinon
+    const result = this.questSystem.handleNpcInteraction(data || npc);
+    if (result === false || result === 'NO_QUEST') {
+      // Pas de quête dispo → on affiche le dialogue à la place
+      this.handleDialogueInteraction(npc, data);
+    } else {
+      console.log(`✅ [InteractionManager] Quête déléguée avec succès`);
+    }
+  } catch (error) {
+    console.error(`❌ [InteractionManager] Erreur quête:`, error);
+    this.showMessage(`Erreur quête: ${error.message}`, 'error');
+  }
+}
+
 
   handleHealInteraction(npc, data) {
     console.log(`💊 [InteractionManager] === GESTION SOIN ===`);
