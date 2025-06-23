@@ -1,6 +1,5 @@
-// client/src/scenes/zones/BaseZoneScene.js - VERSION AVEC INTERACTIONMANAGER ET SYSTÈME DE CHARGEMENT JOUEUR
-// ✅ Utilise la connexion établie dans main.js et délègue les interactions à InteractionManager
-// ✅ Système d'écran de chargement pour la préparation du joueur
+// client/src/scenes/zones/BaseZoneScene.js - VERSION AVEC LOADINGSCREEN EXTERNE
+// ✅ Utilise la connexion établie dans main.js et le nouveau système LoadingScreen
 
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
@@ -12,6 +11,9 @@ import { TransitionIntegration } from '../../transitions/TransitionIntegration.j
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
 import { DayNightManager } from '../../game/DayNightManager.js';
 import { ClientCollisionManager } from "../../game/ClientCollisionsManager.js";
+
+// ✅ NOUVEAU: Import du système de chargement externe
+import { LoadingScreen, LoadingScreenConfig } from "../../components/LoadingScreen.js";
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -43,19 +45,9 @@ export class BaseZoneScene extends Phaser.Scene {
     // ✅ NOUVEAU: InteractionManager au lieu de ShopIntegration direct
     this.interactionManager = null;
 
-    // ✅ NOUVEAU: Système d'écran de chargement joueur
-    this.playerLoadingOverlay = null;
-    this.playerLoadingText = null;
-    this.playerLoadingProgress = null;
-    this.isPlayerLoading = false;
-    this.playerLoadingSteps = [
-      "Connexion au serveur...",
-      "Chargement des données joueur...",
-      "Positionnement du personnage...",
-      "Configuration de la caméra...",
-      "Finalisation..."
-    ];
-    this.currentLoadingStep = 0;
+    // ✅ NOUVEAU: Système de chargement externe
+    this.loadingScreen = LoadingScreen.getGlobal();
+    this.playerLoadingEnabled = LoadingScreenConfig.ENABLED; // Variable pour activer/désactiver
   }
 
   preload() {
@@ -89,9 +81,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.myPlayerReady = false;
     this.isSceneReady = true;
 
-    // ✅ CRÉER L'ÉCRAN DE CHARGEMENT JOUEUR
-    this.createPlayerLoadingOverlay();
-
     // ✅ UTILISER LA CONNEXION EXISTANTE AU LIEU DE CRÉER UNE NOUVELLE
     this.initializeWithExistingConnection();
 
@@ -100,146 +89,6 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Création de l'écran de chargement joueur
-  createPlayerLoadingOverlay() {
-    console.log(`🎨 [${this.scene.key}] Création de l'écran de chargement joueur...`);
-
-    // Arrière-plan semi-transparent
-    this.playerLoadingOverlay = this.add.rectangle(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY,
-      this.cameras.main.width,
-      this.cameras.main.height,
-      0x000000,
-      0.8
-    ).setScrollFactor(0).setDepth(9999).setVisible(false);
-
-    // Texte de chargement principal
-    this.playerLoadingText = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY - 50,
-      'Préparation du personnage...',
-      {
-        fontSize: '24px',
-        fontFamily: 'Arial',
-        color: '#ffffff',
-        align: 'center'
-      }
-    ).setOrigin(0.5).setScrollFactor(0).setDepth(10000).setVisible(false);
-
-    // Texte de progression détaillée
-    this.playerLoadingProgress = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY + 20,
-      '',
-      {
-        fontSize: '16px',
-        fontFamily: 'Arial',
-        color: '#cccccc',
-        align: 'center'
-      }
-    ).setOrigin(0.5).setScrollFactor(0).setDepth(10000).setVisible(false);
-
-    // Animation de points de chargement
-    this.playerLoadingDots = '';
-    this.playerLoadingTimer = this.time.addEvent({
-      delay: 500,
-      callback: () => {
-        if (this.isPlayerLoading) {
-          this.playerLoadingDots = this.playerLoadingDots.length >= 3 ? '' : this.playerLoadingDots + '.';
-          if (this.playerLoadingText && this.playerLoadingText.active) {
-            this.playerLoadingText.setText('Préparation du personnage' + this.playerLoadingDots);
-          }
-        }
-      },
-      loop: true
-    });
-
-    console.log(`✅ [${this.scene.key}] Écran de chargement joueur créé`);
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Afficher l'écran de chargement joueur
-  showPlayerLoading() {
-    console.log(`📱 [${this.scene.key}] === AFFICHAGE ÉCRAN CHARGEMENT JOUEUR ===`);
-    
-    this.isPlayerLoading = true;
-    this.currentLoadingStep = 0;
-
-    // Masquer l'overlay de chargement global s'il est encore visible
-    if (window.hideLoadingOverlay) {
-      window.hideLoadingOverlay();
-    }
-
-    // Afficher l'écran de chargement joueur
-    if (this.playerLoadingOverlay) this.playerLoadingOverlay.setVisible(true);
-    if (this.playerLoadingText) this.playerLoadingText.setVisible(true);
-    if (this.playerLoadingProgress) this.playerLoadingProgress.setVisible(true);
-
-    this.updatePlayerLoadingStep(0);
-
-    console.log(`✅ [${this.scene.key}] Écran de chargement joueur affiché`);
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Mettre à jour l'étape de chargement
-  updatePlayerLoadingStep(stepIndex) {
-    if (stepIndex >= this.playerLoadingSteps.length) return;
-
-    this.currentLoadingStep = stepIndex;
-    const stepText = this.playerLoadingSteps[stepIndex];
-    
-    console.log(`📊 [${this.scene.key}] Étape de chargement: ${stepIndex + 1}/${this.playerLoadingSteps.length} - ${stepText}`);
-    
-    if (this.playerLoadingProgress && this.playerLoadingProgress.active) {
-      this.playerLoadingProgress.setText(`${stepText} (${stepIndex + 1}/${this.playerLoadingSteps.length})`);
-    }
-
-    // Animation de transition entre les étapes
-    if (this.playerLoadingProgress && this.playerLoadingProgress.active) {
-      this.tweens.add({
-        targets: this.playerLoadingProgress,
-        alpha: 0.5,
-        duration: 200,
-        yoyo: true,
-        ease: 'Power2'
-      });
-    }
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Masquer l'écran de chargement joueur
-  hidePlayerLoading() {
-    console.log(`📱 [${this.scene.key}] === MASQUAGE ÉCRAN CHARGEMENT JOUEUR ===`);
-    
-    this.isPlayerLoading = false;
-
-    // Animation de fondu sortant
-    const hideElements = [this.playerLoadingOverlay, this.playerLoadingText, this.playerLoadingProgress];
-    
-    hideElements.forEach(element => {
-      if (element && element.active) {
-        this.tweens.add({
-          targets: element,
-          alpha: 0,
-          duration: 500,
-          ease: 'Power2',
-          onComplete: () => {
-            if (element && element.active) {
-              element.setVisible(false);
-              element.setAlpha(1); // Réinitialiser l'alpha pour la prochaine fois
-            }
-          }
-        });
-      }
-    });
-
-    // Arrêter le timer d'animation des points
-    if (this.playerLoadingTimer) {
-      this.playerLoadingTimer.destroy();
-      this.playerLoadingTimer = null;
-    }
-
-    console.log(`✅ [${this.scene.key}] Écran de chargement joueur masqué`);
   }
 
   // ✅ MÉTHODE INCHANGÉE: Utiliser la connexion existante
@@ -699,7 +548,7 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  // ✅ MÉTHODE MODIFIÉE: Setup du handler joueur prêt avec système de chargement
+  // ✅ MÉTHODE MODIFIÉE: Setup du handler joueur prêt avec LoadingScreen externe
   setupPlayerReadyHandler() {
     if (!this.playerManager) return;
     
@@ -707,50 +556,60 @@ export class BaseZoneScene extends Phaser.Scene {
       if (!this.myPlayerReady) {
         console.log(`🎬 [${this.scene.key}] === DÉMARRAGE PRÉPARATION JOUEUR ===`);
         
-        // ✅ AFFICHER L'ÉCRAN DE CHARGEMENT JOUEUR
-        this.showPlayerLoading();
-        
-        // ✅ SÉQUENCE DE PRÉPARATION AVEC ÉTAPES
-        this.preparePlayerSequence(myPlayer);
+        // ✅ NOUVEAU: Utiliser le LoadingScreen externe
+        if (this.playerLoadingEnabled) {
+          this.preparePlayerWithLoadingScreen(myPlayer);
+        } else {
+          // Mode sans écran de chargement (pour debug/test)
+          this.preparePlayerDirectly(myPlayer);
+        }
       }
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE: Séquence de préparation du joueur avec étapes
-  preparePlayerSequence(myPlayer) {
-    console.log(`🎭 [${this.scene.key}] === SÉQUENCE PRÉPARATION JOUEUR ===`);
-    
-    let currentStep = 0;
-    
-    // Étape 1: Connexion au serveur (déjà fait)
-    this.updatePlayerLoadingStep(currentStep++);
-    
-    this.time.delayedCall(300, () => {
-      // Étape 2: Chargement des données joueur
-      this.updatePlayerLoadingStep(currentStep++);
+  // ✅ NOUVELLE MÉTHODE: Préparation avec écran de chargement
+  async preparePlayerWithLoadingScreen(myPlayer) {
+    try {
+      // Configurer les étapes personnalisées pour cette scène si nécessaire
+      const customSteps = this.getPlayerLoadingSteps();
       
-      this.time.delayedCall(400, () => {
-        // Étape 3: Positionnement du personnage
-        this.updatePlayerLoadingStep(currentStep++);
-        this.positionPlayer(myPlayer);
-        
-        this.time.delayedCall(300, () => {
-          // Étape 4: Configuration de la caméra
-          this.updatePlayerLoadingStep(currentStep++);
-          this.setupPlayerCamera(myPlayer);
-          
-          this.time.delayedCall(400, () => {
-            // Étape 5: Finalisation
-            this.updatePlayerLoadingStep(currentStep++);
-            
-            this.time.delayedCall(500, () => {
-              // ✅ FINALISER LA PRÉPARATION
-              this.finalizePlayerSetup(myPlayer);
-            });
-          });
-        });
+      // Afficher l'écran de chargement
+      await this.loadingScreen.showCustomLoading(customSteps, {
+        title: 'Préparation du personnage',
+        icon: '👤',
+        stepDelay: LoadingScreenConfig.FAST_MODE ? 50 : 300
       });
-    });
+      
+      // L'écran se ferme automatiquement, maintenant finaliser
+      this.finalizePlayerSetup(myPlayer);
+      
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur préparation joueur:`, error);
+      // Fallback vers méthode directe
+      this.preparePlayerDirectly(myPlayer);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Préparation directe (sans écran)
+  preparePlayerDirectly(myPlayer) {
+    console.log(`⚡ [${this.scene.key}] Préparation directe du joueur`);
+    
+    // Exécuter toutes les étapes rapidement
+    this.positionPlayer(myPlayer);
+    this.setupPlayerCamera(myPlayer);
+    this.finalizePlayerSetup(myPlayer);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Obtenir les étapes de chargement pour cette scène
+  getPlayerLoadingSteps() {
+    // Peut être surchargée dans les scènes spécifiques
+    return [
+      "Connexion au serveur...",
+      "Chargement des données joueur...",
+      "Positionnement du personnage...",
+      "Configuration de la caméra...",
+      "Finalisation..."
+    ];
   }
 
   // ✅ NOUVELLE MÉTHODE: Configuration de la caméra du joueur
@@ -789,9 +648,6 @@ export class BaseZoneScene extends Phaser.Scene {
       myPlayer.setVisible(true);
       myPlayer.setActive(true);
     }
-
-    // ✅ MASQUER L'ÉCRAN DE CHARGEMENT JOUEUR
-    this.hidePlayerLoading();
     
     // Appeler le hook onPlayerReady si défini
     if (typeof this.onPlayerReady === 'function') {
@@ -799,6 +655,19 @@ export class BaseZoneScene extends Phaser.Scene {
     }
     
     console.log(`🎊 [${this.scene.key}] Joueur entièrement prêt et opérationnel !`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Désactiver/activer le système de chargement
+  setPlayerLoadingEnabled(enabled) {
+    this.playerLoadingEnabled = enabled;
+    console.log(`📱 [${this.scene.key}] LoadingScreen joueur ${enabled ? 'activé' : 'désactivé'}`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Configurer le mode rapide
+  setLoadingFastMode(fastMode) {
+    if (this.loadingScreen) {
+      this.loadingScreen.setFastMode(fastMode);
+    }
   }
 
   // ✅ MÉTHODE INCHANGÉE: Vérification de l'état réseau
@@ -916,18 +785,13 @@ export class BaseZoneScene extends Phaser.Scene {
     return this.scene && this.scene.key === expectedScene && this.scene.isActive();
   }
   
-  // ✅ MÉTHODE MODIFIÉE: Cleanup avec InteractionManager et écran de chargement
+  // ✅ MÉTHODE MODIFIÉE: Cleanup avec LoadingScreen externe
   cleanup() {
     TransitionIntegration.cleanupTransitions(this);
 
-    // ✅ Nettoyer l'écran de chargement joueur
-    if (this.isPlayerLoading) {
-      this.hidePlayerLoading();
-    }
-    
-    if (this.playerLoadingTimer) {
-      this.playerLoadingTimer.destroy();
-      this.playerLoadingTimer = null;
+    // ✅ NOUVEAU: Masquer l'écran de chargement si visible
+    if (this.loadingScreen && this.loadingScreen.isActive()) {
+      this.loadingScreen.hide();
     }
 
     if (this.scene.isActive(this.scene.key)) {
@@ -977,20 +841,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.myPlayerReady = false;
     this.isSceneReady = false;
     this.networkSetupComplete = false;
-    
-    // ✅ Nettoyer les éléments de l'écran de chargement
-    if (this.playerLoadingOverlay) {
-      this.playerLoadingOverlay.destroy();
-      this.playerLoadingOverlay = null;
-    }
-    if (this.playerLoadingText) {
-      this.playerLoadingText.destroy();
-      this.playerLoadingText = null;
-    }
-    if (this.playerLoadingProgress) {
-      this.playerLoadingProgress.destroy();
-      this.playerLoadingProgress = null;
-    }
     
     console.log(`✅ [${this.scene.key}] Nettoyage terminé`);
   }
@@ -1087,7 +937,7 @@ export class BaseZoneScene extends Phaser.Scene {
     }
   }
 
-  // === MÉTHODES UTILITAIRES CONSERVÉES ===
+  // === MÉTHODES UTILITAIRES CONSERVÉES (inchangées) ===
 
 mapSceneToZone(sceneName) {
   const mapping = {
@@ -1443,10 +1293,6 @@ normalizeZoneName(sceneName) {
     this.showNotification(`Transition impossible: ${result.reason}`, 'error');
   }
 
-  // ✅ MÉTHODE SUPPRIMÉE: handleNpcInteraction
-  // Cette méthode est maintenant gérée entièrement par l'InteractionManager
-  // qui configure son propre handler réseau pour "npcInteractionResult"
-
   checkPlayerState() {
     const myPlayer = this.playerManager?.getMyPlayer();
     if (!myPlayer) {
@@ -1553,11 +1399,16 @@ normalizeZoneName(sceneName) {
       npcManager: !!this.npcManager,
       networkManager: !!this.networkManager,
       interactionManager: !!this.interactionManager,
-      inventorySystem: !!this.inventorySystem
+      inventorySystem: !!this.inventorySystem,
+      loadingScreen: !!this.loadingScreen
     });
     
     if (this.interactionManager) {
       this.interactionManager.debugState();
+    }
+    
+    if (this.loadingScreen) {
+      this.loadingScreen.debug();
     }
     
     console.log(`📊 État scène:`, {
@@ -1565,7 +1416,8 @@ normalizeZoneName(sceneName) {
       networkSetup: this.networkSetupComplete,
       playerReady: this.myPlayerReady,
       zoneName: this.zoneName,
-      sessionId: this.mySessionId
+      sessionId: this.mySessionId,
+      playerLoadingEnabled: this.playerLoadingEnabled
     });
   }
 }
