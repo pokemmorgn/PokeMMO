@@ -5,7 +5,7 @@
   "shinyRate": 0.000244,
   "moneyRate": 1.0,
 
-  "playerMoveSpeed": 120,
+  "playerMoveSpeed": 60,
   "mountMoveSpeed": 180,
   "npcMoveSpeed": 100,
   "encounterStepRate": 30,
