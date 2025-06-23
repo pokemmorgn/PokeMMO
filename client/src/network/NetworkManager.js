@@ -1,5 +1,5 @@
-// client/src/network/NetworkManager.js - VERSION CORRIGÉE POUR PREMIER JOUEUR
-// ✅ Support robuste pour le premier joueur + zone dictée par le serveur
+// client/src/network/NetworkManager.js - VERSION COMPLÈTE AVEC FIX NPCs
+// ✅ Support robuste pour le premier joueur + zone dictée par le serveur + replay NPCs
 
 import { GAME_CONFIG } from "../config/gameConfig.js";
 
@@ -24,6 +24,9 @@ export class NetworkManager {
     // ✅ NOUVEAU: Données de mon joueur
     this.myPlayerData = null;
     this.myPlayerConfirmed = false;
+
+    // ✅ NOUVEAU: Stockage des NPCs pour replay
+    this.lastReceivedNpcs = null;
 
     this.transitionState = {
       isActive: false,
@@ -270,40 +273,46 @@ export class NetworkManager {
       }
     });
 
-  this.room.onMessage("npcList", (npcs) => {
-    console.log(`🤖 [NetworkManager] === MESSAGE NPCLIST INTERCEPTÉ ===`);
-    console.log(`📊 NPCs: ${npcs.length}`);
-    console.log(`🎯 Callback configuré: ${!!this.callbacks.onNpcList}`);
-    
-    console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
-    this.lastReceivedNpcs = npcs;
-    if (this.callbacks.onNpcList) {
-      this.callbacks.onNpcList(npcs);
-    }
-  });
+    // ✅ HANDLER NPCs CORRIGÉ AVEC REPLAY
+    this.room.onMessage("npcList", (npcs) => {
+      console.log(`🤖 [NetworkManager] === MESSAGE NPCLIST INTERCEPTÉ ===`);
+      console.log(`📊 NPCs: ${npcs.length}`);
+      console.log(`🎯 Callback configuré: ${!!this.callbacks.onNpcList}`);
+      
+      // ✅ STOCKER LES NPCs REÇUS
+      this.lastReceivedNpcs = npcs;
+      
+      console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
+      
+      if (this.callbacks.onNpcList) {
+        console.log(`✅ [NetworkManager] Envoi immédiat au callback`);
+        this.callbacks.onNpcList(npcs);
+      } else {
+        console.log(`⏳ [NetworkManager] NPCs stockés en attente du callback`);
+      }
+    });
 
-this.room.onMessage("transitionResult", (result) => {
-  console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
+    this.room.onMessage("transitionResult", (result) => {
+      console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
 
-  // Sync la zone côté client (important)
-  if (result.success && result.currentZone) {
-    console.log(`🔄 [NetworkManager] Sync zone: ${this.currentZone} → ${result.currentZone}`);
-    this.currentZone = result.currentZone;
-  }
+      // Sync la zone côté client (important)
+      if (result.success && result.currentZone) {
+        console.log(`🔄 [NetworkManager] Sync zone: ${this.currentZone} → ${result.currentZone}`);
+        this.currentZone = result.currentZone;
+      }
 
-  // ✅ DÉLÈGUE à la propriété dynamique: utilisé par le TransitionManager !
-  if (this.onTransitionValidation) {
-    this.onTransitionValidation(result);
-  }
+      // ✅ DÉLÈGUE à la propriété dynamique: utilisé par le TransitionManager !
+      if (this.onTransitionValidation) {
+        this.onTransitionValidation(result);
+      }
 
-  // Callbacks secondaires (optionnels)
-  if (result.success && this.callbacks.onTransitionSuccess) {
-    this.callbacks.onTransitionSuccess(result);
-  } else if (!result.success && this.callbacks.onTransitionError) {
-    this.callbacks.onTransitionError(result);
-  }
-});
-
+      // Callbacks secondaires (optionnels)
+      if (result.success && this.callbacks.onTransitionSuccess) {
+        this.callbacks.onTransitionSuccess(result);
+      } else if (!result.success && this.callbacks.onTransitionError) {
+        this.callbacks.onTransitionError(result);
+      }
+    });
 
     this.room.onMessage("npcInteractionResult", (result) => {
       console.log(`💬 [NetworkManager] NPC interaction:`, result);
@@ -431,7 +440,7 @@ this.room.onMessage("transitionResult", (result) => {
     return this.myPlayerData;
   }
 
-  // === Méthodes de gestion de transitions et communication ===
+  // === MÉTHODES DE GESTION DE TRANSITIONS ET COMMUNICATION ===
 
   moveToZone(targetZone, spawnX, spawnY) {
     if (!this.isConnected || !this.room) {
@@ -549,14 +558,38 @@ this.room.onMessage("transitionResult", (result) => {
     }
   }
 
-  // === Callbacks ===
+  // === CALLBACKS AVEC REPLAY NPCs ===
 
   onConnect(callback) { this.callbacks.onConnect = callback; }
   onStateChange(callback) { this.callbacks.onStateChange = callback; }
   onPlayerData(callback) { this.callbacks.onPlayerData = callback; }
   onDisconnect(callback) { this.callbacks.onDisconnect = callback; }
   onZoneData(callback) { this.callbacks.onZoneData = callback; }
-  onNpcList(callback) { this.callbacks.onNpcList = callback; }
+  
+  // ✅ MÉTHODE CORRIGÉE AVEC REPLAY AUTOMATIQUE
+  onNpcList(callback) { 
+    console.log(`🔧 [NetworkManager] Configuration callback onNpcList`);
+    console.log(`⏰ Timestamp configuration: ${Date.now()}`);
+    console.log(`📊 NPCs en attente: ${this.lastReceivedNpcs?.length || 0}`);
+    
+    this.callbacks.onNpcList = callback; 
+    
+    // ✅ REPLAY AUTOMATIQUE des NPCs déjà reçus
+    if (this.lastReceivedNpcs && this.lastReceivedNpcs.length > 0) {
+      console.log(`🔄 [NetworkManager] REPLAY automatique de ${this.lastReceivedNpcs.length} NPCs`);
+      
+      // Délai court pour que la scène soit prête
+      setTimeout(() => {
+        if (this.callbacks.onNpcList && this.lastReceivedNpcs) {
+          console.log(`📤 [NetworkManager] Envoi des NPCs en replay`);
+          this.callbacks.onNpcList(this.lastReceivedNpcs);
+        }
+      }, 100);
+    } else {
+      console.log(`ℹ️ [NetworkManager] Aucun NPC en attente de replay`);
+    }
+  }
+  
   onTransitionSuccess(callback) { this.callbacks.onTransitionSuccess = callback; }
   onTransitionError(callback) { this.callbacks.onTransitionError = callback; }
   onNpcInteraction(callback) { this.callbacks.onNpcInteraction = callback; }
