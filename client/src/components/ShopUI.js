@@ -1177,4 +1177,4 @@ createBuyItemElement(item, index) {
     
     console.log('🏪 ShopUI détruit');
   }
- }
+export { ShopUI }; 
