@@ -25,5 +25,38 @@
   "chatEnabled": true,
   "chatCooldown": 2,
 
-  "autoresetQuest": true
+  "autoresetQuest": true,
+
+  "timeSystem": {
+    "enabled": true,
+    "startHour": 12,
+    "timeIntervalMs": 300000,
+    "dayStartHour": 6,
+    "nightStartHour": 20
+  },
+
+  "weatherSystem": {
+    "enabled": true,
+    "changeIntervalMs": 900000,
+    "weatherTypes": [
+      {
+        "name": "clear",
+        "displayName": "Ciel dégagé",
+        "probability": 70,
+        "effects": {
+          "encounterRateModifier": 1.0,
+          "xpModifier": 1.0
+        }
+      },
+      {
+        "name": "rain",
+        "displayName": "Pluie",
+        "probability": 30,
+        "effects": {
+          "encounterRateModifier": 1.0,
+          "xpModifier": 1.0
+        }
+      }
+    ]
+  }
 }
