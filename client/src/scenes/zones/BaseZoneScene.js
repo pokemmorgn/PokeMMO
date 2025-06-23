@@ -49,8 +49,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
 
     this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
-      frameWidth: 32,
-      frameHeight: 32,
+      frameWidth: 16,
+      frameHeight: 16,
     });
   }
 
@@ -777,7 +777,7 @@ setupPlayerReadyHandler() {
 
   // ✅ MÉTHODE INCHANGÉE: Gestion du mouvement
   handleMovement(myPlayerState) {
-    const speed = 120;
+    const speed = 80;
     const myPlayer = this.playerManager.getMyPlayer();
     if (!myPlayer) return;
 
