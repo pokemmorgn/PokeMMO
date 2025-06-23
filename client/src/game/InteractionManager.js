@@ -326,7 +326,9 @@ export class InteractionManager {
     try {
       this.shopSystem.handleShopNpcInteraction(data || this.createShopInteractionData(npc));
     } catch (error) {
-      this.handleDialogueInteraction(npc, { message: `Erreur shop: ${error.message}` });
+     this.handleDialogueInteraction(npc, { 
+  message: `Erreur shop: ${error.message}\n\nSTACK:\n${error.stack || '(pas de stack)'}`
+});
     }
   }
 
