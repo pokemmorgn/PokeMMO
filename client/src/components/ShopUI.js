@@ -385,20 +385,22 @@ export class ShopUI {
     this.updateItemsCount();
   }
 
-  displayBuyItems() {
-    const itemsGrid = this.overlay.querySelector('#shop-items-grid');
-    const availableItems = this.shopData.availableItems.filter(item => item.canBuy && item.unlocked);
+displayBuyItems() {
+  const itemsGrid = this.overlay.querySelector('#shop-items-grid');
+  const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
+  const availableItems = items.filter(item => item.canBuy && item.unlocked);
 
-    if (availableItems.length === 0) {
-      this.showEmpty("Aucun objet disponible à l'achat");
-      return;
-    }
-
-    availableItems.forEach((item, index) => {
-      const itemElement = this.createBuyItemElement(item, index);
-      itemsGrid.appendChild(itemElement);
-    });
+  if (availableItems.length === 0) {
+    this.showEmpty("Aucun objet disponible à l'achat");
+    return;
   }
+
+  availableItems.forEach((item, index) => {
+    const itemElement = this.createBuyItemElement(item, index);
+    itemsGrid.appendChild(itemElement);
+  });
+}
+
 
   displaySellItems() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
