@@ -125,8 +125,11 @@ export class NpcManager {
       console.log(`🎨 Sprite key choisi: ${spriteKey}`);
       
       // ✅ Vérification détaillée de l'existence du sprite
-      const spriteExists = this.scene.textures.exists(spriteKey);
-      console.log(`🎨 Sprite "${spriteKey}" existe: ${spriteExists}`);
+console.log(
+  `🎨 Texture "${spriteKey}" existe dans ${this.scene.scene.key}:`,
+  this.scene.textures.exists(spriteKey)
+);
+console.log('Textures connues:', Object.keys(this.scene.textures.list));
       
       if (!spriteExists) {
         console.log(`🎨 === CRÉATION PLACEHOLDER pour ${spriteKey} ===`);
