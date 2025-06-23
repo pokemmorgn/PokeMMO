@@ -358,8 +358,6 @@ if (items.length === 0) {
   }
   return;
 }
-    }
-
     this.updatePlayerGoldDisplay();
     this.updateShopTitle(data.catalog.shopInfo);
     this.refreshCurrentTab();
