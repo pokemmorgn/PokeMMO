@@ -118,45 +118,46 @@ export class ShopSystem {
   }
 
   // ✅ OUVERTURE DE SHOP
-  openShop(shopId, npcName = "Marchand", shopData = null) {
-    if (this.isShopOpen()) {
-      console.warn("🏪 Un shop est déjà ouvert");
-      return false;
-    }
-
-    console.log(`🏪 Ouverture du shop: ${shopId} (${npcName})`);
-    
-    // Vérifier que le joueur peut interagir
-    if (!this.canPlayerInteract()) {
-      this.showWarning("Impossible d'ouvrir le shop maintenant");
-      return false;
-    }
-
-    if (!this.shopUI) {
-      this.showError("Interface de shop non disponible");
-      return false;
-    }
-
-    // Ouvrir l'interface
-    this.shopUI.show(shopId, npcName);
-    
-    // Si on a déjà les données du shop, les utiliser
-    if (shopData) {
-      this.shopUI.handleShopCatalog({
-        success: true,
-        catalog: shopData,
-        playerGold: this.getPlayerGold()
-      });
-    }
-    
-    // ✅ Jouer un son d'ouverture
-    this.playSound('shop_open');
-    
-    // ✅ Mettre à jour l'état global
-    this.updateGlobalUIState(true);
-    
-    return true;
+openShop(shopId, npc = { name: "Marchand" }, shopData = null) {
+  if (this.isShopOpen()) {
+    console.warn("🏪 Un shop est déjà ouvert");
+    return false;
   }
+
+  console.log(`🏪 Ouverture du shop: ${shopId} (${npc.name})`);
+
+  // Vérifier que le joueur peut interagir
+  if (!this.canPlayerInteract()) {
+    this.showWarning("Impossible d'ouvrir le shop maintenant");
+    return false;
+  }
+
+  if (!this.shopUI) {
+    this.showError("Interface de shop non disponible");
+    return false;
+  }
+
+  // Ouvre l'interface EN PASSANT L’OBJET NPC !
+  this.shopUI.show(shopId, npc);
+
+  // Si on a déjà les données du shop, les utiliser
+  if (shopData) {
+    this.shopUI.handleShopCatalog({
+      success: true,
+      catalog: shopData,
+      playerGold: this.getPlayerGold()
+    });
+  }
+
+  // ✅ Jouer un son d'ouverture
+  this.playSound('shop_open');
+
+  // ✅ Mettre à jour l'état global
+  this.updateGlobalUIState(true);
+
+  return true;
+}
+
 
   // ✅ FERMETURE DE SHOP
   closeShop() {
