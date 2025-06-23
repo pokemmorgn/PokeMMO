@@ -181,13 +181,18 @@ getMyPlayer() {
     }
 
     // Sprite physique joueur
-    const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1).setOrigin(0.5, 1).setScale(1);
-    player.setDepth(5);
-    player.sessionId = sessionId;
-    player.body.setSize(16, 16);
-    player.body.setOffset(8, 16);
-    player.body.debugShowBody = true;
-    player.body.debugBodyColor = 0xff0000;
+    const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1)
+  .setOrigin(0.5, 1)
+  .setScale(1);
+player.setDepth(5);
+player.sessionId = sessionId;
+
+// Optionnel mais conseillé pour RPG :
+player.body.setCollideWorldBounds(true); // bloque le joueur dans les bords map
+
+// Garde le setSize et offset si ça colle bien à ton sprite
+player.body.setSize(16, 16);
+player.body.setOffset(8, 16);
 
     if (this.scene.anims.exists('idle_down')) player.play('idle_down');
     player.lastDirection = 'down';
