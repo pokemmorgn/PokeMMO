@@ -367,11 +367,17 @@ show(shopId, npcName = "Marchand") {
 handleShopCatalog(data) {
   console.log('[HANDLE CATALOG] data:', JSON.stringify(data, null, 2));
 
+  // ✅ CORRECTION: Éviter les appels multiples
+  if (this.isProcessingCatalog) {
+    console.log('⚠️ [ShopUI] Catalogue déjà en cours de traitement, ignoré');
+    return;
+  }
+  this.isProcessingCatalog = true;
+
   if (data.success) {
     this.shopData = data.catalog;
     
-    // ✅ CORRECTION: Mieux gérer le nom du NPC
-    // Priorité: pendingNpcName > data direct > catalog data > fallback
+    // ✅ CORRECTION: Gérer le nom du NPC de manière robuste
     if (this.pendingNpcName) {
       if (typeof this.pendingNpcName === 'object' && this.pendingNpcName.name) {
         this.shopData.npcName = this.pendingNpcName.name;
@@ -391,29 +397,43 @@ handleShopCatalog(data) {
       }
     }
     
-    // ✅ CORRECTION: Gérer le portrait du NPC
-    if (!this.shopData.npcPortrait) {
-      // Essayer de récupérer depuis l'InteractionManager
-      const lastNpc = window.interactionManager?.state?.lastInteractedNpc;
-      if (lastNpc) {
-        this.shopData.npcPortrait = `/assets/portrait/${lastNpc.sprite || 'default'}Portrait.png`;
-        // S'assurer qu'on a le bon nom aussi
-        if (!this.shopData.npcName) {
-          this.shopData.npcName = lastNpc.name || "Marchand";
-        }
-      }
-    }
-    
     this.playerGold = data.playerGold || 0;
 
-    // ✅ CORRECTION: Vérification moins stricte des items
-    const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
-    console.log(`🏪 [ShopUI] Items trouvés: ${items.length}`);
+    // ✅ CORRECTION MAJEURE: Gérer les deux structures possibles
+    let items = [];
     
-    // ✅ CHANGEMENT MAJEUR: Ne plus fermer automatiquement si pas d'items
-    // Au lieu de fermer, afficher un shop avec message "Pas d'articles disponibles"
+    // 1. Essayer d'abord "availableItems" (structure préférée)
+    if (Array.isArray(this.shopData?.availableItems)) {
+      items = this.shopData.availableItems;
+      console.log(`🏪 [ShopUI] Items trouvés dans availableItems: ${items.length}`);
+    }
+    // 2. Sinon essayer "items" (structure alternative)
+    else if (Array.isArray(this.shopData?.items)) {
+      items = this.shopData.items;
+      console.log(`🏪 [ShopUI] Items trouvés dans items: ${items.length}`);
+      
+      // ✅ Normaliser la structure: déplacer items vers availableItems
+      this.shopData.availableItems = items.map(item => ({
+        ...item,
+        buyPrice: item.customPrice || item.buyPrice || 0,
+        sellPrice: item.sellPrice || Math.floor((item.customPrice || item.buyPrice || 0) * 0.5),
+        canBuy: item.canBuy !== false,
+        canSell: item.canSell !== false,
+        unlocked: item.unlocked !== false
+      }));
+      
+      console.log(`🔄 [ShopUI] Structure normalisée: ${this.shopData.availableItems.length} items`);
+      items = this.shopData.availableItems;
+    }
+    // 3. Aucune structure trouvée
+    else {
+      console.warn(`⚠️ [ShopUI] Aucun item trouvé dans availableItems ou items`);
+      console.log(`📊 [ShopUI] Structure reçue:`, Object.keys(this.shopData || {}));
+    }
+    
+    // ✅ CORRECTION: Gestion plus souple des shops vides
     if (items.length === 0) {
-      console.warn(`⚠️ [ShopUI] Aucun item disponible, mais on garde le shop ouvert`);
+      console.warn(`⚠️ [ShopUI] Aucun item disponible, affichage shop vide`);
       
       // Créer un item factice pour indiquer que le shop est vide
       this.shopData.availableItems = [{
@@ -438,7 +458,13 @@ handleShopCatalog(data) {
   } else {
     this.showNotification(data.message || "Impossible de charger le shop", "error");
   }
+  
+  // ✅ Libérer le verrou après un délai
+  setTimeout(() => {
+    this.isProcessingCatalog = false;
+  }, 500);
 }
+
 
 
   updateShopTitle(shopInfo) {
@@ -500,8 +526,15 @@ handleShopCatalog(data) {
 
 displayBuyItems() {
   const itemsGrid = this.overlay.querySelector('#shop-items-grid');
+  
+  // ✅ CORRECTION: Utiliser toujours availableItems (maintenant normalisé)
   const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
-  const availableItems = items.filter(item => item.canBuy && item.unlocked);
+  const availableItems = items.filter(item => {
+    // Les items vides sont toujours affichés
+    if (item.isEmpty) return true;
+    // Les autres items doivent être achetables et débloqués
+    return item.canBuy && item.unlocked;
+  });
 
   if (availableItems.length === 0) {
     this.showEmpty("Aucun objet disponible à l'achat");
@@ -513,6 +546,7 @@ displayBuyItems() {
     itemsGrid.appendChild(itemElement);
   });
 }
+
 
 
   displaySellItems() {
