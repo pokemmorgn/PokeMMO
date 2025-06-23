@@ -116,80 +116,80 @@ export class ZoneManager {
     // Zones Lavandia
     this.loadZone('analysis', new LavandiaAnalysisZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour analysis");
-    this.collisions.set('analysis', new CollisionManager("analysis.tmj"));
+    this.collisions.set('analysis', new CollisionManager("lavandiaanalysis.tmj"));
     
     this.loadZone('bossroom', new LavandiaBossRoomZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour bossroom");
-    this.collisions.set('bossroom', new CollisionManager("bossroom.tmj"));
+    this.collisions.set('bossroom', new CollisionManager("lavandiabossroom.tmj"));
     
     this.loadZone('celibtemple', new LavandiaCelibTempleZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour celibtemple");
-    this.collisions.set('celibtemple', new CollisionManager("celibtemple.tmj"));
+    this.collisions.set('celibtemple', new CollisionManager("lavandiacelibitemple.tmj"));
     
     this.loadZone('equipement', new LavandiaEquipementZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour equipement");
-    this.collisions.set('equipement', new CollisionManager("equipement.tmj"));
+    this.collisions.set('equipement', new CollisionManager("lavandiaequipement.tmj"));
     
     this.loadZone('furniture', new LavandiaFurnitureZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour furniture");
-    this.collisions.set('furniture', new CollisionManager("furniture.tmj"));
+    this.collisions.set('furniture', new CollisionManager("lavandiafurniture.tmj"));
     
     this.loadZone('healingcenter', new LavandiaHealingCenterZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour healingcenter");
-    this.collisions.set('healingcenter', new CollisionManager("healingcenter.tmj"));
+    this.collisions.set('healingcenter', new CollisionManager("lavandiahealingcenter.tmj"));
     
     this.loadZone('house1', new LavandiaHouse1Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house1");
-    this.collisions.set('house1', new CollisionManager("house1.tmj"));
+    this.collisions.set('house1', new CollisionManager("lavandiahouse1.tmj"));
     
     this.loadZone('house2', new LavandiaHouse2Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house2");
-    this.collisions.set('house2', new CollisionManager("house2.tmj"));
+    this.collisions.set('house2', new CollisionManager("lavandiahouse2.tmj"));
     
     this.loadZone('house3', new LavandiaHouse3Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house3");
-    this.collisions.set('house3', new CollisionManager("house3.tmj"));
+    this.collisions.set('house3', new CollisionManager("lavandiahouse3.tmj"));
     
     this.loadZone('house4', new LavandiaHouse4Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house4");
-    this.collisions.set('house4', new CollisionManager("house4.tmj"));
+    this.collisions.set('house4', new CollisionManager("lavandiahouse4.tmj"));
     
     this.loadZone('house5', new LavandiaHouse5Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house5");
-    this.collisions.set('house5', new CollisionManager("house5.tmj"));
+    this.collisions.set('house5', new CollisionManager("lavandiahouse5.tmj"));
     
     this.loadZone('house6', new LavandiaHouse6Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house6");
-    this.collisions.set('house6', new CollisionManager("house6.tmj"));
+    this.collisions.set('house6', new CollisionManager("lavandiahouse6.tmj"));
     
     this.loadZone('house7', new LavandiaHouse7Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house7");
-    this.collisions.set('house7', new CollisionManager("house7.tmj"));
+    this.collisions.set('house7', new CollisionManager("lavandiahouse7.tmj"));
     
     this.loadZone('house8', new LavandiaHouse8Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house8");
-    this.collisions.set('house8', new CollisionManager("house8.tmj"));
+    this.collisions.set('house8', new CollisionManager("lavandiahouse8.tmj"));
     
     this.loadZone('house9', new LavandiaHouse9Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour house9");
-    this.collisions.set('house9', new CollisionManager("house9.tmj"));
+    this.collisions.set('house9', new CollisionManager("lavandiahouse9.tmj"));
     
     this.loadZone('researchlab', new LavandiaResearchLabZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour researchlab");
-    this.collisions.set('researchlab', new CollisionManager("researchlab.tmj"));
+    this.collisions.set('researchlab', new CollisionManager("lavandiaresearchlab.tmj"));
     
     // Zones Nocther Cave
     this.loadZone('nocthercave1', new NoctherCave1Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour nocthercave1");
-    this.collisions.set('nocthercave1', new CollisionManager("nocthercave1.tmj"));
+    this.collisions.set('nocthercave1', new CollisionManager("noctherbcave1.tmj"));
     
     this.loadZone('nocthercave2', new NoctherCave2Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour nocthercave2");
-    this.collisions.set('nocthercave2', new CollisionManager("nocthercave2.tmj"));
+    this.collisions.set('nocthercave2', new CollisionManager("noctherbcave2.tmj"));
     
     this.loadZone('nocthercave2bis', new NoctherCave2BisZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour nocthercave2bis");
-    this.collisions.set('nocthercave2bis', new CollisionManager("nocthercave2bis.tmj"));
+    this.collisions.set('nocthercave2bis', new CollisionManager("noctherbcave2bis.tmj"));
     
     // Zones Road
     this.loadZone('road1', new Road1Zone(this.room));
