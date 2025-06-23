@@ -8,7 +8,7 @@ import { QuestSystem } from "../../game/QuestSystem.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
 import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
-import { integrateShopToScene } from "../../game/ShopIntegration.js";
+import { IntegrateShopToScene } from "../../game/ShopIntegration.js";
 import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
 import { ClientCollisionManager } from "../../game/ClientCollisionsManager.js";
 
