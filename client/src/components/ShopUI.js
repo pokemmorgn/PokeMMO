@@ -1,18 +1,20 @@
 // client/src/components/ShopUI.js - Interface de shop rétro Pokémon (JS seulement)
 
-export class ShopUI {
-  constructor(gameRoom) {
-    this.gameRoom = gameRoom;
-    this.isVisible = false;
-    this.shopData = null;
-    this.selectedItem = null;
-    this.playerGold = 0;
-    this.currentTab = 'buy'; // 'buy' ou 'sell'
-    this.itemLocalizations = {};
-    this.currentLanguage = 'fr';
-    
-    this.init();
-  }
+constructor(gameRoom) {
+  this.gameRoom = gameRoom;
+  this.isVisible = false;
+  this.shopData = null;
+  this.selectedItem = null;
+  this.playerGold = 0;
+  this.currentTab = 'buy';
+  this.itemLocalizations = {};
+  this.currentLanguage = 'fr';
+  
+  // ✅ NOUVEAUX VERROUS
+  this.isProcessingCatalog = false;
+  
+  this.init();
+}
 
   async loadLocalizations() {
     try {
