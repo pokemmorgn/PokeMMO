@@ -70,7 +70,9 @@ export class Road1Zone implements IZone {
       ...zoneData
     });
 
-    client.send("npcList", this.npcs);
+    // ✅ SUPPRIMÉ LE CONFLIT: Plus d'envoi de NPCs ici
+    // ✅ LES NPCS SONT MAINTENANT GÉRÉS PAR WORLDROOM
+    // Ils seront envoyés automatiquement par WorldRoom.onPlayerJoinZone()
 
     console.log(`📤 Données Road 1 envoyées à ${player.name}`);
   }
@@ -90,26 +92,9 @@ export class Road1Zone implements IZone {
     console.log(`👤 Client: ${client.sessionId}`);
     console.log(`🤖 NPC ID: ${npcId}`);
 
-    const npc = this.npcs.find(n => n.id === npcId);
-    if (!npc) {
-      console.error(`❌ NPC not found: ${npcId}`);
-      client.send("npcInteractionResult", {
-        type: "error",
-        message: "NPC introuvable"
-      });
-      return;
-    }
-
-    console.log(`💬 Interaction avec NPC: ${npc.name}`);
-
-    client.send("npcInteractionResult", {
-      type: "dialogue",
-      npcId: npcId,
-      npcName: npc.name,
-      lines: npc.dialogue
-    });
-
-    console.log(`✅ Dialogue envoyé pour ${npc.name}`);
+    // ✅ LES INTERACTIONS SONT GÉRÉES PAR LE SYSTÈME EXISTANT
+    // Cette méthode existe pour l'interface IZone mais délègue au système global
+    console.log(`➡️ Délégation de l'interaction NPC ${npcId} au système global`);
   }
 
   onQuestStart(client: Client, questId: string) {
@@ -117,15 +102,13 @@ export class Road1Zone implements IZone {
     console.log(`👤 Client: ${client.sessionId}`);
     console.log(`📜 Quest: ${questId}`);
 
-    client.send("questStartResult", {
-      success: false,
-      message: "Pas de quêtes disponibles sur la route 1 pour le moment"
-    });
+    // ✅ LES QUÊTES SONT GÉRÉES PAR LE SYSTÈME EXISTANT
+    console.log(`➡️ Délégation de la quête ${questId} au système global`);
   }
 
   getZoneData() {
     return {
-      npcs: this.npcs,
+      // ✅ PLUS BESOIN DE npcs ICI, GÉRÉ PAR WORLDROOM
       objects: [] as ZoneObject[],
       spawns: [] as Spawn[],
       music: "road_theme",
