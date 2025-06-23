@@ -355,16 +355,19 @@ redirectToCorrectScene(correctScene, serverData) {
   }
 
   // ✅ MÉTHODE EXISTANTE: Setup des handlers WorldRoom
-  setupWorldRoomHandlers() {
+// ✅ setupWorldRoomHandlers() - VERSION CORRIGÉE COMPLÈTE
+setupWorldRoomHandlers() {
   console.log(`📡 [${this.scene.key}] === SETUP WORLD ROOM HANDLERS ===`);
   console.log(`📊 NetworkManager existe: ${!!this.networkManager}`);
   console.log(`🤖 NpcManager existe: ${!!this.npcManager}`);
-    this.networkManager.onZoneData((data) => {
-      console.log(`🗺️ [${this.scene.key}] Zone data reçue:`, data);
-      this.handleZoneData(data);
-    });
 
-  // ✅ REMPLACEZ LE HANDLER NPCS PAR CETTE VERSION DEBUG
+  // ✅ Handler pour les données de zone
+  this.networkManager.onZoneData((data) => {
+    console.log(`🗺️ [${this.scene.key}] Zone data reçue:`, data);
+    this.handleZoneData(data);
+  });
+
+  // ✅ Handler pour les NPCs avec debug complet
   this.networkManager.onNpcList((npcs) => {
     console.log(`🤖 [${this.scene.key}] === HANDLER NPCS APPELÉ ===`);
     console.log(`📊 NPCs reçus: ${npcs.length}`);
@@ -392,51 +395,55 @@ redirectToCorrectScene(correctScene, serverData) {
     console.log(`✅ [${this.scene.key}] spawnNpcs() terminé`);
   });
 
-   this.networkManager.onTransitionSuccess((result) => {
-  console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
-
-  // 1. Déduire la scène attendue pour la zone cible
-  const targetScene = this.mapZoneToScene(result.currentZone || result.zone || result.targetZone);
-  console.log(`[Transition] Scene active: ${this.scene.key} | Scene cible: ${targetScene}`);
-
-  // 2. Si on n'est PAS dans la bonne scène => on bascule !
-  if (this.scene.key !== targetScene) {
-    console.warn(`[Transition] Redirection auto vers ${targetScene}`);
-    this.scene.start(targetScene, {
-      fromZone: this.zoneName,
-      fromTransition: true,
-      networkManager: this.networkManager,
-      mySessionId: this.mySessionId,
-      spawnX: result.position?.x,
-      spawnY: result.position?.y,
-      preservePlayer: true
-    });
-  } else {
-    // Optionnel : repositionne le joueur si déjà dans la bonne scène
-    if (typeof this.positionPlayer === "function" && result.position) {
-      const myPlayer = this.playerManager?.getMyPlayer();
-      if (myPlayer) {
-        myPlayer.x = result.position.x;
-        myPlayer.y = result.position.y;
-        myPlayer.targetX = result.position.x;
-        myPlayer.targetY = result.position.y;
-        this.cameraManager?.snapToPlayer?.();
+  // ✅ Handler pour les transitions réussies
+  this.networkManager.onTransitionSuccess((result) => {
+    console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
+    
+    // 1. Déduire la scène attendue pour la zone cible
+    const targetScene = this.mapZoneToScene(result.currentZone || result.zone || result.targetZone);
+    console.log(`[Transition] Scene active: ${this.scene.key} | Scene cible: ${targetScene}`);
+    
+    // 2. Si on n'est PAS dans la bonne scène => on bascule !
+    if (this.scene.key !== targetScene) {
+      console.warn(`[Transition] Redirection auto vers ${targetScene}`);
+      this.scene.start(targetScene, {
+        fromZone: this.zoneName,
+        fromTransition: true,
+        networkManager: this.networkManager,
+        mySessionId: this.mySessionId,
+        spawnX: result.position?.x,
+        spawnY: result.position?.y,
+        preservePlayer: true
+      });
+    } else {
+      // Optionnel : repositionne le joueur si déjà dans la bonne scène
+      if (typeof this.positionPlayer === "function" && result.position) {
+        const myPlayer = this.playerManager?.getMyPlayer();
+        if (myPlayer) {
+          myPlayer.x = result.position.x;
+          myPlayer.y = result.position.y;
+          myPlayer.targetX = result.position.x;
+          myPlayer.targetY = result.position.y;
+          this.cameraManager?.snapToPlayer?.();
+        }
       }
     }
-  }
-});
+  });
 
+  // ✅ Handler pour les erreurs de transition
+  this.networkManager.onTransitionError((result) => {
+    console.error(`❌ [${this.scene.key}] Transition échouée:`, result);
+    this.handleTransitionError(result);
+  });
 
-    this.networkManager.onTransitionError((result) => {
-      console.error(`❌ [${this.scene.key}] Transition échouée:`, result);
-      this.handleTransitionError(result);
-    });
+  // ✅ Handler pour les interactions NPC
+  this.networkManager.onNpcInteraction((result) => {
+    console.log(`💬 [${this.scene.key}] NPC interaction:`, result);
+    this.handleNpcInteraction(result);
+  });
 
-    this.networkManager.onNpcInteraction((result) => {
-      console.log(`💬 [${this.scene.key}] NPC interaction:`, result);
-      this.handleNpcInteraction(result);
-    });
-  }
+  console.log(`✅ [${this.scene.key}] Tous les handlers WorldRoom configurés`);
+}
 
   // ✅ MÉTHODE EXISTANTE: Setup des handlers existants
   setupExistingHandlers() {
