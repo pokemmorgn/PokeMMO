@@ -55,23 +55,23 @@ export class ClientCollisionManager {
   canMoveTo(targetX, targetY) {
   if (!this.isLoaded) return true;
 
-  const hitboxSize = 16;
-  const offset = hitboxSize / 2;
+  // Décalage réel de ta hitbox
+  const hitboxWidth = 16;
+  const hitboxHeight = 16;
+  const offsetX = 8;  // correspond à body.setOffset(x)
+  const offsetY = 16;
 
-  // Vérifie les 4 coins de la hitbox simulée
-  const pointsToCheck = [
-    { x: targetX - offset, y: targetY - offset }, // coin haut gauche
-    { x: targetX + offset - 1, y: targetY - offset }, // coin haut droit
-    { x: targetX - offset, y: targetY + offset - 1 }, // coin bas gauche
-    { x: targetX + offset - 1, y: targetY + offset - 1 } // coin bas droit
+  const corners = [
+    { x: targetX - offsetX, y: targetY - offsetY }, // haut gauche
+    { x: targetX - offsetX + hitboxWidth - 1, y: targetY - offsetY }, // haut droit
+    { x: targetX - offsetX, y: targetY - offsetY + hitboxHeight - 1 }, // bas gauche
+    { x: targetX - offsetX + hitboxWidth - 1, y: targetY - offsetY + hitboxHeight - 1 } // bas droit
   ];
 
-  for (const point of pointsToCheck) {
-    const tileX = Math.floor(point.x / this.tileWidth);
-    const tileY = Math.floor(point.y / this.tileHeight);
-    if (this.collisionTiles.has(`${tileX},${tileY}`)) {
-      return false;
-    }
+  for (const pt of corners) {
+    const tileX = Math.floor(pt.x / this.tileWidth);
+    const tileY = Math.floor(pt.y / this.tileHeight);
+    if (this.collisionTiles.has(`${tileX},${tileY}`)) return false;
   }
 
   return true;
