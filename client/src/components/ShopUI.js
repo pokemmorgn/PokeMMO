@@ -290,6 +290,9 @@ export class ShopUI {
   }
 
   show(shopId, npcName = "Marchand") {
+  this.shopOpenUID = (this.shopOpenUID || 0) + 1;
+  const debugUID = this.shopOpenUID;
+  console.log(`[DEBUG SHOW SHOP] uid=${debugUID}, shopId=${shopId}, npcName=${npcName}, isVisible=${this.isVisible}, stack:`, new Error().stack);
     if (this.isVisible) return;
     
     this.isVisible = true;
