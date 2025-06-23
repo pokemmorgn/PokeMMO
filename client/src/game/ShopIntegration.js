@@ -4,13 +4,18 @@
 import { ShopSystem } from './ShopSystem.js';
 
 export class ShopIntegration {
-  constructor(scene) {
-    this.scene = scene;
-    this.shopSystem = null;
-    this.isInitialized = false;
-    
-    console.log(`🏪 [${scene.scene.key}] ShopIntegration créé`);
-  }
+constructor(scene) {
+  this.scene = scene;
+  this.shopSystem = null;
+  this.isInitialized = false;
+  
+  // ✅ NOUVEAUX VERROUS
+  this.shopHandlersSetup = false;
+  this.isHandlingShopInteraction = false;
+  this.isHandlingCatalog = false;
+  
+  console.log(`🏪 [${scene.scene.key}] ShopIntegration créé`);
+}
 
   // ✅ MÉTHODE PRINCIPALE : Initialisation complète du système shop
   initialize(networkManager) {
@@ -128,7 +133,7 @@ setupShopNetworkHandlers(networkManager) {
   try {
     const room = networkManager.room;
 
-    // ✅ Handler pour les interactions NPC de type shop
+    // ✅ Handler pour les interactions NPC de type shop - CORRIGÉ
     room.onMessage("npcInteractionResult", (data) => {
       if (data.type === "shop") {
         console.log(`🏪 [${this.scene.scene.key}] Interaction shop reçue:`, data);
@@ -140,6 +145,7 @@ setupShopNetworkHandlers(networkManager) {
         }
         this.isHandlingShopInteraction = true;
         
+        // ✅ CORRECTION: Appeler la méthode correcte
         this.handleShopNpcInteraction(data);
         
         // Libérer après un délai
@@ -169,7 +175,7 @@ setupShopNetworkHandlers(networkManager) {
       }, 500);
     });
 
-    // ✅ Autres handlers (sans changement majeur)
+    // ✅ Autres handlers (sans changement)
     room.onMessage("shopTransactionResult", (data) => {
       console.log(`💰 [${this.scene.scene.key}] Résultat transaction shop:`, data);
       if (this.shopSystem) {
@@ -197,6 +203,21 @@ setupShopNetworkHandlers(networkManager) {
   }
 }
 
+handleShopNpcInteraction(data) {
+  console.log(`🏪 [${this.scene.scene.key}] Handling shop NPC interaction:`, data);
+  
+  if (!this.shopSystem) {
+    console.error(`❌ [${this.scene.scene.key}] Pas de ShopSystem pour gérer l'interaction shop`);
+    return;
+  }
+
+  try {
+    // Déléguer au ShopSystem
+    this.shopSystem.handleShopNpcInteraction(data);
+  } catch (error) {
+    console.error(`❌ [${this.scene.scene.key}] Erreur gestion interaction shop:`, error);
+  }
+}
   // ✅ Gérer le raccourci clavier S
   handleShopShortcut() {
     // Vérifier que le joueur peut interagir
@@ -398,6 +419,67 @@ setupShopNetworkHandlers(networkManager) {
       canInteract: this.canPlayerInteractWithShop()
     };
   }
+}
+
+debugShopIntegration() {
+  console.log(`🔍 [${this.scene.scene.key}] === DEBUG SHOP INTEGRATION ===`);
+  console.log(`- Initialisé:`, this.isInitialized);
+  console.log(`- ShopSystem:`, !!this.shopSystem);
+  console.log(`- Handlers setup:`, this.shopHandlersSetup);
+  console.log(`- Handling interaction:`, this.isHandlingShopInteraction);
+  console.log(`- Handling catalog:`, this.isHandlingCatalog);
+  console.log(`- Shop ouvert:`, this.shopSystem?.isShopOpen());
+  console.log(`- ShopUI:`, !!this.shopSystem?.shopUI);
+  console.log(`- GameRoom:`, !!this.shopSystem?.gameRoom);
+  
+  if (this.shopSystem && typeof this.shopSystem.debugShopState === 'function') {
+    this.shopSystem.debugShopState();
+  }
+}
+
+// === TESTS DISPONIBLES ===
+// Ces fonctions peuvent être appelées dans la console pour tester
+
+function testShopIntegration() {
+  console.log("🧪 Test de l'intégration shop...");
+  
+  // Vérifier les scènes actives
+  const activeScenes = window.game?.scene?.getScenes(true) || [];
+  console.log("Scènes actives:", activeScenes.map(s => s.scene.key));
+  
+  // Tester chaque scène
+  activeScenes.forEach(scene => {
+    if (scene.shopIntegration) {
+      console.log(`✅ ${scene.scene.key}: ShopIntegration présent`);
+      scene.shopIntegration.debugShopIntegration();
+    } else {
+      console.log(`❌ ${scene.scene.key}: Pas de ShopIntegration`);
+    }
+  });
+  
+  return "Test terminé - voir logs ci-dessus";
+}
+
+function forceShopReset() {
+  console.log("🔄 Réinitialisation forcée du shop...");
+  
+  // Fermer tous les shops ouverts
+  if (window.shopSystem && window.shopSystem.isShopOpen()) {
+    window.shopSystem.closeShop();
+  }
+  
+  // Reset des verrous
+  const activeScenes = window.game?.scene?.getScenes(true) || [];
+  activeScenes.forEach(scene => {
+    if (scene.shopIntegration) {
+      scene.shopIntegration.shopHandlersSetup = false;
+      scene.shopIntegration.isHandlingShopInteraction = false; 
+      scene.shopIntegration.isHandlingCatalog = false;
+    }
+  });
+  
+  console.log("✅ Shop reset terminé");
+  return "Reset OK";
 }
 
 // ✅ MÉTHODE STATIQUE POUR INTÉGRATION EN UNE LIGNE
