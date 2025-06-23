@@ -42,9 +42,9 @@ this.load.tilemapTiledJSON('lavandiahouse9', 'assets/maps/lavandiahouse9.tmj');
 this.load.tilemapTiledJSON('lavandiaresearchlab', 'assets/maps/lavandiaresearchlab.tmj');
 this.load.tilemapTiledJSON('lavandiashop', 'assets/maps/lavandiashop.tmj');
 
-this.load.tilemapTiledJSON('nocthercave1', 'assets/maps/nocthercave1.tmj');
-this.load.tilemapTiledJSON('nocthercave2', 'assets/maps/nocthercave2.tmj');
-this.load.tilemapTiledJSON('nocthercave2bis', 'assets/maps/nocthercave2bis.tmj');
+this.load.tilemapTiledJSON('nocthercave1', 'assets/maps/noctherbcave1.tmj');
+this.load.tilemapTiledJSON('nocthercave2', 'assets/maps/noctherbcave2.tmj');
+this.load.tilemapTiledJSON('nocthercave2bis', 'assets/maps/noctherbcave2bis.tmj');
     // ✅ Tilesets
     this.load.image('Assets', 'assets/sprites/Assets.png');
     this.load.image('Greenroot', 'assets/sprites/Greenroot.png');
