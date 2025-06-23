@@ -270,13 +270,17 @@ export class NetworkManager {
       }
     });
 
-    this.room.onMessage("npcList", (npcs) => {
-      console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
-      this.lastReceivedNpcs = npcs;
-      if (this.callbacks.onNpcList) {
-        this.callbacks.onNpcList(npcs);
-      }
-    });
+  this.room.onMessage("npcList", (npcs) => {
+    console.log(`🤖 [NetworkManager] === MESSAGE NPCLIST INTERCEPTÉ ===`);
+    console.log(`📊 NPCs: ${npcs.length}`);
+    console.log(`🎯 Callback configuré: ${!!this.callbacks.onNpcList}`);
+    
+    console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
+    this.lastReceivedNpcs = npcs;
+    if (this.callbacks.onNpcList) {
+      this.callbacks.onNpcList(npcs);
+    }
+  });
 
 this.room.onMessage("transitionResult", (result) => {
   console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
