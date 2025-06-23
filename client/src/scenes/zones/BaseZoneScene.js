@@ -363,17 +363,13 @@ redirectToCorrectScene(correctScene, serverData) {
 
 // Dans setupWorldRoomHandlers(), remplacez le handler NPCs par :
 this.networkManager.onNpcList((npcs) => {
-  console.log(`🤖 [${this.scene.key}] === RECEPTION NPCs ===`);
-  console.log(`📊 Nombre: ${npcs.length}`);
-  console.log(`👤 NpcManager existe: ${!!this.npcManager}`);
+  console.log(`🤖 [${this.scene.key}] NPCs reçus: ${npcs.length}`);
   
   if (this.npcManager && npcs.length > 0) {
-    console.log(`✅ [${this.scene.key}] APPEL spawnNpcs() avec ${npcs.length} NPCs`);
+    console.log(`✅ [${this.scene.key}] Spawn de ${npcs.length} NPCs`);
     this.npcManager.spawnNpcs(npcs);
-    console.log(`✅ [${this.scene.key}] spawnNpcs() terminé`);
-  } else {
-    console.error(`❌ [${this.scene.key}] Impossible de spawner: npcManager=${!!this.npcManager}, npcs=${npcs.length}`);
   }
+});
 });
 
    this.networkManager.onTransitionSuccess((result) => {
