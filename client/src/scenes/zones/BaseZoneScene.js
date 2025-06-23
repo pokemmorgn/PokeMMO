@@ -749,84 +749,85 @@ setupPlayerReadyHandler() {
   }
 
   // ✅ MÉTHODE INCHANGÉE: Gestion du mouvement
-  handleMovement(myPlayerState) {
-    const speed = 120;
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (!myPlayer) return;
+handleMovement(myPlayerState) {
+  const speed = 120;
+  const myPlayer = this.playerManager.getMyPlayer();
+  if (!myPlayer) return;
 
-    let vx = 0, vy = 0;
-    let inputDetected = false, direction = null;
+  let vx = 0, vy = 0;
+  let inputDetected = false, direction = null;
 
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      vx = -speed; inputDetected = true; direction = 'left';
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-      vx = speed; inputDetected = true; direction = 'right';
-    }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) {
-      vy = -speed; inputDetected = true; direction = 'up';
-    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-      vy = speed; inputDetected = true; direction = 'down';
-    }
+  if (this.cursors.left.isDown || this.wasd.A.isDown) {
+    vx = -speed; inputDetected = true; direction = 'left';
+  } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+    vx = speed; inputDetected = true; direction = 'right';
+  }
+  if (this.cursors.up.isDown || this.wasd.W.isDown) {
+    vy = -speed; inputDetected = true; direction = 'up';
+  } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+    vy = speed; inputDetected = true; direction = 'down';
+  }
 
-    let actuallyMoving = inputDetected;
+  let actuallyMoving = inputDetected;
 
-    if (inputDetected && this.clientCollisionManager) {
-      const deltaTime = 1/60;
-      const nextX = myPlayer.x + (vx * deltaTime);
-      const nextY = myPlayer.y + (vy * deltaTime);
-      
-      const canMoveDiagonal = this.clientCollisionManager.canMoveTo(nextX, nextY);
-      
-      if (!canMoveDiagonal) {
-        const canMoveX = (vx !== 0) ? this.clientCollisionManager.canMoveTo(nextX, myPlayer.y) : false;
-        const canMoveY = (vy !== 0) ? this.clientCollisionManager.canMoveTo(myPlayer.x, nextY) : false;
-        
-        if (canMoveX && !canMoveY) {
-          vy = 0;
-          console.log(`🧱 [ClientCollision] Glissement horizontal`);
-        } else if (canMoveY && !canMoveX) {
-          vx = 0;
-          console.log(`🧱 [ClientCollision] Glissement vertical`);
-        } else {
-          vx = 0;
-          vy = 0;
-          console.log(`🚫 [ClientCollision] Complètement bloqué`);
-        }
-      }
-      
-      actuallyMoving = (vx !== 0 || vy !== 0);
-    }
+  if (inputDetected && this.clientCollisionManager) {
+    const deltaTime = 1 / 60;
+    const nextX = myPlayer.body.x + (vx * deltaTime);
+    const nextY = myPlayer.body.y + (vy * deltaTime);
 
-    myPlayer.body.setVelocity(vx, vy);
+    const canMoveDiagonal = this.clientCollisionManager.canMoveTo(nextX, nextY);
 
-    if (inputDetected && direction) {
-      this.lastDirection = direction;
-      
-      if (actuallyMoving) {
-        myPlayer.play(`walk_${direction}`, true);
-        myPlayer.isMovingLocally = true;
+    if (!canMoveDiagonal) {
+      const canMoveX = (vx !== 0) ? this.clientCollisionManager.canMoveTo(nextX, myPlayer.body.y) : false;
+      const canMoveY = (vy !== 0) ? this.clientCollisionManager.canMoveTo(myPlayer.body.x, nextY) : false;
+
+      if (canMoveX && !canMoveY) {
+        vy = 0;
+        console.log(`🧱 [ClientCollision] Glissement horizontal`);
+      } else if (canMoveY && !canMoveX) {
+        vx = 0;
+        console.log(`🧱 [ClientCollision] Glissement vertical`);
       } else {
-        myPlayer.play(`idle_${direction}`, true);
-        myPlayer.isMovingLocally = false;
+        vx = 0;
+        vy = 0;
+        console.log(`🚫 [ClientCollision] Complètement bloqué`);
       }
+    }
+
+    actuallyMoving = (vx !== 0 || vy !== 0);
+  }
+
+  myPlayer.body.setVelocity(vx, vy);
+
+  if (inputDetected && direction) {
+    this.lastDirection = direction;
+
+    if (actuallyMoving) {
+      myPlayer.play(`walk_${direction}`, true);
+      myPlayer.isMovingLocally = true;
     } else {
-      myPlayer.play(`idle_${this.lastDirection}`, true);
+      myPlayer.play(`idle_${direction}`, true);
       myPlayer.isMovingLocally = false;
     }
+  } else {
+    myPlayer.play(`idle_${this.lastDirection}`, true);
+    myPlayer.isMovingLocally = false;
+  }
 
-    if (inputDetected) {
-      const now = Date.now();
-      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-        this.networkManager.sendMove(
-          myPlayer.x,
-          myPlayer.y,
-          direction,
-          actuallyMoving
-        );
-        this.lastMoveTime = now;
-      }
+  if (inputDetected) {
+    const now = Date.now();
+    if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+      this.networkManager.sendMove(
+        myPlayer.body.x,
+        myPlayer.body.y,
+        direction,
+        actuallyMoving
+      );
+      this.lastMoveTime = now;
     }
   }
+}
+
 
   // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
