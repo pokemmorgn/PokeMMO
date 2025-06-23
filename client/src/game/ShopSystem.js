@@ -94,125 +94,241 @@ export class ShopSystem {
 handleShopNpcInteraction(data) {
   console.log(`🏪 Interaction avec NPC marchand:`, data);
 
-  // Extraire les données du shop
-  const shopId = data.shopId;
-  const shopData = data.shopData;
-  
-  // ✅ CORRECTION: Mieux construire l'objet NPC
-  let npc = { name: "Marchand", id: data.npcId };
-  
-  // Priorité aux données du serveur
-  if (data.npc) {
-    npc = { ...npc, ...data.npc };
-  }
-  
-  // Puis aux données directes
-  if (data.npcName) {
-    if (typeof data.npcName === 'object') {
-      npc = { ...npc, ...data.npcName };
-    } else {
-      npc.name = data.npcName;
+  // ✅ NOUVEAU: Réinitialiser les verrous
+  this.isOpeningShop = false;
+
+  try {
+    // Extraire les données importantes
+    const shopId = data.shopId || 'default_shop';
+    const shopData = data.shopData;
+    
+    // ✅ CORRECTION MAJEURE: Construction robuste de l'objet NPC
+    let npc = { name: "Marchand", id: data.npcId || 'unknown' };
+    
+    // 1. Priorité aux données NPC du serveur
+    if (data.npc && typeof data.npc === 'object') {
+      npc = { ...npc, ...data.npc };
+      console.log('🎭 NPC depuis data.npc:', npc);
     }
+    
+    // 2. Puis aux données npcName
+    if (data.npcName) {
+      if (typeof data.npcName === 'object' && data.npcName.name) {
+        npc.name = data.npcName.name;
+        npc.id = data.npcName.id || npc.id;
+        console.log('🎭 NPC depuis data.npcName objet:', npc);
+      } else if (typeof data.npcName === 'string') {
+        npc.name = data.npcName;
+        console.log('🎭 NPC depuis data.npcName string:', npc);
+      }
+    }
+    
+    // 3. Enrichir avec le vrai NPC du manager si possible
+    const realNpc = this.scene?.npcManager?.getNpcData?.(data.npcId) ||
+                   window.interactionManager?.state?.lastInteractedNpc;
+    
+    if (realNpc) {
+      npc = {
+        ...realNpc,
+        name: realNpc.name || npc.name,
+        id: realNpc.id || npc.id
+      };
+      console.log('🎭 NPC enrichi depuis manager:', npc);
+    }
+
+    // Stocker les infos du shop
+    this.currentShopId = shopId;
+    this.currentNpcId = data.npcId;
+
+    // Extraire l'or du joueur
+    if (shopData && shopData.playerGold !== undefined) {
+      this.playerGold = shopData.playerGold;
+    }
+
+    // ✅ OUVRIR LE SHOP AVEC FORCE
+    console.log(`🚀 FORCER ouverture shop: ${shopId} pour ${npc.name}`);
+    const success = this.forceOpenShop(shopId, npc, shopData);
+    
+    if (success) {
+      // Notification de succès
+      this.showInfo(`Bienvenue chez ${npc.name} !`);
+    } else {
+      console.error('❌ Échec ouverture forcée shop');
+      this.showError('Impossible d\'ouvrir le shop');
+    }
+    
+  } catch (error) {
+    console.error('❌ Erreur handleShopNpcInteraction:', error);
+    this.showError(`Erreur shop: ${error.message}`);
   }
+}
+
+// === 3. NOUVELLE MÉTHODE DANS ShopSystem.js - Force Open Shop ===
+forceOpenShop(shopId, npc, shopData = null) {
+  console.log(`💪 [ShopSystem] === OUVERTURE FORCÉE ===`);
+  console.log(`🎯 Shop: ${shopId}`);
+  console.log(`🎭 NPC:`, npc);
   
-  // ✅ CORRECTION: Récupérer le vrai NPC depuis le manager
-  const realNpc = window.interactionManager?.state?.lastInteractedNpc 
-    || window.npcManager?.getNpcData?.(data.npcId);
-  
-  if (realNpc) {
-    npc = {
-      ...npc,
-      name: realNpc.name || npc.name,
-      id: realNpc.id || npc.id,
-      sprite: realNpc.sprite,
-      portrait: realNpc.portrait,
-      properties: realNpc.properties
-    };
-    console.log(`🎭 [ShopSystem] NPC enrichi depuis le manager:`, npc);
+  // ✅ RESET complet de l'état
+  this.isOpeningShop = false;
+  if (this.shopUI) {
+    this.shopUI.isProcessingCatalog = false;
   }
 
-  if (!shopId) {
-    this.showError("Erreur: Shop ID manquant");
+  // ✅ Vérifier l'UI
+  if (!this.shopUI) {
+    console.error('❌ ShopUI manquant!');
+    return false;
+  }
+
+  try {
+    // ✅ FORCER fermeture si déjà ouvert
+    if (this.isShopOpen()) {
+      console.log('🔄 Shop déjà ouvert, fermeture forcée...');
+      this.shopUI.hide();
+    }
+
+    // ✅ OUVERTURE DIRECTE
+    console.log(`🚪 Ouverture directe de l'interface...`);
+    this.shopUI.show(shopId, npc);
+
+    // ✅ INJECTION IMMÉDIATE DES DONNÉES si disponibles
+    if (shopData) {
+      console.log('💉 Injection immédiate des données...');
+      
+      // Construire la structure attendue
+      const catalogData = {
+        success: true,
+        catalog: shopData,
+        playerGold: this.playerGold || 0
+      };
+      
+      // Forcer le traitement
+      this.shopUI.handleShopCatalog(catalogData);
+    }
+
+    // ✅ Jouer son d'ouverture
+    this.playSound('shop_open');
+
+    // ✅ Mettre à jour l'état global
+    this.updateGlobalUIState(true);
+
+    console.log('✅ Ouverture forcée réussie!');
+    return true;
+
+  } catch (error) {
+    console.error('❌ Erreur ouverture forcée:', error);
+    this.showError(`Erreur technique: ${error.message}`);
+    return false;
+  }
+}
+
+// === 4. CORRECTION DANS InteractionManager.js - Méthode handleShopInteraction ===
+handleShopInteraction(npc, data) {
+  console.log('🏪 [InteractionManager] Handling shop interaction:', { npc: npc?.name, data });
+  
+  // Vérifier le système shop
+  this.shopSystem = this.shopSystem || 
+                   (this.scene.shopIntegration?.getShopSystem()) || 
+                   window.shopSystem;
+  
+  if (!this.shopSystem) {
+    console.error('❌ [InteractionManager] Aucun ShopSystem disponible!');
+    this.handleDialogueInteraction(npc, { 
+      message: "Ce marchand n'est pas disponible." 
+    });
     return;
   }
 
-  // Stocker les informations du shop actuel
-  this.currentShopId = shopId;
-  this.currentNpcId = data.npcId;
-
-  // Extraire l'or du joueur depuis les données du shop
-  if (shopData && shopData.playerGold !== undefined) {
-    this.playerGold = shopData.playerGold;
+  // ✅ Si c'est un dialogue, le traiter comme tel
+  if (data && data.type === 'dialogue') {
+    this.handleDialogueInteraction(npc, data);
+    return;
   }
 
-  // ✅ CORRECTION: Ouvrir le shop avec l'objet NPC complet
-  this.openShop(shopId, npc, shopData);
-
-  // ✅ Notification d'ouverture
-  this.showInfo(`Bienvenue chez ${npc.name} !`);
-}
-
-  // ✅ OUVERTURE DE SHOP
-openShop(shopId, npc = { name: "Marchand" }, shopData = null) {
-  // ✅ CORRECTION: Verrou pour éviter les ouvertures multiples
-  if (this.isOpeningShop) {
-    console.warn("🏪 Ouverture shop déjà en cours, ignoré");
-    return false;
-  }
-  
-  if (this.isShopOpen()) {
-    console.warn("🏪 Un shop est déjà ouvert");
-    return false;
-  }
-
-  this.isOpeningShop = true;
-
-  console.log(`🏪 Ouverture du shop: ${shopId} (${npc.name})`);
-
-  // Vérifier que le joueur peut interagir
-  if (!this.canPlayerInteract()) {
-    this.showWarning("Impossible d'ouvrir le shop maintenant");
-    this.isOpeningShop = false;
-    return false;
-  }
-
-  if (!this.shopUI) {
-    this.showError("Interface de shop non disponible");
-    this.isOpeningShop = false;
-    return false;
-  }
-
-  // Enrichir les données NPC si possible
-  if (!npc.sprite || !npc.portrait) {
-    const fullNpc = window.npcManager?.getNpcData?.(npc.id || this.currentNpcId);
-    if (fullNpc) Object.assign(npc, fullNpc);
-  }
-
-  // Ouvrir l'interface avec l'objet NPC complet
-  this.shopUI.show(shopId, npc);
-
-  // Si on a déjà les données du shop, les utiliser
-  if (shopData) {
-    this.shopUI.handleShopCatalog({
-      success: true,
-      catalog: shopData,
-      playerGold: this.getPlayerGold()
+  try {
+    // ✅ CORRECTION: Construire les données d'interaction proprement
+    const interactionData = data || this.createShopInteractionData(npc);
+    
+    // ✅ NOUVEAU: S'assurer que le npcName est correct
+    if (npc) {
+      interactionData.npc = npc;
+      interactionData.npcName = npc.name;
+      interactionData.npcId = npc.id;
+    }
+    
+    console.log('📤 [InteractionManager] Envoi au ShopSystem:', interactionData);
+    
+    // ✅ Déléguer au ShopSystem
+    this.shopSystem.handleShopNpcInteraction(interactionData);
+    
+  } catch (error) {
+    console.error('❌ [InteractionManager] Erreur shop:', error);
+    this.handleDialogueInteraction(npc, { 
+      message: `Erreur shop: ${error.message}`
     });
   }
-
-  // ✅ Jouer un son d'ouverture
-  this.playSound('shop_open');
-
-  // ✅ Mettre à jour l'état global
-  this.updateGlobalUIState(true);
-
-  // ✅ Libérer le verrou après un délai
-  setTimeout(() => {
-    this.isOpeningShop = false;
-  }, 1000);
-
-  return true;
 }
+
+// === 5. FONCTION DE DEBUG COMPLÈTE ===
+function debugShopState() {
+  console.log('🔍 === DEBUG COMPLET SHOP ===');
+  
+  // État des systèmes
+  console.log('📊 SYSTÈMES:');
+  console.log('  - window.shopSystem:', !!window.shopSystem);
+  console.log('  - scene.shopIntegration:', !!window.game?.scene?.getScenes(true)[0]?.shopIntegration);
+  console.log('  - scene.interactionManager:', !!window.game?.scene?.getScenes(true)[0]?.interactionManager);
+  
+  // État du shop
+  if (window.shopSystem) {
+    console.log('🏪 SHOP SYSTEM:');
+    console.log('  - isInitialized:', window.shopSystem.isInitialized);
+    console.log('  - shopUI exists:', !!window.shopSystem.shopUI);
+    console.log('  - gameRoom exists:', !!window.shopSystem.gameRoom);
+    console.log('  - isShopOpen:', window.shopSystem.isShopOpen());
+    console.log('  - currentShopId:', window.shopSystem.currentShopId);
+    console.log('  - playerGold:', window.shopSystem.playerGold);
+    
+    if (window.shopSystem.shopUI) {
+      console.log('🖼️ SHOP UI:');
+      console.log('  - isVisible:', window.shopSystem.shopUI.isVisible);
+      console.log('  - isProcessingCatalog:', window.shopSystem.shopUI.isProcessingCatalog);
+      console.log('  - shopData exists:', !!window.shopSystem.shopUI.shopData);
+      console.log('  - overlay exists:', !!window.shopSystem.shopUI.overlay);
+    }
+  }
+  
+  // Test d'ouverture forcée
+  console.log('🧪 TEST OUVERTURE FORCÉE...');
+  if (window.shopSystem && window.shopSystem.forceOpenShop) {
+    window.shopSystem.forceOpenShop('test_shop', { name: 'Test NPC', id: 'test' }, {
+      shopInfo: { id: 'test_shop', name: 'Test Shop' },
+      availableItems: [
+        { itemId: 'potion', buyPrice: 300, stock: 10, canBuy: true, unlocked: true }
+      ]
+    });
+  }
+}
+
+// === 6. AJOUTER LA FONCTION AU WINDOW GLOBAL ===
+window.debugShopState = debugShopState;
+window.forceOpenTestShop = function() {
+  if (window.shopSystem && window.shopSystem.forceOpenShop) {
+    window.shopSystem.forceOpenShop('test_shop', 
+      { name: 'Marchand Test', id: 'test_npc' }, 
+      {
+        shopInfo: { id: 'test_shop', name: 'Boutique Test' },
+        availableItems: [
+          { itemId: 'potion', buyPrice: 300, stock: 10, canBuy: true, unlocked: true },
+          { itemId: 'poke_ball', buyPrice: 200, stock: 5, canBuy: true, unlocked: true }
+        ]
+      }
+    );
+  } else {
+    console.error('❌ ShopSystem non disponible');
+  }
+};
 
 
   // ✅ FERMETURE DE SHOP
