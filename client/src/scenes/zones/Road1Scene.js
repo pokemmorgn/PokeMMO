@@ -4,118 +4,26 @@ export class Road1Scene extends BaseZoneScene {
   constructor() {
     super('Road1Scene', 'road1');
     this.transitionCooldowns = {};
-    this.playerCreationAttempts = 0;
-    this.maxPlayerCreationAttempts = 10;
     console.log("[Road1Scene] Constructor appelé");
   }
 
-  
-  positionPlayer(player) {
-    // Essaie de deviner la provenance pour ajuster le spawn
-    let fromZone = "";
-    if (this.networkManager && typeof this.networkManager.getLastZone === "function") {
-      fromZone = this.networkManager.getLastZone();
-    } else if (player.fromZone) {
-      fromZone = player.fromZone;
-    }
+  // 🔥 HOOK appelé UNE FOIS dès que le joueur local est prêt et positionné
+  onPlayerReady(myPlayer) {
+    super.onPlayerReady(myPlayer);
+    console.log(`[Road1Scene] Mon joueur est prêt à (${myPlayer.x}, ${myPlayer.y})`);
 
-    if (fromZone === "LavandiaScene") {
-      // Spawn via SpointPoint_Road1top
-      const spawnObj = this.map.getObjectLayer('SpawnPoint')?.objects.find(obj => obj.name === 'SpointPoint_Road1top');
-      if (spawnObj) {
-        player.x = spawnObj.x + (spawnObj.width || 0) / 2;
-        player.y = spawnObj.y + (spawnObj.height || 0) / 2;
-        console.log(`[Road1Scene] positionné via SpointPoint_Road1top à (${player.x}, ${player.y})`);
-      } else {
-        player.x = 342;
-        player.y = 618;
-        console.warn("[Road1Scene] SpointPoint_Road1top non trouvé, position par défaut utilisée");
-      }
-    } else {
-      player.x = 342;
-      player.y = 618;
-      console.log(`[Road1Scene] position forcée à (${player.x}, ${player.y})`);
-    }
+    // Affichage instructions spécifiques à Road1
+    this.add.text(16, 16, 'Route 1 - Route vers l\'aventure\nFlèches pour se déplacer\nAppuyez sur "D" pour les hitboxes', {
+      font: '16px monospace',
+      fill: '#ffffff',
+      padding: { x: 10, y: 5 },
+      backgroundColor: 'rgba(139, 69, 19, 0.8)',
+    }).setScrollFactor(0).setDepth(1001);
 
-    if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-      console.log("[Road1Scene] Indicateur joueur mis à jour");
-    }
-
-    if (this.networkManager) {
-      this.networkManager.sendMove(player.x, player.y);
-      console.log("[Road1Scene] Position envoyée au serveur");
-    }
-  }
-
-  create() {
-    console.log("[Road1Scene] create appelé");
-    super.create();
-    this.setupRoad1UI();
+    // Événements d'accueil custom pour Road1
     this.setupRoad1Events();
-    this.ensurePlayerIsCreated();
-  }
-
-  ensurePlayerIsCreated() {
-    const checkPlayer = () => {
-      const myPlayer = this.playerManager?.getMyPlayer();
-
-      if (myPlayer) {
-        console.log("[Road1Scene] ✅ Joueur trouvé, on stop la vérification");
-        return;
-      }
-
-      this.playerCreationAttempts++;
-      console.log(`[Road1Scene] 🔄 Tentative ${this.playerCreationAttempts}/${this.maxPlayerCreationAttempts} - Joueur non trouvé`);
-
-      if (this.playerCreationAttempts >= this.maxPlayerCreationAttempts) {
-        console.error("[Road1Scene] ❌ Échec de création du joueur après plusieurs tentatives");
-        if (this.networkManager) {
-          console.log("[Road1Scene] 🔄 Tentative de reconnexion");
-          this.networkManager.reconnect();
-        }
-        return;
-      }
-
-      if (this.networkManager && this.networkManager.getSessionId()) {
-        const sessionId = this.networkManager.getSessionId();
-        const playerState = this.networkManager.getPlayerState(sessionId);
-
-        if (playerState) {
-          console.log("[Road1Scene] 🔧 Données joueur existantes, création forcée");
-          this.playerManager.createPlayer(sessionId, playerState);
-          this.positionPlayer(this.playerManager.getMyPlayer());
-        } else {
-          console.log("[Road1Scene] 🔧 Création d'un état joueur par défaut");
-          const defaultState = {
-            x: 342,
-            y: 618,
-            sessionId: sessionId,
-            name: sessionId.substring(0, 8)
-          };
-          this.playerManager.createPlayer(sessionId, defaultState);
-          this.positionPlayer(this.playerManager.getMyPlayer());
-        }
-      }
-
-      this.time.delayedCall(500, checkPlayer);
-    };
-
-    this.time.delayedCall(200, checkPlayer);
-  }
-
-  setupRoad1UI() {
-    console.log("[Road1Scene] setupRoad1UI appelé");
-    this.add
-      .text(16, 80, 'Road 1 - Route vers l\'aventure', {
-        font: '16px monospace',
-        fill: '#ffffff',
-        padding: { x: 10, y: 5 },
-        backgroundColor: 'rgba(139, 69, 19, 0.8)',
-      })
-      .setScrollFactor(0)
-      .setDepth(1001);
+    // Placement des NPCs spécifiques à Road1
+    this.setupNPCs();
   }
 
   setupRoad1Events() {
@@ -123,14 +31,89 @@ export class Road1Scene extends BaseZoneScene {
       console.log("[Road1Scene] Bienvenue sur la Route 1 !");
       if (this.infoText) {
         this.infoText.setText('PokeWorld MMO\nRoute 1\nConnected!');
+        console.log("[Road1Scene] InfoText mise à jour");
       }
+    });
+  }
+
+  setupNPCs() {
+    console.log("[Road1Scene] ⚙️ setupNPCs appelé");
+    const npcLayer = this.map.getObjectLayer('NPCs');
+    if (npcLayer) {
+      console.log(`[Road1Scene] Layer NPCs trouvé avec ${npcLayer.objects.length} NPC(s)`);
+      npcLayer.objects.forEach(npcObj => this.createNPC(npcObj));
+    } else {
+      console.warn("[Road1Scene] ⚠️ Layer 'NPCs' non trouvé");
+    }
+  }
+
+  createNPC(npcData) {
+    console.log(`[Road1Scene] Création NPC: ${npcData.name || 'Sans nom'}`);
+    const npc = this.add.rectangle(
+      npcData.x + npcData.width / 2,
+      npcData.y + npcData.height / 2,
+      npcData.width,
+      npcData.height,
+      0x8B4513 // Couleur marron pour Road1
+    );
+
+    const npcName = this.add.text(
+      npc.x,
+      npc.y - 30,
+      npcData.name || 'NPC',
+      {
+        fontSize: '12px',
+        fontFamily: 'monospace',
+        color: '#ffffff',
+        backgroundColor: 'rgba(139, 69, 19, 0.7)',
+        padding: { x: 4, y: 2 },
+      }
+    ).setOrigin(0.5);
+
+    npc.setInteractive();
+    npc.on('pointerdown', () => {
+      this.interactWithNPC(npcData.name || 'Voyageur');
+    });
+
+    console.log(`[Road1Scene] 👤 NPC créé : ${npcData.name || 'Sans nom'}`);
+  }
+
+  interactWithNPC(npcName) {
+    console.log(`[Road1Scene] 💬 Interaction avec ${npcName}`);
+    const dialogues = {
+      Garde: "Attention aux Pokémon sauvages sur cette route !",
+      Voyageur: "Cette route mène vers de nombreuses aventures !",
+      Dresseur: "Veux-tu te battre ? Plus tard peut-être !",
+      Randonneur: "J'ai vu des Pokémon rares plus loin sur la route.",
+      Guide: "Bienvenue sur la Route 1 ! Restez sur le chemin.",
+      Collecteur: "Je cherche des baies le long de cette route.",
+      Voyageur: "Bonne route, jeune dresseur !",
+    };
+    const message = dialogues[npcName] || 'Salut ! Belle route, n\'est-ce pas ?';
+    
+    const dialogueBox = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY + 100,
+      `${npcName}: "${message}"`,
+      {
+        fontSize: '14px',
+        fontFamily: 'monospace',
+        color: '#ffffff',
+        backgroundColor: 'rgba(139, 69, 19, 0.8)',
+        padding: { x: 10, y: 8 },
+        wordWrap: { width: 300 },
+      }
+    ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
+
+    this.time.delayedCall(3000, () => {
+      dialogueBox.destroy();
+      console.log(`[Road1Scene] 💬 Dialogue avec ${npcName} détruit`);
     });
   }
 
   cleanup() {
     console.log("[Road1Scene] cleanup appelé");
     this.transitionCooldowns = {};
-    this.playerCreationAttempts = 0;
     super.cleanup();
   }
 }
