@@ -86,33 +86,7 @@ export class TimeWeatherService {
     const config = getServerConfig();
     return config.weatherSystem.weatherTypes.find(w => w.name === name);
   }
-// === MÉTHODES DE TEST === (ajoute ça dans la classe)
 
-public forceTime(hour: number, minute: number = 0): void {
-  this.gameTime.hour = hour;
-  this.gameTime.minute = minute;
-  
-  const isDayTime = this.isDayTime();
-  console.log(`🕐 [TEST] Heure forcée: ${hour}:${minute} (${isDayTime ? 'JOUR' : 'NUIT'})`);
-  
-  if (this.timeChangeCallback) {
-    this.timeChangeCallback(hour, isDayTime);
-  }
-  this.updateGameState();
-}
-
-public forceWeather(weatherName: string): void {
-  const weather = this.weatherTypes.find(w => w.name === weatherName);
-  if (!weather) return;
-  
-  this.currentWeather = weather;
-  console.log(`🌦️ [TEST] Météo forcée: ${weatherName}`);
-  
-  if (this.weatherChangeCallback) {
-    this.weatherChangeCallback(weather);
-  }
-  this.updateGameState();
-}
   // ✅ API PUBLIQUE
   
   getCurrentWeather(): WeatherType {
