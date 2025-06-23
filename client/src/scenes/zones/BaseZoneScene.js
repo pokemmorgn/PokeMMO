@@ -361,20 +361,18 @@ redirectToCorrectScene(correctScene, serverData) {
       this.handleZoneData(data);
     });
 
+// Dans setupWorldRoomHandlers(), remplacez le handler NPCs par :
 this.networkManager.onNpcList((npcs) => {
-  console.log(`🤖 [${this.scene.key}] === NPCs REÇUS ===`);
+  console.log(`🤖 [${this.scene.key}] === RECEPTION NPCs ===`);
   console.log(`📊 Nombre: ${npcs.length}`);
-  console.log(`🔍 Zone networkManager: ${this.networkManager.getCurrentZone()}`);
-  console.log(`🎭 Zone scène: ${this.normalizeZoneName(this.scene.key)}`);
-  console.log(`👤 NpcManager: ${!!this.npcManager}`);
+  console.log(`👤 NpcManager existe: ${!!this.npcManager}`);
   
   if (this.npcManager && npcs.length > 0) {
-    console.log(`✅ [${this.scene.key}] Spawn forcé de ${npcs.length} NPCs`);
+    console.log(`✅ [${this.scene.key}] APPEL spawnNpcs() avec ${npcs.length} NPCs`);
     this.npcManager.spawnNpcs(npcs);
-  } else if (!this.npcManager) {
-    console.error(`❌ [${this.scene.key}] NpcManager manquant !`);
+    console.log(`✅ [${this.scene.key}] spawnNpcs() terminé`);
   } else {
-    console.warn(`⚠️ [${this.scene.key}] Aucun NPC à spawner`);
+    console.error(`❌ [${this.scene.key}] Impossible de spawner: npcManager=${!!this.npcManager}, npcs=${npcs.length}`);
   }
 });
 
