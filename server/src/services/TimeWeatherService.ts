@@ -109,29 +109,6 @@ export class TimeWeatherService {
     this.onTimeChangeCallback = callback;
   }
 
-  forceTime(hour: number): boolean {
-    if (hour >= 0 && hour <= 23) {
-      this.state.gameHour = hour;
-      this.state.isDayTime = this.calculateDayTime(hour);
-      console.log(`⚡ [TimeWeatherService] Temps forcé: ${hour}h ${this.state.isDayTime ? '(JOUR)' : '(NUIT)'}`);
-      this.onTimeChangeCallback?.(this.state.gameHour, this.state.isDayTime);
-      return true;
-    }
-    return false;
-  }
-
-  forceWeather(weatherName: string): boolean {
-    const weather = this.getWeatherByName(weatherName);
-    if (weather) {
-      this.currentWeather = weather;
-      this.state.weather = weather.name;
-      console.log(`⚡ [TimeWeatherService] Météo forcée: ${weather.displayName}`);
-      this.onWeatherChangeCallback?.(this.currentWeather);
-      return true;
-    }
-    return false;
-  }
-
   getWeatherEffect(effectName: string): number {
     return this.currentWeather.effects[effectName as keyof typeof this.currentWeather.effects] as number || 1.0;
   }
