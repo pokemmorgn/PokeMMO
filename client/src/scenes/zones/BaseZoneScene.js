@@ -1217,8 +1217,8 @@ normalizeZoneName(sceneName) {
       fixed = true;
     }
     
-    if (myPlayer.depth !== 3.5) {
-      myPlayer.setDepth(3.5);
+    if (myPlayer.depth !== 4.5) {
+      myPlayer.setDepth(4.5);
       fixed = true;
     }
     
