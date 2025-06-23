@@ -361,27 +361,22 @@ redirectToCorrectScene(correctScene, serverData) {
       this.handleZoneData(data);
     });
 
-    this.networkManager.onNpcList((npcs) => {
-      console.log(`🤖 [${this.scene.key}] NPCs reçus: ${npcs.length}`);
-      
-      const currentSceneZone = this.normalizeZoneName(this.scene.key);
-      const serverZone = this.networkManager.currentZone;
-      
-      console.log(`🔍 [${this.scene.key}] Comparaison zones: scene="${currentSceneZone}" vs server="${serverZone}"`);
-      
-      const isCorrectZone = currentSceneZone === serverZone;
-      const isRecentTransition = Date.now() - (this._lastTransitionTime || 0) < 3000;
-      
-      if (!isCorrectZone && !isRecentTransition) {
-        console.log(`🚫 [${this.scene.key}] NPCs ignorés: zone serveur=${serverZone} ≠ scène=${currentSceneZone}`);
-        return;
-      }
-      
-      if (this.npcManager && npcs.length > 0) {
-        console.log(`✅ [${this.scene.key}] Spawn de ${npcs.length} NPCs`);
-        this.npcManager.spawnNpcs(npcs);
-      }
-    });
+this.networkManager.onNpcList((npcs) => {
+  console.log(`🤖 [${this.scene.key}] === NPCs REÇUS ===`);
+  console.log(`📊 Nombre: ${npcs.length}`);
+  console.log(`🔍 Zone networkManager: ${this.networkManager.getCurrentZone()}`);
+  console.log(`🎭 Zone scène: ${this.normalizeZoneName(this.scene.key)}`);
+  console.log(`👤 NpcManager: ${!!this.npcManager}`);
+  
+  if (this.npcManager && npcs.length > 0) {
+    console.log(`✅ [${this.scene.key}] Spawn forcé de ${npcs.length} NPCs`);
+    this.npcManager.spawnNpcs(npcs);
+  } else if (!this.npcManager) {
+    console.error(`❌ [${this.scene.key}] NpcManager manquant !`);
+  } else {
+    console.warn(`⚠️ [${this.scene.key}] Aucun NPC à spawner`);
+  }
+});
 
    this.networkManager.onTransitionSuccess((result) => {
   console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
