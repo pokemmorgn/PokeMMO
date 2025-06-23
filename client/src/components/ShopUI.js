@@ -289,29 +289,61 @@ export class ShopUI {
     });
   }
 
-  show(shopId, npcName = "Marchand") {
+show(shopId, npcName = "Marchand") {
   console.log('[SHOW] shopId:', shopId, 'npcName:', npcName, 'typeof:', typeof npcName, 'value:', npcName);
+  
   this.shopOpenUID = (this.shopOpenUID || 0) + 1;
   const debugUID = this.shopOpenUID;
-  console.log(`[DEBUG SHOW SHOP] uid=${debugUID}, shopId=${shopId}, npcName=${npcName}, isVisible=${this.isVisible}, stack:`, new Error().stack);
-    if (this.isVisible) return;
-    
-    this.isVisible = true;
-    this.overlay.classList.remove('hidden');
-    
-  // On garde en mémoire le nom du NPC sur l'UI (ex: "Jeff")
-  this.pendingNpcName = npcName;
-
-  // Mettre à jour le titre du shop (utilise le nom du NPC reçu)
-  const shopNameElement = this.overlay.querySelector('.shop-name');
-  shopNameElement.textContent = npcName;
-    
-    // Requête du catalogue du shop
-    this.requestShopCatalog(shopId);
-    
-    console.log(`🏪 Shop ${shopId} ouvert`);
+  console.log(`[DEBUG SHOW SHOP] uid=${debugUID}, shopId=${shopId}, npcName=${npcName}, isVisible=${this.isVisible}`);
+  
+  if (this.isVisible) return;
+  
+  this.isVisible = true;
+  this.overlay.classList.remove('hidden');
+  
+  // ✅ CORRECTION: Mieux gérer le nom du NPC
+  let displayName = "Marchand";
+  let npcObject = null;
+  
+  if (typeof npcName === 'object' && npcName !== null) {
+    displayName = npcName.name || "Marchand";
+    npcObject = npcName;
+  } else if (typeof npcName === 'string') {
+    displayName = npcName;
+    npcObject = { name: npcName };
   }
+  
+  // Stocker l'objet NPC complet
+  this.pendingNpcName = npcObject;
+  
+  // Mettre à jour le titre du shop immédiatement
+  const shopNameElement = this.overlay.querySelector('.shop-name');
+  if (shopNameElement) {
+    shopNameElement.textContent = displayName;
+  }
+  
+  // Requête du catalogue du shop
+  this.requestShopCatalog(shopId);
+  
+  console.log(`🏪 Shop ${shopId} ouvert pour ${displayName}`);
+}
 
+  createEmptyShopItemElement() {
+  const itemElement = document.createElement('div');
+  itemElement.className = 'shop-item shop-empty-item';
+  itemElement.style.opacity = '0.6';
+  itemElement.style.cursor = 'not-allowed';
+  
+  itemElement.innerHTML = `
+    <div class="shop-item-icon">📭</div>
+    <div class="shop-item-name">Pas d'articles</div>
+    <div class="shop-item-price">-</div>
+    <div class="shop-item-stock out">Vide</div>
+  `;
+  
+  return itemElement;
+}
+  
   hide() {
     if (!this.isVisible) return;
     
@@ -333,54 +365,72 @@ export class ShopUI {
   }
 
 handleShopCatalog(data) {
-    console.log('[HANDLE CATALOG] data:', JSON.stringify(data, null, 2));
-  // this.hideLoading();
+  console.log('[HANDLE CATALOG] data:', JSON.stringify(data, null, 2));
 
   if (data.success) {
     this.shopData = data.catalog;
-    // Ajout du nom du NPC en attente (pour que le dialogue l'ait)
-if (this.pendingNpcName) {
-  this.shopData.npcName = this.pendingNpcName;
-}
+    
+    // ✅ CORRECTION: Mieux gérer le nom du NPC
+    // Priorité: pendingNpcName > data direct > catalog data > fallback
+    if (this.pendingNpcName) {
+      if (typeof this.pendingNpcName === 'object' && this.pendingNpcName.name) {
+        this.shopData.npcName = this.pendingNpcName.name;
+        this.shopData.npcId = this.pendingNpcName.id;
+      } else if (typeof this.pendingNpcName === 'string') {
+        this.shopData.npcName = this.pendingNpcName;
+      }
+    }
+    
+    // Backup depuis les données du catalogue
+    if (!this.shopData.npcName && data.catalog?.npcName) {
+      if (typeof data.catalog.npcName === 'object' && data.catalog.npcName.name) {
+        this.shopData.npcName = data.catalog.npcName.name;
+        this.shopData.npcId = data.catalog.npcName.id;
+      } else if (typeof data.catalog.npcName === 'string') {
+        this.shopData.npcName = data.catalog.npcName;
+      }
+    }
+    
+    // ✅ CORRECTION: Gérer le portrait du NPC
+    if (!this.shopData.npcPortrait) {
+      // Essayer de récupérer depuis l'InteractionManager
+      const lastNpc = window.interactionManager?.state?.lastInteractedNpc;
+      if (lastNpc) {
+        this.shopData.npcPortrait = `/assets/portrait/${lastNpc.sprite || 'default'}Portrait.png`;
+        // S'assurer qu'on a le bon nom aussi
+        if (!this.shopData.npcName) {
+          this.shopData.npcName = lastNpc.name || "Marchand";
+        }
+      }
+    }
+    
     this.playerGold = data.playerGold || 0;
 
-    // PATCH: Si aucun objet à vendre, on affiche un dialogue avec nom + portrait et on ferme le shop
+    // ✅ CORRECTION: Vérification moins stricte des items
     const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
+    console.log(`🏪 [ShopUI] Items trouvés: ${items.length}`);
+    
+    // ✅ CHANGEMENT MAJEUR: Ne plus fermer automatiquement si pas d'items
+    // Au lieu de fermer, afficher un shop avec message "Pas d'articles disponibles"
     if (items.length === 0) {
-      this.hide(); // On ferme le shop visuel
-
-      // Dialogue standardisé avec portrait et nom, via InteractionManager si dispo
-      if (window.interactionManager && typeof window.interactionManager.handleDialogueInteraction === "function") {
-        // Récupère le NPC interacté récemment, ou cherche par ID si dispo
-        const npc = window.interactionManager.state?.lastInteractedNpc
-          || (this.shopData?.shopInfo?.npcId ? window.interactionManager.findNpcById(this.shopData.shopInfo.npcId) : null);
-
-        window.interactionManager.handleDialogueInteraction(npc, {
-          message: "La boutique est fermée aujourd'hui !"
-        });
-      } else if (window.showNpcDialogue) {
-        // Debug candidates pour le nom affiché
-        console.log("[SHOP DIALOG FERMÉ] npcName candidates:", {
-          shopInfoNpcName: this.shopData?.shopInfo?.npcName,
-          shopDataNpcName: this.shopData?.npcName,
-          lastInteracted: window.interactionManager?.state?.lastInteractedNpc?.name
-        });
-
-        // Fallback : version simple (moins joli mais fonctionne)
-window.showNpcDialogue({
-  name:
-    this.shopData?.npcName         // <--- priorité au champ racine si dispo
-    || this.shopData?.shopInfo?.npcName
-    || (window.interactionManager?.state?.lastInteractedNpc?.name)
-    || "Marchand",
-  portrait: this.shopData?.shopInfo?.npcPortrait || null,
-  lines: ["La boutique est fermée aujourd'hui !"]
-});
-      } else {
-        alert("La boutique est fermée aujourd'hui !");
-      }
-      return;
+      console.warn(`⚠️ [ShopUI] Aucun item disponible, mais on garde le shop ouvert`);
+      
+      // Créer un item factice pour indiquer que le shop est vide
+      this.shopData.availableItems = [{
+        itemId: 'empty_shop',
+        buyPrice: 0,
+        sellPrice: 0,
+        canBuy: false,
+        canSell: false,
+        unlocked: true,
+        stock: 0,
+        isEmpty: true // Flag spécial
+      }];
+      
+      // Afficher une notification
+      this.showNotification("Ce marchand n'a pas d'articles en stock actuellement", "warning");
     }
+    
     this.updatePlayerGoldDisplay();
     this.updateShopTitle(data.catalog.shopInfo);
     this.refreshCurrentTab();
@@ -389,8 +439,6 @@ window.showNpcDialogue({
     this.showNotification(data.message || "Impossible de charger le shop", "error");
   }
 }
-
-
 
 
   updateShopTitle(shopInfo) {
@@ -485,48 +533,53 @@ displayBuyItems() {
     });
   }
 
-  createBuyItemElement(item, index) {
-    const itemElement = document.createElement('div');
-    itemElement.className = 'shop-item';
-    itemElement.dataset.itemId = item.itemId;
-    itemElement.dataset.index = index;
-
-    // Vérifier la disponibilité
-    const canAfford = this.playerGold >= item.buyPrice;
-    const inStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
-    const isAvailable = canAfford && inStock;
-
-    if (!isAvailable) {
-      itemElement.classList.add('unavailable');
-    }
-
-    if (item.stock === 0) {
-      itemElement.classList.add('out-of-stock');
-    }
-
-    const itemIcon = this.getItemIcon(item.itemId);
-    const itemName = this.getItemName(item.itemId);
-
-    itemElement.innerHTML = `
-      <div class="shop-item-icon">${itemIcon}</div>
-      <div class="shop-item-name">${itemName}</div>
-      <div class="shop-item-price">${item.buyPrice}₽</div>
-      ${this.getStockDisplay(item.stock)}
-    `;
-
-    itemElement.addEventListener('click', () => {
-      if (isAvailable) {
-        this.selectItem(item, itemElement);
-      }
-    });
-
-    // Animation d'apparition
-    setTimeout(() => {
-      itemElement.classList.add('new');
-    }, index * 50);
-
-    return itemElement;
+createBuyItemElement(item, index) {
+  // ✅ CORRECTION: Gérer les items vides
+  if (item.isEmpty) {
+    return this.createEmptyShopItemElement();
   }
+  
+  const itemElement = document.createElement('div');
+  itemElement.className = 'shop-item';
+  itemElement.dataset.itemId = item.itemId;
+  itemElement.dataset.index = index;
+
+  // Vérifier la disponibilité
+  const canAfford = this.playerGold >= item.buyPrice;
+  const inStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
+  const isAvailable = canAfford && inStock;
+
+  if (!isAvailable) {
+    itemElement.classList.add('unavailable');
+  }
+
+  if (item.stock === 0) {
+    itemElement.classList.add('out-of-stock');
+  }
+
+  const itemIcon = this.getItemIcon(item.itemId);
+  const itemName = this.getItemName(item.itemId);
+
+  itemElement.innerHTML = `
+    <div class="shop-item-icon">${itemIcon}</div>
+    <div class="shop-item-name">${itemName}</div>
+    <div class="shop-item-price">${item.buyPrice}₽</div>
+    ${this.getStockDisplay(item.stock)}
+  `;
+
+  if (isAvailable) {
+    itemElement.addEventListener('click', () => {
+      this.selectItem(item, itemElement);
+    });
+  }
+
+  // Animation d'apparition
+  setTimeout(() => {
+    itemElement.classList.add('new');
+  }, index * 50);
+
+  return itemElement;
+}
 
   createSellItemElement(item, index) {
     const itemElement = document.createElement('div');
