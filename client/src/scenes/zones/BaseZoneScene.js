@@ -73,9 +73,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.createUI();
     this.myPlayerReady = false;
     this.isSceneReady = true;
-    this.physics.add.collider(this.player, this.layers['World']);
-    this.physics.add.collider(this.player, this.layers['BelowPlayer2']);
-    // ✅ UTILISER LA CONNEXION EXISTANTE AU LIEU DE CRÉER UNE NOUVELLE
+      // ✅ UTILISER LA CONNEXION EXISTANTE AU LIEU DE CRÉER UNE NOUVELLE
     this.initializeWithExistingConnection();
 
     this.setupPlayerReadyHandler();
@@ -1086,6 +1084,20 @@ normalizeZoneName(sceneName) {
     this.cameras.main.setRoundPixels(true);
 
     this.cameraManager = new CameraManager(this);
+    // === Ajoute ceci tout à la fin de setupScene() ===
+this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+
+// Ajoute le collider entre le joueur et tous les layers qui ont des collisions
+this.time.delayedCall(0, () => {
+  const myPlayer = this.playerManager?.getMyPlayer?.();
+  if (!myPlayer) return;
+
+  Object.values(this.layers).forEach(layer => {
+    if (layer && layer.layer && layer.layer.collideIndexes && layer.layer.collideIndexes.length > 0) {
+      this.physics.add.collider(myPlayer, layer);
+    }
+  });
+});
   }
 
   getDefaultSpawnPosition(fromZone) {
