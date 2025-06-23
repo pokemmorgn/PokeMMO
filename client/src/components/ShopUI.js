@@ -348,11 +348,15 @@ if (items.length === 0) {
     });
   } else if (window.showNpcDialogue) {
     // Fallback : version simple (moins joli mais fonctionne)
-    window.showNpcDialogue({
-      name: this.shopData?.shopInfo?.npcName || "Marchand",
-      portrait: this.shopData?.shopInfo?.npcPortrait || null,
-      lines: ["La boutique est fermée aujourd'hui !"]
-    });
+window.showNpcDialogue({
+  name:
+    this.shopData?.shopInfo?.npcName
+    || this.shopData?.npcName
+    || (window.interactionManager?.state?.lastInteractedNpc?.name)
+    || "Marchand",
+  portrait: this.shopData?.shopInfo?.npcPortrait || null,
+  lines: ["La boutique est fermée aujourd'hui !"]
+});
   } else {
     alert("La boutique est fermée aujourd'hui !");
   }
