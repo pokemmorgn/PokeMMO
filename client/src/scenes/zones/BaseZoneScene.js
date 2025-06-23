@@ -552,22 +552,9 @@ setupPlayerReadyHandler() {
       this.myPlayerReady = true;
       console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
 
-      // ✅ SOLUTION SIMPLE: Juste un délai plus long
-      if (this.cameraManager) {
-        this.cameraManager.followPlayer(myPlayer);
-        this.cameraFollowing = true;
-      } else {
-        console.warn(`⚠️ [${this.scene.key}] CameraManager pas encore prêt, attente...`);
-        this.time.delayedCall(500, () => { // ✅ 500ms au lieu de 100ms
-          if (this.cameraManager) {
-            console.log(`🔄 [${this.scene.key}] CameraManager prêt, activation caméra`);
-            this.cameraManager.followPlayer(myPlayer);
-            this.cameraFollowing = true;
-          } else {
-            console.error(`❌ [${this.scene.key}] CameraManager toujours absent après 500ms`);
-          }
-        });
-      }
+      // ✅ NOUVEAU SYSTÈME: Plus de gestion manuelle du CameraManager
+      // Le système de loading automatique s'occupera du suivi caméra
+      // dans la méthode getSceneReadiness()
 
       this.positionPlayer(myPlayer);
       
