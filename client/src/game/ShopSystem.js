@@ -94,7 +94,11 @@ export class ShopSystem {
     // Extraire les données du shop
     const shopId = data.shopId;
     const shopData = data.shopData;
-    const npcName = data.npcName || "Marchand";
+  let npc = data.npc || { name: data.npcName || "Marchand", id: data.npcId };
+
+  // Récupérer le vrai NPC si possible
+  const realNpc = window.npcManager?.getNpcData?.(data.npcId);
+  if (realNpc) npc = realNpc;
     
     if (!shopId) {
       this.showError("Erreur: Shop ID manquant");
@@ -119,6 +123,12 @@ export class ShopSystem {
 
   // ✅ OUVERTURE DE SHOP
 openShop(shopId, npc = { name: "Marchand" }, shopData = null) {
+
+    if (!npc.sprite || !npc.portrait) {
+    const fullNpc = window.npcManager?.getNpcData?.(npc.id || this.currentNpcId);
+    if (fullNpc) Object.assign(npc, fullNpc);
+  }
+  
   if (this.isShopOpen()) {
     console.warn("🏪 Un shop est déjà ouvert");
     return false;
