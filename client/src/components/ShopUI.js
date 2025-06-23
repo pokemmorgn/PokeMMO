@@ -355,15 +355,15 @@ handleShopCatalog(data) {
         });
 
         // Fallback : version simple (moins joli mais fonctionne)
-        window.showNpcDialogue({
-          name:
-            this.shopData?.shopInfo?.npcName
-            || this.shopData?.npcName
-            || (window.interactionManager?.state?.lastInteractedNpc?.name)
-            || "Marchand",
-          portrait: this.shopData?.shopInfo?.npcPortrait || null,
-          lines: ["La boutique est fermée aujourd'hui !"]
-        });
+window.showNpcDialogue({
+  name:
+    this.shopData?.npcName         // <--- priorité au champ racine si dispo
+    || this.shopData?.shopInfo?.npcName
+    || (window.interactionManager?.state?.lastInteractedNpc?.name)
+    || "Marchand",
+  portrait: this.shopData?.shopInfo?.npcPortrait || null,
+  lines: ["La boutique est fermée aujourd'hui !"]
+});
       } else {
         alert("La boutique est fermée aujourd'hui !");
       }
@@ -384,8 +384,20 @@ handleShopCatalog(data) {
   updateShopTitle(shopInfo) {
     const shopNameElement = this.overlay.querySelector('.shop-name');
     const shopSubtitleElement = this.overlay.querySelector('.shop-subtitle');
+
+     // Ajoute le log ici :
+  console.log('[DEBUG SHOP TITLE]', {
+    shopInfo,
+    npcName: this.shopData?.npcName
+  });
+
     
-    shopNameElement.textContent = shopInfo.name || "PokéMart";
+    shopNameElement.textContent =
+  this.shopData?.npcName
+  || shopInfo.npcName
+  || shopInfo.name
+  || "PokéMart";
+
     shopSubtitleElement.textContent = shopInfo.description || "Articles pour dresseurs";
   }
 
