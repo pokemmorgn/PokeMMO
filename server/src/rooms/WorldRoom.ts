@@ -62,81 +62,42 @@ private initializeTimeWeatherService() {
   
   this.timeWeatherService = new TimeWeatherService(this.state, this.clock);
   
-  // ✅ CALLBACKS AMÉLIORÉS pour broadcaster les changements
+  // Callbacks pour broadcaster les changements
   this.timeWeatherService.setTimeChangeCallback((hour, isDayTime) => {
-    console.log(`📡 [WorldRoom] Broadcast temps: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'} → ${this.clients.length} clients`);
-    
-    const timeData = {
+    this.broadcast("timeUpdate", {
       gameHour: hour,
       isDayTime: isDayTime,
-      displayTime: this.timeWeatherService.formatTime(),
-      timestamp: Date.now()
-    };
-    
-    this.broadcast("timeUpdate", timeData);
+      displayTime: this.timeWeatherService.formatTime()
+    });
   });
   
   this.timeWeatherService.setWeatherChangeCallback((weather) => {
-    console.log(`📡 [WorldRoom] Broadcast météo: ${weather.displayName} → ${this.clients.length} clients`);
-    
-    const weatherData = {
+    this.broadcast("weatherUpdate", {
       weather: weather.name,
-      displayName: weather.displayName,
-      timestamp: Date.now()
-    };
-    
-    this.broadcast("weatherUpdate", weatherData);
+      displayName: weather.displayName
+    });
   });
-    // ✅ NOUVEAU: Commandes admin pour tester
-  this.setupTimeWeatherCommands();
-  
-  console.log(`✅ [WorldRoom] TimeWeatherService initialisé avec callbacks`);
-}
-  private setupTimeWeatherCommands() {
-  // Forcer l'heure (pour les tests)
-  this.onMessage("setTime", (client, data: { hour: number, minute?: number }) => {
-    console.log(`🕐 [ADMIN] ${client.sessionId} force l'heure: ${data.hour}:${data.minute || 0}`);
-    
-    if (this.timeWeatherService) {
-      this.timeWeatherService.forceTime(data.hour, data.minute || 0);
-    }
-  });
-this.onMessage("setWeather", (client, data: { weather: string }) => {
-    console.log(`🌦️ [ADMIN] ${client.sessionId} force la météo: ${data.weather}`);
-    
-    if (this.timeWeatherService) {
-      this.timeWeatherService.forceWeather(data.weather);
-    }
-  });
-      this.onMessage("debugTimeWeather", (client) => {
-    console.log(`🔍 [ADMIN] ${client.sessionId} demande debug temps/météo`);
-    
-    if (this.timeWeatherService) {
-      this.timeWeatherService.debugSyncStatus();
-      
-      const health = this.timeWeatherService.healthCheck();
-      client.send("timeWeatherDebug", {
-        currentTime: this.timeWeatherService.getCurrentTime(),
-        currentWeather: this.timeWeatherService.getCurrentWeather(),
-        connectedClients: this.timeWeatherService.getConnectedClientsCount(),
-        health: health
-      });
-    }
-  });
-    // Forcer la synchronisation de tous les clients
-  this.onMessage("forceSyncTimeWeather", (client) => {
-    console.log(`🔄 [ADMIN] ${client.sessionId} force sync de tous les clients`);
-    
-    if (this.timeWeatherService) {
-      this.timeWeatherService.forceSyncAll();
-      client.send("syncForced", { 
-        message: "Synchronisation forcée de tous les clients",
-        clientCount: this.timeWeatherService.getConnectedClientsCount()
-      });
-    }
-  });
-}
+  // === COMMANDES DE TEST === (ajoute ça avec les autres handlers)
 
+// Forcer l'heure
+this.onMessage("setTime", (client, data: { hour: number, minute?: number }) => {
+  console.log(`🕐 [TEST] ${client.sessionId} force l'heure: ${data.hour}:${data.minute || 0}`);
+  
+  if (this.timeWeatherService) {
+    this.timeWeatherService.forceTime(data.hour, data.minute || 0);
+  }
+});
+
+// Forcer la météo
+this.onMessage("setWeather", (client, data: { weather: string }) => {
+  console.log(`🌦️ [TEST] ${client.sessionId} force la météo: ${data.weather}`);
+  
+  if (this.timeWeatherService) {
+    this.timeWeatherService.forceWeather(data.weather);
+  }
+});
+  console.log(`✅ [WorldRoom] TimeWeatherService initialisé`);
+}
 
   private initializeNpcManagers() {
     const zones = ['beach', 'village', 'villagelab', 'villagehouse1', 'road1', 'lavandia'];
@@ -687,84 +648,20 @@ this.onMessage("setWeather", (client, data: { weather: string }) => {
       }
     });
 this.onMessage("getTime", (client) => {
-    console.log(`🕐 [WorldRoom] ${client.sessionId} demande l'heure actuelle`);
-    
-    if (this.timeWeatherService) {
-      const time = this.timeWeatherService.getCurrentTime();
-      
-      const response = {
-        gameHour: time.hour,
-        isDayTime: time.isDayTime,
-        displayTime: this.timeWeatherService.formatTime(),
-        timestamp: Date.now()
-      };
-      
-      client.send("currentTime", response);
-      console.log(`📤 [WorldRoom] Heure envoyée: ${response.displayTime}`);
-      
-      // ✅ S'assurer que le client est dans le service de sync
-      this.timeWeatherService.addClient(client);
-    } else {
-      console.warn(`⚠️ [WorldRoom] TimeWeatherService non disponible`);
-      client.send("currentTime", {
-        gameHour: 12,
-        isDayTime: true,
-        displayTime: "12:00 PM",
-        error: "Service temps non disponible"
-      });
-    }
+    const time = this.timeWeatherService.getCurrentTime();
+    client.send("currentTime", {
+      gameHour: time.hour,
+      isDayTime: time.isDayTime,
+      displayTime: this.timeWeatherService.formatTime()
+    });
   });
 
   this.onMessage("getWeather", (client) => {
-    console.log(`🌤️ [WorldRoom] ${client.sessionId} demande la météo actuelle`);
-    
-    if (this.timeWeatherService) {
-      const weather = this.timeWeatherService.getCurrentWeather();
-      
-      const response = {
-        weather: weather.name,
-        displayName: weather.displayName,
-        timestamp: Date.now()
-      };
-      
-      client.send("currentWeather", response);
-      console.log(`📤 [WorldRoom] Météo envoyée: ${response.displayName}`);
-      
-      // ✅ S'assurer que le client est dans le service de sync
-      this.timeWeatherService.addClient(client);
-    } else {
-      console.warn(`⚠️ [WorldRoom] TimeWeatherService non disponible`);
-      client.send("currentWeather", {
-        weather: "clear",
-        displayName: "Ciel dégagé",
-        error: "Service météo non disponible"
-      });
-    }
-  });
-
-  // ✅ NOUVEAU: Handler pour vérifier la synchronisation
-  this.onMessage("checkTimeWeatherSync", (client) => {
-    console.log(`🔍 [WorldRoom] ${client.sessionId} vérifie la synchronisation temps/météo`);
-    
-    if (this.timeWeatherService) {
-      const health = this.timeWeatherService.healthCheck();
-      
-      client.send("timeWeatherSyncStatus", {
-        synchronized: health.healthy,
-        issues: health.issues,
-        currentTime: this.timeWeatherService.getCurrentTime(),
-        currentWeather: this.timeWeatherService.getCurrentWeather(),
-        serverTimestamp: Date.now()
-      });
-      
-      // ✅ Si pas synchronisé, forcer l'envoi de l'état
-      if (!health.healthy) {
-        console.log(`🔄 [WorldRoom] Client ${client.sessionId} pas sync, envoi forcé`);
-        setTimeout(() => {
-          this.timeWeatherService!.sendCurrentStateToAllClients();
-        }, 1000);
-      }
-    }
+    const weather = this.timeWeatherService.getCurrentWeather();
+    client.send("currentWeather", {
+      weather: weather.name,
+      displayName: weather.displayName
+    });
   });
     // Handler pour les tests (développement uniquement)
     this.onMessage("testAddItem", async (client, data) => {
@@ -1101,11 +998,6 @@ this.onMessage("getTime", (client) => {
       player.currentZone = options.spawnZone || "beach";
       console.log(`🌍 Zone de spawn: ${player.currentZone}`);
       
-    //TIME + METEO
-       if (this.timeWeatherService) {
-      this.timeWeatherService.addClient(client);
-      console.log(`🌍 [WorldRoom] Client ${client.sessionId} ajouté au TimeWeatherService`);
-    }
       
       // ✅ NOUVELLES PROPRIÉTÉS SHOP
       player.level = options.level || 1;
@@ -1209,10 +1101,7 @@ this.onMessage("getTime", (client) => {
     if (player) {
       console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
       console.log(`💰 Stats finales: Level ${player.level}, ${player.gold} gold`);
-        if (this.timeWeatherService) {
-    this.timeWeatherService.removeClient(client);
-    console.log(`🌍 [WorldRoom] Client ${client.sessionId} retiré du TimeWeatherService`);
-  }
+      
       // Supprimer du state
       this.state.players.delete(client.sessionId);
       console.log(`🗑️ Joueur ${player.name} supprimé du state`);
@@ -1229,10 +1118,8 @@ this.onMessage("getTime", (client) => {
     this.state.players.forEach((player, sessionId) => {
       console.log(`💾 Sauvegarde joueur: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
     });
-  if (this.timeWeatherService) {
-    console.log(`🌍 [WorldRoom] Destruction du TimeWeatherService...`);
+if (this.timeWeatherService) {
     this.timeWeatherService.destroy();
-    this.timeWeatherService = null;
   }
     console.log(`✅ WorldRoom fermée`);
   }
@@ -1476,58 +1363,7 @@ public getCurrentTimeInfo(): { hour: number; isDayTime: boolean; weather: string
     }
 
     const playerZone = player.currentZone;
-
-    //Methode WEATHER
-
-    public getCurrentTimeWeatherInfo(): { 
-  time: { hour: number; isDayTime: boolean; displayTime: string },
-  weather: { name: string; displayName: string },
-  synchronized: boolean
-} {
-  if (!this.timeWeatherService) {
-    return {
-      time: { hour: 12, isDayTime: true, displayTime: "12:00 PM" },
-      weather: { name: "clear", displayName: "Ciel dégagé" },
-      synchronized: false
-    };
-  }
-
-  const time = this.timeWeatherService.getCurrentTime();
-  const weather = this.timeWeatherService.getCurrentWeather();
-  const health = this.timeWeatherService.healthCheck();
-
-  return {
-    time: {
-      hour: time.hour,
-      isDayTime: time.isDayTime,
-      displayTime: this.timeWeatherService.formatTime()
-    },
-    weather: {
-      name: weather.name,
-      displayName: weather.displayName
-    },
-    synchronized: health.healthy
-  };
-}
-
-public debugTimeWeatherSystem(): void {
-  console.log(`🔍 [WorldRoom] === DEBUG SYSTÈME TEMPS/MÉTÉO ===`);
-  
-  if (this.timeWeatherService) {
-    this.timeWeatherService.debugSyncStatus();
     
-    const health = this.timeWeatherService.healthCheck();
-    console.log(`🏥 Santé du système: ${health.healthy ? 'OK' : 'PROBLÈME'}`);
-    if (!health.healthy) {
-      console.log(`❌ Problèmes détectés:`, health.issues);
-    }
-  } else {
-    console.error(`❌ [WorldRoom] TimeWeatherService non initialisé !`);
-  }
-  
-  console.log(`👥 Clients connectés à la room: ${this.clients.length}`);
-  console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
-}
     // ✅ CORRECTION CRITIQUE: Utiliser un Object simple au lieu d'un Map
     const filteredPlayersObject: { [key: string]: any } = {};
     
