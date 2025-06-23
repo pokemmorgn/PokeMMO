@@ -114,12 +114,13 @@ export class TimeWeatherService {
   }
 
   // ✅ MÉTHODE SIMPLIFIÉE: Retourne les conditions actuelles pour les rencontres
-  getEncounterConditions(): { timeOfDay: 'day' | 'night', weather: string } {
-    return {
-      timeOfDay: this.state.isDayTime ? 'day' : 'night',
-      weather: this.currentWeather.name
-    };
-  }
+  // Dans TimeWeatherService.ts, change cette méthode :
+getEncounterConditions(): { timeOfDay: 'day' | 'night', weather: 'clear' | 'rain' } {
+  return {
+    timeOfDay: this.state.isDayTime ? 'day' : 'night',
+    weather: this.currentWeather.name === 'rain' ? 'rain' : 'clear' // Force clear pour tous sauf rain
+  };
+}
 
   getAvailableWeatherTypes(): string[] {
     const config = getServerConfig();
