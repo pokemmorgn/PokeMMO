@@ -9,7 +9,7 @@ import { InventorySystem } from "../../game/InventorySystem.js";
 import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
-import { DayNightManager } from '../../game/DayNightManager.js';
+import { DayNightWeatherManager } from '../../game/DayNightWeatherManager.js';
 import { ClientCollisionManager } from "../../game/ClientCollisionsManager.js";
 
 export class BaseZoneScene extends Phaser.Scene {
@@ -25,6 +25,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.animatedObjects = null;
     this.lastMoveTime = 0;
     this.myPlayerReady = false;
+    this.dayNightWeatherManager = null;
 
     // Inventaire
     this.inventorySystem = null;
@@ -70,7 +71,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.loadMap();
     this.setupInputs();
     this.createUI();
-    this.dayNightManager = new DayNightManager(this);
     this.myPlayerReady = false;
     this.isSceneReady = true;
 
@@ -140,10 +140,27 @@ export class BaseZoneScene extends Phaser.Scene {
     
     // Quêtes (sera initialisé après connexion)
     this.initializeQuestSystem();
-
+this.initializeTimeWeatherSystem();
     console.log(`✅ [${this.scene.key}] Systèmes de jeu initialisés`);
   }
+initializeTimeWeatherSystem() {
+  if (!this.networkManager) {
+    console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
+    return;
+  }
 
+  try {
+    console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO ===`);
+
+    this.dayNightWeatherManager = new DayNightWeatherManager(this);
+    this.dayNightWeatherManager.initialize(this.networkManager);
+
+    console.log(`✅ [${this.scene.key}] Système temps/météo initialisé`);
+
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
+  }
+}
   // ✅ NOUVELLE MÉTHODE: Initialisation de l'InteractionManager
   initializeInteractionManager() {
     if (!this.networkManager) {
@@ -728,10 +745,10 @@ setupPlayerReadyHandler() {
     if (this.npcManager) {
       this.npcManager.clearAllNpcs();
     }
-    if (this.dayNightManager) {
-      this.dayNightManager.destroy();
-      this.dayNightManager = null;
-    }
+    if (this.dayNightWeatherManager) {
+    this.dayNightWeatherManager.destroy();
+    this.dayNightWeatherManager = null;
+  }
     if (this.animatedObjects) {
       this.animatedObjects.clear(true, true);
       this.animatedObjects = null;
@@ -1295,7 +1312,27 @@ normalizeZoneName(sceneName) {
       console.log(`🔍 [${this.scene.key}] Aucun InteractionManager`);
     }
   }
+requestTime() {
+  if (this.networkManager?.room) {
+    this.networkManager.room.send("getTime");
+  }
+}
 
+requestWeather() {
+  if (this.networkManager?.room) {
+    this.networkManager.room.send("getWeather");
+  }
+}
+
+getCurrentTimeWeather() {
+  if (this.dayNightWeatherManager) {
+    return {
+      time: this.dayNightWeatherManager.getCurrentTime(),
+      weather: this.dayNightWeatherManager.getCurrentWeather()
+    };
+  }
+  return null;
+}
   // ✅ NOUVELLE MÉTHODE: Debug complet de la scène
   debugScene() {
     console.log(`🔍 [${this.scene.key}] === DEBUG SCENE COMPLÈTE ===`);
