@@ -10,7 +10,7 @@ import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
 import { IntegrateShopToScene } from "../../game/ShopIntegration.js";
 import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
-import { ClientCollisionManager } from "../../game/ClientCollisionsManager.js";
+
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -1022,10 +1022,12 @@ normalizeZoneName(sceneName) {
         this.sys.animatedTiles.init(this.map);
       }
 
-      this.worldLayer = this.layers['World'];
-      if (this.worldLayer) {
-        this.worldLayer.setCollisionByProperty({ collides: true });
-      }
+      // Appliquer la collision sur toutes les layers qui ont la propriété collides
+Object.values(this.layers).forEach(layer => {
+  if (layer && typeof layer.setCollisionByProperty === 'function') {
+    layer.setCollisionByProperty({ collides: true });
+  }
+});
 
       this.setupAnimatedObjects();
       this.setupScene();
@@ -1078,10 +1080,6 @@ normalizeZoneName(sceneName) {
     this.cameras.main.setRoundPixels(true);
 
     this.cameraManager = new CameraManager(this);
-    this.clientCollisionManager = new ClientCollisionManager(this);
-    if (this.clientCollisionManager.loadCollisionsFromTilemap()) {
-      console.log(`✅ [${this.scene.key}] Collisions client chargées`);
-    }
   }
 
   getDefaultSpawnPosition(fromZone) {
