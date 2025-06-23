@@ -290,6 +290,7 @@ export class ShopUI {
   }
 
   show(shopId, npcName = "Marchand") {
+  console.log('[SHOW] shopId:', shopId, 'npcName:', npcName, 'typeof:', typeof npcName, 'value:', npcName);
   this.shopOpenUID = (this.shopOpenUID || 0) + 1;
   const debugUID = this.shopOpenUID;
   console.log(`[DEBUG SHOW SHOP] uid=${debugUID}, shopId=${shopId}, npcName=${npcName}, isVisible=${this.isVisible}, stack:`, new Error().stack);
@@ -332,6 +333,7 @@ export class ShopUI {
   }
 
 handleShopCatalog(data) {
+    console.log('[HANDLE CATALOG] data:', JSON.stringify(data, null, 2));
   // this.hideLoading();
 
   if (data.success) {
