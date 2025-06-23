@@ -1,5 +1,7 @@
 // client/src/components/ShopUI.js - Interface de shop rétro Pokémon (JS seulement)
 
+export class ShopUI {  // 
+  
 constructor(gameRoom) {
   this.gameRoom = gameRoom;
   this.isVisible = false;
@@ -1177,4 +1179,5 @@ createBuyItemElement(item, index) {
     
     console.log('🏪 ShopUI détruit');
   }
+   }
 export { ShopUI }; 
