@@ -542,24 +542,41 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   // ✅ MÉTHODE INCHANGÉE: Setup du handler joueur prêt
-  setupPlayerReadyHandler() {
-    if (!this.playerManager) return;
-    
-    this.playerManager.onMyPlayerReady((myPlayer) => {
-      if (!this.myPlayerReady) {
-        this.myPlayerReady = true;
-        console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
+// ✅ MÉTHODE CORRIGÉE: Setup du handler joueur prêt avec sécurité
+setupPlayerReadyHandler() {
+  if (!this.playerManager) return;
+  
+  this.playerManager.onMyPlayerReady((myPlayer) => {
+    if (!this.myPlayerReady) {
+      this.myPlayerReady = true;
+      console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
 
+      // ✅ VÉRIFICATION SÉCURITÉ CAMERAMANAGER
+      if (this.cameraManager) {
         this.cameraManager.followPlayer(myPlayer);
         this.cameraFollowing = true;
-        this.positionPlayer(myPlayer);
-
-        if (typeof this.onPlayerReady === 'function') {
-          this.onPlayerReady(myPlayer);
-        }
+      } else {
+        console.warn(`⚠️ [${this.scene.key}] CameraManager pas encore prêt, attente...`);
+        // Réessayer quand la map sera chargée
+        this.time.delayedCall(100, () => {
+          if (this.cameraManager) {
+            console.log(`🔄 [${this.scene.key}] CameraManager prêt, activation caméra`);
+            this.cameraManager.followPlayer(myPlayer);
+            this.cameraFollowing = true;
+          } else {
+            console.error(`❌ [${this.scene.key}] CameraManager toujours absent après délai`);
+          }
+        });
       }
-    });
-  }
+
+      this.positionPlayer(myPlayer);
+      
+      if (typeof this.onPlayerReady === 'function') {
+        this.onPlayerReady(myPlayer);
+      }
+    }
+  });
+}
 
   // ✅ MÉTHODE INCHANGÉE: Vérification de l'état réseau
   verifyNetworkState() {
