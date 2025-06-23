@@ -312,6 +312,7 @@ export class InteractionManager {
   // === INTERACTIONS SPÉCIFIQUES ===
 
   handleShopInteraction(npc, data) {
+    this.shopSystem = this.shopSystem || (this.scene.shopIntegration?.getShopSystem()) || window.shopSystem;
     if (!this.shopSystem) {
       // Fallback : affiche la boîte de dialogue standardisée
       this.handleDialogueInteraction(npc, { message: "Ce marchand n'est pas disponible." });
