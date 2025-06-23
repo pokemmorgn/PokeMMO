@@ -439,9 +439,8 @@ export class TransitionManager {
     }
 
     // ✅ ÉTAPE 6: Démarrer avec un délai pour s'assurer que tout est propre
-    setTimeout(() => {
-await this.waitForQueueToBeEmpty();
-this.startSceneWithData(targetSceneKey, result);    }, 100);
+   await this.waitForQueueToBeEmpty();
+this.startSceneWithData(targetSceneKey, result);
   }
 
   // ✅ NOUVELLE MÉTHODE: Attendre que toutes les scènes s'arrêtent
