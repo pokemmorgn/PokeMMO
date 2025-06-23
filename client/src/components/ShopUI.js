@@ -295,20 +295,20 @@ constructor(gameRoom) {
 
 show(shopId, npcName = "Marchand") {
   console.log('[SHOW] shopId:', shopId, 'npcName:', npcName, 'typeof:', typeof npcName, 'value:', npcName);
-  
+
   this.shopOpenUID = (this.shopOpenUID || 0) + 1;
   const debugUID = this.shopOpenUID;
   console.log(`[DEBUG SHOW SHOP] uid=${debugUID}, shopId=${shopId}, npcName=${npcName}, isVisible=${this.isVisible}`);
-  
-  if (this.isVisible) return;
-  
-  this.isVisible = true;
+
+  // 🔥 Correction anti-bug : toujours retirer la classe 'hidden' et afficher
   this.overlay.classList.remove('hidden');
-  
+  this.overlay.style.display = 'flex'; // Optionnel si ton CSS ne le fait pas déjà
+  this.isVisible = true;
+
   // ✅ CORRECTION: Mieux gérer le nom du NPC
   let displayName = "Marchand";
   let npcObject = null;
-  
+
   if (typeof npcName === 'object' && npcName !== null) {
     displayName = npcName.name || "Marchand";
     npcObject = npcName;
@@ -316,21 +316,22 @@ show(shopId, npcName = "Marchand") {
     displayName = npcName;
     npcObject = { name: npcName };
   }
-  
+
   // Stocker l'objet NPC complet
   this.pendingNpcName = npcObject;
-  
+
   // Mettre à jour le titre du shop immédiatement
   const shopNameElement = this.overlay.querySelector('.shop-name');
   if (shopNameElement) {
     shopNameElement.textContent = displayName;
   }
-  
+
   // Requête du catalogue du shop
   this.requestShopCatalog(shopId);
-  
+
   console.log(`🏪 Shop ${shopId} ouvert pour ${displayName}`);
 }
+
 
   createEmptyShopItemElement() {
   const itemElement = document.createElement('div');
