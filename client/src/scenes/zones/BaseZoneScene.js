@@ -257,9 +257,13 @@ this.events.once('destroy', this.cleanup, this);
       this.handleMyPlayerFromState();
     });
 
+    
     // Handlers de zone WorldRoom
     this.setupWorldRoomHandlers();
 
+  // ✅ HANDLER DÉDIÉ POUR LES QUEST STATUSES
+  this.setupQuestStatusHandler();
+    
     // Handlers existants
     this.setupExistingHandlers();
 
@@ -445,6 +449,30 @@ setupWorldRoomHandlers() {
   console.log(`✅ [${this.scene.key}] Tous les handlers WorldRoom configurés`);
 }
 
+  // ✅ NOUVELLE MÉTHODE DÉDIÉE
+setupQuestStatusHandler() {
+  console.log(`🎯 [${this.scene.key}] Configuration handler quest statuses...`);
+  
+  this.networkManager.onMessage("questStatuses", (data) => {
+    console.log(`🎯 [${this.scene.key}] Quest statuses reçus:`, data);
+    
+    if (this.npcManager && data.questStatuses && data.questStatuses.length > 0) {
+      console.log(`✅ [${this.scene.key}] Mise à jour des indicateurs de quête`);
+      
+      // Debug des statuses
+      data.questStatuses.forEach(status => {
+        console.log(`  🔸 NPC ${status.npcId}: ${status.type}`);
+      });
+      
+      this.npcManager.updateQuestIndicators(data.questStatuses);
+    } else {
+      console.log(`⚠️ [${this.scene.key}] Pas d'indicateurs à mettre à jour`);
+    }
+  });
+  
+  console.log(`✅ [${this.scene.key}] Handler quest statuses configuré`);
+}
+  
   // ✅ MÉTHODE EXISTANTE: Setup des handlers existants
   setupExistingHandlers() {
     this.networkManager.onSnap((data) => {
