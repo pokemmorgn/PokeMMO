@@ -6,13 +6,29 @@ export class Road1Scene extends BaseZoneScene {
     this.transitionCooldowns = {};
   }
 
-  // 🔥 HOOK appelé UNE FOIS dès que le joueur local est prêt et positionné
+  // Position de spawn par défaut (optionnel, à adapter selon tes besoins)
+  getDefaultSpawnPosition(fromZone) {
+    // Exemples de positions selon la zone d'origine
+    switch (fromZone) {
+      case 'VillageScene':
+        return { x: 100, y: 300 };
+      default:
+        return { x: 100, y: 300 };
+    }
+  }
+
+  // Hook appelé une fois que le joueur local est prêt et positionné
   onPlayerReady(myPlayer) {
     super.onPlayerReady(myPlayer);
-    // Log ou actions d'arrivée personnalisées
     console.log(`[Road1Scene] Mon joueur est prêt à (${myPlayer.x}, ${myPlayer.y})`);
+    // Ici tu peux déclencher des événements custom liés à l'arrivée du joueur si besoin
+  }
 
-    // Affichage instructions (exemple)
+  create() {
+    console.log("🚨 DEBUT Road1Scene.create()");
+    super.create();
+    console.log("✅ BaseZoneScene.create() appelé");
+
     this.add.text(16, 16, 'Route 1 - Route vers l\'aventure\nFlèches pour se déplacer\nAppuyez sur "D" pour les hitboxes', {
       font: '18px monospace',
       fill: '#ffffff',
@@ -20,10 +36,13 @@ export class Road1Scene extends BaseZoneScene {
       backgroundColor: 'rgba(139, 69, 19, 0.8)',
     }).setScrollFactor(0).setDepth(30);
 
-    // Evénements d'accueil custom
+    console.log("⚙️ Setup Road1 events...");
     this.setupRoad1Events();
-    // Placement des NPCs (peut dépendre de la map déjà chargée)
+
+    console.log("⚙️ Setup NPCs...");
     this.setupNPCs();
+
+    console.log("🚨 FIN Road1Scene.create()");
   }
 
   setupRoad1Events() {
