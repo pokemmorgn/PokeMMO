@@ -257,7 +257,7 @@ export class BaseZoneScene extends Phaser.Scene {
         return;
       }
       
-      console.log(`📊 [${this.scene.key}] State reçu:`, {
+      //console.log(`📊 [${this.scene.key}] State reçu:`, {
         playersCount: state.players?.size || 0,
         isFiltered: !!state.players,
         type: state.players instanceof Map ? 'Map' : 'Object'
