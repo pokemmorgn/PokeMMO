@@ -88,38 +88,39 @@ export class ShopSystem {
   }
 
   // ✅ GESTION DES INTERACTIONS NPC MARCHAND
-  handleShopNpcInteraction(data) {
-    console.log(`🏪 Interaction avec NPC marchand:`, data);
-    
-    // Extraire les données du shop
-    const shopId = data.shopId;
-    const shopData = data.shopData;
+handleShopNpcInteraction(data) {
+  console.log(`🏪 Interaction avec NPC marchand:`, data);
+
+  // Extraire les données du shop
+  const shopId = data.shopId;
+  const shopData = data.shopData;
   let npc = data.npc || { name: data.npcName || "Marchand", id: data.npcId };
 
   // Récupérer le vrai NPC si possible
   const realNpc = window.npcManager?.getNpcData?.(data.npcId);
   if (realNpc) npc = realNpc;
-    
-    if (!shopId) {
-      this.showError("Erreur: Shop ID manquant");
-      return;
-    }
 
-    // Stocker les informations du shop actuel
-    this.currentShopId = shopId;
-    this.currentNpcId = data.npcId;
-    
-    // Extraire l'or du joueur depuis les données du shop
-    if (shopData && shopData.playerGold !== undefined) {
-      this.playerGold = shopData.playerGold;
-    }
-    
-    // Ouvrir l'interface de shop
-   this.openShop(shopId, data.npc || { name: npcName }, shopData);
-    
-    // ✅ Notification d'ouverture
-    this.showInfo(`Bienvenue chez ${npcName} !`);
+  if (!shopId) {
+    this.showError("Erreur: Shop ID manquant");
+    return;
   }
+
+  // Stocker les informations du shop actuel
+  this.currentShopId = shopId;
+  this.currentNpcId = data.npcId;
+
+  // Extraire l'or du joueur depuis les données du shop
+  if (shopData && shopData.playerGold !== undefined) {
+    this.playerGold = shopData.playerGold;
+  }
+
+  // Ouvrir l'interface de shop AVEC LE NPC !
+  this.openShop(shopId, npc, shopData);
+
+  // ✅ Notification d'ouverture
+  this.showInfo(`Bienvenue chez ${npc.name} !`);
+}
+
 
   // ✅ OUVERTURE DE SHOP
 openShop(shopId, npc = { name: "Marchand" }, shopData = null) {
