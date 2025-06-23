@@ -14,12 +14,12 @@ export class NpcManager {
   // ✅ AMÉLIORATION: Spawn avec debug détaillé des sprites
   spawnNpcs(npcList) {
     console.log("👥 === SPAWN NPCs DEBUG ===");
-    console.log(`📊 Zone: ${this.scene.scene.key}`);
-    console.log(`📊 NPCs à spawner: ${npcList.length}`);
+    console.log(📊 Zone: ${this.scene.scene.key});
+    console.log(📊 NPCs à spawner: ${npcList.length});
     
     // ✅ Debug détaillé de chaque NPC reçu
     npcList.forEach((npc, index) => {
-      console.log(`🎭 NPC ${index + 1}:`, {
+      console.log(🎭 NPC ${index + 1}:, {
         id: npc.id,
         name: npc.name,
         sprite: npc.sprite,
@@ -43,12 +43,12 @@ export class NpcManager {
     // Lister quelques textures importantes
     const importantTextures = ['npc_placeholder', 'dude', 'BoyWalk'];
     importantTextures.forEach(tex => {
-      console.log(`🎨 ${tex}: ${textureManager.exists(tex) ? 'EXISTE' : 'MANQUANT'}`);
+      console.log(🎨 ${tex}: ${textureManager.exists(tex) ? 'EXISTE' : 'MANQUANT'});
     });
     
     // ✅ CORRECTION: Ne nettoyer que si vraiment nécessaire
     if (this.npcVisuals.size > 0) {
-      console.log(`🧹 Nettoyage préventif (${this.npcVisuals.size} NPCs existants)`);
+      console.log(🧹 Nettoyage préventif (${this.npcVisuals.size} NPCs existants));
       this.clearAllNpcs();
     }
     
@@ -56,11 +56,11 @@ export class NpcManager {
       try {
         this.spawnNpc(npc);
       } catch (error) {
-        console.error(`❌ Erreur spawn NPC ${npc.id}:`, error);
+        console.error(❌ Erreur spawn NPC ${npc.id}:, error);
       }
     }
     
-    console.log(`✅ Spawn terminé, ${this.npcVisuals.size} NPCs créés`);
+    console.log(✅ Spawn terminé, ${this.npcVisuals.size} NPCs créés);
     
     // ✅ Debug final des NPCs créés
     this.debugSpawnedNpcs();
@@ -71,7 +71,7 @@ export class NpcManager {
     console.log("🔍 === DEBUG NPCs SPAWNÉS ===");
     this.npcVisuals.forEach((visual, id) => {
       const data = this.npcData.get(id);
-      console.log(`🎭 NPC ${id}:`, {
+      console.log(🎭 NPC ${id}:, {
         name: data?.name,
         spriteKey: visual.sprite?.texture?.key,
         spriteExists: visual.sprite ? this.isGameObjectValid(visual.sprite) : false,
@@ -85,19 +85,19 @@ export class NpcManager {
 
   // ✅ AMÉLIORATION: Spawn avec gestion d'erreurs détaillée
   spawnNpc(npc) {
-    console.log(`👤 === SPAWN NPC DÉTAIL ===`);
-    console.log(`🎭 Nom: ${npc.name} (ID: ${npc.id})`);
-    console.log(`📍 Position: (${npc.x}, ${npc.y})`);
-    console.log(`🎨 Sprite demandé: ${npc.sprite || 'non spécifié'}`);
+    console.log(👤 === SPAWN NPC DÉTAIL ===);
+    console.log(🎭 Nom: ${npc.name} (ID: ${npc.id}));
+    console.log(📍 Position: (${npc.x}, ${npc.y}));
+    console.log(🎨 Sprite demandé: ${npc.sprite || 'non spécifié'});
     
     // ✅ CORRECTION: Vérifications moins restrictives
     if (this.isDestroyed) {
-      console.warn(`⚠️ Cannot spawn NPC ${npc.id}: manager détruit`);
+      console.warn(⚠️ Cannot spawn NPC ${npc.id}: manager détruit);
       return;
     }
     
     if (!this.scene) {
-      console.warn(`⚠️ Cannot spawn NPC ${npc.id}: pas de scène`);
+      console.warn(⚠️ Cannot spawn NPC ${npc.id}: pas de scène);
       return;
     }
     
@@ -105,7 +105,7 @@ export class NpcManager {
     if (this.npcVisuals.has(npc.id)) {
       const existing = this.npcVisuals.get(npc.id);
       if (existing && this.isGameObjectValid(existing.sprite)) {
-        console.log(`⚠️ NPC ${npc.id} existe déjà et est valide, mise à jour position`);
+        console.log(⚠️ NPC ${npc.id} existe déjà et est valide, mise à jour position);
         existing.sprite.x = npc.x;
         existing.sprite.y = npc.y;
         if (existing.nameContainer) {
@@ -114,7 +114,7 @@ export class NpcManager {
         }
         return;
       } else {
-        console.log(`🔧 NPC ${npc.id} existe mais invalide, recréation`);
+        console.log(🔧 NPC ${npc.id} existe mais invalide, recréation);
         this.npcVisuals.delete(npc.id);
       }
     }
@@ -122,34 +122,31 @@ export class NpcManager {
     try {
       // ✅ AMÉLIORATION: Gestion du sprite avec debug détaillé
       let spriteKey = npc.sprite || "npc_placeholder";
-      console.log(`🎨 Sprite key choisi: ${spriteKey}`);
+      console.log(🎨 Sprite key choisi: ${spriteKey});
       
       // ✅ Vérification détaillée de l'existence du sprite
-console.log(
-  `🎨 Texture "${spriteKey}" existe dans ${this.scene.scene.key}:`,
-  this.scene.textures.exists(spriteKey)
-);
-console.log('Textures connues:', Object.keys(this.scene.textures.list));
+      const spriteExists = this.scene.textures.exists(spriteKey);
+      console.log(🎨 Sprite "${spriteKey}" existe: ${spriteExists});
       
       if (!spriteExists) {
-        console.log(`🎨 === CRÉATION PLACEHOLDER pour ${spriteKey} ===`);
+        console.log(🎨 === CRÉATION PLACEHOLDER pour ${spriteKey} ===);
         const placeholderCreated = this.createNpcPlaceholder(spriteKey);
-        console.log(`🎨 Placeholder créé: ${placeholderCreated}`);
+        console.log(🎨 Placeholder créé: ${placeholderCreated});
         
         // ✅ Vérifier que le placeholder a bien été créé
         const placeholderExists = this.scene.textures.exists(spriteKey);
-        console.log(`🎨 Placeholder vérifié: ${placeholderExists}`);
+        console.log(🎨 Placeholder vérifié: ${placeholderExists});
         
         if (!placeholderExists) {
-          console.error(`❌ Impossible de créer le placeholder pour ${spriteKey}`);
+          console.error(❌ Impossible de créer le placeholder pour ${spriteKey});
           // ✅ Fallback vers un sprite de base
           spriteKey = this.getFallbackSprite();
-          console.log(`🎨 Fallback vers: ${spriteKey}`);
+          console.log(🎨 Fallback vers: ${spriteKey});
         }
       }
 
       // ✅ AMÉLIORATION: Création du sprite avec plus de vérifications
-      console.log(`🎨 Création sprite avec key: ${spriteKey}`);
+      console.log(🎨 Création sprite avec key: ${spriteKey});
       const sprite = this.scene.add.sprite(npc.x, npc.y, spriteKey)
         .setOrigin(0.5, 1)
         .setDepth(4)
@@ -157,11 +154,11 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
 
       // ✅ Vérifier que le sprite a bien été créé
       if (!sprite) {
-        console.error(`❌ Sprite non créé pour NPC ${npc.id}`);
+        console.error(❌ Sprite non créé pour NPC ${npc.id});
         return;
       }
 
-      console.log(`✅ Sprite créé pour ${npc.name}:`, {
+      console.log(✅ Sprite créé pour ${npc.name}:, {
         textureKey: sprite.texture.key,
         x: sprite.x,
         y: sprite.y,
@@ -176,10 +173,10 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
       this.npcVisuals.set(npc.id, { sprite, nameContainer });
       this.npcData.set(npc.id, npc);
       
-      console.log(`✅ NPC ${npc.name} créé avec succès`);
+      console.log(✅ NPC ${npc.name} créé avec succès);
       
     } catch (error) {
-      console.error(`❌ Erreur création NPC ${npc.id}:`, error);
+      console.error(❌ Erreur création NPC ${npc.id}:, error);
       console.error("Stack trace:", error.stack);
     }
   }
@@ -190,13 +187,13 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
     
     for (const fallback of fallbacks) {
       if (this.scene.textures.exists(fallback)) {
-        console.log(`🎨 Fallback trouvé: ${fallback}`);
+        console.log(🎨 Fallback trouvé: ${fallback});
         return fallback;
       }
     }
     
     // ✅ Dernier recours : créer un fallback universel
-    console.log(`🎨 Création fallback universel`);
+    console.log(🎨 Création fallback universel);
     this.createUniversalFallback();
     return 'universal_npc_fallback';
   }
@@ -230,10 +227,10 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
       graphics.generateTexture(key, 32, 32);
       graphics.destroy();
       
-      console.log(`✅ Fallback universel créé: ${key}`);
+      console.log(✅ Fallback universel créé: ${key});
       return true;
     } catch (error) {
-      console.error(`❌ Erreur création fallback universel:`, error);
+      console.error(❌ Erreur création fallback universel:, error);
       return false;
     }
   }
@@ -241,8 +238,8 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
   // ✅ AMÉLIORATION: Création du placeholder avec debug
   createNpcPlaceholder(spriteKey) {
     try {
-      console.log(`🎨 === CRÉATION PLACEHOLDER ===`);
-      console.log(`🎨 Key: ${spriteKey}`);
+      console.log(🎨 === CRÉATION PLACEHOLDER ===);
+      console.log(🎨 Key: ${spriteKey});
       
       const graphics = this.scene.add.graphics();
       
@@ -278,11 +275,11 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
       
       // ✅ Vérifier que la texture a bien été créée
       const created = this.scene.textures.exists(spriteKey);
-      console.log(`🎨 Placeholder ${spriteKey} créé: ${created}`);
+      console.log(🎨 Placeholder ${spriteKey} créé: ${created});
       
       return created;
     } catch (error) {
-      console.error(`❌ Erreur création placeholder ${spriteKey}:`, error);
+      console.error(❌ Erreur création placeholder ${spriteKey}:, error);
       return false;
     }
   }
@@ -295,22 +292,22 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
     }
 
     console.log("🧹 === NETTOYAGE NPCs ===");
-    console.log(`🧹 NPCs à nettoyer: ${this.npcVisuals.size}`);
+    console.log(🧹 NPCs à nettoyer: ${this.npcVisuals.size});
     
     this.npcVisuals.forEach(({ sprite, nameContainer }, id) => {
-      console.log(`🗑️ Suppression NPC ID ${id}`);
+      console.log(🗑️ Suppression NPC ID ${id});
       
       // ✅ CORRECTION: Vérification robuste pour le sprite
       if (sprite) {
         if (this.isGameObjectValid(sprite)) {
           try {
             sprite.destroy();
-            console.log(`✅ Sprite NPC ${id} détruit`);
+            console.log(✅ Sprite NPC ${id} détruit);
           } catch (error) {
-            console.warn(`⚠️ Erreur destruction sprite NPC ${id}:`, error);
+            console.warn(⚠️ Erreur destruction sprite NPC ${id}:, error);
           }
         } else {
-          console.log(`🔍 Sprite du NPC ${id} déjà détruit ou invalide`);
+          console.log(🔍 Sprite du NPC ${id} déjà détruit ou invalide);
         }
       }
       
@@ -319,12 +316,12 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
         if (this.isGameObjectValid(nameContainer)) {
           try {
             nameContainer.destroy();
-            console.log(`✅ NameContainer NPC ${id} détruit`);
+            console.log(✅ NameContainer NPC ${id} détruit);
           } catch (error) {
-            console.warn(`⚠️ Erreur destruction nameContainer NPC ${id}:`, error);
+            console.warn(⚠️ Erreur destruction nameContainer NPC ${id}:, error);
           }
         } else {
-          console.log(`🔍 NameContainer du NPC ${id} déjà détruit ou invalide`);
+          console.log(🔍 NameContainer du NPC ${id} déjà détruit ou invalide);
         }
       }
     });
@@ -362,21 +359,21 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
   // ✅ NOUVELLE MÉTHODE: Debug complet du manager
   debugFullState() {
     console.log("🔍 === DEBUG COMPLET NPC MANAGER ===");
-    console.log(`📊 Scene: ${this.scene?.scene?.key || 'AUCUNE'}`);
-    console.log(`📊 Détruit: ${this.isDestroyed}`);
-    console.log(`📊 NPCs data: ${this.npcData.size}`);
-    console.log(`📊 NPCs visuals: ${this.npcVisuals.size}`);
+    console.log(📊 Scene: ${this.scene?.scene?.key || 'AUCUNE'});
+    console.log(📊 Détruit: ${this.isDestroyed});
+    console.log(📊 NPCs data: ${this.npcData.size});
+    console.log(📊 NPCs visuals: ${this.npcVisuals.size});
     
     // Debug des textures disponibles
     if (this.scene?.textures) {
       const textureList = Object.keys(this.scene.textures.list);
-      console.log(`🎨 Textures disponibles (${textureList.length}):`, textureList.slice(0, 10));
+      console.log(🎨 Textures disponibles (${textureList.length}):, textureList.slice(0, 10));
       
       // Vérifier spécifiquement les textures de NPCs communes
       const npcTextures = ['npc_placeholder', 'merchant', 'nurse', 'scientist', 'trainer'];
       console.log("🎨 === TEXTURES NPC SPÉCIFIQUES ===");
       npcTextures.forEach(tex => {
-        console.log(`🎨 ${tex}: ${this.scene.textures.exists(tex) ? '✅ EXISTE' : '❌ MANQUANT'}`);
+        console.log(🎨 ${tex}: ${this.scene.textures.exists(tex) ? '✅ EXISTE' : '❌ MANQUANT'});
       });
     }
     
@@ -414,16 +411,16 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
   // ✅ MÉTHODE INCHANGÉE mais avec plus de logs: updateQuestIndicators
   updateQuestIndicators(questStatuses) {
     console.log("🔄 === MISE À JOUR INDICATEURS QUÊTE ===");
-    console.log(`📊 Statuts reçus: ${questStatuses.length}`);
+    console.log(📊 Statuts reçus: ${questStatuses.length});
     
     questStatuses.forEach(status => {
-      console.log(`🎯 Statut: NPC ${status.npcId} - ${status.type}`);
+      console.log(🎯 Statut: NPC ${status.npcId} - ${status.type});
       const visuals = this.npcVisuals.get(status.npcId);
       if (visuals && this.isGameObjectValid(visuals.nameContainer)) {
         this.updateQuestIndicator(visuals.nameContainer, status.type);
-        console.log(`✅ Indicateur mis à jour pour NPC ${status.npcId}`);
+        console.log(✅ Indicateur mis à jour pour NPC ${status.npcId});
       } else {
-        console.warn(`⚠️ NPC ${status.npcId} non trouvé ou invalide pour indicateur`);
+        console.warn(⚠️ NPC ${status.npcId} non trouvé ou invalide pour indicateur);
       }
     });
   }
@@ -460,7 +457,7 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
     const indicator = this.scene.add.text(0, -16, indicatorText, {
       fontFamily: "monospace",
       fontSize: "16px", // ✅ Légèrement plus gros pour être visible
-      color: `#${indicatorColor.toString(16).padStart(6, '0')}`,
+      color: #${indicatorColor.toString(16).padStart(6, '0')},
       fontStyle: "bold",
       stroke: "#000000",
       strokeThickness: 3 // ✅ Stroke plus épais pour contraste
@@ -581,7 +578,7 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
     });
     
     if (closest) {
-      console.log(`🎯 NPC le plus proche: ${closest.npc.name} à ${Math.round(closest.dist)}px`);
+      console.log(🎯 NPC le plus proche: ${closest.npc.name} à ${Math.round(closest.dist)}px);
     }
     
     return closest ? closest.npc : null;
@@ -654,8 +651,8 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
     }
     
     console.log("🐛 [DEBUG] État actuel des NPCs:");
-    console.log(`📊 Total NPCs data: ${this.npcData.size}`);
-    console.log(`📊 Total NPCs visuals: ${this.npcVisuals.size}`);
+    console.log(📊 Total NPCs data: ${this.npcData.size});
+    console.log(📊 Total NPCs visuals: ${this.npcVisuals.size});
     
     this.npcData.forEach((npc, id) => {
       const visuals = this.npcVisuals.get(id);
@@ -664,10 +661,10 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
       if (visuals) {
         const spriteValid = this.isGameObjectValid(visuals.sprite);
         const containerValid = this.isGameObjectValid(visuals.nameContainer);
-        visualsStatus = `Sprite: ${spriteValid ? 'OK' : 'INVALID'}, Container: ${containerValid ? 'OK' : 'INVALID'}`;
+        visualsStatus = Sprite: ${spriteValid ? 'OK' : 'INVALID'}, Container: ${containerValid ? 'OK' : 'INVALID'};
       }
       
-      console.log(`  - ${npc.name} (ID: ${id}) à (${npc.x}, ${npc.y}) - ${visualsStatus}`);
+      console.log(  - ${npc.name} (ID: ${id}) à (${npc.x}, ${npc.y}) - ${visualsStatus});
     });
   }
 
@@ -699,7 +696,7 @@ console.log('Textures connues:', Object.keys(this.scene.textures.list));
     this.clearAllNpcs();
     
     if (savedNpcs.length > 0) {
-      console.log(`♻️ Recréation de ${savedNpcs.length} NPCs`);
+      console.log(♻️ Recréation de ${savedNpcs.length} NPCs);
       this.spawnNpcs(savedNpcs);
     }
   }
