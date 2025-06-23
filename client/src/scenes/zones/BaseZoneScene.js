@@ -542,7 +542,6 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   // ✅ MÉTHODE INCHANGÉE: Setup du handler joueur prêt
-// ✅ MÉTHODE CORRIGÉE: Setup du handler joueur prêt avec sécurité
 setupPlayerReadyHandler() {
   if (!this.playerManager) return;
   
@@ -551,20 +550,19 @@ setupPlayerReadyHandler() {
       this.myPlayerReady = true;
       console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
 
-      // ✅ VÉRIFICATION SÉCURITÉ CAMERAMANAGER
+      // ✅ SOLUTION SIMPLE: Juste un délai plus long
       if (this.cameraManager) {
         this.cameraManager.followPlayer(myPlayer);
         this.cameraFollowing = true;
       } else {
         console.warn(`⚠️ [${this.scene.key}] CameraManager pas encore prêt, attente...`);
-        // Réessayer quand la map sera chargée
-        this.time.delayedCall(100, () => {
+        this.time.delayedCall(500, () => { // ✅ 500ms au lieu de 100ms
           if (this.cameraManager) {
             console.log(`🔄 [${this.scene.key}] CameraManager prêt, activation caméra`);
             this.cameraManager.followPlayer(myPlayer);
             this.cameraFollowing = true;
           } else {
-            console.error(`❌ [${this.scene.key}] CameraManager toujours absent après délai`);
+            console.error(`❌ [${this.scene.key}] CameraManager toujours absent après 500ms`);
           }
         });
       }
