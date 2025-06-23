@@ -326,7 +326,7 @@ export class ShopUI {
   }
 
   handleShopCatalog(data) {
-    this.hideLoading();
+  //  this.hideLoading();
     
     if (data.success) {
       this.shopData = data.catalog;
