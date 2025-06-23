@@ -7,7 +7,8 @@ import { InventoryManager } from "../managers/InventoryManager";
 import { getItemData, getItemPocket } from "../utils/ItemDB";
 import { TransitionService, TransitionRequest } from "../services/TransitionService";
 import { CollisionManager } from "../managers/CollisionManager";
-
+import { TimeWeatherService } from "../services/TimeWeatherService";
+import { getServerConfig } from "../config/serverConfig";
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
@@ -26,7 +27,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private zoneManager!: ZoneManager;
   private npcManagers: Map<string, NpcManager> = new Map();
   private transitionService!: TransitionService;
-
+private timeWeatherService!: TimeWeatherService;
   // Limite pour auto-scaling
   maxClients = 50;
   private lastStateUpdate = 0;
@@ -48,11 +49,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.transitionService = new TransitionService(this.npcManagers);
     console.log(`✅ TransitionService initialisé`);
 
-    // ✅ AJOUTER SEULEMENT ÇA
-  this.clock.setInterval(() => {
-    this.state.gameHour = (this.state.gameHour + 1) % 24;
-    this.state.isDayTime = this.state.gameHour >= 9 && this.state.gameHour < 21;
-  }, 60000);
+    this.initializeTimeWeatherService();
     
     // Messages handlers
     this.setupMessageHandlers();
@@ -60,7 +57,29 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
   }
-
+private initializeTimeWeatherService() {
+  console.log(`🌍 [WorldRoom] Initialisation TimeWeatherService...`);
+  
+  this.timeWeatherService = new TimeWeatherService(this.state, this.clock);
+  
+  // Callbacks pour broadcaster les changements
+  this.timeWeatherService.setTimeChangeCallback((hour, isDayTime) => {
+    this.broadcast("timeUpdate", {
+      gameHour: hour,
+      isDayTime: isDayTime,
+      displayTime: this.timeWeatherService.formatTime()
+    });
+  });
+  
+  this.timeWeatherService.setWeatherChangeCallback((weather) => {
+    this.broadcast("weatherUpdate", {
+      weather: weather.name,
+      displayName: weather.displayName
+    });
+  });
+  
+  console.log(`✅ [WorldRoom] TimeWeatherService initialisé`);
+}
   private initializeNpcManagers() {
     const zones = ['beach', 'village', 'villagelab', 'villagehouse1', 'road1', 'lavandia'];
     
@@ -609,7 +628,22 @@ export class WorldRoom extends Room<PokeWorldState> {
         });
       }
     });
+this.onMessage("getTime", (client) => {
+    const time = this.timeWeatherService.getCurrentTime();
+    client.send("currentTime", {
+      gameHour: time.hour,
+      isDayTime: time.isDayTime,
+      displayTime: this.timeWeatherService.formatTime()
+    });
+  });
 
+  this.onMessage("getWeather", (client) => {
+    const weather = this.timeWeatherService.getCurrentWeather();
+    client.send("currentWeather", {
+      weather: weather.name,
+      displayName: weather.displayName
+    });
+  });
     // Handler pour les tests (développement uniquement)
     this.onMessage("testAddItem", async (client, data) => {
       try {
@@ -1065,7 +1099,9 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.state.players.forEach((player, sessionId) => {
       console.log(`💾 Sauvegarde joueur: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
     });
-
+if (this.timeWeatherService) {
+    this.timeWeatherService.destroy();
+  }
     console.log(`✅ WorldRoom fermée`);
   }
 
@@ -1103,7 +1139,20 @@ private handlePlayerMove(client: Client, data: any) {
   }
 }
 
+public getEncounterConditions(): { timeOfDay: 'day' | 'night', weather: 'clear' | 'rain' } {
+  return this.timeWeatherService?.getEncounterConditions() || { timeOfDay: 'day', weather: 'clear' };
+}
 
+public getCurrentTimeInfo(): { hour: number; isDayTime: boolean; weather: string } {
+  const time = this.timeWeatherService?.getCurrentTime() || { hour: 12, isDayTime: true };
+  const weather = this.timeWeatherService?.getCurrentWeather()?.name || "clear";
+  
+  return {
+    hour: time.hour,
+    isDayTime: time.isDayTime,
+    weather: weather
+  };
+}
   // === MÉTHODES POUR LES EFFETS D'OBJETS ===
 
   private async applyItemEffect(player: any, itemId: string, context: string): Promise<{ message?: string }> {
