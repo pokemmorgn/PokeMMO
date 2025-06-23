@@ -1022,10 +1022,15 @@ normalizeZoneName(sceneName) {
         this.sys.animatedTiles.init(this.map);
       }
 
-      // Appliquer la collision sur toutes les layers qui ont la propriété collides
-Object.values(this.layers).forEach(layer => {
+      Object.values(this.layers).forEach(layer => {
   if (layer && typeof layer.setCollisionByProperty === 'function') {
     layer.setCollisionByProperty({ collides: true });
+    // Log pour compter les tiles actives
+    let count = 0;
+    layer.forEachTile(tile => {
+      if (tile && tile.properties && tile.properties.collides) count++;
+    });
+    console.log(`[${layer.layer.name}] Collisions activées sur ${count} tuiles`);
   }
 });
 
