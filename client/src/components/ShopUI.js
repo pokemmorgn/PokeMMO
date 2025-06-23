@@ -333,35 +333,42 @@ handleShopCatalog(data) {
     this.playerGold = data.playerGold || 0;
 
     // PATCH: Si aucun objet à vendre, on affiche un dialogue avec nom + portrait et on ferme le shop
-const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
-if (items.length === 0) {
-  this.hide(); // On ferme le shop visuel
+    const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
+    if (items.length === 0) {
+      this.hide(); // On ferme le shop visuel
 
-  // Dialogue standardisé avec portrait et nom, via InteractionManager si dispo
-  if (window.interactionManager && typeof window.interactionManager.handleDialogueInteraction === "function") {
-    // Récupère le NPC interacté récemment, ou cherche par ID si dispo
-    const npc = window.interactionManager.state?.lastInteractedNpc
-      || (this.shopData?.shopInfo?.npcId ? window.interactionManager.findNpcById(this.shopData.shopInfo.npcId) : null);
+      // Dialogue standardisé avec portrait et nom, via InteractionManager si dispo
+      if (window.interactionManager && typeof window.interactionManager.handleDialogueInteraction === "function") {
+        // Récupère le NPC interacté récemment, ou cherche par ID si dispo
+        const npc = window.interactionManager.state?.lastInteractedNpc
+          || (this.shopData?.shopInfo?.npcId ? window.interactionManager.findNpcById(this.shopData.shopInfo.npcId) : null);
 
-    window.interactionManager.handleDialogueInteraction(npc, {
-      message: "La boutique est fermée aujourd'hui !"
-    });
-  } else if (window.showNpcDialogue) {
-    // Fallback : version simple (moins joli mais fonctionne)
-window.showNpcDialogue({
-  name:
-    this.shopData?.shopInfo?.npcName
-    || this.shopData?.npcName
-    || (window.interactionManager?.state?.lastInteractedNpc?.name)
-    || "Marchand",
-  portrait: this.shopData?.shopInfo?.npcPortrait || null,
-  lines: ["La boutique est fermée aujourd'hui !"]
-});
-  } else {
-    alert("La boutique est fermée aujourd'hui !");
-  }
-  return;
-}
+        window.interactionManager.handleDialogueInteraction(npc, {
+          message: "La boutique est fermée aujourd'hui !"
+        });
+      } else if (window.showNpcDialogue) {
+        // Debug candidates pour le nom affiché
+        console.log("[SHOP DIALOG FERMÉ] npcName candidates:", {
+          shopInfoNpcName: this.shopData?.shopInfo?.npcName,
+          shopDataNpcName: this.shopData?.npcName,
+          lastInteracted: window.interactionManager?.state?.lastInteractedNpc?.name
+        });
+
+        // Fallback : version simple (moins joli mais fonctionne)
+        window.showNpcDialogue({
+          name:
+            this.shopData?.shopInfo?.npcName
+            || this.shopData?.npcName
+            || (window.interactionManager?.state?.lastInteractedNpc?.name)
+            || "Marchand",
+          portrait: this.shopData?.shopInfo?.npcPortrait || null,
+          lines: ["La boutique est fermée aujourd'hui !"]
+        });
+      } else {
+        alert("La boutique est fermée aujourd'hui !");
+      }
+      return;
+    }
     this.updatePlayerGoldDisplay();
     this.updateShopTitle(data.catalog.shopInfo);
     this.refreshCurrentTab();
@@ -370,6 +377,7 @@ window.showNpcDialogue({
     this.showNotification(data.message || "Impossible de charger le shop", "error");
   }
 }
+
 
 
 
