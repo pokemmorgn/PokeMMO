@@ -74,7 +74,7 @@ export class DayNightWeatherManager {
       return;
     }
 
-    const targetAlpha = isDayTime ? 0 : 0.4;
+    const targetAlpha = isDayTime ? 0 : 0.8;
     
     this.scene.tweens.add({
       targets: this.overlay,
