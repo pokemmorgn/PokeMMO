@@ -1,5 +1,4 @@
 // server/src/schema/PokeWorldState.ts
-
 import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
 
 export class TeamPokemon extends Schema {
@@ -36,14 +35,23 @@ export class PokeWorldState extends Schema {
   @type({ map: Player })
   players = new MapSchema<Player>();
   
-  // Propriétés globales du monde
+  // ✅ SYSTÈME TEMPS/MÉTÉO
   @type("number") gameHour: number = 12;
+  @type("number") gameMinute: number = 0;
   @type("boolean") isDayTime: boolean = true;
-
-  //PAS ENCORE UTILISER
-  @type("string") worldTime: string = "day";
   @type("string") weather: string = "clear";
   @type("number") serverTime: number = Date.now();
+  
+  // ✅ PROPRIÉTÉS TEMPS ÉTENDUES
+  @type("string") timeOfDay: string = "day"; // "day" | "night"
+  @type("string") weatherDisplayName: string = "Ciel dégagé";
+  @type("number") dayStartHour: number = 6;
+  @type("number") nightStartHour: number = 18;
+  
+  // ✅ EFFETS MÉTÉO POUR LE GAMEPLAY
+  @type("number") weatherSpawnRate: number = 1.0;
+  @type("number") weatherCatchRate: number = 1.0;
+  @type("number") weatherExpBonus: number = 1.0;
   
   // Statistiques du serveur
   @type("number") onlineCount: number = 0;
@@ -52,4 +60,9 @@ export class PokeWorldState extends Schema {
   // Événements mondiaux
   @type("boolean") eventActive: boolean = false;
   @type("string") eventName: string = "";
+  @type("number") eventEndTime: number = 0;
+  
+  // ✅ ZONES SPÉCIALES
+  @type("string") rareSpawnZone: string = ""; // Zone avec spawn rare actuel
+  @type("number") rareSpawnEndTime: number = 0;
 }
