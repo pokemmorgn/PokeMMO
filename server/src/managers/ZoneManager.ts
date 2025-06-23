@@ -124,7 +124,7 @@ export class ZoneManager {
     
     this.loadZone('celibtemple', new LavandiaCelibTempleZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour celibtemple");
-    this.collisions.set('celibtemple', new CollisionManager("lavandiacelibitemple.tmj"));
+    this.collisions.set('celibtemple', new CollisionManager("lavandiacelebitemple.tmj"));
     
     this.loadZone('equipement', new LavandiaEquipementZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour equipement");
