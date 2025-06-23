@@ -235,12 +235,13 @@ export class BaseZoneScene extends Phaser.Scene {
       
       console.log(`🔄 [${this.scene.key}] Zone mise à jour: ${oldZone} → ${this.zoneName}`);
       
-      const expectedScene = this.mapZoneToScene(this.zoneName);
-      if (!this.isSceneStillValid(expectedScene)) {
-        console.warn(`[${this.scene.key}] 🔄 Redirection nécessaire → ${expectedScene}`);
-        this.redirectToCorrectScene(expectedScene, data);
-        return;
-      }
+       const expectedScene = this.mapZoneToScene(data.zone); // Utilise le nom reçu, pas this.zoneName !
+  // Comparaison stricte :
+  if (this.scene.key !== expectedScene) {
+    console.warn(`[${this.scene.key}] 🔄 Redirection nécessaire → ${expectedScene}`);
+    this.redirectToCorrectScene(expectedScene, data);
+    return;
+  }
       
       if (this.playerManager) {
         this.playerManager.currentZone = this.zoneName;
