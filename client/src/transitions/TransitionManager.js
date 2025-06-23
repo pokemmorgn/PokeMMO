@@ -353,7 +353,10 @@ export class TransitionManager {
     
     console.log(`✅ [TransitionManager] Listener de validation configuré`);
   }
-
+waitForQueueToBeEmpty() {
+  // Petite pause, permet à Phaser de finir d’éteindre les scènes avant de redémarrer.
+  return new Promise(resolve => setTimeout(resolve, 0));
+}
   // ✅ SUCCÈS DE TRANSITION - VERSION AGGRESSIVE POUR ZONES VISITÉES
   async handleTransitionSuccess(result, teleportData) {
     try {
