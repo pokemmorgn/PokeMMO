@@ -330,6 +330,7 @@ export class InteractionManager {
   }
 
   handleQuestInteraction(npc, data) {
+    this.questSystem = this.questSystem || window.questSystem;
     if (!this.questSystem) {
       this.handleDialogueInteraction(npc, { message: "Système de quêtes non disponible" });
       return;
