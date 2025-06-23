@@ -1112,7 +1112,7 @@ setupScene() {
     this.setupPlayerCollisions();
   });
 }
-  }
+  
 
   getDefaultSpawnPosition(fromZone) {
     return { x: 100, y: 100 };
