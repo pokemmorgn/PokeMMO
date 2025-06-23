@@ -325,20 +325,41 @@ export class ShopUI {
     }
   }
 
-  handleShopCatalog(data) {
-  //  this.hideLoading();
-    
-    if (data.success) {
-      this.shopData = data.catalog;
-      this.playerGold = data.playerGold || 0;
-      this.updatePlayerGoldDisplay();
-      this.updateShopTitle(data.catalog.shopInfo);
-      this.refreshCurrentTab();
-      console.log(`✅ Catalogue shop reçu: ${this.shopData.availableItems.length} objets`);
-    } else {
-      this.showNotification(data.message || "Impossible de charger le shop", "error");
+handleShopCatalog(data) {
+  // this.hideLoading();
+
+  if (data.success) {
+    this.shopData = data.catalog;
+    this.playerGold = data.playerGold || 0;
+
+    // PATCH: Si aucun objet à vendre, on affiche un dialogue global et on ferme le shop
+    const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
+    if (items.length === 0) {
+      this.hide(); // On ferme le shop visuel
+
+      // Dialogue général
+      if (window.showNpcDialogue) {
+        window.showNpcDialogue(
+          this.shopData?.shopInfo?.npcName || "Marchand",
+          "La boutique est fermée aujourd'hui !",
+          this.shopData?.shopInfo?.npcPortrait || null
+        );
+      } else {
+        alert("La boutique est fermée aujourd'hui !");
+      }
+
+      return;
     }
+
+    this.updatePlayerGoldDisplay();
+    this.updateShopTitle(data.catalog.shopInfo);
+    this.refreshCurrentTab();
+    console.log(`✅ Catalogue shop reçu: ${items.length} objets`);
+  } else {
+    this.showNotification(data.message || "Impossible de charger le shop", "error");
   }
+}
+
 
   updateShopTitle(shopInfo) {
     const shopNameElement = this.overlay.querySelector('.shop-name');
