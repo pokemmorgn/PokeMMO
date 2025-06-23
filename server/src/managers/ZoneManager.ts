@@ -7,7 +7,6 @@ import { BeachZone } from "../rooms/zones/BeachZone";
 import { VillageZone } from "../rooms/zones/VillageZone";
 import { VillageLabZone } from "../rooms/zones/VillageLabZone";
 import { Villagehouse1 } from "../rooms/zones/Villagehouse1";
-import { Villageflorist } from "../rooms/zones/Villageflorist";
 
 // Zones Village supplémentaires
 import { VillageFloristZone } from "../rooms/zones/VillageFloristZone";
@@ -40,7 +39,7 @@ import { NoctherCave2BisZone } from "../rooms/zones/NoctherCave2BisZone";
 import { Road1Zone } from "../rooms/zones/Road1Zone";
 import { Road1HouseZone } from "../rooms/zones/Road1HouseZone";
 import { Road2Zone } from "../rooms/zones/Road2Zone";
-import { Road3Zone } from "../rooms/zones/Road3Zone";
+//import { Road3Zone } from "../rooms/zones/Road3Zone";
 
 
 import { Player } from "../schema/PokeWorldState";
