@@ -459,26 +459,44 @@ handleQuestInteraction(npc, data) {
     this.handleDialogueInteraction(npc, healData);
   }
 
-  handleDialogueInteraction(npc, data) {
-    console.log(`💬 [InteractionManager] === GESTION DIALOGUE ===`);
-    
-    if (typeof window.showNpcDialogue !== 'function') {
-      console.error(`❌ [InteractionManager] showNpcDialogue non disponible`);
-      this.showMessage("Système de dialogue non disponible", 'error');
-      return;
-    }
-
-    // ✅ Préparer les données de dialogue
-    const dialogueData = this.createDialogueData(npc, data);
-    
-    try {
-      window.showNpcDialogue(dialogueData);
-      console.log(`✅ [InteractionManager] Dialogue affiché`);
-    } catch (error) {
-      console.error(`❌ [InteractionManager] Erreur dialogue:`, error);
-      this.showMessage(`Erreur dialogue: ${error.message}`, 'error');
-    }
+handleDialogueInteraction(npc, data) {
+  console.log(`💬 [InteractionManager] === GESTION DIALOGUE ===`);
+  
+  if (typeof window.showNpcDialogue !== 'function') {
+    console.error(`❌ [InteractionManager] showNpcDialogue non disponible`);
+    this.showMessage("Système de dialogue non disponible", 'error');
+    return;
   }
+
+  // Renforce les valeurs par défaut !
+  let npcName = (npc && npc.name) ? npc.name : "???";
+  let portrait = (data && data.portrait) 
+    ? data.portrait 
+    : (npc && npc.sprite) 
+      ? `/assets/portrait/${npc.sprite}Portrait.png`
+      : "/assets/portrait/unknownPortrait.png";
+  let message = (data && data.message) 
+    ? data.message 
+    : (npc && npc.defaultDialogue)
+      ? npc.defaultDialogue 
+      : "...";
+
+  const dialogueData = {
+    portrait,
+    name: npcName,
+    lines: data && data.lines ? data.lines : [message],
+    text: data && data.text
+  };
+  
+  try {
+    window.showNpcDialogue(dialogueData);
+    console.log(`✅ [InteractionManager] Dialogue affiché`);
+  } catch (error) {
+    console.error(`❌ [InteractionManager] Erreur dialogue:`, error);
+    this.showMessage(`Erreur dialogue: ${error.message}`, 'error');
+  }
+}
+
 
   handleFallbackInteraction(data) {
     console.log(`🔄 [InteractionManager] === FALLBACK INTERACTION ===`);
