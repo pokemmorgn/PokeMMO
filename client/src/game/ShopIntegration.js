@@ -115,72 +115,87 @@ export class ShopIntegration {
 
 
   // ✅ Setup des handlers réseau pour le shop
-  setupShopNetworkHandlers(networkManager) {
-    if (!networkManager || !networkManager.room) return;
+setupShopNetworkHandlers(networkManager) {
+  if (!networkManager || !networkManager.room) return;
 
-    try {
-      const room = networkManager.room;
-
-      // ✅ Handler pour les interactions NPC de type shop
-      room.onMessage("npcInteractionResult", (data) => {
-        if (data.type === "shop") {
-          console.log(`🏪 [${this.scene.scene.key}] Interaction shop reçue:`, data);
-          this.handleShopNpcInteraction(data);
-        }
-      });
-
-      // ✅ Handler pour les résultats de transaction shop
-      room.onMessage("shopTransactionResult", (data) => {
-        console.log(`💰 [${this.scene.scene.key}] Résultat transaction shop:`, data);
-        if (this.shopSystem) {
-          this.shopSystem.handleTransactionResult(data);
-        }
-      });
-
-      // ✅ Handler pour le catalogue shop
-      room.onMessage("shopCatalogResult", (data) => {
-        console.log(`📋 [${this.scene.scene.key}] Catalogue shop reçu:`, data);
-        if (this.shopSystem && this.shopSystem.shopUI) {
-          this.shopSystem.shopUI.handleShopCatalog(data);
-        }
-      });
-
-      // ✅ Handler pour les mises à jour d'or
-      room.onMessage("goldUpdate", (data) => {
-        console.log(`💰 [${this.scene.scene.key}] Mise à jour or:`, data);
-        if (this.shopSystem) {
-          this.shopSystem.updatePlayerGold(data.newGold, data.oldGold);
-        }
-      });
-
-      // ✅ Handler pour le refresh de shop
-      room.onMessage("shopRefreshResult", (data) => {
-        console.log(`🔄 [${this.scene.scene.key}] Refresh shop:`, data);
-        if (this.shopSystem && this.shopSystem.shopUI) {
-          this.shopSystem.shopUI.handleRefreshResult(data);
-        }
-      });
-
-      console.log(`📡 [${this.scene.scene.key}] Handlers réseau shop configurés`);
-    } catch (error) {
-      console.error(`❌ [${this.scene.scene.key}] Erreur setup handlers shop:`, error);
-    }
+  // ✅ CORRECTION: Éviter les listeners multiples
+  if (this.shopHandlersSetup) {
+    console.log(`📡 [${this.scene.scene.key}] Handlers shop déjà configurés, ignoré`);
+    return;
   }
+  this.shopHandlersSetup = true;
 
-  // ✅ Gérer les interactions NPC de type shop
-  handleShopNpcInteraction(data) {
-    if (!this.shopSystem) {
-      console.error(`❌ [${this.scene.scene.key}] Pas de ShopSystem pour gérer l'interaction shop`);
-      return;
-    }
+  try {
+    const room = networkManager.room;
 
-    try {
-      // Déléguer au ShopSystem
-      this.shopSystem.handleShopNpcInteraction(data);
-    } catch (error) {
-      console.error(`❌ [${this.scene.scene.key}] Erreur gestion interaction shop:`, error);
-    }
+    // ✅ Handler pour les interactions NPC de type shop
+    room.onMessage("npcInteractionResult", (data) => {
+      if (data.type === "shop") {
+        console.log(`🏪 [${this.scene.scene.key}] Interaction shop reçue:`, data);
+        
+        // ✅ Éviter les traitements multiples
+        if (this.isHandlingShopInteraction) {
+          console.log(`⚠️ [${this.scene.scene.key}] Interaction shop déjà en cours, ignoré`);
+          return;
+        }
+        this.isHandlingShopInteraction = true;
+        
+        this.handleShopNpcInteraction(data);
+        
+        // Libérer après un délai
+        setTimeout(() => {
+          this.isHandlingShopInteraction = false;
+        }, 1000);
+      }
+    });
+
+    // ✅ Handler pour le catalogue shop avec protection
+    room.onMessage("shopCatalogResult", (data) => {
+      console.log(`📋 [${this.scene.scene.key}] Catalogue shop reçu:`, data);
+      
+      // Éviter les traitements multiples
+      if (this.isHandlingCatalog) {
+        console.log(`⚠️ [${this.scene.scene.key}] Catalogue déjà en cours, ignoré`);
+        return;
+      }
+      this.isHandlingCatalog = true;
+      
+      if (this.shopSystem && this.shopSystem.shopUI) {
+        this.shopSystem.shopUI.handleShopCatalog(data);
+      }
+      
+      setTimeout(() => {
+        this.isHandlingCatalog = false;
+      }, 500);
+    });
+
+    // ✅ Autres handlers (sans changement majeur)
+    room.onMessage("shopTransactionResult", (data) => {
+      console.log(`💰 [${this.scene.scene.key}] Résultat transaction shop:`, data);
+      if (this.shopSystem) {
+        this.shopSystem.handleTransactionResult(data);
+      }
+    });
+
+    room.onMessage("goldUpdate", (data) => {
+      console.log(`💰 [${this.scene.scene.key}] Mise à jour or:`, data);
+      if (this.shopSystem) {
+        this.shopSystem.updatePlayerGold(data.newGold, data.oldGold);
+      }
+    });
+
+    room.onMessage("shopRefreshResult", (data) => {
+      console.log(`🔄 [${this.scene.scene.key}] Refresh shop:`, data);
+      if (this.shopSystem && this.shopSystem.shopUI) {
+        this.shopSystem.shopUI.handleRefreshResult(data);
+      }
+    });
+
+    console.log(`✅ [${this.scene.scene.key}] Handlers réseau shop configurés`);
+  } catch (error) {
+    console.error(`❌ [${this.scene.scene.key}] Erreur setup handlers shop:`, error);
   }
+}
 
   // ✅ Gérer le raccourci clavier S
   handleShopShortcut() {
