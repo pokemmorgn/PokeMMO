@@ -173,7 +173,6 @@
       "toZone": "lavandia",
       "conditions": {
         "minLevel": 1,
-        "requiredQuests": ["starter_quest"],
         "proximityCheck": { "enabled": true },
         "cooldown": { "enabled": true, "durationMinutes": 2 }
       },
