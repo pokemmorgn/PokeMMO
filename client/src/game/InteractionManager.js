@@ -311,26 +311,29 @@ export class InteractionManager {
 
   // === INTERACTIONS SPÉCIFIQUES ===
 
-  handleShopInteraction(npc, data) {
-    this.shopSystem = this.shopSystem || (this.scene.shopIntegration?.getShopSystem()) || window.shopSystem;
-    if (!this.shopSystem) {
-      // Fallback : affiche la boîte de dialogue standardisée
-      this.handleDialogueInteraction(npc, { message: "Ce marchand n'est pas disponible." });
-      return;
-    }
-    // Si pas d'affichage shop, affiche quand même un dialogue d’info
-    if (data && data.type === 'dialogue') {
-      this.handleDialogueInteraction(npc, data);
-      return;
-    }
-    try {
-      this.shopSystem.handleShopNpcInteraction(data || this.createShopInteractionData(npc));
-    } catch (error) {
-     this.handleDialogueInteraction(npc, { 
-  message: `Erreur shop: ${error.message}\n\nSTACK:\n${error.stack || '(pas de stack)'}`
-});
-    }
+handleShopInteraction(npc, data) {
+  this.shopSystem = this.shopSystem || (this.scene.shopIntegration?.getShopSystem()) || window.shopSystem;
+  if (!this.shopSystem) {
+    this.handleDialogueInteraction(npc, { message: "Ce marchand n'est pas disponible." });
+    return;
   }
+  if (data && data.type === 'dialogue') {
+    this.handleDialogueInteraction(npc, data);
+    return;
+  }
+  try {
+    // PATCH : Forcer le npcName string si data.npcName existe
+    if (data && typeof data.npcName === "object" && data.npcName.name) {
+      data.npcName = data.npcName.name;
+    }
+    this.shopSystem.handleShopNpcInteraction(data || this.createShopInteractionData(npc));
+  } catch (error) {
+    this.handleDialogueInteraction(npc, { 
+      message: `Erreur shop: ${error.message}\n\nSTACK:\n${error.stack || '(pas de stack)'}`
+    });
+  }
+}
+
 
   handleQuestInteraction(npc, data) {
     this.questSystem = this.questSystem || window.questSystem;
