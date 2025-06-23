@@ -532,6 +532,11 @@
                          "value":"simple"
                         }, 
                         {
+                         "name":"npcid",
+                         "type":"int",
+                         "value":1
+                        }, 
+                        {
                          "name":"questId",
                          "type":"string",
                          "value":"the_reel_deal"
@@ -570,7 +575,7 @@
          "y":0
         }],
  "nextlayerid":15,
- "nextobjectid":108,
+ "nextobjectid":109,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
