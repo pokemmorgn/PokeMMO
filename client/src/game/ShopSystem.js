@@ -9,6 +9,9 @@ export class ShopSystem {
     this.shopUI = null;
     this.currentShopId = null;
     this.currentNpcId = null;
+
+      // ✅ NOUVEAUX VERROUS
+  this.isOpeningShop = false;
     
     // ✅ Référence au NotificationManager
     this.notificationManager = window.NotificationManager;
