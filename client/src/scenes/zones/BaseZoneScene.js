@@ -797,33 +797,6 @@ setupPlayerReadyHandler() {
 
     let actuallyMoving = inputDetected;
 
-    if (inputDetected && this.clientCollisionManager) {
-      const deltaTime = 1/60;
-      const nextX = myPlayer.x + (vx * deltaTime);
-      const nextY = myPlayer.y + (vy * deltaTime);
-      
-      const canMoveDiagonal = this.clientCollisionManager.canMoveTo(nextX, nextY);
-      
-      if (!canMoveDiagonal) {
-        const canMoveX = (vx !== 0) ? this.clientCollisionManager.canMoveTo(nextX, myPlayer.y) : false;
-        const canMoveY = (vy !== 0) ? this.clientCollisionManager.canMoveTo(myPlayer.x, nextY) : false;
-        
-        if (canMoveX && !canMoveY) {
-          vy = 0;
-          console.log(`🧱 [ClientCollision] Glissement horizontal`);
-        } else if (canMoveY && !canMoveX) {
-          vx = 0;
-          console.log(`🧱 [ClientCollision] Glissement vertical`);
-        } else {
-          vx = 0;
-          vy = 0;
-          console.log(`🚫 [ClientCollision] Complètement bloqué`);
-        }
-      }
-      
-      actuallyMoving = (vx !== 0 || vy !== 0);
-    }
-
     myPlayer.body.setVelocity(vx, vy);
 
     if (inputDetected && direction) {
