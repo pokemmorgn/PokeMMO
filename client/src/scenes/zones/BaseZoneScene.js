@@ -54,7 +54,6 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   create() {
-    this.showSceneLoadingOverlay();
     if (window.showLoadingOverlay) window.showLoadingOverlay("Chargement de la zone...");
 
     TransitionIntegration.setupTransitions(this);
@@ -83,7 +82,6 @@ export class BaseZoneScene extends Phaser.Scene {
 
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
-    this.checkSceneReadiness();
   }
 
   // ✅ MÉTHODE INCHANGÉE: Utiliser la connexion existante de main.js
@@ -552,9 +550,22 @@ setupPlayerReadyHandler() {
       this.myPlayerReady = true;
       console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
 
-      // ✅ NOUVEAU SYSTÈME: Plus de gestion manuelle du CameraManager
-      // Le système de loading automatique s'occupera du suivi caméra
-      // dans la méthode getSceneReadiness()
+      // ✅ SOLUTION SIMPLE: Juste un délai plus long
+      if (this.cameraManager) {
+        this.cameraManager.followPlayer(myPlayer);
+        this.cameraFollowing = true;
+      } else {
+        console.warn(`⚠️ [${this.scene.key}] CameraManager pas encore prêt, attente...`);
+        this.time.delayedCall(500, () => { // ✅ 500ms au lieu de 100ms
+          if (this.cameraManager) {
+            console.log(`🔄 [${this.scene.key}] CameraManager prêt, activation caméra`);
+            this.cameraManager.followPlayer(myPlayer);
+            this.cameraFollowing = true;
+          } else {
+            console.error(`❌ [${this.scene.key}] CameraManager toujours absent après 500ms`);
+          }
+        });
+      }
 
       this.positionPlayer(myPlayer);
       
@@ -682,7 +693,6 @@ setupPlayerReadyHandler() {
   
   // ✅ MÉTHODE MODIFIÉE: Cleanup avec InteractionManager
   cleanup() {
-    this.hideSceneLoadingOverlay();
     TransitionIntegration.cleanupTransitions(this);
 
     if (this.scene.isActive(this.scene.key)) {
@@ -749,85 +759,84 @@ setupPlayerReadyHandler() {
   }
 
   // ✅ MÉTHODE INCHANGÉE: Gestion du mouvement
-handleMovement(myPlayerState) {
-  const speed = 120;
-  const myPlayer = this.playerManager.getMyPlayer();
-  if (!myPlayer) return;
+  handleMovement(myPlayerState) {
+    const speed = 120;
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer) return;
 
-  let vx = 0, vy = 0;
-  let inputDetected = false, direction = null;
+    let vx = 0, vy = 0;
+    let inputDetected = false, direction = null;
 
-  if (this.cursors.left.isDown || this.wasd.A.isDown) {
-    vx = -speed; inputDetected = true; direction = 'left';
-  } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-    vx = speed; inputDetected = true; direction = 'right';
-  }
-  if (this.cursors.up.isDown || this.wasd.W.isDown) {
-    vy = -speed; inputDetected = true; direction = 'up';
-  } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-    vy = speed; inputDetected = true; direction = 'down';
-  }
-
-  let actuallyMoving = inputDetected;
-
-  if (inputDetected && this.clientCollisionManager) {
-    const deltaTime = 1 / 60;
-    const nextX = myPlayer.body.x + (vx * deltaTime);
-    const nextY = myPlayer.body.y + (vy * deltaTime);
-
-    const canMoveDiagonal = this.clientCollisionManager.canMoveTo(nextX, nextY);
-
-    if (!canMoveDiagonal) {
-      const canMoveX = (vx !== 0) ? this.clientCollisionManager.canMoveTo(nextX, myPlayer.body.y) : false;
-      const canMoveY = (vy !== 0) ? this.clientCollisionManager.canMoveTo(myPlayer.body.x, nextY) : false;
-
-      if (canMoveX && !canMoveY) {
-        vy = 0;
-        console.log(`🧱 [ClientCollision] Glissement horizontal`);
-      } else if (canMoveY && !canMoveX) {
-        vx = 0;
-        console.log(`🧱 [ClientCollision] Glissement vertical`);
-      } else {
-        vx = 0;
-        vy = 0;
-        console.log(`🚫 [ClientCollision] Complètement bloqué`);
-      }
+    if (this.cursors.left.isDown || this.wasd.A.isDown) {
+      vx = -speed; inputDetected = true; direction = 'left';
+    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+      vx = speed; inputDetected = true; direction = 'right';
+    }
+    if (this.cursors.up.isDown || this.wasd.W.isDown) {
+      vy = -speed; inputDetected = true; direction = 'up';
+    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+      vy = speed; inputDetected = true; direction = 'down';
     }
 
-    actuallyMoving = (vx !== 0 || vy !== 0);
-  }
+    let actuallyMoving = inputDetected;
 
-  myPlayer.body.setVelocity(vx, vy);
+    if (inputDetected && this.clientCollisionManager) {
+      const deltaTime = 1/60;
+      const nextX = myPlayer.x + (vx * deltaTime);
+      const nextY = myPlayer.y + (vy * deltaTime);
+      
+      const canMoveDiagonal = this.clientCollisionManager.canMoveTo(nextX, nextY);
+      
+      if (!canMoveDiagonal) {
+        const canMoveX = (vx !== 0) ? this.clientCollisionManager.canMoveTo(nextX, myPlayer.y) : false;
+        const canMoveY = (vy !== 0) ? this.clientCollisionManager.canMoveTo(myPlayer.x, nextY) : false;
+        
+        if (canMoveX && !canMoveY) {
+          vy = 0;
+          console.log(`🧱 [ClientCollision] Glissement horizontal`);
+        } else if (canMoveY && !canMoveX) {
+          vx = 0;
+          console.log(`🧱 [ClientCollision] Glissement vertical`);
+        } else {
+          vx = 0;
+          vy = 0;
+          console.log(`🚫 [ClientCollision] Complètement bloqué`);
+        }
+      }
+      
+      actuallyMoving = (vx !== 0 || vy !== 0);
+    }
 
-  if (inputDetected && direction) {
-    this.lastDirection = direction;
+    myPlayer.body.setVelocity(vx, vy);
 
-    if (actuallyMoving) {
-      myPlayer.play(`walk_${direction}`, true);
-      myPlayer.isMovingLocally = true;
+    if (inputDetected && direction) {
+      this.lastDirection = direction;
+      
+      if (actuallyMoving) {
+        myPlayer.play(`walk_${direction}`, true);
+        myPlayer.isMovingLocally = true;
+      } else {
+        myPlayer.play(`idle_${direction}`, true);
+        myPlayer.isMovingLocally = false;
+      }
     } else {
-      myPlayer.play(`idle_${direction}`, true);
+      myPlayer.play(`idle_${this.lastDirection}`, true);
       myPlayer.isMovingLocally = false;
     }
-  } else {
-    myPlayer.play(`idle_${this.lastDirection}`, true);
-    myPlayer.isMovingLocally = false;
-  }
 
-  if (inputDetected) {
-    const now = Date.now();
-    if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-      this.networkManager.sendMove(
-        myPlayer.body.x,
-        myPlayer.body.y,
-        direction,
-        actuallyMoving
-      );
-      this.lastMoveTime = now;
+    if (inputDetected) {
+      const now = Date.now();
+      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+        this.networkManager.sendMove(
+          myPlayer.x,
+          myPlayer.y,
+          direction,
+          actuallyMoving
+        );
+        this.lastMoveTime = now;
+      }
     }
   }
-}
-
 
   // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
@@ -1310,157 +1319,4 @@ normalizeZoneName(sceneName) {
       sessionId: this.mySessionId
     });
   }
-  // ✅ NOUVELLES MÉTHODES - À ajouter avant la fermeture de classe
-
-// Afficher l'overlay de chargement de scène
-showSceneLoadingOverlay() {
-  console.log(`🔄 [${this.scene.key}] Affichage loading scène...`);
-  
-  if (window.showLoadingOverlay) {
-    window.showLoadingOverlay(`Chargement de ${this.scene.key}...`);
-  } else {
-    // Fallback avec overlay Phaser simple
-    this.sceneLoadingOverlay = this.add.container(0, 0).setDepth(10000).setScrollFactor(0);
-    
-    const bg = this.add.rectangle(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY,
-      this.cameras.main.width,
-      this.cameras.main.height,
-      0x1a1a2e,
-      0.9
-    );
-    
-    const text = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY,
-      `Chargement de ${this.scene.key}...`,
-      {
-        fontSize: '20px',
-        fontFamily: 'Arial',
-        color: '#ffffff',
-        fontStyle: 'bold'
-      }
-    ).setOrigin(0.5);
-    
-    const subText = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY + 40,
-      'Initialisation des systèmes...',
-      {
-        fontSize: '14px',
-        fontFamily: 'Arial',
-        color: '#a0aec0'
-      }
-    ).setOrigin(0.5);
-    
-    this.sceneLoadingOverlay.add([bg, text, subText]);
-  }
-}
-
-// Vérifier que tout est prêt de manière récursive
-checkSceneReadiness() {
-  const checkInterval = 100; // Vérifier toutes les 100ms
-  let attempts = 0;
-  const maxAttempts = 50; // 5 secondes max
-  
-  const readinessCheck = () => {
-    attempts++;
-    
-    const readiness = this.getSceneReadiness();
-    
-    if (readiness.isReady) {
-      console.log(`✅ [${this.scene.key}] Scène complètement prête !`);
-      this.hideSceneLoadingOverlay();
-      this.onSceneReady();
-    } else if (attempts < maxAttempts) {
-      console.log(`⏳ [${this.scene.key}] En attente: ${readiness.waiting} (${attempts}/${maxAttempts})`);
-      this.time.delayedCall(checkInterval, readinessCheck);
-    } else {
-      console.warn(`⏰ [${this.scene.key}] Timeout - affichage forcé après ${readiness.waiting}`);
-      this.hideSceneLoadingOverlay();
-      this.onSceneReady();
-    }
-  };
-  
-  // Démarrer la vérification après un court délai
-  this.time.delayedCall(200, readinessCheck);
-}
-
-// Vérifier l'état de tous les composants critiques
-getSceneReadiness() {
-  // ✅ Vérifications essentielles dans l'ordre
-  if (!this.cameraManager) {
-    return { isReady: false, waiting: 'CameraManager' };
-  }
-  
-  if (!this.playerManager) {
-    return { isReady: false, waiting: 'PlayerManager' };
-  }
-  
-  const myPlayer = this.playerManager.getMyPlayer();
-  if (!myPlayer) {
-    return { isReady: false, waiting: 'Joueur local' };
-  }
-  
-  if (!myPlayer.visible || !myPlayer.active) {
-    return { isReady: false, waiting: 'Visibilité joueur' };
-  }
-  
-  if (!this.cameraFollowing) {
-    console.log(`🎯 [${this.scene.key}] Activation suivi caméra...`);
-    try {
-      this.cameraManager.followPlayer(myPlayer);
-      this.cameraFollowing = true;
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur suivi caméra:`, error);
-    }
-    return { isReady: false, waiting: 'Suivi caméra' };
-  }
-  
-  if (!this.networkSetupComplete) {
-    return { isReady: false, waiting: 'Configuration réseau' };
-  }
-  
-  if (!this.isSceneReady) {
-    return { isReady: false, waiting: 'Finalisation scène' };
-  }
-  
-  // ✅ Tout est prêt !
-  return { isReady: true, waiting: null };
-}
-
-// Actions quand la scène est entièrement prête
-onSceneReady() {
-  console.log(`🎉 [${this.scene.key}] Scène entièrement chargée et fonctionnelle !`);
-  
-  // Masquer le loading principal aussi (au cas où)
-  if (window.hideLoadingOverlay) {
-    window.hideLoadingOverlay();
-  }
-  
-  // Afficher une notification de bienvenue
-  this.time.delayedCall(300, () => {
-    this.showNotification(`Bienvenue dans ${this.scene.key.replace('Scene', '')}`, 'success');
-  });
-  
-  // Hook pour les scènes spécifiques
-  if (typeof this.onSceneFullyReady === 'function') {
-    this.onSceneFullyReady();
-  }
-}
-
-// Masquer l'overlay de chargement
-hideSceneLoadingOverlay() {
-  console.log(`✅ [${this.scene.key}] Masquage loading scène`);
-  
-  if (window.hideLoadingOverlay) {
-    window.hideLoadingOverlay();
-  }
-  
-  if (this.sceneLoadingOverlay) {
-    this.sceneLoadingOverlay.destroy();
-    this.sceneLoadingOverlay = null;
-  }
-}
 }
