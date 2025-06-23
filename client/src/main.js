@@ -32,8 +32,8 @@ import { LavandiaShopScene } from './scenes/zones/LavandiaShopScene.js';
 //import { Road1HouseScene } from './scenes/zones/Road1HouseScene.js';
 //import { Road2Scene } from './scenes/zones/Road2Scene.js';
 //import { Road3Scene } from './scenes/zones/Road3Scene.js';
-//import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
-//import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
+import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
+import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
 
 // ✅ NOUVEAU: Import du SceneRegistry
 import { SceneRegistry } from './scenes/SceneRegistry.js';
@@ -179,8 +179,8 @@ const config = {
   VillageScene,
   VillageLabScene,
   VillageHouse1Scene,
-  //VillageHouse2Scene,
-  //VillageFloristScene,
+  VillageHouse2Scene,
+  VillageFloristScene,
 
   // Beach
   BeachScene,
