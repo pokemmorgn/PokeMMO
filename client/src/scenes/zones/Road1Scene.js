@@ -28,8 +28,6 @@ export class Road1Scene extends BaseZoneScene {
     console.log("🚨 DEBUT Road1Scene.create()");
     super.create();
     console.log("✅ BaseZoneScene.create() appelé");
-  this.playerManager = new PlayerManager(this);
-  window.globalNetworkManager.playerManager = this.playerManager;
     this.add.text(16, 16, 'Route 1 - Route vers l\'aventure\nFlèches pour se déplacer\nAppuyez sur "D" pour les hitboxes', {
       font: '18px monospace',
       fill: '#ffffff',
