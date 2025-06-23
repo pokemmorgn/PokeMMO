@@ -28,7 +28,7 @@ server: {
   
   // Configuration des tiles
   tilemap: {
-    tileSize: 32, // Taille des tiles (32x32 pixels)
+    tileSize: 16, // Taille des tiles (32x32 pixels)
     mapWidth: 25, // Largeur en tiles
     mapHeight: 19, // Hauteur en tiles
     layers: {
@@ -40,7 +40,7 @@ server: {
   
   // Configuration du joueur
   player: {
-    speed: 2, // Vitesse réduite pour mouvement plus réaliste
+    speed: 1, // Vitesse réduite pour mouvement plus réaliste
     size: 32,
     colors: {
       self: 0x00ff00,    // Vert pour soi
