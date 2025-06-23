@@ -73,7 +73,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.createUI();
     this.myPlayerReady = false;
     this.isSceneReady = true;
-
+    this.physics.add.collider(this.player, this.layers['World']);
+    this.physics.add.collider(this.player, this.layers['BelowPlayer2']);
     // ✅ UTILISER LA CONNEXION EXISTANTE AU LIEU DE CRÉER UNE NOUVELLE
     this.initializeWithExistingConnection();
 
