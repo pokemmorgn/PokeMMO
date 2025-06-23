@@ -356,20 +356,41 @@ redirectToCorrectScene(correctScene, serverData) {
 
   // ✅ MÉTHODE EXISTANTE: Setup des handlers WorldRoom
   setupWorldRoomHandlers() {
+  console.log(`📡 [${this.scene.key}] === SETUP WORLD ROOM HANDLERS ===`);
+  console.log(`📊 NetworkManager existe: ${!!this.networkManager}`);
+  console.log(`🤖 NpcManager existe: ${!!this.npcManager}`);
     this.networkManager.onZoneData((data) => {
       console.log(`🗺️ [${this.scene.key}] Zone data reçue:`, data);
       this.handleZoneData(data);
     });
 
-// Dans setupWorldRoomHandlers(), remplacez le handler NPCs par :
-this.networkManager.onNpcList((npcs) => {
-  console.log(`🤖 [${this.scene.key}] NPCs reçus: ${npcs.length}`);
-  
-  if (this.npcManager && npcs.length > 0) {
-    console.log(`✅ [${this.scene.key}] Spawn de ${npcs.length} NPCs`);
+  // ✅ REMPLACEZ LE HANDLER NPCS PAR CETTE VERSION DEBUG
+  this.networkManager.onNpcList((npcs) => {
+    console.log(`🤖 [${this.scene.key}] === HANDLER NPCS APPELÉ ===`);
+    console.log(`📊 NPCs reçus: ${npcs.length}`);
+    console.log(`🎭 NpcManager existe: ${!!this.npcManager}`);
+    console.log(`📋 Type de npcs:`, typeof npcs);
+    console.log(`📝 Données NPCs:`, npcs);
+    
+    if (!this.npcManager) {
+      console.error(`❌ [${this.scene.key}] NpcManager MANQUANT !`);
+      console.log(`🔍 Scene managers:`, {
+        playerManager: !!this.playerManager,
+        cameraManager: !!this.cameraManager,
+        npcManager: !!this.npcManager
+      });
+      return;
+    }
+    
+    if (!npcs || npcs.length === 0) {
+      console.log(`ℹ️ [${this.scene.key}] Aucun NPC à spawner`);
+      return;
+    }
+    
+    console.log(`✅ [${this.scene.key}] APPEL spawnNpcs() avec ${npcs.length} NPCs`);
     this.npcManager.spawnNpcs(npcs);
-  }
-});
+    console.log(`✅ [${this.scene.key}] spawnNpcs() terminé`);
+  });
 
    this.networkManager.onTransitionSuccess((result) => {
   console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
