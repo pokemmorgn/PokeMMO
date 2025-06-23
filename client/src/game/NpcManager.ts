@@ -1,5 +1,5 @@
 // src/game/NpcManager.js - VERSION CORRIGÉE pour les transitions
-// ✅ Corrections pour éviter les erreurs de sprites détruits
+// ✅ Corrections pour éviter les erreurs de sprites détruits et améliorer le spawn
 
 export class NpcManager {
   constructor(scene) {
@@ -56,21 +56,23 @@ export class NpcManager {
     console.log("✅ Nettoyage NPCs terminé");
   }
 
-  // ✅ NOUVELLE MÉTHODE: Vérification de validité d'un GameObject
+  // ✅ MÉTHODE AMÉLIORÉE: Vérification de validité d'un GameObject plus permissive
   isGameObjectValid(gameObject) {
     try {
       // Vérifier si l'objet existe
       if (!gameObject) return false;
       
-      // Vérifier si la scène existe et n'est pas détruite
-      if (!gameObject.scene) return false;
-      if (gameObject.scene.sys && gameObject.scene.sys.isDestroyed) return false;
-      
       // Vérifier si l'objet n'est pas marqué comme détruit
       if (gameObject.destroyed) return false;
       
-      // Test supplémentaire: essayer d'accéder à une propriété
-      const _ = gameObject.active;
+      // ✅ CORRECTION: Vérification de scène plus permissive
+      if (gameObject.scene) {
+        // Si l'objet a une scène, vérifier qu'elle n'est pas détruite
+        if (gameObject.scene.sys && gameObject.scene.sys.isDestroyed) return false;
+      }
+      
+      // Test supplémentaire: essayer d'accéder à une propriété de base
+      const _ = gameObject.active !== undefined ? gameObject.active : true;
       
       return true;
     } catch (error) {
@@ -79,80 +81,82 @@ export class NpcManager {
   }
 
   updateQuestIndicators(questStatuses) {
-  console.log("🔄 Mise à jour des indicateurs de quête:", questStatuses);
-  
-  questStatuses.forEach(status => {
-    const visuals = this.npcVisuals.get(status.npcId);
-    if (visuals && this.isGameObjectValid(visuals.nameContainer)) {
-      this.updateQuestIndicator(visuals.nameContainer, status.type);
+    console.log("🔄 Mise à jour des indicateurs de quête:", questStatuses);
+    
+    questStatuses.forEach(status => {
+      const visuals = this.npcVisuals.get(status.npcId);
+      if (visuals && this.isGameObjectValid(visuals.nameContainer)) {
+        this.updateQuestIndicator(visuals.nameContainer, status.type);
+      }
+    });
+  }
+
+  updateQuestIndicator(nameContainer, questType) {
+    // Supprimer l'ancien indicateur s'il existe
+    const oldIndicator = nameContainer.getByName('questIndicator');
+    if (oldIndicator) {
+      oldIndicator.destroy();
     }
-  });
-}
 
-// ✅ AJOUTER cette méthode dans NpcManager.js  
-updateQuestIndicator(nameContainer, questType) {
-  // Supprimer l'ancien indicateur s'il existe
-  const oldIndicator = nameContainer.getByName('questIndicator');
-  if (oldIndicator) {
-    oldIndicator.destroy();
+    let indicatorText = '';
+    let indicatorColor = 0xFFFFFF;
+
+    switch (questType) {
+      case 'questAvailable':
+        indicatorText = '!';
+        indicatorColor = 0xFFD700; // Jaune doré
+        break;
+      case 'questInProgress':
+        indicatorText = '?';
+        indicatorColor = 0x808080; // Gris
+        break;
+      case 'questReadyToComplete':
+        indicatorText = '?';
+        indicatorColor = 0xFFD700; // Jaune doré
+        break;
+      default:
+        return; // Pas d'indicateur
+    }
+
+    // Créer le nouvel indicateur
+    const indicator = this.scene.add.text(25, -12, indicatorText, {
+      fontFamily: "monospace",
+      fontSize: "14px",
+      color: `#${indicatorColor.toString(16).padStart(6, '0')}`,
+      fontStyle: "bold",
+      stroke: "#000000",
+      strokeThickness: 2
+    }).setOrigin(0.5, 0.5);
+    
+    indicator.name = 'questIndicator';
+    nameContainer.add(indicator);
+
+    // Animation de pulsation
+    this.scene.tweens.add({
+      targets: indicator,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      duration: 800,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    });
   }
-
-  let indicatorText = '';
-  let indicatorColor = 0xFFFFFF;
-
-  switch (questType) {
-    case 'questAvailable':
-      indicatorText = '!';
-      indicatorColor = 0xFFD700; // Jaune doré
-      break;
-    case 'questInProgress':
-      indicatorText = '?';
-      indicatorColor = 0x808080; // Gris
-      break;
-    case 'questReadyToComplete':
-      indicatorText = '?';
-      indicatorColor = 0xFFD700; // Jaune doré
-      break;
-    default:
-      return; // Pas d'indicateur
-  }
-
-  // Créer le nouvel indicateur
-  const indicator = this.scene.add.text(25, -12, indicatorText, {
-    fontFamily: "monospace",
-    fontSize: "14px",
-    color: `#${indicatorColor.toString(16).padStart(6, '0')}`,
-    fontStyle: "bold",
-    stroke: "#000000",
-    strokeThickness: 2
-  }).setOrigin(0.5, 0.5);
   
-  indicator.name = 'questIndicator';
-  nameContainer.add(indicator);
-
-  // Animation de pulsation
-  this.scene.tweens.add({
-    targets: indicator,
-    scaleX: 1.2,
-    scaleY: 1.2,
-    duration: 800,
-    ease: 'Sine.easeInOut',
-    yoyo: true,
-    repeat: -1
-  });
-}
-  
-  // ✅ AMÉLIORATION: Spawn avec nettoyage préventif
+  // ✅ AMÉLIORATION: Spawn avec vérifications moins restrictives
   spawnNpcs(npcList) {
     console.log("👥 Spawn de", npcList.length, "NPCs");
     
-    // ✅ NOUVEAU: Nettoyage préventif avant spawn
-    this.clearAllNpcs();
-    
-    // ✅ NOUVEAU: Vérifier que la scène est toujours valide
-    if (!this.scene || this.scene.sys.isDestroyed || this.isDestroyed) {
-      console.warn("⚠️ Scène invalide, skip spawn NPCs");
+    // ✅ CORRECTION: Vérification de scène moins restrictive
+    if (!this.scene) {
+      console.warn("⚠️ Pas de scène pour spawner les NPCs");
       return;
+    }
+    
+    // ✅ CORRECTION: Ne nettoyer que si vraiment nécessaire
+    if (this.npcVisuals.size > 0) {
+      console.log(`🧹 Nettoyage préventif (${this.npcVisuals.size} NPCs existants)`);
+      this.clearAllNpcs();
     }
     
     for (const npc of npcList) {
@@ -166,20 +170,37 @@ updateQuestIndicator(nameContainer, questType) {
     console.log(`✅ Spawn terminé, ${this.npcVisuals.size} NPCs créés`);
   }
 
-  // ✅ AMÉLIORATION: Spawn avec gestion d'erreurs
+  // ✅ AMÉLIORATION: Spawn avec gestion d'erreurs améliorée
   spawnNpc(npc) {
     console.log(`👤 Spawn NPC: ${npc.name} (ID: ${npc.id}) à position (${npc.x}, ${npc.y})`);
     
-    // ✅ NOUVEAU: Vérifications préalables
-    if (this.isDestroyed || !this.scene || this.scene.sys.isDestroyed) {
-      console.warn(`⚠️ Cannot spawn NPC ${npc.id}: scène invalide`);
+    // ✅ CORRECTION: Vérifications moins restrictives
+    if (this.isDestroyed) {
+      console.warn(`⚠️ Cannot spawn NPC ${npc.id}: manager détruit`);
       return;
     }
     
-    // ✅ NOUVEAU: Vérifier si le NPC existe déjà
-    if (this.npcVisuals.has(npc.id)) {
-      console.warn(`⚠️ NPC ${npc.id} existe déjà, skip`);
+    if (!this.scene) {
+      console.warn(`⚠️ Cannot spawn NPC ${npc.id}: pas de scène`);
       return;
+    }
+    
+    // ✅ CORRECTION: Vérifier si le NPC existe déjà de manière plus souple
+    if (this.npcVisuals.has(npc.id)) {
+      const existing = this.npcVisuals.get(npc.id);
+      if (existing && this.isGameObjectValid(existing.sprite)) {
+        console.log(`⚠️ NPC ${npc.id} existe déjà et est valide, mise à jour position`);
+        existing.sprite.x = npc.x;
+        existing.sprite.y = npc.y;
+        if (existing.nameContainer) {
+          existing.nameContainer.x = npc.x - 7;
+          existing.nameContainer.y = npc.y - 42;
+        }
+        return;
+      } else {
+        console.log(`🔧 NPC ${npc.id} existe mais invalide, recréation`);
+        this.npcVisuals.delete(npc.id);
+      }
     }
     
     try {
@@ -212,7 +233,7 @@ updateQuestIndicator(nameContainer, questType) {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Création du placeholder
+  // ✅ MÉTHODE INCHANGÉE: Création du placeholder
   createNpcPlaceholder(spriteKey) {
     try {
       const graphics = this.scene.add.graphics();
@@ -227,7 +248,7 @@ updateQuestIndicator(nameContainer, questType) {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Création du container de nom
+  // ✅ MÉTHODE INCHANGÉE: Création du container de nom
   createNameContainer(npc) {
     const nameContainer = this.scene.add.container(npc.x - 7, npc.y - 42);
 
@@ -278,21 +299,26 @@ updateQuestIndicator(nameContainer, questType) {
     nameContainer.add([nameBg, nameText, decorDot1, decorDot2, decorDot3, decorDot4]);
     nameContainer.setDepth(4.1);
 
-    // ✅ AMÉLIORATION: Animation d'apparition avec gestion d'erreurs
+    // ✅ AMÉLIORATION: Animation d'apparition avec gestion d'erreurs et vérification de scène
     try {
-      nameContainer.setScale(0);
-      this.scene.tweens.add({
-        targets: nameContainer,
-        scale: 1,
-        duration: 200,
-        ease: 'Back.easeOut',
-        onComplete: () => {
-          // Animation terminée
-        },
-        onError: (error) => {
-          console.warn("⚠️ Erreur animation nameContainer:", error);
-        }
-      });
+      if (this.scene && !this.scene.sys.isDestroyed) {
+        nameContainer.setScale(0);
+        this.scene.tweens.add({
+          targets: nameContainer,
+          scale: 1,
+          duration: 200,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            // Animation terminée
+          },
+          onError: (error) => {
+            console.warn("⚠️ Erreur animation nameContainer:", error);
+          }
+        });
+      } else {
+        // Pas d'animation si la scène n'est pas valide
+        nameContainer.setScale(1);
+      }
     } catch (error) {
       console.warn("⚠️ Erreur setup animation:", error);
       // Fallback: afficher directement
@@ -341,8 +367,6 @@ updateQuestIndicator(nameContainer, questType) {
           console.warn("⚠️ Erreur clearTint:", error);
         }
       }
-      
-      // Note: nameContainer contient le texte, pas d'accès direct au style
     });
 
     // Highlight le plus proche
@@ -418,7 +442,7 @@ updateQuestIndicator(nameContainer, questType) {
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE: Destruction propre
+  // ✅ MÉTHODE INCHANGÉE: Destruction propre
   destroy() {
     console.log("💀 Destruction NpcManager");
     
@@ -434,5 +458,23 @@ updateQuestIndicator(nameContainer, questType) {
   // ✅ NOUVELLE MÉTHODE: Vérification de l'état du manager
   isValid() {
     return !this.isDestroyed && this.scene && !this.scene.sys.isDestroyed;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Forcer le respawn (utile après transitions)
+  forceRespawn() {
+    if (this.isDestroyed || !this.scene) return;
+    
+    console.log("🔄 Force respawn des NPCs...");
+    
+    // Sauvegarder les données des NPCs
+    const savedNpcs = Array.from(this.npcData.values());
+    
+    // Nettoyer et recréer
+    this.clearAllNpcs();
+    
+    if (savedNpcs.length > 0) {
+      console.log(`♻️ Recréation de ${savedNpcs.length} NPCs`);
+      this.spawnNpcs(savedNpcs);
+    }
   }
 }
