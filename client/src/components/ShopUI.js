@@ -295,9 +295,12 @@ export class ShopUI {
     this.isVisible = true;
     this.overlay.classList.remove('hidden');
     
-    // Mettre à jour le titre du shop
-    const shopNameElement = this.overlay.querySelector('.shop-name');
-    shopNameElement.textContent = npcName;
+  // On garde en mémoire le nom du NPC sur l'UI (ex: "Jeff")
+  this.pendingNpcName = npcName;
+
+  // Mettre à jour le titre du shop (utilise le nom du NPC reçu)
+  const shopNameElement = this.overlay.querySelector('.shop-name');
+  shopNameElement.textContent = npcName;
     
     // Requête du catalogue du shop
     this.requestShopCatalog(shopId);
@@ -330,6 +333,10 @@ handleShopCatalog(data) {
 
   if (data.success) {
     this.shopData = data.catalog;
+    // Ajout du nom du NPC en attente (pour que le dialogue l'ait)
+if (this.pendingNpcName) {
+  this.shopData.npcName = this.pendingNpcName;
+}
     this.playerGold = data.playerGold || 0;
 
     // PATCH: Si aucun objet à vendre, on affiche un dialogue avec nom + portrait et on ferme le shop
