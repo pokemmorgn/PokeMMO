@@ -816,29 +816,97 @@ export class TransitionManager {
   }
 
   // ✅ MAPPING ZONE ↔ SCÈNE
-  getZoneFromScene(sceneName) {
-    const mapping = {
-      'BeachScene': 'beach',
-      'VillageScene': 'village',
-      'VillageLabScene': 'villagelab',
-      'Road1Scene': 'road1',
-      'VillageHouse1Scene': 'villagehouse1',
-      'LavandiaScene': 'lavandia'
-    };
-    return mapping[sceneName] || sceneName.toLowerCase();
-  }
+ getZoneFromScene(sceneName) {
+  const mapping = {
+    // Zones existantes
+    'BeachScene': 'beach',
+    'VillageScene': 'village',
+    'VillageLabScene': 'villagelab',
+    'Road1Scene': 'road1',
+    'VillageHouse1Scene': 'villagehouse1',
+    'LavandiaScene': 'lavandia',
+    
+    // Zones Lavandia
+    'LavandiaAnalysisScene': 'analysis',
+    'LavandiaBossRoomScene': 'bossroom',
+    'LavandiaCelibTempleScene': 'celibtemple',
+    'LavandiaEquipementScene': 'equipement',
+    'LavandiaFurnitureScene': 'furniture',
+    'LavandiaHealingCenterScene': 'healingcenter',
+    'LavandiaHouse1Scene': 'house1',
+    'LavandiaHouse2Scene': 'house2',
+    'LavandiaHouse3Scene': 'house3',
+    'LavandiaHouse4Scene': 'house4',
+    'LavandiaHouse5Scene': 'house5',
+    'LavandiaHouse6Scene': 'house6',
+    'LavandiaHouse7Scene': 'house7',
+    'LavandiaHouse8Scene': 'house8',
+    'LavandiaHouse9Scene': 'house9',
+    'LavandiaResearchLabScene': 'researchlab',
+    'LavandiaShopScene': 'shop',
+    
+    // Zones Village supplémentaires
+    'VillageFloristScene': 'villageflorist',
+    'VillageHouse2Scene': 'villagehouse2',
+    
+    // Zones Road
+    'Road1HouseScene': 'road1house',
+    'Road2Scene': 'road2',
+    'Road3Scene': 'road3',
+    
+    // Zones Nocther Cave
+    'NoctherCave1Scene': 'nocthercave1',
+    'NoctherCave2Scene': 'nocthercave2',
+    'NoctherCave2BisScene': 'nocthercave2bis'
+  };
+  return mapping[sceneName] || sceneName.toLowerCase();
+}
 
-  getSceneFromZone(zoneName) {
-    const mapping = {
-      'beach': 'BeachScene',
-      'village': 'VillageScene',
-      'villagelab': 'VillageLabScene',
-      'road1': 'Road1Scene',
-      'villagehouse1': 'VillageHouse1Scene',
-      'lavandia': 'LavandiaScene'
-    };
-    return mapping[zoneName] || null;
-  }
+getSceneFromZone(zoneName) {
+  const mapping = {
+    // Zones existantes
+    'beach': 'BeachScene',
+    'village': 'VillageScene',
+    'villagelab': 'VillageLabScene',
+    'road1': 'Road1Scene',
+    'villagehouse1': 'VillageHouse1Scene',
+    'lavandia': 'LavandiaScene',
+    
+    // Zones Lavandia
+    'analysis': 'LavandiaAnalysisScene',
+    'bossroom': 'LavandiaBossRoomScene',
+    'celibtemple': 'LavandiaCelibTempleScene',
+    'equipement': 'LavandiaEquipementScene',
+    'furniture': 'LavandiaFurnitureScene',
+    'healingcenter': 'LavandiaHealingCenterScene',
+    'house1': 'LavandiaHouse1Scene',
+    'house2': 'LavandiaHouse2Scene',
+    'house3': 'LavandiaHouse3Scene',
+    'house4': 'LavandiaHouse4Scene',
+    'house5': 'LavandiaHouse5Scene',
+    'house6': 'LavandiaHouse6Scene',
+    'house7': 'LavandiaHouse7Scene',
+    'house8': 'LavandiaHouse8Scene',
+    'house9': 'LavandiaHouse9Scene',
+    'researchlab': 'LavandiaResearchLabScene',
+    'shop': 'LavandiaShopScene',
+    
+    // Zones Village supplémentaires
+    'villageflorist': 'VillageFloristScene',
+    'villagehouse2': 'VillageHouse2Scene',
+    
+    // Zones Road
+    'road1house': 'Road1HouseScene',
+    'road2': 'Road2Scene',
+    'road3': 'Road3Scene',
+    
+    // Zones Nocther Cave
+    'nocthercave1': 'NoctherCave1Scene',
+    'nocthercave2': 'NoctherCave2Scene',
+    'nocthercave2bis': 'NoctherCave2BisScene'
+  };
+  return mapping[zoneName.toLowerCase()] || null;
+}
 
   // ✅ CONFIGURATION
   setTransitionStrategy(strategy = 'aggressive') {
