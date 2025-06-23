@@ -370,7 +370,6 @@ this.networkManager.onNpcList((npcs) => {
     this.npcManager.spawnNpcs(npcs);
   }
 });
-});
 
    this.networkManager.onTransitionSuccess((result) => {
   console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
