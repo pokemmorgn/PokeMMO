@@ -371,102 +371,91 @@ show(shopId, npcName = "Marchand") {
 handleShopCatalog(data) {
   console.log('[HANDLE CATALOG] data:', JSON.stringify(data, null, 2));
 
-  // ✅ CORRECTION: Éviter les appels multiples
+  // ✅ NOUVEAU : Réinitialiser le verrou au début
+  this.isProcessingCatalog = false;
+
+  // ✅ CORRECTION: Éviter les appels multiples SEULEMENT si vraiment en cours
   if (this.isProcessingCatalog) {
     console.log('⚠️ [ShopUI] Catalogue déjà en cours de traitement, ignoré');
     return;
   }
   this.isProcessingCatalog = true;
 
-  if (data.success) {
-    this.shopData = data.catalog;
-    
-    // ✅ CORRECTION: Gérer le nom du NPC de manière robuste
-    if (this.pendingNpcName) {
-      if (typeof this.pendingNpcName === 'object' && this.pendingNpcName.name) {
-        this.shopData.npcName = this.pendingNpcName.name;
-        this.shopData.npcId = this.pendingNpcName.id;
-      } else if (typeof this.pendingNpcName === 'string') {
-        this.shopData.npcName = this.pendingNpcName;
+  try {
+    if (data.success) {
+      this.shopData = data.catalog;
+      
+      // ✅ CORRECTION MAJEURE: Normaliser immédiatement la structure
+      if (!this.shopData.availableItems) {
+        console.log('🔧 [ShopUI] Normalisation structure shop...');
+        
+        // Chercher les items dans différentes propriétés possibles
+        let items = [];
+        
+        if (this.shopData.items && Array.isArray(this.shopData.items)) {
+          items = this.shopData.items;
+          console.log(`📦 Items trouvés dans 'items': ${items.length}`);
+        } else if (this.shopData.shopInfo?.items && Array.isArray(this.shopData.shopInfo.items)) {
+          items = this.shopData.shopInfo.items;
+          console.log(`📦 Items trouvés dans 'shopInfo.items': ${items.length}`);
+        }
+        
+        // Normaliser la structure
+        this.shopData.availableItems = items.map(item => ({
+          itemId: item.itemId,
+          buyPrice: item.customPrice || item.buyPrice || 0,
+          sellPrice: item.sellPrice || Math.floor((item.customPrice || item.buyPrice || 0) * 0.5),
+          stock: item.stock !== undefined ? item.stock : -1,
+          canBuy: item.canBuy !== false,
+          canSell: item.canSell !== false,
+          unlocked: item.unlocked !== false,
+          customPrice: item.customPrice
+        }));
+        
+        console.log(`✅ Structure normalisée: ${this.shopData.availableItems.length} items`);
       }
-    }
-    
-    // Backup depuis les données du catalogue
-    if (!this.shopData.npcName && data.catalog?.npcName) {
-      if (typeof data.catalog.npcName === 'object' && data.catalog.npcName.name) {
-        this.shopData.npcName = data.catalog.npcName.name;
-        this.shopData.npcId = data.catalog.npcName.id;
-      } else if (typeof data.catalog.npcName === 'string') {
-        this.shopData.npcName = data.catalog.npcName;
+      
+      // ✅ CORRECTION: Gérer le nom du NPC proprement
+      if (this.pendingNpcName) {
+        let npcName = "Marchand";
+        
+        if (typeof this.pendingNpcName === 'object' && this.pendingNpcName.name) {
+          npcName = this.pendingNpcName.name;
+          this.shopData.npcId = this.pendingNpcName.id;
+        } else if (typeof this.pendingNpcName === 'string') {
+          npcName = this.pendingNpcName;
+        }
+        
+        this.shopData.npcName = npcName;
+        console.log(`🏷️ Nom NPC défini: ${npcName}`);
       }
-    }
-    
-    this.playerGold = data.playerGold || 0;
-
-    // ✅ CORRECTION MAJEURE: Gérer les deux structures possibles
-    let items = [];
-    
-    // 1. Essayer d'abord "availableItems" (structure préférée)
-    if (Array.isArray(this.shopData?.availableItems)) {
-      items = this.shopData.availableItems;
-      console.log(`🏪 [ShopUI] Items trouvés dans availableItems: ${items.length}`);
-    }
-    // 2. Sinon essayer "items" (structure alternative)
-    else if (Array.isArray(this.shopData?.items)) {
-      items = this.shopData.items;
-      console.log(`🏪 [ShopUI] Items trouvés dans items: ${items.length}`);
       
-      // ✅ Normaliser la structure: déplacer items vers availableItems
-      this.shopData.availableItems = items.map(item => ({
-        ...item,
-        buyPrice: item.customPrice || item.buyPrice || 0,
-        sellPrice: item.sellPrice || Math.floor((item.customPrice || item.buyPrice || 0) * 0.5),
-        canBuy: item.canBuy !== false,
-        canSell: item.canSell !== false,
-        unlocked: item.unlocked !== false
-      }));
+      // Mettre à jour l'or du joueur
+      this.playerGold = data.playerGold || 0;
       
-      console.log(`🔄 [ShopUI] Structure normalisée: ${this.shopData.availableItems.length} items`);
-      items = this.shopData.availableItems;
-    }
-    // 3. Aucune structure trouvée
-    else {
-      console.warn(`⚠️ [ShopUI] Aucun item trouvé dans availableItems ou items`);
-      console.log(`📊 [ShopUI] Structure reçue:`, Object.keys(this.shopData || {}));
-    }
-    
-    // ✅ CORRECTION: Gestion plus souple des shops vides
-    if (items.length === 0) {
-      console.warn(`⚠️ [ShopUI] Aucun item disponible, affichage shop vide`);
+      // ✅ FORCER la mise à jour de l'interface
+      this.updatePlayerGoldDisplay();
+      this.updateShopTitle(this.shopData.shopInfo || {});
+      this.refreshCurrentTab();
       
-      // Créer un item factice pour indiquer que le shop est vide
-      this.shopData.availableItems = [{
-        itemId: 'empty_shop',
-        buyPrice: 0,
-        sellPrice: 0,
-        canBuy: false,
-        canSell: false,
-        unlocked: true,
-        stock: 0,
-        isEmpty: true // Flag spécial
-      }];
+      console.log(`✅ Shop "${this.shopData.npcName}" ouvert avec ${this.shopData.availableItems.length} objets`);
       
-      // Afficher une notification
-      this.showNotification("Ce marchand n'a pas d'articles en stock actuellement", "warning");
+      // ✅ NOTIFICATION de succès
+      this.showNotification(`Bienvenue chez ${this.shopData.npcName} !`, 'info');
+      
+    } else {
+      console.error('❌ Échec chargement catalogue:', data.message);
+      this.showNotification(data.message || "Impossible de charger le shop", "error");
     }
-    
-    this.updatePlayerGoldDisplay();
-    this.updateShopTitle(data.catalog.shopInfo);
-    this.refreshCurrentTab();
-    console.log(`✅ Catalogue shop reçu: ${items.length} objets`);
-  } else {
-    this.showNotification(data.message || "Impossible de charger le shop", "error");
+  } catch (error) {
+    console.error('❌ Erreur handleShopCatalog:', error);
+    this.showNotification(`Erreur technique: ${error.message}`, "error");
+  } finally {
+    // ✅ CRUCIAL: Toujours libérer le verrou
+    setTimeout(() => {
+      this.isProcessingCatalog = false;
+    }, 500);
   }
-  
-  // ✅ Libérer le verrou après un délai
-  setTimeout(() => {
-    this.isProcessingCatalog = false;
-  }, 500);
 }
 
 
