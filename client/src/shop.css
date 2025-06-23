@@ -16,6 +16,21 @@
   transition: opacity 0.4s ease;
 }
 
+
+.shop-empty-item {
+  background-color: rgba(100, 100, 100, 0.3) !important;
+  border: 2px dashed #666 !important;
+}
+
+.shop-empty-item .shop-item-icon {
+  opacity: 0.5;
+}
+
+.shop-empty-item .shop-item-name {
+  font-style: italic;
+  color: #999 !important;
+}
+
 .shop-overlay.hidden {
   opacity: 0;
   pointer-events: none;
