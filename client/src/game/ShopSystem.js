@@ -94,11 +94,39 @@ handleShopNpcInteraction(data) {
   // Extraire les données du shop
   const shopId = data.shopId;
   const shopData = data.shopData;
-  let npc = data.npc || { name: data.npcName || "Marchand", id: data.npcId };
-
-  // Récupérer le vrai NPC si possible
-  const realNpc = window.npcManager?.getNpcData?.(data.npcId);
-  if (realNpc) npc = realNpc;
+  
+  // ✅ CORRECTION: Mieux construire l'objet NPC
+  let npc = { name: "Marchand", id: data.npcId };
+  
+  // Priorité aux données du serveur
+  if (data.npc) {
+    npc = { ...npc, ...data.npc };
+  }
+  
+  // Puis aux données directes
+  if (data.npcName) {
+    if (typeof data.npcName === 'object') {
+      npc = { ...npc, ...data.npcName };
+    } else {
+      npc.name = data.npcName;
+    }
+  }
+  
+  // ✅ CORRECTION: Récupérer le vrai NPC depuis le manager
+  const realNpc = window.interactionManager?.state?.lastInteractedNpc 
+    || window.npcManager?.getNpcData?.(data.npcId);
+  
+  if (realNpc) {
+    npc = {
+      ...npc,
+      name: realNpc.name || npc.name,
+      id: realNpc.id || npc.id,
+      sprite: realNpc.sprite,
+      portrait: realNpc.portrait,
+      properties: realNpc.properties
+    };
+    console.log(`🎭 [ShopSystem] NPC enrichi depuis le manager:`, npc);
+  }
 
   if (!shopId) {
     this.showError("Erreur: Shop ID manquant");
@@ -114,20 +142,19 @@ handleShopNpcInteraction(data) {
     this.playerGold = shopData.playerGold;
   }
 
-  // Ouvrir l'interface de shop AVEC LE NPC !
+  // ✅ CORRECTION: Ouvrir le shop avec l'objet NPC complet
   this.openShop(shopId, npc, shopData);
 
   // ✅ Notification d'ouverture
   this.showInfo(`Bienvenue chez ${npc.name} !`);
 }
 
-
   // ✅ OUVERTURE DE SHOP
 openShop(shopId, npc = { name: "Marchand" }, shopData = null) {
-
-    if (!npc.sprite || !npc.portrait) {
-    const fullNpc = window.npcManager?.getNpcData?.(npc.id || this.currentNpcId);
-    if (fullNpc) Object.assign(npc, fullNpc);
+  // ✅ CORRECTION: Verrou pour éviter les ouvertures multiples
+  if (this.isOpeningShop) {
+    console.warn("🏪 Ouverture shop déjà en cours, ignoré");
+    return false;
   }
   
   if (this.isShopOpen()) {
@@ -135,20 +162,30 @@ openShop(shopId, npc = { name: "Marchand" }, shopData = null) {
     return false;
   }
 
+  this.isOpeningShop = true;
+
   console.log(`🏪 Ouverture du shop: ${shopId} (${npc.name})`);
 
   // Vérifier que le joueur peut interagir
   if (!this.canPlayerInteract()) {
     this.showWarning("Impossible d'ouvrir le shop maintenant");
+    this.isOpeningShop = false;
     return false;
   }
 
   if (!this.shopUI) {
     this.showError("Interface de shop non disponible");
+    this.isOpeningShop = false;
     return false;
   }
 
-  // Ouvre l'interface EN PASSANT L’OBJET NPC !
+  // Enrichir les données NPC si possible
+  if (!npc.sprite || !npc.portrait) {
+    const fullNpc = window.npcManager?.getNpcData?.(npc.id || this.currentNpcId);
+    if (fullNpc) Object.assign(npc, fullNpc);
+  }
+
+  // Ouvrir l'interface avec l'objet NPC complet
   this.shopUI.show(shopId, npc);
 
   // Si on a déjà les données du shop, les utiliser
@@ -165,6 +202,11 @@ openShop(shopId, npc = { name: "Marchand" }, shopData = null) {
 
   // ✅ Mettre à jour l'état global
   this.updateGlobalUIState(true);
+
+  // ✅ Libérer le verrou après un délai
+  setTimeout(() => {
+    this.isOpeningShop = false;
+  }, 1000);
 
   return true;
 }
