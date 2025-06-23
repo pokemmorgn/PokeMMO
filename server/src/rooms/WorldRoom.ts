@@ -77,7 +77,25 @@ private initializeTimeWeatherService() {
       displayName: weather.displayName
     });
   });
+  // === COMMANDES DE TEST === (ajoute ça avec les autres handlers)
+
+// Forcer l'heure
+this.onMessage("setTime", (client, data: { hour: number, minute?: number }) => {
+  console.log(`🕐 [TEST] ${client.sessionId} force l'heure: ${data.hour}:${data.minute || 0}`);
   
+  if (this.timeWeatherService) {
+    this.timeWeatherService.forceTime(data.hour, data.minute || 0);
+  }
+});
+
+// Forcer la météo
+this.onMessage("setWeather", (client, data: { weather: string }) => {
+  console.log(`🌦️ [TEST] ${client.sessionId} force la météo: ${data.weather}`);
+  
+  if (this.timeWeatherService) {
+    this.timeWeatherService.forceWeather(data.weather);
+  }
+});
   console.log(`✅ [WorldRoom] TimeWeatherService initialisé`);
 }
 
