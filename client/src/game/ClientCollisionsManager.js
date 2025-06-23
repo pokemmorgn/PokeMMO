@@ -53,8 +53,30 @@ export class ClientCollisionManager {
 
   // ✅ Méthode principale : peut-on bouger vers cette position ?
   canMoveTo(targetX, targetY) {
-    return !this.isBlocked(targetX, targetY);
+  if (!this.isLoaded) return true;
+
+  const hitboxSize = 16;
+  const offset = hitboxSize / 2;
+
+  // Vérifie les 4 coins de la hitbox simulée
+  const pointsToCheck = [
+    { x: targetX - offset, y: targetY - offset }, // coin haut gauche
+    { x: targetX + offset - 1, y: targetY - offset }, // coin haut droit
+    { x: targetX - offset, y: targetY + offset - 1 }, // coin bas gauche
+    { x: targetX + offset - 1, y: targetY + offset - 1 } // coin bas droit
+  ];
+
+  for (const point of pointsToCheck) {
+    const tileX = Math.floor(point.x / this.tileWidth);
+    const tileY = Math.floor(point.y / this.tileHeight);
+    if (this.collisionTiles.has(`${tileX},${tileY}`)) {
+      return false;
+    }
   }
+
+  return true;
+}
+
 
   // ✅ Debug : afficher les collisions avec des rectangles rouges
   debugShowCollisions() {
