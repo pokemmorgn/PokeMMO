@@ -778,7 +778,7 @@ setupPlayerReadyHandler() {
   handleMovement(myPlayerState) {
     const speed = 80;
     const myPlayer = this.playerManager.getMyPlayer();
-    if (!myPlayer) return;
+    if (!myPlayer || !myPlayer.body) return;
 
     let vx = 0, vy = 0;
     let inputDetected = false, direction = null;
@@ -797,7 +797,10 @@ setupPlayerReadyHandler() {
     let actuallyMoving = inputDetected;
 
     myPlayer.body.setVelocity(vx, vy);
-
+// ✅ NORMALISER LA VITESSE DIAGONALE
+if (vx !== 0 && vy !== 0) {
+  myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
+}
     if (inputDetected && direction) {
       this.lastDirection = direction;
       
@@ -1069,35 +1072,46 @@ normalizeZoneName(sceneName) {
     }
   }
 
-  setupScene() {
-    console.log('— DEBUT setupScene —');
-    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
-
-    const baseWidth = this.scale.width;
-    const baseHeight = this.scale.height;
-    const zoomX = baseWidth / this.map.widthInPixels;
-    const zoomY = baseHeight / this.map.heightInPixels;
-    const zoom = Math.min(zoomX, zoomY);
-
-    this.cameras.main.setZoom(zoom);
-    this.cameras.main.setBackgroundColor('#2d5a3d');
-    this.cameras.main.setRoundPixels(true);
-
-    this.cameraManager = new CameraManager(this);
-    // === Ajoute ceci tout à la fin de setupScene() ===
-this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
-
-// Ajoute le collider entre le joueur et tous les layers qui ont des collisions
-this.time.delayedCall(0, () => {
-  const myPlayer = this.playerManager?.getMyPlayer?.();
-  if (!myPlayer) return;
-
+setupScene() {
+  console.log('— DEBUT setupScene —');
+  this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+  
+  const baseWidth = this.scale.width;
+  const baseHeight = this.scale.height;
+  const zoomX = baseWidth / this.map.widthInPixels;
+  const zoomY = baseHeight / this.map.heightInPixels;
+  const zoom = Math.min(zoomX, zoomY);
+  
+  this.cameras.main.setZoom(zoom);
+  this.cameras.main.setBackgroundColor('#2d5a3d');
+  this.cameras.main.setRoundPixels(true);
+  
+  this.cameraManager = new CameraManager(this);
+  
+  // ✅ PHYSICS WORLD SETUP
+  this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+  
+  // ✅ STOCKER LES LAYERS POUR COLLISIONS
+  this.collisionLayers = [];
   Object.values(this.layers).forEach(layer => {
-    if (layer && layer.layer && layer.layer.collideIndexes && layer.layer.collideIndexes.length > 0) {
-      this.physics.add.collider(myPlayer, layer);
+    if (layer && layer.layer && layer.layer.name.toLowerCase().includes('world')) {
+      layer.setCollisionByProperty({ collides: true });
+      this.collisionLayers.push(layer);
+      console.log(`🔒 Layer collision configuré: ${layer.layer.name}`);
+      
+      let collisionCount = 0;
+      layer.forEachTile(tile => {
+        if (tile && tile.collides) collisionCount++;
+      });
+      console.log(`🔒 ${layer.layer.name}: ${collisionCount} tiles collision`);
     }
   });
-});
+  
+  // 🔥 NOUVEAU: CRÉER LES COLLIDERS
+  this.time.delayedCall(100, () => {
+    this.setupPlayerCollisions();
+  });
+}
   }
 
   getDefaultSpawnPosition(fromZone) {
@@ -1159,6 +1173,9 @@ this.time.delayedCall(0, () => {
     // L'InteractionManager configure ses propres raccourcis clavier dans setupInputHandlers()
     
     console.log(`⌨️ [${this.scene.key}] Inputs configurés (interactions gérées par InteractionManager)`);
+    this.input.keyboard.on('keydown-C', () => {
+  this.debugCollisions();
+});
   }
 
   createUI() {
@@ -1322,6 +1339,79 @@ getCurrentTimeWeather() {
   }
   return null;
 }
+setupPlayerCollisions() {
+  const myPlayer = this.playerManager?.getMyPlayer();
+  if (!myPlayer || !myPlayer.body) {
+    console.warn("[BaseZoneScene] Pas de joueur pour setup collisions, retry dans 200ms");
+    this.time.delayedCall(200, () => this.setupPlayerCollisions());
+    return;
+  }
+  
+  if (!this.collisionLayers || this.collisionLayers.length === 0) {
+    console.warn("[BaseZoneScene] Aucun layer de collision disponible");
+    return;
+  }
+  
+  console.log(`🔒 [BaseZoneScene] Configuration collisions pour joueur`);
+  
+  this.collisionLayers.forEach((layer, index) => {
+    const collider = this.physics.add.collider(myPlayer, layer, (player, tile) => {
+      console.log(`💥 COLLISION! à (${Math.round(player.x)}, ${Math.round(player.y)})`);
+    }, null, this);
+    
+    if (!myPlayer.colliders) myPlayer.colliders = [];
+    myPlayer.colliders.push(collider);
+    
+    console.log(`✅ Collider ${index + 1} créé pour "${layer.layer.name}"`);
+  });
+  
+  console.log(`🔒 ${this.collisionLayers.length} colliders configurés au total`);
+}
+   debugCollisions() {
+    console.log("🔍 === DEBUG COLLISIONS ===");
+    
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.log("❌ Pas de joueur pour debug");
+      return;
+    }
+    
+    console.log("👤 Joueur:", {
+      x: myPlayer.x.toFixed(1),
+      y: myPlayer.y.toFixed(1),
+      hasBody: !!myPlayer.body,
+      bodySize: myPlayer.body ? `${myPlayer.body.width}x${myPlayer.body.height}` : 'N/A',
+      colliders: myPlayer.colliders ? myPlayer.colliders.length : 0,
+      velocity: myPlayer.body ? `(${myPlayer.body.velocity.x}, ${myPlayer.body.velocity.y})` : 'N/A'
+    });
+    
+    console.log("🗺️ Layers de collision:");
+    this.collisionLayers?.forEach(layer => {
+      let collisionCount = 0;
+      layer.forEachTile(tile => {
+        if (tile && tile.collides) collisionCount++;
+      });
+      console.log(`  📋 ${layer.layer.name}: ${collisionCount} tiles collision`);
+    });
+    
+    // ✅ TESTER UNE COLLISION MANUELLE
+    if (this.collisionLayers && this.collisionLayers.length > 0) {
+      const testLayer = this.collisionLayers[0];
+      const tile = testLayer.getTileAtWorldXY(myPlayer.x, myPlayer.y);
+      console.log("🎯 Tile sous le joueur:", tile ? {
+        index: tile.index,
+        collides: tile.collides,
+        properties: tile.properties
+      } : "Aucune tile");
+    }
+    
+    console.log("🚫 Body touching:", myPlayer.body ? {
+      up: myPlayer.body.touching.up,
+      down: myPlayer.body.touching.down,
+      left: myPlayer.body.touching.left,
+      right: myPlayer.body.touching.right
+    } : "Pas de body");
+  }
   // ✅ NOUVELLE MÉTHODE: Debug complet de la scène
   debugScene() {
     console.log(`🔍 [${this.scene.key}] === DEBUG SCENE COMPLÈTE ===`);
