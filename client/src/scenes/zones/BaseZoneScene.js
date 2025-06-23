@@ -251,49 +251,86 @@ export class BaseZoneScene extends Phaser.Scene {
     });
 
     // ✅ Handler d'état avec protection
-    this.networkManager.onStateChange((state) => {
-      if (!this.isSceneReady || !this.networkSetupComplete) {
-        console.log(`⏳ [${this.scene.key}] State reçu mais scène pas prête, ignoré`);
-        return;
-      }
-      
-      //console.log(`📊 [${this.scene.key}] State reçu:`, {
-        playersCount: state.players?.size || 0,
-        isFiltered: !!state.players,
-        type: state.players instanceof Map ? 'Map' : 'Object'
+setupNetworkHandlers() {
+  if (!this.networkManager) return;
+
+  console.log(`📡 [${this.scene.key}] Configuration handlers réseau...`);
+
+  // ✅ Handler pour recevoir la zone officielle du serveur
+  this.networkManager.onMessage("currentZone", (data) => {
+    console.log(`📍 [${this.scene.key}] === ZONE REÇUE DU SERVEUR ===`);
+    console.log(`🎯 Zone serveur: ${data.zone}`);
+    console.log(`📊 Position serveur: (${data.x}, ${data.y})`);
+
+    const oldZone = this.zoneName;
+    this.zoneName = data.zone;
+    this.serverZoneConfirmed = true;
+
+    console.log(`🔄 [${this.scene.key}] Zone mise à jour: ${oldZone} → ${this.zoneName}`);
+
+    const expectedScene = this.mapZoneToScene(this.zoneName);
+    if (!this.isSceneStillValid(expectedScene)) {
+      console.warn(`[${this.scene.key}] 🔄 Redirection nécessaire → ${expectedScene}`);
+      this.redirectToCorrectScene(expectedScene, data);
+      return;
+    }
+
+    if (this.playerManager) {
+      this.playerManager.currentZone = this.zoneName;
+      this.playerManager.forceResynchronization();
+    }
+
+    console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
+  });
+
+  // ✅ Handler d'état avec protection
+  this.networkManager.onStateChange((state) => {
+    if (!this.isSceneReady || !this.networkSetupComplete) {
+      console.log(`⏳ [${this.scene.key}] State reçu mais scène pas prête, ignoré`);
+      return;
+    }
+
+    // Si tu veux loguer, décommente :
+    /*
+    console.log(`📊 [${this.scene.key}] State reçu:`, {
+      playersCount: state.players?.size || 0,
+      isFiltered: !!state.players,
+      type: state.players instanceof Map ? 'Map' : 'Object'
+    });
+    */
+
+    if (!state || !state.players) return;
+    if (!this.playerManager) return;
+
+    this.synchronizeSessionId();
+
+    this.playerManager.updatePlayers(state);
+    this.handleMyPlayerFromState();
+  });
+
+  // ✅ SUPPRIMÉ: Les handlers d'interaction NPC - maintenant gérés par InteractionManager
+  // L'InteractionManager configure ses propres handlers réseau dans sa méthode setupNetworkHandlers()
+
+  // Handlers de zone WorldRoom
+  this.setupWorldRoomHandlers();
+
+  // Handler pour les quest statuses
+  this.setupQuestStatusHandler();
+
+  // Handlers existants (snap, disconnect)
+  this.setupExistingHandlers();
+
+  // Forcer une première synchronisation
+  this.time.delayedCall(500, () => {
+    console.log(`🔄 [${this.scene.key}] Forcer synchronisation initiale...`);
+    if (this.networkManager.room) {
+      this.networkManager.room.send("requestInitialState", { 
+        zone: this.networkManager.getCurrentZone() 
       });
-      
-      if (!state || !state.players) return;
-      if (!this.playerManager) return;
+    }
+  });
+}
 
-      this.synchronizeSessionId();
-      
-      this.playerManager.updatePlayers(state);
-      this.handleMyPlayerFromState();
-    });
-
-    // ✅ SUPPRIMÉ: Les handlers d'interaction NPC - maintenant gérés par InteractionManager
-    // L'InteractionManager configure ses propres handlers réseau dans sa méthode setupNetworkHandlers()
-    
-    // Handlers de zone WorldRoom
-    this.setupWorldRoomHandlers();
-    
-    // Handler pour les quest statuses
-    this.setupQuestStatusHandler();
-    
-    // Handlers existants (snap, disconnect)
-    this.setupExistingHandlers();
-
-    // Forcer une première synchronisation
-    this.time.delayedCall(500, () => {
-      console.log(`🔄 [${this.scene.key}] Forcer synchronisation initiale...`);
-      if (this.networkManager.room) {
-        this.networkManager.room.send("requestInitialState", { 
-          zone: this.networkManager.getCurrentZone() 
-        });
-      }
-    });
-  }
 
   // ✅ MÉTHODE INCHANGÉE: Redirection vers la bonne scène
   redirectToCorrectScene(correctScene, serverData) {
