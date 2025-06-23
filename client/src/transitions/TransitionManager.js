@@ -440,8 +440,8 @@ export class TransitionManager {
 
     // ✅ ÉTAPE 6: Démarrer avec un délai pour s'assurer que tout est propre
     setTimeout(() => {
-      this.startSceneWithData(targetSceneKey, result);
-    }, 100);
+await this.waitForQueueToBeEmpty();
+this.startSceneWithData(targetSceneKey, result);    }, 100);
   }
 
   // ✅ NOUVELLE MÉTHODE: Attendre que toutes les scènes s'arrêtent
@@ -498,8 +498,8 @@ export class TransitionManager {
       }
       
       // Démarrer avec nouvelles données
-      this.startSceneWithData(targetSceneKey, result);
-      
+await this.waitForQueueToBeEmpty();
+this.startSceneWithData(targetSceneKey, result);      
     } else {
       console.error(`❌ [TransitionManager] Scène ${targetSceneKey} n'existe pas dans Phaser!`);
       console.error(`💡 Les scènes disponibles:`, Object.keys(sceneManager.keys));
