@@ -111,7 +111,7 @@ export class ShopSystem {
     }
     
     // Ouvrir l'interface de shop
-    this.openShop(shopId, npcName, shopData);
+   this.openShop(shopId, data.npc || { name: npcName }, shopData);
     
     // ✅ Notification d'ouverture
     this.showInfo(`Bienvenue chez ${npcName} !`);
