@@ -23,8 +23,8 @@ export class TimeWeatherService {
     this.state.gameHour = config.timeSystem.startHour;
     this.state.isDayTime = this.calculateDayTime(this.state.gameHour);
     
-    // ✅ État initial météo (commence toujours par ciel dégagé)
-    this.currentWeather = this.getWeatherByName("clear") || config.weatherSystem.weatherTypes[0];
+    // ✅ État initial météo
+    this.currentWeather = this.getWeatherByName("clear") || getRandomWeatherType();
     this.state.weather = this.currentWeather.name;
     
     console.log(`🕐 [TimeWeatherService] État initial: ${this.state.gameHour}h ${this.state.isDayTime ? '(JOUR)' : '(NUIT)'}`);
@@ -54,6 +54,7 @@ export class TimeWeatherService {
   }
 
   private updateTime() {
+    const config = getServerConfig();
     const oldHour = this.state.gameHour;
     const oldDayTime = this.state.isDayTime;
     
@@ -108,22 +109,94 @@ export class TimeWeatherService {
     this.onTimeChangeCallback = callback;
   }
 
+  forceTime(hour: number): boolean {
+    if (hour >= 0 && hour <= 23) {
+      this.state.gameHour = hour;
+      this.state.isDayTime = this.calculateDayTime(hour);
+      console.log(`⚡ [TimeWeatherService] Temps forcé: ${hour}h ${this.state.isDayTime ? '(JOUR)' : '(NUIT)'}`);
+      this.onTimeChangeCallback?.(this.state.gameHour, this.state.isDayTime);
+      return true;
+    }
+    return false;
+  }
+
+  forceWeather(weatherName: string): boolean {
+    const weather = this.getWeatherByName(weatherName);
+    if (weather) {
+      this.currentWeather = weather;
+      this.state.weather = weather.name;
+      console.log(`⚡ [TimeWeatherService] Météo forcée: ${weather.displayName}`);
+      this.onWeatherChangeCallback?.(this.currentWeather);
+      return true;
+    }
+    return false;
+  }
+
   getWeatherEffect(effectName: string): number {
     return this.currentWeather.effects[effectName as keyof typeof this.currentWeather.effects] as number || 1.0;
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Conditions pour les rencontres
-  getEncounterConditions(): { timeOfDay: 'day' | 'night', weather: 'clear' | 'rain' } {
+  // ✅ MÉTHODE SIMPLIFIÉE: Retourne les conditions actuelles pour les rencontres
+  getEncounterConditions(): { timeOfDay: 'day' | 'night', weather: string } {
     return {
       timeOfDay: this.state.isDayTime ? 'day' : 'night',
-      weather: this.currentWeather.name as 'clear' | 'rain'
+      weather: this.currentWeather.name
     };
+  }
+
+  getAvailableWeatherTypes(): string[] {
+    const config = getServerConfig();
+    return config.weatherSystem.weatherTypes.map(w => w.name);
   }
 
   formatTime(): string {
     const period = this.state.gameHour < 12 ? 'AM' : 'PM';
     const displayHour = this.state.gameHour === 0 ? 12 : this.state.gameHour > 12 ? this.state.gameHour - 12 : this.state.gameHour;
     return `${displayHour}:00 ${period}`;
+  }
+
+  // ✅ MÉTHODES DE TEST
+
+  public forceTime(hour: number, minute: number = 0): void {
+    if (hour < 0 || hour > 23) {
+      console.warn(`⚠️ [TimeWeatherService] Heure invalide: ${hour}`);
+      return;
+    }
+    
+    const oldHour = this.state.gameHour;
+    const oldDayTime = this.state.isDayTime;
+    
+    this.state.gameHour = hour;
+    this.state.isDayTime = this.calculateDayTime(hour);
+    
+    console.log(`🕐 [TEST] Heure forcée: ${oldHour}h → ${hour}h (${this.state.isDayTime ? 'JOUR' : 'NUIT'})`);
+    
+    // Déclencher le callback immédiatement
+    if (this.onTimeChangeCallback) {
+      this.onTimeChangeCallback(hour, this.state.isDayTime);
+    }
+  }
+
+  public forceWeather(weatherName: string): void {
+    const weather = this.getWeatherByName(weatherName);
+    
+    if (!weather) {
+      console.warn(`⚠️ [TimeWeatherService] Météo inconnue: ${weatherName}`);
+      const config = getServerConfig();
+      console.log(`📋 Météos disponibles:`, config.weatherSystem.weatherTypes.map(w => w.name));
+      return;
+    }
+    
+    const oldWeather = this.currentWeather.name;
+    this.currentWeather = weather;
+    this.state.weather = weather.name;
+    
+    console.log(`🌦️ [TEST] Météo forcée: ${oldWeather} → ${weatherName}`);
+    
+    // Déclencher le callback immédiatement
+    if (this.onWeatherChangeCallback) {
+      this.onWeatherChangeCallback(weather);
+    }
   }
 
   destroy() {
