@@ -184,8 +184,8 @@ getMyPlayer() {
     const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1).setOrigin(0.5, 1).setScale(1);
     player.setDepth(5);
     player.sessionId = sessionId;
-    player.body.setSize(12, 8);
-    player.body.setOffset(10, 24);
+    player.body.setSize(16, 16);
+    player.body.setOffset(8, 16);
     player.body.debugShowBody = true;
     player.body.debugBodyColor = 0xff0000;
 
