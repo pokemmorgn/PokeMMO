@@ -8,6 +8,41 @@ import { VillageZone } from "../rooms/zones/VillageZone";
 import { VillageLabZone } from "../rooms/zones/VillageLabZone";
 import { Villagehouse1 } from "../rooms/zones/Villagehouse1";
 import { Villageflorist } from "../rooms/zones/Villageflorist";
+
+// Zones Village supplémentaires
+import { VillageFloristZone } from "../rooms/zones/VillageFloristZone";
+import { VillageHouse2Zone } from "../rooms/zones/VillageHouse2Zone";
+
+// Zones Lavandia
+import { LavandiaAnalysisZone } from "../rooms/zones/LavandiaAnalysisZone";
+import { LavandiaBossRoomZone } from "../rooms/zones/LavandiaBossRoomZone";
+import { LavandiaCelibTempleZone } from "../rooms/zones/LavandiaCelibTempleZone";
+import { LavandiaEquipementZone } from "../rooms/zones/LavandiaEquipementZone";
+import { LavandiaFurnitureZone } from "../rooms/zones/LavandiaFurnitureZone";
+import { LavandiaHealingCenterZone } from "../rooms/zones/LavandiaHealingCenterZone";
+import { LavandiaHouse1Zone } from "../rooms/zones/LavandiaHouse1Zone";
+import { LavandiaHouse2Zone } from "../rooms/zones/LavandiaHouse2Zone";
+import { LavandiaHouse3Zone } from "../rooms/zones/LavandiaHouse3Zone";
+import { LavandiaHouse4Zone } from "../rooms/zones/LavandiaHouse4Zone";
+import { LavandiaHouse5Zone } from "../rooms/zones/LavandiaHouse5Zone";
+import { LavandiaHouse6Zone } from "../rooms/zones/LavandiaHouse6Zone";
+import { LavandiaHouse7Zone } from "../rooms/zones/LavandiaHouse7Zone";
+import { LavandiaHouse8Zone } from "../rooms/zones/LavandiaHouse8Zone";
+import { LavandiaHouse9Zone } from "../rooms/zones/LavandiaHouse9Zone";
+import { LavandiaResearchLabZone } from "../rooms/zones/LavandiaResearchLabZone";
+
+// Zones Nocther Cave
+import { NoctherCave1Zone } from "../rooms/zones/NoctherCave1Zone";
+import { NoctherCave2Zone } from "../rooms/zones/NoctherCave2Zone";
+import { NoctherCave2BisZone } from "../rooms/zones/NoctherCave2BisZone";
+
+// Zones Road
+import { Road1Zone } from "../rooms/zones/Road1Zone";
+import { Road1HouseZone } from "../rooms/zones/Road1HouseZone";
+import { Road2Zone } from "../rooms/zones/Road2Zone";
+import { Road3Zone } from "../rooms/zones/Road3Zone";
+
+
 import { Player } from "../schema/PokeWorldState";
 
 import { QuestManager } from "./QuestManager";
