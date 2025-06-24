@@ -617,13 +617,13 @@
                         {
                          "name":"targetzone",
                          "type":"string",
-                         "value":"lavandiarhouse7"
+                         "value":"lavandiahouse7"
                         }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
                  "width":17.5,
-                 "x":535.333666666667,
+                 "x":534.970030303031,
                  "y":648.41685
                 }, 
                 {
@@ -656,7 +656,7 @@
                         {
                          "name":"targetspawn",
                          "type":"string",
-                         "value":"Fromlavandia"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetzone",
