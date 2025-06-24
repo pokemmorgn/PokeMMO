@@ -174,7 +174,7 @@
                 {
                  "height":11.5,
                  "id":2,
-                 "name":"Lavandia",
+                 "name":"teleport",
                  "properties":[
                         {
                          "name":"targetspawn",
@@ -196,7 +196,7 @@
                 {
                  "height":0,
                  "id":4,
-                 "name":"",
+                 "name":"spawn",
                  "point":true,
                  "properties":[
                         {

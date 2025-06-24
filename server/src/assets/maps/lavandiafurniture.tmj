@@ -172,7 +172,7 @@
          "name":"Worlds",
          "objects":[
                 {
-                 "height":19.3333333333334,
+                 "height":12.6666666666668,
                  "id":1,
                  "name":"teleport",
                  "properties":[
@@ -191,7 +191,30 @@
                  "visible":true,
                  "width":55.3333333333333,
                  "x":216,
-                 "y":330.666666666666
+                 "y":338.666666666666
+                }, 
+                {
+                 "height":0,
+                 "id":3,
+                 "name":"spawn",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"targetspawn",
+                         "type":"string",
+                         "value":"fromlavandia"
+                        }, 
+                        {
+                         "name":"targetzone",
+                         "type":"string",
+                         "value":"lavandiafurniture"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":195.666666666667,
+                 "y":303.333333333333
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -211,7 +234,7 @@
          "y":0
         }],
  "nextlayerid":8,
- "nextobjectid":3,
+ "nextobjectid":5,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
