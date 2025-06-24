@@ -2,13 +2,13 @@ import { BaseZoneScene } from './BaseZoneScene.js';
 
 export class LavandiaCelibTempleScene extends BaseZoneScene {
   constructor() {
-    super('LavandiaCelibTempleScene', 'lavandiacelibtemple');
+    super('LavandiaCelibiTempleScene', 'lavandiacelibitemple');
     this.transitionCooldowns = {};
   }
 
   onPlayerReady(myPlayer) {
     super.onPlayerReady(myPlayer);
-    console.log(`[LavandiaCelibTempleScene] Mon joueur est prêt à (${myPlayer.x}, ${myPlayer.y})`);
+    console.log(`[LavandiaCelibiTempleScene] Mon joueur est prêt à (${myPlayer.x}, ${myPlayer.y})`);
   }
 
   cleanup() {
