@@ -25,7 +25,7 @@ interface Spawn {
   y: number;
 }
 
-export class LavandiaCelibTempleZone implements IZone {
+export class LavandiaCelibiTempleZone implements IZone {
   private room: WorldRoom;
   private npcs: NPC[] = [];
 
