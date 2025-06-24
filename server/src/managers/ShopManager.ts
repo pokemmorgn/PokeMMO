@@ -145,7 +145,8 @@ export class ShopManager {
       
     } catch (parseError) {
       console.error("❌ [ShopManager] Erreur parsing JSON:", parseError);
-      throw new Error(`Erreur parsing shops.json: ${parseError.message}`);
+      const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+      throw new Error(`Erreur parsing shops.json: ${errorMessage}`);
     }
   }
 
@@ -266,8 +267,11 @@ export class ShopManager {
       
     } catch (parseError) {
       console.error("❌ [ShopManager] Erreur parsing items.json:", parseError);
-      console.error("❌ Stack trace:", parseError.stack);
-      throw new Error(`Erreur parsing items.json: ${parseError.message}`);
+      if (parseError instanceof Error) {
+        console.error("❌ Stack trace:", parseError.stack);
+      }
+      const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+      throw new Error(`Erreur parsing items.json: ${errorMessage}`);
     }
   }
 
