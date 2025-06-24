@@ -1787,6 +1787,51 @@ export class ShopUI {
     this.updateActionButton();
   }
 
+  getHorizontalStatsHTML(item) {
+  const stats = [];
+  
+  if (this.currentTab === 'buy' && item.stock !== undefined && item.stock !== -1) {
+    const stockIcon = item.stock === 0 ? '❌' : item.stock <= 3 ? '⚠️' : '✅';
+    stats.push(`
+      <div class="item-stat-card stock">
+        <div class="stat-icon">${stockIcon}</div>
+        <div class="stat-info">
+          <span class="stat-label">Stock</span>
+          <span class="stat-value">${item.stock === -1 ? '∞' : item.stock}</span>
+        </div>
+      </div>
+    `);
+  }
+
+  if (item.unlockLevel && item.unlockLevel > 1) {
+    stats.push(`
+      <div class="item-stat-card level">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-info">
+          <span class="stat-label">Niveau requis</span>
+          <span class="stat-value">${item.unlockLevel}</span>
+        </div>
+      </div>
+    `);
+  }
+
+  // Si pas de stats supplémentaires, ajouter des infos sur l'affordabilité
+  if (stats.length === 0 && this.currentTab === 'buy') {
+    const canAfford = this.playerGold >= item.buyPrice;
+    stats.push(`
+      <div class="item-stat-card affordability">
+        <div class="stat-icon">${canAfford ? '✅' : '❌'}</div>
+        <div class="stat-info">
+          <span class="stat-label">Disponibilité</span>
+          <span class="stat-value">${canAfford ? 'Abordable' : 'Trop cher'}</span>
+        </div>
+      </div>
+    `);
+  }
+
+  return stats.join('');
+}
+  
 updateItemDetails() {
     const detailsContainer = this.overlay.querySelector('#shop-item-details');
     
