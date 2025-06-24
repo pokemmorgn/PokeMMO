@@ -594,41 +594,56 @@ export class ShopManager {
     }
   }
 
-  getShopCatalog(shopId: string, playerLevel: number = 1): {
-    shopInfo: ShopDefinition;
-    availableItems: (ShopItem & {
-      itemId: string;
-      buyPrice: number;
-      sellPrice: number;
-      canBuy: boolean;
-      canSell: boolean;
-      unlocked: boolean;
-    })[];
-  } | null {
-    const shop = this.getShopDefinition(shopId);
-    if (!shop) return null;
 
-    const availableItems = shop.items.map(shopItem => {
-      const buyPrice = this.getItemBuyPrice(shopId, shopItem.itemId);
-      const sellPrice = this.getItemSellPrice(shopId, shopItem.itemId);
-      const unlocked = !shopItem.unlockLevel || playerLevel >= shopItem.unlockLevel;
-      
-      return {
-        ...shopItem,
-        itemId: shopItem.itemId,
-        buyPrice: buyPrice,
-        sellPrice: sellPrice,
-        canBuy: unlocked && (shopItem.stock === undefined || shopItem.stock === -1 || shopItem.stock > 0),
-        canSell: true,
-        unlocked: unlocked
-      };
-    });
+getShopCatalog(shopId: string, playerLevel: number = 1): {
+  shopInfo: ShopDefinition;
+  availableItems: (ShopItem & {
+    itemId: string;
+    buyPrice: number;
+    sellPrice: number;
+    canBuy: boolean;
+    canSell: boolean;
+    unlocked: boolean;
+  })[];
+} | null {
+  const shop = this.getShopDefinition(shopId);
+  if (!shop) return null;
 
-    return {
-      shopInfo: shop,
-      availableItems: availableItems
+  console.log(`🏪 [ShopManager] Génération catalogue pour ${shopId}, niveau joueur: ${playerLevel}`);
+
+  const availableItems = shop.items.map(shopItem => {
+    const buyPrice = this.getItemBuyPrice(shopId, shopItem.itemId);
+    const sellPrice = this.getItemSellPrice(shopId, shopItem.itemId);
+    
+    // ✅ CHANGEMENT PRINCIPAL : Le serveur détermine si l'item est débloqué
+    const unlocked = !shopItem.unlockLevel || playerLevel >= shopItem.unlockLevel;
+    
+    // ✅ NOUVEAUTÉ : Tous les items sont envoyés au client, même non débloqués
+    // Le client affichera les items grisés/non-achetables pour ceux non débloqués
+    const canBuy = unlocked && (shopItem.stock === undefined || shopItem.stock === -1 || shopItem.stock > 0);
+    
+    const item = {
+      ...shopItem,
+      itemId: shopItem.itemId,
+      buyPrice: buyPrice,
+      sellPrice: sellPrice,
+      canBuy: canBuy,
+      canSell: true,
+      unlocked: unlocked
     };
-  }
+
+    console.log(`📦 [ShopManager] ${shopItem.itemId}: unlocked=${unlocked} (requis: ${shopItem.unlockLevel}), canBuy=${canBuy}`);
+    
+    return item;
+  });
+
+  console.log(`✅ [ShopManager] Catalogue généré: ${availableItems.length} items (tous envoyés)`);
+
+  return {
+    shopInfo: shop,
+    availableItems: availableItems
+  };
+}
 
   restockShop(shopId: string): boolean {
     const shop = this.getShopDefinition(shopId);
