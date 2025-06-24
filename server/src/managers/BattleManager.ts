@@ -349,7 +349,7 @@ export class BattleManager {
     }
 
     // Efficacité des types
-    const effectiveness = this.getTypeEffectiveness(moveData.type, defender.types);
+const effectiveness = this.getTypeEffectiveness(moveData.type, Array.from(defender.types));
     damage = Math.floor(damage * effectiveness);
 
     if (effectiveness > 1) {
