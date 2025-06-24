@@ -11,7 +11,7 @@ import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 import { TimeService } from './services/TimeService.js';
 import { LavandiaAnalysisScene } from './scenes/zones/LavandiaAnalysisScene.js';
 import { LavandiaBossRoomScene } from './scenes/zones/LavandiaBossRoomScene.js';
-import { LavandiaCelibTempleScene } from './scenes/zones/LavandiaCelibTempleScene.js';
+import { LavandiaCelibiTempleScene } from './scenes/zones/LavandiaCelibiTempleScene.js';
 import { LavandiaEquipementScene } from './scenes/zones/LavandiaEquipementScene.js';
 import { LavandiaFurnitureScene } from './scenes/zones/LavandiaFurnitureScene.js';
 import { LavandiaHealingCenterScene } from './scenes/zones/LavandiaHealingCenterScene.js';
@@ -35,8 +35,6 @@ import { LavandiaShopScene } from './scenes/zones/LavandiaShopScene.js';
 import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
 import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
 
-// ✅ NOUVEAU: Import du SceneRegistry
-import { SceneRegistry } from './scenes/SceneRegistry.js';
 
 // === Colyseus.js ===
 import { Client } from 'colyseus.js';
