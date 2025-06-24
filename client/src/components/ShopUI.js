@@ -1,22 +1,23 @@
-// client/src/components/ShopUI.js - Interface de shop rétro Pokémon (JS seulement)
+// client/src/components/ShopUI.js - FIX SHOP UI OPENING
+// ✅ Correction des verrous et amélioration de la gestion d'état
 
-export class ShopUI {  // 
-  
-constructor(gameRoom) {
-  this.gameRoom = gameRoom;
-  this.isVisible = false;
-  this.shopData = null;
-  this.selectedItem = null;
-  this.playerGold = 0;
-  this.currentTab = 'buy';
-  this.itemLocalizations = {};
-  this.currentLanguage = 'fr';
-  
-  // ✅ NOUVEAUX VERROUS
-  this.isProcessingCatalog = false;
-  
-  this.init();
-}
+export class ShopUI {
+  constructor(gameRoom) {
+    this.gameRoom = gameRoom;
+    this.isVisible = false;
+    this.shopData = null;
+    this.selectedItem = null;
+    this.playerGold = 0;
+    this.currentTab = 'buy';
+    this.itemLocalizations = {};
+    this.currentLanguage = 'fr';
+    
+    // ✅ VERROUS SIMPLIFIÉS
+    this.isProcessingCatalog = false;
+    this.lastCatalogTime = 0;
+    
+    this.init();
+  }
 
   async loadLocalizations() {
     try {
@@ -272,11 +273,9 @@ constructor(gameRoom) {
   setupServerListeners() {
     if (!this.gameRoom) return;
 
-    // Réception du catalogue de shop
-    this.gameRoom.onMessage("shopCatalogResult", (data) => {
-      this.handleShopCatalog(data);
-    });
-
+    // ✅ SUPPRIMÉ: Listener pour "shopCatalogResult" 
+    // Ce listener est maintenant géré par ShopIntegration pour éviter les doublons
+    
     // Résultat de transaction
     this.gameRoom.onMessage("shopTransactionResult", (data) => {
       this.handleTransactionResult(data);
@@ -293,61 +292,52 @@ constructor(gameRoom) {
     });
   }
 
-show(shopId, npcName = "Marchand") {
-  console.log('[SHOW] shopId:', shopId, 'npcName:', npcName, 'typeof:', typeof npcName, 'value:', npcName);
+  // ✅ SHOW - VERSION SIMPLIFIÉE
+  show(shopId, npcName = "Marchand") {
+    console.log(`🏪 [ShopUI] === SHOW APPELÉ ===`);
+    console.log(`📊 shopId: ${shopId}, npcName:`, npcName);
+    console.log(`📊 isVisible actuel: ${this.isVisible}`);
 
-  this.shopOpenUID = (this.shopOpenUID || 0) + 1;
-  const debugUID = this.shopOpenUID;
-  console.log(`[DEBUG SHOW SHOP] uid=${debugUID}, shopId=${shopId}, npcName=${npcName}, isVisible=${this.isVisible}`);
+    // ✅ AFFICHAGE IMMÉDIAT
+    this.overlay.classList.remove('hidden');
+    this.overlay.style.display = 'flex';
+    this.isVisible = true;
 
-  // 🔥 Correction anti-bug : toujours retirer la classe 'hidden' et afficher
-  this.overlay.classList.remove('hidden');
-  this.overlay.style.display = 'flex'; // Optionnel si ton CSS ne le fait pas déjà
-  this.isVisible = true;
+    // ✅ GESTION SIMPLE DU NOM NPC
+    let displayName = "Marchand";
+    if (typeof npcName === 'object' && npcName?.name) {
+      displayName = npcName.name;
+    } else if (typeof npcName === 'string') {
+      displayName = npcName;
+    }
 
-  // ✅ CORRECTION: Mieux gérer le nom du NPC
-  let displayName = "Marchand";
-  let npcObject = null;
+    // ✅ MISE À JOUR IMMÉDIATE DU TITRE
+    const shopNameElement = this.overlay.querySelector('.shop-name');
+    if (shopNameElement) {
+      shopNameElement.textContent = displayName;
+    }
 
-  if (typeof npcName === 'object' && npcName !== null) {
-    displayName = npcName.name || "Marchand";
-    npcObject = npcName;
-  } else if (typeof npcName === 'string') {
-    displayName = npcName;
-    npcObject = { name: npcName };
+    // ✅ DEMANDER LE CATALOGUE
+    this.requestShopCatalog(shopId);
+
+    console.log(`✅ [ShopUI] Shop affiché pour ${displayName}`);
   }
-
-  // Stocker l'objet NPC complet
-  this.pendingNpcName = npcObject;
-
-  // Mettre à jour le titre du shop immédiatement
-  const shopNameElement = this.overlay.querySelector('.shop-name');
-  if (shopNameElement) {
-    shopNameElement.textContent = displayName;
-  }
-
-  // Requête du catalogue du shop
-  this.requestShopCatalog(shopId);
-
-  console.log(`🏪 Shop ${shopId} ouvert pour ${displayName}`);
-}
-
 
   createEmptyShopItemElement() {
-  const itemElement = document.createElement('div');
-  itemElement.className = 'shop-item shop-empty-item';
-  itemElement.style.opacity = '0.6';
-  itemElement.style.cursor = 'not-allowed';
-  
-  itemElement.innerHTML = `
-    <div class="shop-item-icon">📭</div>
-    <div class="shop-item-name">Pas d'articles</div>
-    <div class="shop-item-price">-</div>
-    <div class="shop-item-stock out">Vide</div>
-  `;
-  
-  return itemElement;
-}
+    const itemElement = document.createElement('div');
+    itemElement.className = 'shop-item shop-empty-item';
+    itemElement.style.opacity = '0.6';
+    itemElement.style.cursor = 'not-allowed';
+    
+    itemElement.innerHTML = `
+      <div class="shop-item-icon">📭</div>
+      <div class="shop-item-name">Pas d'articles</div>
+      <div class="shop-item-price">-</div>
+      <div class="shop-item-stock out">Vide</div>
+    `;
+    
+    return itemElement;
+  }
   
   hide() {
     if (!this.isVisible) return;
@@ -369,39 +359,43 @@ show(shopId, npcName = "Marchand") {
     }
   }
 
-handleShopCatalog(data) {
-  console.log('[HANDLE CATALOG] data:', JSON.stringify(data, null, 2));
+  // ✅ HANDLE SHOP CATALOG - VERSION SIMPLIFIÉE ET ROBUSTE
+  handleShopCatalog(data) {
+    console.log(`🏪 [ShopUI] === HANDLE SHOP CATALOG ===`);
+    console.log(`📊 Data reçue:`, data);
 
-  // ✅ NOUVEAU : Réinitialiser le verrou au début
-  this.isProcessingCatalog = false;
+    // ✅ VERROU SIMPLE CONTRE LES APPELS MULTIPLES
+    const now = Date.now();
+    if (this.isProcessingCatalog && (now - this.lastCatalogTime) < 1000) {
+      console.warn(`⚠️ [ShopUI] Catalogue déjà en cours de traitement, ignoré`);
+      return;
+    }
+    
+    this.isProcessingCatalog = true;
+    this.lastCatalogTime = now;
 
-  // ✅ CORRECTION: Éviter les appels multiples SEULEMENT si vraiment en cours
-  if (this.isProcessingCatalog) {
-    console.log('⚠️ [ShopUI] Catalogue déjà en cours de traitement, ignoré');
-    return;
-  }
-  this.isProcessingCatalog = true;
+    try {
+      if (!data.success) {
+        console.error('❌ [ShopUI] Catalogue shop échoué:', data.message);
+        this.showNotification(data.message || "Impossible de charger le shop", "error");
+        return;
+      }
 
-  try {
-    if (data.success) {
+      // ✅ STOCKAGE DES DONNÉES
       this.shopData = data.catalog;
-      
-      // ✅ CORRECTION MAJEURE: Normaliser immédiatement la structure
+      this.playerGold = data.playerGold || 0;
+
+      // ✅ NORMALISATION IMMÉDIATE DE LA STRUCTURE
       if (!this.shopData.availableItems) {
         console.log('🔧 [ShopUI] Normalisation structure shop...');
         
-        // Chercher les items dans différentes propriétés possibles
         let items = [];
-        
         if (this.shopData.items && Array.isArray(this.shopData.items)) {
           items = this.shopData.items;
-          console.log(`📦 Items trouvés dans 'items': ${items.length}`);
         } else if (this.shopData.shopInfo?.items && Array.isArray(this.shopData.shopInfo.items)) {
           items = this.shopData.shopInfo.items;
-          console.log(`📦 Items trouvés dans 'shopInfo.items': ${items.length}`);
         }
         
-        // Normaliser la structure
         this.shopData.availableItems = items.map(item => ({
           itemId: item.itemId,
           buyPrice: item.customPrice || item.buyPrice || 0,
@@ -413,70 +407,44 @@ handleShopCatalog(data) {
           customPrice: item.customPrice
         }));
         
-        console.log(`✅ Structure normalisée: ${this.shopData.availableItems.length} items`);
+        console.log(`✅ [ShopUI] Structure normalisée: ${this.shopData.availableItems.length} items`);
       }
-      
-      // ✅ CORRECTION: Gérer le nom du NPC proprement
-      if (this.pendingNpcName) {
-        let npcName = "Marchand";
-        
-        if (typeof this.pendingNpcName === 'object' && this.pendingNpcName.name) {
-          npcName = this.pendingNpcName.name;
-          this.shopData.npcId = this.pendingNpcName.id;
-        } else if (typeof this.pendingNpcName === 'string') {
-          npcName = this.pendingNpcName;
-        }
-        
-        this.shopData.npcName = npcName;
-        console.log(`🏷️ Nom NPC défini: ${npcName}`);
-      }
-      
-      // Mettre à jour l'or du joueur
-      this.playerGold = data.playerGold || 0;
-      
-      // ✅ FORCER la mise à jour de l'interface
+
+      // ✅ MISE À JOUR DE L'INTERFACE
       this.updatePlayerGoldDisplay();
       this.updateShopTitle(this.shopData.shopInfo || {});
       this.refreshCurrentTab();
       
-      console.log(`✅ Shop "${this.shopData.npcName}" ouvert avec ${this.shopData.availableItems.length} objets`);
+      console.log(`✅ [ShopUI] Shop catalogue traité avec ${this.shopData.availableItems.length} objets`);
       
-      // ✅ NOTIFICATION de succès
-      this.showNotification(`Bienvenue chez ${this.shopData.npcName} !`, 'info');
+      // ✅ NOTIFICATION DE SUCCÈS
+      this.showNotification(`Catalogue chargé !`, 'success');
       
-    } else {
-      console.error('❌ Échec chargement catalogue:', data.message);
-      this.showNotification(data.message || "Impossible de charger le shop", "error");
+    } catch (error) {
+      console.error('❌ [ShopUI] Erreur handleShopCatalog:', error);
+      this.showNotification(`Erreur technique: ${error.message}`, "error");
+    } finally {
+      // ✅ LIBÉRATION DU VERROU
+      setTimeout(() => {
+        this.isProcessingCatalog = false;
+      }, 500);
     }
-  } catch (error) {
-    console.error('❌ Erreur handleShopCatalog:', error);
-    this.showNotification(`Erreur technique: ${error.message}`, "error");
-  } finally {
-    // ✅ CRUCIAL: Toujours libérer le verrou
-    setTimeout(() => {
-      this.isProcessingCatalog = false;
-    }, 500);
   }
-}
-
-
 
   updateShopTitle(shopInfo) {
     const shopNameElement = this.overlay.querySelector('.shop-name');
     const shopSubtitleElement = this.overlay.querySelector('.shop-subtitle');
 
-     // Ajoute le log ici :
-  console.log('[DEBUG SHOP TITLE]', {
-    shopInfo,
-    npcName: this.shopData?.npcName
-  });
+    console.log('[DEBUG SHOP TITLE]', {
+      shopInfo,
+      npcName: this.shopData?.npcName
+    });
 
-    
     shopNameElement.textContent =
-  this.shopData?.npcName
-  || shopInfo.npcName
-  || shopInfo.name
-  || "PokéMart";
+      this.shopData?.npcName
+      || shopInfo.npcName
+      || shopInfo.name
+      || "PokéMart";
 
     shopSubtitleElement.textContent = shopInfo.description || "Articles pour dresseurs";
   }
@@ -518,30 +486,28 @@ handleShopCatalog(data) {
     this.updateItemsCount();
   }
 
-displayBuyItems() {
-  const itemsGrid = this.overlay.querySelector('#shop-items-grid');
-  
-  // ✅ CORRECTION: Utiliser toujours availableItems (maintenant normalisé)
-  const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
-  const availableItems = items.filter(item => {
-    // Les items vides sont toujours affichés
-    if (item.isEmpty) return true;
-    // Les autres items doivent être achetables et débloqués
-    return item.canBuy && item.unlocked;
-  });
+  displayBuyItems() {
+    const itemsGrid = this.overlay.querySelector('#shop-items-grid');
+    
+    // ✅ CORRECTION: Utiliser toujours availableItems (maintenant normalisé)
+    const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
+    const availableItems = items.filter(item => {
+      // Les items vides sont toujours affichés
+      if (item.isEmpty) return true;
+      // Les autres items doivent être achetables et débloqués
+      return item.canBuy && item.unlocked;
+    });
 
-  if (availableItems.length === 0) {
-    this.showEmpty("Aucun objet disponible à l'achat");
-    return;
+    if (availableItems.length === 0) {
+      this.showEmpty("Aucun objet disponible à l'achat");
+      return;
+    }
+
+    availableItems.forEach((item, index) => {
+      const itemElement = this.createBuyItemElement(item, index);
+      itemsGrid.appendChild(itemElement);
+    });
   }
-
-  availableItems.forEach((item, index) => {
-    const itemElement = this.createBuyItemElement(item, index);
-    itemsGrid.appendChild(itemElement);
-  });
-}
-
-
 
   displaySellItems() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
@@ -561,53 +527,53 @@ displayBuyItems() {
     });
   }
 
-createBuyItemElement(item, index) {
-  // ✅ CORRECTION: Gérer les items vides
-  if (item.isEmpty) {
-    return this.createEmptyShopItemElement();
+  createBuyItemElement(item, index) {
+    // ✅ CORRECTION: Gérer les items vides
+    if (item.isEmpty) {
+      return this.createEmptyShopItemElement();
+    }
+    
+    const itemElement = document.createElement('div');
+    itemElement.className = 'shop-item';
+    itemElement.dataset.itemId = item.itemId;
+    itemElement.dataset.index = index;
+
+    // Vérifier la disponibilité
+    const canAfford = this.playerGold >= item.buyPrice;
+    const inStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
+    const isAvailable = canAfford && inStock;
+
+    if (!isAvailable) {
+      itemElement.classList.add('unavailable');
+    }
+
+    if (item.stock === 0) {
+      itemElement.classList.add('out-of-stock');
+    }
+
+    const itemIcon = this.getItemIcon(item.itemId);
+    const itemName = this.getItemName(item.itemId);
+
+    itemElement.innerHTML = `
+      <div class="shop-item-icon">${itemIcon}</div>
+      <div class="shop-item-name">${itemName}</div>
+      <div class="shop-item-price">${item.buyPrice}₽</div>
+      ${this.getStockDisplay(item.stock)}
+    `;
+
+    if (isAvailable) {
+      itemElement.addEventListener('click', () => {
+        this.selectItem(item, itemElement);
+      });
+    }
+
+    // Animation d'apparition
+    setTimeout(() => {
+      itemElement.classList.add('new');
+    }, index * 50);
+
+    return itemElement;
   }
-  
-  const itemElement = document.createElement('div');
-  itemElement.className = 'shop-item';
-  itemElement.dataset.itemId = item.itemId;
-  itemElement.dataset.index = index;
-
-  // Vérifier la disponibilité
-  const canAfford = this.playerGold >= item.buyPrice;
-  const inStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
-  const isAvailable = canAfford && inStock;
-
-  if (!isAvailable) {
-    itemElement.classList.add('unavailable');
-  }
-
-  if (item.stock === 0) {
-    itemElement.classList.add('out-of-stock');
-  }
-
-  const itemIcon = this.getItemIcon(item.itemId);
-  const itemName = this.getItemName(item.itemId);
-
-  itemElement.innerHTML = `
-    <div class="shop-item-icon">${itemIcon}</div>
-    <div class="shop-item-name">${itemName}</div>
-    <div class="shop-item-price">${item.buyPrice}₽</div>
-    ${this.getStockDisplay(item.stock)}
-  `;
-
-  if (isAvailable) {
-    itemElement.addEventListener('click', () => {
-      this.selectItem(item, itemElement);
-    });
-  }
-
-  // Animation d'apparition
-  setTimeout(() => {
-    itemElement.classList.add('new');
-  }, index * 50);
-
-  return itemElement;
-}
 
   createSellItemElement(item, index) {
     const itemElement = document.createElement('div');
@@ -1169,4 +1135,4 @@ createBuyItemElement(item, index) {
     
     console.log('🏪 ShopUI détruit');
   }
-   }
+}
