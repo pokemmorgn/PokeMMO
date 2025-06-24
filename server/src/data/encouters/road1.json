@@ -1,0 +1,72 @@
+{
+  "zone": "road1",
+  "encounters": {
+    "grass": {
+      "day": [
+        { "species": "Pidgey", "level_range": [3, 5], "chance": 25 },
+        { "species": "Rattata", "level_range": [3, 5], "chance": 20 },
+        { "species": "Caterpie", "level_range": [2, 4], "chance": 15 },
+        { "species": "Weedle", "level_range": [2, 4], "chance": 15 },
+        { "species": "Oddish", "level_range": [4, 6], "chance": 15 },
+        { "species": "Bellsprout", "level_range": [4, 6], "chance": 10 }
+      ],
+      "night": [
+        { "species": "Zubat", "level_range": [3, 5], "chance": 40 },
+        { "species": "Gastly", "level_range": [4, 6], "chance": 25 },
+        { "species": "Oddish", "level_range": [4, 6], "chance": 20 },
+        { "species": "Pikachu", "level_range": [5, 6], "chance": 10 },
+        { "species": "Rattata", "level_range": [3, 5], "chance": 5 }
+      ],
+      "rain": [
+        { "species": "Axoloto", "level_range": [4, 6], "chance": 25 },
+        { "species": "Oddish", "level_range": [4, 6], "chance": 20 },
+        { "species": "Pidgey", "level_range": [3, 5], "chance": 15 },
+        { "species": "Caterpie", "level_range": [2, 4], "chance": 10 },
+        { "species": "Weedle", "level_range": [2, 4], "chance": 10 },
+        { "species": "Rattata", "level_range": [3, 5], "chance": 10 },
+        { "species": "Pikachu", "level_range": [5, 6], "chance": 10 }
+      ]
+    },
+    "fishing": {
+      "calm_water": {
+        "day": [
+          { "species": "Magikarp", "level_range": [5, 10], "chance": 70 },
+          { "species": "Loupio", "level_range": [5, 7], "chance": 15 },
+          { "species": "Axoloto", "level_range": [6, 8], "chance": 10 },
+          { "species": "Poissirene", "level_range": [5, 8], "chance": 5 }
+        ],
+        "night": [
+          { "species": "Magikarp", "level_range": [5, 10], "chance": 60 },
+          { "species": "Loupio", "level_range": [6, 8], "chance": 20 },
+          { "species": "Axoloto", "level_range": [7, 9], "chance": 15 },
+          { "species": "Poissirene", "level_range": [5, 8], "chance": 5 }
+        ],
+        "rain": [
+          { "species": "Axoloto", "level_range": [6, 10], "chance": 30 },
+          { "species": "Magikarp", "level_range": [5, 10], "chance": 50 },
+          { "species": "Loupio", "level_range": [6, 8], "chance": 15 },
+          { "species": "Poissirene", "level_range": [5, 8], "chance": 5 }
+        ]
+      }
+    },
+    "held_items": [
+      {
+        "species": "Pidgey",
+        "item": "Oran Berry",
+        "chance": 5
+      },
+      {
+        "species": "Rattata",
+        "item": "Oran Berry",
+        "chance": 3
+      }
+    ],
+    "conditions": {
+      "spawn_condition": "day",
+      "shiny_rate_modifier": 1.0,
+      "nature": "random",
+      "gender_ratio": "default",
+      "experience_yield": "scaled"
+    }
+  }
+}
