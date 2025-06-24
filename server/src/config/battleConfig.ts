@@ -1,4 +1,12 @@
 // server/src/config/battleConfig.ts
+
+// ================================================================================================
+// TYPES ET INTERFACES
+// ================================================================================================
+type PokemonType = 'Normal' | 'Fighting' | 'Poison' | 'Ground' | 'Electric' | 'Psychic' | 
+                   'Fire' | 'Water' | 'Grass' | 'Ice' | 'Flying' | 'Bug' | 'Rock' | 'Ghost' | 
+                   'Dragon' | 'Dark' | 'Steel';
+
 export const BATTLE_CONFIG = {
   // ================================================================================================
   // TEMPS ET LIMITES
@@ -392,19 +400,19 @@ export class BattleConfigUtils {
    */
   static getTypeEffectiveness(attackType: string, defendType: string): number {
     // Vérifier immunité
-    const immunities = BATTLE_CONFIG.TYPE_EFFECTIVENESS.IMMUNITIES[attackType];
+    const immunities = BATTLE_CONFIG.TYPE_EFFECTIVENESS.IMMUNITIES[attackType as PokemonType];
     if (immunities && immunities.includes(defendType)) {
       return 0;
     }
 
     // Vérifier super efficace
-    const superEffective = BATTLE_CONFIG.TYPE_EFFECTIVENESS.SUPER_EFFECTIVE[attackType];
+    const superEffective = BATTLE_CONFIG.TYPE_EFFECTIVENESS.SUPER_EFFECTIVE[attackType as PokemonType];
     if (superEffective && superEffective.includes(defendType)) {
       return 2.0;
     }
 
     // Vérifier peu efficace
-    const notVeryEffective = BATTLE_CONFIG.TYPE_EFFECTIVENESS.NOT_VERY_EFFECTIVE[attackType];
+    const notVeryEffective = BATTLE_CONFIG.TYPE_EFFECTIVENESS.NOT_VERY_EFFECTIVE[attackType as PokemonType];
     if (notVeryEffective && notVeryEffective.includes(defendType)) {
       return 0.5;
     }
