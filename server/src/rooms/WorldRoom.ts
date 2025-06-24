@@ -314,6 +314,15 @@ console.log(`✅ EncounterManager initialisé`);
       this.handlePlayerMove(client, data);
     });
 
+    // Handler PING pour garder la connexion active (heartbeat)
+this.onMessage("ping", (client, data) => {
+  // Optionnel : tu peux répondre par un "pong" si tu veux (pas obligatoire)
+  // client.send("pong");
+  // Simple log, mais surtout ça évite l'erreur
+  // console.log(`[WorldRoom] Ping reçu de ${client.sessionId}`);
+});
+
+    
     // ✅ HANDLER MANQUANT - Transition entre zones (ancien système)
     this.onMessage("moveToZone", async (client, data) => {
       console.log(`🌀 === MOVE TO ZONE REQUEST (ANCIEN SYSTÈME) ===`);
