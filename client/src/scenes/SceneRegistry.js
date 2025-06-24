@@ -114,11 +114,44 @@ export class SceneRegistry {
   getSceneKey(zoneName) {
     const mapping = {
       'beach': 'BeachScene',
-      'village': 'VillageScene', 
-      'villagelab': 'VillageLabScene',
-      'road1': 'Road1Scene',
-      'villagehouse1': 'VillageHouse1Scene',
-      'lavandia': 'LavandiaScene'
+    'village': 'VillageScene',
+    'villagelab': 'VillageLabScene',
+    'road1': 'Road1Scene',
+    'villagehouse1': 'VillageHouse1Scene',
+    'lavandia': 'LavandiaScene',
+    
+    // Zones Lavandia
+    'lavandiaanalysis': 'LavandiaAnalysisScene',
+    'lavandiabossroom': 'LavandiaBossRoomScene',
+    'lavandiacelibitemple': 'LavandiaCelebiTempleScene',
+    'lavandiaequipement': 'LavandiaEquipementScene',
+    'lavandiafurniture': 'LavandiaFurnitureScene',
+    'lavandiahealingcenter': 'LavandiaHealingCenterScene',
+    'lavandiahouse1': 'LavandiaHouse1Scene',
+    'lavandiahouse2': 'LavandiaHouse2Scene',
+    'lavandiahouse3': 'LavandiaHouse3Scene',
+    'lavandiahouse4': 'LavandiaHouse4Scene',
+    'lavandiahouse5': 'LavandiaHouse5Scene',
+    'lavandiahouse6': 'LavandiaHouse6Scene',
+    'lavandiahouse7': 'LavandiaHouse7Scene',
+    'lavandiahouse8': 'LavandiaHouse8Scene',
+    'lavandiahouse9': 'LavandiaHouse9Scene',
+    'lavandiaresearchlab': 'LavandiaResearchLabScene',
+    'lavandiashop': 'LavandiaShopScene',
+    
+    // Zones Village supplémentaires
+    'villageflorist': 'VillageFloristScene',
+    'villagehouse2': 'VillageHouse2Scene',
+    
+    // Zones Road
+    'road1house': 'Road1HouseScene',
+    'road2': 'Road2Scene',
+    'road3': 'Road3Scene',
+    
+    // Zones Nocther Cave
+    'nocthercave1': 'NoctherCave1Scene',
+    'nocthercave2': 'NoctherCave2Scene',
+    'nocthercave2bis': 'NoctherCave2BisScene'
     };
     return mapping[zoneName] || `${zoneName}Scene`;
   }
