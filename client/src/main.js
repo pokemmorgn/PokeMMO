@@ -8,6 +8,7 @@ import { Road1Scene } from './scenes/zones/Road1Scene.js';
 import { VillageLabScene } from './scenes/zones/VillageLabScene.js';
 import { VillageHouse1Scene } from './scenes/zones/VillageHouse1Scene.js';
 import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
+import { SceneRegistry } from './scenes/SceneRegistry.js';
 import { TimeService } from './services/TimeService.js';
 import { LavandiaAnalysisScene } from './scenes/zones/LavandiaAnalysisScene.js';
 import { LavandiaBossRoomScene } from './scenes/zones/LavandiaBossRoomScene.js';
