@@ -377,12 +377,31 @@ private handleTransitionRequest(client: Client, request: TransitionRequest) {
 // ✅ AJOUTER cette méthode helper
 private mapZoneToRoom(zoneName: string): string {
   const mapping: Record<string, string> = {
-    'beach': 'BeachRoom',
+     'beach': 'BeachRoom',
     'village': 'VillageRoom', 
     'villagelab': 'VillageLabRoom',
     'road1': 'Road1Room',
     'villagehouse1': 'VillageHouse1Room',
-    'lavandia': 'LavandiaRoom'
+    'lavandia': 'LavandiaRoom',
+
+    // 🔄 Ajouts Lavandia
+    'lavandiaanalysis': 'LavandiaAnalysisRoom',
+    'lavandiabossroom': 'LavandiaBossRoomRoom',
+    'lavandiacelibitemple': 'LavandiaCelebiTempleRoom',
+    'lavandiaequipement': 'LavandiaEquipementRoom',
+    'lavandiafurniture': 'LavandiaFurnitureRoom',
+    'lavandiahealingcenter': 'LavandiaHealingCenterRoom',
+    'lavandiahouse1': 'LavandiaHouse1Room',
+    'lavandiahouse2': 'LavandiaHouse2Room',
+    'lavandiahouse3': 'LavandiaHouse3Room',
+    'lavandiahouse4': 'LavandiaHouse4Room',
+    'lavandiahouse5': 'LavandiaHouse5Room',
+    'lavandiahouse6': 'LavandiaHouse6Room',
+    'lavandiahouse7': 'LavandiaHouse7Room',
+    'lavandiahouse8': 'LavandiaHouse8Room',
+    'lavandiahouse9': 'LavandiaHouse9Room',
+    'lavandiaresearchlab': 'LavandiaResearchLabRoom',
+    'lavandiashop': 'LavandiaShopRoom'
   };
   
   return mapping[zoneName.toLowerCase()] || zoneName + 'Room';
