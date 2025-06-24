@@ -1653,7 +1653,8 @@ getItemDescription(itemId) {
       // Empty items are always displayed
       if (item.isEmpty) return true;
       // Other items must be buyable and unlocked
-      return item.canBuy && item.unlocked;
+     // return item.canBuy && item.unlocked;
+      return item.canBuy; // Ignorer unlocked temporairement
     });
 
     if (availableItems.length === 0) {
