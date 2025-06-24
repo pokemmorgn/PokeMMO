@@ -63,6 +63,125 @@
       "vipOnly": false,
       "description": "Ville mystérieuse aux tours fantômes",
       "fixedSpawn": { "x": 300, "y": 300 }
+    },
+    "lavandiaanalysis": {
+      "name": "lavandiaanalysis",
+      "displayName": "Centre d'Analyse de Lavandia",
+      "minLevel": 1,
+      "description": "Centre d'analyse et de recherche Pokémon",
+      "fixedSpawn": { "x": 200, "y": 200 }
+    },
+    "lavandiabossroom": {
+      "name": "lavandiabossroom",
+      "displayName": "Salle du Boss de Lavandia",
+      "minLevel": 1,
+      "description": "Salle de combat du champion de Lavandia",
+      "fixedSpawn": { "x": 400, "y": 300 }
+    },
+    "lavandiacelibitemple": {
+      "name": "lavandiacelibitemple",
+      "displayName": "Temple de Celebi",
+      "minLevel": 1,
+      "description": "Temple mystique dédié à Celebi",
+      "fixedSpawn": { "x": 300, "y": 400 }
+    },
+    "lavandiaequipement": {
+      "name": "lavandiaequipement",
+      "displayName": "Magasin d'Équipement",
+      "minLevel": 1,
+      "description": "Boutique d'équipements pour dresseurs",
+      "fixedSpawn": { "x": 250, "y": 250 }
+    },
+    "lavandiafurniture": {
+      "name": "lavandiafurniture",
+      "displayName": "Magasin de Meubles",
+      "minLevel": 1,
+      "description": "Boutique de mobilier et décoration",
+      "fixedSpawn": { "x": 350, "y": 250 }
+    },
+    "lavandiahealingcenter": {
+      "name": "lavandiahealingcenter",
+      "displayName": "Centre de Soins Pokémon",
+      "minLevel": 1,
+      "description": "Centre de soins pour Pokémon blessés",
+      "fixedSpawn": { "x": 300, "y": 350 }
+    },
+    "lavandiahouse1": {
+      "name": "lavandiahouse1",
+      "displayName": "Maison 1 de Lavandia",
+      "minLevel": 1,
+      "description": "Maison d'habitant de Lavandia",
+      "fixedSpawn": { "x": 200, "y": 300 }
+    },
+    "lavandiahouse2": {
+      "name": "lavandiahouse2",
+      "displayName": "Maison 2 de Lavandia",
+      "minLevel": 1,
+      "description": "Maison d'habitant de Lavandia",
+      "fixedSpawn": { "x": 220, "y": 320 }
+    },
+    "lavandiahouse3": {
+      "name": "lavandiahouse3",
+      "displayName": "Maison 3 de Lavandia",
+      "minLevel": 1,
+      "description": "Maison d'habitant de Lavandia",
+      "fixedSpawn": { "x": 240, "y": 340 }
+    },
+    "lavandiahouse4": {
+      "name": "lavandiahouse4",
+      "displayName": "Maison 4 de Lavandia",
+      "minLevel": 1,
+      "description": "Maison d'habitant de Lavandia",
+      "fixedSpawn": { "x": 260, "y": 360 }
+    },
+    "lavandiahouse5": {
+      "name": "lavandiahouse5",
+      "displayName": "Maison 5 de Lavandia",
+      "minLevel": 1,
+      "description": "Maison d'habitant de Lavandia",
+      "fixedSpawn": { "x": 280, "y": 380 }
+    },
+    "lavandiahouse6": {
+      "name": "lavandiahouse6",
+      "displayName": "Maison 6 de Lavandia",
+      "minLevel": 1,
+      "description": "Maison d'habitant de Lavandia",
+      "fixedSpawn": { "x": 300, "y": 400 }
+    },
+    "lavandiahouse7": {
+      "name": "lavandiahouse7",
+      "displayName": "Maison 7 de Lavandia",
+      "minLevel": 1,
+      "description": "Maison d'habitant de Lavandia",
+      "fixedSpawn": { "x": 320, "y": 280 }
+    },
+    "lavandiahouse9": {
+      "name": "lavandiahouse9",
+      "displayName": "Maison 9 de Lavandia",
+      "minLevel": 1,
+      "description": "Maison d'habitant de Lavandia",
+      "fixedSpawn": { "x": 340, "y": 300 }
+    },
+    "lavandiaresearchlab": {
+      "name": "lavandiaresearchlab",
+      "displayName": "Laboratoire de Recherche",
+      "minLevel": 1,
+      "description": "Laboratoire de recherche avancée sur les Pokémon",
+      "fixedSpawn": { "x": 380, "y": 220 }
+    },
+    "lavandiahouse8": {
+      "name": "lavandiahouse8",
+      "displayName": "Maison 8 de Lavandia",
+      "minLevel": 1,
+      "description": "Maison d'habitant de Lavandia",
+      "fixedSpawn": { "x": 360, "y": 260 }
+    },
+    "lavandiashop": {
+      "name": "lavandiashop",
+      "displayName": "Magasin de Lavandia",
+      "minLevel": 1,
+      "description": "Magasin général de la ville",
+      "fixedSpawn": { "x": 360, "y": 320 }
     }
   },
   "rules": [
@@ -247,6 +366,414 @@
         "failure": "Cette téléportation spéciale n'est disponible que le weekend"
       },
       "enabled": false
+    },
+    {
+      "id": "lavandia_to_analysis",
+      "name": "Lavandia vers Centre d'Analyse",
+      "description": "Accès au centre d'analyse",
+      "fromZone": "lavandia",
+      "toZone": "lavandiaanalysis",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "analysis_to_lavandia",
+      "name": "Centre d'Analyse vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiaanalysis",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_bossroom",
+      "name": "Lavandia vers Salle du Boss",
+      "description": "Accès à la salle du boss",
+      "fromZone": "lavandia",
+      "toZone": "lavandiabossroom",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "bossroom_to_lavandia",
+      "name": "Salle du Boss vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiabossroom",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_celebitemple",
+      "name": "Lavandia vers Temple de Celebi",
+      "description": "Accès au temple de Celebi",
+      "fromZone": "lavandia",
+      "toZone": "lavandiacelibitemple",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "celebitemple_to_lavandia",
+      "name": "Temple de Celebi vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiacelibitemple",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_equipement",
+      "name": "Lavandia vers Magasin d'Équipement",
+      "description": "Accès au magasin d'équipement",
+      "fromZone": "lavandia",
+      "toZone": "lavandiaequipement",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "equipement_to_lavandia",
+      "name": "Magasin d'Équipement vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiaequipement",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_furniture",
+      "name": "Lavandia vers Magasin de Meubles",
+      "description": "Accès au magasin de meubles",
+      "fromZone": "lavandia",
+      "toZone": "lavandiafurniture",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "furniture_to_lavandia",
+      "name": "Magasin de Meubles vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiafurniture",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_healingcenter",
+      "name": "Lavandia vers Centre de Soins",
+      "description": "Accès au centre de soins",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahealingcenter",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "healingcenter_to_lavandia",
+      "name": "Centre de Soins vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahealingcenter",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house1",
+      "name": "Lavandia vers Maison 1",
+      "description": "Accès à la maison 1",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse1",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house1_to_lavandia",
+      "name": "Maison 1 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse1",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house2",
+      "name": "Lavandia vers Maison 2",
+      "description": "Accès à la maison 2",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse2",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house2_to_lavandia",
+      "name": "Maison 2 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse2",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house3",
+      "name": "Lavandia vers Maison 3",
+      "description": "Accès à la maison 3",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse3",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house3_to_lavandia",
+      "name": "Maison 3 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse3",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house4",
+      "name": "Lavandia vers Maison 4",
+      "description": "Accès à la maison 4",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse4",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house4_to_lavandia",
+      "name": "Maison 4 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse4",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house5",
+      "name": "Lavandia vers Maison 5",
+      "description": "Accès à la maison 5",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse5",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house5_to_lavandia",
+      "name": "Maison 5 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse5",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house6",
+      "name": "Lavandia vers Maison 6",
+      "description": "Accès à la maison 6",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse6",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house6_to_lavandia",
+      "name": "Maison 6 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse6",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house7",
+      "name": "Lavandia vers Maison 7",
+      "description": "Accès à la maison 7",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse7",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house7_to_lavandia",
+      "name": "Maison 7 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse7",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house8",
+      "name": "Lavandia vers Maison 8",
+      "description": "Accès à la maison 8",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse8",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house8_to_lavandia",
+      "name": "Maison 8 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse8",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house9",
+      "name": "Lavandia vers Maison 9",
+      "description": "Accès à la maison 9",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse9",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house9_to_lavandia",
+      "name": "Maison 9 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse9",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_researchlab",
+      "name": "Lavandia vers Laboratoire de Recherche",
+      "description": "Accès au laboratoire de recherche",
+      "fromZone": "lavandia",
+      "toZone": "lavandiaresearchlab",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "researchlab_to_lavandia",
+      "name": "Laboratoire de Recherche vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiaresearchlab",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_shop",
+      "name": "Lavandia vers Magasin",
+      "description": "Accès au magasin",
+      "fromZone": "lavandia",
+      "toZone": "lavandiashop",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "shop_to_lavandia",
+      "name": "Magasin vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiashop",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
     }
   ],
   "emergencyOverride": {
@@ -260,7 +787,8 @@
       "Suppression complète du système targetSpawn",
       "Utilisation de coordonnées fixes définies dans calculateFixedSpawnPosition()",
       "Les positions de spawn sont déterminées par la zone de destination et d'origine",
-      "Plus besoin d'objets spawn dans les maps Tiled"
+      "Plus besoin d'objets spawn dans les maps Tiled",
+      "Ajout de toutes les zones de Lavandia avec accès libre niveau 1"
     ]
   }
 }
