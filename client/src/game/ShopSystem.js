@@ -1,4 +1,5 @@
-// client/src/game/ShopSystem.js - Système de gestion des shops côté client - VERSION CORRIGÉE
+// client/src/game/ShopSystem.js - FIX SHOP OPENING
+// ✅ Correction des verrous et amélioration du debugging
 
 import { ShopUI } from '../components/ShopUI.js';
 
@@ -10,8 +11,8 @@ export class ShopSystem {
     this.currentShopId = null;
     this.currentNpcId = null;
 
-    // ✅ NOUVEAUX VERROUS
-    this.isOpeningShop = false;
+    // ✅ VERROUS SIMPLIFIÉS
+    this.lastOpenAttempt = 0;
     
     // ✅ Référence au NotificationManager
     this.notificationManager = window.NotificationManager;
@@ -58,12 +59,8 @@ export class ShopSystem {
 
     console.log("📡 Configuration des listeners serveur pour ShopSystem");
 
-    // ✅ Écouter les interactions NPC qui sont des marchands
-    this.gameRoom.onMessage("npcInteractionResult", (data) => {
-      if (data.type === "shop") {
-        this.handleShopNpcInteraction(data);
-      }
-    });
+    // ✅ SUPPRIMÉ: Listener "npcInteractionResult" - maintenant géré par InteractionManager
+    // L'InteractionManager appelle directement handleShopNpcInteraction()
 
     // ✅ Résultats de transaction shop
     this.gameRoom.onMessage("shopTransactionResult", (data) => {
@@ -90,12 +87,18 @@ export class ShopSystem {
     });
   }
 
-  // ✅ GESTION DES INTERACTIONS NPC MARCHAND - VERSION CORRIGÉE
+  // ✅ GESTION DES INTERACTIONS NPC MARCHAND - VERSION SIMPLIFIÉE
   handleShopNpcInteraction(data) {
-    console.log(`🏪 Interaction avec NPC marchand:`, data);
+    console.log(`🏪 [ShopSystem] === HANDLE SHOP NPC INTERACTION ===`);
+    console.log(`📊 Data reçue:`, data);
 
-    // ✅ NOUVEAU: Réinitialiser les verrous
-    this.isOpeningShop = false;
+    // ✅ VERROU SIMPLE : éviter les appels trop rapprochés
+    const now = Date.now();
+    if (now - this.lastOpenAttempt < 500) {
+      console.warn(`⚠️ [ShopSystem] Tentative d'ouverture trop rapide, ignoré`);
+      return;
+    }
+    this.lastOpenAttempt = now;
 
     try {
       // Extraire les données importantes
@@ -145,35 +148,31 @@ export class ShopSystem {
         this.playerGold = shopData.playerGold;
       }
 
-      // ✅ OUVRIR LE SHOP AVEC FORCE
-      console.log(`🚀 FORCER ouverture shop: ${shopId} pour ${npc.name}`);
-      const success = this.forceOpenShop(shopId, npc, shopData);
+      // ✅ OUVERTURE SIMPLE ET DIRECTE
+      console.log(`🚀 [ShopSystem] Ouverture shop: ${shopId} pour ${npc.name}`);
+      const success = this.directOpenShop(shopId, npc, shopData);
       
       if (success) {
         // Notification de succès
         this.showInfo(`Bienvenue chez ${npc.name} !`);
       } else {
-        console.error('❌ Échec ouverture forcée shop');
+        console.error('❌ Échec ouverture shop');
         this.showError('Impossible d\'ouvrir le shop');
       }
       
     } catch (error) {
       console.error('❌ Erreur handleShopNpcInteraction:', error);
+      console.error('Stack trace:', error.stack);
       this.showError(`Erreur shop: ${error.message}`);
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Force Open Shop - CONTOURNE TOUS LES PROBLÈMES
-  forceOpenShop(shopId, npc, shopData = null) {
-    console.log(`💪 [ShopSystem] === OUVERTURE FORCÉE ===`);
+  // ✅ NOUVELLE MÉTHODE: Ouverture directe sans verrous complexes
+  directOpenShop(shopId, npc, shopData = null) {
+    console.log(`🚪 [ShopSystem] === OUVERTURE DIRECTE ===`);
     console.log(`🎯 Shop: ${shopId}`);
     console.log(`🎭 NPC:`, npc);
-    
-    // ✅ RESET complet de l'état
-    this.isOpeningShop = false;
-    if (this.shopUI) {
-      this.shopUI.isProcessingCatalog = false;
-    }
+    console.log(`📦 ShopData disponible:`, !!shopData);
 
     // ✅ Vérifier l'UI
     if (!this.shopUI) {
@@ -186,10 +185,34 @@ export class ShopSystem {
       if (this.isShopOpen()) {
         console.log('🔄 Shop déjà ouvert, fermeture forcée...');
         this.shopUI.hide();
+        // Petit délai pour s'assurer que la fermeture est effective
+        setTimeout(() => this.continueOpening(shopId, npc, shopData), 100);
+        return true;
+      } else {
+        return this.continueOpening(shopId, npc, shopData);
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur ouverture directe:', error);
+      this.showError(`Erreur technique: ${error.message}`);
+      return false;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Continuer l'ouverture
+  continueOpening(shopId, npc, shopData) {
+    console.log(`▶️ [ShopSystem] Continuation ouverture...`);
+    
+    try {
+      // ✅ RESET complet de l'état du ShopUI
+      if (this.shopUI) {
+        this.shopUI.isProcessingCatalog = false;
+        this.shopUI.selectedItem = null;
+        this.shopUI.shopData = null;
       }
 
       // ✅ OUVERTURE DIRECTE
-      console.log(`🚪 Ouverture directe de l'interface...`);
+      console.log(`🚪 Ouverture interface shop...`);
       this.shopUI.show(shopId, npc);
 
       // ✅ INJECTION IMMÉDIATE DES DONNÉES si disponibles
@@ -203,8 +226,13 @@ export class ShopSystem {
           playerGold: this.playerGold || 0
         };
         
-        // Forcer le traitement
-        this.shopUI.handleShopCatalog(catalogData);
+        // Forcer le traitement avec un petit délai pour s'assurer que l'UI est prête
+        setTimeout(() => {
+          if (this.shopUI && this.shopUI.isVisible) {
+            this.shopUI.handleShopCatalog(catalogData);
+            console.log('✅ Données injectées avec succès');
+          }
+        }, 50);
       }
 
       // ✅ Jouer son d'ouverture
@@ -213,76 +241,13 @@ export class ShopSystem {
       // ✅ Mettre à jour l'état global
       this.updateGlobalUIState(true);
 
-      console.log('✅ Ouverture forcée réussie!');
+      console.log('✅ Ouverture réussie!');
       return true;
 
     } catch (error) {
-      console.error('❌ Erreur ouverture forcée:', error);
-      this.showError(`Erreur technique: ${error.message}`);
+      console.error('❌ Erreur continuation ouverture:', error);
       return false;
     }
-  }
-
-  // ✅ OUVERTURE DE SHOP - VERSION CORRIGÉE
-  openShop(shopId, npc = { name: "Marchand" }, shopData = null) {
-    // ✅ CORRECTION: Verrou pour éviter les ouvertures multiples
-    if (this.isOpeningShop) {
-      console.warn("🏪 Ouverture shop déjà en cours, ignoré");
-      return false;
-    }
-    
-    if (this.isShopOpen()) {
-      console.warn("🏪 Un shop est déjà ouvert");
-      return false;
-    }
-
-    this.isOpeningShop = true;
-
-    console.log(`🏪 Ouverture du shop: ${shopId} (${npc.name})`);
-
-    // Vérifier que le joueur peut interagir
-    if (!this.canPlayerInteract()) {
-      this.showWarning("Impossible d'ouvrir le shop maintenant");
-      this.isOpeningShop = false;
-      return false;
-    }
-
-    if (!this.shopUI) {
-      this.showError("Interface de shop non disponible");
-      this.isOpeningShop = false;
-      return false;
-    }
-
-    // Enrichir les données NPC si possible
-    if (!npc.sprite || !npc.portrait) {
-      const fullNpc = window.npcManager?.getNpcData?.(npc.id || this.currentNpcId);
-      if (fullNpc) Object.assign(npc, fullNpc);
-    }
-
-    // Ouvrir l'interface avec l'objet NPC complet
-    this.shopUI.show(shopId, npc);
-
-    // Si on a déjà les données du shop, les utiliser
-    if (shopData) {
-      this.shopUI.handleShopCatalog({
-        success: true,
-        catalog: shopData,
-        playerGold: this.getPlayerGold()
-      });
-    }
-
-    // ✅ Jouer un son d'ouverture
-    this.playSound('shop_open');
-
-    // ✅ Mettre à jour l'état global
-    this.updateGlobalUIState(true);
-
-    // ✅ Libérer le verrou après un délai
-    setTimeout(() => {
-      this.isOpeningShop = false;
-    }, 1000);
-
-    return true;
   }
 
   // ✅ FERMETURE DE SHOP
@@ -930,7 +895,7 @@ export class ShopSystem {
     console.log('  - NPC ID:', this.currentNpcId);
     console.log('  - Or du joueur:', this.getPlayerGold());
     console.log('  - Initialisé:', this.isInitialized);
-    console.log('  - Verrou ouverture:', this.isOpeningShop);
+    console.log('  - Dernière tentative:', Date.now() - this.lastOpenAttempt, 'ms ago');
     
     console.log('🖼️ SHOPUI:');
     if (this.shopUI) {
@@ -965,8 +930,8 @@ export class ShopSystem {
     
     console.log('🧪 TESTS DISPONIBLES:');
     console.log('  - window.forceOpenTestShop() - Test ouverture forcée');
-    console.log('  - window.shopSystem.forceOpenShop() - Méthode directe');
     console.log('  - window.shopSystem.debugShopState() - Ce debug');
+    console.log('  - window.shopSystem.directOpenShop() - Méthode directe');
     
     return {
       isOpen: this.isShopOpen(),
@@ -1030,11 +995,11 @@ export class ShopSystem {
   }
 }
 
-// ✅ FONCTIONS DE DEBUG GLOBALES
+// ✅ FONCTIONS DE DEBUG GLOBALES AMÉLIORÉES
 window.forceOpenTestShop = function() {
-  if (window.shopSystem && window.shopSystem.forceOpenShop) {
-    console.log('🧪 Test d\'ouverture forcée...');
-    window.shopSystem.forceOpenShop('test_shop', 
+  if (window.shopSystem && window.shopSystem.directOpenShop) {
+    console.log('🧪 Test d\'ouverture directe...');
+    window.shopSystem.directOpenShop('test_shop', 
       { name: 'Marchand Test', id: 'test_npc' }, 
       {
         shopInfo: { id: 'test_shop', name: 'Boutique Test' },
@@ -1059,6 +1024,30 @@ window.debugCompleteShop = function() {
   }
 };
 
+window.resetShopSystem = function() {
+  if (window.shopSystem) {
+    console.log('🔄 Reset ShopSystem...');
+    
+    // Fermer le shop si ouvert
+    if (window.shopSystem.isShopOpen()) {
+      window.shopSystem.closeShop();
+    }
+    
+    // Reset les verrous
+    window.shopSystem.lastOpenAttempt = 0;
+    
+    // Reset l'UI
+    if (window.shopSystem.shopUI) {
+      window.shopSystem.shopUI.isProcessingCatalog = false;
+      window.shopSystem.shopUI.selectedItem = null;
+      window.shopSystem.shopUI.shopData = null;
+    }
+    
+    console.log('✅ ShopSystem reseté');
+  }
+};
+
 console.log('✅ ShopSystem corrigé chargé!');
 console.log('🧪 Utilisez window.forceOpenTestShop() pour tester');
 console.log('🔍 Utilisez window.debugCompleteShop() pour diagnostiquer');
+console.log('🔄 Utilisez window.resetShopSystem() pour reset');
