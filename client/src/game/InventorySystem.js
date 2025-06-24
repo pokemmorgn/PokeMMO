@@ -1,5 +1,4 @@
-// client/src/game/InventorySystem.js - VERSION CORRIGÉE
-// ✅ Fix: Synchronisation avec shop, notifications améliorées, debugging
+// client/src/game/InventorySystem.js - Adaptations pour NotificationManager
 
 import { InventoryUI } from '../components/InventoryUI.js';
 import { InventoryIcon } from '../components/InventoryIcon.js';
@@ -11,237 +10,92 @@ export class InventorySystem {
     this.inventoryUI = null;
     this.inventoryIcon = null;
     
-    // ✅ Référence au NotificationManager
+    // ✅ NOUVEAU: Référence au NotificationManager
     this.notificationManager = window.NotificationManager;
-    
-    // ✅ NOUVEAU: État et synchronisation
-    this.lastSyncTime = 0;
-    this.pendingUpdates = [];
-    this.syncInProgress = false;
-    
-    // ✅ NOUVEAU: Monitoring et debug
-    this.inventoryHistory = [];
-    this.connectionState = {
-      isConnected: false,
-      lastUpdate: 0,
-      serverResponding: false
-    };
     
     this.init();
   }
 
   init() {
-    try {
-      console.log('🎒 Initialisation InventorySystem...');
-      
-      // Créer l'interface d'inventaire
-      this.inventoryUI = new InventoryUI(this.gameRoom);
-      
-      // Créer l'icône d'inventaire
-      this.inventoryIcon = new InventoryIcon(this.inventoryUI);
-      
-      // Configurer les interactions
-      this.setupInteractions();
-      
-      // ✅ NOUVEAU: Monitoring de connexion
-      this.startConnectionMonitoring();
-      
-      // Rendre accessible globalement
-      window.inventorySystem = this;
-      
-      console.log('✅ InventorySystem initialisé');
-      
-    } catch (error) {
-      console.error('❌ Erreur initialisation InventorySystem:', error);
-    }
+    // Créer l'interface d'inventaire
+    this.inventoryUI = new InventoryUI(this.gameRoom);
+    
+    // Créer l'icône d'inventaire
+    this.inventoryIcon = new InventoryIcon(this.inventoryUI);
+    
+    // Configurer les interactions entre les composants
+    this.setupInteractions();
+    
+    // Rendre le système accessible globalement
+    window.inventorySystem = this;
+    
+    console.log("🎒 Système d'inventaire initialisé avec NotificationManager");
   }
 
   setupInteractions() {
+    // Écouter les événements du serveur pour l'inventaire
     this.setupServerListeners();
+    
+    // Configurer les raccourcis clavier
     this.setupKeyboardShortcuts();
+    
+    // Intégrer avec les autres systèmes
     this.setupSystemIntegration();
-    this.setupShopIntegration();
   }
 
-  // ✅ FIX: Listeners serveur avec debug et monitoring
   setupServerListeners() {
-    if (!this.gameRoom) {
-      console.warn('❌ InventorySystem: Pas de gameRoom pour setup listeners');
-      return;
-    }
+    if (!this.gameRoom) return;
 
-    console.log('📡 InventorySystem: Configuration listeners serveur...');
-
-    // ✅ Données d'inventaire complètes
+    // Données d'inventaire complètes
     this.gameRoom.onMessage("inventoryData", (data) => {
-      console.log('🎒 InventorySystem: Données inventaire reçues:', data);
-      this.connectionState.serverResponding = true;
-      this.connectionState.lastUpdate = Date.now();
-      
       this.inventoryUI.updateInventoryData(data);
-      this.logInventoryChange('data_received', data);
     });
 
-    // ✅ Mises à jour d'inventaire avec sync shop
+    // ✅ NOUVEAU: Mises à jour d'inventaire avec NotificationManager
     this.gameRoom.onMessage("inventoryUpdate", (data) => {
-      console.log('🔄 InventorySystem: Update inventaire reçu:', data);
-      this.connectionState.serverResponding = true;
-      
       this.inventoryUI.handleInventoryUpdate(data);
       this.inventoryIcon.onInventoryUpdate(data);
       
-      // ✅ NOUVEAU: Sync avec shop si ouvert
-      this.syncWithShop(data);
-      
-      // ✅ Notification améliorée
+      // ✅ Notification via NotificationManager
       this.showInventoryNotification(data);
-      this.logInventoryChange('update_received', data);
     });
 
-    // ✅ Résultat d'utilisation d'objet
+    // ✅ NOUVEAU: Résultat d'utilisation d'objet
     this.gameRoom.onMessage("itemUseResult", (data) => {
-      console.log('🎯 InventorySystem: Résultat utilisation objet:', data);
       this.inventoryUI.handleItemUseResult(data);
       
       if (data.success) {
-        this.notificationManager?.inventory(
+        this.notificationManager.inventory(
           data.message || "Objet utilisé avec succès",
           { duration: 3000 }
         );
       } else {
-        this.notificationManager?.error(
+        this.notificationManager.error(
           data.message || "Impossible d'utiliser cet objet",
           { duration: 4000 }
         );
       }
     });
 
-    // ✅ Notification d'objet ramassé
+    // ✅ NOUVEAU: Notification d'objet ramassé
     this.gameRoom.onMessage("itemPickup", (data) => {
-      console.log('📦 InventorySystem: Objet ramassé:', data);
       this.showPickupNotification(data);
-      this.logInventoryChange('item_pickup', data);
     });
 
-    // ✅ Erreurs d'inventaire
+    // ✅ NOUVEAU: Erreurs d'inventaire
     this.gameRoom.onMessage("inventoryError", (data) => {
-      console.error('❌ InventorySystem: Erreur serveur:', data);
-      this.notificationManager?.error(data.message, { duration: 4000 });
+      this.notificationManager.error(data.message, { duration: 4000 });
     });
-
-    // ✅ NOUVEAU: Ping pour test connexion
-    this.gameRoom.onMessage("pong", (data) => {
-      this.connectionState.serverResponding = true;
-    });
-
-    console.log('✅ InventorySystem: Listeners configurés');
   }
 
-  // ✅ NOUVEAU: Monitoring de connexion
-  startConnectionMonitoring() {
-    if (this.connectionMonitorInterval) {
-      clearInterval(this.connectionMonitorInterval);
-    }
-
-    this.connectionMonitorInterval = setInterval(() => {
-      this.testServerConnection();
-    }, 15000); // Test toutes les 15 secondes
-
-    console.log('📡 InventorySystem: Monitoring démarré');
-  }
-
-  // ✅ NOUVEAU: Test de connexion serveur
-  testServerConnection() {
-    if (!this.gameRoom) {
-      this.connectionState.isConnected = false;
-      return;
-    }
-
-    try {
-      const now = Date.now();
-      this.connectionState.serverResponding = false;
-      
-      // Ping serveur
-      this.gameRoom.send("ping", { timestamp: now, source: 'inventory' });
-      
-      // Vérifier réponse dans 3 secondes
-      setTimeout(() => {
-        this.connectionState.isConnected = this.connectionState.serverResponding;
-        
-        if (!this.connectionState.isConnected) {
-          console.warn('⚠️ InventorySystem: Serveur ne répond pas');
-        }
-      }, 3000);
-      
-    } catch (error) {
-      console.error('❌ InventorySystem: Erreur test connexion:', error);
-      this.connectionState.isConnected = false;
-    }
-  }
-
-  // ✅ NOUVEAU: Synchronisation avec le shop
-  setupShopIntegration() {
-    console.log('🏪 InventorySystem: Configuration intégration shop...');
-    
-    // Écouter les ouvertures/fermetures de shop
-    this.shopSyncInterval = setInterval(() => {
-      this.checkShopSync();
-    }, 5000); // Vérifier toutes les 5 secondes
-  }
-
-  // ✅ NOUVEAU: Vérification sync shop
-  checkShopSync() {
-    if (window.shopSystem?.isShopOpen()) {
-      const shopUI = window.shopSystem.shopUI;
-      
-      // Si on est dans l'onglet vente, sync les objets vendables
-      if (shopUI?.currentTab === 'sell') {
-        const lastUpdate = this.connectionState.lastUpdate;
-        const timeSinceUpdate = Date.now() - lastUpdate;
-        
-        // Si update récent, rafraîchir le shop
-        if (timeSinceUpdate < 3000) {
-          console.log('🔄 InventorySystem: Sync avec shop (onglet vente)');
-          setTimeout(() => {
-            if (shopUI.refreshCurrentTab && typeof shopUI.refreshCurrentTab === 'function') {
-              shopUI.refreshCurrentTab();
-            }
-          }, 500);
-        }
-      }
-    }
-  }
-
-  // ✅ NOUVEAU: Sync avec shop lors d'update
-  syncWithShop(updateData) {
-    if (!window.shopSystem?.isShopOpen()) {
-      return; // Shop pas ouvert, pas besoin de sync
-    }
-
-    console.log('🏪 Sync inventaire → shop:', updateData);
-    
-    // Si le shop est ouvert et qu'on est dans l'onglet vente,
-    // et qu'on a un changement d'objet, rafraîchir
-    const shopUI = window.shopSystem.shopUI;
-    if (shopUI?.currentTab === 'sell' && updateData.itemId) {
-      setTimeout(() => {
-        if (shopUI.refreshCurrentTab) {
-          shopUI.refreshCurrentTab();
-        }
-      }, 200);
-    }
-  }
-
-  // ✅ FIX: Notifications d'inventaire améliorées
+  // ✅ NOUVELLE MÉTHODE: Notifications d'inventaire intelligentes
   showInventoryNotification(data) {
-    if (!this.notificationManager) return;
-
     const itemName = this.inventoryUI.getItemName(data.itemId);
     const isAdd = data.type === "add";
     const isRemove = data.type === "remove";
     
     if (isAdd) {
-      // ✅ Notification d'ajout avec click handler
+      // ✅ Notification d'ajout d'objet
       this.notificationManager.itemNotification(
         itemName,
         data.quantity,
@@ -250,12 +104,13 @@ export class InventorySystem {
           duration: 3000,
           position: 'bottom-right',
           onClick: () => {
+            // Ouvrir l'inventaire à la bonne poche
             this.openInventoryToPocket(data.pocket);
           }
         }
       );
       
-      // ✅ Effet spécial pour objets importants
+      // ✅ Effet spécial pour les objets rares/importants
       if (this.isImportantItem(data.itemId)) {
         setTimeout(() => {
           this.notificationManager.achievement(
@@ -270,7 +125,7 @@ export class InventorySystem {
       }
       
     } else if (isRemove) {
-      // ✅ Notification de perte/utilisation
+      // ✅ Notification de perte/utilisation d'objet (plus discrète)
       this.notificationManager.itemNotification(
         itemName,
         data.quantity,
@@ -283,88 +138,11 @@ export class InventorySystem {
     }
   }
 
-  // ✅ NOUVEAU: Log des changements pour debug
-  logInventoryChange(type, data) {
-    const logEntry = {
-      timestamp: new Date(),
-      type: type,
-      data: data,
-      shopOpen: window.shopSystem?.isShopOpen() || false,
-      connectionState: this.connectionState.isConnected
-    };
-    
-    this.inventoryHistory.push(logEntry);
-    
-    // Garder seulement les 30 derniers
-    if (this.inventoryHistory.length > 30) {
-      this.inventoryHistory = this.inventoryHistory.slice(-30);
-    }
-    
-    console.log(`📝 Inventaire loggé: ${type}`, logEntry);
-  }
-
-  // ✅ FIX: Demande de données avec retry
-  requestInventoryData() {
-    if (!this.gameRoom) {
-      console.warn('❌ InventorySystem: Pas de gameRoom pour demander données');
-      return;
-    }
-
-    console.log('📤 InventorySystem: Demande données inventaire...');
-    
-    try {
-      this.gameRoom.send("getInventory", { timestamp: Date.now() });
-      
-      // ✅ Retry si pas de réponse
-      const retryTimeout = setTimeout(() => {
-        if (Date.now() - this.connectionState.lastUpdate > 10000) {
-          console.warn('⚠️ InventorySystem: Pas de réponse, retry...');
-          if (this.gameRoom) {
-            this.gameRoom.send("getInventory", { timestamp: Date.now(), retry: true });
-          }
-        }
-      }, 5000);
-      
-      // Annuler retry si réponse reçue
-      const originalLastUpdate = this.connectionState.lastUpdate;
-      const checkForResponse = setInterval(() => {
-        if (this.connectionState.lastUpdate > originalLastUpdate) {
-          clearTimeout(retryTimeout);
-          clearInterval(checkForResponse);
-        }
-      }, 1000);
-      
-    } catch (error) {
-      console.error('❌ InventorySystem: Erreur demande données:', error);
-    }
-  }
-
-  // ✅ MÉTHODES EXISTANTES AMÉLIORÉES
-
-  onItemPickup(itemId, quantity = 1) {
-    this.showPickupNotification({ itemId, quantity });
-    this.inventoryIcon.showNewItemEffect();
-    
-    // ✅ NOUVEAU: Sync shop si ouvert
-    if (window.shopSystem?.isShopOpen()) {
-      setTimeout(() => {
-        const shopUI = window.shopSystem.shopUI;
-        if (shopUI?.currentTab === 'sell' && shopUI.refreshCurrentTab) {
-          shopUI.refreshCurrentTab();
-        }
-      }, 1000);
-    }
-    
-    // Déclencher événement quête
-    if (window.questSystem) {
-      window.questSystem.triggerCollectEvent(itemId, quantity);
-    }
-  }
-
+  // ✅ NOUVELLE MÉTHODE: Notification de ramassage
   showPickupNotification(data) {
     const itemName = this.inventoryUI.getItemName(data.itemId);
     
-    this.notificationManager?.itemNotification(
+    this.notificationManager.itemNotification(
       itemName,
       data.quantity,
       'obtained',
@@ -376,21 +154,189 @@ export class InventorySystem {
       }
     );
     
+    // Effet visuel sur l'icône
     this.inventoryIcon.showNewItemEffect();
   }
 
+  // ✅ NOUVELLE MÉTHODE: Déterminer si un objet est important
   isImportantItem(itemId) {
     const importantItems = [
-      'master_ball', 'town_map', 'bike_voucher', 'bicycle', 'exp_share',
-      'old_amber', 'dome_fossil', 'helix_fossil', 'poke_flute', 'silph_scope',
-      'max_potion', 'max_revive', 'rare_candy', 'sacred_ash'
+      'master_ball',
+      'town_map',
+      'bike_voucher',
+      'bicycle',
+      'exp_share',
+      'old_amber',
+      'dome_fossil',
+      'helix_fossil',
+      'poke_flute',
+      'silph_scope'
     ];
     return importantItems.includes(itemId);
   }
 
-  // ✅ Méthodes conservées avec améliorations mineures
+  // ✅ NOUVELLE MÉTHODE: Notification d'inventaire plein
+  onInventoryFull(pocketName) {
+    this.notificationManager.warning(
+      `Poche ${pocketName} pleine ! Impossible d'ajouter plus d'objets.`,
+      {
+        duration: 5000,
+        position: 'top-center',
+        onClick: () => this.openInventoryToPocket(pocketName)
+      }
+    );
+    
+    // Effet visuel sur l'icône
+    this.inventoryIcon.setTemporaryIcon('⚠️', 3000);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Notification d'objet important obtenu
+  onImportantItemObtained(itemId) {
+    const itemName = this.inventoryUI.getItemName(itemId);
+    
+    // ✅ Utiliser le système d'achievement
+    this.notificationManager.achievement(
+      `Objet important obtenu: ${itemName}!`,
+      {
+        duration: 8000,
+        bounce: true,
+        sound: true,
+        persistent: false,
+        onClick: () => this.openInventory()
+      }
+    );
+    
+    // Effet visuel marquant
+    this.inventoryIcon.setTemporaryIcon('⭐', 5000);
+  }
+
+  // === NOUVELLES MÉTHODES POUR DIFFÉRENTS TYPES DE NOTIFICATIONS ===
+
+  notifyItemCombined(item1, item2, result) {
+    this.notificationManager.success(
+      `${item1} + ${item2} = ${result}`,
+      {
+        duration: 4000,
+        type: 'inventory'
+      }
+    );
+  }
+
+  notifyItemExpired(itemName) {
+    this.notificationManager.warning(
+      `${itemName} a expiré`,
+      {
+        duration: 4000,
+        onClick: () => this.openInventory()
+      }
+    );
+  }
+
+  notifyLowItemCount(itemName, count) {
+    this.notificationManager.warning(
+      `Stock faible: ${itemName} (${count} restant)`,
+      {
+        duration: 3000,
+        position: 'bottom-left'
+      }
+    );
+  }
+
+  notifyAutoUse(itemName, effect) {
+    this.notificationManager.info(
+      `${itemName} utilisé automatiquement: ${effect}`,
+      {
+        duration: 3000,
+        type: 'inventory'
+      }
+    );
+  }
+
+  // === MÉTHODES POUR LES REPELS ET OBJETS SPÉCIAUX ===
+
+  notifyRepelActivated(repelType, steps) {
+    this.notificationManager.inventory(
+      `${repelType} activé pour ${steps} pas`,
+      {
+        duration: 4000,
+        position: 'top-center'
+      }
+    );
+  }
+
+  notifyRepelWearing() {
+    this.notificationManager.warning(
+      "L'effet du Repousse se dissipe...",
+      {
+        duration: 3000,
+        position: 'top-center'
+      }
+    );
+  }
+
+  notifyRepelExpired() {
+    this.notificationManager.error(
+      "L'effet du Repousse a pris fin",
+      {
+        duration: 3000,
+        position: 'top-center',
+        onClick: () => this.openInventoryToPocket('items')
+      }
+    );
+  }
+
+  // === MÉTHODES POUR LES POKÉ BALLS ===
+
+  notifyPokeBallUsed(ballType, result) {
+    const messages = {
+      success: `${ballType} : Pokémon capturé !`,
+      failed: `${ballType} : Le Pokémon s'est échappé`,
+      critical: `${ballType} : Capture critique !`
+    };
+
+    const types = {
+      success: 'success',
+      failed: 'warning',
+      critical: 'achievement'
+    };
+
+    this.notificationManager.show(
+      messages[result] || `${ballType} utilisé`,
+      {
+        type: types[result] || 'info',
+        duration: result === 'critical' ? 6000 : 4000,
+        bounce: result === 'critical',
+        sound: result === 'success' || result === 'critical'
+      }
+    );
+  }
+
+  // === MÉTHODES POUR LES OBJETS DE SOIN ===
+
+  notifyHealingItemUsed(itemName, pokemonName, effect) {
+    this.notificationManager.success(
+      `${pokemonName} soigné avec ${itemName}: ${effect}`,
+      {
+        duration: 4000,
+        type: 'inventory'
+      }
+    );
+  }
+
+  notifyStatusCured(pokemonName, status, itemName) {
+    this.notificationManager.success(
+      `${pokemonName}: ${status} guéri avec ${itemName}`,
+      {
+        duration: 4000
+      }
+    );
+  }
+
+  // === MÉTHODES CONSERVÉES ET ADAPTÉES ===
+
   setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
+      // Ne pas traiter les raccourcis si on ne peut pas interagir
       if (!this.canPlayerInteract()) return;
 
       switch (e.key.toLowerCase()) {
@@ -401,7 +347,8 @@ export class InventorySystem {
         case 'b':
           e.preventDefault();
           this.openInventoryToPocket('balls');
-          this.notificationManager?.info(
+          // ✅ Notification de raccourci
+          this.notificationManager.info(
             "Poche Poké Balls ouverte",
             { duration: 1500, position: 'bottom-center' }
           );
@@ -409,7 +356,8 @@ export class InventorySystem {
         case 'm':
           e.preventDefault();
           this.openInventoryToPocket('medicine');
-          this.notificationManager?.info(
+          // ✅ Notification de raccourci
+          this.notificationManager.info(
             "Poche Soins ouverte",
             { duration: 1500, position: 'bottom-center' }
           );
@@ -431,6 +379,7 @@ export class InventorySystem {
   setupSystemIntegration() {
     // Intégration avec le système de quêtes
     if (window.questSystem) {
+      // Écouter les événements de ramassage d'objets pour les quêtes
       this.gameRoom?.onMessage("inventoryUpdate", (data) => {
         if (data.type === 'add') {
           window.questSystem.triggerCollectEvent(data.itemId, data.quantity);
@@ -440,6 +389,7 @@ export class InventorySystem {
 
     // Intégration avec le chat
     if (typeof window.isChatFocused === 'function') {
+      // Désactiver l'inventaire quand le chat est actif
       setInterval(() => {
         const chatFocused = window.isChatFocused();
         this.inventoryIcon.setEnabled(!chatFocused);
@@ -447,7 +397,8 @@ export class InventorySystem {
     }
   }
 
-  // ✅ MÉTHODES PUBLIQUES CONSERVÉES
+  // === MÉTHODES PUBLIQUES INCHANGÉES ===
+
   toggleInventory() {
     if (this.inventoryUI) {
       this.inventoryUI.toggle();
@@ -478,17 +429,49 @@ export class InventorySystem {
 
   useItem(itemId, context = "field") {
     if (this.gameRoom) {
-      console.log(`🎯 InventorySystem: Utilisation objet ${itemId} (${context})`);
       this.gameRoom.send("useItem", {
         itemId: itemId,
-        context: context,
-        timestamp: Date.now()
+        context: context
       });
     }
   }
 
+  requestInventoryData() {
+    if (this.gameRoom) {
+      this.gameRoom.send("getInventory");
+    }
+  }
+
   canPlayerInteract() {
-    return this.inventoryUI?.canPlayerInteract() || true;
+    return this.inventoryUI.canPlayerInteract();
+  }
+
+  onItemPickup(itemId, quantity = 1) {
+    this.showPickupNotification({ itemId, quantity });
+    
+    // Effet visuel sur l'icône
+    this.inventoryIcon.showNewItemEffect();
+    
+    // Déclencher l'événement de quête si applicable
+    if (window.questSystem) {
+      window.questSystem.triggerCollectEvent(itemId, quantity);
+    }
+  }
+
+  canOpenMenus() {
+    return !this.isInventoryOpen() && this.canPlayerInteract();
+  }
+
+  // === MÉTHODES POUR L'UTILISATION AUTOMATIQUE ===
+
+  useItemAutomatically(itemId) {
+    this.useItem(itemId, "field");
+    
+    // ✅ Notification d'utilisation automatique
+    const itemName = this.inventoryUI.getItemName(itemId);
+    this.notifyAutoUse(itemName, "Utilisé automatiquement");
+    
+    console.log(`🎒 Utilisation automatique: ${itemId}`);
   }
 
   hasItem(itemId) {
@@ -511,195 +494,123 @@ export class InventorySystem {
     return 0;
   }
 
-  // ✅ NOUVELLES MÉTHODES DE DEBUG
+  // === MÉTHODES POUR LES COMBATS ===
 
-  debugInventoryState() {
-    console.log('🔍 === DEBUG INVENTORY SYSTEM STATE ===');
-    
-    const state = {
-      // Général
-      hasInventoryUI: !!this.inventoryUI,
-      hasInventoryIcon: !!this.inventoryIcon,
-      isOpen: this.isInventoryOpen(),
-      
-      // Connexion
-      connectionState: this.connectionState,
-      hasGameRoom: !!this.gameRoom,
-      
-      // Données
-      hasInventoryData: !!this.inventoryUI?.inventoryData,
-      dataLastUpdate: this.connectionState.lastUpdate,
-      timeSinceUpdate: Date.now() - this.connectionState.lastUpdate,
-      
-      // Intégration shop
-      shopOpen: window.shopSystem?.isShopOpen() || false,
-      shopTab: window.shopSystem?.shopUI?.currentTab,
-      
-      // Historique
-      historyCount: this.inventoryHistory.length,
-      lastAction: this.inventoryHistory[this.inventoryHistory.length - 1]
-    };
-    
-    console.log('📊 État inventaire:', state);
-    
-    // Stats des objets
-    if (this.inventoryUI?.inventoryData) {
-      const inventoryData = this.inventoryUI.inventoryData;
-      console.log('🎒 Contenu inventaire:');
-      
-      Object.entries(inventoryData).forEach(([pocketName, pocket]) => {
-        if (Array.isArray(pocket)) {
-          const totalItems = pocket.reduce((sum, item) => sum + item.quantity, 0);
-          const uniqueItems = pocket.length;
-          console.log(`  📋 ${pocketName}: ${uniqueItems} types, ${totalItems} total`);
-          
-          // Afficher quelques objets
-          pocket.slice(0, 3).forEach(item => {
-            console.log(`    - ${item.itemId}: ${item.quantity}`);
-          });
-        }
+  openBattleInventory() {
+    // TODO: Implémenter une version combat de l'inventaire
+    this.notificationManager.info(
+      "Mode combat de l'inventaire pas encore implémenté",
+      { duration: 3000 }
+    );
+  }
+
+  useBattleItem(itemId, targetPokemon = null) {
+    if (this.gameRoom) {
+      this.gameRoom.send("useBattleItem", {
+        itemId: itemId,
+        targetPokemon: targetPokemon,
+        context: "battle"
       });
     }
-    
-    return state;
   }
 
-  testInventoryConnection() {
-    console.log('🧪 === TEST CONNEXION INVENTAIRE ===');
+  // === MÉTHODES POUR LES POKÉ BALLS ===
+
+  getAvailablePokeBalls() {
+    const ballsData = this.inventoryUI.inventoryData.balls || [];
+    return ballsData.filter(ball => ball.quantity > 0);
+  }
+
+  usePokeBall(ballId) {
+    this.useBattleItem(ballId);
+  }
+
+  // === MÉTHODES POUR LES OBJETS DE SOIN ===
+
+  getHealingItems() {
+    const medicineData = this.inventoryUI.inventoryData.medicine || [];
+    return medicineData.filter(item => 
+      item.quantity > 0 && 
+      item.data && 
+      (item.data.heal_amount || item.data.status_cure)
+    );
+  }
+
+  useAutoHeal(pokemonHp, pokemonMaxHp) {
+    const healingItems = this.getHealingItems();
     
-    const tests = [
-      () => {
-        console.log('1. Test gameRoom...');
-        return !!this.gameRoom;
-      },
-      () => {
-        console.log('2. Test connexion serveur...');
-        this.testServerConnection();
-        return true; // Test async
-      },
-      () => {
-        console.log('3. Test demande données...');
-        this.requestInventoryData();
-        return true;
-      },
-      () => {
-        console.log('4. Test intégration shop...');
-        return window.shopSystem !== undefined;
-      }
-    ];
-    
-    const results = tests.map((test, index) => {
-      try {
-        const result = test();
-        console.log(`✅ Test ${index + 1}: ${result ? 'OK' : 'EN COURS'}`);
-        return result;
-      } catch (error) {
-        console.log(`❌ Test ${index + 1}: ERROR - ${error.message}`);
-        return false;
-      }
+    // Trier par efficacité de soin
+    const sortedItems = healingItems.sort((a, b) => {
+      const healA = a.data.heal_amount === 'full' ? pokemonMaxHp : (a.data.heal_amount || 0);
+      const healB = b.data.heal_amount === 'full' ? pokemonMaxHp : (b.data.heal_amount || 0);
+      return healA - healB;
     });
-    
-    const passed = results.filter(Boolean).length;
-    console.log(`🧪 Tests inventaire: ${passed}/${tests.length}`);
-    
-    return { passed, total: tests.length, allPassed: passed === tests.length };
-  }
 
-  forceSyncWithShop() {
-    if (!window.shopSystem?.isShopOpen()) {
-      console.log('🏪 Shop pas ouvert, pas de sync nécessaire');
-      return;
+    // Trouver le meilleur objet qui ne sur-soigne pas trop
+    const missingHp = pokemonMaxHp - pokemonHp;
+    for (const item of sortedItems) {
+      const healAmount = item.data.heal_amount === 'full' ? pokemonMaxHp : item.data.heal_amount;
+      if (healAmount >= missingHp) {
+        this.useItem(item.itemId, "field");
+        
+        // ✅ Notification d'auto-heal
+        this.notifyAutoUse(
+          this.inventoryUI.getItemName(item.itemId),
+          `${healAmount === pokemonMaxHp ? 'Soin complet' : healAmount + ' PV'}`
+        );
+        
+        return item.itemId;
+      }
     }
 
-    console.log('🔄 Force sync inventaire → shop...');
-    
-    const shopUI = window.shopSystem.shopUI;
-    if (shopUI?.refreshCurrentTab && typeof shopUI.refreshCurrentTab === 'function') {
-      shopUI.refreshCurrentTab();
-      console.log('✅ Shop rafraîchi');
+    // Si aucun objet parfait, utiliser le plus petit disponible
+    if (sortedItems.length > 0) {
+      this.useItem(sortedItems[0].itemId, "field");
+      
+      this.notifyAutoUse(
+        this.inventoryUI.getItemName(sortedItems[0].itemId),
+        "Meilleur soin disponible"
+      );
+      
+      return sortedItems[0].itemId;
     }
-  }
 
-  // ✅ Méthodes conservées pour compatibilité
-  onInventoryFull(pocketName) {
-    this.notificationManager?.warning(
-      `Poche ${pocketName} pleine ! Impossible d'ajouter plus d'objets.`,
+    // ✅ Notification si aucun objet de soin
+    this.notificationManager.warning(
+      "Aucun objet de soin disponible",
       {
-        duration: 5000,
-        position: 'top-center',
-        onClick: () => this.openInventoryToPocket(pocketName)
+        duration: 3000,
+        onClick: () => this.openInventoryToPocket('medicine')
       }
     );
-    
-    this.inventoryIcon.setTemporaryIcon('⚠️', 3000);
+
+    return null;
   }
 
-  // ✅ Nettoyage amélioré
-  destroy() {
-    console.log('💀 Destruction InventorySystem');
-    
-    // Arrêter les intervals
-    if (this.connectionMonitorInterval) {
-      clearInterval(this.connectionMonitorInterval);
+  // === MÉTHODES POUR LES OBJETS CLÉS ===
+
+  hasKeyItem(keyItemId) {
+    const keyItems = this.inventoryUI.inventoryData.key_items || [];
+    return keyItems.some(item => item.itemId === keyItemId);
+  }
+
+  useKeyItem(keyItemId) {
+    if (this.hasKeyItem(keyItemId)) {
+      this.useItem(keyItemId, "field");
+      
+      // ✅ Notification d'utilisation d'objet clé
+      this.notificationManager.info(
+        `Objet clé utilisé: ${this.inventoryUI.getItemName(keyItemId)}`,
+        { duration: 4000 }
+      );
+      
+      return true;
+    } else {
+      this.notificationManager.error(
+        `Objet clé manquant: ${this.inventoryUI.getItemName(keyItemId)}`,
+        { duration: 4000 }
+      );
+      return false;
     }
-    if (this.shopSyncInterval) {
-      clearInterval(this.shopSyncInterval);
-    }
-    
-    // Nettoyer l'UI
-    if (this.inventoryUI) {
-      this.inventoryUI.destroy();
-      this.inventoryUI = null;
-    }
-    
-    if (this.inventoryIcon) {
-      this.inventoryIcon.destroy();
-      this.inventoryIcon = null;
-    }
-    
-    // Nettoyer les références
-    this.scene = null;
-    this.gameRoom = null;
-    this.notificationManager = null;
-    
-    // Supprimer la référence globale
-    if (window.inventorySystem === this) {
-      window.inventorySystem = null;
-    }
-    
-    console.log('✅ InventorySystem détruit');
   }
 }
-
-// ✅ Fonctions de debug globales
-window.debugInventory = function() {
-  if (window.inventorySystem) {
-    return window.inventorySystem.debugInventoryState();
-  } else {
-    console.error('❌ InventorySystem non disponible');
-    return { error: 'InventorySystem manquant' };
-  }
-};
-
-window.testInventoryConnection = function() {
-  if (window.inventorySystem) {
-    return window.inventorySystem.testInventoryConnection();
-  } else {
-    console.error('❌ InventorySystem non disponible');
-    return { error: 'InventorySystem manquant' };
-  }
-};
-
-window.forceInventorySync = function() {
-  if (window.inventorySystem) {
-    window.inventorySystem.forceSyncWithShop();
-    window.inventorySystem.requestInventoryData();
-  } else {
-    console.error('❌ InventorySystem non disponible');
-  }
-};
-
-console.log('✅ InventorySystem corrigé chargé!');
-console.log('🔍 Utilisez window.debugInventory() pour diagnostiquer');
-console.log('🧪 Utilisez window.testInventoryConnection() pour test connexion');
-console.log('🔄 Utilisez window.forceInventorySync() pour forcer sync');
