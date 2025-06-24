@@ -144,19 +144,19 @@ export class BattleHelpers {
     const config = BATTLE_CONFIG.TYPE_EFFECTIVENESS;
     
     // Vérifier immunité
-    const immunities = config.IMMUNITIES[attackType];
+const immunities = config.IMMUNITIES[attackType as PokemonType];
     if (immunities && immunities.includes(defenseType)) {
       return 0;
     }
 
     // Vérifier super efficace
-    const superEffective = config.SUPER_EFFECTIVE[attackType];
+const superEffective = config.SUPER_EFFECTIVE[attackType as PokemonType];
     if (superEffective && superEffective.includes(defenseType)) {
       return 2.0;
     }
 
     // Vérifier peu efficace
-    const notVeryEffective = config.NOT_VERY_EFFECTIVE[attackType];
+const notVeryEffective = config.NOT_VERY_EFFECTIVE[attackType as PokemonType];
     if (notVeryEffective && notVeryEffective.includes(defenseType)) {
       return 0.5;
     }
