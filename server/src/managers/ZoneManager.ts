@@ -15,7 +15,7 @@ import { VillageHouse2Zone } from "../rooms/zones/VillageHouse2Zone";
 // Zones Lavandia
 import { LavandiaAnalysisZone } from "../rooms/zones/LavandiaAnalysisZone";
 import { LavandiaBossRoomZone } from "../rooms/zones/LavandiaBossRoomZone";
-import { LavandiaCelibTempleZone } from "../rooms/zones/LavandiaCelibTempleZone";
+import { LavandiaCelibiTempleZone } from "../rooms/zones/LavandiaCelibiTempleZone";
 import { LavandiaEquipementZone } from "../rooms/zones/LavandiaEquipementZone";
 import { LavandiaFurnitureZone } from "../rooms/zones/LavandiaFurnitureZone";
 import { LavandiaHealingCenterZone } from "../rooms/zones/LavandiaHealingCenterZone";
@@ -122,7 +122,7 @@ export class ZoneManager {
     console.log("[ZoneManager] Initialisation collisions pour bossroom");
     this.collisions.set('bossroom', new CollisionManager("lavandiabossroom.tmj"));
     
-    this.loadZone('celibtemple', new LavandiaCelibTempleZone(this.room));
+    this.loadZone('celibtemple', new LavandiaCelibiTempleZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour celibtemple");
     this.collisions.set('celibtemple', new CollisionManager("lavandiacelebitemple.tmj"));
     
