@@ -1644,29 +1644,68 @@ getItemDescription(itemId) {
     this.updateItemsCount();
   }
 
-  displayBuyItems() {
-    const itemsGrid = this.overlay.querySelector('#shop-items-grid');
-    
-    // ✅ CORRECTION: Always use availableItems (now normalized)
-    const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
-    const availableItems = items.filter(item => {
-      // Empty items are always displayed
-      if (item.isEmpty) return true;
-      // Other items must be buyable and unlocked
-     // return item.canBuy && item.unlocked;
-      return item.canBuy; // Ignorer unlocked temporairement
-    });
-
-    if (availableItems.length === 0) {
-      this.showEmpty("No items available for purchase");
-      return;
+displayBuyItems() {
+  const itemsGrid = this.overlay.querySelector('#shop-items-grid');
+  
+  // ✅ CORRECTION: Always use availableItems (now normalized)
+  const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
+  
+  console.log(`🔍 [ShopUI] === AFFICHAGE ONGLET BUY ===`);
+  console.log(`📦 Total items reçus: ${items.length}`);
+  console.log(`👤 Niveau joueur: ${this.playerLevel || 'non défini'}`);
+  
+  // ✅ DEBUG DÉTAILLÉ: Analyser chaque item
+  items.forEach((item, index) => {
+    console.log(`📦 Item ${index + 1}: ${item.itemId}`);
+    console.log(`  - buyPrice: ${item.buyPrice}₽`);
+    console.log(`  - canBuy: ${item.canBuy}`);
+    console.log(`  - unlocked: ${item.unlocked}`);
+    console.log(`  - unlockLevel: ${item.unlockLevel || 'aucun'}`);
+    console.log(`  - stock: ${item.stock}`);
+    console.log(`  - isEmpty: ${item.isEmpty || false}`);
+  });
+  
+  // ✅ CORRECTION: Filtrage moins restrictif
+  const availableItems = items.filter(item => {
+    // 1. Toujours afficher les items vides
+    if (item.isEmpty) {
+      console.log(`✅ [ShopUI] ${item.itemId}: affiché (isEmpty)`);
+      return true;
     }
+    
+    // 2. ✅ NOUVEAU: Vérifier le niveau du joueur
+    const playerLevel = this.playerLevel || 1;
+    const levelOk = !item.unlockLevel || playerLevel >= item.unlockLevel;
+    
+    // 3. ✅ NOUVEAU: Conditions plus détaillées
+    const hasStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
+    const isBuyable = item.canBuy !== false; // true par défaut
+    
+    // 4. ✅ DÉCISION FINALE
+    const shouldShow = isBuyable && levelOk && hasStock;
+    
+    console.log(`${shouldShow ? '✅' : '❌'} [ShopUI] ${item.itemId}: ${shouldShow ? 'AFFICHÉ' : 'MASQUÉ'}`);
+    if (!shouldShow) {
+      if (!isBuyable) console.log(`  ❌ Raison: canBuy = ${item.canBuy}`);
+      if (!levelOk) console.log(`  ❌ Raison: niveau requis ${item.unlockLevel}, joueur niveau ${playerLevel}`);
+      if (!hasStock) console.log(`  ❌ Raison: stock = ${item.stock}`);
+    }
+    
+    return shouldShow;
+  });
 
-    availableItems.forEach((item, index) => {
-      const itemElement = this.createBuyItemElement(item, index);
-      itemsGrid.appendChild(itemElement);
-    });
+  console.log(`📊 [ShopUI] RÉSULTAT FINAL: ${availableItems.length}/${items.length} items affichés dans l'onglet BUY`);
+
+  if (availableItems.length === 0) {
+    this.showEmpty("No items available for purchase");
+    return;
   }
+
+  availableItems.forEach((item, index) => {
+    const itemElement = this.createBuyItemElement(item, index);
+    itemsGrid.appendChild(itemElement);
+  });
+}
 
   displaySellItems() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
