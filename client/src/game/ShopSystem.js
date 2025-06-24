@@ -1,820 +1,1084 @@
-// client/src/game/ShopSystem.js - VERSION CORRIGÉE
-// ✅ Fix: Connexion serveur, synchronisation inventaire, debugging
+// client/src/network/NetworkManager.js - VERSION MISE À JOUR COMPLÈTE
+// ✅ Support interactions modernes + compatibilité + debugging amélioré
 
-import { ShopUI } from '../components/ShopUI.js';
+import { GAME_CONFIG } from "../config/gameConfig.js";
 
-export class ShopSystem {
-  constructor(scene, gameRoom) {
-    this.scene = scene;
-    this.gameRoom = gameRoom;
-    this.shopUI = null;
-    this.currentShopId = null;
-    this.currentNpcId = null;
+export class NetworkManager {
+  /**
+   * @param {Client} colyseusClient - Le client Colyseus global (déjà instancié)
+   * @param {string} username - L'identifiant du joueur
+   */
+  constructor(colyseusClient, username) {
+    this.client = colyseusClient;
+    this.username = username;
+    this.room = null;
+    this.sessionId = null;
+    this.isConnected = false;
+    this.isTransitioning = false;
+    this.lastSendTime = 0;
+    this.currentZone = null;
+    this.lastReceivedNpcs = null;
+    this.lastReceivedZoneData = null;
+    this.onTransitionValidation = null;
 
-    // ✅ FIX: Verrous simplifiés et état
-    this.lastOpenAttempt = 0;
-    this.isInitialized = false;
-    this.playerGold = 0;
-    this.lastTransactionTime = 0;
-    
-    // ✅ FIX: Debug et monitoring
-    this.transactionHistory = [];
-    this.connectionTest = {
+    // ✅ NOUVEAU: Données de mon joueur
+    this.myPlayerData = null;
+    this.myPlayerConfirmed = false;
+
+    // ✅ NOUVEAU: Stockage des NPCs pour replay
+    this.lastReceivedNpcs = null;
+
+    // ✅ NOUVEAU: Support interactions modernes
+    this.interactionHistory = [];
+    this.connectionHealth = {
       lastPing: 0,
-      isConnected: false,
-      serverResponding: false
+      isHealthy: true,
+      reconnectAttempts: 0
     };
-    
-    // ✅ Référence au NotificationManager
-    this.notificationManager = window.NotificationManager;
-    
-    this.init();
+
+    this.transitionState = {
+      isActive: false,
+      targetZone: null,
+      startTime: 0,
+      timeout: null,
+      maxDuration: 8000
+    };
+
+    this.callbacks = {
+      onConnect: null,
+      onStateChange: null,
+      onPlayerData: null,
+      onDisconnect: null,
+      onCurrentZone: null,
+      onZoneData: null,
+      onNpcList: null,
+      onTransitionSuccess: null,
+      onTransitionError: null,
+      onNpcInteraction: null,
+      onSnap: null,
+      onTransitionValidation: null,
+      // ✅ NOUVEAUX CALLBACKS POUR PREMIER JOUEUR
+      onMyPlayerConfirmed: null,
+      onMyPlayerMissing: null,
+    };
   }
 
-  // ✅ FIX: Initialisation async pour attendre ShopUI
-  async init() {
+  async connect(spawnZone = "beach", spawnData = {}) {
     try {
-      console.log('🏪 Initialisation ShopSystem...');
-      
-      // ✅ Attendre la création de ShopUI (qui est maintenant async)
-      this.shopUI = new ShopUI(this.gameRoom);
-      
-      // Si ShopUI.init() est async, l'attendre
-      if (this.shopUI.init && typeof this.shopUI.init === 'function') {
-        await this.shopUI.init();
-      }
-      
-      this.setupInteractions();
-      this.testServerConnection();
-      
-      // Rendre le système accessible globalement
-      window.shopSystem = this;
-      
-      this.isInitialized = true;
-      console.log('✅ ShopSystem initialisé avec succès');
-      
-    } catch (error) {
-      console.error('❌ Erreur initialisation ShopSystem:', error);
-      this.isInitialized = false;
-    }
-  }
+      console.log(`[NetworkManager] 🔌 Connexion à WorldRoom...`);
+      console.log(`[NetworkManager] 🌍 Zone de spawn: ${spawnZone}`);
 
-  setupInteractions() {
-    this.setupServerListeners();
-    this.setupKeyboardShortcuts();
-    this.setupSystemIntegration();
-    this.setupInventorySync();
-  }
-
-  // ✅ FIX: Listeners serveur avec test de connexion
-  setupServerListeners() {
-    if (!this.gameRoom) {
-      console.error('❌ ShopSystem: Pas de gameRoom pour setup listeners');
-      return;
-    }
-
-    console.log('📡 ShopSystem: Configuration des listeners serveur...');
-
-    // ✅ Test de connexion périodique
-    this.startConnectionMonitoring();
-
-    // ✅ Résultats de transaction
-    this.gameRoom.onMessage("shopTransactionResult", (data) => {
-      console.log('💰 ShopSystem: Transaction result reçu:', data);
-      this.handleTransactionResult(data);
-      this.connectionTest.serverResponding = true;
-    });
-
-    // ✅ Catalogue de shop
-    this.gameRoom.onMessage("shopCatalogResult", (data) => {
-      console.log('📋 ShopSystem: Catalogue reçu:', data);
-      if (this.shopUI) {
-        this.shopUI.handleShopCatalog(data);
-      }
-      this.connectionTest.serverResponding = true;
-    });
-
-    // ✅ Mise à jour de l'or
-    this.gameRoom.onMessage("goldUpdate", (data) => {
-      console.log('💰 ShopSystem: Gold update reçu:', data);
-      this.updatePlayerGold(data.newGold, data.oldGold);
-      this.connectionTest.serverResponding = true;
-    });
-
-    // ✅ Rafraîchissement de shop
-    this.gameRoom.onMessage("shopRefreshResult", (data) => {
-      console.log('🔄 ShopSystem: Refresh result reçu:', data);
-      if (this.shopUI) {
-        this.shopUI.handleRefreshResult(data);
-      }
-    });
-
-    // ✅ NOUVEAU: Listener pour erreurs de shop
-    this.gameRoom.onMessage("shopError", (data) => {
-      console.error('❌ ShopSystem: Erreur serveur:', data);
-      this.showError(data.message || 'Erreur inconnue du serveur');
-    });
-
-    console.log('✅ ShopSystem: Listeners serveur configurés');
-  }
-
-  // ✅ NOUVEAU: Monitoring de connexion
-  startConnectionMonitoring() {
-    if (this.connectionMonitorInterval) {
-      clearInterval(this.connectionMonitorInterval);
-    }
-
-    this.connectionMonitorInterval = setInterval(() => {
-      this.testServerConnection();
-    }, 30000); // Test toutes les 30 secondes
-
-    console.log('📡 Monitoring de connexion démarré');
-  }
-
-  // ✅ NOUVEAU: Test de connexion serveur
-  testServerConnection() {
-    if (!this.gameRoom) {
-      this.connectionTest.isConnected = false;
-      return;
-    }
-
-    console.log('🧪 Test de connexion serveur...');
-    
-    this.connectionTest.lastPing = Date.now();
-    this.connectionTest.serverResponding = false;
-    
-    // Envoyer un ping au serveur
-    try {
-      this.gameRoom.send("ping", { timestamp: this.connectionTest.lastPing });
-      this.connectionTest.isConnected = true;
-      
-      // Vérifier la réponse dans 5 secondes
-      setTimeout(() => {
-        if (!this.connectionTest.serverResponding) {
-          console.warn('⚠️ Serveur ne répond pas au ping');
-          this.connectionTest.isConnected = false;
-        }
-      }, 5000);
-      
-    } catch (error) {
-      console.error('❌ Erreur test connexion:', error);
-      this.connectionTest.isConnected = false;
-    }
-  }
-
-  // ✅ NOUVEAU: Synchronisation avec l'inventaire
-  setupInventorySync() {
-    console.log('🔄 Configuration synchronisation inventaire...');
-    
-    // Écouter les mises à jour d'inventaire
-    if (window.inventorySystem) {
-      console.log('✅ Inventaire système trouvé, configuration sync');
-      
-      // Vérifier périodiquement la sync
-      this.inventorySyncInterval = setInterval(() => {
-        this.verifyInventorySync();
-      }, 10000); // Vérifier toutes les 10 secondes
-    } else {
-      console.warn('⚠️ Inventaire système non trouvé, retry dans 2s');
-      setTimeout(() => this.setupInventorySync(), 2000);
-    }
-  }
-
-  // ✅ NOUVEAU: Vérification sync inventaire
-  verifyInventorySync() {
-    if (!window.inventorySystem?.inventoryUI?.inventoryData) {
-      return;
-    }
-
-    // Si le shop est ouvert et qu'on est dans l'onglet vente,
-    // rafraîchir la liste des objets vendables
-    if (this.isShopOpen() && this.shopUI.currentTab === 'sell') {
-      console.log('🔄 Rafraîchissement objets vendables...');
-      this.shopUI.refreshCurrentTab();
-    }
-  }
-
-  // ✅ FIX: Gestion interaction NPC avec debug et validation
-  handleShopNpcInteraction(data) {
-    console.log('🏪 ShopSystem: === HANDLE SHOP NPC INTERACTION FIX ===');
-    console.log('📊 Data reçue:', data);
-
-    // ✅ Test de connexion avant d'ouvrir
-    if (!this.connectionTest.isConnected) {
-      console.warn('⚠️ Connexion serveur douteuse, test...');
-      this.testServerConnection();
-      
-      setTimeout(() => {
-        if (!this.connectionTest.isConnected) {
-          this.showError('Connexion au serveur instable');
-          return;
-        }
-        this.continueNpcInteraction(data);
-      }, 1000);
-      
-      return;
-    }
-
-    this.continueNpcInteraction(data);
-  }
-
-  // ✅ NOUVEAU: Continuation interaction après test connexion
-  continueNpcInteraction(data) {
-    // ✅ Verrou anti-spam
-    const now = Date.now();
-    if (now - this.lastOpenAttempt < 500) {
-      console.warn('⚠️ ShopSystem: Tentative d\'ouverture trop rapide, ignoré');
-      return;
-    }
-    this.lastOpenAttempt = now;
-
-    try {
-      // ✅ Validation des données
-      if (!this.validateShopInteractionData(data)) {
-        this.showError('Données de shop invalides');
-        return;
+      if (this.room) {
+        await this.disconnect();
       }
 
-      const shopId = data.shopId || 'default_shop';
-      const shopData = data.shopData;
-      
-      // ✅ Construction NPC robuste
-      let npc = this.buildNpcFromData(data);
-      
-      // Stocker les infos
-      this.currentShopId = shopId;
-      this.currentNpcId = data.npcId;
-
-      // Extraire l'or du joueur
-      if (shopData && shopData.playerGold !== undefined) {
-        this.playerGold = shopData.playerGold;
-      }
-
-      // ✅ Ouverture avec validation
-      console.log(`🚀 ShopSystem: Ouverture shop validée: ${shopId} pour ${npc.name}`);
-      const success = this.directOpenShop(shopId, npc, shopData);
-      
-      if (success) {
-        this.logTransaction('shop_opened', { shopId, npcId: data.npcId });
-        this.showInfo(`Bienvenue chez ${npc.name} !`);
-      } else {
-        this.showError('Impossible d\'ouvrir le shop');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur handleShopNpcInteraction:', error);
-      this.showError(`Erreur shop: ${error.message}`);
-    }
-  }
-
-  // ✅ NOUVEAU: Validation des données d'interaction
-  validateShopInteractionData(data) {
-    if (!data) {
-      console.error('❌ Pas de données d\'interaction');
-      return false;
-    }
-
-    if (!data.shopId && !data.shopData) {
-      console.error('❌ Pas de shopId ni shopData');
-      return false;
-    }
-
-    if (!data.npcId && !data.npc && !data.npcName) {
-      console.error('❌ Pas d\'info NPC');
-      return false;
-    }
-
-    return true;
-  }
-
-  // ✅ NOUVEAU: Construction NPC robuste
-  buildNpcFromData(data) {
-    let npc = { name: "Marchand", id: data.npcId || 'unknown' };
-    
-    // 1. Priorité aux données NPC du serveur
-    if (data.npc && typeof data.npc === 'object') {
-      npc = { ...npc, ...data.npc };
-    }
-    
-    // 2. Puis aux données npcName
-    if (data.npcName) {
-      if (typeof data.npcName === 'object' && data.npcName.name) {
-        npc.name = data.npcName.name;
-        npc.id = data.npcName.id || npc.id;
-      } else if (typeof data.npcName === 'string') {
-        npc.name = data.npcName;
-      }
-    }
-    
-    // 3. Enrichir avec le vrai NPC du manager si possible
-    const realNpc = this.scene?.npcManager?.getNpcData?.(data.npcId) ||
-                   window.interactionManager?.state?.lastInteractedNpc;
-    
-    if (realNpc) {
-      npc = {
-        ...realNpc,
-        name: realNpc.name || npc.name,
-        id: realNpc.id || npc.id
+      const roomOptions = {
+        name: this.username,
+        spawnZone: spawnZone,
+        spawnX: spawnData.spawnX || 52,
+        spawnY: spawnData.spawnY || 48,
+        ...spawnData
       };
-    }
 
-    console.log('🎭 NPC construit:', npc);
-    return npc;
-  }
+      console.log(`[NetworkManager] 📝 Options de connexion:`, roomOptions);
 
-  // ✅ FIX: Ouverture directe avec validation connexion
-  directOpenShop(shopId, npc, shopData = null) {
-    console.log('🚪 ShopSystem: === OUVERTURE DIRECTE FIX ===');
-    console.log('🎯 Shop:', shopId);
-    console.log('🎭 NPC:', npc);
-    console.log('📦 ShopData disponible:', !!shopData);
-    console.log('📡 Connexion OK:', this.connectionTest.isConnected);
+      this.room = await this.client.joinOrCreate("world", roomOptions);
 
-    // ✅ Vérifications préalables
-    if (!this.shopUI) {
-      console.error('❌ ShopUI manquant!');
-      return false;
-    }
+      this.sessionId = this.room.sessionId;
+      this.isConnected = true;
+      this.currentZone = spawnZone;
+      this.myPlayerConfirmed = false;
+      this.myPlayerData = null;
+      this.connectionHealth.reconnectAttempts = 0;
 
-    if (!this.connectionTest.isConnected) {
-      console.error('❌ Connexion serveur problématique!');
-      this.showWarning('Connexion instable, tentative...');
-    }
+      this.resetTransitionState();
 
-    try {
-      // ✅ Fermeture propre si déjà ouvert
-      if (this.isShopOpen()) {
-        console.log('🔄 Shop déjà ouvert, fermeture...');
-        this.shopUI.hide();
-        
-        // Délai pour fermeture propre
-        setTimeout(() => {
-          this.continueOpening(shopId, npc, shopData);
-        }, 200);
-        return true;
-      } else {
-        return this.continueOpening(shopId, npc, shopData);
-      }
+      console.log(`[NetworkManager] ✅ Connecté à WorldRoom! SessionId: ${this.sessionId}`);
 
-    } catch (error) {
-      console.error('❌ Erreur ouverture directe:', error);
-      this.showError(`Erreur technique: ${error.message}`);
-      return false;
-    }
-  }
-
-  // ✅ FIX: Continuation ouverture avec demande catalogue
-  continueOpening(shopId, npc, shopData) {
-    console.log('▶️ ShopSystem: Continuation ouverture...');
-    
-    try {
-      // ✅ Reset état ShopUI
-      if (this.shopUI) {
-        this.shopUI.isProcessingCatalog = false;
-        this.shopUI.selectedItem = null;
-        this.shopUI.shopData = null;
-      }
-
-      // ✅ Ouverture interface
-      console.log('🚪 Ouverture interface shop...');
-      this.shopUI.show(shopId, npc);
-
-      // ✅ FIX: Demander le catalogue au serveur plutôt que d'injecter directement
-      if (shopData) {
-        console.log('💉 Injection données immédiate...');
-        const catalogData = {
-          success: true,
-          catalog: shopData,
-          playerGold: this.playerGold || 0
-        };
-        
-        setTimeout(() => {
-          if (this.shopUI && this.shopUI.isVisible) {
-            this.shopUI.handleShopCatalog(catalogData);
-          }
-        }, 100);
-      } else {
-        // ✅ Demander le catalogue au serveur
-        console.log('📤 Demande catalogue au serveur...');
-        this.requestShopCatalog(shopId);
-      }
-
-      // ✅ Effets visuels/sonores
-      this.playSound('shop_open');
-      this.updateGlobalUIState(true);
-
-      console.log('✅ Ouverture réussie!');
+      this.setupRoomListeners();
+      this.startHealthMonitoring();
       return true;
 
     } catch (error) {
-      console.error('❌ Erreur continuation ouverture:', error);
+      console.error("❌ Connection error:", error);
+      this.connectionHealth.reconnectAttempts++;
       return false;
     }
   }
 
-  // ✅ NOUVEAU: Demande de catalogue au serveur
-  requestShopCatalog(shopId) {
-    if (!this.gameRoom) {
-      console.error('❌ Pas de gameRoom pour demander catalogue');
-      return;
-    }
+  // ✅ NOUVEAU: Monitoring de santé de connexion
+  startHealthMonitoring() {
+    // Ping périodique
+    setInterval(() => {
+      if (this.isConnected && this.room) {
+        this.sendPing();
+      }
+    }, 30000); // Ping toutes les 30 secondes
+  }
 
-    console.log(`📤 Demande catalogue pour shop: ${shopId}`);
-    
-    try {
-      this.gameRoom.send("getShopCatalog", { 
-        shopId: shopId,
-        timestamp: Date.now()
-      });
+  sendPing() {
+    if (this.room) {
+      this.connectionHealth.lastPing = Date.now();
+      this.room.send("ping", { timestamp: this.connectionHealth.lastPing });
+    }
+  }
+
+  setupRoomListeners() {
+    if (!this.room) return;
+
+    console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
+
+    // ✅ NOUVEAU: Handler pong pour health check
+    this.room.onMessage("pong", (data) => {
+      const latency = Date.now() - this.connectionHealth.lastPing;
+      this.connectionHealth.isHealthy = latency < 2000; // Healthy si < 2s
+      console.log(`📡 Pong reçu, latence: ${latency}ms, healthy: ${this.connectionHealth.isHealthy}`);
+    });
+
+    // ✅ NOUVEAU: Handler pour confirmation de spawn
+    this.room.onMessage("playerSpawned", (data) => {
+      console.log(`🎯 [NetworkManager] === JOUEUR SPAWNÉ ===`, data);
       
-      // ✅ Timeout si pas de réponse
-      setTimeout(() => {
-        if (this.shopUI && this.shopUI.isVisible && !this.shopUI.shopData) {
-          console.warn('⚠️ Timeout catalogue, données test...');
-          this.injectTestCatalog(shopId);
+      if (data.isMyPlayer) {
+        console.log(`✅ [NetworkManager] Confirmation: MON joueur spawné !`);
+        
+        // Stocker les infos de mon joueur
+        this.myPlayerData = {
+          id: data.id,
+          name: data.name,
+          x: data.x,
+          y: data.y,
+          currentZone: data.currentZone,
+          level: data.level,
+          gold: data.gold
+        };
+        
+        this.myPlayerConfirmed = true;
+        
+        // ✅ DÉCLENCHER la création immédiate du PlayerManager
+        if (this.callbacks.onMyPlayerConfirmed) {
+          this.callbacks.onMyPlayerConfirmed(this.myPlayerData);
         }
-      }, 5000);
-      
-    } catch (error) {
-      console.error('❌ Erreur demande catalogue:', error);
-      this.showError('Impossible de charger le catalogue');
-    }
-  }
+        
+        // ✅ PROGRAMMER une vérification de sécurité
+        setTimeout(() => {
+          this.ensureMyPlayerExists();
+        }, 1000);
+      }
+    });
 
-  // ✅ NOUVEAU: Injection catalogue de test en cas de problème
-  injectTestCatalog(shopId) {
-    console.log('🧪 Injection catalogue de test...');
-    
-    const testCatalog = {
-      success: true,
-      catalog: {
-        shopInfo: {
-          id: shopId,
-          name: 'PokéMart Test',
-          description: 'Boutique de test'
-        },
-        availableItems: [
-          { itemId: 'potion', buyPrice: 300, sellPrice: 150, stock: 10, canBuy: true, canSell: true, unlocked: true },
-          { itemId: 'poke_ball', buyPrice: 200, sellPrice: 100, stock: 5, canBuy: true, canSell: true, unlocked: true },
-          { itemId: 'antidote', buyPrice: 100, sellPrice: 50, stock: 8, canBuy: true, canSell: true, unlocked: true },
-          { itemId: 'super_potion', buyPrice: 700, sellPrice: 350, stock: 3, canBuy: true, canSell: true, unlocked: true }
-        ]
-      },
-      playerGold: this.playerGold || 500
-    };
-
-    if (this.shopUI && this.shopUI.isVisible) {
-      this.shopUI.handleShopCatalog(testCatalog);
-      this.showWarning('Catalogue de test chargé (connexion serveur problématique)');
-    }
-  }
-
-  // ✅ FIX: Gestion des résultats de transaction avec sync inventaire
-  handleTransactionResult(data) {
-    console.log('💰 ShopSystem: Résultat transaction:', data);
-    
-    this.lastTransactionTime = Date.now();
-    this.logTransaction('transaction_result', data);
-    
-    if (data.success) {
-      // ✅ Notification de succès
-      this.showTransactionSuccessNotification(data);
+    // ✅ NOUVEAU: Handler pour state forcé
+    this.room.onMessage("forcedStateSync", (data) => {
+      console.log(`🔄 [NetworkManager] === STATE FORCÉ REÇU ===`, data);
       
-      // ✅ Effet sonore
-      this.playSound('shop_buy_success');
+      // Convertir l'object en Map si nécessaire pour compatibilité
+      const playersMap = new Map();
       
-      // ✅ Mettre à jour l'or
-      if (data.newGold !== undefined) {
-        this.updatePlayerGold(data.newGold);
+      if (data.players) {
+        Object.entries(data.players).forEach(([sessionId, playerData]) => {
+          playersMap.set(sessionId, playerData);
+        });
       }
       
-      // ✅ FIX: Synchronisation inventaire obligatoire
-      this.forceSyncInventory(data);
+      const stateWithMap = {
+        players: playersMap
+      };
       
-      // ✅ FIX: Demander nouveau catalogue pour update stocks
-      if (this.currentShopId) {
+      console.log(`📊 [NetworkManager] State forcé: ${playersMap.size} joueurs`);
+      console.log(`🎯 [NetworkManager] Mon joueur présent: ${playersMap.has(data.mySessionId)}`);
+      
+      if (this.callbacks.onStateChange) {
+        this.callbacks.onStateChange(stateWithMap);
+      }
+    });
+
+    // ✅ NOUVEAU: Handler pour réponse de state
+    this.room.onMessage("playerStateResponse", (data) => {
+      console.log(`📋 [NetworkManager] === RÉPONSE PLAYER STATE ===`, data);
+      
+      if (data.exists && data.isMyPlayer) {
+        console.log(`✅ [NetworkManager] Mon joueur confirmé par le serveur`);
+        this.myPlayerData = data;
+        this.myPlayerConfirmed = true;
+        
+        if (this.callbacks.onMyPlayerConfirmed) {
+          this.callbacks.onMyPlayerConfirmed(data);
+        }
+      } else {
+        console.error(`❌ [NetworkManager] Mon joueur n'existe pas sur le serveur !`);
+        this.myPlayerConfirmed = false;
+        
+        // Essayer de se reconnecter ou gérer l'erreur
+        if (this.callbacks.onMyPlayerMissing) {
+          this.callbacks.onMyPlayerMissing(data);
+        }
+      }
+    });
+
+    // ✅ NOUVEAU: Handler pour vérification de présence
+    this.room.onMessage("presenceCheck", (data) => {
+      console.log(`👻 [NetworkManager] === VÉRIFICATION PRÉSENCE ===`, data);
+      
+      if (!data.exists) {
+        console.error(`❌ [NetworkManager] JE NE SUIS PAS DANS LE STATE !`);
+        this.myPlayerConfirmed = false;
+        
+        // Demander une resync ou se reconnecter
+        this.requestPlayerState();
+      } else {
+        console.log(`✅ [NetworkManager] Ma présence confirmée`);
+        this.myPlayerConfirmed = true;
+      }
+    });
+
+    this.room.onMessage("currentZone", (data) => {
+      console.log(`📍 [NetworkManager] Zone actuelle reçue du serveur:`, data);
+      this.currentZone = data.zone;
+      if (this.callbacks.onCurrentZone) {
+        this.callbacks.onCurrentZone(data);
+      }
+    });
+
+    // ✅ AMÉLIORATION: onStateChange.once pour état initial
+    this.room.onStateChange.once((state) => {
+      console.log(`🎯 [NetworkManager] === ÉTAT INITIAL REÇU ===`, {
+        playersCount: state.players?.size || 0,
+        mySessionId: this.sessionId,
+        hasMyPlayer: state.players?.has && state.players.has(this.sessionId)
+      });
+      
+      // Vérifier si mon joueur est présent
+      if (state.players?.has && state.players.has(this.sessionId)) {
+        console.log(`✅ [NetworkManager] Mon joueur trouvé dans l'état initial`);
+        this.myPlayerConfirmed = true;
+        
+        const myPlayer = state.players.get(this.sessionId);
+        if (myPlayer && !this.myPlayerData) {
+          this.myPlayerData = {
+            id: myPlayer.id,
+            name: myPlayer.name,
+            x: myPlayer.x,
+            y: myPlayer.y,
+            currentZone: myPlayer.currentZone,
+            level: myPlayer.level,
+            gold: myPlayer.gold
+          };
+          
+          if (this.callbacks.onMyPlayerConfirmed) {
+            this.callbacks.onMyPlayerConfirmed(this.myPlayerData);
+          }
+        }
+      } else {
+        console.warn(`⚠️ [NetworkManager] Mon joueur absent de l'état initial`);
+        this.myPlayerConfirmed = false;
+        
+        // Programmer une vérification
         setTimeout(() => {
-          this.requestShopCatalog(this.currentShopId);
+          this.ensureMyPlayerExists();
         }, 500);
       }
       
-    } else {
-      this.showError(data.message || "Transaction échouée");
-      this.playSound('shop_error');
-    }
-  }
+      if (this.callbacks.onStateChange && state.players?.size > 0) {
+        this.callbacks.onStateChange(state);
+      }
+    });
 
-  // ✅ NOUVEAU: Synchronisation forcée inventaire
-  forceSyncInventory(transactionData) {
-    console.log('🔄 Synchronisation forcée inventaire...');
-    
-    // 1. Demander update inventaire
-    if (window.inventorySystem) {
-      console.log('📤 Demande mise à jour inventaire...');
-      window.inventorySystem.requestInventoryData();
+    // ✅ AMÉLIORATION: onJoin avec vérification
+    this.room.onJoin(() => {
+      console.log(`📡 [NetworkManager] === REJOINT LA ROOM ===`);
       
-      // 2. Notifier les changements si disponibles
-      if (transactionData.itemsChanged) {
-        transactionData.itemsChanged.forEach(change => {
-          if (change.quantityChanged > 0) {
-            // Objet ajouté
-            window.inventorySystem.onItemPickup(change.itemId, change.quantityChanged);
-          }
+      // Attendre un peu puis vérifier si on existe
+      setTimeout(() => {
+        if (!this.myPlayerConfirmed) {
+          console.log(`🔍 [NetworkManager] Vérification présence après join`);
+          this.checkMyPresence();
+        }
+      }, 1000);
+      
+      // Demander l'état initial
+      this.room.send("requestInitialState", { zone: this.currentZone });
+    });
+
+    this.room.onMessage("zoneData", (data) => {
+      console.log(`🗺️ [NetworkManager] Zone data reçue:`, data);
+      this.currentZone = data.zone;
+      this.lastReceivedZoneData = data;
+      if (this.callbacks.onZoneData) {
+        this.callbacks.onZoneData(data);
+      }
+    });
+
+    // ✅ HANDLER NPCs CORRIGÉ AVEC REPLAY
+    this.room.onMessage("npcList", (npcs) => {
+      console.log(`🤖 [NetworkManager] === MESSAGE NPCLIST INTERCEPTÉ ===`);
+      console.log(`📊 NPCs: ${npcs.length}`);
+      console.log(`🎯 Callback configuré: ${!!this.callbacks.onNpcList}`);
+      
+      // ✅ STOCKER LES NPCs REÇUS
+      this.lastReceivedNpcs = npcs;
+      
+      console.log(`🤖 [NetworkManager] NPCs reçus: ${npcs.length}`);
+      
+      if (this.callbacks.onNpcList) {
+        console.log(`✅ [NetworkManager] Envoi immédiat au callback`);
+        this.callbacks.onNpcList(npcs);
+      } else {
+        console.log(`⏳ [NetworkManager] NPCs stockés en attente du callback`);
+      }
+    });
+
+    this.room.onMessage("transitionResult", (result) => {
+      console.log(`🔍 [NetworkManager] Résultat de validation de transition:`, result);
+
+      // Sync la zone côté client (important)
+      if (result.success && result.currentZone) {
+        console.log(`🔄 [NetworkManager] Sync zone: ${this.currentZone} → ${result.currentZone}`);
+        this.currentZone = result.currentZone;
+      }
+
+      // ✅ DÉLÈGUE à la propriété dynamique: utilisé par le TransitionManager !
+      if (this.onTransitionValidation) {
+        this.onTransitionValidation(result);
+      }
+
+      // Callbacks secondaires (optionnels)
+      if (result.success && this.callbacks.onTransitionSuccess) {
+        this.callbacks.onTransitionSuccess(result);
+      } else if (!result.success && this.callbacks.onTransitionError) {
+        this.callbacks.onTransitionError(result);
+      }
+    });
+
+    // ✅ HANDLERS D'INTERACTION NPC MODERNISÉS - SUPPORT DOUBLE FORMAT
+    this.room.onMessage("npcInteractionResult", (result) => {
+      console.log(`💬 [NetworkManager] === NPC INTERACTION RESULT ===`, result);
+      this.logInteraction('npc_interaction_result', result);
+      
+      if (this.callbacks.onNpcInteraction) {
+        this.callbacks.onNpcInteraction(result);
+      }
+    });
+
+    // ✅ NOUVEAU: Support messages d'interaction étendus
+    this.room.onMessage("interactionResult", (result) => {
+      console.log(`🎭 [NetworkManager] === INTERACTION RESULT ÉTENDU ===`, result);
+      this.logInteraction('interaction_result_extended', result);
+      
+      // Déléguer au même callback que npcInteractionResult pour compatibilité
+      if (this.callbacks.onNpcInteraction) {
+        this.callbacks.onNpcInteraction(result);
+      }
+    });
+
+    // ✅ NOUVEAU: Gestion des erreurs d'interaction
+    this.room.onMessage("interactionError", (error) => {
+      console.error(`❌ [NetworkManager] Erreur interaction:`, error);
+      this.logInteraction('interaction_error', error);
+      
+      // Afficher l'erreur via le callback si disponible
+      if (this.callbacks.onNpcInteraction) {
+        this.callbacks.onNpcInteraction({
+          success: false,
+          error: true,
+          message: error.message || "Erreur d'interaction"
         });
       }
-    }
-    
-    // 3. Notifier via NotificationManager
-    if (window.NotificationManager && transactionData.itemsChanged) {
-      transactionData.itemsChanged.forEach(change => {
-        const itemName = this.getItemName(change.itemId);
-        if (change.quantityChanged > 0) {
-          window.NotificationManager.itemNotification(
-            itemName, 
-            change.quantityChanged, 
-            'obtained',
-            { 
-              duration: 4000,
-              position: 'bottom-right',
-              onClick: () => {
-                if (window.inventorySystem) {
-                  window.inventorySystem.openInventory();
-                }
-              }
-            }
-          );
-        } else if (change.quantityChanged < 0) {
-          window.NotificationManager.itemNotification(
-            itemName, 
-            Math.abs(change.quantityChanged), 
-            'sold',
-            { 
-              duration: 3000,
-              position: 'bottom-right'
-            }
-          );
-        }
+    });
+
+    this.room.onStateChange((state) => {
+      if (this.callbacks.onStateChange) {
+        this.callbacks.onStateChange(state);
+      }
+    });
+
+    this.room.onMessage("filteredState", (state) => {
+      console.log(`📊 [NetworkManager] State filtré reçu:`, {
+        playersCount: Object.keys(state.players || {}).length,
+        zone: this.currentZone
       });
-    }
-    
-    // 4. Update l'onglet vente si ouvert
-    if (this.isShopOpen() && this.shopUI.currentTab === 'sell') {
-      setTimeout(() => {
-        this.shopUI.refreshCurrentTab();
-      }, 1000);
+      
+      // Convertir l'object en Map pour compatibilité
+      const playersMap = new Map();
+      if (state.players) {
+        Object.entries(state.players).forEach(([sessionId, playerData]) => {
+          playersMap.set(sessionId, playerData);
+        });
+      }
+      
+      const stateWithMap = {
+        players: playersMap
+      };
+      
+      if (this.callbacks.onStateChange) {
+        this.callbacks.onStateChange(stateWithMap);
+      }
+    });
+
+    this.room.onMessage("playerData", (data) => {
+      if (this.callbacks.onPlayerData) {
+        this.callbacks.onPlayerData(data);
+      }
+    });
+
+    this.room.onMessage("snap", (data) => {
+      if (this.callbacks.onSnap) {
+        this.callbacks.onSnap(data);
+      }
+    });
+
+    // ✅ NOUVEAUX HANDLERS POUR SHOP ET INVENTAIRE
+    this.room.onMessage("shopCatalogResult", (data) => {
+      console.log(`🏪 [NetworkManager] Catalogue shop reçu:`, data);
+      // Ces messages sont gérés directement par les systèmes shop/inventaire
+    });
+
+    this.room.onMessage("shopTransactionResult", (data) => {
+      console.log(`💰 [NetworkManager] Transaction shop:`, data);
+      // Ces messages sont gérés directement par les systèmes shop/inventaire
+    });
+
+    this.room.onMessage("inventoryUpdate", (data) => {
+      console.log(`🎒 [NetworkManager] Update inventaire:`, data);
+      // Ces messages sont gérés directement par les systèmes shop/inventaire
+    });
+
+    this.room.onMessage("goldUpdate", (data) => {
+      console.log(`💰 [NetworkManager] Update or:`, data);
+      // Ces messages sont gérés directement par les systèmes shop/inventaire
+    });
+
+    this.room.onLeave(() => {
+      console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
+      if (!this.transitionState.isActive) {
+        this.isConnected = false;
+        this.myPlayerConfirmed = false;
+        this.myPlayerData = null;
+        if (this.callbacks.onDisconnect) {
+          this.callbacks.onDisconnect();
+        }
+      }
+    });
+
+    if (this.callbacks.onConnect) {
+      console.log(`[NetworkManager] 🎯 Connexion établie`);
+      this.callbacks.onConnect();
     }
   }
 
-  // ✅ NOUVEAU: Log des transactions pour debug
-  logTransaction(type, data) {
+  // ✅ NOUVEAU: Log des interactions pour debug
+  logInteraction(type, data) {
     const logEntry = {
       timestamp: new Date(),
       type: type,
       data: data,
-      shopId: this.currentShopId,
-      connectionState: this.connectionTest.isConnected
+      sessionId: this.sessionId,
+      zone: this.currentZone
     };
     
-    this.transactionHistory.push(logEntry);
+    this.interactionHistory.push(logEntry);
     
     // Garder seulement les 20 dernières
-    if (this.transactionHistory.length > 20) {
-      this.transactionHistory = this.transactionHistory.slice(-20);
+    if (this.interactionHistory.length > 20) {
+      this.interactionHistory = this.interactionHistory.slice(-20);
     }
-    
-    console.log(`📝 Transaction loggée: ${type}`, logEntry);
   }
 
-  // ✅ Autres méthodes inchangées mais avec amélioration debug...
-  getItemName(itemId) {
-    if (this.shopUI) {
-      return this.shopUI.getItemName(itemId);
+  // ✅ NOUVELLES MÉTHODES POUR PREMIER JOUEUR
+
+  ensureMyPlayerExists() {
+    console.log(`🔍 [NetworkManager] === VÉRIFICATION MON JOUEUR ===`);
+    console.log(`📊 State: confirmed=${this.myPlayerConfirmed}, data=${!!this.myPlayerData}`);
+    
+    if (!this.room || !this.sessionId) {
+      console.error(`❌ [NetworkManager] Pas de room/sessionId pour vérifier`);
+      return;
     }
-    return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    
+    // Vérifier dans le state local
+    const hasInState = this.room.state?.players?.has && this.room.state.players.has(this.sessionId);
+    
+    if (!hasInState || !this.myPlayerConfirmed) {
+      console.warn(`⚠️ [NetworkManager] Mon joueur absent ou non confirmé !`);
+      console.warn(`   Dans state: ${hasInState}`);
+      console.warn(`   Confirmé: ${this.myPlayerConfirmed}`);
+      
+      // Demander au serveur
+      this.requestPlayerState();
+      
+      // Programmer une nouvelle vérification
+      setTimeout(() => {
+        this.checkMyPresence();
+      }, 2000);
+    } else {
+      console.log(`✅ [NetworkManager] Mon joueur trouvé et confirmé`);
+    }
   }
 
-  // ... [Autres méthodes existantes] ...
-
-  // ✅ MÉTHODE DE DEBUG AMÉLIORÉE
-  debugShopState() {
-    console.log('🔍 === DEBUG SHOP SYSTEM STATE FIX ===');
+  requestPlayerState() {
+    console.log(`📤 [NetworkManager] Demande resync player state`);
     
-    const state = {
-      // Général
-      isOpen: this.isShopOpen(),
-      isInitialized: this.isInitialized,
-      currentShopId: this.currentShopId,
-      currentNpcId: this.currentNpcId,
-      playerGold: this.playerGold,
-      
-      // Connexion
-      connectionTest: this.connectionTest,
-      hasGameRoom: !!this.gameRoom,
-      
-      // UI
-      hasShopUI: !!this.shopUI,
-      shopUIVisible: this.shopUI?.isVisible,
-      shopUIHasData: !!this.shopUI?.shopData,
-      
-      // Inventaire
-      hasInventorySystem: !!window.inventorySystem,
-      inventoryConnected: !!window.inventorySystem?.inventoryUI?.inventoryData,
-      
-      // Historique
-      transactionCount: this.transactionHistory.length,
-      lastTransaction: this.transactionHistory[this.transactionHistory.length - 1]
-    };
-    
-    console.log('📊 État complet:', state);
-    
-    // Test de connexion en direct
-    if (this.gameRoom) {
-      console.log('🧪 Test de connexion...');
-      this.testServerConnection();
+    if (this.room) {
+      this.room.send("requestPlayerState");
     }
-    
-    // Stats inventaire
-    if (window.inventorySystem?.inventoryUI?.inventoryData) {
-      const inventoryData = window.inventorySystem.inventoryUI.inventoryData;
-      let totalItems = 0;
-      Object.values(inventoryData).forEach(pocket => {
-        if (Array.isArray(pocket)) {
-          totalItems += pocket.reduce((sum, item) => sum + item.quantity, 0);
-        }
-      });
-      console.log(`🎒 Inventaire: ${totalItems} objets au total`);
-    }
-    
-    return state;
   }
 
-  // ✅ NOUVEAU: Test de bout en bout
-  testEndToEnd() {
-    console.log('🧪 === TEST BOUT EN BOUT SHOP ===');
+  checkMyPresence() {
+    console.log(`📤 [NetworkManager] Vérification présence serveur`);
     
-    const tests = [
-      () => {
-        console.log('1. Test initialisation...');
-        return this.isInitialized && this.shopUI;
-      },
-      () => {
-        console.log('2. Test connexion...');
-        this.testServerConnection();
-        return this.gameRoom !== null;
-      },
-      () => {
-        console.log('3. Test localizations...');
-        return this.shopUI.localizationsLoaded;
-      },
-      () => {
-        console.log('4. Test inventaire...');
-        return window.inventorySystem !== undefined;
+    if (this.room) {
+      this.room.send("checkMyPresence");
+    }
+  }
+
+  // ✅ NOUVEAUX CALLBACKS
+  onMyPlayerConfirmed(callback) { this.callbacks.onMyPlayerConfirmed = callback; }
+  onMyPlayerMissing(callback) { this.callbacks.onMyPlayerMissing = callback; }
+
+  // ✅ GETTER POUR VÉRIFIER L'ÉTAT
+  isMyPlayerReady() {
+    return this.myPlayerConfirmed && this.myPlayerData !== null;
+  }
+
+  getMyPlayerData() {
+    return this.myPlayerData;
+  }
+
+  // === MÉTHODES D'INTERACTION NPC MODERNISÉES ===
+
+  // ✅ MÉTHODE ORIGINALE - Maintenue pour compatibilité
+  sendNpcInteract(npcId) {
+    if (this.isConnected && this.room && !this.isTransitioning) {
+      console.log(`📤 [NetworkManager] Interaction NPC simple: ${npcId}`);
+      this.room.send("npcInteract", { npcId });
+      this.logInteraction('npc_interact_simple', { npcId });
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE - Support format étendu
+  sendNpcInteraction(npcId, additionalData = {}) {
+    if (!this.isConnected || !this.room || this.isTransitioning) {
+      console.warn(`⚠️ [NetworkManager] Cannot send interaction - not ready`);
+      return false;
+    }
+
+    console.log(`📤 [NetworkManager] === INTERACTION NPC ÉTENDUE ===`);
+    console.log(`🎭 NPC ID: ${npcId}`);
+    console.log(`📊 Données supplémentaires:`, additionalData);
+
+    try {
+      // ✅ Construire les données d'interaction
+      const interactionData = {
+        npcId: npcId,
+        timestamp: Date.now(),
+        zone: this.currentZone,
+        sessionId: this.sessionId,
+        ...additionalData
+      };
+
+      // ✅ Ajouter position du joueur si disponible
+      if (this.myPlayerData) {
+        interactionData.playerPosition = {
+          x: this.myPlayerData.x,
+          y: this.myPlayerData.y
+        };
       }
-    ];
-    
-    const results = tests.map((test, index) => {
+
+      console.log(`📤 Données d'interaction envoyées:`, interactionData);
+
+      // ✅ Essayer les deux formats pour compatibilité maximale
+      this.room.send("interactWithNpc", interactionData);
+      
+      // ✅ Log pour debugging
+      this.logInteraction('npc_interact_extended', interactionData);
+      
+      console.log(`✅ [NetworkManager] Interaction envoyée avec succès`);
+      return true;
+
+    } catch (error) {
+      console.error(`❌ [NetworkManager] Erreur envoi interaction:`, error);
+      
+      // ✅ Fallback vers format simple
       try {
-        const result = test();
-        console.log(`✅ Test ${index + 1}: ${result ? 'OK' : 'FAIL'}`);
-        return result;
-      } catch (error) {
-        console.log(`❌ Test ${index + 1}: ERROR - ${error.message}`);
+        console.log(`🔄 [NetworkManager] Fallback vers format simple...`);
+        this.room.send("npcInteract", { npcId });
+        this.logInteraction('npc_interact_fallback', { npcId, error: error.message });
+        return true;
+      } catch (fallbackError) {
+        console.error(`❌ [NetworkManager] Fallback échoué aussi:`, fallbackError);
         return false;
       }
-    });
-    
-    const passed = results.filter(Boolean).length;
-    console.log(`🧪 Tests: ${passed}/${tests.length} réussis`);
-    
-    return { passed, total: tests.length, allPassed: passed === tests.length };
-  }
-
-  // ✅ Méthodes utilitaires conservées...
-  isShopOpen() {
-    return this.shopUI ? this.shopUI.isVisible : false;
-  }
-
-  showNotification(message, type = 'info', duration = 3000) {
-    if (this.notificationManager) {
-      this.notificationManager.show(message, { type, duration, position: 'top-center' });
-    } else {
-      console.log(`[${type.toUpperCase()}] ${message}`);
     }
   }
 
-  showSuccess(message) { this.showNotification(message, 'success'); }
-  showError(message) { this.showNotification(message, 'error', 4000); }
-  showWarning(message) { this.showNotification(message, 'warning', 4000); }
-  showInfo(message) { this.showNotification(message, 'info', 2000); }
+  // ✅ MÉTHODE UNIVERSELLE - Auto-détection du format
+  interactWithNpc(npcId, options = {}) {
+    console.log(`🎯 [NetworkManager] === INTERACTION UNIVERSELLE ===`);
+    console.log(`🎭 NPC: ${npcId}`);
+    console.log(`⚙️ Options:`, options);
 
-  playSound(soundType) {
-    if (typeof window.playSound === 'function') {
-      const soundMap = {
-        'shop_open': 'ui_shop_open',
-        'shop_close': 'ui_shop_close',
-        'shop_buy_success': 'ui_purchase_success',
-        'shop_error': 'ui_error'
-      };
-      
-      const soundId = soundMap[soundType];
-      if (soundId) {
-        window.playSound(soundId, { volume: 0.7 });
+    // ✅ Déterminer le format selon les options
+    if (options.useExtended !== false && (options.includePosition || options.includeTimestamp || Object.keys(options).length > 1)) {
+      // Format étendu
+      console.log(`📈 Utilisation format étendu`);
+      return this.sendNpcInteraction(npcId, options);
+    } else {
+      // Format simple
+      console.log(`📊 Utilisation format simple`);
+      this.sendNpcInteract(npcId);
+      return true;
+    }
+  }
+
+  // === MÉTHODES DE GESTION DE TRANSITIONS ET COMMUNICATION ===
+
+  moveToZone(targetZone, spawnX, spawnY) {
+    if (!this.isConnected || !this.room) {
+      console.warn("[NetworkManager] ⚠️ Cannot move to zone - not connected");
+      return false;
+    }
+    if (this.transitionState.isActive) {
+      console.warn(`[NetworkManager] ⚠️ Transition déjà en cours vers: ${this.transitionState.targetZone}`);
+      return false;
+    }
+    console.log(`[NetworkManager] 🌀 === DEMANDE TRANSITION ===`);
+    console.log(`📍 De: ${this.currentZone} vers: ${targetZone}`);
+    console.log(`📊 Position: (${spawnX}, ${spawnY})`);
+    this.startTransition(targetZone);
+    this.room.send("moveToZone", {
+      targetZone: targetZone,
+      spawnX: spawnX,
+      spawnY: spawnY
+    });
+    return true;
+  }
+
+  startTransition(targetZone) {
+    console.log(`[NetworkManager] 🌀 Début transition vers: ${targetZone}`);
+    if (this.transitionState.timeout) {
+      clearTimeout(this.transitionState.timeout);
+    }
+    this.transitionState = {
+      isActive: true,
+      targetZone: targetZone,
+      startTime: Date.now(),
+      timeout: setTimeout(() => {
+        console.error(`[NetworkManager] ⏰ Timeout transition vers: ${targetZone}`);
+        this.resetTransitionState();
+        if (this.callbacks.onTransitionError) {
+          this.callbacks.onTransitionError({
+            success: false,
+            reason: "Timeout de transition"
+          });
+        }
+      }, this.transitionState.maxDuration),
+      maxDuration: 8000
+    };
+    this.isTransitioning = true;
+  }
+
+  resetTransitionState() {
+    console.log(`[NetworkManager] 🔄 Reset de l'état de transition`);
+    if (this.transitionState.timeout) {
+      clearTimeout(this.transitionState.timeout);
+    }
+    this.transitionState = {
+      isActive: false,
+      targetZone: null,
+      startTime: 0,
+      timeout: null,
+      maxDuration: 8000
+    };
+    this.isTransitioning = false;
+  }
+
+  sendMove(x, y, direction, isMoving) {
+    if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen) {
+      const now = Date.now();
+      if (!this.lastSendTime || now - this.lastSendTime > 50) {
+        this.room.send("playerMove", { x, y, direction, isMoving });
+        this.lastSendTime = now;
+        
+        // ✅ Mettre à jour les données locales
+        if (this.myPlayerData) {
+          this.myPlayerData.x = x;
+          this.myPlayerData.y = y;
+        }
       }
     }
   }
 
-  updateGlobalUIState(shopOpen) {
-    if (shopOpen) {
-      document.body.classList.add('shop-open');
+  startQuest(questId) {
+    if (this.isConnected && this.room && !this.transitionState.isActive) {
+      console.log(`[NetworkManager] 🎯 Démarrage quête: ${questId}`);
+      this.room.send("questStart", { questId });
+    }
+  }
+
+  sendMessage(type, data) {
+    if (this.isConnected && this.room && !this.transitionState.isActive) {
+      console.log(`📤 [NetworkManager] Envoi message: ${type}`, data);
+      this.room.send(type, data);
+      
+      // ✅ Log pour certains types importants
+      if (['shopTransaction', 'getShopCatalog', 'getInventory'].includes(type)) {
+        this.logInteraction(`message_${type}`, data);
+      }
+    }
+  }
+
+  notifyZoneChange(newZone, x, y) {
+    if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen) {
+      console.log(`📡 [NetworkManager] Notification changement zone: ${this.currentZone} → ${newZone}`);
+      this.room.send("notifyZoneChange", {
+        newZone: newZone,
+        x: x,
+        y: y
+      });
+      this.currentZone = newZone;
+      console.log(`✅ [NetworkManager] Zone mise à jour: ${newZone}`);
     } else {
-      document.body.classList.remove('shop-open');
+      console.warn(`⚠️ [NetworkManager] Impossible de notifier changement zone - pas connecté`);
     }
   }
 
-  // ✅ Nettoyage amélioré
-  destroy() {
-    console.log('💀 Destruction ShopSystem');
-    
-    // Arrêter les intervals
-    if (this.connectionMonitorInterval) {
-      clearInterval(this.connectionMonitorInterval);
+  requestCurrentZone(sceneKey) {
+    if (this.isConnected && this.room && this.room.connection && this.room.connection.isOpen) {
+      console.log(`📍 [NetworkManager] Demande zone actuelle pour scène: ${sceneKey}`);
+      this.room.send("requestCurrentZone", {
+        sceneKey: sceneKey,
+        timestamp: Date.now()
+      });
+    } else {
+      console.warn(`⚠️ [NetworkManager] Impossible de demander zone - pas connecté`);
     }
-    if (this.inventorySyncInterval) {
-      clearInterval(this.inventorySyncInterval);
-    }
-    
-    // Fermer le shop
-    if (this.isShopOpen()) {
-      this.closeShop();
-    }
-    
-    // Nettoyer l'UI
-    if (this.shopUI) {
-      this.shopUI.destroy();
-      this.shopUI = null;
-    }
-    
-    // Nettoyer les références
-    this.scene = null;
-    this.gameRoom = null;
-    this.notificationManager = null;
-    this.isInitialized = false;
-    
-    // Supprimer la référence globale
-    if (window.shopSystem === this) {
-      window.shopSystem = null;
-    }
-    
-    console.log('✅ ShopSystem détruit');
   }
 
-  // ✅ Méthodes conservées du code original...
-  closeShop() {
-    // ... code existant identique ...
+  // === CALLBACKS AVEC REPLAY NPCs ===
+
+  onConnect(callback) { this.callbacks.onConnect = callback; }
+  onStateChange(callback) { this.callbacks.onStateChange = callback; }
+  onPlayerData(callback) { this.callbacks.onPlayerData = callback; }
+  onDisconnect(callback) { this.callbacks.onDisconnect = callback; }
+  onZoneData(callback) { this.callbacks.onZoneData = callback; }
+  
+  // ✅ MÉTHODE CORRIGÉE AVEC REPLAY AUTOMATIQUE
+  onNpcList(callback) { 
+    console.log(`🔧 [NetworkManager] Configuration callback onNpcList`);
+    console.log(`⏰ Timestamp configuration: ${Date.now()}`);
+    console.log(`📊 NPCs en attente: ${this.lastReceivedNpcs?.length || 0}`);
+    
+    this.callbacks.onNpcList = callback; 
+    
+    // ✅ REPLAY AUTOMATIQUE des NPCs déjà reçus
+    if (this.lastReceivedNpcs && this.lastReceivedNpcs.length > 0) {
+      console.log(`🔄 [NetworkManager] REPLAY automatique de ${this.lastReceivedNpcs.length} NPCs`);
+      
+      // Délai court pour que la scène soit prête
+      setTimeout(() => {
+        if (this.callbacks.onNpcList && this.lastReceivedNpcs) {
+          console.log(`📤 [NetworkManager] Envoi des NPCs en replay`);
+          this.callbacks.onNpcList(this.lastReceivedNpcs);
+        }
+      }, 100);
+    } else {
+      console.log(`ℹ️ [NetworkManager] Aucun NPC en attente de replay`);
+    }
+  }
+  
+  onTransitionSuccess(callback) { this.callbacks.onTransitionSuccess = callback; }
+  onTransitionError(callback) { this.callbacks.onTransitionError = callback; }
+  onNpcInteraction(callback) { this.callbacks.onNpcInteraction = callback; }
+  onSnap(callback) { this.callbacks.onSnap = callback; }
+  onTransitionValidation(callback) { this.callbacks.onTransitionValidation = callback; }
+  onCurrentZone(callback) { this.callbacks.onCurrentZone = callback; }
+
+  onMessage(type, callback) {
+    if (this.room) {
+      this.room.onMessage(type, callback);
+    } else {
+      if (!this._pendingMessages) this._pendingMessages = [];
+      this._pendingMessages.push({ type, callback });
+    }
   }
 
-  setupKeyboardShortcuts() {
-    // ... code existant avec modifications mineures ...
+  getSessionId() { return this.sessionId; }
+  getCurrentZone() { return this.currentZone; }
+  get isTransitionActive() { return this.transitionState.isActive; }
+
+  getPlayerState(sessionId) {
+    if (this.room && this.room.state && this.room.state.players) {
+      return this.room.state.players.get(sessionId);
+    }
+    return null;
   }
 
-  updatePlayerGold(newGold, oldGold = null) {
-    // ... code existant identique ...
+  async disconnect() {
+    console.log(`[NetworkManager] 📤 Déconnexion demandée`);
+    this.resetTransitionState();
+    this.myPlayerConfirmed = false;
+    this.myPlayerData = null;
+    
+    if (this.room) {
+      this.isConnected = false;
+      try {
+        const roomId = this.room.id;
+        await this.room.leave();
+        console.log(`[NetworkManager] ✅ Déconnexion réussie de ${roomId}`);
+      } catch (error) {
+        console.warn("[NetworkManager] ⚠️ Erreur lors de la déconnexion:", error);
+      }
+      this.room = null;
+      this.sessionId = null;
+      this.currentZone = null;
+    }
   }
 
-  canPlayerInteract() {
-    // ... code existant identique ...
+  checkZoneSynchronization(currentScene) {
+    if (!this.room || !this.sessionId) {
+      console.warn(`[NetworkManager] ⚠️ Pas de room pour vérifier la sync zone`);
+      return false;
+    }
+    const myPlayer = this.room.state.players.get(this.sessionId);
+    if (!myPlayer) {
+      console.warn(`[NetworkManager] ❌ Joueur non trouvé pour sync zone`);
+      return false;
+    }
+    const serverZone = myPlayer.currentZone;
+    const clientZone = this.mapSceneToZone(currentScene);
+    if (serverZone !== clientZone) {
+      console.warn(`[NetworkManager] 🔄 DÉSYNCHRONISATION DÉTECTÉE - DEMANDE CORRECTION SERVEUR`);
+      console.warn(`   Serveur: ${serverZone}`);
+      console.warn(`   Client: ${clientZone} (${currentScene})`);
+      this.requestCurrentZone(currentScene);
+      return false;
+    }
+    console.log(`[NetworkManager] ✅ Zones synchronisées: ${serverZone}`);
+    return true;
+  }
+
+  mapSceneToZone(sceneName) {
+    const mapping = {
+    // Beach
+    'BeachScene': 'beach',
+
+    // Village
+    'VillageScene': 'village',
+    'VillageLabScene': 'villagelab',
+    'VillageHouse1Scene': 'villagehouse1',
+    'VillageHouse2Scene': 'villagehouse2',
+    'VillageFloristScene': 'villageflorist',
+
+    // Road
+    'Road1Scene': 'road1',
+    'Road1HouseScene': 'road1house',
+    'Road2Scene': 'road2',
+    'Road3Scene': 'road3',
+
+    // Lavandia
+    'LavandiaScene': 'lavandia',
+    'LavandiaAnalysisScene': 'lavandiaanalysis',
+    'LavandiaBossRoomScene': 'lavandiabossroom',
+    'LavandiaCelibTempleScene': 'lavandiacelibtemple',
+    'LavandiaEquipementScene': 'lavandiaequipement',
+    'LavandiaFurnitureScene': 'lavandiafurniture',
+    'LavandiaHealingCenterScene': 'lavandiahealingcenter',
+    'LavandiaHouse1Scene': 'lavandiahouse1',
+    'LavandiaHouse2Scene': 'lavandiahouse2',
+    'LavandiaHouse3Scene': 'lavandiahouse3',
+    'LavandiaHouse4Scene': 'lavandiahouse4',
+    'LavandiaHouse5Scene': 'lavandiahouse5',
+    'LavandiaHouse6Scene': 'lavandiahouse6',
+    'LavandiaHouse7Scene': 'lavandiahouse7',
+    'LavandiaHouse8Scene': 'lavandiahouse8',
+    'LavandiaHouse9Scene': 'lavandiahouse9',
+    'LavandiaResearchLabScene': 'lavandiaresearchlab',
+    'LavandiaShopScene': 'lavandiashop',
+
+    // NoctherCave
+    'NoctherCave1Scene': 'nocthercave1',
+    'NoctherCave2Scene': 'nocthercave2',
+    'NoctherCave2BisScene': 'nocthercave2bis'
+  };
+  return mapping[sceneName] || 'beach';
+}
+
+  async forceZoneSynchronization(currentScene) {
+    console.log(`[NetworkManager] 🔄 Forcer la resynchronisation zone...`);
+    if (!this.room) {
+      console.warn(`[NetworkManager] ❌ Pas de room pour resynchroniser`);
+      return false;
+    }
+    try {
+      this.requestCurrentZone(currentScene);
+      return true;
+    } catch (error) {
+      console.error(`[NetworkManager] ❌ Erreur lors de la resynchronisation zone:`, error);
+      return false;
+    }
+  }
+
+  // Ajoute ça à la fin de NetworkManager
+restoreCustomCallbacks() {
+  if (!this.room) return;
+  if (this.callbacks.onTransitionSuccess)
+    this.onTransitionSuccess(this.callbacks.onTransitionSuccess);
+  if (this.callbacks.onTransitionError)
+    this.onTransitionError(this.callbacks.onTransitionError);
+  if (this.callbacks.onNpcList)
+    this.onNpcList(this.callbacks.onNpcList);
+  if (this.callbacks.onTransitionValidation)
+    this.onTransitionValidation(this.callbacks.onTransitionValidation);
+  if (this.callbacks.onZoneData)
+    this.onZoneData(this.callbacks.onZoneData);
+  if (this.callbacks.onSnap)
+    this.onSnap(this.callbacks.onSnap);
+  if (this.callbacks.onNpcInteraction)
+    this.onNpcInteraction(this.callbacks.onNpcInteraction);
+  if (this.callbacks.onCurrentZone)
+    this.onCurrentZone(this.callbacks.onCurrentZone);
+  // Ajoute ici tout autre callback important...
+}
+
+  // ✅ DEBUG ET MONITORING AMÉLIORÉS
+  
+  debugState() {
+    console.log(`[NetworkManager] 🔍 === ÉTAT DEBUG COMPLET ===`);
+    console.log(`👤 Username: ${this.username}`);
+    console.log(`🆔 SessionId: ${this.sessionId}`);
+    console.log(`🔌 isConnected: ${this.isConnected}`);
+    console.log(`🌀 isTransitioning: ${this.isTransitioning}`);
+    console.log(`🎯 transitionState:`, this.transitionState);
+    console.log(`🌍 currentZone: ${this.currentZone}`);
+    console.log(`🏠 Room ID: ${this.room?.id || 'aucune'}`);
+    console.log(`📡 Room connectée: ${this.room?.connection?.isOpen || false}`);
+    console.log(`📊 Joueurs dans room: ${this.room?.state?.players?.size || 0}`);
+    
+    // ✅ NOUVEAU: Debug de mon joueur
+    console.log(`👤 === MON JOUEUR ===`);
+    console.log(`✅ Confirmé: ${this.myPlayerConfirmed}`);
+    console.log(`📊 Data:`, this.myPlayerData);
+    
+    // ✅ NOUVEAU: Debug santé connexion
+    console.log(`📡 === SANTÉ CONNEXION ===`);
+    console.log(`💓 Healthy: ${this.connectionHealth.isHealthy}`);
+    console.log(`📍 Last ping: ${this.connectionHealth.lastPing}`);
+    console.log(`🔄 Reconnect attempts: ${this.connectionHealth.reconnectAttempts}`);
+    
+    // ✅ NOUVEAU: Debug interactions
+    console.log(`🎭 === HISTORIQUE INTERACTIONS ===`);
+    console.log(`📝 Total: ${this.interactionHistory.length}`);
+    if (this.interactionHistory.length > 0) {
+      const recent = this.interactionHistory.slice(-3);
+      recent.forEach((entry, index) => {
+        console.log(`  ${index + 1}. ${entry.type} à ${entry.timestamp.toLocaleTimeString()}`);
+      });
+    }
+    
+    if (this.room?.state?.players && this.sessionId) {
+      const myPlayer = this.room.state.players.get(this.sessionId);
+      if (myPlayer) {
+        console.log(`🎮 Mon joueur dans state: (${myPlayer.x}, ${myPlayer.y}) dans ${myPlayer.currentZone}`);
+      } else {
+        console.log(`❌ Mon joueur non trouvé dans la room`);
+      }
+    }
+    console.log(`================================`);
+  }
+
+  // ✅ NOUVEAU: Test de connexion complet
+  testConnection() {
+    console.log(`🧪 [NetworkManager] === TEST CONNEXION COMPLET ===`);
+    
+    const tests = [
+      {
+        name: 'Room exists',
+        test: () => !!this.room,
+        critical: true
+      },
+      {
+        name: 'Connection open',
+        test: () => this.room?.connection?.isOpen,
+        critical: true
+      },
+      {
+        name: 'Player confirmed',
+        test: () => this.myPlayerConfirmed,
+        critical: true
+      },
+      {
+        name: 'Connection healthy',
+        test: () => this.connectionHealth.isHealthy,
+        critical: false
+      },
+      {
+        name: 'Can send messages',
+        test: () => this.isConnected && !this.isTransitioning,
+        critical: true
+      }
+    ];
+
+    let passed = 0;
+    let critical_failed = 0;
+
+    tests.forEach(test => {
+      const result = test.test();
+      const icon = result ? '✅' : test.critical ? '❌' : '⚠️';
+      console.log(`${icon} ${test.name}: ${result ? 'OK' : 'FAIL'}`);
+      
+      if (result) {
+        passed++;
+      } else if (test.critical) {
+        critical_failed++;
+      }
+    });
+
+    console.log(`🎯 Tests: ${passed}/${tests.length} réussis`);
+    
+    if (critical_failed > 0) {
+      console.log(`❌ ${critical_failed} tests critiques échoués - connexion non fonctionnelle`);
+      return false;
+    } else {
+      console.log(`✅ Connexion opérationnelle`);
+      return true;
+    }
+  }
+
+  // ✅ NOUVEAU: Statistiques réseau
+  getNetworkStats() {
+    return {
+      isConnected: this.isConnected,
+      isHealthy: this.connectionHealth.isHealthy,
+      lastPing: this.connectionHealth.lastPing,
+      reconnectAttempts: this.connectionHealth.reconnectAttempts,
+      interactionsCount: this.interactionHistory.length,
+      roomId: this.room?.id,
+      playersInRoom: this.room?.state?.players?.size || 0,
+      myPlayerConfirmed: this.myPlayerConfirmed,
+      currentZone: this.currentZone,
+      isTransitioning: this.isTransitioning
+    };
   }
 }
 
-// ✅ Fonctions de debug globales améliorées
-window.debugShopSystem = function() {
-  if (window.shopSystem) {
-    return window.shopSystem.debugShopState();
+// ✅ Fonctions de debug globales
+window.debugNetworkManager = function() {
+  if (window.globalNetworkManager) {
+    return window.globalNetworkManager.debugState();
   } else {
-    console.error('❌ ShopSystem non disponible');
-    return { error: 'ShopSystem manquant' };
+    console.error('❌ NetworkManager global non disponible');
+    return { error: 'NetworkManager manquant' };
   }
 };
 
-window.testShopEndToEnd = function() {
-  if (window.shopSystem) {
-    return window.shopSystem.testEndToEnd();
+window.testNetworkConnection = function() {
+  if (window.globalNetworkManager) {
+    return window.globalNetworkManager.testConnection();
   } else {
-    console.error('❌ ShopSystem non disponible');
-    return { error: 'ShopSystem manquant' };
+    console.error('❌ NetworkManager global non disponible');
+    return false;
   }
 };
 
-window.forceShopCatalogRequest = function(shopId = 'default_shop') {
-  if (window.shopSystem) {
-    console.log(`🧪 Force demande catalogue pour: ${shopId}`);
-    window.shopSystem.requestShopCatalog(shopId);
-  } else {
-    console.error('❌ ShopSystem non disponible');
-  }
-};
-
-console.log('✅ ShopSystem corrigé chargé!');
-console.log('🔍 Utilisez window.debugShopSystem() pour diagnostiquer');
-console.log('🧪 Utilisez window.testShopEndToEnd() pour test complet');
-console.log('📤 Utilisez window.forceShopCatalogRequest() pour forcer demande catalogue');
+console.log('✅ NetworkManager mis à jour chargé!');
+console.log('🔍 Utilisez window.debugNetworkManager() pour diagnostiquer');
+console.log('🧪 Utilisez window.testNetworkConnection() pour test connexion');
