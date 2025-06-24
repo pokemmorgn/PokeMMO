@@ -1,4 +1,5 @@
-// client/src/game/InteractionManager.js - Gestionnaire centralisé des interactions
+// client/src/game/InteractionManager.js - FIX SHOP OPENING
+// ✅ Correction du conflit entre shop et dialogue
 
 export class InteractionManager {
   constructor(scene) {
@@ -13,7 +14,7 @@ export class InteractionManager {
     this.config = {
       maxInteractionDistance: 64,
       interactionKey: 'E',
-      debugMode: false
+      debugMode: true // ✅ Activé pour debug
     };
 
     // Systèmes d'interaction disponibles
@@ -27,7 +28,11 @@ export class InteractionManager {
       currentInteractionType: null
     };
 
-    console.log(`🎯 [${this.scene.scene.key}] InteractionManager créé`);
+    // ✅ NOUVEAUX VERROUS POUR ÉVITER LES CONFLITS
+    this.shopHandlerActive = false;
+    this.lastShopOpenTime = 0;
+
+    console.log(`🎯 [${this.scene.scene.key}] InteractionManager créé avec debug activé`);
   }
 
   // ✅ INITIALISATION
@@ -113,11 +118,73 @@ export class InteractionManager {
   setupNetworkHandlers() {
     if (!this.networkManager) return;
 
+    // ✅ HANDLER CRITIQUE : Eviter les conflits
     this.networkManager.onMessage("npcInteractionResult", (data) => {
+      console.log(`🔍 [InteractionManager] === ANALYSE INTERACTION REÇUE ===`);
+      console.log(`📊 Type: ${data.type}`);
+      console.log(`🎭 NPC: ${data.npcName} (ID: ${data.npcId})`);
+      console.log(`🏪 ShopId: ${data.shopId}`);
+      console.log(`⏰ Timestamp: ${Date.now()}`);
+      
+      // ✅ VÉRIFICATION SHOP EN PREMIER
+      if (this.isShopInteraction(data)) {
+        console.log(`🛒 [InteractionManager] SHOP INTERACTION DETECTÉE`);
+        this.handleShopInteractionResult(data);
+        return; // ✅ ARRÊT ICI pour éviter le fallback dialogue
+      }
+      
+      // ✅ Ensuite les autres types
       this.handleInteractionResult(data);
     });
 
     console.log(`📡 [InteractionManager] Handlers réseau configurés`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Détecter les interactions shop
+  isShopInteraction(data) {
+    return !!(
+      data.type === "shop" ||
+      data.shopId ||
+      data.npcType === "merchant" ||
+      (data.shopData && Object.keys(data.shopData).length > 0)
+    );
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Gérer spécifiquement les résultats shop
+  handleShopInteractionResult(data) {
+    console.log(`🛒 [InteractionManager] === TRAITEMENT SHOP RESULT ===`);
+    
+    // ✅ Verrou contre les appels multiples
+    const now = Date.now();
+    if (this.shopHandlerActive || (now - this.lastShopOpenTime) < 1000) {
+      console.warn(`⚠️ [InteractionManager] Shop handler en cours ou récent, ignoré`);
+      return;
+    }
+    
+    this.shopHandlerActive = true;
+    this.lastShopOpenTime = now;
+    
+    try {
+      // ✅ Nettoyer les verrous du shop system s'ils existent
+      if (this.shopSystem) {
+        this.shopSystem.isOpeningShop = false;
+        if (this.shopSystem.shopUI) {
+          this.shopSystem.shopUI.isProcessingCatalog = false;
+        }
+      }
+      
+      console.log(`🚀 [InteractionManager] Délégation au shop system...`);
+      this.handleShopInteraction(null, data);
+      
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur shop interaction:`, error);
+      this.showMessage(`Erreur boutique: ${error.message}`, 'error');
+    } finally {
+      // ✅ Libérer le verrou après un délai
+      setTimeout(() => {
+        this.shopHandlerActive = false;
+      }, 2000);
+    }
   }
 
   // === GESTION DE L'INPUT D'INTERACTION ===
@@ -200,6 +267,12 @@ export class InteractionManager {
   }
 
   handleInteractionResult(data) {
+    // ✅ PROTECTION: Ne pas traiter les interactions shop ici
+    if (this.isShopInteraction(data)) {
+      console.log(`🛒 [InteractionManager] Shop interaction ignorée dans handleInteractionResult`);
+      return;
+    }
+    
     if (window._questDialogActive) {
       return;
     }
@@ -242,8 +315,14 @@ export class InteractionManager {
       inventoryOpen: window.inventorySystem?.isInventoryOpen() || false,
       shopOpen: this.isShopOpen(),
       dialogueOpen: this.isDialogueOpen(),
-      interactionBlocked: this.state.isInteractionBlocked
+      interactionBlocked: this.state.isInteractionBlocked,
+      shopHandlerActive: this.shopHandlerActive // ✅ Nouveau check
     };
+    
+    if (this.config.debugMode && Object.values(checks).some(Boolean)) {
+      console.log(`🚫 [InteractionManager] Interaction bloquée:`, checks);
+    }
+    
     return !Object.values(checks).some(Boolean);
   }
 
@@ -311,29 +390,49 @@ export class InteractionManager {
 
   // === INTERACTIONS SPÉCIFIQUES ===
 
-handleShopInteraction(npc, data) {
-  this.shopSystem = this.shopSystem || (this.scene.shopIntegration?.getShopSystem()) || window.shopSystem;
-  if (!this.shopSystem) {
-    this.handleDialogueInteraction(npc, { message: "Ce marchand n'est pas disponible." });
-    return;
-  }
-  if (data && data.type === 'dialogue') {
-    this.handleDialogueInteraction(npc, data);
-    return;
-  }
-  try {
-    // PATCH : Forcer le npcName string si data.npcName existe
-    if (data && typeof data.npcName === "object" && data.npcName.name) {
-      data.npcName = data.npcName.name;
+  handleShopInteraction(npc, data) {
+    console.log(`🛒 [InteractionManager] === HANDLE SHOP INTERACTION ===`);
+    console.log(`📊 Data reçue:`, data);
+    console.log(`🎭 NPC:`, npc?.name || 'depuis data');
+    
+    this.shopSystem = this.shopSystem || (this.scene.shopIntegration?.getShopSystem()) || window.shopSystem;
+    if (!this.shopSystem) {
+      console.error(`❌ [InteractionManager] Pas de ShopSystem disponible!`);
+      this.handleDialogueInteraction(npc, { message: "Ce marchand n'est pas disponible." });
+      return;
     }
-    this.shopSystem.handleShopNpcInteraction(data || this.createShopInteractionData(npc));
-  } catch (error) {
-    this.handleDialogueInteraction(npc, { 
-      message: `Erreur shop: ${error.message}\n\nSTACK:\n${error.stack || '(pas de stack)'}`
-    });
-  }
-}
 
+    // ✅ VÉRIFICATION: Ne pas traiter les dialogues comme shops
+    if (data && data.type === 'dialogue' && !data.shopId) {
+      console.log(`💬 [InteractionManager] Dialogue détecté, redirection`);
+      this.handleDialogueInteraction(npc, data);
+      return;
+    }
+
+    try {
+      console.log(`🚀 [InteractionManager] Délégation au ShopSystem...`);
+      
+      // ✅ PATCH : Normaliser npcName en string
+      if (data && typeof data.npcName === "object" && data.npcName.name) {
+        console.log(`🔧 [InteractionManager] Correction npcName object → string`);
+        data.npcName = data.npcName.name;
+      }
+
+      // ✅ Appeler la méthode shop directement
+      this.shopSystem.handleShopNpcInteraction(data || this.createShopInteractionData(npc));
+      
+      console.log(`✅ [InteractionManager] Shop interaction déléguée avec succès`);
+      
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur shop interaction:`, error);
+      console.error(`Stack trace:`, error.stack);
+      
+      // ✅ Fallback SEULEMENT en cas d'erreur critique
+      this.handleDialogueInteraction(npc, { 
+        message: `Erreur boutique: ${error.message}`
+      });
+    }
+  }
 
   handleQuestInteraction(npc, data) {
     this.questSystem = this.questSystem || window.questSystem;
@@ -364,12 +463,17 @@ handleShopInteraction(npc, data) {
   }
 
   handleDialogueInteraction(npc, data) {
+    console.log(`💬 [InteractionManager] === HANDLE DIALOGUE ===`);
+    console.log(`📊 Data:`, data);
+    console.log(`🎭 NPC:`, npc?.name);
+    
     if (typeof window.showNpcDialogue !== 'function') {
       this.showMessage("Système de dialogue non disponible", 'error');
       return;
     }
     const dialogueData = this.createDialogueData(npc, data);
     try {
+      console.log(`💬 [InteractionManager] Appel showNpcDialogue avec:`, dialogueData);
       window.showNpcDialogue(dialogueData);
     } catch (error) {
       this.showMessage(`Erreur dialogue: ${error.message}`, 'error');
@@ -485,6 +589,8 @@ handleShopInteraction(npc, data) {
     console.log(`🎯 Systèmes enregistrés: ${this.interactionSystems.size}`);
     console.log(`⚙️ Configuration:`, this.config);
     console.log(`📈 État:`, this.state);
+    console.log(`🛒 Shop handler actif: ${this.shopHandlerActive}`);
+    console.log(`⏰ Dernier shop: ${Date.now() - this.lastShopOpenTime}ms ago`);
     console.log(`🔧 Systèmes disponibles:`);
     this.interactionSystems.forEach((system, name) => {
       console.log(`  - ${name}: priorité ${system.priority} - ${system.description}`);
@@ -501,7 +607,8 @@ handleShopInteraction(npc, data) {
       canInteract: this.canPlayerInteract(),
       lastInteractionTime: this.state.lastInteractionTime,
       currentInteractionType: this.state.currentInteractionType,
-      isBlocked: this.state.isInteractionBlocked
+      isBlocked: this.state.isInteractionBlocked,
+      shopHandlerActive: this.shopHandlerActive
     };
   }
 
