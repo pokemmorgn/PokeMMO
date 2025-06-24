@@ -537,10 +537,10 @@ console.log(`✅ EncounterManager initialisé`);
     // ✅ === NOUVEAUX HANDLERS POUR LES SHOPS ===
 
     // Transaction shop (achat/vente)
-    this.onMessage("shopTransaction", (client, data) => {
-      console.log(`🛒 [WorldRoom] Transaction shop reçue:`, data);
-      this.handleShopTransaction(client, data);
-    });
+this.onMessage("shopTransaction", async (client, data) => {
+  console.log(`🛒 [WorldRoom] Transaction shop reçue:`, data);
+  await this.handleShopTransaction(client, data);
+});
 
     // Récupérer le catalogue d'un shop
     this.onMessage("getShopCatalog", (client, data) => {
@@ -998,142 +998,147 @@ this.onMessage("battleResult", (client, data) => {
   // ✅ === NOUVEAUX HANDLERS POUR LES SHOPS ===
 
 private async handleShopTransaction(client: Client, data: {
-    shopId: string;
-    action: 'buy' | 'sell';
-    itemId: string;
-    quantity: number;
-  }) {
-    try {
-      const player = this.state.players.get(client.sessionId);
-      if (!player) {
-        client.send("shopTransactionResult", {
-          success: false,
-          message: "Joueur non trouvé"
-        });
-        return;
-      }
-
-      console.log(`🛒 ${player.name} ${data.action} ${data.quantity}x ${data.itemId} dans shop ${data.shopId}`);
-
-      if (data.action === 'buy') {
-        // ✅ ACHAT AVEC INVENTAIRE INTÉGRÉ
-        const result = await this.shopManager.buyItem(
-          player.name, // ✅ USERNAME REQUIS
-          data.shopId,
-          data.itemId,
-          data.quantity,
-          player.gold,
-          player.level
-        );
-
-        if (result.success) {
-          // ✅ Mettre à jour l'or du joueur
-          if (result.newGold !== undefined) {
-            player.gold = result.newGold;
-            
-            // Notifier le changement d'or
-            client.send("goldUpdate", {
-              oldGold: player.gold + (result.newGold - player.gold),
-              newGold: result.newGold
-            });
-          }
-
-          // ✅ Notifier le changement d'inventaire
-          if (result.itemsChanged && result.itemsChanged.length > 0) {
-            const itemChange = result.itemsChanged[0];
-            client.send("inventoryUpdate", {
-              type: "add",
-              itemId: itemChange.itemId,
-              quantity: itemChange.quantityChanged,
-              newQuantity: itemChange.newQuantity,
-              pocket: getItemPocket(itemChange.itemId)
-            });
-          }
-        }
-
-        client.send("shopTransactionResult", result);
-
-      } else if (data.action === 'sell') {
-        // ✅ VENTE AVEC INVENTAIRE INTÉGRÉ
-        const result = await this.shopManager.sellItem(
-          player.name, // ✅ USERNAME REQUIS
-          data.shopId,
-          data.itemId,
-          data.quantity
-        );
-
-        if (result.success) {
-          // ✅ Mettre à jour l'or du joueur (ajouter la valeur de vente)
-          const newGold = player.gold + (result.newGold || 0);
-          player.gold = newGold;
-          
-          // Notifier le changement d'or
-          client.send("goldUpdate", {
-            oldGold: player.gold - (result.newGold || 0),
-            newGold: newGold
-          });
-
-          // ✅ Notifier le changement d'inventaire
-          if (result.itemsChanged && result.itemsChanged.length > 0) {
-            const itemChange = result.itemsChanged[0];
-            client.send("inventoryUpdate", {
-              type: "remove",
-              itemId: itemChange.itemId,
-              quantity: Math.abs(itemChange.quantityChanged),
-              newQuantity: itemChange.newQuantity,
-              pocket: getItemPocket(itemChange.itemId)
-            });
-          }
-        }
-
-        client.send("shopTransactionResult", result);
-      }
-
-    } catch (error) {
-      console.error("❌ Erreur transaction shop:", error);
+  shopId: string;
+  action: 'buy' | 'sell';
+  itemId: string;
+  quantity: number;
+}) {
+  try {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
       client.send("shopTransactionResult", {
         success: false,
-        message: "Erreur serveur lors de la transaction"
+        message: "Joueur non trouvé"
       });
+      return;
     }
+
+    console.log(`🛒 ${player.name} ${data.action} ${data.quantity}x ${data.itemId} dans shop ${data.shopId}`);
+
+    // ✅ UTILISER DIRECTEMENT this.shopManager au lieu du ZoneManager
+    if (data.action === 'buy') {
+      const result = await this.shopManager.buyItem(
+        player.name,
+        data.shopId,
+        data.itemId,
+        data.quantity,
+        player.gold,
+        player.level
+      );
+
+      if (result.success) {
+        // Mettre à jour l'or du joueur
+        if (result.newGold !== undefined) {
+          player.gold = result.newGold;
+          
+          client.send("goldUpdate", {
+            oldGold: player.gold + (result.newGold - player.gold),
+            newGold: result.newGold
+          });
+        }
+
+        // Notifier le changement d'inventaire
+        if (result.itemsChanged && result.itemsChanged.length > 0) {
+          const itemChange = result.itemsChanged[0];
+          client.send("inventoryUpdate", {
+            type: "add",
+            itemId: itemChange.itemId,
+            quantity: itemChange.quantityChanged,
+            newQuantity: itemChange.newQuantity,
+            pocket: getItemPocket(itemChange.itemId)
+          });
+        }
+      }
+
+      client.send("shopTransactionResult", result);
+
+    } else if (data.action === 'sell') {
+      const result = await this.shopManager.sellItem(
+        player.name,
+        data.shopId,
+        data.itemId,
+        data.quantity
+      );
+
+      if (result.success) {
+        const newGold = player.gold + (result.newGold || 0);
+        player.gold = newGold;
+        
+        client.send("goldUpdate", {
+          oldGold: player.gold - (result.newGold || 0),
+          newGold: newGold
+        });
+
+        if (result.itemsChanged && result.itemsChanged.length > 0) {
+          const itemChange = result.itemsChanged[0];
+          client.send("inventoryUpdate", {
+            type: "remove",
+            itemId: itemChange.itemId,
+            quantity: Math.abs(itemChange.quantityChanged),
+            newQuantity: itemChange.newQuantity,
+            pocket: getItemPocket(itemChange.itemId)
+          });
+        }
+      }
+
+      client.send("shopTransactionResult", result);
+    }
+
+  } catch (error) {
+    console.error("❌ Erreur transaction shop:", error);
+    client.send("shopTransactionResult", {
+      success: false,
+      message: "Erreur serveur lors de la transaction"
+    });
   }
+}
+
 
   private async handleGetShopCatalog(client: Client, shopId: string) {
-    try {
-      const player = this.state.players.get(client.sessionId);
-      if (!player) {
-        client.send("shopCatalogResult", {
-          success: false,
-          message: "Joueur non trouvé"
-        });
-        return;
-      }
-
-      const catalog = this.shopManager.getShopCatalog(shopId, player.level || 1);
-
-      if (catalog) {
-        client.send("shopCatalogResult", {
-          success: true,
-          shopId: shopId,
-          catalog: catalog,
-          playerGold: player.gold || 1000
-        });
-        console.log(`✅ Catalogue shop ${shopId} envoyé à ${client.sessionId}`);
-      } else {
-        client.send("shopCatalogResult", {
-          success: false,
-          message: "Shop introuvable"
-        });
-      }
-
-    } catch (error) {
-      console.error(`❌ Erreur getShopCatalog:`, error);
+  try {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
       client.send("shopCatalogResult", {
         success: false,
-        message: "Erreur lors de la récupération du catalogue"
+        message: "Joueur non trouvé"
+      });
+      return;
+    }
+
+    console.log(`🏪 Génération catalogue pour shop ${shopId} et joueur ${player.name}`);
+
+    // ✅ UTILISER DIRECTEMENT this.shopManager
+    const catalog = this.shopManager.getShopCatalog(shopId, player.level || 1);
+
+    if (catalog) {
+      // ✅ ENVOYER UNE SEULE FOIS AVEC TOUTES LES DONNÉES
+      const response = {
+        success: true,
+        shopId: shopId,
+        catalog: {
+          shopInfo: catalog.shopInfo,
+          availableItems: catalog.availableItems
+        },
+        playerGold: player.gold || 1000
+      };
+
+      client.send("shopCatalogResult", response);
+      console.log(`✅ Catalogue shop ${shopId} envoyé à ${client.sessionId} avec ${catalog.availableItems.length} objets`);
+    } else {
+      client.send("shopCatalogResult", {
+        success: false,
+        message: "Shop introuvable"
       });
     }
+
+  } catch (error) {
+    console.error(`❌ Erreur getShopCatalog:`, error);
+    client.send("shopCatalogResult", {
+      success: false,
+      message: "Erreur lors de la récupération du catalogue"
+    });
   }
+}
 
    private async handleRefreshShop(client: Client, shopId: string) {
     try {
