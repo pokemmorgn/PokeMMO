@@ -273,6 +273,225 @@
   },
   "rules": [
     {
+      "id": "beach_to_village",
+      "name": "Plage vers Village",
+      "description": "Transition libre entre la plage et le village",
+      "fromZone": "beach",
+      "toZone": "village",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "id": "village_to_beach",
+      "name": "Village vers Plage",
+      "description": "Retour libre vers la plage",
+      "fromZone": "village",
+      "toZone": "beach",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "id": "village_to_lab",
+      "name": "Village vers Laboratoire",
+      "description": "Acc\u00e8s libre au laboratoire",
+      "fromZone": "village",
+      "toZone": "villagelab",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lab_to_village",
+      "name": "Laboratoire vers Village",
+      "description": "Retour libre vers le village",
+      "fromZone": "villagelab",
+      "toZone": "village",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "id": "village_to_house1",
+      "name": "Village vers Maison",
+      "description": "Acc\u00e8s libre \u00e0 la maison",
+      "fromZone": "village",
+      "toZone": "villagehouse1",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house1_to_village",
+      "name": "Maison vers Village",
+      "description": "Sortie libre de la maison",
+      "fromZone": "villagehouse1",
+      "toZone": "village",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "id": "village_to_road1",
+      "name": "Village vers Route 1",
+      "description": "Acc\u00e8s \u00e0 la premi\u00e8re route sauvage",
+      "fromZone": "village",
+      "toZone": "road1",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "message": {
+        "failure": "Vous devez \u00eatre niveau 5+ pour acc\u00e9der \u00e0 la Route 1"
+      },
+      "enabled": true
+    },
+    {
+      "id": "road1_to_village",
+      "name": "Route 1 vers Village",
+      "description": "Retour libre vers le village",
+      "fromZone": "road1",
+      "toZone": "village",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "id": "road1_to_lavandia",
+      "name": "Route 1 vers Lavandia",
+      "description": "Acc\u00e8s \u00e0 Lavandia pour les dresseurs exp\u00e9riment\u00e9s",
+      "fromZone": "road1",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "message": {
+        "failure": "Vous devez \u00eatre niveau 15+ et avoir termin\u00e9 la qu\u00eate starter pour acc\u00e9der \u00e0 Lavandia"
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_road1",
+      "name": "Lavandia vers Route 1",
+      "description": "Retour vers la Route 1",
+      "fromZone": "lavandia",
+      "toZone": "road1",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "id": "beach_to_road1_vip",
+      "name": "Plage vers Route 1 (VIP)",
+      "description": "Acc\u00e8s direct VIP de la plage \u00e0 la Route 1",
+      "fromZone": "beach",
+      "toZone": "road1",
+      "conditions": {
+        "minLevel": 1,
+        "vipOnly": true,
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "message": {
+        "success": "T\u00e9l\u00e9portation VIP vers Route 1 !",
+        "failure": "Acc\u00e8s VIP requis pour cette t\u00e9l\u00e9portation"
+      },
+      "enabled": false
+    },
+    {
+      "id": "night_only_example",
+      "name": "Exemple transition nocturne",
+      "description": "Exemple de transition autoris\u00e9e uniquement la nuit",
+      "fromZone": "village",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "timeRestrictions": {
+          "enabled": true,
+          "allowedHours": [
+            22,
+            23,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "message": {
+        "failure": "Cette transition n'est disponible que la nuit (22h-6h)"
+      },
+      "enabled": false
+    },
+    {
+      "id": "weekend_only_example",
+      "name": "Exemple transition weekend",
+      "description": "Exemple de transition autoris\u00e9e uniquement le weekend",
+      "fromZone": "road1",
+      "toZone": "beach",
+      "conditions": {
+        "minLevel": 1,
+        "timeRestrictions": {
+          "enabled": true,
+          "allowedDays": [
+            0,
+            6
+          ]
+        },
+        "proximityCheck": {
+          "enabled": true
+        }
+      },
+      "message": {
+        "failure": "Cette t\u00e9l\u00e9portation sp\u00e9ciale n'est disponible que le weekend"
+      },
+      "enabled": false
+    },
+    {
       "id": "lavandia_to_lavandiaanalysis",
       "name": "Lavandia vers lavandiaanalysis",
       "description": "Transition libre vers lavandiaanalysis",
