@@ -51,29 +51,36 @@ export class ShopUI {
   }
 
 getItemName(itemId) {
-  // Ajoute ceci pour debug
-  console.log("[ShopUI] Recherche localisation pour:", itemId, Object.keys(this.itemLocalizations));
-
-  const loca = this.itemLocalizations[itemId];
+  // Sécurité : si les localisations ne sont pas encore chargées, retour fallback lisible
+  if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
+    console.warn(`[ShopUI] getItemName: Localisations non chargées, retour brut pour ${itemId}`);
+    return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+  // Normalise l'id
+  const normalizedId = itemId.toLowerCase().replace(/ /g, '_');
+  const loca = this.itemLocalizations[normalizedId];
   if (loca && loca[this.currentLanguage]) {
     return loca[this.currentLanguage].name;
   }
-  console.warn(`⚠️ [ShopUI] Localisation manquante pour item "${itemId}" (langue: ${this.currentLanguage})`);
-  return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  console.warn(`⚠️ [ShopUI] Localisation manquante pour item "${normalizedId}" (langue: ${this.currentLanguage})`);
+  return normalizedId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
-
-  getItemDescription(itemId) {
-    const loca = this.itemLocalizations[itemId];
-    if (loca && loca[this.currentLanguage]) {
-      return loca[this.currentLanguage].description;
-    }
-    
-    // ✅ LOG pour debug si localisation manquante
-    console.warn(`⚠️ [ShopUI] Description manquante pour item "${itemId}" (langue: ${this.currentLanguage})`);
-    
+getItemDescription(itemId) {
+  if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
+    console.warn(`[ShopUI] getItemDescription: Localisations non chargées, retour brut pour ${itemId}`);
     return 'Description not available.';
   }
+  // Normalise l'id
+  const normalizedId = itemId.toLowerCase().replace(/ /g, '_');
+  const loca = this.itemLocalizations[normalizedId];
+  if (loca && loca[this.currentLanguage]) {
+    return loca[this.currentLanguage].description;
+  }
+  console.warn(`⚠️ [ShopUI] Description manquante pour item "${normalizedId}" (langue: ${this.currentLanguage})`);
+  return 'Description not available.';
+}
+
 
   async init() {
     // ✅ CHARGER LES LOCALISATIONS EN PREMIER
