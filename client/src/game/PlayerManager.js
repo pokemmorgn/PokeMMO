@@ -184,7 +184,7 @@ getMyPlayer() {
     const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1)
   .setOrigin(0.5, 1)
   .setScale(1);
-player.setDepth(5);
+player.setDepth(4.5);
 player.sessionId = sessionId;
 
 // Optionnel mais conseillé pour RPG :
