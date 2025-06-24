@@ -1,6 +1,6 @@
 import { BaseZoneScene } from './BaseZoneScene.js';
 
-export class LavandiaCelibTempleScene extends BaseZoneScene {
+export class LavandiaCelibiTempleScene extends BaseZoneScene {
   constructor() {
     super('LavandiaCelibiTempleScene', 'lavandiacelibitemple');
     this.transitionCooldowns = {};
