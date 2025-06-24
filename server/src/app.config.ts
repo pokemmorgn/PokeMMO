@@ -62,7 +62,7 @@ export default config({
       }
     });
 
-    ✅ Routes de combat
+    // ✅ Routes de combat
     app.use('/api/battle', battleRoutes);
     console.log("✅ Routes de combat configurées");
 
