@@ -21,34 +21,22 @@ export class ShopUI {
     this.initializationPromise = this.init();
   }
 
-  async loadLocalizations() {
-    try {
-      console.log('🌐 [ShopUI] Chargement des localisations...');
-      const response = await fetch('/localization/itemloca.json');
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      this.itemLocalizations = await response.json();
-      
-      const itemCount = Object.keys(this.itemLocalizations).length;
-      console.log(`✅ [ShopUI] ${itemCount} items localisés chargés pour langue: ${this.currentLanguage}`);
-      
-      // ✅ TEST RAPIDE D'UNE LOCALISATION
-      const testItem = this.itemLocalizations['poke_ball'];
-      if (testItem && testItem[this.currentLanguage]) {
-        console.log(`🧪 [ShopUI] Test localisation - Poké Ball: "${testItem[this.currentLanguage].description}"`);
-      }
-      
-    } catch (error) {
-      console.error('❌ [ShopUI] Erreur chargement localisations:', error);
-      this.itemLocalizations = {};
-      
-      // ✅ FALLBACK: Créer une structure vide pour éviter les erreurs
-      console.warn('⚠️ [ShopUI] Utilisation des noms/descriptions par défaut');
+async loadLocalizations() {
+  try {
+    console.log('🌐 [ShopUI] Chargement des localisations...');
+    const response = await fetch('/localization/itemloca.json');
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
+    this.itemLocalizations = await response.json();
+    console.log('✅ [ShopUI] Clés chargées:', Object.keys(this.itemLocalizations));
+  } catch (error) {
+    console.error('❌ [ShopUI] Erreur chargement localisations:', error);
+    this.itemLocalizations = {};
+    console.warn('⚠️ [ShopUI] Utilisation des noms/descriptions par défaut');
   }
+}
+
 
 getItemName(itemId) {
   // Sécurité : si les localisations ne sont pas encore chargées, retour fallback lisible
