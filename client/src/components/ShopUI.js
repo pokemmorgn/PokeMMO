@@ -1,5 +1,6 @@
 // client/src/components/ShopUI.js - COMPLETE with integrated CSS
 // ✅ Consistent style with inventory - Blue gradients, modern animations
+// ✅ CORRECTION: Localisation des descriptions d'objets
 
 export class ShopUI {
   constructor(gameRoom) {
@@ -16,17 +17,36 @@ export class ShopUI {
     this.isProcessingCatalog = false;
     this.lastCatalogTime = 0;
     
-    this.init();
+    // ✅ INITIALISATION ASYNCHRONE
+    this.initializationPromise = this.init();
   }
 
   async loadLocalizations() {
     try {
+      console.log('🌐 [ShopUI] Chargement des localisations...');
       const response = await fetch('/localization/itemloca.json');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       this.itemLocalizations = await response.json();
-      console.log('🌐 Shop item localizations loaded');
+      
+      const itemCount = Object.keys(this.itemLocalizations).length;
+      console.log(`✅ [ShopUI] ${itemCount} items localisés chargés pour langue: ${this.currentLanguage}`);
+      
+      // ✅ TEST RAPIDE D'UNE LOCALISATION
+      const testItem = this.itemLocalizations['poke_ball'];
+      if (testItem && testItem[this.currentLanguage]) {
+        console.log(`🧪 [ShopUI] Test localisation - Poké Ball: "${testItem[this.currentLanguage].description}"`);
+      }
+      
     } catch (error) {
-      console.error('❌ Error loading shop localizations:', error);
+      console.error('❌ [ShopUI] Erreur chargement localisations:', error);
       this.itemLocalizations = {};
+      
+      // ✅ FALLBACK: Créer une structure vide pour éviter les erreurs
+      console.warn('⚠️ [ShopUI] Utilisation des noms/descriptions par défaut');
     }
   }
 
@@ -35,6 +55,11 @@ export class ShopUI {
     if (loca && loca[this.currentLanguage]) {
       return loca[this.currentLanguage].name;
     }
+    
+    // ✅ LOG pour debug si localisation manquante
+    console.warn(`⚠️ [ShopUI] Localisation manquante pour item "${itemId}" (langue: ${this.currentLanguage})`);
+    
+    // Fallback: nom formaté
     return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   }
 
@@ -43,10 +68,17 @@ export class ShopUI {
     if (loca && loca[this.currentLanguage]) {
       return loca[this.currentLanguage].description;
     }
+    
+    // ✅ LOG pour debug si localisation manquante
+    console.warn(`⚠️ [ShopUI] Description manquante pour item "${itemId}" (langue: ${this.currentLanguage})`);
+    
     return 'Description not available.';
   }
 
-  init() {
+  async init() {
+    // ✅ CHARGER LES LOCALISATIONS EN PREMIER
+    await this.loadLocalizations();
+    
     // ✅ NO LONGER NEED loadShopStyles() - CSS integrated
     this.createShopInterface();
     this.setupEventListeners();
@@ -1419,10 +1451,15 @@ export class ShopUI {
   }
 
   // ✅ SHOW - SIMPLIFIED VERSION
-  show(shopId, npcName = "Merchant") {
+  async show(shopId, npcName = "Merchant") {
     console.log(`🏪 [ShopUI] === SHOW CALLED ===`);
     console.log(`📊 shopId: ${shopId}, npcName:`, npcName);
     console.log(`📊 current isVisible: ${this.isVisible}`);
+
+    // ✅ S'ASSURER QUE LES LOCALISATIONS SONT CHARGÉES
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
 
     // ✅ IMMEDIATE DISPLAY
     this.overlay.classList.remove('hidden');
