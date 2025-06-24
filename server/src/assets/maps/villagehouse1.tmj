@@ -338,8 +338,8 @@
                  "type":"npc",
                  "visible":true,
                  "width":0,
-                 "x":175.5,
-                 "y":155.5
+                 "x":183.833333333333,
+                 "y":175.5
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -27039,7 +27039,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -27265,7 +27265,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -28005,7 +28005,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
