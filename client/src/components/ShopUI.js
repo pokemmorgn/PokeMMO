@@ -1787,7 +1787,7 @@ export class ShopUI {
     this.updateActionButton();
   }
 
-  updateItemDetails() {
+updateItemDetails() {
     const detailsContainer = this.overlay.querySelector('#shop-item-details');
     
     if (!this.selectedItem) {
@@ -1811,27 +1811,36 @@ export class ShopUI {
     const price = this.currentTab === 'buy' ? item.buyPrice : item.sellPrice;
     const priceLabel = this.currentTab === 'buy' ? 'Prix d\'achat' : 'Prix de vente';
 
+    // ✅ NOUVEAU LAYOUT HORIZONTAL COMPACT
     detailsContainer.innerHTML = `
       <div class="details-header">
         <span class="details-title">Détails de l'objet</span>
       </div>
       <div class="item-detail-content">
-        <div class="item-detail-header">
+        <!-- Header compact avec icône et nom -->
+        <div class="item-detail-main">
           <div class="item-detail-icon">${itemIcon}</div>
           <div class="item-detail-info">
             <h3>${itemName}</h3>
             <div class="item-detail-type">${this.getItemTypeText(item)}</div>
           </div>
         </div>
-        <div class="item-detail-description">
-          ${itemDescription}
-        </div>
-        <div class="item-detail-stats">
-          <div class="item-stat">
-            <span class="item-stat-label">${priceLabel}</span>
-            <span class="item-stat-value">${price}₽</span>
+        
+        <!-- Stats horizontales -->
+        <div class="item-detail-stats-horizontal">
+          <div class="item-stat-card price">
+            <div class="stat-icon">💰</div>
+            <div class="stat-info">
+              <span class="stat-label">${priceLabel}</span>
+              <span class="stat-value">${price}₽</span>
+            </div>
           </div>
-          ${this.getItemStatsHTML(item)}
+          ${this.getHorizontalStatsHTML(item)}
+        </div>
+        
+        <!-- Description compacte -->
+        <div class="item-detail-description-compact">
+          ${itemDescription}
         </div>
       </div>
     `;
