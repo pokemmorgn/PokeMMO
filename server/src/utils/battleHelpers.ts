@@ -1,6 +1,6 @@
 // server/src/utils/battleHelpers.ts
 import { BattleState, BattlePokemon } from '../schema/BattleState';
-import BATTLE_CONFIG from '../config/battleConfig';
+import { BATTLE_CONFIG } from '../config/battleConfig';
 
 export class BattleHelpers {
   
@@ -144,19 +144,19 @@ export class BattleHelpers {
     const config = BATTLE_CONFIG.TYPE_EFFECTIVENESS;
     
     // Vérifier immunité
-const immunities = config.IMMUNITIES[attackType as PokemonType];
+const immunities = config.IMMUNITIES[attackType as keyof typeof config.IMMUNITIES];
     if (immunities && immunities.includes(defenseType)) {
       return 0;
     }
 
     // Vérifier super efficace
-const superEffective = config.SUPER_EFFECTIVE[attackType as PokemonType];
+const superEffective = config.SUPER_EFFECTIVE[attackType as keyof typeof config.SUPER_EFFECTIVE];
     if (superEffective && superEffective.includes(defenseType)) {
       return 2.0;
     }
 
     // Vérifier peu efficace
-const notVeryEffective = config.NOT_VERY_EFFECTIVE[attackType as PokemonType];
+const notVeryEffective = config.NOT_VERY_EFFECTIVE[attackType as keyof typeof config.NOT_VERY_EFFECTIVE];
     if (notVeryEffective && notVeryEffective.includes(defenseType)) {
       return 0.5;
     }
