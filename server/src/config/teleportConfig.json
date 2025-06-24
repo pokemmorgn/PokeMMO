@@ -13,80 +13,47 @@
   "zones": {
     "beach": {
       "name": "beach",
-      "displayName": "Plage de d\u00e9part",
+      "displayName": "Plage de départ",
       "minLevel": 1,
-      "description": "Zone de d\u00e9part pour les nouveaux dresseurs",
-      "fixedSpawn": {
-        "x": 61.33,
-        "y": 40.67
-      }
+      "description": "Zone de départ pour les nouveaux dresseurs",
+      "fixedSpawn": { "x": 61.33, "y": 40.67 }
     },
     "village": {
-      "name": "village",
-      "displayName": "Village Pok\u00e9mon",
+      "name": "village", 
+      "displayName": "Village Pokémon",
       "minLevel": 1,
-      "description": "Centre du village avec Centre Pok\u00e9mon",
+      "description": "Centre du village avec Centre Pokémon",
       "fixedSpawns": {
-        "fromBeach": {
-          "x": 430.0,
-          "y": 438.67
-        },
-        "fromVillagelab": {
-          "x": 160.67,
-          "y": 248.0
-        },
-        "fromVillagehouse1": {
-          "x": 47.33,
-          "y": 98.67
-        },
-        "fromRoad1": {
-          "x": 200,
-          "y": 150
-        },
-        "default": {
-          "x": 130,
-          "y": 270
-        }
+        "fromBeach": { "x": 430.00, "y": 438.67 },
+        "fromVillagelab": { "x": 160.67, "y": 248.00 },
+        "fromVillagehouse1": { "x": 47.33, "y": 98.67 },
+        "fromRoad1": { "x": 200, "y": 150 },
+        "default": { "x": 130, "y": 270 }
       }
     },
     "villagelab": {
       "name": "villagelab",
       "displayName": "Laboratoire du Professeur",
       "minLevel": 1,
-      "description": "Laboratoire de recherche Pok\u00e9mon",
-      "fixedSpawn": {
-        "x": 242.52,
-        "y": 358.0
-      }
+      "description": "Laboratoire de recherche Pokémon",
+      "fixedSpawn": { "x": 242.52, "y": 358.00 }
     },
     "villagehouse1": {
       "name": "villagehouse1",
       "displayName": "Maison du village",
       "minLevel": 1,
       "description": "Maison d'habitant du village",
-      "fixedSpawn": {
-        "x": 181.0,
-        "y": 278.0
-      }
+      "fixedSpawn": { "x": 181.00, "y": 278.00 }
     },
     "road1": {
       "name": "road1",
       "displayName": "Route 1",
       "minLevel": 1,
-      "description": "Premi\u00e8re route sauvage",
+      "description": "Première route sauvage",
       "fixedSpawns": {
-        "fromVillage": {
-          "x": 100,
-          "y": 400
-        },
-        "fromLavandia": {
-          "x": 800,
-          "y": 200
-        },
-        "default": {
-          "x": 150,
-          "y": 350
-        }
+        "fromVillage": { "x": 100, "y": 400 },
+        "fromLavandia": { "x": 800, "y": 200 },
+        "default": { "x": 150, "y": 350 }
       }
     },
     "lavandia": {
@@ -94,181 +61,8 @@
       "displayName": "Ville de Lavandia",
       "minLevel": 1,
       "vipOnly": false,
-      "description": "Ville myst\u00e9rieuse aux tours fant\u00f4mes",
-      "fixedSpawn": {
-        "x": 300,
-        "y": 300
-      }
-    },
-    "lavandiaanalysis": {
-      "name": "lavandiaanalysis",
-      "displayName": "Lavandia Analysis",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiabossroom": {
-      "name": "lavandiabossroom",
-      "displayName": "Lavandia BossRoom",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiacelibitemple": {
-      "name": "lavandiacelibitemple",
-      "displayName": "Lavandia CelebiTemple",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiaequipement": {
-      "name": "lavandiaequipement",
-      "displayName": "Lavandia \u00c9quipement",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiafurniture": {
-      "name": "lavandiafurniture",
-      "displayName": "Lavandia Furniture",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiahealingcenter": {
-      "name": "lavandiahealingcenter",
-      "displayName": "Lavandia Healing Center",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiahouse1": {
-      "name": "lavandiahouse1",
-      "displayName": "Lavandia House1",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiahouse2": {
-      "name": "lavandiahouse2",
-      "displayName": "Lavandia House2",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiahouse3": {
-      "name": "lavandiahouse3",
-      "displayName": "Lavandia House3",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiahouse4": {
-      "name": "lavandiahouse4",
-      "displayName": "Lavandia House4",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiahouse5": {
-      "name": "lavandiahouse5",
-      "displayName": "Lavandia House5",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiahouse6": {
-      "name": "lavandiahouse6",
-      "displayName": "Lavandia House6",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiahouse7": {
-      "name": "lavandiahouse7",
-      "displayName": "Lavandia House7",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiahouse8": {
-      "name": "lavandiahouse8",
-      "displayName": "Lavandia House8",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiahouse9": {
-      "name": "lavandiahouse9",
-      "displayName": "Lavandia House9",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiaresearchlab": {
-      "name": "lavandiaresearchlab",
-      "displayName": "Lavandia Research Lab",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
-    },
-    "lavandiashop": {
-      "name": "lavandiashop",
-      "displayName": "Lavandia Shop",
-      "minLevel": 1,
-      "description": "Zone int\u00e9rieure de Lavandia",
-      "fixedSpawn": {
-        "x": 100,
-        "y": 100
-      }
+      "description": "Ville mystérieuse aux tours fantômes",
+      "fixedSpawn": { "x": 300, "y": 300 }
     }
   },
   "rules": [
@@ -280,37 +74,31 @@
       "toZone": "village",
       "conditions": {
         "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "enabled": true
     },
     {
       "id": "village_to_beach",
-      "name": "Village vers Plage",
+      "name": "Village vers Plage", 
       "description": "Retour libre vers la plage",
       "fromZone": "village",
       "toZone": "beach",
       "conditions": {
         "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "enabled": true
     },
     {
       "id": "village_to_lab",
       "name": "Village vers Laboratoire",
-      "description": "Acc\u00e8s libre au laboratoire",
+      "description": "Accès libre au laboratoire",
       "fromZone": "village",
       "toZone": "villagelab",
       "conditions": {
         "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "enabled": true
     },
@@ -322,23 +110,19 @@
       "toZone": "village",
       "conditions": {
         "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "enabled": true
     },
     {
       "id": "village_to_house1",
       "name": "Village vers Maison",
-      "description": "Acc\u00e8s libre \u00e0 la maison",
+      "description": "Accès libre à la maison",
       "fromZone": "village",
       "toZone": "villagehouse1",
       "conditions": {
         "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "enabled": true
     },
@@ -350,26 +134,22 @@
       "toZone": "village",
       "conditions": {
         "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "enabled": true
     },
     {
       "id": "village_to_road1",
       "name": "Village vers Route 1",
-      "description": "Acc\u00e8s \u00e0 la premi\u00e8re route sauvage",
+      "description": "Accès à la première route sauvage",
       "fromZone": "village",
       "toZone": "road1",
       "conditions": {
         "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "message": {
-        "failure": "Vous devez \u00eatre niveau 5+ pour acc\u00e9der \u00e0 la Route 1"
+        "failure": "Vous devez être niveau 5+ pour accéder à la Route 1"
       },
       "enabled": true
     },
@@ -381,26 +161,23 @@
       "toZone": "village",
       "conditions": {
         "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "enabled": true
     },
     {
       "id": "road1_to_lavandia",
       "name": "Route 1 vers Lavandia",
-      "description": "Acc\u00e8s \u00e0 Lavandia pour les dresseurs exp\u00e9riment\u00e9s",
+      "description": "Accès à Lavandia pour les dresseurs expérimentés",
       "fromZone": "road1",
       "toZone": "lavandia",
       "conditions": {
         "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true },
+        "cooldown": { "enabled": true, "durationMinutes": 2 }
       },
       "message": {
-        "failure": "Vous devez \u00eatre niveau 15+ et avoir termin\u00e9 la qu\u00eate starter pour acc\u00e9der \u00e0 Lavandia"
+        "failure": "Vous devez être niveau 15+ et avoir terminé la quête starter pour accéder à Lavandia"
       },
       "enabled": true
     },
@@ -412,55 +189,40 @@
       "toZone": "road1",
       "conditions": {
         "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "enabled": true
     },
     {
       "id": "beach_to_road1_vip",
       "name": "Plage vers Route 1 (VIP)",
-      "description": "Acc\u00e8s direct VIP de la plage \u00e0 la Route 1",
+      "description": "Accès direct VIP de la plage à la Route 1",
       "fromZone": "beach",
       "toZone": "road1",
       "conditions": {
         "minLevel": 1,
         "vipOnly": true,
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "message": {
-        "success": "T\u00e9l\u00e9portation VIP vers Route 1 !",
-        "failure": "Acc\u00e8s VIP requis pour cette t\u00e9l\u00e9portation"
+        "success": "Téléportation VIP vers Route 1 !",
+        "failure": "Accès VIP requis pour cette téléportation"
       },
       "enabled": false
     },
     {
       "id": "night_only_example",
       "name": "Exemple transition nocturne",
-      "description": "Exemple de transition autoris\u00e9e uniquement la nuit",
+      "description": "Exemple de transition autorisée uniquement la nuit",
       "fromZone": "village",
       "toZone": "lavandia",
       "conditions": {
         "minLevel": 1,
         "timeRestrictions": {
           "enabled": true,
-          "allowedHours": [
-            22,
-            23,
-            0,
-            1,
-            2,
-            3,
-            4,
-            5
-          ]
+          "allowedHours": [22, 23, 0, 1, 2, 3, 4, 5]
         },
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "message": {
         "failure": "Cette transition n'est disponible que la nuit (22h-6h)"
@@ -470,502 +232,21 @@
     {
       "id": "weekend_only_example",
       "name": "Exemple transition weekend",
-      "description": "Exemple de transition autoris\u00e9e uniquement le weekend",
+      "description": "Exemple de transition autorisée uniquement le weekend",
       "fromZone": "road1",
       "toZone": "beach",
       "conditions": {
         "minLevel": 1,
         "timeRestrictions": {
           "enabled": true,
-          "allowedDays": [
-            0,
-            6
-          ]
+          "allowedDays": [0, 6]
         },
-        "proximityCheck": {
-          "enabled": true
-        }
+        "proximityCheck": { "enabled": true }
       },
       "message": {
-        "failure": "Cette t\u00e9l\u00e9portation sp\u00e9ciale n'est disponible que le weekend"
+        "failure": "Cette téléportation spéciale n'est disponible que le weekend"
       },
       "enabled": false
-    },
-    {
-      "id": "lavandia_to_lavandiaanalysis",
-      "name": "Lavandia vers lavandiaanalysis",
-      "description": "Transition libre vers lavandiaanalysis",
-      "fromZone": "lavandia",
-      "toZone": "lavandiaanalysis",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiaanalysis_to_lavandia",
-      "name": "lavandiaanalysis vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiaanalysis",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiabossroom",
-      "name": "Lavandia vers lavandiabossroom",
-      "description": "Transition libre vers lavandiabossroom",
-      "fromZone": "lavandia",
-      "toZone": "lavandiabossroom",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiabossroom_to_lavandia",
-      "name": "lavandiabossroom vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiabossroom",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiacelibitemple",
-      "name": "Lavandia vers lavandiacelibitemple",
-      "description": "Transition libre vers lavandiacelibitemple",
-      "fromZone": "lavandia",
-      "toZone": "lavandiacelibitemple",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiacelibitemple_to_lavandia",
-      "name": "lavandiacelibitemple vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiacelibitemple",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiaequipement",
-      "name": "Lavandia vers lavandiaequipement",
-      "description": "Transition libre vers lavandiaequipement",
-      "fromZone": "lavandia",
-      "toZone": "lavandiaequipement",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiaequipement_to_lavandia",
-      "name": "lavandiaequipement vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiaequipement",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiafurniture",
-      "name": "Lavandia vers lavandiafurniture",
-      "description": "Transition libre vers lavandiafurniture",
-      "fromZone": "lavandia",
-      "toZone": "lavandiafurniture",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiafurniture_to_lavandia",
-      "name": "lavandiafurniture vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiafurniture",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiahealingcenter",
-      "name": "Lavandia vers lavandiahealingcenter",
-      "description": "Transition libre vers lavandiahealingcenter",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahealingcenter",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiahealingcenter_to_lavandia",
-      "name": "lavandiahealingcenter vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiahealingcenter",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiahouse1",
-      "name": "Lavandia vers lavandiahouse1",
-      "description": "Transition libre vers lavandiahouse1",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse1",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiahouse1_to_lavandia",
-      "name": "lavandiahouse1 vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiahouse1",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiahouse2",
-      "name": "Lavandia vers lavandiahouse2",
-      "description": "Transition libre vers lavandiahouse2",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse2",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiahouse2_to_lavandia",
-      "name": "lavandiahouse2 vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiahouse2",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiahouse3",
-      "name": "Lavandia vers lavandiahouse3",
-      "description": "Transition libre vers lavandiahouse3",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse3",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiahouse3_to_lavandia",
-      "name": "lavandiahouse3 vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiahouse3",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiahouse4",
-      "name": "Lavandia vers lavandiahouse4",
-      "description": "Transition libre vers lavandiahouse4",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse4",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiahouse4_to_lavandia",
-      "name": "lavandiahouse4 vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiahouse4",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiahouse5",
-      "name": "Lavandia vers lavandiahouse5",
-      "description": "Transition libre vers lavandiahouse5",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse5",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiahouse5_to_lavandia",
-      "name": "lavandiahouse5 vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiahouse5",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiahouse6",
-      "name": "Lavandia vers lavandiahouse6",
-      "description": "Transition libre vers lavandiahouse6",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse6",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiahouse6_to_lavandia",
-      "name": "lavandiahouse6 vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiahouse6",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiahouse7",
-      "name": "Lavandia vers lavandiahouse7",
-      "description": "Transition libre vers lavandiahouse7",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse7",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiahouse7_to_lavandia",
-      "name": "lavandiahouse7 vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiahouse7",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiahouse8",
-      "name": "Lavandia vers lavandiahouse8",
-      "description": "Transition libre vers lavandiahouse8",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse8",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiahouse8_to_lavandia",
-      "name": "lavandiahouse8 vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiahouse8",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiahouse9",
-      "name": "Lavandia vers lavandiahouse9",
-      "description": "Transition libre vers lavandiahouse9",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse9",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiahouse9_to_lavandia",
-      "name": "lavandiahouse9 vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiahouse9",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiaresearchlab",
-      "name": "Lavandia vers lavandiaresearchlab",
-      "description": "Transition libre vers lavandiaresearchlab",
-      "fromZone": "lavandia",
-      "toZone": "lavandiaresearchlab",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiaresearchlab_to_lavandia",
-      "name": "lavandiaresearchlab vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiaresearchlab",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_lavandiashop",
-      "name": "Lavandia vers lavandiashop",
-      "description": "Transition libre vers lavandiashop",
-      "fromZone": "lavandia",
-      "toZone": "lavandiashop",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandiashop_to_lavandia",
-      "name": "lavandiashop vers Lavandia",
-      "description": "Retour libre vers Lavandia",
-      "fromZone": "lavandiashop",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": {
-          "enabled": true
-        }
-      },
-      "enabled": true
     }
   ],
   "emergencyOverride": {
@@ -974,11 +255,11 @@
     "reason": "Aucun override actif"
   },
   "notes": {
-    "spawnSystem": "Syst\u00e8me de spawn simplifi\u00e9 avec coordonn\u00e9es fixes",
+    "spawnSystem": "Système de spawn simplifié avec coordonnées fixes",
     "changes": [
-      "Suppression compl\u00e8te du syst\u00e8me targetSpawn",
-      "Utilisation de coordonn\u00e9es fixes d\u00e9finies dans calculateFixedSpawnPosition()",
-      "Les positions de spawn sont d\u00e9termin\u00e9es par la zone de destination et d'origine",
+      "Suppression complète du système targetSpawn",
+      "Utilisation de coordonnées fixes définies dans calculateFixedSpawnPosition()",
+      "Les positions de spawn sont déterminées par la zone de destination et d'origine",
       "Plus besoin d'objets spawn dans les maps Tiled"
     ]
   }
