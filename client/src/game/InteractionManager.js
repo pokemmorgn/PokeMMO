@@ -377,69 +377,84 @@ export class InteractionManager {
   }
 
   // ✅ FIX: Envoi d'interaction au serveur
-  sendNpcInteraction(npc) {
-    console.log(`📤 [${this.scene.scene.key}] Envoi interaction NPC:`, npc.id);
+// Dans votre InteractionManager.js, remplacez la méthode sendNpcInteraction par ceci :
 
-    if (!this.networkManager?.room) {
-      console.error(`❌ Pas de room pour envoyer interaction`);
-      return;
+// ✅ FIX: Envoi d'interaction compatible avec NetworkManager mis à jour
+sendNpcInteraction(npc) {
+  console.log(`📤 [${this.scene.scene.key}] === ENVOI INTERACTION COMPATIBLE ===`);
+  console.log(`🎭 NPC: ${npc.name} (ID: ${npc.id})`);
+
+  if (!this.networkManager?.room) {
+    console.error(`❌ Pas de room pour envoyer interaction`);
+    return;
+  }
+
+  try {
+    // ✅ UTILISER LES NOUVELLES MÉTHODES DU NETWORKMANAGER
+    
+    // Option 1: Méthode simple (recommandée pour compatibilité maximale)
+    if (typeof this.networkManager.sendNpcInteract === 'function') {
+      console.log(`✅ Utilisation NetworkManager.sendNpcInteract() - Format simple`);
+      this.networkManager.sendNpcInteract(npc.id);
     }
-
-    try {
-      const interactionData = {
-        npcId: npc.id,
-        timestamp: Date.now(),
+    // Option 2: Méthode étendue si disponible
+    else if (typeof this.networkManager.sendNpcInteraction === 'function') {
+      console.log(`✅ Utilisation NetworkManager.sendNpcInteraction() - Format étendu`);
+      this.networkManager.sendNpcInteraction(npc.id, {
         zone: this.scene.scene.key,
-        playerPosition: this.getPlayerPosition()
-      };
+        includePosition: true,
+        includeTimestamp: true
+      });
+    }
+    // Option 3: Méthode universelle si disponible
+    else if (typeof this.networkManager.interactWithNpc === 'function') {
+      console.log(`✅ Utilisation NetworkManager.interactWithNpc() - Format universel`);
+      this.networkManager.interactWithNpc(npc.id, {
+        zone: this.scene.scene.key,
+        useExtended: false // Force format simple pour compatibilité
+      });
+    }
+    // Option 4: Fallback direct (ancien format)
+    else {
+      console.log(`🔄 Fallback direct vers format simple`);
+      this.networkManager.room.send("npcInteract", { npcId: npc.id });
+    }
+    
+    // ✅ Feedback utilisateur
+    this.showMessage(`Interaction avec ${npc.name}...`, "info");
+    
+    // ✅ Log pour debug
+    this.logInteraction('npc_interaction_sent_fixed', { 
+      npcId: npc.id, 
+      npcName: npc.name,
+      method: 'networkManager_compatible'
+    });
 
-      console.log(`📤 Données envoyées:`, interactionData);
+    // ✅ Timeout de sécurité
+    setTimeout(() => {
+      if (this.state.interactionInProgress) {
+        console.warn(`⚠️ Timeout interaction avec ${npc.name}`);
+        this.showMessage("Le personnage ne répond pas", "warning");
+        this.state.interactionInProgress = false;
+      }
+    }, 10000);
 
-      this.networkManager.room.send("interactWithNpc", interactionData);
-      
-      // ✅ Feedback visuel immédiat
-      this.showMessage(`Interaction avec ${npc.name}...`, "info");
-      
-      // ✅ Log de l'interaction
-      this.logInteraction('npc_interaction_sent', { npc, data: interactionData });
+    console.log(`✅ Interaction envoyée via NetworkManager`);
 
-      // ✅ Timeout si pas de réponse
-      setTimeout(() => {
-        if (this.state.interactionInProgress) {
-          console.warn(`⚠️ Timeout interaction avec ${npc.name}`);
-          this.showMessage("Le personnage ne répond pas", "warning");
-          this.state.interactionInProgress = false;
-        }
-      }, 10000);
-
-    } catch (error) {
-      console.error(`❌ Erreur envoi interaction:`, error);
+  } catch (error) {
+    console.error(`❌ Erreur envoi interaction:`, error);
+    
+    // ✅ DERNIER RECOURS: Format le plus simple possible
+    try {
+      console.log(`🆘 Dernier recours: format ultra-simple`);
+      this.networkManager.room.send("npcInteract", { npcId: npc.id });
+      this.showMessage("Tentative d'interaction...", "info");
+    } catch (finalError) {
+      console.error(`❌ Échec complet:`, finalError);
       this.showMessage("Erreur de communication", "error");
     }
   }
-
-  // ✅ NOUVEAU: Obtenir la position du joueur
-  getPlayerPosition() {
-    const myPlayer = this.playerManager?.getMyPlayer();
-    if (myPlayer) {
-      return { x: myPlayer.x, y: myPlayer.y };
-    }
-    return { x: 0, y: 0 };
-  }
-
-  // ✅ NOUVEAU: Référence au ShopSystem
-  setupShopSystemReference() {
-    // ✅ Trouver le ShopSystem
-    if (this.scene.shopIntegration?.shopSystem) {
-      this.shopSystem = this.scene.shopIntegration.shopSystem;
-      console.log(`🏪 ShopSystem trouvé via scene.shopIntegration`);
-    } else if (window.shopSystem) {
-      this.shopSystem = window.shopSystem;
-      console.log(`🏪 ShopSystem trouvé via window.shopSystem`);
-    } else {
-      console.warn(`⚠️ ShopSystem non trouvé - interactions shop indisponibles`);
-    }
-  }
+}
 
   // ✅ NOUVEAU: Vérification si le joueur peut interagir
   canPlayerInteract() {
