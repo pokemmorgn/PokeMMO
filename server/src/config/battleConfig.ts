@@ -400,19 +400,19 @@ export class BattleConfigUtils {
    */
   static getTypeEffectiveness(attackType: string, defendType: string): number {
     // Vérifier immunité
-    const immunities = BATTLE_CONFIG.TYPE_EFFECTIVENESS.IMMUNITIES[attackType as PokemonType];
+    const immunities = BATTLE_CONFIG.TYPE_EFFECTIVENESS.IMMUNITIES[attackType as keyof typeof BATTLE_CONFIG.TYPE_EFFECTIVENESS.IMMUNITIES];
     if (immunities && immunities.includes(defendType)) {
       return 0;
     }
 
     // Vérifier super efficace
-    const superEffective = BATTLE_CONFIG.TYPE_EFFECTIVENESS.SUPER_EFFECTIVE[attackType as PokemonType];
+    const superEffective = BATTLE_CONFIG.TYPE_EFFECTIVENESS.SUPER_EFFECTIVE[attackType as keyof typeof BATTLE_CONFIG.TYPE_EFFECTIVENESS.SUPER_EFFECTIVE];
     if (superEffective && superEffective.includes(defendType)) {
       return 2.0;
     }
 
     // Vérifier peu efficace
-    const notVeryEffective = BATTLE_CONFIG.TYPE_EFFECTIVENESS.NOT_VERY_EFFECTIVE[attackType as PokemonType];
+    const notVeryEffective = BATTLE_CONFIG.TYPE_EFFECTIVENESS.NOT_VERY_EFFECTIVE[attackType as keyof typeof BATTLE_CONFIG.TYPE_EFFECTIVENESS.NOT_VERY_EFFECTIVE];
     if (notVeryEffective && notVeryEffective.includes(defendType)) {
       return 0.5;
     }
