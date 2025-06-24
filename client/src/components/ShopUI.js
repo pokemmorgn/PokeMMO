@@ -57,12 +57,60 @@ export class ShopUI {
 loadShopStyles() {
   // Charger le fichier CSS du shop si pas déjà fait
   if (!document.querySelector('#shop-styles')) {
+    console.log('🎨 [ShopUI] Tentative de chargement du CSS...');
+    
     const link = document.createElement('link');
     link.id = 'shop-styles';
     link.rel = 'stylesheet';
-    link.href = '/src/shop.css';  // ✅ BON CHEMIN
+    link.href = './src/components/shop.css';  // ✅ Même répertoire
+    
+    // ✅ DEBUG
+    link.onload = () => {
+      console.log('✅ [ShopUI] CSS shop chargé avec succès !');
+    };
+    
+    link.onerror = () => {
+      console.error('❌ [ShopUI] Erreur chargement CSS shop');
+      console.error('📁 Chemin essayé:', link.href);
+      console.error('🌐 URL de base:', window.location.href);
+      
+      // ✅ Essayer d'autres chemins en fallback
+      console.log('🔄 Essai de chemins alternatifs...');
+      this.tryAlternativePaths();
+    };
+    
     document.head.appendChild(link);
+    console.log('📋 [ShopUI] Lien CSS ajouté:', link.href);
+  } else {
+    console.log('♻️ [ShopUI] CSS shop déjà chargé');
   }
+}
+
+// ✅ NOUVELLE MÉTHODE : Essayer plusieurs chemins
+tryAlternativePaths() {
+  const paths = [
+    '/src/components/shop.css',
+    './components/shop.css',
+    '../shop.css',
+    './shop.css',
+    '/shop.css'
+  ];
+  
+  paths.forEach((path, index) => {
+    setTimeout(() => {
+      console.log(`🧪 Test chemin ${index + 1}:`, path);
+      const testLink = document.createElement('link');
+      testLink.rel = 'stylesheet';
+      testLink.href = path;
+      testLink.onload = () => {
+        console.log(`✅ SUCCÈS avec: ${path}`);
+      };
+      testLink.onerror = () => {
+        console.log(`❌ Échec: ${path}`);
+      };
+      document.head.appendChild(testLink);
+    }, index * 100);
+  });
 }
 
   createShopInterface() {
