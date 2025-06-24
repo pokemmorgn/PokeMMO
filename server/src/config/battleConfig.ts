@@ -1,6 +1,75 @@
 // server/src/config/battleConfig.ts
 export const BATTLE_CONFIG = {
   // ================================================================================================
+  // TEMPS ET LIMITES
+  // ================================================================================================
+  TURN_TIME_LIMIT: 30, // secondes par tour
+  BATTLE_MAX_DURATION: 300, // 5 minutes max
+  BATTLE_ROOM_CLEANUP_DELAY: 10000, // 10 secondes après la fin
+  
+  // ================================================================================================
+  // TAUX DE RENCONTRES
+  // ================================================================================================
+  DEFAULT_ENCOUNTER_RATE: 0.1, // 10% par défaut
+  ENCOUNTER_RATES: {
+    grass: 0.1,           // Herbe haute
+    long_grass: 0.15,     // Herbe très haute
+    fishing: 0.3,         // Pêche
+    surfing: 0.2,         // Surf
+    cave: 0.12,           // Grottes
+    water: 0.08,          // Eau peu profonde
+    special: 0.05         // Zones spéciales
+  },
+  
+  // Modificateurs de taux selon conditions
+  ENCOUNTER_MODIFIERS: {
+    timeOfDay: {
+      day: 1.0,
+      night: 1.2         // +20% la nuit
+    },
+    weather: {
+      clear: 1.0,
+      rain: 1.3,         // +30% sous la pluie
+      storm: 1.5,        // +50% pendant l'orage
+      snow: 0.8,         // -20% dans la neige
+      fog: 1.1           // +10% dans le brouillard
+    },
+    repel: {
+      none: 1.0,
+      active: 0.0        // Aucune rencontre avec Repousse
+    }
+  },
+
+  // ================================================================================================
+  // SYSTÈME DE CAPTURE
+  // ================================================================================================
+  CAPTURE_RATES: {
+    LOW_HP_BONUS: 2.0,         // Bonus si PV < 20%
+    CRITICAL_HP_BONUS: 3.0,    // Bonus si PV < 5%
+    STATUS_BONUS: 1.5,         // Bonus si statut anormal
+    SLEEP_FREEZE_BONUS: 2.0,   // Bonus sommeil/gel
+    CRITICAL_CAPTURE: 0.01,    // 1% de chance de capture critique
+    
+    // Modificateurs selon la Ball
+    BALL_MODIFIERS: {
+      poke_ball: 1.0,
+      great_ball: 1.5,
+      ultra_ball: 2.0,
+      master_ball: 255.0,      // Toujours réussie
+      safari_ball: 1.5,
+      net_ball: 3.0,           // Bug/Water
+      nest_ball: 4.0,          // Pokémon faible niveau
+      repeat_ball: 3.5,        // Déjà capturé
+      timer_ball: 4.0,         // Combat long
+      quick_ball: 5.0,         // Premier tour
+      dusk_ball: 3.5,          // Nuit/grotte
+      heal_ball: 1.0,
+      luxury_ball: 1.0,
+      premier_ball: 1.0
+    }
+  },
+
+  // ================================================================================================
   // SYSTÈME D'EXPÉRIENCE
   // ================================================================================================
   EXP_FORMULAS: {
@@ -379,79 +448,131 @@ export class BattleConfigUtils {
       return variables[key] || match;
     });
   }
+
+  /**
+   * Vérifie si une rencontre doit avoir lieu selon les conditions
+   */
+  static shouldTriggerEncounter(
+    method: string,
+    timeOfDay: string,
+    weather: string,
+    hasRepel: boolean = false,
+    customRate?: number
+  ): boolean {
+    const encounterRate = customRate || this.getEncounterRate(method, timeOfDay, weather, hasRepel);
+    return Math.random() < encounterRate;
+  }
+
+  /**
+   * Calcule les dégâts de base avec les formules authentiques
+   */
+  static calculateBaseDamage(
+    attackerLevel: number,
+    attackStat: number,
+    defenseStat: number,
+    movePower: number,
+    isPhysical: boolean = true
+  ): number {
+    if (movePower === 0) return 0;
+
+    // Formule Pokémon officielle
+    const levelFactor = (2 * attackerLevel + 10) / 250;
+    const damage = Math.floor(levelFactor * (attackStat / defenseStat) * movePower + 2);
+
+    return Math.max(1, damage);
+  }
+
+  /**
+   * Applique tous les modificateurs de dégâts
+   */
+  static applyDamageModifiers(
+    baseDamage: number,
+    options: {
+      isCritical?: boolean;
+      hasSTAB?: boolean;
+      typeEffectiveness?: number;
+      weather?: string;
+      moveType?: string;
+      randomize?: boolean;
+    }
+  ): number {
+    let finalDamage = baseDamage;
+
+    // STAB
+    if (options.hasSTAB) {
+      finalDamage *= BATTLE_CONFIG.BATTLE_MECHANICS.DAMAGE_MULTIPLIERS.STAB;
+    }
+
+    // Efficacité des types
+    if (options.typeEffectiveness !== undefined) {
+      finalDamage *= options.typeEffectiveness;
+    }
+
+    // Coup critique
+    if (options.isCritical) {
+      finalDamage *= BATTLE_CONFIG.BATTLE_MECHANICS.DAMAGE_MULTIPLIERS.CRITICAL;
+    }
+
+    // Variation aléatoire
+    if (options.randomize !== false) {
+      const variance = BATTLE_CONFIG.BATTLE_MECHANICS.DAMAGE_VARIANCE;
+      const randomFactor = variance.MIN + Math.random() * (variance.MAX - variance.MIN);
+      finalDamage *= randomFactor;
+    }
+
+    return Math.max(1, Math.floor(finalDamage));
+  }
+
+  /**
+   * Détermine si un coup critique a lieu
+   */
+  static isCriticalHit(highCritRatio: boolean = false): boolean {
+    const chance = highCritRatio 
+      ? BATTLE_CONFIG.BATTLE_MECHANICS.HIGH_CRIT_CHANCE 
+      : BATTLE_CONFIG.BATTLE_MECHANICS.CRITICAL_HIT_CHANCE;
+    
+    return Math.random() < chance;
+  }
+
+  /**
+   * Calcule la chance de réussite de capture
+   */
+  static calculateCaptureChance(
+    pokemonCaptureRate: number,
+    currentHp: number,
+    maxHp: number,
+    statusCondition: string,
+    ballType: string
+  ): number {
+    // Modificateur de PV
+    const hpRatio = currentHp / maxHp;
+    let hpModifier = 1.0;
+    
+    if (hpRatio <= 0.05) {
+      hpModifier = BATTLE_CONFIG.CAPTURE_RATES.CRITICAL_HP_BONUS;
+    } else if (hpRatio <= 0.2) {
+      hpModifier = BATTLE_CONFIG.CAPTURE_RATES.LOW_HP_BONUS;
+    }
+
+    // Modificateur de statut
+    let statusModifier = 1.0;
+    if (statusCondition === "sleep" || statusCondition === "freeze") {
+      statusModifier = BATTLE_CONFIG.CAPTURE_RATES.SLEEP_FREEZE_BONUS;
+    } else if (statusCondition !== "normal") {
+      statusModifier = BATTLE_CONFIG.CAPTURE_RATES.STATUS_BONUS;
+    }
+
+    // Modificateur de Ball
+    const ballModifier = BATTLE_CONFIG.CAPTURE_RATES.BALL_MODIFIERS[ballType as keyof typeof BATTLE_CONFIG.CAPTURE_RATES.BALL_MODIFIERS] || 1.0;
+
+    // Calcul final
+    const captureChance = (pokemonCaptureRate * hpModifier * statusModifier * ballModifier) / 255;
+    
+    return Math.min(1.0, captureChance);
+  }
 }
 
 // Export de la configuration par défaut
 export default BATTLE_CONFIG;
 
 console.log("✅ Configuration de combat chargée");
-
-  // TEMPS ET LIMITES
-  // ================================================================================================
-  TURN_TIME_LIMIT: 30, // secondes par tour
-  BATTLE_MAX_DURATION: 300, // 5 minutes max
-  BATTLE_ROOM_CLEANUP_DELAY: 10000, // 10 secondes après la fin
-  
-  // ================================================================================================
-  // TAUX DE RENCONTRES
-  // ================================================================================================
-  DEFAULT_ENCOUNTER_RATE: 0.1, // 10% par défaut
-  ENCOUNTER_RATES: {
-    grass: 0.1,           // Herbe haute
-    long_grass: 0.15,     // Herbe très haute
-    fishing: 0.3,         // Pêche
-    surfing: 0.2,         // Surf
-    cave: 0.12,           // Grottes
-    water: 0.08,          // Eau peu profonde
-    special: 0.05         // Zones spéciales
-  },
-  
-  // Modificateurs de taux selon conditions
-  ENCOUNTER_MODIFIERS: {
-    timeOfDay: {
-      day: 1.0,
-      night: 1.2         // +20% la nuit
-    },
-    weather: {
-      clear: 1.0,
-      rain: 1.3,         // +30% sous la pluie
-      storm: 1.5,        // +50% pendant l'orage
-      snow: 0.8,         // -20% dans la neige
-      fog: 1.1           // +10% dans le brouillard
-    },
-    repel: {
-      none: 1.0,
-      active: 0.0        // Aucune rencontre avec Repousse
-    }
-  },
-
-  // ================================================================================================
-  // SYSTÈME DE CAPTURE
-  // ================================================================================================
-  CAPTURE_RATES: {
-    LOW_HP_BONUS: 2.0,         // Bonus si PV < 20%
-    CRITICAL_HP_BONUS: 3.0,    // Bonus si PV < 5%
-    STATUS_BONUS: 1.5,         // Bonus si statut anormal
-    SLEEP_FREEZE_BONUS: 2.0,   // Bonus sommeil/gel
-    CRITICAL_CAPTURE: 0.01,    // 1% de chance de capture critique
-    
-    // Modificateurs selon la Ball
-    BALL_MODIFIERS: {
-      poke_ball: 1.0,
-      great_ball: 1.5,
-      ultra_ball: 2.0,
-      master_ball: 255.0,      // Toujours réussie
-      safari_ball: 1.5,
-      net_ball: 3.0,           // Bug/Water
-      nest_ball: 4.0,          // Pokémon faible niveau
-      repeat_ball: 3.5,        // Déjà capturé
-      timer_ball: 4.0,         // Combat long
-      quick_ball: 5.0,         // Premier tour
-      dusk_ball: 3.5,          // Nuit/grotte
-      heal_ball: 1.0,
-      luxury_ball: 1.0,
-      premier_ball: 1.0
-    }
-  },
-
-  // ================================================================================================
