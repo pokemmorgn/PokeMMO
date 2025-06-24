@@ -54,16 +54,16 @@ export class ShopUI {
     console.log('🏪 Interface de shop initialisée');
   }
 
-  loadShopStyles() {
-    // Charger le fichier CSS du shop si pas déjà fait
-    if (!document.querySelector('#shop-styles')) {
-      const link = document.createElement('link');
-      link.id = 'shop-styles';
-      link.rel = 'stylesheet';
-      link.href = '/shop.css';
-      document.head.appendChild(link);
-    }
+loadShopStyles() {
+  // Charger le fichier CSS du shop si pas déjà fait
+  if (!document.querySelector('#shop-styles')) {
+    const link = document.createElement('link');
+    link.id = 'shop-styles';
+    link.rel = 'stylesheet';
+    link.href = '/src/shop.css';  // ✅ BON CHEMIN
+    document.head.appendChild(link);
   }
+}
 
   createShopInterface() {
     const overlay = document.createElement('div');
