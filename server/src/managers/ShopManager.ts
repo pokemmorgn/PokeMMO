@@ -1,7 +1,9 @@
-// server/src/managers/ShopManager.ts - VERSION COMPLÈTE AVEC FALLBACK TEMPORAIRE
+
+// server/src/managers/ShopManager.ts - VERSION COMPLÈTE AVEC INVENTAIRE INTÉGRÉ
 
 import fs from "fs";
 import path from "path";
+import { InventoryManager } from "./InventoryManager"; // ✅ IMPORT AJOUTÉ
 
 export interface ShopItem {
   itemId: string;
@@ -14,7 +16,7 @@ export interface ShopItem {
 export interface ShopDefinition {
   id: string;
   name: string;
-  type: 'general' | 'pokemart' | 'specialist' | 'black_market' | 'temporary'; // ✅ Ajout type temporary
+  type: 'general' | 'pokemart' | 'specialist' | 'black_market' | 'temporary';
   description?: string;
   npcId?: number;
   items: ShopItem[];
@@ -23,7 +25,7 @@ export interface ShopDefinition {
   currency?: 'gold' | 'tokens' | 'battle_points'; // Type de monnaie (défaut: gold)
   restockInterval?: number; // Minutes entre les restocks (0 = pas de restock)
   lastRestock?: number; // Timestamp du dernier restock
-  isTemporary?: boolean; // ✅ Marque les shops temporaires
+  isTemporary?: boolean; // Marque les shops temporaires
 }
 
 export interface TransactionResult {
@@ -44,7 +46,7 @@ export interface TransactionResult {
 export class ShopManager {
   private shopDefinitions: Map<string, ShopDefinition> = new Map();
   private itemPrices: Map<string, number> = new Map();
-  private temporaryShops: Map<string, ShopDefinition> = new Map(); // ✅ Cache pour shops temporaires
+  private temporaryShops: Map<string, ShopDefinition> = new Map();
   
   constructor(
     shopsDataPath: string = "../data/shops.json",
@@ -70,7 +72,7 @@ export class ShopManager {
         shop.sellMultiplier = shop.sellMultiplier || 0.5;
         shop.currency = shop.currency || 'gold';
         shop.restockInterval = shop.restockInterval || 0;
-        shop.isTemporary = false; // ✅ Les shops du fichier ne sont pas temporaires
+        shop.isTemporary = false; // Les shops du fichier ne sont pas temporaires
         
         this.shopDefinitions.set(shop.id, shop);
       }
@@ -91,7 +93,7 @@ export class ShopManager {
 
       const itemsData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
       
-      // ✅ CORRECTION: Charger les prix depuis la structure correcte du fichier items.json
+      // Charger les prix depuis la structure correcte du fichier items.json
       for (const [itemId, itemData] of Object.entries(itemsData)) {
         const item = itemData as any;
         if (item.price !== null && item.price !== undefined) {
@@ -101,7 +103,7 @@ export class ShopManager {
 
       console.log(`💰 ${this.itemPrices.size} prix d'objets chargés`);
       
-      // ✅ DEBUG: Afficher quelques prix chargés
+      // DEBUG: Afficher quelques prix chargés
       console.log(`📊 Exemples de prix:`, {
         potion: this.itemPrices.get('potion'),
         poke_ball: this.itemPrices.get('poke_ball'),
@@ -113,7 +115,7 @@ export class ShopManager {
     }
   }
 
-  // ✅ === NOUVELLE MÉTHODE : CRÉER SHOP TEMPORAIRE ===
+  // === CRÉATION DE SHOP TEMPORAIRE ===
   private createTemporaryShop(shopId: string, npcId?: number): ShopDefinition {
     console.log(`🔧 Création d'un shop temporaire pour ${shopId} (NPC: ${npcId})`);
     
@@ -131,22 +133,22 @@ export class ShopManager {
       items: [
         {
           itemId: "potion",
-          customPrice: 300, // ✅ Prix du fichier items.json
+          customPrice: 300, // Prix du fichier items.json
           stock: 10
         },
         {
           itemId: "poke_ball",
-          customPrice: 200, // ✅ Prix du fichier items.json
+          customPrice: 200, // Prix du fichier items.json
           stock: 5
         },
         {
           itemId: "antidote",
-          customPrice: 100, // ✅ Prix du fichier items.json
+          customPrice: 100, // Prix du fichier items.json
           stock: 5
         },
         {
           itemId: "escape_rope",
-          customPrice: 550, // ✅ Prix du fichier items.json
+          customPrice: 550, // Prix du fichier items.json
           stock: 3
         }
       ]
@@ -159,7 +161,7 @@ export class ShopManager {
     return temporaryShop;
   }
 
-  // ✅ === MÉTHODE MODIFIÉE : getShopDefinition avec fallback ===
+  // === MÉTHODE MODIFIÉE : getShopDefinition avec fallback ===
   getShopDefinition(shopId: string): ShopDefinition | undefined {
     // 1. Chercher dans les shops officiels
     let shop = this.shopDefinitions.get(shopId);
@@ -179,7 +181,7 @@ export class ShopManager {
     return this.createTemporaryShop(shopId);
   }
 
-  // ✅ === MÉTHODE MODIFIÉE : getShopByNpcId avec fallback ===
+  // === MÉTHODE MODIFIÉE : getShopByNpcId avec fallback ===
   getShopByNpcId(npcId: number): ShopDefinition | undefined {
     // 1. Chercher dans les shops officiels
     let shop = Array.from(this.shopDefinitions.values()).find(shop => shop.npcId === npcId);
@@ -210,13 +212,13 @@ export class ShopManager {
       return price;
     }
     
-    // ✅ Prix par défaut si introuvable
+    // Prix par défaut si introuvable
     console.warn(`⚠️ Prix manquant pour ${itemId}, utilisation du prix par défaut`);
     return 100;
   }
 
   getItemBuyPrice(shopId: string, itemId: string): number {
-    const shop = this.getShopDefinition(shopId); // ✅ Utilise la version avec fallback
+    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
     if (!shop) return 0;
 
     const shopItem = shop.items.find(item => item.itemId === itemId);
@@ -226,7 +228,7 @@ export class ShopManager {
   }
 
   getItemSellPrice(shopId: string, itemId: string): number {
-    const shop = this.getShopDefinition(shopId); // ✅ Utilise la version avec fallback
+    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
     if (!shop) return 0;
 
     const basePrice = this.getItemPrice(itemId);
@@ -238,7 +240,7 @@ export class ShopManager {
     reason?: string;
     totalCost?: number;
   } {
-    const shop = this.getShopDefinition(shopId); // ✅ Utilise la version avec fallback
+    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
     if (!shop) {
       return { canBuy: false, reason: "Shop introuvable" };
     }
@@ -282,14 +284,16 @@ export class ShopManager {
     };
   }
 
+  // ✅ === MÉTHODE BUYITEM COMPLÈTEMENT RÉÉCRITE AVEC INVENTAIRE ===
   async buyItem(
+    username: string, // ✅ NOUVEAU PARAMÈTRE OBLIGATOIRE
     shopId: string, 
     itemId: string, 
     quantity: number, 
     playerGold: number, 
     playerLevel: number = 1
   ): Promise<TransactionResult> {
-    console.log(`🛒 Tentative d'achat: ${quantity}x ${itemId} dans ${shopId}`);
+    console.log(`🛒 Tentative d'achat: ${quantity}x ${itemId} dans ${shopId} pour ${username}`);
 
     const buyCheck = this.canBuyItem(shopId, itemId, quantity, playerGold, playerLevel);
     if (!buyCheck.canBuy) {
@@ -299,15 +303,20 @@ export class ShopManager {
       };
     }
 
-    const shop = this.getShopDefinition(shopId)!; // ✅ Ne peut pas être null grâce au fallback
+    const shop = this.getShopDefinition(shopId)!; // Ne peut pas être null grâce au fallback
     const shopItem = shop.items.find(item => item.itemId === itemId)!;
     const totalCost = buyCheck.totalCost!;
 
     try {
-      // Déduire l'argent
+      // ✅ 1. AJOUTER L'OBJET À L'INVENTAIRE EN PREMIER
+      console.log(`📦 Ajout ${quantity}x ${itemId} à l'inventaire de ${username}`);
+      await InventoryManager.addItem(username, itemId, quantity);
+      console.log(`✅ Objet ajouté à l'inventaire avec succès`);
+
+      // ✅ 2. Déduire l'argent
       const newGold = playerGold - totalCost;
 
-      // Mettre à jour le stock du shop
+      // ✅ 3. Mettre à jour le stock du shop
       const shopStockChanged: { itemId: string; newStock: number }[] = [];
       if (shopItem.stock !== undefined && shopItem.stock !== -1) {
         shopItem.stock -= quantity;
@@ -317,7 +326,10 @@ export class ShopManager {
         });
       }
 
-      // ✅ Messages sans traduction côté serveur
+      // ✅ 4. Obtenir la nouvelle quantité depuis l'inventaire
+      const newQuantityInInventory = await InventoryManager.getItemCount(username, itemId);
+
+      // Messages sans traduction côté serveur
       const shopMessage = shop.isTemporary 
         ? `[TEMP_SHOP] Bought ${quantity}x ${itemId} for ${totalCost} gold`
         : `Bought ${quantity}x ${itemId} for ${totalCost} gold`;
@@ -331,13 +343,25 @@ export class ShopManager {
         itemsChanged: [{
           itemId: itemId,
           quantityChanged: quantity,
-          newQuantity: quantity // Cette valeur sera mise à jour par l'InventoryManager
+          newQuantity: newQuantityInInventory // Quantité réelle depuis la DB
         }],
         shopStockChanged: shopStockChanged
       };
 
     } catch (error) {
       console.error(`❌ Erreur lors de l'achat:`, error);
+      
+      // ✅ En cas d'erreur, essayer de rollback l'inventaire
+      try {
+        console.log(`🔄 Tentative de rollback pour ${username}...`);
+        await InventoryManager.removeItem(username, itemId, quantity);
+        console.log(`✅ Rollback réussi`);
+      } catch (rollbackError) {
+        console.error(`❌ Erreur lors du rollback:`, rollbackError);
+        // Log critique car l'inventaire est probablement dans un état incohérent
+        console.error(`🚨 ÉTAT INCOHÉRENT: ${username} pourrait avoir reçu ${quantity}x ${itemId} sans payer!`);
+      }
+
       return {
         success: false,
         message: "Erreur lors de la transaction"
@@ -345,15 +369,16 @@ export class ShopManager {
     }
   }
 
+  // ✅ === MÉTHODE SELLITEM COMPLÈTEMENT RÉÉCRITE AVEC INVENTAIRE ===
   async sellItem(
+    username: string, // ✅ NOUVEAU PARAMÈTRE OBLIGATOIRE
     shopId: string, 
     itemId: string, 
-    quantity: number,
-    playerHasQuantity: number
+    quantity: number
   ): Promise<TransactionResult> {
-    console.log(`💰 Tentative de vente: ${quantity}x ${itemId} dans ${shopId}`);
+    console.log(`💰 Tentative de vente: ${quantity}x ${itemId} dans ${shopId} par ${username}`);
 
-    const shop = this.getShopDefinition(shopId); // ✅ Utilise la version avec fallback
+    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
     if (!shop) {
       return {
         success: false,
@@ -361,19 +386,33 @@ export class ShopManager {
       };
     }
 
-    // Vérifier que le joueur a assez d'objets
-    if (playerHasQuantity < quantity) {
-      return {
-        success: false,
-        message: "Pas assez d'objets à vendre"
-      };
-    }
-
-    const sellPrice = this.getItemSellPrice(shopId, itemId);
-    const totalValue = sellPrice * quantity;
-
     try {
-      // ✅ Messages sans traduction côté serveur
+      // ✅ 1. VÉRIFIER QUE LE JOUEUR A L'OBJET
+      const playerHasQuantity = await InventoryManager.getItemCount(username, itemId);
+      if (playerHasQuantity < quantity) {
+        return {
+          success: false,
+          message: "Pas assez d'objets à vendre"
+        };
+      }
+
+      // ✅ 2. RETIRER L'OBJET DE L'INVENTAIRE
+      const removeSuccess = await InventoryManager.removeItem(username, itemId, quantity);
+      if (!removeSuccess) {
+        return {
+          success: false,
+          message: "Impossible de retirer l'objet de l'inventaire"
+        };
+      }
+
+      // ✅ 3. Calculer la valeur
+      const sellPrice = this.getItemSellPrice(shopId, itemId);
+      const totalValue = sellPrice * quantity;
+
+      // ✅ 4. Obtenir la nouvelle quantité
+      const newQuantityInInventory = await InventoryManager.getItemCount(username, itemId);
+
+      // Messages sans traduction côté serveur
       const shopMessage = shop.isTemporary 
         ? `[TEMP_SHOP] Sold ${quantity}x ${itemId} for ${totalValue} gold`
         : `Sold ${quantity}x ${itemId} for ${totalValue} gold`;
@@ -383,11 +422,11 @@ export class ShopManager {
       return {
         success: true,
         message: shopMessage,
-        newGold: totalValue, // Sera ajouté à l'or actuel
+        newGold: totalValue, // Sera ajouté à l'or actuel par le caller
         itemsChanged: [{
           itemId: itemId,
           quantityChanged: -quantity,
-          newQuantity: playerHasQuantity - quantity
+          newQuantity: newQuantityInInventory
         }]
       };
 
@@ -400,12 +439,12 @@ export class ShopManager {
     }
   }
 
-  // ✅ === MÉTHODES UTILITAIRES MODIFIÉES ===
+  // === MÉTHODES UTILITAIRES ===
 
   getShopCatalog(shopId: string, playerLevel: number = 1): {
     shopInfo: ShopDefinition;
     availableItems: (ShopItem & {
-      itemId: string;     // ✅ Le client utilisera cet ID pour la localisation
+      itemId: string;     // Le client utilisera cet ID pour la localisation
       buyPrice: number;
       sellPrice: number;
       canBuy: boolean;
@@ -413,7 +452,7 @@ export class ShopManager {
       unlocked: boolean;
     })[];
   } | null {
-    const shop = this.getShopDefinition(shopId); // ✅ Utilise la version avec fallback
+    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
     if (!shop) return null;
 
     const availableItems = shop.items.map(shopItem => {
@@ -423,7 +462,7 @@ export class ShopManager {
       
       return {
         ...shopItem,
-        itemId: shopItem.itemId, // ✅ ID pour localisation côté client
+        itemId: shopItem.itemId, // ID pour localisation côté client
         buyPrice: buyPrice,
         sellPrice: sellPrice,
         canBuy: unlocked && (shopItem.stock === undefined || shopItem.stock === -1 || shopItem.stock > 0),
@@ -438,23 +477,13 @@ export class ShopManager {
     };
   }
 
-  // ✅ Le serveur n'a pas besoin de traduire, on renvoie juste l'itemId
-  // Le client gère la localisation avec itemloca.json
-  private getItemName(itemId: string): string {
-    return itemId; // Le client traduira avec itemloca.json
-  }
-
-  private getItemDescription(itemId: string): string {
-    return itemId; // Le client traduira avec itemloca.json
-  }
-
-  // ✅ === MÉTHODES DE RESTOCK MODIFIÉES ===
+  // === MÉTHODES DE RESTOCK ===
 
   restockShop(shopId: string): boolean {
-    const shop = this.getShopDefinition(shopId); // ✅ Utilise la version avec fallback
+    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
     if (!shop || shop.restockInterval === 0) return false;
 
-    // ✅ Ne pas restocker les shops temporaires
+    // Ne pas restocker les shops temporaires
     if (shop.isTemporary) {
       console.log(`🔄 Shop temporaire ${shopId} - pas de restock nécessaire`);
       return false;
@@ -489,7 +518,7 @@ export class ShopManager {
   }
 
   getAllShops(): ShopDefinition[] {
-    // ✅ Retourner shops officiels + temporaires
+    // Retourner shops officiels + temporaires
     const allShops = [
       ...Array.from(this.shopDefinitions.values()),
       ...Array.from(this.temporaryShops.values())
@@ -497,7 +526,7 @@ export class ShopManager {
     return allShops;
   }
 
-  // ✅ === NOUVELLES MÉTHODES DE GESTION DES SHOPS TEMPORAIRES ===
+  // === MÉTHODES DE GESTION DES SHOPS TEMPORAIRES ===
 
   // Créer un shop temporaire spécifique
   createCustomTemporaryShop(
@@ -549,7 +578,7 @@ export class ShopManager {
     return count;
   }
 
-  // ✅ === MÉTHODES D'ADMINISTRATION ===
+  // === MÉTHODES D'ADMINISTRATION ===
 
   addItemToShop(shopId: string, item: ShopItem): boolean {
     const shop = this.getShopDefinition(shopId);
