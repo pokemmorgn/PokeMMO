@@ -842,7 +842,7 @@ this.startSceneWithData(targetSceneKey, result);
     'LavandiaHouse5Scene': 'lavandiahouse5',
     'LavandiaHouse6Scene': 'lavandiahouse6',
     'LavandiaHouse7Scene': 'lavandiahouse7',
-    'LavandiaHouse8Scene': 'lavabdiahouse8',
+    'LavandiaHouse8Scene': 'lavandiahouse8',
     'LavandiaHouse9Scene': 'lavandiahouse9',
     'LavandiaResearchLabScene': 'lavandiaresearchlab',
     'LavandiaShopScene': 'lavandiashop',
