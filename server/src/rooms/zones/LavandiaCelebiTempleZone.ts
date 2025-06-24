@@ -1,4 +1,4 @@
-// ===== server/src/rooms/zones/LavandiaCelibiTempleZone.ts =====
+// ===== server/src/rooms/zones/LavandiaCelebiTempleZone.ts =====
 import { Client } from "@colyseus/core";
 import { IZone } from "./IZone";
 import { WorldRoom } from "../WorldRoom";
@@ -25,7 +25,7 @@ interface Spawn {
   y: number;
 }
 
-export class LavandiaCelibiTempleZone implements IZone {
+export class LavandiaCelebiTempleZone implements IZone {
   private room: WorldRoom;
   private npcs: NPC[] = [];
 
