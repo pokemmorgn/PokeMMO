@@ -386,7 +386,7 @@ private mapZoneToRoom(zoneName: string): string {
 
     // 🔄 Ajouts Lavandia
     'lavandiaanalysis': 'LavandiaAnalysisRoom',
-    'lavandiabossroom': 'LavandiaBossRoomRoom',
+    'lavandiabossroom': 'LavandiaBossRoom',
     'lavandiacelibitemple': 'LavandiaCelebiTempleRoom',
     'lavandiaequipement': 'LavandiaEquipementRoom',
     'lavandiafurniture': 'LavandiaFurnitureRoom',
