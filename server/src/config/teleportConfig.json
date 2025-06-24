@@ -173,8 +173,7 @@
       "toZone": "lavandia",
       "conditions": {
         "minLevel": 1,
-        "proximityCheck": { "enabled": true },
-        "cooldown": { "enabled": true, "durationMinutes": 2 }
+        "proximityCheck": { "enabled": true }
       },
       "message": {
         "failure": "Vous devez être niveau 15+ et avoir terminé la quête starter pour accéder à Lavandia"
