@@ -50,18 +50,18 @@ export class ShopUI {
     }
   }
 
-  getItemName(itemId) {
-    const loca = this.itemLocalizations[itemId];
-    if (loca && loca[this.currentLanguage]) {
-      return loca[this.currentLanguage].name;
-    }
-    
-    // ✅ LOG pour debug si localisation manquante
-    console.warn(`⚠️ [ShopUI] Localisation manquante pour item "${itemId}" (langue: ${this.currentLanguage})`);
-    
-    // Fallback: nom formaté
-    return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+getItemName(itemId) {
+  // Ajoute ceci pour debug
+  console.log("[ShopUI] Recherche localisation pour:", itemId, Object.keys(this.itemLocalizations));
+
+  const loca = this.itemLocalizations[itemId];
+  if (loca && loca[this.currentLanguage]) {
+    return loca[this.currentLanguage].name;
   }
+  console.warn(`⚠️ [ShopUI] Localisation manquante pour item "${itemId}" (langue: ${this.currentLanguage})`);
+  return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
 
   getItemDescription(itemId) {
     const loca = this.itemLocalizations[itemId];
