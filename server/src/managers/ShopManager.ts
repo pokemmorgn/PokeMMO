@@ -1,16 +1,15 @@
-
-// server/src/managers/ShopManager.ts - VERSION COMPLÈTE AVEC INVENTAIRE INTÉGRÉ
+// server/src/managers/ShopManager.ts - VERSION ADAPTÉE POUR STRUCTURE EXISTANTE
 
 import fs from "fs";
 import path from "path";
-import { InventoryManager } from "./InventoryManager"; // ✅ IMPORT AJOUTÉ
+import { InventoryManager } from "./InventoryManager";
 
 export interface ShopItem {
   itemId: string;
   customPrice?: number;
-  stock?: number; // -1 = illimité, 0+ = stock limité
-  unlockLevel?: number; // Level requis pour acheter
-  unlockQuest?: string; // Quête requise pour débloquer
+  stock?: number;
+  unlockLevel?: number;
+  unlockQuest?: string;
 }
 
 export interface ShopDefinition {
@@ -20,12 +19,12 @@ export interface ShopDefinition {
   description?: string;
   npcId?: number;
   items: ShopItem[];
-  buyMultiplier?: number; // Multiplicateur pour les prix d'achat (défaut: 1.0)
-  sellMultiplier?: number; // Multiplicateur pour les prix de vente (défaut: 0.5)
-  currency?: 'gold' | 'tokens' | 'battle_points'; // Type de monnaie (défaut: gold)
-  restockInterval?: number; // Minutes entre les restocks (0 = pas de restock)
-  lastRestock?: number; // Timestamp du dernier restock
-  isTemporary?: boolean; // Marque les shops temporaires
+  buyMultiplier?: number;
+  sellMultiplier?: number;
+  currency?: 'gold' | 'tokens' | 'battle_points';
+  restockInterval?: number;
+  lastRestock?: number;
+  isTemporary?: boolean;
 }
 
 export interface TransactionResult {
@@ -52,70 +51,346 @@ export class ShopManager {
     shopsDataPath: string = "../data/shops.json",
     itemsDataPath: string = "../data/items.json"
   ) {
+    console.log(`🏪 [ShopManager] === INITIALISATION DEBUG ===`);
+    console.log(`📁 Working directory: ${process.cwd()}`);
+    console.log(`📁 __dirname: ${__dirname}`);
+    console.log(`📁 Chemins fournis:`);
+    console.log(`  - shopsDataPath: ${shopsDataPath}`);
+    console.log(`  - itemsDataPath: ${itemsDataPath}`);
+    
     this.loadShopDefinitions(shopsDataPath);
     this.loadItemPrices(itemsDataPath);
+    
+    console.log(`✅ [ShopManager] Initialisation terminée`);
+    console.log(`📊 Résultats:`);
+    console.log(`  - ${this.shopDefinitions.size} shops officiels chargés`);
+    console.log(`  - ${this.itemPrices.size} prix d'objets chargés`);
+    console.log(`  - ${this.temporaryShops.size} shops temporaires`);
   }
 
   private loadShopDefinitions(shopsDataPath: string): void {
+    console.log(`🏪 [ShopManager] === CHARGEMENT SHOP DEFINITIONS ===`);
+    
     try {
-      const resolvedPath = path.resolve(__dirname, shopsDataPath);
-      if (!fs.existsSync(resolvedPath)) {
-        console.warn(`⚠️ Fichier de shops introuvable : ${resolvedPath}`);
-        return;
+      // ✅ LISTE EXHAUSTIVE DE CHEMINS POSSIBLES
+      const possiblePaths = [
+        path.resolve(__dirname, shopsDataPath),
+        path.resolve(__dirname, "../data/shops.json"),
+        path.resolve(__dirname, "../../data/shops.json"),
+        path.resolve(__dirname, "../../../data/shops.json"),
+        path.resolve(process.cwd(), "data/shops.json"),
+        path.resolve(process.cwd(), "server/data/shops.json"),
+        path.resolve(process.cwd(), "server/src/data/shops.json"),
+        path.resolve(process.cwd(), "src/data/shops.json")
+      ];
+      
+      console.log(`🔍 [ShopManager] Test de ${possiblePaths.length} chemins possibles:`);
+      
+      let foundPath = null;
+      for (const testPath of possiblePaths) {
+        const exists = fs.existsSync(testPath);
+        console.log(`  ${exists ? '✅' : '❌'} ${testPath}`);
+        if (exists && !foundPath) {
+          foundPath = testPath;
+        }
       }
+      
+      if (foundPath) {
+        console.log(`🎯 [ShopManager] Utilisation du chemin: ${foundPath}`);
+        this.loadShopDefinitionsFromPath(foundPath);
+      } else {
+        console.warn(`⚠️ [ShopManager] Aucun fichier shops.json trouvé, création de shops par défaut`);
+        this.createDefaultShops();
+      }
+      
+    } catch (error) {
+      console.error("❌ [ShopManager] Erreur lors du chargement des shops:", error);
+      this.createDefaultShops();
+    }
+  }
 
-      const shopsData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
+  private loadShopDefinitionsFromPath(filePath: string): void {
+    console.log(`📖 [ShopManager] Lecture du fichier: ${filePath}`);
+    
+    try {
+      const fileContent = fs.readFileSync(filePath, "utf-8");
+      console.log(`📄 [ShopManager] Taille du fichier: ${fileContent.length} caractères`);
+      
+      const shopsData = JSON.parse(fileContent);
+      console.log(`🔍 [ShopManager] Structure JSON:`, Object.keys(shopsData));
+      
+      if (!shopsData.shops || !Array.isArray(shopsData.shops)) {
+        throw new Error(`Structure JSON invalide: propriété 'shops' manquante ou invalide`);
+      }
+      
+      console.log(`📋 [ShopManager] ${shopsData.shops.length} shops trouvés dans le JSON`);
       
       for (const shop of shopsData.shops) {
-        // Valeurs par défaut
+        if (!shop.id || !shop.name) {
+          console.warn(`⚠️ [ShopManager] Shop invalide ignoré:`, shop);
+          continue;
+        }
+        
         shop.buyMultiplier = shop.buyMultiplier || 1.0;
         shop.sellMultiplier = shop.sellMultiplier || 0.5;
         shop.currency = shop.currency || 'gold';
         shop.restockInterval = shop.restockInterval || 0;
-        shop.isTemporary = false; // Les shops du fichier ne sont pas temporaires
+        shop.isTemporary = false;
         
         this.shopDefinitions.set(shop.id, shop);
+        console.log(`✅ [ShopManager] Shop chargé: ${shop.id} - ${shop.name} (${shop.items?.length || 0} items)`);
       }
 
-      console.log(`🏪 ${this.shopDefinitions.size} définitions de shops chargées`);
-    } catch (error) {
-      console.error("❌ Erreur lors du chargement des shops:", error);
+      console.log(`🎉 [ShopManager] ${this.shopDefinitions.size} définitions de shops chargées avec succès`);
+      
+    } catch (parseError) {
+      console.error("❌ [ShopManager] Erreur parsing JSON:", parseError);
+      throw new Error(`Erreur parsing shops.json: ${parseError.message}`);
     }
+  }
+
+  private createDefaultShops(): void {
+    console.log(`🔧 [ShopManager] === CRÉATION SHOPS PAR DÉFAUT ===`);
+    
+    const defaultLavandiaShop: ShopDefinition = {
+      id: "lavandiashop",
+      name: "Poké Mart du Village",
+      type: "pokemart",
+      description: "Boutique officielle Pokémon",
+      npcId: 101,
+      buyMultiplier: 1.0,
+      sellMultiplier: 0.5,
+      currency: "gold",
+      restockInterval: 720,
+      isTemporary: false,
+      items: [
+        { itemId: "poke_ball", stock: 100 },
+        { itemId: "great_ball", stock: 50, unlockLevel: 10 },
+        { itemId: "ultra_ball", stock: 20, unlockLevel: 20 },
+        { itemId: "potion", stock: 30 },
+        { itemId: "super_potion", stock: 20, unlockLevel: 5 },
+        { itemId: "hyper_potion", stock: 10, unlockLevel: 15 },
+        { itemId: "max_potion", stock: 5, unlockLevel: 25 },
+        { itemId: "revive", stock: 15, unlockLevel: 10 },
+        { itemId: "max_revive", stock: 5, unlockLevel: 30 }
+      ]
+    };
+    
+    this.shopDefinitions.set("lavandiashop", defaultLavandiaShop);
+    console.log(`✅ [ShopManager] Shop par défaut créé: lavandiashop`);
   }
 
   private loadItemPrices(itemsDataPath: string): void {
+    console.log(`💰 [ShopManager] === CHARGEMENT PRIX OBJETS ===`);
+    
     try {
-      const resolvedPath = path.resolve(__dirname, itemsDataPath);
-      if (!fs.existsSync(resolvedPath)) {
-        console.warn(`⚠️ Fichier d'objets introuvable : ${resolvedPath}`);
-        return;
-      }
-
-      const itemsData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
+      // ✅ LISTE EXHAUSTIVE DE CHEMINS POSSIBLES POUR ITEMS.JSON
+      const possiblePaths = [
+        path.resolve(__dirname, itemsDataPath),
+        path.resolve(__dirname, "../data/items.json"),
+        path.resolve(__dirname, "../../data/items.json"),
+        path.resolve(__dirname, "../../../data/items.json"),
+        path.resolve(process.cwd(), "data/items.json"),
+        path.resolve(process.cwd(), "server/data/items.json"),
+        path.resolve(process.cwd(), "server/src/data/items.json"),
+        path.resolve(process.cwd(), "src/data/items.json")
+      ];
       
-      // Charger les prix depuis la structure correcte du fichier items.json
-      for (const [itemId, itemData] of Object.entries(itemsData)) {
-        const item = itemData as any;
-        if (item.price !== null && item.price !== undefined) {
-          this.itemPrices.set(itemId, item.price);
+      console.log(`🔍 [ShopManager] Test de ${possiblePaths.length} chemins possibles pour items.json:`);
+      
+      let foundPath = null;
+      for (const testPath of possiblePaths) {
+        const exists = fs.existsSync(testPath);
+        console.log(`  ${exists ? '✅' : '❌'} ${testPath}`);
+        if (exists && !foundPath) {
+          foundPath = testPath;
         }
       }
-
-      console.log(`💰 ${this.itemPrices.size} prix d'objets chargés`);
       
-      // DEBUG: Afficher quelques prix chargés
-      console.log(`📊 Exemples de prix:`, {
-        potion: this.itemPrices.get('potion'),
-        poke_ball: this.itemPrices.get('poke_ball'),
-        antidote: this.itemPrices.get('antidote')
-      });
+      if (foundPath) {
+        console.log(`🎯 [ShopManager] Utilisation du chemin items: ${foundPath}`);
+        this.loadItemPricesFromPath(foundPath);
+      } else {
+        console.warn(`⚠️ [ShopManager] Aucun fichier items.json trouvé, utilisation de prix par défaut`);
+        this.createDefaultPrices();
+      }
       
     } catch (error) {
-      console.error("❌ Erreur lors du chargement des prix d'objets:", error);
+      console.error("❌ [ShopManager] Erreur lors du chargement des prix d'objets:", error);
+      this.createDefaultPrices();
     }
   }
 
-  // === CRÉATION DE SHOP TEMPORAIRE ===
+  private loadItemPricesFromPath(filePath: string): void {
+    console.log(`📖 [ShopManager] Lecture des prix depuis: ${filePath}`);
+    
+    try {
+      const fileContent = fs.readFileSync(filePath, "utf-8");
+      console.log(`📄 [ShopManager] Taille items.json: ${fileContent.length} caractères`);
+      
+      const itemsData = JSON.parse(fileContent);
+      console.log(`🔍 [ShopManager] Première clé items.json:`, Object.keys(itemsData)[0]);
+      console.log(`🔍 [ShopManager] Structure premier objet:`, Object.keys(itemsData[Object.keys(itemsData)[0]]));
+      
+      // ✅ ADAPTATION POUR VOTRE STRUCTURE EXISTANTE
+      let pricesLoaded = 0;
+      for (const [itemId, itemData] of Object.entries(itemsData)) {
+        const item = itemData as any;
+        
+        // ✅ VOTRE STRUCTURE: item.price (pas item.price)
+        if (item.price !== null && item.price !== undefined && typeof item.price === 'number') {
+          this.itemPrices.set(itemId, item.price);
+          pricesLoaded++;
+          
+          // ✅ DEBUG: Log des premiers prix chargés
+          if (pricesLoaded <= 5) {
+            console.log(`💰 [ShopManager] Prix chargé: ${itemId} = ${item.price}₽`);
+          }
+        } else {
+          // ✅ DEBUG: Log des prix non trouvés
+          if (pricesLoaded <= 5) {
+            console.log(`⚠️ [ShopManager] Pas de prix pour ${itemId}: ${item.price}`);
+          }
+        }
+      }
+
+      console.log(`💰 [ShopManager] ${pricesLoaded} prix d'objets chargés avec succès sur ${Object.keys(itemsData).length} objets`);
+      
+      // ✅ DEBUG: Afficher quelques prix importants
+      const testItems = ['potion', 'poke_ball', 'antidote', 'escape_rope', 'super_potion'];
+      console.log(`📊 [ShopManager] Vérification prix importants:`);
+      testItems.forEach(itemId => {
+        const price = this.itemPrices.get(itemId);
+        console.log(`  💰 ${itemId}: ${price !== undefined ? price + '₽' : 'MANQUANT'}`);
+      });
+      
+    } catch (parseError) {
+      console.error("❌ [ShopManager] Erreur parsing items.json:", parseError);
+      console.error("❌ Stack trace:", parseError.stack);
+      throw new Error(`Erreur parsing items.json: ${parseError.message}`);
+    }
+  }
+
+  private createDefaultPrices(): void {
+    console.log(`🔧 [ShopManager] === CRÉATION PRIX PAR DÉFAUT ===`);
+    
+    // ✅ Prix basés sur votre items.json existant
+    const defaultPrices = {
+      'poke_ball': 200,
+      'great_ball': 600,
+      'ultra_ball': 1200,
+      'potion': 300,
+      'super_potion': 700,
+      'hyper_potion': 1200,
+      'max_potion': 2500,
+      'full_restore': 3000,
+      'revive': 1500,
+      'max_revive': 4000,
+      'antidote': 100,
+      'parlyz_heal': 200,
+      'awakening': 250,
+      'burn_heal': 250,
+      'ice_heal': 250,
+      'full_heal': 600,
+      'escape_rope': 550,
+      'repel': 350,
+      'super_repel': 500,
+      'max_repel': 700
+    };
+    
+    for (const [itemId, price] of Object.entries(defaultPrices)) {
+      this.itemPrices.set(itemId, price);
+    }
+    
+    console.log(`✅ [ShopManager] ${Object.keys(defaultPrices).length} prix par défaut créés`);
+  }
+
+  // ✅ MÉTHODE getShopDefinition AVEC DEBUG DÉTAILLÉ
+  getShopDefinition(shopId: string): ShopDefinition | undefined {
+    console.log(`🔍 [ShopManager] getShopDefinition appelé pour: ${shopId}`);
+    
+    // 1. Chercher dans les shops officiels
+    let shop = this.shopDefinitions.get(shopId);
+    if (shop) {
+      console.log(`✅ [ShopManager] Shop officiel trouvé: ${shopId} - ${shop.name} (${shop.items.length} items)`);
+      return shop;
+    }
+
+    // 2. Chercher dans les shops temporaires
+    shop = this.temporaryShops.get(shopId);
+    if (shop) {
+      console.log(`🔄 [ShopManager] Shop temporaire trouvé: ${shopId}`);
+      return shop;
+    }
+
+    // 3. DEBUG: Afficher les shops disponibles
+    console.log(`❌ [ShopManager] Shop ${shopId} non trouvé`);
+    console.log(`📋 [ShopManager] Shops officiels disponibles: [${Array.from(this.shopDefinitions.keys()).join(', ')}]`);
+    console.log(`📋 [ShopManager] Shops temporaires disponibles: [${Array.from(this.temporaryShops.keys()).join(', ')}]`);
+
+    // 4. Créer un shop temporaire si aucun n'existe
+    console.warn(`⚠️ [ShopManager] Shop ${shopId} introuvable, création d'un shop temporaire`);
+    return this.createTemporaryShop(shopId);
+  }
+
+  // ✅ MÉTHODE getItemPrice CORRIGÉE AVEC DEBUG
+  getItemPrice(itemId: string, customPrice?: number): number {
+    if (customPrice !== undefined) {
+      console.log(`💰 [ShopManager] Prix custom utilisé pour ${itemId}: ${customPrice}₽`);
+      return customPrice;
+    }
+    
+    const price = this.itemPrices.get(itemId);
+    if (price !== undefined) {
+      console.log(`💰 [ShopManager] Prix trouvé pour ${itemId}: ${price}₽`);
+      return price;
+    }
+    
+    // Prix par défaut si introuvable
+    console.warn(`⚠️ [ShopManager] Prix manquant pour ${itemId}, utilisation du prix par défaut (100₽)`);
+    console.log(`🔍 [ShopManager] Debug itemPrices contient ${this.itemPrices.size} prix`);
+    
+    // ✅ DEBUG: Afficher quelques prix disponibles
+    const availablePrices = Array.from(this.itemPrices.entries()).slice(0, 3);
+    console.log(`📋 [ShopManager] Exemples de prix disponibles:`, availablePrices);
+    
+    return 100;
+  }
+
+  // ✅ NOUVELLE MÉTHODE DE DEBUG COMPLÈTE
+  debugShopManager(): void {
+    console.log(`🔍 [ShopManager] === ÉTAT COMPLET ===`);
+    console.log(`📊 Shops officiels: ${this.shopDefinitions.size}`);
+    this.shopDefinitions.forEach((shop, id) => {
+      console.log(`  🏪 ${id}: ${shop.name} (${shop.items.length} items, temporary: ${shop.isTemporary})`);
+    });
+    
+    console.log(`📊 Shops temporaires: ${this.temporaryShops.size}`);
+    this.temporaryShops.forEach((shop, id) => {
+      console.log(`  🔄 ${id}: ${shop.name} (${shop.items.length} items)`);
+    });
+    
+    console.log(`💰 Prix disponibles: ${this.itemPrices.size}`);
+    const samplePrices = Array.from(this.itemPrices.entries()).slice(0, 8);
+    console.log(`📋 Exemples de prix:`);
+    samplePrices.forEach(([itemId, price]) => {
+      console.log(`  💰 ${itemId}: ${price}₽`);
+    });
+    
+    // ✅ TEST SPÉCIFIQUE DU SHOP LAVANDIASHOP
+    console.log(`🧪 === TEST SHOP LAVANDIASHOP ===`);
+    const lavandiaShop = this.getShopDefinition("lavandiashop");
+    if (lavandiaShop && !lavandiaShop.isTemporary) {
+      console.log(`✅ Shop lavandiashop chargé depuis le fichier JSON`);
+    } else if (lavandiaShop && lavandiaShop.isTemporary) {
+      console.log(`⚠️ Shop lavandiashop créé comme temporaire (fichier JSON pas trouvé)`);
+    } else {
+      console.log(`❌ Shop lavandiashop complètement manquant`);
+    }
+  }
+
+  // === MÉTHODES HÉRITÉES (inchangées) ===
+  
   private createTemporaryShop(shopId: string, npcId?: number): ShopDefinition {
     console.log(`🔧 Création d'un shop temporaire pour ${shopId} (NPC: ${npcId})`);
     
@@ -131,94 +406,35 @@ export class ShopManager {
       restockInterval: 0,
       isTemporary: true,
       items: [
-        {
-          itemId: "potion",
-          customPrice: 300, // Prix du fichier items.json
-          stock: 10
-        },
-        {
-          itemId: "poke_ball",
-          customPrice: 200, // Prix du fichier items.json
-          stock: 5
-        },
-        {
-          itemId: "antidote",
-          customPrice: 100, // Prix du fichier items.json
-          stock: 5
-        },
-        {
-          itemId: "escape_rope",
-          customPrice: 550, // Prix du fichier items.json
-          stock: 3
-        }
+        { itemId: "potion", customPrice: 300, stock: 10 },
+        { itemId: "poke_ball", customPrice: 200, stock: 5 },
+        { itemId: "antidote", customPrice: 100, stock: 5 },
+        { itemId: "escape_rope", customPrice: 550, stock: 3 }
       ]
     };
 
-    // Cache du shop temporaire
     this.temporaryShops.set(shopId, temporaryShop);
-    
     console.log(`✅ Shop temporaire créé: ${temporaryShop.name} avec ${temporaryShop.items.length} objets`);
     return temporaryShop;
   }
 
-  // === MÉTHODE MODIFIÉE : getShopDefinition avec fallback ===
-  getShopDefinition(shopId: string): ShopDefinition | undefined {
-    // 1. Chercher dans les shops officiels
-    let shop = this.shopDefinitions.get(shopId);
-    if (shop) {
-      return shop;
-    }
-
-    // 2. Chercher dans les shops temporaires
-    shop = this.temporaryShops.get(shopId);
-    if (shop) {
-      console.log(`🔄 Shop temporaire trouvé: ${shopId}`);
-      return shop;
-    }
-
-    // 3. Créer un shop temporaire si aucun n'existe
-    console.warn(`⚠️ Shop ${shopId} introuvable, création d'un shop temporaire`);
-    return this.createTemporaryShop(shopId);
-  }
-
-  // === MÉTHODE MODIFIÉE : getShopByNpcId avec fallback ===
   getShopByNpcId(npcId: number): ShopDefinition | undefined {
-    // 1. Chercher dans les shops officiels
     let shop = Array.from(this.shopDefinitions.values()).find(shop => shop.npcId === npcId);
-    if (shop) {
-      return shop;
-    }
+    if (shop) return shop;
 
-    // 2. Chercher dans les shops temporaires
     shop = Array.from(this.temporaryShops.values()).find(shop => shop.npcId === npcId);
     if (shop) {
       console.log(`🔄 Shop temporaire trouvé pour NPC ${npcId}`);
       return shop;
     }
 
-    // 3. Créer un shop temporaire pour ce NPC
     const temporaryShopId = `temp_npc_${npcId}`;
     console.warn(`⚠️ Aucun shop trouvé pour NPC ${npcId}, création d'un shop temporaire`);
     return this.createTemporaryShop(temporaryShopId, npcId);
   }
 
-  getItemPrice(itemId: string, customPrice?: number): number {
-    if (customPrice !== undefined) {
-      return customPrice;
-    }
-    
-    const price = this.itemPrices.get(itemId);
-    if (price !== undefined) {
-      return price;
-    }
-    
-    // Prix par défaut si introuvable
-    console.warn(`⚠️ Prix manquant pour ${itemId}, utilisation du prix par défaut`);
-    return 100;
-  }
-
   getItemBuyPrice(shopId: string, itemId: string): number {
-    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
+    const shop = this.getShopDefinition(shopId);
     if (!shop) return 0;
 
     const shopItem = shop.items.find(item => item.itemId === itemId);
@@ -228,7 +444,7 @@ export class ShopManager {
   }
 
   getItemSellPrice(shopId: string, itemId: string): number {
-    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
+    const shop = this.getShopDefinition(shopId);
     if (!shop) return 0;
 
     const basePrice = this.getItemPrice(itemId);
@@ -240,25 +456,16 @@ export class ShopManager {
     reason?: string;
     totalCost?: number;
   } {
-    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
-    if (!shop) {
-      return { canBuy: false, reason: "Shop introuvable" };
-    }
+    const shop = this.getShopDefinition(shopId);
+    if (!shop) return { canBuy: false, reason: "Shop introuvable" };
 
     const shopItem = shop.items.find(item => item.itemId === itemId);
-    if (!shopItem) {
-      return { canBuy: false, reason: "Objet non vendu dans ce magasin" };
-    }
+    if (!shopItem) return { canBuy: false, reason: "Objet non vendu dans ce magasin" };
 
-    // Vérifier le level requis
     if (shopItem.unlockLevel && playerLevel < shopItem.unlockLevel) {
-      return { 
-        canBuy: false, 
-        reason: `Niveau ${shopItem.unlockLevel} requis` 
-      };
+      return { canBuy: false, reason: `Niveau ${shopItem.unlockLevel} requis` };
     }
 
-    // Vérifier le stock
     if (shopItem.stock !== undefined && shopItem.stock !== -1) {
       if (shopItem.stock < quantity) {
         return { 
@@ -268,25 +475,16 @@ export class ShopManager {
       }
     }
 
-    // Vérifier l'argent
     const totalCost = this.getItemBuyPrice(shopId, itemId) * quantity;
     if (playerGold < totalCost) {
-      return { 
-        canBuy: false, 
-        reason: "Pas assez d'argent",
-        totalCost 
-      };
+      return { canBuy: false, reason: "Pas assez d'argent", totalCost };
     }
 
-    return { 
-      canBuy: true, 
-      totalCost 
-    };
+    return { canBuy: true, totalCost };
   }
 
-  // ✅ === MÉTHODE BUYITEM COMPLÈTEMENT RÉÉCRITE AVEC INVENTAIRE ===
   async buyItem(
-    username: string, // ✅ NOUVEAU PARAMÈTRE OBLIGATOIRE
+    username: string,
     shopId: string, 
     itemId: string, 
     quantity: number, 
@@ -297,39 +495,28 @@ export class ShopManager {
 
     const buyCheck = this.canBuyItem(shopId, itemId, quantity, playerGold, playerLevel);
     if (!buyCheck.canBuy) {
-      return {
-        success: false,
-        message: buyCheck.reason || "Achat impossible"
-      };
+      return { success: false, message: buyCheck.reason || "Achat impossible" };
     }
 
-    const shop = this.getShopDefinition(shopId)!; // Ne peut pas être null grâce au fallback
+    const shop = this.getShopDefinition(shopId)!;
     const shopItem = shop.items.find(item => item.itemId === itemId)!;
     const totalCost = buyCheck.totalCost!;
 
     try {
-      // ✅ 1. AJOUTER L'OBJET À L'INVENTAIRE EN PREMIER
       console.log(`📦 Ajout ${quantity}x ${itemId} à l'inventaire de ${username}`);
       await InventoryManager.addItem(username, itemId, quantity);
       console.log(`✅ Objet ajouté à l'inventaire avec succès`);
 
-      // ✅ 2. Déduire l'argent
       const newGold = playerGold - totalCost;
 
-      // ✅ 3. Mettre à jour le stock du shop
       const shopStockChanged: { itemId: string; newStock: number }[] = [];
       if (shopItem.stock !== undefined && shopItem.stock !== -1) {
         shopItem.stock -= quantity;
-        shopStockChanged.push({
-          itemId: itemId,
-          newStock: shopItem.stock
-        });
+        shopStockChanged.push({ itemId: itemId, newStock: shopItem.stock });
       }
 
-      // ✅ 4. Obtenir la nouvelle quantité depuis l'inventaire
       const newQuantityInInventory = await InventoryManager.getItemCount(username, itemId);
 
-      // Messages sans traduction côté serveur
       const shopMessage = shop.isTemporary 
         ? `[TEMP_SHOP] Bought ${quantity}x ${itemId} for ${totalCost} gold`
         : `Bought ${quantity}x ${itemId} for ${totalCost} gold`;
@@ -343,7 +530,7 @@ export class ShopManager {
         itemsChanged: [{
           itemId: itemId,
           quantityChanged: quantity,
-          newQuantity: newQuantityInInventory // Quantité réelle depuis la DB
+          newQuantity: newQuantityInInventory
         }],
         shopStockChanged: shopStockChanged
       };
@@ -351,68 +538,39 @@ export class ShopManager {
     } catch (error) {
       console.error(`❌ Erreur lors de l'achat:`, error);
       
-      // ✅ En cas d'erreur, essayer de rollback l'inventaire
       try {
         console.log(`🔄 Tentative de rollback pour ${username}...`);
         await InventoryManager.removeItem(username, itemId, quantity);
         console.log(`✅ Rollback réussi`);
       } catch (rollbackError) {
         console.error(`❌ Erreur lors du rollback:`, rollbackError);
-        // Log critique car l'inventaire est probablement dans un état incohérent
-        console.error(`🚨 ÉTAT INCOHÉRENT: ${username} pourrait avoir reçu ${quantity}x ${itemId} sans payer!`);
       }
 
-      return {
-        success: false,
-        message: "Erreur lors de la transaction"
-      };
+      return { success: false, message: "Erreur lors de la transaction" };
     }
   }
 
-  // ✅ === MÉTHODE SELLITEM COMPLÈTEMENT RÉÉCRITE AVEC INVENTAIRE ===
-  async sellItem(
-    username: string, // ✅ NOUVEAU PARAMÈTRE OBLIGATOIRE
-    shopId: string, 
-    itemId: string, 
-    quantity: number
-  ): Promise<TransactionResult> {
+  async sellItem(username: string, shopId: string, itemId: string, quantity: number): Promise<TransactionResult> {
     console.log(`💰 Tentative de vente: ${quantity}x ${itemId} dans ${shopId} par ${username}`);
 
-    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
-    if (!shop) {
-      return {
-        success: false,
-        message: "Shop introuvable"
-      };
-    }
+    const shop = this.getShopDefinition(shopId);
+    if (!shop) return { success: false, message: "Shop introuvable" };
 
     try {
-      // ✅ 1. VÉRIFIER QUE LE JOUEUR A L'OBJET
       const playerHasQuantity = await InventoryManager.getItemCount(username, itemId);
       if (playerHasQuantity < quantity) {
-        return {
-          success: false,
-          message: "Pas assez d'objets à vendre"
-        };
+        return { success: false, message: "Pas assez d'objets à vendre" };
       }
 
-      // ✅ 2. RETIRER L'OBJET DE L'INVENTAIRE
       const removeSuccess = await InventoryManager.removeItem(username, itemId, quantity);
       if (!removeSuccess) {
-        return {
-          success: false,
-          message: "Impossible de retirer l'objet de l'inventaire"
-        };
+        return { success: false, message: "Impossible de retirer l'objet de l'inventaire" };
       }
 
-      // ✅ 3. Calculer la valeur
       const sellPrice = this.getItemSellPrice(shopId, itemId);
       const totalValue = sellPrice * quantity;
-
-      // ✅ 4. Obtenir la nouvelle quantité
       const newQuantityInInventory = await InventoryManager.getItemCount(username, itemId);
 
-      // Messages sans traduction côté serveur
       const shopMessage = shop.isTemporary 
         ? `[TEMP_SHOP] Sold ${quantity}x ${itemId} for ${totalValue} gold`
         : `Sold ${quantity}x ${itemId} for ${totalValue} gold`;
@@ -422,29 +580,20 @@ export class ShopManager {
       return {
         success: true,
         message: shopMessage,
-        newGold: totalValue, // Sera ajouté à l'or actuel par le caller
-        itemsChanged: [{
-          itemId: itemId,
-          quantityChanged: -quantity,
-          newQuantity: newQuantityInInventory
-        }]
+        newGold: totalValue,
+        itemsChanged: [{ itemId: itemId, quantityChanged: -quantity, newQuantity: newQuantityInInventory }]
       };
 
     } catch (error) {
       console.error(`❌ Erreur lors de la vente:`, error);
-      return {
-        success: false,
-        message: "Erreur lors de la transaction"
-      };
+      return { success: false, message: "Erreur lors de la transaction" };
     }
   }
-
-  // === MÉTHODES UTILITAIRES ===
 
   getShopCatalog(shopId: string, playerLevel: number = 1): {
     shopInfo: ShopDefinition;
     availableItems: (ShopItem & {
-      itemId: string;     // Le client utilisera cet ID pour la localisation
+      itemId: string;
       buyPrice: number;
       sellPrice: number;
       canBuy: boolean;
@@ -452,7 +601,7 @@ export class ShopManager {
       unlocked: boolean;
     })[];
   } | null {
-    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
+    const shop = this.getShopDefinition(shopId);
     if (!shop) return null;
 
     const availableItems = shop.items.map(shopItem => {
@@ -462,11 +611,11 @@ export class ShopManager {
       
       return {
         ...shopItem,
-        itemId: shopItem.itemId, // ID pour localisation côté client
+        itemId: shopItem.itemId,
         buyPrice: buyPrice,
         sellPrice: sellPrice,
         canBuy: unlocked && (shopItem.stock === undefined || shopItem.stock === -1 || shopItem.stock > 0),
-        canSell: true, // La plupart des shops acceptent la vente
+        canSell: true,
         unlocked: unlocked
       };
     });
@@ -477,13 +626,10 @@ export class ShopManager {
     };
   }
 
-  // === MÉTHODES DE RESTOCK ===
-
   restockShop(shopId: string): boolean {
-    const shop = this.getShopDefinition(shopId); // Utilise la version avec fallback
+    const shop = this.getShopDefinition(shopId);
     if (!shop || shop.restockInterval === 0) return false;
 
-    // Ne pas restocker les shops temporaires
     if (shop.isTemporary) {
       console.log(`🔄 Shop temporaire ${shopId} - pas de restock nécessaire`);
       return false;
@@ -495,10 +641,8 @@ export class ShopManager {
     const restockIntervalMs = shop.restockInterval * 60 * 1000;
 
     if (timeSinceRestock >= restockIntervalMs) {
-      // Remettre le stock à son maximum pour tous les objets
       shop.items.forEach(item => {
         if (item.stock !== undefined && item.stock !== -1) {
-          // Stock par défaut basé sur le type d'objet
           if (item.itemId.includes('ball')) {
             item.stock = 50;
           } else if (item.itemId.includes('potion')) {
@@ -518,7 +662,6 @@ export class ShopManager {
   }
 
   getAllShops(): ShopDefinition[] {
-    // Retourner shops officiels + temporaires
     const allShops = [
       ...Array.from(this.shopDefinitions.values()),
       ...Array.from(this.temporaryShops.values())
@@ -526,9 +669,6 @@ export class ShopManager {
     return allShops;
   }
 
-  // === MÉTHODES DE GESTION DES SHOPS TEMPORAIRES ===
-
-  // Créer un shop temporaire spécifique
   createCustomTemporaryShop(
     shopId: string, 
     name: string, 
@@ -555,7 +695,6 @@ export class ShopManager {
     return temporaryShop;
   }
 
-  // Supprimer un shop temporaire
   removeTemporaryShop(shopId: string): boolean {
     const removed = this.temporaryShops.delete(shopId);
     if (removed) {
@@ -564,13 +703,11 @@ export class ShopManager {
     return removed;
   }
 
-  // Vérifier si un shop est temporaire
   isTemporaryShop(shopId: string): boolean {
     const shop = this.getShopDefinition(shopId);
     return shop?.isTemporary || false;
   }
 
-  // Nettoyer tous les shops temporaires
   clearTemporaryShops(): number {
     const count = this.temporaryShops.size;
     this.temporaryShops.clear();
@@ -578,18 +715,15 @@ export class ShopManager {
     return count;
   }
 
-  // === MÉTHODES D'ADMINISTRATION ===
-
   addItemToShop(shopId: string, item: ShopItem): boolean {
     const shop = this.getShopDefinition(shopId);
     if (!shop) return false;
 
-    // Vérifier si l'objet existe déjà
     const existingIndex = shop.items.findIndex(i => i.itemId === item.itemId);
     if (existingIndex >= 0) {
-      shop.items[existingIndex] = item; // Remplacer
+      shop.items[existingIndex] = item;
     } else {
-      shop.items.push(item); // Ajouter
+      shop.items.push(item);
     }
 
     return true;
