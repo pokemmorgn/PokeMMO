@@ -26,7 +26,7 @@ this.load.tilemapTiledJSON('road3', 'assets/maps/road3.tmj');
 this.load.tilemapTiledJSON('lavandia', 'assets/maps/lavandia.tmj');
 this.load.tilemapTiledJSON('lavandiaanalysis', 'assets/maps/lavandiaanalysis.tmj');
 this.load.tilemapTiledJSON('lavandiabossroom', 'assets/maps/lavandiabossroom.tmj');
-this.load.tilemapTiledJSON('lavandiacelibtemple', 'assets/maps/lavandiacelibitemple.tmj');
+this.load.tilemapTiledJSON('lavandiacelebitemple', 'assets/maps/lavandiacelibitemple.tmj');
 this.load.tilemapTiledJSON('lavandiaequipement', 'assets/maps/lavandiaequipement.tmj');
 this.load.tilemapTiledJSON('lavandiafurniture', 'assets/maps/lavandiafurniture.tmj');
 this.load.tilemapTiledJSON('lavandiahealingcenter', 'assets/maps/lavandiahealingcenter.tmj');
@@ -166,8 +166,8 @@ this.load.tilemapTiledJSON('nocthercave2bis', 'assets/maps/noctherbcave2bis.tmj'
       case 'lavandiabossroom':
         this.scene.start('LavandiaBossRoomScene');
         break;
-      case 'lavandiacelibtemple':
-        this.scene.start('LavandiaCelibTempleScene');
+      case 'lavandiacelebitemple':
+        this.scene.start('lavandiacelebitempleScene');
         break;
       case 'lavandiaequipement':
         this.scene.start('LavandiaEquipementScene');
