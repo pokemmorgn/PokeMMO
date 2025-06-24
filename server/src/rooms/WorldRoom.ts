@@ -9,6 +9,8 @@ import { TransitionService, TransitionRequest } from "../services/TransitionServ
 import { CollisionManager } from "../managers/CollisionManager";
 import { TimeWeatherService } from "../services/TimeWeatherService";
 import { getServerConfig } from "../config/serverConfig";
+import { EncounterManager } from "../managers/EncounterManager";
+
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
@@ -28,6 +30,8 @@ export class WorldRoom extends Room<PokeWorldState> {
   private npcManagers: Map<string, NpcManager> = new Map();
   private transitionService!: TransitionService;
 private timeWeatherService!: TimeWeatherService;
+  private encounterManager!: EncounterManager;
+
   // Limite pour auto-scaling
   maxClients = 50;
   private lastStateUpdate = 0;
@@ -103,7 +107,8 @@ private setupTimeWeatherCommands() {
       this.timeWeatherService.forceTime(data.hour, data.minute || 0);
     }
   });
-
+this.encounterManager = new EncounterManager();
+console.log(`✅ EncounterManager initialisé`);
   this.onMessage("setWeather", (client, data: { weather: string }) => {
     console.log(`🌦️ [ADMIN] ${client.sessionId} force la météo: ${data.weather}`);
     
