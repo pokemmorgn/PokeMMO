@@ -15,7 +15,7 @@ import { connectDB } from "./db";
 import { AuthRoom } from "./rooms/AuthRoom";
 import { MoveManager } from "./managers/MoveManager";
 import { BattleRoom } from './rooms/BattleRoom';
-// import  battleRoutes  from './routes/battleRoutes';
+import  battleRoutes  from './routes/battleRoutes';
 import { PokemonManager } from "./managers/PokemonManager";
 import { WorldChatRoom } from "./rooms/WorldChatRoom";
 import { getServerConfig } from "./config/serverConfig";
@@ -62,7 +62,7 @@ export default config({
       }
     });
 
-    /* ✅ Routes de combat
+    ✅ Routes de combat
     app.use('/api/battle', battleRoutes);
     console.log("✅ Routes de combat configurées");
 
@@ -74,7 +74,7 @@ export default config({
       app.use("/playground", playground());
     }
     app.use("/monitor", monitor());
-  },*/
+  },
 
   beforeListen: async () => {
     try {
