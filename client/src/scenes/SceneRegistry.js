@@ -52,18 +52,18 @@ this.importMap.set('lavandiaresearchlab', () => import('./zones/LavandiaResearch
 this.importMap.set('lavandiashop', () => import('./zones/LavandiaShopScene.js'));
 
 // Zones Village supplémentaires
-this.importMap.set('villageflorist', () => import('./zones/VillageFloristScene.js'));
-this.importMap.set('villagehouse2', () => import('./zones/VillageHouse2Scene.js'));
+//this.importMap.set('villageflorist', () => import('./zones/VillageFloristScene.js'));
+//this.importMap.set('villagehouse2', () => import('./zones/VillageHouse2Scene.js'));
 
 // Zones Road
-this.importMap.set('road1house', () => import('./zones/Road1HouseScene.js'));
-this.importMap.set('road2', () => import('./zones/Road2Scene.js'));
-this.importMap.set('road3', () => import('./zones/Road3Scene.js'));
+//this.importMap.set('road1house', () => import('./zones/Road1HouseScene.js'));
+//this.importMap.set('road2', () => import('./zones/Road2Scene.js'));
+//this.importMap.set('road3', () => import('./zones/Road3Scene.js'));
 
 // Zones Nocther Cave
-this.importMap.set('nocthercave1', () => import('./zones/NoctherCave1Scene.js'));
-this.importMap.set('nocthercave2', () => import('./zones/NoctherCave2Scene.js'));
-this.importMap.set('nocthercave2bis', () => import('./zones/NoctherCave2BisScene.js'));
+//this.importMap.set('nocthercave1', () => import('./zones/NoctherCave1Scene.js'));
+//this.importMap.set('nocthercave2', () => import('./zones/NoctherCave2Scene.js'));
+//this.importMap.set('nocthercave2bis', () => import('./zones/NoctherCave2BisScene.js'));
   }
   
   // ✅ NOUVEAU: Enregistrer une classe directement (évite import dynamique)
