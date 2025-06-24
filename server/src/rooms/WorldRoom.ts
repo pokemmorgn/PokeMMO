@@ -4,6 +4,7 @@ import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { ZoneManager } from "../managers/ZoneManager";
 import { NpcManager } from "../managers/NPCManager";
 import { InventoryManager } from "../managers/InventoryManager"; 
+import { ShopManager } from "../managers/ShopManager";
 import { getItemData, getItemPocket } from "../utils/ItemDB";
 import { TransitionService, TransitionRequest } from "../services/TransitionService";
 import { CollisionManager } from "../managers/CollisionManager";
@@ -31,6 +32,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private transitionService!: TransitionService;
 private timeWeatherService!: TimeWeatherService;
   private encounterManager!: EncounterManager;
+  private shopManager!: ShopManager;
 
   // Limite pour auto-scaling
   maxClients = 50;
@@ -117,6 +119,11 @@ console.log(`✅ EncounterManager initialisé`);
     }
   });
 
+      // Initialiser le ShopManager
+    this.shopManager = new ShopManager();
+    console.log(`✅ ShopManager initialisé`);
+
+  //
   this.onMessage("debugTimeWeather", (client) => {
     console.log(`🔍 [ADMIN] ${client.sessionId} demande debug temps/météo`);
     
@@ -990,7 +997,7 @@ this.onMessage("battleResult", (client, data) => {
 
   // ✅ === NOUVEAUX HANDLERS POUR LES SHOPS ===
 
-  private async handleShopTransaction(client: Client, data: {
+private async handleShopTransaction(client: Client, data: {
     shopId: string;
     action: 'buy' | 'sell';
     itemId: string;
@@ -1008,14 +1015,85 @@ this.onMessage("battleResult", (client, data) => {
 
       console.log(`🛒 ${player.name} ${data.action} ${data.quantity}x ${data.itemId} dans shop ${data.shopId}`);
 
-      // Déléguer au ZoneManager
-      await this.zoneManager.handleShopTransaction(client, data);
+      if (data.action === 'buy') {
+        // ✅ ACHAT AVEC INVENTAIRE INTÉGRÉ
+        const result = await this.shopManager.buyItem(
+          player.name, // ✅ USERNAME REQUIS
+          data.shopId,
+          data.itemId,
+          data.quantity,
+          player.gold,
+          player.level
+        );
+
+        if (result.success) {
+          // ✅ Mettre à jour l'or du joueur
+          if (result.newGold !== undefined) {
+            player.gold = result.newGold;
+            
+            // Notifier le changement d'or
+            client.send("goldUpdate", {
+              oldGold: player.gold + (result.newGold - player.gold),
+              newGold: result.newGold
+            });
+          }
+
+          // ✅ Notifier le changement d'inventaire
+          if (result.itemsChanged && result.itemsChanged.length > 0) {
+            const itemChange = result.itemsChanged[0];
+            client.send("inventoryUpdate", {
+              type: "add",
+              itemId: itemChange.itemId,
+              quantity: itemChange.quantityChanged,
+              newQuantity: itemChange.newQuantity,
+              pocket: getItemPocket(itemChange.itemId)
+            });
+          }
+        }
+
+        client.send("shopTransactionResult", result);
+
+      } else if (data.action === 'sell') {
+        // ✅ VENTE AVEC INVENTAIRE INTÉGRÉ
+        const result = await this.shopManager.sellItem(
+          player.name, // ✅ USERNAME REQUIS
+          data.shopId,
+          data.itemId,
+          data.quantity
+        );
+
+        if (result.success) {
+          // ✅ Mettre à jour l'or du joueur (ajouter la valeur de vente)
+          const newGold = player.gold + (result.newGold || 0);
+          player.gold = newGold;
+          
+          // Notifier le changement d'or
+          client.send("goldUpdate", {
+            oldGold: player.gold - (result.newGold || 0),
+            newGold: newGold
+          });
+
+          // ✅ Notifier le changement d'inventaire
+          if (result.itemsChanged && result.itemsChanged.length > 0) {
+            const itemChange = result.itemsChanged[0];
+            client.send("inventoryUpdate", {
+              type: "remove",
+              itemId: itemChange.itemId,
+              quantity: Math.abs(itemChange.quantityChanged),
+              newQuantity: itemChange.newQuantity,
+              pocket: getItemPocket(itemChange.itemId)
+            });
+          }
+        }
+
+        client.send("shopTransactionResult", result);
+      }
 
     } catch (error) {
-      console.error(`❌ Erreur handleShopTransaction:`, error);
+      console.error("❌ Erreur transaction shop:", error);
       client.send("shopTransactionResult", {
         success: false,
-        message: "Erreur lors de la transaction"
+        message: "Erreur serveur lors de la transaction"
       });
     }
   }
@@ -1031,8 +1109,7 @@ this.onMessage("battleResult", (client, data) => {
         return;
       }
 
-      const shopManager = this.zoneManager.getShopManager();
-      const catalog = shopManager.getShopCatalog(shopId, player.level || 1);
+      const catalog = this.shopManager.getShopCatalog(shopId, player.level || 1);
 
       if (catalog) {
         client.send("shopCatalogResult", {
@@ -1058,10 +1135,9 @@ this.onMessage("battleResult", (client, data) => {
     }
   }
 
-  private async handleRefreshShop(client: Client, shopId: string) {
+   private async handleRefreshShop(client: Client, shopId: string) {
     try {
-      const shopManager = this.zoneManager.getShopManager();
-      const wasRestocked = shopManager.restockShop(shopId);
+      const wasRestocked = this.shopManager.restockShop(shopId);
 
       if (wasRestocked) {
         // Renvoyer le catalogue mis à jour
@@ -1815,7 +1891,7 @@ public debugTimeWeatherSystem(): void {
   }
 
   getShopManager() {
-    return this.zoneManager.getShopManager();
+    return this.shopManager;
   }
 
   getQuestManager() {
