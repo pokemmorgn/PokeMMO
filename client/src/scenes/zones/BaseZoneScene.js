@@ -845,7 +845,7 @@ mapSceneToZone(sceneName) {
     // Zones Lavandia
     'LavandiaAnalysisScene': 'analysis',
     'LavandiaBossRoomScene': 'bossroom',
-    'LavandiaCelibTempleScene': 'celibtemple',
+    'LavandiacelibitempleScene': 'celibitemple',
     'LavandiaEquipementScene': 'equipement',
     'LavandiaFurnitureScene': 'furniture',
     'LavandiaHealingCenterScene': 'healingcenter',
@@ -891,7 +891,7 @@ mapZoneToScene(zoneName) {
     // Zones Lavandia
     'analysis': 'LavandiaAnalysisScene',
     'bossroom': 'LavandiaBossRoomScene',
-    'celibtemple': 'LavandiaCelibTempleScene',
+    'celibitemple': 'LavandiacelibitempleScene',
     'equipement': 'LavandiaEquipementScene',
     'furniture': 'LavandiaFurnitureScene',
     'healingcenter': 'LavandiaHealingCenterScene',
@@ -937,7 +937,7 @@ normalizeZoneName(sceneName) {
     // Zones Lavandia
     'LavandiaAnalysisScene': 'analysis',
     'LavandiaBossRoomScene': 'bossroom',
-    'LavandiaCelibTempleScene': 'celibtemple',
+    'LavandiacelibitempleScene': 'celibitemple',
     'LavandiaEquipementScene': 'equipement',
     'LavandiaFurnitureScene': 'furniture',
     'LavandiaHealingCenterScene': 'healingcenter',
