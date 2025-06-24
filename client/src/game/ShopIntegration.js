@@ -1,5 +1,5 @@
-// client/src/game/ShopIntegration.js - Module d'intégration shop pour BaseZoneScene
-// ✅ Centralise toute la logique shop en un seul module
+// client/src/game/ShopIntegration.js - FIX SHOP HANDLERS
+// ✅ Éviter les handlers multiples et conflits
 
 import { ShopSystem } from './ShopSystem.js';
 
@@ -11,8 +11,7 @@ export class ShopIntegration {
     
     // ✅ NOUVEAUX VERROUS ANTI-DOUBLON
     this.shopHandlersSetup = false;
-    this.isHandlingShopInteraction = false;
-    this.isHandlingCatalog = false;
+    this.networkListenersAdded = false;
     
     console.log(`🏪 [${scene.scene.key}] ShopIntegration créé`);
   }
@@ -41,7 +40,11 @@ export class ShopIntegration {
 
       // 3. ✅ Setup des événements et raccourcis
       this.setupShopEventHandlers();
-      this.setupShopNetworkHandlers(networkManager);
+      
+      // ✅ IMPORTANT: NE PAS SETUP LES NETWORK HANDLERS ICI
+      // L'InteractionManager gère maintenant les handlers "npcInteractionResult"
+      // On setup seulement les handlers spécifiques au shop
+      this.setupShopSpecificNetworkHandlers(networkManager);
 
       // 4. ✅ Marquer comme initialisé
       this.isInitialized = true;
@@ -88,11 +91,6 @@ export class ShopIntegration {
       this.shopSystem.scene = this.scene;
       this.shopSystem.gameRoom = networkManager.room;
 
-      // Reconnecter les listeners réseau si nécessaire
-      if (this.shopSystem.setupServerListeners && typeof this.shopSystem.setupServerListeners === 'function') {
-        this.shopSystem.setupServerListeners();
-      }
-
       console.log(`🔄 [${this.scene.scene.key}] ShopSystem mis à jour pour la nouvelle scène`);
     } catch (error) {
       console.error(`❌ [${this.scene.scene.key}] Erreur mise à jour ShopSystem:`, error);
@@ -118,40 +116,22 @@ export class ShopIntegration {
     console.log(`✅ [${this.scene.scene.key}] Événements shop configurés`);
   }
 
-  // ✅ Setup des handlers réseau pour le shop
-  setupShopNetworkHandlers(networkManager) {
+  // ✅ Setup UNIQUEMENT des handlers réseau spécifiques au shop
+  setupShopSpecificNetworkHandlers(networkManager) {
     if (!networkManager || !networkManager.room) return;
 
+    // ✅ CRITIQUE: Ne pas ajouter de listener "npcInteractionResult"
+    // Ce handler est maintenant géré par l'InteractionManager
+    
     // ✅ CORRECTION: Éviter les listeners multiples
-    if (this.shopHandlersSetup) {
-      console.log(`📡 [${this.scene.scene.key}] Handlers shop déjà configurés, ignoré`);
+    if (this.networkListenersAdded) {
+      console.log(`📡 [${this.scene.scene.key}] Listeners shop déjà ajoutés, ignoré`);
       return;
     }
-    this.shopHandlersSetup = true;
+    this.networkListenersAdded = true;
 
     try {
       const room = networkManager.room;
-
-      // ✅ Handler pour les interactions NPC de type shop
-      room.onMessage("npcInteractionResult", (data) => {
-        if (data.type === "shop") {
-          console.log(`🏪 [${this.scene.scene.key}] Interaction shop reçue:`, data);
-          
-          // ✅ Éviter les traitements multiples
-          if (this.isHandlingShopInteraction) {
-            console.log(`⚠️ [${this.scene.scene.key}] Interaction shop déjà en cours, ignoré`);
-            return;
-          }
-          this.isHandlingShopInteraction = true;
-          
-          this.handleShopNpcInteraction(data);
-          
-          // Libérer après un délai
-          setTimeout(() => {
-            this.isHandlingShopInteraction = false;
-          }, 1000);
-        }
-      });
 
       // ✅ Handler pour les résultats de transaction shop
       room.onMessage("shopTransactionResult", (data) => {
@@ -165,20 +145,9 @@ export class ShopIntegration {
       room.onMessage("shopCatalogResult", (data) => {
         console.log(`📋 [${this.scene.scene.key}] Catalogue shop reçu:`, data);
         
-        // Éviter les traitements multiples
-        if (this.isHandlingCatalog) {
-          console.log(`⚠️ [${this.scene.scene.key}] Catalogue déjà en cours, ignoré`);
-          return;
-        }
-        this.isHandlingCatalog = true;
-        
         if (this.shopSystem && this.shopSystem.shopUI) {
           this.shopSystem.shopUI.handleShopCatalog(data);
         }
-        
-        setTimeout(() => {
-          this.isHandlingCatalog = false;
-        }, 500);
       });
 
       // ✅ Handler pour les mises à jour d'or
@@ -197,49 +166,13 @@ export class ShopIntegration {
         }
       });
 
-      console.log(`📡 [${this.scene.scene.key}] Handlers réseau shop configurés`);
+      console.log(`📡 [${this.scene.scene.key}] Handlers réseau shop spécifiques configurés`);
     } catch (error) {
       console.error(`❌ [${this.scene.scene.key}] Erreur setup handlers shop:`, error);
     }
   }
 
-  // ✅ MÉTHODE MANQUANTE - Gérer les interactions NPC de type shop
-  handleShopNpcInteraction(data) {
-    console.log(`🏪 [${this.scene.scene.key}] Interaction NPC shop:`, data);
-    
-    if (!this.shopSystem) {
-      console.error(`❌ [${this.scene.scene.key}] Pas de ShopSystem pour gérer l'interaction shop`);
-      
-      // Fallback: essayer d'afficher un dialogue
-      if (window.showNpcDialogue) {
-        window.showNpcDialogue({
-          name: data.npcName || "Marchand",
-          portrait: null,
-          lines: ["Ce marchand n'est pas disponible actuellement."]
-        });
-      }
-      return;
-    }
-
-    try {
-      // Déléguer au ShopSystem avec toutes les données
-      this.shopSystem.handleShopNpcInteraction(data);
-      console.log(`✅ [${this.scene.scene.key}] Interaction shop déléguée au ShopSystem`);
-    } catch (error) {
-      console.error(`❌ [${this.scene.scene.key}] Erreur gestion interaction shop:`, error);
-      
-      // Fallback en cas d'erreur
-      if (window.showNpcDialogue) {
-        window.showNpcDialogue({
-          name: data.npcName || "Marchand", 
-          portrait: null,
-          lines: [`Erreur shop: ${error.message}`]
-        });
-      }
-    }
-  }
-
-  // ✅ Gérer le raccourci clavier S
+  // ✅ Gérer le raccourci clavier S (si nécessaire)
   handleShopShortcut() {
     // Vérifier que le joueur peut interagir
     if (!this.canPlayerInteractWithShop()) {
@@ -382,6 +315,7 @@ export class ShopIntegration {
     }
     
     this.isInitialized = false;
+    this.networkListenersAdded = false; // ✅ Permettre de reconfigurer les listeners
   }
 
   // ✅ Gestion de la destruction de scène
@@ -389,6 +323,7 @@ export class ShopIntegration {
     // ✅ Cleanup léger seulement
     this.scene = null;
     this.isInitialized = false;
+    this.networkListenersAdded = false;
     
     // ✅ NE PAS toucher au ShopSystem global
     console.log(`🏪 [ShopIntegration] Références de scène nettoyées`);
@@ -412,8 +347,7 @@ export class ShopIntegration {
     this.isInitialized = false;
     this.shopSystem = null;
     this.shopHandlersSetup = false;
-    this.isHandlingShopInteraction = false;
-    this.isHandlingCatalog = false;
+    this.networkListenersAdded = false;
     this.initialize(networkManager);
   }
 
@@ -425,8 +359,7 @@ export class ShopIntegration {
     console.log(`- Initialisé:`, this.isInitialized);
     console.log(`- ShopSystem:`, !!this.shopSystem);
     console.log(`- Handlers setup:`, this.shopHandlersSetup);
-    console.log(`- Handling interaction:`, this.isHandlingShopInteraction);
-    console.log(`- Handling catalog:`, this.isHandlingCatalog);
+    console.log(`- Network listeners:`, this.networkListenersAdded);
     console.log(`- Shop ouvert:`, this.shopSystem?.isShopOpen());
     console.log(`- ShopUI:`, !!this.shopSystem?.shopUI);
     console.log(`- GameRoom:`, !!this.shopSystem?.gameRoom);
@@ -445,13 +378,12 @@ export class ShopIntegration {
       shopOpen: this.shopSystem?.isShopOpen() || false,
       canInteract: this.canPlayerInteractWithShop(),
       handlersSetup: this.shopHandlersSetup,
-      handlingInteraction: this.isHandlingShopInteraction,
-      handlingCatalog: this.isHandlingCatalog
+      networkListeners: this.networkListenersAdded
     };
   }
 }
 
-// ✅ MÉTHODE STATIQUE POUR INTÉGRATION EN UNE LIGNE
+// ✅ MÉTHODE STATIQUE POUR INTÉGRATION EN UNE LIGNE - MISE À JOUR
 export function integrateShopToScene(scene, networkManager) {
   if (!scene.shopIntegration) {
     scene.shopIntegration = new ShopIntegration(scene);
