@@ -2,6 +2,7 @@
 
 import { QuestManager } from "./QuestManager";
 import { ShopManager } from "./ShopManager"; // ✅ IMPORT SHOP
+import { InventoryManager } from "./InventoryManager";
 import { Player } from "../schema/PokeWorldState";
 
 export interface NpcInteractionResult {
@@ -234,7 +235,7 @@ export class InteractionManager {
   }
 
   // ✅ === NOUVELLE MÉTHODE : GESTION DES MARCHANDS ===
-  private async handleMerchantInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
+ private async handleMerchantInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
     console.log(`🏪 === INTERACTION MARCHAND ===`);
     
     // Récupérer le shop ID depuis les propriétés du NPC
@@ -261,17 +262,15 @@ export class InteractionManager {
 
     console.log(`✅ Shop ${shopId} chargé: ${shopCatalog.availableItems.length} objets disponibles`);
 
-    // TODO: Récupérer l'argent du joueur depuis la base de données
-    const playerGold = player.gold || 1000; // Valeur temporaire
-
     return {
       type: "shop",
       shopId: shopId,
       shopData: {
         shopInfo: shopCatalog.shopInfo,
-        items: shopCatalog.availableItems,
-        playerGold: playerGold,
-        playerLevel: player.level || 1
+        availableItems: shopCatalog.availableItems, // ✅ CORRECTION: utiliser availableItems
+        playerGold: player.gold || 1000,
+        playerLevel: player.level || 1,
+        npcName: npc.name || "Marchand" // ✅ AJOUT DU NOM
       },
       npcId: npcId,
       npcName: npc.name,
@@ -280,7 +279,7 @@ export class InteractionManager {
   }
 
   // ✅ === NOUVELLE MÉTHODE : TRANSACTIONS SHOP ===
-  async handleShopTransaction(
+ async handleShopTransaction(
     player: Player, 
     shopId: string, 
     action: 'buy' | 'sell',
@@ -296,31 +295,45 @@ export class InteractionManager {
     console.log(`💰 === TRANSACTION SHOP ===`);
     console.log(`👤 Player: ${player.name}, Shop: ${shopId}, Action: ${action}, Item: ${itemId}, Qty: ${quantity}`);
 
-    // TODO: Récupérer l'argent et l'inventaire du joueur depuis la DB
     const playerGold = player.gold || 1000;
     const playerLevel = player.level || 1;
 
     if (action === 'buy') {
-      const result = await this.shopManager.buyItem(shopId, itemId, quantity, playerGold, playerLevel);
+      // ✅ UTILISER LE SHOPMANAGER CORRIGÉ AVEC USERNAME
+      const result = await this.shopManager.buyItem(
+        player.name, // ✅ USERNAME REQUIS
+        shopId, 
+        itemId, 
+        quantity, 
+        playerGold, 
+        playerLevel
+      );
       
       if (result.success) {
-        // TODO: Mettre à jour l'argent du joueur dans la DB
-        // TODO: Ajouter l'objet à l'inventaire du joueur
-        console.log(`✅ Achat réussi: ${quantity}x ${itemId}`);
+        console.log(`✅ Achat réussi: ${quantity}x ${itemId} pour ${player.name}`);
+        console.log(`💰 Nouvel or: ${result.newGold}`);
+        
+        // ✅ L'objet a déjà été ajouté à l'inventaire par ShopManager.buyItem()
+        // ✅ L'or sera mis à jour par le WorldRoom
       }
       
       return result;
       
     } else if (action === 'sell') {
-      // TODO: Vérifier la quantité possédée par le joueur
-      const playerHasQuantity = 10; // Valeur temporaire
-      
-      const result = await this.shopManager.sellItem(shopId, itemId, quantity, playerHasQuantity);
+      // ✅ UTILISER LE SHOPMANAGER CORRIGÉ AVEC USERNAME
+      const result = await this.shopManager.sellItem(
+        player.name, // ✅ USERNAME REQUIS
+        shopId, 
+        itemId, 
+        quantity
+      );
       
       if (result.success) {
-        // TODO: Mettre à jour l'argent du joueur dans la DB
-        // TODO: Retirer l'objet de l'inventaire du joueur
-        console.log(`✅ Vente réussie: ${quantity}x ${itemId}`);
+        console.log(`✅ Vente réussie: ${quantity}x ${itemId} par ${player.name}`);
+        console.log(`💰 Or gagné: ${result.newGold}`);
+        
+        // ✅ L'objet a déjà été retiré de l'inventaire par ShopManager.sellItem()
+        // ✅ L'or sera mis à jour par le WorldRoom
       }
       
       return result;
@@ -436,7 +449,11 @@ export class InteractionManager {
       1: "Professeur Oak",
       87: "Bob le pêcheur", 
       5: "Le collecteur de baies",
-      10: "Le maître dresseur"
+      10: "Le maître dresseur",
+      100: "Marchand du Village",
+      101: "Employé Poké Mart",
+      102: "Herboriste",
+      103: "Vendeur de CTs"
     };
     
     return npcNames[npcId] || `NPC #${npcId}`;
@@ -491,12 +508,13 @@ export class InteractionManager {
       }
     }
     
-    if (npc.properties?.shop) {
+    if (npc.properties?.shop || npc.properties?.shopId || npc.properties?.npcType === 'merchant') {
       return [
         `Bienvenue dans ma boutique !`,
         `Regardez mes marchandises !`
       ];
     }
+
     
     if (npc.properties?.healer) {
       return [
@@ -637,6 +655,74 @@ export class InteractionManager {
     } catch (error) {
       console.error("❌ Erreur getQuestStatuses:", error);
       return [];
+    }
+  }
+  async giveItemToPlayer(username: string, itemId: string, quantity: number = 1): Promise<boolean> {
+    try {
+      await InventoryManager.addItem(username, itemId, quantity);
+      console.log(`✅ [InteractionManager] Donné ${quantity}x ${itemId} à ${username}`);
+      return true;
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur lors du don d'objet:`, error);
+      return false;
+    }
+  }
+
+  async takeItemFromPlayer(username: string, itemId: string, quantity: number = 1): Promise<boolean> {
+    try {
+      const success = await InventoryManager.removeItem(username, itemId, quantity);
+      if (success) {
+        console.log(`✅ [InteractionManager] Retiré ${quantity}x ${itemId} à ${username}`);
+      }
+      return success;
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur lors du retrait d'objet:`, error);
+      return false;
+    }
+  }
+
+  async playerHasItem(username: string, itemId: string, quantity: number = 1): Promise<boolean> {
+    try {
+      const count = await InventoryManager.getItemCount(username, itemId);
+      return count >= quantity;
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur lors de la vérification d'objet:`, error);
+      return false;
+    }
+  }
+
+  // ✅ === MÉTHODES POUR LES RÉCOMPENSES DE QUÊTE ===
+
+  async giveQuestReward(username: string, reward: {
+    type: 'item' | 'gold' | 'experience';
+    itemId?: string;
+    amount: number;
+  }): Promise<boolean> {
+    try {
+      switch (reward.type) {
+        case 'item':
+          if (reward.itemId) {
+            return await this.giveItemToPlayer(username, reward.itemId, reward.amount);
+          }
+          return false;
+
+        case 'gold':
+          // TODO: Ajouter l'or au joueur via PlayerDataManager
+          console.log(`💰 [InteractionManager] Donner ${reward.amount} or à ${username} (non implémenté)`);
+          return true;
+
+        case 'experience':
+          // TODO: Ajouter l'expérience au joueur
+          console.log(`⭐ [InteractionManager] Donner ${reward.amount} XP à ${username} (non implémenté)`);
+          return true;
+
+        default:
+          console.warn(`⚠️ [InteractionManager] Type de récompense inconnu: ${reward.type}`);
+          return false;
+      }
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur giveQuestReward:`, error);
+      return false;
     }
   }
 }
