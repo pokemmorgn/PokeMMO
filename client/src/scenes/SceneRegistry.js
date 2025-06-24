@@ -26,11 +26,44 @@ export class SceneRegistry {
   setupImportMap() {
     // ✅ Seulement les chemins, pas les classes
     this.importMap.set('beach', () => import('./zones/BeachScene.js'));
-    this.importMap.set('village', () => import('./zones/VillageScene.js'));
-    this.importMap.set('villagelab', () => import('./zones/VillageLabScene.js'));
-    this.importMap.set('road1', () => import('./zones/Road1Scene.js'));
-    this.importMap.set('villagehouse1', () => import('./zones/VillageHouse1Scene.js'));
-    this.importMap.set('lavandia', () => import('./zones/LavandiaScene.js'));
+this.importMap.set('village', () => import('./zones/VillageScene.js'));
+this.importMap.set('villagelab', () => import('./zones/VillageLabScene.js'));
+this.importMap.set('road1', () => import('./zones/Road1Scene.js'));
+this.importMap.set('villagehouse1', () => import('./zones/VillageHouse1Scene.js'));
+this.importMap.set('lavandia', () => import('./zones/LavandiaScene.js'));
+
+// Zones Lavandia
+this.importMap.set('lavandiaanalysis', () => import('./zones/LavandiaAnalysisScene.js'));
+this.importMap.set('lavandiabossroom', () => import('./zones/LavandiaBossRoomScene.js'));
+this.importMap.set('lavandiacelibitemple', () => import('./zones/LavandiaCelebiTempleScene.js'));
+this.importMap.set('lavandiaequipement', () => import('./zones/LavandiaEquipementScene.js'));
+this.importMap.set('lavandiafurniture', () => import('./zones/LavandiaFurnitureScene.js'));
+this.importMap.set('lavandiahealingcenter', () => import('./zones/LavandiaHealingCenterScene.js'));
+this.importMap.set('lavandiahouse1', () => import('./zones/LavandiaHouse1Scene.js'));
+this.importMap.set('lavandiahouse2', () => import('./zones/LavandiaHouse2Scene.js'));
+this.importMap.set('lavandiahouse3', () => import('./zones/LavandiaHouse3Scene.js'));
+this.importMap.set('lavandiahouse4', () => import('./zones/LavandiaHouse4Scene.js'));
+this.importMap.set('lavandiahouse5', () => import('./zones/LavandiaHouse5Scene.js'));
+this.importMap.set('lavandiahouse6', () => import('./zones/LavandiaHouse6Scene.js'));
+this.importMap.set('lavandiahouse7', () => import('./zones/LavandiaHouse7Scene.js'));
+this.importMap.set('lavandiahouse8', () => import('./zones/LavandiaHouse8Scene.js'));
+this.importMap.set('lavandiahouse9', () => import('./zones/LavandiaHouse9Scene.js'));
+this.importMap.set('lavandiaresearchlab', () => import('./zones/LavandiaResearchLabScene.js'));
+this.importMap.set('lavandiashop', () => import('./zones/LavandiaShopScene.js'));
+
+// Zones Village supplémentaires
+this.importMap.set('villageflorist', () => import('./zones/VillageFloristScene.js'));
+this.importMap.set('villagehouse2', () => import('./zones/VillageHouse2Scene.js'));
+
+// Zones Road
+this.importMap.set('road1house', () => import('./zones/Road1HouseScene.js'));
+this.importMap.set('road2', () => import('./zones/Road2Scene.js'));
+this.importMap.set('road3', () => import('./zones/Road3Scene.js'));
+
+// Zones Nocther Cave
+this.importMap.set('nocthercave1', () => import('./zones/NoctherCave1Scene.js'));
+this.importMap.set('nocthercave2', () => import('./zones/NoctherCave2Scene.js'));
+this.importMap.set('nocthercave2bis', () => import('./zones/NoctherCave2BisScene.js'));
   }
   
   // ✅ NOUVEAU: Enregistrer une classe directement (évite import dynamique)
