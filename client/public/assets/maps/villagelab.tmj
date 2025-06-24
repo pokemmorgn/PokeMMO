@@ -316,7 +316,7 @@
                         {
                          "name":"sprite",
                          "type":"string",
-                         "value":"Scientist"
+                         "value":"scientist1"
                         }, 
                         {
                          "name":"trainerId",
@@ -419,7 +419,7 @@
                         {
                          "name":"sprite",
                          "type":"string",
-                         "value":"Scientist"
+                         "value":"scientist2"
                         }, 
                         {
                          "name":"trainerId",

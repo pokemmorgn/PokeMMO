@@ -1,4 +1,12 @@
 { "compressionlevel":-1,
+ "editorsettings":
+    {
+     "export":
+        {
+         "format":"json",
+         "target":"village.tmj"
+        }
+    },
  "height":30,
  "infinite":false,
  "layers":[
@@ -595,7 +603,7 @@
                         {
                          "name":"sprite",
                          "type":"string",
-                         "value":"bobvillage"
+                         "value":"oldman1"
                         }, 
                         {
                          "name":"trainerId",
@@ -6301,7 +6309,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":false
+                         "value":true
                         }]
                 }, 
                 {
