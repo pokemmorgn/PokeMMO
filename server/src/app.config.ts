@@ -22,7 +22,6 @@ import { getServerConfig } from "./config/serverConfig";
 import { PlayerQuest } from "./models/PlayerQuest";
 
 let globalPokemonManager: PokemonManager;
-let globalMoveManager: MoveManager;
 
 export default config({
   initializeGameServer: (gameServer) => {
@@ -96,17 +95,8 @@ export default config({
       
       // Initialiser MoveManager
       console.log("🔄 Initialisation du MoveManager...");
-      globalMoveManager = new MoveManager({
-        basePath: './src/data',
-        useDevFallback: true,
-        enableCache: true
-      });
-      
-      // Initialiser le MoveManager pour le système de combat
-      const { MoveManager: BattleMoveManager } = await import('./managers/MoveManager');
-      await BattleMoveManager.initialize();
-      
-      console.log("✅ MoveManager initialisé");
+      await MoveManager.initialize();
+
       
       // Initialiser PokemonManager si pas déjà fait
       if (!globalPokemonManager) {
@@ -127,4 +117,4 @@ export default config({
   }
 });
 
-export { globalMoveManager, globalPokemonManager };
+export { globalPokemonManager };
