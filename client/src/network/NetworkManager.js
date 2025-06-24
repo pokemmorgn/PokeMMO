@@ -1,5 +1,5 @@
-// client/src/network/NetworkManager.js - VERSION COMPLÈTE AVEC FIX NPCs
-// ✅ Support robuste pour le premier joueur + zone dictée par le serveur + replay NPCs
+// client/src/network/NetworkManager.js - VERSION MISE À JOUR COMPLÈTE
+// ✅ Support interactions modernes + compatibilité + debugging amélioré
 
 import { GAME_CONFIG } from "../config/gameConfig.js";
 
@@ -27,6 +27,14 @@ export class NetworkManager {
 
     // ✅ NOUVEAU: Stockage des NPCs pour replay
     this.lastReceivedNpcs = null;
+
+    // ✅ NOUVEAU: Support interactions modernes
+    this.interactionHistory = [];
+    this.connectionHealth = {
+      lastPing: 0,
+      isHealthy: true,
+      reconnectAttempts: 0
+    };
 
     this.transitionState = {
       isActive: false,
@@ -81,17 +89,37 @@ export class NetworkManager {
       this.currentZone = spawnZone;
       this.myPlayerConfirmed = false;
       this.myPlayerData = null;
+      this.connectionHealth.reconnectAttempts = 0;
 
       this.resetTransitionState();
 
       console.log(`[NetworkManager] ✅ Connecté à WorldRoom! SessionId: ${this.sessionId}`);
 
       this.setupRoomListeners();
+      this.startHealthMonitoring();
       return true;
 
     } catch (error) {
       console.error("❌ Connection error:", error);
+      this.connectionHealth.reconnectAttempts++;
       return false;
+    }
+  }
+
+  // ✅ NOUVEAU: Monitoring de santé de connexion
+  startHealthMonitoring() {
+    // Ping périodique
+    setInterval(() => {
+      if (this.isConnected && this.room) {
+        this.sendPing();
+      }
+    }, 30000); // Ping toutes les 30 secondes
+  }
+
+  sendPing() {
+    if (this.room) {
+      this.connectionHealth.lastPing = Date.now();
+      this.room.send("ping", { timestamp: this.connectionHealth.lastPing });
     }
   }
 
@@ -99,6 +127,13 @@ export class NetworkManager {
     if (!this.room) return;
 
     console.log(`[NetworkManager] 👂 Setup des listeners WorldRoom...`);
+
+    // ✅ NOUVEAU: Handler pong pour health check
+    this.room.onMessage("pong", (data) => {
+      const latency = Date.now() - this.connectionHealth.lastPing;
+      this.connectionHealth.isHealthy = latency < 2000; // Healthy si < 2s
+      console.log(`📡 Pong reçu, latence: ${latency}ms, healthy: ${this.connectionHealth.isHealthy}`);
+    });
 
     // ✅ NOUVEAU: Handler pour confirmation de spawn
     this.room.onMessage("playerSpawned", (data) => {
@@ -314,10 +349,39 @@ export class NetworkManager {
       }
     });
 
+    // ✅ HANDLERS D'INTERACTION NPC MODERNISÉS - SUPPORT DOUBLE FORMAT
     this.room.onMessage("npcInteractionResult", (result) => {
-      console.log(`💬 [NetworkManager] NPC interaction:`, result);
+      console.log(`💬 [NetworkManager] === NPC INTERACTION RESULT ===`, result);
+      this.logInteraction('npc_interaction_result', result);
+      
       if (this.callbacks.onNpcInteraction) {
         this.callbacks.onNpcInteraction(result);
+      }
+    });
+
+    // ✅ NOUVEAU: Support messages d'interaction étendus
+    this.room.onMessage("interactionResult", (result) => {
+      console.log(`🎭 [NetworkManager] === INTERACTION RESULT ÉTENDU ===`, result);
+      this.logInteraction('interaction_result_extended', result);
+      
+      // Déléguer au même callback que npcInteractionResult pour compatibilité
+      if (this.callbacks.onNpcInteraction) {
+        this.callbacks.onNpcInteraction(result);
+      }
+    });
+
+    // ✅ NOUVEAU: Gestion des erreurs d'interaction
+    this.room.onMessage("interactionError", (error) => {
+      console.error(`❌ [NetworkManager] Erreur interaction:`, error);
+      this.logInteraction('interaction_error', error);
+      
+      // Afficher l'erreur via le callback si disponible
+      if (this.callbacks.onNpcInteraction) {
+        this.callbacks.onNpcInteraction({
+          success: false,
+          error: true,
+          message: error.message || "Erreur d'interaction"
+        });
       }
     });
 
@@ -362,6 +426,27 @@ export class NetworkManager {
       }
     });
 
+    // ✅ NOUVEAUX HANDLERS POUR SHOP ET INVENTAIRE
+    this.room.onMessage("shopCatalogResult", (data) => {
+      console.log(`🏪 [NetworkManager] Catalogue shop reçu:`, data);
+      // Ces messages sont gérés directement par les systèmes shop/inventaire
+    });
+
+    this.room.onMessage("shopTransactionResult", (data) => {
+      console.log(`💰 [NetworkManager] Transaction shop:`, data);
+      // Ces messages sont gérés directement par les systèmes shop/inventaire
+    });
+
+    this.room.onMessage("inventoryUpdate", (data) => {
+      console.log(`🎒 [NetworkManager] Update inventaire:`, data);
+      // Ces messages sont gérés directement par les systèmes shop/inventaire
+    });
+
+    this.room.onMessage("goldUpdate", (data) => {
+      console.log(`💰 [NetworkManager] Update or:`, data);
+      // Ces messages sont gérés directement par les systèmes shop/inventaire
+    });
+
     this.room.onLeave(() => {
       console.log(`[NetworkManager] 📤 Déconnexion de WorldRoom`);
       if (!this.transitionState.isActive) {
@@ -377,6 +462,24 @@ export class NetworkManager {
     if (this.callbacks.onConnect) {
       console.log(`[NetworkManager] 🎯 Connexion établie`);
       this.callbacks.onConnect();
+    }
+  }
+
+  // ✅ NOUVEAU: Log des interactions pour debug
+  logInteraction(type, data) {
+    const logEntry = {
+      timestamp: new Date(),
+      type: type,
+      data: data,
+      sessionId: this.sessionId,
+      zone: this.currentZone
+    };
+    
+    this.interactionHistory.push(logEntry);
+    
+    // Garder seulement les 20 dernières
+    if (this.interactionHistory.length > 20) {
+      this.interactionHistory = this.interactionHistory.slice(-20);
     }
   }
 
@@ -438,6 +541,92 @@ export class NetworkManager {
 
   getMyPlayerData() {
     return this.myPlayerData;
+  }
+
+  // === MÉTHODES D'INTERACTION NPC MODERNISÉES ===
+
+  // ✅ MÉTHODE ORIGINALE - Maintenue pour compatibilité
+  sendNpcInteract(npcId) {
+    if (this.isConnected && this.room && !this.isTransitioning) {
+      console.log(`📤 [NetworkManager] Interaction NPC simple: ${npcId}`);
+      this.room.send("npcInteract", { npcId });
+      this.logInteraction('npc_interact_simple', { npcId });
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE - Support format étendu
+  sendNpcInteraction(npcId, additionalData = {}) {
+    if (!this.isConnected || !this.room || this.isTransitioning) {
+      console.warn(`⚠️ [NetworkManager] Cannot send interaction - not ready`);
+      return false;
+    }
+
+    console.log(`📤 [NetworkManager] === INTERACTION NPC ÉTENDUE ===`);
+    console.log(`🎭 NPC ID: ${npcId}`);
+    console.log(`📊 Données supplémentaires:`, additionalData);
+
+    try {
+      // ✅ Construire les données d'interaction
+      const interactionData = {
+        npcId: npcId,
+        timestamp: Date.now(),
+        zone: this.currentZone,
+        sessionId: this.sessionId,
+        ...additionalData
+      };
+
+      // ✅ Ajouter position du joueur si disponible
+      if (this.myPlayerData) {
+        interactionData.playerPosition = {
+          x: this.myPlayerData.x,
+          y: this.myPlayerData.y
+        };
+      }
+
+      console.log(`📤 Données d'interaction envoyées:`, interactionData);
+
+      // ✅ Essayer les deux formats pour compatibilité maximale
+      this.room.send("interactWithNpc", interactionData);
+      
+      // ✅ Log pour debugging
+      this.logInteraction('npc_interact_extended', interactionData);
+      
+      console.log(`✅ [NetworkManager] Interaction envoyée avec succès`);
+      return true;
+
+    } catch (error) {
+      console.error(`❌ [NetworkManager] Erreur envoi interaction:`, error);
+      
+      // ✅ Fallback vers format simple
+      try {
+        console.log(`🔄 [NetworkManager] Fallback vers format simple...`);
+        this.room.send("npcInteract", { npcId });
+        this.logInteraction('npc_interact_fallback', { npcId, error: error.message });
+        return true;
+      } catch (fallbackError) {
+        console.error(`❌ [NetworkManager] Fallback échoué aussi:`, fallbackError);
+        return false;
+      }
+    }
+  }
+
+  // ✅ MÉTHODE UNIVERSELLE - Auto-détection du format
+  interactWithNpc(npcId, options = {}) {
+    console.log(`🎯 [NetworkManager] === INTERACTION UNIVERSELLE ===`);
+    console.log(`🎭 NPC: ${npcId}`);
+    console.log(`⚙️ Options:`, options);
+
+    // ✅ Déterminer le format selon les options
+    if (options.useExtended !== false && (options.includePosition || options.includeTimestamp || Object.keys(options).length > 1)) {
+      // Format étendu
+      console.log(`📈 Utilisation format étendu`);
+      return this.sendNpcInteraction(npcId, options);
+    } else {
+      // Format simple
+      console.log(`📊 Utilisation format simple`);
+      this.sendNpcInteract(npcId);
+      return true;
+    }
   }
 
   // === MÉTHODES DE GESTION DE TRANSITIONS ET COMMUNICATION ===
@@ -508,6 +697,12 @@ export class NetworkManager {
       if (!this.lastSendTime || now - this.lastSendTime > 50) {
         this.room.send("playerMove", { x, y, direction, isMoving });
         this.lastSendTime = now;
+        
+        // ✅ Mettre à jour les données locales
+        if (this.myPlayerData) {
+          this.myPlayerData.x = x;
+          this.myPlayerData.y = y;
+        }
       }
     }
   }
@@ -519,15 +714,15 @@ export class NetworkManager {
     }
   }
 
-  sendNpcInteract(npcId) {
-    if (this.isConnected && this.room && !this.isTransitioning) {
-      this.room.send("npcInteract", { npcId });
-    }
-  }
-
   sendMessage(type, data) {
     if (this.isConnected && this.room && !this.transitionState.isActive) {
+      console.log(`📤 [NetworkManager] Envoi message: ${type}`, data);
       this.room.send(type, data);
+      
+      // ✅ Log pour certains types importants
+      if (['shopTransaction', 'getShopCatalog', 'getInventory'].includes(type)) {
+        this.logInteraction(`message_${type}`, data);
+      }
     }
   }
 
@@ -744,9 +939,10 @@ restoreCustomCallbacks() {
   // Ajoute ici tout autre callback important...
 }
 
+  // ✅ DEBUG ET MONITORING AMÉLIORÉS
   
   debugState() {
-    console.log(`[NetworkManager] 🔍 === ÉTAT DEBUG WORLDROOM ===`);
+    console.log(`[NetworkManager] 🔍 === ÉTAT DEBUG COMPLET ===`);
     console.log(`👤 Username: ${this.username}`);
     console.log(`🆔 SessionId: ${this.sessionId}`);
     console.log(`🔌 isConnected: ${this.isConnected}`);
@@ -762,6 +958,22 @@ restoreCustomCallbacks() {
     console.log(`✅ Confirmé: ${this.myPlayerConfirmed}`);
     console.log(`📊 Data:`, this.myPlayerData);
     
+    // ✅ NOUVEAU: Debug santé connexion
+    console.log(`📡 === SANTÉ CONNEXION ===`);
+    console.log(`💓 Healthy: ${this.connectionHealth.isHealthy}`);
+    console.log(`📍 Last ping: ${this.connectionHealth.lastPing}`);
+    console.log(`🔄 Reconnect attempts: ${this.connectionHealth.reconnectAttempts}`);
+    
+    // ✅ NOUVEAU: Debug interactions
+    console.log(`🎭 === HISTORIQUE INTERACTIONS ===`);
+    console.log(`📝 Total: ${this.interactionHistory.length}`);
+    if (this.interactionHistory.length > 0) {
+      const recent = this.interactionHistory.slice(-3);
+      recent.forEach((entry, index) => {
+        console.log(`  ${index + 1}. ${entry.type} à ${entry.timestamp.toLocaleTimeString()}`);
+      });
+    }
+    
     if (this.room?.state?.players && this.sessionId) {
       const myPlayer = this.room.state.players.get(this.sessionId);
       if (myPlayer) {
@@ -772,4 +984,101 @@ restoreCustomCallbacks() {
     }
     console.log(`================================`);
   }
+
+  // ✅ NOUVEAU: Test de connexion complet
+  testConnection() {
+    console.log(`🧪 [NetworkManager] === TEST CONNEXION COMPLET ===`);
+    
+    const tests = [
+      {
+        name: 'Room exists',
+        test: () => !!this.room,
+        critical: true
+      },
+      {
+        name: 'Connection open',
+        test: () => this.room?.connection?.isOpen,
+        critical: true
+      },
+      {
+        name: 'Player confirmed',
+        test: () => this.myPlayerConfirmed,
+        critical: true
+      },
+      {
+        name: 'Connection healthy',
+        test: () => this.connectionHealth.isHealthy,
+        critical: false
+      },
+      {
+        name: 'Can send messages',
+        test: () => this.isConnected && !this.isTransitioning,
+        critical: true
+      }
+    ];
+
+    let passed = 0;
+    let critical_failed = 0;
+
+    tests.forEach(test => {
+      const result = test.test();
+      const icon = result ? '✅' : test.critical ? '❌' : '⚠️';
+      console.log(`${icon} ${test.name}: ${result ? 'OK' : 'FAIL'}`);
+      
+      if (result) {
+        passed++;
+      } else if (test.critical) {
+        critical_failed++;
+      }
+    });
+
+    console.log(`🎯 Tests: ${passed}/${tests.length} réussis`);
+    
+    if (critical_failed > 0) {
+      console.log(`❌ ${critical_failed} tests critiques échoués - connexion non fonctionnelle`);
+      return false;
+    } else {
+      console.log(`✅ Connexion opérationnelle`);
+      return true;
+    }
+  }
+
+  // ✅ NOUVEAU: Statistiques réseau
+  getNetworkStats() {
+    return {
+      isConnected: this.isConnected,
+      isHealthy: this.connectionHealth.isHealthy,
+      lastPing: this.connectionHealth.lastPing,
+      reconnectAttempts: this.connectionHealth.reconnectAttempts,
+      interactionsCount: this.interactionHistory.length,
+      roomId: this.room?.id,
+      playersInRoom: this.room?.state?.players?.size || 0,
+      myPlayerConfirmed: this.myPlayerConfirmed,
+      currentZone: this.currentZone,
+      isTransitioning: this.isTransitioning
+    };
+  }
 }
+
+// ✅ Fonctions de debug globales
+window.debugNetworkManager = function() {
+  if (window.globalNetworkManager) {
+    return window.globalNetworkManager.debugState();
+  } else {
+    console.error('❌ NetworkManager global non disponible');
+    return { error: 'NetworkManager manquant' };
+  }
+};
+
+window.testNetworkConnection = function() {
+  if (window.globalNetworkManager) {
+    return window.globalNetworkManager.testConnection();
+  } else {
+    console.error('❌ NetworkManager global non disponible');
+    return false;
+  }
+};
+
+console.log('✅ NetworkManager mis à jour chargé!');
+console.log('🔍 Utilisez window.debugNetworkManager() pour diagnostiquer');
+console.log('🧪 Utilisez window.testNetworkConnection() pour test connexion');
