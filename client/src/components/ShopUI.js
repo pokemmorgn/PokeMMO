@@ -1,5 +1,5 @@
-// client/src/components/ShopUI.js - COMPLET avec CSS intégré
-// ✅ Style cohérent avec l'inventaire - Dégradés bleus, animations modernes
+// client/src/components/ShopUI.js - COMPLETE with integrated CSS
+// ✅ Consistent style with inventory - Blue gradients, modern animations
 
 export class ShopUI {
   constructor(gameRoom) {
@@ -10,9 +10,9 @@ export class ShopUI {
     this.playerGold = 0;
     this.currentTab = 'buy';
     this.itemLocalizations = {};
-    this.currentLanguage = 'fr';
+    this.currentLanguage = 'en';
     
-    // ✅ VERROUS SIMPLIFIÉS
+    // ✅ SIMPLIFIED LOCKS
     this.isProcessingCatalog = false;
     this.lastCatalogTime = 0;
     
@@ -23,9 +23,9 @@ export class ShopUI {
     try {
       const response = await fetch('/localization/itemloca.json');
       this.itemLocalizations = await response.json();
-      console.log('🌐 Localisations d\'objets shop chargées');
+      console.log('🌐 Shop item localizations loaded');
     } catch (error) {
-      console.error('❌ Erreur chargement localizations shop:', error);
+      console.error('❌ Error loading shop localizations:', error);
       this.itemLocalizations = {};
     }
   }
@@ -43,15 +43,15 @@ export class ShopUI {
     if (loca && loca[this.currentLanguage]) {
       return loca[this.currentLanguage].description;
     }
-    return 'Description non disponible.';
+    return 'Description not available.';
   }
 
   init() {
-    // ✅ PLUS BESOIN de loadShopStyles() - CSS intégré
+    // ✅ NO LONGER NEED loadShopStyles() - CSS integrated
     this.createShopInterface();
     this.setupEventListeners();
     this.setupServerListeners();
-    console.log('🏪 Interface de shop initialisée avec CSS intégré');
+    console.log('🏪 Shop interface initialized with integrated CSS');
   }
 
   createShopInterface() {
@@ -61,13 +61,13 @@ export class ShopUI {
 
     overlay.innerHTML = `
       <div class="shop-container">
-        <!-- Header avec style moderne -->
+        <!-- Header with modern style -->
         <div class="shop-header">
           <div class="shop-title">
             <div class="shop-icon">🏪</div>
             <div class="shop-title-text">
               <span class="shop-name">PokéMart</span>
-              <span class="shop-subtitle">Articles pour dresseurs</span>
+              <span class="shop-subtitle">Trainer Items</span>
             </div>
           </div>
           <div class="shop-controls">
@@ -80,74 +80,74 @@ export class ShopUI {
           </div>
         </div>
 
-        <!-- Navigation en onglets -->
+        <!-- Tab navigation -->
         <div class="shop-tabs">
           <button class="shop-tab active" data-tab="buy">
             <span class="tab-icon">🛒</span>
-            <span class="tab-text">Acheter</span>
+            <span class="tab-text">Buy</span>
           </button>
           <button class="shop-tab" data-tab="sell">
             <span class="tab-icon">💰</span>
-            <span class="tab-text">Vendre</span>
+            <span class="tab-text">Sell</span>
           </button>
         </div>
 
         <div class="shop-content">
           <div class="shop-items-section">
             <div class="shop-items-header">
-              <span class="section-title">Articles disponibles</span>
-              <span class="items-count" id="items-count">0 objets</span>
+              <span class="section-title">Available Items</span>
+              <span class="items-count" id="items-count">0 items</span>
             </div>
             <div class="shop-items-grid" id="shop-items-grid">
-              <!-- Les objets seront générés ici -->
+              <!-- Items will be generated here -->
             </div>
           </div>
 
           <div class="shop-item-details" id="shop-item-details">
             <div class="details-header">
-              <span class="details-title">Détails de l'objet</span>
+              <span class="details-title">Item Details</span>
             </div>
             <div class="no-selection">
               <div class="no-selection-icon">🎁</div>
-              <p>Sélectionnez un objet pour voir ses détails</p>
+              <p>Select an item to see its details</p>
             </div>
           </div>
         </div>
 
         <div class="shop-footer">
           <div class="shop-info">
-            <div class="shop-welcome">Bienvenue dans notre boutique !</div>
-            <div class="shop-tip">💡 Conseil : Les objets rares apparaissent selon votre niveau</div>
+            <div class="shop-welcome">Welcome to our shop!</div>
+            <div class="shop-tip">💡 Tip: Rare items appear based on your level</div>
           </div>
           <div class="shop-actions">
             <button class="shop-btn primary" id="shop-action-btn" disabled>
               <span class="btn-icon">🛒</span>
-              <span class="btn-text">Acheter</span>
+              <span class="btn-text">Buy</span>
             </button>
             <button class="shop-btn secondary" id="shop-refresh-btn">
               <span class="btn-icon">🔄</span>
-              <span class="btn-text">Actualiser</span>
+              <span class="btn-text">Refresh</span>
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Modal de confirmation -->
+      <!-- Confirmation modal -->
       <div class="shop-modal hidden" id="shop-modal">
         <div class="modal-content">
           <div class="modal-header">
-            <span class="modal-title">Confirmation d'achat</span>
+            <span class="modal-title">Purchase Confirmation</span>
           </div>
           <div class="modal-body">
             <div class="modal-item-preview">
               <span class="modal-item-icon">📦</span>
               <div class="modal-item-info">
-                <span class="modal-item-name">Nom de l'objet</span>
-                <span class="modal-item-price">Prix: 100₽</span>
+                <span class="modal-item-name">Item Name</span>
+                <span class="modal-item-price">Price: 100₽</span>
               </div>
             </div>
             <div class="modal-quantity">
-              <label>Quantité :</label>
+              <label>Quantity:</label>
               <div class="quantity-controls">
                 <button class="quantity-btn" id="qty-decrease">−</button>
                 <input type="number" class="quantity-input" id="quantity-input" value="1" min="1" max="99">
@@ -155,13 +155,13 @@ export class ShopUI {
               </div>
             </div>
             <div class="modal-total">
-              <span class="total-label">Total : </span>
+              <span class="total-label">Total: </span>
               <span class="total-amount" id="modal-total">100₽</span>
             </div>
           </div>
           <div class="modal-actions">
-            <button class="modal-btn cancel" id="modal-cancel">Annuler</button>
-            <button class="modal-btn confirm" id="modal-confirm">Confirmer</button>
+            <button class="modal-btn cancel" id="modal-cancel">Cancel</button>
+            <button class="modal-btn confirm" id="modal-confirm">Confirm</button>
           </div>
         </div>
       </div>
@@ -170,18 +170,18 @@ export class ShopUI {
     document.body.appendChild(overlay);
     this.overlay = overlay;
     
-    // ✅ AJOUTER LES STYLES DIRECTEMENT
+    // ✅ ADD STYLES DIRECTLY
     this.addStyles();
   }
 
-  // ✅ CSS INTÉGRÉ - Même approche que InventoryUI.js
+  // ✅ INTEGRATED CSS - Same approach as InventoryUI.js
   addStyles() {
     if (document.querySelector('#shop-styles')) return;
 
     const style = document.createElement('style');
     style.id = 'shop-styles';
     style.textContent = `
-      /* ===== SHOP UI STYLES MODERNES - COHÉRENT AVEC INVENTAIRE ===== */
+      /* ===== MODERN SHOP UI STYLES - CONSISTENT WITH INVENTORY ===== */
       
       .shop-overlay {
         position: fixed;
@@ -363,7 +363,7 @@ export class ShopUI {
         transform: scale(0.95);
       }
 
-      /* ===== ONGLETS STYLE ===== */
+      /* ===== TAB STYLE ===== */
       .shop-tabs {
         background: rgba(0, 0, 0, 0.2);
         display: flex;
@@ -433,7 +433,7 @@ export class ShopUI {
         font-weight: bold;
       }
 
-      /* ===== CONTENU PRINCIPAL ===== */
+      /* ===== MAIN CONTENT ===== */
       .shop-content {
         flex: 1;
         display: flex;
@@ -610,7 +610,7 @@ export class ShopUI {
         50% { opacity: 0.8; transform: scale(1.05); }
       }
 
-      /* ===== ZONE DE DÉTAILS ===== */
+      /* ===== DETAILS ZONE ===== */
       .shop-item-details {
         flex: 1;
         background: rgba(0, 0, 0, 0.2);
@@ -1040,7 +1040,7 @@ export class ShopUI {
         box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
       }
 
-      /* ===== ÉTATS VIDES ===== */
+      /* ===== EMPTY STATES ===== */
       .shop-loading {
         grid-column: 1 / -1;
         text-align: center;
@@ -1138,7 +1138,7 @@ export class ShopUI {
         to { transform: translateX(400px); opacity: 0; }
       }
 
-      /* ===== ANIMATIONS D'OBJETS ===== */
+      /* ===== ITEM ANIMATIONS ===== */
       .shop-item.new {
         animation: itemAppear 0.5s ease;
       }
@@ -1163,7 +1163,7 @@ export class ShopUI {
         100% { opacity: 1; transform: translateX(0); }
       }
 
-      /* ===== SCROLLBAR PERSONNALISÉE ===== */
+      /* ===== CUSTOM SCROLLBAR ===== */
       .shop-items-grid::-webkit-scrollbar,
       .item-detail-content::-webkit-scrollbar {
         width: 8px;
@@ -1259,7 +1259,7 @@ export class ShopUI {
         }
       }
 
-      /* ===== ÉTATS DE FOCUS POUR ACCESSIBILITÉ ===== */
+      /* ===== FOCUS STATES FOR ACCESSIBILITY ===== */
       .shop-item:focus,
       .shop-btn:focus,
       .modal-btn:focus,
@@ -1268,7 +1268,7 @@ export class ShopUI {
         outline-offset: 2px;
       }
 
-      /* ===== EFFETS SPÉCIAUX ===== */
+      /* ===== SPECIAL EFFECTS ===== */
       .shop-header.celebration::after {
         content: '🎉';
         position: absolute;
@@ -1287,7 +1287,7 @@ export class ShopUI {
         100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
       }
 
-      /* ===== STYLES POUR OBJETS SPÉCIAUX ===== */
+      /* ===== STYLES FOR SPECIAL ITEMS ===== */
       .shop-item.rare {
         border-color: #e74c3c;
         background: linear-gradient(145deg, rgba(231, 76, 60, 0.2), rgba(231, 76, 60, 0.1));
@@ -1311,23 +1311,23 @@ export class ShopUI {
     `;
 
     document.head.appendChild(style);
-    console.log('✅ [ShopUI] CSS intégré directement ajouté');
+    console.log('✅ [ShopUI] CSS integrated directly added');
   }
 
   setupEventListeners() {
-    // Fermeture du shop
+    // Close shop
     this.overlay.querySelector('.shop-close-btn').addEventListener('click', () => {
       this.hide();
     });
 
-    // Fermeture avec ESC
+    // Close with ESC
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.isVisible) {
         this.hide();
       }
     });
 
-    // Changement d'onglets
+    // Tab switching
     this.overlay.querySelectorAll('.shop-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         const tabType = tab.dataset.tab;
@@ -1335,7 +1335,7 @@ export class ShopUI {
       });
     });
 
-    // Boutons d'action
+    // Action buttons
     this.overlay.querySelector('#shop-action-btn').addEventListener('click', () => {
       if (this.currentTab === 'buy') {
         this.showBuyModal();
@@ -1348,10 +1348,10 @@ export class ShopUI {
       this.refreshShop();
     });
 
-    // Modal de confirmation
+    // Confirmation modal
     this.setupModalListeners();
 
-    // Fermeture en cliquant à l'extérieur
+    // Close by clicking outside
     this.overlay.addEventListener('click', (e) => {
       if (e.target === this.overlay) {
         this.hide();
@@ -1367,7 +1367,7 @@ export class ShopUI {
     const cancelBtn = modal.querySelector('#modal-cancel');
     const confirmBtn = modal.querySelector('#modal-confirm');
 
-    // Contrôles de quantité
+    // Quantity controls
     decreaseBtn.addEventListener('click', () => {
       const currentValue = parseInt(quantityInput.value);
       if (currentValue > 1) {
@@ -1389,7 +1389,7 @@ export class ShopUI {
       this.updateModalTotal();
     });
 
-    // Boutons du modal
+    // Modal buttons
     cancelBtn.addEventListener('click', () => {
       this.hideModal();
     });
@@ -1402,51 +1402,51 @@ export class ShopUI {
   setupServerListeners() {
     if (!this.gameRoom) return;
 
-    // Résultat de transaction
+    // Transaction result
     this.gameRoom.onMessage("shopTransactionResult", (data) => {
       this.handleTransactionResult(data);
     });
 
-    // Mise à jour de l'or du joueur
+    // Player gold update
     this.gameRoom.onMessage("goldUpdate", (data) => {
       this.updatePlayerGold(data.newGold);
     });
 
-    // Rafraîchissement du shop
+    // Shop refresh
     this.gameRoom.onMessage("shopRefreshResult", (data) => {
       this.handleRefreshResult(data);
     });
   }
 
-  // ✅ SHOW - VERSION SIMPLIFIÉE
-  show(shopId, npcName = "Marchand") {
-    console.log(`🏪 [ShopUI] === SHOW APPELÉ ===`);
+  // ✅ SHOW - SIMPLIFIED VERSION
+  show(shopId, npcName = "Merchant") {
+    console.log(`🏪 [ShopUI] === SHOW CALLED ===`);
     console.log(`📊 shopId: ${shopId}, npcName:`, npcName);
-    console.log(`📊 isVisible actuel: ${this.isVisible}`);
+    console.log(`📊 current isVisible: ${this.isVisible}`);
 
-    // ✅ AFFICHAGE IMMÉDIAT
+    // ✅ IMMEDIATE DISPLAY
     this.overlay.classList.remove('hidden');
     this.overlay.style.display = 'flex';
     this.isVisible = true;
 
-    // ✅ GESTION SIMPLE DU NOM NPC
-    let displayName = "Marchand";
+    // ✅ SIMPLE NPC NAME HANDLING
+    let displayName = "Merchant";
     if (typeof npcName === 'object' && npcName?.name) {
       displayName = npcName.name;
     } else if (typeof npcName === 'string') {
       displayName = npcName;
     }
 
-    // ✅ MISE À JOUR IMMÉDIATE DU TITRE
+    // ✅ IMMEDIATE TITLE UPDATE
     const shopNameElement = this.overlay.querySelector('.shop-name');
     if (shopNameElement) {
       shopNameElement.textContent = displayName;
     }
 
-    // ✅ DEMANDER LE CATALOGUE
+    // ✅ REQUEST CATALOG
     this.requestShopCatalog(shopId);
 
-    console.log(`✅ [ShopUI] Shop affiché pour ${displayName}`);
+    console.log(`✅ [ShopUI] Shop displayed for ${displayName}`);
   }
 
   createEmptyShopItemElement() {
@@ -1457,9 +1457,9 @@ export class ShopUI {
     
     itemElement.innerHTML = `
       <div class="shop-item-icon">📭</div>
-      <div class="shop-item-name">Pas d'articles</div>
+      <div class="shop-item-name">No Items</div>
       <div class="shop-item-price">-</div>
-      <div class="shop-item-stock out">Vide</div>
+      <div class="shop-item-stock out">Empty</div>
     `;
     
     return itemElement;
@@ -1475,7 +1475,7 @@ export class ShopUI {
     this.shopData = null;
     this.updateItemDetails();
     
-    console.log('🏪 Shop fermé');
+    console.log('🏪 Shop closed');
   }
 
   requestShopCatalog(shopId) {
@@ -1485,15 +1485,15 @@ export class ShopUI {
     }
   }
 
-  // ✅ HANDLE SHOP CATALOG - VERSION SIMPLIFIÉE ET ROBUSTE
+  // ✅ HANDLE SHOP CATALOG - SIMPLIFIED AND ROBUST VERSION
   handleShopCatalog(data) {
     console.log(`🏪 [ShopUI] === HANDLE SHOP CATALOG ===`);
-    console.log(`📊 Data reçue:`, data);
+    console.log(`📊 Data received:`, data);
 
-    // ✅ VERROU SIMPLE CONTRE LES APPELS MULTIPLES
+    // ✅ SIMPLE LOCK AGAINST MULTIPLE CALLS
     const now = Date.now();
     if (this.isProcessingCatalog && (now - this.lastCatalogTime) < 1000) {
-      console.warn(`⚠️ [ShopUI] Catalogue déjà en cours de traitement, ignoré`);
+      console.warn(`⚠️ [ShopUI] Catalog already being processed, ignored`);
       return;
     }
     
@@ -1502,18 +1502,18 @@ export class ShopUI {
 
     try {
       if (!data.success) {
-        console.error('❌ [ShopUI] Catalogue shop échoué:', data.message);
-        this.showNotification(data.message || "Impossible de charger le shop", "error");
+        console.error('❌ [ShopUI] Shop catalog failed:', data.message);
+        this.showNotification(data.message || "Unable to load shop", "error");
         return;
       }
 
-      // ✅ STOCKAGE DES DONNÉES
+      // ✅ DATA STORAGE
       this.shopData = data.catalog;
       this.playerGold = data.playerGold || 0;
 
-      // ✅ NORMALISATION IMMÉDIATE DE LA STRUCTURE
+      // ✅ IMMEDIATE STRUCTURE NORMALIZATION
       if (!this.shopData.availableItems) {
-        console.log('🔧 [ShopUI] Normalisation structure shop...');
+        console.log('🔧 [ShopUI] Normalizing shop structure...');
         
         let items = [];
         if (this.shopData.items && Array.isArray(this.shopData.items)) {
@@ -1533,24 +1533,24 @@ export class ShopUI {
           customPrice: item.customPrice
         }));
         
-        console.log(`✅ [ShopUI] Structure normalisée: ${this.shopData.availableItems.length} items`);
+        console.log(`✅ [ShopUI] Structure normalized: ${this.shopData.availableItems.length} items`);
       }
 
-      // ✅ MISE À JOUR DE L'INTERFACE
+      // ✅ INTERFACE UPDATE
       this.updatePlayerGoldDisplay();
       this.updateShopTitle(this.shopData.shopInfo || {});
       this.refreshCurrentTab();
       
-      console.log(`✅ [ShopUI] Shop catalogue traité avec ${this.shopData.availableItems.length} objets`);
+      console.log(`✅ [ShopUI] Shop catalog processed with ${this.shopData.availableItems.length} objects`);
       
-      // ✅ NOTIFICATION DE SUCCÈS
-      this.showNotification(`Catalogue chargé !`, 'success');
+      // ✅ SUCCESS NOTIFICATION
+      this.showNotification(`Catalog loaded!`, 'success');
       
     } catch (error) {
-      console.error('❌ [ShopUI] Erreur handleShopCatalog:', error);
-      this.showNotification(`Erreur technique: ${error.message}`, "error");
+      console.error('❌ [ShopUI] Error handleShopCatalog:', error);
+      this.showNotification(`Technical error: ${error.message}`, "error");
     } finally {
-      // ✅ LIBÉRATION DU VERROU
+      // ✅ LOCK RELEASE
       setTimeout(() => {
         this.isProcessingCatalog = false;
       }, 500);
@@ -1572,11 +1572,11 @@ export class ShopUI {
       || shopInfo.name
       || "PokéMart";
 
-    shopSubtitleElement.textContent = shopInfo.description || "Articles pour dresseurs";
+    shopSubtitleElement.textContent = shopInfo.description || "Trainer Items";
   }
 
   switchTab(tabType) {
-    // Mettre à jour les onglets visuels
+    // Update visual tabs
     this.overlay.querySelectorAll('.shop-tab').forEach(tab => {
       tab.classList.toggle('active', tab.dataset.tab === tabType);
     });
@@ -1592,15 +1592,15 @@ export class ShopUI {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     
     if (!this.shopData) {
-      this.showEmpty("Aucune donnée de shop disponible");
+      this.showEmpty("No shop data available");
       return;
     }
 
-    // Animation de transition
+    // Transition animation
     itemsGrid.classList.add('switching');
     setTimeout(() => itemsGrid.classList.remove('switching'), 300);
 
-    // Vider la grille
+    // Clear grid
     itemsGrid.innerHTML = '';
 
     if (this.currentTab === 'buy') {
@@ -1615,17 +1615,17 @@ export class ShopUI {
   displayBuyItems() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     
-    // ✅ CORRECTION: Utiliser toujours availableItems (maintenant normalisé)
+    // ✅ CORRECTION: Always use availableItems (now normalized)
     const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
     const availableItems = items.filter(item => {
-      // Les items vides sont toujours affichés
+      // Empty items are always displayed
       if (item.isEmpty) return true;
-      // Les autres items doivent être achetables et débloqués
+      // Other items must be buyable and unlocked
       return item.canBuy && item.unlocked;
     });
 
     if (availableItems.length === 0) {
-      this.showEmpty("Aucun objet disponible à l'achat");
+      this.showEmpty("No items available for purchase");
       return;
     }
 
@@ -1638,12 +1638,12 @@ export class ShopUI {
   displaySellItems() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     
-    // TODO: Récupérer l'inventaire du joueur pour les objets vendables
-    // Pour l'instant, affichage des objets du shop avec prix de vente
+    // TODO: Get player inventory for sellable items
+    // For now, display shop items with sell prices
     const sellableItems = this.shopData.availableItems.filter(item => item.canSell);
 
     if (sellableItems.length === 0) {
-      this.showEmpty("Aucun objet ne peut être vendu ici");
+      this.showEmpty("No items can be sold here");
       return;
     }
 
@@ -1654,7 +1654,7 @@ export class ShopUI {
   }
 
   createBuyItemElement(item, index) {
-    // ✅ CORRECTION: Gérer les items vides
+    // ✅ CORRECTION: Handle empty items
     if (item.isEmpty) {
       return this.createEmptyShopItemElement();
     }
@@ -1664,7 +1664,7 @@ export class ShopUI {
     itemElement.dataset.itemId = item.itemId;
     itemElement.dataset.index = index;
 
-    // Vérifier la disponibilité
+    // Check availability
     const canAfford = this.playerGold >= item.buyPrice;
     const inStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
     const isAvailable = canAfford && inStock;
@@ -1693,7 +1693,7 @@ export class ShopUI {
       });
     }
 
-    // Animation d'apparition
+    // Appearance animation
     setTimeout(() => {
       itemElement.classList.add('new');
     }, index * 50);
@@ -1720,7 +1720,7 @@ export class ShopUI {
       this.selectItem(item, itemElement);
     });
 
-    // Animation d'apparition
+    // Appearance animation
     setTimeout(() => {
       itemElement.classList.add('new');
     }, index * 50);
@@ -1730,7 +1730,7 @@ export class ShopUI {
 
   getStockDisplay(stock) {
     if (stock === undefined || stock === -1) {
-      return ''; // Stock illimité
+      return ''; // Unlimited stock
     }
     
     let stockClass = '';
@@ -1744,7 +1744,7 @@ export class ShopUI {
   }
 
   getItemIcon(itemId) {
-    // Même mapping que dans InventoryUI
+    // Same mapping as in InventoryUI
     const iconMap = {
       'poke_ball': '⚪',
       'great_ball': '🟡',
@@ -1774,12 +1774,12 @@ export class ShopUI {
   }
 
   selectItem(item, element) {
-    // Désélectionner l'ancien item
+    // Deselect old item
     this.overlay.querySelectorAll('.shop-item').forEach(slot => {
       slot.classList.remove('selected');
     });
 
-    // Sélectionner le nouveau
+    // Select the new one
     element.classList.add('selected');
     this.selectedItem = item;
     
@@ -1808,22 +1808,22 @@ export class ShopUI {
       <div class="item-stat-card level">
         <div class="stat-icon">⭐</div>
         <div class="stat-info">
-          <span class="stat-label">Niveau requis</span>
+          <span class="stat-label">Required Level</span>
           <span class="stat-value">${item.unlockLevel}</span>
         </div>
       </div>
     `);
   }
 
-  // Si pas de stats supplémentaires, ajouter des infos sur l'affordabilité
+  // If no additional stats, add affordability info
   if (stats.length === 0 && this.currentTab === 'buy') {
     const canAfford = this.playerGold >= item.buyPrice;
     stats.push(`
       <div class="item-stat-card affordability">
         <div class="stat-icon">${canAfford ? '✅' : '❌'}</div>
         <div class="stat-info">
-          <span class="stat-label">Disponibilité</span>
-          <span class="stat-value">${canAfford ? 'Abordable' : 'Trop cher'}</span>
+          <span class="stat-label">Availability</span>
+          <span class="stat-value">${canAfford ? 'Affordable' : 'Too Expensive'}</span>
         </div>
       </div>
     `);
@@ -1838,11 +1838,11 @@ updateItemDetails() {
     if (!this.selectedItem) {
       detailsContainer.innerHTML = `
         <div class="details-header">
-          <span class="details-title">Détails de l'objet</span>
+          <span class="details-title">Item Details</span>
         </div>
         <div class="no-selection">
           <div class="no-selection-icon">🎁</div>
-          <p>Sélectionnez un objet pour voir ses détails</p>
+          <p>Select an item to see its details</p>
         </div>
       `;
       return;
@@ -1854,15 +1854,15 @@ updateItemDetails() {
     const itemIcon = this.getItemIcon(item.itemId);
 
     const price = this.currentTab === 'buy' ? item.buyPrice : item.sellPrice;
-    const priceLabel = this.currentTab === 'buy' ? 'Prix d\'achat' : 'Prix de vente';
+    const priceLabel = this.currentTab === 'buy' ? 'Purchase Price' : 'Sell Price';
 
-    // ✅ NOUVEAU LAYOUT HORIZONTAL COMPACT
+    // ✅ NEW COMPACT HORIZONTAL LAYOUT
     detailsContainer.innerHTML = `
       <div class="details-header">
-        <span class="details-title">Détails de l'objet</span>
+        <span class="details-title">Item Details</span>
       </div>
       <div class="item-detail-content">
-        <!-- Header compact avec icône et nom -->
+        <!-- Compact header with icon and name -->
         <div class="item-detail-main">
           <div class="item-detail-icon">${itemIcon}</div>
           <div class="item-detail-info">
@@ -1871,7 +1871,7 @@ updateItemDetails() {
           </div>
         </div>
         
-        <!-- Stats horizontales -->
+        <!-- Horizontal stats -->
         <div class="item-detail-stats-horizontal">
           <div class="item-stat-card price">
             <div class="stat-icon">💰</div>
@@ -1883,7 +1883,7 @@ updateItemDetails() {
           ${this.getHorizontalStatsHTML(item)}
         </div>
         
-        <!-- Description compacte -->
+        <!-- Compact description -->
         <div class="item-detail-description-compact">
           ${itemDescription}
         </div>
@@ -1892,7 +1892,7 @@ updateItemDetails() {
   }
 
   getItemTypeText(item) {
-    return item.type || 'Objet';
+    return item.type || 'Item';
   }
 
   getItemStatsHTML(item) {
@@ -1910,7 +1910,7 @@ updateItemDetails() {
     if (item.unlockLevel && item.unlockLevel > 1) {
       stats.push(`
         <div class="item-stat">
-          <span class="item-stat-label">Niveau requis</span>
+          <span class="item-stat-label">Required Level</span>
           <span class="item-stat-value">${item.unlockLevel}</span>
         </div>
       `);
@@ -1927,7 +1927,7 @@ updateItemDetails() {
     if (!this.selectedItem) {
       actionBtn.disabled = true;
       btnIcon.textContent = '🛒';
-      btnText.textContent = this.currentTab === 'buy' ? 'Acheter' : 'Vendre';
+      btnText.textContent = this.currentTab === 'buy' ? 'Buy' : 'Sell';
       return;
     }
 
@@ -1937,11 +1937,11 @@ updateItemDetails() {
       
       actionBtn.disabled = !canAfford || !inStock;
       btnIcon.textContent = '🛒';
-      btnText.textContent = 'Acheter';
+      btnText.textContent = 'Buy';
     } else {
-      actionBtn.disabled = false; // TODO: Vérifier l'inventaire du joueur
+      actionBtn.disabled = false; // TODO: Check player inventory
       btnIcon.textContent = '💰';
-      btnText.textContent = 'Vendre';
+      btnText.textContent = 'Sell';
     }
   }
 
@@ -1963,7 +1963,7 @@ updateItemDetails() {
     const itemsGrid = this.overlay.querySelector('#shop-items-grid');
     const itemCount = itemsGrid.querySelectorAll('.shop-item').length;
     
-    itemsCountElement.textContent = `${itemCount} objets`;
+    itemsCountElement.textContent = `${itemCount} items`;
   }
 
   showBuyModal() {
@@ -1975,12 +1975,12 @@ updateItemDetails() {
     const itemPrice = modal.querySelector('.modal-item-price');
     const quantityInput = modal.querySelector('#quantity-input');
 
-    // Configurer le modal
+    // Configure modal
     itemIcon.textContent = this.getItemIcon(this.selectedItem.itemId);
     itemName.textContent = this.getItemName(this.selectedItem.itemId);
-    itemPrice.textContent = `Prix unitaire: ${this.selectedItem.buyPrice}₽`;
+    itemPrice.textContent = `Unit price: ${this.selectedItem.buyPrice}₽`;
 
-    // Configurer la quantité maximum
+    // Configure maximum quantity
     const maxAffordable = Math.floor(this.playerGold / this.selectedItem.buyPrice);
     const maxStock = this.selectedItem.stock === undefined || this.selectedItem.stock === -1 ? 99 : this.selectedItem.stock;
     const maxQuantity = Math.min(maxAffordable, maxStock, 99);
@@ -1994,7 +1994,7 @@ updateItemDetails() {
 
   showSellModal() {
     if (!this.selectedItem) return;
-    this.showNotification("Fonction de vente pas encore implémentée", "warning");
+    this.showNotification("Sell function not yet implemented", "warning");
   }
 
   updateModalTotal() {
@@ -2045,29 +2045,29 @@ updateItemDetails() {
 
   handleTransactionResult(data) {
     if (data.success) {
-      this.showNotification(data.message || "Transaction réussie !", "success");
+      this.showNotification(data.message || "Transaction successful!", "success");
       
-      // Mettre à jour l'or du joueur
+      // Update player gold
       if (data.newGold !== undefined) {
         this.updatePlayerGold(data.newGold);
       }
       
-      // Rafraîchir le catalogue pour mettre à jour le stock
+      // Refresh catalog to update stock
       this.requestShopCatalog(this.shopData.shopInfo.id);
     } else {
-      this.showNotification(data.message || "Transaction échouée", "error");
+      this.showNotification(data.message || "Transaction failed", "error");
     }
   }
 
   handleRefreshResult(data) {
     if (data.success) {
       if (data.restocked) {
-        this.showNotification("Magasin restocké !", "success");
+        this.showNotification("Shop restocked!", "success");
       } else {
-        this.showNotification("Pas de restock nécessaire", "info");
+        this.showNotification("No restock needed", "info");
       }
     } else {
-      this.showNotification(data.message || "Erreur lors du rafraîchissement", "error");
+      this.showNotification(data.message || "Error during refresh", "error");
     }
   }
 
@@ -2076,7 +2076,7 @@ updateItemDetails() {
     itemsGrid.innerHTML = `
       <div class="shop-loading">
         <div class="shop-loading-spinner"></div>
-        <div class="shop-loading-text">Chargement du catalogue...</div>
+        <div class="shop-loading-text">Loading catalog...</div>
       </div>
     `;
   }
@@ -2087,24 +2087,24 @@ updateItemDetails() {
       <div class="shop-empty">
         <div class="shop-empty-icon">🏪</div>
         <div class="shop-empty-text">${message}</div>
-        <div class="shop-empty-subtext">Revenez plus tard !</div>
+        <div class="shop-empty-subtext">Come back later!</div>
       </div>
     `;
   }
 
   showNotification(message, type = 'info') {
-    // Supprimer les anciennes notifications
+    // Remove old notifications
     const existingNotifications = document.querySelectorAll('.shop-notification');
     existingNotifications.forEach(notif => notif.remove());
 
-    // Créer la nouvelle notification
+    // Create new notification
     const notification = document.createElement('div');
     notification.className = `shop-notification ${type}`;
     notification.textContent = message;
 
     document.body.appendChild(notification);
 
-    // Auto-suppression après 4 secondes
+    // Auto-remove after 4 seconds
     setTimeout(() => {
       if (notification.parentNode) {
         notification.style.animation = 'slideOutRight 0.4s ease';
@@ -2113,7 +2113,7 @@ updateItemDetails() {
     }, 4000);
   }
 
-  // Méthodes publiques pour l'intégration
+  // Public methods for integration
   isOpen() {
     return this.isVisible;
   }
@@ -2130,7 +2130,7 @@ updateItemDetails() {
     return this.currentTab;
   }
 
-  // Méthode pour gérer les raccourcis clavier
+  // Method to handle keyboard shortcuts
   handleKeyPress(key) {
     if (!this.isVisible) return false;
 
@@ -2161,7 +2161,7 @@ updateItemDetails() {
     return false;
   }
 
-  // Méthode pour naviguer entre les objets avec les flèches
+  // Method to navigate between items with arrows
   navigateItems(direction) {
     const items = this.overlay.querySelectorAll('.shop-item:not(.unavailable)');
     if (items.length === 0) return;
@@ -2189,7 +2189,7 @@ updateItemDetails() {
     }
   }
 
-  // Méthode pour l'intégration avec d'autres systèmes
+  // Method for integration with other systems
   canPlayerInteract() {
     const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
     const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
@@ -2198,7 +2198,7 @@ updateItemDetails() {
     return !this.isVisible && !questDialogOpen && !chatOpen && !inventoryOpen;
   }
 
-  // Méthode utilitaire pour vérifier si un objet peut être acheté
+  // Utility method to check if an item can be bought
   canBuyItem(item) {
     if (!item) return false;
     
@@ -2209,7 +2209,7 @@ updateItemDetails() {
     return canAfford && inStock && isUnlocked;
   }
 
-  // Méthode pour obtenir des statistiques du shop
+  // Method to get shop statistics
   getShopStats() {
     if (!this.shopData) return null;
 
@@ -2226,18 +2226,18 @@ updateItemDetails() {
     };
   }
 
-  // Méthode de nettoyage
+  // Cleanup method
   destroy() {
     if (this.overlay && this.overlay.parentNode) {
       this.overlay.parentNode.removeChild(this.overlay);
     }
     
-    // Nettoyer les références
+    // Clean up references
     this.gameRoom = null;
     this.shopData = null;
     this.selectedItem = null;
     this.overlay = null;
     
-    console.log('🏪 ShopUI détruit');
+    console.log('🏪 ShopUI destroyed');
   }
 }
