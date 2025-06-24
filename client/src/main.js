@@ -11,7 +11,7 @@ import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 import { TimeService } from './services/TimeService.js';
 import { LavandiaAnalysisScene } from './scenes/zones/LavandiaAnalysisScene.js';
 import { LavandiaBossRoomScene } from './scenes/zones/LavandiaBossRoomScene.js';
-import { LavandiaCelibiTempleScene } from './scenes/zones/LavandiaCelibiTempleScene.js';
+import { LavandiaCelebiTempleScene } from './scenes/zones/LavandiaCelebiTempleScene.js';
 import { LavandiaEquipementScene } from './scenes/zones/LavandiaEquipementScene.js';
 import { LavandiaFurnitureScene } from './scenes/zones/LavandiaFurnitureScene.js';
 import { LavandiaHealingCenterScene } from './scenes/zones/LavandiaHealingCenterScene.js';
@@ -193,7 +193,7 @@ const config = {
   LavandiaScene,
   LavandiaAnalysisScene,
   LavandiaBossRoomScene,
-  LavandiaCelibiTempleScene,
+  LavandiaCelebiTempleScene,
   LavandiaEquipementScene,
   LavandiaFurnitureScene,
   LavandiaHealingCenterScene,
