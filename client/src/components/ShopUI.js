@@ -1,5 +1,5 @@
-// client/src/components/ShopUI.js - FIX SHOP UI OPENING
-// ✅ Correction des verrous et amélioration de la gestion d'état
+// client/src/components/ShopUI.js - COMPLET avec CSS intégré
+// ✅ Style cohérent avec l'inventaire - Dégradés bleus, animations modernes
 
 export class ShopUI {
   constructor(gameRoom) {
@@ -47,71 +47,12 @@ export class ShopUI {
   }
 
   init() {
-    this.loadShopStyles();
+    // ✅ PLUS BESOIN de loadShopStyles() - CSS intégré
     this.createShopInterface();
     this.setupEventListeners();
     this.setupServerListeners();
-    console.log('🏪 Interface de shop initialisée');
+    console.log('🏪 Interface de shop initialisée avec CSS intégré');
   }
-
-loadShopStyles() {
-  // Charger le fichier CSS du shop si pas déjà fait
-  if (!document.querySelector('#shop-styles')) {
-    console.log('🎨 [ShopUI] Tentative de chargement du CSS...');
-    
-    const link = document.createElement('link');
-    link.id = 'shop-styles';
-    link.rel = 'stylesheet';
-    link.href = './src/components/shop.css';  // ✅ Même répertoire
-    
-    // ✅ DEBUG
-    link.onload = () => {
-      console.log('✅ [ShopUI] CSS shop chargé avec succès !');
-    };
-    
-    link.onerror = () => {
-      console.error('❌ [ShopUI] Erreur chargement CSS shop');
-      console.error('📁 Chemin essayé:', link.href);
-      console.error('🌐 URL de base:', window.location.href);
-      
-      // ✅ Essayer d'autres chemins en fallback
-      console.log('🔄 Essai de chemins alternatifs...');
-      this.tryAlternativePaths();
-    };
-    
-    document.head.appendChild(link);
-    console.log('📋 [ShopUI] Lien CSS ajouté:', link.href);
-  } else {
-    console.log('♻️ [ShopUI] CSS shop déjà chargé');
-  }
-}
-
-// ✅ NOUVELLE MÉTHODE : Essayer plusieurs chemins
-tryAlternativePaths() {
-  const paths = [
-    '/src/components/shop.css',
-    './components/shop.css',
-    '../shop.css',
-    './shop.css',
-    '/shop.css'
-  ];
-  
-  paths.forEach((path, index) => {
-    setTimeout(() => {
-      console.log(`🧪 Test chemin ${index + 1}:`, path);
-      const testLink = document.createElement('link');
-      testLink.rel = 'stylesheet';
-      testLink.href = path;
-      testLink.onload = () => {
-        console.log(`✅ SUCCÈS avec: ${path}`);
-      };
-      testLink.onerror = () => {
-        console.log(`❌ Échec: ${path}`);
-      };
-      document.head.appendChild(testLink);
-    }, index * 100);
-  });
-}
 
   createShopInterface() {
     const overlay = document.createElement('div');
@@ -120,7 +61,7 @@ tryAlternativePaths() {
 
     overlay.innerHTML = `
       <div class="shop-container">
-        <!-- Header avec style Pokémon classique -->
+        <!-- Header avec style moderne -->
         <div class="shop-header">
           <div class="shop-title">
             <div class="shop-icon">🏪</div>
@@ -139,7 +80,7 @@ tryAlternativePaths() {
           </div>
         </div>
 
-        <!-- Navigation en onglets style Game Boy -->
+        <!-- Navigation en onglets -->
         <div class="shop-tabs">
           <button class="shop-tab active" data-tab="buy">
             <span class="tab-icon">🛒</span>
@@ -152,7 +93,6 @@ tryAlternativePaths() {
         </div>
 
         <div class="shop-content">
-          <!-- Liste des objets avec style rétro -->
           <div class="shop-items-section">
             <div class="shop-items-header">
               <span class="section-title">Articles disponibles</span>
@@ -163,7 +103,6 @@ tryAlternativePaths() {
             </div>
           </div>
 
-          <!-- Zone de détails avec style fenêtre Pokémon -->
           <div class="shop-item-details" id="shop-item-details">
             <div class="details-header">
               <span class="details-title">Détails de l'objet</span>
@@ -175,7 +114,6 @@ tryAlternativePaths() {
           </div>
         </div>
 
-        <!-- Footer avec actions style Pokémon -->
         <div class="shop-footer">
           <div class="shop-info">
             <div class="shop-welcome">Bienvenue dans notre boutique !</div>
@@ -194,7 +132,7 @@ tryAlternativePaths() {
         </div>
       </div>
 
-      <!-- Modal de confirmation style Pokémon -->
+      <!-- Modal de confirmation -->
       <div class="shop-modal hidden" id="shop-modal">
         <div class="modal-content">
           <div class="modal-header">
@@ -231,6 +169,1149 @@ tryAlternativePaths() {
 
     document.body.appendChild(overlay);
     this.overlay = overlay;
+    
+    // ✅ AJOUTER LES STYLES DIRECTEMENT
+    this.addStyles();
+  }
+
+  // ✅ CSS INTÉGRÉ - Même approche que InventoryUI.js
+  addStyles() {
+    if (document.querySelector('#shop-styles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'shop-styles';
+    style.textContent = `
+      /* ===== SHOP UI STYLES MODERNES - COHÉRENT AVEC INVENTAIRE ===== */
+      
+      .shop-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        backdrop-filter: blur(5px);
+        transition: opacity 0.3s ease;
+      }
+
+      .shop-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .shop-container {
+        width: 95%;
+        max-width: 1000px;
+        height: 90%;
+        max-height: 750px;
+        background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+        border: 3px solid #4a90e2;
+        border-radius: 20px;
+        display: flex;
+        flex-direction: column;
+        color: white;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+        transform: scale(0.9);
+        transition: transform 0.3s ease;
+      }
+
+      .shop-overlay:not(.hidden) .shop-container {
+        transform: scale(1);
+      }
+
+      /* ===== HEADER STYLE ===== */
+      .shop-header {
+        background: linear-gradient(90deg, #4a90e2, #357abd);
+        padding: 15px 25px;
+        border-radius: 17px 17px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #357abd;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .shop-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        animation: shimmer 3s infinite;
+      }
+
+      @keyframes shimmer {
+        0% { left: -100%; }
+        100% { left: 100%; }
+      }
+
+      .shop-title {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        z-index: 1;
+      }
+
+      .shop-icon {
+        font-size: 32px;
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.5));
+        animation: bounce 2s infinite;
+      }
+
+      @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+      }
+
+      .shop-title-text {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .shop-name {
+        font-size: 22px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        margin: 0;
+      }
+
+      .shop-subtitle {
+        font-size: 12px;
+        opacity: 0.9;
+        font-style: italic;
+        margin: 0;
+      }
+
+      .shop-controls {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        z-index: 1;
+      }
+
+      .player-gold {
+        background: rgba(255, 193, 7, 0.2);
+        border: 2px solid rgba(255, 193, 7, 0.5);
+        border-radius: 25px;
+        padding: 8px 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+      }
+
+      .player-gold.updated {
+        animation: goldUpdate 0.6s ease;
+      }
+
+      @keyframes goldUpdate {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); box-shadow: 0 0 20px rgba(255, 193, 7, 0.6); }
+        100% { transform: scale(1); }
+      }
+
+      .gold-icon {
+        font-size: 18px;
+        animation: spin 4s linear infinite;
+      }
+
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      .gold-amount {
+        font-size: 16px;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      }
+
+      .gold-currency {
+        color: #ffc107;
+        font-weight: bold;
+      }
+
+      .shop-close-btn {
+        background: rgba(220, 53, 69, 0.8);
+        border: none;
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .shop-close-btn:hover {
+        background: rgba(220, 53, 69, 1);
+        transform: scale(1.1);
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+      }
+
+      .shop-close-btn:active {
+        transform: scale(0.95);
+      }
+
+      /* ===== ONGLETS STYLE ===== */
+      .shop-tabs {
+        background: rgba(0, 0, 0, 0.2);
+        display: flex;
+        border-bottom: 2px solid #357abd;
+      }
+
+      .shop-tab {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.05);
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        padding: 15px 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .shop-tab:hover {
+        background: rgba(74, 144, 226, 0.2);
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .shop-tab.active {
+        background: linear-gradient(180deg, rgba(74, 144, 226, 0.4), rgba(74, 144, 226, 0.2));
+        color: #87ceeb;
+        border-bottom: 3px solid #4a90e2;
+      }
+
+      .shop-tab.active::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #4a90e2, #87ceeb, #4a90e2);
+        animation: tabGlow 2s ease-in-out infinite alternate;
+      }
+
+      @keyframes tabGlow {
+        from { opacity: 0.6; }
+        to { opacity: 1; }
+      }
+
+      .tab-icon {
+        font-size: 18px;
+        transition: transform 0.3s ease;
+      }
+
+      .shop-tab.active .tab-icon {
+        animation: tabIconPulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes tabIconPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      .tab-text {
+        font-weight: bold;
+      }
+
+      /* ===== CONTENU PRINCIPAL ===== */
+      .shop-content {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+      }
+
+      .shop-items-section {
+        flex: 2;
+        display: flex;
+        flex-direction: column;
+        border-right: 2px solid #357abd;
+      }
+
+      .shop-items-header {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 15px 20px;
+        border-bottom: 1px solid rgba(74, 144, 226, 0.3);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .section-title {
+        font-size: 16px;
+        font-weight: bold;
+        color: #87ceeb;
+      }
+
+      .items-count {
+        font-size: 12px;
+        color: #ccc;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 4px 8px;
+        border-radius: 10px;
+      }
+
+      .shop-items-grid {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 15px;
+        align-content: start;
+      }
+
+      .shop-item {
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 15px 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .shop-item:hover {
+        background: rgba(74, 144, 226, 0.2);
+        border-color: #4a90e2;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(74, 144, 226, 0.3);
+      }
+
+      .shop-item.selected {
+        background: rgba(74, 144, 226, 0.4);
+        border-color: #87ceeb;
+        box-shadow: 0 0 20px rgba(74, 144, 226, 0.6);
+        transform: translateY(-2px);
+      }
+
+      .shop-item.unavailable {
+        opacity: 0.5;
+        cursor: not-allowed;
+        filter: grayscale(0.6);
+      }
+
+      .shop-item.unavailable:hover {
+        transform: none;
+        box-shadow: none;
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      .shop-item.out-of-stock {
+        border-color: rgba(220, 53, 69, 0.5);
+        background: rgba(220, 53, 69, 0.1);
+      }
+
+      .shop-empty-item {
+        background: rgba(100, 100, 100, 0.2) !important;
+        border: 2px dashed rgba(255, 255, 255, 0.3) !important;
+        opacity: 0.5;
+      }
+
+      .shop-empty-item .shop-item-icon {
+        opacity: 0.5;
+      }
+
+      .shop-empty-item .shop-item-name {
+        font-style: italic;
+        color: #999 !important;
+      }
+
+      .shop-item-icon {
+        font-size: 28px;
+        margin-bottom: 8px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
+      }
+
+      .shop-item-name {
+        font-size: 12px;
+        font-weight: 500;
+        margin-bottom: 8px;
+        line-height: 1.3;
+        max-height: 2.6em;
+        overflow: hidden;
+        color: #e0e0e0;
+      }
+
+      .shop-item-price {
+        font-size: 14px;
+        font-weight: bold;
+        color: #ffc107;
+        background: rgba(255, 193, 7, 0.2);
+        border-radius: 10px;
+        padding: 4px 8px;
+        margin: 5px 0;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      }
+
+      .shop-item-stock {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(40, 167, 69, 0.9);
+        color: white;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 10px;
+        min-width: 16px;
+        text-align: center;
+      }
+
+      .shop-item-stock.low {
+        background: rgba(255, 193, 7, 0.9);
+        color: #000;
+        animation: stockWarning 1.5s ease-in-out infinite;
+      }
+
+      .shop-item-stock.out {
+        background: rgba(220, 53, 69, 0.9);
+        color: white;
+        animation: stockDanger 1s ease-in-out infinite;
+      }
+
+      @keyframes stockWarning {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+
+      @keyframes stockDanger {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.05); }
+      }
+
+      /* ===== ZONE DE DÉTAILS ===== */
+      .shop-item-details {
+        flex: 1;
+        background: rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        min-width: 300px;
+      }
+
+      .details-header {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 15px 20px;
+        border-bottom: 1px solid rgba(74, 144, 226, 0.3);
+      }
+
+      .details-title {
+        font-size: 16px;
+        font-weight: bold;
+        color: #87ceeb;
+      }
+
+      .no-selection {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #888;
+        text-align: center;
+        padding: 40px 20px;
+      }
+
+      .no-selection-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+        animation: float 3s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+      }
+
+      .item-detail-content {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+      }
+
+      .item-detail-header {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .item-detail-icon {
+        font-size: 52px;
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+        border-radius: 15px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        flex-shrink: 0;
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+      }
+
+      .item-detail-info h3 {
+        font-size: 20px;
+        color: #87ceeb;
+        margin: 0 0 5px 0;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      }
+
+      .item-detail-type {
+        font-size: 12px;
+        color: #ffc107;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        background: rgba(255, 193, 7, 0.2);
+        padding: 3px 8px;
+        border-radius: 10px;
+        display: inline-block;
+      }
+
+      .item-detail-description {
+        color: #ddd;
+        line-height: 1.5;
+        margin: 15px 0;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        border-left: 4px solid #4a90e2;
+      }
+
+      .item-detail-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .item-stat {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.3s ease;
+      }
+
+      .item-stat:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      .item-stat-label {
+        font-size: 12px;
+        color: #ccc;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .item-stat-value {
+        font-weight: bold;
+        color: #87ceeb;
+      }
+
+      /* ===== FOOTER ===== */
+      .shop-footer {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 20px 25px;
+        border-top: 2px solid #357abd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 0 0 17px 17px;
+      }
+
+      .shop-info {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .shop-welcome {
+        font-size: 14px;
+        color: #87ceeb;
+        font-weight: 500;
+      }
+
+      .shop-tip {
+        font-size: 11px;
+        color: #888;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .shop-actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      .shop-btn {
+        background: rgba(74, 144, 226, 0.8);
+        border: none;
+        color: white;
+        padding: 10px 18px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .shop-btn:hover:not(:disabled) {
+        background: rgba(74, 144, 226, 1);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(74, 144, 226, 0.4);
+      }
+
+      .shop-btn:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      .shop-btn:disabled {
+        background: rgba(108, 117, 125, 0.5);
+        cursor: not-allowed;
+        filter: grayscale(0.7);
+      }
+
+      .shop-btn.primary {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+      }
+
+      .shop-btn.primary:hover:not(:disabled) {
+        background: linear-gradient(135deg, #218838, #1ea080);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.5);
+      }
+
+      .shop-btn.secondary {
+        background: rgba(108, 117, 125, 0.8);
+      }
+
+      .shop-btn.secondary:hover:not(:disabled) {
+        background: rgba(108, 117, 125, 1);
+      }
+
+      .btn-icon {
+        font-size: 16px;
+      }
+
+      .btn-text {
+        font-weight: bold;
+      }
+
+      /* ===== MODAL STYLES ===== */
+      .shop-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1100;
+        backdrop-filter: blur(8px);
+      }
+
+      .shop-modal.hidden {
+        display: none;
+      }
+
+      .modal-content {
+        background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+        border: 3px solid #4a90e2;
+        border-radius: 20px;
+        max-width: 450px;
+        width: 90%;
+        color: white;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        animation: modalAppear 0.3s ease;
+      }
+
+      @keyframes modalAppear {
+        from { opacity: 0; transform: scale(0.8); }
+        to { opacity: 1; transform: scale(1); }
+      }
+
+      .modal-header {
+        background: linear-gradient(90deg, #4a90e2, #357abd);
+        padding: 15px 20px;
+        border-radius: 17px 17px 0 0;
+        border-bottom: 2px solid #357abd;
+      }
+
+      .modal-title {
+        font-size: 18px;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      }
+
+      .modal-body {
+        padding: 25px;
+      }
+
+      .modal-item-preview {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+      }
+
+      .modal-item-icon {
+        font-size: 32px;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        flex-shrink: 0;
+      }
+
+      .modal-item-info {
+        flex: 1;
+      }
+
+      .modal-item-name {
+        font-size: 16px;
+        font-weight: bold;
+        color: #87ceeb;
+        margin-bottom: 5px;
+      }
+
+      .modal-item-price {
+        font-size: 14px;
+        color: #ffc107;
+      }
+
+      .modal-quantity {
+        margin-bottom: 20px;
+      }
+
+      .modal-quantity label {
+        display: block;
+        margin-bottom: 10px;
+        font-weight: 500;
+        color: #ccc;
+      }
+
+      .quantity-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
+      }
+
+      .quantity-btn {
+        background: rgba(74, 144, 226, 0.8);
+        border: none;
+        color: white;
+        width: 35px;
+        height: 35px;
+        border-radius: 8px;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .quantity-btn:hover {
+        background: rgba(74, 144, 226, 1);
+        transform: scale(1.1);
+      }
+
+      .quantity-input {
+        width: 80px;
+        height: 35px;
+        text-align: center;
+        border: 2px solid rgba(74, 144, 226, 0.5);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+      }
+
+      .quantity-input:focus {
+        outline: none;
+        border-color: #4a90e2;
+        box-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
+      }
+
+      .modal-total {
+        text-align: center;
+        font-size: 18px;
+        font-weight: bold;
+        color: #ffc107;
+        background: rgba(255, 193, 7, 0.2);
+        padding: 10px;
+        border-radius: 10px;
+      }
+
+      .total-label {
+        color: #ccc;
+      }
+
+      .total-amount {
+        color: #ffc107;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      }
+
+      .modal-actions {
+        padding: 20px 25px;
+        border-top: 1px solid rgba(74, 144, 226, 0.3);
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+      }
+
+      .modal-btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+      }
+
+      .modal-btn.cancel {
+        background: rgba(108, 117, 125, 0.8);
+        color: #ccc;
+      }
+
+      .modal-btn.cancel:hover {
+        background: rgba(108, 117, 125, 1);
+      }
+
+      .modal-btn.confirm {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+      }
+
+      .modal-btn.confirm:hover {
+        background: linear-gradient(135deg, #218838, #1ea080);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+      }
+
+      /* ===== ÉTATS VIDES ===== */
+      .shop-loading {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 60px 20px;
+        color: #888;
+      }
+
+      .shop-loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(74, 144, 226, 0.3);
+        border-top: 3px solid #4a90e2;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+      }
+
+      .shop-loading-text {
+        font-size: 14px;
+        color: #ccc;
+      }
+
+      .shop-empty {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 60px 20px;
+        color: #888;
+      }
+
+      .shop-empty-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.3;
+        animation: float 3s ease-in-out infinite;
+      }
+
+      .shop-empty-text {
+        font-size: 16px;
+        color: #ccc;
+        margin-bottom: 5px;
+      }
+
+      .shop-empty-subtext {
+        font-size: 12px;
+        color: #888;
+        font-style: italic;
+      }
+
+      /* ===== NOTIFICATIONS ===== */
+      .shop-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 10px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        z-index: 1200;
+        animation: slideInRight 0.4s ease;
+        max-width: 350px;
+        border-left: 4px solid;
+      }
+
+      .shop-notification.success {
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.95), rgba(32, 201, 151, 0.95));
+        border-left-color: #28a745;
+      }
+
+      .shop-notification.error {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.95), rgba(231, 76, 60, 0.95));
+        border-left-color: #dc3545;
+      }
+
+      .shop-notification.warning {
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.95), rgba(255, 152, 0, 0.95));
+        border-left-color: #ffc107;
+        color: #000;
+      }
+
+      .shop-notification.info {
+        background: linear-gradient(135deg, rgba(74, 144, 226, 0.95), rgba(52, 152, 219, 0.95));
+        border-left-color: #4a90e2;
+      }
+
+      @keyframes slideInRight {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+
+      @keyframes slideOutRight {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(400px); opacity: 0; }
+      }
+
+      /* ===== ANIMATIONS D'OBJETS ===== */
+      .shop-item.new {
+        animation: itemAppear 0.5s ease;
+      }
+
+      @keyframes itemAppear {
+        from {
+          opacity: 0;
+          transform: scale(0.8) translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .shop-items-grid.switching {
+        animation: gridSwitch 0.3s ease;
+      }
+
+      @keyframes gridSwitch {
+        0% { opacity: 0; transform: translateX(20px); }
+        100% { opacity: 1; transform: translateX(0); }
+      }
+
+      /* ===== SCROLLBAR PERSONNALISÉE ===== */
+      .shop-items-grid::-webkit-scrollbar,
+      .item-detail-content::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .shop-items-grid::-webkit-scrollbar-track,
+      .item-detail-content::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+
+      .shop-items-grid::-webkit-scrollbar-thumb,
+      .item-detail-content::-webkit-scrollbar-thumb {
+        background: rgba(74, 144, 226, 0.6);
+        border-radius: 4px;
+      }
+
+      .shop-items-grid::-webkit-scrollbar-thumb:hover,
+      .item-detail-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(74, 144, 226, 0.8);
+      }
+
+      /* ===== RESPONSIVE ===== */
+      @media (max-width: 768px) {
+        .shop-container {
+          width: 98%;
+          height: 95%;
+          border-radius: 15px;
+        }
+
+        .shop-header {
+          padding: 12px 20px;
+          border-radius: 12px 12px 0 0;
+        }
+
+        .shop-name {
+          font-size: 18px;
+        }
+
+        .shop-icon {
+          font-size: 24px;
+        }
+
+        .player-gold {
+          padding: 6px 12px;
+        }
+
+        .shop-content {
+          flex-direction: column;
+        }
+
+        .shop-items-section {
+          border-right: none;
+          border-bottom: 2px solid #357abd;
+        }
+
+        .shop-item-details {
+          min-width: auto;
+          max-height: 200px;
+        }
+
+        .shop-items-grid {
+          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+          gap: 12px;
+          padding: 15px;
+        }
+
+        .shop-item {
+          min-height: 100px;
+          padding: 12px 8px;
+        }
+
+        .shop-item-icon {
+          font-size: 24px;
+        }
+
+        .shop-item-name {
+          font-size: 11px;
+        }
+
+        .shop-footer {
+          padding: 15px 20px;
+          border-radius: 0 0 12px 12px;
+        }
+
+        .shop-info {
+          font-size: 12px;
+        }
+
+        .shop-btn {
+          padding: 8px 14px;
+          font-size: 12px;
+        }
+      }
+
+      /* ===== ÉTATS DE FOCUS POUR ACCESSIBILITÉ ===== */
+      .shop-item:focus,
+      .shop-btn:focus,
+      .modal-btn:focus,
+      .quantity-btn:focus {
+        outline: 2px solid #4a90e2;
+        outline-offset: 2px;
+      }
+
+      /* ===== EFFETS SPÉCIAUX ===== */
+      .shop-header.celebration::after {
+        content: '🎉';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 100px;
+        opacity: 0;
+        animation: celebrate 2s ease-out;
+        pointer-events: none;
+      }
+
+      @keyframes celebrate {
+        0% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+        50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+      }
+
+      /* ===== STYLES POUR OBJETS SPÉCIAUX ===== */
+      .shop-item.rare {
+        border-color: #e74c3c;
+        background: linear-gradient(145deg, rgba(231, 76, 60, 0.2), rgba(231, 76, 60, 0.1));
+      }
+
+      .shop-item.legendary {
+        border-color: #f39c12;
+        background: linear-gradient(145deg, rgba(243, 156, 18, 0.2), rgba(243, 156, 18, 0.1));
+        animation: legendaryGlow 2s ease-in-out infinite alternate;
+      }
+
+      @keyframes legendaryGlow {
+        from { box-shadow: 0 0 15px rgba(243, 156, 18, 0.3); }
+        to { box-shadow: 0 0 25px rgba(243, 156, 18, 0.6); }
+      }
+
+      .shop-item.premium {
+        border-color: #9b59b6;
+        background: linear-gradient(145deg, rgba(155, 89, 182, 0.2), rgba(155, 89, 182, 0.1));
+      }
+    `;
+
+    document.head.appendChild(style);
+    console.log('✅ [ShopUI] CSS intégré directement ajouté');
   }
 
   setupEventListeners() {
@@ -321,9 +1402,6 @@ tryAlternativePaths() {
   setupServerListeners() {
     if (!this.gameRoom) return;
 
-    // ✅ SUPPRIMÉ: Listener pour "shopCatalogResult" 
-    // Ce listener est maintenant géré par ShopIntegration pour éviter les doublons
-    
     // Résultat de transaction
     this.gameRoom.onMessage("shopTransactionResult", (data) => {
       this.handleTransactionResult(data);
@@ -1092,81 +2170,6 @@ tryAlternativePaths() {
       playerGold: this.playerGold,
       currentTab: this.currentTab
     };
-  }
-
-  // Méthode pour obtenir les objets recommandés
-  getRecommendedItems() {
-    if (!this.shopData) return [];
-
-    const items = this.shopData.availableItems;
-    return items
-      .filter(item => this.canBuyItem(item))
-      .filter(item => {
-        // Recommander les objets de soin si le joueur a peu d'or
-        if (this.playerGold < 1000) {
-          return item.itemId.includes('potion') || item.itemId.includes('ball');
-        }
-        return true;
-      })
-      .sort((a, b) => a.buyPrice - b.buyPrice) // Trier par prix croissant
-      .slice(0, 3); // Top 3
-  }
-
-  // Méthode pour afficher les objets recommandés
-  showRecommendations() {
-    const recommended = this.getRecommendedItems();
-    if (recommended.length === 0) return;
-
-    const message = `Objets recommandés: ${recommended.map(item => this.getItemName(item.itemId)).join(', ')}`;
-    this.showNotification(message, 'info');
-  }
-
-  // Méthode pour vérifier les alertes de stock faible
-  showLowStockAlert() {
-    if (!this.shopData) return;
-    
-    const lowStockItems = this.shopData.availableItems.filter(item => 
-      item.stock !== undefined && item.stock !== -1 && item.stock <= 3
-    );
-    
-    if (lowStockItems.length > 0) {
-      const itemNames = lowStockItems.map(item => this.getItemName(item.itemId));
-      this.showNotification(
-        `⚠️ Stock faible: ${itemNames.slice(0, 3).join(', ')}${itemNames.length > 3 ? '...' : ''}`,
-        'warning'
-      );
-    }
-  }
-
-  // Méthode pour vérifier les promotions
-  checkForPromotions() {
-    if (!this.shopData) return;
-
-    // Exemple de logique de promotion
-    const promoItems = this.shopData.availableItems.filter(item => {
-      // Promotion sur les objets chers si le joueur a beaucoup d'or
-      return this.playerGold > 5000 && item.buyPrice > 1000;
-    });
-
-    if (promoItems.length > 0) {
-      this.showNotification("🎉 Offres spéciales disponibles sur les objets premium !", 'success');
-    }
-  }
-
-  // Méthode pour afficher l'historique des achats (placeholder)
-  showHistory() {
-    if (!window.shopHistory || window.shopHistory.length === 0) {
-      this.showNotification("Aucun historique d'achat", 'info');
-      return;
-    }
-
-    const recent = window.shopHistory.slice(-5).reverse();
-    const historyText = recent.map(h => 
-      `${h.action === 'buy' ? '🛒' : '💰'} ${h.quantity}x ${h.itemName} (${h.cost}₽)`
-    ).join('\n');
-    
-    console.log('📜 Historique des achats récents:\n' + historyText);
-    this.showNotification("Historique affiché dans la console", 'info');
   }
 
   // Méthode de nettoyage
