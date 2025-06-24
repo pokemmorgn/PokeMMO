@@ -8,7 +8,7 @@ import { QuestSystem } from "../../game/QuestSystem.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
 import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
-import { IntegrateShopToScene } from "../../game/ShopIntegration.js";
+import { integrateShopToScene } from "../../game/ShopIntegration.js";
 import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
 
 
@@ -161,7 +161,7 @@ initializeTimeWeatherSystem() {
   }
 }
   // ✅ NOUVELLE MÉTHODE: Initialisation de l'InteractionManager
-  initializeInteractionManager() {
+ initializeInteractionManager() {
     if (!this.networkManager) {
       console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour InteractionManager`);
       return;
@@ -182,7 +182,7 @@ initializeTimeWeatherSystem() {
 
       console.log(`✅ [${this.scene.key}] InteractionManager initialisé avec succès`);
 
-      // ✅ Intégrer le shop via l'InteractionManager
+      // ✅ CORRECTION: Import correct utilisé
       integrateShopToScene(this, this.networkManager);
 
       console.log(`✅ [${this.scene.key}] Shop intégré via InteractionManager`);
