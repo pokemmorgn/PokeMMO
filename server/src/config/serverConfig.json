@@ -30,14 +30,14 @@
   "timeSystem": {
     "enabled": true,
     "startHour": 12,
-    "timeIntervalMs": 60000,
+    "timeIntervalMs": 300000,
     "dayStartHour": 6,
     "nightStartHour": 20
   },
 
   "weatherSystem": {
     "enabled": true,
-    "changeIntervalMs": 80000,
+    "changeIntervalMs": 450000,
     "weatherTypes": [
       {
         "name": "clear",
