@@ -156,7 +156,7 @@ console.log(`✅ EncounterManager initialisé`);
   // === COMMANDES DE TEST === (ajoute ça avec les autres handlers)
 
   private initializeNpcManagers() {
-    const zones = ['beach', 'village', 'villagelab', 'villagehouse1', 'road1', 'lavandia'];
+    const zones = ['beach', 'village', 'villagelab', 'villagehouse1', 'road1', 'lavandia', 'lavandiahouse1', 'lavandiahouse2', 'lavandiahouse3', 'lavandiahouse4', 'lavandiahouse5', 'lavandiahouse6', 'lavandiahouse7', 'lavandiahouse8', 'lavandiahouse9', 'lavandiashop', 'lavandiaanalysis', 'lavandiabossroom', 'lavandiacelebitemple', 'lavandiaequipement', 'lavandiafurniture', 'lavandiahealingcenter', 'lavandiaresearchlab'];
     
     zones.forEach(zoneName => {
       try {
