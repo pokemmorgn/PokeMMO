@@ -2,6 +2,19 @@
 import { Room, Client } from "@colyseus/core";
 import { Schema, type } from "@colyseus/schema";
 import { verifyPersonalMessage } from "@mysten/sui.js/verify";
+import mongoose from "mongoose";
+
+// Schéma pour les utilisateurs avec username
+const UserSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  coins: { type: Number, default: 1000 },
+  level: { type: Number, default: 1 },
+  createdAt: { type: Date, default: Date.now },
+  lastLogin: { type: Date, default: Date.now }
+});
+
+// Modèle User (s'il n'existe pas déjà)
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 // État de la room d'authentification
 export class AuthState extends Schema {
@@ -12,14 +25,9 @@ export class AuthState extends Schema {
 
 export class AuthRoom extends Room<AuthState> {
   private authenticatedClients: Map<string, string> = new Map();
-  private db: any; // Connection MongoDB
 
   onCreate(options: any) {
     this.setState(new AuthState());
-    
-    // Initialiser la connexion MongoDB (ajuste selon ta config)
-    this.db = options.db || global.db;
-    
     console.log("🔐 AuthRoom créée");
 
     // Gestion de l'authentification wallet
@@ -92,27 +100,16 @@ export class AuthRoom extends Room<AuthState> {
           return;
         }
 
-        // Vérifier si la base de données est disponible
-        if (!this.db) {
-          client.send("username_result", { 
-            status: "error", 
-            reason: "Base de données non disponible" 
-          });
-          return;
-        }
-
-        // Chercher si le username existe déjà en MongoDB
-        let user = await this.db.collection('users').findOne({ username: username });
+        // Chercher si le username existe déjà avec Mongoose
+        let user = await User.findOne({ username: username });
         
         if (user) {
           // Username existe, on le connecte
           console.log(`✅ Username existant: ${username}`);
           
           // Mettre à jour la dernière connexion
-          await this.db.collection('users').updateOne(
-            { username: username },
-            { $set: { lastLogin: new Date() } }
-          );
+          user.lastLogin = new Date();
+          await user.save();
 
           client.send("username_result", { 
             status: "ok", 
@@ -127,21 +124,26 @@ export class AuthRoom extends Room<AuthState> {
           // Nouveau username, on le crée
           console.log(`🆕 Nouveau username: ${username}`);
           
-          const newUser = {
+          const newUser = new User({
             username: username,
             coins: 1000,
             level: 1,
             createdAt: new Date(),
             lastLogin: new Date()
-          };
+          });
           
-          await this.db.collection('users').insertOne(newUser);
+          await newUser.save();
           
           client.send("username_result", { 
             status: "ok", 
             username: username,
             existing: false,
-            userData: newUser
+            userData: {
+              coins: newUser.coins,
+              level: newUser.level,
+              createdAt: newUser.createdAt,
+              lastLogin: newUser.lastLogin
+            }
           });
         }
 
@@ -154,7 +156,7 @@ export class AuthRoom extends Room<AuthState> {
         console.error("❌ Erreur authentification username:", error);
         client.send("username_result", { 
           status: "error", 
-          reason: "Erreur base de données" 
+          reason: "Erreur base de données: " + error.message 
         });
       }
     });
