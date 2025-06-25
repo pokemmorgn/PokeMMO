@@ -441,33 +441,45 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour des animations
   // ✅ MÉTHODE CORRIGÉE: Mise à jour des animations
+// ✅ MÉTHODE CORRIGÉE: Mise à jour des animations avec détection de mouvement physique
 updatePlayerAnimation(player) {
   if (!player || !player.anims) {
     console.warn("[PlayerManager] Joueur sans anims:", player?.sessionId);
     return;
   }
   
-  // 🔥 VÉRIFIER QUE LES ANIMATIONS EXISTENT (important pour les autres joueurs)
+  // 🔥 VÉRIFIER QUE LES ANIMATIONS EXISTENT
   if (!this.scene.anims.exists('walk_down')) {
     console.warn("[PlayerManager] Animations manquantes, recréation...");
     this.createAnimations();
   }
   
-  let targetAnim = null;
+  // 🔥 DÉTECTER LE MOUVEMENT PHYSIQUE (plus fiable que player.isMoving)
+  const isMovingPhysically = (
+    Math.abs(player.x - (player.targetX || player.x)) > 2 || 
+    Math.abs(player.y - (player.targetY || player.y)) > 2
+  );
   
-  if (player.isMoving && player.lastDirection) {
-    targetAnim = `walk_${player.lastDirection}`;
-  } else if (player.lastDirection) {
-    targetAnim = `idle_${player.lastDirection}`;
-  } else {
-    targetAnim = 'idle_down'; // Défaut
+  // 🔥 DÉTECTER LA DIRECTION BASÉE SUR LE MOUVEMENT
+  let direction = player.lastDirection || 'down';
+  if (player.targetX !== undefined && player.targetY !== undefined) {
+    const dx = player.targetX - player.x;
+    const dy = player.targetY - player.y;
+    
+    if (Math.abs(dx) > Math.abs(dy)) {
+      direction = dx > 0 ? 'right' : 'left';
+    } else if (Math.abs(dy) > 2) {
+      direction = dy > 0 ? 'down' : 'up';
+    }
   }
   
-  // 🔥 VÉRIFIER ET JOUER L'ANIMATION
+  // 🔥 CHOISIR L'ANIMATION BASÉE SUR LE MOUVEMENT PHYSIQUE
+  const targetAnim = isMovingPhysically ? `walk_${direction}` : `idle_${direction}`;
+  
+  // 🔥 JOUER L'ANIMATION
   if (targetAnim && this.scene.anims.exists(targetAnim)) {
-    // Ne changer que si différente
     if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
-      console.log(`[PlayerManager] Animation autre joueur: ${player.sessionId} -> ${targetAnim}`);
+      console.log(`[PlayerManager] Animation autre joueur: ${player.sessionId} -> ${targetAnim} (physique: ${isMovingPhysically})`);
       player.anims.play(targetAnim, true);
     }
   } else {
