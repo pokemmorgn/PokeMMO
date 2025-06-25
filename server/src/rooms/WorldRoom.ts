@@ -38,7 +38,7 @@ private timeWeatherService!: TimeWeatherService;
   private encounterManager!: EncounterManager;
   private shopManager!: ShopManager;
     private positionSaver = PositionSaverService.getInstance();
-  private autoSaveTimer: any;
+private autoSaveTimer: NodeJS.Timeout | null = null;
 
   // Limite pour auto-scaling
   maxClients = 50;
@@ -70,9 +70,9 @@ private timeWeatherService!: TimeWeatherService;
 console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
     
     // Auto-save des positions toutes les 30 secondes
-    this.autoSaveTimer = this.clock.setInterval(() => {
-      this.autoSaveAllPositions();
-    }, 30000);
+this.autoSaveTimer = setInterval(() => {
+  this.autoSaveAllPositions();
+}, 30000);
     console.log(`💾 Auto-save des positions activé (30s)`);
   }
 
@@ -1386,8 +1386,10 @@ if (this.timeWeatherService) {
     console.log(`💀 === WORLDROOM DISPOSE ===`);
     console.log(`👥 Joueurs restants: ${this.state.players.size}`);
         if (this.autoSaveTimer) {
-this.clock.clear(this.autoSaveTimer);
-      console.log(`⏰ Auto-save timer nettoyé`);
+if (this.autoSaveTimer) {
+  clearInterval(this.autoSaveTimer);
+  this.autoSaveTimer = null;
+}      console.log(`⏰ Auto-save timer nettoyé`);
     }
     
     // Sauvegarder les données des joueurs restants
