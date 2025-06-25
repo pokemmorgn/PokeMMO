@@ -6,16 +6,6 @@ export class Road1Scene extends BaseZoneScene {
     this.transitionCooldowns = {};
   }
 
-  // Position de spawn par défaut (optionnel, à adapter selon tes besoins)
-  getDefaultSpawnPosition(fromZone) {
-    // Exemples de positions selon la zone d'origine
-    switch (fromZone) {
-      case 'VillageScene':
-        return { x: 100, y: 300 };
-      default:
-        return { x: 100, y: 300 };
-    }
-  }
 
   // Hook appelé une fois que le joueur local est prêt et positionné
   onPlayerReady(myPlayer) {
