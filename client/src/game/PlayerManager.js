@@ -515,11 +515,11 @@ updatePlayerAnimation(player) {
     const isMyPlayer = (sessionId === this.mySessionId || sessionId === this._pendingSessionId);
     
     if (!isMyPlayer) {
-      // Autres joueurs : lerp normal
-      if (player.targetX !== undefined && player.targetY !== undefined) {
-        player.x += (player.targetX - player.x) * 0.18;
-        player.y += (player.targetY - player.y) * 0.18;
-      }
+    // ✅ ARRÊTER LE LERP SI LE JOUEUR NE BOUGE PLUS
+    if (player.isMoving && player.targetX !== undefined && player.targetY !== undefined) {
+      player.x += (player.targetX - player.x) * 0.18;
+      player.y += (player.targetY - player.y) * 0.18;
+    }
     } else {
       // Mon joueur : snap smooth si snap en cours
       if (player.snapLerpTimer && player.snapLerpTimer > 0) {
