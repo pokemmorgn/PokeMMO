@@ -390,18 +390,103 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       return window.questSystemGlobal;
     };
     
-    window.initAllGameSystems = function(scene, gameRoom) {
-      const roomToUse = gameRoom || window.currentGameRoom;
-      const inventory = window.initInventorySystem(roomToUse);
-      const quests = window.initQuestSystem(scene, roomToUse);
-      const starter = window.initStarterHUD(roomToUse);
-      const team = window.initTeamSystem(roomToUse);
-      setTimeout(() => {
-        window.onSystemInitialized && window.onSystemInitialized('all');
-      }, 1000);
-      return { inventory, quests, starter, team };
-    };
+window.initAllGameSystems = function(scene, gameRoom) {
+  const roomToUse = gameRoom || window.currentGameRoom;
+  
+  // Initialiser dans l'ordre correct
+  const inventory = window.initInventorySystem(roomToUse);
+  const quests = window.initQuestSystem(scene, roomToUse);
+  const starter = window.initStarterHUD(roomToUse);
+  
+  // ✅ ATTENDRE un peu avant d'initialiser l'équipe
+  setTimeout(() => {
+    const team = window.initTeamSystem(roomToUse);
+    
+    // Initialiser le système de positionnement global après tout
+    setTimeout(() => {
+      if (typeof window.initUIIconPositioning === 'function') {
+        window.initUIIconPositioning();
+      }
+      window.onSystemInitialized && window.onSystemInitialized('all');
+    }, 500);
+    
+    return { inventory, quests, starter, team };
+  }, 1000); // ✅ 1 seconde de délai
+};
 
+    // === FONCTIONS DE DEBUG POUR LES ICÔNES ===
+window.debugUIIcons = function() {
+  console.log('🔍 === DEBUG UI ICONS ===');
+  
+  const icons = {
+    inventory: document.querySelector('#inventory-icon'),
+    quest: document.querySelector('#quest-icon'),
+    team: document.querySelector('#team-icon')
+  };
+  
+  Object.entries(icons).forEach(([name, element]) => {
+    if (element) {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      console.log(`${name.toUpperCase()}:`, {
+        exists: true,
+        position: {
+          bottom: style.bottom,
+          right: style.right,
+          actual: { x: rect.right, y: window.innerHeight - rect.bottom }
+        },
+        classes: Array.from(element.classList),
+        visible: style.display !== 'none' && style.visibility !== 'hidden'
+      });
+    } else {
+      console.log(`${name.toUpperCase()}: Non trouvée`);
+    }
+  });
+};
+
+window.fixIconPositions = function() {
+  console.log('🔧 Correction des positions d\'icônes...');
+  
+  const inventory = document.querySelector('#inventory-icon');
+  const quest = document.querySelector('#quest-icon');
+  const team = document.querySelector('#team-icon');
+  
+  if (inventory) {
+    inventory.style.right = '20px';
+    inventory.style.bottom = '20px';
+  }
+  
+  if (quest) {
+    quest.style.right = '110px';
+    quest.style.bottom = '20px';
+  }
+  
+  if (team) {
+    team.style.right = '200px';
+    team.style.bottom = '20px';
+  }
+  
+  console.log('✅ Positions corrigées manuellement');
+  setTimeout(() => window.debugUIIcons(), 100);
+};
+
+window.testTeamIcon = function() {
+  const teamIcon = document.querySelector('#team-icon');
+  if (teamIcon) {
+    console.log('⚔️ Test de l\'icône team...');
+    teamIcon.click();
+    
+    setTimeout(() => {
+      teamIcon.classList.add('team-updated');
+      setTimeout(() => teamIcon.classList.remove('team-updated'), 600);
+    }, 1000);
+    
+    console.log('✅ Test terminé');
+  } else {
+    console.error('❌ Icône team non trouvée');
+  }
+};
+    
     // === Fonctions d'accès rapide, notifications, tests etc ===
     window.openInventory = function() {
       if (window.inventorySystemGlobal) {
