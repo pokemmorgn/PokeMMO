@@ -198,10 +198,8 @@ getMyPlayer() {
     }
 
     // Jouer l'animation idle par défaut
-const idleAnimKey = `${characterId}_idle_down`;
-if (this.scene.anims.exists(idleAnimKey)) {
-  player.play(idleAnimKey);
-}
+this.characterManager.playAnimation(player, 'idle', 'down');
+
 
     // ✅ Indicateur local optimisé
     if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
