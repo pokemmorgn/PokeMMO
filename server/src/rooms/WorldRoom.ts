@@ -1386,7 +1386,7 @@ if (this.timeWeatherService) {
     console.log(`💀 === WORLDROOM DISPOSE ===`);
     console.log(`👥 Joueurs restants: ${this.state.players.size}`);
         if (this.autoSaveTimer) {
-      this.clock.clearTimeout(this.autoSaveTimer);
+this.clock.clear(this.autoSaveTimer);
       console.log(`⏰ Auto-save timer nettoyé`);
     }
     
