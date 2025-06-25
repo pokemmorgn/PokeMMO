@@ -371,6 +371,5 @@ export { TeamIntegrationUtils };
 // Configuration par défaut lors de l'import
 export default {
   setup: setupTeamSystem,
-  utils: TeamIntegrationUtils,
   keybinds: setupCustomKeybinds
 };
