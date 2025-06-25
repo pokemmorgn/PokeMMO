@@ -1,9 +1,82 @@
-// server/src/models/OwnedPokemon.ts - Version finale combat-ready
-import mongoose from "mongoose";
+// server/src/models/OwnedPokemon.ts - Version avec types corrigés
+import mongoose, { Schema, Document, Model } from "mongoose";
 import { getPokemonById } from "../data/PokemonData";
 import naturesData from "../data/natures.json";
 
-const OwnedPokemonSchema = new mongoose.Schema({
+// Interface pour les attaques
+interface IPokemonMove {
+  moveId: string;
+  currentPp: number;
+  maxPp: number;
+}
+
+// Interface pour les IVs/EVs
+interface IPokemonStats {
+  hp: number;
+  attack: number;
+  defense: number;
+  spAttack: number;
+  spDefense: number;
+  speed: number;
+}
+
+// Interface principale
+export interface IOwnedPokemon extends Document {
+  // === DONNÉES DE BASE ===
+  owner: string;
+  pokemonId: number;
+  level: number;
+  experience: number;
+  nature: string;
+  nickname?: string;
+  shiny: boolean;
+  gender: "Male" | "Female" | "Genderless";
+  ability: string;
+  
+  // === STATS ===
+  ivs: IPokemonStats;
+  evs: IPokemonStats;
+  calculatedStats: Omit<IPokemonStats, 'hp'>;
+  
+  // === ÉTAT DE COMBAT ===
+  moves: IPokemonMove[];
+  currentHp: number;
+  maxHp: number;
+  status: "normal" | "sleep" | "freeze" | "paralysis" | "burn" | "poison" | "badly_poison";
+  statusTurns?: number;
+  
+  // === ORGANISATION ===
+  isInTeam: boolean;
+  slot?: number;
+  box: number;
+  boxSlot?: number;
+  
+  // === MÉTADONNÉES ===
+  caughtAt: Date;
+  friendship: number;
+  pokeball: string;
+  originalTrainer: string;
+  heldItem?: string;
+  
+  // === MÉTHODES D'INSTANCE ===
+  recalculateStats(): Promise<void>;
+  calculateStatsWithFormula(baseStats: any): any;
+  heal(amount?: number): void;
+  takeDamage(damage: number): boolean;
+  isFainted(): boolean;
+  canBattle(): boolean;
+  getEffectiveAttack(): number;
+  getEffectiveSpeed(): number;
+  applyStatus(status: string, turns?: number): boolean;
+}
+
+// Interface pour les méthodes statiques
+interface IOwnedPokemonModel extends Model<IOwnedPokemon> {
+  findByOwnerTeam(owner: string): Promise<IOwnedPokemon[]>;
+  findByOwnerBox(owner: string, boxNumber?: number): Promise<IOwnedPokemon[]>;
+}
+
+const OwnedPokemonSchema = new Schema<IOwnedPokemon>({
   // === DONNÉES DE BASE ===
   owner: { type: String, required: true, index: true },
   pokemonId: { type: Number, required: true },
@@ -52,7 +125,7 @@ const OwnedPokemonSchema = new mongoose.Schema({
   },
   statusTurns: { type: Number, min: 0 },
   
-  // === STATS CALCULÉES (mises à jour automatiquement) ===
+  // === STATS CALCULÉES ===
   calculatedStats: {
     attack: { type: Number, required: true },
     defense: { type: Number, required: true },
@@ -63,9 +136,9 @@ const OwnedPokemonSchema = new mongoose.Schema({
   
   // === ORGANISATION ===
   isInTeam: { type: Boolean, default: false },
-  slot: { type: Number, min: 0, max: 5 }, // Position dans l'équipe (0-5)
-  box: { type: Number, default: 0, min: 0 }, // Numéro de boîte PC
-  boxSlot: { type: Number, min: 0 }, // Position dans la boîte
+  slot: { type: Number, min: 0, max: 5 },
+  box: { type: Number, default: 0, min: 0 },
+  boxSlot: { type: Number, min: 0 },
   
   // === MÉTADONNÉES ===
   caughtAt: { type: Date, default: Date.now },
@@ -78,12 +151,10 @@ const OwnedPokemonSchema = new mongoose.Schema({
 });
 
 // === VALIDATIONS ===
-// Max 4 attaques
-OwnedPokemonSchema.path('moves').validate(function(moves) {
+OwnedPokemonSchema.path('moves').validate(function(moves: IPokemonMove[]) {
   return moves.length <= 4;
 }, 'Un Pokémon ne peut avoir que 4 attaques maximum');
 
-// Total EVs <= 510
 OwnedPokemonSchema.pre('save', function(next) {
   const totalEvs = Object.values(this.evs).reduce((sum: number, val: number) => sum + val, 0);
   if (totalEvs > 510) {
@@ -101,7 +172,7 @@ OwnedPokemonSchema.pre('save', async function(next) {
 });
 
 // === MÉTHODES D'INSTANCE ===
-OwnedPokemonSchema.methods.recalculateStats = async function() {
+OwnedPokemonSchema.methods.recalculateStats = async function(this: IOwnedPokemon) {
   const basePokemon = await getPokemonById(this.pokemonId);
   if (!basePokemon) {
     throw new Error(`Pokémon ID ${this.pokemonId} introuvable`);
@@ -109,7 +180,6 @@ OwnedPokemonSchema.methods.recalculateStats = async function() {
 
   const stats = this.calculateStatsWithFormula(basePokemon.baseStats);
   
-  // Met à jour les stats calculées
   this.calculatedStats = {
     attack: stats.attack,
     defense: stats.defense,
@@ -118,23 +188,21 @@ OwnedPokemonSchema.methods.recalculateStats = async function() {
     speed: stats.speed
   };
   
-  // Met à jour HP max et ajuste HP courant si nécessaire
   const oldMaxHp = this.maxHp;
   this.maxHp = stats.hp;
   
   if (this.isNew) {
     this.currentHp = this.maxHp;
   } else if (oldMaxHp !== this.maxHp) {
-    // Maintient le pourcentage d'HP
     const hpPercent = this.currentHp / oldMaxHp;
     this.currentHp = Math.max(1, Math.floor(this.maxHp * hpPercent));
   }
 };
 
-OwnedPokemonSchema.methods.calculateStatsWithFormula = function(baseStats: any) {
+OwnedPokemonSchema.methods.calculateStatsWithFormula = function(this: IOwnedPokemon, baseStats: any) {
   const nature = naturesData[this.nature as keyof typeof naturesData];
   
-  const calculateStat = (statName: string, baseStat: number, isHP: boolean = false): number => {
+  const calculateStat = (statName: keyof IPokemonStats, baseStat: number, isHP: boolean = false): number => {
     const iv = this.ivs[statName] || 0;
     const ev = this.evs[statName] || 0;
     
@@ -143,7 +211,6 @@ OwnedPokemonSchema.methods.calculateStatsWithFormula = function(baseStats: any) 
     } else {
       let stat = Math.floor(((2 * baseStat + iv + Math.floor(ev / 4)) * this.level) / 100) + 5;
       
-      // Applique les modificateurs de nature
       if (nature?.increased === statName) {
         stat = Math.floor(stat * 1.1);
       } else if (nature?.decreased === statName) {
@@ -165,118 +232,64 @@ OwnedPokemonSchema.methods.calculateStatsWithFormula = function(baseStats: any) 
 };
 
 // === MÉTHODES DE COMBAT ===
-OwnedPokemonSchema.methods.heal = function(amount?: number) {
+OwnedPokemonSchema.methods.heal = function(this: IOwnedPokemon, amount?: number) {
   if (amount) {
     this.currentHp = Math.min(this.currentHp + amount, this.maxHp);
   } else {
-    // Soigne complètement
     this.currentHp = this.maxHp;
     this.status = 'normal';
     this.statusTurns = undefined;
-    // Restaure PP
-    this.moves.forEach(move => {
+    this.moves.forEach((move: IPokemonMove) => {
       move.currentPp = move.maxPp;
     });
   }
 };
 
-OwnedPokemonSchema.methods.takeDamage = function(damage: number) {
+OwnedPokemonSchema.methods.takeDamage = function(this: IOwnedPokemon, damage: number): boolean {
   this.currentHp = Math.max(0, this.currentHp - damage);
-  return this.currentHp === 0; // retourne true si KO
-};
-
-OwnedPokemonSchema.methods.isFainted = function() {
   return this.currentHp === 0;
 };
 
-OwnedPokemonSchema.methods.canBattle = function() {
-  return this.currentHp > 0 && this.moves.some(move => move.currentPp > 0);
+OwnedPokemonSchema.methods.isFainted = function(this: IOwnedPokemon): boolean {
+  return this.currentHp === 0;
 };
 
-OwnedPokemonSchema.methods.getEffectiveAttack = function() {
+OwnedPokemonSchema.methods.canBattle = function(this: IOwnedPokemon): boolean {
+  return this.currentHp > 0 && this.moves.some((move: IPokemonMove) => move.currentPp > 0);
+};
+
+OwnedPokemonSchema.methods.getEffectiveAttack = function(this: IOwnedPokemon): number {
   let attack = this.calculatedStats.attack;
-  
-  // Modificateurs de statut
   if (this.status === 'burn') {
     attack = Math.floor(attack * 0.5);
   }
-  
   return attack;
 };
 
-OwnedPokemonSchema.methods.getEffectiveSpeed = function() {
+OwnedPokemonSchema.methods.getEffectiveSpeed = function(this: IOwnedPokemon): number {
   let speed = this.calculatedStats.speed;
-  
-  // Modificateurs de statut
   if (this.status === 'paralysis') {
     speed = Math.floor(speed * 0.25);
   }
-  
   return speed;
 };
 
-OwnedPokemonSchema.methods.applyStatus = function(newStatus: string, turns?: number) {
-  // Ne peut pas appliquer un statut si déjà affecté (sauf normal)
+OwnedPokemonSchema.methods.applyStatus = function(this: IOwnedPokemon, newStatus: string, turns?: number): boolean {
   if (this.status !== 'normal' && newStatus !== 'normal') {
     return false;
   }
-  
-  this.status = newStatus;
+  this.status = newStatus as any;
   this.statusTurns = turns;
   return true;
 };
 
 // === MÉTHODES STATIQUES ===
-OwnedPokemonSchema.statics.findByOwnerTeam = function(owner: string) {
+OwnedPokemonSchema.statics.findByOwnerTeam = function(this: IOwnedPokemonModel, owner: string) {
   return this.find({ owner, isInTeam: true }).sort({ slot: 1 });
 };
 
-OwnedPokemonSchema.statics.findByOwnerBox = function(owner: string, boxNumber: number = 0) {
+OwnedPokemonSchema.statics.findByOwnerBox = function(this: IOwnedPokemonModel, owner: string, boxNumber: number = 0) {
   return this.find({ owner, isInTeam: false, box: boxNumber }).sort({ boxSlot: 1 });
 };
 
-export interface IOwnedPokemon extends mongoose.Document {
-  owner: string;
-  pokemonId: number;
-  level: number;
-  experience: number;
-  nature: string;
-  nickname?: string;
-  shiny: boolean;
-  gender: string;
-  ability: string;
-  ivs: any;
-  evs: any;
-  moves: Array<{
-    moveId: string;
-    currentPp: number;
-    maxPp: number;
-  }>;
-  currentHp: number;
-  maxHp: number;
-  status: string;
-  statusTurns?: number;
-  calculatedStats: any;
-  isInTeam: boolean;
-  slot?: number;
-  box: number;
-  boxSlot?: number;
-  caughtAt: Date;
-  friendship: number;
-  pokeball: string;
-  originalTrainer: string;
-  heldItem?: string;
-  
-  // Méthodes
-  recalculateStats(): Promise<void>;
-  calculateStatsWithFormula(baseStats: any): any;
-  heal(amount?: number): void;
-  takeDamage(damage: number): boolean;
-  isFainted(): boolean;
-  canBattle(): boolean;
-  getEffectiveAttack(): number;
-  getEffectiveSpeed(): number;
-  applyStatus(status: string, turns?: number): boolean;
-}
-
-export const OwnedPokemon = mongoose.model<IOwnedPokemon>("OwnedPokemon", OwnedPokemonSchema);
+export const OwnedPokemon = mongoose.model<IOwnedPokemon, IOwnedPokemonModel>("OwnedPokemon", OwnedPokemonSchema);
