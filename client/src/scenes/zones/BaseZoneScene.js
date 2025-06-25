@@ -1707,5 +1707,4 @@ setupTeamConnectionMonitoring() {
       return false;
     }
   }
-}
-}
+} // <-- ACCOLADE FERMANTE AJOUTÉE POUR LA CLASSE !
