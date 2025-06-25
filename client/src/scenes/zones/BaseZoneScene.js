@@ -12,6 +12,8 @@ import { integrateShopToScene } from "../../game/ShopIntegration.js";
 import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
 import { CharacterManager } from "../../game/CharacterManager.js";
 import { zoneEnvironmentManager } from "../../managers/ZoneEnvironmentManager.js";
+import { WeatherEffects } from "../../effects/WeatherEffects.js";
+
 
 
 export class BaseZoneScene extends Phaser.Scene {
@@ -31,6 +33,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.dayNightWeatherManager = null;
     this.currentEnvironment = null;
     this.environmentInitialized = false;
+    this.weatherEffects = null;
+    this.weatherInitialized = false;
     
     // Inventaire
     this.inventorySystem = null;
@@ -337,27 +341,84 @@ testTeamSystemWorking() {
     console.log(`✅ [${this.scene.key}] Monitoring connexion TeamManager configuré`);
   }
 
-  initializeTimeWeatherSystem() {
+ initializeTimeWeatherSystem() {
   if (!this.networkManager) {
     console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
     return;
   }
 
   try {
-    console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO AVEC ENVIRONNEMENTS ===`);
+    console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO COMPLET ===`);
 
-    // ✅ NOUVEAU: Initialiser l'environnement AVANT le DayNightWeatherManager
-    this.initializeZoneEnvironment();
+    // ✅ ÉTAPE 1: Initialiser l'environnement AVANT le DayNightWeatherManager
+    if (!this.environmentInitialized) {
+      this.initializeZoneEnvironment();
+    }
 
+    // ✅ ÉTAPE 2: Créer le DayNightWeatherManager amélioré (avec effets visuels)
     this.dayNightWeatherManager = new DayNightWeatherManager(this);
     this.dayNightWeatherManager.initialize(this.networkManager);
 
-    console.log(`✅ [${this.scene.key}] Système temps/météo avec environnements initialisé`);
+    // ✅ ÉTAPE 3: Référence vers les effets météo pour un accès facile
+    this.weatherEffects = this.dayNightWeatherManager.getWeatherEffects();
+    this.weatherInitialized = true;
+
+    console.log(`✅ [${this.scene.key}] Système temps/météo complet initialisé`);
 
   } catch (error) {
     console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
   }
 }
+
+// ✅ NOUVELLE MÉTHODE: Test des effets météo
+testWeatherEffects() {
+  console.log(`🧪 [${this.scene.key}] Test effets météo de la scène...`);
+  
+  if (!this.weatherInitialized || !this.dayNightWeatherManager) {
+    console.warn(`⚠️ [${this.scene.key}] Système météo pas initialisé`);
+    return;
+  }
+
+  // Test cycle météo automatique
+  this.dayNightWeatherManager.testWeatherEffects();
+}
+
+// ✅ NOUVELLE MÉTHODE: Forcer un effet météo
+forceWeather(weatherType, intensity = 1.0) {
+  console.log(`🌦️ [${this.scene.key}] Force météo: ${weatherType}`);
+  
+  if (this.dayNightWeatherManager) {
+    this.dayNightWeatherManager.forceWeatherEffect(weatherType, intensity);
+  }
+}
+
+// ✅ NOUVELLE MÉTHODE: Configurer l'angle de pluie
+setRainAngle(angle) {
+  console.log(`🌧️ [${this.scene.key}] Configure angle pluie: ${angle}°`);
+  
+  if (this.dayNightWeatherManager) {
+    this.dayNightWeatherManager.setRainAngle(angle);
+  }
+}
+
+// ✅ NOUVELLE MÉTHODE: Debug météo de la scène
+debugWeather() {
+  console.log(`🔍 [${this.scene.key}] === DEBUG MÉTÉO SCÈNE ===`);
+  
+  if (this.dayNightWeatherManager) {
+    this.dayNightWeatherManager.debugEnvironment();
+  } else {
+    console.warn(`⚠️ [${this.scene.key}] DayNightWeatherManager non initialisé`);
+  }
+  
+  if (this.weatherEffects) {
+    console.log(`🎨 [${this.scene.key}] Debug effets visuels:`);
+    this.weatherEffects.debug();
+  } else {
+    console.warn(`⚠️ [${this.scene.key}] WeatherEffects non disponible`);
+  }
+}
+
 // ✅ NOUVELLE MÉTHODE: Initialiser l'environnement de la zone
 initializeZoneEnvironment() {
   const zoneName = this.normalizeZoneName(this.scene.key);
@@ -939,7 +1000,13 @@ initializeZoneEnvironment() {
       this.networkManager.room.removeAllListeners("questStatuses");
       console.log(`[${this.scene.key}] 🎧 Nettoyage des écouteurs réseau`);
     }
-
+  if (this.dayNightWeatherManager) {
+    this.dayNightWeatherManager.destroy();
+    this.dayNightWeatherManager = null;
+  }
+  
+  this.weatherEffects = null;
+  this.weatherInitialized = false;
     console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
 
     const isTransition = this.networkManager && this.networkManager.isTransitionActive;
@@ -1607,6 +1674,229 @@ initializeZoneEnvironment() {
     console.log(`🔒 ${this.collisionLayers.length} colliders configurés au total`);
   }
 
+  getCurrentWeatherInfo() {
+  if (!this.dayNightWeatherManager) {
+    return { weather: 'clear', displayName: 'Ciel dégagé' };
+  }
+  
+  return this.dayNightWeatherManager.getCurrentWeather();
+}
+
+// Vérifier si les effets météo sont actifs
+isWeatherEffectsActive() {
+  return this.weatherEffects && this.weatherEffects.isWeatherActive();
+}
+
+// Obtenir l'environnement de la zone
+getZoneEnvironment() {
+  if (!this.dayNightWeatherManager) {
+    return 'outdoor';
+  }
+  
+  return this.dayNightWeatherManager.getEnvironmentInfo().environment;
+}
+
+// ✅ MÉTHODES POUR LES ÉVÉNEMENTS SPÉCIAUX
+
+// Effet météo pour événement spécial
+triggerWeatherEvent(eventType) {
+  console.log(`🎉 [${this.scene.key}] Événement météo: ${eventType}`);
+  
+  switch (eventType) {
+    case 'storm_boss':
+      // Orage violent pour un boss
+      this.forceWeather('storm', 2.5);
+      this.setRainAngle(45); // Pluie très inclinée
+      break;
+      
+    case 'peaceful_rain':
+      // Pluie douce
+      this.forceWeather('rain', 0.5);
+      this.setRainAngle(10); // Pluie presque verticale
+      break;
+      
+    case 'winter_zone':
+      // Zone hivernale
+      this.forceWeather('snow', 1.2);
+      break;
+      
+    case 'mysterious_fog':
+      // Brouillard mystérieux
+      this.forceWeather('fog', 1.0);
+      break;
+      
+    default:
+      console.warn(`⚠️ [${this.scene.key}] Événement météo inconnu: ${eventType}`);
+  }
+}
+
+// Restaurer la météo normale
+restoreNormalWeather() {
+  console.log(`☀️ [${this.scene.key}] Restauration météo normale`);
+  
+  if (this.dayNightWeatherManager) {
+    this.dayNightWeatherManager.forceUpdate();
+  }
+}
+
+// ✅ MÉTHODES POUR L'INTERFACE UTILISATEUR
+
+// Afficher info météo (pour un éventuel HUD)
+getWeatherDisplayInfo() {
+  const weather = this.getCurrentWeatherInfo();
+  const environment = this.getZoneEnvironment();
+  const isActive = this.isWeatherEffectsActive();
+  
+  return {
+    weatherName: weather.displayName,
+    weatherType: weather.weather,
+    environment: environment,
+    effectsActive: isActive,
+    zone: this.scene.key
+  };
+}
+
+// ✅ INTÉGRATION AVEC LES SONS
+
+// Jouer son d'ambiance météo
+playWeatherAmbientSound(weatherType) {
+  if (!this.sound) return;
+  
+  // Arrêter le son météo précédent
+  if (this.currentWeatherSound) {
+    this.currentWeatherSound.stop();
+    this.currentWeatherSound = null;
+  }
+  
+  let soundKey = null;
+  let volume = 0.3;
+  
+  switch (weatherType) {
+    case 'rain':
+      soundKey = 'rain_ambient';
+      volume = 0.2;
+      break;
+    case 'storm':
+      soundKey = 'storm_ambient';
+      volume = 0.4;
+      break;
+    case 'wind':
+      soundKey = 'wind_ambient';
+      volume = 0.15;
+      break;
+  }
+  
+  if (soundKey && this.sound.get(soundKey)) {
+    this.currentWeatherSound = this.sound.play(soundKey, {
+      volume: volume,
+      loop: true
+    });
+    
+    console.log(`🔊 [${this.scene.key}] Son météo: ${soundKey}`);
+  }
+}
+
+// ✅ MÉTHODES DE DEBUG ÉTENDUES
+
+// Debug complet de tout le système météo
+debugCompleteWeatherSystem() {
+  console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MÉTÉO COMPLET ===`);
+  
+  // Info de base
+  const weatherInfo = this.getWeatherDisplayInfo();
+  console.log(`📊 Info météo:`, weatherInfo);
+  
+  // Debug du manager
+  this.debugWeather();
+  
+  // Test des performances
+  this.debugWeatherPerformance();
+  
+  // État des ressources
+  console.log(`💾 [${this.scene.key}] État ressources météo:`);
+  console.log(`  - DayNightWeatherManager: ${!!this.dayNightWeatherManager}`);
+  console.log(`  - WeatherEffects: ${!!this.weatherEffects}`);
+  console.log(`  - Initialisé: ${this.weatherInitialized}`);
+  console.log(`  - Effets actifs: ${this.isWeatherEffectsActive()}`);
+}
+
+// Debug des performances météo
+debugWeatherPerformance() {
+  if (!this.weatherEffects) return;
+  
+  console.log(`⚡ [${this.scene.key}] === PERFORMANCES MÉTÉO ===`);
+  
+  // Compter les objets météo actifs
+  const rainDrops = this.weatherEffects.rainDrops?.length || 0;
+  const snowFlakes = this.weatherEffects.snowFlakes?.length || 0;
+  
+  console.log(`  - Gouttes de pluie: ${rainDrops}`);
+  console.log(`  - Flocons de neige: ${snowFlakes}`);
+  console.log(`  - FPS approximatif: ${Math.round(this.game.loop.actualFps || 60)}`);
+  
+  // Recommandations
+  if (rainDrops > 300) {
+    console.warn(`⚠️ Beaucoup de gouttes (${rainDrops}) - considérer réduire l'intensité`);
+  }
+}
+
+// ✅ EXEMPLE D'UTILISATION DANS LE JEU
+
+// Cette méthode peut être appelée depuis des événements du jeu
+handleGameWeatherEvent(eventData) {
+  console.log(`🎮 [${this.scene.key}] Événement météo du jeu:`, eventData);
+  
+  switch (eventData.type) {
+    case 'quest_storm':
+      this.triggerWeatherEvent('storm_boss');
+      this.playWeatherAmbientSound('storm');
+      break;
+      
+    case 'peaceful_village':
+      this.triggerWeatherEvent('peaceful_rain');
+      this.playWeatherAmbientSound('rain');
+      break;
+      
+    case 'dungeon_enter':
+      // En entrant dans un donjon, arrêter la météo
+      this.forceWeather('clear');
+      break;
+      
+    case 'seasonal_change':
+      if (eventData.season === 'winter') {
+        this.triggerWeatherEvent('winter_zone');
+      }
+      break;
+  }
+}
+
+// ✅ COMMANDES POUR LA CONSOLE DE DEBUG
+
+// Ajouter ces méthodes globales pour les tests
+setupWeatherDebugCommands() {
+  if (typeof window === 'undefined') return;
+  
+  const scene = this;
+  
+  window.sceneWeatherTest = {
+    rain: () => scene.forceWeather('rain', 1.0),
+    storm: () => scene.forceWeather('storm', 2.0),
+    snow: () => scene.forceWeather('snow', 1.0),
+    fog: () => scene.forceWeather('fog', 1.0),
+    clear: () => scene.forceWeather('clear'),
+    debug: () => scene.debugCompleteWeatherSystem(),
+    angle: (deg) => scene.setRainAngle(deg),
+    event: (type) => scene.triggerWeatherEvent(type)
+  };
+  
+  console.log(`🎮 [${this.scene.key}] Commandes météo scène disponibles:`);
+  console.log(`  window.sceneWeatherTest.rain()`);
+  console.log(`  window.sceneWeatherTest.storm()`);
+  console.log(`  window.sceneWeatherTest.snow()`);
+  console.log(`  window.sceneWeatherTest.clear()`);
+  console.log(`  window.sceneWeatherTest.debug()`);
+  console.log(`  window.sceneWeatherTest.angle(45)`);
+}
   debugCollisions() {
     console.log("🔍 === DEBUG COLLISIONS ===");
     
