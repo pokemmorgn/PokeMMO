@@ -406,10 +406,23 @@
 <!-- Le bouton "JOUER" doit être là, juste après wallet-info -->
 <button id="playGameBtn" class="connect-button" style="display:none; margin-top:24px;">
   🎮 Jouer
-</button>
-        <button id="guestBtn" class="connect-button" style="background:linear-gradient(135deg,#60a5fa,#64748b);margin-top:10px;">
-  👤 Jouer en tant qu'invité
-</button>
+<div id="usernameSection" style="margin-top: 20px;">
+    <div style="margin-bottom: 12px;">
+        <label style="display: block; font-size: 14px; color: #374151; margin-bottom: 8px; font-weight: 500;">
+            🎮 Ou joue avec un username :
+        </label>
+        <input 
+            type="text" 
+            id="usernameInput" 
+            placeholder="Choisis ton username..." 
+            style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 16px; transition: border-color 0.2s ease; outline: none;"
+            maxlength="20"
+        />
+    </div>
+    <button id="usernameBtn" class="connect-button" style="background:linear-gradient(135deg,#60a5fa,#64748b);">
+        👤 Jouer avec ce username
+    </button>
+</div>
         <div class="debug-section">
             <div class="debug-title">🔧 Diagnostic Phantom</div>
             <div class="debug-item">
@@ -463,15 +476,17 @@ class PhantomMultiAccountManager {
         this.accountDetails = document.getElementById('accountDetails');
         this.refreshBtn = document.getElementById('refreshBtn');
         this.playGameBtn = document.getElementById('playGameBtn');
-        this.guestBtn = document.getElementById('guestBtn');
-    }
+this.usernameBtn = document.getElementById('usernameBtn');
+this.usernameInput = document.getElementById('usernameInput');    }
 
     initializeEventListeners() {
         this.connectBtn.addEventListener('click', () => this.handleConnectionToggle());
         this.refreshBtn.addEventListener('click', () => this.refreshAccounts());
         this.playGameBtn.addEventListener('click', () => this.authenticateAndPlay());
-        this.guestBtn.addEventListener('click', () => this.playAsGuest());
-        this.setupPhantomListeners();
+this.usernameBtn.addEventListener('click', () => this.playWithUsername());
+this.usernameInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') this.playWithUsername();
+});        this.setupPhantomListeners();
     }
 
     async setupPhantomListeners() {
@@ -728,6 +743,13 @@ class PhantomMultiAccountManager {
         if (savedState && savedState.address) {
             await this.refreshCurrentAccount();
         }
+        // Auto-remplir le username sauvegardé
+setTimeout(() => {
+    const savedUsername = localStorage.getItem('saved_username');
+    if (savedUsername && this.usernameInput) {
+        this.usernameInput.value = savedUsername;
+    }
+}, 100);
     }
 
     async updateDiagnostics() {
@@ -819,11 +841,59 @@ class PhantomMultiAccountManager {
         }
     }
 
-    playAsGuest() {
-        // Génère un identifiant guest unique et redirige
-        const guestId = "guest_" + Math.random().toString(36).substring(2, 10);
-        window.location.href = "index.html?wallet=" + encodeURIComponent(guestId) + "&guest=1";
+    async playWithUsername() {
+    const username = this.usernameInput.value.trim();
+    
+    if (!username) {
+        alert("Entre un username d'abord !");
+        this.usernameInput.focus();
+        return;
     }
+    
+    if (username.length < 3) {
+        alert("Username trop court (min 3 caractères)");
+        return;
+    }
+
+    let room;
+    try {
+        this.setLoadingState(true);
+
+        room = await this.colyseusClient.joinOrCreate("AuthRoom");
+
+        room.send("username_auth", {
+            username: username,
+            timestamp: Date.now()
+        });
+
+        room.onMessage("username_result", (data) => {
+            if (data.status === "ok") {
+                localStorage.setItem('saved_username', username);
+                
+                if (data.existing) {
+                    alert(`Bon retour ${username} ! Coins: ${data.userData.coins}`);
+                } else {
+                    alert(`Bienvenue ${username} ! Tu commences avec ${data.userData.coins} coins.`);
+                }
+                
+                window.location.href = "index.html?wallet=" + encodeURIComponent(username) + "&username=1";
+            } else {
+                alert("Erreur : " + data.reason);
+                this.setLoadingState(false);
+            }
+        });
+
+        room.onMessage("error", (error) => {
+            alert("Erreur serveur : " + error.reason);
+            room.leave();
+            this.setLoadingState(false);
+        });
+
+    } catch (error) {
+        this.setLoadingState(false);
+        alert("Erreur de connexion : " + (error.message || error));
+    }
+}
 }
 
 // Copier l'adresse dans le presse-papier
