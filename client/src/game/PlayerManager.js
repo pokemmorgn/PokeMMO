@@ -175,11 +175,8 @@ getMyPlayer() {
     }
 
     // Crée les animations une seule fois
-    if (!this.animsCreated) {
-      console.log("[PlayerManager] Création des animations BoyWalk");
-      this.createAnimations();
-      this.animsCreated = true;
-    }
+this.createAnimations(); // ✅ Toujours recréer
+this.animsCreated = true;
 
     // Sprite physique joueur
     const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1)
@@ -195,7 +192,7 @@ player.body.setCollideWorldBounds(true); // bloque le joueur dans les bords map
 player.body.setSize(16, 16);
 player.body.setOffset(8, 16);
 
-    if (this.scene.anims.exists('idle_down')) player.play('idle_down');
+if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
     player.lastDirection = 'down';
     player.isMoving = false;
 
@@ -600,7 +597,7 @@ player.body.setOffset(8, 16);
       anims.create({ key: 'walk_right', frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }), frameRate: 15, repeat: -1 });
     }
     if (!anims.exists('walk_up')) {
-      anims.create({ key: 'walk_up', frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 14 }), frameRate: 15, repeat: -1 });
+      anims.create({ key: 'walk_up', frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 15 }), frameRate: 15, repeat: -1 });
     }
     if (!anims.exists('idle_down')) anims.create({ key: 'idle_down', frames: [{ key: 'BoyWalk', frame: 1 }], frameRate: 1, repeat: 0 });
     if (!anims.exists('idle_left')) anims.create({ key: 'idle_left', frames: [{ key: 'BoyWalk', frame: 5 }], frameRate: 1, repeat: 0 });
