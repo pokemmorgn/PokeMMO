@@ -418,6 +418,8 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
 
   // États du mouvement
   if (playerState.isMoving !== undefined) player.isMoving = playerState.isMoving;
+        console.log(`🔄 CHANGEMENT isMoving ${player.sessionId}: ${oldIsMoving} → ${player.isMoving}`);
+
   if (playerState.direction) player.lastDirection = playerState.direction;
 
   // 🔥 AJOUTE LA SYNC ICI :
@@ -443,7 +445,18 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
   
 // ✅ MÉTHODE AVEC DÉLAI SIMPLE
 updatePlayerAnimation(player) {
-  if (!player || !player.anims) return;
+  // 🔍 DEBUG TEMPORAIRE - À supprimer après
+  console.log(`🐛 DEBUG ${player.sessionId}:`, {
+    isMoving: player.isMoving,
+    direction: player.direction,
+    lastDirection: player.lastDirection,
+    targetX: player.targetX,
+    targetY: player.targetY,
+    currentX: Math.round(player.x),
+    currentY: Math.round(player.y),
+    currentAnim: player.anims?.currentAnim?.key,
+    animPlaying: player.anims?.isPlaying
+  });  if (!player || !player.anims) return;
   
   if (!this.scene.anims.exists('walk_down')) {
     this.createAnimations();
