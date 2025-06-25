@@ -182,7 +182,7 @@ export abstract class BaseRoom extends Room<PokeWorldState> {
 
         const starterPokemon = await giveStarterToPlayer(player.name, data.starterId);
         
-        playerData.team = [starterPokemon._id];
+         playerData.team = [starterPokemon._id as any];
         await playerData.save();
 
         const teamPokemons = await OwnedPokemon.find({ _id: { $in: playerData.team } });
