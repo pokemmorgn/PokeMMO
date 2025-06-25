@@ -412,27 +412,32 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour des données du joueur depuis le state
   updatePlayerFromState(player, playerState) {
-    // Position cible
-    player.targetX = playerState.x;
-    player.targetY = playerState.y;
+  // Position cible
+  player.targetX = playerState.x;
+  player.targetY = playerState.y;
 
-    // États du mouvement
-    if (playerState.isMoving !== undefined) player.isMoving = playerState.isMoving;
-    if (playerState.direction) player.lastDirection = playerState.direction;
+  // États du mouvement
+  if (playerState.isMoving !== undefined) player.isMoving = playerState.isMoving;
+  if (playerState.direction) player.lastDirection = playerState.direction;
 
-     // 🔥 AJOUTE LA SYNC ICI :
-    if (playerState.currentZone) player.currentZone = playerState.currentZone;
+  // 🔥 AJOUTE LA SYNC ICI :
+  if (playerState.currentZone) player.currentZone = playerState.currentZone;
 
-    // Restaurer la visibilité si nécessaire
-    if (!player.visible) {
-      console.warn(`[PlayerManager] 🔧 Restauration visibilité: ${player.sessionId}`);
-      player.setVisible(true);
-      player.setActive(true);
-    }
+  // Restaurer la visibilité si nécessaire
+  if (!player.visible) {
+    console.warn(`[PlayerManager] 🔧 Restauration visibilité: ${player.sessionId}`);
+    player.setVisible(true);
+    player.setActive(true);
+  }
 
-    // Animations
+  // ✅ NOUVEAU : NE PAS gérer les animations pour MON joueur local
+  const isMyPlayer = (player.sessionId === this.mySessionId || player.sessionId === this._pendingSessionId);
+  if (!isMyPlayer) {
+    // Animations seulement pour les AUTRES joueurs
     this.updatePlayerAnimation(player);
   }
+  // Mon joueur local = animations gérées par BaseZoneScene.handleMovement()
+}
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour des animations
   updatePlayerAnimation(player) {
