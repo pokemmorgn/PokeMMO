@@ -179,12 +179,12 @@
                         {
                          "name":"targetspawn",
                          "type":"string",
-                         "value":"fromlavandia"
+                         "value":"fromlavandiahouse8"
                         }, 
                         {
                          "name":"targetzone",
                          "type":"string",
-                         "value":"lavandiahouse8"
+                         "value":"lavandia"
                         }],
                  "rotation":0,
                  "type":"",
@@ -202,19 +202,19 @@
                         {
                          "name":"targetspawn",
                          "type":"string",
-                         "value":"fromlavandiahouse8"
+                         "value":"fromlavandia"
                         }, 
                         {
                          "name":"targetzone",
                          "type":"string",
-                         "value":"lavandia"
+                         "value":"lavandiahouse8"
                         }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":239.166666666667,
-                 "y":290.5
+                 "x":236.5,
+                 "y":294.5
                 }],
          "opacity":1,
          "type":"objectgroup",
