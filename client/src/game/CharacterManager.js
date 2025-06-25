@@ -72,20 +72,36 @@ export class CharacterManager {
     const definition = this.characterDefinitions.get(actualCharacterId);
     
     // Créer le sprite avec l'idle par défaut
-    const sprite = this.scene.physics.add.sprite(x, y, definition.spriteKey, definition.defaultFrame);
-    sprite.setOrigin(0.5, 1);
-    sprite.setScale(1);
-    sprite.setDepth(4.5);
-    sprite.body.setCollideWorldBounds(true);
-    sprite.body.setSize(16, 16);
-    sprite.body.setOffset(8, 16);
+    // Créer le sprite avec l'idle par défaut
+const sprite = this.scene.physics.add.sprite(x, y, definition.spriteKey, definition.defaultFrame);
 
-    // Ajouter les métadonnées du personnage
-    sprite.characterId = actualCharacterId;
-    sprite.characterDefinition = definition;
-    
-    console.log(`✅ [CharacterManager] Sprite créé pour ${actualCharacterId}`);
-    return sprite;
+// ✅ VÉRIFIER QUE LE SPRITE EST VALIDE
+if (!sprite || typeof sprite.setOrigin !== 'function') {
+  console.error(`❌ [CharacterManager] Sprite invalide créé pour ${actualCharacterId}`);
+  console.error(`📊 Sprite:`, sprite);
+  console.error(`📊 Definition:`, definition);
+  return this.createPlaceholderSprite(x, y, actualCharacterId);
+}
+
+sprite.setOrigin(0.5, 1);
+sprite.setScale(1);
+sprite.setDepth(4.5);
+
+// ✅ VÉRIFIER QUE LE BODY EXISTE
+if (sprite.body) {
+  sprite.body.setCollideWorldBounds(true);
+  sprite.body.setSize(16, 16);
+  sprite.body.setOffset(8, 16);
+} else {
+  console.warn(`⚠️ [CharacterManager] Pas de body physics pour ${actualCharacterId}`);
+}
+
+// Ajouter les métadonnées du personnage
+sprite.characterId = actualCharacterId;
+sprite.characterDefinition = definition;
+
+console.log(`✅ [CharacterManager] Sprite créé pour ${actualCharacterId}`, typeof sprite);
+return sprite;
   }
 
   // ✅ Charger les assets d'un personnage
@@ -133,6 +149,16 @@ export class CharacterManager {
       definition.loaded = true;
       
       console.log(`✅ [CharacterManager] Personnage ${characterId} chargé avec succès`);
+      // ✅ VÉRIFIER QUE LA TEXTURE EST BIEN CHARGÉE
+console.log(`🔍 [CharacterManager] Texture ${definition.spriteKey} exists:`, this.scene.textures.exists(definition.spriteKey));
+if (this.scene.textures.exists(definition.spriteKey)) {
+  const texture = this.scene.textures.get(definition.spriteKey);
+  console.log(`🔍 [CharacterManager] Texture info:`, {
+    key: texture.key,
+    frames: texture.frameTotal,
+    source: texture.source
+  });
+}
       return true;
 
     } catch (error) {
