@@ -443,53 +443,22 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
   
 // ✅ MÉTHODE CORRIGÉE: Vérifier à la fois le mouvement physique ET le serveur
 // ✅ MÉTHODE CORRIGÉE: Système anti-oscillation
+// ✅ MÉTHODE ULTRA SIMPLE: Juste utiliser les données serveur
 updatePlayerAnimation(player) {
-  if (!player || !player.anims) {
-    console.warn("[PlayerManager] Joueur sans anims:", player?.sessionId);
-    return;
-  }
+  if (!player || !player.anims) return;
   
-  // 🔥 VÉRIFIER QUE LES ANIMATIONS EXISTENT
   if (!this.scene.anims.exists('walk_down')) {
     this.createAnimations();
   }
   
-  // 🔥 INIT VALEURS DE MOMENTUM
-  if (!player.movementTimer) player.movementTimer = 0;
-  if (!player.lastMovementTime) player.lastMovementTime = 0;
+  // 🔥 SIMPLE: Utiliser SEULEMENT les données serveur
+  const isMoving = player.isMoving === true;
+  const direction = player.lastDirection || 'down';
   
-  // 🔥 DÉTECTER MOUVEMENT SERVEUR
-  const isMovingFromServer = player.isMoving === true;
+  const targetAnim = isMoving ? `walk_${direction}` : `idle_${direction}`;
   
-  // 🔥 SYSTÈME DE MOMENTUM: Si le serveur dit qu'on bouge, maintenir l'animation un peu
-  if (isMovingFromServer) {
-    player.lastMovementTime = Date.now();
-    player.movementTimer = 300; // 300ms de momentum
-  }
-  
-  // 🔥 CALCULER SI ON DOIT ANIMER
-  const now = Date.now();
-  const timeSinceLastMovement = now - player.lastMovementTime;
-  const shouldAnimate = isMovingFromServer || (timeSinceLastMovement < player.movementTimer);
-  
-  // 🔥 DIRECTION
-  let direction = player.lastDirection || 'down';
-  if (player.direction) {
-    direction = player.direction;
-    player.lastDirection = direction;
-  }
-  
-  // 🔥 CHOISIR L'ANIMATION
-  const targetAnim = shouldAnimate ? `walk_${direction}` : `idle_${direction}`;
-  
-  // 🔥 JOUER L'ANIMATION (moins de spam dans les logs)
   if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
     player.anims.play(targetAnim, true);
-    
-    // Log seulement les changements importants
-    if (Math.random() < 0.1) { // 10% des fois seulement
-      console.log(`[PlayerManager] Animation: ${player.sessionId} -> ${targetAnim} (server: ${isMovingFromServer}, momentum: ${timeSinceLastMovement < player.movementTimer})`);
-    }
   }
 }
   // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
