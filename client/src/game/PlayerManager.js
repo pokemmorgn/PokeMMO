@@ -422,6 +422,7 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
 
   // 🔥 AJOUTE LA SYNC ICI :
   if (playerState.currentZone) player.currentZone = playerState.currentZone;
+  player.lastServerUpdate = Date.now();
 
   // Restaurer la visibilité si nécessaire
   if (!player.visible) {
@@ -443,6 +444,7 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
   // ✅ MÉTHODE CORRIGÉE: Mise à jour des animations
 // ✅ MÉTHODE CORRIGÉE: Mise à jour des animations avec détection de mouvement physique
 // ✅ MÉTHODE CORRIGÉE: Mise à jour des animations avec seuil d'arrêt
+// ✅ MÉTHODE SAFE: Basée sur les données serveur + timeout
 updatePlayerAnimation(player) {
   if (!player || !player.anims) {
     console.warn("[PlayerManager] Joueur sans anims:", player?.sessionId);
@@ -451,39 +453,30 @@ updatePlayerAnimation(player) {
   
   // 🔥 VÉRIFIER QUE LES ANIMATIONS EXISTENT
   if (!this.scene.anims.exists('walk_down')) {
-    console.warn("[PlayerManager] Animations manquantes, recréation...");
     this.createAnimations();
   }
   
-  // 🔥 DÉTECTER LE MOUVEMENT PHYSIQUE avec seuil plus strict
-  const dx = Math.abs(player.x - (player.targetX || player.x));
-  const dy = Math.abs(player.y - (player.targetY || player.y));
-  const isMovingPhysically = (dx > 5 || dy > 5); // ✅ Seuil plus élevé
-  
-  // 🔥 DÉTECTER LA DIRECTION BASÉE SUR LE MOUVEMENT
+  // ✅ UTILISER LES DONNÉES SERVEUR COMME BASE
+  let isMoving = player.isMoving || false;
   let direction = player.lastDirection || 'down';
-  if (player.targetX !== undefined && player.targetY !== undefined) {
-    const deltaX = player.targetX - player.x;
-    const deltaY = player.targetY - player.y;
-    
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 5) {
-      direction = deltaX > 0 ? 'right' : 'left';
-    } else if (Math.abs(deltaY) > 5) {
-      direction = deltaY > 0 ? 'down' : 'up';
-    }
+  
+  // ✅ SYSTÈME DE TIMEOUT: Si pas de mise à jour serveur récente, considérer comme arrêté
+  const now = Date.now();
+  if (!player.lastServerUpdate) player.lastServerUpdate = now;
+  
+  // Si pas de news du serveur depuis 1 seconde, forcer idle
+  if (now - player.lastServerUpdate > 1000) {
+    isMoving = false;
   }
   
-  // 🔥 CHOISIR L'ANIMATION BASÉE SUR LE MOUVEMENT PHYSIQUE
-  const targetAnim = isMovingPhysically ? `walk_${direction}` : `idle_${direction}`;
+  // ✅ CHOISIR L'ANIMATION
+  const targetAnim = isMoving ? `walk_${direction}` : `idle_${direction}`;
   
-  // 🔥 JOUER L'ANIMATION
-  if (targetAnim && this.scene.anims.exists(targetAnim)) {
+  // ✅ JOUER L'ANIMATION
+  if (this.scene.anims.exists(targetAnim)) {
     if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
-      console.log(`[PlayerManager] Animation autre joueur: ${player.sessionId} -> ${targetAnim} (dx:${dx.toFixed(1)}, dy:${dy.toFixed(1)})`);
       player.anims.play(targetAnim, true);
     }
-  } else {
-    console.warn(`[PlayerManager] Animation introuvable: ${targetAnim} pour ${player.sessionId}`);
   }
 }
   // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
