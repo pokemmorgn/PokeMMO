@@ -202,7 +202,7 @@ function isHealingItem(itemId) {
 /**
  * Configuration des raccourcis clavier personnalisables
  */
-export function setupCustomKeybinds(keybinds = {}) {
+function setupCustomKeybinds(keybinds = {}) {
   const defaultKeybinds = {
     toggleTeam: 't',
     healTeam: 'h',
@@ -260,7 +260,7 @@ export function setupCustomKeybinds(keybinds = {}) {
 /**
  * Fonctions utilitaires pour l'intégration
  */
-export const TeamIntegrationUtils = {
+const TeamIntegrationUtils = {
   
   /**
    * Vérifie si le système d'équipe est prêt
@@ -363,13 +363,9 @@ function getRecommendationText(pokemon, opponentTypes) {
   return 'Efficacité normale';
 }
 
-/**
- * Export des fonctions principales
- */
-export { TeamIntegrationUtils };
-
-// Configuration par défaut lors de l'import
+// Export par défaut
 export default {
   setup: setupTeamSystem,
+  utils: TeamIntegrationUtils,
   keybinds: setupCustomKeybinds
 };
