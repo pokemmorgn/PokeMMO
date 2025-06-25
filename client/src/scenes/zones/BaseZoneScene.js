@@ -145,7 +145,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.initializeQuestSystem();
     this.initializeTimeWeatherSystem();
     // Team Système
-    this.initializeTeamSystem?.(); // .? pour ne pas crash si la méthode n'existe pas
+   // this.initializeTeamSystem?.(); // .? pour ne pas crash si la méthode n'existe pas
     console.log(`✅ [${this.scene.key}] Systèmes de jeu initialisés`);
   }
 initializeTimeWeatherSystem() {
