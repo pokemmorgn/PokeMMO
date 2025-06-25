@@ -1382,6 +1382,8 @@ private handlePlayerMove(client: Client, data: any) {
   player.x = data.x;
   player.y = data.y;
   player.direction = data.direction;
+ player.isMoving = data.isMoving; // ✅ AJOUTER CETTE LIGNE !
+
 // ✅ NOUVEAU: Vérification automatique de rencontre
 if (this.shouldCheckForEncounter(player, data)) {
   // Vérifier rencontre avec un délai pour éviter le spam
