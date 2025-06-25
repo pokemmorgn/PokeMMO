@@ -26,31 +26,36 @@ export class TeamManager {
     this.init();
   }
 
-  async init() {
-    try {
-      // Créer les composants UI
-      this.teamUI = new TeamUI(this.gameRoom);
-      this.teamIcon = new TeamIcon(this.teamUI);
-      
-      // Configurer les listeners serveur
-      this.setupServerListeners();
-      
-      // Configurer les raccourcis globaux
-      this.setupGlobalShortcuts();
-      
-      // Afficher l'icône
+async init() {
+  try {
+    // Créer les composants UI avec délai pour l'icône
+    this.teamUI = new TeamUI(this.gameRoom);
+    
+    // ✅ ATTENDRE que le TeamUI soit prêt avant de créer l'icône
+    await new Promise(resolve => setTimeout(resolve, 200));
+    this.teamIcon = new TeamIcon(this.teamUI);
+    
+    // Configurer les listeners serveur
+    this.setupServerListeners();
+    
+    // Configurer les raccourcis globaux
+    this.setupGlobalShortcuts();
+    
+    // ✅ AFFICHER l'icône après un délai
+    setTimeout(() => {
       this.teamIcon.show();
-      
-      this.isInitialized = true;
-      console.log('⚔️ TeamManager initialisé avec succès');
-      
-      // Demander les données initiales
-      this.requestTeamData();
-      
-    } catch (error) {
-      console.error('❌ Erreur lors de l\'initialisation du TeamManager:', error);
-    }
+    }, 300);
+    
+    this.isInitialized = true;
+    console.log('⚔️ TeamManager initialisé avec succès');
+    
+    // Demander les données initiales
+    this.requestTeamData();
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'initialisation du TeamManager:', error);
   }
+}
 
   setupServerListeners() {
     if (!this.gameRoom) return;
