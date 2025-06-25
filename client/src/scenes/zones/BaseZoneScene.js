@@ -783,59 +783,54 @@ setupPlayerReadyHandler() {
 
   // ✅ MÉTHODE INCHANGÉE: Gestion du mouvement
   handleMovement(myPlayerState) {
-    const speed = 80;
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (!myPlayer || !myPlayer.body) return;
-
-    let vx = 0, vy = 0;
-    let inputDetected = false, direction = null;
-
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      vx = -speed; inputDetected = true; direction = 'left';
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-      vx = speed; inputDetected = true; direction = 'right';
-    }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) {
-      vy = -speed; inputDetected = true; direction = 'up';
-    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-      vy = speed; inputDetected = true; direction = 'down';
-    }
-
-    let actuallyMoving = inputDetected;
-
-    myPlayer.body.setVelocity(vx, vy);
+   const speed = 80;
+   const myPlayer = this.playerManager.getMyPlayer();
+   if (!myPlayer || !myPlayer.body) return;
+   let vx = 0, vy = 0;
+   let inputDetected = false, direction = null;
+   if (this.cursors.left.isDown || this.wasd.A.isDown) {
+     vx = -speed; inputDetected = true; direction = 'left';
+   } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+     vx = speed; inputDetected = true; direction = 'right';
+   }
+   if (this.cursors.up.isDown || this.wasd.W.isDown) {
+     vy = -speed; inputDetected = true; direction = 'up';
+   } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+     vy = speed; inputDetected = true; direction = 'down';
+   }
+   let actuallyMoving = inputDetected;
+   myPlayer.body.setVelocity(vx, vy);
 // ✅ NORMALISER LA VITESSE DIAGONALE
 if (vx !== 0 && vy !== 0) {
-  myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
+ myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
 }
-    if (inputDetected && direction) {
-      this.lastDirection = direction;
-      
-      if (actuallyMoving) {
-        myPlayer.play(`walk_${direction}`, true);
-        myPlayer.isMovingLocally = true;
-      } else {
-        myPlayer.play(`idle_${direction}`, true);
-        myPlayer.isMovingLocally = false;
-      }
-    } else {
-      myPlayer.play(`idle_${this.lastDirection}`, true);
-      myPlayer.isMovingLocally = false;
-    }
-
-    if (inputDetected) {
-      const now = Date.now();
-      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-        this.networkManager.sendMove(
-          myPlayer.x,
-          myPlayer.y,
-          direction,
-          actuallyMoving
-        );
-        this.lastMoveTime = now;
-      }
-    }
-  }
+   if (inputDetected && direction) {
+     this.lastDirection = direction;
+     
+     if (actuallyMoving) {
+       myPlayer.anims.play(`walk_${direction}`, true);
+       myPlayer.isMovingLocally = true;
+     } else {
+       myPlayer.anims.play(`idle_${direction}`, true);
+       myPlayer.isMovingLocally = false;
+     }
+   } else {
+     myPlayer.anims.play(`idle_${this.lastDirection}`, true);
+     myPlayer.isMovingLocally = false;
+   }
+   if (inputDetected) {
+     const now = Date.now();
+     if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+       this.networkManager.sendMove(
+         myPlayer.x,
+         myPlayer.y,
+         direction,
+         actuallyMoving
+       );
+       this.lastMoveTime = now;
+     }
+   }
+ }
 
   // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
