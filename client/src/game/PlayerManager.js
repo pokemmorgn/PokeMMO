@@ -442,6 +442,7 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
 
   
 // ✅ MÉTHODE CORRIGÉE: Vérifier à la fois le mouvement physique ET le serveur
+// ✅ MÉTHODE CORRIGÉE: Système anti-oscillation
 updatePlayerAnimation(player) {
   if (!player || !player.anims) {
     console.warn("[PlayerManager] Joueur sans anims:", player?.sessionId);
@@ -450,51 +451,46 @@ updatePlayerAnimation(player) {
   
   // 🔥 VÉRIFIER QUE LES ANIMATIONS EXISTENT
   if (!this.scene.anims.exists('walk_down')) {
-    console.warn("[PlayerManager] Animations manquantes, recréation...");
     this.createAnimations();
   }
   
-  // 🔥 STOCKER LA POSITION PRÉCÉDENTE
-  if (!player.previousX) player.previousX = player.x;
-  if (!player.previousY) player.previousY = player.y;
+  // 🔥 INIT VALEURS DE MOMENTUM
+  if (!player.movementTimer) player.movementTimer = 0;
+  if (!player.lastMovementTime) player.lastMovementTime = 0;
   
-  // 🔥 CALCULER LA VÉLOCITÉ RÉELLE
-  const velocityX = player.x - player.previousX;
-  const velocityY = player.y - player.previousY;
-  const speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-  
-  // 🔥 NOUVEAU: Vérifier à la fois le mouvement physique ET l'état serveur
-  const isMovingPhysically = speed > 0.5;
+  // 🔥 DÉTECTER MOUVEMENT SERVEUR
   const isMovingFromServer = player.isMoving === true;
   
-  // ✅ Le joueur bouge SEULEMENT si les DEUX conditions sont vraies
-  const isActuallyMoving = isMovingPhysically && isMovingFromServer;
+  // 🔥 SYSTÈME DE MOMENTUM: Si le serveur dit qu'on bouge, maintenir l'animation un peu
+  if (isMovingFromServer) {
+    player.lastMovementTime = Date.now();
+    player.movementTimer = 300; // 300ms de momentum
+  }
   
-  // 🔥 DÉTECTER LA DIRECTION
+  // 🔥 CALCULER SI ON DOIT ANIMER
+  const now = Date.now();
+  const timeSinceLastMovement = now - player.lastMovementTime;
+  const shouldAnimate = isMovingFromServer || (timeSinceLastMovement < player.movementTimer);
+  
+  // 🔥 DIRECTION
   let direction = player.lastDirection || 'down';
-  if (isActuallyMoving) {
-    if (Math.abs(velocityX) > Math.abs(velocityY)) {
-      direction = velocityX > 0 ? 'right' : 'left';
-    } else {
-      direction = velocityY > 0 ? 'down' : 'up';
-    }
+  if (player.direction) {
+    direction = player.direction;
     player.lastDirection = direction;
   }
   
   // 🔥 CHOISIR L'ANIMATION
-  const targetAnim = isActuallyMoving ? `walk_${direction}` : `idle_${direction}`;
+  const targetAnim = shouldAnimate ? `walk_${direction}` : `idle_${direction}`;
   
-  // 🔥 JOUER L'ANIMATION
-  if (targetAnim && this.scene.anims.exists(targetAnim)) {
-    if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
-      console.log(`[PlayerManager] Animation: ${player.sessionId} -> ${targetAnim} (speed: ${speed.toFixed(2)}, server: ${isMovingFromServer})`);
-      player.anims.play(targetAnim, true);
+  // 🔥 JOUER L'ANIMATION (moins de spam dans les logs)
+  if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
+    player.anims.play(targetAnim, true);
+    
+    // Log seulement les changements importants
+    if (Math.random() < 0.1) { // 10% des fois seulement
+      console.log(`[PlayerManager] Animation: ${player.sessionId} -> ${targetAnim} (server: ${isMovingFromServer}, momentum: ${timeSinceLastMovement < player.movementTimer})`);
     }
   }
-  
-  // 🔥 SAUVEGARDER LA POSITION
-  player.previousX = player.x;
-  player.previousY = player.y;
 }
   // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
   checkMyPlayerReady() {
