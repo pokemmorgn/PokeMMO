@@ -442,55 +442,24 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
 
   
 // ✅ MÉTHODE AVEC DÉLAI SIMPLE
+// ✅ MÉTHODE ULTRA SIMPLE: Juste suivre le serveur
 updatePlayerAnimation(player) {
- // 🔍 DEBUG TEMPORAIRE - À supprimer après
- console.log(`🐛 DEBUG ${player.sessionId}:`, {
-   isMoving: player.isMoving,
-   direction: player.direction,
-   lastDirection: player.lastDirection,
-   targetX: player.targetX,
-   targetY: player.targetY,
-   currentX: Math.round(player.x),
-   currentY: Math.round(player.y),
-   currentAnim: player.anims?.currentAnim?.key,
-   animPlaying: player.anims?.isPlaying
- });
- 
- if (!player || !player.anims) return;
- 
- if (!this.scene.anims.exists('walk_down')) {
-   this.createAnimations();
- }
- 
- // 🔥 INIT TIMER D'ARRÊT SEULEMENT
- if (!player.stopAnimTimer) player.stopAnimTimer = 0;
- 
- const isMovingFromServer = player.isMoving === true;
- const direction = player.lastDirection || 'down';
- 
- // 🔥 SI LE SERVEUR DIT QU'ON BOUGE
- if (isMovingFromServer) {
-   const targetAnim = `walk_${direction}`;
-   if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
-     player.anims.play(targetAnim, true);
-   }
-   player.stopAnimTimer = 0; // Reset le timer
- } 
- // 🔥 SI LE SERVEUR DIT QU'ON S'ARRÊTE
- else {
-   // Commencer le timer d'arrêt
-   if (player.stopAnimTimer === 0) {
-     player.stopAnimTimer = Date.now();
-   }
-   
-   // Attendre 200ms avant de passer en idle
-   if (Date.now() - player.stopAnimTimer > 200) {
-     const targetAnim = `idle_${direction}`;
-     if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
-       player.anims.play(targetAnim, true);
-     }
-   }
- }
+  if (!player || !player.anims) return;
+  
+  if (!this.scene.anims.exists('walk_down')) {
+    this.createAnimations();
+  }
+  
+  // 🔥 SIMPLE: Utiliser SEULEMENT les données serveur
+  const isMoving = player.isMoving === true;
+  const direction = player.lastDirection || 'down';
+  
+  const targetAnim = isMoving ? `walk_${direction}` : `idle_${direction}`;
+  
+  if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
+    player.anims.play(targetAnim, true);
+    console.log(`[PlayerManager] Animation: ${player.sessionId} -> ${targetAnim} (server: ${isMoving})`);
+  }
 }
   // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
   checkMyPlayerReady() {
