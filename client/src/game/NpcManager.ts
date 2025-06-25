@@ -236,53 +236,37 @@ export class NpcManager {
   }
 
   // ✅ AMÉLIORATION: Création du placeholder avec debug
-  createNpcPlaceholder(spriteKey) {
-    try {
-      console.log(`🎨 === CRÉATION PLACEHOLDER ===`);
-      console.log(`🎨 Key: ${spriteKey}`);
-      
-      const graphics = this.scene.add.graphics();
-      
-      // Créer un placeholder plus distinctif selon le nom du sprite
-      if (spriteKey.toLowerCase().includes('merchant') || spriteKey.toLowerCase().includes('shop')) {
-        // Marchand - couleur dorée
-        graphics.fillStyle(0xFFD700);
-        graphics.fillCircle(16, 16, 14);
-        graphics.fillStyle(0xFFA500);
-        graphics.fillCircle(16, 16, 10);
-        graphics.fillStyle(0x000000);
-        graphics.fillText('$', 12, 12, { fontSize: '12px' });
-      } else if (spriteKey.toLowerCase().includes('nurse') || spriteKey.toLowerCase().includes('heal')) {
-        // Soigneur - couleur rose
-        graphics.fillStyle(0xFF69B4);
-        graphics.fillCircle(16, 16, 14);
-        graphics.fillStyle(0xFFB6C1);
-        graphics.fillCircle(16, 16, 10);
-        graphics.fillStyle(0x000000);
-        graphics.fillText('+', 12, 12, { fontSize: '12px' });
-      } else {
-        // NPC générique - bleu
-        graphics.fillStyle(0x8888ff);
-        graphics.fillCircle(16, 16, 14);
-        graphics.fillStyle(0xffffff);
-        graphics.fillCircle(16, 16, 10);
-        graphics.fillStyle(0x000000);
-        graphics.fillText('?', 12, 12, { fontSize: '12px' });
-      }
-      
-      graphics.generateTexture(spriteKey, 32, 32);
-      graphics.destroy();
-      
-      // ✅ Vérifier que la texture a bien été créée
-      const created = this.scene.textures.exists(spriteKey);
-      console.log(`🎨 Placeholder ${spriteKey} créé: ${created}`);
-      
-      return created;
-    } catch (error) {
-      console.error(`❌ Erreur création placeholder ${spriteKey}:`, error);
-      return false;
-    }
+createNpcPlaceholder(spriteKey) {
+  try {
+    const graphics = this.scene.add.graphics();
+    graphics.fillStyle(0x8888ff, 1);
+    graphics.fillCircle(16, 16, 14);
+    graphics.fillStyle(0xffffff, 1);
+    graphics.fillCircle(16, 16, 10);
+    graphics.generateTexture(spriteKey, 32, 32);
+    graphics.destroy();
+
+    // Ajoute un "?" par dessus (avec un objet Text temporaire)
+    const tempText = this.scene.add.text(16, 16, '?', {
+      font: '16px monospace',
+      color: '#222',
+      align: 'center'
+    }).setOrigin(0.5);
+    tempText.setAlpha(1);
+    tempText.setDepth(1000);
+    tempText.visible = true;
+    // Convertit ce Text en texture
+    tempText.scene.textures.generateTexture(spriteKey + '_label', 32, 32);
+    tempText.destroy();
+
+    // Tu pourrais fusionner ces deux textures si besoin (optionnel)
+    return this.scene.textures.exists(spriteKey);
+  } catch (error) {
+    console.error(`❌ Erreur création placeholder ${spriteKey}:`, error);
+    return false;
   }
+}
+
 
   // ✅ AMÉLIORATION: Nettoyage robuste avec vérifications
   clearAllNpcs() {
