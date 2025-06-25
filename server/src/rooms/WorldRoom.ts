@@ -1249,18 +1249,36 @@ private async handleShopTransaction(client: Client, data: {
       // Données de base
       player.id = client.sessionId;
       player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
-     const savedData = await PlayerData.findOne({ username: player.name });
-if (savedData && savedData.lastX !== undefined) {
-  player.x = savedData.lastX;
-  player.y = savedData.lastY;
+      
+     // ✅ DEBUG d'abord
+await this.positionSaver.debugPlayerPosition(player.name);
+
+const savedData = await PlayerData.findOne({ username: player.name });
+if (savedData && savedData.lastX !== undefined && savedData.lastY !== undefined) {
+  // ✅ RESTAURATION COMPLÈTE avec validation
+  player.x = Math.round(savedData.lastX);
+  player.y = Math.round(savedData.lastY);
   player.currentZone = savedData.lastMap || "beach";
+  
   console.log(`💾 Position restaurée: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+  console.log(`📊 Données sauvées: lastX=${savedData.lastX}, lastY=${savedData.lastY}, lastMap=${savedData.lastMap}`);
 } else {
+  // ✅ NOUVEAU JOUEUR ou données incomplètes
   player.x = options.spawnX || 52;
   player.y = options.spawnY || 48;
   player.currentZone = options.spawnZone || "beach";
-  console.log(`🆕 Nouveau joueur: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+  
+  console.log(`🆕 ${savedData ? 'Données incomplètes' : 'Nouveau joueur'}: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+  
+  if (savedData) {
+    console.log(`📊 Données trouvées mais incomplètes:`, {
+      lastX: savedData.lastX,
+      lastY: savedData.lastY,
+      lastMap: savedData.lastMap
+    });
+  }
 }
+      
       player.characterId = options.characterId || "brendan";
       console.log(`🎭 Personnage: ${player.characterId}`);
 
