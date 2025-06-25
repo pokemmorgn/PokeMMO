@@ -257,7 +257,7 @@
                  "y":505.333333333333
                 }, 
                 {
-                 "height":46.6666666666667,
+                 "height":38.0000000000001,
                  "id":17,
                  "name":"teleport",
                  "properties":[
@@ -274,8 +274,8 @@
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":53.3333333333333,
-                 "x":298,
+                 "width":70,
+                 "x":289.333333333333,
                  "y":102.666666666667
                 }, 
                 {
@@ -34652,7 +34652,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -34661,7 +34661,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -34670,7 +34670,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -34679,7 +34679,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -34688,7 +34688,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -34941,7 +34941,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -34950,7 +34950,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -34959,7 +34959,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -34968,7 +34968,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -34977,7 +34977,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -35230,7 +35230,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -35239,7 +35239,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -35248,7 +35248,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -35257,7 +35257,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -35266,7 +35266,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -40347,7 +40347,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -40356,7 +40356,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -40365,7 +40365,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -40374,7 +40374,7 @@
                         {
                          "name":"collides",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }]
                 }, 
                 {
@@ -40565,6 +40565,42 @@
                          "name":"collides",
                          "type":"bool",
                          "value":true
+                        }]
+                }, 
+                {
+                 "id":7088,
+                 "properties":[
+                        {
+                         "name":"collides",
+                         "type":"bool",
+                         "value":false
+                        }]
+                }, 
+                {
+                 "id":7089,
+                 "properties":[
+                        {
+                         "name":"collides",
+                         "type":"bool",
+                         "value":false
+                        }]
+                }, 
+                {
+                 "id":7090,
+                 "properties":[
+                        {
+                         "name":"collides",
+                         "type":"bool",
+                         "value":false
+                        }]
+                }, 
+                {
+                 "id":7091,
+                 "properties":[
+                        {
+                         "name":"collides",
+                         "type":"bool",
+                         "value":false
                         }]
                 }, 
                 {
@@ -40881,7 +40917,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":7214,
                  "properties":[
@@ -40917,8 +40954,7 @@
                          "type":"string",
                          "value":"true"
                         }]
-                },
-            
+                }, 
                 {
                  "id":7218,
                  "properties":[
@@ -41242,7 +41278,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":7313,
                  "properties":[
@@ -41278,8 +41315,7 @@
                          "type":"string",
                          "value":"true"
                         }]
-                },
-            
+                }, 
                 {
                  "id":7321,
                  "properties":[
@@ -41603,7 +41639,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":7403,
                  "properties":[
@@ -41639,8 +41676,7 @@
                          "type":"string",
                          "value":"true"
                         }]
-                },
-            
+                }, 
                 {
                  "id":7411,
                  "properties":[
@@ -41964,7 +42000,8 @@
                          "type":"string",
                          "value":"true"
                         }]
-                }, 
+                },
+            
                 {
                  "id":7540,
                  "properties":[
@@ -42000,8 +42037,7 @@
                          "type":"string",
                          "value":"true"
                         }]
-                },
-            
+                }, 
                 {
                  "id":7561,
                  "properties":[
@@ -42325,7 +42361,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":7752,
                  "properties":[
@@ -42361,8 +42398,7 @@
                          "type":"bool",
                          "value":true
                         }]
-                },
-            
+                }, 
                 {
                  "id":7756,
                  "properties":[
@@ -42686,7 +42722,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":7939,
                  "properties":[
@@ -42722,8 +42759,7 @@
                          "type":"bool",
                          "value":true
                         }]
-                },
-            
+                }, 
                 {
                  "id":7943,
                  "properties":[
@@ -43047,7 +43083,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":8157,
                  "properties":[
@@ -43083,8 +43120,7 @@
                          "type":"bool",
                          "value":true
                         }]
-                },
-            
+                }, 
                 {
                  "id":8161,
                  "properties":[
@@ -43408,7 +43444,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":8215,
                  "properties":[
@@ -43444,8 +43481,7 @@
                          "type":"string",
                          "value":"true"
                         }]
-                },
-            
+                }, 
                 {
                  "id":8236,
                  "properties":[
@@ -43769,7 +43805,8 @@
                          "type":"string",
                          "value":"true"
                         }]
-                }, 
+                },
+            
                 {
                  "id":8350,
                  "properties":[
@@ -43805,8 +43842,7 @@
                          "type":"string",
                          "value":"true"
                         }]
-                },
-            
+                }, 
                 {
                  "id":8371,
                  "properties":[
@@ -44130,7 +44166,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":8438,
                  "properties":[
@@ -44166,8 +44203,7 @@
                          "type":"bool",
                          "value":true
                         }]
-                },
-            
+                }, 
                 {
                  "id":8466,
                  "properties":[
@@ -44491,7 +44527,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":8616,
                  "properties":[
@@ -44527,8 +44564,7 @@
                          "type":"bool",
                          "value":true
                         }]
-                },
-            
+                }, 
                 {
                  "id":8620,
                  "properties":[
@@ -44852,7 +44888,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":8787,
                  "properties":[
@@ -44888,8 +44925,7 @@
                          "type":"bool",
                          "value":true
                         }]
-                },
-            
+                }, 
                 {
                  "id":8822,
                  "properties":[
@@ -45213,7 +45249,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":8888,
                  "properties":[
@@ -45249,8 +45286,7 @@
                          "type":"bool",
                          "value":true
                         }]
-                },
-            
+                }, 
                 {
                  "id":8912,
                  "properties":[
@@ -45574,7 +45610,8 @@
                          "type":"bool",
                          "value":true
                         }]
-                }, 
+                },
+            
                 {
                  "id":9139,
                  "properties":[
@@ -45610,8 +45647,7 @@
                          "type":"bool",
                          "value":true
                         }]
-                },
-            
+                }, 
                 {
                  "id":9143,
                  "properties":[
