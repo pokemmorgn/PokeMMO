@@ -1,6 +1,7 @@
-// server/src/managers/TeamManager.ts - Version améliorée
+// server/src/managers/TeamManager.ts - Version avec utilitaires
 import { OwnedPokemon, IOwnedPokemon } from "../models/OwnedPokemon";
 import { PlayerData } from "../models/PlayerData";
+import TeamQueries from "../utils/teamQueries";
 import mongoose from "mongoose";
 
 export interface TeamStats {
@@ -22,9 +23,6 @@ export class TeamManager {
 
   // === CHARGEMENT ET DONNÉES DE BASE ===
   
-  /**
-   * Charge les données du joueur et son équipe
-   */
   async load() {
     this.playerData = await PlayerData.findOne({ username: this.playerId });
     if (!this.playerData) {
@@ -33,50 +31,29 @@ export class TeamManager {
     return this.getTeam();
   }
 
-  /**
-   * Récupère l'équipe active (avec tous les détails)
-   */
   async getTeam(): Promise<IOwnedPokemon[]> {
-    return await OwnedPokemon.findByOwnerTeam(this.playerId);
+    return await TeamQueries.findByOwnerTeam(this.playerId);
   }
 
-  /**
-   * Récupère un Pokémon spécifique de l'équipe par son slot
-   */
   async getTeamPokemon(slot: number): Promise<IOwnedPokemon | null> {
-    if (slot < 0 || slot > 5) return null;
-    return await OwnedPokemon.findOne({ 
-      owner: this.playerId, 
-      isInTeam: true, 
-      slot 
-    });
+    return await TeamQueries.findTeamPokemonBySlot(this.playerId, slot);
   }
 
-  /**
-   * Récupère le premier Pokémon vivant de l'équipe
-   */
   async getFirstAlivePokemon(): Promise<IOwnedPokemon | null> {
-    const team = await this.getTeam();
-    return team.find(pokemon => !pokemon.isFainted()) || null;
+    return await TeamQueries.findFirstAlivePokemon(this.playerId);
   }
 
-  /**
-   * Récupère tous les Pokémon possédés (équipe + PC)
-   */
   async getAllPokemon(): Promise<IOwnedPokemon[]> {
-    return await OwnedPokemon.find({ owner: this.playerId });
+    return await TeamQueries.findAllByOwner(this.playerId);
   }
 
   // === GESTION DE L'ÉQUIPE ===
 
-  /**
-   * Ajoute un Pokémon à l'équipe
-   */
   async addToTeam(pokemonId: mongoose.Types.ObjectId): Promise<boolean> {
     if (!this.playerData) await this.load();
     
-    const team = await this.getTeam();
-    if (team.length >= 6) {
+    const teamCount = await TeamQueries.countTeamPokemon(this.playerId);
+    if (teamCount >= 6) {
       throw new Error("Équipe complète (6 Pokémon maximum)");
     }
     
@@ -91,8 +68,8 @@ export class TeamManager {
     
     // Met à jour le Pokémon
     pokemon.isInTeam = true;
-    pokemon.slot = team.length;
-    pokemon.box = undefined;
+    pokemon.slot = teamCount;
+    pokemon.box = 0;
     pokemon.boxSlot = undefined;
     await pokemon.save();
     
@@ -100,15 +77,12 @@ export class TeamManager {
     if (!Array.isArray(this.playerData.team)) {
       this.playerData.team = [];
     }
-    this.playerData.team.push(pokemonId as any);
+    this.playerData.team.push(pokemonId);
     await this.playerData.save();
     
     return true;
   }
 
-  /**
-   * Retire un Pokémon de l'équipe
-   */
   async removeFromTeam(pokemonId: mongoose.Types.ObjectId): Promise<boolean> {
     if (!this.playerData) await this.load();
     
@@ -123,7 +97,7 @@ export class TeamManager {
     pokemon.isInTeam = false;
     pokemon.slot = undefined;
     pokemon.box = 0;
-    pokemon.boxSlot = await this.getNextBoxSlot(0);
+    pokemon.boxSlot = await TeamQueries.getNextBoxSlot(this.playerId, 0);
     await pokemon.save();
     
     // Met à jour PlayerData
@@ -134,14 +108,11 @@ export class TeamManager {
     }
     
     // Réorganise les slots de l'équipe
-    await this.reorganizeTeamSlots(oldSlot);
+    await TeamQueries.reorganizeTeamSlots(this.playerId, oldSlot);
     
     return true;
   }
 
-  /**
-   * Échange la position de deux Pokémon dans l'équipe
-   */
   async swapTeamSlots(slotA: number, slotB: number): Promise<boolean> {
     if (slotA === slotB) return true;
     if (slotA < 0 || slotA > 5 || slotB < 0 || slotB > 5) {
@@ -166,58 +137,14 @@ export class TeamManager {
     return true;
   }
 
-  /**
-   * Réorganise les slots après suppression
-   */
-  private async reorganizeTeamSlots(removedSlot: number): Promise<void> {
-    const team = await OwnedPokemon.find({ 
-      owner: this.playerId, 
-      isInTeam: true,
-      slot: { $gt: removedSlot }
-    }).sort({ slot: 1 });
-    
-    for (const pokemon of team) {
-      pokemon.slot = pokemon.slot! - 1;
-      await pokemon.save();
-    }
-  }
-
-  /**
-   * Trouve le prochain slot libre dans une boîte PC
-   */
-  private async getNextBoxSlot(boxNumber: number): Promise<number> {
-    const boxPokemon = await OwnedPokemon.find({ 
-      owner: this.playerId, 
-      box: boxNumber,
-      isInTeam: false
-    }).sort({ boxSlot: 1 });
-    
-    // Trouve le premier slot libre
-    for (let i = 0; i < 30; i++) { // 30 slots par boîte
-      if (!boxPokemon.find(p => p.boxSlot === i)) {
-        return i;
-      }
-    }
-    return boxPokemon.length; // Si aucun slot libre trouvé
-  }
+  // Supprime les méthodes privées redondantes (maintenant dans TeamQueries)
 
   // === GESTION DE COMBAT ===
 
-  /**
-   * Soigne tous les Pokémon de l'équipe
-   */
   async healTeam(): Promise<void> {
-    const team = await this.getTeam();
-    
-    for (const pokemon of team) {
-      pokemon.heal(); // Soigne complètement
-      await pokemon.save();
-    }
+    await TeamQueries.healTeam(this.playerId);
   }
 
-  /**
-   * Soigne un Pokémon spécifique
-   */
   async healPokemon(pokemonId: mongoose.Types.ObjectId, amount?: number): Promise<boolean> {
     const pokemon = await OwnedPokemon.findOne({
       _id: pokemonId,
@@ -232,9 +159,6 @@ export class TeamManager {
     return true;
   }
 
-  /**
-   * Applique des dégâts à un Pokémon
-   */
   async damagePokemon(pokemonId: mongoose.Types.ObjectId, damage: number): Promise<boolean> {
     const pokemon = await OwnedPokemon.findOne({
       _id: pokemonId,
@@ -250,9 +174,6 @@ export class TeamManager {
     return isFainted;
   }
 
-  /**
-   * Applique un statut à un Pokémon
-   */
   async applyStatusToPokemon(
     pokemonId: mongoose.Types.ObjectId, 
     status: string, 
@@ -274,9 +195,6 @@ export class TeamManager {
     return applied;
   }
 
-  /**
-   * Utilise une attaque (diminue les PP)
-   */
   async useMove(pokemonId: mongoose.Types.ObjectId, moveId: string): Promise<boolean> {
     const pokemon = await OwnedPokemon.findOne({
       _id: pokemonId,
@@ -297,67 +215,28 @@ export class TeamManager {
 
   // === STATISTIQUES ET ÉTAT ===
 
-  /**
-   * Récupère les statistiques de l'équipe
-   */
   async getTeamStats(): Promise<TeamStats> {
-    const team = await this.getTeam();
-    
-    const alivePokemon = team.filter(p => !p.isFainted()).length;
-    const faintedPokemon = team.filter(p => p.isFainted()).length;
-    const totalLevel = team.reduce((sum, p) => sum + p.level, 0);
-    
-    return {
-      totalPokemon: team.length,
-      alivePokemon,
-      faintedPokemon,
-      averageLevel: team.length > 0 ? totalLevel / team.length : 0,
-      canBattle: alivePokemon > 0
-    };
+    return await TeamQueries.getTeamStats(this.playerId);
   }
 
-  /**
-   * Vérifie si l'équipe peut combattre
-   */
   async canBattle(): Promise<boolean> {
-    const team = await this.getTeam();
-    return team.some(pokemon => pokemon.canBattle());
+    return await TeamQueries.canTeamBattle(this.playerId);
   }
 
-  /**
-   * Récupère le Pokémon le plus rapide encore vivant
-   */
   async getFastestAlivePokemon(): Promise<IOwnedPokemon | null> {
-    const team = await this.getTeam();
-    const alivePokemon = team.filter(p => !p.isFainted());
-    
-    if (alivePokemon.length === 0) return null;
-    
-    return alivePokemon.reduce((fastest, current) => 
-      current.getEffectiveSpeed() > fastest.getEffectiveSpeed() ? current : fastest
-    );
+    return await TeamQueries.getFastestAlivePokemon(this.playerId);
   }
 
-  /**
-   * Vérifie si l'équipe est complètement vaincue
-   */
   async isTeamDefeated(): Promise<boolean> {
-    const team = await this.getTeam();
-    return team.length > 0 && team.every(pokemon => pokemon.isFainted());
+    return await TeamQueries.isTeamDefeated(this.playerId);
   }
 
   // === GESTION PC ===
 
-  /**
-   * Récupère les Pokémon d'une boîte PC
-   */
   async getBoxPokemon(boxNumber: number = 0): Promise<IOwnedPokemon[]> {
-    return await OwnedPokemon.findByOwnerBox(this.playerId, boxNumber);
+    return await TeamQueries.findByOwnerBox(this.playerId, boxNumber);
   }
 
-  /**
-   * Transfère un Pokémon entre équipe et PC
-   */
   async transferPokemon(
     pokemonId: mongoose.Types.ObjectId, 
     toTeam: boolean
