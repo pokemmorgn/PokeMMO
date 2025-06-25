@@ -465,7 +465,7 @@ class PhantomMultiAccountManager {
         this.startDiagnostics();
         
         // Initialiser client Colyseus (adapter l'URL à ton serveur)
-        this.colyseusClient = new Colyseus.Client("wss://pokerune.cloud/ws"); 
+this.colyseusClient = new Colyseus.Client(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
     }
 
     initializeElements() {
