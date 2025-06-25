@@ -418,14 +418,30 @@ if (player && typeof player.setVisible === 'function' && !player.visible) {
     if (playerState.currentZone) player.currentZone = playerState.currentZone;
 
     // Restaurer la visibilité si nécessaire
-if (player && typeof player.setVisible === 'function' && !player.visible) {
-  console.warn(`[PlayerManager] 🔧 Restauration visibilité: ${player.sessionId}`);
-  player.setVisible(true);
-  player.setActive(true);
-} else if (player && typeof player.setVisible !== 'function') {
-  console.error(`[PlayerManager] ❌ Joueur ${player.sessionId || 'unknown'} n'a pas setVisible - type:`, typeof player);
-}
+    if (player && typeof player.setVisible === 'function' && !player.visible) {
+      console.warn(`[PlayerManager] 🔧 Restauration visibilité: ${player.sessionId}`);
+      player.setVisible(true);
+      player.setActive(true);
+    } else if (player && typeof player.setVisible !== 'function') {
+      console.error(`[PlayerManager] ❌ Joueur ${player.sessionId || 'unknown'} n'a pas setVisible - type:`, typeof player);
+    }
 
+    // Animations
+    this.updatePlayerAnimation(player);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mise à jour des animations
+  updatePlayerAnimation(player) {
+    if (!this.characterManager) return;
+    
+    if (player.isMoving && player.lastDirection) {
+      this.characterManager.playAnimation(player, 'walk', player.lastDirection);
+    } else if (!player.isMoving && player.lastDirection) {
+      this.characterManager.playAnimation(player, 'idle', player.lastDirection);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
   
 
   // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
