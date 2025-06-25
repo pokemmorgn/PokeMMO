@@ -344,7 +344,29 @@ export class DayNightWeatherManager {
       console.warn(`⚠️ [DayNightWeatherManager] NetworkManager pas disponible pour refresh`);
     }
   }
-
+// ✅ NOUVELLE MÉTHODE: Synchronisation forcée ultra-rapide
+forceFastSync() {
+  console.log(`⚡ [DayNightWeatherManager] SYNCHRONISATION ULTRA-RAPIDE...`);
+  
+  if (this.scene?.networkManager && this.timeWeatherManager) {
+    // Forcer la demande au serveur
+    this.timeWeatherManager.forceRefreshFromServer(this.scene.networkManager);
+    
+    // Vérifier rapidement si on a reçu une réponse
+    let attempts = 0;
+    const quickCheck = () => {
+      attempts++;
+      if (this.timeWeatherManager.isSynchronized() || attempts > 10) {
+        console.log(`⚡ [DayNightWeatherManager] Sync rapide ${this.timeWeatherManager.isSynchronized() ? 'RÉUSSIE' : 'TIMEOUT'} (${attempts} tentatives)`);
+        this.forceUpdate();
+        return;
+      }
+      setTimeout(quickCheck, 50); // Vérifier toutes les 50ms
+    };
+    
+    setTimeout(quickCheck, 50);
+  }
+}
   // ✅ NOUVELLES MÉTHODES POUR LES EFFETS VISUELS
 
   getWeatherEffects() {
