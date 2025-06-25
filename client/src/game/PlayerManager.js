@@ -458,7 +458,6 @@ updatePlayerAnimation(player) {
   
   if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
     player.anims.play(targetAnim, true);
-    console.log(`[PlayerManager] Animation: ${player.sessionId} -> ${targetAnim} (server: ${isMoving})`);
   }
 }
   // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
