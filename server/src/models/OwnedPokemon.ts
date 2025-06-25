@@ -70,11 +70,8 @@ export interface IOwnedPokemon extends Document {
   applyStatus(status: string, turns?: number): boolean;
 }
 
-// Interface pour les méthodes statiques
-interface IOwnedPokemonModel extends Model<IOwnedPokemon> {
-  findByOwnerTeam(owner: string): Promise<IOwnedPokemon[]>;
-  findByOwnerBox(owner: string, boxNumber?: number): Promise<IOwnedPokemon[]>;
-}
+// Interface pour les méthodes statiques - SUPPRIMÉE
+// Nous utiliserons des requêtes directes dans le TeamManager
 
 const OwnedPokemonSchema = new Schema<IOwnedPokemon>({
   // === DONNÉES DE BASE ===
@@ -283,13 +280,5 @@ OwnedPokemonSchema.methods.applyStatus = function(this: IOwnedPokemon, newStatus
   return true;
 };
 
-// === MÉTHODES STATIQUES ===
-OwnedPokemonSchema.statics.findByOwnerTeam = function(this: IOwnedPokemonModel, owner: string) {
-  return this.find({ owner, isInTeam: true }).sort({ slot: 1 });
-};
-
-OwnedPokemonSchema.statics.findByOwnerBox = function(this: IOwnedPokemonModel, owner: string, boxNumber: number = 0) {
-  return this.find({ owner, isInTeam: false, box: boxNumber }).sort({ boxSlot: 1 });
-};
-
-export const OwnedPokemon = mongoose.model<IOwnedPokemon, IOwnedPokemonModel>("OwnedPokemon", OwnedPokemonSchema);
+// Export du modèle simplifié
+export const OwnedPokemon = mongoose.model<IOwnedPokemon>("OwnedPokemon", OwnedPokemonSchema);
