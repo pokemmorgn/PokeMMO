@@ -1358,6 +1358,19 @@ getCurrentTimeWeather() {
   }
   return null;
 }
+
+initializeTeamSystem() {
+  if (!this.networkManager?.room) return;
+  if (window.TeamManager && window.TeamManager.isInitialized) return;
+  try {
+    // import en haut : import { setupTeamSystem } from '../integration/teamIntegration.js'
+    window.TeamManager = setupTeamSystem(this.networkManager.room);
+    console.log(`✅ [${this.scene.key}] Système d'équipe initialisé`);
+  } catch (e) {
+    console.error(`[${this.scene.key}] Erreur d'init TeamManager:`, e);
+  }
+}
+  
 setupPlayerCollisions() {
   const myPlayer = this.playerManager?.getMyPlayer();
   if (!myPlayer || !myPlayer.body) {
