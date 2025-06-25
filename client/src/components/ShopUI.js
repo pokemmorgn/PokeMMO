@@ -817,7 +817,7 @@ export class ShopUI {
     }
     
     if (sellItems) {
-      sellItems.innerHTML = '<div class="loading-message"><p>Chargement de l'inventaire...</p></div>';
+      sellItems.innerHTML = '<div class="loading-message"><p>Chargement des objets du joueur...</p></div>';
     }
 
     // Reset des infos sélection
