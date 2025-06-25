@@ -50,7 +50,10 @@ export class BaseZoneScene extends Phaser.Scene {
     const ext = 'tmj';
     this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
 
-
+    this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
+      frameWidth: 16,
+      frameHeight: 16,
+    });
   }
 
   create() {
@@ -61,6 +64,7 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} ===`);
     console.log(`📊 Scene data reçue:`, this.scene.settings.data);
 
+    this.createPlayerAnimations();
     this.setupManagers();
     this.initPlayerSpawnFromSceneData();
     this.justArrivedAtZone = true;
@@ -196,25 +200,28 @@ initializeTimeWeatherSystem() {
     console.log(`[${this.scene.key}] ✅ Hook onPlayerReady déclenché pour`, player.sessionId);
   }
   
-initPlayerSpawnFromSceneData() {
-  const data = this.scene.settings.data || {};
-  const sessionId = this.mySessionId;
-  let spawnX = 52, spawnY = 48;
+  initPlayerSpawnFromSceneData() {
+    const data = this.scene.settings.data || {};
+    const sessionId = this.mySessionId;
+    let spawnX = 52, spawnY = 48;
 
-  if (typeof data.spawnX === 'number') spawnX = data.spawnX;
-  if (typeof data.spawnY === 'number') spawnY = data.spawnY;
+    // Si transition de zone, coordonnées transmises
+    if (typeof data.spawnX === 'number') spawnX = data.spawnX;
+    if (typeof data.spawnY === 'number') spawnY = data.spawnY;
 
-  // ✅ CORRECTION CRITIQUE: Vérifier si le joueur existe déjà
-  if (this.playerManager && !this.playerManager.players.has(sessionId)) {
-    const characterId = data.characterId || 'brendan';
-    console.log(`[${this.scene.key}] Création joueur avec personnage: ${characterId}`);
-    
-    this.playerManager.createPlayer(sessionId, spawnX, spawnY, characterId);
-    console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY}) avec personnage ${characterId}`);
-  } else {
-    console.log(`[${this.scene.key}] Joueur déjà présent, pas de création`);
-  }
+    // Création réelle du joueur (évite de doubler le joueur si déjà présent)
+   // ✅ Création réelle du joueur avec Character System
+if (this.playerManager && !this.playerManager.getMyPlayer()) {
+  // Récupérer l'ID du personnage depuis les données de scène ou utiliser brendan
+  const characterId = data.characterId || 'brendan';
+  console.log(`[${this.scene.key}] Création joueur avec personnage: ${characterId}`);
+  
+  this.playerManager.createPlayer(sessionId, spawnX, spawnY, characterId);
+  console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY}) avec personnage ${characterId}`);
+} else {
+  console.log(`[${this.scene.key}] Joueur déjà présent ou playerManager manquant.`);
 }
+  }
 
   // ✅ MÉTHODE INCHANGÉE: Demander la zone au serveur
   requestServerZone() {
@@ -775,71 +782,60 @@ setupPlayerReadyHandler() {
   }
 
   // ✅ MÉTHODE INCHANGÉE: Gestion du mouvement
- handleMovement(myPlayerState) {
-  const speed = 80;
-  const myPlayer = this.playerManager.getMyPlayer();
-  if (!myPlayer || !myPlayer.body) return;
+  handleMovement(myPlayerState) {
+    const speed = 80;
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer || !myPlayer.body) return;
 
-  let vx = 0, vy = 0;
-  let inputDetected = false, direction = null;
+    let vx = 0, vy = 0;
+    let inputDetected = false, direction = null;
 
-  if (this.cursors.left.isDown || this.wasd.A.isDown) {
-    vx = -speed; inputDetected = true; direction = 'left';
-  } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-    vx = speed; inputDetected = true; direction = 'right';
-  }
-  if (this.cursors.up.isDown || this.wasd.W.isDown) {
-    vy = -speed; inputDetected = true; direction = 'up';
-  } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-    vy = speed; inputDetected = true; direction = 'down';
-  }
+    if (this.cursors.left.isDown || this.wasd.A.isDown) {
+      vx = -speed; inputDetected = true; direction = 'left';
+    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+      vx = speed; inputDetected = true; direction = 'right';
+    }
+    if (this.cursors.up.isDown || this.wasd.W.isDown) {
+      vy = -speed; inputDetected = true; direction = 'up';
+    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+      vy = speed; inputDetected = true; direction = 'down';
+    }
 
-  let actuallyMoving = inputDetected;
+    let actuallyMoving = inputDetected;
 
-  myPlayer.body.setVelocity(vx, vy);
-  
-  // ✅ NORMALISER LA VITESSE DIAGONALE
-  if (vx !== 0 && vy !== 0) {
-    myPlayer.body.setVelocity(vx * 0.707, vy * 0.707);
-  }
-
-  if (inputDetected && direction) {
-    this.lastDirection = direction;
-    
-    if (actuallyMoving) {
-      // ✅ CORRECTION: Utiliser CharacterManager au lieu des anciennes animations
-      if (this.playerManager.characterManager) {
-        this.playerManager.characterManager.playAnimation(myPlayer, 'walk', direction);
+    myPlayer.body.setVelocity(vx, vy);
+// ✅ NORMALISER LA VITESSE DIAGONALE
+if (vx !== 0 && vy !== 0) {
+  myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
+}
+    if (inputDetected && direction) {
+      this.lastDirection = direction;
+      
+      if (actuallyMoving) {
+        myPlayer.play(`walk_${direction}`, true);
+        myPlayer.isMovingLocally = true;
+      } else {
+        myPlayer.play(`idle_${direction}`, true);
+        myPlayer.isMovingLocally = false;
       }
-      myPlayer.isMovingLocally = true;
     } else {
-      // ✅ CORRECTION: Utiliser CharacterManager
-      if (this.playerManager.characterManager) {
-        this.playerManager.characterManager.playAnimation(myPlayer, 'idle', direction);
-      }
+      myPlayer.play(`idle_${this.lastDirection}`, true);
       myPlayer.isMovingLocally = false;
     }
-  } else {
-    // ✅ CORRECTION: Utiliser CharacterManager
-    if (this.playerManager.characterManager) {
-      this.playerManager.characterManager.playAnimation(myPlayer, 'idle', this.lastDirection);
-    }
-    myPlayer.isMovingLocally = false;
-  }
 
-  if (inputDetected) {
-    const now = Date.now();
-    if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-      this.networkManager.sendMove(
-        myPlayer.x,
-        myPlayer.y,
-        direction,
-        actuallyMoving
-      );
-      this.lastMoveTime = now;
+    if (inputDetected) {
+      const now = Date.now();
+      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+        this.networkManager.sendMove(
+          myPlayer.x,
+          myPlayer.y,
+          direction,
+          actuallyMoving
+        );
+        this.lastMoveTime = now;
+      }
     }
   }
-}
 
   // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
@@ -1145,7 +1141,34 @@ setupScene() {
     // après que le NetworkManager soit disponible
   }
 
- 
+  createPlayerAnimations() {
+    if (!this.textures.exists('dude') || this.anims.exists('walk_left')) return;
+
+    this.anims.create({
+      key: 'walk_left',
+      frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
+      frameRate: 10, repeat: -1
+    });
+    this.anims.create({ key: 'idle_left', frames: [{ key: 'dude', frame: 4 }], frameRate: 1 });
+    this.anims.create({
+      key: 'walk_right',
+      frames: this.anims.generateFrameNumbers('dude', { start: 5, end: 8 }),
+      frameRate: 10, repeat: -1
+    });
+    this.anims.create({ key: 'idle_right', frames: [{ key: 'dude', frame: 5 }], frameRate: 1 });
+    this.anims.create({
+      key: 'walk_up',
+      frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
+      frameRate: 10, repeat: -1
+    });
+    this.anims.create({ key: 'idle_up', frames: [{ key: 'dude', frame: 4 }], frameRate: 1 });
+    this.anims.create({
+      key: 'walk_down',
+      frames: this.anims.generateFrameNumbers('dude', { start: 5, end: 8 }),
+      frameRate: 10, repeat: -1
+    });
+    this.anims.create({ key: 'idle_down', frames: [{ key: 'dude', frame: 5 }], frameRate: 1 });
+  }
 
   // ✅ MÉTHODE SIMPLIFIÉE: Setup des inputs (plus de gestion E directe)
   setupInputs() {
