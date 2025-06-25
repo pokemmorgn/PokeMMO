@@ -60,7 +60,7 @@ this.load.tilemapTiledJSON('nocthercave2bis', 'assets/maps/noctherbcave2bis.tmj'
     this.load.image('Water_3', 'assets/sprites/Water_3.png');
 
     // Npcs
-    this.load.spritesheet('OldMan', 'assets/npc/oldman.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('OldMan', 'assets/npc/oldman.png', { frameWidth: 32, frameHeight: 48 });
     this.load.spritesheet('Scientist', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('OldLady', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('BrownGuy', 'assets/npc/boy1.png', { frameWidth: 32, frameHeight: 32 });
