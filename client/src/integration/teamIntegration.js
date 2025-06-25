@@ -366,10 +366,7 @@ function getRecommendationText(pokemon, opponentTypes) {
 /**
  * Export des fonctions principales
  */
-export {
-  setupCustomKeybinds,
-  TeamIntegrationUtils
-};
+export { TeamIntegrationUtils };
 
 // Configuration par défaut lors de l'import
 export default {
