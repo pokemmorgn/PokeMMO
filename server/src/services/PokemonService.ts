@@ -193,7 +193,7 @@ export async function createCompletePokemon(
       if (!Array.isArray(playerData.team)) {
         playerData.team = [];
       }
-      playerData.team.push(pokemonDoc._id);
+      playerData.team.push(pokemonDoc._id as any);
       await playerData.save();
       await pokemonDoc.save();
     } else {
