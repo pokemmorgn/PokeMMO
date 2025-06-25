@@ -1253,22 +1253,63 @@ private async handleShopTransaction(client: Client, data: {
      // ✅ DEBUG d'abord
 await this.positionSaver.debugPlayerPosition(player.name);
 
+console.log(`🔍 [WorldRoom] === CHARGEMENT POSITION JOUEUR ===`);
+console.log(`👤 Joueur: ${player.name}`);
+console.log(`📊 Options reçues:`, { spawnX: options.spawnX, spawnY: options.spawnY, spawnZone: options.spawnZone });
+
+// ✅ ÉTAPE 1: Toujours chercher en DB d'abord
 const savedData = await PlayerData.findOne({ username: player.name });
-if (savedData && savedData.lastX !== undefined && savedData.lastY !== undefined) {
-  // ✅ RESTAURATION COMPLÈTE avec validation
+console.log(`💾 Données DB trouvées:`, savedData ? {
+  lastX: savedData.lastX,
+  lastY: savedData.lastY,
+  lastMap: savedData.lastMap,
+  types: {
+    lastX: typeof savedData.lastX,
+    lastY: typeof savedData.lastY,
+    lastMap: typeof savedData.lastMap
+  }
+} : 'Aucune donnée');
+
+// ✅ ÉTAPE 2: PRIORITÉ ABSOLUE à la DB si données complètes
+if (savedData && 
+    typeof savedData.lastX === 'number' && 
+    typeof savedData.lastY === 'number' && 
+    savedData.lastMap) {
+  
+  // ✅ ÉCRASE TOUT avec les données DB
   player.x = Math.round(savedData.lastX);
   player.y = Math.round(savedData.lastY);
-  player.currentZone = savedData.lastMap || "beach";
+  player.currentZone = savedData.lastMap;
   
-  console.log(`💾 Position restaurée: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
-  console.log(`📊 Données sauvées: lastX=${savedData.lastX}, lastY=${savedData.lastY}, lastMap=${savedData.lastMap}`);
+  console.log(`💾 [PRIORITÉ DB] Position restaurée: ${player.name}`);
+  console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+  console.log(`🔥 TOUTES les autres positions ignorées (options, défaut, teleport, etc.)`);
+  
 } else {
-  // ✅ NOUVEAU JOUEUR ou données incomplètes
+  // ✅ ÉTAPE 3: Fallback seulement si DB incomplète/manquante
+  console.log(`⚠️ [FALLBACK] Données DB incomplètes ou manquantes`);
+  
+  // Utiliser les options ou défaut
   player.x = options.spawnX || 52;
   player.y = options.spawnY || 48;
   player.currentZone = options.spawnZone || "beach";
   
-  console.log(`🆕 ${savedData ? 'Données incomplètes' : 'Nouveau joueur'}: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+  console.log(`🆕 Position fallback: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+  
+  // Debug des données manquantes
+  if (savedData) {
+    console.log(`🔍 Détail des données incomplètes:`, {
+      hasLastX: savedData.lastX !== undefined && savedData.lastX !== null,
+      hasLastY: savedData.lastY !== undefined && savedData.lastY !== null,
+      hasLastMap: !!savedData.lastMap,
+      actualValues: {
+        lastX: savedData.lastX,
+        lastY: savedData.lastY,
+        lastMap: savedData.lastMap
+      }
+    });
+  }
+
   
   if (savedData) {
     console.log(`📊 Données trouvées mais incomplètes:`, {
