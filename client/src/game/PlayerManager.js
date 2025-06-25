@@ -163,6 +163,12 @@ async createPlayer(sessionId, x, y, characterId = 'brendan') {
     return null;
   }
 
+  // ✅ CORRECTION: Vérifier sessionId valide
+  if (!sessionId || sessionId === 'null' || sessionId === null) {
+    console.error("[PlayerManager] SessionId invalide pour createPlayer:", sessionId);
+    return null;
+  }
+
   // ✅ CORRECTION CRITIQUE: Vérifier si le joueur existe déjà AVANT de créer
   if (this.players.has(sessionId)) {
     console.log(`[PlayerManager] ⚠️ Joueur ${sessionId} existe déjà, pas de création`);
@@ -180,6 +186,12 @@ async createPlayer(sessionId, x, y, characterId = 'brendan') {
     return null;
   }
 
+  // ✅ CORRECTION: Vérifier que le sprite est valide avant configuration
+  if (!player || typeof player.setVisible !== 'function') {
+    console.error(`[PlayerManager] Sprite invalide créé pour ${sessionId}`);
+    return null;
+  }
+
   // Configuration du joueur
   player.sessionId = sessionId;
   player.targetX = x;
@@ -189,9 +201,6 @@ async createPlayer(sessionId, x, y, characterId = 'brendan') {
   player.isMoving = false;
   player.setVisible(true);
   player.setActive(true);
-
-  // ✅ SUPPRIMÉ: Plus de createAnimations() car CharacterManager gère tout
-  // ✅ SUPPRIMÉ: Plus d'animations manuelles
 
   // Jouer l'animation idle par défaut via CharacterManager
   this.characterManager.playAnimation(player, 'idle', 'down');
@@ -349,38 +358,51 @@ if (player && typeof player.setVisible === 'function' && !player.visible) {
   }
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour ou création de joueur
-  updateOrCreatePlayer(sessionId, playerState) {
-    // ✅ FILTRE PAR ZONE AMÉLIORÉ
-    const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
-    
-    let player = this.players.get(sessionId);
-    
-    if (!shouldShowPlayer) {
-      // Si le joueur ne devrait pas être affiché et qu'il existe, le cacher ou le supprimer
-      if (player && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
-        console.log(`[PlayerManager] 👻 Masquage joueur hors zone: ${sessionId}`);
-        this.removePlayer(sessionId);
+ updateOrCreatePlayer(sessionId, playerState) {
+  // ✅ CORRECTION: Vérifier sessionId valide
+  if (!sessionId || sessionId === 'null' || sessionId === null) {
+    console.warn(`[PlayerManager] SessionId invalide dans updateOrCreatePlayer:`, sessionId);
+    return;
+  }
+
+  // ✅ FILTRE PAR ZONE AMÉLIORÉ
+  const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
+  
+  let player = this.players.get(sessionId);
+  
+  if (!shouldShowPlayer) {
+    if (player && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
+      console.log(`[PlayerManager] 👻 Masquage joueur hors zone: ${sessionId}`);
+      this.removePlayer(sessionId);
+    }
+    return;
+  }
+
+  if (!player) {
+    // ✅ CORRECTION: Attendre la création avant de continuer
+    this.createPlayer(sessionId, playerState.x, playerState.y).then(createdPlayer => {
+      if (createdPlayer) {
+        this.updatePlayerFromState(createdPlayer, playerState);
       }
+    });
+    return;
+  } else {
+    // Vérifier que le joueur est toujours valide
+    if (!player.scene || player.scene !== this.scene) {
+      console.warn(`[PlayerManager] 🔧 Recréation joueur invalide: ${sessionId}`);
+      this.players.delete(sessionId);
+      this.createPlayer(sessionId, playerState.x, playerState.y).then(createdPlayer => {
+        if (createdPlayer) {
+          this.updatePlayerFromState(createdPlayer, playerState);
+        }
+      });
       return;
     }
-
-    if (!player) {
-      // Créer le joueur s'il n'existe pas
-      player = this.createPlayer(sessionId, playerState.x, playerState.y);
-      if (!player) return;
-    } else {
-      // Vérifier que le joueur est toujours valide
-      if (!player.scene || player.scene !== this.scene) {
-        console.warn(`[PlayerManager] 🔧 Recréation joueur invalide: ${sessionId}`);
-        this.players.delete(sessionId);
-        player = this.createPlayer(sessionId, playerState.x, playerState.y);
-        if (!player) return;
-      }
-    }
-
-    // Mettre à jour les données du joueur
-    this.updatePlayerFromState(player, playerState);
   }
+
+  // Mettre à jour les données du joueur
+  this.updatePlayerFromState(player, playerState);
+}
 
   // ✅ NOUVELLE MÉTHODE: Déterminer si un joueur doit être affiché
   shouldDisplayPlayer(sessionId, playerState) {
