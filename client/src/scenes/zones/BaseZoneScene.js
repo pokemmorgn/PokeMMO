@@ -11,6 +11,8 @@ import { TransitionIntegration } from '../../transitions/TransitionIntegration.j
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
 import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
 import { CharacterManager } from "../../game/CharacterManager.js";
+import { zoneEnvironmentManager } from "../../managers/ZoneEnvironmentManager.js";
+
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -27,7 +29,9 @@ export class BaseZoneScene extends Phaser.Scene {
     this.lastStopTime = 0;
     this.myPlayerReady = false;
     this.dayNightWeatherManager = null;
-
+    this.currentEnvironment = null;
+    this.environmentInitialized = false;
+    
     // Inventaire
     this.inventorySystem = null;
     this.inventoryInitialized = false;
@@ -334,24 +338,38 @@ testTeamSystemWorking() {
   }
 
   initializeTimeWeatherSystem() {
-    if (!this.networkManager) {
-      console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
-      return;
-    }
-
-    try {
-      console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO ===`);
-
-      this.dayNightWeatherManager = new DayNightWeatherManager(this);
-      this.dayNightWeatherManager.initialize(this.networkManager);
-
-      console.log(`✅ [${this.scene.key}] Système temps/météo initialisé`);
-
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
-    }
+  if (!this.networkManager) {
+    console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
+    return;
   }
 
+  try {
+    console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO AVEC ENVIRONNEMENTS ===`);
+
+    // ✅ NOUVEAU: Initialiser l'environnement AVANT le DayNightWeatherManager
+    this.initializeZoneEnvironment();
+
+    this.dayNightWeatherManager = new DayNightWeatherManager(this);
+    this.dayNightWeatherManager.initialize(this.networkManager);
+
+    console.log(`✅ [${this.scene.key}] Système temps/météo avec environnements initialisé`);
+
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
+  }
+}
+// ✅ NOUVELLE MÉTHODE: Initialiser l'environnement de la zone
+initializeZoneEnvironment() {
+  const zoneName = this.normalizeZoneName(this.scene.key);
+  this.currentEnvironment = zoneEnvironmentManager.getZoneEnvironment(zoneName);
+  
+  console.log(`🌍 [${this.scene.key}] Environnement détecté: ${this.currentEnvironment}`);
+  
+  // Debug des informations d'environnement
+  zoneEnvironmentManager.debugZoneEnvironment(zoneName);
+  
+  this.environmentInitialized = true;
+}
   // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
   initializeInteractionManager() {
     if (!this.networkManager) {
