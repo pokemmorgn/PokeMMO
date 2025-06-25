@@ -364,6 +364,175 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       }
       return window.teamManagerGlobal;
     };
+
+    window.forceInitTeamSystem = function(gameRoom) {
+  console.log('🔧 [MAIN] Force initialisation système d\'équipe...');
+  
+  // Nettoyer l'ancien système si il existe
+  if (window.teamManagerGlobal) {
+    console.log('🧹 [MAIN] Nettoyage ancien TeamManager...');
+    if (window.teamManagerGlobal.destroy) {
+      window.teamManagerGlobal.destroy();
+    }
+    window.teamManagerGlobal = null;
+  }
+  
+  if (window.TeamManager) {
+    console.log('🧹 [MAIN] Nettoyage window.TeamManager...');
+    if (window.TeamManager.destroy) {
+      window.TeamManager.destroy();
+    }
+    window.TeamManager = null;
+  }
+  
+  // Forcer la réinitialisation
+  try {
+    window.teamManagerGlobal = setupTeamSystem(gameRoom || window.currentGameRoom);
+    
+    if (window.teamManagerGlobal) {
+      console.log('✅ [MAIN] Système d\'équipe forcé avec succès');
+      
+      // Déclencher l'événement
+      if (typeof window.onSystemInitialized === 'function') {
+        window.onSystemInitialized('team');
+      }
+      
+      return window.teamManagerGlobal;
+    } else {
+      console.error('❌ [MAIN] Échec force initialisation');
+      return null;
+    }
+    
+  } catch (error) {
+    console.error('❌ [MAIN] Erreur force initialisation:', error);
+    return null;
+  }
+};
+
+// ===== 3. ✅ FONCTIONS DE DEBUG AMÉLIORÉES =====
+// Ajoutez aussi dans main.js :
+
+window.debugTeamSystem = function() {
+  console.log('🔍 === DEBUG SYSTÈME D\'ÉQUIPE COMPLET ===');
+  
+  const teamStatus = {
+    // Vérifications globales
+    teamManagerGlobal: {
+      exists: !!window.teamManagerGlobal,
+      initialized: window.teamManagerGlobal?.isInitialized || false,
+      type: typeof window.teamManagerGlobal
+    },
+    teamManagerWindow: {
+      exists: !!window.TeamManager,
+      initialized: window.TeamManager?.isInitialized || false,
+      type: typeof window.TeamManager
+    },
+    
+    // Vérifications UI
+    teamIcon: {
+      exists: !!document.querySelector('#team-icon'),
+      visible: document.querySelector('#team-icon')?.style.display !== 'none',
+      classes: document.querySelector('#team-icon')?.className || 'N/A'
+    },
+    
+    // Vérifications réseau
+    network: {
+      globalNetworkManager: !!window.globalNetworkManager,
+      currentGameRoom: !!window.currentGameRoom,
+      connected: window.globalNetworkManager?.isConnected || false,
+      roomState: window.globalNetworkManager?.room?.connection?.readyState || 'N/A'
+    },
+    
+    // Fonctions disponibles
+    functions: {
+      initTeamSystem: typeof window.initTeamSystem,
+      forceInitTeamSystem: typeof window.forceInitTeamSystem,
+      testTeam: typeof window.testTeam,
+      toggleTeam: typeof window.toggleTeam
+    }
+  };
+  
+  console.log('📊 Status complet:', teamStatus);
+  
+  // Tests supplémentaires
+  const activeScene = window.game?.scene?.getScenes(true)[0];
+  if (activeScene) {
+    console.log('🎬 Scène active:', {
+      key: activeScene.scene.key,
+      teamSystemInitialized: activeScene.teamSystemInitialized,
+      teamInitAttempts: activeScene.teamInitializationAttempts,
+      hasTeamSystem: !!activeScene.getTeamManager
+    });
+  }
+  
+  return teamStatus;
+};
+
+window.fixTeamSystem = function() {
+  console.log('🔧 === TENTATIVE DE RÉPARATION SYSTÈME D\'ÉQUIPE ===');
+  
+  const currentScene = window.game?.scene?.getScenes(true)[0];
+  if (!currentScene) {
+    console.error('❌ Aucune scène active trouvée');
+    return false;
+  }
+  
+  console.log(`🎬 Réparation sur scène: ${currentScene.scene.key}`);
+  
+  // 1. Force réinitialisation global
+  const teamManager = window.forceInitTeamSystem();
+  
+  if (!teamManager) {
+    console.error('❌ Échec force init global');
+    return false;
+  }
+  
+  // 2. Marquer la scène comme initialisée
+  if (currentScene.teamSystemInitialized !== undefined) {
+    currentScene.teamSystemInitialized = true;
+    console.log('✅ Scène marquée comme team initialisée');
+  }
+  
+  // 3. Vérifier l'icône
+  setTimeout(() => {
+    const teamIcon = document.querySelector('#team-icon');
+    if (!teamIcon) {
+      console.warn('⚠️ Icône team manquante, création...');
+      // L'icône devrait se créer automatiquement avec le TeamManager
+    } else {
+      console.log('✅ Icône team présente');
+    }
+    
+    // 4. Test final
+    setTimeout(() => {
+      window.debugTeamSystem();
+      console.log('🎯 Essayez window.testTeam() pour tester');
+    }, 1000);
+    
+  }, 500);
+  
+  return true;
+};
+
+// ===== 4. ✅ COMMANDES RAPIDES POUR LE DEBUG =====
+
+window.quickTeamDebug = function() {
+  console.log('⚡ === DEBUG RAPIDE TEAM ===');
+  console.log('TeamManager Global:', !!window.teamManagerGlobal);
+  console.log('Team Icon:', !!document.querySelector('#team-icon'));
+  console.log('Init Function:', typeof window.initTeamSystem);
+  console.log('Network Connected:', window.globalNetworkManager?.isConnected);
+  
+  const activeScene = window.game?.scene?.getScenes(true)[0];
+  console.log('Scene Team Init:', activeScene?.teamSystemInitialized);
+  
+  if (!window.teamManagerGlobal) {
+    console.log('🔧 Utilisez window.fixTeamSystem() pour réparer');
+  } else {
+    console.log('🎯 Utilisez window.testTeam() pour tester');
+  }
+};
+
     
     window.initStarterHUD = function(gameRoom) {
       if (!window.starterHUD) {
