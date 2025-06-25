@@ -197,28 +197,25 @@ initializeTimeWeatherSystem() {
     console.log(`[${this.scene.key}] ✅ Hook onPlayerReady déclenché pour`, player.sessionId);
   }
   
-  initPlayerSpawnFromSceneData() {
-    const data = this.scene.settings.data || {};
-    const sessionId = this.mySessionId;
-    let spawnX = 52, spawnY = 48;
+initPlayerSpawnFromSceneData() {
+  const data = this.scene.settings.data || {};
+  const sessionId = this.mySessionId;
+  let spawnX = 52, spawnY = 48;
 
-    // Si transition de zone, coordonnées transmises
-    if (typeof data.spawnX === 'number') spawnX = data.spawnX;
-    if (typeof data.spawnY === 'number') spawnY = data.spawnY;
+  if (typeof data.spawnX === 'number') spawnX = data.spawnX;
+  if (typeof data.spawnY === 'number') spawnY = data.spawnY;
 
-    // Création réelle du joueur (évite de doubler le joueur si déjà présent)
-   // ✅ Création réelle du joueur avec Character System
-if (this.playerManager && !this.playerManager.getMyPlayer()) {
-  // Récupérer l'ID du personnage depuis les données de scène ou utiliser brendan
-  const characterId = data.characterId || 'brendan';
-  console.log(`[${this.scene.key}] Création joueur avec personnage: ${characterId}`);
-  
-  this.playerManager.createPlayer(sessionId, spawnX, spawnY, characterId);
-  console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY}) avec personnage ${characterId}`);
-} else {
-  console.log(`[${this.scene.key}] Joueur déjà présent ou playerManager manquant.`);
-}
+  // ✅ CORRECTION CRITIQUE: Vérifier si le joueur existe déjà
+  if (this.playerManager && !this.playerManager.players.has(sessionId)) {
+    const characterId = data.characterId || 'brendan';
+    console.log(`[${this.scene.key}] Création joueur avec personnage: ${characterId}`);
+    
+    this.playerManager.createPlayer(sessionId, spawnX, spawnY, characterId);
+    console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY}) avec personnage ${characterId}`);
+  } else {
+    console.log(`[${this.scene.key}] Joueur déjà présent, pas de création`);
   }
+}
 
   // ✅ MÉTHODE INCHANGÉE: Demander la zone au serveur
   requestServerZone() {
