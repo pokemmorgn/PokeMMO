@@ -12,6 +12,8 @@ import { TimeWeatherService } from "../services/TimeWeatherService";
 import { getServerConfig } from "../config/serverConfig";
 import { EncounterManager } from "../managers/EncounterManager";
 import { serverZoneEnvironmentManager } from "../config/zoneEnvironments";
+import { PositionSaverService } from "../services/PositionSaverService";
+
 
 
 
@@ -35,6 +37,8 @@ export class WorldRoom extends Room<PokeWorldState> {
 private timeWeatherService!: TimeWeatherService;
   private encounterManager!: EncounterManager;
   private shopManager!: ShopManager;
+    private positionSaver = PositionSaverService.getInstance();
+  private autoSaveTimer: any;
 
   // Limite pour auto-scaling
   maxClients = 50;
@@ -64,6 +68,22 @@ private timeWeatherService!: TimeWeatherService;
     console.log(`✅ Message handlers configurés`);
 
     console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
+        // Auto-save des positions toutes les 30 secondes
+    this.autoSaveTimer = this.clock.setInterval(() => {
+      this.autoSaveAllPositions();
+    }, 30000);
+    console.log(`💾 Auto-save des positions activé (30s)`);
+  }
+   // ✅ AJOUTER CETTE MÉTHODE COMPLÈTE APRÈS onCreate :
+  private async autoSaveAllPositions() {
+    const positions = Array.from(this.state.players.values())
+      .map(player => this.positionSaver.extractPosition(player));
+    
+    if (positions.length > 0) {
+      await this.positionSaver.saveMultiplePositions(positions);
+    }
+  }
+  
   }
 private initializeTimeWeatherService() {
   console.log(`🌍 [WorldRoom] Initialisation TimeWeatherService...`);
@@ -177,7 +197,13 @@ console.log(`✅ EncounterManager initialisé`);
   console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
   console.log(`👤 Client: ${client.sessionId}`);
   console.log(`🌍 Zone: ${zoneName}`);
-
+    
+  // Sauvegarde lors de la transition
+  const playerForSave = this.state.players.get(client.sessionId);
+  if (playerForSave) {
+    const position = this.positionSaver.extractPosition(playerForSave);
+    this.positionSaver.savePosition(position, "transition");
+  }
   // ✅ ENVOYER LES NPCS IMMÉDIATEMENT
   const npcManager = this.npcManagers.get(zoneName);
   if (npcManager) {
@@ -1332,7 +1358,7 @@ if (this.timeWeatherService) {
     }
   }
 
-  onLeave(client: Client, consented: boolean) {
+  async onLeave(client: Client, consented: boolean) {
     console.log(`👋 === PLAYER LEAVE ===`);
     console.log(`🔑 Session: ${client.sessionId}`);
     console.log(`✅ Consenti: ${consented}`);
@@ -1341,6 +1367,8 @@ if (this.timeWeatherService) {
     if (player) {
       console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
       console.log(`💰 Stats finales: Level ${player.level}, ${player.gold} gold`);
+            const position = this.positionSaver.extractPosition(player);
+      await this.positionSaver.savePosition(position, "disconnect");
       
       // Supprimer du state
       this.state.players.delete(client.sessionId);
@@ -1356,6 +1384,10 @@ if (this.timeWeatherService) {
   onDispose() {
     console.log(`💀 === WORLDROOM DISPOSE ===`);
     console.log(`👥 Joueurs restants: ${this.state.players.size}`);
+        if (this.autoSaveTimer) {
+      this.clock.clearTimeout(this.autoSaveTimer);
+      console.log(`⏰ Auto-save timer nettoyé`);
+    }
     
     // Sauvegarder les données des joueurs restants
     this.state.players.forEach((player, sessionId) => {
