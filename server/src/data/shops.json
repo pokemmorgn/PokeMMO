@@ -72,15 +72,42 @@
         },
         {
           "itemId": "great_ball",
-          "stock": 2
+          "stock": 50,
+          "unlockLevel": 10
+        },
+        {
+          "itemId": "ultra_ball",
+          "stock": 20,
+          "unlockLevel": 20
         },
         {
           "itemId": "potion",
           "stock": 30
         },
         {
+          "itemId": "super_potion",
+          "stock": 20,
+          "unlockLevel": 5
+        },
+        {
+          "itemId": "hyper_potion",
+          "stock": 10,
+          "unlockLevel": 15
+        },
+        {
+          "itemId": "max_potion",
+          "stock": 5,
+          "unlockLevel": 25
+        },
+        {
           "itemId": "revive",
-          "stock": 1
+          "stock": 15,
+          "unlockLevel": 10
+        },
+        {
+          "itemId": "max_revive",
+          "stock": 5,
+          "unlockLevel": 30
         }
       ]
     },
