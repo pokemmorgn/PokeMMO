@@ -68,10 +68,8 @@ private timeWeatherService!: TimeWeatherService;
 private initializeTimeWeatherService() {
   console.log(`🌍 [WorldRoom] Initialisation TimeWeatherService...`);
   
-if (this.timeWeatherService) {
-  this.timeWeatherService.addClient(client, player.currentZone);
-  console.log(`🌍 [WorldRoom] Client ${client.sessionId} ajouté au TimeWeatherService avec zone: ${player.currentZone}`);
-}  
+  this.timeWeatherService = new TimeWeatherService(this.state, this.clock);
+  
   // ✅ CALLBACKS AMÉLIORÉS pour broadcaster les changements
   this.timeWeatherService.setTimeChangeCallback((hour, isDayTime) => {
     console.log(`📡 [WorldRoom] Broadcast temps: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'} → ${this.clients.length} clients`);
@@ -189,6 +187,7 @@ console.log(`✅ EncounterManager initialisé`);
     } else {
       console.warn(`⚠️ [WorldRoom] Aucun NPCManager trouvé pour ${zoneName}`);
     }
+// ✅ NOUVEAU: Mettre à jour la zone du client dans TimeWeatherService
 if (this.timeWeatherService) {
   this.timeWeatherService.updateClientZone(client, zoneName);
 }
@@ -1227,8 +1226,8 @@ private async handleShopTransaction(client: Client, data: {
       console.log(`🌍 Zone de spawn: ${player.currentZone}`);
       // ✅ NOUVEAU: Ajouter le client au TimeWeatherService
 if (this.timeWeatherService) {
-  this.timeWeatherService.addClient(client);
-  console.log(`🌍 [WorldRoom] Client ${client.sessionId} ajouté au TimeWeatherService`);
+  this.timeWeatherService.addClient(client, player.currentZone);
+  console.log(`🌍 [WorldRoom] Client ${client.sessionId} ajouté au TimeWeatherService avec zone: ${player.currentZone}`);
 }
       
       
