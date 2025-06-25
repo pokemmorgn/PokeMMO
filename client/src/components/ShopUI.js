@@ -1,1407 +1,1271 @@
-// client/src/components/ShopUI.js - COMPLETE with external CSS and sell system
-// ✅ Consistent style with inventory - Blue gradients, modern animations
-// ✅ CORRECTION: Localisation des descriptions d'objets
-// ✅ NEW: Complete sell system integrated
+// client/src/components/ShopUI.js - VERSION COMPLÈTE AVEC ONGLET VENDRE CORRIGÉ
 
 export class ShopUI {
   constructor(gameRoom) {
     this.gameRoom = gameRoom;
+    this.overlay = null;
     this.isVisible = false;
-    this.shopData = null;
-    this.selectedItem = null;
-    this.playerGold = 0;
-    this.playerInventory = [];
     this.currentTab = 'buy';
-    this.itemLocalizations = {};
-    this.currentLanguage = 'en';
-    
-    // ✅ SIMPLIFIED LOCKS
+    this.selectedItem = null;
+    this.shopData = null;
+    this.playerInventory = null; // ✅ NOUVEAU: Inventaire du joueur pour l'onglet vendre
+    this.currentShopId = null;
+    this.currentNpcName = null;
     this.isProcessingCatalog = false;
-    this.lastCatalogTime = 0;
-    
-    // ✅ INITIALISATION ASYNCHRONE
-    this.initializationPromise = this.init();
-  }
+    this.playerGold = 0;
 
-  async loadLocalizations() {
-    try {
-      console.log('🌐 [ShopUI] Chargement des localisations...');
-      const response = await fetch('/localization/itemloca.json');
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      this.itemLocalizations = await response.json();
-      console.log('✅ [ShopUI] Clés chargées:', Object.keys(this.itemLocalizations));
-    } catch (error) {
-      console.error('❌ [ShopUI] Erreur chargement localisations:', error);
-      this.itemLocalizations = {};
-      console.warn('⚠️ [ShopUI] Utilisation des noms/descriptions par défaut');
-    }
-  }
+    // Configuration
+    this.config = {
+      maxQuantity: 99,
+      confirmThreshold: 1000, // Confirmation pour les achats/ventes > 1000₽
+      enableSounds: true,
+      enableAnimations: true
+    };
 
-  getItemName(itemId) {
-    // Sécurité : si les localisations ne sont pas encore chargées, retour fallback lisible
-    if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
-      console.warn(`[ShopUI] getItemName: Localisations non chargées, retour brut pour ${itemId}`);
-      return itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    }
-    // Normalise l'id
-    const normalizedId = itemId.toLowerCase().replace(/ /g, '_');
-    const loca = this.itemLocalizations[normalizedId];
-    if (loca && loca[this.currentLanguage]) {
-      return loca[this.currentLanguage].name;
-    }
-    console.warn(`⚠️ [ShopUI] Localisation manquante pour item "${normalizedId}" (langue: ${this.currentLanguage})`);
-    return normalizedId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  }
-
-  getItemDescription(itemId) {
-    if (!this.itemLocalizations || Object.keys(this.itemLocalizations).length === 0) {
-      console.warn(`[ShopUI] getItemDescription: Localisations non chargées, retour brut pour ${itemId}`);
-      return 'Description not available.';
-    }
-    // Normalise l'id
-    const normalizedId = itemId.toLowerCase().replace(/ /g, '_');
-    const loca = this.itemLocalizations[normalizedId];
-    if (loca && loca[this.currentLanguage]) {
-      return loca[this.currentLanguage].description;
-    }
-    console.warn(`⚠️ [ShopUI] Description manquante pour item "${normalizedId}" (langue: ${this.currentLanguage})`);
-    return 'Description not available.';
-  }
-
-  async init() {
-    // ✅ CHARGER LES LOCALISATIONS EN PREMIER
-    await this.loadLocalizations();
-    
-    // ✅ Load external CSS
-    this.loadShopStyles();
+    this.setupEventHandlers();
+    this.setupInventoryHandlers(); // ✅ NOUVEAU
     this.createShopInterface();
-    this.setupEventListeners();
-    this.setupServerListeners();
-    console.log('🏪 Shop interface initialized with external CSS');
+    
+    console.log("🏪 [ShopUI] Initialisé avec support vente inventaire");
   }
 
-  loadShopStyles() {
-    // Check if shop styles are already loaded
-    if (document.querySelector('#shop-styles') || document.querySelector('link[href*="shop.css"]')) {
-      console.log('✅ [ShopUI] CSS already loaded');
-      return;
-    }
-
-    // Load shop.css from public directory
-    const link = document.createElement('link');
-    link.id = 'shop-styles';
-    link.rel = 'stylesheet';
-    link.type = 'text/css';
-    link.href = '/shop.css'; // Path to client/public/shop.css
+  // ✅ NOUVEAU : Handler pour récupérer l'inventaire du joueur
+  setupInventoryHandlers() {
+    if (!this.gameRoom) return;
     
-    link.onload = () => {
-      console.log('✅ [ShopUI] External shop.css loaded successfully');
-    };
-    
-    link.onerror = () => {
-      console.warn('⚠️ [ShopUI] Could not load shop.css, falling back to inline styles');
-      this.addInlineStyles();
-    };
-    
-    document.head.appendChild(link);
-    console.log('🎨 [ShopUI] Loading external shop.css from /shop.css');
+    // Écouter les données d'inventaire du serveur
+    this.gameRoom.onMessage("playerInventoryForShop", (data) => {
+      console.log("🎒 [ShopUI] Inventaire reçu pour vente:", data);
+      
+      if (data.success) {
+        this.playerInventory = data.inventory || {};
+        this.currentShopId = data.shopId;
+        this.displaySellTab();
+      } else {
+        console.error("❌ [ShopUI] Erreur récupération inventaire:", data.message);
+        this.showInventoryError(data.message);
+      }
+    });
   }
 
-  addInlineStyles() {
-    // Fallback: add minimal inline styles if external CSS fails
-    if (document.querySelector('#shop-styles-fallback')) return;
+  setupEventHandlers() {
+    if (!this.gameRoom) return;
 
-    const style = document.createElement('style');
-    style.id = 'shop-styles-fallback';
-    style.textContent = `
-      .shop-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.8);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-      }
-      .shop-overlay.hidden {
-        display: none;
-      }
-      .shop-container {
-        width: 90%;
-        max-width: 800px;
-        height: 80%;
-        background: #2a3f5f;
-        border: 2px solid #4a90e2;
-        border-radius: 15px;
-        color: white;
-        font-family: Arial, sans-serif;
-        display: flex;
-        flex-direction: column;
-      }
-    `;
-    document.head.appendChild(style);
-    console.log('🎨 [ShopUI] Fallback styles added');
+    // Handler pour recevoir le catalogue
+    this.gameRoom.onMessage("shopCatalogResult", (data) => {
+      this.handleShopCatalog(data);
+    });
+
+    // Handler pour les résultats de transaction
+    this.gameRoom.onMessage("shopTransactionResult", (data) => {
+      this.handleTransactionResult(data);
+    });
+
+    // Handler pour les mises à jour d'or
+    this.gameRoom.onMessage("goldUpdate", (data) => {
+      this.updatePlayerGold(data.newGold, data.oldGold);
+    });
+
+    // Handler pour les mises à jour d'inventaire
+    this.gameRoom.onMessage("inventoryUpdate", (data) => {
+      this.handleInventoryUpdate(data);
+    });
+
+    console.log("✅ [ShopUI] Event handlers configurés");
   }
 
   createShopInterface() {
-    const overlay = document.createElement('div');
-    overlay.id = 'shop-overlay';
-    overlay.className = 'shop-overlay hidden';
+    // Supprimer l'interface existante si elle existe
+    if (this.overlay) {
+      this.overlay.remove();
+    }
 
-    overlay.innerHTML = `
+    this.overlay = document.createElement('div');
+    this.overlay.id = 'shopOverlay';
+    this.overlay.className = 'shop-overlay';
+    this.overlay.style.display = 'none';
+
+    this.overlay.innerHTML = `
       <div class="shop-container">
-        <!-- Header with modern style -->
         <div class="shop-header">
           <div class="shop-title">
-            <div class="shop-icon">🏪</div>
-            <div class="shop-title-text">
-              <span class="shop-name">PokéMart</span>
-              <span class="shop-subtitle">Trainer Items</span>
-            </div>
+            <h2 id="shopTitle">Boutique</h2>
+            <p id="shopDescription">Bienvenue dans notre boutique !</p>
           </div>
-          <div class="shop-controls">
+          <div class="shop-player-info">
             <div class="player-gold">
               <span class="gold-icon">💰</span>
-              <span class="gold-amount">${this.playerGold}</span>
-              <span class="gold-currency">₽</span>
+              <span id="playerGold">0</span>₽
             </div>
-            <button class="shop-close-btn">✕</button>
           </div>
+          <button class="shop-close-btn" id="shopCloseBtn">×</button>
         </div>
 
-        <!-- Tab navigation -->
         <div class="shop-tabs">
           <button class="shop-tab active" data-tab="buy">
             <span class="tab-icon">🛒</span>
-            <span class="tab-text">Buy</span>
+            Acheter
           </button>
           <button class="shop-tab" data-tab="sell">
             <span class="tab-icon">💰</span>
-            <span class="tab-text">Sell</span>
+            Vendre
           </button>
         </div>
 
         <div class="shop-content">
-          <div class="shop-items-section">
-            <div class="shop-items-header">
-              <span class="section-title">Available Items</span>
-              <span class="items-count" id="items-count">0 items</span>
+          <!-- Onglet Acheter -->
+          <div id="buyTab" class="tab-content active">
+            <div class="shop-section-header">
+              <h3>Objets en vente</h3>
+              <div class="shop-filters">
+                <button class="filter-btn active" data-filter="all">Tout</button>
+                <button class="filter-btn" data-filter="balls">Poké Balls</button>
+                <button class="filter-btn" data-filter="medicine">Médicaments</button>
+                <button class="filter-btn" data-filter="items">Objets</button>
+              </div>
             </div>
-            <div class="shop-items-grid" id="shop-items-grid">
-              <!-- Items will be generated here -->
+            <div class="items-container" id="buyItems">
+              <div class="loading-message">
+                <p>Chargement des objets...</p>
+              </div>
             </div>
           </div>
 
-          <div class="shop-item-details" id="shop-item-details">
-            <div class="details-header">
-              <span class="details-title">Item Details</span>
+          <!-- Onglet Vendre -->
+          <div id="sellTab" class="tab-content">
+            <div class="shop-section-header">
+              <h3>Votre inventaire</h3>
+              <p class="section-subtitle">Sélectionnez les objets à vendre</p>
             </div>
-            <div class="no-selection">
-              <div class="no-selection-icon">🎁</div>
-              <p>Select an item to see its details</p>
+            <div class="items-container" id="sellItems">
+              <div class="loading-message">
+                <p>Chargement de votre inventaire...</p>
+              </div>
             </div>
           </div>
         </div>
 
         <div class="shop-footer">
-          <div class="shop-info">
-            <div class="shop-welcome">Welcome to our shop!</div>
-            <div class="shop-tip">💡 Tip: Rare items appear based on your level</div>
-          </div>
-          <div class="shop-actions">
-            <button class="shop-btn primary" id="shop-action-btn" disabled>
-              <span class="btn-icon">🛒</span>
-              <span class="btn-text">Buy</span>
-            </button>
-            <button class="shop-btn secondary" id="shop-refresh-btn">
-              <span class="btn-icon">🔄</span>
-              <span class="btn-text">Refresh</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Confirmation modal -->
-      <div class="shop-modal hidden" id="shop-modal">
-        <div class="modal-content">
-          <div class="modal-header">
-            <span class="modal-title">Purchase Confirmation</span>
-          </div>
-          <div class="modal-body">
-            <div class="modal-item-preview">
-              <span class="modal-item-icon">📦</span>
-              <div class="modal-item-info">
-                <span class="modal-item-name">Item Name</span>
-                <span class="modal-item-price">Price: 100₽</span>
-              </div>
-            </div>
-            <div class="modal-quantity">
-              <label>Quantity:</label>
-              <div class="quantity-controls">
-                <button class="quantity-btn" id="qty-decrease">−</button>
-                <input type="number" class="quantity-input" id="quantity-input" value="1" min="1" max="99">
-                <button class="quantity-btn" id="qty-increase">+</button>
-              </div>
-            </div>
-            <div class="modal-total">
-              <span class="total-label">Total: </span>
-              <span class="total-amount" id="modal-total">100₽</span>
-            </div>
-          </div>
-          <div class="modal-actions">
-            <button class="modal-btn cancel" id="modal-cancel">Cancel</button>
-            <button class="modal-btn confirm" id="modal-confirm">Confirm</button>
+          <div class="transaction-summary" id="transactionSummary" style="display: none;">
+            <span id="summaryText"></span>
+            <button id="confirmTransactionBtn" class="confirm-btn">Confirmer</button>
           </div>
         </div>
       </div>
     `;
 
-    document.body.appendChild(overlay);
-    this.overlay = overlay;
+    document.body.appendChild(this.overlay);
+    this.setupUIEventListeners();
+    
+    console.log("✅ [ShopUI] Interface créée");
   }
 
-  setupEventListeners() {
-    // Close shop
-    this.overlay.querySelector('.shop-close-btn').addEventListener('click', () => {
-      this.hide();
+  setupUIEventListeners() {
+    // Fermeture du shop
+    const closeBtn = document.getElementById('shopCloseBtn');
+    closeBtn?.addEventListener('click', () => this.hide());
+
+    // Fermeture en cliquant sur l'overlay
+    this.overlay.addEventListener('click', (e) => {
+      if (e.target === this.overlay) {
+        this.hide();
+      }
     });
 
-    // Close with ESC
+    // Gestion des onglets
+    const tabButtons = this.overlay.querySelectorAll('.shop-tab');
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const tab = e.currentTarget.dataset.tab;
+        this.switchTab(tab);
+      });
+    });
+
+    // Gestion des filtres (onglet acheter)
+    const filterButtons = this.overlay.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        this.setActiveFilter(e.currentTarget);
+        this.filterBuyItems(e.currentTarget.dataset.filter);
+      });
+    });
+
+    // Touche ESC pour fermer
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.isVisible) {
         this.hide();
       }
     });
 
-    // Tab switching
-    this.overlay.querySelectorAll('.shop-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        const tabType = tab.dataset.tab;
-        this.switchTab(tabType);
-      });
-    });
-
-    // Action buttons
-    this.overlay.querySelector('#shop-action-btn').addEventListener('click', () => {
-      if (this.currentTab === 'buy') {
-        this.showBuyModal();
-      } else {
-        this.showSellModal();
-      }
-    });
-
-    this.overlay.querySelector('#shop-refresh-btn').addEventListener('click', () => {
-      this.refreshShop();
-    });
-
-    // Confirmation modal
-    this.setupModalListeners();
-
-    // Close by clicking outside
-    this.overlay.addEventListener('click', (e) => {
-      if (e.target === this.overlay) {
-        this.hide();
-      }
-    });
+    console.log("✅ [ShopUI] Event listeners UI configurés");
   }
 
-  setupModalListeners() {
-    const modal = this.overlay.querySelector('#shop-modal');
-    const quantityInput = modal.querySelector('#quantity-input');
-    const decreaseBtn = modal.querySelector('#qty-decrease');
-    const increaseBtn = modal.querySelector('#qty-increase');
-    const cancelBtn = modal.querySelector('#modal-cancel');
-    const confirmBtn = modal.querySelector('#modal-confirm');
+  // ===== MÉTHODES D'AFFICHAGE =====
 
-    // Quantity controls
-    decreaseBtn.addEventListener('click', () => {
-      const currentValue = parseInt(quantityInput.value);
-      if (currentValue > 1) {
-        quantityInput.value = currentValue - 1;
-        this.updateModalTotal();
-      }
-    });
-
-    increaseBtn.addEventListener('click', () => {
-      const currentValue = parseInt(quantityInput.value);
-      const maxValue = parseInt(quantityInput.getAttribute('max')) || 99;
-      if (currentValue < maxValue) {
-        quantityInput.value = currentValue + 1;
-        this.updateModalTotal();
-      }
-    });
-
-    quantityInput.addEventListener('input', () => {
-      this.updateModalTotal();
-    });
-
-    // Modal buttons
-    cancelBtn.addEventListener('click', () => {
-      this.hideModal();
-    });
-
-    confirmBtn.addEventListener('click', () => {
-      this.confirmTransaction();
-    });
-  }
-
-  setupServerListeners() {
-    if (!this.gameRoom) return;
-
-    // Transaction result
-    this.gameRoom.onMessage("shopTransactionResult", (data) => {
-      this.handleTransactionResult(data);
-    });
-
-    // Player gold update
-    this.gameRoom.onMessage("goldUpdate", (data) => {
-      this.updatePlayerGold(data.newGold);
-    });
-
-    // Shop refresh
-    this.gameRoom.onMessage("shopRefreshResult", (data) => {
-      this.handleRefreshResult(data);
-    });
-
-    // Player inventory update for sell tab
-    this.gameRoom.onMessage("inventoryUpdate", (data) => {
-      this.updatePlayerInventory(data.inventory);
-    });
-  }
-
-  // ✅ SHOW - SIMPLIFIED VERSION
-  async show(shopId, npcName = "Merchant") {
+  show(shopId, npc) {
     console.log(`🏪 [ShopUI] === SHOW CALLED ===`);
-    console.log(`📊 shopId: ${shopId}, npcName:`, npcName);
+    console.log(`📊 shopId: ${shopId}, npcName:`, npc);
     console.log(`📊 current isVisible: ${this.isVisible}`);
 
-    // ✅ S'ASSURER QUE LES LOCALISATIONS SONT CHARGÉES
-    if (this.initializationPromise) {
-      await this.initializationPromise;
+    if (!this.overlay) {
+      console.error("❌ [ShopUI] Pas d'overlay pour afficher le shop");
+      return;
     }
 
-    // ✅ IMMEDIATE DISPLAY
-    this.overlay.classList.remove('hidden');
+    // Stocker les informations
+    this.currentShopId = shopId;
+    this.currentNpcName = npc?.name || npc || "Marchand";
+
+    // Mettre à jour le titre
+    const shopTitle = document.getElementById('shopTitle');
+    const shopDescription = document.getElementById('shopDescription');
+    
+    if (shopTitle) {
+      shopTitle.textContent = `Boutique de ${this.currentNpcName}`;
+    }
+    if (shopDescription) {
+      shopDescription.textContent = "Que souhaitez-vous faire ?";
+    }
+
+    // Afficher l'overlay
     this.overlay.style.display = 'flex';
     this.isVisible = true;
 
-    // ✅ SIMPLE NPC NAME HANDLING
-    let displayName = "Merchant";
-    if (typeof npcName === 'object' && npcName?.name) {
-      displayName = npcName.name;
-    } else if (typeof npcName === 'string') {
-      displayName = npcName;
+    // Animation d'ouverture
+    if (this.config.enableAnimations) {
+      this.overlay.style.opacity = '0';
+      requestAnimationFrame(() => {
+        this.overlay.style.transition = 'opacity 0.3s ease-in-out';
+        this.overlay.style.opacity = '1';
+      });
     }
 
-    // ✅ IMMEDIATE TITLE UPDATE
-    const shopNameElement = this.overlay.querySelector('.shop-name');
-    if (shopNameElement) {
-      shopNameElement.textContent = displayName;
-    }
+    // Démarrer sur l'onglet acheter
+    this.switchTab('buy');
 
-    // ✅ REQUEST CATALOG AND INVENTORY
-    this.requestShopCatalog(shopId);
-    this.requestPlayerInventory();
+    // Marquer comme global
+    document.body.classList.add('shop-open');
 
-    console.log(`✅ [ShopUI] Shop displayed for ${displayName}`);
+    console.log(`✅ [ShopUI] Shop displayed for ${this.currentNpcName}`);
   }
 
-  createEmptyShopItemElement() {
-    const itemElement = document.createElement('div');
-    itemElement.className = 'shop-item shop-empty-item';
-    itemElement.style.opacity = '0.6';
-    itemElement.style.cursor = 'not-allowed';
-    
-    itemElement.innerHTML = `
-      <div class="shop-item-icon">📭</div>
-      <div class="shop-item-name">No Items</div>
-      <div class="shop-item-price">-</div>
-      <div class="shop-item-stock out">Empty</div>
-    `;
-    
-    return itemElement;
-  }
-  
   hide() {
-    if (!this.isVisible) return;
-    
+    if (!this.isVisible || !this.overlay) return;
+
+    console.log("🏪 [ShopUI] Fermeture du shop");
+
+    if (this.config.enableAnimations) {
+      this.overlay.style.transition = 'opacity 0.3s ease-in-out';
+      this.overlay.style.opacity = '0';
+      
+      setTimeout(() => {
+        this.overlay.style.display = 'none';
+        this.overlay.style.transition = '';
+        this.overlay.style.opacity = '1';
+      }, 300);
+    } else {
+      this.overlay.style.display = 'none';
+    }
+
     this.isVisible = false;
-    this.overlay.classList.add('hidden');
-    this.hideModal();
+    this.resetShopState();
+
+    // Nettoyer les classes globales
+    document.body.classList.remove('shop-open');
+
+    console.log("✅ [ShopUI] Shop fermé");
+  }
+
+  resetShopState() {
     this.selectedItem = null;
     this.shopData = null;
-    this.updateItemDetails();
+    this.playerInventory = null; // ✅ NOUVEAU
+    this.isProcessingCatalog = false;
+    this.hideSummary();
+  }
+
+  // ===== GESTION DES ONGLETS =====
+
+  switchTab(tabName) {
+    console.log(`🏪 [ShopUI] Switch vers onglet: ${tabName}`);
+
+    // Mettre à jour les boutons d'onglet
+    const tabButtons = this.overlay.querySelectorAll('.shop-tab');
+    tabButtons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+
+    // Mettre à jour le contenu
+    const buyTab = document.getElementById('buyTab');
+    const sellTab = document.getElementById('sellTab');
+
+    if (tabName === 'buy') {
+      this.showBuyTab();
+    } else if (tabName === 'sell') {
+      this.showSellTab(); // ✅ NOUVEAU: Méthode corrigée
+    }
+
+    this.currentTab = tabName;
+  }
+
+  showBuyTab() {
+    console.log("🛒 [ShopUI] Passage à l'onglet BUY");
     
-    console.log('🏪 Shop closed');
-  }
-
-  requestShopCatalog(shopId) {
-    if (this.gameRoom) {
-      this.showLoading();
-      this.gameRoom.send("getShopCatalog", { shopId });
-    }
-  }
-
-  requestPlayerInventory() {
-    if (this.gameRoom) {
-      this.gameRoom.send("getInventory");
-    }
-  }
-
-  updatePlayerInventory(inventory) {
-    this.playerInventory = inventory || [];
-    console.log(`🎒 [ShopUI] Player inventory updated: ${this.playerInventory.length} items`);
+    // Affichage/masquage des onglets
+    document.getElementById('buyTab').style.display = 'block';
+    document.getElementById('sellTab').style.display = 'none';
     
-    // Refresh sell tab if it's currently active
-    if (this.currentTab === 'sell' && this.isVisible) {
-      this.refreshCurrentTab();
+    // Si on a déjà des données, les afficher
+    if (this.shopData) {
+      this.displayBuyTab();
+    } else {
+      console.log("📊 [ShopUI] Pas de données shop, demande au serveur...");
+      this.requestShopCatalog();
     }
   }
 
-  // ✅ HANDLE SHOP CATALOG - SIMPLIFIED AND ROBUST VERSION
+  // ✅ NOUVEAU : Afficher l'onglet vendre (inventaire du joueur)
+  showSellTab() {
+    console.log("💰 [ShopUI] Passage à l'onglet SELL");
+    
+    // Affichage/masquage des onglets
+    document.getElementById('buyTab').style.display = 'none';
+    document.getElementById('sellTab').style.display = 'block';
+    
+    this.currentTab = 'sell';
+    
+    // ✅ NOUVEAU : Demander l'inventaire au serveur
+    if (this.gameRoom && this.currentShopId) {
+      console.log("📤 [ShopUI] Demande inventaire pour vente...");
+      
+      // Afficher un message de chargement
+      const sellItems = document.getElementById('sellItems');
+      if (sellItems) {
+        sellItems.innerHTML = `
+          <div class="sell-tab-loading">
+            <span>Chargement de votre inventaire...</span>
+          </div>
+        `;
+      }
+      
+      this.gameRoom.send("getPlayerInventoryForShop", {
+        shopId: this.currentShopId
+      });
+    } else {
+      console.error("❌ [ShopUI] Impossible de demander l'inventaire: pas de connexion ou shopId");
+    }
+  }
+
+  // ===== GESTION DU CATALOGUE SHOP =====
+
   handleShopCatalog(data) {
     console.log(`🏪 [ShopUI] === HANDLE SHOP CATALOG ===`);
     console.log(`📊 Data received:`, data);
 
-    // ✅ SIMPLE LOCK AGAINST MULTIPLE CALLS
-    const now = Date.now();
-    if (this.isProcessingCatalog && (now - this.lastCatalogTime) < 1000) {
-      console.warn(`⚠️ [ShopUI] Catalog already being processed, ignored`);
+    if (!data.success) {
+      console.error("❌ [ShopUI] Erreur catalogue:", data.message);
+      this.showError("Impossible de charger le catalogue");
       return;
     }
-    
+
+    if (this.isProcessingCatalog) {
+      console.log("⏳ [ShopUI] Déjà en train de traiter un catalogue, ignoré");
+      return;
+    }
+
     this.isProcessingCatalog = true;
-    this.lastCatalogTime = now;
 
     try {
-      if (!data.success) {
-        console.error('❌ [ShopUI] Shop catalog failed:', data.message);
-        this.showNotification(data.message || "Unable to load shop", "error");
-        return;
+      // Extraire les données du catalogue
+      this.shopData = {
+        shopInfo: data.catalog?.shopInfo || {},
+        availableItems: data.catalog?.availableItems || [],
+        npcName: data.catalog?.npcName || this.currentNpcName
+      };
+
+      console.log(`[DEBUG SHOP TITLE]`, {
+        shopInfo: this.shopData.shopInfo,
+        npcName: this.shopData.npcName
+      });
+
+      // Mettre à jour l'or du joueur
+      if (data.playerGold !== undefined) {
+        this.updatePlayerGold(data.playerGold);
       }
 
-      // ✅ DATA STORAGE
-      this.shopData = data.catalog;
-      this.playerGold = data.playerGold || 0;
+      // Mettre à jour le titre du shop
+      this.updateShopTitle();
 
-      // ✅ IMMEDIATE STRUCTURE NORMALIZATION
-      if (!this.shopData.availableItems) {
-        console.log('🔧 [ShopUI] Normalizing shop structure...');
-        
-        let items = [];
-        if (this.shopData.items && Array.isArray(this.shopData.items)) {
-          items = this.shopData.items;
-        } else if (this.shopData.shopInfo?.items && Array.isArray(this.shopData.shopInfo.items)) {
-          items = this.shopData.shopInfo.items;
-        }
-        
-        this.shopData.availableItems = items.map(item => ({
-          itemId: item.itemId,
-          buyPrice: item.customPrice || item.buyPrice || 0,
-          sellPrice: item.sellPrice || Math.floor((item.customPrice || item.buyPrice || 0) * 0.5),
-          stock: item.stock !== undefined ? item.stock : -1,
-          canBuy: item.canBuy !== false,
-          canSell: item.canSell !== false,
-          unlocked: item.unlocked !== false,
-          customPrice: item.customPrice
-        }));
-        
-        console.log(`✅ [ShopUI] Structure normalized: ${this.shopData.availableItems.length} items`);
+      // Afficher le catalogue si on est sur l'onglet acheter
+      if (this.currentTab === 'buy') {
+        this.displayBuyTab();
       }
 
-      // ✅ INTERFACE UPDATE
-      this.updatePlayerGoldDisplay();
-      this.updateShopTitle(this.shopData.shopInfo || {});
-      this.refreshCurrentTab();
-      
       console.log(`✅ [ShopUI] Shop catalog processed with ${this.shopData.availableItems.length} objects`);
-      
-      // ✅ SUCCESS NOTIFICATION
-      this.showNotification(`Catalog loaded!`, 'success');
-      
+
     } catch (error) {
-      console.error('❌ [ShopUI] Error handleShopCatalog:', error);
-      this.showNotification(`Technical error: ${error.message}`, "error");
+      console.error("❌ [ShopUI] Erreur traitement catalogue:", error);
+      this.showError("Erreur lors du traitement du catalogue");
     } finally {
-      // ✅ LOCK RELEASE
-      setTimeout(() => {
-        this.isProcessingCatalog = false;
-      }, 500);
+      this.isProcessingCatalog = false;
     }
   }
 
-  updateShopTitle(shopInfo) {
-    const shopNameElement = this.overlay.querySelector('.shop-name');
-    const shopSubtitleElement = this.overlay.querySelector('.shop-subtitle');
+  updateShopTitle() {
+    const shopTitle = document.getElementById('shopTitle');
+    const shopDescription = document.getElementById('shopDescription');
 
-    console.log('[DEBUG SHOP TITLE]', {
-      shopInfo,
-      npcName: this.shopData?.npcName
-    });
-
-    shopNameElement.textContent =
-      this.shopData?.npcName
-      || shopInfo.npcName
-      || shopInfo.name
-      || "PokéMart";
-
-    shopSubtitleElement.textContent = shopInfo.description || "Trainer Items";
-  }
-
-  switchTab(tabType) {
-    // Update visual tabs
-    this.overlay.querySelectorAll('.shop-tab').forEach(tab => {
-      tab.classList.toggle('active', tab.dataset.tab === tabType);
-    });
-
-    this.currentTab = tabType;
-    this.selectedItem = null;
-    this.refreshCurrentTab();
-    this.updateItemDetails();
-    this.updateActionButton();
-  }
-
-  refreshCurrentTab() {
-    const itemsGrid = this.overlay.querySelector('#shop-items-grid');
-    
-    if (!this.shopData && this.currentTab === 'buy') {
-      this.showEmpty("No shop data available");
-      return;
+    if (shopTitle && this.shopData?.shopInfo?.name) {
+      shopTitle.textContent = this.shopData.shopInfo.name;
     }
 
-    if (this.currentTab === 'sell' && (!this.playerInventory || this.playerInventory.length === 0)) {
-      this.showEmpty("No items in your inventory to sell");
-      return;
+    if (shopDescription && this.shopData?.shopInfo?.description) {
+      shopDescription.textContent = this.shopData.shopInfo.description;
     }
-
-    // Transition animation
-    itemsGrid.classList.add('switching');
-    setTimeout(() => itemsGrid.classList.remove('switching'), 300);
-
-    // Clear grid
-    itemsGrid.innerHTML = '';
-
-    if (this.currentTab === 'buy') {
-      this.displayBuyItems();
-    } else {
-      this.displaySellItems();
-    }
-
-    this.updateItemsCount();
   }
 
-  displayBuyItems() {
-    const itemsGrid = this.overlay.querySelector('#shop-items-grid');
-    
-    // ✅ CORRECTION: Always use availableItems (now normalized)
-    const items = Array.isArray(this.shopData?.availableItems) ? this.shopData.availableItems : [];
-    
+  // ===== AFFICHAGE ONGLET ACHETER =====
+
+  displayBuyTab() {
     console.log(`🔍 [ShopUI] === AFFICHAGE ONGLET BUY ===`);
-    console.log(`📦 Total items reçus: ${items.length}`);
-    console.log(`👤 Niveau joueur: ${this.playerLevel || 'non défini'}`);
     
-    // ✅ DEBUG DÉTAILLÉ: Analyser chaque item
-    items.forEach((item, index) => {
+    const buyItemsContainer = document.getElementById('buyItems');
+    if (!buyItemsContainer) {
+      console.error("❌ [ShopUI] Container buyItems non trouvé");
+      return;
+    }
+
+    if (!this.shopData?.availableItems) {
+      console.error("❌ [ShopUI] Pas de données d'objets");
+      buyItemsContainer.innerHTML = '<div class="error-message">Aucun objet disponible</div>';
+      return;
+    }
+
+    console.log(`📦 Total items reçus: ${this.shopData.availableItems.length}`);
+    console.log(`👤 Niveau joueur: ${this.playerLevel || 'non défini'}`);
+
+    buyItemsContainer.innerHTML = '';
+
+    let displayedItems = 0;
+
+    this.shopData.availableItems.forEach((item, index) => {
       console.log(`📦 Item ${index + 1}: ${item.itemId}`);
       console.log(`  - buyPrice: ${item.buyPrice}₽`);
       console.log(`  - canBuy: ${item.canBuy}`);
       console.log(`  - unlocked: ${item.unlocked}`);
       console.log(`  - unlockLevel: ${item.unlockLevel || 'aucun'}`);
       console.log(`  - stock: ${item.stock}`);
-      console.log(`  - isEmpty: ${item.isEmpty || false}`);
-    });
-    
-    // ✅ CORRECTION: Filtrage moins restrictif
-    const availableItems = items.filter(item => {
-      // 1. Toujours afficher les items vides
-      if (item.isEmpty) {
-        console.log(`✅ [ShopUI] ${item.itemId}: affiché (isEmpty)`);
-        return true;
-      }
+      console.log(`  - isEmpty: ${item.stock === 0}`);
+
+      // ✅ AFFICHER TOUS LES ITEMS (débloqués ET bloqués)
+      const itemElement = this.createBuyItemElement(item);
+      buyItemsContainer.appendChild(itemElement);
       
-      // 2. ✅ NOUVEAU: Vérifier le niveau du joueur
-      const playerLevel = this.playerLevel || 1;
-      const levelOk = !item.unlockLevel || playerLevel >= item.unlockLevel;
-      
-      // 3. ✅ NOUVEAU: Conditions plus détaillées
-      const hasStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
-      const isBuyable = item.canBuy !== false; // true par défaut
-      
-      // 4. ✅ DÉCISION FINALE
-      const shouldShow = isBuyable && levelOk && hasStock;
-      
-      console.log(`${shouldShow ? '✅' : '❌'} [ShopUI] ${item.itemId}: ${shouldShow ? 'AFFICHÉ' : 'MASQUÉ'}`);
-      if (!shouldShow) {
-        if (!isBuyable) console.log(`  ❌ Raison: canBuy = ${item.canBuy}`);
-        if (!levelOk) console.log(`  ❌ Raison: niveau requis ${item.unlockLevel}, joueur niveau ${playerLevel}`);
-        if (!hasStock) console.log(`  ❌ Raison: stock = ${item.stock}`);
-      }
-      
-      return shouldShow;
-    });
-
-    console.log(`📊 [ShopUI] RÉSULTAT FINAL: ${availableItems.length}/${items.length} items affichés dans l'onglet BUY`);
-
-    if (availableItems.length === 0) {
-      this.showEmpty("No items available for purchase");
-      return;
-    }
-
-    availableItems.forEach((item, index) => {
-      const itemElement = this.createBuyItemElement(item, index);
-      itemsGrid.appendChild(itemElement);
-    });
-  }
-
-  displaySellItems() {
-    const itemsGrid = this.overlay.querySelector('#shop-items-grid');
-    
-    console.log(`💰 [ShopUI] === AFFICHAGE ONGLET SELL ===`);
-    console.log(`🎒 Player inventory:`, this.playerInventory);
-
-    if (!this.playerInventory || this.playerInventory.length === 0) {
-      this.showEmpty("No items in your inventory to sell");
-      return;
-    }
-
-    // Group inventory items by type and count quantities
-    const groupedItems = this.groupInventoryItems(this.playerInventory);
-    console.log(`📦 Grouped items:`, groupedItems);
-
-    // Filter items that can be sold to this shop
-    const sellableItems = Object.entries(groupedItems).filter(([itemId, itemData]) => {
-      // Check if this shop accepts this item
-      const shopItem = this.shopData?.availableItems?.find(shopItem => 
-        shopItem.itemId === itemId && shopItem.canSell !== false
-      );
-      
-      if (shopItem) {
-        console.log(`✅ [ShopUI] ${itemId}: vendable (${itemData.quantity}x)`);
-        return true;
+      if (item.unlocked && item.canBuy) {
+        console.log(`✅ [ShopUI] ${item.itemId}: AFFICHÉ`);
+        displayedItems++;
       } else {
-        console.log(`❌ [ShopUI] ${itemId}: non vendable dans ce shop`);
-        return false;
+        console.log(`❌ [ShopUI] ${item.itemId}: MASQUÉ`);
+        if (!item.canBuy) {
+          console.log(`  ❌ Raison: canBuy = false`);
+        }
+        if (!item.unlocked) {
+          console.log(`  ❌ Raison: niveau requis ${item.unlockLevel}, joueur niveau ${this.playerLevel || 1}`);
+        }
       }
     });
 
-    console.log(`📊 [ShopUI] RÉSULTAT FINAL: ${sellableItems.length} types d'items vendables`);
-
-    if (sellableItems.length === 0) {
-      this.showEmpty("No items can be sold at this shop");
-      return;
-    }
-
-    sellableItems.forEach(([itemId, itemData], index) => {
-      const shopItem = this.shopData.availableItems.find(shopItem => shopItem.itemId === itemId);
-      const itemElement = this.createSellItemElement(itemId, itemData, shopItem, index);
-      itemsGrid.appendChild(itemElement);
-    });
+    console.log(`📊 [ShopUI] RÉSULTAT FINAL: ${displayedItems}/${this.shopData.availableItems.length} items affichés dans l'onglet BUY`);
   }
 
-  groupInventoryItems(inventory) {
-    const grouped = {};
-    
-    inventory.forEach(item => {
-      const itemId = item.itemId || item.id;
-      const quantity = item.quantity || 1;
-      
-      if (grouped[itemId]) {
-        grouped[itemId].quantity += quantity;
-      } else {
-        grouped[itemId] = {
-          itemId: itemId,
-          quantity: quantity,
-          item: item
-        };
-      }
-    });
-    
-    return grouped;
-  }
-
-  createBuyItemElement(item, index) {
-    // ✅ CORRECTION: Handle empty items
-    if (item.isEmpty) {
-      return this.createEmptyShopItemElement();
-    }
-    
+  createBuyItemElement(item) {
     const itemElement = document.createElement('div');
-    itemElement.className = 'shop-item';
+    itemElement.className = `shop-item ${!item.unlocked ? 'locked' : ''} ${!item.canBuy ? 'unavailable' : ''}`;
     itemElement.dataset.itemId = item.itemId;
-    itemElement.dataset.index = index;
+    itemElement.dataset.category = this.getItemCategory(item.itemId);
 
-    // Check availability
-    const canAfford = this.playerGold >= item.buyPrice;
-    const inStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
-    const isAvailable = canAfford && inStock;
+    const stockText = item.stock === -1 ? 'Illimité' : 
+                     item.stock === 0 ? 'Rupture' : 
+                     `Stock: ${item.stock}`;
 
-    if (!isAvailable) {
-      itemElement.classList.add('unavailable');
-    }
-
-    if (item.stock === 0) {
-      itemElement.classList.add('out-of-stock');
-    }
-
-    const itemIcon = this.getItemIcon(item.itemId);
-    const itemName = this.getItemName(item.itemId);
+    const statusText = !item.unlocked ? `Niveau ${item.unlockLevel} requis` :
+                      !item.canBuy ? 'Indisponible' : '';
 
     itemElement.innerHTML = `
-      <div class="shop-item-icon">${itemIcon}</div>
-      <div class="shop-item-name">${itemName}</div>
-      <div class="shop-item-price">${item.buyPrice}₽</div>
-      ${this.getStockDisplay(item.stock)}
+      <div class="item-icon">
+        <img src="/assets/items/${item.itemId}.png" 
+             alt="${item.itemId}" 
+             onerror="this.src='/assets/items/placeholder.png'">
+      </div>
+      <div class="item-info">
+        <div class="item-name">${this.getItemName(item.itemId)}</div>
+        <div class="item-description">${this.getItemDescription(item.itemId)}</div>
+        <div class="item-meta">
+          <span class="item-price">${item.buyPrice}₽</span>
+          <span class="item-stock">${stockText}</span>
+        </div>
+        ${statusText ? `<div class="item-status">${statusText}</div>` : ''}
+      </div>
+      ${item.unlocked && item.canBuy ? `
+        <div class="item-actions">
+          <div class="quantity-controls">
+            <button class="quantity-btn" data-action="decrease">-</button>
+            <input type="number" class="quantity-input" value="1" min="1" max="${item.stock === -1 ? this.config.maxQuantity : item.stock}">
+            <button class="quantity-btn" data-action="increase">+</button>
+          </div>
+          <button class="buy-btn" data-item-id="${item.itemId}">Acheter</button>
+        </div>
+      ` : ''}
     `;
 
-    if (isAvailable) {
-      itemElement.addEventListener('click', () => {
-        this.selectItem(item, itemElement);
-      });
+    // Event listeners pour l'item
+    if (item.unlocked && item.canBuy) {
+      this.setupBuyItemControls(itemElement, item);
     }
-
-    // Appearance animation
-    setTimeout(() => {
-      itemElement.classList.add('new');
-    }, index * 50);
 
     return itemElement;
   }
 
-  createSellItemElement(itemId, itemData, shopItem, index) {
-    const itemElement = document.createElement('div');
-    itemElement.className = 'shop-item';
-    itemElement.dataset.itemId = itemId;
-    itemElement.dataset.index = index;
+  setupBuyItemControls(itemElement, item) {
+    const quantityInput = itemElement.querySelector('.quantity-input');
+    const decreaseBtn = itemElement.querySelector('[data-action="decrease"]');
+    const increaseBtn = itemElement.querySelector('[data-action="increase"]');
+    const buyBtn = itemElement.querySelector('.buy-btn');
 
-    const itemIcon = this.getItemIcon(itemId);
-    const itemName = this.getItemName(itemId);
-    const sellPrice = shopItem ? shopItem.sellPrice : Math.floor(this.getDefaultItemPrice(itemId) * 0.5);
-
-    // Create sell item data
-    const sellItemData = {
-      itemId: itemId,
-      sellPrice: sellPrice,
-      quantity: itemData.quantity,
-      canSell: true
-    };
-
-    itemElement.innerHTML = `
-      <div class="shop-item-icon">${itemIcon}</div>
-      <div class="shop-item-name">${itemName}</div>
-      <div class="shop-item-price">${sellPrice}₽</div>
-      <div class="shop-item-stock">${itemData.quantity}</div>
-    `;
-
-    itemElement.addEventListener('click', () => {
-      this.selectItem(sellItemData, itemElement);
+    // Contrôles de quantité
+    decreaseBtn?.addEventListener('click', () => {
+      const currentValue = parseInt(quantityInput.value);
+      if (currentValue > 1) {
+        quantityInput.value = currentValue - 1;
+        this.updateBuyTotal(itemElement, item);
+      }
     });
 
-    // Appearance animation
-    setTimeout(() => {
-      itemElement.classList.add('new');
-    }, index * 50);
-
-    return itemElement;
-  }
-
-  getDefaultItemPrice(itemId) {
-    // Default prices for items when shop doesn't specify
-    const defaultPrices = {
-      'poke_ball': 200,
-      'great_ball': 600,
-      'ultra_ball': 1200,
-      'master_ball': 0, // Can't be sold
-      'potion': 300,
-      'super_potion': 700,
-      'hyper_potion': 1200,
-      'max_potion': 2500,
-      'revive': 1500,
-      'max_revive': 4000,
-      'antidote': 100,
-      'parlyz_heal': 200,
-      'awakening': 250,
-      'burn_heal': 250,
-      'ice_heal': 250,
-      'full_heal': 600,
-      'escape_rope': 550,
-      'repel': 350,
-      'super_repel': 500,
-      'max_repel': 700
-    };
-
-    return defaultPrices[itemId] || 100; // Default to 100 if not found
-  }
-
-  getStockDisplay(stock) {
-    if (stock === undefined || stock === -1) {
-      return ''; // Unlimited stock
-    }
-    
-    let stockClass = '';
-    if (stock === 0) {
-      stockClass = 'out';
-    } else if (stock <= 3) {
-      stockClass = 'low';
-    }
-    
-    return `<div class="shop-item-stock ${stockClass}">${stock}</div>`;
-  }
-
-  getItemIcon(itemId) {
-    // Same mapping as in InventoryUI
-    const iconMap = {
-      'poke_ball': '⚪',
-      'great_ball': '🟡',
-      'ultra_ball': '🟠',
-      'master_ball': '🟣',
-      'safari_ball': '🟢',
-      'potion': '💊',
-      'super_potion': '💉',
-      'hyper_potion': '🧪',
-      'max_potion': '🍼',
-      'full_restore': '✨',
-      'revive': '💎',
-      'max_revive': '💠',
-      'antidote': '🟢',
-      'parlyz_heal': '🟡',
-      'awakening': '🔵',
-      'burn_heal': '🔴',
-      'ice_heal': '❄️',
-      'full_heal': '⭐',
-      'escape_rope': '🪢',
-      'repel': '🚫',
-      'super_repel': '⛔',
-      'max_repel': '🔒'
-    };
-
-    return iconMap[itemId] || '📦';
-  }
-
-  selectItem(item, element) {
-    // Deselect old item
-    this.overlay.querySelectorAll('.shop-item').forEach(slot => {
-      slot.classList.remove('selected');
+    increaseBtn?.addEventListener('click', () => {
+      const currentValue = parseInt(quantityInput.value);
+      const maxValue = item.stock === -1 ? this.config.maxQuantity : item.stock;
+      if (currentValue < maxValue) {
+        quantityInput.value = currentValue + 1;
+        this.updateBuyTotal(itemElement, item);
+      }
     });
 
-    // Select the new one
-    element.classList.add('selected');
-    this.selectedItem = item;
-    
-    this.updateItemDetails();
-    this.updateActionButton();
+    quantityInput?.addEventListener('input', () => {
+      let value = parseInt(quantityInput.value) || 1;
+      const maxValue = item.stock === -1 ? this.config.maxQuantity : item.stock;
+      value = Math.max(1, Math.min(value, maxValue));
+      quantityInput.value = value;
+      this.updateBuyTotal(itemElement, item);
+    });
+
+    // Bouton d'achat
+    buyBtn?.addEventListener('click', () => {
+      const quantity = parseInt(quantityInput.value);
+      this.buyItem(item.itemId, quantity, item.buyPrice);
+    });
   }
 
-  getHorizontalStatsHTML(item) {
-    const stats = [];
+  updateBuyTotal(itemElement, item) {
+    const quantityInput = itemElement.querySelector('.quantity-input');
+    const quantity = parseInt(quantityInput.value) || 1;
+    const total = item.buyPrice * quantity;
     
-    if (this.currentTab === 'buy' && item.stock !== undefined && item.stock !== -1) {
-      const stockIcon = item.stock === 0 ? '❌' : item.stock <= 3 ? '⚠️' : '✅';
-      stats.push(`
-        <div class="item-stat-card stock">
-          <div class="stat-icon">${stockIcon}</div>
-          <div class="stat-info">
-            <span class="stat-label">Stock</span>
-            <span class="stat-value">${item.stock === -1 ? '∞' : item.stock}</span>
-          </div>
-        </div>
-      `);
-    }
-
-    if (this.currentTab === 'sell' && item.quantity) {
-      stats.push(`
-        <div class="item-stat-card stock">
-          <div class="stat-icon">📦</div>
-          <div class="stat-info">
-            <span class="stat-label">You Have</span>
-            <span class="stat-value">${item.quantity}</span>
-          </div>
-        </div>
-      `);
-    }
-
-    if (item.unlockLevel && item.unlockLevel > 1) {
-      stats.push(`
-        <div class="item-stat-card level">
-          <div class="stat-icon">⭐</div>
-          <div class="stat-info">
-            <span class="stat-label">Required Level</span>
-            <span class="stat-value">${item.unlockLevel}</span>
-          </div>
-        </div>
-      `);
-    }
-
-    // If no additional stats, add affordability info
-    if (stats.length === 0 && this.currentTab === 'buy') {
-      const canAfford = this.playerGold >= item.buyPrice;
-      stats.push(`
-        <div class="item-stat-card affordability">
-          <div class="stat-icon">${canAfford ? '✅' : '❌'}</div>
-          <div class="stat-info">
-            <span class="stat-label">Availability</span>
-            <span class="stat-value">${canAfford ? 'Affordable' : 'Too Expensive'}</span>
-          </div>
-        </div>
-      `);
-    }
-
-    return stats.join('');
+    // Mettre à jour le résumé si visible
+    this.showSummary(`${quantity}x ${this.getItemName(item.itemId)} = ${total}₽`, () => {
+      this.buyItem(item.itemId, quantity, item.buyPrice);
+    });
   }
-  
-  updateItemDetails() {
-    const detailsContainer = this.overlay.querySelector('#shop-item-details');
+
+  // ===== AFFICHAGE ONGLET VENDRE (NOUVEAU) =====
+
+  // ✅ NOUVEAU : Afficher l'onglet vendre avec l'inventaire
+  displaySellTab() {
+    console.log("💰 [ShopUI] === AFFICHAGE ONGLET SELL (INVENTAIRE) ===");
     
-    if (!this.selectedItem) {
-      detailsContainer.innerHTML = `
-        <div class="details-header">
-          <span class="details-title">Item Details</span>
-        </div>
-        <div class="no-selection">
-          <div class="no-selection-icon">🎁</div>
-          <p>Select an item to see its details</p>
+    const sellItemsContainer = document.getElementById('sellItems');
+    if (!sellItemsContainer) return;
+    
+    sellItemsContainer.innerHTML = '';
+    
+    if (!this.playerInventory || Object.keys(this.playerInventory).length === 0) {
+      sellItemsContainer.innerHTML = `
+        <div class="no-items-message">
+          <p>Inventaire vide</p>
+          <p>Vous n'avez aucun objet à vendre</p>
         </div>
       `;
       return;
     }
+    
+    // ✅ NOUVEAU : Créer les filtres de catégorie
+    this.createSellFilters(sellItemsContainer);
+    
+    // ✅ NOUVEAU : Afficher par catégorie
+    this.displayInventoryByPockets(sellItemsContainer);
+  }
 
-    const item = this.selectedItem;
-    const itemName = this.getItemName(item.itemId);
-    const itemDescription = this.getItemDescription(item.itemId);
-    const itemIcon = this.getItemIcon(item.itemId);
-
-    const price = this.currentTab === 'buy' ? item.buyPrice : item.sellPrice;
-    const priceLabel = this.currentTab === 'buy' ? 'Purchase Price' : 'Sell Price';
-
-    // ✅ NEW COMPACT HORIZONTAL LAYOUT
-    detailsContainer.innerHTML = `
-      <div class="details-header">
-        <span class="details-title">Item Details</span>
-      </div>
-      <div class="item-detail-content">
-        <!-- Compact header with icon and name -->
-        <div class="item-detail-main">
-          <div class="item-detail-icon">${itemIcon}</div>
-          <div class="item-detail-info">
-            <h3>${itemName}</h3>
-            <div class="item-detail-type">${this.getItemTypeText(item)}</div>
-          </div>
-        </div>
-        
-        <!-- Horizontal stats -->
-        <div class="item-detail-stats-horizontal">
-          <div class="item-stat-card price">
-            <div class="stat-icon">💰</div>
-            <div class="stat-info">
-              <span class="stat-label">${priceLabel}</span>
-              <span class="stat-value">${price}₽</span>
-            </div>
-          </div>
-          ${this.getHorizontalStatsHTML(item)}
-        </div>
-        
-        <!-- Compact description -->
-        <div class="item-detail-description-compact">
-          ${itemDescription}
-        </div>
+  // ✅ NOUVEAU : Créer les filtres pour l'onglet vendre
+  createSellFilters(container) {
+    const filtersDiv = document.createElement('div');
+    filtersDiv.className = 'sell-filters';
+    filtersDiv.innerHTML = `
+      <div class="filter-buttons">
+        <button class="filter-btn active" data-pocket="all">Tout</button>
+        <button class="filter-btn" data-pocket="items">Objets</button>
+        <button class="filter-btn" data-pocket="medicine">Médicaments</button>
+        <button class="filter-btn" data-pocket="balls">Poké Balls</button>
+        <button class="filter-btn" data-pocket="berries">Baies</button>
+        <button class="filter-btn" data-pocket="valuables">Objets de valeur</button>
       </div>
     `;
+    
+    container.appendChild(filtersDiv);
+    
+    // Event listeners pour les filtres
+    filtersDiv.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        // Mettre à jour l'état actif
+        filtersDiv.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        
+        // Filtrer l'affichage
+        const pocket = e.target.dataset.pocket;
+        this.filterSellItems(pocket);
+      });
+    });
   }
 
-  getItemTypeText(item) {
-    if (this.currentTab === 'sell') {
-      return 'Your Item';
+  // ✅ NOUVEAU : Afficher l'inventaire par poches
+  displayInventoryByPockets(container) {
+    const itemsGrid = document.createElement('div');
+    itemsGrid.className = 'sell-items-grid';
+    itemsGrid.id = 'sellItemsGrid';
+    
+    // Ordre des poches pour l'affichage
+    const pocketOrder = ['items', 'medicine', 'balls', 'berries', 'valuables', 'tms', 'key_items'];
+    
+    pocketOrder.forEach(pocketName => {
+      const pocketItems = this.playerInventory[pocketName];
+      if (!pocketItems || pocketItems.length === 0) return;
+      
+      // Section de poche
+      const pocketSection = document.createElement('div');
+      pocketSection.className = 'pocket-section';
+      pocketSection.dataset.pocket = pocketName;
+      
+      // Titre de la poche
+      const pocketTitle = document.createElement('h3');
+      pocketTitle.className = 'pocket-title';
+      pocketTitle.textContent = this.getPocketDisplayName(pocketName);
+      pocketSection.appendChild(pocketTitle);
+      
+      // Items de la poche
+      const pocketGrid = document.createElement('div');
+      pocketGrid.className = 'pocket-items-grid';
+      
+      pocketItems.forEach(item => {
+        if (item.quantity > 0 && item.canSell) {
+          const itemElement = this.createSellItemElement(item, pocketName);
+          pocketGrid.appendChild(itemElement);
+        }
+      });
+      
+      if (pocketGrid.children.length > 0) {
+        pocketSection.appendChild(pocketGrid);
+        itemsGrid.appendChild(pocketSection);
+      }
+    });
+    
+    container.appendChild(itemsGrid);
+    
+    // Message si aucun objet vendable
+    if (itemsGrid.children.length === 0) {
+      container.innerHTML += `
+        <div class="no-sellable-items">
+          <p>Aucun objet vendable</p>
+          <p>Les objets clés et certains objets spéciaux ne peuvent pas être vendus</p>
+        </div>
+      `;
     }
-    return item.type || 'Item';
   }
 
-  updateActionButton() {
-    const actionBtn = this.overlay.querySelector('#shop-action-btn');
-    const btnIcon = actionBtn.querySelector('.btn-icon');
-    const btnText = actionBtn.querySelector('.btn-text');
+  // ✅ NOUVEAU : Créer un élément d'objet vendable
+  createSellItemElement(item, pocket) {
+    const sellPrice = item.sellPrice || 0;
+    const canSell = item.canSell && sellPrice > 0;
+    
+    const itemElement = document.createElement('div');
+    itemElement.className = `sell-item ${!canSell ? 'non-sellable' : ''}`;
+    itemElement.dataset.itemId = item.itemId;
+    itemElement.dataset.pocket = pocket;
+    
+    itemElement.innerHTML = `
+      <div class="item-icon">
+        <img src="/assets/items/${item.itemId}.png" 
+             alt="${item.itemId}" 
+             onerror="this.src='/assets/items/placeholder.png'">
+        <span class="item-quantity">${item.quantity}</span>
+      </div>
+      <div class="item-info">
+        <div class="item-name">${this.getItemName(item.itemId)}</div>
+        <div class="item-sell-price">${canSell ? sellPrice + '₽' : 'Non vendable'}</div>
+        <div class="item-description">${this.getItemDescription(item.itemId)}</div>
+      </div>
+      ${canSell ? `
+        <div class="sell-controls">
+          <button class="quantity-btn" data-action="decrease">-</button>
+          <input type="number" class="sell-quantity" value="1" min="1" max="${item.quantity}">
+          <button class="quantity-btn" data-action="increase">+</button>
+          <button class="sell-btn" data-item-id="${item.itemId}">Vendre</button>
+        </div>
+      ` : ''}
+    `;
+    
+    // Event listeners pour les contrôles
+    if (canSell) {
+      this.setupSellItemControls(itemElement, item);
+    }
+    
+    return itemElement;
+  }
 
-    if (!this.selectedItem) {
-      actionBtn.disabled = true;
-      btnIcon.textContent = this.currentTab === 'buy' ? '🛒' : '💰';
-      btnText.textContent = this.currentTab === 'buy' ? 'Buy' : 'Sell';
+  // ✅ NOUVEAU : Setup des contrôles de vente
+  setupSellItemControls(itemElement, item) {
+    const quantityInput = itemElement.querySelector('.sell-quantity');
+    const decreaseBtn = itemElement.querySelector('[data-action="decrease"]');
+    const increaseBtn = itemElement.querySelector('[data-action="increase"]');
+    const sellBtn = itemElement.querySelector('.sell-btn');
+    
+    // Contrôles de quantité
+    decreaseBtn?.addEventListener('click', () => {
+      const currentValue = parseInt(quantityInput.value);
+      if (currentValue > 1) {
+        quantityInput.value = currentValue - 1;
+        this.updateSellTotal(itemElement, item);
+      }
+    });
+    
+    increaseBtn?.addEventListener('click', () => {
+      const currentValue = parseInt(quantityInput.value);
+      if (currentValue < item.quantity) {
+        quantityInput.value = currentValue + 1;
+        this.updateSellTotal(itemElement, item);
+      }
+    });
+    
+    quantityInput?.addEventListener('input', () => {
+      let value = parseInt(quantityInput.value) || 1;
+      value = Math.max(1, Math.min(value, item.quantity));
+      quantityInput.value = value;
+      this.updateSellTotal(itemElement, item);
+    });
+    
+    // Bouton de vente
+    sellBtn?.addEventListener('click', () => {
+      const quantity = parseInt(quantityInput.value);
+      this.sellItem(item.itemId, quantity);
+    });
+  }
+
+  updateSellTotal(itemElement, item) {
+    const quantityInput = itemElement.querySelector('.sell-quantity');
+    const quantity = parseInt(quantityInput.value) || 1;
+    const total = (item.sellPrice || 0) * quantity;
+    
+    // Mettre à jour le résumé si visible
+    this.showSummary(`Vendre ${quantity}x ${this.getItemName(item.itemId)} = ${total}₽`, () => {
+      this.sellItem(item.itemId, quantity);
+    });
+  }
+
+  // ✅ NOUVEAU : Filtrer les objets par poche
+  filterSellItems(pocket) {
+    const sections = document.querySelectorAll('.pocket-section');
+    
+    sections.forEach(section => {
+      if (pocket === 'all' || section.dataset.pocket === pocket) {
+        section.style.display = 'block';
+      } else {
+        section.style.display = 'none';
+      }
+    });
+  }
+
+  // ✅ NOUVEAU : Obtenir le nom d'affichage des poches
+  getPocketDisplayName(pocketName) {
+    const pocketNames = {
+      'items': 'Objets',
+      'medicine': 'Médicaments',
+      'balls': 'Poké Balls',
+      'berries': 'Baies',
+      'valuables': 'Objets de valeur',
+      'tms': 'Capsules Techniques',
+      'key_items': 'Objets clés'
+    };
+    
+    return pocketNames[pocketName] || pocketName;
+  }
+
+  // ===== MÉTHODES DE TRANSACTION =====
+
+  buyItem(itemId, quantity, unitPrice) {
+    if (!this.gameRoom || !this.currentShopId) {
+      console.error("❌ [ShopUI] Impossible d'acheter: pas de connexion");
+      this.showError("Erreur de connexion");
       return;
     }
 
-    if (this.currentTab === 'buy') {
-      const canAfford = this.playerGold >= this.selectedItem.buyPrice;
-      const inStock = this.selectedItem.stock === undefined || this.selectedItem.stock === -1 || this.selectedItem.stock > 0;
-      
-      actionBtn.disabled = !canAfford || !inStock;
-      btnIcon.textContent = '🛒';
-      btnText.textContent = 'Buy';
-    } else {
-      // Sell tab
-      actionBtn.disabled = false;
-      btnIcon.textContent = '💰';
-      btnText.textContent = 'Sell';
+    const totalCost = unitPrice * quantity;
+
+    console.log(`🛒 [ShopUI] Achat: ${quantity}x ${itemId} pour ${totalCost}₽`);
+
+    // Vérification basique de l'or
+    if (totalCost > this.playerGold) {
+      this.showError("Pas assez d'argent !");
+      return;
     }
+
+    // Confirmation pour les gros achats
+    if (totalCost > this.config.confirmThreshold) {
+      const confirm = window.confirm(`Acheter ${quantity}x ${this.getItemName(itemId)} pour ${totalCost}₽ ?`);
+      if (!confirm) return;
+    }
+
+    // Envoyer la transaction au serveur
+    this.gameRoom.send("shopTransaction", {
+      shopId: this.currentShopId,
+      action: 'buy',
+      itemId: itemId,
+      quantity: quantity
+    });
+
+    this.hideSummary();
   }
 
-  updatePlayerGoldDisplay() {
-    const goldAmount = this.overlay.querySelector('.gold-amount');
-    goldAmount.textContent = this.playerGold.toLocaleString();
-    goldAmount.classList.add('updated');
-    setTimeout(() => goldAmount.classList.remove('updated'), 600);
-  }
-
-  updatePlayerGold(newGold) {
-    this.playerGold = newGold;
-    this.updatePlayerGoldDisplay();
-    this.updateActionButton();
-  }
-
-  updateItemsCount() {
-    const itemsCountElement = this.overlay.querySelector('#items-count');
-    const itemsGrid = this.overlay.querySelector('#shop-items-grid');
-    const itemCount = itemsGrid.querySelectorAll('.shop-item:not(.shop-empty-item)').length;
+  // ✅ NOUVEAU : Méthode de vente
+  sellItem(itemId, quantity) {
+    if (!this.gameRoom || !this.currentShopId) {
+      console.error("❌ [ShopUI] Impossible de vendre: pas de connexion");
+      this.showError("Erreur de connexion");
+      return;
+    }
     
-    const tabText = this.currentTab === 'buy' ? 'items' : 'sellable items';
-    itemsCountElement.textContent = `${itemCount} ${tabText}`;
-  }
-
-  showBuyModal() {
-    if (!this.selectedItem) return;
-
-    const modal = this.overlay.querySelector('#shop-modal');
-    const modalTitle = modal.querySelector('.modal-title');
-    const itemIcon = modal.querySelector('.modal-item-icon');
-    const itemName = modal.querySelector('.modal-item-name');
-    const itemPrice = modal.querySelector('.modal-item-price');
-    const quantityInput = modal.querySelector('#quantity-input');
-
-    // Configure modal for buying
-    modalTitle.textContent = 'Purchase Confirmation';
-    itemIcon.textContent = this.getItemIcon(this.selectedItem.itemId);
-    itemName.textContent = this.getItemName(this.selectedItem.itemId);
-    itemPrice.textContent = `Unit price: ${this.selectedItem.buyPrice}₽`;
-
-    // Configure maximum quantity
-    const maxAffordable = Math.floor(this.playerGold / this.selectedItem.buyPrice);
-    const maxStock = this.selectedItem.stock === undefined || this.selectedItem.stock === -1 ? 99 : this.selectedItem.stock;
-    const maxQuantity = Math.min(maxAffordable, maxStock, 99);
-
-    quantityInput.value = 1;
-    quantityInput.setAttribute('max', maxQuantity);
-
-    this.updateModalTotal();
-    modal.classList.remove('hidden');
-  }
-
-  showSellModal() {
-    if (!this.selectedItem) return;
-
-    const modal = this.overlay.querySelector('#shop-modal');
-    const modalTitle = modal.querySelector('.modal-title');
-    const itemIcon = modal.querySelector('.modal-item-icon');
-    const itemName = modal.querySelector('.modal-item-name');
-    const itemPrice = modal.querySelector('.modal-item-price');
-    const quantityInput = modal.querySelector('#quantity-input');
-
-    // Configure modal for selling
-    modalTitle.textContent = 'Sell Confirmation';
-    itemIcon.textContent = this.getItemIcon(this.selectedItem.itemId);
-    itemName.textContent = this.getItemName(this.selectedItem.itemId);
-    itemPrice.textContent = `Unit price: ${this.selectedItem.sellPrice}₽`;
-
-    // Configure maximum quantity (how many the player has)
-    const maxQuantity = this.selectedItem.quantity || 1;
-
-    quantityInput.value = 1;
-    quantityInput.setAttribute('max', maxQuantity);
-
-    this.updateModalTotal();
-    modal.classList.remove('hidden');
-  }
-
-  updateModalTotal() {
-    const modal = this.overlay.querySelector('#shop-modal');
-    const quantityInput = modal.querySelector('#quantity-input');
-    const totalAmount = modal.querySelector('#modal-total');
-
-    const quantity = parseInt(quantityInput.value) || 1;
-    const unitPrice = this.currentTab === 'buy' ? this.selectedItem.buyPrice : this.selectedItem.sellPrice;
-    const total = quantity * unitPrice;
-
-    totalAmount.textContent = `${total}₽`;
-  }
-
-  confirmTransaction() {
-    if (!this.selectedItem) return;
-
-    const modal = this.overlay.querySelector('#shop-modal');
-    const quantityInput = modal.querySelector('#quantity-input');
-    const quantity = parseInt(quantityInput.value) || 1;
-
-    if (this.gameRoom) {
-      this.gameRoom.send("shopTransaction", {
-        shopId: this.shopData.shopInfo.id,
-        action: this.currentTab,
-        itemId: this.selectedItem.itemId,
-        quantity: quantity
-      });
+    // Trouver l'objet dans l'inventaire pour obtenir le prix
+    let sellPrice = 0;
+    let foundItem = null;
+    
+    for (const pocketName in this.playerInventory) {
+      const pocketItems = this.playerInventory[pocketName];
+      foundItem = pocketItems.find(item => item.itemId === itemId);
+      if (foundItem) {
+        sellPrice = foundItem.sellPrice || 0;
+        break;
+      }
     }
-
-    this.hideModal();
-  }
-
-  hideModal() {
-    const modal = this.overlay.querySelector('#shop-modal');
-    modal.classList.add('hidden');
-  }
-
-  refreshShop() {
-    if (!this.shopData) return;
-
-    if (this.gameRoom) {
-      this.gameRoom.send("refreshShop", {
-        shopId: this.shopData.shopInfo.id
-      });
+    
+    if (!foundItem || sellPrice <= 0) {
+      this.showError("Impossible de vendre cet objet");
+      return;
     }
+    
+    const totalValue = sellPrice * quantity;
+    
+    console.log(`💰 [ShopUI] Vente: ${quantity}x ${itemId} pour ${totalValue}₽`);
+    
+    // Confirmation pour les grosses ventes
+    if (totalValue > this.config.confirmThreshold) {
+      const confirm = window.confirm(`Vendre ${quantity}x ${this.getItemName(itemId)} pour ${totalValue}₽ ?`);
+      if (!confirm) return;
+    }
+    
+    // Envoyer la transaction au serveur
+    this.gameRoom.send("shopTransaction", {
+      shopId: this.currentShopId,
+      action: 'sell',
+      itemId: itemId,
+      quantity: quantity
+    });
+
+    this.hideSummary();
   }
 
   handleTransactionResult(data) {
+    console.log("💰 [ShopUI] Résultat transaction:", data);
+
     if (data.success) {
-      this.showNotification(data.message || "Transaction successful!", "success");
+      this.showSuccess(data.message || "Transaction réussie !");
       
-      // Update player gold
-      if (data.newGold !== undefined) {
-        this.updatePlayerGold(data.newGold);
-      }
-      
-      // Update inventory if provided
-      if (data.newInventory) {
-        this.updatePlayerInventory(data.newInventory);
-      }
-      
-      // Refresh catalog to update stock
+      // Rafraîchir l'affichage selon l'onglet actuel
       if (this.currentTab === 'buy') {
-        this.requestShopCatalog(this.shopData.shopInfo.id);
-      } else {
-        // For sell tab, just refresh the display
-        this.refreshCurrentTab();
+        // Pour l'achat, demander le catalogue mis à jour
+        this.requestShopCatalog();
+      } else if (this.currentTab === 'sell') {
+        // Pour la vente, demander l'inventaire mis à jour
+        this.refreshSellTab();
       }
+      
+      // Jouer un son de succès
+      this.playSound('success');
+      
     } else {
-      this.showNotification(data.message || "Transaction failed", "error");
+      this.showError(data.message || "Transaction échouée");
+      this.playSound('error');
     }
   }
 
-  handleRefreshResult(data) {
-    if (data.success) {
-      if (data.restocked) {
-        this.showNotification("Shop restocked!", "success");
-      } else {
-        this.showNotification("No restock needed", "info");
-      }
-    } else {
-      this.showNotification(data.message || "Error during refresh", "error");
+  // ✅ NOUVEAU : Rafraîchir l'onglet vendre
+  refreshSellTab() {
+    if (this.currentTab === 'sell' && this.gameRoom && this.currentShopId) {
+      console.log("🔄 [ShopUI] Rafraîchissement onglet vendre...");
+      this.gameRoom.send("getPlayerInventoryForShop", {
+        shopId: this.currentShopId
+      });
     }
   }
 
-  showLoading() {
-    const itemsGrid = this.overlay.querySelector('#shop-items-grid');
-    itemsGrid.innerHTML = `
-      <div class="shop-loading">
-        <div class="shop-loading-spinner"></div>
-        <div class="shop-loading-text">Loading catalog...</div>
-      </div>
-    `;
+  // ===== UTILITAIRES =====
+
+  requestShopCatalog() {
+    if (!this.gameRoom || !this.currentShopId) {
+      console.error("❌ [ShopUI] Impossible de demander le catalogue");
+      return;
+    }
+
+    console.log(`📤 [ShopUI] Demande catalogue pour shop: ${this.currentShopId}`);
+    this.gameRoom.send("getShopCatalog", {
+      shopId: this.currentShopId
+    });
   }
 
-  showEmpty(message) {
-    const itemsGrid = this.overlay.querySelector('#shop-items-grid');
-    itemsGrid.innerHTML = `
-      <div class="shop-empty">
-        <div class="shop-empty-icon">🏪</div>
-        <div class="shop-empty-text">${message}</div>
-        <div class="shop-empty-subtext">Come back later!</div>
-      </div>
-    `;
+  filterBuyItems(filter) {
+    const items = document.querySelectorAll('#buyItems .shop-item');
+    
+    items.forEach(item => {
+      const category = item.dataset.category;
+      const shouldShow = filter === 'all' || category === filter;
+      item.style.display = shouldShow ? 'flex' : 'none';
+    });
+  }
+
+  setActiveFilter(activeButton) {
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => btn.classList.remove('active'));
+    activeButton.classList.add('active');
+  }
+
+  updatePlayerGold(newGold, oldGold = null) {
+    this.playerGold = newGold;
+    
+    const goldElement = document.getElementById('playerGold');
+    if (goldElement) {
+      goldElement.textContent = newGold.toLocaleString();
+      
+      // Animation de changement d'or
+      if (oldGold !== null && this.config.enableAnimations) {
+        const change = newGold - oldGold;
+        if (change !== 0) {
+          goldElement.classList.add(change > 0 ? 'gold-increase' : 'gold-decrease');
+          setTimeout(() => {
+            goldElement.classList.remove('gold-increase', 'gold-decrease');
+          }, 1000);
+        }
+      }
+    }
+  }
+
+  handleInventoryUpdate(data) {
+    console.log("🎒 [ShopUI] Mise à jour inventaire:", data);
+    
+    // Si on est sur l'onglet vendre, rafraîchir l'affichage
+    if (this.currentTab === 'sell') {
+      // Petit délai pour que la mise à jour serveur soit effective
+      setTimeout(() => {
+        this.refreshSellTab();
+      }, 500);
+    }
+  }
+
+  // ===== GESTION DES MESSAGES =====
+
+  showSummary(text, confirmCallback) {
+    const summary = document.getElementById('transactionSummary');
+    const summaryText = document.getElementById('summaryText');
+    const confirmBtn = document.getElementById('confirmTransactionBtn');
+
+    if (summary && summaryText && confirmBtn) {
+      summaryText.textContent = text;
+      summary.style.display = 'flex';
+
+      // Nettoyer les anciens listeners
+      confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+      const newConfirmBtn = document.getElementById('confirmTransactionBtn');
+      
+      newConfirmBtn.addEventListener('click', () => {
+        confirmCallback();
+        this.hideSummary();
+      });
+    }
+  }
+
+  hideSummary() {
+    const summary = document.getElementById('transactionSummary');
+    if (summary) {
+      summary.style.display = 'none';
+    }
+  }
+
+  showError(message) {
+    this.showNotification(message, 'error');
+  }
+
+  showSuccess(message) {
+    this.showNotification(message, 'success');
+  }
+
+  showInventoryError(message) {
+    const sellItems = document.getElementById('sellItems');
+    if (sellItems) {
+      sellItems.innerHTML = `
+        <div class="error-message">
+          <p>Erreur de chargement</p>
+          <p>${message}</p>
+          <button onclick="this.refreshSellTab()" class="retry-btn">Réessayer</button>
+        </div>
+      `;
+    }
   }
 
   showNotification(message, type = 'info') {
-    // Remove old notifications
-    const existingNotifications = document.querySelectorAll('.shop-notification');
-    existingNotifications.forEach(notif => notif.remove());
-
-    // Create new notification
+    // Système de notification simple
     const notification = document.createElement('div');
     notification.className = `shop-notification ${type}`;
     notification.textContent = message;
+    
+    Object.assign(notification.style, {
+      position: 'fixed',
+      top: '20px',
+      right: '20px',
+      padding: '10px 20px',
+      borderRadius: '4px',
+      color: 'white',
+      fontWeight: 'bold',
+      zIndex: '10001',
+      backgroundColor: type === 'error' ? '#f44336' : 
+                      type === 'success' ? '#4CAF50' : '#2196F3'
+    });
 
     document.body.appendChild(notification);
 
-    // Auto-remove after 4 seconds
+    // Animation d'apparition
+    if (this.config.enableAnimations) {
+      notification.style.transform = 'translateX(100%)';
+      notification.style.transition = 'transform 0.3s ease-out';
+      
+      requestAnimationFrame(() => {
+        notification.style.transform = 'translateX(0)';
+      });
+    }
+
+    // Suppression automatique
     setTimeout(() => {
-      if (notification.parentNode) {
-        notification.style.animation = 'slideOutRight 0.4s ease';
-        setTimeout(() => notification.remove(), 400);
+      if (this.config.enableAnimations) {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+      } else {
+        notification.remove();
       }
-    }, 4000);
+    }, 3000);
   }
 
-  // Public methods for integration
-  isOpen() {
-    return this.isVisible;
+  playSound(type) {
+    if (!this.config.enableSounds) return;
+    
+    // Système de sons simple
+    const sounds = {
+      success: () => {
+        const audio = new Audio('/assets/sounds/success.mp3');
+        audio.volume = 0.3;
+        audio.play().catch(() => {});
+      },
+      error: () => {
+        const audio = new Audio('/assets/sounds/error.mp3');
+        audio.volume = 0.3;
+        audio.play().catch(() => {});
+      }
+    };
+    
+    if (sounds[type]) {
+      sounds[type]();
+    }
   }
 
-  getCurrentShopId() {
-    return this.shopData ? this.shopData.shopInfo.id : null;
+  // ===== MÉTHODES D'INFORMATION SUR LES OBJETS =====
+
+  getItemName(itemId) {
+    const itemNames = {
+      'poke_ball': 'Poké Ball',
+      'great_ball': 'Super Ball',
+      'ultra_ball': 'Hyper Ball',
+      'master_ball': 'Master Ball',
+      'potion': 'Potion',
+      'super_potion': 'Super Potion',
+      'hyper_potion': 'Hyper Potion',
+      'max_potion': 'Potion Max',
+      'full_restore': 'Guérison',
+      'revive': 'Rappel',
+      'max_revive': 'Rappel Max',
+      'antidote': 'Antidote',
+      'parlyz_heal': 'Anti-Para',
+      'awakening': 'Réveil',
+      'burn_heal': 'Anti-Brûle',
+      'ice_heal': 'Antigel',
+      'full_heal': 'Guérison Totale',
+      'escape_rope': 'Corde Sortie',
+      'repel': 'Repousse',
+      'super_repel': 'Super Repousse',
+      'max_repel': 'Max Repousse'
+    };
+
+    return itemNames[itemId] || itemId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   }
 
-  getSelectedItem() {
-    return this.selectedItem;
+  getItemDescription(itemId) {
+    const descriptions = {
+      'poke_ball': 'Une Ball ordinaire pour capturer des Pokémon sauvages.',
+      'great_ball': 'Ball de qualité supérieure avec un meilleur taux de capture.',
+      'ultra_ball': 'Ball de très haute qualité avec un excellent taux de capture.',
+      'master_ball': 'La Ball ultime qui capture à coup sûr.',
+      'potion': 'Restaure 20 PV à un Pokémon.',
+      'super_potion': 'Restaure 50 PV à un Pokémon.',
+      'hyper_potion': 'Restaure 200 PV à un Pokémon.',
+      'max_potion': 'Restaure tous les PV d\'un Pokémon.',
+      'revive': 'Réanime un Pokémon KO et restaure la moitié de ses PV.',
+      'max_revive': 'Réanime un Pokémon KO et restaure tous ses PV.',
+      'antidote': 'Guérit un Pokémon empoisonné.',
+      'escape_rope': 'Permet de sortir instantanément d\'un lieu.',
+      'repel': 'Repousse les Pokémon sauvages faibles pendant 100 pas.'
+    };
+
+    return descriptions[itemId] || 'Objet utile pour les dresseurs.';
   }
 
-  getCurrentTab() {
-    return this.currentTab;
+  getItemCategory(itemId) {
+    if (itemId.includes('ball')) return 'balls';
+    if (itemId.includes('potion') || itemId.includes('heal') || itemId === 'antidote' || itemId.includes('revive')) return 'medicine';
+    return 'items';
   }
 
-  // Method to handle keyboard shortcuts
+  // ===== GESTION CLAVIER =====
+
   handleKeyPress(key) {
     if (!this.isVisible) return false;
 
-    switch (key) {
-      case 'Escape':
+    switch (key.toLowerCase()) {
+      case 'escape':
         this.hide();
         return true;
-      case 'Tab':
-        const newTab = this.currentTab === 'buy' ? 'sell' : 'buy';
-        this.switchTab(newTab);
+
+      case 'tab':
+        // Changer d'onglet
+        this.switchTab(this.currentTab === 'buy' ? 'sell' : 'buy');
         return true;
-      case 'Enter':
-        if (this.selectedItem) {
-          if (this.currentTab === 'buy') {
-            this.showBuyModal();
-          } else {
-            this.showSellModal();
+
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+        // Filtres rapides (onglet acheter)
+        if (this.currentTab === 'buy') {
+          const filters = ['all', 'balls', 'medicine', 'items'];
+          const filterIndex = parseInt(key) - 1;
+          if (filters[filterIndex]) {
+            this.filterBuyItems(filters[filterIndex]);
+            // Mettre à jour le bouton actif
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            filterBtns.forEach((btn, idx) => {
+              btn.classList.toggle('active', idx === filterIndex);
+            });
           }
           return true;
         }
         break;
-      case 'r':
-      case 'R':
-        this.refreshShop();
-        return true;
+
+      default:
+        return false;
     }
 
     return false;
   }
 
-  // Method to navigate between items with arrows
-  navigateItems(direction) {
-    const items = this.overlay.querySelectorAll('.shop-item:not(.unavailable):not(.shop-empty-item)');
-    if (items.length === 0) return;
+  // ===== MÉTHODES DE DEBUG =====
 
-    let currentIndex = -1;
-    if (this.selectedItem) {
-      items.forEach((item, index) => {
-        if (item.dataset.itemId === this.selectedItem.itemId) {
-          currentIndex = index;
+  debugShopState() {
+    console.log('🔍 [ShopUI] === DEBUG ÉTAT COMPLET ===');
+    console.log('📊 GÉNÉRAL:');
+    console.log('  - Visible:', this.isVisible);
+    console.log('  - Onglet actuel:', this.currentTab);
+    console.log('  - Shop ID:', this.currentShopId);
+    console.log('  - NPC:', this.currentNpcName);
+    console.log('  - Or joueur:', this.playerGold);
+    console.log('  - Processing catalog:', this.isProcessingCatalog);
+    
+    console.log('🛒 SHOP DATA:');
+    if (this.shopData) {
+      console.log('  - Shop info:', this.shopData.shopInfo);
+      console.log('  - Items disponibles:', this.shopData.availableItems?.length || 0);
+      console.log('  - NPC name:', this.shopData.npcName);
+    } else {
+      console.log('  - Aucune donnée shop');
+    }
+    
+    console.log('🎒 INVENTAIRE:');
+    if (this.playerInventory) {
+      console.log('  - Poches:', Object.keys(this.playerInventory));
+      let totalItems = 0;
+      Object.values(this.playerInventory).forEach(pocket => {
+        if (Array.isArray(pocket)) {
+          totalItems += pocket.reduce((sum, item) => sum + item.quantity, 0);
         }
       });
-    }
-
-    let newIndex;
-    if (direction === 'next') {
-      newIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+      console.log('  - Total objets:', totalItems);
     } else {
-      newIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+      console.log('  - Aucun inventaire chargé');
     }
-
-    const newItem = items[newIndex];
-    if (newItem) {
-      newItem.click();
-      newItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }
-
-  // Method for integration with other systems
-  canPlayerInteract() {
-    const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
-    const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    const inventoryOpen = typeof window.isInventoryOpen === 'function' ? window.isInventoryOpen() : false;
     
-    return !this.isVisible && !questDialogOpen && !chatOpen && !inventoryOpen;
-  }
-
-  // Utility method to check if an item can be bought
-  canBuyItem(item) {
-    if (!item) return false;
-    
-    const canAfford = this.playerGold >= item.buyPrice;
-    const inStock = item.stock === undefined || item.stock === -1 || item.stock > 0;
-    const isUnlocked = item.unlocked;
-    
-    return canAfford && inStock && isUnlocked;
-  }
-
-  // Utility method to check if an item can be sold
-  canSellItem(item) {
-    if (!item) return false;
-    
-    return item.quantity > 0 && item.canSell !== false;
-  }
-
-  // Method to get shop statistics
-  getShopStats() {
-    if (!this.shopData) return null;
-
-    const items = this.shopData.availableItems;
-    const buyableItems = items.filter(item => item.canBuy && item.unlocked);
-    const affordableItems = buyableItems.filter(item => this.canBuyItem(item));
-    
-    const sellableItemsCount = this.currentTab === 'sell' ? 
-      Object.keys(this.groupInventoryItems(this.playerInventory || [])).length : 0;
+    console.log('🔧 CONFIGURATION:');
+    console.log('  - Seuil confirmation:', this.config.confirmThreshold);
+    console.log('  - Sons activés:', this.config.enableSounds);
+    console.log('  - Animations activées:', this.config.enableAnimations);
     
     return {
-      totalItems: items.length,
-      buyableItems: buyableItems.length,
-      affordableItems: affordableItems.length,
-      sellableItems: sellableItemsCount,
-      playerGold: this.playerGold,
-      currentTab: this.currentTab
+      isVisible: this.isVisible,
+      currentTab: this.currentTab,
+      hasShopData: !!this.shopData,
+      hasInventory: !!this.playerInventory,
+      playerGold: this.playerGold
     };
   }
 
-  // Method to set player level (for unlock calculations)
-  setPlayerLevel(level) {
-    this.playerLevel = level;
-    console.log(`🎯 [ShopUI] Player level set to: ${level}`);
-    
-    // Refresh display if shop is open
-    if (this.isVisible && this.currentTab === 'buy') {
-      this.refreshCurrentTab();
-    }
-  }
+  // ===== NETTOYAGE =====
 
-  // Cleanup method
   destroy() {
-    if (this.overlay && this.overlay.parentNode) {
-      this.overlay.parentNode.removeChild(this.overlay);
+    console.log('💀 [ShopUI] Destruction...');
+    
+    if (this.overlay) {
+      this.overlay.remove();
+      this.overlay = null;
     }
     
-    // Clean up style elements
-    const styleElement = document.querySelector('#shop-styles-fallback');
-    if (styleElement) {
-      styleElement.remove();
-    }
-    
-    // Clean up references
-    this.gameRoom = null;
+    this.isVisible = false;
     this.shopData = null;
-    this.selectedItem = null;
-    this.overlay = null;
-    this.playerInventory = [];
+    this.playerInventory = null;
+    this.gameRoom = null;
     
-    console.log('🏪 ShopUI destroyed');
+    // Nettoyer les classes globales
+    document.body.classList.remove('shop-open');
+    
+    console.log('✅ [ShopUI] Détruit');
   }
 }
+
+console.log("✅ ShopUI complet avec onglet vendre corrigé chargé !");
