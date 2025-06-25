@@ -1,4 +1,4 @@
-// client/src/scenes/zones/BaseZoneScene.js - VERSION AVEC INTERACTIONMANAGER
+// client/src/scenes/zones/BaseZoneScene.js - VERSION COMPLÈTE AVEC TEAM SÉCURISÉ
 // ✅ Utilise la connexion établie dans main.js et délègue les interactions à InteractionManager
 
 import { PlayerManager } from "../../game/PlayerManager.js";
@@ -10,10 +10,7 @@ import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
 import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
-import { initializeTeamSystem } from '../../managers/TeamManager.js';
 import { CharacterManager } from "../../game/CharacterManager.js";
-
-
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -27,7 +24,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.loadTimer = null;
     this.animatedObjects = null;
     this.lastMoveTime = 0;
-      this.lastStopTime = 0;
+    this.lastStopTime = 0;
     this.myPlayerReady = false;
     this.dayNightWeatherManager = null;
 
@@ -44,8 +41,13 @@ export class BaseZoneScene extends Phaser.Scene {
     // Grace period pour éviter les transitions involontaires
     this.justArrivedAtZone = false;
 
-    // ✅ NOUVEAU: InteractionManager au lieu de ShopIntegration direct
+    // ✅ InteractionManager au lieu de ShopIntegration direct
     this.interactionManager = null;
+
+    // ✅ NOUVEAU: Système d'équipe avec protection
+    this.teamSystemInitialized = false;
+    this.teamInitializationAttempts = 0;
+    this.maxTeamInitAttempts = 3;
   }
 
   preload() {
@@ -53,8 +55,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
 
     this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
-      frameWidth: 16,
-      frameHeight: 16,
+      frameWidth: 24,
+      frameHeight: 24,
     });
   }
 
@@ -77,7 +79,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.createUI();
     this.myPlayerReady = false;
     this.isSceneReady = true;
-      // ✅ UTILISER LA CONNEXION EXISTANTE AU LIEU DE CRÉER UNE NOUVELLE
+    
+    // ✅ UTILISER LA CONNEXION EXISTANTE AU LIEU DE CRÉER UNE NOUVELLE
     this.initializeWithExistingConnection();
 
     this.setupPlayerReadyHandler();
@@ -131,43 +134,206 @@ export class BaseZoneScene extends Phaser.Scene {
     this.networkSetupComplete = true;
   }
 
-  // ✅ MÉTHODE MODIFIÉE: Initialiser tous les systèmes avec InteractionManager
+  // ✅ MÉTHODE MODIFIÉE: Initialisation des systèmes avec ordre et délais sécurisés
   initializeGameSystems() {
-    console.log(`🎮 [${this.scene.key}] Initialisation des systèmes de jeu...`);
+    console.log(`🎮 [${this.scene.key}] Initialisation des systèmes de jeu (ordre sécurisé)...`);
 
-    // Inventaire
+    // ✅ ORDRE D'INITIALISATION CRITIQUE pour éviter les conflits
+    
+    // 1. Inventaire (plus stable)
     this.initializeInventorySystem();
     
-    // ✅ NOUVEAU: Initialiser InteractionManager au lieu de ShopIntegration directement
-    this.initializeInteractionManager();
+    // 2. InteractionManager (dépend de networkManager)
+    setTimeout(() => {
+      this.initializeInteractionManager();
+    }, 500);
     
-    // Quêtes (sera initialisé après connexion)
-    this.initializeQuestSystem();
-    this.initializeTimeWeatherSystem();
-    // Team Système
-   // this.initializeTeamSystem?.(); // .? pour ne pas crash si la méthode n'existe pas
-    console.log(`✅ [${this.scene.key}] Systèmes de jeu initialisés`);
+    // 3. Quêtes (dépend de la connexion stable)
+    setTimeout(() => {
+      this.initializeQuestSystem();
+    }, 1000);
+    
+    // 4. Temps/Météo (peu de risque de conflit)
+    setTimeout(() => {
+      this.initializeTimeWeatherSystem();
+    }, 1500);
+    
+    // 5. Team System (EN DERNIER car plus complexe)
+    setTimeout(() => {
+      this.initializeTeamSystemSafely();
+    }, 3000); // ✅ 3 secondes pour que tout soit vraiment stable
+    
+    console.log(`✅ [${this.scene.key}] Planification initialisation systèmes terminée`);
   }
-initializeTimeWeatherSystem() {
-  if (!this.networkManager) {
-    console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
-    return;
+
+  // ✅ NOUVELLE MÉTHODE: Initialisation sécurisée du système d'équipe
+  initializeTeamSystemSafely() {
+    // ✅ PROTECTION CONTRE LES TENTATIVES MULTIPLES
+    if (this.teamSystemInitialized) {
+      console.log(`ℹ️ [${this.scene.key}] Système d'équipe déjà initialisé`);
+      return;
+    }
+
+    if (this.teamInitializationAttempts >= this.maxTeamInitAttempts) {
+      console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation team - abandon`);
+      return;
+    }
+
+    this.teamInitializationAttempts++;
+    console.log(`⚔️ [${this.scene.key}] === INITIALISATION TEAM SYSTEM (Tentative ${this.teamInitializationAttempts}) ===`);
+
+    // ✅ VÉRIFICATIONS DE SÉCURITÉ AVANT L'INITIALISATION
+    if (!this.networkManager?.room) {
+      console.warn(`⚠️ [${this.scene.key}] Pas de room pour TeamManager - retry dans 2s`);
+      setTimeout(() => this.initializeTeamSystemSafely(), 2000);
+      return;
+    }
+
+    if (this.networkManager.room.connection.readyState !== 1) {
+      console.warn(`⚠️ [${this.scene.key}] Room pas connectée pour TeamManager - retry dans 2s`);
+      setTimeout(() => this.initializeTeamSystemSafely(), 2000);
+      return;
+    }
+
+    // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ GLOBALEMENT
+    if (window.TeamManager && window.TeamManager.isInitialized) {
+      console.log(`ℹ️ [${this.scene.key}] TeamManager global déjà initialisé - réutilisation`);
+      this.teamSystemInitialized = true;
+      if (typeof window.onSystemInitialized === 'function') {
+        window.onSystemInitialized('team');
+      }
+      return;
+    }
+
+    try {
+      console.log(`🚀 [${this.scene.key}] Import dynamique TeamManager...`);
+      
+      // ✅ IMPORT DYNAMIQUE pour éviter les conflits
+      import('../../managers/TeamManager.js').then(({ initializeTeamSystem }) => {
+        
+        // ✅ DOUBLE VÉRIFICATION après import
+        if (!this.networkManager?.room || this.networkManager.room.connection.readyState !== 1) {
+          console.warn(`⚠️ [${this.scene.key}] Connexion fermée pendant l'import - retry`);
+          setTimeout(() => this.initializeTeamSystemSafely(), 3000);
+          return;
+        }
+
+        console.log(`🎯 [${this.scene.key}] Lancement initializeTeamSystem...`);
+        
+        try {
+          // ✅ INITIALISATION AVEC GESTION D'ERREUR
+          const teamManager = initializeTeamSystem(this.networkManager.room);
+          
+          if (teamManager) {
+            console.log(`✅ [${this.scene.key}] Système d'équipe initialisé avec succès`);
+            this.teamSystemInitialized = true;
+            
+            // ✅ SURVEILLER LA CONNEXION POUR LE TEAM MANAGER
+            this.setupTeamConnectionMonitoring();
+            
+            // ✅ ÉVÉNEMENT POUR SIGNALER QUE C'EST PRÊT
+            if (typeof window.onSystemInitialized === 'function') {
+              window.onSystemInitialized('team');
+            }
+          } else {
+            console.error(`❌ [${this.scene.key}] initializeTeamSystem a retourné null`);
+            
+            // ✅ RETRY SI ÉCHEC
+            if (this.teamInitializationAttempts < this.maxTeamInitAttempts) {
+              console.log(`🔄 [${this.scene.key}] Retry initialisation team dans 5s...`);
+              setTimeout(() => this.initializeTeamSystemSafely(), 5000);
+            }
+          }
+          
+        } catch (initError) {
+          console.error(`❌ [${this.scene.key}] Erreur dans initializeTeamSystem:`, initError);
+          
+          // ✅ RETRY SI ERREUR
+          if (this.teamInitializationAttempts < this.maxTeamInitAttempts) {
+            console.log(`🔄 [${this.scene.key}] Retry après erreur dans 5s...`);
+            setTimeout(() => this.initializeTeamSystemSafely(), 5000);
+          }
+        }
+        
+      }).catch(importError => {
+        console.error(`❌ [${this.scene.key}] Erreur import TeamManager:`, importError);
+        
+        // ✅ RETRY SI ERREUR D'IMPORT
+        if (this.teamInitializationAttempts < this.maxTeamInitAttempts) {
+          console.log(`🔄 [${this.scene.key}] Retry après erreur import dans 5s...`);
+          setTimeout(() => this.initializeTeamSystemSafely(), 5000);
+        }
+      });
+
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur critique initialisation team:`, error);
+      
+      // ✅ RETRY SI ERREUR CRITIQUE
+      if (this.teamInitializationAttempts < this.maxTeamInitAttempts) {
+        console.log(`🔄 [${this.scene.key}] Retry après erreur critique dans 5s...`);
+        setTimeout(() => this.initializeTeamSystemSafely(), 5000);
+      }
+    }
   }
 
-  try {
-    console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO ===`);
+  // ✅ NOUVELLE MÉTHODE: Surveillance de la connexion pour TeamManager
+  setupTeamConnectionMonitoring() {
+    if (!this.networkManager?.room) return;
 
-    this.dayNightWeatherManager = new DayNightWeatherManager(this);
-    this.dayNightWeatherManager.initialize(this.networkManager);
+    console.log(`🔍 [${this.scene.key}] Setup monitoring connexion pour TeamManager...`);
 
-    console.log(`✅ [${this.scene.key}] Système temps/météo initialisé`);
+    // ✅ SURVEILLER LES DÉCONNEXIONS
+    this.networkManager.room.onLeave((code) => {
+      console.warn(`⚠️ [${this.scene.key}] Connexion fermée (code: ${code}) - nettoyage team`);
+      
+      if (window.TeamManager) {
+        console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager suite à déconnexion`);
+        if (typeof window.TeamManager.gracefulShutdown === 'function') {
+          window.TeamManager.gracefulShutdown();
+        }
+      }
+      
+      this.teamSystemInitialized = false;
+    });
 
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
+    // ✅ SURVEILLER LES ERREURS DE CONNEXION
+    this.networkManager.room.onError((code, message) => {
+      console.error(`❌ [${this.scene.key}] Erreur connexion (${code}): ${message}`);
+      
+      if (window.TeamManager) {
+        console.log(`🛑 [${this.scene.key}] Arrêt TeamManager suite à erreur connexion`);
+        if (typeof window.TeamManager.gracefulShutdown === 'function') {
+          window.TeamManager.gracefulShutdown();
+        }
+      }
+      
+      this.teamSystemInitialized = false;
+    });
+
+    console.log(`✅ [${this.scene.key}] Monitoring connexion TeamManager configuré`);
   }
-}
-  // ✅ NOUVELLE MÉTHODE: Initialisation de l'InteractionManager
- initializeInteractionManager() {
+
+  initializeTimeWeatherSystem() {
+    if (!this.networkManager) {
+      console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
+      return;
+    }
+
+    try {
+      console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO ===`);
+
+      this.dayNightWeatherManager = new DayNightWeatherManager(this);
+      this.dayNightWeatherManager.initialize(this.networkManager);
+
+      console.log(`✅ [${this.scene.key}] Système temps/météo initialisé`);
+
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
+    }
+  }
+
+  // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
+  initializeInteractionManager() {
     if (!this.networkManager) {
       console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour InteractionManager`);
       return;
@@ -188,7 +354,7 @@ initializeTimeWeatherSystem() {
 
       console.log(`✅ [${this.scene.key}] InteractionManager initialisé avec succès`);
 
-      // ✅ CORRECTION: Import correct utilisé
+      // ✅ Shop integration
       integrateShopToScene(this, this.networkManager);
 
       console.log(`✅ [${this.scene.key}] Shop intégré via InteractionManager`);
@@ -213,18 +379,17 @@ initializeTimeWeatherSystem() {
     if (typeof data.spawnX === 'number') spawnX = data.spawnX;
     if (typeof data.spawnY === 'number') spawnY = data.spawnY;
 
-    // Création réelle du joueur (évite de doubler le joueur si déjà présent)
-   // ✅ Création réelle du joueur avec Character System
-if (this.playerManager && !this.playerManager.getMyPlayer()) {
-  // Récupérer l'ID du personnage depuis les données de scène ou utiliser brendan
-  const characterId = data.characterId || 'brendan';
-  console.log(`[${this.scene.key}] Création joueur avec personnage: ${characterId}`);
-  
-  this.playerManager.createPlayer(sessionId, spawnX, spawnY, characterId);
-  console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY}) avec personnage ${characterId}`);
-} else {
-  console.log(`[${this.scene.key}] Joueur déjà présent ou playerManager manquant.`);
-}
+    // ✅ Création réelle du joueur avec Character System
+    if (this.playerManager && !this.playerManager.getMyPlayer()) {
+      // Récupérer l'ID du personnage depuis les données de scène ou utiliser brendan
+      const characterId = data.characterId || 'brendan';
+      console.log(`[${this.scene.key}] Création joueur avec personnage: ${characterId}`);
+      
+      this.playerManager.createPlayer(sessionId, spawnX, spawnY, characterId);
+      console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY}) avec personnage ${characterId}`);
+    } else {
+      console.log(`[${this.scene.key}] Joueur déjà présent ou playerManager manquant.`);
+    }
   }
 
   // ✅ MÉTHODE INCHANGÉE: Demander la zone au serveur
@@ -244,7 +409,7 @@ if (this.playerManager && !this.playerManager.getMyPlayer()) {
     console.log(`📤 [${this.scene.key}] Demande de zone envoyée au serveur`);
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Setup des handlers réseau (InteractionManager gère les interactions)
+  // ✅ MÉTHODE MODIFIÉE: Setup des handlers réseau avec monitoring team
   setupNetworkHandlers() {
     if (!this.networkManager) return;
 
@@ -262,13 +427,13 @@ if (this.playerManager && !this.playerManager.getMyPlayer()) {
       
       console.log(`🔄 [${this.scene.key}] Zone mise à jour: ${oldZone} → ${this.zoneName}`);
       
-       const expectedScene = this.mapZoneToScene(data.zone); // Utilise le nom reçu, pas this.zoneName !
-  // Comparaison stricte :
-  if (this.scene.key !== expectedScene) {
-    console.warn(`[${this.scene.key}] 🔄 Redirection nécessaire → ${expectedScene}`);
-    this.redirectToCorrectScene(expectedScene, data);
-    return;
-  }
+      const expectedScene = this.mapZoneToScene(data.zone);
+      // Comparaison stricte :
+      if (this.scene.key !== expectedScene) {
+        console.warn(`[${this.scene.key}] 🔄 Redirection nécessaire → ${expectedScene}`);
+        this.redirectToCorrectScene(expectedScene, data);
+        return;
+      }
       
       if (this.playerManager) {
         this.playerManager.currentZone = this.zoneName;
@@ -285,7 +450,6 @@ if (this.playerManager && !this.playerManager.getMyPlayer()) {
         return;
       }
       
-      
       if (!state || !state.players) return;
       if (!this.playerManager) return;
 
@@ -295,9 +459,6 @@ if (this.playerManager && !this.playerManager.getMyPlayer()) {
       this.handleMyPlayerFromState();
     });
 
-    // ✅ SUPPRIMÉ: Les handlers d'interaction NPC - maintenant gérés par InteractionManager
-    // L'InteractionManager configure ses propres handlers réseau dans sa méthode setupNetworkHandlers()
-    
     // Handlers de zone WorldRoom
     this.setupWorldRoomHandlers();
     
@@ -462,8 +623,6 @@ if (this.playerManager && !this.playerManager.getMyPlayer()) {
       this.handleTransitionError(result);
     });
 
-    // ✅ SUPPRIMÉ: onNpcInteraction handler - maintenant géré par InteractionManager
-
     console.log(`✅ [${this.scene.key}] Tous les handlers WorldRoom configurés`);
   }
 
@@ -499,6 +658,15 @@ if (this.playerManager && !this.playerManager.getMyPlayer()) {
     });
     this.networkManager.onDisconnect(() => {
       this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nDisconnected from WorldRoom`);
+      
+      // ✅ NOUVEAU: Nettoyer le team system si déconnexion
+      if (window.TeamManager) {
+        console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager suite à déconnexion globale`);
+        if (typeof window.TeamManager.gracefulShutdown === 'function') {
+          window.TeamManager.gracefulShutdown();
+        }
+      }
+      this.teamSystemInitialized = false;
     });
   }
 
@@ -569,39 +737,39 @@ if (this.playerManager && !this.playerManager.getMyPlayer()) {
   }
 
   // ✅ MÉTHODE INCHANGÉE: Setup du handler joueur prêt
-setupPlayerReadyHandler() {
-  if (!this.playerManager) return;
-  
-  this.playerManager.onMyPlayerReady((myPlayer) => {
-    if (!this.myPlayerReady) {
-      this.myPlayerReady = true;
-      console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
+  setupPlayerReadyHandler() {
+    if (!this.playerManager) return;
+    
+    this.playerManager.onMyPlayerReady((myPlayer) => {
+      if (!this.myPlayerReady) {
+        this.myPlayerReady = true;
+        console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
 
-      // ✅ SOLUTION SIMPLE: Juste un délai plus long
-      if (this.cameraManager) {
-        this.cameraManager.followPlayer(myPlayer);
-        this.cameraFollowing = true;
-      } else {
-        console.warn(`⚠️ [${this.scene.key}] CameraManager pas encore prêt, attente...`);
-        this.time.delayedCall(500, () => { // ✅ 500ms au lieu de 100ms
-          if (this.cameraManager) {
-            console.log(`🔄 [${this.scene.key}] CameraManager prêt, activation caméra`);
-            this.cameraManager.followPlayer(myPlayer);
-            this.cameraFollowing = true;
-          } else {
-            console.error(`❌ [${this.scene.key}] CameraManager toujours absent après 500ms`);
-          }
-        });
-      }
+        // ✅ SOLUTION SIMPLE: Juste un délai plus long
+        if (this.cameraManager) {
+          this.cameraManager.followPlayer(myPlayer);
+          this.cameraFollowing = true;
+        } else {
+          console.warn(`⚠️ [${this.scene.key}] CameraManager pas encore prêt, attente...`);
+          this.time.delayedCall(500, () => { // ✅ 500ms au lieu de 100ms
+            if (this.cameraManager) {
+              console.log(`🔄 [${this.scene.key}] CameraManager prêt, activation caméra`);
+              this.cameraManager.followPlayer(myPlayer);
+              this.cameraFollowing = true;
+            } else {
+              console.error(`❌ [${this.scene.key}] CameraManager toujours absent après 500ms`);
+            }
+          });
+        }
 
-      this.positionPlayer(myPlayer);
-      
-      if (typeof this.onPlayerReady === 'function') {
-        this.onPlayerReady(myPlayer);
+        this.positionPlayer(myPlayer);
+        
+        if (typeof this.onPlayerReady === 'function') {
+          this.onPlayerReady(myPlayer);
+        }
       }
-    }
-  });
-}
+    });
+  }
 
   // ✅ MÉTHODE INCHANGÉE: Vérification de l'état réseau
   verifyNetworkState() {
@@ -718,7 +886,7 @@ setupPlayerReadyHandler() {
     return this.scene && this.scene.key === expectedScene && this.scene.isActive();
   }
   
-  // ✅ MÉTHODE MODIFIÉE: Cleanup avec InteractionManager
+  // ✅ MÉTHODE MODIFIÉE: Cleanup avec InteractionManager et TeamManager
   cleanup() {
     TransitionIntegration.cleanupTransitions(this);
 
@@ -752,13 +920,29 @@ setupPlayerReadyHandler() {
       this.interactionManager = null;
     }
 
+    // ✅ NOUVEAU: Nettoyage conditionnel du TeamManager
+    if (this.teamSystemInitialized && window.TeamManager) {
+      // Ne nettoyer que si on n'est pas en transition
+      if (!isTransition) {
+        console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager (non-transition)`);
+        if (typeof window.TeamManager.gracefulShutdown === 'function') {
+          window.TeamManager.gracefulShutdown();
+        }
+        this.teamSystemInitialized = false;
+      } else {
+        console.log(`🔄 [${this.scene.key}] TeamManager conservé pour transition`);
+      }
+    }
+
     if (this.npcManager) {
       this.npcManager.clearAllNpcs();
     }
+    
     if (this.dayNightWeatherManager) {
-    this.dayNightWeatherManager.destroy();
-    this.dayNightWeatherManager = null;
-  }
+      this.dayNightWeatherManager.destroy();
+      this.dayNightWeatherManager = null;
+    }
+    
     if (this.animatedObjects) {
       this.animatedObjects.clear(true, true);
       this.animatedObjects = null;
@@ -785,210 +969,210 @@ setupPlayerReadyHandler() {
     });
   }
 
-// ✅ MÉTHODE CORRIGÉE: Gestion du mouvement avec envoi d'arrêt
-handleMovement(myPlayerState) {
-  const speed = 80;
-  const myPlayer = this.playerManager.getMyPlayer();
-  if (!myPlayer || !myPlayer.body) return;
-  let vx = 0, vy = 0;
-  let inputDetected = false, direction = null;
-  if (this.cursors.left.isDown || this.wasd.A.isDown) {
-    vx = -speed; inputDetected = true; direction = 'left';
-  } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-    vx = speed; inputDetected = true; direction = 'right';
-  }
-  if (this.cursors.up.isDown || this.wasd.W.isDown) {
-    vy = -speed; inputDetected = true; direction = 'up';
-  } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-    vy = speed; inputDetected = true; direction = 'down';
-  }
-  let actuallyMoving = inputDetected;
-  myPlayer.body.setVelocity(vx, vy);
-  // ✅ NORMALISER LA VITESSE DIAGONALE
-  if (vx !== 0 && vy !== 0) {
-    myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
-  }
-  if (inputDetected && direction) {
-    this.lastDirection = direction;
-    
-    if (actuallyMoving) {
-      myPlayer.anims.play(`walk_${direction}`, true);
-      myPlayer.isMovingLocally = true;
+  // ✅ MÉTHODE CORRIGÉE: Gestion du mouvement avec envoi d'arrêt
+  handleMovement(myPlayerState) {
+    const speed = 80;
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer || !myPlayer.body) return;
+    let vx = 0, vy = 0;
+    let inputDetected = false, direction = null;
+    if (this.cursors.left.isDown || this.wasd.A.isDown) {
+      vx = -speed; inputDetected = true; direction = 'left';
+    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+      vx = speed; inputDetected = true; direction = 'right';
+    }
+    if (this.cursors.up.isDown || this.wasd.W.isDown) {
+      vy = -speed; inputDetected = true; direction = 'up';
+    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+      vy = speed; inputDetected = true; direction = 'down';
+    }
+    let actuallyMoving = inputDetected;
+    myPlayer.body.setVelocity(vx, vy);
+    // ✅ NORMALISER LA VITESSE DIAGONALE
+    if (vx !== 0 && vy !== 0) {
+      myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
+    }
+    if (inputDetected && direction) {
+      this.lastDirection = direction;
+      
+      if (actuallyMoving) {
+        myPlayer.anims.play(`walk_${direction}`, true);
+        myPlayer.isMovingLocally = true;
+      } else {
+        myPlayer.anims.play(`idle_${direction}`, true);
+        myPlayer.isMovingLocally = false;
+      }
     } else {
-      myPlayer.anims.play(`idle_${direction}`, true);
+      myPlayer.anims.play(`idle_${this.lastDirection}`, true);
       myPlayer.isMovingLocally = false;
     }
-  } else {
-    myPlayer.anims.play(`idle_${this.lastDirection}`, true);
-    myPlayer.isMovingLocally = false;
-  }
-  
-  if (inputDetected) {
-    const now = Date.now();
-    if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-      this.networkManager.sendMove(
-        myPlayer.x,
-        myPlayer.y,
-        direction,
-        actuallyMoving
-      );
-      this.lastMoveTime = now;
-    }
-  } 
-  // ✅ NOUVEAU: Envoyer aussi quand on s'arrête !
-  else {
-    const now = Date.now();
-    if (!this.lastStopTime || now - this.lastStopTime > 100) {
-      this.networkManager.sendMove(
-        myPlayer.x,
-        myPlayer.y,
-        this.lastDirection,
-        false  // ← isMoving = false
-      );
-      this.lastStopTime = now;
+    
+    if (inputDetected) {
+      const now = Date.now();
+      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+        this.networkManager.sendMove(
+          myPlayer.x,
+          myPlayer.y,
+          direction,
+          actuallyMoving
+        );
+        this.lastMoveTime = now;
+      }
+    } 
+    // ✅ NOUVEAU: Envoyer aussi quand on s'arrête !
+    else {
+      const now = Date.now();
+      if (!this.lastStopTime || now - this.lastStopTime > 100) {
+        this.networkManager.sendMove(
+          myPlayer.x,
+          myPlayer.y,
+          this.lastDirection,
+          false  // ← isMoving = false
+        );
+        this.lastStopTime = now;
+      }
     }
   }
-}
 
   // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
-mapSceneToZone(sceneName) {
-  const mapping = {
-    // Zones existantes
-    'BeachScene': 'beach',
-    'VillageScene': 'village',
-    'VillageLabScene': 'villagelab',
-    'Road1Scene': 'road1',
-    'VillageHouse1Scene': 'villagehouse1',
-    'LavandiaScene': 'lavandia',
-    
-    // Zones Lavandia
-    'LavandiaAnalysisScene': 'lavandiaanalysis',
-    'LavandiaBossRoomScene': 'lavandiabossroom',
-    'LavandiaCelebiTempleScene': 'lavandiacelebitemple',
-    'LavandiaEquipementScene': 'lavandiaequipement',
-    'LavandiaFurnitureScene': 'lavandiafurniture',
-    'LavandiaHealingCenterScene': 'lavandiahealingcenter',
-    'LavandiaHouse1Scene': 'lavandiahouse1',
-    'LavandiaHouse2Scene': 'lavandiahouse2',
-    'LavandiaHouse3Scene': 'lavandiahouse3',
-    'LavandiaHouse4Scene': 'lavandiahouse4',
-    'LavandiaHouse5Scene': 'lavandiahouse5',
-    'LavandiaHouse6Scene': 'lavandiahouse6',
-    'LavandiaHouse7Scene': 'lavandiahouse7',
-    'LavandiaHouse8Scene': 'lavandiahouse8',
-    'LavandiaHouse9Scene': 'lavandiahouse9',
-    'LavandiaResearchLabScene': 'lavandiaresearchlab',
-    'LavandiaShopScene': 'lavandiashop',
-    
-    // Zones Village supplémentaires
-    'VillageFloristScene': 'villageflorist',
-    'VillageHouse2Scene': 'villagehouse2',
-    
-    // Zones Road
-    'Road1HouseScene': 'road1house',
-    'Road2Scene': 'road2',
-    'Road3Scene': 'road3',
-    
-    // Zones Nocther Cave
-    'NoctherCave1Scene': 'nocthercave1',
-    'NoctherCave2Scene': 'nocthercave2',
-    'NoctherCave2BisScene': 'nocthercave2bis'
-  };
-  return mapping[sceneName] || sceneName.toLowerCase();
-}
+  mapSceneToZone(sceneName) {
+    const mapping = {
+      // Zones existantes
+      'BeachScene': 'beach',
+      'VillageScene': 'village',
+      'VillageLabScene': 'villagelab',
+      'Road1Scene': 'road1',
+      'VillageHouse1Scene': 'villagehouse1',
+      'LavandiaScene': 'lavandia',
+      
+      // Zones Lavandia
+      'LavandiaAnalysisScene': 'lavandiaanalysis',
+      'LavandiaBossRoomScene': 'lavandiabossroom',
+      'LavandiaCelebiTempleScene': 'lavandiacelebitemple',
+      'LavandiaEquipementScene': 'lavandiaequipement',
+      'LavandiaFurnitureScene': 'lavandiafurniture',
+      'LavandiaHealingCenterScene': 'lavandiahealingcenter',
+      'LavandiaHouse1Scene': 'lavandiahouse1',
+      'LavandiaHouse2Scene': 'lavandiahouse2',
+      'LavandiaHouse3Scene': 'lavandiahouse3',
+      'LavandiaHouse4Scene': 'lavandiahouse4',
+      'LavandiaHouse5Scene': 'lavandiahouse5',
+      'LavandiaHouse6Scene': 'lavandiahouse6',
+      'LavandiaHouse7Scene': 'lavandiahouse7',
+      'LavandiaHouse8Scene': 'lavandiahouse8',
+      'LavandiaHouse9Scene': 'lavandiahouse9',
+      'LavandiaResearchLabScene': 'lavandiaresearchlab',
+      'LavandiaShopScene': 'lavandiashop',
+      
+      // Zones Village supplémentaires
+      'VillageFloristScene': 'villageflorist',
+      'VillageHouse2Scene': 'villagehouse2',
+      
+      // Zones Road
+      'Road1HouseScene': 'road1house',
+      'Road2Scene': 'road2',
+      'Road3Scene': 'road3',
+      
+      // Zones Nocther Cave
+      'NoctherCave1Scene': 'nocthercave1',
+      'NoctherCave2Scene': 'nocthercave2',
+      'NoctherCave2BisScene': 'nocthercave2bis'
+    };
+    return mapping[sceneName] || sceneName.toLowerCase();
+  }
 
-mapZoneToScene(zoneName) {
-  const mapping = {
-    // Zones existantes
-    'beach': 'BeachScene',
-    'village': 'VillageScene',
-    'villagelab': 'VillageLabScene',
-    'road1': 'Road1Scene',
-    'villagehouse1': 'VillageHouse1Scene',
-    'lavandia': 'LavandiaScene',
-    
-    // Zones Lavandia
-    'lavandiaanalysis': 'LavandiaAnalysisScene',
-    'lavandiabossroom': 'LavandiaBossRoomScene',
-    'lavandiacelibitemple': 'LavandiaCelebiTempleScene',
-    'lavandiaequipement': 'LavandiaEquipementScene',
-    'lavandiafurniture': 'LavandiaFurnitureScene',
-    'lavandiahealingcenter': 'LavandiaHealingCenterScene',
-    'lavandiahouse1': 'LavandiaHouse1Scene',
-    'lavandiahouse2': 'LavandiaHouse2Scene',
-    'lavandiahouse3': 'LavandiaHouse3Scene',
-    'lavandiahouse4': 'LavandiaHouse4Scene',
-    'lavandiahouse5': 'LavandiaHouse5Scene',
-    'lavandiahouse6': 'LavandiaHouse6Scene',
-    'lavandiahouse7': 'LavandiaHouse7Scene',
-    'lavandiahouse8': 'LavandiaHouse8Scene',
-    'lavandiahouse9': 'LavandiaHouse9Scene',
-    'lavandiaresearchlab': 'LavandiaResearchLabScene',
-    'lavandiashop': 'LavandiaShopScene',
-    
-    // Zones Village supplémentaires
-    'villageflorist': 'VillageFloristScene',
-    'villagehouse2': 'VillageHouse2Scene',
-    
-    // Zones Road
-    'road1house': 'Road1HouseScene',
-    'road2': 'Road2Scene',
-    'road3': 'Road3Scene',
-    
-    // Zones Nocther Cave
-    'nocthercave1': 'NoctherCave1Scene',
-    'nocthercave2': 'NoctherCave2Scene',
-    'nocthercave2bis': 'NoctherCave2BisScene'
-  };
-  return mapping[zoneName.toLowerCase()] || zoneName;
-}
+  mapZoneToScene(zoneName) {
+    const mapping = {
+      // Zones existantes
+      'beach': 'BeachScene',
+      'village': 'VillageScene',
+      'villagelab': 'VillageLabScene',
+      'road1': 'Road1Scene',
+      'villagehouse1': 'VillageHouse1Scene',
+      'lavandia': 'LavandiaScene',
+      
+      // Zones Lavandia
+      'lavandiaanalysis': 'LavandiaAnalysisScene',
+      'lavandiabossroom': 'LavandiaBossRoomScene',
+      'lavandiacelebitemple': 'LavandiaCelebiTempleScene',
+      'lavandiaequipement': 'LavandiaEquipementScene',
+      'lavandiafurniture': 'LavandiaFurnitureScene',
+      'lavandiahealingcenter': 'LavandiaHealingCenterScene',
+      'lavandiahouse1': 'LavandiaHouse1Scene',
+      'lavandiahouse2': 'LavandiaHouse2Scene',
+      'lavandiahouse3': 'LavandiaHouse3Scene',
+      'lavandiahouse4': 'LavandiaHouse4Scene',
+      'lavandiahouse5': 'LavandiaHouse5Scene',
+      'lavandiahouse6': 'LavandiaHouse6Scene',
+      'lavandiahouse7': 'LavandiaHouse7Scene',
+      'lavandiahouse8': 'LavandiaHouse8Scene',
+      'lavandiahouse9': 'LavandiaHouse9Scene',
+      'lavandiaresearchlab': 'LavandiaResearchLabScene',
+      'lavandiashop': 'LavandiaShopScene',
+      
+      // Zones Village supplémentaires
+      'villageflorist': 'VillageFloristScene',
+      'villagehouse2': 'VillageHouse2Scene',
+      
+      // Zones Road
+      'road1house': 'Road1HouseScene',
+      'road2': 'Road2Scene',
+      'road3': 'Road3Scene',
+      
+      // Zones Nocther Cave
+      'nocthercave1': 'NoctherCave1Scene',
+      'nocthercave2': 'NoctherCave2Scene',
+      'nocthercave2bis': 'NoctherCave2BisScene'
+    };
+    return mapping[zoneName.toLowerCase()] || zoneName;
+  }
 
-normalizeZoneName(sceneName) {
-  const mapping = {
-    // Zones existantes
-    'BeachScene': 'beach',
-    'VillageScene': 'village',
-    'VillageLabScene': 'villagelab',
-    'Road1Scene': 'road1',
-    'VillageHouse1Scene': 'villagehouse1',
-    'LavandiaScene': 'lavandia',
-    
-    // Zones Lavandia
-    'LavandiaAnalysisScene': 'lavandiaanalysis',
-    'LavandiaBossRoomScene': 'lavandiabossroom',
-    'LavandiaCelebiTempleScene': 'lavandiacelebitemple',
-    'LavandiaEquipementScene': 'lavandiaequipement',
-    'LavandiaFurnitureScene': 'lavandiafurniture',
-    'LavandiaHealingCenterScene': 'lavandiahealingcenter',
-    'LavandiaHouse1Scene': 'lavandiahouse1',
-    'LavandiaHouse2Scene': 'lavandiahouse2',
-    'LavandiaHouse3Scene': 'lavandiahouse3',
-    'LavandiaHouse4Scene': 'lavandiahouse4',
-    'LavandiaHouse5Scene': 'lavandiahouse5',
-    'LavandiaHouse6Scene': 'lavandiahouse6',
-    'LavandiaHouse7Scene': 'lavandiahouse7',
-    'LavandiaHouse8Scene': 'lavandiahouse8',
-    'LavandiaHouse9Scene': 'lavandiahouse9',
-    'LavandiaResearchLabScene': 'lavandiaresearchlab',
-    'LavandiaShopScene': 'lavandiashop',
-    
-    // Zones Village supplémentaires
-    'VillageFloristScene': 'villageflorist',
-    'VillageHouse2Scene': 'villagehouse2',
-    
-    // Zones Road
-    'Road1HouseScene': 'road1house',
-    'Road2Scene': 'road2',
-    'Road3Scene': 'road3',
-    
-    // Zones Nocther Cave
-    'NoctherCave1Scene': 'nocthercave1',
-    'NoctherCave2Scene': 'nocthercave2',
-    'NoctherCave2BisScene': 'nocthercave2bis'
-  };
-  return mapping[sceneName] || sceneName.toLowerCase();
-}
+  normalizeZoneName(sceneName) {
+    const mapping = {
+      // Zones existantes
+      'BeachScene': 'beach',
+      'VillageScene': 'village',
+      'VillageLabScene': 'villagelab',
+      'Road1Scene': 'road1',
+      'VillageHouse1Scene': 'villagehouse1',
+      'LavandiaScene': 'lavandia',
+      
+      // Zones Lavandia
+      'LavandiaAnalysisScene': 'lavandiaanalysis',
+      'LavandiaBossRoomScene': 'lavandiabossroom',
+      'LavandiaCelebiTempleScene': 'lavandiacelebitemple',
+      'LavandiaEquipementScene': 'lavandiaequipement',
+      'LavandiaFurnitureScene': 'lavandiafurniture',
+      'LavandiaHealingCenterScene': 'lavandiahealingcenter',
+      'LavandiaHouse1Scene': 'lavandiahouse1',
+      'LavandiaHouse2Scene': 'lavandiahouse2',
+      'LavandiaHouse3Scene': 'lavandiahouse3',
+      'LavandiaHouse4Scene': 'lavandiahouse4',
+      'LavandiaHouse5Scene': 'lavandiahouse5',
+      'LavandiaHouse6Scene': 'lavandiahouse6',
+      'LavandiaHouse7Scene': 'lavandiahouse7',
+      'LavandiaHouse8Scene': 'lavandiahouse8',
+      'LavandiaHouse9Scene': 'lavandiahouse9',
+      'LavandiaResearchLabScene': 'lavandiaresearchlab',
+      'LavandiaShopScene': 'lavandiashop',
+      
+      // Zones Village supplémentaires
+      'VillageFloristScene': 'villageflorist',
+      'VillageHouse2Scene': 'villagehouse2',
+      
+      // Zones Road
+      'Road1HouseScene': 'road1house',
+      'Road2Scene': 'road2',
+      'Road3Scene': 'road3',
+      
+      // Zones Nocther Cave
+      'NoctherCave1Scene': 'nocthercave1',
+      'NoctherCave2Scene': 'nocthercave2',
+      'NoctherCave2BisScene': 'nocthercave2bis'
+    };
+    return mapping[sceneName] || sceneName.toLowerCase();
+  }
 
   getProperty(object, propertyName) {
     if (!object.properties) return null;
@@ -1045,16 +1229,16 @@ normalizeZoneName(sceneName) {
       }
 
       Object.values(this.layers).forEach(layer => {
-  if (layer && typeof layer.setCollisionByProperty === 'function') {
-    layer.setCollisionByProperty({ collides: true });
-    // Log pour compter les tiles actives
-    let count = 0;
-    layer.forEachTile(tile => {
-      if (tile && tile.properties && tile.properties.collides) count++;
-    });
-    console.log(`[${layer.layer.name}] Collisions activées sur ${count} tuiles`);
-  }
-});
+        if (layer && typeof layer.setCollisionByProperty === 'function') {
+          layer.setCollisionByProperty({ collides: true });
+          // Log pour compter les tiles actives
+          let count = 0;
+          layer.forEachTile(tile => {
+            if (tile && tile.properties && tile.properties.collides) count++;
+          });
+          console.log(`[${layer.layer.name}] Collisions activées sur ${count} tuiles`);
+        }
+      });
 
       this.setupAnimatedObjects();
       this.setupScene();
@@ -1092,47 +1276,46 @@ normalizeZoneName(sceneName) {
     }
   }
 
-setupScene() {
-  console.log('— DEBUT setupScene —');
-  this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
-  
-  const baseWidth = this.scale.width;
-  const baseHeight = this.scale.height;
-  const zoomX = baseWidth / this.map.widthInPixels;
-  const zoomY = baseHeight / this.map.heightInPixels;
-  const zoom = Math.min(zoomX, zoomY);
-  
-  this.cameras.main.setZoom(zoom);
-  this.cameras.main.setBackgroundColor('#2d5a3d');
-  this.cameras.main.setRoundPixels(true);
-  
-  this.cameraManager = new CameraManager(this);
-  
-  // ✅ PHYSICS WORLD SETUP
-  this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
-  
-  // ✅ STOCKER LES LAYERS POUR COLLISIONS
-  this.collisionLayers = [];
-  Object.values(this.layers).forEach(layer => {
-    if (layer && layer.layer && layer.layer.name.toLowerCase().includes('world')) {
-      layer.setCollisionByProperty({ collides: true });
-      this.collisionLayers.push(layer);
-      console.log(`🔒 Layer collision configuré: ${layer.layer.name}`);
-      
-      let collisionCount = 0;
-      layer.forEachTile(tile => {
-        if (tile && tile.collides) collisionCount++;
-      });
-      console.log(`🔒 ${layer.layer.name}: ${collisionCount} tiles collision`);
-    }
-  });
-  
-  // 🔥 NOUVEAU: CRÉER LES COLLIDERS
-  this.time.delayedCall(100, () => {
-    this.setupPlayerCollisions();
-  });
-}
-  
+  setupScene() {
+    console.log('— DEBUT setupScene —');
+    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+    
+    const baseWidth = this.scale.width;
+    const baseHeight = this.scale.height;
+    const zoomX = baseWidth / this.map.widthInPixels;
+    const zoomY = baseHeight / this.map.heightInPixels;
+    const zoom = Math.min(zoomX, zoomY);
+    
+    this.cameras.main.setZoom(zoom);
+    this.cameras.main.setBackgroundColor('#2d5a3d');
+    this.cameras.main.setRoundPixels(true);
+    
+    this.cameraManager = new CameraManager(this);
+    
+    // ✅ PHYSICS WORLD SETUP
+    this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+    
+    // ✅ STOCKER LES LAYERS POUR COLLISIONS
+    this.collisionLayers = [];
+    Object.values(this.layers).forEach(layer => {
+      if (layer && layer.layer && layer.layer.name.toLowerCase().includes('world')) {
+        layer.setCollisionByProperty({ collides: true });
+        this.collisionLayers.push(layer);
+        console.log(`🔒 Layer collision configuré: ${layer.layer.name}`);
+        
+        let collisionCount = 0;
+        layer.forEachTile(tile => {
+          if (tile && tile.collides) collisionCount++;
+        });
+        console.log(`🔒 ${layer.layer.name}: ${collisionCount} tiles collision`);
+      }
+    });
+    
+    // 🔥 NOUVEAU: CRÉER LES COLLIDERS
+    this.time.delayedCall(100, () => {
+      this.setupPlayerCollisions();
+    });
+  }
 
   getDefaultSpawnPosition(fromZone) {
     return { x: 100, y: 100 };
@@ -1150,7 +1333,7 @@ setupScene() {
       this.playerManager.setMySessionId(this.mySessionId);
     }
     
-    // ✅ NOUVEAU: L'InteractionManager sera initialisé dans initializeGameSystems()
+    // ✅ L'InteractionManager sera initialisé dans initializeGameSystems()
     // après que le NetworkManager soit disponible
   }
 
@@ -1189,13 +1372,13 @@ setupScene() {
     this.wasd = this.input.keyboard.addKeys('W,S,A,D');
     this.input.keyboard.enableGlobalCapture();
 
-    // ✅ SUPPRIMÉ: La gestion de la touche E est maintenant dans InteractionManager
+    // ✅ La gestion de la touche E est maintenant dans InteractionManager
     // L'InteractionManager configure ses propres raccourcis clavier dans setupInputHandlers()
     
     console.log(`⌨️ [${this.scene.key}] Inputs configurés (interactions gérées par InteractionManager)`);
     this.input.keyboard.on('keydown-C', () => {
-  this.debugCollisions();
-});
+      this.debugCollisions();
+    });
   }
 
   createUI() {
@@ -1236,10 +1419,6 @@ setupScene() {
     console.error(`❌ [${this.scene.key}] Erreur transition: ${result.reason}`);
     this.showNotification(`Transition impossible: ${result.reason}`, 'error');
   }
-
-  // ✅ MÉTHODE SUPPRIMÉE: handleNpcInteraction
-  // Cette méthode est maintenant gérée entièrement par l'InteractionManager
-  // qui configure son propre handler réseau pour "npcInteractionResult"
 
   checkPlayerState() {
     const myPlayer = this.playerManager?.getMyPlayer();
@@ -1338,68 +1517,59 @@ setupScene() {
       console.log(`🔍 [${this.scene.key}] Aucun InteractionManager`);
     }
   }
-requestTime() {
-  if (this.networkManager?.room) {
-    this.networkManager.room.send("getTime");
-  }
-}
 
-requestWeather() {
-  if (this.networkManager?.room) {
-    this.networkManager.room.send("getWeather");
+  requestTime() {
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("getTime");
+    }
   }
-}
 
-getCurrentTimeWeather() {
-  if (this.dayNightWeatherManager) {
-    return {
-      time: this.dayNightWeatherManager.getCurrentTime(),
-      weather: this.dayNightWeatherManager.getCurrentWeather()
-    };
+  requestWeather() {
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("getWeather");
+    }
   }
-  return null;
-}
 
-initializeTeamSystem() {
-  if (!this.networkManager?.room) return;
-  if (window.TeamManager && window.TeamManager.isInitialized) return;
-  try {
-    window.TeamManager = initializeTeamSystem(this.networkManager.room);
-    console.log(`✅ [${this.scene.key}] Système d'équipe initialisé`);
-  } catch (e) {
-    console.error(`[${this.scene.key}] Erreur d'init TeamManager:`, e);
-  }
-}
-  
-setupPlayerCollisions() {
-  const myPlayer = this.playerManager?.getMyPlayer();
-  if (!myPlayer || !myPlayer.body) {
-    console.warn("[BaseZoneScene] Pas de joueur pour setup collisions, retry dans 200ms");
-    this.time.delayedCall(200, () => this.setupPlayerCollisions());
-    return;
+  getCurrentTimeWeather() {
+    if (this.dayNightWeatherManager) {
+      return {
+        time: this.dayNightWeatherManager.getCurrentTime(),
+        weather: this.dayNightWeatherManager.getCurrentWeather()
+      };
+    }
+    return null;
   }
   
-  if (!this.collisionLayers || this.collisionLayers.length === 0) {
-    console.warn("[BaseZoneScene] Aucun layer de collision disponible");
-    return;
-  }
-  
-  console.log(`🔒 [BaseZoneScene] Configuration collisions pour joueur`);
-  
-  this.collisionLayers.forEach((layer, index) => {
-    const collider = this.physics.add.collider(myPlayer, layer, (player, tile) => {
-      console.log(`💥 COLLISION! à (${Math.round(player.x)}, ${Math.round(player.y)})`);
-    }, null, this);
+  setupPlayerCollisions() {
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer || !myPlayer.body) {
+      console.warn("[BaseZoneScene] Pas de joueur pour setup collisions, retry dans 200ms");
+      this.time.delayedCall(200, () => this.setupPlayerCollisions());
+      return;
+    }
     
-    if (!myPlayer.colliders) myPlayer.colliders = [];
-    myPlayer.colliders.push(collider);
+    if (!this.collisionLayers || this.collisionLayers.length === 0) {
+      console.warn("[BaseZoneScene] Aucun layer de collision disponible");
+      return;
+    }
     
-    console.log(`✅ Collider ${index + 1} créé pour "${layer.layer.name}"`);
-  });
-  
-  console.log(`🔒 ${this.collisionLayers.length} colliders configurés au total`);
-}
-   debugCollisions() {
+    console.log(`🔒 [BaseZoneScene] Configuration collisions pour joueur`);
+    
+    this.collisionLayers.forEach((layer, index) => {
+      const collider = this.physics.add.collider(myPlayer, layer, (player, tile) => {
+        console.log(`💥 COLLISION! à (${Math.round(player.x)}, ${Math.round(player.y)})`);
+      }, null, this);
+      
+      if (!myPlayer.colliders) myPlayer.colliders = [];
+      myPlayer.colliders.push(collider);
+      
+      console.log(`✅ Collider ${index + 1} créé pour "${layer.layer.name}"`);
+    });
+    
+    console.log(`🔒 ${this.collisionLayers.length} colliders configurés au total`);
+  }
+
+  debugCollisions() {
     console.log("🔍 === DEBUG COLLISIONS ===");
     
     const myPlayer = this.playerManager?.getMyPlayer();
@@ -1444,6 +1614,7 @@ setupPlayerCollisions() {
       right: myPlayer.body.touching.right
     } : "Pas de body");
   }
+
   // ✅ NOUVELLE MÉTHODE: Debug complet de la scène
   debugScene() {
     console.log(`🔍 [${this.scene.key}] === DEBUG SCENE COMPLÈTE ===`);
@@ -1464,7 +1635,93 @@ setupPlayerCollisions() {
       networkSetup: this.networkSetupComplete,
       playerReady: this.myPlayerReady,
       zoneName: this.zoneName,
+      sessionId: this.mySessionId,
+      teamSystemInitialized: this.teamSystemInitialized,
+      teamInitAttempts: this.teamInitializationAttempts
+    });
+  }
+
+  // ✅ NOUVELLES MÉTHODES: Gestion du système d'équipe depuis l'extérieur
+  getTeamSystemStatus() {
+    return {
+      initialized: this.teamSystemInitialized,
+      attempts: this.teamInitializationAttempts,
+      maxAttempts: this.maxTeamInitAttempts,
+      globalManagerExists: !!window.TeamManager,
+      globalManagerInitialized: window.TeamManager?.isInitialized || false
+    };
+  }
+
+  forceTeamSystemInit() {
+    console.log(`🔧 [${this.scene.key}] Force réinitialisation système d'équipe...`);
+    this.teamSystemInitialized = false;
+    this.teamInitializationAttempts = 0;
+    
+    setTimeout(() => {
+      this.initializeTeamSystemSafely();
+    }, 1000);
+  }
+
+  // ✅ MÉTHODES UTILITAIRES TEAM
+  isTeamSystemReady() {
+    return this.teamSystemInitialized && window.TeamManager && window.TeamManager.isInitialized;
+  }
+
+  getTeamManager() {
+    return this.isTeamSystemReady() ? window.TeamManager : null;
+  }
+
+  // ✅ MÉTHODES DE DEBUG AMÉLIORÉES
+  debugAllSystems() {
+    console.log(`🔍 [${this.scene.key}] === DEBUG TOUS LES SYSTÈMES ===`);
+    
+    // État de base de la scène
+    this.debugScene();
+    
+    // État du système d'équipe
+    console.log(`⚔️ Team System:`, this.getTeamSystemStatus());
+    
+    // État des autres systèmes
+    console.log(`🎒 Inventory:`, {
+      exists: !!this.inventorySystem,
+      initialized: this.inventoryInitialized,
+      global: !!window.inventorySystem
+    });
+    
+    console.log(`🎯 Interaction:`, {
+      exists: !!this.interactionManager,
+      shopSystem: !!this.interactionManager?.shopSystem
+    });
+    
+    console.log(`🌍 DayNight:`, {
+      exists: !!this.dayNightWeatherManager
+    });
+    
+    console.log(`🎮 Network:`, {
+      manager: !!this.networkManager,
+      connected: this.networkManager?.isConnected,
+      room: !!this.networkManager?.room,
       sessionId: this.mySessionId
     });
+  }
+
+  // ✅ MÉTHODE POUR TESTER LA CONNEXION TEAM
+  testTeamConnection() {
+    console.log(`🧪 [${this.scene.key}] Test connexion Team System...`);
+    
+    if (!this.isTeamSystemReady()) {
+      console.log(`❌ Team System pas prêt, status:`, this.getTeamSystemStatus());
+      return false;
+    }
+    
+    try {
+      const teamManager = this.getTeamManager();
+      teamManager.requestTeamData();
+      console.log(`✅ Test connexion team réussi`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Erreur test connexion team:`, error);
+      return false;
+    }
   }
 }
