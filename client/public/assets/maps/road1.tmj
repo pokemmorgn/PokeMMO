@@ -824,7 +824,7 @@
                         {
                          "name":"sprite",
                          "type":"string",
-                         "value":"boy1"
+                         "value":"kid1"
                         }, 
                         {
                          "name":"trainerId",
@@ -937,7 +937,7 @@
                         {
                          "name":"sprite",
                          "type":"string",
-                         "value":"boy2"
+                         "value":"kid1"
                         }, 
                         {
                          "name":"trainerId",
