@@ -3,7 +3,7 @@ import { Room, Client } from "@colyseus/core";
 import { Schema, type } from "@colyseus/schema";
 import { verifyPersonalMessage } from "@mysten/sui.js/verify";
 
-// État de la room d’authentification
+// État de la room d'authentification
 export class AuthState extends Schema {
   @type("string") message: string = "Authentification en cours…";
   @type("string") address: string = "";
@@ -12,11 +12,17 @@ export class AuthState extends Schema {
 
 export class AuthRoom extends Room<AuthState> {
   private authenticatedClients: Map<string, string> = new Map();
+  private db: any; // Connection MongoDB
 
   onCreate(options: any) {
     this.setState(new AuthState());
+    
+    // Initialiser la connexion MongoDB (ajuste selon ta config)
+    this.db = options.db || global.db;
+    
     console.log("🔐 AuthRoom créée");
 
+    // Gestion de l'authentification wallet
     this.onMessage("authenticate", async (client, payload) => {
       console.log("📨 Demande d'authentification reçue:", {
         address: payload.address,
@@ -35,19 +41,19 @@ export class AuthRoom extends Room<AuthState> {
           if (timeDiff > 5 * 60 * 1000) throw new Error("Signature expirée");
         }
 
-let isValid = false;
+        let isValid = false;
 
-if (
-  walletType === "slush" ||
-  walletType === "phantom" ||
-  walletType === "suiwallet" ||
-  walletType === "sui-standard" ||
-  walletType === "walletconnect"
-) {
-  isValid = await this.verifySlushSignature(address, signature, message);
-} else {
-  isValid = false;
-}
+        if (
+          walletType === "slush" ||
+          walletType === "phantom" ||
+          walletType === "suiwallet" ||
+          walletType === "sui-standard" ||
+          walletType === "walletconnect"
+        ) {
+          isValid = await this.verifySlushSignature(address, signature, message);
+        } else {
+          isValid = false;
+        }
 
         if (!isValid) throw new Error("Signature invalide");
 
@@ -68,6 +74,88 @@ if (
       } catch (error: any) {
         console.error("❌ Erreur d'authentification:", error);
         this.disconnectClient(client, error.message);
+      }
+    });
+
+    // Gestion de l'authentification par username
+    this.onMessage("username_auth", async (client, payload) => {
+      console.log("📨 Demande d'authentification username:", payload);
+
+      try {
+        const { username } = payload;
+        
+        if (!/^[a-zA-Z0-9_-]{3,20}$/.test(username)) {
+          client.send("username_result", { 
+            status: "error", 
+            reason: "Username invalide (3-20 caractères, lettres/chiffres seulement)" 
+          });
+          return;
+        }
+
+        // Vérifier si la base de données est disponible
+        if (!this.db) {
+          client.send("username_result", { 
+            status: "error", 
+            reason: "Base de données non disponible" 
+          });
+          return;
+        }
+
+        // Chercher si le username existe déjà en MongoDB
+        let user = await this.db.collection('users').findOne({ username: username });
+        
+        if (user) {
+          // Username existe, on le connecte
+          console.log(`✅ Username existant: ${username}`);
+          
+          // Mettre à jour la dernière connexion
+          await this.db.collection('users').updateOne(
+            { username: username },
+            { $set: { lastLogin: new Date() } }
+          );
+
+          client.send("username_result", { 
+            status: "ok", 
+            username: username,
+            existing: true,
+            userData: {
+              coins: user.coins || 0,
+              level: user.level || 1,
+            }
+          });
+        } else {
+          // Nouveau username, on le crée
+          console.log(`🆕 Nouveau username: ${username}`);
+          
+          const newUser = {
+            username: username,
+            coins: 1000,
+            level: 1,
+            createdAt: new Date(),
+            lastLogin: new Date()
+          };
+          
+          await this.db.collection('users').insertOne(newUser);
+          
+          client.send("username_result", { 
+            status: "ok", 
+            username: username,
+            existing: false,
+            userData: newUser
+          });
+        }
+
+        // Marquer le client comme authentifié
+        this.authenticatedClients.set(client.sessionId, username);
+        (client as any).auth = { address: username, walletType: "username" };
+        this.state.connectedPlayers = this.authenticatedClients.size;
+
+      } catch (error: any) {
+        console.error("❌ Erreur authentification username:", error);
+        client.send("username_result", { 
+          status: "error", 
+          reason: "Erreur base de données" 
+        });
       }
     });
 
@@ -94,60 +182,6 @@ if (
       return false;
     }
   }
-async onMessage(type, message) {
-    if (type === "username_auth") {
-        const { username } = message;
-        
-        if (!/^[a-zA-Z0-9_-]{3,20}$/.test(username)) {
-            client.send("username_result", { 
-                status: "error", 
-                reason: "Username invalide (3-20 caractères, lettres/chiffres seulement)" 
-            });
-            return;
-        }
-
-        try {
-            // Chercher si le username existe déjà en MongoDB
-            let user = await this.state.db.collection('users').findOne({ username: username });
-            
-            if (user) {
-                // Username existe, on le connecte
-                client.send("username_result", { 
-                    status: "ok", 
-                    username: username,
-                    existing: true,
-                    userData: {
-                        coins: user.coins || 0,
-                        level: user.level || 1,
-                    }
-                });
-            } else {
-                // Nouveau username, on le crée
-                const newUser = {
-                    username: username,
-                    coins: 1000,
-                    level: 1,
-                    createdAt: new Date(),
-                    lastLogin: new Date()
-                };
-                
-                await this.state.db.collection('users').insertOne(newUser);
-                
-                client.send("username_result", { 
-                    status: "ok", 
-                    username: username,
-                    existing: false,
-                    userData: newUser
-                });
-            }
-        } catch (error) {
-            client.send("username_result", { 
-                status: "error", 
-                reason: "Erreur base de données" 
-            });
-        }
-    }
-}
   
   disconnectClient(client: Client, reason: string) {
     console.log("🚫 Déconnexion client:", reason);
