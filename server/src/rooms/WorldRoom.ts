@@ -1794,6 +1794,7 @@ private getTileType(x: number, y: number, zone: string): string {
                 isMoving: otherPlayer.isMoving,
                 level: otherPlayer.level,
                 gold: otherPlayer.gold
+                   characterId: otherPlayer.characterId,
             };
             return;
         }
@@ -1809,6 +1810,7 @@ private getTileType(x: number, y: number, zone: string): string {
                 direction: otherPlayer.direction,
                 isMoving: otherPlayer.isMoving,
                 level: otherPlayer.level,
+                   characterId: otherPlayer.characterId,
                 // ✅ NE PAS inclure l'or des autres joueurs pour la sécurité
                 // gold: otherPlayer.gold  
             };
