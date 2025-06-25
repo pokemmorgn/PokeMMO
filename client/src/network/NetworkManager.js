@@ -239,6 +239,24 @@ export class NetworkManager {
       }
     });
 
+    this.room.onMessage("forcePlayerPosition", (data) => {
+  console.warn("⛔️ [NetworkManager] Position forcée par le serveur (rollback collision):", data);
+  // Ici tu fais le rollback de la position sur le client :
+  if (window.playerManager && typeof window.playerManager.forcePosition === "function") {
+    window.playerManager.forcePosition(data.x, data.y, data.direction, data.currentZone);
+  } else {
+    // Fallback : applique la position si tu stockes localement les coordonnées
+    if (this.myPlayerData) {
+      this.myPlayerData.x = data.x;
+      this.myPlayerData.y = data.y;
+      this.myPlayerData.direction = data.direction;
+      this.myPlayerData.currentZone = data.currentZone;
+    }
+    // Tu peux aussi forcer le redraw ici selon ta structure
+  }
+});
+
+    
     // ✅ AMÉLIORATION: onStateChange.once pour état initial
     this.room.onStateChange.once((state) => {
       console.log(`🎯 [NetworkManager] === ÉTAT INITIAL REÇU ===`, {
