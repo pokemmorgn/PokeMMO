@@ -1,4 +1,4 @@
-// client/src/components/TeamIcon.js - Icône d'équipe Pokémon
+// client/src/components/TeamIcon.js - Version corrigée pour s'intégrer avec les icônes existantes
 
 export class TeamIcon {
   constructor(teamUI) {
@@ -41,12 +41,33 @@ export class TeamIcon {
       </div>
     `;
 
-    // Positionner l'icône (à gauche de l'inventaire)
+    // Ajouter au body avec position calculée
     document.body.appendChild(icon);
     this.iconElement = icon;
 
     this.addStyles();
-    this.positionIcon();
+    this.calculatePosition();
+  }
+
+  calculatePosition() {
+    // Calculer la position en fonction des autres icônes présentes
+    const inventoryIcon = document.querySelector('#inventory-icon');
+    const questIcon = document.querySelector('#quest-icon');
+    
+    let rightPosition = 20; // Position de base
+    
+    // Si l'icône d'inventaire existe, se positionner à sa gauche
+    if (inventoryIcon) {
+      rightPosition += 90; // 70px (largeur icône) + 20px (espacement)
+    }
+    
+    // Si l'icône de quête existe aussi, ajuster encore plus à gauche
+    if (questIcon) {
+      rightPosition += 90; // Encore 90px à gauche
+    }
+    
+    this.iconElement.style.right = `${rightPosition}px`;
+    console.log(`⚔️ Team icon positioned at right: ${rightPosition}px`);
   }
 
   addStyles() {
@@ -55,10 +76,11 @@ export class TeamIcon {
     const style = document.createElement('style');
     style.id = 'team-icon-styles';
     style.textContent = `
+      /* ===== TEAM ICON STYLES ===== */
       .team-icon {
         position: fixed;
         bottom: 20px;
-        right: 180px; /* Position à gauche de l'inventaire */
+        right: 200px; /* Position par défaut, sera ajustée dynamiquement */
         width: 70px;
         height: 80px;
         cursor: pointer;
@@ -206,6 +228,7 @@ export class TeamIcon {
         animation: warningBlink 1.5s infinite;
       }
 
+      /* ===== ANIMATIONS ===== */
       @keyframes teamPulse {
         0% { transform: scale(1); }
         50% { transform: scale(1.1); }
@@ -249,11 +272,10 @@ export class TeamIcon {
         50% { box-shadow: 0 4px 25px rgba(243, 156, 18, 0.8); }
       }
 
-      /* Responsive position */
+      /* ===== RESPONSIVE DESIGN ===== */
       @media (max-width: 768px) {
         .team-icon {
           bottom: 15px;
-          right: 165px;
           width: 60px;
           height: 70px;
         }
@@ -276,6 +298,16 @@ export class TeamIcon {
 
         .team-icon .icon-label {
           font-size: 10px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        /* Sur très petit écran, empiler les icônes verticalement */
+        .team-icon {
+          bottom: 110px; /* Au-dessus des autres icônes */
+          right: 20px;
+          width: 55px;
+          height: 65px;
         }
       }
 
@@ -347,28 +379,23 @@ export class TeamIcon {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
       }
+
+      /* ===== AJUSTEMENTS POSITIONNELS DYNAMIQUES ===== */
+      /* Ces classes seront appliquées dynamiquement selon les icônes présentes */
+      .team-icon.position-alone {
+        right: 20px; /* Seule icône */
+      }
+
+      .team-icon.position-with-inventory {
+        right: 110px; /* À gauche de l'inventaire */
+      }
+
+      .team-icon.position-with-both {
+        right: 200px; /* À gauche de quête + inventaire */
+      }
     `;
 
     document.head.appendChild(style);
-  }
-
-  positionIcon() {
-    // Vérifier la présence d'autres icônes pour ajuster la position
-    this.adjustPosition();
-  }
-
-  adjustPosition() {
-    const inventoryIcon = document.querySelector('#inventory-icon');
-    const questIcon = document.querySelector('#quest-icon');
-    
-    let rightPosition = 180; // Position par défaut
-    
-    // Si les icônes sont dans un groupe, ajuster
-    if (document.querySelector('.ui-icons-group')) {
-      rightPosition = 260; // Plus à gauche si groupe d'icônes
-    }
-    
-    this.iconElement.style.right = `${rightPosition}px`;
   }
 
   setupEventListeners() {
@@ -398,6 +425,11 @@ export class TeamIcon {
 
     // Observer les changements d'autres icônes pour ajuster la position
     this.startPositionObserver();
+
+    // Gérer le redimensionnement de la fenêtre
+    window.addEventListener('resize', () => {
+      this.adjustPosition();
+    });
   }
 
   handleClick() {
@@ -427,7 +459,8 @@ export class TeamIcon {
     message.style.cssText = `
       position: fixed;
       bottom: 110px;
-      right: 180px;
+      right: 50%;
+      transform: translateX(50%);
       background: rgba(231, 76, 60, 0.9);
       color: white;
       padding: 8px 12px;
@@ -446,8 +479,8 @@ export class TeamIcon {
       style.id = 'team-icon-animations';
       style.textContent = `
         @keyframes fadeInOut {
-          0%, 100% { opacity: 0; transform: translateY(10px); }
-          20%, 80% { opacity: 1; transform: translateY(0); }
+          0%, 100% { opacity: 0; transform: translateX(50%) translateY(10px); }
+          20%, 80% { opacity: 1; transform: translateX(50%) translateY(0); }
         }
       `;
       document.head.appendChild(style);
@@ -460,8 +493,102 @@ export class TeamIcon {
     }, 2000);
   }
 
-  // Méthodes publiques pour la gestion de l'état
+  adjustPosition() {
+    // Supprimer les anciennes classes de position
+    this.iconElement.classList.remove('position-alone', 'position-with-inventory', 'position-with-both');
+    
+    // Détecter les icônes présentes
+    const inventoryIcon = document.querySelector('#inventory-icon');
+    const questIcon = document.querySelector('#quest-icon');
+    
+    let rightPosition = 20;
+    let positionClass = 'position-alone';
+    
+    if (inventoryIcon && questIcon) {
+      // Les deux icônes sont présentes
+      rightPosition = 200; // À gauche des deux
+      positionClass = 'position-with-both';
+    } else if (inventoryIcon || questIcon) {
+      // Une seule des deux icônes est présente
+      rightPosition = 110; // À gauche de celle-ci
+      positionClass = 'position-with-inventory';
+    }
+    
+    // Appliquer la position
+    this.iconElement.style.right = `${rightPosition}px`;
+    this.iconElement.classList.add(positionClass);
+    
+    console.log(`⚔️ Team icon repositioned: ${rightPosition}px (${positionClass})`);
+  }
 
+  startPositionObserver() {
+    const observer = new MutationObserver((mutations) => {
+      let shouldReposition = false;
+      
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === 1 && // Element node
+              (node.id === 'inventory-icon' || node.id === 'quest-icon')) {
+            shouldReposition = true;
+            console.log(`⚔️ Detected new icon: ${node.id}`);
+          }
+        });
+        
+        mutation.removedNodes.forEach((node) => {
+          if (node.nodeType === 1 && // Element node
+              (node.id === 'inventory-icon' || node.id === 'quest-icon')) {
+            shouldReposition = true;
+            console.log(`⚔️ Detected removed icon: ${node.id}`);
+          }
+        });
+      });
+
+      if (shouldReposition) {
+        // Délai pour laisser les autres icônes se positionner
+        setTimeout(() => {
+          this.adjustPosition();
+        }, 100);
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    this.positionObserver = observer;
+  }
+
+  stopPositionObserver() {
+    if (this.positionObserver) {
+      this.positionObserver.disconnect();
+      this.positionObserver = null;
+    }
+  }
+
+  // Méthode pour forcer la vérification de position (utile lors de l'initialisation)
+  checkAndAdjustPosition() {
+    setTimeout(() => {
+      this.adjustPosition();
+    }, 100);
+  }
+
+  show() {
+    this.iconElement.classList.remove('hidden');
+    this.iconElement.classList.add('appearing');
+    setTimeout(() => {
+      this.iconElement.classList.remove('appearing');
+    }, 500);
+    
+    // Ajuster la position après apparition
+    this.checkAndAdjustPosition();
+  }
+
+  hide() {
+    this.iconElement.classList.add('hidden');
+  }
+
+  // Méthodes publiques pour la gestion de l'état
   updateTeamStats(stats) {
     this.teamCount = stats.totalPokemon || 0;
     this.aliveCount = stats.alivePokemon || 0;
@@ -557,28 +684,6 @@ export class TeamIcon {
     }, duration);
   }
 
-  show() {
-    this.iconElement.classList.remove('hidden');
-    this.iconElement.classList.add('appearing');
-    setTimeout(() => {
-      this.iconElement.classList.remove('appearing');
-    }, 500);
-    
-    // Ajuster la position après apparition
-    setTimeout(() => {
-      this.adjustPosition();
-    }, 100);
-  }
-
-  hide() {
-    this.iconElement.classList.add('hidden');
-    
-    // Réajuster les autres icônes après disparition
-    setTimeout(() => {
-      this.adjustPosition();
-    }, 300);
-  }
-
   setEnabled(enabled) {
     this.iconElement.classList.toggle('disabled', !enabled);
   }
@@ -603,40 +708,6 @@ export class TeamIcon {
   setPosition(bottom, right) {
     this.iconElement.style.bottom = `${bottom}px`;
     this.iconElement.style.right = `${right}px`;
-  }
-
-  startPositionObserver() {
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach((node) => {
-          if (node.id === 'inventory-icon' || node.id === 'quest-icon' || 
-              node.classList?.contains('ui-icons-group')) {
-            setTimeout(() => this.adjustPosition(), 100);
-          }
-        });
-        
-        mutation.removedNodes.forEach((node) => {
-          if (node.id === 'inventory-icon' || node.id === 'quest-icon' || 
-              node.classList?.contains('ui-icons-group')) {
-            setTimeout(() => this.adjustPosition(), 100);
-          }
-        });
-      });
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-
-    this.positionObserver = observer;
-  }
-
-  stopPositionObserver() {
-    if (this.positionObserver) {
-      this.positionObserver.disconnect();
-      this.positionObserver = null;
-    }
   }
 
   // Intégration avec le système d'équipe
@@ -668,4 +739,133 @@ export class TeamIcon {
     }
     console.log('⚔️ Team icon removed');
   }
+
+  // ===== MÉTHODES STATIQUES POUR INTÉGRATION GLOBALE =====
+  
+  /**
+   * Méthode statique pour réorganiser toutes les icônes UI
+   * À appeler après l'ajout/suppression d'icônes
+   */
+  static repositionAllIcons() {
+    const teamIcon = document.querySelector('#team-icon');
+    if (teamIcon && teamIcon._teamIconInstance) {
+      teamIcon._teamIconInstance.adjustPosition();
+    }
+  }
+
+  /**
+   * Méthode statique pour obtenir la prochaine position libre pour une nouvelle icône
+   */
+  static getNextIconPosition() {
+    const existingIcons = [
+      document.querySelector('#inventory-icon'),
+      document.querySelector('#quest-icon'),
+      document.querySelector('#team-icon')
+    ].filter(Boolean);
+
+    const baseRight = 20;
+    const iconWidth = 70;
+    const spacing = 20;
+
+    return baseRight + (existingIcons.length * (iconWidth + spacing));
+  }
+
+  /**
+   * Méthode pour s'enregistrer globalement pour la gestion de position
+   */
+  registerForPositionManagement() {
+    // Stocker une référence vers cette instance sur l'élément DOM
+    this.iconElement._teamIconInstance = this;
+    
+    // S'enregistrer dans un gestionnaire global si il existe
+    if (!window.UIIconManager) {
+      window.UIIconManager = {
+        icons: [],
+        register: function(icon) {
+          this.icons.push(icon);
+          this.repositionAll();
+        },
+        unregister: function(icon) {
+          const index = this.icons.indexOf(icon);
+          if (index > -1) {
+            this.icons.splice(index, 1);
+            this.repositionAll();
+          }
+        },
+        repositionAll: function() {
+          this.icons.forEach(icon => {
+            if (icon.adjustPosition) {
+              icon.adjustPosition();
+            }
+          });
+        }
+      };
+    }
+    
+    window.UIIconManager.register(this);
+  }
+
+  unregisterFromPositionManagement() {
+    if (window.UIIconManager) {
+      window.UIIconManager.unregister(this);
+    }
+    
+    if (this.iconElement) {
+      delete this.iconElement._teamIconInstance;
+    }
+  }
 }
+
+// ===== FONCTIONS UTILITAIRES GLOBALES =====
+
+/**
+ * Fonction utilitaire pour déclencher le repositionnement de toutes les icônes
+ */
+window.repositionUIIcons = function() {
+  TeamIcon.repositionAllIcons();
+  
+  // Déclencher également le repositionnement des autres icônes si elles ont des méthodes similaires
+  const inventoryIcon = document.querySelector('#inventory-icon');
+  if (inventoryIcon && inventoryIcon._inventoryIconInstance) {
+    inventoryIcon._inventoryIconInstance.checkAndAdjustPosition?.();
+  }
+  
+  console.log('🔄 All UI icons repositioned');
+};
+
+/**
+ * Fonction pour initialiser le système de positionnement automatique
+ */
+window.initUIIconPositioning = function() {
+  // Observer global pour tous les changements d'icônes
+  const globalObserver = new MutationObserver((mutations) => {
+    let shouldReposition = false;
+    
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1 && node.classList?.contains('ui-icon')) {
+          shouldReposition = true;
+        }
+      });
+      
+      mutation.removedNodes.forEach((node) => {
+        if (node.nodeType === 1 && node.classList?.contains('ui-icon')) {
+          shouldReposition = true;
+        }
+      });
+    });
+
+    if (shouldReposition) {
+      setTimeout(() => {
+        window.repositionUIIcons?.();
+      }, 100);
+    }
+  });
+
+  globalObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  console.log('🔧 Global UI icon positioning initialized');
+};
