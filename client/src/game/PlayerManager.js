@@ -441,9 +441,7 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
 }
 
   
-// ✅ MÉTHODE CORRIGÉE: Vérifier à la fois le mouvement physique ET le serveur
-// ✅ MÉTHODE CORRIGÉE: Système anti-oscillation
-// ✅ MÉTHODE ULTRA SIMPLE: Juste utiliser les données serveur
+// ✅ MÉTHODE AVEC DÉLAI SIMPLE
 updatePlayerAnimation(player) {
   if (!player || !player.anims) return;
   
@@ -451,46 +449,36 @@ updatePlayerAnimation(player) {
     this.createAnimations();
   }
   
-  // 🔥 SIMPLE: Utiliser SEULEMENT les données serveur
-  const isMoving = player.isMoving === true;
+  // 🔥 INIT TIMER D'ARRÊT SEULEMENT
+  if (!player.stopAnimTimer) player.stopAnimTimer = 0;
+  
+  const isMovingFromServer = player.isMoving === true;
   const direction = player.lastDirection || 'down';
   
-  const targetAnim = isMoving ? `walk_${direction}` : `idle_${direction}`;
-  
-  if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
-    player.anims.play(targetAnim, true);
+  // 🔥 SI LE SERVEUR DIT QU'ON BOUGE
+  if (isMovingFromServer) {
+    const targetAnim = `walk_${direction}`;
+    if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
+      player.anims.play(targetAnim, true);
+    }
+    player.stopAnimTimer = 0; // Reset le timer
+  } 
+  // 🔥 SI LE SERVEUR DIT QU'ON S'ARRÊTE
+  else {
+    // Commencer le timer d'arrêt
+    if (player.stopAnimTimer === 0) {
+      player.stopAnimTimer = Date.now();
+    }
+    
+    // Attendre 200ms avant de passer en idle
+    if (Date.now() - player.stopAnimTimer > 200) {
+      const targetAnim = `idle_${direction}`;
+      if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
+        player.anims.play(targetAnim, true);
+      }
+    }
   }
 }
-  // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
-  checkMyPlayerReady() {
-    const effectiveSessionId = this._pendingSessionId || this.mySessionId;
-    
-    if (effectiveSessionId && this.players.has(effectiveSessionId) && !this._myPlayerIsReady) {
-      this._myPlayerIsReady = true;
-      console.log(`[PlayerManager] ✅ Mon joueur est prêt avec sessionId: ${effectiveSessionId}`);
-
-      if (this._myPlayerReadyCallback) {
-        console.log("[PlayerManager] 🎯 Callback onMyPlayerReady déclenché!");
-        this._myPlayerReadyCallback(this.players.get(effectiveSessionId));
-      }
-    }
-  }
-
-  // ⭐️ update = lerp + SYNC INDICATOR à chaque frame !
-  update(delta = 16) {
-    for (const [sessionId, player] of this.players) {
-      if (!player || !player.scene) continue;
-
-      // ✅ AMÉLIORATION 7: L'indicateur suit toujours le joueur
-      if (player.indicator) {
-        player.indicator.x = player.x;
-        player.indicator.y = player.y - 24;
-      }
-
-      // Interpolation de position
-      this.updatePlayerPosition(player, sessionId, delta);
-    }
-  }
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour de la position du joueur
   updatePlayerPosition(player, sessionId, delta) {
