@@ -57,52 +57,70 @@ export class CharacterManager {
   }
 
   // ✅ Créer un sprite pour un personnage
-  async createCharacterSprite(characterId, x, y) {
-    // Pour l'instant, toujours utiliser Brendan
-    const actualCharacterId = 'brendan';
-    
-    console.log(`🎭 [CharacterManager] Création sprite pour ${actualCharacterId} à (${x}, ${y})`);
+ // ✅ Créer un sprite pour un personnage
+async createCharacterSprite(characterId, x, y) {
+  // Pour l'instant, toujours utiliser Brendan
+  const actualCharacterId = 'brendan';
+  
+  console.log(`🎭 [CharacterManager] Création sprite pour ${actualCharacterId} à (${x}, ${y})`);
 
-    // Charger le personnage si pas encore fait
-    const loaded = await this.loadCharacter(actualCharacterId);
-    if (!loaded) {
-      return this.createPlaceholderSprite(x, y, actualCharacterId);
-    }
-
-    const definition = this.characterDefinitions.get(actualCharacterId);
-    
-    // Créer le sprite avec l'idle par défaut
-    // Créer le sprite avec l'idle par défaut
-const sprite = this.scene.physics.add.sprite(x, y, definition.spriteKey, definition.defaultFrame);
-
-// ✅ VÉRIFIER QUE LE SPRITE EST VALIDE
-if (!sprite || typeof sprite.setOrigin !== 'function') {
-  console.error(`❌ [CharacterManager] Sprite invalide créé pour ${actualCharacterId}`);
-  console.error(`📊 Sprite:`, sprite);
-  console.error(`📊 Definition:`, definition);
-  return this.createPlaceholderSprite(x, y, actualCharacterId);
-}
-
-sprite.setOrigin(0.5, 1);
-sprite.setScale(1);
-sprite.setDepth(4.5);
-
-// ✅ VÉRIFIER QUE LE BODY EXISTE
-if (sprite.body) {
-  sprite.body.setCollideWorldBounds(true);
-  sprite.body.setSize(16, 16);
-  sprite.body.setOffset(8, 16);
-} else {
-  console.warn(`⚠️ [CharacterManager] Pas de body physics pour ${actualCharacterId}`);
-}
-
-// Ajouter les métadonnées du personnage
-sprite.characterId = actualCharacterId;
-sprite.characterDefinition = definition;
-
-console.log(`✅ [CharacterManager] Sprite créé pour ${actualCharacterId}`, typeof sprite);
-return sprite;
+  // ✅ FORCER LE CHARGEMENT ET ATTENDRE
+  const loaded = await this.loadCharacter(actualCharacterId);
+  if (!loaded) {
+    console.error(`❌ [CharacterManager] Impossible de charger ${actualCharacterId}`);
+    return this.createPlaceholderSprite(x, y, actualCharacterId);
   }
+
+  const definition = this.characterDefinitions.get(actualCharacterId);
+  
+  // ✅ VÉRIFIER QUE LA TEXTURE EXISTE VRAIMENT
+  if (!this.scene.textures.exists(definition.spriteKey)) {
+    console.error(`❌ [CharacterManager] Texture ${definition.spriteKey} n'existe pas !`);
+    return this.createPlaceholderSprite(x, y, actualCharacterId);
+  }
+
+  // ✅ VÉRIFIER QUE LES ANIMATIONS EXISTENT
+  const idleAnimKey = `${actualCharacterId}_idle_down`;
+  if (!this.scene.anims.exists(idleAnimKey)) {
+    console.error(`❌ [CharacterManager] Animation ${idleAnimKey} n'existe pas !`);
+    // Créer les animations maintenant
+    this.createCharacterAnimations(actualCharacterId);
+  }
+
+  // Créer le sprite avec l'idle par défaut
+  const sprite = this.scene.physics.add.sprite(x, y, definition.spriteKey, definition.defaultFrame);
+
+  // ✅ VÉRIFIER QUE LE SPRITE EST VALIDE
+  if (!sprite || typeof sprite.setOrigin !== 'function') {
+    console.error(`❌ [CharacterManager] Sprite invalide créé pour ${actualCharacterId}`);
+    return this.createPlaceholderSprite(x, y, actualCharacterId);
+  }
+
+  sprite.setOrigin(0.5, 1);
+  sprite.setScale(1);
+  sprite.setDepth(4.5);
+
+  // ✅ VÉRIFIER QUE LE BODY EXISTE
+  if (sprite.body) {
+    sprite.body.setCollideWorldBounds(true);
+    sprite.body.setSize(16, 16);
+    sprite.body.setOffset(8, 16);
+  }
+
+  // Ajouter les métadonnées du personnage
+  sprite.characterId = actualCharacterId;
+  sprite.characterDefinition = definition;
+  sprite.lastDirection = 'down';
+  sprite.isMoving = false;
+
+  console.log(`✅ [CharacterManager] Sprite créé pour ${actualCharacterId}`, {
+    hasSetVisible: typeof sprite.setVisible === 'function',
+    hasPlay: typeof sprite.play === 'function',
+    characterId: sprite.characterId
+  });
+  
+  return sprite;
+}
 
   // ✅ Charger les assets d'un personnage
   async loadCharacter(characterId) {
