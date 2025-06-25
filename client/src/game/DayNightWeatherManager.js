@@ -1,31 +1,4 @@
-// ✅ NETTOYAGE COMPLET avec effets visuels
-
-  destroy() {
-    console.log(`🧹 [DayNightWeatherManager] Destruction (HTML + Environnements + Effets)...`);
-    
-    // ✅ Supprimer les overlays HTML
-    this.removeHtmlOverlays();
-    
-    // ✅ NOUVEAU: Détruire les effets visuels
-    if (this.weatherEffects) {
-      this.weatherEffects.destroy();
-      this.weatherEffects = null;
-    }
-    
-    if (this.timeWeatherManager) {
-      this.timeWeatherManager.destroy();
-      this.timeWeatherManager = null;
-    }
-    
-    this.htmlOverlay = null;
-    this.weatherHtmlOverlay = null;
-    this.isInitialized = false;
-    this.isServerSynced = false;
-    
-    // ✅ Nettoyer le cache environnement
-    this.currentEnvironment = null;
-    this.lastZoneChecked = null;
-    // client/src/game/DayNightWeatherManager.js - VERSION AVEC SUPPORT INDOOR/OUTDOOR + EFFETS VISUELS
+// client/src/game/DayNightWeatherManager.js - VERSION CORRIGÉE COMPLÈTE
 import { ClientTimeWeatherManager } from '../managers/ClientTimeWeatherManager.js';
 import { zoneEnvironmentManager } from '../managers/ZoneEnvironmentManager.js';
 import { WeatherEffects } from '../effects/WeatherEffects.js';
@@ -38,14 +11,14 @@ export class DayNightWeatherManager {
     this.timeWeatherManager = null;
     this.isInitialized = false;
     
-    // ✅ NOUVEAU: État de synchronisation
+    // ✅ État de synchronisation
     this.isServerSynced = false;
     
-    // ✅ NOUVEAU: Cache de l'environnement actuel
+    // ✅ Cache de l'environnement actuel
     this.currentEnvironment = null;
     this.lastZoneChecked = null;
     
-    // ✅ NOUVEAU: Système d'effets visuels météo
+    // ✅ Système d'effets visuels météo
     this.weatherEffects = null;
     
     console.log(`🌅 [DayNightWeatherManager] Créé pour ${scene.scene.key} (Mode HTML avec environnements + effets visuels)`);
@@ -154,7 +127,7 @@ export class DayNightWeatherManager {
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE: Obtenir la zone actuelle
+  // ✅ Obtenir la zone actuelle
   getCurrentZone() {
     // Essayer plusieurs sources pour obtenir la zone actuelle
     return this.scene?.zoneName || 
@@ -164,7 +137,7 @@ export class DayNightWeatherManager {
            'unknown';
   }
 
-  // ✅ NOUVELLE MÉTHODE: Vérifier et cacher l'environnement
+  // ✅ Vérifier et cacher l'environnement
   checkEnvironmentChange() {
     const currentZone = this.getCurrentZone();
     
@@ -183,7 +156,7 @@ export class DayNightWeatherManager {
     return false; // Pas de changement
   }
 
-  // ✅ MÉTHODE MODIFIÉE: updateTimeOverlay avec support environnement
+  // ✅ updateTimeOverlay avec support environnement
   updateTimeOverlay(isDayTime) {
     if (!this.htmlOverlay) {
       console.warn(`⚠️ [DayNightWeatherManager] Pas d'overlay HTML pour update temps`);
@@ -233,7 +206,7 @@ export class DayNightWeatherManager {
     }, 3000);
   }
 
-  // ✅ MÉTHODE MODIFIÉE: updateWeatherOverlay avec effets visuels
+  // ✅ updateWeatherOverlay avec effets visuels
   updateWeatherOverlay(weather) {
     if (!this.weatherHtmlOverlay) {
       console.warn(`⚠️ [DayNightWeatherManager] Pas d'overlay météo HTML`);
@@ -246,7 +219,7 @@ export class DayNightWeatherManager {
     if (!zoneEnvironmentManager.shouldApplyWeatherEffect(currentZone)) {
       this.weatherHtmlOverlay.style.backgroundColor = 'rgba(68, 136, 255, 0)';
       
-      // ✅ NOUVEAU: Désactiver les effets visuels en intérieur
+      // ✅ Désactiver les effets visuels en intérieur
       if (this.weatherEffects) {
         this.weatherEffects.setEnvironmentType('indoor');
       }
@@ -285,7 +258,7 @@ export class DayNightWeatherManager {
     
     this.weatherHtmlOverlay.style.backgroundColor = backgroundColor;
     
-    // ✅ 2. NOUVEAU: Effets visuels Phaser
+    // ✅ 2. Effets visuels Phaser
     if (this.weatherEffects) {
       this.weatherEffects.setEnvironmentType('outdoor');
       this.weatherEffects.setWeather(weather);
@@ -298,7 +271,7 @@ export class DayNightWeatherManager {
     }, 2000);
   }
 
-  // ✅ Vérification de synchronisation (inchangée)
+  // ✅ Vérification de synchronisation
   checkSynchronization() {
     if (!this.timeWeatherManager) {
       console.warn(`⚠️ [DayNightWeatherManager] TimeWeatherManager manquant lors de la vérification`);
@@ -320,7 +293,7 @@ export class DayNightWeatherManager {
     }
   }
 
-  // ✅ API PUBLIQUE - INCHANGÉE
+  // ✅ API PUBLIQUE
 
   getCurrentTime() {
     return this.timeWeatherManager?.getCurrentTime() || { hour: 12, isDayTime: true };
@@ -348,7 +321,6 @@ export class DayNightWeatherManager {
     this.updateWeatherOverlay(weather.weather);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Forcer refresh depuis serveur
   forceServerRefresh() {
     if (!this.timeWeatherManager) {
       console.warn(`⚠️ [DayNightWeatherManager] TimeWeatherManager pas disponible`);
@@ -364,258 +336,12 @@ export class DayNightWeatherManager {
     }
   }
 
-  // ✅ NOUVELLES MÉTHODES AVEC SUPPORT ENVIRONNEMENT
-
-  // Test manuel des overlays avec environnement
-  testOverlays() {
-    console.log(`🧪 [DayNightWeatherManager] Test des overlays HTML avec environnements...`);
-    
-    const currentZone = this.getCurrentZone();
-    console.log(`🌍 Zone actuelle pour test: ${currentZone}`);
-    
-    // Debug environnement
-    zoneEnvironmentManager.debugZoneEnvironment(currentZone);
-    
-    // Test nuit
-    this.updateTimeOverlay(false);
-    
-    setTimeout(() => {
-      // Test météo pluie
-      this.updateWeatherOverlay('rain');
-      
-      setTimeout(() => {
-        // Remettre jour + temps clair
-        this.updateTimeOverlay(true);
-        this.updateWeatherOverlay('clear');
-      }, 3000);
-    }, 3000);
-  }
-
-  // Changer manuellement la transparence avec respect de l'environnement
-  setNightAlpha(alpha) {
-    if (!this.htmlOverlay) return;
-    
-    const currentZone = this.getCurrentZone();
-    const lighting = zoneEnvironmentManager.getRecommendedLighting(currentZone);
-    
-    if (!lighting.applyOverlay) {
-      console.log(`🏠 [DayNightWeatherManager] Alpha ignoré pour zone intérieure "${currentZone}"`);
-      return;
-    }
-    
-    this.htmlOverlay.style.backgroundColor = `rgba(0, 0, 68, ${alpha})`;
-    console.log(`🌙 [DayNightWeatherManager] Alpha nuit manuel: ${alpha} (zone: ${currentZone})`);
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Obtenir les informations d'environnement
-  getEnvironmentInfo() {
-    const currentZone = this.getCurrentZone();
-    return {
-      zone: currentZone,
-      environment: zoneEnvironmentManager.getZoneEnvironment(currentZone),
-      lighting: zoneEnvironmentManager.getRecommendedLighting(currentZone, this.getCurrentTime()),
-      dayNightEnabled: zoneEnvironmentManager.shouldApplyDayNightCycle(currentZone),
-      weatherEnabled: zoneEnvironmentManager.shouldApplyWeatherEffect(currentZone)
-    };
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Debug spécifique aux environnements
-  debugEnvironment() {
-    const currentZone = this.getCurrentZone();
-    console.log(`🔍 [DayNightWeatherManager] === DEBUG ENVIRONNEMENT ===`);
-    console.log(`🌍 Zone actuelle: ${currentZone}`);
-    
-    const envInfo = this.getEnvironmentInfo();
-    console.log(`📊 Informations environnement:`, envInfo);
-    
-    const time = this.getCurrentTime();
-    const weather = this.getCurrentWeather();
-    console.log(`🕐 Temps actuel: ${time.hour}h ${time.isDayTime ? '(JOUR)' : '(NUIT)'}`);
-    console.log(`🌤️ Météo actuelle: ${weather.displayName}`);
-    
-    if (this.htmlOverlay) {
-      console.log(`🌙 Overlay temps:`, {
-        backgroundColor: this.htmlOverlay.style.backgroundColor,
-        display: this.htmlOverlay.style.display,
-        opacity: this.htmlOverlay.style.opacity
-      });
-    }
-    
-    if (this.weatherHtmlOverlay) {
-      console.log(`🌦️ Overlay météo:`, {
-        backgroundColor: this.weatherHtmlOverlay.style.backgroundColor,
-        display: this.weatherHtmlOverlay.style.display,
-        opacity: this.weatherHtmlOverlay.style.opacity
-      });
-    }
-    
-    // Test des différents environnements
-    console.log(`🧪 [TEST] Simulation des environnements:`);
-    ['village', 'villagehouse1', 'nocthercave1'].forEach(testZone => {
-      const testEnv = zoneEnvironmentManager.debugZoneEnvironment(testZone);
-      console.log(`  ${testZone}: ${testEnv.environment} → Jour/Nuit: ${testEnv.dayNightEffect}, Météo: ${testEnv.weatherEffect}`);
-    });
-  }
-
-  // ✅ DEBUG AMÉLIORÉ avec environnements
-
-  debug() {
-    console.log(`🔍 [DayNightWeatherManager] === DEBUG (HTML + ENVIRONNEMENTS) ===`);
-    console.log(`🎮 Scène: ${this.scene.scene.key}`);
-    console.log(`🎨 HTML Overlays: temps=${!!this.htmlOverlay}, météo=${!!this.weatherHtmlOverlay}`);
-    console.log(`✅ Initialisé: ${this.isInitialized}`);
-    console.log(`📡 Synchronisé serveur: ${this.isServerSynced}`);
-    
-    // ✅ Informations d'environnement
-    const envInfo = this.getEnvironmentInfo();
-    console.log(`🌍 Environnement actuel:`, envInfo);
-    
-    if (this.htmlOverlay) {
-      console.log(`🌙 Overlay temps HTML:`, {
-        id: this.htmlOverlay.id,
-        backgroundColor: this.htmlOverlay.style.backgroundColor,
-        zIndex: this.htmlOverlay.style.zIndex,
-        transition: this.htmlOverlay.style.transition
-      });
-    }
-    
-    if (this.weatherHtmlOverlay) {
-      console.log(`🌦️ Overlay météo HTML:`, {
-        id: this.weatherHtmlOverlay.id,
-        backgroundColor: this.weatherHtmlOverlay.style.backgroundColor,
-        zIndex: this.weatherHtmlOverlay.style.zIndex
-      });
-    }
-    
-    if (this.timeWeatherManager) {
-      this.timeWeatherManager.debug();
-    } else {
-      console.warn(`⚠️ [DayNightWeatherManager] TimeWeatherManager manquant !`);
-    }
-    
-    // ✅ État actuel
-    const time = this.getCurrentTime();
-    const weather = this.getCurrentWeather();
-    console.log(`🕐 État actuel: ${time.hour}h ${time.isDayTime ? '(JOUR)' : '(NUIT)'}`);
-    console.log(`🌤️ Météo actuelle: ${weather.displayName} (${weather.weather})`);
-    
-    // ✅ Debug des zones environnantes
-    console.log(`📋 [ZONES] Exemples d'environnements:`);
-    const examples = ['beach', 'village', 'villagehouse1', 'lavandiashop', 'nocthercave1'];
-    examples.forEach(zone => {
-      const env = zoneEnvironmentManager.getZoneEnvironment(zone);
-      const dayNight = zoneEnvironmentManager.shouldApplyDayNightCycle(zone);
-      const weather = zoneEnvironmentManager.shouldApplyWeatherEffect(zone);
-      console.log(`  📍 ${zone}: ${env} (Jour/Nuit: ${dayNight}, Météo: ${weather})`);
-    });
-  }
-
-  // ✅ MÉTHODES UTILITAIRES POUR ZONES SPÉCIFIQUES
-
-  // Forcer le changement d'environnement (pour les tests)
-  testEnvironmentChange(zoneName) {
-    console.log(`🧪 [DayNightWeatherManager] Test changement vers zone: ${zoneName}`);
-    
-    // Simuler le changement de zone
-    this.lastZoneChecked = null; // Forcer la détection
-    
-    // Override temporaire pour le test
-    const originalGetCurrentZone = this.getCurrentZone;
-    this.getCurrentZone = () => zoneName;
-    
-    // Forcer la mise à jour
-    this.forceUpdate();
-    
-    // Restaurer la méthode originale après 5 secondes
-    setTimeout(() => {
-      this.getCurrentZone = originalGetCurrentZone;
-      this.forceUpdate();
-      console.log(`🔄 [DayNightWeatherManager] Test terminé, retour à la zone normale`);
-    }, 5000);
-  }
-
-  // ✅ MÉTHODES POUR L'INTÉGRATION AVEC BaseZoneScene
-
-  // Méthode appelée quand la scène change de zone
-  onZoneChanged(newZoneName) {
-    console.log(`🌍 [DayNightWeatherManager] Zone changée: ${this.lastZoneChecked} → ${newZoneName}`);
-    
-    // Forcer la vérification du nouvel environnement
-    this.lastZoneChecked = null;
-    this.checkEnvironmentChange();
-    
-    // Forcer une mise à jour complète
-    this.forceUpdate();
-    
-    console.log(`✅ [DayNightWeatherManager] Adaptation à la nouvelle zone terminée`);
-  }
-
-  // ✅ GETTER POUR LA SYNCHRONISATION (inchangé)
-  isSynchronized() {
-    return this.isServerSynced && this.timeWeatherManager?.isSynchronized();
-  }
-
-  // ✅ NETTOYAGE COMPLET (inchangé)
-
-  destroy() {
-    console.log(`🧹 [DayNightWeatherManager] Destruction (HTML + Environnements)...`);
-    
-    // ✅ Supprimer les overlays HTML
-    this.removeHtmlOverlays();
-    
-    if (this.timeWeatherManager) {
-      this.timeWeatherManager.destroy();
-      this.timeWeatherManager = null;
-    }
-    
-    this.htmlOverlay = null;
-    this.weatherHtmlOverlay = null;
-    this.isInitialized = false;
-    this.isServerSynced = false;
-    
-    // ✅ Nettoyer le cache environnement
-    this.currentEnvironment = null;
-    this.lastZoneChecked = null;
-    
-  // ✅ NETTOYAGE COMPLET avec effets visuels
-
-  destroy() {
-    console.log(`🧹 [DayNightWeatherManager] Destruction (HTML + Environnements + Effets)...`);
-    
-    // ✅ Supprimer les overlays HTML
-    this.removeHtmlOverlays();
-    
-    // ✅ NOUVEAU: Détruire les effets visuels
-    if (this.weatherEffects) {
-      this.weatherEffects.destroy();
-      this.weatherEffects = null;
-    }
-    
-    if (this.timeWeatherManager) {
-      this.timeWeatherManager.destroy();
-      this.timeWeatherManager = null;
-    }
-    
-    this.htmlOverlay = null;
-    this.weatherHtmlOverlay = null;
-    this.isInitialized = false;
-    this.isServerSynced = false;
-    
-    // ✅ Nettoyer le cache environnement
-    this.currentEnvironment = null;
-    this.lastZoneChecked = null;
-    
-    console.log(`✅ [DayNightWeatherManager] Détruit (HTML + Environnements + Effets)`);
-  }
-
   // ✅ NOUVELLES MÉTHODES POUR LES EFFETS VISUELS
 
-  // Obtenir le système d'effets météo
   getWeatherEffects() {
     return this.weatherEffects;
   }
 
-  // Test des effets météo
   testWeatherEffects() {
     console.log(`🧪 [DayNightWeatherManager] Test des effets météo...`);
     
@@ -627,7 +353,6 @@ export class DayNightWeatherManager {
     this.weatherEffects.testWeatherCycle();
   }
 
-  // Forcer un effet météo spécifique
   forceWeatherEffect(weatherType, intensity = 1.0) {
     console.log(`🌦️ [DayNightWeatherManager] Force effet météo: ${weatherType} (intensité: ${intensity})`);
     
@@ -642,7 +367,6 @@ export class DayNightWeatherManager {
     this.updateWeatherOverlay(weatherType);
   }
 
-  // Configurer l'angle de la pluie
   setRainAngle(angle) {
     console.log(`🌧️ [DayNightWeatherManager] Angle pluie: ${angle}°`);
     
@@ -651,9 +375,19 @@ export class DayNightWeatherManager {
     }
   }
 
-  // ✅ MÉTHODES AMÉLIORÉES AVEC EFFETS VISUELS
+  // ✅ Méthodes d'environnement
 
-  // Méthode appelée quand la scène change de zone (modifiée)
+  getEnvironmentInfo() {
+    const currentZone = this.getCurrentZone();
+    return {
+      zone: currentZone,
+      environment: zoneEnvironmentManager.getZoneEnvironment(currentZone),
+      lighting: zoneEnvironmentManager.getRecommendedLighting(currentZone, this.getCurrentTime()),
+      dayNightEnabled: zoneEnvironmentManager.shouldApplyDayNightCycle(currentZone),
+      weatherEnabled: zoneEnvironmentManager.shouldApplyWeatherEffect(currentZone)
+    };
+  }
+
   onZoneChanged(newZoneName) {
     console.log(`🌍 [DayNightWeatherManager] Zone changée: ${this.lastZoneChecked} → ${newZoneName}`);
     
@@ -661,7 +395,7 @@ export class DayNightWeatherManager {
     this.lastZoneChecked = null;
     this.checkEnvironmentChange();
     
-    // ✅ NOUVEAU: Mettre à jour l'environnement des effets visuels
+    // ✅ Mettre à jour l'environnement des effets visuels
     const environment = zoneEnvironmentManager.getZoneEnvironment(newZoneName);
     if (this.weatherEffects) {
       this.weatherEffects.setEnvironmentType(environment);
@@ -673,7 +407,8 @@ export class DayNightWeatherManager {
     console.log(`✅ [DayNightWeatherManager] Adaptation à la nouvelle zone terminée`);
   }
 
-  // Debug spécifique aux environnements (modifié)
+  // ✅ DEBUG
+
   debugEnvironment() {
     const currentZone = this.getCurrentZone();
     console.log(`🔍 [DayNightWeatherManager] === DEBUG ENVIRONNEMENT + EFFETS ===`);
@@ -703,7 +438,7 @@ export class DayNightWeatherManager {
       });
     }
 
-    // ✅ NOUVEAU: Debug des effets visuels
+    // ✅ Debug des effets visuels
     if (this.weatherEffects) {
       console.log(`🎨 Effets visuels météo:`);
       this.weatherEffects.debug();
@@ -719,9 +454,67 @@ export class DayNightWeatherManager {
     });
   }
 
-  // ✅ COMMANDES DE DEBUG AMÉLIORÉES POUR LA CONSOLE
+  debug() {
+    console.log(`🔍 [DayNightWeatherManager] === DEBUG (HTML + ENVIRONNEMENTS + EFFETS) ===`);
+    console.log(`🎮 Scène: ${this.scene.scene.key}`);
+    console.log(`🎨 HTML Overlays: temps=${!!this.htmlOverlay}, météo=${!!this.weatherHtmlOverlay}`);
+    console.log(`🌦️ Effets visuels: ${!!this.weatherEffects}`);
+    console.log(`✅ Initialisé: ${this.isInitialized}`);
+    console.log(`📡 Synchronisé serveur: ${this.isServerSynced}`);
+    
+    // ✅ Informations d'environnement
+    const envInfo = this.getEnvironmentInfo();
+    console.log(`🌍 Environnement actuel:`, envInfo);
+    
+    if (this.timeWeatherManager) {
+      this.timeWeatherManager.debug();
+    } else {
+      console.warn(`⚠️ [DayNightWeatherManager] TimeWeatherManager manquant !`);
+    }
+    
+    // ✅ État actuel
+    const time = this.getCurrentTime();
+    const weather = this.getCurrentWeather();
+    console.log(`🕐 État actuel: ${time.hour}h ${time.isDayTime ? '(JOUR)' : '(NUIT)'}`);
+    console.log(`🌤️ Météo actuelle: ${weather.displayName} (${weather.weather})`);
+  }
 
-  // Méthodes accessibles via la console du navigateur (modifiées)
+  // ✅ GETTER POUR LA SYNCHRONISATION
+  isSynchronized() {
+    return this.isServerSynced && this.timeWeatherManager?.isSynchronized();
+  }
+
+  // ✅ NETTOYAGE COMPLET
+  destroy() {
+    console.log(`🧹 [DayNightWeatherManager] Destruction (HTML + Environnements + Effets)...`);
+    
+    // ✅ Supprimer les overlays HTML
+    this.removeHtmlOverlays();
+    
+    // ✅ Détruire les effets visuels
+    if (this.weatherEffects) {
+      this.weatherEffects.destroy();
+      this.weatherEffects = null;
+    }
+    
+    if (this.timeWeatherManager) {
+      this.timeWeatherManager.destroy();
+      this.timeWeatherManager = null;
+    }
+    
+    this.htmlOverlay = null;
+    this.weatherHtmlOverlay = null;
+    this.isInitialized = false;
+    this.isServerSynced = false;
+    
+    // ✅ Nettoyer le cache environnement
+    this.currentEnvironment = null;
+    this.lastZoneChecked = null;
+    
+    console.log(`✅ [DayNightWeatherManager] Détruit (HTML + Environnements + Effets)`);
+  }
+
+  // ✅ COMMANDES CONSOLE
   static setupConsoleCommands() {
     if (typeof window !== 'undefined') {
       // Commande pour debug l'environnement
@@ -743,7 +536,7 @@ export class DayNightWeatherManager {
         }
       };
 
-      // ✅ NOUVELLES COMMANDES pour les effets météo
+      // ✅ Commandes pour les effets météo
       window.testRainEffect = (manager) => {
         if (manager && manager.forceWeatherEffect) {
           manager.forceWeatherEffect('rain', 1.5);
@@ -806,78 +599,6 @@ export class DayNightWeatherManager {
       console.log(`  - window.testSnowEffect(manager)`);
       console.log(`  - window.setRainAngle(manager, angle)`);
       console.log(`  - window.clearAllWeather(manager)`);
-      console.log(`  - window.listZoneEnvironments()`);
-    }
-  }
-}
-
-// ✅ Initialiser les commandes console au chargement
-if (typeof window !== 'undefined') {
-  DayNightWeatherManager.setupConsoleCommands();
-}
-
-  // ✅ NOUVELLES MÉTHODES DE CONFIGURATION DYNAMIQUE
-
-  // Ajouter une zone à la configuration
-  addZoneEnvironment(zoneName, environment) {
-    const success = zoneEnvironmentManager.setZoneEnvironment(zoneName, environment);
-    if (success) {
-      console.log(`✅ [DayNightWeatherManager] Zone "${zoneName}" configurée comme ${environment}`);
-      
-      // Si c'est la zone actuelle, forcer la mise à jour
-      if (this.getCurrentZone() === zoneName) {
-        this.onZoneChanged(zoneName);
-      }
-    }
-    return success;
-  }
-
-  // Obtenir toutes les zones par environnement
-  getAllZonesByEnvironment() {
-    return zoneEnvironmentManager.getAllZonesByEnvironment();
-  }
-
-  // Valider la configuration des zones
-  validateEnvironmentConfiguration() {
-    return zoneEnvironmentManager.validateAllZones();
-  }
-
-  // ✅ COMMANDES DE DEBUG POUR LA CONSOLE
-
-  // Méthodes accessibles via la console du navigateur
-  static setupConsoleCommands() {
-    if (typeof window !== 'undefined') {
-      // Commande pour debug l'environnement
-      window.debugDayNight = (manager) => {
-        if (manager && manager.debug) {
-          manager.debug();
-          manager.debugEnvironment();
-        } else {
-          console.warn('❌ Manager non fourni ou invalide');
-        }
-      };
-
-      // Commande pour tester un environnement
-      window.testEnvironment = (manager, zoneName) => {
-        if (manager && manager.testEnvironmentChange) {
-          manager.testEnvironmentChange(zoneName);
-        } else {
-          console.warn('❌ Manager non fourni ou invalide');
-        }
-      };
-
-      // Commande pour lister les zones
-      window.listZoneEnvironments = () => {
-        const zones = zoneEnvironmentManager.getAllZonesByEnvironment();
-        console.log('🌍 === ZONES PAR ENVIRONNEMENT ===');
-        Object.entries(zones).forEach(([env, zoneList]) => {
-          console.log(`${env.toUpperCase()}: ${zoneList.join(', ')}`);
-        });
-      };
-
-      console.log(`🎮 [DayNightWeatherManager] Commandes console disponibles:`);
-      console.log(`  - window.debugDayNight(manager)`);
-      console.log(`  - window.testEnvironment(manager, 'zoneName')`);
       console.log(`  - window.listZoneEnvironments()`);
     }
   }
