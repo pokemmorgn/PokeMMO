@@ -2,19 +2,7 @@
 import { Room, Client } from "@colyseus/core";
 import { Schema, type } from "@colyseus/schema";
 import { verifyPersonalMessage } from "@mysten/sui.js/verify";
-import mongoose from "mongoose";
-
-// Schéma pour les utilisateurs avec username
-const UserSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  coins: { type: Number, default: 1000 },
-  level: { type: Number, default: 1 },
-  createdAt: { type: Date, default: Date.now },
-  lastLogin: { type: Date, default: Date.now }
-});
-
-// Modèle User (s'il n'existe pas déjà)
-const User = mongoose.models.User || mongoose.model('User', UserSchema);
+import { PlayerData } from "../models/PlayerData";
 
 // État de la room d'authentification
 export class AuthState extends Schema {
@@ -100,49 +88,48 @@ export class AuthRoom extends Room<AuthState> {
           return;
         }
 
-        // Chercher si le username existe déjà avec Mongoose
-        let user = await User.findOne({ username: username });
+        // Chercher si le username existe déjà avec PlayerData
+        let player = await PlayerData.findOne({ username: username });
         
-        if (user) {
+        if (player) {
           // Username existe, on le connecte
           console.log(`✅ Username existant: ${username}`);
           
-          // Mettre à jour la dernière connexion
-          user.lastLogin = new Date();
-          await user.save();
-
+          // Pas besoin de mettre à jour lastLogin pour PlayerData
+          
           client.send("username_result", { 
             status: "ok", 
             username: username,
             existing: true,
             userData: {
-              coins: user.coins || 0,
-              level: user.level || 1,
+              coins: player.gold || 0, // Utilise 'gold' au lieu de 'coins'
+              level: 1, // Pas de level dans PlayerData, donc default
             }
           });
         } else {
           // Nouveau username, on le crée
           console.log(`🆕 Nouveau username: ${username}`);
           
-          const newUser = new User({
+          const newPlayer = new PlayerData({
             username: username,
-            coins: 1000,
-            level: 1,
-            createdAt: new Date(),
-            lastLogin: new Date()
+            gold: 1000, // Utilise 'gold' au lieu de 'coins'
+            lastX: 300,
+            lastY: 300,
+            lastMap: "Beach"
           });
           
-          await newUser.save();
+          await newPlayer.save();
           
           client.send("username_result", { 
             status: "ok", 
             username: username,
             existing: false,
             userData: {
-              coins: newUser.coins,
-              level: newUser.level,
-              createdAt: newUser.createdAt,
-              lastLogin: newUser.lastLogin
+              coins: newPlayer.gold,
+              level: 1,
+              lastMap: newPlayer.lastMap,
+              lastX: newPlayer.lastX,
+              lastY: newPlayer.lastY
             }
           });
         }
