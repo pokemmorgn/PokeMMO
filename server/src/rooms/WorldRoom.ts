@@ -192,8 +192,10 @@ console.log(`✅ EncounterManager initialisé`);
     
     // ✅ FORCER l'envoi immédiat de l'état temps/météo
     setTimeout(() => {
-      this.timeWeatherService.sendCurrentStateToClient?.(client);
-    }, 50); // 50ms seulement
+  if (this.timeWeatherService) {
+    this.timeWeatherService.sendCurrentStateToAllClients();
+  }
+}, 50); // 50ms seulement
   }
 
   // ✅ Quest statuses avec délai réduit
