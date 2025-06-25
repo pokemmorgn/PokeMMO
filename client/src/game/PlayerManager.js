@@ -198,9 +198,10 @@ getMyPlayer() {
     }
 
     // Jouer l'animation idle par défaut
-    if (this.scene.anims.exists('idle_down')) {
-      player.play('idle_down');
-    }
+const idleAnimKey = `${characterId}_idle_down`;
+if (this.scene.anims.exists(idleAnimKey)) {
+  player.play(idleAnimKey);
+}
 
     // ✅ Indicateur local optimisé
     if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
@@ -221,11 +222,11 @@ getMyPlayer() {
     player.targetY = y;
     
     // Restaurer la visibilité si nécessaire
-    if (!player.visible) {
-      console.log("[PlayerManager] 🔧 Restauration visibilité joueur existant");
-      player.setVisible(true);
-      player.setActive(true);
-    }
+if (player && typeof player.setVisible === 'function' && !player.visible) {
+  console.log("[PlayerManager] 🔧 Restauration visibilité joueur existant");
+  player.setVisible(true);
+  player.setActive(true);
+}
     
     // Vérifier l'indicateur pour le joueur local
     if ((player.sessionId === this.mySessionId || player.sessionId === this._pendingSessionId) && !player.indicator) {
@@ -424,11 +425,13 @@ getMyPlayer() {
     if (playerState.currentZone) player.currentZone = playerState.currentZone;
 
     // Restaurer la visibilité si nécessaire
-    if (!player.visible) {
-      console.warn(`[PlayerManager] 🔧 Restauration visibilité: ${player.sessionId}`);
-      player.setVisible(true);
-      player.setActive(true);
-    }
+if (player && typeof player.setVisible === 'function' && !player.visible) {
+  console.warn(`[PlayerManager] 🔧 Restauration visibilité: ${player.sessionId}`);
+  player.setVisible(true);
+  player.setActive(true);
+} else if (player && typeof player.setVisible !== 'function') {
+  console.error(`[PlayerManager] ❌ Joueur ${player.sessionId || 'unknown'} n'a pas setVisible - type:`, typeof player);
+}
 
     // Animations
     this.updatePlayerAnimation(player);
