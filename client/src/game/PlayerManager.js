@@ -440,19 +440,40 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
 }
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour des animations
-  updatePlayerAnimation(player) {
-    if (player.isMoving && player.lastDirection) {
-      const walkAnim = `walk_${player.lastDirection}`;
-      if (this.scene.anims.exists(walkAnim)) {
-        player.anims.play(walkAnim, true);
-      }
-    } else if (!player.isMoving && player.lastDirection) {
-      const idleAnim = `idle_${player.lastDirection}`;
-      if (this.scene.anims.exists(idleAnim)) {
-        player.anims.play(idleAnim, true);
-      }
-    }
+  // ✅ MÉTHODE CORRIGÉE: Mise à jour des animations
+updatePlayerAnimation(player) {
+  if (!player || !player.anims) {
+    console.warn("[PlayerManager] Joueur sans anims:", player?.sessionId);
+    return;
   }
+  
+  // 🔥 VÉRIFIER QUE LES ANIMATIONS EXISTENT (important pour les autres joueurs)
+  if (!this.scene.anims.exists('walk_down')) {
+    console.warn("[PlayerManager] Animations manquantes, recréation...");
+    this.createAnimations();
+  }
+  
+  let targetAnim = null;
+  
+  if (player.isMoving && player.lastDirection) {
+    targetAnim = `walk_${player.lastDirection}`;
+  } else if (player.lastDirection) {
+    targetAnim = `idle_${player.lastDirection}`;
+  } else {
+    targetAnim = 'idle_down'; // Défaut
+  }
+  
+  // 🔥 VÉRIFIER ET JOUER L'ANIMATION
+  if (targetAnim && this.scene.anims.exists(targetAnim)) {
+    // Ne changer que si différente
+    if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
+      console.log(`[PlayerManager] Animation autre joueur: ${player.sessionId} -> ${targetAnim}`);
+      player.anims.play(targetAnim, true);
+    }
+  } else {
+    console.warn(`[PlayerManager] Animation introuvable: ${targetAnim} pour ${player.sessionId}`);
+  }
+}
 
   // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
   checkMyPlayerReady() {
