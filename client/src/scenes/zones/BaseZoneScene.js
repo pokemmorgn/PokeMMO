@@ -53,8 +53,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.load.tilemapTiledJSON(this.mapKey, `assets/maps/${this.mapKey}.${ext}`);
 
     this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
-      frameWidth: 64,
-      frameHeight: 64,
+      frameWidth: 32,
+      frameHeight: 48,
     });
   }
 
