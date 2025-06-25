@@ -190,7 +190,7 @@ player.body.setCollideWorldBounds(true); // bloque le joueur dans les bords map
 
 // Garde le setSize et offset si ça colle bien à ton sprite
 player.body.setSize(16, 16);
-player.body.setOffset(24, 44);
+player.body.setOffset(8, 16);
 
 if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
     player.lastDirection = 'down';
