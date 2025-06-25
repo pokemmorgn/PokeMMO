@@ -69,7 +69,7 @@ export class PlayerManager {
         active: oldPlayer.active,
         lastDirection: oldPlayer.lastDirection,
         isMoving: oldPlayer.isMoving,
-        indicator: oldPlayer.indicator
+        indicator: oldPlayer.indicator,
         characterId: oldPlayer.characterId
 
       };
