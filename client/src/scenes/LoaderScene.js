@@ -61,10 +61,10 @@ this.load.tilemapTiledJSON('nocthercave2bis', 'assets/maps/noctherbcave2bis.tmj'
 
     // Npcs
     this.load.spritesheet('OldMan', 'assets/npc/oldman.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.spritesheet('Scientist', 'assets/npc/Scientist.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.spritesheet('OldLady', 'assets/npc/OldLady.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.spritesheet('BrownGuy', 'assets/npc/BrownGuy.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.spritesheet('BlondeGirl', 'assets/npc/BlondeGirl.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('Scientist', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('OldLady', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('BrownGuy', 'assets/npc/boy1.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('BlondeGirl', 'assets/npc/sophievillage.png', { frameWidth: 32, frameHeight: 32 });
 
     // Charger le spritesheet du joueur (32x32 par frame)
     this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
