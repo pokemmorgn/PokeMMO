@@ -58,6 +58,7 @@ export class CharacterManager {
 
   // ✅ Créer un sprite pour un personnage
 async createCharacterSprite(characterId, x, y) {
+  // Pour l'instant, toujours utiliser Brendan
   const actualCharacterId = 'brendan';
   
   console.log(`🎭 [CharacterManager] Création sprite pour ${actualCharacterId} à (${x}, ${y})`);
@@ -82,32 +83,74 @@ async createCharacterSprite(characterId, x, y) {
     return this.createPlaceholderSprite(x, y, actualCharacterId);
   }
 
-  // ... reste du code inchangé
-
-  sprite.setOrigin(0.5, 1);
-  sprite.setScale(1);
-  sprite.setDepth(4.5);
-
-  // ✅ VÉRIFIER QUE LE BODY EXISTE
-  if (sprite.body) {
-    sprite.body.setCollideWorldBounds(true);
-    sprite.body.setSize(16, 16);
-    sprite.body.setOffset(8, 16);
+  const definition = this.characterDefinitions.get(actualCharacterId);
+  
+  // ✅ VÉRIFIER QUE LA TEXTURE EXISTE VRAIMENT
+  if (!this.scene.textures.exists(definition.spriteKey)) {
+    console.error(`❌ [CharacterManager] Texture ${definition.spriteKey} n'existe pas !`);
+    return this.createPlaceholderSprite(x, y, actualCharacterId);
   }
 
-  // Ajouter les métadonnées du personnage
-  sprite.characterId = actualCharacterId;
-  sprite.characterDefinition = definition;
-  sprite.lastDirection = 'down';
-  sprite.isMoving = false;
+  // ✅ VÉRIFIER QUE LES ANIMATIONS EXISTENT
+  const idleAnimKey = `${actualCharacterId}_idle_down`;
+  if (!this.scene.anims.exists(idleAnimKey)) {
+    console.error(`❌ [CharacterManager] Animation ${idleAnimKey} n'existe pas !`);
+    // Créer les animations maintenant
+    this.createCharacterAnimations(actualCharacterId);
+  }
 
-  console.log(`✅ [CharacterManager] Sprite créé pour ${actualCharacterId}`, {
-    hasSetVisible: typeof sprite.setVisible === 'function',
-    hasPlay: typeof sprite.play === 'function',
-    characterId: sprite.characterId
-  });
+  // ✅ CORRECTION: Déclarer la variable sprite AVANT de l'utiliser
+  let sprite;
   
-  return sprite;
+  try {
+    // Créer le sprite avec l'idle par défaut
+    sprite = this.scene.physics.add.sprite(x, y, definition.spriteKey, definition.defaultFrame);
+    
+    // ✅ VÉRIFIER QUE LE SPRITE EST VALIDE
+    if (!sprite || typeof sprite.setOrigin !== 'function') {
+      console.error(`❌ [CharacterManager] Sprite invalide créé pour ${actualCharacterId}`);
+      return this.createPlaceholderSprite(x, y, actualCharacterId);
+    }
+
+    sprite.setOrigin(0.5, 1);
+    sprite.setScale(1);
+    sprite.setDepth(4.5);
+
+    // ✅ VÉRIFIER QUE LE BODY EXISTE
+    if (sprite.body) {
+      sprite.body.setCollideWorldBounds(true);
+      sprite.body.setSize(16, 16);
+      sprite.body.setOffset(8, 16);
+    }
+
+    // Ajouter les métadonnées du personnage
+    sprite.characterId = actualCharacterId;
+    sprite.characterDefinition = definition;
+    sprite.lastDirection = 'down';
+    sprite.isMoving = false;
+
+    console.log(`✅ [CharacterManager] Sprite créé pour ${actualCharacterId}`, {
+      hasSetVisible: typeof sprite.setVisible === 'function',
+      hasPlay: typeof sprite.play === 'function',
+      characterId: sprite.characterId
+    });
+    
+    return sprite;
+    
+  } catch (error) {
+    console.error(`❌ [CharacterManager] Erreur création sprite:`, error);
+    
+    // ✅ Nettoyer le sprite défaillant s'il existe
+    if (sprite) {
+      try {
+        sprite.destroy();
+      } catch (e) {
+        console.warn(`⚠️ [CharacterManager] Erreur nettoyage sprite défaillant:`, e);
+      }
+    }
+    
+    return this.createPlaceholderSprite(x, y, actualCharacterId);
+  }
 }
 
   // ✅ Charger les assets d'un personnage
