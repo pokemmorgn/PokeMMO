@@ -18,7 +18,7 @@ export class Player extends Schema {
   @type("string") name: string = "";
   @type("string") direction: string = "down";
   @type("boolean") isMoving: boolean = false;
-    @type("string") characterId: string = "mc_whitebrown"; // ID du personnage choisi
+    @type("string") characterId: string = "brendan"; // ID du personnage choisi
   @type("string") currentZone: string = ""; // Zone courante du joueur
   @type([ TeamPokemon ]) team: ArraySchema<TeamPokemon> = new ArraySchema<TeamPokemon>();
   
