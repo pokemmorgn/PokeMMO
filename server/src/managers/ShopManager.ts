@@ -487,6 +487,126 @@ export class ShopManager {
     ];
   }
 
+  restockShop(shopId: string): boolean {
+    const shop = this.getShopDefinition(shopId);
+    if (!shop || shop.restockInterval === 0) return false;
+
+    if (shop.isTemporary) {
+      console.log(`🔄 Shop temporaire ${shopId} - pas de restock nécessaire`);
+      return false;
+    }
+
+    const now = Date.now();
+    const lastRestock = shop.lastRestock || 0;
+    const timeSinceRestock = now - lastRestock;
+    const restockIntervalMs = shop.restockInterval * 60 * 1000;
+
+    if (timeSinceRestock >= restockIntervalMs) {
+      shop.items.forEach(item => {
+        if (item.stock !== undefined && item.stock !== -1) {
+          if (item.itemId.includes('ball')) {
+            item.stock = 50;
+          } else if (item.itemId.includes('potion')) {
+            item.stock = 30;
+          } else {
+            item.stock = 20;
+          }
+        }
+      });
+
+      shop.lastRestock = now;
+      console.log(`🔄 Shop ${shopId} restocké`);
+      return true;
+    }
+
+    return false;
+  }
+
+  createCustomTemporaryShop(
+    shopId: string, 
+    name: string, 
+    items: ShopItem[], 
+    npcId?: number
+  ): ShopDefinition {
+    const temporaryShop: ShopDefinition = {
+      id: shopId,
+      name: name,
+      type: "temporary",
+      description: "Un marchand temporaire personnalisé.",
+      buyMultiplier: 1.0,
+      sellMultiplier: 0.5,
+      currency: "gold",
+      restockInterval: 0,
+      isTemporary: true,
+      items: items
+    };
+
+    this.temporaryShops.set(shopId, temporaryShop);
+    console.log(`✅ Shop temporaire personnalisé créé: ${name} avec ${items.length} objets`);
+    
+    return temporaryShop;
+  }
+
+  removeTemporaryShop(shopId: string): boolean {
+    const removed = this.temporaryShops.delete(shopId);
+    if (removed) {
+      console.log(`🗑️ Shop temporaire ${shopId} supprimé`);
+    }
+    return removed;
+  }
+
+  isTemporaryShop(shopId: string): boolean {
+    const shop = this.getShopDefinition(shopId);
+    return shop?.isTemporary || false;
+  }
+
+  clearTemporaryShops(): number {
+    const count = this.temporaryShops.size;
+    this.temporaryShops.clear();
+    console.log(`🧹 ${count} shops temporaires supprimés`);
+    return count;
+  }
+
+  addItemToShop(shopId: string, item: ShopItem): boolean {
+    const shop = this.getShopDefinition(shopId);
+    if (!shop) return false;
+
+    const existingIndex = shop.items.findIndex(i => i.itemId === item.itemId);
+    if (existingIndex >= 0) {
+      shop.items[existingIndex] = item;
+    } else {
+      shop.items.push(item);
+    }
+
+    return true;
+  }
+
+  removeItemFromShop(shopId: string, itemId: string): boolean {
+    const shop = this.getShopDefinition(shopId);
+    if (!shop) return false;
+
+    const itemIndex = shop.items.findIndex(i => i.itemId === itemId);
+    if (itemIndex >= 0) {
+      shop.items.splice(itemIndex, 1);
+      return true;
+    }
+
+    return false;
+  }
+
+  updateItemStock(shopId: string, itemId: string, newStock: number): boolean {
+    const shop = this.getShopDefinition(shopId);
+    if (!shop) return false;
+
+    const item = shop.items.find(i => i.itemId === itemId);
+    if (item) {
+      item.stock = newStock;
+      return true;
+    }
+
+    return false;
+  }
+
   debugShopManager(): void {
     console.log(`🔍 [ShopManager] === ÉTAT COMPLET (SANS npcId) ===`);
     console.log(`📊 Shops officiels: ${this.shopDefinitions.size}`);
