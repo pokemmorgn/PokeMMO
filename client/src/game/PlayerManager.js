@@ -1,5 +1,6 @@
 // src/game/PlayerManager.js - VERSION CORRIGÉE POUR WORLDROOM
 // ✅ Corrections pour la synchronisation et les transitions de zones
+import { CharacterManager } from './CharacterManager.js';
 
 export class PlayerManager {
   constructor(scene) {
@@ -11,6 +12,8 @@ export class PlayerManager {
     this._myPlayerIsReady = false;
     this._myPlayerReadyCallback = null;
     this._hasWarnedMissingPlayer = false;
+    this.characterManager = new CharacterManager(scene);
+
     
     // ✅ NOUVEAU: Système de synchronisation amélioré
     this._pendingSessionId = null;
@@ -67,6 +70,8 @@ export class PlayerManager {
         lastDirection: oldPlayer.lastDirection,
         isMoving: oldPlayer.isMoving,
         indicator: oldPlayer.indicator
+        characterId: oldPlayer.characterId
+
       };
       
       // Supprimer l'ancienne entrée
@@ -152,13 +157,13 @@ getMyPlayer() {
     });
   }
 
-  createPlayer(sessionId, x, y) {
+  async createPlayer(sessionId, x, y, characterId = 'brendan') {
     if (this.isDestroyed) {
       console.error("[PlayerManager] createPlayer appelé alors que destroy déjà fait!");
       return null;
     }
 
-    // ✅ AMÉLIORATION 3: Vérifier si le joueur existe déjà
+    // ✅ Vérifier si le joueur existe déjà
     if (this.players.has(sessionId)) {
       console.log(`[PlayerManager] Joueur ${sessionId} existe déjà, mise à jour position`);
       const existingPlayer = this.players.get(sessionId);
@@ -166,45 +171,38 @@ getMyPlayer() {
       return existingPlayer;
     }
 
-    console.log(`[PlayerManager] 🆕 Création nouveau joueur: ${sessionId} à (${x}, ${y})`);
+    console.log(`[PlayerManager] 🆕 Création nouveau joueur: ${sessionId} à (${x}, ${y}) avec personnage ${characterId}`);
 
-    // Placeholder si spritesheet manquant
-    if (!this.scene.textures.exists('BoyWalk')) {
-      return this.createPlaceholderPlayer(sessionId, x, y);
+    // ✅ NOUVEAU: Utiliser CharacterManager pour créer le sprite
+    const player = await this.characterManager.createCharacterSprite(characterId, x, y);
+    if (!player) {
+      console.error(`[PlayerManager] Impossible de créer le sprite pour ${sessionId}`);
+      return null;
     }
 
-    // Crée les animations une seule fois
+    // Configuration du joueur
+    player.sessionId = sessionId;
+    player.targetX = x;
+    player.targetY = y;
+    player.snapLerpTimer = 0;
+    player.lastDirection = 'down';
+    player.isMoving = false;
+    player.setVisible(true);
+    player.setActive(true);
+
+    // Créer les animations une seule fois
     if (!this.animsCreated) {
       console.log("[PlayerManager] Création des animations BoyWalk");
       this.createAnimations();
       this.animsCreated = true;
     }
 
-    // Sprite physique joueur
-    const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1)
-  .setOrigin(0.5, 1)
-  .setScale(1);
-player.setDepth(4.5);
-player.sessionId = sessionId;
+    // Jouer l'animation idle par défaut
+    if (this.scene.anims.exists('idle_down')) {
+      player.play('idle_down');
+    }
 
-// Optionnel mais conseillé pour RPG :
-player.body.setCollideWorldBounds(true); // bloque le joueur dans les bords map
-
-// Garde le setSize et offset si ça colle bien à ton sprite
-player.body.setSize(16, 16);
-player.body.setOffset(8, 16);
-
-    if (this.scene.anims.exists('idle_down')) player.play('idle_down');
-    player.lastDirection = 'down';
-    player.isMoving = false;
-
-    player.targetX = x;
-    player.targetY = y;
-    player.snapLerpTimer = 0;
-    player.setVisible(true);
-    player.setActive(true);
-
-    // ✅ AMÉLIORATION 4: Indicateur local optimisé
+    // ✅ Indicateur local optimisé
     if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
       this.createLocalPlayerIndicator(player);
     }
@@ -437,17 +435,13 @@ player.body.setOffset(8, 16);
   }
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour des animations
-  updatePlayerAnimation(player) {
+    updatePlayerAnimation(player) {
+    if (!this.characterManager) return;
+    
     if (player.isMoving && player.lastDirection) {
-      const walkAnim = `walk_${player.lastDirection}`;
-      if (this.scene.anims.exists(walkAnim)) {
-        player.anims.play(walkAnim, true);
-      }
+      this.characterManager.playAnimation(player, 'walk', player.lastDirection);
     } else if (!player.isMoving && player.lastDirection) {
-      const idleAnim = `idle_${player.lastDirection}`;
-      if (this.scene.anims.exists(idleAnim)) {
-        player.anims.play(idleAnim, true);
-      }
+      this.characterManager.playAnimation(player, 'idle', player.lastDirection);
     }
   }
 
@@ -676,6 +670,10 @@ player.body.setOffset(8, 16);
 
   destroy() {
     this.isDestroyed = true;
+      if (this.characterManager) {
+      this.characterManager.destroy();
+      this.characterManager = null;
+    }
     console.warn("[PlayerManager] destroy() appelé");
     this.clearAllPlayers();
   }
