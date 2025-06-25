@@ -69,7 +69,30 @@ export class PositionSaverService {
     console.log(`✅ Batch terminé: ${successes}/${positions.length} réussies`);
     return successes;
   }
-
+// ✅ Méthode pour vérifier les données sauvées
+  async debugPlayerPosition(username: string): Promise<void> {
+    try {
+      const data = await PlayerData.findOne({ username });
+      
+      console.log(`🔍 [DEBUG POSITION] Joueur: ${username}`);
+      if (data) {
+        console.log(`📊 Données trouvées:`, {
+          lastX: data.lastX,
+          lastY: data.lastY, 
+          lastMap: data.lastMap,
+          types: {
+            lastX: typeof data.lastX,
+            lastY: typeof data.lastY,
+            lastMap: typeof data.lastMap
+          }
+        });
+      } else {
+        console.log(`❌ Aucune donnée trouvée pour ${username}`);
+      }
+    } catch (error) {
+      console.error(`❌ Erreur debug position:`, error);
+    }
+  }
   // ✅ HELPER POUR EXTRAIRE POSITION DEPUIS PLAYER
   extractPosition(player: any): PlayerPosition {
     return {
