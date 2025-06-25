@@ -10,6 +10,8 @@ import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
 import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
+import { CharacterManager } from "../../game/CharacterManager.js";
+
 
 
 export class BaseZoneScene extends Phaser.Scene {
@@ -208,12 +210,17 @@ initializeTimeWeatherSystem() {
     if (typeof data.spawnY === 'number') spawnY = data.spawnY;
 
     // Création réelle du joueur (évite de doubler le joueur si déjà présent)
-    if (this.playerManager && !this.playerManager.getMyPlayer()) {
-      this.playerManager.createPlayer(sessionId, spawnX, spawnY);
-      console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY})`);
-    } else {
-      console.log(`[${this.scene.key}] Joueur déjà présent ou playerManager manquant.`);
-    }
+   // ✅ Création réelle du joueur avec Character System
+if (this.playerManager && !this.playerManager.getMyPlayer()) {
+  // Récupérer l'ID du personnage depuis les données de scène ou utiliser brendan
+  const characterId = data.characterId || 'brendan';
+  console.log(`[${this.scene.key}] Création joueur avec personnage: ${characterId}`);
+  
+  this.playerManager.createPlayer(sessionId, spawnX, spawnY, characterId);
+  console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY}) avec personnage ${characterId}`);
+} else {
+  console.log(`[${this.scene.key}] Joueur déjà présent ou playerManager manquant.`);
+}
   }
 
   // ✅ MÉTHODE INCHANGÉE: Demander la zone au serveur
