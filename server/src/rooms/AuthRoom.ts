@@ -94,7 +94,61 @@ if (
       return false;
     }
   }
+async onMessage(type, message) {
+    if (type === "username_auth") {
+        const { username } = message;
+        
+        if (!/^[a-zA-Z0-9_-]{3,20}$/.test(username)) {
+            client.send("username_result", { 
+                status: "error", 
+                reason: "Username invalide (3-20 caractères, lettres/chiffres seulement)" 
+            });
+            return;
+        }
 
+        try {
+            // Chercher si le username existe déjà en MongoDB
+            let user = await this.state.db.collection('users').findOne({ username: username });
+            
+            if (user) {
+                // Username existe, on le connecte
+                client.send("username_result", { 
+                    status: "ok", 
+                    username: username,
+                    existing: true,
+                    userData: {
+                        coins: user.coins || 0,
+                        level: user.level || 1,
+                    }
+                });
+            } else {
+                // Nouveau username, on le crée
+                const newUser = {
+                    username: username,
+                    coins: 1000,
+                    level: 1,
+                    createdAt: new Date(),
+                    lastLogin: new Date()
+                };
+                
+                await this.state.db.collection('users').insertOne(newUser);
+                
+                client.send("username_result", { 
+                    status: "ok", 
+                    username: username,
+                    existing: false,
+                    userData: newUser
+                });
+            }
+        } catch (error) {
+            client.send("username_result", { 
+                status: "error", 
+                reason: "Erreur base de données" 
+            });
+        }
+    }
+}
+  
   disconnectClient(client: Client, reason: string) {
     console.log("🚫 Déconnexion client:", reason);
     client.send("error", { status: "error", reason });
