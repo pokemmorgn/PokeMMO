@@ -1,6 +1,5 @@
 // src/game/PlayerManager.js - VERSION CORRIGÉE POUR WORLDROOM
 // ✅ Corrections pour la synchronisation et les transitions de zones
-import { CharacterManager } from './CharacterManager.js';
 
 export class PlayerManager {
   constructor(scene) {
@@ -12,8 +11,6 @@ export class PlayerManager {
     this._myPlayerIsReady = false;
     this._myPlayerReadyCallback = null;
     this._hasWarnedMissingPlayer = false;
-    this.characterManager = new CharacterManager(scene);
-
     
     // ✅ NOUVEAU: Système de synchronisation amélioré
     this._pendingSessionId = null;
@@ -69,9 +66,7 @@ export class PlayerManager {
         active: oldPlayer.active,
         lastDirection: oldPlayer.lastDirection,
         isMoving: oldPlayer.isMoving,
-        indicator: oldPlayer.indicator,
-        characterId: oldPlayer.characterId
-
+        indicator: oldPlayer.indicator
       };
       
       // Supprimer l'ancienne entrée
@@ -157,64 +152,68 @@ getMyPlayer() {
     });
   }
 
-async createPlayer(sessionId, x, y, characterId = 'brendan') {
-  if (this.isDestroyed) {
-    console.error("[PlayerManager] createPlayer appelé alors que destroy déjà fait!");
-    return null;
+  createPlayer(sessionId, x, y) {
+    if (this.isDestroyed) {
+      console.error("[PlayerManager] createPlayer appelé alors que destroy déjà fait!");
+      return null;
+    }
+
+    // ✅ AMÉLIORATION 3: Vérifier si le joueur existe déjà
+    if (this.players.has(sessionId)) {
+      console.log(`[PlayerManager] Joueur ${sessionId} existe déjà, mise à jour position`);
+      const existingPlayer = this.players.get(sessionId);
+      this.updateExistingPlayer(existingPlayer, x, y);
+      return existingPlayer;
+    }
+
+    console.log(`[PlayerManager] 🆕 Création nouveau joueur: ${sessionId} à (${x}, ${y})`);
+
+    // Placeholder si spritesheet manquant
+    if (!this.scene.textures.exists('BoyWalk')) {
+      return this.createPlaceholderPlayer(sessionId, x, y);
+    }
+
+    // Crée les animations une seule fois
+    if (!this.animsCreated) {
+      console.log("[PlayerManager] Création des animations BoyWalk");
+      this.createAnimations();
+      this.animsCreated = true;
+    }
+
+    // Sprite physique joueur
+    const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1)
+  .setOrigin(0.5, 1)
+  .setScale(1);
+player.setDepth(4.5);
+player.sessionId = sessionId;
+
+// Optionnel mais conseillé pour RPG :
+player.body.setCollideWorldBounds(true); // bloque le joueur dans les bords map
+
+// Garde le setSize et offset si ça colle bien à ton sprite
+player.body.setSize(16, 16);
+player.body.setOffset(8, 16);
+
+    if (this.scene.anims.exists('idle_down')) player.play('idle_down');
+    player.lastDirection = 'down';
+    player.isMoving = false;
+
+    player.targetX = x;
+    player.targetY = y;
+    player.snapLerpTimer = 0;
+    player.setVisible(true);
+    player.setActive(true);
+
+    // ✅ AMÉLIORATION 4: Indicateur local optimisé
+    if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+      this.createLocalPlayerIndicator(player);
+    }
+
+    this.players.set(sessionId, player);
+    console.log(`[PlayerManager] ✅ Joueur créé: ${sessionId} (total: ${this.players.size})`);
+    
+    return player;
   }
-
-  // ✅ CORRECTION: Vérifier sessionId valide
-  if (!sessionId || sessionId === 'null' || sessionId === null) {
-    console.error("[PlayerManager] SessionId invalide pour createPlayer:", sessionId);
-    return null;
-  }
-
-  // ✅ CORRECTION CRITIQUE: Vérifier si le joueur existe déjà AVANT de créer
-  if (this.players.has(sessionId)) {
-    console.log(`[PlayerManager] ⚠️ Joueur ${sessionId} existe déjà, pas de création`);
-    const existingPlayer = this.players.get(sessionId);
-    this.updateExistingPlayer(existingPlayer, x, y);
-    return existingPlayer;
-  }
-
-  console.log(`[PlayerManager] 🆕 Création nouveau joueur: ${sessionId} à (${x}, ${y}) avec personnage ${characterId}`);
-
-  // ✅ UTILISER EXCLUSIVEMENT CharacterManager
-  const player = await this.characterManager.createCharacterSprite(characterId, x, y);
-  if (!player) {
-    console.error(`[PlayerManager] Impossible de créer le sprite pour ${sessionId}`);
-    return null;
-  }
-
-  // ✅ CORRECTION: Vérifier que le sprite est valide avant configuration
-  if (!player || typeof player.setVisible !== 'function') {
-    console.error(`[PlayerManager] Sprite invalide créé pour ${sessionId}`);
-    return null;
-  }
-
-  // Configuration du joueur
-  player.sessionId = sessionId;
-  player.targetX = x;
-  player.targetY = y;
-  player.snapLerpTimer = 0;
-  player.lastDirection = 'down';
-  player.isMoving = false;
-  player.setVisible(true);
-  player.setActive(true);
-
-  // Jouer l'animation idle par défaut via CharacterManager
-  this.characterManager.playAnimation(player, 'idle', 'down');
-
-  // Indicateur local optimisé
-  if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
-    this.createLocalPlayerIndicator(player);
-  }
-
-  this.players.set(sessionId, player);
-  console.log(`[PlayerManager] ✅ Joueur créé: ${sessionId} (total: ${this.players.size})`);
-  
-  return player;
-}
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour d'un joueur existant
   updateExistingPlayer(player, x, y) {
@@ -224,11 +223,11 @@ async createPlayer(sessionId, x, y, characterId = 'brendan') {
     player.targetY = y;
     
     // Restaurer la visibilité si nécessaire
-if (player && typeof player.setVisible === 'function' && !player.visible) {
-  console.log("[PlayerManager] 🔧 Restauration visibilité joueur existant");
-  player.setVisible(true);
-  player.setActive(true);
-}
+    if (!player.visible) {
+      console.log("[PlayerManager] 🔧 Restauration visibilité joueur existant");
+      player.setVisible(true);
+      player.setActive(true);
+    }
     
     // Vérifier l'indicateur pour le joueur local
     if ((player.sessionId === this.mySessionId || player.sessionId === this._pendingSessionId) && !player.indicator) {
@@ -358,51 +357,38 @@ if (player && typeof player.setVisible === 'function' && !player.visible) {
   }
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour ou création de joueur
- updateOrCreatePlayer(sessionId, playerState) {
-  // ✅ CORRECTION: Vérifier sessionId valide
-  if (!sessionId || sessionId === 'null' || sessionId === null) {
-    console.warn(`[PlayerManager] SessionId invalide dans updateOrCreatePlayer:`, sessionId);
-    return;
-  }
-
-  // ✅ FILTRE PAR ZONE AMÉLIORÉ
-  const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
-  
-  let player = this.players.get(sessionId);
-  
-  if (!shouldShowPlayer) {
-    if (player && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
-      console.log(`[PlayerManager] 👻 Masquage joueur hors zone: ${sessionId}`);
-      this.removePlayer(sessionId);
-    }
-    return;
-  }
-
-  if (!player) {
-    // ✅ CORRECTION: Attendre la création avant de continuer
-    this.createPlayer(sessionId, playerState.x, playerState.y).then(createdPlayer => {
-      if (createdPlayer) {
-        this.updatePlayerFromState(createdPlayer, playerState);
+  updateOrCreatePlayer(sessionId, playerState) {
+    // ✅ FILTRE PAR ZONE AMÉLIORÉ
+    const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
+    
+    let player = this.players.get(sessionId);
+    
+    if (!shouldShowPlayer) {
+      // Si le joueur ne devrait pas être affiché et qu'il existe, le cacher ou le supprimer
+      if (player && sessionId !== this.mySessionId && sessionId !== this._pendingSessionId) {
+        console.log(`[PlayerManager] 👻 Masquage joueur hors zone: ${sessionId}`);
+        this.removePlayer(sessionId);
       }
-    });
-    return;
-  } else {
-    // Vérifier que le joueur est toujours valide
-    if (!player.scene || player.scene !== this.scene) {
-      console.warn(`[PlayerManager] 🔧 Recréation joueur invalide: ${sessionId}`);
-      this.players.delete(sessionId);
-      this.createPlayer(sessionId, playerState.x, playerState.y).then(createdPlayer => {
-        if (createdPlayer) {
-          this.updatePlayerFromState(createdPlayer, playerState);
-        }
-      });
       return;
     }
-  }
 
-  // Mettre à jour les données du joueur
-  this.updatePlayerFromState(player, playerState);
-}
+    if (!player) {
+      // Créer le joueur s'il n'existe pas
+      player = this.createPlayer(sessionId, playerState.x, playerState.y);
+      if (!player) return;
+    } else {
+      // Vérifier que le joueur est toujours valide
+      if (!player.scene || player.scene !== this.scene) {
+        console.warn(`[PlayerManager] 🔧 Recréation joueur invalide: ${sessionId}`);
+        this.players.delete(sessionId);
+        player = this.createPlayer(sessionId, playerState.x, playerState.y);
+        if (!player) return;
+      }
+    }
+
+    // Mettre à jour les données du joueur
+    this.updatePlayerFromState(player, playerState);
+  }
 
   // ✅ NOUVELLE MÉTHODE: Déterminer si un joueur doit être affiché
   shouldDisplayPlayer(sessionId, playerState) {
@@ -440,12 +426,10 @@ if (player && typeof player.setVisible === 'function' && !player.visible) {
     if (playerState.currentZone) player.currentZone = playerState.currentZone;
 
     // Restaurer la visibilité si nécessaire
-    if (player && typeof player.setVisible === 'function' && !player.visible) {
+    if (!player.visible) {
       console.warn(`[PlayerManager] 🔧 Restauration visibilité: ${player.sessionId}`);
       player.setVisible(true);
       player.setActive(true);
-    } else if (player && typeof player.setVisible !== 'function') {
-      console.error(`[PlayerManager] ❌ Joueur ${player.sessionId || 'unknown'} n'a pas setVisible - type:`, typeof player);
     }
 
     // Animations
@@ -454,17 +438,18 @@ if (player && typeof player.setVisible === 'function' && !player.visible) {
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour des animations
   updatePlayerAnimation(player) {
-    if (!this.characterManager) return;
-    
     if (player.isMoving && player.lastDirection) {
-      this.characterManager.playAnimation(player, 'walk', player.lastDirection);
+      const walkAnim = `walk_${player.lastDirection}`;
+      if (this.scene.anims.exists(walkAnim)) {
+        player.anims.play(walkAnim, true);
+      }
     } else if (!player.isMoving && player.lastDirection) {
-      this.characterManager.playAnimation(player, 'idle', player.lastDirection);
+      const idleAnim = `idle_${player.lastDirection}`;
+      if (this.scene.anims.exists(idleAnim)) {
+        player.anims.play(idleAnim, true);
+      }
     }
   }
-
-  // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
-  
 
   // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
   checkMyPlayerReady() {
@@ -601,6 +586,27 @@ if (player && typeof player.setVisible === 'function' && !player.visible) {
     this.debugPlayerState();
   }
 
+  // Méthodes existantes conservées
+  createAnimations() {
+    const anims = this.scene.anims;
+    if (!anims.exists('walk_down')) {
+      anims.create({ key: 'walk_down', frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }), frameRate: 15, repeat: -1 });
+    }
+    if (!anims.exists('walk_left')) {
+      anims.create({ key: 'walk_left', frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }), frameRate: 15, repeat: -1 });
+    }
+    if (!anims.exists('walk_right')) {
+      anims.create({ key: 'walk_right', frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }), frameRate: 15, repeat: -1 });
+    }
+    if (!anims.exists('walk_up')) {
+      anims.create({ key: 'walk_up', frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 14 }), frameRate: 15, repeat: -1 });
+    }
+    if (!anims.exists('idle_down')) anims.create({ key: 'idle_down', frames: [{ key: 'BoyWalk', frame: 1 }], frameRate: 1, repeat: 0 });
+    if (!anims.exists('idle_left')) anims.create({ key: 'idle_left', frames: [{ key: 'BoyWalk', frame: 5 }], frameRate: 1, repeat: 0 });
+    if (!anims.exists('idle_right')) anims.create({ key: 'idle_right', frames: [{ key: 'BoyWalk', frame: 9 }], frameRate: 1, repeat: 0 });
+    if (!anims.exists('idle_up')) anims.create({ key: 'idle_up', frames: [{ key: 'BoyWalk', frame: 13 }], frameRate: 1, repeat: 0 });
+  }
+
   logPlayers() {
     const playerList = Array.from(this.players.keys());
     if (playerList.length > 0 && this.mySessionId && !playerList.includes(this.mySessionId)) {
@@ -670,10 +676,6 @@ if (player && typeof player.setVisible === 'function' && !player.visible) {
 
   destroy() {
     this.isDestroyed = true;
-      if (this.characterManager) {
-      this.characterManager.destroy();
-      this.characterManager = null;
-    }
     console.warn("[PlayerManager] destroy() appelé");
     this.clearAllPlayers();
   }
