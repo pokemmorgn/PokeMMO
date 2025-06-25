@@ -84,13 +84,11 @@
         },
         {
           "itemId": "super_potion",
-          "stock": 20,
-          "unlockLevel": 0
+          "stock": 20
         },
         {
           "itemId": "revive",
-          "stock": 15,
-          "unlockLevel": 0
+          "stock": 15
         },
       ]
     },
