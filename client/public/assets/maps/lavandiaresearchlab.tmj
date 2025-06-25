@@ -219,12 +219,12 @@
                         {
                          "name":"targetspawn",
                          "type":"string",
-                         "value":"fromlavandia"
+                         "value":"fromlavandiaresearchlab"
                         }, 
                         {
                          "name":"targetzone",
                          "type":"string",
-                         "value":"lavandiaresearchlab"
+                         "value":"lavandia"
                         }],
                  "rotation":0,
                  "type":"",
