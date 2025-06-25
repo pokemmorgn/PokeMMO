@@ -181,7 +181,7 @@ this.animsCreated = true;
     // Sprite physique joueur
     const player = this.scene.physics.add.sprite(x, y, 'BoyWalk', 1)
   .setOrigin(0.5, 1)
-  .setScale(1);
+  .setScale(1.3);
 player.setDepth(4.5);
 player.sessionId = sessionId;
 
