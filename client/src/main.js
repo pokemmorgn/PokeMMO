@@ -36,6 +36,7 @@ import { LavandiaShopScene } from './scenes/zones/LavandiaShopScene.js';
 import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
 import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
 
+
 // === Colyseus.js ===
 import { Client } from 'colyseus.js';
 
@@ -50,9 +51,6 @@ import { QuestSystem } from './game/QuestSystem.js';
 
 // === Import du système d'inventaire ===
 import { InventorySystem } from './game/InventorySystem.js';
-
-// === Import du système d'équipe ===
-import { initializeTeamSystem } from './managers/TeamManager.js';
 
 // === Import du système de notification centralisé ===
 import { initializeGameNotifications, showNotificationInstructions } from './notification.js';
@@ -311,20 +309,11 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     // 8. Initialise le chat
     initPokeChat(worldChat, window.username);
 
-    // ✅ 9. INITIALISATION DU SYSTÈME D'ÉQUIPE
-    console.log("⚔️ Initialisation du système d'équipe...");
-    try {
-      window.teamManagerGlobal = initializeTeamSystem(window.currentGameRoom);
-      console.log("✅ Système d'équipe initialisé");
-    } catch (error) {
-      console.error("❌ Erreur lors de l'initialisation du système d'équipe:", error);
-    }
-
-    // ✅ 10. LANCEMENT DE PHASER APRÈS TOUT LE SETUP
+    // ✅ 9. LANCEMENT DE PHASER APRÈS TOUT LE SETUP
     console.log("🎮 Lancement de Phaser...");
     window.game = new Phaser.Game(config);
 
-    // ✅ 11. VÉRIFIER QUE TOUTES LES SCÈNES SONT BIEN ENREGISTRÉES
+    // ✅ 10. VÉRIFIER QUE TOUTES LES SCÈNES SONT BIEN ENREGISTRÉES
     setTimeout(() => {
       console.log("🔍 [MAIN] Vérification des scènes Phaser...");
       const phaserScenes = Object.keys(window.game.scene.manager.keys);
@@ -341,12 +330,12 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       });
     }, 1000);
 
-    // ✅ 12. SETUP GLOBAL POUR TES SYSTÈMES
+    // ✅ 11. SETUP GLOBAL POUR TES SYSTÈMES (INCHANGÉ)
     window.starterHUD = null;
     window.questSystemGlobal = null;
     window.inventorySystemGlobal = null;
 
-    // 13. Expose helpers initAllGameSystems & cie
+    // 12. Expose helpers initAllGameSystems & cie (INCHANGÉ)
     window.initInventorySystem = function(gameRoom) {
       if (!window.inventorySystemGlobal) {
         window.inventorySystemGlobal = new InventorySystem(null, gameRoom || window.currentGameRoom);
@@ -387,29 +376,19 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       }
       return window.questSystemGlobal;
     };
-
-    window.initTeamSystem = function(gameRoom) {
-      if (!window.teamManagerGlobal) {
-        window.teamManagerGlobal = initializeTeamSystem(gameRoom || window.currentGameRoom);
-        window.onSystemInitialized && window.onSystemInitialized('team');
-        return window.teamManagerGlobal;
-      }
-      return window.teamManagerGlobal;
-    };
     
     window.initAllGameSystems = function(scene, gameRoom) {
       const roomToUse = gameRoom || window.currentGameRoom;
       const inventory = window.initInventorySystem(roomToUse);
       const quests = window.initQuestSystem(scene, roomToUse);
       const starter = window.initStarterHUD(roomToUse);
-      const team = window.initTeamSystem(roomToUse);
       setTimeout(() => {
         window.onSystemInitialized && window.onSystemInitialized('all');
       }, 1000);
-      return { inventory, quests, starter, team };
+      return { inventory, quests, starter };
     };
 
-    // === Fonctions d'accès rapide, notifications, tests etc ===
+    // === Fonctions d'accès rapide, notifications, tests etc === (INCHANGÉ)
     window.openInventory = function() {
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.openInventory();
@@ -448,27 +427,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
         window.showGameAlert?.("HUD de starter non initialisé");
       }
     };
-
-    window.openTeam = function() {
-      if (window.teamManagerGlobal) {
-        window.teamManagerGlobal.openTeamUI();
-        window.showGameNotification("Équipe ouverte", "info", { duration: 1500, position: 'bottom-right' });
-      } else {
-        window.showGameAlert?.("Système d'équipe non initialisé");
-      }
-    };
-    
-    window.toggleTeam = function() {
-      if (window.teamManagerGlobal) {
-        const wasOpen = window.teamManagerGlobal.teamUI?.isOpen();
-        window.teamManagerGlobal.toggleTeamUI();
-        if (!wasOpen) {
-          window.showGameNotification("Équipe ouverte", "info", { duration: 1000, position: 'bottom-right' });
-        }
-      } else {
-        window.showGameAlert?.("Aucun système d'équipe disponible");
-      }
-    };
     
     window.testInventory = function() {
       if (window.inventorySystemGlobal) {
@@ -478,17 +436,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
         }, 500);
       } else {
         window.showGameAlert?.("Système d'inventaire non initialisé");
-      }
-    };
-
-    window.testTeam = function() {
-      if (window.teamManagerGlobal) {
-        window.teamManagerGlobal.toggleTeamUI();
-        setTimeout(() => {
-          window.showGameNotification("Test d'équipe réussi !", "success", { duration: 2000, position: 'top-center' });
-        }, 500);
-      } else {
-        window.showGameAlert?.("Système d'équipe non initialisé");
       }
     };
 
@@ -532,7 +479,6 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     console.log("🎯 [MAIN] Tous les systèmes initialisés !");
     console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
     console.log("🎒 Utilisez 'I' pour ouvrir l'inventaire en jeu");
-    console.log("⚔️ Utilisez 'T' pour ouvrir l'équipe Pokémon en jeu");
     console.log("🎮 Utilisez window.initAllGameSystems(scene, gameRoom) dans vos scènes pour tout initialiser");
     console.log("🌍 Utilisez window.listAvailableZones() pour voir les zones disponibles");
     console.log("🔄 Utilisez window.testTransition('village') pour tester les transitions");
@@ -555,7 +501,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
 
 export default {}; // plus besoin d'exporter le game ici, il est sur window
 
-// === Fonctions utilitaires exposées (raccourcis) ===
+// === Fonctions utilitaires exposées (raccourcis) === (INCHANGÉ)
 window.isChatFocused = function() {
   return window.pokeChat ? window.pokeChat.hasFocus() : false;
 };
@@ -570,15 +516,11 @@ window.isInventoryOpen = function() {
   if (typeof window.isInventoryVisible === 'function') return window.isInventoryVisible();
   return false;
 };
-window.isTeamOpen = function() {
-  return window.teamManagerGlobal ? window.teamManagerGlobal.teamUI?.isOpen() : false;
-};
 window.shouldBlockInput = function() {
   return window.isChatFocused() ||
     window.isStarterHUDOpen() ||
     window.isQuestJournalOpen() ||
-    window.isInventoryOpen() ||
-    window.isTeamOpen();
+    window.isInventoryOpen();
 };
 window.canPlayerInteract = function() {
   if (window.inventorySystemGlobal) return window.inventorySystemGlobal.canPlayerInteract();
@@ -593,7 +535,6 @@ window.getGameSystemsStatus = function() {
     inventory: { initialized: !!window.inventorySystemGlobal, open: window.isInventoryOpen() },
     quests: { initialized: !!window.questSystemGlobal, journalOpen: window.isQuestJournalOpen() },
     starter: { initialized: !!window.starterHUD, open: window.isStarterHUDOpen() },
-    team: { initialized: !!window.teamManagerGlobal, open: window.isTeamOpen() },
     networkManager: {
       initialized: !!window.globalNetworkManager,
       connected: window.globalNetworkManager?.isConnected || false,
@@ -605,6 +546,7 @@ window.getGameSystemsStatus = function() {
       manager: window.NotificationManager ? 'Available' : 'Not Available',
       ready: window.gameNotificationSystem ? window.gameNotificationSystem.isReady() : false
     },
+    // ✅ NOUVEAU: Info du SceneRegistry
     sceneRegistry: {
       initialized: !!window.sceneRegistry,
       availableZones: window.sceneRegistry?.getAvailableZones() || [],
@@ -654,18 +596,16 @@ window.showGameHelp = function() {
 === Contrôles de base ===
 • I - Ouvrir/Fermer l'inventaire
 • Q - Ouvrir/Fermer le journal des quêtes
-• T - Ouvrir/Fermer l'équipe Pokémon
 • E - Interagir avec NPCs/objets
 • WASD ou Flèches - Déplacement
 
 === Fonctions de test ===
 • window.testInventory() - Tester l'inventaire
-• window.testTeam() - Tester l'équipe Pokémon
 • window.testNotifications() - Tester les notifications
 • window.quickTestNotifications() - Test rapide
 • window.debugGameSystems() - Debug des systèmes
 
-=== Fonctions de transition ===
+=== Fonctions de transition (NOUVEAU) ===
 • window.testTransition('village') - Test transition vers village
 • window.forceTransition('beach') - Forcer transition
 • window.listAvailableZones() - Lister zones disponibles
@@ -675,7 +615,6 @@ window.showGameHelp = function() {
 === Systèmes disponibles ===
 • Inventaire: ${!!window.inventorySystemGlobal}
 • Quêtes: ${!!window.questSystemGlobal}
-• Équipe: ${!!window.teamManagerGlobal}
 • Notifications: ${!!window.gameNotificationSystem}
 • Starter HUD: ${!!window.starterHUD}
 • NetworkManager: ${!!window.globalNetworkManager} (connecté: ${window.globalNetworkManager?.isConnected})
@@ -695,6 +634,5 @@ console.log(`
 Utilisez window.showGameHelp() pour l'aide complète
 Tous les systèmes sont initialisés et prêts !
 🔄 Support des transitions robustes intégré !
-⚔️ Système d'équipe Pokémon maintenant disponible !
 ==============================
 `);
