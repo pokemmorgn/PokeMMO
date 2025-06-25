@@ -157,60 +157,55 @@ getMyPlayer() {
     });
   }
 
-  async createPlayer(sessionId, x, y, characterId = 'brendan') {
-    if (this.isDestroyed) {
-      console.error("[PlayerManager] createPlayer appelé alors que destroy déjà fait!");
-      return null;
-    }
-
-    // ✅ Vérifier si le joueur existe déjà
-    if (this.players.has(sessionId)) {
-      console.log(`[PlayerManager] Joueur ${sessionId} existe déjà, mise à jour position`);
-      const existingPlayer = this.players.get(sessionId);
-      this.updateExistingPlayer(existingPlayer, x, y);
-      return existingPlayer;
-    }
-
-    console.log(`[PlayerManager] 🆕 Création nouveau joueur: ${sessionId} à (${x}, ${y}) avec personnage ${characterId}`);
-
-    // ✅ NOUVEAU: Utiliser CharacterManager pour créer le sprite
-    const player = await this.characterManager.createCharacterSprite(characterId, x, y);
-    if (!player) {
-      console.error(`[PlayerManager] Impossible de créer le sprite pour ${sessionId}`);
-      return null;
-    }
-
-    // Configuration du joueur
-    player.sessionId = sessionId;
-    player.targetX = x;
-    player.targetY = y;
-    player.snapLerpTimer = 0;
-    player.lastDirection = 'down';
-    player.isMoving = false;
-    player.setVisible(true);
-    player.setActive(true);
-
-    // Créer les animations une seule fois
-    if (!this.animsCreated) {
-      console.log("[PlayerManager] Création des animations BoyWalk");
-      this.createAnimations();
-      this.animsCreated = true;
-    }
-
-    // Jouer l'animation idle par défaut
-this.characterManager.playAnimation(player, 'idle', 'down');
-
-
-    // ✅ Indicateur local optimisé
-    if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
-      this.createLocalPlayerIndicator(player);
-    }
-
-    this.players.set(sessionId, player);
-    console.log(`[PlayerManager] ✅ Joueur créé: ${sessionId} (total: ${this.players.size})`);
-    
-    return player;
+async createPlayer(sessionId, x, y, characterId = 'brendan') {
+  if (this.isDestroyed) {
+    console.error("[PlayerManager] createPlayer appelé alors que destroy déjà fait!");
+    return null;
   }
+
+  // ✅ CORRECTION CRITIQUE: Vérifier si le joueur existe déjà AVANT de créer
+  if (this.players.has(sessionId)) {
+    console.log(`[PlayerManager] ⚠️ Joueur ${sessionId} existe déjà, pas de création`);
+    const existingPlayer = this.players.get(sessionId);
+    this.updateExistingPlayer(existingPlayer, x, y);
+    return existingPlayer;
+  }
+
+  console.log(`[PlayerManager] 🆕 Création nouveau joueur: ${sessionId} à (${x}, ${y}) avec personnage ${characterId}`);
+
+  // ✅ UTILISER EXCLUSIVEMENT CharacterManager
+  const player = await this.characterManager.createCharacterSprite(characterId, x, y);
+  if (!player) {
+    console.error(`[PlayerManager] Impossible de créer le sprite pour ${sessionId}`);
+    return null;
+  }
+
+  // Configuration du joueur
+  player.sessionId = sessionId;
+  player.targetX = x;
+  player.targetY = y;
+  player.snapLerpTimer = 0;
+  player.lastDirection = 'down';
+  player.isMoving = false;
+  player.setVisible(true);
+  player.setActive(true);
+
+  // ✅ SUPPRIMÉ: Plus de createAnimations() car CharacterManager gère tout
+  // ✅ SUPPRIMÉ: Plus d'animations manuelles
+
+  // Jouer l'animation idle par défaut via CharacterManager
+  this.characterManager.playAnimation(player, 'idle', 'down');
+
+  // Indicateur local optimisé
+  if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+    this.createLocalPlayerIndicator(player);
+  }
+
+  this.players.set(sessionId, player);
+  console.log(`[PlayerManager] ✅ Joueur créé: ${sessionId} (total: ${this.players.size})`);
+  
+  return player;
+}
 
   // ✅ NOUVELLE MÉTHODE: Mise à jour d'un joueur existant
   updateExistingPlayer(player, x, y) {
@@ -579,27 +574,6 @@ if (player && typeof player.setVisible === 'function' && !player.visible) {
     }
     
     this.debugPlayerState();
-  }
-
-  // Méthodes existantes conservées
-  createAnimations() {
-    const anims = this.scene.anims;
-    if (!anims.exists('walk_down')) {
-      anims.create({ key: 'walk_down', frames: anims.generateFrameNumbers('BoyWalk', { start: 0, end: 3 }), frameRate: 15, repeat: -1 });
-    }
-    if (!anims.exists('walk_left')) {
-      anims.create({ key: 'walk_left', frames: anims.generateFrameNumbers('BoyWalk', { start: 4, end: 7 }), frameRate: 15, repeat: -1 });
-    }
-    if (!anims.exists('walk_right')) {
-      anims.create({ key: 'walk_right', frames: anims.generateFrameNumbers('BoyWalk', { start: 8, end: 11 }), frameRate: 15, repeat: -1 });
-    }
-    if (!anims.exists('walk_up')) {
-      anims.create({ key: 'walk_up', frames: anims.generateFrameNumbers('BoyWalk', { start: 12, end: 14 }), frameRate: 15, repeat: -1 });
-    }
-    if (!anims.exists('idle_down')) anims.create({ key: 'idle_down', frames: [{ key: 'BoyWalk', frame: 1 }], frameRate: 1, repeat: 0 });
-    if (!anims.exists('idle_left')) anims.create({ key: 'idle_left', frames: [{ key: 'BoyWalk', frame: 5 }], frameRate: 1, repeat: 0 });
-    if (!anims.exists('idle_right')) anims.create({ key: 'idle_right', frames: [{ key: 'BoyWalk', frame: 9 }], frameRate: 1, repeat: 0 });
-    if (!anims.exists('idle_up')) anims.create({ key: 'idle_up', frames: [{ key: 'BoyWalk', frame: 13 }], frameRate: 1, repeat: 0 });
   }
 
   logPlayers() {
