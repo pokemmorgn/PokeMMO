@@ -12,7 +12,6 @@ import { TimeWeatherService } from "../services/TimeWeatherService";
 import { getServerConfig } from "../config/serverConfig";
 import { EncounterManager } from "../managers/EncounterManager";
 import { serverZoneEnvironmentManager } from "../config/zoneEnvironments";
-import { PositionSaverService } from "../services/PositionSaverService";
 
 
 
@@ -36,8 +35,6 @@ export class WorldRoom extends Room<PokeWorldState> {
 private timeWeatherService!: TimeWeatherService;
   private encounterManager!: EncounterManager;
   private shopManager!: ShopManager;
-    private positionSaver = PositionSaverService.getInstance();
-  private autoSaveTimer: any;
 
   // Limite pour auto-scaling
   maxClients = 50;
@@ -61,27 +58,13 @@ private timeWeatherService!: TimeWeatherService;
     console.log(`✅ TransitionService initialisé`);
 
     this.initializeTimeWeatherService();
-       this.autoSaveTimer = this.clock.setInterval(() => {
-      this.autoSaveAllPositions();
-    }, 30000);
-  
+    
     // Messages handlers
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
 
     console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
   }
-
-  // ✅ AJOUTER CETTE MÉTHODE COMPLÈTE APRÈS onCreate :
-  private async autoSaveAllPositions() {
-    const positions = Array.from(this.state.players.values())
-      .map(player => this.positionSaver.extractPosition(player));
-    
-    if (positions.length > 0) {
-      await this.positionSaver.saveMultiplePositions(positions);
-    }
-  }
-  
 private initializeTimeWeatherService() {
   console.log(`🌍 [WorldRoom] Initialisation TimeWeatherService...`);
   
@@ -195,19 +178,6 @@ console.log(`✅ EncounterManager initialisé`);
   console.log(`👤 Client: ${client.sessionId}`);
   console.log(`🌍 Zone: ${zoneName}`);
 
-    // ✅ AJOUTER CES LIGNES AU DÉBUT :
- async onPlayerJoinZone(client: Client, zoneName: string) {
-  console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
-  console.log(`👤 Client: ${client.sessionId}`);
-  console.log(`🌍 Zone: ${zoneName}`);
-
-  // ✅ CORRECTION 1: Renommer pour éviter le conflit
-  const playerForSave = this.state.players.get(client.sessionId);
-  if (playerForSave) {
-    const position = this.positionSaver.extractPosition(playerForSave);
-    this.positionSaver.savePosition(position, "transition");
-  }
-
   // ✅ ENVOYER LES NPCS IMMÉDIATEMENT
   const npcManager = this.npcManagers.get(zoneName);
   if (npcManager) {
@@ -222,10 +192,10 @@ console.log(`✅ EncounterManager initialisé`);
     
     // ✅ FORCER l'envoi immédiat de l'état temps/météo
     setTimeout(() => {
-      if (this.timeWeatherService) {
-        this.timeWeatherService.sendCurrentStateToAllClients();
-      }
-    }, 50); // 50ms seulement
+  if (this.timeWeatherService) {
+    this.timeWeatherService.sendCurrentStateToAllClients();
+  }
+}, 50); // 50ms seulement
   }
 
   // ✅ Quest statuses avec délai réduit
@@ -1362,58 +1332,44 @@ if (this.timeWeatherService) {
     }
   }
 
-  async onLeave(client: Client, consented: boolean) {
-  console.log(`👋 === PLAYER LEAVE ===`);
-  console.log(`🔑 Session: ${client.sessionId}`);
-  console.log(`✅ Consenti: ${consented}`);
+  onLeave(client: Client, consented: boolean) {
+    console.log(`👋 === PLAYER LEAVE ===`);
+    console.log(`🔑 Session: ${client.sessionId}`);
+    console.log(`✅ Consenti: ${consented}`);
 
-  const player = this.state.players.get(client.sessionId);
-  if (player) {
-    console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
-    console.log(`💰 Stats finales: Level ${player.level}, ${player.gold} gold`);
-    
-    // ✅ CORRECTION 2: Maintenant que la fonction est async, ça marche
-    // Sauvegarde immédiate à la déconnexion
-    const position = this.positionSaver.extractPosition(player);
-    await this.positionSaver.savePosition(position, "disconnect");
-    
-    // Supprimer du state
-    this.state.players.delete(client.sessionId);
-    console.log(`🗑️ Joueur ${player.name} supprimé du state`);
-  }
-
-  if (this.timeWeatherService) {
-    this.timeWeatherService.removeClient(client);
-    console.log(`🌍 [WorldRoom] Client ${client.sessionId} retiré du TimeWeatherService`);
-  }
-  
-  console.log(`👋 Client ${client.sessionId} déconnecté`);
+    const player = this.state.players.get(client.sessionId);
+    if (player) {
+      console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      console.log(`💰 Stats finales: Level ${player.level}, ${player.gold} gold`);
+      
+      // Supprimer du state
+      this.state.players.delete(client.sessionId);
+      console.log(`🗑️ Joueur ${player.name} supprimé du state`);
+    }
+if (this.timeWeatherService) {
+  this.timeWeatherService.removeClient(client);
+  console.log(`🌍 [WorldRoom] Client ${client.sessionId} retiré du TimeWeatherService`);
 }
+    console.log(`👋 Client ${client.sessionId} déconnecté`);
+  }
 
   onDispose() {
-  console.log(`💀 === WORLDROOM DISPOSE ===`);
-  console.log(`👥 Joueurs restants: ${this.state.players.size}`);
-  
-  // ✅ CORRECTION 3: Utiliser clearTimeout au lieu de clock.clear
-  if (this.autoSaveTimer) {
-    this.clock.clearTimeout(this.autoSaveTimer);
-    console.log(`⏰ Auto-save timer nettoyé`);
-  }
-  
-  // Sauvegarder les données des joueurs restants
-  this.state.players.forEach((player, sessionId) => {
-    console.log(`💾 Sauvegarde joueur: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
-  });
+    console.log(`💀 === WORLDROOM DISPOSE ===`);
+    console.log(`👥 Joueurs restants: ${this.state.players.size}`);
+    
+    // Sauvegarder les données des joueurs restants
+    this.state.players.forEach((player, sessionId) => {
+      console.log(`💾 Sauvegarde joueur: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+    });
 
-  // ✅ NOUVEAU: Nettoyer le TimeWeatherService
-  if (this.timeWeatherService) {
-    console.log(`🌍 [WorldRoom] Destruction du TimeWeatherService...`);
-    this.timeWeatherService.destroy();
-    this.timeWeatherService = null;
-  }
-  
-  console.log(`✅ WorldRoom fermée`);
+    // ✅ NOUVEAU: Nettoyer le TimeWeatherService
+if (this.timeWeatherService) {
+  console.log(`🌍 [WorldRoom] Destruction du TimeWeatherService...`);
+  this.timeWeatherService.destroy();
+  this.timeWeatherService = null;
 }
+    console.log(`✅ WorldRoom fermée`);
+  }
 
 private handlePlayerMove(client: Client, data: any) {
   const player = this.state.players.get(client.sessionId);
