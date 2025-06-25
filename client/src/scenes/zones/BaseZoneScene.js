@@ -26,6 +26,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.loadTimer = null;
     this.animatedObjects = null;
     this.lastMoveTime = 0;
+      this.lastStopTime = 0;
     this.myPlayerReady = false;
     this.dayNightWeatherManager = null;
 
@@ -781,56 +782,70 @@ setupPlayerReadyHandler() {
     });
   }
 
-  // ✅ MÉTHODE INCHANGÉE: Gestion du mouvement
-  handleMovement(myPlayerState) {
-   const speed = 80;
-   const myPlayer = this.playerManager.getMyPlayer();
-   if (!myPlayer || !myPlayer.body) return;
-   let vx = 0, vy = 0;
-   let inputDetected = false, direction = null;
-   if (this.cursors.left.isDown || this.wasd.A.isDown) {
-     vx = -speed; inputDetected = true; direction = 'left';
-   } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-     vx = speed; inputDetected = true; direction = 'right';
-   }
-   if (this.cursors.up.isDown || this.wasd.W.isDown) {
-     vy = -speed; inputDetected = true; direction = 'up';
-   } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-     vy = speed; inputDetected = true; direction = 'down';
-   }
-   let actuallyMoving = inputDetected;
-   myPlayer.body.setVelocity(vx, vy);
-// ✅ NORMALISER LA VITESSE DIAGONALE
-if (vx !== 0 && vy !== 0) {
- myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
+// ✅ MÉTHODE CORRIGÉE: Gestion du mouvement avec envoi d'arrêt
+handleMovement(myPlayerState) {
+  const speed = 80;
+  const myPlayer = this.playerManager.getMyPlayer();
+  if (!myPlayer || !myPlayer.body) return;
+  let vx = 0, vy = 0;
+  let inputDetected = false, direction = null;
+  if (this.cursors.left.isDown || this.wasd.A.isDown) {
+    vx = -speed; inputDetected = true; direction = 'left';
+  } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+    vx = speed; inputDetected = true; direction = 'right';
+  }
+  if (this.cursors.up.isDown || this.wasd.W.isDown) {
+    vy = -speed; inputDetected = true; direction = 'up';
+  } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+    vy = speed; inputDetected = true; direction = 'down';
+  }
+  let actuallyMoving = inputDetected;
+  myPlayer.body.setVelocity(vx, vy);
+  // ✅ NORMALISER LA VITESSE DIAGONALE
+  if (vx !== 0 && vy !== 0) {
+    myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
+  }
+  if (inputDetected && direction) {
+    this.lastDirection = direction;
+    
+    if (actuallyMoving) {
+      myPlayer.anims.play(`walk_${direction}`, true);
+      myPlayer.isMovingLocally = true;
+    } else {
+      myPlayer.anims.play(`idle_${direction}`, true);
+      myPlayer.isMovingLocally = false;
+    }
+  } else {
+    myPlayer.anims.play(`idle_${this.lastDirection}`, true);
+    myPlayer.isMovingLocally = false;
+  }
+  
+  if (inputDetected) {
+    const now = Date.now();
+    if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+      this.networkManager.sendMove(
+        myPlayer.x,
+        myPlayer.y,
+        direction,
+        actuallyMoving
+      );
+      this.lastMoveTime = now;
+    }
+  } 
+  // ✅ NOUVEAU: Envoyer aussi quand on s'arrête !
+  else {
+    const now = Date.now();
+    if (!this.lastStopTime || now - this.lastStopTime > 100) {
+      this.networkManager.sendMove(
+        myPlayer.x,
+        myPlayer.y,
+        this.lastDirection,
+        false  // ← isMoving = false
+      );
+      this.lastStopTime = now;
+    }
+  }
 }
-   if (inputDetected && direction) {
-     this.lastDirection = direction;
-     
-     if (actuallyMoving) {
-       myPlayer.anims.play(`walk_${direction}`, true);
-       myPlayer.isMovingLocally = true;
-     } else {
-       myPlayer.anims.play(`idle_${direction}`, true);
-       myPlayer.isMovingLocally = false;
-     }
-   } else {
-     myPlayer.anims.play(`idle_${this.lastDirection}`, true);
-     myPlayer.isMovingLocally = false;
-   }
-   if (inputDetected) {
-     const now = Date.now();
-     if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-       this.networkManager.sendMove(
-         myPlayer.x,
-         myPlayer.y,
-         direction,
-         actuallyMoving
-       );
-       this.lastMoveTime = now;
-     }
-   }
- }
 
   // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
