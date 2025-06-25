@@ -168,7 +168,14 @@ export class BaseZoneScene extends Phaser.Scene {
 
   // ✅ NOUVELLE MÉTHODE: Initialisation sécurisée du système d'équipe
 initializeTeamSystemSafely() {
-  console.log(`⚔️ [${this.scene.key}] === INITIALISATION TEAM SYSTEM SIMPLE ===`);
+  console.log(`🔍 [${this.scene.key}] === DEBUG TEAM INIT DETAILED ===`);
+  console.log(`🔍 teamSystemInitialized: ${this.teamSystemInitialized}`);
+  console.log(`🔍 teamInitializationAttempts: ${this.teamInitializationAttempts}/${this.maxTeamInitAttempts}`);
+  console.log(`🔍 networkManager exists: ${!!this.networkManager}`);
+  console.log(`🔍 networkManager.room exists: ${!!this.networkManager?.room}`);
+  console.log(`🔍 room connection state: ${this.networkManager?.room?.connection?.readyState}`);
+  console.log(`🔍 window.TeamManager exists: ${!!window.TeamManager}`);
+  console.log(`🔍 window.teamManagerGlobal exists: ${!!window.teamManagerGlobal}`);
 
   // ✅ PROTECTION CONTRE LES TENTATIVES MULTIPLES
   if (this.teamSystemInitialized) {
@@ -182,44 +189,55 @@ initializeTeamSystemSafely() {
   }
 
   this.teamInitializationAttempts++;
-  console.log(`⚔️ [${this.scene.key}] Tentative ${this.teamInitializationAttempts}/${this.maxTeamInitAttempts}`);
+  console.log(`⚔️ [${this.scene.key}] === INITIALISATION TEAM SYSTEM (Tentative ${this.teamInitializationAttempts}) ===`);
 
-  // ✅ VÉRIFICATION SIMPLE: Juste vérifier que la gameRoom existe (comme inventaire)
+  // ✅ VÉRIFICATIONS DE SÉCURITÉ AVANT L'INITIALISATION
   if (!this.networkManager?.room) {
-    console.warn(`⚠️ [${this.scene.key}] Pas de room - retry dans 2s`);
+    console.warn(`⚠️ [${this.scene.key}] Pas de room pour TeamManager - retry dans 2s`);
+    setTimeout(() => this.initializeTeamSystemSafely(), 2000);
+    return;
+  }
+
+  if (this.networkManager.room.connection.readyState !== 1) {
+    console.warn(`⚠️ [${this.scene.key}] Room pas connectée pour TeamManager - retry dans 2s`);
     setTimeout(() => this.initializeTeamSystemSafely(), 2000);
     return;
   }
 
   // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ GLOBALEMENT
-  if (window.TeamManager && window.TeamManager.isInitialized) {
+  if ((window.TeamManager && window.TeamManager.isInitialized) || window.teamManagerGlobal) {
     console.log(`ℹ️ [${this.scene.key}] TeamManager global déjà initialisé - réutilisation`);
     this.teamSystemInitialized = true;
+    if (typeof window.onSystemInitialized === 'function') {
+      window.onSystemInitialized('team');
+    }
     return;
   }
 
   try {
-    console.log(`🚀 [${this.scene.key}] Initialisation team system simple...`);
+    console.log(`🚀 [${this.scene.key}] Utilisation de initTeamSystem depuis main.js...`);
     
-    // ✅ UTILISER LA FONCTION DEPUIS MAIN.JS (comme pour inventaire/quêtes)
+    // ✅ UTILISER LA FONCTION DEPUIS MAIN.JS AU LIEU D'IMPORT DYNAMIQUE
     if (typeof window.initTeamSystem === 'function') {
-      console.log(`🎯 [${this.scene.key}] Appel window.initTeamSystem avec room...`);
+      console.log(`🎯 [${this.scene.key}] Appel window.initTeamSystem...`);
       
       const teamManager = window.initTeamSystem(this.networkManager.room);
       
       if (teamManager) {
-        console.log(`✅ [${this.scene.key}] Système d'équipe initialisé avec succès!`);
+        console.log(`✅ [${this.scene.key}] Système d'équipe initialisé avec succès via main.js`);
         this.teamSystemInitialized = true;
+        
+        // ✅ SURVEILLER LA CONNEXION POUR LE TEAM MANAGER
+        this.setupTeamConnectionMonitoring();
         
         // ✅ ÉVÉNEMENT POUR SIGNALER QUE C'EST PRÊT
         if (typeof window.onSystemInitialized === 'function') {
           window.onSystemInitialized('team');
         }
         
-        // ✅ TEST SIMPLE après un délai
+        // ✅ TEST DE FONCTIONNEMENT
         setTimeout(() => {
-          console.log(`✅ [${this.scene.key}] Test: TeamManager exists:`, !!window.TeamManager);
-          console.log(`✅ [${this.scene.key}] Test: TeamIcon exists:`, !!document.querySelector('#team-icon'));
+          this.testTeamSystemWorking();
         }, 1000);
         
       } else {
@@ -229,11 +247,12 @@ initializeTeamSystemSafely() {
       
     } else {
       console.error(`❌ [${this.scene.key}] window.initTeamSystem n'existe pas!`);
+      console.log(`🔍 Fonctions window disponibles:`, Object.keys(window).filter(k => k.includes('Team') || k.includes('team')));
       this.handleTeamInitFailure();
     }
 
   } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur initialisation team:`, error);
+    console.error(`❌ [${this.scene.key}] Erreur critique initialisation team:`, error);
     this.handleTeamInitFailure();
   }
 }
@@ -241,43 +260,79 @@ initializeTeamSystemSafely() {
 // ✅ NOUVELLE MÉTHODE: Gestion des échecs d'initialisation
 handleTeamInitFailure() {
   if (this.teamInitializationAttempts < this.maxTeamInitAttempts) {
-    console.log(`🔄 [${this.scene.key}] Retry dans 3s... (${this.teamInitializationAttempts}/${this.maxTeamInitAttempts})`);
-    setTimeout(() => this.initializeTeamSystemSafely(), 3000);
+    console.log(`🔄 [${this.scene.key}] Retry initialisation team dans 5s... (${this.teamInitializationAttempts}/${this.maxTeamInitAttempts})`);
+    setTimeout(() => this.initializeTeamSystemSafely(), 5000);
   } else {
-    console.error(`❌ [${this.scene.key}] Échec définitif initialisation team system`);
-    // Ne pas bloquer le jeu, juste informer
+    console.error(`❌ [${this.scene.key}] Échec définitif d'initialisation du système d'équipe`);
+    // Signaler l'échec mais ne pas bloquer le jeu
     if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification('Système d\'équipe indisponible', 'warning');
+      window.showGameNotification('Système d\'équipe indisponible', 'warning', {
+        duration: 5000,
+        position: 'top-center'
+      });
     }
   }
 }
 
-
 // ✅ NOUVELLE MÉTHODE: Test du système d'équipe
 testTeamSystemWorking() {
-  console.log(`🧪 [${this.scene.key}] Test team system (version simple)...`);
+  console.log(`🧪 [${this.scene.key}] Test fonctionnement système d'équipe...`);
   
-  const hasTeamManager = !!window.TeamManager;
-  const hasTeamIcon = !!document.querySelector('#team-icon');
-  
-  console.log(`📊 [${this.scene.key}] Team test:`, {
-    hasTeamManager,
-    hasTeamIcon,
-    initialized: window.TeamManager?.isInitialized || false
-  });
-  
-  if (hasTeamManager && hasTeamIcon) {
-    console.log(`✅ [${this.scene.key}] Team system fonctionnel!`);
-  } else {
-    console.warn(`⚠️ [${this.scene.key}] Team system partiellement fonctionnel`);
+  try {
+    // Vérifier l'existence des composants
+    const hasTeamManager = !!window.TeamManager || !!window.teamManagerGlobal;
+    const hasTeamIcon = !!document.querySelector('#team-icon');
+    const managerCanInteract = window.TeamManager ? window.TeamManager.canInteract() : false;
+    
+    console.log(`📊 Test résultats:`, {
+      hasTeamManager,
+      hasTeamIcon,
+      managerCanInteract,
+      globalInitialized: window.TeamManager?.isInitialized || false
+    });
+    
+    if (hasTeamManager && hasTeamIcon) {
+      console.log(`✅ [${this.scene.key}] Système d'équipe fonctionnel!`);
+      
+      // Test des données d'équipe
+      if (window.TeamManager && typeof window.TeamManager.requestTeamData === 'function') {
+        setTimeout(() => {
+          console.log(`📡 [${this.scene.key}] Test demande données équipe...`);
+          window.TeamManager.requestTeamData();
+        }, 2000);
+      }
+      
+    } else {
+      console.warn(`⚠️ [${this.scene.key}] Système d'équipe partiellement fonctionnel:`, {
+        hasTeamManager,
+        hasTeamIcon
+      });
+    }
+    
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur test système d'équipe:`, error);
   }
 }
 
   // ✅ NOUVELLE MÉTHODE: Surveillance de la connexion pour TeamManager
-setupTeamConnectionMonitoring() {
-  // Plus besoin de monitoring complexe avec la version simple
-  console.log(`✅ [${this.scene.key}] Team connection monitoring skipped (version simple)`);
-}
+  setupTeamConnectionMonitoring() {
+    if (!this.networkManager?.room) return;
+
+    console.log(`🔍 [${this.scene.key}] Setup monitoring connexion pour TeamManager...`);
+
+    // ✅ SURVEILLER LES DÉCONNEXIONS
+    this.networkManager.room.onLeave((code) => {
+      console.warn(`⚠️ [${this.scene.key}] Connexion fermée (code: ${code}) - nettoyage team`);
+      
+      if (window.TeamManager) {
+        console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager suite à déconnexion`);
+        if (typeof window.TeamManager.gracefulShutdown === 'function') {
+          window.TeamManager.gracefulShutdown();
+        }
+      }
+      
+      this.teamSystemInitialized = false;
+    });
 
     // ✅ SURVEILLER LES ERREURS DE CONNEXION
     this.networkManager.room.onError((code, message) => {
@@ -1707,4 +1762,4 @@ setupTeamConnectionMonitoring() {
       return false;
     }
   }
-} // <-- ACCOLADE FERMANTE AJOUTÉE POUR LA CLASSE !
+}
