@@ -294,8 +294,19 @@
                 {
                  "height":0,
                  "id":1,
-                 "name":"",
+                 "name":"spawn",
                  "point":true,
+                 "properties":[
+                        {
+                         "name":"targetspawn",
+                         "type":"string",
+                         "value":"fromroad1"
+                        }, 
+                        {
+                         "name":"targetzone",
+                         "type":"string",
+                         "value":"road1hidden"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
@@ -306,7 +317,7 @@
                 {
                  "height":69.3333333333334,
                  "id":2,
-                 "name":"",
+                 "name":"teleport",
                  "properties":[
                         {
                          "name":"targetspawn",
