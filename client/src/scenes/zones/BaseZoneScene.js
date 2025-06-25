@@ -341,29 +341,30 @@ testTeamSystemWorking() {
     console.log(`✅ [${this.scene.key}] Monitoring connexion TeamManager configuré`);
   }
 
- initializeTimeWeatherSystem() {
+initializeTimeWeatherSystem() {
   if (!this.networkManager) {
     console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
     return;
   }
 
   try {
-    console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO COMPLET ===`);
+    console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO RAPIDE ===`);
 
     // ✅ ÉTAPE 1: Initialiser l'environnement AVANT le DayNightWeatherManager
     if (!this.environmentInitialized) {
       this.initializeZoneEnvironment();
     }
 
-    // ✅ ÉTAPE 2: Créer le DayNightWeatherManager amélioré (avec effets visuels)
+    // ✅ ÉTAPE 2: Créer le DayNightWeatherManager amélioré
     this.dayNightWeatherManager = new DayNightWeatherManager(this);
     this.dayNightWeatherManager.initialize(this.networkManager);
 
-    // ✅ ÉTAPE 3: Référence vers les effets météo pour un accès facile
-    this.weatherEffects = this.dayNightWeatherManager.getWeatherEffects();
-    this.weatherInitialized = true;
+    // ✅ NOUVEAU: Synchronisation rapide immédiate
+    setTimeout(() => {
+      this.dayNightWeatherManager.forceFastSync();
+    }, 200); // 200ms au lieu de 3000ms
 
-    console.log(`✅ [${this.scene.key}] Système temps/météo complet initialisé`);
+    console.log(`✅ [${this.scene.key}] Système temps/météo avec sync rapide initialisé`);
 
   } catch (error) {
     console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
