@@ -11,6 +11,8 @@ import { CollisionManager } from "../managers/CollisionManager";
 import { TimeWeatherService } from "../services/TimeWeatherService";
 import { getServerConfig } from "../config/serverConfig";
 import { EncounterManager } from "../managers/EncounterManager";
+import { serverZoneEnvironmentManager } from "../config/zoneEnvironments";
+
 
 
 // Interfaces pour typer les réponses des quêtes
@@ -66,8 +68,10 @@ private timeWeatherService!: TimeWeatherService;
 private initializeTimeWeatherService() {
   console.log(`🌍 [WorldRoom] Initialisation TimeWeatherService...`);
   
-  this.timeWeatherService = new TimeWeatherService(this.state, this.clock);
-  
+if (this.timeWeatherService) {
+  this.timeWeatherService.addClient(client, player.currentZone);
+  console.log(`🌍 [WorldRoom] Client ${client.sessionId} ajouté au TimeWeatherService avec zone: ${player.currentZone}`);
+}  
   // ✅ CALLBACKS AMÉLIORÉS pour broadcaster les changements
   this.timeWeatherService.setTimeChangeCallback((hour, isDayTime) => {
     console.log(`📡 [WorldRoom] Broadcast temps: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'} → ${this.clients.length} clients`);
@@ -185,7 +189,9 @@ console.log(`✅ EncounterManager initialisé`);
     } else {
       console.warn(`⚠️ [WorldRoom] Aucun NPCManager trouvé pour ${zoneName}`);
     }
-
+if (this.timeWeatherService) {
+  this.timeWeatherService.updateClientZone(client, zoneName);
+}
     // ✅ CORRECTION CRITIQUE: DÉLAI POUR LES STATUTS DE QUÊTE
     const player = this.state.players.get(client.sessionId);
     if (player) {
@@ -1383,7 +1389,12 @@ private handlePlayerMove(client: Client, data: any) {
   player.y = data.y;
   player.direction = data.direction;
  player.isMoving = data.isMoving; // ✅ AJOUTER CETTE LIGNE !
-
+// ✅ NOUVEAU: Notifier le changement de zone au TimeWeatherService
+if (data.currentZone && data.currentZone !== player.currentZone) {
+  if (this.timeWeatherService) {
+    this.timeWeatherService.updateClientZone(client, data.currentZone);
+  }
+}
 // ✅ NOUVEAU: Vérification automatique de rencontre
 if (this.shouldCheckForEncounter(player, data)) {
   // Vérifier rencontre avec un délai pour éviter le spam
