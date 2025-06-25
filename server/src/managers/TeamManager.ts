@@ -100,7 +100,7 @@ export class TeamManager {
     if (!Array.isArray(this.playerData.team)) {
       this.playerData.team = [];
     }
-    this.playerData.team.push(pokemonId);
+    this.playerData.team.push(pokemonId as any);
     await this.playerData.save();
     
     return true;
