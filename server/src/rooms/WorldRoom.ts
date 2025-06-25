@@ -67,14 +67,16 @@ private timeWeatherService!: TimeWeatherService;
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
 
-    console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
-        // Auto-save des positions toutes les 30 secondes
+console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
+    
+    // Auto-save des positions toutes les 30 secondes
     this.autoSaveTimer = this.clock.setInterval(() => {
       this.autoSaveAllPositions();
     }, 30000);
     console.log(`💾 Auto-save des positions activé (30s)`);
   }
-   // ✅ AJOUTER CETTE MÉTHODE COMPLÈTE APRÈS onCreate :
+
+  // ✅ MÉTHODE COMPLÈTE APRÈS onCreate
   private async autoSaveAllPositions() {
     const positions = Array.from(this.state.players.values())
       .map(player => this.positionSaver.extractPosition(player));
@@ -83,8 +85,7 @@ private timeWeatherService!: TimeWeatherService;
       await this.positionSaver.saveMultiplePositions(positions);
     }
   }
-  
-  }
+
 private initializeTimeWeatherService() {
   console.log(`🌍 [WorldRoom] Initialisation TimeWeatherService...`);
   
