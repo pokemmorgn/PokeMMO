@@ -174,35 +174,40 @@ console.log(`✅ EncounterManager initialisé`);
 
   // ✅ MÉTHODE CORRIGÉE AVEC DEBUG ET DÉLAI
   async onPlayerJoinZone(client: Client, zoneName: string) {
-    console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE ===`);
-    console.log(`👤 Client: ${client.sessionId}`);
-    console.log(`🌍 Zone: ${zoneName}`);
+  console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
+  console.log(`👤 Client: ${client.sessionId}`);
+  console.log(`🌍 Zone: ${zoneName}`);
 
-    // ✅ ENVOYER LES NPCS DEPUIS LE FICHIER .TMJ
-    const npcManager = this.npcManagers.get(zoneName);
-    if (npcManager) {
-      const npcs = npcManager.getAllNpcs();
-      client.send("npcList", npcs);
-      console.log(`📤 ${npcs.length} NPCs envoyés pour ${zoneName}`);
-    } else {
-      console.warn(`⚠️ [WorldRoom] Aucun NPCManager trouvé pour ${zoneName}`);
-    }
-// ✅ NOUVEAU: Mettre à jour la zone du client dans TimeWeatherService
-if (this.timeWeatherService) {
-  this.timeWeatherService.updateClientZone(client, zoneName);
-}
-    // ✅ CORRECTION CRITIQUE: DÉLAI POUR LES STATUTS DE QUÊTE
-    const player = this.state.players.get(client.sessionId);
-    if (player) {
-      console.log(`🎯 [WorldRoom] Programmation mise à jour quest statuses pour ${player.name}`);
-      
-      // ✅ DÉLAI PLUS LONG pour s'assurer que tout est initialisé
-      this.clock.setTimeout(async () => {
-        console.log(`⏰ [WorldRoom] Exécution différée des quest statuses pour ${player.name}`);
-        await this.updateQuestStatusesFixed(player.name, client);
-      }, 2000); // 2 secondes au lieu de 1
-    }
+  // ✅ ENVOYER LES NPCS IMMÉDIATEMENT
+  const npcManager = this.npcManagers.get(zoneName);
+  if (npcManager) {
+    const npcs = npcManager.getAllNpcs();
+    client.send("npcList", npcs);
+    console.log(`📤 ${npcs.length} NPCs envoyés IMMÉDIATEMENT pour ${zoneName}`);
   }
+
+  // ✅ NOUVEAU: Mettre à jour la zone dans TimeWeatherService IMMÉDIATEMENT
+  if (this.timeWeatherService) {
+    this.timeWeatherService.updateClientZone(client, zoneName);
+    
+    // ✅ FORCER l'envoi immédiat de l'état temps/météo
+    setTimeout(() => {
+      this.timeWeatherService.sendCurrentStateToClient?.(client);
+    }, 50); // 50ms seulement
+  }
+
+  // ✅ Quest statuses avec délai réduit
+  const player = this.state.players.get(client.sessionId);
+  if (player) {
+    console.log(`🎯 [WorldRoom] Programmation RAPIDE des quest statuses pour ${player.name}`);
+    
+    // ✅ DÉLAI RÉDUIT de 2s à 500ms
+    this.clock.setTimeout(async () => {
+      console.log(`⏰ [WorldRoom] Exécution RAPIDE des quest statuses pour ${player.name}`);
+      await this.updateQuestStatusesFixed(player.name, client);
+    }, 500); // 500ms au lieu de 2000ms
+  }
+}
 
   // ✅ NOUVELLE MÉTHODE : Mise à jour quest statuses avec debug
   private async updateQuestStatusesFixed(username: string, client?: Client) {
