@@ -1,6 +1,14 @@
-// server/src/services/TimeWeatherService.ts - VERSION SYNCHRONISATION GARANTIE
+// server/src/services/TimeWeatherService.ts - VERSION AVEC SUPPORT ENVIRONNEMENTS
 import { getServerConfig, getRandomWeatherType, WeatherType } from "../config/serverConfig";
 import { PokeWorldState } from "../schema/PokeWorldState";
+import { serverZoneEnvironmentManager } from "../config/zoneEnvironments";
+
+interface ClientZoneInfo {
+  sessionId: string;
+  currentZone: string;
+  environment: 'outdoor' | 'indoor' | 'cave';
+  lastUpdate: number;
+}
 
 export class TimeWeatherService {
   private state: PokeWorldState;
@@ -10,8 +18,9 @@ export class TimeWeatherService {
   private onWeatherChangeCallback?: (weather: WeatherType) => void;
   private onTimeChangeCallback?: (hour: number, isDayTime: boolean) => void;
   
-  // ✅ NOUVEAU: Système de synchronisation garantie
+  // ✅ NOUVEAU: Système de synchronisation garantie avec environnements
   private connectedClients: Set<any> = new Set();
+  private clientZoneInfo: Map<string, ClientZoneInfo> = new Map();
   private syncClockId: any;
   private lastSyncTime: number = 0;
 
@@ -20,6 +29,7 @@ export class TimeWeatherService {
     this.setupInitialState();
     this.startSystems(clockService);
     this.startSyncSystem(clockService);
+    this.validateEnvironmentConfiguration();
   }
 
   private setupInitialState() {
@@ -35,6 +45,22 @@ export class TimeWeatherService {
     
     console.log(`🕐 [TimeWeatherService] État initial: ${this.state.gameHour}h ${this.state.isDayTime ? '(JOUR)' : '(NUIT)'}`);
     console.log(`🌤️ [TimeWeatherService] Météo: ${this.currentWeather.displayName}`);
+  }
+
+  private validateEnvironmentConfiguration() {
+    const validation = serverZoneEnvironmentManager.validateAllZones();
+    if (!validation.valid) {
+      console.warn(`⚠️ [TimeWeatherService] Problèmes configuration environnements:`, validation.issues);
+    } else {
+      console.log(`✅ [TimeWeatherService] Configuration environnements validée`);
+    }
+    
+    // Log des environnements
+    const grouped = serverZoneEnvironmentManager.getAllZonesByEnvironment();
+    console.log(`📊 [TimeWeatherService] Zones par environnement:`);
+    Object.entries(grouped).forEach(([env, zones]) => {
+      console.log(`  ${env.toUpperCase()}: ${zones.length} zones`);
+    });
   }
 
   private startSystems(clockService: any) {
@@ -59,14 +85,14 @@ export class TimeWeatherService {
     }
   }
 
-  // ✅ NOUVEAU: Système de synchronisation périodique
+  // ✅ NOUVEAU: Système de synchronisation périodique avec environnements
   private startSyncSystem(clockService: any) {
-    // ✅ Envoyer l'état actuel toutes les 30 secondes pour garantir la sync
+    // ✅ Envoyer l'état selon l'environnement toutes les 30 secondes
     this.syncClockId = clockService.setInterval(() => {
-      this.broadcastCurrentState();
+      this.broadcastCurrentStateByEnvironment();
     }, 30000); // 30 secondes
     
-    console.log(`✅ [TimeWeatherService] Système de sync périodique démarré (30s)`);
+    console.log(`✅ [TimeWeatherService] Système de sync environnementale démarré (30s)`);
   }
 
   private updateTime() {
@@ -81,8 +107,8 @@ export class TimeWeatherService {
       console.log(`🌅 [TimeWeatherService] Transition: ${oldDayTime ? 'JOUR' : 'NUIT'} → ${this.state.isDayTime ? 'JOUR' : 'NUIT'} (${this.state.gameHour}h)`);
     }
     
-    // ✅ BROADCAST IMMÉDIAT à tous les clients connectés
-    this.broadcastTimeUpdate();
+    // ✅ BROADCAST INTELLIGENT selon l'environnement
+    this.broadcastTimeUpdateByEnvironment();
   }
 
   private updateWeather() {
@@ -92,8 +118,8 @@ export class TimeWeatherService {
     
     console.log(`🌤️ [TimeWeatherService] Météo: ${oldWeather.displayName} → ${this.currentWeather.displayName}`);
     
-    // ✅ BROADCAST IMMÉDIAT à tous les clients connectés
-    this.broadcastWeatherUpdate();
+    // ✅ BROADCAST INTELLIGENT selon l'environnement
+    this.broadcastWeatherUpdateByEnvironment();
   }
 
   private calculateDayTime(hour: number): boolean {
@@ -106,9 +132,9 @@ export class TimeWeatherService {
     return config.weatherSystem.weatherTypes.find(w => w.name === name);
   }
 
-  // ✅ NOUVEAUX MÉTHODES DE BROADCAST
+  // ✅ NOUVEAUX MÉTHODES DE BROADCAST INTELLIGENT
 
-  private broadcastTimeUpdate() {
+  private broadcastTimeUpdateByEnvironment() {
     const timeData = {
       gameHour: this.state.gameHour,
       isDayTime: this.state.isDayTime,
@@ -116,9 +142,50 @@ export class TimeWeatherService {
       timestamp: Date.now()
     };
     
-    console.log(`📡 [TimeWeatherService] Broadcast temps: ${timeData.displayTime} → ${this.connectedClients.size} clients`);
+    let outdoorClients = 0;
+    let indoorClients = 0;
+    let caveClients = 0;
     
-    // ✅ Utiliser le callback pour envoyer via WorldRoom
+    // ✅ Broadcast différencié selon l'environnement du client
+    this.connectedClients.forEach(client => {
+      const zoneInfo = this.clientZoneInfo.get(client.sessionId);
+      
+      if (!zoneInfo) {
+        // Client sans info de zone - envoyer quand même
+        client.send("timeUpdate", timeData);
+        return;
+      }
+      
+      const shouldReceiveUpdate = serverZoneEnvironmentManager.isAffectedByDayNight(zoneInfo.currentZone);
+      
+      if (shouldReceiveUpdate) {
+        // ✅ Client dans une zone affectée par le jour/nuit
+        client.send("timeUpdate", {
+          ...timeData,
+          environment: zoneInfo.environment,
+          zone: zoneInfo.currentZone,
+          affectedByDayNight: true
+        });
+        
+        if (zoneInfo.environment === 'outdoor') outdoorClients++;
+        else if (zoneInfo.environment === 'cave') caveClients++;
+      } else {
+        // ✅ Client dans une zone non affectée (intérieur)
+        client.send("timeUpdate", {
+          ...timeData,
+          environment: zoneInfo.environment,
+          zone: zoneInfo.currentZone,
+          affectedByDayNight: false,
+          message: "Zone intérieure - pas d'effet jour/nuit"
+        });
+        
+        indoorClients++;
+      }
+    });
+    
+    console.log(`📡 [TimeWeatherService] Broadcast temps: ${timeData.displayTime} → Outdoor: ${outdoorClients}, Indoor: ${indoorClients}, Cave: ${caveClients}`);
+    
+    // ✅ Utiliser le callback pour WorldRoom si défini
     if (this.onTimeChangeCallback) {
       this.onTimeChangeCallback(this.state.gameHour, this.state.isDayTime);
     }
@@ -126,38 +193,81 @@ export class TimeWeatherService {
     this.lastSyncTime = Date.now();
   }
 
-  private broadcastWeatherUpdate() {
+  private broadcastWeatherUpdateByEnvironment() {
     const weatherData = {
       weather: this.currentWeather.name,
       displayName: this.currentWeather.displayName,
       timestamp: Date.now()
     };
     
-    console.log(`📡 [TimeWeatherService] Broadcast météo: ${weatherData.displayName} → ${this.connectedClients.size} clients`);
+    let affectedClients = 0;
+    let unaffectedClients = 0;
     
-    // ✅ Utiliser le callback pour envoyer via WorldRoom
+    // ✅ Broadcast différencié selon l'environnement du client
+    this.connectedClients.forEach(client => {
+      const zoneInfo = this.clientZoneInfo.get(client.sessionId);
+      
+      if (!zoneInfo) {
+        // Client sans info de zone - envoyer quand même
+        client.send("weatherUpdate", weatherData);
+        return;
+      }
+      
+      const shouldReceiveUpdate = serverZoneEnvironmentManager.isAffectedByWeather(zoneInfo.currentZone);
+      
+      if (shouldReceiveUpdate) {
+        // ✅ Client dans une zone affectée par la météo
+        client.send("weatherUpdate", {
+          ...weatherData,
+          environment: zoneInfo.environment,
+          zone: zoneInfo.currentZone,
+          affectedByWeather: true
+        });
+        affectedClients++;
+      } else {
+        // ✅ Client dans une zone non affectée (intérieur/grotte)
+        client.send("weatherUpdate", {
+          ...weatherData,
+          environment: zoneInfo.environment,
+          zone: zoneInfo.currentZone,
+          affectedByWeather: false,
+          message: "Zone protégée - pas d'effet météo"
+        });
+        unaffectedClients++;
+      }
+    });
+    
+    console.log(`📡 [TimeWeatherService] Broadcast météo: ${weatherData.displayName} → Affectés: ${affectedClients}, Protégés: ${unaffectedClients}`);
+    
+    // ✅ Utiliser le callback pour WorldRoom si défini
     if (this.onWeatherChangeCallback) {
       this.onWeatherChangeCallback(this.currentWeather);
     }
   }
 
-  private broadcastCurrentState() {
+  private broadcastCurrentStateByEnvironment() {
     if (this.connectedClients.size === 0) {
       return; // Pas de clients connectés
     }
     
-    console.log(`🔄 [TimeWeatherService] Sync périodique: ${this.connectedClients.size} clients`);
+    console.log(`🔄 [TimeWeatherService] Sync périodique environnementale: ${this.connectedClients.size} clients`);
     
-    // ✅ Forcer l'envoi de l'état actuel
-    this.broadcastTimeUpdate();
-    this.broadcastWeatherUpdate();
+    // ✅ Forcer l'envoi de l'état actuel avec gestion environnementale
+    this.broadcastTimeUpdateByEnvironment();
+    this.broadcastWeatherUpdateByEnvironment();
   }
 
-  // ✅ NOUVELLES MÉTHODES DE GESTION DES CLIENTS
+  // ✅ NOUVELLES MÉTHODES DE GESTION DES CLIENTS AVEC ENVIRONNEMENTS
 
-  public addClient(client: any) {
+  public addClient(client: any, currentZone?: string) {
     this.connectedClients.add(client);
-    console.log(`👤 [TimeWeatherService] Client ajouté: ${client.sessionId} (total: ${this.connectedClients.size})`);
+    
+    // ✅ Enregistrer les informations de zone du client
+    if (currentZone) {
+      this.updateClientZone(client, currentZone);
+    }
+    
+    console.log(`👤 [TimeWeatherService] Client ajouté: ${client.sessionId} ${currentZone ? `(zone: ${currentZone})` : ''} (total: ${this.connectedClients.size})`);
     
     // ✅ ENVOYER IMMÉDIATEMENT L'ÉTAT ACTUEL AU NOUVEAU CLIENT
     setTimeout(() => {
@@ -167,29 +277,69 @@ export class TimeWeatherService {
 
   public removeClient(client: any) {
     this.connectedClients.delete(client);
+    this.clientZoneInfo.delete(client.sessionId);
     console.log(`👋 [TimeWeatherService] Client retiré: ${client.sessionId} (restant: ${this.connectedClients.size})`);
   }
 
-  private sendCurrentStateToClient(client: any) {
-    console.log(`📤 [TimeWeatherService] Envoi état actuel à ${client.sessionId}`);
+  // ✅ NOUVELLE MÉTHODE: Mettre à jour la zone d'un client
+  public updateClientZone(client: any, newZone: string) {
+    const environment = serverZoneEnvironmentManager.getZoneConfig(newZone)?.environment || 'outdoor';
     
-    // ✅ Envoyer l'état temps actuel
+    const zoneInfo: ClientZoneInfo = {
+      sessionId: client.sessionId,
+      currentZone: newZone,
+      environment: environment,
+      lastUpdate: Date.now()
+    };
+    
+    this.clientZoneInfo.set(client.sessionId, zoneInfo);
+    
+    console.log(`🌍 [TimeWeatherService] Client ${client.sessionId} → zone: ${newZone} (${environment})`);
+    
+    // ✅ Envoyer immédiatement l'état adapté à la nouvelle zone
+    this.sendCurrentStateToClient(client);
+  }
+
+  private sendCurrentStateToClient(client: any) {
+    const zoneInfo = this.clientZoneInfo.get(client.sessionId);
+    const environment = zoneInfo?.environment || 'outdoor';
+    const currentZone = zoneInfo?.currentZone || 'unknown';
+    
+    console.log(`📤 [TimeWeatherService] Envoi état actuel à ${client.sessionId} (${currentZone}, ${environment})`);
+    
+    // ✅ Envoyer l'état temps selon l'environnement
+    const affectedByDayNight = zoneInfo ? serverZoneEnvironmentManager.isAffectedByDayNight(currentZone) : true;
+    
     client.send("currentTime", {
       gameHour: this.state.gameHour,
       isDayTime: this.state.isDayTime,
-      displayTime: this.formatTime()
+      displayTime: this.formatTime(),
+      environment: environment,
+      zone: currentZone,
+      affectedByDayNight: affectedByDayNight,
+      timestamp: Date.now()
     });
     
-    // ✅ Envoyer l'état météo actuel
+    // ✅ Envoyer l'état météo selon l'environnement
+    const affectedByWeather = zoneInfo ? serverZoneEnvironmentManager.isAffectedByWeather(currentZone) : true;
+    
     client.send("currentWeather", {
       weather: this.currentWeather.name,
-      displayName: this.currentWeather.displayName
+      displayName: this.currentWeather.displayName,
+      environment: environment,
+      zone: currentZone,
+      affectedByWeather: affectedByWeather,
+      timestamp: Date.now()
     });
     
-    console.log(`✅ [TimeWeatherService] État envoyé: ${this.formatTime()}, ${this.currentWeather.displayName}`);
+    if (!affectedByDayNight && !affectedByWeather) {
+      console.log(`🏠 [TimeWeatherService] Client ${client.sessionId} en zone protégée - effets désactivés`);
+    } else {
+      console.log(`✅ [TimeWeatherService] État envoyé: ${this.formatTime()}, ${this.currentWeather.displayName} (zone: ${currentZone})`);
+    }
   }
 
-  // ✅ API PUBLIQUE - INCHANGÉE
+  // ✅ API PUBLIQUE - AMÉLIORÉE AVEC ENVIRONNEMENTS
   
   getCurrentWeather(): WeatherType {
     return this.currentWeather;
@@ -214,11 +364,30 @@ export class TimeWeatherService {
     return this.currentWeather.effects[effectName as keyof typeof this.currentWeather.effects] as number || 1.0;
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Retourne les conditions actuelles pour les rencontres
-  getEncounterConditions(): { timeOfDay: 'day' | 'night', weather: 'clear' | 'rain' } {
+  // ✅ MÉTHODE AMÉLIORÉE: Retourne les conditions selon la zone
+  getEncounterConditions(zoneName?: string): { timeOfDay: 'day' | 'night', weather: 'clear' | 'rain' } {
+    let effectiveTimeOfDay: 'day' | 'night' = this.state.isDayTime ? 'day' : 'night';
+    let effectiveWeather: 'clear' | 'rain' = this.currentWeather.name === 'rain' ? 'rain' : 'clear';
+    
+    // ✅ Modifier selon l'environnement de la zone
+    if (zoneName) {
+      const affectedByDayNight = serverZoneEnvironmentManager.isAffectedByDayNight(zoneName);
+      const affectedByWeather = serverZoneEnvironmentManager.isAffectedByWeather(zoneName);
+      
+      if (!affectedByDayNight) {
+        // Zone intérieure ou grotte - toujours "jour artificiel"
+        effectiveTimeOfDay = 'day';
+      }
+      
+      if (!affectedByWeather) {
+        // Zone protégée - toujours temps clair
+        effectiveWeather = 'clear';
+      }
+    }
+    
     return {
-      timeOfDay: this.state.isDayTime ? 'day' : 'night',
-      weather: this.currentWeather.name === 'rain' ? 'rain' : 'clear' // Force clear pour tous sauf rain
+      timeOfDay: effectiveTimeOfDay,
+      weather: effectiveWeather
     };
   }
 
@@ -233,7 +402,7 @@ export class TimeWeatherService {
     return `${displayHour}:00 ${period}`;
   }
 
-  // ✅ NOUVELLES MÉTHODES DE GESTION MANUELLE
+  // ✅ NOUVELLES MÉTHODES DE GESTION MANUELLE AVEC ENVIRONNEMENTS
 
   public sendCurrentStateToAllClients() {
     console.log(`📡 [TimeWeatherService] Force envoi état à tous les clients (${this.connectedClients.size})`);
@@ -247,8 +416,23 @@ export class TimeWeatherService {
     return this.connectedClients.size;
   }
 
+  // ✅ NOUVELLE MÉTHODE: Statistiques par environnement
+  public getClientEnvironmentStats(): { outdoor: number; indoor: number; cave: number; unknown: number } {
+    const stats = { outdoor: 0, indoor: 0, cave: 0, unknown: 0 };
+    
+    this.clientZoneInfo.forEach(zoneInfo => {
+      if (stats[zoneInfo.environment] !== undefined) {
+        stats[zoneInfo.environment]++;
+      } else {
+        stats.unknown++;
+      }
+    });
+    
+    return stats;
+  }
+
   public debugSyncStatus() {
-    console.log(`🔍 [TimeWeatherService] === ÉTAT DE SYNCHRONISATION ===`);
+    console.log(`🔍 [TimeWeatherService] === ÉTAT DE SYNCHRONISATION ENVIRONNEMENTALE ===`);
     console.log(`👥 Clients connectés: ${this.connectedClients.size}`);
     console.log(`🕐 Heure actuelle: ${this.formatTime()} (${this.state.gameHour}h)`);
     console.log(`🌤️ Météo actuelle: ${this.currentWeather.displayName}`);
@@ -257,11 +441,17 @@ export class TimeWeatherService {
     console.log(`🌦️ Système météo actif: ${!!this.weatherClockId}`);
     console.log(`🔄 Système sync actif: ${!!this.syncClockId}`);
     
-    // ✅ Lister les clients connectés
-    if (this.connectedClients.size > 0) {
-      console.log(`👤 Clients:`);
-      this.connectedClients.forEach((client, index) => {
-        console.log(`  ${index + 1}. ${client.sessionId}`);
+    // ✅ Statistiques par environnement
+    const envStats = this.getClientEnvironmentStats();
+    console.log(`🌍 Répartition par environnement:`, envStats);
+    
+    // ✅ Lister les clients avec leurs zones
+    if (this.clientZoneInfo.size > 0) {
+      console.log(`👤 Clients par zone:`);
+      this.clientZoneInfo.forEach((zoneInfo, sessionId) => {
+        const affectedByDayNight = serverZoneEnvironmentManager.isAffectedByDayNight(zoneInfo.currentZone);
+        const affectedByWeather = serverZoneEnvironmentManager.isAffectedByWeather(zoneInfo.currentZone);
+        console.log(`  ${sessionId}: ${zoneInfo.currentZone} (${zoneInfo.environment}) - Temps: ${affectedByDayNight}, Météo: ${affectedByWeather}`);
       });
     }
   }
@@ -282,8 +472,8 @@ export class TimeWeatherService {
     
     console.log(`🕐 [TEST] Heure forcée: ${oldHour}h → ${hour}h (${this.state.isDayTime ? 'JOUR' : 'NUIT'})`);
     
-    // ✅ BROADCAST IMMÉDIAT à tous les clients
-    this.broadcastTimeUpdate();
+    // ✅ BROADCAST IMMÉDIAT avec gestion environnementale
+    this.broadcastTimeUpdateByEnvironment();
   }
 
   public forceWeather(weatherName: string): void {
@@ -302,8 +492,8 @@ export class TimeWeatherService {
     
     console.log(`🌦️ [TEST] Météo forcée: ${oldWeather} → ${weatherName}`);
     
-    // ✅ BROADCAST IMMÉDIAT à tous les clients
-    this.broadcastWeatherUpdate();
+    // ✅ BROADCAST IMMÉDIAT avec gestion environnementale
+    this.broadcastWeatherUpdateByEnvironment();
   }
 
   // ✅ MÉTHODE DE SYNCHRONISATION FORCÉE
@@ -316,7 +506,7 @@ export class TimeWeatherService {
       return;
     }
     
-    this.broadcastCurrentState();
+    this.broadcastCurrentStateByEnvironment();
     console.log(`✅ [TimeWeatherService] Synchronisation forcée terminée`);
   }
 
@@ -346,10 +536,36 @@ export class TimeWeatherService {
       issues.push(`Dernière sync il y a ${Math.round(timeSinceLastSync / 1000)}s`);
     }
     
+    // ✅ Vérifications spécifiques aux environnements
+    const envValidation = serverZoneEnvironmentManager.validateAllZones();
+    if (!envValidation.valid) {
+      issues.push(...envValidation.issues);
+    }
+    
     return {
       healthy: issues.length === 0,
       issues: issues
     };
+  }
+
+  // ✅ NOUVELLES MÉTHODES POUR LES ENVIRONNEMENTS
+
+  public getZoneEnvironmentInfo(zoneName: string): any {
+    return {
+      environment: serverZoneEnvironmentManager.getZoneConfig(zoneName)?.environment || 'unknown',
+      affectedByDayNight: serverZoneEnvironmentManager.isAffectedByDayNight(zoneName),
+      affectedByWeather: serverZoneEnvironmentManager.isAffectedByWeather(zoneName),
+      baseIllumination: serverZoneEnvironmentManager.getBaseIllumination(zoneName),
+      effectiveIllumination: serverZoneEnvironmentManager.calculateEffectiveIllumination(
+        zoneName, 
+        this.state.isDayTime, 
+        this.getWeatherEffect('encounterRateModifier')
+      )
+    };
+  }
+
+  public getClientEnvironmentData(): Record<string, string> {
+    return serverZoneEnvironmentManager.getClientEnvironmentData();
   }
 
   destroy() {
@@ -371,6 +587,7 @@ export class TimeWeatherService {
     }
     
     this.connectedClients.clear();
+    this.clientZoneInfo.clear();
     
     console.log(`✅ [TimeWeatherService] Service détruit`);
   }
