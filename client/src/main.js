@@ -1,6 +1,10 @@
 import Phaser from 'phaser';
 import AnimatedTiles from 'phaser-animated-tiles/dist/AnimatedTiles.js';
 import { NetworkManager } from "./network/NetworkManager.js";
+import { setupTeamSystem } from './integration/teamIntegration.js';
+import { SceneRegistry } from './scenes/SceneRegistry.js';
+import { TimeService } from './services/TimeService.js';
+
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
 import { VillageScene } from "./scenes/zones/VillageScene.js";
@@ -8,8 +12,7 @@ import { Road1Scene } from './scenes/zones/Road1Scene.js';
 import { VillageLabScene } from './scenes/zones/VillageLabScene.js';
 import { VillageHouse1Scene } from './scenes/zones/VillageHouse1Scene.js';
 import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
-import { SceneRegistry } from './scenes/SceneRegistry.js';
-import { TimeService } from './services/TimeService.js';
+
 import { LavandiaAnalysisScene } from './scenes/zones/LavandiaAnalysisScene.js';
 import { LavandiaBossRoomScene } from './scenes/zones/LavandiaBossRoomScene.js';
 import { LavandiaCelebiTempleScene } from './scenes/zones/LavandiaCelebiTempleScene.js';
@@ -266,7 +269,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     // 1. Notifications
     const notificationSystem = initializeGameNotifications();
     console.log("✅ Système de notification initialisé");
-
+    
     // ✅ 2. CRÉER LE NETWORKMANAGER GLOBAL ET SE CONNECTER
     console.log("🌐 Création et connexion du NetworkManager global...");
     window.globalNetworkManager = new NetworkManager(client, window.username);
@@ -330,12 +333,13 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       });
     }, 1000);
 
-    // ✅ 11. SETUP GLOBAL POUR TES SYSTÈMES (INCHANGÉ)
+    // ✅ 11. SETUP GLOBAL POUR TES SYSTÈMES
     window.starterHUD = null;
     window.questSystemGlobal = null;
     window.inventorySystemGlobal = null;
-
-    // 12. Expose helpers initAllGameSystems & cie (INCHANGÉ)
+    window.teamManagerGlobal = null;
+    
+    // 12. Expose helpers initAllGameSystems & cie
     window.initInventorySystem = function(gameRoom) {
       if (!window.inventorySystemGlobal) {
         window.inventorySystemGlobal = new InventorySystem(null, gameRoom || window.currentGameRoom);
@@ -350,6 +354,15 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
         return window.inventorySystemGlobal;
       }
       return window.inventorySystemGlobal;
+    };
+
+    window.initTeamSystem = function(gameRoom) {
+      if (!window.teamManagerGlobal) {
+        window.teamManagerGlobal = setupTeamSystem(gameRoom || window.currentGameRoom);
+        window.onSystemInitialized && window.onSystemInitialized('team');
+        return window.teamManagerGlobal;
+      }
+      return window.teamManagerGlobal;
     };
     
     window.initStarterHUD = function(gameRoom) {
@@ -382,13 +395,14 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       const inventory = window.initInventorySystem(roomToUse);
       const quests = window.initQuestSystem(scene, roomToUse);
       const starter = window.initStarterHUD(roomToUse);
+      const team = window.initTeamSystem(roomToUse);
       setTimeout(() => {
         window.onSystemInitialized && window.onSystemInitialized('all');
       }, 1000);
-      return { inventory, quests, starter };
+      return { inventory, quests, starter, team };
     };
 
-    // === Fonctions d'accès rapide, notifications, tests etc === (INCHANGÉ)
+    // === Fonctions d'accès rapide, notifications, tests etc ===
     window.openInventory = function() {
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.openInventory();
@@ -439,6 +453,38 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       }
     };
 
+    window.openTeam = function() {
+      if (window.teamManagerGlobal) {
+        window.teamManagerGlobal.openTeamUI();
+        window.showGameNotification("Équipe ouverte", "info", { duration: 1500, position: 'bottom-right' });
+      } else {
+        window.showGameAlert?.("Système d'équipe non initialisé");
+      }
+    };
+
+    window.toggleTeam = function() {
+      if (window.teamManagerGlobal) {
+        const wasOpen = window.teamManagerGlobal.teamUI?.isOpen();
+        window.teamManagerGlobal.toggleTeamUI();
+        if (!wasOpen) {
+          window.showGameNotification("Équipe ouverte", "info", { duration: 1000, position: 'bottom-right' });
+        }
+      } else {
+        window.showGameAlert?.("Aucun système d'équipe disponible");
+      }
+    };
+
+    window.testTeam = function() {
+      if (window.teamManagerGlobal) {
+        window.teamManagerGlobal.toggleTeamUI();
+        setTimeout(() => {
+          window.showGameNotification("Test d'équipe réussi !", "success", { duration: 2000, position: 'top-center' });
+        }, 500);
+      } else {
+        window.showGameAlert?.("Système d'équipe non initialisé");
+      }
+    };
+    
     // ✅ NOUVELLES FONCTIONS POUR TESTER LES TRANSITIONS
     window.testTransition = function(targetZone = 'village') {
       console.log(`🧪 [MAIN] Test transition vers: ${targetZone}`);
@@ -479,6 +525,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     console.log("🎯 [MAIN] Tous les systèmes initialisés !");
     console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
     console.log("🎒 Utilisez 'I' pour ouvrir l'inventaire en jeu");
+    console.log("⚔️ Utilisez 'T' pour ouvrir l'équipe en jeu");
     console.log("🎮 Utilisez window.initAllGameSystems(scene, gameRoom) dans vos scènes pour tout initialiser");
     console.log("🌍 Utilisez window.listAvailableZones() pour voir les zones disponibles");
     console.log("🔄 Utilisez window.testTransition('village') pour tester les transitions");
@@ -501,7 +548,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
 
 export default {}; // plus besoin d'exporter le game ici, il est sur window
 
-// === Fonctions utilitaires exposées (raccourcis) === (INCHANGÉ)
+// === Fonctions utilitaires exposées (raccourcis) ===
 window.isChatFocused = function() {
   return window.pokeChat ? window.pokeChat.hasFocus() : false;
 };
@@ -516,12 +563,19 @@ window.isInventoryOpen = function() {
   if (typeof window.isInventoryVisible === 'function') return window.isInventoryVisible();
   return false;
 };
+
+window.isTeamOpen = function() {
+  return window.teamManagerGlobal ? window.teamManagerGlobal.teamUI?.isOpen() || false : false;
+};
+
 window.shouldBlockInput = function() {
   return window.isChatFocused() ||
     window.isStarterHUDOpen() ||
     window.isQuestJournalOpen() ||
-    window.isInventoryOpen();
+    window.isInventoryOpen() ||
+    window.isTeamOpen();
 };
+
 window.canPlayerInteract = function() {
   if (window.inventorySystemGlobal) return window.inventorySystemGlobal.canPlayerInteract();
   if (window.questSystemGlobal) return window.questSystemGlobal.canPlayerInteract();
@@ -535,6 +589,7 @@ window.getGameSystemsStatus = function() {
     inventory: { initialized: !!window.inventorySystemGlobal, open: window.isInventoryOpen() },
     quests: { initialized: !!window.questSystemGlobal, journalOpen: window.isQuestJournalOpen() },
     starter: { initialized: !!window.starterHUD, open: window.isStarterHUDOpen() },
+    team: { initialized: !!window.teamManagerGlobal, open: window.isTeamOpen() },
     networkManager: {
       initialized: !!window.globalNetworkManager,
       connected: window.globalNetworkManager?.isConnected || false,
@@ -595,12 +650,14 @@ window.showGameHelp = function() {
 
 === Contrôles de base ===
 • I - Ouvrir/Fermer l'inventaire
+• T - Ouvrir/Fermer l'équipe
 • Q - Ouvrir/Fermer le journal des quêtes
 • E - Interagir avec NPCs/objets
 • WASD ou Flèches - Déplacement
 
 === Fonctions de test ===
 • window.testInventory() - Tester l'inventaire
+• window.testTeam() - Tester l'équipe
 • window.testNotifications() - Tester les notifications
 • window.quickTestNotifications() - Test rapide
 • window.debugGameSystems() - Debug des systèmes
@@ -614,6 +671,7 @@ window.showGameHelp = function() {
 
 === Systèmes disponibles ===
 • Inventaire: ${!!window.inventorySystemGlobal}
+• Équipe: ${!!window.teamManagerGlobal}
 • Quêtes: ${!!window.questSystemGlobal}
 • Notifications: ${!!window.gameNotificationSystem}
 • Starter HUD: ${!!window.starterHUD}
@@ -634,5 +692,6 @@ console.log(`
 Utilisez window.showGameHelp() pour l'aide complète
 Tous les systèmes sont initialisés et prêts !
 🔄 Support des transitions robustes intégré !
+⚔️ Système d'équipe Pokémon disponible !
 ==============================
 `);
