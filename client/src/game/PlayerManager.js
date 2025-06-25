@@ -442,6 +442,7 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
   // ✅ NOUVELLE MÉTHODE: Mise à jour des animations
   // ✅ MÉTHODE CORRIGÉE: Mise à jour des animations
 // ✅ MÉTHODE CORRIGÉE: Mise à jour des animations avec détection de mouvement physique
+// ✅ MÉTHODE CORRIGÉE: Mise à jour des animations avec seuil d'arrêt
 updatePlayerAnimation(player) {
   if (!player || !player.anims) {
     console.warn("[PlayerManager] Joueur sans anims:", player?.sessionId);
@@ -454,22 +455,21 @@ updatePlayerAnimation(player) {
     this.createAnimations();
   }
   
-  // 🔥 DÉTECTER LE MOUVEMENT PHYSIQUE (plus fiable que player.isMoving)
-  const isMovingPhysically = (
-    Math.abs(player.x - (player.targetX || player.x)) > 2 || 
-    Math.abs(player.y - (player.targetY || player.y)) > 2
-  );
+  // 🔥 DÉTECTER LE MOUVEMENT PHYSIQUE avec seuil plus strict
+  const dx = Math.abs(player.x - (player.targetX || player.x));
+  const dy = Math.abs(player.y - (player.targetY || player.y));
+  const isMovingPhysically = (dx > 5 || dy > 5); // ✅ Seuil plus élevé
   
   // 🔥 DÉTECTER LA DIRECTION BASÉE SUR LE MOUVEMENT
   let direction = player.lastDirection || 'down';
   if (player.targetX !== undefined && player.targetY !== undefined) {
-    const dx = player.targetX - player.x;
-    const dy = player.targetY - player.y;
+    const deltaX = player.targetX - player.x;
+    const deltaY = player.targetY - player.y;
     
-    if (Math.abs(dx) > Math.abs(dy)) {
-      direction = dx > 0 ? 'right' : 'left';
-    } else if (Math.abs(dy) > 2) {
-      direction = dy > 0 ? 'down' : 'up';
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 5) {
+      direction = deltaX > 0 ? 'right' : 'left';
+    } else if (Math.abs(deltaY) > 5) {
+      direction = deltaY > 0 ? 'down' : 'up';
     }
   }
   
@@ -479,14 +479,13 @@ updatePlayerAnimation(player) {
   // 🔥 JOUER L'ANIMATION
   if (targetAnim && this.scene.anims.exists(targetAnim)) {
     if (!player.anims.isPlaying || player.anims.currentAnim?.key !== targetAnim) {
-      console.log(`[PlayerManager] Animation autre joueur: ${player.sessionId} -> ${targetAnim} (physique: ${isMovingPhysically})`);
+      console.log(`[PlayerManager] Animation autre joueur: ${player.sessionId} -> ${targetAnim} (dx:${dx.toFixed(1)}, dy:${dy.toFixed(1)})`);
       player.anims.play(targetAnim, true);
     }
   } else {
     console.warn(`[PlayerManager] Animation introuvable: ${targetAnim} pour ${player.sessionId}`);
   }
 }
-
   // ✅ NOUVELLE MÉTHODE: Vérification du joueur local prêt
   checkMyPlayerReady() {
     const effectiveSessionId = this._pendingSessionId || this.mySessionId;
