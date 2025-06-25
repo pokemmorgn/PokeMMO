@@ -273,25 +273,34 @@ export class DayNightWeatherManager {
 
   // ✅ Vérification de synchronisation
   checkSynchronization() {
-    if (!this.timeWeatherManager) {
-      console.warn(`⚠️ [DayNightWeatherManager] TimeWeatherManager manquant lors de la vérification`);
-      return;
-    }
-    
-    const isSynced = this.timeWeatherManager.isSynchronized();
-    
-    if (!isSynced) {
-      console.warn(`⚠️ [DayNightWeatherManager] PAS SYNCHRONISÉ avec le serveur après 3s !`);
-      console.log(`🔄 [DayNightWeatherManager] Tentative de re-synchronisation...`);
-      
-      if (this.scene?.networkManager) {
-        this.timeWeatherManager.forceRefreshFromServer(this.scene.networkManager);
-      }
-    } else {
-      console.log(`✅ [DayNightWeatherManager] Complètement synchronisé avec le serveur`);
-      this.isServerSynced = true;
-    }
+  if (!this.timeWeatherManager) {
+    console.warn(`⚠️ [DayNightWeatherManager] TimeWeatherManager manquant lors de la vérification`);
+    return;
   }
+  
+  const isSynced = this.timeWeatherManager.isSynchronized();
+  
+  if (!isSynced) {
+    console.warn(`⚠️ [DayNightWeatherManager] PAS SYNCHRONISÉ avec le serveur !`);
+    console.log(`🔄 [DayNightWeatherManager] Tentative de re-synchronisation IMMÉDIATE...`);
+    
+    if (this.scene?.networkManager) {
+      this.timeWeatherManager.forceRefreshFromServer(this.scene.networkManager);
+      
+      // ✅ NOUVEAU: Vérification rapide après 500ms au lieu de 3s
+      setTimeout(() => {
+        if (this.timeWeatherManager.isSynchronized()) {
+          console.log(`✅ [DayNightWeatherManager] Resynchronisation réussie`);
+          this.isServerSynced = true;
+          this.forceUpdate(); // Forcer une mise à jour immédiate
+        }
+      }, 500);
+    }
+  } else {
+    console.log(`✅ [DayNightWeatherManager] Complètement synchronisé avec le serveur`);
+    this.isServerSynced = true;
+  }
+}
 
   // ✅ API PUBLIQUE
 
@@ -389,23 +398,30 @@ export class DayNightWeatherManager {
   }
 
   onZoneChanged(newZoneName) {
-    console.log(`🌍 [DayNightWeatherManager] Zone changée: ${this.lastZoneChecked} → ${newZoneName}`);
-    
-    // Forcer la vérification du nouvel environnement
-    this.lastZoneChecked = null;
-    this.checkEnvironmentChange();
-    
-    // ✅ Mettre à jour l'environnement des effets visuels
-    const environment = zoneEnvironmentManager.getZoneEnvironment(newZoneName);
-    if (this.weatherEffects) {
-      this.weatherEffects.setEnvironmentType(environment);
-    }
-    
-    // Forcer une mise à jour complète
-    this.forceUpdate();
-    
-    console.log(`✅ [DayNightWeatherManager] Adaptation à la nouvelle zone terminée`);
+  console.log(`🌍 [DayNightWeatherManager] Zone changée: ${this.lastZoneChecked} → ${newZoneName}`);
+  
+  // ✅ NOUVEAU: Synchronisation immédiate
+  this.lastZoneChecked = null;
+  this.checkEnvironmentChange();
+  
+  // ✅ Mettre à jour l'environnement des effets visuels IMMÉDIATEMENT
+  const environment = zoneEnvironmentManager.getZoneEnvironment(newZoneName);
+  if (this.weatherEffects) {
+    this.weatherEffects.setEnvironmentType(environment);
   }
+  
+  // ✅ NOUVEAU: Forcer la synchronisation avec le serveur IMMÉDIATEMENT
+  if (this.scene?.networkManager && this.timeWeatherManager) {
+    console.log(`🚀 [DayNightWeatherManager] Synchronisation IMMÉDIATE pour nouvelle zone`);
+    this.timeWeatherManager.forceRefreshFromServer(this.scene.networkManager);
+  }
+  
+  // ✅ Mise à jour immédiate au lieu d'attendre les callbacks
+  setTimeout(() => {
+    this.forceUpdate();
+    console.log(`✅ [DayNightWeatherManager] Adaptation immédiate à la nouvelle zone terminée`);
+  }, 100); // 100ms au lieu de plusieurs secondes
+}
 
   // ✅ DEBUG
 
