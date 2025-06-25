@@ -10,6 +10,7 @@ import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
 import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
+import { initializeTeamSystem } from '../../managers/TeamManager.js';
 import { CharacterManager } from "../../game/CharacterManager.js";
 
 
@@ -1363,8 +1364,7 @@ initializeTeamSystem() {
   if (!this.networkManager?.room) return;
   if (window.TeamManager && window.TeamManager.isInitialized) return;
   try {
-    // import en haut : import { setupTeamSystem } from '../integration/teamIntegration.js'
-    window.TeamManager = setupTeamSystem(this.networkManager.room);
+    window.TeamManager = initializeTeamSystem(this.networkManager.room);
     console.log(`✅ [${this.scene.key}] Système d'équipe initialisé`);
   } catch (e) {
     console.error(`[${this.scene.key}] Erreur d'init TeamManager:`, e);
