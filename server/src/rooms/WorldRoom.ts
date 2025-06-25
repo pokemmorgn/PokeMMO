@@ -1215,6 +1215,9 @@ private async handleShopTransaction(client: Client, data: {
       
       // Zone de spawn
       player.currentZone = options.spawnZone || "beach";
+      player.characterId = options.characterId || "brendan";
+      console.log(`🎭 Personnage: ${player.characterId}`);
+
       console.log(`🌍 Zone de spawn: ${player.currentZone}`);
       // ✅ NOUVEAU: Ajouter le client au TimeWeatherService
 if (this.timeWeatherService) {
@@ -1242,12 +1245,13 @@ if (this.timeWeatherService) {
         x: player.x,
         y: player.y,
         currentZone: player.currentZone,
+        characterId: player.characterId, // ✅ NOUVEAU
         level: player.level,
         gold: player.gold,
-        // ✅ IMPORTANT: Flag que c'est son propre joueur
         isMyPlayer: true,
         totalPlayersInRoom: this.state.players.size
       });
+
       
       console.log(`📍 Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
       console.log(`💰 Level: ${player.level}, Gold: ${player.gold}`);
