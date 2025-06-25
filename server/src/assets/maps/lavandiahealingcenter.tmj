@@ -1,12 +1,4 @@
 { "compressionlevel":-1,
- "editorsettings":
-    {
-     "export":
-        {
-         "format":"json",
-         "target":"lavandiahealingcenter.tmj"
-        }
-    },
  "height":30,
  "infinite":false,
  "layers":[
