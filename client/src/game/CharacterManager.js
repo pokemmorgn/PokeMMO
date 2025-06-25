@@ -21,7 +21,7 @@ export class CharacterManager {
     this.defineCharacter('brendan', {
       name: 'Brendan',
       spriteKey: 'BrendanWalking',
-      spritePath: 'assets/characters/Brendan/Brendan_Walking.png',
+      spritePath: 'assets/character/Brendan/Brendan_Walking.png',
       frameConfig: { frameWidth: 32, frameHeight: 32 }, // 4x4 = 128x128 total
       animations: {
         idle: {
