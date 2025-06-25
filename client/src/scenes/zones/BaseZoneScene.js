@@ -426,6 +426,11 @@ initializeZoneEnvironment() {
   
   console.log(`🌍 [${this.scene.key}] Environnement détecté: ${this.currentEnvironment}`);
   
+  // ✅ NOUVEAU: Synchronisation immédiate si le système existe déjà
+  if (this.dayNightWeatherManager) {
+    this.dayNightWeatherManager.onZoneChanged(zoneName);
+  }
+  
   // Debug des informations d'environnement
   zoneEnvironmentManager.debugZoneEnvironment(zoneName);
   
