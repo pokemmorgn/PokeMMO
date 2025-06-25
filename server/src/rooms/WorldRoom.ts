@@ -13,7 +13,7 @@ import { getServerConfig } from "../config/serverConfig";
 import { EncounterManager } from "../managers/EncounterManager";
 import { serverZoneEnvironmentManager } from "../config/zoneEnvironments";
 import { PositionSaverService } from "../services/PositionSaverService";
-
+import { PlayerData } from "../models/PlayerData";
 
 
 
@@ -1249,11 +1249,18 @@ private async handleShopTransaction(client: Client, data: {
       // Données de base
       player.id = client.sessionId;
       player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
-      player.x = options.spawnX || 52;
-      player.y = options.spawnY || 48;
-      
-      // Zone de spawn
-      player.currentZone = options.spawnZone || "beach";
+     const savedData = await PlayerData.findOne({ username: player.name });
+if (savedData && savedData.lastX !== undefined) {
+  player.x = savedData.lastX;
+  player.y = savedData.lastY;
+  player.currentZone = savedData.lastMap || "beach";
+  console.log(`💾 Position restaurée: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+} else {
+  player.x = options.spawnX || 52;
+  player.y = options.spawnY || 48;
+  player.currentZone = options.spawnZone || "beach";
+  console.log(`🆕 Nouveau joueur: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+}
       player.characterId = options.characterId || "brendan";
       console.log(`🎭 Personnage: ${player.characterId}`);
 
