@@ -61,7 +61,6 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} ===`);
     console.log(`📊 Scene data reçue:`, this.scene.settings.data);
 
-    this.createPlayerAnimations();
     this.setupManagers();
     this.initPlayerSpawnFromSceneData();
     this.justArrivedAtZone = true;
@@ -1135,34 +1134,7 @@ setupScene() {
     // après que le NetworkManager soit disponible
   }
 
-  createPlayerAnimations() {
-    if (!this.textures.exists('dude') || this.anims.exists('walk_left')) return;
-
-    this.anims.create({
-      key: 'walk_left',
-      frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
-      frameRate: 10, repeat: -1
-    });
-    this.anims.create({ key: 'idle_left', frames: [{ key: 'dude', frame: 4 }], frameRate: 1 });
-    this.anims.create({
-      key: 'walk_right',
-      frames: this.anims.generateFrameNumbers('dude', { start: 5, end: 8 }),
-      frameRate: 10, repeat: -1
-    });
-    this.anims.create({ key: 'idle_right', frames: [{ key: 'dude', frame: 5 }], frameRate: 1 });
-    this.anims.create({
-      key: 'walk_up',
-      frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
-      frameRate: 10, repeat: -1
-    });
-    this.anims.create({ key: 'idle_up', frames: [{ key: 'dude', frame: 4 }], frameRate: 1 });
-    this.anims.create({
-      key: 'walk_down',
-      frames: this.anims.generateFrameNumbers('dude', { start: 5, end: 8 }),
-      frameRate: 10, repeat: -1
-    });
-    this.anims.create({ key: 'idle_down', frames: [{ key: 'dude', frame: 5 }], frameRate: 1 });
-  }
+ 
 
   // ✅ MÉTHODE SIMPLIFIÉE: Setup des inputs (plus de gestion E directe)
   setupInputs() {
