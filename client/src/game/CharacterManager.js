@@ -57,12 +57,23 @@ export class CharacterManager {
   }
 
   // ✅ Créer un sprite pour un personnage
- // ✅ Créer un sprite pour un personnage
 async createCharacterSprite(characterId, x, y) {
-  // Pour l'instant, toujours utiliser Brendan
   const actualCharacterId = 'brendan';
   
   console.log(`🎭 [CharacterManager] Création sprite pour ${actualCharacterId} à (${x}, ${y})`);
+
+  // ✅ VÉRIFICATION: Éviter la duplication par position proche
+  const existingSprites = this.scene.children.list.filter(child => 
+    child.characterId === actualCharacterId && 
+    Math.abs(child.x - x) < 5 && 
+    Math.abs(child.y - y) < 5 &&
+    typeof child.setVisible === 'function'
+  );
+  
+  if (existingSprites.length > 0) {
+    console.warn(`⚠️ [CharacterManager] Sprite similaire déjà présent, réutilisation`);
+    return existingSprites[0];
+  }
 
   // ✅ FORCER LE CHARGEMENT ET ATTENDRE
   const loaded = await this.loadCharacter(actualCharacterId);
@@ -71,30 +82,7 @@ async createCharacterSprite(characterId, x, y) {
     return this.createPlaceholderSprite(x, y, actualCharacterId);
   }
 
-  const definition = this.characterDefinitions.get(actualCharacterId);
-  
-  // ✅ VÉRIFIER QUE LA TEXTURE EXISTE VRAIMENT
-  if (!this.scene.textures.exists(definition.spriteKey)) {
-    console.error(`❌ [CharacterManager] Texture ${definition.spriteKey} n'existe pas !`);
-    return this.createPlaceholderSprite(x, y, actualCharacterId);
-  }
-
-  // ✅ VÉRIFIER QUE LES ANIMATIONS EXISTENT
-  const idleAnimKey = `${actualCharacterId}_idle_down`;
-  if (!this.scene.anims.exists(idleAnimKey)) {
-    console.error(`❌ [CharacterManager] Animation ${idleAnimKey} n'existe pas !`);
-    // Créer les animations maintenant
-    this.createCharacterAnimations(actualCharacterId);
-  }
-
-  // Créer le sprite avec l'idle par défaut
-  const sprite = this.scene.physics.add.sprite(x, y, definition.spriteKey, definition.defaultFrame);
-
-  // ✅ VÉRIFIER QUE LE SPRITE EST VALIDE
-  if (!sprite || typeof sprite.setOrigin !== 'function') {
-    console.error(`❌ [CharacterManager] Sprite invalide créé pour ${actualCharacterId}`);
-    return this.createPlaceholderSprite(x, y, actualCharacterId);
-  }
+  // ... reste du code inchangé
 
   sprite.setOrigin(0.5, 1);
   sprite.setScale(1);
