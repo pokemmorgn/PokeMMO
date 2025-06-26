@@ -889,6 +889,7 @@ export class NetworkManager {
     // Road
     'Road1Scene': 'road1',
     'Road1HouseScene': 'road1house',
+    'Road1HiddenScene': 'road1hidden',
     'Road2Scene': 'road2',
     'Road3Scene': 'road3',
 
