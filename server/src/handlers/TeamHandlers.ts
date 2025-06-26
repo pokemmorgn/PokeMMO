@@ -283,7 +283,23 @@ export class TeamHandlers {
   // HANDLERS DE GESTION
   // ================================================================================================
 
-.name);
+  /**
+   * Ajoute un Pokémon à l'équipe
+   */
+  private async handleAddToTeam(client: Client, data: { pokemonId: string }): Promise<void> {
+    try {
+      const player = this.room.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("teamActionResult", {
+          success: false,
+          message: "Joueur non trouvé"
+        });
+        return;
+      }
+
+      console.log(`➕ [TeamHandlers] Ajout Pokémon ${data.pokemonId} pour ${player.name}`);
+      
+      const teamManager = new TeamManager(player.name);
       await teamManager.load();
       
       // Vérifier si l'équipe n'est pas pleine
