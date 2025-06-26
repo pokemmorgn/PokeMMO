@@ -1427,30 +1427,6 @@ export class WorldRoom extends Room<PokeWorldState> {
         console.error(`❌ [INVENTAIRE] Erreur lors de l'ajout d'objets de départ pour ${player.name}:`, err);
       }
 
-         // ✅ === NOUVEAU: CONFIGURATION STARTER POKÉMON ===
-      try {
-        console.log(`🌟 Vérification starter Pokémon pour ${player.name}`);
-        
-       // const starterResult = await ensurePlayerHasStarter(player.name);
-        
-        if (starterResult.given) {
-          console.log(`🎁 [STARTER] ${player.name} a reçu son starter: ${starterResult.pokemonName}`);
-          
-          // Optionnel: Notifier le client qu'il a reçu un starter
-          client.send("starterReceived", {
-            success: true,
-            pokemonName: starterResult.pokemonName,
-            message: `Bienvenue ! Voici votre premier Pokémon : ${starterResult.pokemonName} !`
-          });
-        } else if (starterResult.needed && !starterResult.given) {
-          console.error(`❌ [STARTER] Échec du don de starter pour ${player.name}: ${starterResult.error}`);
-        } else if (!starterResult.needed) {
-          console.log(`ℹ️ [STARTER] ${player.name} a déjà des Pokémon, pas de starter nécessaire`);
-        }
-        
-      } catch (err) {
-        console.error(`❌ [STARTER] Erreur lors de la vérification du starter pour ${player.name}:`, err);
-      }
       
       // ✅ ÉTAPE 4: Faire entrer le joueur dans sa zone initiale
       await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
