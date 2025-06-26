@@ -1,5 +1,7 @@
 // server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC CORRECTIONS PREMIER JOUEUR
 import { Room, Client } from "@colyseus/core";
+import mongoose from "mongoose";
+
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { ZoneManager } from "../managers/ZoneManager";
 import { NpcManager } from "../managers/NPCManager";
@@ -15,7 +17,7 @@ import { serverZoneEnvironmentManager } from "../config/zoneEnvironments";
 import { PositionSaverService } from "../services/PositionSaverService";
 import { PlayerData } from "../models/PlayerData";
 
-
+import { TeamManager } from "../managers/TeamManager"; //
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
@@ -179,8 +181,7 @@ console.log(`✅ EncounterManager initialisé`);
   // === COMMANDES DE TEST === (ajoute ça avec les autres handlers)
 
   private initializeNpcManagers() {
-    const zones = ['beach', 'village', 'villagelab', 'villagehouse1', 'villagehouse2', 'villageflorist', 'road1', 'lavandia', 'lavandiahouse1', 'lavandiahouse2', 'lavandiahouse3', 'lavandiahouse4', 'lavandiahouse5', 'lavandiahouse6', 'lavandiahouse7', 'lavandiahouse8', 'lavandiahouse9', 'lavandiashop', 'lavandiaanalysis', 'lavandiabossroom', 'lavandiacelebitemple', 'lavandiaequipement', 'lavandiafurniture', 'lavandiahealingcenter', 'lavandiaresearchlab'];
-    
+ const zones = ['beach', 'village', 'villagelab', 'villagehouse1', 'villagehouse2', 'villageflorist', 'road1', 'lavandia', 'lavandiahouse1', 'lavandiahouse2', 'lavandiahouse3', 'lavandiahouse4', 'lavandiahouse5', 'lavandiahouse6', 'lavandiahouse7', 'lavandiahouse8', 'lavandiahouse9', 'lavandiashop', 'lavandiaanalysis', 'lavandiabossroom', 'lavandiacelebitemple', 'lavandiaequipement', 'lavandiafurniture', 'lavandiahealingcenter', 'lavandiaresearchlab'];
     zones.forEach(zoneName => {
       try {
         const mapPath = `../assets/maps/${zoneName}.tmj`;
@@ -361,6 +362,316 @@ this.onMessage("ping", (client, data) => {
   // console.log(`[WorldRoom] Ping reçu de ${client.sessionId}`);
 });
 
+    // Récupérer l'équipe du joueur
+this.onMessage("getTeam", async (client) => {
+  try {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("teamActionResult", {
+        success: false,
+        message: "Joueur non trouvé"
+      });
+      return;
+    }
+
+    console.log(`⚔️ [WorldRoom] Récupération équipe pour ${player.name}`);
+    
+    const teamManager = new TeamManager(player.name);
+    await teamManager.load();
+    
+    const team = await teamManager.getTeam();
+    const stats = await teamManager.getTeamStats();
+    
+    client.send("teamData", {
+      success: true,
+      team: team,
+      stats: stats
+    });
+    
+    console.log(`✅ [WorldRoom] Équipe envoyée à ${player.name}: ${team.length} Pokémon`);
+    
+  } catch (error) {
+    console.error("❌ Erreur getTeam:", error);
+    client.send("teamActionResult", {
+      success: false,
+      message: "Erreur lors de la récupération de l'équipe"
+    });
+  }
+});
+
+// Soigner toute l'équipe
+this.onMessage("healTeam", async (client) => {
+  try {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("teamActionResult", {
+        success: false,
+        message: "Joueur non trouvé"
+      });
+      return;
+    }
+
+    console.log(`💊 [WorldRoom] Soin de l'équipe pour ${player.name}`);
+    
+    const teamManager = new TeamManager(player.name);
+    await teamManager.load();
+    await teamManager.healTeam();
+    
+    client.send("teamHealed", {
+      success: true,
+      message: "Équipe soignée avec succès !"
+    });
+    
+    // Renvoyer l'équipe mise à jour
+    const team = await teamManager.getTeam();
+    const stats = await teamManager.getTeamStats();
+    
+    client.send("teamData", {
+      success: true,
+      team: team,
+      stats: stats
+    });
+    
+    console.log(`✅ [WorldRoom] Équipe de ${player.name} soignée`);
+    
+  } catch (error) {
+    console.error("❌ Erreur healTeam:", error);
+    client.send("teamActionResult", {
+      success: false,
+      message: "Erreur lors du soin de l'équipe"
+    });
+  }
+});
+
+// Soigner un Pokémon spécifique
+this.onMessage("healPokemon", async (client, data: { pokemonId: string }) => {
+  try {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("teamActionResult", {
+        success: false,
+        message: "Joueur non trouvé"
+      });
+      return;
+    }
+
+    console.log(`💊 [WorldRoom] Soin Pokémon ${data.pokemonId} pour ${player.name}`);
+    
+    const teamManager = new TeamManager(player.name);
+    await teamManager.load();
+    
+const pokemonObjectId = new mongoose.Types.ObjectId(data.pokemonId);
+const success = await teamManager.healPokemon(pokemonObjectId);
+    
+    if (success) {
+      client.send("pokemonUpdated", {
+        pokemonId: data.pokemonId,
+        updates: { /* données mises à jour du Pokémon */ }
+      });
+      
+      client.send("teamActionResult", {
+        success: true,
+        message: "Pokémon soigné !"
+      });
+    } else {
+      client.send("teamActionResult", {
+        success: false,
+        message: "Pokémon non trouvé dans l'équipe"
+      });
+    }
+    
+  } catch (error) {
+    console.error("❌ Erreur healPokemon:", error);
+    client.send("teamActionResult", {
+      success: false,
+      message: "Erreur lors du soin du Pokémon"
+    });
+  }
+});
+
+// Échanger deux Pokémon de place dans l'équipe
+this.onMessage("swapTeamSlots", async (client, data: { slotA: number, slotB: number }) => {
+  try {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("teamActionResult", {
+        success: false,
+        message: "Joueur non trouvé"
+      });
+      return;
+    }
+
+    console.log(`🔄 [WorldRoom] Échange slots ${data.slotA} <-> ${data.slotB} pour ${player.name}`);
+    
+    const teamManager = new TeamManager(player.name);
+    await teamManager.load();
+    
+    const success = await teamManager.swapTeamSlots(data.slotA, data.slotB);
+    
+    if (success) {
+      // Renvoyer l'équipe mise à jour
+      const team = await teamManager.getTeam();
+      const stats = await teamManager.getTeamStats();
+      
+      client.send("teamData", {
+        success: true,
+        team: team,
+        stats: stats
+      });
+      
+      client.send("teamActionResult", {
+        success: true,
+        message: "Pokémon échangés !"
+      });
+    } else {
+      client.send("teamActionResult", {
+        success: false,
+        message: "Impossible d'échanger ces Pokémon"
+      });
+    }
+    
+  } catch (error) {
+    console.error("❌ Erreur swapTeamSlots:", error);
+    client.send("teamActionResult", {
+      success: false,
+      message: "Erreur lors de l'échange"
+    });
+  }
+});
+
+// Retirer un Pokémon de l'équipe (vers le PC)
+this.onMessage("removeFromTeam", async (client, data: { pokemonId: string }) => {
+  try {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("teamActionResult", {
+        success: false,
+        message: "Joueur non trouvé"
+      });
+      return;
+    }
+
+    console.log(`📦 [WorldRoom] Retrait Pokémon ${data.pokemonId} pour ${player.name}`);
+    
+    const teamManager = new TeamManager(player.name);
+    await teamManager.load();
+    
+const pokemonObjectId = new mongoose.Types.ObjectId(data.pokemonId);
+const success = await teamManager.removeFromTeam(pokemonObjectId);
+    
+    if (success) {
+      client.send("pokemonRemovedFromTeam", {
+        pokemonId: data.pokemonId
+      });
+      
+      // Renvoyer l'équipe mise à jour
+      const team = await teamManager.getTeam();
+      const stats = await teamManager.getTeamStats();
+      
+      client.send("teamData", {
+        success: true,
+        team: team,
+        stats: stats
+      });
+      
+      client.send("teamActionResult", {
+        success: true,
+        message: "Pokémon envoyé au PC !"
+      });
+    } else {
+      client.send("teamActionResult", {
+        success: false,
+        message: "Pokémon non trouvé dans l'équipe"
+      });
+    }
+    
+  } catch (error) {
+    console.error("❌ Erreur removeFromTeam:", error);
+    client.send("teamActionResult", {
+      success: false,
+      message: "Erreur lors du retrait"
+    });
+  }
+});
+
+// Organiser automatiquement l'équipe
+this.onMessage("autoArrangeTeam", async (client) => {
+  try {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("teamActionResult", {
+        success: false,
+        message: "Joueur non trouvé"
+      });
+      return;
+    }
+
+    console.log(`🔄 [WorldRoom] Auto-organisation équipe pour ${player.name}`);
+    
+    const teamManager = new TeamManager(player.name);
+    await teamManager.load();
+    
+    // TODO: Implémenter la logique d'auto-organisation
+    // Pour l'instant, juste renvoyer l'équipe actuelle
+    
+    const team = await teamManager.getTeam();
+    const stats = await teamManager.getTeamStats();
+    
+    client.send("teamData", {
+      success: true,
+      team: team,
+      stats: stats
+    });
+    
+    client.send("teamActionResult", {
+      success: true,
+      message: "Équipe organisée !"
+    });
+    
+  } catch (error) {
+    console.error("❌ Erreur autoArrangeTeam:", error);
+    client.send("teamActionResult", {
+      success: false,
+      message: "Erreur lors de l'organisation"
+    });
+  }
+});
+
+// Obtenir les statistiques de l'équipe
+this.onMessage("getTeamStats", async (client) => {
+  try {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("teamStats", {
+        totalPokemon: 0,
+        alivePokemon: 0,
+        faintedPokemon: 0,
+        averageLevel: 0,
+        canBattle: false
+      });
+      return;
+    }
+
+    const teamManager = new TeamManager(player.name);
+    await teamManager.load();
+    
+    const stats = await teamManager.getTeamStats();
+    
+    client.send("teamStats", stats);
+    
+  } catch (error) {
+    console.error("❌ Erreur getTeamStats:", error);
+    client.send("teamStats", {
+      totalPokemon: 0,
+      alivePokemon: 0,
+      faintedPokemon: 0,
+      averageLevel: 0,
+      canBattle: false
+    });
+  }
+});
+
+console.log(`✅ Handlers Team configurés`);
     
     // ✅ HANDLER MANQUANT - Transition entre zones (ancien système)
     this.onMessage("moveToZone", async (client, data) => {
