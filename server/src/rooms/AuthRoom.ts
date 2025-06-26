@@ -115,7 +115,7 @@ export class AuthRoom extends Room<AuthState> {
             gold: 1000, // Utilise 'gold' au lieu de 'coins'
             lastX: 300,
             lastY: 300,
-            lastMap: "Beach"
+            lastMap: "beach"
           });
           
           await newPlayer.save();
