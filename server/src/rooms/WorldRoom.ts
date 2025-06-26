@@ -1,5 +1,7 @@
 // server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC CORRECTIONS PREMIER JOUEUR
 import { Room, Client } from "@colyseus/core";
+import mongoose from "mongoose";
+
 import { PokeWorldState, Player } from "../schema/PokeWorldState";
 import { ZoneManager } from "../managers/ZoneManager";
 import { NpcManager } from "../managers/NPCManager";
@@ -459,7 +461,8 @@ this.onMessage("healPokemon", async (client, data: { pokemonId: string }) => {
     const teamManager = new TeamManager(player.name);
     await teamManager.load();
     
-    const success = await teamManager.healPokemon(data.pokemonId);
+const pokemonObjectId = new mongoose.Types.ObjectId(data.pokemonId);
+const success = await teamManager.healPokemon(pokemonObjectId);
     
     if (success) {
       client.send("pokemonUpdated", {
@@ -554,7 +557,8 @@ this.onMessage("removeFromTeam", async (client, data: { pokemonId: string }) => 
     const teamManager = new TeamManager(player.name);
     await teamManager.load();
     
-    const success = await teamManager.removeFromTeam(data.pokemonId);
+const pokemonObjectId = new mongoose.Types.ObjectId(data.pokemonId);
+const success = await teamManager.removeFromTeam(pokemonObjectId);
     
     if (success) {
       client.send("pokemonRemovedFromTeam", {
