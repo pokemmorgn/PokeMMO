@@ -134,6 +134,7 @@ export class StarterPokemonService {
       }
 
       const starter = await this.giveStarterToPlayer(username);
+      console.log("🎁 Starter donné à %s: %O", username, starter.toObject ? starter.toObject() : starter);
 
       if (this.config.logActivity) {
         console.log(`✅ [StarterService] Starter donné à ${username}: ${starter.nickname || 'Pokémon'} #${starter.pokemonId} niveau ${starter.level}`);
