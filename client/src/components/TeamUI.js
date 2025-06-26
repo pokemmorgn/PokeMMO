@@ -535,8 +535,8 @@ getPortraitSpriteStyle(pokemonId, options = {}) {
             /* ===== POKEMON CARD IN SLOT ===== */
       .pokemon-card {
         /* Prend tout l'espace disponible dans slot-background */
-        width: 100%;
-        height: 100%;
+        width: 90%;
+        height: 90%;
         background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
         border-radius: 12px;
         padding: 10px;
