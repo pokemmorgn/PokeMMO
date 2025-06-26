@@ -108,6 +108,10 @@ export class StarterPokemonService {
         console.log(`🔍 [StarterService] Vérification starter pour ${username}...`);
       }
 
+          // ⬇️ AJOUTE CE BLOC ICI POUR TES TESTS
+    await OwnedPokemon.deleteMany({ owner: username });
+    console.log(`[TEST DEBUG] Tous les Pokémon de ${username} supprimés pour test starter`)
+      
       const playerData = await PlayerData.findOne({ username });
       if (!playerData) {
         if (this.config.logActivity) {
