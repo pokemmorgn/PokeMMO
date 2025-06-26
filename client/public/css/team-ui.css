@@ -410,6 +410,13 @@
   border: 2px solid transparent;
   user-select: none; /* Empêcher la sélection de texte */
   z-index: 2; /* S'assurer que la carte est au-dessus */
+  pointer-events: auto; /* ✅ FORCER LES ÉVÉNEMENTS POINTEUR */
+}
+
+/* ✅ DEBUG: Couleur temporaire pour voir les cartes cliquables */
+.pokemon-card:hover {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.1)) !important;
+  border-color: #4a90e2 !important;
 }
 
 /* Bordures colorées selon le type */
