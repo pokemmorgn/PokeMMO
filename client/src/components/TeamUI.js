@@ -1,6 +1,4 @@
-// client/src/components/TeamUI.js - Avec TemplateManager
-
-import { TemplateManager } from '../utils/TemplateManager.js';
+// client/src/components/TeamUI.js - Interface d'équipe Pokémon
 
 export class TeamUI {
   constructor(gameRoom) {
@@ -9,189 +7,77 @@ export class TeamUI {
     this.teamData = [];
     this.selectedPokemon = null;
     this.draggedPokemon = null;
-    this.currentView = 'overview';
+    this.currentView = 'overview'; // overview, details, moves
     this.pokemonLocalizations = {};
-    this.language = 'en';
-    
-    // ✅ Utilise le TemplateManager
-    this.templateManager = new TemplateManager();
-    
-    this._initAsync();
+    this.language = 'en'; // ou "fr" 
+    this._initAsync(); // Voir ci-dessous
   }
 
   async _initAsync() {
-    await Promise.all([
-      this.loadPokemonLocalizations(),
-      this.loadCSS(),
-      this.loadTemplates()
-    ]);
-    this.init();
+    await this.loadPokemonLocalizations();
+    await this.loadCSS(); // ← Charge le CSS externe
+    this.init(); // maintenant tu appelles l'init "UI" normale
   }
 
-  // ✅ Charge tous les templates nécessaires
-  async loadTemplates() {
-    try {
-      console.log('📄 Chargement des templates...');
-      
-      const templates = await this.templateManager.loadTemplates([
-        'team-ui',           // Template principal
-        'team-slot',         // Template de slot
-        'pokemon-card',      // Template de carte Pokémon
-        'pokemon-detail'     // Template de détails
-      ]);
-      
-      // Vérifie que les templates critiques sont chargés
-      if (!templates['team-ui']) {
-        throw new Error('Template principal manquant');
-      }
-      
-      console.log('✅ Templates chargés !');
-      
-      // Définit des templates de fallback si certains échouent
-      this.setupFallbackTemplates();
-      
-    } catch (err) {
-      console.error('❌ Erreur chargement templates:', err);
-      this.setupFallbackTemplates();
-    }
-  }
-
-  setupFallbackTemplates() {
-    // Templates de secours
-    this.templateManager.setTemplate('team-ui-fallback', `
-      <div class="team-container">
-        <div class="team-header">
-          <div class="team-title">
-            <div class="team-icon">⚔️</div>
-            <div class="team-title-text">
-              <span class="team-name">{{TEAM_NAME}}</span>
-              <span class="team-subtitle">{{TEAM_SUBTITLE}}</span>
-            </div>
-          </div>
-          <div class="team-controls">
-            <div class="team-stats">
-              <span class="team-count">{{TEAM_COUNT}}</span>
-              <span class="team-status">{{TEAM_STATUS}}</span>
-            </div>
-            <button class="team-close-btn">✕</button>
-          </div>
-        </div>
-        <div class="team-content">
-          <div class="team-view team-overview active">
-            <div class="team-slots-grid" id="team-slots-grid"></div>
-          </div>
-        </div>
-      </div>
-    `);
-
-    this.templateManager.setTemplate('team-slot-fallback', `
-      <div class="team-slot" data-slot="{{SLOT_INDEX}}">
-        <div class="slot-background">
-          <div class="slot-number">{{SLOT_NUMBER}}</div>
-          <div class="empty-slot">
-            <div class="empty-icon">➕</div>
-            <div class="empty-text">Empty</div>
-          </div>
-        </div>
-      </div>
-    `);
-
-    this.templateManager.setTemplate('pokemon-card-fallback', `
-      <div class="pokemon-header">
-        <div class="pokemon-name" title="{{POKEMON_FULL_NAME}}">{{POKEMON_NAME}}</div>
-        <div class="pokemon-level">Lv.{{POKEMON_LEVEL}}</div>
-      </div>
-      <div class="pokemon-sprite">
-        <div class="pokemon-portrait" style="{{PORTRAIT_STYLE}}"></div>
-      </div>
-      <div class="pokemon-health">
-        <div class="health-bar">
-          <div class="health-fill {{HEALTH_CLASS}}" style="width: {{HEALTH_PERCENT}}%"></div>
-        </div>
-        <div class="health-text">{{CURRENT_HP}}/{{MAX_HP}}</div>
-      </div>
-      <div class="pokemon-status">{{STATUS_DISPLAY}}</div>
-      <div class="pokemon-types">{{TYPES_DISPLAY}}</div>
-    `);
-  }
-
+  // ✅ Nouvelle méthode pour charger le CSS externe
   async loadCSS() {
+    // Vérifie si le CSS n'est pas déjà chargé
     if (document.querySelector('#team-ui-styles')) {
       console.log('🎨 CSS Team UI déjà chargé');
       return;
     }
 
     try {
+      // Crée un élément link pour charger le CSS
       const link = document.createElement('link');
       link.id = 'team-ui-styles';
       link.rel = 'stylesheet';
       link.type = 'text/css';
-      link.href = '/css/team-ui.css';
+      link.href = '/css/team-ui.css'; // ← Chemin vers votre CSS
       
-      return new Promise((resolve) => {
+      // Promesse pour attendre le chargement
+      return new Promise((resolve, reject) => {
         link.onload = () => {
           console.log('✅ CSS Team UI chargé !');
           resolve();
         };
         link.onerror = () => {
           console.error('❌ Erreur chargement CSS Team UI');
-          this.addFallbackStyles();
-          resolve();
+          reject(new Error('CSS loading failed'));
         };
         
         document.head.appendChild(link);
       });
     } catch (err) {
       console.error('❌ Erreur lors du chargement du CSS:', err);
-      this.addFallbackStyles();
+      // Fallback: utilise les styles inline si le CSS externe échoue
+      this.addInlineStyles();
     }
   }
 
-  addFallbackStyles() {
+  // 🔄 Version de secours avec styles inline (simplifié)
+  addInlineStyles() {
     if (document.querySelector('#team-ui-fallback-styles')) return;
     
     const style = document.createElement('style');
     style.id = 'team-ui-fallback-styles';
     style.textContent = `
-      .team-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-        background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
-        align-items: center; z-index: 1000; transition: opacity 0.3s ease; }
+      /* Styles de base pour fallback */
+      .team-overlay { 
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+        background: rgba(0,0,0,0.8); display: flex; 
+        justify-content: center; align-items: center; z-index: 1000; 
+      }
       .team-overlay.hidden { opacity: 0; pointer-events: none; }
-      .team-container { width: 90%; height: 80%; max-width: 1100px; max-height: 800px;
-        background: linear-gradient(145deg, #2a3f5f, #1e2d42); border: 3px solid #e74c3c; 
-        border-radius: 20px; color: white; font-family: Arial, sans-serif; 
-        display: flex; flex-direction: column; }
-      .team-header { background: #e74c3c; padding: 15px; border-radius: 17px 17px 0 0; 
-        display: flex; justify-content: space-between; align-items: center; }
-      .team-content { flex: 1; padding: 20px; }
-      .team-close-btn { background: #dc3545; border: none; color: white; 
-        width: 30px; height: 30px; border-radius: 50%; cursor: pointer; }
-      .team-slots-grid { display: grid; grid-template-columns: repeat(2, 1fr); 
-        grid-template-rows: repeat(3, 1fr); gap: 15px; height: 300px; }
-      .team-slot { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
-        border-radius: 15px; min-height: 80px; position: relative; }
-      .slot-background { width: 100%; height: 100%; display: flex; 
-        align-items: center; justify-content: center; }
-      .empty-slot { text-align: center; opacity: 0.5; }
-      .pokemon-card { position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
-        background: rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; 
-        display: flex; flex-direction: column; }
+      .team-container { 
+        width: 90%; height: 80%; background: #2a3f5f; 
+        border-radius: 20px; color: white; 
+      }
     `;
     document.head.appendChild(style);
     console.log('🔄 Styles fallback chargés');
   }
-
-  async loadPokemonLocalizations() {
-    try {
-      const response = await fetch('/localization/pokemon/gen1/en.json');
-      this.pokemonLocalizations = await response.json();
-      console.log('✅ Pokémon loca chargée !');
-    } catch (err) {
-      console.error('❌ Erreur chargement loca Pokémon', err);
-      this.pokemonLocalizations = {};
-    }
-  }
-
+  
   init() {
     this.createTeamInterface();
     this.setupEventListeners();
@@ -199,119 +85,20 @@ export class TeamUI {
     console.log('⚔️ Interface d\'équipe initialisée');
   }
 
-  // ✅ Utilise le TemplateManager pour créer l'interface
-  createTeamInterface() {
-    const overlay = document.createElement('div');
-    overlay.id = 'team-overlay';
-    overlay.className = 'team-overlay hidden';
-
-    // Utilise le template principal ou le fallback
-    const template = this.templateManager.getTemplate('team-ui') || 
-                    this.templateManager.getTemplate('team-ui-fallback');
-
-    const templateData = {
-      TEAM_NAME: 'Mon Équipe',
-      TEAM_SUBTITLE: 'Pokémon de Combat',
-      TEAM_COUNT: '0/6',
-      TEAM_STATUS: 'Ready'
-    };
-
-    overlay.innerHTML = this.templateManager.render(template, templateData);
-
-    document.body.appendChild(overlay);
-    this.overlay = overlay;
-    
-    // Génère les slots après que le DOM soit créé
-    this.generateTeamSlots();
-  }
-
-  // ✅ Génère les slots avec le TemplateManager
-  generateTeamSlots() {
-    const slotsContainer = this.overlay.querySelector('#team-slots-grid');
-    if (!slotsContainer) {
-      console.error('❌ Container des slots non trouvé');
-      return;
+  async loadPokemonLocalizations() {
+    try {
+      const response = await fetch('/localization/pokemon/gen1/en.json');
+      this.pokemonLocalizations = await response.json();
+      console.log('✅ Pokémon loca chargée !', this.pokemonLocalizations);
+    } catch (err) {
+      console.error('❌ Erreur chargement loca Pokémon', err);
+      this.pokemonLocalizations = {};
     }
-
-    const slotTemplate = this.templateManager.getTemplate('team-slot') || 
-                        this.templateManager.getTemplate('team-slot-fallback');
-
-    let slotsHTML = '';
-    for (let i = 0; i < 6; i++) {
-      const slotData = {
-        SLOT_INDEX: i,
-        SLOT_NUMBER: i + 1
-      };
-      
-      slotsHTML += this.templateManager.render(slotTemplate, slotData);
-    }
-    
-    slotsContainer.innerHTML = slotsHTML;
-  }
-
-  // ✅ Utilise le TemplateManager pour les cartes Pokémon
-  async displayPokemonInSlot(slot, pokemon, index) {
-    console.log('[DEBUG NOMS]', pokemon.pokemonId, this.getPokemonName(pokemon.pokemonId));
-    
-    const slotBackground = slot.querySelector('.slot-background');
-    if (!slotBackground) return;
-    
-    const emptySlot = slot.querySelector('.empty-slot');
-    if (emptySlot) emptySlot.style.display = 'none';
-    
-    slotBackground.classList.add('has-pokemon');
-
-    // Create pokemon card
-    const pokemonCard = document.createElement('div');
-    pokemonCard.className = 'pokemon-card';
-    pokemonCard.dataset.pokemonId = pokemon._id;
-    pokemonCard.dataset.slot = index;
-    pokemonCard.draggable = true;
-
-    const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
-    const healthClass = this.getHealthClass(healthPercent);
-    const statusDisplay = this.getStatusDisplay(pokemon.status);
-    const typesDisplay = this.getTypesDisplay(pokemon.types);
-    const pokemonName = this.getPokemonName(pokemon.pokemonId);
-
-    // ✅ Utilise le template de carte Pokémon
-    const cardTemplate = this.templateManager.getTemplate('pokemon-card') || 
-                        this.templateManager.getTemplate('pokemon-card-fallback');
-
-    const cardData = {
-      POKEMON_NAME: pokemon.nickname || pokemonName,
-      POKEMON_FULL_NAME: pokemon.nickname || pokemonName,
-      POKEMON_LEVEL: pokemon.level,
-      PORTRAIT_STYLE: this.getPortraitSpriteStyle(pokemon.pokemonId, { shiny: pokemon.shiny }),
-      HEALTH_CLASS: healthClass,
-      HEALTH_PERCENT: healthPercent,
-      CURRENT_HP: pokemon.currentHp,
-      MAX_HP: pokemon.maxHp,
-      STATUS_DISPLAY: statusDisplay,
-      TYPES_DISPLAY: typesDisplay
-    };
-
-    pokemonCard.innerHTML = this.templateManager.render(cardTemplate, cardData);
-
-    // Event listeners
-    pokemonCard.addEventListener('click', () => {
-      this.selectPokemon(pokemon, pokemonCard);
-    });
-
-    pokemonCard.addEventListener('dblclick', () => {
-      this.showPokemonDetails(pokemon);
-    });
-
-    slotBackground.appendChild(pokemonCard);
-
-    // Animation
-    setTimeout(() => {
-      pokemonCard.classList.add('new');
-    }, index * 100);
   }
 
   getPokemonName(pokemonId) {
-    const idStr = String(pokemonId).padStart(3, '0');
+    const idStr = String(pokemonId).padStart(3, '0'); // "001"
+    // Tente "001" puis "1"
     return (
       (this.pokemonLocalizations[idStr] && this.pokemonLocalizations[idStr].name) ||
       (this.pokemonLocalizations[pokemonId] && this.pokemonLocalizations[pokemonId].name) ||
@@ -322,15 +109,16 @@ export class TeamUI {
   getPortraitSpriteStyle(pokemonId, options = {}) {
     const frameWidth = 80;
     const frameHeight = 80;
-    const numCols = 10;
-    const numRows = 10;
-    const col = 0;
-    const row = 0;
+    const numCols = 10; // <-- Mets la bonne valeur !
+    const numRows = 10;  // <-- Mets la bonne valeur !
+    const col = 0;      // Premier portrait (colonne 0)
+    const row = 0;      // Première ligne
 
     let id = Number(pokemonId);
     let variant = options.shiny ? '_shiny' : '';
     const url = `/assets/pokemon/portraitanime/${id}${variant}.png`;
 
+    // Calcule la taille totale de la spritesheet
     const sheetWidth = frameWidth * numCols;
     const sheetHeight = frameHeight * numRows;
 
@@ -344,6 +132,147 @@ export class TeamUI {
       image-rendering: pixelated;
       display: inline-block;
     `;
+  }
+
+  createTeamInterface() {
+    const overlay = document.createElement('div');
+    overlay.id = 'team-overlay';
+    overlay.className = 'team-overlay hidden';
+
+    overlay.innerHTML = `
+      <div class="team-container">
+        <!-- Header avec titre et contrôles -->
+        <div class="team-header">
+          <div class="team-title">
+            <div class="team-icon">⚔️</div>
+            <div class="team-title-text">
+              <span class="team-name">Mon Équipe</span>
+              <span class="team-subtitle">Pokémon de Combat</span>
+            </div>
+          </div>
+          <div class="team-controls">
+            <div class="team-stats">
+              <span class="team-count">0/6</span>
+              <span class="team-status">Ready</span>
+            </div>
+            <button class="team-close-btn">✕</button>
+          </div>
+        </div>
+
+        <!-- Navigation des vues -->
+        <div class="team-tabs">
+          <button class="team-tab active" data-view="overview">
+            <span class="tab-icon">👥</span>
+            <span class="tab-text">Overview</span>
+          </button>
+          <button class="team-tab" data-view="details">
+            <span class="tab-icon">📊</span>
+            <span class="tab-text">Details</span>
+          </button>
+          <button class="team-tab" data-view="moves">
+            <span class="tab-icon">⚡</span>
+            <span class="tab-text">Moves</span>
+          </button>
+        </div>
+
+        <div class="team-content">
+          <!-- Vue Overview: Équipe complète -->
+          <div class="team-view team-overview active" id="team-overview">
+            <div class="team-slots-grid">
+              ${this.generateTeamSlots()}
+            </div>
+            
+            <div class="team-summary">
+              <div class="summary-section">
+                <h4>🏆 Team Summary</h4>
+                <div class="summary-stats">
+                  <div class="stat-item">
+                    <span class="stat-label">Average Level</span>
+                    <span class="stat-value" id="avg-level">0</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Total HP</span>
+                    <span class="stat-value" id="total-hp">0/0</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Battle Ready</span>
+                    <span class="stat-value" id="battle-ready">No</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="summary-section">
+                <h4>🎯 Type Coverage</h4>
+                <div class="type-coverage" id="type-coverage">
+                  <!-- Types seront générés ici -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vue Details: Pokémon sélectionné -->
+          <div class="team-view team-details" id="team-details">
+            <div class="pokemon-detail-panel">
+              <div class="no-selection">
+                <div class="no-selection-icon">⚔️</div>
+                <p>Sélectionnez un Pokémon pour voir ses détails</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vue Moves: Attaques de l'équipe -->
+          <div class="team-view team-moves" id="team-moves">
+            <div class="moves-grid" id="moves-grid">
+              <!-- Attaques seront générées ici -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer avec actions -->
+        <div class="team-footer">
+          <div class="team-actions">
+            <button class="team-btn" id="heal-team-btn">
+              <span class="btn-icon">💊</span>
+              <span class="btn-text">Heal All</span>
+            </button>
+            <button class="team-btn" id="pc-access-btn">
+              <span class="btn-icon">💻</span>
+              <span class="btn-text">PC Storage</span>
+            </button>
+            <button class="team-btn secondary" id="auto-arrange-btn">
+              <span class="btn-icon">🔄</span>
+              <span class="btn-text">Auto Arrange</span>
+            </button>
+          </div>
+          
+          <div class="team-info">
+            <div class="info-tip">💡 Drag & drop to reorder Pokémon</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    this.overlay = overlay;
+    // ❌ SUPPRIMÉ: this.addStyles(); - Le CSS est maintenant externe
+  }
+
+  generateTeamSlots() {
+    let slotsHTML = '';
+    for (let i = 0; i < 6; i++) {
+      slotsHTML += `
+        <div class="team-slot" data-slot="${i}">
+          <div class="slot-background">
+            <div class="slot-number">${i + 1}</div>
+            <div class="empty-slot">
+              <div class="empty-icon">➕</div>
+              <div class="empty-text">Empty</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    return slotsHTML;
   }
 
   setupEventListeners() {
@@ -368,20 +297,17 @@ export class TeamUI {
     });
 
     // Actions du footer
-    const healBtn = this.overlay.querySelector('#heal-team-btn');
-    if (healBtn) {
-      healBtn.addEventListener('click', () => this.healTeam());
-    }
+    this.overlay.querySelector('#heal-team-btn').addEventListener('click', () => {
+      this.healTeam();
+    });
 
-    const pcBtn = this.overlay.querySelector('#pc-access-btn');
-    if (pcBtn) {
-      pcBtn.addEventListener('click', () => this.openPCStorage());
-    }
+    this.overlay.querySelector('#pc-access-btn').addEventListener('click', () => {
+      this.openPCStorage();
+    });
 
-    const arrangeBtn = this.overlay.querySelector('#auto-arrange-btn');
-    if (arrangeBtn) {
-      arrangeBtn.addEventListener('click', () => this.autoArrangeTeam());
-    }
+    this.overlay.querySelector('#auto-arrange-btn').addEventListener('click', () => {
+      this.autoArrangeTeam();
+    });
 
     // Drag & Drop
     this.setupDragAndDrop();
@@ -397,14 +323,17 @@ export class TeamUI {
   setupServerListeners() {
     if (!this.gameRoom) return;
 
+    // Réception des données d'équipe
     this.gameRoom.onMessage("teamData", (data) => {
       this.updateTeamData(data);
     });
 
+    // Résultat des actions d'équipe
     this.gameRoom.onMessage("teamActionResult", (data) => {
       this.handleTeamActionResult(data);
     });
 
+    // Mise à jour d'un Pokémon
     this.gameRoom.onMessage("pokemonUpdate", (data) => {
       this.handlePokemonUpdate(data);
     });
@@ -415,6 +344,8 @@ export class TeamUI {
     
     this.isVisible = true;
     this.overlay.classList.remove('hidden');
+    
+    // Requête des données d'équipe
     this.requestTeamData();
     
     console.log('⚔️ Interface d\'équipe ouverte');
@@ -452,13 +383,13 @@ export class TeamUI {
   }
 
   refreshTeamDisplay() {
-    const slotsContainer = this.overlay.querySelector('#team-slots-grid');
-    if (!slotsContainer) return;
+    const slotsContainer = this.overlay.querySelector('.team-slots-grid');
     
     // Clear existing pokemon cards ET les classes
     slotsContainer.querySelectorAll('.pokemon-card').forEach(card => card.remove());
     slotsContainer.querySelectorAll('.slot-background').forEach(bg => {
       bg.classList.remove('has-pokemon');
+      // Remontre l'empty-slot
       const emptySlot = bg.querySelector('.empty-slot');
       if (emptySlot) emptySlot.style.display = 'flex';
     });
@@ -467,11 +398,97 @@ export class TeamUI {
     this.teamData.forEach((pokemon, index) => {
       if (pokemon && index < 6) {
         const slot = slotsContainer.querySelector(`[data-slot="${index}"]`);
-        if (slot) {
-          this.displayPokemonInSlot(slot, pokemon, index);
-        }
+        this.displayPokemonInSlot(slot, pokemon, index);
       }
     });
+  }
+
+  displayPokemonInSlot(slot, pokemon, index) {
+    console.log('[DEBUG NOMS]', pokemon.pokemonId, this.getPokemonName(pokemon.pokemonId));
+    
+    // Get slot-background
+    const slotBackground = slot.querySelector('.slot-background');
+    
+    // Hide empty slot
+    const emptySlot = slot.querySelector('.empty-slot');
+    if (emptySlot) emptySlot.style.display = 'none';
+    
+    // Add class to change slot-background behavior
+    slotBackground.classList.add('has-pokemon');
+
+    // Create pokemon card
+    const pokemonCard = document.createElement('div');
+    pokemonCard.className = 'pokemon-card';
+    pokemonCard.dataset.pokemonId = pokemon._id;
+    pokemonCard.dataset.slot = index;
+    pokemonCard.draggable = true;
+
+    const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
+    const healthClass = this.getHealthClass(healthPercent);
+    const statusDisplay = this.getStatusDisplay(pokemon.status);
+    const typesDisplay = this.getTypesDisplay(pokemon.types);
+
+    pokemonCard.innerHTML = `
+      <div class="pokemon-header">
+        <div class="pokemon-name" title="${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}">
+          ${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}
+        </div>
+        <div class="pokemon-level">Lv.${pokemon.level}</div>
+      </div>
+          
+      <div class="pokemon-sprite">
+        <div 
+          class="pokemon-portrait"
+          style="${this.getPortraitSpriteStyle(pokemon.pokemonId, { shiny: pokemon.shiny })}"
+          title="${this.getPokemonName(pokemon.pokemonId)}"
+        ></div>
+      </div>
+          
+      <div class="pokemon-health">
+        <div class="health-bar">
+          <div class="health-fill ${healthClass}" style="width: ${healthPercent}%"></div>
+        </div>
+        <div class="health-text">${pokemon.currentHp}/${pokemon.maxHp}</div>
+      </div>
+      
+      <div class="pokemon-status">
+        ${statusDisplay}
+      </div>
+      
+      <div class="pokemon-types">
+        ${typesDisplay}
+      </div>
+    `;
+
+    // Event listeners
+    pokemonCard.addEventListener('click', () => {
+      this.selectPokemon(pokemon, pokemonCard);
+    });
+
+    pokemonCard.addEventListener('dblclick', () => {
+      this.showPokemonDetails(pokemon);
+    });
+
+    // ✅ Ajouter dans le slot-background
+    slotBackground.appendChild(pokemonCard);
+
+    // Animation
+    setTimeout(() => {
+      pokemonCard.classList.add('new');
+    }, index * 100);
+  }
+
+  getPokemonIcon(pokemonId) {
+    // Mapping des icônes par ID de Pokémon
+    const iconMap = {
+      1: '🌱', 2: '🌿', 3: '🌺', // Bulbasaur line
+      4: '🦎', 5: '🔥', 6: '🐉', // Charmander line
+      7: '🐢', 8: '💧', 9: '🌊', // Squirtle line
+      10: '🐛', 11: '🛡️', 12: '🦋', // Caterpie line
+      25: '⚡', 26: '⚡', // Pikachu line
+      // ... etc
+    };
+    return iconMap[pokemonId] || '❓';
   }
 
   getHealthClass(healthPercent) {
@@ -504,12 +521,16 @@ export class TeamUI {
   }
 
   selectPokemon(pokemon, cardElement) {
+    // Désélectionner l'ancien
     this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
       card.parentElement.classList.remove('selected');
     });
 
+    // Sélectionner le nouveau
     cardElement.parentElement.classList.add('selected');
     this.selectedPokemon = pokemon;
+
+    // Mettre à jour les vues
     this.updateDetailView();
   }
 
@@ -521,7 +542,6 @@ export class TeamUI {
 
   updateDetailView() {
     const detailPanel = this.overlay.querySelector('.pokemon-detail-panel');
-    if (!detailPanel) return;
     
     if (!this.selectedPokemon) {
       detailPanel.innerHTML = `
@@ -537,69 +557,148 @@ export class TeamUI {
     const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
     const healthClass = this.getHealthClass(healthPercent);
 
-    // ✅ Utilise le template de détails ou un template simple
-    const detailTemplate = this.templateManager.getTemplate('pokemon-detail') || `
+    detailPanel.innerHTML = `
       <div class="pokemon-detail-content">
         <div class="pokemon-detail-header">
           <div class="pokemon-detail-icon">
-            <div class="pokemon-portrait" style="{{PORTRAIT_STYLE}}" title="{{POKEMON_NAME}}"></div>
+            <div
+              class="pokemon-portrait"
+              style="${this.getPortraitSpriteStyle(pokemon.pokemonId, { shiny: pokemon.shiny })}"
+              title="${this.getPokemonName(pokemon.pokemonId)}"
+            ></div>
           </div>
+
           <div class="pokemon-detail-info">
-           <h3>{{POKEMON_NAME}}</h3>
-            <div class="pokemon-detail-subtitle">Level {{POKEMON_LEVEL}} • {{POKEMON_TYPES}}</div>
-            <div class="pokemon-detail-nature">Nature: {{POKEMON_NATURE}}</div>
+           <h3>${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}</h3>
+            <div class="pokemon-detail-subtitle">
+              Level ${pokemon.level} • ${pokemon.types?.join('/') || 'Unknown Type'}
+            </div>
+            <div class="pokemon-detail-nature">Nature: ${pokemon.nature || 'Unknown'}</div>
           </div>
         </div>
+
         <div class="pokemon-stats-section">
           <h4>📊 Battle Stats</h4>
           <div class="stats-grid">
             <div class="stat-row">
               <span class="stat-name">HP</span>
               <div class="stat-bar-container">
-                <div class="stat-bar"><div class="stat-fill {{HEALTH_CLASS}}" style="width: {{HEALTH_PERCENT}}%"></div></div>
-                <span class="stat-value">{{CURRENT_HP}}/{{MAX_HP}}</span>
+                <div class="stat-bar">
+                  <div class="stat-fill ${healthClass}" style="width: ${healthPercent}%"></div>
+                </div>
+                <span class="stat-value">${pokemon.currentHp}/${pokemon.maxHp}</span>
+              </div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-name">Attack</span>
+              <div class="stat-bar-container">
+                <div class="stat-bar">
+                  <div class="stat-fill" style="width: ${Math.min((pokemon.calculatedStats?.attack || 0) / 200 * 100, 100)}%"></div>
+                </div>
+                <span class="stat-value">${pokemon.calculatedStats?.attack || 0}</span>
+              </div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-name">Defense</span>
+              <div class="stat-bar-container">
+                <div class="stat-bar">
+                  <div class="stat-fill" style="width: ${Math.min((pokemon.calculatedStats?.defense || 0) / 200 * 100, 100)}%"></div>
+                </div>
+                <span class="stat-value">${pokemon.calculatedStats?.defense || 0}</span>
+              </div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-name">Sp. Atk</span>
+              <div class="stat-bar-container">
+                <div class="stat-bar">
+                  <div class="stat-fill" style="width: ${Math.min((pokemon.calculatedStats?.spAttack || 0) / 200 * 100, 100)}%"></div>
+                </div>
+                <span class="stat-value">${pokemon.calculatedStats?.spAttack || 0}</span>
+              </div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-name">Sp. Def</span>
+              <div class="stat-bar-container">
+                <div class="stat-bar">
+                  <div class="stat-fill" style="width: ${Math.min((pokemon.calculatedStats?.spDefense || 0) / 200 * 100, 100)}%"></div>
+                </div>
+                <span class="stat-value">${pokemon.calculatedStats?.spDefense || 0}</span>
+              </div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-name">Speed</span>
+              <div class="stat-bar-container">
+                <div class="stat-bar">
+                  <div class="stat-fill" style="width: ${Math.min((pokemon.calculatedStats?.speed || 0) / 200 * 100, 100)}%"></div>
+                </div>
+                <span class="stat-value">${pokemon.calculatedStats?.speed || 0}</span>
               </div>
             </div>
           </div>
         </div>
+
+        <div class="pokemon-moves-section">
+          <h4>⚡ Known Moves</h4>
+          <div class="moves-list">
+            ${this.getMovesDisplay(pokemon.moves)}
+          </div>
+        </div>
+
         <div class="pokemon-actions">
-          <button class="detail-btn" onclick="teamUI.healPokemon('{{POKEMON_ID}}')">
-            <span class="btn-icon">💊</span><span class="btn-text">Heal</span>
+          <button class="detail-btn" onclick="teamUI.healPokemon('${pokemon._id}')">
+            <span class="btn-icon">💊</span>
+            <span class="btn-text">Heal</span>
           </button>
-          <button class="detail-btn secondary" onclick="teamUI.removePokemon('{{POKEMON_ID}}')">
-            <span class="btn-icon">📦</span><span class="btn-text">To PC</span>
+          <button class="detail-btn secondary" onclick="teamUI.removePokemon('${pokemon._id}')">
+            <span class="btn-icon">📦</span>
+            <span class="btn-text">To PC</span>
           </button>
         </div>
       </div>
     `;
+  }
 
-    const detailData = {
-      POKEMON_NAME: pokemon.nickname || this.getPokemonName(pokemon.pokemonId),
-      POKEMON_LEVEL: pokemon.level,
-      POKEMON_TYPES: pokemon.types?.join('/') || 'Unknown Type',
-      POKEMON_NATURE: pokemon.nature || 'Unknown',
-      POKEMON_ID: pokemon._id,
-      PORTRAIT_STYLE: this.getPortraitSpriteStyle(pokemon.pokemonId, { shiny: pokemon.shiny }),
-      HEALTH_CLASS: healthClass,
-      HEALTH_PERCENT: healthPercent,
-      CURRENT_HP: pokemon.currentHp,
-      MAX_HP: pokemon.maxHp
-    };
+  getMovesDisplay(moves) {
+    if (!moves || !Array.isArray(moves) || moves.length === 0) {
+      return '<div class="no-moves">No moves learned</div>';
+    }
 
-    detailPanel.innerHTML = this.templateManager.render(detailTemplate, detailData);
+    return moves.map(move => {
+      const ppPercent = (move.currentPp / move.maxPp) * 100;
+      const ppClass = ppPercent > 50 ? 'high' : ppPercent > 25 ? 'medium' : 'low';
+      
+      return `
+        <div class="move-item">
+          <div class="move-header">
+            <span class="move-name">${this.formatMoveName(move.moveId)}</span>
+            <span class="move-pp ${ppClass}">${move.currentPp}/${move.maxPp}</span>
+          </div>
+          <div class="move-pp-bar">
+            <div class="move-pp-fill ${ppClass}" style="width: ${ppPercent}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  formatMoveName(moveId) {
+    return moveId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   }
 
   switchToView(viewName) {
+    // Update tabs
     this.overlay.querySelectorAll('.team-tab').forEach(tab => {
       tab.classList.toggle('active', tab.dataset.view === viewName);
     });
 
+    // Update views
     this.overlay.querySelectorAll('.team-view').forEach(view => {
       view.classList.toggle('active', view.id === `team-${viewName}`);
     });
 
     this.currentView = viewName;
 
+    // Update view-specific content
     if (viewName === 'moves') {
       this.updateMovesView();
     }
@@ -607,7 +706,6 @@ export class TeamUI {
 
   updateMovesView() {
     const movesGrid = this.overlay.querySelector('#moves-grid');
-    if (!movesGrid) return;
     
     if (this.teamData.length === 0) {
       movesGrid.innerHTML = `
@@ -619,27 +717,115 @@ export class TeamUI {
       return;
     }
 
-    // Vue des attaques simplifiée
-    movesGrid.innerHTML = '<p>Moves view - TODO</p>';
+    const allMoves = new Map();
+    
+    // Collecter toutes les attaques de l'équipe
+    this.teamData.forEach(pokemon => {
+      if (pokemon.moves) {
+        pokemon.moves.forEach(move => {
+          if (!allMoves.has(move.moveId)) {
+            allMoves.set(move.moveId, {
+              moveId: move.moveId,
+              users: [],
+              maxPp: move.maxPp
+            });
+          }
+          allMoves.get(move.moveId).users.push({
+            pokemon: pokemon.nickname || pokemon.name,
+            currentPp: move.currentPp,
+            maxPp: move.maxPp
+          });
+        });
+      }
+    });
+
+    if (allMoves.size === 0) {
+      movesGrid.innerHTML = `
+        <div class="no-moves">
+          <div class="no-moves-icon">⚡</div>
+          <p>No moves learned by team</p>
+        </div>
+      `;
+      return;
+    }
+
+    const movesHTML = Array.from(allMoves.values()).map(moveData => {
+      const usersHTML = moveData.users.map(user => {
+        const ppPercent = (user.currentPp / user.maxPp) * 100;
+        const ppClass = ppPercent > 50 ? 'high' : ppPercent > 25 ? 'medium' : 'low';
+        
+        return `
+          <div class="move-user">
+            <span class="user-name">${user.pokemon}</span>
+            <span class="user-pp ${ppClass}">${user.currentPp}/${user.maxPp}</span>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="team-move-card">
+          <div class="team-move-header">
+            <span class="team-move-name">${this.formatMoveName(moveData.moveId)}</span>
+            <span class="team-move-count">${moveData.users.length} user(s)</span>
+          </div>
+          <div class="team-move-users">
+            ${usersHTML}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    movesGrid.innerHTML = movesHTML;
   }
 
   updateTeamStats() {
     const teamCount = this.teamData.length;
-    const canBattle = this.teamData.some(p => p.currentHp > 0);
+    const aliveCount = this.teamData.filter(p => p.currentHp > 0).length;
+    const avgLevel = teamCount > 0 ? 
+      Math.round(this.teamData.reduce((sum, p) => sum + p.level, 0) / teamCount) : 0;
+    const totalCurrentHp = this.teamData.reduce((sum, p) => sum + p.currentHp, 0);
+    const totalMaxHp = this.teamData.reduce((sum, p) => sum + p.maxHp, 0);
+    const canBattle = aliveCount > 0;
 
-    const teamCountEl = this.overlay.querySelector('.team-count');
-    if (teamCountEl) teamCountEl.textContent = `${teamCount}/6`;
+    // Update header stats
+    this.overlay.querySelector('.team-count').textContent = `${teamCount}/6`;
+    this.overlay.querySelector('.team-status').textContent = canBattle ? 'Ready' : 'Not Ready';
+    this.overlay.querySelector('.team-status').style.color = canBattle ? '#2ecc71' : '#e74c3c';
 
-    const teamStatusEl = this.overlay.querySelector('.team-status');
-    if (teamStatusEl) {
-      teamStatusEl.textContent = canBattle ? 'Ready' : 'Not Ready';
-      teamStatusEl.style.color = canBattle ? '#2ecc71' : '#e74c3c';
+    // Update summary stats
+    this.overlay.querySelector('#avg-level').textContent = avgLevel;
+    this.overlay.querySelector('#total-hp').textContent = `${totalCurrentHp}/${totalMaxHp}`;
+    this.overlay.querySelector('#battle-ready').textContent = canBattle ? 'Yes' : 'No';
+    this.overlay.querySelector('#battle-ready').style.color = canBattle ? '#2ecc71' : '#e74c3c';
+
+    // Update type coverage
+    this.updateTypeCoverage();
+  }
+
+  updateTypeCoverage() {
+    const coverageContainer = this.overlay.querySelector('#type-coverage');
+    const types = new Set();
+    
+    this.teamData.forEach(pokemon => {
+      if (pokemon.types) {
+        pokemon.types.forEach(type => types.add(type));
+      }
+    });
+
+    if (types.size === 0) {
+      coverageContainer.innerHTML = '<div class="no-coverage">No type coverage</div>';
+      return;
     }
+
+    const typesHTML = Array.from(types).map(type => 
+      `<span class="coverage-type type-${type.toLowerCase()}">${type}</span>`
+    ).join('');
+    
+    coverageContainer.innerHTML = typesHTML;
   }
 
   setupDragAndDrop() {
-    const slotsContainer = this.overlay.querySelector('#team-slots-grid');
-    if (!slotsContainer) return;
+    const slotsContainer = this.overlay.querySelector('.team-slots-grid');
 
     slotsContainer.addEventListener('dragstart', (e) => {
       if (e.target.classList.contains('pokemon-card')) {
@@ -663,6 +849,18 @@ export class TeamUI {
     slotsContainer.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
+    });
+
+    slotsContainer.addEventListener('dragenter', (e) => {
+      if (e.target.closest('.team-slot')) {
+        e.target.closest('.team-slot').classList.add('drag-over');
+      }
+    });
+
+    slotsContainer.addEventListener('dragleave', (e) => {
+      if (e.target.closest('.team-slot') && !e.target.closest('.team-slot').contains(e.relatedTarget)) {
+        e.target.closest('.team-slot').classList.remove('drag-over');
+      }
     });
 
     slotsContainer.addEventListener('drop', (e) => {
@@ -708,6 +906,7 @@ export class TeamUI {
   }
 
   openPCStorage() {
+    // TODO: Implémenter l'interface PC
     this.showNotification("PC Storage not yet implemented", "info");
   }
 
@@ -720,6 +919,7 @@ export class TeamUI {
   handleTeamActionResult(data) {
     if (data.success) {
       this.showNotification(data.message || "Action completed successfully", "success");
+      // Rafraîchir les données
       this.requestTeamData();
     } else {
       this.showNotification(data.message || "Action failed", "error");
@@ -727,12 +927,14 @@ export class TeamUI {
   }
 
   handlePokemonUpdate(data) {
+    // Mettre à jour un Pokémon spécifique dans l'équipe
     const pokemonIndex = this.teamData.findIndex(p => p._id === data.pokemonId);
     if (pokemonIndex !== -1) {
       this.teamData[pokemonIndex] = { ...this.teamData[pokemonIndex], ...data.updates };
       this.refreshTeamDisplay();
       this.updateTeamStats();
       
+      // Mettre à jour la vue détails si c'est le Pokémon sélectionné
       if (this.selectedPokemon && this.selectedPokemon._id === data.pokemonId) {
         this.selectedPokemon = this.teamData[pokemonIndex];
         this.updateDetailView();
@@ -741,15 +943,26 @@ export class TeamUI {
   }
 
   showNotification(message, type = 'info') {
+    // Créer la notification
     const notification = document.createElement('div');
     notification.className = 'team-notification';
     notification.style.cssText = `
-      position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px;
-      color: white; font-family: Arial, sans-serif; font-size: 14px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); z-index: 1002;
-      animation: slideInRight 0.4s ease; max-width: 300px; border-left: 4px solid;
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      color: white;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      z-index: 1002;
+      animation: slideInRight 0.4s ease;
+      max-width: 300px;
+      border-left: 4px solid;
     `;
 
+    // Couleurs selon le type
     switch (type) {
       case 'success':
         notification.style.background = 'rgba(46, 204, 113, 0.95)';
@@ -767,6 +980,7 @@ export class TeamUI {
     notification.textContent = message;
     document.body.appendChild(notification);
 
+    // Auto-suppression
     setTimeout(() => {
       if (notification.parentNode) {
         notification.style.animation = 'slideOutRight 0.4s ease';
@@ -775,6 +989,7 @@ export class TeamUI {
     }, 3000);
   }
 
+  // Méthodes publiques pour l'intégration
   isOpen() {
     return this.isVisible;
   }
@@ -787,6 +1002,7 @@ export class TeamUI {
     return !this.isVisible && !questDialogOpen && !chatOpen && !inventoryOpen;
   }
 
+  // Gestion des raccourcis clavier
   handleKeyPress(key) {
     if (!this.isVisible) return false;
 
@@ -832,42 +1048,41 @@ export class TeamUI {
     }
   }
 
+  // Méthode de nettoyage
   destroy() {
     if (this.overlay && this.overlay.parentNode) {
       this.overlay.parentNode.removeChild(this.overlay);
     }
     
+    // Nettoie aussi le CSS si nécessaire
     const cssLink = document.querySelector('#team-ui-styles');
-    if (cssLink) cssLink.remove();
-    
-    const fallbackCSS = document.querySelector('#team-ui-fallback-styles');
-    if (fallbackCSS) fallbackCSS.remove();
-    
-    // Nettoie le TemplateManager
-    if (this.templateManager) {
-      this.templateManager.clearCache();
+    if (cssLink) {
+      cssLink.remove();
     }
     
     this.gameRoom = null;
     this.teamData = [];
     this.selectedPokemon = null;
     this.overlay = null;
-    this.templateManager = null;
     
     console.log('⚔️ TeamUI détruit');
   }
 
+  // Méthodes d'intégration avec d'autres systèmes
   onPokemonCaught(pokemon) {
+    // Animation lors de la capture d'un nouveau Pokémon
     this.showNotification(`${pokemon.name} added to team!`, 'success');
     this.requestTeamData();
   }
 
   onBattleStart() {
+    // Masquer l'interface pendant les combats
     if (this.isVisible) {
       this.hide();
     }
   }
 
+  // Exportation des données pour la sauvegarde
   exportData() {
     return {
       currentView: this.currentView,
@@ -875,9 +1090,11 @@ export class TeamUI {
     };
   }
 
+  // Importation des données lors du chargement
   importData(data) {
     if (data.currentView) {
       this.currentView = data.currentView;
     }
+    // selectedPokemonId sera restauré lors du refresh des données
   }
 }
