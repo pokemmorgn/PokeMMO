@@ -1,5 +1,5 @@
-// client/src/managers/TeamManager.js - VERSION EXACTEMENT COMME L'INVENTAIRE
-// ✅ Copie du modèle InventorySystem qui fonctionne
+// client/src/managers/TeamManager.js - VERSION CORRIGÉE
+// ✅ Suppression de la redéfinition de window.initTeamSystem
 
 import { TeamUI } from '../components/TeamUI.js';
 import { TeamIcon } from '../components/TeamIcon.js';
@@ -10,6 +10,7 @@ export class TeamManager {
     this.gameRoom = gameRoom;
     this.teamUI = null;
     this.teamIcon = null;
+    this.isInitialized = false; // ✅ Flag d'initialisation
     
     // Données d'équipe
     this.teamData = [];
@@ -25,20 +26,27 @@ export class TeamManager {
   }
 
   init() {
-    // Créer l'interface d'équipe
-    this.teamUI = new TeamUI(this.gameRoom);
-    
-    // Créer l'icône d'équipe
-    this.teamIcon = new TeamIcon(this.teamUI);
-    
-    // Configurer les interactions entre les composants
-    this.setupInteractions();
-    
-    // Rendre le système accessible globalement
-    window.teamSystem = this;
-    window.TeamManager = this;
-    
-    console.log("⚔️ Système d'équipe initialisé");
+    try {
+      console.log("⚔️ [TeamManager] Initialisation...");
+      
+      // Créer l'interface d'équipe
+      this.teamUI = new TeamUI(this.gameRoom);
+      
+      // Créer l'icône d'équipe
+      this.teamIcon = new TeamIcon(this.teamUI);
+      
+      // Configurer les interactions entre les composants
+      this.setupInteractions();
+      
+      // Marquer comme initialisé
+      this.isInitialized = true;
+      
+      console.log("✅ [TeamManager] Système d'équipe initialisé");
+      
+    } catch (error) {
+      console.error("❌ [TeamManager] Erreur d'initialisation:", error);
+      throw error;
+    }
   }
 
   setupInteractions() {
@@ -53,30 +61,40 @@ export class TeamManager {
   }
 
   setupServerListeners() {
-    if (!this.gameRoom) return;
+    if (!this.gameRoom) {
+      console.warn("⚠️ [TeamManager] Pas de gameRoom pour les listeners");
+      return;
+    }
 
-    // Données d'équipe complètes
-    this.gameRoom.onMessage("teamData", (data) => {
-      this.teamUI.updateTeamData(data);
-      this.updateLocalTeamData(data);
-    });
+    try {
+      // Données d'équipe complètes
+      this.gameRoom.onMessage("teamData", (data) => {
+        this.teamUI.updateTeamData(data);
+        this.updateLocalTeamData(data);
+      });
 
-    // Mises à jour d'équipe
-    this.gameRoom.onMessage("teamActionResult", (data) => {
-      this.teamUI.handleTeamActionResult(data);
-      this.showNotification(data.message, data.success ? 'success' : 'error');
-    });
+      // Mises à jour d'équipe
+      this.gameRoom.onMessage("teamActionResult", (data) => {
+        this.teamUI.handleTeamActionResult(data);
+        this.showNotification(data.message, data.success ? 'success' : 'error');
+      });
 
-    // Pokémon soigné
-    this.gameRoom.onMessage("teamHealed", (data) => {
-      this.showNotification('Équipe soignée!', 'success');
-    });
+      // Pokémon soigné
+      this.gameRoom.onMessage("teamHealed", (data) => {
+        this.showNotification('Équipe soignée!', 'success');
+      });
 
-    // Stats d'équipe
-    this.gameRoom.onMessage("teamStats", (data) => {
-      this.teamStats = data;
-      this.teamIcon.updateTeamStats(data);
-    });
+      // Stats d'équipe
+      this.gameRoom.onMessage("teamStats", (data) => {
+        this.teamStats = data;
+        this.teamIcon.updateTeamStats(data);
+      });
+      
+      console.log("✅ [TeamManager] Listeners serveur configurés");
+      
+    } catch (error) {
+      console.error("❌ [TeamManager] Erreur setup listeners:", error);
+    }
   }
 
   updateLocalTeamData(data) {
@@ -232,43 +250,48 @@ export class TeamManager {
   getAlivePokemon() {
     return this.teamData.filter(p => p && p.currentHp > 0);
   }
-}
-// ✅ MAINTENANT LA FONCTION D'INITIALISATION COMME L'INVENTAIRE
-// Dans main.js, cette fonction sera appelée comme pour l'inventaire
 
-window.initTeamSystem = function(gameRoom) {
-  if (window.teamSystem) {
-    console.log(`[TeamSystem] Réutilisation du système d'équipe global existant`);
-    if (gameRoom && gameRoom !== window.teamSystem.gameRoom) {
-      window.teamSystem.gameRoom = gameRoom;
-      window.teamSystem.setupServerListeners();
-    }
-    return window.teamSystem;
-  }
-
-  try {
-    console.log(`⚔️ Initialisation du système d'équipe...`);
-    const teamSystem = new TeamManager(null, gameRoom);
-
-    window.teamSystem = teamSystem;
-    window.TeamManager = teamSystem;
-    window.teamSystemGlobal = teamSystem;
-
-    console.log(`✅ Système d'équipe initialisé`);
-
-    // Test de connexion après un délai
-    setTimeout(() => {
-      if (teamSystem && gameRoom) {
-        teamSystem.requestTeamData();
+  // ✅ NOUVELLE MÉTHODE: Destruction propre
+  destroy() {
+    console.log("🧹 [TeamManager] Destruction...");
+    
+    try {
+      // Nettoyer l'UI
+      if (this.teamUI) {
+        if (typeof this.teamUI.destroy === 'function') {
+          this.teamUI.destroy();
+        }
+        this.teamUI = null;
       }
-    }, 2000);
-
-    return teamSystem;
-
-  } catch (error) {
-    console.error(`❌ Erreur initialisation système d'équipe:`, error);
-    return null;
+      
+      // Nettoyer l'icône
+      if (this.teamIcon) {
+        if (typeof this.teamIcon.destroy === 'function') {
+          this.teamIcon.destroy();
+        }
+        this.teamIcon = null;
+      }
+      
+      // Nettoyer les références globales
+      if (window.TeamManager === this) {
+        window.TeamManager = null;
+      }
+      if (window.teamSystem === this) {
+        window.teamSystem = null;
+      }
+      if (window.teamManagerGlobal === this) {
+        window.teamManagerGlobal = null;
+      }
+      
+      // Marquer comme non initialisé
+      this.isInitialized = false;
+      
+      console.log("✅ [TeamManager] Destruction terminée");
+      
+    } catch (error) {
+      console.error("❌ [TeamManager] Erreur destruction:", error);
+    }
   }
-};
+}
 
 export default TeamManager;
