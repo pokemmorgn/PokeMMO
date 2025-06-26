@@ -471,7 +471,7 @@
                          "value":"fromvillage"
                         }, 
                         {
-                         "name":"tragetzone",
+                         "name":"targetzone",
                          "type":"string",
                          "value":"beach"
                         }],
