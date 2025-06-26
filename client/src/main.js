@@ -34,7 +34,7 @@ import { LavandiaShopScene } from './scenes/zones/LavandiaShopScene.js';
 //import { NoctherCave2Scene } from './scenes/zones/NoctherCave2Scene.js';
 //import { NoctherCave2BisScene } from './scenes/zones/NoctherCave2BisScene.js';
 import { Road1HouseScene } from './scenes/zones/Road1HouseScene.js';
-3import { Road1HiddenScene } from './scenes/zones/Road1HiddenScene.js';
+import { Road1HiddenScene } from './scenes/zones/Road1HiddenScene.js';
 //import { Road2Scene } from './scenes/zones/Road2Scene.js';
 //import { Road3Scene } from './scenes/zones/Road3Scene.js';
 import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
