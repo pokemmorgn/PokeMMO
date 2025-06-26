@@ -1,4 +1,4 @@
-// client/src/scenes/zones/BaseZoneScene.js - VERSION COMPLÈTE AVEC TEAM SIMPLE
+// client/src/scenes/zones/BaseZoneScene.js - VERSION COMPLÈTE AVEC TEAM SÉCURISÉ
 // ✅ Utilise la connexion établie dans main.js et délègue les interactions à InteractionManager
 
 import { PlayerManager } from "../../game/PlayerManager.js";
@@ -11,6 +11,8 @@ import { TransitionIntegration } from '../../transitions/TransitionIntegration.j
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
 import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
 import { CharacterManager } from "../../game/CharacterManager.js";
+import { zoneEnvironmentManager } from "../../managers/ZoneEnvironmentManager.js";
+
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -27,7 +29,9 @@ export class BaseZoneScene extends Phaser.Scene {
     this.lastStopTime = 0;
     this.myPlayerReady = false;
     this.dayNightWeatherManager = null;
-
+    this.currentEnvironment = null;
+    this.environmentInitialized = false;
+    
     // Inventaire
     this.inventorySystem = null;
     this.inventoryInitialized = false;
@@ -44,7 +48,7 @@ export class BaseZoneScene extends Phaser.Scene {
     // ✅ InteractionManager au lieu de ShopIntegration direct
     this.interactionManager = null;
 
-    // ✅ SIMPLE: Système d'équipe simplifié
+    // ✅ NOUVEAU: Système d'équipe avec protection
     this.teamSystemInitialized = false;
     this.teamInitializationAttempts = 0;
     this.maxTeamInitAttempts = 3;
@@ -134,143 +138,238 @@ export class BaseZoneScene extends Phaser.Scene {
     this.networkSetupComplete = true;
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Initialisation des systèmes avec ordre simple
+  // ✅ MÉTHODE MODIFIÉE: Initialisation des systèmes avec ordre et délais sécurisés
   initializeGameSystems() {
-    console.log(`🎮 [${this.scene.key}] Initialisation des systèmes de jeu (ordre simple)...`);
+    console.log(`🎮 [${this.scene.key}] Initialisation des systèmes de jeu (ordre sécurisé)...`);
 
-    // ✅ ORDRE D'INITIALISATION SIMPLE
+    // ✅ ORDRE D'INITIALISATION CRITIQUE pour éviter les conflits
     
-    // 1. Inventaire (stable)
+    // 1. Inventaire (plus stable)
     this.initializeInventorySystem();
     
-    // 2. InteractionManager
+    // 2. InteractionManager (dépend de networkManager)
     setTimeout(() => {
       this.initializeInteractionManager();
     }, 500);
     
-    // 3. Quêtes
+    // 3. Quêtes (dépend de la connexion stable)
     setTimeout(() => {
       this.initializeQuestSystem();
     }, 1000);
     
-    // 4. Temps/Météo
+    // 4. Temps/Météo (peu de risque de conflit)
     setTimeout(() => {
       this.initializeTimeWeatherSystem();
     }, 1500);
     
-    // 5. ✅ SIMPLE: Team System comme les autres
+    // 5. Team System (EN DERNIER car plus complexe)
     setTimeout(() => {
       this.initializeTeamSystemSafely();
-    }, 2000); // ✅ 2 secondes au lieu de 3
+    }, 3000); // ✅ 3 secondes pour que tout soit vraiment stable
     
     console.log(`✅ [${this.scene.key}] Planification initialisation systèmes terminée`);
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Initialisation team comme inventaire/quêtes
-  initializeTeamSystemSafely() {
-    console.log(`⚔️ [${this.scene.key}] === INITIALISATION TEAM SYSTEM SIMPLE ===`);
+  // ✅ NOUVELLE MÉTHODE: Initialisation sécurisée du système d'équipe
+initializeTeamSystemSafely() {
+  console.log(`⚔️ [${this.scene.key}] === INITIALISATION TEAM SYSTEM SIMPLE ===`);
 
-    // ✅ PROTECTION CONTRE LES TENTATIVES MULTIPLES
-    if (this.teamSystemInitialized) {
-      console.log(`ℹ️ [${this.scene.key}] Système d'équipe déjà initialisé`);
-      return;
-    }
-
-    if (this.teamInitializationAttempts >= this.maxTeamInitAttempts) {
-      console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation team - abandon`);
-      return;
-    }
-
-    this.teamInitializationAttempts++;
-    console.log(`⚔️ [${this.scene.key}] Tentative ${this.teamInitializationAttempts}/${this.maxTeamInitAttempts}`);
-
-    // ✅ VÉRIFICATION SIMPLE: Juste vérifier que la gameRoom existe (comme inventaire)
-    if (!this.networkManager?.room) {
-      console.warn(`⚠️ [${this.scene.key}] Pas de room - retry dans 2s`);
-      setTimeout(() => this.initializeTeamSystemSafely(), 2000);
-      return;
-    }
-
-    // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ GLOBALEMENT
-    if (window.TeamManager && window.TeamManager.isInitialized) {
-      console.log(`ℹ️ [${this.scene.key}] TeamManager global déjà initialisé - réutilisation`);
-      this.teamSystemInitialized = true;
-      return;
-    }
-
-    try {
-      console.log(`🚀 [${this.scene.key}] Initialisation team system simple...`);
-      
-      // ✅ UTILISER LA FONCTION DEPUIS MAIN.JS (comme pour inventaire/quêtes)
-      if (typeof window.initTeamSystem === 'function') {
-        console.log(`🎯 [${this.scene.key}] Appel window.initTeamSystem avec room...`);
-        
-        const teamManager = window.initTeamSystem(this.networkManager.room);
-        
-        if (teamManager) {
-          console.log(`✅ [${this.scene.key}] Système d'équipe initialisé avec succès!`);
-          this.teamSystemInitialized = true;
-          
-          // ✅ ÉVÉNEMENT POUR SIGNALER QUE C'EST PRÊT
-          if (typeof window.onSystemInitialized === 'function') {
-            window.onSystemInitialized('team');
-          }
-          
-          // ✅ TEST SIMPLE après un délai
-          setTimeout(() => {
-            console.log(`✅ [${this.scene.key}] Test: TeamManager exists:`, !!window.TeamManager);
-            console.log(`✅ [${this.scene.key}] Test: TeamIcon exists:`, !!document.querySelector('#team-icon'));
-          }, 1000);
-          
-        } else {
-          console.error(`❌ [${this.scene.key}] window.initTeamSystem a retourné null`);
-          this.handleTeamInitFailure();
-        }
-        
-      } else {
-        console.error(`❌ [${this.scene.key}] window.initTeamSystem n'existe pas!`);
-        this.handleTeamInitFailure();
-      }
-
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur initialisation team:`, error);
-      this.handleTeamInitFailure();
-    }
+  // ✅ PROTECTION CONTRE LES TENTATIVES MULTIPLES
+  if (this.teamSystemInitialized) {
+    console.log(`ℹ️ [${this.scene.key}] Système d'équipe déjà initialisé`);
+    return;
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Gestion des échecs
-  handleTeamInitFailure() {
-    if (this.teamInitializationAttempts < this.maxTeamInitAttempts) {
-      console.log(`🔄 [${this.scene.key}] Retry dans 3s... (${this.teamInitializationAttempts}/${this.maxTeamInitAttempts})`);
-      setTimeout(() => this.initializeTeamSystemSafely(), 3000);
-    } else {
-      console.error(`❌ [${this.scene.key}] Échec définitif initialisation team system`);
-      // Ne pas bloquer le jeu, juste informer
-      if (typeof window.showGameNotification === 'function') {
-        window.showGameNotification('Système d\'équipe indisponible', 'warning');
+  if (this.teamInitializationAttempts >= this.maxTeamInitAttempts) {
+    console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation team - abandon`);
+    return;
+  }
+
+  this.teamInitializationAttempts++;
+  console.log(`⚔️ [${this.scene.key}] Tentative ${this.teamInitializationAttempts}/${this.maxTeamInitAttempts}`);
+
+  // ✅ VÉRIFICATION SIMPLE: Juste vérifier que la gameRoom existe (comme inventaire)
+  if (!this.networkManager?.room) {
+    console.warn(`⚠️ [${this.scene.key}] Pas de room - retry dans 2s`);
+    setTimeout(() => this.initializeTeamSystemSafely(), 2000);
+    return;
+  }
+
+  // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ GLOBALEMENT
+  if (window.TeamManager && window.TeamManager.isInitialized) {
+    console.log(`ℹ️ [${this.scene.key}] TeamManager global déjà initialisé - réutilisation`);
+    this.teamSystemInitialized = true;
+    return;
+  }
+
+  try {
+    console.log(`🚀 [${this.scene.key}] Initialisation team system simple...`);
+    
+    // ✅ UTILISER LA FONCTION DEPUIS MAIN.JS (comme pour inventaire/quêtes)
+    if (typeof window.initTeamSystem === 'function') {
+      console.log(`🎯 [${this.scene.key}] Appel window.initTeamSystem avec room...`);
+      
+      const teamManager = window.initTeamSystem(this.networkManager.room);
+      
+      if (teamManager) {
+        console.log(`✅ [${this.scene.key}] Système d'équipe initialisé avec succès!`);
+        this.teamSystemInitialized = true;
+        
+        // ✅ ÉVÉNEMENT POUR SIGNALER QUE C'EST PRÊT
+        if (typeof window.onSystemInitialized === 'function') {
+          window.onSystemInitialized('team');
+        }
+        
+        // ✅ TEST SIMPLE après un délai
+        setTimeout(() => {
+          console.log(`✅ [${this.scene.key}] Test: TeamManager exists:`, !!window.TeamManager);
+          console.log(`✅ [${this.scene.key}] Test: TeamIcon exists:`, !!document.querySelector('#team-icon'));
+        }, 1000);
+        
+      } else {
+        console.error(`❌ [${this.scene.key}] window.initTeamSystem a retourné null`);
+        this.handleTeamInitFailure();
       }
+      
+    } else {
+      console.error(`❌ [${this.scene.key}] window.initTeamSystem n'existe pas!`);
+      this.handleTeamInitFailure();
     }
+
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur initialisation team:`, error);
+    this.handleTeamInitFailure();
+  }
+}
+
+
+// ✅ NOUVELLE MÉTHODE: Gestion des échecs d'initialisation
+handleTeamInitFailure() {
+  if (this.teamInitializationAttempts < this.maxTeamInitAttempts) {
+    console.log(`🔄 [${this.scene.key}] Retry initialisation team dans 5s... (${this.teamInitializationAttempts}/${this.maxTeamInitAttempts})`);
+    setTimeout(() => this.initializeTeamSystemSafely(), 5000);
+  } else {
+    console.error(`❌ [${this.scene.key}] Échec définitif d'initialisation du système d'équipe`);
+    // Signaler l'échec mais ne pas bloquer le jeu
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification('Système d\'équipe indisponible', 'warning', {
+        duration: 5000,
+        position: 'top-center'
+      });
+    }
+  }
+}
+
+// ✅ NOUVELLE MÉTHODE: Test du système d'équipe
+testTeamSystemWorking() {
+  console.log(`🧪 [${this.scene.key}] Test fonctionnement système d'équipe...`);
+  
+  try {
+    // Vérifier l'existence des composants
+    const hasTeamManager = !!window.TeamManager || !!window.teamManagerGlobal;
+    const hasTeamIcon = !!document.querySelector('#team-icon');
+    const managerCanInteract = window.TeamManager ? window.TeamManager.canInteract() : false;
+    
+    console.log(`📊 Test résultats:`, {
+      hasTeamManager,
+      hasTeamIcon,
+      managerCanInteract,
+      globalInitialized: window.TeamManager?.isInitialized || false
+    });
+    
+    if (hasTeamManager && hasTeamIcon) {
+      console.log(`✅ [${this.scene.key}] Système d'équipe fonctionnel!`);
+      
+      // Test des données d'équipe
+      if (window.TeamManager && typeof window.TeamManager.requestTeamData === 'function') {
+        setTimeout(() => {
+          console.log(`📡 [${this.scene.key}] Test demande données équipe...`);
+          window.TeamManager.requestTeamData();
+        }, 2000);
+      }
+      
+    } else {
+      console.warn(`⚠️ [${this.scene.key}] Système d'équipe partiellement fonctionnel:`, {
+        hasTeamManager,
+        hasTeamIcon
+      });
+    }
+    
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur test système d'équipe:`, error);
+  }
+}
+
+  // ✅ NOUVELLE MÉTHODE: Surveillance de la connexion pour TeamManager
+  setupTeamConnectionMonitoring() {
+    if (!this.networkManager?.room) return;
+
+    console.log(`🔍 [${this.scene.key}] Setup monitoring connexion pour TeamManager...`);
+
+    // ✅ SURVEILLER LES DÉCONNEXIONS
+    this.networkManager.room.onLeave((code) => {
+      console.warn(`⚠️ [${this.scene.key}] Connexion fermée (code: ${code}) - nettoyage team`);
+      
+      if (window.TeamManager) {
+        console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager suite à déconnexion`);
+        if (typeof window.TeamManager.gracefulShutdown === 'function') {
+          window.TeamManager.gracefulShutdown();
+        }
+      }
+      
+      this.teamSystemInitialized = false;
+    });
+
+    // ✅ SURVEILLER LES ERREURS DE CONNEXION
+    this.networkManager.room.onError((code, message) => {
+      console.error(`❌ [${this.scene.key}] Erreur connexion (${code}): ${message}`);
+      
+      if (window.TeamManager) {
+        console.log(`🛑 [${this.scene.key}] Arrêt TeamManager suite à erreur connexion`);
+        if (typeof window.TeamManager.gracefulShutdown === 'function') {
+          window.TeamManager.gracefulShutdown();
+        }
+      }
+      
+      this.teamSystemInitialized = false;
+    });
+
+    console.log(`✅ [${this.scene.key}] Monitoring connexion TeamManager configuré`);
   }
 
   initializeTimeWeatherSystem() {
-    if (!this.networkManager) {
-      console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
-      return;
-    }
-
-    try {
-      console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO ===`);
-
-      this.dayNightWeatherManager = new DayNightWeatherManager(this);
-      this.dayNightWeatherManager.initialize(this.networkManager);
-
-      console.log(`✅ [${this.scene.key}] Système temps/météo initialisé`);
-
-    } catch (error) {
-      console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
-    }
+  if (!this.networkManager) {
+    console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
+    return;
   }
 
+  try {
+    console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO AVEC ENVIRONNEMENTS ===`);
+
+    // ✅ NOUVEAU: Initialiser l'environnement AVANT le DayNightWeatherManager
+    this.initializeZoneEnvironment();
+
+    this.dayNightWeatherManager = new DayNightWeatherManager(this);
+    this.dayNightWeatherManager.initialize(this.networkManager);
+
+    console.log(`✅ [${this.scene.key}] Système temps/météo avec environnements initialisé`);
+
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
+  }
+}
+// ✅ NOUVELLE MÉTHODE: Initialiser l'environnement de la zone
+initializeZoneEnvironment() {
+  const zoneName = this.normalizeZoneName(this.scene.key);
+  this.currentEnvironment = zoneEnvironmentManager.getZoneEnvironment(zoneName);
+  
+  console.log(`🌍 [${this.scene.key}] Environnement détecté: ${this.currentEnvironment}`);
+  
+  // Debug des informations d'environnement
+  zoneEnvironmentManager.debugZoneEnvironment(zoneName);
+  
+  this.environmentInitialized = true;
+}
   // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
   initializeInteractionManager() {
     if (!this.networkManager) {
@@ -348,7 +447,7 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log(`📤 [${this.scene.key}] Demande de zone envoyée au serveur`);
   }
 
-  // ✅ MÉTHODE INCHANGÉE: Setup des handlers réseau
+  // ✅ MÉTHODE MODIFIÉE: Setup des handlers réseau avec monitoring team
   setupNetworkHandlers() {
     if (!this.networkManager) return;
 
@@ -588,22 +687,21 @@ export class BaseZoneScene extends Phaser.Scene {
     console.log(`✅ [${this.scene.key}] Handler quest statuses configuré`);
   }
   
-  // ✅ MÉTHODE SIMPLIFIÉE: Setup des handlers existants
+  // ✅ MÉTHODE INCHANGÉE: Setup des handlers existants
   setupExistingHandlers() {
     this.networkManager.onSnap((data) => {
       if (this.playerManager) {
         this.playerManager.snapMyPlayerTo(data.x, data.y);
       }
     });
-    
     this.networkManager.onDisconnect(() => {
       this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nDisconnected from WorldRoom`);
       
-      // ✅ SIMPLE: Nettoyer le team system si déconnexion (pas de gracefulShutdown)
+      // ✅ NOUVEAU: Nettoyer le team system si déconnexion
       if (window.TeamManager) {
-        console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager suite à déconnexion`);
-        if (typeof window.TeamManager.destroy === 'function') {
-          window.TeamManager.destroy();
+        console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager suite à déconnexion globale`);
+        if (typeof window.TeamManager.gracefulShutdown === 'function') {
+          window.TeamManager.gracefulShutdown();
         }
       }
       this.teamSystemInitialized = false;
@@ -826,7 +924,7 @@ export class BaseZoneScene extends Phaser.Scene {
     return this.scene && this.scene.key === expectedScene && this.scene.isActive();
   }
   
-  // ✅ MÉTHODE SIMPLIFIÉE: Cleanup avec TeamManager simple
+  // ✅ MÉTHODE MODIFIÉE: Cleanup avec InteractionManager et TeamManager
   cleanup() {
     TransitionIntegration.cleanupTransitions(this);
 
@@ -860,13 +958,13 @@ export class BaseZoneScene extends Phaser.Scene {
       this.interactionManager = null;
     }
 
-    // ✅ SIMPLE: Nettoyage conditionnel du TeamManager
+    // ✅ NOUVEAU: Nettoyage conditionnel du TeamManager
     if (this.teamSystemInitialized && window.TeamManager) {
       // Ne nettoyer que si on n'est pas en transition
       if (!isTransition) {
         console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager (non-transition)`);
-        if (typeof window.TeamManager.destroy === 'function') {
-          window.TeamManager.destroy();
+        if (typeof window.TeamManager.gracefulShutdown === 'function') {
+          window.TeamManager.gracefulShutdown();
         }
         this.teamSystemInitialized = false;
       } else {
@@ -1555,7 +1653,7 @@ export class BaseZoneScene extends Phaser.Scene {
     } : "Pas de body");
   }
 
-  // ✅ MÉTHODES DE DEBUG SIMPLIFIÉES
+  // ✅ NOUVELLE MÉTHODE: Debug complet de la scène
   debugScene() {
     console.log(`🔍 [${this.scene.key}] === DEBUG SCENE COMPLÈTE ===`);
     console.log(`📊 Managers:`, {
@@ -1581,7 +1679,7 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-  // ✅ MÉTHODES TEAM SIMPLIFIÉES
+  // ✅ NOUVELLES MÉTHODES: Gestion du système d'équipe depuis l'extérieur
   getTeamSystemStatus() {
     return {
       initialized: this.teamSystemInitialized,
@@ -1602,6 +1700,7 @@ export class BaseZoneScene extends Phaser.Scene {
     }, 1000);
   }
 
+  // ✅ MÉTHODES UTILITAIRES TEAM
   isTeamSystemReady() {
     return this.teamSystemInitialized && window.TeamManager && window.TeamManager.isInitialized;
   }
@@ -1610,6 +1709,7 @@ export class BaseZoneScene extends Phaser.Scene {
     return this.isTeamSystemReady() ? window.TeamManager : null;
   }
 
+  // ✅ MÉTHODES DE DEBUG AMÉLIORÉES
   debugAllSystems() {
     console.log(`🔍 [${this.scene.key}] === DEBUG TOUS LES SYSTÈMES ===`);
     
@@ -1643,6 +1743,7 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
+  // ✅ MÉTHODE POUR TESTER LA CONNEXION TEAM
   testTeamConnection() {
     console.log(`🧪 [${this.scene.key}] Test connexion Team System...`);
     
