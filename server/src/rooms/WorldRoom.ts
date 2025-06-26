@@ -19,6 +19,7 @@ import { PlayerData } from "../models/PlayerData";
 
 import { TeamManager } from "../managers/TeamManager";
 import { TeamHandlers } from "../handlers/TeamHandlers"; // ✅ NOUVEAU IMPORT
+import { starterService } from "../services/StarterPokemonService"; // debug ONLY
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
@@ -1364,6 +1365,21 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log("🧪 onJoin - client.sessionId =", client.sessionId);
       console.log(`✅ Joueur ${player.name} ajouté au state`);
       console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
+
+      // ✅ DONNER AUTOMATIQUEMENT UN STARTER AU JOUEUR SI NÉCESSAIRE
+try {
+  const starterResult = await starterService.ensurePlayerHasStarter(player.name);
+  if (starterResult.given) {
+    console.log(`🎁 Starter donné à ${player.name}: ${starterResult.pokemonName}`);
+    // Tu peux notifier le client ici si tu veux afficher un message
+    client.send("starterGranted", {
+      pokemonName: starterResult.pokemonName
+    });
+  }
+} catch (e) {
+  console.error(`❌ Erreur StarterService pour ${player.name}:`, e);
+}
+
 
       // ✅ ÉTAPE 2: CONFIRMER IMMÉDIATEMENT au client avec ses données
       client.send("playerSpawned", {
