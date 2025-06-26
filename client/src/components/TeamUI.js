@@ -35,13 +35,14 @@ export class TeamUI {
     this.pokemonLocalizations = {};
   }
 }
-  getPokemonName(pokemonId) {
-  // Si le JSON utilise des IDs sur 3 chiffres : "001", "025", etc.
-  const idStr = String(pokemonId).padStart(3, '0');
-  if (this.pokemonLocalizations && this.pokemonLocalizations[idStr]) {
-    return this.pokemonLocalizations[idStr].name || `#${pokemonId}`;
-  }
-  return `#${pokemonId}`;
+getPokemonName(pokemonId) {
+  const idStr = String(pokemonId).padStart(3, '0'); // "001"
+  // Tente "001" puis "1"
+  return (
+    (this.pokemonLocalizations[idStr] && this.pokemonLocalizations[idStr].name) ||
+    (this.pokemonLocalizations[pokemonId] && this.pokemonLocalizations[pokemonId].name) ||
+    `#${pokemonId}`
+  );
 }
   
   createTeamInterface() {
