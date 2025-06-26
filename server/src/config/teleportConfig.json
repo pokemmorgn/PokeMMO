@@ -225,157 +225,6 @@
       "enabled": true
     },
     {
-      "id": "house6_to_lavandia",
-      "name": "Maison 6 vers Lavandia",
-      "description": "Retour vers Lavandia",
-      "fromZone": "lavandiahouse6",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": { "enabled": true }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_house7",
-      "name": "Lavandia vers Maison 7",
-      "description": "Accès à la maison 7",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse7",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": { "enabled": true }
-      },
-      "enabled": true
-    },
-    {
-      "id": "house7_to_lavandia",
-      "name": "Maison 7 vers Lavandia",
-      "description": "Retour vers Lavandia",
-      "fromZone": "lavandiahouse7",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": { "enabled": true }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_house8",
-      "name": "Lavandia vers Maison 8",
-      "description": "Accès à la maison 8",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse8",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": { "enabled": true }
-      },
-      "enabled": true
-    },
-    {
-      "id": "house8_to_lavandia",
-      "name": "Maison 8 vers Lavandia",
-      "description": "Retour vers Lavandia",
-      "fromZone": "lavandiahouse8",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": { "enabled": true }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_house9",
-      "name": "Lavandia vers Maison 9",
-      "description": "Accès à la maison 9",
-      "fromZone": "lavandia",
-      "toZone": "lavandiahouse9",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": { "enabled": true }
-      },
-      "enabled": true
-    },
-    {
-      "id": "house9_to_lavandia",
-      "name": "Maison 9 vers Lavandia",
-      "description": "Retour vers Lavandia",
-      "fromZone": "lavandiahouse9",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": { "enabled": true }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_researchlab",
-      "name": "Lavandia vers Laboratoire de Recherche",
-      "description": "Accès au laboratoire de recherche",
-      "fromZone": "lavandia",
-      "toZone": "lavandiaresearchlab",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": { "enabled": true }
-      },
-      "enabled": true
-    },
-    {
-      "id": "researchlab_to_lavandia",
-      "name": "Laboratoire de Recherche vers Lavandia",
-      "description": "Retour vers Lavandia",
-      "fromZone": "lavandiaresearchlab",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": { "enabled": true }
-      },
-      "enabled": true
-    },
-    {
-      "id": "lavandia_to_shop",
-      "name": "Lavandia vers Magasin",
-      "description": "Accès au magasin",
-      "fromZone": "lavandia",
-      "toZone": "lavandiashop",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": { "enabled": true }
-      },
-      "enabled": true
-    },
-    {
-      "id": "shop_to_lavandia",
-      "name": "Magasin vers Lavandia",
-      "description": "Retour vers Lavandia",
-      "fromZone": "lavandiashop",
-      "toZone": "lavandia",
-      "conditions": {
-        "minLevel": 1,
-        "proximityCheck": { "enabled": true }
-      },
-      "enabled": true
-    }
-  ],
-  "emergencyOverride": {
-    "enabled": false,
-    "allowAllTransitions": false,
-    "reason": "Aucun override actif"
-  },
-  "notes": {
-    "spawnSystem": "Système de spawn simplifié avec coordonnées fixes",
-    "changes": [
-      "Suppression complète du système targetSpawn",
-      "Utilisation de coordonnées fixes définies dans calculateFixedSpawnPosition()",
-      "Les positions de spawn sont déterminées par la zone de destination et d'origine",
-      "Plus besoin d'objets spawn dans les maps Tiled",
-      "Ajout de toutes les zones de Lavandia avec accès libre niveau 1",
-      "Correction: road1house et road1hidden déplacées au niveau des zones principales"
-    ]
-  }
-}
-    },
-    {
       "id": "village_to_beach",
       "name": "Village vers Plage", 
       "description": "Retour libre vers la plage",
@@ -918,3 +767,154 @@
         "proximityCheck": { "enabled": true }
       },
       "enabled": true
+    },
+    {
+      "id": "house6_to_lavandia",
+      "name": "Maison 6 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse6",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house7",
+      "name": "Lavandia vers Maison 7",
+      "description": "Accès à la maison 7",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse7",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house7_to_lavandia",
+      "name": "Maison 7 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse7",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house8",
+      "name": "Lavandia vers Maison 8",
+      "description": "Accès à la maison 8",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse8",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house8_to_lavandia",
+      "name": "Maison 8 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse8",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_house9",
+      "name": "Lavandia vers Maison 9",
+      "description": "Accès à la maison 9",
+      "fromZone": "lavandia",
+      "toZone": "lavandiahouse9",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "house9_to_lavandia",
+      "name": "Maison 9 vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiahouse9",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_researchlab",
+      "name": "Lavandia vers Laboratoire de Recherche",
+      "description": "Accès au laboratoire de recherche",
+      "fromZone": "lavandia",
+      "toZone": "lavandiaresearchlab",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "researchlab_to_lavandia",
+      "name": "Laboratoire de Recherche vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiaresearchlab",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "lavandia_to_shop",
+      "name": "Lavandia vers Magasin",
+      "description": "Accès au magasin",
+      "fromZone": "lavandia",
+      "toZone": "lavandiashop",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+    {
+      "id": "shop_to_lavandia",
+      "name": "Magasin vers Lavandia",
+      "description": "Retour vers Lavandia",
+      "fromZone": "lavandiashop",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    }
+  ],
+  "emergencyOverride": {
+    "enabled": false,
+    "allowAllTransitions": false,
+    "reason": "Aucun override actif"
+  },
+  "notes": {
+    "spawnSystem": "Système de spawn simplifié avec coordonnées fixes",
+    "changes": [
+      "Suppression complète du système targetSpawn",
+      "Utilisation de coordonnées fixes définies dans calculateFixedSpawnPosition()",
+      "Les positions de spawn sont déterminées par la zone de destination et d'origine",
+      "Plus besoin d'objets spawn dans les maps Tiled",
+      "Ajout de toutes les zones de Lavandia avec accès libre niveau 1",
+      "Correction: road1house et road1hidden déplacées au niveau des zones principales"
+    ]
+  }
+}
