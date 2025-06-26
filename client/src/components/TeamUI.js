@@ -533,18 +533,18 @@ getPortraitSpriteStyle(pokemonId, options = {}) {
       }
 
       /* ===== POKEMON CARD IN SLOT ===== */
-.pokemon-card {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-  border-radius: 12px;
-  padding: 8px; /* Réduit le padding */
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  cursor: grab;
-  transition: all 0.3s ease;
-}
+      .pokemon-card {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+        border-radius: 12px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        cursor: grab;
+        transition: all 0.3s ease;
+      }
 
       .pokemon-card:active {
         cursor: grabbing;
@@ -581,15 +581,14 @@ getPortraitSpriteStyle(pokemonId, options = {}) {
         font-weight: bold;
       }
 
-.pokemon-sprite {
-  text-align: center;
-  flex: 1; /* Prend tout l'espace disponible */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 2px 0; /* Réduit les marges */
-  min-height: 60px; /* Hauteur minimum */
-}
+      .pokemon-sprite {
+        text-align: center;
+        margin: 5px 0;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
       .pokemon-icon {
         font-size: 24px;
@@ -883,19 +882,14 @@ getPortraitSpriteStyle(pokemonId, options = {}) {
       }
 
 .pokemon-portrait {
-  /* Agrandir le portrait pour mieux remplir */
-  width: 96px !important;  /* Plus grand que 80px */
-  height: 96px !important;
+  /* largeur/hauteur sont déjà gérés inline par le style */
   background-repeat: no-repeat;
   background-color: #202a39;
   border: 2px solid #444;
   border-radius: 10px;
   filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
-  transition: transform 0.3s ease;
 }
-.pokemon-card:hover .pokemon-portrait {
-  transform: scale(1.05); /* Petit effet de zoom au survol */
-}
+
 
       .team-view::-webkit-scrollbar-thumb:hover {
         background: rgba(231, 76, 60, 0.8);
