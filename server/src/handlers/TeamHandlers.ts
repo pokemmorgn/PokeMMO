@@ -283,23 +283,7 @@ export class TeamHandlers {
   // HANDLERS DE GESTION
   // ================================================================================================
 
-  /**
-   * Ajoute un Pokémon à l'équipe
-   */
-  private async handleAddToTeam(client: Client, data: { pokemonId: string }): Promise<void> {
-    try {
-      const player = this.room.state.players.get(client.sessionId);
-      if (!player) {
-        client.send("teamActionResult", {
-          success: false,
-          message: "Joueur non trouvé"
-        });
-        return;
-      }
-
-      console.log(`➕ [TeamHandlers] Ajout Pokémon ${data.pokemonId} pour ${player.name}`);
-      
-      const teamManager = new TeamManager(player.name);
+.name);
       await teamManager.load();
       
       // Vérifier si l'équipe n'est pas pleine
@@ -346,7 +330,7 @@ export class TeamHandlers {
       console.error("❌ [TeamHandlers] Erreur addToTeam:", error);
       client.send("teamActionResult", {
         success: false,
-        message: error.message || "Erreur lors de l'ajout"
+        message: error instanceof Error ? error.message : "Erreur lors de l'ajout"
       });
     }
   }
@@ -529,7 +513,7 @@ export class TeamHandlers {
       console.error("❌ [TeamHandlers] Erreur reorganizeTeam:", error);
       client.send("teamActionResult", {
         success: false,
-        message: error.message || "Erreur lors de la réorganisation"
+        message: error instanceof Error ? error.message : "Erreur lors de la réorganisation"
       });
     }
   }
@@ -700,7 +684,7 @@ export class TeamHandlers {
    * Retourne l'icône de statut appropriée
    */
   private getStatusIcon(status: string): string {
-    const statusIcons = {
+    const statusIcons: { [key: string]: string } = {
       'normal': '🟢',
       'poison': '🟣',
       'burn': '🔥',
@@ -715,14 +699,14 @@ export class TeamHandlers {
    * Analyse complète de l'équipe
    */
   private analyzeTeam(team: any[]): any {
-    const typeDistribution = {};
+    const typeDistribution: { [key: string]: number } = {};
     const levelDistribution = { low: 0, medium: 0, high: 0 };
-    let totalStats = { hp: 0, attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0 };
+    let totalStats: { [key: string]: number } = { hp: 0, attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0 };
     
     team.forEach(pokemon => {
       // Distribution des types
       if (pokemon.types) {
-        pokemon.types.forEach(type => {
+        pokemon.types.forEach((type: string) => {
           typeDistribution[type] = (typeDistribution[type] || 0) + 1;
         });
       }
@@ -735,18 +719,18 @@ export class TeamHandlers {
       // Somme des stats
       if (pokemon.calculatedStats) {
         Object.keys(totalStats).forEach(stat => {
-          totalStats[stat] += pokemon.calculatedStats[stat] || 0;
+          totalStats[stat] += (pokemon.calculatedStats as any)[stat] || 0;
         });
       }
     });
     
     // Calcul des moyennes
-    const avgStats = {};
+    const avgStats: { [key: string]: number } = {};
     Object.keys(totalStats).forEach(stat => {
       avgStats[stat] = team.length > 0 ? Math.round(totalStats[stat] / team.length) : 0;
     });
     
-    const teamPower = Object.values(avgStats).reduce((sum: number, stat: number) => sum + stat, 0);
+    const teamPower = Object.values(avgStats).reduce((sum: number, stat: unknown) => sum + (stat as number), 0);
     
     // Générer des recommandations
     const recommendations = this.generateTeamRecommendations(team, typeDistribution, levelDistribution);
@@ -763,7 +747,7 @@ export class TeamHandlers {
   /**
    * Génère des recommandations pour l'équipe
    */
-  private generateTeamRecommendations(team: any[], typeDistribution: any, levelDistribution: any): string[] {
+  private generateTeamRecommendations(team: any[], typeDistribution: { [key: string]: number }, levelDistribution: any): string[] {
     const recommendations: string[] = [];
     
     if (team.length < 6) {
