@@ -163,12 +163,13 @@ export class BaseZoneScene extends Phaser.Scene {
     setTimeout(() => {
       this.initializeTimeWeatherSystem();
     }, 1500);
-    
-    // 5. Team System (EN DERNIER car plus complexe)
     setTimeout(() => {
-      this.initializeTeamSystemSafely();
-    }, 3000); // ✅ 3 secondes pour que tout soit vraiment stable
-    
+  // ✅ UTILISER LA FONCTION GLOBALE COMME L'INVENTAIRE
+  if (typeof window.initTeamSystem === 'function') {
+    console.log(`⚔️ [${this.scene.key}] Init team system global`);
+    window.initTeamSystem(this.networkManager.room);
+  }
+}, 1000); //    
     console.log(`✅ [${this.scene.key}] Planification initialisation systèmes terminée`);
   }
 
