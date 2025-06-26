@@ -46,26 +46,31 @@ getPokemonName(pokemonId) {
 }
 
 getPortraitSpriteStyle(pokemonId, options = {}) {
-  // Ajustez ces valeurs selon vos spritesheets réels
-  const frameWidth = 80;  // Largeur d'UN portrait dans votre spritesheet
-  const frameHeight = 80; // Hauteur d'UN portrait dans votre spritesheet
-  const index = 0; // Toujours utiliser le premier frame (portrait de base)
-  
+  const frameWidth = 80;  // Largeur d'un portrait (ex: 80px)
+  const frameHeight = 80; // Hauteur d'un portrait (ex: 80px)
+  const col = 0; // colonne (index du portrait = 0 pour Bulbizarre de face)
+  const row = 0; // ligne (0 pour le portrait classique)
+  const numCols = 10; // <-- AJUSTE à la largeur de ta spritesheet !
   let id = Number(pokemonId);
   let variant = options.shiny ? '_shiny' : '';
   const url = `/assets/pokemon/portraitanime/${id}${variant}.png`;
-  
+
+  // Largeur/hauteur totale de la spritesheet (en pixels)
+  const sheetWidth = frameWidth * numCols;
+  // Si une seule ligne : frameHeight, sinon frameHeight * numRows
+
   return `
     width: ${frameWidth}px;
     height: ${frameHeight}px;
     background-image: url('${url}');
-    background-size: auto ${frameHeight}px;
-    background-position: ${-index * frameWidth}px 0;
+    background-size: ${sheetWidth}px ${frameHeight}px;
+    background-position: ${-col * frameWidth}px ${-row * frameHeight}px;
     background-repeat: no-repeat;
     image-rendering: pixelated;
     display: inline-block;
   `;
 }
+
 
   
   createTeamInterface() {
