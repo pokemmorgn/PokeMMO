@@ -59,7 +59,7 @@ export class TeamIcon {
       .team-icon {
         position: fixed;
         bottom: 20px;
-        right: 200px; /* Position par défaut, sera ajustée dynamiquement */
+        right: 100px; /* Position par défaut, sera ajustée dynamiquement */
         width: 70px;
         height: 80px;
         cursor: pointer;
@@ -72,12 +72,12 @@ export class TeamIcon {
         transform: scale(1.1);
       }
 
-      /* ✅ COULEURS HARMONISÉES - Thème orange/ambre comme 3ème couleur */
+      /* ✅ COULEURS IDENTIQUES À L'INVENTAIRE - Thème bleu */
       .team-icon .icon-background {
         width: 100%;
         height: 70px;
-        background: linear-gradient(145deg, #ff9800, #f57c00);
-        border: 2px solid #ff9800;
+        background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+        border: 2px solid #4a90e2;
         border-radius: 15px;
         display: flex;
         flex-direction: column;
@@ -90,9 +90,9 @@ export class TeamIcon {
       }
 
       .team-icon:hover .icon-background {
-        background: linear-gradient(145deg, #ffb74d, #ff9800);
-        border-color: #ffab40;
-        box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+        background: linear-gradient(145deg, #3a4f6f, #2e3d52);
+        border-color: #5aa0f2;
+        box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
       }
 
       .team-icon .icon-content {
@@ -125,7 +125,7 @@ export class TeamIcon {
       }
 
       .team-count {
-        color: #fff3e0;
+        color: #87ceeb;
         font-size: 13px;
       }
 
@@ -139,14 +139,14 @@ export class TeamIcon {
         font-size: 11px;
       }
 
-      /* ✅ LABEL HARMONISÉ AVEC LES AUTRES ICÔNES */
+      /* ✅ LABEL IDENTIQUE À L'INVENTAIRE */
       .team-icon .icon-label {
         font-size: 11px;
-        color: #fff3e0;
+        color: #87ceeb;
         font-weight: 600;
         text-align: center;
         padding: 4px 0;
-        background: rgba(255, 152, 0, 0.2);
+        background: rgba(74, 144, 226, 0.2);
         width: 100%;
         border-radius: 0 0 13px 13px;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
@@ -206,8 +206,8 @@ export class TeamIcon {
       }
 
       .status-dot.warning {
-        background: #ff9800;
-        box-shadow: 0 0 6px rgba(255, 152, 0, 0.6);
+        background: #f39c12;
+        box-shadow: 0 0 6px rgba(243, 156, 18, 0.6);
         animation: warningBlink 1.5s infinite;
       }
 
@@ -241,7 +241,7 @@ export class TeamIcon {
       }
 
       @keyframes faintedFlash {
-        0%, 100% { background: linear-gradient(145deg, #ff9800, #f57c00); }
+        0%, 100% { background: linear-gradient(145deg, #2a3f5f, #1e2d42); }
         50% { background: linear-gradient(145deg, #9c27b0, #7b1fa2); }
       }
 
@@ -252,7 +252,7 @@ export class TeamIcon {
 
       @keyframes teamFullGlow {
         0%, 100% { box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); }
-        50% { box-shadow: 0 4px 25px rgba(255, 152, 0, 0.8); }
+        50% { box-shadow: 0 4px 25px rgba(74, 144, 226, 0.8); }
       }
 
       /* ===== RESPONSIVE DESIGN HARMONISÉ ===== */
@@ -321,7 +321,7 @@ export class TeamIcon {
         left: -2px;
         right: -2px;
         bottom: -2px;
-        background: linear-gradient(45deg, transparent, rgba(255, 152, 0, 0.3), transparent);
+        background: linear-gradient(45deg, transparent, rgba(74, 144, 226, 0.3), transparent);
         border-radius: 17px;
         opacity: 0;
         animation: healthWarning 2s infinite;
@@ -420,7 +420,7 @@ export class TeamIcon {
       bottom: 110px;
       right: 50%;
       transform: translateX(50%);
-      background: rgba(255, 152, 0, 0.9);
+      background: rgba(74, 144, 226, 0.9);
       color: white;
       padding: 8px 12px;
       border-radius: 8px;
@@ -452,14 +452,14 @@ export class TeamIcon {
     }, 2000);
   }
 
-  // ✅ SYSTÈME DE POSITIONNEMENT AMÉLIORÉ - ESPACEMENT COHÉRENT
+  // ✅ SYSTÈME DE POSITIONNEMENT AMÉLIORÉ - ESPACEMENT TRÈS RÉDUIT
   adjustPosition() {
     const inventoryIcon = document.querySelector('#inventory-icon');
     const questIcon = document.querySelector('#quest-icon');
     
     const baseRight = 20;
     const iconWidth = 70;
-    const spacing = 20; // ✅ Espacement cohérent de 20px entre chaque icône
+    const spacing = 10; // ✅ Espacement réduit à 10px seulement !
     
     let rightPosition = baseRight;
     let iconsCount = 0;
