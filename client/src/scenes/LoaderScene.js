@@ -20,6 +20,8 @@ this.load.tilemapTiledJSON('villageflorist', 'assets/maps/villageflorist.tmj');
 
 this.load.tilemapTiledJSON('road1', 'assets/maps/road1.tmj');
 this.load.tilemapTiledJSON('road1house', 'assets/maps/road1house.tmj');
+    this.load.tilemapTiledJSON('road1hidden', 'assets/maps/road1hidden.tmj');
+
 this.load.tilemapTiledJSON('road2', 'assets/maps/road2.tmj');
 this.load.tilemapTiledJSON('road3', 'assets/maps/road3.tmj');
 
@@ -148,6 +150,9 @@ this.load.tilemapTiledJSON('nocthercave2bis', 'assets/maps/noctherbcave2bis.tmj'
         break;
       case 'road1house':
         this.scene.start('Road1HouseScene');
+        break;
+      case 'road1hidden':
+        this.scene.start('Road1HiddenScene');
         break;
       case 'road2':
         this.scene.start('Road2Scene');
