@@ -65,7 +65,6 @@
       "minLevel": 1,
       "description": "Première route sauvage",
       "fixedSpawns": {
-        "fromVillage": { "x": 100, "y": 400 },
         "fromLavandia": { "x": 800, "y": 200 },
         "default": { "x": 150, "y": 350 }
       }
