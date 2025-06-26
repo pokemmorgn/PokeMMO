@@ -1,12 +1,4 @@
 { "compressionlevel":-1,
- "editorsettings":
-    {
-     "export":
-        {
-         "format":"json",
-         "target":"village.tmj"
-        }
-    },
  "height":30,
  "infinite":false,
  "layers":[
@@ -287,6 +279,11 @@
                          "name":"targetspawn",
                          "type":"string",
                          "value":"frombeach"
+                        }, 
+                        {
+                         "name":"tragetzone",
+                         "type":"string",
+                         "value":"village"
                         }],
                  "rotation":0,
                  "type":"",
