@@ -1,9 +1,8 @@
 // client/src/components/TeamUI.js - Interface d'équipe Pokémon
 
 export class TeamUI {
-  constructor(gameRoom, teamIcon = null) {
+  constructor(gameRoom) {
     this.gameRoom = gameRoom;
-    this.teamIcon = teamIcon; // Référence à l'icône d'équipe
     this.isVisible = false;
     this.teamData = [];
     this.selectedPokemon = null;
@@ -321,28 +320,42 @@ export class TeamUI {
   setupSlotSelection() {
     const slotsContainer = this.overlay.querySelector('.team-slots-grid');
     
+    // Utiliser la délégation d'événements plus précise
     slotsContainer.addEventListener('click', (e) => {
+      // Ignorer les clics sur le menu contextuel
+      if (e.target.closest('.pokemon-context-menu')) {
+        return;
+      }
+
       const slot = e.target.closest('.team-slot');
       if (!slot) return;
 
       const slotIndex = parseInt(slot.dataset.slot);
       const pokemonCard = slot.querySelector('.pokemon-card');
       
+      console.log('🎯 Clic sur slot:', slotIndex, pokemonCard ? 'avec Pokémon' : 'vide');
+      
       if (pokemonCard) {
         // Sélectionner le Pokémon
-        const pokemonId = pokemonCard.dataset.pokemonId;
         const pokemon = this.teamData[slotIndex];
         if (pokemon) {
+          console.log('🎯 Sélection de:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
           this.selectPokemon(pokemon, pokemonCard, slotIndex);
         }
       } else {
         // Slot vide - désélectionner
+        console.log('🎯 Désélection (slot vide)');
         this.deselectPokemon();
       }
     });
 
     // Double-clic pour voir les détails
     slotsContainer.addEventListener('dblclick', (e) => {
+      // Ignorer les clics sur le menu contextuel
+      if (e.target.closest('.pokemon-context-menu')) {
+        return;
+      }
+
       const slot = e.target.closest('.team-slot');
       if (!slot) return;
 
@@ -350,7 +363,51 @@ export class TeamUI {
       const pokemon = this.teamData[slotIndex];
       
       if (pokemon) {
+        console.log('🎯 Double-clic pour détails:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
         this.showPokemonDetails(pokemon);
+      }
+    });
+
+    // Event listeners spécifiques pour les cartes Pokémon
+    this.setupPokemonCardListeners();
+  }
+
+  setupPokemonCardListeners() {
+    // Cette fonction sera appelée après chaque refresh pour ajouter les listeners aux nouvelles cartes
+    const pokemonCards = this.overlay.querySelectorAll('.pokemon-card');
+    
+    pokemonCards.forEach((card, index) => {
+      // Supprimer les anciens listeners pour éviter les doublons
+      const newCard = card.cloneNode(true);
+      card.parentNode.replaceChild(newCard, card);
+      
+      const slotIndex = parseInt(newCard.dataset.slot);
+      const pokemon = this.teamData[slotIndex];
+      
+      if (!pokemon) return;
+
+      // Clic simple pour sélection
+      newCard.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('🎯 Clic direct sur carte Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+        this.selectPokemon(pokemon, newCard, slotIndex);
+      });
+
+      // Double-clic pour détails
+      newCard.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        console.log('🎯 Double-clic direct sur carte pour détails:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+        this.showPokemonDetails(pokemon);
+      });
+
+      // Context menu
+      const contextMenu = newCard.querySelector('.pokemon-context-menu');
+      if (contextMenu) {
+        contextMenu.addEventListener('click', (e) => {
+          e.stopPropagation();
+          console.log('🎯 Menu contextuel:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+          this.showPokemonContextMenu(pokemon, e);
+        });
       }
     });
   }
@@ -409,10 +466,6 @@ export class TeamUI {
     this.teamData = data.team || [];
     this.refreshTeamDisplay();
     this.updateTeamStats();
-    
-    // 🔄 MISE À JOUR DE L'ICÔNE D'ÉQUIPE
-    this.updateTeamIcon();
-    
     console.log('⚔️ Données d\'équipe mises à jour:', this.teamData);
   }
 
@@ -440,6 +493,11 @@ export class TeamUI {
         this.displayPokemonInSlot(slot, pokemon, index);
       }
     });
+
+    // Setup listeners for the new cards
+    setTimeout(() => {
+      this.setupPokemonCardListeners();
+    }, 100);
   }
 
   displayPokemonInSlot(slot, pokemon, index) {
@@ -510,14 +568,31 @@ export class TeamUI {
       </div>
     `;
 
-    // Context menu event
-    const contextMenu = pokemonCard.querySelector('.pokemon-context-menu');
-    contextMenu.addEventListener('click', (e) => {
+    // Ajouter immédiatement les event listeners
+    pokemonCard.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.showPokemonContextMenu(pokemon, e);
+      console.log('🎯 Clic sur carte Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+      this.selectPokemon(pokemon, pokemonCard, index);
     });
 
+    pokemonCard.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      console.log('🎯 Double-clic pour détails:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+      this.showPokemonDetails(pokemon);
+    });
+
+    // Context menu event - ajouté après insertion dans le DOM
     slotBackground.appendChild(pokemonCard);
+
+    // Ajouter le listener pour le menu contextuel après insertion
+    const contextMenu = pokemonCard.querySelector('.pokemon-context-menu');
+    if (contextMenu) {
+      contextMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('🎯 Menu contextuel:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+        this.showPokemonContextMenu(pokemon, e);
+      });
+    }
 
     // Animation
     setTimeout(() => {
@@ -889,9 +964,6 @@ export class TeamUI {
 
     // Update type coverage
     this.updateTypeCoverage();
-    
-    // 🔄 MISE À JOUR DE L'ICÔNE D'ÉQUIPE
-    this.updateTeamIcon();
   }
 
   updateTypeCoverage() {
@@ -1017,11 +1089,6 @@ export class TeamUI {
     if (data.success) {
       this.showNotification(data.message || "Action completed successfully", "success");
       this.requestTeamData();
-      
-      // 🔄 ANIMATION POUR L'ICÔNE D'ÉQUIPE
-      if (this.teamIcon) {
-        this.teamIcon.onTeamUpdate({ type: 'action', action: data.action });
-      }
     } else {
       this.showNotification(data.message || "Action failed", "error");
     }
@@ -1038,9 +1105,6 @@ export class TeamUI {
         this.selectedPokemon = this.teamData[pokemonIndex];
         this.updateDetailView();
       }
-      
-      // 🔄 MISE À JOUR DE L'ICÔNE D'ÉQUIPE
-      this.updateTeamIcon();
     }
   }
 
@@ -1164,42 +1228,9 @@ export class TeamUI {
     console.log('⚔️ TeamUI détruit');
   }
 
-  // 🔄 NOUVELLE MÉTHODE POUR METTRE À JOUR L'ICÔNE D'ÉQUIPE
-  updateTeamIcon() {
-    if (!this.teamIcon) return;
-    
-    const teamCount = this.teamData.length;
-    const aliveCount = this.teamData.filter(p => p.currentHp > 0).length;
-    const canBattle = aliveCount > 0;
-    
-    // Mise à jour des statistiques de l'icône
-    this.teamIcon.updateTeamStats({
-      totalPokemon: teamCount,
-      alivePokemon: aliveCount,
-      canBattle: canBattle,
-      teamData: this.teamData
-    });
-    
-    console.log(`🔄 Team icon updated: ${teamCount}/6 (${aliveCount} alive)`);
-  }
-
-  // 🔗 MÉTHODE POUR LIER L'ICÔNE D'ÉQUIPE
-  setTeamIcon(teamIcon) {
-    this.teamIcon = teamIcon;
-    // Mise à jour immédiate si on a déjà des données
-    if (this.teamData.length > 0) {
-      this.updateTeamIcon();
-    }
-  }
-
   onPokemonCaught(pokemon) {
     this.showNotification(`${pokemon.name} added to team!`, 'success');
     this.requestTeamData();
-    
-    // 🔄 ANIMATION POUR L'ICÔNE D'ÉQUIPE
-    if (this.teamIcon) {
-      this.teamIcon.onPokemonAdded(pokemon);
-    }
   }
 
   onBattleStart() {
