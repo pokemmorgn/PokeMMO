@@ -189,30 +189,25 @@ export class StarterPokemonService {
   // MÉTHODES PRIVÉES
   // ================================================================================================
 
-  private async giveStarterToPlayer(username: string) {
-    // Utiliser giveStarterToPlayer si c'est un starter officiel (1, 4, 7)
-    const officialStarters = [1, 4, 7]; // Bulbasaur, Charmander, Squirtle
+private async giveStarterToPlayer(username: string) {
+  // Utiliser giveStarterToPlayer si c'est un starter officiel (1, 4, 7)
+  const officialStarters = [1, 4, 7]; // Bulbasaur, Charmander, Squirtle
 
-    if (officialStarters.includes(this.config.pokemonId)) {
-      // Optionnel : tu peux forcer le genre ici aussi si besoin
-      return await giveStarterToPlayer(username, this.config.pokemonId as 1 | 4 | 7);
-    } else {
-      // Sinon utiliser createCompletePokemon pour n'importe quel Pokémon
-      // Ici on force le genre conforme au modèle
-      const gender = toModelGender(); // <-- Par défaut, Genderless si tu ne précises pas
-
-// Le starter sera Genderless ou généré par createCompletePokemon (selon la logique interne de cette fonction)
-return await createCompletePokemon(username, {
-  pokemonId: this.config.pokemonId,
-  level: this.config.level,
-  nickname: this.config.nickname,
-  inTeam: true,
-  shiny: Math.random() < 0.001 // 0.1% de chance de shiny pour les starters de test
-  // PAS de "gender" ici si non supporté par la fonction !
-});
-
-    }
+  if (officialStarters.includes(this.config.pokemonId)) {
+    return await giveStarterToPlayer(username, this.config.pokemonId as 1 | 4 | 7);
+  } else {
+    // Utiliser createCompletePokemon pour n'importe quel Pokémon (genre géré en interne)
+    return await createCompletePokemon(username, {
+      pokemonId: this.config.pokemonId,
+      level: this.config.level,
+      nickname: this.config.nickname,
+      inTeam: true,
+      shiny: Math.random() < 0.001 // 0.1% de chance de shiny pour les starters de test
+      // PAS de "gender" ici
+    });
   }
+}
+
 
   // ================================================================================================
   // MÉTHODES UTILITAIRES
