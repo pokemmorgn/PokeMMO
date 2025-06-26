@@ -1366,20 +1366,19 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`✅ Joueur ${player.name} ajouté au state`);
       console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
 
-      // ✅ DONNER AUTOMATIQUEMENT UN STARTER AU JOUEUR SI NÉCESSAIRE
+// === APPEL AJOUT STARTER ===
 try {
   const starterResult = await starterService.ensurePlayerHasStarter(player.name);
   if (starterResult.given) {
     console.log(`🎁 Starter donné à ${player.name}: ${starterResult.pokemonName}`);
-    // Tu peux notifier le client ici si tu veux afficher un message
-    client.send("starterGranted", {
-      pokemonName: starterResult.pokemonName
-    });
+    client.send("starterGranted", { pokemonName: starterResult.pokemonName });
+  } else if (starterResult.needed === false && starterResult.given === false) {
+    // Ajoute ce log pour bien tracer le cas "déjà un starter"
+    console.log(`ℹ️ [StarterService] ${player.name} a déjà un Pokémon starter`);
   }
 } catch (e) {
-  console.error(`❌ Erreur StarterService pour ${player.name}:`, e);
+  console.error(`❌ [StarterService] Erreur sur ${player.name}:`, e);
 }
-
 
       // ✅ ÉTAPE 2: CONFIRMER IMMÉDIATEMENT au client avec ses données
       client.send("playerSpawned", {
