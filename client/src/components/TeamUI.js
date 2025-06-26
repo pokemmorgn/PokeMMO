@@ -1,8 +1,9 @@
 // client/src/components/TeamUI.js - Interface d'équipe Pokémon
 
 export class TeamUI {
-  constructor(gameRoom) {
+  constructor(gameRoom, teamIcon = null) {
     this.gameRoom = gameRoom;
+    this.teamIcon = teamIcon; // Référence à l'icône d'équipe
     this.isVisible = false;
     this.teamData = [];
     this.selectedPokemon = null;
@@ -408,6 +409,10 @@ export class TeamUI {
     this.teamData = data.team || [];
     this.refreshTeamDisplay();
     this.updateTeamStats();
+    
+    // 🔄 MISE À JOUR DE L'ICÔNE D'ÉQUIPE
+    this.updateTeamIcon();
+    
     console.log('⚔️ Données d\'équipe mises à jour:', this.teamData);
   }
 
@@ -884,6 +889,9 @@ export class TeamUI {
 
     // Update type coverage
     this.updateTypeCoverage();
+    
+    // 🔄 MISE À JOUR DE L'ICÔNE D'ÉQUIPE
+    this.updateTeamIcon();
   }
 
   updateTypeCoverage() {
@@ -1009,6 +1017,11 @@ export class TeamUI {
     if (data.success) {
       this.showNotification(data.message || "Action completed successfully", "success");
       this.requestTeamData();
+      
+      // 🔄 ANIMATION POUR L'ICÔNE D'ÉQUIPE
+      if (this.teamIcon) {
+        this.teamIcon.onTeamUpdate({ type: 'action', action: data.action });
+      }
     } else {
       this.showNotification(data.message || "Action failed", "error");
     }
@@ -1025,6 +1038,9 @@ export class TeamUI {
         this.selectedPokemon = this.teamData[pokemonIndex];
         this.updateDetailView();
       }
+      
+      // 🔄 MISE À JOUR DE L'ICÔNE D'ÉQUIPE
+      this.updateTeamIcon();
     }
   }
 
@@ -1148,9 +1164,42 @@ export class TeamUI {
     console.log('⚔️ TeamUI détruit');
   }
 
+  // 🔄 NOUVELLE MÉTHODE POUR METTRE À JOUR L'ICÔNE D'ÉQUIPE
+  updateTeamIcon() {
+    if (!this.teamIcon) return;
+    
+    const teamCount = this.teamData.length;
+    const aliveCount = this.teamData.filter(p => p.currentHp > 0).length;
+    const canBattle = aliveCount > 0;
+    
+    // Mise à jour des statistiques de l'icône
+    this.teamIcon.updateTeamStats({
+      totalPokemon: teamCount,
+      alivePokemon: aliveCount,
+      canBattle: canBattle,
+      teamData: this.teamData
+    });
+    
+    console.log(`🔄 Team icon updated: ${teamCount}/6 (${aliveCount} alive)`);
+  }
+
+  // 🔗 MÉTHODE POUR LIER L'ICÔNE D'ÉQUIPE
+  setTeamIcon(teamIcon) {
+    this.teamIcon = teamIcon;
+    // Mise à jour immédiate si on a déjà des données
+    if (this.teamData.length > 0) {
+      this.updateTeamIcon();
+    }
+  }
+
   onPokemonCaught(pokemon) {
     this.showNotification(`${pokemon.name} added to team!`, 'success');
     this.requestTeamData();
+    
+    // 🔄 ANIMATION POUR L'ICÔNE D'ÉQUIPE
+    if (this.teamIcon) {
+      this.teamIcon.onPokemonAdded(pokemon);
+    }
   }
 
   onBattleStart() {
