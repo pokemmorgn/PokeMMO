@@ -717,7 +717,7 @@
                 {
                  "height":98.5,
                  "id":70,
-                 "name":"celebitemple",
+                 "name":"teleport",
                  "properties":[
                         {
                          "name":"targetspawn",
