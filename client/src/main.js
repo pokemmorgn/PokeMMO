@@ -33,7 +33,8 @@ import { LavandiaShopScene } from './scenes/zones/LavandiaShopScene.js';
 //import { NoctherCave1Scene } from './scenes/zones/NoctherCave1Scene.js';
 //import { NoctherCave2Scene } from './scenes/zones/NoctherCave2Scene.js';
 //import { NoctherCave2BisScene } from './scenes/zones/NoctherCave2BisScene.js';
-//import { Road1HouseScene } from './scenes/zones/Road1HouseScene.js';
+import { Road1HouseScene } from './scenes/zones/Road1HouseScene.js';
+3import { Road1HiddenScene } from './scenes/zones/Road1HiddenScene.js';
 //import { Road2Scene } from './scenes/zones/Road2Scene.js';
 //import { Road3Scene } from './scenes/zones/Road3Scene.js';
 import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
@@ -189,7 +190,8 @@ const config = {
 
   // Road
   Road1Scene,
-  //Road1HouseScene,
+  Road1HouseScene,
+  Road1HiddenScene,
   //Road2Scene,
 //  Road3Scene,
 
