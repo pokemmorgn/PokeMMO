@@ -11,6 +11,29 @@ export interface StarterServiceConfig {
   logActivity: boolean;
 }
 
+/**
+ * Harmonise le format du genre selon le modèle Mongoose :
+ * - "Male", "Female", "Genderless"
+ * @param gender
+ */
+function toModelGender(gender: string | undefined): "Male" | "Female" | "Genderless" {
+  if (!gender) return "Genderless";
+  switch (gender.toLowerCase()) {
+    case "male":
+    case "m":
+      return "Male";
+    case "female":
+    case "f":
+      return "Female";
+    case "genderless":
+    case "none":
+    case "n":
+      return "Genderless";
+    default:
+      return "Genderless";
+  }
+}
+
 export class StarterPokemonService {
   private static instance: StarterPokemonService;
   private config: StarterServiceConfig;
@@ -37,43 +60,31 @@ export class StarterPokemonService {
   // CONFIGURATION
   // ================================================================================================
 
-  /**
-   * Configure le service
-   */
   public configure(config: Partial<StarterServiceConfig>): void {
     this.config = { ...this.config, ...config };
-    
+
     if (this.config.logActivity) {
       console.log(`🔧 [StarterService] Configuration mise à jour:`, this.config);
     }
   }
 
-  /**
-   * Active ou désactive le service
-   */
   public setEnabled(enabled: boolean): void {
     this.config.enabled = enabled;
-    
+
     if (this.config.logActivity) {
       console.log(`🔧 [StarterService] Service ${enabled ? 'ACTIVÉ' : 'DÉSACTIVÉ'}`);
     }
   }
 
-  /**
-   * Change le Pokémon starter par défaut
-   */
   public setStarterPokemon(pokemonId: number, level: number = 5): void {
     this.config.pokemonId = pokemonId;
     this.config.level = level;
-    
+
     if (this.config.logActivity) {
       console.log(`🔧 [StarterService] Nouveau starter: Pokémon #${pokemonId} niveau ${level}`);
     }
   }
 
-  /**
-   * Obtient la configuration actuelle
-   */
   public getConfig(): StarterServiceConfig {
     return { ...this.config };
   }
@@ -82,16 +93,12 @@ export class StarterPokemonService {
   // LOGIQUE PRINCIPALE
   // ================================================================================================
 
-  /**
-   * Vérifie si un joueur a besoin d'un starter et lui en donne un si nécessaire
-   */
   public async ensurePlayerHasStarter(username: string): Promise<{
     needed: boolean;
     given: boolean;
     pokemonName?: string;
     error?: string;
   }> {
-    // Si le service est désactivé, ne rien faire
     if (!this.config.enabled) {
       return { needed: false, given: false };
     }
@@ -101,7 +108,6 @@ export class StarterPokemonService {
         console.log(`🔍 [StarterService] Vérification starter pour ${username}...`);
       }
 
-      // Vérifier si le joueur existe
       const playerData = await PlayerData.findOne({ username });
       if (!playerData) {
         if (this.config.logActivity) {
@@ -110,9 +116,8 @@ export class StarterPokemonService {
         return { needed: false, given: false, error: "PlayerData introuvable" };
       }
 
-      // Vérifier si le joueur a déjà des Pokémon
       const pokemonCount = await OwnedPokemon.countDocuments({ owner: username });
-      
+
       if (pokemonCount > 0) {
         if (this.config.logActivity) {
           console.log(`ℹ️ [StarterService] ${username} a déjà ${pokemonCount} Pokémon`);
@@ -120,13 +125,12 @@ export class StarterPokemonService {
         return { needed: false, given: false };
       }
 
-      // Le joueur a besoin d'un starter !
       if (this.config.logActivity) {
         console.log(`🎁 [StarterService] ${username} a besoin d'un starter ! Création en cours...`);
       }
 
       const starter = await this.giveStarterToPlayer(username);
-      
+
       if (this.config.logActivity) {
         console.log(`✅ [StarterService] Starter donné à ${username}: ${starter.nickname || 'Pokémon'} #${starter.pokemonId} niveau ${starter.level}`);
       }
@@ -147,9 +151,6 @@ export class StarterPokemonService {
     }
   }
 
-  /**
-   * Force la création d'un starter pour un joueur (même s'il en a déjà)
-   */
   public async forceGiveStarter(username: string): Promise<{
     success: boolean;
     pokemonName?: string;
@@ -165,7 +166,7 @@ export class StarterPokemonService {
       }
 
       const starter = await this.giveStarterToPlayer(username);
-      
+
       if (this.config.logActivity) {
         console.log(`✅ [StarterService] Starter forcé donné à ${username}: ${starter.nickname || 'Pokémon'} #${starter.pokemonId}`);
       }
@@ -188,23 +189,25 @@ export class StarterPokemonService {
   // MÉTHODES PRIVÉES
   // ================================================================================================
 
-  /**
-   * Crée et donne un starter au joueur
-   */
   private async giveStarterToPlayer(username: string) {
     // Utiliser giveStarterToPlayer si c'est un starter officiel (1, 4, 7)
     const officialStarters = [1, 4, 7]; // Bulbasaur, Charmander, Squirtle
-    
+
     if (officialStarters.includes(this.config.pokemonId)) {
+      // Optionnel : tu peux forcer le genre ici aussi si besoin
       return await giveStarterToPlayer(username, this.config.pokemonId as 1 | 4 | 7);
     } else {
       // Sinon utiliser createCompletePokemon pour n'importe quel Pokémon
+      // Ici on force le genre conforme au modèle
+      const gender = toModelGender(); // <-- Par défaut, Genderless si tu ne précises pas
+
       return await createCompletePokemon(username, {
         pokemonId: this.config.pokemonId,
         level: this.config.level,
         nickname: this.config.nickname,
         inTeam: true,
-        shiny: Math.random() < 0.001 // 0.1% de chance de shiny pour les starters de test
+        shiny: Math.random() < 0.001, // 0.1% de chance de shiny pour les starters de test
+        gender // toujours "Male", "Female" ou "Genderless"
       });
     }
   }
@@ -213,9 +216,6 @@ export class StarterPokemonService {
   // MÉTHODES UTILITAIRES
   // ================================================================================================
 
-  /**
-   * Obtient des statistiques sur l'utilisation du service
-   */
   public async getStats(): Promise<{
     totalPlayersWithPokemon: number;
     totalPlayersWithoutPokemon: number;
@@ -244,23 +244,16 @@ export class StarterPokemonService {
     }
   }
 
-  /**
-   * Debug: affiche les informations du service
-   */
   public debug(): void {
     console.log(`🔍 [StarterService] === DEBUG ===`);
     console.log(`Configuration:`, this.config);
-    
+
     this.getStats().then(stats => {
       console.log(`Statistiques:`, stats);
       console.log(`===============================`);
     });
   }
 
-  /**
-   * Nettoie tous les starters (pour les tests)
-   * ⚠️ ATTENTION: Supprime tous les Pokémon starter !
-   */
   public async cleanupAllStarters(): Promise<number> {
     if (!this.config.enabled) {
       console.warn(`⚠️ [StarterService] Cleanup refusé: service désactivé`);
@@ -289,21 +282,12 @@ export class StarterPokemonService {
 // EXPORT DE CONVENANCE
 // ================================================================================================
 
-/**
- * Instance singleton du service
- */
 export const starterService = StarterPokemonService.getInstance();
 
-/**
- * Fonction de convenance pour WorldRoom
- */
 export async function ensurePlayerHasStarter(username: string) {
   return await starterService.ensurePlayerHasStarter(username);
 }
 
-/**
- * Fonctions de configuration rapide
- */
 export function enableStarterService(enabled: boolean = true) {
   starterService.setEnabled(enabled);
 }
