@@ -45,6 +45,20 @@
       "description": "Maison d'habitant du village",
       "fixedSpawn": { "x": 181.00, "y": 278.00 }
     },
+    "villagehouse2": {
+    "name": "villagehouse2",
+    "displayName": "Maison du village 2",
+    "minLevel": 1,
+    "description": "Deuxième maison d'habitant du village",
+    "fixedSpawn": { "x": 181.00, "y": 308.00 }
+    },
+    "villageflorist": {
+    "name": "villageflorist",
+    "displayName": "Fleuriste du village",
+    "minLevel": 1,
+    "description": "Boutique de fleurs et plantes du village",
+    "fixedSpawn": { "x": 250.00, "y": 200.00 }
+    },
     "road1": {
       "name": "road1",
       "displayName": "Route 1",
@@ -257,6 +271,54 @@
       },
       "enabled": true
     },
+    {
+  "id": "village_to_house2",
+  "name": "Village vers Maison 2",
+  "description": "Accès libre à la deuxième maison",
+  "fromZone": "village",
+  "toZone": "villagehouse2",
+  "conditions": {
+    "minLevel": 1,
+    "proximityCheck": { "enabled": true }
+  },
+  "enabled": true
+},
+{
+  "id": "house2_to_village",
+  "name": "Maison 2 vers Village",
+  "description": "Sortie libre de la deuxième maison",
+  "fromZone": "villagehouse2",
+  "toZone": "village",
+  "conditions": {
+    "minLevel": 1,
+    "proximityCheck": { "enabled": true }
+  },
+  "enabled": true
+},
+{
+  "id": "village_to_florist",
+  "name": "Village vers Fleuriste",
+  "description": "Accès libre au fleuriste",
+  "fromZone": "village",
+  "toZone": "villageflorist",
+  "conditions": {
+    "minLevel": 1,
+    "proximityCheck": { "enabled": true }
+  },
+  "enabled": true
+},
+{
+  "id": "florist_to_village",
+  "name": "Fleuriste vers Village",
+  "description": "Sortie libre du fleuriste",
+  "fromZone": "villageflorist",
+  "toZone": "village",
+  "conditions": {
+    "minLevel": 1,
+    "proximityCheck": { "enabled": true }
+  },
+  "enabled": true
+},
     {
       "id": "village_to_road1",
       "name": "Village vers Route 1",
