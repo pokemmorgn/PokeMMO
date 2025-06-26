@@ -1,4 +1,5 @@
-// server/src/services/PokemonService.ts - Version améliorée
+// server/src/services/PokemonService.ts - Version complète corrigée
+
 import { OwnedPokemon, IOwnedPokemon } from "../models/OwnedPokemon";
 import { PlayerData } from "../models/PlayerData";
 import { HydratedDocument } from "mongoose";
@@ -13,9 +14,6 @@ import naturesData from "../data/natures.json";
 
 // === UTILITAIRES DE GÉNÉRATION ===
 
-/**
- * Génère des IVs aléatoires (0-31)
- */
 export function randomIVs(): any {
   return {
     hp: Math.floor(Math.random() * 32),
@@ -27,31 +25,21 @@ export function randomIVs(): any {
   };
 }
 
-/**
- * Génère une nature aléatoire
- */
 export function randomNature(): string {
   const natures = Object.keys(naturesData);
   return natures[Math.floor(Math.random() * natures.length)];
 }
 
-/**
- * Détermine si un Pokémon est shiny
- */
 export function randomShiny(odds: number = 4096): boolean {
   return Math.random() < (1 / odds);
 }
 
-/**
- * Récupère les attaques de niveau 1 avec PP
- */
 async function getMovesWithPP(pokemonId: number, level: number = 1): Promise<Array<{
   moveId: string;
   currentPp: number;
   maxPp: number;
 }>> {
   const moves = await getStarterMoves(pokemonId);
-  
   return moves.slice(0, 4).map(moveId => ({
     moveId,
     currentPp: getMoveBasePP(moveId),
@@ -77,48 +65,23 @@ function toModelGender(gender: string | undefined): "Male" | "Female" | "Genderl
   }
 }
 
-/**
- * Récupère les PP de base d'une attaque
- */
 function getMoveBasePP(moveId: string): number {
-  // Valeurs par défaut basées sur le type d'attaque
   const defaultPP: { [key: string]: number } = {
-    normal: 35,
-    fighting: 25,
-    flying: 35,
-    poison: 35,
-    ground: 30,
-    rock: 25,
-    bug: 35,
-    ghost: 15,
-    steel: 25,
-    fire: 25,
-    water: 25,
-    grass: 25,
-    electric: 30,
-    psychic: 20,
-    ice: 25,
-    dragon: 15,
-    dark: 15,
-    fairy: 25
+    normal: 35, fighting: 25, flying: 35, poison: 35,
+    ground: 30, rock: 25, bug: 35, ghost: 15, steel: 25,
+    fire: 25, water: 25, grass: 25, electric: 30,
+    psychic: 20, ice: 25, dragon: 15, dark: 15, fairy: 25
   };
-  
   const moveType = movesIndex[moveId as keyof typeof movesIndex] || "normal";
   return defaultPP[moveType] || 30;
 }
 
-/**
- * Sélectionne une capacité pour le Pokémon
- */
 async function selectPokemonAbility(pokemonId: number): Promise<string> {
   const pokemonData = await getPokemonById(pokemonId);
   if (!pokemonData || !pokemonData.abilities.length) {
-    return "run_away"; // Capacité par défaut
+    return "run_away";
   }
-  
-  // 80% chance d'avoir une capacité normale, 20% pour la cachée
   const useHidden = Math.random() < 0.2 && pokemonData.hiddenAbility;
-  
   if (useHidden) {
     return pokemonData.hiddenAbility!;
   } else {
@@ -129,9 +92,6 @@ async function selectPokemonAbility(pokemonId: number): Promise<string> {
 
 // === FONCTIONS PRINCIPALES ===
 
-/**
- * Crée un Pokémon complet avec toutes les données de combat
- */
 export async function createCompletePokemon(
   username: string,
   options: {
@@ -143,6 +103,7 @@ export async function createCompletePokemon(
     inTeam?: boolean;
     ivs?: any;
     ability?: string;
+    gender?: string; // <-- Ajouté pour compat, mais pas obligatoire
   }
 ): Promise<HydratedDocument<IOwnedPokemon>> {
   const playerData = await PlayerData.findOne({ username });
@@ -156,10 +117,17 @@ export async function createCompletePokemon(
   const ivs = options.ivs || randomIVs();
   const nature = options.nature || randomNature();
   const isShiny = options.shiny !== undefined ? options.shiny : randomShiny();
-const genderRaw = await generateRandomGender(options.pokemonId);
-  console.log("[DEBUG createCompletePokemon GENDER]", { optionsGender: options.gender, genderRaw, gender });
 
-const gender = toModelGender(genderRaw);
+  // --- Gestion du genre
+  let genderRaw: string | undefined = undefined;
+  if (options.gender) {
+    genderRaw = options.gender; // Permet d'imposer un genre, si fourni (future compat)
+  } else {
+    genderRaw = await generateRandomGender(options.pokemonId);
+  }
+  const gender = toModelGender(genderRaw);
+  console.log("[DEBUG createCompletePokemon GENDER]", { genderRaw, gender });
+
   const ability = options.ability || await selectPokemonAbility(options.pokemonId);
   const moves = await getMovesWithPP(options.pokemonId, level);
 
@@ -225,44 +193,33 @@ const gender = toModelGender(genderRaw);
   return pokemonDoc;
 }
 
-/**
- * Calcule l'expérience nécessaire pour un niveau donné
- */
 function getExperienceForLevel(level: number): number {
-  // Formule "Medium Slow" (comme Bulbasaur)
   if (level === 1) return 0;
   return Math.floor((6 * Math.pow(level, 3)) / 5 - 15 * Math.pow(level, 2) + 100 * level - 140);
 }
 
-/**
- * Donne un starter au joueur avec stats optimisées
- */
 export async function giveStarterToPlayer(
   username: string,
-  starterId: 1 | 4 | 7 // Bulbasaur, Charmander, Squirtle
+  starterId: 1 | 4 | 7
 ): Promise<HydratedDocument<IOwnedPokemon>> {
-  // IVs légèrement améliorés pour les starters
   const starterIVs = {
-    hp: Math.floor(Math.random() * 16) + 15,      // 15-31
-    attack: Math.floor(Math.random() * 16) + 15,   // 15-31
-    defense: Math.floor(Math.random() * 16) + 15,  // 15-31
-    spAttack: Math.floor(Math.random() * 16) + 15, // 15-31
-    spDefense: Math.floor(Math.random() * 16) + 15,// 15-31
-    speed: Math.floor(Math.random() * 16) + 15,    // 15-31
+    hp: Math.floor(Math.random() * 16) + 15,
+    attack: Math.floor(Math.random() * 16) + 15,
+    defense: Math.floor(Math.random() * 16) + 15,
+    spAttack: Math.floor(Math.random() * 16) + 15,
+    spDefense: Math.floor(Math.random() * 16) + 15,
+    speed: Math.floor(Math.random() * 16) + 15,
   };
 
   return createCompletePokemon(username, {
     pokemonId: starterId,
     level: 5,
     inTeam: true,
-    shiny: randomShiny(8192), // Starters plus rares pour le shiny
+    shiny: randomShiny(8192),
     ivs: starterIVs
   });
 }
 
-/**
- * Génère un Pokémon sauvage pour un combat
- */
 export async function generateWildPokemon(
   pokemonId: number,
   level: number,
@@ -322,27 +279,20 @@ export async function generateWildPokemon(
   };
 }
 
-/**
- * Calcule les stats d'un Pokémon sauvage
- */
 function calculateWildPokemonStats(baseStats: any, level: number, ivs: any, nature: string): any {
   const natureData = naturesData[nature as keyof typeof naturesData];
   
   const calculateStat = (statName: string, baseStat: number, isHP: boolean = false): number => {
     const iv = ivs[statName] || 0;
-    
     if (isHP) {
       return Math.floor(((2 * baseStat + iv) * level) / 100) + level + 10;
     } else {
       let stat = Math.floor(((2 * baseStat + iv) * level) / 100) + 5;
-      
-      // Applique les modificateurs de nature
       if (natureData?.increased === statName) {
         stat = Math.floor(stat * 1.1);
       } else if (natureData?.decreased === statName) {
         stat = Math.floor(stat * 0.9);
       }
-      
       return stat;
     }
   };
@@ -357,9 +307,6 @@ function calculateWildPokemonStats(baseStats: any, level: number, ivs: any, natu
   };
 }
 
-/**
- * Fait évoluer un Pokémon
- */
 export async function evolvePokemon(
   pokemonId: string,
   newPokemonId: number
@@ -370,22 +317,14 @@ export async function evolvePokemon(
   const newPokemonData = await getPokemonById(newPokemonId);
   if (!newPokemonData) return null;
 
-  // Met à jour les données du Pokémon
   pokemon.pokemonId = newPokemonId;
-  
-  // Peut changer d'ability lors de l'évolution
   const newAbility = await selectPokemonAbility(newPokemonId);
   pokemon.ability = newAbility;
-
-  // Les stats seront recalculées automatiquement
   await pokemon.save();
 
   return pokemon;
 }
 
-/**
- * Fait gagner de l'expérience à un Pokémon
- */
 export async function gainExperience(
   pokemonId: string,
   expAmount: number
@@ -396,15 +335,12 @@ export async function gainExperience(
   const oldLevel = pokemon.level;
   pokemon.experience += expAmount;
 
-  // Calcule le nouveau niveau
   let newLevel = calculateLevelFromExp(pokemon.experience);
   if (newLevel > 100) newLevel = 100;
 
   const leveledUp = newLevel > oldLevel;
-  
   if (leveledUp) {
     pokemon.level = newLevel;
-    // Les stats seront recalculées automatiquement lors de la sauvegarde
   }
 
   await pokemon.save();
@@ -412,28 +348,18 @@ export async function gainExperience(
   return { leveledUp, newLevel: leveledUp ? newLevel : undefined };
 }
 
-/**
- * Calcule le niveau basé sur l'expérience
- */
 function calculateLevelFromExp(exp: number): number {
   if (exp === 0) return 1;
-  
-  // Formule inverse "Medium Slow"
   for (let level = 1; level <= 100; level++) {
     const expForLevel = getExperienceForLevel(level);
     const expForNextLevel = getExperienceForLevel(level + 1);
-    
     if (exp >= expForLevel && exp < expForNextLevel) {
       return level;
     }
   }
-  
   return 100;
 }
 
-/**
- * Soigne un Pokémon au Centre Pokémon
- */
 export async function healPokemonAtCenter(username: string): Promise<number> {
   const teamPokemon = await OwnedPokemon.find({
     owner: username,
@@ -441,23 +367,16 @@ export async function healPokemonAtCenter(username: string): Promise<number> {
   });
 
   let healedCount = 0;
-  
   for (const pokemon of teamPokemon) {
     if (pokemon.currentHp < pokemon.maxHp || pokemon.status !== 'normal') {
-      pokemon.heal(); // Soigne complètement
+      pokemon.heal();
       await pokemon.save();
       healedCount++;
     }
   }
-
   return healedCount;
 }
 
-// === EXPORTS POUR COMPATIBILITÉ ===
-
-/**
- * Version simplifiée pour compatibilité avec l'ancien code
- */
 export async function givePokemonToPlayer(
   username: string,
   options: {
@@ -467,6 +386,7 @@ export async function givePokemonToPlayer(
     shiny?: boolean;
     nickname?: string;
     inTeam?: boolean;
+    gender?: string;
   }
 ): Promise<HydratedDocument<IOwnedPokemon>> {
   return createCompletePokemon(username, options);
