@@ -9,16 +9,16 @@ export class TeamUI {
     this.draggedPokemon = null;
     this.currentView = 'overview'; // overview, details, moves
     this.pokemonLocalizations = {};
-    this.language = 'en';
-    this.init(); // OK : appel de init() (qui ne fait pas d'await direct)
+    this.language = 'en'; // ou "fr" 
+    this._initAsync(); // Voir ci-dessous
   }
 
+  async _initAsync() {
+  await this.loadPokemonLocalizations();
+  this.init(); // maintenant tu appelles l’init "UI" normale
+}
+  
   init() {
-    this.loadPokemonLocalizationsAndUI(); // Appelle la méthode async mais sans await ici
-  }
-
-  async loadPokemonLocalizationsAndUI() {
-    await this.loadPokemonLocalizations();
     this.createTeamInterface();
     this.setupEventListeners();
     this.setupServerListeners();
@@ -26,18 +26,24 @@ export class TeamUI {
   }
 
   async loadPokemonLocalizations() {
-    try {
-      const response = await fetch('/localization/pokemon/gen1/en.json');
-      this.pokemonLocalizations = await response.json();
-      console.log('✅ Pokémon loca chargée !', this.pokemonLocalizations);
-    } catch (err) {
-      console.error('❌ Erreur chargement loca Pokémon', err);
-      this.pokemonLocalizations = {};
-    }
+  try {
+    const response = await fetch('/localization/pokemon/gen1/en.json');
+    this.pokemonLocalizations = await response.json();
+    console.log('✅ Pokémon loca chargée !', this.pokemonLocalizations);
+  } catch (err) {
+    console.error('❌ Erreur chargement loca Pokémon', err);
+    this.pokemonLocalizations = {};
   }
 }
-
-
+  getPokemonName(pokemonId) {
+  // Si le JSON utilise des IDs sur 3 chiffres : "001", "025", etc.
+  const idStr = String(pokemonId).padStart(3, '0');
+  if (this.pokemonLocalizations && this.pokemonLocalizations[idStr]) {
+    return this.pokemonLocalizations[idStr].name || `#${pokemonId}`;
+  }
+  return `#${pokemonId}`;
+}
+  
   createTeamInterface() {
     const overlay = document.createElement('div');
     overlay.id = 'team-overlay';
@@ -852,20 +858,6 @@ export class TeamUI {
     document.head.appendChild(style);
   }
 
-  getPokemonName(pokemonId) {
-  // pokemonId arrive souvent comme int ou string, adapte selon ton JSON
-  const idStr = String(pokemonId).padStart(3, '0'); // "1" => "001"
-  if (
-    this.pokemonLocalizations &&
-    this.pokemonLocalizations[idStr] &&
-    this.pokemonLocalizations[idStr].name
-  ) {
-    return this.pokemonLocalizations[idStr].name;
-  }
-  return `#${pokemonId}`;
-}
-
-    
   setupEventListeners() {
     // Fermeture
     this.overlay.querySelector('.team-close-btn').addEventListener('click', () => {
@@ -1006,12 +998,12 @@ export class TeamUI {
     const typesDisplay = this.getTypesDisplay(pokemon.types);
 
     pokemonCard.innerHTML = `
-      <div class="pokemon-header">
-      <div class="pokemon-name" title="${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}">
-        ${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}
-      </div>
-        <div class="pokemon-level">Lv.${pokemon.level}</div>
-      </div>
+  <div class="pokemon-header">
+    <div class="pokemon-name" title="${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}">
+      ${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}
+    </div>
+    <div class="pokemon-level">Lv.${pokemon.level}</div>
+  </div>
       
       <div class="pokemon-sprite">
         <div class="pokemon-icon">${this.getPokemonIcon(pokemon.pokemonId)}</div>
@@ -1134,7 +1126,7 @@ export class TeamUI {
         <div class="pokemon-detail-header">
           <div class="pokemon-detail-icon">${this.getPokemonIcon(pokemon.pokemonId)}</div>
           <div class="pokemon-detail-info">
-            <h3>${pokemon.nickname || pokemon.name}</h3>
+           <h3>${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}</h3>
             <div class="pokemon-detail-subtitle">
               Level ${pokemon.level} • ${pokemon.types?.join('/') || 'Unknown Type'}
             </div>
