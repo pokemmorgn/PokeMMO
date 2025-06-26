@@ -1,5 +1,5 @@
-// client/src/integration/teamIntegration.js - VERSION CORRIGÉE IMPORT
-// ✅ Correction import pour correspondre au nouveau TeamManager
+// client/src/integration/teamIntegration.js - VERSION CORRIGÉE
+// ✅ Suppression de la récursion infinie
 
 import TeamManager from '../managers/TeamManager.js';
 
@@ -11,12 +11,17 @@ export function setupTeamSystem(gameRoom) {
   console.log('🔧 Configuration du système d\'équipe...');
   
   try {
-    // ✅ UTILISER LA FONCTION GLOBALE MAINTENANT
-    const teamManager = window.initTeamSystem(gameRoom);
+    // ✅ CRÉATION DIRECTE DU TEAMMANAGER (PAS DE RÉCURSION)
+    const teamManager = new TeamManager(null, gameRoom);
     
     if (!teamManager) {
       throw new Error('TeamManager non créé');
     }
+    
+    // Exposer globalement
+    window.teamSystem = teamManager;
+    window.TeamManager = teamManager;
+    window.teamManagerGlobal = teamManager;
     
     // Intégrer avec les systèmes existants
     integrateWithExistingSystems(teamManager);
