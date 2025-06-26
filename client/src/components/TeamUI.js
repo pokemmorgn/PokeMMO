@@ -8,27 +8,35 @@ export class TeamUI {
     this.selectedPokemon = null;
     this.draggedPokemon = null;
     this.currentView = 'overview'; // overview, details, moves
-    this.pokemonLocalizations = {}; // Ajouté !
-    this.language = 'en'; // ou détecte dynamiquement
-    this.init();
+    this.pokemonLocalizations = {};
+    this.language = 'en';
+    this.init(); // OK : appel de init() (qui ne fait pas d'await direct)
   }
 
   init() {
+    this.loadPokemonLocalizationsAndUI(); // Appelle la méthode async mais sans await ici
+  }
+
+  async loadPokemonLocalizationsAndUI() {
     await this.loadPokemonLocalizations();
     this.createTeamInterface();
     this.setupEventListeners();
     this.setupServerListeners();
     console.log('⚔️ Interface d\'équipe initialisée');
   }
+
   async loadPokemonLocalizations() {
-  try {
-    const response = await fetch('/localization/pokemon/gen1/en.json');
-    this.pokemonLocalizations = await response.json();
-    console.log('✅ Pokémon loca chargée !', this.pokemonLocalizations);
-  } catch (err) {
-    console.error('❌ Erreur chargement loca Pokémon', err);
-    this.pokemonLocalizations = {};
+    try {
+      const response = await fetch('/localization/pokemon/gen1/en.json');
+      this.pokemonLocalizations = await response.json();
+      console.log('✅ Pokémon loca chargée !', this.pokemonLocalizations);
+    } catch (err) {
+      console.error('❌ Erreur chargement loca Pokémon', err);
+      this.pokemonLocalizations = {};
+    }
   }
+}
+
 
   createTeamInterface() {
     const overlay = document.createElement('div');
