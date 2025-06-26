@@ -1,4 +1,4 @@
-// client/src/scenes/zones/BaseZoneScene.js - VERSION COMPLÈTE AVEC TEAM SÉCURISÉ
+// client/src/scenes/zones/BaseZoneScene.js - VERSION MISE À JOUR AVEC TEAM SÉCURISÉ
 // ✅ Utilise la connexion établie dans main.js et délègue les interactions à InteractionManager
 
 import { PlayerManager } from "../../game/PlayerManager.js";
@@ -13,8 +13,6 @@ import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
 import { CharacterManager } from "../../game/CharacterManager.js";
 import { zoneEnvironmentManager } from "../../managers/ZoneEnvironmentManager.js";
 import { WeatherEffects } from "../../effects/WeatherEffects.js";
-
-
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -175,268 +173,137 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   // ✅ NOUVELLE MÉTHODE: Initialisation sécurisée du système d'équipe
-initializeTeamSystemSafely() {
-  console.log(`⚔️ [${this.scene.key}] === INITIALISATION TEAM SYSTEM SIMPLE ===`);
+  initializeTeamSystemSafely() {
+    console.log(`⚔️ [${this.scene.key}] === INITIALISATION TEAM SYSTEM SIMPLE ===`);
 
-  // ✅ PROTECTION CONTRE LES TENTATIVES MULTIPLES
-  if (this.teamSystemInitialized) {
-    console.log(`ℹ️ [${this.scene.key}] Système d'équipe déjà initialisé`);
-    return;
-  }
+    // ✅ PROTECTION CONTRE LES TENTATIVES MULTIPLES
+    if (this.teamSystemInitialized) {
+      console.log(`ℹ️ [${this.scene.key}] Système d'équipe déjà initialisé`);
+      return;
+    }
 
-  if (this.teamInitializationAttempts >= this.maxTeamInitAttempts) {
-    console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation team - abandon`);
-    return;
-  }
+    if (this.teamInitializationAttempts >= this.maxTeamInitAttempts) {
+      console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation team - abandon`);
+      return;
+    }
 
-  this.teamInitializationAttempts++;
-  console.log(`⚔️ [${this.scene.key}] Tentative ${this.teamInitializationAttempts}/${this.maxTeamInitAttempts}`);
+    this.teamInitializationAttempts++;
+    console.log(`⚔️ [${this.scene.key}] Tentative ${this.teamInitializationAttempts}/${this.maxTeamInitAttempts}`);
 
-  // ✅ VÉRIFICATION SIMPLE: Juste vérifier que la gameRoom existe (comme inventaire)
-  if (!this.networkManager?.room) {
-    console.warn(`⚠️ [${this.scene.key}] Pas de room - retry dans 2s`);
-    setTimeout(() => this.initializeTeamSystemSafely(), 2000);
-    return;
-  }
+    // ✅ VÉRIFICATION SIMPLE: Juste vérifier que la gameRoom existe (comme inventaire)
+    if (!this.networkManager?.room) {
+      console.warn(`⚠️ [${this.scene.key}] Pas de room - retry dans 2s`);
+      setTimeout(() => this.initializeTeamSystemSafely(), 2000);
+      return;
+    }
 
-  // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ GLOBALEMENT
-  if (window.TeamManager && window.TeamManager.isInitialized) {
-    console.log(`ℹ️ [${this.scene.key}] TeamManager global déjà initialisé - réutilisation`);
-    this.teamSystemInitialized = true;
-    return;
-  }
+    // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ GLOBALEMENT
+    if (window.TeamManager && window.TeamManager.isInitialized) {
+      console.log(`ℹ️ [${this.scene.key}] TeamManager global déjà initialisé - réutilisation`);
+      this.teamSystemInitialized = true;
+      return;
+    }
 
-  try {
-    console.log(`🚀 [${this.scene.key}] Initialisation team system simple...`);
-    
-    // ✅ UTILISER LA FONCTION DEPUIS MAIN.JS (comme pour inventaire/quêtes)
-    if (typeof window.initTeamSystem === 'function') {
-      console.log(`🎯 [${this.scene.key}] Appel window.initTeamSystem avec room...`);
+    try {
+      console.log(`🚀 [${this.scene.key}] Initialisation team system simple...`);
       
-      const teamManager = window.initTeamSystem(this.networkManager.room);
-      
-      if (teamManager) {
-        console.log(`✅ [${this.scene.key}] Système d'équipe initialisé avec succès!`);
-        this.teamSystemInitialized = true;
+      // ✅ UTILISER LA FONCTION DEPUIS MAIN.JS (comme pour inventaire/quêtes)
+      if (typeof window.initTeamSystem === 'function') {
+        console.log(`🎯 [${this.scene.key}] Appel window.initTeamSystem avec room...`);
         
-        // ✅ ÉVÉNEMENT POUR SIGNALER QUE C'EST PRÊT
-        if (typeof window.onSystemInitialized === 'function') {
-          window.onSystemInitialized('team');
+        const teamManager = window.initTeamSystem(this.networkManager.room);
+        
+        if (teamManager) {
+          console.log(`✅ [${this.scene.key}] Système d'équipe initialisé avec succès!`);
+          this.teamSystemInitialized = true;
+          
+          // ✅ ÉVÉNEMENT POUR SIGNALER QUE C'EST PRÊT
+          if (typeof window.onSystemInitialized === 'function') {
+            window.onSystemInitialized('team');
+          }
+          
+          // ✅ TEST SIMPLE après un délai
+          setTimeout(() => {
+            console.log(`✅ [${this.scene.key}] Test: TeamManager exists:`, !!window.TeamManager);
+            console.log(`✅ [${this.scene.key}] Test: TeamIcon exists:`, !!document.querySelector('#team-icon'));
+          }, 1000);
+          
+        } else {
+          console.error(`❌ [${this.scene.key}] window.initTeamSystem a retourné null`);
+          this.handleTeamInitFailure();
         }
-        
-        // ✅ TEST SIMPLE après un délai
-        setTimeout(() => {
-          console.log(`✅ [${this.scene.key}] Test: TeamManager exists:`, !!window.TeamManager);
-          console.log(`✅ [${this.scene.key}] Test: TeamIcon exists:`, !!document.querySelector('#team-icon'));
-        }, 1000);
         
       } else {
-        console.error(`❌ [${this.scene.key}] window.initTeamSystem a retourné null`);
+        console.error(`❌ [${this.scene.key}] window.initTeamSystem n'existe pas!`);
         this.handleTeamInitFailure();
       }
-      
-    } else {
-      console.error(`❌ [${this.scene.key}] window.initTeamSystem n'existe pas!`);
+
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur initialisation team:`, error);
       this.handleTeamInitFailure();
     }
-
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur initialisation team:`, error);
-    this.handleTeamInitFailure();
   }
-}
 
-
-// ✅ NOUVELLE MÉTHODE: Gestion des échecs d'initialisation
-handleTeamInitFailure() {
-  if (this.teamInitializationAttempts < this.maxTeamInitAttempts) {
-    console.log(`🔄 [${this.scene.key}] Retry initialisation team dans 5s... (${this.teamInitializationAttempts}/${this.maxTeamInitAttempts})`);
-    setTimeout(() => this.initializeTeamSystemSafely(), 5000);
-  } else {
-    console.error(`❌ [${this.scene.key}] Échec définitif d'initialisation du système d'équipe`);
-    // Signaler l'échec mais ne pas bloquer le jeu
-    if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification('Système d\'équipe indisponible', 'warning', {
-        duration: 5000,
-        position: 'top-center'
-      });
-    }
-  }
-}
-
-// ✅ NOUVELLE MÉTHODE: Test du système d'équipe
-testTeamSystemWorking() {
-  console.log(`🧪 [${this.scene.key}] Test fonctionnement système d'équipe...`);
-  
-  try {
-    // Vérifier l'existence des composants
-    const hasTeamManager = !!window.TeamManager || !!window.teamManagerGlobal;
-    const hasTeamIcon = !!document.querySelector('#team-icon');
-    const managerCanInteract = window.TeamManager ? window.TeamManager.canInteract() : false;
-    
-    console.log(`📊 Test résultats:`, {
-      hasTeamManager,
-      hasTeamIcon,
-      managerCanInteract,
-      globalInitialized: window.TeamManager?.isInitialized || false
-    });
-    
-    if (hasTeamManager && hasTeamIcon) {
-      console.log(`✅ [${this.scene.key}] Système d'équipe fonctionnel!`);
-      
-      // Test des données d'équipe
-      if (window.TeamManager && typeof window.TeamManager.requestTeamData === 'function') {
-        setTimeout(() => {
-          console.log(`📡 [${this.scene.key}] Test demande données équipe...`);
-          window.TeamManager.requestTeamData();
-        }, 2000);
-      }
-      
+  // ✅ NOUVELLE MÉTHODE: Gestion des échecs d'initialisation
+  handleTeamInitFailure() {
+    if (this.teamInitializationAttempts < this.maxTeamInitAttempts) {
+      console.log(`🔄 [${this.scene.key}] Retry initialisation team dans 5s... (${this.teamInitializationAttempts}/${this.maxTeamInitAttempts})`);
+      setTimeout(() => this.initializeTeamSystemSafely(), 5000);
     } else {
-      console.warn(`⚠️ [${this.scene.key}] Système d'équipe partiellement fonctionnel:`, {
-        hasTeamManager,
-        hasTeamIcon
-      });
+      console.error(`❌ [${this.scene.key}] Échec définitif d'initialisation du système d'équipe`);
+      // Signaler l'échec mais ne pas bloquer le jeu
+      if (typeof window.showGameNotification === 'function') {
+        window.showGameNotification('Système d\'équipe indisponible', 'warning', {
+          duration: 5000,
+          position: 'top-center'
+        });
+      }
+    }
+  }
+
+  initializeTimeWeatherSystem() {
+    if (!this.networkManager) {
+      console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
+      return;
+    }
+
+    try {
+      console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO ===`);
+
+      // ✅ ÉTAPE 1: Initialiser l'environnement AVANT le DayNightWeatherManager
+      if (!this.environmentInitialized) {
+        this.initializeZoneEnvironment();
+      }
+
+      // ✅ ÉTAPE 2: Créer le DayNightWeatherManager
+      this.dayNightWeatherManager = new DayNightWeatherManager(this);
+      this.dayNightWeatherManager.initialize(this.networkManager);
+
+      console.log(`✅ [${this.scene.key}] Système temps/météo initialisé`);
+
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Initialiser l'environnement de la zone
+  initializeZoneEnvironment() {
+    const zoneName = this.normalizeZoneName(this.scene.key);
+    this.currentEnvironment = zoneEnvironmentManager.getZoneEnvironment(zoneName);
+    
+    console.log(`🌍 [${this.scene.key}] Environnement détecté: ${this.currentEnvironment}`);
+    
+    // ✅ NOUVEAU: Synchronisation immédiate si le système existe déjà
+    if (this.dayNightWeatherManager) {
+      this.dayNightWeatherManager.onZoneChanged(zoneName);
     }
     
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur test système d'équipe:`, error);
-  }
-}
-
-  // ✅ NOUVELLE MÉTHODE: Surveillance de la connexion pour TeamManager
-  setupTeamConnectionMonitoring() {
-    if (!this.networkManager?.room) return;
-
-    console.log(`🔍 [${this.scene.key}] Setup monitoring connexion pour TeamManager...`);
-
-    // ✅ SURVEILLER LES DÉCONNEXIONS
-    this.networkManager.room.onLeave((code) => {
-      console.warn(`⚠️ [${this.scene.key}] Connexion fermée (code: ${code}) - nettoyage team`);
-      
-      if (window.TeamManager) {
-        console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager suite à déconnexion`);
-        if (typeof window.TeamManager.gracefulShutdown === 'function') {
-          window.TeamManager.gracefulShutdown();
-        }
-      }
-      
-      this.teamSystemInitialized = false;
-    });
-
-    // ✅ SURVEILLER LES ERREURS DE CONNEXION
-    this.networkManager.room.onError((code, message) => {
-      console.error(`❌ [${this.scene.key}] Erreur connexion (${code}): ${message}`);
-      
-      if (window.TeamManager) {
-        console.log(`🛑 [${this.scene.key}] Arrêt TeamManager suite à erreur connexion`);
-        if (typeof window.TeamManager.gracefulShutdown === 'function') {
-          window.TeamManager.gracefulShutdown();
-        }
-      }
-      
-      this.teamSystemInitialized = false;
-    });
-
-    console.log(`✅ [${this.scene.key}] Monitoring connexion TeamManager configuré`);
+    // Debug des informations d'environnement
+    zoneEnvironmentManager.debugZoneEnvironment(zoneName);
+    
+    this.environmentInitialized = true;
   }
 
-initializeTimeWeatherSystem() {
-  if (!this.networkManager) {
-    console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
-    return;
-  }
-
-  try {
-    console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO RAPIDE ===`);
-
-    // ✅ ÉTAPE 1: Initialiser l'environnement AVANT le DayNightWeatherManager
-    if (!this.environmentInitialized) {
-      this.initializeZoneEnvironment();
-    }
-
-    // ✅ ÉTAPE 2: Créer le DayNightWeatherManager amélioré
-    this.dayNightWeatherManager = new DayNightWeatherManager(this);
-    this.dayNightWeatherManager.initialize(this.networkManager);
-
-    // ✅ NOUVEAU: Synchronisation rapide immédiate
-    setTimeout(() => {
-      this.dayNightWeatherManager.forceFastSync();
-    }, 200); // 200ms au lieu de 3000ms
-
-    console.log(`✅ [${this.scene.key}] Système temps/météo avec sync rapide initialisé`);
-
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
-  }
-}
-
-// ✅ NOUVELLE MÉTHODE: Test des effets météo
-testWeatherEffects() {
-  console.log(`🧪 [${this.scene.key}] Test effets météo de la scène...`);
-  
-  if (!this.weatherInitialized || !this.dayNightWeatherManager) {
-    console.warn(`⚠️ [${this.scene.key}] Système météo pas initialisé`);
-    return;
-  }
-
-  // Test cycle météo automatique
-  this.dayNightWeatherManager.testWeatherEffects();
-}
-
-// ✅ NOUVELLE MÉTHODE: Forcer un effet météo
-forceWeather(weatherType, intensity = 1.0) {
-  console.log(`🌦️ [${this.scene.key}] Force météo: ${weatherType}`);
-  
-  if (this.dayNightWeatherManager) {
-    this.dayNightWeatherManager.forceWeatherEffect(weatherType, intensity);
-  }
-}
-
-// ✅ NOUVELLE MÉTHODE: Configurer l'angle de pluie
-setRainAngle(angle) {
-  console.log(`🌧️ [${this.scene.key}] Configure angle pluie: ${angle}°`);
-  
-  if (this.dayNightWeatherManager) {
-    this.dayNightWeatherManager.setRainAngle(angle);
-  }
-}
-
-// ✅ NOUVELLE MÉTHODE: Debug météo de la scène
-debugWeather() {
-  console.log(`🔍 [${this.scene.key}] === DEBUG MÉTÉO SCÈNE ===`);
-  
-  if (this.dayNightWeatherManager) {
-    this.dayNightWeatherManager.debugEnvironment();
-  } else {
-    console.warn(`⚠️ [${this.scene.key}] DayNightWeatherManager non initialisé`);
-  }
-  
-  if (this.weatherEffects) {
-    console.log(`🎨 [${this.scene.key}] Debug effets visuels:`);
-    this.weatherEffects.debug();
-  } else {
-    console.warn(`⚠️ [${this.scene.key}] WeatherEffects non disponible`);
-  }
-}
-
-// ✅ NOUVELLE MÉTHODE: Initialiser l'environnement de la zone
-initializeZoneEnvironment() {
-  const zoneName = this.normalizeZoneName(this.scene.key);
-  this.currentEnvironment = zoneEnvironmentManager.getZoneEnvironment(zoneName);
-  
-  console.log(`🌍 [${this.scene.key}] Environnement détecté: ${this.currentEnvironment}`);
-  
-  // ✅ NOUVEAU: Synchronisation immédiate si le système existe déjà
-  if (this.dayNightWeatherManager) {
-    this.dayNightWeatherManager.onZoneChanged(zoneName);
-  }
-  
-  // Debug des informations d'environnement
-  zoneEnvironmentManager.debugZoneEnvironment(zoneName);
-  
-  this.environmentInitialized = true;
-}
   // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
   initializeInteractionManager() {
     if (!this.networkManager) {
@@ -472,7 +339,6 @@ initializeZoneEnvironment() {
   onPlayerReady(player) {
     // Hook vide par défaut. Sera utilisé si défini dans une scène spécifique.
     console.log(`[${this.scene.key}] ✅ onPlayerReady appelé pour ${player.sessionId}`);
-    console.log(`[${this.scene.key}] ✅ Hook onPlayerReady déclenché pour`, player.sessionId);
   }
   
   initPlayerSpawnFromSceneData() {
@@ -514,7 +380,7 @@ initializeZoneEnvironment() {
     console.log(`📤 [${this.scene.key}] Demande de zone envoyée au serveur`);
   }
 
-  // ✅ MÉTHODE MODIFIÉE: Setup des handlers réseau avec monitoring team
+  // ✅ MÉTHODE INCHANGÉE: Setup des handlers réseau
   setupNetworkHandlers() {
     if (!this.networkManager) return;
 
@@ -603,21 +469,7 @@ initializeZoneEnvironment() {
 
     if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
 
-    console.warn('[DEBUG] SCENE.START called', {
-      fromScene: this.scene.key,
-      toScene: correctScene,
-      transitionData
-    });
-    console.trace();
-
     this.scene.start(correctScene, transitionData);
-
-    setTimeout(() => {
-      console.warn('[DEBUG] APRES SCENE.START', {
-        activeScenes: Object.keys(this.scene.manager.keys).filter(k => this.scene.manager.isActive(k)),
-        currentScene: this.scene.key
-      });
-    }, 500);
   }
 
   // ✅ MÉTHODE INCHANGÉE: Synchronisation sessionId
@@ -664,8 +516,6 @@ initializeZoneEnvironment() {
   // ✅ MÉTHODE INCHANGÉE: Setup des handlers WorldRoom
   setupWorldRoomHandlers() {
     console.log(`📡 [${this.scene.key}] === SETUP WORLD ROOM HANDLERS ===`);
-    console.log(`📊 NetworkManager existe: ${!!this.networkManager}`);
-    console.log(`🤖 NpcManager existe: ${!!this.npcManager}`);
 
     this.networkManager.onZoneData((data) => {
       console.log(`🗺️ [${this.scene.key}] Zone data reçue:`, data);
@@ -675,7 +525,6 @@ initializeZoneEnvironment() {
     this.networkManager.onNpcList((npcs) => {
       console.log(`🤖 [${this.scene.key}] === HANDLER NPCS APPELÉ ===`);
       console.log(`📊 NPCs reçus: ${npcs.length}`);
-      console.log(`🎭 NpcManager existe: ${!!this.npcManager}`);
       
       if (!this.npcManager) {
         console.error(`❌ [${this.scene.key}] NpcManager MANQUANT !`);
@@ -689,14 +538,12 @@ initializeZoneEnvironment() {
       
       console.log(`✅ [${this.scene.key}] APPEL spawnNpcs() avec ${npcs.length} NPCs`);
       this.npcManager.spawnNpcs(npcs);
-      console.log(`✅ [${this.scene.key}] spawnNpcs() terminé`);
     });
 
     this.networkManager.onTransitionSuccess((result) => {
       console.log(`✅ [${this.scene.key}] Transition réussie:`, result);
       
       const targetScene = this.mapZoneToScene(result.currentZone || result.zone || result.targetZone);
-      console.log(`[Transition] Scene active: ${this.scene.key} | Scene cible: ${targetScene}`);
       
       if (this.scene.key !== targetScene) {
         console.warn(`[Transition] Redirection auto vers ${targetScene}`);
@@ -709,17 +556,6 @@ initializeZoneEnvironment() {
           spawnY: result.position?.y,
           preservePlayer: true
         });
-      } else {
-        if (typeof this.positionPlayer === "function" && result.position) {
-          const myPlayer = this.playerManager?.getMyPlayer();
-          if (myPlayer) {
-            myPlayer.x = result.position.x;
-            myPlayer.y = result.position.y;
-            myPlayer.targetX = result.position.x;
-            myPlayer.targetY = result.position.y;
-            this.cameraManager?.snapToPlayer?.();
-          }
-        }
       }
     });
 
@@ -740,35 +576,27 @@ initializeZoneEnvironment() {
       
       if (this.npcManager && data.questStatuses && data.questStatuses.length > 0) {
         console.log(`✅ [${this.scene.key}] Mise à jour des indicateurs de quête`);
-        
-        data.questStatuses.forEach(status => {
-          console.log(`  🔸 NPC ${status.npcId}: ${status.type}`);
-        });
-        
         this.npcManager.updateQuestIndicators(data.questStatuses);
-      } else {
-        console.log(`⚠️ [${this.scene.key}] Pas d'indicateurs à mettre à jour`);
       }
     });
-    
-    console.log(`✅ [${this.scene.key}] Handler quest statuses configuré`);
   }
   
-  // ✅ MÉTHODE INCHANGÉE: Setup des handlers existants
+  // ✅ MÉTHODE MODIFIÉE: Setup des handlers existants avec nettoyage team
   setupExistingHandlers() {
     this.networkManager.onSnap((data) => {
       if (this.playerManager) {
         this.playerManager.snapMyPlayerTo(data.x, data.y);
       }
     });
+    
     this.networkManager.onDisconnect(() => {
       this.updateInfoText(`PokeWorld MMO\n${this.scene.key}\nDisconnected from WorldRoom`);
       
       // ✅ NOUVEAU: Nettoyer le team system si déconnexion
       if (window.TeamManager) {
-        console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager suite à déconnexion globale`);
-        if (typeof window.TeamManager.gracefulShutdown === 'function') {
-          window.TeamManager.gracefulShutdown();
+        console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager suite à déconnexion`);
+        if (typeof window.TeamManager.destroy === 'function') {
+          window.TeamManager.destroy();
         }
       }
       this.teamSystemInitialized = false;
@@ -850,13 +678,12 @@ initializeZoneEnvironment() {
         this.myPlayerReady = true;
         console.log(`✅ [${this.scene.key}] Mon joueur est prêt:`, myPlayer.x, myPlayer.y);
 
-        // ✅ SOLUTION SIMPLE: Juste un délai plus long
         if (this.cameraManager) {
           this.cameraManager.followPlayer(myPlayer);
           this.cameraFollowing = true;
         } else {
           console.warn(`⚠️ [${this.scene.key}] CameraManager pas encore prêt, attente...`);
-          this.time.delayedCall(500, () => { // ✅ 500ms au lieu de 100ms
+          this.time.delayedCall(500, () => {
             if (this.cameraManager) {
               console.log(`🔄 [${this.scene.key}] CameraManager prêt, activation caméra`);
               this.cameraManager.followPlayer(myPlayer);
@@ -895,23 +722,59 @@ initializeZoneEnvironment() {
     }
   }
 
-  // ✅ MÉTHODE INCHANGÉE: Position du joueur avec données de transition
-// Dans BaseZoneScene.js, remplace la méthode positionPlayer() par cette version corrigée :
-
-positionPlayer(player) {
-  const initData = this.scene.settings.data;
-  
-  console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
-  console.log(`📊 InitData:`, initData);
-  console.log(`👤 Position actuelle du joueur: (${player.x}, ${player.y})`);
-  
-  // ✅ PRIORITÉ 1: Si le joueur a déjà une position valide du serveur, LA CONSERVER !
-  if (player.x !== undefined && player.y !== undefined && 
-      player.x !== 0 && player.y !== 0) {
-    console.log(`📍 [${this.scene.key}] Position serveur conservée: (${player.x}, ${player.y})`);
-    console.log(`🔥 POSITION SERVER PRIORITAIRE - Ignorer toute autre logique`);
+  // ✅ MÉTHODE CORRIGÉE: Position du joueur avec priorité serveur
+  positionPlayer(player) {
+    const initData = this.scene.settings.data;
     
-    // Juste s'assurer que le joueur est visible et actif
+    console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
+    console.log(`📊 InitData:`, initData);
+    console.log(`👤 Position actuelle du joueur: (${player.x}, ${player.y})`);
+    
+    // ✅ PRIORITÉ 1: Si le joueur a déjà une position valide du serveur, LA CONSERVER !
+    if (player.x !== undefined && player.y !== undefined && 
+        player.x !== 0 && player.y !== 0) {
+      console.log(`📍 [${this.scene.key}] Position serveur conservée: (${player.x}, ${player.y})`);
+      
+      // Juste s'assurer que le joueur est visible et actif
+      player.setVisible(true);
+      player.setActive(true);
+      player.setDepth(5);
+
+      if (player.indicator) {
+        player.indicator.x = player.x;
+        player.indicator.y = player.y - 32;
+        player.indicator.setVisible(true);
+      }
+
+      // Envoyer la position au serveur pour confirmation
+      if (this.networkManager && this.networkManager.isConnected) {
+        this.networkManager.sendMove(player.x, player.y, 'down', false);
+      }
+
+      this.onPlayerPositioned(player, initData);
+      return; // ✅ SORTIR ICI - Ne pas toucher à la position !
+    }
+    
+    // ✅ PRIORITÉ 2: Transition avec données explicites
+    if (initData?.fromTransition && initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+      console.log(`📍 [${this.scene.key}] Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
+      player.x = initData.spawnX;
+      player.y = initData.spawnY;
+      player.targetX = initData.spawnX;
+      player.targetY = initData.spawnY;
+    } 
+    // ✅ PRIORITÉ 3: Fallback seulement si vraiment aucune position
+    else {
+      console.warn(`⚠️ [${this.scene.key}] FALLBACK - Aucune position valide trouvée`);
+      const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+      console.log(`📍 [${this.scene.key}] Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
+      player.x = defaultPos.x;
+      player.y = defaultPos.y;
+      player.targetX = defaultPos.x;
+      player.targetY = defaultPos.y;
+    }
+
+    // Setup final du joueur
     player.setVisible(true);
     player.setActive(true);
     player.setDepth(5);
@@ -922,51 +785,12 @@ positionPlayer(player) {
       player.indicator.setVisible(true);
     }
 
-    // Envoyer la position au serveur pour confirmation
     if (this.networkManager && this.networkManager.isConnected) {
       this.networkManager.sendMove(player.x, player.y, 'down', false);
     }
 
     this.onPlayerPositioned(player, initData);
-    return; // ✅ SORTIR ICI - Ne pas toucher à la position !
   }
-  
-  // ✅ PRIORITÉ 2: Transition avec données explicites
-  if (initData?.fromTransition && initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-    console.log(`📍 [${this.scene.key}] Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
-    player.x = initData.spawnX;
-    player.y = initData.spawnY;
-    player.targetX = initData.spawnX;
-    player.targetY = initData.spawnY;
-  } 
-  // ✅ PRIORITÉ 3: Fallback seulement si vraiment aucune position
-  else {
-    console.warn(`⚠️ [${this.scene.key}] FALLBACK - Aucune position valide trouvée`);
-    const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-    console.log(`📍 [${this.scene.key}] Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
-    player.x = defaultPos.x;
-    player.y = defaultPos.y;
-    player.targetX = defaultPos.x;
-    player.targetY = defaultPos.y;
-  }
-
-  // Setup final du joueur
-  player.setVisible(true);
-  player.setActive(true);
-  player.setDepth(5);
-
-  if (player.indicator) {
-    player.indicator.x = player.x;
-    player.indicator.y = player.y - 32;
-    player.indicator.setVisible(true);
-  }
-
-  if (this.networkManager && this.networkManager.isConnected) {
-    this.networkManager.sendMove(player.x, player.y, 'down', false);
-  }
-
-  this.onPlayerPositioned(player, initData);
-}
 
   // ✅ MÉTHODE INCHANGÉE: Affichage d'état d'erreur
   showErrorState(message) {
@@ -1020,7 +844,7 @@ positionPlayer(player) {
     return this.scene && this.scene.key === expectedScene && this.scene.isActive();
   }
   
-  // ✅ MÉTHODE MODIFIÉE: Cleanup avec InteractionManager et TeamManager
+  // ✅ MÉTHODE MODIFIÉE: Cleanup avec TeamManager conditionnel
   cleanup() {
     TransitionIntegration.cleanupTransitions(this);
 
@@ -1035,13 +859,7 @@ positionPlayer(player) {
       this.networkManager.room.removeAllListeners("questStatuses");
       console.log(`[${this.scene.key}] 🎧 Nettoyage des écouteurs réseau`);
     }
-  if (this.dayNightWeatherManager) {
-    this.dayNightWeatherManager.destroy();
-    this.dayNightWeatherManager = null;
-  }
-  
-  this.weatherEffects = null;
-  this.weatherInitialized = false;
+
     console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
 
     const isTransition = this.networkManager && this.networkManager.isTransitionActive;
@@ -1065,8 +883,8 @@ positionPlayer(player) {
       // Ne nettoyer que si on n'est pas en transition
       if (!isTransition) {
         console.log(`🧹 [${this.scene.key}] Nettoyage TeamManager (non-transition)`);
-        if (typeof window.TeamManager.gracefulShutdown === 'function') {
-          window.TeamManager.gracefulShutdown();
+        if (typeof window.TeamManager.destroy === 'function') {
+          window.TeamManager.destroy();
         }
         this.teamSystemInitialized = false;
       } else {
@@ -1178,15 +996,12 @@ positionPlayer(player) {
 
   mapSceneToZone(sceneName) {
     const mapping = {
-      // Zones existantes
       'BeachScene': 'beach',
       'VillageScene': 'village',
       'VillageLabScene': 'villagelab',
       'Road1Scene': 'road1',
       'VillageHouse1Scene': 'villagehouse1',
       'LavandiaScene': 'lavandia',
-      
-      // Zones Lavandia
       'LavandiaAnalysisScene': 'lavandiaanalysis',
       'LavandiaBossRoomScene': 'lavandiabossroom',
       'LavandiaCelebiTempleScene': 'lavandiacelebitemple',
@@ -1204,17 +1019,11 @@ positionPlayer(player) {
       'LavandiaHouse9Scene': 'lavandiahouse9',
       'LavandiaResearchLabScene': 'lavandiaresearchlab',
       'LavandiaShopScene': 'lavandiashop',
-      
-      // Zones Village supplémentaires
       'VillageFloristScene': 'villageflorist',
       'VillageHouse2Scene': 'villagehouse2',
-      
-      // Zones Road
       'Road1HouseScene': 'road1house',
       'Road2Scene': 'road2',
       'Road3Scene': 'road3',
-      
-      // Zones Nocther Cave
       'NoctherCave1Scene': 'nocthercave1',
       'NoctherCave2Scene': 'nocthercave2',
       'NoctherCave2BisScene': 'nocthercave2bis'
@@ -1224,15 +1033,12 @@ positionPlayer(player) {
 
   mapZoneToScene(zoneName) {
     const mapping = {
-      // Zones existantes
       'beach': 'BeachScene',
       'village': 'VillageScene',
       'villagelab': 'VillageLabScene',
       'road1': 'Road1Scene',
       'villagehouse1': 'VillageHouse1Scene',
       'lavandia': 'LavandiaScene',
-      
-      // Zones Lavandia
       'lavandiaanalysis': 'LavandiaAnalysisScene',
       'lavandiabossroom': 'LavandiaBossRoomScene',
       'lavandiacelebitemple': 'LavandiaCelebiTempleScene',
@@ -1250,17 +1056,11 @@ positionPlayer(player) {
       'lavandiahouse9': 'LavandiaHouse9Scene',
       'lavandiaresearchlab': 'LavandiaResearchLabScene',
       'lavandiashop': 'LavandiaShopScene',
-      
-      // Zones Village supplémentaires
       'villageflorist': 'VillageFloristScene',
       'villagehouse2': 'VillageHouse2Scene',
-      
-      // Zones Road
       'road1house': 'Road1HouseScene',
       'road2': 'Road2Scene',
       'road3': 'Road3Scene',
-      
-      // Zones Nocther Cave
       'nocthercave1': 'NoctherCave1Scene',
       'nocthercave2': 'NoctherCave2Scene',
       'nocthercave2bis': 'NoctherCave2BisScene'
@@ -1269,49 +1069,7 @@ positionPlayer(player) {
   }
 
   normalizeZoneName(sceneName) {
-    const mapping = {
-      // Zones existantes
-      'BeachScene': 'beach',
-      'VillageScene': 'village',
-      'VillageLabScene': 'villagelab',
-      'Road1Scene': 'road1',
-      'VillageHouse1Scene': 'villagehouse1',
-      'LavandiaScene': 'lavandia',
-      
-      // Zones Lavandia
-      'LavandiaAnalysisScene': 'lavandiaanalysis',
-      'LavandiaBossRoomScene': 'lavandiabossroom',
-      'LavandiaCelebiTempleScene': 'lavandiacelebitemple',
-      'LavandiaEquipementScene': 'lavandiaequipement',
-      'LavandiaFurnitureScene': 'lavandiafurniture',
-      'LavandiaHealingCenterScene': 'lavandiahealingcenter',
-      'LavandiaHouse1Scene': 'lavandiahouse1',
-      'LavandiaHouse2Scene': 'lavandiahouse2',
-      'LavandiaHouse3Scene': 'lavandiahouse3',
-      'LavandiaHouse4Scene': 'lavandiahouse4',
-      'LavandiaHouse5Scene': 'lavandiahouse5',
-      'LavandiaHouse6Scene': 'lavandiahouse6',
-      'LavandiaHouse7Scene': 'lavandiahouse7',
-      'LavandiaHouse8Scene': 'lavandiahouse8',
-      'LavandiaHouse9Scene': 'lavandiahouse9',
-      'LavandiaResearchLabScene': 'lavandiaresearchlab',
-      'LavandiaShopScene': 'lavandiashop',
-      
-      // Zones Village supplémentaires
-      'VillageFloristScene': 'villageflorist',
-      'VillageHouse2Scene': 'villagehouse2',
-      
-      // Zones Road
-      'Road1HouseScene': 'road1house',
-      'Road2Scene': 'road2',
-      'Road3Scene': 'road3',
-      
-      // Zones Nocther Cave
-      'NoctherCave1Scene': 'nocthercave1',
-      'NoctherCave2Scene': 'nocthercave2',
-      'NoctherCave2BisScene': 'nocthercave2bis'
-    };
-    return mapping[sceneName] || sceneName.toLowerCase();
+    return this.mapSceneToZone(sceneName);
   }
 
   getProperty(object, propertyName) {
@@ -1325,16 +1083,9 @@ positionPlayer(player) {
     console.log('— DEBUT loadMap —');
     this.map = this.make.tilemap({ key: this.mapKey });
 
-    console.log("========== [DEBUG] Chargement de la map ==========");
-    console.log("Clé de la map (mapKey):", this.mapKey);
-    console.log("Tilesets trouvés dans la map:", this.map.tilesets.map(ts => ts.name));
-    console.log("Layers dans la map:", this.map.layers.map(l => l.name));
-    console.log("==============================================");
-
     let needsLoading = false;
     this.map.tilesets.forEach(tileset => {
       if (!this.textures.exists(tileset.name)) {
-        console.log(`[DEBUG] --> Chargement tileset "${tileset.name}"`);
         this.load.image(tileset.name, `assets/sprites/${tileset.name}.png`);
         needsLoading = true;
       }
@@ -1360,8 +1111,6 @@ positionPlayer(player) {
         
         const depth = depthOrder[layerData.name] ?? 0;
         layer.setDepth(depth);
-        
-        console.log(`📐 [${this.scene.key}] Layer "${layerData.name}" depth: ${depth}`);
       });
 
       if (this.sys.animatedTiles) {
@@ -1371,12 +1120,6 @@ positionPlayer(player) {
       Object.values(this.layers).forEach(layer => {
         if (layer && typeof layer.setCollisionByProperty === 'function') {
           layer.setCollisionByProperty({ collides: true });
-          // Log pour compter les tiles actives
-          let count = 0;
-          layer.forEachTile(tile => {
-            if (tile && tile.properties && tile.properties.collides) count++;
-          });
-          console.log(`[${layer.layer.name}] Collisions activées sur ${count} tuiles`);
         }
       });
 
@@ -1441,13 +1184,6 @@ positionPlayer(player) {
       if (layer && layer.layer && layer.layer.name.toLowerCase().includes('world')) {
         layer.setCollisionByProperty({ collides: true });
         this.collisionLayers.push(layer);
-        console.log(`🔒 Layer collision configuré: ${layer.layer.name}`);
-        
-        let collisionCount = 0;
-        layer.forEachTile(tile => {
-          if (tile && tile.collides) collisionCount++;
-        });
-        console.log(`🔒 ${layer.layer.name}: ${collisionCount} tiles collision`);
       }
     });
     
@@ -1472,9 +1208,6 @@ positionPlayer(player) {
     if (this.mySessionId) {
       this.playerManager.setMySessionId(this.mySessionId);
     }
-    
-    // ✅ L'InteractionManager sera initialisé dans initializeGameSystems()
-    // après que le NetworkManager soit disponible
   }
 
   createPlayerAnimations() {
@@ -1506,16 +1239,13 @@ positionPlayer(player) {
     this.anims.create({ key: 'idle_down', frames: [{ key: 'dude', frame: 5 }], frameRate: 1 });
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Setup des inputs (plus de gestion E directe)
+  // ✅ MÉTHODE SIMPLIFIÉE: Setup des inputs
   setupInputs() {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,S,A,D');
     this.input.keyboard.enableGlobalCapture();
 
-    // ✅ La gestion de la touche E est maintenant dans InteractionManager
-    // L'InteractionManager configure ses propres raccourcis clavier dans setupInputHandlers()
-    
-    console.log(`⌨️ [${this.scene.key}] Inputs configurés (interactions gérées par InteractionManager)`);
+    console.log(`⌨️ [${this.scene.key}] Inputs configurés`);
     this.input.keyboard.on('keydown-C', () => {
       this.debugCollisions();
     });
@@ -1563,10 +1293,7 @@ positionPlayer(player) {
   checkPlayerState() {
     const myPlayer = this.playerManager?.getMyPlayer();
     if (!myPlayer) {
-      console.warn(`[${this.scene.key}] Joueur manquant! Tentative de récupération...`);
-      
       if (this.playerManager && this.mySessionId) {
-        console.log(`🔧 [${this.scene.key}] Tentative de resynchronisation...`);
         this.playerManager.forceResynchronization();
       }
       return false;
@@ -1575,13 +1302,11 @@ positionPlayer(player) {
     let fixed = false;
     
     if (!myPlayer.visible) {
-      console.warn(`[${this.scene.key}] Joueur invisible, restauration`);
       myPlayer.setVisible(true);
       fixed = true;
     }
     
     if (!myPlayer.active) {
-      console.warn(`[${this.scene.key}] Joueur inactif, restauration`);
       myPlayer.setActive(true);
       fixed = true;
     }
@@ -1593,7 +1318,6 @@ positionPlayer(player) {
     
     if (myPlayer.indicator) {
       if (!myPlayer.indicator.visible) {
-        console.warn(`[${this.scene.key}] Indicateur invisible, restauration`);
         myPlayer.indicator.setVisible(true);
         fixed = true;
       }
@@ -1606,15 +1330,10 @@ positionPlayer(player) {
       }
     }
     
-    if (fixed) {
-      console.log(`[${this.scene.key}] État du joueur corrigé`);
-    }
-    
     return true;
   }
 
   showNotification(message, type = 'info') {
-    // ✅ Déléguer aux systèmes de notification appropriés si disponibles
     if (this.interactionManager) {
       this.interactionManager.showMessage(message, type);
       return;
@@ -1641,7 +1360,146 @@ positionPlayer(player) {
     });
   }
 
-  // ✅ MÉTHODES UTILITAIRES SIMPLIFIÉES: Accès aux systèmes via InteractionManager
+  setupPlayerCollisions() {
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer || !myPlayer.body) {
+      this.time.delayedCall(200, () => this.setupPlayerCollisions());
+      return;
+    }
+    
+    if (!this.collisionLayers || this.collisionLayers.length === 0) {
+      return;
+    }
+    
+    this.collisionLayers.forEach((layer, index) => {
+      const collider = this.physics.add.collider(myPlayer, layer, (player, tile) => {
+        console.log(`💥 COLLISION! à (${Math.round(player.x)}, ${Math.round(player.y)})`);
+      }, null, this);
+      
+      if (!myPlayer.colliders) myPlayer.colliders = [];
+      myPlayer.colliders.push(collider);
+    });
+  }
+
+  debugCollisions() {
+    console.log("🔍 === DEBUG COLLISIONS ===");
+    
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer) {
+      console.log("❌ Pas de joueur pour debug");
+      return;
+    }
+    
+    console.log("👤 Joueur:", {
+      x: myPlayer.x.toFixed(1),
+      y: myPlayer.y.toFixed(1),
+      hasBody: !!myPlayer.body,
+      bodySize: myPlayer.body ? `${myPlayer.body.width}x${myPlayer.body.height}` : 'N/A',
+      colliders: myPlayer.colliders ? myPlayer.colliders.length : 0
+    });
+  }
+
+  // ✅ NOUVELLES MÉTHODES: Gestion du système d'équipe
+  getTeamSystemStatus() {
+    return {
+      initialized: this.teamSystemInitialized,
+      attempts: this.teamInitializationAttempts,
+      maxAttempts: this.maxTeamInitAttempts,
+      globalManagerExists: !!window.TeamManager,
+      globalManagerInitialized: window.TeamManager?.isInitialized || false
+    };
+  }
+
+  forceTeamSystemInit() {
+    console.log(`🔧 [${this.scene.key}] Force réinitialisation système d'équipe...`);
+    this.teamSystemInitialized = false;
+    this.teamInitializationAttempts = 0;
+    
+    setTimeout(() => {
+      this.initializeTeamSystemSafely();
+    }, 1000);
+  }
+
+  isTeamSystemReady() {
+    return this.teamSystemInitialized && window.TeamManager && window.TeamManager.isInitialized;
+  }
+
+  getTeamManager() {
+    return this.isTeamSystemReady() ? window.TeamManager : null;
+  }
+
+  // ✅ MÉTHODES DE DEBUG
+  debugScene() {
+    console.log(`🔍 [${this.scene.key}] === DEBUG SCENE COMPLÈTE ===`);
+    console.log(`📊 Managers:`, {
+      playerManager: !!this.playerManager,
+      npcManager: !!this.npcManager,
+      networkManager: !!this.networkManager,
+      interactionManager: !!this.interactionManager,
+      inventorySystem: !!this.inventorySystem
+    });
+    
+    console.log(`📊 État scène:`, {
+      isReady: this.isSceneReady,
+      networkSetup: this.networkSetupComplete,
+      playerReady: this.myPlayerReady,
+      zoneName: this.zoneName,
+      sessionId: this.mySessionId,
+      teamSystemInitialized: this.teamSystemInitialized,
+      teamInitAttempts: this.teamInitializationAttempts
+    });
+  }
+
+  debugAllSystems() {
+    console.log(`🔍 [${this.scene.key}] === DEBUG TOUS LES SYSTÈMES ===`);
+    
+    this.debugScene();
+    
+    console.log(`⚔️ Team System:`, this.getTeamSystemStatus());
+    
+    console.log(`🎒 Inventory:`, {
+      exists: !!this.inventorySystem,
+      initialized: this.inventoryInitialized,
+      global: !!window.inventorySystem
+    });
+    
+    console.log(`🎯 Interaction:`, {
+      exists: !!this.interactionManager,
+      shopSystem: !!this.interactionManager?.shopSystem
+    });
+    
+    console.log(`🌍 DayNight:`, {
+      exists: !!this.dayNightWeatherManager
+    });
+    
+    console.log(`🎮 Network:`, {
+      manager: !!this.networkManager,
+      connected: this.networkManager?.isConnected,
+      room: !!this.networkManager?.room,
+      sessionId: this.mySessionId
+    });
+  }
+
+  testTeamConnection() {
+    console.log(`🧪 [${this.scene.key}] Test connexion Team System...`);
+    
+    if (!this.isTeamSystemReady()) {
+      console.log(`❌ Team System pas prêt, status:`, this.getTeamSystemStatus());
+      return false;
+    }
+    
+    try {
+      const teamManager = this.getTeamManager();
+      teamManager.requestTeamData();
+      console.log(`✅ Test connexion team réussi`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Erreur test connexion team:`, error);
+      return false;
+    }
+  }
+
+  // ✅ MÉTHODES UTILITAIRES POUR LE SHOP ET AUTRES SYSTÈMES
   getShopSystem() {
     return this.interactionManager?.shopSystem || null;
   }
@@ -1678,413 +1536,5 @@ positionPlayer(player) {
       };
     }
     return null;
-  }
-  
-  setupPlayerCollisions() {
-    const myPlayer = this.playerManager?.getMyPlayer();
-    if (!myPlayer || !myPlayer.body) {
-      console.warn("[BaseZoneScene] Pas de joueur pour setup collisions, retry dans 200ms");
-      this.time.delayedCall(200, () => this.setupPlayerCollisions());
-      return;
-    }
-    
-    if (!this.collisionLayers || this.collisionLayers.length === 0) {
-      console.warn("[BaseZoneScene] Aucun layer de collision disponible");
-      return;
-    }
-    
-    console.log(`🔒 [BaseZoneScene] Configuration collisions pour joueur`);
-    
-    this.collisionLayers.forEach((layer, index) => {
-      const collider = this.physics.add.collider(myPlayer, layer, (player, tile) => {
-        console.log(`💥 COLLISION! à (${Math.round(player.x)}, ${Math.round(player.y)})`);
-      }, null, this);
-      
-      if (!myPlayer.colliders) myPlayer.colliders = [];
-      myPlayer.colliders.push(collider);
-      
-      console.log(`✅ Collider ${index + 1} créé pour "${layer.layer.name}"`);
-    });
-    
-    console.log(`🔒 ${this.collisionLayers.length} colliders configurés au total`);
-  }
-
-  getCurrentWeatherInfo() {
-  if (!this.dayNightWeatherManager) {
-    return { weather: 'clear', displayName: 'Ciel dégagé' };
-  }
-  
-  return this.dayNightWeatherManager.getCurrentWeather();
-}
-
-// Vérifier si les effets météo sont actifs
-isWeatherEffectsActive() {
-  return this.weatherEffects && this.weatherEffects.isWeatherActive();
-}
-
-// Obtenir l'environnement de la zone
-getZoneEnvironment() {
-  if (!this.dayNightWeatherManager) {
-    return 'outdoor';
-  }
-  
-  return this.dayNightWeatherManager.getEnvironmentInfo().environment;
-}
-
-// ✅ MÉTHODES POUR LES ÉVÉNEMENTS SPÉCIAUX
-
-// Effet météo pour événement spécial
-triggerWeatherEvent(eventType) {
-  console.log(`🎉 [${this.scene.key}] Événement météo: ${eventType}`);
-  
-  switch (eventType) {
-    case 'storm_boss':
-      // Orage violent pour un boss
-      this.forceWeather('storm', 2.5);
-      this.setRainAngle(45); // Pluie très inclinée
-      break;
-      
-    case 'peaceful_rain':
-      // Pluie douce
-      this.forceWeather('rain', 0.5);
-      this.setRainAngle(10); // Pluie presque verticale
-      break;
-      
-    case 'winter_zone':
-      // Zone hivernale
-      this.forceWeather('snow', 1.2);
-      break;
-      
-    case 'mysterious_fog':
-      // Brouillard mystérieux
-      this.forceWeather('fog', 1.0);
-      break;
-      
-    default:
-      console.warn(`⚠️ [${this.scene.key}] Événement météo inconnu: ${eventType}`);
-  }
-}
-
-// Restaurer la météo normale
-restoreNormalWeather() {
-  console.log(`☀️ [${this.scene.key}] Restauration météo normale`);
-  
-  if (this.dayNightWeatherManager) {
-    this.dayNightWeatherManager.forceUpdate();
-  }
-}
-
-// ✅ MÉTHODES POUR L'INTERFACE UTILISATEUR
-
-// Afficher info météo (pour un éventuel HUD)
-getWeatherDisplayInfo() {
-  const weather = this.getCurrentWeatherInfo();
-  const environment = this.getZoneEnvironment();
-  const isActive = this.isWeatherEffectsActive();
-  
-  return {
-    weatherName: weather.displayName,
-    weatherType: weather.weather,
-    environment: environment,
-    effectsActive: isActive,
-    zone: this.scene.key
-  };
-}
-
-// ✅ INTÉGRATION AVEC LES SONS
-
-// Jouer son d'ambiance météo
-playWeatherAmbientSound(weatherType) {
-  if (!this.sound) return;
-  
-  // Arrêter le son météo précédent
-  if (this.currentWeatherSound) {
-    this.currentWeatherSound.stop();
-    this.currentWeatherSound = null;
-  }
-  
-  let soundKey = null;
-  let volume = 0.3;
-  
-  switch (weatherType) {
-    case 'rain':
-      soundKey = 'rain_ambient';
-      volume = 0.2;
-      break;
-    case 'storm':
-      soundKey = 'storm_ambient';
-      volume = 0.4;
-      break;
-    case 'wind':
-      soundKey = 'wind_ambient';
-      volume = 0.15;
-      break;
-  }
-  
-  if (soundKey && this.sound.get(soundKey)) {
-    this.currentWeatherSound = this.sound.play(soundKey, {
-      volume: volume,
-      loop: true
-    });
-    
-    console.log(`🔊 [${this.scene.key}] Son météo: ${soundKey}`);
-  }
-}
-
-// ✅ MÉTHODES DE DEBUG ÉTENDUES
-
-// Debug complet de tout le système météo
-debugCompleteWeatherSystem() {
-  console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MÉTÉO COMPLET ===`);
-  
-  // Info de base
-  const weatherInfo = this.getWeatherDisplayInfo();
-  console.log(`📊 Info météo:`, weatherInfo);
-  
-  // Debug du manager
-  this.debugWeather();
-  
-  // Test des performances
-  this.debugWeatherPerformance();
-  
-  // État des ressources
-  console.log(`💾 [${this.scene.key}] État ressources météo:`);
-  console.log(`  - DayNightWeatherManager: ${!!this.dayNightWeatherManager}`);
-  console.log(`  - WeatherEffects: ${!!this.weatherEffects}`);
-  console.log(`  - Initialisé: ${this.weatherInitialized}`);
-  console.log(`  - Effets actifs: ${this.isWeatherEffectsActive()}`);
-}
-
-// Debug des performances météo
-debugWeatherPerformance() {
-  if (!this.weatherEffects) return;
-  
-  console.log(`⚡ [${this.scene.key}] === PERFORMANCES MÉTÉO ===`);
-  
-  // Compter les objets météo actifs
-  const rainDrops = this.weatherEffects.rainDrops?.length || 0;
-  const snowFlakes = this.weatherEffects.snowFlakes?.length || 0;
-  
-  console.log(`  - Gouttes de pluie: ${rainDrops}`);
-  console.log(`  - Flocons de neige: ${snowFlakes}`);
-  console.log(`  - FPS approximatif: ${Math.round(this.game.loop.actualFps || 60)}`);
-  
-  // Recommandations
-  if (rainDrops > 300) {
-    console.warn(`⚠️ Beaucoup de gouttes (${rainDrops}) - considérer réduire l'intensité`);
-  }
-}
-
-// ✅ EXEMPLE D'UTILISATION DANS LE JEU
-
-// Cette méthode peut être appelée depuis des événements du jeu
-handleGameWeatherEvent(eventData) {
-  console.log(`🎮 [${this.scene.key}] Événement météo du jeu:`, eventData);
-  
-  switch (eventData.type) {
-    case 'quest_storm':
-      this.triggerWeatherEvent('storm_boss');
-      this.playWeatherAmbientSound('storm');
-      break;
-      
-    case 'peaceful_village':
-      this.triggerWeatherEvent('peaceful_rain');
-      this.playWeatherAmbientSound('rain');
-      break;
-      
-    case 'dungeon_enter':
-      // En entrant dans un donjon, arrêter la météo
-      this.forceWeather('clear');
-      break;
-      
-    case 'seasonal_change':
-      if (eventData.season === 'winter') {
-        this.triggerWeatherEvent('winter_zone');
-      }
-      break;
-  }
-}
-
-// ✅ COMMANDES POUR LA CONSOLE DE DEBUG
-
-// Ajouter ces méthodes globales pour les tests
-setupWeatherDebugCommands() {
-  if (typeof window === 'undefined') return;
-  
-  const scene = this;
-  
-  window.sceneWeatherTest = {
-    rain: () => scene.forceWeather('rain', 1.0),
-    storm: () => scene.forceWeather('storm', 2.0),
-    snow: () => scene.forceWeather('snow', 1.0),
-    fog: () => scene.forceWeather('fog', 1.0),
-    clear: () => scene.forceWeather('clear'),
-    debug: () => scene.debugCompleteWeatherSystem(),
-    angle: (deg) => scene.setRainAngle(deg),
-    event: (type) => scene.triggerWeatherEvent(type)
-  };
-  
-  console.log(`🎮 [${this.scene.key}] Commandes météo scène disponibles:`);
-  console.log(`  window.sceneWeatherTest.rain()`);
-  console.log(`  window.sceneWeatherTest.storm()`);
-  console.log(`  window.sceneWeatherTest.snow()`);
-  console.log(`  window.sceneWeatherTest.clear()`);
-  console.log(`  window.sceneWeatherTest.debug()`);
-  console.log(`  window.sceneWeatherTest.angle(45)`);
-}
-  debugCollisions() {
-    console.log("🔍 === DEBUG COLLISIONS ===");
-    
-    const myPlayer = this.playerManager?.getMyPlayer();
-    if (!myPlayer) {
-      console.log("❌ Pas de joueur pour debug");
-      return;
-    }
-    
-    console.log("👤 Joueur:", {
-      x: myPlayer.x.toFixed(1),
-      y: myPlayer.y.toFixed(1),
-      hasBody: !!myPlayer.body,
-      bodySize: myPlayer.body ? `${myPlayer.body.width}x${myPlayer.body.height}` : 'N/A',
-      colliders: myPlayer.colliders ? myPlayer.colliders.length : 0,
-      velocity: myPlayer.body ? `(${myPlayer.body.velocity.x}, ${myPlayer.body.velocity.y})` : 'N/A'
-    });
-    
-    console.log("🗺️ Layers de collision:");
-    this.collisionLayers?.forEach(layer => {
-      let collisionCount = 0;
-      layer.forEachTile(tile => {
-        if (tile && tile.collides) collisionCount++;
-      });
-      console.log(`  📋 ${layer.layer.name}: ${collisionCount} tiles collision`);
-    });
-    
-    // ✅ TESTER UNE COLLISION MANUELLE
-    if (this.collisionLayers && this.collisionLayers.length > 0) {
-      const testLayer = this.collisionLayers[0];
-      const tile = testLayer.getTileAtWorldXY(myPlayer.x, myPlayer.y);
-      console.log("🎯 Tile sous le joueur:", tile ? {
-        index: tile.index,
-        collides: tile.collides,
-        properties: tile.properties
-      } : "Aucune tile");
-    }
-    
-    console.log("🚫 Body touching:", myPlayer.body ? {
-      up: myPlayer.body.touching.up,
-      down: myPlayer.body.touching.down,
-      left: myPlayer.body.touching.left,
-      right: myPlayer.body.touching.right
-    } : "Pas de body");
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Debug complet de la scène
-  debugScene() {
-    console.log(`🔍 [${this.scene.key}] === DEBUG SCENE COMPLÈTE ===`);
-    console.log(`📊 Managers:`, {
-      playerManager: !!this.playerManager,
-      npcManager: !!this.npcManager,
-      networkManager: !!this.networkManager,
-      interactionManager: !!this.interactionManager,
-      inventorySystem: !!this.inventorySystem
-    });
-    
-    if (this.interactionManager) {
-      this.interactionManager.debugState();
-    }
-    
-    console.log(`📊 État scène:`, {
-      isReady: this.isSceneReady,
-      networkSetup: this.networkSetupComplete,
-      playerReady: this.myPlayerReady,
-      zoneName: this.zoneName,
-      sessionId: this.mySessionId,
-      teamSystemInitialized: this.teamSystemInitialized,
-      teamInitAttempts: this.teamInitializationAttempts
-    });
-  }
-
-  // ✅ NOUVELLES MÉTHODES: Gestion du système d'équipe depuis l'extérieur
-  getTeamSystemStatus() {
-    return {
-      initialized: this.teamSystemInitialized,
-      attempts: this.teamInitializationAttempts,
-      maxAttempts: this.maxTeamInitAttempts,
-      globalManagerExists: !!window.TeamManager,
-      globalManagerInitialized: window.TeamManager?.isInitialized || false
-    };
-  }
-
-  forceTeamSystemInit() {
-    console.log(`🔧 [${this.scene.key}] Force réinitialisation système d'équipe...`);
-    this.teamSystemInitialized = false;
-    this.teamInitializationAttempts = 0;
-    
-    setTimeout(() => {
-      this.initializeTeamSystemSafely();
-    }, 1000);
-  }
-
-  // ✅ MÉTHODES UTILITAIRES TEAM
-  isTeamSystemReady() {
-    return this.teamSystemInitialized && window.TeamManager && window.TeamManager.isInitialized;
-  }
-
-  getTeamManager() {
-    return this.isTeamSystemReady() ? window.TeamManager : null;
-  }
-
-  // ✅ MÉTHODES DE DEBUG AMÉLIORÉES
-  debugAllSystems() {
-    console.log(`🔍 [${this.scene.key}] === DEBUG TOUS LES SYSTÈMES ===`);
-    
-    // État de base de la scène
-    this.debugScene();
-    
-    // État du système d'équipe
-    console.log(`⚔️ Team System:`, this.getTeamSystemStatus());
-    
-    // État des autres systèmes
-    console.log(`🎒 Inventory:`, {
-      exists: !!this.inventorySystem,
-      initialized: this.inventoryInitialized,
-      global: !!window.inventorySystem
-    });
-    
-    console.log(`🎯 Interaction:`, {
-      exists: !!this.interactionManager,
-      shopSystem: !!this.interactionManager?.shopSystem
-    });
-    
-    console.log(`🌍 DayNight:`, {
-      exists: !!this.dayNightWeatherManager
-    });
-    
-    console.log(`🎮 Network:`, {
-      manager: !!this.networkManager,
-      connected: this.networkManager?.isConnected,
-      room: !!this.networkManager?.room,
-      sessionId: this.mySessionId
-    });
-  }
-
-  // ✅ MÉTHODE POUR TESTER LA CONNEXION TEAM
-  testTeamConnection() {
-    console.log(`🧪 [${this.scene.key}] Test connexion Team System...`);
-    
-    if (!this.isTeamSystemReady()) {
-      console.log(`❌ Team System pas prêt, status:`, this.getTeamSystemStatus());
-      return false;
-    }
-    
-    try {
-      const teamManager = this.getTeamManager();
-      teamManager.requestTeamData();
-      console.log(`✅ Test connexion team réussi`);
-      return true;
-    } catch (error) {
-      console.error(`❌ Erreur test connexion team:`, error);
-      return false;
-    }
   }
 }
