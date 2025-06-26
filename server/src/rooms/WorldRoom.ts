@@ -86,12 +86,12 @@ export class WorldRoom extends Room<PokeWorldState> {
 
       // ✅ CONFIGURATION DU STARTER SERVICE
     // 💡 Changez 'false' en 'true' pour activer le service
-    enableStarterService(true); // ← FACILE À DÉSACTIVER
+    //enableStarterService(true); // ← FACILE À DÉSACTIVER
     
     // 💡 Changez le Pokémon starter (optionnel)
     // setStarterPokemon(4, 5); // Charmander niveau 5
     // setStarterPokemon(7, 5); // Squirtle niveau 5
-    setStarterPokemon(1, 5); // Bulbasaur niveau 5 (par défaut)
+    //setStarterPokemon(1, 5); // Bulbasaur niveau 5 (par défaut)
   
   // ✅ MÉTHODE COMPLÈTE APRÈS onCreate
   private async autoSaveAllPositions() {
