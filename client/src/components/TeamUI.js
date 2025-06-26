@@ -45,10 +45,22 @@ getPokemonName(pokemonId) {
   );
 }
 
-getPokemonPortrait(pokemonId, options = {}) {
+getPortraitSpriteStyle(pokemonId, options = {}) {
+  const frameWidth = 80; // largeur d'un portrait, à ADAPTER à tes images
+  const frameHeight = 80; // hauteur d'un portrait, à ADAPTER aussi
+  const index = 0; // index de frame (0 pour le portrait de base)
   let id = Number(pokemonId);
   let variant = options.shiny ? '_shiny' : '';
-  return `/assets/pokemon/portraitanime/${id}${variant}.png`;
+  const url = `/assets/pokemon/portraitanime/${id}${variant}.png`;
+  return `
+    width: ${frameWidth}px;
+    height: ${frameHeight}px;
+    background-image: url('${url}');
+    background-size: auto 100%;
+    background-position: ${-index * frameWidth}px 0;
+    image-rendering: pixelated;
+    display: inline-block;
+  `;
 }
 
   
@@ -859,12 +871,14 @@ getPokemonPortrait(pokemonId, options = {}) {
       }
 
 .pokemon-portrait {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  image-rendering: pixelated;
+  /* largeur/hauteur sont déjà gérés inline par le style */
+  background-repeat: no-repeat;
+  background-color: #202a39;
+  border: 2px solid #444;
+  border-radius: 10px;
   filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
 }
+
 
       .team-view::-webkit-scrollbar-thumb:hover {
         background: rgba(231, 76, 60, 0.8);
@@ -1023,14 +1037,13 @@ getPokemonPortrait(pokemonId, options = {}) {
   </div>
       
 <div class="pokemon-sprite">
-  <img 
-    src="${this.getPokemonPortrait(pokemon.pokemonId, { shiny: pokemon.shiny })}"
+  <div 
     class="pokemon-portrait"
-    alt="${this.getPokemonName(pokemon.pokemonId)}"
-    loading="lazy"
-    onerror="this.src='/assets/pokemon/portraitanime/unknown.png';"
-  >
+    style="${this.getPortraitSpriteStyle(pokemon.pokemonId, { shiny: pokemon.shiny })}"
+    title="${this.getPokemonName(pokemon.pokemonId)}"
+  ></div>
 </div>
+
 
       
       <div class="pokemon-health">
@@ -1149,14 +1162,13 @@ getPokemonPortrait(pokemonId, options = {}) {
       <div class="pokemon-detail-content">
         <div class="pokemon-detail-header">
 <div class="pokemon-detail-icon">
-  <img 
-    src="${this.getPokemonPortrait(pokemon.pokemonId, { shiny: pokemon.shiny })}"
+  <div
     class="pokemon-portrait"
-    alt="${this.getPokemonName(pokemon.pokemonId)}"
-    loading="lazy"
-    onerror="this.src='/assets/pokemon/portraitanime/unknown.png';"
-  >
+    style="${this.getPortraitSpriteStyle(pokemon.pokemonId, { shiny: pokemon.shiny })}"
+    title="${this.getPokemonName(pokemon.pokemonId)}"
+  ></div>
 </div>
+
 
           <div class="pokemon-detail-info">
            <h3>${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}</h3>
