@@ -84,6 +84,15 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`💾 Auto-save des positions activé (30s)`);
   }
 
+      // ✅ CONFIGURATION DU STARTER SERVICE
+    // 💡 Changez 'false' en 'true' pour activer le service
+    enableStarterService(true); // ← FACILE À DÉSACTIVER
+    
+    // 💡 Changez le Pokémon starter (optionnel)
+    // setStarterPokemon(4, 5); // Charmander niveau 5
+    // setStarterPokemon(7, 5); // Squirtle niveau 5
+    setStarterPokemon(1, 5); // Bulbasaur niveau 5 (par défaut)
+  
   // ✅ MÉTHODE COMPLÈTE APRÈS onCreate
   private async autoSaveAllPositions() {
     const positions = Array.from(this.state.players.values())
@@ -1416,6 +1425,31 @@ export class WorldRoom extends Room<PokeWorldState> {
         console.log(`✅ Objets de départ ajoutés pour ${player.name}`);
       } catch (err) {
         console.error(`❌ [INVENTAIRE] Erreur lors de l'ajout d'objets de départ pour ${player.name}:`, err);
+      }
+
+         // ✅ === NOUVEAU: CONFIGURATION STARTER POKÉMON ===
+      try {
+        console.log(`🌟 Vérification starter Pokémon pour ${player.name}`);
+        
+        const starterResult = await ensurePlayerHasStarter(player.name);
+        
+        if (starterResult.given) {
+          console.log(`🎁 [STARTER] ${player.name} a reçu son starter: ${starterResult.pokemonName}`);
+          
+          // Optionnel: Notifier le client qu'il a reçu un starter
+          client.send("starterReceived", {
+            success: true,
+            pokemonName: starterResult.pokemonName,
+            message: `Bienvenue ! Voici votre premier Pokémon : ${starterResult.pokemonName} !`
+          });
+        } else if (starterResult.needed && !starterResult.given) {
+          console.error(`❌ [STARTER] Échec du don de starter pour ${player.name}: ${starterResult.error}`);
+        } else if (!starterResult.needed) {
+          console.log(`ℹ️ [STARTER] ${player.name} a déjà des Pokémon, pas de starter nécessaire`);
+        }
+        
+      } catch (err) {
+        console.error(`❌ [STARTER] Erreur lors de la vérification du starter pour ${player.name}:`, err);
       }
       
       // ✅ ÉTAPE 4: Faire entrer le joueur dans sa zone initiale
