@@ -252,7 +252,7 @@ export class Road1HiddenZone implements IZone {
   }
 
   private getQuestTitle(questId: string): string {
-    const titles = {
+    const titles: { [key: string]: string } = {
       "mystical_research": "Recherches Mystiques",
       "ancient_secrets": "Secrets Anciens", 
       "energy_collection": "Collection d'Énergie"
@@ -261,7 +261,7 @@ export class Road1HiddenZone implements IZone {
   }
 
   private getQuestDescription(questId: string): string {
-    const descriptions = {
+    const descriptions: { [key: string]: string } = {
       "mystical_research": "Aidez l'Alchimiste dans ses recherches mystérieuses",
       "ancient_secrets": "Découvrez les secrets cachés de cette zone",
       "energy_collection": "Collectez les énergies mystiques dispersées"
