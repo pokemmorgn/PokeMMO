@@ -1,4 +1,4 @@
-// client/src/components/QuestTrackerUI.js
+// client/src/components/QuestTrackerUI.js - Version harmonisée avec le thème bleu
 
 export class QuestTrackerUI {
   constructor(questSystem) {
@@ -52,14 +52,15 @@ export class QuestTrackerUI {
     const style = document.createElement('style');
     style.id = 'quest-tracker-styles';
     style.textContent = `
+      /* ===== QUEST TRACKER - THÈME BLEU HARMONISÉ ===== */
       .quest-tracker {
         position: fixed;
         top: 120px;
         right: 20px;
         width: 280px;
         max-height: 70vh;
-        background: linear-gradient(145deg, rgba(15, 20, 35, 0.95), rgba(25, 30, 45, 0.95));
-        border: 2px solid rgba(138, 43, 226, 0.6);
+        background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+        border: 2px solid #4a90e2;
         border-radius: 12px;
         box-shadow: 
           0 8px 32px rgba(0, 0, 0, 0.5),
@@ -87,9 +88,10 @@ export class QuestTrackerUI {
         display: none;
       }
 
+      /* ===== HEADER - THÈME BLEU ===== */
       .quest-tracker-header {
-        background: rgba(138, 43, 226, 0.3);
-        border-bottom: 1px solid rgba(138, 43, 226, 0.5);
+        background: rgba(74, 144, 226, 0.3);
+        border-bottom: 1px solid rgba(74, 144, 226, 0.5);
         padding: 8px 12px;
         display: flex;
         justify-content: space-between;
@@ -108,7 +110,7 @@ export class QuestTrackerUI {
         gap: 6px;
         font-size: 14px;
         font-weight: 600;
-        color: #e1bee7;
+        color: #87ceeb;
       }
 
       .tracker-icon {
@@ -161,9 +163,10 @@ export class QuestTrackerUI {
         font-size: 13px;
       }
 
+      /* ===== QUEST ITEMS - THÈME BLEU ===== */
       .tracked-quest {
         background: rgba(255, 255, 255, 0.05);
-        border-left: 3px solid #8a2be2;
+        border-left: 3px solid #4a90e2;
         border-radius: 6px;
         padding: 10px;
         transition: all 0.3s ease;
@@ -173,9 +176,9 @@ export class QuestTrackerUI {
       }
 
       .tracked-quest:hover {
-        background: rgba(138, 43, 226, 0.1);
+        background: rgba(74, 144, 226, 0.1);
         transform: translateX(-2px);
-        box-shadow: 0 2px 8px rgba(138, 43, 226, 0.3);
+        box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
       }
 
       .tracked-quest.completed {
@@ -222,12 +225,13 @@ export class QuestTrackerUI {
       }
 
       .quest-level {
-        color: #ffc107;
+        color: #87ceeb;
         font-size: 11px;
         font-weight: bold;
         margin-left: 4px;
       }
 
+      /* ===== QUEST CATEGORIES - COULEURS HARMONISÉES ===== */
       .quest-category {
         position: absolute;
         top: 6px;
@@ -240,8 +244,8 @@ export class QuestTrackerUI {
       }
 
       .quest-category.main {
-        background: rgba(255, 193, 7, 0.3);
-        color: #ffc107;
+        background: rgba(74, 144, 226, 0.3);
+        color: #4a90e2;
       }
 
       .quest-category.side {
@@ -250,8 +254,8 @@ export class QuestTrackerUI {
       }
 
       .quest-category.daily {
-        background: rgba(244, 67, 54, 0.3);
-        color: #f44336;
+        background: rgba(135, 206, 235, 0.3);
+        color: #87ceeb;
       }
 
       .quest-objectives {
@@ -271,7 +275,7 @@ export class QuestTrackerUI {
         content: "•";
         position: absolute;
         left: 0;
-        color: #8a2be2;
+        color: #4a90e2;
         font-weight: bold;
       }
 
@@ -295,6 +299,7 @@ export class QuestTrackerUI {
         color: #f44336;
       }
 
+      /* ===== PROGRESS BAR - THÈME BLEU ===== */
       .quest-progress {
         display: flex;
         align-items: center;
@@ -312,7 +317,7 @@ export class QuestTrackerUI {
 
       .quest-progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, #8a2be2, #ab47bc);
+        background: linear-gradient(90deg, #4a90e2, #5aa0f2);
         border-radius: 2px;
         transition: width 0.5s ease;
         position: relative;
@@ -332,7 +337,7 @@ export class QuestTrackerUI {
 
       .quest-distance {
         font-size: 10px;
-        color: #ff9800;
+        color: #87ceeb;
         margin-top: 2px;
         font-weight: 500;
       }
@@ -350,7 +355,7 @@ export class QuestTrackerUI {
         100% { opacity: 0.6; }
       }
 
-      /* Scrollbar styling */
+      /* ===== SCROLLBAR - THÈME BLEU ===== */
       .quest-tracker-content::-webkit-scrollbar {
         width: 6px;
       }
@@ -361,12 +366,12 @@ export class QuestTrackerUI {
       }
 
       .quest-tracker-content::-webkit-scrollbar-thumb {
-        background: rgba(138, 43, 226, 0.6);
+        background: rgba(74, 144, 226, 0.6);
         border-radius: 3px;
       }
 
       .quest-tracker-content::-webkit-scrollbar-thumb:hover {
-        background: rgba(138, 43, 226, 0.8);
+        background: rgba(74, 144, 226, 0.8);
       }
 
       /* Responsive design */
@@ -392,7 +397,7 @@ export class QuestTrackerUI {
         z-index: 1000;
       }
 
-      /* Special effects for quest events */
+      /* ===== SPECIAL EFFECTS - THÈME BLEU ===== */
       .quest-tracker.quest-completed {
         border-color: rgba(76, 175, 80, 0.8);
         box-shadow: 
@@ -406,7 +411,7 @@ export class QuestTrackerUI {
 
       @keyframes trackerNewQuest {
         0% { transform: scale(1); }
-        50% { transform: scale(1.02); border-color: rgba(255, 193, 7, 0.8); }
+        50% { transform: scale(1.02); border-color: rgba(74, 144, 226, 0.8); }
         100% { transform: scale(1); }
       }
     `;
