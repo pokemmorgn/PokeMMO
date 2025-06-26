@@ -59,6 +59,24 @@ async function getMovesWithPP(pokemonId: number, level: number = 1): Promise<Arr
   }));
 }
 
+function toModelGender(gender: string | undefined): "Male" | "Female" | "Genderless" {
+  if (!gender) return "Genderless";
+  switch (gender.toLowerCase()) {
+    case "male":
+    case "m":
+      return "Male";
+    case "female":
+    case "f":
+      return "Female";
+    case "genderless":
+    case "none":
+    case "n":
+      return "Genderless";
+    default:
+      return "Genderless";
+  }
+}
+
 /**
  * Récupère les PP de base d'une attaque
  */
@@ -138,7 +156,8 @@ export async function createCompletePokemon(
   const ivs = options.ivs || randomIVs();
   const nature = options.nature || randomNature();
   const isShiny = options.shiny !== undefined ? options.shiny : randomShiny();
-  const gender = await generateRandomGender(options.pokemonId);
+const genderRaw = await generateRandomGender(options.pokemonId);
+const gender = toModelGender(genderRaw);
   const ability = options.ability || await selectPokemonAbility(options.pokemonId);
   const moves = await getMovesWithPP(options.pokemonId, level);
 
