@@ -390,11 +390,8 @@
       "fromZone": "road1",
       "toZone": "road1hidden",
       "conditions": {
-        "minLevel": 5,
+        "minLevel": 1,
         "proximityCheck": { "enabled": true }
-      },
-      "message": {
-        "failure": "Vous devez être niveau 5+ pour découvrir cette zone cachée"
       },
       "enabled": true
     },
