@@ -40,7 +40,6 @@ import { Road1HiddenScene } from './scenes/zones/Road1HiddenScene.js';
 import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
 import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
 
-import { setupTeamSystem } from './integration/teamIntegration.js';
 
 // === Colyseus.js ===
 import { Client } from 'colyseus.js';
