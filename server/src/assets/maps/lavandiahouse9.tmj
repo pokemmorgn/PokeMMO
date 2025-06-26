@@ -228,7 +228,110 @@
          "draworder":"topdown",
          "id":5,
          "name":"npcs",
-         "objects":[],
+         "objects":[
+                {
+                 "height":0,
+                 "id":4,
+                 "name":"Lina",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"animation",
+                         "type":"string",
+                         "value":"stand"
+                        }, 
+                        {
+                         "name":"battleSprite",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"dialogueId",
+                         "type":"string",
+                         "value":"greeting_lina"
+                        }, 
+                        {
+                         "name":"direction",
+                         "type":"string",
+                         "value":"up"
+                        }, 
+                        {
+                         "name":"eventTrigger",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"givesItem",
+                         "type":"bool",
+                         "value":false
+                        }, 
+                        {
+                         "name":"interactionZone",
+                         "type":"object",
+                         "value":0
+                        }, 
+                        {
+                         "name":"isHealer",
+                         "type":"bool",
+                         "value":false
+                        }, 
+                        {
+                         "name":"isVisible",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"itemId",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"itemQuantity",
+                         "type":"int",
+                         "value":0
+                        }, 
+                        {
+                         "name":"movePattern",
+                         "type":"string",
+                         "value":"idle"
+                        }, 
+                        {
+                         "name":"npcType",
+                         "type":"string",
+                         "value":"simple"
+                        }, 
+                        {
+                         "name":"questId",
+                         "type":"string",
+                         "value":"lost_in_the_dark"
+                        }, 
+                        {
+                         "name":"repeatDialogue",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"shopId",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"sprite",
+                         "type":"string",
+                         "value":"girl2"
+                        }, 
+                        {
+                         "name":"trainerId",
+                         "type":"int",
+                         "value":0
+                        }],
+                 "rotation":0,
+                 "type":"npc",
+                 "visible":true,
+                 "width":0,
+                 "x":285.333333333333,
+                 "y":208.666666666667
+                }],
          "opacity":1,
          "type":"objectgroup",
          "visible":true,
@@ -236,7 +339,7 @@
          "y":0
         }],
  "nextlayerid":9,
- "nextobjectid":4,
+ "nextobjectid":5,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
