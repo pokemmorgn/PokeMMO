@@ -1431,7 +1431,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       try {
         console.log(`🌟 Vérification starter Pokémon pour ${player.name}`);
         
-        const starterResult = await ensurePlayerHasStarter(player.name);
+       // const starterResult = await ensurePlayerHasStarter(player.name);
         
         if (starterResult.given) {
           console.log(`🎁 [STARTER] ${player.name} a reçu son starter: ${starterResult.pokemonName}`);
