@@ -67,7 +67,20 @@
       "fixedSpawns": {
         "fromLavandia": { "x": 800, "y": 200 },
         "default": { "x": 150, "y": 350 }
-      }
+      },
+      "road1house": {
+  "name": "road1house",
+  "displayName": "Maison de la Route 1",
+  "minLevel": 1,
+  "description": "Maison refuge pour les voyageurs de la Route 1",
+  "fixedSpawn": { "x": 250, "y": 300 }
+},
+"road1hidden": {
+  "name": "road1hidden",
+  "displayName": "Zone Cachée Route 1",
+  "minLevel": 5,
+  "description": "Zone mystérieuse cachée de la Route 1",
+  "fixedSpawn": { "x": 200, "y": 250 }
     },
     "lavandia": {
       "name": "lavandia",
@@ -361,6 +374,57 @@
       },
       "enabled": true
     },
+    {
+  "id": "road1_to_house",
+  "name": "Route 1 vers Maison",
+  "description": "Accès à la maison de la Route 1",
+  "fromZone": "road1",
+  "toZone": "road1house",
+  "conditions": {
+    "minLevel": 1,
+    "proximityCheck": { "enabled": true }
+  },
+  "enabled": true
+},
+{
+  "id": "house_to_road1",
+  "name": "Maison vers Route 1",
+  "description": "Retour vers la Route 1",
+  "fromZone": "road1house",
+  "toZone": "road1",
+  "conditions": {
+    "minLevel": 1,
+    "proximityCheck": { "enabled": true }
+  },
+  "enabled": true
+},
+{
+  "id": "road1_to_hidden",
+  "name": "Route 1 vers Zone Cachée",
+  "description": "Accès à la zone cachée mystérieuse",
+  "fromZone": "road1",
+  "toZone": "road1hidden",
+  "conditions": {
+    "minLevel": 1,
+    "proximityCheck": { "enabled": true }
+  },
+  "message": {
+    "failure": "Vous devez être niveau 5+ pour découvrir cette zone cachée"
+  },
+  "enabled": true
+},
+{
+  "id": "hidden_to_road1",
+  "name": "Zone Cachée vers Route 1",
+  "description": "Retour vers la Route 1",
+  "fromZone": "road1hidden",
+  "toZone": "road1",
+  "conditions": {
+    "minLevel": 1,
+    "proximityCheck": { "enabled": true }
+  },
+  "enabled": true
+},
     {
       "id": "lavandia_to_road1",
       "name": "Lavandia vers Route 1",
