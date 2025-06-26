@@ -46,18 +46,22 @@ getPokemonName(pokemonId) {
 }
 
 getPortraitSpriteStyle(pokemonId, options = {}) {
-  const frameWidth = 80; // largeur d'un portrait, à ADAPTER à tes images
-  const frameHeight = 80; // hauteur d'un portrait, à ADAPTER aussi
-  const index = 0; // index de frame (0 pour le portrait de base)
+  // Ajustez ces valeurs selon vos spritesheets réels
+  const frameWidth = 80;  // Largeur d'UN portrait dans votre spritesheet
+  const frameHeight = 80; // Hauteur d'UN portrait dans votre spritesheet
+  const index = 0; // Toujours utiliser le premier frame (portrait de base)
+  
   let id = Number(pokemonId);
   let variant = options.shiny ? '_shiny' : '';
   const url = `/assets/pokemon/portraitanime/${id}${variant}.png`;
+  
   return `
     width: ${frameWidth}px;
     height: ${frameHeight}px;
     background-image: url('${url}');
-    background-size: auto 100%;
+    background-size: auto ${frameHeight}px;
     background-position: ${-index * frameWidth}px 0;
+    background-repeat: no-repeat;
     image-rendering: pixelated;
     display: inline-block;
   `;
