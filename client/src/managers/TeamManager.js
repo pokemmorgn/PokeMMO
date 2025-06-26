@@ -1,4 +1,5 @@
-// client/src/managers/TeamManager.js - Version Simple + Robuste (comme Inventaire/Quêtes)
+// client/src/managers/TeamManager.js - VERSION CORRIGÉE SANS EVENTS
+// ✅ Suppression du système d'événements défaillant pour une approche plus simple
 
 import { TeamUI } from '../components/TeamUI.js';
 import { TeamIcon } from '../components/TeamIcon.js';
@@ -23,6 +24,16 @@ export class TeamManager {
     this.isInitialized = false;
     this.isInBattle = false;
     
+    // ✅ SUPPRESSION DU SYSTÈME D'ÉVÉNEMENTS DÉFAILLANT
+    // Plus d'EventEmitter, juste des callbacks directs
+    this.callbacks = {
+      onPokemonAdded: null,
+      onPokemonRemoved: null,
+      onTeamHealed: null,
+      onBattleStart: null,
+      onBattleEnd: null
+    };
+    
     this.init();
   }
 
@@ -39,8 +50,8 @@ export class TeamManager {
       // 3. Setup des raccourcis globaux
       this.setupGlobalShortcuts();
       
-      // 4. ✅ ROBUSTESSE : Events Colyseus natifs
-      this.setupColyseusEvents();
+      // 4. ✅ PAS D'EVENTS COLYSEUS COMPLEXES
+      this.setupBasicConnectionHandling();
       
       this.isInitialized = true;
       console.log('✅ TeamManager initialisé avec succès');
@@ -50,8 +61,14 @@ export class TeamManager {
       
     } catch (error) {
       console.error('❌ Erreur initialisation TeamManager:', error);
-      // Pas de système de retry complexe, juste un log
     }
+  }
+
+  // ✅ MÉTHODE SIMPLIFIÉE: Pas d'events complexes
+  setupBasicConnectionHandling() {
+    if (!this.gameRoom) return;
+
+    console.log('✅ TeamManager: Gestion connexion basique configurée');
   }
 
   // ✅ SIMPLE : Création directe des composants comme dans InventoryUI
@@ -88,42 +105,35 @@ export class TeamManager {
     console.log('🔧 TeamManager: Configuration listeners...');
 
     try {
-      // Données d'équipe
+      // ✅ LISTENERS SIMPLES - PAS DE VÉRIFICATION COMPLEXE
       this.gameRoom.onMessage("teamData", (data) => {
         this.handleTeamData(data);
       });
 
-      // Statistiques d'équipe
       this.gameRoom.onMessage("teamStats", (data) => {
         this.handleTeamStats(data);
       });
 
-      // Pokémon ajouté
       this.gameRoom.onMessage("pokemonAddedToTeam", (data) => {
         this.handlePokemonAdded(data);
       });
 
-      // Pokémon retiré
       this.gameRoom.onMessage("pokemonRemovedFromTeam", (data) => {
         this.handlePokemonRemoved(data);
       });
 
-      // Pokémon mis à jour
       this.gameRoom.onMessage("pokemonUpdated", (data) => {
         this.handlePokemonUpdate(data);
       });
 
-      // Équipe soignée
       this.gameRoom.onMessage("teamHealed", (data) => {
         this.handleTeamHealed(data);
       });
 
-      // Résultats d'actions
       this.gameRoom.onMessage("teamActionResult", (data) => {
         this.handleTeamActionResult(data);
       });
 
-      // Combat
       this.gameRoom.onMessage("battleStart", (data) => {
         this.handleBattleStart(data);
       });
@@ -132,7 +142,6 @@ export class TeamManager {
         this.handleBattleEnd(data);
       });
 
-      // Capture de Pokémon
       this.gameRoom.onMessage("pokemonCaught", (data) => {
         this.handlePokemonCaught(data);
       });
@@ -144,49 +153,9 @@ export class TeamManager {
     }
   }
 
-  // ✅ ROBUSTESSE : Events Colyseus natifs (comme recommandé)
-  setupColyseusEvents() {
-    if (!this.gameRoom) return;
-
-    // Gérer les déconnexions proprement
-    this.gameRoom.onLeave((code) => {
-      console.warn('⚠️ TeamManager: Connexion fermée (code:', code, ')');
-      this.handleDisconnect();
-    });
-
-    // Gérer les erreurs de connexion
-    this.gameRoom.onError((code, message) => {
-      console.error('❌ TeamManager: Erreur connexion (', code, '):', message);
-      this.handleConnectionError();
-    });
-
-    console.log('✅ TeamManager: Events Colyseus configurés');
-  }
-
-  // ✅ ROBUSTESSE : Gestion propre des déconnexions
-  handleDisconnect() {
-    console.log('🔌 TeamManager: Gestion déconnexion...');
-    
-    // Désactiver temporairement l'interface
-    if (this.teamIcon) {
-      this.teamIcon.setEnabled(false);
-    }
-    
-    // Fermer l'interface si ouverte
-    if (this.teamUI && this.teamUI.isOpen()) {
-      this.teamUI.hide();
-    }
-  }
-
-  // ✅ ROBUSTESSE : Gestion des erreurs de connexion
-  handleConnectionError() {
-    console.log('⚠️ TeamManager: Erreur de connexion...');
-    this.showNotification('Connexion instable, fonctionnalités limitées', 'warning');
-  }
-
   // ✅ SIMPLE : Envoi sécurisé de messages (une seule vérification)
   safeSend(messageType, data = {}) {
-    if (this.gameRoom && this.gameRoom.connection.readyState === 1) {
+    if (this.gameRoom && this.gameRoom.connection && this.gameRoom.connection.readyState === 1) {
       try {
         this.gameRoom.send(messageType, data);
         return true;
@@ -252,6 +221,11 @@ export class TeamManager {
         this.teamData.push(data.pokemon);
         this.calculateStats();
         
+        // ✅ CALLBACK DIRECT AU LIEU D'EVENTS
+        if (this.callbacks.onPokemonAdded) {
+          this.callbacks.onPokemonAdded(data.pokemon);
+        }
+        
         // Animations
         if (this.teamIcon && this.teamIcon.onPokemonAdded) {
           this.teamIcon.onPokemonAdded(data.pokemon);
@@ -279,6 +253,11 @@ export class TeamManager {
       if (data.pokemonId) {
         this.teamData = this.teamData.filter(p => p._id !== data.pokemonId);
         this.calculateStats();
+        
+        // ✅ CALLBACK DIRECT
+        if (this.callbacks.onPokemonRemoved) {
+          this.callbacks.onPokemonRemoved(data);
+        }
         
         // Animations
         if (this.teamIcon && this.teamIcon.onPokemonRemoved) {
@@ -324,6 +303,11 @@ export class TeamManager {
     try {
       console.log('⚔️ Équipe soignée:', data);
       
+      // ✅ CALLBACK DIRECT
+      if (this.callbacks.onTeamHealed) {
+        this.callbacks.onTeamHealed(data);
+      }
+      
       this.showNotification('Équipe soignée avec succès!', 'success');
       
       // Rafraîchir les données
@@ -356,6 +340,11 @@ export class TeamManager {
       
       this.isInBattle = true;
       
+      // ✅ CALLBACK DIRECT
+      if (this.callbacks.onBattleStart) {
+        this.callbacks.onBattleStart(data);
+      }
+      
       if (this.teamIcon && this.teamIcon.onBattleStart) {
         this.teamIcon.onBattleStart();
       }
@@ -375,6 +364,11 @@ export class TeamManager {
       console.log('⚔️ Combat terminé:', data);
       
       this.isInBattle = false;
+      
+      // ✅ CALLBACK DIRECT
+      if (this.callbacks.onBattleEnd) {
+        this.callbacks.onBattleEnd(data);
+      }
       
       if (this.teamIcon && this.teamIcon.onBattleEnd) {
         this.teamIcon.onBattleEnd();
@@ -406,7 +400,7 @@ export class TeamManager {
     }
   }
 
-  // === MÉTHODES PUBLIQUES SIMPLES ===
+  // === MÉTHODES PUBLIQUES SIMPLIFIÉES ===
 
   // ✅ SIMPLE : Toggle comme dans InventoryUI
   toggleTeamUI() {
@@ -466,7 +460,28 @@ export class TeamManager {
     this.safeSend("autoArrangeTeam");
   }
 
-  // === MÉTHODES UTILITAIRES ===
+  // ✅ NOUVEAUX : Méthodes pour callbacks directs
+  onPokemonAdded(callback) {
+    this.callbacks.onPokemonAdded = callback;
+  }
+
+  onPokemonRemoved(callback) {
+    this.callbacks.onPokemonRemoved = callback;
+  }
+
+  onTeamHealed(callback) {
+    this.callbacks.onTeamHealed = callback;
+  }
+
+  onBattleStart(callback) {
+    this.callbacks.onBattleStart = callback;
+  }
+
+  onBattleEnd(callback) {
+    this.callbacks.onBattleEnd = callback;
+  }
+
+  // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
   calculateStats() {
     try {
@@ -595,6 +610,15 @@ export class TeamManager {
       this.teamIcon.destroy?.();
       this.teamIcon = null;
     }
+    
+    // Nettoyer les callbacks
+    this.callbacks = {
+      onPokemonAdded: null,
+      onPokemonRemoved: null,
+      onTeamHealed: null,
+      onBattleStart: null,
+      onBattleEnd: null
+    };
     
     // Nettoyer les références globales
     if (window.isTeamOpen) {
