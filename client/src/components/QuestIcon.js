@@ -1,4 +1,4 @@
-// client/src/components/QuestIcon.js
+// client/src/components/QuestIcon.js - Version harmonisée avec les couleurs bleues
 
 export class QuestIcon {
   constructor(questSystem) {
@@ -61,11 +61,12 @@ export class QuestIcon {
         transform: scale(1.1);
       }
 
+      /* ✅ COULEURS IDENTIQUES À L'INVENTAIRE - Thème bleu */
       .quest-icon .icon-background {
         width: 100%;
         height: 70px;
-        background: linear-gradient(145deg, #8a2be2, #6a1b9a);
-        border: 2px solid #9c27b0;
+        background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+        border: 2px solid #4a90e2;
         border-radius: 15px;
         display: flex;
         flex-direction: column;
@@ -77,9 +78,9 @@ export class QuestIcon {
       }
 
       .quest-icon:hover .icon-background {
-        background: linear-gradient(145deg, #9c27b0, #7b1fa2);
-        border-color: #ab47bc;
-        box-shadow: 0 6px 20px rgba(138, 43, 226, 0.4);
+        background: linear-gradient(145deg, #3a4f6f, #2e3d52);
+        border-color: #5aa0f2;
+        box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
       }
 
       .quest-icon .icon-content {
@@ -98,18 +99,20 @@ export class QuestIcon {
         transform: scale(1.2);
       }
 
+      /* ✅ LABEL IDENTIQUE À L'INVENTAIRE */
       .quest-icon .icon-label {
         font-size: 11px;
-        color: #e1bee7;
+        color: #87ceeb;
         font-weight: 600;
         text-align: center;
         padding: 4px 0;
-        background: rgba(156, 39, 176, 0.2);
+        background: rgba(74, 144, 226, 0.2);
         width: 100%;
         border-radius: 0 0 13px 13px;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
       }
 
+      /* ✅ NOTIFICATION IDENTIQUE AUX AUTRES */
       .quest-icon .icon-notification {
         position: absolute;
         top: -5px;
@@ -122,7 +125,7 @@ export class QuestIcon {
         align-items: center;
         justify-content: center;
         border: 2px solid #fff;
-        animation: questPulse 2s infinite;
+        animation: pulse 2s infinite;
       }
 
       .quest-icon .notification-count {
@@ -131,7 +134,7 @@ export class QuestIcon {
         font-weight: bold;
       }
 
-      @keyframes questPulse {
+      @keyframes pulse {
         0% { transform: scale(1); }
         50% { transform: scale(1.1); }
         100% { transform: scale(1); }
@@ -197,10 +200,10 @@ export class QuestIcon {
 
       /* Appear animation */
       .quest-icon.appearing {
-        animation: questIconAppear 0.5s ease;
+        animation: iconAppear 0.5s ease;
       }
 
-      @keyframes questIconAppear {
+      @keyframes iconAppear {
         from {
           opacity: 0;
           transform: translateY(50px) scale(0.5);
@@ -211,7 +214,7 @@ export class QuestIcon {
         }
       }
 
-      /* Periodic glow effect for active quests */
+      /* Periodic glow effect for active quests - COULEURS BLEUES */
       .quest-icon.has-active-quests .icon-background::before {
         content: '';
         position: absolute;
@@ -219,7 +222,7 @@ export class QuestIcon {
         left: -2px;
         right: -2px;
         bottom: -2px;
-        background: linear-gradient(45deg, transparent, rgba(156, 39, 176, 0.3), transparent);
+        background: linear-gradient(45deg, transparent, rgba(74, 144, 226, 0.3), transparent);
         border-radius: 17px;
         opacity: 0;
         animation: questGlow 4s infinite;
@@ -276,13 +279,13 @@ export class QuestIcon {
   }
 
   showCannotOpenMessage() {
-    // Create a temporary message
+    // Create a temporary message - COULEURS BLEUES
     const message = document.createElement('div');
     message.style.cssText = `
       position: fixed;
       bottom: 110px;
       right: 100px;
-      background: rgba(156, 39, 176, 0.9);
+      background: rgba(74, 144, 226, 0.9);
       color: white;
       padding: 8px 12px;
       border-radius: 8px;
@@ -394,7 +397,7 @@ export class QuestIcon {
     const originalEmoji = iconEmoji.textContent;
     
     iconEmoji.textContent = emoji;
-    iconEmoji.style.animation = 'questPulse 0.5s ease';
+    iconEmoji.style.animation = 'pulse 0.5s ease';
     
     setTimeout(() => {
       iconEmoji.textContent = originalEmoji;
