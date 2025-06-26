@@ -236,41 +236,6 @@
                 }, 
                 {
                  "height":0,
-                 "id":85,
-                 "name":"teleport",
-                 "polygon":[
-                        {
-                         "x":0,
-                         "y":0
-                        }, 
-                        {
-                         "x":86.6666666666667,
-                         "y":-88
-                        }, 
-                        {
-                         "x":86.6666666666667,
-                         "y":-2.07058823529417
-                        }],
-                 "properties":[
-                        {
-                         "name":"targetspawn",
-                         "type":"string",
-                         "value":"fromvillage"
-                        }, 
-                        {
-                         "name":"targetzone",
-                         "type":"string",
-                         "value":"beach"
-                        }],
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":393.333333333333,
-                 "y":480
-                }, 
-                {
-                 "height":0,
                  "id":91,
                  "name":"spawn",
                  "point":true,
@@ -494,6 +459,28 @@
                  "width":0,
                  "x":71.333333333333,
                  "y":371.333333333333
+                }, 
+                {
+                 "height":30,
+                 "id":133,
+                 "name":"teleport",
+                 "properties":[
+                        {
+                         "name":"targetspawn",
+                         "type":"string",
+                         "value":"fromvillage"
+                        }, 
+                        {
+                         "name":"tragetzone",
+                         "type":"string",
+                         "value":"beach"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":23.3333333333333,
+                 "x":455.333333333333,
+                 "y":451.333333333333
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -633,7 +620,7 @@
          "y":0
         }],
  "nextlayerid":19,
- "nextobjectid":133,
+ "nextobjectid":134,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
