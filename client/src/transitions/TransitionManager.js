@@ -853,6 +853,8 @@ this.startSceneWithData(targetSceneKey, result);
     
     // Zones Road
     'Road1HouseScene': 'road1house',
+        'Road1HiddenScene': 'road1hidden',
+
     'Road2Scene': 'road2',
     'Road3Scene': 'road3',
     
@@ -899,6 +901,8 @@ getSceneFromZone(zoneName) {
     
     // Zones Road
     'road1house': 'Road1HouseScene',
+        'road1hidden': 'Road1HiddenScene',
+
     'road2': 'Road2Scene',
     'road3': 'Road3Scene',
     
