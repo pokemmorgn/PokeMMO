@@ -1,4 +1,4 @@
-// client/src/components/TeamIcon.js - Version corrigée pour s'intégrer avec les icônes existantes
+// client/src/components/TeamIcon.js - Version harmonisée avec les autres icônes
 
 export class TeamIcon {
   constructor(teamUI) {
@@ -41,33 +41,12 @@ export class TeamIcon {
       </div>
     `;
 
-    // Ajouter au body avec position calculée
+    // Ajouter au body - la position sera calculée dynamiquement
     document.body.appendChild(icon);
     this.iconElement = icon;
 
     this.addStyles();
-    this.calculatePosition();
-  }
-
-  calculatePosition() {
-    // Calculer la position en fonction des autres icônes présentes
-    const inventoryIcon = document.querySelector('#inventory-icon');
-    const questIcon = document.querySelector('#quest-icon');
-    
-    let rightPosition = 20; // Position de base
-    
-    // Si l'icône d'inventaire existe, se positionner à sa gauche
-    if (inventoryIcon) {
-      rightPosition += 90; // 70px (largeur icône) + 20px (espacement)
-    }
-    
-    // Si l'icône de quête existe aussi, ajuster encore plus à gauche
-    if (questIcon) {
-      rightPosition += 90; // Encore 90px à gauche
-    }
-    
-    this.iconElement.style.right = `${rightPosition}px`;
-    console.log(`⚔️ Team icon positioned at right: ${rightPosition}px`);
+    this.checkAndAdjustPosition();
   }
 
   addStyles() {
@@ -76,7 +55,7 @@ export class TeamIcon {
     const style = document.createElement('style');
     style.id = 'team-icon-styles';
     style.textContent = `
-      /* ===== TEAM ICON STYLES ===== */
+      /* ===== TEAM ICON STYLES - HARMONISÉ AVEC LES AUTRES ICÔNES ===== */
       .team-icon {
         position: fixed;
         bottom: 20px;
@@ -93,11 +72,12 @@ export class TeamIcon {
         transform: scale(1.1);
       }
 
+      /* ✅ COULEURS HARMONISÉES - Thème orange/ambre comme 3ème couleur */
       .team-icon .icon-background {
         width: 100%;
         height: 70px;
-        background: linear-gradient(145deg, #e74c3c, #c0392b);
-        border: 2px solid #e74c3c;
+        background: linear-gradient(145deg, #ff9800, #f57c00);
+        border: 2px solid #ff9800;
         border-radius: 15px;
         display: flex;
         flex-direction: column;
@@ -110,9 +90,9 @@ export class TeamIcon {
       }
 
       .team-icon:hover .icon-background {
-        background: linear-gradient(145deg, #c0392b, #a93226);
-        border-color: #e74c3c;
-        box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+        background: linear-gradient(145deg, #ffb74d, #ff9800);
+        border-color: #ffab40;
+        box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
       }
 
       .team-icon .icon-content {
@@ -145,7 +125,7 @@ export class TeamIcon {
       }
 
       .team-count {
-        color: #f39c12;
+        color: #fff3e0;
         font-size: 13px;
       }
 
@@ -159,18 +139,20 @@ export class TeamIcon {
         font-size: 11px;
       }
 
+      /* ✅ LABEL HARMONISÉ AVEC LES AUTRES ICÔNES */
       .team-icon .icon-label {
         font-size: 11px;
-        color: #ffcccb;
+        color: #fff3e0;
         font-weight: 600;
         text-align: center;
         padding: 4px 0;
-        background: rgba(231, 76, 60, 0.2);
+        background: rgba(255, 152, 0, 0.2);
         width: 100%;
         border-radius: 0 0 13px 13px;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
       }
 
+      /* ✅ NOTIFICATION IDENTIQUE AUX AUTRES */
       .team-icon .icon-notification {
         position: absolute;
         top: -5px;
@@ -183,7 +165,7 @@ export class TeamIcon {
         align-items: center;
         justify-content: center;
         border: 2px solid #fff;
-        animation: teamPulse 2s infinite;
+        animation: pulse 2s infinite;
       }
 
       .team-icon .notification-count {
@@ -192,6 +174,7 @@ export class TeamIcon {
         font-weight: bold;
       }
 
+      /* ✅ INDICATEUR DE STATUT - COULEURS HARMONISÉES */
       .team-status-indicator {
         position: absolute;
         top: -3px;
@@ -213,23 +196,23 @@ export class TeamIcon {
       }
 
       .status-dot.ready {
-        background: #2ecc71;
-        box-shadow: 0 0 6px rgba(46, 204, 113, 0.6);
+        background: #4caf50;
+        box-shadow: 0 0 6px rgba(76, 175, 80, 0.6);
       }
 
       .status-dot.not-ready {
-        background: #e74c3c;
-        box-shadow: 0 0 6px rgba(231, 76, 60, 0.6);
+        background: #f44336;
+        box-shadow: 0 0 6px rgba(244, 67, 54, 0.6);
       }
 
       .status-dot.warning {
-        background: #f39c12;
-        box-shadow: 0 0 6px rgba(243, 156, 18, 0.6);
+        background: #ff9800;
+        box-shadow: 0 0 6px rgba(255, 152, 0, 0.6);
         animation: warningBlink 1.5s infinite;
       }
 
-      /* ===== ANIMATIONS ===== */
-      @keyframes teamPulse {
+      /* ===== ANIMATIONS HARMONISÉES ===== */
+      @keyframes pulse {
         0% { transform: scale(1); }
         50% { transform: scale(1.1); }
         100% { transform: scale(1); }
@@ -258,8 +241,8 @@ export class TeamIcon {
       }
 
       @keyframes faintedFlash {
-        0%, 100% { background: linear-gradient(145deg, #e74c3c, #c0392b); }
-        50% { background: linear-gradient(145deg, #8e44ad, #7d3c98); }
+        0%, 100% { background: linear-gradient(145deg, #ff9800, #f57c00); }
+        50% { background: linear-gradient(145deg, #9c27b0, #7b1fa2); }
       }
 
       /* Team full animation */
@@ -269,10 +252,10 @@ export class TeamIcon {
 
       @keyframes teamFullGlow {
         0%, 100% { box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); }
-        50% { box-shadow: 0 4px 25px rgba(243, 156, 18, 0.8); }
+        50% { box-shadow: 0 4px 25px rgba(255, 152, 0, 0.8); }
       }
 
-      /* ===== RESPONSIVE DESIGN ===== */
+      /* ===== RESPONSIVE DESIGN HARMONISÉ ===== */
       @media (max-width: 768px) {
         .team-icon {
           bottom: 15px;
@@ -301,17 +284,7 @@ export class TeamIcon {
         }
       }
 
-      @media (max-width: 480px) {
-        /* Sur très petit écran, empiler les icônes verticalement */
-        .team-icon {
-          bottom: 110px; /* Au-dessus des autres icônes */
-          right: 20px;
-          width: 55px;
-          height: 65px;
-        }
-      }
-
-      /* Special states */
+      /* ===== ÉTATS SPÉCIAUX HARMONISÉS ===== */
       .team-icon.disabled {
         opacity: 0.5;
         cursor: not-allowed;
@@ -324,12 +297,12 @@ export class TeamIcon {
         transform: translateY(20px);
       }
 
-      /* Appear animation */
+      /* Appear animation harmonisée */
       .team-icon.appearing {
-        animation: teamIconAppear 0.5s ease;
+        animation: iconAppear 0.5s ease;
       }
 
-      @keyframes teamIconAppear {
+      @keyframes iconAppear {
         from {
           opacity: 0;
           transform: translateY(50px) scale(0.5);
@@ -348,7 +321,7 @@ export class TeamIcon {
         left: -2px;
         right: -2px;
         bottom: -2px;
-        background: linear-gradient(45deg, transparent, rgba(231, 76, 60, 0.3), transparent);
+        background: linear-gradient(45deg, transparent, rgba(255, 152, 0, 0.3), transparent);
         border-radius: 17px;
         opacity: 0;
         animation: healthWarning 2s infinite;
@@ -378,20 +351,6 @@ export class TeamIcon {
       @keyframes battleRotate {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
-      }
-
-      /* ===== AJUSTEMENTS POSITIONNELS DYNAMIQUES ===== */
-      /* Ces classes seront appliquées dynamiquement selon les icônes présentes */
-      .team-icon.position-alone {
-        right: 20px; /* Seule icône */
-      }
-
-      .team-icon.position-with-inventory {
-        right: 110px; /* À gauche de l'inventaire */
-      }
-
-      .team-icon.position-with-both {
-        right: 200px; /* À gauche de quête + inventaire */
       }
     `;
 
@@ -461,7 +420,7 @@ export class TeamIcon {
       bottom: 110px;
       right: 50%;
       transform: translateX(50%);
-      background: rgba(231, 76, 60, 0.9);
+      background: rgba(255, 152, 0, 0.9);
       color: white;
       padding: 8px 12px;
       border-radius: 8px;
@@ -493,32 +452,28 @@ export class TeamIcon {
     }, 2000);
   }
 
+  // ✅ SYSTÈME DE POSITIONNEMENT AMÉLIORÉ - ESPACEMENT COHÉRENT
   adjustPosition() {
-    // Supprimer les anciennes classes de position
-    this.iconElement.classList.remove('position-alone', 'position-with-inventory', 'position-with-both');
-    
-    // Détecter les icônes présentes
     const inventoryIcon = document.querySelector('#inventory-icon');
     const questIcon = document.querySelector('#quest-icon');
     
-    let rightPosition = 20;
-    let positionClass = 'position-alone';
+    const baseRight = 20;
+    const iconWidth = 70;
+    const spacing = 20; // ✅ Espacement cohérent de 20px entre chaque icône
     
-    if (inventoryIcon && questIcon) {
-      // Les deux icônes sont présentes
-      rightPosition = 200; // À gauche des deux
-      positionClass = 'position-with-both';
-    } else if (inventoryIcon || questIcon) {
-      // Une seule des deux icônes est présente
-      rightPosition = 110; // À gauche de celle-ci
-      positionClass = 'position-with-inventory';
-    }
+    let rightPosition = baseRight;
+    let iconsCount = 0;
+
+    // Compter les icônes présentes et calculer la position
+    if (inventoryIcon) iconsCount++;
+    if (questIcon) iconsCount++;
+
+    // Positionner l'icône team à gauche des autres
+    rightPosition = baseRight + (iconsCount * (iconWidth + spacing));
     
-    // Appliquer la position
     this.iconElement.style.right = `${rightPosition}px`;
-    this.iconElement.classList.add(positionClass);
     
-    console.log(`⚔️ Team icon repositioned: ${rightPosition}px (${positionClass})`);
+    console.log(`⚔️ Team icon positioned: ${rightPosition}px (${iconsCount} autres icônes détectées)`);
   }
 
   startPositionObserver() {
@@ -566,7 +521,7 @@ export class TeamIcon {
     }
   }
 
-  // Méthode pour forcer la vérification de position (utile lors de l'initialisation)
+  // ✅ VÉRIFICATION ET AJUSTEMENT DE POSITION
   checkAndAdjustPosition() {
     setTimeout(() => {
       this.adjustPosition();
@@ -676,7 +631,7 @@ export class TeamIcon {
     const originalEmoji = iconEmoji.textContent;
     
     iconEmoji.textContent = emoji;
-    iconEmoji.style.animation = 'teamPulse 0.5s ease';
+    iconEmoji.style.animation = 'pulse 0.5s ease';
     
     setTimeout(() => {
       iconEmoji.textContent = originalEmoji;
@@ -739,133 +694,4 @@ export class TeamIcon {
     }
     console.log('⚔️ Team icon removed');
   }
-
-  // ===== MÉTHODES STATIQUES POUR INTÉGRATION GLOBALE =====
-  
-  /**
-   * Méthode statique pour réorganiser toutes les icônes UI
-   * À appeler après l'ajout/suppression d'icônes
-   */
-  static repositionAllIcons() {
-    const teamIcon = document.querySelector('#team-icon');
-    if (teamIcon && teamIcon._teamIconInstance) {
-      teamIcon._teamIconInstance.adjustPosition();
-    }
-  }
-
-  /**
-   * Méthode statique pour obtenir la prochaine position libre pour une nouvelle icône
-   */
-  static getNextIconPosition() {
-    const existingIcons = [
-      document.querySelector('#inventory-icon'),
-      document.querySelector('#quest-icon'),
-      document.querySelector('#team-icon')
-    ].filter(Boolean);
-
-    const baseRight = 20;
-    const iconWidth = 70;
-    const spacing = 20;
-
-    return baseRight + (existingIcons.length * (iconWidth + spacing));
-  }
-
-  /**
-   * Méthode pour s'enregistrer globalement pour la gestion de position
-   */
-  registerForPositionManagement() {
-    // Stocker une référence vers cette instance sur l'élément DOM
-    this.iconElement._teamIconInstance = this;
-    
-    // S'enregistrer dans un gestionnaire global si il existe
-    if (!window.UIIconManager) {
-      window.UIIconManager = {
-        icons: [],
-        register: function(icon) {
-          this.icons.push(icon);
-          this.repositionAll();
-        },
-        unregister: function(icon) {
-          const index = this.icons.indexOf(icon);
-          if (index > -1) {
-            this.icons.splice(index, 1);
-            this.repositionAll();
-          }
-        },
-        repositionAll: function() {
-          this.icons.forEach(icon => {
-            if (icon.adjustPosition) {
-              icon.adjustPosition();
-            }
-          });
-        }
-      };
-    }
-    
-    window.UIIconManager.register(this);
-  }
-
-  unregisterFromPositionManagement() {
-    if (window.UIIconManager) {
-      window.UIIconManager.unregister(this);
-    }
-    
-    if (this.iconElement) {
-      delete this.iconElement._teamIconInstance;
-    }
-  }
 }
-
-// ===== FONCTIONS UTILITAIRES GLOBALES =====
-
-/**
- * Fonction utilitaire pour déclencher le repositionnement de toutes les icônes
- */
-window.repositionUIIcons = function() {
-  TeamIcon.repositionAllIcons();
-  
-  // Déclencher également le repositionnement des autres icônes si elles ont des méthodes similaires
-  const inventoryIcon = document.querySelector('#inventory-icon');
-  if (inventoryIcon && inventoryIcon._inventoryIconInstance) {
-    inventoryIcon._inventoryIconInstance.checkAndAdjustPosition?.();
-  }
-  
-  console.log('🔄 All UI icons repositioned');
-};
-
-/**
- * Fonction pour initialiser le système de positionnement automatique
- */
-window.initUIIconPositioning = function() {
-  // Observer global pour tous les changements d'icônes
-  const globalObserver = new MutationObserver((mutations) => {
-    let shouldReposition = false;
-    
-    mutations.forEach((mutation) => {
-      mutation.addedNodes.forEach((node) => {
-        if (node.nodeType === 1 && node.classList?.contains('ui-icon')) {
-          shouldReposition = true;
-        }
-      });
-      
-      mutation.removedNodes.forEach((node) => {
-        if (node.nodeType === 1 && node.classList?.contains('ui-icon')) {
-          shouldReposition = true;
-        }
-      });
-    });
-
-    if (shouldReposition) {
-      setTimeout(() => {
-        window.repositionUIIcons?.();
-      }, 100);
-    }
-  });
-
-  globalObserver.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-
-  console.log('🔧 Global UI icon positioning initialized');
-};
