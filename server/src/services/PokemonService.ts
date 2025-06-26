@@ -157,6 +157,8 @@ export async function createCompletePokemon(
   const nature = options.nature || randomNature();
   const isShiny = options.shiny !== undefined ? options.shiny : randomShiny();
 const genderRaw = await generateRandomGender(options.pokemonId);
+  console.log("[DEBUG createCompletePokemon GENDER]", { optionsGender: options.gender, genderRaw, gender });
+
 const gender = toModelGender(genderRaw);
   const ability = options.ability || await selectPokemonAbility(options.pokemonId);
   const moves = await getMovesWithPP(options.pokemonId, level);
@@ -170,7 +172,7 @@ const gender = toModelGender(genderRaw);
     nature,
     nickname: options.nickname,
     shiny: isShiny,
-    gender,
+    gender: ["Male", "Female", "Genderless"].includes(gender) ? gender : "Genderless",
     ability,
     ivs,
     evs: {
