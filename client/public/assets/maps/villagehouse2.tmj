@@ -179,12 +179,12 @@
                         {
                          "name":"targetspawn",
                          "type":"string",
-                         "value":"fromvillage"
+                         "value":"fromvillagehouse2"
                         }, 
                         {
                          "name":"targetzone",
                          "type":"string",
-                         "value":"villagehouse2"
+                         "value":"village"
                         }],
                  "rotation":0,
                  "type":"",
