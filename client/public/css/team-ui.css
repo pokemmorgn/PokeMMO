@@ -403,11 +403,13 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  cursor: grab;
+  cursor: pointer; /* Changé de grab à pointer pour la sélection */
   transition: all 0.3s ease;
   flex: 1;
   min-height: 0;
   border: 2px solid transparent;
+  user-select: none; /* Empêcher la sélection de texte */
+  z-index: 2; /* S'assurer que la carte est au-dessus */
 }
 
 /* Bordures colorées selon le type */
@@ -432,11 +434,19 @@
 
 .pokemon-card:active {
   cursor: grabbing;
+  transform: scale(0.98); /* Petit effet de clic */
 }
 
 .pokemon-card.dragging {
   opacity: 0.7;
   transform: rotate(5deg);
+  cursor: grabbing;
+}
+
+/* Effet hover amélioré pour la sélection */
+.pokemon-card:hover:not(.dragging) {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 /* Animation pour Pokémon actif/sélectionné */
