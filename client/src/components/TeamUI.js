@@ -44,6 +44,13 @@ getPokemonName(pokemonId) {
     `#${pokemonId}`
   );
 }
+
+getPokemonPortrait(pokemonId, options = {}) {
+  let id = Number(pokemonId);
+  let variant = options.shiny ? '_shiny' : '';
+  return `/assets/pokemon/portraitanime/${id}${variant}.png`;
+}
+
   
   createTeamInterface() {
     const overlay = document.createElement('div');
@@ -851,6 +858,14 @@ getPokemonName(pokemonId) {
         border-radius: 4px;
       }
 
+.pokemon-portrait {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+}
+
       .team-view::-webkit-scrollbar-thumb:hover {
         background: rgba(231, 76, 60, 0.8);
       }
@@ -1007,9 +1022,16 @@ getPokemonName(pokemonId) {
     <div class="pokemon-level">Lv.${pokemon.level}</div>
   </div>
       
-      <div class="pokemon-sprite">
-        <div class="pokemon-icon">${this.getPokemonIcon(pokemon.pokemonId)}</div>
-      </div>
+<div class="pokemon-sprite">
+  <img 
+    src="${this.getPokemonPortrait(pokemon.pokemonId, { shiny: pokemon.shiny })}"
+    class="pokemon-portrait"
+    alt="${this.getPokemonName(pokemon.pokemonId)}"
+    loading="lazy"
+    onerror="this.src='/assets/pokemon/portraitanime/unknown.png';"
+  >
+</div>
+
       
       <div class="pokemon-health">
         <div class="health-bar">
@@ -1126,7 +1148,16 @@ getPokemonName(pokemonId) {
     detailPanel.innerHTML = `
       <div class="pokemon-detail-content">
         <div class="pokemon-detail-header">
-          <div class="pokemon-detail-icon">${this.getPokemonIcon(pokemon.pokemonId)}</div>
+<div class="pokemon-detail-icon">
+  <img 
+    src="${this.getPokemonPortrait(pokemon.pokemonId, { shiny: pokemon.shiny })}"
+    class="pokemon-portrait"
+    alt="${this.getPokemonName(pokemon.pokemonId)}"
+    loading="lazy"
+    onerror="this.src='/assets/pokemon/portraitanime/unknown.png';"
+  >
+</div>
+
           <div class="pokemon-detail-info">
            <h3>${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}</h3>
             <div class="pokemon-detail-subtitle">
