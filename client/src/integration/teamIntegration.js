@@ -1,7 +1,7 @@
-// client/src/integration/teamIntegration.js - VERSION CORRIGÉE SANS EVENTS
-// ✅ Suppression des appels .on() défaillants
+// client/src/integration/teamIntegration.js - VERSION CORRIGÉE IMPORT
+// ✅ Correction import pour correspondre au nouveau TeamManager
 
-import { initializeTeamSystem } from '../managers/TeamManager.js';
+import TeamManager from '../managers/TeamManager.js';
 
 /**
  * Initialise et intègre le système d'équipe dans le jeu principal
@@ -11,14 +11,14 @@ export function setupTeamSystem(gameRoom) {
   console.log('🔧 Configuration du système d\'équipe...');
   
   try {
-    // Initialiser le TeamManager
-    const teamManager = initializeTeamSystem(gameRoom);
+    // ✅ UTILISER LA FONCTION GLOBALE MAINTENANT
+    const teamManager = window.initTeamSystem(gameRoom);
     
     if (!teamManager) {
       throw new Error('TeamManager non créé');
     }
     
-    // ✅ UTILISER LES CALLBACKS DIRECTS AU LIEU DE .on()
+    // Intégrer avec les systèmes existants
     integrateWithExistingSystems(teamManager);
     
     // Configurer les événements globaux
@@ -59,14 +59,12 @@ function integrateWithExistingSystems(teamManager) {
   if (window.QuestSystem) {
     console.log('🔗 Intégration avec QuestSystem...');
     
-    // ✅ CALLBACKS DIRECTS AU LIEU DE .on()
-    teamManager.onPokemonAdded((pokemon) => {
-      window.QuestSystem.checkProgress('catch_pokemon', pokemon);
-    });
-    
-    teamManager.onTeamFull && teamManager.onTeamFull(() => {
-      window.QuestSystem.checkProgress('team_full');
-    });
+    // ✅ ÉVÉNEMENTS DIRECTS AU LIEU DE CALLBACKS COMPLEXES
+    if (teamManager.gameRoom) {
+      teamManager.gameRoom.onMessage("pokemonAddedToTeam", (data) => {
+        window.QuestSystem.checkProgress('catch_pokemon', data.pokemon);
+      });
+    }
   }
   
   // === INTÉGRATION AVEC LE SYSTÈME DE CHAT ===
@@ -75,8 +73,8 @@ function integrateWithExistingSystems(teamManager) {
     
     // Commandes de chat pour l'équipe
     window.ChatSystem.addCommand('team', () => {
-      if (teamManager.canInteract()) {
-        teamManager.toggleTeamUI();
+      if (teamManager.canPlayerInteract()) {
+        teamManager.toggleTeam();
       } else {
         window.ChatSystem.addMessage('System', 'Cannot open team right now');
       }
@@ -137,7 +135,7 @@ function setupGlobalTeamEvents(teamManager) {
   window.addEventListener('resize', () => {
     if (window.innerWidth < 768 && teamManager.teamUI?.isOpen()) {
       // Sur mobile, fermer l'équipe lors de changements d'orientation
-      teamManager.closeTeamUI();
+      teamManager.closeTeam();
     }
   });
   
@@ -145,7 +143,7 @@ function setupGlobalTeamEvents(teamManager) {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && teamManager.teamUI?.isOpen()) {
       // Fermer l'équipe quand l'onglet devient invisible
-      teamManager.closeTeamUI();
+      teamManager.closeTeam();
     }
   });
   
@@ -155,7 +153,7 @@ function setupGlobalTeamEvents(teamManager) {
     // Raccourcis spéciaux avec Ctrl/Cmd
     if ((e.ctrlKey || e.metaKey) && e.key === 't') {
       e.preventDefault();
-      teamManager.toggleTeamUI();
+      teamManager.toggleTeam();
     }
     
     // Raccourcis numériques pour sélectionner des Pokémon (Alt + 1-6)
@@ -164,27 +162,30 @@ function setupGlobalTeamEvents(teamManager) {
       const slot = parseInt(e.key) - 1;
       const pokemon = teamManager.getPokemonBySlot(slot);
       if (pokemon && teamManager.teamUI?.isOpen()) {
-        teamManager.teamUI.selectPokemonBySlot && teamManager.teamUI.selectPokemonBySlot(slot);
+        // Essayer de sélectionner le Pokémon
+        if (teamManager.teamUI.selectPokemonBySlot) {
+          teamManager.teamUI.selectPokemonBySlot(slot);
+        }
       }
     }
   });
   
   // === ÉVÉNEMENTS PERSONNALISÉS ===
   
-  // ✅ CALLBACKS DIRECTS AU LIEU DE .on()
-  teamManager.onPokemonAdded((pokemon) => {
-    document.dispatchEvent(new CustomEvent('game:pokemonAddedToTeam', {
-      detail: pokemon
-    }));
-  });
-  
-  teamManager.onPokemonRemoved((data) => {
-    document.dispatchEvent(new CustomEvent('game:pokemonRemovedFromTeam', {
-      detail: data
-    }));
-  });
-  
-  // Pas d'événement teamDefeated pour l'instant
+  // Écouter les messages du serveur pour déclencher des événements
+  if (teamManager.gameRoom) {
+    teamManager.gameRoom.onMessage("pokemonAddedToTeam", (pokemon) => {
+      document.dispatchEvent(new CustomEvent('game:pokemonAddedToTeam', {
+        detail: pokemon
+      }));
+    });
+    
+    teamManager.gameRoom.onMessage("pokemonRemovedFromTeam", (data) => {
+      document.dispatchEvent(new CustomEvent('game:pokemonRemovedFromTeam', {
+        detail: data
+      }));
+    });
+  }
   
   console.log('✅ Événements globaux configurés');
 }
@@ -231,7 +232,7 @@ function setupCustomKeybinds(keybinds = {}) {
     switch (key) {
       case finalKeybinds.toggleTeam:
         e.preventDefault();
-        teamManager.toggleTeamUI();
+        teamManager.toggleTeam();
         break;
         
       case finalKeybinds.healTeam:
@@ -250,32 +251,15 @@ function setupCustomKeybinds(keybinds = {}) {
         if (teamManager.teamUI?.isOpen()) {
           e.preventDefault();
           const slot = parseInt(key) - 1;
-          teamManager.teamUI.selectPokemonBySlot && teamManager.teamUI.selectPokemonBySlot(slot);
+          if (teamManager.teamUI.selectPokemonBySlot) {
+            teamManager.teamUI.selectPokemonBySlot(slot);
+          }
         }
         break;
     }
   });
   
   console.log('⌨️ Raccourcis clavier configurés:', finalKeybinds);
-}
-
-// ✅ NOUVELLES MÉTHODES POUR LE TeamManager
-// Ajouter ces méthodes s'il n'en a pas déjà
-function extendTeamManager(teamManager) {
-  if (!teamManager.onTeamFull) {
-    teamManager.onTeamFull = function(callback) {
-      // Vérifier périodiquement si l'équipe est pleine
-      const checkInterval = setInterval(() => {
-        if (this.isTeamFull()) {
-          callback();
-          clearInterval(checkInterval);
-        }
-      }, 1000);
-      
-      // Nettoyer après 30 secondes
-      setTimeout(() => clearInterval(checkInterval), 30000);
-    };
-  }
 }
 
 /**
@@ -287,7 +271,7 @@ const TeamIntegrationUtils = {
    * Vérifie si le système d'équipe est prêt
    */
   isTeamSystemReady() {
-    return !!(window.TeamManager && window.TeamManager.isInitialized);
+    return !!(window.TeamManager && window.teamSystem);
   },
   
   /**
