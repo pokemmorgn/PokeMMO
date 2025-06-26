@@ -532,8 +532,9 @@ getPortraitSpriteStyle(pokemonId, options = {}) {
         font-style: italic;
       }
 
-      /* ===== POKEMON CARD IN SLOT ===== */
+            /* ===== POKEMON CARD IN SLOT ===== */
       .pokemon-card {
+        /* Prend tout l'espace disponible dans slot-background */
         width: 100%;
         height: 100%;
         background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
@@ -544,6 +545,28 @@ getPortraitSpriteStyle(pokemonId, options = {}) {
         position: relative;
         cursor: grab;
         transition: all 0.3s ease;
+        /* Supprime les marges automatiques qui pourraient causer des problèmes */
+        margin: 0;
+        /* Force la pokemon-card à prendre toute la place dans le conteneur flex */
+        flex: 1;
+        min-height: 0; /* Important pour que flex fonctionne correctement */
+      }
+      
+      /* Assure-toi que quand il y a une pokemon-card, elle occupe tout l'espace */
+      .slot-background:has(.pokemon-card) {
+        /* Le slot-background reste en flex pour centrer le contenu */
+        display: flex;
+        flex-direction: column;
+        align-items: stretch; /* ← Change de 'center' à 'stretch' */
+        justify-content: stretch; /* ← Change de 'center' à 'stretch' */
+      }
+      
+      /* Si :has() n'est pas supporté, utilise une classe */
+      .slot-background.has-pokemon {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: stretch;
       }
 
       .pokemon-card:active {
@@ -1006,89 +1029,101 @@ getPortraitSpriteStyle(pokemonId, options = {}) {
     console.log('⚔️ Données d\'équipe mises à jour');
   }
 
-  refreshTeamDisplay() {
-    const slotsContainer = this.overlay.querySelector('.team-slots-grid');
-    
-    // Clear existing pokemon cards
-    slotsContainer.querySelectorAll('.pokemon-card').forEach(card => card.remove());
-    
-    // Display each pokemon
-    this.teamData.forEach((pokemon, index) => {
-      if (pokemon && index < 6) {
-        const slot = slotsContainer.querySelector(`[data-slot="${index}"]`);
-        this.displayPokemonInSlot(slot, pokemon, index);
-      }
-    });
-  }
+refreshTeamDisplay() {
+  const slotsContainer = this.overlay.querySelector('.team-slots-grid');
+  
+  // Clear existing pokemon cards ET les classes
+  slotsContainer.querySelectorAll('.pokemon-card').forEach(card => card.remove());
+  slotsContainer.querySelectorAll('.slot-background').forEach(bg => {
+    bg.classList.remove('has-pokemon');
+    // Remontre l'empty-slot
+    const emptySlot = bg.querySelector('.empty-slot');
+    if (emptySlot) emptySlot.style.display = 'flex';
+  });
+  
+  // Display each pokemon
+  this.teamData.forEach((pokemon, index) => {
+    if (pokemon && index < 6) {
+      const slot = slotsContainer.querySelector(`[data-slot="${index}"]`);
+      this.displayPokemonInSlot(slot, pokemon, index);
+    }
+  });
+}
 
-  displayPokemonInSlot(slot, pokemon, index) {
-    console.log('[DEBUG NOMS]', pokemon.pokemonId, this.getPokemonName(pokemon.pokemonId));
-    // Hide empty slot
-    const emptySlot = slot.querySelector('.empty-slot');
-    if (emptySlot) emptySlot.style.display = 'none';
+displayPokemonInSlot(slot, pokemon, index) {
+  console.log('[DEBUG NOMS]', pokemon.pokemonId, this.getPokemonName(pokemon.pokemonId));
+  
+  // Get slot-background
+  const slotBackground = slot.querySelector('.slot-background');
+  
+  // Hide empty slot
+  const emptySlot = slot.querySelector('.empty-slot');
+  if (emptySlot) emptySlot.style.display = 'none';
+  
+  // Add class to change slot-background behavior
+  slotBackground.classList.add('has-pokemon');
 
-    // Create pokemon card
-    const pokemonCard = document.createElement('div');
-    pokemonCard.className = 'pokemon-card';
-    pokemonCard.dataset.pokemonId = pokemon._id;
-    pokemonCard.dataset.slot = index;
-    pokemonCard.draggable = true;
+  // Create pokemon card
+  const pokemonCard = document.createElement('div');
+  pokemonCard.className = 'pokemon-card';
+  pokemonCard.dataset.pokemonId = pokemon._id;
+  pokemonCard.dataset.slot = index;
+  pokemonCard.draggable = true;
 
-    const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
-    const healthClass = this.getHealthClass(healthPercent);
-    const statusDisplay = this.getStatusDisplay(pokemon.status);
-    const typesDisplay = this.getTypesDisplay(pokemon.types);
+  const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
+  const healthClass = this.getHealthClass(healthPercent);
+  const statusDisplay = this.getStatusDisplay(pokemon.status);
+  const typesDisplay = this.getTypesDisplay(pokemon.types);
 
-    pokemonCard.innerHTML = `
-  <div class="pokemon-header">
-    <div class="pokemon-name" title="${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}">
-      ${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}
+  pokemonCard.innerHTML = `
+    <div class="pokemon-header">
+      <div class="pokemon-name" title="${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}">
+        ${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}
+      </div>
+      <div class="pokemon-level">Lv.${pokemon.level}</div>
     </div>
-    <div class="pokemon-level">Lv.${pokemon.level}</div>
-  </div>
-      
-<div class="pokemon-sprite">
-  <div 
-    class="pokemon-portrait"
-    style="${this.getPortraitSpriteStyle(pokemon.pokemonId, { shiny: pokemon.shiny })}"
-    title="${this.getPokemonName(pokemon.pokemonId)}"
-  ></div>
-</div>
-
-
-      
-      <div class="pokemon-health">
-        <div class="health-bar">
-          <div class="health-fill ${healthClass}" style="width: ${healthPercent}%"></div>
-        </div>
-        <div class="health-text">${pokemon.currentHp}/${pokemon.maxHp}</div>
+        
+    <div class="pokemon-sprite">
+      <div 
+        class="pokemon-portrait"
+        style="${this.getPortraitSpriteStyle(pokemon.pokemonId, { shiny: pokemon.shiny })}"
+        title="${this.getPokemonName(pokemon.pokemonId)}"
+      ></div>
+    </div>
+        
+    <div class="pokemon-health">
+      <div class="health-bar">
+        <div class="health-fill ${healthClass}" style="width: ${healthPercent}%"></div>
       </div>
-      
-      <div class="pokemon-status">
-        ${statusDisplay}
-      </div>
-      
-      <div class="pokemon-types">
-        ${typesDisplay}
-      </div>
-    `;
+      <div class="health-text">${pokemon.currentHp}/${pokemon.maxHp}</div>
+    </div>
+    
+    <div class="pokemon-status">
+      ${statusDisplay}
+    </div>
+    
+    <div class="pokemon-types">
+      ${typesDisplay}
+    </div>
+  `;
 
-    // Event listeners
-    pokemonCard.addEventListener('click', () => {
-      this.selectPokemon(pokemon, pokemonCard);
-    });
+  // Event listeners
+  pokemonCard.addEventListener('click', () => {
+    this.selectPokemon(pokemon, pokemonCard);
+  });
 
-    pokemonCard.addEventListener('dblclick', () => {
-      this.showPokemonDetails(pokemon);
-    });
+  pokemonCard.addEventListener('dblclick', () => {
+    this.showPokemonDetails(pokemon);
+  });
 
-    slot.appendChild(pokemonCard);
+  // ✅ Ajouter dans le slot-background
+  slotBackground.appendChild(pokemonCard);
 
-    // Animation
-    setTimeout(() => {
-      pokemonCard.classList.add('new');
-    }, index * 100);
-  }
+  // Animation
+  setTimeout(() => {
+    pokemonCard.classList.add('new');
+  }, index * 100);
+}
 
   getPokemonIcon(pokemonId) {
     // Mapping des icônes par ID de Pokémon
