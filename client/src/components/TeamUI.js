@@ -8,15 +8,26 @@ export class TeamUI {
     this.selectedPokemon = null;
     this.draggedPokemon = null;
     this.currentView = 'overview'; // overview, details, moves
-    
+    this.pokemonLocalizations = {}; // Ajouté !
+    this.language = 'en'; // ou détecte dynamiquement
     this.init();
   }
 
   init() {
+    await this.loadPokemonLocalizations();
     this.createTeamInterface();
     this.setupEventListeners();
     this.setupServerListeners();
     console.log('⚔️ Interface d\'équipe initialisée');
+  }
+  async loadPokemonLocalizations() {
+  try {
+    const response = await fetch('/localization/pokemon/gen1/en.json');
+    this.pokemonLocalizations = await response.json();
+    console.log('✅ Pokémon loca chargée !', this.pokemonLocalizations);
+  } catch (err) {
+    console.error('❌ Erreur chargement loca Pokémon', err);
+    this.pokemonLocalizations = {};
   }
 
   createTeamInterface() {
@@ -833,6 +844,20 @@ export class TeamUI {
     document.head.appendChild(style);
   }
 
+  getPokemonName(pokemonId) {
+  // pokemonId arrive souvent comme int ou string, adapte selon ton JSON
+  const idStr = String(pokemonId).padStart(3, '0'); // "1" => "001"
+  if (
+    this.pokemonLocalizations &&
+    this.pokemonLocalizations[idStr] &&
+    this.pokemonLocalizations[idStr].name
+  ) {
+    return this.pokemonLocalizations[idStr].name;
+  }
+  return `#${pokemonId}`;
+}
+
+    
   setupEventListeners() {
     // Fermeture
     this.overlay.querySelector('.team-close-btn').addEventListener('click', () => {
@@ -974,9 +999,9 @@ export class TeamUI {
 
     pokemonCard.innerHTML = `
       <div class="pokemon-header">
-        <div class="pokemon-name" title="${pokemon.nickname || pokemon.name}">
-          ${pokemon.nickname || pokemon.name}
-        </div>
+      <div class="pokemon-name" title="${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}">
+        ${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}
+      </div>
         <div class="pokemon-level">Lv.${pokemon.level}</div>
       </div>
       
