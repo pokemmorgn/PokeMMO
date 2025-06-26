@@ -981,6 +981,7 @@ export class TeamUI {
   }
 
   displayPokemonInSlot(slot, pokemon, index) {
+    console.log('[DEBUG NOMS]', pokemon.pokemonId, this.getPokemonName(pokemon.pokemonId));
     // Hide empty slot
     const emptySlot = slot.querySelector('.empty-slot');
     if (emptySlot) emptySlot.style.display = 'none';
