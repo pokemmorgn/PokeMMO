@@ -201,14 +201,16 @@ export class StarterPokemonService {
       // Ici on force le genre conforme au modèle
       const gender = toModelGender(); // <-- Par défaut, Genderless si tu ne précises pas
 
-      return await createCompletePokemon(username, {
-        pokemonId: this.config.pokemonId,
-        level: this.config.level,
-        nickname: this.config.nickname,
-        inTeam: true,
-        shiny: Math.random() < 0.001, // 0.1% de chance de shiny pour les starters de test
-        gender // toujours "Male", "Female" ou "Genderless"
-      });
+// Le starter sera Genderless ou généré par createCompletePokemon (selon la logique interne de cette fonction)
+return await createCompletePokemon(username, {
+  pokemonId: this.config.pokemonId,
+  level: this.config.level,
+  nickname: this.config.nickname,
+  inTeam: true,
+  shiny: Math.random() < 0.001 // 0.1% de chance de shiny pour les starters de test
+  // PAS de "gender" ici si non supporté par la fonction !
+});
+
     }
   }
 
