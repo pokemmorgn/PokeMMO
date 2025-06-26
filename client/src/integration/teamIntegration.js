@@ -1,4 +1,5 @@
-// client/src/integration/teamIntegration.js - Intégration du système d'équipe
+// client/src/integration/teamIntegration.js - VERSION CORRIGÉE SANS EVENTS
+// ✅ Suppression des appels .on() défaillants
 
 import { initializeTeamSystem } from '../managers/TeamManager.js';
 
@@ -13,7 +14,11 @@ export function setupTeamSystem(gameRoom) {
     // Initialiser le TeamManager
     const teamManager = initializeTeamSystem(gameRoom);
     
-    // Intégrer avec les autres systèmes existants
+    if (!teamManager) {
+      throw new Error('TeamManager non créé');
+    }
+    
+    // ✅ UTILISER LES CALLBACKS DIRECTS AU LIEU DE .on()
     integrateWithExistingSystems(teamManager);
     
     // Configurer les événements globaux
@@ -54,12 +59,12 @@ function integrateWithExistingSystems(teamManager) {
   if (window.QuestSystem) {
     console.log('🔗 Intégration avec QuestSystem...');
     
-    // Écouter les événements d'équipe pour les quêtes
-    teamManager.on('pokemonAdded', (event) => {
-      window.QuestSystem.checkProgress('catch_pokemon', event.detail);
+    // ✅ CALLBACKS DIRECTS AU LIEU DE .on()
+    teamManager.onPokemonAdded((pokemon) => {
+      window.QuestSystem.checkProgress('catch_pokemon', pokemon);
     });
     
-    teamManager.on('teamFull', () => {
+    teamManager.onTeamFull && teamManager.onTeamFull(() => {
       window.QuestSystem.checkProgress('team_full');
     });
   }
@@ -89,7 +94,7 @@ function integrateWithExistingSystems(teamManager) {
     // Hook pour vérifier l'équipe avant un combat
     const originalStartBattle = window.BattleSystem.startBattle;
     window.BattleSystem.startBattle = function(...args) {
-      if (!teamManager.onBattleStartRequested()) {
+      if (!teamManager.canBattle()) {
         return false; // Empêcher le combat si pas d'équipe
       }
       return originalStartBattle.apply(this, args);
@@ -104,7 +109,7 @@ function integrateWithExistingSystems(teamManager) {
     const originalExportData = window.SaveSystem.exportData;
     window.SaveSystem.exportData = function() {
       const data = originalExportData.call(this);
-      data.team = teamManager.exportData();
+      data.team = teamManager.getTeamData();
       return data;
     };
     
@@ -112,7 +117,8 @@ function integrateWithExistingSystems(teamManager) {
     window.SaveSystem.importData = function(data) {
       originalImportData.call(this, data);
       if (data.team) {
-        teamManager.importData(data.team);
+        // Pas d'importData direct, juste demander refresh
+        teamManager.requestTeamData();
       }
     };
   }
@@ -158,31 +164,27 @@ function setupGlobalTeamEvents(teamManager) {
       const slot = parseInt(e.key) - 1;
       const pokemon = teamManager.getPokemonBySlot(slot);
       if (pokemon && teamManager.teamUI?.isOpen()) {
-        teamManager.teamUI.selectPokemonBySlot(slot);
+        teamManager.teamUI.selectPokemonBySlot && teamManager.teamUI.selectPokemonBySlot(slot);
       }
     }
   });
   
   // === ÉVÉNEMENTS PERSONNALISÉS ===
   
-  // Émettre des événements pour d'autres systèmes
-  teamManager.on('pokemonAdded', (event) => {
+  // ✅ CALLBACKS DIRECTS AU LIEU DE .on()
+  teamManager.onPokemonAdded((pokemon) => {
     document.dispatchEvent(new CustomEvent('game:pokemonAddedToTeam', {
-      detail: event.detail
+      detail: pokemon
     }));
   });
   
-  teamManager.on('pokemonRemoved', (event) => {
+  teamManager.onPokemonRemoved((data) => {
     document.dispatchEvent(new CustomEvent('game:pokemonRemovedFromTeam', {
-      detail: event.detail
+      detail: data
     }));
   });
   
-  teamManager.on('teamDefeated', (event) => {
-    document.dispatchEvent(new CustomEvent('game:teamDefeated', {
-      detail: event.detail
-    }));
-  });
+  // Pas d'événement teamDefeated pour l'instant
   
   console.log('✅ Événements globaux configurés');
 }
@@ -248,13 +250,32 @@ function setupCustomKeybinds(keybinds = {}) {
         if (teamManager.teamUI?.isOpen()) {
           e.preventDefault();
           const slot = parseInt(key) - 1;
-          teamManager.teamUI.selectPokemonBySlot(slot);
+          teamManager.teamUI.selectPokemonBySlot && teamManager.teamUI.selectPokemonBySlot(slot);
         }
         break;
     }
   });
   
   console.log('⌨️ Raccourcis clavier configurés:', finalKeybinds);
+}
+
+// ✅ NOUVELLES MÉTHODES POUR LE TeamManager
+// Ajouter ces méthodes s'il n'en a pas déjà
+function extendTeamManager(teamManager) {
+  if (!teamManager.onTeamFull) {
+    teamManager.onTeamFull = function(callback) {
+      // Vérifier périodiquement si l'équipe est pleine
+      const checkInterval = setInterval(() => {
+        if (this.isTeamFull()) {
+          callback();
+          clearInterval(checkInterval);
+        }
+      }, 1000);
+      
+      // Nettoyer après 30 secondes
+      setTimeout(() => clearInterval(checkInterval), 30000);
+    };
+  }
 }
 
 /**
