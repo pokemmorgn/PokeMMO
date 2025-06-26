@@ -85,7 +85,12 @@ export class TeamUI {
     this.createTeamInterface();
     this.setupEventListeners();
     this.setupServerListeners();
+    
+    // ✅ RENDRE ACCESSIBLE GLOBALEMENT DÈS L'INIT
+    window.teamUI = this;
+    
     console.log('⚔️ Interface d\'équipe initialisée');
+    console.log('⚔️ TeamUI accessible globalement:', window.teamUI ? 'OUI' : 'NON');
   }
 
   async loadPokemonLocalizations() {
@@ -494,10 +499,15 @@ export class TeamUI {
       }
     });
 
-    // Setup listeners for the new cards
+    // ✅ Test de clic direct après création
     setTimeout(() => {
-      this.setupPokemonCardListeners();
-    }, 100);
+      const testCard = slotsContainer.querySelector('.pokemon-card');
+      if (testCard) {
+        console.log('🧪 Test - Carte trouvée:', testCard);
+        console.log('🧪 Test - onclick défini:', testCard.onclick ? 'OUI' : 'NON');
+        console.log('🧪 Test - dataset:', testCard.dataset);
+      }
+    }, 200);
   }
 
   displayPokemonInSlot(slot, pokemon, index) {
@@ -518,6 +528,19 @@ export class TeamUI {
     pokemonCard.dataset.pokemonId = pokemon._id;
     pokemonCard.dataset.slot = index;
     pokemonCard.draggable = true;
+
+    // ✅ SOLUTION SIMPLE : Utiliser onclick inline en plus des listeners
+    pokemonCard.onclick = (e) => {
+      e.stopPropagation();
+      console.log('🎯 ONCLICK - Clic sur Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+      this.selectPokemon(pokemon, pokemonCard, index);
+    };
+
+    pokemonCard.ondblclick = (e) => {
+      e.stopPropagation();
+      console.log('🎯 ONDBLCLICK - Double-clic pour détails:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+      this.showPokemonDetails(pokemon);
+    };
 
     // Add type-based border class
     if (pokemon.types && pokemon.types.length > 0) {
@@ -540,7 +563,7 @@ export class TeamUI {
       
       ${genderDisplay}
       
-      <div class="pokemon-context-menu" title="More options">
+      <div class="pokemon-context-menu" title="More options" onclick="event.stopPropagation(); console.log('Menu contextuel'); window.teamUI.showPokemonDetails(window.teamUI.teamData[${index}]);">
         ℹ️
       </div>
           
@@ -568,36 +591,17 @@ export class TeamUI {
       </div>
     `;
 
-    // Ajouter immédiatement les event listeners
-    pokemonCard.addEventListener('click', (e) => {
-      e.stopPropagation();
-      console.log('🎯 Clic sur carte Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-      this.selectPokemon(pokemon, pokemonCard, index);
-    });
-
-    pokemonCard.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      console.log('🎯 Double-clic pour détails:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-      this.showPokemonDetails(pokemon);
-    });
-
-    // Context menu event - ajouté après insertion dans le DOM
     slotBackground.appendChild(pokemonCard);
 
-    // Ajouter le listener pour le menu contextuel après insertion
-    const contextMenu = pokemonCard.querySelector('.pokemon-context-menu');
-    if (contextMenu) {
-      contextMenu.addEventListener('click', (e) => {
-        e.stopPropagation();
-        console.log('🎯 Menu contextuel:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-        this.showPokemonContextMenu(pokemon, e);
-      });
-    }
+    // ✅ RENDRE TEAMUI ACCESSIBLE GLOBALEMENT
+    window.teamUI = this;
 
     // Animation
     setTimeout(() => {
       pokemonCard.classList.add('new');
     }, index * 100);
+
+    console.log('✅ Carte Pokémon créée avec onclick:', pokemonCard.onclick ? 'OUI' : 'NON');
   }
 
   getGenderDisplay(gender) {
