@@ -40,6 +40,7 @@ import { Road1HiddenScene } from './scenes/zones/Road1HiddenScene.js';
 import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
 import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
 
+import { setupTeamSystem } from './integration/teamIntegration.js';
 
 // === Colyseus.js ===
 import { Client } from 'colyseus.js';
@@ -358,16 +359,47 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       return window.inventorySystemGlobal;
     };
 
-    window.initTeamSystem = function(gameRoom) {
-      if (!window.teamManagerGlobal) {
-        window.teamManagerGlobal = setupTeamSystem(gameRoom || window.currentGameRoom);
-        window.onSystemInitialized && window.onSystemInitialized('team');
-        return window.teamManagerGlobal;
+window.initTeamSystem = function(gameRoom) {
+  console.log('⚔️ [MAIN] Initialisation du système d\'équipe...');
+  
+  // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ
+  if (window.teamManagerGlobal && window.teamManagerGlobal.isInitialized) {
+    console.log('ℹ️ [MAIN] Système d\'équipe déjà initialisé - réutilisation');
+    
+    // Mettre à jour la gameRoom si nécessaire
+    if (gameRoom && gameRoom !== window.teamManagerGlobal.gameRoom) {
+      window.teamManagerGlobal.gameRoom = gameRoom;
+      window.teamManagerGlobal.setupServerListeners();
+    }
+    
+    return window.teamManagerGlobal;
+  }
+  
+  try {
+    // ✅ APPELER DIRECTEMENT setupTeamSystem (PAS DE RÉCURSION)
+    window.teamManagerGlobal = setupTeamSystem(gameRoom);
+    
+    if (window.teamManagerGlobal) {
+      console.log('✅ [MAIN] Système d\'équipe initialisé avec succès');
+      
+      // Déclencher l'événement
+      if (typeof window.onSystemInitialized === 'function') {
+        window.onSystemInitialized('team');
       }
+      
       return window.teamManagerGlobal;
-    };
+    } else {
+      console.error('❌ [MAIN] setupTeamSystem a retourné null');
+      return null;
+    }
+    
+  } catch (error) {
+    console.error('❌ [MAIN] Erreur initialisation système d\'équipe:', error);
+    return null;
+  }
+};
 
-    window.forceInitTeamSystem = function(gameRoom) {
+window.forceInitTeamSystem = function(gameRoom) {
   console.log('🔧 [MAIN] Force initialisation système d\'équipe...');
   
   // Nettoyer l'ancien système si il existe
@@ -379,12 +411,20 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     window.teamManagerGlobal = null;
   }
   
+  // Nettoyer les autres références
   if (window.TeamManager) {
     console.log('🧹 [MAIN] Nettoyage window.TeamManager...');
     if (window.TeamManager.destroy) {
       window.TeamManager.destroy();
     }
     window.TeamManager = null;
+  }
+  
+  if (window.teamSystem) {
+    if (window.teamSystem.destroy) {
+      window.teamSystem.destroy();
+    }
+    window.teamSystem = null;
   }
   
   // Forcer la réinitialisation
