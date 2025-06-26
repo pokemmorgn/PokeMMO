@@ -215,6 +215,212 @@
                  "width":0,
                  "x":227,
                  "y":336.333333333333
+                }, 
+                {
+                 "height":0,
+                 "id":4,
+                 "name":"Logan",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"animation",
+                         "type":"string",
+                         "value":"stand"
+                        }, 
+                        {
+                         "name":"battleSprite",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"dialogueId",
+                         "type":"string",
+                         "value":"greeting_logan"
+                        }, 
+                        {
+                         "name":"direction",
+                         "type":"string",
+                         "value":"up"
+                        }, 
+                        {
+                         "name":"eventTrigger",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"givesItem",
+                         "type":"bool",
+                         "value":false
+                        }, 
+                        {
+                         "name":"interactionZone",
+                         "type":"object",
+                         "value":0
+                        }, 
+                        {
+                         "name":"isHealer",
+                         "type":"bool",
+                         "value":false
+                        }, 
+                        {
+                         "name":"isVisible",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"itemId",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"itemQuantity",
+                         "type":"int",
+                         "value":0
+                        }, 
+                        {
+                         "name":"movePattern",
+                         "type":"string",
+                         "value":"idle"
+                        }, 
+                        {
+                         "name":"npcType",
+                         "type":"string",
+                         "value":"simple"
+                        }, 
+                        {
+                         "name":"questId",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"repeatDialogue",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"shopId",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"sprite",
+                         "type":"string",
+                         "value":"man1"
+                        }, 
+                        {
+                         "name":"trainerId",
+                         "type":"int",
+                         "value":0
+                        }],
+                 "rotation":0,
+                 "type":"npc",
+                 "visible":true,
+                 "width":0,
+                 "x":290,
+                 "y":229.333333333333
+                }, 
+                {
+                 "height":0,
+                 "id":5,
+                 "name":"Noemie",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"animation",
+                         "type":"string",
+                         "value":"stand"
+                        }, 
+                        {
+                         "name":"battleSprite",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"dialogueId",
+                         "type":"string",
+                         "value":"greeting_noemie"
+                        }, 
+                        {
+                         "name":"direction",
+                         "type":"string",
+                         "value":"right"
+                        }, 
+                        {
+                         "name":"eventTrigger",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"givesItem",
+                         "type":"bool",
+                         "value":false
+                        }, 
+                        {
+                         "name":"interactionZone",
+                         "type":"object",
+                         "value":0
+                        }, 
+                        {
+                         "name":"isHealer",
+                         "type":"bool",
+                         "value":false
+                        }, 
+                        {
+                         "name":"isVisible",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"itemId",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"itemQuantity",
+                         "type":"int",
+                         "value":0
+                        }, 
+                        {
+                         "name":"movePattern",
+                         "type":"string",
+                         "value":"idle"
+                        }, 
+                        {
+                         "name":"npcType",
+                         "type":"string",
+                         "value":"simple"
+                        }, 
+                        {
+                         "name":"questId",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"repeatDialogue",
+                         "type":"bool",
+                         "value":true
+                        }, 
+                        {
+                         "name":"shopId",
+                         "type":"string",
+                         "value":""
+                        }, 
+                        {
+                         "name":"sprite",
+                         "type":"string",
+                         "value":"blondegirl"
+                        }, 
+                        {
+                         "name":"trainerId",
+                         "type":"int",
+                         "value":0
+                        }],
+                 "rotation":0,
+                 "type":"npc",
+                 "visible":true,
+                 "width":0,
+                 "x":256,
+                 "y":229
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -234,7 +440,7 @@
          "y":0
         }],
  "nextlayerid":9,
- "nextobjectid":4,
+ "nextobjectid":6,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
@@ -5478,8 +5684,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5487,8 +5693,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5523,8 +5729,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5532,8 +5738,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5541,8 +5747,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5550,8 +5756,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5559,8 +5765,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5568,8 +5774,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5577,8 +5783,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5586,8 +5792,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5595,8 +5801,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5604,8 +5810,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5875,8 +6081,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5884,8 +6090,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5920,8 +6126,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5929,8 +6135,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5938,8 +6144,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 },
             
@@ -5948,8 +6154,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5957,8 +6163,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5966,8 +6172,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5975,8 +6181,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5984,8 +6190,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -5993,8 +6199,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6002,8 +6208,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6318,8 +6524,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6327,8 +6533,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6336,8 +6542,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6345,8 +6551,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6354,8 +6560,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6363,8 +6569,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6372,8 +6578,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6381,8 +6587,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6390,8 +6596,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6399,8 +6605,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6715,8 +6921,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6724,8 +6930,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6733,8 +6939,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6742,8 +6948,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6751,8 +6957,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 },
             
@@ -6761,8 +6967,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6770,8 +6976,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6779,8 +6985,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6788,8 +6994,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -6797,8 +7003,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7113,8 +7319,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7122,8 +7328,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7131,8 +7337,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7140,8 +7346,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7149,8 +7355,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7158,8 +7364,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7167,8 +7373,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7176,8 +7382,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7185,8 +7391,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7194,8 +7400,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7465,8 +7671,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7474,8 +7680,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7483,8 +7689,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7492,8 +7698,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7501,8 +7707,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7510,8 +7716,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7519,8 +7725,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7528,8 +7734,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7537,8 +7743,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7546,8 +7752,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7555,8 +7761,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7564,8 +7770,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 },
             
@@ -7574,8 +7780,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7583,8 +7789,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7592,8 +7798,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7863,8 +8069,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7872,8 +8078,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7881,8 +8087,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7890,8 +8096,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7899,8 +8105,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7908,8 +8114,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7917,8 +8123,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7926,8 +8132,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7935,8 +8141,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7944,8 +8150,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7953,8 +8159,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7962,8 +8168,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7971,8 +8177,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7980,8 +8186,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -7989,8 +8195,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8197,8 +8403,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8206,8 +8412,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8215,8 +8421,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8224,8 +8430,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8233,8 +8439,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8242,8 +8448,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8251,8 +8457,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8260,8 +8466,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8269,8 +8475,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8278,8 +8484,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8287,8 +8493,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8296,8 +8502,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8414,8 +8620,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8423,8 +8629,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8432,8 +8638,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8441,8 +8647,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8540,8 +8746,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8549,8 +8755,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8558,8 +8764,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8567,8 +8773,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8676,8 +8882,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8685,8 +8891,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8694,8 +8900,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8703,8 +8909,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8712,8 +8918,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8721,8 +8927,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8730,8 +8936,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8739,8 +8945,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8748,8 +8954,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8883,8 +9089,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8892,8 +9098,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8901,8 +9107,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8910,8 +9116,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8919,8 +9125,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 },
             
@@ -8929,8 +9135,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8938,8 +9144,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8947,8 +9153,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -8956,8 +9162,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9091,8 +9297,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9100,8 +9306,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9109,8 +9315,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9118,8 +9324,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9127,8 +9333,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9136,8 +9342,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9145,8 +9351,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9154,8 +9360,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9163,8 +9369,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9281,8 +9487,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9290,8 +9496,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9299,8 +9505,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9308,8 +9514,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9317,8 +9523,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9461,8 +9667,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 },
             
@@ -9471,8 +9677,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9480,8 +9686,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9489,8 +9695,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9498,8 +9704,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9651,8 +9857,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9660,8 +9866,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9669,8 +9875,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9678,8 +9884,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9687,8 +9893,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9723,8 +9929,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9732,8 +9938,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 },
             
@@ -9742,8 +9948,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9751,8 +9957,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9760,8 +9966,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9868,8 +10074,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9877,8 +10083,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9886,8 +10092,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9895,8 +10101,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9904,8 +10110,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9913,8 +10119,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9922,8 +10128,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9931,8 +10137,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9940,8 +10146,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9949,8 +10155,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9958,8 +10164,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -9967,8 +10173,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10076,8 +10282,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10085,8 +10291,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10094,8 +10300,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10103,8 +10309,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10112,8 +10318,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10121,8 +10327,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10130,8 +10336,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10139,8 +10345,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10148,8 +10354,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10157,8 +10363,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10166,8 +10372,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
@@ -10175,8 +10381,8 @@
                  "properties":[
                         {
                          "name":"collides",
-                         "type":"",
-                         "value":null
+                         "type":"std::nullptr_t",
+                         "value":""
                         }]
                 }, 
                 {
