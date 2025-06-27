@@ -358,6 +358,9 @@ export class WorldRoom extends Room<PokeWorldState> {
     // ✅ NOUVEAU: Configurer les handlers d'équipe
     this.teamHandlers.setupHandlers();
 
+    // ✅ NOUVEAU: Configurer les handlers d'encounter  
+    this.encounterHandlers.setupHandlers();
+    
     // ✅ NOUVEAU: Configurer les handlers d'encounter
     this.encounterHandlers.setupHandlers();
 
