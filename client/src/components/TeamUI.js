@@ -1,20 +1,4 @@
-selectPokemon(pokemon, cardElement, slotIndex) {
-    console.log('🎯 Sélection Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-    
-    // Désélectionner l'ancien
-    this.overlay.querySelectorAll('.team-slot').forEach(slot => {
-      slot.classList.remove('selected');
-    });
-    this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
-      card.classList.remove('active');
-    });
-
-    // Sélectionner le nouveau
-    const slot = cardElement.closest('.team-slot');
-    if (slot) {
-      slot.classList.add('selected');
-    }
-    cardElement// client/src/components/TeamUI.js - Interface d'équipe Pokémon
+// client/src/components/TeamUI.js - Interface d'équipe Pokémon
 
 export class TeamUI {
   constructor(gameRoom) {
@@ -262,7 +246,7 @@ export class TeamUI {
           </div>
           
           <div class="team-info">
-            <div class="info-tip">💡 Drag & drop to reorder Pokémon</div>
+            <div class="info-tip">💡 Drag & drop to reorder • Right-click for options</div>
           </div>
         </div>
       </div>
@@ -388,49 +372,6 @@ export class TeamUI {
         this.showPokemonDetails(pokemon);
       }
     });
-
-    // Event listeners spécifiques pour les cartes Pokémon
-    this.setupPokemonCardListeners();
-  }
-
-  setupPokemonCardListeners() {
-    // Cette fonction sera appelée après chaque refresh pour ajouter les listeners aux nouvelles cartes
-    const pokemonCards = this.overlay.querySelectorAll('.pokemon-card');
-    
-    pokemonCards.forEach((card, index) => {
-      // Supprimer les anciens listeners pour éviter les doublons
-      const newCard = card.cloneNode(true);
-      card.parentNode.replaceChild(newCard, card);
-      
-      const slotIndex = parseInt(newCard.dataset.slot);
-      const pokemon = this.teamData[slotIndex];
-      
-      if (!pokemon) return;
-
-      // Clic simple pour sélection
-      newCard.addEventListener('click', (e) => {
-        e.stopPropagation();
-        console.log('🎯 Clic direct sur carte Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-        this.selectPokemon(pokemon, newCard, slotIndex);
-      });
-
-      // Double-clic pour détails
-      newCard.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        console.log('🎯 Double-clic direct sur carte pour détails:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-        this.showPokemonDetails(pokemon);
-      });
-
-      // Context menu
-      const contextMenu = newCard.querySelector('.pokemon-context-menu');
-      if (contextMenu) {
-        contextMenu.addEventListener('click', (e) => {
-          e.stopPropagation();
-          console.log('🎯 Menu contextuel:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-          this.showPokemonContextMenu(pokemon, e);
-        });
-      }
-    });
   }
 
   setupServerListeners() {
@@ -465,6 +406,7 @@ export class TeamUI {
     this.isVisible = false;
     this.overlay.classList.add('hidden');
     this.deselectPokemon();
+    this.hideContextMenu();
     
     console.log('⚔️ Interface d\'équipe fermée');
   }
@@ -533,7 +475,7 @@ export class TeamUI {
     pokemonCard.className = 'pokemon-card';
     pokemonCard.dataset.pokemonId = pokemon._id;
     pokemonCard.dataset.slot = index;
-    pokemonCard.draggable = true; // Réactivé maintenant que ça fonctionne
+    pokemonCard.draggable = true;
 
     // Add type-based border class
     if (pokemon.types && pokemon.types.length > 0) {
@@ -609,9 +551,6 @@ export class TeamUI {
       self.showContextMenu(e, pokemon, index);
     });
 
-    // ✅ RENDRE TEAMUI ACCESSIBLE GLOBALEMENT
-    window.teamUI = this;
-
     // Animation
     setTimeout(() => {
       pokemonCard.classList.add('new');
@@ -625,6 +564,79 @@ export class TeamUI {
     const genderClass = gender === 'male' ? 'male' : gender === 'female' ? 'female' : '';
     
     return genderSymbol ? `<div class="pokemon-gender ${genderClass}">${genderSymbol}</div>` : '';
+  }
+
+  getHealthClass(healthPercent) {
+    if (healthPercent > 75) return 'high';
+    if (healthPercent > 50) return 'medium';
+    if (healthPercent > 25) return 'low';
+    return 'critical';
+  }
+
+  getStatusDisplay(status) {
+    if (!status || status === 'normal') return '';
+    
+    const statusMap = {
+      poison: '<span class="status-indicator status-poison">PSN</span>',
+      burn: '<span class="status-indicator status-burn">BRN</span>',
+      sleep: '<span class="status-indicator status-sleep">SLP</span>',
+      paralysis: '<span class="status-indicator status-paralysis">PAR</span>',
+      freeze: '<span class="status-indicator status-freeze">FRZ</span>'
+    };
+    
+    return statusMap[status] || '';
+  }
+
+  getTypesDisplay(types) {
+    if (!types || !Array.isArray(types)) return '';
+    
+    return types.map(type => 
+      `<span class="type-badge type-${type.toLowerCase()}">${type}</span>`
+    ).join('');
+  }
+
+  selectPokemon(pokemon, cardElement, slotIndex) {
+    console.log('🎯 Sélection Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+    
+    // Désélectionner l'ancien
+    this.overlay.querySelectorAll('.team-slot').forEach(slot => {
+      slot.classList.remove('selected');
+    });
+    this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
+      card.classList.remove('active');
+    });
+
+    // Sélectionner le nouveau
+    const slot = cardElement.closest('.team-slot');
+    if (slot) {
+      slot.classList.add('selected');
+    }
+    cardElement.classList.add('active');
+    
+    this.selectedPokemon = pokemon;
+    this.selectedSlot = slotIndex;
+
+    // Mettre à jour les vues
+    this.updateDetailView();
+  }
+
+  deselectPokemon() {
+    this.overlay.querySelectorAll('.team-slot').forEach(slot => {
+      slot.classList.remove('selected');
+    });
+    this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
+      card.classList.remove('active');
+    });
+    
+    this.selectedPokemon = null;
+    this.selectedSlot = null;
+    this.updateDetailView();
+  }
+
+  showPokemonDetails(pokemon) {
+    this.selectedPokemon = pokemon;
+    this.switchToView('details');
+    this.updateDetailView();
   }
 
   // ✅ MENU CONTEXTUEL COMPLET
@@ -878,79 +890,6 @@ export class TeamUI {
         this.showNotification(`${pokemonName} has been released.`, 'info');
       }
     }
-  }
-
-  getHealthClass(healthPercent) {
-    if (healthPercent > 75) return 'high';
-    if (healthPercent > 50) return 'medium';
-    if (healthPercent > 25) return 'low';
-    return 'critical';
-  }
-
-  getStatusDisplay(status) {
-    if (!status || status === 'normal') return '';
-    
-    const statusMap = {
-      poison: '<span class="status-indicator status-poison">PSN</span>',
-      burn: '<span class="status-indicator status-burn">BRN</span>',
-      sleep: '<span class="status-indicator status-sleep">SLP</span>',
-      paralysis: '<span class="status-indicator status-paralysis">PAR</span>',
-      freeze: '<span class="status-indicator status-freeze">FRZ</span>'
-    };
-    
-    return statusMap[status] || '';
-  }
-
-  getTypesDisplay(types) {
-    if (!types || !Array.isArray(types)) return '';
-    
-    return types.map(type => 
-      `<span class="type-badge type-${type.toLowerCase()}">${type}</span>`
-    ).join('');
-  }
-
-  selectPokemon(pokemon, cardElement, slotIndex) {
-    console.log('🎯 Sélection Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-    
-    // Désélectionner l'ancien
-    this.overlay.querySelectorAll('.team-slot').forEach(slot => {
-      slot.classList.remove('selected');
-    });
-    this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
-      card.classList.remove('active');
-    });
-
-    // Sélectionner le nouveau
-    const slot = cardElement.closest('.team-slot');
-    if (slot) {
-      slot.classList.add('selected');
-    }
-    cardElement.classList.add('active');
-    
-    this.selectedPokemon = pokemon;
-    this.selectedSlot = slotIndex;
-
-    // Mettre à jour les vues
-    this.updateDetailView();
-  }
-
-  deselectPokemon() {
-    this.overlay.querySelectorAll('.team-slot').forEach(slot => {
-      slot.classList.remove('selected');
-    });
-    this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
-      card.classList.remove('active');
-    });
-    
-    this.selectedPokemon = null;
-    this.selectedSlot = null;
-    this.updateDetailView();
-  }
-
-  showPokemonDetails(pokemon) {
-    this.selectedPokemon = pokemon;
-    this.switchToView('details');
-    this.updateDetailView();
   }
 
   updateDetailView() {
