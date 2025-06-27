@@ -589,11 +589,14 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       console.log('🔍 === DEBUG SYSTÈME D\'ENCOUNTERS COMPLET ===');
       
       const encounterStatus = {
-        // Vérifications globales
+        // Vérifications globales - CORRIGÉ
         encounterManagerGlobal: {
-          exists: !!window.encounterManagerGlobal,
+          exists: !!window.encounterManagerGlobal && window.encounterManagerGlobal !== null,
           type: typeof window.encounterManagerGlobal,
-          stats: window.encounterManagerGlobal?.getStats() || null
+          isNull: window.encounterManagerGlobal === null,
+          isUndefined: window.encounterManagerGlobal === undefined,
+          stats: null,
+          hasGetStats: !!(window.encounterManagerGlobal?.getStats)
         },
         
         // Vérifications scène active
@@ -607,6 +610,15 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
           debugEncounters: typeof window.debugEncounters
         }
       };
+
+      // ✅ RÉCUPÉRER LES STATS SI POSSIBLE
+      try {
+        if (window.encounterManagerGlobal && typeof window.encounterManagerGlobal.getStats === 'function') {
+          encounterStatus.encounterManagerGlobal.stats = window.encounterManagerGlobal.getStats();
+        }
+      } catch (error) {
+        encounterStatus.encounterManagerGlobal.statsError = error.message;
+      }
       
       // Tests scène active
       const activeScene = window.game?.scene?.getScenes(true)[0];
@@ -615,11 +627,47 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
           key: activeScene.scene.key,
           encounterInitialized: activeScene.encounterInitialized,
           hasEncounterManager: !!activeScene.encounterManager,
+          encounterManagerSame: activeScene.encounterManager === window.encounterManagerGlobal,
+          sceneStats: null,
           encounterSystemStatus: activeScene.getEncounterSystemStatus ? activeScene.getEncounterSystemStatus() : 'N/A'
         };
+
+        // ✅ RÉCUPÉRER STATS DE LA SCÈNE
+        try {
+          if (activeScene.encounterManager && typeof activeScene.encounterManager.getStats === 'function') {
+            encounterStatus.activeScene.sceneStats = activeScene.encounterManager.getStats();
+          }
+        } catch (error) {
+          encounterStatus.activeScene.sceneStatsError = error.message;
+        }
       }
       
       console.log('📊 Status encounters:', encounterStatus);
+
+      // ✅ DIAGNOSTIC AUTOMATIQUE
+      console.log('🔧 === DIAGNOSTIC AUTOMATIQUE ===');
+      if (!encounterStatus.encounterManagerGlobal.exists) {
+        console.log('❌ EncounterManager global manquant ou null');
+        console.log('💡 Solution: window.initEncounterSystem() ou window.fixEncounterSystem()');
+      } else if (!encounterStatus.encounterManagerGlobal.hasGetStats) {
+        console.log('❌ EncounterManager global existe mais pas de méthode getStats');
+        console.log('💡 Solution: window.forceInitEncounterSystem()');
+      } else {
+        console.log('✅ EncounterManager global OK');
+      }
+
+      if (encounterStatus.activeScene) {
+        if (!encounterStatus.activeScene.hasEncounterManager) {
+          console.log('❌ Scène active sans EncounterManager');
+          console.log('💡 Solution: window.initEncounterSystem(activeScene)');
+        } else if (!encounterStatus.activeScene.encounterManagerSame) {
+          console.log('⚠️ EncounterManager de scène différent du global');
+          console.log('💡 Ceci peut être normal selon l\'architecture');
+        } else {
+          console.log('✅ EncounterManager de scène OK');
+        }
+      }
+      
       return encounterStatus;
     };
 
@@ -717,21 +765,77 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       }
     };
 
-    // 🆕 NOUVEAU: Debug rapide encounters
+    // 🆕 NOUVEAU: Debug rapide encounters avec auto-fix
     window.quickEncounterDebug = function() {
       console.log('⚡ === DEBUG RAPIDE ENCOUNTERS ===');
-      console.log('EncounterManager Global:', !!window.encounterManagerGlobal);
+      
+      const global = !!window.encounterManagerGlobal && window.encounterManagerGlobal !== null;
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      const sceneManager = !!activeScene?.encounterManager;
+      
+      console.log('EncounterManager Global:', global);
+      console.log('Scene Manager:', sceneManager);
+      console.log('Scene Key:', activeScene?.scene?.key || 'N/A');
+      console.log('Scene Encounter Init:', activeScene?.encounterInitialized || false);
       console.log('Init Function:', typeof window.initEncounterSystem);
       console.log('Network Connected:', window.globalNetworkManager?.isConnected);
       
-      const activeScene = window.game?.scene?.getScenes(true)[0];
-      console.log('Scene Encounter Init:', activeScene?.encounterInitialized);
-      console.log('Scene has EncounterManager:', !!activeScene?.encounterManager);
-      
-      if (!activeScene?.encounterManager) {
-        console.log('🔧 Utilisez window.fixEncounterSystem() pour réparer');
+      if (!global || !sceneManager) {
+        console.log('🔧 Problème détecté - utilisez window.autoFixEncounters() pour réparer');
+        return false;
       } else {
-        console.log('🎯 Utilisez window.testEncounter() pour tester');
+        console.log('🎯 Système OK - utilisez window.testEncounter() pour tester');
+        return true;
+      }
+    };
+
+    // 🆕 NOUVEAU: Fonction de réparation automatique
+    window.autoFixEncounters = function() {
+      console.log('🔧 === RÉPARATION AUTOMATIQUE ENCOUNTERS ===');
+      
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      if (!activeScene) {
+        console.error('❌ Aucune scène active');
+        return false;
+      }
+      
+      console.log(`🎬 Réparation sur scène: ${activeScene.scene.key}`);
+      
+      // 1. Nettoyer complètement
+      console.log('🧹 Nettoyage complet...');
+      window.encounterManagerGlobal = null;
+      if (activeScene.encounterManager) {
+        activeScene.encounterManager = null;
+        activeScene.encounterInitialized = false;
+      }
+      
+      // 2. Réinitialiser
+      console.log('🚀 Réinitialisation...');
+      const result = window.initEncounterSystem(activeScene);
+      
+      if (result) {
+        console.log('✅ Réparation réussie !');
+        
+        // 3. Test automatique
+        setTimeout(() => {
+          const testResult = window.quickEncounterDebug();
+          if (testResult) {
+            console.log('🎯 Système validé - prêt à utiliser !');
+            window.showGameNotification?.('Système encounters réparé !', 'success', { 
+              duration: 2000, 
+              position: 'top-center' 
+            });
+          }
+        }, 500);
+        
+        return true;
+      } else {
+        console.error('❌ Échec de réparation');
+        window.showGameNotification?.('Échec réparation encounters', 'error', { 
+          duration: 2000, 
+          position: 'top-center' 
+        });
+        return false;
       }
     };
 
