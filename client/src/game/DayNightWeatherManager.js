@@ -376,16 +376,27 @@ export class OptimizedPhaserOverlayManager {
 
   // ✅ MÉTHODE: Obtenir l'état actuel pour les transitions
   getCurrentStateForTransition() {
-    if (!this.isInitialized) {
+    console.log(`📊 [DayNightWeatherManagerPhaser] Récupération état pour transition...`);
+    
+    if (!this.isInitialized || !this.timeWeatherManager) {
+      console.log(`⚠️ [DayNightWeatherManagerPhaser] Service non initialisé, état par défaut`);
       return {
         timeData: { hour: 12, isDayTime: true },
         weatherData: { weather: 'clear', displayName: 'Ciel dégagé' }
       };
     }
     
+    const currentTime = this.timeWeatherManager.getCurrentTime();
+    const currentWeather = this.timeWeatherManager.getCurrentWeather();
+    
+    console.log(`📊 [DayNightWeatherManagerPhaser] État récupéré:`, {
+      time: `${currentTime.hour}h ${currentTime.isDayTime ? 'JOUR' : 'NUIT'}`,
+      weather: currentWeather.displayName
+    });
+    
     return {
-      timeData: this.timeWeatherManager.getCurrentTime(),
-      weatherData: this.timeWeatherManager.getCurrentWeather()
+      timeData: currentTime,
+      weatherData: currentWeather
     };
   }
   setDebugMode(enabled) {
@@ -537,7 +548,53 @@ export class DayNightWeatherManagerPhaser {
       }, 200);
     });
   }
-
+forceInstantWeatherApplication(newZoneName) {
+    if (!this.isInitialized) {
+      console.warn(`⚠️ [DayNightWeatherManagerPhaser] Service pas initialisé pour application instantanée`);
+      return;
+    }
+    
+    console.log(`⚡ [DayNightWeatherManagerPhaser] APPLICATION INSTANTANÉE pour: ${newZoneName}`);
+    
+    // ✅ Désactiver TOUT débouncing temporairement
+    this.clearAllDebouncing();
+    
+    // ✅ Activer mode ultra-rapide
+    if (this.overlayManager) {
+      this.overlayManager.enableFastTransition();
+    }
+    
+    // ✅ Récupérer l'état et appliquer IMMÉDIATEMENT
+    const currentTime = this.timeWeatherManager.getCurrentTime();
+    const currentWeather = this.timeWeatherManager.getCurrentWeather();
+    const environment = zoneEnvironmentManager.getZoneEnvironment(newZoneName);
+    
+    console.log(`⚡ Application instantanée:`, {
+      time: `${currentTime.hour}h ${currentTime.isDayTime ? 'JOUR' : 'NUIT'}`,
+      weather: currentWeather.displayName,
+      environment: environment,
+      zone: newZoneName
+    });
+    
+    // ✅ Application directe sans attente
+    if (this.overlayManager) {
+      this.overlayManager.executeUpdateImmediate(
+        currentTime.isDayTime, 
+        currentWeather.weather, 
+        environment, 
+        newZoneName,
+        `${currentTime.isDayTime ? 'day' : 'night'}-${currentWeather.weather}-${environment}-${newZoneName}`
+      );
+    }
+    
+    // ✅ Effets météo aussi
+    if (this.weatherEffects) {
+      this.weatherEffects.setEnvironmentType(environment);
+      this.weatherEffects.setWeather(currentWeather.weather);
+    }
+    
+    console.log(`✅ [DayNightWeatherManagerPhaser] Application instantanée terminée`);
+  }
   // ✅ NOUVEAUX HANDLERS SÉPARÉS
   handleTimeChange(hour, isDayTime) {
     const currentZone = this.getCurrentZone();
