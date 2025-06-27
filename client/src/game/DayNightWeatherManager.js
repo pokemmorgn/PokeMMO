@@ -682,40 +682,48 @@ forceInstantWeatherApplication(newZoneName) {
 
   // ✅ NOUVELLE MÉTHODE: Application immédiate de la météo lors des transitions
   forceImmediateWeatherApplication(newZoneName) {
-    if (!this.isInitialized) return;
-    
-    console.log(`⚡ [DayNightWeatherManagerPhaser] Application immédiate météo pour: ${newZoneName}`);
-    
-    // ✅ Récupérer l'état actuel (même si pas complètement sync)
-    const currentTime = this.timeWeatherManager.getCurrentTime();
-    const currentWeather = this.timeWeatherManager.getCurrentWeather();
-    const environment = zoneEnvironmentManager.getZoneEnvironment(newZoneName);
-    
-    console.log(`🎯 [DayNightWeatherManagerPhaser] État actuel:`, {
-      time: `${currentTime.hour}h ${currentTime.isDayTime ? 'JOUR' : 'NUIT'}`,
-      weather: currentWeather.displayName,
-      environment: environment,
-      zone: newZoneName
-    });
-    
-    // ✅ Appliquer IMMÉDIATEMENT sans attendre le serveur
-    if (this.overlayManager) {
-      this.overlayManager.forceUpdate(
-        currentTime.isDayTime, 
-        currentWeather.weather, 
-        environment, 
-        newZoneName
-      );
-    }
-    
-    // ✅ Appliquer aussi les effets météo
-    if (this.weatherEffects) {
-      this.weatherEffects.setEnvironmentType(environment);
-      this.weatherEffects.setWeather(currentWeather.weather);
-    }
-    
-    console.log(`✅ [DayNightWeatherManagerPhaser] Météo appliquée immédiatement`);
+  if (!this.isInitialized) {
+    console.warn(`⚠️ [DayNightWeatherManagerPhaser] Service pas initialisé`);
+    return;
   }
+  
+  console.log(`⚡ [DayNightWeatherManagerPhaser] APPLICATION SILENCIEUSE pour: ${newZoneName}`);
+  
+  // ✅ NOUVEAU: VÉRIFIER SI ON EST DANS UNE ZONE OUTDOOR
+  const environment = zoneEnvironmentManager.getZoneEnvironment(newZoneName);
+  
+  if (environment === 'outdoor') {
+    console.log(`🚫 [DayNightWeatherManagerPhaser] Zone outdoor détectée - overlay maintenu transparent`);
+    
+    // ✅ FORCER L'OVERLAY À RESTER TRANSPARENT POUR LES ZONES OUTDOOR
+    if (this.overlayManager && this.overlayManager.combinedOverlay) {
+      this.overlayManager.combinedOverlay.setAlpha(0);
+      this.overlayManager.combinedOverlay.setVisible(false);
+      
+      // ✅ MARQUER COMME "DÉJÀ APPLIQUÉ" pour éviter les rechargements
+      const timeState = this.timeWeatherManager?.getCurrentTime()?.isDayTime ? 'day' : 'night';
+      const weatherState = this.timeWeatherManager?.getCurrentWeather()?.weather || 'clear';
+      this.overlayManager.lastCombinedState = `${timeState}-${weatherState}-${environment}-${newZoneName}`;
+    }
+    
+    console.log(`✅ [DayNightWeatherManagerPhaser] Overlay maintenu transparent (pas de clignotement)`);
+    return;
+  }
+  
+  // ✅ POUR LES AUTRES ENVIRONNEMENTS (cave, indoor), comportement normal
+  const currentTime = this.timeWeatherManager.getCurrentTime();
+  const currentWeather = this.timeWeatherManager.getCurrentWeather();
+  
+  if (this.overlayManager) {
+    this.overlayManager.executeUpdateImmediate(
+      currentTime.isDayTime, 
+      currentWeather.weather, 
+      environment, 
+      newZoneName,
+      `${currentTime.isDayTime ? 'day' : 'night'}-${currentWeather.weather}-${environment}-${newZoneName}`
+    );
+  }
+}
 
   // ✅ NOUVEAU: Contrôle du mode transition rapide
   enableFastTransition(duration = 1000) {
