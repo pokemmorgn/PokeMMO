@@ -1,4 +1,4 @@
-// server/src/managers/EncounterManager.ts - VERSION SERVEUR SIMPLIFIÉE
+// server/src/managers/EncounterManager.ts - VERSION SERVEUR CORRIGÉE
 import fs from 'fs/promises';
 import path from 'path';
 import { getPokemonById } from '../data/PokemonData';
@@ -186,7 +186,7 @@ export class ServerEncounterManager {
     this.pokemonNameToId.set("Oddish", 43);
     this.pokemonNameToId.set("Bellsprout", 69);
     this.pokemonNameToId.set("Zubat", 41);
-    this.pokemonNameToid.set("Gastly", 92);
+    this.pokemonNameToId.set("Gastly", 92); // ✅ CORRIGÉ: pokemonNameToid -> pokemonNameToId
     this.pokemonNameToId.set("Pikachu", 25);
     this.pokemonNameToId.set("Axoloto", 194);
     this.pokemonNameToId.set("Magikarp", 129);
