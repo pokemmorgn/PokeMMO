@@ -305,18 +305,49 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   // 🆕 NOUVELLE MÉTHODE: Gestion des échecs d'encounter
-  handleEncounterFailed(data) {
-    console.log(`❌ [${this.scene.key}] Encounter échoué: ${data.reason}`);
+handleEncounterFailed(data) {
+  console.log(`❌ [${this.scene.key}] Encounter échoué: ${data.reason}`);
+  console.log(`🔍 [${this.scene.key}] Debug encounter failed:`, data);
+  
+  // ✅ DEBUG: Notification détaillée avec toutes les infos
+  if (window.showGameNotification) {
+    let debugMessage = '';
     
-    // Afficher message d'erreur discret
-    if (window.showGameNotification) {
-      window.showGameNotification(
-        `Pas de rencontre possible ici`,
-        'warning',
-        { duration: 1500, position: 'bottom-right' }
-      );
+    switch(data.reason) {
+      case 'no_encounter_generated':
+        debugMessage = `Debug: No encounter (zone: ${data.location?.zoneId || 'unknown'}, method: ${data.method || 'unknown'})`;
+        break;
+      case 'cooldown_active':
+        debugMessage = `Debug: Cooldown actif`;
+        break;
+      case 'rate_limit_exceeded':
+        debugMessage = `Debug: Rate limit dépassé`;
+        break;
+      case 'invalid_position':
+        debugMessage = `Debug: Position invalide (${data.location?.x?.toFixed(1)}, ${data.location?.y?.toFixed(1)})`;
+        break;
+      case 'no_encounter_zone':
+        debugMessage = `Debug: Pas de zone encounter`;
+        break;
+      case 'force_generation_failed':
+        debugMessage = `Debug: Génération forcée échouée`;
+        break;
+      default:
+        debugMessage = `Debug: ${data.reason || 'Unknown error'} - Zone: ${data.location?.zoneId || 'N/A'}`;
     }
+    
+    // Ajouter les conditions si disponibles
+    if (data.conditions) {
+      debugMessage += ` | ${data.conditions.timeOfDay}, ${data.conditions.weather}`;
+    }
+    
+    window.showGameNotification(
+      debugMessage,
+      'warning',
+      { duration: 3000, position: 'bottom-right' }
+    );
   }
+}
 
   // 🆕 NOUVELLE MÉTHODE: Gestion des infos de zone
   handleEncounterZoneInfo(data) {
