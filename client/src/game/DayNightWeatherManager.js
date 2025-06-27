@@ -1,5 +1,8 @@
 // ✅ SYSTÈME D'OVERLAY PHASER ULTRA-OPTIMISÉ
 // Performance maximale avec gestion intelligente des ressources
+import { ClientTimeWeatherManager } from '../managers/ClientTimeWeatherManager.js';
+import { zoneEnvironmentManager } from '../managers/ZoneEnvironmentManager.js';
+import { WeatherEffects } from '../effects/WeatherEffects.js';
 
 export class OptimizedPhaserOverlayManager {
   constructor(scene) {
