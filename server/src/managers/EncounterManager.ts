@@ -315,12 +315,15 @@ export class ServerEncounterManager {
     }
   }
 
-  private isValidPosition(x: number, y: number): boolean {
-    if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
-    if (x < 0 || y < 0) return false;
-    if (x > 2000 || y > 2000) return false; // Limite raisonnable
-    return true;
-  }
+private isValidPosition(x: number, y: number): boolean {
+  // ✅ FIX: Accepter les nombres décimaux (coordonnées Phaser)
+  if (typeof x !== 'number' || typeof y !== 'number') return false;
+  if (isNaN(x) || isNaN(y)) return false;
+  if (!isFinite(x) || !isFinite(y)) return false;
+  if (x < 0 || y < 0) return false;
+  if (x > 2000 || y > 2000) return false; // Limite raisonnable
+  return true;
+}
 
   // ✅ MÉTHODES UTILITAIRES EXISTANTES
 
