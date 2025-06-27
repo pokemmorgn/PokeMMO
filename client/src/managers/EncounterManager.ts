@@ -1,302 +1,415 @@
-// server/src/managers/EncounterManager.ts - VERSION SERVEUR CORRIGÉE
-import fs from 'fs/promises';
-import path from 'path';
-import { getPokemonById } from '../data/PokemonData';
-
-export interface WildPokemon {
-  pokemonId: number;
-  level: number;
-  gender: string;
-  nature: string;
-  shiny: boolean;
-  moves: string[];
-  ivs: {
-    hp: number;
-    attack: number;
-    defense: number;
-    spAttack: number;
-    spDefense: number;
-    speed: number;
-  };
+// client/src/managers/EncounterManager.ts - VERSION FINALE
+export interface EncounterCheckResult {
+  shouldTrigger: boolean;
+  zoneId?: string;
+  method: 'grass' | 'fishing';
+  encounterRate: number;
 }
 
-export interface EncounterData {
-  species: string;
-  level_range: [number, number];
-  chance: number;
+export interface MapLayer {
+  name: string;
+  type: string;
+  objects?: Array<{
+    id: number;
+    name: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    properties?: Array<{
+      name: string;
+      value: any;
+    }>;
+  }>;
+  data?: number[];
+  width?: number;
+  height?: number;
+  tilewidth?: number;
+  tileheight?: number;
 }
 
-export interface EncounterTable {
-  zone: string;
-  encounters: {
-    grass?: {
-      day?: EncounterData[];
-      night?: EncounterData[];
-      rain?: EncounterData[];
-    };
-    fishing?: {
-      calm_water?: {
-        day?: EncounterData[];
-        night?: EncounterData[];
-        rain?: EncounterData[];
-      };
-    };
-  };
+export interface TilesetTile {
+  id: number;
+  properties?: Array<{
+    name: string;
+    value: any;
+  }>;
 }
 
-export class ServerEncounterManager {
-  private encounterTables: Map<string, EncounterTable> = new Map();
-  private pokemonNameToId: Map<string, number> = new Map();
+export interface MapData {
+  layers: MapLayer[];
+  tilesets: Array<{
+    firstgid: number;
+    tiles?: TilesetTile[];
+  }>;
+  tilewidth: number;
+  tileheight: number;
+  width: number;
+  height: number;
+}
+
+export class ClientEncounterManager {
+  private mapData: MapData | null = null;
+  private encounterZones: Map<string, any> = new Map();
+  private grassTiles: Set<number> = new Set();
+  private waterTiles: Set<number> = new Set();
   
-  // ✅ Anti-cheat: Cooldown par joueur
-  private playerCooldowns: Map<string, number> = new Map();
-  private readonly ENCOUNTER_COOLDOWN = 800; // 800ms côté serveur (plus strict que client)
+  // ✅ Cooldown client (plus permissif que serveur)
+  private lastEncounterTime = 0;
+  private readonly CLIENT_ENCOUNTER_COOLDOWN = 500; // 500ms côté client
+  
+  // ✅ Compteur de pas pour encounters
+  private stepCount = 0;
+  private readonly STEPS_PER_ENCOUNTER_CHECK = 3; // Vérifier tous les 3 pas
 
-  constructor() {
-    this.initializePokemonMapping();
+  constructor(mapData?: MapData) {
+    if (mapData) {
+      this.loadMapData(mapData);
+    }
   }
 
-  // ✅ VALIDATION D'UNE RENCONTRE DEPUIS LE CLIENT
-  async validateAndGenerateEncounter(
-    playerId: string,
-    zoneName: string,
-    x: number,
-    y: number,
-    timeOfDay: 'day' | 'night',
-    weather: 'clear' | 'rain',
-    clientZoneProperties?: any
-  ): Promise<WildPokemon | null> {
+  // ✅ CHARGEMENT DES DONNÉES DE CARTE
+  loadMapData(mapData: MapData): void {
+    console.log(`🗺️ [ClientEncounter] Chargement des données de carte...`);
     
-    console.log(`🔍 [ServerEncounter] Validation rencontre ${playerId} à (${x}, ${y}) dans ${zoneName}`);
+    this.mapData = mapData;
+    this.loadEncounterZones();
+    this.loadGrassTiles();
+    this.loadWaterTiles();
     
-    // ✅ ANTI-CHEAT: Vérifier le cooldown
+    console.log(`✅ [ClientEncounter] Carte chargée:`);
+    console.log(`  📍 ${this.encounterZones.size} zones de rencontre`);
+    console.log(`  🌿 ${this.grassTiles.size} tiles d'herbe`);
+    console.log(`  💧 ${this.waterTiles.size} tiles d'eau`);
+  }
+
+  // ✅ CHARGEMENT DES ZONES DE RENCONTRE (objets avec zoneId)
+  private loadEncounterZones(): void {
+    if (!this.mapData) return;
+
+    this.encounterZones.clear();
+
+    // Chercher dans tous les calques d'objets
+    for (const layer of this.mapData.layers) {
+      if (layer.type === 'objectgroup' && layer.objects) {
+        for (const obj of layer.objects) {
+          if (obj.name === 'encounterzone' && obj.properties) {
+            const zoneIdProp = obj.properties.find(p => p.name === 'zoneId');
+            if (zoneIdProp && zoneIdProp.value) {
+              this.encounterZones.set(obj.id.toString(), {
+                id: obj.id,
+                zoneId: zoneIdProp.value,
+                x: obj.x,
+                y: obj.y,
+                width: obj.width,
+                height: obj.height,
+                bounds: {
+                  left: obj.x,
+                  right: obj.x + obj.width,
+                  top: obj.y,
+                  bottom: obj.y + obj.height
+                }
+              });
+              
+              console.log(`📍 [ClientEncounter] Zone trouvée: ${zoneIdProp.value} à (${obj.x}, ${obj.y})`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ✅ CHARGEMENT DES TILES D'HERBE (calque BelowPlayer2 avec grassTile)
+  private loadGrassTiles(): void {
+    if (!this.mapData) return;
+
+    this.grassTiles.clear();
+
+    // Chercher dans les tilesets pour les propriétés grassTile
+    for (const tileset of this.mapData.tilesets) {
+      if (tileset.tiles) {
+        for (const tile of tileset.tiles) {
+          if (tile.properties) {
+            const grassProp = tile.properties.find(p => p.name === 'grassTile');
+            if (grassProp && grassProp.value) {
+              // ID global du tile = firstgid + id local
+              const globalTileId = tileset.firstgid + tile.id;
+              this.grassTiles.add(globalTileId);
+              console.log(`🌿 [ClientEncounter] Tile d'herbe: ${globalTileId}`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ✅ CHARGEMENT DES TILES D'EAU (pour la pêche)
+  private loadWaterTiles(): void {
+    if (!this.mapData) return;
+
+    this.waterTiles.clear();
+
+    // Chercher dans les tilesets pour les propriétés waterTile
+    for (const tileset of this.mapData.tilesets) {
+      if (tileset.tiles) {
+        for (const tile of tileset.tiles) {
+          if (tile.properties) {
+            const waterProp = tile.properties.find(p => p.name === 'waterTile');
+            if (waterProp && waterProp.value) {
+              const globalTileId = tileset.firstgid + tile.id;
+              this.waterTiles.add(globalTileId);
+              console.log(`💧 [ClientEncounter] Tile d'eau: ${globalTileId}`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ✅ VÉRIFICATION DE RENCONTRE LORS DU MOUVEMENT
+  checkEncounterOnMove(x: number, y: number): EncounterCheckResult {
+    console.log(`🚶 [ClientEncounter] Vérification position (${x}, ${y})`);
+
+    // ✅ Cooldown client
     const now = Date.now();
-    const lastEncounter = this.playerCooldowns.get(playerId) || 0;
-    
-    if (now - lastEncounter < this.ENCOUNTER_COOLDOWN) {
-      console.log(`⚠️ [ServerEncounter] Cooldown actif pour ${playerId}`);
-      return null;
+    if (now - this.lastEncounterTime < this.CLIENT_ENCOUNTER_COOLDOWN) {
+      console.log(`⏰ [ClientEncounter] Cooldown actif`);
+      return { shouldTrigger: false, method: 'grass', encounterRate: 0 };
     }
 
-    // ✅ Vérifier que la zone existe
-    if (!this.encounterTables.has(zoneName)) {
-      await this.loadEncounterTable(zoneName);
+    // ✅ Compter les pas
+    this.stepCount++;
+    if (this.stepCount < this.STEPS_PER_ENCOUNTER_CHECK) {
+      console.log(`👟 [ClientEncounter] Pas ${this.stepCount}/${this.STEPS_PER_ENCOUNTER_CHECK}`);
+      return { shouldTrigger: false, method: 'grass', encounterRate: 0 };
     }
 
-    const table = this.encounterTables.get(zoneName);
-    if (!table) {
-      console.warn(`❌ [ServerEncounter] Aucune table pour ${zoneName}`);
-      return null;
+    // Reset compteur de pas
+    this.stepCount = 0;
+
+    // ✅ Vérifier si on est sur une herbe
+    const isOnGrass = this.isPositionOnGrass(x, y);
+    const isOnWater = this.isPositionOnWater(x, y);
+
+    if (!isOnGrass && !isOnWater) {
+      console.log(`❌ [ClientEncounter] Position sans rencontre possible`);
+      return { shouldTrigger: false, method: 'grass', encounterRate: 0 };
     }
 
-    // ✅ ANTI-CHEAT: Validation basique des coordonnées
-    if (!this.isValidPosition(x, y)) {
-      console.warn(`❌ [ServerEncounter] Position invalide: (${x}, ${y})`);
-      return null;
+    // ✅ Trouver la zone de rencontre
+    const zoneId = this.getEncounterZoneAt(x, y);
+    if (!zoneId) {
+      console.log(`❌ [ClientEncounter] Aucune zone de rencontre à cette position`);
+      return { shouldTrigger: false, method: 'grass', encounterRate: 0 };
     }
 
-    // ✅ ANTI-CHEAT: Rate limiting par joueur
-    if (!this.isEncounterAllowed(playerId)) {
-      console.warn(`❌ [ServerEncounter] Trop de rencontres pour ${playerId}`);
-      return null;
-    }
+    // ✅ Déterminer le type de rencontre et le taux
+    const method = isOnWater ? 'fishing' : 'grass';
+    const encounterRate = this.calculateEncounterRate(method, zoneId);
 
-    // ✅ Générer le Pokémon sauvage
-    const wildPokemon = await this.generateWildEncounter(zoneName, 'grass', timeOfDay, weather);
-    
-    if (wildPokemon) {
-      // ✅ Mettre à jour le cooldown
-      this.playerCooldowns.set(playerId, now);
-      
-      console.log(`⚔️ [ServerEncounter] Rencontre validée: ${wildPokemon.pokemonId} lvl ${wildPokemon.level}`);
-      console.log(`✨ [ServerEncounter] Shiny: ${wildPokemon.shiny}, Nature: ${wildPokemon.nature}`);
-    }
+    console.log(`✅ [ClientEncounter] Rencontre possible:`);
+    console.log(`  📍 Zone: ${zoneId}`);
+    console.log(`  🎯 Méthode: ${method}`);
+    console.log(`  📊 Taux: ${encounterRate}%`);
 
-    return wildPokemon;
+    // Mettre à jour le cooldown
+    this.lastEncounterTime = now;
+
+    return {
+      shouldTrigger: true,
+      zoneId: zoneId,
+      method: method,
+      encounterRate: encounterRate
+    };
   }
 
-  // ✅ VALIDATION ANTI-CHEAT BASIQUE
-  private isValidPosition(x: number, y: number): boolean {
-    // Vérifications basiques
-    if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
-    if (x < 0 || y < 0) return false;
-    if (x > 1000 || y > 1000) return false; // Limite raisonnable
+  // ✅ VÉRIFIER SI POSITION SUR HERBE
+  private isPositionOnGrass(x: number, y: number): boolean {
+    if (!this.mapData) return false;
+
+    // Convertir position monde en position tile
+    const tileX = Math.floor(x / this.mapData.tilewidth);
+    const tileY = Math.floor(y / this.mapData.tileheight);
+
+    // Chercher dans le calque BelowPlayer2
+    const belowPlayer2Layer = this.mapData.layers.find(layer => 
+      layer.name === 'BelowPlayer2' && layer.type === 'tilelayer'
+    );
+
+    if (!belowPlayer2Layer || !belowPlayer2Layer.data) return false;
+
+    // Calculer l'index dans le tableau de données
+    const index = tileY * (belowPlayer2Layer.width || this.mapData.width) + tileX;
     
-    return true;
+    if (index < 0 || index >= belowPlayer2Layer.data.length) return false;
+
+    const tileId = belowPlayer2Layer.data[index];
+    
+    // Vérifier si ce tile a la propriété grassTile
+    const isGrass = this.grassTiles.has(tileId);
+    
+    if (isGrass) {
+      console.log(`🌿 [ClientEncounter] Sur herbe: tile ${tileId} à (${tileX}, ${tileY})`);
+    }
+
+    return isGrass;
   }
 
-  // ✅ RATE LIMITING ANTI-CHEAT
-  private isEncounterAllowed(playerId: string): boolean {
-    // Ici tu peux ajouter une logique plus sophistiquée
-    // Par exemple, max 10 rencontres par minute
-    
-    // Pour l'instant, simple cooldown
-    return true;
-  }
+  // ✅ VÉRIFIER SI POSITION SUR EAU
+  private isPositionOnWater(x: number, y: number): boolean {
+    if (!this.mapData) return false;
 
-  // ✅ GÉNÉRATION DU POKÉMON (logique existante simplifiée)
-  async generateWildEncounter(
-    zone: string, 
-    method: 'grass' | 'fishing',
-    timeOfDay: 'day' | 'night',
-    weather: 'clear' | 'rain' = 'clear'
-  ): Promise<WildPokemon | null> {
-    const table = this.encounterTables.get(zone);
-    if (!table) return null;
+    const tileX = Math.floor(x / this.mapData.tilewidth);
+    const tileY = Math.floor(y / this.mapData.tileheight);
 
-    const encounters = this.getEncountersForConditions(table, method, timeOfDay, weather);
-    if (!encounters || encounters.length === 0) return null;
-
-    // ✅ Sélection pondérée
-    const totalChance = encounters.reduce((sum, enc) => sum + enc.chance, 0);
-    let random = Math.random() * totalChance;
-    
-    let selectedEncounter: EncounterData | null = null;
-    for (const encounter of encounters) {
-      random -= encounter.chance;
-      if (random <= 0) {
-        selectedEncounter = encounter;
-        break;
+    // Chercher dans tous les calques pour les tiles d'eau
+    for (const layer of this.mapData.layers) {
+      if (layer.type === 'tilelayer' && layer.data) {
+        const index = tileY * (layer.width || this.mapData.width) + tileX;
+        
+        if (index >= 0 && index < layer.data.length) {
+          const tileId = layer.data[index];
+          
+          if (this.waterTiles.has(tileId)) {
+            console.log(`💧 [ClientEncounter] Sur eau: tile ${tileId} à (${tileX}, ${tileY})`);
+            return true;
+          }
+        }
       }
     }
 
-    if (!selectedEncounter) return null;
-
-    const pokemonId = this.pokemonNameToId.get(selectedEncounter.species);
-    if (!pokemonId) {
-      console.warn(`⚠️ [ServerEncounter] ID non trouvé pour ${selectedEncounter.species}`);
-      return null;
-    }
-
-    // ✅ Génération du niveau
-    const [minLevel, maxLevel] = selectedEncounter.level_range;
-    const level = Math.floor(Math.random() * (maxLevel - minLevel + 1)) + minLevel;
-
-    // ✅ Génération des stats complètes
-    return await this.generateWildPokemonStats(pokemonId, level);
+    return false;
   }
 
-  // ✅ MÉTHODES UTILITAIRES (versions simplifiées)
-
-  private initializePokemonMapping() {
-    this.pokemonNameToId.set("Pidgey", 16);
-    this.pokemonNameToId.set("Rattata", 19);
-    this.pokemonNameToId.set("Caterpie", 10);
-    this.pokemonNameToId.set("Weedle", 13);
-    this.pokemonNameToId.set("Oddish", 43);
-    this.pokemonNameToId.set("Bellsprout", 69);
-    this.pokemonNameToId.set("Zubat", 41);
-    this.pokemonNameToId.set("Gastly", 92); // ✅ CORRIGÉ: pokemonNameToid -> pokemonNameToId
-    this.pokemonNameToId.set("Pikachu", 25);
-    this.pokemonNameToId.set("Axoloto", 194);
-    this.pokemonNameToId.set("Magikarp", 129);
-    this.pokemonNameToId.set("Loupio", 170);
-    this.pokemonNameToId.set("Poissirene", 116);
-  }
-
-  async loadEncounterTable(zone: string): Promise<void> {
-    try {
-      const filePath = path.join(__dirname, `../data/encounters/${zone}.json`);
-      const fileContent = await fs.readFile(filePath, 'utf-8');
-      const encounterData: EncounterTable = JSON.parse(fileContent);
-      
-      this.encounterTables.set(zone, encounterData);
-      console.log(`✅ [ServerEncounter] Table ${zone} chargée`);
-    } catch (error) {
-      console.warn(`⚠️ [ServerEncounter] Impossible de charger ${zone}:`, error);
-    }
-  }
-
-  private getEncountersForConditions(
-    table: EncounterTable,
-    method: 'grass' | 'fishing',
-    timeOfDay: 'day' | 'night',
-    weather: 'clear' | 'rain'
-  ): EncounterData[] | null {
-    if (method === 'grass') {
-      const grassEncounters = table.encounters.grass;
-      if (!grassEncounters) return null;
-
-      if (weather === 'rain' && grassEncounters.rain) {
-        return grassEncounters.rain;
-      } else if (timeOfDay === 'night' && grassEncounters.night) {
-        return grassEncounters.night;
-      } else if (grassEncounters.day) {
-        return grassEncounters.day;
+  // ✅ TROUVER LA ZONE DE RENCONTRE À UNE POSITION
+  private getEncounterZoneAt(x: number, y: number): string | null {
+    for (const [id, zone] of this.encounterZones.entries()) {
+      if (x >= zone.bounds.left && 
+          x <= zone.bounds.right && 
+          y >= zone.bounds.top && 
+          y <= zone.bounds.bottom) {
+        
+        console.log(`📍 [ClientEncounter] Dans zone: ${zone.zoneId}`);
+        return zone.zoneId;
       }
     }
+
+    console.log(`❌ [ClientEncounter] Aucune zone à (${x}, ${y})`);
     return null;
   }
 
-  private async generateWildPokemonStats(pokemonId: number, level: number): Promise<WildPokemon> {
-    const pokemonData = await getPokemonById(pokemonId);
-    if (!pokemonData) {
-      throw new Error(`Pokémon ${pokemonId} non trouvé`);
+  // ✅ CALCULER LE TAUX DE RENCONTRE
+  private calculateEncounterRate(method: 'grass' | 'fishing', zoneId: string): number {
+    // Taux de base selon le type
+    let baseRate = 0.1; // 10% par défaut
+
+    if (method === 'grass') {
+      // Taux variables selon la zone
+      if (zoneId.includes('grass1')) baseRate = 0.08; // 8%
+      else if (zoneId.includes('grass2')) baseRate = 0.12; // 12%
+      else if (zoneId.includes('grass3')) baseRate = 0.15; // 15% (zone rare)
+      else baseRate = 0.1; // 10% défaut
+    } else if (method === 'fishing') {
+      baseRate = 0.3; // 30% pour la pêche
     }
 
-    // ✅ IVs aléatoires
-    const ivs = {
-      hp: Math.floor(Math.random() * 32),
-      attack: Math.floor(Math.random() * 32),
-      defense: Math.floor(Math.random() * 32),
-      spAttack: Math.floor(Math.random() * 32),
-      spDefense: Math.floor(Math.random() * 32),
-      speed: Math.floor(Math.random() * 32)
-    };
-
-    // ✅ Genre selon ratios
-    const gender = this.generateGender(pokemonData.genderRatio);
-
-    // ✅ Nature aléatoire
-    const natures = [
-      "Hardy", "Lonely", "Brave", "Adamant", "Naughty", "Bold", "Docile", 
-      "Relaxed", "Impish", "Lax", "Timid", "Hasty", "Serious", "Jolly", 
-      "Naive", "Modest", "Mild", "Quiet", "Bashful", "Rash", "Calm", 
-      "Gentle", "Sassy", "Careful", "Quirky"
-    ];
-    const nature = natures[Math.floor(Math.random() * natures.length)];
-
-    // ✅ Shiny (1/4096)
-    const shiny = Math.random() < (1 / 4096);
-
-    // ✅ Moves selon niveau
-    const moves = pokemonData.learnset
-      .filter(move => move.level <= level)
-      .sort((a, b) => b.level - a.level)
-      .slice(0, 4)
-      .map(move => move.moveId);
-
-    if (moves.length < 4) {
-      const level1Moves = pokemonData.learnset
-        .filter(move => move.level === 1)
-        .map(move => move.moveId);
-      
-      for (const move of level1Moves) {
-        if (moves.length >= 4) break;
-        if (!moves.includes(move)) moves.push(move);
-      }
-    }
-
-    if (moves.length === 0) moves.push("tackle");
-
-    return { pokemonId, level, gender, nature, shiny, moves, ivs };
+    return baseRate;
   }
 
-  private generateGender(genderRatio: { male: number; female: number }): string {
-    if (genderRatio.male === 0 && genderRatio.female === 0) return "unknown";
-    const maleChance = genderRatio.male / 100;
-    return Math.random() < maleChance ? "male" : "female";
-  }
-
-  // ✅ Nettoyage périodique
-  cleanupCooldowns(): void {
-    const now = Date.now();
-    const cutoff = now - (this.ENCOUNTER_COOLDOWN * 10);
+  // ✅ FORCER UNE VÉRIFICATION DE RENCONTRE (pour tests)
+  forceEncounterCheck(x: number, y: number): EncounterCheckResult {
+    console.log(`🔧 [ClientEncounter] Force check à (${x}, ${y})`);
     
-    for (const [playerId, lastTime] of this.playerCooldowns.entries()) {
-      if (lastTime < cutoff) {
-        this.playerCooldowns.delete(playerId);
-      }
-    }
+    this.lastEncounterTime = 0; // Reset cooldown
+    this.stepCount = this.STEPS_PER_ENCOUNTER_CHECK; // Force step count
+    
+    return this.checkEncounterOnMove(x, y);
+  }
+
+  // ✅ OBTENIR INFO SUR POSITION ACTUELLE
+  getPositionInfo(x: number, y: number): {
+    isOnGrass: boolean;
+    isOnWater: boolean;
+    zoneId: string | null;
+    canEncounter: boolean;
+  } {
+    const isOnGrass = this.isPositionOnGrass(x, y);
+    const isOnWater = this.isPositionOnWater(x, y);
+    const zoneId = this.getEncounterZoneAt(x, y);
+    const canEncounter = (isOnGrass || isOnWater) && zoneId !== null;
+
+    return {
+      isOnGrass,
+      isOnWater,
+      zoneId,
+      canEncounter
+    };
+  }
+
+  // ✅ DEBUG DES ZONES CHARGÉES
+  debugZones(): void {
+    console.log(`🔍 [ClientEncounter] === DEBUG ZONES ===`);
+    console.log(`📊 Total zones: ${this.encounterZones.size}`);
+    
+    this.encounterZones.forEach((zone, id) => {
+      console.log(`  📍 Zone ${id}: ${zone.zoneId}`);
+      console.log(`    Bounds: (${zone.bounds.left}, ${zone.bounds.top}) to (${zone.bounds.right}, ${zone.bounds.bottom})`);
+    });
+
+    console.log(`🌿 Tiles d'herbe: ${Array.from(this.grassTiles).join(', ')}`);
+    console.log(`💧 Tiles d'eau: ${Array.from(this.waterTiles).join(', ')}`);
+  }
+
+  // ✅ RESET COOLDOWNS (pour tests)
+  resetCooldowns(): void {
+    this.lastEncounterTime = 0;
+    this.stepCount = 0;
+    console.log(`🔄 [ClientEncounter] Cooldowns reset`);
+  }
+
+  // ✅ OBTENIR STATS
+  getStats(): {
+    encounterZonesCount: number;
+    grassTilesCount: number;
+    waterTilesCount: number;
+    lastEncounterTime: number;
+    stepCount: number;
+  } {
+    return {
+      encounterZonesCount: this.encounterZones.size,
+      grassTilesCount: this.grassTiles.size,
+      waterTilesCount: this.waterTiles.size,
+      lastEncounterTime: this.lastEncounterTime,
+      stepCount: this.stepCount
+    };
+  }
+
+  // ✅ MÉTHODES POUR L'INTÉGRATION AVEC LE SYSTÈME DE COMBAT
+
+  // Vérifier si une position peut déclencher des rencontres
+  canTriggerEncounter(x: number, y: number): boolean {
+    const info = this.getPositionInfo(x, y);
+    return info.canEncounter;
+  }
+
+  // Obtenir les données de zone pour le serveur
+  getZoneDataForServer(x: number, y: number): {
+    zoneId: string | null;
+    method: 'grass' | 'fishing';
+    canEncounter: boolean;
+  } {
+    const info = this.getPositionInfo(x, y);
+    
+    return {
+      zoneId: info.zoneId,
+      method: info.isOnWater ? 'fishing' : 'grass',
+      canEncounter: info.canEncounter
+    };
+  }
+
+  // Simuler des pas pour forcer une rencontre (debug)
+  simulateSteps(count: number): void {
+    this.stepCount += count;
+    console.log(`👟 [ClientEncounter] ${count} pas simulés (total: ${this.stepCount})`);
   }
 }
