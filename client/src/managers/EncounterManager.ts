@@ -1,4 +1,4 @@
-// client/src/managers/EncounterManager.ts - CÔTÉ CLIENT D
+// client/src/managers/EncounterManager.ts - CÔTÉ CLIENT DD
 export class ClientEncounterManager {
   private scene: Phaser.Scene;
   private mapData: any;
