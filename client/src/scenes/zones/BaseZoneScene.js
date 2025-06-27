@@ -172,7 +172,15 @@ export class BaseZoneScene extends Phaser.Scene {
     setTimeout(() => {
       this.initializeTimeWeatherSystem();
     }, 1500);
-
+setTimeout(() => {
+  // ✅ Application immédiate de la météo pour cette zone
+  const zoneName = this.normalizeZoneName(this.scene.key);
+  console.log(`🌍 [${this.scene.key}] Application météo initiale pour: ${zoneName}`);
+  
+  if (this.dayNightWeatherManager) {
+    this.dayNightWeatherManager.handleSceneTransition(zoneName);
+  }
+}, 2000);
     // 5. Système d'équipe
     setTimeout(() => {
       // ✅ UTILISER LA FONCTION GLOBALE COMME L'INVENTAIRE
@@ -476,7 +484,15 @@ handleWildEncounter(data) {
     
     this.environmentInitialized = true;
   }
-
+onZoneChanged(newZoneName) {
+  console.log(`🌍 Zone changée: ${newZoneName}`);
+  
+  // ✅ NOUVEAU: Appliquer immédiatement la météo
+  if (this.dayNightWeatherManager) {
+    this.dayNightWeatherManager.handleSceneTransition(newZoneName);
+  }
+}
+  
   // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
   initializeInteractionManager() {
     if (!this.networkManager) {
@@ -639,7 +655,9 @@ handleWildEncounter(data) {
       serverForced: true,
       preservePlayer: true
     };
-
+    // ✅ NOUVEAU: Inclure les données météo actuelles
+    weatherData: this.dayNightWeatherManager?.getCurrentStateForTransition()
+  };
     if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
 
     this.scene.start(correctScene, transitionData);
@@ -1395,9 +1413,15 @@ handleWildEncounter(data) {
   }
 
   onPlayerPositioned(player, initData) {
-    // Hook pour logique spécifique
+  // Hook pour logique spécifique
+  console.log(`📍 [${this.scene.key}] Joueur positionné, application météo...`);
+  
+  // ✅ NOUVEAU: Déclencher la météo après positionnement
+  const zoneName = this.normalizeZoneName(this.scene.key);
+  if (this.dayNightWeatherManager) {
+    this.dayNightWeatherManager.handleSceneTransition(zoneName);
   }
-
+}
   // ✅ MÉTHODE MODIFIÉE: Setup des managers avec InteractionManager
   setupManagers() {
     this.playerManager = new PlayerManager(this);
