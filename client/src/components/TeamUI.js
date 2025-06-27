@@ -1,4 +1,20 @@
-// client/src/components/TeamUI.js - Interface d'équipe Pokémon
+selectPokemon(pokemon, cardElement, slotIndex) {
+    console.log('🎯 Sélection Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+    
+    // Désélectionner l'ancien
+    this.overlay.querySelectorAll('.team-slot').forEach(slot => {
+      slot.classList.remove('selected');
+    });
+    this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
+      card.classList.remove('active');
+    });
+
+    // Sélectionner le nouveau
+    const slot = cardElement.closest('.team-slot');
+    if (slot) {
+      slot.classList.add('selected');
+    }
+    cardElement// client/src/components/TeamUI.js - Interface d'équipe Pokémon
 
 export class TeamUI {
   constructor(gameRoom) {
@@ -498,17 +514,6 @@ export class TeamUI {
         this.displayPokemonInSlot(slot, pokemon, index);
       }
     });
-
-    // ✅ Test de clic direct après création
-    setTimeout(() => {
-      const testCard = slotsContainer.querySelector('.pokemon-card');
-      if (testCard) {
-        console.log('🧪 Test - Carte trouvée:', testCard);
-        console.log('🧪 Test - onclick défini:', testCard.onclick ? 'OUI' : 'NON');
-        console.log('🧪 Test - dataset:', testCard.dataset);
-        console.log('🧪 Tapez "window.teamUI.testSelection()" dans la console pour tester la sélection');
-      }
-    }, 200);
   }
 
   displayPokemonInSlot(slot, pokemon, index) {
@@ -528,9 +533,7 @@ export class TeamUI {
     pokemonCard.className = 'pokemon-card';
     pokemonCard.dataset.pokemonId = pokemon._id;
     pokemonCard.dataset.slot = index;
-    
-    // ✅ DÉSACTIVER TEMPORAIREMENT LE DRAG AND DROP
-    // pokemonCard.draggable = true;
+    pokemonCard.draggable = true; // Réactivé maintenant que ça fonctionne
 
     // Add type-based border class
     if (pokemon.types && pokemon.types.length > 0) {
@@ -552,10 +555,6 @@ export class TeamUI {
       </div>
       
       ${genderDisplay}
-      
-      <div class="pokemon-context-menu" title="More options">
-        ℹ️
-      </div>
           
       <div class="pokemon-sprite">
         <div 
@@ -583,47 +582,32 @@ export class TeamUI {
 
     slotBackground.appendChild(pokemonCard);
 
-    // ✅ MULTIPLE APPROACHES POUR CAPTURER LE CLIC
+    // ✅ Event listeners optimisés
     const self = this;
 
-    // Méthode 1: onclick direct
-    pokemonCard.onclick = function(e) {
-      console.log('🎯 ONCLICK METHOD - Clic détecté !');
-      e.preventDefault();
-      e.stopPropagation();
-      self.selectPokemon(pokemon, pokemonCard, index);
-      return false;
-    };
-
-    // Méthode 2: addEventListener avec capture
+    // Clic gauche pour sélection
     pokemonCard.addEventListener('click', function(e) {
-      console.log('🎯 ADDEVENTLISTENER METHOD - Clic détecté !');
       e.preventDefault();
       e.stopPropagation();
-      self.selectPokemon(pokemon, pokemonCard, index);
-    }, true);
-
-    // Méthode 3: mousedown (plus immédiat que click)
-    pokemonCard.addEventListener('mousedown', function(e) {
-      console.log('🎯 MOUSEDOWN METHOD - Clic détecté !');
-      e.preventDefault();
-      e.stopPropagation();
+      console.log('🎯 Clic gauche - Sélection Pokémon');
       self.selectPokemon(pokemon, pokemonCard, index);
     });
 
-    // Méthode 4: Événement sur tous les enfants aussi
-    pokemonCard.addEventListener('click', function(e) {
-      console.log('🎯 CHILDREN CLICK - Élément cliqué:', e.target);
+    // Double-clic pour détails
+    pokemonCard.addEventListener('dblclick', function(e) {
       e.preventDefault();
       e.stopPropagation();
-      self.selectPokemon(pokemon, pokemonCard, index);
+      console.log('🎯 Double-clic - Ouverture détails');
+      self.showPokemonDetails(pokemon);
     });
 
-    // Test immédiat
-    setTimeout(() => {
-      console.log('🧪 Test click programmé...');
-      pokemonCard.click();
-    }, 1000);
+    // ✅ CLIC DROIT pour menu contextuel
+    pokemonCard.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('🎯 Clic droit - Menu contextuel');
+      self.showContextMenu(e, pokemon, index);
+    });
 
     // ✅ RENDRE TEAMUI ACCESSIBLE GLOBALEMENT
     window.teamUI = this;
@@ -632,8 +616,6 @@ export class TeamUI {
     setTimeout(() => {
       pokemonCard.classList.add('new');
     }, index * 100);
-
-    console.log('✅ Carte Pokémon créée avec TOUS les listeners');
   }
 
   getGenderDisplay(gender) {
@@ -645,16 +627,257 @@ export class TeamUI {
     return genderSymbol ? `<div class="pokemon-gender ${genderClass}">${genderSymbol}</div>` : '';
   }
 
-  showPokemonContextMenu(pokemon, event) {
-    // Simple context menu for now - could be expanded
-    const actions = [
-      { text: 'View Details', action: () => this.showPokemonDetails(pokemon) },
-      { text: 'Heal', action: () => this.healPokemon(pokemon._id) },
-      { text: 'Move to PC', action: () => this.removePokemon(pokemon._id) }
-    ];
+  // ✅ MENU CONTEXTUEL COMPLET
+  showContextMenu(event, pokemon, slotIndex) {
+    // Fermer le menu existant s'il y en a un
+    this.hideContextMenu();
+
+    const menu = this.createContextMenu(pokemon, slotIndex);
+    document.body.appendChild(menu);
+
+    // Positionner le menu près du curseur
+    this.positionContextMenu(menu, event.clientX, event.clientY);
+
+    // Ajouter les event listeners pour fermer le menu
+    this.setupContextMenuListeners(menu);
+  }
+
+  createContextMenu(pokemon, slotIndex) {
+    const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
+    const healthClass = this.getHealthClass(healthPercent);
+    const canHeal = pokemon.currentHp < pokemon.maxHp;
+    const canBattle = pokemon.currentHp > 0;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'pokemon-context-menu-overlay';
+    overlay.style.display = 'block';
+
+    const menu = document.createElement('div');
+    menu.className = 'pokemon-context-menu-panel';
+
+    menu.innerHTML = `
+      <div class="context-menu-header">
+        <div 
+          class="context-menu-pokemon-icon"
+          style="${this.getPortraitSpriteStyle(pokemon.pokemonId, { shiny: pokemon.shiny }).replace('80px', '24px').replace('80px', '24px')}"
+        ></div>
+        <div class="context-menu-pokemon-name">
+          ${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}
+        </div>
+        <div class="context-menu-pokemon-level">Lv.${pokemon.level}</div>
+      </div>
+
+      <div class="context-menu-items">
+        <button class="context-menu-item" data-action="details">
+          <span class="context-menu-item-icon">📊</span>
+          <span class="context-menu-item-text">View Details</span>
+          <span class="context-menu-item-shortcut">Double-click</span>
+        </button>
+
+        <button class="context-menu-item" data-action="select">
+          <span class="context-menu-item-icon">🎯</span>
+          <span class="context-menu-item-text">Select</span>
+          <span class="context-menu-item-shortcut">Click</span>
+        </button>
+
+        <div class="context-menu-separator"></div>
+
+        <button class="context-menu-item ${canHeal ? '' : 'disabled'}" data-action="heal" ${canHeal ? '' : 'disabled'}>
+          <span class="context-menu-item-icon">💊</span>
+          <span class="context-menu-item-text">Heal</span>
+          <div class="context-menu-health">
+            <div class="context-menu-health-bar">
+              <div class="context-menu-health-fill ${healthClass}" style="width: ${healthPercent}%"></div>
+            </div>
+            <span>${pokemon.currentHp}/${pokemon.maxHp}</span>
+          </div>
+        </button>
+
+        <button class="context-menu-item ${canBattle ? '' : 'disabled'}" data-action="battle" ${canBattle ? '' : 'disabled'}>
+          <span class="context-menu-item-icon">⚔️</span>
+          <span class="context-menu-item-text">Send to Battle</span>
+        </button>
+
+        <div class="context-menu-separator"></div>
+
+        <button class="context-menu-item" data-action="rename">
+          <span class="context-menu-item-icon">✏️</span>
+          <span class="context-menu-item-text">Rename</span>
+        </button>
+
+        <button class="context-menu-item" data-action="moves">
+          <span class="context-menu-item-icon">⚡</span>
+          <span class="context-menu-item-text">Manage Moves</span>
+        </button>
+
+        <div class="context-menu-separator"></div>
+
+        <button class="context-menu-item" data-action="pc">
+          <span class="context-menu-item-icon">💻</span>
+          <span class="context-menu-item-text">Move to PC</span>
+        </button>
+
+        <button class="context-menu-item" data-action="release" style="color: #e74c3c;">
+          <span class="context-menu-item-icon">🗑️</span>
+          <span class="context-menu-item-text">Release</span>
+        </button>
+      </div>
+    `;
+
+    overlay.appendChild(menu);
+
+    // Ajouter les event listeners pour les actions
+    menu.querySelectorAll('.context-menu-item[data-action]').forEach(item => {
+      if (!item.disabled) {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const action = item.dataset.action;
+          this.handleContextMenuAction(action, pokemon, slotIndex);
+          this.hideContextMenu();
+        });
+      }
+    });
+
+    return overlay;
+  }
+
+  positionContextMenu(menuOverlay, x, y) {
+    const menu = menuOverlay.querySelector('.pokemon-context-menu-panel');
+    const rect = menu.getBoundingClientRect();
     
-    // For now, just show details
-    this.showPokemonDetails(pokemon);
+    // Ajuster la position pour rester dans l'écran
+    let menuX = x;
+    let menuY = y;
+
+    if (menuX + rect.width > window.innerWidth) {
+      menuX = window.innerWidth - rect.width - 10;
+    }
+    if (menuY + rect.height > window.innerHeight) {
+      menuY = window.innerHeight - rect.height - 10;
+    }
+
+    menu.style.left = `${menuX}px`;
+    menu.style.top = `${menuY}px`;
+  }
+
+  setupContextMenuListeners(menuOverlay) {
+    // Fermer en cliquant à l'extérieur
+    menuOverlay.addEventListener('click', (e) => {
+      if (e.target === menuOverlay) {
+        this.hideContextMenu();
+      }
+    });
+
+    // Fermer avec Escape
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape') {
+        this.hideContextMenu();
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
+
+    // Fermer en cliquant n'importe où dans le document
+    const clickHandler = (e) => {
+      if (!menuOverlay.contains(e.target)) {
+        this.hideContextMenu();
+        document.removeEventListener('click', clickHandler, true);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener('click', clickHandler, true);
+    }, 100);
+  }
+
+  hideContextMenu() {
+    const existingMenu = document.querySelector('.pokemon-context-menu-overlay');
+    if (existingMenu) {
+      existingMenu.style.animation = 'contextMenuDisappear 0.2s ease forwards';
+      setTimeout(() => {
+        if (existingMenu.parentNode) {
+          existingMenu.remove();
+        }
+      }, 200);
+    }
+  }
+
+  handleContextMenuAction(action, pokemon, slotIndex) {
+    console.log('🎯 Action menu contextuel:', action, pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+
+    switch (action) {
+      case 'details':
+        this.showPokemonDetails(pokemon);
+        break;
+
+      case 'select':
+        const card = this.overlay.querySelector(`[data-slot="${slotIndex}"] .pokemon-card`);
+        if (card) {
+          this.selectPokemon(pokemon, card, slotIndex);
+        }
+        break;
+
+      case 'heal':
+        this.healPokemon(pokemon._id);
+        break;
+
+      case 'battle':
+        this.showNotification(`${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)} ready for battle!`, 'info');
+        break;
+
+      case 'rename':
+        this.renamePokemon(pokemon, slotIndex);
+        break;
+
+      case 'moves':
+        this.manageMoves(pokemon);
+        break;
+
+      case 'pc':
+        this.removePokemon(pokemon._id);
+        break;
+
+      case 'release':
+        this.releasePokemon(pokemon, slotIndex);
+        break;
+
+      default:
+        console.log('Action non implémentée:', action);
+    }
+  }
+
+  // ✅ NOUVELLES MÉTHODES POUR LE MENU CONTEXTUEL
+  renamePokemon(pokemon, slotIndex) {
+    const currentName = pokemon.nickname || this.getPokemonName(pokemon.pokemonId);
+    const newName = prompt(`Rename ${currentName}:`, currentName);
+    
+    if (newName && newName.trim() && newName.trim() !== currentName) {
+      if (this.gameRoom) {
+        this.gameRoom.send("renamePokemon", { 
+          pokemonId: pokemon._id, 
+          newName: newName.trim() 
+        });
+        this.showNotification(`${currentName} renamed to ${newName.trim()}!`, 'success');
+      }
+    }
+  }
+
+  manageMoves(pokemon) {
+    this.showNotification("Move management not yet implemented", "info");
+    // TODO: Ouvrir interface de gestion des attaques
+  }
+
+  releasePokemon(pokemon, slotIndex) {
+    const pokemonName = pokemon.nickname || this.getPokemonName(pokemon.pokemonId);
+    const confirmation = confirm(
+      `Are you sure you want to release ${pokemonName}?\n\nThis action cannot be undone!`
+    );
+    
+    if (confirmation) {
+      if (this.gameRoom) {
+        this.gameRoom.send("releasePokemon", { pokemonId: pokemon._id });
+        this.showNotification(`${pokemonName} has been released.`, 'info');
+      }
+    }
   }
 
   getHealthClass(healthPercent) {
@@ -686,63 +909,29 @@ export class TeamUI {
     ).join('');
   }
 
-  // ✅ MÉTHODE DE TEST DIRECT
-  testSelection() {
-    console.log('🧪 Test de sélection...');
-    
-    if (this.teamData.length > 0) {
-      const pokemon = this.teamData[0];
-      const card = this.overlay.querySelector('.pokemon-card');
-      
-      if (pokemon && card) {
-        console.log('🧪 Tentative de sélection directe...');
-        this.selectPokemon(pokemon, card, 0);
-      } else {
-        console.log('❌ Pas de Pokémon ou carte trouvé');
-      }
-    } else {
-      console.log('❌ Aucune données d\'équipe');
-    }
-  }
-
   selectPokemon(pokemon, cardElement, slotIndex) {
-    console.log('🎯 ===== SÉLECTION POKÉMON =====');
-    console.log('🎯 Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-    console.log('🎯 Élément carte:', cardElement);
-    console.log('🎯 Slot:', slotIndex);
+    console.log('🎯 Sélection Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
     
     // Désélectionner l'ancien
     this.overlay.querySelectorAll('.team-slot').forEach(slot => {
       slot.classList.remove('selected');
-      console.log('🎯 Slot désélectionné:', slot);
     });
     this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
       card.classList.remove('active');
-      console.log('🎯 Carte désactivée:', card);
     });
 
     // Sélectionner le nouveau
     const slot = cardElement.closest('.team-slot');
     if (slot) {
       slot.classList.add('selected');
-      console.log('🎯 Slot sélectionné:', slot);
-    } else {
-      console.log('❌ Slot parent non trouvé');
     }
-    
     cardElement.classList.add('active');
-    console.log('🎯 Carte activée:', cardElement);
     
     this.selectedPokemon = pokemon;
     this.selectedSlot = slotIndex;
 
-    console.log('🎯 État final - selectedPokemon:', this.selectedPokemon);
-    console.log('🎯 État final - selectedSlot:', this.selectedSlot);
-
     // Mettre à jour les vues
     this.updateDetailView();
-    
-    console.log('🎯 ===== FIN SÉLECTION =====');
   }
 
   deselectPokemon() {
