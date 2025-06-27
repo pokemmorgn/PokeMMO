@@ -98,51 +98,16 @@ export class OptimizedPhaserOverlayManager {
 
   // ✅ UPDATE COMBINÉ avec DÉBOUNCING INTELLIGENT
   updateCombined(isDayTime, weather, environment = 'outdoor', zoneName = null) {
-    if (!this.combinedOverlay) return;
-    
-    // ✅ NORMALISER zoneName pour éviter les oscillations null/string
-    const normalizedZone = this.normalizeZoneName(zoneName);
-    
-    // ✅ Créer une clé d'état UNIQUE et STABLE
-    const timeState = isDayTime ? 'day' : 'night';
-    const stateKey = `${timeState}-${weather}-${environment}-${normalizedZone}`;
-    
-    // ✅ SKIP IMMÉDIAT si état identique
-    if (this.lastCombinedState === stateKey) {
-      if (this.debugMode) {
-        console.log(`⚡ [PhaserOverlay] Skip identique: ${stateKey}`);
-      }
-      return;
-    }
-    
-    // ✅ MODE TRANSITION RAPIDE : Appliquer immédiatement
-    if (this.fastTransitionMode) {
-      this.executeUpdateImmediate(isDayTime, weather, environment, normalizedZone, stateKey);
-      return;
-    }
-    
-    // ✅ MODE NORMAL : Débouncing de 300ms
-    if (this.updateTimer) {
-      clearTimeout(this.updateTimer);
-    }
-    
-    this.pendingUpdate = {
-      isDayTime,
-      weather,
-      environment,
-      zoneName: normalizedZone,
-      stateKey
-    };
-    
-    this.updateTimer = setTimeout(() => {
-      this.executePendingUpdate();
-    }, 300);
-    
-    if (this.debugMode) {
-      console.log(`⏳ [PhaserOverlay] Update programmé: ${stateKey}`);
-    }
-  }
-
+  if (!this.combinedOverlay) return;
+  
+  // ✅ FORCER TOUJOURS TRANSPARENT (anti-clignotement)
+  this.combinedOverlay.setAlpha(0);
+  this.combinedOverlay.setVisible(false);
+  
+  // Marquer comme traité
+  const timeState = isDayTime ? 'day' : 'night';
+  this.lastCombinedState = `${timeState}-${weather}-${environment}-${this.normalizeZoneName(zoneName)}`;
+}
   // ✅ NOUVELLE MÉTHODE: Exécution immédiate pour transitions
   executeUpdateImmediate(isDayTime, weather, environment, zoneName, stateKey) {
     console.log(`🚀 [PhaserOverlay] Exécution immédiate: ${stateKey}`);
