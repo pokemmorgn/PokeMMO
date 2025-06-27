@@ -486,17 +486,17 @@ handleWildEncounter(data) {
     this.environmentInitialized = true;
   }
 onZoneChanged(newZoneName) {
-    console.log(`🌍 [${this.scene.key}] Zone changée: ${newZoneName}`);
-    
-    // ✅ NOUVEAU: Appliquer immédiatement la météo
-      if (this.dayNightWeatherManager) {
-    // ✅ Pour transitions normales
-    this.dayNightWeatherManager.handleSceneTransition(zoneName, transitionData);
-    
-    // ✅ OU pour application super rapide (zones déjà visitées)
-    this.dayNightWeatherManager.forceInstantWeatherApplication(zoneName);
+  console.log(`🌍 [${this.scene.key}] Zone changée: ${newZoneName}`);
+  
+  // ✅ NOUVEAU: Appliquer immédiatement la météo
+  if (this.dayNightWeatherManager) {
+    // ✅ Utiliser le paramètre correct
+    this.dayNightWeatherManager.handleSceneTransition(newZoneName);
+    console.log(`✅ [${this.scene.key}] Météo de transition appliquée pour: ${newZoneName}`);
+  } else {
+    console.warn(`⚠️ [${this.scene.key}] DayNightWeatherManager pas disponible`);
   }
-  }
+}
   
   // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
   initializeInteractionManager() {
@@ -658,7 +658,7 @@ onZoneChanged(newZoneName) {
       spawnX: serverData.x,
       spawnY: serverData.y,
       serverForced: true,
-      preservePlayer: true
+      preservePlayer: true,
       weatherData: this.dayNightWeatherManager?.getCurrentStateForTransition()
 
     };
@@ -1417,7 +1417,7 @@ onZoneChanged(newZoneName) {
     return { x: 100, y: 100 };
   }
 
-  nPlayerPositioned(player, initData) {
+  onPlayerPositioned(player, initData) {
     console.log(`📍 [${this.scene.key}] Joueur positionné, application météo IMMÉDIATE...`);
     
     // ✅ NOUVEAU: Déclencher la météo IMMÉDIATEMENT après positionnement
