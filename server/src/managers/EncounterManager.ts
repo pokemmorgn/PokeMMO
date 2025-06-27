@@ -1,4 +1,4 @@
-// server/src/managers/EncounterManager.ts - VERSION COMPLÈTEMENT CORRIGÉE
+// server/src/managers/EncounterManager.ts
 import fs from 'fs/promises';
 import path from 'path';
 import { getPokemonById } from '../data/PokemonData';
@@ -44,97 +44,44 @@ export interface EncounterTable {
   };
 }
 
-export class ServerEncounterManager {
+export class EncounterManager {
   private encounterTables: Map<string, EncounterTable> = new Map();
   private pokemonNameToId: Map<string, number> = new Map();
-  
-  // ✅ Anti-cheat: Cooldown par joueur
-  private playerCooldowns: Map<string, number> = new Map();
-  private readonly ENCOUNTER_COOLDOWN = 800; // 800ms côté serveur (plus strict que client)
 
   constructor() {
     this.initializePokemonMapping();
   }
 
-  // ✅ VALIDATION D'UNE RENCONTRE DEPUIS LE CLIENT
-  async validateAndGenerateEncounter(
-    playerId: string,
-    zoneName: string,
-    x: number,
-    y: number,
-    timeOfDay: 'day' | 'night',
-    weather: 'clear' | 'rain',
-    clientZoneProperties?: any
-  ): Promise<WildPokemon | null> {
-    
-    console.log(`🔍 [ServerEncounter] Validation rencontre ${playerId} à (${x}, ${y}) dans ${zoneName}`);
-    
-    // ✅ ANTI-CHEAT: Vérifier le cooldown
-    const now = Date.now();
-    const lastEncounter = this.playerCooldowns.get(playerId) || 0;
-    
-    if (now - lastEncounter < this.ENCOUNTER_COOLDOWN) {
-      console.log(`⚠️ [ServerEncounter] Cooldown actif pour ${playerId}`);
-      return null;
-    }
+  private initializePokemonMapping() {
+    // Mapping des noms vers les IDs (à compléter selon tes données)
+    this.pokemonNameToId.set("Pidgey", 16);
+    this.pokemonNameToId.set("Rattata", 19);
+    this.pokemonNameToId.set("Caterpie", 10);
+    this.pokemonNameToId.set("Weedle", 13);
+    this.pokemonNameToId.set("Oddish", 43);
+    this.pokemonNameToId.set("Bellsprout", 69);
+    this.pokemonNameToId.set("Zubat", 41);
+    this.pokemonNameToId.set("Gastly", 92);
+    this.pokemonNameToId.set("Pikachu", 25);
+    this.pokemonNameToId.set("Axoloto", 194); // Wooper
+    this.pokemonNameToId.set("Magikarp", 129);
+    this.pokemonNameToId.set("Loupio", 170); // Chinchou
+    this.pokemonNameToId.set("Poissirene", 116); // Horsea
+  }
 
-    // ✅ Vérifier que la zone existe
-    if (!this.encounterTables.has(zoneName)) {
-      await this.loadEncounterTable(zoneName);
-    }
-
-    const table = this.encounterTables.get(zoneName);
-    if (!table) {
-      console.warn(`❌ [ServerEncounter] Aucune table pour ${zoneName}`);
-      return null;
-    }
-
-    // ✅ ANTI-CHEAT: Validation basique des coordonnées
-    if (!this.isValidPosition(x, y)) {
-      console.warn(`❌ [ServerEncounter] Position invalide: (${x}, ${y})`);
-      return null;
-    }
-
-    // ✅ ANTI-CHEAT: Rate limiting par joueur
-    if (!this.isEncounterAllowed(playerId)) {
-      console.warn(`❌ [ServerEncounter] Trop de rencontres pour ${playerId}`);
-      return null;
-    }
-
-    // ✅ Générer le Pokémon sauvage
-    const wildPokemon = await this.generateWildEncounter(zoneName, 'grass', timeOfDay, weather);
-    
-    if (wildPokemon) {
-      // ✅ Mettre à jour le cooldown
-      this.playerCooldowns.set(playerId, now);
+  async loadEncounterTable(zone: string): Promise<void> {
+    try {
+      const filePath = path.join(__dirname, `../data/encounters/${zone}.json`);
+      const fileContent = await fs.readFile(filePath, 'utf-8');
+      const encounterData: EncounterTable = JSON.parse(fileContent);
       
-      console.log(`⚔️ [ServerEncounter] Rencontre validée: ${wildPokemon.pokemonId} lvl ${wildPokemon.level}`);
-      console.log(`✨ [ServerEncounter] Shiny: ${wildPokemon.shiny}, Nature: ${wildPokemon.nature}`);
+      this.encounterTables.set(zone, encounterData);
+      console.log(`✅ Table de rencontres chargée pour ${zone}`);
+    } catch (error) {
+      console.warn(`⚠️ Impossible de charger les rencontres pour ${zone}:`, error);
     }
-
-    return wildPokemon;
   }
 
-  // ✅ VALIDATION ANTI-CHEAT BASIQUE
-  private isValidPosition(x: number, y: number): boolean {
-    // Vérifications basiques
-    if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
-    if (x < 0 || y < 0) return false;
-    if (x > 1000 || y > 1000) return false; // Limite raisonnable
-    
-    return true;
-  }
-
-  // ✅ RATE LIMITING ANTI-CHEAT
-  private isEncounterAllowed(playerId: string): boolean {
-    // Ici tu peux ajouter une logique plus sophistiquée
-    // Par exemple, max 10 rencontres par minute
-    
-    // Pour l'instant, simple cooldown
-    return true;
-  }
-
-  // ✅ GÉNÉRATION DU POKÉMON (logique existante simplifiée)
   async generateWildEncounter(
     zone: string, 
     method: 'grass' | 'fishing',
@@ -142,12 +89,21 @@ export class ServerEncounterManager {
     weather: 'clear' | 'rain' = 'clear'
   ): Promise<WildPokemon | null> {
     const table = this.encounterTables.get(zone);
-    if (!table) return null;
+    if (!table) {
+      await this.loadEncounterTable(zone);
+      const reloadedTable = this.encounterTables.get(zone);
+      if (!reloadedTable) {
+        console.error(`❌ Aucune table de rencontres pour ${zone}`);
+        return null;
+      }
+    }
 
-    const encounters = this.getEncountersForConditions(table, method, timeOfDay, weather);
-    if (!encounters || encounters.length === 0) return null;
+    const encounters = this.getEncountersForConditions(table!, method, timeOfDay, weather);
+    if (!encounters || encounters.length === 0) {
+      return null;
+    }
 
-    // ✅ Sélection pondérée
+    // Sélection pondérée
     const totalChance = encounters.reduce((sum, enc) => sum + enc.chance, 0);
     let random = Math.random() * totalChance;
     
@@ -164,47 +120,16 @@ export class ServerEncounterManager {
 
     const pokemonId = this.pokemonNameToId.get(selectedEncounter.species);
     if (!pokemonId) {
-      console.warn(`⚠️ [ServerEncounter] ID non trouvé pour ${selectedEncounter.species}`);
+      console.warn(`⚠️ ID non trouvé pour ${selectedEncounter.species}`);
       return null;
     }
 
-    // ✅ Génération du niveau
+    // Génération du niveau
     const [minLevel, maxLevel] = selectedEncounter.level_range;
     const level = Math.floor(Math.random() * (maxLevel - minLevel + 1)) + minLevel;
 
-    // ✅ Génération des stats complètes
+    // Génération des caractéristiques
     return await this.generateWildPokemonStats(pokemonId, level);
-  }
-
-  // ✅ MÉTHODES UTILITAIRES (versions simplifiées)
-
-  private initializePokemonMapping() {
-    this.pokemonNameToId.set("Pidgey", 16);
-    this.pokemonNameToId.set("Rattata", 19);
-    this.pokemonNameToId.set("Caterpie", 10);
-    this.pokemonNameToId.set("Weedle", 13);
-    this.pokemonNameToId.set("Oddish", 43);
-    this.pokemonNameToId.set("Bellsprout", 69);
-    this.pokemonNameToId.set("Zubat", 41);
-    this.pokemonNameToId.set("Gastly", 92); // ✅ CORRIGÉ
-    this.pokemonNameToId.set("Pikachu", 25);
-    this.pokemonNameToId.set("Axoloto", 194);
-    this.pokemonNameToId.set("Magikarp", 129);
-    this.pokemonNameToId.set("Loupio", 170);
-    this.pokemonNameToId.set("Poissirene", 116);
-  }
-
-  async loadEncounterTable(zone: string): Promise<void> {
-    try {
-      const filePath = path.join(__dirname, `../data/encounters/${zone}.json`);
-      const fileContent = await fs.readFile(filePath, 'utf-8');
-      const encounterData: EncounterTable = JSON.parse(fileContent);
-      
-      this.encounterTables.set(zone, encounterData);
-      console.log(`✅ [ServerEncounter] Table ${zone} chargée`);
-    } catch (error) {
-      console.warn(`⚠️ [ServerEncounter] Impossible de charger ${zone}:`, error);
-    }
   }
 
   private getEncountersForConditions(
@@ -217,6 +142,7 @@ export class ServerEncounterManager {
       const grassEncounters = table.encounters.grass;
       if (!grassEncounters) return null;
 
+      // Priorité : météo spéciale > moment de la journée
       if (weather === 'rain' && grassEncounters.rain) {
         return grassEncounters.rain;
       } else if (timeOfDay === 'night' && grassEncounters.night) {
@@ -224,7 +150,19 @@ export class ServerEncounterManager {
       } else if (grassEncounters.day) {
         return grassEncounters.day;
       }
+    } else if (method === 'fishing') {
+      const fishingEncounters = table.encounters.fishing?.calm_water;
+      if (!fishingEncounters) return null;
+
+      if (weather === 'rain' && fishingEncounters.rain) {
+        return fishingEncounters.rain;
+      } else if (timeOfDay === 'night' && fishingEncounters.night) {
+        return fishingEncounters.night;
+      } else if (fishingEncounters.day) {
+        return fishingEncounters.day;
+      }
     }
+
     return null;
   }
 
@@ -234,7 +172,7 @@ export class ServerEncounterManager {
       throw new Error(`Pokémon ${pokemonId} non trouvé`);
     }
 
-    // ✅ IVs aléatoires
+    // IVs aléatoires (0-31)
     const ivs = {
       hp: Math.floor(Math.random() * 32),
       attack: Math.floor(Math.random() * 32),
@@ -244,10 +182,10 @@ export class ServerEncounterManager {
       speed: Math.floor(Math.random() * 32)
     };
 
-    // ✅ Genre selon ratios
+    // Genre aléatoire selon les ratios
     const gender = this.generateGender(pokemonData.genderRatio);
 
-    // ✅ Nature aléatoire
+    // Nature aléatoire
     const natures = [
       "Hardy", "Lonely", "Brave", "Adamant", "Naughty", "Bold", "Docile", 
       "Relaxed", "Impish", "Lax", "Timid", "Hasty", "Serious", "Jolly", 
@@ -256,16 +194,17 @@ export class ServerEncounterManager {
     ];
     const nature = natures[Math.floor(Math.random() * natures.length)];
 
-    // ✅ Shiny (1/4096)
+    // Shiny (1/4096 par défaut)
     const shiny = Math.random() < (1 / 4096);
 
-    // ✅ Moves selon niveau
+    // Attaques apprises au niveau actuel
     const moves = pokemonData.learnset
       .filter(move => move.level <= level)
-      .sort((a, b) => b.level - a.level)
-      .slice(0, 4)
+      .sort((a, b) => b.level - a.level) // Plus récentes en premier
+      .slice(0, 4) // Max 4 attaques
       .map(move => move.moveId);
 
+    // Si moins de 4 attaques, compléter avec les attaques de niveau 1
     if (moves.length < 4) {
       const level1Moves = pokemonData.learnset
         .filter(move => move.level === 1)
@@ -273,34 +212,50 @@ export class ServerEncounterManager {
       
       for (const move of level1Moves) {
         if (moves.length >= 4) break;
-        if (!moves.includes(move)) moves.push(move);
+        if (!moves.includes(move)) {
+          moves.push(move);
+        }
       }
     }
 
-    if (moves.length === 0) moves.push("tackle");
+    // Assurer au moins une attaque
+    if (moves.length === 0) {
+      moves.push("tackle");
+    }
 
-    return { pokemonId, level, gender, nature, shiny, moves, ivs };
+    return {
+      pokemonId,
+      level,
+      gender,
+      nature,
+      shiny,
+      moves,
+      ivs
+    };
   }
 
   private generateGender(genderRatio: { male: number; female: number }): string {
-    if (genderRatio.male === 0 && genderRatio.female === 0) return "unknown";
+    if (genderRatio.male === 0 && genderRatio.female === 0) {
+      return "unknown"; // Pokémon sans genre
+    }
+    
     const maleChance = genderRatio.male / 100;
     return Math.random() < maleChance ? "male" : "female";
   }
 
-  // ✅ Nettoyage périodique
-  cleanupCooldowns(): void {
-    const now = Date.now();
-    const cutoff = now - (this.ENCOUNTER_COOLDOWN * 10);
-    
-    for (const [playerId, lastTime] of this.playerCooldowns.entries()) {
-      if (lastTime < cutoff) {
-        this.playerCooldowns.delete(playerId);
-      }
+  // Méthode pour déclencher une rencontre depuis WorldRoom
+  async checkForEncounter(
+    zone: string,
+    method: 'grass' | 'fishing',
+    encounterRate: number = 0.1, // 10% par défaut
+    timeOfDay: 'day' | 'night' = 'day',
+    weather: 'clear' | 'rain' = 'clear'
+  ): Promise<WildPokemon | null> {
+    // Vérification du taux de rencontre
+    if (Math.random() > encounterRate) {
+      return null;
     }
+
+    return await this.generateWildEncounter(zone, method, timeOfDay, weather);
   }
 }
-
-// ✅ EXPORTS POUR COMPATIBILITÉ
-export { ServerEncounterManager as EncounterManager }; // Alias pour la compatibilité
-export type { WildPokemon, EncounterData, EncounterTable };
