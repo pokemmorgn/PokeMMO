@@ -157,30 +157,31 @@ export class BaseZoneScene extends Phaser.Scene {
     
     // 1. Inventaire (plus stable)
     this.initializeInventorySystem();
+
+        // 4. Temps/Météo (peu de risque de conflit)
+    setTimeout(() => {
+      this.initializeTimeWeatherSystem();
+    }, 300);
     
     // 2. InteractionManager (dépend de networkManager)
     setTimeout(() => {
       this.initializeInteractionManager();
-    }, 500);
+    }, 600);
     
     // 3. Quêtes (dépend de la connexion stable)
     setTimeout(() => {
       this.initializeQuestSystem();
-    }, 1000);
+    }, 900);
     
-    // 4. Temps/Météo (peu de risque de conflit)
     setTimeout(() => {
-      this.initializeTimeWeatherSystem();
-    }, 1500);
-setTimeout(() => {
-  // ✅ Application immédiate de la météo pour cette zone
-  const zoneName = this.normalizeZoneName(this.scene.key);
-  console.log(`🌍 [${this.scene.key}] Application météo initiale pour: ${zoneName}`);
-  
-  if (this.dayNightWeatherManager) {
-    this.dayNightWeatherManager.handleSceneTransition(zoneName);
-  }
-}, 2000);
+      const zoneName = this.normalizeZoneName(this.scene.key);
+      console.log(`🌍 [${this.scene.key}] Application météo finale pour: ${zoneName}`);
+      
+      if (this.dayNightWeatherManager) {
+        // ✅ Force l'application immédiate
+        this.dayNightWeatherManager.forceImmediateWeatherApplication(zoneName);
+      }
+    }, 1200);
     // 5. Système d'équipe
     setTimeout(() => {
       // ✅ UTILISER LA FONCTION GLOBALE COMME L'INVENTAIRE
@@ -188,12 +189,12 @@ setTimeout(() => {
         console.log(`⚔️ [${this.scene.key}] Init team system global`);
         window.initTeamSystem(this.networkManager.room);
       }
-    }, 1000);
+    }, 1500);
 
     // 🆕 6. EncounterManager (après le chargement de la carte)
     setTimeout(() => {
       this.initializeEncounterManager();
-    }, 2000);
+    }, 1800);
     
     console.log(`✅ [${this.scene.key}] Planification initialisation systèmes terminée`);
   }
@@ -485,13 +486,17 @@ handleWildEncounter(data) {
     this.environmentInitialized = true;
   }
 onZoneChanged(newZoneName) {
-  console.log(`🌍 Zone changée: ${newZoneName}`);
-  
-  // ✅ NOUVEAU: Appliquer immédiatement la météo
-  if (this.dayNightWeatherManager) {
-    this.dayNightWeatherManager.handleSceneTransition(newZoneName);
+    console.log(`🌍 [${this.scene.key}] Zone changée: ${newZoneName}`);
+    
+    // ✅ NOUVEAU: Appliquer immédiatement la météo
+      if (this.dayNightWeatherManager) {
+    // ✅ Pour transitions normales
+    this.dayNightWeatherManager.handleSceneTransition(zoneName, transitionData);
+    
+    // ✅ OU pour application super rapide (zones déjà visitées)
+    this.dayNightWeatherManager.forceInstantWeatherApplication(zoneName);
   }
-}
+  }
   
   // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
   initializeInteractionManager() {
@@ -654,9 +659,9 @@ onZoneChanged(newZoneName) {
       spawnY: serverData.y,
       serverForced: true,
       preservePlayer: true
+      weatherData: this.dayNightWeatherManager?.getCurrentStateForTransition()
+
     };
-    // ✅ NOUVEAU: Inclure les données météo actuelles
-    weatherData: this.dayNightWeatherManager?.getCurrentStateForTransition()
 
     if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
 
@@ -1412,16 +1417,21 @@ onZoneChanged(newZoneName) {
     return { x: 100, y: 100 };
   }
 
-  onPlayerPositioned(player, initData) {
-  // Hook pour logique spécifique
-  console.log(`📍 [${this.scene.key}] Joueur positionné, application météo...`);
-  
-  // ✅ NOUVEAU: Déclencher la météo après positionnement
-  const zoneName = this.normalizeZoneName(this.scene.key);
-  if (this.dayNightWeatherManager) {
-    this.dayNightWeatherManager.handleSceneTransition(zoneName);
+  nPlayerPositioned(player, initData) {
+    console.log(`📍 [${this.scene.key}] Joueur positionné, application météo IMMÉDIATE...`);
+    
+    // ✅ NOUVEAU: Déclencher la météo IMMÉDIATEMENT après positionnement
+    const zoneName = this.normalizeZoneName(this.scene.key);
+    
+    if (this.dayNightWeatherManager) {
+      // ✅ Forcer l'application immédiate sans débouncing
+      this.dayNightWeatherManager.handleSceneTransition(zoneName, initData);
+      
+      console.log(`✅ [${this.scene.key}] Météo appliquée immédiatement pour: ${zoneName}`);
+    } else {
+      console.warn(`⚠️ [${this.scene.key}] DayNightWeatherManager pas encore prêt`);
+    }
   }
-}
   // ✅ MÉTHODE MODIFIÉE: Setup des managers avec InteractionManager
   setupManagers() {
     this.playerManager = new PlayerManager(this);
