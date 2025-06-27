@@ -1,11 +1,11 @@
 // server/src/routes/battleRoutes.ts
 import express from 'express';
 import { matchMaker } from '@colyseus/core';
-import { EncounterManager } from '../managers/EncounterManager';
+import { ServerEncounterManager } from '../managers/EncounterManager';
 import { MoveManager } from '../managers/MoveManager';
 
 const router = express.Router();
-const encounterManager = new EncounterManager();
+const encounterManager = new ServerEncounterManager();
 
 // Créer un combat sauvage
 router.post('/wild', async (req, res) => {
