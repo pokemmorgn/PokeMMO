@@ -300,28 +300,3 @@ export class ServerEncounterManager {
     }
   }
 }
-
-// ===========================================================================================
-// INTÉGRATION DANS WORLDROOM
-// ===========================================================================================
-
-/*
-// Dans WorldRoom.ts, remplacer les méthodes d'encounter par :
-
-private serverEncounterManager!: ServerEncounterManager;
-
-onCreate(options: any) {
-  // ... code existant ...
-  
-  // ✅ Initialiser le système côté serveur
-  this.serverEncounterManager = new ServerEncounterManager();
-  
-  // ✅ Nettoyage périodique
-  setInterval(() => {
-    this.serverEncounterManager.cleanupCooldowns();
-  }, 60000);
-}
-
-// ✅ NOUVEAU HANDLER: Validation rencontre depuis client
-this.onMessage("triggerEncounter", async (client, data: {
-  x
