@@ -342,6 +342,8 @@ export class ServerEncounterManager {
 
 // Dans ServerEncounterManager.ts - Ajoutez ce debug dans loadEncounterTable
 
+// Dans ServerEncounterManager.ts - Fix de l'erreur TypeScript ligne 394
+
 async loadEncounterTable(zone: string): Promise<void> {
   try {
     // ✅ DEBUG: Afficher le chemin exact
@@ -391,7 +393,9 @@ async loadEncounterTable(zone: string): Promise<void> {
     console.log(`✅ [ServerEncounter] Table ${zone} chargée avec ${Object.keys(encounterData.encounters.zones).length} zones`);
   } catch (error) {
     console.warn(`⚠️ [ServerEncounter] Impossible de charger ${zone}:`, error);
-    console.error(`❌ [ServerEncounter] Erreur détaillée:`, error.message);
+    // ✅ FIX: Gestion TypeScript de l'erreur
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`❌ [ServerEncounter] Erreur détaillée:`, errorMessage);
   }
 }
 
