@@ -498,6 +498,17 @@ export class TeamUI {
         this.displayPokemonInSlot(slot, pokemon, index);
       }
     });
+
+    // ✅ Test de clic direct après création
+    setTimeout(() => {
+      const testCard = slotsContainer.querySelector('.pokemon-card');
+      if (testCard) {
+        console.log('🧪 Test - Carte trouvée:', testCard);
+        console.log('🧪 Test - onclick défini:', testCard.onclick ? 'OUI' : 'NON');
+        console.log('🧪 Test - dataset:', testCard.dataset);
+        console.log('🧪 Tapez "window.teamUI.testSelection()" dans la console pour tester la sélection');
+      }
+    }, 200);
   }
 
   displayPokemonInSlot(slot, pokemon, index) {
@@ -517,7 +528,9 @@ export class TeamUI {
     pokemonCard.className = 'pokemon-card';
     pokemonCard.dataset.pokemonId = pokemon._id;
     pokemonCard.dataset.slot = index;
-    pokemonCard.draggable = true; // ✅ Réactiver le drag and drop
+    
+    // ✅ DÉSACTIVER TEMPORAIREMENT LE DRAG AND DROP
+    // pokemonCard.draggable = true;
 
     // Add type-based border class
     if (pokemon.types && pokemon.types.length > 0) {
@@ -570,79 +583,47 @@ export class TeamUI {
 
     slotBackground.appendChild(pokemonCard);
 
-    // ✅ SYSTEM DE GESTION DES CLICS SIMPLIFIÉ
+    // ✅ MULTIPLE APPROACHES POUR CAPTURER LE CLIC
     const self = this;
 
-    // 🎯 CLIC SIMPLE - Sélection immédiate
+    // Méthode 1: onclick direct
+    pokemonCard.onclick = function(e) {
+      console.log('🎯 ONCLICK METHOD - Clic détecté !');
+      e.preventDefault();
+      e.stopPropagation();
+      self.selectPokemon(pokemon, pokemonCard, index);
+      return false;
+    };
+
+    // Méthode 2: addEventListener avec capture
     pokemonCard.addEventListener('click', function(e) {
+      console.log('🎯 ADDEVENTLISTENER METHOD - Clic détecté !');
       e.preventDefault();
       e.stopPropagation();
-      
-      console.log('🎯 CLIC SIMPLE - Sélection immédiate');
+      self.selectPokemon(pokemon, pokemonCard, index);
+    }, true);
+
+    // Méthode 3: mousedown (plus immédiat que click)
+    pokemonCard.addEventListener('mousedown', function(e) {
+      console.log('🎯 MOUSEDOWN METHOD - Clic détecté !');
+      e.preventDefault();
+      e.stopPropagation();
       self.selectPokemon(pokemon, pokemonCard, index);
     });
 
-    // 🎯 DOUBLE-CLIC - Directement aux détails
-    pokemonCard.addEventListener('dblclick', function(e) {
+    // Méthode 4: Événement sur tous les enfants aussi
+    pokemonCard.addEventListener('click', function(e) {
+      console.log('🎯 CHILDREN CLICK - Élément cliqué:', e.target);
       e.preventDefault();
       e.stopPropagation();
-      
-      console.log('🎯 DOUBLE-CLIC détecté - Ouverture détails');
-      
-      // Effet visuel
-      pokemonCard.classList.add('details-opening');
-      setTimeout(() => {
-        pokemonCard.classList.remove('details-opening');
-      }, 400);
-      
-      // Sélectionner ET aller aux détails
       self.selectPokemon(pokemon, pokemonCard, index);
-      setTimeout(() => {
-        self.showPokemonDetails(pokemon);
-      }, 100);
     });
 
-    // 🎯 CLIC DROIT - Menu contextuel ou détails
-    pokemonCard.addEventListener('contextmenu', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      console.log('🎯 CLIC DROIT détecté - Ouverture détails');
-      
-      // Effet visuel
-      pokemonCard.classList.add('details-opening');
-      setTimeout(() => {
-        pokemonCard.classList.remove('details-opening');
-      }, 400);
-      
-      // Sélectionner ET aller aux détails
-      self.selectPokemon(pokemon, pokemonCard, index);
-      setTimeout(() => {
-        self.showPokemonDetails(pokemon);
-      }, 100);
-    });
-
-    // 🎯 MENU CONTEXTUEL (icône ℹ️)
-    const contextMenu = pokemonCard.querySelector('.pokemon-context-menu');
-    if (contextMenu) {
-      contextMenu.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        console.log('🎯 MENU CONTEXTUEL cliqué - Ouverture détails');
-        
-        // Effet visuel
-        pokemonCard.classList.add('details-opening');
-        setTimeout(() => {
-          pokemonCard.classList.remove('details-opening');
-        }, 400);
-        
-        self.selectPokemon(pokemon, pokemonCard, index);
-        setTimeout(() => {
-          self.showPokemonDetails(pokemon);
-        }, 100);
-      });
-    }
+    // Test immédiat
+    setTimeout(() => {
+      console.log('🧪 Test click programmé...');
+      pokemonCard.click();
+    }, 1000);
 
     // ✅ RENDRE TEAMUI ACCESSIBLE GLOBALEMENT
     window.teamUI = this;
@@ -652,7 +633,7 @@ export class TeamUI {
       pokemonCard.classList.add('new');
     }, index * 100);
 
-    console.log('✅ Carte Pokémon créée avec tous les listeners (simple/double/droit)');
+    console.log('✅ Carte Pokémon créée avec TOUS les listeners');
   }
 
   getGenderDisplay(gender) {
@@ -725,31 +706,43 @@ export class TeamUI {
   }
 
   selectPokemon(pokemon, cardElement, slotIndex) {
-    console.log('🎯 Sélection Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+    console.log('🎯 ===== SÉLECTION POKÉMON =====');
+    console.log('🎯 Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+    console.log('🎯 Élément carte:', cardElement);
+    console.log('🎯 Slot:', slotIndex);
     
     // Désélectionner l'ancien
     this.overlay.querySelectorAll('.team-slot').forEach(slot => {
       slot.classList.remove('selected');
+      console.log('🎯 Slot désélectionné:', slot);
     });
     this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
       card.classList.remove('active');
+      console.log('🎯 Carte désactivée:', card);
     });
 
     // Sélectionner le nouveau
     const slot = cardElement.closest('.team-slot');
     if (slot) {
       slot.classList.add('selected');
+      console.log('🎯 Slot sélectionné:', slot);
+    } else {
+      console.log('❌ Slot parent non trouvé');
     }
     
     cardElement.classList.add('active');
+    console.log('🎯 Carte activée:', cardElement);
     
     this.selectedPokemon = pokemon;
     this.selectedSlot = slotIndex;
 
+    console.log('🎯 État final - selectedPokemon:', this.selectedPokemon);
+    console.log('🎯 État final - selectedSlot:', this.selectedSlot);
+
     // Mettre à jour les vues
     this.updateDetailView();
     
-    console.log('✅ Pokémon sélectionné avec succès');
+    console.log('🎯 ===== FIN SÉLECTION =====');
   }
 
   deselectPokemon() {
@@ -766,27 +759,9 @@ export class TeamUI {
   }
 
   showPokemonDetails(pokemon) {
-    console.log('📊 Ouverture des détails pour:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-    
-    // S'assurer que le Pokémon est sélectionné
     this.selectedPokemon = pokemon;
-    
-    // Passer à la vue détails
     this.switchToView('details');
-    
-    // Mettre à jour l'affichage des détails
     this.updateDetailView();
-    
-    // Optionnel: Effet visuel pour indiquer le changement
-    const detailsTab = this.overlay.querySelector('[data-view="details"]');
-    if (detailsTab) {
-      detailsTab.style.animation = 'teamPulse 0.6s ease';
-      setTimeout(() => {
-        detailsTab.style.animation = '';
-      }, 600);
-    }
-    
-    console.log('📊 Vue détails activée');
   }
 
   updateDetailView() {
