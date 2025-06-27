@@ -1,4 +1,4 @@
-// client/src/managers/ClientEncounterManager.js - VERSION DEBUG TOTALE
+// client/src/managers/ClientEncounterManager.js - VERSION CLEAN AVEC LOGS UTILES
 
 export class ClientEncounterManager {
   constructor(mapData = null) {
@@ -22,67 +22,49 @@ export class ClientEncounterManager {
 
   // CHARGEMENT DES DONNÉES DE CARTE
   loadMapData(mapData) {
-    console.log(`🗺️ [ClientEncounter] Chargement des données de carte...`);
     this.mapData = mapData;
     this.loadEncounterZones();
     this.loadGrassTiles();
     this.loadWaterTiles();
-
-    console.log(`✅ [ClientEncounter] Carte chargée:`);
-    console.log(`  📍 ${this.encounterZones.size} zones de rencontre`);
-    console.log(`  🌿 ${this.grassTiles.size} tiles d'herbe`);
-    console.log(`  💧 ${this.waterTiles.size} tiles d'eau`);
   }
 
-  // CHARGEMENT DES ZONES DE RENCONTRE (debug layer/objet)
+  // CHARGEMENT DES ZONES DE RENCONTRE (supporte les deux variantes de nom)
   loadEncounterZones() {
     if (!this.mapData) return;
     this.encounterZones.clear();
 
     for (const layer of this.mapData.layers) {
-      console.log(`[DEBUG] Layer "${layer.name}" type "${layer.type}"`);
       if (layer.type === 'objectgroup' && layer.objects) {
         for (const obj of layer.objects) {
-          console.log(`[DEBUG] Objet dans layer "${layer.name}":`, obj);
-
-          // Affiche toutes les propriétés
-          if (obj.properties) {
-            console.log(`[DEBUG]   Properties:`, obj.properties);
-          }
-
-          // Prend en compte toutes les variantes de nom possibles
           let zoneIdProp = null;
           if (obj.properties) {
             zoneIdProp = obj.properties.find(p =>
               p.name === 'zoneId' || p.name === 'zoneid' || p.name === 'zoneID'
             );
           }
+          const isEncounterZone =
+            (obj.name === 'encounterzone' || obj.name === 'encouterzone' ||
+            obj.type === 'encounterzone' || obj.type === 'encouterzone');
 
-const isEncounterZone =
-  (obj.name === 'encounterzone' || obj.name === 'encouterzone' ||
-   obj.type === 'encounterzone' || obj.type === 'encouterzone');
-
-if (isEncounterZone && zoneIdProp && zoneIdProp.value) {
-  this.encounterZones.set(obj.id.toString(), {
-    id: obj.id,
-    zoneId: zoneIdProp.value,
-    x: obj.x,
-    y: obj.y,
-    width: obj.width,
-    height: obj.height,
-    bounds: {
-      left: obj.x,
-      right: obj.x + obj.width,
-      top: obj.y,
-      bottom: obj.y + obj.height
-    }
-  });
-  console.log(`📍 [ClientEncounter] Zone trouvée: ${zoneIdProp.value} à (${obj.x}, ${obj.y})`);
-}
+          if (isEncounterZone && zoneIdProp && zoneIdProp.value) {
+            this.encounterZones.set(obj.id.toString(), {
+              id: obj.id,
+              zoneId: zoneIdProp.value,
+              x: obj.x,
+              y: obj.y,
+              width: obj.width,
+              height: obj.height,
+              bounds: {
+                left: obj.x,
+                right: obj.x + obj.width,
+                top: obj.y,
+                bottom: obj.y + obj.height
+              }
+            });
+          }
         }
       }
     }
-    console.log(`[DEBUG] Résultat encounterZones:`, Array.from(this.encounterZones.values()));
   }
 
   // CHARGEMENT DES TILES D'HERBE
@@ -91,7 +73,6 @@ if (isEncounterZone && zoneIdProp && zoneIdProp.value) {
     this.grassTiles.clear();
 
     for (const tileset of this.mapData.tilesets) {
-      console.log(`[DEBUG] Tileset "${tileset.name}" (firstgid: ${tileset.firstgid})`);
       if (tileset.tiles) {
         for (const tile of tileset.tiles) {
           if (tile.properties) {
@@ -99,13 +80,11 @@ if (isEncounterZone && zoneIdProp && zoneIdProp.value) {
             if (grassProp && grassProp.value) {
               const globalTileId = tileset.firstgid + tile.id;
               this.grassTiles.add(globalTileId);
-              console.log(`🌿 [ClientEncounter] Tile d'herbe: ${globalTileId} (id local: ${tile.id})`);
             }
           }
         }
       }
     }
-    console.log(`[DEBUG] Résultat grassTiles:`, Array.from(this.grassTiles));
   }
 
   // CHARGEMENT DES TILES D'EAU
@@ -114,7 +93,6 @@ if (isEncounterZone && zoneIdProp && zoneIdProp.value) {
     this.waterTiles.clear();
 
     for (const tileset of this.mapData.tilesets) {
-      console.log(`[DEBUG] Tileset "${tileset.name}" (firstgid: ${tileset.firstgid})`);
       if (tileset.tiles) {
         for (const tile of tileset.tiles) {
           if (tile.properties) {
@@ -122,47 +100,40 @@ if (isEncounterZone && zoneIdProp && zoneIdProp.value) {
             if (waterProp && waterProp.value) {
               const globalTileId = tileset.firstgid + tile.id;
               this.waterTiles.add(globalTileId);
-              console.log(`💧 [ClientEncounter] Tile d'eau: ${globalTileId} (id local: ${tile.id})`);
             }
           }
         }
       }
     }
-    console.log(`[DEBUG] Résultat waterTiles:`, Array.from(this.waterTiles));
   }
 
   // VÉRIFICATION DE RENCONTRE LORS DU MOUVEMENT
   checkEncounterOnMove(x, y) {
-    console.log(`🚶 [ClientEncounter] Vérification position (${x}, ${y})`);
-
     // Cooldown client
     const now = Date.now();
     if (now - this.lastEncounterTime < this.CLIENT_ENCOUNTER_COOLDOWN) {
-      console.log(`⏰ [ClientEncounter] Cooldown actif`);
+      console.log(`[Rencontre] Cooldown actif`);
       return { shouldTrigger: false, method: 'grass', encounterRate: 0 };
     }
 
     // Compter les pas
     this.stepCount++;
     if (this.stepCount < this.STEPS_PER_ENCOUNTER_CHECK) {
-      console.log(`👟 [ClientEncounter] Pas ${this.stepCount}/${this.STEPS_PER_ENCOUNTER_CHECK}`);
       return { shouldTrigger: false, method: 'grass', encounterRate: 0 };
     }
     this.stepCount = 0;
 
-    // Vérifier si on est sur une herbe
+    // Vérifier si on est sur une herbe ou sur l'eau
     const isOnGrass = this.isPositionOnGrass(x, y);
     const isOnWater = this.isPositionOnWater(x, y);
 
     if (!isOnGrass && !isOnWater) {
-      console.log(`❌ [ClientEncounter] Position sans rencontre possible`);
       return { shouldTrigger: false, method: 'grass', encounterRate: 0 };
     }
 
     // Trouver la zone de rencontre
     const zoneId = this.getEncounterZoneAt(x, y);
     if (!zoneId) {
-      console.log(`❌ [ClientEncounter] Aucune zone de rencontre à cette position`);
       return { shouldTrigger: false, method: 'grass', encounterRate: 0 };
     }
 
@@ -170,13 +141,15 @@ if (isEncounterZone && zoneIdProp && zoneIdProp.value) {
     const method = isOnWater ? 'fishing' : 'grass';
     const encounterRate = this.calculateEncounterRate(method, zoneId);
 
-    console.log(`✅ [ClientEncounter] Rencontre possible:`);
-    console.log(`  📍 Zone: ${zoneId}`);
-    console.log(`  🎯 Méthode: ${method}`);
-    console.log(`  📊 Taux: ${(encounterRate * 100).toFixed(1)}%`);
+    // LOG principal
+    console.log(`[Rencontre] Possible ! zone=${zoneId} type=${method} taux=${(encounterRate*100).toFixed(1)}%`);
 
     // Mettre à jour le cooldown
     this.lastEncounterTime = now;
+
+    // ENVOI AU SERVEUR À FAIRE ICI
+    // (à mettre là où tu gères le network, typiquement)
+    // gameRoom.send("checkEncounter", { zone, method, x, y, zoneId });
 
     return {
       shouldTrigger: true,
@@ -198,17 +171,9 @@ if (isEncounterZone && zoneIdProp && zoneIdProp.value) {
 
     if (!belowPlayer2Layer || !belowPlayer2Layer.data) return false;
     const index = tileY * (belowPlayer2Layer.width || this.mapData.width) + tileX;
-
     if (index < 0 || index >= belowPlayer2Layer.data.length) return false;
     const tileId = belowPlayer2Layer.data[index];
-
-    const isGrass = this.grassTiles.has(tileId);
-
-    if (isGrass) {
-      console.log(`🌿 [ClientEncounter] Sur herbe: tile ${tileId} à (${tileX}, ${tileY})`);
-    }
-
-    return isGrass;
+    return this.grassTiles.has(tileId);
   }
 
   // VÉRIFIER SI POSITION SUR EAU
@@ -223,7 +188,6 @@ if (isEncounterZone && zoneIdProp && zoneIdProp.value) {
         if (index >= 0 && index < layer.data.length) {
           const tileId = layer.data[index];
           if (this.waterTiles.has(tileId)) {
-            console.log(`💧 [ClientEncounter] Sur eau: tile ${tileId} à (${tileX}, ${tileY})`);
             return true;
           }
         }
@@ -233,26 +197,19 @@ if (isEncounterZone && zoneIdProp && zoneIdProp.value) {
   }
 
   // TROUVER LA ZONE DE RENCONTRE À UNE POSITION
-getEncounterZoneAt(x, y) {
-  console.log(`[DEBUG] getEncounterZoneAt CALLED at (${x}, ${y}) zones:`, this.encounterZones.size);
-  for (const [id, zone] of this.encounterZones.entries()) {
-    const inside =
-      x >= zone.bounds.left &&
-      x <= zone.bounds.right &&
-      y >= zone.bounds.top &&
-      y <= zone.bounds.bottom;
-
-    console.log(
-      `[DEBUG] Test zone ${zone.zoneId} : bounds=(${zone.bounds.left},${zone.bounds.top})-(${zone.bounds.right},${zone.bounds.bottom}) | pos=(${x},${y}) | inside=${inside}`
-    );
-    if (inside) {
-      console.log(`📍 [ClientEncounter] Dans zone: ${zone.zoneId}`);
-      return zone.zoneId;
+  getEncounterZoneAt(x, y) {
+    for (const [id, zone] of this.encounterZones.entries()) {
+      const inside =
+        x >= zone.bounds.left &&
+        x <= zone.bounds.right &&
+        y >= zone.bounds.top &&
+        y <= zone.bounds.bottom;
+      if (inside) {
+        return zone.zoneId;
+      }
     }
+    return null;
   }
-  console.log(`❌ [ClientEncounter] Aucune zone à (${x}, ${y})`);
-  return null;
-}
 
   // CALCULER LE TAUX DE RENCONTRE
   calculateEncounterRate(method, zoneId) {
@@ -270,7 +227,6 @@ getEncounterZoneAt(x, y) {
 
   // FORCER UNE VÉRIFICATION DE RENCONTRE (pour tests)
   forceEncounterCheck(x, y) {
-    console.log(`🔧 [ClientEncounter] Force check à (${x}, ${y})`);
     this.lastEncounterTime = 0;
     this.stepCount = this.STEPS_PER_ENCOUNTER_CHECK;
     return this.checkEncounterOnMove(x, y);
@@ -282,7 +238,6 @@ getEncounterZoneAt(x, y) {
     const isOnWater = this.isPositionOnWater(x, y);
     const zoneId = this.getEncounterZoneAt(x, y);
     const canEncounter = (isOnGrass || isOnWater) && zoneId !== null;
-
     return {
       isOnGrass,
       isOnWater,
@@ -291,23 +246,18 @@ getEncounterZoneAt(x, y) {
     };
   }
 
-  // DEBUG DES ZONES CHARGÉES
+  // DEBUG DES ZONES CHARGÉES (utilitaire éventuel)
   debugZones() {
-    console.log(`🔍 [ClientEncounter] === DEBUG ZONES ===`);
-    console.log(`📊 Total zones: ${this.encounterZones.size}`);
+    console.log(`[DEBUG] Nb zones: ${this.encounterZones.size}`);
     this.encounterZones.forEach((zone, id) => {
-      console.log(`  📍 Zone ${id}: ${zone.zoneId}`);
-      console.log(`    Bounds: (${zone.bounds.left}, ${zone.bounds.top}) to (${zone.bounds.right}, ${zone.bounds.bottom})`);
+      console.log(`Zone ${id}: ${zone.zoneId} (${zone.bounds.left},${zone.bounds.top})-(${zone.bounds.right},${zone.bounds.bottom})`);
     });
-    console.log(`🌿 Tiles d'herbe: ${Array.from(this.grassTiles).join(', ')}`);
-    console.log(`💧 Tiles d'eau: ${Array.from(this.waterTiles).join(', ')}`);
   }
 
   // RESET COOLDOWNS (pour tests)
   resetCooldowns() {
     this.lastEncounterTime = 0;
     this.stepCount = 0;
-    console.log(`🔄 [ClientEncounter] Cooldowns reset`);
   }
 
   // OBTENIR STATS
@@ -339,6 +289,5 @@ getEncounterZoneAt(x, y) {
 
   simulateSteps(count) {
     this.stepCount += count;
-    console.log(`👟 [ClientEncounter] ${count} pas simulés (total: ${this.stepCount})`);
   }
 }
