@@ -18,6 +18,9 @@ export class OptimizedPhaserOverlayManager {
     this.updateTimer = null;
     this.debugMode = false;
     
+    // ✅ NOUVEAU: Mode transition rapide
+    this.fastTransitionMode = false;
+    
     console.log(`🎨 [PhaserOverlay] Initialisé (Mode: ${this.performanceMode})`);
   }
 
@@ -93,7 +96,7 @@ export class OptimizedPhaserOverlayManager {
     console.log(`🎨 [PhaserOverlay] ${this.colorCache.size} couleurs combinées en cache`);
   }
 
-  // ✅ UPDATE COMBINÉ avec DÉBOUNCING SÉVÈRE
+  // ✅ UPDATE COMBINÉ avec DÉBOUNCING INTELLIGENT
   updateCombined(isDayTime, weather, environment = 'outdoor', zoneName = null) {
     if (!this.combinedOverlay) return;
     
@@ -112,12 +115,17 @@ export class OptimizedPhaserOverlayManager {
       return;
     }
     
-    // ✅ DÉBOUNCING: Grouper les updates dans les 300ms
+    // ✅ MODE TRANSITION RAPIDE : Appliquer immédiatement
+    if (this.fastTransitionMode) {
+      this.executeUpdateImmediate(isDayTime, weather, environment, normalizedZone, stateKey);
+      return;
+    }
+    
+    // ✅ MODE NORMAL : Débouncing de 300ms
     if (this.updateTimer) {
       clearTimeout(this.updateTimer);
     }
     
-    // ✅ Stocker l'update en attente
     this.pendingUpdate = {
       isDayTime,
       weather,
@@ -126,7 +134,6 @@ export class OptimizedPhaserOverlayManager {
       stateKey
     };
     
-    // ✅ Programmer l'exécution dans 300ms
     this.updateTimer = setTimeout(() => {
       this.executePendingUpdate();
     }, 300);
@@ -136,27 +143,21 @@ export class OptimizedPhaserOverlayManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Exécuter l'update en attente
-  executePendingUpdate() {
-    if (!this.pendingUpdate || !this.combinedOverlay) {
-      return;
-    }
-    
-    const { isDayTime, weather, environment, zoneName, stateKey } = this.pendingUpdate;
-    
-    // ✅ Double vérification anti-doublon
-    if (this.lastCombinedState === stateKey) {
-      if (this.debugMode) {
-        console.log(`⚡ [PhaserOverlay] Skip doublon dans execution: ${stateKey}`);
-      }
-      this.pendingUpdate = null;
-      return;
-    }
-    
-    console.log(`🔄 [PhaserOverlay] Exécution: ${this.lastCombinedState} → ${stateKey}`);
+  // ✅ NOUVELLE MÉTHODE: Exécution immédiate pour transitions
+  executeUpdateImmediate(isDayTime, weather, environment, zoneName, stateKey) {
+    console.log(`🚀 [PhaserOverlay] Exécution immédiate: ${stateKey}`);
     this.lastCombinedState = stateKey;
     
-    // ✅ Calculer la couleur et alpha
+    // ✅ Calculer et appliquer immédiatement
+    const { targetColor, targetAlpha } = this.calculateColorAndAlpha(isDayTime, weather, environment);
+    
+    console.log(`🎨 [PhaserOverlay] ${stateKey} → couleur: 0x${targetColor.toString(16)}, alpha: ${targetAlpha}`);
+    
+    this.animateCombinedOverlay(targetColor, targetAlpha);
+  }
+
+  // ✅ MÉTHODE REFACTORISÉE: Calcul de couleur et alpha
+  calculateColorAndAlpha(isDayTime, weather, environment) {
     let targetColor, targetAlpha;
     
     if (environment === 'indoor') {
@@ -180,9 +181,33 @@ export class OptimizedPhaserOverlayManager {
       }
     }
     
+    return { targetColor, targetAlpha };
+  }
+  // ✅ MÉTHODE MISE À JOUR: Exécuter l'update en attente
+  executePendingUpdate() {
+    if (!this.pendingUpdate || !this.combinedOverlay) {
+      return;
+    }
+    
+    const { isDayTime, weather, environment, zoneName, stateKey } = this.pendingUpdate;
+    
+    // ✅ Double vérification anti-doublon
+    if (this.lastCombinedState === stateKey) {
+      if (this.debugMode) {
+        console.log(`⚡ [PhaserOverlay] Skip doublon dans execution: ${stateKey}`);
+      }
+      this.pendingUpdate = null;
+      return;
+    }
+    
+    console.log(`🔄 [PhaserOverlay] Exécution: ${this.lastCombinedState} → ${stateKey}`);
+    this.lastCombinedState = stateKey;
+    
+    // ✅ Utiliser la méthode refactorisée
+    const { targetColor, targetAlpha } = this.calculateColorAndAlpha(isDayTime, weather, environment);
+    
     console.log(`🎨 [PhaserOverlay] ${stateKey} → couleur: 0x${targetColor.toString(16)}, alpha: ${targetAlpha}`);
     
-    // ✅ Animation UNIQUE
     this.animateCombinedOverlay(targetColor, targetAlpha);
     
     // ✅ Nettoyer
@@ -326,6 +351,17 @@ export class OptimizedPhaserOverlayManager {
   setDebugMode(enabled) {
     this.debugMode = enabled;
     console.log(`🔧 [PhaserOverlay] Debug mode: ${enabled ? 'ON' : 'OFF'}`);
+  }
+
+  // ✅ NOUVEAU: Contrôle du mode transition rapide
+  enableFastTransition() {
+    this.fastTransitionMode = true;
+    console.log(`🚀 [PhaserOverlay] Mode transition rapide activé`);
+  }
+
+  disableFastTransition() {
+    this.fastTransitionMode = false;
+    console.log(`⏳ [PhaserOverlay] Mode transition rapide désactivé`);
   }
 
   clearPendingUpdates() {
@@ -523,7 +559,30 @@ export class DayNightWeatherManagerPhaser {
 
   onZoneChanged(newZoneName) {
     console.log(`🌍 [DayNightWeatherManagerPhaser] Zone changée: ${newZoneName}`);
-    setTimeout(() => this.forceUpdate(), 100);
+    
+    // ✅ Activer mode transition rapide pour 1 seconde
+    this.enableFastTransition(1000);
+    
+    setTimeout(() => this.forceUpdate(), 50); // Délai réduit à 50ms
+  }
+
+  // ✅ NOUVEAU: Contrôle du mode transition rapide
+  enableFastTransition(duration = 1000) {
+    console.log(`🚀 [DayNightWeatherManagerPhaser] Activation transition rapide (${duration}ms)`);
+    
+    // ✅ Activer sur les deux managers
+    if (this.timeWeatherManager && this.timeWeatherManager.enableFastTransition) {
+      this.timeWeatherManager.enableFastTransition(duration);
+    }
+    
+    if (this.overlayManager && this.overlayManager.enableFastTransition) {
+      this.overlayManager.enableFastTransition();
+      
+      // ✅ Désactiver automatiquement après la durée
+      setTimeout(() => {
+        this.overlayManager.disableFastTransition();
+      }, duration);
+    }
   }
 
   onCameraResize() {
