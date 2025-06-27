@@ -12,7 +12,7 @@ import { TransitionService, TransitionRequest } from "../services/TransitionServ
 import { CollisionManager } from "../managers/CollisionManager";
 import { TimeWeatherService } from "../services/TimeWeatherService";
 import { getServerConfig } from "../config/serverConfig";
-import { EncounterManager } from "../managers/EncounterManager";
+import { ServerEncounterManager } from "../managers/EncounterManager";
 import { serverZoneEnvironmentManager } from "../config/zoneEnvironments";
 import { PositionSaverService } from "../services/PositionSaverService";
 import { PlayerData } from "../models/PlayerData";
@@ -39,7 +39,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private npcManagers: Map<string, NpcManager> = new Map();
   private transitionService!: TransitionService;
   private timeWeatherService!: TimeWeatherService;
-  private encounterManager!: EncounterManager;
+  private serverEncounterManager!: ServerEncounterManager;
   private shopManager!: ShopManager;
   private positionSaver = PositionSaverService.getInstance();
   private autoSaveTimer: NodeJS.Timeout | null = null;
@@ -151,7 +151,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
-    this.encounterManager = new EncounterManager();
+    this.serverEncounterManager = new ServerEncounterManager();
     console.log(`✅ EncounterManager initialisé`);
     
     this.onMessage("setWeather", (client, data: { weather: string }) => {
