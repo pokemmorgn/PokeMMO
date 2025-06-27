@@ -506,6 +506,7 @@ export class TeamUI {
         console.log('🧪 Test - Carte trouvée:', testCard);
         console.log('🧪 Test - onclick défini:', testCard.onclick ? 'OUI' : 'NON');
         console.log('🧪 Test - dataset:', testCard.dataset);
+        console.log('🧪 Tapez "window.teamUI.testSelection()" dans la console pour tester la sélection');
       }
     }, 200);
   }
@@ -527,20 +528,9 @@ export class TeamUI {
     pokemonCard.className = 'pokemon-card';
     pokemonCard.dataset.pokemonId = pokemon._id;
     pokemonCard.dataset.slot = index;
-    pokemonCard.draggable = true;
-
-    // ✅ SOLUTION SIMPLE : Utiliser onclick inline en plus des listeners
-    pokemonCard.onclick = (e) => {
-      e.stopPropagation();
-      console.log('🎯 ONCLICK - Clic sur Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-      this.selectPokemon(pokemon, pokemonCard, index);
-    };
-
-    pokemonCard.ondblclick = (e) => {
-      e.stopPropagation();
-      console.log('🎯 ONDBLCLICK - Double-clic pour détails:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-      this.showPokemonDetails(pokemon);
-    };
+    
+    // ✅ DÉSACTIVER TEMPORAIREMENT LE DRAG AND DROP
+    // pokemonCard.draggable = true;
 
     // Add type-based border class
     if (pokemon.types && pokemon.types.length > 0) {
@@ -563,7 +553,7 @@ export class TeamUI {
       
       ${genderDisplay}
       
-      <div class="pokemon-context-menu" title="More options" onclick="event.stopPropagation(); console.log('Menu contextuel'); window.teamUI.showPokemonDetails(window.teamUI.teamData[${index}]);">
+      <div class="pokemon-context-menu" title="More options">
         ℹ️
       </div>
           
@@ -593,6 +583,48 @@ export class TeamUI {
 
     slotBackground.appendChild(pokemonCard);
 
+    // ✅ MULTIPLE APPROACHES POUR CAPTURER LE CLIC
+    const self = this;
+
+    // Méthode 1: onclick direct
+    pokemonCard.onclick = function(e) {
+      console.log('🎯 ONCLICK METHOD - Clic détecté !');
+      e.preventDefault();
+      e.stopPropagation();
+      self.selectPokemon(pokemon, pokemonCard, index);
+      return false;
+    };
+
+    // Méthode 2: addEventListener avec capture
+    pokemonCard.addEventListener('click', function(e) {
+      console.log('🎯 ADDEVENTLISTENER METHOD - Clic détecté !');
+      e.preventDefault();
+      e.stopPropagation();
+      self.selectPokemon(pokemon, pokemonCard, index);
+    }, true);
+
+    // Méthode 3: mousedown (plus immédiat que click)
+    pokemonCard.addEventListener('mousedown', function(e) {
+      console.log('🎯 MOUSEDOWN METHOD - Clic détecté !');
+      e.preventDefault();
+      e.stopPropagation();
+      self.selectPokemon(pokemon, pokemonCard, index);
+    });
+
+    // Méthode 4: Événement sur tous les enfants aussi
+    pokemonCard.addEventListener('click', function(e) {
+      console.log('🎯 CHILDREN CLICK - Élément cliqué:', e.target);
+      e.preventDefault();
+      e.stopPropagation();
+      self.selectPokemon(pokemon, pokemonCard, index);
+    });
+
+    // Test immédiat
+    setTimeout(() => {
+      console.log('🧪 Test click programmé...');
+      pokemonCard.click();
+    }, 1000);
+
     // ✅ RENDRE TEAMUI ACCESSIBLE GLOBALEMENT
     window.teamUI = this;
 
@@ -601,7 +633,7 @@ export class TeamUI {
       pokemonCard.classList.add('new');
     }, index * 100);
 
-    console.log('✅ Carte Pokémon créée avec onclick:', pokemonCard.onclick ? 'OUI' : 'NON');
+    console.log('✅ Carte Pokémon créée avec TOUS les listeners');
   }
 
   getGenderDisplay(gender) {
@@ -654,29 +686,63 @@ export class TeamUI {
     ).join('');
   }
 
+  // ✅ MÉTHODE DE TEST DIRECT
+  testSelection() {
+    console.log('🧪 Test de sélection...');
+    
+    if (this.teamData.length > 0) {
+      const pokemon = this.teamData[0];
+      const card = this.overlay.querySelector('.pokemon-card');
+      
+      if (pokemon && card) {
+        console.log('🧪 Tentative de sélection directe...');
+        this.selectPokemon(pokemon, card, 0);
+      } else {
+        console.log('❌ Pas de Pokémon ou carte trouvé');
+      }
+    } else {
+      console.log('❌ Aucune données d\'équipe');
+    }
+  }
+
   selectPokemon(pokemon, cardElement, slotIndex) {
-    console.log('🎯 Sélection Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+    console.log('🎯 ===== SÉLECTION POKÉMON =====');
+    console.log('🎯 Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+    console.log('🎯 Élément carte:', cardElement);
+    console.log('🎯 Slot:', slotIndex);
     
     // Désélectionner l'ancien
     this.overlay.querySelectorAll('.team-slot').forEach(slot => {
       slot.classList.remove('selected');
+      console.log('🎯 Slot désélectionné:', slot);
     });
     this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
       card.classList.remove('active');
+      console.log('🎯 Carte désactivée:', card);
     });
 
     // Sélectionner le nouveau
     const slot = cardElement.closest('.team-slot');
     if (slot) {
       slot.classList.add('selected');
+      console.log('🎯 Slot sélectionné:', slot);
+    } else {
+      console.log('❌ Slot parent non trouvé');
     }
+    
     cardElement.classList.add('active');
+    console.log('🎯 Carte activée:', cardElement);
     
     this.selectedPokemon = pokemon;
     this.selectedSlot = slotIndex;
 
+    console.log('🎯 État final - selectedPokemon:', this.selectedPokemon);
+    console.log('🎯 État final - selectedSlot:', this.selectedSlot);
+
     // Mettre à jour les vues
     this.updateDetailView();
+    
+    console.log('🎯 ===== FIN SÉLECTION =====');
   }
 
   deselectPokemon() {
