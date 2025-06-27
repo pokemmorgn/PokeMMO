@@ -77,7 +77,7 @@ export class ServerEncounterManager {
   
   // ✅ Rate limiting par joueur (anti-spam)
   private playerEncounterCount: Map<string, { count: number; timestamp: number }> = new Map();
-  private readonly MAX_ENCOUNTERS_PER_MINUTE = 10;
+  private readonly MAX_ENCOUNTERS_PER_MINUTE = 1000;
 
   constructor() {
     this.initializePokemonMapping();
