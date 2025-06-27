@@ -505,3 +505,5 @@ export class DayNightWeatherManagerPhaser {
     console.log(`✅ [DayNightWeatherManagerPhaser] Détruit (PHASER)`);
   }
 }
+// ✅ À la fin du fichier DayNightWeatherManager.js
+export { DayNightWeatherManager };
