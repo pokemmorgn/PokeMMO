@@ -347,7 +347,47 @@ export class OptimizedPhaserOverlayManager {
     this.executePendingUpdate();
   }
 
-  // ✅ NOUVELLES MÉTHODES DE CONTRÔLE
+  // ✅ NOUVELLES MÉTHODES DE DEBUG ET INTÉGRATION AVEC BaseZoneScene
+
+  // ✅ MÉTHODE À APPELER DEPUIS BaseZoneScene lors des transitions
+  handleSceneTransition(newZoneName, transitionData = {}) {
+    console.log(`🌍 [DayNightWeatherManagerPhaser] Transition de scène vers: ${newZoneName}`);
+    console.log(`📊 Données transition:`, transitionData);
+    
+    // ✅ Activer le mode transition rapide
+    this.enableFastTransition(3000); // 3 secondes pour être sûr
+    
+    // ✅ Si on a des données de temps/météo dans la transition, les utiliser
+    if (transitionData.timeData && transitionData.weatherData) {
+      console.log(`🎯 [DayNightWeatherManagerPhaser] Utilisation données transition`);
+      
+      const environment = zoneEnvironmentManager.getZoneEnvironment(newZoneName);
+      this.forceUpdateWithState(
+        transitionData.timeData.isDayTime,
+        transitionData.weatherData.weather,
+        environment,
+        newZoneName
+      );
+    } else {
+      // ✅ Sinon, utiliser l'état actuel
+      this.forceImmediateWeatherApplication(newZoneName);
+    }
+  }
+
+  // ✅ MÉTHODE: Obtenir l'état actuel pour les transitions
+  getCurrentStateForTransition() {
+    if (!this.isInitialized) {
+      return {
+        timeData: { hour: 12, isDayTime: true },
+        weatherData: { weather: 'clear', displayName: 'Ciel dégagé' }
+      };
+    }
+    
+    return {
+      timeData: this.timeWeatherManager.getCurrentTime(),
+      weatherData: this.timeWeatherManager.getCurrentWeather()
+    };
+  }
   setDebugMode(enabled) {
     this.debugMode = enabled;
     console.log(`🔧 [PhaserOverlay] Debug mode: ${enabled ? 'ON' : 'OFF'}`);
@@ -557,13 +597,67 @@ export class DayNightWeatherManagerPhaser {
     this.overlayManager.forceUpdate(time.isDayTime, weather.weather, environment, currentZone);
   }
 
+  // ✅ NOUVELLE MÉTHODE: Force update avec état spécifique
+  forceUpdateWithState(isDayTime, weather, environment, zoneName) {
+    if (!this.isInitialized) return;
+    
+    console.log(`🔧 [DayNightWeatherManagerPhaser] Force update avec état spécifique:`, {
+      isDayTime, weather, environment, zoneName
+    });
+    
+    this.overlayManager.forceUpdate(isDayTime, weather, environment, zoneName);
+    
+    if (this.weatherEffects) {
+      this.weatherEffects.setEnvironmentType(environment);
+      this.weatherEffects.setWeather(weather);
+    }
+  }
+
   onZoneChanged(newZoneName) {
     console.log(`🌍 [DayNightWeatherManagerPhaser] Zone changée: ${newZoneName}`);
     
-    // ✅ Activer mode transition rapide pour 1 seconde
-    this.enableFastTransition(1000);
+    // ✅ Activer mode transition rapide
+    this.enableFastTransition(2000);
     
-    setTimeout(() => this.forceUpdate(), 50); // Délai réduit à 50ms
+    // ✅ NOUVEAU: Forcer l'application immédiate avec l'état actuel
+    this.forceImmediateWeatherApplication(newZoneName);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Application immédiate de la météo lors des transitions
+  forceImmediateWeatherApplication(newZoneName) {
+    if (!this.isInitialized) return;
+    
+    console.log(`⚡ [DayNightWeatherManagerPhaser] Application immédiate météo pour: ${newZoneName}`);
+    
+    // ✅ Récupérer l'état actuel (même si pas complètement sync)
+    const currentTime = this.timeWeatherManager.getCurrentTime();
+    const currentWeather = this.timeWeatherManager.getCurrentWeather();
+    const environment = zoneEnvironmentManager.getZoneEnvironment(newZoneName);
+    
+    console.log(`🎯 [DayNightWeatherManagerPhaser] État actuel:`, {
+      time: `${currentTime.hour}h ${currentTime.isDayTime ? 'JOUR' : 'NUIT'}`,
+      weather: currentWeather.displayName,
+      environment: environment,
+      zone: newZoneName
+    });
+    
+    // ✅ Appliquer IMMÉDIATEMENT sans attendre le serveur
+    if (this.overlayManager) {
+      this.overlayManager.forceUpdate(
+        currentTime.isDayTime, 
+        currentWeather.weather, 
+        environment, 
+        newZoneName
+      );
+    }
+    
+    // ✅ Appliquer aussi les effets météo
+    if (this.weatherEffects) {
+      this.weatherEffects.setEnvironmentType(environment);
+      this.weatherEffects.setWeather(currentWeather.weather);
+    }
+    
+    console.log(`✅ [DayNightWeatherManagerPhaser] Météo appliquée immédiatement`);
   }
 
   // ✅ NOUVEAU: Contrôle du mode transition rapide
