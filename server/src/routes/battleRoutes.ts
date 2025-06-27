@@ -1,13 +1,13 @@
-// server/src/routes/battleRoutes.ts
+// server/src/routes/battleRoutes.ts - VERSION ZONES
 import express from 'express';
 import { matchMaker } from '@colyseus/core';
-import { EncounterManager } from '../managers/EncounterManager';
+import { ServerEncounterManager } from '../managers/EncounterManager';
 import { MoveManager } from '../managers/MoveManager';
 
 const router = express.Router();
-const encounterManager = new EncounterManager();
+const encounterManager = new ServerEncounterManager();
 
-// Créer un combat sauvage
+// ✅ CRÉER UN COMBAT SAUVAGE AVEC ZONES
 router.post('/wild', async (req, res) => {
   try {
     const { 
@@ -17,26 +17,48 @@ router.post('/wild', async (req, res) => {
       zone, 
       method, 
       timeOfDay, 
-      weather 
+      weather,
+      zoneId, // ✅ NOUVEAU: Zone spécifique
+      x,      // ✅ NOUVEAU: Position pour validation
+      y 
     } = req.body;
 
-    console.log(`🎮 Création combat sauvage pour ${playerName}`);
+    console.log(`🎮 [BattleRoutes] === CRÉATION COMBAT SAUVAGE ===`);
+    console.log(`👤 Joueur: ${playerName} (${playerId})`);
+    console.log(`📍 Zone: ${zone} - ZoneID: ${zoneId || 'default'}`);
+    console.log(`🎯 Position: (${x}, ${y})`);
+    console.log(`🌿 Méthode: ${method || 'grass'}`);
+    console.log(`⏰ Conditions: ${timeOfDay || 'day'}, ${weather || 'clear'}`);
 
-    // Générer le Pokémon sauvage
-    const wildPokemon = await encounterManager.generateWildEncounter(
-      zone, 
-      method || 'grass', 
-      timeOfDay || 'day', 
-      weather || 'clear'
+    // ✅ VALIDATION ANTI-CHEAT: Générer via le système sécurisé
+    const wildPokemon = await encounterManager.validateAndGenerateEncounter(
+      playerId,
+      zone,
+      x || 0,
+      y || 0,
+      timeOfDay || 'day',
+      weather || 'clear',
+      zoneId,
+      method || 'grass'
     );
 
     if (!wildPokemon) {
+      console.log(`❌ [BattleRoutes] Aucun Pokémon généré pour ${zone}/${zoneId}`);
       return res.status(400).json({ 
-        error: 'Aucun Pokémon trouvé pour cette zone' 
+        error: 'Aucun Pokémon trouvé pour cette zone ou conditions non valides',
+        details: {
+          zone,
+          zoneId: zoneId || 'default',
+          method: method || 'grass',
+          timeOfDay: timeOfDay || 'day',
+          weather: weather || 'clear'
+        }
       });
     }
 
-    // Créer la room de combat
+    console.log(`✅ [BattleRoutes] Pokémon généré: ${wildPokemon.pokemonId} niveau ${wildPokemon.level}`);
+
+    // ✅ CRÉER LA ROOM DE COMBAT
     const room = await matchMaker.createRoom('battle', {
       battleType: 'wild',
       playerId: playerId,
@@ -44,8 +66,15 @@ router.post('/wild', async (req, res) => {
       playerPokemonId: playerPokemonId,
       wildPokemon: wildPokemon,
       location: zone,
-      method: method
+      zoneId: zoneId || 'default',
+      method: method || 'grass',
+      conditions: {
+        timeOfDay: timeOfDay || 'day',
+        weather: weather || 'clear'
+      }
     });
+
+    console.log(`🎯 [BattleRoutes] Combat créé: ${room.roomId}`);
 
     res.json({
       success: true,
@@ -53,69 +82,211 @@ router.post('/wild', async (req, res) => {
       wildPokemon: {
         pokemonId: wildPokemon.pokemonId,
         level: wildPokemon.level,
-        shiny: wildPokemon.shiny
+        shiny: wildPokemon.shiny,
+        nature: wildPokemon.nature,
+        gender: wildPokemon.gender
+      },
+      encounter: {
+        zone: zone,
+        zoneId: zoneId || 'default',
+        method: method || 'grass',
+        conditions: {
+          timeOfDay: timeOfDay || 'day',
+          weather: weather || 'clear'
+        }
       }
     });
 
   } catch (error) {
-    console.error('❌ Erreur création combat:', error);
+    console.error('❌ [BattleRoutes] Erreur création combat:', error);
     res.status(500).json({ 
-      error: 'Erreur lors de la création du combat' 
+      error: 'Erreur lors de la création du combat',
+      details: error instanceof Error ? error.message : 'Erreur inconnue'
     });
   }
 });
 
-// Vérifier les rencontres possibles dans une zone
+// ✅ VÉRIFIER LES RENCONTRES POSSIBLES DANS UNE ZONE (avec zones spécifiques)
 router.get('/encounters/:zone', async (req, res) => {
   try {
     const { zone } = req.params;
-    const { method = 'grass', timeOfDay = 'day', weather = 'clear' } = req.query;
+    const { 
+      method = 'grass', 
+      timeOfDay = 'day', 
+      weather = 'clear',
+      zoneId,
+      samples = 100
+    } = req.query;
+
+    console.log(`📊 [BattleRoutes] Analyse rencontres pour ${zone}/${zoneId || 'default'}`);
 
     await encounterManager.loadEncounterTable(zone);
     
-    // Simuler 100 rencontres pour obtenir les statistiques
+    // ✅ SIMULER DES RENCONTRES POUR OBTENIR LES STATISTIQUES
     const encounters: any[] = [];
-    for (let i = 0; i < 100; i++) {
-      const wildPokemon = await encounterManager.generateWildEncounter(
+    const sampleCount = Math.min(parseInt(samples as string), 1000); // Max 1000
+    
+    for (let i = 0; i < sampleCount; i++) {
+      const wildPokemon = await encounterManager.checkForEncounter(
         zone, 
         method as 'grass' | 'fishing',
+        1.0, // 100% pour simulation
         timeOfDay as 'day' | 'night',
-        weather as 'clear' | 'rain'
+        weather as 'clear' | 'rain',
+        zoneId as string
       );
       
       if (wildPokemon) {
         encounters.push({
           pokemonId: wildPokemon.pokemonId,
           level: wildPokemon.level,
-          shiny: wildPokemon.shiny
+          shiny: wildPokemon.shiny,
+          nature: wildPokemon.nature,
+          gender: wildPokemon.gender
         });
       }
     }
 
-    // Calculer les statistiques
+    // ✅ CALCULER LES STATISTIQUES DÉTAILLÉES
     const stats = encounters.reduce((acc, enc) => {
-      const key = `${enc.pokemonId}_${enc.level}`;
-      acc[key] = (acc[key] || 0) + 1;
+      const key = `${enc.pokemonId}`;
+      if (!acc[key]) {
+        acc[key] = {
+          pokemonId: enc.pokemonId,
+          count: 0,
+          levels: [],
+          shinyCount: 0,
+          genders: { male: 0, female: 0, unknown: 0 },
+          natures: {}
+        };
+      }
+      
+      acc[key].count++;
+      acc[key].levels.push(enc.level);
+      
+      if (enc.shiny) acc[key].shinyCount++;
+      
+      acc[key].genders[enc.gender as keyof typeof acc[string]['genders']]++;
+      
+      if (!acc[key].natures[enc.nature]) acc[key].natures[enc.nature] = 0;
+      acc[key].natures[enc.nature]++;
+      
       return acc;
     }, {} as any);
 
+    // ✅ CALCULER POURCENTAGES ET NIVEAUX MOYENS
+    Object.values(stats).forEach((stat: any) => {
+      stat.percentage = (stat.count / encounters.length * 100).toFixed(2);
+      stat.averageLevel = (stat.levels.reduce((a: number, b: number) => a + b, 0) / stat.levels.length).toFixed(1);
+      stat.minLevel = Math.min(...stat.levels);
+      stat.maxLevel = Math.max(...stat.levels);
+      stat.shinyRate = (stat.shinyCount / stat.count * 100).toFixed(4);
+    });
+
     res.json({
       zone,
+      zoneId: zoneId || 'default',
       method,
       timeOfDay,
       weather,
-      totalEncounters: encounters.length,
-      statistics: stats,
-      examples: encounters.slice(0, 10)
+      analysis: {
+        totalSimulations: sampleCount,
+        successfulEncounters: encounters.length,
+        encounterRate: (encounters.length / sampleCount * 100).toFixed(2) + '%',
+        uniquePokemon: Object.keys(stats).length
+      },
+      statistics: Object.values(stats),
+      examples: encounters.slice(0, 10),
+      summary: {
+        mostCommon: Object.values(stats).sort((a: any, b: any) => b.count - a.count).slice(0, 3),
+        rarest: Object.values(stats).sort((a: any, b: any) => a.count - b.count).slice(0, 3),
+        shinyFound: encounters.filter(e => e.shiny).length
+      }
     });
 
   } catch (error) {
-    console.error('❌ Erreur consultation rencontres:', error);
+    console.error('❌ [BattleRoutes] Erreur consultation rencontres:', error);
     res.status(500).json({ 
-      error: 'Erreur lors de la consultation des rencontres' 
+      error: 'Erreur lors de la consultation des rencontres',
+      details: error instanceof Error ? error.message : 'Erreur inconnue'
     });
   }
 });
+
+// ✅ LISTER LES ZONES D'UNE CARTE
+router.get('/zones/:zone', async (req, res) => {
+  try {
+    const { zone } = req.params;
+    
+    console.log(`🗺️ [BattleRoutes] Liste des zones pour ${zone}`);
+    
+    await encounterManager.loadEncounterTable(zone);
+    
+    // Debug de la table pour voir les zones disponibles
+    encounterManager.debugEncounterTable(zone);
+    
+    res.json({
+      zone,
+      message: 'Vérifiez la console serveur pour les détails des zones',
+      available: true
+    });
+
+  } catch (error) {
+    console.error('❌ [BattleRoutes] Erreur consultation zones:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors de la consultation des zones'
+    });
+  }
+});
+
+// ✅ TESTER UNE RENCONTRE SPÉCIFIQUE (développement)
+router.post('/test-encounter', async (req, res) => {
+  try {
+    const { 
+      zone, 
+      zoneId, 
+      method = 'grass', 
+      timeOfDay = 'day', 
+      weather = 'clear',
+      playerId = 'test-player'
+    } = req.body;
+
+    console.log(`🧪 [BattleRoutes] Test rencontre: ${zone}/${zoneId}`);
+
+    const wildPokemon = await encounterManager.validateAndGenerateEncounter(
+      playerId,
+      zone,
+      100, // Position test
+      100,
+      timeOfDay,
+      weather,
+      zoneId,
+      method
+    );
+
+    if (wildPokemon) {
+      res.json({
+        success: true,
+        wildPokemon,
+        conditions: { zone, zoneId, method, timeOfDay, weather }
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'Aucune rencontre générée',
+        conditions: { zone, zoneId, method, timeOfDay, weather }
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ [BattleRoutes] Erreur test rencontre:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors du test de rencontre'
+    });
+  }
+});
+
+// === ROUTES EXISTANTES (INCHANGÉES) ===
 
 // Obtenir les données d'une attaque
 router.get('/moves/:moveId', async (req, res) => {
@@ -177,84 +348,6 @@ router.get('/moves', async (req, res) => {
   }
 });
 
-// Simuler un combat (pour tests)
-router.post('/simulate', async (req, res) => {
-  try {
-    const { pokemon1, pokemon2, rounds = 1000 } = req.body;
-    
-    const results = {
-      pokemon1Wins: 0,
-      pokemon2Wins: 0,
-      draws: 0,
-      averageTurns: 0
-    };
-
-    // Simulation simplifiée
-    for (let i = 0; i < rounds; i++) {
-      const winner = Math.random() < 0.5 ? 'pokemon1' : 'pokemon2';
-      if (winner === 'pokemon1') {
-        results.pokemon1Wins++;
-      } else {
-        results.pokemon2Wins++;
-      }
-    }
-
-    results.averageTurns = Math.floor(Math.random() * 10) + 5; // 5-15 tours
-
-    res.json({
-      simulation: {
-        rounds,
-        pokemon1: pokemon1,
-        pokemon2: pokemon2
-      },
-      results
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur simulation:', error);
-    res.status(500).json({ 
-      error: 'Erreur lors de la simulation' 
-    });
-  }
-});
-
-// Obtenir les statistiques de combat d'un Pokémon
-router.get('/pokemon/:id/battle-stats', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { level = 50 } = req.query;
-
-    // Simuler des stats de combat pour un Pokémon
-    // Tu peux remplacer par des vraies données de ta base
-    const battleStats = {
-      pokemonId: parseInt(id),
-      level: parseInt(level as string),
-      estimatedStats: {
-        hp: Math.floor(Math.random() * 200) + 100,
-        attack: Math.floor(Math.random() * 150) + 50,
-        defense: Math.floor(Math.random() * 150) + 50,
-        specialAttack: Math.floor(Math.random() * 150) + 50,
-        specialDefense: Math.floor(Math.random() * 150) + 50,
-        speed: Math.floor(Math.random() * 150) + 50
-      },
-      commonMoves: ["tackle", "growl", "quick_attack"],
-      typeEffectiveness: {
-        weakTo: ["Fire", "Flying"],
-        strongAgainst: ["Water", "Ground"],
-        resistantTo: ["Electric", "Grass"]
-      }
-    };
-
-    res.json(battleStats);
-
-  } catch (error) {
-    console.error('❌ Erreur stats combat:', error);
-    res.status(500).json({ 
-      error: 'Erreur lors de la consultation des stats de combat' 
-    });
-  }
-});
-
 // Calculer l'efficacité des types
 router.get('/type-effectiveness/:attackType/:defendType', (req, res) => {
   try {
@@ -288,6 +381,42 @@ router.get('/type-effectiveness/:attackType/:defendType', (req, res) => {
     console.error('❌ Erreur efficacité types:', error);
     res.status(500).json({ 
       error: 'Erreur lors du calcul d\'efficacité' 
+    });
+  }
+});
+
+// Obtenir les statistiques de combat d'un Pokémon
+router.get('/pokemon/:id/battle-stats', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { level = 50 } = req.query;
+
+    // Simuler des stats de combat pour un Pokémon
+    const battleStats = {
+      pokemonId: parseInt(id),
+      level: parseInt(level as string),
+      estimatedStats: {
+        hp: Math.floor(Math.random() * 200) + 100,
+        attack: Math.floor(Math.random() * 150) + 50,
+        defense: Math.floor(Math.random() * 150) + 50,
+        specialAttack: Math.floor(Math.random() * 150) + 50,
+        specialDefense: Math.floor(Math.random() * 150) + 50,
+        speed: Math.floor(Math.random() * 150) + 50
+      },
+      commonMoves: ["tackle", "growl", "quick_attack"],
+      typeEffectiveness: {
+        weakTo: ["Fire", "Flying"],
+        strongAgainst: ["Water", "Ground"],
+        resistantTo: ["Electric", "Grass"]
+      }
+    };
+
+    res.json(battleStats);
+
+  } catch (error) {
+    console.error('❌ Erreur stats combat:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors de la consultation des stats de combat' 
     });
   }
 });
