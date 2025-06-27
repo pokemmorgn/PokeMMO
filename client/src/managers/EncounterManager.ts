@@ -1,75 +1,26 @@
-// client/src/managers/EncounterManager.ts - VERSION FINALE
-export interface EncounterCheckResult {
-  shouldTrigger: boolean;
-  zoneId?: string;
-  method: 'grass' | 'fishing';
-  encounterRate: number;
-}
-
-export interface MapLayer {
-  name: string;
-  type: string;
-  objects?: Array<{
-    id: number;
-    name: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    properties?: Array<{
-      name: string;
-      value: any;
-    }>;
-  }>;
-  data?: number[];
-  width?: number;
-  height?: number;
-  tilewidth?: number;
-  tileheight?: number;
-}
-
-export interface TilesetTile {
-  id: number;
-  properties?: Array<{
-    name: string;
-    value: any;
-  }>;
-}
-
-export interface MapData {
-  layers: MapLayer[];
-  tilesets: Array<{
-    firstgid: number;
-    tiles?: TilesetTile[];
-  }>;
-  tilewidth: number;
-  tileheight: number;
-  width: number;
-  height: number;
-}
-
+// client/src/managers/ClientEncounterManager.js - VERSION FINALE
 export class ClientEncounterManager {
-  private mapData: MapData | null = null;
-  private encounterZones: Map<string, any> = new Map();
-  private grassTiles: Set<number> = new Set();
-  private waterTiles: Set<number> = new Set();
-  
-  // ✅ Cooldown client (plus permissif que serveur)
-  private lastEncounterTime = 0;
-  private readonly CLIENT_ENCOUNTER_COOLDOWN = 500; // 500ms côté client
-  
-  // ✅ Compteur de pas pour encounters
-  private stepCount = 0;
-  private readonly STEPS_PER_ENCOUNTER_CHECK = 3; // Vérifier tous les 3 pas
-
-  constructor(mapData?: MapData) {
+  constructor(mapData = null) {
+    this.mapData = null;
+    this.encounterZones = new Map();
+    this.grassTiles = new Set();
+    this.waterTiles = new Set();
+    
+    // ✅ Cooldown client (plus permissif que serveur)
+    this.lastEncounterTime = 0;
+    this.CLIENT_ENCOUNTER_COOLDOWN = 500; // 500ms côté client
+    
+    // ✅ Compteur de pas pour encounters
+    this.stepCount = 0;
+    this.STEPS_PER_ENCOUNTER_CHECK = 3; // Vérifier tous les 3 pas
+    
     if (mapData) {
       this.loadMapData(mapData);
     }
   }
 
   // ✅ CHARGEMENT DES DONNÉES DE CARTE
-  loadMapData(mapData: MapData): void {
+  loadMapData(mapData) {
     console.log(`🗺️ [ClientEncounter] Chargement des données de carte...`);
     
     this.mapData = mapData;
@@ -84,7 +35,7 @@ export class ClientEncounterManager {
   }
 
   // ✅ CHARGEMENT DES ZONES DE RENCONTRE (objets avec zoneId)
-  private loadEncounterZones(): void {
+  loadEncounterZones() {
     if (!this.mapData) return;
 
     this.encounterZones.clear();
@@ -120,7 +71,7 @@ export class ClientEncounterManager {
   }
 
   // ✅ CHARGEMENT DES TILES D'HERBE (calque BelowPlayer2 avec grassTile)
-  private loadGrassTiles(): void {
+  loadGrassTiles() {
     if (!this.mapData) return;
 
     this.grassTiles.clear();
@@ -144,7 +95,7 @@ export class ClientEncounterManager {
   }
 
   // ✅ CHARGEMENT DES TILES D'EAU (pour la pêche)
-  private loadWaterTiles(): void {
+  loadWaterTiles() {
     if (!this.mapData) return;
 
     this.waterTiles.clear();
@@ -167,7 +118,7 @@ export class ClientEncounterManager {
   }
 
   // ✅ VÉRIFICATION DE RENCONTRE LORS DU MOUVEMENT
-  checkEncounterOnMove(x: number, y: number): EncounterCheckResult {
+  checkEncounterOnMove(x, y) {
     console.log(`🚶 [ClientEncounter] Vérification position (${x}, ${y})`);
 
     // ✅ Cooldown client
@@ -210,7 +161,7 @@ export class ClientEncounterManager {
     console.log(`✅ [ClientEncounter] Rencontre possible:`);
     console.log(`  📍 Zone: ${zoneId}`);
     console.log(`  🎯 Méthode: ${method}`);
-    console.log(`  📊 Taux: ${encounterRate}%`);
+    console.log(`  📊 Taux: ${(encounterRate * 100).toFixed(1)}%`);
 
     // Mettre à jour le cooldown
     this.lastEncounterTime = now;
@@ -224,7 +175,7 @@ export class ClientEncounterManager {
   }
 
   // ✅ VÉRIFIER SI POSITION SUR HERBE
-  private isPositionOnGrass(x: number, y: number): boolean {
+  isPositionOnGrass(x, y) {
     if (!this.mapData) return false;
 
     // Convertir position monde en position tile
@@ -256,7 +207,7 @@ export class ClientEncounterManager {
   }
 
   // ✅ VÉRIFIER SI POSITION SUR EAU
-  private isPositionOnWater(x: number, y: number): boolean {
+  isPositionOnWater(x, y) {
     if (!this.mapData) return false;
 
     const tileX = Math.floor(x / this.mapData.tilewidth);
@@ -282,7 +233,7 @@ export class ClientEncounterManager {
   }
 
   // ✅ TROUVER LA ZONE DE RENCONTRE À UNE POSITION
-  private getEncounterZoneAt(x: number, y: number): string | null {
+  getEncounterZoneAt(x, y) {
     for (const [id, zone] of this.encounterZones.entries()) {
       if (x >= zone.bounds.left && 
           x <= zone.bounds.right && 
@@ -299,7 +250,7 @@ export class ClientEncounterManager {
   }
 
   // ✅ CALCULER LE TAUX DE RENCONTRE
-  private calculateEncounterRate(method: 'grass' | 'fishing', zoneId: string): number {
+  calculateEncounterRate(method, zoneId) {
     // Taux de base selon le type
     let baseRate = 0.1; // 10% par défaut
 
@@ -317,7 +268,7 @@ export class ClientEncounterManager {
   }
 
   // ✅ FORCER UNE VÉRIFICATION DE RENCONTRE (pour tests)
-  forceEncounterCheck(x: number, y: number): EncounterCheckResult {
+  forceEncounterCheck(x, y) {
     console.log(`🔧 [ClientEncounter] Force check à (${x}, ${y})`);
     
     this.lastEncounterTime = 0; // Reset cooldown
@@ -327,12 +278,7 @@ export class ClientEncounterManager {
   }
 
   // ✅ OBTENIR INFO SUR POSITION ACTUELLE
-  getPositionInfo(x: number, y: number): {
-    isOnGrass: boolean;
-    isOnWater: boolean;
-    zoneId: string | null;
-    canEncounter: boolean;
-  } {
+  getPositionInfo(x, y) {
     const isOnGrass = this.isPositionOnGrass(x, y);
     const isOnWater = this.isPositionOnWater(x, y);
     const zoneId = this.getEncounterZoneAt(x, y);
@@ -347,7 +293,7 @@ export class ClientEncounterManager {
   }
 
   // ✅ DEBUG DES ZONES CHARGÉES
-  debugZones(): void {
+  debugZones() {
     console.log(`🔍 [ClientEncounter] === DEBUG ZONES ===`);
     console.log(`📊 Total zones: ${this.encounterZones.size}`);
     
@@ -361,20 +307,14 @@ export class ClientEncounterManager {
   }
 
   // ✅ RESET COOLDOWNS (pour tests)
-  resetCooldowns(): void {
+  resetCooldowns() {
     this.lastEncounterTime = 0;
     this.stepCount = 0;
     console.log(`🔄 [ClientEncounter] Cooldowns reset`);
   }
 
   // ✅ OBTENIR STATS
-  getStats(): {
-    encounterZonesCount: number;
-    grassTilesCount: number;
-    waterTilesCount: number;
-    lastEncounterTime: number;
-    stepCount: number;
-  } {
+  getStats() {
     return {
       encounterZonesCount: this.encounterZones.size,
       grassTilesCount: this.grassTiles.size,
@@ -387,17 +327,13 @@ export class ClientEncounterManager {
   // ✅ MÉTHODES POUR L'INTÉGRATION AVEC LE SYSTÈME DE COMBAT
 
   // Vérifier si une position peut déclencher des rencontres
-  canTriggerEncounter(x: number, y: number): boolean {
+  canTriggerEncounter(x, y) {
     const info = this.getPositionInfo(x, y);
     return info.canEncounter;
   }
 
   // Obtenir les données de zone pour le serveur
-  getZoneDataForServer(x: number, y: number): {
-    zoneId: string | null;
-    method: 'grass' | 'fishing';
-    canEncounter: boolean;
-  } {
+  getZoneDataForServer(x, y) {
     const info = this.getPositionInfo(x, y);
     
     return {
@@ -408,7 +344,7 @@ export class ClientEncounterManager {
   }
 
   // Simuler des pas pour forcer une rencontre (debug)
-  simulateSteps(count: number): void {
+  simulateSteps(count) {
     this.stepCount += count;
     console.log(`👟 [ClientEncounter] ${count} pas simulés (total: ${this.stepCount})`);
   }
