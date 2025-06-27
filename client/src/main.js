@@ -40,7 +40,6 @@ import { Road1HiddenScene } from './scenes/zones/Road1HiddenScene.js';
 import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
 import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
 
-
 // === Colyseus.js ===
 import { Client } from 'colyseus.js';
 
@@ -61,6 +60,9 @@ import { initializeGameNotifications, showNotificationInstructions } from './not
 
 // === Import du debug de notifications ===
 import './debug-notifications.js';
+
+// 🆕 NOUVEAU: Import du ClientEncounterManager
+import { ClientEncounterManager } from './managers/EncounterManager.js';
 
 // --- Endpoint dynamique ---
 const ENDPOINT =
@@ -340,6 +342,8 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     window.questSystemGlobal = null;
     window.inventorySystemGlobal = null;
     window.teamManagerGlobal = null;
+    // 🆕 NOUVEAU: Variable globale pour EncounterManager
+    window.encounterManagerGlobal = null;
     
     // 12. Expose helpers initAllGameSystems & cie
     window.initInventorySystem = function(gameRoom) {
@@ -358,223 +362,379 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       return window.inventorySystemGlobal;
     };
 
-window.initTeamSystem = function(gameRoom) {
-  console.log('⚔️ [MAIN] Initialisation du système d\'équipe...');
-  
-  // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ
-  if (window.teamManagerGlobal && window.teamManagerGlobal.isInitialized) {
-    console.log('ℹ️ [MAIN] Système d\'équipe déjà initialisé - réutilisation');
-    
-    // Mettre à jour la gameRoom si nécessaire
-    if (gameRoom && gameRoom !== window.teamManagerGlobal.gameRoom) {
-      window.teamManagerGlobal.gameRoom = gameRoom;
-      window.teamManagerGlobal.setupServerListeners();
-    }
-    
-    return window.teamManagerGlobal;
-  }
-  
-  try {
-    // ✅ APPELER DIRECTEMENT setupTeamSystem (PAS DE RÉCURSION)
-    window.teamManagerGlobal = setupTeamSystem(gameRoom);
-    
-    if (window.teamManagerGlobal) {
-      console.log('✅ [MAIN] Système d\'équipe initialisé avec succès');
+    // 🆕 NOUVEAU: Fonction d'initialisation du système d'encounters
+    window.initEncounterSystem = function(scene, mapData = null) {
+      console.log('🎲 [MAIN] Initialisation du système d\'encounters...');
       
-      // Déclencher l'événement
-      if (typeof window.onSystemInitialized === 'function') {
-        window.onSystemInitialized('team');
+      // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ POUR CETTE SCÈNE
+      if (scene && scene.encounterManager && scene.encounterInitialized) {
+        console.log('ℹ️ [MAIN] Système d\'encounters déjà initialisé pour cette scène - réutilisation');
+        return scene.encounterManager;
       }
       
-      return window.teamManagerGlobal;
-    } else {
-      console.error('❌ [MAIN] setupTeamSystem a retourné null');
-      return null;
-    }
-    
-  } catch (error) {
-    console.error('❌ [MAIN] Erreur initialisation système d\'équipe:', error);
-    return null;
-  }
-};
+      try {
+        // ✅ CRÉER UN NOUVEL ENCOUNTER MANAGER
+        const encounterManager = new ClientEncounterManager();
+        
+        // ✅ CHARGER LES DONNÉES DE CARTE SI DISPONIBLES
+        if (mapData) {
+          console.log('🗺️ [MAIN] Chargement données carte pour encounters...');
+          encounterManager.loadMapData(mapData);
+        } else if (scene && scene.map) {
+          // Essayer de récupérer les données depuis la scène
+          const mapKey = scene.mapKey || scene.scene.key.toLowerCase();
+          const tilemapData = scene.cache?.tilemap?.get(mapKey);
+          if (tilemapData && tilemapData.data) {
+            console.log('🗺️ [MAIN] Données carte récupérées depuis la scène');
+            encounterManager.loadMapData(tilemapData.data);
+          } else {
+            console.warn('⚠️ [MAIN] Impossible de récupérer les données de carte');
+          }
+        }
+        
+        // ✅ EXPOSER GLOBALEMENT
+        window.encounterManagerGlobal = encounterManager;
+        
+        // ✅ SI ON A UNE SCÈNE, L'ASSOCIER
+        if (scene) {
+          scene.encounterManager = encounterManager;
+          scene.encounterInitialized = true;
+        }
+        
+        console.log('✅ [MAIN] Système d\'encounters initialisé avec succès');
+        
+        // ✅ DÉCLENCHER L'ÉVÉNEMENT
+        if (typeof window.onSystemInitialized === 'function') {
+          window.onSystemInitialized('encounters');
+        }
+        
+        return encounterManager;
+        
+      } catch (error) {
+        console.error('❌ [MAIN] Erreur initialisation système d\'encounters:', error);
+        return null;
+      }
+    };
 
-window.forceInitTeamSystem = function(gameRoom) {
-  console.log('🔧 [MAIN] Force initialisation système d\'équipe...');
-  
-  // Nettoyer l'ancien système si il existe
-  if (window.teamManagerGlobal) {
-    console.log('🧹 [MAIN] Nettoyage ancien TeamManager...');
-    if (window.teamManagerGlobal.destroy) {
-      window.teamManagerGlobal.destroy();
-    }
-    window.teamManagerGlobal = null;
-  }
-  
-  // Nettoyer les autres références
-  if (window.TeamManager) {
-    console.log('🧹 [MAIN] Nettoyage window.TeamManager...');
-    if (window.TeamManager.destroy) {
-      window.TeamManager.destroy();
-    }
-    window.TeamManager = null;
-  }
-  
-  if (window.teamSystem) {
-    if (window.teamSystem.destroy) {
-      window.teamSystem.destroy();
-    }
-    window.teamSystem = null;
-  }
-  
-  // Forcer la réinitialisation
-  try {
-    window.teamManagerGlobal = setupTeamSystem(gameRoom || window.currentGameRoom);
-    
-    if (window.teamManagerGlobal) {
-      console.log('✅ [MAIN] Système d\'équipe forcé avec succès');
+    window.initTeamSystem = function(gameRoom) {
+      console.log('⚔️ [MAIN] Initialisation du système d\'équipe...');
       
-      // Déclencher l'événement
-      if (typeof window.onSystemInitialized === 'function') {
-        window.onSystemInitialized('team');
+      // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ
+      if (window.teamManagerGlobal && window.teamManagerGlobal.isInitialized) {
+        console.log('ℹ️ [MAIN] Système d\'équipe déjà initialisé - réutilisation');
+        
+        // Mettre à jour la gameRoom si nécessaire
+        if (gameRoom && gameRoom !== window.teamManagerGlobal.gameRoom) {
+          window.teamManagerGlobal.gameRoom = gameRoom;
+          window.teamManagerGlobal.setupServerListeners();
+        }
+        
+        return window.teamManagerGlobal;
       }
       
-      return window.teamManagerGlobal;
-    } else {
-      console.error('❌ [MAIN] Échec force initialisation');
-      return null;
-    }
-    
-  } catch (error) {
-    console.error('❌ [MAIN] Erreur force initialisation:', error);
-    return null;
-  }
-};
+      try {
+        // ✅ APPELER DIRECTEMENT setupTeamSystem (PAS DE RÉCURSION)
+        window.teamManagerGlobal = setupTeamSystem(gameRoom);
+        
+        if (window.teamManagerGlobal) {
+          console.log('✅ [MAIN] Système d\'équipe initialisé avec succès');
+          
+          // Déclencher l'événement
+          if (typeof window.onSystemInitialized === 'function') {
+            window.onSystemInitialized('team');
+          }
+          
+          return window.teamManagerGlobal;
+        } else {
+          console.error('❌ [MAIN] setupTeamSystem a retourné null');
+          return null;
+        }
+        
+      } catch (error) {
+        console.error('❌ [MAIN] Erreur initialisation système d\'équipe:', error);
+        return null;
+      }
+    };
 
-// ===== 3. ✅ FONCTIONS DE DEBUG AMÉLIORÉES =====
-// Ajoutez aussi dans main.js :
+    window.forceInitTeamSystem = function(gameRoom) {
+      console.log('🔧 [MAIN] Force initialisation système d\'équipe...');
+      
+      // Nettoyer l'ancien système si il existe
+      if (window.teamManagerGlobal) {
+        console.log('🧹 [MAIN] Nettoyage ancien TeamManager...');
+        if (window.teamManagerGlobal.destroy) {
+          window.teamManagerGlobal.destroy();
+        }
+        window.teamManagerGlobal = null;
+      }
+      
+      // Nettoyer les autres références
+      if (window.TeamManager) {
+        console.log('🧹 [MAIN] Nettoyage window.TeamManager...');
+        if (window.TeamManager.destroy) {
+          window.TeamManager.destroy();
+        }
+        window.TeamManager = null;
+      }
+      
+      if (window.teamSystem) {
+        if (window.teamSystem.destroy) {
+          window.teamSystem.destroy();
+        }
+        window.teamSystem = null;
+      }
+      
+      // Forcer la réinitialisation
+      try {
+        window.teamManagerGlobal = setupTeamSystem(gameRoom || window.currentGameRoom);
+        
+        if (window.teamManagerGlobal) {
+          console.log('✅ [MAIN] Système d\'équipe forcé avec succès');
+          
+          // Déclencher l'événement
+          if (typeof window.onSystemInitialized === 'function') {
+            window.onSystemInitialized('team');
+          }
+          
+          return window.teamManagerGlobal;
+        } else {
+          console.error('❌ [MAIN] Échec force initialisation');
+          return null;
+        }
+        
+      } catch (error) {
+        console.error('❌ [MAIN] Erreur force initialisation:', error);
+        return null;
+      }
+    };
 
-window.debugTeamSystem = function() {
-  console.log('🔍 === DEBUG SYSTÈME D\'ÉQUIPE COMPLET ===');
-  
-  const teamStatus = {
-    // Vérifications globales
-    teamManagerGlobal: {
-      exists: !!window.teamManagerGlobal,
-      initialized: window.teamManagerGlobal?.isInitialized || false,
-      type: typeof window.teamManagerGlobal
-    },
-    teamManagerWindow: {
-      exists: !!window.TeamManager,
-      initialized: window.TeamManager?.isInitialized || false,
-      type: typeof window.TeamManager
-    },
-    
-    // Vérifications UI
-    teamIcon: {
-      exists: !!document.querySelector('#team-icon'),
-      visible: document.querySelector('#team-icon')?.style.display !== 'none',
-      classes: document.querySelector('#team-icon')?.className || 'N/A'
-    },
-    
-    // Vérifications réseau
-    network: {
-      globalNetworkManager: !!window.globalNetworkManager,
-      currentGameRoom: !!window.currentGameRoom,
-      connected: window.globalNetworkManager?.isConnected || false,
-      roomState: window.globalNetworkManager?.room?.connection?.readyState || 'N/A'
-    },
-    
-    // Fonctions disponibles
-    functions: {
-      initTeamSystem: typeof window.initTeamSystem,
-      forceInitTeamSystem: typeof window.forceInitTeamSystem,
-      testTeam: typeof window.testTeam,
-      toggleTeam: typeof window.toggleTeam
-    }
-  };
-  
-  console.log('📊 Status complet:', teamStatus);
-  
-  // Tests supplémentaires
-  const activeScene = window.game?.scene?.getScenes(true)[0];
-  if (activeScene) {
-    console.log('🎬 Scène active:', {
-      key: activeScene.scene.key,
-      teamSystemInitialized: activeScene.teamSystemInitialized,
-      teamInitAttempts: activeScene.teamInitializationAttempts,
-      hasTeamSystem: !!activeScene.getTeamManager
-    });
-  }
-  
-  return teamStatus;
-};
+    // 🆕 NOUVEAU: Fonction de force init pour encounters
+    window.forceInitEncounterSystem = function(scene, mapData = null) {
+      console.log('🔧 [MAIN] Force initialisation système d\'encounters...');
+      
+      // Nettoyer l'ancien système
+      if (window.encounterManagerGlobal) {
+        console.log('🧹 [MAIN] Nettoyage ancien EncounterManager...');
+        window.encounterManagerGlobal = null;
+      }
+      
+      if (scene) {
+        scene.encounterManager = null;
+        scene.encounterInitialized = false;
+      }
+      
+      // Forcer la réinitialisation
+      return window.initEncounterSystem(scene, mapData);
+    };
 
-window.fixTeamSystem = function() {
-  console.log('🔧 === TENTATIVE DE RÉPARATION SYSTÈME D\'ÉQUIPE ===');
-  
-  const currentScene = window.game?.scene?.getScenes(true)[0];
-  if (!currentScene) {
-    console.error('❌ Aucune scène active trouvée');
-    return false;
-  }
-  
-  console.log(`🎬 Réparation sur scène: ${currentScene.scene.key}`);
-  
-  // 1. Force réinitialisation global
-  const teamManager = window.forceInitTeamSystem();
-  
-  if (!teamManager) {
-    console.error('❌ Échec force init global');
-    return false;
-  }
-  
-  // 2. Marquer la scène comme initialisée
-  if (currentScene.teamSystemInitialized !== undefined) {
-    currentScene.teamSystemInitialized = true;
-    console.log('✅ Scène marquée comme team initialisée');
-  }
-  
-  // 3. Vérifier l'icône
-  setTimeout(() => {
-    const teamIcon = document.querySelector('#team-icon');
-    if (!teamIcon) {
-      console.warn('⚠️ Icône team manquante, création...');
-      // L'icône devrait se créer automatiquement avec le TeamManager
-    } else {
-      console.log('✅ Icône team présente');
-    }
-    
-    // 4. Test final
-    setTimeout(() => {
-      window.debugTeamSystem();
-      console.log('🎯 Essayez window.testTeam() pour tester');
-    }, 1000);
-    
-  }, 500);
-  
-  return true;
-};
+    // ===== 3. ✅ FONCTIONS DE DEBUG AMÉLIORÉES =====
+    window.debugTeamSystem = function() {
+      console.log('🔍 === DEBUG SYSTÈME D\'ÉQUIPE COMPLET ===');
+      
+      const teamStatus = {
+        // Vérifications globales
+        teamManagerGlobal: {
+          exists: !!window.teamManagerGlobal,
+          initialized: window.teamManagerGlobal?.isInitialized || false,
+          type: typeof window.teamManagerGlobal
+        },
+        teamManagerWindow: {
+          exists: !!window.TeamManager,
+          initialized: window.TeamManager?.isInitialized || false,
+          type: typeof window.TeamManager
+        },
+        
+        // Vérifications UI
+        teamIcon: {
+          exists: !!document.querySelector('#team-icon'),
+          visible: document.querySelector('#team-icon')?.style.display !== 'none',
+          classes: document.querySelector('#team-icon')?.className || 'N/A'
+        },
+        
+        // Vérifications réseau
+        network: {
+          globalNetworkManager: !!window.globalNetworkManager,
+          currentGameRoom: !!window.currentGameRoom,
+          connected: window.globalNetworkManager?.isConnected || false,
+          roomState: window.globalNetworkManager?.room?.connection?.readyState || 'N/A'
+        },
+        
+        // Fonctions disponibles
+        functions: {
+          initTeamSystem: typeof window.initTeamSystem,
+          forceInitTeamSystem: typeof window.forceInitTeamSystem,
+          testTeam: typeof window.testTeam,
+          toggleTeam: typeof window.toggleTeam
+        }
+      };
+      
+      console.log('📊 Status complet:', teamStatus);
+      
+      // Tests supplémentaires
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      if (activeScene) {
+        console.log('🎬 Scène active:', {
+          key: activeScene.scene.key,
+          teamSystemInitialized: activeScene.teamSystemInitialized,
+          teamInitAttempts: activeScene.teamInitializationAttempts,
+          hasTeamSystem: !!activeScene.getTeamManager
+        });
+      }
+      
+      return teamStatus;
+    };
 
-// ===== 4. ✅ COMMANDES RAPIDES POUR LE DEBUG =====
+    // 🆕 NOUVEAU: Fonction de debug pour encounters
+    window.debugEncounterSystem = function() {
+      console.log('🔍 === DEBUG SYSTÈME D\'ENCOUNTERS COMPLET ===');
+      
+      const encounterStatus = {
+        // Vérifications globales
+        encounterManagerGlobal: {
+          exists: !!window.encounterManagerGlobal,
+          type: typeof window.encounterManagerGlobal,
+          stats: window.encounterManagerGlobal?.getStats() || null
+        },
+        
+        // Vérifications scène active
+        activeScene: null,
+        
+        // Fonctions disponibles
+        functions: {
+          initEncounterSystem: typeof window.initEncounterSystem,
+          forceInitEncounterSystem: typeof window.forceInitEncounterSystem,
+          testEncounter: typeof window.testEncounter,
+          debugEncounters: typeof window.debugEncounters
+        }
+      };
+      
+      // Tests scène active
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      if (activeScene) {
+        encounterStatus.activeScene = {
+          key: activeScene.scene.key,
+          encounterInitialized: activeScene.encounterInitialized,
+          hasEncounterManager: !!activeScene.encounterManager,
+          encounterSystemStatus: activeScene.getEncounterSystemStatus ? activeScene.getEncounterSystemStatus() : 'N/A'
+        };
+      }
+      
+      console.log('📊 Status encounters:', encounterStatus);
+      return encounterStatus;
+    };
 
-window.quickTeamDebug = function() {
-  console.log('⚡ === DEBUG RAPIDE TEAM ===');
-  console.log('TeamManager Global:', !!window.teamManagerGlobal);
-  console.log('Team Icon:', !!document.querySelector('#team-icon'));
-  console.log('Init Function:', typeof window.initTeamSystem);
-  console.log('Network Connected:', window.globalNetworkManager?.isConnected);
-  
-  const activeScene = window.game?.scene?.getScenes(true)[0];
-  console.log('Scene Team Init:', activeScene?.teamSystemInitialized);
-  
-  if (!window.teamManagerGlobal) {
-    console.log('🔧 Utilisez window.fixTeamSystem() pour réparer');
-  } else {
-    console.log('🎯 Utilisez window.testTeam() pour tester');
-  }
-};
+    window.fixTeamSystem = function() {
+      console.log('🔧 === TENTATIVE DE RÉPARATION SYSTÈME D\'ÉQUIPE ===');
+      
+      const currentScene = window.game?.scene?.getScenes(true)[0];
+      if (!currentScene) {
+        console.error('❌ Aucune scène active trouvée');
+        return false;
+      }
+      
+      console.log(`🎬 Réparation sur scène: ${currentScene.scene.key}`);
+      
+      // 1. Force réinitialisation global
+      const teamManager = window.forceInitTeamSystem();
+      
+      if (!teamManager) {
+        console.error('❌ Échec force init global');
+        return false;
+      }
+      
+      // 2. Marquer la scène comme initialisée
+      if (currentScene.teamSystemInitialized !== undefined) {
+        currentScene.teamSystemInitialized = true;
+        console.log('✅ Scène marquée comme team initialisée');
+      }
+      
+      // 3. Vérifier l'icône
+      setTimeout(() => {
+        const teamIcon = document.querySelector('#team-icon');
+        if (!teamIcon) {
+          console.warn('⚠️ Icône team manquante, création...');
+          // L'icône devrait se créer automatiquement avec le TeamManager
+        } else {
+          console.log('✅ Icône team présente');
+        }
+        
+        // 4. Test final
+        setTimeout(() => {
+          window.debugTeamSystem();
+          console.log('🎯 Essayez window.testTeam() pour tester');
+        }, 1000);
+        
+              }, 500);
+      
+      return true;
+    };
 
-    
+    // 🆕 NOUVEAU: Fonction de réparation pour encounters
+    window.fixEncounterSystem = function() {
+      console.log('🔧 === TENTATIVE DE RÉPARATION SYSTÈME D\'ENCOUNTERS ===');
+      
+      const currentScene = window.game?.scene?.getScenes(true)[0];
+      if (!currentScene) {
+        console.error('❌ Aucune scène active trouvée');
+        return false;
+      }
+      
+      console.log(`🎬 Réparation encounters sur scène: ${currentScene.scene.key}`);
+      
+      // 1. Force réinitialisation
+      const encounterManager = window.forceInitEncounterSystem(currentScene);
+      
+      if (!encounterManager) {
+        console.error('❌ Échec force init encounters');
+        return false;
+      }
+      
+      // 2. Test final
+      setTimeout(() => {
+        window.debugEncounterSystem();
+        console.log('🎯 Essayez window.testEncounter() pour tester');
+      }, 1000);
+      
+      return true;
+    };
+
+    // ===== 4. ✅ COMMANDES RAPIDES POUR LE DEBUG =====
+
+    window.quickTeamDebug = function() {
+      console.log('⚡ === DEBUG RAPIDE TEAM ===');
+      console.log('TeamManager Global:', !!window.teamManagerGlobal);
+      console.log('Team Icon:', !!document.querySelector('#team-icon'));
+      console.log('Init Function:', typeof window.initTeamSystem);
+      console.log('Network Connected:', window.globalNetworkManager?.isConnected);
+      
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      console.log('Scene Team Init:', activeScene?.teamSystemInitialized);
+      
+      if (!window.teamManagerGlobal) {
+        console.log('🔧 Utilisez window.fixTeamSystem() pour réparer');
+      } else {
+        console.log('🎯 Utilisez window.testTeam() pour tester');
+      }
+    };
+
+    // 🆕 NOUVEAU: Debug rapide encounters
+    window.quickEncounterDebug = function() {
+      console.log('⚡ === DEBUG RAPIDE ENCOUNTERS ===');
+      console.log('EncounterManager Global:', !!window.encounterManagerGlobal);
+      console.log('Init Function:', typeof window.initEncounterSystem);
+      console.log('Network Connected:', window.globalNetworkManager?.isConnected);
+      
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      console.log('Scene Encounter Init:', activeScene?.encounterInitialized);
+      console.log('Scene has EncounterManager:', !!activeScene?.encounterManager);
+      
+      if (!activeScene?.encounterManager) {
+        console.log('🔧 Utilisez window.fixEncounterSystem() pour réparer');
+      } else {
+        console.log('🎯 Utilisez window.testEncounter() pour tester');
+      }
+    };
+
     window.initStarterHUD = function(gameRoom) {
       if (!window.starterHUD) {
         window.starterHUD = new StarterSelectionHUD(gameRoom || window.currentGameRoom);
@@ -600,102 +760,109 @@ window.quickTeamDebug = function() {
       return window.questSystemGlobal;
     };
     
-window.initAllGameSystems = function(scene, gameRoom) {
-  const roomToUse = gameRoom || window.currentGameRoom;
-  
-  // Initialiser dans l'ordre correct
-  const inventory = window.initInventorySystem(roomToUse);
-  const quests = window.initQuestSystem(scene, roomToUse);
-  const starter = window.initStarterHUD(roomToUse);
-  
-  // ✅ ATTENDRE un peu avant d'initialiser l'équipe
-  setTimeout(() => {
-    const team = window.initTeamSystem(roomToUse);
-    
-    // Initialiser le système de positionnement global après tout
-    setTimeout(() => {
-      if (typeof window.initUIIconPositioning === 'function') {
-        window.initUIIconPositioning();
-      }
-      window.onSystemInitialized && window.onSystemInitialized('all');
-    }, 500);
-    
-    return { inventory, quests, starter, team };
-  }, 1000); // ✅ 1 seconde de délai
-};
+    // ✅ MÉTHODE MODIFIÉE: Inclure l'initialisation des encounters
+    window.initAllGameSystems = function(scene, gameRoom) {
+      const roomToUse = gameRoom || window.currentGameRoom;
+      
+      // Initialiser dans l'ordre correct
+      const inventory = window.initInventorySystem(roomToUse);
+      const quests = window.initQuestSystem(scene, roomToUse);
+      const starter = window.initStarterHUD(roomToUse);
+      
+      // ✅ ATTENDRE un peu avant d'initialiser l'équipe
+      setTimeout(() => {
+        const team = window.initTeamSystem(roomToUse);
+        
+        // 🆕 NOUVEAU: Initialiser les encounters après un délai
+        setTimeout(() => {
+          const encounters = window.initEncounterSystem(scene);
+          
+          // Initialiser le système de positionnement global après tout
+          setTimeout(() => {
+            if (typeof window.initUIIconPositioning === 'function') {
+              window.initUIIconPositioning();
+            }
+            window.onSystemInitialized && window.onSystemInitialized('all');
+          }, 500);
+          
+          return { inventory, quests, starter, team, encounters };
+        }, 500);
+        
+      }, 1000); // ✅ 1 seconde de délai
+    };
 
     // === FONCTIONS DE DEBUG POUR LES ICÔNES ===
-window.debugUIIcons = function() {
-  console.log('🔍 === DEBUG UI ICONS ===');
-  
-  const icons = {
-    inventory: document.querySelector('#inventory-icon'),
-    quest: document.querySelector('#quest-icon'),
-    team: document.querySelector('#team-icon')
-  };
-  
-  Object.entries(icons).forEach(([name, element]) => {
-    if (element) {
-      const rect = element.getBoundingClientRect();
-      const style = getComputedStyle(element);
-      console.log(`${name.toUpperCase()}:`, {
-        exists: true,
-        position: {
-          bottom: style.bottom,
-          right: style.right,
-          actual: { x: rect.right, y: window.innerHeight - rect.bottom }
-        },
-        classes: Array.from(element.classList),
-        visible: style.display !== 'none' && style.visibility !== 'hidden'
+    window.debugUIIcons = function() {
+      console.log('🔍 === DEBUG UI ICONS ===');
+      
+      const icons = {
+        inventory: document.querySelector('#inventory-icon'),
+        quest: document.querySelector('#quest-icon'),
+        team: document.querySelector('#team-icon')
+      };
+      
+      Object.entries(icons).forEach(([name, element]) => {
+        if (element) {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          console.log(`${name.toUpperCase()}:`, {
+            exists: true,
+            position: {
+              bottom: style.bottom,
+              right: style.right,
+              actual: { x: rect.right, y: window.innerHeight - rect.bottom }
+            },
+            classes: Array.from(element.classList),
+            visible: style.display !== 'none' && style.visibility !== 'hidden'
+          });
+        } else {
+          console.log(`${name.toUpperCase()}: Non trouvée`);
+        }
       });
-    } else {
-      console.log(`${name.toUpperCase()}: Non trouvée`);
-    }
-  });
-};
+    };
 
-window.fixIconPositions = function() {
-  console.log('🔧 Correction des positions d\'icônes...');
-  
-  const inventory = document.querySelector('#inventory-icon');
-  const quest = document.querySelector('#quest-icon');
-  const team = document.querySelector('#team-icon');
-  
-  if (inventory) {
-    inventory.style.right = '20px';
-    inventory.style.bottom = '20px';
-  }
-  
-  if (quest) {
-    quest.style.right = '110px';
-    quest.style.bottom = '20px';
-  }
-  
-  if (team) {
-    team.style.right = '200px';
-    team.style.bottom = '20px';
-  }
-  
-  console.log('✅ Positions corrigées manuellement');
-  setTimeout(() => window.debugUIIcons(), 100);
-};
+    window.fixIconPositions = function() {
+      console.log('🔧 Correction des positions d\'icônes...');
+      
+      const inventory = document.querySelector('#inventory-icon');
+      const quest = document.querySelector('#quest-icon');
+      const team = document.querySelector('#team-icon');
+      
+      if (inventory) {
+        inventory.style.right = '20px';
+        inventory.style.bottom = '20px';
+      }
+      
+      if (quest) {
+        quest.style.right = '110px';
+        quest.style.bottom = '20px';
+      }
+      
+      if (team) {
+        team.style.right = '200px';
+        team.style.bottom = '20px';
+      }
+      
+      console.log('✅ Positions corrigées manuellement');
+      setTimeout(() => window.debugUIIcons(), 100);
+    };
 
-window.testTeamIcon = function() {
-  const teamIcon = document.querySelector('#team-icon');
-  if (teamIcon) {
-    console.log('⚔️ Test de l\'icône team...');
-    teamIcon.click();
-    
-    setTimeout(() => {
-      teamIcon.classList.add('team-updated');
-      setTimeout(() => teamIcon.classList.remove('team-updated'), 600);
-    }, 1000);
-    
-    console.log('✅ Test terminé');
-  } else {
-    console.error('❌ Icône team non trouvée');
-  }
-};
+    window.testTeamIcon = function() {
+      const teamIcon = document.querySelector('#team-icon');
+      if (teamIcon) {
+        console.log('⚔️ Test de l\'icône team...');
+        teamIcon.click();
+        
+        setTimeout(() => {
+          teamIcon.classList.add('team-updated');
+          setTimeout(() => teamIcon.classList.remove('team-updated'), 600);
+        }, 1000);
+        
+        console.log('✅ Test terminé');
+      } else {
+        console.error('❌ Icône team non trouvée');
+      }
+    };
     
     // === Fonctions d'accès rapide, notifications, tests etc ===
     window.openInventory = function() {
@@ -779,6 +946,105 @@ window.testTeamIcon = function() {
         window.showGameAlert?.("Système d'équipe non initialisé");
       }
     };
+
+    // 🆕 NOUVELLES FONCTIONS DE TEST POUR LES ENCOUNTERS
+    window.testEncounter = function() {
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      if (!activeScene) {
+        window.showGameAlert?.("Aucune scène active");
+        return;
+      }
+
+      if (activeScene.encounterManager) {
+        const myPlayer = activeScene.playerManager?.getMyPlayer();
+        if (myPlayer) {
+          const result = activeScene.encounterManager.forceEncounterCheck(myPlayer.x, myPlayer.y);
+          console.log("🧪 Test encounter résultat:", result);
+          window.showGameNotification("Test encounter dans la console", "info", { duration: 2000, position: 'top-center' });
+        } else {
+          window.showGameAlert?.("Pas de joueur trouvé");
+        }
+      } else {
+        window.showGameAlert?.("Système d'encounters non initialisé");
+      }
+    };
+
+    window.debugEncounters = function() {
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      if (!activeScene) {
+        console.log("❌ Aucune scène active");
+        return;
+      }
+
+      if (activeScene.debugEncounters) {
+        activeScene.debugEncounters();
+      } else {
+        console.log("❌ Fonction debugEncounters non disponible sur la scène");
+      }
+    };
+
+    window.forceEncounter = function() {
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      if (!activeScene) {
+        window.showGameAlert?.("Aucune scène active");
+        return;
+      }
+
+      if (activeScene.forceEncounterTest) {
+        activeScene.forceEncounterTest();
+      } else {
+        window.showGameAlert?.("Fonction forceEncounter non disponible sur cette scène");
+      }
+    };
+
+    window.resetEncounterCooldowns = function() {
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      if (!activeScene) {
+        window.showGameAlert?.("Aucune scène active");
+        return;
+      }
+
+      if (activeScene.resetEncounterCooldowns) {
+        activeScene.resetEncounterCooldowns();
+      } else if (window.encounterManagerGlobal) {
+        window.encounterManagerGlobal.resetCooldowns();
+        window.showGameNotification("Cooldowns encounters reset", "info", { duration: 1500, position: 'bottom-center' });
+      } else {
+        window.showGameAlert?.("Système d'encounters non initialisé");
+      }
+    };
+
+    window.simulateEncounterSteps = function(count = 5) {
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      if (!activeScene) {
+        window.showGameAlert?.("Aucune scène active");
+        return;
+      }
+
+      if (activeScene.simulateEncounterSteps) {
+        activeScene.simulateEncounterSteps(count);
+      } else if (window.encounterManagerGlobal) {
+        window.encounterManagerGlobal.simulateSteps(count);
+        window.showGameNotification(`${count} pas simulés`, "info", { duration: 1500, position: 'bottom-center' });
+      } else {
+        window.showGameAlert?.("Système d'encounters non initialisé");
+      }
+    };
+
+    window.getCurrentEncounterInfo = function() {
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      if (!activeScene) {
+        console.log("❌ Aucune scène active");
+        return null;
+      }
+
+      if (activeScene.getCurrentEncounterInfo) {
+        return activeScene.getCurrentEncounterInfo();
+      } else {
+        console.log("❌ Fonction getCurrentEncounterInfo non disponible");
+        return null;
+      }
+    };
     
     // ✅ NOUVELLES FONCTIONS POUR TESTER LES TRANSITIONS
     window.testTransition = function(targetZone = 'village') {
@@ -821,6 +1087,8 @@ window.testTeamIcon = function() {
     console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
     console.log("🎒 Utilisez 'I' pour ouvrir l'inventaire en jeu");
     console.log("⚔️ Utilisez 'T' pour ouvrir l'équipe en jeu");
+    console.log("🎲 Utilisez 'F' pour debug encounters en jeu");
+    console.log("🎲 Utilisez 'G' pour forcer un encounter en jeu");
     console.log("🎮 Utilisez window.initAllGameSystems(scene, gameRoom) dans vos scènes pour tout initialiser");
     console.log("🌍 Utilisez window.listAvailableZones() pour voir les zones disponibles");
     console.log("🔄 Utilisez window.testTransition('village') pour tester les transitions");
@@ -863,12 +1131,19 @@ window.isTeamOpen = function() {
   return window.teamManagerGlobal ? window.teamManagerGlobal.teamUI?.isOpen() || false : false;
 };
 
+// 🆕 NOUVEAU: Fonction pour vérifier si un encounter est en cours
+window.isEncounterActive = function() {
+  const activeScene = window.game?.scene?.getScenes(true)[0];
+  return activeScene?.encounterActive || false;
+};
+
 window.shouldBlockInput = function() {
   return window.isChatFocused() ||
     window.isStarterHUDOpen() ||
     window.isQuestJournalOpen() ||
     window.isInventoryOpen() ||
-    window.isTeamOpen();
+    window.isTeamOpen() ||
+    window.isEncounterActive(); // 🆕 NOUVEAU: Bloquer aussi pendant encounters
 };
 
 window.canPlayerInteract = function() {
@@ -877,7 +1152,7 @@ window.canPlayerInteract = function() {
   return !window.shouldBlockInput();
 };
 
-// ✅ FONCTION DEBUG AMÉLIORÉE
+// ✅ FONCTION DEBUG AMÉLIORÉE AVEC ENCOUNTERS
 window.getGameSystemsStatus = function() {
   const status = {
     chat: { initialized: !!window.pokeChat, focused: window.isChatFocused() },
@@ -885,6 +1160,13 @@ window.getGameSystemsStatus = function() {
     quests: { initialized: !!window.questSystemGlobal, journalOpen: window.isQuestJournalOpen() },
     starter: { initialized: !!window.starterHUD, open: window.isStarterHUDOpen() },
     team: { initialized: !!window.teamManagerGlobal, open: window.isTeamOpen() },
+    // 🆕 NOUVEAU: Status encounters
+    encounters: { 
+      initialized: !!window.encounterManagerGlobal, 
+      active: window.isEncounterActive(),
+      globalManager: !!window.encounterManagerGlobal,
+      sceneManager: !!window.game?.scene?.getScenes(true)[0]?.encounterManager
+    },
     networkManager: {
       initialized: !!window.globalNetworkManager,
       connected: window.globalNetworkManager?.isConnected || false,
@@ -896,7 +1178,7 @@ window.getGameSystemsStatus = function() {
       manager: window.NotificationManager ? 'Available' : 'Not Available',
       ready: window.gameNotificationSystem ? window.gameNotificationSystem.isReady() : false
     },
-    // ✅ NOUVEAU: Info du SceneRegistry
+    // ✅ Info du SceneRegistry
     sceneRegistry: {
       initialized: !!window.sceneRegistry,
       availableZones: window.sceneRegistry?.getAvailableZones() || [],
@@ -928,6 +1210,14 @@ window.debugGameSystems = function() {
   } else {
     console.log("❌ SceneRegistry global introuvable");
   }
+
+  // 🆕 NOUVEAU: DEBUG ENCOUNTER SYSTEM
+  if (window.encounterManagerGlobal) {
+    console.log("🎲 Debug EncounterManager:");
+    window.debugEncounterSystem();
+  } else {
+    console.log("❌ EncounterManager global introuvable");
+  }
   
   return status;
 };
@@ -937,7 +1227,7 @@ window.quickTestNotifications = function() {
   window.testNotifications?.();
 };
 
-// ✅ AIDE AMÉLIORÉE
+// ✅ AIDE AMÉLIORÉE AVEC ENCOUNTERS
 window.showGameHelp = function() {
   window.showGameNotification?.("Aide affichée dans la console", "info", { duration: 3000, position: 'top-center' });
   console.log(`
@@ -947,17 +1237,28 @@ window.showGameHelp = function() {
 • I - Ouvrir/Fermer l'inventaire
 • T - Ouvrir/Fermer l'équipe
 • Q - Ouvrir/Fermer le journal des quêtes
+• F - Debug encounters (dans les zones)
+• G - Forcer un encounter (dans les zones)
 • E - Interagir avec NPCs/objets
 • WASD ou Flèches - Déplacement
 
 === Fonctions de test ===
 • window.testInventory() - Tester l'inventaire
 • window.testTeam() - Tester l'équipe
+• window.testEncounter() - Tester les encounters
 • window.testNotifications() - Tester les notifications
 • window.quickTestNotifications() - Test rapide
 • window.debugGameSystems() - Debug des systèmes
 
-=== Fonctions de transition (NOUVEAU) ===
+=== Fonctions encounters (NOUVEAU) ===
+• window.debugEncounters() - Debug encounters
+• window.forceEncounter() - Forcer un encounter
+• window.resetEncounterCooldowns() - Reset cooldowns
+• window.simulateEncounterSteps(5) - Simuler des pas
+• window.getCurrentEncounterInfo() - Info position actuelle
+• window.quickEncounterDebug() - Debug rapide encounters
+
+=== Fonctions de transition ===
 • window.testTransition('village') - Test transition vers village
 • window.forceTransition('beach') - Forcer transition
 • window.listAvailableZones() - Lister zones disponibles
@@ -968,6 +1269,7 @@ window.showGameHelp = function() {
 • Inventaire: ${!!window.inventorySystemGlobal}
 • Équipe: ${!!window.teamManagerGlobal}
 • Quêtes: ${!!window.questSystemGlobal}
+• Encounters: ${!!window.encounterManagerGlobal}
 • Notifications: ${!!window.gameNotificationSystem}
 • Starter HUD: ${!!window.starterHUD}
 • NetworkManager: ${!!window.globalNetworkManager} (connecté: ${window.globalNetworkManager?.isConnected})
@@ -976,8 +1278,10 @@ window.showGameHelp = function() {
 === Pour les développeurs ===
 • window.showNotificationInstructions() - Instructions complètes
 • window.debugNotificationSystem() - Debug notifications
+• window.debugEncounterSystem() - Debug encounters complet
 • window.getGameSystemsStatus() - Statut des systèmes
 • window.restartCurrentZone() - Redémarrer la zone actuelle
+• window.fixEncounterSystem() - Réparer system encounters
 ========================
   `);
 };
@@ -988,5 +1292,6 @@ Utilisez window.showGameHelp() pour l'aide complète
 Tous les systèmes sont initialisés et prêts !
 🔄 Support des transitions robustes intégré !
 ⚔️ Système d'équipe Pokémon disponible !
+🎲 Système d'encounters Pokémon intégré !
 ==============================
 `);
