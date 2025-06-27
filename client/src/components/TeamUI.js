@@ -498,17 +498,6 @@ export class TeamUI {
         this.displayPokemonInSlot(slot, pokemon, index);
       }
     });
-
-    // ✅ Test de clic direct après création
-    setTimeout(() => {
-      const testCard = slotsContainer.querySelector('.pokemon-card');
-      if (testCard) {
-        console.log('🧪 Test - Carte trouvée:', testCard);
-        console.log('🧪 Test - onclick défini:', testCard.onclick ? 'OUI' : 'NON');
-        console.log('🧪 Test - dataset:', testCard.dataset);
-        console.log('🧪 Tapez "window.teamUI.testSelection()" dans la console pour tester la sélection');
-      }
-    }, 200);
   }
 
   displayPokemonInSlot(slot, pokemon, index) {
@@ -528,9 +517,7 @@ export class TeamUI {
     pokemonCard.className = 'pokemon-card';
     pokemonCard.dataset.pokemonId = pokemon._id;
     pokemonCard.dataset.slot = index;
-    
-    // ✅ DÉSACTIVER TEMPORAIREMENT LE DRAG AND DROP
-    // pokemonCard.draggable = true;
+    pokemonCard.draggable = true; // ✅ Réactiver le drag and drop
 
     // Add type-based border class
     if (pokemon.types && pokemon.types.length > 0) {
@@ -583,47 +570,108 @@ export class TeamUI {
 
     slotBackground.appendChild(pokemonCard);
 
-    // ✅ MULTIPLE APPROACHES POUR CAPTURER LE CLIC
+    // ✅ SYSTEM DE GESTION DES CLICS COMPLET
     const self = this;
+    let clickTimeout = null;
 
-    // Méthode 1: onclick direct
-    pokemonCard.onclick = function(e) {
-      console.log('🎯 ONCLICK METHOD - Clic détecté !');
-      e.preventDefault();
-      e.stopPropagation();
-      self.selectPokemon(pokemon, pokemonCard, index);
-      return false;
-    };
-
-    // Méthode 2: addEventListener avec capture
+    // 🎯 CLIC SIMPLE - Sélection avec délai pour éviter conflit avec double-clic
     pokemonCard.addEventListener('click', function(e) {
-      console.log('🎯 ADDEVENTLISTENER METHOD - Clic détecté !');
       e.preventDefault();
       e.stopPropagation();
-      self.selectPokemon(pokemon, pokemonCard, index);
-    }, true);
-
-    // Méthode 3: mousedown (plus immédiat que click)
-    pokemonCard.addEventListener('mousedown', function(e) {
-      console.log('🎯 MOUSEDOWN METHOD - Clic détecté !');
-      e.preventDefault();
-      e.stopPropagation();
-      self.selectPokemon(pokemon, pokemonCard, index);
+      
+      console.log('🎯 CLIC SIMPLE détecté');
+      
+      // Annuler le délai précédent s'il existe
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+      }
+      
+      // Délai de 300ms pour distinguer simple/double clic
+      clickTimeout = setTimeout(() => {
+        console.log('🎯 Exécution CLIC SIMPLE (sélection)');
+        self.selectPokemon(pokemon, pokemonCard, index);
+      }, 300);
     });
 
-    // Méthode 4: Événement sur tous les enfants aussi
-    pokemonCard.addEventListener('click', function(e) {
-      console.log('🎯 CHILDREN CLICK - Élément cliqué:', e.target);
+    // 🎯 DOUBLE-CLIC - Directement aux détails
+    pokemonCard.addEventListener('dblclick', function(e) {
       e.preventDefault();
       e.stopPropagation();
+      
+      console.log('🎯 DOUBLE-CLIC détecté - Ouverture détails');
+      
+      // Annuler le clic simple en attente
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+        clickTimeout = null;
+      }
+      
+      // Effet visuel
+      pokemonCard.classList.add('details-opening');
+      setTimeout(() => {
+        pokemonCard.classList.remove('details-opening');
+      }, 400);
+      
+      // Sélectionner ET aller aux détails
       self.selectPokemon(pokemon, pokemonCard, index);
+      setTimeout(() => {
+        self.showPokemonDetails(pokemon);
+      }, 100);
     });
 
-    // Test immédiat
-    setTimeout(() => {
-      console.log('🧪 Test click programmé...');
-      pokemonCard.click();
-    }, 1000);
+    // 🎯 CLIC DROIT - Menu contextuel ou détails
+    pokemonCard.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      console.log('🎯 CLIC DROIT détecté - Ouverture détails');
+      
+      // Annuler le clic simple en attente
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+        clickTimeout = null;
+      }
+      
+      // Effet visuel
+      pokemonCard.classList.add('details-opening');
+      setTimeout(() => {
+        pokemonCard.classList.remove('details-opening');
+      }, 400);
+      
+      // Sélectionner ET aller aux détails
+      self.selectPokemon(pokemon, pokemonCard, index);
+      setTimeout(() => {
+        self.showPokemonDetails(pokemon);
+      }, 100);
+    });
+
+    // 🎯 MENU CONTEXTUEL (icône ℹ️)
+    const contextMenu = pokemonCard.querySelector('.pokemon-context-menu');
+    if (contextMenu) {
+      contextMenu.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('🎯 MENU CONTEXTUEL cliqué - Ouverture détails');
+        
+        // Annuler le clic simple en attente
+        if (clickTimeout) {
+          clearTimeout(clickTimeout);
+          clickTimeout = null;
+        }
+        
+        // Effet visuel
+        pokemonCard.classList.add('details-opening');
+        setTimeout(() => {
+          pokemonCard.classList.remove('details-opening');
+        }, 400);
+        
+        self.selectPokemon(pokemon, pokemonCard, index);
+        setTimeout(() => {
+          self.showPokemonDetails(pokemon);
+        }, 100);
+      });
+    }
 
     // ✅ RENDRE TEAMUI ACCESSIBLE GLOBALEMENT
     window.teamUI = this;
@@ -633,7 +681,7 @@ export class TeamUI {
       pokemonCard.classList.add('new');
     }, index * 100);
 
-    console.log('✅ Carte Pokémon créée avec TOUS les listeners');
+    console.log('✅ Carte Pokémon créée avec tous les listeners (simple/double/droit)');
   }
 
   getGenderDisplay(gender) {
@@ -759,9 +807,27 @@ export class TeamUI {
   }
 
   showPokemonDetails(pokemon) {
+    console.log('📊 Ouverture des détails pour:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
+    
+    // S'assurer que le Pokémon est sélectionné
     this.selectedPokemon = pokemon;
+    
+    // Passer à la vue détails
     this.switchToView('details');
+    
+    // Mettre à jour l'affichage des détails
     this.updateDetailView();
+    
+    // Optionnel: Effet visuel pour indiquer le changement
+    const detailsTab = this.overlay.querySelector('[data-view="details"]');
+    if (detailsTab) {
+      detailsTab.style.animation = 'teamPulse 0.6s ease';
+      setTimeout(() => {
+        detailsTab.style.animation = '';
+      }, 600);
+    }
+    
+    console.log('📊 Vue détails activée');
   }
 
   updateDetailView() {
