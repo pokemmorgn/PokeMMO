@@ -1,4 +1,4 @@
-// server/src/handlers/EncounterHandlers.ts
+// server/src/handlers/EncounterHandlers.ts - VERSION CORRIGÉE AVEC NOTIFICATIONS
 import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { ServerEncounterManager } from "../managers/EncounterManager";
@@ -23,7 +23,21 @@ export class EncounterHandlers {
   setupHandlers(): void {
     console.log(`📨 [EncounterHandlers] Configuration des handlers...`);
 
-    // ✅ HANDLER RENCONTRES AVEC ZONES
+    // ✅ HANDLER PRINCIPAL: Déclenchement d'encounter depuis le client
+    this.room.onMessage("triggerEncounter", async (client, data: {
+      x: number;
+      y: number;
+      zoneId: string;
+      method: 'grass' | 'fishing';
+      encounterRate?: number;
+      forced?: boolean;
+      fromNotification?: boolean;
+      timestamp?: number;
+    }) => {
+      await this.handleTriggerEncounter(client, data);
+    });
+
+    // ✅ HANDLER VALIDATION: Vérification d'encounter (ancien système)
     this.room.onMessage("checkEncounter", async (client, data: {
       zone: string;
       method: 'grass' | 'fishing';
@@ -31,29 +45,22 @@ export class EncounterHandlers {
       y: number;
       zoneId?: string;
     }) => {
-      await this.handleEncounterCheck(client, data);
+      // Rediriger vers le nouveau handler
+      await this.handleTriggerEncounter(client, {
+        x: data.x,
+        y: data.y,
+        zoneId: data.zoneId || `${data.zone}_default`,
+        method: data.method,
+        encounterRate: 0.1
+      });
     });
 
-    // ✅ HANDLER COMBAT SAUVAGE
-    this.room.onMessage("triggerWildBattle", async (client, data: {
+    // ✅ HANDLER COMBAT SAUVAGE (pour plus tard)
+    this.room.onMessage("startWildBattle", async (client, data: {
       playerPokemonId: number;
-      zone: string;
-      method?: string;
-      x: number;
-      y: number;
-      zoneId?: string;
+      wildPokemonData: any;
     }) => {
-      await this.handleTriggerWildBattle(client, data);
-    });
-
-    // ✅ HANDLER RÉSULTAT DE COMBAT
-    this.room.onMessage("battleResult", (client, data: {
-      result: 'victory' | 'defeat' | 'fled' | 'caught';
-      expGained?: number;
-      pokemonCaught?: boolean;
-      capturedPokemon?: any;
-    }) => {
-      this.handleBattleResult(client, data);
+      await this.handleStartWildBattle(client, data);
     });
 
     // ✅ HANDLERS DEBUG ET DÉVELOPPEMENT
@@ -81,13 +88,16 @@ export class EncounterHandlers {
     console.log(`✅ [EncounterHandlers] Tous les handlers configurés`);
   }
 
-  // ✅ HANDLER PRINCIPAL : VÉRIFICATION DE RENCONTRE
-  private async handleEncounterCheck(client: Client, data: {
-    zone: string;
-    method: 'grass' | 'fishing';
+  // ✅ HANDLER PRINCIPAL : DÉCLENCHEMENT D'ENCOUNTER
+  private async handleTriggerEncounter(client: Client, data: {
     x: number;
     y: number;
-    zoneId?: string;
+    zoneId: string;
+    method: 'grass' | 'fishing';
+    encounterRate?: number;
+    forced?: boolean;
+    fromNotification?: boolean;
+    timestamp?: number;
   }): Promise<void> {
     const player = this.room.state.players.get(client.sessionId);
     if (!player) {
@@ -95,11 +105,13 @@ export class EncounterHandlers {
       return;
     }
 
-    console.log(`🌿 [EncounterHandlers] === VÉRIFICATION RENCONTRE ===`);
+    console.log(`🎲 [EncounterHandlers] === TRIGGER ENCOUNTER ===`);
     console.log(`👤 Joueur: ${player.name}`);
-    console.log(`📍 Position: (${data.x}, ${data.y}) dans ${data.zone}`);
-    console.log(`🎯 Zone ID: ${data.zoneId || 'default'}`);
+    console.log(`📍 Position: (${data.x}, ${data.y})`);
+    console.log(`🎯 Zone ID: ${data.zoneId}`);
     console.log(`🌿 Méthode: ${data.method}`);
+    console.log(`🔧 Forcé: ${data.forced || false}`);
+    console.log(`🔔 Depuis notification: ${data.fromNotification || false}`);
 
     try {
       // ✅ OBTENIR LES CONDITIONS ACTUELLES
@@ -109,10 +121,10 @@ export class EncounterHandlers {
 
       console.log(`⏰ Conditions: ${timeOfDay}, ${weather}`);
 
-      // ✅ VALIDATION CÔTÉ SERVEUR avec zones
+      // ✅ VALIDATION CÔTÉ SERVEUR
       const wildPokemon = await this.encounterManager.validateAndGenerateEncounter(
         client.sessionId,
-        data.zone,
+        player.currentZone, // Utiliser la zone du joueur
         data.x,
         data.y,
         timeOfDay as 'day' | 'night',
@@ -122,14 +134,16 @@ export class EncounterHandlers {
       );
 
       if (wildPokemon) {
-        console.log(`⚔️ [EncounterHandlers] Rencontre déclenchée !`);
+        console.log(`⚔️ [EncounterHandlers] Rencontre générée !`);
         console.log(`🐾 Pokémon: ${wildPokemon.pokemonId} niveau ${wildPokemon.level}`);
         console.log(`✨ Spécial: Shiny=${wildPokemon.shiny}, Nature=${wildPokemon.nature}`);
         
-        // ✅ ENVOYER L'ÉVÉNEMENT DE RENCONTRE AU CLIENT
-        client.send("encounterTriggered", {
-          wildPokemon: {
+        // ✅ ENVOYER LA NOTIFICATION D'ENCOUNTER AU CLIENT
+        client.send("wildEncounter", {
+          success: true,
+          pokemon: {
             pokemonId: wildPokemon.pokemonId,
+            name: this.getPokemonName(wildPokemon.pokemonId), // Helper pour le nom
             level: wildPokemon.level,
             shiny: wildPokemon.shiny,
             gender: wildPokemon.gender,
@@ -138,8 +152,8 @@ export class EncounterHandlers {
             ivs: wildPokemon.ivs
           },
           location: {
-            zone: data.zone,
-            zoneId: data.zoneId || 'default',
+            zone: player.currentZone,
+            zoneId: data.zoneId,
             x: data.x,
             y: data.y
           },
@@ -148,48 +162,62 @@ export class EncounterHandlers {
             timeOfDay,
             weather
           },
+          forced: data.forced || false,
+          fromNotification: data.fromNotification || false,
           timestamp: Date.now()
         });
 
-        console.log(`📤 [EncounterHandlers] Rencontre envoyée à ${client.sessionId}`);
+        console.log(`📤 [EncounterHandlers] Wild encounter envoyé à ${client.sessionId}`);
         
-        // ✅ BROADCASTER AUX AUTRES JOUEURS DE LA ZONE (optionnel)
+        // ✅ BROADCASTER AUX AUTRES JOUEURS DE LA ZONE (optionnel et discret)
         this.broadcastToZone(player.currentZone, "playerEncounter", {
           playerName: player.name,
           pokemonId: wildPokemon.pokemonId,
+          pokemonName: this.getPokemonName(wildPokemon.pokemonId),
           level: wildPokemon.level,
-          shiny: wildPokemon.shiny
+          shiny: wildPokemon.shiny,
+          method: data.method
         }, client.sessionId);
 
       } else {
         console.log(`❌ [EncounterHandlers] Aucune rencontre pour ${player.name}`);
         
         // ✅ INFORMER LE CLIENT QU'IL N'Y A PAS DE RENCONTRE
-        client.send("encounterResult", {
+        client.send("encounterFailed", {
           success: false,
-          reason: "no_encounter",
+          reason: "no_encounter_generated",
+          message: "No wild Pokémon appeared",
           conditions: { timeOfDay, weather },
-          cooldownActive: false
+          location: {
+            zone: player.currentZone,
+            zoneId: data.zoneId,
+            x: data.x,
+            y: data.y
+          },
+          method: data.method
         });
       }
 
     } catch (error) {
-      console.error(`❌ [EncounterHandlers] Erreur lors de la vérification:`, error);
+      console.error(`❌ [EncounterHandlers] Erreur lors de la génération:`, error);
       client.send("encounterError", {
-        message: "Erreur lors de la vérification de rencontre",
-        error: error instanceof Error ? error.message : 'Erreur inconnue'
+        success: false,
+        message: "Error generating encounter",
+        error: error instanceof Error ? error.message : 'Unknown error',
+        location: {
+          zone: player.currentZone,
+          zoneId: data.zoneId,
+          x: data.x,
+          y: data.y
+        }
       });
     }
   }
 
-  // ✅ HANDLER : DÉCLENCHEMENT COMBAT SAUVAGE
-  private async handleTriggerWildBattle(client: Client, data: {
+  // ✅ HANDLER : DÉMARRAGE COMBAT SAUVAGE (pour plus tard)
+  private async handleStartWildBattle(client: Client, data: {
     playerPokemonId: number;
-    zone: string;
-    method?: string;
-    x: number;
-    y: number;
-    zoneId?: string;
+    wildPokemonData: any;
   }): Promise<void> {
     const player = this.room.state.players.get(client.sessionId);
     if (!player) {
@@ -197,122 +225,18 @@ export class EncounterHandlers {
       return;
     }
 
-    console.log(`🎮 [EncounterHandlers] === DÉCLENCHEMENT COMBAT SAUVAGE ===`);
+    console.log(`🎮 [EncounterHandlers] === DÉMARRAGE COMBAT SAUVAGE ===`);
     console.log(`👤 Joueur: ${player.name}`);
-    console.log(`📍 Position: (${data.x}, ${data.y})`);
-    console.log(`🌍 Zone: ${data.zone} - ZoneID: ${data.zoneId || 'default'}`);
+    console.log(`🐾 Pokémon sauvage:`, data.wildPokemonData);
 
-    try {
-      // ✅ OBTENIR LES CONDITIONS ACTUELLES
-      const conditions = this.room.getCurrentTimeInfo();
-      
-      // ✅ CRÉER LE COMBAT VIA L'API INTERNE
-      const response = await fetch('http://localhost:2567/api/battle/wild', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          playerId: client.sessionId,
-          playerName: player.name,
-          playerPokemonId: data.playerPokemonId,
-          zone: data.zone,
-          zoneId: data.zoneId,
-          method: data.method || 'grass',
-          timeOfDay: conditions.isDayTime ? 'day' : 'night',
-          weather: conditions.weather,
-          x: data.x,
-          y: data.y
-        })
-      });
-
-      if (response.ok) {
-        const battleData = await response.json();
-        
-        console.log(`✅ [EncounterHandlers] Combat créé: ${battleData.roomId}`);
-        
-        client.send("battleCreated", {
-          success: true,
-          roomId: battleData.roomId,
-          wildPokemon: battleData.wildPokemon,
-          encounter: battleData.encounter
-        });
-
-        // ✅ BROADCASTER QUE LE JOUEUR ENTRE EN COMBAT
-        this.broadcastToZone(player.currentZone, "playerEnteredBattle", {
-          playerName: player.name,
-          battleType: "wild",
-          wildPokemon: battleData.wildPokemon
-        }, client.sessionId);
-
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erreur API battle');
-      }
-
-    } catch (error) {
-      console.error('❌ [EncounterHandlers] Erreur création combat:', error);
-      client.send("battleError", { 
-        message: "Impossible de créer le combat",
-        details: error instanceof Error ? error.message : 'Erreur inconnue'
-      });
-    }
-  }
-
-  // ✅ HANDLER : RÉSULTAT DE COMBAT
-  private handleBattleResult(client: Client, data: {
-    result: 'victory' | 'defeat' | 'fled' | 'caught';
-    expGained?: number;
-    pokemonCaught?: boolean;
-    capturedPokemon?: any;
-  }): void {
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) return;
-
-    console.log(`🏆 [EncounterHandlers] Résultat de combat pour ${player.name}:`, data.result);
-
-    // ✅ METTRE À JOUR L'ÉTAT DU JOUEUR SELON LE RÉSULTAT
-    switch (data.result) {
-      case 'victory':
-        console.log(`${player.name} remporte le combat !`);
-        if (data.expGained) {
-          console.log(`${player.name} gagne ${data.expGained} XP !`);
-          // TODO: Mettre à jour l'XP du joueur
-        }
-        break;
-
-      case 'caught':
-        console.log(`${player.name} a capturé un Pokémon !`);
-        if (data.capturedPokemon) {
-          console.log(`Pokémon capturé:`, data.capturedPokemon);
-          // TODO: Ajouter le Pokémon à l'équipe du joueur
-        }
-        break;
-
-      case 'defeat':
-        console.log(`${player.name} a été battu...`);
-        // TODO: Logique de défaite (téléportation au Centre Pokémon, etc.)
-        break;
-
-      case 'fled':
-        console.log(`${player.name} a pris la fuite !`);
-        break;
-    }
-
-    // ✅ BROADCASTER LE RÉSULTAT AUX AUTRES JOUEURS DE LA ZONE
-    this.broadcastToZone(player.currentZone, "playerBattleResult", {
-      playerName: player.name,
-      result: data.result,
-      expGained: data.expGained,
-      pokemonCaught: data.pokemonCaught
-    }, client.sessionId);
-
-    // ✅ CONFIRMER AU CLIENT
-    client.send("battleResultProcessed", {
-      success: true,
-      result: data.result,
-      message: this.getBattleResultMessage(data.result)
+    // ✅ POUR L'INSTANT: Juste une notification que le combat n'est pas implémenté
+    client.send("battleNotImplemented", {
+      message: "Wild battles not yet implemented",
+      wildPokemon: data.wildPokemonData,
+      playerPokemon: data.playerPokemonId
     });
+
+    console.log(`ℹ️ [EncounterHandlers] Combat non implémenté - notification envoyée`);
   }
 
   // ✅ HANDLER DEBUG
@@ -332,7 +256,7 @@ export class EncounterHandlers {
       zone: zone,
       playerZone: player.currentZone,
       currentConditions: this.room.getCurrentTimeInfo(),
-      encounterManagerStats: 'visible en console serveur'
+      encounterManagerStats: 'Visible en console serveur'
     };
 
     client.send("encounterDebugResult", {
@@ -369,9 +293,11 @@ export class EncounterHandlers {
       );
 
       if (wildPokemon) {
-        client.send("encounterTriggered", {
-          wildPokemon: {
+        client.send("wildEncounter", {
+          success: true,
+          pokemon: {
             pokemonId: wildPokemon.pokemonId,
+            name: this.getPokemonName(wildPokemon.pokemonId),
             level: wildPokemon.level,
             shiny: wildPokemon.shiny,
             gender: wildPokemon.gender,
@@ -396,9 +322,10 @@ export class EncounterHandlers {
 
         console.log(`✅ [EncounterHandlers] Rencontre forcée envoyée`);
       } else {
-        client.send("encounterDebugResult", {
+        client.send("encounterFailed", {
           success: false,
           message: "Impossible de générer une rencontre même en mode forcé",
+          reason: "force_generation_failed",
           zone: data.zone,
           zoneId: data.zoneId
         });
@@ -406,7 +333,7 @@ export class EncounterHandlers {
 
     } catch (error) {
       console.error('❌ [EncounterHandlers] Erreur force rencontre:', error);
-      client.send("encounterDebugResult", {
+      client.send("encounterError", {
         success: false,
         message: "Erreur lors de la génération forcée",
         error: error instanceof Error ? error.message : 'Erreur inconnue'
@@ -426,7 +353,8 @@ export class EncounterHandlers {
     // ✅ INFORMATIONS SUR LA POSITION ACTUELLE
     const conditions = this.room.getCurrentTimeInfo();
     
-    client.send("encounterPositionInfo", {
+    client.send("encounterZoneInfo", {
+      success: true,
       position: { x: data.x, y: data.y },
       zone: data.zone,
       conditions: {
@@ -441,6 +369,27 @@ export class EncounterHandlers {
   }
 
   // ✅ MÉTHODES UTILITAIRES
+
+  private getPokemonName(pokemonId: number): string {
+    // Mapping simple des ID vers les noms (à améliorer)
+    const pokemonNames: { [key: number]: string } = {
+      16: "Pidgey",
+      19: "Rattata", 
+      10: "Caterpie",
+      13: "Weedle",
+      43: "Oddish",
+      69: "Bellsprout",
+      41: "Zubat",
+      92: "Gastly",
+      25: "Pikachu",
+      194: "Wooper",
+      129: "Magikarp",
+      170: "Chinchou",
+      116: "Horsea"
+    };
+    
+    return pokemonNames[pokemonId] || `Pokemon #${pokemonId}`;
+  }
 
   private broadcastToZone(zoneName: string, message: string, data: any, excludeSessionId?: string): void {
     console.log(`📡 [EncounterHandlers] Broadcasting to zone ${zoneName}: ${message}`);
@@ -457,16 +406,6 @@ export class EncounterHandlers {
     });
     
     console.log(`📤 [EncounterHandlers] Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
-  }
-
-  private getBattleResultMessage(result: string): string {
-    switch (result) {
-      case 'victory': return 'Victoire ! Votre Pokémon a gagné de l\'expérience !';
-      case 'defeat': return 'Défaite... Votre Pokémon a besoin de soins.';
-      case 'caught': return 'Pokémon capturé avec succès !';
-      case 'fled': return 'Vous avez fui le combat.';
-      default: return 'Combat terminé.';
-    }
   }
 
   // ✅ MÉTHODES PUBLIQUES POUR ACCÈS EXTERNE
