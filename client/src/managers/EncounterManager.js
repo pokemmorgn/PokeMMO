@@ -58,23 +58,27 @@ export class ClientEncounterManager {
             );
           }
 
-          if ((obj.name === 'encounterzone' || obj.type === 'encounterzone') && zoneIdProp && zoneIdProp.value) {
-            this.encounterZones.set(obj.id.toString(), {
-              id: obj.id,
-              zoneId: zoneIdProp.value,
-              x: obj.x,
-              y: obj.y,
-              width: obj.width,
-              height: obj.height,
-              bounds: {
-                left: obj.x,
-                right: obj.x + obj.width,
-                top: obj.y,
-                bottom: obj.y + obj.height
-              }
-            });
-            console.log(`📍 [ClientEncounter] Zone trouvée: ${zoneIdProp.value} à (${obj.x}, ${obj.y})`);
-          }
+const isEncounterZone =
+  (obj.name === 'encounterzone' || obj.name === 'encouterzone' ||
+   obj.type === 'encounterzone' || obj.type === 'encouterzone');
+
+if (isEncounterZone && zoneIdProp && zoneIdProp.value) {
+  this.encounterZones.set(obj.id.toString(), {
+    id: obj.id,
+    zoneId: zoneIdProp.value,
+    x: obj.x,
+    y: obj.y,
+    width: obj.width,
+    height: obj.height,
+    bounds: {
+      left: obj.x,
+      right: obj.x + obj.width,
+      top: obj.y,
+      bottom: obj.y + obj.height
+    }
+  });
+  console.log(`📍 [ClientEncounter] Zone trouvée: ${zoneIdProp.value} à (${obj.x}, ${obj.y})`);
+}
         }
       }
     }
