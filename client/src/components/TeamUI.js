@@ -570,27 +570,16 @@ export class TeamUI {
 
     slotBackground.appendChild(pokemonCard);
 
-    // ✅ SYSTEM DE GESTION DES CLICS COMPLET
+    // ✅ SYSTEM DE GESTION DES CLICS SIMPLIFIÉ
     const self = this;
-    let clickTimeout = null;
 
-    // 🎯 CLIC SIMPLE - Sélection avec délai pour éviter conflit avec double-clic
+    // 🎯 CLIC SIMPLE - Sélection immédiate
     pokemonCard.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
       
-      console.log('🎯 CLIC SIMPLE détecté');
-      
-      // Annuler le délai précédent s'il existe
-      if (clickTimeout) {
-        clearTimeout(clickTimeout);
-      }
-      
-      // Délai de 300ms pour distinguer simple/double clic
-      clickTimeout = setTimeout(() => {
-        console.log('🎯 Exécution CLIC SIMPLE (sélection)');
-        self.selectPokemon(pokemon, pokemonCard, index);
-      }, 300);
+      console.log('🎯 CLIC SIMPLE - Sélection immédiate');
+      self.selectPokemon(pokemon, pokemonCard, index);
     });
 
     // 🎯 DOUBLE-CLIC - Directement aux détails
@@ -599,12 +588,6 @@ export class TeamUI {
       e.stopPropagation();
       
       console.log('🎯 DOUBLE-CLIC détecté - Ouverture détails');
-      
-      // Annuler le clic simple en attente
-      if (clickTimeout) {
-        clearTimeout(clickTimeout);
-        clickTimeout = null;
-      }
       
       // Effet visuel
       pokemonCard.classList.add('details-opening');
@@ -625,12 +608,6 @@ export class TeamUI {
       e.stopPropagation();
       
       console.log('🎯 CLIC DROIT détecté - Ouverture détails');
-      
-      // Annuler le clic simple en attente
-      if (clickTimeout) {
-        clearTimeout(clickTimeout);
-        clickTimeout = null;
-      }
       
       // Effet visuel
       pokemonCard.classList.add('details-opening');
@@ -653,12 +630,6 @@ export class TeamUI {
         e.stopPropagation();
         
         console.log('🎯 MENU CONTEXTUEL cliqué - Ouverture détails');
-        
-        // Annuler le clic simple en attente
-        if (clickTimeout) {
-          clearTimeout(clickTimeout);
-          clickTimeout = null;
-        }
         
         // Effet visuel
         pokemonCard.classList.add('details-opening');
@@ -754,43 +725,31 @@ export class TeamUI {
   }
 
   selectPokemon(pokemon, cardElement, slotIndex) {
-    console.log('🎯 ===== SÉLECTION POKÉMON =====');
-    console.log('🎯 Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-    console.log('🎯 Élément carte:', cardElement);
-    console.log('🎯 Slot:', slotIndex);
+    console.log('🎯 Sélection Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
     
     // Désélectionner l'ancien
     this.overlay.querySelectorAll('.team-slot').forEach(slot => {
       slot.classList.remove('selected');
-      console.log('🎯 Slot désélectionné:', slot);
     });
     this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
       card.classList.remove('active');
-      console.log('🎯 Carte désactivée:', card);
     });
 
     // Sélectionner le nouveau
     const slot = cardElement.closest('.team-slot');
     if (slot) {
       slot.classList.add('selected');
-      console.log('🎯 Slot sélectionné:', slot);
-    } else {
-      console.log('❌ Slot parent non trouvé');
     }
     
     cardElement.classList.add('active');
-    console.log('🎯 Carte activée:', cardElement);
     
     this.selectedPokemon = pokemon;
     this.selectedSlot = slotIndex;
 
-    console.log('🎯 État final - selectedPokemon:', this.selectedPokemon);
-    console.log('🎯 État final - selectedSlot:', this.selectedSlot);
-
     // Mettre à jour les vues
     this.updateDetailView();
     
-    console.log('🎯 ===== FIN SÉLECTION =====');
+    console.log('✅ Pokémon sélectionné avec succès');
   }
 
   deselectPokemon() {
