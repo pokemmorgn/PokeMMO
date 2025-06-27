@@ -233,120 +233,63 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   // 🆕 NOUVELLE MÉTHODE: Setup des handlers réseau pour les encounters
-  setupEncounterNetworkHandlers() {
-    if (!this.networkManager?.room) {
-      console.warn(`⚠️ [${this.scene.key}] Pas de room pour setup encounter handlers`);
-      return;
-    }
 
-    console.log(`📡 [${this.scene.key}] Setup handlers réseau encounters...`);
+setupEncounterNetworkHandlers() {
+  if (!this.networkManager?.room) {
+    console.warn(`⚠️ [${this.scene.key}] Pas de room pour setup encounter handlers`);
+    return;
+  }
 
-    // ✅ Handler pour les encounters déclenchés par le serveur
-    this.networkManager.onMessage("wildEncounter", (data) => {
-      console.log(`🎲 [${this.scene.key}] Wild encounter reçu du serveur:`, data);
+  console.log(`📡 [${this.scene.key}] Setup handlers réseau encounters...`);
+
+  // ✅ SEUL HANDLER : Combat confirmé par le serveur
+  this.networkManager.onMessage("wildEncounter", (data) => {
+    if (data.success) {
       this.handleWildEncounter(data);
-    });
-
-    // ✅ Handler pour les échecs d'encounter
-    this.networkManager.onMessage("encounterFailed", (data) => {
-      console.log(`❌ [${this.scene.key}] Encounter échoué:`, data.reason);
-      this.handleEncounterFailed(data);
-    });
-
-    // ✅ Handler pour les données d'encounter zone
-    this.networkManager.onMessage("encounterZoneInfo", (data) => {
-      console.log(`📍 [${this.scene.key}] Info zone encounter:`, data);
-      this.handleEncounterZoneInfo(data);
-    });
-
-    console.log(`✅ [${this.scene.key}] Handlers encounter configurés`);
-  }
-
-  // 🆕 NOUVELLE MÉTHODE: Gestion des encounters sauvages
-  handleWildEncounter(data) {
-    console.log(`🎲 [${this.scene.key}] === ENCOUNTER SAUVAGE DÉCLENCHÉ ===`);
-    console.log(`👾 Pokémon: ${data.pokemon?.name || 'Inconnu'} Niveau ${data.pokemon?.level || '?'}`);
-    console.log(`📍 Zone: ${data.zoneId}, Méthode: ${data.method}`);
-
-    // ✅ Arrêter le joueur
-    const myPlayer = this.playerManager?.getMyPlayer();
-    if (myPlayer && myPlayer.body) {
-      myPlayer.body.setVelocity(0, 0);
-      myPlayer.anims.play(`idle_${this.lastDirection}`, true);
     }
+    // ✅ AUCUN ELSE - SILENCE TOTAL SI ÉCHEC
+  });
 
-    // ✅ Afficher notification
-    if (window.showGameNotification) {
-      window.showGameNotification(
-        `Un ${data.pokemon?.name || 'Pokémon'} sauvage apparaît !`,
-        'encounter',
-        { 
-          duration: 3000, 
-          position: 'top-center',
-          bounce: true 
-        }
-      );
-    }
-
-    // ✅ Transition vers la scène de combat (à implémenter)
-    this.time.delayedCall(1000, () => {
-      // TODO: Implémenter transition vers battle scene
-      console.log(`⚔️ [${this.scene.key}] Transition vers combat (TODO)`);
-      
-      // Pour l'instant, juste log et continuer
-      if (window.showGameNotification) {
-        window.showGameNotification(
-          `Combat non implémenté - continuez à explorer !`,
-          'info',
-          { duration: 2000, position: 'bottom-center' }
-        );
-      }
-    });
-  }
+  console.log(`✅ [${this.scene.key}] Handlers encounter configurés`);
+}
 
   // 🆕 NOUVELLE MÉTHODE: Gestion des échecs d'encounter
-handleEncounterFailed(data) {
-  console.log(`❌ [${this.scene.key}] Encounter échoué: ${data.reason}`);
-  console.log(`🔍 [${this.scene.key}] Debug encounter failed:`, data);
-  
-  // ✅ DEBUG: Notification détaillée avec toutes les infos
+handleWildEncounter(data) {
+  console.log(`🎲 [${this.scene.key}] === ENCOUNTER CONFIRMÉ ===`);
+  console.log(`👾 Pokémon: ${data.pokemon?.name} Niveau ${data.pokemon?.level}`);
+
+  // ✅ Arrêter le joueur
+  const myPlayer = this.playerManager?.getMyPlayer();
+  if (myPlayer && myPlayer.body) {
+    myPlayer.body.setVelocity(0, 0);
+    myPlayer.anims.play(`idle_${this.lastDirection}`, true);
+  }
+
+  // ✅ SEULE NOTIFICATION VISIBLE : Combat confirmé
   if (window.showGameNotification) {
-    let debugMessage = '';
-    
-    switch(data.reason) {
-      case 'no_encounter_generated':
-        debugMessage = `Debug: No encounter (zone: ${data.location?.zoneId || 'unknown'}, method: ${data.method || 'unknown'})`;
-        break;
-      case 'cooldown_active':
-        debugMessage = `Debug: Cooldown actif`;
-        break;
-      case 'rate_limit_exceeded':
-        debugMessage = `Debug: Rate limit dépassé`;
-        break;
-      case 'invalid_position':
-        debugMessage = `Debug: Position invalide (${data.location?.x?.toFixed(1)}, ${data.location?.y?.toFixed(1)})`;
-        break;
-      case 'no_encounter_zone':
-        debugMessage = `Debug: Pas de zone encounter`;
-        break;
-      case 'force_generation_failed':
-        debugMessage = `Debug: Génération forcée échouée`;
-        break;
-      default:
-        debugMessage = `Debug: ${data.reason || 'Unknown error'} - Zone: ${data.location?.zoneId || 'N/A'}`;
-    }
-    
-    // Ajouter les conditions si disponibles
-    if (data.conditions) {
-      debugMessage += ` | ${data.conditions.timeOfDay}, ${data.conditions.weather}`;
-    }
-    
     window.showGameNotification(
-      debugMessage,
-      'warning',
-      { duration: 3000, position: 'bottom-right' }
+      `ENCOUNTER WITH ${data.pokemon?.name?.toUpperCase() || 'POKÉMON'}!`,
+      'encounter',
+      { 
+        duration: 3000, 
+        position: 'top-center',
+        bounce: true 
+      }
     );
   }
+
+  // ✅ Transition vers combat (TODO)
+  this.time.delayedCall(1000, () => {
+    console.log(`⚔️ [${this.scene.key}] Transition vers combat (TODO)`);
+    
+    if (window.showGameNotification) {
+      window.showGameNotification(
+        `Combat non implémenté - continuez à explorer !`,
+        'info',
+        { duration: 2000, position: 'bottom-center' }
+      );
+    }
+  });
 }
 
   // 🆕 NOUVELLE MÉTHODE: Gestion des infos de zone
