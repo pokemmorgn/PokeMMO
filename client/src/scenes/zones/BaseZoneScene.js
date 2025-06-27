@@ -1,6 +1,6 @@
 // client/src/scenes/zones/BaseZoneScene.js - VERSION AVEC ENCOUNTER MANAGER INTÉGRÉ
 // ✅ Utilise la connexion établie dans main.js et délègue les interactions à InteractionManager
-// 🆕 NOUVEAU: Intégration complète du ClientEncounterManager + EncounterTransition
+// 🆕 NOUVEAU: Intégration complète du ClientEncounterManager
 
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
@@ -14,8 +14,8 @@ import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
 import { CharacterManager } from "../../game/CharacterManager.js";
 import { zoneEnvironmentManager } from "../../managers/ZoneEnvironmentManager.js";
 import { WeatherEffects } from "../../effects/WeatherEffects.js";
+// 🆕 NOUVEAU: Import du ClientEncounterManager
 import { ClientEncounterManager } from "../../managers/EncounterManager.js";
-import { EncounterTransition } from "../../transitions/EncounterTransition.js";
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -63,9 +63,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.encounterInitialized = false;
     this.lastEncounterCheck = 0;
     this.encounterCheckInterval = 100; // Vérifier toutes les 100ms
-
-    // 🆕 NOUVEAU: EncounterTransition
-    this.encounterTransition = null;
   }
 
   preload() {
@@ -97,9 +94,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.createUI();
     this.myPlayerReady = false;
     this.isSceneReady = true;
-    
-    // Initialiser la transition d'encounter
-    this.encounterTransition = new EncounterTransition(this);
     
     // ✅ UTILISER LA CONNEXION EXISTANTE AU LIEU DE CRÉER UNE NOUVELLE
     this.initializeWithExistingConnection();
@@ -239,41 +233,76 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
   // 🆕 NOUVELLE MÉTHODE: Setup des handlers réseau pour les encounters
-  setupEncounterNetworkHandlers() {
-    if (!this.networkManager?.room) {
-      console.warn(`⚠️ [${this.scene.key}] Pas de room pour setup encounter handlers`);
-      return;
-    }
 
-    console.log(`📡 [${this.scene.key}] Setup handlers réseau encounters...`);
-
-    // ✅ SEUL HANDLER : Combat confirmé par le serveur
-    this.networkManager.onMessage("wildEncounter", (data) => {
-      if (data.success) {
-        this.handleWildEncounter(data);
-      }
-      // ✅ AUCUN ELSE - SILENCE TOTAL SI ÉCHEC
-    });
-
-    console.log(`✅ [${this.scene.key}] Handlers encounter configurés`);
+setupEncounterNetworkHandlers() {
+  if (!this.networkManager?.room) {
+    console.warn(`⚠️ [${this.scene.key}] Pas de room pour setup encounter handlers`);
+    return;
   }
 
-  // 🔄 NOUVELLE MÉTHODE: Gestion des encounters avec transition
-  handleWildEncounter(data) {
-    console.log(`🎲 [${this.scene.key}] === ENCOUNTER CONFIRMÉ ===`);
-    console.log(`👾 Pokémon: ${data.pokemon?.name} Niveau ${data.pokemon?.level}`);
+  console.log(`📡 [${this.scene.key}] Setup handlers réseau encounters...`);
 
-    // ✅ Arrêter le joueur
-    const myPlayer = this.playerManager?.getMyPlayer();
-    if (myPlayer && myPlayer.body) {
-      myPlayer.body.setVelocity(0, 0);
-      myPlayer.anims.play(`idle_${this.lastDirection}`, true);
-      myPlayer.isMovingLocally = false;
+  // ✅ SEUL HANDLER : Combat confirmé par le serveur
+  this.networkManager.onMessage("wildEncounter", (data) => {
+    if (data.success) {
+      this.handleWildEncounter(data);
     }
+    // ✅ AUCUN ELSE - SILENCE TOTAL SI ÉCHEC
+  });
 
-    // ✅ Démarrer la séquence de transition
-    if (this.encounterTransition) {
-      this.encounterTransition.start(data);
+  console.log(`✅ [${this.scene.key}] Handlers encounter configurés`);
+}
+
+  // 🆕 NOUVELLE MÉTHODE: Gestion des échecs d'encounter
+handleWildEncounter(data) {
+  console.log(`🎲 [${this.scene.key}] === ENCOUNTER CONFIRMÉ ===`);
+  console.log(`👾 Pokémon: ${data.pokemon?.name} Niveau ${data.pokemon?.level}`);
+
+  // ✅ Arrêter le joueur
+  const myPlayer = this.playerManager?.getMyPlayer();
+  if (myPlayer && myPlayer.body) {
+    myPlayer.body.setVelocity(0, 0);
+    myPlayer.anims.play(`idle_${this.lastDirection}`, true);
+  }
+
+  // ✅ SEULE NOTIFICATION VISIBLE : Combat confirmé
+  if (window.showGameNotification) {
+    window.showGameNotification(
+      `ENCOUNTER WITH ${data.pokemon?.name?.toUpperCase() || 'POKÉMON'}!`,
+      'encounter',
+      { 
+        duration: 3000, 
+        position: 'top-center',
+        bounce: true 
+      }
+    );
+  }
+
+  // ✅ Transition vers combat (TODO)
+  this.time.delayedCall(1000, () => {
+    console.log(`⚔️ [${this.scene.key}] Transition vers combat (TODO)`);
+    
+    if (window.showGameNotification) {
+      window.showGameNotification(
+        `Combat non implémenté - continuez à explorer !`,
+        'info',
+        { duration: 2000, position: 'bottom-center' }
+      );
+    }
+  });
+}
+
+  // 🆕 NOUVELLE MÉTHODE: Gestion des infos de zone
+  handleEncounterZoneInfo(data) {
+    console.log(`📍 [${this.scene.key}] Info zone encounter mise à jour:`, data);
+    
+    // Optionnel: Afficher les infos de zone
+    if (data.zoneId && window.showGameNotification) {
+      window.showGameNotification(
+        `Zone: ${data.zoneId} - ${data.encounterRate ? (data.encounterRate * 100).toFixed(1) + '%' : 'Pas d\'encounter'}`,
+        'info',
+        { duration: 2000, position: 'bottom-left' }
+      );
     }
   }
 
@@ -286,11 +315,6 @@ export class BaseZoneScene extends Phaser.Scene {
 
     // ✅ Vérifier si on vient d'arriver (grace period)
     if (this.justArrivedAtZone) {
-      return;
-    }
-
-    // ✅ Bloquer pendant une transition d'encounter
-    if (this.encounterTransition && this.encounterTransition.getIsActive()) {
       return;
     }
 
@@ -1013,6 +1037,8 @@ export class BaseZoneScene extends Phaser.Scene {
       this.networkManager.room.removeAllListeners("questStatuses");
       // 🆕 NOUVEAU: Nettoyer les handlers d'encounter
       this.networkManager.room.removeAllListeners("wildEncounter");
+      this.networkManager.room.removeAllListeners("encounterFailed");
+      this.networkManager.room.removeAllListeners("encounterZoneInfo");
       console.log(`[${this.scene.key}] 🎧 Nettoyage des écouteurs réseau`);
     }
 
@@ -1048,17 +1074,12 @@ export class BaseZoneScene extends Phaser.Scene {
       }
     }
 
-    // 🆕 NOUVEAU: Nettoyer l'EncounterManager et la transition
+    // 🆕 NOUVEAU: Nettoyer l'EncounterManager
     if (this.encounterManager) {
+      // L'EncounterManager n'a pas besoin de cleanup spécial, juste le déréférencer
       this.encounterManager = null;
       this.encounterInitialized = false;
       console.log(`🧹 [${this.scene.key}] EncounterManager nettoyé`);
-    }
-
-    if (this.encounterTransition) {
-      this.encounterTransition.interrupt();
-      this.encounterTransition = null;
-      console.log(`🧹 [${this.scene.key}] EncounterTransition nettoyé`);
     }
 
     if (this.npcManager) {
@@ -1096,25 +1117,11 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-  // ✅ MÉTHODE MODIFIÉE: Gestion du mouvement avec blocage pendant transition
+  // ✅ MÉTHODE CORRIGÉE: Gestion du mouvement avec envoi d'arrêt
   handleMovement(myPlayerState) {
     const speed = 80;
     const myPlayer = this.playerManager.getMyPlayer();
     if (!myPlayer || !myPlayer.body) return;
-
-    // 🆕 NOUVEAU: Bloquer le mouvement pendant la transition d'encounter
-    if (this.encounterTransition && this.encounterTransition.getIsActive()) {
-      myPlayer.body.setVelocity(0, 0);
-      myPlayer.anims.play(`idle_${this.lastDirection}`, true);
-      myPlayer.isMovingLocally = false;
-      return;
-    }
-
-    // ✅ AJOUT: S'assurer que le body est activé après une transition
-    if (!myPlayer.body.enable) {
-      myPlayer.body.setEnable(true);
-    }
-
     let vx = 0, vy = 0;
     let inputDetected = false, direction = null;
     if (this.cursors.left.isDown || this.wasd.A.isDown) {
@@ -1709,5 +1716,261 @@ export class BaseZoneScene extends Phaser.Scene {
     } else {
       this.showNotification("Impossible de forcer encounter ici", 'warning');
     }
+  }
+
+  testEncounterAtPosition(x, y) {
+    if (!this.encounterManager) {
+      console.log("❌ EncounterManager non disponible");
+      return null;
+    }
+    
+    console.log(`🧪 Test encounter à (${x}, ${y})`);
+    return this.encounterManager.forceEncounterCheck(x, y);
+  }
+
+  // ✅ NOUVELLES MÉTHODES: Gestion du système d'équipe
+  getTeamSystemStatus() {
+    return {
+      initialized: this.teamSystemInitialized,
+      attempts: this.teamInitializationAttempts,
+      maxAttempts: this.maxTeamInitAttempts,
+      globalManagerExists: !!window.TeamManager,
+      globalManagerInitialized: window.TeamManager?.isInitialized || false
+    };
+  }
+
+  // 🆕 NOUVELLES MÉTHODES: Gestion du système d'encounter
+  getEncounterSystemStatus() {
+    return {
+      initialized: this.encounterInitialized,
+      managerExists: !!this.encounterManager,
+      mapLoaded: !!this.map,
+      stats: this.encounterManager?.getStats() || null
+    };
+  }
+
+  forceTeamSystemInit() {
+    console.log(`🔧 [${this.scene.key}] Force réinitialisation système d'équipe...`);
+    this.teamSystemInitialized = false;
+    this.teamInitializationAttempts = 0;
+    
+    setTimeout(() => {
+      this.initializeTeamSystemSafely();
+    }, 1000);
+  }
+
+  forceEncounterSystemInit() {
+    console.log(`🔧 [${this.scene.key}] Force réinitialisation système d'encounter...`);
+    this.encounterInitialized = false;
+    this.encounterManager = null;
+    
+    setTimeout(() => {
+      this.initializeEncounterManager();
+    }, 1000);
+  }
+
+  isTeamSystemReady() {
+    return this.teamSystemInitialized && window.TeamManager && window.TeamManager.isInitialized;
+  }
+
+  isEncounterSystemReady() {
+    return this.encounterInitialized && !!this.encounterManager;
+  }
+
+  getTeamManager() {
+    return this.isTeamSystemReady() ? window.TeamManager : null;
+  }
+
+  getEncounterManager() {
+    return this.isEncounterSystemReady() ? this.encounterManager : null;
+  }
+
+  // ✅ MÉTHODES DE DEBUG ÉTENDUES
+  debugScene() {
+    console.log(`🔍 [${this.scene.key}] === DEBUG SCENE COMPLÈTE ===`);
+    console.log(`📊 Managers:`, {
+      playerManager: !!this.playerManager,
+      npcManager: !!this.npcManager,
+      networkManager: !!this.networkManager,
+      interactionManager: !!this.interactionManager,
+      inventorySystem: !!this.inventorySystem,
+      encounterManager: !!this.encounterManager // 🆕
+    });
+    
+    console.log(`📊 État scène:`, {
+      isReady: this.isSceneReady,
+      networkSetup: this.networkSetupComplete,
+      playerReady: this.myPlayerReady,
+      zoneName: this.zoneName,
+      sessionId: this.mySessionId,
+      teamSystemInitialized: this.teamSystemInitialized,
+      teamInitAttempts: this.teamInitializationAttempts,
+      encounterSystemInitialized: this.encounterInitialized // 🆕
+    });
+  }
+
+  debugAllSystems() {
+    console.log(`🔍 [${this.scene.key}] === DEBUG TOUS LES SYSTÈMES ===`);
+    
+    this.debugScene();
+    
+    console.log(`⚔️ Team System:`, this.getTeamSystemStatus());
+    
+    // 🆕 NOUVEAU: Debug encounter system
+    console.log(`🎲 Encounter System:`, this.getEncounterSystemStatus());
+    
+    console.log(`🎒 Inventory:`, {
+      exists: !!this.inventorySystem,
+      initialized: this.inventoryInitialized,
+      global: !!window.inventorySystem
+    });
+    
+    console.log(`🎯 Interaction:`, {
+      exists: !!this.interactionManager,
+      shopSystem: !!this.interactionManager?.shopSystem
+    });
+    
+    console.log(`🌍 DayNight:`, {
+      exists: !!this.dayNightWeatherManager
+    });
+    
+    console.log(`🎮 Network:`, {
+      manager: !!this.networkManager,
+      connected: this.networkManager?.isConnected,
+      room: !!this.networkManager?.room,
+      sessionId: this.mySessionId
+    });
+  }
+
+  testTeamConnection() {
+    console.log(`🧪 [${this.scene.key}] Test connexion Team System...`);
+    
+    if (!this.isTeamSystemReady()) {
+      console.log(`❌ Team System pas prêt, status:`, this.getTeamSystemStatus());
+      return false;
+    }
+    
+    try {
+      const teamManager = this.getTeamManager();
+      teamManager.requestTeamData();
+      console.log(`✅ Test connexion team réussi`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Erreur test connexion team:`, error);
+      return false;
+    }
+  }
+
+  // 🆕 NOUVELLE MÉTHODE: Test du système d'encounter
+  testEncounterConnection() {
+    console.log(`🧪 [${this.scene.key}] Test connexion Encounter System...`);
+    
+    if (!this.isEncounterSystemReady()) {
+      console.log(`❌ Encounter System pas prêt, status:`, this.getEncounterSystemStatus());
+      return false;
+    }
+    
+    try {
+      const myPlayer = this.playerManager?.getMyPlayer();
+      if (!myPlayer) {
+        console.log(`❌ Pas de joueur pour test encounter`);
+        return false;
+      }
+      
+      const encounterData = this.encounterManager.checkEncounterOnMove(myPlayer.x, myPlayer.y);
+      console.log(`✅ Test encounter réussi:`, encounterData);
+      return true;
+    } catch (error) {
+      console.error(`❌ Erreur test encounter:`, error);
+      return false;
+    }
+  }
+
+  // ✅ MÉTHODES UTILITAIRES POUR LE SHOP ET AUTRES SYSTÈMES
+  getShopSystem() {
+    return this.interactionManager?.shopSystem || null;
+  }
+
+  isShopOpen() {
+    return this.interactionManager?.isShopOpen() || false;
+  }
+
+  debugShop() {
+    if (this.interactionManager) {
+      this.interactionManager.debugState();
+    } else {
+      console.log(`🔍 [${this.scene.key}] Aucun InteractionManager`);
+    }
+  }
+
+  requestTime() {
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("getTime");
+    }
+  }
+
+  requestWeather() {
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("getWeather");
+    }
+  }
+
+  getCurrentTimeWeather() {
+    if (this.dayNightWeatherManager) {
+      return {
+        time: this.dayNightWeatherManager.getCurrentTime(),
+        weather: this.dayNightWeatherManager.getCurrentWeather()
+      };
+    }
+    return null;
+  }
+
+  // 🆕 NOUVELLES MÉTHODES UTILITAIRES POUR LES ENCOUNTERS
+
+  getCurrentEncounterInfo() {
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (!myPlayer || !this.encounterManager) {
+      return null;
+    }
+    
+    return {
+      position: { x: myPlayer.x, y: myPlayer.y },
+      positionInfo: this.encounterManager.getPositionInfo(myPlayer.x, myPlayer.y),
+      stats: this.encounterManager.getStats()
+    };
+  }
+
+  resetEncounterCooldowns() {
+    if (this.encounterManager) {
+      this.encounterManager.resetCooldowns();
+      console.log(`🔄 [${this.scene.key}] Cooldowns encounter reset`);
+      this.showNotification("Cooldowns encounter reset", 'info');
+    }
+  }
+
+  simulateEncounterSteps(count = 5) {
+    if (this.encounterManager) {
+      this.encounterManager.simulateSteps(count);
+      console.log(`👟 [${this.scene.key}] ${count} pas simulés`);
+      this.showNotification(`${count} pas simulés pour encounter`, 'info');
+    }
+  }
+
+  // 🆕 MÉTHODES D'EXPOSITION GLOBALE POUR LE DEBUG
+  exposeDebugFunctions() {
+    // Exposer les fonctions de debug sur window pour usage en console
+    window[`debug_${this.scene.key}`] = {
+      debugScene: () => this.debugScene(),
+      debugAllSystems: () => this.debugAllSystems(),
+      debugEncounters: () => this.debugEncounters(),
+      forceEncounter: () => this.forceEncounterTest(),
+      testEncounter: () => this.testEncounterConnection(),
+      resetEncounterCooldowns: () => this.resetEncounterCooldowns(),
+      simulateSteps: (count) => this.simulateEncounterSteps(count),
+      getEncounterInfo: () => this.getCurrentEncounterInfo(),
+      getEncounterStatus: () => this.getEncounterSystemStatus()
+    };
+    
+    console.log(`🔧 [${this.scene.key}] Fonctions debug exposées: window.debug_${this.scene.key}`);
   }
 }
