@@ -40,6 +40,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private transitionService!: TransitionService;
   private timeWeatherService!: TimeWeatherService;
   private serverEncounterManager!: ServerEncounterManager;
+  private encounterManager!: ServerEncounterManager;
   private shopManager!: ShopManager;
   private positionSaver = PositionSaverService.getInstance();
   private autoSaveTimer: NodeJS.Timeout | null = null;
@@ -152,6 +153,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     });
 
     this.serverEncounterManager = new ServerEncounterManager();
+    this.encounterManager = this.serverEncounterManager;
     console.log(`✅ EncounterManager initialisé`);
     
     this.onMessage("setWeather", (client, data: { weather: string }) => {
