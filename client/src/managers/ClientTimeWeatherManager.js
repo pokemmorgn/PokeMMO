@@ -31,6 +31,10 @@ export class ClientTimeWeatherManager {
     // ✅ NOUVEAU: Mode debug
     this.debugMode = false;
     
+    // ✅ NOUVEAU: Mode transition rapide
+    this.fastTransitionMode = false;
+    this.transitionTimer = null;
+    
     console.log(`🌍 [ClientTimeWeatherManager] Initialisé avec ANTI-SPAM SÉVÈRE`);
   }
 
@@ -145,28 +149,40 @@ export class ClientTimeWeatherManager {
     this.debouncedWeatherNotification(data);
   }
 
-  // ✅ NOUVEAU: Notification temps avec débouncing
+  // ✅ NOUVEAU: Notification temps avec débouncing intelligent
   debouncedTimeNotification(data) {
     // ✅ Annuler le timer précédent
     if (this.notificationDebounce.time) {
       clearTimeout(this.notificationDebounce.time);
     }
     
-    // ✅ Programmer la notification dans 100ms
+    // ✅ Mode transition rapide : appliquer immédiatement
+    if (this.fastTransitionMode) {
+      this.applyTimeUpdate(data);
+      return;
+    }
+    
+    // ✅ Mode normal : débouncing de 100ms
     this.notificationDebounce.time = setTimeout(() => {
       this.applyTimeUpdate(data);
       this.notificationDebounce.time = null;
     }, 100);
   }
 
-  // ✅ NOUVEAU: Notification météo avec débouncing
+  // ✅ NOUVEAU: Notification météo avec débouncing intelligent
   debouncedWeatherNotification(data) {
     // ✅ Annuler le timer précédent
     if (this.notificationDebounce.weather) {
       clearTimeout(this.notificationDebounce.weather);
     }
     
-    // ✅ Programmer la notification dans 100ms
+    // ✅ Mode transition rapide : appliquer immédiatement
+    if (this.fastTransitionMode) {
+      this.applyWeatherUpdate(data);
+      return;
+    }
+    
+    // ✅ Mode normal : débouncing de 100ms
     this.notificationDebounce.weather = setTimeout(() => {
       this.applyWeatherUpdate(data);
       this.notificationDebounce.weather = null;
@@ -260,11 +276,42 @@ export class ClientTimeWeatherManager {
     return this.currentWeather === 'rain' ? '🌧️' : '☀️';
   }
 
-  // ✅ NOUVELLES MÉTHODES DE CONTRÔLE ANTI-SPAM
+  // ✅ NOUVELLES MÉTHODES DE CONTRÔLE ANTI-SPAM ET TRANSITION
 
   setDebugMode(enabled) {
     this.debugMode = enabled;
     console.log(`🔧 [ClientTimeWeatherManager] Debug mode: ${enabled ? 'ON' : 'OFF'}`);
+  }
+
+  // ✅ NOUVEAU: Activer mode transition rapide
+  enableFastTransition(duration = 2000) {
+    this.fastTransitionMode = true;
+    
+    // ✅ Nettoyer les débouncing en cours pour appliquer immédiatement
+    this.clearAllDebouncing();
+    
+    console.log(`🚀 [ClientTimeWeatherManager] Mode transition rapide activé (${duration}ms)`);
+    
+    // ✅ Désactiver automatiquement après la durée spécifiée
+    if (this.transitionTimer) {
+      clearTimeout(this.transitionTimer);
+    }
+    
+    this.transitionTimer = setTimeout(() => {
+      this.disableFastTransition();
+    }, duration);
+  }
+
+  // ✅ NOUVEAU: Désactiver mode transition rapide
+  disableFastTransition() {
+    this.fastTransitionMode = false;
+    
+    if (this.transitionTimer) {
+      clearTimeout(this.transitionTimer);
+      this.transitionTimer = null;
+    }
+    
+    console.log(`⏳ [ClientTimeWeatherManager] Mode transition rapide désactivé`);
   }
 
   getSpamStats() {
@@ -302,6 +349,9 @@ export class ClientTimeWeatherManager {
 
   forceRefreshFromServer(networkManager) {
     console.log(`🔄 [ClientTimeWeatherManager] Force refresh avec reset anti-spam`);
+    
+    // ✅ Activer mode transition rapide pour ce refresh
+    this.enableFastTransition(1000);
     
     // ✅ Reset de tous les états anti-spam
     this.lastTimeState = null;
@@ -378,6 +428,9 @@ export class ClientTimeWeatherManager {
 
   destroy() {
     console.log(`🧹 [ClientTimeWeatherManager] Destruction avec nettoyage anti-spam...`);
+    
+    // ✅ Nettoyer le mode transition
+    this.disableFastTransition();
     
     // ✅ Nettoyer le débouncing
     this.clearAllDebouncing();
