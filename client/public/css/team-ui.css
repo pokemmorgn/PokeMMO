@@ -456,6 +456,17 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
+/* Animation pour les interactions spéciales */
+.pokemon-card.details-opening {
+  animation: detailsTransition 0.4s ease;
+}
+
+@keyframes detailsTransition {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); background: linear-gradient(145deg, rgba(74, 144, 226, 0.2), rgba(74, 144, 226, 0.1)); }
+  100% { transform: scale(1); }
+}
+
 /* Animation pour Pokémon actif/sélectionné */
 .pokemon-card.active {
   animation: activePokemonGlow 2s ease-in-out infinite;
