@@ -333,12 +333,27 @@ export class EncounterTransition {
     this.currentStep = 0;
     this.pokemonData = null;
 
+    // ✅ CRUCIAL: Réactiver explicitement le mouvement du joueur
+    const myPlayer = this.scene.playerManager?.getMyPlayer();
+    if (myPlayer && myPlayer.body) {
+      // S'assurer que le joueur peut bouger
+      myPlayer.body.setEnable(true);
+      myPlayer.setActive(true);
+      myPlayer.setVisible(true);
+      
+      // Remettre en idle
+      myPlayer.anims.play(`idle_${this.scene.lastDirection || 'down'}`, true);
+      myPlayer.isMovingLocally = false;
+      
+      console.log("🎮 Joueur explicitement libéré pour mouvement");
+    }
+
     // Notification que le joueur peut à nouveau bouger
     if (this.scene.showNotification) {
       this.scene.showNotification("Le Pokémon s'enfuit dans les hautes herbes...", 'info');
     }
 
-    console.log("🎮 Joueur peut à nouveau bouger");
+    console.log("🎮 Transition encounter complètement terminée");
   }
 
   skipToTransition() {
