@@ -342,8 +342,6 @@ export class ServerEncounterManager {
 
 // Dans ServerEncounterManager.ts - Ajoutez ce debug dans loadEncounterTable
 
-// Dans ServerEncounterManager.ts - Fix de l'erreur TypeScript ligne 394
-
 async loadEncounterTable(zone: string): Promise<void> {
   try {
     // ✅ DEBUG: Afficher le chemin exact
