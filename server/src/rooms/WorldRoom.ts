@@ -1,4 +1,4 @@
-// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC TeamHandlers
+// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC TeamHandlers dd
 import { Room, Client } from "@colyseus/core";
 import mongoose from "mongoose";
 
