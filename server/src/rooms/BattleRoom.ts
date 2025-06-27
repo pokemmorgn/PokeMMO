@@ -1,13 +1,13 @@
-// server/src/rooms/BattleRoom.ts
+// server/src/rooms/BattleRoom.ts - VERSION CORRIGÉE
 import { Room, Client } from "@colyseus/core";
 import { BattleState, BattleAction } from "../schema/BattleState";
 import { BattleManager } from "../managers/BattleManager";
-import { EncounterManager, WildPokemon } from "../managers/EncounterManager";
+import { ServerEncounterManager, WildPokemon } from "../managers/EncounterManager"; // ✅ CORRIGÉ
 import { MoveManager } from "../managers/MoveManager";
 
 export class BattleRoom extends Room<BattleState> {
   private battleManager!: BattleManager;
-  private encounterManager!: EncounterManager;
+  private encounterManager!: ServerEncounterManager; // ✅ CORRIGÉ
   private turnTimer?: any;
 
   maxClients = 2; // Maximum 2 joueurs pour un combat
@@ -21,7 +21,7 @@ export class BattleRoom extends Room<BattleState> {
 
     // Initialiser les managers
     this.battleManager = new BattleManager(this.state);
-    this.encounterManager = new EncounterManager();
+    this.encounterManager = new ServerEncounterManager(); // ✅ CORRIGÉ
     
     // Initialiser les données des attaques
     await MoveManager.initialize();
@@ -39,7 +39,7 @@ export class BattleRoom extends Room<BattleState> {
 
   private async initializeWildBattle(options: any) {
     try {
-      // Générer le Pokémon sauvage
+      // ✅ UTILISER LE POKÉMON SAUVAGE DÉJÀ GÉNÉRÉ SI DISPONIBLE
       const wildPokemon: WildPokemon = options.wildPokemon || await this.generateWildPokemon(options);
       
       if (!wildPokemon) {
@@ -54,6 +54,8 @@ export class BattleRoom extends Room<BattleState> {
       // Stocker les données pour l'initialisation
       (this as any).wildPokemonData = wildPokemon;
       (this as any).playerPokemonId = options.playerPokemonId || 25; // Pikachu par défaut
+
+      console.log(`🐾 [BattleRoom] Pokémon sauvage préparé: ${wildPokemon.pokemonId} niveau ${wildPokemon.level}`);
       
     } catch (error) {
       console.error("❌ Erreur lors de l'initialisation du combat sauvage:", error);
@@ -61,12 +63,23 @@ export class BattleRoom extends Room<BattleState> {
   }
 
   private async generateWildPokemon(options: any): Promise<WildPokemon | null> {
+    console.log(`🌿 [BattleRoom] Génération Pokémon sauvage de secours...`);
+    
     const zone = options.zone || "road1";
     const method = options.method || "grass";
     const timeOfDay = options.timeOfDay || "day";
     const weather = options.weather || "clear";
+    const zoneId = options.zoneId; // ✅ NOUVEAU: Support zoneId
 
-    return await this.encounterManager.generateWildEncounter(zone, method, timeOfDay, weather);
+    // ✅ UTILISER LA NOUVELLE API AVEC ZONES
+    return await this.encounterManager.checkForEncounter(
+      zone,
+      method as 'grass' | 'fishing',
+      1.0, // 100% de chance pour forcer la génération
+      timeOfDay as 'day' | 'night',
+      weather as 'clear' | 'rain',
+      zoneId
+    );
   }
 
   private setupMessageHandlers() {
@@ -98,6 +111,20 @@ export class BattleRoom extends Room<BattleState> {
       await this.battleManager.processAction(action);
     });
 
+    // ✅ NOUVEAU: Capture de Pokémon
+    this.onMessage("throwPokeball", async (client, data) => {
+      console.log(`🥎 Tentative de capture:`, data);
+      const action = new BattleAction();
+      action.type = "capture";
+      action.playerId = client.sessionId;
+      action.data = JSON.stringify({
+        ballType: data.ballType || "poke_ball",
+        targetPokemon: "wild" // Pour identifier le Pokémon sauvage
+      });
+      
+      await this.battleManager.processAction(action);
+    });
+
     // Demande d'état du combat
     this.onMessage("getBattleState", (client) => {
       client.send("battleStateUpdate", {
@@ -106,8 +133,24 @@ export class BattleRoom extends Room<BattleState> {
         turnNumber: this.state.turnNumber,
         currentTurn: this.state.currentTurn,
         battleLog: Array.from(this.state.battleLog),
-        battleEnded: this.state.battleEnded
+        battleEnded: this.state.battleEnded,
+        winner: this.state.winner,
+        // ✅ NOUVEAU: Données d'encounter
+        encounterLocation: this.state.encounterLocation,
+        encounterMethod: this.state.encounterMethod
       });
+    });
+
+    // ✅ NOUVEAU: Demande des données du Pokémon sauvage
+    this.onMessage("getWildPokemonData", (client) => {
+      if (this.state.battleType === "wild" && this.state.player2Pokemon) {
+        client.send("wildPokemonData", {
+          pokemon: this.state.player2Pokemon,
+          location: this.state.encounterLocation,
+          method: this.state.encounterMethod,
+          canCatch: !this.state.battleEnded && this.state.phase !== "defeat"
+        });
+      }
     });
   }
 
@@ -135,7 +178,7 @@ export class BattleRoom extends Room<BattleState> {
       const pokemon = client.sessionId === this.state.player1Id 
         ? this.state.player1Pokemon 
         : this.state.player2Pokemon;
-      action.speed = pokemon.speed;
+      action.speed = pokemon?.speed || 50;
     }
 
     try {
@@ -144,8 +187,8 @@ export class BattleRoom extends Room<BattleState> {
       // Appliquer les effets de fin de tour
       this.battleManager.processEndOfTurnEffects();
       
-      // Envoyer l'état mis à jour
-      this.broadcast("battleStateUpdate", {
+      // ✅ DONNÉES ÉTENDUES POUR L'UPDATE
+      const battleUpdate = {
         battleId: this.state.battleId,
         phase: this.state.phase,
         turnNumber: this.state.turnNumber,
@@ -154,11 +197,29 @@ export class BattleRoom extends Room<BattleState> {
         battleEnded: this.state.battleEnded,
         winner: this.state.winner,
         expGained: this.state.expGained,
-        pokemonCaught: this.state.pokemonCaught
-      });
+        pokemonCaught: this.state.pokemonCaught,
+        // ✅ NOUVEAU: Données des Pokémon mises à jour
+        player1Pokemon: this.state.player1Pokemon,
+        player2Pokemon: this.state.player2Pokemon,
+        waitingForAction: this.state.waitingForAction
+      };
 
-      // Si le combat est terminé, fermer la room après un délai
+      // Envoyer l'état mis à jour
+      this.broadcast("battleStateUpdate", battleUpdate);
+
+      // ✅ Si le combat est terminé, envoyer les résultats détaillés
       if (this.state.battleEnded) {
+        this.broadcast("battleResult", {
+          result: this.state.winner === "player1" ? "victory" : 
+                  this.state.winner === "player2" ? "defeat" : "draw",
+          expGained: this.state.expGained,
+          pokemonCaught: this.state.pokemonCaught,
+          capturedPokemon: this.state.pokemonCaught ? this.state.player2Pokemon : null,
+          battleDuration: this.state.turnNumber,
+          location: this.state.encounterLocation
+        });
+
+        // Fermer la room après un délai
         this.clock.setTimeout(() => {
           this.disconnect();
         }, 10000); // 10 secondes
@@ -166,16 +227,22 @@ export class BattleRoom extends Room<BattleState> {
 
     } catch (error) {
       console.error("❌ Erreur lors du traitement de l'action:", error);
-      client.send("battleError", { message: "Erreur lors de l'exécution de l'action" });
+      client.send("battleError", { 
+        message: "Erreur lors de l'exécution de l'action",
+        details: error instanceof Error ? error.message : 'Erreur inconnue'
+      });
     }
   }
 
   async onJoin(client: Client, options: any) {
-    console.log(`👤 Joueur rejoint le combat: ${client.sessionId}`);
+    console.log(`👤 [BattleRoom] Joueur rejoint le combat: ${client.sessionId}`);
+    console.log(`📊 [BattleRoom] Options joueur:`, options);
 
     // Si c'est le premier joueur et qu'il y a des données de combat sauvage
     if (this.clients.length === 1 && (this as any).wildPokemonData) {
       try {
+        console.log(`🎮 [BattleRoom] Initialisation combat sauvage...`);
+        
         await this.battleManager.initializeWildBattle(
           client.sessionId,
           options.playerName || "Joueur",
@@ -184,32 +251,53 @@ export class BattleRoom extends Room<BattleState> {
           this.state.encounterLocation
         );
 
-        // Envoyer l'état initial
-        client.send("battleInitialized", {
+        // ✅ ENVOYER L'ÉTAT INITIAL COMPLET
+        const initData = {
           battleId: this.state.battleId,
           battleType: this.state.battleType,
           playerPokemon: this.state.player1Pokemon,
           opponentPokemon: this.state.player2Pokemon,
           phase: this.state.phase,
-          battleLog: Array.from(this.state.battleLog)
-        });
+          battleLog: Array.from(this.state.battleLog),
+          encounterLocation: this.state.encounterLocation,
+          encounterMethod: this.state.encounterMethod,
+          turnNumber: this.state.turnNumber,
+          waitingForAction: this.state.waitingForAction
+        };
 
-        console.log(`✅ Combat sauvage initialisé pour ${client.sessionId}`);
+        client.send("battleInitialized", initData);
+
+        console.log(`✅ [BattleRoom] Combat sauvage initialisé pour ${client.sessionId}`);
+        console.log(`🐾 [BattleRoom] Pokémon joueur: ${this.state.player1Pokemon?.pokemonId}`);
+        console.log(`🌿 [BattleRoom] Pokémon sauvage: ${this.state.player2Pokemon?.pokemonId}`);
+        
       } catch (error) {
-        console.error("❌ Erreur lors de l'initialisation:", error);
+        console.error("❌ [BattleRoom] Erreur lors de l'initialisation:", error);
+        client.send("battleError", {
+          message: "Impossible d'initialiser le combat",
+          details: error instanceof Error ? error.message : 'Erreur inconnue'
+        });
         client.leave(1000, "Erreur d'initialisation");
       }
+    } else if (this.clients.length > 1) {
+      console.warn(`⚠️ [BattleRoom] Trop de joueurs dans la room de combat`);
+      client.leave(1000, "Room pleine");
     }
   }
 
   onLeave(client: Client, consented: boolean) {
-    console.log(`👋 Joueur quitte le combat: ${client.sessionId}`);
+    console.log(`👋 [BattleRoom] Joueur quitte le combat: ${client.sessionId} (consenti: ${consented})`);
 
     // Si le joueur quitte pendant un combat actif, le faire perdre
     if (!this.state.battleEnded && client.sessionId === this.state.player1Id) {
+      console.log(`🏃 [BattleRoom] Joueur ${client.sessionId} a abandonné le combat`);
+      
       this.state.battleEnded = true;
       this.state.winner = "opponent";
       this.state.phase = "defeat";
+      
+      // Ajouter un message au log
+      this.state.battleLog.push(`${client.sessionId} a abandonné le combat !`);
       
       this.broadcast("battleStateUpdate", {
         battleId: this.state.battleId,
@@ -218,14 +306,27 @@ export class BattleRoom extends Room<BattleState> {
         winner: this.state.winner,
         battleLog: Array.from(this.state.battleLog)
       });
+
+      // Envoyer le résultat d'abandon
+      this.broadcast("battleResult", {
+        result: "fled",
+        expGained: 0,
+        pokemonCaught: false,
+        battleDuration: this.state.turnNumber,
+        location: this.state.encounterLocation
+      });
     }
   }
 
   onDispose() {
-    console.log(`💀 Battle Room fermée: ${this.state.battleId}`);
+    console.log(`💀 [BattleRoom] Battle Room fermée: ${this.state.battleId}`);
     
     if (this.turnTimer) {
       clearTimeout(this.turnTimer);
     }
+
+    // ✅ NETTOYAGE DES DONNÉES TEMPORAIRES
+    delete (this as any).wildPokemonData;
+    delete (this as any).playerPokemonId;
   }
 }
