@@ -12,6 +12,7 @@ import { TransitionService, TransitionRequest } from "../services/TransitionServ
 import { CollisionManager } from "../managers/CollisionManager";
 import { TimeWeatherService } from "../services/TimeWeatherService";
 import { getServerConfig } from "../config/serverConfig";
+import { EncounterManager } from "../managers/EncounterManager";
 import { serverZoneEnvironmentManager } from "../config/zoneEnvironments";
 import { PositionSaverService } from "../services/PositionSaverService";
 import { PlayerData } from "../models/PlayerData";
@@ -38,6 +39,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private npcManagers: Map<string, NpcManager> = new Map();
   private transitionService!: TransitionService;
   private timeWeatherService!: TimeWeatherService;
+  private encounterManager!: EncounterManager;
   private shopManager!: ShopManager;
   private positionSaver = PositionSaverService.getInstance();
   private autoSaveTimer: NodeJS.Timeout | null = null;
@@ -149,6 +151,8 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
+    this.encounterManager = new EncounterManager();
+    console.log(`✅ EncounterManager initialisé`);
     
     this.onMessage("setWeather", (client, data: { weather: string }) => {
       console.log(`🌦️ [ADMIN] ${client.sessionId} force la météo: ${data.weather}`);
@@ -883,6 +887,10 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     // ✅ === NOUVEAUX HANDLERS POUR LE COMBAT ===
 
+    // Vérification de rencontre lors du mouvement
+    this.onMessage("checkEncounter", (client, data) => {
+      this.handleEncounterCheck(client, data);
+    });
 
     // Déclencher un combat sauvage
     this.onMessage("triggerWildBattle", async (client, data) => {
@@ -1536,6 +1544,18 @@ try {
       }
     }
 
+    // ✅ NOUVEAU: Vérification automatique de rencontre
+    if (this.shouldCheckForEncounter(player, data)) {
+      // Vérifier rencontre avec un délai pour éviter le spam
+      this.clock.setTimeout(() => {
+        this.handleEncounterCheck(client, {
+          zone: player.currentZone,
+          method: this.getEncounterMethodForTile(data.x, data.y),
+          x: data.x,
+          y: data.y
+        });
+      }, 100);
+    }
 
     if (data.currentZone) {
       player.currentZone = data.currentZone;
@@ -1547,6 +1567,9 @@ try {
     }
   }
 
+  public getEncounterConditions(): { timeOfDay: 'day' | 'night', weather: 'clear' | 'rain' } {
+    return this.timeWeatherService?.getEncounterConditions() || { timeOfDay: 'day', weather: 'clear' };
+  }
 
   public getCurrentTimeInfo(): { hour: number; isDayTime: boolean; weather: string } {
     const time = this.timeWeatherService?.getCurrentTime() || { hour: 12, isDayTime: true };
@@ -1563,6 +1586,30 @@ try {
   // NOUVEAUX HANDLERS POUR LE COMBAT
   // ================================================================================================
 
+  private async handleEncounterCheck(client: Client, data: {
+    zone: string;
+    method: 'grass' | 'fishing';
+    x: number;
+    y: number;
+  }) {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    console.log(`🌿 Vérification de rencontre: ${data.zone} (${data.method}) à (${data.x}, ${data.y})`);
+
+    // Obtenir les conditions actuelles depuis TimeWeatherService
+    const conditions = this.getCurrentTimeInfo();
+    const timeOfDay = conditions.isDayTime ? 'day' : 'night';
+    const weather = conditions.weather === 'rain' ? 'rain' : 'clear';
+
+    // Vérifier si une rencontre se produit
+    const wildPokemon = await this.encounterManager.checkForEncounter(
+      data.zone,
+      data.method,
+      0.1, // 10% de chance par pas
+      timeOfDay as 'day' | 'night',
+      weather as 'clear' | 'rain'
+    );
 
     if (wildPokemon) {
       console.log(`⚔️ Rencontre déclenchée: ${wildPokemon.pokemonId} niveau ${wildPokemon.level}`);
