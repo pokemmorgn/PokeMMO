@@ -1,4 +1,4 @@
-// server/src/managers/EncounterManager.ts - VERSION COMPLÈTEMENT CORRIGÉE
+// server/src/managers/EncounterManager.ts - VERSION FINALE CORRIGÉE
 import fs from 'fs/promises';
 import path from 'path';
 import { getPokemonById } from '../data/PokemonData';
@@ -301,6 +301,6 @@ export class ServerEncounterManager {
   }
 }
 
-// ✅ EXPORTS POUR COMPATIBILITÉ
+// ✅ EXPORTS CORRIGÉS - Pas de conflits
 export { ServerEncounterManager as EncounterManager }; // Alias pour la compatibilité
-export type { WildPokemon, EncounterData, EncounterTable };
+export { ServerEncounterManager };
