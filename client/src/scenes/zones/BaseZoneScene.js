@@ -657,7 +657,7 @@ onZoneChanged(newZoneName) {
     };
     // ✅ NOUVEAU: Inclure les données météo actuelles
     weatherData: this.dayNightWeatherManager?.getCurrentStateForTransition()
-  };
+
     if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
 
     this.scene.start(correctScene, transitionData);
