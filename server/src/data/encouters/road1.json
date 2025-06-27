@@ -1,45 +1,96 @@
 {
   "zone": "road1",
+  "version": "1.0",
+  "description": "Route 1 - Zone de départ avec plusieurs types d'herbes",
   "encounters": {
-    "grass": {
-      "day": [
-        { "species": "Pidgey", "level_range": [3, 5], "chance": 25 },
-        { "species": "Rattata", "level_range": [3, 5], "chance": 20 },
-        { "species": "Caterpie", "level_range": [2, 4], "chance": 15 },
-        { "species": "Weedle", "level_range": [2, 4], "chance": 15 },
-        { "species": "Oddish", "level_range": [4, 6], "chance": 15 },
-        { "species": "Bellsprout", "level_range": [4, 6], "chance": 10 }
-      ],
-      "night": [
-        { "species": "Zubat", "level_range": [3, 5], "chance": 40 },
-        { "species": "Gastly", "level_range": [4, 6], "chance": 25 },
-        { "species": "Oddish", "level_range": [4, 6], "chance": 20 },
-        { "species": "Pikachu", "level_range": [5, 6], "chance": 10 },
-        { "species": "Rattata", "level_range": [3, 5], "chance": 5 }
-      ],
-      "rain": [
-        { "species": "Axoloto", "level_range": [4, 6], "chance": 25 },
-        { "species": "Oddish", "level_range": [4, 6], "chance": 20 },
-        { "species": "Pidgey", "level_range": [3, 5], "chance": 15 },
-        { "species": "Caterpie", "level_range": [2, 4], "chance": 10 },
-        { "species": "Weedle", "level_range": [2, 4], "chance": 10 },
-        { "species": "Rattata", "level_range": [3, 5], "chance": 10 },
-        { "species": "Pikachu", "level_range": [5, 6], "chance": 10 }
-      ]
+    "zones": {
+      "r1_default": {
+        "description": "Zone principale de la Route 1",
+        "grass": {
+          "day": [
+            { "species": "Pidgey", "level_range": [3, 5], "chance": 25 },
+            { "species": "Rattata", "level_range": [3, 5], "chance": 20 },
+            { "species": "Caterpie", "level_range": [2, 4], "chance": 15 },
+            { "species": "Weedle", "level_range": [2, 4], "chance": 15 }
+          ],
+          "night": [
+            { "species": "Zubat", "level_range": [3, 5], "chance": 40 },
+            { "species": "Gastly", "level_range": [4, 6], "chance": 25 },
+            { "species": "Rattata", "level_range": [3, 5], "chance": 20 }
+          ],
+          "rain": [
+            { "species": "Pidgey", "level_range": [3, 5], "chance": 20 },
+            { "species": "Rattata", "level_range": [3, 5], "chance": 20 },
+            { "species": "Caterpie", "level_range": [2, 4], "chance": 15 },
+            { "species": "Weedle", "level_range": [2, 4], "chance": 15 }
+          ]
+        }
+      },
+      "r1_grass1": {
+        "description": "Zone d'herbes humides - Axoloto apparaît seulement sous la pluie",
+        "grass": {
+          "rain": [
+            { "species": "Axoloto", "level_range": [4, 6], "chance": 25 }
+          ]
+        }
+      },
+      "r1_grass2": {
+        "description": "Zone d'herbes fleuries - Pokémon Plante plus fréquents",
+        "grass": {
+          "day": [
+            { "species": "Oddish", "level_range": [4, 6], "chance": 10 },
+            { "species": "Bellsprout", "level_range": [4, 6], "chance": 10 }
+          ],
+          "night": [
+            { "species": "Oddish", "level_range": [4, 6], "chance": 10 }
+          ],
+          "rain": [
+            { "species": "Oddish", "level_range": [4, 6], "chance": 10 }
+          ]
+        }
+      },
+      "r1_grass3": {
+        "description": "Zone d'herbes rares - Pikachu et Pokémon plus rares",
+        "grass": {
+          "day": [
+            { "species": "Pikachu", "level_range": [5, 6], "chance": 5 },
+            { "species": "Oddish", "level_range": [4, 6], "chance": 5 }
+          ],
+          "night": [
+            { "species": "Pikachu", "level_range": [5, 6], "chance": 5 },
+            { "species": "Oddish", "level_range": [4, 6], "chance": 5 }
+          ],
+          "rain": [
+            { "species": "Pikachu", "level_range": [5, 6], "chance": 5 },
+            { "species": "Oddish", "level_range": [4, 6], "chance": 5 }
+          ]
+        }
+      },
+      "r1_special": {
+        "description": "Zone cachée avec Pokémon très rares",
+        "grass": {
+          "day": [
+            { "species": "Pikachu", "level_range": [8, 10], "chance": 15 }
+          ],
+          "night": [
+            { "species": "Gastly", "level_range": [8, 10], "chance": 20 }
+          ]
+        }
+      }
     },
     "fishing": {
       "calm_water": {
+        "description": "Points d'eau calme de la Route 1",
         "day": [
           { "species": "Magikarp", "level_range": [5, 10], "chance": 70 },
-          { "species": "Loupio", "level_range": [5, 7], "chance": 15 },
           { "species": "Axoloto", "level_range": [6, 8], "chance": 10 },
           { "species": "Poissirene", "level_range": [5, 8], "chance": 5 }
         ],
         "night": [
           { "species": "Magikarp", "level_range": [5, 10], "chance": 60 },
-          { "species": "Loupio", "level_range": [6, 8], "chance": 20 },
+          { "species": "Loupio", "level_range": [6, 8], "chance": 15 },
           { "species": "Axoloto", "level_range": [7, 9], "chance": 15 },
-          { "species": "Poissirene", "level_range": [5, 8], "chance": 5 }
+          { "species": "Poissirene", "level_range": [5, 8], "chance": 10 }
         ],
         "rain": [
           { "species": "Axoloto", "level_range": [6, 10], "chance": 30 },
@@ -47,26 +98,138 @@
           { "species": "Loupio", "level_range": [6, 8], "chance": 15 },
           { "species": "Poissirene", "level_range": [5, 8], "chance": 5 }
         ]
+      },
+      "rough_water": {
+        "description": "Zones d'eau agitée (nécessite Surf)",
+        "day": [
+          { "species": "Poissirene", "level_range": [8, 12], "chance": 40 },
+          { "species": "Axoloto", "level_range": [10, 14], "chance": 30 }
+        ],
+        "night": [
+          { "species": "Loupio", "level_range": [10, 14], "chance": 50 },
+          { "species": "Poissirene", "level_range": [8, 12], "chance": 30 }
+        ]
       }
     },
     "held_items": [
       {
         "species": "Pidgey",
         "item": "Oran Berry",
-        "chance": 5
+        "chance": 5,
+        "description": "Pidgey peut tenir une Baie Oran"
       },
       {
         "species": "Rattata",
         "item": "Oran Berry",
-        "chance": 3
+        "chance": 3,
+        "description": "Rattata peut tenir une Baie Oran"
+      },
+      {
+        "species": "Pikachu",
+        "item": "Light Ball",
+        "chance": 10,
+        "description": "Pikachu peut tenir une Balle Lumière"
+      },
+      {
+        "species": "Magikarp",
+        "item": "Mystic Water",
+        "chance": 2,
+        "description": "Magikarp peut tenir de l'Eau Mystique"
       }
     ],
     "conditions": {
-      "spawn_condition": "day",
+      "spawn_condition": "any",
       "shiny_rate_modifier": 1.0,
       "nature": "random",
       "gender_ratio": "default",
-      "experience_yield": "scaled"
+      "experience_yield": "scaled",
+      "base_encounter_rate": {
+        "grass": 0.1,
+        "fishing": 0.3
+      },
+      "level_scaling": {
+        "enabled": true,
+        "min_player_level": 1,
+        "max_player_level": 100,
+        "scale_factor": 0.1
+      }
+    },
+    "special_events": [
+      {
+        "name": "Pikachu Outbreak",
+        "description": "Événement spécial où Pikachu est plus fréquent",
+        "trigger": "random",
+        "frequency": "weekly",
+        "modifier": {
+          "species": "Pikachu",
+          "chance_multiplier": 5.0,
+          "level_bonus": 2,
+          "shiny_rate_multiplier": 2.0
+        }
+      },
+      {
+        "name": "Rainy Season",
+        "description": "Pendant la saison des pluies, les Pokémon Eau sont plus fréquents",
+        "trigger": "weather_rain",
+        "duration": "seasonal",
+        "modifier": {
+          "types": ["Water"],
+          "chance_multiplier": 1.5,
+          "level_bonus": 1
+        }
+      }
+    ],
+    "zone_requirements": {
+      "r1_grass3": {
+        "min_player_level": 5,
+        "required_badges": [],
+        "required_items": [],
+        "description": "Zone accessible dès le niveau 5"
+      },
+      "r1_special": {
+        "min_player_level": 10,
+        "required_badges": [],
+        "required_items": ["Super Rod"],
+        "description": "Zone secrète nécessitant la Super Canne"
+      }
+    },
+    "encounter_rates": {
+      "base_rates": {
+        "grass": {
+          "r1_default": 0.10,
+          "r1_grass1": 0.08,
+          "r1_grass2": 0.12,
+          "r1_grass3": 0.15,
+          "r1_special": 0.20
+        },
+        "fishing": {
+          "calm_water": 0.30,
+          "rough_water": 0.25
+        }
+      },
+      "time_modifiers": {
+        "day": 1.0,
+        "night": 1.2,
+        "dawn": 0.8,
+        "dusk": 1.1
+      },
+      "weather_modifiers": {
+        "clear": 1.0,
+        "rain": 1.3,
+        "storm": 1.5,
+        "fog": 0.7,
+        "snow": 0.8
+      }
+    },
+    "debug_info": {
+      "total_possible_encounters": 13,
+      "unique_species": 8,
+      "rarest_pokemon": "Pikachu",
+      "most_common": "Magikarp",
+      "zones_with_day_encounters": 4,
+      "zones_with_night_encounters": 4,
+      "zones_with_rain_encounters": 4,
+      "fishing_zones": 2
     }
   }
 }
