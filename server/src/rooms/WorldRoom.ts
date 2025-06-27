@@ -1,4 +1,4 @@
-// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC TeamHandlers dd
+// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC EncounterHandlers
 import { Room, Client } from "@colyseus/core";
 import mongoose from "mongoose";
 
@@ -12,14 +12,14 @@ import { TransitionService, TransitionRequest } from "../services/TransitionServ
 import { CollisionManager } from "../managers/CollisionManager";
 import { TimeWeatherService } from "../services/TimeWeatherService";
 import { getServerConfig } from "../config/serverConfig";
-import { EncounterManager } from "../managers/EncounterManager";
 import { serverZoneEnvironmentManager } from "../config/zoneEnvironments";
 import { PositionSaverService } from "../services/PositionSaverService";
 import { PlayerData } from "../models/PlayerData";
 
 import { TeamManager } from "../managers/TeamManager";
-import { TeamHandlers } from "../handlers/TeamHandlers"; // ✅ NOUVEAU IMPORT
-import { starterService } from "../services/StarterPokemonService"; // debug ONLY
+import { TeamHandlers } from "../handlers/TeamHandlers";
+import { EncounterHandlers } from "../handlers/EncounterHandlers"; // ✅ NOUVEAU IMPORT
+import { starterService } from "../services/StarterPokemonService";
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
@@ -39,11 +39,11 @@ export class WorldRoom extends Room<PokeWorldState> {
   private npcManagers: Map<string, NpcManager> = new Map();
   private transitionService!: TransitionService;
   private timeWeatherService!: TimeWeatherService;
-  private encounterManager!: EncounterManager;
+  private encounterHandlers!: EncounterHandlers; // ✅ NOUVEAU: Remplace encounterManager
   private shopManager!: ShopManager;
   private positionSaver = PositionSaverService.getInstance();
   private autoSaveTimer: NodeJS.Timeout | null = null;
-  private teamHandlers!: TeamHandlers; // ✅ NOUVEAU
+  private teamHandlers!: TeamHandlers;
 
   // Limite pour auto-scaling
   maxClients = 50;
@@ -66,6 +66,10 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.teamHandlers = new TeamHandlers(this);
     console.log(`✅ TeamHandlers initialisé`);
 
+    // ✅ NOUVEAU: Initialiser les EncounterHandlers
+    this.encounterHandlers = new EncounterHandlers(this);
+    console.log(`✅ EncounterHandlers initialisé`);
+
     this.initializeNpcManagers();
     this.transitionService = new TransitionService(this.npcManagers);
     console.log(`✅ TransitionService initialisé`);
@@ -76,6 +80,10 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
 
+    // Initialiser le ShopManager
+    this.shopManager = new ShopManager();
+    console.log(`✅ ShopManager initialisé`);
+
     console.log(`🚀 WorldRoom prête ! MaxClients: ${this.maxClients}`);
     
     // Auto-save des positions toutes les 30 secondes
@@ -85,15 +93,6 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`💾 Auto-save des positions activé (30s)`);
   }
 
-      // ✅ CONFIGURATION DU STARTER SERVICE
-    // 💡 Changez 'false' en 'true' pour activer le service
-    //enableStarterService(true); // ← FACILE À DÉSACTIVER
-    
-    // 💡 Changez le Pokémon starter (optionnel)
-    // setStarterPokemon(4, 5); // Charmander niveau 5
-    // setStarterPokemon(7, 5); // Squirtle niveau 5
-    //setStarterPokemon(1, 5); // Bulbasaur niveau 5 (par défaut)
-  
   // ✅ MÉTHODE COMPLÈTE APRÈS onCreate
   private async autoSaveAllPositions() {
     const positions = Array.from(this.state.players.values())
@@ -151,9 +150,6 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
-    this.encounterManager = new EncounterManager();
-    console.log(`✅ EncounterManager initialisé`);
-    
     this.onMessage("setWeather", (client, data: { weather: string }) => {
       console.log(`🌦️ [ADMIN] ${client.sessionId} force la météo: ${data.weather}`);
       
@@ -161,10 +157,6 @@ export class WorldRoom extends Room<PokeWorldState> {
         this.timeWeatherService.forceWeather(data.weather);
       }
     });
-
-    // Initialiser le ShopManager
-    this.shopManager = new ShopManager();
-    console.log(`✅ ShopManager initialisé`);
 
     this.onMessage("debugTimeWeather", (client) => {
       console.log(`🔍 [ADMIN] ${client.sessionId} demande debug temps/météo`);
@@ -363,8 +355,11 @@ export class WorldRoom extends Room<PokeWorldState> {
   private setupMessageHandlers() {
     console.log(`📨 === SETUP MESSAGE HANDLERS ===`);
 
-    // ✅ NOUVEAU: Configurer les handlers d'équipe en premier
+    // ✅ NOUVEAU: Configurer les handlers d'équipe
     this.teamHandlers.setupHandlers();
+
+    // ✅ NOUVEAU: Configurer les handlers d'encounter
+    this.encounterHandlers.setupHandlers();
 
     // === HANDLERS EXISTANTS ===
     
@@ -375,14 +370,8 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     // Handler PING pour garder la connexion active (heartbeat)
     this.onMessage("ping", (client, data) => {
-      // Optionnel : tu peux répondre par un "pong" si tu veux (pas obligatoire)
-      // client.send("pong");
       // Simple log, mais surtout ça évite l'erreur
-      // console.log(`[WorldRoom] Ping reçu de ${client.sessionId}`);
     });
-
-    // ✅ ANCIENS HANDLERS TEAM SUPPRIMÉS (maintenant dans TeamHandlers)
-    // Note: Ces handlers sont maintenant gérés par this.teamHandlers.setupHandlers()
     
     // ✅ HANDLER MANQUANT - Transition entre zones (ancien système)
     this.onMessage("moveToZone", async (client, data) => {
@@ -885,24 +874,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
-    // ✅ === NOUVEAUX HANDLERS POUR LE COMBAT ===
-
-    // Vérification de rencontre lors du mouvement
-    this.onMessage("checkEncounter", (client, data) => {
-      this.handleEncounterCheck(client, data);
-    });
-
-    // Déclencher un combat sauvage
-    this.onMessage("triggerWildBattle", async (client, data) => {
-      await this.handleTriggerWildBattle(client, data);
-    });
-
-    // Retour de combat (mise à jour après combat)
-    this.onMessage("battleResult", (client, data) => {
-      this.handleBattleResult(client, data);
-    });
-
-    console.log(`✅ Tous les handlers configurés (y compris équipe via TeamHandlers)`);
+    console.log(`✅ Tous les handlers configurés (y compris équipe et encounters)`);
   }
 
   // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
@@ -1366,19 +1338,19 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`✅ Joueur ${player.name} ajouté au state`);
       console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
 
-// === APPEL AJOUT STARTER ===
-try {
-  const starterResult = await starterService.ensurePlayerHasStarter(player.name);
-  if (starterResult.given) {
-    console.log(`🎁 Starter donné à ${player.name}: ${starterResult.pokemonName}`);
-    client.send("starterGranted", { pokemonName: starterResult.pokemonName });
-  } else if (starterResult.needed === false && starterResult.given === false) {
-    // Ajoute ce log pour bien tracer le cas "déjà un starter"
-    console.log(`ℹ️ [StarterService] ${player.name} a déjà un Pokémon starter`);
-  }
-} catch (e) {
-  console.error(`❌ [StarterService] Erreur sur ${player.name}:`, e);
-}
+      // === APPEL AJOUT STARTER ===
+      try {
+        const starterResult = await starterService.ensurePlayerHasStarter(player.name);
+        if (starterResult.given) {
+          console.log(`🎁 Starter donné à ${player.name}: ${starterResult.pokemonName}`);
+          client.send("starterGranted", { pokemonName: starterResult.pokemonName });
+        } else if (starterResult.needed === false && starterResult.given === false) {
+          // Ajoute ce log pour bien tracer le cas "déjà un starter"
+          console.log(`ℹ️ [StarterService] ${player.name} a déjà un Pokémon starter`);
+        }
+      } catch (e) {
+        console.error(`❌ [StarterService] Erreur sur ${player.name}:`, e);
+      }
 
       // ✅ ÉTAPE 2: CONFIRMER IMMÉDIATEMENT au client avec ses données
       client.send("playerSpawned", {
@@ -1509,9 +1481,16 @@ try {
       this.timeWeatherService = null;
     }
 
+    // ✅ NOUVEAU: Nettoyer les EncounterHandlers
+    if (this.encounterHandlers) {
+      this.encounterHandlers.cleanup();
+      console.log(`🧹 EncounterHandlers nettoyés`);
+    }
+
     console.log(`✅ WorldRoom fermée`);
   }
 
+  // ✅ MÉTHODE DE MOUVEMENT SIMPLIFIÉE (SUPPRESSION DE LA LOGIQUE ENCOUNTER)
   private handlePlayerMove(client: Client, data: any) {
     const player = this.state.players.get(client.sessionId);
     if (!player) return;
@@ -1535,7 +1514,7 @@ try {
     player.x = data.x;
     player.y = data.y;
     player.direction = data.direction;
-    player.isMoving = data.isMoving; // ✅ AJOUTER CETTE LIGNE !
+    player.isMoving = data.isMoving;
 
     // ✅ NOUVEAU: Notifier le changement de zone au TimeWeatherService
     if (data.currentZone && data.currentZone !== player.currentZone) {
@@ -1544,18 +1523,8 @@ try {
       }
     }
 
-    // ✅ NOUVEAU: Vérification automatique de rencontre
-    if (this.shouldCheckForEncounter(player, data)) {
-      // Vérifier rencontre avec un délai pour éviter le spam
-      this.clock.setTimeout(() => {
-        this.handleEncounterCheck(client, {
-          zone: player.currentZone,
-          method: this.getEncounterMethodForTile(data.x, data.y),
-          x: data.x,
-          y: data.y
-        });
-      }, 100);
-    }
+    // ✅ SUPPRIMÉ: Vérification automatique de rencontre (maintenant dans EncounterHandlers)
+    // L'EncounterHandlers se charge de toute la logique de rencontre via ses propres handlers
 
     if (data.currentZone) {
       player.currentZone = data.currentZone;
@@ -1580,175 +1549,6 @@ try {
       isDayTime: time.isDayTime,
       weather: weather
     };
-  }
-
-  // ================================================================================================
-  // NOUVEAUX HANDLERS POUR LE COMBAT
-  // ================================================================================================
-
-  private async handleEncounterCheck(client: Client, data: {
-    zone: string;
-    method: 'grass' | 'fishing';
-    x: number;
-    y: number;
-  }) {
-    const player = this.state.players.get(client.sessionId);
-    if (!player) return;
-
-    console.log(`🌿 Vérification de rencontre: ${data.zone} (${data.method}) à (${data.x}, ${data.y})`);
-
-    // Obtenir les conditions actuelles depuis TimeWeatherService
-    const conditions = this.getCurrentTimeInfo();
-    const timeOfDay = conditions.isDayTime ? 'day' : 'night';
-    const weather = conditions.weather === 'rain' ? 'rain' : 'clear';
-
-    // Vérifier si une rencontre se produit
-    const wildPokemon = await this.encounterManager.checkForEncounter(
-      data.zone,
-      data.method,
-      0.1, // 10% de chance par pas
-      timeOfDay as 'day' | 'night',
-      weather as 'clear' | 'rain'
-    );
-
-    if (wildPokemon) {
-      console.log(`⚔️ Rencontre déclenchée: ${wildPokemon.pokemonId} niveau ${wildPokemon.level}`);
-      
-      // Envoyer l'événement de rencontre au client
-      client.send("encounterTriggered", {
-        wildPokemon: {
-          pokemonId: wildPokemon.pokemonId,
-          level: wildPokemon.level,
-          shiny: wildPokemon.shiny,
-          gender: wildPokemon.gender
-        },
-        location: data.zone,
-        method: data.method,
-        conditions: {
-          timeOfDay,
-          weather
-        }
-      });
-
-      console.log(`📤 Rencontre envoyée à ${client.sessionId}`);
-    }
-  }
-
-  private async handleTriggerWildBattle(client: Client, data: {
-    playerPokemonId: number;
-    zone: string;
-    method?: string;
-  }) {
-    const player = this.state.players.get(client.sessionId);
-    if (!player) {
-      client.send("battleError", { message: "Joueur non trouvé" });
-      return;
-    }
-
-    console.log(`🎮 Déclenchement combat sauvage pour ${player.name}`);
-
-    try {
-      // Créer le combat via l'API interne
-      const response = await fetch('http://localhost:2567/api/battle/wild', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          playerId: client.sessionId,
-          playerName: player.name,
-          playerPokemonId: data.playerPokemonId,
-          zone: data.zone,
-          method: data.method || 'grass',
-          timeOfDay: this.getCurrentTimeInfo().isDayTime ? 'day' : 'night',
-          weather: this.getCurrentTimeInfo().weather
-        })
-      });
-
-      if (response.ok) {
-        const battleData = await response.json();
-        
-        client.send("battleCreated", {
-          success: true,
-          roomId: battleData.roomId,
-          wildPokemon: battleData.wildPokemon
-        });
-
-        console.log(`✅ Combat créé: ${battleData.roomId}`);
-      } else {
-        throw new Error('Erreur API battle');
-      }
-
-    } catch (error) {
-      console.error('❌ Erreur création combat:', error);
-      client.send("battleError", { 
-        message: "Impossible de créer le combat" 
-      });
-    }
-  }
-
-  private handleBattleResult(client: Client, data: {
-    result: 'victory' | 'defeat' | 'fled' | 'caught';
-    expGained?: number;
-    pokemonCaught?: boolean;
-    capturedPokemon?: any;
-  }) {
-    const player = this.state.players.get(client.sessionId);
-    if (!player) return;
-
-    console.log(`🏆 Résultat de combat pour ${player.name}:`, data.result);
-
-    // Mettre à jour l'état du joueur selon le résultat
-    switch (data.result) {
-      case 'victory':
-        console.log(`${player.name} remporte le combat !`);
-        if (data.expGained) {
-          console.log(`${player.name} gagne ${data.expGained} XP !`);
-        }
-        break;
-
-      case 'caught':
-        console.log(`${player.name} a capturé un Pokémon !`);
-        break;
-
-      case 'defeat':
-        console.log(`${player.name} a été battu...`);
-        break;
-
-      case 'fled':
-        console.log(`${player.name} a pris la fuite !`);
-        break;
-    }
-
-    // Broadcaster le résultat aux autres joueurs de la zone
-    this.broadcastToZone(player.currentZone, "playerBattleResult", {
-      playerName: player.name,
-      result: data.result
-    });
-  }
-
-  // MÉTHODES UTILITAIRES POUR LE COMBAT
-
-  private shouldCheckForEncounter(player: any, moveData: any): boolean {
-    // Vérifier si le joueur peut avoir des rencontres
-    if (!player.team || player.team.length === 0) return false;
-
-    // Vérifier le type de terrain (herbe haute, eau, etc.)
-    const tileType = this.getTileType(moveData.x, moveData.y, player.currentZone);
-    
-    return tileType === 'grass' || tileType === 'water';
-  }
-
-  private getEncounterMethodForTile(x: number, y: number): 'grass' | 'fishing' {
-    // Déterminer le type de rencontre selon le tile
-    // Tu peux utiliser ton CollisionManager pour ça
-    return 'grass'; // Par défaut
-  }
-
-  private getTileType(x: number, y: number, zone: string): string {
-    // Analyser le type de tile à cette position
-    // Tu peux utiliser tes données de map existantes
-    return 'grass'; // Par défaut
   }
 
   // === MÉTHODES POUR LES EFFETS D'OBJETS ===
@@ -2090,5 +1890,24 @@ try {
   // ✅ NOUVEAU: Méthode d'accès aux TeamHandlers
   getTeamHandlers(): TeamHandlers {
     return this.teamHandlers;
+  }
+
+  // ✅ NOUVEAU: Méthodes d'accès aux EncounterHandlers
+  getEncounterHandlers(): EncounterHandlers {
+    return this.encounterHandlers;
+  }
+
+  public getEncounterManager() {
+    return this.encounterHandlers.getEncounterManager();
+  }
+
+  // ✅ MÉTHODE DE TEST PUBLIC POUR LES ENCOUNTERS
+  public async testEncounter(
+    playerId: string, 
+    zone: string, 
+    zoneId?: string, 
+    method: 'grass' | 'fishing' = 'grass'
+  ): Promise<any> {
+    return await this.encounterHandlers.testEncounter(playerId, zone, zoneId, method);
   }
 }
