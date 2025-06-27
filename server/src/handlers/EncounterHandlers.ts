@@ -1,4 +1,4 @@
-// server/src/handlers/EncounterHandlers.ts - VERSION CORRIGÉE AVEC NOTIFICATIONS
+// server/src/handlers/EncounterHandlers.ts - VERSION CORRIGÉE AVEC MÉTHODES PUBLIQUES
 import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { ServerEncounterManager } from "../managers/EncounterManager";
@@ -88,8 +88,8 @@ export class EncounterHandlers {
     console.log(`✅ [EncounterHandlers] Tous les handlers configurés`);
   }
 
-  // ✅ HANDLER PRINCIPAL : DÉCLENCHEMENT D'ENCOUNTER
-  private async handleTriggerEncounter(client: Client, data: {
+  // ✅ HANDLER PRINCIPAL : DÉCLENCHEMENT D'ENCOUNTER - MAINTENANT PUBLIC
+  public async handleTriggerEncounter(client: Client, data: {
     x: number;
     y: number;
     zoneId: string;
@@ -214,8 +214,8 @@ export class EncounterHandlers {
     }
   }
 
-  // ✅ HANDLER : DÉMARRAGE COMBAT SAUVAGE (pour plus tard)
-  private async handleStartWildBattle(client: Client, data: {
+  // ✅ HANDLER : DÉMARRAGE COMBAT SAUVAGE (pour plus tard) - MAINTENANT PUBLIC
+  public async handleStartWildBattle(client: Client, data: {
     playerPokemonId: number;
     wildPokemonData: any;
   }): Promise<void> {
@@ -239,8 +239,8 @@ export class EncounterHandlers {
     console.log(`ℹ️ [EncounterHandlers] Combat non implémenté - notification envoyée`);
   }
 
-  // ✅ HANDLER DEBUG
-  private handleDebugEncounters(client: Client, zone: string): void {
+  // ✅ HANDLER DEBUG - MAINTENANT PUBLIC
+  public handleDebugEncounters(client: Client, zone: string): void {
     const player = this.room.state.players.get(client.sessionId);
     if (!player) return;
 
@@ -266,8 +266,8 @@ export class EncounterHandlers {
     });
   }
 
-  // ✅ HANDLER FORCE RENCONTRE (DÉVELOPPEMENT)
-  private async handleForceEncounter(client: Client, data: {
+  // ✅ HANDLER FORCE RENCONTRE (DÉVELOPPEMENT) - MAINTENANT PUBLIC
+  public async handleForceEncounter(client: Client, data: {
     zone: string;
     zoneId?: string;
     method?: 'grass' | 'fishing';
@@ -341,8 +341,8 @@ export class EncounterHandlers {
     }
   }
 
-  // ✅ HANDLER INFO POSITION
-  private handleGetEncounterInfo(client: Client, data: {
+  // ✅ HANDLER INFO POSITION - MAINTENANT PUBLIC
+  public handleGetEncounterInfo(client: Client, data: {
     x: number;
     y: number;
     zone: string;
