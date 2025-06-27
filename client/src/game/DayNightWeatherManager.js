@@ -506,4 +506,4 @@ export class DayNightWeatherManagerPhaser {
   }
 }
 // ✅ À la fin du fichier DayNightWeatherManager.js
-export { DayNightWeatherManagerPhaser as DayNightWeatherManager, OptimizedPhaserOverlayManager };
+export { DayNightWeatherManagerPhaser as DayNightWeatherManager };
