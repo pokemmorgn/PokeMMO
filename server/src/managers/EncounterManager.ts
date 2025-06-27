@@ -340,18 +340,60 @@ export class ServerEncounterManager {
     this.pokemonNameToId.set("Poissirene", 116); // Horsea
   }
 
-  async loadEncounterTable(zone: string): Promise<void> {
-    try {
-      const filePath = path.join(__dirname, `../data/encounters/${zone}.json`);
-      const fileContent = await fs.readFile(filePath, 'utf-8');
-      const encounterData: EncounterTable = JSON.parse(fileContent);
+// Dans ServerEncounterManager.ts - Ajoutez ce debug dans loadEncounterTable
+
+async loadEncounterTable(zone: string): Promise<void> {
+  try {
+    // ✅ DEBUG: Afficher le chemin exact
+    const filePath = path.join(__dirname, `../data/encounters/${zone}.json`);
+    console.log(`🔍 [ServerEncounter] Tentative de chargement: ${zone}`);
+    console.log(`📁 [ServerEncounter] Chemin complet: ${filePath}`);
+    console.log(`📂 [ServerEncounter] __dirname: ${__dirname}`);
+    
+    // ✅ DEBUG: Vérifier si le fichier existe
+    const fs = require('fs');
+    const fileExists = fs.existsSync(filePath);
+    console.log(`📄 [ServerEncounter] Fichier existe: ${fileExists}`);
+    
+    if (!fileExists) {
+      // ✅ DEBUG: Lister le contenu du dossier
+      const encountersDir = path.join(__dirname, '../data/encounters');
+      console.log(`📂 [ServerEncounter] Dossier encounters: ${encountersDir}`);
       
-      this.encounterTables.set(zone, encounterData);
-      console.log(`✅ [ServerEncounter] Table ${zone} chargée avec ${Object.keys(encounterData.encounters.zones).length} zones`);
-    } catch (error) {
-      console.warn(`⚠️ [ServerEncounter] Impossible de charger ${zone}:`, error);
+      try {
+        const dirExists = fs.existsSync(encountersDir);
+        console.log(`📁 [ServerEncounter] Dossier existe: ${dirExists}`);
+        
+        if (dirExists) {
+          const files = fs.readdirSync(encountersDir);
+          console.log(`📋 [ServerEncounter] Fichiers dans encounters:`, files);
+        } else {
+          // Essayer le dossier mal orthographié
+          const badDir = path.join(__dirname, '../data/encouters');
+          console.log(`🔍 [ServerEncounter] Test dossier 'encouters': ${badDir}`);
+          const badDirExists = fs.existsSync(badDir);
+          console.log(`📁 [ServerEncounter] Dossier 'encouters' existe: ${badDirExists}`);
+          
+          if (badDirExists) {
+            const badFiles = fs.readdirSync(badDir);
+            console.log(`📋 [ServerEncounter] Fichiers dans 'encouters':`, badFiles);
+          }
+        }
+      } catch (dirError) {
+        console.error(`❌ [ServerEncounter] Erreur lecture dossier:`, dirError);
+      }
     }
+    
+    const fileContent = await fs.readFile(filePath, 'utf-8');
+    const encounterData: EncounterTable = JSON.parse(fileContent);
+    
+    this.encounterTables.set(zone, encounterData);
+    console.log(`✅ [ServerEncounter] Table ${zone} chargée avec ${Object.keys(encounterData.encounters.zones).length} zones`);
+  } catch (error) {
+    console.warn(`⚠️ [ServerEncounter] Impossible de charger ${zone}:`, error);
+    console.error(`❌ [ServerEncounter] Erreur détaillée:`, error.message);
   }
+}
 
   private async generateWildPokemonStats(
     pokemonId: number, 
