@@ -1,4 +1,4 @@
-// client/src/managers/ClientEncounterManager.js - VERSION CLEAN AVEC LOGS UTILES
+// client/src/managers/ClientEncounterManager.js - VERSION CLEAN AVEC LOGS UNIFIÉS
 
 export class ClientEncounterManager {
   constructor(mapData = null) {
@@ -112,7 +112,7 @@ export class ClientEncounterManager {
     // Cooldown client
     const now = Date.now();
     if (now - this.lastEncounterTime < this.CLIENT_ENCOUNTER_COOLDOWN) {
-      console.log(`[Rencontre] Cooldown actif`);
+      console.log(`[ENCOUNTER CLIENT] Cooldown actif`);
       return { shouldTrigger: false, method: 'grass', encounterRate: 0 };
     }
 
@@ -142,7 +142,7 @@ export class ClientEncounterManager {
     const encounterRate = this.calculateEncounterRate(method, zoneId);
 
     // LOG principal
-    console.log(`[Rencontre] Possible ! zone=${zoneId} type=${method} taux=${(encounterRate*100).toFixed(1)}%`);
+    console.log(`[ENCOUNTER CLIENT] Rencontre possible ! zone=${zoneId} type=${method} taux=${(encounterRate*100).toFixed(1)}%`);
 
     // Mettre à jour le cooldown
     this.lastEncounterTime = now;
@@ -248,9 +248,9 @@ export class ClientEncounterManager {
 
   // DEBUG DES ZONES CHARGÉES (utilitaire éventuel)
   debugZones() {
-    console.log(`[DEBUG] Nb zones: ${this.encounterZones.size}`);
+    console.log(`[ENCOUNTER CLIENT] Nb zones: ${this.encounterZones.size}`);
     this.encounterZones.forEach((zone, id) => {
-      console.log(`Zone ${id}: ${zone.zoneId} (${zone.bounds.left},${zone.bounds.top})-(${zone.bounds.right},${zone.bounds.bottom})`);
+      console.log(`[ENCOUNTER CLIENT] Zone ${id}: ${zone.zoneId} (${zone.bounds.left},${zone.bounds.top})-(${zone.bounds.right},${zone.bounds.bottom})`);
     });
   }
 
@@ -258,6 +258,7 @@ export class ClientEncounterManager {
   resetCooldowns() {
     this.lastEncounterTime = 0;
     this.stepCount = 0;
+    console.log(`[ENCOUNTER CLIENT] Cooldowns reset`);
   }
 
   // OBTENIR STATS
