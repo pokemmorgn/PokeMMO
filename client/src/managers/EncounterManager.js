@@ -230,6 +230,7 @@ export class ClientEncounterManager {
 
   // TROUVER LA ZONE DE RENCONTRE À UNE POSITION
 getEncounterZoneAt(x, y) {
+  console.log(`[DEBUG] getEncounterZoneAt CALLED at (${x}, ${y}) zones:`, this.encounterZones.size);
   for (const [id, zone] of this.encounterZones.entries()) {
     const inside =
       x >= zone.bounds.left &&
