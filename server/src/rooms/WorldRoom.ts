@@ -1605,13 +1605,14 @@ try {
     const weather = conditions.weather === 'rain' ? 'rain' : 'clear';
 
     // Vérifier si une rencontre se produit
-    const wildPokemon = await this.encounterManager.checkForEncounter(
-      data.zone,
-      data.method,
-      0.1, // 10% de chance par pas
-      timeOfDay as 'day' | 'night',
-      weather as 'clear' | 'rain'
-    );
+const wildPokemon = await this.serverEncounterManager.validateAndGenerateEncounter(
+  client.sessionId,
+  data.zone,
+  data.x,
+  data.y,
+  timeOfDay as 'day' | 'night',
+  weather as 'clear' | 'rain'
+);
 
     if (wildPokemon) {
       console.log(`⚔️ Rencontre déclenchée: ${wildPokemon.pokemonId} niveau ${wildPokemon.level}`);
