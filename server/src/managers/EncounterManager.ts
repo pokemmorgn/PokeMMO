@@ -352,9 +352,9 @@ async loadEncounterTable(zone: string): Promise<void> {
     console.log(`📁 [ServerEncounter] Chemin complet: ${filePath}`);
     console.log(`📂 [ServerEncounter] __dirname: ${__dirname}`);
     
-    // ✅ DEBUG: Vérifier si le fichier existe
-    const fs = require('fs');
-    const fileExists = fs.existsSync(filePath);
+    // ✅ FIX: Utiliser fs synchrone pour les vérifications
+    const fsSync = require('fs');
+    const fileExists = fsSync.existsSync(filePath);
     console.log(`📄 [ServerEncounter] Fichier existe: ${fileExists}`);
     
     if (!fileExists) {
@@ -363,21 +363,21 @@ async loadEncounterTable(zone: string): Promise<void> {
       console.log(`📂 [ServerEncounter] Dossier encounters: ${encountersDir}`);
       
       try {
-        const dirExists = fs.existsSync(encountersDir);
+        const dirExists = fsSync.existsSync(encountersDir);
         console.log(`📁 [ServerEncounter] Dossier existe: ${dirExists}`);
         
         if (dirExists) {
-          const files = fs.readdirSync(encountersDir);
+          const files = fsSync.readdirSync(encountersDir);
           console.log(`📋 [ServerEncounter] Fichiers dans encounters:`, files);
         } else {
           // Essayer le dossier mal orthographié
           const badDir = path.join(__dirname, '../data/encouters');
           console.log(`🔍 [ServerEncounter] Test dossier 'encouters': ${badDir}`);
-          const badDirExists = fs.existsSync(badDir);
+          const badDirExists = fsSync.existsSync(badDir);
           console.log(`📁 [ServerEncounter] Dossier 'encouters' existe: ${badDirExists}`);
           
           if (badDirExists) {
-            const badFiles = fs.readdirSync(badDir);
+            const badFiles = fsSync.readdirSync(badDir);
             console.log(`📋 [ServerEncounter] Fichiers dans 'encouters':`, badFiles);
           }
         }
@@ -386,6 +386,7 @@ async loadEncounterTable(zone: string): Promise<void> {
       }
     }
     
+    // ✅ FIX: Utiliser fs async (importé en haut) pour la lecture
     const fileContent = await fs.readFile(filePath, 'utf-8');
     const encounterData: EncounterTable = JSON.parse(fileContent);
     
@@ -393,7 +394,6 @@ async loadEncounterTable(zone: string): Promise<void> {
     console.log(`✅ [ServerEncounter] Table ${zone} chargée avec ${Object.keys(encounterData.encounters.zones).length} zones`);
   } catch (error) {
     console.warn(`⚠️ [ServerEncounter] Impossible de charger ${zone}:`, error);
-    // ✅ FIX: Gestion TypeScript de l'erreur
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`❌ [ServerEncounter] Erreur détaillée:`, errorMessage);
   }
