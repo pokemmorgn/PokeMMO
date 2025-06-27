@@ -1110,6 +1110,11 @@ export class BaseZoneScene extends Phaser.Scene {
       return;
     }
 
+    // ✅ AJOUT: S'assurer que le body est activé après une transition
+    if (!myPlayer.body.enable) {
+      myPlayer.body.setEnable(true);
+    }
+
     let vx = 0, vy = 0;
     let inputDetected = false, direction = null;
     if (this.cursors.left.isDown || this.wasd.A.isDown) {
