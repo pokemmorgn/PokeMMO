@@ -456,17 +456,6 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* Animation pour les interactions spéciales */
-.pokemon-card.details-opening {
-  animation: detailsTransition 0.4s ease;
-}
-
-@keyframes detailsTransition {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); background: linear-gradient(145deg, rgba(74, 144, 226, 0.2), rgba(74, 144, 226, 0.1)); }
-  100% { transform: scale(1); }
-}
-
 /* Animation pour Pokémon actif/sélectionné */
 .pokemon-card.active {
   animation: activePokemonGlow 2s ease-in-out infinite;
@@ -655,31 +644,169 @@
 .type-steel { background: #B8B8D0; }
 .type-fairy { background: #EE99AC; }
 
-/* Menu contextuel pour Pokémon */
-.pokemon-context-menu {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
+/* ===== MENU CONTEXTUEL ===== */
+.pokemon-context-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  z-index: 1050;
+  display: none;
+}
+
+.pokemon-context-menu-panel {
+  position: fixed;
+  background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+  border: 2px solid #4a90e2;
+  border-radius: 12px;
+  min-width: 180px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  z-index: 1051;
+  overflow: hidden;
+  animation: contextMenuAppear 0.2s ease;
+}
+
+@keyframes contextMenuAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes contextMenuDisappear {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9) translateY(-10px);
+  }
+}
+
+.context-menu-header {
+  background: linear-gradient(90deg, #4a90e2, #357abd);
+  padding: 8px 12px;
+  border-bottom: 1px solid #357abd;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+}
+
+.context-menu-pokemon-icon {
+  width: 24px;
+  height: 24px;
+  background-size: cover;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.context-menu-pokemon-name {
+  font-size: 14px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.context-menu-pokemon-level {
+  font-size: 11px;
+  color: #87ceeb;
+  margin-left: auto;
+}
+
+.context-menu-items {
+  padding: 4px 0;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: 4;
+  transition: all 0.2s ease;
+  color: #ecf0f1;
+  font-size: 14px;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
 }
 
-.pokemon-card:hover .pokemon-context-menu {
-  opacity: 1;
+.context-menu-item:hover {
+  background: rgba(74, 144, 226, 0.2);
+  color: white;
 }
 
-.pokemon-context-menu:hover {
-  background: rgba(74, 144, 226, 0.8);
+.context-menu-item:active {
+  background: rgba(74, 144, 226, 0.4);
 }
+
+.context-menu-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.context-menu-item.disabled:hover {
+  background: none;
+  color: #95a5a6;
+}
+
+.context-menu-item-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.context-menu-item-text {
+  flex: 1;
+}
+
+.context-menu-item-shortcut {
+  font-size: 11px;
+  color: #95a5a6;
+  margin-left: auto;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 4px 8px;
+}
+
+/* Indicateur de santé dans le menu contextuel */
+.context-menu-health {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #bdc3c7;
+}
+
+.context-menu-health-bar {
+  width: 30px;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.context-menu-health-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.context-menu-health-fill.high { background: #2ecc71; }
+.context-menu-health-fill.medium { background: #f39c12; }
+.context-menu-health-fill.low { background: #e74c3c; }
+.context-menu-health-fill.critical { background: #8e44ad; }
 
 /* ===== TEAM SUMMARY - COULEURS BLEUES ===== */
 .team-summary {
