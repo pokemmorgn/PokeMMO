@@ -1,142 +1,293 @@
-// ===========================================================================================
-// 1. CORRECTION server/src/managers/EncounterManager.ts - EXPORTS SIMPLIFIÉS
-// ===========================================================================================
+// server/src/managers/EncounterManager.ts - VERSION COMPLÈTEMENT CORRIGÉE
+import fs from 'fs/promises';
+import path from 'path';
+import { getPokemonById } from '../data/PokemonData';
 
-// ✅ REMPLACER LES LIGNES 305-306 PAR UNE SEULE LIGNE:
-export { ServerEncounterManager as EncounterManager };
+export interface WildPokemon {
+  pokemonId: number;
+  level: number;
+  gender: string;
+  nature: string;
+  shiny: boolean;
+  moves: string[];
+  ivs: {
+    hp: number;
+    attack: number;
+    defense: number;
+    spAttack: number;
+    spDefense: number;
+    speed: number;
+  };
+}
 
-// ✅ SUPPRIMER COMPLÈTEMENT:
-// export { ServerEncounterManager };
-// export type { WildPokemon, EncounterData, EncounterTable };
+export interface EncounterData {
+  species: string;
+  level_range: [number, number];
+  chance: number;
+}
 
-// ===========================================================================================
-// 2. CORRECTION server/src/rooms/WorldRoom.ts - MÉTHODE INEXISTANTE
-// ===========================================================================================
-
-// ✅ Dans handleEncounterCheck() ligne 1608, REMPLACER:
-// const wildPokemon = await this.encounterManager.checkForEncounter(
-
-// PAR:
-const wildPokemon = await this.serverEncounterManager.validateAndGenerateEncounter(
-  client.sessionId,
-  data.zone,
-  data.x,
-  data.y,
-  timeOfDay as 'day' | 'night',
-  weather as 'clear' | 'rain'
-);
-
-// ===========================================================================================
-// 3. VERSION CORRIGÉE COMPLÈTE DE handleEncounterCheck()
-// ===========================================================================================
-
-private async handleEncounterCheck(client: Client, data: {
+export interface EncounterTable {
   zone: string;
-  method: 'grass' | 'fishing';
-  x: number;
-  y: number;
-}) {
-  const player = this.state.players.get(client.sessionId);
-  if (!player) return;
-
-  console.log(`🌿 Vérification de rencontre: ${data.zone} (${data.method}) à (${data.x}, ${data.y})`);
-
-  // Obtenir les conditions actuelles depuis TimeWeatherService
-  const conditions = this.getCurrentTimeInfo();
-  const timeOfDay = conditions.isDayTime ? 'day' : 'night';
-  const weather = conditions.weather === 'rain' ? 'rain' : 'clear';
-
-  // ✅ UTILISER LA BONNE MÉTHODE validateAndGenerateEncounter
-  const wildPokemon = await this.serverEncounterManager.validateAndGenerateEncounter(
-    client.sessionId,
-    data.zone,
-    data.x,
-    data.y,
-    timeOfDay as 'day' | 'night',
-    weather as 'clear' | 'rain'
-  );
-
-  if (wildPokemon) {
-    console.log(`⚔️ Rencontre déclenchée: ${wildPokemon.pokemonId} niveau ${wildPokemon.level}`);
-    
-    // Envoyer l'événement de rencontre au client
-    client.send("encounterTriggered", {
-      wildPokemon: {
-        pokemonId: wildPokemon.pokemonId,
-        level: wildPokemon.level,
-        shiny: wildPokemon.shiny,
-        gender: wildPokemon.gender
-      },
-      location: data.zone,
-      method: data.method,
-      conditions: {
-        timeOfDay,
-        weather
-      }
-    });
-
-    console.log(`📤 Rencontre envoyée à ${client.sessionId}`);
-  }
+  encounters: {
+    grass?: {
+      day?: EncounterData[];
+      night?: EncounterData[];
+      rain?: EncounterData[];
+    };
+    fishing?: {
+      calm_water?: {
+        day?: EncounterData[];
+        night?: EncounterData[];
+        rain?: EncounterData[];
+      };
+    };
+  };
 }
 
-// ===========================================================================================
-// 4. PROPRIÉTÉS MANQUANTES DANS WorldRoom.ts
-// ===========================================================================================
-
-// ✅ Dans la classe WorldRoom, S'ASSURER QUE CES PROPRIÉTÉS SONT DÉCLARÉES:
-export class WorldRoom extends Room<PokeWorldState> {
-  private zoneManager!: ZoneManager;
-  private npcManagers: Map<string, NpcManager> = new Map();
-  private transitionService!: TransitionService;
-  private timeWeatherService!: TimeWeatherService;
-  private serverEncounterManager!: ServerEncounterManager; // ✅ CETTE LIGNE DOIT EXISTER
-  private shopManager!: ShopManager;
-  private positionSaver = PositionSaverService.getInstance();
-  private autoSaveTimer: NodeJS.Timeout | null = null;
-  private teamHandlers!: TeamHandlers;
-
-  // ... reste de la classe
-}
-
-// ===========================================================================================
-// 5. INITIALISATION DANS setupTimeWeatherCommands()
-// ===========================================================================================
-
-// ✅ DANS setupTimeWeatherCommands(), VÉRIFIER CET ORDRE:
-private setupTimeWeatherCommands() {
-  // Forcer l'heure (pour les tests)
-  this.onMessage("setTime", (client, data: { hour: number, minute?: number }) => {
-    console.log(`🕐 [ADMIN] ${client.sessionId} force l'heure: ${data.hour}:${data.minute || 0}`);
-    
-    if (this.timeWeatherService) {
-      this.timeWeatherService.forceTime(data.hour, data.minute || 0);
-    }
-  });
-
-  // ✅ INITIALISER LE SERVER ENCOUNTER MANAGER ICI
-  this.serverEncounterManager = new ServerEncounterManager();
-  console.log(`✅ ServerEncounterManager initialisé`);
+export class ServerEncounterManager {
+  private encounterTables: Map<string, EncounterTable> = new Map();
+  private pokemonNameToId: Map<string, number> = new Map();
   
-  this.onMessage("setWeather", (client, data: { weather: string }) => {
-    console.log(`🌦️ [ADMIN] ${client.sessionId} force la météo: ${data.weather}`);
+  // ✅ Anti-cheat: Cooldown par joueur
+  private playerCooldowns: Map<string, number> = new Map();
+  private readonly ENCOUNTER_COOLDOWN = 800; // 800ms côté serveur (plus strict que client)
+
+  constructor() {
+    this.initializePokemonMapping();
+  }
+
+  // ✅ VALIDATION D'UNE RENCONTRE DEPUIS LE CLIENT
+  async validateAndGenerateEncounter(
+    playerId: string,
+    zoneName: string,
+    x: number,
+    y: number,
+    timeOfDay: 'day' | 'night',
+    weather: 'clear' | 'rain',
+    clientZoneProperties?: any
+  ): Promise<WildPokemon | null> {
     
-    if (this.timeWeatherService) {
-      this.timeWeatherService.forceWeather(data.weather);
+    console.log(`🔍 [ServerEncounter] Validation rencontre ${playerId} à (${x}, ${y}) dans ${zoneName}`);
+    
+    // ✅ ANTI-CHEAT: Vérifier le cooldown
+    const now = Date.now();
+    const lastEncounter = this.playerCooldowns.get(playerId) || 0;
+    
+    if (now - lastEncounter < this.ENCOUNTER_COOLDOWN) {
+      console.log(`⚠️ [ServerEncounter] Cooldown actif pour ${playerId}`);
+      return null;
     }
-  });
 
-  // Initialiser le ShopManager
-  this.shopManager = new ShopManager();
-  console.log(`✅ ShopManager initialisé`);
+    // ✅ Vérifier que la zone existe
+    if (!this.encounterTables.has(zoneName)) {
+      await this.loadEncounterTable(zoneName);
+    }
 
-  // ... reste des handlers
-}
+    const table = this.encounterTables.get(zoneName);
+    if (!table) {
+      console.warn(`❌ [ServerEncounter] Aucune table pour ${zoneName}`);
+      return null;
+    }
 
-// ===========================================================================================
-// 6. VERSION FINALE DE EncounterManager.ts (FIN DE FICHIER)
-// ===========================================================================================
+    // ✅ ANTI-CHEAT: Validation basique des coordonnées
+    if (!this.isValidPosition(x, y)) {
+      console.warn(`❌ [ServerEncounter] Position invalide: (${x}, ${y})`);
+      return null;
+    }
 
-// ✅ LA FIN DU FICHIER EncounterManager.ts DOIT ÊTRE EXACTEMENT:
+    // ✅ ANTI-CHEAT: Rate limiting par joueur
+    if (!this.isEncounterAllowed(playerId)) {
+      console.warn(`❌ [ServerEncounter] Trop de rencontres pour ${playerId}`);
+      return null;
+    }
+
+    // ✅ Générer le Pokémon sauvage
+    const wildPokemon = await this.generateWildEncounter(zoneName, 'grass', timeOfDay, weather);
+    
+    if (wildPokemon) {
+      // ✅ Mettre à jour le cooldown
+      this.playerCooldowns.set(playerId, now);
+      
+      console.log(`⚔️ [ServerEncounter] Rencontre validée: ${wildPokemon.pokemonId} lvl ${wildPokemon.level}`);
+      console.log(`✨ [ServerEncounter] Shiny: ${wildPokemon.shiny}, Nature: ${wildPokemon.nature}`);
+    }
+
+    return wildPokemon;
+  }
+
+  // ✅ VALIDATION ANTI-CHEAT BASIQUE
+  private isValidPosition(x: number, y: number): boolean {
+    // Vérifications basiques
+    if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
+    if (x < 0 || y < 0) return false;
+    if (x > 1000 || y > 1000) return false; // Limite raisonnable
+    
+    return true;
+  }
+
+  // ✅ RATE LIMITING ANTI-CHEAT
+  private isEncounterAllowed(playerId: string): boolean {
+    // Ici tu peux ajouter une logique plus sophistiquée
+    // Par exemple, max 10 rencontres par minute
+    
+    // Pour l'instant, simple cooldown
+    return true;
+  }
+
+  // ✅ GÉNÉRATION DU POKÉMON (logique existante simplifiée)
+  async generateWildEncounter(
+    zone: string, 
+    method: 'grass' | 'fishing',
+    timeOfDay: 'day' | 'night',
+    weather: 'clear' | 'rain' = 'clear'
+  ): Promise<WildPokemon | null> {
+    const table = this.encounterTables.get(zone);
+    if (!table) return null;
+
+    const encounters = this.getEncountersForConditions(table, method, timeOfDay, weather);
+    if (!encounters || encounters.length === 0) return null;
+
+    // ✅ Sélection pondérée
+    const totalChance = encounters.reduce((sum, enc) => sum + enc.chance, 0);
+    let random = Math.random() * totalChance;
+    
+    let selectedEncounter: EncounterData | null = null;
+    for (const encounter of encounters) {
+      random -= encounter.chance;
+      if (random <= 0) {
+        selectedEncounter = encounter;
+        break;
+      }
+    }
+
+    if (!selectedEncounter) return null;
+
+    const pokemonId = this.pokemonNameToId.get(selectedEncounter.species);
+    if (!pokemonId) {
+      console.warn(`⚠️ [ServerEncounter] ID non trouvé pour ${selectedEncounter.species}`);
+      return null;
+    }
+
+    // ✅ Génération du niveau
+    const [minLevel, maxLevel] = selectedEncounter.level_range;
+    const level = Math.floor(Math.random() * (maxLevel - minLevel + 1)) + minLevel;
+
+    // ✅ Génération des stats complètes
+    return await this.generateWildPokemonStats(pokemonId, level);
+  }
+
+  // ✅ MÉTHODES UTILITAIRES (versions simplifiées)
+
+  private initializePokemonMapping() {
+    this.pokemonNameToId.set("Pidgey", 16);
+    this.pokemonNameToId.set("Rattata", 19);
+    this.pokemonNameToId.set("Caterpie", 10);
+    this.pokemonNameToId.set("Weedle", 13);
+    this.pokemonNameToId.set("Oddish", 43);
+    this.pokemonNameToId.set("Bellsprout", 69);
+    this.pokemonNameToId.set("Zubat", 41);
+    this.pokemonNameToId.set("Gastly", 92); // ✅ CORRIGÉ
+    this.pokemonNameToId.set("Pikachu", 25);
+    this.pokemonNameToId.set("Axoloto", 194);
+    this.pokemonNameToId.set("Magikarp", 129);
+    this.pokemonNameToId.set("Loupio", 170);
+    this.pokemonNameToId.set("Poissirene", 116);
+  }
+
+  async loadEncounterTable(zone: string): Promise<void> {
+    try {
+      const filePath = path.join(__dirname, `../data/encounters/${zone}.json`);
+      const fileContent = await fs.readFile(filePath, 'utf-8');
+      const encounterData: EncounterTable = JSON.parse(fileContent);
+      
+      this.encounterTables.set(zone, encounterData);
+      console.log(`✅ [ServerEncounter] Table ${zone} chargée`);
+    } catch (error) {
+      console.warn(`⚠️ [ServerEncounter] Impossible de charger ${zone}:`, error);
+    }
+  }
+
+  private getEncountersForConditions(
+    table: EncounterTable,
+    method: 'grass' | 'fishing',
+    timeOfDay: 'day' | 'night',
+    weather: 'clear' | 'rain'
+  ): EncounterData[] | null {
+    if (method === 'grass') {
+      const grassEncounters = table.encounters.grass;
+      if (!grassEncounters) return null;
+
+      if (weather === 'rain' && grassEncounters.rain) {
+        return grassEncounters.rain;
+      } else if (timeOfDay === 'night' && grassEncounters.night) {
+        return grassEncounters.night;
+      } else if (grassEncounters.day) {
+        return grassEncounters.day;
+      }
+    }
+    return null;
+  }
+
+  private async generateWildPokemonStats(pokemonId: number, level: number): Promise<WildPokemon> {
+    const pokemonData = await getPokemonById(pokemonId);
+    if (!pokemonData) {
+      throw new Error(`Pokémon ${pokemonId} non trouvé`);
+    }
+
+    // ✅ IVs aléatoires
+    const ivs = {
+      hp: Math.floor(Math.random() * 32),
+      attack: Math.floor(Math.random() * 32),
+      defense: Math.floor(Math.random() * 32),
+      spAttack: Math.floor(Math.random() * 32),
+      spDefense: Math.floor(Math.random() * 32),
+      speed: Math.floor(Math.random() * 32)
+    };
+
+    // ✅ Genre selon ratios
+    const gender = this.generateGender(pokemonData.genderRatio);
+
+    // ✅ Nature aléatoire
+    const natures = [
+      "Hardy", "Lonely", "Brave", "Adamant", "Naughty", "Bold", "Docile", 
+      "Relaxed", "Impish", "Lax", "Timid", "Hasty", "Serious", "Jolly", 
+      "Naive", "Modest", "Mild", "Quiet", "Bashful", "Rash", "Calm", 
+      "Gentle", "Sassy", "Careful", "Quirky"
+    ];
+    const nature = natures[Math.floor(Math.random() * natures.length)];
+
+    // ✅ Shiny (1/4096)
+    const shiny = Math.random() < (1 / 4096);
+
+    // ✅ Moves selon niveau
+    const moves = pokemonData.learnset
+      .filter(move => move.level <= level)
+      .sort((a, b) => b.level - a.level)
+      .slice(0, 4)
+      .map(move => move.moveId);
+
+    if (moves.length < 4) {
+      const level1Moves = pokemonData.learnset
+        .filter(move => move.level === 1)
+        .map(move => move.moveId);
+      
+      for (const move of level1Moves) {
+        if (moves.length >= 4) break;
+        if (!moves.includes(move)) moves.push(move);
+      }
+    }
+
+    if (moves.length === 0) moves.push("tackle");
+
+    return { pokemonId, level, gender, nature, shiny, moves, ivs };
+  }
+
+  private generateGender(genderRatio: { male: number; female: number }): string {
+    if (genderRatio.male === 0 && genderRatio.female === 0) return "unknown";
+    const maleChance = genderRatio.male / 100;
+    return Math.random() < maleChance ? "male" : "female";
+  }
+
   // ✅ Nettoyage périodique
   cleanupCooldowns(): void {
     const now = Date.now();
@@ -150,48 +301,6 @@ private setupTimeWeatherCommands() {
   }
 }
 
-// ✅ UN SEUL EXPORT - PAS DE CONFLITS
-export { ServerEncounterManager as EncounterManager };
-
-// ===========================================================================================
-// 7. TEST RAPIDE POUR VÉRIFIER
-// ===========================================================================================
-
-/*
-✅ VÉRIFICATIONS À FAIRE:
-
-1. Dans EncounterManager.ts:
-   - UNE SEULE ligne export à la fin
-   - export class ServerEncounterManager { ... } (ligne 47)
-   - export { ServerEncounterManager as EncounterManager }; (dernière ligne)
-
-2. Dans WorldRoom.ts:
-   - private serverEncounterManager!: ServerEncounterManager; (déclaré)
-   - this.serverEncounterManager = new ServerEncounterManager(); (initialisé)
-   - this.serverEncounterManager.validateAndGenerateEncounter(...) (utilisé)
-
-3. Compilation:
-   - npm run build (doit passer sans erreur)
-   - npm run dev (doit démarrer sans erreur)
-
-4. Test en jeu:
-   - Marcher sur l'herbe
-   - Voir les logs de rencontre dans la console serveur
-*/
-
-// ===========================================================================================
-// 8. SI PROBLÈME PERSISTE - SOLUTION ALTERNATIVE
-// ===========================================================================================
-
-// ✅ SI LES ERREURS PERSISTENT, UTILISER CETTE VERSION ULTRA-SIMPLE:
-
-// Dans EncounterManager.ts, SUPPRIMER tous les exports et ajouter seulement:
-export default ServerEncounterManager;
-
-// Dans WorldRoom.ts, CHANGER l'import:
-import ServerEncounterManager from "../managers/EncounterManager";
-
-// Dans BattleRoom.ts et battleRoutes.ts, CHANGER l'import:
-import ServerEncounterManager from '../managers/EncounterManager';
-
-// Cette approche évite tous les conflits d'exports nommés.
+// ✅ EXPORTS POUR COMPATIBILITÉ
+export { ServerEncounterManager as EncounterManager }; // Alias pour la compatibilité
+export type { WildPokemon, EncounterData, EncounterTable };
