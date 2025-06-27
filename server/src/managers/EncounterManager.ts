@@ -302,5 +302,4 @@ export class ServerEncounterManager {
 }
 
 // ✅ EXPORTS CORRIGÉS - Pas de conflits
-export { ServerEncounterManager as EncounterManager }; // Alias pour la compatibilité
-export { ServerEncounterManager };
+export { ServerEncounterManager as EncounterManager };
