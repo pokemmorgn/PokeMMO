@@ -1,28 +1,22 @@
-// ✅ SYSTÈME D'OVERLAY PHASER ULTRA-OPTIMISÉ
-// Performance maximale avec gestion intelligente des ressources
+// DayNightWeatherManager.js - VERSION ANTI-SPAM DÉFINITIVE
 import { ClientTimeWeatherManager } from '../managers/ClientTimeWeatherManager.js';
 import { zoneEnvironmentManager } from '../managers/ZoneEnvironmentManager.js';
 import { WeatherEffects } from '../effects/WeatherEffects.js';
 
-// ✅ SYSTÈME D'OVERLAY PHASER ULTRA-OPTIMISÉ - VERSION CORRIGÉE
 export class OptimizedPhaserOverlayManager {
   constructor(scene) {
     this.scene = scene;
     
-    // ✅ UN SEUL OVERLAY au lieu de deux qui se superposent
     this.combinedOverlay = null;
-    
-    // ✅ Cache des couleurs pour éviter les recalculs
     this.colorCache = new Map();
-    
-    // ✅ États précédents pour éviter les updates inutiles
     this.lastCombinedState = null;
-    
-    // ✅ UN SEUL tween actif à la fois
     this.activeTween = null;
-    
-    // ✅ Performance monitoring
     this.performanceMode = this.detectPerformanceLevel();
+    
+    // ✅ NOUVEAU: Anti-spam avec débouncing
+    this.pendingUpdate = null;
+    this.updateTimer = null;
+    this.debugMode = false;
     
     console.log(`🎨 [PhaserOverlay] Initialisé (Mode: ${this.performanceMode})`);
   }
@@ -54,7 +48,6 @@ export class OptimizedPhaserOverlayManager {
     console.log(`✅ [PhaserOverlay] Overlay combiné créé`);
   }
 
-  // ✅ UN SEUL OVERLAY pour éviter les conflits
   createCombinedOverlay() {
     const camera = this.scene.cameras.main;
     
@@ -77,7 +70,6 @@ export class OptimizedPhaserOverlayManager {
 
   precacheCommonColors() {
     const commonColors = {
-      // États combinés jour/nuit + météo
       'day-clear-outdoor': { color: 0x000044, alpha: 0 },
       'day-rain-outdoor': { color: 0x4488FF, alpha: 0.1 },
       'day-storm-outdoor': { color: 0x333366, alpha: 0.15 },
@@ -90,7 +82,6 @@ export class OptimizedPhaserOverlayManager {
       'night-snow-outdoor': { color: 0x334466, alpha: 0.45 },
       'night-fog-outdoor': { color: 0x555577, alpha: 0.55 },
       
-      // Environnements spéciaux
       'cave': { color: 0x2D1B0E, alpha: 0.6 },
       'indoor': { color: 0x000044, alpha: 0 }
     };
@@ -102,24 +93,70 @@ export class OptimizedPhaserOverlayManager {
     console.log(`🎨 [PhaserOverlay] ${this.colorCache.size} couleurs combinées en cache`);
   }
 
-  // ✅ UPDATE COMBINÉ - Plus de conflit entre overlays
+  // ✅ UPDATE COMBINÉ avec DÉBOUNCING SÉVÈRE
   updateCombined(isDayTime, weather, environment = 'outdoor', zoneName = null) {
     if (!this.combinedOverlay) return;
     
-    // ✅ Créer une clé d'état UNIQUE qui combine tout
-    const timeState = isDayTime ? 'day' : 'night';
-    const stateKey = `${timeState}-${weather}-${environment}-${zoneName}`;
+    // ✅ NORMALISER zoneName pour éviter les oscillations null/string
+    const normalizedZone = this.normalizeZoneName(zoneName);
     
-    // ✅ SKIP si état identique - CRITIQUE pour éviter les loops
+    // ✅ Créer une clé d'état UNIQUE et STABLE
+    const timeState = isDayTime ? 'day' : 'night';
+    const stateKey = `${timeState}-${weather}-${environment}-${normalizedZone}`;
+    
+    // ✅ SKIP IMMÉDIAT si état identique
     if (this.lastCombinedState === stateKey) {
-      console.log(`⚡ [PhaserOverlay] État identique, skip: ${stateKey}`);
+      if (this.debugMode) {
+        console.log(`⚡ [PhaserOverlay] Skip identique: ${stateKey}`);
+      }
       return;
     }
     
-    console.log(`🔄 [PhaserOverlay] ${this.lastCombinedState} → ${stateKey}`);
+    // ✅ DÉBOUNCING: Grouper les updates dans les 300ms
+    if (this.updateTimer) {
+      clearTimeout(this.updateTimer);
+    }
+    
+    // ✅ Stocker l'update en attente
+    this.pendingUpdate = {
+      isDayTime,
+      weather,
+      environment,
+      zoneName: normalizedZone,
+      stateKey
+    };
+    
+    // ✅ Programmer l'exécution dans 300ms
+    this.updateTimer = setTimeout(() => {
+      this.executePendingUpdate();
+    }, 300);
+    
+    if (this.debugMode) {
+      console.log(`⏳ [PhaserOverlay] Update programmé: ${stateKey}`);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Exécuter l'update en attente
+  executePendingUpdate() {
+    if (!this.pendingUpdate || !this.combinedOverlay) {
+      return;
+    }
+    
+    const { isDayTime, weather, environment, zoneName, stateKey } = this.pendingUpdate;
+    
+    // ✅ Double vérification anti-doublon
+    if (this.lastCombinedState === stateKey) {
+      if (this.debugMode) {
+        console.log(`⚡ [PhaserOverlay] Skip doublon dans execution: ${stateKey}`);
+      }
+      this.pendingUpdate = null;
+      return;
+    }
+    
+    console.log(`🔄 [PhaserOverlay] Exécution: ${this.lastCombinedState} → ${stateKey}`);
     this.lastCombinedState = stateKey;
     
-    // ✅ Déterminer la couleur et alpha COMBINÉS
+    // ✅ Calculer la couleur et alpha
     let targetColor, targetAlpha;
     
     if (environment === 'indoor') {
@@ -130,15 +167,13 @@ export class OptimizedPhaserOverlayManager {
       targetColor = cached.color;
       targetAlpha = cached.alpha;
     } else {
-      // ✅ COMBINAISON intelligente jour/nuit + météo
-      const combinedKey = `${timeState}-${weather}-${environment}`;
+      const combinedKey = `${isDayTime ? 'day' : 'night'}-${weather}-${environment}`;
       const cached = this.colorCache.get(combinedKey);
       
       if (cached) {
         targetColor = cached.color;
         targetAlpha = cached.alpha;
       } else {
-        // ✅ Fallback avec calcul dynamique
         const result = this.calculateCombinedEffect(isDayTime, weather);
         targetColor = result.color;
         targetAlpha = result.alpha;
@@ -147,24 +182,39 @@ export class OptimizedPhaserOverlayManager {
     
     console.log(`🎨 [PhaserOverlay] ${stateKey} → couleur: 0x${targetColor.toString(16)}, alpha: ${targetAlpha}`);
     
-    // ✅ Animation UNIQUE - plus de conflits
+    // ✅ Animation UNIQUE
     this.animateCombinedOverlay(targetColor, targetAlpha);
+    
+    // ✅ Nettoyer
+    this.pendingUpdate = null;
+    this.updateTimer = null;
   }
 
-  // ✅ CALCUL DYNAMIQUE si pas en cache
+  // ✅ NOUVELLE MÉTHODE: Normaliser le zoneName
+  normalizeZoneName(zoneName) {
+    if (!zoneName || zoneName === 'null' || zoneName === 'undefined') {
+      // ✅ Essayer de récupérer depuis la scène
+      const sceneZone = this.scene?.zoneName || this.scene?.scene?.key;
+      if (sceneZone && sceneZone !== 'null' && sceneZone !== 'undefined') {
+        return sceneZone;
+      }
+      return 'default'; // Fallback stable
+    }
+    return zoneName;
+  }
+
   calculateCombinedEffect(isDayTime, weather) {
-    let baseAlpha = isDayTime ? 0 : 0.4;  // Nuit de base
-    let baseColor = 0x000044;  // Bleu nuit
+    let baseAlpha = isDayTime ? 0 : 0.4;
+    let baseColor = 0x000044;
     
-    // ✅ Modifier selon la météo
     switch (weather) {
       case 'rain':
         baseAlpha += 0.1;
-        baseColor = 0x4488FF;  // Plus bleu
+        baseColor = 0x4488FF;
         break;
       case 'storm':
         baseAlpha += 0.2;
-        baseColor = 0x333366;  // Plus sombre
+        baseColor = 0x333366;
         break;
       case 'snow':
         baseAlpha += 0.05;
@@ -172,36 +222,35 @@ export class OptimizedPhaserOverlayManager {
         break;
       case 'fog':
         baseAlpha += 0.15;
-        baseColor = 0xCCCCCC;  // Gris
+        baseColor = 0xCCCCCC;
         break;
     }
     
     return {
       color: baseColor,
-      alpha: Math.min(baseAlpha, 0.8)  // Cap à 0.8
+      alpha: Math.min(baseAlpha, 0.8)
     };
   }
 
-  // ✅ ANIMATION UNIQUE - Plus de conflits entre tweens
   animateCombinedOverlay(targetColor, targetAlpha) {
-    // ✅ ARRÊTER le tween précédent s'il existe
+    // ✅ ARRÊTER le tween précédent
     if (this.activeTween) {
       this.activeTween.stop();
       this.activeTween = null;
     }
     
-    // ✅ Changer la couleur IMMÉDIATEMENT
+    // ✅ Couleur immédiate
     this.combinedOverlay.setFillStyle(targetColor);
     
-    // ✅ Animer SEULEMENT l'alpha
+    // ✅ Animation alpha
     const duration = this.getAnimationDuration();
     
     if (duration === 0 || this.performanceMode === 'low') {
-      // ✅ Mode performance bas - instantané
       this.combinedOverlay.setAlpha(targetAlpha);
-      console.log(`⚡ [PhaserOverlay] Instantané (perf: ${this.performanceMode})`);
+      if (this.debugMode) {
+        console.log(`⚡ [PhaserOverlay] Instantané`);
+      }
     } else {
-      // ✅ Animation fluide UNIQUE
       this.activeTween = this.scene.tweens.add({
         targets: this.combinedOverlay,
         alpha: targetAlpha,
@@ -209,20 +258,26 @@ export class OptimizedPhaserOverlayManager {
         ease: 'Sine.easeInOut',
         onComplete: () => {
           this.activeTween = null;
-          console.log(`✅ [PhaserOverlay] Animation terminée`);
+          if (this.debugMode) {
+            console.log(`✅ [PhaserOverlay] Animation terminée`);
+          }
         },
         onStop: () => {
           this.activeTween = null;
-          console.log(`🛑 [PhaserOverlay] Animation arrêtée`);
+          if (this.debugMode) {
+            console.log(`🛑 [PhaserOverlay] Animation arrêtée`);
+          }
         }
       });
       
-      console.log(`🎬 [PhaserOverlay] Animation (${duration}ms) → alpha: ${targetAlpha}`);
+      if (this.debugMode) {
+        console.log(`🎬 [PhaserOverlay] Animation (${duration}ms) → alpha: ${targetAlpha}`);
+      }
     }
   }
 
   getAnimationDuration() {
-    const baseDuration = 2000;  // 2 secondes
+    const baseDuration = 2000;
     
     const performanceMultipliers = {
       high: 1.0,
@@ -234,35 +289,54 @@ export class OptimizedPhaserOverlayManager {
     return Math.round(baseDuration * multiplier);
   }
 
-  // ✅ API PUBLIQUE SIMPLIFIÉE
+  // ✅ API PUBLIQUE avec débouncing intégré
   setDayNight(isDayTime, environment = 'outdoor', zoneName = null) {
-    // ✅ Utiliser la météo actuelle ou clear par défaut
     const currentWeather = this.lastWeather || 'clear';
+    this.lastIsDayTime = isDayTime;
     this.updateCombined(isDayTime, currentWeather, environment, zoneName);
   }
 
   setWeather(weather, environment = 'outdoor') {
-    // ✅ Sauvegarder la météo actuelle
     this.lastWeather = weather;
-    
-    // ✅ Utiliser le temps actuel ou jour par défaut
     const currentTime = this.lastIsDayTime !== undefined ? this.lastIsDayTime : true;
     this.updateCombined(currentTime, weather, environment);
   }
 
-  // ✅ FORCE UPDATE corrigé
   forceUpdate(isDayTime, weather, environment = 'outdoor', zoneName = null) {
-    console.log(`🔄 [PhaserOverlay] Force update: ${isDayTime ? 'JOUR' : 'NUIT'}, ${weather}, ${environment}`);
+    console.log(`🔄 [PhaserOverlay] Force update avec reset`);
     
-    // ✅ RESET de l'état pour forcer le changement
+    // ✅ ANNULER le débouncing en cours
+    if (this.updateTimer) {
+      clearTimeout(this.updateTimer);
+      this.updateTimer = null;
+    }
+    this.pendingUpdate = null;
+    
+    // ✅ RESET de l'état pour forcer
     this.lastCombinedState = null;
     this.lastWeather = weather;
     this.lastIsDayTime = isDayTime;
     
+    // ✅ Update immédiat (bypass débouncing)
     this.updateCombined(isDayTime, weather, environment, zoneName);
+    this.executePendingUpdate();
   }
 
-  // ✅ RESIZE automatique
+  // ✅ NOUVELLES MÉTHODES DE CONTRÔLE
+  setDebugMode(enabled) {
+    this.debugMode = enabled;
+    console.log(`🔧 [PhaserOverlay] Debug mode: ${enabled ? 'ON' : 'OFF'}`);
+  }
+
+  clearPendingUpdates() {
+    if (this.updateTimer) {
+      clearTimeout(this.updateTimer);
+      this.updateTimer = null;
+    }
+    this.pendingUpdate = null;
+    console.log(`🧹 [PhaserOverlay] Updates en attente nettoyés`);
+  }
+
   onCameraResize() {
     const camera = this.scene.cameras.main;
     
@@ -274,47 +348,49 @@ export class OptimizedPhaserOverlayManager {
     console.log(`📐 [PhaserOverlay] Overlay redimensionné: ${camera.width}x${camera.height}`);
   }
 
-  // ✅ DEBUG optimisé
   debug() {
-    console.log(`🔍 [PhaserOverlay] === DEBUG OVERLAY COMBINÉ ===`);
+    console.log(`🔍 [PhaserOverlay] === DEBUG OVERLAY ANTI-SPAM ===`);
     console.log(`⚡ Mode: ${this.performanceMode}`);
     console.log(`🎬 Tween actif: ${this.activeTween ? 'OUI' : 'NON'}`);
-    console.log(`🎨 Couleurs en cache: ${this.colorCache.size}`);
-    console.log(`🔄 État actuel: ${this.lastCombinedState}`);
+    console.log(`⏳ Update en attente: ${this.pendingUpdate ? 'OUI' : 'NON'}`);
+    console.log(`🔄 Timer actif: ${this.updateTimer ? 'OUI' : 'NON'}`);
+    console.log(`🎨 État actuel: ${this.lastCombinedState}`);
+    console.log(`🔧 Debug mode: ${this.debugMode}`);
     
     if (this.combinedOverlay) {
       console.log(`🌙 Overlay: alpha=${this.combinedOverlay.alpha.toFixed(3)}, visible=${this.combinedOverlay.visible}`);
       console.log(`🎨 Couleur: 0x${this.combinedOverlay.fillColor.toString(16)}`);
-    } else {
-      console.log(`❌ Overlay: NON CRÉÉ`);
+    }
+    
+    if (this.pendingUpdate) {
+      console.log(`⏳ Update en attente:`, this.pendingUpdate);
     }
   }
 
-  // ✅ NETTOYAGE COMPLET
   destroy() {
-    console.log(`🧹 [PhaserOverlay] Destruction...`);
+    console.log(`🧹 [PhaserOverlay] Destruction avec anti-spam...`);
     
-    // ✅ Arrêter le tween actif
+    // ✅ Nettoyer le débouncing
+    this.clearPendingUpdates();
+    
     if (this.activeTween) {
       this.activeTween.stop();
       this.activeTween = null;
     }
     
-    // ✅ Détruire l'overlay
     if (this.combinedOverlay) {
       this.combinedOverlay.destroy();
       this.combinedOverlay = null;
     }
     
-    // ✅ Nettoyer les caches
     this.colorCache.clear();
     this.lastCombinedState = null;
     
-    console.log(`✅ [PhaserOverlay] Détruit`);
+    console.log(`✅ [PhaserOverlay] Détruit (anti-spam)`);
   }
 }
 
-// ✅ INTÉGRATION dans DayNightWeatherManagerPhaser
+// ✅ MANAGER PRINCIPAL AVEC DÉBOUNCING
 export class DayNightWeatherManagerPhaser {
   constructor(scene) {
     this.scene = scene;
@@ -323,19 +399,24 @@ export class DayNightWeatherManagerPhaser {
     this.weatherEffects = null;
     this.isInitialized = false;
     
-    console.log(`🌅 [DayNightWeatherManagerPhaser] Créé (OVERLAY COMBINÉ)`);
+    // ✅ NOUVEAU: Anti-spam pour les callbacks
+    this.callbackDebounce = {
+      time: null,
+      weather: null
+    };
+    
+    console.log(`🌅 [DayNightWeatherManagerPhaser] Créé (ANTI-SPAM)`);
   }
 
   initialize(networkManager) {
     if (this.isInitialized) return;
 
-    console.log(`🌅 [DayNightWeatherManagerPhaser] === INIT OVERLAY COMBINÉ ===`);
+    console.log(`🌅 [DayNightWeatherManagerPhaser] === INIT ANTI-SPAM ===`);
     
     try {
       this.timeWeatherManager = new ClientTimeWeatherManager(this.scene);
       this.timeWeatherManager.initialize(networkManager);
 
-      // ✅ Nouveau manager combiné
       this.overlayManager = new OptimizedPhaserOverlayManager(this.scene);
       this.overlayManager.initialize();
 
@@ -343,57 +424,100 @@ export class DayNightWeatherManagerPhaser {
       this.setupCallbacks();
       
       this.isInitialized = true;
-      console.log(`✅ [DayNightWeatherManagerPhaser] Initialisé (OVERLAY COMBINÉ)`);
+      console.log(`✅ [DayNightWeatherManagerPhaser] Initialisé (ANTI-SPAM)`);
       
     } catch (error) {
       console.error(`❌ [DayNightWeatherManagerPhaser] Erreur:`, error);
     }
   }
 
+  // ✅ CALLBACKS AVEC DÉBOUNCING SÉVÈRE
   setupCallbacks() {
-    // ✅ Callback temps - utilise l'update combiné
+    // ✅ Callback temps avec débouncing
     this.timeWeatherManager.onTimeChange((hour, isDayTime) => {
-      const currentZone = this.getCurrentZone();
-      const environment = zoneEnvironmentManager.getZoneEnvironment(currentZone);
+      // ✅ Annuler le timer précédent
+      if (this.callbackDebounce.time) {
+        clearTimeout(this.callbackDebounce.time);
+      }
       
-      console.log(`🌅 [DayNightWeatherManagerPhaser] Temps: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'} (${environment})`);
-      
-      // ✅ Update combiné au lieu de séparé
-      this.overlayManager.setDayNight(isDayTime, environment, currentZone);
+      // ✅ Programmer l'exécution dans 200ms
+      this.callbackDebounce.time = setTimeout(() => {
+        this.handleTimeChange(hour, isDayTime);
+        this.callbackDebounce.time = null;
+      }, 200);
     });
 
-    // ✅ Callback météo - utilise l'update combiné
+    // ✅ Callback météo avec débouncing
     this.timeWeatherManager.onWeatherChange((weather, displayName) => {
-      const currentZone = this.getCurrentZone();
-      const environment = zoneEnvironmentManager.getZoneEnvironment(currentZone);
-      
-      console.log(`🌤️ [DayNightWeatherManagerPhaser] Météo: ${displayName} (${environment})`);
-      
-      // ✅ Update combiné au lieu de séparé
-      this.overlayManager.setWeather(weather, environment);
-      
-      if (this.weatherEffects) {
-        this.weatherEffects.setEnvironmentType(environment);
-        this.weatherEffects.setWeather(weather);
+      // ✅ Annuler le timer précédent
+      if (this.callbackDebounce.weather) {
+        clearTimeout(this.callbackDebounce.weather);
       }
+      
+      // ✅ Programmer l'exécution dans 200ms
+      this.callbackDebounce.weather = setTimeout(() => {
+        this.handleWeatherChange(weather, displayName);
+        this.callbackDebounce.weather = null;
+      }, 200);
     });
   }
 
+  // ✅ NOUVEAUX HANDLERS SÉPARÉS
+  handleTimeChange(hour, isDayTime) {
+    const currentZone = this.getCurrentZone();
+    const environment = zoneEnvironmentManager.getZoneEnvironment(currentZone);
+    
+    console.log(`🌅 [DayNightWeatherManagerPhaser] Temps débounced: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'} (${environment})`);
+    
+    this.overlayManager.setDayNight(isDayTime, environment, currentZone);
+  }
+
+  handleWeatherChange(weather, displayName) {
+    const currentZone = this.getCurrentZone();
+    const environment = zoneEnvironmentManager.getZoneEnvironment(currentZone);
+    
+    console.log(`🌤️ [DayNightWeatherManagerPhaser] Météo débounced: ${displayName} (${environment})`);
+    
+    this.overlayManager.setWeather(weather, environment);
+    
+    if (this.weatherEffects) {
+      this.weatherEffects.setEnvironmentType(environment);
+      this.weatherEffects.setWeather(weather);
+    }
+  }
+
   getCurrentZone() {
-    return this.scene?.zoneName || this.scene?.scene?.key || 'unknown';
+    // ✅ AMÉLIORER la récupération de zone
+    let zoneName = this.scene?.zoneName || this.scene?.scene?.key || 'unknown';
+    
+    // ✅ Normaliser les zones problématiques
+    if (!zoneName || zoneName === 'null' || zoneName === 'undefined') {
+      zoneName = 'default';
+    }
+    
+    return zoneName;
   }
 
   forceUpdate() {
     if (!this.isInitialized) return;
+
+    // ✅ Annuler tous les débouncing en cours
+    if (this.callbackDebounce.time) {
+      clearTimeout(this.callbackDebounce.time);
+      this.callbackDebounce.time = null;
+    }
+    if (this.callbackDebounce.weather) {
+      clearTimeout(this.callbackDebounce.weather);
+      this.callbackDebounce.weather = null;
+    }
 
     const time = this.timeWeatherManager.getCurrentTime();
     const weather = this.timeWeatherManager.getCurrentWeather();
     const currentZone = this.getCurrentZone();
     const environment = zoneEnvironmentManager.getZoneEnvironment(currentZone);
 
-    console.log(`🔄 [DayNightWeatherManagerPhaser] Force update combiné`);
+    console.log(`🔄 [DayNightWeatherManagerPhaser] Force update anti-spam`);
     
-    // ✅ UN SEUL update combiné
     this.overlayManager.forceUpdate(time.isDayTime, weather.weather, environment, currentZone);
   }
 
@@ -408,8 +532,38 @@ export class DayNightWeatherManagerPhaser {
     }
   }
 
+  // ✅ NOUVELLES MÉTHODES DE CONTRÔLE
+  setDebugMode(enabled) {
+    if (this.overlayManager) {
+      this.overlayManager.setDebugMode(enabled);
+    }
+    console.log(`🔧 [DayNightWeatherManagerPhaser] Debug mode: ${enabled ? 'ON' : 'OFF'}`);
+  }
+
+  clearAllDebouncing() {
+    // ✅ Nettoyer tous les débouncing
+    if (this.callbackDebounce.time) {
+      clearTimeout(this.callbackDebounce.time);
+      this.callbackDebounce.time = null;
+    }
+    if (this.callbackDebounce.weather) {
+      clearTimeout(this.callbackDebounce.weather);
+      this.callbackDebounce.weather = null;
+    }
+    
+    if (this.overlayManager) {
+      this.overlayManager.clearPendingUpdates();
+    }
+    
+    console.log(`🧹 [DayNightWeatherManagerPhaser] Tous les débouncing nettoyés`);
+  }
+
   debug() {
-    console.log(`🔍 [DayNightWeatherManagerPhaser] === DEBUG COMBINÉ ===`);
+    console.log(`🔍 [DayNightWeatherManagerPhaser] === DEBUG ANTI-SPAM ===`);
+    console.log(`⏳ Débouncing actif:`, {
+      time: !!this.callbackDebounce.time,
+      weather: !!this.callbackDebounce.weather
+    });
     
     if (this.overlayManager) {
       this.overlayManager.debug();
@@ -421,7 +575,10 @@ export class DayNightWeatherManagerPhaser {
   }
 
   destroy() {
-    console.log(`🧹 [DayNightWeatherManagerPhaser] Destruction combinée...`);
+    console.log(`🧹 [DayNightWeatherManagerPhaser] Destruction anti-spam...`);
+    
+    // ✅ Nettoyer tous les débouncing
+    this.clearAllDebouncing();
     
     if (this.overlayManager) {
       this.overlayManager.destroy();
@@ -435,8 +592,8 @@ export class DayNightWeatherManagerPhaser {
       this.timeWeatherManager.destroy();
     }
     
-    console.log(`✅ [DayNightWeatherManagerPhaser] Détruit (COMBINÉ)`);
+    console.log(`✅ [DayNightWeatherManagerPhaser] Détruit (ANTI-SPAM)`);
   }
 }
-// ✅ À la fin du fichier DayNightWeatherManager.js
+
 export { DayNightWeatherManagerPhaser as DayNightWeatherManager };
