@@ -1,16 +1,13 @@
-// client/src/managers/ClientTimeWeatherManager.js - VERSION SYNCHRONISÉE SERVEUR
+// ClientTimeWeatherManager.js - VERSION ANTI-SPAM DÉFINITIVE
 export class ClientTimeWeatherManager {
   constructor(scene) {
     this.scene = scene;
     
-    // ✅ SUPPRIMÉ: Plus de gestion locale du temps
-    // Le client reçoit UNIQUEMENT l'heure du serveur
     this.currentHour = 12;
     this.isDayTime = true;
     this.currentWeather = "clear";
     this.weatherDisplayName = "Ciel dégagé";
     
-    // ✅ Flag pour savoir si on a reçu l'état initial du serveur
     this.hasReceivedInitialTime = false;
     this.hasReceivedInitialWeather = false;
     
@@ -19,7 +16,22 @@ export class ClientTimeWeatherManager {
       weather: []
     };
     
-    console.log(`🌍 [ClientTimeWeatherManager] Initialisé pour ${scene.scene.key} - Mode serveur uniquement`);
+    // ✅ NOUVEAU: Anti-spam SÉVÈRE avec états précédents
+    this.lastTimeState = null;
+    this.lastWeatherState = null;
+    this.timeMessageCount = 0;
+    this.weatherMessageCount = 0;
+    
+    // ✅ NOUVEAU: Débouncing pour éviter les notifications multiples
+    this.notificationDebounce = {
+      time: null,
+      weather: null
+    };
+    
+    // ✅ NOUVEAU: Mode debug
+    this.debugMode = false;
+    
+    console.log(`🌍 [ClientTimeWeatherManager] Initialisé avec ANTI-SPAM SÉVÈRE`);
   }
 
   initialize(networkManager) {
@@ -31,104 +43,196 @@ export class ClientTimeWeatherManager {
     this.setupNetworkHandlers(networkManager);
     this.requestInitialState(networkManager);
     
-    console.log(`✅ [ClientTimeWeatherManager] Connecté au serveur (mode sync)`);
+    console.log(`✅ [ClientTimeWeatherManager] Connecté avec anti-spam sévère`);
   }
 
   setupNetworkHandlers(networkManager) {
-    // ✅ Handler temps - MISE À JOUR DIRECTE DEPUIS SERVEUR
+    // ✅ Handler temps avec ANTI-SPAM BRUTAL
     networkManager.onMessage("timeUpdate", (data) => {
-      console.log(`🕐 [ClientTimeWeatherManager] ⬇️ SERVEUR → CLIENT: ${data.displayTime} ${data.isDayTime ? '☀️' : '🌙'}`);
-      
-      // ✅ APPLIQUER DIRECTEMENT L'HEURE DU SERVEUR
-      this.currentHour = data.gameHour;
-      this.isDayTime = data.isDayTime;
-      this.hasReceivedInitialTime = true;
-      
-      // ✅ NOTIFIER IMMÉDIATEMENT LES LISTENERS
-      this.notifyTimeListeners(this.currentHour, this.isDayTime);
+      this.handleTimeUpdateWithAntiSpam(data);
     });
 
-    // ✅ Handler météo - MISE À JOUR DIRECTE DEPUIS SERVEUR
+    // ✅ Handler météo avec ANTI-SPAM BRUTAL
     networkManager.onMessage("weatherUpdate", (data) => {
-      console.log(`🌤️ [ClientTimeWeatherManager] ⬇️ SERVEUR → CLIENT: ${data.displayName}`);
-      
-      // ✅ APPLIQUER DIRECTEMENT LA MÉTÉO DU SERVEUR
-      this.currentWeather = data.weather;
-      this.weatherDisplayName = data.displayName;
-      this.hasReceivedInitialWeather = true;
-      
-      // ✅ NOTIFIER IMMÉDIATEMENT LES LISTENERS
-      this.notifyWeatherListeners(this.currentWeather, this.weatherDisplayName);
+      this.handleWeatherUpdateWithAntiSpam(data);
     });
 
-    // ✅ Handler état initial temps
+    // ✅ Handlers état initial (sans anti-spam car unique)
     networkManager.onMessage("currentTime", (data) => {
-      console.log(`🕐 [ClientTimeWeatherManager] ➡️ État initial temps: ${data.displayTime}`);
+      if (this.debugMode) {
+        console.log(`🕐 [ClientTimeWeatherManager] ➡️ État initial temps: ${data.displayTime}`);
+      }
       
-      this.currentHour = data.gameHour;
-      this.isDayTime = data.isDayTime;
+      this.applyTimeUpdate(data);
       this.hasReceivedInitialTime = true;
-      
-      // ✅ NOTIFIER avec l'état initial
-      this.notifyTimeListeners(this.currentHour, this.isDayTime);
     });
 
-    // ✅ Handler état initial météo
     networkManager.onMessage("currentWeather", (data) => {
-      console.log(`🌤️ [ClientTimeWeatherManager] ➡️ État initial météo: ${data.displayName}`);
+      if (this.debugMode) {
+        console.log(`🌤️ [ClientTimeWeatherManager] ➡️ État initial météo: ${data.displayName}`);
+      }
       
-      this.currentWeather = data.weather;
-      this.weatherDisplayName = data.displayName;
+      this.applyWeatherUpdate(data);
       this.hasReceivedInitialWeather = true;
-      
-      // ✅ NOTIFIER avec l'état initial
-      this.notifyWeatherListeners(this.currentWeather, this.weatherDisplayName);
     });
 
-    console.log(`✅ [ClientTimeWeatherManager] Handlers réseau configurés (mode serveur)`);
+    console.log(`✅ [ClientTimeWeatherManager] Handlers anti-spam configurés`);
+  }
+
+  // ✅ NOUVEAU: Handler temps avec anti-spam BRUTAL
+  handleTimeUpdateWithAntiSpam(data) {
+    // ✅ Créer une clé d'état unique
+    const stateKey = `${data.gameHour}-${data.isDayTime}-${data.displayTime}`;
+    
+    // ✅ IGNORER COMPLÈTEMENT si état identique
+    if (this.lastTimeState === stateKey) {
+      this.timeMessageCount++;
+      
+      // ✅ Log seulement si debug ET log de spam occasionnel
+      if (this.debugMode && this.timeMessageCount % 5 === 0) {
+        console.log(`🚫 [ClientTimeWeatherManager] ${this.timeMessageCount} messages temps identiques ignorés: ${data.displayTime}`);
+      }
+      return; // ✅ SORTIE IMMÉDIATE - Ne rien faire
+    }
+    
+    // ✅ Reset compteur si nouveau message
+    if (this.timeMessageCount > 0) {
+      console.log(`📊 [ClientTimeWeatherManager] ${this.timeMessageCount} messages temps dupliqués ignorés au total`);
+      this.timeMessageCount = 0;
+    }
+    
+    if (this.debugMode) {
+      console.log(`🕐 [ClientTimeWeatherManager] ⬇️ NOUVEAU TEMPS: ${data.displayTime} ${data.isDayTime ? '☀️' : '🌙'}`);
+    }
+    
+    // ✅ Mettre à jour l'état
+    this.lastTimeState = stateKey;
+    
+    // ✅ Appliquer avec débouncing
+    this.debouncedTimeNotification(data);
+  }
+
+  // ✅ NOUVEAU: Handler météo avec anti-spam BRUTAL
+  handleWeatherUpdateWithAntiSpam(data) {
+    // ✅ Créer une clé d'état unique
+    const stateKey = `${data.weather}-${data.displayName}`;
+    
+    // ✅ IGNORER COMPLÈTEMENT si état identique
+    if (this.lastWeatherState === stateKey) {
+      this.weatherMessageCount++;
+      
+      // ✅ Log seulement si debug ET log de spam occasionnel
+      if (this.debugMode && this.weatherMessageCount % 5 === 0) {
+        console.log(`🚫 [ClientTimeWeatherManager] ${this.weatherMessageCount} messages météo identiques ignorés: ${data.displayName}`);
+      }
+      return; // ✅ SORTIE IMMÉDIATE - Ne rien faire
+    }
+    
+    // ✅ Reset compteur si nouveau message
+    if (this.weatherMessageCount > 0) {
+      console.log(`📊 [ClientTimeWeatherManager] ${this.weatherMessageCount} messages météo dupliqués ignorés au total`);
+      this.weatherMessageCount = 0;
+    }
+    
+    if (this.debugMode) {
+      console.log(`🌤️ [ClientTimeWeatherManager] ⬇️ NOUVELLE MÉTÉO: ${data.displayName}`);
+    }
+    
+    // ✅ Mettre à jour l'état
+    this.lastWeatherState = stateKey;
+    
+    // ✅ Appliquer avec débouncing
+    this.debouncedWeatherNotification(data);
+  }
+
+  // ✅ NOUVEAU: Notification temps avec débouncing
+  debouncedTimeNotification(data) {
+    // ✅ Annuler le timer précédent
+    if (this.notificationDebounce.time) {
+      clearTimeout(this.notificationDebounce.time);
+    }
+    
+    // ✅ Programmer la notification dans 100ms
+    this.notificationDebounce.time = setTimeout(() => {
+      this.applyTimeUpdate(data);
+      this.notificationDebounce.time = null;
+    }, 100);
+  }
+
+  // ✅ NOUVEAU: Notification météo avec débouncing
+  debouncedWeatherNotification(data) {
+    // ✅ Annuler le timer précédent
+    if (this.notificationDebounce.weather) {
+      clearTimeout(this.notificationDebounce.weather);
+    }
+    
+    // ✅ Programmer la notification dans 100ms
+    this.notificationDebounce.weather = setTimeout(() => {
+      this.applyWeatherUpdate(data);
+      this.notificationDebounce.weather = null;
+    }, 100);
+  }
+
+  // ✅ MÉTHODES D'APPLICATION INCHANGÉES
+  applyTimeUpdate(data) {
+    this.currentHour = data.gameHour;
+    this.isDayTime = data.isDayTime;
+    this.hasReceivedInitialTime = true;
+    
+    this.notifyTimeListeners(this.currentHour, this.isDayTime);
+  }
+
+  applyWeatherUpdate(data) {
+    this.currentWeather = data.weather;
+    this.weatherDisplayName = data.displayName;
+    this.hasReceivedInitialWeather = true;
+    
+    this.notifyWeatherListeners(this.currentWeather, this.weatherDisplayName);
   }
 
   requestInitialState(networkManager) {
-    console.log(`📤 [ClientTimeWeatherManager] Demande état initial au serveur...`);
+    if (this.debugMode) {
+      console.log(`📤 [ClientTimeWeatherManager] Demande état initial...`);
+    }
     
-    // ✅ Demander l'état actuel au serveur
     networkManager.room.send("getTime");
     networkManager.room.send("getWeather");
     
-    // ✅ NOUVEAU: Répéter la demande si pas de réponse après 2 secondes
     setTimeout(() => {
       if (!this.hasReceivedInitialTime) {
-        console.warn(`⚠️ [ClientTimeWeatherManager] Pas de réponse temps, nouvelle demande...`);
+        console.warn(`⚠️ [ClientTimeWeatherManager] Timeout temps, nouvelle demande...`);
         networkManager.room.send("getTime");
       }
       if (!this.hasReceivedInitialWeather) {
-        console.warn(`⚠️ [ClientTimeWeatherManager] Pas de réponse météo, nouvelle demande...`);
+        console.warn(`⚠️ [ClientTimeWeatherManager] Timeout météo, nouvelle demande...`);
         networkManager.room.send("getWeather");
       }
     }, 2000);
   }
 
-  // ✅ API PUBLIQUE - INCHANGÉE
+  // ✅ API PUBLIQUE INCHANGÉE
 
   onTimeChange(callback) {
     this.listeners.time.push(callback);
     
-    // ✅ SEULEMENT si on a reçu l'état du serveur
     if (this.hasReceivedInitialTime) {
-      callback(this.currentHour, this.isDayTime);
-    } else {
-      console.log(`⏳ [ClientTimeWeatherManager] Callback temps enregistré, en attente serveur...`);
+      setTimeout(() => {
+        callback(this.currentHour, this.isDayTime);
+      }, 50);
+    } else if (this.debugMode) {
+      console.log(`⏳ [ClientTimeWeatherManager] Callback temps enregistré, en attente...`);
     }
   }
 
   onWeatherChange(callback) {
     this.listeners.weather.push(callback);
     
-    // ✅ SEULEMENT si on a reçu l'état du serveur
     if (this.hasReceivedInitialWeather) {
-      callback(this.currentWeather, this.weatherDisplayName);
-    } else {
-      console.log(`⏳ [ClientTimeWeatherManager] Callback météo enregistré, en attente serveur...`);
+      setTimeout(() => {
+        callback(this.currentWeather, this.weatherDisplayName);
+      }, 50);
+    } else if (this.debugMode) {
+      console.log(`⏳ [ClientTimeWeatherManager] Callback météo enregistré, en attente...`);
     }
   }
 
@@ -156,14 +260,54 @@ export class ClientTimeWeatherManager {
     return this.currentWeather === 'rain' ? '🌧️' : '☀️';
   }
 
-  // ✅ NOUVELLES MÉTHODES DE SYNCHRONISATION
-  
-  isSynchronized() {
-    return this.hasReceivedInitialTime && this.hasReceivedInitialWeather;
+  // ✅ NOUVELLES MÉTHODES DE CONTRÔLE ANTI-SPAM
+
+  setDebugMode(enabled) {
+    this.debugMode = enabled;
+    console.log(`🔧 [ClientTimeWeatherManager] Debug mode: ${enabled ? 'ON' : 'OFF'}`);
+  }
+
+  getSpamStats() {
+    return {
+      timeMessageCount: this.timeMessageCount,
+      weatherMessageCount: this.weatherMessageCount,
+      lastTimeState: this.lastTimeState,
+      lastWeatherState: this.lastWeatherState,
+      hasReceivedInitialTime: this.hasReceivedInitialTime,
+      hasReceivedInitialWeather: this.hasReceivedInitialWeather
+    };
+  }
+
+  resetSpamCounters() {
+    const oldStats = this.getSpamStats();
+    
+    this.timeMessageCount = 0;
+    this.weatherMessageCount = 0;
+    
+    console.log(`🔄 [ClientTimeWeatherManager] Compteurs spam reset:`, oldStats);
+  }
+
+  clearAllDebouncing() {
+    if (this.notificationDebounce.time) {
+      clearTimeout(this.notificationDebounce.time);
+      this.notificationDebounce.time = null;
+    }
+    if (this.notificationDebounce.weather) {
+      clearTimeout(this.notificationDebounce.weather);
+      this.notificationDebounce.weather = null;
+    }
+    
+    console.log(`🧹 [ClientTimeWeatherManager] Débouncing nettoyé`);
   }
 
   forceRefreshFromServer(networkManager) {
-    console.log(`🔄 [ClientTimeWeatherManager] Force refresh depuis serveur`);
+    console.log(`🔄 [ClientTimeWeatherManager] Force refresh avec reset anti-spam`);
+    
+    // ✅ Reset de tous les états anti-spam
+    this.lastTimeState = null;
+    this.lastWeatherState = null;
+    this.resetSpamCounters();
+    this.clearAllDebouncing();
     
     this.hasReceivedInitialTime = false;
     this.hasReceivedInitialWeather = false;
@@ -171,10 +315,16 @@ export class ClientTimeWeatherManager {
     this.requestInitialState(networkManager);
   }
 
-  // ✅ NOTIFICATIONS INTERNES - INCHANGÉES
+  isSynchronized() {
+    return this.hasReceivedInitialTime && this.hasReceivedInitialWeather;
+  }
+
+  // ✅ NOTIFICATIONS INTERNES AVEC PROTECTION
 
   notifyTimeListeners(hour, isDayTime) {
-    console.log(`📢 [ClientTimeWeatherManager] Notification temps: ${hour}h ${isDayTime ? '(JOUR)' : '(NUIT)'} → ${this.listeners.time.length} listeners`);
+    if (this.debugMode) {
+      console.log(`📢 [ClientTimeWeatherManager] Notification temps: ${hour}h ${isDayTime ? '(JOUR)' : '(NUIT)'} → ${this.listeners.time.length} listeners`);
+    }
     
     this.listeners.time.forEach(callback => {
       try {
@@ -186,7 +336,9 @@ export class ClientTimeWeatherManager {
   }
 
   notifyWeatherListeners(weather, displayName) {
-    console.log(`📢 [ClientTimeWeatherManager] Notification météo: ${displayName} → ${this.listeners.weather.length} listeners`);
+    if (this.debugMode) {
+      console.log(`📢 [ClientTimeWeatherManager] Notification météo: ${displayName} → ${this.listeners.weather.length} listeners`);
+    }
     
     this.listeners.weather.forEach(callback => {
       try {
@@ -197,29 +349,52 @@ export class ClientTimeWeatherManager {
     });
   }
 
-  // ✅ DEBUG AMÉLIORÉ
+  // ✅ DEBUG AMÉLIORÉ AVEC STATS ANTI-SPAM
 
   debug() {
-    console.log(`🔍 [ClientTimeWeatherManager] === DEBUG ===`);
+    console.log(`🔍 [ClientTimeWeatherManager] === DEBUG ANTI-SPAM ===`);
     console.log(`🕐 Temps: ${this.currentHour}h ${this.isDayTime ? '(JOUR)' : '(NUIT)'}`);
     console.log(`🌤️ Météo: ${this.weatherDisplayName} (${this.currentWeather})`);
     console.log(`📡 Sync serveur: temps=${this.hasReceivedInitialTime}, météo=${this.hasReceivedInitialWeather}`);
     console.log(`👂 Listeners: temps=${this.listeners.time.length}, météo=${this.listeners.weather.length}`);
+    console.log(`🔧 Debug mode: ${this.debugMode}`);
+    
+    const spamStats = this.getSpamStats();
+    console.log(`📊 Stats anti-spam:`, spamStats);
+    
+    console.log(`⏳ Débouncing actif:`, {
+      time: !!this.notificationDebounce.time,
+      weather: !!this.notificationDebounce.weather
+    });
     
     if (!this.isSynchronized()) {
       console.warn(`⚠️ [ClientTimeWeatherManager] PAS COMPLÈTEMENT SYNCHRONISÉ !`);
     } else {
-      console.log(`✅ [ClientTimeWeatherManager] Complètement synchronisé avec le serveur`);
+      console.log(`✅ [ClientTimeWeatherManager] Synchronisé avec anti-spam actif`);
     }
   }
 
-  // ✅ NETTOYAGE - INCHANGÉ
+  // ✅ NETTOYAGE AVEC ANTI-SPAM
 
   destroy() {
+    console.log(`🧹 [ClientTimeWeatherManager] Destruction avec nettoyage anti-spam...`);
+    
+    // ✅ Nettoyer le débouncing
+    this.clearAllDebouncing();
+    
+    // ✅ Log des stats finales
+    const finalStats = this.getSpamStats();
+    if (finalStats.timeMessageCount > 0 || finalStats.weatherMessageCount > 0) {
+      console.log(`📊 [ClientTimeWeatherManager] Stats finales spam:`, finalStats);
+    }
+    
     this.listeners.time = [];
     this.listeners.weather = [];
     this.hasReceivedInitialTime = false;
     this.hasReceivedInitialWeather = false;
-    console.log(`🧹 [ClientTimeWeatherManager] Détruit`);
+    this.lastTimeState = null;
+    this.lastWeatherState = null;
+    
+    console.log(`✅ [ClientTimeWeatherManager] Détruit avec anti-spam`);
   }
 }
