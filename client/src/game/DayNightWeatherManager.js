@@ -100,13 +100,83 @@ export class OptimizedPhaserOverlayManager {
   updateCombined(isDayTime, weather, environment = 'outdoor', zoneName = null) {
   if (!this.combinedOverlay) return;
   
-  // ✅ FORCER TOUJOURS TRANSPARENT (anti-clignotement)
-  this.combinedOverlay.setAlpha(0);
-  this.combinedOverlay.setVisible(false);
-  
-  // Marquer comme traité
+  // ✅ Normaliser zoneName pour éviter les oscillations
+  const normalizedZone = this.normalizeZoneName(zoneName);
   const timeState = isDayTime ? 'day' : 'night';
-  this.lastCombinedState = `${timeState}-${weather}-${environment}-${this.normalizeZoneName(zoneName)}`;
+  const stateKey = `${timeState}-${weather}-${environment}-${normalizedZone}`;
+  
+  // ✅ SKIP si état identique (anti-clignotement)
+  if (this.lastCombinedState === stateKey) {
+    if (this.debugMode) {
+      console.log(`⚡ [PhaserOverlay] Skip identique: ${stateKey}`);
+    }
+    return;
+  }
+  
+  // ✅ CALCULER couleur et alpha selon les conditions
+  let targetColor = 0x000044;
+  let targetAlpha = 0;
+  
+  // ✅ EFFETS DE NUIT
+  if (!isDayTime) {
+    targetColor = 0x000044;
+    targetAlpha = 0.4; // Nuit normale
+    console.log(`🌙 [PhaserOverlay] Effet nuit: alpha ${targetAlpha}`);
+  }
+  
+  // ✅ EFFETS MÉTÉO (s'ajoutent à la nuit)
+  if (weather === 'rain') {
+    targetColor = 0x4488FF;
+    targetAlpha = Math.max(targetAlpha, 0.1); // Au moins 0.1 pour la pluie
+    if (!isDayTime) targetAlpha = 0.5; // Plus fort la nuit
+    console.log(`🌧️ [PhaserOverlay] Effet pluie: alpha ${targetAlpha}`);
+  } else if (weather === 'storm') {
+    targetColor = 0x333366;
+    targetAlpha = Math.max(targetAlpha, 0.15);
+    if (!isDayTime) targetAlpha = 0.6;
+    console.log(`⛈️ [PhaserOverlay] Effet orage: alpha ${targetAlpha}`);
+  } else if (weather === 'snow') {
+    targetColor = isDayTime ? 0xCCDDFF : 0x334466;
+    targetAlpha = Math.max(targetAlpha, 0.05);
+    if (!isDayTime) targetAlpha = 0.45;
+    console.log(`❄️ [PhaserOverlay] Effet neige: alpha ${targetAlpha}`);
+  } else if (weather === 'fog') {
+    targetColor = 0xCCCCCC;
+    targetAlpha = Math.max(targetAlpha, 0.1);
+    if (!isDayTime) targetAlpha = 0.55;
+    console.log(`🌫️ [PhaserOverlay] Effet brouillard: alpha ${targetAlpha}`);
+  }
+  
+  // ✅ EFFETS SPÉCIAUX POUR ENVIRONNEMENTS
+  if (environment === 'cave') {
+    targetColor = 0x2D1B0E;
+    targetAlpha = 0.6; // Toujours sombre dans les grottes
+    console.log(`🏔️ [PhaserOverlay] Effet grotte: alpha ${targetAlpha}`);
+  } else if (environment === 'indoor') {
+    targetColor = 0x000044;
+    targetAlpha = 0; // Toujours clair à l'intérieur
+    console.log(`🏠 [PhaserOverlay] Intérieur: pas d'overlay`);
+  }
+  
+  // ✅ MISE À JOUR DE L'ÉTAT
+  this.lastCombinedState = stateKey;
+  console.log(`🎨 [PhaserOverlay] ${stateKey} → couleur: 0x${targetColor.toString(16)}, alpha: ${targetAlpha}`);
+  
+  // ✅ APPLICATION IMMÉDIATE (pas d'animation pour éviter le clignotement)
+  this.combinedOverlay.setFillStyle(targetColor);
+  this.combinedOverlay.setAlpha(targetAlpha);
+  
+  if (targetAlpha > 0) {
+    this.combinedOverlay.setVisible(true);
+  } else {
+    this.combinedOverlay.setVisible(false);
+  }
+  
+  // ✅ ARRÊTER tout tween en cours pour éviter les conflits
+  if (this.activeTween) {
+    this.activeTween.stop();
+    this.activeTween = null;
+  }
 }
   // ✅ NOUVELLE MÉTHODE: Exécution immédiate pour transitions
   executeUpdateImmediate(isDayTime, weather, environment, zoneName, stateKey) {
