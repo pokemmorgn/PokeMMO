@@ -229,21 +229,25 @@ export class ClientEncounterManager {
   }
 
   // TROUVER LA ZONE DE RENCONTRE À UNE POSITION
-  getEncounterZoneAt(x, y) {
-    for (const [id, zone] of this.encounterZones.entries()) {
-      if (
-        x >= zone.bounds.left &&
-        x <= zone.bounds.right &&
-        y >= zone.bounds.top &&
-        y <= zone.bounds.bottom
-      ) {
-        console.log(`📍 [ClientEncounter] Dans zone: ${zone.zoneId}`);
-        return zone.zoneId;
-      }
+getEncounterZoneAt(x, y) {
+  for (const [id, zone] of this.encounterZones.entries()) {
+    const inside =
+      x >= zone.bounds.left &&
+      x <= zone.bounds.right &&
+      y >= zone.bounds.top &&
+      y <= zone.bounds.bottom;
+
+    console.log(
+      `[DEBUG] Test zone ${zone.zoneId} : bounds=(${zone.bounds.left},${zone.bounds.top})-(${zone.bounds.right},${zone.bounds.bottom}) | pos=(${x},${y}) | inside=${inside}`
+    );
+    if (inside) {
+      console.log(`📍 [ClientEncounter] Dans zone: ${zone.zoneId}`);
+      return zone.zoneId;
     }
-    console.log(`❌ [ClientEncounter] Aucune zone à (${x}, ${y})`);
-    return null;
   }
+  console.log(`❌ [ClientEncounter] Aucune zone à (${x}, ${y})`);
+  return null;
+}
 
   // CALCULER LE TAUX DE RENCONTRE
   calculateEncounterRate(method, zoneId) {
