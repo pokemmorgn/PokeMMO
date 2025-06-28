@@ -1,4 +1,4 @@
-// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC EncounterHandlers
+// server/src/rooms/WorldRoom.ts - VERSION COMPLÈTE AVEC MovementBlockManager
 import { Room, Client } from "@colyseus/core";
 import mongoose from "mongoose";
 
@@ -18,7 +18,7 @@ import { PlayerData } from "../models/PlayerData";
 
 import { TeamManager } from "../managers/TeamManager";
 import { TeamHandlers } from "../handlers/TeamHandlers";
-import { EncounterHandlers } from "../handlers/EncounterHandlers"; // ✅ NOUVEAU IMPORT
+import { EncounterHandlers } from "../handlers/EncounterHandlers";
 import { starterService } from "../services/StarterPokemonService";
 import { movementBlockManager, BlockReason } from "../managers/MovementBlockManager";
 
@@ -40,7 +40,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private npcManagers: Map<string, NpcManager> = new Map();
   private transitionService!: TransitionService;
   private timeWeatherService!: TimeWeatherService;
-  private encounterHandlers!: EncounterHandlers; // ✅ NOUVEAU: Remplace encounterManager
+  private encounterHandlers!: EncounterHandlers;
   private shopManager!: ShopManager;
   private positionSaver = PositionSaverService.getInstance();
   private autoSaveTimer: NodeJS.Timeout | null = null;
@@ -59,15 +59,24 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.setState(new PokeWorldState());
     console.log(`✅ State initialisé`);
 
+    // ✅ NOUVEAU: Configurer le MovementBlockManager
+    movementBlockManager.setRoomReference(this);
+    console.log(`✅ MovementBlockManager configuré`);
+
+    // ✅ NOUVEAU: Timer de nettoyage des blocages expirés (toutes les 30s)
+    setInterval(() => {
+      movementBlockManager.cleanup();
+    }, 30000);
+
     // Initialiser le ZoneManager
     this.zoneManager = new ZoneManager(this);
     console.log(`✅ ZoneManager initialisé`);
 
-    // ✅ NOUVEAU: Initialiser les TeamHandlers
+    // Initialiser les TeamHandlers
     this.teamHandlers = new TeamHandlers(this);
     console.log(`✅ TeamHandlers initialisé`);
 
-    // ✅ NOUVEAU: Initialiser les EncounterHandlers
+    // Initialiser les EncounterHandlers
     this.encounterHandlers = new EncounterHandlers(this);
     console.log(`✅ EncounterHandlers initialisé`);
 
@@ -80,14 +89,6 @@ export class WorldRoom extends Room<PokeWorldState> {
     // Messages handlers
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
-
-    // Système de blocage de mouvement
-    movementBlockManager.setRoomReference(this);
-    console.log(`✅ MovementBlockManager configuré`);
-
-    setInterval(() => {
-    movementBlockManager.cleanup();
-  }, 30000);
     
     // Initialiser le ShopManager
     this.shopManager = new ShopManager();
@@ -102,7 +103,6 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`💾 Auto-save des positions activé (30s)`);
   }
 
-  // ✅ MÉTHODE COMPLÈTE APRÈS onCreate
   private async autoSaveAllPositions() {
     const positions = Array.from(this.state.players.values())
       .map(player => this.positionSaver.extractPosition(player));
@@ -117,7 +117,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     
     this.timeWeatherService = new TimeWeatherService(this.state, this.clock);
     
-    // ✅ CALLBACKS AMÉLIORÉS pour broadcaster les changements
+    // Callbacks pour broadcaster les changements
     this.timeWeatherService.setTimeChangeCallback((hour, isDayTime) => {
       console.log(`📡 [WorldRoom] Broadcast temps: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'} → ${this.clients.length} clients`);
       
@@ -143,7 +143,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.broadcast("weatherUpdate", weatherData);
     });
 
-    // ✅ NOUVEAU: Commandes admin pour tester
+    // Commandes admin pour tester
     this.setupTimeWeatherCommands();
     
     console.log(`✅ [WorldRoom] TimeWeatherService initialisé avec callbacks`);
@@ -211,7 +211,6 @@ export class WorldRoom extends Room<PokeWorldState> {
     });
   }
 
-  // ✅ MÉTHODE CORRIGÉE AVEC DEBUG ET DÉLAI
   async onPlayerJoinZone(client: Client, zoneName: string) {
     console.log(`📥 === WORLDROOM: PLAYER JOIN ZONE (RAPIDE) ===`);
     console.log(`👤 Client: ${client.sessionId}`);
@@ -223,7 +222,8 @@ export class WorldRoom extends Room<PokeWorldState> {
       const position = this.positionSaver.extractPosition(playerForSave);
       this.positionSaver.savePosition(position, "transition");
     }
-    // ✅ ENVOYER LES NPCS IMMÉDIATEMENT
+
+    // Envoyer les NPCs immédiatement
     const npcManager = this.npcManagers.get(zoneName);
     if (npcManager) {
       const npcs = npcManager.getAllNpcs();
@@ -231,11 +231,11 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`📤 ${npcs.length} NPCs envoyés IMMÉDIATEMENT pour ${zoneName}`);
     }
 
-    // ✅ NOUVEAU: Mettre à jour la zone dans TimeWeatherService IMMÉDIATEMENT
+    // Mettre à jour la zone dans TimeWeatherService immédiatement
     if (this.timeWeatherService) {
       this.timeWeatherService.updateClientZone(client, zoneName);
       
-      // ✅ FORCER l'envoi immédiat de l'état temps/météo
+      // Forcer l'envoi immédiat de l'état temps/météo
       setTimeout(() => {
         if (this.timeWeatherService) {
           this.timeWeatherService.sendCurrentStateToAllClients();
@@ -243,12 +243,12 @@ export class WorldRoom extends Room<PokeWorldState> {
       }, 50); // 50ms seulement
     }
 
-    // ✅ Quest statuses avec délai réduit
+    // Quest statuses avec délai réduit
     const player = this.state.players.get(client.sessionId);
     if (player) {
       console.log(`🎯 [WorldRoom] Programmation RAPIDE des quest statuses pour ${player.name}`);
       
-      // ✅ DÉLAI RÉDUIT de 2s à 500ms
+      // Délai réduit de 2s à 500ms
       this.clock.setTimeout(async () => {
         console.log(`⏰ [WorldRoom] Exécution RAPIDE des quest statuses pour ${player.name}`);
         await this.updateQuestStatusesFixed(player.name, client);
@@ -256,19 +256,19 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE : Mise à jour quest statuses avec debug
+  // Mise à jour quest statuses avec debug
   private async updateQuestStatusesFixed(username: string, client?: Client) {
     try {
       console.log(`📊 [WorldRoom] === UPDATE QUEST STATUSES ===`);
       console.log(`👤 Username: ${username}`);
       
-      // ✅ VÉRIFIER QUE LE ZONE MANAGER EST INITIALISÉ
+      // Vérifier que le ZoneManager est initialisé
       if (!this.zoneManager) {
         console.error(`❌ [WorldRoom] ZoneManager non initialisé !`);
         return;
       }
       
-      // ✅ VÉRIFIER QUE LE QUEST MANAGER EST ACCESSIBLE
+      // Vérifier que le QuestManager est accessible
       const questManager = this.zoneManager.getQuestManager();
       if (!questManager) {
         console.error(`❌ [WorldRoom] QuestManager non accessible !`);
@@ -277,14 +277,14 @@ export class WorldRoom extends Room<PokeWorldState> {
       
       console.log(`✅ [WorldRoom] Managers OK, récupération quest statuses...`);
       
-      // ✅ APPELER DIRECTEMENT LE QUEST MANAGER POUR DEBUG
+      // Appeler directement le QuestManager pour debug
       const availableQuests = await questManager.getAvailableQuests(username);
       const activeQuests = await questManager.getActiveQuests(username);
       
       console.log(`📋 [WorldRoom] Quêtes disponibles: ${availableQuests.length}`);
       console.log(`📈 [WorldRoom] Quêtes actives: ${activeQuests.length}`);
       
-      // ✅ CALCULER MANUELLEMENT LES STATUTS POUR DEBUG
+      // Calculer manuellement les statuts pour debug
       const questStatuses: any[] = [];
       
       // Statuts pour les quêtes disponibles
@@ -318,7 +318,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`📊 [WorldRoom] Total quest statuses: ${questStatuses.length}`, questStatuses);
       
       if (questStatuses.length > 0) {
-        // ✅ ENVOYER À TOUS LES CLIENTS OU JUSTE CELUI SPÉCIFIÉ
+        // Envoyer à tous les clients ou juste celui spécifié
         if (client) {
           client.send("questStatuses", { questStatuses });
           console.log(`📤 [WorldRoom] Quest statuses envoyés à ${client.sessionId}`);
@@ -335,7 +335,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   }
 
-  // ✅ MÉTHODES PUBLIQUES - CORRECTEMENT PLACÉES
+  // Méthodes publiques
   public getNpcManager(zoneName: string): NpcManager | undefined {
     const npcManager = this.npcManagers.get(zoneName);
     if (!npcManager) {
@@ -364,10 +364,10 @@ export class WorldRoom extends Room<PokeWorldState> {
   private setupMessageHandlers() {
     console.log(`📨 === SETUP MESSAGE HANDLERS ===`);
 
-    // ✅ NOUVEAU: Configurer les handlers d'équipe
+    // Configurer les handlers d'équipe
     this.teamHandlers.setupHandlers();
     
-    // ✅ NOUVEAU: Configurer les handlers d'encounter
+    // Configurer les handlers d'encounter
     this.encounterHandlers.setupHandlers();
 
     // === HANDLERS EXISTANTS ===
@@ -382,7 +382,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       // Simple log, mais surtout ça évite l'erreur
     });
     
-    // ✅ HANDLER MANQUANT - Transition entre zones (ancien système)
+    // Transition entre zones (ancien système)
     this.onMessage("moveToZone", async (client, data) => {
       console.log(`🌀 === MOVE TO ZONE REQUEST (ANCIEN SYSTÈME) ===`);
       console.log(`👤 Client: ${client.sessionId}`);
@@ -392,45 +392,48 @@ export class WorldRoom extends Room<PokeWorldState> {
       await this.zoneManager.handleZoneTransition(client, data);
     });
 
-      this.onMessage("debugMovementBlocks", (client) => {
-    console.log(`🔍 [WorldRoom] Debug blocages demandé par ${client.sessionId}`);
-    movementBlockManager.debugAllBlocks();
+    // ✅ NOUVEAUX HANDLERS POUR LE BLOCAGE DE MOUVEMENT
     
-    const stats = movementBlockManager.getStats();
-    client.send("movementBlockStats", stats);
-  });
+    // Debug des blocages (admin/dev seulement)
+    this.onMessage("debugMovementBlocks", (client) => {
+      console.log(`🔍 [WorldRoom] Debug blocages demandé par ${client.sessionId}`);
+      movementBlockManager.debugAllBlocks();
+      
+      const stats = movementBlockManager.getStats();
+      client.send("movementBlockStats", stats);
+    });
 
-  // Forcer le déblocage (admin/urgence)
-  this.onMessage("forceUnblockMovement", (client, data: { targetPlayerId?: string }) => {
-    const targetId = data.targetPlayerId || client.sessionId;
-    const success = movementBlockManager.forceUnblockAll(targetId);
-    
-    client.send("forceUnblockResult", {
-      success,
-      targetPlayerId: targetId,
-      message: success ? "Déblocage forcé réussi" : "Erreur lors du déblocage"
+    // Forcer le déblocage (admin/urgence)
+    this.onMessage("forceUnblockMovement", (client, data: { targetPlayerId?: string }) => {
+      const targetId = data.targetPlayerId || client.sessionId;
+      const success = movementBlockManager.forceUnblockAll(targetId);
+      
+      client.send("forceUnblockResult", {
+        success,
+        targetPlayerId: targetId,
+        message: success ? "Déblocage forcé réussi" : "Erreur lors du déblocage"
+      });
+      
+      console.log(`🔥 [WorldRoom] Déblocage forcé ${targetId} par ${client.sessionId}: ${success}`);
+    });
+
+    // Vérifier l'état de blocage
+    this.onMessage("checkMovementBlock", (client) => {
+      const isBlocked = movementBlockManager.isMovementBlocked(client.sessionId);
+      const blocks = movementBlockManager.getPlayerBlocks(client.sessionId);
+      
+      client.send("movementBlockStatus", {
+        isBlocked,
+        blocks: blocks.map(b => ({
+          reason: b.reason,
+          timestamp: b.timestamp,
+          duration: b.duration,
+          metadata: b.metadata
+        }))
+      });
     });
     
-    console.log(`🔥 [WorldRoom] Déblocage forcé ${targetId} par ${client.sessionId}: ${success}`);
-  });
-
-  // Vérifier l'état de blocage
-  this.onMessage("checkMovementBlock", (client) => {
-    const isBlocked = movementBlockManager.isMovementBlocked(client.sessionId);
-    const blocks = movementBlockManager.getPlayerBlocks(client.sessionId);
-    
-    client.send("movementBlockStatus", {
-      isBlocked,
-      blocks: blocks.map(b => ({
-        reason: b.reason,
-        timestamp: b.timestamp,
-        duration: b.duration,
-        metadata: b.metadata
-      }))
-    });
-  });
-    
-    // ✅ VALIDATION de transition (nouveau système sécurisé)
+    // Validation de transition (nouveau système sécurisé)
     this.onMessage("validateTransition", async (client, data: TransitionRequest) => {
       console.log(`🔍 === VALIDATION TRANSITION REQUEST ===`);
       console.log(`👤 From: ${client.sessionId}`);
@@ -480,7 +483,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
-    // ✅ NOUVEAU HANDLER : Répondre aux demandes de zone
+    // Répondre aux demandes de zone
     this.onMessage("requestCurrentZone", (client, data) => {
       console.log(`📍 [WorldRoom] === DEMANDE ZONE ACTUELLE ===`);
       console.log(`👤 Client: ${client.sessionId}`);
@@ -500,7 +503,7 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
       
-      // ✅ ENVOYER LA VÉRITÉ DU SERVEUR
+      // Envoyer la vérité du serveur
       const response = {
         zone: player.currentZone,
         x: player.x,
@@ -517,7 +520,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       client.send("currentZone", response);
     });
     
-    // ✅ HANDLER MANQUANT - Notification de changement de zone
+    // Notification de changement de zone
     this.onMessage("notifyZoneChange", (client, data: { newZone: string, x: number, y: number }) => {
       console.log(`🔄 === ZONE CHANGE NOTIFICATION ===`);
       console.log(`👤 Client: ${client.sessionId}`);
@@ -562,9 +565,9 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
-    // ✅ === NOUVEAUX HANDLERS POUR PREMIER JOUEUR ===
+    // === HANDLERS POUR PREMIER JOUEUR ===
 
-    // ✅ NOUVEAU: Demande de resynchronisation forcée
+    // Demande de resynchronisation forcée
     this.onMessage("requestPlayerState", (client) => {
       console.log(`🔄 [WorldRoom] Demande de resync de ${client.sessionId}`);
       
@@ -600,7 +603,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
-    // ✅ NOUVEAU: Handler pour vérification de présence
+    // Handler pour vérification de présence
     this.onMessage("checkMyPresence", (client) => {
       const exists = this.state.players.has(client.sessionId);
       client.send("presenceCheck", {
@@ -612,7 +615,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`👻 [WorldRoom] Vérification présence ${client.sessionId}: ${exists}`);
     });
     
-    // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
+    // === HANDLERS POUR LES QUÊTES ===
 
     // Démarrage de quête
     this.onMessage("startQuest", (client, data) => {
@@ -640,7 +643,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.debugQuests(client);
     });
 
-    // ✅ === NOUVEAUX HANDLERS POUR LES SHOPS ===
+    // === HANDLERS POUR LES SHOPS ===
 
     // Transaction shop (achat/vente)
     this.onMessage("shopTransaction", async (client, data) => {
@@ -810,7 +813,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
-    // ✅ HANDLERS TEMPS/MÉTÉO AMÉLIORÉS
+    // === HANDLERS TEMPS/MÉTÉO ===
     this.onMessage("getTime", (client) => {
       console.log(`🕐 [WorldRoom] ${client.sessionId} demande l'heure actuelle`);
       
@@ -827,7 +830,7 @@ export class WorldRoom extends Room<PokeWorldState> {
         client.send("currentTime", response);
         console.log(`📤 [WorldRoom] Heure envoyée: ${response.displayTime}`);
         
-        // ✅ S'assurer que le client est dans le service de sync
+        // S'assurer que le client est dans le service de sync
         this.timeWeatherService.addClient(client);
       } else {
         console.warn(`⚠️ [WorldRoom] TimeWeatherService non disponible`);
@@ -855,7 +858,7 @@ export class WorldRoom extends Room<PokeWorldState> {
         client.send("currentWeather", response);
         console.log(`📤 [WorldRoom] Météo envoyée: ${response.displayName}`);
         
-        // ✅ S'assurer que le client est dans le service de sync
+        // S'assurer que le client est dans le service de sync
         this.timeWeatherService.addClient(client);
       } else {
         console.warn(`⚠️ [WorldRoom] TimeWeatherService non disponible`);
@@ -867,7 +870,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
     });
 
-    // ✅ NOUVEAU: Handler pour vérifier la synchronisation
+    // Handler pour vérifier la synchronisation
     this.onMessage("checkTimeWeatherSync", (client) => {
       console.log(`🔍 [WorldRoom] ${client.sessionId} vérifie la synchronisation temps/météo`);
       
@@ -882,7 +885,7 @@ export class WorldRoom extends Room<PokeWorldState> {
           serverTimestamp: Date.now()
         });
         
-        // ✅ Si pas synchronisé, forcer l'envoi de l'état
+        // Si pas synchronisé, forcer l'envoi de l'état
         if (!health.healthy) {
           console.log(`🔄 [WorldRoom] Client ${client.sessionId} pas sync, envoi forcé`);
           setTimeout(() => {
@@ -924,9 +927,8 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`✅ Tous les handlers configurés (y compris équipe et encounters)`);
   }
 
-  // ✅ === NOUVEAUX HANDLERS POUR LES QUÊTES ===
+  // === HANDLERS POUR LES QUÊTES ===
 
-  // ✅ CORRECTION DANS handleStartQuest 
   private async handleStartQuest(client: Client, data: { questId: string }) {
     try {
       console.log(`🎯 [WorldRoom] Démarrage de quête ${data.questId} pour ${client.sessionId}`);
@@ -940,47 +942,60 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
 
-      // ✅ UTILISER DIRECTEMENT LE QUEST MANAGER POUR DEBUG
-      const questManager = this.zoneManager.getQuestManager();
-      if (!questManager) {
-        console.error(`❌ [WorldRoom] QuestManager non accessible`);
-        client.send("questStartResult", {
-          success: false,
-          message: "Système de quêtes non disponible"
-        });
-        return;
-      }
+      // ✅ EXEMPLE D'USAGE: Bloquer pendant le démarrage de quête
+      this.blockPlayerMovement(client.sessionId, 'dialog', 3000, { questId: data.questId });
 
-      // ✅ DÉMARRER LA QUÊTE DIRECTEMENT
-      const quest = await questManager.startQuest(player.name, data.questId);
-      
-      if (quest) {
-        console.log(`✅ [WorldRoom] Quête ${data.questId} démarrée pour ${player.name}`);
+      try {
+        // Utiliser directement le QuestManager pour debug
+        const questManager = this.zoneManager.getQuestManager();
+        if (!questManager) {
+          console.error(`❌ [WorldRoom] QuestManager non accessible`);
+          client.send("questStartResult", {
+            success: false,
+            message: "Système de quêtes non disponible"
+          });
+          return;
+        }
+
+        // Démarrer la quête directement
+        const quest = await questManager.startQuest(player.name, data.questId);
         
-        const result = {
-          success: true,
-          quest: quest,
-          message: `Quête "${quest.name}" démarrée !`
-        };
+        if (quest) {
+          console.log(`✅ [WorldRoom] Quête ${data.questId} démarrée pour ${player.name}`);
+          
+          const result = {
+            success: true,
+            quest: quest,
+            message: `Quête "${quest.name}" démarrée !`
+          };
+          
+          client.send("questStartResult", result);
+          
+          // Mettre à jour les statuts immédiatement
+          await this.updateQuestStatusesFixed(player.name);
+          
+          // Broadcaster aux autres joueurs de la zone
+          this.broadcastToZone(player.currentZone, "questUpdate", {
+            player: player.name,
+            action: "started",
+            questId: data.questId
+          });
+          
+        } else {
+          console.log(`❌ [WorldRoom] Impossible de démarrer ${data.questId} pour ${player.name}`);
+          client.send("questStartResult", {
+            success: false,
+            message: "Impossible de démarrer cette quête"
+          });
+        }
+
+        // ✅ Débloquer à la fin
+        this.unblockPlayerMovement(client.sessionId, 'dialog');
         
-        client.send("questStartResult", result);
-        
-        // ✅ METTRE À JOUR LES STATUTS IMMÉDIATEMENT
-        await this.updateQuestStatusesFixed(player.name);
-        
-        // ✅ BROADCASTER AUX AUTRES JOUEURS DE LA ZONE
-        this.broadcastToZone(player.currentZone, "questUpdate", {
-          player: player.name,
-          action: "started",
-          questId: data.questId
-        });
-        
-      } else {
-        console.log(`❌ [WorldRoom] Impossible de démarrer ${data.questId} pour ${player.name}`);
-        client.send("questStartResult", {
-          success: false,
-          message: "Impossible de démarrer cette quête"
-        });
+      } catch (error) {
+        // ✅ Débloquer même en cas d'erreur
+        this.unblockPlayerMovement(client.sessionId, 'dialog');
+        throw error;
       }
       
     } catch (error) {
@@ -1002,7 +1017,7 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
 
-      // ✅ FIX: Utiliser directement la méthode de délégation du ZoneManager
+      // Utiliser directement la méthode de délégation du ZoneManager
       const activeQuests = await this.zoneManager.getActiveQuests(player.name);
       
       console.log(`📤 Envoi de ${activeQuests.length} quêtes actives`);
@@ -1026,7 +1041,7 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
 
-      // ✅ FIX: Utiliser directement la méthode de délégation du ZoneManager
+      // Utiliser directement la méthode de délégation du ZoneManager
       const availableQuests = await this.zoneManager.getAvailableQuests(player.name);
       
       console.log(`📤 Envoi de ${availableQuests.length} quêtes disponibles`);
@@ -1049,7 +1064,7 @@ export class WorldRoom extends Room<PokeWorldState> {
         return;
       }
 
-      // ✅ FIX: Utiliser directement la méthode de délégation du ZoneManager
+      // Utiliser directement la méthode de délégation du ZoneManager
       const results = await this.zoneManager.updateQuestProgress(player.name, data);
       
       if (results && results.length > 0) {
@@ -1065,7 +1080,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   }
 
-  // ✅ MÉTHODE DE DEBUG POUR LES QUÊTES
+  // Méthode de debug pour les quêtes
   private async debugQuests(client: Client) {
     const player = this.state.players.get(client.sessionId);
     if (!player) return;
@@ -1073,7 +1088,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`🐛 [DEBUG QUETES] Joueur: ${player.name}`);
     
     try {
-      // ✅ FIX: Debug avec les méthodes de délégation du ZoneManager
+      // Debug avec les méthodes de délégation du ZoneManager
       const activeQuests = await this.zoneManager.getActiveQuests(player.name);
       const availableQuests = await this.zoneManager.getAvailableQuests(player.name);
       
@@ -1088,7 +1103,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   }
 
-  // ✅ === NOUVEAUX HANDLERS POUR LES SHOPS ===
+  // === HANDLERS POUR LES SHOPS ===
 
   private async handleShopTransaction(client: Client, data: {
     shopId: string;
@@ -1108,73 +1123,86 @@ export class WorldRoom extends Room<PokeWorldState> {
 
       console.log(`🛒 ${player.name} ${data.action} ${data.quantity}x ${data.itemId} dans shop ${data.shopId}`);
 
-      // ✅ UTILISER DIRECTEMENT this.shopManager au lieu du ZoneManager
-      if (data.action === 'buy') {
-        const result = await this.shopManager.buyItem(
-          player.name,
-          data.shopId,
-          data.itemId,
-          data.quantity,
-          player.gold,
-          player.level
-        );
+      // ✅ EXEMPLE D'USAGE: Bloquer pendant transaction shop
+      this.blockPlayerMovement(client.sessionId, 'shop', 2000);
 
-        if (result.success) {
-          // Mettre à jour l'or du joueur
-          if (result.newGold !== undefined) {
-            player.gold = result.newGold;
+      try {
+        // Utiliser directement this.shopManager au lieu du ZoneManager
+        if (data.action === 'buy') {
+          const result = await this.shopManager.buyItem(
+            player.name,
+            data.shopId,
+            data.itemId,
+            data.quantity,
+            player.gold,
+            player.level
+          );
+
+          if (result.success) {
+            // Mettre à jour l'or du joueur
+            if (result.newGold !== undefined) {
+              player.gold = result.newGold;
+              
+              client.send("goldUpdate", {
+                oldGold: player.gold + (result.newGold - player.gold),
+                newGold: result.newGold
+              });
+            }
+
+            // Notifier le changement d'inventaire
+            if (result.itemsChanged && result.itemsChanged.length > 0) {
+              const itemChange = result.itemsChanged[0];
+              client.send("inventoryUpdate", {
+                type: "add",
+                itemId: itemChange.itemId,
+                quantity: itemChange.quantityChanged,
+                newQuantity: itemChange.newQuantity,
+                pocket: getItemPocket(itemChange.itemId)
+              });
+            }
+          }
+
+          client.send("shopTransactionResult", result);
+
+        } else if (data.action === 'sell') {
+          const result = await this.shopManager.sellItem(
+            player.name,
+            data.shopId,
+            data.itemId,
+            data.quantity
+          );
+
+          if (result.success) {
+            const newGold = player.gold + (result.newGold || 0);
+            player.gold = newGold;
             
             client.send("goldUpdate", {
-              oldGold: player.gold + (result.newGold - player.gold),
-              newGold: result.newGold
+              oldGold: player.gold - (result.newGold || 0),
+              newGold: newGold
             });
+
+            if (result.itemsChanged && result.itemsChanged.length > 0) {
+              const itemChange = result.itemsChanged[0];
+              client.send("inventoryUpdate", {
+                type: "remove",
+                itemId: itemChange.itemId,
+                quantity: Math.abs(itemChange.quantityChanged),
+                newQuantity: itemChange.newQuantity,
+                pocket: getItemPocket(itemChange.itemId)
+              });
+            }
           }
 
-          // Notifier le changement d'inventaire
-          if (result.itemsChanged && result.itemsChanged.length > 0) {
-            const itemChange = result.itemsChanged[0];
-            client.send("inventoryUpdate", {
-              type: "add",
-              itemId: itemChange.itemId,
-              quantity: itemChange.quantityChanged,
-              newQuantity: itemChange.newQuantity,
-              pocket: getItemPocket(itemChange.itemId)
-            });
-          }
+          client.send("shopTransactionResult", result);
         }
 
-        client.send("shopTransactionResult", result);
+        // ✅ Débloquer après transaction
+        this.unblockPlayerMovement(client.sessionId, 'shop');
 
-      } else if (data.action === 'sell') {
-        const result = await this.shopManager.sellItem(
-          player.name,
-          data.shopId,
-          data.itemId,
-          data.quantity
-        );
-
-        if (result.success) {
-          const newGold = player.gold + (result.newGold || 0);
-          player.gold = newGold;
-          
-          client.send("goldUpdate", {
-            oldGold: player.gold - (result.newGold || 0),
-            newGold: newGold
-          });
-
-          if (result.itemsChanged && result.itemsChanged.length > 0) {
-            const itemChange = result.itemsChanged[0];
-            client.send("inventoryUpdate", {
-              type: "remove",
-              itemId: itemChange.itemId,
-              quantity: Math.abs(itemChange.quantityChanged),
-              newQuantity: itemChange.newQuantity,
-              pocket: getItemPocket(itemChange.itemId)
-            });
-          }
-        }
-
-        client.send("shopTransactionResult", result);
+      } catch (error) {
+        // ✅ Débloquer même en cas d'erreur
+        this.unblockPlayerMovement(client.sessionId, 'shop');
+        throw error;
       }
 
     } catch (error) {
@@ -1199,11 +1227,11 @@ export class WorldRoom extends Room<PokeWorldState> {
 
       console.log(`🏪 Génération catalogue pour shop ${shopId} et joueur ${player.name}`);
 
-      // ✅ UTILISER DIRECTEMENT this.shopManager
+      // Utiliser directement this.shopManager
       const catalog = this.shopManager.getShopCatalog(shopId, player.level || 1);
 
       if (catalog) {
-        // ✅ ENVOYER UNE SEULE FOIS AVEC TOUTES LES DONNÉES
+        // Envoyer une seule fois avec toutes les données
         const response = {
           success: true,
           shopId: shopId,
@@ -1264,7 +1292,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     }
   }
   
-  // ✅ HELPER POUR BROADCASTER À UNE ZONE
+  // Helper pour broadcaster à une zone
   private broadcastToZone(zoneName: string, message: string, data: any) {
     console.log(`📡 [WorldRoom] Broadcasting to zone ${zoneName}: ${message}`);
     
@@ -1280,7 +1308,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`📤 [WorldRoom] Message envoyé à ${clientsInZone.length} clients dans ${zoneName}`);
   }
 
-  // ✅ === MÉTHODE CORRIGÉE POUR PREMIER JOUEUR ===
+  // === MÉTHODE POUR PREMIER JOUEUR ===
   async onJoin(client: Client, options: any = {}) {
     console.log(`👤 === PLAYER JOIN ===`);
     console.log(`🔑 Session: ${client.sessionId}`);
@@ -1294,14 +1322,14 @@ export class WorldRoom extends Room<PokeWorldState> {
       player.id = client.sessionId;
       player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
       
-      // ✅ DEBUG d'abord
+      // Debug d'abord
       await this.positionSaver.debugPlayerPosition(player.name);
 
       console.log(`🔍 [WorldRoom] === CHARGEMENT POSITION JOUEUR ===`);
       console.log(`👤 Joueur: ${player.name}`);
       console.log(`📊 Options reçues:`, { spawnX: options.spawnX, spawnY: options.spawnY, spawnZone: options.spawnZone });
 
-      // ✅ ÉTAPE 1: Toujours chercher en DB d'abord
+      // Étape 1: Toujours chercher en DB d'abord
       const savedData = await PlayerData.findOne({ username: player.name });
       console.log(`💾 Données DB trouvées:`, savedData ? {
         lastX: savedData.lastX,
@@ -1314,13 +1342,13 @@ export class WorldRoom extends Room<PokeWorldState> {
         }
       } : 'Aucune donnée');
 
-      // ✅ ÉTAPE 2: PRIORITÉ ABSOLUE à la DB si données complètes
+      // Étape 2: Priorité absolue à la DB si données complètes
       if (savedData && 
           typeof savedData.lastX === 'number' && 
           typeof savedData.lastY === 'number' && 
           savedData.lastMap) {
         
-        // ✅ ÉCRASE TOUT avec les données DB
+        // Écrase tout avec les données DB
         player.x = Math.round(savedData.lastX);
         player.y = Math.round(savedData.lastY);
         player.currentZone = savedData.lastMap;
@@ -1330,7 +1358,7 @@ export class WorldRoom extends Room<PokeWorldState> {
         console.log(`🔥 TOUTES les autres positions ignorées (options, défaut, teleport, etc.)`);
         
       } else {
-        // ✅ ÉTAPE 3: Fallback seulement si DB incomplète/manquante
+        // Étape 3: Fallback seulement si DB incomplète/manquante
         console.log(`⚠️ [FALLBACK] Données DB incomplètes ou manquantes`);
         
         // Utiliser les options ou défaut
@@ -1367,19 +1395,19 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`🎭 Personnage: ${player.characterId}`);
 
       console.log(`🌍 Zone de spawn: ${player.currentZone}`);
-      // ✅ NOUVEAU: Ajouter le client au TimeWeatherService
+      // Ajouter le client au TimeWeatherService
       if (this.timeWeatherService) {
         this.timeWeatherService.addClient(client, player.currentZone);
         console.log(`🌍 [WorldRoom] Client ${client.sessionId} ajouté au TimeWeatherService avec zone: ${player.currentZone}`);
       }
       
-      // ✅ NOUVELLES PROPRIÉTÉS SHOP
+      // Nouvelles propriétés shop
       player.level = options.level || 1;
       player.gold = options.gold || 1000;
       player.experience = options.experience || 0;
       player.title = options.title || "Dresseur Débutant";
       
-      // ✅ ÉTAPE 1: Ajouter au state IMMÉDIATEMENT
+      // Étape 1: Ajouter au state immédiatement
       this.state.players.set(client.sessionId, player);
       console.log("🧪 onJoin - client.sessionId =", client.sessionId);
       console.log(`✅ Joueur ${player.name} ajouté au state`);
@@ -1399,14 +1427,14 @@ export class WorldRoom extends Room<PokeWorldState> {
         console.error(`❌ [StarterService] Erreur sur ${player.name}:`, e);
       }
 
-      // ✅ ÉTAPE 2: CONFIRMER IMMÉDIATEMENT au client avec ses données
+      // Étape 2: Confirmer immédiatement au client avec ses données
       client.send("playerSpawned", {
         id: client.sessionId,
         name: player.name,
         x: player.x,
         y: player.y,
         currentZone: player.currentZone,
-        characterId: player.characterId, // ✅ NOUVEAU
+        characterId: player.characterId,
         level: player.level,
         gold: player.gold,
         isMyPlayer: true,
@@ -1417,7 +1445,7 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`💰 Level: ${player.level}, Gold: ${player.gold}`);
       console.log(`✅ Joueur ${player.name} créé et confirmé`);
 
-      // ✅ ÉTAPE 3: FORCER une synchronisation du state après un très court délai
+      // Étape 3: Forcer une synchronisation du state après un très court délai
       this.clock.setTimeout(() => {
         console.log(`🔄 [WorldRoom] Force sync state pour ${client.sessionId}`);
         
@@ -1462,11 +1490,11 @@ export class WorldRoom extends Room<PokeWorldState> {
       }
 
       
-      // ✅ ÉTAPE 4: Faire entrer le joueur dans sa zone initiale
+      // Étape 4: Faire entrer le joueur dans sa zone initiale
       await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
       this.scheduleFilteredStateUpdate();
 
-      // ✅ ÉTAPE 5: Setup des quêtes avec délai
+      // Étape 5: Setup des quêtes avec délai
       this.clock.setTimeout(async () => {
         await this.updateQuestStatusesFixed(player.name, client);
       }, 2000);
@@ -1503,6 +1531,10 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`🌍 [WorldRoom] Client ${client.sessionId} retiré du TimeWeatherService`);
     }
 
+    // ✅ NOUVEAU: Nettoyer tous les blocages du joueur qui part
+    movementBlockManager.forceUnblockAll(client.sessionId);
+    console.log(`🧹 [WorldRoom] Blocages nettoyés pour ${client.sessionId}`);
+
     console.log(`👋 Client ${client.sessionId} déconnecté`);
   }
 
@@ -1519,20 +1551,18 @@ export class WorldRoom extends Room<PokeWorldState> {
     // Sauvegarder les données des joueurs restants
     this.state.players.forEach((player, sessionId) => {
       console.log(`💾 Sauvegarde joueur: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
+      // Nettoyer les blocages
+      movementBlockManager.forceUnblockAll(sessionId);
     });
 
-  // Nettoyer tous les blocages du joueur qui part
-  movementBlockManager.forceUnblockAll(client.sessionId);
-  console.log(`🧹 [WorldRoom] Blocages nettoyés pour ${client.sessionId}`);
-    
-    // ✅ NOUVEAU: Nettoyer le TimeWeatherService
+    // Nettoyer le TimeWeatherService
     if (this.timeWeatherService) {
       console.log(`🌍 [WorldRoom] Destruction du TimeWeatherService...`);
       this.timeWeatherService.destroy();
       this.timeWeatherService = null;
     }
 
-    // ✅ NOUVEAU: Nettoyer les EncounterHandlers
+    // Nettoyer les EncounterHandlers
     if (this.encounterHandlers) {
       this.encounterHandlers.cleanup();
       console.log(`🧹 EncounterHandlers nettoyés`);
@@ -1541,67 +1571,67 @@ export class WorldRoom extends Room<PokeWorldState> {
     console.log(`✅ WorldRoom fermée`);
   }
 
-  // ✅ MÉTHODE DE MOUVEMENT SIMPLIFIÉE (SUPPRESSION DE LA LOGIQUE ENCOUNTER)
-private handlePlayerMove(client: Client, data: any) {
-  const player = this.state.players.get(client.sessionId);
-  if (!player) return;
+  // ✅ MÉTHODE DE MOUVEMENT AVEC MovementBlockManager
+  private handlePlayerMove(client: Client, data: any) {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
 
-  // ✅ ÉTAPE 1: Validation des mouvements via MovementBlockManager
-  const validation = movementBlockManager.validateMovement(client.sessionId, data);
-  if (!validation.allowed) {
-    console.log(`🚫 [WorldRoom] Mouvement refusé pour ${player.name}: ${validation.reason}`);
-    
-    // Renvoyer la position serveur pour rollback avec info de blocage
-    client.send("forcePlayerPosition", {
-      x: player.x,
-      y: player.y,
-      direction: player.direction,
-      currentZone: player.currentZone,
-      blocked: true,
-      reason: validation.reason,
-      message: validation.message
-    });
-    return;
-  }
+    // ✅ ÉTAPE 1: Validation des mouvements via MovementBlockManager
+    const validation = movementBlockManager.validateMovement(client.sessionId, data);
+    if (!validation.allowed) {
+      console.log(`🚫 [WorldRoom] Mouvement refusé pour ${player.name}: ${validation.reason}`);
+      
+      // Renvoyer la position serveur pour rollback avec info de blocage
+      client.send("forcePlayerPosition", {
+        x: player.x,
+        y: player.y,
+        direction: player.direction,
+        currentZone: player.currentZone,
+        blocked: true,
+        reason: validation.reason,
+        message: validation.message
+      });
+      return;
+    }
 
-  // ✅ ÉTAPE 2: Vérification collision (ton code existant)
-  const collisionManager = this.zoneManager.getCollisionManager(player.currentZone);
-  if (collisionManager && collisionManager.isBlocked(data.x, data.y)) {
-    // Mouvement interdit par collision : rollback normal
-    client.send("forcePlayerPosition", {
-      x: player.x,
-      y: player.y,
-      direction: player.direction,
-      currentZone: player.currentZone,
-      blocked: false, // Ce n'est pas un blocage système, juste une collision
-      collision: true
-    });
-    return;
-  }
+    // ✅ ÉTAPE 2: Vérification collision (code existant)
+    const collisionManager = this.zoneManager.getCollisionManager(player.currentZone);
+    if (collisionManager && collisionManager.isBlocked(data.x, data.y)) {
+      // Mouvement interdit par collision : rollback normal
+      client.send("forcePlayerPosition", {
+        x: player.x,
+        y: player.y,
+        direction: player.direction,
+        currentZone: player.currentZone,
+        blocked: false, // Ce n'est pas un blocage système, juste une collision
+        collision: true
+      });
+      return;
+    }
 
-  // ✅ ÉTAPE 3: Si tout est OK, appliquer le mouvement (ton code existant)
-  player.x = data.x;
-  player.y = data.y;
-  player.direction = data.direction;
-  player.isMoving = data.isMoving;
+    // ✅ ÉTAPE 3: Si tout est OK, appliquer le mouvement (code existant)
+    player.x = data.x;
+    player.y = data.y;
+    player.direction = data.direction;
+    player.isMoving = data.isMoving;
 
-  // ✅ Notification de changement de zone au TimeWeatherService (ton code existant)
-  if (data.currentZone && data.currentZone !== player.currentZone) {
-    if (this.timeWeatherService) {
-      this.timeWeatherService.updateClientZone(client, data.currentZone);
+    // Notification de changement de zone au TimeWeatherService (code existant)
+    if (data.currentZone && data.currentZone !== player.currentZone) {
+      if (this.timeWeatherService) {
+        this.timeWeatherService.updateClientZone(client, data.currentZone);
+      }
+    }
+
+    // Mise à jour de la zone (code existant)
+    if (data.currentZone) {
+      player.currentZone = data.currentZone;
+    }
+
+    // Log occasionnel pour debug (code existant)
+    if (Math.random() < 0.1) {
+      console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
     }
   }
-
-  // ✅ Mise à jour de la zone (ton code existant)
-  if (data.currentZone) {
-    player.currentZone = data.currentZone;
-  }
-
-  // ✅ Log occasionnel pour debug (ton code existant)
-  if (Math.random() < 0.1) {
-    console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
-  }
-}
 
   public getEncounterConditions(): { timeOfDay: 'day' | 'night', weather: 'clear' | 'rain' } {
     return this.timeWeatherService?.getEncounterConditions() || { timeOfDay: 'day', weather: 'clear' };
@@ -1742,7 +1772,7 @@ private handlePlayerMove(client: Client, data: any) {
     }
   }
 
-  // ✅ === NOUVELLES MÉTHODES UTILITAIRES POUR LES SHOPS ===
+  // === MÉTHODES UTILITAIRES POUR LES SHOPS ===
 
   async updatePlayerGold(playerName: string, newGold: number): Promise<boolean> {
     try {
@@ -1800,7 +1830,7 @@ private handlePlayerMove(client: Client, data: any) {
     }
   }
   
-  // ✅ MÉTHODE CORRIGÉE: getFilteredStateForClient
+  // Méthode pour getFilteredStateForClient
   private getFilteredStateForClient(client: Client): any {
     const player = this.state.players.get(client.sessionId);
     if (!player) {
@@ -1810,11 +1840,11 @@ private handlePlayerMove(client: Client, data: any) {
 
     const playerZone = player.currentZone;
     
-    // ✅ CORRECTION CRITIQUE: Utiliser un Object simple au lieu d'un Map
+    // Correction critique: Utiliser un Object simple au lieu d'un Map
     const filteredPlayersObject: { [key: string]: any } = {};
     
     this.state.players.forEach((otherPlayer, sessionId) => {
-        // ✅ Toujours inclure le joueur du client EN PREMIER
+        // Toujours inclure le joueur du client en premier
         if (sessionId === client.sessionId) {
             filteredPlayersObject[sessionId] = {
                 id: otherPlayer.id,
@@ -1831,7 +1861,7 @@ private handlePlayerMove(client: Client, data: any) {
             return;
         }
         
-        // ✅ Inclure les autres joueurs de la même zone
+        // Inclure les autres joueurs de la même zone
         if (otherPlayer.currentZone === playerZone) {
             filteredPlayersObject[sessionId] = {
                 id: otherPlayer.id,
@@ -1843,8 +1873,7 @@ private handlePlayerMove(client: Client, data: any) {
                 isMoving: otherPlayer.isMoving,
                 level: otherPlayer.level,
                 characterId: otherPlayer.characterId
-                // ✅ NE PAS inclure l'or des autres joueurs pour la sécurité
-                // gold: otherPlayer.gold  
+                // NE PAS inclure l'or des autres joueurs pour la sécurité
             };
         }
     });
@@ -1852,7 +1881,7 @@ private handlePlayerMove(client: Client, data: any) {
     console.log(`📊 [WorldRoom] Filtered state pour ${client.sessionId}: ${Object.keys(filteredPlayersObject).length} joueurs (zone: ${playerZone})`);
     
     return {
-        players: filteredPlayersObject  // ✅ Object simple, pas Map
+        players: filteredPlayersObject  // Object simple, pas Map
     };
   }
 
@@ -1877,7 +1906,7 @@ private handlePlayerMove(client: Client, data: any) {
     console.log(`📤 States filtrés envoyés à ${this.clients.length} clients`);
   }
 
-  // ✅ NOUVELLES MÉTHODES UTILITAIRES TEMPS/MÉTÉO
+  // === MÉTHODES UTILITAIRES TEMPS/MÉTÉO ===
 
   public getCurrentTimeWeatherInfo(): { 
     time: { hour: number; isDayTime: boolean; displayTime: string },
@@ -1935,35 +1964,36 @@ private handlePlayerMove(client: Client, data: any) {
       this.sendFilteredState();
     }, 50);
   }
-  /// Gstionb public du blocage de mouvement
+
+  // ✅ === MÉTHODES PUBLIQUES POUR LE BLOCAGE DE MOUVEMENT ===
 
   /**
- * Bloque les mouvements d'un joueur (utilisable depuis n'importe où)
- */
-public blockPlayerMovement(
-  playerId: string, 
-  reason: BlockReason, 
-  duration?: number,
-  metadata?: any
-): boolean {
-  return movementBlockManager.blockMovement(playerId, reason, duration, metadata);
-}
+   * Bloque les mouvements d'un joueur (utilisable depuis n'importe où)
+   */
+  public blockPlayerMovement(
+    playerId: string, 
+    reason: BlockReason, 
+    duration?: number,
+    metadata?: any
+  ): boolean {
+    return movementBlockManager.blockMovement(playerId, reason, duration, metadata);
+  }
 
-/**
- * Débloque les mouvements d'un joueur
- */
-public unblockPlayerMovement(playerId: string, reason?: BlockReason): boolean {
-  return movementBlockManager.unblockMovement(playerId, reason);
-}
+  /**
+   * Débloque les mouvements d'un joueur
+   */
+  public unblockPlayerMovement(playerId: string, reason?: BlockReason): boolean {
+    return movementBlockManager.unblockMovement(playerId, reason);
+  }
 
-/**
- * Vérifie si un joueur est bloqué
- */
-public isPlayerMovementBlocked(playerId: string): boolean {
-  return movementBlockManager.isMovementBlocked(playerId);
-}
+  /**
+   * Vérifie si un joueur est bloqué
+   */
+  public isPlayerMovementBlocked(playerId: string): boolean {
+    return movementBlockManager.isMovementBlocked(playerId);
+  }
   
-  // ✅ === MÉTHODES D'ACCÈS AUX MANAGERS ===
+  // === MÉTHODES D'ACCÈS AUX MANAGERS ===
 
   getZoneManager(): ZoneManager {
     return this.zoneManager;
@@ -1981,12 +2011,12 @@ public isPlayerMovementBlocked(playerId: string): boolean {
     return this.zoneManager.getInteractionManager();
   }
 
-  // ✅ NOUVEAU: Méthode d'accès aux TeamHandlers
+  // Méthode d'accès aux TeamHandlers
   getTeamHandlers(): TeamHandlers {
     return this.teamHandlers;
   }
 
-  // ✅ NOUVEAU: Méthodes d'accès aux EncounterHandlers
+  // Méthodes d'accès aux EncounterHandlers
   getEncounterHandlers(): EncounterHandlers {
     return this.encounterHandlers;
   }
@@ -1995,7 +2025,7 @@ public isPlayerMovementBlocked(playerId: string): boolean {
     return this.encounterHandlers.getEncounterManager();
   }
 
-  // ✅ MÉTHODE DE TEST PUBLIC POUR LES ENCOUNTERS
+  // Méthode de test public pour les encounters
   public async testEncounter(
     playerId: string, 
     zone: string, 
