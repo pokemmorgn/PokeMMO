@@ -20,6 +20,7 @@ import { TeamManager } from "../managers/TeamManager";
 import { TeamHandlers } from "../handlers/TeamHandlers";
 import { EncounterHandlers } from "../handlers/EncounterHandlers"; // ✅ NOUVEAU IMPORT
 import { starterService } from "../services/StarterPokemonService";
+import { movementBlockManager, BlockReason } from "../managers/MovementBlockManager";
 
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
@@ -80,6 +81,14 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.setupMessageHandlers();
     console.log(`✅ Message handlers configurés`);
 
+    // Système de blocage de mouvement
+    movementBlockManager.setRoomReference(this);
+    console.log(`✅ MovementBlockManager configuré`);
+
+    setInterval(() => {
+    movementBlockManager.cleanup();
+  }, 30000);
+    
     // Initialiser le ShopManager
     this.shopManager = new ShopManager();
     console.log(`✅ ShopManager initialisé`);
@@ -383,6 +392,44 @@ export class WorldRoom extends Room<PokeWorldState> {
       await this.zoneManager.handleZoneTransition(client, data);
     });
 
+      this.onMessage("debugMovementBlocks", (client) => {
+    console.log(`🔍 [WorldRoom] Debug blocages demandé par ${client.sessionId}`);
+    movementBlockManager.debugAllBlocks();
+    
+    const stats = movementBlockManager.getStats();
+    client.send("movementBlockStats", stats);
+  });
+
+  // Forcer le déblocage (admin/urgence)
+  this.onMessage("forceUnblockMovement", (client, data: { targetPlayerId?: string }) => {
+    const targetId = data.targetPlayerId || client.sessionId;
+    const success = movementBlockManager.forceUnblockAll(targetId);
+    
+    client.send("forceUnblockResult", {
+      success,
+      targetPlayerId: targetId,
+      message: success ? "Déblocage forcé réussi" : "Erreur lors du déblocage"
+    });
+    
+    console.log(`🔥 [WorldRoom] Déblocage forcé ${targetId} par ${client.sessionId}: ${success}`);
+  });
+
+  // Vérifier l'état de blocage
+  this.onMessage("checkMovementBlock", (client) => {
+    const isBlocked = movementBlockManager.isMovementBlocked(client.sessionId);
+    const blocks = movementBlockManager.getPlayerBlocks(client.sessionId);
+    
+    client.send("movementBlockStatus", {
+      isBlocked,
+      blocks: blocks.map(b => ({
+        reason: b.reason,
+        timestamp: b.timestamp,
+        duration: b.duration,
+        metadata: b.metadata
+      }))
+    });
+  });
+    
     // ✅ VALIDATION de transition (nouveau système sécurisé)
     this.onMessage("validateTransition", async (client, data: TransitionRequest) => {
       console.log(`🔍 === VALIDATION TRANSITION REQUEST ===`);
@@ -1474,6 +1521,10 @@ export class WorldRoom extends Room<PokeWorldState> {
       console.log(`💾 Sauvegarde joueur: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
     });
 
+  // Nettoyer tous les blocages du joueur qui part
+  movementBlockManager.forceUnblockAll(client.sessionId);
+  console.log(`🧹 [WorldRoom] Blocages nettoyés pour ${client.sessionId}`);
+    
     // ✅ NOUVEAU: Nettoyer le TimeWeatherService
     if (this.timeWeatherService) {
       console.log(`🌍 [WorldRoom] Destruction du TimeWeatherService...`);
@@ -1491,50 +1542,66 @@ export class WorldRoom extends Room<PokeWorldState> {
   }
 
   // ✅ MÉTHODE DE MOUVEMENT SIMPLIFIÉE (SUPPRESSION DE LA LOGIQUE ENCOUNTER)
-  private handlePlayerMove(client: Client, data: any) {
-    const player = this.state.players.get(client.sessionId);
-    if (!player) return;
+private handlePlayerMove(client: Client, data: any) {
+  const player = this.state.players.get(client.sessionId);
+  if (!player) return;
 
-    // Collision manager pour la zone actuelle
-    const collisionManager = this.zoneManager.getCollisionManager(player.currentZone);
+  // ✅ ÉTAPE 1: Validation des mouvements via MovementBlockManager
+  const validation = movementBlockManager.validateMovement(client.sessionId, data);
+  if (!validation.allowed) {
+    console.log(`🚫 [WorldRoom] Mouvement refusé pour ${player.name}: ${validation.reason}`);
+    
+    // Renvoyer la position serveur pour rollback avec info de blocage
+    client.send("forcePlayerPosition", {
+      x: player.x,
+      y: player.y,
+      direction: player.direction,
+      currentZone: player.currentZone,
+      blocked: true,
+      reason: validation.reason,
+      message: validation.message
+    });
+    return;
+  }
 
-    // Vérification collision AVANT de bouger
-    if (collisionManager && collisionManager.isBlocked(data.x, data.y)) {
-      // Mouvement interdit : on renvoie la position serveur pour rollback client
-      client.send("forcePlayerPosition", {
-        x: player.x,
-        y: player.y,
-        direction: player.direction,
-        currentZone: player.currentZone
-      });
-      return;
-    }
+  // ✅ ÉTAPE 2: Vérification collision (ton code existant)
+  const collisionManager = this.zoneManager.getCollisionManager(player.currentZone);
+  if (collisionManager && collisionManager.isBlocked(data.x, data.y)) {
+    // Mouvement interdit par collision : rollback normal
+    client.send("forcePlayerPosition", {
+      x: player.x,
+      y: player.y,
+      direction: player.direction,
+      currentZone: player.currentZone,
+      blocked: false, // Ce n'est pas un blocage système, juste une collision
+      collision: true
+    });
+    return;
+  }
 
-    // Si pas de collision, appliquer le mouvement
-    player.x = data.x;
-    player.y = data.y;
-    player.direction = data.direction;
-    player.isMoving = data.isMoving;
+  // ✅ ÉTAPE 3: Si tout est OK, appliquer le mouvement (ton code existant)
+  player.x = data.x;
+  player.y = data.y;
+  player.direction = data.direction;
+  player.isMoving = data.isMoving;
 
-    // ✅ NOUVEAU: Notifier le changement de zone au TimeWeatherService
-    if (data.currentZone && data.currentZone !== player.currentZone) {
-      if (this.timeWeatherService) {
-        this.timeWeatherService.updateClientZone(client, data.currentZone);
-      }
-    }
-
-    // ✅ SUPPRIMÉ: Vérification automatique de rencontre (maintenant dans EncounterHandlers)
-    // L'EncounterHandlers se charge de toute la logique de rencontre via ses propres handlers
-
-    if (data.currentZone) {
-      player.currentZone = data.currentZone;
-    }
-
-    // Log occasionnel pour debug
-    if (Math.random() < 0.1) {
-      console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
+  // ✅ Notification de changement de zone au TimeWeatherService (ton code existant)
+  if (data.currentZone && data.currentZone !== player.currentZone) {
+    if (this.timeWeatherService) {
+      this.timeWeatherService.updateClientZone(client, data.currentZone);
     }
   }
+
+  // ✅ Mise à jour de la zone (ton code existant)
+  if (data.currentZone) {
+    player.currentZone = data.currentZone;
+  }
+
+  // ✅ Log occasionnel pour debug (ton code existant)
+  if (Math.random() < 0.1) {
+    console.log(`🌍 ${player.name}: Zone: ${player.currentZone}`);
+  }
+}
 
   public getEncounterConditions(): { timeOfDay: 'day' | 'night', weather: 'clear' | 'rain' } {
     return this.timeWeatherService?.getEncounterConditions() || { timeOfDay: 'day', weather: 'clear' };
@@ -1868,7 +1935,34 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.sendFilteredState();
     }, 50);
   }
+  /// Gstionb public du blocage de mouvement
 
+  /**
+ * Bloque les mouvements d'un joueur (utilisable depuis n'importe où)
+ */
+public blockPlayerMovement(
+  playerId: string, 
+  reason: BlockReason, 
+  duration?: number,
+  metadata?: any
+): boolean {
+  return movementBlockManager.blockMovement(playerId, reason, duration, metadata);
+}
+
+/**
+ * Débloque les mouvements d'un joueur
+ */
+public unblockPlayerMovement(playerId: string, reason?: BlockReason): boolean {
+  return movementBlockManager.unblockMovement(playerId, reason);
+}
+
+/**
+ * Vérifie si un joueur est bloqué
+ */
+public isPlayerMovementBlocked(playerId: string): boolean {
+  return movementBlockManager.isMovementBlocked(playerId);
+}
+  
   // ✅ === MÉTHODES D'ACCÈS AUX MANAGERS ===
 
   getZoneManager(): ZoneManager {
