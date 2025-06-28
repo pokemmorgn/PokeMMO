@@ -422,6 +422,7 @@ export class MapMusicManager {
     console.log(`🧹 [MapMusicManager] Détruit`);
   }
 }
+}
 
 // ✅ INSTANCE GLOBALE
 export const mapMusicManager = new MapMusicManager();
