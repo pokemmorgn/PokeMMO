@@ -19,12 +19,12 @@ export class MapMusicManager {
     console.log('🎵 [MapMusicManager] Initialisé');
   }
 
-  // ✅ CONFIGURATION MUSICALE COMPLÈTE
+  // ✅ CONFIGURATION MUSICALE SIMPLIFIÉE (3 musiques seulement)
   initializeZoneMusic() {
     return {
-      // === ZONES EXTÉRIEURES ===
+      // === ZONES PRINCIPALES ===
       'beach': {
-        track: 'beach_theme',
+        track: 'road1_theme', // Utilise road1_theme pour la plage
         volume: 0.5,
         loop: true,
         fadeIn: true
@@ -41,124 +41,46 @@ export class MapMusicManager {
         loop: true,
         fadeIn: true
       },
-      'road1': {
-        track: 'route_theme',
-        volume: 0.5,
-        loop: true,
-        fadeIn: true
-      },
-      'road2': {
-        track: 'route_theme',
-        volume: 0.5,
-        loop: true,
-        fadeIn: true
-      },
-      'road3': {
-        track: 'route_theme',
-        volume: 0.5,
-        loop: true,
-        fadeIn: true
-      },
       
-      // === GROTTES ===
-      'nocthercave1': {
-        track: 'cave_theme',
-        volume: 0.4,
-        loop: true,
-        fadeIn: true
-      },
-      'nocthercave2': {
-        track: 'cave_theme',
-        volume: 0.4,
-        loop: true,
-        fadeIn: true
-      },
-      'nocthercave2bis': {
-        track: 'cave_theme',
-        volume: 0.4,
-        loop: true,
-        fadeIn: true
-      },
+      // === TOUTES LES ROUTES → road1_theme ===
+      'road1': { track: 'road1_theme', volume: 0.5, loop: true, fadeIn: true },
+      'road2': { track: 'road1_theme', volume: 0.5, loop: true, fadeIn: true },
+      'road3': { track: 'road1_theme', volume: 0.5, loop: true, fadeIn: true },
       
-      // === INTÉRIEURS VILLAGE ===
-      'villagehouse1': {
-        track: 'house_theme',
-        volume: 0.4,
-        loop: true,
-        fadeIn: false
-      },
-      'villagehouse2': {
-        track: 'house_theme',
-        volume: 0.4,
-        loop: true,
-        fadeIn: false
-      },
-      'villageflorist': {
-        track: 'shop_theme',
-        volume: 0.5,
-        loop: true,
-        fadeIn: false
-      },
-      'villagelab': {
-        track: 'lab_theme',
-        volume: 0.5,
-        loop: true,
-        fadeIn: false
-      },
+      // === GROTTES → road1_theme (en attendant) ===
+      'nocthercave1': { track: 'road1_theme', volume: 0.3, loop: true, fadeIn: true },
+      'nocthercave2': { track: 'road1_theme', volume: 0.3, loop: true, fadeIn: true },
+      'nocthercave2bis': { track: 'road1_theme', volume: 0.3, loop: true, fadeIn: true },
       
-      // === INTÉRIEURS LAVANDIA ===
-      'lavandiashop': {
-        track: 'shop_theme',
-        volume: 0.5,
-        loop: true,
-        fadeIn: false
-      },
-      'lavandiahealingcenter': {
-        track: 'healing_theme',
-        volume: 0.4,
-        loop: true,
-        fadeIn: false
-      },
-      'lavandiaresearchlab': {
-        track: 'lab_theme',
-        volume: 0.5,
-        loop: true,
-        fadeIn: false
-      },
-      'lavandiabossroom': {
-        track: 'boss_theme',
-        volume: 0.8,
-        loop: true,
-        fadeIn: true
-      },
-      'lavandiacelebitemple': {
-        track: 'temple_theme',
-        volume: 0.6,
-        loop: true,
-        fadeIn: true
-      },
+      // === INTÉRIEURS VILLAGE → village_theme mais plus doux ===
+      'villagehouse1': { track: 'village_theme', volume: 0.3, loop: true, fadeIn: false },
+      'villagehouse2': { track: 'village_theme', volume: 0.3, loop: true, fadeIn: false },
+      'villageflorist': { track: 'village_theme', volume: 0.4, loop: true, fadeIn: false },
+      'villagelab': { track: 'village_theme', volume: 0.4, loop: true, fadeIn: false },
       
-      // Toutes les autres maisons de Lavandia → house_theme
-      'lavandiahouse1': { track: 'house_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiahouse2': { track: 'house_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiahouse3': { track: 'house_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiahouse4': { track: 'house_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiahouse5': { track: 'house_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiahouse6': { track: 'house_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiahouse7': { track: 'house_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiahouse8': { track: 'house_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiahouse9': { track: 'house_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiaanalysis': { track: 'house_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiaequipement': { track: 'shop_theme', volume: 0.5, loop: true, fadeIn: false },
-      'lavandiafurniture': { track: 'shop_theme', volume: 0.5, loop: true, fadeIn: false },
+      // === INTÉRIEURS LAVANDIA → lavandia_theme mais plus doux ===
+      'lavandiashop': { track: 'lavandia_theme', volume: 0.4, loop: true, fadeIn: false },
+      'lavandiahealingcenter': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
+      'lavandiaresearchlab': { track: 'lavandia_theme', volume: 0.4, loop: true, fadeIn: false },
+      'lavandiabossroom': { track: 'lavandia_theme', volume: 0.8, loop: true, fadeIn: true },
+      'lavandiacelebitemple': { track: 'lavandia_theme', volume: 0.5, loop: true, fadeIn: true },
       
-      // Routes houses
-      'road1house': {
-        track: 'house_theme',
-        volume: 0.4,
-        loop: true,
-        fadeIn: false
-      }
+      // === TOUTES LES MAISONS LAVANDIA → lavandia_theme doux ===
+      'lavandiahouse1': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
+      'lavandiahouse2': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
+      'lavandiahouse3': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
+      'lavandiahouse4': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
+      'lavandiahouse5': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
+      'lavandiahouse6': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
+      'lavandiahouse7': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
+      'lavandiahouse8': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
+      'lavandiahouse9': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
+      'lavandiaanalysis': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
+      'lavandiaequipement': { track: 'lavandia_theme', volume: 0.4, loop: true, fadeIn: false },
+      'lavandiafurniture': { track: 'lavandia_theme', volume: 0.4, loop: true, fadeIn: false },
+      
+      // === ROUTES HOUSES → village_theme ===
+      'road1house': { track: 'village_theme', volume: 0.3, loop: true, fadeIn: false }
     };
   }
 
