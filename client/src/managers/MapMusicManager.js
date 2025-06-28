@@ -134,6 +134,13 @@ export class MapMusicManager {
       } else {
         console.log('ℹ️ [MapMusicManager] AudioContext déjà actif');
         this.audioContextUnlocked = true;
+        
+        // ✅ FIX: Redémarrer la musique même si AudioContext déjà actif
+        if (this.pendingZone) {
+          console.log('🔄 [MapMusicManager] Redémarrage musique (AudioContext déjà actif)...');
+          this.changeZoneMusic(this.pendingZone, true);
+          this.pendingZone = null;
+        }
       }
 
       unlockEvents.forEach(event => {
@@ -174,12 +181,7 @@ export class MapMusicManager {
       return;
     }
 
-    if (!this.audioContextUnlocked) {
-      console.log(`🔒 [MapMusicManager] AudioContext pas encore débloqué, en attente d'interaction...`);
-      this.pendingZone = normalizedZone;
-      return;
-    }
-
+    // ✅ SIMPLIFICATION : TOUJOURS ESSAYER DE JOUER, SANS VÉRIFICATION AUDIOCONTEXT
     this.transitionToMusic(musicConfig, normalizedZone);
   }
 
@@ -219,45 +221,22 @@ export class MapMusicManager {
     console.log(`🎵 [MapMusicManager] Démarrage: ${trackKey} (vol: ${volume})`);
 
     try {
-      if (!this.scene.game.cache.audio.exists(trackKey)) {
-        console.error(`❌ [MapMusicManager] Track ${trackKey} n'existe pas dans le cache global!`);
-        return;
-      }
-
+      // ✅ ARRÊTER TOUTE MUSIQUE EXISTANTE PROPREMENT
+      this.soundManager.stopAll();
+      
       if (this.currentTrack) {
-        console.log(`🛑 [MapMusicManager] Arrêt propre de la track précédente`);
         this.currentTrack.destroy();
         this.currentTrack = null;
       }
 
-      this.currentTrack = this.soundManager.add(trackKey, {
+      // ✅ CRÉER ET JOUER IMMÉDIATEMENT
+      this.currentTrack = this.soundManager.play(trackKey, {
         loop: loop,
-        volume: fadeIn ? 0 : volume * this.musicVolume
+        volume: volume * this.musicVolume
       });
 
-      console.log(`🎵 [MapMusicManager] Track créée avec gestionnaire global:`, this.currentTrack);
-
-      this.currentTrack.play();
-      
-      setTimeout(() => {
-        if (this.currentTrack && this.currentTrack.isPlaying) {
-          console.log(`✅ [MapMusicManager] Musique confirmée en cours: ${trackKey}`);
-        } else {
-          console.error(`❌ [MapMusicManager] Musique n'a pas démarré: ${trackKey}`);
-          if (this.currentTrack && !this.currentTrack.isPlaying) {
-            console.log(`🔄 [MapMusicManager] Retry play...`);
-            this.currentTrack.play();
-          }
-        }
-      }, 200);
-      
+      console.log(`✅ [MapMusicManager] Musique lancée: ${trackKey} pour zone ${zoneName}`);
       this.currentZone = zoneName;
-
-      if (fadeIn) {
-        this.fadeIn(this.currentTrack, volume * this.musicVolume);
-      }
-
-      console.log(`✅ [MapMusicManager] Musique démarrée: ${trackKey} pour zone ${zoneName}`);
 
     } catch (error) {
       console.error(`❌ [MapMusicManager] Erreur démarrage musique:`, error);
