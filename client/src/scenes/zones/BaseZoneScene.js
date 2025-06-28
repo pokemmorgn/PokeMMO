@@ -1,5 +1,5 @@
 // client/src/scenes/zones/BaseZoneScene.js - VERSION AVEC ENCOUNTER MANAGER INTÉGRÉ
-// ✅ Utilise la connexion établie dans main.js et délègue les interactions à InteractionManager
+// ✅ VERSION CORRIGÉE - PRÉVENTION BOUCLES INFINIES MOVEMENTBLOCKHANDLER
 // 🆕 NOUVEAU: Intégration complète du ClientEncounterManager
 
 import { PlayerManager } from "../../game/PlayerManager.js";
@@ -16,7 +16,6 @@ import { zoneEnvironmentManager } from "../../managers/ZoneEnvironmentManager.js
 import { WeatherEffects } from "../../effects/WeatherEffects.js";
 // 🆕 NOUVEAU: Import du ClientEncounterManager
 import { ClientEncounterManager } from "../../managers/EncounterManager.js";
-import { movementBlockHandler } from "../../input/MovementBlockHandler.js";
 import { integrateMusicToScene } from "../../managers/MapMusicManager.js";
 
 
@@ -66,6 +65,19 @@ export class BaseZoneScene extends Phaser.Scene {
     this.encounterInitialized = false;
     this.lastEncounterCheck = 0;
     this.encounterCheckInterval = 100; // Vérifier toutes les 100ms
+
+    // ✅ NOUVELLES PROPRIÉTÉS: MovementBlockHandler avec protection boucles infinies
+    this.movementBlockHandlerInitialized = false;
+    this.movementBlockInitAttempts = 0;
+    this.maxMovementBlockInitAttempts = 5;
+    this.lastMovementBlockInitAttempt = 0;
+    this.minMovementBlockInitInterval = 2000; // 2 secondes minimum entre tentatives
+
+    // ✅ NOUVELLES PROPRIÉTÉS: InputManager
+    this.inputManager = null;
+    this.inputManagerReady = false;
+    this.inputManagerInitAttempts = 0;
+    this.maxInputManagerInitAttempts = 3;
   }
 
   preload() {
@@ -91,7 +103,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.initPlayerSpawnFromSceneData();
     this.justArrivedAtZone = true;
     this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
-integrateMusicToScene(this);
+    integrateMusicToScene(this);
 
     this.loadMap();
     this.setupInputs();
@@ -149,9 +161,170 @@ integrateMusicToScene(this);
       this.networkManager.restoreCustomCallbacks?.();
     }
 
-    this.initializeMovementBlockHandler();
-    this.setupNetworkHandlers();
+    // ✅ NOUVEAU: Initialiser MovementBlockHandler APRÈS que tout soit prêt
+    this.time.delayedCall(1000, () => {
+      this.initializeMovementBlockHandler();
+    });
+
     this.networkSetupComplete = true;
+  }
+
+  // ✅ MÉTHODE CORRIGÉE: Initialisation MovementBlockHandler avec protection absolue
+  initializeMovementBlockHandler() {
+    console.log(`🔒 [${this.scene.key}] Initialisation MovementBlockHandler...`);
+    
+    // ✅ PROTECTION CONTRE LES INITIALISATIONS MULTIPLES
+    if (this.movementBlockHandlerInitialized) {
+      console.log(`⏭️ [${this.scene.key}] MovementBlockHandler déjà initialisé pour cette scène`);
+      return;
+    }
+    
+    // ✅ PROTECTION TEMPORELLE
+    const now = Date.now();
+    if (now - this.lastMovementBlockInitAttempt < this.minMovementBlockInitInterval) {
+      console.log(`⏭️ [${this.scene.key}] Tentative MovementBlockHandler trop rapide, ignorée`);
+      return;
+    }
+    this.lastMovementBlockInitAttempt = now;
+    
+    // ✅ PROTECTION CONTRE TROP DE TENTATIVES
+    this.movementBlockInitAttempts++;
+    
+    if (this.movementBlockInitAttempts > this.maxMovementBlockInitAttempts) {
+      console.error(`❌ [${this.scene.key}] Trop de tentatives d'init MovementBlockHandler - abandon`);
+      return;
+    }
+    
+    console.log(`🔒 [${this.scene.key}] Tentative ${this.movementBlockInitAttempts}/${this.maxMovementBlockInitAttempts}`);
+    
+    // ✅ VÉRIFICATION STRICTE: Attendre que l'InputManager soit prêt ET setup
+    if (!this.inputManager || !this.inputManagerReady || typeof this.inputManager.areInputsEnabled !== 'function') {
+      console.warn(`⚠️ [${this.scene.key}] InputManager pas encore prêt, retry dans ${this.movementBlockInitAttempts}s... (tentative ${this.movementBlockInitAttempts})`);
+      
+      // ✅ DÉLAI PROGRESSIF pour éviter le spam
+      const delay = Math.min(2000 * this.movementBlockInitAttempts, 10000);
+      
+      setTimeout(() => {
+        if (this.scene.isActive()) { // ✅ Vérifier que la scène est toujours active
+          this.initializeMovementBlockHandler();
+        }
+      }, delay);
+      return;
+    }
+    
+    // ✅ VÉRIFICATION NetworkManager
+    if (!this.networkManager || !this.networkManager.isConnected) {
+      console.warn(`⚠️ [${this.scene.key}] NetworkManager pas prêt, retry dans 3s...`);
+      
+      setTimeout(() => {
+        if (this.scene.isActive()) {
+          this.initializeMovementBlockHandler();
+        }
+      }, 3000);
+      return;
+    }
+    
+    // ✅ VÉRIFICATION: MovementBlockHandler global existe
+    if (typeof movementBlockHandler === 'undefined') {
+      console.error(`❌ [${this.scene.key}] MovementBlockHandler global non trouvé!`);
+      
+      // ✅ Essayer d'importer dynamiquement
+      this.tryImportMovementBlockHandler().then(() => {
+        if (this.scene.isActive()) {
+          this.initializeMovementBlockHandler();
+        }
+      });
+      return;
+    }
+    
+    try {
+      // ✅ INITIALISER avec protection
+      console.log(`🔧 [${this.scene.key}] Initialisation MovementBlockHandler avec managers...`);
+      
+      // ✅ Importer et utiliser le MovementBlockHandler
+      import('../../input/MovementBlockHandler.js').then(({ movementBlockHandler }) => {
+        if (!movementBlockHandler) {
+          console.error(`❌ [${this.scene.key}] Import MovementBlockHandler échoué`);
+          return;
+        }
+        
+        // ✅ Vérifier que l'instance globale n'est pas déjà sur-initialisée
+        if (movementBlockHandler.isInitialized && movementBlockHandler.scene && movementBlockHandler.scene !== this) {
+          console.log(`🔄 [${this.scene.key}] Reset MovementBlockHandler pour nouvelle scène`);
+          movementBlockHandler.resetForNewScene();
+        }
+        
+        // ✅ Initialiser avec les managers requis
+        movementBlockHandler.initialize(
+          this.inputManager,
+          this.networkManager,
+          this
+        );
+        
+        // ✅ Marquer comme initialisé pour cette scène
+        this.movementBlockHandlerInitialized = true;
+        
+        console.log(`✅ [${this.scene.key}] MovementBlockHandler initialisé avec succès!`);
+        
+        // ✅ Test rapide
+        setTimeout(() => {
+          if (movementBlockHandler.isReady()) {
+            console.log(`✅ [${this.scene.key}] MovementBlockHandler confirmé prêt`);
+          } else {
+            console.warn(`⚠️ [${this.scene.key}] MovementBlockHandler pas prêt après init`);
+          }
+        }, 500);
+        
+      }).catch(error => {
+        console.error(`❌ [${this.scene.key}] Erreur import MovementBlockHandler:`, error);
+        this.handleMovementBlockHandlerInitError(error);
+      });
+      
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur initialisation MovementBlockHandler:`, error);
+      this.handleMovementBlockHandlerInitError(error);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Tentative d'import dynamique MovementBlockHandler
+  async tryImportMovementBlockHandler() {
+    try {
+      console.log(`📦 [${this.scene.key}] Tentative import dynamique MovementBlockHandler...`);
+      const module = await import('../../input/MovementBlockHandler.js');
+      if (module.movementBlockHandler) {
+        window.movementBlockHandler = module.movementBlockHandler;
+        console.log(`✅ [${this.scene.key}] MovementBlockHandler importé et exposé globalement`);
+        return true;
+      }
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Échec import MovementBlockHandler:`, error);
+    }
+    return false;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Gestion des erreurs d'init MovementBlockHandler
+  handleMovementBlockHandlerInitError(error) {
+    // ✅ Retry avec délai exponentiel en cas d'erreur
+    if (this.movementBlockInitAttempts < this.maxMovementBlockInitAttempts) {
+      const retryDelay = 3000 * this.movementBlockInitAttempts;
+      console.log(`🔄 [${this.scene.key}] Retry MovementBlockHandler dans ${retryDelay}ms...`);
+      
+      setTimeout(() => {
+        if (this.scene.isActive()) {
+          this.initializeMovementBlockHandler();
+        }
+      }, retryDelay);
+    } else {
+      console.error(`❌ [${this.scene.key}] Échec définitif initialisation MovementBlockHandler`);
+      
+      // ✅ Signaler l'échec mais ne pas bloquer le jeu
+      if (typeof window.showGameNotification === 'function') {
+        window.showGameNotification('Système de blocage mouvement indisponible', 'warning', {
+          duration: 5000,
+          position: 'top-center'
+        });
+      }
+    }
   }
 
   // ✅ MÉTHODE MODIFIÉE: Initialisation des systèmes avec ordre et délais sécurisés + EncounterManager
@@ -163,21 +336,22 @@ integrateMusicToScene(this);
     // 1. Inventaire (plus stable)
     this.initializeInventorySystem();
 
-        // 4. Temps/Météo (peu de risque de conflit)
+    // 2. Temps/Météo (peu de risque de conflit)
     setTimeout(() => {
       this.initializeTimeWeatherSystem();
     }, 300);
     
-    // 2. InteractionManager (dépend de networkManager)
+    // 3. InteractionManager (dépend de networkManager)
     setTimeout(() => {
       this.initializeInteractionManager();
     }, 600);
     
-    // 3. Quêtes (dépend de la connexion stable)
+    // 4. Quêtes (dépend de la connexion stable)
     setTimeout(() => {
       this.initializeQuestSystem();
     }, 900);
     
+    // 5. Application météo finale
     setTimeout(() => {
       const zoneName = this.normalizeZoneName(this.scene.key);
       console.log(`🌍 [${this.scene.key}] Application météo finale pour: ${zoneName}`);
@@ -187,7 +361,8 @@ integrateMusicToScene(this);
         this.dayNightWeatherManager.forceImmediateWeatherApplication(zoneName);
       }
     }, 1200);
-    // 5. Système d'équipe
+
+    // 6. Système d'équipe
     setTimeout(() => {
       // ✅ UTILISER LA FONCTION GLOBALE COMME L'INVENTAIRE
       if (typeof window.initTeamSystem === 'function') {
@@ -196,7 +371,7 @@ integrateMusicToScene(this);
       }
     }, 1500);
 
-    // 🆕 6. EncounterManager (après le chargement de la carte)
+    // 🆕 7. EncounterManager (après le chargement de la carte)
     setTimeout(() => {
       this.initializeEncounterManager();
     }, 1800);
@@ -247,96 +422,62 @@ integrateMusicToScene(this);
   }
 
   // 🆕 NOUVELLE MÉTHODE: Setup des handlers réseau pour les encounters
-
-initializeMovementBlockHandler() {
-  console.log(`🔒 [${this.scene.key}] Initialisation MovementBlockHandler...`);
-  
-  // Attendre que l'InputManager soit prêt
-  if (!this.inputManager) {
-    setTimeout(() => this.initializeMovementBlockHandler(), 500);
-    return;
-  }
-  
-  // Initialiser avec les managers requis
-  movementBlockHandler.initialize(
-    this.inputManager,
-    this.networkManager,
-    this
-  );
-  
-  console.log(`✅ [${this.scene.key}] MovementBlockHandler initialisé`);
-}
-  
-setupEncounterNetworkHandlers() {
-  if (!this.networkManager?.room) {
-    console.warn(`⚠️ [${this.scene.key}] Pas de room pour setup encounter handlers`);
-    return;
-  }
-
-  console.log(`📡 [${this.scene.key}] Setup handlers réseau encounters...`);
-
-  // ✅ SEUL HANDLER : Combat confirmé par le serveur
-  this.networkManager.onMessage("wildEncounter", (data) => {
-    if (data.success) {
-      this.handleWildEncounter(data);
+  setupEncounterNetworkHandlers() {
+    if (!this.networkManager?.room) {
+      console.warn(`⚠️ [${this.scene.key}] Pas de room pour setup encounter handlers`);
+      return;
     }
-    // ✅ AUCUN ELSE - SILENCE TOTAL SI ÉCHEC
-  });
 
-  console.log(`✅ [${this.scene.key}] Handlers encounter configurés`);
-}
+    console.log(`📡 [${this.scene.key}] Setup handlers réseau encounters...`);
 
-  // 🆕 NOUVELLE MÉTHODE: Gestion des échecs d'encounter
-handleWildEncounter(data) {
-  console.log(`🎲 [${this.scene.key}] === ENCOUNTER CONFIRMÉ ===`);
-  console.log(`👾 Pokémon: ${data.pokemon?.name} Niveau ${data.pokemon?.level}`);
-
-  // ✅ Arrêter le joueur
-  const myPlayer = this.playerManager?.getMyPlayer();
-  if (myPlayer && myPlayer.body) {
-    myPlayer.body.setVelocity(0, 0);
-    myPlayer.anims.play(`idle_${this.lastDirection}`, true);
-  }
-
-  // ✅ SEULE NOTIFICATION VISIBLE : Combat confirmé
-  if (window.showGameNotification) {
-    window.showGameNotification(
-      `ENCOUNTER WITH ${data.pokemon?.name?.toUpperCase() || 'POKÉMON'}!`,
-      'encounter',
-      { 
-        duration: 3000, 
-        position: 'top-center',
-        bounce: true 
+    // ✅ SEUL HANDLER : Combat confirmé par le serveur
+    this.networkManager.onMessage("wildEncounter", (data) => {
+      if (data.success) {
+        this.handleWildEncounter(data);
       }
-    );
+      // ✅ AUCUN ELSE - SILENCE TOTAL SI ÉCHEC
+    });
+
+    console.log(`✅ [${this.scene.key}] Handlers encounter configurés`);
   }
 
-  // ✅ Transition vers combat (TODO)
-  this.time.delayedCall(1000, () => {
-    console.log(`⚔️ [${this.scene.key}] Transition vers combat (TODO)`);
-    
+  // 🆕 NOUVELLE MÉTHODE: Gestion des encounters confirmés
+  handleWildEncounter(data) {
+    console.log(`🎲 [${this.scene.key}] === ENCOUNTER CONFIRMÉ ===`);
+    console.log(`👾 Pokémon: ${data.pokemon?.name} Niveau ${data.pokemon?.level}`);
+
+    // ✅ Arrêter le joueur
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (myPlayer && myPlayer.body) {
+      myPlayer.body.setVelocity(0, 0);
+      myPlayer.anims.play(`idle_${this.lastDirection}`, true);
+    }
+
+    // ✅ SEULE NOTIFICATION VISIBLE : Combat confirmé
     if (window.showGameNotification) {
       window.showGameNotification(
-        `Combat non implémenté - continuez à explorer !`,
-        'info',
-        { duration: 2000, position: 'bottom-center' }
+        `ENCOUNTER WITH ${data.pokemon?.name?.toUpperCase() || 'POKÉMON'}!`,
+        'encounter',
+        { 
+          duration: 3000, 
+          position: 'top-center',
+          bounce: true 
+        }
       );
     }
-  });
-}
 
-  // 🆕 NOUVELLE MÉTHODE: Gestion des infos de zone
-  handleEncounterZoneInfo(data) {
-    console.log(`📍 [${this.scene.key}] Info zone encounter mise à jour:`, data);
-    
-    // Optionnel: Afficher les infos de zone
-    if (data.zoneId && window.showGameNotification) {
-      window.showGameNotification(
-        `Zone: ${data.zoneId} - ${data.encounterRate ? (data.encounterRate * 100).toFixed(1) + '%' : 'Pas d\'encounter'}`,
-        'info',
-        { duration: 2000, position: 'bottom-left' }
-      );
-    }
+    // ✅ Transition vers combat (TODO)
+    this.time.delayedCall(1000, () => {
+      console.log(`⚔️ [${this.scene.key}] Transition vers combat (TODO)`);
+      
+      if (window.showGameNotification) {
+        window.showGameNotification(
+          `Combat non implémenté - continuez à explorer !`,
+          'info',
+          { duration: 2000, position: 'bottom-center' }
+        );
+      }
+    });
   }
 
   // 🆕 NOUVELLE MÉTHODE: Vérification des encounters lors du mouvement
@@ -509,18 +650,19 @@ handleWildEncounter(data) {
     
     this.environmentInitialized = true;
   }
-onZoneChanged(newZoneName) {
-  console.log(`🌍 [${this.scene.key}] Zone changée: ${newZoneName}`);
-  
-  // ✅ NOUVEAU: Appliquer immédiatement la météo
-  if (this.dayNightWeatherManager) {
-    // ✅ Utiliser le paramètre correct
-    this.dayNightWeatherManager.handleSceneTransition(newZoneName);
-    console.log(`✅ [${this.scene.key}] Météo de transition appliquée pour: ${newZoneName}`);
-  } else {
-    console.warn(`⚠️ [${this.scene.key}] DayNightWeatherManager pas disponible`);
+
+  onZoneChanged(newZoneName) {
+    console.log(`🌍 [${this.scene.key}] Zone changée: ${newZoneName}`);
+    
+    // ✅ NOUVEAU: Appliquer immédiatement la météo
+    if (this.dayNightWeatherManager) {
+      // ✅ Utiliser le paramètre correct
+      this.dayNightWeatherManager.handleSceneTransition(newZoneName);
+      console.log(`✅ [${this.scene.key}] Météo de transition appliquée pour: ${newZoneName}`);
+    } else {
+      console.warn(`⚠️ [${this.scene.key}] DayNightWeatherManager pas disponible`);
+    }
   }
-}
   
   // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
   initializeInteractionManager() {
@@ -684,7 +826,6 @@ onZoneChanged(newZoneName) {
       serverForced: true,
       preservePlayer: true,
       weatherData: this.dayNightWeatherManager?.getCurrentStateForTransition()
-
     };
 
     if (window.showLoadingOverlay) window.showLoadingOverlay("Changement de zone...");
@@ -1069,7 +1210,7 @@ onZoneChanged(newZoneName) {
     return this.scene && this.scene.key === expectedScene && this.scene.isActive();
   }
   
-  // ✅ MÉTHODE MODIFIÉE: Cleanup avec TeamManager et EncounterManager
+  // ✅ MÉTHODE MODIFIÉE: Cleanup avec TeamManager, EncounterManager et MovementBlockHandler
   cleanup() {
     TransitionIntegration.cleanupTransitions(this);
 
@@ -1121,9 +1262,14 @@ onZoneChanged(newZoneName) {
       }
     }
 
-    if (movementBlockHandler) {
-    movementBlockHandler.clearAllBlocks();
-  }
+    // ✅ NOUVEAU: Nettoyer le MovementBlockHandler
+    if (this.movementBlockHandlerInitialized && typeof movementBlockHandler !== 'undefined') {
+      // Ne reset que si c'est notre scène
+      if (movementBlockHandler.scene === this) {
+        console.log(`🧹 [${this.scene.key}] Reset MovementBlockHandler pour cette scène`);
+        movementBlockHandler.reset();
+      }
+    }
     
     // 🆕 NOUVEAU: Nettoyer l'EncounterManager
     if (this.encounterManager) {
@@ -1131,6 +1277,14 @@ onZoneChanged(newZoneName) {
       this.encounterManager = null;
       this.encounterInitialized = false;
       console.log(`🧹 [${this.scene.key}] EncounterManager nettoyé`);
+    }
+
+    // ✅ NOUVEAU: Nettoyer l'InputManager
+    if (this.inputManager) {
+      this.inputManager.destroy();
+      this.inputManager = null;
+      this.inputManagerReady = false;
+      console.log(`🧹 [${this.scene.key}] InputManager nettoyé`);
     }
 
     if (this.npcManager) {
@@ -1146,6 +1300,14 @@ onZoneChanged(newZoneName) {
       this.animatedObjects.clear(true, true);
       this.animatedObjects = null;
     }
+
+    // ✅ NOUVEAU: Reset des flags MovementBlockHandler
+    this.movementBlockHandlerInitialized = false;
+    this.movementBlockInitAttempts = 0;
+    this.lastMovementBlockInitAttempt = 0;
+
+    // ✅ NOUVEAU: Reset des flags InputManager
+    this.inputManagerInitAttempts = 0;
 
     this.time.removeAllEvents();
     this.cameraFollowing = false;
@@ -1169,97 +1331,102 @@ onZoneChanged(newZoneName) {
   }
 
   // ✅ MÉTHODE CORRIGÉE: Gestion du mouvement avec envoi d'arrêt
-handleMovement(myPlayerState) {
-  const myPlayer = this.playerManager.getMyPlayer();
-  if (!myPlayer || !myPlayer.body) return;
+  handleMovement(myPlayerState) {
+    const myPlayer = this.playerManager.getMyPlayer();
+    if (!myPlayer || !myPlayer.body) return;
 
-  // ✅ ÉTAPE 1: VÉRIFICATION BLOCAGE AVANT TOUT
-  if (movementBlockHandler.isMovementBlocked()) {
-    // Arrêter immédiatement le joueur
-    myPlayer.body.setVelocity(0, 0);
-    myPlayer.anims.play(`idle_${this.lastDirection}`, true);
-    myPlayer.isMovingLocally = false;
+    // ✅ ÉTAPE 1: VÉRIFICATION BLOCAGE AVANT TOUT (avec protection)
+    try {
+      if (typeof movementBlockHandler !== 'undefined' && movementBlockHandler.isMovementBlocked()) {
+        // Arrêter immédiatement le joueur
+        myPlayer.body.setVelocity(0, 0);
+        myPlayer.anims.play(`idle_${this.lastDirection}`, true);
+        myPlayer.isMovingLocally = false;
+        
+        // Envoyer l'arrêt au serveur si pas encore fait
+        const now = Date.now();
+        if (!this.lastStopTime || now - this.lastStopTime > 100) {
+          this.networkManager.sendMove(
+            myPlayer.x,
+            myPlayer.y,
+            this.lastDirection,
+            false  // isMoving = false
+          );
+          this.lastStopTime = now;
+        }
+        
+        return; // ✅ SORTIR - Pas de mouvement autorisé
+      }
+    } catch (error) {
+      // ✅ Protection contre les erreurs de MovementBlockHandler
+      console.warn(`⚠️ [${this.scene.key}] Erreur vérification MovementBlockHandler:`, error);
+    }
+
+    // ✅ ÉTAPE 2: TRAITEMENT NORMAL DU MOUVEMENT
+    const speed = 80;
+    let vx = 0, vy = 0;
+    let inputDetected = false, direction = null;
     
-    // Envoyer l'arrêt au serveur si pas encore fait
-    const now = Date.now();
-    if (!this.lastStopTime || now - this.lastStopTime > 100) {
-      this.networkManager.sendMove(
-        myPlayer.x,
-        myPlayer.y,
-        this.lastDirection,
-        false  // isMoving = false
-      );
-      this.lastStopTime = now;
+    if (this.cursors.left.isDown || this.wasd.A.isDown) {
+      vx = -speed; inputDetected = true; direction = 'left';
+    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+      vx = speed; inputDetected = true; direction = 'right';
+    }
+    if (this.cursors.up.isDown || this.wasd.W.isDown) {
+      vy = -speed; inputDetected = true; direction = 'up';
+    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+      vy = speed; inputDetected = true; direction = 'down';
     }
     
-    return; // ✅ SORTIR - Pas de mouvement autorisé
-  }
-
-  // ✅ ÉTAPE 2: TRAITEMENT NORMAL DU MOUVEMENT
-  const speed = 80;
-  let vx = 0, vy = 0;
-  let inputDetected = false, direction = null;
-  
-  if (this.cursors.left.isDown || this.wasd.A.isDown) {
-    vx = -speed; inputDetected = true; direction = 'left';
-  } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-    vx = speed; inputDetected = true; direction = 'right';
-  }
-  if (this.cursors.up.isDown || this.wasd.W.isDown) {
-    vy = -speed; inputDetected = true; direction = 'up';
-  } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-    vy = speed; inputDetected = true; direction = 'down';
-  }
-  
-  let actuallyMoving = inputDetected;
-  myPlayer.body.setVelocity(vx, vy);
-  
-  // ✅ NORMALISER LA VITESSE DIAGONALE
-  if (vx !== 0 && vy !== 0) {
-    myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
-  }
-  
-  if (inputDetected && direction) {
-    this.lastDirection = direction;
+    let actuallyMoving = inputDetected;
+    myPlayer.body.setVelocity(vx, vy);
     
-    if (actuallyMoving) {
-      myPlayer.anims.play(`walk_${direction}`, true);
-      myPlayer.isMovingLocally = true;
+    // ✅ NORMALISER LA VITESSE DIAGONALE
+    if (vx !== 0 && vy !== 0) {
+      myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
+    }
+    
+    if (inputDetected && direction) {
+      this.lastDirection = direction;
+      
+      if (actuallyMoving) {
+        myPlayer.anims.play(`walk_${direction}`, true);
+        myPlayer.isMovingLocally = true;
+      } else {
+        myPlayer.anims.play(`idle_${direction}`, true);
+        myPlayer.isMovingLocally = false;
+      }
     } else {
-      myPlayer.anims.play(`idle_${direction}`, true);
+      myPlayer.anims.play(`idle_${this.lastDirection}`, true);
       myPlayer.isMovingLocally = false;
     }
-  } else {
-    myPlayer.anims.play(`idle_${this.lastDirection}`, true);
-    myPlayer.isMovingLocally = false;
-  }
-  
-  if (inputDetected) {
-    const now = Date.now();
-    if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-      this.networkManager.sendMove(
-        myPlayer.x,
-        myPlayer.y,
-        direction,
-        actuallyMoving
-      );
-      this.lastMoveTime = now;
-    }
-  } 
-  // ✅ ENVOYER AUSSI QUAND ON S'ARRÊTE !
-  else {
-    const now = Date.now();
-    if (!this.lastStopTime || now - this.lastStopTime > 100) {
-      this.networkManager.sendMove(
-        myPlayer.x,
-        myPlayer.y,
-        this.lastDirection,
-        false  // ← isMoving = false
-      );
-      this.lastStopTime = now;
+    
+    if (inputDetected) {
+      const now = Date.now();
+      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+        this.networkManager.sendMove(
+          myPlayer.x,
+          myPlayer.y,
+          direction,
+          actuallyMoving
+        );
+        this.lastMoveTime = now;
+      }
+    } 
+    // ✅ ENVOYER AUSSI QUAND ON S'ARRÊTE !
+    else {
+      const now = Date.now();
+      if (!this.lastStopTime || now - this.lastStopTime > 100) {
+        this.networkManager.sendMove(
+          myPlayer.x,
+          myPlayer.y,
+          this.lastDirection,
+          false  // ← isMoving = false
+        );
+        this.lastStopTime = now;
+      }
     }
   }
-}
 
   // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
@@ -1488,13 +1655,16 @@ handleMovement(myPlayerState) {
       console.warn(`⚠️ [${this.scene.key}] DayNightWeatherManager pas encore prêt`);
     }
   }
-  // ✅ MÉTHODE MODIFIÉE: Setup des managers avec InteractionManager
+
+  // ✅ MÉTHODE MODIFIÉE: Setup des managers avec InputManager
   setupManagers() {
     this.playerManager = new PlayerManager(this);
     this.npcManager = new NpcManager(this);
     if (this.mySessionId) {
       this.playerManager.setMySessionId(this.mySessionId);
     }
+    
+    // ✅ NOUVEAU: Ne pas créer l'InputManager ici, il sera créé dans setupInputs
   }
 
   createPlayerAnimations() {
@@ -1526,26 +1696,129 @@ handleMovement(myPlayerState) {
     this.anims.create({ key: 'idle_down', frames: [{ key: 'dude', frame: 5 }], frameRate: 1 });
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Setup des inputs
+  // ✅ MÉTHODE CORRIGÉE: Setup des inputs avec création InputManager
   setupInputs() {
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.wasd = this.input.keyboard.addKeys('W,S,A,D');
-    this.input.keyboard.enableGlobalCapture();
+    console.log(`⌨️ [${this.scene.key}] === SETUP INPUTS AVEC INPUTMANAGER ===`);
+    
+    // ✅ PROTECTION CONTRE LES TENTATIVES MULTIPLES
+    if (this.inputManager && this.inputManagerReady) {
+      console.log(`⏭️ [${this.scene.key}] InputManager déjà créé et prêt`);
+      return;
+    }
+    
+    this.inputManagerInitAttempts++;
+    
+    if (this.inputManagerInitAttempts > this.maxInputManagerInitAttempts) {
+      console.error(`❌ [${this.scene.key}] Trop de tentatives création InputManager - fallback`);
+      this.setupFallbackInputs();
+      return;
+    }
+    
+    try {
+      // ✅ IMPORT DYNAMIQUE DE L'INPUTMANAGER
+      import('../../input/InputManager.js').then(({ InputManager }) => {
+        console.log(`📦 [${this.scene.key}] InputManager importé avec succès`);
+        
+        // ✅ Créer l'InputManager
+        this.inputManager = new InputManager(this);
+        this.inputManagerReady = true;
+        
+        console.log(`✅ [${this.scene.key}] InputManager créé et prêt`);
+        console.log(`📊 [${this.scene.key}] InputManager status:`, this.inputManager.getStatus());
+        
+        // ✅ Exposer globalement pour debug
+        window.inputManager = this.inputManager;
+        
+        // ✅ Test de l'InputManager
+        setTimeout(() => {
+          if (this.inputManager && typeof this.inputManager.areInputsEnabled === 'function') {
+            console.log(`✅ [${this.scene.key}] InputManager confirmé fonctionnel`);
+          } else {
+            console.warn(`⚠️ [${this.scene.key}] InputManager pas entièrement fonctionnel`);
+          }
+        }, 100);
+        
+      }).catch(error => {
+        console.error(`❌ [${this.scene.key}] Erreur import InputManager:`, error);
+        this.handleInputManagerError(error);
+      });
+      
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur création InputManager:`, error);
+      this.handleInputManagerError(error);
+    }
+    
+    // ✅ SETUP IMMÉDIAT DES RACCOURCIS DEBUG (indépendants de l'InputManager)
+    this.setupDebugKeys();
+  }
 
-    console.log(`⌨️ [${this.scene.key}] Inputs configurés`);
-    this.input.keyboard.on('keydown-C', () => {
-      this.debugCollisions();
-    });
+  // ✅ NOUVELLE MÉTHODE: Gestion des erreurs InputManager
+  handleInputManagerError(error) {
+    if (this.inputManagerInitAttempts < this.maxInputManagerInitAttempts) {
+      console.log(`🔄 [${this.scene.key}] Retry InputManager dans 2s... (${this.inputManagerInitAttempts}/${this.maxInputManagerInitAttempts})`);
+      
+      setTimeout(() => {
+        if (this.scene.isActive()) {
+          this.setupInputs();
+        }
+      }, 2000);
+    } else {
+      console.error(`❌ [${this.scene.key}] Échec définitif création InputManager - fallback`);
+      this.setupFallbackInputs();
+    }
+  }
 
-    // 🆕 NOUVEAU: Raccourci pour tester les encounters
-    this.input.keyboard.on('keydown-F', () => {
-      this.debugEncounters();
-    });
+  // ✅ NOUVELLE MÉTHODE: Fallback si InputManager échoue
+  setupFallbackInputs() {
+    console.log(`🔧 [${this.scene.key}] === FALLBACK INPUTS PHASER ===`);
+    
+    try {
+      // ✅ Fallback vers l'ancienne méthode Phaser pure
+      this.cursors = this.input.keyboard.createCursorKeys();
+      this.wasd = this.input.keyboard.addKeys('W,S,A,D');
+      this.input.keyboard.enableGlobalCapture();
+      
+      console.log(`✅ [${this.scene.key}] Fallback inputs Phaser configurés`);
+      
+      // ✅ Marquer comme "prêt" pour éviter les blocages
+      this.inputManagerReady = true;
+      
+    } catch (fallbackError) {
+      console.error(`❌ [${this.scene.key}] Même le fallback inputs a échoué:`, fallbackError);
+    }
+  }
 
-    // 🆕 NOUVEAU: Raccourci pour forcer un encounter
-    this.input.keyboard.on('keydown-G', () => {
-      this.forceEncounterTest();
-    });
+  // ✅ NOUVELLE MÉTHODE: Setup des raccourcis debug
+  setupDebugKeys() {
+    try {
+      // ✅ Raccourcis clavier debug (indépendants de l'InputManager)
+      this.input.keyboard.on('keydown-C', () => {
+        this.debugCollisions();
+      });
+
+      this.input.keyboard.on('keydown-F', () => {
+        this.debugEncounters();
+      });
+
+      this.input.keyboard.on('keydown-G', () => {
+        this.forceEncounterTest();
+      });
+
+      // ✅ NOUVEAU: Raccourci pour debug InputManager
+      this.input.keyboard.on('keydown-I', () => {
+        this.debugInputManager();
+      });
+
+      // ✅ NOUVEAU: Raccourci pour debug MovementBlockHandler
+      this.input.keyboard.on('keydown-M', () => {
+        this.debugMovementBlockHandler();
+      });
+
+      console.log(`✅ [${this.scene.key}] Raccourcis debug configurés`);
+      
+    } catch (error) {
+      console.warn(`⚠️ [${this.scene.key}] Erreur setup raccourcis debug:`, error);
+    }
   }
 
   createUI() {
@@ -1571,6 +1844,15 @@ handleMovement(myPlayerState) {
       fontFamily: 'monospace',
       color: '#fff',
       backgroundColor: 'rgba(0, 0, 255, 0.8)',
+      padding: { x: 6, y: 4 }
+    }).setScrollFactor(0).setDepth(1000);
+
+    // ✅ NOUVEAU: Texte d'info InputManager
+    this.inputText = this.add.text(16, this.scale.height - 100, 'InputManager: Not initialized', {
+      fontSize: '12px',
+      fontFamily: 'monospace',
+      color: '#fff',
+      backgroundColor: 'rgba(128, 0, 128, 0.8)',
       padding: { x: 6, y: 4 }
     }).setScrollFactor(0).setDepth(1000);
   }
@@ -1639,6 +1921,9 @@ handleMovement(myPlayerState) {
     // 🆕 NOUVEAU: Mettre à jour l'affichage des encounters
     this.updateEncounterDisplay(myPlayer);
     
+    // ✅ NOUVEAU: Mettre à jour l'affichage de l'InputManager
+    this.updateInputManagerDisplay();
+    
     return true;
   }
 
@@ -1661,6 +1946,24 @@ handleMovement(myPlayerState) {
     }
     
     this.encounterText.setText(displayText);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mettre à jour l'affichage de l'InputManager
+  updateInputManagerDisplay() {
+    if (!this.inputText) return;
+
+    let displayText = `InputManager: `;
+    
+    if (this.inputManager && this.inputManagerReady) {
+      const status = this.inputManager.getStatus();
+      displayText += `✅ | Blocked: ${status.movementBlocked ? '🚫' : '✅'} | `;
+      displayText += `Ready: ${status.movementBlockHandlerReady ? '✅' : '❌'} | `;
+      displayText += `Moving: ${status.currentMovement.isMoving ? '🏃' : '🧍'}`;
+    } else {
+      displayText += `❌ Not ready | Attempts: ${this.inputManagerInitAttempts}/${this.maxInputManagerInitAttempts}`;
+    }
+    
+    this.inputText.setText(displayText);
   }
 
   showNotification(message, type = 'info') {
@@ -1808,6 +2111,54 @@ handleMovement(myPlayerState) {
     }
   }
 
+  // ✅ NOUVELLES MÉTHODES DE DEBUG POUR INPUTMANAGER
+
+  debugInputManager() {
+    console.log("⌨️ === DEBUG INPUT MANAGER ===");
+    
+    if (!this.inputManager) {
+      console.log("❌ InputManager non initialisé");
+      console.log("📊 Tentatives:", this.inputManagerInitAttempts, "/", this.maxInputManagerInitAttempts);
+      console.log("🎯 Ready flag:", this.inputManagerReady);
+      this.showNotification("InputManager non initialisé", 'error');
+      return;
+    }
+    
+    // Debug complet de l'InputManager
+    this.inputManager.debug();
+    
+    // Test de connexion MovementBlockHandler
+    const connectionTest = this.inputManager.testMovementBlockHandlerConnection();
+    console.log("🔗 Test connexion MovementBlockHandler:", connectionTest);
+    
+    // Afficher notification
+    this.showNotification("Debug InputManager dans la console", 'info');
+  }
+
+  debugMovementBlockHandler() {
+    console.log("🔒 === DEBUG MOVEMENT BLOCK HANDLER ===");
+    
+    // Debug via l'instance globale
+    if (typeof movementBlockHandler !== 'undefined') {
+      console.log("📊 Status MovementBlockHandler:", movementBlockHandler.getStatus());
+      console.log("🔧 Initialization Status:", movementBlockHandler.getInitializationStatus());
+      
+      // Debug complet
+      movementBlockHandler.debug();
+      
+      this.showNotification("Debug MovementBlockHandler dans la console", 'info');
+    } else {
+      console.log("❌ MovementBlockHandler global non trouvé");
+      console.log("📊 Scene status:", {
+        initialized: this.movementBlockHandlerInitialized,
+        attempts: this.movementBlockInitAttempts,
+        lastAttempt: this.lastMovementBlockInitAttempt
+      });
+      
+      this.showNotification("MovementBlockHandler non trouvé", 'error');
+    }
+  }
+
   testEncounterAtPosition(x, y) {
     if (!this.encounterManager) {
       console.log("❌ EncounterManager non disponible");
@@ -1839,6 +2190,29 @@ handleMovement(myPlayerState) {
     };
   }
 
+  // ✅ NOUVELLES MÉTHODES: Gestion de l'InputManager
+  getInputManagerStatus() {
+    return {
+      exists: !!this.inputManager,
+      ready: this.inputManagerReady,
+      attempts: this.inputManagerInitAttempts,
+      maxAttempts: this.maxInputManagerInitAttempts,
+      status: this.inputManager?.getStatus() || null
+    };
+  }
+
+  // ✅ NOUVELLES MÉTHODES: Gestion du MovementBlockHandler
+  getMovementBlockHandlerStatus() {
+    return {
+      sceneInitialized: this.movementBlockHandlerInitialized,
+      sceneAttempts: this.movementBlockInitAttempts,
+      sceneMaxAttempts: this.maxMovementBlockInitAttempts,
+      lastAttempt: this.lastMovementBlockInitAttempt,
+      globalExists: typeof movementBlockHandler !== 'undefined',
+      globalStatus: typeof movementBlockHandler !== 'undefined' ? movementBlockHandler.getStatus() : null
+    };
+  }
+
   forceTeamSystemInit() {
     console.log(`🔧 [${this.scene.key}] Force réinitialisation système d'équipe...`);
     this.teamSystemInitialized = false;
@@ -1859,6 +2233,39 @@ handleMovement(myPlayerState) {
     }, 1000);
   }
 
+  forceInputManagerInit() {
+    console.log(`🔧 [${this.scene.key}] Force réinitialisation InputManager...`);
+    
+    if (this.inputManager) {
+      this.inputManager.destroy();
+    }
+    
+    this.inputManager = null;
+    this.inputManagerReady = false;
+    this.inputManagerInitAttempts = 0;
+    
+    setTimeout(() => {
+      this.setupInputs();
+    }, 1000);
+  }
+
+  forceMovementBlockHandlerInit() {
+    console.log(`🔧 [${this.scene.key}] Force réinitialisation MovementBlockHandler...`);
+    
+    this.movementBlockHandlerInitialized = false;
+    this.movementBlockInitAttempts = 0;
+    this.lastMovementBlockInitAttempt = 0;
+    
+    // Reset de l'instance globale si c'est notre scène
+    if (typeof movementBlockHandler !== 'undefined' && movementBlockHandler.scene === this) {
+      movementBlockHandler.reset();
+    }
+    
+    setTimeout(() => {
+      this.initializeMovementBlockHandler();
+    }, 1000);
+  }
+
   isTeamSystemReady() {
     return this.teamSystemInitialized && window.TeamManager && window.TeamManager.isInitialized;
   }
@@ -1867,12 +2274,30 @@ handleMovement(myPlayerState) {
     return this.encounterInitialized && !!this.encounterManager;
   }
 
+  isInputManagerReady() {
+    return this.inputManagerReady && !!this.inputManager;
+  }
+
+  isMovementBlockHandlerReady() {
+    return this.movementBlockHandlerInitialized && 
+           typeof movementBlockHandler !== 'undefined' && 
+           movementBlockHandler.isReady();
+  }
+
   getTeamManager() {
     return this.isTeamSystemReady() ? window.TeamManager : null;
   }
 
   getEncounterManager() {
     return this.isEncounterSystemReady() ? this.encounterManager : null;
+  }
+
+  getInputManager() {
+    return this.isInputManagerReady() ? this.inputManager : null;
+  }
+
+  getMovementBlockHandler() {
+    return this.isMovementBlockHandlerReady() ? movementBlockHandler : null;
   }
 
   // ✅ MÉTHODES DE DEBUG ÉTENDUES
@@ -1884,7 +2309,8 @@ handleMovement(myPlayerState) {
       networkManager: !!this.networkManager,
       interactionManager: !!this.interactionManager,
       inventorySystem: !!this.inventorySystem,
-      encounterManager: !!this.encounterManager // 🆕
+      encounterManager: !!this.encounterManager,
+      inputManager: !!this.inputManager
     });
     
     console.log(`📊 État scène:`, {
@@ -1895,7 +2321,9 @@ handleMovement(myPlayerState) {
       sessionId: this.mySessionId,
       teamSystemInitialized: this.teamSystemInitialized,
       teamInitAttempts: this.teamInitializationAttempts,
-      encounterSystemInitialized: this.encounterInitialized // 🆕
+      encounterSystemInitialized: this.encounterInitialized,
+      inputManagerReady: this.inputManagerReady,
+      movementBlockHandlerInitialized: this.movementBlockHandlerInitialized
     });
   }
 
@@ -1905,9 +2333,9 @@ handleMovement(myPlayerState) {
     this.debugScene();
     
     console.log(`⚔️ Team System:`, this.getTeamSystemStatus());
-    
-    // 🆕 NOUVEAU: Debug encounter system
     console.log(`🎲 Encounter System:`, this.getEncounterSystemStatus());
+    console.log(`⌨️ Input Manager:`, this.getInputManagerStatus());
+    console.log(`🔒 Movement Block Handler:`, this.getMovementBlockHandlerStatus());
     
     console.log(`🎒 Inventory:`, {
       exists: !!this.inventorySystem,
@@ -1972,6 +2400,48 @@ handleMovement(myPlayerState) {
       return true;
     } catch (error) {
       console.error(`❌ Erreur test encounter:`, error);
+      return false;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Test de l'InputManager
+  testInputManagerConnection() {
+    console.log(`🧪 [${this.scene.key}] Test connexion InputManager...`);
+    
+    if (!this.isInputManagerReady()) {
+      console.log(`❌ InputManager pas prêt, status:`, this.getInputManagerStatus());
+      return false;
+    }
+    
+    try {
+      const status = this.inputManager.getStatus();
+      const connectionTest = this.inputManager.testMovementBlockHandlerConnection();
+      
+      console.log(`✅ Test InputManager réussi:`, { status, connectionTest });
+      return true;
+    } catch (error) {
+      console.error(`❌ Erreur test InputManager:`, error);
+      return false;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Test du MovementBlockHandler
+  testMovementBlockHandlerConnection() {
+    console.log(`🧪 [${this.scene.key}] Test connexion MovementBlockHandler...`);
+    
+    if (!this.isMovementBlockHandlerReady()) {
+      console.log(`❌ MovementBlockHandler pas prêt, status:`, this.getMovementBlockHandlerStatus());
+      return false;
+    }
+    
+    try {
+      const handler = this.getMovementBlockHandler();
+      handler.requestBlockStatus();
+      
+      console.log(`✅ Test MovementBlockHandler réussi`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Erreur test MovementBlockHandler:`, error);
       return false;
     }
   }
@@ -2050,6 +2520,7 @@ handleMovement(myPlayerState) {
   exposeDebugFunctions() {
     // Exposer les fonctions de debug sur window pour usage en console
     window[`debug_${this.scene.key}`] = {
+      // Méthodes existantes
       debugScene: () => this.debugScene(),
       debugAllSystems: () => this.debugAllSystems(),
       debugEncounters: () => this.debugEncounters(),
@@ -2058,9 +2529,47 @@ handleMovement(myPlayerState) {
       resetEncounterCooldowns: () => this.resetEncounterCooldowns(),
       simulateSteps: (count) => this.simulateEncounterSteps(count),
       getEncounterInfo: () => this.getCurrentEncounterInfo(),
-      getEncounterStatus: () => this.getEncounterSystemStatus()
+      getEncounterStatus: () => this.getEncounterSystemStatus(),
+      
+      // ✅ NOUVELLES MÉTHODES
+      debugInputManager: () => this.debugInputManager(),
+      debugMovementBlockHandler: () => this.debugMovementBlockHandler(),
+      testInputManager: () => this.testInputManagerConnection(),
+      testMovementBlockHandler: () => this.testMovementBlockHandlerConnection(),
+      
+      // Méthodes de force init
+      forceInputManagerInit: () => this.forceInputManagerInit(),
+      forceMovementBlockHandlerInit: () => this.forceMovementBlockHandlerInit(),
+      forceEncounterInit: () => this.forceEncounterSystemInit(),
+      forceTeamInit: () => this.forceTeamSystemInit(),
+      
+      // Status complets
+      getInputManagerStatus: () => this.getInputManagerStatus(),
+      getMovementBlockHandlerStatus: () => this.getMovementBlockHandlerStatus(),
+      getTeamStatus: () => this.getTeamSystemStatus(),
+      
+      // Tests de connexion
+      testAllSystems: () => {
+        console.log('🧪 === TEST TOUS LES SYSTÈMES ===');
+        return {
+          team: this.testTeamConnection(),
+          encounter: this.testEncounterConnection(),
+          inputManager: this.testInputManagerConnection(),
+          movementBlockHandler: this.testMovementBlockHandlerConnection()
+        };
+      }
     };
     
     console.log(`🔧 [${this.scene.key}] Fonctions debug exposées: window.debug_${this.scene.key}`);
+  }
+
+  // ✅ APPELER L'EXPOSITION DES FONCTIONS DEBUG DANS CREATE
+  finalizeSceneSetup() {
+    // Exposer les fonctions debug
+    this.exposeDebugFunctions();
+    
+    // Log final du setup
+    console.log(`🎉 [${this.scene.key}] === SCENE SETUP TERMINÉ ===`);
+    this.debugAllSystems();
   }
 }
