@@ -61,6 +61,11 @@ this.load.tilemapTiledJSON('nocthercave2bis', 'assets/maps/noctherbcave2bis.tmj'
     this.load.image('Water_2', 'assets/sprites/Water_2.png');
     this.load.image('Water_3', 'assets/sprites/Water_3.png');
 
+    // 🎵 MUSIQUES (après BoyWalk)
+this.load.audio('village_theme', 'assets/audio/music/village_theme.mp3');
+this.load.audio('lavandia_theme', 'assets/audio/music/lavandia_theme.mp3');
+this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
+    
     // Npcs
     this.load.spritesheet('OldMan', 'assets/npc/oldman.png', { frameWidth: 32, frameHeight: 48 });
     this.load.spritesheet('Scientist', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
