@@ -167,6 +167,17 @@ export class NetworkManager {
       }
     });
 
+      // ✅ NOUVEAU: Handler spécialisé pour les blocages
+  this.room.onMessage("movementBlocked", (data) => {
+    console.log('🚫 [NetworkManager] Mouvement bloqué:', data);
+    // Le MovementBlockHandler gérera automatiquement via ses listeners
+  });
+
+  this.room.onMessage("movementUnblocked", (data) => {
+    console.log('🔓 [NetworkManager] Mouvement débloqué:', data);
+    // Le MovementBlockHandler gérera automatiquement via ses listeners
+  });
+    
     // ✅ NOUVEAU: Handler pour state forcé
     this.room.onMessage("forcedStateSync", (data) => {
       console.log(`🔄 [NetworkManager] === STATE FORCÉ REÇU ===`, data);
