@@ -315,6 +315,14 @@ export const mapMusicManager = new MapMusicManager();
 
 // ✅ FONCTION D'INTÉGRATION SIMPLE POUR LES SCÈNES
 export function integrateMusicToScene(scene) {
+  // ✅ ÉVITER LES INITIALISATIONS MULTIPLES
+  if (scene._musicIntegrated) {
+    console.log(`🎵 [MapMusicManager] Déjà intégré à: ${scene.scene.key}`);
+    return mapMusicManager;
+  }
+  
+  scene._musicIntegrated = true;
+  
   if (!mapMusicManager.isInitialized) {
     mapMusicManager.initialize(scene);
   }
@@ -335,12 +343,16 @@ export function integrateMusicToScene(scene) {
   
   const zoneName = normalizeSceneName(scene.scene.key);
   
-  scene.events.once('create', () => {
-    // Délai pour s'assurer que tout est chargé
-    scene.time.delayedCall(200, () => {
-      console.log(`🎵 [MapMusicManager] Tentative changement musique pour: ${zoneName}`);
-      mapMusicManager.changeZoneMusic(zoneName);
-    });
+  // ✅ CHANGEMENT IMMÉDIAT SANS ATTENDRE L'ÉVÉNEMENT CREATE
+  console.log(`🎵 [MapMusicManager] Changement immédiat pour: ${zoneName}`);
+  setTimeout(() => {
+    mapMusicManager.changeZoneMusic(zoneName, true);
+  }, 100);
+  
+  // ✅ NETTOYAGE À LA DESTRUCTION DE LA SCÈNE
+  scene.events.once('shutdown', () => {
+    console.log(`🧹 [MapMusicManager] Scene shutdown: ${scene.scene.key}`);
+    scene._musicIntegrated = false;
   });
   
   console.log(`🔗 [MapMusicManager] Intégré à la scène: ${scene.scene.key}`);
