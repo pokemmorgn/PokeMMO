@@ -1,5 +1,6 @@
 // client/src/input/MovementBlockHandler.js
 // Gestionnaire côté client pour les blocages de mouvement serveur
+// ✅ VERSION CORRIGÉE - PRÉVENTION BOUCLES INFINIES
 
 export class MovementBlockHandler {
   constructor() {
@@ -18,52 +19,114 @@ export class MovementBlockHandler {
     this.networkManager = null;
     this.scene = null;
     
-    // ✅ PROTECTION CONTRE INITIALISATIONS MULTIPLES
+    // ✅ PROTECTION CONTRE INITIALISATIONS MULTIPLES - RENFORCÉE
     this.isInitialized = false;
     this.listenersSetup = false;
     this.initializationCount = 0;
+    this.maxInitAttempts = 10; // ✅ NOUVEAU: Limite stricte
+    
+    // ✅ NOUVEAU: Tracking de dernière initialisation pour éviter le spam
+    this.lastInitAttempt = 0;
+    this.minInitInterval = 1000; // 1 seconde minimum entre tentatives
     
     console.log('🔒 MovementBlockHandler créé');
   }
 
   /**
-   * Initialise le handler avec les managers requis
+   * ✅ MÉTHODE CORRIGÉE: Initialise le handler avec protection absolue contre les boucles
    */
   initialize(inputManager, networkManager, scene) {
-    // ✅ PROTECTION CONTRE LES INITIALISATIONS MULTIPLES
+    // ✅ PROTECTION TEMPORELLE CONTRE LE SPAM
+    const now = Date.now();
+    if (now - this.lastInitAttempt < this.minInitInterval) {
+      console.log(`⏭️ MovementBlockHandler: Tentative trop rapide (${now - this.lastInitAttempt}ms), ignorée`);
+      return;
+    }
+    this.lastInitAttempt = now;
+    
+    // ✅ PROTECTION CRITIQUE CONTRE LES BOUCLES INFINIES
     this.initializationCount++;
     
-    if (this.isInitialized) {
-      console.log(`⏭️ MovementBlockHandler déjà initialisé (tentative ${this.initializationCount})`);
-      
-      // Juste mettre à jour la scène courante si différente
-      if (this.scene !== scene) {
-        console.log(`🔄 Mise à jour scène: ${this.scene?.scene?.key} → ${scene?.scene?.key}`);
-        this.scene = scene;
-      }
-      
+    if (this.initializationCount > this.maxInitAttempts) {
+      console.error(`❌ ARRÊT FORCÉ - Trop d'initialisations MovementBlockHandler (${this.initializationCount})`);
+      console.error(`❌ Ceci indique un problème dans la logique d'initialisation`);
       return;
     }
     
-    console.log(`🔒 [${scene?.scene?.key}] Initialisation MovementBlockHandler (tentative ${this.initializationCount})...`);
+    // ✅ VÉRIFICATION: Même scène, même état
+    if (this.isInitialized && this.scene === scene && this.inputManager === inputManager) {
+      console.log(`⏭️ MovementBlockHandler déjà initialisé pour cette scène exacte (tentative ${this.initializationCount})`);
+      return;
+    }
+    
+    // ✅ VÉRIFICATION STRICTE DES PARAMÈTRES
+    if (!inputManager || !networkManager || !scene) {
+      console.error(`❌ Paramètres manquants pour MovementBlockHandler:`, {
+        inputManager: !!inputManager,
+        networkManager: !!networkManager,
+        scene: !!scene
+      });
+      return;
+    }
+    
+    // ✅ VÉRIFICATION QUE L'INPUTMANAGER EST VRAIMENT PRÊT
+    if (typeof inputManager.areInputsEnabled !== 'function') {
+      console.error(`❌ InputManager pas entièrement initialisé - manque areInputsEnabled()`);
+      return;
+    }
+    
+    // ✅ VÉRIFICATION QUE LE NETWORKMANAGER EST CONNECTÉ
+    if (!networkManager.isConnected || !networkManager.room) {
+      console.warn(`⚠️ NetworkManager pas encore connecté, init différée`);
+      return;
+    }
+    
+    console.log(`🔒 [${scene?.scene?.key}] Initialisation MovementBlockHandler VALIDE (tentative ${this.initializationCount})...`);
+    
+    // ✅ SI CHANGEMENT DE SCÈNE, RESET PROPREMENT
+    if (this.isInitialized && this.scene !== scene) {
+      console.log(`🔄 Changement de scène détecté: ${this.scene?.scene?.key} → ${scene?.scene?.key}`);
+      this.resetForNewScene();
+    }
     
     this.inputManager = inputManager;
     this.networkManager = networkManager;
     this.scene = scene;
     
-    this.setupNetworkListeners();
+    // ✅ SETUP LISTENERS SEULEMENT SI PAS DÉJÀ FAIT
+    if (!this.listenersSetup) {
+      this.setupNetworkListeners();
+    }
+    
     this.isInitialized = true;
     
-    console.log(`✅ [${scene?.scene?.key}] MovementBlockHandler initialisé`);
+    console.log(`✅ [${scene?.scene?.key}] MovementBlockHandler initialisé avec succès`);
   }
 
   /**
-   * Configure les listeners réseau pour recevoir les blocages du serveur
+   * ✅ NOUVELLE MÉTHODE: Reset pour nouvelle scène sans tout détruire
+   */
+  resetForNewScene() {
+    console.log(`🔄 Reset MovementBlockHandler pour nouvelle scène...`);
+    
+    // ✅ Garder les blocages actifs mais reset les références
+    this.inputManager = null;
+    this.scene = null;
+    // Ne pas reset networkManager car il est global
+    
+    // ✅ Pas de reset des listeners car ils sont attachés au NetworkManager global
+    // ✅ Pas de reset isInitialized car on va réinitialiser immédiatement
+    
+    console.log(`✅ Reset pour nouvelle scène terminé`);
+  }
+
+  /**
+   * ✅ MÉTHODE AMÉLIORÉE: Setup listeners avec protection absolue
    */
   setupNetworkListeners() {
-    // ✅ PROTECTION CONTRE LES LISTENERS MULTIPLES
+    // ✅ PROTECTION ABSOLUE CONTRE LES LISTENERS MULTIPLES
     if (this.listenersSetup) {
-      console.log(`⏭️ Listeners MovementBlockHandler déjà configurés`);
+      console.log(`⏭️ Listeners MovementBlockHandler déjà configurés - SKIP`);
       return;
     }
     
@@ -74,35 +137,40 @@ export class MovementBlockHandler {
 
     console.log(`📡 [${this.scene?.scene?.key}] Configuration listeners MovementBlockHandler...`);
 
-    // ✅ LISTENERS AVEC PROTECTION CONTRE LES DOUBLONS
-    this.networkManager.onMessage("movementBlocked", (data) => {
-      console.log('🚫 Mouvement bloqué par le serveur:', data);
-      this.handleServerBlock(data);
-    });
+    try {
+      // ✅ LISTENERS AVEC PROTECTION CONTRE LES DOUBLONS
+      this.networkManager.onMessage("movementBlocked", (data) => {
+        console.log('🚫 Mouvement bloqué par le serveur:', data);
+        this.handleServerBlock(data);
+      });
 
-    this.networkManager.onMessage("movementUnblocked", (data) => {
-      console.log('🔓 Mouvement débloqué par le serveur:', data);
-      this.handleServerUnblock(data);
-    });
+      this.networkManager.onMessage("movementUnblocked", (data) => {
+        console.log('🔓 Mouvement débloqué par le serveur:', data);
+        this.handleServerUnblock(data);
+      });
 
-    this.networkManager.onMessage("movementForceUnblocked", (data) => {
-      console.log('🔥 Déblocage forcé par le serveur:', data);
-      this.handleServerForceUnblock(data);
-    });
+      this.networkManager.onMessage("movementForceUnblocked", (data) => {
+        console.log('🔥 Déblocage forcé par le serveur:', data);
+        this.handleServerForceUnblock(data);
+      });
 
-    this.networkManager.onMessage("movementBlockStatus", (data) => {
-      console.log('📊 État blocages reçu du serveur:', data);
-      this.handleServerBlockStatus(data);
-    });
+      this.networkManager.onMessage("movementBlockStatus", (data) => {
+        console.log('📊 État blocages reçu du serveur:', data);
+        this.handleServerBlockStatus(data);
+      });
 
-    // ✅ AMÉLIORATION DU LISTENER EXISTANT
-    this.networkManager.onMessage("forcePlayerPosition", (data) => {
-      console.log('⛔ Position forcée reçue:', data);
-      this.handleForcePosition(data);
-    });
+      this.networkManager.onMessage("forcePlayerPosition", (data) => {
+        console.log('⛔ Position forcée reçue:', data);
+        this.handleForcePosition(data);
+      });
 
-    this.listenersSetup = true;
-    console.log(`✅ [${this.scene?.scene?.key}] Listeners MovementBlockHandler configurés`);
+      // ✅ MARQUER COMME CONFIGURÉ DE FAÇON PERMANENTE
+      this.listenersSetup = true;
+      console.log(`✅ [${this.scene?.scene?.key}] Listeners MovementBlockHandler configurés`);
+      
+    } catch (error) {
+      console.error(`❌ Erreur setup listeners MovementBlockHandler:`, error);
+    }
   }
 
   /**
@@ -233,7 +301,7 @@ export class MovementBlockHandler {
     console.log(`🔒 Application blocage mouvement: ${reason}`);
     
     // Forcer l'arrêt du mouvement via l'InputManager
-    if (this.inputManager) {
+    if (this.inputManager && typeof this.inputManager.resetMovement === 'function') {
       this.inputManager.resetMovement();
     }
     
@@ -512,42 +580,80 @@ export class MovementBlockHandler {
   }
 
   /**
+   * ✅ MÉTHODE CORRIGÉE: Reset pour éviter l'accumulation
+   */
+  reset() {
+    console.log(`🔄 Reset MovementBlockHandler...`);
+    
+    // ✅ RESET DES FLAGS D'INITIALISATION UNIQUEMENT
+    this.isInitialized = false;
+    // Ne PAS reset listenersSetup car les listeners sont globaux
+    
+    // ✅ RESET DES COMPTEURS DE FAÇON INTELLIGENTE
+    this.initializationCount = Math.max(0, this.initializationCount - 1); // Décrémenter au lieu de reset total
+    
+    // ✅ Reset du timer pour permettre une nouvelle tentative
+    this.lastInitAttempt = 0;
+    
+    // ✅ Nettoyer les références de scène mais garder networkManager
+    this.inputManager = null;
+    this.scene = null;
+    // this.networkManager = null; // ← NE PAS FAIRE ÇA, il est global
+    
+    console.log(`✅ MovementBlockHandler reset (count: ${this.initializationCount})`);
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE: Reset complet (pour transitions de scène)
+   */
+  fullReset() {
+    console.log(`🔄 Reset complet MovementBlockHandler...`);
+    
+    // ✅ Reset complet de tout
+    this.isInitialized = false;
+    this.listenersSetup = false;
+    this.initializationCount = 0;
+    this.lastInitAttempt = 0;
+    
+    // Nettoyer toutes les références
+    this.inputManager = null;
+    this.networkManager = null;
+    this.scene = null;
+    
+    console.log('✅ MovementBlockHandler reset complet');
+  }
+
+  /**
    * Nettoyage lors de la destruction
    */
   destroy() {
     console.log(`🧹 [${this.scene?.scene?.key}] Destruction MovementBlockHandler...`);
     
     this.clearAllBlocks();
-    
-    // ✅ RESET DES FLAGS D'INITIALISATION
-    this.isInitialized = false;
-    this.listenersSetup = false;
-    
-    // Nettoyer les références
-    this.inputManager = null;
-    this.networkManager = null;
-    this.scene = null;
+    this.fullReset(); // ✅ Utiliser le reset complet
     
     console.log('🧹 MovementBlockHandler détruit');
   }
 
   /**
-   * Reset complet (pour transitions de scène)
+   * ✅ NOUVELLE MÉTHODE: Vérification d'état pour debug
    */
-  reset() {
-    console.log(`🔄 Reset MovementBlockHandler...`);
-    
-    // Garder les blocages actifs mais reset les flags
-    this.isInitialized = false;
-    this.listenersSetup = false;
-    this.initializationCount = 0;
-    
-    // Nettoyer les références mais garder l'état des blocages
-    this.inputManager = null;
-    this.networkManager = null;
-    this.scene = null;
-    
-    console.log('✅ MovementBlockHandler reset');
+  getStatus() {
+    return {
+      isInitialized: this.isInitialized,
+      listenersSetup: this.listenersSetup,
+      initializationCount: this.initializationCount,
+      maxInitAttempts: this.maxInitAttempts,
+      lastInitAttempt: this.lastInitAttempt,
+      hasInputManager: !!this.inputManager,
+      hasNetworkManager: !!this.networkManager,
+      hasScene: !!this.scene,
+      sceneKey: this.scene?.scene?.key,
+      isReady: this.isReady(),
+      activeBlocksCount: this.activeBlocks.size,
+      isBlocked: this.isBlocked,
+      blockReason: this.blockReason
+    };
   }
 
   /**
@@ -568,10 +674,13 @@ export class MovementBlockHandler {
       isInitialized: this.isInitialized,
       listenersSetup: this.listenersSetup,
       initializationCount: this.initializationCount,
+      maxInitAttempts: this.maxInitAttempts,
       hasInputManager: !!this.inputManager,
       hasNetworkManager: !!this.networkManager,
       hasScene: !!this.scene,
-      isReady: this.isReady()
+      isReady: this.isReady(),
+      canInit: this.initializationCount < this.maxInitAttempts,
+      timeSinceLastInit: Date.now() - this.lastInitAttempt
     };
   }
 }
