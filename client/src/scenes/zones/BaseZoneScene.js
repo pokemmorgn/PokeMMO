@@ -1302,13 +1302,13 @@ onZoneChanged(newZoneName) {
       return; // ✅ SORTIR - Pas de mouvement autorisé
     }
 
-    // 🔒 ÉTAPE 2: TRAITEMENT NORMAL DU MOUVEMENT via InputManager
+    // 🔒 ÉTAPE 2: TRAITEMENT NORMAL DU MOUVEMENT
     const speed = 80;
     let vx = 0, vy = 0;
     let inputDetected = false, direction = null;
     
-    // 🔒 UTILISER L'INPUTMANAGER AU LIEU DES CURSORS DIRECTS
-    if (this.inputManager) {
+    // 🔒 PRIORITÉ 1: Utiliser l'InputManager s'il est prêt
+    if (this.inputManager && this.inputManagerReady) {
       if (this.inputManager.isKeyDown('left')) {
         vx = -speed; inputDetected = true; direction = 'left';
       } else if (this.inputManager.isKeyDown('right')) {
@@ -1321,6 +1321,8 @@ onZoneChanged(newZoneName) {
       }
     } else {
       // 🔒 FALLBACK vers cursors directs si InputManager pas prêt
+      console.log(`⚠️ [${this.scene.key}] Fallback vers cursors directs`);
+      
       if (this.cursors?.left.isDown || this.wasd?.A.isDown) {
         vx = -speed; inputDetected = true; direction = 'left';
       } else if (this.cursors?.right.isDown || this.wasd?.D.isDown) {
@@ -1653,6 +1655,11 @@ onZoneChanged(newZoneName) {
   setupInputs() {
     console.log(`⌨️ [${this.scene.key}] Setup inputs avec InputManager...`);
     
+    // ✅ TOUJOURS créer les cursors de base pour le fallback
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.wasd = this.input.keyboard.addKeys('W,S,A,D');
+    this.input.keyboard.enableGlobalCapture();
+    
     try {
       // 🔒 Créer l'InputManager ici AVANT tout le reste
       this.inputManager = new InputManager(this);
@@ -1663,12 +1670,9 @@ onZoneChanged(newZoneName) {
     } catch (error) {
       console.error(`❌ [${this.scene.key}] Erreur création InputManager:`, error);
       
-      // 🔒 Fallback vers l'ancienne méthode si InputManager échoue
-      console.log(`🔄 [${this.scene.key}] Fallback vers cursors directs...`);
+      // 🔒 Fallback déjà configuré ci-dessus
+      console.log(`🔄 [${this.scene.key}] Utilisation fallback cursors directs...`);
       this.inputManagerReady = false;
-      this.cursors = this.input.keyboard.createCursorKeys();
-      this.wasd = this.input.keyboard.addKeys('W,S,A,D');
-      this.input.keyboard.enableGlobalCapture();
     }
     
     // ✅ Raccourcis clavier debug (garder ceux existants)
