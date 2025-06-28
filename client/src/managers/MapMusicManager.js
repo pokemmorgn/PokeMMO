@@ -135,6 +135,8 @@ export class MapMusicManager {
   transitionToMusic(musicConfig, zoneName) {
     const { track, volume, loop, fadeIn } = musicConfig;
 
+    console.log(`🎵 [MapMusicManager] Transition vers: ${track} (${zoneName})`);
+
     // Vérifier si la track existe
     if (!this.scene.cache.audio.exists(track)) {
       console.warn(`⚠️ [MapMusicManager] Track manquante: ${track}`);
@@ -149,19 +151,14 @@ export class MapMusicManager {
       return;
     }
 
-    // Stopper la musique actuelle
+    // Stopper la musique actuelle et démarrer immédiatement la nouvelle
     if (this.currentTrack) {
-      if (fadeIn) {
-        this.fadeOut(this.currentTrack, () => {
-          this.startNewMusic(track, volume, loop, fadeIn, zoneName);
-        });
-      } else {
-        this.currentTrack.stop();
-        this.startNewMusic(track, volume, loop, fadeIn, zoneName);
-      }
-    } else {
-      this.startNewMusic(track, volume, loop, fadeIn, zoneName);
+      console.log(`🎵 [MapMusicManager] Arrêt de la track actuelle: ${this.currentTrack.key}`);
+      this.currentTrack.stop();
     }
+    
+    // Toujours démarrer la nouvelle musique
+    this.startNewMusic(track, volume, loop, fadeIn, zoneName);
   }
 
   // ✅ DÉMARRER NOUVELLE MUSIQUE
@@ -326,13 +323,22 @@ export function integrateMusicToScene(scene) {
   scene.musicManager = mapMusicManager;
   
   // Auto-démarrage de la musique selon la zone
-  const zoneName = scene.scene.key.toLowerCase()
-    .replace('scene', '')
-    .replace(/([A-Z])/g, (match, letter) => letter.toLowerCase());
+  const normalizeSceneName = (sceneKey) => {
+    console.log(`🔍 [MapMusicManager] Scene key reçu: ${sceneKey}`);
+    
+    // Convertir VillageScene → village, LavandiaScene → lavandia, etc.
+    let zoneName = sceneKey.toLowerCase().replace('scene', '');
+    
+    console.log(`🔍 [MapMusicManager] Zone normalisée: ${zoneName}`);
+    return zoneName;
+  };
+  
+  const zoneName = normalizeSceneName(scene.scene.key);
   
   scene.events.once('create', () => {
     // Délai pour s'assurer que tout est chargé
-    scene.time.delayedCall(100, () => {
+    scene.time.delayedCall(200, () => {
+      console.log(`🎵 [MapMusicManager] Tentative changement musique pour: ${zoneName}`);
       mapMusicManager.changeZoneMusic(zoneName);
     });
   });
