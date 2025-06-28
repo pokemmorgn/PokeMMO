@@ -17,6 +17,8 @@ import { WeatherEffects } from "../../effects/WeatherEffects.js";
 // 🆕 NOUVEAU: Import du ClientEncounterManager
 import { ClientEncounterManager } from "../../managers/EncounterManager.js";
 import { movementBlockHandler } from "../../input/MovementBlockHandler.js";
+import { integrateMusicToScene } from "../../managers/MapMusicManager.js";
+
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -89,6 +91,7 @@ export class BaseZoneScene extends Phaser.Scene {
     this.initPlayerSpawnFromSceneData();
     this.justArrivedAtZone = true;
     this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
+integrateMusicToScene(this);
 
     this.loadMap();
     this.setupInputs();
