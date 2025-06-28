@@ -1,5 +1,4 @@
-// client/src/input/InputManager.js - Version complète avec MovementBlockHandler
-// ✅ VERSION CORRIGÉE - CONNEXION LAZY AU MOVEMENTBLOCKHANDLER
+// client/src/input/InputManager.js - Version complète avec MovementBlockHandler et mapping dynamique QWERTY/AZERTY
 
 import { GAME_CONFIG } from "../config/gameConfig.js";
 import { MobileJoystick } from "./MobileJoystick.js";
@@ -11,16 +10,15 @@ export class InputManager {
     this.wasdKeys = null;
     this.mobileJoystick = null;
     this.isMobile = this.detectMobile();
-    
-    // Flag pour forcer l'arrêt du mouvement
+
     this.forceStop = false;
-    
-    // ✅ CHANGEMENT CRITIQUE: Référence LAZY au MovementBlockHandler
-    this._movementBlockHandler = null; // Pas d'initialisation immédiate
+
+    // MovementBlockHandler
+    this._movementBlockHandler = null;
     this.movementBlockHandlerReady = false;
     this.movementBlockHandlerConnectionAttempts = 0;
     this.maxConnectionAttempts = 5;
-    
+
     this.callbacks = {
       onMove: null
     };
@@ -32,53 +30,40 @@ export class InputManager {
       direction: null,
       source: null
     };
-    
+
+    // Mapping dynamique (patch bug QWERTY/AZERTY)
+    this.keyMapping = { left: null, right: null, up: null, down: null };
+
     this.setupInput();
 
-    // Désactive le menu contextuel (clic droit) pour éviter les bugs de touche coincée
+    // Désactive le menu contextuel (clic droit)
     this.scene.input.mouse.disableContextMenu();
 
-    // Réinitialise les touches si le joueur perd le focus (ex : alt-tab)
-    window.addEventListener('blur', () => {
-      this.resetMovement();
-    });
+    // Reset si perte focus (alt-tab)
+    window.addEventListener('blur', () => { this.resetMovement(); });
 
-    // RESET complet à chaque clic droit n'importe où
+    // Reset sur clic droit partout
     window.addEventListener('mousedown', (e) => {
-      if (e.button === 2) { // bouton droit
-        this.resetMovement();
-      }
+      if (e.button === 2) this.resetMovement();
     });
-
-    // Reset aussi sur contextmenu (au cas où)
-    window.addEventListener('contextmenu', (e) => {
-      this.resetMovement();
-    });
+    window.addEventListener('contextmenu', () => { this.resetMovement(); });
   }
 
-  // ✅ NOUVELLE PROPRIÉTÉ GETTER: Accès lazy au MovementBlockHandler
   get movementBlockHandler() {
-    // ✅ Initialisation LAZY seulement quand nécessaire
     if (!this._movementBlockHandler && typeof movementBlockHandler !== 'undefined') {
       console.log(`🔗 [InputManager] Connexion lazy au MovementBlockHandler global`);
       this._movementBlockHandler = movementBlockHandler;
       this.movementBlockHandlerReady = true;
     } else if (!this._movementBlockHandler && this.movementBlockHandlerConnectionAttempts < this.maxConnectionAttempts) {
-      // ✅ Tentative de connexion différée
       this.movementBlockHandlerConnectionAttempts++;
       console.log(`🔄 [InputManager] Tentative connexion MovementBlockHandler ${this.movementBlockHandlerConnectionAttempts}/${this.maxConnectionAttempts}`);
-      
-      // ✅ Import dynamique si pas encore disponible
       this.tryConnectMovementBlockHandler();
     }
-    
     return this._movementBlockHandler;
   }
 
-  // ✅ NOUVELLE MÉTHODE: Tentative de connexion au MovementBlockHandler
   async tryConnectMovementBlockHandler() {
     try {
-      // ✅ Essayer d'importer dynamiquement
       const { movementBlockHandler } = await import('./MovementBlockHandler.js');
       if (movementBlockHandler) {
         console.log(`✅ [InputManager] MovementBlockHandler connecté via import dynamique`);
@@ -90,69 +75,31 @@ export class InputManager {
     }
   }
 
-  // Méthode centralisée pour reset complet du mouvement
   resetMovement() {
     console.log('🛑 Reset mouvement forcé');
-    
-    // Flag pour forcer l'arrêt
     this.forceStop = true;
-    
-    // Reset des touches Phaser
     this.scene.input.keyboard.resetKeys();
-    
-    // NOUVEAU: Forcer l'arrêt de toutes les touches individuellement
     if (this.cursors) {
       this.cursors.left.reset();
       this.cursors.right.reset();
       this.cursors.up.reset();
       this.cursors.down.reset();
     }
-    
     if (this.wasdKeys) {
-      Object.values(this.wasdKeys).forEach(key => {
-        if (key && key.reset) key.reset();
-      });
+      Object.values(this.wasdKeys).forEach(key => { if (key && key.reset) key.reset(); });
     }
-    
-    // Reset du mouvement actuel
     this.currentMovement = {
-      x: 0,
-      y: 0,
-      isMoving: false,
-      direction: null,
-      source: null
+      x: 0, y: 0, isMoving: false, direction: null, source: null
     };
+    if (this.mobileJoystick) this.mobileJoystick.reset();
 
-    // Reset du joystick si présent
-    if (this.mobileJoystick) {
-      this.mobileJoystick.reset();
-    }
-
-    // NOUVEAU: Notifier la scène du reset
     if (this.scene && this.scene.player) {
-      // Arrêter l'animation du joueur
-      if (this.scene.player.anims) {
-        this.scene.player.anims.stop();
-      }
-      
-      // Arrêter la vélocité si c'est un physics body
-      if (this.scene.player.body) {
-        this.scene.player.body.setVelocity(0, 0);
-      }
-      
-      // Callback personnalisé pour la scène
-      if (this.scene.onPlayerMovementReset) {
-        this.scene.onPlayerMovementReset();
-      }
+      if (this.scene.player.anims) this.scene.player.anims.stop();
+      if (this.scene.player.body) this.scene.player.body.setVelocity(0, 0);
+      if (this.scene.onPlayerMovementReset) this.scene.onPlayerMovementReset();
     }
-
-    // Callback pour notifier l'arrêt
     this.triggerMoveCallback();
-
-    // Remet le flag à false après un court délai
-    setTimeout(() => {
-      this.forceStop = false;
-    }, 150);
+    setTimeout(() => { this.forceStop = false; }, 150);
   }
 
   detectMobile() {
@@ -161,7 +108,6 @@ export class InputManager {
            (navigator.maxTouchPoints > 0);
   }
 
-  // Nouvelle méthode pour choisir le mapping en fonction de la langue
   getPreferredLayout() {
     const lang = navigator.language || navigator.userLanguage;
     if (!lang) return "qwerty";
@@ -174,21 +120,18 @@ export class InputManager {
     // Sélection dynamique du mapping
     const layout = this.getPreferredLayout();
     if (layout === "azerty") {
-      // AZERTY : ZQSD
       this.wasdKeys = this.scene.input.keyboard.addKeys('Z,Q,S,D');
+      this.keyMapping = { left: 'Q', right: 'D', up: 'Z', down: 'S' };
     } else {
-      // QWERTY (défaut) : WASD
       this.wasdKeys = this.scene.input.keyboard.addKeys('W,A,S,D');
+      this.keyMapping = { left: 'A', right: 'D', up: 'W', down: 'S' };
     }
-
     this.scene.input.keyboard.enabled = true;
     this.scene.input.keyboard.enableGlobalCapture();
 
-    if (this.isMobile || this.shouldShowJoystick()) {
-      this.setupMobileJoystick();
-    }
-    
-    console.log(`⌨️ Input system initialized (Mobile: ${this.isMobile}, Layout: ${layout})`);
+    if (this.isMobile || this.shouldShowJoystick()) this.setupMobileJoystick();
+
+    console.log(`⌨️ Input system initialized (Mobile: ${this.isMobile}, Layout: ${layout}, Mapping:`, this.keyMapping, ')');
   }
 
   shouldShowJoystick() {
@@ -211,43 +154,28 @@ export class InputManager {
       autoHide: !this.isMobile,
       followPointer: false
     };
-
     this.mobileJoystick = new MobileJoystick(this.scene, joystickConfig);
 
-    this.mobileJoystick.onMove((input) => {
-      this.handleJoystickInput(input);
-    });
-
-    this.mobileJoystick.onStart(() => {
-      console.log('🕹️ Joystick activation');
-    });
-
+    this.mobileJoystick.onMove((input) => { this.handleJoystickInput(input); });
+    this.mobileJoystick.onStart(() => { console.log('🕹️ Joystick activation'); });
     this.mobileJoystick.onEnd(() => {
       this.currentMovement = {
-        x: 0,
-        y: 0,
-        isMoving: false,
-        direction: null,
-        source: null
+        x: 0, y: 0, isMoving: false, direction: null, source: null
       };
       this.triggerMoveCallback();
     });
   }
 
   handleJoystickInput(input) {
-    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
     if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
       this.movementBlockHandler.validateMovement();
       return;
     }
-
-    // Si on force l'arrêt, ignore le joystick
     if (this.forceStop) return;
 
     const speed = GAME_CONFIG.player.speed;
     const moveX = input.x * speed;
     const moveY = input.y * speed;
-
     let direction = null;
     if (input.force > 0.15) {
       if (Math.abs(input.x) > Math.abs(input.y)) {
@@ -256,113 +184,72 @@ export class InputManager {
         direction = input.y > 0 ? 'down' : 'up';
       }
     }
-
     this.currentMovement = {
-      x: moveX,
-      y: moveY,
-      isMoving: input.force > 0.15,
-      direction: direction,
-      source: 'joystick'
+      x: moveX, y: moveY, isMoving: input.force > 0.15, direction, source: 'joystick'
     };
-
     this.triggerMoveCallback();
   }
 
-  // ✅ MÉTHODE CORRIGÉE: update avec protection
   update(currentX, currentY) {
-    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
     if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
-      // Mouvement bloqué par le serveur - forcer l'arrêt
       this.movementBlockHandler.validateMovement();
-      return {
-        moved: false,
-        newX: currentX,
-        newY: currentY
-      };
+      return { moved: false, newX: currentX, newY: currentY };
     }
-
-    // Si on force l'arrêt, retourne un mouvement vide
     if (this.forceStop) {
-      return {
-        moved: false,
-        newX: currentX,
-        newY: currentY
-      };
+      return { moved: false, newX: currentX, newY: currentY };
     }
-
     if (this.mobileJoystick && this.mobileJoystick.isMoving()) {
       return this.currentMovement;
     }
     return this.handleKeyboardInput(currentX, currentY);
   }
 
-  // ✅ MÉTHODE CORRIGÉE: handleKeyboardInput avec protection
   handleKeyboardInput(currentX, currentY) {
-    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
     if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
-      // Mouvement bloqué par le serveur
-      this.movementBlockHandler.validateMovement(); // Affiche message si nécessaire
-      return {
-        moved: false,
-        newX: currentX,
-        newY: currentY
-      };
+      this.movementBlockHandler.validateMovement();
+      return { moved: false, newX: currentX, newY: currentY };
     }
-
-    // Si on force l'arrêt, ne traite pas les touches
     if (this.forceStop) {
-      return {
-        moved: false,
-        newX: currentX,
-        newY: currentY
-      };
+      return { moved: false, newX: currentX, newY: currentY };
     }
-
     const speed = GAME_CONFIG.player.speed;
     let newX = currentX;
     let newY = currentY;
     let moved = false;
     let direction = null;
 
-    // Vérification supplémentaire : si toutes les touches sont relâchées, force l'arrêt
-    const anyKeyPressed = this.cursors.left.isDown || this.cursors.right.isDown || 
-                         this.cursors.up.isDown || this.cursors.down.isDown ||
-                         this.wasdKeys.A?.isDown || this.wasdKeys.Q?.isDown ||
-                         this.wasdKeys.D?.isDown || this.wasdKeys.W?.isDown ||
-                         this.wasdKeys.Z?.isDown || this.wasdKeys.S?.isDown;
+    // Détection dynamique du layout (patch bug QWERTY/AZERTY)
+    const anyKeyPressed =
+      this.cursors.left.isDown || this.cursors.right.isDown ||
+      this.cursors.up.isDown || this.cursors.down.isDown ||
+      this.wasdKeys[this.keyMapping.left]?.isDown ||
+      this.wasdKeys[this.keyMapping.right]?.isDown ||
+      this.wasdKeys[this.keyMapping.up]?.isDown ||
+      this.wasdKeys[this.keyMapping.down]?.isDown;
 
     if (!anyKeyPressed) {
       this.currentMovement = {
-        x: 0,
-        y: 0,
-        isMoving: false,
-        direction: null,
-        source: 'keyboard'
+        x: 0, y: 0, isMoving: false, direction: null, source: 'keyboard'
       };
-      return {
-        moved: false,
-        newX: currentX,
-        newY: currentY
-      };
+      return { moved: false, newX: currentX, newY: currentY };
     }
 
-    // On regarde le mapping dynamique (AZERTY: ZQSD, QWERTY: WASD)
-    if (this.cursors.left.isDown || this.wasdKeys.A?.isDown || this.wasdKeys.Q?.isDown) {
+    if (this.cursors.left.isDown || this.wasdKeys[this.keyMapping.left]?.isDown) {
       newX -= speed;
       moved = true;
       direction = 'left';
     }
-    if (this.cursors.right.isDown || this.wasdKeys.D?.isDown) {
+    if (this.cursors.right.isDown || this.wasdKeys[this.keyMapping.right]?.isDown) {
       newX += speed;
       moved = true;
       direction = 'right';
     }
-    if (this.cursors.up.isDown || this.wasdKeys.W?.isDown || this.wasdKeys.Z?.isDown) {
+    if (this.cursors.up.isDown || this.wasdKeys[this.keyMapping.up]?.isDown) {
       newY -= speed;
       moved = true;
       direction = 'up';
     }
-    if (this.cursors.down.isDown || this.wasdKeys.S?.isDown) {
+    if (this.cursors.down.isDown || this.wasdKeys[this.keyMapping.down]?.isDown) {
       newY += speed;
       moved = true;
       direction = 'down';
@@ -372,7 +259,6 @@ export class InputManager {
       newX = Math.max(16, Math.min(784, newX));
       newY = Math.max(16, Math.min(592, newY));
     }
-
     this.currentMovement = {
       x: moved ? newX - currentX : 0,
       y: moved ? newY - currentY : 0,
@@ -384,7 +270,6 @@ export class InputManager {
     if (moved && this.callbacks.onMove) {
       this.callbacks.onMove(newX, newY);
     }
-
     return { moved, newX, newY };
   }
 
@@ -406,112 +291,57 @@ export class InputManager {
     return this.currentMovement;
   }
 
-  // ✅ MÉTHODE CORRIGÉE: isKeyDown avec protection
   isKeyDown(key) {
-    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
-    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
-      return false; // Aucune touche active si bloqué
-    }
-
-    // Si on force l'arrêt, aucune touche n'est considérée comme pressée
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) return false;
     if (this.forceStop) return false;
-
     switch(key.toLowerCase()) {
-      case 'left': return this.cursors.left.isDown || this.wasdKeys.A?.isDown || this.wasdKeys.Q?.isDown;
-      case 'right': return this.cursors.right.isDown || this.wasdKeys.D?.isDown;
-      case 'up': return this.cursors.up.isDown || this.wasdKeys.W?.isDown || this.wasdKeys.Z?.isDown;
-      case 'down': return this.cursors.down.isDown || this.wasdKeys.S?.isDown;
+      case 'left': return this.cursors.left.isDown || this.wasdKeys[this.keyMapping.left]?.isDown;
+      case 'right': return this.cursors.right.isDown || this.wasdKeys[this.keyMapping.right]?.isDown;
+      case 'up': return this.cursors.up.isDown || this.wasdKeys[this.keyMapping.up]?.isDown;
+      case 'down': return this.cursors.down.isDown || this.wasdKeys[this.keyMapping.down]?.isDown;
       default: return false;
     }
   }
 
-  // ✅ MÉTHODE CORRIGÉE: isMoving avec protection
   isMoving() {
-    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
-    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
-      return false; // Pas en mouvement si bloqué
-    }
-
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) return false;
     return !this.forceStop && this.currentMovement.isMoving;
   }
 
-  // ✅ MÉTHODE CORRIGÉE: getDirection avec protection
   getDirection() {
-    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
-    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
-      return null; // Pas de direction si bloqué
-    }
-
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) return null;
     return this.forceStop ? null : this.currentMovement.direction;
   }
 
-  // ✅ MÉTHODE CORRIGÉE: getInputSource avec protection
   getInputSource() {
-    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
-    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
-      return null; // Pas de source si bloqué
-    }
-
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) return null;
     return this.forceStop ? null : this.currentMovement.source;
   }
 
-  showJoystick() {
-    if (this.mobileJoystick) {
-      this.mobileJoystick.show();
-    }
-  }
-
-  hideJoystick() {
-    if (this.mobileJoystick) {
-      this.mobileJoystick.hide();
-    }
-  }
-
+  showJoystick() { if (this.mobileJoystick) this.mobileJoystick.show(); }
+  hideJoystick() { if (this.mobileJoystick) this.mobileJoystick.hide(); }
   toggleJoystick() {
-    if (!this.mobileJoystick) {
-      this.setupMobileJoystick();
-    } else {
-      if (this.mobileJoystick.isActive) {
-        this.hideJoystick();
-      } else {
-        this.showJoystick();
-      }
-    }
+    if (!this.mobileJoystick) { this.setupMobileJoystick(); }
+    else { if (this.mobileJoystick.isActive) this.hideJoystick(); else this.showJoystick(); }
   }
-
-  repositionJoystick(x, y) {
-    if (this.mobileJoystick) {
-      this.mobileJoystick.setPosition(x, y);
-    }
-  }
-
+  repositionJoystick(x, y) { if (this.mobileJoystick) this.mobileJoystick.setPosition(x, y); }
   handleResize() {
     if (this.mobileJoystick && this.isMobile) {
       const camera = this.scene.cameras.main;
       this.repositionJoystick(120, camera.height - 120);
     }
   }
-
-  // ✅ MÉTHODE CORRIGÉE: forceStopMovement avec protection
   forceStopMovement(reason = 'system') {
     console.log(`🛑 Force arrêt mouvement: ${reason}`);
-    
-    // Utiliser le reset existant
     this.resetMovement();
-    
-    // ✅ VALIDATION SEULEMENT SI HANDLER DISPONIBLE
     if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
       this.movementBlockHandler.validateMovement();
     }
   }
-
-  // ✅ MÉTHODE CORRIGÉE: areInputsEnabled avec protection
   areInputsEnabled() {
     const blockHandlerBlocked = this.movementBlockHandler ? this.movementBlockHandler.isMovementBlocked() : false;
     return !blockHandlerBlocked && !this.forceStop;
   }
-
-  // ✅ MÉTHODE CORRIGÉE: getStatus avec protection et info MovementBlockHandler
   getStatus() {
     return {
       forceStop: this.forceStop,
@@ -521,23 +351,17 @@ export class InputManager {
       isMobile: this.isMobile,
       hasJoystick: !!this.mobileJoystick,
       joystickActive: this.mobileJoystick?.isActive || false,
-      // ✅ NOUVEAU: Info MovementBlockHandler
       movementBlockHandlerReady: this.movementBlockHandlerReady,
       movementBlockHandlerConnectionAttempts: this.movementBlockHandlerConnectionAttempts,
       hasMovementBlockHandlerReference: !!this._movementBlockHandler
     };
   }
-
-  // ✅ NOUVELLE MÉTHODE: Forcer la connexion au MovementBlockHandler
   forceConnectMovementBlockHandler() {
     console.log(`🔧 [InputManager] Force connexion MovementBlockHandler...`);
     this.movementBlockHandlerConnectionAttempts = 0;
     this._movementBlockHandler = null;
     this.movementBlockHandlerReady = false;
-    
-    // Essayer de se connecter
-    const handler = this.movementBlockHandler; // Déclenche le getter
-    
+    const handler = this.movementBlockHandler;
     if (handler) {
       console.log(`✅ [InputManager] MovementBlockHandler connecté avec succès`);
       return true;
@@ -546,11 +370,8 @@ export class InputManager {
       return false;
     }
   }
-
-  // ✅ NOUVELLE MÉTHODE: Test de connexion MovementBlockHandler
   testMovementBlockHandlerConnection() {
     console.log(`🧪 [InputManager] Test connexion MovementBlockHandler...`);
-    
     const status = {
       hasReference: !!this._movementBlockHandler,
       isReady: this.movementBlockHandlerReady,
@@ -558,7 +379,6 @@ export class InputManager {
       canCall: false,
       isBlocked: false
     };
-    
     if (this.movementBlockHandler) {
       try {
         status.canCall = true;
@@ -569,36 +389,23 @@ export class InputManager {
         status.canCall = false;
       }
     }
-    
     console.log(`📊 [InputManager] Status test:`, status);
     return status;
   }
-
-  // ✅ MÉTHODE CORRIGÉE: destroy avec nettoyage complet
   destroy() {
     if (this.mobileJoystick) {
       this.mobileJoystick.destroy();
       this.mobileJoystick = null;
     }
-    
-    // ✅ NETTOYAGE COMPLET DE LA RÉFÉRENCE MOVEMENTBLOCKHANDLER
     this._movementBlockHandler = null;
     this.movementBlockHandlerReady = false;
     this.movementBlockHandlerConnectionAttempts = 0;
-    
     this.callbacks = {};
     this.currentMovement = {
-      x: 0,
-      y: 0,
-      isMoving: false,
-      direction: null,
-      source: null
+      x: 0, y: 0, isMoving: false, direction: null, source: null
     };
-    
     console.log('⌨️ InputManager destroyed');
   }
-
-  // ✅ NOUVELLE MÉTHODE: Debug complet de l'InputManager
   debug() {
     console.log('🔍 === DEBUG INPUT MANAGER ===');
     console.log('📊 Status général:', this.getStatus());
