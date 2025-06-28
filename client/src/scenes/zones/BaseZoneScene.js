@@ -16,7 +16,7 @@ import { zoneEnvironmentManager } from "../../managers/ZoneEnvironmentManager.js
 import { WeatherEffects } from "../../effects/WeatherEffects.js";
 // 🆕 NOUVEAU: Import du ClientEncounterManager
 import { ClientEncounterManager } from "../../managers/EncounterManager.js";
-import { movementBlockHandler } from "../input/MovementBlockHandler.js";
+import { movementBlockHandler } from "../../input/MovementBlockHandler.js";
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
