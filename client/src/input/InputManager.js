@@ -1,6 +1,7 @@
 // client/src/input/InputManager.js - Version internationale WASD/ZQSD auto
 import { GAME_CONFIG } from "../config/gameConfig.js";
 import { MobileJoystick } from "./MobileJoystick.js";
+import { movementBlockHandler } from "./MovementBlockHandler.js";
 
 export class InputManager {
   constructor(scene) {
@@ -27,6 +28,9 @@ export class InputManager {
     
     this.setupInput();
 
+    // ✅ NOUVEAU: Référence au MovementBlockHandler
+    this.movementBlockHandler = movementBlockHandler;
+    
     // Désactive le menu contextuel (clic droit) pour éviter les bugs de touche coincée
     this.scene.input.mouse.disableContextMenu();
 
@@ -194,6 +198,11 @@ export class InputManager {
 
   handleJoystickInput(input) {
     // Si on force l'arrêt, ignore le joystick
+    if (this.movementBlockHandler.isMovementBlocked()) {
+    this.movementBlockHandler.validateMovement();
+    return;
+  }
+    
     if (this.forceStop) return;
 
     const speed = GAME_CONFIG.player.speed;
@@ -238,13 +247,24 @@ export class InputManager {
 
   handleKeyboardInput(currentX, currentY) {
     // Si on force l'arrêt, ne traite pas les touches
-    if (this.forceStop) {
-      return {
-        moved: false,
-        newX: currentX,
-        newY: currentY
-      };
-    }
+  if (this.movementBlockHandler.isMovementBlocked()) {
+    // Mouvement bloqué par le serveur
+    this.movementBlockHandler.validateMovement(); // Affiche message si nécessaire
+    return {
+      moved: false,
+      newX: currentX,
+      newY: currentY
+    };
+  }
+
+  // Si on force l'arrêt local, ne traite pas les touches
+  if (this.forceStop) {
+    return {
+      moved: false,
+      newX: currentX,
+      newY: currentY
+    };
+  }
 
     const speed = GAME_CONFIG.player.speed;
     let newX = currentX;
