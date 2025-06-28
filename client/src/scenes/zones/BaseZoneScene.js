@@ -16,6 +16,7 @@ import { zoneEnvironmentManager } from "../../managers/ZoneEnvironmentManager.js
 import { WeatherEffects } from "../../effects/WeatherEffects.js";
 // 🆕 NOUVEAU: Import du ClientEncounterManager
 import { ClientEncounterManager } from "../../managers/EncounterManager.js";
+import { movementBlockHandler } from "../input/MovementBlockHandler.js";
 
 export class BaseZoneScene extends Phaser.Scene {
   constructor(sceneKey, mapKey) {
@@ -145,6 +146,7 @@ export class BaseZoneScene extends Phaser.Scene {
       this.networkManager.restoreCustomCallbacks?.();
     }
 
+    this.initializeMovementBlockHandler();
     this.setupNetworkHandlers();
     this.networkSetupComplete = true;
   }
@@ -243,6 +245,25 @@ export class BaseZoneScene extends Phaser.Scene {
 
   // 🆕 NOUVELLE MÉTHODE: Setup des handlers réseau pour les encounters
 
+  initializeMovementBlockHandler() {
+  console.log(`🔒 [${this.scene.key}] Initialisation MovementBlockHandler...`);
+  
+  // Attendre que l'InputManager soit prêt
+  if (!this.inputManager) {
+    setTimeout(() => this.initializeMovementBlockHandler(), 500);
+    return;
+  }
+  
+  // Initialiser avec les managers requis
+  movementBlockHandler.initialize(
+    this.inputManager,
+    this.networkManager,
+    this
+  );
+  
+  console.log(`✅ [${this.scene.key}] MovementBlockHandler initialisé`);
+}
+  
 setupEncounterNetworkHandlers() {
   if (!this.networkManager?.room) {
     console.warn(`⚠️ [${this.scene.key}] Pas de room pour setup encounter handlers`);
@@ -1097,6 +1118,10 @@ onZoneChanged(newZoneName) {
       }
     }
 
+    if (movementBlockHandler) {
+    movementBlockHandler.clearAllBlocks();
+  }
+    
     // 🆕 NOUVEAU: Nettoyer l'EncounterManager
     if (this.encounterManager) {
       // L'EncounterManager n'a pas besoin de cleanup spécial, juste le déréférencer
@@ -1141,69 +1166,97 @@ onZoneChanged(newZoneName) {
   }
 
   // ✅ MÉTHODE CORRIGÉE: Gestion du mouvement avec envoi d'arrêt
-  handleMovement(myPlayerState) {
-    const speed = 80;
-    const myPlayer = this.playerManager.getMyPlayer();
-    if (!myPlayer || !myPlayer.body) return;
-    let vx = 0, vy = 0;
-    let inputDetected = false, direction = null;
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      vx = -speed; inputDetected = true; direction = 'left';
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-      vx = speed; inputDetected = true; direction = 'right';
-    }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) {
-      vy = -speed; inputDetected = true; direction = 'up';
-    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-      vy = speed; inputDetected = true; direction = 'down';
-    }
-    let actuallyMoving = inputDetected;
-    myPlayer.body.setVelocity(vx, vy);
-    // ✅ NORMALISER LA VITESSE DIAGONALE
-    if (vx !== 0 && vy !== 0) {
-      myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
-    }
-    if (inputDetected && direction) {
-      this.lastDirection = direction;
-      
-      if (actuallyMoving) {
-        myPlayer.anims.play(`walk_${direction}`, true);
-        myPlayer.isMovingLocally = true;
-      } else {
-        myPlayer.anims.play(`idle_${direction}`, true);
-        myPlayer.isMovingLocally = false;
-      }
-    } else {
-      myPlayer.anims.play(`idle_${this.lastDirection}`, true);
-      myPlayer.isMovingLocally = false;
+handleMovement(myPlayerState) {
+  const myPlayer = this.playerManager.getMyPlayer();
+  if (!myPlayer || !myPlayer.body) return;
+
+  // ✅ ÉTAPE 1: VÉRIFICATION BLOCAGE AVANT TOUT
+  if (movementBlockHandler.isMovementBlocked()) {
+    // Arrêter immédiatement le joueur
+    myPlayer.body.setVelocity(0, 0);
+    myPlayer.anims.play(`idle_${this.lastDirection}`, true);
+    myPlayer.isMovingLocally = false;
+    
+    // Envoyer l'arrêt au serveur si pas encore fait
+    const now = Date.now();
+    if (!this.lastStopTime || now - this.lastStopTime > 100) {
+      this.networkManager.sendMove(
+        myPlayer.x,
+        myPlayer.y,
+        this.lastDirection,
+        false  // isMoving = false
+      );
+      this.lastStopTime = now;
     }
     
-    if (inputDetected) {
-      const now = Date.now();
-      if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
-        this.networkManager.sendMove(
-          myPlayer.x,
-          myPlayer.y,
-          direction,
-          actuallyMoving
-        );
-        this.lastMoveTime = now;
-      }
-    } 
-    // ✅ NOUVEAU: Envoyer aussi quand on s'arrête !
-    else {
-      const now = Date.now();
-      if (!this.lastStopTime || now - this.lastStopTime > 100) {
-        this.networkManager.sendMove(
-          myPlayer.x,
-          myPlayer.y,
-          this.lastDirection,
-          false  // ← isMoving = false
-        );
-        this.lastStopTime = now;
-      }
+    return; // ✅ SORTIR - Pas de mouvement autorisé
+  }
+
+  // ✅ ÉTAPE 2: TRAITEMENT NORMAL DU MOUVEMENT
+  const speed = 80;
+  let vx = 0, vy = 0;
+  let inputDetected = false, direction = null;
+  
+  if (this.cursors.left.isDown || this.wasd.A.isDown) {
+    vx = -speed; inputDetected = true; direction = 'left';
+  } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+    vx = speed; inputDetected = true; direction = 'right';
+  }
+  if (this.cursors.up.isDown || this.wasd.W.isDown) {
+    vy = -speed; inputDetected = true; direction = 'up';
+  } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+    vy = speed; inputDetected = true; direction = 'down';
+  }
+  
+  let actuallyMoving = inputDetected;
+  myPlayer.body.setVelocity(vx, vy);
+  
+  // ✅ NORMALISER LA VITESSE DIAGONALE
+  if (vx !== 0 && vy !== 0) {
+    myPlayer.body.setVelocity(vx * 0.707, vy * 0.707); // √2 ≈ 0.707
+  }
+  
+  if (inputDetected && direction) {
+    this.lastDirection = direction;
+    
+    if (actuallyMoving) {
+      myPlayer.anims.play(`walk_${direction}`, true);
+      myPlayer.isMovingLocally = true;
+    } else {
+      myPlayer.anims.play(`idle_${direction}`, true);
+      myPlayer.isMovingLocally = false;
+    }
+  } else {
+    myPlayer.anims.play(`idle_${this.lastDirection}`, true);
+    myPlayer.isMovingLocally = false;
+  }
+  
+  if (inputDetected) {
+    const now = Date.now();
+    if (!this.lastMoveTime || now - this.lastMoveTime > 50) {
+      this.networkManager.sendMove(
+        myPlayer.x,
+        myPlayer.y,
+        direction,
+        actuallyMoving
+      );
+      this.lastMoveTime = now;
+    }
+  } 
+  // ✅ ENVOYER AUSSI QUAND ON S'ARRÊTE !
+  else {
+    const now = Date.now();
+    if (!this.lastStopTime || now - this.lastStopTime > 100) {
+      this.networkManager.sendMove(
+        myPlayer.x,
+        myPlayer.y,
+        this.lastDirection,
+        false  // ← isMoving = false
+      );
+      this.lastStopTime = now;
     }
   }
+}
 
   // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
