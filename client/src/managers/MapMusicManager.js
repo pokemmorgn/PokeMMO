@@ -87,13 +87,28 @@ export class MapMusicManager {
   // ✅ MÉTHODE PRINCIPALE : Initialiser avec une scène Phaser
   initialize(scene) {
     if (this.isInitialized) {
-      console.log('🎵 [MapMusicManager] Déjà initialisé');
+      console.log('🎵 [MapMusicManager] Déjà initialisé, mise à jour scène');
+      // ✅ METTRE À JOUR LA RÉFÉRENCE DE SCÈNE SANS RÉINITIALISER
+      this.scene = scene;
+      this.soundManager = scene.sound;
       return;
     }
 
     this.scene = scene;
     this.soundManager = scene.sound;
     this.isInitialized = true;
+
+    // ✅ FORCER L'ACTIVATION DU SON
+    console.log('🔊 [MapMusicManager] Activation forcée du son...');
+    scene.sound.unlock();
+    scene.sound.resumeAll();
+    
+    // ✅ VÉRIFIER LES PARAMÈTRES AUDIO
+    console.log('🔍 [MapMusicManager] État audio:', {
+      volume: scene.sound.volume,
+      mute: scene.sound.mute,
+      locked: scene.sound.locked
+    });
 
     console.log('✅ [MapMusicManager] Initialisé avec scène:', scene.scene.key);
   }
@@ -166,12 +181,51 @@ export class MapMusicManager {
     console.log(`🎵 [MapMusicManager] Démarrage: ${trackKey} (vol: ${volume})`);
 
     try {
+      // ✅ VÉRIFIER QUE LA TRACK EXISTE VRAIMENT
+      if (!this.scene.cache.audio.exists(trackKey)) {
+        console.error(`❌ [MapMusicManager] Track ${trackKey} n'existe pas dans le cache!`);
+        return;
+      }
+
+      // ✅ ARRÊTER PROPREMENT LA MUSIQUE PRÉCÉDENTE
+      if (this.currentTrack) {
+        console.log(`🛑 [MapMusicManager] Arrêt propre de la track précédente`);
+        this.currentTrack.destroy();
+        this.currentTrack = null;
+      }
+
+      // ✅ CRÉER UNE NOUVELLE INSTANCE À CHAQUE FOIS
       this.currentTrack = this.soundManager.add(trackKey, {
         loop: loop,
         volume: fadeIn ? 0 : volume * this.musicVolume
       });
 
+      console.log(`🎵 [MapMusicManager] Track créée:`, this.currentTrack);
+
+      // ✅ FORCER LE DÉMARRAGE
       this.currentTrack.play();
+      
+      // ✅ VÉRIFIER QUE LA MUSIQUE JOUE VRAIMENT
+      setTimeout(() => {
+        if (this.currentTrack && this.currentTrack.isPlaying) {
+          console.log(`✅ [MapMusicManager] Musique confirmée en cours: ${trackKey}`);
+        } else {
+          console.error(`❌ [MapMusicManager] Musique n'a pas démarré: ${trackKey}`);
+          console.log(`🔍 [MapMusicManager] État track:`, {
+            exists: !!this.currentTrack,
+            isPlaying: this.currentTrack?.isPlaying,
+            isPaused: this.currentTrack?.isPaused,
+            volume: this.currentTrack?.volume
+          });
+          
+          // ✅ RETRY UNE FOIS
+          if (this.currentTrack && !this.currentTrack.isPlaying) {
+            console.log(`🔄 [MapMusicManager] Retry play...`);
+            this.currentTrack.play();
+          }
+        }
+      }, 200);
+      
       this.currentZone = zoneName;
 
       // Fade in si demandé
