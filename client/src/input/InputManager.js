@@ -1,7 +1,8 @@
 // client/src/input/InputManager.js - Version complète avec MovementBlockHandler
+// ✅ VERSION CORRIGÉE - CONNEXION LAZY AU MOVEMENTBLOCKHANDLER
+
 import { GAME_CONFIG } from "../config/gameConfig.js";
 import { MobileJoystick } from "./MobileJoystick.js";
-import { movementBlockHandler } from "./MovementBlockHandler.js";
 
 export class InputManager {
   constructor(scene) {
@@ -14,8 +15,11 @@ export class InputManager {
     // Flag pour forcer l'arrêt du mouvement
     this.forceStop = false;
     
-    // ✅ NOUVEAU: Référence au MovementBlockHandler
-    this.movementBlockHandler = movementBlockHandler;
+    // ✅ CHANGEMENT CRITIQUE: Référence LAZY au MovementBlockHandler
+    this._movementBlockHandler = null; // Pas d'initialisation immédiate
+    this.movementBlockHandlerReady = false;
+    this.movementBlockHandlerConnectionAttempts = 0;
+    this.maxConnectionAttempts = 5;
     
     this.callbacks = {
       onMove: null
@@ -50,6 +54,40 @@ export class InputManager {
     window.addEventListener('contextmenu', (e) => {
       this.resetMovement();
     });
+  }
+
+  // ✅ NOUVELLE PROPRIÉTÉ GETTER: Accès lazy au MovementBlockHandler
+  get movementBlockHandler() {
+    // ✅ Initialisation LAZY seulement quand nécessaire
+    if (!this._movementBlockHandler && typeof movementBlockHandler !== 'undefined') {
+      console.log(`🔗 [InputManager] Connexion lazy au MovementBlockHandler global`);
+      this._movementBlockHandler = movementBlockHandler;
+      this.movementBlockHandlerReady = true;
+    } else if (!this._movementBlockHandler && this.movementBlockHandlerConnectionAttempts < this.maxConnectionAttempts) {
+      // ✅ Tentative de connexion différée
+      this.movementBlockHandlerConnectionAttempts++;
+      console.log(`🔄 [InputManager] Tentative connexion MovementBlockHandler ${this.movementBlockHandlerConnectionAttempts}/${this.maxConnectionAttempts}`);
+      
+      // ✅ Import dynamique si pas encore disponible
+      this.tryConnectMovementBlockHandler();
+    }
+    
+    return this._movementBlockHandler;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Tentative de connexion au MovementBlockHandler
+  async tryConnectMovementBlockHandler() {
+    try {
+      // ✅ Essayer d'importer dynamiquement
+      const { movementBlockHandler } = await import('./MovementBlockHandler.js');
+      if (movementBlockHandler) {
+        console.log(`✅ [InputManager] MovementBlockHandler connecté via import dynamique`);
+        this._movementBlockHandler = movementBlockHandler;
+        this.movementBlockHandlerReady = true;
+      }
+    } catch (error) {
+      console.warn(`⚠️ [InputManager] Impossible de connecter MovementBlockHandler:`, error);
+    }
   }
 
   // Méthode centralisée pour reset complet du mouvement
@@ -197,8 +235,8 @@ export class InputManager {
   }
 
   handleJoystickInput(input) {
-    // ✅ VÉRIFICATION BLOCAGE EN PREMIER
-    if (this.movementBlockHandler.isMovementBlocked()) {
+    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
       this.movementBlockHandler.validateMovement();
       return;
     }
@@ -230,9 +268,10 @@ export class InputManager {
     this.triggerMoveCallback();
   }
 
+  // ✅ MÉTHODE CORRIGÉE: update avec protection
   update(currentX, currentY) {
-    // ✅ VÉRIFICATION BLOCAGE AVANT TOUT
-    if (this.movementBlockHandler.isMovementBlocked()) {
+    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
       // Mouvement bloqué par le serveur - forcer l'arrêt
       this.movementBlockHandler.validateMovement();
       return {
@@ -257,9 +296,10 @@ export class InputManager {
     return this.handleKeyboardInput(currentX, currentY);
   }
 
+  // ✅ MÉTHODE CORRIGÉE: handleKeyboardInput avec protection
   handleKeyboardInput(currentX, currentY) {
-    // ✅ VÉRIFICATION BLOCAGE EN PREMIER
-    if (this.movementBlockHandler.isMovementBlocked()) {
+    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
       // Mouvement bloqué par le serveur
       this.movementBlockHandler.validateMovement(); // Affiche message si nécessaire
       return {
@@ -366,9 +406,10 @@ export class InputManager {
     return this.currentMovement;
   }
 
+  // ✅ MÉTHODE CORRIGÉE: isKeyDown avec protection
   isKeyDown(key) {
-    // ✅ VÉRIFICATION BLOCAGE AVANT TOUCHES
-    if (this.movementBlockHandler.isMovementBlocked()) {
+    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
       return false; // Aucune touche active si bloqué
     }
 
@@ -384,27 +425,30 @@ export class InputManager {
     }
   }
 
+  // ✅ MÉTHODE CORRIGÉE: isMoving avec protection
   isMoving() {
-    // ✅ VÉRIFICATION BLOCAGE
-    if (this.movementBlockHandler.isMovementBlocked()) {
+    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
       return false; // Pas en mouvement si bloqué
     }
 
     return !this.forceStop && this.currentMovement.isMoving;
   }
 
+  // ✅ MÉTHODE CORRIGÉE: getDirection avec protection
   getDirection() {
-    // ✅ VÉRIFICATION BLOCAGE
-    if (this.movementBlockHandler.isMovementBlocked()) {
+    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
       return null; // Pas de direction si bloqué
     }
 
     return this.forceStop ? null : this.currentMovement.direction;
   }
 
+  // ✅ MÉTHODE CORRIGÉE: getInputSource avec protection
   getInputSource() {
-    // ✅ VÉRIFICATION BLOCAGE
-    if (this.movementBlockHandler.isMovementBlocked()) {
+    // ✅ VÉRIFICATION BLOCAGE SEULEMENT SI HANDLER DISPONIBLE
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
       return null; // Pas de source si bloqué
     }
 
@@ -448,45 +492,99 @@ export class InputManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Force l'arrêt via MovementBlockHandler
+  // ✅ MÉTHODE CORRIGÉE: forceStopMovement avec protection
   forceStopMovement(reason = 'system') {
     console.log(`🛑 Force arrêt mouvement: ${reason}`);
     
     // Utiliser le reset existant
     this.resetMovement();
     
-    // Si on a accès au MovementBlockHandler, valider l'arrêt
+    // ✅ VALIDATION SEULEMENT SI HANDLER DISPONIBLE
     if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
       this.movementBlockHandler.validateMovement();
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Vérifie si les inputs sont autorisés
+  // ✅ MÉTHODE CORRIGÉE: areInputsEnabled avec protection
   areInputsEnabled() {
-    return !this.movementBlockHandler.isMovementBlocked() && !this.forceStop;
+    const blockHandlerBlocked = this.movementBlockHandler ? this.movementBlockHandler.isMovementBlocked() : false;
+    return !blockHandlerBlocked && !this.forceStop;
   }
 
-  // ✅ NOUVELLE MÉTHODE: Status complet de l'InputManager
+  // ✅ MÉTHODE CORRIGÉE: getStatus avec protection et info MovementBlockHandler
   getStatus() {
     return {
       forceStop: this.forceStop,
-      movementBlocked: this.movementBlockHandler.isMovementBlocked(),
+      movementBlocked: this.movementBlockHandler ? this.movementBlockHandler.isMovementBlocked() : false,
       inputsEnabled: this.areInputsEnabled(),
       currentMovement: this.currentMovement,
       isMobile: this.isMobile,
       hasJoystick: !!this.mobileJoystick,
-      joystickActive: this.mobileJoystick?.isActive || false
+      joystickActive: this.mobileJoystick?.isActive || false,
+      // ✅ NOUVEAU: Info MovementBlockHandler
+      movementBlockHandlerReady: this.movementBlockHandlerReady,
+      movementBlockHandlerConnectionAttempts: this.movementBlockHandlerConnectionAttempts,
+      hasMovementBlockHandlerReference: !!this._movementBlockHandler
     };
   }
 
+  // ✅ NOUVELLE MÉTHODE: Forcer la connexion au MovementBlockHandler
+  forceConnectMovementBlockHandler() {
+    console.log(`🔧 [InputManager] Force connexion MovementBlockHandler...`);
+    this.movementBlockHandlerConnectionAttempts = 0;
+    this._movementBlockHandler = null;
+    this.movementBlockHandlerReady = false;
+    
+    // Essayer de se connecter
+    const handler = this.movementBlockHandler; // Déclenche le getter
+    
+    if (handler) {
+      console.log(`✅ [InputManager] MovementBlockHandler connecté avec succès`);
+      return true;
+    } else {
+      console.warn(`⚠️ [InputManager] Impossible de connecter MovementBlockHandler`);
+      return false;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Test de connexion MovementBlockHandler
+  testMovementBlockHandlerConnection() {
+    console.log(`🧪 [InputManager] Test connexion MovementBlockHandler...`);
+    
+    const status = {
+      hasReference: !!this._movementBlockHandler,
+      isReady: this.movementBlockHandlerReady,
+      attempts: this.movementBlockHandlerConnectionAttempts,
+      canCall: false,
+      isBlocked: false
+    };
+    
+    if (this.movementBlockHandler) {
+      try {
+        status.canCall = true;
+        status.isBlocked = this.movementBlockHandler.isMovementBlocked();
+        console.log(`✅ [InputManager] MovementBlockHandler fonctionnel`);
+      } catch (error) {
+        console.error(`❌ [InputManager] Erreur test MovementBlockHandler:`, error);
+        status.canCall = false;
+      }
+    }
+    
+    console.log(`📊 [InputManager] Status test:`, status);
+    return status;
+  }
+
+  // ✅ MÉTHODE CORRIGÉE: destroy avec nettoyage complet
   destroy() {
     if (this.mobileJoystick) {
       this.mobileJoystick.destroy();
       this.mobileJoystick = null;
     }
     
-    // ✅ NETTOYER LA RÉFÉRENCE AU MovementBlockHandler
-    this.movementBlockHandler = null;
+    // ✅ NETTOYAGE COMPLET DE LA RÉFÉRENCE MOVEMENTBLOCKHANDLER
+    this._movementBlockHandler = null;
+    this.movementBlockHandlerReady = false;
+    this.movementBlockHandlerConnectionAttempts = 0;
     
     this.callbacks = {};
     this.currentMovement = {
@@ -498,6 +596,30 @@ export class InputManager {
     };
     
     console.log('⌨️ InputManager destroyed');
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Debug complet de l'InputManager
+  debug() {
+    console.log('🔍 === DEBUG INPUT MANAGER ===');
+    console.log('📊 Status général:', this.getStatus());
+    console.log('🎮 Touches actuelles:', {
+      left: this.isKeyDown('left'),
+      right: this.isKeyDown('right'),
+      up: this.isKeyDown('up'),
+      down: this.isKeyDown('down')
+    });
+    console.log('🕹️ Joystick:', {
+      exists: !!this.mobileJoystick,
+      active: this.mobileJoystick?.isActive,
+      moving: this.mobileJoystick?.isMoving()
+    });
+    console.log('🔒 MovementBlockHandler:', {
+      connected: !!this._movementBlockHandler,
+      ready: this.movementBlockHandlerReady,
+      attempts: this.movementBlockHandlerConnectionAttempts,
+      blocked: this.movementBlockHandler ? this.movementBlockHandler.isMovementBlocked() : 'N/A'
+    });
+    console.log('================================');
   }
 }
 
