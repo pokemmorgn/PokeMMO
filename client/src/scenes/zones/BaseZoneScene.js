@@ -248,7 +248,7 @@ integrateMusicToScene(this);
 
   // 🆕 NOUVELLE MÉTHODE: Setup des handlers réseau pour les encounters
 
-  initializeMovementBlockHandler() {
+/*  initializeMovementBlockHandler() {
   console.log(`🔒 [${this.scene.key}] Initialisation MovementBlockHandler...`);
   
   // Attendre que l'InputManager soit prêt
@@ -265,7 +265,7 @@ integrateMusicToScene(this);
   );
   
   console.log(`✅ [${this.scene.key}] MovementBlockHandler initialisé`);
-}
+}*/
   
 setupEncounterNetworkHandlers() {
   if (!this.networkManager?.room) {
