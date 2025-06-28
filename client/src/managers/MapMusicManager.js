@@ -9,7 +9,8 @@ export class MapMusicManager {
     this.musicVolume = 0.6;
     this.fadeSpeed = 800; // ms
     this.isEnabled = true;
-    this.audioContextUnlocked = false; // ✅ NOUVEAU
+    this.audioContextUnlocked = false;
+    this.pendingZone = null;
     
     // Cache des tracks chargées
     this.loadedTracks = new Map();
@@ -25,7 +26,7 @@ export class MapMusicManager {
     return {
       // === ZONES PRINCIPALES ===
       'beach': {
-        track: 'road1_theme', // Utilise road1_theme pour la plage
+        track: 'road1_theme',
         volume: 0.5,
         loop: true,
         fadeIn: true
@@ -89,32 +90,21 @@ export class MapMusicManager {
   initialize(scene) {
     if (this.isInitialized) {
       console.log('🎵 [MapMusicManager] Déjà initialisé, mise à jour scène');
-      // ✅ TOUJOURS UTILISER LE GESTIONNAIRE GLOBAL
       this.scene = scene;
-      // ✅ UTILISER LE SOUND MANAGER GLOBAL AU LIEU DE CELUI DE LA SCÈNE
       this.soundManager = scene.game.sound;
       return;
     }
 
     this.scene = scene;
-    // ✅ CHANGEMENT CRITIQUE : Utiliser game.sound au lieu de scene.sound
     this.soundManager = scene.game.sound;
     this.isInitialized = true;
 
-    // ✅ SETUP INTERACTION POUR DÉBLOQUER L'AUDIO
     this.setupAudioUnlock(scene);
 
     console.log('✅ [MapMusicManager] Initialisé avec gestionnaire global');
-  }.sound;
-    this.isInitialized = true;
-
-    // ✅ SETUP INTERACTION POUR DÉBLOQUER L'AUDIO
-    this.setupAudioUnlock(scene);
-
-    console.log('✅ [MapMusicManager] Initialisé avec scène:', scene.scene.key);
   }
 
-  // ✅ NOUVELLE MÉTHODE : Setup débloquage audio
+  // ✅ SETUP DÉBLOQUAGE AUDIO
   setupAudioUnlock(scene) {
     if (this.audioContextUnlocked) {
       console.log('🔓 [MapMusicManager] AudioContext déjà débloqué');
@@ -123,22 +113,20 @@ export class MapMusicManager {
 
     console.log('🔒 [MapMusicManager] Setup débloquage AudioContext...');
 
-    // ✅ ÉVÉNEMENTS D'INTERACTION UTILISATEUR
     const unlockEvents = ['click', 'touchstart', 'keydown', 'pointerdown'];
     
     const unlockAudio = () => {
       console.log('🔓 [MapMusicManager] Tentative débloquage AudioContext...');
       
-      // Forcer l'activation du contexte audio
       if (scene.sound.context && scene.sound.context.state === 'suspended') {
         scene.sound.context.resume().then(() => {
           console.log('✅ [MapMusicManager] AudioContext débloqué!');
           this.audioContextUnlocked = true;
           
-          // Redémarrer la musique actuelle si elle existe
-          if (this.currentZone) {
+          if (this.pendingZone) {
             console.log('🔄 [MapMusicManager] Redémarrage musique après débloquage...');
-            this.changeZoneMusic(this.currentZone, true);
+            this.changeZoneMusic(this.pendingZone, true);
+            this.pendingZone = null;
           }
         }).catch(err => {
           console.warn('⚠️ [MapMusicManager] Échec débloquage AudioContext:', err);
@@ -148,14 +136,12 @@ export class MapMusicManager {
         this.audioContextUnlocked = true;
       }
 
-      // Supprimer les listeners après le premier débloquage
       unlockEvents.forEach(event => {
         scene.input.removeListener(event, unlockAudio);
         document.removeEventListener(event, unlockAudio);
       });
     };
 
-    // ✅ AJOUTER LES LISTENERS D'INTERACTION
     unlockEvents.forEach(event => {
       scene.input.on(event, unlockAudio);
       document.addEventListener(event, unlockAudio, { once: true });
@@ -173,7 +159,6 @@ export class MapMusicManager {
 
     const normalizedZone = zoneName.toLowerCase();
     
-    // Éviter les changements inutiles
     if (this.currentZone === normalizedZone && !forceChange) {
       console.log(`🎵 [MapMusicManager] Déjà sur zone: ${normalizedZone}`);
       return;
@@ -189,10 +174,8 @@ export class MapMusicManager {
       return;
     }
 
-    // ✅ VÉRIFIER SI L'AUDIOCONTEXT EST DÉBLOQUÉ
     if (!this.audioContextUnlocked) {
       console.log(`🔒 [MapMusicManager] AudioContext pas encore débloqué, en attente d'interaction...`);
-      // Mémoriser la zone pour la jouer plus tard
       this.pendingZone = normalizedZone;
       return;
     }
@@ -211,13 +194,11 @@ export class MapMusicManager {
 
     console.log(`🎵 [MapMusicManager] Transition vers: ${track} (${zoneName})`);
 
-    // Vérifier si la track existe
-    if (!this.scene.cache.audio.exists(track)) {
+    if (!this.scene.game.cache.audio.exists(track)) {
       console.warn(`⚠️ [MapMusicManager] Track manquante: ${track}`);
       return;
     }
 
-    // Si même track, juste ajuster le volume
     if (this.currentTrack && this.currentTrack.key === track) {
       console.log(`🎵 [MapMusicManager] Même track, ajustement volume: ${volume}`);
       this.fadeVolume(this.currentTrack, volume * this.musicVolume);
@@ -225,13 +206,11 @@ export class MapMusicManager {
       return;
     }
 
-    // Stopper la musique actuelle et démarrer immédiatement la nouvelle
     if (this.currentTrack) {
       console.log(`🎵 [MapMusicManager] Arrêt de la track actuelle: ${this.currentTrack.key}`);
       this.currentTrack.stop();
     }
     
-    // Toujours démarrer la nouvelle musique
     this.startNewMusic(track, volume, loop, fadeIn, zoneName);
   }
 
@@ -240,20 +219,17 @@ export class MapMusicManager {
     console.log(`🎵 [MapMusicManager] Démarrage: ${trackKey} (vol: ${volume})`);
 
     try {
-      // ✅ VÉRIFIER QUE LA TRACK EXISTE VRAIMENT - UTILISER LE CACHE GLOBAL
       if (!this.scene.game.cache.audio.exists(trackKey)) {
         console.error(`❌ [MapMusicManager] Track ${trackKey} n'existe pas dans le cache global!`);
         return;
       }
 
-      // ✅ ARRÊTER PROPREMENT LA MUSIQUE PRÉCÉDENTE
       if (this.currentTrack) {
         console.log(`🛑 [MapMusicManager] Arrêt propre de la track précédente`);
         this.currentTrack.destroy();
         this.currentTrack = null;
       }
 
-      // ✅ CRÉER AVEC LE GESTIONNAIRE GLOBAL
       this.currentTrack = this.soundManager.add(trackKey, {
         loop: loop,
         volume: fadeIn ? 0 : volume * this.musicVolume
@@ -261,23 +237,13 @@ export class MapMusicManager {
 
       console.log(`🎵 [MapMusicManager] Track créée avec gestionnaire global:`, this.currentTrack);
 
-      // ✅ FORCER LE DÉMARRAGE
       this.currentTrack.play();
       
-      // ✅ VÉRIFIER QUE LA MUSIQUE JOUE VRAIMENT
       setTimeout(() => {
         if (this.currentTrack && this.currentTrack.isPlaying) {
           console.log(`✅ [MapMusicManager] Musique confirmée en cours: ${trackKey}`);
         } else {
           console.error(`❌ [MapMusicManager] Musique n'a pas démarré: ${trackKey}`);
-          console.log(`🔍 [MapMusicManager] État track:`, {
-            exists: !!this.currentTrack,
-            isPlaying: this.currentTrack?.isPlaying,
-            isPaused: this.currentTrack?.isPaused,
-            volume: this.currentTrack?.volume
-          });
-          
-          // ✅ RETRY UNE FOIS
           if (this.currentTrack && !this.currentTrack.isPlaying) {
             console.log(`🔄 [MapMusicManager] Retry play...`);
             this.currentTrack.play();
@@ -287,7 +253,6 @@ export class MapMusicManager {
       
       this.currentZone = zoneName;
 
-      // Fade in si demandé
       if (fadeIn) {
         this.fadeIn(this.currentTrack, volume * this.musicVolume);
       }
@@ -391,6 +356,8 @@ export class MapMusicManager {
       isInitialized: this.isInitialized,
       isEnabled: this.isEnabled,
       currentZone: this.currentZone,
+      audioContextUnlocked: this.audioContextUnlocked,
+      pendingZone: this.pendingZone,
       currentTrack: this.currentTrack ? {
         key: this.currentTrack.key,
         isPlaying: this.currentTrack.isPlaying,
@@ -422,14 +389,12 @@ export class MapMusicManager {
     console.log(`🧹 [MapMusicManager] Détruit`);
   }
 }
-}
 
 // ✅ INSTANCE GLOBALE
 export const mapMusicManager = new MapMusicManager();
 
 // ✅ FONCTION D'INTÉGRATION SIMPLE POUR LES SCÈNES
 export function integrateMusicToScene(scene) {
-  // ✅ ÉVITER LES INITIALISATIONS MULTIPLES
   if (scene._musicIntegrated) {
     console.log(`🎵 [MapMusicManager] Déjà intégré à: ${scene.scene.key}`);
     return mapMusicManager;
@@ -441,29 +406,22 @@ export function integrateMusicToScene(scene) {
     mapMusicManager.initialize(scene);
   }
   
-  // Exposer sur la scène pour faciliter l'utilisation
   scene.musicManager = mapMusicManager;
   
-  // Auto-démarrage de la musique selon la zone
   const normalizeSceneName = (sceneKey) => {
     console.log(`🔍 [MapMusicManager] Scene key reçu: ${sceneKey}`);
-    
-    // Convertir VillageScene → village, LavandiaScene → lavandia, etc.
     let zoneName = sceneKey.toLowerCase().replace('scene', '');
-    
     console.log(`🔍 [MapMusicManager] Zone normalisée: ${zoneName}`);
     return zoneName;
   };
   
   const zoneName = normalizeSceneName(scene.scene.key);
   
-  // ✅ CHANGEMENT IMMÉDIAT SANS ATTENDRE L'ÉVÉNEMENT CREATE
   console.log(`🎵 [MapMusicManager] Changement immédiat pour: ${zoneName}`);
   setTimeout(() => {
     mapMusicManager.changeZoneMusic(zoneName, true);
   }, 100);
   
-  // ✅ NETTOYAGE À LA DESTRUCTION DE LA SCÈNE
   scene.events.once('shutdown', () => {
     console.log(`🧹 [MapMusicManager] Scene shutdown: ${scene.scene.key}`);
     scene._musicIntegrated = false;
