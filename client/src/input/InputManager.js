@@ -1,4 +1,4 @@
-// client/src/input/InputManager.js - Version internationale WASD/ZQSD auto
+// client/src/input/InputManager.js - Version complète avec MovementBlockHandler
 import { GAME_CONFIG } from "../config/gameConfig.js";
 import { MobileJoystick } from "./MobileJoystick.js";
 import { movementBlockHandler } from "./MovementBlockHandler.js";
@@ -14,6 +14,9 @@ export class InputManager {
     // Flag pour forcer l'arrêt du mouvement
     this.forceStop = false;
     
+    // ✅ NOUVEAU: Référence au MovementBlockHandler
+    this.movementBlockHandler = movementBlockHandler;
+    
     this.callbacks = {
       onMove: null
     };
@@ -28,9 +31,6 @@ export class InputManager {
     
     this.setupInput();
 
-    // ✅ NOUVEAU: Référence au MovementBlockHandler
-    this.movementBlockHandler = movementBlockHandler;
-    
     // Désactive le menu contextuel (clic droit) pour éviter les bugs de touche coincée
     this.scene.input.mouse.disableContextMenu();
 
@@ -197,12 +197,13 @@ export class InputManager {
   }
 
   handleJoystickInput(input) {
-    // Si on force l'arrêt, ignore le joystick
+    // ✅ VÉRIFICATION BLOCAGE EN PREMIER
     if (this.movementBlockHandler.isMovementBlocked()) {
-    this.movementBlockHandler.validateMovement();
-    return;
-  }
-    
+      this.movementBlockHandler.validateMovement();
+      return;
+    }
+
+    // Si on force l'arrêt, ignore le joystick
     if (this.forceStop) return;
 
     const speed = GAME_CONFIG.player.speed;
@@ -230,6 +231,17 @@ export class InputManager {
   }
 
   update(currentX, currentY) {
+    // ✅ VÉRIFICATION BLOCAGE AVANT TOUT
+    if (this.movementBlockHandler.isMovementBlocked()) {
+      // Mouvement bloqué par le serveur - forcer l'arrêt
+      this.movementBlockHandler.validateMovement();
+      return {
+        moved: false,
+        newX: currentX,
+        newY: currentY
+      };
+    }
+
     // Si on force l'arrêt, retourne un mouvement vide
     if (this.forceStop) {
       return {
@@ -246,25 +258,25 @@ export class InputManager {
   }
 
   handleKeyboardInput(currentX, currentY) {
-    // Si on force l'arrêt, ne traite pas les touches
-  if (this.movementBlockHandler.isMovementBlocked()) {
-    // Mouvement bloqué par le serveur
-    this.movementBlockHandler.validateMovement(); // Affiche message si nécessaire
-    return {
-      moved: false,
-      newX: currentX,
-      newY: currentY
-    };
-  }
+    // ✅ VÉRIFICATION BLOCAGE EN PREMIER
+    if (this.movementBlockHandler.isMovementBlocked()) {
+      // Mouvement bloqué par le serveur
+      this.movementBlockHandler.validateMovement(); // Affiche message si nécessaire
+      return {
+        moved: false,
+        newX: currentX,
+        newY: currentY
+      };
+    }
 
-  // Si on force l'arrêt local, ne traite pas les touches
-  if (this.forceStop) {
-    return {
-      moved: false,
-      newX: currentX,
-      newY: currentY
-    };
-  }
+    // Si on force l'arrêt, ne traite pas les touches
+    if (this.forceStop) {
+      return {
+        moved: false,
+        newX: currentX,
+        newY: currentY
+      };
+    }
 
     const speed = GAME_CONFIG.player.speed;
     let newX = currentX;
@@ -355,6 +367,11 @@ export class InputManager {
   }
 
   isKeyDown(key) {
+    // ✅ VÉRIFICATION BLOCAGE AVANT TOUCHES
+    if (this.movementBlockHandler.isMovementBlocked()) {
+      return false; // Aucune touche active si bloqué
+    }
+
     // Si on force l'arrêt, aucune touche n'est considérée comme pressée
     if (this.forceStop) return false;
 
@@ -368,14 +385,29 @@ export class InputManager {
   }
 
   isMoving() {
+    // ✅ VÉRIFICATION BLOCAGE
+    if (this.movementBlockHandler.isMovementBlocked()) {
+      return false; // Pas en mouvement si bloqué
+    }
+
     return !this.forceStop && this.currentMovement.isMoving;
   }
 
   getDirection() {
+    // ✅ VÉRIFICATION BLOCAGE
+    if (this.movementBlockHandler.isMovementBlocked()) {
+      return null; // Pas de direction si bloqué
+    }
+
     return this.forceStop ? null : this.currentMovement.direction;
   }
 
   getInputSource() {
+    // ✅ VÉRIFICATION BLOCAGE
+    if (this.movementBlockHandler.isMovementBlocked()) {
+      return null; // Pas de source si bloqué
+    }
+
     return this.forceStop ? null : this.currentMovement.source;
   }
 
@@ -416,11 +448,45 @@ export class InputManager {
     }
   }
 
+  // ✅ NOUVELLE MÉTHODE: Force l'arrêt via MovementBlockHandler
+  forceStopMovement(reason = 'system') {
+    console.log(`🛑 Force arrêt mouvement: ${reason}`);
+    
+    // Utiliser le reset existant
+    this.resetMovement();
+    
+    // Si on a accès au MovementBlockHandler, valider l'arrêt
+    if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
+      this.movementBlockHandler.validateMovement();
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Vérifie si les inputs sont autorisés
+  areInputsEnabled() {
+    return !this.movementBlockHandler.isMovementBlocked() && !this.forceStop;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Status complet de l'InputManager
+  getStatus() {
+    return {
+      forceStop: this.forceStop,
+      movementBlocked: this.movementBlockHandler.isMovementBlocked(),
+      inputsEnabled: this.areInputsEnabled(),
+      currentMovement: this.currentMovement,
+      isMobile: this.isMobile,
+      hasJoystick: !!this.mobileJoystick,
+      joystickActive: this.mobileJoystick?.isActive || false
+    };
+  }
+
   destroy() {
     if (this.mobileJoystick) {
       this.mobileJoystick.destroy();
       this.mobileJoystick = null;
     }
+    
+    // ✅ NETTOYER LA RÉFÉRENCE AU MovementBlockHandler
+    this.movementBlockHandler = null;
     
     this.callbacks = {};
     this.currentMovement = {
