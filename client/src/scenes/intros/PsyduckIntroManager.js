@@ -56,6 +56,36 @@ export class PsyduckIntroManager {
         repeat: -1
       });
     }
+
+    // Animation marche haut
+if (!anims.exists('psyduck_walk_up')) {
+  anims.create({
+    key: 'psyduck_walk_up',
+    frames: [
+      { key, frame: 4 },
+      { key, frame: 5 },
+      { key, frame: 6 },
+      { key, frame: 7 }
+    ],
+    frameRate: 6,
+    repeat: -1
+  });
+}
+
+// Animation marche gauche
+if (!anims.exists('psyduck_walk_left')) {
+  anims.create({
+    key: 'psyduck_walk_left',
+    frames: [
+      { key, frame: 12 },
+      { key, frame: 13 },
+      { key, frame: 14 },
+      { key, frame: 15 }
+    ],
+    frameRate: 6,
+    repeat: -1
+  });
+}
     
     // Animation marche bas (frames 0,1,2,3)
     if (!anims.exists('psyduck_walk_down')) {
@@ -238,20 +268,37 @@ export class PsyduckIntroManager {
   finishIntro() {
     console.log(`🎉 [PsyduckIntro] === FIN INTRO ===`);
     
-    // Animation de sortie pour Psyduck
+    // Phase 4 : Retour vers le haut (360,32)
+    this.psyduck.anims.play('psyduck_walk_up');
+    
     this.scene.tweens.add({
       targets: this.psyduck,
-      y: this.psyduck.y - 100,  // Monte vers le haut
-      alpha: 0,  // Devient transparent
-      duration: 2000,
-      ease: 'Sine.easeInOut',
-      onStart: () => {
-        this.psyduck.anims.play('psyduck_walk_down');
-      },
+      y: 32,  // Retour à la position Y initiale
+      duration: 2500,
+      ease: 'Linear',
       onComplete: () => {
-        this.psyduck.destroy();
-        this.psyduck = null;
-        this.cleanup();
+        // Phase 5 : Retour vers la gauche (160,32)
+        this.psyduck.anims.play('psyduck_walk_left');
+        
+        this.scene.tweens.add({
+          targets: this.psyduck,
+          x: 160,  // Retour à la position X initiale
+          duration: 3000,
+          ease: 'Linear',
+          onComplete: () => {
+            // Disparition finale
+            this.scene.tweens.add({
+              targets: this.psyduck,
+              alpha: 0,
+              duration: 1000,
+              onComplete: () => {
+                this.psyduck.destroy();
+                this.psyduck = null;
+                this.cleanup();
+              }
+            });
+          }
+        });
       }
     });
   }
