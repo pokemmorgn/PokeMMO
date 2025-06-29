@@ -554,39 +554,129 @@ handleWildEncounter(data) {
     }
   }
 
- initializeTimeWeatherSystem() {
-  console.log(`🌍 [${this.scene.key}] === UTILISATION SYSTÈME MÉTÉO GLOBAL SIMPLIFIÉ ===`);
+// ✅ DANS BaseZoneScene.js - REMPLACE initializeTimeWeatherSystem() par :
 
-  // ✅ VÉRIFICATION SIMPLE
-  if (!window.weatherManagerGlobal) {
-    console.error(`❌ [${this.scene.key}] Aucun système météo global`);
-    return;
+initializeTimeWeatherSystem() {
+  console.log(`🌍 [${this.scene.key}] === INIT SYSTÈME MÉTÉO AVEC ATTENTE ===`);
+
+  // ✅ FONCTION D'ATTENTE du système météo global
+  const waitForWeatherSystem = (attempts = 0, maxAttempts = 10) => {
+    console.log(`🔍 [${this.scene.key}] Tentative ${attempts + 1}/${maxAttempts} - Vérification météo...`);
+    
+    if (window.weatherManagerGlobal && window.weatherManagerGlobal.isInitialized) {
+      console.log(`✅ [${this.scene.key}] Système météo global trouvé !`);
+      this.setupWeatherForScene();
+      return;
+    }
+    
+    if (attempts < maxAttempts) {
+      console.log(`⏳ [${this.scene.key}] Système météo pas prêt, retry dans 200ms...`);
+      setTimeout(() => {
+        waitForWeatherSystem(attempts + 1, maxAttempts);
+      }, 200);
+    } else {
+      console.error(`❌ [${this.scene.key}] Timeout attente système météo - mode dégradé`);
+      this.setupWeatherFallback();
+    }
+  };
+
+  // ✅ INITIALISER ENVIRONNEMENT LOCAL D'ABORD
+  if (!this.environmentInitialized) {
+    this.initializeZoneEnvironment();
   }
 
-  try {
-    // ✅ INITIALISER ENVIRONNEMENT LOCAL
-    if (!this.environmentInitialized) {
-      this.initializeZoneEnvironment();
-    }
+  // ✅ LANCER L'ATTENTE
+  waitForWeatherSystem();
+}
 
+// ✅ NOUVELLE MÉTHODE: Setup météo quand système prêt
+setupWeatherForScene() {
+  try {
+    console.log(`🌤️ [${this.scene.key}] Configuration météo pour scène...`);
+    
     // ✅ RÉFÉRENCE AU MANAGER GLOBAL
     this.dayNightWeatherManager = window.weatherManagerGlobal;
     
-    // ✅ ENREGISTREMENT SIMPLIFIÉ
+    // ✅ ENREGISTREMENT AVEC LE SYSTÈME GLOBAL
     const zoneName = this.normalizeZoneName(this.scene.key);
     
     if (typeof window.registerSceneToWeather === 'function') {
       window.registerSceneToWeather(this, zoneName);
+      console.log(`✅ [${this.scene.key}] Enregistré dans système météo global`);
     } else {
       console.warn(`⚠️ [${this.scene.key}] Fonction registerSceneToWeather manquante`);
+      // Fallback manuel
+      this.dayNightWeatherManager.onZoneChanged(zoneName);
     }
     
-    console.log(`✅ [${this.scene.key}] Système météo global configuré`);
-
+    console.log(`✅ [${this.scene.key}] Système météo configuré avec succès`);
+    
   } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur météo:`, error);
-    // ✅ CONTINUER SANS BLOQUER
+    console.error(`❌ [${this.scene.key}] Erreur setup météo:`, error);
+    this.setupWeatherFallback();
   }
+}
+
+// ✅ NOUVELLE MÉTHODE: Fallback si système météo indisponible
+setupWeatherFallback() {
+  console.log(`🔄 [${this.scene.key}] Configuration météo fallback...`);
+  
+  // ✅ CRÉER UN SYSTÈME MINIMAL LOCAL
+  this.dayNightWeatherManager = {
+    isInitialized: true,
+    localFallback: true,
+    getCurrentTime: () => ({ hour: 12, isDayTime: true }),
+    getCurrentWeather: () => ({ weather: 'clear', displayName: 'Ciel dégagé' }),
+    onZoneChanged: (zone) => console.log(`🌤️ [FALLBACK] Zone changée: ${zone}`)
+  };
+  
+  console.log(`✅ [${this.scene.key}] Météo fallback configurée`);
+}
+
+// ✅ MODIFIER AUSSI onZoneChanged pour être plus robuste :
+onZoneChanged(newZoneName) {
+  console.log(`🌍 [${this.scene.key}] Zone changée: ${newZoneName}`);
+  
+  // ✅ VÉRIFIER SI ON A UN SYSTÈME MÉTÉO
+  if (this.dayNightWeatherManager && typeof this.dayNightWeatherManager.onZoneChanged === 'function') {
+    this.dayNightWeatherManager.onZoneChanged(newZoneName);
+    console.log(`✅ [${this.scene.key}] Changement de zone transmis au système météo`);
+  } else {
+    console.warn(`⚠️ [${this.scene.key}] Pas de système météo pour notifier le changement`);
+  }
+}
+
+// ✅ MÉTHODE DE DEBUG MÉTÉO AMÉLIORÉE :
+debugWeatherSystem() {
+  console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MÉTÉO SCÈNE ===`);
+  
+  const status = {
+    globalSystemExists: !!window.weatherManagerGlobal,
+    globalSystemInitialized: window.weatherManagerGlobal?.isInitialized || false,
+    localManagerRef: !!this.dayNightWeatherManager,
+    localManagerType: this.dayNightWeatherManager?.localFallback ? 'FALLBACK' : 'GLOBAL',
+    environment: this.currentEnvironment,
+    zoneName: this.normalizeZoneName(this.scene.key),
+    registerFunction: typeof window.registerSceneToWeather
+  };
+  
+  console.log(`📊 Status météo ${this.scene.key}:`, status);
+  
+  // ✅ DIAGNOSTIC AUTOMATIQUE
+  if (!status.globalSystemExists) {
+    console.log(`❌ Système météo global manquant`);
+    console.log(`💡 Solution: Attendre l'initialisation ou forcer avec setupWeatherFallback()`);
+  } else if (!status.globalSystemInitialized) {
+    console.log(`❌ Système météo global pas initialisé`);
+    console.log(`💡 Solution: Vérifier l'initialisation dans main.js`);
+  } else if (!status.localManagerRef) {
+    console.log(`❌ Pas de référence locale au système météo`);
+    console.log(`💡 Solution: Relancer initializeTimeWeatherSystem()`);
+  } else {
+    console.log(`✅ Système météo OK pour ${this.scene.key}`);
+  }
+  
+  return status;
 }
   // ✅ MÉTHODE INCHANGÉE: Initialiser l'environnement de la zone
   initializeZoneEnvironment() {
