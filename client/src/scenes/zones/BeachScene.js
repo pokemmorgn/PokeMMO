@@ -121,7 +121,7 @@ if (!this._introTriggered && !initData?.fromZone) {
     console.log("👤 [BeachScene] Joueur existant - pas d'intro");
   }
 }
-
+  }
   // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
   onPlayerPositioned(player, initData) {
     // Logique spécifique à BeachScene si nécessaire
