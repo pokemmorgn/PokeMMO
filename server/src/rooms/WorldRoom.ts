@@ -1362,8 +1362,8 @@ export class WorldRoom extends Room<PokeWorldState> {
         console.log(`⚠️ [FALLBACK] Données DB incomplètes ou manquantes`);
         
         // Utiliser les options ou défaut
-        player.x = options.spawnX || 52;
-        player.y = options.spawnY || 48;
+        player.x = options.spawnX || 360;
+        player.y = options.spawnY || 120;
         player.currentZone = options.spawnZone || "beach";
         
         console.log(`🆕 Position fallback: ${player.name} à (${player.x}, ${player.y}) dans ${player.currentZone}`);
