@@ -1,5 +1,5 @@
 // client/src/managers/MapMusicManager.js
-// 🎵 Gestionnaire de musique des maps - Architecture modulaire et indépendante
+// 🔧 VERSION CORRIGÉE - Fix pour le changement de musique entre maps
 
 export class MapMusicManager {
   constructor() {
@@ -12,16 +12,17 @@ export class MapMusicManager {
     this.audioContextUnlocked = false;
     this.pendingZone = null;
     
-    // Cache des tracks chargées
+    // 🔧 FIX: Cache global des tracks pour éviter les conflits
     this.loadedTracks = new Map();
+    this.activeSound = null; // Track du son actuel
     
     // Configuration musicale des zones
     this.zoneMusic = this.initializeZoneMusic();
     
-    console.log('🎵 [MapMusicManager] Initialisé');
+    console.log('🎵 [MapMusicManager] Initialisé (version corrigée)');
   }
 
-  // ✅ CONFIGURATION MUSICALE SIMPLIFIÉE (3 musiques seulement)
+  // ✅ CONFIGURATION MUSICALE IDENTIQUE
   initializeZoneMusic() {
     return {
       // === ZONES PRINCIPALES ===
@@ -86,25 +87,129 @@ export class MapMusicManager {
     };
   }
 
-  // ✅ MÉTHODE PRINCIPALE : Initialiser avec une scène Phaser
+  // 🔧 FIX: Méthode d'initialisation avec vérifications renforcées
   initialize(scene) {
+    console.log(`🎵 [MapMusicManager] === INITIALISATION SCENE: ${scene.scene.key} ===`);
+    
     if (this.isInitialized) {
       console.log('🎵 [MapMusicManager] Déjà initialisé, mise à jour scène');
-      this.scene = scene;
-      this.soundManager = scene.game.sound;
+      // 🔧 FIX: Vérifier que la scène a changé
+      if (this.scene !== scene) {
+        console.log('🔄 [MapMusicManager] Nouvelle scène détectée, mise à jour...');
+        this.scene = scene;
+        this.soundManager = scene.sound;
+        
+        // 🔧 FIX: Forcer la re-vérification de la zone
+        const newZone = this.extractZoneFromSceneKey(scene.scene.key);
+        console.log(`🎯 [MapMusicManager] Zone extraite: ${newZone}`);
+        
+        // 🔧 FIX: Forcer le changement même si c'est la "même" zone
+        setTimeout(() => {
+          this.changeZoneMusic(newZone, true);
+        }, 200);
+      }
       return;
     }
 
     this.scene = scene;
-    this.soundManager = scene.game.sound;
+    this.soundManager = scene.sound;
     this.isInitialized = true;
+
+    // 🔧 FIX: Logs détaillés pour debug
+    console.log(`🔧 [MapMusicManager] Scene.sound disponible:`, !!scene.sound);
+    console.log(`🔧 [MapMusicManager] Scene.cache.audio:`, !!scene.cache?.audio);
 
     this.setupAudioUnlock(scene);
 
-    console.log('✅ [MapMusicManager] Initialisé avec gestionnaire global');
+    console.log(`✅ [MapMusicManager] Initialisé avec gestionnaire global`);
+    
+    // 🔧 FIX: Test immédiat des assets audio
+    this.testAudioAssets();
   }
 
-  // ✅ SETUP DÉBLOQUAGE AUDIO
+  // 🔧 NOUVELLE MÉTHODE: Test des assets audio
+  testAudioAssets() {
+    const requiredTracks = ['road1_theme', 'village_theme', 'lavandia_theme'];
+    
+    console.log(`🧪 [MapMusicManager] === TEST ASSETS AUDIO ===`);
+    
+    requiredTracks.forEach(track => {
+      if (this.scene.cache.audio.exists(track)) {
+        console.log(`✅ [MapMusicManager] Asset trouvé: ${track}`);
+      } else {
+        console.error(`❌ [MapMusicManager] Asset MANQUANT: ${track}`);
+      }
+    });
+    
+    // 🔧 FIX: Lister tous les assets audio disponibles
+    const audioKeys = this.scene.cache.audio.getKeys();
+    console.log(`📋 [MapMusicManager] Assets audio disponibles (${audioKeys.length}):`, audioKeys);
+  }
+
+  // 🔧 FIX: Méthode robuste d'extraction de zone
+  extractZoneFromSceneKey(sceneKey) {
+    console.log(`🔍 [MapMusicManager] Extraction zone de: ${sceneKey}`);
+    
+    // 🔧 FIX: Mapping plus robuste
+    const zoneMapping = {
+      // Principales
+      'BeachScene': 'beach',
+      'VillageScene': 'village', 
+      'LavandiaScene': 'lavandia',
+      'VillageLabScene': 'villagelab',
+      
+      // Routes
+      'Road1Scene': 'road1',
+      'Road2Scene': 'road2', 
+      'Road3Scene': 'road3',
+      'Road1HouseScene': 'road1house',
+      
+      // Maisons Village
+      'VillageHouse1Scene': 'villagehouse1',
+      'VillageHouse2Scene': 'villagehouse2',
+      'VillageFloristScene': 'villageflorist',
+      
+      // Maisons Lavandia
+      'LavandiaHouse1Scene': 'lavandiahouse1',
+      'LavandiaHouse2Scene': 'lavandiahouse2',
+      'LavandiaHouse3Scene': 'lavandiahouse3',
+      'LavandiaHouse4Scene': 'lavandiahouse4',
+      'LavandiaHouse5Scene': 'lavandiahouse5',
+      'LavandiaHouse6Scene': 'lavandiahouse6',
+      'LavandiaHouse7Scene': 'lavandiahouse7',
+      'LavandiaHouse8Scene': 'lavandiahouse8',
+      'LavandiaHouse9Scene': 'lavandiahouse9',
+      
+      // Bâtiments Lavandia
+      'LavandiaShopScene': 'lavandiashop',
+      'LavandiaHealingCenterScene': 'lavandiahealingcenter',
+      'LavandiaResearchLabScene': 'lavandiaresearchlab',
+      'LavandiaBossRoomScene': 'lavandiabossroom',
+      'LavandiaCelibTempleScene': 'lavandiacelebitemple',
+      'LavandiaAnalysisScene': 'lavandiaanalysis',
+      'LavandiaEquipementScene': 'lavandiaequipement',
+      'LavandiaFurnitureScene': 'lavandiafurniture',
+      
+      // Grottes
+      'NoctherCave1Scene': 'nocthercave1',
+      'NoctherCave2Scene': 'nocthercave2', 
+      'NoctherCave2BisScene': 'nocthercave2bis'
+    };
+    
+    const mappedZone = zoneMapping[sceneKey];
+    
+    if (mappedZone) {
+      console.log(`✅ [MapMusicManager] Zone mappée: ${sceneKey} → ${mappedZone}`);
+      return mappedZone;
+    }
+    
+    // 🔧 FIX: Fallback avec extraction intelligente
+    const fallbackZone = sceneKey.toLowerCase().replace('scene', '');
+    console.warn(`⚠️ [MapMusicManager] Zone non mappée, fallback: ${sceneKey} → ${fallbackZone}`);
+    return fallbackZone;
+  }
+
+  // 🔧 FIX: Setup débloquage audio amélioré
   setupAudioUnlock(scene) {
     if (this.audioContextUnlocked) {
       console.log('🔓 [MapMusicManager] AudioContext déjà débloqué');
@@ -135,7 +240,6 @@ export class MapMusicManager {
         console.log('ℹ️ [MapMusicManager] AudioContext déjà actif');
         this.audioContextUnlocked = true;
         
-        // ✅ FIX: Redémarrer la musique même si AudioContext déjà actif
         if (this.pendingZone) {
           console.log('🔄 [MapMusicManager] Redémarrage musique (AudioContext déjà actif)...');
           this.changeZoneMusic(this.pendingZone, true);
@@ -157,95 +261,162 @@ export class MapMusicManager {
     console.log('🎮 [MapMusicManager] Listeners débloquage ajoutés');
   }
 
-  // ✅ MÉTHODE PRINCIPALE : Changer de musique selon la zone
+  // 🔧 FIX: Méthode principale COMPLÈTEMENT RÉÉCRITE
   changeZoneMusic(zoneName, forceChange = false) {
+    console.log(`🎵 [MapMusicManager] === CHANGEMENT MUSIQUE ===`);
+    console.log(`🎯 Zone demandée: ${zoneName}`);
+    console.log(`🔄 Force change: ${forceChange}`);
+    console.log(`🎵 Zone actuelle: ${this.currentZone}`);
+    console.log(`🎼 Track actuelle: ${this.currentTrack?.key || 'aucune'}`);
+
     if (!this.isInitialized || !this.isEnabled) {
-      console.log(`🎵 [MapMusicManager] Pas initialisé ou désactivé`);
+      console.log(`🎵 [MapMusicManager] Pas initialisé (${this.isInitialized}) ou désactivé (${this.isEnabled})`);
       return;
     }
 
     const normalizedZone = zoneName.toLowerCase();
     
+    // 🔧 FIX: Condition stricte - forcer le changement si demandé
     if (this.currentZone === normalizedZone && !forceChange) {
-      console.log(`🎵 [MapMusicManager] Déjà sur zone: ${normalizedZone}`);
+      console.log(`🎵 [MapMusicManager] Déjà sur zone: ${normalizedZone} (pas de force)`);
       return;
     }
-
-    console.log(`🎵 [MapMusicManager] Changement: ${this.currentZone} → ${normalizedZone}`);
 
     const musicConfig = this.getMusicConfig(normalizedZone);
     
     if (!musicConfig) {
-      console.warn(`⚠️ [MapMusicManager] Pas de musique pour zone: ${normalizedZone}`);
+      console.warn(`⚠️ [MapMusicManager] Pas de config pour zone: ${normalizedZone}`);
       this.stopCurrentMusic();
       return;
     }
 
-    // ✅ SIMPLIFICATION : TOUJOURS ESSAYER DE JOUER, SANS VÉRIFICATION AUDIOCONTEXT
-    this.transitionToMusic(musicConfig, normalizedZone);
+    console.log(`🎶 [MapMusicManager] Config trouvée:`, musicConfig);
+
+    // 🔧 FIX: ARRÊT FORCÉ AVANT TOUT NOUVEAU SON
+    console.log(`🛑 [MapMusicManager] ARRÊT FORCÉ DE TOUTE MUSIQUE`);
+    this.forceStopAllMusic();
+
+    // 🔧 FIX: Attendre un peu avant de démarrer (évite les conflicts)
+    setTimeout(() => {
+      this.startNewMusicImmediate(musicConfig, normalizedZone);
+    }, 100);
   }
 
-  // ✅ OBTENIR LA CONFIGURATION MUSICALE D'UNE ZONE
-  getMusicConfig(zoneName) {
-    return this.zoneMusic[zoneName] || null;
-  }
-
-  // ✅ TRANSITION MUSICALE AVEC FADE
-  transitionToMusic(musicConfig, zoneName) {
-    const { track, volume, loop, fadeIn } = musicConfig;
-
-    console.log(`🎵 [MapMusicManager] Transition vers: ${track} (${zoneName})`);
-
-    if (!this.scene.game.cache.audio.exists(track)) {
-      console.warn(`⚠️ [MapMusicManager] Track manquante: ${track}`);
-      return;
-    }
-
-    if (this.currentTrack && this.currentTrack.key === track) {
-      console.log(`🎵 [MapMusicManager] Même track, ajustement volume: ${volume}`);
-      this.fadeVolume(this.currentTrack, volume * this.musicVolume);
-      this.currentZone = zoneName;
-      return;
-    }
-
-    if (this.currentTrack) {
-      console.log(`🎵 [MapMusicManager] Arrêt de la track actuelle: ${this.currentTrack.key}`);
-      this.currentTrack.stop();
+  // 🔧 NOUVELLE MÉTHODE: Arrêt forcé de toute musique
+  forceStopAllMusic() {
+    console.log(`🛑 [MapMusicManager] === ARRÊT FORCÉ TOUTE MUSIQUE ===`);
+    
+    // 1. Arrêter via SoundManager global
+    if (this.soundManager) {
+      console.log(`🛑 [MapMusicManager] Arrêt via SoundManager.stopAll()`);
+      this.soundManager.stopAll();
     }
     
-    this.startNewMusic(track, volume, loop, fadeIn, zoneName);
+    // 2. Arrêter track actuelle si elle existe
+    if (this.currentTrack) {
+      console.log(`🛑 [MapMusicManager] Arrêt track actuelle: ${this.currentTrack.key}`);
+      try {
+        if (this.currentTrack.isPlaying) {
+          this.currentTrack.stop();
+        }
+        this.currentTrack.destroy();
+      } catch (e) {
+        console.warn(`⚠️ [MapMusicManager] Erreur arrêt track:`, e);
+      }
+      this.currentTrack = null;
+    }
+    
+    // 3. Arrêter activeSound si différent
+    if (this.activeSound && this.activeSound !== this.currentTrack) {
+      console.log(`🛑 [MapMusicManager] Arrêt activeSound`);
+      try {
+        if (this.activeSound.isPlaying) {
+          this.activeSound.stop();
+        }
+        this.activeSound.destroy();
+      } catch (e) {
+        console.warn(`⚠️ [MapMusicManager] Erreur arrêt activeSound:`, e);
+      }
+      this.activeSound = null;
+    }
+    
+    // 4. Reset état
+    this.currentZone = null;
+    
+    console.log(`✅ [MapMusicManager] Arrêt forcé terminé`);
   }
 
-  // ✅ DÉMARRER NOUVELLE MUSIQUE
-  startNewMusic(trackKey, volume, loop, fadeIn, zoneName) {
-    console.log(`🎵 [MapMusicManager] Démarrage: ${trackKey} (vol: ${volume})`);
+  // 🔧 FIX: Démarrage immédiat de nouvelle musique
+  startNewMusicImmediate(musicConfig, zoneName) {
+    const { track, volume, loop, fadeIn } = musicConfig;
+
+    console.log(`🎵 [MapMusicManager] === DÉMARRAGE IMMÉDIAT ===`);
+    console.log(`🎼 Track: ${track}`);
+    console.log(`🔊 Volume: ${volume}`);
+    console.log(`🔄 Loop: ${loop}`);
+    console.log(`🌅 Zone: ${zoneName}`);
+
+    // 🔧 FIX: Vérification d'asset stricte
+    if (!this.scene?.cache?.audio?.exists(track)) {
+      console.error(`❌ [MapMusicManager] ASSET MANQUANT: ${track}`);
+      console.error(`📋 Assets disponibles:`, this.scene?.cache?.audio?.getKeys() || []);
+      return;
+    }
 
     try {
-      // ✅ ARRÊTER TOUTE MUSIQUE EXISTANTE PROPREMENT
-      this.soundManager.stopAll();
+      // 🔧 FIX: Créer et jouer le son de manière robuste
+      console.log(`🎮 [MapMusicManager] Création sound via scene.sound.add`);
       
-      if (this.currentTrack) {
-        this.currentTrack.destroy();
-        this.currentTrack = null;
-      }
-
-      // ✅ CRÉER ET JOUER IMMÉDIATEMENT
-      this.currentTrack = this.soundManager.play(trackKey, {
+      const newSound = this.soundManager.add(track, {
         loop: loop,
         volume: volume * this.musicVolume
       });
 
-      console.log(`✅ [MapMusicManager] Musique lancée: ${trackKey} pour zone ${zoneName}`);
+      // 🔧 FIX: Vérifications avant de jouer
+      if (!newSound) {
+        console.error(`❌ [MapMusicManager] Impossible de créer le son: ${track}`);
+        return;
+      }
+
+      console.log(`🎮 [MapMusicManager] Son créé, tentative de lecture...`);
+      
+      // 🔧 FIX: Jouer avec gestion d'erreur
+      const playPromise = newSound.play();
+      
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.then(() => {
+          console.log(`✅ [MapMusicManager] Lecture réussie: ${track}`);
+        }).catch((error) => {
+          console.error(`❌ [MapMusicManager] Erreur lecture:`, error);
+        });
+      }
+
+      // 🔧 FIX: Assigner le nouveau son comme courant
+      this.currentTrack = newSound;
+      this.activeSound = newSound;
       this.currentZone = zoneName;
 
+      console.log(`✅ [MapMusicManager] Musique démarrée: ${track} pour zone ${zoneName}`);
+
     } catch (error) {
-      console.error(`❌ [MapMusicManager] Erreur démarrage musique:`, error);
+      console.error(`❌ [MapMusicManager] Erreur critique démarrage:`, error);
     }
   }
 
-  // ✅ EFFETS DE FADE
+  // ✅ MÉTHODE INCHANGÉE
+  getMusicConfig(zoneName) {
+    const config = this.zoneMusic[zoneName];
+    if (config) {
+      console.log(`🎶 [MapMusicManager] Config trouvée pour ${zoneName}:`, config);
+    } else {
+      console.warn(`⚠️ [MapMusicManager] Aucune config pour ${zoneName}`);
+    }
+    return config;
+  }
+
+  // 🔧 FIX: Simplification des effets de fade (optionnels)
   fadeOut(track, callback) {
-    if (!track) return;
+    if (!track || !this.scene) return;
 
     this.scene.tweens.add({
       targets: track,
@@ -259,7 +430,7 @@ export class MapMusicManager {
   }
 
   fadeIn(track, targetVolume) {
-    if (!track) return;
+    if (!track || !this.scene) return;
 
     this.scene.tweens.add({
       targets: track,
@@ -269,7 +440,7 @@ export class MapMusicManager {
   }
 
   fadeVolume(track, targetVolume) {
-    if (!track) return;
+    if (!track || !this.scene) return;
 
     this.scene.tweens.add({
       targets: track,
@@ -278,14 +449,10 @@ export class MapMusicManager {
     });
   }
 
-  // ✅ CONTRÔLES PUBLICS
+  // 🔧 FIX: Contrôles publics améliorés
   stopCurrentMusic() {
-    if (this.currentTrack) {
-      this.currentTrack.stop();
-      this.currentTrack = null;
-      this.currentZone = null;
-      console.log(`⏹️ [MapMusicManager] Musique arrêtée`);
-    }
+    console.log(`⏹️ [MapMusicManager] stopCurrentMusic() appelé`);
+    this.forceStopAllMusic();
   }
 
   pauseMusic() {
@@ -329,7 +496,7 @@ export class MapMusicManager {
     }
   }
 
-  // ✅ MÉTHODES DE DEBUG
+  // 🔧 FIX: Debug amélioré
   getCurrentState() {
     return {
       isInitialized: this.isInitialized,
@@ -342,19 +509,30 @@ export class MapMusicManager {
         isPlaying: this.currentTrack.isPlaying,
         volume: this.currentTrack.volume
       } : null,
+      activeSound: this.activeSound ? {
+        key: this.activeSound.key,
+        isPlaying: this.activeSound.isPlaying
+      } : null,
       masterVolume: this.musicVolume,
-      totalZones: Object.keys(this.zoneMusic).length
+      totalZones: Object.keys(this.zoneMusic).length,
+      sceneKey: this.scene?.scene?.key || 'aucune'
     };
   }
 
   debugState() {
-    console.log(`🔍 [MapMusicManager] === DEBUG STATE ===`);
-    console.log(this.getCurrentState());
+    console.log(`🔍 [MapMusicManager] === DEBUG STATE COMPLET ===`);
+    const state = this.getCurrentState();
+    console.table(state);
+    
+    // 🔧 FIX: Debug supplémentaire
+    console.log(`🎮 Scene soundManager:`, !!this.soundManager);
+    console.log(`🎵 Assets audio:`, this.scene?.cache?.audio?.getKeys() || []);
+    console.log(`🔧 Context state:`, this.scene?.sound?.context?.state || 'unknown');
   }
 
-  // ✅ CLEAN UP
+  // ✅ CLEAN UP identique
   destroy() {
-    this.stopCurrentMusic();
+    this.forceStopAllMusic();
     
     if (this.scene) {
       this.scene.tweens.killTweensOf(this.currentTrack);
@@ -369,44 +547,91 @@ export class MapMusicManager {
   }
 }
 
-// ✅ INSTANCE GLOBALE
+// ✅ INSTANCE GLOBALE IDENTIQUE
 export const mapMusicManager = new MapMusicManager();
 
-// ✅ FONCTION D'INTÉGRATION SIMPLE POUR LES SCÈNES
+// 🔧 FIX: Fonction d'intégration améliorée avec debug
 export function integrateMusicToScene(scene) {
+  console.log(`🎵 [integrateMusicToScene] === INTÉGRATION SCÈNE: ${scene.scene.key} ===`);
+  
   if (scene._musicIntegrated) {
-    console.log(`🎵 [MapMusicManager] Déjà intégré à: ${scene.scene.key}`);
+    console.log(`🎵 [integrateMusicToScene] Déjà intégré à: ${scene.scene.key}`);
     return mapMusicManager;
   }
   
   scene._musicIntegrated = true;
   
   if (!mapMusicManager.isInitialized) {
+    console.log(`🔧 [integrateMusicToScene] Initialisation MapMusicManager...`);
     mapMusicManager.initialize(scene);
+  } else {
+    console.log(`🔧 [integrateMusicToScene] MapMusicManager déjà initialisé, update...`);
+    mapMusicManager.initialize(scene); // Mettra à jour la scène
   }
   
   scene.musicManager = mapMusicManager;
   
-  const normalizeSceneName = (sceneKey) => {
-    console.log(`🔍 [MapMusicManager] Scene key reçu: ${sceneKey}`);
-    let zoneName = sceneKey.toLowerCase().replace('scene', '');
-    console.log(`🔍 [MapMusicManager] Zone normalisée: ${zoneName}`);
-    return zoneName;
-  };
+  // 🔧 FIX: Extraction de zone robuste
+  const zoneName = mapMusicManager.extractZoneFromSceneKey(scene.scene.key);
   
-  const zoneName = normalizeSceneName(scene.scene.key);
+  console.log(`🎯 [integrateMusicToScene] Zone extraite: ${zoneName}`);
+  console.log(`🎵 [integrateMusicToScene] Changement FORCÉ pour: ${zoneName}`);
   
-  console.log(`🎵 [MapMusicManager] Changement immédiat pour: ${zoneName}`);
+  // 🔧 FIX: Délai plus long et force TOUJOURS
   setTimeout(() => {
-    mapMusicManager.changeZoneMusic(zoneName, true);
-  }, 100);
+    console.log(`🚀 [integrateMusicToScene] DÉCLENCHEMENT changement musique...`);
+    mapMusicManager.changeZoneMusic(zoneName, true); // TOUJOURS forcer
+  }, 300); // Délai plus long pour laisser le temps à la scène
   
   scene.events.once('shutdown', () => {
-    console.log(`🧹 [MapMusicManager] Scene shutdown: ${scene.scene.key}`);
+    console.log(`🧹 [integrateMusicToScene] Scene shutdown: ${scene.scene.key}`);
     scene._musicIntegrated = false;
   });
   
-  console.log(`🔗 [MapMusicManager] Intégré à la scène: ${scene.scene.key}`);
+  console.log(`🔗 [integrateMusicToScene] Intégration complète: ${scene.scene.key} → ${zoneName}`);
   
   return mapMusicManager;
+}
+
+// 🔧 NOUVELLES FONCTIONS UTILITAIRES DE DEBUG
+export function debugMapMusic() {
+  console.log(`🔍 [DEBUG] === DEBUG GLOBAL MAP MUSIC ===`);
+  mapMusicManager.debugState();
+}
+
+export function forceChangeMusicToZone(zoneName) {
+  console.log(`🔧 [DEBUG] Force changement vers zone: ${zoneName}`);
+  mapMusicManager.changeZoneMusic(zoneName, true);
+}
+
+export function testAllMusicTracks() {
+  console.log(`🧪 [DEBUG] === TEST TOUS LES TRACKS ===`);
+  const tracks = ['road1_theme', 'village_theme', 'lavandia_theme'];
+  
+  tracks.forEach((track, index) => {
+    setTimeout(() => {
+      console.log(`🎵 Test track: ${track}`);
+      
+      if (mapMusicManager.scene?.cache?.audio?.exists(track)) {
+        const testSound = mapMusicManager.soundManager.add(track, { volume: 0.1 });
+        testSound.play();
+        
+        setTimeout(() => {
+          testSound.stop();
+          testSound.destroy();
+          console.log(`✅ Test ${track} terminé`);
+        }, 2000);
+      } else {
+        console.error(`❌ Track manquant: ${track}`);
+      }
+    }, index * 3000);
+  });
+}
+
+// 🔧 EXPOSITION GLOBALE POUR DEBUG CONSOLE
+if (typeof window !== 'undefined') {
+  window.debugMapMusic = debugMapMusic;
+  window.forceChangeMusicToZone = forceChangeMusicToZone;
+  window.testAllMusicTracks = testAllMusicTracks;
+  window.mapMusicManager = mapMusicManager;
 }
