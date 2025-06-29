@@ -494,8 +494,8 @@ export class WorldRoom extends Room<PokeWorldState> {
         console.error(`❌ [WorldRoom] Joueur introuvable: ${client.sessionId}`);
         client.send("currentZone", {
           zone: "beach", // Zone par défaut
-          x: 52,
-          y: 48,
+          x: 360,
+          y: 120,
           error: "Joueur non trouvé, zone par défaut",
           sceneKey: data.sceneKey,
           timestamp: Date.now()
