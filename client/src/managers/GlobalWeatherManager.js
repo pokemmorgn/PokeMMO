@@ -3,6 +3,8 @@
 
 import { ClientTimeWeatherManager } from './ClientTimeWeatherManager.js';
 import { zoneEnvironmentManager } from './ZoneEnvironmentManager.js';
+import { WeatherEffects } from '../effects/WeatherEffects.js';
+
 
 export class GlobalWeatherManager {
   constructor() {
@@ -26,7 +28,8 @@ export class GlobalWeatherManager {
     
     // Mode debug
     this.debugMode = false;
-    
+    // 🆕 NOUVEAU: Gestionnaire d'effets visuels
+this.sceneWeatherEffects = new Map();
     // Éviter les updates en boucle
     this.lastUpdateState = null;
     this.updateInProgress = false;
@@ -82,11 +85,14 @@ export class GlobalWeatherManager {
 
     // Callback changement météo
     this.timeWeatherManager.onWeatherChange((weather, displayName) => {
-      console.log(`🌤️ [GlobalWeatherManager] Changement météo: ${displayName}`);
-      
-      this.currentWeather = { weather, displayName };
-      this.updateAllScenes('weather');
-    });
+  console.log(`🌤️ [GlobalWeatherManager] Changement météo: ${displayName}`);
+  
+  this.currentWeather = { weather, displayName };
+  this.updateAllScenes('weather');
+  
+  // 🆕 NOUVEAU: Mettre à jour les effets visuels
+  this.updateWeatherEffectsForAllScenes(weather);
+});
 
     console.log('✅ [GlobalWeatherManager] Callbacks configurés');
   }
@@ -95,40 +101,49 @@ export class GlobalWeatherManager {
   // GESTION DES SCÈNES
   // =====================================
 
-  registerScene(scene, zoneName) {
-    if (!scene || !zoneName) {
-      console.warn('⚠️ [GlobalWeatherManager] Scene ou zone manquante pour enregistrement');
-      return false;
-    }
-
-    const sceneKey = scene.scene.key;
-    
-    console.log(`📝 [GlobalWeatherManager] Enregistrement scène: ${sceneKey} (zone: ${zoneName})`);
-
-    // Créer les données de la scène
-    const sceneData = {
-      scene: scene,
-      zoneName: zoneName,
-      sceneKey: sceneKey,
-      environment: zoneEnvironmentManager.getZoneEnvironment(zoneName),
-      overlay: null,
-      lastState: null
-    };
-
-    // Enregistrer
-    this.registeredScenes.set(sceneKey, sceneData);
-    this.activeScenes.add(sceneKey);
-
-    // Créer l'overlay pour cette scène
-    this.createSceneOverlay(sceneData);
-
-    // Appliquer l'état actuel immédiatement
-    this.applyWeatherToScene(sceneData);
-
-    console.log(`✅ [GlobalWeatherManager] Scène ${sceneKey} enregistrée (env: ${sceneData.environment})`);
-    return true;
+registerScene(scene, zoneName) {
+  if (!scene || !zoneName) {
+    console.warn('⚠️ [GlobalWeatherManager] Scene ou zone manquante pour enregistrement');
+    return false;
   }
 
+  const sceneKey = scene.scene.key;
+  
+  console.log(`📝 [GlobalWeatherManager] Enregistrement scène: ${sceneKey} (zone: ${zoneName})`);
+
+  // ✅ CRÉER LES EFFETS MÉTÉO POUR CETTE SCÈNE
+  const weatherEffects = new WeatherEffects(scene);
+  scene.weatherEffects = weatherEffects;
+  this.sceneWeatherEffects.set(sceneKey, weatherEffects);
+
+  // Créer les données de la scène
+  const sceneData = {
+    scene: scene,
+    zoneName: zoneName,
+    sceneKey: sceneKey,
+    environment: zoneEnvironmentManager.getZoneEnvironment(zoneName),
+    overlay: null,
+    lastState: null,
+    weatherEffects: weatherEffects // 🆕 AJOUTER LA RÉFÉRENCE
+  };
+
+  // Enregistrer
+  this.registeredScenes.set(sceneKey, sceneData);
+  this.activeScenes.add(sceneKey);
+
+  // Créer l'overlay pour cette scène
+  this.createSceneOverlay(sceneData);
+
+  // Appliquer l'état actuel immédiatement
+  this.applyWeatherToScene(sceneData);
+  
+  // ✅ APPLIQUER LA MÉTÉO ACTUELLE AUX EFFETS
+  this.applyWeatherEffectsToScene(sceneData);
+
+  console.log(`✅ [GlobalWeatherManager] Scène ${sceneKey} enregistrée (env: ${sceneData.environment})`);
+  return true;
+}
+  
   unregisterScene(sceneKey) {
     console.log(`📤 [GlobalWeatherManager] Désenregistrement scène: ${sceneKey}`);
 
@@ -144,6 +159,11 @@ export class GlobalWeatherManager {
     this.sceneOverlays.delete(sceneKey);
 
     console.log(`✅ [GlobalWeatherManager] Scène ${sceneKey} désenregistrée`);
+    const weatherEffects = this.sceneWeatherEffects.get(sceneKey);
+if (weatherEffects) {
+  weatherEffects.destroy();
+  this.sceneWeatherEffects.delete(sceneKey);
+}
   }
 
   setActiveScene(sceneKey) {
@@ -207,25 +227,27 @@ export class GlobalWeatherManager {
   // =====================================
 
   updateAllScenes(changeType) {
-    if (this.updateInProgress) {
-      console.log('⏭️ [GlobalWeatherManager] Update déjà en cours, skip');
-      return;
-    }
-
-    this.updateInProgress = true;
-
-    console.log(`🔄 [GlobalWeatherManager] Update toutes les scènes (${changeType})`);
-
-    // Appliquer à toutes les scènes actives
-    for (const sceneKey of this.activeScenes) {
-      const sceneData = this.registeredScenes.get(sceneKey);
-      if (sceneData) {
-        this.applyWeatherToScene(sceneData);
-      }
-    }
-
-    this.updateInProgress = false;
+  if (this.updateInProgress) {
+    console.log('⏭️ [GlobalWeatherManager] Update déjà en cours, skip');
+    return;
   }
+
+  this.updateInProgress = true;
+
+  console.log(`🔄 [GlobalWeatherManager] Update toutes les scènes (${changeType})`);
+
+  // Appliquer à toutes les scènes actives
+  for (const sceneKey of this.activeScenes) {
+    const sceneData = this.registeredScenes.get(sceneKey);
+    if (sceneData) {
+      this.applyWeatherToScene(sceneData);
+      // 🆕 NOUVEAU: Appliquer aussi les effets visuels
+      this.applyWeatherEffectsToScene(sceneData);
+    }
+  }
+
+  this.updateInProgress = false;
+}
 
   applyWeatherToScene(sceneData, force = false) {
     const { environment, overlay, sceneKey, zoneName } = sceneData;
@@ -409,6 +431,31 @@ export class GlobalWeatherManager {
     }
   }
 
+  applyWeatherEffectsToScene(sceneData) {
+  const { weatherEffects, environment } = sceneData;
+  
+  if (!weatherEffects) return;
+
+  // ✅ Définir le type d'environnement
+  weatherEffects.setEnvironmentType(environment);
+
+  // ✅ Appliquer la météo actuelle
+  if (environment === 'outdoor') {
+    weatherEffects.setWeather(this.currentWeather.weather);
+  } else {
+    weatherEffects.setWeather('clear'); // Pas d'effets en intérieur
+  }
+}
+
+// 🆕 NOUVELLE MÉTHODE: Mettre à jour effets pour toutes les scènes
+updateWeatherEffectsForAllScenes(weather) {
+  for (const [sceneKey, weatherEffects] of this.sceneWeatherEffects) {
+    const sceneData = this.registeredScenes.get(sceneKey);
+    if (sceneData && sceneData.environment === 'outdoor') {
+      weatherEffects.setWeather(weather);
+    }
+  }
+}
   // =====================================
   // NETTOYAGE
   // =====================================
