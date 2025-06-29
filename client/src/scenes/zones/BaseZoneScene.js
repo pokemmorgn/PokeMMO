@@ -567,8 +567,7 @@ handleWildEncounter(data) {
       this.initializeZoneEnvironment();
     }
 
-    if (window.weatherManagerGlobal?.isInitialized) {
-      console.log(`✅ [${this.scene.key}] Enregistrement dans système météo global`);
+if (window.weatherManagerGlobal && window.weatherManagerGlobal.isInitialized) {      console.log(`✅ [${this.scene.key}] Enregistrement dans système météo global`);
       
       const zoneName = this.normalizeZoneName(this.scene.key);
       
@@ -584,7 +583,7 @@ handleWildEncounter(data) {
       setTimeout(() => {
         console.log(`🔄 [${this.scene.key}] Retry initialisation météo...`);
         this.initializeTimeWeatherSystem();
-      }, 2000);
+      }, 1000);
       return;
     }
 
