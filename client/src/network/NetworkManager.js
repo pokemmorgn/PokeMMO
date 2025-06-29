@@ -75,8 +75,8 @@ export class NetworkManager {
       const roomOptions = {
         name: this.username,
         spawnZone: spawnZone,
-        spawnX: spawnData.spawnX || 52,
-        spawnY: spawnData.spawnY || 48,
+        spawnX: spawnData.spawnX || 360,
+        spawnY: spawnData.spawnY || 120,
         ...spawnData
       };
 
