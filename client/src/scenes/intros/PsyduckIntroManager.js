@@ -186,7 +186,7 @@ if (!anims.exists('psyduck_walk_left')) {
     // Tween pour se déplacer verticalement
     this.scene.tweens.add({
       targets: this.psyduck,
-      y: 110,  // Destination Y (près du joueur en 360,120)
+      y: 90,  // Destination Y (près du joueur en 360,120)
       duration: 2500,  // 2.5 secondes
       ease: 'Linear',
       onUpdate: () => {
