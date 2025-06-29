@@ -46,7 +46,7 @@ export class ZoneEnvironmentManager {
       'lavandiaanalysis': 'indoor',
       'lavandiabossroom': 'indoor',
       'lavandiacelebitemple': 'indoor',
-      'lavandiaequipement': 'indoor',
+      'lavandiaequipment': 'indoor',
       'lavandiafurniture': 'indoor',
       'lavandiahealingcenter': 'indoor',
       'lavandiaresearchlab': 'indoor'
