@@ -741,7 +741,7 @@ initializeZoneEnvironment() {
   initPlayerSpawnFromSceneData() {
     const data = this.scene.settings.data || {};
     const sessionId = this.mySessionId;
-    let spawnX = 52, spawnY = 48;
+    let spawnX = 360, spawnY = 120;
 
     // Si transition de zone, coordonnées transmises
     if (typeof data.spawnX === 'number') spawnX = data.spawnX;
