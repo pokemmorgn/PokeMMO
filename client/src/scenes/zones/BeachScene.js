@@ -71,31 +71,34 @@ export class BeachScene extends BaseZoneScene {
 
   }
 
-  async create() {
+    async create() {
     super.create();
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.psyduckIntroManager = new PsyduckIntroManager(this);
 
+    // ✅ DÉPLACER CE CODE ICI (à l'intérieur de create())
+    // Écouter les infos spécifiques à la zone depuis le serveur
+    if (this.gameNetworking) {
+      this.gameNetworking.onMessage("zoneJoinInfo", (data) => {
+        console.log("📨 [BeachScene] Zone join info reçue:", data);
+        
+        // Vérifier si c'est pour cette zone et si c'est un nouveau joueur
+        if (data.zone === 'beach' && data.isNewPlayer && !this._introTriggered) {
+          this._introTriggered = true;
+          console.log("🆕 [BeachScene] Nouveau joueur confirmé via zoneJoinInfo - intro Psyduck");
+          
+          this.time.delayedCall(1500, () => {
+            this.startPsyduckIntro();
+          });
+        } else {
+          console.log("👤 [BeachScene] Joueur existant ou intro déjà faite - pas d'intro");
+        }
+      });
+    }
+
     this.setupBeachEvents();
   }
-// Écouter les infos spécifiques à la zone depuis le serveur
-if (this.gameNetworking) {
-  this.gameNetworking.onMessage("zoneJoinInfo", (data) => {
-    console.log("📨 [BeachScene] Zone join info reçue:", data);
-    
-    // Vérifier si c'est pour cette zone et si c'est un nouveau joueur
-    if (data.zone === 'beach' && data.isNewPlayer && !this._introTriggered) {
-      this._introTriggered = true;
-      console.log("🆕 [BeachScene] Nouveau joueur confirmé via zoneJoinInfo - intro Psyduck");
-      
-      this.time.delayedCall(1500, () => {
-        this.startPsyduckIntro();
-      });
-    } else {
-      console.log("👤 [BeachScene] Joueur existant ou intro déjà faite - pas d'intro");
-    }
-  });
-}
+
   update() {
     if (this.shouldBlockInput()) return;
     super.update();
