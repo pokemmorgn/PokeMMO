@@ -184,6 +184,8 @@ async function initializeGlobalWeatherSystem() {
       
       // ✅ EXPOSER GLOBALEMENT
       window.globalWeatherManager = globalWeatherManager;
+      window.weatherManagerGlobal = globalWeatherManager; // ← AJOUTEZ CETTE LIGNE
+
       
       // ✅ FONCTIONS UTILITAIRES GLOBALES
       window.getGlobalWeather = function() {
