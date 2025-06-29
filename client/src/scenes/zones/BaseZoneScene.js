@@ -1558,36 +1558,6 @@ onZoneChanged(newZoneName) {
     }
   }
 
-  setupMusicSystem() {
-    console.log(`🎵 [${this.scene.key}] === SETUP SYSTÈME MUSIQUE ===`);
-    
-    // 🔧 FIX: Vérifier que tous les prérequis sont remplis
-    if (!this.map) {
-        console.warn(`⚠️ [${this.scene.key}] Map pas encore chargée pour musique`);
-        return false;
-    }
-    
-    if (!this.sound) {
-        console.warn(`⚠️ [${this.scene.key}] SoundManager pas disponible`);
-        return false;
-    }
-    
-    try {
-        // 🔧 FIX: Import dynamique si nécessaire
-        import('../managers/MapMusicManager.js').then(({ integrateMusicToScene }) => {
-            console.log(`🎵 [${this.scene.key}] Intégration musique...`);
-            integrateMusicToScene(this);
-            console.log(`✅ [${this.scene.key}] Musique intégrée avec succès`);
-        }).catch(error => {
-            console.error(`❌ [${this.scene.key}] Erreur import MapMusicManager:`, error);
-        });
-        
-        return true;
-    } catch (error) {
-        console.error(`❌ [${this.scene.key}] Erreur setup musique:`, error);
-        return false;
-    }
-}
   
   setupScene() {
     console.log('— DEBUT setupScene —');
@@ -1621,11 +1591,16 @@ onZoneChanged(newZoneName) {
     this.time.delayedCall(100, () => {
       this.setupPlayerCollisions();
     });
-    // 🔧 FIX: INTÉGRER LA MUSIQUE ICI, quand tout est prêt
-    this.time.delayedCall(200, () => {
-        console.log(`🎵 [${this.scene.key}] Déclenchement setup musique...`);
-        this.setupMusicSystem();
-    });
+// 🔧 FIX: INTÉGRER LA MUSIQUE ICI, quand tout est prêt
+this.time.delayedCall(300, () => {
+    console.log(`🎵 [${this.scene.key}] === INTÉGRATION MUSIQUE (DÉLAI) ===`);
+    try {
+        integrateMusicToScene(this); // ← UTILISER L'IMPORT STATIQUE
+        console.log(`✅ [${this.scene.key}] Musique intégrée avec succès`);
+    } catch (error) {
+        console.error(`❌ [${this.scene.key}] Erreur intégration musique:`, error);
+    }
+});
   }
 
   getDefaultSpawnPosition(fromZone) {
