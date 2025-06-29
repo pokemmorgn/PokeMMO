@@ -1450,7 +1450,7 @@ const isNewPlayer = !savedData;
         level: player.level,
         gold: player.gold,
         isMyPlayer: true,
-        totalPlayersInRoom: this.state.players.size
+        totalPlayersInRoom: this.state.players.size,
           isNewPlayer: isNewPlayer  // ✅ AJOUTER CETTE LIGNE
 
       });
