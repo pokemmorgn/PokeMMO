@@ -33,11 +33,11 @@ export class OptimizedPhaserOverlayManager {
   }
 
   detectPerformanceLevel() {
-    const game = this.scene.sys.game;
-    const renderer = game.renderer;
-    
+  // ✅ CORRECTION: Gérer le cas où scene est null
+  if (!this.scene || !this.scene.sys) {
+    // Mode global - utiliser des valeurs par défaut
     const factors = {
-      webgl: renderer.type === Phaser.WEBGL ? 1.0 : 0.7,
+      webgl: 1.0, // Assumer WebGL disponible
       memory: navigator.deviceMemory || 4,
       cores: navigator.hardwareConcurrency || 4,
       mobile: /Mobi|Android/i.test(navigator.userAgent) ? 0.6 : 1.0
@@ -49,6 +49,24 @@ export class OptimizedPhaserOverlayManager {
     if (score >= 1.0) return 'medium';
     return 'low';
   }
+  
+  // Mode normal avec scène
+  const game = this.scene.sys.game;
+  const renderer = game.renderer;
+  
+  const factors = {
+    webgl: renderer.type === Phaser.WEBGL ? 1.0 : 0.7,
+    memory: navigator.deviceMemory || 4,
+    cores: navigator.hardwareConcurrency || 4,
+    mobile: /Mobi|Android/i.test(navigator.userAgent) ? 0.6 : 1.0
+  };
+  
+  const score = factors.webgl * Math.min(factors.memory / 4, 2) * Math.min(factors.cores / 4, 2) * factors.mobile;
+  
+  if (score >= 1.5) return 'high';
+  if (score >= 1.0) return 'medium';
+  return 'low';
+}
 
   initialize() {
     console.log(`🎨 [PhaserOverlay] Création overlay combiné...`);
