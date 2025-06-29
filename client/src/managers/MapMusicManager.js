@@ -79,7 +79,7 @@ export class MapMusicManager {
       'lavandiahouse8': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
       'lavandiahouse9': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
       'lavandiaanalysis': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiaequipement': { track: 'lavandia_theme', volume: 0.4, loop: true, fadeIn: false },
+      'lavandiaequipment': { track: 'lavandia_theme', volume: 0.4, loop: true, fadeIn: false },
       'lavandiafurniture': { track: 'lavandia_theme', volume: 0.4, loop: true, fadeIn: false },
       
       // === ROUTES HOUSES → village_theme ===
@@ -182,7 +182,7 @@ export class MapMusicManager {
       'LavandiaBossRoomScene': 'lavandiabossroom',
       'LavandiaCelibTempleScene': 'lavandiacelebitemple',
       'LavandiaAnalysisScene': 'lavandiaanalysis',
-      'LavandiaEquipementScene': 'lavandiaequipement',
+      'LavandiaequipmentScene': 'lavandiaequipment',
       'LavandiaFurnitureScene': 'lavandiafurniture',
       
       // Grottes
