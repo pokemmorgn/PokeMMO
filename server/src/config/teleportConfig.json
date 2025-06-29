@@ -105,15 +105,15 @@
       "description": "Salle de combat du champion de Lavandia",
       "fixedSpawn": { "x": 400, "y": 300 }
     },
-    "lavandiacelibitemple": {
-      "name": "lavandiacelibitemple",
+    "lavandiacelebitemple": {
+      "name": "lavandiacelebitemple",
       "displayName": "Temple de Celebi",
       "minLevel": 1,
       "description": "Temple mystique dédié à Celebi",
       "fixedSpawn": { "x": 300, "y": 400 }
     },
-    "lavandiaequipement": {
-      "name": "lavandiaequipement",
+    "lavandiaequipment": {
+      "name": "lavandiaequipment",
       "displayName": "Magasin d'Équipement",
       "minLevel": 1,
       "description": "Boutique d'équipements pour dresseurs",
@@ -517,7 +517,7 @@
       "id": "lavandia_to_bossroom",
       "name": "Lavandia vers Salle du Boss",
       "description": "Accès à la salle du boss",
-      "fromZone": "lavandia",
+      "fromZone": "lavandiaresearchlab",
       "toZone": "lavandiabossroom",
       "conditions": {
         "minLevel": 1,
@@ -530,7 +530,7 @@
       "name": "Salle du Boss vers Lavandia",
       "description": "Retour vers Lavandia",
       "fromZone": "lavandiabossroom",
-      "toZone": "lavandia",
+      "toZone": "lavandiaresearchlab",
       "conditions": {
         "minLevel": 1,
         "proximityCheck": { "enabled": true }
@@ -542,7 +542,7 @@
       "name": "Lavandia vers Temple de Celebi",
       "description": "Accès au temple de Celebi",
       "fromZone": "lavandia",
-      "toZone": "lavandiacelibitemple",
+      "toZone": "lavandiacelebitemple",
       "conditions": {
         "minLevel": 1,
         "proximityCheck": { "enabled": true }
@@ -553,7 +553,7 @@
       "id": "celebitemple_to_lavandia",
       "name": "Temple de Celebi vers Lavandia",
       "description": "Retour vers Lavandia",
-      "fromZone": "lavandiacelibitemple",
+      "fromZone": "lavandiacelebitemple",
       "toZone": "lavandia",
       "conditions": {
         "minLevel": 1,
@@ -566,7 +566,7 @@
       "name": "Lavandia vers Magasin d'Équipement",
       "description": "Accès au magasin d'équipement",
       "fromZone": "lavandia",
-      "toZone": "lavandiaequipement",
+      "toZone": "lavandiaequipment",
       "conditions": {
         "minLevel": 1,
         "proximityCheck": { "enabled": true }
@@ -577,7 +577,7 @@
       "id": "equipement_to_lavandia",
       "name": "Magasin d'Équipement vers Lavandia",
       "description": "Retour vers Lavandia",
-      "fromZone": "lavandiaequipement",
+      "fromZone": "lavandiaequipment",
       "toZone": "lavandia",
       "conditions": {
         "minLevel": 1,
