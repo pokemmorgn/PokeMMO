@@ -1342,6 +1342,15 @@ export class WorldRoom extends Room<PokeWorldState> {
         }
       } : 'Aucune donnée');
 
+      typescript// Étape 1: Toujours chercher en DB d'abord
+const savedData = await PlayerData.findOne({ username: player.name });
+console.log(`💾 Données DB trouvées:`, savedData ? {
+  lastX: savedData.lastX,
+  lastY: savedData.lastY,
+  lastMap: savedData.lastMap,
+  // ...
+} : 'Aucune donnée');
+
 // ✅ AJOUTEZ ICI :
 const isNewPlayer = !savedData;
 
@@ -1496,16 +1505,7 @@ const isNewPlayer = !savedData;
 
       
       // Étape 4: Faire entrer le joueur dans sa zone initiale
-this.clock.setTimeout(() => {
-  client.send("zoneJoinInfo", {
-    zone: player.currentZone,
-    isNewPlayer: isNewPlayer,
-    timestamp: Date.now()
-  });
-}, 500);
-
-// Appel normal sans le 3ème paramètre
-await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
+      await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
       this.scheduleFilteredStateUpdate();
 
       // Étape 5: Setup des quêtes avec délai
