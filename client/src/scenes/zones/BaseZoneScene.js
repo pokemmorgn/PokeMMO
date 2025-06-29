@@ -555,45 +555,39 @@ handleWildEncounter(data) {
   }
 
  initializeTimeWeatherSystem() {
-  if (!this.networkManager) {
-    console.warn(`⚠️ [${this.scene.key}] Pas de NetworkManager pour TimeWeatherManager`);
+  console.log(`🌍 [${this.scene.key}] === UTILISATION SYSTÈME MÉTÉO GLOBAL SIMPLIFIÉ ===`);
+
+  // ✅ VÉRIFICATION SIMPLE
+  if (!window.weatherManagerGlobal) {
+    console.error(`❌ [${this.scene.key}] Aucun système météo global`);
     return;
   }
 
   try {
-    console.log(`🌍 [${this.scene.key}] === UTILISATION SYSTÈME MÉTÉO GLOBAL ===`);
-
+    // ✅ INITIALISER ENVIRONNEMENT LOCAL
     if (!this.environmentInitialized) {
       this.initializeZoneEnvironment();
     }
 
-if (window.weatherManagerGlobal && window.weatherManagerGlobal.isInitialized) {      console.log(`✅ [${this.scene.key}] Enregistrement dans système météo global`);
-      
-      const zoneName = this.normalizeZoneName(this.scene.key);
-      
-      if (typeof window.registerSceneToWeather === 'function') {
-        window.registerSceneToWeather(this, zoneName);
-      }
-      
-      this.dayNightWeatherManager = window.weatherManagerGlobal;
-      
+    // ✅ RÉFÉRENCE AU MANAGER GLOBAL
+    this.dayNightWeatherManager = window.weatherManagerGlobal;
+    
+    // ✅ ENREGISTREMENT SIMPLIFIÉ
+    const zoneName = this.normalizeZoneName(this.scene.key);
+    
+    if (typeof window.registerSceneToWeather === 'function') {
+      window.registerSceneToWeather(this, zoneName);
     } else {
-      console.error(`❌ [${this.scene.key}] Système météo global PAS PRÊT - ERREUR CRITIQUE`);
-      
-      setTimeout(() => {
-        console.log(`🔄 [${this.scene.key}] Retry initialisation météo...`);
-        this.initializeTimeWeatherSystem();
-      }, 1000);
-      return;
+      console.warn(`⚠️ [${this.scene.key}] Fonction registerSceneToWeather manquante`);
     }
-
-    console.log(`✅ [${this.scene.key}] Système temps/météo global configuré`);
+    
+    console.log(`✅ [${this.scene.key}] Système météo global configuré`);
 
   } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
+    console.error(`❌ [${this.scene.key}] Erreur météo:`, error);
+    // ✅ CONTINUER SANS BLOQUER
   }
 }
-
   // ✅ MÉTHODE INCHANGÉE: Initialiser l'environnement de la zone
   initializeZoneEnvironment() {
     const zoneName = this.normalizeZoneName(this.scene.key);
