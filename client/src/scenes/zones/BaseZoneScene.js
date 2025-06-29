@@ -1535,7 +1535,7 @@ initializeZoneEnvironment() {
       'lavandiaanalysis': 'LavandiaAnalysisScene',
       'lavandiabossroom': 'LavandiaBossRoomScene',
       'lavandiacelebitemple': 'LavandiaCelebiTempleScene',
-      'lavandiaequipment': 'LavandiaEquipemntScene',
+      'lavandiaequipment': 'LavandiaEquipmentScene',
       'lavandiafurniture': 'LavandiaFurnitureScene',
       'lavandiahealingcenter': 'LavandiaHealingCenterScene',
       'lavandiahouse1': 'LavandiaHouse1Scene',
