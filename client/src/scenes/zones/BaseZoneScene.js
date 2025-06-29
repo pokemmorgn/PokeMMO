@@ -5,7 +5,7 @@
 
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
-import { NpcManager } from "../../game/NpcManager.js";
+import { NpcManager } from "../../game/NpcManager.ts";
 import { QuestSystem } from "../../game/QuestSystem.js";
 import { InventorySystem } from "../../game/InventorySystem.js";
 import { InteractionManager } from "../../game/InteractionManager.js";
