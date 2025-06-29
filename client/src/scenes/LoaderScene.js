@@ -29,7 +29,7 @@ this.load.tilemapTiledJSON('lavandia', 'assets/maps/lavandia.tmj');
 this.load.tilemapTiledJSON('lavandiaanalysis', 'assets/maps/lavandiaanalysis.tmj');
 this.load.tilemapTiledJSON('lavandiabossroom', 'assets/maps/lavandiabossroom.tmj');
 this.load.tilemapTiledJSON('lavandiacelebitemple', 'assets/maps/lavandiacelebitemple.tmj');
-this.load.tilemapTiledJSON('lavandiaequipement', 'assets/maps/lavandiaequipement.tmj');
+this.load.tilemapTiledJSON('lavandiaequipment', 'assets/maps/lavandiaequipment.tmj');
 this.load.tilemapTiledJSON('lavandiafurniture', 'assets/maps/lavandiafurniture.tmj');
 this.load.tilemapTiledJSON('lavandiahealingcenter', 'assets/maps/lavandiahealingcenter.tmj');
 this.load.tilemapTiledJSON('lavandiahouse1', 'assets/maps/lavandiahouse1.tmj');
@@ -179,8 +179,8 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
       case 'lavandiacelebitemple':
         this.scene.start('lavandiacelebitempleScene');
         break;
-      case 'lavandiaequipement':
-        this.scene.start('LavandiaEquipementScene');
+      case 'lavandiaequipment':
+        this.scene.start('LavandiaEquipmentScene');
         break;
       case 'lavandiafurniture':
         this.scene.start('LavandiaFurnitureScene');
