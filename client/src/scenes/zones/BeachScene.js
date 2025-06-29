@@ -68,16 +68,14 @@ export class BeachScene extends BaseZoneScene {
     this._introBlocked = false;
     this._introTriggered = false;
     this.psyduckIntroManager = null;
-
   }
 
-    async create() {
+  async create() {
     super.create();
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.psyduckIntroManager = new PsyduckIntroManager(this);
 
-    // ✅ DÉPLACER CE CODE ICI (à l'intérieur de create())
-    // Écouter les infos spécifiques à la zone depuis le serveur
+    // ✅ Écouter les infos spécifiques à la zone depuis le serveur
     if (this.gameNetworking) {
       this.gameNetworking.onMessage("zoneJoinInfo", (data) => {
         console.log("📨 [BeachScene] Zone join info reçue:", data);
@@ -120,38 +118,40 @@ export class BeachScene extends BaseZoneScene {
   }
 
   // --- Gère le placement joueur au spawn ---
- positionPlayer(player) {
-  const initData = this.scene.settings.data;
-  
-  super.positionPlayer(player);
+  positionPlayer(player) {
+    const initData = this.scene.settings.data;
+    
+    super.positionPlayer(player);
 
-  console.log(`📍 [BeachScene] Joueur positionné: ${player.name} à (${player.x}, ${player.y})`);
-  console.log(`🔍 [BeachScene] Données init:`, { 
-    fromZone: initData?.fromZone, 
-    introTriggered: this._introTriggered 
-  });
-  
-  // On ne déclenche plus l'intro ici, c'est géré par zoneJoinInfo
-  if (initData?.fromZone) {
-    console.log("🚪 [BeachScene] Arrivée par transition, pas d'intro");
-  } else {
-    console.log("🕐 [BeachScene] Premier spawn, attente zoneJoinInfo pour l'intro...");
+    console.log(`📍 [BeachScene] Joueur positionné: ${player.name} à (${player.x}, ${player.y})`);
+    console.log(`🔍 [BeachScene] Données init:`, { 
+      fromZone: initData?.fromZone, 
+      introTriggered: this._introTriggered 
+    });
+    
+    // On ne déclenche plus l'intro ici, c'est géré par zoneJoinInfo
+    if (initData?.fromZone) {
+      console.log("🚪 [BeachScene] Arrivée par transition, pas d'intro");
+    } else {
+      console.log("🕐 [BeachScene] Premier spawn, attente zoneJoinInfo pour l'intro...");
+    }
   }
-}
+
   // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
   onPlayerPositioned(player, initData) {
     // Logique spécifique à BeachScene si nécessaire
     console.log(`[BeachScene] Joueur positionné à (${player.x}, ${player.y})`);
-}
+  }
 
-// 🦆 INTRO PSYDUCK
-startPsyduckIntro() {
+  // 🦆 INTRO PSYDUCK
+  startPsyduckIntro() {
     if (this.psyduckIntroManager) {
-        this.psyduckIntroManager.startIntro(() => {
-            console.log("✅ Intro Psyduck terminée");
-        });
+      this.psyduckIntroManager.startIntro(() => {
+        console.log("✅ Intro Psyduck terminée");
+      });
     }
-}
+  }
+
 
   // ==================== INTRO ANIMÉE ======================
   startIntroSequence(player) {
