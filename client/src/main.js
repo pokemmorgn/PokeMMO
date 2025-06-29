@@ -19,7 +19,7 @@ import { LavandiaScene } from './scenes/zones/LavandiaScene.js';
 import { LavandiaAnalysisScene } from './scenes/zones/LavandiaAnalysisScene.js';
 import { LavandiaBossRoomScene } from './scenes/zones/LavandiaBossRoomScene.js';
 import { LavandiaCelebiTempleScene } from './scenes/zones/LavandiaCelebiTempleScene.js';
-import { LavandiaEquipementScene } from './scenes/zones/LavandiaEquipementScene.js';
+import { LavandiaEquipmentScene } from './scenes/zones/LavandiaEquipmentScene.js';
 import { LavandiaFurnitureScene } from './scenes/zones/LavandiaFurnitureScene.js';
 import { LavandiaHealingCenterScene } from './scenes/zones/LavandiaHealingCenterScene.js';
 import { LavandiaHouse1Scene } from './scenes/zones/LavandiaHouse1Scene.js';
