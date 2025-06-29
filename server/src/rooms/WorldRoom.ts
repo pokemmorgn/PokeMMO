@@ -1342,15 +1342,6 @@ export class WorldRoom extends Room<PokeWorldState> {
         }
       } : 'Aucune donnée');
 
-      typescript// Étape 1: Toujours chercher en DB d'abord
-const savedData = await PlayerData.findOne({ username: player.name });
-console.log(`💾 Données DB trouvées:`, savedData ? {
-  lastX: savedData.lastX,
-  lastY: savedData.lastY,
-  lastMap: savedData.lastMap,
-  // ...
-} : 'Aucune donnée');
-
 // ✅ AJOUTEZ ICI :
 const isNewPlayer = !savedData;
 
