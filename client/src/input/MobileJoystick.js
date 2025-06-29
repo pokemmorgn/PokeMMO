@@ -1,4 +1,4 @@
-// client/src/input/MobileJoystick.js
+// client/src/input/MobileJoystick.js - VERSION CORRIGÉE
 export class MobileJoystick {
   constructor(scene, options = {}) {
     this.scene = scene;
@@ -61,25 +61,40 @@ export class MobileJoystick {
     this.directionIndicator = this.scene.add.triangle(0, -15, 0, 10, -8, -10, 8, -10, 0x00ff00);
     this.directionIndicator.setAlpha(0);
 
-    // Ajouter au conteneur
-    this.joystickContainer.add([this.base, this.knob, this.directionIndicator]);
+    // ✅ CORRECTION: Zone interactive créée SÉPARÉMENT et rendue interactive AVANT d'être ajoutée
+    this.interactiveZone = this.scene.add.zone(0, 0, this.config.baseRadius * 3, this.config.baseRadius * 3);
+    
+    // ✅ Rendre interactive AVANT d'ajouter au container
+    this.interactiveZone.setInteractive({
+      hitArea: new Phaser.Geom.Circle(0, 0, this.config.baseRadius * 1.5),
+      hitAreaCallback: Phaser.Geom.Circle.Contains,
+      useHandCursor: true
+    });
+
+    // Ajouter au conteneur APRÈS avoir configuré l'interactivité
+    this.joystickContainer.add([this.base, this.knob, this.directionIndicator, this.interactiveZone]);
 
     // Masquer par défaut si autoHide est activé et pas sur mobile
     if (this.config.autoHide && !this.isMobile) {
       this.hide();
     }
-
-    // Zone interactive élargie pour faciliter l'usage
-    this.interactiveZone = this.scene.add.zone(0, 0, this.config.baseRadius * 3, this.config.baseRadius * 3);
-    this.joystickContainer.add(this.interactiveZone);
-    this.interactiveZone.setInteractive();
   }
 
   setupEvents() {
-    // Événements tactiles/souris
-    this.interactiveZone.on('pointerdown', this.onPointerDown, this);
-    this.scene.input.on('pointermove', this.onPointerMove, this);
-    this.scene.input.on('pointerup', this.onPointerUp, this);
+    // ✅ Événements tactiles/souris avec vérifications de sécurité
+    if (this.interactiveZone && this.interactiveZone.input) {
+      this.interactiveZone.on('pointerdown', this.onPointerDown, this);
+      this.scene.input.on('pointermove', this.onPointerMove, this);
+      this.scene.input.on('pointerup', this.onPointerUp, this);
+      
+      // ✅ Événements supplémentaires pour mobile
+      if (this.isMobile) {
+        this.interactiveZone.on('pointerout', this.onPointerUp, this);
+        this.interactiveZone.on('pointercancel', this.onPointerUp, this);
+      }
+    } else {
+      console.warn('⚠️ MobileJoystick: Zone interactive non configurée correctement');
+    }
 
     // Gestion de l'orientation mobile
     if (this.isMobile) {
@@ -212,7 +227,8 @@ export class MobileJoystick {
 
     // Auto-masquer si nécessaire
     if (this.config.autoHide && !this.isMobile) {
-      this.time.delayedCall(1000, () => {
+      // ✅ CORRECTION: Utiliser scene.time au lieu de this.time
+      this.scene.time.delayedCall(1000, () => {
         if (!this.isDragging) {
           this.hide();
         }
@@ -308,7 +324,7 @@ export class MobileJoystick {
     return this.currentInput.force > this.config.deadZone;
   }
 
-    // Remet le joystick à zéro comme si l'utilisateur relâchait tout
+  // Remet le joystick à zéro comme si l'utilisateur relâchait tout
   reset() {
     this.isDragging = false;
     this.knob.x = 0;
@@ -328,22 +344,43 @@ export class MobileJoystick {
     }
   }
 
-  
-  // Nettoyage
+  // ✅ Nettoyage amélioré
   destroy() {
-    if (this.joystickContainer) {
-      this.joystickContainer.destroy();
+    console.log('🧹 Destruction MobileJoystick...');
+    
+    // ✅ Nettoyer les événements de la zone interactive
+    if (this.interactiveZone) {
+      this.interactiveZone.off('pointerdown', this.onPointerDown, this);
+      if (this.isMobile) {
+        this.interactiveZone.off('pointerout', this.onPointerUp, this);
+        this.interactiveZone.off('pointercancel', this.onPointerUp, this);
+      }
     }
     
-    // Retirer les event listeners
-    this.scene.input.off('pointermove', this.onPointerMove, this);
-    this.scene.input.off('pointerup', this.onPointerUp, this);
+    // ✅ Nettoyer les événements de la scène
+    if (this.scene && this.scene.input) {
+      this.scene.input.off('pointermove', this.onPointerMove, this);
+      this.scene.input.off('pointerup', this.onPointerUp, this);
+    }
     
+    // ✅ Détruire le conteneur
+    if (this.joystickContainer) {
+      this.joystickContainer.destroy();
+      this.joystickContainer = null;
+    }
+    
+    // ✅ Retirer les event listeners globaux
     if (this.isMobile) {
       window.removeEventListener('orientationchange', this.repositionForOrientation);
     }
     
+    // ✅ Nettoyer les références
+    this.interactiveZone = null;
+    this.base = null;
+    this.knob = null;
+    this.directionIndicator = null;
     this.callbacks = {};
-    console.log('🕹️ Mobile Joystick destroyed');
+    
+    console.log('✅ MobileJoystick détruit');
   }
 }
