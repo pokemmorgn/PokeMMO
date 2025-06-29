@@ -1496,7 +1496,7 @@ const isNewPlayer = !savedData;
 
       
       // Étape 4: Faire entrer le joueur dans sa zone initiale
-      await this.zoneManager.onPlayerJoinZone(client, player.currentZone);
+await this.zoneManager.onPlayerJoinZone(client, player.currentZone, { isNewPlayer });
       this.scheduleFilteredStateUpdate();
 
       // Étape 5: Setup des quêtes avec délai
