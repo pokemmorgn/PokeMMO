@@ -344,6 +344,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     window.teamManagerGlobal = null;
     // 🆕 NOUVEAU: Variable globale pour EncounterManager
     window.encounterManagerGlobal = null;
+    window.weatherManagerGlobal = null;
     
     // 12. Expose helpers initAllGameSystems & cie
     window.initInventorySystem = function(gameRoom) {
