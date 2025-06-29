@@ -10010,27 +10010,27 @@
                 {
                  "animation":[
                         {
-                         "duration":900,
+                         "duration":1600,
                          "tileid":860
                         }, 
                         {
-                         "duration":900,
+                         "duration":1600,
                          "tileid":861
                         }, 
                         {
-                         "duration":900,
+                         "duration":1600,
                          "tileid":862
                         }, 
                         {
-                         "duration":900,
+                         "duration":1600,
                          "tileid":863
                         }, 
                         {
-                         "duration":900,
+                         "duration":1600,
                          "tileid":905
                         }, 
                         {
-                         "duration":900,
+                         "duration":1600,
                          "tileid":906
                         }],
                  "id":860,
