@@ -386,9 +386,88 @@
          "visible":true,
          "x":0,
          "y":0
+        }, 
+        {
+         "draworder":"topdown",
+         "id":7,
+         "name":"encounterzone",
+         "objects":[
+                {
+                 "height":330.666666666667,
+                 "id":6,
+                 "name":"encouterzone",
+                 "properties":[
+                        {
+                         "name":"zoneid",
+                         "type":"string",
+                         "value":"r2_grass2"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":960,
+                 "x":-1.33333333333333,
+                 "y":361.333333333333
+                }, 
+                {
+                 "height":296,
+                 "id":7,
+                 "name":"encouterzone",
+                 "properties":[
+                        {
+                         "name":"zoneid",
+                         "type":"string",
+                         "value":"r2_grass3"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":394.666666666667,
+                 "x":-5.33333333333333,
+                 "y":-2.66666666666667
+                }, 
+                {
+                 "height":273.333333333333,
+                 "id":8,
+                 "name":"encouterzone",
+                 "properties":[
+                        {
+                         "name":"zoneid",
+                         "type":"string",
+                         "value":"r2_grass1"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":966.666666666667,
+                 "x":-4,
+                 "y":693.333333333333
+                }, 
+                {
+                 "height":369.333333333333,
+                 "id":9,
+                 "name":"encouterzone",
+                 "properties":[
+                        {
+                         "name":"zoneid",
+                         "type":"string",
+                         "value":"r2_grass4"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":358.666666666667,
+                 "x":389.333333333333,
+                 "y":-9.33333333333333
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
         }],
- "nextlayerid":7,
- "nextobjectid":6,
+ "nextlayerid":8,
+ "nextobjectid":10,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
@@ -16366,8 +16445,8 @@
                         }, 
                         {
                          "name":"grassTile",
-                         "type":"std::nullptr_t",
-                         "value":""
+                         "type":"",
+                         "value":null
                         }]
                 }, 
                 {
@@ -16380,8 +16459,8 @@
                         }, 
                         {
                          "name":"grassTile",
-                         "type":"std::nullptr_t",
-                         "value":""
+                         "type":"",
+                         "value":null
                         }]
                 }, 
                 {
@@ -16394,8 +16473,8 @@
                         }, 
                         {
                          "name":"grassTile",
-                         "type":"std::nullptr_t",
-                         "value":""
+                         "type":"",
+                         "value":null
                         }]
                 }, 
                 {
@@ -16913,8 +16992,8 @@
                         }, 
                         {
                          "name":"grassTile",
-                         "type":"std::nullptr_t",
-                         "value":""
+                         "type":"",
+                         "value":null
                         }]
                 }, 
                 {
@@ -16936,8 +17015,8 @@
                         }, 
                         {
                          "name":"grassTile",
-                         "type":"std::nullptr_t",
-                         "value":""
+                         "type":"",
+                         "value":null
                         }]
                 }, 
                 {
@@ -17464,8 +17543,8 @@
                         }, 
                         {
                          "name":"grassTile",
-                         "type":"std::nullptr_t",
-                         "value":""
+                         "type":"",
+                         "value":null
                         }]
                 }, 
                 {
@@ -17478,8 +17557,8 @@
                         }, 
                         {
                          "name":"grassTile",
-                         "type":"std::nullptr_t",
-                         "value":""
+                         "type":"",
+                         "value":null
                         }]
                 }, 
                 {
@@ -17492,8 +17571,8 @@
                         }, 
                         {
                          "name":"grassTile",
-                         "type":"std::nullptr_t",
-                         "value":""
+                         "type":"",
+                         "value":null
                         }]
                 }, 
                 {
