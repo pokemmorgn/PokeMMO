@@ -324,7 +324,7 @@ const config = {
   LavandiaAnalysisScene,
   LavandiaBossRoomScene,
   LavandiaCelebiTempleScene,
-  LavandiaEquipementScene,
+  LavandiaEquipmentScene,
   LavandiaFurnitureScene,
   LavandiaHealingCenterScene,
   LavandiaHouse1Scene,
