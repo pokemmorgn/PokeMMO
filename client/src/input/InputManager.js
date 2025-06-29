@@ -1,4 +1,4 @@
-// client/src/input/InputManager.js - Version complète avec MovementBlockHandler et mapping dynamique QWERTY/AZERTY
+// client/src/input/InputManager.js - VERSION CORRIGÉE pour le bug focus/blur
 
 import { GAME_CONFIG } from "../config/gameConfig.js";
 import { MobileJoystick } from "./MobileJoystick.js";
@@ -12,6 +12,10 @@ export class InputManager {
     this.isMobile = this.detectMobile();
 
     this.forceStop = false;
+    
+    // ✅ NOUVEAU: Flag pour éviter les resets destructeurs
+    this.isWindowFocused = true;
+    this.pendingReset = false;
 
     // MovementBlockHandler
     this._movementBlockHandler = null;
@@ -39,16 +43,293 @@ export class InputManager {
     // Désactive le menu contextuel (clic droit)
     this.scene.input.mouse.disableContextMenu();
 
-    // Reset si perte focus (alt-tab)
-    window.addEventListener('blur', () => { this.resetMovement(); });
-
-    // Reset sur clic droit partout
-    window.addEventListener('mousedown', (e) => {
-      if (e.button === 2) this.resetMovement();
-    });
-    window.addEventListener('contextmenu', () => { this.resetMovement(); });
+    // ✅ CORRECTION: Gestion focus/blur améliorée
+    this.setupWindowEventListeners();
   }
 
+  /**
+   * ✅ NOUVELLE MÉTHODE: Gestion sécurisée des événements window
+   */
+  setupWindowEventListeners() {
+    // ✅ Gestion du focus/blur avec protection
+    this.handleWindowBlur = () => {
+      console.log('🔄 Window blur - suspension des inputs');
+      this.isWindowFocused = false;
+      this.pendingReset = true;
+      
+      // ✅ Arrêt doux sans destruction des objets interactifs
+      this.softStopMovement();
+    };
+
+    this.handleWindowFocus = () => {
+      console.log('🔄 Window focus - réactivation des inputs');
+      this.isWindowFocused = true;
+      
+      // ✅ Délai pour éviter les problèmes de timing
+      setTimeout(() => {
+        if (this.pendingReset) {
+          this.pendingReset = false;
+          this.reinitializeInputs();
+        }
+      }, 100);
+    };
+
+    // ✅ Gestion du clic droit sécurisée
+    this.handleContextMenu = (e) => {
+      e.preventDefault();
+      this.softStopMovement();
+    };
+
+    this.handleMouseDown = (e) => {
+      if (e.button === 2) { // Clic droit
+        this.softStopMovement();
+      }
+    };
+
+    // ✅ Attacher les événements
+    window.addEventListener('blur', this.handleWindowBlur);
+    window.addEventListener('focus', this.handleWindowFocus);
+    window.addEventListener('contextmenu', this.handleContextMenu);
+    window.addEventListener('mousedown', this.handleMouseDown);
+
+    console.log('✅ Événements window configurés avec protection');
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE: Arrêt doux sans destruction
+   */
+  softStopMovement() {
+    console.log('🔄 Arrêt doux du mouvement');
+    
+    this.forceStop = true;
+    
+    // ✅ Reset des touches SANS destruction
+    if (this.scene.input.keyboard) {
+      this.scene.input.keyboard.resetKeys();
+    }
+    
+    // ✅ Reset des curseurs sans les détruire
+    if (this.cursors) {
+      Object.values(this.cursors).forEach(key => {
+        if (key && typeof key.reset === 'function') {
+          key.reset();
+        }
+      });
+    }
+    
+    // ✅ Reset WASD sans destruction
+    if (this.wasdKeys) {
+      Object.values(this.wasdKeys).forEach(key => {
+        if (key && typeof key.reset === 'function') {
+          key.reset();
+        }
+      });
+    }
+    
+    // ✅ Reset du joystick SANS le détruire
+    if (this.mobileJoystick && typeof this.mobileJoystick.reset === 'function') {
+      this.mobileJoystick.reset();
+    }
+    
+    // ✅ Reset du mouvement
+    this.currentMovement = {
+      x: 0, y: 0, isMoving: false, direction: null, source: null
+    };
+    
+    // ✅ Arrêt du joueur
+    this.stopPlayerPhysically();
+    
+    this.triggerMoveCallback();
+    
+    // ✅ Réactivation après un délai court
+    setTimeout(() => { 
+      if (this.isWindowFocused) {
+        this.forceStop = false; 
+      }
+    }, 150);
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE: Réinitialisation sécurisée après focus
+   */
+  reinitializeInputs() {
+    console.log('🔄 Réinitialisation des inputs après focus');
+    
+    try {
+      // ✅ Vérifier que les objets existent encore
+      if (!this.scene || !this.scene.input) {
+        console.warn('⚠️ Scène non disponible pour réinitialisation');
+        return;
+      }
+
+      // ✅ Réactiver le clavier
+      if (this.scene.input.keyboard) {
+        this.scene.input.keyboard.enabled = true;
+        this.scene.input.keyboard.enableGlobalCapture();
+      }
+
+      // ✅ Vérifier le joystick mobile
+      if (this.mobileJoystick) {
+        // Vérifier si le joystick est encore valide
+        if (!this.mobileJoystick.joystickContainer || 
+            !this.mobileJoystick.scene ||
+            this.mobileJoystick.joystickContainer.scene !== this.scene) {
+          
+          console.log('🔄 Recréation du joystick mobile après focus');
+          this.recreateMobileJoystick();
+        } else {
+          // Juste réactiver si encore valide
+          if (this.isMobile || this.shouldShowJoystick()) {
+            this.mobileJoystick.show();
+          }
+        }
+      }
+
+      this.forceStop = false;
+      console.log('✅ Inputs réinitialisés avec succès');
+      
+    } catch (error) {
+      console.error('❌ Erreur lors de la réinitialisation des inputs:', error);
+      // ✅ En cas d'erreur, recréer complètement les inputs
+      this.recreateInputs();
+    }
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE: Recréation du joystick mobile
+   */
+  recreateMobileJoystick() {
+    console.log('🔄 Recréation du joystick mobile');
+    
+    // ✅ Détruire l'ancien proprement
+    if (this.mobileJoystick) {
+      try {
+        this.mobileJoystick.destroy();
+      } catch (error) {
+        console.warn('⚠️ Erreur destruction ancien joystick:', error);
+      }
+      this.mobileJoystick = null;
+    }
+    
+    // ✅ Recréer si nécessaire
+    if (this.isMobile || this.shouldShowJoystick()) {
+      try {
+        this.setupMobileJoystick();
+        console.log('✅ Joystick mobile recréé');
+      } catch (error) {
+        console.error('❌ Erreur recréation joystick:', error);
+      }
+    }
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE: Recréation complète des inputs en cas d'erreur
+   */
+  recreateInputs() {
+    console.log('🔄 Recréation complète des inputs');
+    
+    try {
+      // ✅ Sauvegarder les paramètres
+      const wasMobile = this.isMobile;
+      const shouldShowJoy = this.shouldShowJoystick();
+      
+      // ✅ Nettoyer
+      this.cleanupInputs();
+      
+      // ✅ Recréer
+      this.setupInput();
+      
+      console.log('✅ Inputs complètement recréés');
+      
+    } catch (error) {
+      console.error('❌ Erreur fatale recréation inputs:', error);
+    }
+  }
+
+  /**
+   * ✅ MÉTHODE AMÉLIORÉE: Arrêt physique du joueur
+   */
+  stopPlayerPhysically() {
+    if (!this.scene?.playerManager) return;
+    
+    const myPlayer = this.scene.playerManager.getMyPlayer();
+    if (!myPlayer) return;
+    
+    // Arrêter la vélocité physique
+    if (myPlayer.body) {
+      myPlayer.body.setVelocity(0, 0);
+    }
+    
+    // Arrêter l'animation de marche
+    if (myPlayer.anims && myPlayer.anims.currentAnim) {
+      const currentDirection = this.scene.lastDirection || 'down';
+      myPlayer.anims.play(`idle_${currentDirection}`, true);
+    }
+    
+    // Marquer comme non en mouvement
+    if (myPlayer.isMovingLocally !== undefined) {
+      myPlayer.isMovingLocally = false;
+    }
+    
+    // Callback de reset si disponible
+    if (this.scene.onPlayerMovementReset) {
+      this.scene.onPlayerMovementReset();
+    }
+  }
+
+  /**
+   * ✅ MÉTHODE MODIFIÉE: Reset movement plus sécurisé
+   */
+  resetMovement() {
+    console.log('🛑 Reset mouvement');
+    
+    // ✅ Si la fenêtre n'est pas focus, utiliser soft stop
+    if (!this.isWindowFocused) {
+      this.softStopMovement();
+      return;
+    }
+    
+    // ✅ Reset normal pour les autres cas
+    this.forceStop = true;
+    
+    // ✅ Reset avec vérifications
+    if (this.scene?.input?.keyboard) {
+      this.scene.input.keyboard.resetKeys();
+    }
+    
+    if (this.cursors) {
+      Object.values(this.cursors).forEach(key => {
+        if (key && typeof key.reset === 'function') {
+          key.reset();
+        }
+      });
+    }
+    
+    if (this.wasdKeys) {
+      Object.values(this.wasdKeys).forEach(key => {
+        if (key && typeof key.reset === 'function') {
+          key.reset();
+        }
+      });
+    }
+    
+    this.currentMovement = {
+      x: 0, y: 0, isMoving: false, direction: null, source: null
+    };
+    
+    // ✅ Reset joystick SANS destruction
+    if (this.mobileJoystick && typeof this.mobileJoystick.reset === 'function') {
+      this.mobileJoystick.reset();
+    }
+
+    this.stopPlayerPhysically();
+    this.triggerMoveCallback();
+    
+    setTimeout(() => { this.forceStop = false; }, 150);
+  }
+
+  // ✅ Méthodes existantes inchangées...
+  
   get movementBlockHandler() {
     if (!this._movementBlockHandler && typeof movementBlockHandler !== 'undefined') {
       console.log(`🔗 [InputManager] Connexion lazy au MovementBlockHandler global`);
@@ -75,33 +356,6 @@ export class InputManager {
     }
   }
 
-  resetMovement() {
-    console.log('🛑 Reset mouvement forcé');
-    this.forceStop = true;
-    this.scene.input.keyboard.resetKeys();
-    if (this.cursors) {
-      this.cursors.left.reset();
-      this.cursors.right.reset();
-      this.cursors.up.reset();
-      this.cursors.down.reset();
-    }
-    if (this.wasdKeys) {
-      Object.values(this.wasdKeys).forEach(key => { if (key && key.reset) key.reset(); });
-    }
-    this.currentMovement = {
-      x: 0, y: 0, isMoving: false, direction: null, source: null
-    };
-    if (this.mobileJoystick) this.mobileJoystick.reset();
-
-    if (this.scene && this.scene.player) {
-      if (this.scene.player.anims) this.scene.player.anims.stop();
-      if (this.scene.player.body) this.scene.player.body.setVelocity(0, 0);
-      if (this.scene.onPlayerMovementReset) this.scene.onPlayerMovementReset();
-    }
-    this.triggerMoveCallback();
-    setTimeout(() => { this.forceStop = false; }, 150);
-  }
-
   detectMobile() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
            ('ontouchstart' in window) ||
@@ -115,6 +369,11 @@ export class InputManager {
   }
 
   setupInput() {
+    if (!this.scene?.input) {
+      console.warn('⚠️ Scene input non disponible');
+      return;
+    }
+
     this.cursors = this.scene.input.keyboard.createCursorKeys();
 
     // Sélection dynamique du mapping
@@ -126,10 +385,13 @@ export class InputManager {
       this.wasdKeys = this.scene.input.keyboard.addKeys('W,A,S,D');
       this.keyMapping = { left: 'A', right: 'D', up: 'W', down: 'S' };
     }
+    
     this.scene.input.keyboard.enabled = true;
     this.scene.input.keyboard.enableGlobalCapture();
 
-    if (this.isMobile || this.shouldShowJoystick()) this.setupMobileJoystick();
+    if (this.isMobile || this.shouldShowJoystick()) {
+      this.setupMobileJoystick();
+    }
 
     console.log(`⌨️ Input system initialized (Mobile: ${this.isMobile}, Layout: ${layout}, Mapping:`, this.keyMapping, ')');
   }
@@ -140,6 +402,11 @@ export class InputManager {
   }
 
   setupMobileJoystick() {
+    if (!this.scene) {
+      console.warn('⚠️ Scene non disponible pour joystick');
+      return;
+    }
+
     const joystickConfig = {
       x: 120,
       y: this.scene.cameras.main.height - 120,
@@ -154,18 +421,28 @@ export class InputManager {
       autoHide: !this.isMobile,
       followPointer: false
     };
-    this.mobileJoystick = new MobileJoystick(this.scene, joystickConfig);
 
-    this.mobileJoystick.onMove((input) => { this.handleJoystickInput(input); });
-    this.mobileJoystick.onStart(() => { console.log('🕹️ Joystick activation'); });
-    this.mobileJoystick.onEnd(() => {
-      this.currentMovement = {
-        x: 0, y: 0, isMoving: false, direction: null, source: null
-      };
-      this.triggerMoveCallback();
-    });
+    try {
+      this.mobileJoystick = new MobileJoystick(this.scene, joystickConfig);
+
+      this.mobileJoystick.onMove((input) => { this.handleJoystickInput(input); });
+      this.mobileJoystick.onStart(() => { console.log('🕹️ Joystick activation'); });
+      this.mobileJoystick.onEnd(() => {
+        this.currentMovement = {
+          x: 0, y: 0, isMoving: false, direction: null, source: null
+        };
+        this.triggerMoveCallback();
+      });
+
+      console.log('✅ Joystick mobile configuré');
+    } catch (error) {
+      console.error('❌ Erreur création joystick mobile:', error);
+      this.mobileJoystick = null;
+    }
   }
 
+  // ✅ RESTE DU CODE INCHANGÉ...
+  
   handleJoystickInput(input) {
     if (this.movementBlockHandler && this.movementBlockHandler.isMovementBlocked()) {
       this.movementBlockHandler.validateMovement();
@@ -325,12 +602,14 @@ export class InputManager {
     else { if (this.mobileJoystick.isActive) this.hideJoystick(); else this.showJoystick(); }
   }
   repositionJoystick(x, y) { if (this.mobileJoystick) this.mobileJoystick.setPosition(x, y); }
+  
   handleResize() {
     if (this.mobileJoystick && this.isMobile) {
       const camera = this.scene.cameras.main;
       this.repositionJoystick(120, camera.height - 120);
     }
   }
+  
   forceStopMovement(reason = 'system') {
     console.log(`🛑 Force arrêt mouvement: ${reason}`);
     this.resetMovement();
@@ -338,10 +617,12 @@ export class InputManager {
       this.movementBlockHandler.validateMovement();
     }
   }
+  
   areInputsEnabled() {
     const blockHandlerBlocked = this.movementBlockHandler ? this.movementBlockHandler.isMovementBlocked() : false;
-    return !blockHandlerBlocked && !this.forceStop;
+    return !blockHandlerBlocked && !this.forceStop && this.isWindowFocused;
   }
+  
   getStatus() {
     return {
       forceStop: this.forceStop,
@@ -353,9 +634,13 @@ export class InputManager {
       joystickActive: this.mobileJoystick?.isActive || false,
       movementBlockHandlerReady: this.movementBlockHandlerReady,
       movementBlockHandlerConnectionAttempts: this.movementBlockHandlerConnectionAttempts,
-      hasMovementBlockHandlerReference: !!this._movementBlockHandler
+      hasMovementBlockHandlerReference: !!this._movementBlockHandler,
+      isWindowFocused: this.isWindowFocused,
+      pendingReset: this.pendingReset
     };
   }
+
+  // ✅ Méthodes de test et debug inchangées...
   forceConnectMovementBlockHandler() {
     console.log(`🔧 [InputManager] Force connexion MovementBlockHandler...`);
     this.movementBlockHandlerConnectionAttempts = 0;
@@ -370,6 +655,7 @@ export class InputManager {
       return false;
     }
   }
+
   testMovementBlockHandlerConnection() {
     console.log(`🧪 [InputManager] Test connexion MovementBlockHandler...`);
     const status = {
@@ -392,11 +678,48 @@ export class InputManager {
     console.log(`📊 [InputManager] Status test:`, status);
     return status;
   }
-  destroy() {
+
+  /**
+   * ✅ MÉTHODE MODIFIÉE: Nettoyage sécurisé
+   */
+  cleanupInputs() {
+    console.log('🧹 Nettoyage des inputs...');
+    
+    // ✅ Nettoyer le joystick mobile
     if (this.mobileJoystick) {
-      this.mobileJoystick.destroy();
+      try {
+        this.mobileJoystick.destroy();
+      } catch (error) {
+        console.warn('⚠️ Erreur destruction joystick:', error);
+      }
       this.mobileJoystick = null;
     }
+    
+    // ✅ Reset des références
+    this.cursors = null;
+    this.wasdKeys = null;
+    
+    console.log('✅ Inputs nettoyés');
+  }
+
+  /**
+   * ✅ MÉTHODE MODIFIÉE: Destruction sécurisée
+   */
+  destroy() {
+    console.log('🧹 Destruction InputManager...');
+    
+    // ✅ Retirer les événements window
+    if (this.handleWindowBlur) {
+      window.removeEventListener('blur', this.handleWindowBlur);
+      window.removeEventListener('focus', this.handleWindowFocus);
+      window.removeEventListener('contextmenu', this.handleContextMenu);
+      window.removeEventListener('mousedown', this.handleMouseDown);
+    }
+    
+    // ✅ Nettoyer les inputs
+    this.cleanupInputs();
+    
+    // ✅ Reset des propriétés
     this._movementBlockHandler = null;
     this.movementBlockHandlerReady = false;
     this.movementBlockHandlerConnectionAttempts = 0;
@@ -404,8 +727,10 @@ export class InputManager {
     this.currentMovement = {
       x: 0, y: 0, isMoving: false, direction: null, source: null
     };
-    console.log('⌨️ InputManager destroyed');
+    
+    console.log('✅ InputManager détruit');
   }
+
   debug() {
     console.log('🔍 === DEBUG INPUT MANAGER ===');
     console.log('📊 Status général:', this.getStatus());
@@ -425,6 +750,10 @@ export class InputManager {
       ready: this.movementBlockHandlerReady,
       attempts: this.movementBlockHandlerConnectionAttempts,
       blocked: this.movementBlockHandler ? this.movementBlockHandler.isMovementBlocked() : 'N/A'
+    });
+    console.log('🪟 Window State:', {
+      focused: this.isWindowFocused,
+      pendingReset: this.pendingReset
     });
     console.log('================================');
   }
