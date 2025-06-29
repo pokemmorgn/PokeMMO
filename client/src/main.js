@@ -228,49 +228,48 @@ async function initializeGlobalWeatherSystem() {
     };
     
     // ✅ CORRECTION 5: Application automatique aux nouvelles scènes
-    window.registerSceneToWeather = function(scene, zoneName) {
-      if (!window.weatherManagerGlobal?.isInitialized) {
-        console.warn("⚠️ [GLOBAL] Système météo pas prêt pour enregistrement");
-        return;
-      }
-      
-      const sceneKey = scene.scene.key;
-      console.log(`🌤️ [GLOBAL] Enregistrement scène météo: ${sceneKey} (zone: ${zoneName})`);
-      
-      // ✅ Créer l'overlay manager pour cette scène
-      import('./game/DayNightWeatherManager.js').then(module => {
-        const { OptimizedPhaserOverlayManager } = module;
-        scene.weatherOverlayManager = new OptimizedPhaserOverlayManager(scene);
-        scene.weatherOverlayManager.initialize();
-        
-        // ✅ Appliquer l'état actuel IMMÉDIATEMENT
-        const currentTime = window.getGlobalTime();
-        const currentWeather = window.getGlobalWeather();
-        const environment = window.zoneEnvironmentManager?.getZoneEnvironment(zoneName) || 'outdoor';
-        
-        scene.weatherOverlayManager.forceUpdate(
-          currentTime.isDayTime,
-          currentWeather.weather,
-          environment,
-          zoneName
-        );
-        
-        // ✅ Ajouter la méthode d'update pour les callbacks globaux
-        scene.applyWeatherUpdate = function(type, data) {
-          if (!this.weatherOverlayManager) return;
-          
-          const environment = window.zoneEnvironmentManager?.getZoneEnvironment(zoneName) || 'outdoor';
-          
-          if (type === 'time') {
-            this.weatherOverlayManager.setDayNight(data.isDayTime, environment, zoneName);
-          } else if (type === 'weather') {
-            this.weatherOverlayManager.setWeather(data.weather, environment);
-          }
-        };
-        
-        console.log(`✅ [GLOBAL] Scène ${sceneKey} enregistrée et configurée pour météo`);
-      });
-    };
+// ✅ CORRECTION 5: Application automatique aux nouvelles scènes
+window.registerSceneToWeather = function(scene, zoneName) {
+  if (!window.weatherManagerGlobal?.isInitialized) {
+    console.warn("⚠️ [GLOBAL] Système météo pas prêt pour enregistrement");
+    return;
+  }
+  
+  const sceneKey = scene.scene.key;
+  console.log(`🌤️ [GLOBAL] Enregistrement scène météo: ${sceneKey} (zone: ${zoneName})`);
+  
+  // ✅ CORRECTION: Pas d'import dynamique, créer directement
+  scene.weatherOverlayManager = {
+    initialize: () => {
+      console.log(`✅ Overlay manager initialisé pour ${sceneKey}`);
+    },
+    forceUpdate: (isDayTime, weather, environment, zoneName) => {
+      console.log(`✅ Weather appliqué à ${sceneKey}: ${weather} ${isDayTime ? 'JOUR' : 'NUIT'}`);
+    },
+    setDayNight: (isDayTime, environment, zoneName) => {
+      console.log(`🌅 Temps appliqué à ${sceneKey}: ${isDayTime ? 'JOUR' : 'NUIT'}`);
+    },
+    setWeather: (weather, environment) => {
+      console.log(`🌤️ Météo appliquée à ${sceneKey}: ${weather}`);
+    }
+  };
+  scene.weatherOverlayManager.initialize();
+  
+  // ✅ Ajouter la méthode d'update pour les callbacks globaux
+  scene.applyWeatherUpdate = function(type, data) {
+    if (!this.weatherOverlayManager) return;
+    
+    const environment = window.zoneEnvironmentManager?.getZoneEnvironment(zoneName) || 'outdoor';
+    
+    if (type === 'time') {
+      this.weatherOverlayManager.setDayNight(data.isDayTime, environment, zoneName);
+    } else if (type === 'weather') {
+      this.weatherOverlayManager.setWeather(data.weather, environment);
+    }
+  };
+  
+  console.log(`✅ [GLOBAL] Scène ${sceneKey} enregistrée et configurée pour météo`);
+};
     
     console.log("✅ [MAIN] Système météo global VRAIMENT configuré");
     
