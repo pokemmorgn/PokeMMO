@@ -6,6 +6,7 @@ import { SceneRegistry } from './scenes/SceneRegistry.js';
 import { TimeService } from './services/TimeService.js';
 import { DayNightWeatherManagerPhaser } from './game/DayNightWeatherManager.js';
 import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
+import { ClientTimeWeatherManager } from './managers/ClientTimeWeatherManager.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
