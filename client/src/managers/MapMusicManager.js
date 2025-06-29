@@ -99,14 +99,9 @@ export class MapMusicManager {
         this.scene = scene;
         this.soundManager = scene.sound;
         
-        // 🔧 FIX: Forcer la re-vérification de la zone
+        // 🔧 FIX: NE PAS changer automatiquement - laisser integrateMusicToScene le faire
         const newZone = this.extractZoneFromSceneKey(scene.scene.key);
-        console.log(`🎯 [MapMusicManager] Zone extraite: ${newZone}`);
-        
-        // 🔧 FIX: Forcer le changement même si c'est la "même" zone
-        setTimeout(() => {
-          this.changeZoneMusic(newZone, true);
-        }, 200);
+        console.log(`🎯 [MapMusicManager] Zone extraite: ${newZone} (changement sera fait par integrateMusicToScene)`);
       }
       return;
     }
@@ -577,11 +572,24 @@ export function integrateMusicToScene(scene) {
   console.log(`🎯 [integrateMusicToScene] Zone extraite: ${zoneName}`);
   console.log(`🎵 [integrateMusicToScene] Changement FORCÉ pour: ${zoneName}`);
   
-  // 🔧 FIX: Délai plus long et force TOUJOURS
+  // 🔧 FIX: Délai plus long et vérification avant changement
   setTimeout(() => {
-    console.log(`🚀 [integrateMusicToScene] DÉCLENCHEMENT changement musique...`);
-    mapMusicManager.changeZoneMusic(zoneName, true); // TOUJOURS forcer
-  }, 300); // Délai plus long pour laisser le temps à la scène
+    console.log(`🚀 [integrateMusicToScene] VÉRIFICATION changement musique...`);
+    
+    // 🔧 FIX: Vérifier qu'on n'est pas déjà en train de jouer la bonne musique
+    const currentTrackKey = mapMusicManager.currentTrack?.key;
+    const expectedConfig = mapMusicManager.getMusicConfig(zoneName);
+    const expectedTrack = expectedConfig?.track;
+    
+    console.log(`🔍 [integrateMusicToScene] Current: ${currentTrackKey}, Expected: ${expectedTrack}`);
+    
+    if (currentTrackKey !== expectedTrack || !mapMusicManager.currentTrack?.isPlaying) {
+      console.log(`🎵 [integrateMusicToScene] CHANGEMENT NÉCESSAIRE: ${currentTrackKey} → ${expectedTrack}`);
+      mapMusicManager.changeZoneMusic(zoneName, true);
+    } else {
+      console.log(`✅ [integrateMusicToScene] Musique déjà correcte: ${currentTrackKey}`);
+    }
+  }, 400); // Délai plus long pour laisser le temps à la scène
   
   scene.events.once('shutdown', () => {
     console.log(`🧹 [integrateMusicToScene] Scene shutdown: ${scene.scene.key}`);
