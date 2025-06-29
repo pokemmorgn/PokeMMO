@@ -173,9 +173,6 @@ async function initializeGlobalWeatherSystem() {
   console.log("🌤️ [MAIN] === INITIALISATION SYSTÈME MÉTÉO GLOBAL OPTIMALE ===");
   
   try {
-    // ✅ IMPORT DYNAMIQUE du vrai DayNightWeatherManagerPhaser
-    const { DayNightWeatherManagerPhaser } = await import('./game/DayNightWeatherManager.js');
-    
     // ✅ CRÉER UN VRAI MANAGER GLOBAL (mode global = null pour scene)
     console.log("🌍 [MAIN] Création DayNightWeatherManagerPhaser global...");
     window.weatherManagerGlobal = new DayNightWeatherManagerPhaser(null);
@@ -218,6 +215,36 @@ async function initializeGlobalWeatherSystem() {
       // ✅ DÉLÉGUER au manager global
       scene.weatherManagerRef = window.weatherManagerGlobal;
       
+      // ✅ CRÉER L'OVERLAY MANAGER POUR LA SCÈNE
+      scene.weatherOverlayManager = {
+        initialize: () => {
+          console.log(`✅ Overlay manager initialisé pour ${sceneKey}`);
+        },
+        forceUpdate: (isDayTime, weather, environment, zoneName) => {
+          console.log(`✅ Weather appliqué à ${sceneKey}: ${weather} ${isDayTime ? 'JOUR' : 'NUIT'}`);
+        },
+        setDayNight: (isDayTime, environment, zoneName) => {
+          console.log(`🌅 Temps appliqué à ${sceneKey}: ${isDayTime ? 'JOUR' : 'NUIT'}`);
+        },
+        setWeather: (weather, environment) => {
+          console.log(`🌤️ Météo appliquée à ${sceneKey}: ${weather}`);
+        }
+      };
+      scene.weatherOverlayManager.initialize();
+      
+      // ✅ Ajouter la méthode d'update pour les callbacks globaux
+      scene.applyWeatherUpdate = function(type, data) {
+        if (!this.weatherOverlayManager) return;
+        
+        const environment = window.zoneEnvironmentManager?.getZoneEnvironment(zoneName) || 'outdoor';
+        
+        if (type === 'time') {
+          this.weatherOverlayManager.setDayNight(data.isDayTime, environment, zoneName);
+        } else if (type === 'weather') {
+          this.weatherOverlayManager.setWeather(data.weather, environment);
+        }
+      };
+      
       // ✅ SIGNALER le changement de zone au manager global
       window.weatherManagerGlobal.onZoneChanged(zoneName);
       
@@ -249,46 +276,6 @@ async function initializeGlobalWeatherSystem() {
     };
     
     console.log("✅ [MAIN] Système météo fallback configuré");
-  }
-}
-
-  // ✅ CORRECTION: Pas d'import dynamique, créer directement
-  scene.weatherOverlayManager = {
-    initialize: () => {
-      console.log(`✅ Overlay manager initialisé pour ${sceneKey}`);
-    },
-    forceUpdate: (isDayTime, weather, environment, zoneName) => {
-      console.log(`✅ Weather appliqué à ${sceneKey}: ${weather} ${isDayTime ? 'JOUR' : 'NUIT'}`);
-    },
-    setDayNight: (isDayTime, environment, zoneName) => {
-      console.log(`🌅 Temps appliqué à ${sceneKey}: ${isDayTime ? 'JOUR' : 'NUIT'}`);
-    },
-    setWeather: (weather, environment) => {
-      console.log(`🌤️ Météo appliquée à ${sceneKey}: ${weather}`);
-    }
-  };
-  scene.weatherOverlayManager.initialize();
-  
-  // ✅ Ajouter la méthode d'update pour les callbacks globaux
-  scene.applyWeatherUpdate = function(type, data) {
-    if (!this.weatherOverlayManager) return;
-    
-    const environment = window.zoneEnvironmentManager?.getZoneEnvironment(zoneName) || 'outdoor';
-    
-    if (type === 'time') {
-      this.weatherOverlayManager.setDayNight(data.isDayTime, environment, zoneName);
-    } else if (type === 'weather') {
-      this.weatherOverlayManager.setWeather(data.weather, environment);
-    }
-  };
-  
-  console.log(`✅ [GLOBAL] Scène ${sceneKey} enregistrée et configurée pour météo`);
-};
-    
-    console.log("✅ [MAIN] Système météo global VRAIMENT configuré");
-    
-  } catch (error) {
-    console.error("❌ [MAIN] Erreur initialisation système météo global:", error);
   }
 }
 
