@@ -62,7 +62,7 @@ import { InventorySystem } from './game/InventorySystem.js';
 import { initializeGameNotifications, showNotificationInstructions } from './notification.js';
 
 // === Import de l'intro
-import { PsyduckIntroManager } from './scenes/intros/PsyduckIntroManager.js;
+import { PsyduckIntroManager } from './scenes/intros/PsyduckIntroManager.js';
 // === Import du debug de notifications ===
 import './debug-notifications.js';
 
