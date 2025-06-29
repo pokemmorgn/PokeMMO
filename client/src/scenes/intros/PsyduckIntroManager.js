@@ -62,10 +62,10 @@ if (!anims.exists('psyduck_walk_up')) {
   anims.create({
     key: 'psyduck_walk_up',
     frames: [
-      { key, frame: 4 },
-      { key, frame: 5 },
-      { key, frame: 6 },
-      { key, frame: 7 }
+      { key, frame: 16 },
+      { key, frame: 17 },
+      { key, frame: 18 },
+      { key, frame: 19 }
     ],
     frameRate: 6,
     repeat: -1
@@ -77,10 +77,10 @@ if (!anims.exists('psyduck_walk_left')) {
   anims.create({
     key: 'psyduck_walk_left',
     frames: [
-      { key, frame: 12 },
-      { key, frame: 13 },
-      { key, frame: 14 },
-      { key, frame: 15 }
+      { key, frame: 24 },
+      { key, frame: 25 },
+      { key, frame: 26 },
+      { key, frame: 27 }
     ],
     frameRate: 6,
     repeat: -1
