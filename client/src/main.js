@@ -1518,3 +1518,32 @@ Tous les systèmes sont initialisés et prêts !
 🎲 Système d'encounters Pokémon intégré !
 ==============================
 `);
+
+// ✅ FONCTIONS DE TEST MÉTÉO GLOBAL
+window.quickWeatherDebug = function() {
+  console.log('⚡ === DEBUG RAPIDE MÉTÉO ===');
+  console.log('Global Manager:', !!window.weatherManagerGlobal);
+  console.log('Initialized:', window.weatherManagerGlobal?.isInitialized);
+  console.log('Active Scenes:', window.game?.scene?.getScenes(true)?.length || 0);
+  
+  if (!window.weatherManagerGlobal || !window.weatherManagerGlobal.isInitialized) {
+    console.log('🔧 Problème détecté - système météo pas prêt');
+  } else {
+    console.log('✅ Système météo global OK');
+  }
+};
+
+window.testGlobalWeather = function() {
+  if (!window.weatherManagerGlobal?.isInitialized) {
+    console.error('❌ Système météo global pas prêt');
+    return false;
+  }
+  
+  const currentTime = window.getGlobalTime();
+  const currentWeather = window.getGlobalWeather();
+  
+  console.log('⏰ Temps actuel:', currentTime);
+  console.log('🌦️ Météo actuelle:', currentWeather);
+  
+  return true;
+};
