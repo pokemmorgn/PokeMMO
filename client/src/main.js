@@ -278,7 +278,6 @@ async function initializeGlobalWeatherSystem() {
     console.log("✅ [MAIN] Système météo fallback configuré");
   }
 }
-
 // === CONFIG PHASER ===
 const config = {
   type: Phaser.AUTO,
@@ -416,6 +415,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
 
     // ✅ 5.5. INITIALISER LE SYSTÈME MÉTÉO GLOBAL
 console.log("🌤️ Initialisation du système météo global...");
+    
 await initializeGlobalWeatherSystem();
 console.log("✅ Système météo global initialisé");
 
