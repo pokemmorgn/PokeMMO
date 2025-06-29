@@ -36,7 +36,7 @@ this.importMap.set('lavandia', () => import('./zones/LavandiaScene.js'));
 this.importMap.set('lavandiaanalysis', () => import('./zones/LavandiaAnalysisScene.js'));
 this.importMap.set('lavandiabossroom', () => import('./zones/LavandiaBossRoomScene.js'));
 this.importMap.set('lavandiacelibitemple', () => import('./zones/LavandiaCelebiTempleScene.js'));
-this.importMap.set('lavandiaequipement', () => import('./zones/LavandiaEquipementScene.js'));
+this.importMap.set('lavandiaequipment', () => import('./zones/LavandiaEquipmentScene.js'));
 this.importMap.set('lavandiafurniture', () => import('./zones/LavandiaFurnitureScene.js'));
 this.importMap.set('lavandiahealingcenter', () => import('./zones/LavandiaHealingCenterScene.js'));
 this.importMap.set('lavandiahouse1', () => import('./zones/LavandiaHouse1Scene.js'));
@@ -157,7 +157,7 @@ this.importMap.set('lavandiashop', () => import('./zones/LavandiaShopScene.js'))
     'lavandiaanalysis': 'LavandiaAnalysisScene',
     'lavandiabossroom': 'LavandiaBossRoomScene',
     'lavandiacelibitemple': 'LavandiaCelebiTempleScene',
-    'lavandiaequipement': 'LavandiaEquipementScene',
+    'lavandiaequipment': 'LavandiaEquipmentScene',
     'lavandiafurniture': 'LavandiaFurnitureScene',
     'lavandiahealingcenter': 'LavandiaHealingCenterScene',
     'lavandiahouse1': 'LavandiaHouse1Scene',
@@ -202,7 +202,7 @@ this.importMap.set('lavandiashop', () => import('./zones/LavandiaShopScene.js'))
     'LavandiaAnalysisScene': 'lavandiaanalysis',
     'LavandiaBossRoomScene': 'lavandiabossroom',
     'LavandiaCelebiTempleScene': 'lavandiacelebitemple',
-    'LavandiaEquipementScene': 'lavandiaequipement',
+    'LavandiaEquipmentScene': 'lavandiaequipment',
     'LavandiaFurnitureScene': 'lavandiafurniture',
     'LavandiaHealingCenterScene': 'lavandiahealingcenter',
     'LavandiaHouse1Scene': 'lavandiahouse1',
