@@ -243,17 +243,18 @@ export class QuestIcon {
     });
 
     // ✅ FIX: Raccourci clavier Q corrigé pour éviter les conflits
-    document.addEventListener('keydown', (e) => {
-      // ✅ Vérifier que c'est bien la touche Q et pas dans un input
-      if (e.key.toLowerCase() === 'q' && 
-          !e.target.matches('input, textarea, [contenteditable]') &&
-          this.canOpenQuestJournal()) {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('📖 Touche Q pressée - ouverture journal des quêtes');
-        this.handleClick();
-      }
-    });
+document.addEventListener('keydown', (e) => {
+  // ✅ Utilise la touche "L" (et pas Q !)
+  if (e.key.toLowerCase() === 'l' && 
+      !e.target.matches('input, textarea, [contenteditable]') &&
+      this.canOpenQuestJournal()) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('📖 Touche L pressée - ouverture journal des quêtes');
+    this.handleClick();
+  }
+});
+
   }
 
   handleClick() {
