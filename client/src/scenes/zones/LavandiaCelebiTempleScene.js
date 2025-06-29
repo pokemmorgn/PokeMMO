@@ -2,7 +2,7 @@ import { BaseZoneScene } from './BaseZoneScene.js';
 
 export class LavandiaCelebiTempleScene extends BaseZoneScene {
   constructor() {
-    super('LavandiaCelebiTempleScene', 'lavandiacelibitemple');
+    super('LavandiaCelebiTempleScene', 'lavandiacelebitemple');
     this.transitionCooldowns = {};
   }
 
