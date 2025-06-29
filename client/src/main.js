@@ -90,58 +90,6 @@ if (!username) {
 }
 window.username = username;
 
-// ✅ FONCTION D'INITIALISATION MÉTÉO GLOBAL
-async function initializeGlobalWeatherSystem() {
-  console.log("🌤️ [MAIN] === INITIALISATION SYSTÈME MÉTÉO GLOBAL ===");
-  
-  try {
-    // Créer le système météo global simple
-    window.weatherManagerGlobal = {
-      isInitialized: true,
-      globalMode: true,
-      timeWeatherManager: {
-        getCurrentWeather: () => ({ weather: 'clear', displayName: 'Ciel dégagé' }),
-        getCurrentTime: () => ({ hour: 12, isDayTime: true })
-      },
-      initialize: () => {
-        console.log("✅ Weather manager initialisé");
-        return true;
-      }
-    };
-    
-    // Fonctions utilitaires
-    window.getGlobalWeather = function() {
-      return { weather: 'clear', displayName: 'Ciel dégagé' };
-    };
-    
-    window.getGlobalTime = function() {
-      return { hour: 12, isDayTime: true };
-    };
-    
-    // Fonction d'enregistrement des scènes
-    window.registerSceneToWeather = function(scene, zoneName) {
-      if (!window.weatherManagerGlobal?.isInitialized) {
-        console.warn("⚠️ [GLOBAL] Système météo pas prêt pour enregistrement");
-        return;
-      }
-      
-      const sceneKey = scene.scene.key;
-      console.log(`🌤️ [GLOBAL] Enregistrement scène météo: ${sceneKey} (zone: ${zoneName})`);
-      
-      scene.weatherOverlayManager = {
-        initialize: () => {},
-        forceUpdate: () => console.log(`✅ Weather appliqué à ${sceneKey}`)
-      };
-      
-      console.log(`✅ [GLOBAL] Scène ${sceneKey} enregistrée et configurée pour météo`);
-    };
-    
-    console.log("✅ [MAIN] Système météo global configuré");
-    
-  } catch (error) {
-    console.error("❌ [MAIN] Erreur initialisation système météo global:", error);
-  }
-}
 
 // ✅ NOUVEAU: Fonction d'initialisation du système de scènes
 async function initializeSceneSystem() {
