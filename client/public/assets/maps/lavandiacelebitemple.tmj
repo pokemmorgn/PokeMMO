@@ -179,7 +179,7 @@
                         {
                          "name":"targetspawn",
                          "type":"string",
-                         "value":"fromcelebitemple"
+                         "value":"fromlavandiacelebitemple"
                         }, 
                         {
                          "name":"targetzone",
@@ -207,7 +207,7 @@
                         {
                          "name":"targetzone",
                          "type":"string",
-                         "value":"celebitemple"
+                         "value":"lavandiacelebitemple"
                         }],
                  "rotation":0,
                  "type":"",
