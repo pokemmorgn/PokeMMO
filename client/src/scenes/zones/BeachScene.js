@@ -126,35 +126,29 @@ export class BeachScene extends BaseZoneScene {
   console.log(`📍 [BeachScene] Joueur positionné: ${player.name} à (${player.x}, ${player.y})`);
   console.log(`🔍 [BeachScene] Données init:`, initData);
   
-  // ✅ LOGIQUE SIMPLE: Si pas de transition ET position par défaut = nouveau joueur
+  // ✅ LOGIQUE SIMPLE: Si pas de transition ET pas de données de sauvegarde = nouveau joueur
   if (!this._introTriggered && !initData?.fromZone) {
     
-    // Vérifier si c'est un nouveau joueur en regardant les coordonnées
-    const isDefaultPosition = (player.x === 360 && player.y === 120) || 
-                             (player.x === 300 && player.y === 300);
-    
-    // Ou vérifier si aucune donnée de sauvegarde
+    // Vérifier si aucune donnée de sauvegarde
     const hasNoSaveData = !initData?.lastMap && !initData?.lastX && !initData?.lastY;
     
-    const isNewPlayer = isDefaultPosition || hasNoSaveData;
-    
     console.log(`🔍 [BeachScene] Détection nouveau joueur:`, {
-      isDefaultPosition,
       hasNoSaveData,
-      isNewPlayer,
-      coordinates: { x: player.x, y: player.y },
+      lastMap: initData?.lastMap,
+      lastX: initData?.lastX,
+      lastY: initData?.lastY,
       initData: initData
     });
     
-    if (isNewPlayer) {
+    if (hasNoSaveData) {
       this._introTriggered = true;
-      console.log("🆕 [BeachScene] NOUVEAU JOUEUR DÉTECTÉ - intro Psyduck!");
+      console.log("🆕 [BeachScene] NOUVEAU JOUEUR DÉTECTÉ (pas de données save) - intro Psyduck!");
       
       this.time.delayedCall(1500, () => {
         this.startPsyduckIntro();
       });
     } else {
-      console.log("👤 [BeachScene] Joueur existant - pas d'intro");
+      console.log("👤 [BeachScene] Joueur existant (données save trouvées) - pas d'intro");
     }
   }
 }
