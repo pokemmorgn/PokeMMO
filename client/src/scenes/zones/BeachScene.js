@@ -2,6 +2,8 @@
 // BeachScene.js - Beach + Intro automatique (sans starter automatique)
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
+import { PsyduckIntroManager } from '../intros/PsyduckIntroManager.js';
+
 
 // === Mini-manager pour spritesheets Pokémon 2x4 (27x27px) ===
 class PokemonSpriteManager {
@@ -65,11 +67,15 @@ export class BeachScene extends BaseZoneScene {
     this.pokemonSpriteManager = null;
     this._introBlocked = false;
     this._introTriggered = false;
+    this.psyduckIntroManager = null;
+
   }
 
   async create() {
     super.create();
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
+    this.psyduckIntroManager = new PsyduckIntroManager(this);
+
     this.setupBeachEvents();
   }
 
@@ -104,13 +110,20 @@ export class BeachScene extends BaseZoneScene {
     if (!this._introTriggered && !initData?.fromZone) {
       this._introTriggered = true;
       this.time.delayedCall(1500, () => {
-        // this.startIntroSequence(player); // Décommente si tu veux l'intro auto
+this.startPsyduckIntro();
       });
     }
   }
 
   // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
   onPlayerPositioned(player, initData) {
+    startPsyduckIntro() {
+  if (this.psyduckIntroManager) {
+    this.psyduckIntroManager.startIntro(() => {
+      console.log("✅ Intro Psyduck terminée");
+    });
+  }
+}
     // Logique spécifique à BeachScene si nécessaire
     console.log(`[BeachScene] Joueur positionné à (${player.x}, ${player.y})`);
   }
@@ -231,6 +244,10 @@ export class BeachScene extends BaseZoneScene {
   cleanup() {
     this.transitionCooldowns = {};
     this._introTriggered = false;
+    if (this.psyduckIntroManager) {
+  this.psyduckIntroManager.destroy();
+  this.psyduckIntroManager = null;
+}
     super.cleanup();
   }
 }
