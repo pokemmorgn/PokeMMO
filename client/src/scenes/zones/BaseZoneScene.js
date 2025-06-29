@@ -11,10 +11,8 @@ import { InventorySystem } from "../../game/InventorySystem.js";
 import { InteractionManager } from "../../game/InteractionManager.js";
 import { TransitionIntegration } from '../../transitions/TransitionIntegration.js';
 import { integrateShopToScene } from "../../game/ShopIntegration.js";
-import { DayNightWeatherManager } from "../../game/DayNightWeatherManager.js";
 import { CharacterManager } from "../../game/CharacterManager.js";
 import { zoneEnvironmentManager } from "../../managers/ZoneEnvironmentManager.js";
-import { WeatherEffects } from "../../effects/WeatherEffects.js";
 // 🆕 NOUVEAU: Import du ClientEncounterManager
 import { ClientEncounterManager } from "../../managers/EncounterManager.js";
 // 🔒 MODIFIÉ: Import pour MovementBlockHandler
@@ -37,11 +35,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.lastMoveTime = 0;
     this.lastStopTime = 0;
     this.myPlayerReady = false;
-    this.dayNightWeatherManager = null;
-    this.currentEnvironment = null;
-    this.environmentInitialized = false;
-    this.weatherEffects = null;
-    this.weatherInitialized = false;
+    this.globalWeatherManager = null;
+    this.weatherSystemType = null; // 'global', 'fallback'
     
     // Inventaire
     this.inventorySystem = null;
@@ -289,11 +284,6 @@ create() {
       const zoneName = this.normalizeZoneName(this.scene.key);
       console.log(`🌍 [${this.scene.key}] Application météo finale pour: ${zoneName}`);
       
-      if (this.dayNightWeatherManager) {
-        // ✅ Force l'application immédiate
-        this.dayNightWeatherManager.forceImmediateWeatherApplication(zoneName);
-      }
-    }, 1200);
     // 5. Système d'équipe
     setTimeout(() => {
       // ✅ UTILISER LA FONCTION GLOBALE COMME L'INVENTAIRE
@@ -557,151 +547,160 @@ handleWildEncounter(data) {
 // ✅ DANS BaseZoneScene.js - REMPLACE initializeTimeWeatherSystem() par :
 
 initializeTimeWeatherSystem() {
-  console.log(`🌍 [${this.scene.key}] === INIT SYSTÈME MÉTÉO AVEC ATTENTE ===`);
+  console.log(`🌍 [${this.scene.key}] === CONNEXION AU SYSTÈME MÉTÉO GLOBAL ===`);
 
-  // ✅ FONCTION D'ATTENTE du système météo global
-  const waitForWeatherSystem = (attempts = 0, maxAttempts = 10) => {
-    console.log(`🔍 [${this.scene.key}] Tentative ${attempts + 1}/${maxAttempts} - Vérification météo...`);
-    
-    if (window.weatherManagerGlobal && window.weatherManagerGlobal.isInitialized) {
-      console.log(`✅ [${this.scene.key}] Système météo global trouvé !`);
-      this.setupWeatherForScene();
-      return;
-    }
-    
-    if (attempts < maxAttempts) {
-      console.log(`⏳ [${this.scene.key}] Système météo pas prêt, retry dans 200ms...`);
-      setTimeout(() => {
-        waitForWeatherSystem(attempts + 1, maxAttempts);
-      }, 200);
-    } else {
-      console.error(`❌ [${this.scene.key}] Timeout attente système météo - mode dégradé`);
-      this.setupWeatherFallback();
-    }
-  };
-
-  // ✅ INITIALISER ENVIRONNEMENT LOCAL D'ABORD
-  if (!this.environmentInitialized) {
-    this.initializeZoneEnvironment();
+  // ✅ VÉRIFIER QUE LE SYSTÈME GLOBAL EXISTE
+  if (!window.globalWeatherManager) {
+    console.error(`❌ [${this.scene.key}] GlobalWeatherManager manquant!`);
+    this.setupWeatherFallback();
+    return;
   }
 
-  // ✅ LANCER L'ATTENTE
-  waitForWeatherSystem();
+  if (!window.globalWeatherManager.isInitialized) {
+    console.warn(`⚠️ [${this.scene.key}] GlobalWeatherManager pas encore initialisé, attente...`);
+    
+    // Attendre jusqu'à 5 secondes
+    this.waitForGlobalWeatherSystem(0, 25); // 25 x 200ms = 5 secondes
+    return;
+  }
+
+  // ✅ ENREGISTRER CETTE SCÈNE DANS LE SYSTÈME GLOBAL
+  this.connectToGlobalWeatherSystem();
 }
 
-// ✅ NOUVELLE MÉTHODE: Setup météo quand système prêt
-setupWeatherForScene() {
+waitForGlobalWeatherSystem(attempts, maxAttempts) {
+  if (attempts >= maxAttempts) {
+    console.error(`❌ [${this.scene.key}] Timeout attente système météo global - fallback`);
+    this.setupWeatherFallback();
+    return;
+  }
+
+  console.log(`⏳ [${this.scene.key}] Attente système météo global... (${attempts + 1}/${maxAttempts})`);
+
+  setTimeout(() => {
+    if (window.globalWeatherManager?.isInitialized) {
+      console.log(`✅ [${this.scene.key}] Système météo global prêt!`);
+      this.connectToGlobalWeatherSystem();
+    } else {
+      this.waitForGlobalWeatherSystem(attempts + 1, maxAttempts);
+    }
+  }, 200);
+}
+
+connectToGlobalWeatherSystem() {
   try {
-    console.log(`🌤️ [${this.scene.key}] Configuration météo pour scène...`);
-    
-    // ✅ RÉFÉRENCE AU MANAGER GLOBAL
-    this.dayNightWeatherManager = window.weatherManagerGlobal;
-    
-    // ✅ ENREGISTREMENT AVEC LE SYSTÈME GLOBAL
     const zoneName = this.normalizeZoneName(this.scene.key);
     
-    if (typeof window.registerSceneToWeather === 'function') {
-      window.registerSceneToWeather(this, zoneName);
-      console.log(`✅ [${this.scene.key}] Enregistré dans système météo global`);
+    console.log(`🔗 [${this.scene.key}] Connexion au système météo global pour zone: ${zoneName}`);
+
+    // ✅ ENREGISTRER CETTE SCÈNE
+    const success = window.globalWeatherManager.registerScene(this, zoneName);
+    
+    if (success) {
+      // ✅ MARQUER COMME ACTIVE
+      window.globalWeatherManager.setActiveScene(this.scene.key);
+      
+      // ✅ STOCKER LA RÉFÉRENCE
+      this.globalWeatherManager = window.globalWeatherManager;
+      this.weatherSystemType = 'global';
+      
+      console.log(`✅ [${this.scene.key}] Connecté au système météo global`);
+      
+      // ✅ INITIALISER L'ENVIRONNEMENT LOCAL
+      this.initializeZoneEnvironment();
+      
     } else {
-      console.warn(`⚠️ [${this.scene.key}] Fonction registerSceneToWeather manquante`);
-      // Fallback manuel
-      this.dayNightWeatherManager.onZoneChanged(zoneName);
+      console.error(`❌ [${this.scene.key}] Échec enregistrement dans le système global`);
+      this.setupWeatherFallback();
     }
-    
-    console.log(`✅ [${this.scene.key}] Système météo configuré avec succès`);
-    
+
   } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur setup météo:`, error);
+    console.error(`❌ [${this.scene.key}] Erreur connexion système global:`, error);
     this.setupWeatherFallback();
   }
 }
 
-// ✅ NOUVELLE MÉTHODE: Fallback si système météo indisponible
 setupWeatherFallback() {
   console.log(`🔄 [${this.scene.key}] Configuration météo fallback...`);
   
-  // ✅ CRÉER UN SYSTÈME MINIMAL LOCAL
-  this.dayNightWeatherManager = {
+  // ✅ SYSTÈME MINIMAL LOCAL
+  this.globalWeatherManager = {
     isInitialized: true,
-    localFallback: true,
+    fallbackMode: true,
     getCurrentTime: () => ({ hour: 12, isDayTime: true }),
     getCurrentWeather: () => ({ weather: 'clear', displayName: 'Ciel dégagé' }),
+    registerScene: () => false,
+    setActiveScene: () => {},
     onZoneChanged: (zone) => console.log(`🌤️ [FALLBACK] Zone changée: ${zone}`)
   };
+  
+  this.weatherSystemType = 'fallback';
+  this.initializeZoneEnvironment();
   
   console.log(`✅ [${this.scene.key}] Météo fallback configurée`);
 }
 
-// ✅ MODIFIER AUSSI onZoneChanged pour être plus robuste :
 onZoneChanged(newZoneName) {
   console.log(`🌍 [${this.scene.key}] Zone changée: ${newZoneName}`);
   
-  // ✅ VÉRIFIER SI ON A UN SYSTÈME MÉTÉO
-  if (this.dayNightWeatherManager && typeof this.dayNightWeatherManager.onZoneChanged === 'function') {
-    this.dayNightWeatherManager.onZoneChanged(newZoneName);
-    console.log(`✅ [${this.scene.key}] Changement de zone transmis au système météo`);
-  } else {
-    console.warn(`⚠️ [${this.scene.key}] Pas de système météo pour notifier le changement`);
+  // ✅ NOTIFIER LE SYSTÈME GLOBAL
+  if (this.globalWeatherManager && typeof this.globalWeatherManager.onZoneChanged === 'function') {
+    this.globalWeatherManager.onZoneChanged(newZoneName);
+  }
+  
+  // ✅ OU UTILISER LA FONCTION GLOBALE
+  if (typeof window.onWeatherZoneChanged === 'function') {
+    window.onWeatherZoneChanged(newZoneName);
   }
 }
 
-// ✅ MÉTHODE DE DEBUG MÉTÉO AMÉLIORÉE :
 debugWeatherSystem() {
-  console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MÉTÉO SCÈNE ===`);
+  console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MÉTÉO GLOBAL ===`);
   
   const status = {
-    globalSystemExists: !!window.weatherManagerGlobal,
-    globalSystemInitialized: window.weatherManagerGlobal?.isInitialized || false,
-    localManagerRef: !!this.dayNightWeatherManager,
-    localManagerType: this.dayNightWeatherManager?.localFallback ? 'FALLBACK' : 'GLOBAL',
+    weatherSystemType: this.weatherSystemType || 'unknown',
+    hasGlobalManager: !!this.globalWeatherManager,
+    globalSystemExists: !!window.globalWeatherManager,
+    globalSystemInitialized: window.globalWeatherManager?.isInitialized || false,
     environment: this.currentEnvironment,
     zoneName: this.normalizeZoneName(this.scene.key),
-    registerFunction: typeof window.registerSceneToWeather
+    isRegistered: window.globalWeatherManager?.registeredScenes?.has(this.scene.key) || false,
+    isActive: window.globalWeatherManager?.activeScenes?.has(this.scene.key) || false
   };
   
   console.log(`📊 Status météo ${this.scene.key}:`, status);
-  
-  // ✅ DIAGNOSTIC AUTOMATIQUE
-  if (!status.globalSystemExists) {
-    console.log(`❌ Système météo global manquant`);
-    console.log(`💡 Solution: Attendre l'initialisation ou forcer avec setupWeatherFallback()`);
-  } else if (!status.globalSystemInitialized) {
-    console.log(`❌ Système météo global pas initialisé`);
-    console.log(`💡 Solution: Vérifier l'initialisation dans main.js`);
-  } else if (!status.localManagerRef) {
-    console.log(`❌ Pas de référence locale au système météo`);
-    console.log(`💡 Solution: Relancer initializeTimeWeatherSystem()`);
-  } else {
-    console.log(`✅ Système météo OK pour ${this.scene.key}`);
-  }
-  
   return status;
 }
+
+getCurrentTimeWeather() {
+  if (window.globalWeatherManager?.isInitialized) {
+    return {
+      time: window.globalWeatherManager.getCurrentTime(),
+      weather: window.globalWeatherManager.getCurrentWeather()
+    };
+  }
+  
+  // Fallback
+  return {
+    time: { hour: 12, isDayTime: true },
+    weather: { weather: 'clear', displayName: 'Ciel dégagé' }
+  };
+}
   // ✅ MÉTHODE INCHANGÉE: Initialiser l'environnement de la zone
-  initializeZoneEnvironment() {
+initializeZoneEnvironment() {
     const zoneName = this.normalizeZoneName(this.scene.key);
     this.currentEnvironment = zoneEnvironmentManager.getZoneEnvironment(zoneName);
     
     console.log(`🌍 [${this.scene.key}] Environnement détecté: ${this.currentEnvironment}`);
     
-    // ✅ NOUVEAU: Synchronisation immédiate si le système existe déjà
-    if (this.dayNightWeatherManager) {
-      this.dayNightWeatherManager.onZoneChanged(zoneName);
+    // Debug des informations d'environnement
+    if (this.debugMode) {  // ← AJOUTER cette condition
+        zoneEnvironmentManager.debugZoneEnvironment(zoneName);
     }
     
-    // Debug des informations d'environnement
-    zoneEnvironmentManager.debugZoneEnvironment(zoneName);
-    
     this.environmentInitialized = true;
-  }
-onZoneChanged(newZoneName) {
-  console.log(`🌍 [${this.scene.key}] Zone changée: ${newZoneName}`);
-  
-  // ✅ LE SYSTÈME GLOBAL GÈRE AUTOMATIQUEMENT LES CHANGEMENTS
-  console.log(`✅ [${this.scene.key}] Changement de zone géré par système global`);
 }
-  
+
   // ✅ MÉTHODE INCHANGÉE: Initialisation de l'InteractionManager
   initializeInteractionManager() {
     if (!this.networkManager) {
@@ -1271,6 +1270,16 @@ onZoneChanged(newZoneName) {
 
     console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
 
+    // AJOUTER JUSTE APRÈS :
+    // ✅ DÉSENREGISTRER DU SYSTÈME MÉTÉO GLOBAL
+    if (window.globalWeatherManager && this.scene.key) {
+      console.log(`🌤️ [${this.scene.key}] Désenregistrement du système météo global`);
+      window.globalWeatherManager.unregisterScene(this.scene.key);
+    }
+    
+    // ✅ NETTOYER LES RÉFÉRENCES LOCALES
+    this.globalWeatherManager = null;
+    this.weatherSystemType = null;
     const isTransition = this.networkManager && this.networkManager.isTransitionActive;
     
     if (!isTransition) {
@@ -1336,7 +1345,6 @@ onZoneChanged(newZoneName) {
       this.npcManager.clearAllNpcs();
     }
     
-this.dayNightWeatherManager = null;
     
     if (this.animatedObjects) {
       this.animatedObjects.clear(true, true);
@@ -1697,12 +1705,14 @@ this.time.delayedCall(300, () => {
     return { x: 100, y: 100 };
   }
 
-  onPlayerPositioned(player, initData) {
+onPlayerPositioned(player, initData) {
   console.log(`📍 [${this.scene.key}] Joueur positionné`);
   
-  // ✅ LA MÉTÉO EST DÉJÀ APPLIQUÉE AUTOMATIQUEMENT PAR LE SYSTÈME GLOBAL
-  const zoneName = this.normalizeZoneName(this.scene.key);
-  console.log(`✅ [${this.scene.key}] Météo globale active pour: ${zoneName}`);
+  // ✅ MARQUER CETTE SCÈNE COMME ACTIVE DANS LE SYSTÈME GLOBAL
+  if (this.globalWeatherManager && this.globalWeatherManager.setActiveScene) {
+    this.globalWeatherManager.setActiveScene(this.scene.key);
+    console.log(`🎯 [${this.scene.key}] Scène marquée comme active dans le système météo`);
+  }
 }
   
   // ✅ MÉTHODE MODIFIÉE: Setup des managers avec InteractionManager
@@ -2320,10 +2330,7 @@ this.time.delayedCall(300, () => {
       exists: !!this.interactionManager,
       shopSystem: !!this.interactionManager?.shopSystem
     });
-    
-    console.log(`🌍 DayNight:`, {
-      exists: !!this.dayNightWeatherManager
-    });
+
     
     console.log(`🎮 Network:`, {
       manager: !!this.networkManager,
@@ -2439,15 +2446,6 @@ this.time.delayedCall(300, () => {
     }
   }
 
-  getCurrentTimeWeather() {
-    if (this.dayNightWeatherManager) {
-      return {
-        time: this.dayNightWeatherManager.getCurrentTime(),
-        weather: this.dayNightWeatherManager.getCurrentWeather()
-      };
-    }
-    return null;
-  }
 
   // 🆕 NOUVELLES MÉTHODES UTILITAIRES POUR LES ENCOUNTERS
 
@@ -2497,6 +2495,57 @@ this.time.delayedCall(300, () => {
       blockMessage: movementBlockHandler.blockMessage
     };
   }
+
+    // AJOUTER ces méthodes après getCurrentMovementBlockInfo() :
+
+testGlobalWeatherConnection() {
+  console.log(`🧪 [${this.scene.key}] Test connexion système météo global...`);
+  
+  if (!window.globalWeatherManager?.isInitialized) {
+    console.error(`❌ [${this.scene.key}] Système météo global pas prêt`);
+    return false;
+  }
+  
+  try {
+    // Test des fonctions de base
+    const currentTime = window.globalWeatherManager.getCurrentTime();
+    const currentWeather = window.globalWeatherManager.getCurrentWeather();
+    
+    console.log(`⏰ Temps global:`, currentTime);
+    console.log(`🌦️ Météo globale:`, currentWeather);
+    
+    // Test de l'enregistrement de cette scène
+    const stats = window.globalWeatherManager.getStats();
+    console.log(`📊 Stats système global:`, stats);
+    
+    // Test de force update
+    window.globalWeatherManager.forceUpdate();
+    
+    console.log(`✅ [${this.scene.key}] Test connexion météo global réussi`);
+    return true;
+    
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur test météo global:`, error);
+    return false;
+  }
+}
+
+forceWeatherRefresh() {
+  console.log(`🔄 [${this.scene.key}] Force refresh météo...`);
+  
+  if (window.globalWeatherManager?.isInitialized) {
+    // Désenregistrer et re-enregistrer pour forcer un refresh
+    window.globalWeatherManager.unregisterScene(this.scene.key);
+    
+    setTimeout(() => {
+      this.connectToGlobalWeatherSystem();
+    }, 100);
+    
+  } else {
+    console.warn(`⚠️ [${this.scene.key}] Système global pas disponible pour refresh`);
+  }
+}
+    
 debugMusicSystem() {
     console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MUSIQUE ===`);
     
@@ -2560,36 +2609,23 @@ debugMusicSystem() {
 
   // ✅ NOUVELLES MÉTHODES DE DEBUG MÉTÉO
   debugWeatherSystem() {
-    console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MÉTÉO ===`);
-    
-    const status = {
-      globalSystemExists: !!window.weatherManagerGlobal,
-      globalSystemInitialized: window.weatherManagerGlobal?.isInitialized || false,
-      localManagerRef: !!this.dayNightWeatherManager,
-      environment: this.currentEnvironment,
-      zoneName: this.normalizeZoneName(this.scene.key)
-    };
-    
-    console.log(`📊 Status:`, status);
-    return status;
-  }
+  console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MÉTÉO GLOBAL ===`);
+  
+  const status = {
+    weatherSystemType: this.weatherSystemType || 'unknown',
+    hasGlobalManager: !!this.globalWeatherManager,
+    globalSystemExists: !!window.globalWeatherManager,
+    globalSystemInitialized: window.globalWeatherManager?.isInitialized || false,
+    environment: this.currentEnvironment,
+    zoneName: this.normalizeZoneName(this.scene.key),
+    isRegistered: window.globalWeatherManager?.registeredScenes?.has(this.scene.key) || false,
+    isActive: window.globalWeatherManager?.activeScenes?.has(this.scene.key) || false
+  };
+  
+  console.log(`📊 Status météo ${this.scene.key}:`, status);
+  return status;
+}
 
-  testGlobalWeather() {
-    console.log(`🧪 [${this.scene.key}] Test système météo global...`);
-    
-    if (!window.weatherManagerGlobal?.isInitialized) {
-      console.error(`❌ [${this.scene.key}] Système météo global pas prêt`);
-      return false;
-    }
-    
-    const currentTime = window.getGlobalTime();
-    const currentWeather = window.getGlobalWeather();
-    
-    console.log(`⏰ Temps actuel:`, currentTime);
-    console.log(`🌦️ Météo actuelle:`, currentWeather);
-    console.log(`✅ [${this.scene.key}] Test météo terminé`);
-    return true;
-  }
   
   // 🆕 MÉTHODES D'EXPOSITION GLOBALE POUR LE DEBUG
   exposeDebugFunctions() {
@@ -2613,7 +2649,11 @@ debugMusicSystem() {
       getMovementBlockInfo: () => this.getCurrentMovementBlockInfo(),
       getMovementBlockStatus: () => this.getMovementBlockSystemStatus(),
       forceMovementBlockInit: () => this.forceMovementBlockSystemInit(),
-      forceInputManagerInit: () => this.forceInputManagerInit()
+      forceInputManagerInit: () => this.forceInputManagerInit(),
+    debugWeather: () => this.debugWeatherSystem(),
+    testWeather: () => this.testGlobalWeatherConnection(),
+    forceWeatherRefresh: () => this.forceWeatherRefresh(),
+    getCurrentWeather: () => this.getCurrentTimeWeather()
     };
     
     console.log(`🔧 [${this.scene.key}] Fonctions debug exposées: window.debug_${this.scene.key}`);
