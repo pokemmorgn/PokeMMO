@@ -177,7 +177,7 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
         this.scene.start('LavandiaBossRoomScene');
         break;
       case 'lavandiacelebitemple':
-        this.scene.start('lavandiacelebitempleScene');
+        this.scene.start('LavandiaCelebiTempleScene');
         break;
       case 'lavandiaequipment':
         this.scene.start('LavandiaEquipmentScene');
