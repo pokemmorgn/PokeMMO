@@ -4,6 +4,7 @@ import { NetworkManager } from "./network/NetworkManager.js";
 import { setupTeamSystem } from './integration/teamIntegration.js';
 import { SceneRegistry } from './scenes/SceneRegistry.js';
 import { TimeService } from './services/TimeService.js';
+import { DayNightWeatherManagerPhaser } from './game/DayNightWeatherManager.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
@@ -167,6 +168,74 @@ async function initializeSceneSystem() {
   return registry;
 }
 
+// ✅ AJOUTER ICI: Fonction d'initialisation météo
+async function initializeGlobalWeatherSystem() {
+  console.log("🌤️ [MAIN] === INITIALISATION SYSTÈME MÉTÉO GLOBAL ===");
+  
+  try {
+    // ✅ Créer une instance globale (sans scène pour l'instant)
+    window.weatherManagerGlobal = new DayNightWeatherManagerPhaser(null);
+    
+    // ✅ L'initialiser avec le NetworkManager global
+    if (window.globalNetworkManager?.room) {
+      window.weatherManagerGlobal.initialize(window.globalNetworkManager);
+      console.log("✅ [MAIN] Système météo global connecté au réseau");
+    } else {
+      console.warn("⚠️ [MAIN] NetworkManager pas encore prêt pour météo");
+    }
+    
+    // ✅ Fonctions utilitaires globales
+    window.getGlobalWeather = function() {
+      if (!window.weatherManagerGlobal?.isInitialized) {
+        return { weather: 'clear', displayName: 'Ciel dégagé' };
+      }
+      return window.weatherManagerGlobal.timeWeatherManager.getCurrentWeather();
+    };
+    
+    window.getGlobalTime = function() {
+      if (!window.weatherManagerGlobal?.isInitialized) {
+        return { hour: 12, isDayTime: true };
+      }
+      return window.weatherManagerGlobal.timeWeatherManager.getCurrentTime();
+    };
+    
+    window.applyWeatherToScene = function(scene, zoneName) {
+      if (!window.weatherManagerGlobal?.isInitialized) {
+        console.warn("⚠️ [MAIN] Système météo global pas initialisé");
+        return;
+      }
+      
+      // ✅ Créer l'overlay manager pour cette scène si nécessaire
+      if (!scene.weatherOverlayManager) {
+        import('./game/DayNightWeatherManager.js').then(module => {
+          const { OptimizedPhaserOverlayManager } = module;
+          scene.weatherOverlayManager = new OptimizedPhaserOverlayManager(scene);
+          scene.weatherOverlayManager.initialize();
+          
+          // ✅ Appliquer l'état actuel
+          const currentTime = window.getGlobalTime();
+          const currentWeather = window.getGlobalWeather();
+          const environment = window.zoneEnvironmentManager?.getZoneEnvironment(zoneName) || 'outdoor';
+          
+          scene.weatherOverlayManager.forceUpdate(
+            currentTime.isDayTime,
+            currentWeather.weather,
+            environment,
+            zoneName
+          );
+          
+          console.log(`✅ [MAIN] Météo appliquée à ${scene.scene.key}: ${currentWeather.displayName}`);
+        });
+      }
+    };
+    
+    console.log("✅ [MAIN] Système météo global configuré");
+    
+  } catch (error) {
+    console.error("❌ [MAIN] Erreur initialisation système météo global:", error);
+  }
+}
+
 // === CONFIG PHASER ===
 const config = {
   type: Phaser.AUTO,
@@ -301,6 +370,12 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     console.log("- Room sessionId:", window.globalNetworkManager.room?.sessionId);
     console.log("- Room existe:", !!window.globalNetworkManager.room);
     console.log("- NetworkManager connecté:", window.globalNetworkManager.isConnected);
+
+    // ✅ 5.5. INITIALISER LE SYSTÈME MÉTÉO GLOBAL
+console.log("🌤️ Initialisation du système météo global...");
+await initializeGlobalWeatherSystem();
+console.log("✅ Système météo global initialisé");
+
     
     // ✅ 6. INITIALISER LE SYSTÈME DE SCÈNES AVANT PHASER
     console.log("🏗️ Initialisation du système de scènes...");
@@ -416,7 +491,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
         return null;
       }
     };
-
+    
     window.initTeamSystem = function(gameRoom) {
       console.log('⚔️ [MAIN] Initialisation du système d\'équipe...');
       
