@@ -5,6 +5,7 @@ import { setupTeamSystem } from './integration/teamIntegration.js';
 import { SceneRegistry } from './scenes/SceneRegistry.js';
 import { TimeService } from './services/TimeService.js';
 import { DayNightWeatherManagerPhaser } from './game/DayNightWeatherManager.js';
+import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
@@ -170,114 +171,118 @@ async function initializeSceneSystem() {
 }
 
 async function initializeGlobalWeatherSystem() {
-  console.log("🌤️ [MAIN] === INITIALISATION SYSTÈME MÉTÉO GLOBAL OPTIMALE ===");
+  console.log("🌤️ [MAIN] === INITIALISATION SYSTÈME MÉTÉO GLOBAL SIMPLE ===");
   
   try {
-    // ✅ CRÉER UN VRAI MANAGER GLOBAL (mode global = null pour scene)
-    console.log("🌍 [MAIN] Création DayNightWeatherManagerPhaser global...");
-    window.weatherManagerGlobal = new DayNightWeatherManagerPhaser(null);
+    // ✅ INITIALISER LE SYSTÈME GLOBAL
+    console.log("🌍 [MAIN] Initialisation GlobalWeatherManager...");
+    const success = await globalWeatherManager.initialize(window.globalNetworkManager);
     
-    // ✅ INITIALISER avec le NetworkManager global
-    if (window.globalNetworkManager && window.globalNetworkManager.isConnected) {
-      window.weatherManagerGlobal.initialize(window.globalNetworkManager);
-      console.log("✅ [MAIN] Système météo global VRAIMENT initialisé");
+    if (success) {
+      console.log("✅ [MAIN] GlobalWeatherManager initialisé avec succès");
+      
+      // ✅ EXPOSER GLOBALEMENT
+      window.globalWeatherManager = globalWeatherManager;
+      
+      // ✅ FONCTIONS UTILITAIRES GLOBALES
+      window.getGlobalWeather = function() {
+        return globalWeatherManager.getCurrentWeather();
+      };
+      
+      window.getGlobalTime = function() {
+        return globalWeatherManager.getCurrentTime();
+      };
+      
+      // ✅ FONCTION D'ENREGISTREMENT SIMPLIFIÉE
+      window.registerSceneToWeather = function(scene, zoneName) {
+        if (!globalWeatherManager.isInitialized) {
+          console.warn("⚠️ [GLOBAL] Système météo pas prêt pour enregistrement");
+          return false;
+        }
+        
+        console.log(`🌤️ [GLOBAL] Enregistrement scène météo: ${scene.scene.key} (zone: ${zoneName})`);
+        return globalWeatherManager.registerScene(scene, zoneName);
+      };
+      
+      // ✅ FONCTION DE CHANGEMENT DE ZONE
+      window.onWeatherZoneChanged = function(zoneName) {
+        globalWeatherManager.onZoneChanged(zoneName);
+      };
+      
+      // ✅ FONCTIONS DE DEBUG
+      window.debugGlobalWeather = function() {
+        globalWeatherManager.debug();
+      };
+      
+      window.forceWeatherUpdate = function() {
+        globalWeatherManager.forceUpdate();
+      };
+      
+      console.log("✅ [MAIN] Système météo global OPTIMAL configuré");
+      
     } else {
-      console.warn("⚠️ [MAIN] NetworkManager pas prêt, météo en mode dégradé");
-      // Mode dégradé sans réseau
-      window.weatherManagerGlobal.isInitialized = true;
+      throw new Error("Échec initialisation GlobalWeatherManager");
     }
-    
-    // ✅ FONCTIONS UTILITAIRES VRAIMENT GLOBALES
-    window.getGlobalWeather = function() {
-      if (!window.weatherManagerGlobal?.timeWeatherManager) {
-        return { weather: 'clear', displayName: 'Ciel dégagé' };
-      }
-      return window.weatherManagerGlobal.timeWeatherManager.getCurrentWeather();
-    };
-    
-    window.getGlobalTime = function() {
-      if (!window.weatherManagerGlobal?.timeWeatherManager) {
-        return { hour: 12, isDayTime: true };
-      }
-      return window.weatherManagerGlobal.timeWeatherManager.getCurrentTime();
-    };
-    
-    // ✅ FONCTION D'ENREGISTREMENT SIMPLIFIÉE
-    window.registerSceneToWeather = function(scene, zoneName) {
-      if (!window.weatherManagerGlobal?.isInitialized) {
-        console.warn("⚠️ [GLOBAL] Système météo pas prêt pour enregistrement");
-        return;
-      }
-      
-      const sceneKey = scene.scene.key;
-      console.log(`🌤️ [GLOBAL] Enregistrement scène météo: ${sceneKey} (zone: ${zoneName})`);
-      
-      // ✅ DÉLÉGUER au manager global
-      scene.weatherManagerRef = window.weatherManagerGlobal;
-      
-      // ✅ CRÉER L'OVERLAY MANAGER POUR LA SCÈNE
-      scene.weatherOverlayManager = {
-        initialize: () => {
-          console.log(`✅ Overlay manager initialisé pour ${sceneKey}`);
-        },
-        forceUpdate: (isDayTime, weather, environment, zoneName) => {
-          console.log(`✅ Weather appliqué à ${sceneKey}: ${weather} ${isDayTime ? 'JOUR' : 'NUIT'}`);
-        },
-        setDayNight: (isDayTime, environment, zoneName) => {
-          console.log(`🌅 Temps appliqué à ${sceneKey}: ${isDayTime ? 'JOUR' : 'NUIT'}`);
-        },
-        setWeather: (weather, environment) => {
-          console.log(`🌤️ Météo appliquée à ${sceneKey}: ${weather}`);
-        }
-      };
-      scene.weatherOverlayManager.initialize();
-      
-      // ✅ Ajouter la méthode d'update pour les callbacks globaux
-      scene.applyWeatherUpdate = function(type, data) {
-        if (!this.weatherOverlayManager) return;
-        
-        const environment = window.zoneEnvironmentManager?.getZoneEnvironment(zoneName) || 'outdoor';
-        
-        if (type === 'time') {
-          this.weatherOverlayManager.setDayNight(data.isDayTime, environment, zoneName);
-        } else if (type === 'weather') {
-          this.weatherOverlayManager.setWeather(data.weather, environment);
-        }
-      };
-      
-      // ✅ SIGNALER le changement de zone au manager global
-      window.weatherManagerGlobal.onZoneChanged(zoneName);
-      
-      console.log(`✅ [GLOBAL] Scène ${sceneKey} enregistrée pour météo`);
-    };
-    
-    console.log("✅ [MAIN] Système météo global OPTIMAL configuré");
     
   } catch (error) {
     console.error("❌ [MAIN] Erreur initialisation système météo global:", error);
     
     // ✅ FALLBACK SÉCURISÉ en cas d'erreur
-    window.weatherManagerGlobal = {
-      isInitialized: true,
-      globalMode: true,
-      timeWeatherManager: {
-        getCurrentWeather: () => ({ weather: 'clear', displayName: 'Ciel dégagé' }),
-        getCurrentTime: () => ({ hour: 12, isDayTime: true })
-      },
-      onZoneChanged: (zoneName) => {
-        console.log(`🌤️ [FALLBACK] Changement zone ignoré: ${zoneName}`);
-      }
+    window.globalWeatherManager = {
+      isInitialized: false,
+      error: error.message,
+      getCurrentWeather: () => ({ weather: 'clear', displayName: 'Ciel dégagé' }),
+      getCurrentTime: () => ({ hour: 12, isDayTime: true }),
+      registerScene: () => false,
+      onZoneChanged: () => {}
     };
     
     window.getGlobalWeather = () => ({ weather: 'clear', displayName: 'Ciel dégagé' });
     window.getGlobalTime = () => ({ hour: 12, isDayTime: true });
-    window.registerSceneToWeather = (scene, zoneName) => {
-      console.log(`🌤️ [FALLBACK] Enregistrement météo ignoré: ${zoneName}`);
-    };
+    window.registerSceneToWeather = () => false;
+    window.onWeatherZoneChanged = () => {};
     
     console.log("✅ [MAIN] Système météo fallback configuré");
   }
 }
+
+// ✅ NOUVELLES FONCTIONS DE DEBUG AMÉLIORES
+window.quickWeatherDebug = function() {
+  console.log('⚡ === DEBUG RAPIDE MÉTÉO GLOBAL ===');
+  
+  if (window.globalWeatherManager) {
+    const stats = window.globalWeatherManager.getStats();
+    console.log('📊 Stats:', stats);
+    
+    if (stats.isInitialized) {
+      console.log('✅ Système météo global OK');
+      console.log('🕐 Temps:', window.getGlobalTime());
+      console.log('🌤️ Météo:', window.getGlobalWeather());
+    } else {
+      console.log('❌ Système météo global pas initialisé');
+    }
+  } else {
+    console.log('❌ GlobalWeatherManager manquant');
+  }
+};
+
+window.testGlobalWeather = function() {
+  if (!window.globalWeatherManager?.isInitialized) {
+    console.error('❌ Système météo global pas prêt');
+    return false;
+  }
+  
+  const currentTime = window.getGlobalTime();
+  const currentWeather = window.getGlobalWeather();
+  
+  console.log('⏰ Temps actuel:', currentTime);
+  console.log('🌦️ Météo actuelle:', currentWeather);
+  
+  // Test de forçage d'update
+  window.forceWeatherUpdate();
+  
+  return true;
+};
 // === CONFIG PHASER ===
 const config = {
   type: Phaser.AUTO,
