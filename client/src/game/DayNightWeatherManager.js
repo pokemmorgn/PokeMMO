@@ -68,35 +68,45 @@ export class OptimizedPhaserOverlayManager {
   return 'low';
 }
 
-  initialize() {
-    console.log(`🎨 [PhaserOverlay] Création overlay combiné...`);
-    
+ initialize() {
+  console.log(`🎨 [PhaserOverlay] Initialisation overlay manager...`);
+  
+  if (this.globalMode) {
+    console.log(`🌍 [PhaserOverlay] Mode global - pas d'overlay direct`);
+  } else {
     this.createCombinedOverlay();
-    this.precacheCommonColors();
-    
-    console.log(`✅ [PhaserOverlay] Overlay combiné créé`);
   }
+  
+  this.precacheCommonColors();
+  
+  console.log(`✅ [PhaserOverlay] Overlay manager initialisé`);
+}
 
   createCombinedOverlay() {
-    const camera = this.scene.cameras.main;
-    
-    this.combinedOverlay = this.scene.add.rectangle(
-      camera.centerX,
-      camera.centerY,
-      camera.width,
-      camera.height,
-      0x000044,
-      0
-    );
-    
-    this.combinedOverlay.setDepth(9998);
-    this.combinedOverlay.setScrollFactor(0);
-    this.combinedOverlay.setOrigin(0.5, 0.5);
-    this.combinedOverlay.setInteractive(false);
-    
-    console.log(`🌙 [PhaserOverlay] Overlay combiné créé`);
+  // ✅ CORRECTION: Ne pas créer d'overlay en mode global
+  if (this.globalMode || !this.scene) {
+    console.log(`🌤️ [PhaserOverlay] Mode global - pas d'overlay direct`);
+    return;
   }
-
+  
+  const camera = this.scene.cameras.main;
+  
+  this.combinedOverlay = this.scene.add.rectangle(
+    camera.centerX,
+    camera.centerY,
+    camera.width,
+    camera.height,
+    0x000044,
+    0
+  );
+  
+  this.combinedOverlay.setDepth(9998);
+  this.combinedOverlay.setScrollFactor(0);
+  this.combinedOverlay.setOrigin(0.5, 0.5);
+  this.combinedOverlay.setInteractive(false);
+  
+  console.log(`🌙 [PhaserOverlay] Overlay combiné créé`);
+}
   precacheCommonColors() {
     const commonColors = {
       'day-clear-outdoor': { color: 0x000044, alpha: 0 },
