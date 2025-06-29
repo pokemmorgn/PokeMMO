@@ -106,14 +106,21 @@ export class BeachScene extends BaseZoneScene {
     // ✅ AMÉLIORATION: Utiliser la méthode parent avec position par défaut
     super.positionPlayer(player);
 
-    // 🎬 Déclencher l'intro automatiquement (seulement si pas déjà fait)
-    if (!this._introTriggered && !initData?.fromZone) {
-      this._introTriggered = true;
-      this.time.delayedCall(1500, () => {
-this.startPsyduckIntro();
-      });
-    }
+    // 🎬 Déclencher l'intro Psyduck SEULEMENT pour nouveaux joueurs
+if (!this._introTriggered && !initData?.fromZone) {
+  this._introTriggered = true;
+  
+  const isNewPlayer = initData?.isNewPlayer || false;
+  
+  if (isNewPlayer) {
+    console.log("🆕 [BeachScene] Nouveau joueur détecté - intro Psyduck activée");
+    this.time.delayedCall(1500, () => {
+      this.startPsyduckIntro();
+    });
+  } else {
+    console.log("👤 [BeachScene] Joueur existant - pas d'intro");
   }
+}
 
   // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
   onPlayerPositioned(player, initData) {
