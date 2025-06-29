@@ -78,7 +78,24 @@ export class BeachScene extends BaseZoneScene {
 
     this.setupBeachEvents();
   }
-
+// Écouter les infos spécifiques à la zone depuis le serveur
+if (this.gameNetworking) {
+  this.gameNetworking.onMessage("zoneJoinInfo", (data) => {
+    console.log("📨 [BeachScene] Zone join info reçue:", data);
+    
+    // Vérifier si c'est pour cette zone et si c'est un nouveau joueur
+    if (data.zone === 'beach' && data.isNewPlayer && !this._introTriggered) {
+      this._introTriggered = true;
+      console.log("🆕 [BeachScene] Nouveau joueur confirmé via zoneJoinInfo - intro Psyduck");
+      
+      this.time.delayedCall(1500, () => {
+        this.startPsyduckIntro();
+      });
+    } else {
+      console.log("👤 [BeachScene] Joueur existant ou intro déjà faite - pas d'intro");
+    }
+  });
+}
   update() {
     if (this.shouldBlockInput()) return;
     super.update();
@@ -100,28 +117,24 @@ export class BeachScene extends BaseZoneScene {
   }
 
   // --- Gère le placement joueur au spawn ---
-  positionPlayer(player) {
-    const initData = this.scene.settings.data;
-    
-    // ✅ AMÉLIORATION: Utiliser la méthode parent avec position par défaut
-    super.positionPlayer(player);
+ positionPlayer(player) {
+  const initData = this.scene.settings.data;
+  
+  super.positionPlayer(player);
 
-    // 🎬 Déclencher l'intro Psyduck SEULEMENT pour nouveaux joueurs
-if (!this._introTriggered && !initData?.fromZone) {
-  this._introTriggered = true;
+  console.log(`📍 [BeachScene] Joueur positionné: ${player.name} à (${player.x}, ${player.y})`);
+  console.log(`🔍 [BeachScene] Données init:`, { 
+    fromZone: initData?.fromZone, 
+    introTriggered: this._introTriggered 
+  });
   
-  const isNewPlayer = initData?.isNewPlayer || false;
-  
-  if (isNewPlayer) {
-    console.log("🆕 [BeachScene] Nouveau joueur détecté - intro Psyduck activée");
-    this.time.delayedCall(1500, () => {
-      this.startPsyduckIntro();
-    });
+  // On ne déclenche plus l'intro ici, c'est géré par zoneJoinInfo
+  if (initData?.fromZone) {
+    console.log("🚪 [BeachScene] Arrivée par transition, pas d'intro");
   } else {
-    console.log("👤 [BeachScene] Joueur existant - pas d'intro");
+    console.log("🕐 [BeachScene] Premier spawn, attente zoneJoinInfo pour l'intro...");
   }
 }
-  }
   // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
   onPlayerPositioned(player, initData) {
     // Logique spécifique à BeachScene si nécessaire
