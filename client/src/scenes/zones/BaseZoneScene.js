@@ -90,7 +90,7 @@ export class BaseZoneScene extends Phaser.Scene {
     });
   }
 
-  create() {
+create() {
     if (window.showLoadingOverlay) window.showLoadingOverlay("Chargement de la zone...");
 
     TransitionIntegration.setupTransitions(this);
@@ -103,24 +103,23 @@ export class BaseZoneScene extends Phaser.Scene {
     this.initPlayerSpawnFromSceneData();
     this.justArrivedAtZone = true;
     this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
-integrateMusicToScene(this);
 
+    // 🔧 FIX: Intégration musique APRÈS le chargement de la map
+    // Ne PAS intégrer ici, attendre que tout soit prêt
+    
     this.loadMap();
-    // 🔒 MODIFIÉ: setupInputs créé avant pour avoir l'InputManager prêt
     this.setupInputs();
     this.createUI();
     this.myPlayerReady = false;
     this.isSceneReady = true;
     
-    // ✅ UTILISER LA CONNEXION EXISTANTE AU LIEU DE CRÉER UNE NOUVELLE
     this.initializeWithExistingConnection();
-
     this.setupPlayerReadyHandler();
     this.setupCleanupHandlers();
 
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
-  }
+}
 
   // ✅ MÉTHODE INCHANGÉE: Utiliser la connexion existante de main.js
   initializeWithExistingConnection() {
@@ -1559,6 +1558,37 @@ onZoneChanged(newZoneName) {
     }
   }
 
+  setupMusicSystem() {
+    console.log(`🎵 [${this.scene.key}] === SETUP SYSTÈME MUSIQUE ===`);
+    
+    // 🔧 FIX: Vérifier que tous les prérequis sont remplis
+    if (!this.map) {
+        console.warn(`⚠️ [${this.scene.key}] Map pas encore chargée pour musique`);
+        return false;
+    }
+    
+    if (!this.sound) {
+        console.warn(`⚠️ [${this.scene.key}] SoundManager pas disponible`);
+        return false;
+    }
+    
+    try {
+        // 🔧 FIX: Import dynamique si nécessaire
+        import('../managers/MapMusicManager.js').then(({ integrateMusicToScene }) => {
+            console.log(`🎵 [${this.scene.key}] Intégration musique...`);
+            integrateMusicToScene(this);
+            console.log(`✅ [${this.scene.key}] Musique intégrée avec succès`);
+        }).catch(error => {
+            console.error(`❌ [${this.scene.key}] Erreur import MapMusicManager:`, error);
+        });
+        
+        return true;
+    } catch (error) {
+        console.error(`❌ [${this.scene.key}] Erreur setup musique:`, error);
+        return false;
+    }
+}
+  
   setupScene() {
     console.log('— DEBUT setupScene —');
     this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
@@ -1590,6 +1620,11 @@ onZoneChanged(newZoneName) {
     // 🔥 NOUVEAU: CRÉER LES COLLIDERS
     this.time.delayedCall(100, () => {
       this.setupPlayerCollisions();
+    });
+    // 🔧 FIX: INTÉGRER LA MUSIQUE ICI, quand tout est prêt
+    this.time.delayedCall(200, () => {
+        console.log(`🎵 [${this.scene.key}] Déclenchement setup musique...`);
+        this.setupMusicSystem();
     });
   }
 
@@ -2405,7 +2440,51 @@ onZoneChanged(newZoneName) {
       blockMessage: movementBlockHandler.blockMessage
     };
   }
-
+debugMusicSystem() {
+    console.log(`🔍 [${this.scene.key}] === DEBUG SYSTÈME MUSIQUE ===`);
+    
+    // Vérifier si le MapMusicManager est chargé
+    if (window.mapMusicManager) {
+        console.log(`✅ [${this.scene.key}] MapMusicManager global disponible`);
+        window.mapMusicManager.debugState();
+    } else {
+        console.error(`❌ [${this.scene.key}] MapMusicManager global MANQUANT`);
+    }
+    
+    // Vérifier si cette scène a l'intégration
+    if (this.musicManager) {
+        console.log(`✅ [${this.scene.key}] MusicManager local disponible`);
+        console.log(`🎯 Zone actuelle:`, this.musicManager.currentZone);
+        console.log(`🎵 Track actuelle:`, this.musicManager.currentTrack?.key);
+    } else {
+        console.error(`❌ [${this.scene.key}] MusicManager local MANQUANT`);
+    }
+    
+    // Vérifier les assets audio
+    if (this.cache?.audio) {
+        const audioKeys = this.cache.audio.getKeys();
+        console.log(`🎼 [${this.scene.key}] Assets audio (${audioKeys.length}):`, audioKeys);
+        
+        // Vérifier les tracks spécifiques
+        const requiredTracks = ['road1_theme', 'village_theme', 'lavandia_theme'];
+        requiredTracks.forEach(track => {
+            const exists = this.cache.audio.exists(track);
+            console.log(`${exists ? '✅' : '❌'} [${this.scene.key}] ${track}: ${exists ? 'DISPONIBLE' : 'MANQUANT'}`);
+        });
+    } else {
+        console.error(`❌ [${this.scene.key}] Cache audio MANQUANT`);
+    }
+    
+    // Vérifier le SoundManager
+    if (this.sound) {
+        console.log(`✅ [${this.scene.key}] SoundManager disponible`);
+        console.log(`🔧 [${this.scene.key}] Context state:`, this.sound.context?.state || 'unknown');
+        console.log(`🔊 [${this.scene.key}] Volume global:`, this.sound.volume);
+        console.log(`🔇 [${this.scene.key}] Muted:`, this.sound.mute);
+    } else {
+        console.error(`❌ [${this.scene.key}] SoundManager MANQUANT`);
+    }
+}
   forceUnblockMovement() {
     if (movementBlockHandler) {
       movementBlockHandler.requestForceUnblock();
