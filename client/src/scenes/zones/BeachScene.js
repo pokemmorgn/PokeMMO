@@ -90,7 +90,7 @@ export class BeachScene extends BaseZoneScene {
     if (fromZone === 'VillageScene' || fromZone) {
       return { x: 52, y: 48 };
     }
-    return { x: 52, y: 48 }; // Position par défaut
+    return { x: 360, y: 120 }; // Position par défaut
   }
 
   // --- Gère le placement joueur au spawn ---
