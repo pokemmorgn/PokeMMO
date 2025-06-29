@@ -1,4 +1,4 @@
-// ===== server/src/rooms/zones/LavandiaEquipementZone.ts =====
+// ===== server/src/rooms/zones/LavandiaEquipmentZone.ts =====
 import { Client } from "@colyseus/core";
 import { IZone } from "./IZone";
 import { WorldRoom } from "../WorldRoom";
@@ -25,13 +25,13 @@ interface Spawn {
   y: number;
 }
 
-export class LavandiaEquipementZone implements IZone {
+export class LavandiaEquipmentZone implements IZone {
   private room: WorldRoom;
   private npcs: NPC[] = [];
 
   constructor(room: WorldRoom) {
     this.room = room;
-    console.log(`⚔️ === LAVANDIA EQUIPEMENT ZONE INIT ===`);
+    console.log(`⚔️ === LAVANDIA EQUIPMENT ZONE INIT ===`);
     
     this.setupNPCs();
     this.setupEvents();
