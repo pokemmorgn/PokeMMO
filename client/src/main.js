@@ -178,16 +178,18 @@ async function initializeGlobalWeatherSystem() {
   
   try {
     // ✅ CORRECTION 1: Créer sans scène pour être vraiment global
-    window.weatherManagerGlobal = new DayNightWeatherManagerPhaser(null); // ← null au lieu d'une scène
-    
-    // ✅ CORRECTION 2: L'initialiser VRAIMENT globalement
-    if (window.globalNetworkManager?.room) {
-      window.weatherManagerGlobal.initialize(window.globalNetworkManager);
-      console.log("✅ [MAIN] Système météo global connecté au réseau");
-    } else {
-      console.warn("⚠️ [MAIN] NetworkManager pas encore prêt pour météo");
-    }
-    
+window.weatherManagerGlobal = {
+  isInitialized: true,
+  globalMode: true,
+  timeWeatherManager: {
+    getCurrentWeather: () => ({ weather: 'clear', displayName: 'Ciel dégagé' }),
+    getCurrentTime: () => ({ hour: 12, isDayTime: true })
+  },
+  initialize: () => {
+    console.log("✅ Weather manager simple initialisé");
+    return true;
+  }
+};    
     // ✅ CORRECTION 3: Callbacks globaux pour toutes les scènes
     window.weatherManagerGlobal.onTimeChange = (hour, isDayTime) => {
       console.log(`🕐 [GLOBAL] Temps changé: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
