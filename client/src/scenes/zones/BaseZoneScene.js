@@ -292,7 +292,7 @@ create() {
         window.initTeamSystem(this.networkManager.room);
       }
     }, 1500);
-
+}, 1200);
     // 🆕 6. EncounterManager (après le chargement de la carte)
     setTimeout(() => {
       this.initializeEncounterManager();
