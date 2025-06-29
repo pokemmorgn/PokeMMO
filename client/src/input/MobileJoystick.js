@@ -308,6 +308,27 @@ export class MobileJoystick {
     return this.currentInput.force > this.config.deadZone;
   }
 
+    // Remet le joystick à zéro comme si l'utilisateur relâchait tout
+  reset() {
+    this.isDragging = false;
+    this.knob.x = 0;
+    this.knob.y = 0;
+    this.currentInput = { x: 0, y: 0, angle: 0, force: 0 };
+    this.directionIndicator.setAlpha(0);
+
+    // Si autoHide doit s'appliquer
+    if (this.config.autoHide && !this.isMobile) {
+      this.hide();
+    } else {
+      this.show();
+    }
+
+    if (this.callbacks.onEnd) {
+      this.callbacks.onEnd();
+    }
+  }
+
+  
   // Nettoyage
   destroy() {
     if (this.joystickContainer) {
