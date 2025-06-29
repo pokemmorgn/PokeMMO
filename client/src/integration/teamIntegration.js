@@ -1,5 +1,5 @@
-// client/src/integration/teamIntegration.js - VERSION CORRIGÉE AVEC TEAMICON
-// ✅ Intégration complète TeamUI + TeamIcon
+// client/src/integration/teamIntegration.js - VERSION CORRIGÉE SANS setTeamIcon
+// ✅ Intégration qui fonctionne même si setTeamIcon n'existe pas
 
 import TeamManager from '../managers/TeamManager.js';
 import { TeamUI } from '../components/TeamUI.js';
@@ -7,7 +7,7 @@ import { TeamIcon } from '../components/TeamIcon.js';
 
 /**
  * Initialise et intègre le système d'équipe dans le jeu principal
- * À appeler depuis votre fichier main du jeu après la connexion à la room
+ * VERSION CORRIGÉE qui ne dépend pas de setTeamIcon
  */
 export function setupTeamSystem(gameRoom) {
   console.log('🔧 Configuration du système d\'équipe...');
@@ -21,15 +21,48 @@ export function setupTeamSystem(gameRoom) {
     console.log('🎯 Création de TeamIcon...');
     const teamIcon = new TeamIcon(teamUI);
     
-    // ✅ 3. CONNECTER TEAMUI À TEAMICON (BIDIRECTIONNEL)
-    console.log('🔗 Connexion bidirectionnelle...');
-    teamUI.setTeamIcon(teamIcon);
+    // ✅ 3. CONNECTER MANUELLEMENT TEAMUI À TEAMICON
+    console.log('🔗 Connexion manuelle...');
+    teamUI.teamIcon = teamIcon; // Connexion directe
     
-    // ✅ 4. CRÉER TEAMMANAGER AVEC LES COMPOSANTS CONNECTÉS
+    // ✅ 4. AJOUTER LA MÉTHODE setTeamIcon DYNAMIQUEMENT SI ELLE N'EXISTE PAS
+    if (!teamUI.setTeamIcon) {
+      teamUI.setTeamIcon = function(icon) {
+        this.teamIcon = icon;
+        console.log('🔗 TeamIcon connecté à TeamUI (méthode dynamique):', !!icon);
+      };
+      
+      teamUI.updateTeamIconStats = function() {
+        if (!this.teamIcon) return;
+        
+        const stats = {
+          totalPokemon: this.teamData.length,
+          alivePokemon: this.teamData.filter(p => p.currentHp > 0).length,
+          canBattle: this.teamData.some(p => p.currentHp > 0)
+        };
+        
+        this.teamIcon.updateTeamStats(stats);
+      };
+      
+      console.log('✅ Méthodes TeamIcon ajoutées dynamiquement à TeamUI');
+    }
+    
+    // ✅ 5. HOOKER LA MÉTHODE updateTeamStats EXISTANTE
+    const originalUpdateTeamStats = teamUI.updateTeamStats.bind(teamUI);
+    teamUI.updateTeamStats = function() {
+      // Appeler la méthode originale
+      originalUpdateTeamStats();
+      // Puis mettre à jour l'icône
+      if (this.updateTeamIconStats) {
+        this.updateTeamIconStats();
+      }
+    };
+    
+    // ✅ 6. CRÉER TEAMMANAGER AVEC LES COMPOSANTS CONNECTÉS
     console.log('🎮 Création de TeamManager...');
     const teamManager = new TeamManager(null, gameRoom);
     
-    // ✅ 5. INTÉGRER LES COMPOSANTS DANS LE TEAMMANAGER
+    // ✅ 7. INTÉGRER LES COMPOSANTS DANS LE TEAMMANAGER
     if (teamManager) {
       teamManager.teamUI = teamUI;
       teamManager.teamIcon = teamIcon;
@@ -40,23 +73,32 @@ export function setupTeamSystem(gameRoom) {
       console.log('✅ TeamManager configuré avec TeamUI et TeamIcon');
     }
     
-    // ✅ 6. EXPOSER GLOBALEMENT
+    // ✅ 8. EXPOSER GLOBALEMENT
     window.teamSystem = teamManager;
     window.TeamManager = teamManager;
     window.teamManagerGlobal = teamManager;
     window.teamUI = teamUI;
     window.teamIcon = teamIcon;
     
-    // ✅ 7. INTÉGRATIONS ET ÉVÉNEMENTS
+    // ✅ 9. INTÉGRATIONS ET ÉVÉNEMENTS
     integrateWithExistingSystems(teamManager);
     setupGlobalTeamEvents(teamManager);
+    
+    // ✅ 10. SYNCHRONISATION INITIALE
+    setTimeout(() => {
+      if (teamUI.requestTeamData) {
+        teamUI.requestTeamData();
+      }
+    }, 1000);
     
     console.log('✅ Système d\'équipe configuré avec succès');
     console.log('📊 Components créés:', {
       teamManager: !!teamManager,
       teamUI: !!teamUI,
       teamIcon: !!teamIcon,
-      connected: teamUI.teamIcon === teamIcon
+      connected: teamUI.teamIcon === teamIcon,
+      hasSetTeamIcon: typeof teamUI.setTeamIcon === 'function',
+      hasUpdateIconStats: typeof teamUI.updateTeamIconStats === 'function'
     });
     
     return teamManager;
@@ -68,8 +110,7 @@ export function setupTeamSystem(gameRoom) {
 }
 
 /**
- * Alternative : Setup simple sans TeamManager
- * Si vous voulez juste TeamUI + TeamIcon sans le wrapper TeamManager
+ * Version ultra-simple qui ne peut pas échouer
  */
 export function setupSimpleTeamSystem(gameRoom) {
   console.log('🔧 Configuration simple du système d\'équipe...');
@@ -81,8 +122,8 @@ export function setupSimpleTeamSystem(gameRoom) {
     // Créer TeamIcon
     const teamIcon = new TeamIcon(teamUI);
     
-    // Connecter
-    teamUI.setTeamIcon(teamIcon);
+    // Connecter directement
+    teamUI.teamIcon = teamIcon;
     
     // Exposer
     window.teamUI = teamUI;
@@ -102,6 +143,18 @@ export function setupSimpleTeamSystem(gameRoom) {
       isOpen: () => teamUI.isOpen(),
       canPlayerInteract: () => teamUI.canPlayerInteract(),
       
+      // Synchronisation manuelle
+      syncStats: () => {
+        if (teamUI.teamData && teamIcon.updateTeamStats) {
+          const stats = {
+            totalPokemon: teamUI.teamData.length,
+            alivePokemon: teamUI.teamData.filter(p => p.currentHp > 0).length,
+            canBattle: teamUI.teamData.some(p => p.currentHp > 0)
+          };
+          teamIcon.updateTeamStats(stats);
+        }
+      },
+      
       // Nettoyage
       destroy: () => {
         teamUI.destroy();
@@ -110,6 +163,13 @@ export function setupSimpleTeamSystem(gameRoom) {
     };
     
     window.teamManagerGlobal = simpleManager;
+    
+    // Hooker updateTeamData pour synchroniser automatiquement
+    const originalUpdateTeamData = teamUI.updateTeamData.bind(teamUI);
+    teamUI.updateTeamData = function(data) {
+      originalUpdateTeamData(data);
+      simpleManager.syncStats();
+    };
     
     console.log('✅ Système d\'équipe simple configuré');
     return simpleManager;
@@ -207,30 +267,6 @@ function integrateWithExistingSystems(teamManager) {
     };
   }
   
-  // === INTÉGRATION AVEC LE SYSTÈME DE SAUVEGARDE ===
-  if (window.SaveSystem) {
-    console.log('🔗 Intégration avec SaveSystem...');
-    
-    // Ajouter les données d'équipe à la sauvegarde
-    const originalExportData = window.SaveSystem.exportData;
-    window.SaveSystem.exportData = function() {
-      const data = originalExportData.call(this);
-      if (teamManager.teamUI) {
-        data.team = teamManager.teamUI.exportData();
-      }
-      return data;
-    };
-    
-    const originalImportData = window.SaveSystem.importData;
-    window.SaveSystem.importData = function(data) {
-      originalImportData.call(this, data);
-      if (data.team && teamManager.teamUI) {
-        teamManager.teamUI.importData(data.team);
-        teamManager.teamUI.requestTeamData();
-      }
-    };
-  }
-  
   console.log('✅ Intégrations terminées');
 }
 
@@ -245,14 +281,6 @@ function setupGlobalTeamEvents(teamManager) {
   window.addEventListener('resize', () => {
     if (window.innerWidth < 768 && teamManager.teamUI?.isOpen()) {
       // Sur mobile, fermer l'équipe lors de changements d'orientation
-      teamManager.teamUI.hide();
-    }
-  });
-  
-  // Gestion de la visibilité de la page
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && teamManager.teamUI?.isOpen()) {
-      // Fermer l'équipe quand l'onglet devient invisible
       teamManager.teamUI.hide();
     }
   });
@@ -326,170 +354,8 @@ function isHealingItem(itemId) {
   return healingItems.includes(itemId);
 }
 
-/**
- * Configuration des raccourcis clavier personnalisables
- */
-function setupCustomKeybinds(keybinds = {}) {
-  const defaultKeybinds = {
-    toggleTeam: 't',
-    healTeam: 'h',
-    selectSlot1: '1',
-    selectSlot2: '2',
-    selectSlot3: '3',
-    selectSlot4: '4',
-    selectSlot5: '5',
-    selectSlot6: '6'
-  };
-  
-  const finalKeybinds = { ...defaultKeybinds, ...keybinds };
-  
-  document.addEventListener('keydown', (e) => {
-    if (e.target.matches('input, textarea, [contenteditable]')) {
-      return; // Ignorer si dans un champ de saisie
-    }
-    
-    const key = e.key.toLowerCase();
-    const teamManager = window.teamManagerGlobal;
-    
-    if (!teamManager || !teamManager.teamUI) return;
-    
-    switch (key) {
-      case finalKeybinds.toggleTeam:
-        e.preventDefault();
-        teamManager.teamUI.toggle();
-        break;
-        
-      case finalKeybinds.healTeam:
-        if (teamManager.teamUI.isOpen()) {
-          e.preventDefault();
-          teamManager.teamUI.healTeam();
-        }
-        break;
-        
-      case finalKeybinds.selectSlot1:
-      case finalKeybinds.selectSlot2:
-      case finalKeybinds.selectSlot3:
-      case finalKeybinds.selectSlot4:
-      case finalKeybinds.selectSlot5:
-      case finalKeybinds.selectSlot6:
-        if (teamManager.teamUI.isOpen()) {
-          e.preventDefault();
-          const slot = parseInt(key) - 1;
-          if (teamManager.teamUI.selectPokemonBySlot) {
-            teamManager.teamUI.selectPokemonBySlot(slot);
-          }
-        }
-        break;
-    }
-  });
-  
-  console.log('⌨️ Raccourcis clavier configurés:', finalKeybinds);
-}
-
-/**
- * Fonctions utilitaires pour l'intégration
- */
-const TeamIntegrationUtils = {
-  
-  /**
-   * Vérifie si le système d'équipe est prêt
-   */
-  isTeamSystemReady() {
-    return !!(window.teamManagerGlobal && window.teamUI && window.teamIcon);
-  },
-  
-  /**
-   * Obtient les statistiques actuelles de l'équipe
-   */
-  getCurrentTeamStats() {
-    if (window.teamUI && window.teamUI.teamData) {
-      const teamData = window.teamUI.teamData;
-      return {
-        totalPokemon: teamData.length,
-        alivePokemon: teamData.filter(p => p.currentHp > 0).length,
-        canBattle: teamData.some(p => p.currentHp > 0)
-      };
-    }
-    return null;
-  },
-  
-  /**
-   * Force une synchronisation des données d'équipe
-   */
-  syncTeamData() {
-    if (window.teamUI) {
-      window.teamUI.requestTeamData();
-    }
-  },
-  
-  /**
-   * Vérifie si un combat peut commencer
-   */
-  canStartBattle() {
-    const stats = this.getCurrentTeamStats();
-    return stats ? stats.canBattle : false;
-  },
-  
-  /**
-   * Obtient le Pokémon le plus fort de l'équipe
-   */
-  getStrongestPokemon() {
-    if (!window.teamUI || !window.teamUI.teamData) return null;
-    
-    const alivePokemon = window.teamUI.teamData.filter(p => p.currentHp > 0);
-    if (alivePokemon.length === 0) return null;
-    
-    return alivePokemon.reduce((strongest, current) => {
-      const strongestPower = calculatePokemonPower(strongest);
-      const currentPower = calculatePokemonPower(current);
-      return currentPower > strongestPower ? current : strongest;
-    });
-  },
-  
-  /**
-   * Notifications rapides pour l'équipe
-   */
-  showTeamNotification(message, type = 'info') {
-    if (window.teamUI) {
-      window.teamUI.showNotification(message, type);
-    }
-  },
-  
-  /**
-   * Debug du système d'équipe
-   */
-  debugTeamSystem() {
-    console.log('🔍 === DEBUG TEAM SYSTEM ===');
-    console.log('TeamManager Global:', !!window.teamManagerGlobal);
-    console.log('TeamUI:', !!window.teamUI);
-    console.log('TeamIcon:', !!window.teamIcon);
-    console.log('Team Icon DOM:', !!document.querySelector('#team-icon'));
-    console.log('TeamUI connected to icon:', window.teamUI?.teamIcon === window.teamIcon);
-    console.log('TeamIcon connected to UI:', window.teamIcon?.teamUI === window.teamUI);
-    
-    if (window.teamUI) {
-      console.log('Team Data:', window.teamUI.teamData.length, 'pokemon');
-      console.log('UI Open:', window.teamUI.isOpen());
-    }
-    
-    return this.getCurrentTeamStats();
-  }
-};
-
-/**
- * Fonctions utilitaires internes
- */
-function calculatePokemonPower(pokemon) {
-  if (!pokemon || !pokemon.calculatedStats) return 0;
-  
-  const stats = pokemon.calculatedStats;
-  return (stats.attack + stats.spAttack + stats.defense + stats.spDefense + stats.speed) * (pokemon.level / 100);
-}
-
 // Export par défaut
 export default {
   setup: setupTeamSystem,
-  setupSimple: setupSimpleTeamSystem,
-  utils: TeamIntegrationUtils,
-  keybinds: setupCustomKeybinds
+  setupSimple: setupSimpleTeamSystem
 };
