@@ -909,7 +909,7 @@ export class NetworkManager {
     'LavandiaAnalysisScene': 'lavandiaanalysis',
     'LavandiaBossRoomScene': 'lavandiabossroom',
     'LavandiaCelebiTempleScene': 'lavandiacelebitemple',
-    'LavandiaEquipementScene': 'lavandiaequipement',
+    'LavandiaEquipmentScene': 'lavandiaequipment',
     'LavandiaFurnitureScene': 'lavandiafurniture',
     'LavandiaHealingCenterScene': 'lavandiahealingcenter',
     'LavandiaHouse1Scene': 'lavandiahouse1',
