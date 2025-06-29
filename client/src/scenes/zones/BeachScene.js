@@ -117,16 +117,18 @@ this.startPsyduckIntro();
 
   // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
   onPlayerPositioned(player, initData) {
-    startPsyduckIntro() {
-  if (this.psyduckIntroManager) {
-    this.psyduckIntroManager.startIntro(() => {
-      console.log("✅ Intro Psyduck terminée");
-    });
-  }
-}
     // Logique spécifique à BeachScene si nécessaire
     console.log(`[BeachScene] Joueur positionné à (${player.x}, ${player.y})`);
-  }
+}
+
+// 🦆 INTRO PSYDUCK
+startPsyduckIntro() {
+    if (this.psyduckIntroManager) {
+        this.psyduckIntroManager.startIntro(() => {
+            console.log("✅ Intro Psyduck terminée");
+        });
+    }
+}
 
   // ==================== INTRO ANIMÉE ======================
   startIntroSequence(player) {
