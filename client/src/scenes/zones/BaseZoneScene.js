@@ -561,18 +561,33 @@ handleWildEncounter(data) {
     }
 
     try {
-      console.log(`🌍 [${this.scene.key}] === INITIALISATION SYSTÈME TEMPS/MÉTÉO ===`);
+      console.log(`🌍 [${this.scene.key}] === UTILISATION SYSTÈME MÉTÉO GLOBAL ===`);
 
-      // ✅ ÉTAPE 1: Initialiser l'environnement AVANT le DayNightWeatherManager
+      // ✅ ÉTAPE 1: Initialiser l'environnement de zone
       if (!this.environmentInitialized) {
         this.initializeZoneEnvironment();
       }
 
-      // ✅ ÉTAPE 2: Créer le DayNightWeatherManager
-      this.dayNightWeatherManager = new DayNightWeatherManager(this);
-      this.dayNightWeatherManager.initialize(this.networkManager);
+      // ✅ ÉTAPE 2: Utiliser le système météo global
+      if (window.weatherManagerGlobal?.isInitialized) {
+        console.log(`✅ [${this.scene.key}] Utilisation système météo global existant`);
+        
+        // ✅ Appliquer à cette scène
+        const zoneName = this.normalizeZoneName(this.scene.key);
+        window.applyWeatherToScene(this, zoneName);
+        
+        // ✅ Référencer le système global
+        this.dayNightWeatherManager = window.weatherManagerGlobal;
+        
+      } else {
+        console.warn(`⚠️ [${this.scene.key}] Système météo global pas prêt - initialisation locale`);
+        
+        // ✅ Fallback: utiliser ton système local existant
+        this.dayNightWeatherManager = new DayNightWeatherManager(this);
+        this.dayNightWeatherManager.initialize(this.networkManager);
+      }
 
-      console.log(`✅ [${this.scene.key}] Système temps/météo initialisé`);
+      console.log(`✅ [${this.scene.key}] Système temps/météo configuré`);
 
     } catch (error) {
       console.error(`❌ [${this.scene.key}] Erreur initialisation temps/météo:`, error);
