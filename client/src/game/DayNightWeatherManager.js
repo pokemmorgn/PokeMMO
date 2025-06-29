@@ -7,6 +7,14 @@ export class OptimizedPhaserOverlayManager {
   constructor(scene) {
     this.scene = scene;
     
+    // ✅ CORRECTION: Vérifier si la scène existe pour éviter les erreurs
+    if (!scene) {
+      console.warn('🌤️ [PhaserOverlay] Créé sans scène - mode global');
+      this.globalMode = true;
+    } else {
+      this.globalMode = false;
+    }
+    
     this.combinedOverlay = null;
     this.colorCache = new Map();
     this.lastCombinedState = null;
@@ -21,7 +29,7 @@ export class OptimizedPhaserOverlayManager {
     // ✅ NOUVEAU: Mode transition rapide
     this.fastTransitionMode = false;
     
-    console.log(`🎨 [PhaserOverlay] Initialisé (Mode: ${this.performanceMode})`);
+    console.log(`🎨 [PhaserOverlay] Initialisé (Mode: ${this.performanceMode}, Global: ${this.globalMode})`);
   }
 
   detectPerformanceLevel() {
@@ -515,7 +523,8 @@ export class OptimizedPhaserOverlayManager {
 // ✅ MANAGER PRINCIPAL AVEC DÉBOUNCING
 export class DayNightWeatherManagerPhaser {
   constructor(scene) {
-    this.scene = scene;
+    this.scene = scene; // Peut être null pour mode global
+    this.globalMode = !scene; // ✅ CORRECTION: Mode global si pas de scène
     this.overlayManager = null;
     this.timeWeatherManager = null;
     this.weatherEffects = null;
@@ -527,9 +536,8 @@ export class DayNightWeatherManagerPhaser {
       weather: null
     };
     
-    console.log(`🌅 [DayNightWeatherManagerPhaser] Créé (ANTI-SPAM)`);
+    console.log(`🌅 [DayNightWeatherManagerPhaser] Créé (Global: ${this.globalMode})`);
   }
-
   initialize(networkManager) {
     if (this.isInitialized) return;
 
