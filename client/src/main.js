@@ -295,6 +295,7 @@ const config = {
   pixelArt: true,
   roundPixels: true,
   antialias: false,
+  pauseOnBlur: false,
   // ✅ GARDER TOUTES LES SCÈNES pour éviter les problèmes de "scène introuvable"
   scene: [
   LoaderScene,
