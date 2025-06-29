@@ -565,6 +565,10 @@ export class DayNightWeatherManagerPhaser {
     };
     
     console.log(`🌅 [DayNightWeatherManagerPhaser] Créé (Global: ${this.globalMode})`);
+    // ✅ CORRECTION: Pas de WeatherEffects en mode global
+if (this.globalMode) {
+  this.weatherEffects = null;
+}
   }
   initialize(networkManager) {
     if (this.isInitialized) return;
@@ -578,8 +582,12 @@ export class DayNightWeatherManagerPhaser {
       this.overlayManager = new OptimizedPhaserOverlayManager(this.scene);
       this.overlayManager.initialize();
 
-      this.weatherEffects = new WeatherEffects(this.scene);
-      this.setupCallbacks();
+// ✅ CORRECTION: Pas de WeatherEffects en mode global
+if (!this.globalMode && this.scene) {
+  this.weatherEffects = new WeatherEffects(this.scene);
+}
+
+this.setupCallbacks();
       
       this.isInitialized = true;
       console.log(`✅ [DayNightWeatherManagerPhaser] Initialisé (ANTI-SPAM)`);
