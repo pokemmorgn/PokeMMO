@@ -1,8 +1,8 @@
 import { BaseZoneScene } from './BaseZoneScene.js';
 
-export class LavandiaEquipementScene extends BaseZoneScene {
+export class LavandiaEquipmentScene extends BaseZoneScene {
   constructor() {
-    super('LavandiaEquipementScene', 'lavandiaequipement');
+    super('LavandiaEquipmentScene', 'lavandiaequipment');
     this.transitionCooldowns = {};
   }
 
