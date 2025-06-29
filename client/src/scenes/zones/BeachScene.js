@@ -68,6 +68,7 @@ export class BeachScene extends BaseZoneScene {
     this._introBlocked = false;
     this._introTriggered = false;
     this.psyduckIntroManager = null;
+
   }
 
   async create() {
@@ -75,28 +76,26 @@ export class BeachScene extends BaseZoneScene {
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.psyduckIntroManager = new PsyduckIntroManager(this);
 
-    // ✅ Écouter les infos spécifiques à la zone depuis le serveur
-    if (this.gameNetworking) {
-      this.gameNetworking.onMessage("zoneJoinInfo", (data) => {
-        console.log("📨 [BeachScene] Zone join info reçue:", data);
-        
-        // Vérifier si c'est pour cette zone et si c'est un nouveau joueur
-        if (data.zone === 'beach' && data.isNewPlayer && !this._introTriggered) {
-          this._introTriggered = true;
-          console.log("🆕 [BeachScene] Nouveau joueur confirmé via zoneJoinInfo - intro Psyduck");
-          
-          this.time.delayedCall(1500, () => {
-            this.startPsyduckIntro();
-          });
-        } else {
-          console.log("👤 [BeachScene] Joueur existant ou intro déjà faite - pas d'intro");
-        }
-      });
-    }
-
     this.setupBeachEvents();
   }
-
+// Écouter les infos spécifiques à la zone depuis le serveur
+if (this.gameNetworking) {
+  this.gameNetworking.onMessage("zoneJoinInfo", (data) => {
+    console.log("📨 [BeachScene] Zone join info reçue:", data);
+    
+    // Vérifier si c'est pour cette zone et si c'est un nouveau joueur
+    if (data.zone === 'beach' && data.isNewPlayer && !this._introTriggered) {
+      this._introTriggered = true;
+      console.log("🆕 [BeachScene] Nouveau joueur confirmé via zoneJoinInfo - intro Psyduck");
+      
+      this.time.delayedCall(1500, () => {
+        this.startPsyduckIntro();
+      });
+    } else {
+      console.log("👤 [BeachScene] Joueur existant ou intro déjà faite - pas d'intro");
+    }
+  });
+}
   update() {
     if (this.shouldBlockInput()) return;
     super.update();
@@ -118,57 +117,38 @@ export class BeachScene extends BaseZoneScene {
   }
 
   // --- Gère le placement joueur au spawn ---
-  positionPlayer(player) {
+ positionPlayer(player) {
   const initData = this.scene.settings.data;
   
   super.positionPlayer(player);
 
   console.log(`📍 [BeachScene] Joueur positionné: ${player.name} à (${player.x}, ${player.y})`);
-  console.log(`🔍 [BeachScene] Données init:`, initData);
+  console.log(`🔍 [BeachScene] Données init:`, { 
+    fromZone: initData?.fromZone, 
+    introTriggered: this._introTriggered 
+  });
   
-  // ✅ LOGIQUE SIMPLE: Si pas de transition ET pas de données de sauvegarde = nouveau joueur
-  if (!this._introTriggered && !initData?.fromZone) {
-    
-    // Vérifier si aucune donnée de sauvegarde
-    const hasNoSaveData = !initData?.lastMap && !initData?.lastX && !initData?.lastY;
-    
-    console.log(`🔍 [BeachScene] Détection nouveau joueur:`, {
-      hasNoSaveData,
-      lastMap: initData?.lastMap,
-      lastX: initData?.lastX,
-      lastY: initData?.lastY,
-      initData: initData
-    });
-    
-    if (hasNoSaveData) {
-      this._introTriggered = true;
-      console.log("🆕 [BeachScene] NOUVEAU JOUEUR DÉTECTÉ (pas de données save) - intro Psyduck!");
-      
-      this.time.delayedCall(1500, () => {
-        this.startPsyduckIntro();
-      });
-    } else {
-      console.log("👤 [BeachScene] Joueur existant (données save trouvées) - pas d'intro");
-    }
+  // On ne déclenche plus l'intro ici, c'est géré par zoneJoinInfo
+  if (initData?.fromZone) {
+    console.log("🚪 [BeachScene] Arrivée par transition, pas d'intro");
+  } else {
+    console.log("🕐 [BeachScene] Premier spawn, attente zoneJoinInfo pour l'intro...");
   }
 }
-
-
   // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
   onPlayerPositioned(player, initData) {
     // Logique spécifique à BeachScene si nécessaire
     console.log(`[BeachScene] Joueur positionné à (${player.x}, ${player.y})`);
-  }
+}
 
-  // 🦆 INTRO PSYDUCK
-  startPsyduckIntro() {
+// 🦆 INTRO PSYDUCK
+startPsyduckIntro() {
     if (this.psyduckIntroManager) {
-      this.psyduckIntroManager.startIntro(() => {
-        console.log("✅ Intro Psyduck terminée");
-      });
+        this.psyduckIntroManager.startIntro(() => {
+            console.log("✅ Intro Psyduck terminée");
+        });
     }
-  }
-
+}
 
   // ==================== INTRO ANIMÉE ======================
   startIntroSequence(player) {
