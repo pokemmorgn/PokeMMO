@@ -169,14 +169,17 @@ async function initializeSceneSystem() {
 }
 
 // ✅ AJOUTER ICI: Fonction d'initialisation météo
+// ===== CORRECTIONS POUR main.js =====
+
+// ✅ REMPLACER LA FONCTION initializeGlobalWeatherSystem() PAR :
 async function initializeGlobalWeatherSystem() {
   console.log("🌤️ [MAIN] === INITIALISATION SYSTÈME MÉTÉO GLOBAL ===");
   
   try {
-    // ✅ Créer une instance globale (sans scène pour l'instant)
-    window.weatherManagerGlobal = new DayNightWeatherManagerPhaser(null);
+    // ✅ CORRECTION 1: Créer sans scène pour être vraiment global
+    window.weatherManagerGlobal = new DayNightWeatherManagerPhaser(null); // ← null au lieu d'une scène
     
-    // ✅ L'initialiser avec le NetworkManager global
+    // ✅ CORRECTION 2: L'initialiser VRAIMENT globalement
     if (window.globalNetworkManager?.room) {
       window.weatherManagerGlobal.initialize(window.globalNetworkManager);
       console.log("✅ [MAIN] Système météo global connecté au réseau");
@@ -184,7 +187,32 @@ async function initializeGlobalWeatherSystem() {
       console.warn("⚠️ [MAIN] NetworkManager pas encore prêt pour météo");
     }
     
-    // ✅ Fonctions utilitaires globales
+    // ✅ CORRECTION 3: Callbacks globaux pour toutes les scènes
+    window.weatherManagerGlobal.onTimeChange = (hour, isDayTime) => {
+      console.log(`🕐 [GLOBAL] Temps changé: ${hour}h ${isDayTime ? 'JOUR' : 'NUIT'}`);
+      
+      // ✅ Appliquer à TOUTES les scènes actives
+      const activeScenes = window.game?.scene?.getScenes(true) || [];
+      activeScenes.forEach(scene => {
+        if (scene.applyWeatherUpdate) {
+          scene.applyWeatherUpdate('time', { hour, isDayTime });
+        }
+      });
+    };
+    
+    window.weatherManagerGlobal.onWeatherChange = (weather, displayName) => {
+      console.log(`🌤️ [GLOBAL] Météo changée: ${displayName}`);
+      
+      // ✅ Appliquer à TOUTES les scènes actives
+      const activeScenes = window.game?.scene?.getScenes(true) || [];
+      activeScenes.forEach(scene => {
+        if (scene.applyWeatherUpdate) {
+          scene.applyWeatherUpdate('weather', { weather, displayName });
+        }
+      });
+    };
+    
+    // ✅ CORRECTION 4: Fonctions utilitaires VRAIMENT globales
     window.getGlobalWeather = function() {
       if (!window.weatherManagerGlobal?.isInitialized) {
         return { weather: 'clear', displayName: 'Ciel dégagé' };
@@ -199,37 +227,52 @@ async function initializeGlobalWeatherSystem() {
       return window.weatherManagerGlobal.timeWeatherManager.getCurrentTime();
     };
     
-    window.applyWeatherToScene = function(scene, zoneName) {
+    // ✅ CORRECTION 5: Application automatique aux nouvelles scènes
+    window.registerSceneToWeather = function(scene, zoneName) {
       if (!window.weatherManagerGlobal?.isInitialized) {
-        console.warn("⚠️ [MAIN] Système météo global pas initialisé");
+        console.warn("⚠️ [GLOBAL] Système météo pas prêt pour enregistrement");
         return;
       }
       
-      // ✅ Créer l'overlay manager pour cette scène si nécessaire
-      if (!scene.weatherOverlayManager) {
-        import('./game/DayNightWeatherManager.js').then(module => {
-          const { OptimizedPhaserOverlayManager } = module;
-          scene.weatherOverlayManager = new OptimizedPhaserOverlayManager(scene);
-          scene.weatherOverlayManager.initialize();
+      const sceneKey = scene.scene.key;
+      console.log(`🌤️ [GLOBAL] Enregistrement scène météo: ${sceneKey} (zone: ${zoneName})`);
+      
+      // ✅ Créer l'overlay manager pour cette scène
+      import('./game/DayNightWeatherManager.js').then(module => {
+        const { OptimizedPhaserOverlayManager } = module;
+        scene.weatherOverlayManager = new OptimizedPhaserOverlayManager(scene);
+        scene.weatherOverlayManager.initialize();
+        
+        // ✅ Appliquer l'état actuel IMMÉDIATEMENT
+        const currentTime = window.getGlobalTime();
+        const currentWeather = window.getGlobalWeather();
+        const environment = window.zoneEnvironmentManager?.getZoneEnvironment(zoneName) || 'outdoor';
+        
+        scene.weatherOverlayManager.forceUpdate(
+          currentTime.isDayTime,
+          currentWeather.weather,
+          environment,
+          zoneName
+        );
+        
+        // ✅ Ajouter la méthode d'update pour les callbacks globaux
+        scene.applyWeatherUpdate = function(type, data) {
+          if (!this.weatherOverlayManager) return;
           
-          // ✅ Appliquer l'état actuel
-          const currentTime = window.getGlobalTime();
-          const currentWeather = window.getGlobalWeather();
           const environment = window.zoneEnvironmentManager?.getZoneEnvironment(zoneName) || 'outdoor';
           
-          scene.weatherOverlayManager.forceUpdate(
-            currentTime.isDayTime,
-            currentWeather.weather,
-            environment,
-            zoneName
-          );
-          
-          console.log(`✅ [MAIN] Météo appliquée à ${scene.scene.key}: ${currentWeather.displayName}`);
-        });
-      }
+          if (type === 'time') {
+            this.weatherOverlayManager.setDayNight(data.isDayTime, environment, zoneName);
+          } else if (type === 'weather') {
+            this.weatherOverlayManager.setWeather(data.weather, environment);
+          }
+        };
+        
+        console.log(`✅ [GLOBAL] Scène ${sceneKey} enregistrée et configurée pour météo`);
+      });
     };
     
-    console.log("✅ [MAIN] Système météo global configuré");
+    console.log("✅ [MAIN] Système météo global VRAIMENT configuré");
     
   } catch (error) {
     console.error("❌ [MAIN] Erreur initialisation système météo global:", error);
