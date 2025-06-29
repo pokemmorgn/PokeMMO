@@ -1,0 +1,348 @@
+// client/src/scenes/intros/PsyduckIntroManager.js
+// ===============================================
+// Gestionnaire d'intro avec Psyduck pour BeachScene
+// ===============================================
+
+export class PsyduckIntroManager {
+  constructor(scene) {
+    this.scene = scene;
+    this.isPlaying = false;
+    this.psyduck = null;
+    this.onCompleteCallback = null;
+  }
+
+  /**
+   * Charge le spritesheet de Psyduck
+   */
+  loadPsyduckSpritesheet() {
+    const key = 'psyduck_walk';
+    
+    if (!this.scene.textures.exists(key)) {
+      console.log(`🦆 [PsyduckIntro] Chargement spritesheet Psyduck...`);
+      
+      this.scene.load.spritesheet(key, 'assets/pokemon/054_psyduck/Walk-Anim.png', {
+        frameWidth: 24,  // Ajustez selon votre spritesheet
+        frameHeight: 40  // Ajustez selon votre spritesheet
+      });
+      
+      this.scene.load.once('complete', () => {
+        this.createPsyduckAnimations();
+      });
+      
+      this.scene.load.start();
+    } else {
+      this.createPsyduckAnimations();
+    }
+  }
+
+  /**
+   * Crée les animations pour Psyduck
+   */
+  createPsyduckAnimations() {
+    const anims = this.scene.anims;
+    const key = 'psyduck_walk';
+    
+    // Animation marche droite (frames 8,9,10,11)
+    if (!anims.exists('psyduck_walk_right')) {
+      anims.create({
+        key: 'psyduck_walk_right',
+        frames: [
+          { key, frame: 8 },
+          { key, frame: 9 },
+          { key, frame: 10 },
+          { key, frame: 11 }
+        ],
+        frameRate: 6,
+        repeat: -1
+      });
+    }
+    
+    // Animation marche bas (frames 0,1,2,3)
+    if (!anims.exists('psyduck_walk_down')) {
+      anims.create({
+        key: 'psyduck_walk_down',
+        frames: [
+          { key, frame: 0 },
+          { key, frame: 1 },
+          { key, frame: 2 },
+          { key, frame: 3 }
+        ],
+        frameRate: 6,
+        repeat: -1
+      });
+    }
+
+    console.log(`✅ [PsyduckIntro] Animations créées`);
+  }
+
+  /**
+   * Démarre l'intro complète
+   */
+  startIntro(onComplete = null) {
+    if (this.isPlaying) {
+      console.warn(`⚠️ [PsyduckIntro] Intro déjà en cours`);
+      return;
+    }
+
+    this.isPlaying = true;
+    this.onCompleteCallback = onComplete;
+    
+    console.log(`🎬 [PsyduckIntro] === DÉBUT INTRO PSYDUCK ===`);
+    
+    // Bloquer les inputs du joueur
+    this.blockPlayerInputs();
+    
+    // Charger le spritesheet si nécessaire
+    this.loadPsyduckSpritesheet();
+    
+    // Attendre un peu que tout soit chargé puis commencer
+    this.scene.time.delayedCall(500, () => {
+      this.spawnPsyduck();
+    });
+  }
+
+  /**
+   * Spawn Psyduck à la position initiale
+   */
+  spawnPsyduck() {
+    console.log(`🦆 [PsyduckIntro] Spawn Psyduck en (160, 32)`);
+    
+    // Créer le sprite Psyduck
+    this.psyduck = this.scene.add.sprite(160, 32, 'psyduck_walk', 8)
+      .setOrigin(0.5, 1)  // Origine en bas-centre
+      .setDepth(6);       // Au-dessus du joueur
+    
+    // Démarrer la première phase : marche vers la droite
+    this.startPhase1_WalkRight();
+  }
+
+  /**
+   * Phase 1 : Marche de 160,32 vers 360,32 (vers la droite)
+   */
+  startPhase1_WalkRight() {
+    console.log(`➡️ [PsyduckIntro] Phase 1 : Marche vers la droite`);
+    
+    // Jouer l'animation de marche droite
+    this.psyduck.anims.play('psyduck_walk_right');
+    
+    // Tween pour se déplacer horizontalement
+    this.scene.tweens.add({
+      targets: this.psyduck,
+      x: 360,  // Destination X
+      duration: 3000,  // 3 secondes
+      ease: 'Linear',
+      onUpdate: () => {
+        // S'assurer que l'animation continue
+        if (!this.psyduck.anims.isPlaying) {
+          this.psyduck.anims.play('psyduck_walk_right');
+        }
+      },
+      onComplete: () => {
+        console.log(`✅ [PsyduckIntro] Phase 1 terminée`);
+        this.startPhase2_WalkDown();
+      }
+    });
+  }
+
+  /**
+   * Phase 2 : Marche de 360,32 vers 360,110 (vers le bas)
+   */
+  startPhase2_WalkDown() {
+    console.log(`⬇️ [PsyduckIntro] Phase 2 : Marche vers le bas`);
+    
+    // Changer l'animation pour marche vers le bas
+    this.psyduck.anims.play('psyduck_walk_down');
+    
+    // Tween pour se déplacer verticalement
+    this.scene.tweens.add({
+      targets: this.psyduck,
+      y: 110,  // Destination Y (près du joueur en 360,120)
+      duration: 2500,  // 2.5 secondes
+      ease: 'Linear',
+      onUpdate: () => {
+        // S'assurer que l'animation continue
+        if (!this.psyduck.anims.isPlaying) {
+          this.psyduck.anims.play('psyduck_walk_down');
+        }
+      },
+      onComplete: () => {
+        console.log(`✅ [PsyduckIntro] Phase 2 terminée`);
+        this.startPhase3_Interaction();
+      }
+    });
+  }
+
+  /**
+   * Phase 3 : Interaction finale
+   */
+  startPhase3_Interaction() {
+    console.log(`💬 [PsyduckIntro] Phase 3 : Interaction`);
+    
+    // Arrêter l'animation
+    this.psyduck.anims.stop();
+    this.psyduck.setFrame(0);  // Frame idle vers le bas
+    
+    // Messages d'interaction
+    this.showDialogue([
+      "Psy? Psyduck!",
+      "🦆 *Psyduck semble curieux de vous voir*",
+      "🦆 *Il pointe du doigt vers le village*"
+    ]);
+  }
+
+  /**
+   * Affiche une série de dialogues
+   */
+  showDialogue(messages) {
+    let messageIndex = 0;
+    
+    const showNextMessage = () => {
+      if (messageIndex >= messages.length) {
+        this.finishIntro();
+        return;
+      }
+      
+      const message = messages[messageIndex];
+      console.log(`💬 [PsyduckIntro] Message ${messageIndex + 1}/${messages.length}: ${message}`);
+      
+      // Créer la bulle de texte
+      const textBox = this.scene.add.text(
+        this.psyduck.x,
+        this.psyduck.y - 40,
+        message,
+        {
+          fontSize: "14px",
+          color: "#fff",
+          backgroundColor: "#336699",
+          padding: { x: 8, y: 6 },
+          borderRadius: 5,
+          wordWrap: { width: 200 }
+        }
+      ).setDepth(1000).setOrigin(0.5);
+      
+      messageIndex++;
+      
+      // Attendre 2.5 secondes puis message suivant
+      this.scene.time.delayedCall(2500, () => {
+        textBox.destroy();
+        showNextMessage();
+      });
+    };
+    
+    showNextMessage();
+  }
+
+  /**
+   * Termine l'intro
+   */
+  finishIntro() {
+    console.log(`🎉 [PsyduckIntro] === FIN INTRO ===`);
+    
+    // Animation de sortie pour Psyduck
+    this.scene.tweens.add({
+      targets: this.psyduck,
+      y: this.psyduck.y - 100,  // Monte vers le haut
+      alpha: 0,  // Devient transparent
+      duration: 2000,
+      ease: 'Sine.easeInOut',
+      onStart: () => {
+        this.psyduck.anims.play('psyduck_walk_down');
+      },
+      onComplete: () => {
+        this.psyduck.destroy();
+        this.psyduck = null;
+        this.cleanup();
+      }
+    });
+  }
+
+  /**
+   * Nettoie et débloque le joueur
+   */
+  cleanup() {
+    console.log(`🧹 [PsyduckIntro] Nettoyage`);
+    
+    this.isPlaying = false;
+    this.unblockPlayerInputs();
+    
+    // Callback de fin d'intro
+    if (this.onCompleteCallback) {
+      this.onCompleteCallback();
+      this.onCompleteCallback = null;
+    }
+    
+    console.log(`✅ [PsyduckIntro] Joueur débloqué, intro terminée`);
+  }
+
+  /**
+   * Bloque les inputs du joueur
+   */
+  blockPlayerInputs() {
+    if (this.scene.input && this.scene.input.keyboard) {
+      this.scene.input.keyboard.enabled = false;
+    }
+    
+    const myPlayer = this.scene.playerManager?.getMyPlayer();
+    if (myPlayer && myPlayer.body) {
+      myPlayer.body.enable = false;
+    }
+    
+    // Marquer que l'intro bloque
+    this.scene._introBlocked = true;
+    
+    console.log(`🔒 [PsyduckIntro] Inputs bloqués`);
+  }
+
+  /**
+   * Débloque les inputs du joueur
+   */
+  unblockPlayerInputs() {
+    if (this.scene.input && this.scene.input.keyboard) {
+      this.scene.input.keyboard.enabled = true;
+    }
+    
+    const myPlayer = this.scene.playerManager?.getMyPlayer();
+    if (myPlayer && myPlayer.body) {
+      myPlayer.body.enable = true;
+    }
+    
+    // Démarquer le blocage
+    this.scene._introBlocked = false;
+    
+    console.log(`🔓 [PsyduckIntro] Inputs débloqués`);
+  }
+
+  /**
+   * Force l'arrêt de l'intro (si nécessaire)
+   */
+  forceStop() {
+    if (!this.isPlaying) return;
+    
+    console.log(`🛑 [PsyduckIntro] Arrêt forcé`);
+    
+    // Supprimer Psyduck s'il existe
+    if (this.psyduck) {
+      this.psyduck.destroy();
+      this.psyduck = null;
+    }
+    
+    // Nettoyer
+    this.cleanup();
+  }
+
+  /**
+   * Vérifie si l'intro est en cours
+   */
+  isIntroPlaying() {
+    return this.isPlaying;
+  }
+
+  /**
+   * Nettoie complètement le manager
+   */
+  destroy() {
+    this.forceStop();
+    this.scene = null;
+    this.onCompleteCallback = null;
+  }
+}
