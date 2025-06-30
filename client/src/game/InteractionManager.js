@@ -526,6 +526,79 @@ export class InteractionManager {
   };
 }
 
+  /**
+ * Crée un dialogue personnalisé facilement
+ * @param {string} npcName - Nom du NPC à afficher
+ * @param {string} npcPortrait - Chemin vers l'image portrait
+ * @param {string|string[]} text - Texte ou tableau de textes pour dialogue multi-pages
+ * @param {Object} options - Options supplémentaires (optionnel)
+ * @returns {boolean} - true si succès, false sinon
+ */
+createCustomDiscussion(npcName, npcPortrait, text, options = {}) {
+  console.log(`💬 [InteractionManager] === CREATE CUSTOM DISCUSSION ===`);
+  console.log(`🎭 NPC: ${npcName}`);
+  console.log(`🖼️ Portrait: ${npcPortrait}`);
+  console.log(`📝 Text:`, text);
+  console.log(`⚙️ Options:`, options);
+  
+  try {
+    // ✅ Vérifier que le système de dialogue est disponible
+    if (typeof window.showNpcDialogue !== 'function') {
+      console.error('❌ [InteractionManager] showNpcDialogue non disponible');
+      this.showMessage("Système de dialogue non disponible", 'error');
+      return false;
+    }
+    
+    // ✅ Normaliser le texte (string ou array)
+    let lines;
+    if (Array.isArray(text)) {
+      lines = text.filter(line => line && line.trim()); // Supprimer les lignes vides
+    } else if (typeof text === 'string' && text.trim()) {
+      lines = [text.trim()];
+    } else {
+      console.warn('⚠️ [InteractionManager] Texte vide ou invalide');
+      lines = ["..."]; // Fallback
+    }
+    
+    // ✅ Construire les données de dialogue
+    const dialogueData = {
+      portrait: npcPortrait || "/assets/portrait/defaultPortrait.png",
+      name: npcName || "PNJ",
+      lines: lines,
+      // ✅ Passer les options supplémentaires
+      onClose: options.onClose || null,
+      autoClose: options.autoClose || false,
+      closeable: options.closeable !== false // Par défaut closeable
+    };
+    
+    console.log(`📤 [InteractionManager] Données dialogue:`, dialogueData);
+    
+    // ✅ Afficher le dialogue
+    window.showNpcDialogue(dialogueData);
+    
+    // ✅ Optionnel : auto-close après délai
+    if (options.autoClose && typeof options.autoClose === 'number') {
+      setTimeout(() => {
+        const dialogueBox = document.getElementById('dialogue-box');
+        if (dialogueBox && dialogueBox.style.display !== 'none') {
+          console.log(`⏰ [InteractionManager] Auto-close dialogue après ${options.autoClose}ms`);
+          dialogueBox.style.display = 'none';
+          if (dialogueData.onClose) {
+            dialogueData.onClose();
+          }
+        }
+      }, options.autoClose);
+    }
+    
+    console.log(`✅ [InteractionManager] Custom discussion créée avec succès`);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ [InteractionManager] Erreur createCustomDiscussion:', error);
+    this.showMessage(`Erreur dialogue: ${error.message}`, 'error');
+    return false;
+  }
+}  
   createShopInteractionData(npc) {
     const shopId = npc.properties?.shopId ||
       npc.properties?.shop ||
