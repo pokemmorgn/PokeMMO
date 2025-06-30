@@ -546,8 +546,11 @@ export class InteractionManager {
         let currentPortrait = npcPortrait;
         let messageText = message;
         
-        // Détecter les messages narrateur (sans dialogue direct)
-        if (!message.startsWith('"') && !message.includes('Psy') && !message.includes('?')) {
+        // Détecter les messages narrateur (description, pas dialogue direct)
+        if (!message.includes('Psy') && !message.startsWith('"') && 
+            (message.includes('creature') || message.includes('head') || 
+             message.includes('points') || message.includes('buildings') || 
+             message.includes('confusion') || message.includes('Maybe'))) {
           currentNpcName = options.narratorName || "Narrator";
           currentPortrait = options.narratorPortrait || "/assets/portrait/systemPortrait.png";
           messageText = `<i>${message}</i>`; // Italique pour le narrateur
