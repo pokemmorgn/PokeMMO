@@ -90,7 +90,9 @@ export class PsyduckIntroManager {
       
       // ✅ FIX: Écouter questGranted pour les notifications de quête
       this.scene.room.onMessage("questGranted", (data) => {
-        console.log("🎁 [PsyduckIntro] Nouvelle quête reçue:", data);
+        // Uniquement pour debug ou logique vraiment liée à l'intro
+        // console.log("🎁 [PsyduckIntro] Nouvelle quête reçue:", data);
+        // Pas de notif UI ici, si déjà gérée ailleurs
       });
       
       // Écouter la completion de la quête d'intro
