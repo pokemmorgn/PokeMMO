@@ -357,6 +357,36 @@ export class StarterSelector {
         100% { background: rgba(255, 255, 255, 0) !important; }
       }
 
+      @keyframes pokeballShake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-2px) rotate(-1deg); }
+        20%, 40%, 60%, 80% { transform: translateX(2px) rotate(1deg); }
+      }
+
+      @keyframes flashEffect {
+        0% { opacity: 0; transform: scale(0.5); }
+        50% { opacity: 1; transform: scale(1.2); }
+        100% { opacity: 0; transform: scale(2); }
+      }
+
+      @keyframes miniPokemonFloat {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-3px); }
+      }
+
+      .pokemon-reveal-container {
+        animation: pokemonGlow 3s ease-in-out infinite !important;
+      }
+
+      @keyframes pokemonGlow {
+        0%, 100% { filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.8)); }
+        50% { filter: drop-shadow(0 0 30px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 215, 0, 0.5)); }
+      }
+
+      .starter-pokeball.opening {
+        animation: none !important;
+      }
+
       @media (max-width: 768px) {
         .starter-container {
           width: 95% !important;
@@ -618,6 +648,8 @@ export class StarterSelector {
       slot.classList.remove('selected');
       if (i === index) {
         slot.classList.add('selected');
+        // ✅ NOUVEAU: Animation d'ouverture de pokéball
+        this.animatePokeballOpening(slot, starter);
       }
     });
 
@@ -629,6 +661,253 @@ export class StarterSelector {
     if (confirmBtn) {
       confirmBtn.classList.add('visible');
     }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Animation d'ouverture pokéball
+  animatePokeballOpening(slot, starter) {
+    const pokeball = slot.querySelector('.starter-pokeball');
+    if (!pokeball) return;
+
+    // Prévenir les animations multiples
+    if (pokeball.classList.contains('opening')) return;
+    pokeball.classList.add('opening');
+
+    // 1. Animation de secousse avant ouverture
+    pokeball.style.animation = 'pokeballShake 0.6s ease-in-out';
+
+    setTimeout(() => {
+      // 2. Animation d'ouverture (split en deux parties)
+      this.createPokeballSplit(pokeball, () => {
+        // 3. Faire apparaître le Pokémon
+        this.showPokemonSprite(slot, starter, () => {
+          // 4. Nettoyage après animation
+          pokeball.classList.remove('opening');
+        });
+      });
+    }, 600);
+  }
+
+  // ✅ MÉTHODE: Créer l'effet de pokéball qui s'ouvre
+  createPokeballSplit(pokeballElement, callback) {
+    const parent = pokeballElement.parentElement;
+    const rect = pokeballElement.getBoundingClientRect();
+    const parentRect = parent.getBoundingClientRect();
+
+    // Position relative au parent
+    const relativeTop = rect.top - parentRect.top;
+    const relativeLeft = rect.left - parentRect.left;
+
+    // Masquer la pokéball originale
+    pokeballElement.style.opacity = '0';
+
+    // Créer les deux moitiés
+    const topHalf = document.createElement('div');
+    const bottomHalf = document.createElement('div');
+
+    const halfStyle = `
+      position: absolute;
+      width: 64px;
+      height: 32px;
+      background-size: 64px 64px;
+      background-repeat: no-repeat;
+      background-image: url('data:image/svg+xml,${this.getPokeballSVG()}');
+    `;
+
+    // Moitié du haut
+    topHalf.style.cssText = halfStyle + `
+      top: ${relativeTop}px;
+      left: ${relativeLeft}px;
+      background-position: 0 0;
+      z-index: 1000;
+      overflow: hidden;
+    `;
+
+    // Moitié du bas
+    bottomHalf.style.cssText = halfStyle + `
+      top: ${relativeTop + 32}px;
+      left: ${relativeLeft}px;
+      background-position: 0 -32px;
+      z-index: 1000;
+      overflow: hidden;
+    `;
+
+    parent.appendChild(topHalf);
+    parent.appendChild(bottomHalf);
+
+    // Animation d'ouverture
+    setTimeout(() => {
+      topHalf.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+      bottomHalf.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+      
+      topHalf.style.transform = 'translateY(-40px) rotateX(-30deg)';
+      bottomHalf.style.transform = 'translateY(40px) rotateX(30deg)';
+
+      // Flash blanc d'ouverture
+      const flash = document.createElement('div');
+      flash.style.cssText = `
+        position: absolute;
+        top: ${relativeTop + 16}px;
+        left: ${relativeLeft + 16}px;
+        width: 32px;
+        height: 32px;
+        background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%);
+        border-radius: 50%;
+        z-index: 1001;
+        animation: flashEffect 0.3s ease-out;
+      `;
+      parent.appendChild(flash);
+
+      setTimeout(() => {
+        flash.remove();
+        topHalf.remove();
+        bottomHalf.remove();
+        callback();
+      }, 500);
+    }, 50);
+  }
+
+  // ✅ MÉTHODE: Afficher le sprite du Pokémon
+  showPokemonSprite(slot, starter, callback) {
+    const pokemonContainer = document.createElement('div');
+    pokemonContainer.className = 'pokemon-reveal-container';
+    
+    // Calculer la position au centre du slot
+    const slotRect = slot.getBoundingClientRect();
+    const containerRect = this.overlay.getBoundingClientRect();
+    
+    pokemonContainer.style.cssText = `
+      position: absolute;
+      top: ${slotRect.top - containerRect.top + slotRect.height/2}px;
+      left: ${slotRect.left - containerRect.left + slotRect.width/2}px;
+      width: 80px;
+      height: 80px;
+      transform: translate(-50%, -50%) scale(0);
+      z-index: 1002;
+      pointer-events: none;
+    `;
+
+    // Créer le sprite du Pokémon
+    const pokemonSprite = document.createElement('div');
+    pokemonSprite.style.cssText = `
+      width: 80px;
+      height: 80px;
+      background-image: url('/assets/pokemon/front/${this.getPokemonId(starter.id)}.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.8));
+    `;
+
+    pokemonContainer.appendChild(pokemonSprite);
+    this.overlay.appendChild(pokemonContainer);
+
+    // Animation d'apparition
+    setTimeout(() => {
+      pokemonContainer.style.transition = 'transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+      pokemonContainer.style.transform = 'translate(-50%, -50%) scale(1)';
+
+      // Effet de particules
+      this.createSparkleEffect(pokemonContainer);
+
+      // Son d'apparition (si vous avez des sons)
+      // this.playSound('pokemon_appear');
+
+      // Garder visible pendant 2 secondes puis réduire
+      setTimeout(() => {
+        pokemonContainer.style.transition = 'transform 0.4s ease-in-out, opacity 0.4s ease-in-out';
+        pokemonContainer.style.transform = 'translate(-50%, -50%) scale(0.3)';
+        pokemonContainer.style.opacity = '0.7';
+        
+        // Déplacer vers la position finale dans le slot
+        const finalRect = slot.querySelector('.starter-pokeball').getBoundingClientRect();
+        const finalTop = finalRect.top - containerRect.top + finalRect.height/2;
+        const finalLeft = finalRect.left - containerRect.left + finalRect.width/2;
+        
+        setTimeout(() => {
+          pokemonContainer.style.top = finalTop + 'px';
+          pokemonContainer.style.left = finalLeft + 'px';
+          
+          setTimeout(() => {
+            pokemonContainer.remove();
+            // Remettre la pokéball visible avec le mini sprite
+            const pokeball = slot.querySelector('.starter-pokeball');
+            pokeball.style.opacity = '1';
+            this.addMiniPokemonToSlot(slot, starter);
+            callback();
+          }, 400);
+        }, 100);
+      }, 2000);
+    }, 100);
+  }
+
+  // ✅ MÉTHODE: Effet de particules scintillantes
+  createSparkleEffect(container) {
+    for (let i = 0; i < 8; i++) {
+      const sparkle = document.createElement('div');
+      const angle = (i / 8) * Math.PI * 2;
+      const distance = 50 + Math.random() * 30;
+      
+      sparkle.style.cssText = `
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: #FFD700;
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      `;
+
+      container.appendChild(sparkle);
+
+      // Animation des particules
+      setTimeout(() => {
+        sparkle.style.transition = 'all 1s ease-out';
+        sparkle.style.transform = `translate(-50%, -50%) translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px)`;
+        sparkle.style.opacity = '0';
+        sparkle.style.transform += ' scale(0)';
+        
+        setTimeout(() => sparkle.remove(), 1000);
+      }, 50);
+    }
+  }
+
+  // ✅ MÉTHODE: Ajouter mini Pokémon au slot
+  addMiniPokemonToSlot(slot, starter) {
+    // Retirer l'ancien mini sprite s'il existe
+    const existingMini = slot.querySelector('.mini-pokemon');
+    if (existingMini) existingMini.remove();
+
+    const miniPokemon = document.createElement('div');
+    miniPokemon.className = 'mini-pokemon';
+    miniPokemon.style.cssText = `
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background-image: url('/assets/pokemon/front/${this.getPokemonId(starter.id)}.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      top: 5px;
+      right: 5px;
+      border-radius: 50%;
+      border: 2px solid #FFD700;
+      z-index: 10;
+      animation: miniPokemonFloat 2s ease-in-out infinite;
+    `;
+
+    slot.appendChild(miniPokemon);
+  }
+
+  // ✅ MÉTHODE: Obtenir l'ID numérique du Pokémon
+  getPokemonId(starterId) {
+    const pokemonIds = {
+      'bulbasaur': '001',
+      'charmander': '004', 
+      'squirtle': '007'
+    };
+    return pokemonIds[starterId] || '001';
   }
 
   // ✅ MÉTHODE: Confirmer la sélection
