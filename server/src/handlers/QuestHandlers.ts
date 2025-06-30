@@ -93,15 +93,25 @@ export class QuestHandlers {
         const result = await questManager.giveQuest(player.name, introQuestId);
         
         if (result.success) {
-          console.log(`🎁 [QuestHandlers] Quête d'intro donnée, envoi triggerIntroSequence`);
+          console.log(`🎁 [QuestHandlers] Quête d'intro donnée, envoi des messages`);
           
-          // Envoyer le message pour déclencher l'intro
+          // ✅ FIX 1: Envoyer questGranted (que QuestSystem écoute)
+          client.send("questGranted", {
+            questId: introQuestId,
+            questName: result.quest?.name || "Bienvenue à GreenRoot",
+            message: `🎁 Nouvelle quête : ${result.quest?.name || "Bienvenue à GreenRoot"} !`,
+            quest: result.quest
+          });
+          
+          // ✅ FIX 2: Envoyer triggerIntroSequence (que PsyduckIntroManager écoute)
           client.send("triggerIntroSequence", {
             questId: introQuestId,
-            questName: result.quest?.name,
+            questName: result.quest?.name || "Bienvenue à GreenRoot",
             message: "Bienvenue dans votre aventure !",
             shouldStartIntro: true
           });
+          
+          console.log(`📤 [QuestHandlers] Messages questGranted + triggerIntroSequence envoyés`);
         }
       } else if (questStatus === 'active') {
         // Vérifier si intro pas encore vue
@@ -115,6 +125,7 @@ export class QuestHandlers {
           if (!hasSeenIntro) {
             console.log(`🔄 [QuestHandlers] Intro pas encore vue, envoi triggerIntroSequence`);
             
+            // ✅ Envoyer seulement triggerIntroSequence (quête déjà donnée)
             client.send("triggerIntroSequence", {
               questId: introQuestId,
               questName: introQuest.name,
