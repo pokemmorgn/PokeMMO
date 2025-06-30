@@ -107,34 +107,35 @@
   };
 
   // Affiche le dialogue NPC, accepte lines: [string] OU text: string
-  window.showNpcDialogue = function({ portrait, name, lines, text, onClose, hideName }) {
-    console.log("🐛 showNpcDialogue appelée avec name =", name);
-    const box = document.getElementById("dialogue-box");
-    const npcPortrait = document.getElementById("npc-portrait");
-    const npcName = document.getElementById("npc-name");
-    const npcText = document.getElementById("npc-text");
-    
-    // Multi-page setup
-    window._npcDialogueState.lines = Array.isArray(lines) && lines.length ? lines : [text || ""];
-    window._npcDialogueState.page = 0;
-    window._npcDialogueState.onClose = typeof onClose === "function" ? onClose : null;
-    
-    box.style.display = "flex";
-    npcPortrait.innerHTML = portrait
-      ? `<img src="${portrait}" alt="${name}" style="max-width:80px;max-height:80px;">`
-      : "";
-    npcName.innerText = name || "";
-        if (hideName) {
-      npcName.style.display = "none";
-    } else {
-      npcName.style.display = "";
-    }
-    
-    npcText.innerText = window._npcDialogueState.lines[0] || "";
+window.showNpcDialogue = function({ portrait, name, lines, text, onClose, hideName }) {
+  console.log("🐛 showNpcDialogue appelée avec name =", name);
+  const box = document.getElementById("dialogue-box");
+  const npcPortrait = document.getElementById("npc-portrait");
+  const npcName = document.getElementById("npc-name");
+  const npcText = document.getElementById("npc-text");
+  
+  // Multi-page setup
+  window._npcDialogueState.lines = Array.isArray(lines) && lines.length ? lines : [text || ""];
+  window._npcDialogueState.page = 0;
+  window._npcDialogueState.onClose = typeof onClose === "function" ? onClose : null;
+  
+  box.style.display = "flex";
+  npcPortrait.innerHTML = portrait
+    ? `<img src="${portrait}" alt="${name}" style="max-width:80px;max-height:80px;">`
+    : "";
+  npcName.innerText = name || "";
+  if (hideName) {
+    npcName.style.display = "none";
+  } else {
+    npcName.style.display = "";
+  }
+  
+  npcText.innerText = window._npcDialogueState.lines[0] || "";
 
-    // Close with click
-    box.onclick = () => closeDialogue();
-  };
+  // Close with click
+  box.onclick = () => closeDialogue();
+};
+
 
   function advanceDialogue() {
     const box = document.getElementById("dialogue-box");
