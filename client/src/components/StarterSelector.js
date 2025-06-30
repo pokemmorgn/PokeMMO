@@ -171,27 +171,43 @@ export class StarterSelector {
 
   // ✅ MÉTHODE: Précharger les assets nécessaires
   preloadAssets() {
-    // Créer pokéball
-    this.createPokeballTexture();
-
-    // Créer sprites des starters
-    this.starterConfig.forEach(starter => {
-      this.createStarterPlaceholder(starter);
+  // Charger l'image de fond si elle existe
+  if (!this.scene.textures.exists('starter_bg')) {
+    // Essayer de charger l'image
+    this.scene.load.image('starter_bg', 'assets/ui/starter_background.png');
+    this.scene.load.once('complete', () => {
+      console.log("✅ Background starter chargé");
     });
+    this.scene.load.start();
   }
+  
+  // Créer pokéball et starters
+  this.createPokeballTexture();
+  this.starterConfig.forEach(starter => {
+    this.createStarterPlaceholder(starter);
+  });
+}
 
   // ✅ MÉTHODE: Créer l'interface principale (version compacte)
   createInterface() {
-    const centerX = this.scene.cameras.main.centerX;
-    const centerY = this.scene.cameras.main.centerY;
+  const centerX = this.scene.cameras.main.centerX;
+  const centerY = this.scene.cameras.main.centerY;
 
-    // Container principal
-    this.container = this.scene.add.container(centerX, centerY);
-    this.container.setDepth(1000);
+  // Container principal
+  this.container = this.scene.add.container(centerX, centerY);
+  this.container.setDepth(1000);
 
-    // Fond semi-transparent
-    const bg = this.scene.add.rectangle(0, 0, 300, 200, 0x000000, 0.8); // Plus petit
-    this.container.add(bg);
+  // Utiliser l'image de fond au lieu du rectangle
+  let bg;
+  if (this.scene.textures.exists('starter_bg')) {
+    bg = this.scene.add.image(0, 0, 'starter_bg');
+    bg.setDisplaySize(400, 250); // Ajuste la taille
+  } else {
+    // Fallback vers le rectangle noir
+    bg = this.scene.add.rectangle(0, 0, 300, 200, 0x000000, 0.8);
+  }
+  
+  this.container.add(bg);
 
     // Titre
     const title = this.scene.add.text(0, -80, 'Choisissez votre Pokémon', {
