@@ -90,7 +90,8 @@ export class BeachScene extends BaseZoneScene {
         console.log(`📡 [BeachScene] Room détectée dans create(), setup listeners`);
         this.psyduckIntroManager.ensureListenersSetup();
         this.setupServerListeners();
-        this.time.delayedCall(20, () => {
+        this.time.delayedCall(2000, () => {
+        console.log(`📡 [INTRO] Ready sent`);
         this.sendClientReady();
         });
         return true;
