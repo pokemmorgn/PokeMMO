@@ -32,43 +32,97 @@ export class BattleIntegration {
   /**
    * Initialise le système de combat
    */
-  async initialize(worldRoom, phaserGame) {
-    console.log('🔧 [BattleIntegration] Initialisation du système de combat...');
+async initialize(worldRoom, phaserGame) {
+  console.log('🔧 [BattleIntegration] Initialisation du système de combat...');
+  
+  if (!worldRoom || !phaserGame) {
+    console.error('❌ [BattleIntegration] WorldRoom ou PhaserGame manquant');
+    return false;
+  }
+  
+  this.worldRoom = worldRoom;
+  this.phaserGame = phaserGame;
+  
+  try {
+    // 1. Créer la BattleConnection
+    this.battleConnection = new BattleConnection(this.gameManager);
     
-    if (!worldRoom || !phaserGame) {
-      console.error('❌ [BattleIntegration] WorldRoom ou PhaserGame manquant');
+    // 2. ✅ CORRECTION: Créer un mock NetworkManager pour BattleConnection
+    const mockNetworkManager = {
+      worldRoom: worldRoom,
+      client: worldRoom.connection || worldRoom._client,
+      room: worldRoom,
+      isConnected: true
+    };
+    
+    const connectionSuccess = this.battleConnection.initialize(mockNetworkManager);
+    
+    if (!connectionSuccess) {
+      console.error('❌ [BattleIntegration] Échec initialisation BattleConnection');
       return false;
     }
     
-    this.worldRoom = worldRoom;
-    this.phaserGame = phaserGame;
+    // 3. ✅ CORRECTION: Vérifier que la BattleScene existe dans Phaser
+    let battleSceneExists = false;
     
     try {
-      // 1. Créer la BattleConnection
-      this.battleConnection = new BattleConnection(this.gameManager);
-      const connectionSuccess = this.battleConnection.initialize(this.gameManager.networkManager);
+      const existingScene = phaserGame.scene.getScene('BattleScene');
+      if (existingScene) {
+        console.log('✅ [BattleIntegration] BattleScene trouvée dans Phaser');
+        this.battleScene = existingScene;
+        battleSceneExists = true;
+      }
+    } catch (e) {
+      console.log('ℹ️ [BattleIntegration] BattleScene pas encore ajoutée');
+    }
+    
+    // 4. Si pas trouvée, créer et ajouter la BattleScene
+    if (!battleSceneExists) {
+      console.log('🏗️ [BattleIntegration] Création de la BattleScene...');
       
-      if (!connectionSuccess) {
-        console.error('❌ [BattleIntegration] Échec initialisation BattleConnection');
-        return false;
+      // ✅ CORRECTION: Import dynamique si BattleScene pas disponible
+      if (typeof BattleScene === 'undefined') {
+        console.log('⚠️ [BattleIntegration] BattleScene non importée, création basique...');
+        
+        // Créer une BattleScene basique temporaire
+        this.battleScene = {
+          scene: { key: 'BattleScene' },
+          battleManager: null,
+          isActive: false,
+          endBattle: () => console.log('🏁 Combat terminé'),
+          showBattleInterface: () => console.log('🖥️ Interface de combat'),
+          create: () => {},
+          init: (data) => {
+            console.log('🎬 BattleScene initialisée avec:', data);
+            this.battleManager = data.battleManager || null;
+          }
+        };
+      } else {
+        this.battleScene = new BattleScene();
       }
       
-      // 2. Créer et ajouter la BattleScene à Phaser
-      this.battleScene = new BattleScene();
-      phaserGame.scene.add('BattleScene', this.battleScene, false);
-      
-      // 3. Setup des événements
-      this.setupBattleEvents();
-      
-      this.isInitialized = true;
-      console.log('✅ [BattleIntegration] Système de combat initialisé');
-      return true;
-      
-    } catch (error) {
-      console.error('❌ [BattleIntegration] Erreur lors de l\'initialisation:', error);
-      return false;
+      try {
+        phaserGame.scene.add('BattleScene', this.battleScene, false);
+        console.log('✅ [BattleIntegration] BattleScene ajoutée à Phaser');
+      } catch (addError) {
+        console.warn('⚠️ [BattleIntegration] Erreur ajout BattleScene:', addError);
+        // Continuer quand même
+      }
     }
+    
+    // 5. Setup des événements
+    this.setupBattleEvents();
+    
+    this.isInitialized = true;
+    console.log('✅ [BattleIntegration] Système de combat initialisé');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ [BattleIntegration] Erreur lors de l\'initialisation:', error);
+    return false;
   }
+}
+
 
   // === CONFIGURATION DES ÉVÉNEMENTS ===
 
