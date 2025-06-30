@@ -463,30 +463,73 @@ console.log("✅ Système météo global initialisé");
     window.game = new Phaser.Game(config);
 
     // 🆕 NOUVEAU: 9.5. INITIALISER LE SYSTÈME DE COMBAT APRÈS PHASER
-    console.log("⚔️ Initialisation du système de combat...");
-    window.battleSystem = new BattleIntegration(window);
+console.log("⚔️ Initialisation du système de combat...");
+window.battleSystem = new BattleIntegration(window);
+
+// ✅ CORRECTION: Attendre que Phaser soit complètement initialisé ET que le NetworkManager soit prêt
+setTimeout(async () => {
+  try {
+    console.log("🔧 [MAIN] Vérification pré-requis système de combat...");
     
-    // Attendre que Phaser soit complètement initialisé
-    setTimeout(async () => {
-      const battleInitSuccess = await window.battleSystem.initialize(
-        window.currentGameRoom,
-        window.game
-      );
+    // Vérifications
+    const hasGame = !!window.game;
+    const hasNetworkManager = !!window.globalNetworkManager;
+    const hasRoom = !!window.currentGameRoom;
+    const networkConnected = window.globalNetworkManager?.isConnected;
+    
+    console.log("📊 [MAIN] Pré-requis:", {
+      hasGame,
+      hasNetworkManager,
+      hasRoom,
+      networkConnected
+    });
+    
+    if (!hasGame || !hasNetworkManager || !hasRoom || !networkConnected) {
+      throw new Error("Pré-requis manquants pour le système de combat");
+    }
+    
+    // ✅ CORRECTION: Utiliser directement la room du NetworkManager
+    const battleInitSuccess = await window.battleSystem.initialize(
+      window.globalNetworkManager.room, // Utiliser directement la room du NetworkManager
+      window.game
+    );
+    
+    if (battleInitSuccess) {
+      console.log("✅ Système de combat initialisé avec succès");
+      window.showGameNotification?.("Système de combat prêt !", "success", { 
+        duration: 2000, 
+        position: 'top-center' 
+      });
+    } else {
+      throw new Error("Échec initialisation système de combat");
+    }
+    
+  } catch (error) {
+    console.error("❌ Erreur initialisation système de combat:", error);
+    window.showGameNotification?.("Erreur système de combat", "error", { 
+      duration: 3000, 
+      position: 'top-center' 
+    });
+    
+    // ✅ AJOUT: Fonction de debug pour diagnostiquer
+    window.debugBattleInitialization = function() {
+      console.log("🔍 === DEBUG INITIALISATION COMBAT ===");
+      console.log("Game:", !!window.game);
+      console.log("NetworkManager:", !!window.globalNetworkManager);
+      console.log("Room:", !!window.currentGameRoom);
+      console.log("BattleSystem:", !!window.battleSystem);
+      console.log("Connected:", window.globalNetworkManager?.isConnected);
+      console.log("Room ID:", window.currentGameRoom?.id);
+      console.log("Session ID:", window.globalNetworkManager?.sessionId);
       
-      if (battleInitSuccess) {
-        console.log("✅ Système de combat initialisé avec succès");
-        window.showGameNotification?.("Système de combat prêt !", "success", { 
-          duration: 2000, 
-          position: 'top-center' 
-        });
-      } else {
-        console.error("❌ Échec initialisation système de combat");
-        window.showGameNotification?.("Erreur système de combat", "error", { 
-          duration: 3000, 
-          position: 'top-center' 
-        });
+      if (window.battleSystem) {
+        console.log("BattleSystem debug:", window.battleSystem.debug?.());
       }
-    }, 2000);
+    };
+    
+    console.log("🔧 Utilisez window.debugBattleInitialization() pour diagnostiquer");
+  }
+}, 3000); 
 
     // ✅ 10. VÉRIFIER QUE TOUTES LES SCÈNES SONT BIEN ENREGISTRÉES
     setTimeout(() => {
