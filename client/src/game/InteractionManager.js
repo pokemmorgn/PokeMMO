@@ -546,7 +546,7 @@ export class InteractionManager {
         let currentPortrait = npcPortrait;
         
         if (message.includes("*") || message.includes("🦆") || message.includes("Narrateur")) {
-          currentNpcName = options.narratorName || "Narrateur";
+          currentNpcName = options.narratorName || "???";
           currentPortrait = options.narratorPortrait || "/assets/portrait/systemPortrait.png";
         }
         
@@ -582,15 +582,18 @@ export class InteractionManager {
 
   showSingleMessageAndWait(npcName, portrait, message, currentIndex, totalCount, options = {}) {
     return new Promise((resolve) => {
-      let displayMessage = message;
-      if (totalCount > 1 && options.showProgress !== false) {
-        displayMessage = `${message}\n\n[${currentIndex}/${totalCount} - Cliquez pour continuer]`;
-      }
+      // Message pur sans indicateur textuel
+      const displayMessage = message;
       
       try {
         this.createCustomDiscussion(npcName, portrait, displayMessage, {
           autoClose: false
         });
+        
+        // Ajouter l'indicateur visuel après affichage
+        setTimeout(() => {
+          this.addVisualContinueIndicator(currentIndex, totalCount);
+        }, 100);
         
         const checkInterval = 100;
         const checkDialogueClose = () => {
@@ -599,6 +602,9 @@ export class InteractionManager {
           if (!dialogueBox || 
               dialogueBox.style.display === 'none' || 
               !dialogueBox.offsetParent) {
+            
+            // Nettoyer l'indicateur avant de continuer
+            this.removeVisualContinueIndicator();
             resolve(true);
             return;
           }
@@ -612,6 +618,50 @@ export class InteractionManager {
         resolve(false);
       }
     });
+  }
+
+  // === INDICATEUR VISUEL ===
+
+  addVisualContinueIndicator(currentIndex, totalCount) {
+    const dialogueBox = document.getElementById('dialogue-box');
+    if (!dialogueBox) return;
+    
+    // Supprimer l'ancien indicateur s'il existe
+    this.removeVisualContinueIndicator();
+    
+    // Créer le conteneur de l'indicateur
+    const indicator = document.createElement('div');
+    indicator.className = 'dialogue-continue-indicator';
+    indicator.id = 'dialogue-continue-indicator';
+    
+    // Marquer si c'est le dernier message
+    const isLast = currentIndex === totalCount;
+    if (isLast) {
+      indicator.classList.add('last-message');
+    }
+    
+    // Créer la flèche
+    const arrow = document.createElement('div');
+    arrow.className = 'dialogue-arrow';
+    
+    // Créer le compteur discret
+    const counter = document.createElement('span');
+    counter.className = 'dialogue-counter';
+    counter.textContent = `${currentIndex}/${totalCount}`;
+    
+    // Assembler
+    indicator.appendChild(counter);
+    indicator.appendChild(arrow);
+    
+    // Ajouter au dialogue
+    dialogueBox.appendChild(indicator);
+  }
+
+  removeVisualContinueIndicator() {
+    const existingIndicator = document.getElementById('dialogue-continue-indicator');
+    if (existingIndicator) {
+      existingIndicator.remove();
+    }
   }
 
   // === UTILITAIRES ===
