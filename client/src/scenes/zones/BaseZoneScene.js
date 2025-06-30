@@ -19,8 +19,6 @@ import { ClientEncounterManager } from "../../managers/EncounterManager.js";
 import { movementBlockHandler } from "../../input/MovementBlockHandler.js";
 import { InputManager } from "../../input/InputManager.js";
 import { integrateMusicToScene } from "../../managers/MapMusicManager.js";
-import { integrateStarterSelectorToScene } from '../../components/StarterSelector.js';
-
 
 
 export class BaseZoneScene extends Phaser.Scene {
@@ -39,11 +37,6 @@ export class BaseZoneScene extends Phaser.Scene {
     this.myPlayerReady = false;
     this.globalWeatherManager = null;
     this.weatherSystemType = null; // 'global', 'fallback'
-    this.starterSystemInitialized = false;
-
-
-    this.networkManager = (this.scene?.settings?.data?.networkManager) || window.globalNetworkManager;
-    this.room = this.networkManager?.room || window.currentGameRoom;
     
     // Inventaire
     this.inventorySystem = null;
@@ -124,59 +117,49 @@ create() {
 }
 
   // ✅ MÉTHODE INCHANGÉE: Utiliser la connexion existante de main.js
- initializeWithExistingConnection() {
-  console.log(`📡 [${this.scene.key}] === UTILISATION CONNEXION EXISTANTE ===`);
-  
-  if (!window.globalNetworkManager) {
-    console.error(`❌ [${this.scene.key}] NetworkManager global manquant!`);
-    this.showErrorState("NetworkManager global introuvable");
-    return;
-  }
-
-  if (!window.globalNetworkManager.isConnected) {
-    console.error(`❌ [${this.scene.key}] NetworkManager global non connecté!`);
-    this.showErrorState("Connexion réseau inactive");
-    return;
-  }
-
-  this.networkManager = this.networkManager || window.globalNetworkManager;
-  console.log('[BaseZoneScene] NetworkManager utilisé :', this.networkManager, 'Room:', this.room);
-  this.mySessionId = this.networkManager.getSessionId();
-
-  console.log(`✅ [${this.scene.key}] NetworkManager récupéré:`, {
-    sessionId: this.mySessionId,
-    isConnected: this.networkManager.isConnected,
-    currentZone: this.networkManager.getCurrentZone()
-  });
-
-  this.setupNetworkHandlers();
-  this.networkSetupComplete = true;
-
-  // ✅ Initialiser les systèmes de jeu
-  this.initializeGameSystems();
-
-  this.requestServerZone();
-  this.verifyNetworkState();
-
-  // CRITIQUE : Toujours refaire le setup après toute nouvelle room !
-  if (this.networkManager && this.networkManager.room) {
-    this.networkManager.setupRoomListeners();
-    this.networkManager.restoreCustomCallbacks?.();
-  }
-
-  // 🔒 NOUVEAU: Initialiser MovementBlockHandler après NetworkManager
-  this.initializeMovementBlockHandler();
-  this.networkSetupComplete = true;
-
-  // === [HOOK ROOM READY] ===
-  if (this.networkManager && this.networkManager.room) {
-    this.room = this.networkManager.room; // Synchronise la référence locale
-    if (typeof this.onRoomAvailable === "function") {
-      this.onRoomAvailable(this.room);
+  initializeWithExistingConnection() {
+    console.log(`📡 [${this.scene.key}] === UTILISATION CONNEXION EXISTANTE ===`);
+    
+    if (!window.globalNetworkManager) {
+      console.error(`❌ [${this.scene.key}] NetworkManager global manquant!`);
+      this.showErrorState("NetworkManager global introuvable");
+      return;
     }
-  }
-}
 
+    if (!window.globalNetworkManager.isConnected) {
+      console.error(`❌ [${this.scene.key}] NetworkManager global non connecté!`);
+      this.showErrorState("Connexion réseau inactive");
+      return;
+    }
+
+    this.networkManager = window.globalNetworkManager;
+    this.mySessionId = this.networkManager.getSessionId();
+
+    console.log(`✅ [${this.scene.key}] NetworkManager récupéré:`, {
+      sessionId: this.mySessionId,
+      isConnected: this.networkManager.isConnected,
+      currentZone: this.networkManager.getCurrentZone()
+    });
+
+    this.setupNetworkHandlers();
+    this.networkSetupComplete = true;
+
+    // ✅ Initialiser les systèmes de jeu
+    this.initializeGameSystems();
+
+    this.requestServerZone();
+    this.verifyNetworkState();
+
+    // CRITIQUE : Toujours refaire le setup après toute nouvelle room !
+    if (this.networkManager && this.networkManager.room) {
+      this.networkManager.setupRoomListeners();
+      this.networkManager.restoreCustomCallbacks?.();
+    }
+
+    // 🔒 NOUVEAU: Initialiser MovementBlockHandler après NetworkManager
+    this.initializeMovementBlockHandler();
+    this.networkSetupComplete = true;
+  }
 
   // 🔒 NOUVELLE MÉTHODE: Initialisation MovementBlockHandler avec protection
   initializeMovementBlockHandler() {
@@ -273,26 +256,6 @@ create() {
     }
   }
 
-setRoom(room) {
-  // Méthode à appeler pour changer de room (par exemple lors d'une transition de zone)
-  console.log(`🔄 [${this.scene?.key || 'BaseZoneScene'}] setRoom appelé :`, room);
-
-  this.room = room;
-  if (this.networkManager) {
-    this.networkManager.room = room;
-    console.log(`🔄 [${this.scene?.key || 'BaseZoneScene'}] Changement de room dans NetworkManager`);
-    this.networkManager.setupRoomListeners();
-    this.networkManager.restoreCustomCallbacks?.();
-  } else {
-    console.warn(`⚠️ [${this.scene?.key || 'BaseZoneScene'}] Pas de networkManager pour setRoom`);
-  }
-  // Re-initialiser certains systèmes si besoin
-  this.initializeGameSystems();
-  console.log(`✅ [${this.scene?.key || 'BaseZoneScene'}] Systèmes réinitialisés après changement de room`);
-}
-
-
-  
   // ✅ MÉTHODE MODIFIÉE: Initialisation des systèmes avec ordre et délais sécurisés + EncounterManager
   initializeGameSystems() {
     console.log(`🎮 [${this.scene.key}] Initialisation des systèmes de jeu (ordre sécurisé)...`);
@@ -302,11 +265,6 @@ setRoom(room) {
     // 1. Inventaire (plus stable)
     this.initializeInventorySystem();
 
-    //starters
-    
-    setTimeout(() => {
-      this.initializeStarterSystem();
-    }, 300);
         // 4. Temps/Météo (peu de risque de conflit)
     setTimeout(() => {
       this.initializeTimeWeatherSystem();
@@ -384,36 +342,7 @@ setRoom(room) {
       console.error(`❌ [${this.scene.key}] Erreur initialisation EncounterManager:`, error);
     }
   }
-initializeStarterSystem() {
-  console.log(`🎯 [${this.scene.key}] === INITIALISATION STARTER SYSTEM ===`);
-  
-  try {
-    // Vérifier que NetworkManager est prêt
-    if (!this.networkManager?.room) {
-      console.warn(`⚠️ [${this.scene.key}] NetworkManager pas prêt pour starter system, retry...`);
-      setTimeout(() => this.initializeStarterSystem(), 1000);
-      return;
-    }
 
-    // Intégrer le sélecteur à cette scène
-    const selector = integrateStarterSelectorToScene(this, this.networkManager);
-    
-    // Marquer comme initialisé
-    this.starterSystemInitialized = true;
-    
-    console.log(`✅ [${this.scene.key}] Système de starter initialisé`);
-    
-    // Exposer pour debug
-    if (!window.starterSelector) {
-      window.starterSelector = selector;
-    }
-    
-    return selector;
-    
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur init starter system:`, error);
-  }
-}
   // 🆕 NOUVELLE MÉTHODE: Setup des handlers réseau pour les encounters
 setupEncounterNetworkHandlers() {
   if (!this.networkManager?.room) {
@@ -1320,7 +1249,7 @@ initializeZoneEnvironment() {
   }
   
   // ✅ MÉTHODE MODIFIÉE: Cleanup avec TeamManager, EncounterManager et MovementBlockHandler
-   cleanup() {
+  cleanup() {
     TransitionIntegration.cleanupTransitions(this);
 
     if (this.scene.isActive(this.scene.key)) {
@@ -1430,7 +1359,6 @@ initializeZoneEnvironment() {
     
     console.log(`✅ [${this.scene.key}] Nettoyage terminé`);
   }
-
 
   setupCleanupHandlers() {
     this.events.on('shutdown', () => {
@@ -2403,11 +2331,6 @@ onPlayerPositioned(player, initData) {
       shopSystem: !!this.interactionManager?.shopSystem
     });
 
-    console.log(`🎯 Starter System:`, {
-  initialized: this.starterSystemInitialized,
-  hasShowFunction: typeof this.showStarterSelection === 'function',
-  isActive: this.isStarterSelectionActive?.() || false
-});
     
     console.log(`🎮 Network:`, {
       manager: !!this.networkManager,
@@ -2417,7 +2340,6 @@ onPlayerPositioned(player, initData) {
     });
   }
 
-  
   testTeamConnection() {
     console.log(`🧪 [${this.scene.key}] Test connexion Team System...`);
     
