@@ -1,4 +1,27 @@
-// client/src/components/StarterSelector.js
+// ✅ MÉTHODE SIMPLE: Utiliser uniquement des flags globaux
+  blockPlayerInput(block) {
+    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] ${block ? 'Blocage' : 'Déblocage'} inputs via flags...`);
+    
+    // ✅ MÉTHODE PRINCIPALE: Flag global simple
+    window._starterSelectionActive = block;
+    
+    // ✅ MÉTHODE SECONDAIRE: Essayer les systèmes avancés si disponibles
+    if (window.movementBlockHandler && typeof window.movementBlockHandler.requestBlock === 'function') {
+      try {
+        if (block) {
+          window.movementBlockHandler.requestBlock('starter_selection', 'Sélection de starter en cours');
+        } else {
+          window.movementBlockHandler.requestUnblock('starter_selection');
+        }
+        console.log(`✅ [StarterSelector] MovementBlockHandler ${block ? 'bloqué' : 'débloqué'}`);
+      } catch (error) {
+        console.warn(`⚠️ [StarterSelector] Erreur MovementBlockHandler:`, error.message);
+      }
+    }
+    
+    // ✅ LOG FINAL
+    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] Inputs ${block ? 'BLOQUÉS' : 'DÉBLOQUÉS'} - Flag: ${window._starterSelectionActive}`);
+  }// client/src/components/StarterSelector.js
 // Système de sélection de starter externalisé pour PokéMon MMO
 
 export class StarterSelector {
@@ -736,24 +759,69 @@ export class StarterSelector {
 
   // ✅ MÉTHODE: Bloquer/débloquer les inputs du joueur
   blockPlayerInput(block) {
+    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] Tentative ${block ? 'blocage' : 'déblocage'} inputs...`);
+    
+    // ✅ MÉTHODE 1: Utiliser InputManager si disponible et compatible
     if (this.scene.inputManager) {
-      if (block) {
-        this.scene.inputManager.disableInputs('starter_selection');
-      } else {
-        this.scene.inputManager.enableInputs('starter_selection');
+      try {
+        if (typeof this.scene.inputManager.disableInputs === 'function') {
+          if (block) {
+            this.scene.inputManager.disableInputs('starter_selection');
+          } else {
+            this.scene.inputManager.enableInputs('starter_selection');
+          }
+          console.log(`✅ [StarterSelector] InputManager utilisé pour ${block ? 'bloquer' : 'débloquer'}`);
+        } else if (typeof this.scene.inputManager.setInputsEnabled === 'function') {
+          // Alternative si la méthode s'appelle différemment
+          this.scene.inputManager.setInputsEnabled(!block, 'starter_selection');
+          console.log(`✅ [StarterSelector] InputManager.setInputsEnabled utilisé`);
+        } else {
+          console.warn(`⚠️ [StarterSelector] InputManager sans méthodes de blocage compatibles`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ [StarterSelector] Erreur InputManager:`, error);
       }
+    } else {
+      console.warn(`⚠️ [StarterSelector] Pas d'InputManager disponible`);
     }
 
-    // Fallback avec le MovementBlockHandler si disponible
+    // ✅ MÉTHODE 2: Utiliser MovementBlockHandler si disponible
     if (window.movementBlockHandler) {
-      if (block) {
-        window.movementBlockHandler.requestBlock('starter_selection', 'Sélection de starter en cours');
-      } else {
-        window.movementBlockHandler.requestUnblock('starter_selection');
+      try {
+        if (block) {
+          if (typeof window.movementBlockHandler.requestBlock === 'function') {
+            window.movementBlockHandler.requestBlock('starter_selection', 'Sélection de starter en cours');
+            console.log(`✅ [StarterSelector] MovementBlockHandler bloqué`);
+          }
+        } else {
+          if (typeof window.movementBlockHandler.requestUnblock === 'function') {
+            window.movementBlockHandler.requestUnblock('starter_selection');
+            console.log(`✅ [StarterSelector] MovementBlockHandler débloqué`);
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ [StarterSelector] Erreur MovementBlockHandler:`, error);
       }
+    } else {
+      console.warn(`⚠️ [StarterSelector] Pas de MovementBlockHandler disponible`);
     }
 
-    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] Inputs joueur ${block ? 'bloqués' : 'débloqués'}`);
+    // ✅ MÉTHODE 3: Fallback direct avec shouldBlockInput
+    try {
+      if (block) {
+        // Ajouter un flag global pour que shouldBlockInput le détecte
+        window._starterSelectionActive = true;
+        console.log(`✅ [StarterSelector] Flag global _starterSelectionActive = true`);
+      } else {
+        // Retirer le flag
+        window._starterSelectionActive = false;
+        console.log(`✅ [StarterSelector] Flag global _starterSelectionActive = false`);
+      }
+    } catch (error) {
+      console.warn(`⚠️ [StarterSelector] Erreur flag global:`, error);
+    }
+
+    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] Inputs joueur ${block ? 'bloqués' : 'débloqués'} (multi-méthodes)`);
   }
 
   // ✅ MÉTHODE: Nettoyage
