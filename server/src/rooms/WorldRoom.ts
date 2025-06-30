@@ -24,6 +24,8 @@ import { QuestHandlers } from "../handlers/QuestHandlers";
 import { starterService } from "../services/StarterPokemonService";
 import { movementBlockManager, BlockReason } from "../managers/MovementBlockManager";
 
+import { BattleHandlers } from "../handlers/BattleHandlers";
+
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
   success: boolean;
@@ -48,6 +50,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private autoSaveTimer: NodeJS.Timeout | null = null;
   private teamHandlers!: TeamHandlers;
   private questHandlers!: QuestHandlers;
+  private battleHandlers!: BattleHandlers;
   // Limite pour auto-scaling
   maxClients = 50;
   private lastStateUpdate = 0;
@@ -95,6 +98,10 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.questHandlers = new QuestHandlers(this);
     console.log(`✅ QuestHandlers initialisé`);
     
+    // Initialiser les BattleHandlers
+    this.battleHandlers = new BattleHandlers(this);
+    console.log(`✅ BattleHandlers initialisé`);
+        
     // Initialiser les EncounterHandlers
     this.encounterHandlers = new EncounterHandlers(this);
     console.log(`✅ EncounterHandlers initialisé`);
@@ -390,7 +397,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.encounterHandlers.setupHandlers();
 
     this.questHandlers.setupHandlers();
-    
+    this.battleHandlers.setupHandlers();
     // === HANDLERS EXISTANTS ===
     
     // Mouvement du joueur
@@ -1554,6 +1561,7 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     // ✅ NOUVEAU: Nettoyer tous les blocages du joueur qui part
     movementBlockManager.forceUnblockAll(client.sessionId);
+    await this.battleHandlers.onPlayerLeave(client.sessionId);
     console.log(`🧹 [WorldRoom] Blocages nettoyés pour ${client.sessionId}`);
 
     console.log(`👋 Client ${client.sessionId} déconnecté`);
@@ -1588,7 +1596,10 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.encounterHandlers.cleanup();
       console.log(`🧹 EncounterHandlers nettoyés`);
     }
-
+    if (this.battleHandlers) {
+      this.battleHandlers.cleanup();
+      console.log(`🧹 BattleHandlers nettoyés`);
+    }
     console.log(`✅ WorldRoom fermée`);
   }
 
@@ -2041,7 +2052,10 @@ export class WorldRoom extends Room<PokeWorldState> {
   getEncounterHandlers(): EncounterHandlers {
     return this.encounterHandlers;
   }
-
+  // Méthode d'accès aux BattleHandlers
+  getBattleHandlers(): BattleHandlers {
+    return this.battleHandlers;
+  }
   public getEncounterManager() {
     return this.encounterHandlers.getEncounterManager();
   }
