@@ -544,16 +544,21 @@ export class InteractionManager {
         
         let currentNpcName = npcName;
         let currentPortrait = npcPortrait;
+        let messageText = message;
         
-        if (message.includes("*") || message.includes("🦆") || message.includes("Narrateur")) {
-          currentNpcName = options.narratorName || "???";
+        // Détecter les messages narrateur et les mettre en italique
+        if (!message.startsWith('"') && !message.includes('?') && !message.includes('!') && 
+            (message.includes('creature') || message.includes('head') || message.includes('points') || 
+             message.includes('buildings') || message.includes('confusion') || message.includes('Maybe'))) {
+          currentNpcName = options.narratorName || "Narrator";
           currentPortrait = options.narratorPortrait || "/assets/portrait/systemPortrait.png";
+          messageText = `<i>${message}</i>`;
         }
         
         const success = await this.showSingleMessageAndWait(
           currentNpcName, 
           currentPortrait, 
-          message, 
+          messageText, 
           i + 1, 
           validMessages.length,
           options
