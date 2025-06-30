@@ -386,7 +386,7 @@ export class BattleRoom extends Room<BattleState> {
     
     // Types
     battlePokemon.types.clear();
-    (teamPokemon.types || pokemonData.types).forEach((type: string) => battlePokemon.types.add(type));
+    (teamPokemon.types || pokemonData.types).forEach((type: string) => battlePokemon.types.push(type));
     
     // Stats actuelles (avec IVs, nature, etc.)
     battlePokemon.maxHp = teamPokemon.maxHp;
