@@ -21,6 +21,7 @@ class PokemonSpriteManager {
     }
   }
 
+  
   createPokemonSprite(pokemonName, x, y, direction = "left") {
     const key = `${pokemonName}_Walk`;
     this.createAnimations(key);
@@ -79,7 +80,7 @@ export class BeachScene extends BaseZoneScene {
     this.psyduckIntroManager = new PsyduckIntroManager(this);
 
     // ✅ Configurer les listeners immédiatement si room disponible
-    this.setupEarlyListeners();
+  //  this.setupEarlyListeners();
     this.setupBeachEvents();
   }
 
@@ -118,6 +119,12 @@ export class BeachScene extends BaseZoneScene {
     }
   }
 
+  setRoom(room) {
+  this.room = room;
+  // On ne setup les listeners qu'ici !
+  this.setupEarlyListeners();
+}
+  
   // === Envoi clientReady (flow 100% sûr) ===
   sendClientReady() {
     if (this.room && !this._clientReadySent) {
