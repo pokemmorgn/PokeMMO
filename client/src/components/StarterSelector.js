@@ -120,20 +120,25 @@ createInterface() {
   const centerX = this.scene.cameras.main.centerX;
   const centerY = this.scene.cameras.main.centerY;
 
-  // Container principal centré
   this.container = this.scene.add.container(centerX, centerY);
   this.container.setDepth(1000);
 
-  // Background style classique
-  const bg = this.scene.add.image(0, 0, 'starter_background_classic');
+  // Utiliser l'image du labo
+  let bg;
+  if (this.scene.textures.exists('lab_bg')) {
+    bg = this.scene.add.image(0, 0, 'lab_bg');
+    bg.setDisplaySize(400, 200); // Ajuste la taille
+  } else {
+    // Fallback
+    bg = this.scene.add.rectangle(0, 0, 400, 200, 0x20B060);
+  }
+  
   this.container.add(bg);
 
-  // PAS de titre - juste les pokéballs comme dans l'original
   this.createStarters();
   this.createUI();
   this.container.setAlpha(0);
 }
-
   // ✅ MÉTHODE: Créer placeholder pour starter
   createStarterPlaceholder(starter) {
     const textureKey = `starter_${starter.id}`;
@@ -234,16 +239,20 @@ createStarterBackground() {
 
   // ✅ MÉTHODE: Précharger les assets nécessaires
  preloadAssets() {
-  // NE PAS essayer de charger l'image dynamiquement pendant le jeu
-  // À la place, créer le background avec du code
-  this.createStarterBackground();
+  // Charger l'image du labo
+  if (!this.scene.textures.exists('lab_bg')) {
+    this.scene.load.image('lab_bg', 'assets/ui/lab_background.png');
+    this.scene.load.once('complete', () => {
+      console.log("✅ Background labo chargé");
+    });
+    this.scene.load.start();
+  }
   
   this.createPokeballTexture();
   this.starterConfig.forEach(starter => {
     this.createStarterPlaceholder(starter);
   });
 }
-
   // ✅ MÉTHODE: Créer l'interface principale (version compacte)
 createStarters() {
   this.pokeballs = [];
