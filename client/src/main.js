@@ -7,7 +7,7 @@ import { TimeService } from './services/TimeService.js';
 import { DayNightWeatherManagerPhaser } from './game/DayNightWeatherManager.js';
 import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
 import { ClientTimeWeatherManager } from './managers/ClientTimeWeatherManager.js';
-import { StarterUtils } from './components/StarterSelector.js';
+import { StarterUtils, integrateStarterSelectorToScene } from './components/StarterSelector.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
@@ -1300,65 +1300,23 @@ console.log("✅ Système météo global initialisé");
       }
     };
     // === FONCTIONS STARTER SYSTEM ===
-window.showStarterSelection = function(availableStarters = null) {
-  const activeScene = window.game?.scene?.getScenes(true)[0];
-  if (activeScene && activeScene.showStarterSelection) {
-    return activeScene.showStarterSelection(availableStarters);
-  } else {
-    console.warn("⚠️ Aucune scène active avec starter system");
-    return StarterUtils.showSelection(availableStarters);
-  }
-};
-
-window.hideStarterSelection = function() {
-  const activeScene = window.game?.scene?.getScenes(true)[0];
-  if (activeScene && activeScene.hideStarterSelection) {
-    activeScene.hideStarterSelection();
-  } else {
-    StarterUtils.hideSelection();
-  }
-};
-
+// ✅ FONCTION DE TEST POUR STARTER SELECTION
 window.testStarterSelection = function() {
   console.log("🧪 Test du système de sélection de starter...");
   return StarterUtils.test();
 };
 
-window.debugStarterSelection = function() {
-  console.log("🔍 Debug du système de starter...");
-  StarterUtils.debug();
-  
-  const activeScene = window.game?.scene?.getScenes(true)[0];
-  if (activeScene) {
-    console.log("Scène active:", {
-      key: activeScene.scene.key,
-      starterSystemInitialized: activeScene.starterSystemInitialized,
-      hasShowFunction: typeof activeScene.showStarterSelection === 'function',
-      isActive: activeScene.isStarterSelectionActive?.() || false
-    });
-  }
+window.showStarterSelection = function(availableStarters = null) {
+  return StarterUtils.showSelection(availableStarters);
+};
+
+window.hideStarterSelection = function() {
+  StarterUtils.hideSelection();
 };
 
 window.isStarterSelectionActive = function() {
   return StarterUtils.isActive();
 };
-    window.openQuestJournal = function() {
-      if (window.questSystemGlobal) {
-        window.questSystemGlobal.openQuestJournal();
-        window.showGameNotification("Journal des quêtes ouvert", "info", { duration: 1500, position: 'bottom-center' });
-      } else {
-        window.showGameAlert?.("Système de quêtes non initialisé");
-      }
-    };
-    
-    window.showStarterSelection = function() {
-      if (window.starterHUD) {
-        window.starterHUD.show();
-        window.showGameNotification("Sélection de starter disponible", "info", { duration: 3000, position: 'top-center' });
-      } else {
-        window.showGameAlert?.("HUD de starter non initialisé");
-      }
-    };
     
     window.testInventory = function() {
       if (window.inventorySystemGlobal) {
