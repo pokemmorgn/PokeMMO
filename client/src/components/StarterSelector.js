@@ -1,4 +1,27 @@
-// client/src/components/StarterSelector.js
+// ✅ MÉTHODE SIMPLE: Utiliser uniquement des flags globaux
+  blockPlayerInput(block) {
+    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] ${block ? 'Blocage' : 'Déblocage'} inputs via flags...`);
+    
+    // ✅ MÉTHODE PRINCIPALE: Flag global simple
+    window._starterSelectionActive = block;
+    
+    // ✅ MÉTHODE SECONDAIRE: Essayer les systèmes avancés si disponibles
+    if (window.movementBlockHandler && typeof window.movementBlockHandler.requestBlock === 'function') {
+      try {
+        if (block) {
+          window.movementBlockHandler.requestBlock('starter_selection', 'Sélection de starter en cours');
+        } else {
+          window.movementBlockHandler.requestUnblock('starter_selection');
+        }
+        console.log(`✅ [StarterSelector] MovementBlockHandler ${block ? 'bloqué' : 'débloqué'}`);
+      } catch (error) {
+        console.warn(`⚠️ [StarterSelector] Erreur MovementBlockHandler:`, error.message);
+      }
+    }
+    
+    // ✅ LOG FINAL
+    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] Inputs ${block ? 'BLOQUÉS' : 'DÉBLOQUÉS'} - Flag: ${window._starterSelectionActive}`);
+  }// client/src/components/StarterSelector.js
 // Système de sélection de starter externalisé pour PokéMon MMO
 
 export class StarterSelector {
@@ -119,9 +142,9 @@ export class StarterSelector {
 
   // ✅ MÉTHODE: Créer la texture de fond (similaire à ton image)
   createBackgroundTexture() {
-    // ✅ DIMENSIONS ADAPTÉES À LA FENÊTRE DE JEU
-const width = 600;  // ← Change cette valeur
-const height = 400; // ← Change cette valeur
+    // ✅ DIMENSIONS FIXES PLUS PETITES
+    const width = 600;
+    const height = 400;
     const graphics = this.scene.add.graphics();
 
     // Fond gris-bleu (comme ton image) - partie haute
@@ -254,7 +277,7 @@ const height = 400; // ← Change cette valeur
 
     // Fond principal (adapté à la taille de l'écran)
     this.baseBackground = this.scene.add.image(centerX, centerY, 'starter_background');
-this.baseBackground.setDisplaySize(600, 400); // ← Tailles fixes
+    this.baseBackground.setDisplaySize(width, height);
     this.backgroundContainer.add(this.baseBackground);
 
     // Container pour les starters
@@ -621,9 +644,18 @@ this.baseBackground.setDisplaySize(600, 400); // ← Tailles fixes
       );
     }
 
-    // Masquer après un délai
-    this.scene.time.delayedCall(2000, () => {
+    // ✅ FERMER APRÈS SÉLECTION (pas de transition)
+    this.scene.time.delayedCall(1500, () => {
       this.hide();
+      
+      // ✅ MESSAGE DU PROFESSEUR (optionnel)
+      if (window.showGameNotification) {
+        window.showGameNotification(
+          `Professeur: "Excellent choix ! Prenez bien soin de ${starter?.name} !"`,
+          'info',
+          { duration: 3000, position: 'bottom-center' }
+        );
+      }
     });
   }
 
@@ -759,16 +791,16 @@ this.baseBackground.setDisplaySize(600, 400); // ← Tailles fixes
 
   // ✅ MÉTHODE: Bloquer/débloquer les inputs du joueur
   blockPlayerInput(block) {
-    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] ${block ? 'Blocage' : 'Déblocage'} inputs via flags...`);
+    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] ${block ? 'Blocage' : 'Déblocage'} inputs pour sélection dans le labo...`);
     
-    // ✅ MÉTHODE PRINCIPALE: Flag global simple
+    // ✅ FLAG SIMPLE POUR LE SYSTÈME
     window._starterSelectionActive = block;
     
-    // ✅ MÉTHODE SECONDAIRE: Essayer les systèmes avancés si disponibles
+    // ✅ ESSAYER LE MOVEMENTBLOCKHANDLER SI DISPONIBLE
     if (window.movementBlockHandler && typeof window.movementBlockHandler.requestBlock === 'function') {
       try {
         if (block) {
-          window.movementBlockHandler.requestBlock('starter_selection', 'Sélection de starter en cours');
+          window.movementBlockHandler.requestBlock('starter_selection', 'Choix du starter en cours');
         } else {
           window.movementBlockHandler.requestUnblock('starter_selection');
         }
@@ -778,7 +810,6 @@ this.baseBackground.setDisplaySize(600, 400); // ← Tailles fixes
       }
     }
     
-    // ✅ LOG FINAL
     console.log(`${block ? '🔒' : '🔓'} [StarterSelector] Inputs ${block ? 'BLOQUÉS' : 'DÉBLOQUÉS'} - Flag: ${window._starterSelectionActive}`);
   }
 
