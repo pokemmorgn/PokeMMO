@@ -723,4 +723,7 @@ export class StarterSelector {
       this.onStarterConfirmed(data);
     });
 
-    this.networkManager.room.onMessage("starterSel
+    this.networkManager.room.onMessage("starterSelectionError", (data) => {
+      console.error("❌ [StarterSelector] Erreur sélection:", data);
+      this.showError(data.message || "Erreur lors de la sélection");
+    });
