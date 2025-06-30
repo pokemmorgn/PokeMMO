@@ -397,7 +397,10 @@ styleSheet.textContent = starterHudCSS;
 document.head.appendChild(styleSheet);
 
 console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
-
+const starterSelectorCSS = `[LE CSS D'ARTIFACTS ICI]`;
+const starterStyleSheet = document.createElement('style');
+starterStyleSheet.textContent = starterSelectorCSS;
+document.head.appendChild(starterStyleSheet);
 // ==== Connexion Colyseus + Initialisation des systèmes ====
 // 🚨 NE PAS LANCER Phaser AVANT D'AVOIR UN NETWORK CONNECTÉ 🚨
 (async () => {
