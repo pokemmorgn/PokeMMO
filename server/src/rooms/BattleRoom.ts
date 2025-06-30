@@ -1,6 +1,6 @@
 // server/src/rooms/BattleRoom.ts
 import { Room, Client } from "@colyseus/core";
-import { BattleState, BattlePokemon, BattleAction, BattlePhase } from "../schema/BattleState";
+import { BattleState, BattlePokemon, BattleAction } from "../schema/BattleState";
 import { WildPokemon } from "../managers/EncounterManager";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
@@ -289,7 +289,7 @@ export class BattleRoom extends Room<BattleState> {
     
     // Types
     wildBattlePokemon.types.clear();
-    pokemonData.types.forEach(type => wildBattlePokemon.types.add(type));
+    pokemonData.types.forEach(type => wildBattlePokemon.types.push(type));
     
     // Calculer les stats avec IVs
     const stats = this.calculateStats(pokemonData, wildPokemon.level, wildPokemon.ivs);
@@ -303,7 +303,7 @@ export class BattleRoom extends Room<BattleState> {
     
     // Moves
     wildBattlePokemon.moves.clear();
-    wildPokemon.moves.forEach(move => wildBattlePokemon.moves.add(move));
+    wildPokemon.moves.forEach(move => wildBattlePokemon.moves.push(move));
     
     // Assigner comme player2 (adversaire)
     this.state.player2Pokemon = wildBattlePokemon;
@@ -354,7 +354,7 @@ export class BattleRoom extends Room<BattleState> {
         this.state.player2Pokemon = battlePokemon;
       }
 
-      console.log(`✅ ${selectedPokemon.customName || selectedPokemon.species} assigné`);
+      console.log(`✅ ${selectedPokemon.nickname || pokemonData.name} assigné`);
 
       // Vérifier si on peut commencer le combat
       if (this.canStartActualBattle()) {
@@ -399,7 +399,14 @@ export class BattleRoom extends Room<BattleState> {
     
     // Moves
     battlePokemon.moves.clear();
-    (teamPokemon.moves || []).forEach((move: string) => battlePokemon.moves.add(move));
+    // TODO: Récupérer les moves réels du Pokémon de l'équipe
+    // Pour l'instant, utiliser les moves de base
+    const baseMoves = pokemonData.learnset
+      .filter((learn: any) => learn.level <= teamPokemon.level)
+      .slice(-4)
+      .map((learn: any) => learn.moveId);
+    
+    (baseMoves || ["tackle"]).forEach((move: string) => battlePokemon.moves.push(move));
     
     // Status
     battlePokemon.statusCondition = teamPokemon.status || "normal";
@@ -745,6 +752,15 @@ export class BattleRoom extends Room<BattleState> {
       case "draw":
         this.addBattleMessage("Match nul !");
         break;
+    }
+    
+    // Sauvegarder les changements des Pokémon
+    if (this.state.player1Pokemon) {
+      await this.updatePokemonAfterBattle(this.state.player1Id, this.state.player1Pokemon);
+    }
+    
+    if (this.state.player2Id && this.state.player2Pokemon && !this.state.player2Pokemon.isWild) {
+      await this.updatePokemonAfterBattle(this.state.player2Id, this.state.player2Pokemon);
     }
     
     // Calculer les récompenses
