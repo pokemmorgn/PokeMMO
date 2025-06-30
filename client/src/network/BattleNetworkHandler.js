@@ -176,7 +176,7 @@ export class BattleNetworkHandler {
     
     try {
       // Se connecter à la BattleRoom
-      this.battleRoom = await this.client.join("battle", { roomId: battleRoomId });
+     this.battleRoom = await this.client.joinById(battleRoomId);
       
       console.log(`✅ [BattleNetworkHandler] Connecté à BattleRoom: ${battleRoomId}`);
       
