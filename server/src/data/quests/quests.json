@@ -41,7 +41,7 @@
               "id": "talk_to_bob",
               "type": "talk",
               "description": "Talk to Bob",
-              "target": "87",
+              "target": "82",
               "targetName": "Bob",
               "requiredAmount": 1,
               
