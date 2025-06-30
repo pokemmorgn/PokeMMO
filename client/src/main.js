@@ -7,6 +7,7 @@ import { TimeService } from './services/TimeService.js';
 import { DayNightWeatherManagerPhaser } from './game/DayNightWeatherManager.js';
 import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
 import { ClientTimeWeatherManager } from './managers/ClientTimeWeatherManager.js';
+import { StarterUtils } from './components/StarterSelector.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
@@ -1097,6 +1098,7 @@ console.log("✅ Système météo global initialisé");
         console.error('❌ Icône team non trouvée');
       }
     };
+
     
     // === Fonctions d'accès rapide, notifications, tests etc ===
     window.openInventory = function() {
@@ -1119,7 +1121,49 @@ console.log("✅ Système météo global initialisé");
         window.showGameAlert?.("Aucun système d'inventaire disponible");
       }
     };
-    
+    // === FONCTIONS STARTER SYSTEM ===
+window.showStarterSelection = function(availableStarters = null) {
+  const activeScene = window.game?.scene?.getScenes(true)[0];
+  if (activeScene && activeScene.showStarterSelection) {
+    return activeScene.showStarterSelection(availableStarters);
+  } else {
+    console.warn("⚠️ Aucune scène active avec starter system");
+    return StarterUtils.showSelection(availableStarters);
+  }
+};
+
+window.hideStarterSelection = function() {
+  const activeScene = window.game?.scene?.getScenes(true)[0];
+  if (activeScene && activeScene.hideStarterSelection) {
+    activeScene.hideStarterSelection();
+  } else {
+    StarterUtils.hideSelection();
+  }
+};
+
+window.testStarterSelection = function() {
+  console.log("🧪 Test du système de sélection de starter...");
+  return StarterUtils.test();
+};
+
+window.debugStarterSelection = function() {
+  console.log("🔍 Debug du système de starter...");
+  StarterUtils.debug();
+  
+  const activeScene = window.game?.scene?.getScenes(true)[0];
+  if (activeScene) {
+    console.log("Scène active:", {
+      key: activeScene.scene.key,
+      starterSystemInitialized: activeScene.starterSystemInitialized,
+      hasShowFunction: typeof activeScene.showStarterSelection === 'function',
+      isActive: activeScene.isStarterSelectionActive?.() || false
+    });
+  }
+};
+
+window.isStarterSelectionActive = function() {
+  return StarterUtils.isActive();
+};
     window.openQuestJournal = function() {
       if (window.questSystemGlobal) {
         window.questSystemGlobal.openQuestJournal();
@@ -1378,6 +1422,8 @@ window.shouldBlockInput = function() {
     window.isInventoryOpen() ||
     window.isTeamOpen() ||
     window.isEncounterActive(); // 🆕 NOUVEAU: Bloquer aussi pendant encounters
+    window.isStarterSelectionActive(); // ← AJOUTER CETTE LIGNE
+
 };
 
 window.canPlayerInteract = function() {
@@ -1411,6 +1457,11 @@ window.getGameSystemsStatus = function() {
       initialized: !!window.gameNotificationSystem,
       manager: window.NotificationManager ? 'Available' : 'Not Available',
       ready: window.gameNotificationSystem ? window.gameNotificationSystem.isReady() : false
+    },
+    starter: { 
+    initialized: !!window.starterSelector, 
+    active: window.isStarterSelectionActive?.() || false,
+    utils: typeof StarterUtils === 'object'
     },
     // ✅ Info du SceneRegistry
     sceneRegistry: {
@@ -1474,6 +1525,8 @@ window.showGameHelp = function() {
 • F - Debug encounters (dans les zones)
 • G - Forcer un encounter (dans les zones)
 • E - Interagir avec NPCs/objets
+- S - Afficher sélection starter (test)
+- ESC - Fermer sélection starter
 • WASD ou Flèches - Déplacement
 
 === Fonctions de test ===
@@ -1499,6 +1552,9 @@ window.showGameHelp = function() {
 • window.switchToZone('road1') - Changer de zone manuellement
 • window.debugSceneRegistry() - Debug du système de scènes
 
+//Starter fonctions
+- window.testStarterSelection() - Tester la sélection de starter
+- window.debugStarterSelection() - Debug du système starter
 === Systèmes disponibles ===
 • Inventaire: ${!!window.inventorySystemGlobal}
 • Équipe: ${!!window.teamManagerGlobal}
