@@ -120,8 +120,8 @@ export class StarterSelector {
   // ✅ MÉTHODE: Créer la texture de fond (similaire à ton image)
   createBackgroundTexture() {
     // ✅ DIMENSIONS ADAPTÉES À LA FENÊTRE DE JEU
-    const width = this.scene.cameras.main.width;
-    const height = this.scene.cameras.main.height;
+const width = 600;  // ← Change cette valeur
+const height = 400; // ← Change cette valeur
     const graphics = this.scene.add.graphics();
 
     // Fond gris-bleu (comme ton image) - partie haute
@@ -254,7 +254,7 @@ export class StarterSelector {
 
     // Fond principal (adapté à la taille de l'écran)
     this.baseBackground = this.scene.add.image(centerX, centerY, 'starter_background');
-    this.baseBackground.setDisplaySize(width, height);
+this.baseBackground.setDisplaySize(600, 400); // ← Tailles fixes
     this.backgroundContainer.add(this.baseBackground);
 
     // Container pour les starters
