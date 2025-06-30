@@ -37,6 +37,9 @@ export class BaseZoneScene extends Phaser.Scene {
     this.myPlayerReady = false;
     this.globalWeatherManager = null;
     this.weatherSystemType = null; // 'global', 'fallback'
+
+    this.networkManager = (this.scene?.settings?.data?.networkManager) || window.globalNetworkManager;
+    this.room = this.networkManager?.room || window.currentGameRoom;
     
     // Inventaire
     this.inventorySystem = null;
@@ -117,49 +120,59 @@ create() {
 }
 
   // ✅ MÉTHODE INCHANGÉE: Utiliser la connexion existante de main.js
-  initializeWithExistingConnection() {
-    console.log(`📡 [${this.scene.key}] === UTILISATION CONNEXION EXISTANTE ===`);
-    
-    if (!window.globalNetworkManager) {
-      console.error(`❌ [${this.scene.key}] NetworkManager global manquant!`);
-      this.showErrorState("NetworkManager global introuvable");
-      return;
-    }
-
-    if (!window.globalNetworkManager.isConnected) {
-      console.error(`❌ [${this.scene.key}] NetworkManager global non connecté!`);
-      this.showErrorState("Connexion réseau inactive");
-      return;
-    }
-
-    this.networkManager = window.globalNetworkManager;
-    this.mySessionId = this.networkManager.getSessionId();
-
-    console.log(`✅ [${this.scene.key}] NetworkManager récupéré:`, {
-      sessionId: this.mySessionId,
-      isConnected: this.networkManager.isConnected,
-      currentZone: this.networkManager.getCurrentZone()
-    });
-
-    this.setupNetworkHandlers();
-    this.networkSetupComplete = true;
-
-    // ✅ Initialiser les systèmes de jeu
-    this.initializeGameSystems();
-
-    this.requestServerZone();
-    this.verifyNetworkState();
-
-    // CRITIQUE : Toujours refaire le setup après toute nouvelle room !
-    if (this.networkManager && this.networkManager.room) {
-      this.networkManager.setupRoomListeners();
-      this.networkManager.restoreCustomCallbacks?.();
-    }
-
-    // 🔒 NOUVEAU: Initialiser MovementBlockHandler après NetworkManager
-    this.initializeMovementBlockHandler();
-    this.networkSetupComplete = true;
+ initializeWithExistingConnection() {
+  console.log(`📡 [${this.scene.key}] === UTILISATION CONNEXION EXISTANTE ===`);
+  
+  if (!window.globalNetworkManager) {
+    console.error(`❌ [${this.scene.key}] NetworkManager global manquant!`);
+    this.showErrorState("NetworkManager global introuvable");
+    return;
   }
+
+  if (!window.globalNetworkManager.isConnected) {
+    console.error(`❌ [${this.scene.key}] NetworkManager global non connecté!`);
+    this.showErrorState("Connexion réseau inactive");
+    return;
+  }
+
+  this.networkManager = this.networkManager || window.globalNetworkManager;
+  console.log('[BaseZoneScene] NetworkManager utilisé :', this.networkManager, 'Room:', this.room);
+  this.mySessionId = this.networkManager.getSessionId();
+
+  console.log(`✅ [${this.scene.key}] NetworkManager récupéré:`, {
+    sessionId: this.mySessionId,
+    isConnected: this.networkManager.isConnected,
+    currentZone: this.networkManager.getCurrentZone()
+  });
+
+  this.setupNetworkHandlers();
+  this.networkSetupComplete = true;
+
+  // ✅ Initialiser les systèmes de jeu
+  this.initializeGameSystems();
+
+  this.requestServerZone();
+  this.verifyNetworkState();
+
+  // CRITIQUE : Toujours refaire le setup après toute nouvelle room !
+  if (this.networkManager && this.networkManager.room) {
+    this.networkManager.setupRoomListeners();
+    this.networkManager.restoreCustomCallbacks?.();
+  }
+
+  // 🔒 NOUVEAU: Initialiser MovementBlockHandler après NetworkManager
+  this.initializeMovementBlockHandler();
+  this.networkSetupComplete = true;
+
+  // === [HOOK ROOM READY] ===
+  if (this.networkManager && this.networkManager.room) {
+    this.room = this.networkManager.room; // Synchronise la référence locale
+    if (typeof this.onRoomAvailable === "function") {
+      this.onRoomAvailable(this.room);
+    }
+  }
+}
+
 
   // 🔒 NOUVELLE MÉTHODE: Initialisation MovementBlockHandler avec protection
   initializeMovementBlockHandler() {
@@ -256,6 +269,26 @@ create() {
     }
   }
 
+setRoom(room) {
+  // Méthode à appeler pour changer de room (par exemple lors d'une transition de zone)
+  console.log(`🔄 [${this.scene?.key || 'BaseZoneScene'}] setRoom appelé :`, room);
+
+  this.room = room;
+  if (this.networkManager) {
+    this.networkManager.room = room;
+    console.log(`🔄 [${this.scene?.key || 'BaseZoneScene'}] Changement de room dans NetworkManager`);
+    this.networkManager.setupRoomListeners();
+    this.networkManager.restoreCustomCallbacks?.();
+  } else {
+    console.warn(`⚠️ [${this.scene?.key || 'BaseZoneScene'}] Pas de networkManager pour setRoom`);
+  }
+  // Re-initialiser certains systèmes si besoin
+  this.initializeGameSystems();
+  console.log(`✅ [${this.scene?.key || 'BaseZoneScene'}] Systèmes réinitialisés après changement de room`);
+}
+
+
+  
   // ✅ MÉTHODE MODIFIÉE: Initialisation des systèmes avec ordre et délais sécurisés + EncounterManager
   initializeGameSystems() {
     console.log(`🎮 [${this.scene.key}] Initialisation des systèmes de jeu (ordre sécurisé)...`);
