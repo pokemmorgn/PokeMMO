@@ -119,26 +119,22 @@ export class StarterSelector {
 createInterface() {
   const centerX = this.scene.cameras.main.centerX;
   const centerY = this.scene.cameras.main.centerY;
+  const camera = this.scene.cameras.main;
 
   this.container = this.scene.add.container(centerX, centerY);
   this.container.setDepth(1000);
 
-  // Utiliser l'image du labo
-  let bg;
-  if (this.scene.textures.exists('lab_bg')) {
-    bg = this.scene.add.image(0, 0, 'lab_bg');
-    bg.setDisplaySize(400, 200); // Ajuste la taille
-  } else {
-    // Fallback
-    bg = this.scene.add.rectangle(0, 0, 400, 200, 0x20B060);
-  }
-  
+  // Background PNG étiré sur tout l'écran
+  const bg = this.scene.add.image(0, 0, 'lab_bg');
+  bg.setDisplaySize(camera.width, camera.height);
   this.container.add(bg);
 
   this.createStarters();
   this.createUI();
   this.container.setAlpha(0);
 }
+
+  
   // ✅ MÉTHODE: Créer placeholder pour starter
   createStarterPlaceholder(starter) {
     const textureKey = `starter_${starter.id}`;
@@ -160,45 +156,7 @@ createInterface() {
     graphics.destroy();
   }
 
-  // Ajoute cette méthode après createStarterPlaceholder()
-createStarterBackground() {
-  if (this.scene.textures.exists('starter_background_classic')) return;
-  
-  const width = 400;
-  const height = 200;
-  const graphics = this.scene.add.graphics();
-
-  // === FOND GRIS CLAIR (comme Game Boy) ===
-  graphics.fillStyle(0xC8C8D0);
-  graphics.fillRect(0, 0, width, height);
-
-  // === GRILLE SUBTILE ===
-  graphics.lineStyle(1, 0xB0B0B8, 0.5);
-  for (let x = 0; x < width; x += 16) {
-    graphics.lineBetween(x, 0, x, height * 0.3);
-  }
-  for (let y = 0; y < height * 0.3; y += 16) {
-    graphics.lineBetween(0, y, width, y);
-  }
-
-  // === ZONE VERTE CENTRALE ===
-  const greenY = height * 0.3;
-  const greenHeight = height * 0.4;
-  graphics.fillStyle(0x20B060);
-  graphics.fillRect(0, greenY, width, greenHeight);
-
-  // === BORDURE INFÉRIEURE GRIS FONCÉ ===
-  graphics.fillStyle(0x808090);
-  graphics.fillRect(0, height * 0.7, width, height * 0.3);
-
-  // === BORDURES SIMPLES ===
-  graphics.lineStyle(2, 0x404050);
-  graphics.strokeRect(0, 0, width, height);
-
-  // Générer la texture
-  graphics.generateTexture('starter_background_classic', width, height);
-  graphics.destroy();
-}
+ 
   
   // ✅ MÉTHODE PRINCIPALE: Afficher la sélection
   show(availableStarters = null) {
@@ -238,8 +196,8 @@ createStarterBackground() {
   }
 
   // ✅ MÉTHODE: Précharger les assets nécessaires
- preloadAssets() {
-  // Charger l'image du labo
+preloadAssets() {
+  // Charger uniquement l'image du labo
   if (!this.scene.textures.exists('lab_bg')) {
     this.scene.load.image('lab_bg', 'assets/ui/lab_background.png');
     this.scene.load.once('complete', () => {
