@@ -602,7 +602,7 @@ finishIntro() {
                                // === ICI ON PRÉVIENT LE SERVEUR ===
                 if (this.scene.room) {
                   this.scene.room.send("progressIntroQuest", {
-                    step: "intro_completed",
+                    step: "intro_watched",
                     playerName: this.scene.playerManager?.getMyPlayer()?.name || "unknown"
                   });
                   console.log("📤 [PsyduckIntro] Notification 'introp2' envoyée au serveur");
