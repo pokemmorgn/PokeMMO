@@ -19,6 +19,8 @@ import { PlayerData } from "../models/PlayerData";
 import { TeamManager } from "../managers/TeamManager";
 import { TeamHandlers } from "../handlers/TeamHandlers";
 import { EncounterHandlers } from "../handlers/EncounterHandlers";
+
+import { QuestHandlers } from "../handlers/QuestHandlers";
 import { starterService } from "../services/StarterPokemonService";
 import { movementBlockManager, BlockReason } from "../managers/MovementBlockManager";
 
@@ -45,7 +47,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private positionSaver = PositionSaverService.getInstance();
   private autoSaveTimer: NodeJS.Timeout | null = null;
   private teamHandlers!: TeamHandlers;
-
+  private questHandlers!: QuestHandlers;
   // Limite pour auto-scaling
   maxClients = 50;
   private lastStateUpdate = 0;
@@ -89,7 +91,10 @@ export class WorldRoom extends Room<PokeWorldState> {
     // Initialiser les TeamHandlers
     this.teamHandlers = new TeamHandlers(this);
     console.log(`✅ TeamHandlers initialisé`);
-
+    
+    this.questHandlers = new QuestHandlers(this);
+    console.log(`✅ QuestHandlers initialisé`);
+    
     // Initialiser les EncounterHandlers
     this.encounterHandlers = new EncounterHandlers(this);
     console.log(`✅ EncounterHandlers initialisé`);
@@ -384,6 +389,8 @@ export class WorldRoom extends Room<PokeWorldState> {
     // Configurer les handlers d'encounter
     this.encounterHandlers.setupHandlers();
 
+    this.questHandlers.setupHandlers();
+    
     // === HANDLERS EXISTANTS ===
     
     // Mouvement du joueur
