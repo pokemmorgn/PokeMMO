@@ -49,6 +49,11 @@ export class InteractionManager {
     this.setupInputHandlers();
     this.setupNetworkHandlers();
 
+      // 🔥 EXPOSER L'API GLOBALE
+  window.createCustomDiscussion = (npcName, npcPortrait, text, options = {}) => {
+    return this.createCustomDiscussion(npcName, npcPortrait, text, options);
+  };
+    
     console.log(`✅ [${this.scene.scene.key}] InteractionManager initialisé`);
     console.log(`📊 Systèmes enregistrés: ${this.interactionSystems.size}`);
 
