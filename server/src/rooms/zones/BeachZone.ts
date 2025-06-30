@@ -112,7 +112,7 @@ export class BeachZone implements IZone {
         if (introQuest) {
           // Si premier objectif pas encore complété → Relancer l'intro
           const firstStep = introQuest.steps[0];
-          const hasSeenIntro = firstStep?.objectives.some(obj => obj.completed);
+          const hasSeenIntro = firstStep?.objectives.some((obj: any) => obj.completed);
           
           if (!hasSeenIntro) {
             client.send("triggerIntroSequence", {
