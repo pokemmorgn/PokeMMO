@@ -212,20 +212,42 @@ export class BeachScene extends BaseZoneScene {
     }
   }
 
-  // ✅ === POSITION PLAYER AVEC DÉMARRAGE IMMÉDIAT D'INTRO ===
+  // ✅ === POSITION PLAYER CORRIGÉE ===
   positionPlayer(player) {
     const initData = this.scene.settings.data;
     
+    // ✅ IMPORTANT: D'abord positionner le joueur correctement
     super.positionPlayer(player);
+    
+    console.log(`👤 [BeachScene] Joueur positionné: ${player.name || 'joueur'} à (${player.x}, ${player.y})`);
 
-    // ✅ NOUVEAU: Démarrer l'intro IMMÉDIATEMENT pour bloquer le joueur
+    // ✅ Démarrer l'intro avec un petit délai pour que le joueur soit bien visible
     if (!this._introTriggered && !this._serverCheckSent) {
-      console.log(`🎬 [BeachScene] Joueur positionné, démarrage intro immédiat`);
-      this._introTriggered = true;
+      console.log(`🎬 [BeachScene] Programmation démarrage intro immédiat`);
       
-      // Démarrer l'intro tout de suite en mode "incertain"
-      this.startIntroWithServerDetection();
+      // Petit délai pour s'assurer que le joueur est visible et positionné
+      this.time.delayedCall(200, () => {
+        if (!this._introTriggered) {
+          this._introTriggered = true;
+          this.startIntroWithServerDetection();
+        }
+      });
     }
+  }
+
+  // ✅ === HOOK APRÈS POSITIONNEMENT (IMPORTANT) ===
+  onPlayerPositioned(player, initData) {
+    console.log(`✅ [BeachScene] Joueur définitivement positionné à (${player.x}, ${player.y})`);
+    
+    // S'assurer que le joueur est visible
+    if (player.setVisible) {
+      player.setVisible(true);
+    }
+    if (player.alpha !== undefined) {
+      player.alpha = 1;
+    }
+    
+    console.log(`👁️ [BeachScene] Visibilité joueur vérifiée`);
   }
 
   // ✅ === NOUVELLE MÉTHODE: DÉMARRAGE INTRO AVEC DÉTECTION SERVEUR ===
@@ -386,7 +408,21 @@ export class BeachScene extends BaseZoneScene {
       roomConnected: this.room !== null
     });
     
-    // ✅ NOUVEAU: Debug du PsyduckIntroManager
+    // ✅ Debug du joueur
+    const myPlayer = this.playerManager?.getMyPlayer();
+    if (myPlayer) {
+      console.log(`👤 Joueur:`, {
+        x: myPlayer.x,
+        y: myPlayer.y,
+        visible: myPlayer.visible,
+        alpha: myPlayer.alpha,
+        exists: true
+      });
+    } else {
+      console.log(`👤 Joueur: NON TROUVÉ`);
+    }
+    
+    // ✅ Debug du PsyduckIntroManager
     if (this.psyduckIntroManager) {
       this.psyduckIntroManager.debugStatus();
     }
