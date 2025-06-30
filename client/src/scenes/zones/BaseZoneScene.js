@@ -19,8 +19,6 @@ import { ClientEncounterManager } from "../../managers/EncounterManager.js";
 import { movementBlockHandler } from "../../input/MovementBlockHandler.js";
 import { InputManager } from "../../input/InputManager.js";
 import { integrateMusicToScene } from "../../managers/MapMusicManager.js";
-import { integrateStarterSelectorToScene } from '../../components/StarterSelector.js'; // ← AJOUTER
-
 
 
 export class BaseZoneScene extends Phaser.Scene {
@@ -78,8 +76,6 @@ export class BaseZoneScene extends Phaser.Scene {
     // 🔒 NOUVEAU: InputManager
     this.inputManager = null;
     this.inputManagerReady = false;
-    this.starterSystemInitialized = false; // ← AJOUTER
-
   }
 
   preload() {
@@ -302,11 +298,6 @@ setRoom(room) {
     // 1. Inventaire (plus stable)
     this.initializeInventorySystem();
 
-    // 🎯 NOUVEAU: Initialiser le système de starter
-setTimeout(() => {
-  this.initializeStarterSystem();
-}, 300);
-    
         // 4. Temps/Météo (peu de risque de conflit)
     setTimeout(() => {
       this.initializeTimeWeatherSystem();
@@ -385,40 +376,6 @@ setTimeout(() => {
     }
   }
 
-
-  // 🎯 NOUVELLE MÉTHODE: Initialisation du système de starter
-initializeStarterSystem() {
-  console.log(`🎯 [${this.scene.key}] === INITIALISATION STARTER SYSTEM ===`);
-  
-  try {
-    // Vérifier que NetworkManager est prêt
-    if (!this.networkManager?.room) {
-      console.warn(`⚠️ [${this.scene.key}] NetworkManager pas prêt pour starter system, retry...`);
-      setTimeout(() => this.initializeStarterSystem(), 1000);
-      return;
-    }
-
-    // Intégrer le sélecteur à cette scène
-    const selector = integrateStarterSelectorToScene(this, this.networkManager);
-    
-    // Marquer comme initialisé
-    this.starterSystemInitialized = true;
-    
-    console.log(`✅ [${this.scene.key}] Système de starter initialisé`);
-    
-    // Exposer pour debug
-    if (!window.starterSelector) {
-      window.starterSelector = selector;
-    }
-    
-    return selector;
-    
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur init starter system:`, error);
-  }
-}
-
-  
   // 🆕 NOUVELLE MÉTHODE: Setup des handlers réseau pour les encounters
 setupEncounterNetworkHandlers() {
   if (!this.networkManager?.room) {
@@ -1357,15 +1314,6 @@ initializeZoneEnvironment() {
     this.globalWeatherManager = null;
     this.weatherSystemType = null;
     const isTransition = this.networkManager && this.networkManager.isTransitionActive;
-
-    // 🎯 NOUVEAU: Nettoyer le starter system
-if (this.starterSystemInitialized && !isTransition) {
-  console.log(`🧹 [${this.scene.key}] Nettoyage starter system`);
-  if (this.hideStarterSelection) {
-    this.hideStarterSelection();
-  }
-  this.starterSystemInitialized = false;
-}
     
     if (!isTransition) {
       if (this.playerManager) {
