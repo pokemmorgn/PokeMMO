@@ -26,35 +26,64 @@ export class BattleConnection {
   /**
    * Initialise avec le NetworkManager principal
    */
-  initialize(networkManager) {
-    console.log('🔧 [BattleConnection] Initialisation...');
-    
-    if (!networkManager || !networkManager.worldRoom || !networkManager.client) {
-      console.error('❌ [BattleConnection] NetworkManager incomplet');
-      return false;
-    }
-    
-    // Créer le handler réseau spécialisé
-    this.networkHandler = new BattleNetworkHandler(networkManager);
-    
-    // L'initialiser avec les connexions existantes
-    const success = this.networkHandler.initialize(
-      networkManager.worldRoom,
-      networkManager.client
-    );
-    
-    if (!success) {
-      console.error('❌ [BattleConnection] Échec initialisation BattleNetworkHandler');
-      return false;
-    }
-    
-    // Setup des événements
-    this.setupNetworkEvents();
-    
-    this.isInitialized = true;
-    console.log('✅ [BattleConnection] Initialisé avec BattleNetworkHandler');
-    return true;
+initialize(networkManager) {
+  console.log('🔧 [BattleConnection] Initialisation...');
+  
+  // ✅ CORRECTION: Validation plus flexible
+  if (!networkManager) {
+    console.error('❌ [BattleConnection] NetworkManager manquant');
+    return false;
   }
+  
+  // Extraire worldRoom et client de différentes façons
+  let worldRoom = null;
+  let client = null;
+  
+  if (networkManager.worldRoom) {
+    worldRoom = networkManager.worldRoom;
+  } else if (networkManager.room) {
+    worldRoom = networkManager.room;
+  } else {
+    console.error('❌ [BattleConnection] Aucune WorldRoom trouvée');
+    return false;
+  }
+  
+  if (networkManager.client) {
+    client = networkManager.client;
+  } else if (worldRoom.connection) {
+    client = worldRoom.connection;
+  } else if (worldRoom._client) {
+    client = worldRoom._client;
+  } else {
+    console.warn('⚠️ [BattleConnection] Client non trouvé, utilisation de worldRoom');
+    client = worldRoom; // Fallback
+  }
+  
+  console.log('🔧 [BattleConnection] Connexions extraites:', {
+    worldRoom: !!worldRoom,
+    client: !!client,
+    worldRoomId: worldRoom?.id,
+    clientType: typeof client
+  });
+  
+  // Créer le handler réseau spécialisé
+  this.networkHandler = new BattleNetworkHandler(networkManager);
+  
+  // L'initialiser avec les connexions trouvées
+  const success = this.networkHandler.initialize(worldRoom, client);
+  
+  if (!success) {
+    console.error('❌ [BattleConnection] Échec initialisation BattleNetworkHandler');
+    return false;
+  }
+  
+  // Setup des événements
+  this.setupNetworkEvents();
+  
+  this.isInitialized = true;
+  console.log('✅ [BattleConnection] Initialisé avec BattleNetworkHandler');
+  return true;
+}
 
   /**
    * Alternative : initialiser directement avec WorldRoom (compatibilité)
