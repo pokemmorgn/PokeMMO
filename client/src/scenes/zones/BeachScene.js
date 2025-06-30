@@ -1,6 +1,65 @@
-// client/src/scenes/zones/BeachScene.js
-// MODIFICATION pour intégrer avec PsyduckIntroManager différé
+// ===============================================
+// BeachScene.js - Beach + Intro automatique avec fix timing complet
+// ===============================================
+import { BaseZoneScene } from './BaseZoneScene.js';
+import { PsyduckIntroManager } from '../intros/PsyduckIntroManager.js';
 
+
+// === Mini-manager pour spritesheets Pokémon 2x4 (27x27px) ===
+class PokemonSpriteManager {
+  constructor(scene) { this.scene = scene; }
+
+  loadSpritesheet(pokemonName) {
+    const key = `${pokemonName}_Walk`;
+    if (!this.scene.textures.exists(key)) {
+      this.scene.load.spritesheet(key, `assets/pokemon/${pokemonName}.png`, {
+        frameWidth: 27, frameHeight: 27,
+      });
+      this.scene.load.once('complete', () => this.createAnimations(key));
+      this.scene.load.start();
+    } else {
+      this.createAnimations(key);
+    }
+  }
+
+  createPokemonSprite(pokemonName, x, y, direction = "left") {
+    const key = `${pokemonName}_Walk`;
+    this.createAnimations(key);
+    const sprite = this.scene.add.sprite(x, y, key, 0).setOrigin(0.5, 1);
+    sprite.setDepth(5);
+    sprite.direction = direction;
+    sprite.pokemonAnimKey = `${key}_${direction}`;
+    sprite.play(sprite.pokemonAnimKey);
+    return sprite;
+  }
+
+  createAnimations(key) {
+    const anims = this.scene.anims;
+    if (anims.exists(`${key}_down`)) return;
+    anims.create({
+      key: `${key}_up`,
+      frames: [{ key, frame: 0 }, { key, frame: 1 }],
+      frameRate: 6, repeat: -1
+    });
+    anims.create({
+      key: `${key}_down`,
+      frames: [{ key, frame: 2 }, { key, frame: 3 }],
+      frameRate: 6, repeat: -1
+    });
+    anims.create({
+      key: `${key}_left`,
+      frames: [{ key, frame: 4 }, { key, frame: 5 }],
+      frameRate: 6, repeat: -1
+    });
+    anims.create({
+      key: `${key}_right`,
+      frames: [{ key, frame: 6 }, { key, frame: 7 }],
+      frameRate: 6, repeat: -1
+    });
+  }
+}
+
+// ====================== BeachScene ==========================
 export class BeachScene extends BaseZoneScene {
   constructor() {
     super('BeachScene', 'beach');
