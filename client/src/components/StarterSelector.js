@@ -1,4 +1,4 @@
-// Système de sélection de starter SIMPLE pour PokéMon MMO
+// ✅ Système de sélection de starter CORRIGÉ pour PokéMon MMO
 
 export class StarterSelector {
   constructor(scene) {
@@ -7,10 +7,9 @@ export class StarterSelector {
     this.selectedStarterId = null;
     this.networkManager = null;
     
-    // Containers Phaser
+    // Elements HTML
+    this.overlay = null;
     this.container = null;
-    this.pokeballs = [];
-    this.starterSprites = [];
     
     // Configuration des starters
     this.starterConfig = [
@@ -19,27 +18,28 @@ export class StarterSelector {
         name: 'Bulbizarre',
         type: 'Plante',
         description: 'Un Pokémon Graine docile et loyal.',
-        color: 0x4CAF50
+        color: '#4CAF50'
       },
       {
         id: 'charmander', 
         name: 'Salamèche',
         type: 'Feu',
         description: 'Un Pokémon Lézard fougueux et brave.',
-        color: 0xFF5722
+        color: '#FF5722'
       },
       {
         id: 'squirtle',
         name: 'Carapuce', 
         type: 'Eau',
         description: 'Un Pokémon Minitortue calme et sage.',
-        color: 0x2196F3
+        color: '#2196F3'
       }
     ];
     
     // État de sélection
     this.currentlySelectedIndex = -1;
     this.isAnimating = false;
+    this.starterOptions = [];
     
     console.log("🎯 [StarterSelector] Initialisé pour la scène:", scene.scene.key);
   }
@@ -81,142 +81,134 @@ export class StarterSelector {
     console.log("📡 [StarterSelector] Listeners réseau configurés");
   }
 
-  // ✅ MÉTHODE: Créer la texture de pokéball
-  createPokeballTexture() {
-  if (this.scene.textures.exists('pokeball_starter')) return;
-  
-  const size = 48;
-  const graphics = this.scene.add.graphics();
-
-  // Partie supérieure rouge plus vive
-  graphics.fillStyle(0xFF3030);
-  graphics.fillCircle(size/2, size/2, size/2);
-
-  // Partie inférieure blanche
-  graphics.fillStyle(0xF8F8F8);
-  graphics.fillCircle(size/2, size/2, size/2);
-  graphics.fillRect(0, size/2, size, size/2);
-
-  // Ligne centrale noire plus épaisse
-  graphics.lineStyle(4, 0x000000);
-  graphics.lineBetween(0, size/2, size, size/2);
-
-  // Bouton central plus gros
-  graphics.fillStyle(0x000000);
-  graphics.fillCircle(size/2, size/2, 8);
-  graphics.fillStyle(0xF8F8F8);
-  graphics.fillCircle(size/2, size/2, 6);
-  graphics.fillStyle(0xC0C0C0);
-  graphics.fillCircle(size/2, size/2, 4);
-
-  // Reflet sur la pokéball
-  graphics.fillStyle(0xFFFFFF, 0.3);
-  graphics.fillCircle(size/2 - 8, size/2 - 8, 8);
-
-  graphics.generateTexture('pokeball_starter', size, size);
-  graphics.destroy();
-}
-createInterface() {
-  // Créer l'overlay HTML au lieu du container Phaser
-  this.createHTMLInterface();
-}
-
-createHTMLInterface() {
-  // Créer l'overlay
-  this.overlay = document.createElement('div');
-  this.overlay.className = 'starter-overlay hidden';
-  
-  // Container principal
-  this.container = document.createElement('div');
-  this.container.className = 'starter-container';
-  
-  // Header
-  const header = document.createElement('div');
-  header.className = 'starter-header';
-  header.innerHTML = `
-    <div class="starter-title">
-      <div class="starter-main-title">Choisissez votre Pokémon</div>
-      <div class="starter-subtitle">Votre compagnon pour la vie</div>
-    </div>
-  `;
-  
-  // Content
-  const content = document.createElement('div');
-  content.className = 'starter-content';
-  
-  // Pokéballs
-  const pokeballs = document.createElement('div');
-  pokeballs.className = 'starter-pokeballs';
-  
-  this.starterOptions.forEach((starter, index) => {
-    const slot = document.createElement('div');
-    slot.className = `starter-pokeball-slot ${starter.id}`;
-    slot.innerHTML = `
-      <div class="starter-pokeball" style="background-image: url('data:image/svg+xml,${this.getPokeballSVG()}')"></div>
-      <div class="starter-name">${starter.name}</div>
-      <div class="starter-type ${starter.type.toLowerCase()}">${starter.type}</div>
-    `;
-    
-    slot.addEventListener('click', () => this.selectStarter(starter, index));
-    pokeballs.appendChild(slot);
-  });
-  
-  // Section info
-  const infoSection = document.createElement('div');
-  infoSection.className = 'starter-info-section';
-  infoSection.innerHTML = `
-    <div class="starter-info-empty">Survolez un Pokémon pour voir ses détails</div>
-  `;
-  
-  content.appendChild(pokeballs);
-  content.appendChild(infoSection);
-  
-  // Footer avec bouton
-  const footer = document.createElement('div');
-  footer.className = 'starter-footer';
-  footer.innerHTML = `
-    <button class="starter-confirm-btn">
-      <span>⚡</span> Confirmer
-    </button>
-  `;
-  
-  // Assembler
-  this.container.appendChild(header);
-  this.container.appendChild(content);
-  this.container.appendChild(footer);
-  this.overlay.appendChild(this.container);
-  
-  // Ajouter au DOM
-  document.body.appendChild(this.overlay);
-  
-  // Event listeners
-  this.setupHTMLEvents();
-}
-
-  
-  // ✅ MÉTHODE: Créer placeholder pour starter
-  createStarterPlaceholder(starter) {
-    const textureKey = `starter_${starter.id}`;
-    if (this.scene.textures.exists(textureKey)) return;
-    
-    const size = 48; // Plus petit
-    const graphics = this.scene.add.graphics();
-    
-    graphics.fillStyle(starter.color);
-    graphics.fillRoundedRect(0, 0, size, size, 8);
-    
-    graphics.fillStyle(0xFFFFFF);
-    graphics.fillRoundedRect(4, 4, size-8, size-8, 6);
-    
-    // Première lettre du nom
-    graphics.fillStyle(starter.color);
-    
-    graphics.generateTexture(textureKey, size, size);
-    graphics.destroy();
+  // ✅ MÉTHODE: Créer SVG de pokéball
+  getPokeballSVG() {
+    return encodeURIComponent(`
+      <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="topGrad" cx="30%" cy="30%">
+            <stop offset="0%" style="stop-color:#ff6b6b"/>
+            <stop offset="100%" style="stop-color:#dc3545"/>
+          </radialGradient>
+          <radialGradient id="bottomGrad" cx="30%" cy="70%">
+            <stop offset="0%" style="stop-color:#ffffff"/>
+            <stop offset="100%" style="stop-color:#f8f9fa"/>
+          </radialGradient>
+        </defs>
+        <circle cx="32" cy="32" r="30" fill="url(#topGrad)"/>
+        <path d="M 2 32 A 30 30 0 0 0 62 32 Z" fill="url(#bottomGrad)"/>
+        <line x1="2" y1="32" x2="62" y2="32" stroke="#000" stroke-width="3"/>
+        <circle cx="32" cy="32" r="8" fill="#000"/>
+        <circle cx="32" cy="32" r="6" fill="#fff"/>
+        <circle cx="32" cy="32" r="3" fill="#ddd"/>
+        <ellipse cx="26" cy="26" rx="4" ry="6" fill="#fff" opacity="0.4"/>
+      </svg>
+    `);
   }
 
- 
-  
+  // ✅ MÉTHODE: Créer l'interface HTML
+  createHTMLInterface() {
+    // Supprimer l'ancienne interface si elle existe
+    if (this.overlay) {
+      this.overlay.remove();
+    }
+
+    // Créer l'overlay
+    this.overlay = document.createElement('div');
+    this.overlay.className = 'starter-overlay hidden';
+    
+    // Container principal
+    this.container = document.createElement('div');
+    this.container.className = 'starter-container';
+    
+    // Header
+    const header = document.createElement('div');
+    header.className = 'starter-header';
+    header.innerHTML = `
+      <div class="starter-title">
+        <div class="starter-main-title">Choisissez votre Pokémon</div>
+        <div class="starter-subtitle">Votre compagnon pour la vie</div>
+      </div>
+    `;
+    
+    // Content
+    const content = document.createElement('div');
+    content.className = 'starter-content';
+    
+    // Pokéballs
+    const pokeballs = document.createElement('div');
+    pokeballs.className = 'starter-pokeballs';
+    
+    this.starterOptions.forEach((starter, index) => {
+      const slot = document.createElement('div');
+      slot.className = `starter-pokeball-slot ${starter.id}`;
+      slot.innerHTML = `
+        <div class="starter-pokeball" style="background-image: url('data:image/svg+xml,${this.getPokeballSVG()}')"></div>
+        <div class="starter-name">${starter.name}</div>
+        <div class="starter-type ${starter.type.toLowerCase()}">${starter.type}</div>
+      `;
+      
+      // Event listeners pour le slot
+      slot.addEventListener('click', () => this.selectStarter(starter, index));
+      slot.addEventListener('mouseenter', () => this.showStarterInfo(starter, index));
+      slot.addEventListener('mouseleave', () => this.hideStarterInfo());
+      
+      pokeballs.appendChild(slot);
+    });
+    
+    // Section info
+    const infoSection = document.createElement('div');
+    infoSection.className = 'starter-info-section';
+    infoSection.innerHTML = `
+      <div class="starter-info-empty">Survolez un Pokémon pour voir ses détails</div>
+    `;
+    
+    content.appendChild(pokeballs);
+    content.appendChild(infoSection);
+    
+    // Footer avec bouton
+    const footer = document.createElement('div');
+    footer.className = 'starter-footer';
+    footer.innerHTML = `
+      <button class="starter-confirm-btn">
+        <span>⚡</span> Confirmer
+      </button>
+    `;
+    
+    // Assembler
+    this.container.appendChild(header);
+    this.container.appendChild(content);
+    this.container.appendChild(footer);
+    this.overlay.appendChild(this.container);
+    
+    // Ajouter au DOM
+    document.body.appendChild(this.overlay);
+    
+    // Event listeners
+    this.setupHTMLEvents();
+  }
+
+  // ✅ MÉTHODE: Setup des événements HTML
+  setupHTMLEvents() {
+    // Bouton de confirmation
+    const confirmBtn = this.overlay.querySelector('.starter-confirm-btn');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', () => {
+        if (this.selectedStarterId) {
+          this.confirmSelection();
+        }
+      });
+    }
+
+    // Empêcher la fermeture par clic sur l'overlay
+    this.overlay.addEventListener('click', (e) => {
+      if (e.target === this.overlay) {
+        // Ne pas fermer - sélection obligatoire
+        this.showNotification("Vous devez choisir un Pokémon !", 'warning');
+      }
+    });
+  }
+
   // ✅ MÉTHODE PRINCIPALE: Afficher la sélection
   show(availableStarters = null) {
     if (this.isVisible) {
@@ -226,17 +218,14 @@ createHTMLInterface() {
 
     console.log("🎯 [StarterSelector] Affichage de la sélection...");
     
-    // Bloquer les inputs du joueur
-    this.blockPlayerInput(true);
-    
     // Utiliser les starters fournis ou la config par défaut
     this.starterOptions = availableStarters || this.starterConfig;
     
-    // Précharger les assets si nécessaire
-    this.preloadAssets();
+    // Bloquer les inputs du joueur
+    this.blockPlayerInput(true);
     
     // Créer l'interface
-    this.createInterface();
+    this.createHTMLInterface();
     
     // Marquer comme visible
     this.isVisible = true;
@@ -245,147 +234,63 @@ createHTMLInterface() {
     this.animateIn();
     
     // Notification
-    if (window.showGameNotification) {
-      window.showGameNotification(
-        "Choisissez votre starter Pokémon !",
-        'info',
-        { duration: 3000, position: 'top-center' }
-      );
-    }
+    this.showNotification("Choisissez votre starter Pokémon !", 'info');
   }
-
-  // ✅ MÉTHODE: Précharger les assets nécessaires
-preloadAssets() {
-  // Charger uniquement l'image du labo
-  if (!this.scene.textures.exists('lab_bg')) {
-    this.scene.load.image('lab_bg', 'assets/ui/lab_background.png');
-    this.scene.load.once('complete', () => {
-      console.log("✅ Background labo chargé");
-    });
-    this.scene.load.start();
-  }
-  
-  this.createPokeballTexture();
-  this.starterConfig.forEach(starter => {
-    this.createStarterPlaceholder(starter);
-  });
-}
-  // ✅ MÉTHODE: Créer l'interface principale (version compacte)
-createStarters() {
-  this.pokeballs = [];
-  this.starterSprites = [];
-
-  this.starterOptions.forEach((starter, index) => {
-    // Positions horizontales simples comme dans l'image
-    const spacing = 100;
-    const startX = -(this.starterOptions.length - 1) * spacing / 2;
-    const posX = startX + (index * spacing);
-    const posY = 20; // Un peu au-dessus du centre
-    
-    // Pokéball simple sans effets
-    const pokeball = this.scene.add.image(posX, posY, 'pokeball_starter');
-    pokeball.setScale(2.0); // Plus grosse comme dans l'original
-    pokeball.setInteractive();
-
-    // Animation simple au survol
-    pokeball.on('pointerover', () => {
-      if (!this.isAnimating) {
-        pokeball.setTint(0xE0E0E0); // Légèrement gris
-        this.showStarterInfo(starter, index);
-      }
-    });
-
-    pokeball.on('pointerout', () => {
-      if (!this.isAnimating && this.currentlySelectedIndex !== index) {
-        pokeball.clearTint();
-      }
-    });
-
-    // Click handler
-    pokeball.on('pointerdown', () => {
-      if (!this.isAnimating) {
-        this.selectStarter(starter, index);
-      }
-    });
-
-    this.container.add(pokeball);
-    this.pokeballs.push(pokeball);
-  });
-}
-
-// Remplace createUI() dans StarterSelector.js
-createUI() {
-  // Texte simple en bas comme dans l'original
-  this.infoText = this.scene.add.text(0, 80, 'Choose a Pokémon.', {
-    fontSize: '16px',
-    fontFamily: 'Arial',
-    color: '#000000',
-    align: 'center'
-  }).setOrigin(0.5);
-
-  // Pas de bouton visible - sélection directe comme dans l'original
-  this.confirmButton = this.scene.add.rectangle(0, 0, 1, 1, 0x000000, 0);
-  this.confirmButton.setInteractive();
-  this.confirmButtonText = this.scene.add.text(0, 0, '', { fontSize: '1px' });
-
-  this.container.add([this.infoText]);
-}
 
   // ✅ MÉTHODE: Afficher les infos d'un starter
   showStarterInfo(starter, index) {
-    const infoText = `${starter.name} - Type ${starter.type}\n${starter.description}`;
-    
-    this.scene.tweens.add({
-      targets: this.infoText,
-      alpha: 0,
-      duration: 100,
-      onComplete: () => {
-        this.infoText.setText(infoText);
-        this.scene.tweens.add({
-          targets: this.infoText,
-          alpha: 1,
-          duration: 200
-        });
+    const infoSection = this.overlay.querySelector('.starter-info-section');
+    if (infoSection) {
+      infoSection.innerHTML = `
+        <div class="starter-info-title">${starter.name}</div>
+        <div class="starter-info-description">${starter.description}</div>
+      `;
+    }
+  }
+
+  // ✅ MÉTHODE: Masquer les infos
+  hideStarterInfo() {
+    if (this.currentlySelectedIndex === -1) {
+      const infoSection = this.overlay.querySelector('.starter-info-section');
+      if (infoSection) {
+        infoSection.innerHTML = `
+          <div class="starter-info-empty">Survolez un Pokémon pour voir ses détails</div>
+        `;
       }
-    });
+    }
   }
 
   // ✅ MÉTHODE: Sélectionner un starter
   selectStarter(starter, index) {
-  console.log("🎯 [StarterSelector] Starter sélectionné:", starter.name);
-  
-  this.isAnimating = true;
-  this.currentlySelectedIndex = index;
-  this.selectedStarterId = starter.id;
+    if (this.isAnimating) return;
+    
+    console.log("🎯 [StarterSelector] Starter sélectionné:", starter.name);
+    
+    this.currentlySelectedIndex = index;
+    this.selectedStarterId = starter.id;
 
-  // Effet de sélection simple
-  this.pokeballs.forEach((pb, i) => {
-    if (i === index) {
-      pb.setTint(0xFFFF80); // Jaune pour la sélection
-    } else {
-      pb.setTint(0x808080); // Gris pour les non-sélectionnés
-    }
-  });
-
-  // Confirmation automatique après un court délai (comme dans l'original)
-  this.scene.time.delayedCall(500, () => {
-    this.confirmSelection();
-  });
-}
-
-  // ✅ MÉTHODE: Afficher le bouton de confirmation
-  showConfirmButton() {
-    this.scene.tweens.add({
-      targets: [this.confirmButton, this.confirmButtonText],
-      alpha: 1,
-      duration: 300,
-      ease: 'Back.easeOut'
+    // Mettre à jour l'affichage
+    const slots = this.overlay.querySelectorAll('.starter-pokeball-slot');
+    slots.forEach((slot, i) => {
+      slot.classList.remove('selected');
+      if (i === index) {
+        slot.classList.add('selected');
+      }
     });
+
+    // Afficher les infos du starter sélectionné
+    this.showStarterInfo(starter, index);
+
+    // Afficher le bouton de confirmation
+    const confirmBtn = this.overlay.querySelector('.starter-confirm-btn');
+    if (confirmBtn) {
+      confirmBtn.classList.add('visible');
+    }
   }
 
   // ✅ MÉTHODE: Confirmer la sélection
   confirmSelection() {
-    if (!this.selectedStarterId || !this.networkManager?.room) {
+    if (!this.selectedStarterId || this.isAnimating) {
       console.error("❌ [StarterSelector] Impossible de confirmer - données manquantes");
       return;
     }
@@ -394,47 +299,40 @@ createUI() {
     
     this.isAnimating = true;
 
-    // Envoyer au serveur
-    this.networkManager.room.send("selectStarter", {
-      starterId: this.selectedStarterId,
-      timestamp: Date.now()
-    });
-
     // Animation de confirmation
     this.animateConfirmation();
 
-    // Notification
-    if (window.showGameNotification) {
-      window.showGameNotification(
-        "Sélection envoyée au serveur...",
-        'info',
-        { duration: 2000, position: 'top-center' }
-      );
+    // Envoyer au serveur si disponible
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("selectStarter", {
+        starterId: this.selectedStarterId,
+        timestamp: Date.now()
+      });
+    } else {
+      // Mode test - confirmer automatiquement
+      console.log("🧪 [StarterSelector] Mode test - confirmation automatique");
+      setTimeout(() => {
+        this.onStarterConfirmed({ 
+          starterId: this.selectedStarterId,
+          success: true 
+        });
+      }, 1000);
     }
+
+    // Notification
+    this.showNotification("Sélection envoyée...", 'info');
   }
 
   // ✅ MÉTHODE: Animation de confirmation
   animateConfirmation() {
-    // Flash blanc
-    const flash = this.scene.add.rectangle(
-      this.scene.cameras.main.centerX,
-      this.scene.cameras.main.centerY,
-      this.scene.cameras.main.width,
-      this.scene.cameras.main.height,
-      0xFFFFFF
-    );
-    flash.setDepth(1003);
-    flash.setAlpha(0);
-
-    this.scene.tweens.add({
-      targets: flash,
-      alpha: 0.8,
-      duration: 200,
-      yoyo: true,
-      onComplete: () => {
-        flash.destroy();
-      }
-    });
+    if (this.container) {
+      this.container.classList.add('confirming');
+      setTimeout(() => {
+        if (this.container) {
+          this.container.classList.remove('confirming');
+        }
+      }, 500);
+    }
   }
 
   // ✅ MÉTHODE: Starter confirmé par le serveur
@@ -444,94 +342,58 @@ createUI() {
     const starter = this.starterOptions.find(s => s.id === data.starterId);
     
     // Notification de succès
-    if (window.showGameNotification) {
-      window.showGameNotification(
-        `${starter?.name || data.starterId} ajouté à votre équipe !`,
-        'success',
-        { duration: 4000, position: 'top-center' }
-      );
-    }
+    this.showNotification(
+      `${starter?.name || data.starterId} ajouté à votre équipe !`,
+      'success'
+    );
 
     // Fermer après sélection
-    this.scene.time.delayedCall(1500, () => {
+    setTimeout(() => {
       this.hide();
-    });
+    }, 2000);
   }
 
   // ✅ MÉTHODE: Afficher une erreur
   showError(message) {
     console.error("❌ [StarterSelector] Erreur:", message);
     
-    if (window.showGameNotification) {
-      window.showGameNotification(
-        `Erreur: ${message}`,
-        'error',
-        { duration: 4000, position: 'top-center' }
-      );
-    }
+    this.showNotification(`Erreur: ${message}`, 'error');
 
     // Permettre une nouvelle sélection
     this.isAnimating = false;
+    this.resetSelection();
+  }
+
+  // ✅ MÉTHODE: Réinitialiser la sélection
+  resetSelection() {
     this.currentlySelectedIndex = -1;
     this.selectedStarterId = null;
     
     // Réinitialiser l'affichage
-    this.resetDisplay();
-  }
-
-  // ✅ MÉTHODE: Réinitialiser l'affichage
-  resetDisplay() {
-    // Remettre tous les starters dans leur état initial
-    this.pokeballs.forEach((pokeball, index) => {
-      this.scene.tweens.add({
-        targets: pokeball,
-        alpha: 1,
-        scale: 1.0,
-        duration: 300
-      });
-    });
-
-    this.starterSprites.forEach((sprite, index) => {
-      this.scene.tweens.add({
-        targets: sprite,
-        alpha: 0.7,
-        scale: 1.0,
-        y: -50, // Position originale
-        duration: 300
-      });
+    const slots = this.overlay?.querySelectorAll('.starter-pokeball-slot');
+    slots?.forEach(slot => {
+      slot.classList.remove('selected');
     });
 
     // Masquer le bouton de confirmation
-    this.scene.tweens.add({
-      targets: [this.confirmButton, this.confirmButtonText],
-      alpha: 0,
-      duration: 200
-    });
+    const confirmBtn = this.overlay?.querySelector('.starter-confirm-btn');
+    if (confirmBtn) {
+      confirmBtn.classList.remove('visible');
+    }
 
-    // Effacer le texte d'info
-    this.infoText.setText('');
+    // Réinitialiser les infos
+    this.hideStarterInfo();
   }
 
   // ✅ MÉTHODE: Animation d'entrée
   animateIn() {
-  // Animation simple de fade-in
-  this.scene.tweens.add({
-    targets: this.container,
-    alpha: 1,
-    duration: 300,
-    ease: 'Power2'
-  });
-
-  // Les pokéballs apparaissent simplement
-  this.pokeballs.forEach((pokeball, index) => {
-    pokeball.setAlpha(0);
-    this.scene.tweens.add({
-      targets: pokeball,
-      alpha: 1,
-      duration: 200,
-      delay: index * 100
-    });
-    });
+    if (this.overlay) {
+      // Forcer un reflow
+      this.overlay.offsetHeight;
+      
+      // Retirer la classe hidden pour déclencher l'animation CSS
+      this.overlay.classList.remove('hidden');
+    }
   }
 
   // ✅ MÉTHODE: Masquer la sélection
@@ -544,20 +406,19 @@ createUI() {
     console.log("🚫 [StarterSelector] Masquage de la sélection...");
 
     // Animation de sortie
-    this.scene.tweens.add({
-      targets: this.container,
-      alpha: 0,
-      scale: 0.8,
-      duration: 400,
-      onComplete: () => {
-        this.cleanup();
-      }
-    });
+    if (this.overlay) {
+      this.overlay.classList.add('hidden');
+    }
 
     // Débloquer les inputs du joueur
     this.blockPlayerInput(false);
     
     this.isVisible = false;
+
+    // Nettoyage après animation
+    setTimeout(() => {
+      this.cleanup();
+    }, 300);
   }
 
   // ✅ MÉTHODE: Bloquer/débloquer les inputs du joueur
@@ -581,22 +442,34 @@ createUI() {
     }
   }
 
+  // ✅ MÉTHODE: Afficher une notification
+  showNotification(message, type = 'info') {
+    if (window.showGameNotification) {
+      window.showGameNotification(message, type, { 
+        duration: 3000, 
+        position: 'top-center' 
+      });
+    } else {
+      console.log(`📢 [StarterSelector] ${type.toUpperCase()}: ${message}`);
+    }
+  }
+
   // ✅ MÉTHODE: Nettoyage
   cleanup() {
     console.log("🧹 [StarterSelector] Nettoyage...");
 
-    // Détruire le container
-    if (this.container) {
-      this.container.destroy();
-      this.container = null;
+    // Supprimer l'overlay du DOM
+    if (this.overlay) {
+      this.overlay.remove();
+      this.overlay = null;
     }
 
     // Réinitialiser les variables
-    this.pokeballs = [];
-    this.starterSprites = [];
+    this.container = null;
     this.selectedStarterId = null;
     this.currentlySelectedIndex = -1;
     this.isAnimating = false;
+    this.starterOptions = [];
 
     console.log("✅ [StarterSelector] Nettoyage terminé");
   }
@@ -626,7 +499,6 @@ createUI() {
     this.scene = null;
     this.networkManager = null;
     this.starterConfig = null;
-    this.starterOptions = null;
   }
 
   // ✅ MÉTHODES UTILITAIRES
@@ -643,7 +515,7 @@ createUI() {
   }
 }
 
-// ✅ GESTIONNAIRE GLOBAL SIMPLE
+// ✅ GESTIONNAIRE GLOBAL
 export class StarterSelectionManager {
   constructor() {
     this.activeSelector = null;
@@ -698,7 +570,7 @@ export class StarterSelectionManager {
 // ✅ INSTANCE GLOBALE
 export const globalStarterManager = new StarterSelectionManager();
 
-// ✅ FONCTION D'INTÉGRATION SIMPLE
+// ✅ FONCTION D'INTÉGRATION
 export function integrateStarterSelectorToScene(scene, networkManager) {
   console.log(`🎯 [StarterIntegration] Intégration à la scène: ${scene.scene.key}`);
 
@@ -743,15 +615,32 @@ export const StarterUtils = {
   test: () => {
     console.log("🧪 [StarterUtils] Test du système de sélection de starter...");
     
+    // Créer une scène factice pour le test
+    const mockScene = {
+      scene: { key: 'test' },
+      add: {
+        graphics: () => ({ 
+          fillStyle: () => {}, 
+          fillCircle: () => {}, 
+          destroy: () => {} 
+        })
+      }
+    };
+    
     const testStarters = [
-      { id: 'bulbasaur', name: 'Bulbizarre', type: 'Plante', description: 'Un Pokémon Graine docile et loyal.', color: 0x4CAF50 },
-      { id: 'charmander', name: 'Salamèche', type: 'Feu', description: 'Un Pokémon Lézard fougueux et brave.', color: 0xFF5722 },
-      { id: 'squirtle', name: 'Carapuce', type: 'Eau', description: 'Un Pokémon Minitortue calme et sage.', color: 0x2196F3 }
+      { id: 'bulbasaur', name: 'Bulbizarre', type: 'Plante', description: 'Un Pokémon Graine docile et loyal.', color: '#4CAF50' },
+      { id: 'charmander', name: 'Salamèche', type: 'Feu', description: 'Un Pokémon Lézard fougueux et brave.', color: '#FF5722' },
+      { id: 'squirtle', name: 'Carapuce', type: 'Eau', description: 'Un Pokémon Minitortue calme et sage.', color: '#2196F3' }
     ];
     
-    return StarterUtils.showSelection(testStarters);
+    const selector = new StarterSelector(mockScene);
+    selector.show(testStarters);
+    return selector;
   }
 };
 
-console.log("🎯 [StarterSelector] Module chargé et prêt !");
+// ✅ FONCTION DE TEST GLOBALE
+window.testStarterSelection = StarterUtils.test;
+
+console.log("🎯 [StarterSelector] Module corrigé chargé et prêt !");
 console.log("✅ Utilisez window.testStarterSelection() pour tester");
