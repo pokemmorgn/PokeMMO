@@ -78,7 +78,48 @@ export class BeachScene extends BaseZoneScene {
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.psyduckIntroManager = new PsyduckIntroManager(this);
 
+    // ✅ NOUVEAU: Configurer les listeners immédiatement si room disponible
+    this.setupEarlyListeners();
+    
     this.setupBeachEvents();
+  }
+
+  // ✅ === NOUVELLE MÉTHODE: SETUP LISTENERS TÔT ===
+  setupEarlyListeners() {
+    // Vérifier périodiquement si la room est disponible
+    const checkRoom = () => {
+      if (this.room) {
+        console.log(`📡 [BeachScene] Room détectée dans create(), setup listeners`);
+        
+        // Configurer les listeners immédiatement
+        this.psyduckIntroManager.ensureListenersSetup();
+        this.setupServerListeners();
+        
+        return true; // Arrêter le timer
+      }
+      return false; // Continuer à vérifier
+    };
+    
+    // Vérifier immédiatement
+    if (!checkRoom()) {
+      // Si pas de room, vérifier toutes les 50ms pendant 3 secondes
+      let attempts = 0;
+      const maxAttempts = 60; // 3 secondes
+      
+      const roomTimer = this.time.addEvent({
+        delay: 50,
+        repeat: maxAttempts,
+        callback: () => {
+          attempts++;
+          if (checkRoom()) {
+            roomTimer.remove();
+          } else if (attempts >= maxAttempts) {
+            console.log(`⚠️ [BeachScene] Timeout attente room dans create()`);
+            roomTimer.remove();
+          }
+        }
+      });
+    }
   }
 
   // ✅ === ATTENTE CONNEXION ROOM AVEC INTÉGRATION PSYDUCK ===
@@ -257,9 +298,18 @@ export class BeachScene extends BaseZoneScene {
     this.detectServerConnection();
   }
 
-  // ✅ === DÉTECTION SERVEUR EN ARRIÈRE-PLAN ===
+  // ✅ === DÉTECTION SERVEUR AMÉLIORÉE ===
   detectServerConnection() {
     console.log(`🔗 [BeachScene] Détection connexion serveur en arrière-plan...`);
+    
+    // Si room déjà disponible, envoyer immédiatement
+    if (this.room && !this._serverCheckSent) {
+      console.log(`✅ [BeachScene] Room déjà disponible, envoi immédiat`);
+      this._serverCheckSent = true;
+      this.room.send("checkAutoIntroQuest");
+      console.log(`📤 [BeachScene] checkAutoIntroQuest envoyé immédiatement`);
+      return;
+    }
     
     let attempts = 0;
     const maxAttempts = 30; // 3 secondes (100ms × 30)
@@ -271,20 +321,16 @@ export class BeachScene extends BaseZoneScene {
         attempts++;
         
         if (this.room && !this._serverCheckSent) {
-          console.log(`✅ [BeachScene] Room détectée après ${attempts * 100}ms, upgrade vers mode serveur`);
+          console.log(`✅ [BeachScene] Room détectée après ${attempts * 100}ms, envoi checkAutoIntroQuest`);
           
           // Arrêter le timer
           checkTimer.remove();
-          
-          // Configurer les listeners
-          this.psyduckIntroManager.ensureListenersSetup();
-          this.setupServerListeners();
           
           // Envoyer la vérification de quête
           this._serverCheckSent = true;
           this.room.send("checkAutoIntroQuest");
           
-          console.log(`📤 [BeachScene] checkAutoIntroQuest envoyé pendant l'intro`);
+          console.log(`📤 [BeachScene] checkAutoIntroQuest envoyé après détection`);
           
         } else if (attempts >= maxAttempts) {
           console.log(`ℹ️ [BeachScene] Pas de room détectée après 3s, reste en mode fallback`);
