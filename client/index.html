@@ -107,7 +107,7 @@
   };
 
   // Affiche le dialogue NPC, accepte lines: [string] OU text: string
-  window.showNpcDialogue = function({ portrait, name, lines, text, onClose }) {
+  window.showNpcDialogue = function({ portrait, name, lines, text, onClose, hideName }) {
     console.log("🐛 showNpcDialogue appelée avec name =", name);
     const box = document.getElementById("dialogue-box");
     const npcPortrait = document.getElementById("npc-portrait");
