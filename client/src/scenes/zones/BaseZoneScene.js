@@ -19,8 +19,6 @@ import { ClientEncounterManager } from "../../managers/EncounterManager.js";
 import { movementBlockHandler } from "../../input/MovementBlockHandler.js";
 import { InputManager } from "../../input/InputManager.js";
 import { integrateMusicToScene } from "../../managers/MapMusicManager.js";
-import { integrateStarterSelectorToScene } from "../../components/StarterSelector.js";
-
 
 
 export class BaseZoneScene extends Phaser.Scene {
@@ -328,11 +326,6 @@ setRoom(room) {
       }
     }, 1500);
 }, 1200);
-
-setTimeout(() => {
-  this.initializeStarterSystem();
-}, 300); // Un peu après l'équipe
-    
     // 🆕 6. EncounterManager (après le chargement de la carte)
     setTimeout(() => {
       this.initializeEncounterManager();
@@ -383,28 +376,6 @@ setTimeout(() => {
     }
   }
 
-  // Ajoute cette méthode après initializeEncounterManager()
-initializeStarterSystem() {
-  console.log(`🎯 [${this.scene.key}] === INITIALISATION STARTER SYSTEM ===`);
-  
-  try {
-    // Intégrer le sélecteur à cette scène
-    const selector = integrateStarterSelectorToScene(this, this.networkManager);
-    
-    // Marquer comme initialisé
-    this.starterSystemInitialized = true;
-    
-    console.log(`✅ [${this.scene.key}] Système de starter initialisé`);
-    
-    // Exposer globalement pour debug
-    window.starterSelector = selector;
-    
-    return selector;
-    
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur init starter system:`, error);
-  }
-}
   // 🆕 NOUVELLE MÉTHODE: Setup des handlers réseau pour les encounters
 setupEncounterNetworkHandlers() {
   if (!this.networkManager?.room) {
