@@ -83,81 +83,57 @@ export class StarterSelector {
 
   // ✅ MÉTHODE: Créer la texture de pokéball
   createPokeballTexture() {
-    if (this.scene.textures.exists('pokeball_starter')) return;
-    
-    const size = 32; // Plus petit
-    const graphics = this.scene.add.graphics();
+  if (this.scene.textures.exists('pokeball_starter')) return;
+  
+  const size = 48;
+  const graphics = this.scene.add.graphics();
 
-    // Partie supérieure rouge
-    graphics.fillStyle(0xFF0000);
-    graphics.fillCircle(size/2, size/2, size/2);
+  // Partie supérieure rouge plus vive
+  graphics.fillStyle(0xFF3030);
+  graphics.fillCircle(size/2, size/2, size/2);
 
-    // Partie inférieure blanche
-    graphics.fillStyle(0xFFFFFF);
-    graphics.fillCircle(size/2, size/2, size/2);
-    graphics.fillRect(0, size/2, size, size/2);
+  // Partie inférieure blanche
+  graphics.fillStyle(0xF8F8F8);
+  graphics.fillCircle(size/2, size/2, size/2);
+  graphics.fillRect(0, size/2, size, size/2);
 
-    // Ligne centrale noire
-    graphics.lineStyle(2, 0x000000);
-    graphics.lineBetween(0, size/2, size, size/2);
+  // Ligne centrale noire plus épaisse
+  graphics.lineStyle(4, 0x000000);
+  graphics.lineBetween(0, size/2, size, size/2);
 
-    // Bouton central
-    graphics.fillStyle(0x000000);
-    graphics.fillCircle(size/2, size/2, 4);
-    graphics.fillStyle(0xFFFFFF);
-    graphics.fillCircle(size/2, size/2, 2);
+  // Bouton central plus gros
+  graphics.fillStyle(0x000000);
+  graphics.fillCircle(size/2, size/2, 8);
+  graphics.fillStyle(0xF8F8F8);
+  graphics.fillCircle(size/2, size/2, 6);
+  graphics.fillStyle(0xC0C0C0);
+  graphics.fillCircle(size/2, size/2, 4);
 
-    graphics.generateTexture('pokeball_starter', size, size);
-    graphics.destroy();
-  }
+  // Reflet sur la pokéball
+  graphics.fillStyle(0xFFFFFF, 0.3);
+  graphics.fillCircle(size/2 - 8, size/2 - 8, 8);
+
+  graphics.generateTexture('pokeball_starter', size, size);
+  graphics.destroy();
+}
 createInterface() {
   const centerX = this.scene.cameras.main.centerX;
   const centerY = this.scene.cameras.main.centerY;
 
-this.container = this.scene.add.container(centerX, centerY - 200); // Décale vers le haut de 40 px (ajuste si besoin)
+  // Container principal centré
+  this.container = this.scene.add.container(centerX, centerY);
   this.container.setDepth(1000);
 
-  // Background plus petit
-  const bg = this.scene.add.image(0, 0, 'starter_background_stylish');
+  // Background style classique
+  const bg = this.scene.add.image(0, 0, 'starter_background_classic');
   this.container.add(bg);
 
-  // Titre plus petit
-  const title = this.scene.add.text(0, -80, 'Choisissez votre Pokémon', { // était -120
-    fontSize: '18px', // était 24px
-    fontFamily: 'Arial Black',
-    color: '#FFD700',
-    stroke: '#1E40AF',
-    strokeThickness: 2, // était 3
-    align: 'center'
-  }).setOrigin(0.5);
-
-  // Effet scintillement sur le titre
-  this.scene.tweens.add({
-    targets: title,
-    alpha: 0.7,
-    duration: 1500,
-    yoyo: true,
-    repeat: -1,
-    ease: 'Sine.easeInOut'
-  });
-
-  this.container.add(title);
-
-  // Sous-titre
-  const subtitle = this.scene.add.text(0, -90, 'Votre compagnon pour la vie', {
-    fontSize: '14px',
-    fontFamily: 'Arial',
-    color: '#E2E8F0',
-    stroke: '#1E3A8A',
-    strokeThickness: 2,
-    align: 'center'
-  }).setOrigin(0.5);
-  this.container.add(subtitle);
-
+  // PAS de titre - juste les pokéballs comme dans l'original
   this.createStarters();
   this.createUI();
   this.container.setAlpha(0);
 }
+
   // ✅ MÉTHODE: Créer placeholder pour starter
   createStarterPlaceholder(starter) {
     const textureKey = `starter_${starter.id}`;
@@ -181,146 +157,41 @@ this.container = this.scene.add.container(centerX, centerY - 200); // Décale ve
 
   // Ajoute cette méthode après createStarterPlaceholder()
 createStarterBackground() {
-  if (this.scene.textures.exists('starter_background_stylish')) return;
-  const width = 500;  // remis à 500
-  const height = 350;
+  if (this.scene.textures.exists('starter_background_classic')) return;
+  
+  const width = 400;
+  const height = 200;
   const graphics = this.scene.add.graphics();
 
-  // === FOND PRINCIPAL DÉGRADÉ ===
-  // Créer un dégradé bleu profond vers violet
-  for (let i = 0; i < height; i++) {
-    const alpha = i / height;
-    const r = Math.floor(25 + (75 * alpha));  // 25 -> 100
-    const g = Math.floor(25 + (50 * alpha));  // 25 -> 75  
-    const b = Math.floor(85 + (70 * alpha));  // 85 -> 155
-    const color = (r << 16) | (g << 8) | b;
-    
-    graphics.fillStyle(color);
-    graphics.fillRect(0, i, width, 1);
+  // === FOND GRIS CLAIR (comme Game Boy) ===
+  graphics.fillStyle(0xC8C8D0);
+  graphics.fillRect(0, 0, width, height);
+
+  // === GRILLE SUBTILE ===
+  graphics.lineStyle(1, 0xB0B0B8, 0.5);
+  for (let x = 0; x < width; x += 16) {
+    graphics.lineBetween(x, 0, x, height * 0.3);
+  }
+  for (let y = 0; y < height * 0.3; y += 16) {
+    graphics.lineBetween(0, y, width, y);
   }
 
-  // === ÉTOILES ET PARTICULES ===
-  graphics.fillStyle(0xFFFFFF);
-  for (let i = 0; i < 50; i++) {
-    const x = Math.random() * width;
-    const y = Math.random() * height;
-    const size = Math.random() * 2 + 1;
-    graphics.fillCircle(x, y, size);
-  }
+  // === ZONE VERTE CENTRALE ===
+  const greenY = height * 0.3;
+  const greenHeight = height * 0.4;
+  graphics.fillStyle(0x20B060);
+  graphics.fillRect(0, greenY, width, greenHeight);
 
-  // === CADRE PRINCIPAL AVEC BORDURE DORÉE ===
-  const frameX = width * 0.05;
-  const frameY = height * 0.1;
-  const frameWidth = width * 0.9;
-  const frameHeight = height * 0.8;
-  const radius = 20;
+  // === BORDURE INFÉRIEURE GRIS FONCÉ ===
+  graphics.fillStyle(0x808090);
+  graphics.fillRect(0, height * 0.7, width, height * 0.3);
 
-  // Bordure dorée extérieure
-  graphics.lineStyle(6, 0xFFD700);
-  graphics.strokeRoundedRect(frameX - 3, frameY - 3, frameWidth + 6, frameHeight + 6, radius + 3);
-
-  // Bordure dorée intérieure
-  graphics.lineStyle(2, 0xFFA500);
-  graphics.strokeRoundedRect(frameX + 3, frameY + 3, frameWidth - 6, frameHeight - 6, radius - 3);
-
-  // === ZONE CENTRALE AVEC EFFET CRISTAL ===
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const crystalWidth = frameWidth * 0.85;
-  const crystalHeight = frameHeight * 0.6;
-
-  // Fond cristal avec transparence
-  graphics.fillStyle(0x1E3A8A, 0.3);
-  graphics.fillRoundedRect(
-    centerX - crystalWidth/2, 
-    centerY - crystalHeight/2 + 20, 
-    crystalWidth, 
-    crystalHeight, 
-    15
-  );
-
-  // Reflets cristal
-  graphics.fillStyle(0x60A5FA, 0.4);
-  graphics.fillRoundedRect(
-    centerX - crystalWidth/2 + 10, 
-    centerY - crystalHeight/2 + 30, 
-    crystalWidth - 20, 
-    crystalHeight/3, 
-    10
-  );
-
-  // === MOTIFS DÉCORATIFS ===
-  // Coins supérieurs
-  graphics.fillStyle(0xFFD700);
-  
-  // Coin supérieur gauche
-  graphics.fillTriangle(
-    frameX + 15, frameY + 15,
-    frameX + 35, frameY + 15,
-    frameX + 25, frameY + 35
-  );
-  
-  // Coin supérieur droit
-  graphics.fillTriangle(
-    frameX + frameWidth - 15, frameY + 15,
-    frameX + frameWidth - 35, frameY + 15,
-    frameX + frameWidth - 25, frameY + 35
-  );
-  
-  // Coins inférieurs
-  graphics.fillTriangle(
-    frameX + 15, frameY + frameHeight - 15,
-    frameX + 35, frameY + frameHeight - 15,
-    frameX + 25, frameY + frameHeight - 35
-  );
-  
-  graphics.fillTriangle(
-    frameX + frameWidth - 15, frameY + frameHeight - 15,
-    frameX + frameWidth - 35, frameY + frameHeight - 15,
-    frameX + frameWidth - 25, frameY + frameHeight - 35
-  );
-
-  // === SYMBOLES POKÉMON ===
-  // Pokéball stylisée en haut
-  const ballX = centerX;
-  const ballY = frameY + 40;
-  const ballRadius = 12;
-  
-  // Partie supérieure rouge
-  graphics.fillStyle(0xDC2626);
-  graphics.slice(ballX, ballY, ballRadius, 0, Math.PI, false);
-  graphics.fillPath();
-  
-  // Partie inférieure blanche
-  graphics.fillStyle(0xF8FAFC);
-  graphics.slice(ballX, ballY, ballRadius, Math.PI, 0, false);
-  graphics.fillPath();
-  
-  // Ligne centrale
-  graphics.lineStyle(2, 0x000000);
-  graphics.lineBetween(ballX - ballRadius, ballY, ballX + ballRadius, ballY);
-  
-  // Centre
-  graphics.fillStyle(0x000000);
-  graphics.fillCircle(ballX, ballY, 4);
-  graphics.fillStyle(0xF8FAFC);
-  graphics.fillCircle(ballX, ballY, 2);
-
-  // === EFFET LUMINEUX ===
-  // Halo lumineux central
-  for (let i = 0; i < 3; i++) {
-    const glowRadius = 40 + (i * 15);
-    const glowAlpha = 0.1 - (i * 0.03);
-    graphics.fillStyle(0x60A5FA, glowAlpha);
-    graphics.fillCircle(centerX, centerY + 10, glowRadius);
-  }
-
-  // === BORDURE FINALE ===
-  graphics.lineStyle(3, 0x1E40AF);
-  graphics.strokeRoundedRect(frameX, frameY, frameWidth, frameHeight, radius);
+  // === BORDURES SIMPLES ===
+  graphics.lineStyle(2, 0x404050);
+  graphics.strokeRect(0, 0, width, height);
 
   // Générer la texture
-  graphics.generateTexture('starter_background_stylish', width, height);
+  graphics.generateTexture('starter_background_classic', width, height);
   graphics.destroy();
 }
   
@@ -378,170 +249,60 @@ createStarters() {
   this.pokeballs = [];
   this.starterSprites = [];
 
-this.starterOptions.forEach((starter, index) => {
-    const angle = (index - 1) * 0.8; // était 0.8
-    const radius = 85; // était 85
-    const posX = Math.sin(angle) * radius;
-    const posY = Math.cos(angle) * radius * 0.3 - 10; // Plus plat
+  this.starterOptions.forEach((starter, index) => {
+    // Positions horizontales simples comme dans l'image
+    const spacing = 100;
+    const startX = -(this.starterOptions.length - 1) * spacing / 2;
+    const posX = startX + (index * spacing);
+    const posY = 20; // Un peu au-dessus du centre
     
-    // Pokéball avec effet brillant
+    // Pokéball simple sans effets
     const pokeball = this.scene.add.image(posX, posY, 'pokeball_starter');
-    pokeball.setScale(1.2);
+    pokeball.setScale(2.0); // Plus grosse comme dans l'original
     pokeball.setInteractive();
-    
-    // Halo autour de chaque pokéball
-    const halo = this.scene.add.circle(posX, posY, 25, starter.color, 0.2);
-    this.container.add(halo);
-    
-    // Sprite du starter
-    const starterSprite = this.scene.add.image(posX, posY - 40, `starter_${starter.id}`);
-    starterSprite.setScale(1.0);
-    starterSprite.setAlpha(0.8);
 
-    // Animations améliorées
+    // Animation simple au survol
     pokeball.on('pointerover', () => {
       if (!this.isAnimating) {
-        // Animation pokéball
-        this.scene.tweens.add({
-          targets: pokeball,
-          scaleX: 1.4,
-          scaleY: 1.4,
-          duration: 300,
-          ease: 'Back.easeOut'
-        });
-        
-        // Animation halo
-        this.scene.tweens.add({
-          targets: halo,
-          scaleX: 1.5,
-          scaleY: 1.5,
-          alpha: 0.4,
-          duration: 300,
-          ease: 'Back.easeOut'
-        });
-        
-        // Animation starter
-        this.scene.tweens.add({
-          targets: starterSprite,
-          scaleX: 1.2,
-          scaleY: 1.2,
-          y: posY - 50,
-          alpha: 1.0,
-          duration: 300,
-          ease: 'Back.easeOut'
-        });
-        
+        pokeball.setTint(0xE0E0E0); // Légèrement gris
         this.showStarterInfo(starter, index);
       }
     });
 
     pokeball.on('pointerout', () => {
       if (!this.isAnimating && this.currentlySelectedIndex !== index) {
-        this.scene.tweens.add({
-          targets: pokeball,
-          scaleX: 1.2,
-          scaleY: 1.2,
-          duration: 200
-        });
-        
-        this.scene.tweens.add({
-          targets: halo,
-          scaleX: 1.0,
-          scaleY: 1.0,
-          alpha: 0.2,
-          duration: 200
-        });
-        
-        this.scene.tweens.add({
-          targets: starterSprite,
-          scaleX: 1.0,
-          scaleY: 1.0,
-          y: posY - 40,
-          alpha: 0.8,
-          duration: 200
-        });
+        pokeball.clearTint();
       }
     });
 
+    // Click handler
     pokeball.on('pointerdown', () => {
       if (!this.isAnimating) {
         this.selectStarter(starter, index);
       }
     });
 
-    this.container.add([pokeball, starterSprite]);
+    this.container.add(pokeball);
     this.pokeballs.push(pokeball);
-    this.starterSprites.push(starterSprite);
   });
 }
 
-// Améliore createUI() pour des boutons plus stylés
+// Remplace createUI() dans StarterSelector.js
 createUI() {
-  // Zone d'information avec fond translucide
-  const infoBox = this.scene.add.rectangle(0, 60, 400, 60, 0x1E3A8A, 0.7);
-  infoBox.setStrokeStyle(2, 0x60A5FA);
-  this.container.add(infoBox);
-
-  this.infoText = this.scene.add.text(0, 60, '', {
-    fontSize: '13px',
+  // Texte simple en bas comme dans l'original
+  this.infoText = this.scene.add.text(0, 80, 'Choose a Pokémon.', {
+    fontSize: '16px',
     fontFamily: 'Arial',
-    color: '#E2E8F0',
-    align: 'center',
-    wordWrap: { width: 380 }
+    color: '#000000',
+    align: 'center'
   }).setOrigin(0.5);
 
-  // Bouton de confirmation stylé
-  this.confirmButton = this.scene.add.rectangle(0, 120, 150, 35, 0x059669);
-  this.confirmButton.setStrokeStyle(3, 0x10B981);
+  // Pas de bouton visible - sélection directe comme dans l'original
+  this.confirmButton = this.scene.add.rectangle(0, 0, 1, 1, 0x000000, 0);
   this.confirmButton.setInteractive();
-  this.confirmButton.setAlpha(0);
+  this.confirmButtonText = this.scene.add.text(0, 0, '', { fontSize: '1px' });
 
-  this.confirmButtonText = this.scene.add.text(0, 120, 'CONFIRMER', {
-    fontSize: '14px',
-    fontFamily: 'Arial Black',
-    color: '#ffffff',
-    shadow: {
-      offsetX: 1,
-      offsetY: 1,
-      color: '#000000',
-      blur: 2,
-      fill: true
-    }
-  }).setOrigin(0.5);
-  this.confirmButtonText.setAlpha(0);
-
-  // Handlers du bouton
-  this.confirmButton.on('pointerdown', () => {
-    if (this.selectedStarterId && !this.isAnimating) {
-      this.confirmSelection();
-    }
-  });
-
-  this.confirmButton.on('pointerover', () => {
-    if (this.selectedStarterId) {
-      this.confirmButton.setFillStyle(0x10B981);
-      this.scene.tweens.add({
-        targets: this.confirmButton,
-        scaleX: 1.1,
-        scaleY: 1.1,
-        duration: 200
-      });
-    }
-  });
-
-  this.confirmButton.on('pointerout', () => {
-    if (this.selectedStarterId) {
-      this.confirmButton.setFillStyle(0x059669);
-      this.scene.tweens.add({
-        targets: this.confirmButton,
-        scaleX: 1.0,
-        scaleY: 1.0,
-        duration: 200
-      });
-    }
-  });
-
-  this.container.add([this.infoText, this.confirmButton, this.confirmButtonText]);
+  this.container.add([this.infoText]);
 }
 
   // ✅ MÉTHODE: Afficher les infos d'un starter
@@ -565,57 +326,26 @@ createUI() {
 
   // ✅ MÉTHODE: Sélectionner un starter
   selectStarter(starter, index) {
-    console.log("🎯 [StarterSelector] Starter sélectionné:", starter.name);
-    
-    this.isAnimating = true;
-    this.currentlySelectedIndex = index;
-    this.selectedStarterId = starter.id;
+  console.log("🎯 [StarterSelector] Starter sélectionné:", starter.name);
+  
+  this.isAnimating = true;
+  this.currentlySelectedIndex = index;
+  this.selectedStarterId = starter.id;
 
-    // Animation de sélection
-    const pokeball = this.pokeballs[index];
-    const starterSprite = this.starterSprites[index];
+  // Effet de sélection simple
+  this.pokeballs.forEach((pb, i) => {
+    if (i === index) {
+      pb.setTint(0xFFFF80); // Jaune pour la sélection
+    } else {
+      pb.setTint(0x808080); // Gris pour les non-sélectionnés
+    }
+  });
 
-    // Désélectionner les autres
-    this.pokeballs.forEach((pb, i) => {
-      if (i !== index) {
-        this.scene.tweens.add({
-          targets: pb,
-          alpha: 0.5,
-          scale: 0.8,
-          duration: 300
-        });
-        this.scene.tweens.add({
-          targets: this.starterSprites[i],
-          alpha: 0.3,
-          scale: 0.8,
-          duration: 300
-        });
-      }
-    });
-
-    // Animer le starter sélectionné
-    this.scene.tweens.add({
-      targets: pokeball,
-      scaleX: 1.4,
-      scaleY: 1.4,
-      duration: 400,
-      ease: 'Back.easeOut'
-    });
-
-    this.scene.tweens.add({
-      targets: starterSprite,
-      scaleX: 1.3,
-      scaleY: 1.3,
-      y: starterSprite.y - 10,
-      alpha: 1.0,
-      duration: 400,
-      ease: 'Back.easeOut',
-      onComplete: () => {
-        this.isAnimating = false;
-        this.showConfirmButton();
-      }
-    });
-  }
+  // Confirmation automatique après un court délai (comme dans l'original)
+  this.scene.time.delayedCall(500, () => {
+    this.confirmSelection();
+  });
+}
 
   // ✅ MÉTHODE: Afficher le bouton de confirmation
   showConfirmButton() {
@@ -758,34 +488,23 @@ createUI() {
 
   // ✅ MÉTHODE: Animation d'entrée
   animateIn() {
+  // Animation simple de fade-in
+  this.scene.tweens.add({
+    targets: this.container,
+    alpha: 1,
+    duration: 300,
+    ease: 'Power2'
+  });
+
+  // Les pokéballs apparaissent simplement
+  this.pokeballs.forEach((pokeball, index) => {
+    pokeball.setAlpha(0);
     this.scene.tweens.add({
-      targets: this.container,
+      targets: pokeball,
       alpha: 1,
-      scale: 1.0,
-      duration: 500,
-      ease: 'Back.easeOut'
+      duration: 200,
+      delay: index * 100
     });
-
-    // Animation des pokéballs en cascade
-    this.pokeballs.forEach((pokeball, index) => {
-      pokeball.setScale(0);
-      this.scene.tweens.add({
-        targets: pokeball,
-        scale: 1.0,
-        duration: 400,
-        delay: 200 + (index * 100),
-        ease: 'Back.easeOut'
-      });
-    });
-
-    this.starterSprites.forEach((sprite, index) => {
-      sprite.setAlpha(0);
-      this.scene.tweens.add({
-        targets: sprite,
-        alpha: 0.7,
-        duration: 300,
-        delay: 300 + (index * 100)
-      });
     });
   }
 
