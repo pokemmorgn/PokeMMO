@@ -342,11 +342,11 @@ export class PsyduckIntroManager {
       
       this.showDialogue([
         "Psy? Psy... duck?",
-        "??? *The yellow duck-like creature tilts its head, looking confused*",
-        "??? *It holds its head with both hands... seems to have a headache*",
+        "The yellow duck-like creature tilts its head, looking confused",
+        "It holds its head with both hands... seems to have a headache",
         "Psy... psy duck? Psy?",
-        "??? *Despite its confusion, it points toward some buildings in the distance*",
-        "??? *Maybe it's trying to tell you something about that place?*"
+        "Despite its confusion, it points toward some buildings in the distance",
+        "Maybe it's trying to tell you something about that place?"
       ]);
     } catch (error) {
       console.error(`[PsyduckIntro] Error in phase 3:`, error);
