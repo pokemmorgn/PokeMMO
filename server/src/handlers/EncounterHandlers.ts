@@ -1,4 +1,4 @@
-// server/src/handlers/EncounterHandlers.ts - VERSION CORRIGÉE AVEC MÉTHODES PUBLIQUES
+// server/src/handlers/EncounterHandlers.ts - VERSION CONNECTÉE AVEC BATTLEHANDLERS
 import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { ServerEncounterManager } from "../managers/EncounterManager";
@@ -55,14 +55,6 @@ export class EncounterHandlers {
       });
     });
 
-    // ✅ HANDLER COMBAT SAUVAGE (pour plus tard)
-    this.room.onMessage("startWildBattle", async (client, data: {
-      playerPokemonId: number;
-      wildPokemonData: any;
-    }) => {
-      await this.handleStartWildBattle(client, data);
-    });
-
     // ✅ HANDLERS DEBUG ET DÉVELOPPEMENT
     this.room.onMessage("debugEncounters", (client, data: { zone: string }) => {
       this.handleDebugEncounters(client, data.zone);
@@ -88,7 +80,7 @@ export class EncounterHandlers {
     console.log(`✅ [EncounterHandlers] Tous les handlers configurés`);
   }
 
-  // ✅ HANDLER PRINCIPAL : DÉCLENCHEMENT D'ENCOUNTER - MAINTENANT PUBLIC
+  // ✅ HANDLER PRINCIPAL : DÉCLENCHEMENT D'ENCOUNTER AVEC COMBAT AUTOMATIQUE
   public async handleTriggerEncounter(client: Client, data: {
     x: number;
     y: number;
@@ -111,7 +103,6 @@ export class EncounterHandlers {
     console.log(`🎯 Zone ID: ${data.zoneId}`);
     console.log(`🌿 Méthode: ${data.method}`);
     console.log(`🔧 Forcé: ${data.forced || false}`);
-    console.log(`🔔 Depuis notification: ${data.fromNotification || false}`);
 
     try {
       // ✅ OBTENIR LES CONDITIONS ACTUELLES
@@ -124,7 +115,7 @@ export class EncounterHandlers {
       // ✅ VALIDATION CÔTÉ SERVEUR
       const wildPokemon = await this.encounterManager.validateAndGenerateEncounter(
         client.sessionId,
-        player.currentZone, // Utiliser la zone du joueur
+        player.currentZone,
         data.x,
         data.y,
         timeOfDay as 'day' | 'night',
@@ -138,46 +129,8 @@ export class EncounterHandlers {
         console.log(`🐾 Pokémon: ${wildPokemon.pokemonId} niveau ${wildPokemon.level}`);
         console.log(`✨ Spécial: Shiny=${wildPokemon.shiny}, Nature=${wildPokemon.nature}`);
         
-        // ✅ ENVOYER LA NOTIFICATION D'ENCOUNTER AU CLIENT
-        client.send("wildEncounter", {
-          success: true,
-          pokemon: {
-            pokemonId: wildPokemon.pokemonId,
-            name: this.getPokemonName(wildPokemon.pokemonId), // Helper pour le nom
-            level: wildPokemon.level,
-            shiny: wildPokemon.shiny,
-            gender: wildPokemon.gender,
-            nature: wildPokemon.nature,
-            moves: wildPokemon.moves,
-            ivs: wildPokemon.ivs
-          },
-          location: {
-            zone: player.currentZone,
-            zoneId: data.zoneId,
-            x: data.x,
-            y: data.y
-          },
-          method: data.method,
-          conditions: {
-            timeOfDay,
-            weather
-          },
-          forced: data.forced || false,
-          fromNotification: data.fromNotification || false,
-          timestamp: Date.now()
-        });
-
-        console.log(`📤 [EncounterHandlers] Wild encounter envoyé à ${client.sessionId}`);
-        
-        // ✅ BROADCASTER AUX AUTRES JOUEURS DE LA ZONE (optionnel et discret)
-        this.broadcastToZone(player.currentZone, "playerEncounter", {
-          playerName: player.name,
-          pokemonId: wildPokemon.pokemonId,
-          pokemonName: this.getPokemonName(wildPokemon.pokemonId),
-          level: wildPokemon.level,
-          shiny: wildPokemon.shiny,
-          method: data.method
-        }, client.sessionId);
+        // ✅ NOUVEAU: DÉMARRER LE COMBAT AUTOMATIQUEMENT (style Pokémon authentique)
+        await this.startWildBattleImmediate(client, wildPokemon, data);
 
       } else {
         console.log(`❌ [EncounterHandlers] Aucune rencontre pour ${player.name}`);
@@ -214,29 +167,92 @@ export class EncounterHandlers {
     }
   }
 
-  // ✅ HANDLER : DÉMARRAGE COMBAT SAUVAGE (pour plus tard) - MAINTENANT PUBLIC
-  public async handleStartWildBattle(client: Client, data: {
-    playerPokemonId: number;
-    wildPokemonData: any;
-  }): Promise<void> {
+  // ✅ NOUVELLE MÉTHODE: DÉMARRAGE IMMÉDIAT DU COMBAT (STYLE POKÉMON AUTHENTIQUE)
+  private async startWildBattleImmediate(client: Client, wildPokemon: any, encounterData: any): Promise<void> {
     const player = this.room.state.players.get(client.sessionId);
-    if (!player) {
-      client.send("battleError", { message: "Joueur non trouvé" });
-      return;
+    if (!player) return;
+
+    try {
+      console.log(`🎮 [EncounterHandlers] === DÉMARRAGE COMBAT IMMÉDIAT ===`);
+      console.log(`👤 Joueur: ${player.name}`);
+      console.log(`🐾 Contre: ${this.getPokemonName(wildPokemon.pokemonId)} Niv.${wildPokemon.level}`);
+
+      // ✅ ENVOYER LA NOTIFICATION DE RENCONTRE IMMÉDIATE
+      client.send("wildEncounterStart", {
+        success: true,
+        pokemon: {
+          pokemonId: wildPokemon.pokemonId,
+          name: this.getPokemonName(wildPokemon.pokemonId),
+          level: wildPokemon.level,
+          shiny: wildPokemon.shiny,
+          gender: wildPokemon.gender,
+          nature: wildPokemon.nature,
+          moves: wildPokemon.moves,
+          ivs: wildPokemon.ivs
+        },
+        location: {
+          zone: player.currentZone,
+          zoneId: encounterData.zoneId,
+          x: encounterData.x,
+          y: encounterData.y
+        },
+        method: encounterData.method,
+        forced: encounterData.forced || false,
+        message: `Un ${this.getPokemonName(wildPokemon.pokemonId)} sauvage apparaît !`,
+        timestamp: Date.now()
+      });
+
+      // ✅ BROADCASTER DISCRÈTEMENT AUX AUTRES JOUEURS
+      this.broadcastToZone(player.currentZone, "playerEncounter", {
+        playerName: player.name,
+        pokemonId: wildPokemon.pokemonId,
+        pokemonName: this.getPokemonName(wildPokemon.pokemonId),
+        level: wildPokemon.level,
+        shiny: wildPokemon.shiny,
+        method: encounterData.method,
+        startedBattle: true
+      }, client.sessionId);
+
+      // ✅ DÉLÉGUER AU BATTLEHANDLERS POUR CRÉER LA BATTLEROOM
+      const battleHandlers = this.room.getBattleHandlers();
+      if (!battleHandlers) {
+        console.error(`❌ [EncounterHandlers] BattleHandlers non disponible !`);
+        client.send("battleError", {
+          message: "Système de combat non disponible",
+          fallbackToOldSystem: true
+        });
+        return;
+      }
+
+      // ✅ DÉMARRER LE COMBAT VIA BATTLEHANDLERS
+      await battleHandlers.handleStartWildBattle(client, {
+        wildPokemon: wildPokemon,
+        location: `${player.currentZone} (${encounterData.zoneId})`,
+        method: encounterData.method
+      });
+
+      console.log(`✅ [EncounterHandlers] Combat démarré via BattleHandlers`);
+
+    } catch (error) {
+      console.error(`❌ [EncounterHandlers] Erreur démarrage combat:`, error);
+      
+      // ✅ FALLBACK: Envoyer l'ancienne notification en cas d'erreur
+      client.send("wildEncounterFallback", {
+        success: true,
+        pokemon: {
+          pokemonId: wildPokemon.pokemonId,
+          name: this.getPokemonName(wildPokemon.pokemonId),
+          level: wildPokemon.level,
+          shiny: wildPokemon.shiny,
+          gender: wildPokemon.gender,
+          nature: wildPokemon.nature,
+          moves: wildPokemon.moves,
+          ivs: wildPokemon.ivs
+        },
+        message: "Combat en cours de développement",
+        error: "Erreur système de combat"
+      });
     }
-
-    console.log(`🎮 [EncounterHandlers] === DÉMARRAGE COMBAT SAUVAGE ===`);
-    console.log(`👤 Joueur: ${player.name}`);
-    console.log(`🐾 Pokémon sauvage:`, data.wildPokemonData);
-
-    // ✅ POUR L'INSTANT: Juste une notification que le combat n'est pas implémenté
-    client.send("battleNotImplemented", {
-      message: "Wild battles not yet implemented",
-      wildPokemon: data.wildPokemonData,
-      playerPokemon: data.playerPokemonId
-    });
-
-    console.log(`ℹ️ [EncounterHandlers] Combat non implémenté - notification envoyée`);
   }
 
   // ✅ HANDLER DEBUG - MAINTENANT PUBLIC
@@ -256,7 +272,8 @@ export class EncounterHandlers {
       zone: zone,
       playerZone: player.currentZone,
       currentConditions: this.room.getCurrentTimeInfo(),
-      encounterManagerStats: 'Visible en console serveur'
+      encounterManagerStats: 'Visible en console serveur',
+      battleSystem: 'Connecté avec BattleHandlers'
     };
 
     client.send("encounterDebugResult", {
@@ -266,7 +283,7 @@ export class EncounterHandlers {
     });
   }
 
-  // ✅ HANDLER FORCE RENCONTRE (DÉVELOPPEMENT) - MAINTENANT PUBLIC
+  // ✅ HANDLER FORCE RENCONTRE AVEC COMBAT AUTOMATIQUE
   public async handleForceEncounter(client: Client, data: {
     zone: string;
     zoneId?: string;
@@ -275,7 +292,7 @@ export class EncounterHandlers {
     const player = this.room.state.players.get(client.sessionId);
     if (!player) return;
 
-    console.log(`🔧 [EncounterHandlers] === FORCE RENCONTRE ===`);
+    console.log(`🔧 [EncounterHandlers] === FORCE RENCONTRE AVEC COMBAT ===`);
     console.log(`👤 Joueur: ${player.name}`);
     console.log(`🌍 Zone: ${data.zone} - ZoneID: ${data.zoneId || 'default'}`);
 
@@ -293,34 +310,17 @@ export class EncounterHandlers {
       );
 
       if (wildPokemon) {
-        client.send("wildEncounter", {
-          success: true,
-          pokemon: {
-            pokemonId: wildPokemon.pokemonId,
-            name: this.getPokemonName(wildPokemon.pokemonId),
-            level: wildPokemon.level,
-            shiny: wildPokemon.shiny,
-            gender: wildPokemon.gender,
-            nature: wildPokemon.nature,
-            moves: wildPokemon.moves,
-            ivs: wildPokemon.ivs
-          },
-          location: {
-            zone: data.zone,
-            zoneId: data.zoneId || 'default',
-            x: player.x,
-            y: player.y
-          },
+        console.log(`✅ [EncounterHandlers] Rencontre forcée générée`);
+        
+        // ✅ DÉMARRER LE COMBAT IMMÉDIATEMENT
+        await this.startWildBattleImmediate(client, wildPokemon, {
+          zoneId: data.zoneId || 'default',
+          x: player.x,
+          y: player.y,
           method: data.method || 'grass',
-          conditions: {
-            timeOfDay: conditions.isDayTime ? 'day' : 'night',
-            weather: conditions.weather
-          },
-          forced: true,
-          timestamp: Date.now()
+          forced: true
         });
 
-        console.log(`✅ [EncounterHandlers] Rencontre forcée envoyée`);
       } else {
         client.send("encounterFailed", {
           success: false,
@@ -362,8 +362,9 @@ export class EncounterHandlers {
         weather: conditions.weather,
         hour: conditions.hour
       },
-      canEncounter: true, // TODO: Vérifier selon les tiles
-      possibleMethods: ['grass', 'fishing'], // TODO: Détecter selon la position
+      canEncounter: true,
+      possibleMethods: ['grass', 'fishing'],
+      battleSystemActive: true, // ✅ NOUVEAU: Indiquer que le système de combat est actif
       message: "Informations de position récupérées"
     });
   }
@@ -373,22 +374,15 @@ export class EncounterHandlers {
   private getPokemonName(pokemonId: number): string {
     // Mapping simple des ID vers les noms (à améliorer)
     const pokemonNames: { [key: number]: string } = {
-      16: "Pidgey",
-      19: "Rattata", 
-      10: "Caterpie",
-      13: "Weedle",
-      43: "Oddish",
-      69: "Bellsprout",
-      41: "Zubat",
-      92: "Gastly",
-      25: "Pikachu",
-      194: "Wooper",
-      129: "Magikarp",
-      170: "Chinchou",
-      116: "Horsea"
+      1: "Bulbasaur", 4: "Charmander", 7: "Squirtle",
+      10: "Caterpie", 16: "Pidgey", 19: "Rattata", 
+      25: "Pikachu", 41: "Zubat", 43: "Oddish",
+      69: "Bellsprout", 92: "Gastly", 129: "Magikarp", 
+      170: "Chinchou", 116: "Horsea", 194: "Wooper",
+      13: "Weedle"
     };
     
-    return pokemonNames[pokemonId] || `Pokemon #${pokemonId}`;
+    return pokemonNames[pokemonId] || `Pokémon #${pokemonId}`;
   }
 
   private broadcastToZone(zoneName: string, message: string, data: any, excludeSessionId?: string): void {
@@ -434,6 +428,41 @@ export class EncounterHandlers {
       zoneId,
       method
     );
+  }
+
+  // ✅ MÉTHODE PUBLIQUE POUR FORCER UNE RENCONTRE DE COMBAT (POUR DÉVELOPPEMENT)
+  public async forceWildBattle(client: Client, pokemonId: number, level: number = 5): Promise<void> {
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) return;
+
+    console.log(`🔥 [EncounterHandlers] Force combat: ${this.getPokemonName(pokemonId)} Niv.${level}`);
+
+    // Créer un Pokémon sauvage de test
+    const testWildPokemon = {
+      pokemonId: pokemonId,
+      level: level,
+      gender: Math.random() < 0.5 ? "Male" : "Female",
+      nature: "Hardy",
+      shiny: Math.random() < 0.001, // 0.1% de chance shiny
+      moves: ["tackle", "growl"],
+      ivs: {
+        hp: Math.floor(Math.random() * 32),
+        attack: Math.floor(Math.random() * 32),
+        defense: Math.floor(Math.random() * 32),
+        spAttack: Math.floor(Math.random() * 32),
+        spDefense: Math.floor(Math.random() * 32),
+        speed: Math.floor(Math.random() * 32)
+      }
+    };
+
+    // Démarrer le combat immédiatement
+    await this.startWildBattleImmediate(client, testWildPokemon, {
+      zoneId: `${player.currentZone}_test`,
+      x: player.x,
+      y: player.y,
+      method: 'grass',
+      forced: true
+    });
   }
 
   public cleanup(): void {
