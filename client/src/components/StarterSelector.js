@@ -132,6 +132,47 @@ export class StarterSelector {
     graphics.destroy();
   }
 
+  // Ajoute cette méthode après createStarterPlaceholder()
+createStarterBackground() {
+  if (this.scene.textures.exists('starter_background_custom')) return;
+  
+  const width = 400;
+  const height = 250;
+  const graphics = this.scene.add.graphics();
+
+  // Fond gris-bleu clair (partie haute)
+  graphics.fillStyle(0xA0B5D1);
+  graphics.fillRect(0, 0, width, height * 0.4);
+
+  // Grille de carreaux
+  graphics.lineStyle(1, 0x8DA3C0, 0.4);
+  for (let x = 0; x < width; x += 24) {
+    graphics.lineBetween(x, 0, x, height * 0.4);
+  }
+  for (let y = 0; y < height * 0.4; y += 24) {
+    graphics.lineBetween(0, y, width, y);
+  }
+
+  // Zone verte centrale
+  const greenY = height * 0.25;
+  const greenHeight = height * 0.5;
+  graphics.fillStyle(0x22C55E);
+  graphics.fillRoundedRect(width * 0.05, greenY, width * 0.9, greenHeight, 12);
+
+  // Dégradé subtil sur la zone verte
+  graphics.fillStyle(0x16A34A);
+  graphics.fillEllipse(width * 0.3, greenY + greenHeight/2, 80, 40);
+  graphics.fillEllipse(width * 0.7, greenY + greenHeight/2, 80, 40);
+
+  // Bordure inférieure gris foncé
+  graphics.fillStyle(0x4A5568);
+  graphics.fillRect(0, height * 0.8, width, height * 0.2);
+
+  // Générer la texture
+  graphics.generateTexture('starter_background_custom', width, height);
+  graphics.destroy();
+}
+  
   // ✅ MÉTHODE PRINCIPALE: Afficher la sélection
   show(availableStarters = null) {
     if (this.isVisible) {
@@ -170,18 +211,11 @@ export class StarterSelector {
   }
 
   // ✅ MÉTHODE: Précharger les assets nécessaires
-  preloadAssets() {
-  // Charger l'image de fond si elle existe
-  if (!this.scene.textures.exists('starter_bg')) {
-    // Essayer de charger l'image
-    this.scene.load.image('starter_bg', 'assets/ui/starter_background.png');
-    this.scene.load.once('complete', () => {
-      console.log("✅ Background starter chargé");
-    });
-    this.scene.load.start();
-  }
+ preloadAssets() {
+  // NE PAS essayer de charger l'image dynamiquement pendant le jeu
+  // À la place, créer le background avec du code
+  this.createStarterBackground();
   
-  // Créer pokéball et starters
   this.createPokeballTexture();
   this.starterConfig.forEach(starter => {
     this.createStarterPlaceholder(starter);
@@ -193,42 +227,29 @@ export class StarterSelector {
   const centerX = this.scene.cameras.main.centerX;
   const centerY = this.scene.cameras.main.centerY;
 
-  // Container principal
   this.container = this.scene.add.container(centerX, centerY);
   this.container.setDepth(1000);
 
-  // Utiliser l'image de fond au lieu du rectangle
-  let bg;
-  if (this.scene.textures.exists('starter_bg')) {
-    bg = this.scene.add.image(0, 0, 'starter_bg');
-    bg.setDisplaySize(400, 250); // Ajuste la taille
-  } else {
-    // Fallback vers le rectangle noir
-    bg = this.scene.add.rectangle(0, 0, 300, 200, 0x000000, 0.8);
-  }
-  
+  // Utiliser le background créé par code
+  const bg = this.scene.add.image(0, 0, 'starter_background_custom');
+  bg.setScale(0.75); // Ajuste la taille si nécessaire
   this.container.add(bg);
 
-    // Titre
-    const title = this.scene.add.text(0, -80, 'Choisissez votre Pokémon', {
-      fontSize: '16px', // Plus petit
-      fontFamily: 'Arial Black',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 2,
-      align: 'center'
-    }).setOrigin(0.5);
-    this.container.add(title);
+  // Titre
+  const title = this.scene.add.text(0, -80, 'Choisissez votre Pokémon', {
+    fontSize: '16px',
+    fontFamily: 'Arial Black',
+    color: '#ffffff',
+    stroke: '#000000',
+    strokeThickness: 2,
+    align: 'center'
+  }).setOrigin(0.5);
+  this.container.add(title);
 
-    // Créer les starters
-    this.createStarters();
-    
-    // Créer l'UI (textes, boutons)
-    this.createUI();
-    
-    // Rendre invisible pour l'animation
-    this.container.setAlpha(0);
-  }
+  this.createStarters();
+  this.createUI();
+  this.container.setAlpha(0);
+}
 
   // ✅ MÉTHODE: Créer les starters (version compacte)
   createStarters() {
