@@ -549,66 +549,76 @@ export class PsyduckIntroManager {
   /**
    * Termine l'intro
    */
-  finishIntro() {
-    if (!this.psyduck || !this.scene) {
-      console.log(`⚠️ [PsyduckIntro] Finish intro sans Psyduck/scene, cleanup direct`);
-      this.cleanup();
-      return;
-    }
-
-    console.log(`🎉 [PsyduckIntro] === FIN INTRO ===`);
-    
-    try {
-      // Phase 4 : Retour vers le haut (360,32)
-      this.psyduck.anims.play('psyduck_walk_up');
-      
-      this.scene.tweens.add({
-        targets: this.psyduck,
-        y: 32,  // Retour à la position Y initiale
-        duration: 2500,
-        ease: 'Linear',
-        onComplete: () => {
-          if (!this.psyduck || !this.scene) {
-            this.cleanup();
-            return;
-          }
-          
-          // Phase 5 : Retour vers la gauche (160,32)
-          this.psyduck.anims.play('psyduck_walk_left');
-          
-          this.scene.tweens.add({
-            targets: this.psyduck,
-            x: 160,  // Retour à la position X initiale
-            duration: 3000,
-            ease: 'Linear',
-            onComplete: () => {
-              if (!this.psyduck || !this.scene) {
-                this.cleanup();
-                return;
-              }
-              
-              // Disparition finale
-              this.scene.tweens.add({
-                targets: this.psyduck,
-                alpha: 0,
-                duration: 1000,
-                onComplete: () => {
-                  if (this.psyduck && this.psyduck.destroy) {
-                    this.psyduck.destroy();
-                  }
-                  this.psyduck = null;
-                  this.cleanup();
-                }
-              });
-            }
-          });
-        }
-      });
-    } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur finish intro:`, error);
-      this.cleanup();
-    }
+finishIntro() {
+  if (!this.psyduck || !this.scene) {
+    console.log(`⚠️ [PsyduckIntro] Finish intro sans Psyduck/scene, cleanup direct`);
+    this.cleanup();
+    return;
   }
+
+  console.log(`🎉 [PsyduckIntro] === FIN INTRO ===`);
+  
+  try {
+    // Phase 4 : Retour vers le haut (360,32)
+    this.psyduck.anims.play('psyduck_walk_up');
+    
+    this.scene.tweens.add({
+      targets: this.psyduck,
+      y: 32,  // Retour à la position Y initiale
+      duration: 2500,
+      ease: 'Linear',
+      onComplete: () => {
+        if (!this.psyduck || !this.scene) {
+          this.cleanup();
+          return;
+        }
+        
+        // Phase 5 : Retour vers la gauche (160,32)
+        this.psyduck.anims.play('psyduck_walk_left');
+        
+        this.scene.tweens.add({
+          targets: this.psyduck,
+          x: 160,  // Retour à la position X initiale
+          duration: 3000,
+          ease: 'Linear',
+          onComplete: () => {
+            if (!this.psyduck || !this.scene) {
+              this.cleanup();
+              return;
+            }
+            
+            // Disparition finale
+            this.scene.tweens.add({
+              targets: this.psyduck,
+              alpha: 0,
+              duration: 1000,
+              onComplete: () => {
+                if (this.psyduck && this.psyduck.destroy) {
+                  this.psyduck.destroy();
+                }
+                this.psyduck = null;
+
+                // === ICI ON PRÉVIENT LE SERVEUR ===
+                if (this.scene.room) {
+                  this.scene.room.send("introp2", {
+                    playerName: this.scene.playerManager?.getMyPlayer()?.name || "unknown"
+                  });
+                  console.log("📤 [PsyduckIntro] Notification 'introp2' envoyée au serveur");
+                }
+
+                this.cleanup();
+              }
+            });
+          }
+        });
+      }
+    });
+  } catch (error) {
+    console.error(`❌ [PsyduckIntro] Erreur finish intro:`, error);
+    this.cleanup();
+  }
+}
+
 
   /**
    * Nettoie et débloque le joueur
