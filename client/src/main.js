@@ -70,6 +70,10 @@ import './debug-notifications.js';
 // 🆕 NOUVEAU: Import du ClientEncounterManager
 import { ClientEncounterManager } from './managers/EncounterManager.js';
 
+// 🆕 NOUVEAU: Import du système de combat
+import { BattleIntegration } from './managers/BattleIntegration.js';
+import { BattleScene } from './scenes/BattleScene.js';
+
 // --- Endpoint dynamique ---
 const ENDPOINT =
   (location.protocol === "https:" ? "wss://" : "ws://") +
@@ -289,6 +293,7 @@ window.testGlobalWeather = function() {
   
   return true;
 };
+
 // === CONFIG PHASER ===
 const config = {
   type: Phaser.AUTO,
@@ -300,6 +305,7 @@ const config = {
   antialias: false,
   pauseOnBlur: false,
   // ✅ GARDER TOUTES LES SCÈNES pour éviter les problèmes de "scène introuvable"
+  // 🆕 NOUVEAU: Ajouter BattleScene
   scene: [
   LoaderScene,
 
@@ -344,6 +350,9 @@ const config = {
   //NoctherCave1Scene,
   //NoctherCave2Scene,
   //NoctherCave2BisScene
+
+  // 🆕 NOUVEAU: Battle Scene
+  BattleScene
 ],
   physics: {
     default: 'arcade',
@@ -450,6 +459,32 @@ console.log("✅ Système météo global initialisé");
     console.log("🎮 Lancement de Phaser...");
     window.game = new Phaser.Game(config);
 
+    // 🆕 NOUVEAU: 9.5. INITIALISER LE SYSTÈME DE COMBAT APRÈS PHASER
+    console.log("⚔️ Initialisation du système de combat...");
+    window.battleSystem = new BattleIntegration(window);
+    
+    // Attendre que Phaser soit complètement initialisé
+    setTimeout(async () => {
+      const battleInitSuccess = await window.battleSystem.initialize(
+        window.currentGameRoom,
+        window.game
+      );
+      
+      if (battleInitSuccess) {
+        console.log("✅ Système de combat initialisé avec succès");
+        window.showGameNotification?.("Système de combat prêt !", "success", { 
+          duration: 2000, 
+          position: 'top-center' 
+        });
+      } else {
+        console.error("❌ Échec initialisation système de combat");
+        window.showGameNotification?.("Erreur système de combat", "error", { 
+          duration: 3000, 
+          position: 'top-center' 
+        });
+      }
+    }, 2000);
+
     // ✅ 10. VÉRIFIER QUE TOUTES LES SCÈNES SONT BIEN ENREGISTRÉES
     setTimeout(() => {
       console.log("🔍 [MAIN] Vérification des scènes Phaser...");
@@ -465,6 +500,11 @@ console.log("✅ Système météo global initialisé");
         const hasScene = phaserScenes.includes(sceneKey);
         console.log(`   ${zone} (${sceneKey}): ${hasScene ? '✅' : '❌'}`);
       });
+      
+      // Vérifier BattleScene
+      const hasBattleScene = phaserScenes.includes('BattleScene');
+      console.log(`   BattleScene: ${hasBattleScene ? '✅' : '❌'}`);
+      
     }, 1000);
 
     // ✅ 11. SETUP GLOBAL POUR TES SYSTÈMES
@@ -658,6 +698,45 @@ console.log("✅ Système météo global initialisé");
       return window.initEncounterSystem(scene, mapData);
     };
 
+    // 🆕 NOUVEAU: Initialisation du système de combat
+    window.initBattleSystem = function(gameRoom) {
+      console.log('⚔️ [MAIN] Initialisation du système de combat...');
+      
+      if (window.battleSystem && window.battleSystem.isInitialized) {
+        console.log('ℹ️ [MAIN] Système de combat déjà initialisé - réutilisation');
+        return window.battleSystem;
+      }
+      
+      try {
+        if (!window.battleSystem) {
+          window.battleSystem = new BattleIntegration(window);
+        }
+        
+        // Attendre que Phaser soit prêt
+        if (window.game) {
+          window.battleSystem.initialize(
+            gameRoom || window.currentGameRoom,
+            window.game
+          ).then(success => {
+            if (success) {
+              console.log('✅ [MAIN] Système de combat initialisé avec succès');
+              if (typeof window.onSystemInitialized === 'function') {
+                window.onSystemInitialized('battle');
+              }
+            } else {
+              console.error('❌ [MAIN] Échec initialisation système de combat');
+            }
+          });
+        }
+        
+        return window.battleSystem;
+        
+      } catch (error) {
+        console.error('❌ [MAIN] Erreur initialisation système de combat:', error);
+        return null;
+      }
+    };
+
     // ===== 3. ✅ FONCTIONS DE DEBUG AMÉLIORÉES =====
     window.debugTeamSystem = function() {
       console.log('🔍 === DEBUG SYSTÈME D\'ÉQUIPE COMPLET ===');
@@ -802,6 +881,45 @@ console.log("✅ Système météo global initialisé");
       return encounterStatus;
     };
 
+    // 🆕 NOUVEAU: Fonction de debug pour le système de combat
+    window.debugBattleSystem = function() {
+      console.log('🔍 === DEBUG SYSTÈME DE COMBAT COMPLET ===');
+      
+      const battleStatus = {
+        // Vérifications globales
+        battleSystemGlobal: {
+          exists: !!window.battleSystem,
+          initialized: window.battleSystem?.isInitialized || false,
+          type: typeof window.battleSystem
+        },
+        
+        // Vérifications scène
+        battleScene: {
+          existsInPhaser: !!window.game?.scene?.getScene('BattleScene'),
+          isActive: window.game?.scene?.isActive('BattleScene') || false,
+          isVisible: window.game?.scene?.isVisible('BattleScene') || false
+        },
+        
+        // État du combat
+        battleState: {
+          inBattle: window.battleSystem?.isCurrentlyInBattle() || false,
+          currentState: window.battleSystem?.getCurrentBattleState() || null
+        },
+        
+        // Fonctions disponibles
+        functions: {
+          initBattleSystem: typeof window.initBattleSystem,
+          testBattle: typeof window.testBattle,
+          startWildBattle: typeof window.startWildBattle,
+          exitBattle: typeof window.exitBattle
+        }
+      };
+      
+      console.log('📊 Status système de combat:', battleStatus);
+      
+      return battleStatus;
+    };
+
     window.fixTeamSystem = function() {
       console.log('🔧 === TENTATIVE DE RÉPARATION SYSTÈME D\'ÉQUIPE ===');
       
@@ -877,6 +995,37 @@ console.log("✅ Système météo global initialisé");
       return true;
     };
 
+    // 🆕 NOUVEAU: Fonction de réparation pour le système de combat
+    window.fixBattleSystem = function() {
+      console.log('🔧 === TENTATIVE DE RÉPARATION SYSTÈME DE COMBAT ===');
+      
+      // 1. Nettoyer l'ancien système
+      if (window.battleSystem) {
+        console.log('🧹 Nettoyage ancien BattleSystem...');
+        if (window.battleSystem.destroy) {
+          window.battleSystem.destroy();
+        }
+        window.battleSystem = null;
+      }
+      
+      // 2. Réinitialiser
+      const battleSystem = window.initBattleSystem();
+      
+      if (battleSystem) {
+        console.log('✅ Système de combat réparé !');
+        
+        setTimeout(() => {
+          window.debugBattleSystem();
+          console.log('🎯 Essayez window.testBattle() pour tester');
+        }, 2000);
+        
+        return true;
+      } else {
+        console.error('❌ Échec réparation système de combat');
+        return false;
+      }
+    };
+
     // ===== 4. ✅ COMMANDES RAPIDES POUR LE DEBUG =====
 
     window.quickTeamDebug = function() {
@@ -916,6 +1065,29 @@ console.log("✅ Système météo global initialisé");
         return false;
       } else {
         console.log('🎯 Système OK - utilisez window.testEncounter() pour tester');
+        return true;
+      }
+    };
+
+    // 🆕 NOUVEAU: Debug rapide système de combat
+    window.quickBattleDebug = function() {
+      console.log('⚡ === DEBUG RAPIDE COMBAT ===');
+      
+      const battleSystem = !!window.battleSystem;
+      const battleScene = !!window.game?.scene?.getScene('BattleScene');
+      const initialized = window.battleSystem?.isInitialized || false;
+      
+      console.log('BattleSystem Global:', battleSystem);
+      console.log('BattleScene Phaser:', battleScene);
+      console.log('System Initialized:', initialized);
+      console.log('Network Connected:', window.globalNetworkManager?.isConnected);
+      console.log('In Battle:', window.battleSystem?.isCurrentlyInBattle() || false);
+      
+      if (!battleSystem || !initialized) {
+        console.log('🔧 Problème détecté - utilisez window.fixBattleSystem() pour réparer');
+        return false;
+      } else {
+        console.log('🎯 Système OK - utilisez window.testBattle() pour tester');
         return true;
       }
     };
@@ -995,7 +1167,7 @@ console.log("✅ Système météo global initialisé");
       return window.questSystemGlobal;
     };
     
-    // ✅ MÉTHODE MODIFIÉE: Inclure l'initialisation des encounters
+    // ✅ MÉTHODE MODIFIÉE: Inclure l'initialisation des encounters et du combat
     window.initAllGameSystems = function(scene, gameRoom) {
       const roomToUse = gameRoom || window.currentGameRoom;
       
@@ -1012,15 +1184,21 @@ console.log("✅ Système météo global initialisé");
         setTimeout(() => {
           const encounters = window.initEncounterSystem(scene);
           
-          // Initialiser le système de positionnement global après tout
+          // 🆕 NOUVEAU: Initialiser le système de combat
           setTimeout(() => {
-            if (typeof window.initUIIconPositioning === 'function') {
-              window.initUIIconPositioning();
-            }
-            window.onSystemInitialized && window.onSystemInitialized('all');
+            const battle = window.initBattleSystem(roomToUse);
+            
+            // Initialiser le système de positionnement global après tout
+            setTimeout(() => {
+              if (typeof window.initUIIconPositioning === 'function') {
+                window.initUIIconPositioning();
+              }
+              window.onSystemInitialized && window.onSystemInitialized('all');
+            }, 500);
+            
+            return { inventory, quests, starter, team, encounters, battle };
           }, 500);
           
-          return { inventory, quests, starter, team, encounters };
         }, 500);
         
       }, 1000); // ✅ 1 seconde de délai
@@ -1323,6 +1501,111 @@ window.isStarterSelectionActive = function() {
         return null;
       }
     };
+
+    // 🆕 NOUVELLES FONCTIONS DE TEST POUR LE SYSTÈME DE COMBAT
+    window.testBattle = function() {
+      if (!window.battleSystem) {
+        window.showGameAlert?.("Système de combat non initialisé");
+        console.log("❌ Utilisez window.initBattleSystem() pour l'initialiser");
+        return;
+      }
+
+      if (!window.battleSystem.isInitialized) {
+        window.showGameAlert?.("Système de combat pas encore prêt");
+        console.log("⏳ Système en cours d'initialisation...");
+        return;
+      }
+
+      console.log("🧪 Test du système de combat...");
+      
+      const result = window.battleSystem.testBattle();
+      if (result) {
+        window.showGameNotification("Test de combat lancé !", "info", { duration: 2000, position: 'top-center' });
+        console.log("✅ Combat de test démarré");
+      } else {
+        window.showGameAlert?.("Échec du test de combat");
+        console.log("❌ Échec du test de combat");
+      }
+    };
+
+    window.startWildBattle = function(pokemonData = null) {
+      if (!window.battleSystem) {
+        window.showGameAlert?.("Système de combat non initialisé");
+        return false;
+      }
+
+      const testPokemon = pokemonData || {
+        pokemonId: 25, // Pikachu
+        level: 5,
+        name: 'Pikachu',
+        shiny: false,
+        gender: 'male'
+      };
+
+      console.log("⚔️ Démarrage combat sauvage:", testPokemon);
+      
+      const result = window.battleSystem.startWildBattle({
+        pokemon: testPokemon,
+        location: 'test_zone',
+        method: 'manual'
+      });
+
+      if (result) {
+        window.showGameNotification("Combat sauvage démarré !", "info", { duration: 2000, position: 'top-center' });
+        console.log("✅ Combat sauvage lancé");
+      } else {
+        window.showGameAlert?.("Impossible de démarrer le combat");
+        console.log("❌ Échec démarrage combat");
+      }
+
+      return result;
+    };
+
+    window.exitBattle = function() {
+      if (!window.battleSystem) {
+        window.showGameAlert?.("Aucun système de combat");
+        return false;
+      }
+
+      if (!window.battleSystem.isCurrentlyInBattle()) {
+        window.showGameAlert?.("Pas en combat actuellement");
+        return false;
+      }
+
+      console.log("🚪 Sortie de combat...");
+      
+      const result = window.battleSystem.exitBattle('manual');
+      if (result) {
+        window.showGameNotification("Combat quitté", "info", { duration: 1500, position: 'top-center' });
+        console.log("✅ Combat quitté avec succès");
+      }
+
+      return result;
+    };
+
+    window.getBattleStatus = function() {
+      if (!window.battleSystem) {
+        console.log("❌ Système de combat non disponible");
+        return null;
+      }
+
+      const status = window.battleSystem.getCurrentBattleState();
+      console.log("⚔️ État du combat:", status);
+      
+      return status;
+    };
+
+    window.debugBattleConnection = function() {
+      if (!window.battleSystem?.battleConnection) {
+        console.log("❌ BattleConnection non disponible");
+        return null;
+      }
+
+      console.log("🔍 Debug BattleConnection...");
+      window.battleSystem.battleConnection.debugConnections();
+      
+      return window.battleSystem.battleConnection.getConnectionStatus();
+    };
     
     // ✅ NOUVELLES FONCTIONS POUR TESTER LES TRANSITIONS
     window.testTransition = function(targetZone = 'village') {
@@ -1367,9 +1650,11 @@ window.isStarterSelectionActive = function() {
     console.log("⚔️ Utilisez 'T' pour ouvrir l'équipe en jeu");
     console.log("🎲 Utilisez 'F' pour debug encounters en jeu");
     console.log("🎲 Utilisez 'G' pour forcer un encounter en jeu");
+    console.log("⚔️ Utilisez 'B' pour tester le système de combat en jeu");
     console.log("🎮 Utilisez window.initAllGameSystems(scene, gameRoom) dans vos scènes pour tout initialiser");
     console.log("🌍 Utilisez window.listAvailableZones() pour voir les zones disponibles");
     console.log("🔄 Utilisez window.testTransition('village') pour tester les transitions");
+    console.log("⚔️ Utilisez window.testBattle() pour tester le système de combat");
     
     // ✅ DEBUG: Vérifier l'état du NetworkManager
     console.log("🔍 État du NetworkManager global:", {
@@ -1415,13 +1700,19 @@ window.isEncounterActive = function() {
   return activeScene?.encounterActive || false;
 };
 
+// 🆕 NOUVEAU: Fonction pour vérifier si un combat est en cours
+window.isBattleActive = function() {
+  return window.battleSystem?.isCurrentlyInBattle() || false;
+};
+
 window.shouldBlockInput = function() {
   return window.isChatFocused() ||
     window.isStarterHUDOpen() ||
     window.isQuestJournalOpen() ||
     window.isInventoryOpen() ||
     window.isTeamOpen() ||
-    window.isEncounterActive(); // 🆕 NOUVEAU: Bloquer aussi pendant encounters
+    window.isEncounterActive() || // 🆕 NOUVEAU: Bloquer aussi pendant encounters
+    window.isBattleActive() || // 🆕 NOUVEAU: Bloquer pendant combat
     window.isStarterSelectionActive(); // ← AJOUTER CETTE LIGNE
 
 };
@@ -1432,7 +1723,7 @@ window.canPlayerInteract = function() {
   return !window.shouldBlockInput();
 };
 
-// ✅ FONCTION DEBUG AMÉLIORÉE AVEC ENCOUNTERS
+// ✅ FONCTION DEBUG AMÉLIORÉE AVEC ENCOUNTERS ET COMBAT
 window.getGameSystemsStatus = function() {
   const status = {
     chat: { initialized: !!window.pokeChat, focused: window.isChatFocused() },
@@ -1446,6 +1737,13 @@ window.getGameSystemsStatus = function() {
       active: window.isEncounterActive(),
       globalManager: !!window.encounterManagerGlobal,
       sceneManager: !!window.game?.scene?.getScenes(true)[0]?.encounterManager
+    },
+    // 🆕 NOUVEAU: Status combat
+    battle: {
+      initialized: !!window.battleSystem,
+      systemReady: window.battleSystem?.isInitialized || false,
+      inBattle: window.isBattleActive(),
+      sceneExists: !!window.game?.scene?.getScene('BattleScene')
     },
     networkManager: {
       initialized: !!window.globalNetworkManager,
@@ -1503,6 +1801,14 @@ window.debugGameSystems = function() {
   } else {
     console.log("❌ EncounterManager global introuvable");
   }
+
+  // 🆕 NOUVEAU: DEBUG BATTLE SYSTEM
+  if (window.battleSystem) {
+    console.log("⚔️ Debug BattleSystem:");
+    window.debugBattleSystem();
+  } else {
+    console.log("❌ BattleSystem global introuvable");
+  }
   
   return status;
 };
@@ -1512,7 +1818,7 @@ window.quickTestNotifications = function() {
   window.testNotifications?.();
 };
 
-// ✅ AIDE AMÉLIORÉE AVEC ENCOUNTERS
+// ✅ AIDE AMÉLIORÉE AVEC ENCOUNTERS ET COMBAT
 window.showGameHelp = function() {
   window.showGameNotification?.("Aide affichée dans la console", "info", { duration: 3000, position: 'top-center' });
   console.log(`
@@ -1524,26 +1830,37 @@ window.showGameHelp = function() {
 • Q - Ouvrir/Fermer le journal des quêtes
 • F - Debug encounters (dans les zones)
 • G - Forcer un encounter (dans les zones)
+• B - Tester le système de combat
 • E - Interagir avec NPCs/objets
-- S - Afficher sélection starter (test)
-- ESC - Fermer sélection starter
+• S - Afficher sélection starter (test)
+• ESC - Fermer sélection starter
 • WASD ou Flèches - Déplacement
 
 === Fonctions de test ===
 • window.testInventory() - Tester l'inventaire
 • window.testTeam() - Tester l'équipe
 • window.testEncounter() - Tester les encounters
+• window.testBattle() - Tester le système de combat
 • window.testNotifications() - Tester les notifications
 • window.quickTestNotifications() - Test rapide
 • window.debugGameSystems() - Debug des systèmes
 
-=== Fonctions encounters (NOUVEAU) ===
+=== Fonctions encounters ===
 • window.debugEncounters() - Debug encounters
 • window.forceEncounter() - Forcer un encounter
 • window.resetEncounterCooldowns() - Reset cooldowns
 • window.simulateEncounterSteps(5) - Simuler des pas
 • window.getCurrentEncounterInfo() - Info position actuelle
 • window.quickEncounterDebug() - Debug rapide encounters
+
+=== Fonctions combat (NOUVEAU) ===
+• window.testBattle() - Test complet du système
+• window.startWildBattle() - Démarrer combat sauvage
+• window.exitBattle() - Quitter combat en cours
+• window.getBattleStatus() - État du combat actuel
+• window.debugBattleSystem() - Debug système complet
+• window.debugBattleConnection() - Debug connexions
+• window.quickBattleDebug() - Debug rapide combat
 
 === Fonctions de transition ===
 • window.testTransition('village') - Test transition vers village
@@ -1552,14 +1869,16 @@ window.showGameHelp = function() {
 • window.switchToZone('road1') - Changer de zone manuellement
 • window.debugSceneRegistry() - Debug du système de scènes
 
-//Starter fonctions
-- window.testStarterSelection() - Tester la sélection de starter
-- window.debugStarterSelection() - Debug du système starter
+=== Starter fonctions ===
+• window.testStarterSelection() - Tester la sélection de starter
+• window.debugStarterSelection() - Debug du système starter
+
 === Systèmes disponibles ===
 • Inventaire: ${!!window.inventorySystemGlobal}
 • Équipe: ${!!window.teamManagerGlobal}
 • Quêtes: ${!!window.questSystemGlobal}
 • Encounters: ${!!window.encounterManagerGlobal}
+• Combat: ${!!window.battleSystem} (prêt: ${window.battleSystem?.isInitialized || false})
 • Notifications: ${!!window.gameNotificationSystem}
 • Starter HUD: ${!!window.starterHUD}
 • NetworkManager: ${!!window.globalNetworkManager} (connecté: ${window.globalNetworkManager?.isConnected})
@@ -1569,9 +1888,11 @@ window.showGameHelp = function() {
 • window.showNotificationInstructions() - Instructions complètes
 • window.debugNotificationSystem() - Debug notifications
 • window.debugEncounterSystem() - Debug encounters complet
+• window.debugBattleSystem() - Debug combat complet
 • window.getGameSystemsStatus() - Statut des systèmes
 • window.restartCurrentZone() - Redémarrer la zone actuelle
 • window.fixEncounterSystem() - Réparer system encounters
+• window.fixBattleSystem() - Réparer système combat
 ========================
   `);
 };
@@ -1583,6 +1904,7 @@ Tous les systèmes sont initialisés et prêts !
 🔄 Support des transitions robustes intégré !
 ⚔️ Système d'équipe Pokémon disponible !
 🎲 Système d'encounters Pokémon intégré !
+⚔️ Système de combat MMO Pokémon intégré !
 ==============================
 `);
 
