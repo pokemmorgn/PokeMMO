@@ -166,6 +166,104 @@
           ]
         }
       ]
+    },
+
+    {
+      "id": "beach_intro_quest",
+      "name": "Bienvenue à GreenRoot",
+      "description": "Découvrez le monde de GreenRoot et rencontrez votre premier compagnon.",
+      "category": "main",
+      "startNpcId": null,
+      "endNpcId": null,
+      "isRepeatable": false,
+      "autoComplete": true,
+      
+      "dialogues": {
+        "questOffer": [
+          "Bienvenue dans le monde de GreenRoot !",
+          "Une nouvelle aventure vous attend !",
+          "Laissez-vous guider par l'introduction."
+        ],
+        "questInProgress": [
+          "Profitez de cette première expérience !",
+          "Votre aventure ne fait que commencer !"
+        ],
+        "questComplete": [
+          "Félicitations ! Vous avez terminé l'introduction !",
+          "Vous êtes maintenant prêt pour de vraies aventures !",
+          "Bonne chance, dresseur !"
+        ]
+      },
+      
+      "steps": [
+        {
+          "id": "watch_intro",
+          "name": "Regarder l'introduction",
+          "description": "Découvrez le monde de GreenRoot à travers l'intro animée.",
+          
+          "objectives": [
+            {
+              "id": "intro_watched",
+              "type": "reach",
+              "description": "Regarder l'introduction complète",
+              "target": "beach_intro_watched",
+              "targetName": "Introduction",
+              "requiredAmount": 1
+            }
+          ],
+          "rewards": []
+        },
+        {
+          "id": "meet_psyduck",
+          "name": "Rencontrer Psyduck",
+          "description": "Faites connaissance avec votre guide Psyduck.",
+          
+          "objectives": [
+            {
+              "id": "talk_to_psyduck",
+              "type": "talk",
+              "description": "Parler avec Psyduck",
+              "target": "999",
+              "targetName": "Psyduck",
+              "requiredAmount": 1
+            }
+          ],
+          "rewards": [
+            {
+              "type": "item",
+              "itemId": "potion",
+              "amount": 2
+            }
+          ]
+        },
+        {
+          "id": "finish_intro",
+          "name": "Terminer l'introduction",
+          "description": "Concluez votre première expérience à GreenRoot.",
+          
+          "objectives": [
+            {
+              "id": "intro_finished",
+              "type": "reach",
+              "description": "Terminer la séquence d'introduction",
+              "target": "intro_sequence_finished",
+              "targetName": "Fin d'introduction",
+              "requiredAmount": 1
+            }
+          ],
+          "rewards": [
+            {
+              "type": "gold",
+              "amount": 100
+            },
+            {
+              "type": "item",
+              "itemId": "poke_ball",
+              "amount": 3
+            }
+          ]
+        }
+      ]
     }
   ]
 }
