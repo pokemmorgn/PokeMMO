@@ -1,47 +1,38 @@
-// Système de sélection de starter externalisé pour PokéMon MMO
+// Système de sélection de starter SIMPLE pour PokéMon MMO
 
 export class StarterSelector {
   constructor(scene) {
     this.scene = scene;
     this.isVisible = false;
     this.selectedStarterId = null;
-    this.starterOptions = [];
     this.networkManager = null;
     
     // Containers Phaser
-    this.backgroundContainer = null;
-    this.starterContainer = null;
-    this.uiContainer = null;
-    
-    // Assets
-    this.baseBackground = null;
+    this.container = null;
     this.pokeballs = [];
     this.starterSprites = [];
     
-    // Configuration des starters - POSITIONS ADAPTATIVES
+    // Configuration des starters
     this.starterConfig = [
       {
         id: 'bulbasaur',
         name: 'Bulbizarre',
         type: 'Plante',
-        description: 'Un Pokémon Graine. Bulbizarre peut rester plusieurs jours sans manger grâce à sa graine.',
-        position: { x: 0.25, y: 0.55 }, // Pourcentages de l'écran
+        description: 'Un Pokémon Graine docile et loyal.',
         color: 0x4CAF50
       },
       {
         id: 'charmander', 
         name: 'Salamèche',
         type: 'Feu',
-        description: 'Un Pokémon Lézard. La flamme sur sa queue indique son humeur et sa santé.',
-        position: { x: 0.5, y: 0.55 }, // Centre horizontal
+        description: 'Un Pokémon Lézard fougueux et brave.',
         color: 0xFF5722
       },
       {
         id: 'squirtle',
         name: 'Carapuce', 
         type: 'Eau',
-        description: 'Un Pokémon Minitortue. Il se cache dans sa carapace pour se protéger.',
-        position: { x: 0.75, y: 0.55 }, // 75% de la largeur
+        description: 'Un Pokémon Minitortue calme et sage.',
         color: 0x2196F3
       }
     ];
@@ -90,76 +81,11 @@ export class StarterSelector {
     console.log("📡 [StarterSelector] Listeners réseau configurés");
   }
 
-  // ✅ MÉTHODE: Charger les assets nécessaires
-  preloadAssets() {
-    // Vérifier si les assets sont déjà chargés
-    if (!this.scene.textures.exists('starter_background')) {
-      // Créer la texture de fond depuis tes assets
-      this.createBackgroundTexture();
-    }
-
-    // Pokéballs - utiliser tes PNGs existants
-    if (!this.scene.textures.exists('pokeball')) {
-      // Si tu as le PNG de pokéball, charger ici
-      // this.scene.load.image('pokeball', 'assets/ui/pokeball.png');
-      
-      // Sinon créer une texture temporaire
-      this.createPokeballTexture();
-    }
-
-    // Sprites des starters (optionnel si tu les as)
-    this.starterConfig.forEach(starter => {
-      if (!this.scene.textures.exists(starter.id)) {
-        // this.scene.load.image(starter.id, `assets/pokemon/${starter.id}.png`);
-        this.createStarterPlaceholder(starter);
-      }
-    });
-  }
-
-  // ✅ MÉTHODE: Créer la texture de fond (similaire à ton image)
-  createBackgroundTexture() {
-    // ✅ DIMENSIONS FIXES PLUS PETITES
-    const width = 600;
-    const height = 400;
-    const graphics = this.scene.add.graphics();
-
-    // Fond gris-bleu (comme ton image) - partie haute
-    graphics.fillStyle(0x8B9DC3);
-    graphics.fillRect(0, 0, width, height * 0.4);
-
-    // Grille de carreaux - plus petite
-    graphics.lineStyle(1, 0x7A8BB0, 0.3);
-    for (let x = 0; x < width; x += 32) {
-      graphics.lineBetween(x, 0, x, height * 0.4);
-    }
-    for (let y = 0; y < height * 0.4; y += 32) {
-      graphics.lineBetween(0, y, width, y);
-    }
-
-    // Zone verte centrale - mieux proportionnée
-    const greenHeight = height * 0.45;
-    const greenY = height * 0.3;
-    graphics.fillStyle(0x4CAF50);
-    graphics.fillRoundedRect(width * 0.1, greenY, width * 0.8, greenHeight, 15);
-
-    // Dégradé subtil sur la zone verte - positions ajustées
-    graphics.fillStyle(0x45A049);
-    graphics.fillEllipse(width * 0.25, greenY + greenHeight/2, 120, 60);
-    graphics.fillEllipse(width * 0.5, greenY + greenHeight/2, 120, 60);
-    graphics.fillEllipse(width * 0.75, greenY + greenHeight/2, 120, 60);
-
-    // Bordure inférieure - plus petite
-    graphics.fillStyle(0x606060);
-    graphics.fillRect(0, height * 0.85, width, height * 0.15);
-
-    // Générer la texture
-    graphics.generateTexture('starter_background', width, height);
-    graphics.destroy();
-  }
-
   // ✅ MÉTHODE: Créer la texture de pokéball
   createPokeballTexture() {
-    const size = 64;
+    if (this.scene.textures.exists('pokeball_starter')) return;
+    
+    const size = 32; // Plus petit
     const graphics = this.scene.add.graphics();
 
     // Partie supérieure rouge
@@ -172,34 +98,37 @@ export class StarterSelector {
     graphics.fillRect(0, size/2, size, size/2);
 
     // Ligne centrale noire
-    graphics.lineStyle(3, 0x000000);
+    graphics.lineStyle(2, 0x000000);
     graphics.lineBetween(0, size/2, size, size/2);
 
     // Bouton central
     graphics.fillStyle(0x000000);
-    graphics.fillCircle(size/2, size/2, 8);
+    graphics.fillCircle(size/2, size/2, 4);
     graphics.fillStyle(0xFFFFFF);
-    graphics.fillCircle(size/2, size/2, 5);
+    graphics.fillCircle(size/2, size/2, 2);
 
-    graphics.generateTexture('pokeball', size, size);
+    graphics.generateTexture('pokeball_starter', size, size);
     graphics.destroy();
   }
 
   // ✅ MÉTHODE: Créer placeholder pour starter
   createStarterPlaceholder(starter) {
-    const size = 96;
+    const textureKey = `starter_${starter.id}`;
+    if (this.scene.textures.exists(textureKey)) return;
+    
+    const size = 48; // Plus petit
     const graphics = this.scene.add.graphics();
     
     graphics.fillStyle(starter.color);
-    graphics.fillRoundedRect(0, 0, size, size, 10);
+    graphics.fillRoundedRect(0, 0, size, size, 8);
     
     graphics.fillStyle(0xFFFFFF);
-    graphics.fillRoundedRect(8, 8, size-16, size-16, 8);
+    graphics.fillRoundedRect(4, 4, size-8, size-8, 6);
     
-    // Initiale du nom
+    // Première lettre du nom
     graphics.fillStyle(starter.color);
     
-    graphics.generateTexture(starter.id, size, size);
+    graphics.generateTexture(textureKey, size, size);
     graphics.destroy();
   }
 
@@ -235,115 +164,93 @@ export class StarterSelector {
       window.showGameNotification(
         "Choisissez votre starter Pokémon !",
         'info',
-        { duration: 4000, position: 'top-center', bounce: true }
+        { duration: 3000, position: 'top-center' }
       );
     }
   }
 
-  // ✅ MÉTHODE: Créer l'interface principale
+  // ✅ MÉTHODE: Précharger les assets nécessaires
+  preloadAssets() {
+    // Créer pokéball
+    this.createPokeballTexture();
+
+    // Créer sprites des starters
+    this.starterConfig.forEach(starter => {
+      this.createStarterPlaceholder(starter);
+    });
+  }
+
+  // ✅ MÉTHODE: Créer l'interface principale (version compacte)
   createInterface() {
     const centerX = this.scene.cameras.main.centerX;
     const centerY = this.scene.cameras.main.centerY;
-    const width = this.scene.cameras.main.width;
-    const height = this.scene.cameras.main.height;
 
     // Container principal
-    this.backgroundContainer = this.scene.add.container(0, 0);
-    this.backgroundContainer.setDepth(1000);
+    this.container = this.scene.add.container(centerX, centerY);
+    this.container.setDepth(1000);
 
-    // Fond principal (adapté à la taille de l'écran)
-    this.baseBackground = this.scene.add.image(centerX, centerY, 'starter_background');
-    this.baseBackground.setDisplaySize(width, height);
-    this.backgroundContainer.add(this.baseBackground);
+    // Fond semi-transparent
+    const bg = this.scene.add.rectangle(0, 0, 300, 200, 0x000000, 0.8); // Plus petit
+    this.container.add(bg);
 
-    // Container pour les starters
-    this.starterContainer = this.scene.add.container(0, 0);
-    this.starterContainer.setDepth(1001);
-    
-    // Container pour l'UI (textes, boutons)
-    this.uiContainer = this.scene.add.container(0, 0);
-    this.uiContainer.setDepth(1002);
+    // Titre
+    const title = this.scene.add.text(0, -80, 'Choisissez votre Pokémon', {
+      fontSize: '16px', // Plus petit
+      fontFamily: 'Arial Black',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 2,
+      align: 'center'
+    }).setOrigin(0.5);
+    this.container.add(title);
 
-    // Créer les éléments de chaque starter
+    // Créer les starters
     this.createStarters();
     
-    // Créer l'interface utilisateur
+    // Créer l'UI (textes, boutons)
     this.createUI();
     
-    // Rendre non-visible pour l'animation
-    this.backgroundContainer.setAlpha(0);
-    this.starterContainer.setAlpha(0);
-    this.uiContainer.setAlpha(0);
+    // Rendre invisible pour l'animation
+    this.container.setAlpha(0);
   }
 
-  // ✅ MÉTHODE: Créer les starters
+  // ✅ MÉTHODE: Créer les starters (version compacte)
   createStarters() {
     this.pokeballs = [];
     this.starterSprites = [];
 
-    const width = this.scene.cameras.main.width;
-    const height = this.scene.cameras.main.height;
-
     this.starterOptions.forEach((starter, index) => {
-      // Convertir les pourcentages en pixels
-      const posX = width * starter.position.x;
-      const posY = height * starter.position.y;
+      // Positions horizontales
+      const posX = (index - 1) * 80; // -80, 0, 80
+      const posY = -20;
       
-      // Pokéball cliquable - taille adaptative
-      const pokeball = this.scene.add.image(posX, posY, 'pokeball');
+      // Pokéball cliquable
+      const pokeball = this.scene.add.image(posX, posY, 'pokeball_starter');
       pokeball.setInteractive();
-      const scale = Math.min(width / 800, height / 600) * 1.2; // Échelle adaptive
-      pokeball.setScale(scale);
       
       // Sprite du starter (au-dessus de la pokéball)
       const starterSprite = this.scene.add.image(
         posX, 
-        posY - (60 * scale), // Distance adaptative
-        starter.id
+        posY - 30,
+        `starter_${starter.id}`
       );
-      starterSprite.setScale(scale * 0.8);
       starterSprite.setAlpha(0.7);
 
       // Animation de hover
       pokeball.on('pointerover', () => {
         if (!this.isAnimating) {
-          this.scene.tweens.add({
-            targets: pokeball,
-            scaleX: scale * 1.2,
-            scaleY: scale * 1.2,
-            duration: 200,
-            ease: 'Back.easeOut'
-          });
-          
-          this.scene.tweens.add({
-            targets: starterSprite,
-            scaleX: scale * 1.0,
-            scaleY: scale * 1.0,
-            alpha: 1.0,
-            duration: 200,
-            ease: 'Back.easeOut'
-          });
-          
+          pokeball.setScale(1.2);
+          starterSprite.setScale(1.1);
+          starterSprite.setAlpha(1.0);
           this.showStarterInfo(starter, index);
         }
       });
 
       pokeball.on('pointerout', () => {
         if (!this.isAnimating && this.currentlySelectedIndex !== index) {
-          this.scene.tweens.add({
-            targets: pokeball,
-            scaleX: scale,
-            scaleY: scale,
-            duration: 200
-          });
-          
-          this.scene.tweens.add({
-            targets: starterSprite,
-            scaleX: scale * 0.8,
-            scaleY: scale * 0.8,
-            alpha: 0.7,
-            duration: 200
-          });
+          pokeball.setScale(1.0);
+          starterSprite.setScale(1.0);
+          starterSprite.setAlpha(0.7);
         }
       });
 
@@ -354,65 +261,33 @@ export class StarterSelector {
         }
       });
 
-      this.starterContainer.add([pokeball, starterSprite]);
+      this.container.add([pokeball, starterSprite]);
       this.pokeballs.push(pokeball);
       this.starterSprites.push(starterSprite);
     });
   }
 
-  // ✅ MÉTHODE: Créer l'UI (titre, descriptions, boutons)
+  // ✅ MÉTHODE: Créer l'UI (textes, boutons) - version compacte
   createUI() {
-    const centerX = this.scene.cameras.main.centerX;
-    const width = this.scene.cameras.main.width;
-    const height = this.scene.cameras.main.height;
-    
-    // Taille de police adaptative
-    const titleSize = Math.min(width / 25, 32) + 'px';
-    const subtitleSize = Math.min(width / 50, 16) + 'px';
-    const infoSize = Math.min(width / 45, 18) + 'px';
-    const buttonSize = Math.min(width / 45, 18) + 'px';
-    
-    // Titre principal
-    const title = this.scene.add.text(centerX, height * 0.15, 'Choisissez votre Pokémon', {
-      fontSize: titleSize,
-      fontFamily: 'Arial Black',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 4,
-      align: 'center'
-    }).setOrigin(0.5);
-
-    // Sous-titre
-    const subtitle = this.scene.add.text(centerX, height * 0.22, 'Ce Pokémon vous accompagnera dans votre aventure', {
-      fontSize: subtitleSize,
+    // Zone d'information du starter
+    this.infoText = this.scene.add.text(0, 40, '', {
+      fontSize: '12px', // Plus petit
       fontFamily: 'Arial',
       color: '#ffffff',
       stroke: '#000000',
-      strokeThickness: 2,
-      align: 'center'
-    }).setOrigin(0.5);
-
-    // Zone d'information du starter (initialement vide)
-    this.infoText = this.scene.add.text(centerX, height * 0.78, '', {
-      fontSize: infoSize,
-      fontFamily: 'Arial',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 2,
+      strokeThickness: 1,
       align: 'center',
-      wordWrap: { width: width * 0.8 }
+      wordWrap: { width: 280 }
     }).setOrigin(0.5);
 
-    // Bouton de confirmation (initialement caché)
-    const buttonWidth = width * 0.25;
-    const buttonHeight = height * 0.08;
-    this.confirmButton = this.scene.add.rectangle(centerX, height * 0.88, buttonWidth, buttonHeight, 0x4CAF50);
-    this.confirmButton.setStrokeStyle(3, 0x2E7D32);
+    // Bouton de confirmation
+    this.confirmButton = this.scene.add.rectangle(0, 70, 120, 25, 0x4CAF50); // Plus petit
+    this.confirmButton.setStrokeStyle(2, 0x2E7D32);
     this.confirmButton.setInteractive();
     this.confirmButton.setAlpha(0);
 
-    this.confirmButtonText = this.scene.add.text(centerX, height * 0.88, 'CONFIRMER', {
-      fontSize: buttonSize,
+    this.confirmButtonText = this.scene.add.text(0, 70, 'CONFIRMER', {
+      fontSize: '12px', // Plus petit
       fontFamily: 'Arial Black',
       color: '#ffffff'
     }).setOrigin(0.5);
@@ -437,10 +312,7 @@ export class StarterSelector {
       }
     });
 
-    this.uiContainer.add([
-      title, subtitle, this.infoText, 
-      this.confirmButton, this.confirmButtonText
-    ]);
+    this.container.add([this.infoText, this.confirmButton, this.confirmButtonText]);
   }
 
   // ✅ MÉTHODE: Afficher les infos d'un starter
@@ -480,13 +352,13 @@ export class StarterSelector {
         this.scene.tweens.add({
           targets: pb,
           alpha: 0.5,
-          scale: 1.0,
+          scale: 0.8,
           duration: 300
         });
         this.scene.tweens.add({
           targets: this.starterSprites[i],
           alpha: 0.3,
-          scale: 0.6,
+          scale: 0.8,
           duration: 300
         });
       }
@@ -495,17 +367,17 @@ export class StarterSelector {
     // Animer le starter sélectionné
     this.scene.tweens.add({
       targets: pokeball,
-      scaleX: 1.6,
-      scaleY: 1.6,
+      scaleX: 1.4,
+      scaleY: 1.4,
       duration: 400,
       ease: 'Back.easeOut'
     });
 
     this.scene.tweens.add({
       targets: starterSprite,
-      scaleX: 1.2,
-      scaleY: 1.2,
-      y: starterSprite.y - 20,
+      scaleX: 1.3,
+      scaleY: 1.3,
+      y: starterSprite.y - 10,
       alpha: 1.0,
       duration: 400,
       ease: 'Back.easeOut',
@@ -514,11 +386,6 @@ export class StarterSelector {
         this.showConfirmButton();
       }
     });
-
-    // Son de sélection (optionnel)
-    if (this.scene.sound.sounds.find(s => s.key === 'select_sound')) {
-      this.scene.sound.play('select_sound', { volume: 0.6 });
-    }
   }
 
   // ✅ MÉTHODE: Afficher le bouton de confirmation
@@ -526,21 +393,8 @@ export class StarterSelector {
     this.scene.tweens.add({
       targets: [this.confirmButton, this.confirmButtonText],
       alpha: 1,
-      scale: 1.1,
       duration: 300,
-      ease: 'Back.easeOut',
-      onComplete: () => {
-        // Animation de pulse pour attirer l'attention
-        this.scene.tweens.add({
-          targets: this.confirmButton,
-          scaleX: 1.15,
-          scaleY: 1.15,
-          duration: 800,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut'
-        });
-      }
+      ease: 'Back.easeOut'
     });
   }
 
@@ -576,8 +430,6 @@ export class StarterSelector {
 
   // ✅ MÉTHODE: Animation de confirmation
   animateConfirmation() {
-    const selectedStarter = this.starterOptions.find(s => s.id === this.selectedStarterId);
-    
     // Flash blanc
     const flash = this.scene.add.rectangle(
       this.scene.cameras.main.centerX,
@@ -598,11 +450,6 @@ export class StarterSelector {
         flash.destroy();
       }
     });
-
-    // Son de confirmation (optionnel)
-    if (this.scene.sound.sounds.find(s => s.key === 'confirm_sound')) {
-      this.scene.sound.play('confirm_sound', { volume: 0.8 });
-    }
   }
 
   // ✅ MÉTHODE: Starter confirmé par le serveur
@@ -616,22 +463,13 @@ export class StarterSelector {
       window.showGameNotification(
         `${starter?.name || data.starterId} ajouté à votre équipe !`,
         'success',
-        { duration: 4000, position: 'top-center', bounce: true }
+        { duration: 4000, position: 'top-center' }
       );
     }
 
-    // ✅ FERMER APRÈS SÉLECTION (pas de transition)
+    // Fermer après sélection
     this.scene.time.delayedCall(1500, () => {
       this.hide();
-      
-      // ✅ MESSAGE DU PROFESSEUR (optionnel)
-      if (window.showGameNotification) {
-        window.showGameNotification(
-          `Professeur: "Excellent choix ! Prenez bien soin de ${starter?.name} !"`,
-          'info',
-          { duration: 3000, position: 'bottom-center' }
-        );
-      }
     });
   }
 
@@ -663,8 +501,7 @@ export class StarterSelector {
       this.scene.tweens.add({
         targets: pokeball,
         alpha: 1,
-        scaleX: 1.2,
-        scaleY: 1.2,
+        scale: 1.0,
         duration: 300
       });
     });
@@ -673,9 +510,8 @@ export class StarterSelector {
       this.scene.tweens.add({
         targets: sprite,
         alpha: 0.7,
-        scaleX: 0.8,
-        scaleY: 0.8,
-        y: this.starterOptions[index].position.y - 80,
+        scale: 1.0,
+        y: -50, // Position originale
         duration: 300
       });
     });
@@ -693,30 +529,22 @@ export class StarterSelector {
 
   // ✅ MÉTHODE: Animation d'entrée
   animateIn() {
-    // Animation du fond
     this.scene.tweens.add({
-      targets: this.backgroundContainer,
+      targets: this.container,
       alpha: 1,
+      scale: 1.0,
       duration: 500,
-      ease: 'Power2'
+      ease: 'Back.easeOut'
     });
 
-    // Animation des starters en cascade
-    this.scene.tweens.add({
-      targets: this.starterContainer,
-      alpha: 1,
-      duration: 300,
-      delay: 200
-    });
-
+    // Animation des pokéballs en cascade
     this.pokeballs.forEach((pokeball, index) => {
       pokeball.setScale(0);
       this.scene.tweens.add({
         targets: pokeball,
-        scaleX: 1.2,
-        scaleY: 1.2,
+        scale: 1.0,
         duration: 400,
-        delay: 400 + (index * 150),
+        delay: 200 + (index * 100),
         ease: 'Back.easeOut'
       });
     });
@@ -727,16 +555,8 @@ export class StarterSelector {
         targets: sprite,
         alpha: 0.7,
         duration: 300,
-        delay: 600 + (index * 150)
+        delay: 300 + (index * 100)
       });
-    });
-
-    // Animation de l'UI
-    this.scene.tweens.add({
-      targets: this.uiContainer,
-      alpha: 1,
-      duration: 400,
-      delay: 800
     });
   }
 
@@ -751,8 +571,9 @@ export class StarterSelector {
 
     // Animation de sortie
     this.scene.tweens.add({
-      targets: [this.backgroundContainer, this.starterContainer, this.uiContainer],
+      targets: this.container,
       alpha: 0,
+      scale: 0.8,
       duration: 400,
       onComplete: () => {
         this.cleanup();
@@ -767,12 +588,12 @@ export class StarterSelector {
 
   // ✅ MÉTHODE: Bloquer/débloquer les inputs du joueur
   blockPlayerInput(block) {
-    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] ${block ? 'Blocage' : 'Déblocage'} inputs pour sélection dans le labo...`);
+    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] ${block ? 'Blocage' : 'Déblocage'} inputs...`);
     
-    // ✅ FLAG SIMPLE POUR LE SYSTÈME
+    // Flag simple pour le système
     window._starterSelectionActive = block;
     
-    // ✅ ESSAYER LE MOVEMENTBLOCKHANDLER SI DISPONIBLE
+    // Essayer le MovementBlockHandler si disponible
     if (window.movementBlockHandler && typeof window.movementBlockHandler.requestBlock === 'function') {
       try {
         if (block) {
@@ -780,33 +601,20 @@ export class StarterSelector {
         } else {
           window.movementBlockHandler.requestUnblock('starter_selection');
         }
-        console.log(`✅ [StarterSelector] MovementBlockHandler ${block ? 'bloqué' : 'débloqué'}`);
       } catch (error) {
         console.warn(`⚠️ [StarterSelector] Erreur MovementBlockHandler:`, error.message);
       }
     }
-    
-    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] Inputs ${block ? 'BLOQUÉS' : 'DÉBLOQUÉS'} - Flag: ${window._starterSelectionActive}`);
   }
 
   // ✅ MÉTHODE: Nettoyage
   cleanup() {
     console.log("🧹 [StarterSelector] Nettoyage...");
 
-    // Détruire les containers
-    if (this.backgroundContainer) {
-      this.backgroundContainer.destroy();
-      this.backgroundContainer = null;
-    }
-
-    if (this.starterContainer) {
-      this.starterContainer.destroy();
-      this.starterContainer = null;
-    }
-
-    if (this.uiContainer) {
-      this.uiContainer.destroy();
-      this.uiContainer = null;
+    // Détruire le container
+    if (this.container) {
+      this.container.destroy();
+      this.container = null;
     }
 
     // Réinitialiser les variables
@@ -859,70 +667,43 @@ export class StarterSelector {
   getAvailableStarters() {
     return this.starterOptions;
   }
-
-  // ✅ MÉTHODE: Debug
-  debug() {
-    console.log("🔍 [StarterSelector] === DEBUG ===");
-    console.log("Visible:", this.isVisible);
-    console.log("Selected:", this.selectedStarterId);
-    console.log("Animating:", this.isAnimating);
-    console.log("Network:", !!this.networkManager);
-    console.log("Containers:", {
-      background: !!this.backgroundContainer,
-      starter: !!this.starterContainer,
-      ui: !!this.uiContainer
-    });
-    console.log("Assets:", {
-      pokeballs: this.pokeballs.length,
-      sprites: this.starterSprites.length
-    });
-  }
 }
 
-// ✅ CLASSE DE GESTION GLOBALE (optionnelle)
+// ✅ GESTIONNAIRE GLOBAL SIMPLE
 export class StarterSelectionManager {
   constructor() {
     this.activeSelector = null;
     this.currentScene = null;
   }
 
-  // Créer ou récupérer le sélecteur pour une scène
   getSelector(scene) {
     if (!this.activeSelector || this.currentScene !== scene) {
-      // Nettoyer l'ancien sélecteur
       if (this.activeSelector) {
         this.activeSelector.destroy();
       }
-
-      // Créer le nouveau
       this.activeSelector = new StarterSelector(scene);
       this.currentScene = scene;
     }
-
     return this.activeSelector;
   }
 
-  // Initialiser avec NetworkManager
   initialize(scene, networkManager) {
     const selector = this.getSelector(scene);
     return selector.initialize(networkManager);
   }
 
-  // Afficher la sélection
   show(scene, availableStarters = null) {
     const selector = this.getSelector(scene);
     selector.show(availableStarters);
     return selector;
   }
 
-  // Masquer la sélection
   hide() {
     if (this.activeSelector) {
       this.activeSelector.hide();
     }
   }
 
-  // Nettoyer tout
   cleanup() {
     if (this.activeSelector) {
       this.activeSelector.destroy();
@@ -931,7 +712,6 @@ export class StarterSelectionManager {
     }
   }
 
-  // Status
   isActive() {
     return this.activeSelector?.isSelectionVisible() || false;
   }
@@ -941,17 +721,15 @@ export class StarterSelectionManager {
   }
 }
 
-// ✅ INSTANCE GLOBALE (pour usage dans ton jeu)
+// ✅ INSTANCE GLOBALE
 export const globalStarterManager = new StarterSelectionManager();
 
-// ✅ FONCTIONS D'INTÉGRATION POUR BaseZoneScene
+// ✅ FONCTION D'INTÉGRATION SIMPLE
 export function integrateStarterSelectorToScene(scene, networkManager) {
   console.log(`🎯 [StarterIntegration] Intégration à la scène: ${scene.scene.key}`);
 
-  // Créer et initialiser le sélecteur
   const selector = globalStarterManager.initialize(scene, networkManager);
 
-  // Ajouter des méthodes à la scène
   scene.showStarterSelection = (availableStarters = null) => {
     return globalStarterManager.show(scene, availableStarters);
   };
@@ -964,201 +742,12 @@ export function integrateStarterSelectorToScene(scene, networkManager) {
     return globalStarterManager.isActive();
   };
 
-  scene.getStarterSelection = () => {
-    return globalStarterManager.getCurrentSelection();
-  };
-
-  // Setup des raccourcis clavier (optionnel)
-  if (scene.input?.keyboard) {
-    scene.input.keyboard.on('keydown-S', () => {
-      if (!scene.isStarterSelectionActive()) {
-        scene.showStarterSelection();
-      }
-    });
-
-    scene.input.keyboard.on('keydown-ESC', () => {
-      if (scene.isStarterSelectionActive()) {
-        scene.hideStarterSelection();
-      }
-    });
-  }
-
-  // Ajouter au cleanup de la scène
-  const originalCleanup = scene.cleanup;
-  scene.cleanup = function() {
-    if (scene.isStarterSelectionActive()) {
-      scene.hideStarterSelection();
-    }
-    
-    if (originalCleanup) {
-      originalCleanup.call(this);
-    }
-  };
-
   console.log(`✅ [StarterIntegration] Intégration terminée pour ${scene.scene.key}`);
   return selector;
 }
 
-// ✅ CONFIGURATION POUR LES ASSETS (à ajouter dans ton LoaderScene)
-export const STARTER_ASSETS_CONFIG = {
-  // Images à charger - ADAPTÉES À TON PROJET
-  images: [
-    { key: 'pokeball', path: 'assets/ui/pokeball.png' },
-    { key: 'bulbasaur', path: 'assets/pokemon/starters/001.png' },     // ou bulbasaur.png
-    { key: 'charmander', path: 'assets/pokemon/starters/004.png' },    // ou charmander.png  
-    { key: 'squirtle', path: 'assets/pokemon/starters/007.png' },      // ou squirtle.png
-    { key: 'starter_background', path: 'assets/ui/starter_background.png' } // optionnel
-  ],
-  
-  // Sons à charger (optionnel)
-  audio: [
-    { key: 'select_sound', path: 'assets/audio/sfx/select.ogg' },
-    { key: 'confirm_sound', path: 'assets/audio/sfx/confirm.ogg' },
-    { key: 'starter_theme', path: 'assets/audio/music/starter_selection.ogg' }
-  ],
-
-  // Fonction pour charger dans Phaser
-  loadAssets: function(scene) {
-    console.log('🎨 [StarterAssets] Chargement des assets...');
-    
-    // Charger les images
-    this.images.forEach(asset => {
-      if (!scene.textures.exists(asset.key)) {
-        scene.load.image(asset.key, asset.path);
-      }
-    });
-
-    // Charger les sons
-    this.audio.forEach(asset => {
-      if (!scene.cache.audio.exists(asset.key)) {
-        scene.load.audio(asset.key, asset.path);
-      }
-    });
-
-    console.log('✅ [StarterAssets] Assets ajoutés au loader');
-  }
-};
-
-// ✅ HELPER POUR LE SERVEUR (structure des messages)
-export const STARTER_MESSAGES = {
-  // Message pour demander la sélection
-  SHOW_SELECTION: 'showStarterSelection',
-  
-  // Message pour sélectionner
-  SELECT_STARTER: 'selectStarter',
-  
-  // Message de confirmation
-  STARTER_SELECTED: 'starterSelected',
-  
-  // Message d'erreur
-  SELECTION_ERROR: 'starterSelectionError',
-
-  // Structures des données
-  createShowSelectionData: (availableStarters) => ({
-    availableStarters: availableStarters,
-    timestamp: Date.now()
-  }),
-
-  createSelectData: (starterId) => ({
-    starterId: starterId,
-    timestamp: Date.now()
-  }),
-
-  createConfirmationData: (starterId, playerData) => ({
-    starterId: starterId,
-    success: true,
-    playerData: playerData,
-    timestamp: Date.now()
-  }),
-
-  createErrorData: (message, code = null) => ({
-    success: false,
-    message: message,
-    code: code,
-    timestamp: Date.now()
-  })
-};
-
-// ✅ EXEMPLE D'USAGE DANS BaseZoneScene.js
-/*
-// Dans initializeGameSystems() de BaseZoneScene.js :
-
-initializeStarterSystem() {
-  console.log(`🎯 [${this.scene.key}] Initialisation du système de starter...`);
-  
-  try {
-    // Intégrer le sélecteur à cette scène
-    const selector = integrateStarterSelectorToScene(this, this.networkManager);
-    
-    // Marquer comme initialisé
-    this.starterSystemInitialized = true;
-    
-    console.log(`✅ [${this.scene.key}] Système de starter initialisé`);
-    
-    // Exposer globalement pour debug
-    window.starterSelector = selector;
-    
-    return selector;
-    
-  } catch (error) {
-    console.error(`❌ [${this.scene.key}] Erreur init starter system:`, error);
-  }
-}
-
-// Ajouter cette ligne dans initializeGameSystems() :
-setTimeout(() => {
-  this.initializeStarterSystem();
-}, 300);
-*/
-
-// ✅ EXEMPLE D'USAGE CÔTÉ SERVEUR (structure pour Colyseus)
-/*
-// Dans votre Room Colyseus :
-
-onMessage(client, type, message) {
-  if (type === "selectStarter") {
-    this.handleStarterSelection(client, message);
-  }
-}
-
-handleStarterSelection(client, data) {
-  const player = this.state.players.get(client.sessionId);
-  
-  if (!player) {
-    client.send("starterSelectionError", STARTER_MESSAGES.createErrorData("Joueur introuvable"));
-    return;
-  }
-
-  if (player.hasStarter) {
-    client.send("starterSelectionError", STARTER_MESSAGES.createErrorData("Vous avez déjà un starter"));
-    return;
-  }
-
-  // Valider le starter
-  const validStarters = ['bulbasaur', 'charmander', 'squirtle'];
-  if (!validStarters.includes(data.starterId)) {
-    client.send("starterSelectionError", STARTER_MESSAGES.createErrorData("Starter invalide"));
-    return;
-  }
-
-  // Ajouter le starter au joueur
-  const starterData = this.createStarterPokemon(data.starterId);
-  player.team.push(starterData);
-  player.hasStarter = true;
-
-  // Confirmer au client
-  client.send("starterSelected", STARTER_MESSAGES.createConfirmationData(
-    data.starterId, 
-    { level: starterData.level, moves: starterData.moves }
-  ));
-
-  console.log(`✅ Starter ${data.starterId} attribué à ${client.sessionId}`);
-}
-*/
-
-// ✅ FONCTIONS UTILITAIRES GLOBALES (à exposer dans main.js)
+// ✅ UTILITAIRES GLOBAUX
 export const StarterUtils = {
-  // Afficher la sélection depuis n'importe où
   showSelection: (availableStarters = null) => {
     const activeScene = window.game?.scene?.getScenes(true)[0];
     if (activeScene && activeScene.showStarterSelection) {
@@ -1169,42 +758,26 @@ export const StarterUtils = {
     }
   },
 
-  // Masquer la sélection
   hideSelection: () => {
     globalStarterManager.hide();
   },
 
-  // Status
   isActive: () => {
     return globalStarterManager.isActive();
   },
 
-  // Debug
-  debug: () => {
-    if (globalStarterManager.activeSelector) {
-      globalStarterManager.activeSelector.debug();
-    } else {
-      console.log("🔍 [StarterUtils] Aucun sélecteur actif");
-    }
-  },
-
-  // Test
   test: () => {
+    console.log("🧪 [StarterUtils] Test du système de sélection de starter...");
+    
     const testStarters = [
-      { id: 'bulbasaur', name: 'Bulbizarre', type: 'Plante', description: 'Un Pokémon Graine', position: { x: 200, y: 350 }, color: 0x4CAF50 },
-      { id: 'charmander', name: 'Salamèche', type: 'Feu', description: 'Un Pokémon Lézard', position: { x: 400, y: 350 }, color: 0xFF5722 },
-      { id: 'squirtle', name: 'Carapuce', type: 'Eau', description: 'Un Pokémon Minitortue', position: { x: 600, y: 350 }, color: 0x2196F3 }
+      { id: 'bulbasaur', name: 'Bulbizarre', type: 'Plante', description: 'Un Pokémon Graine docile et loyal.', color: 0x4CAF50 },
+      { id: 'charmander', name: 'Salamèche', type: 'Feu', description: 'Un Pokémon Lézard fougueux et brave.', color: 0xFF5722 },
+      { id: 'squirtle', name: 'Carapuce', type: 'Eau', description: 'Un Pokémon Minitortue calme et sage.', color: 0x2196F3 }
     ];
     
     return StarterUtils.showSelection(testStarters);
   }
 };
 
-console.log("🎯 [StarterSelector] Module chargé - fonctions disponibles:");
-console.log("- StarterSelector (classe principale)");
-console.log("- StarterSelectionManager (gestionnaire)"); 
-console.log("- integrateStarterSelectorToScene() (intégration)");
-console.log("- STARTER_ASSETS_CONFIG (configuration assets)");
-console.log("- STARTER_MESSAGES (helpers serveur)");
-console.log("- StarterUtils (fonctions utilitaires)");
-console.log("✅ Prêt pour intégration dans BaseZoneScene !");
+console.log("🎯 [StarterSelector] Module chargé et prêt !");
+console.log("✅ Utilisez window.testStarterSelection() pour tester");
