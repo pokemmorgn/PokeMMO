@@ -521,125 +521,122 @@ export class InteractionManager {
     }
   }
 
-  async createSequentialDiscussion(npcName, npcPortrait, messages, options = {}) {
-    if (typeof window.showNpcDialogue !== 'function') {
-      console.error('❌ [InteractionManager] showNpcDialogue non disponible');
-      return false;
+async createSequentialDiscussion(npcName, npcPortrait, messages, options = {}) {
+  if (typeof window.showNpcDialogue !== 'function') {
+    console.error('❌ [InteractionManager] showNpcDialogue non disponible');
+    return false;
+  }
+  
+  if (!Array.isArray(messages) || messages.length === 0) {
+    console.warn('⚠️ [InteractionManager] Messages invalides ou vides');
+    return false;
+  }
+  
+  // Prend en compte objets OU strings
+  const validMessages = messages.filter(msg => {
+    if (typeof msg === "object" && msg !== null) {
+      return !!msg.text;
+    }
+    return typeof msg === "string" && msg.trim();
+  });
+
+  if (validMessages.length === 0) {
+    console.warn('⚠️ [InteractionManager] Aucun message valide');
+    return false;
+  }
+  
+  try {
+    for (let i = 0; i < validMessages.length; i++) {
+      const message = validMessages[i];
+      const isLast = i === validMessages.length - 1;
+
+      // Valeurs par défaut
+      let currentNpcName = npcName;
+      let currentPortrait = npcPortrait;
+      let messageText = "";
+      let hideName = false;
+
+      if (typeof message === "object" && message !== null) {
+        currentNpcName = message.speaker || currentNpcName;
+        currentPortrait = message.portrait || currentPortrait;
+        messageText = message.text || "";
+        hideName = !!message.hideName;
+      } else {
+        messageText = message;
+      }
+
+      const success = await this.showSingleMessageAndWait(
+        currentNpcName, 
+        currentPortrait, 
+        messageText, 
+        i + 1, 
+        validMessages.length,
+        { ...options, hideName }
+      );
+
+      if (!success) {
+        console.error(`❌ [InteractionManager] Erreur affichage message ${i + 1}`);
+        break;
+      }
     }
     
-    if (!Array.isArray(messages) || messages.length === 0) {
-      console.warn('⚠️ [InteractionManager] Messages invalides ou vides');
-      return false;
+    if (options.onComplete) {
+      try {
+        options.onComplete();
+      } catch (error) {
+        console.error(`❌ [InteractionManager] Erreur callback onComplete:`, error);
+      }
     }
     
-    const validMessages = messages.filter(msg => msg && msg.trim());
-    if (validMessages.length === 0) {
-      console.warn('⚠️ [InteractionManager] Aucun message valide');
-      return false;
-    }
+    return true;
+  } catch (error) {
+    console.error('❌ [InteractionManager] Erreur createSequentialDiscussion:', error);
+    return false;
+  }
+}
+
+ showSingleMessageAndWait(npcName, portrait, message, currentIndex, totalCount, options = {}) {
+  return new Promise((resolve) => {
+    const displayMessage = message;
     
     try {
-      for (let i = 0; i < validMessages.length; i++) {
-        const message = validMessages[i];
-        const isLast = i === validMessages.length - 1;
-        
-        let currentNpcName = npcName;
-        let currentPortrait = npcPortrait;
-        let messageText = message;
-        
-        // Détecter les messages narrateur (description, pas dialogue direct)
-        if (!message.includes('Psy') && !message.startsWith('"') && 
-            (message.includes('creature') || message.includes('head') || 
-             message.includes('points') || message.includes('buildings') || 
-             message.includes('confusion') || message.includes('Maybe'))) {
-          currentNpcName = options.narratorName || "Narrator";
-          currentPortrait = options.narratorPortrait || "/assets/portrait/systemPortrait.png";
-          // Pas de HTML, on utilisera CSS à la place
-          messageText = message;
-        }
-        
-        const success = await this.showSingleMessageAndWait(
-          currentNpcName, 
-          currentPortrait, 
-          messageText, 
-          i + 1, 
-          validMessages.length,
-          options
-        );
-        
-        if (!success) {
-          console.error(`❌ [InteractionManager] Erreur affichage message ${i + 1}`);
-          break;
-        }
-      }
+      this.createCustomDiscussion(npcName, portrait, displayMessage, {
+        autoClose: false,
+        isNarrator: npcName === "Narrator",
+        hideName: options.hideName // <-- ICI : transmet la valeur brute
+      });
       
-      if (options.onComplete) {
-        try {
-          options.onComplete();
-        } catch (error) {
-          console.error(`❌ [InteractionManager] Erreur callback onComplete:`, error);
-        }
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('❌ [InteractionManager] Erreur createSequentialDiscussion:', error);
-      return false;
-    }
-  }
-
-  showSingleMessageAndWait(npcName, portrait, message, currentIndex, totalCount, options = {}) {
-    return new Promise((resolve) => {
-      // Message pur sans indicateur textuel
-      const displayMessage = message;
-      
-      try {
-        this.createCustomDiscussion(npcName, portrait, displayMessage, {
-          autoClose: false,
-          isNarrator: npcName === "Narrator", // Marquer si c'est le narrateur
-          hideName: options.hideName || false
-        });
-        
-        // Ajouter l'indicateur visuel et l'attribut narrateur après affichage
-        setTimeout(() => {
-          this.addVisualContinueIndicator(currentIndex, totalCount);
-          // Marquer si c'est le narrateur pour le CSS
-          if (npcName === "Narrator") {
-            const dialogueBox = document.getElementById('dialogue-box');
-            if (dialogueBox) {
-              dialogueBox.setAttribute('data-speaker', 'Narrator');
-            }
-          }
-        }, 100);
-        
-        const checkInterval = 100;
-        const checkDialogueClose = () => {
+      setTimeout(() => {
+        this.addVisualContinueIndicator(currentIndex, totalCount);
+        if (npcName === "Narrator") {
           const dialogueBox = document.getElementById('dialogue-box');
-          
-          if (!dialogueBox || 
-              dialogueBox.style.display === 'none' || 
-              !dialogueBox.offsetParent) {
-            
-            // Nettoyer l'indicateur et les attributs avant de continuer
-            this.removeVisualContinueIndicator();
-            const dialogueBox = document.getElementById('dialogue-box');
-            if (dialogueBox) {
-              dialogueBox.removeAttribute('data-speaker');
-            }
-            resolve(true);
-            return;
+          if (dialogueBox) {
+            dialogueBox.setAttribute('data-speaker', 'Narrator');
           }
-          
-          setTimeout(checkDialogueClose, checkInterval);
-        };
-        
-        setTimeout(checkDialogueClose, 200);
-      } catch (error) {
-        console.error(`❌ [InteractionManager] Erreur message ${currentIndex}:`, error);
-        resolve(false);
-      }
-    });
-  }
+        }
+      }, 100);
+      
+      const checkInterval = 100;
+      const checkDialogueClose = () => {
+        const dialogueBox = document.getElementById('dialogue-box');
+        if (!dialogueBox || dialogueBox.style.display === 'none' || !dialogueBox.offsetParent) {
+          this.removeVisualContinueIndicator();
+          const dialogueBox = document.getElementById('dialogue-box');
+          if (dialogueBox) {
+            dialogueBox.removeAttribute('data-speaker');
+          }
+          resolve(true);
+          return;
+        }
+        setTimeout(checkDialogueClose, checkInterval);
+      };
+      setTimeout(checkDialogueClose, 200);
+    } catch (error) {
+      console.error(`❌ [InteractionManager] Erreur message ${currentIndex}:`, error);
+      resolve(false);
+    }
+  });
+}
 
   // === INDICATEUR VISUEL ===
 
