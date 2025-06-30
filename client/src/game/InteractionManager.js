@@ -495,7 +495,8 @@ export class InteractionManager {
       lines: lines,
       onClose: options.onClose || null,
       autoClose: options.autoClose || false,
-      closeable: options.closeable !== false
+      closeable: options.closeable !== false,
+      hideName: options.hideName || false
     };
     
     try {
@@ -595,7 +596,8 @@ export class InteractionManager {
       try {
         this.createCustomDiscussion(npcName, portrait, displayMessage, {
           autoClose: false,
-          isNarrator: npcName === "Narrator" // Marquer si c'est le narrateur
+          isNarrator: npcName === "Narrator", // Marquer si c'est le narrateur
+          hideName: options.hideName || false
         });
         
         // Ajouter l'indicateur visuel et l'attribut narrateur après affichage
