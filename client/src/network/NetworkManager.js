@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import AnimatedTiles from 'phaser-animated-tiles/dist/AnimatedTiles.js';
-import { NetworkManager } from "./network/NetworkManager.js";
 import { setupTeamSystem } from './integration/teamIntegration.js';
 import { SceneRegistry } from './scenes/SceneRegistry.js';
 import { TimeService } from './services/TimeService.js';
