@@ -1,4 +1,4 @@
-// server/src/managers/QuestManager.ts - VERSION REFACTORISÉE
+// server/src/managers/QuestManager.ts - VERSION COMPLÈTE AVEC NOUVELLES MÉTHODES
 
 import fs from "fs";
 import path from "path";
@@ -10,6 +10,7 @@ import {
   QuestObjective,
   QuestReward 
 } from "../types/QuestTypes";
+import { ServiceRegistry } from "../services/ServiceRegistry";
 
 export interface QuestUpdateResult {
   questId: string;
@@ -509,34 +510,16 @@ export class QuestManager {
   private async distributeRewards(username: string, rewards: QuestReward[]): Promise<void> {
     console.log(`🎁 Distribution récompenses pour ${username}:`, rewards);
     
+    const registry = ServiceRegistry.getInstance();
+    
     for (const reward of rewards) {
       try {
-        switch (reward.type) {
-          case 'gold':
-            // TODO: Implémenter système de monnaie
-            console.log(`💰 ${username} reçoit ${reward.amount} gold`);
-            break;
-            
-          case 'item':
-            // TODO: Intégrer avec InventoryManager
-            console.log(`📦 ${username} reçoit ${reward.amount || 1}x ${reward.itemId}`);
-            break;
-            
-          case 'experience':
-            // TODO: Implémenter système d'XP
-            console.log(`⭐ ${username} reçoit ${reward.amount} XP`);
-            break;
-            
-          case 'pokemon':
-            // TODO: Implémenter don de Pokémon
-            console.log(`🎁 ${username} reçoit un Pokémon spécial`);
-            break;
-            
-          default:
-            console.warn(`⚠️ Type de récompense inconnu: ${reward.type}`);
+        const success = await registry.distributeReward(username, reward);
+        if (!success) {
+          console.warn(`⚠️ [QuestManager] Échec distribution récompense ${reward.type} pour ${username}`);
         }
       } catch (error) {
-        console.error(`❌ Erreur distribution récompense ${reward.type}:`, error);
+        console.error(`❌ [QuestManager] Erreur distribution récompense:`, error);
       }
     }
   }
@@ -697,5 +680,158 @@ export class QuestManager {
   async isQuestReadyToComplete(username: string, questId: string): Promise<boolean> {
     const status = await this.getQuestStatus(username, questId);
     return status === 'readyToComplete';
+  }
+
+  // ✅ === NOUVELLES MÉTHODES PUBLIQUES POUR SERVICE REGISTRY ===
+
+  /**
+   * Donner une quête à un joueur (utilisable depuis n'importe où)
+   */
+  async giveQuest(playerName: string, questId: string): Promise<{ success: boolean; message: string; quest?: any }> {
+    try {
+      console.log(`🎯 [QuestManager] Attribution quête ${questId} à ${playerName}`);
+      
+      // Vérifier si la quête est disponible
+      const status = await this.getQuestStatus(playerName, questId);
+      if (status !== 'available') {
+        const message = `Quête ${questId} non disponible (statut: ${status})`;
+        console.log(`⚠️ [QuestManager] ${message}`);
+        return { success: false, message };
+      }
+      
+      // Démarrer la quête
+      const quest = await this.startQuest(playerName, questId);
+      
+      if (quest) {
+        // Notifier le joueur via ServiceRegistry
+        const registry = ServiceRegistry.getInstance();
+        registry.notifyPlayer(playerName, "questGranted", {
+          questId: questId,
+          questName: quest.name,
+          message: `🎁 Nouvelle quête : ${quest.name} !`
+        });
+        
+        console.log(`✅ [QuestManager] Quête ${questId} donnée à ${playerName}: ${quest.name}`);
+        return { 
+          success: true, 
+          message: `Quête "${quest.name}" donnée avec succès !`,
+          quest: quest
+        };
+      } else {
+        const message = `Impossible de démarrer la quête ${questId}`;
+        console.log(`❌ [QuestManager] ${message}`);
+        return { success: false, message };
+      }
+      
+    } catch (error) {
+      console.error(`❌ [QuestManager] Erreur giveQuest:`, error);
+      return { success: false, message: "Erreur serveur lors de l'attribution de la quête" };
+    }
+  }
+
+  /**
+   * Faire progresser une quête (utilisable depuis n'importe où)
+   */
+  async progressQuest(playerName: string, event: any): Promise<{ success: boolean; results: any[] }> {
+    try {
+      console.log(`📈 [QuestManager] Progression quête pour ${playerName}:`, event);
+      
+      const results = await this.updateQuestProgress(playerName, event);
+      
+      if (results && results.length > 0) {
+        // Notifier le joueur des progressions
+        const registry = ServiceRegistry.getInstance();
+        registry.notifyPlayer(playerName, "questProgressUpdate", results);
+        
+        console.log(`✅ [QuestManager] ${results.length} progression(s) de quête pour ${playerName}`);
+        return { success: true, results };
+      } else {
+        console.log(`ℹ️ [QuestManager] Aucune progression pour ${playerName}`);
+        return { success: true, results: [] };
+      }
+      
+    } catch (error) {
+      console.error(`❌ [QuestManager] Erreur progressQuest:`, error);
+      return { success: false, results: [] };
+    }
+  }
+
+  /**
+   * Vérifier le statut d'une quête (utilisable depuis n'importe où)
+   */
+  async checkQuestStatus(playerName: string, questId: string): Promise<string> {
+    try {
+      const status = await this.getQuestStatus(playerName, questId);
+      console.log(`🔍 [QuestManager] Statut de ${questId} pour ${playerName}: ${status}`);
+      return status;
+    } catch (error) {
+      console.error(`❌ [QuestManager] Erreur checkQuestStatus:`, error);
+      return 'unavailable';
+    }
+  }
+
+  /**
+   * Récupérer toutes les quêtes actives d'un joueur (utilisable depuis n'importe où)
+   */
+  async getPlayerActiveQuests(playerName: string): Promise<any[]> {
+    try {
+      const activeQuests = await this.getActiveQuests(playerName);
+      console.log(`📋 [QuestManager] ${activeQuests.length} quêtes actives pour ${playerName}`);
+      return activeQuests;
+    } catch (error) {
+      console.error(`❌ [QuestManager] Erreur getPlayerActiveQuests:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Récupérer toutes les quêtes disponibles d'un joueur (utilisable depuis n'importe où)
+   */
+  async getPlayerAvailableQuests(playerName: string): Promise<any[]> {
+    try {
+      const availableQuests = await this.getAvailableQuests(playerName);
+      console.log(`📋 [QuestManager] ${availableQuests.length} quêtes disponibles pour ${playerName}`);
+      return availableQuests;
+    } catch (error) {
+      console.error(`❌ [QuestManager] Erreur getPlayerAvailableQuests:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Compléter manuellement une quête (utilisable depuis n'importe où)
+   */
+  async completeQuest(playerName: string, questId: string): Promise<{ success: boolean; message: string; rewards?: any[] }> {
+    try {
+      console.log(`🏆 [QuestManager] Completion manuelle de ${questId} pour ${playerName}`);
+      
+      const result = await this.completeQuestManually(playerName, questId);
+      
+      if (result) {
+        // Notifier le joueur
+        const registry = ServiceRegistry.getInstance();
+        registry.notifyPlayer(playerName, "questCompleted", {
+          questId: questId,
+          questName: result.questName,
+          message: result.message,
+          rewards: result.questRewards
+        });
+        
+        console.log(`✅ [QuestManager] Quête ${questId} complétée pour ${playerName}`);
+        return { 
+          success: true, 
+          message: result.message || "Quête complétée !",
+          rewards: result.questRewards
+        };
+      } else {
+        const message = `Quête ${questId} non prête à être complétée`;
+        console.log(`⚠️ [QuestManager] ${message}`);
+        return { success: false, message };
+      }
+      
+    } catch (error) {
+      console.error(`❌ [QuestManager] Erreur completeQuest:`, error);
+      return { success: false, message: "Erreur lors de la completion de la quête" };
+    }
   }
 }
