@@ -72,6 +72,20 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.zoneManager = new ZoneManager(this);
     console.log(`✅ ZoneManager initialisé`);
 
+   // ✅ Enregistrer dans ServiceRegistry
+    const ServiceRegistry = require('../services/ServiceRegistry').ServiceRegistry;
+    const registry = ServiceRegistry.getInstance();
+    
+    // Enregistrer WorldRoom
+    registry.registerWorldRoom(this);
+    
+    // Enregistrer QuestManager
+    const questManager = this.zoneManager.getQuestManager();
+    if (questManager) {
+      registry.registerQuestManager(questManager);
+      console.log(`✅ Services enregistrés dans ServiceRegistry`);
+    }
+    
     // Initialiser les TeamHandlers
     this.teamHandlers = new TeamHandlers(this);
     console.log(`✅ TeamHandlers initialisé`);
