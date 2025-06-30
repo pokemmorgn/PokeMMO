@@ -62,9 +62,6 @@ class PokeChatSystem {
     this.hideBtn = document.getElementById('hide-btn');
     this.chatToggle = document.getElementById('chat-toggle');
     this.onlineCount = document.getElementById('online-count');
-
-
-      this.isHidden = this.chatWindow.classList.contains('hidden');
       
     // ✅ NOUVEAU : Config serveur
     this.serverConfig = {
