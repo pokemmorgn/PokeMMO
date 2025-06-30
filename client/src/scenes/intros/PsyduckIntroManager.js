@@ -91,7 +91,6 @@ export class PsyduckIntroManager {
       // ✅ FIX: Écouter questGranted pour les notifications de quête
       this.scene.room.onMessage("questGranted", (data) => {
         console.log("🎁 [PsyduckIntro] Nouvelle quête reçue:", data);
-        this.showQuestNotification(data);
       });
       
       // Écouter la completion de la quête d'intro
@@ -214,66 +213,6 @@ export class PsyduckIntroManager {
       // Passer en mode fallback si erreur de communication
       this.fallbackMode = true;
       this.questIntegrationEnabled = false;
-    }
-  }
-
-  /**
-   * ✅ NOUVELLE MÉTHODE: Affiche une notification de quête
-   */
-  showQuestNotification(data) {
-    if (!this.scene || !this.scene.add) {
-      console.warn(`⚠️ [PsyduckIntro] Scene non disponible pour afficher la notification`);
-      return;
-    }
-
-    try {
-      const message = data.message || `Nouvelle quête: ${data.questName || 'Quête inconnue'}`;
-      
-      const notification = this.scene.add.text(
-        this.scene.cameras.main.width / 2,
-        50, // En haut de l'écran
-        message,
-        {
-          fontSize: "16px",
-          color: "#ffff00",
-          backgroundColor: "#000080",
-          padding: { x: 15, y: 8 },
-          borderRadius: 5
-        }
-      ).setOrigin(0.5).setDepth(3000);
-      
-      // Animation d'apparition
-      notification.setAlpha(0);
-      this.scene.tweens.add({
-        targets: notification,
-        alpha: 1,
-        y: 80,
-        duration: 500,
-        ease: 'Back.easeOut',
-        onComplete: () => {
-          // Attendre 3 secondes puis disparaître
-          this.scene.time.delayedCall(3000, () => {
-            if (notification && notification.scene) {
-              this.scene.tweens.add({
-                targets: notification,
-                alpha: 0,
-                y: 30,
-                duration: 500,
-                onComplete: () => {
-                  if (notification && notification.destroy) {
-                    notification.destroy();
-                  }
-                }
-              });
-            }
-          });
-        }
-      });
-      
-      console.log(`✅ [PsyduckIntro] Notification de quête affichée: ${message}`);
-      
-    } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur affichage notification:`, error);
     }
   }
 
