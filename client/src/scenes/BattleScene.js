@@ -83,7 +83,8 @@ export class BattleScene extends Phaser.Scene {
       // Initialiser l'interface de combat
       this.battleUI = new BattleUI(this, this.battleManager);
       this.battleUI.initialize();
-      
+      this.battleUI.createBackground();
+
       // Setup des événements
       this.setupBattleEvents();
       
