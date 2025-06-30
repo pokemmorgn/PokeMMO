@@ -132,7 +132,7 @@ onRoomAvailable(room) {
   // === Envoi clientReady (flow 100% sûr) ===
   sendClientReady() {
     if (this.room && !this._clientReadySent) {
-      this.room.send("clientReady");
+      this.room.send("clientIntroReady");
       this._clientReadySent = true;
       console.log("🚦 [BeachScene] clientReady envoyé au serveur");
       // Ici, on n'envoie plus jamais checkAutoIntroQuest !
