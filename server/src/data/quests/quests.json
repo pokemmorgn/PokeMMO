@@ -168,102 +168,99 @@
       ]
     },
 
+{
+  "id": "beach_intro_quest",
+  "name": "A Strange New World",
+  "description": "Wake up on an unknown beach... Who are you? Where are you? Why is there a duck waving at you?",
+  "category": "main",
+  "startNpcId": null,
+  "endNpcId": null,
+  "isRepeatable": false,
+  "autoComplete": true,
+
+  "dialogues": {
+    "questOffer": [
+      "You open your eyes... Is that sand in your shoes?",
+      "This isn’t your bed... and is that—wait, is that a Psyduck waving at you?",
+      "Let’s see where this weird day goes."
+    ],
+    "questInProgress": [
+      "Try not to question why the duck is still here.",
+      "Just go with it. Stranger things have happened."
+    ],
+    "questComplete": [
+      "Congrats! You survived your first weird day.",
+      "Real adventures begin now (with hopefully fewer ducks).",
+      "Good luck, Trainer! The world is officially strange."
+    ]
+  },
+
+  "steps": [
     {
-      "id": "beach_intro_quest",
-      "name": "Bienvenue à GreenRoot",
-      "description": "Découvrez le monde de GreenRoot et rencontrez votre premier compagnon.",
-      "category": "main",
-      "startNpcId": null,
-      "endNpcId": null,
-      "isRepeatable": false,
-      "autoComplete": true,
-      
-      "dialogues": {
-        "questOffer": [
-          "Bienvenue dans le monde de GreenRoot !",
-          "Une nouvelle aventure vous attend !",
-          "Laissez-vous guider par l'introduction."
-        ],
-        "questInProgress": [
-          "Profitez de cette première expérience !",
-          "Votre aventure ne fait que commencer !"
-        ],
-        "questComplete": [
-          "Félicitations ! Vous avez terminé l'introduction !",
-          "Vous êtes maintenant prêt pour de vraies aventures !",
-          "Bonne chance, dresseur !"
-        ]
-      },
-      
-      "steps": [
+      "id": "wake_up",
+      "name": "Where Am I?!",
+      "description": "Wake up, shake off the sand, and look around. Nothing makes sense.",
+      "objectives": [
         {
-          "id": "watch_intro",
-          "name": "Regarder l'introduction",
-          "description": "Découvrez le monde de GreenRoot à travers l'intro animée.",
-          
-          "objectives": [
-            {
-              "id": "intro_watched",
-              "type": "reach",
-              "description": "Regarder l'introduction complète",
-              "target": "beach_intro_watched",
-              "targetName": "Introduction",
-              "requiredAmount": 1
-            }
-          ],
-          "rewards": []
+          "id": "intro_watched",
+          "type": "reach",
+          "description": "Open your eyes and try to understand what's going on.",
+          "target": "beach_intro_watched",
+          "targetName": "Introduction",
+          "requiredAmount": 1
+        }
+      ],
+      "rewards": []
+    },
+    {
+      "id": "meet_psyduck",
+      "name": "Follow Your New Quirky Friend",
+      "description": "He has a headache. He’s also your only friend right now. Let’s trust the duck.",
+      "objectives": [
+        {
+          "id": "talk_to_psyduck",
+          "type": "talk",
+          "description": "Talk to the Psyduck (he seems to know what's up… maybe).",
+          "target": "999",
+          "targetName": "Psyduck",
+          "requiredAmount": 1
+        }
+      ],
+      "rewards": [
+        {
+          "type": "item",
+          "itemId": "potion",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "id": "finish_intro",
+      "name": "Embrace the Weirdness",
+      "description": "You made it through your first day without running away from talking Pokémon. Or did you?",
+      "objectives": [
+        {
+          "id": "intro_finished",
+          "type": "reach",
+          "description": "Finish the opening sequence and accept your fate.",
+          "target": "intro_sequence_finished",
+          "targetName": "End of Introduction",
+          "requiredAmount": 1
+        }
+      ],
+      "rewards": [
+        {
+          "type": "gold",
+          "amount": 100
         },
         {
-          "id": "meet_psyduck",
-          "name": "Rencontrer Psyduck",
-          "description": "Faites connaissance avec votre guide Psyduck.",
-          
-          "objectives": [
-            {
-              "id": "talk_to_psyduck",
-              "type": "talk",
-              "description": "Parler avec Psyduck",
-              "target": "999",
-              "targetName": "Psyduck",
-              "requiredAmount": 1
-            }
-          ],
-          "rewards": [
-            {
-              "type": "item",
-              "itemId": "potion",
-              "amount": 2
-            }
-          ]
-        },
-        {
-          "id": "finish_intro",
-          "name": "Terminer l'introduction",
-          "description": "Concluez votre première expérience à GreenRoot.",
-          
-          "objectives": [
-            {
-              "id": "intro_finished",
-              "type": "reach",
-              "description": "Terminer la séquence d'introduction",
-              "target": "intro_sequence_finished",
-              "targetName": "Fin d'introduction",
-              "requiredAmount": 1
-            }
-          ],
-          "rewards": [
-            {
-              "type": "gold",
-              "amount": 100
-            },
-            {
-              "type": "item",
-              "itemId": "poke_ball",
-              "amount": 3
-            }
-          ]
+          "type": "item",
+          "itemId": "poke_ball",
+          "amount": 3
         }
       ]
     }
+  ]
+}
   ]
 }
