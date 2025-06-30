@@ -2,6 +2,7 @@
 // ✅ Support interactions modernes + compatibilité + debugging amélioré
 
 import { GAME_CONFIG } from "../config/gameConfig.js";
+import { BattleNetworkHandler } from "./BattleNetworkHandler.js";
 
 export class NetworkManager {
   /**
@@ -21,6 +22,9 @@ export class NetworkManager {
     this.lastReceivedZoneData = null;
     this.onTransitionValidation = null;
 
+     // ✅ NOUVEAU: Handler de combat spécialisé
+    this.battleNetworkHandler = null;
+    
     // ✅ NOUVEAU: Données de mon joueur
     this.myPlayerData = null;
     this.myPlayerConfirmed = false;
@@ -103,6 +107,7 @@ export class NetworkManager {
 
     this.setupRoomListeners();
     this.startHealthMonitoring();
+    await this.initializeBattleSystem();
     return true;
 
   } catch (error) {
@@ -122,6 +127,35 @@ export class NetworkManager {
     }, 30000); // Ping toutes les 30 secondes
   }
 
+  async initializeBattleSystem() {
+  console.log('⚔️ [NetworkManager] Initialisation système de combat...');
+  
+  if (!this.room || !this.client) {
+    console.error('❌ [NetworkManager] Room ou Client manquant pour combat');
+    return false;
+  }
+  
+  try {
+    // Créer le BattleNetworkHandler
+    this.battleNetworkHandler = new BattleNetworkHandler(this);
+    
+    // L'initialiser avec les connexions existantes
+    const success = this.battleNetworkHandler.initialize(this.room, this.client);
+    
+    if (success) {
+      console.log('✅ [NetworkManager] Système de combat initialisé');
+      return true;
+    } else {
+      console.error('❌ [NetworkManager] Échec initialisation système de combat');
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('❌ [NetworkManager] Erreur initialisation combat:', error);
+    return false;
+  }
+}
+  
   sendPing() {
     if (this.room) {
       this.connectionHealth.lastPing = Date.now();
@@ -850,6 +884,11 @@ export class NetworkManager {
   async disconnect() {
     console.log(`[NetworkManager] 📤 Déconnexion demandée`);
     this.resetTransitionState();
+    if (this.battleNetworkHandler) {
+    await this.battleNetworkHandler.destroy();
+    this.battleNetworkHandler = null;
+  }
+    
     this.myPlayerConfirmed = false;
     this.myPlayerData = null;
     
@@ -975,6 +1014,10 @@ restoreCustomCallbacks() {
   // Ajoute ici tout autre callback important...
 }
 
+  getBattleNetworkHandler() {
+  return this.battleNetworkHandler;
+}
+  
   // ✅ DEBUG ET MONITORING AMÉLIORÉS
   
   debugState() {
