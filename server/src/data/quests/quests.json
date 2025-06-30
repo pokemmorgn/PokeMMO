@@ -81,7 +81,7 @@
               "id": "return_fishing_line",
               "type": "deliver",
               "description": "Give the fishing line to Bob",
-              "target": "87",
+              "target": "82",
               "targetName": "Bob",
               "itemId": "fishing_line",
               "requiredAmount": 1,
