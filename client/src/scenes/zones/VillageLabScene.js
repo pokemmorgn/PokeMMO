@@ -1,12 +1,14 @@
 // ===============================================
-// VillageLabScene.js - Version corrigée
+// VillageLabScene.js - Version complète corrigée
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
+import { integrateStarterSelectorToScene } from '../components/StarterSelector.js';
 
 export class VillageLabScene extends BaseZoneScene {
   constructor() {
     super('VillageLabScene', 'villagelab');
     this.transitionCooldowns = {};
+    this.starterSelector = null;
   }
 
   // ✅ AMÉLIORATION: Position par défaut pour VillageLabScene
@@ -29,7 +31,7 @@ export class VillageLabScene extends BaseZoneScene {
     super.create();
     console.log("✅ BaseZoneScene.create() appelé");
 
-    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
+    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "T" to test StarterSelector', {
       font: '18px monospace',
       fill: '#000000',
       padding: { x: 20, y: 10 },
@@ -41,6 +43,9 @@ export class VillageLabScene extends BaseZoneScene {
 
     console.log("⚙️ Setup NPCs...");
     this.setupNPCs();
+    
+    console.log("⚙️ Setup StarterSelector...");
+    this.setupStarterSelector();
 
     console.log("🚨 FIN VillageLabScene.create()");
   }
@@ -59,7 +64,64 @@ export class VillageLabScene extends BaseZoneScene {
       this.networkManager.room.onMessage('professorDialog', (data) => this.showProfessorDialog(data));
       this.networkManager.room.onMessage('starterReceived', (data) => this.showStarterReceived(data));
       this.networkManager.room.onMessage('welcomeToLab', (data) => this.showWelcomeMessage(data));
+      
+      // ✅ NOUVEAU: Listeners pour StarterSelector
+      this.networkManager.room.onMessage("requestStarterSelection", (data) => {
+        console.log("📥 [VillageLabScene] Demande de sélection starter du serveur");
+        this.showStarterSelection(data.availableStarters);
+      });
+
+      this.networkManager.room.onMessage("starterSelected", (data) => {
+        console.log("✅ [VillageLabScene] Starter confirmé:", data);
+        // Ici vous pouvez ajouter des actions après sélection
+        this.onStarterConfirmed(data);
+      });
     }
+  }
+
+  setupStarterSelector() {
+    try {
+      // Intégrer le StarterSelector à cette scène
+      this.starterSelector = integrateStarterSelectorToScene(this, this.networkManager);
+      
+      console.log("✅ [VillageLabScene] StarterSelector intégré");
+      
+      // Ajouter un test de démo
+      this.addStarterTrigger();
+      
+    } catch (error) {
+      console.error("❌ [VillageLabScene] Erreur intégration StarterSelector:", error);
+    }
+  }
+
+  addStarterTrigger() {
+    // ✅ TRIGGER: Touche T pour tester
+    this.input.keyboard.on('keydown-T', () => {
+      console.log("🧪 [VillageLabScene] Test StarterSelector (Touche T)");
+      this.showStarterSelection();
+    });
+
+    // ✅ TRIGGER: Zone interactive pour ouvrir la sélection (table du labo)
+    const labTable = this.add.rectangle(200, 150, 80, 40, 0x8B4513, 0.8);
+    labTable.setInteractive();
+    labTable.setDepth(10);
+    
+    // Texte indicatif
+    this.add.text(200, 130, 'Starter Table', {
+      fontSize: '10px',
+      fontFamily: 'monospace',
+      color: '#ffffff',
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      padding: { x: 4, y: 2 },
+    }).setOrigin(0.5).setDepth(11);
+
+    labTable.on('pointerdown', () => {
+      console.log("🧪 [VillageLabScene] Clic sur table du labo");
+      this.showStarterSelection();
+    });
+
+    // ✅ TRIGGER: Interaction avec le Professeur pour commencer
+    // (sera géré dans createNPC pour le Professeur)
   }
 
   setupNPCs() {
@@ -110,7 +172,8 @@ export class VillageLabScene extends BaseZoneScene {
   interactWithNPC(npcName) {
     console.log(`💬 Interaction avec ${npcName}`);
     if (npcName === 'Professeur') {
-      this.networkManager?.room?.send('interactWithProfessor', {});
+      // ✅ NOUVEAU: Interaction avec Professeur = StarterSelector
+      this.showProfessorStarterDialog();
     } else {
       const messages = {
         Assistant: 'Je m\'occupe de l\'entretien du laboratoire.',
@@ -118,25 +181,51 @@ export class VillageLabScene extends BaseZoneScene {
         Stagiaire: 'J\'apprends encore... C\'est compliqué !',
       };
       const message = messages[npcName] || 'Bonjour ! Je travaille ici.';
-      const dialogueBox = this.add.text(
-        this.cameras.main.centerX,
-        this.cameras.main.centerY + 100,
-        `${npcName}: "${message}"`,
-        {
-          fontSize: '14px',
-          fontFamily: 'monospace',
-          color: '#ffffff',
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          padding: { x: 10, y: 8 },
-          wordWrap: { width: 300 },
-        }
-      ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
-
-      this.time.delayedCall(3000, () => {
-        dialogueBox.destroy();
-        console.log(`💬 Dialogue avec ${npcName} détruit`);
-      });
+      this.showSimpleDialog(npcName, message);
     }
+  }
+
+  showProfessorStarterDialog() {
+    const dialogueBox = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY + 100,
+      'Professeur: "Bienvenue ! Choisissez votre premier Pokémon !"',
+      {
+        fontSize: '14px',
+        fontFamily: 'monospace',
+        color: '#ffffff',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: { x: 10, y: 8 },
+        wordWrap: { width: 300 },
+      }
+    ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
+
+    // Afficher la sélection après 2 secondes
+    this.time.delayedCall(2000, () => {
+      dialogueBox.destroy();
+      this.showStarterSelection();
+    });
+  }
+
+  showSimpleDialog(npcName, message) {
+    const dialogueBox = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY + 100,
+      `${npcName}: "${message}"`,
+      {
+        fontSize: '14px',
+        fontFamily: 'monospace',
+        color: '#ffffff',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: { x: 10, y: 8 },
+        wordWrap: { width: 300 },
+      }
+    ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
+
+    this.time.delayedCall(3000, () => {
+      dialogueBox.destroy();
+      console.log(`💬 Dialogue avec ${npcName} détruit`);
+    });
   }
 
   // === Gestion du dialogue professeur & starter via serveur ===
@@ -198,9 +287,101 @@ export class VillageLabScene extends BaseZoneScene {
     }
   }
 
+  // ✅ NOUVELLES MÉTHODES STARTER SELECTOR
+
+  onStarterConfirmed(data) {
+    // Actions après confirmation du starter
+    console.log("🎉 [VillageLabScene] Actions après sélection du starter:", data);
+    
+    // Dialogue de félicitations
+    const congratsBox = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY,
+      `Félicitations ! Vous avez choisi ${data.starterName || data.starterId} !`,
+      {
+        fontSize: '18px',
+        fontFamily: 'monospace',
+        color: '#00ff00',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        padding: { x: 20, y: 15 },
+        align: 'center',
+        wordWrap: { width: 400 }
+      }
+    ).setOrigin(0.5).setScrollFactor(0).setDepth(2002);
+
+    // Animation de célébration
+    this.tweens.add({
+      targets: congratsBox,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 500,
+      yoyo: true,
+      repeat: 2
+    });
+
+    // Supprimer après 5 secondes
+    this.time.delayedCall(5000, () => {
+      congratsBox.destroy();
+    });
+
+    // Optionnel: Retour au village après sélection
+    // this.time.delayedCall(6000, () => {
+    //   this.changeToZone('VillageScene', { x: 400, y: 300 });
+    // });
+  }
+
+  // ✅ MÉTHODE PUBLIQUE: Test manuel
+  testStarterSelection() {
+    console.log("🧪 [VillageLabScene] Test manuel du StarterSelector");
+    this.showStarterSelection();
+  }
+
+  // ✅ MÉTHODE: Gérer les inputs de la scène
+  update() {
+    // Vérifier si la sélection de starter est active
+    if (this.isStarterSelectionActive && this.isStarterSelectionActive()) {
+      // Désactiver les mouvements du joueur pendant la sélection
+      return; // Sortir de update() pour bloquer les autres inputs
+    }
+
+    // Appeler l'update parent pour le reste
+    super.update();
+  }
+
+  // ✅ CLEAN UP
   cleanup() {
+    // Nettoyer le StarterSelector
+    if (this.starterSelector) {
+      this.starterSelector.destroy();
+      this.starterSelector = null;
+    }
+
     this.transitionCooldowns = {};
-    console.log("⚙️ cleanup appelé");
+    console.log("⚙️ VillageLabScene cleanup appelé");
     super.cleanup();
   }
+
+  destroy() {
+    // Nettoyer le StarterSelector au destroy aussi
+    if (this.starterSelector) {
+      this.starterSelector.destroy();
+      this.starterSelector = null;
+    }
+
+    super.destroy();
+  }
 }
+
+// ✅ FONCTIONS UTILITAIRES GLOBALES POUR TESTER
+window.testLabStarter = () => {
+  const labScene = window.game?.scene?.getScene('VillageLabScene');
+  if (labScene && labScene.testStarterSelection) {
+    labScene.testStarterSelection();
+  } else {
+    console.warn("❌ VillageLabScene non trouvée ou pas de méthode test");
+  }
+};
+
+window.getLabScene = () => {
+  return window.game?.scene?.getScene('VillageLabScene');
+};
