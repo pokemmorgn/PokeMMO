@@ -19,14 +19,14 @@ export class StarterSelector {
     this.pokeballs = [];
     this.starterSprites = [];
     
-    // Configuration des starters
+    // Configuration des starters - POSITIONS ADAPTATIVES
     this.starterConfig = [
       {
         id: 'bulbasaur',
         name: 'Bulbizarre',
         type: 'Plante',
         description: 'Un Pokémon Graine. Bulbizarre peut rester plusieurs jours sans manger grâce à sa graine.',
-        position: { x: 200, y: 350 },
+        position: { x: 0.25, y: 0.55 }, // Pourcentages de l'écran
         color: 0x4CAF50
       },
       {
@@ -34,7 +34,7 @@ export class StarterSelector {
         name: 'Salamèche',
         type: 'Feu',
         description: 'Un Pokémon Lézard. La flamme sur sa queue indique son humeur et sa santé.',
-        position: { x: 400, y: 350 },
+        position: { x: 0.5, y: 0.55 }, // Centre horizontal
         color: 0xFF5722
       },
       {
@@ -42,7 +42,7 @@ export class StarterSelector {
         name: 'Carapuce', 
         type: 'Eau',
         description: 'Un Pokémon Minitortue. Il se cache dans sa carapace pour se protéger.',
-        position: { x: 600, y: 350 },
+        position: { x: 0.75, y: 0.55 }, // 75% de la largeur
         color: 0x2196F3
       }
     ];
@@ -119,36 +119,39 @@ export class StarterSelector {
 
   // ✅ MÉTHODE: Créer la texture de fond (similaire à ton image)
   createBackgroundTexture() {
-    const width = 800;
-    const height = 600;
+    // ✅ DIMENSIONS ADAPTÉES À LA FENÊTRE DE JEU
+    const width = this.scene.cameras.main.width;
+    const height = this.scene.cameras.main.height;
     const graphics = this.scene.add.graphics();
 
-    // Fond gris-bleu (comme ton image)
+    // Fond gris-bleu (comme ton image) - partie haute
     graphics.fillStyle(0x8B9DC3);
-    graphics.fillRect(0, 0, width, 200);
+    graphics.fillRect(0, 0, width, height * 0.4);
 
-    // Grille de carreaux
-    graphics.lineStyle(2, 0x7A8BB0);
-    for (let x = 0; x < width; x += 50) {
-      graphics.lineBetween(x, 0, x, 200);
+    // Grille de carreaux - plus petite
+    graphics.lineStyle(1, 0x7A8BB0, 0.3);
+    for (let x = 0; x < width; x += 32) {
+      graphics.lineBetween(x, 0, x, height * 0.4);
     }
-    for (let y = 0; y < 200; y += 50) {
+    for (let y = 0; y < height * 0.4; y += 32) {
       graphics.lineBetween(0, y, width, y);
     }
 
-    // Zone verte centrale
+    // Zone verte centrale - mieux proportionnée
+    const greenHeight = height * 0.45;
+    const greenY = height * 0.3;
     graphics.fillStyle(0x4CAF50);
-    graphics.fillRoundedRect(50, 250, 700, 200, 20);
+    graphics.fillRoundedRect(width * 0.1, greenY, width * 0.8, greenHeight, 15);
 
-    // Dégradé subtil sur la zone verte
+    // Dégradé subtil sur la zone verte - positions ajustées
     graphics.fillStyle(0x45A049);
-    graphics.fillEllipse(200, 350, 150, 80);
-    graphics.fillEllipse(400, 350, 150, 80);
-    graphics.fillEllipse(600, 350, 150, 80);
+    graphics.fillEllipse(width * 0.25, greenY + greenHeight/2, 120, 60);
+    graphics.fillEllipse(width * 0.5, greenY + greenHeight/2, 120, 60);
+    graphics.fillEllipse(width * 0.75, greenY + greenHeight/2, 120, 60);
 
-    // Bordure inférieure
+    // Bordure inférieure - plus petite
     graphics.fillStyle(0x606060);
-    graphics.fillRect(0, 500, width, 100);
+    graphics.fillRect(0, height * 0.85, width, height * 0.15);
 
     // Générer la texture
     graphics.generateTexture('starter_background', width, height);
@@ -242,14 +245,16 @@ export class StarterSelector {
   createInterface() {
     const centerX = this.scene.cameras.main.centerX;
     const centerY = this.scene.cameras.main.centerY;
+    const width = this.scene.cameras.main.width;
+    const height = this.scene.cameras.main.height;
 
     // Container principal
     this.backgroundContainer = this.scene.add.container(0, 0);
     this.backgroundContainer.setDepth(1000);
 
-    // Fond principal (utilise ta texture de base ou l'asset que tu as)
+    // Fond principal (adapté à la taille de l'écran)
     this.baseBackground = this.scene.add.image(centerX, centerY, 'starter_background');
-    this.baseBackground.setDisplaySize(800, 600);
+    this.baseBackground.setDisplaySize(width, height);
     this.backgroundContainer.add(this.baseBackground);
 
     // Container pour les starters
@@ -277,19 +282,27 @@ export class StarterSelector {
     this.pokeballs = [];
     this.starterSprites = [];
 
+    const width = this.scene.cameras.main.width;
+    const height = this.scene.cameras.main.height;
+
     this.starterOptions.forEach((starter, index) => {
-      // Pokéball cliquable
-      const pokeball = this.scene.add.image(starter.position.x, starter.position.y, 'pokeball');
+      // Convertir les pourcentages en pixels
+      const posX = width * starter.position.x;
+      const posY = height * starter.position.y;
+      
+      // Pokéball cliquable - taille adaptative
+      const pokeball = this.scene.add.image(posX, posY, 'pokeball');
       pokeball.setInteractive();
-      pokeball.setScale(1.2);
+      const scale = Math.min(width / 800, height / 600) * 1.2; // Échelle adaptive
+      pokeball.setScale(scale);
       
       // Sprite du starter (au-dessus de la pokéball)
       const starterSprite = this.scene.add.image(
-        starter.position.x, 
-        starter.position.y - 80, 
+        posX, 
+        posY - (60 * scale), // Distance adaptative
         starter.id
       );
-      starterSprite.setScale(0.8);
+      starterSprite.setScale(scale * 0.8);
       starterSprite.setAlpha(0.7);
 
       // Animation de hover
@@ -297,16 +310,16 @@ export class StarterSelector {
         if (!this.isAnimating) {
           this.scene.tweens.add({
             targets: pokeball,
-            scaleX: 1.4,
-            scaleY: 1.4,
+            scaleX: scale * 1.2,
+            scaleY: scale * 1.2,
             duration: 200,
             ease: 'Back.easeOut'
           });
           
           this.scene.tweens.add({
             targets: starterSprite,
-            scaleX: 1.0,
-            scaleY: 1.0,
+            scaleX: scale * 1.0,
+            scaleY: scale * 1.0,
             alpha: 1.0,
             duration: 200,
             ease: 'Back.easeOut'
@@ -320,15 +333,15 @@ export class StarterSelector {
         if (!this.isAnimating && this.currentlySelectedIndex !== index) {
           this.scene.tweens.add({
             targets: pokeball,
-            scaleX: 1.2,
-            scaleY: 1.2,
+            scaleX: scale,
+            scaleY: scale,
             duration: 200
           });
           
           this.scene.tweens.add({
             targets: starterSprite,
-            scaleX: 0.8,
-            scaleY: 0.8,
+            scaleX: scale * 0.8,
+            scaleY: scale * 0.8,
             alpha: 0.7,
             duration: 200
           });
@@ -351,10 +364,18 @@ export class StarterSelector {
   // ✅ MÉTHODE: Créer l'UI (titre, descriptions, boutons)
   createUI() {
     const centerX = this.scene.cameras.main.centerX;
+    const width = this.scene.cameras.main.width;
+    const height = this.scene.cameras.main.height;
+    
+    // Taille de police adaptative
+    const titleSize = Math.min(width / 25, 32) + 'px';
+    const subtitleSize = Math.min(width / 50, 16) + 'px';
+    const infoSize = Math.min(width / 45, 18) + 'px';
+    const buttonSize = Math.min(width / 45, 18) + 'px';
     
     // Titre principal
-    const title = this.scene.add.text(centerX, 80, 'Choisissez votre Pokémon', {
-      fontSize: '32px',
+    const title = this.scene.add.text(centerX, height * 0.15, 'Choisissez votre Pokémon', {
+      fontSize: titleSize,
       fontFamily: 'Arial Black',
       color: '#ffffff',
       stroke: '#000000',
@@ -363,8 +384,8 @@ export class StarterSelector {
     }).setOrigin(0.5);
 
     // Sous-titre
-    const subtitle = this.scene.add.text(centerX, 120, 'Ce Pokémon vous accompagnera dans votre aventure', {
-      fontSize: '16px',
+    const subtitle = this.scene.add.text(centerX, height * 0.22, 'Ce Pokémon vous accompagnera dans votre aventure', {
+      fontSize: subtitleSize,
       fontFamily: 'Arial',
       color: '#ffffff',
       stroke: '#000000',
@@ -373,24 +394,26 @@ export class StarterSelector {
     }).setOrigin(0.5);
 
     // Zone d'information du starter (initialement vide)
-    this.infoText = this.scene.add.text(centerX, 500, '', {
-      fontSize: '18px',
+    this.infoText = this.scene.add.text(centerX, height * 0.78, '', {
+      fontSize: infoSize,
       fontFamily: 'Arial',
       color: '#ffffff',
       stroke: '#000000',
       strokeThickness: 2,
       align: 'center',
-      wordWrap: { width: 600 }
+      wordWrap: { width: width * 0.8 }
     }).setOrigin(0.5);
 
     // Bouton de confirmation (initialement caché)
-    this.confirmButton = this.scene.add.rectangle(centerX, 550, 200, 50, 0x4CAF50);
+    const buttonWidth = width * 0.25;
+    const buttonHeight = height * 0.08;
+    this.confirmButton = this.scene.add.rectangle(centerX, height * 0.88, buttonWidth, buttonHeight, 0x4CAF50);
     this.confirmButton.setStrokeStyle(3, 0x2E7D32);
     this.confirmButton.setInteractive();
     this.confirmButton.setAlpha(0);
 
-    this.confirmButtonText = this.scene.add.text(centerX, 550, 'CONFIRMER', {
-      fontSize: '18px',
+    this.confirmButtonText = this.scene.add.text(centerX, height * 0.88, 'CONFIRMER', {
+      fontSize: buttonSize,
       fontFamily: 'Arial Black',
       color: '#ffffff'
     }).setOrigin(0.5);
@@ -735,8 +758,6 @@ export class StarterSelector {
   }
 
   // ✅ MÉTHODE: Bloquer/débloquer les inputs du joueur
-  
-  // ✅ MÉTHODE SIMPLE: Utiliser uniquement des flags globaux
   blockPlayerInput(block) {
     console.log(`${block ? '🔒' : '🔓'} [StarterSelector] ${block ? 'Blocage' : 'Déblocage'} inputs via flags...`);
     
@@ -759,8 +780,7 @@ export class StarterSelector {
     
     // ✅ LOG FINAL
     console.log(`${block ? '🔒' : '🔓'} [StarterSelector] Inputs ${block ? 'BLOQUÉS' : 'DÉBLOQUÉS'} - Flag: ${window._starterSelectionActive}`);
-  }// client/src/components/StarterSelector.js
-// Système de sélection de starter externalisé pour PokéMon MMO
+  }
 
   // ✅ MÉTHODE: Nettoyage
   cleanup() {
