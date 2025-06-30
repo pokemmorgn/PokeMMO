@@ -132,12 +132,14 @@ export class BeachScene extends BaseZoneScene {
     super.positionPlayer(player);
 
     // 🎬 Déclencher l'intro automatiquement (seulement si pas déjà fait)
-    if (!this._introTriggered && !initData?.fromZone) {
-      this._introTriggered = true;
-      this.time.delayedCall(1500, () => {
-this.startPsyduckIntro();
-      });
-    }
+    // if (!this._introTriggered && !initData?.fromZone) {
+    //   this._introTriggered = true;
+    //   this.time.delayedCall(1500, () => {
+    //     this.startPsyduckIntro();
+    //   });
+    // }
+    
+    // L'intro sera déclenchée UNIQUEMENT par le serveur via triggerIntroSequence
   }
 
   // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
