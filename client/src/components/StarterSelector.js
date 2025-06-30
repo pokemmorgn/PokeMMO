@@ -114,7 +114,7 @@ createInterface() {
   const centerX = this.scene.cameras.main.centerX;
   const centerY = this.scene.cameras.main.centerY;
 
-this.container = this.scene.add.container(centerX, centerY - 40); // Décale vers le haut de 40 px (ajuste si besoin)
+this.container = this.scene.add.container(centerX, centerY - 200); // Décale vers le haut de 40 px (ajuste si besoin)
   this.container.setDepth(1000);
 
   // Background plus petit
