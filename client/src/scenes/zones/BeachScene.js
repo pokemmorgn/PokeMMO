@@ -163,7 +163,7 @@ export class BeachScene extends BaseZoneScene {
     }
   }
 
-  // ✅ === CONFIGURATION ÉCOUTES SERVEUR ===
+  // ✅ === CONFIGURATION ÉCOUTES SERVEUR MODIFIÉE ===
   setupServerListeners() {
     if (!this.room) {
       console.warn(`⚠️ [BeachScene] Pas de room disponible pour les écoutes serveur`);
@@ -173,8 +173,16 @@ export class BeachScene extends BaseZoneScene {
 
     console.log(`📡 [BeachScene] Configuration écoutes serveur avec room connectée`);
 
-    // ✅ IMPORTANTE: Ne pas écouter triggerIntroSequence ici !
-    // C'est PsyduckIntroManager qui l'écoute maintenant
+    // ✅ Écouter les réponses du serveur pendant l'intro
+    this.room.onMessage("triggerIntroSequence", (data) => {
+      console.log("🎬 [BeachScene] Serveur répond pendant intro:", data);
+      
+      if (data.shouldStartIntro && this.psyduckIntroManager) {
+        // Upgrade le PsyduckIntroManager vers mode serveur
+        this.psyduckIntroManager.upgradeToServerMode();
+        console.log(`🔄 [BeachScene] Intro upgradée vers mode serveur`);
+      }
+    });
 
     // Écouter les autres messages de quêtes
     this.room.onMessage("questGranted", (data) => {
@@ -204,21 +212,78 @@ export class BeachScene extends BaseZoneScene {
     }
   }
 
-  // ✅ === POSITION PLAYER AVEC TIMING FIXÉ ===
+  // ✅ === POSITION PLAYER AVEC DÉMARRAGE IMMÉDIAT D'INTRO ===
   positionPlayer(player) {
     const initData = this.scene.settings.data;
     
     super.positionPlayer(player);
 
-    // ✅ Attendre la connexion room avant de déclencher l'intro
+    // ✅ NOUVEAU: Démarrer l'intro IMMÉDIATEMENT pour bloquer le joueur
     if (!this._introTriggered && !this._serverCheckSent) {
-      console.log(`🎬 [BeachScene] Joueur positionné, attente connexion room pour intro`);
+      console.log(`🎬 [BeachScene] Joueur positionné, démarrage intro immédiat`);
+      this._introTriggered = true;
       
-      // Délai de base pour s'assurer que le joueur est bien positionné
-      this.time.delayedCall(1000, () => {
-        this.waitForRoomConnection();
-      });
+      // Démarrer l'intro tout de suite en mode "incertain"
+      this.startIntroWithServerDetection();
     }
+  }
+
+  // ✅ === NOUVELLE MÉTHODE: DÉMARRAGE INTRO AVEC DÉTECTION SERVEUR ===
+  startIntroWithServerDetection() {
+    console.log(`🎬 [BeachScene] Démarrage intro avec détection serveur en parallèle`);
+    
+    // ✅ Démarrer l'intro immédiatement pour bloquer le joueur
+    if (this.psyduckIntroManager) {
+      // Démarrer en mode fallback d'abord
+      this.psyduckIntroManager.startIntroFallback();
+    }
+    
+    // ✅ En parallèle, essayer de détecter la connexion serveur
+    this.detectServerConnection();
+  }
+
+  // ✅ === DÉTECTION SERVEUR EN ARRIÈRE-PLAN ===
+  detectServerConnection() {
+    console.log(`🔗 [BeachScene] Détection connexion serveur en arrière-plan...`);
+    
+    let attempts = 0;
+    const maxAttempts = 30; // 3 secondes (100ms × 30)
+    
+    const checkTimer = this.time.addEvent({
+      delay: 100,
+      repeat: maxAttempts,
+      callback: () => {
+        attempts++;
+        
+        if (this.room && !this._serverCheckSent) {
+          console.log(`✅ [BeachScene] Room détectée après ${attempts * 100}ms, upgrade vers mode serveur`);
+          
+          // Arrêter le timer
+          checkTimer.remove();
+          
+          // Configurer les listeners
+          this.psyduckIntroManager.ensureListenersSetup();
+          this.setupServerListeners();
+          
+          // Envoyer la vérification de quête
+          this._serverCheckSent = true;
+          this.room.send("checkAutoIntroQuest");
+          
+          console.log(`📤 [BeachScene] checkAutoIntroQuest envoyé pendant l'intro`);
+          
+        } else if (attempts >= maxAttempts) {
+          console.log(`ℹ️ [BeachScene] Pas de room détectée après 3s, reste en mode fallback`);
+          checkTimer.remove();
+        }
+      }
+    });
+  }
+
+  // ✅ === ATTENTE CONNEXION ROOM SIMPLIFIÉE (garde pour compatibilité) ===
+  waitForRoomConnection() {
+    // Cette méthode n'est plus utilisée mais gardée pour compatibilité
+    console.log(`⚠️ [BeachScene] waitForRoomConnection() dépréciée, utiliser startIntroWithServerDetection()`);
+    this.detectServerConnection();
   }
 
   // ✅ === MÉTHODES EXISTANTES INCHANGÉES ===
