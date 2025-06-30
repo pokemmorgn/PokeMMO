@@ -62,7 +62,11 @@ class PokeChatSystem {
     this.hideBtn = document.getElementById('hide-btn');
     this.chatToggle = document.getElementById('chat-toggle');
     this.onlineCount = document.getElementById('online-count');
-      
+
+        // Met le chat en mode caché au chargement
+    this.isHidden = false; // (safety)
+    this.toggleHide(); // Passe direct en "hidden" au chargement
+    
     // ✅ NOUVEAU : Config serveur
     this.serverConfig = {
       chatEnabled: true,
