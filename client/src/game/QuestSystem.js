@@ -131,6 +131,40 @@ export class QuestSystem {
       }
     });
 
+      // Écouter les quêtes données automatiquement
+    this.gameRoom.onMessage("questGranted", (data) => {
+      console.log("🎁 Quête accordée automatiquement:", data);
+      
+      if (this.shouldShowNotification('questGranted', data.questId)) {
+        // Animation de l'icône
+        this.questIcon.onNewQuest();
+        
+        this.notificationManager.questNotification(
+          data.questName || 'Nouvelle quête',
+          'granted',
+          {
+            duration: 5000,
+            closable: true,
+            onClick: () => {
+              this.openQuestJournal();
+            }
+          }
+        );
+      }
+      
+      // Actualiser le journal et tracker
+      if (this.questJournal && this.questJournal.isVisible) {
+        this.questJournal.refreshQuests();
+      }
+      
+      // Déclencher une mise à jour des quêtes actives
+      setTimeout(() => {
+        if (this.gameRoom) {
+          this.gameRoom.send("getActiveQuests");
+        }
+      }, 500);
+    });
+    
     // ✅ Liste des quêtes actives
     this.gameRoom.onMessage("activeQuestsList", (data) => {
       console.log("📋 Liste des quêtes actives reçue:", data);
