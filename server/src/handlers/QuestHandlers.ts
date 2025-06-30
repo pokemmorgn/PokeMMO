@@ -112,6 +112,7 @@ private async handleCheckAutoIntroQuest(client: Client) {
           });
 
           // ✅ FIX 2: Envoyer triggerIntroSequence (que PsyduckIntroManager écoute)
+          console.log(`[${Date.now()}][SERVER] SENDING triggerIntroSequence to client ${client.sessionId}`);
           client.send("triggerIntroSequence", {
             questId: introQuestId,
             questName: result.quest?.name || "Bienvenue à GreenRoot",
