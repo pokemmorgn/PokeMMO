@@ -114,29 +114,22 @@ createInterface() {
   const centerX = this.scene.cameras.main.centerX;
   const centerY = this.scene.cameras.main.centerY;
 
-  // Container principal parfaitement centré
   this.container = this.scene.add.container(centerX, centerY);
   this.container.setDepth(1000);
 
-  // Background stylé
+  // Background plus petit
   const bg = this.scene.add.image(0, 0, 'starter_background_stylish');
+  bg.setScale(0.8); // Ajoute cette ligne pour réduire encore plus
   this.container.add(bg);
 
-  // Titre avec effet brillant
-  const title = this.scene.add.text(0, -120, 'Choisissez votre Pokémon', {
-    fontSize: '24px',
+  // Titre plus petit
+  const title = this.scene.add.text(0, -80, 'Choisissez votre Pokémon', { // était -120
+    fontSize: '18px', // était 24px
     fontFamily: 'Arial Black',
     color: '#FFD700',
     stroke: '#1E40AF',
-    strokeThickness: 3,
-    align: 'center',
-    shadow: {
-      offsetX: 2,
-      offsetY: 2,
-      color: '#000000',
-      blur: 4,
-      fill: true
-    }
+    strokeThickness: 2, // était 3
+    align: 'center'
   }).setOrigin(0.5);
 
   // Effet scintillement sur le titre
@@ -191,8 +184,8 @@ createInterface() {
 createStarterBackground() {
   if (this.scene.textures.exists('starter_background_stylish')) return;
   
-  const width = 500;
-  const height = 350;
+  const width = 300;  // était 500
+  const height = 200; // était 350
   const graphics = this.scene.add.graphics();
 
   // === FOND PRINCIPAL DÉGRADÉ ===
@@ -387,10 +380,9 @@ createStarters() {
   this.pokeballs = [];
   this.starterSprites = [];
 
-  this.starterOptions.forEach((starter, index) => {
-    // Positions en arc de cercle
-    const angle = (index - 1) * 0.8; // -0.8, 0, 0.8
-    const radius = 85;
+this.starterOptions.forEach((starter, index) => {
+    const angle = (index - 1) * 0.6; // était 0.8
+    const radius = 60; // était 85
     const posX = Math.sin(angle) * radius;
     const posY = Math.cos(angle) * radius * 0.3 - 10; // Plus plat
     
