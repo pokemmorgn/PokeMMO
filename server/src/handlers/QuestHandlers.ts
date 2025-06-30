@@ -60,12 +60,13 @@ export class QuestHandlers {
     });
 
       // ✅ HANDLER CLIENT READY (le nouveau)
-  this.room.onMessage("clientIntroReady", (client: Client) => {
-    // Tu peux bloquer le joueur ici si besoin (facultatif)
-    // this.room.blockPlayerMovement(client.sessionId, "intro", 3000, {});
-   this.handleCheckAutoIntroQuest(client);
-  });
-    
+this.room.onMessage("clientIntroReady", async (client) => {
+  const player = this.room.state.players.get(client.sessionId);
+  if (!player) return;
+  // Passe la zone en paramètre si besoin
+  await this.handleIntroQuest(client, player.name, "beach");
+});
+
     console.log(`✅ Quest handlers configurés (${this.getHandlerCount()} handlers)`);
   }
 
