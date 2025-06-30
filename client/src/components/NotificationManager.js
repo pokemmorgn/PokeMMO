@@ -475,6 +475,7 @@ export class NotificationManager {
   // Notification pour les quêtes
   questNotification(questName, action = 'started', options = {}) {
     const actionText = {
+questGranted: 'Quest accepted',
 started:   'Quest accepted',
 completed: 'Quest completed',
 failed:    'Quest failed',
