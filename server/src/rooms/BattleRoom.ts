@@ -354,7 +354,7 @@ export class BattleRoom extends Room<BattleState> {
         this.state.player2Pokemon = battlePokemon;
       }
 
-      console.log(`✅ ${selectedPokemon.nickname || pokemonData.name} assigné`);
+      console.log(`✅ ${selectedPokemon.nickname || 'Pokémon'} assigné`);
 
       // Vérifier si on peut commencer le combat
       if (this.canStartActualBattle()) {
@@ -724,7 +724,7 @@ export class BattleRoom extends Room<BattleState> {
 
   // === FIN DE COMBAT ===
 
-  private endBattle(result: "victory" | "defeat" | "fled" | "draw") {
+  private async endBattle(result: "victory" | "defeat" | "fled" | "draw") {
     console.log(`🏁 FIN DE COMBAT: ${result}`);
     
     this.state.phase = "ended";
@@ -1029,6 +1029,52 @@ export class BattleRoom extends Room<BattleState> {
       specialDefense: calculateStat(pokemonData.baseStats.specialDefense, ivs.spDefense),
       speed: calculateStat(pokemonData.baseStats.speed, ivs.speed)
     };
+  }
+
+  // === GESTION DES DÉGÂTS ET PP ===
+
+  private async updatePokemonAfterBattle(sessionId: string, battlePokemon: BattlePokemon) {
+    console.log(`💾 Mise à jour ${battlePokemon.name} après combat`);
+    
+    try {
+      const teamManager = this.teamManagers.get(sessionId);
+      if (!teamManager) {
+        console.warn(`⚠️ TeamManager non trouvé pour ${sessionId}`);
+        return;
+      }
+
+      // Récupérer l'équipe
+      const team = await teamManager.getTeam();
+      const pokemonIndex = team.findIndex(p => p._id.toString() === battlePokemon.pokemonId.toString());
+      
+      if (pokemonIndex === -1) {
+        console.warn(`⚠️ Pokémon non trouvé dans l'équipe`);
+        return;
+      }
+
+      const teamPokemon = team[pokemonIndex];
+      
+      // Mettre à jour les HP
+      if (teamPokemon.currentHp !== battlePokemon.currentHp) {
+        console.log(`💔 HP: ${teamPokemon.currentHp} → ${battlePokemon.currentHp}`);
+        // TODO: Utiliser une méthode du TeamManager pour sauvegarder
+        // teamManager.updatePokemonHp(pokemonIndex, battlePokemon.currentHp);
+      }
+      
+      // Mettre à jour le statut
+      if (teamPokemon.status !== battlePokemon.statusCondition) {
+        console.log(`🌡️ Status: ${teamPokemon.status} → ${battlePokemon.statusCondition}`);
+        // TODO: Utiliser une méthode du TeamManager pour sauvegarder
+        // teamManager.updatePokemonStatus(pokemonIndex, battlePokemon.statusCondition);
+      }
+      
+      // TODO: Mettre à jour les PP des moves utilisés
+      
+      console.log(`✅ ${battlePokemon.name} mis à jour`);
+      
+    } catch (error) {
+      console.error(`❌ Erreur mise à jour Pokémon:`, error);
+    }
   }
 
   // === COMMUNICATION AVEC WORLDROOM ===
