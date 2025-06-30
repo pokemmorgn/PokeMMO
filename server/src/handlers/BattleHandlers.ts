@@ -151,7 +151,7 @@ export class BattleHandlers {
       };
 
       // Créer la BattleRoom
-      const battleRoom = await matchMaker.createRoom("BattleRoom", battleInitData);
+      const battleRoom = await matchMaker.createRoom("battle", battleInitData)
       console.log(`🏠 [BattleHandlers] BattleRoom créée: ${battleRoom.roomId}`);
 
       // Enregistrer le combat
