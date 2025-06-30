@@ -117,21 +117,80 @@ export class StarterSelector {
   graphics.destroy();
 }
 createInterface() {
-  const centerX = this.scene.cameras.main.centerX;
-  const centerY = this.scene.cameras.main.centerY;
-  const camera = this.scene.cameras.main;
+  // Créer l'overlay HTML au lieu du container Phaser
+  this.createHTMLInterface();
+}
 
-  this.container = this.scene.add.container(centerX, centerY);
-  this.container.setDepth(1000);
-
-  // Background PNG étiré sur tout l'écran
-  const bg = this.scene.add.image(0, 0, 'lab_bg');
-  bg.setDisplaySize(camera.width, camera.height);
-  this.container.add(bg);
-
-  this.createStarters();
-  this.createUI();
-  this.container.setAlpha(0);
+createHTMLInterface() {
+  // Créer l'overlay
+  this.overlay = document.createElement('div');
+  this.overlay.className = 'starter-overlay hidden';
+  
+  // Container principal
+  this.container = document.createElement('div');
+  this.container.className = 'starter-container';
+  
+  // Header
+  const header = document.createElement('div');
+  header.className = 'starter-header';
+  header.innerHTML = `
+    <div class="starter-title">
+      <div class="starter-main-title">Choisissez votre Pokémon</div>
+      <div class="starter-subtitle">Votre compagnon pour la vie</div>
+    </div>
+  `;
+  
+  // Content
+  const content = document.createElement('div');
+  content.className = 'starter-content';
+  
+  // Pokéballs
+  const pokeballs = document.createElement('div');
+  pokeballs.className = 'starter-pokeballs';
+  
+  this.starterOptions.forEach((starter, index) => {
+    const slot = document.createElement('div');
+    slot.className = `starter-pokeball-slot ${starter.id}`;
+    slot.innerHTML = `
+      <div class="starter-pokeball" style="background-image: url('data:image/svg+xml,${this.getPokeballSVG()}')"></div>
+      <div class="starter-name">${starter.name}</div>
+      <div class="starter-type ${starter.type.toLowerCase()}">${starter.type}</div>
+    `;
+    
+    slot.addEventListener('click', () => this.selectStarter(starter, index));
+    pokeballs.appendChild(slot);
+  });
+  
+  // Section info
+  const infoSection = document.createElement('div');
+  infoSection.className = 'starter-info-section';
+  infoSection.innerHTML = `
+    <div class="starter-info-empty">Survolez un Pokémon pour voir ses détails</div>
+  `;
+  
+  content.appendChild(pokeballs);
+  content.appendChild(infoSection);
+  
+  // Footer avec bouton
+  const footer = document.createElement('div');
+  footer.className = 'starter-footer';
+  footer.innerHTML = `
+    <button class="starter-confirm-btn">
+      <span>⚡</span> Confirmer
+    </button>
+  `;
+  
+  // Assembler
+  this.container.appendChild(header);
+  this.container.appendChild(content);
+  this.container.appendChild(footer);
+  this.overlay.appendChild(this.container);
+  
+  // Ajouter au DOM
+  document.body.appendChild(this.overlay);
+  
+  // Event listeners
+  this.setupHTMLEvents();
 }
 
   
