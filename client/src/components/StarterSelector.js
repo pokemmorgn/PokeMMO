@@ -791,7 +791,7 @@ export class StarterSelector {
     pokemonSprite.style.cssText = `
       width: 80px;
       height: 80px;
-      background-image: url('/assets/pokemon/front/${this.getPokemonId(starter.id)}.png');
+      background-image: url('/assets/pokemon/portait/${this.getPokemonId(starter.id)}.png');
       background-size: contain;
       background-repeat: no-repeat;
       background-position: center;
@@ -903,11 +903,11 @@ export class StarterSelector {
   // ✅ MÉTHODE: Obtenir l'ID numérique du Pokémon
   getPokemonId(starterId) {
     const pokemonIds = {
-      'bulbasaur': '001',
-      'charmander': '004', 
-      'squirtle': '007'
+      'bulbasaur': '0001',
+      'charmander': '0004', 
+      'squirtle': '0007'
     };
-    return pokemonIds[starterId] || '001';
+    return pokemonIds[starterId] || '0001';
   }
 
   // ✅ MÉTHODE: Confirmer la sélection
