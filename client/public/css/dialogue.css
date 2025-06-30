@@ -82,9 +82,10 @@
   line-height: 1.5;
 }
 
-#npc-text i {
+/* Italique automatique pour le narrateur */
+#dialogue-box[data-speaker="Narrator"] #npc-text {
   font-style: italic;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
 }
 
 /* ============================================================================
