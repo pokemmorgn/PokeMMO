@@ -598,15 +598,15 @@ finishIntro() {
                 }
                 this.psyduck = null;
 
-                // === ICI ON PRÉVIENT LE SERVEUR ===
+                this.cleanup();
+                               // === ICI ON PRÉVIENT LE SERVEUR ===
                 if (this.scene.room) {
                   this.scene.room.send("progressIntroQuest", {
+                    step: "intro_completed",
                     playerName: this.scene.playerManager?.getMyPlayer()?.name || "unknown"
                   });
                   console.log("📤 [PsyduckIntro] Notification 'introp2' envoyée au serveur");
                 }
-
-                this.cleanup();
               }
             });
           }
