@@ -16,6 +16,7 @@ export class QuestHandlers {
 
     // ✅ === HANDLERS PROGRESSION QUÊTES ===
     this.room.onMessage("progressIntroQuest", async (client: Client, data: { step: string }) => {
+      console.log(`📨 PROGRESS INTRO RECEIVED...`);
       await this.handleProgressIntroQuest(client, data.step);
     });
 
