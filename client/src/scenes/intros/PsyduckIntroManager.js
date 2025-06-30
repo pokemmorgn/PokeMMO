@@ -341,13 +341,14 @@ export class PsyduckIntroManager {
       this.notifyServer("psyduck_talked");
       
       this.showDialogue([
-        "Psy? Psy... duck?",
-        "The yellow duck-like creature tilts its head, looking confused",
-        "It holds its head with both hands... seems to have a headache",
-        "Psy... psy duck? Psy?",
-        "Despite its confusion, it points toward some buildings in the distance",
-        "Maybe it's trying to tell you something about that place?"
+        { text: "Psy? Psy... duck?", speaker: "???", portrait: "/assets/portrait/psyduckPortrait.png" },
+        { text: "The yellow duck-like creature tilts its head, looking confused", speaker: "Narrator", hideName: true },
+        { text: "It holds its head with both hands... seems to have a headache", speaker: "Narrator", hideName: true },
+        { text: "Psy... psy duck? Psy?", speaker: "???", portrait: "/assets/portrait/psyduckPortrait.png" },
+        { text: "Despite its confusion, it points toward some buildings in the distance", speaker: "Narrator", hideName: true },
+        { text: "Maybe it's trying to tell you something about that place?", speaker: "Narrator", hideName: true }
       ]);
+
     } catch (error) {
       console.error(`[PsyduckIntro] Error in phase 3:`, error);
       this.cleanup();
