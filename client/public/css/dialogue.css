@@ -1,5 +1,5 @@
 /* client/public/css/dialogue.css */
-/* Style pour la boîte de dialogue NPC UNIQUEMENT */
+/* Style pour la boîte de dialogue NPC avec indicateur visuel */
 
 #dialogue-box {
   position: absolute;
@@ -23,6 +23,7 @@
   backdrop-filter: blur(8px);
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative;
 }
 
 #dialogue-box:hover {
@@ -74,6 +75,17 @@
     0 0 24px rgba(241, 241, 145, 0.4);
 }
 
+#npc-text {
+  color: #fff;
+  font-size: 16px;
+  text-shadow: 1px 1px 0 #222, 0 0 8px rgba(255, 255, 255, 0.3);
+  line-height: 1.5;
+}
+
+/* ============================================================================
+   INDICATEUR VISUEL POUR CONTINUATION DE DIALOGUE
+   ============================================================================ */
+
 /* Conteneur pour l'indicateur de continuation */
 .dialogue-continue-indicator {
   position: absolute;
@@ -100,7 +112,7 @@
   filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
 }
 
-/* Compteur discret (optionnel) */
+/* Compteur discret */
 .dialogue-counter {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.7);
@@ -144,8 +156,15 @@
   animation: none;
 }
 
-/* Version responsive */
+/* Responsive design pour dialogue */
 @media (max-width: 768px) {
+  #dialogue-box {
+    min-width: calc(100vw - 40px);
+    left: 20px;
+    right: 20px;
+    transform: none;
+  }
+  
   .dialogue-continue-indicator {
     bottom: 8px;
     right: 12px;
@@ -156,22 +175,5 @@
     border-left-width: 6px;
     border-top-width: 5px;
     border-bottom-width: 5px;
-  }
-}
-
-#npc-text {
-  color: #fff;
-  font-size: 16px;
-  text-shadow: 1px 1px 0 #222, 0 0 8px rgba(255, 255, 255, 0.3);
-  line-height: 1.5;
-}
-
-/* Responsive design pour dialogue uniquement */
-@media (max-width: 768px) {
-  #dialogue-box {
-    min-width: calc(100vw - 40px);
-    left: 20px;
-    right: 20px;
-    transform: none;
   }
 }
