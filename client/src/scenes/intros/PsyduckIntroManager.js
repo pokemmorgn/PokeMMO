@@ -379,6 +379,7 @@ export class PsyduckIntroManager {
           showProgress: true,
           narratorName: "Narrator",
           narratorPortrait: "/assets/portrait/systemPortrait.png",
+          hideName: true,
           onComplete: () => {
             this.finishIntro();
           }
