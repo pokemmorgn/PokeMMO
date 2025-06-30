@@ -67,7 +67,7 @@ this.load.audio('lavandia_theme', 'assets/audio/music/lavandia_theme.mp3');
 this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
     
     // Npcs
-    this.load.spritesheet('oldman1', 'assets/npc/oldman1.png', { frameWidth: 32, frameHeight: 48 });
+    this.load.spritesheet('oldman1', 'assets/npc/oldman1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('Scientist', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('OldLady', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('BrownGuy', 'assets/npc/boy1.png', { frameWidth: 32, frameHeight: 32 });
