@@ -14,7 +14,6 @@ import { WorldRoom } from "./rooms/WorldRoom";
 import { connectDB } from "./db";
 import { AuthRoom } from "./rooms/AuthRoom";
 import { MoveManager } from "./managers/MoveManager";
-import { BattleRoom } from './rooms/BattleRoom';
 import  battleRoutes  from './routes/battleRoutes';
 import { PokemonManager } from "./managers/PokemonManager";
 import { WorldChatRoom } from "./rooms/WorldChatRoom";
