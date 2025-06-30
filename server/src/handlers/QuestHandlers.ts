@@ -321,11 +321,11 @@ export class QuestHandlers {
         return;
       }
 
-      const results = await questManager.progressQuest(player.name, data);
+      const result = await questManager.progressQuest(player.name, data);
       
-      if (results && results.length > 0) {
-        console.log(`📤 [QuestHandlers] Envoi questProgressUpdate:`, results);
-        client.send("questProgressUpdate", results);
+      if (result.success && result.results.length > 0) {
+        console.log(`📤 [QuestHandlers] Envoi questProgressUpdate:`, result.results);
+        client.send("questProgressUpdate", result.results);
         
         // Mettre à jour les statuts de quête
         await this.updateQuestStatuses(player.name);
