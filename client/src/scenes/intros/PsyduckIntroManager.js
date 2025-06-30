@@ -1,6 +1,6 @@
 // client/src/scenes/intros/PsyduckIntroManager.js
 // ===============================================
-// Gestionnaire d'intro avec Psyduck pour BeachScene
+// Gestionnaire d'intro avec Psyduck pour BeachScene + Intégration quêtes serveur
 // ===============================================
 
 export class PsyduckIntroManager {
@@ -9,7 +9,100 @@ export class PsyduckIntroManager {
     this.isPlaying = false;
     this.psyduck = null;
     this.onCompleteCallback = null;
+    this.questIntegrationEnabled = false;
+    
+    // ✅ NOUVEAU: Setup des écoutes serveur
+    this.setupServerListeners();
   }
+
+  // ✅ === INTÉGRATION SERVEUR POUR LES QUÊTES ===
+  
+  /**
+   * Configure les écoutes des messages serveur
+   */
+  setupServerListeners() {
+    if (!this.scene.room) {
+      console.warn(`⚠️ [PsyduckIntro] Pas de room disponible pour les écoutes serveur`);
+      return;
+    }
+
+    console.log(`📡 [PsyduckIntro] Configuration écoutes serveur`);
+
+    // Écouter le déclenchement de l'intro depuis le serveur
+    this.scene.room.onMessage("triggerIntroSequence", (data) => {
+      console.log("🎬 [PsyduckIntro] Serveur demande intro:", data);
+      
+      if (data.shouldStartIntro && !this.isPlaying) {
+        this.questIntegrationEnabled = true;
+        
+        // Déclencher l'intro avec un court délai
+        this.scene.time.delayedCall(500, () => {
+          this.startIntro(() => {
+            console.log("✅ [PsyduckIntro] Intro terminée avec intégration serveur");
+            
+            // Notifier la completion finale au serveur
+            if (this.questIntegrationEnabled) {
+              this.notifyServer("intro_completed");
+            }
+          });
+          
+          // Notifier immédiatement que l'intro a commencé
+          this.notifyServer("intro_watched");
+        });
+      }
+    });
+    
+    // Écouter la completion de la quête d'intro
+    this.scene.room.onMessage("introQuestCompleted", (data) => {
+      console.log("🎉 [PsyduckIntro] Quête d'intro terminée:", data);
+      this.showQuestCompletionMessage(data.message);
+    });
+
+    console.log(`✅ [PsyduckIntro] Écoutes serveur configurées`);
+  }
+
+  /**
+   * Notifie le serveur des progressions de quête
+   */
+  notifyServer(step) {
+    if (!this.questIntegrationEnabled || !this.scene.room) {
+      console.log(`ℹ️ [PsyduckIntro] Skip notification serveur: ${step} (intégration: ${this.questIntegrationEnabled})`);
+      return;
+    }
+
+    console.log(`📤 [PsyduckIntro] Notification serveur: ${step}`);
+    
+    this.scene.room.send("progressIntroQuest", { step: step });
+  }
+
+  /**
+   * Affiche un message de completion de quête
+   */
+  showQuestCompletionMessage(message) {
+    const text = this.scene.add.text(
+      this.scene.cameras.main.width / 2,
+      this.scene.cameras.main.height / 2,
+      message,
+      {
+        fontSize: "18px",
+        color: "#00ff00",
+        backgroundColor: "#000000",
+        padding: { x: 20, y: 10 }
+      }
+    ).setOrigin(0.5).setDepth(2000);
+    
+    // Faire disparaître après 3 secondes
+    this.scene.time.delayedCall(3000, () => {
+      this.scene.tweens.add({
+        targets: text,
+        alpha: 0,
+        duration: 1000,
+        onComplete: () => text.destroy()
+      });
+    });
+  }
+
+  // ✅ === MÉTHODES EXISTANTES MODIFIÉES ===
 
   /**
    * Charge le spritesheet de Psyduck
@@ -58,34 +151,34 @@ export class PsyduckIntroManager {
     }
 
     // Animation marche haut
-if (!anims.exists('psyduck_walk_up')) {
-  anims.create({
-    key: 'psyduck_walk_up',
-    frames: [
-      { key, frame: 16 },
-      { key, frame: 17 },
-      { key, frame: 18 },
-      { key, frame: 19 }
-    ],
-    frameRate: 6,
-    repeat: -1
-  });
-}
+    if (!anims.exists('psyduck_walk_up')) {
+      anims.create({
+        key: 'psyduck_walk_up',
+        frames: [
+          { key, frame: 16 },
+          { key, frame: 17 },
+          { key, frame: 18 },
+          { key, frame: 19 }
+        ],
+        frameRate: 6,
+        repeat: -1
+      });
+    }
 
-// Animation marche gauche
-if (!anims.exists('psyduck_walk_left')) {
-  anims.create({
-    key: 'psyduck_walk_left',
-    frames: [
-      { key, frame: 24 },
-      { key, frame: 25 },
-      { key, frame: 26 },
-      { key, frame: 27 }
-    ],
-    frameRate: 6,
-    repeat: -1
-  });
-}
+    // Animation marche gauche
+    if (!anims.exists('psyduck_walk_left')) {
+      anims.create({
+        key: 'psyduck_walk_left',
+        frames: [
+          { key, frame: 24 },
+          { key, frame: 25 },
+          { key, frame: 26 },
+          { key, frame: 27 }
+        ],
+        frameRate: 6,
+        repeat: -1
+      });
+    }
     
     // Animation marche bas (frames 0,1,2,3)
     if (!anims.exists('psyduck_walk_down')) {
@@ -211,6 +304,9 @@ if (!anims.exists('psyduck_walk_left')) {
     // Arrêter l'animation
     this.psyduck.anims.stop();
     this.psyduck.setFrame(0);  // Frame idle vers le bas
+    
+    // ✅ NOUVEAU: Notifier le serveur de l'interaction avec Psyduck
+    this.notifyServer("psyduck_talked");
     
     // Messages d'interaction
     this.showDialogue([
@@ -391,5 +487,6 @@ if (!anims.exists('psyduck_walk_left')) {
     this.forceStop();
     this.scene = null;
     this.onCompleteCallback = null;
+    this.questIntegrationEnabled = false;
   }
 }
