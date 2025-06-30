@@ -85,42 +85,53 @@ export class BeachScene extends BaseZoneScene {
   }
 
   // ✅ === NOUVELLE MÉTHODE: SETUP LISTENERS TÔT ===
-  setupEarlyListeners() {
-    // Vérifier périodiquement si la room est disponible
-    const checkRoom = () => {
-      if (this.room) {
-        console.log(`📡 [BeachScene] Room détectée dans create(), setup listeners`);
-        
-        // Configurer les listeners immédiatement
-        this.psyduckIntroManager.ensureListenersSetup();
-        this.setupServerListeners();
-        
-        return true; // Arrêter le timer
-      }
-      return false; // Continuer à vérifier
-    };
-    
-    // Vérifier immédiatement
-    if (!checkRoom()) {
-      // Si pas de room, vérifier toutes les 50ms pendant 3 secondes
-      let attempts = 0;
-      const maxAttempts = 60; // 3 secondes
+// =================== BeachScene.js ===================
+setupEarlyListeners() {
+  // Vérifier périodiquement si la room est disponible
+  const checkRoom = () => {
+    if (this.room) {
+      console.log(`📡 [BeachScene] Room détectée dans create(), setup listeners`);
       
-      const roomTimer = this.time.addEvent({
-        delay: 50,
-        repeat: maxAttempts,
-        callback: () => {
-          attempts++;
-          if (checkRoom()) {
-            roomTimer.remove();
-          } else if (attempts >= maxAttempts) {
-            console.log(`⚠️ [BeachScene] Timeout attente room dans create()`);
-            roomTimer.remove();
-          }
-        }
+      // 1️⃣ Configurer tous les listeners d'abord
+      this.psyduckIntroManager.ensureListenersSetup();
+      this.setupServerListeners();
+
+      // 2️⃣ (OPTIONNEL) Ajoute ici un catch-all pour debug :
+      this.room.onMessage("*", (type, data) => {
+        console.log("[Colyseus] Catch-all:", type, data);
       });
+
+      // 3️⃣ Envoie "clientReady" tout de suite après que TOUT est branché
+      console.log("[BeachScene] Envoi de clientReady au serveur (écoutes OK)");
+      this.room.send("clientReady");
+
+      return true; // Arrêter le timer
     }
+    return false; // Continuer à vérifier
+  };
+
+  // Vérifier immédiatement
+  if (!checkRoom()) {
+    // Si pas de room, vérifier toutes les 50ms pendant 3 secondes
+    let attempts = 0;
+    const maxAttempts = 60; // 3 secondes
+
+    const roomTimer = this.time.addEvent({
+      delay: 50,
+      repeat: maxAttempts,
+      callback: () => {
+        attempts++;
+        if (checkRoom()) {
+          roomTimer.remove();
+        } else if (attempts >= maxAttempts) {
+          console.log(`⚠️ [BeachScene] Timeout attente room dans create()`);
+          roomTimer.remove();
+        }
+      }
+    });
   }
+}
+
 
   // ✅ === ATTENTE CONNEXION ROOM AVEC INTÉGRATION PSYDUCK ===
   waitForRoomConnection() {
