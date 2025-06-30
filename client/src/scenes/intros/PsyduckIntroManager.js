@@ -341,11 +341,12 @@ export class PsyduckIntroManager {
       this.notifyServer("psyduck_talked");
       
       this.showDialogue([
-        "Psy? Psyduck!",
-        "🦆 *Psyduck seems curious about you*",
-        "🦆 *It points toward the distant village*",
-        "Psy psy! Duck duck!",
-        "🦆 *It encourages you to explore this mysterious region*"
+        "Psy? Psy... duck?",
+        "??? *The yellow duck-like creature tilts its head, looking confused*",
+        "??? *It holds its head with both hands... seems to have a headache*",
+        "Psy... psy duck? Psy?",
+        "??? *Despite its confusion, it points toward some buildings in the distance*",
+        "??? *Maybe it's trying to tell you something about that place?*"
       ]);
     } catch (error) {
       console.error(`[PsyduckIntro] Error in phase 3:`, error);
@@ -371,12 +372,12 @@ export class PsyduckIntroManager {
       }
 
       const success = await window.createSequentialDiscussion(
-        "Psyduck", 
+        "???", 
         "/assets/portrait/psyduckPortrait.png", 
         messages, 
         {
           showProgress: true,
-          narratorName: "Narrator",
+          narratorName: "???",
           narratorPortrait: "/assets/portrait/systemPortrait.png",
           onComplete: () => {
             this.finishIntro();
