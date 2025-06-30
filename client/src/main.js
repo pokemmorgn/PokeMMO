@@ -1317,6 +1317,23 @@ window.hideStarterSelection = function() {
 window.isStarterSelectionActive = function() {
   return StarterUtils.isActive();
 };
+
+    // Ajoute cette fonction après window.isStarterSelectionActive()
+window.debugStarterSelection = function() {
+  console.log("🔍 Debug du système de starter...");
+  const activeScene = window.game?.scene?.getScenes(true)[0];
+  
+  if (activeScene) {
+    console.log("Scène active:", {
+      key: activeScene.scene.key,
+      hasShowFunction: typeof activeScene.showStarterSelection === 'function',
+      isActive: activeScene.isStarterSelectionActive?.() || false
+    });
+  }
+  
+  console.log("StarterUtils disponible:", typeof StarterUtils === 'object');
+  console.log("Fonction test:", typeof StarterUtils.test === 'function');
+};
     
     window.testInventory = function() {
       if (window.inventorySystemGlobal) {
