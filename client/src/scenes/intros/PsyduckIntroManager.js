@@ -1,5 +1,5 @@
 // client/src/scenes/intros/PsyduckIntroManager.js
-// Version avec setup différé des listeners serveur
+// Manages Psyduck intro sequence with sequential dialogue system
 
 export class PsyduckIntroManager {
   constructor(scene) {
@@ -9,171 +9,99 @@ export class PsyduckIntroManager {
     this.onCompleteCallback = null;
     this.questIntegrationEnabled = false;
     this.fallbackMode = false;
-    this.listenersSetup = false; // ✅ NOUVEAU: Flag pour savoir si listeners configurés
-    
-    // ✅ NE PAS configurer les écoutes immédiatement
-    // this.setupServerListeners(); - Sera fait quand room disponible
+    this.listenersSetup = false;
   }
 
-  // ✅ === NOUVELLE MÉTHODE: SETUP DIFFÉRÉ DES LISTENERS ===
-  
-  /**
-   * Configure les écoutes serveur seulement si room disponible
-   */
+  // === SERVER LISTENERS SETUP ===
+
   setupServerListenersWhenReady() {
-    if (this.listenersSetup) {
-      console.log(`ℹ️ [PsyduckIntro] Listeners déjà configurés`);
-      return;
-    }
+    if (this.listenersSetup) return;
 
     if (!this.scene.room) {
-      console.warn(`⚠️ [PsyduckIntro] Room non disponible, mode fallback`);
-      this.fallbackMode = true;
-      this.listenersSetup = true; // Marquer comme "configuré" même en fallback
-      return;
-    }
-
-    console.log(`📡 [PsyduckIntro] Configuration écoutes serveur avec room valide`);
-    this.setupServerListeners();
-  }
-
-  /**
-   * Configure les écoutes des messages serveur (version originale)
-   */
-  setupServerListeners() {
-    if (this.listenersSetup) {
-      console.log(`ℹ️ [PsyduckIntro] Listeners déjà configurés`);
-      return;
-    }
-
-    if (!this.scene.room) {
-      console.warn(`⚠️ [PsyduckIntro] Pas de room disponible pour les écoutes serveur`);
-      console.log(`ℹ️ [PsyduckIntro] Mode déconnecté: l'intro peut être déclenchée manuellement`);
       this.fallbackMode = true;
       this.listenersSetup = true;
       return;
     }
 
-    console.log(`📡 [PsyduckIntro] Configuration écoutes serveur`);
+    this.setupServerListeners();
+  }
+
+  setupServerListeners() {
+    if (this.listenersSetup || !this.scene.room) {
+      this.fallbackMode = true;
+      this.listenersSetup = true;
+      return;
+    }
 
     try {
-      // ✅ FIX: Écouter triggerIntroSequence dans PsyduckIntroManager
       this.scene.room.onMessage("triggerIntroSequence", (data) => {
-        console.log("🎬 [PsyduckIntro] Serveur demande intro:", data);
-        
         if (data.shouldStartIntro && !this.isPlaying) {
           this.questIntegrationEnabled = true;
           this.fallbackMode = false;
           
-          console.log(`🔄 [PsyduckIntro] Upgrade vers mode serveur (intro pas encore commencée)`);
-          
-          // Déclencher l'intro avec un court délai
           this.scene.time.delayedCall(500, () => {
             this.startIntro(() => {
-              console.log("✅ [PsyduckIntro] Intro terminée avec intégration serveur");
-              
-              // Notifier la completion finale au serveur
               if (this.questIntegrationEnabled) {
                 this.notifyServer("intro_completed");
               }
             });
-            
-            // Notifier immédiatement que l'intro a commencé
             this.notifyServer("intro_watched");
           });
-          
         } else if (data.shouldStartIntro && this.isPlaying) {
-          console.log(`🔄 [PsyduckIntro] Upgrade vers mode serveur (intro en cours)`);
           this.upgradeToServerMode();
         }
       });
       
-      // ✅ FIX: Écouter questGranted pour les notifications de quête
       this.scene.room.onMessage("questGranted", (data) => {
-        // Uniquement pour debug ou logique vraiment liée à l'intro
-        // console.log("🎁 [PsyduckIntro] Nouvelle quête reçue:", data);
-        // Pas de notif UI ici, si déjà gérée ailleurs
+        // Quest notifications handled elsewhere
       });
       
-      // Écouter la completion de la quête d'intro
       this.scene.room.onMessage("introQuestCompleted", (data) => {
-        console.log("🎉 [PsyduckIntro] Quête d'intro terminée:", data);
         this.showQuestCompletionMessage(data.message);
       });
 
       this.listenersSetup = true;
-      console.log(`✅ [PsyduckIntro] Écoutes serveur configurées`);
-      
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur lors de la configuration des écoutes:`, error);
+      console.error(`[PsyduckIntro] Error setting up listeners:`, error);
       this.fallbackMode = true;
       this.listenersSetup = true;
     }
   }
 
-  /**
-   * ✅ MÉTHODE PUBLIQUE: Pour que BeachScene puisse configurer les listeners
-   */
   ensureListenersSetup() {
     this.setupServerListenersWhenReady();
   }
 
-  /**
-   * ✅ NOUVELLE MÉTHODE: Upgrade vers mode serveur pendant l'intro
-   */
   upgradeToServerMode() {
-    if (this.listenersSetup && !this.fallbackMode) {
-      console.log(`ℹ️ [PsyduckIntro] Déjà en mode serveur`);
-      return;
-    }
+    if (this.listenersSetup && !this.fallbackMode) return;
 
-    console.log(`🔄 [PsyduckIntro] Upgrade vers mode serveur pendant l'intro`);
-    
-    // Configurer les listeners si pas déjà fait
     if (!this.listenersSetup) {
       this.ensureListenersSetup();
     }
     
-    // Passer en mode serveur
     if (this.scene.room) {
       this.fallbackMode = false;
       this.questIntegrationEnabled = true;
-      console.log(`✅ [PsyduckIntro] Mode serveur activé pendant l'intro`);
     }
   }
-  startIntroFallback() {
-    if (this.isPlaying) {
-      console.warn(`⚠️ [PsyduckIntro] Intro déjà en cours`);
-      return;
-    }
 
-    console.log(`🎬 [PsyduckIntro] Mode fallback: Démarrage intro sans serveur`);
-    
-    // S'assurer que les listeners sont marqués comme configurés (en mode fallback)
+  // === INTRO CONTROL ===
+
+  startIntroFallback() {
+    if (this.isPlaying) return;
+
     this.questIntegrationEnabled = false;
     this.fallbackMode = true;
     this.listenersSetup = true;
     
     this.startIntro(() => {
-      console.log("✅ [PsyduckIntro] Intro terminée en mode fallback");
+      console.log("Intro completed in fallback mode");
     });
   }
 
-  /**
-   * Démarre l'intro complète (version modifiée)
-   */
   startIntro(onComplete = null) {
-    if (this.isPlaying) {
-      console.warn(`⚠️ [PsyduckIntro] Intro déjà en cours`);
-      return;
-    }
+    if (this.isPlaying || !this.scene) return;
 
-    if (!this.scene) {
-      console.error(`❌ [PsyduckIntro] Scene non disponible`);
-      return;
-    }
-
-    // ✅ S'assurer que les listeners sont configurés avant de commencer
     if (!this.listenersSetup) {
       this.ensureListenersSetup();
     }
@@ -181,51 +109,30 @@ export class PsyduckIntroManager {
     this.isPlaying = true;
     this.onCompleteCallback = onComplete;
     
-    console.log(`🎬 [PsyduckIntro] === DÉBUT INTRO PSYDUCK ===`);
-    console.log(`🔧 Mode: ${this.fallbackMode ? 'FALLBACK' : 'SERVEUR'}`);
-    console.log(`📡 Listeners: ${this.listenersSetup ? 'CONFIGURÉS' : 'NON CONFIGURÉS'}`);
-    
-    // Bloquer les inputs du joueur
     this.blockPlayerInputs();
-    
-    // Charger le spritesheet si nécessaire
     this.loadPsyduckSpritesheet();
     
-    // Attendre un peu que tout soit chargé puis commencer
     this.scene.time.delayedCall(500, () => {
       this.spawnPsyduck();
     });
   }
 
-  /**
-   * Notifie le serveur des progressions de quête
-   */
   notifyServer(step) {
     if (!this.questIntegrationEnabled || !this.scene.room || this.fallbackMode) {
-      console.log(`ℹ️ [PsyduckIntro] Skip notification serveur: ${step} (intégration: ${this.questIntegrationEnabled}, fallback: ${this.fallbackMode})`);
       return;
     }
 
-    console.log(`📤 [PsyduckIntro] Notification serveur: ${step}`);
-    
     try {
       this.scene.room.send("progressIntroQuest", { step: step });
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur notification serveur:`, error);
-      // Passer en mode fallback si erreur de communication
+      console.error(`[PsyduckIntro] Server notification error:`, error);
       this.fallbackMode = true;
       this.questIntegrationEnabled = false;
     }
   }
 
-  /**
-   * Affiche un message de completion de quête
-   */
   showQuestCompletionMessage(message) {
-    if (!this.scene || !this.scene.add) {
-      console.warn(`⚠️ [PsyduckIntro] Scene non disponible pour afficher le message`);
-      return;
-    }
+    if (!this.scene || !this.scene.add) return;
 
     try {
       const text = this.scene.add.text(
@@ -240,7 +147,6 @@ export class PsyduckIntroManager {
         }
       ).setOrigin(0.5).setDepth(2000);
       
-      // Faire disparaître après 3 secondes
       this.scene.time.delayedCall(3000, () => {
         if (text && text.scene) {
           this.scene.tweens.add({
@@ -256,18 +162,16 @@ export class PsyduckIntroManager {
         }
       });
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur affichage message:`, error);
+      console.error(`[PsyduckIntro] Error displaying message:`, error);
     }
   }
 
-  // ✅ === MÉTHODES EXISTANTES INCHANGÉES ===
+  // === PSYDUCK SETUP ===
   
   loadPsyduckSpritesheet() {
     const key = 'psyduck_walk';
     
     if (!this.scene.textures.exists(key)) {
-      console.log(`🦆 [PsyduckIntro] Chargement spritesheet Psyduck...`);
-      
       try {
         this.scene.load.spritesheet(key, 'assets/pokemon/054_psyduck/Walk-Anim.png', {
           frameWidth: 24,
@@ -280,7 +184,7 @@ export class PsyduckIntroManager {
         
         this.scene.load.start();
       } catch (error) {
-        console.error(`❌ [PsyduckIntro] Erreur chargement spritesheet:`, error);
+        console.error(`[PsyduckIntro] Error loading spritesheet:`, error);
       }
     } else {
       this.createPsyduckAnimations();
@@ -288,90 +192,72 @@ export class PsyduckIntroManager {
   }
 
   createPsyduckAnimations() {
-    if (!this.scene || !this.scene.anims) {
-      console.error(`❌ [PsyduckIntro] Scene ou anims non disponible`);
-      return;
-    }
+    if (!this.scene || !this.scene.anims) return;
 
     const anims = this.scene.anims;
     const key = 'psyduck_walk';
     
     try {
-      // Animation marche droite (frames 8,9,10,11)
       if (!anims.exists('psyduck_walk_right')) {
         anims.create({
           key: 'psyduck_walk_right',
           frames: [
-            { key, frame: 8 },
-            { key, frame: 9 },
-            { key, frame: 10 },
-            { key, frame: 11 }
+            { key, frame: 8 }, { key, frame: 9 },
+            { key, frame: 10 }, { key, frame: 11 }
           ],
           frameRate: 6,
           repeat: -1
         });
       }
 
-      // Animation marche haut
       if (!anims.exists('psyduck_walk_up')) {
         anims.create({
           key: 'psyduck_walk_up',
           frames: [
-            { key, frame: 16 },
-            { key, frame: 17 },
-            { key, frame: 18 },
-            { key, frame: 19 }
+            { key, frame: 16 }, { key, frame: 17 },
+            { key, frame: 18 }, { key, frame: 19 }
           ],
           frameRate: 6,
           repeat: -1
         });
       }
 
-      // Animation marche gauche
       if (!anims.exists('psyduck_walk_left')) {
         anims.create({
           key: 'psyduck_walk_left',
           frames: [
-            { key, frame: 24 },
-            { key, frame: 25 },
-            { key, frame: 26 },
-            { key, frame: 27 }
+            { key, frame: 24 }, { key, frame: 25 },
+            { key, frame: 26 }, { key, frame: 27 }
           ],
           frameRate: 6,
           repeat: -1
         });
       }
       
-      // Animation marche bas (frames 0,1,2,3)
       if (!anims.exists('psyduck_walk_down')) {
         anims.create({
           key: 'psyduck_walk_down',
           frames: [
-            { key, frame: 0 },
-            { key, frame: 1 },
-            { key, frame: 2 },
-            { key, frame: 3 }
+            { key, frame: 0 }, { key, frame: 1 },
+            { key, frame: 2 }, { key, frame: 3 }
           ],
           frameRate: 6,
           repeat: -1
         });
       }
-
-      console.log(`✅ [PsyduckIntro] Animations créées`);
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur création animations:`, error);
+      console.error(`[PsyduckIntro] Error creating animations:`, error);
     }
   }
 
+  // === INTRO PHASES ===
+
   spawnPsyduck() {
     if (!this.scene || !this.scene.add) {
-      console.error(`❌ [PsyduckIntro] Scene non disponible pour spawn`);
       this.cleanup();
       return;
     }
 
-    console.log(`🦆 [PsyduckIntro] Spawn Psyduck en (160, 32)`);
-    
     try {
       this.psyduck = this.scene.add.sprite(160, 32, 'psyduck_walk', 8)
         .setOrigin(0.5, 1)
@@ -379,214 +265,184 @@ export class PsyduckIntroManager {
       
       this.startPhase1_WalkRight();
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur spawn Psyduck:`, error);
+      console.error(`[PsyduckIntro] Error spawning Psyduck:`, error);
       this.cleanup();
     }
   }
 
   startPhase1_WalkRight() {
     if (!this.psyduck || !this.scene) {
-      console.error(`❌ [PsyduckIntro] Psyduck ou scene non disponible pour phase 1`);
       this.cleanup();
       return;
     }
 
-    console.log(`➡️ [PsyduckIntro] Phase 1 : Marche vers la droite`);
-    
     try {
-      // Jouer l'animation de marche droite
       this.psyduck.anims.play('psyduck_walk_right');
       
-      // Tween pour se déplacer horizontalement
       this.scene.tweens.add({
         targets: this.psyduck,
-        x: 360,  // Destination X
-        duration: 3000,  // 3 secondes
+        x: 360,
+        duration: 3000,
         ease: 'Linear',
         onUpdate: () => {
-          // S'assurer que l'animation continue
           if (this.psyduck && this.psyduck.anims && !this.psyduck.anims.isPlaying) {
             this.psyduck.anims.play('psyduck_walk_right');
           }
         },
         onComplete: () => {
-          console.log(`✅ [PsyduckIntro] Phase 1 terminée`);
           this.startPhase2_WalkDown();
         }
       });
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur phase 1:`, error);
+      console.error(`[PsyduckIntro] Error in phase 1:`, error);
       this.cleanup();
     }
   }
 
-  /**
-   * Phase 2 : Marche de 360,32 vers 360,110 (vers le bas)
-   */
   startPhase2_WalkDown() {
     if (!this.psyduck || !this.scene) {
-      console.error(`❌ [PsyduckIntro] Psyduck ou scene non disponible pour phase 2`);
       this.cleanup();
       return;
     }
 
-    console.log(`⬇️ [PsyduckIntro] Phase 2 : Marche vers le bas`);
-    
     try {
-      // Changer l'animation pour marche vers le bas
       this.psyduck.anims.play('psyduck_walk_down');
       
-      // Tween pour se déplacer verticalement
       this.scene.tweens.add({
         targets: this.psyduck,
-        y: 90,  // Destination Y (près du joueur en 360,120)
-        duration: 2500,  // 2.5 secondes
+        y: 90,
+        duration: 2500,
         ease: 'Linear',
         onUpdate: () => {
-          // S'assurer que l'animation continue
           if (this.psyduck && this.psyduck.anims && !this.psyduck.anims.isPlaying) {
             this.psyduck.anims.play('psyduck_walk_down');
           }
         },
         onComplete: () => {
-          console.log(`✅ [PsyduckIntro] Phase 2 terminée`);
           this.startPhase3_Interaction();
         }
       });
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur phase 2:`, error);
+      console.error(`[PsyduckIntro] Error in phase 2:`, error);
       this.cleanup();
     }
   }
 
-  /**
-   * Phase 3 : Interaction finale
-   */
   startPhase3_Interaction() {
     if (!this.psyduck) {
-      console.error(`❌ [PsyduckIntro] Psyduck non disponible pour phase 3`);
       this.cleanup();
       return;
     }
 
-    console.log(`💬 [PsyduckIntro] Phase 3 : Interaction`);
-    
     try {
-      // Arrêter l'animation
       this.psyduck.anims.stop();
-      this.psyduck.setFrame(0);  // Frame idle vers le bas
+      this.psyduck.setFrame(0);
       
-      // ✅ NOUVEAU: Notifier le serveur de l'interaction avec Psyduck
       this.notifyServer("psyduck_talked");
       
-      // Messages d'interaction
       this.showDialogue([
         "Psy? Psyduck!",
-        "🦆 *Psyduck semble curieux de vous voir*",
-        "🦆 *Il pointe du doigt vers le village*"
+        "🦆 *Psyduck seems curious about you*",
+        "🦆 *It points toward the distant village*",
+        "Psy psy! Duck duck!",
+        "🦆 *It encourages you to explore this mysterious region*"
       ]);
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur phase 3:`, error);
+      console.error(`[PsyduckIntro] Error in phase 3:`, error);
       this.cleanup();
     }
   }
 
-  /**
-   * ✅ NOUVELLE VERSION: Affiche les dialogues avec le système propre
-   */
+  // === DIALOGUE SYSTEM ===
+
   async showDialogue(messages) {
     if (!messages || messages.length === 0) {
-      console.error(`❌ [PsyduckIntro] Pas de messages à afficher`);
+      console.error(`[PsyduckIntro] No messages to display`);
       this.finishIntro();
       return;
     }
 
-    console.log(`💬 [PsyduckIntro] Dialogue avec API globale: ${messages.length} messages`);
-    
     try {
-      // ✅ Vérifier que l'API globale existe
-      if (typeof window.createCustomDiscussion !== 'function') {
-        console.warn(`⚠️ [PsyduckIntro] API globale non disponible, fallback console`);
+      const apiAvailable = await this.waitForSequentialAPI(5000);
+      
+      if (!apiAvailable) {
         this.fallbackToConsole(messages);
         return;
       }
 
-      // ✅ Afficher chaque message avec l'API globale
-      for (let i = 0; i < messages.length; i++) {
-        const message = messages[i];
-        console.log(`💬 Message ${i + 1}/${messages.length}: ${message}`);
-        
-        // ✅ Déterminer le portrait selon le message
-        let npcName = "Psyduck";
-        let portrait = "/assets/portrait/psyduckPortrait.png";
-        
-        if (message.includes("*") || message.includes("🦆")) {
-          npcName = "Narrateur";
-          portrait = "/assets/portrait/systemPortrait.png";
+      const success = await window.createSequentialDiscussion(
+        "Psyduck", 
+        "/assets/portrait/psyduckPortrait.png", 
+        messages, 
+        {
+          showProgress: true,
+          narratorName: "Narrator",
+          narratorPortrait: "/assets/portrait/systemPortrait.png",
+          onComplete: () => {
+            this.finishIntro();
+          }
         }
-        
-        // ✅ Appel direct à l'API globale - SIMPLE !
-        window.createCustomDiscussion(npcName, portrait, message, {
-          autoClose: 2500
-        });
-        
-        // ✅ Attendre que le dialogue se ferme avant le suivant
-        await this.waitFor(3000);
+      );
+      
+      if (!success) {
+        this.fallbackToConsole(messages);
       }
       
-      // ✅ Tous les dialogues terminés
-      this.finishIntro();
-      
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur dialogue:`, error);
+      console.error(`[PsyduckIntro] Dialogue error:`, error);
       this.fallbackToConsole(messages);
     }
   }
 
-  /**
-   * ✅ Fallback si l'API globale n'est pas disponible
-   */
+  waitForSequentialAPI(maxWaitTime = 5000) {
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      
+      const checkAPI = () => {
+        if (typeof window.createSequentialDiscussion === 'function') {
+          resolve(true);
+          return;
+        }
+        
+        if (Date.now() - startTime >= maxWaitTime) {
+          resolve(false);
+          return;
+        }
+        
+        setTimeout(checkAPI, 100);
+      };
+      
+      checkAPI();
+    });
+  }
+
   fallbackToConsole(messages) {
-    console.log(`📢 [PsyduckIntro] === MESSAGES PSYDUCK (Fallback) ===`);
+    console.log(`[PsyduckIntro] === PSYDUCK MESSAGES (Fallback) ===`);
     messages.forEach((msg, i) => {
       console.log(`  ${i + 1}. ${msg}`);
     });
     console.log(`===============================================`);
     
-    // Continuer après un délai
     setTimeout(() => {
       this.finishIntro();
     }, 2000);
   }
 
-  /**
-   * ✅ Utilitaire simple pour attendre
-   */
-  waitFor(ms) {
-    return new Promise(resolve => {
-      setTimeout(resolve, ms);
-    });
-  }
+  // === INTRO COMPLETION ===
 
-  /**
-   * Termine l'intro
-   */
   finishIntro() {
     if (!this.psyduck || !this.scene) {
-      console.log(`⚠️ [PsyduckIntro] Finish intro sans Psyduck/scene, cleanup direct`);
       this.cleanup();
       return;
     }
 
-    console.log(`🎉 [PsyduckIntro] === FIN INTRO ===`);
-    
     try {
-      // Phase 4 : Retour vers le haut (360,32)
+      // Return to top
       this.psyduck.anims.play('psyduck_walk_up');
       
       this.scene.tweens.add({
         targets: this.psyduck,
-        y: 32,  // Retour à la position Y initiale
+        y: 32,
         duration: 2500,
         ease: 'Linear',
         onComplete: () => {
@@ -595,12 +451,12 @@ export class PsyduckIntroManager {
             return;
           }
           
-          // Phase 5 : Retour vers la gauche (160,32)
+          // Return to left
           this.psyduck.anims.play('psyduck_walk_left');
           
           this.scene.tweens.add({
             targets: this.psyduck,
-            x: 160,  // Retour à la position X initiale
+            x: 160,
             duration: 3000,
             ease: 'Linear',
             onComplete: () => {
@@ -609,7 +465,7 @@ export class PsyduckIntroManager {
                 return;
               }
               
-              // Disparition finale
+              // Fade out
               this.scene.tweens.add({
                 targets: this.psyduck,
                 alpha: 0,
@@ -621,13 +477,12 @@ export class PsyduckIntroManager {
                   this.psyduck = null;
 
                   this.cleanup();
-                                 // === ICI ON PRÉVIENT LE SERVEUR ===
+                  
                   if (this.scene.room) {
                     this.scene.room.send("progressIntroQuest", {
                       step: "intro_watched",
                       playerName: this.scene.playerManager?.getMyPlayer()?.name || "unknown"
                     });
-                    console.log("📤 [PsyduckIntro] Notification 'introp2' envoyée au serveur");
                   }
                 }
               });
@@ -636,41 +491,29 @@ export class PsyduckIntroManager {
         }
       });
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur finish intro:`, error);
+      console.error(`[PsyduckIntro] Error finishing intro:`, error);
       this.cleanup();
     }
   }
 
-  /**
-   * Nettoie et débloque le joueur
-   */
   cleanup() {
-    console.log(`🧹 [PsyduckIntro] Nettoyage`);
-    
     try {
       this.isPlaying = false;
       this.unblockPlayerInputs();
       
-      // Callback de fin d'intro
       if (this.onCompleteCallback) {
         this.onCompleteCallback();
         this.onCompleteCallback = null;
       }
-      
-      console.log(`✅ [PsyduckIntro] Joueur débloqué, intro terminée`);
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur cleanup:`, error);
+      console.error(`[PsyduckIntro] Cleanup error:`, error);
     }
   }
 
-  /**
-   * Bloque les inputs du joueur
-   */
+  // === INPUT CONTROL ===
+
   blockPlayerInputs() {
-    if (!this.scene) {
-      console.warn(`⚠️ [PsyduckIntro] Scene non disponible pour bloquer inputs`);
-      return;
-    }
+    if (!this.scene) return;
 
     try {
       if (this.scene.input && this.scene.input.keyboard) {
@@ -682,23 +525,14 @@ export class PsyduckIntroManager {
         myPlayer.body.enable = false;
       }
       
-      // Marquer que l'intro bloque
       this.scene._introBlocked = true;
-      
-      console.log(`🔒 [PsyduckIntro] Inputs bloqués`);
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur blocage inputs:`, error);
+      console.error(`[PsyduckIntro] Error blocking inputs:`, error);
     }
   }
 
-  /**
-   * Débloque les inputs du joueur
-   */
   unblockPlayerInputs() {
-    if (!this.scene) {
-      console.warn(`⚠️ [PsyduckIntro] Scene non disponible pour débloquer inputs`);
-      return;
-    }
+    if (!this.scene) return;
 
     try {
       if (this.scene.input && this.scene.input.keyboard) {
@@ -710,25 +544,18 @@ export class PsyduckIntroManager {
         myPlayer.body.enable = true;
       }
       
-      // Démarquer le blocage
       this.scene._introBlocked = false;
-      
-      console.log(`🔓 [PsyduckIntro] Inputs débloqués`);
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur déblocage inputs:`, error);
+      console.error(`[PsyduckIntro] Error unblocking inputs:`, error);
     }
   }
 
-  /**
-   * Force l'arrêt de l'intro (si nécessaire)
-   */
+  // === UTILITY METHODS ===
+
   forceStop() {
     if (!this.isPlaying) return;
     
-    console.log(`🛑 [PsyduckIntro] Arrêt forcé`);
-    
     try {
-      // Supprimer Psyduck s'il existe
       if (this.psyduck) {
         if (this.psyduck.destroy) {
           this.psyduck.destroy();
@@ -736,31 +563,19 @@ export class PsyduckIntroManager {
         this.psyduck = null;
       }
       
-      // Nettoyer
       this.cleanup();
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur force stop:`, error);
-      // Force cleanup même en cas d'erreur
+      console.error(`[PsyduckIntro] Force stop error:`, error);
       this.isPlaying = false;
       this.psyduck = null;
       this.unblockPlayerInputs();
     }
   }
 
-  /**
-   * Vérifie si l'intro est en cours
-   */
   isIntroPlaying() {
     return this.isPlaying;
   }
 
-  /**
-   * ✅ NOUVELLES MÉTHODES DE DEBUG ET STATUS
-   */
-  
-  /**
-   * Retourne l'état complet de l'intro manager
-   */
   getStatus() {
     return {
       isPlaying: this.isPlaying,
@@ -774,32 +589,9 @@ export class PsyduckIntroManager {
     };
   }
 
-  /**
-   * Debug de l'état actuel
-   */
-  debugStatus() {
-    console.log(`🔍 [PsyduckIntro] === DEBUG STATUS ===`);
-    console.log(`📊 Status:`, this.getStatus());
-    console.log(`🦆 Psyduck:`, this.psyduck ? {
-      x: this.psyduck.x,
-      y: this.psyduck.y,
-      visible: this.psyduck.visible,
-      alpha: this.psyduck.alpha
-    } : 'null');
-    console.log(`======================================`);
-  }
-
-  /**
-   * Test de l'intro (mode développement)
-   */
   testIntro() {
-    console.log(`🧪 [PsyduckIntro] Test intro (mode développement)`);
-    
     if (this.isPlaying) {
-      console.log(`⚠️ [PsyduckIntro] Intro déjà en cours, arrêt forcé d'abord`);
       this.forceStop();
-      
-      // Redémarrer après un délai
       setTimeout(() => {
         this.startIntroFallback();
       }, 1000);
@@ -808,30 +600,7 @@ export class PsyduckIntroManager {
     }
   }
 
-  /**
-   * ✅ Test rapide des dialogues (pour debug)
-   */
-  quickTestDialogue() {
-    console.log(`🧪 [PsyduckIntro] Test rapide dialogue`);
-    
-    // ✅ Test direct avec l'API globale
-    if (typeof window.createCustomDiscussion === 'function') {
-      window.createCustomDiscussion(
-        "Psyduck Test", 
-        "/assets/portrait/psyduckPortrait.png", 
-        "Test du dialogue Psyduck !"
-      );
-    } else {
-      console.error(`❌ API createCustomDiscussion non disponible`);
-    }
-  }
-
-  /**
-   * Nettoie complètement le manager
-   */
   destroy() {
-    console.log(`💀 [PsyduckIntro] Destruction complète`);
-    
     try {
       this.forceStop();
       this.scene = null;
@@ -839,10 +608,8 @@ export class PsyduckIntroManager {
       this.questIntegrationEnabled = false;
       this.fallbackMode = false;
       this.listenersSetup = false;
-      
-      console.log(`✅ [PsyduckIntro] Destruction terminée`);
     } catch (error) {
-      console.error(`❌ [PsyduckIntro] Erreur destruction:`, error);
+      console.error(`[PsyduckIntro] Destruction error:`, error);
     }
   }
 }
