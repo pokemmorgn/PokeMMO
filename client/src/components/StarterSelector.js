@@ -1,4 +1,5 @@
 // ✅ Système de sélection de starter CORRIGÉ pour PokéMon MMO
+import '../../public/css/starterSelector.css';
 
 export class StarterSelector {
   constructor(scene) {
