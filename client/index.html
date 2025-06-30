@@ -124,6 +124,12 @@
       ? `<img src="${portrait}" alt="${name}" style="max-width:80px;max-height:80px;">`
       : "";
     npcName.innerText = name || "";
+        if (hideName) {
+      npcName.style.display = "none";
+    } else {
+      npcName.style.display = "";
+    }
+    
     npcText.innerText = window._npcDialogueState.lines[0] || "";
 
     // Close with click
