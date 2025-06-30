@@ -59,6 +59,13 @@ export class QuestHandlers {
       await this.handleDebugPlayerQuests(client);
     });
 
+      // ✅ HANDLER CLIENT READY (le nouveau)
+  this.room.onMessage("clientReady", (client: Client) => {
+    // Tu peux bloquer le joueur ici si besoin (facultatif)
+    // this.room.blockPlayerMovement(client.sessionId, "intro", 3000, {});
+    this.handleCheckAutoIntroQuest(client);
+  });
+    
     console.log(`✅ Quest handlers configurés (${this.getHandlerCount()} handlers)`);
   }
 
