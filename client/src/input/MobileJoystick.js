@@ -345,42 +345,43 @@ export class MobileJoystick {
   }
 
   // ✅ Nettoyage amélioré
-  destroy() {
-    console.log('🧹 Destruction MobileJoystick...');
-    
-    // ✅ Nettoyer les événements de la zone interactive
-    if (this.interactiveZone) {
-      this.interactiveZone.off('pointerdown', this.onPointerDown, this);
-      if (this.isMobile) {
-        this.interactiveZone.off('pointerout', this.onPointerUp, this);
-        this.interactiveZone.off('pointercancel', this.onPointerUp, this);
-      }
-    }
-    
-    // ✅ Nettoyer les événements de la scène
-    if (this.scene && this.scene.input) {
-      this.scene.input.off('pointermove', this.onPointerMove, this);
-      this.scene.input.off('pointerup', this.onPointerUp, this);
-    }
-    
-    // ✅ Détruire le conteneur
-    if (this.joystickContainer) {
-      this.joystickContainer.destroy();
-      this.joystickContainer = null;
-    }
-    
-    // ✅ Retirer les event listeners globaux
+destroy() {
+  console.log('🧹 Destruction MobileJoystick...');
+
+  // Nettoyer les événements
+  if (this.interactiveZone) {
+    this.interactiveZone.off('pointerdown', this.onPointerDown, this);
     if (this.isMobile) {
-      window.removeEventListener('orientationchange', this.repositionForOrientation);
+      this.interactiveZone.off('pointerout', this.onPointerUp, this);
+      this.interactiveZone.off('pointercancel', this.onPointerUp, this);
     }
-    
-    // ✅ Nettoyer les références
+    // 🔥 Ajoute ceci :
+    if (this.interactiveZone.destroy) {
+      this.interactiveZone.destroy();
+    }
     this.interactiveZone = null;
-    this.base = null;
-    this.knob = null;
-    this.directionIndicator = null;
-    this.callbacks = {};
-    
-    console.log('✅ MobileJoystick détruit');
   }
+
+  if (this.scene && this.scene.input) {
+    this.scene.input.off('pointermove', this.onPointerMove, this);
+    this.scene.input.off('pointerup', this.onPointerUp, this);
+  }
+
+  if (this.joystickContainer) {
+    this.joystickContainer.destroy(true); // force child destroy
+    this.joystickContainer = null;
+  }
+
+  if (this.isMobile) {
+    window.removeEventListener('orientationchange', this.repositionForOrientation);
+  }
+
+  this.base = null;
+  this.knob = null;
+  this.directionIndicator = null;
+  this.callbacks = {};
+
+  console.log('✅ MobileJoystick détruit');
+}
+
 }
