@@ -76,6 +76,7 @@ export class BeachScene extends BaseZoneScene {
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.psyduckIntroManager = new PsyduckIntroManager(this);
 
+    this.setupServerListeners();
     this.setupBeachEvents();
   }
 
