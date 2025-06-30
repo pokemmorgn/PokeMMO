@@ -1,5 +1,5 @@
 /* client/public/css/dialogue.css */
-/* Style pour la boîte de dialogue NPC avec indicateur visuel */
+/* Style pour la boîte de dialogue NPC UNIQUEMENT */
 
 #dialogue-box {
   position: absolute;
@@ -23,7 +23,6 @@
   backdrop-filter: blur(8px);
   cursor: pointer;
   transition: all 0.3s ease;
-  position: relative;
 }
 
 #dialogue-box:hover {
@@ -156,7 +155,7 @@
   animation: none;
 }
 
-/* Responsive design pour dialogue */
+/* Responsive design pour dialogue uniquement */
 @media (max-width: 768px) {
   #dialogue-box {
     min-width: calc(100vw - 40px);
