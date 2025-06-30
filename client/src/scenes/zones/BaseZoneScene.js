@@ -37,6 +37,9 @@ export class BaseZoneScene extends Phaser.Scene {
     this.myPlayerReady = false;
     this.globalWeatherManager = null;
     this.weatherSystemType = null; // 'global', 'fallback'
+
+    this.networkManager = (this.scene?.settings?.data?.networkManager) || window.globalNetworkManager;
+    this.room = this.networkManager?.room || window.currentGameRoom;
     
     // Inventaire
     this.inventorySystem = null;
@@ -132,7 +135,8 @@ create() {
       return;
     }
 
-    this.networkManager = window.globalNetworkManager;
+    this.networkManager = this.networkManager || window.globalNetworkManager;
+    console.log('[BaseZoneScene] NetworkManager utilisé :', this.networkManager, 'Room:', this.room);
     this.mySessionId = this.networkManager.getSessionId();
 
     console.log(`✅ [${this.scene.key}] NetworkManager récupéré:`, {
