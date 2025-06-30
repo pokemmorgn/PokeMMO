@@ -74,10 +74,15 @@ export class BeachScene extends BaseZoneScene {
     this._clientReadySent = false;
   }
 
-   onRoomAvailable(room) {
-    // Ce hook sera appelé dès que la room est dispo (hérité de BaseZoneScene)
-    this.setupEarlyListeners();
+onRoomAvailable(room) {
+  // Ce hook sera appelé dès que la room est dispo (hérité de BaseZoneScene)
+  if (!this.psyduckIntroManager) {
+    // Re-essaie plus tard si nécessaire
+    this.time.delayedCall(50, () => this.onRoomAvailable(room));
+    return;
   }
+  this.setupEarlyListeners();
+}
   
   async create() {
     super.create();
@@ -85,7 +90,7 @@ export class BeachScene extends BaseZoneScene {
     this.psyduckIntroManager = new PsyduckIntroManager(this);
 
     // ✅ Configurer les listeners immédiatement si room disponible
-  //  this.setupEarlyListeners();
+    //  this.setupEarlyListeners();
     this.setupBeachEvents();
   }
 
