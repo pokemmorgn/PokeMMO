@@ -57,13 +57,15 @@ export class PsyduckIntroManager {
     console.log(`📡 [PsyduckIntro] Configuration écoutes serveur`);
 
     try {
-      // Écouter le déclenchement de l'intro depuis le serveur
+      // ✅ FIX: Écouter triggerIntroSequence dans PsyduckIntroManager
       this.scene.room.onMessage("triggerIntroSequence", (data) => {
         console.log("🎬 [PsyduckIntro] Serveur demande intro:", data);
         
         if (data.shouldStartIntro && !this.isPlaying) {
           this.questIntegrationEnabled = true;
           this.fallbackMode = false;
+          
+          console.log(`🔄 [PsyduckIntro] Upgrade vers mode serveur (intro pas encore commencée)`);
           
           // Déclencher l'intro avec un court délai
           this.scene.time.delayedCall(500, () => {
@@ -79,7 +81,17 @@ export class PsyduckIntroManager {
             // Notifier immédiatement que l'intro a commencé
             this.notifyServer("intro_watched");
           });
+          
+        } else if (data.shouldStartIntro && this.isPlaying) {
+          console.log(`🔄 [PsyduckIntro] Upgrade vers mode serveur (intro en cours)`);
+          this.upgradeToServerMode();
         }
+      });
+      
+      // ✅ FIX: Écouter questGranted pour les notifications de quête
+      this.scene.room.onMessage("questGranted", (data) => {
+        console.log("🎁 [PsyduckIntro] Nouvelle quête reçue:", data);
+        this.showQuestNotification(data);
       });
       
       // Écouter la completion de la quête d'intro
@@ -106,8 +118,28 @@ export class PsyduckIntroManager {
   }
 
   /**
-   * Démarre l'intro en mode fallback (sans serveur)
+   * ✅ NOUVELLE MÉTHODE: Upgrade vers mode serveur pendant l'intro
    */
+  upgradeToServerMode() {
+    if (this.listenersSetup && !this.fallbackMode) {
+      console.log(`ℹ️ [PsyduckIntro] Déjà en mode serveur`);
+      return;
+    }
+
+    console.log(`🔄 [PsyduckIntro] Upgrade vers mode serveur pendant l'intro`);
+    
+    // Configurer les listeners si pas déjà fait
+    if (!this.listenersSetup) {
+      this.ensureListenersSetup();
+    }
+    
+    // Passer en mode serveur
+    if (this.scene.room) {
+      this.fallbackMode = false;
+      this.questIntegrationEnabled = true;
+      console.log(`✅ [PsyduckIntro] Mode serveur activé pendant l'intro`);
+    }
+  }
   startIntroFallback() {
     if (this.isPlaying) {
       console.warn(`⚠️ [PsyduckIntro] Intro déjà en cours`);
@@ -182,6 +214,66 @@ export class PsyduckIntroManager {
       // Passer en mode fallback si erreur de communication
       this.fallbackMode = true;
       this.questIntegrationEnabled = false;
+    }
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE: Affiche une notification de quête
+   */
+  showQuestNotification(data) {
+    if (!this.scene || !this.scene.add) {
+      console.warn(`⚠️ [PsyduckIntro] Scene non disponible pour afficher la notification`);
+      return;
+    }
+
+    try {
+      const message = data.message || `Nouvelle quête: ${data.questName || 'Quête inconnue'}`;
+      
+      const notification = this.scene.add.text(
+        this.scene.cameras.main.width / 2,
+        50, // En haut de l'écran
+        message,
+        {
+          fontSize: "16px",
+          color: "#ffff00",
+          backgroundColor: "#000080",
+          padding: { x: 15, y: 8 },
+          borderRadius: 5
+        }
+      ).setOrigin(0.5).setDepth(3000);
+      
+      // Animation d'apparition
+      notification.setAlpha(0);
+      this.scene.tweens.add({
+        targets: notification,
+        alpha: 1,
+        y: 80,
+        duration: 500,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          // Attendre 3 secondes puis disparaître
+          this.scene.time.delayedCall(3000, () => {
+            if (notification && notification.scene) {
+              this.scene.tweens.add({
+                targets: notification,
+                alpha: 0,
+                y: 30,
+                duration: 500,
+                onComplete: () => {
+                  if (notification && notification.destroy) {
+                    notification.destroy();
+                  }
+                }
+              });
+            }
+          });
+        }
+      });
+      
+      console.log(`✅ [PsyduckIntro] Notification de quête affichée: ${message}`);
+      
+    } catch (error) {
+      console.error(`❌ [PsyduckIntro] Erreur affichage notification:`, error);
     }
   }
 
