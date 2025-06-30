@@ -2,7 +2,7 @@
 // VillageLabScene.js - Version complète corrigée
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
-import { integrateStarterSelectorToScene } from '../components/StarterSelector.js';
+import { integrateStarterSelectorToScene } from '../../components/StarterSelector.js';
 
 export class VillageLabScene extends BaseZoneScene {
   constructor() {
