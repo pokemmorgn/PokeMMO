@@ -401,21 +401,16 @@ createNpcPlaceholder(spriteKey) {
   }
 
   // ✅ MÉTHODE INCHANGÉE mais avec plus de logs: updateQuestIndicators
-  updateQuestIndicators(questStatuses) {
-    console.log("🔄 === MISE À JOUR INDICATEURS QUÊTE ===");
-    console.log(`📊 Statuts reçus: ${questStatuses.length}`);
-    
-    questStatuses.forEach(status => {
-      console.log(`🎯 Statut: NPC ${status.npcId} - ${status.type}`);
-      const visuals = this.npcVisuals.get(status.npcId);
-      if (visuals && this.isGameObjectValid(visuals.nameContainer)) {
-        this.updateQuestIndicator(visuals.nameContainer, status.type);
-        console.log(`✅ Indicateur mis à jour pour NPC ${status.npcId}`);
-      } else {
-        console.warn(`⚠️ NPC ${status.npcId} non trouvé ou invalide pour indicateur`);
-      }
-    });
-  }
+updateQuestIndicators(questStatuses) {
+  questStatuses.forEach(status => {
+    const visuals = this.npcVisuals.get(status.npcId);
+    if (visuals && this.isGameObjectValid(visuals.nameContainer)) {
+      this.updateQuestIndicator(visuals.nameContainer, status.type);
+    }
+    // NPC non présent ? On ne fait rien.
+  });
+}
+
 
   updateQuestIndicator(nameContainer, questType) {
     // Supprimer l'ancien indicateur s'il existe
