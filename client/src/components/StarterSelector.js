@@ -110,7 +110,62 @@ export class StarterSelector {
     graphics.generateTexture('pokeball_starter', size, size);
     graphics.destroy();
   }
+createInterface() {
+  const centerX = this.scene.cameras.main.centerX;
+  const centerY = this.scene.cameras.main.centerY;
 
+  // Container principal parfaitement centré
+  this.container = this.scene.add.container(centerX, centerY);
+  this.container.setDepth(1000);
+
+  // Background stylé
+  const bg = this.scene.add.image(0, 0, 'starter_background_stylish');
+  this.container.add(bg);
+
+  // Titre avec effet brillant
+  const title = this.scene.add.text(0, -120, 'Choisissez votre Pokémon', {
+    fontSize: '24px',
+    fontFamily: 'Arial Black',
+    color: '#FFD700',
+    stroke: '#1E40AF',
+    strokeThickness: 3,
+    align: 'center',
+    shadow: {
+      offsetX: 2,
+      offsetY: 2,
+      color: '#000000',
+      blur: 4,
+      fill: true
+    }
+  }).setOrigin(0.5);
+
+  // Effet scintillement sur le titre
+  this.scene.tweens.add({
+    targets: title,
+    alpha: 0.7,
+    duration: 1500,
+    yoyo: true,
+    repeat: -1,
+    ease: 'Sine.easeInOut'
+  });
+
+  this.container.add(title);
+
+  // Sous-titre
+  const subtitle = this.scene.add.text(0, -90, 'Votre compagnon pour la vie', {
+    fontSize: '14px',
+    fontFamily: 'Arial',
+    color: '#E2E8F0',
+    stroke: '#1E3A8A',
+    strokeThickness: 2,
+    align: 'center'
+  }).setOrigin(0.5);
+  this.container.add(subtitle);
+
+  this.createStarters();
+  this.createUI();
+  this.container.setAlpha(0);
+}
   // ✅ MÉTHODE: Créer placeholder pour starter
   createStarterPlaceholder(starter) {
     const textureKey = `starter_${starter.id}`;
