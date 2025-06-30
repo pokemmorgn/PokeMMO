@@ -119,7 +119,6 @@ this.container = this.scene.add.container(centerX, centerY - 200); // Décale ve
 
   // Background plus petit
   const bg = this.scene.add.image(0, 0, 'starter_background_stylish');
-  bg.setScale(0.8); // Ajoute cette ligne pour réduire encore plus
   this.container.add(bg);
 
   // Titre plus petit
@@ -183,9 +182,8 @@ this.container = this.scene.add.container(centerX, centerY - 200); // Décale ve
   // Ajoute cette méthode après createStarterPlaceholder()
 createStarterBackground() {
   if (this.scene.textures.exists('starter_background_stylish')) return;
-  
-  const width = 300;  // était 500
-  const height = 200; // était 350
+  const width = 500;  // remis à 500
+  const height = 350;
   const graphics = this.scene.add.graphics();
 
   // === FOND PRINCIPAL DÉGRADÉ ===
@@ -381,8 +379,8 @@ createStarters() {
   this.starterSprites = [];
 
 this.starterOptions.forEach((starter, index) => {
-    const angle = (index - 1) * 0.6; // était 0.8
-    const radius = 60; // était 85
+    const angle = (index - 1) * 0.8; // était 0.8
+    const radius = 85; // était 85
     const posX = Math.sin(angle) * radius;
     const posY = Math.cos(angle) * radius * 0.3 - 10; // Plus plat
     
