@@ -553,7 +553,8 @@ export class InteractionManager {
              message.includes('confusion') || message.includes('Maybe'))) {
           currentNpcName = options.narratorName || "Narrator";
           currentPortrait = options.narratorPortrait || "/assets/portrait/systemPortrait.png";
-          messageText = `<i>${message}</i>`; // Italique pour le narrateur
+          // Pas de HTML, on utilisera CSS à la place
+          messageText = message;
         }
         
         const success = await this.showSingleMessageAndWait(
@@ -593,12 +594,20 @@ export class InteractionManager {
       
       try {
         this.createCustomDiscussion(npcName, portrait, displayMessage, {
-          autoClose: false
+          autoClose: false,
+          isNarrator: npcName === "Narrator" // Marquer si c'est le narrateur
         });
         
-        // Ajouter l'indicateur visuel après affichage
+        // Ajouter l'indicateur visuel et l'attribut narrateur après affichage
         setTimeout(() => {
           this.addVisualContinueIndicator(currentIndex, totalCount);
+          // Marquer si c'est le narrateur pour le CSS
+          if (npcName === "Narrator") {
+            const dialogueBox = document.getElementById('dialogue-box');
+            if (dialogueBox) {
+              dialogueBox.setAttribute('data-speaker', 'Narrator');
+            }
+          }
         }, 100);
         
         const checkInterval = 100;
@@ -609,8 +618,12 @@ export class InteractionManager {
               dialogueBox.style.display === 'none' || 
               !dialogueBox.offsetParent) {
             
-            // Nettoyer l'indicateur avant de continuer
+            // Nettoyer l'indicateur et les attributs avant de continuer
             this.removeVisualContinueIndicator();
+            const dialogueBox = document.getElementById('dialogue-box');
+            if (dialogueBox) {
+              dialogueBox.removeAttribute('data-speaker');
+            }
             resolve(true);
             return;
           }
