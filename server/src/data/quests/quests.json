@@ -6,8 +6,8 @@
       "name": "A Hint of River",
       "description": "Bob wants to get back into fishing, but he's missing some gear. Give him a hand.",
       "category": "side",
-      "startNpcId": 87,
-      "endNpcId": 87,
+      "startNpcId": 82,
+      "endNpcId": 82,
       "isRepeatable": false,
       "autoComplete": false,
       
