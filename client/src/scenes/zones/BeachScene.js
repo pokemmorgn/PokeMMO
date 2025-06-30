@@ -91,7 +91,7 @@ export class BeachScene extends BaseZoneScene {
         this.psyduckIntroManager.ensureListenersSetup();
         this.setupServerListeners();
         this.time.delayedCall(20, () => {
-         // this.sendClientReady();
+        this.sendClientReady();
         });
         return true;
       }
