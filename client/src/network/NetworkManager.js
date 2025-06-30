@@ -63,48 +63,54 @@ export class NetworkManager {
     };
   }
 
-  async connect(spawnZone = "beach", spawnData = {}) {
-    try {
-      console.log(`[NetworkManager] 🔌 Connexion à WorldRoom...`);
-      console.log(`[NetworkManager] 🌍 Zone de spawn: ${spawnZone}`);
+  async connect(spawnZone = "beach", spawnData = {}, sceneInstance = null) {
+  try {
+    console.log(`[NetworkManager] 🔌 Connexion à WorldRoom...`);
+    console.log(`[NetworkManager] 🌍 Zone de spawn: ${spawnZone}`);
 
-      if (this.room) {
-        await this.disconnect();
-      }
-
-      const roomOptions = {
-        name: this.username,
-        spawnZone: spawnZone,
-        spawnX: spawnData.spawnX || 360,
-        spawnY: spawnData.spawnY || 120,
-        ...spawnData
-      };
-
-      console.log(`[NetworkManager] 📝 Options de connexion:`, roomOptions);
-
-      this.room = await this.client.joinOrCreate("world", roomOptions);
-
-      this.sessionId = this.room.sessionId;
-      this.isConnected = true;
-      this.currentZone = spawnZone;
-      this.myPlayerConfirmed = false;
-      this.myPlayerData = null;
-      this.connectionHealth.reconnectAttempts = 0;
-
-      this.resetTransitionState();
-
-      console.log(`[NetworkManager] ✅ Connecté à WorldRoom! SessionId: ${this.sessionId}`);
-
-      this.setupRoomListeners();
-      this.startHealthMonitoring();
-      return true;
-
-    } catch (error) {
-      console.error("❌ Connection error:", error);
-      this.connectionHealth.reconnectAttempts++;
-      return false;
+    if (this.room) {
+      await this.disconnect();
     }
+
+    const roomOptions = {
+      name: this.username,
+      spawnZone: spawnZone,
+      spawnX: spawnData.spawnX || 360,
+      spawnY: spawnData.spawnY || 120,
+      ...spawnData
+    };
+
+    console.log(`[NetworkManager] 📝 Options de connexion:`, roomOptions);
+
+    this.room = await this.client.joinOrCreate("world", roomOptions);
+
+    this.sessionId = this.room.sessionId;
+    this.isConnected = true;
+    this.currentZone = spawnZone;
+    this.myPlayerConfirmed = false;
+    this.myPlayerData = null;
+    this.connectionHealth.reconnectAttempts = 0;
+
+    this.resetTransitionState();
+
+    console.log(`[NetworkManager] ✅ Connecté à WorldRoom! SessionId: ${this.sessionId}`);
+
+    // PATCH DE SYNCHRONISATION
+    if (sceneInstance && typeof sceneInstance.setRoom === 'function') {
+      console.log('[NetworkManager] 🟢 Patch: Appel de setRoom() sur la scène', sceneInstance.constructor.name);
+      sceneInstance.setRoom(this.room);
+    }
+
+    this.setupRoomListeners();
+    this.startHealthMonitoring();
+    return true;
+
+  } catch (error) {
+    console.error("❌ Connection error:", error);
+    this.connectionHealth.reconnectAttempts++;
+    return false;
   }
+}
 
   // ✅ NOUVEAU: Monitoring de santé de connexion
   startHealthMonitoring() {
