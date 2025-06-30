@@ -45,8 +45,8 @@
 }
 
 #chat-window.hidden {
-  transform: translateX(-100%);
-  opacity: 0;
+  display: none !important;
+  /* optionnel : tu peux garder opacity/transform si tu veux un fade, mais display:none prend la priorité */
 }
 
 /* Indication visuelle quand le chat a le focus */
