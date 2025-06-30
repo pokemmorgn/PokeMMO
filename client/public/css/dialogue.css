@@ -1,0 +1,92 @@
+/* client/public/css/dialogue.css */
+/* Style pour la boîte de dialogue NPC UNIQUEMENT */
+
+#dialogue-box {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 500px;
+  max-width: 750px;
+  background: linear-gradient(145deg, rgba(36, 76, 116, 0.95), rgba(25, 55, 95, 0.95));
+  border: 3px solid rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+  box-shadow: 
+    0 8px 40px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  display: flex;
+  flex-direction: row;
+  align-items: center; 
+  z-index: 99;
+  font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+#dialogue-box:hover {
+  transform: translateX(-50%) scale(1.02);
+  box-shadow: 
+    0 12px 50px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4);
+}
+
+#npc-portrait {
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(145deg, #fff, #f0f0f0);
+  border: 3px solid rgba(36, 76, 116, 0.8);
+  border-radius: 16px;
+  margin: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+#npc-portrait img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 12px;
+}
+
+#npc-dialogue {
+  flex: 1;
+  padding: 16px 20px 16px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#npc-name {
+  font-weight: bold;
+  font-size: 19px;
+  color: #ffff80;
+  margin-bottom: 10px;
+  text-shadow: 
+    1px 2px 0 #222, 
+    0 0 12px rgba(241, 241, 145, 0.8),
+    0 0 24px rgba(241, 241, 145, 0.4);
+}
+
+#npc-text {
+  color: #fff;
+  font-size: 16px;
+  text-shadow: 1px 1px 0 #222, 0 0 8px rgba(255, 255, 255, 0.3);
+  line-height: 1.5;
+}
+
+/* Responsive design pour dialogue uniquement */
+@media (max-width: 768px) {
+  #dialogue-box {
+    min-width: calc(100vw - 40px);
+    left: 20px;
+    right: 20px;
+    transform: none;
+  }
+}
