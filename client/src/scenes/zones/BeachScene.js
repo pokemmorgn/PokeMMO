@@ -119,14 +119,6 @@ export class BeachScene extends BaseZoneScene {
     }
   }
 
-setRoom(room) {
-  this.room = room;
-  console.log(`[INTRO] 🟢 setRoom() appelée, room assignée:`, !!room);
-  // On ne setup les listeners qu'ici !
-  this.setupEarlyListeners();
-}
-
-  
   // === Envoi clientReady (flow 100% sûr) ===
   sendClientReady() {
     if (this.room && !this._clientReadySent) {
