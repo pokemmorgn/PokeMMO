@@ -256,6 +256,26 @@ create() {
     }
   }
 
+setRoom(room) {
+  // Méthode à appeler pour changer de room (par exemple lors d'une transition de zone)
+  console.log(`🔄 [${this.scene?.key || 'BaseZoneScene'}] setRoom appelé :`, room);
+
+  this.room = room;
+  if (this.networkManager) {
+    this.networkManager.room = room;
+    console.log(`🔄 [${this.scene?.key || 'BaseZoneScene'}] Changement de room dans NetworkManager`);
+    this.networkManager.setupRoomListeners();
+    this.networkManager.restoreCustomCallbacks?.();
+  } else {
+    console.warn(`⚠️ [${this.scene?.key || 'BaseZoneScene'}] Pas de networkManager pour setRoom`);
+  }
+  // Re-initialiser certains systèmes si besoin
+  this.initializeGameSystems();
+  console.log(`✅ [${this.scene?.key || 'BaseZoneScene'}] Systèmes réinitialisés après changement de room`);
+}
+
+
+  
   // ✅ MÉTHODE MODIFIÉE: Initialisation des systèmes avec ordre et délais sécurisés + EncounterManager
   initializeGameSystems() {
     console.log(`🎮 [${this.scene.key}] Initialisation des systèmes de jeu (ordre sécurisé)...`);
