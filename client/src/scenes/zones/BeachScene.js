@@ -79,6 +79,30 @@ export class BeachScene extends BaseZoneScene {
     this.setupBeachEvents();
   }
 
+  setupServerListeners() {
+  if (!this.room) {
+    console.warn(`⚠️ [BeachScene] Pas de room disponible pour les écoutes serveur`);
+    return;
+  }
+
+  console.log(`📡 [BeachScene] Configuration écoutes serveur`);
+
+  // Écouter le déclenchement de l'intro depuis le serveur
+  this.room.onMessage("triggerIntroSequence", (data) => {
+    console.log("🎬 [BeachScene] Serveur demande intro:", data);
+    
+    if (data.shouldStartIntro && !this._introTriggered) {
+      this._introTriggered = true;
+      
+      // Déclencher l'intro avec un court délai
+      this.time.delayedCall(500, () => {
+        this.startPsyduckIntro();
+      });
+    }
+  });
+
+  console.log(`✅ [BeachScene] Écoutes serveur configurées`);
+}
   update() {
     if (this.shouldBlockInput()) return;
     super.update();
