@@ -238,34 +238,42 @@ export class NpcManager {
   // ✅ AMÉLIORATION: Création du placeholder avec debug
 createNpcPlaceholder(spriteKey) {
   try {
+    // 1. Créer un graphics de base
     const graphics = this.scene.add.graphics();
     graphics.fillStyle(0x8888ff, 1);
     graphics.fillCircle(16, 16, 14);
     graphics.fillStyle(0xffffff, 1);
     graphics.fillCircle(16, 16, 10);
+
+    // 2. Générer la texture du fond
     graphics.generateTexture(spriteKey, 32, 32);
     graphics.destroy();
 
-    // Ajoute un "?" par dessus (avec un objet Text temporaire)
+    // 3. Ajouter un "?" en utilisant RenderTexture
+    const rt = this.scene.add.renderTexture(0, 0, 32, 32);
+    rt.draw(spriteKey, 0, 0);
+
     const tempText = this.scene.add.text(16, 16, '?', {
-      font: '16px monospace',
+      fontFamily: 'monospace',
+      fontSize: 18,
       color: '#222',
       align: 'center'
     }).setOrigin(0.5);
-    tempText.setAlpha(1);
-    tempText.setDepth(1000);
-    tempText.visible = true;
-    // Convertit ce Text en texture
-    tempText.scene.textures.generateTexture(spriteKey + '_label', 32, 32);
+
+    rt.draw(tempText, 0, 0);
     tempText.destroy();
 
-    // Tu pourrais fusionner ces deux textures si besoin (optionnel)
+    // On sauvegarde le résultat avec un autre nom
+    rt.saveTexture(spriteKey + '_label');
+    rt.destroy();
+
     return this.scene.textures.exists(spriteKey);
   } catch (error) {
     console.error(`❌ Erreur création placeholder ${spriteKey}:`, error);
     return false;
   }
 }
+
 
 
   // ✅ AMÉLIORATION: Nettoyage robuste avec vérifications
