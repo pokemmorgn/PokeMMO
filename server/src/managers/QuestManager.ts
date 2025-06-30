@@ -801,7 +801,7 @@ export class QuestManager {
   /**
    * Compléter manuellement une quête (utilisable depuis n'importe où)
    */
-  async completeQuest(playerName: string, questId: string): Promise<{ success: boolean; message: string; rewards?: any[] }> {
+  async completePlayerQuest(playerName: string, questId: string): Promise<{ success: boolean; message: string; rewards?: any[] }> {
     try {
       console.log(`🏆 [QuestManager] Completion manuelle de ${questId} pour ${playerName}`);
       
