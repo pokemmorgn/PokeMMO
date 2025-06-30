@@ -1320,20 +1320,9 @@ initializeZoneEnvironment() {
   }
   
   // ✅ MÉTHODE MODIFIÉE: Cleanup avec TeamManager, EncounterManager et MovementBlockHandler
-  cleanup() {
+   cleanup() {
     TransitionIntegration.cleanupTransitions(this);
-    
-    // ✅ DÉCLARER LA VARIABLE isTransition AU DÉBUT pour éviter l'erreur "Cannot access before initialization"
-    const isTransition = this.networkManager && this.networkManager.isTransitionActive;
-    
-    if (this.starterSystemInitialized && !isTransition) {
-      console.log(`🧹 [${this.scene.key}] Nettoyage starter system`);
-      if (this.hideStarterSelection) {
-        this.hideStarterSelection();
-      }
-      this.starterSystemInitialized = false;
-    }
-    
+
     if (this.scene.isActive(this.scene.key)) {
       this.scene.stop(this.scene.key);
       console.log(`[${this.scene.key}] ⛔ Scene stoppée (cleanup)`);
@@ -1362,6 +1351,7 @@ initializeZoneEnvironment() {
     // ✅ NETTOYER LES RÉFÉRENCES LOCALES
     this.globalWeatherManager = null;
     this.weatherSystemType = null;
+    const isTransition = this.networkManager && this.networkManager.isTransitionActive;
     
     if (!isTransition) {
       if (this.playerManager) {
@@ -1440,6 +1430,7 @@ initializeZoneEnvironment() {
     
     console.log(`✅ [${this.scene.key}] Nettoyage terminé`);
   }
+
 
   setupCleanupHandlers() {
     this.events.on('shutdown', () => {
