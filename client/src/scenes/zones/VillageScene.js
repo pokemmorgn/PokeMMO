@@ -24,7 +24,7 @@ export class VillageScene extends BaseZoneScene {
     // Evénements d'accueil custom
     this.setupVillageEvents();
     // Placement des NPCs (peut dépendre de la map déjà chargée)
-    this.setupNPCs();
+   // this.setupNPCs();
   }
 
   setupVillageEvents() {
