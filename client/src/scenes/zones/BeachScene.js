@@ -163,7 +163,7 @@ export class BeachScene extends BaseZoneScene {
     }
   }
 
-  // ✅ === CONFIGURATION ÉCOUTES SERVEUR MODIFIÉE ===
+  // ✅ === CONFIGURATION ÉCOUTES SERVEUR SIMPLIFIÉE ===
   setupServerListeners() {
     if (!this.room) {
       console.warn(`⚠️ [BeachScene] Pas de room disponible pour les écoutes serveur`);
@@ -173,24 +173,17 @@ export class BeachScene extends BaseZoneScene {
 
     console.log(`📡 [BeachScene] Configuration écoutes serveur avec room connectée`);
 
-    // ✅ Écouter les réponses du serveur pendant l'intro
-    this.room.onMessage("triggerIntroSequence", (data) => {
-      console.log("🎬 [BeachScene] Serveur répond pendant intro:", data);
-      
-      if (data.shouldStartIntro && this.psyduckIntroManager) {
-        // Upgrade le PsyduckIntroManager vers mode serveur
-        this.psyduckIntroManager.upgradeToServerMode();
-        console.log(`🔄 [BeachScene] Intro upgradée vers mode serveur`);
-      }
-    });
+    // ✅ NE PAS écouter triggerIntroSequence ici - c'est PsyduckIntroManager qui s'en charge
 
-    // Écouter les autres messages de quêtes
+    // Écouter les autres messages de quêtes (en plus de PsyduckIntroManager)
     this.room.onMessage("questGranted", (data) => {
-      console.log("🎁 [BeachScene] Nouvelle quête reçue:", data);
+      console.log("🎁 [BeachScene] Nouvelle quête reçue (BeachScene):", data);
+      // PsyduckIntroManager gère déjà l'affichage
     });
 
     this.room.onMessage("introQuestCompleted", (data) => {
       console.log("🎉 [BeachScene] Quête d'intro terminée (BeachScene):", data);
+      // PsyduckIntroManager gère déjà l'affichage
     });
 
     console.log(`✅ [BeachScene] Écoutes serveur BeachScene configurées`);
