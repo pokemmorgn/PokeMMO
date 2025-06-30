@@ -438,6 +438,7 @@ export class PsyduckIntroManager {
         .setDepth(6);
       
       this.startPhase1_WalkRight();
+      room.send("clientIntroReady");
     } catch (error) {
       console.error(`❌ [PsyduckIntro] Erreur spawn Psyduck:`, error);
       this.cleanup();
