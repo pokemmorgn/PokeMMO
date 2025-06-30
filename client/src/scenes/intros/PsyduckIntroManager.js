@@ -2,8 +2,9 @@
 // Version avec setup différé des listeners serveur
 
 export class PsyduckIntroManager {
-  constructor(scene) {
+  constructor(scene, room) {
     this.scene = scene;
+    this.room = room;
     this.isPlaying = false;
     this.psyduck = null;
     this.onCompleteCallback = null;
