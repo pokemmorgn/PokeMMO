@@ -74,6 +74,10 @@ export class BeachScene extends BaseZoneScene {
     this._clientReadySent = false;
   }
 
+   onRoomAvailable(room) {
+    // Ce hook sera appelé dès que la room est dispo (hérité de BaseZoneScene)
+    this.setupEarlyListeners();
+  }
   
   async create() {
     super.create();
