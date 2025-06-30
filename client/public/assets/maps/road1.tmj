@@ -1,12 +1,4 @@
 { "compressionlevel":-1,
- "editorsettings":
-    {
-     "export":
-        {
-         "format":"json",
-         "target":"road1.tmj"
-        }
-    },
  "height":60,
  "infinite":false,
  "layers":[
@@ -53986,8 +53978,111 @@
          "tilewidth":16
         }, 
         {
+         "columns":6,
          "firstgid":16437,
-         "source":"..\/_Tilesets\/Environnment.tsx"
+         "image":"..\/_Sprites\/Environnment.png",
+         "imageheight":128,
+         "imagewidth":111,
+         "margin":0,
+         "name":"Environnment",
+         "spacing":0,
+         "tilecount":54,
+         "tileheight":16,
+         "tiles":[
+                {
+                 "animation":[
+                        {
+                         "duration":1600,
+                         "tileid":3
+                        }, 
+                        {
+                         "duration":1600,
+                         "tileid":4
+                        }],
+                 "id":3
+                }, 
+                {
+                 "id":21,
+                 "properties":[
+                        {
+                         "name":"grassTile",
+                         "type":"bool",
+                         "value":true
+                        }]
+                }, 
+                {
+                 "id":22,
+                 "properties":[
+                        {
+                         "name":"grassTile",
+                         "type":"bool",
+                         "value":true
+                        }]
+                }, 
+                {
+                 "id":28,
+                 "properties":[
+                        {
+                         "name":"collides",
+                         "type":"bool",
+                         "value":true
+                        }]
+                }, 
+                {
+                 "id":29,
+                 "properties":[
+                        {
+                         "name":"collides",
+                         "type":"bool",
+                         "value":true
+                        }]
+                }, 
+                {
+                 "id":34,
+                 "properties":[
+                        {
+                         "name":"collides",
+                         "type":"bool",
+                         "value":true
+                        }]
+                }, 
+                {
+                 "id":40,
+                 "properties":[
+                        {
+                         "name":"collides",
+                         "type":"bool",
+                         "value":true
+                        }]
+                }, 
+                {
+                 "id":41,
+                 "properties":[
+                        {
+                         "name":"collides",
+                         "type":"bool",
+                         "value":true
+                        }]
+                }, 
+                {
+                 "id":46,
+                 "properties":[
+                        {
+                         "name":"collides",
+                         "type":"bool",
+                         "value":true
+                        }]
+                }, 
+                {
+                 "id":47,
+                 "properties":[
+                        {
+                         "name":"collides",
+                         "type":"bool",
+                         "value":true
+                        }]
+                }],
+         "tilewidth":16
         }],
  "tilewidth":16,
  "type":"map",
