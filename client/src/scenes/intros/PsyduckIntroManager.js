@@ -1,7 +1,5 @@
 // client/src/scenes/intros/PsyduckIntroManager.js
-// ===============================================
-// Gestionnaire d'intro avec Psyduck pour BeachScene + Intégration quêtes serveur COMPLET
-// ===============================================
+// Version avec setup différé des listeners serveur
 
 export class PsyduckIntroManager {
   constructor(scene) {
@@ -11,21 +9,48 @@ export class PsyduckIntroManager {
     this.onCompleteCallback = null;
     this.questIntegrationEnabled = false;
     this.fallbackMode = false;
+    this.listenersSetup = false; // ✅ NOUVEAU: Flag pour savoir si listeners configurés
     
-    // ✅ NOUVEAU: Setup des écoutes serveur avec gestion d'erreurs
+    // ✅ NE PAS configurer les écoutes immédiatement
+    // this.setupServerListeners(); - Sera fait quand room disponible
+  }
+
+  // ✅ === NOUVELLE MÉTHODE: SETUP DIFFÉRÉ DES LISTENERS ===
+  
+  /**
+   * Configure les écoutes serveur seulement si room disponible
+   */
+  setupServerListenersWhenReady() {
+    if (this.listenersSetup) {
+      console.log(`ℹ️ [PsyduckIntro] Listeners déjà configurés`);
+      return;
+    }
+
+    if (!this.scene.room) {
+      console.warn(`⚠️ [PsyduckIntro] Room non disponible, mode fallback`);
+      this.fallbackMode = true;
+      this.listenersSetup = true; // Marquer comme "configuré" même en fallback
+      return;
+    }
+
+    console.log(`📡 [PsyduckIntro] Configuration écoutes serveur avec room valide`);
     this.setupServerListeners();
   }
 
-  // ✅ === INTÉGRATION SERVEUR POUR LES QUÊTES ===
-  
   /**
-   * Configure les écoutes des messages serveur avec fallback
+   * Configure les écoutes des messages serveur (version originale)
    */
   setupServerListeners() {
+    if (this.listenersSetup) {
+      console.log(`ℹ️ [PsyduckIntro] Listeners déjà configurés`);
+      return;
+    }
+
     if (!this.scene.room) {
       console.warn(`⚠️ [PsyduckIntro] Pas de room disponible pour les écoutes serveur`);
       console.log(`ℹ️ [PsyduckIntro] Mode déconnecté: l'intro peut être déclenchée manuellement`);
       this.fallbackMode = true;
+      this.listenersSetup = true;
       return;
     }
 
@@ -63,16 +88,25 @@ export class PsyduckIntroManager {
         this.showQuestCompletionMessage(data.message);
       });
 
+      this.listenersSetup = true;
       console.log(`✅ [PsyduckIntro] Écoutes serveur configurées`);
       
     } catch (error) {
       console.error(`❌ [PsyduckIntro] Erreur lors de la configuration des écoutes:`, error);
       this.fallbackMode = true;
+      this.listenersSetup = true;
     }
   }
 
   /**
-   * ✅ NOUVELLE MÉTHODE: Démarre l'intro en mode fallback (sans serveur)
+   * ✅ MÉTHODE PUBLIQUE: Pour que BeachScene puisse configurer les listeners
+   */
+  ensureListenersSetup() {
+    this.setupServerListenersWhenReady();
+  }
+
+  /**
+   * Démarre l'intro en mode fallback (sans serveur)
    */
   startIntroFallback() {
     if (this.isPlaying) {
@@ -81,12 +115,52 @@ export class PsyduckIntroManager {
     }
 
     console.log(`🎬 [PsyduckIntro] Mode fallback: Démarrage intro sans serveur`);
+    
+    // S'assurer que les listeners sont marqués comme configurés (en mode fallback)
     this.questIntegrationEnabled = false;
     this.fallbackMode = true;
+    this.listenersSetup = true;
     
     this.startIntro(() => {
       console.log("✅ [PsyduckIntro] Intro terminée en mode fallback");
-      // En mode fallback, pas de notification serveur
+    });
+  }
+
+  /**
+   * Démarre l'intro complète (version modifiée)
+   */
+  startIntro(onComplete = null) {
+    if (this.isPlaying) {
+      console.warn(`⚠️ [PsyduckIntro] Intro déjà en cours`);
+      return;
+    }
+
+    if (!this.scene) {
+      console.error(`❌ [PsyduckIntro] Scene non disponible`);
+      return;
+    }
+
+    // ✅ S'assurer que les listeners sont configurés avant de commencer
+    if (!this.listenersSetup) {
+      this.ensureListenersSetup();
+    }
+
+    this.isPlaying = true;
+    this.onCompleteCallback = onComplete;
+    
+    console.log(`🎬 [PsyduckIntro] === DÉBUT INTRO PSYDUCK ===`);
+    console.log(`🔧 Mode: ${this.fallbackMode ? 'FALLBACK' : 'SERVEUR'}`);
+    console.log(`📡 Listeners: ${this.listenersSetup ? 'CONFIGURÉS' : 'NON CONFIGURÉS'}`);
+    
+    // Bloquer les inputs du joueur
+    this.blockPlayerInputs();
+    
+    // Charger le spritesheet si nécessaire
+    this.loadPsyduckSpritesheet();
+    
+    // Attendre un peu que tout soit chargé puis commencer
+    this.scene.time.delayedCall(500, () => {
+      this.spawnPsyduck();
     });
   }
 
@@ -153,11 +227,8 @@ export class PsyduckIntroManager {
     }
   }
 
-  // ✅ === MÉTHODES EXISTANTES MODIFIÉES ===
-
-  /**
-   * Charge le spritesheet de Psyduck
-   */
+  // ✅ === MÉTHODES EXISTANTES INCHANGÉES ===
+  
   loadPsyduckSpritesheet() {
     const key = 'psyduck_walk';
     
@@ -166,8 +237,8 @@ export class PsyduckIntroManager {
       
       try {
         this.scene.load.spritesheet(key, 'assets/pokemon/054_psyduck/Walk-Anim.png', {
-          frameWidth: 24,  // Ajustez selon votre spritesheet
-          frameHeight: 40  // Ajustez selon votre spritesheet
+          frameWidth: 24,
+          frameHeight: 40
         });
         
         this.scene.load.once('complete', () => {
@@ -183,9 +254,6 @@ export class PsyduckIntroManager {
     }
   }
 
-  /**
-   * Crée les animations pour Psyduck
-   */
   createPsyduckAnimations() {
     if (!this.scene || !this.scene.anims) {
       console.error(`❌ [PsyduckIntro] Scene ou anims non disponible`);
@@ -262,41 +330,6 @@ export class PsyduckIntroManager {
     }
   }
 
-  /**
-   * Démarre l'intro complète
-   */
-  startIntro(onComplete = null) {
-    if (this.isPlaying) {
-      console.warn(`⚠️ [PsyduckIntro] Intro déjà en cours`);
-      return;
-    }
-
-    if (!this.scene) {
-      console.error(`❌ [PsyduckIntro] Scene non disponible`);
-      return;
-    }
-
-    this.isPlaying = true;
-    this.onCompleteCallback = onComplete;
-    
-    console.log(`🎬 [PsyduckIntro] === DÉBUT INTRO PSYDUCK ===`);
-    console.log(`🔧 Mode: ${this.fallbackMode ? 'FALLBACK' : 'SERVEUR'}`);
-    
-    // Bloquer les inputs du joueur
-    this.blockPlayerInputs();
-    
-    // Charger le spritesheet si nécessaire
-    this.loadPsyduckSpritesheet();
-    
-    // Attendre un peu que tout soit chargé puis commencer
-    this.scene.time.delayedCall(500, () => {
-      this.spawnPsyduck();
-    });
-  }
-
-  /**
-   * Spawn Psyduck à la position initiale
-   */
   spawnPsyduck() {
     if (!this.scene || !this.scene.add) {
       console.error(`❌ [PsyduckIntro] Scene non disponible pour spawn`);
@@ -307,12 +340,10 @@ export class PsyduckIntroManager {
     console.log(`🦆 [PsyduckIntro] Spawn Psyduck en (160, 32)`);
     
     try {
-      // Créer le sprite Psyduck
       this.psyduck = this.scene.add.sprite(160, 32, 'psyduck_walk', 8)
-        .setOrigin(0.5, 1)  // Origine en bas-centre
-        .setDepth(6);       // Au-dessus du joueur
+        .setOrigin(0.5, 1)
+        .setDepth(6);
       
-      // Démarrer la première phase : marche vers la droite
       this.startPhase1_WalkRight();
     } catch (error) {
       console.error(`❌ [PsyduckIntro] Erreur spawn Psyduck:`, error);
@@ -320,9 +351,6 @@ export class PsyduckIntroManager {
     }
   }
 
-  /**
-   * Phase 1 : Marche de 160,32 vers 360,32 (vers la droite)
-   */
   startPhase1_WalkRight() {
     if (!this.psyduck || !this.scene) {
       console.error(`❌ [PsyduckIntro] Psyduck ou scene non disponible pour phase 1`);
@@ -674,6 +702,7 @@ export class PsyduckIntroManager {
       isPlaying: this.isPlaying,
       questIntegrationEnabled: this.questIntegrationEnabled,
       fallbackMode: this.fallbackMode,
+      listenersSetup: this.listenersSetup,
       hasPsyduck: this.psyduck !== null,
       hasScene: this.scene !== null,
       hasRoom: this.scene?.room !== null,
@@ -727,6 +756,7 @@ export class PsyduckIntroManager {
       this.onCompleteCallback = null;
       this.questIntegrationEnabled = false;
       this.fallbackMode = false;
+      this.listenersSetup = false;
       
       console.log(`✅ [PsyduckIntro] Destruction terminée`);
     } catch (error) {
