@@ -1,29 +1,3 @@
-// ✅ MÉTHODE SIMPLE: Utiliser uniquement des flags globaux
-  blockPlayerInput(block) {
-    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] ${block ? 'Blocage' : 'Déblocage'} inputs via flags...`);
-    
-    // ✅ MÉTHODE PRINCIPALE: Flag global simple
-    window._starterSelectionActive = block;
-    
-    // ✅ MÉTHODE SECONDAIRE: Essayer les systèmes avancés si disponibles
-    if (window.movementBlockHandler && typeof window.movementBlockHandler.requestBlock === 'function') {
-      try {
-        if (block) {
-          window.movementBlockHandler.requestBlock('starter_selection', 'Sélection de starter en cours');
-        } else {
-          window.movementBlockHandler.requestUnblock('starter_selection');
-        }
-        console.log(`✅ [StarterSelector] MovementBlockHandler ${block ? 'bloqué' : 'débloqué'}`);
-      } catch (error) {
-        console.warn(`⚠️ [StarterSelector] Erreur MovementBlockHandler:`, error.message);
-      }
-    }
-    
-    // ✅ LOG FINAL
-    console.log(`${block ? '🔒' : '🔓'} [StarterSelector] Inputs ${block ? 'BLOQUÉS' : 'DÉBLOQUÉS'} - Flag: ${window._starterSelectionActive}`);
-  }// client/src/components/StarterSelector.js
-// Système de sélection de starter externalisé pour PokéMon MMO
-
 export class StarterSelector {
   constructor(scene) {
     this.scene = scene;
