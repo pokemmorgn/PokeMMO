@@ -567,9 +567,6 @@ export class StarterSelector {
     // Utiliser les starters fournis ou la config par défaut
     this.starterOptions = availableStarters || this.starterConfig;
     
-    // Bloquer les inputs du joueur
-    this.blockPlayerInput(true);
-    
     // Créer l'interface
     this.createHTMLInterface();
     
@@ -755,9 +752,6 @@ export class StarterSelector {
     if (this.overlay) {
       this.overlay.classList.add('hidden');
     }
-
-    // Débloquer les inputs du joueur
-    this.blockPlayerInput(false);
     
     this.isVisible = false;
 
@@ -830,9 +824,6 @@ export class StarterSelector {
       this.networkManager.room.removeAllListeners("starterSelected");
       this.networkManager.room.removeAllListeners("starterSelectionError");
     }
-
-    // Débloquer les inputs
-    this.blockPlayerInput(false);
 
     // Masquer si visible
     if (this.isVisible) {
