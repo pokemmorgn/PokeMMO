@@ -47,9 +47,6 @@ export class BeachZone implements IZone {
 
     console.log(`👤 ${player.name} entre sur la plage`);
 
-    // ✅ NOUVEAU: Gestion de la quête d'intro automatique
-    await this.handleIntroQuest(client, player.name);
-
     // Envoyer les données de la zone (musique, météo, spawns)
     const zoneData = this.getZoneData();
     client.send("zoneData", {
