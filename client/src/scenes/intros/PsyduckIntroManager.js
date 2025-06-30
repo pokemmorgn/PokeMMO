@@ -58,7 +58,6 @@ export class PsyduckIntroManager {
 
     try {
       // ✅ FIX: Écouter triggerIntroSequence dans PsyduckIntroManager
-      console.log(`[${Date.now()}][CLIENT] register triggerIntroSequence listener`);
       this.scene.room.onMessage("triggerIntroSequence", (data) => {
         console.log("🎬 [PsyduckIntro] Serveur demande intro:", data);
         
@@ -438,7 +437,6 @@ export class PsyduckIntroManager {
         .setDepth(6);
       
       this.startPhase1_WalkRight();
-      room.send("clientIntroReady");
     } catch (error) {
       console.error(`❌ [PsyduckIntro] Erreur spawn Psyduck:`, error);
       this.cleanup();
