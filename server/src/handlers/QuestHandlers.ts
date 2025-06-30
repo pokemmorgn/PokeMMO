@@ -67,34 +67,35 @@ export class QuestHandlers {
   }
 
   // ✅ === NOUVEAU HANDLER: VÉRIFICATION AUTO INTRO ===
-  private async handleCheckAutoIntroQuest(client: Client) {
-    try {
-      console.log(`🎬 [QuestHandlers] Vérification intro quest pour ${client.sessionId}`);
+private async handleCheckAutoIntroQuest(client: Client) {
+  try {
+    console.log(`🎬 [QuestHandlers] Vérification intro quest pour ${client.sessionId}`);
+    
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) {
+      console.warn(`⚠️ [QuestHandlers] Joueur non trouvé: ${client.sessionId}`);
+      return;
+    }
+    
+    const questManager = ServiceRegistry.getInstance().getQuestManager();
+    if (!questManager) {
+      console.error(`❌ [QuestHandlers] QuestManager non disponible`);
+      return;
+    }
+    
+    const introQuestId = "beach_intro_quest";
+    const questStatus = await questManager.checkQuestStatus(player.name, introQuestId);
+    
+    console.log(`🔍 [QuestHandlers] Statut quête intro pour ${player.name}: ${questStatus}`);
+    
+    if (questStatus === 'available') {
+      // Donner la quête automatiquement
+      const result = await questManager.giveQuest(player.name, introQuestId);
       
-      const player = this.room.state.players.get(client.sessionId);
-      if (!player) {
-        console.warn(`⚠️ [QuestHandlers] Joueur non trouvé: ${client.sessionId}`);
-        return;
-      }
-      
-      const questManager = ServiceRegistry.getInstance().getQuestManager();
-      if (!questManager) {
-        console.error(`❌ [QuestHandlers] QuestManager non disponible`);
-        return;
-      }
-      
-      const introQuestId = "beach_intro_quest";
-      const questStatus = await questManager.checkQuestStatus(player.name, introQuestId);
-      
-      console.log(`🔍 [QuestHandlers] Statut quête intro pour ${player.name}: ${questStatus}`);
-      
-      if (questStatus === 'available') {
-        // Donner la quête automatiquement
-        const result = await questManager.giveQuest(player.name, introQuestId);
-        
-        if (result.success) {
-          console.log(`🎁 [QuestHandlers] Quête d'intro donnée, envoi des messages`);
-          
+      if (result.success) {
+        console.log(`🎁 [QuestHandlers] Quête d'intro donnée, envoi des messages (délai 2s)`);
+
+        setTimeout(() => {
           // ✅ FIX 1: Envoyer questGranted (que QuestSystem écoute)
           client.send("questGranted", {
             questId: introQuestId,
@@ -102,7 +103,7 @@ export class QuestHandlers {
             message: `🎁 Nouvelle quête : ${result.quest?.name || "Bienvenue à GreenRoot"} !`,
             quest: result.quest
           });
-          
+
           // ✅ FIX 2: Envoyer triggerIntroSequence (que PsyduckIntroManager écoute)
           client.send("triggerIntroSequence", {
             questId: introQuestId,
@@ -110,36 +111,40 @@ export class QuestHandlers {
             message: "Bienvenue dans votre aventure !",
             shouldStartIntro: true
           });
-          
-          console.log(`📤 [QuestHandlers] Messages questGranted + triggerIntroSequence envoyés`);
-        }
-      } else if (questStatus === 'active') {
-        // Vérifier si intro pas encore vue
-        const activeQuests = await questManager.getPlayerActiveQuests(player.name);
-        const introQuest = activeQuests.find(q => q.id === introQuestId);
+
+          console.log(`📤 [QuestHandlers] Messages questGranted + triggerIntroSequence envoyés (DÉLAI OK)`);
+        }, 2000); // ← 2 secondes de délai
+      }
+    } else if (questStatus === 'active') {
+      // Vérifier si intro pas encore vue
+      const activeQuests = await questManager.getPlayerActiveQuests(player.name);
+      const introQuest = activeQuests.find(q => q.id === introQuestId);
+      
+      if (introQuest) {
+        const firstStep = introQuest.steps[0];
+        const hasSeenIntro = firstStep?.objectives.some((obj: any) => obj.completed);
         
-        if (introQuest) {
-          const firstStep = introQuest.steps[0];
-          const hasSeenIntro = firstStep?.objectives.some((obj: any) => obj.completed);
+        if (!hasSeenIntro) {
+          console.log(`🔄 [QuestHandlers] Intro pas encore vue, envoi triggerIntroSequence`);
           
-          if (!hasSeenIntro) {
-            console.log(`🔄 [QuestHandlers] Intro pas encore vue, envoi triggerIntroSequence`);
-            
-            // ✅ Envoyer seulement triggerIntroSequence (quête déjà donnée)
+          // ✅ Envoyer seulement triggerIntroSequence (quête déjà donnée)
+          setTimeout(() => {
             client.send("triggerIntroSequence", {
               questId: introQuestId,
               questName: introQuest.name,
               message: "Continuons votre aventure !",
               shouldStartIntro: true
             });
-          }
+          }, 2000); // ← 2 secondes de délai aussi
         }
       }
-      
-    } catch (error) {
-      console.error(`❌ [QuestHandlers] Erreur handleCheckAutoIntroQuest:`, error);
     }
+    
+  } catch (error) {
+    console.error(`❌ [QuestHandlers] Erreur handleCheckAutoIntroQuest:`, error);
   }
+}
+
 
   // ✅ === HANDLER PROGRESSION INTRO (maintenant public) ===
   public async handleProgressIntroQuest(client: Client, step: string) {
