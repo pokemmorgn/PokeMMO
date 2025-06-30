@@ -178,32 +178,44 @@ async initialize(worldRoom, phaserGame) {
 
   // === HANDLERS D'ÉVÉNEMENTS ===
 
-  handleEncounterStart(data) {
-    console.log('🐾 [BattleIntegration] Début de rencontre:', data);
-    
-    if (this.isInBattle) {
-      console.warn('⚠️ [BattleIntegration] Déjà en combat, ignoré');
-      return;
-    }
-    
-    // Marquer comme en combat
-    this.isInBattle = true;
-    
-    // Notifier le GameManager
-    if (this.gameManager?.onBattleStart) {
-      this.gameManager.onBattleStart(data);
-    }
-    
-    // Démarrer la BattleScene
-    this.startBattleScene(data);
+handleEncounterStart(data) {
+  console.log('🐾 [BattleIntegration] Début de rencontre:', data);
+
+  if (this.isInBattle) {
+    console.warn('⚠️ [BattleIntegration] Déjà en combat, ignoré');
+    return;
   }
 
-  handleBattleRoomCreated(data) {
-    console.log('🏠 [BattleIntegration] BattleRoom créée:', data.battleRoomId);
-    
-    // La BattleConnection va automatiquement se connecter
-    // On attend juste la confirmation
+  // Marquer comme en combat
+  this.isInBattle = true;
+
+  // Notifier le GameManager s’il a un callback
+  if (this.gameManager?.onBattleStart) {
+    this.gameManager.onBattleStart(data);
   }
+
+  // === LANCER LA SCÈNE DE COMBAT ===
+  if (!this.phaserGame.scene.isActive('BattleScene')) {
+    console.log('🎬 [BattleIntegration] Lancement BattleScene...');
+    this.phaserGame.scene.launch('BattleScene', {
+      gameManager: this.gameManager,
+      networkHandler: this.battleConnection,
+      encounterData: data
+    });
+  } else {
+    console.log('🎬 [BattleIntegration] BattleScene déjà active, bringToTop...');
+    this.phaserGame.scene.bringToTop('BattleScene');
+  }
+
+  // Facultatif : mettre en pause le jeu principal si besoin
+  if (this.gameManager?.pauseGame) {
+    this.gameManager.pauseGame('battle');
+  }
+
+  // Tu peux log pour bien voir le flow
+  console.log('✅ [BattleIntegration] handleEncounterStart terminé');
+}
+
 
   handleBattleRoomJoined(data) {
     console.log('🚪 [BattleIntegration] BattleRoom rejointe:', data);
