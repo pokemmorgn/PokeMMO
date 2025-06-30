@@ -46,7 +46,7 @@ export class BattleIntegration {
     try {
       // 1. Créer la BattleConnection
       this.battleConnection = new BattleConnection(this.gameManager);
-      const connectionSuccess = this.battleConnection.initialize(networkManager);
+      const connectionSuccess = this.battleConnection.initialize(this.gameManager.networkManager);
       
       if (!connectionSuccess) {
         console.error('❌ [BattleIntegration] Échec initialisation BattleConnection');
