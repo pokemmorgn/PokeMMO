@@ -76,7 +76,7 @@ export class BeachScene extends BaseZoneScene {
   async create() {
     super.create();
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
-    this.psyduckIntroManager = new PsyduckIntroManager(this, this.room);
+    this.psyduckIntroManager = new PsyduckIntroManager(this);
 
     // ✅ Configurer les listeners immédiatement si room disponible
     this.setupEarlyListeners();
