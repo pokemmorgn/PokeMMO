@@ -134,42 +134,147 @@ export class StarterSelector {
 
   // Ajoute cette méthode après createStarterPlaceholder()
 createStarterBackground() {
-  if (this.scene.textures.exists('starter_background_custom')) return;
+  if (this.scene.textures.exists('starter_background_stylish')) return;
   
-  const width = 400;
-  const height = 250;
+  const width = 500;
+  const height = 350;
   const graphics = this.scene.add.graphics();
 
-  // Fond gris-bleu clair (partie haute)
-  graphics.fillStyle(0xA0B5D1);
-  graphics.fillRect(0, 0, width, height * 0.4);
-
-  // Grille de carreaux
-  graphics.lineStyle(1, 0x8DA3C0, 0.4);
-  for (let x = 0; x < width; x += 24) {
-    graphics.lineBetween(x, 0, x, height * 0.4);
+  // === FOND PRINCIPAL DÉGRADÉ ===
+  // Créer un dégradé bleu profond vers violet
+  for (let i = 0; i < height; i++) {
+    const alpha = i / height;
+    const r = Math.floor(25 + (75 * alpha));  // 25 -> 100
+    const g = Math.floor(25 + (50 * alpha));  // 25 -> 75  
+    const b = Math.floor(85 + (70 * alpha));  // 85 -> 155
+    const color = (r << 16) | (g << 8) | b;
+    
+    graphics.fillStyle(color);
+    graphics.fillRect(0, i, width, 1);
   }
-  for (let y = 0; y < height * 0.4; y += 24) {
-    graphics.lineBetween(0, y, width, y);
+
+  // === ÉTOILES ET PARTICULES ===
+  graphics.fillStyle(0xFFFFFF);
+  for (let i = 0; i < 50; i++) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    const size = Math.random() * 2 + 1;
+    graphics.fillCircle(x, y, size);
   }
 
-  // Zone verte centrale
-  const greenY = height * 0.25;
-  const greenHeight = height * 0.5;
-  graphics.fillStyle(0x22C55E);
-  graphics.fillRoundedRect(width * 0.05, greenY, width * 0.9, greenHeight, 12);
+  // === CADRE PRINCIPAL AVEC BORDURE DORÉE ===
+  const frameX = width * 0.05;
+  const frameY = height * 0.1;
+  const frameWidth = width * 0.9;
+  const frameHeight = height * 0.8;
+  const radius = 20;
 
-  // Dégradé subtil sur la zone verte
-  graphics.fillStyle(0x16A34A);
-  graphics.fillEllipse(width * 0.3, greenY + greenHeight/2, 80, 40);
-  graphics.fillEllipse(width * 0.7, greenY + greenHeight/2, 80, 40);
+  // Bordure dorée extérieure
+  graphics.lineStyle(6, 0xFFD700);
+  graphics.strokeRoundedRect(frameX - 3, frameY - 3, frameWidth + 6, frameHeight + 6, radius + 3);
 
-  // Bordure inférieure gris foncé
-  graphics.fillStyle(0x4A5568);
-  graphics.fillRect(0, height * 0.8, width, height * 0.2);
+  // Bordure dorée intérieure
+  graphics.lineStyle(2, 0xFFA500);
+  graphics.strokeRoundedRect(frameX + 3, frameY + 3, frameWidth - 6, frameHeight - 6, radius - 3);
+
+  // === ZONE CENTRALE AVEC EFFET CRISTAL ===
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const crystalWidth = frameWidth * 0.85;
+  const crystalHeight = frameHeight * 0.6;
+
+  // Fond cristal avec transparence
+  graphics.fillStyle(0x1E3A8A, 0.3);
+  graphics.fillRoundedRect(
+    centerX - crystalWidth/2, 
+    centerY - crystalHeight/2 + 20, 
+    crystalWidth, 
+    crystalHeight, 
+    15
+  );
+
+  // Reflets cristal
+  graphics.fillStyle(0x60A5FA, 0.4);
+  graphics.fillRoundedRect(
+    centerX - crystalWidth/2 + 10, 
+    centerY - crystalHeight/2 + 30, 
+    crystalWidth - 20, 
+    crystalHeight/3, 
+    10
+  );
+
+  // === MOTIFS DÉCORATIFS ===
+  // Coins supérieurs
+  graphics.fillStyle(0xFFD700);
+  
+  // Coin supérieur gauche
+  graphics.fillTriangle(
+    frameX + 15, frameY + 15,
+    frameX + 35, frameY + 15,
+    frameX + 25, frameY + 35
+  );
+  
+  // Coin supérieur droit
+  graphics.fillTriangle(
+    frameX + frameWidth - 15, frameY + 15,
+    frameX + frameWidth - 35, frameY + 15,
+    frameX + frameWidth - 25, frameY + 35
+  );
+  
+  // Coins inférieurs
+  graphics.fillTriangle(
+    frameX + 15, frameY + frameHeight - 15,
+    frameX + 35, frameY + frameHeight - 15,
+    frameX + 25, frameY + frameHeight - 35
+  );
+  
+  graphics.fillTriangle(
+    frameX + frameWidth - 15, frameY + frameHeight - 15,
+    frameX + frameWidth - 35, frameY + frameHeight - 15,
+    frameX + frameWidth - 25, frameY + frameHeight - 35
+  );
+
+  // === SYMBOLES POKÉMON ===
+  // Pokéball stylisée en haut
+  const ballX = centerX;
+  const ballY = frameY + 40;
+  const ballRadius = 12;
+  
+  // Partie supérieure rouge
+  graphics.fillStyle(0xDC2626);
+  graphics.slice(ballX, ballY, ballRadius, 0, Math.PI, false);
+  graphics.fillPath();
+  
+  // Partie inférieure blanche
+  graphics.fillStyle(0xF8FAFC);
+  graphics.slice(ballX, ballY, ballRadius, Math.PI, 0, false);
+  graphics.fillPath();
+  
+  // Ligne centrale
+  graphics.lineStyle(2, 0x000000);
+  graphics.lineBetween(ballX - ballRadius, ballY, ballX + ballRadius, ballY);
+  
+  // Centre
+  graphics.fillStyle(0x000000);
+  graphics.fillCircle(ballX, ballY, 4);
+  graphics.fillStyle(0xF8FAFC);
+  graphics.fillCircle(ballX, ballY, 2);
+
+  // === EFFET LUMINEUX ===
+  // Halo lumineux central
+  for (let i = 0; i < 3; i++) {
+    const glowRadius = 40 + (i * 15);
+    const glowAlpha = 0.1 - (i * 0.03);
+    graphics.fillStyle(0x60A5FA, glowAlpha);
+    graphics.fillCircle(centerX, centerY + 10, glowRadius);
+  }
+
+  // === BORDURE FINALE ===
+  graphics.lineStyle(3, 0x1E40AF);
+  graphics.strokeRoundedRect(frameX, frameY, frameWidth, frameHeight, radius);
 
   // Générer la texture
-  graphics.generateTexture('starter_background_custom', width, height);
+  graphics.generateTexture('starter_background_stylish', width, height);
   graphics.destroy();
 }
   
@@ -223,134 +328,176 @@ createStarterBackground() {
 }
 
   // ✅ MÉTHODE: Créer l'interface principale (version compacte)
-  createInterface() {
-  const centerX = this.scene.cameras.main.centerX;
-  const centerY = this.scene.cameras.main.centerY;
+createStarters() {
+  this.pokeballs = [];
+  this.starterSprites = [];
 
-  this.container = this.scene.add.container(centerX, centerY);
-  this.container.setDepth(1000);
+  this.starterOptions.forEach((starter, index) => {
+    // Positions en arc de cercle
+    const angle = (index - 1) * 0.8; // -0.8, 0, 0.8
+    const radius = 85;
+    const posX = Math.sin(angle) * radius;
+    const posY = Math.cos(angle) * radius * 0.3 - 10; // Plus plat
+    
+    // Pokéball avec effet brillant
+    const pokeball = this.scene.add.image(posX, posY, 'pokeball_starter');
+    pokeball.setScale(1.2);
+    pokeball.setInteractive();
+    
+    // Halo autour de chaque pokéball
+    const halo = this.scene.add.circle(posX, posY, 25, starter.color, 0.2);
+    this.container.add(halo);
+    
+    // Sprite du starter
+    const starterSprite = this.scene.add.image(posX, posY - 40, `starter_${starter.id}`);
+    starterSprite.setScale(1.0);
+    starterSprite.setAlpha(0.8);
 
-  // Utiliser le background créé par code
-  const bg = this.scene.add.image(0, 0, 'starter_background_custom');
-  bg.setScale(0.75); // Ajuste la taille si nécessaire
-  this.container.add(bg);
+    // Animations améliorées
+    pokeball.on('pointerover', () => {
+      if (!this.isAnimating) {
+        // Animation pokéball
+        this.scene.tweens.add({
+          targets: pokeball,
+          scaleX: 1.4,
+          scaleY: 1.4,
+          duration: 300,
+          ease: 'Back.easeOut'
+        });
+        
+        // Animation halo
+        this.scene.tweens.add({
+          targets: halo,
+          scaleX: 1.5,
+          scaleY: 1.5,
+          alpha: 0.4,
+          duration: 300,
+          ease: 'Back.easeOut'
+        });
+        
+        // Animation starter
+        this.scene.tweens.add({
+          targets: starterSprite,
+          scaleX: 1.2,
+          scaleY: 1.2,
+          y: posY - 50,
+          alpha: 1.0,
+          duration: 300,
+          ease: 'Back.easeOut'
+        });
+        
+        this.showStarterInfo(starter, index);
+      }
+    });
 
-  // Titre
-  const title = this.scene.add.text(0, -80, 'Choisissez votre Pokémon', {
-    fontSize: '16px',
-    fontFamily: 'Arial Black',
-    color: '#ffffff',
-    stroke: '#000000',
-    strokeThickness: 2,
-    align: 'center'
-  }).setOrigin(0.5);
-  this.container.add(title);
+    pokeball.on('pointerout', () => {
+      if (!this.isAnimating && this.currentlySelectedIndex !== index) {
+        this.scene.tweens.add({
+          targets: pokeball,
+          scaleX: 1.2,
+          scaleY: 1.2,
+          duration: 200
+        });
+        
+        this.scene.tweens.add({
+          targets: halo,
+          scaleX: 1.0,
+          scaleY: 1.0,
+          alpha: 0.2,
+          duration: 200
+        });
+        
+        this.scene.tweens.add({
+          targets: starterSprite,
+          scaleX: 1.0,
+          scaleY: 1.0,
+          y: posY - 40,
+          alpha: 0.8,
+          duration: 200
+        });
+      }
+    });
 
-  this.createStarters();
-  this.createUI();
-  this.container.setAlpha(0);
+    pokeball.on('pointerdown', () => {
+      if (!this.isAnimating) {
+        this.selectStarter(starter, index);
+      }
+    });
+
+    this.container.add([pokeball, starterSprite]);
+    this.pokeballs.push(pokeball);
+    this.starterSprites.push(starterSprite);
+  });
 }
 
-  // ✅ MÉTHODE: Créer les starters (version compacte)
-  createStarters() {
-    this.pokeballs = [];
-    this.starterSprites = [];
+// Améliore createUI() pour des boutons plus stylés
+createUI() {
+  // Zone d'information avec fond translucide
+  const infoBox = this.scene.add.rectangle(0, 60, 400, 60, 0x1E3A8A, 0.7);
+  infoBox.setStrokeStyle(2, 0x60A5FA);
+  this.container.add(infoBox);
 
-    this.starterOptions.forEach((starter, index) => {
-      // Positions horizontales
-      const posX = (index - 1) * 80; // -80, 0, 80
-      const posY = -20;
-      
-      // Pokéball cliquable
-      const pokeball = this.scene.add.image(posX, posY, 'pokeball_starter');
-      pokeball.setInteractive();
-      
-      // Sprite du starter (au-dessus de la pokéball)
-      const starterSprite = this.scene.add.image(
-        posX, 
-        posY - 30,
-        `starter_${starter.id}`
-      );
-      starterSprite.setAlpha(0.7);
+  this.infoText = this.scene.add.text(0, 60, '', {
+    fontSize: '13px',
+    fontFamily: 'Arial',
+    color: '#E2E8F0',
+    align: 'center',
+    wordWrap: { width: 380 }
+  }).setOrigin(0.5);
 
-      // Animation de hover
-      pokeball.on('pointerover', () => {
-        if (!this.isAnimating) {
-          pokeball.setScale(1.2);
-          starterSprite.setScale(1.1);
-          starterSprite.setAlpha(1.0);
-          this.showStarterInfo(starter, index);
-        }
+  // Bouton de confirmation stylé
+  this.confirmButton = this.scene.add.rectangle(0, 120, 150, 35, 0x059669);
+  this.confirmButton.setStrokeStyle(3, 0x10B981);
+  this.confirmButton.setInteractive();
+  this.confirmButton.setAlpha(0);
+
+  this.confirmButtonText = this.scene.add.text(0, 120, 'CONFIRMER', {
+    fontSize: '14px',
+    fontFamily: 'Arial Black',
+    color: '#ffffff',
+    shadow: {
+      offsetX: 1,
+      offsetY: 1,
+      color: '#000000',
+      blur: 2,
+      fill: true
+    }
+  }).setOrigin(0.5);
+  this.confirmButtonText.setAlpha(0);
+
+  // Handlers du bouton
+  this.confirmButton.on('pointerdown', () => {
+    if (this.selectedStarterId && !this.isAnimating) {
+      this.confirmSelection();
+    }
+  });
+
+  this.confirmButton.on('pointerover', () => {
+    if (this.selectedStarterId) {
+      this.confirmButton.setFillStyle(0x10B981);
+      this.scene.tweens.add({
+        targets: this.confirmButton,
+        scaleX: 1.1,
+        scaleY: 1.1,
+        duration: 200
       });
+    }
+  });
 
-      pokeball.on('pointerout', () => {
-        if (!this.isAnimating && this.currentlySelectedIndex !== index) {
-          pokeball.setScale(1.0);
-          starterSprite.setScale(1.0);
-          starterSprite.setAlpha(0.7);
-        }
+  this.confirmButton.on('pointerout', () => {
+    if (this.selectedStarterId) {
+      this.confirmButton.setFillStyle(0x059669);
+      this.scene.tweens.add({
+        targets: this.confirmButton,
+        scaleX: 1.0,
+        scaleY: 1.0,
+        duration: 200
       });
+    }
+  });
 
-      // Click handler
-      pokeball.on('pointerdown', () => {
-        if (!this.isAnimating) {
-          this.selectStarter(starter, index);
-        }
-      });
-
-      this.container.add([pokeball, starterSprite]);
-      this.pokeballs.push(pokeball);
-      this.starterSprites.push(starterSprite);
-    });
-  }
-
-  // ✅ MÉTHODE: Créer l'UI (textes, boutons) - version compacte
-  createUI() {
-    // Zone d'information du starter
-    this.infoText = this.scene.add.text(0, 40, '', {
-      fontSize: '12px', // Plus petit
-      fontFamily: 'Arial',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 1,
-      align: 'center',
-      wordWrap: { width: 280 }
-    }).setOrigin(0.5);
-
-    // Bouton de confirmation
-    this.confirmButton = this.scene.add.rectangle(0, 70, 120, 25, 0x4CAF50); // Plus petit
-    this.confirmButton.setStrokeStyle(2, 0x2E7D32);
-    this.confirmButton.setInteractive();
-    this.confirmButton.setAlpha(0);
-
-    this.confirmButtonText = this.scene.add.text(0, 70, 'CONFIRMER', {
-      fontSize: '12px', // Plus petit
-      fontFamily: 'Arial Black',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-    this.confirmButtonText.setAlpha(0);
-
-    // Handler du bouton de confirmation
-    this.confirmButton.on('pointerdown', () => {
-      if (this.selectedStarterId && !this.isAnimating) {
-        this.confirmSelection();
-      }
-    });
-
-    this.confirmButton.on('pointerover', () => {
-      if (this.selectedStarterId) {
-        this.confirmButton.setFillStyle(0x66BB6A);
-      }
-    });
-
-    this.confirmButton.on('pointerout', () => {
-      if (this.selectedStarterId) {
-        this.confirmButton.setFillStyle(0x4CAF50);
-      }
-    });
-
-    this.container.add([this.infoText, this.confirmButton, this.confirmButtonText]);
-  }
+  this.container.add([this.infoText, this.confirmButton, this.confirmButtonText]);
+}
 
   // ✅ MÉTHODE: Afficher les infos d'un starter
   showStarterInfo(starter, index) {
