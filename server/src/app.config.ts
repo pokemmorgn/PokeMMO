@@ -29,7 +29,7 @@ export default config({
     gameServer.define('AuthRoom', AuthRoom);
     gameServer.define('world', WorldRoom);
     gameServer.define('worldchat', WorldChatRoom);
-    gameServer.define("BattleRoom", BattleRoom)
+    gameServer.define("battle", BattleRoom)
       .enableRealtimeListing();
     
     console.log("✅ Toutes les rooms enregistrées (AuthRoom, WorldRoom, WorldChatRoom, BattleRoom)");
