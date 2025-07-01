@@ -411,6 +411,23 @@ export class WorldRoom extends Room<PokeWorldState> {
 
       // ✅ NOUVEAU: Configurer les handlers de starter
       this.starterHandlers.setupHandlers();
+    // Dans WorldRoom.ts, ajoutez temporairement dans setupMessageHandlers()
+console.log('🔧 TEMP: Adding direct starter handler...')
+
+this.onMessage("giveStarterChoice", async (client, data) => {
+    console.log('📥 STARTER REQUEST (temp):', data)
+    
+    client.send("starterReceived", {
+        success: true,
+        pokemon: {
+            id: "temp_starter_" + Date.now(),
+            pokemonId: data.pokemonId,
+            name: data.pokemonId === 4 ? "Salamèche" : "Starter",
+            level: 5
+        },
+        message: "Starter temporaire reçu !"
+    })
+})
 
     
     // Mouvement du joueur
