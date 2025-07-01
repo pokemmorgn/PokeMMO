@@ -173,22 +173,23 @@ if (this.networkManager?.room) {
   }
 
   interactWithNPC(npcName) {
-    console.log(`💬 Interaction avec ${npcName}`);
-    if (npcName === 'Professeur') {
-      // ✅ NOUVEAU: Interaction avec Professeur = StarterSelector
-if (this.networkManager?.room) {
+  console.log(`💬 Interaction avec ${npcName}`);
+  if (npcName === 'Professeur') {
+    // ✅ Interaction avec Professeur = demande d'éligibilité starter au serveur
+    if (this.networkManager?.room) {
       this.networkManager.room.send("checkStarterEligibility");
     }
-     } else {
-      const messages = {
-        Assistant: 'Je m\'occupe de l\'entretien du laboratoire.',
-        Chercheur: 'Nous étudions les Pokémon ici. Fascinant !',
-        Stagiaire: 'J\'apprends encore... C\'est compliqué !',
-      };
-      const message = messages[npcName] || 'Bonjour ! Je travaille ici.';
-      this.showSimpleDialog(npcName, message);
-    }
+  } else {
+    const messages = {
+      Assistant: 'Je m\'occupe de l\'entretien du laboratoire.',
+      Chercheur: 'Nous étudions les Pokémon ici. Fascinant !',
+      Stagiaire: 'J\'apprends encore... C\'est compliqué !',
+    };
+    const message = messages[npcName] || 'Bonjour ! Je travaille ici.';
+    this.showSimpleDialog(npcName, message);
   }
+}
+
 
   showProfessorStarterDialog() {
     const dialogueBox = this.add.text(
