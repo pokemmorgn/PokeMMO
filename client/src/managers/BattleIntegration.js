@@ -519,7 +519,7 @@ export class BattleIntegration {
       position: fixed;
       top: 7.5%;
       left: 7.5%;
-      width: 85%;
+      width: 50%;
       height: 85%;
       background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
       z-index: 9999;
