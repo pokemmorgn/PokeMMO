@@ -71,22 +71,43 @@ export class BattleRoom extends Room<BattleState> {
     await this.setupWorldRoomConnection();
   }
 
-  private async setupWorldRoomConnection() {
-    try {
-      // On récupère la référence via le registry de services
-      const ServiceRegistry = require('../services/ServiceRegistry').ServiceRegistry;
-      const registry = ServiceRegistry.getInstance();
-      this.worldRoomRef = registry.getWorldRoom();
-      
-      if (this.worldRoomRef) {
-        console.log(`🔗 BattleRoom connectée à WorldRoom`);
-      } else {
-        console.warn(`⚠️ Impossible de se connecter à WorldRoom`);
-      }
-    } catch (error) {
-      console.error(`❌ Erreur connexion WorldRoom:`, error);
+private async setupWorldRoomConnection() {
+  try {
+    console.log(`🔗 [BattleRoom] Tentative de connexion à WorldRoom...`);
+    
+    // ✅ CORRECTION: Utiliser le bon chemin d'import et vérifier l'existence
+    const { ServiceRegistry } = require('../services/ServiceRegistry');
+    
+    if (!ServiceRegistry) {
+      console.warn(`⚠️ [BattleRoom] ServiceRegistry non trouvé, mode dégradé`);
+      this.worldRoomRef = null;
+      return;
     }
+    
+    const registry = ServiceRegistry.getInstance();
+    
+    if (!registry) {
+      console.warn(`⚠️ [BattleRoom] Instance ServiceRegistry non disponible`);
+      this.worldRoomRef = null;
+      return;
+    }
+    
+    // ✅ CORRECTION: Utiliser la méthode getWorldRoom() qui existe maintenant
+    this.worldRoomRef = registry.getWorldRoom();
+    
+    if (this.worldRoomRef) {
+      console.log(`✅ [BattleRoom] Connectée à WorldRoom avec succès`);
+    } else {
+      console.warn(`⚠️ [BattleRoom] WorldRoom non disponible dans ServiceRegistry`);
+      console.log(`ℹ️ [BattleRoom] Mode dégradé : notifications de statut désactivées`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ [BattleRoom] Erreur connexion WorldRoom:`, error);
+    console.log(`🔄 [BattleRoom] Passage en mode dégradé sans WorldRoom`);
+    this.worldRoomRef = null;
   }
+}
 
   private setupMessageHandlers() {
     console.log(`📨 Configuration handlers BattleRoom...`);
@@ -669,42 +690,49 @@ export class BattleRoom extends Room<BattleState> {
     });
   }
 
-  private updatePlayerStatusIcon(sessionId: string, icon: BattleStatusIcon) {
-    this.lastStatusIcons.set(sessionId, icon);
-    
-    if (this.worldRoomRef) {
-      try {
-        // Notifier WorldRoom du changement d'icône
-        this.worldRoomRef.broadcast("playerStatusIcon", {
-          playerId: sessionId,
-          icon: icon,
-          iconEmoji: this.getIconEmoji(icon)
-        });
-        
-        console.log(`📱 Icône ${icon} mise à jour pour ${sessionId}`);
-      } catch (error) {
-        console.error(`❌ Erreur mise à jour icône:`, error);
-      }
+private updatePlayerStatusIcon(sessionId: string, icon: any) {
+  this.lastStatusIcons.set(sessionId, icon);
+  
+  if (this.worldRoomRef) {
+    try {
+      // Notifier WorldRoom du changement d'icône
+      this.worldRoomRef.broadcast("playerStatusIcon", {
+        playerId: sessionId,
+        icon: icon,
+        iconEmoji: this.getIconEmoji(icon)
+      });
+      
+      console.log(`📱 Icône ${icon} mise à jour pour ${sessionId}`);
+    } catch (error) {
+      console.error(`❌ Erreur mise à jour icône:`, error);
     }
+  } else {
+    // Mode dégradé : just log
+    console.log(`📱 [DÉGRADÉ] Icône ${icon} pour ${sessionId} (WorldRoom indisponible)`);
   }
+}
 
-  private clearPlayerStatusIcon(sessionId: string) {
-    this.lastStatusIcons.delete(sessionId);
-    
-    if (this.worldRoomRef) {
-      try {
-        this.worldRoomRef.broadcast("playerStatusIcon", {
-          playerId: sessionId,
-          icon: null,
-          iconEmoji: null
-        });
-        
-        console.log(`🧹 Icône nettoyée pour ${sessionId}`);
-      } catch (error) {
-        console.error(`❌ Erreur nettoyage icône:`, error);
-      }
+
+private clearPlayerStatusIcon(sessionId: string) {
+  this.lastStatusIcons.delete(sessionId);
+  
+  if (this.worldRoomRef) {
+    try {
+      this.worldRoomRef.broadcast("playerStatusIcon", {
+        playerId: sessionId,
+        icon: null,
+        iconEmoji: null
+      });
+      
+      console.log(`🧹 Icône nettoyée pour ${sessionId}`);
+    } catch (error) {
+      console.error(`❌ Erreur nettoyage icône:`, error);
     }
+  } else {
+    // Mode dégradé : just log
+    console.log(`🧹 [DÉGRADÉ] Icône nettoyée pour ${sessionId} (WorldRoom indisponible)`);
   }
+}
 
   private getIconEmoji(icon: BattleStatusIcon): string {
     const iconMap = {
@@ -1079,25 +1107,33 @@ export class BattleRoom extends Room<BattleState> {
 
   // === COMMUNICATION AVEC WORLDROOM ===
 
-  private blockPlayerInWorldRoom(sessionId: string, reason: string) {
-    if (this.worldRoomRef) {
-      try {
-        this.worldRoomRef.blockPlayerMovement(sessionId, "battle", 0, { reason });
-        console.log(`🚫 Mouvement bloqué pour ${sessionId}: ${reason}`);
-      } catch (error) {
-        console.error(`❌ Erreur blocage mouvement:`, error);
-      }
-    }
-  }
+// === COMMUNICATION AVEC WORLDROOM ===
 
-  private unblockPlayerInWorldRoom(sessionId: string) {
-    if (this.worldRoomRef) {
-      try {
-        this.worldRoomRef.unblockPlayerMovement(sessionId, "battle");
-        console.log(`✅ Mouvement débloqué pour ${sessionId}`);
-      } catch (error) {
-        console.error(`❌ Erreur déblocage mouvement:`, error);
-      }
+private blockPlayerInWorldRoom(sessionId: string, reason: string) {
+  if (this.worldRoomRef) {
+    try {
+      this.worldRoomRef.blockPlayerMovement(sessionId, "battle", 0, { reason });
+      console.log(`🚫 Mouvement bloqué pour ${sessionId}: ${reason}`);
+    } catch (error) {
+      console.error(`❌ Erreur blocage mouvement:`, error);
     }
+  } else {
+    // ✅ AJOUT: Mode dégradé - juste logger
+    console.log(`🚫 [DÉGRADÉ] Mouvement bloqué pour ${sessionId}: ${reason} (WorldRoom indisponible)`);
   }
+}
+
+private unblockPlayerInWorldRoom(sessionId: string) {
+  if (this.worldRoomRef) {
+    try {
+      this.worldRoomRef.unblockPlayerMovement(sessionId, "battle");
+      console.log(`✅ Mouvement débloqué pour ${sessionId}`);
+    } catch (error) {
+      console.error(`❌ Erreur déblocage mouvement:`, error);
+    }
+  } else {
+    // ✅ AJOUT: Mode dégradé - juste logger
+    console.log(`✅ [DÉGRADÉ] Mouvement débloqué pour ${sessionId} (WorldRoom indisponible)`);
+  }
+}
 }
