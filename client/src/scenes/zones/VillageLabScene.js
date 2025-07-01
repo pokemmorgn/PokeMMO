@@ -120,7 +120,6 @@ export class VillageLabScene extends BaseZoneScene {
 if (this.networkManager?.room) {
     this.networkManager.room.send("checkStarterEligibility");
   }
-});
     });
 
     // ✅ TRIGGER: Interaction avec le Professeur pour commencer
