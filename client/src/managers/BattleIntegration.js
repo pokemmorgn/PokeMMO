@@ -196,11 +196,24 @@ export class BattleIntegration {
     // === ✅ CORRECTION: LANCER LA SCÈNE DE COMBAT IMMÉDIATEMENT ===
     console.log('🎬 [BattleIntegration] === LANCEMENT BATTLESCENE ===');
     console.log('🎮 PhaserGame disponible:', !!this.phaserGame);
-    console.log('📊 Scènes disponibles:', Object.keys(this.phaserGame.scene.manager.keys));
+    
+    // ✅ PROTECTION: Vérifier que le scene manager existe
+    if (this.phaserGame?.scene?.manager?.keys) {
+      console.log('📊 Scènes disponibles:', Object.keys(this.phaserGame.scene.manager.keys));
+    } else {
+      console.warn('⚠️ [BattleIntegration] Scene manager non disponible, utilisation fallback');
+    }
     
     try {
       // ✅ VÉRIFIER QUE LA BATTLESCENE EXISTE
-      const battleScene = this.phaserGame.scene.getScene('BattleScene');
+      let battleScene = null;
+      
+      try {
+        battleScene = this.phaserGame?.scene?.getScene('BattleScene');
+      } catch (e) {
+        console.warn('⚠️ [BattleIntegration] getScene échoué:', e.message);
+      }
+      
       if (!battleScene) {
         console.error('❌ [BattleIntegration] BattleScene introuvable!');
         
@@ -252,16 +265,22 @@ export class BattleIntegration {
   handleBattleRoomCreated(data) {
     console.log('🏠 [BattleIntegration] BattleRoom créée:', data.battleRoomId);
     
-    this.battleState.battleId = data.battleRoomId;
-    this.battleState.battleType = data.battleType;
+    // ✅ CORRECTION: Pas de this.battleState dans BattleIntegration
+    // this.battleState.battleId = data.battleRoomId;
+    // this.battleState.battleType = data.battleType;
+    
+    // ✅ Stocker les infos directement
+    this.currentBattleRoomId = data.battleRoomId;
+    this.currentBattleType = data.battleType;
     
     // Rejoindre automatiquement la BattleRoom
     if (this.battleConnection) {
       console.log('🚪 [BattleIntegration] Tentative de rejoindre BattleRoom...');
-      this.battleConnection.joinRoom(data.battleRoomId);
+      // ✅ CORRECTION: Utiliser la méthode correcte
+      this.battleConnection.connectToBattleRoom?.(data.battleRoomId);
     }
     
-    this.triggerEvent('battleRoomCreated', data);
+    console.log('✅ [BattleIntegration] BattleRoom created handler terminé');
   }
 
   handleBattleRoomJoined(data) {
