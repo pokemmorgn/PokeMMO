@@ -183,6 +183,10 @@ async function initializeSceneSystem() {
 }
 
 // Dans la console, corrigez le client :
+// === CORRECTIONS À APPLIQUER DANS main.js ===
+
+// 1. ❌ SUPPRIMER ces lignes (lignes 190-230 environ) :
+// Dans la console, corrigez le client :
 window.fixBattleClient = function() {
     console.log('🔧 === CORRECTION CLIENT BATTLE ===');
     
@@ -219,6 +223,46 @@ window.fixBattleClient = function() {
     
     console.error('❌ NetworkHandler introuvable');
     return false;
+};
+
+window.fixBattleClient = function() {
+    console.log('🔧 === CORRECTION CLIENT BATTLE ===');
+    
+    // Vérifier que le système global client existe
+    if (!window.client) {
+        console.error('❌ Client Colyseus global manquant');
+        return false;
+    }
+    
+    // ✅ CORRECTION: Vérifier si battleSystem existe avant d'essayer de l'utiliser
+    if (!window.battleSystem) {
+        console.warn('⚠️ BattleSystem pas encore initialisé (normal au chargement)');
+        return false;
+    }
+    
+    // Récupérer le NetworkHandler et corriger le client
+    const battleConnection = window.battleSystem.battleConnection;
+    const networkHandler = battleConnection?.networkHandler;
+    
+    if (networkHandler) {
+        console.log('🔄 Correction du client dans BattleNetworkHandler...');
+        
+        // Forcer le bon client
+        networkHandler.client = window.client;
+        
+        console.log('✅ Client corrigé:', {
+            hasJoinById: typeof networkHandler.client.joinById === 'function',
+            clientType: typeof networkHandler.client,
+            clientKeys: Object.keys(networkHandler.client)
+        });
+        
+        return true;
+    }
+    
+    console.error('❌ NetworkHandler introuvable');
+    return false;
+};
+false;
 };
 
 // Appliquez la correction
