@@ -61,24 +61,29 @@ export class VillageLabScene extends BaseZoneScene {
 
     // Gestion des messages serveur (dialogues, starter...)
     if (this.networkManager?.room) {
-      this.networkManager.room.onMessage('professorDialog', (data) => this.showProfessorDialog(data));
-      this.networkManager.room.onMessage('starterReceived', (data) => this.showStarterReceived(data));
-      this.networkManager.room.onMessage('welcomeToLab', (data) => this.showWelcomeMessage(data));
-      
-      // ✅ NOUVEAU: Listeners pour StarterSelector
-      this.networkManager.room.onMessage("requestStarterSelection", (data) => {
-        console.log("📥 [VillageLabScene] Demande de sélection starter du serveur");
-        this.showStarterSelection(data.availableStarters);
-      });
+    this.networkManager.room.onMessage('professorDialog', (data) => this.showProfessorDialog(data));
+    this.networkManager.room.onMessage('starterReceived', (data) => this.showStarterReceived(data));
+    this.networkManager.room.onMessage('welcomeToLab', (data) => this.showWelcomeMessage(data));
+    this.networkManager.room.onMessage("requestStarterSelection", (data) => {
+      console.log("📥 [VillageLabScene] Demande de sélection starter du serveur");
+      this.showStarterSelection(data.availableStarters);
+    });
+    this.networkManager.room.onMessage("starterSelected", (data) => {
+      console.log("✅ [VillageLabScene] Starter confirmé:", data);
+      this.onStarterConfirmed(data);
+    });
 
-      this.networkManager.room.onMessage("starterSelected", (data) => {
-        console.log("✅ [VillageLabScene] Starter confirmé:", data);
-        // Ici vous pouvez ajouter des actions après sélection
-        this.onStarterConfirmed(data);
-      });
-    }
+    // 👉 AJOUTE CE BLOC POUR 'starterEligibility'
+    this.networkManager.room.onMessage("starterEligibility", (data) => {
+      console.log("[VillageLabScene] Réponse starterEligibility:", data);
+      if (data.eligible) {
+        this.showStarterSelection();
+      } else {
+        this.showSimpleDialog("Professeur", data.message || "Vous ne pouvez pas choisir de starter.");
+      }
+    });
   }
-
+}
   setupStarterSelector() {
     try {
       // Intégrer le StarterSelector à cette scène
