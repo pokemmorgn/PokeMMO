@@ -502,6 +502,7 @@ leaveBattle(reason = 'manual') {
 }
 
 
+
   // === REQUÊTES D'INFORMATION ===
 
   checkCanBattle() {
@@ -546,6 +547,7 @@ async disconnectFromBattleRoom() {
   // Après un court délai, autorise à nouveau
   setTimeout(() => { this._isDisconnecting = false; }, 2000);
 }
+
 
 
   // === SYSTÈME D'ÉVÉNEMENTS ===
