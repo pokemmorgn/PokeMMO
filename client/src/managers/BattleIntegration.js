@@ -173,6 +173,10 @@ export class BattleIntegration {
       this.handleBattleJoined(data);
     });
     
+    this.battleConnection.on('phaseChange', (data) => {
+      this.handlePhaseChange(data);
+    });
+    
     this.battleConnection.on('battleStart', (data) => {
       this.handleBattleStart(data);
     });
@@ -370,9 +374,74 @@ export class BattleIntegration {
     
     // Désactiver le mouvement du joueur
     this.disablePlayerMovement();
+    
+    // ✅ CORRECTION: Déclencher l'affichage de l'interface immédiatement
+    console.log('🖥️ [BattleIntegration] Déclenchement interface après battleJoined...');
+    
+    // Créer des données de combat temporaires si nécessaire
+    const battleData = {
+      battleId: data.battleId,
+      battleType: data.battleType,
+      yourRole: data.yourRole,
+      playerPokemon: this.selectedPokemon,
+      opponentPokemon: this.currentBattleData?.pokemon
+    };
+    
+    // Lancer l'interface immédiatement
+    this.startBattleInterface(battleData);
   }
 
-  handleBattleStart(data) {
+  // ✅ NOUVEAU: Gestion du changement de phase
+  handlePhaseChange(data) {
+    console.log('🔄 [BattleIntegration] Changement de phase:', data.phase);
+    
+    switch (data.phase) {
+      case 'team_selection':
+        console.log('🔄 [BattleIntegration] Phase sélection équipe - envoi du Pokémon si pas encore fait');
+        
+        // Si on n'a pas encore envoyé le choix, le faire maintenant
+        if (this.selectedPokemon && !this.pokemonChoiceSent) {
+          console.log('📤 [BattleIntegration] Envoi tardif du choix de Pokémon...');
+          
+          const success = this.battleConnection.choosePokemon(this.selectedPokemon.id);
+          if (success) {
+            this.pokemonChoiceSent = true;
+            console.log(`✅ [BattleIntegration] Choix tardif envoyé: ${this.selectedPokemon.name}`);
+          }
+        }
+        break;
+        
+      case 'battle':
+        console.log('⚔️ [BattleIntegration] Phase de combat - lancement interface si pas encore fait');
+        
+        // Si l'interface n'est pas encore lancée, la lancer maintenant
+        if (!this.isBattleInterfaceActive()) {
+          const battleData = {
+            phase: 'battle',
+            playerPokemon: this.selectedPokemon,
+            opponentPokemon: this.currentBattleData?.pokemon
+          };
+          this.startBattleInterface(battleData);
+        }
+        break;
+    }
+  }
+  
+  // ✅ NOUVEAU: Vérifier si l'interface est active
+  isBattleInterfaceActive() {
+    // Vérifier si BattleScene est active
+    if (this.phaserGame?.scene?.isActive('BattleScene')) {
+      return true;
+    }
+    
+    // Vérifier si interface fallback est active
+    const fallbackOverlay = document.getElementById('fallback-battle-overlay');
+    if (fallbackOverlay && fallbackOverlay.style.display !== 'none') {
+      return true;
+    }
+    
+    return false;
+  }
     console.log('🎬 [BattleIntegration] === DÉBUT DU COMBAT ===');
     console.log('📊 Data de combat:', data);
     
@@ -386,41 +455,61 @@ export class BattleIntegration {
   }
 
   startBattleInterface(battleData) {
-    console.log('🖥️ [BattleIntegration] Lancement interface de combat...');
+    console.log('🖥️ [BattleIntegration] === LANCEMENT INTERFACE DE COMBAT ===');
+    console.log('📊 Données:', battleData);
+    console.log('🎮 PhaserGame disponible:', !!this.phaserGame);
+    console.log('🎬 BattleScene disponible:', !!this.battleScene);
     
     try {
       // Essayer d'utiliser la BattleScene Phaser
       if (this.battleScene && this.phaserGame?.scene) {
-        console.log('🎬 [BattleIntegration] Utilisation de la BattleScene Phaser');
+        console.log('🎬 [BattleIntegration] Tentative utilisation BattleScene Phaser...');
         
-        // Démarrer la BattleScene
-        if (this.phaserGame.scene.isActive('BattleScene')) {
-          this.phaserGame.scene.bringToTop('BattleScene');
+        // Vérifier que la scène existe dans le manager
+        const sceneExists = this.phaserGame.scene.getScene('BattleScene');
+        console.log('🔍 BattleScene existe dans manager:', !!sceneExists);
+        
+        if (sceneExists) {
+          // Démarrer la BattleScene
+          if (this.phaserGame.scene.isActive('BattleScene')) {
+            console.log('🔄 BattleScene déjà active, mise au premier plan...');
+            this.phaserGame.scene.bringToTop('BattleScene');
+          } else {
+            console.log('🚀 Démarrage de la BattleScene...');
+            this.phaserGame.scene.start('BattleScene', {
+              gameManager: this.gameManager,
+              networkHandler: this.battleConnection,
+              battleData: battleData,
+              selectedPokemon: this.selectedPokemon
+            });
+          }
+          
+          // Mettre en pause la scène principale
+          if (this.gameManager?.pauseGame) {
+            this.gameManager.pauseGame('battle');
+          }
+          
+          console.log('✅ [BattleIntegration] BattleScene lancée avec succès');
+          return;
+          
         } else {
-          this.phaserGame.scene.start('BattleScene', {
-            gameManager: this.gameManager,
-            networkHandler: this.battleConnection,
-            battleData: battleData,
-            selectedPokemon: this.selectedPokemon
-          });
+          console.warn('⚠️ [BattleIntegration] BattleScene non trouvée dans le manager');
         }
-        
-        // Mettre en pause la scène principale
-        if (this.gameManager?.pauseGame) {
-          this.gameManager.pauseGame('battle');
-        }
-        
       } else {
-        console.log('🆘 [BattleIntegration] Fallback interface DOM');
-        
-        // Fallback : créer une interface DOM simple
-        this.createFallbackBattleInterface(battleData);
+        console.warn('⚠️ [BattleIntegration] BattleScene ou PhaserGame non disponible');
+        console.log('🔍 Debug:', {
+          battleScene: !!this.battleScene,
+          phaserGame: !!this.phaserGame,
+          phaserGameScene: !!this.phaserGame?.scene
+        });
       }
+      
+      console.log('🆘 [BattleIntegration] Passage en fallback interface DOM...');
+      this.createFallbackBattleInterface(battleData);
       
     } catch (error) {
       console.error('❌ [BattleIntegration] Erreur lancement interface:', error);
-      
-      // Double fallback
+      console.log('🆘 [BattleIntegration] Fallback forcé après erreur...');
       this.createFallbackBattleInterface(battleData);
     }
   }
