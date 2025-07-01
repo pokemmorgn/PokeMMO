@@ -291,7 +291,7 @@ export class NetworkManager {
     });
 
     this.room.onMessage("forcePlayerPosition", (data) => {
-  console.warn("⛔️ [NetworkManager] Position forcée par le serveur (rollback collision):", data);
+  //console.warn("⛔️ [NetworkManager] Position forcée par le serveur (rollback collision):", data);
   // Ici tu fais le rollback de la position sur le client :
   if (window.playerManager && typeof window.playerManager.forcePosition === "function") {
     window.playerManager.forcePosition(data.x, data.y, data.direction, data.currentZone);
