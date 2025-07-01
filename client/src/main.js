@@ -178,6 +178,48 @@ async function initializeSceneSystem() {
   return registry;
 }
 
+// Dans la console, corrigez le client :
+window.fixBattleClient = function() {
+    console.log('🔧 === CORRECTION CLIENT BATTLE ===');
+    
+    // Vérifier que le système global client existe
+    if (!window.client) {
+        console.error('❌ Client Colyseus global manquant');
+        return false;
+    }
+    
+    // Vérifier que le battleSystem existe
+    if (!window.battleSystem) {
+        console.error('❌ BattleSystem manquant');
+        return false;
+    }
+    
+    // Récupérer le NetworkHandler et corriger le client
+    const battleConnection = window.battleSystem.battleConnection;
+    const networkHandler = battleConnection?.networkHandler;
+    
+    if (networkHandler) {
+        console.log('🔄 Correction du client dans BattleNetworkHandler...');
+        
+        // Forcer le bon client
+        networkHandler.client = window.client;
+        
+        console.log('✅ Client corrigé:', {
+            hasJoinById: typeof networkHandler.client.joinById === 'function',
+            clientType: typeof networkHandler.client,
+            clientKeys: Object.keys(networkHandler.client)
+        });
+        
+        return true;
+    }
+    
+    console.error('❌ NetworkHandler introuvable');
+    return false;
+};
+
+// Appliquez la correction
+window.fixBattleClient();
+
 async function initializeGlobalWeatherSystem() {
   console.log("🌤️ [MAIN] === INITIALISATION SYSTÈME MÉTÉO GLOBAL SIMPLE ===");
   
