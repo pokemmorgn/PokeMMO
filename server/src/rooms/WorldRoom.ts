@@ -409,16 +409,11 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.battleHandlers.setupHandlers();
     // === HANDLERS EXISTANTS ===
 
-      // ✅ NOUVEAU: Configurer les handlers de starter
-      this.starterHandlers.setupHandlers();
-    // Dans WorldRoom.ts, ajoutez temporairement dans setupMessageHandlers()
-console.log('🔧 TEMP: Adding direct starter handler...')
+ // ✅ NOUVEAU: Configurer les handlers de starter
+this.starterHandlers.setupHandlers();
 
-// === FIX TEMPORAIRE STARTER ===
-console.log('🔧 [FIX] Configuration handler starter direct...')
-
-// === FIX TEMPORAIRE STARTER ===
-console.log('🔧 [FIX] Configuration handler starter direct...')
+// ✅ HANDLER STARTER CORRIGÉ - Remplace le handler temporaire
+console.log('🔧 [FIX] Configuration handler starter RÉEL...')
 
 this.onMessage("giveStarterChoice", async (client, data: { pokemonId: number }) => {
     console.log('📥 [FIX] STARTER REQUEST reçu:', data)
@@ -433,36 +428,60 @@ this.onMessage("giveStarterChoice", async (client, data: { pokemonId: number }) 
         return
     }
     
-    console.log('🎯 [FIX] Création starter pour:', player.name)
+    console.log('🎯 [FIX] Création RÉELLE starter pour:', player.name)
     
-    // Type-safe starter names
-    const starterNames: Record<number, string> = {
-        1: "Bulbizarre",
-        4: "Salamèche", 
-        7: "Carapuce"
+    try {
+        // ✅ CORRECTION: Appeler le vrai service pour créer le Pokémon
+        const { giveStarterToPlayer } = await import('../services/PokemonService');
+        const { getPokemonById } = await import('../data/PokemonData');
+        
+        // Créer le vrai Pokémon en base de données
+        let pokemonDoc;
+        if ([1, 4, 7].includes(data.pokemonId)) {
+            pokemonDoc = await giveStarterToPlayer(player.name, data.pokemonId as 1 | 4 | 7);
+        }
+        
+        console.log('✅ [FIX] Pokémon créé en base:', pokemonDoc._id);
+        
+        // ✅ Utiliser les données officielles du système
+        const pokemonData = await getPokemonById(data.pokemonId);
+        const starterName = pokemonData?.name || `Pokémon #${data.pokemonId}`;
+        
+        // Envoyer la réponse avec les vraies données
+        client.send("starterReceived", {
+            success: true,
+            pokemon: {
+                id: pokemonDoc._id.toString(),
+                pokemonId: pokemonDoc.pokemonId,
+                name: pokemonDoc.nickname || starterName,
+                level: pokemonDoc.level,
+                shiny: pokemonDoc.shiny,
+                nature: pokemonDoc.nature,
+                currentHp: pokemonDoc.currentHp,
+                maxHp: pokemonDoc.maxHp
+            },
+            message: `${starterName} ajouté à votre équipe !`
+        })
+        
+        console.log('✅ [FIX] Réponse starter RÉELLE envoyée pour:', starterName)
+        
+        // ✅ BONUS: Envoyer automatiquement l'équipe mise à jour
+        setTimeout(async () => {
+            console.log('📤 [FIX] Envoi automatique des données d\'équipe...');
+            await this.teamHandlers.handleGetTeam(client);
+        }, 500);
+        
+    } catch (error) {
+        console.error('❌ [FIX] Erreur création starter:', error);
+        
+        client.send("starterReceived", {
+            success: false,
+            message: "Erreur lors de la création du starter"
+        });
     }
-    
-    const starterName = starterNames[data.pokemonId] || "Starter"
-    
-    client.send("starterReceived", {
-        success: true,
-        pokemon: {
-            id: "starter_" + Date.now(),
-            pokemonId: data.pokemonId,
-            name: starterName,
-            level: 5,
-            shiny: false,
-            nature: "Hardy"
-        },
-        message: `${starterName} ajouté à votre équipe !`
-    })
-    
-    console.log('✅ [FIX] Réponse starter envoyée pour:', starterName)
 })
 
-console.log('🚀 [FIX] Handler starter direct configuré!')
-
-console.log('🚀 [FIX] Handler starter direct configuré!')
+console.log('🚀 [FIX] Handler starter RÉEL configuré !')
     // Mouvement du joueur
     this.onMessage("playerMove", (client, data) => {
       this.handlePlayerMove(client, data);
