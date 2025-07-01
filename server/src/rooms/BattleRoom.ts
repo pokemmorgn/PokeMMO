@@ -1136,3 +1136,4 @@ private unblockPlayerInWorldRoom(sessionId: string) {
     console.log(`✅ [DÉGRADÉ] Mouvement débloqué pour ${sessionId} (WorldRoom indisponible)`);
   }
 }
+}  
