@@ -31,6 +31,7 @@ export class BattleIntegration {
     // Combat en cours
     this.currentBattleData = null;
     this.selectedPokemon = null;
+    this.pokemonChoiceSent = false; // ✅ NOUVEAU: Flag pour éviter d'envoyer plusieurs fois
     
     console.log('⚔️ [BattleIntegration] Constructeur initialisé (version finale)');
   }
@@ -232,7 +233,7 @@ export class BattleIntegration {
     }
     
     // ✅ NOUVEAU: Sélection automatique du premier Pokémon disponible
-    console.log('🤖 [BattleIntegration] Sélection automatique du premier Pokémon...');
+    console.log('🤖 [BattleIntegration] Préparation du premier Pokémon...');
     
     try {
       // Obtenir le premier Pokémon disponible
@@ -245,31 +246,21 @@ export class BattleIntegration {
         return;
       }
       
-      // Sélectionner automatiquement
+      // ✅ CORRECTION: Stocker le Pokémon sélectionné mais ne pas l'envoyer encore
       this.selectedPokemon = firstAvailable;
-      console.log(`✅ [BattleIntegration] Pokémon auto-sélectionné: ${firstAvailable.name}`);
+      console.log(`✅ [BattleIntegration] Pokémon préparé: ${firstAvailable.name}`);
       
-      // Marquer comme en cours de combat
+      // Marquer comme en cours
       this.isInBattle = true;
       
       // Désactiver le mouvement immédiatement
       this.disablePlayerMovement();
       
-      // Envoyer le choix au serveur
-      console.log('📤 [BattleIntegration] Envoi du choix au serveur...');
-      
-      const success = this.battleConnection.choosePokemon(firstAvailable.id);
-      if (!success) {
-        console.error('❌ [BattleIntegration] Échec envoi choix Pokémon');
-        this.showError('Erreur de communication avec le serveur');
-        this.cancelBattle();
-        return;
-      }
-      
-      console.log('✅ [BattleIntegration] Choix envoyé, attente du serveur...');
+      // ✅ CORRECTION: Attendre que la BattleRoom soit créée et qu'on y soit connecté
+      console.log('⏳ [BattleIntegration] Attente de la création de la BattleRoom...');
       
     } catch (error) {
-      console.error('❌ [BattleIntegration] Erreur sélection auto:', error);
+      console.error('❌ [BattleIntegration] Erreur préparation:', error);
       this.cancelBattle();
     }
   }
@@ -355,8 +346,20 @@ export class BattleIntegration {
   handleBattleRoomConnected(data) {
     console.log('🚪 [BattleIntegration] Connecté à la BattleRoom');
     
-    // On est maintenant connecté à la BattleRoom
-    // Le combat va commencer une fois que le serveur aura reçu notre choix de Pokémon
+    // ✅ CORRECTION: Maintenant qu'on est connecté, envoyer le choix de Pokémon
+    if (this.selectedPokemon && !this.pokemonChoiceSent) {
+      console.log('📤 [BattleIntegration] Envoi du choix de Pokémon à la BattleRoom...');
+      
+      const success = this.battleConnection.choosePokemon(this.selectedPokemon.id);
+      if (success) {
+        this.pokemonChoiceSent = true;
+        console.log(`✅ [BattleIntegration] Choix envoyé: ${this.selectedPokemon.name}`);
+      } else {
+        console.error('❌ [BattleIntegration] Échec envoi choix Pokémon');
+        this.showError('Erreur de communication avec le serveur');
+        this.cancelBattle();
+      }
+    }
   }
 
   handleBattleJoined(data) {
@@ -683,6 +686,7 @@ export class BattleIntegration {
     // Nettoyer les données temporaires
     this.currentBattleData = null;
     this.selectedPokemon = null;
+    this.pokemonChoiceSent = false; // ✅ Reset du flag
     this.currentBattleRoomId = null;
     this.currentBattleType = null;
     
@@ -727,6 +731,7 @@ export class BattleIntegration {
     // Nettoyer
     this.currentBattleData = null;
     this.selectedPokemon = null;
+    this.pokemonChoiceSent = false; // ✅ Reset du flag
     
     console.log('✅ [BattleIntegration] Combat annulé');
   }
