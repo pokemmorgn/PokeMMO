@@ -160,56 +160,93 @@ export class BattleNetworkHandler {
 
   // === CONNEXION À LA BATTLEROOM ===
 
-  async connectToBattleRoom(battleRoomId) {
-    if (!this.client || !battleRoomId) {
-      console.error('❌ [BattleNetworkHandler] Client ou battleRoomId manquant');
-      return false;
-    }
-    
-    if (this.pendingConnection) {
-      console.warn('⚠️ [BattleNetworkHandler] Connexion déjà en cours');
-      return false;
-    }
-    
-    console.log(`🔗 [BattleNetworkHandler] Connexion à BattleRoom: ${battleRoomId}`);
-    this.pendingConnection = true;
-    
-    try {
-      // Se connecter à la BattleRoom
-     this.battleRoom = await this.client.joinById(battleRoomId);
-      
-      console.log(`✅ [BattleNetworkHandler] Connecté à BattleRoom: ${battleRoomId}`);
-      
-      // Configuration des événements BattleRoom
-      this.setupBattleRoomEvents();
-      
-      this.isConnectedToBattle = true;
-      this.pendingConnection = false;
-      
-      // Envoyer les messages en attente
-      this.processPendingMessages();
-      
-      // Notifier la connexion réussie
-      this.triggerEvent('battleRoomConnected', {
-        battleRoomId: battleRoomId,
-        room: this.battleRoom
-      });
-      
-      return true;
-      
-    } catch (error) {
-      console.error('❌ [BattleNetworkHandler] Erreur connexion BattleRoom:', error);
-      
-      this.pendingConnection = false;
-      
-      this.triggerEvent('battleConnectionError', {
-        error: error.message || 'Connection failed',
-        battleRoomId: battleRoomId
-      });
-      
-      return false;
-    }
+async connectToBattleRoom(battleRoomId) {
+  if (!battleRoomId) {
+    console.error('❌ [BattleNetworkHandler] battleRoomId manquant');
+    return false;
   }
+
+  if (this.pendingConnection) {
+    console.warn('⚠️ [BattleNetworkHandler] Connexion déjà en cours');
+    return false;
+  }
+
+  console.log(`🔗 [BattleNetworkHandler] Connexion à BattleRoom: ${battleRoomId}`);
+  this.pendingConnection = true;
+
+  try {
+    // ✅ CORRECTION 1: Vérifier que client est valide
+    if (!this.client || typeof this.client.joinById !== 'function') {
+      console.error('❌ [BattleNetworkHandler] Client invalide:', typeof this.client);
+      
+      // ✅ FALLBACK: Utiliser le client global
+      if (window.client && typeof window.client.joinById === 'function') {
+        console.log('🔄 [BattleNetworkHandler] Utilisation client global');
+        this.client = window.client;
+      } else {
+        throw new Error('Aucun client Colyseus valide disponible');
+      }
+    }
+
+    console.log(`🎯 [BattleNetworkHandler] Client utilisé:`, {
+      hasJoinById: typeof this.client.joinById === 'function',
+      clientKeys: Object.keys(this.client).slice(0, 5), // Premiers 5 pour debug
+      isGlobalClient: this.client === window.client
+    });
+
+    // ✅ CORRECTION 2: Connexion avec gestion d'erreur améliorée
+    console.log(`🚀 [BattleNetworkHandler] Tentative joinById(${battleRoomId})`);
+    
+    this.battleRoom = await this.client.joinById(battleRoomId);
+    
+    if (!this.battleRoom) {
+      throw new Error('BattleRoom reçue null');
+    }
+
+    console.log(`✅ [BattleNetworkHandler] Connecté à BattleRoom: ${battleRoomId}`);
+    console.log(`🎮 [BattleNetworkHandler] Room info:`, {
+      id: this.battleRoom.id,
+      sessionId: this.battleRoom.sessionId,
+      name: this.battleRoom.name
+    });
+
+    // Configuration des événements BattleRoom
+    this.setupBattleRoomEvents();
+
+    this.isConnectedToBattle = true;
+    this.pendingConnection = false;
+
+    // Envoyer les messages en attente
+    this.processPendingMessages();
+
+    // Notifier la connexion réussie
+    this.triggerEvent('battleRoomConnected', {
+      battleRoomId: battleRoomId,
+      room: this.battleRoom
+    });
+
+    return true;
+
+  } catch (error) {
+    console.error('❌ [BattleNetworkHandler] Erreur connexion BattleRoom:', error);
+    console.error('🔍 [BattleNetworkHandler] Détails erreur:', {
+      message: error.message,
+      stack: error.stack?.split('\n').slice(0, 3), // 3 premières lignes
+      clientType: typeof this.client,
+      hasJoinById: this.client ? typeof this.client.joinById : 'no client'
+    });
+
+    this.pendingConnection = false;
+
+    this.triggerEvent('battleConnectionError', {
+      error: error.message || 'Connection failed',
+      battleRoomId: battleRoomId,
+      details: error.toString()
+    });
+
+    return false;
+  }
+}
 
   // === ÉVÉNEMENTS BATTLEROOM ===
 
