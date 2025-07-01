@@ -417,7 +417,10 @@ console.log('🔧 TEMP: Adding direct starter handler...')
 // === FIX TEMPORAIRE STARTER ===
 console.log('🔧 [FIX] Configuration handler starter direct...')
 
-this.onMessage("giveStarterChoice", async (client, data) => {
+// === FIX TEMPORAIRE STARTER ===
+console.log('🔧 [FIX] Configuration handler starter direct...')
+
+this.onMessage("giveStarterChoice", async (client, data: { pokemonId: number }) => {
     console.log('📥 [FIX] STARTER REQUEST reçu:', data)
     
     const player = this.state.players.get(client.sessionId)
@@ -432,8 +435,8 @@ this.onMessage("giveStarterChoice", async (client, data) => {
     
     console.log('🎯 [FIX] Création starter pour:', player.name)
     
-    // Simuler succès avec données réalistes
-    const starterNames = {
+    // Type-safe starter names
+    const starterNames: Record<number, string> = {
         1: "Bulbizarre",
         4: "Salamèche", 
         7: "Carapuce"
@@ -456,6 +459,8 @@ this.onMessage("giveStarterChoice", async (client, data) => {
     
     console.log('✅ [FIX] Réponse starter envoyée pour:', starterName)
 })
+
+console.log('🚀 [FIX] Handler starter direct configuré!')
 
 console.log('🚀 [FIX] Handler starter direct configuré!')
     // Mouvement du joueur
