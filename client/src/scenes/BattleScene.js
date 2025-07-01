@@ -693,19 +693,20 @@ hideBattleInterface() {
   /**
    * Ferme le combat et revient au jeu normal
    */
-  endBattle() {
-    console.log('🏁 [BattleScene] Fin de combat');
-    
-    this.hideBattleInterface();
-    
-    // Nettoyer l'état
-    if (this.battleManager) {
-      this.battleManager.endBattle();
-    }
-    
-    // Remettre la scène en veille
+endBattle() {
+  console.log('🏁 [BattleScene] Fin de combat');
+  
+  this.hideBattleInterface();
+  
+  if (this.battleManager) {
+    this.battleManager.endBattle();
+  }
+  
+  // Encore une fois protection
+  if (this.scene && typeof this.scene.sleep === 'function') {
     this.scene.sleep();
   }
+}
 
   /**
    * Vérifie si le combat est actif
