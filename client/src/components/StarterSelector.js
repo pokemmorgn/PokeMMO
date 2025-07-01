@@ -419,19 +419,24 @@ export class StarterSelector {
     });
 
     // ✅ NOUVEAU: Écouter la réponse du starter
-  this.networkManager.room.onMessage("starterReceived", (data) => {
-    this.isAnimating = false; // Débloquer l'UI
-    
-    if (data.success) {
-      this.showNotification(`${data.pokemon.name} ajouté à votre équipe !`, 'success');
-      this.hide(); // Fermer la sélection
-    } else {
-      this.showNotification(data.message, 'error');
-      this.resetSelection(); // Permettre une nouvelle sélection
-    }
-  });
+ // Dans StarterSelector.js, méthode setupNetworkListeners()
+// AJOUTEZ cette ligne avec les autres listeners :
 
-    
+this.networkManager.room.onMessage("starterReceived", (data) => {
+  console.log('🎯 STARTER RESPONSE REÇUE:', data);
+  
+  this.isAnimating = false; // Débloquer l'UI
+  
+  if (data.success) {
+    this.showNotification(`${data.pokemon.name} ajouté à votre équipe !`, 'success');
+    setTimeout(() => {
+      this.hide(); // Fermer la sélection
+    }, 2000);
+  } else {
+    this.showNotification(data.message, 'error');
+    this.resetSelection(); // Permettre une nouvelle sélection
+  }
+});
     // Écouter les erreurs de sélection
     this.networkManager.room.onMessage("starterSelectionError", (data) => {
       console.error("❌ [StarterSelector] Erreur sélection:", data);
