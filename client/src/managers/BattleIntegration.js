@@ -24,6 +24,11 @@ export class BattleIntegration {
     this.worldRoom = null;
     this.phaserGame = null;
     
+    // ✅ NOUVEAU: Variables pour tracking BattleRoom
+    this.currentBattleRoomId = null;
+    this.currentBattleType = null;
+    this.currentBattlePhase = 'waiting';
+    
     console.log('⚔️ [BattleIntegration] Constructeur initialisé');
   }
 
@@ -171,6 +176,19 @@ export class BattleIntegration {
       this.handleBattleError(data);
     });
     
+    // ✅ NOUVEAU: Événements pour les phases de combat
+    this.battleConnection.on('phaseChange', (data) => {
+      this.handlePhaseChange(data);
+    });
+    
+    this.battleConnection.on('battleJoined', (data) => {
+      this.handleBattleJoined(data);
+    });
+    
+    this.battleConnection.on('battleMessage', (data) => {
+      this.handleBattleMessage(data);
+    });
+    
     // Événements du GameManager (si disponibles)
     if (this.gameManager) {
       // Écouter les rencontres sauvages depuis le GameManager
@@ -246,13 +264,12 @@ export class BattleIntegration {
   handleBattleRoomCreated(data) {
     console.log('🏠 [BattleIntegration] BattleRoom créée:', data.battleRoomId);
     
-    // ✅ CORRECTION: Pas de this.battleState dans BattleIntegration
-    // this.battleState.battleId = data.battleRoomId;
-    // this.battleState.battleType = data.battleType;
-    
-    // ✅ Stocker les infos directement
+    // ✅ CORRECTION: Stocker les infos directement
     this.currentBattleRoomId = data.battleRoomId;
     this.currentBattleType = data.battleType;
+    
+    // ✅ NOUVEAU: Mettre à jour l'interface temporaire si elle existe
+    this.updateTemporaryInterfaceStatus(data.battleRoomId, 'BattleRoom créée');
     
     // Rejoindre automatiquement la BattleRoom
     if (this.battleConnection) {
@@ -267,6 +284,9 @@ export class BattleIntegration {
   handleBattleRoomJoined(data) {
     console.log('🚪 [BattleIntegration] BattleRoom rejointe:', data);
     
+    // ✅ NOUVEAU: Mettre à jour l'interface
+    this.updateTemporaryInterfaceStatus(this.currentBattleRoomId, 'Connecté à la BattleRoom');
+    
     // Maintenant on peut vraiment commencer le combat
     if (this.battleScene && this.battleScene.battleManager) {
       // Le BattleManager va recevoir les événements via la BattleConnection
@@ -274,8 +294,59 @@ export class BattleIntegration {
     }
   }
 
+  // ✅ NOUVEAU: Handler pour battleJoined
+  handleBattleJoined(data) {
+    console.log('⚔️ [BattleIntegration] Combat effectivement rejoint:', data);
+    
+    // Mettre à jour l'interface avec l'ID de combat réel
+    this.updateTemporaryInterfaceRoomId(data.battleId || data.battleRoomId);
+    this.updateTemporaryInterfaceStatus(data.battleId, 'Combat rejoint !');
+  }
+
+  // ✅ NOUVEAU: Handler pour les changements de phase
+  handlePhaseChange(data) {
+    console.log('🔄 [BattleIntegration] Phase changée:', data.phase);
+    
+    this.currentBattlePhase = data.phase;
+    
+    // Mettre à jour l'interface selon la phase
+    let statusText = 'Phase inconnue';
+    
+    switch (data.phase) {
+      case 'waiting':
+        statusText = 'En attente...';
+        break;
+      case 'intro':
+        statusText = 'Préparation combat...';
+        break;
+      case 'team_selection':
+        statusText = 'Sélection équipe...';
+        break;
+      case 'battle':
+        statusText = 'Combat en cours !';
+        break;
+      case 'ended':
+        statusText = 'Combat terminé';
+        break;
+      default:
+        statusText = `Phase: ${data.phase}`;
+    }
+    
+    this.updateTemporaryInterfaceStatus(this.currentBattleRoomId, statusText);
+  }
+
+  // ✅ NOUVEAU: Handler pour les messages de combat
+  handleBattleMessage(data) {
+    console.log('💬 [BattleIntegration] Message combat:', data.message);
+    
+    // Mettre à jour l'interface avec le dernier message
+    this.updateTemporaryInterfaceMessage(data.message);
+  }
+
   handleBattleStart(data) {
     console.log('⚔️ [BattleIntegration] Combat effectivement commencé:', data);
+    
+    this.updateTemporaryInterfaceStatus(this.currentBattleRoomId, 'Combat démarré !');
     
     // S'assurer que l'interface est visible
     if (this.battleScene) {
@@ -285,6 +356,8 @@ export class BattleIntegration {
 
   handleBattleEnd(data) {
     console.log('🏁 [BattleIntegration] Fin de combat:', data);
+    
+    this.updateTemporaryInterfaceStatus(this.currentBattleRoomId, 'Combat terminé');
     
     // Programmer la fin du combat
     setTimeout(() => {
@@ -300,6 +373,8 @@ export class BattleIntegration {
 
   handleBattleError(data) {
     console.error('❌ [BattleIntegration] Erreur de combat:', data);
+    
+    this.updateTemporaryInterfaceStatus('ERREUR', `Erreur: ${data.message}`);
     
     // Afficher l'erreur à l'utilisateur
     if (this.gameManager?.showError) {
@@ -335,7 +410,7 @@ export class BattleIntegration {
     }
   }
 
-  // === ✅ NOUVELLE MÉTHODE: Interface DOM temporaire ===
+  // === ✅ INTERFACE DOM TEMPORAIRE AMÉLIORÉE ===
 
   /**
    * Crée une interface de combat temporaire en DOM si la BattleScene échoue
@@ -382,8 +457,9 @@ export class BattleIntegration {
         <div style="margin: 30px 0;">
           <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
             <p>🔄 <strong>Connexion au système de combat...</strong></p>
-            <p style="color: #FFD700;">BattleRoom ID: ${debugRoomId}</p>
-            <p style="color: #87CEEB; font-size: 0.9em;">Status: ${this.battleConnection?.isConnected ? 'Connecté' : 'Connexion...'}</p>
+            <p style="color: #FFD700;">BattleRoom ID: <span id="battle-room-id">${debugRoomId}</span></p>
+            <p style="color: #87CEEB; font-size: 0.9em;">Status: <span id="battle-status">Connexion...</span></p>
+            <p style="color: #DDD; font-size: 0.8em; margin-top: 10px;">Message: <span id="battle-message">Initialisation...</span></p>
           </div>
         </div>
         
@@ -397,6 +473,7 @@ export class BattleIntegration {
             border-radius: 10px;
             cursor: pointer;
             font-family: inherit;
+            transition: background 0.3s;
           ">🚪 Quitter le Combat</button>
         </div>
         
@@ -417,16 +494,55 @@ export class BattleIntegration {
       overlay.remove();
     });
 
-    // ✅ Auto-fermeture après 30 secondes
+    // ✅ Hover effect sur le bouton
+    exitButton.addEventListener('mouseenter', () => {
+      exitButton.style.background = '#FF6347';
+    });
+    exitButton.addEventListener('mouseleave', () => {
+      exitButton.style.background = '#DC143C';
+    });
+
+    // ✅ Auto-fermeture après 60 secondes (augmenté pour le debug)
     setTimeout(() => {
       if (overlay.parentNode) {
         console.log('⏰ [BattleIntegration] Auto-fermeture interface temporaire');
         this.exitBattle('timeout');
         overlay.remove();
       }
-    }, 30000);
+    }, 60000);
 
     console.log('✅ [BattleIntegration] Interface temporaire créée');
+  }
+
+  // ✅ NOUVELLES MÉTHODES: Mise à jour interface temporaire
+
+  updateTemporaryInterfaceRoomId(roomId) {
+    const element = document.getElementById('battle-room-id');
+    if (element && roomId) {
+      element.textContent = roomId;
+      console.log(`🔄 [BattleIntegration] Room ID mis à jour: ${roomId}`);
+    }
+  }
+
+  updateTemporaryInterfaceStatus(roomId, status) {
+    const statusElement = document.getElementById('battle-status');
+    if (statusElement) {
+      statusElement.textContent = status;
+      console.log(`🔄 [BattleIntegration] Status mis à jour: ${status}`);
+    }
+    
+    // Mettre à jour aussi le room ID si fourni
+    if (roomId) {
+      this.updateTemporaryInterfaceRoomId(roomId);
+    }
+  }
+
+  updateTemporaryInterfaceMessage(message) {
+    const messageElement = document.getElementById('battle-message');
+    if (messageElement) {
+      messageElement.textContent = message;
+      console.log(`💬 [BattleIntegration] Message mis à jour: ${message}`);
+    }
   }
 
   // === GESTION DE LA BATTLESCENE ===
@@ -473,6 +589,9 @@ export class BattleIntegration {
     console.log('🏁 [BattleIntegration] Fin du combat:', data);
     
     this.isInBattle = false;
+    this.currentBattleRoomId = null;
+    this.currentBattleType = null;
+    this.currentBattlePhase = 'waiting';
     
     // ✅ Fermer l'interface temporaire si elle existe
     const tempOverlay = document.getElementById('temp-battle-overlay');
@@ -584,7 +703,9 @@ export class BattleIntegration {
     return {
       inBattle: this.isInBattle,
       connected: this.battleConnection.isConnected,
-      battleRoomId: this.battleConnection.currentBattleRoomId,
+      battleRoomId: this.currentBattleRoomId,
+      battleType: this.currentBattleType,
+      phase: this.currentBattlePhase,
       battleState: this.battleConnection.battleState
     };
   }
@@ -650,6 +771,9 @@ export class BattleIntegration {
     return {
       isInitialized: this.isInitialized,
       isInBattle: this.isInBattle,
+      currentBattleRoomId: this.currentBattleRoomId,
+      currentBattleType: this.currentBattleType,
+      currentBattlePhase: this.currentBattlePhase,
       compatibility: this.checkCompatibility(),
       connectionStatus: this.battleConnection?.getConnectionStatus(),
       battleState: this.getCurrentBattleState()
@@ -710,6 +834,136 @@ export class BattleIntegration {
     return true;
   }
 
+  /**
+   * Test de mise à jour des éléments d'interface
+   */
+  testInterfaceUpdates() {
+    console.log('🧪 [BattleIntegration] Test mise à jour interface...');
+    
+    // Simuler une progression de combat
+    setTimeout(() => this.updateTemporaryInterfaceRoomId('test-room-123'), 1000);
+    setTimeout(() => this.updateTemporaryInterfaceStatus('test-room-123', 'BattleRoom créée'), 2000);
+    setTimeout(() => this.updateTemporaryInterfaceStatus('test-room-123', 'Connecté'), 3000);
+    setTimeout(() => this.updateTemporaryInterfaceMessage('Un Pikachu sauvage apparaît !'), 4000);
+    setTimeout(() => this.updateTemporaryInterfaceStatus('test-room-123', 'Sélection équipe...'), 5000);
+    setTimeout(() => this.updateTemporaryInterfaceStatus('test-room-123', 'Combat en cours !'), 6000);
+    
+    return true;
+  }
+
+  /**
+   * Méthode de debug pour voir l'état complet
+   */
+  debugFullState() {
+    console.log('🔍 [BattleIntegration] === ÉTAT COMPLET ===');
+    console.log('📊 État général:', {
+      isInitialized: this.isInitialized,
+      isInBattle: this.isInBattle,
+      currentBattleRoomId: this.currentBattleRoomId,
+      currentBattleType: this.currentBattleType,
+      currentBattlePhase: this.currentBattlePhase
+    });
+    
+    console.log('🔗 Connexions:', {
+      hasWorldRoom: !!this.worldRoom,
+      hasPhaserGame: !!this.phaserGame,
+      hasBattleConnection: !!this.battleConnection,
+      hasBattleScene: !!this.battleScene,
+      hasGameManager: !!this.gameManager
+    });
+    
+    if (this.battleConnection) {
+      console.log('📡 BattleConnection:', {
+        isConnected: this.battleConnection.isConnected,
+        currentBattleRoomId: this.battleConnection.currentBattleRoomId,
+        hasNetworkHandler: !!this.battleConnection.networkHandler
+      });
+    }
+    
+    console.log('🖥️ Interface:', {
+      hasTemporaryOverlay: !!document.getElementById('temp-battle-overlay'),
+      battleRoomIdElement: !!document.getElementById('battle-room-id'),
+      battleStatusElement: !!document.getElementById('battle-status'),
+      battleMessageElement: !!document.getElementById('battle-message')
+    });
+    
+    return this.debug();
+  }
+
+  // === UTILITAIRES ===
+
+  /**
+   * Supprime l'interface temporaire si elle existe
+   */
+  removeTemporaryInterface() {
+    const overlay = document.getElementById('temp-battle-overlay');
+    if (overlay) {
+      overlay.remove();
+      console.log('🧹 [BattleIntegration] Interface temporaire supprimée manuellement');
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Vérifie si l'interface temporaire est active
+   */
+  hasTemporaryInterface() {
+    return !!document.getElementById('temp-battle-overlay');
+  }
+
+  /**
+   * Force la mise à jour de l'interface avec les données actuelles
+   */
+  refreshTemporaryInterface() {
+    if (this.hasTemporaryInterface()) {
+      this.updateTemporaryInterfaceRoomId(this.currentBattleRoomId || 'Non défini');
+      
+      let statusText = 'État inconnu';
+      switch (this.currentBattlePhase) {
+        case 'waiting': statusText = 'En attente...'; break;
+        case 'intro': statusText = 'Préparation...'; break;
+        case 'team_selection': statusText = 'Sélection équipe...'; break;
+        case 'battle': statusText = 'Combat en cours !'; break;
+        case 'ended': statusText = 'Combat terminé'; break;
+        default: statusText = `Phase: ${this.currentBattlePhase}`;
+      }
+      
+      this.updateTemporaryInterfaceStatus(this.currentBattleRoomId, statusText);
+      
+      console.log('🔄 [BattleIntegration] Interface temporaire rafraîchie');
+    }
+  }
+
+  // === GESTION DES ÉVÉNEMENTS AVANCÉS ===
+
+  /**
+   * Handler pour les événements de connexion/déconnexion
+   */
+  handleConnectionEvents() {
+    if (this.battleConnection) {
+      this.battleConnection.on('connected', () => {
+        console.log('🔗 [BattleIntegration] BattleConnection établie');
+        this.updateTemporaryInterfaceStatus(this.currentBattleRoomId, 'Connexion établie');
+      });
+      
+      this.battleConnection.on('disconnected', (reason) => {
+        console.log('🔌 [BattleIntegration] BattleConnection fermée:', reason);
+        this.updateTemporaryInterfaceStatus('DÉCONNECTÉ', `Connexion fermée: ${reason}`);
+        
+        // Auto-fermer l'interface après 5 secondes
+        setTimeout(() => {
+          this.endBattle({ reason: 'disconnected' });
+        }, 5000);
+      });
+      
+      this.battleConnection.on('error', (error) => {
+        console.error('❌ [BattleIntegration] Erreur BattleConnection:', error);
+        this.updateTemporaryInterfaceStatus('ERREUR', `Erreur: ${error.message}`);
+      });
+    }
+  }
+
   // === NETTOYAGE ===
 
   /**
@@ -722,6 +976,9 @@ export class BattleIntegration {
     if (this.isInBattle) {
       await this.exitBattle('destroy');
     }
+    
+    // Supprimer l'interface temporaire
+    this.removeTemporaryInterface();
     
     // Nettoyer la BattleConnection
     if (this.battleConnection) {
@@ -746,9 +1003,56 @@ export class BattleIntegration {
     this.worldRoom = null;
     this.phaserGame = null;
     
+    // Reset des variables d'état
     this.isInitialized = false;
     this.isInBattle = false;
+    this.currentBattleRoomId = null;
+    this.currentBattleType = null;
+    this.currentBattlePhase = 'waiting';
     
     console.log('✅ [BattleIntegration] Système détruit');
   }
 }
+
+// === EXPORTS ET MÉTHODES GLOBALES ===
+
+// Fonction globale pour les tests (accessible via window.testBattle)
+if (typeof window !== 'undefined') {
+  window.BattleIntegration = BattleIntegration;
+  
+  // Helper pour les tests rapides
+  window.testBattleIntegration = function() {
+    if (window.gameManager?.battleIntegration) {
+      return window.gameManager.battleIntegration.testBattle();
+    } else {
+      console.warn('⚠️ BattleIntegration non disponible dans window.gameManager');
+      return false;
+    }
+  };
+  
+  // Helper pour debug l'état
+  window.debugBattleIntegration = function() {
+    if (window.gameManager?.battleIntegration) {
+      return window.gameManager.battleIntegration.debugFullState();
+    } else {
+      console.warn('⚠️ BattleIntegration non disponible dans window.gameManager');
+      return null;
+    }
+  };
+  
+  // Helper pour forcer la fermeture
+  window.closeBattleInterface = function() {
+    if (window.gameManager?.battleIntegration) {
+      return window.gameManager.battleIntegration.removeTemporaryInterface();
+    } else {
+      const overlay = document.getElementById('temp-battle-overlay');
+      if (overlay) {
+        overlay.remove();
+        return true;
+      }
+      return false;
+    }
+  };
+}
+
+export { BattleIntegration };
