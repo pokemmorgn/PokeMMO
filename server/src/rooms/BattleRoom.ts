@@ -585,18 +585,6 @@ export class BattleRoom extends Room<BattleState> {
       : this.state.player1Pokemon;
   }
 
-  private shouldStartBattle(): boolean {
-    return this.state.battleType === "wild" ? this.clients.length >= 1 : this.clients.length >= 2;
-  }
-
-  private canStartActualBattle(): boolean {
-    if (this.state.battleType === "wild") {
-      return !!this.state.player1Pokemon && !!this.state.player2Pokemon;
-    } else {
-      return !!this.state.player1Pokemon && !!this.state.player2Pokemon;
-    }
-  }
-
   private updatePlayerHpPercentages() {
     if (this.state.player1Pokemon?.maxHp > 0) {
       const hp1 = (this.state.player1Pokemon.currentHp / this.state.player1Pokemon.maxHp) * 100;
@@ -642,19 +630,6 @@ export class BattleRoom extends Room<BattleState> {
     this.broadcast("battleMessage", { message });
   }
 
-  private addBattleMessage(message: string) {
-    this.state.battleLog.push(message);
-    this.state.lastMessage = message;
-    
-    console.log(`💬 [COMBAT] ${message}`);
-    
-    if (this.state.battleLog.length > 50) {
-      this.state.battleLog.splice(0, this.state.battleLog.length - 50);
-    }
-    
-    this.broadcast("battleMessage", { message });
-  }
-
   private calculateRewards(result: string, battleResult: any) {
     const rewards: any = {
       experience: battleResult.expGained || 0,
@@ -677,6 +652,14 @@ export class BattleRoom extends Room<BattleState> {
 
   private shouldStartBattle(): boolean {
     return this.state.battleType === "wild" ? this.clients.length >= 1 : this.clients.length >= 2;
+  }
+
+  private canStartActualBattle(): boolean {
+    if (this.state.battleType === "wild") {
+      return !!this.state.player1Pokemon && !!this.state.player2Pokemon;
+    } else {
+      return !!this.state.player1Pokemon && !!this.state.player2Pokemon;
+    }
   }
 
   private getPlayerName(sessionId: string): string | null {
