@@ -117,7 +117,10 @@ export class VillageLabScene extends BaseZoneScene {
 
     labTable.on('pointerdown', () => {
       console.log("🧪 [VillageLabScene] Clic sur table du labo");
-      this.showStarterSelection();
+if (this.networkManager?.room) {
+    this.networkManager.room.send("checkStarterEligibility");
+  }
+});
     });
 
     // ✅ TRIGGER: Interaction avec le Professeur pour commencer
@@ -173,8 +176,10 @@ export class VillageLabScene extends BaseZoneScene {
     console.log(`💬 Interaction avec ${npcName}`);
     if (npcName === 'Professeur') {
       // ✅ NOUVEAU: Interaction avec Professeur = StarterSelector
-      this.showProfessorStarterDialog();
-    } else {
+if (this.networkManager?.room) {
+      this.networkManager.room.send("checkStarterEligibility");
+    }
+     } else {
       const messages = {
         Assistant: 'Je m\'occupe de l\'entretien du laboratoire.',
         Chercheur: 'Nous étudions les Pokémon ici. Fascinant !',
