@@ -404,47 +404,51 @@ export class StarterSelector {
 
   // ✅ SETUP DES LISTENERS RÉSEAU
   setupNetworkListeners() {
-    if (!this.networkManager?.room) return;
+  if (!this.networkManager?.room) return;
 
-    // Écouter la demande de sélection de starter du serveur
-    this.networkManager.room.onMessage("showStarterSelection", (data) => {
-      console.log("📥 [StarterSelector] Demande de sélection reçue:", data);
-      this.show(data.availableStarters || this.starterConfig);
-    });
+  // ✅ NETTOYER d'abord les anciens listeners pour éviter les doublons
+  this.networkManager.room.removeAllListeners("showStarterSelection");
+  this.networkManager.room.removeAllListeners("starterSelected");
+  this.networkManager.room.removeAllListeners("starterReceived");
+  this.networkManager.room.removeAllListeners("starterSelectionError");
 
-    // Écouter la confirmation de sélection
-    this.networkManager.room.onMessage("starterSelected", (data) => {
-      console.log("✅ [StarterSelector] Starter confirmé:", data);
-      this.onStarterConfirmed(data);
-    });
+  // Écouter la demande de sélection de starter du serveur
+  this.networkManager.room.onMessage("showStarterSelection", (data) => {
+    console.log("📥 [StarterSelector] Demande de sélection reçue:", data);
+    this.show(data.availableStarters || this.starterConfig);
+  });
 
-    // ✅ NOUVEAU: Écouter la réponse du starter
- // Dans StarterSelector.js, méthode setupNetworkListeners()
-// AJOUTEZ cette ligne avec les autres listeners :
+  // Écouter la confirmation de sélection
+  this.networkManager.room.onMessage("starterSelected", (data) => {
+    console.log("✅ [StarterSelector] Starter confirmé:", data);
+    this.onStarterConfirmed(data);
+  });
 
-this.networkManager.room.onMessage("starterReceived", (data) => {
-  console.log('🎯 STARTER RESPONSE REÇUE:', data);
-  
-  this.isAnimating = false; // Débloquer l'UI
-  
-  if (data.success) {
-    this.showNotification(`${data.pokemon.name} ajouté à votre équipe !`, 'success');
-    setTimeout(() => {
-      this.hide(); // Fermer la sélection
-    }, 2000);
-  } else {
-    this.showNotification(data.message, 'error');
-    this.resetSelection(); // Permettre une nouvelle sélection
-  }
-});
-    // Écouter les erreurs de sélection
-    this.networkManager.room.onMessage("starterSelectionError", (data) => {
-      console.error("❌ [StarterSelector] Erreur sélection:", data);
-      this.showError(data.message || "Erreur lors de la sélection");
-    });
+  // ✅ UN SEUL listener pour starterReceived
+  this.networkManager.room.onMessage("starterReceived", (data) => {
+    console.log('🎯 STARTER RESPONSE REÇUE:', data);
+    
+    this.isAnimating = false; // Débloquer l'UI
+    
+    if (data.success) {
+      this.showNotification(`${data.pokemon?.name || 'Pokémon'} ajouté à votre équipe !`, 'success');
+      setTimeout(() => {
+        this.hide(); // Fermer la sélection
+      }, 2000);
+    } else {
+      this.showNotification(data.message || 'Erreur de sélection', 'error');
+      this.resetSelection(); // Permettre une nouvelle sélection
+    }
+  });
 
-    console.log("📡 [StarterSelector] Listeners réseau configurés");
-  }
+  // Écouter les erreurs de sélection
+  this.networkManager.room.onMessage("starterSelectionError", (data) => {
+    console.error("❌ [StarterSelector] Erreur sélection:", data);
+    this.showError(data.message || "Erreur lors de la sélection");
+  });
+
+  console.log("📡 [StarterSelector] Listeners réseau configurés");
+}
 
   // ✅ MÉTHODE: Créer SVG de pokéball
   getPokeballSVG() {
