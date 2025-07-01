@@ -465,11 +465,12 @@ this.onMessage("giveStarterChoice", async (client, data: { pokemonId: number }) 
         
         console.log('✅ [FIX] Réponse starter RÉELLE envoyée pour:', starterName)
         
-        // ✅ BONUS: Envoyer automatiquement l'équipe mise à jour
-        setTimeout(async () => {
-            console.log('📤 [FIX] Envoi automatique des données d\'équipe...');
-            await this.teamHandlers.handleGetTeam(client);
-        }, 500);
+// ✅ BONUS: Envoyer automatiquement l'équipe mise à jour
+setTimeout(() => {
+    console.log('📤 [FIX] Demande équipe automatique...');
+    // Le client va automatiquement demander l'équipe
+    client.send("starterSuccess", { shouldRefreshTeam: true });
+}, 500);
         
     } catch (error) {
         console.error('❌ [FIX] Erreur création starter:', error);
