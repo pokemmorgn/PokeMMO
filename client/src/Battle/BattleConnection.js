@@ -35,9 +35,30 @@ initialize(networkManager) {
     return false;
   }
   
-  // Extraire worldRoom et client de différentes façons
-  let worldRoom = null;
+  // ✅ CORRECTION 1: Priorité au client global puis networkManager
   let client = null;
+  
+  if (window.client && typeof window.client.joinById === 'function') {
+    client = window.client;
+    console.log('✅ [BattleConnection] Utilisation client global');
+  } else if (networkManager.client && typeof networkManager.client.joinById === 'function') {
+    client = networkManager.client;
+    console.log('✅ [BattleConnection] Utilisation client NetworkManager');
+  } else {
+    console.error('❌ [BattleConnection] Aucun client Colyseus valide trouvé');
+    console.log('🔍 Debug clients:', {
+      windowClient: !!window.client,
+      windowClientType: typeof window.client,
+      windowClientJoinById: typeof window.client?.joinById,
+      networkManagerClient: !!networkManager.client,
+      networkManagerClientType: typeof networkManager.client,
+      networkManagerClientJoinById: typeof networkManager.client?.joinById
+    });
+    return false;
+  }
+  
+  // Extraire worldRoom
+  let worldRoom = null;
   
   if (networkManager.worldRoom) {
     worldRoom = networkManager.worldRoom;
@@ -48,26 +69,16 @@ initialize(networkManager) {
     return false;
   }
   
-  if (networkManager.client) {
-    client = networkManager.client;
-  } else if (worldRoom.connection) {
-    client = worldRoom.connection;
-  } else if (worldRoom._client) {
-    client = worldRoom._client;
-  } else {
-    console.warn('⚠️ [BattleConnection] Client non trouvé, utilisation de worldRoom');
-    client = worldRoom; // Fallback
-  }
-  
   console.log('🔧 [BattleConnection] Connexions extraites:', {
     worldRoom: !!worldRoom,
     client: !!client,
     worldRoomId: worldRoom?.id,
-    clientType: typeof client
+    clientType: typeof client,
+    clientHasJoinById: typeof client?.joinById === 'function'
   });
   
-  // Créer le handler réseau spécialisé
-  this.networkHandler = new BattleNetworkHandler(networkManager);
+  // ✅ CORRECTION 2: Créer le BattleNetworkHandler avec le client corrigé
+  this.networkHandler = new BattleNetworkHandler(client); // ✅ Passer directement le client
   
   // L'initialiser avec les connexions trouvées
   const success = this.networkHandler.initialize(worldRoom, client);
