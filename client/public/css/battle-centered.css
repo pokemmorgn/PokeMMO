@@ -137,3 +137,16 @@
   transform: scale(1.08) !important;
   box-shadow: 0 6px 15px rgba(59, 130, 196, 0.4) !important;
 }
+
+/* ===== STYLES POUR CHANGEMENT DE POKÉMON ===== */
+.pokemon-button.current {
+  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%) !important;
+  border-color: #F59E0B !important;
+  opacity: 0.8 !important;
+  cursor: not-allowed !important;
+}
+
+.pokemon-button.current .pokemon-name {
+  color: #92400E !important;
+  font-weight: bold !important;
+}
