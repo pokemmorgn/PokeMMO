@@ -84,6 +84,10 @@ const ENDPOINT =
 // 1. Instancie un client Colyseus
 const client = new Client(ENDPOINT);
 
+window.client = client; // Exposer le client globalement
+
+console.log("✅ Client Colyseus exposé globalement");
+
 function getWalletFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return params.get('wallet');
