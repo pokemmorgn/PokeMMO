@@ -1054,5 +1054,3 @@ if (typeof window !== 'undefined') {
     }
   };
 }
-
-export { BattleIntegration };
