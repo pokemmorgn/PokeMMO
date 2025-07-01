@@ -62,18 +62,25 @@ export class BattleIntegration {
         return false;
       }
       
-      // 3. ✅ CORRECTION: Vérifier que la BattleScene existe dans Phaser
+      // 3. ✅ CORRECTION: Vérifier que la BattleScene existe dans Phaser (PROTÉGÉ)
       let battleSceneExists = false;
       
       try {
+        // ✅ NOUVELLE PROTECTION: Vérifier d'abord que scene.manager existe
+        if (!phaserGame.scene || !phaserGame.scene.manager) {
+          console.warn('⚠️ [BattleIntegration] Phaser scene manager pas prêt');
+          throw new Error('Scene manager non disponible');
+        }
+        
         const existingScene = phaserGame.scene.getScene('BattleScene');
         if (existingScene) {
           console.log('✅ [BattleIntegration] BattleScene trouvée dans Phaser');
           this.battleScene = existingScene;
           battleSceneExists = true;
         }
-      } catch (e) {
-        console.log('ℹ️ [BattleIntegration] BattleScene pas encore ajoutée');
+      } catch (sceneCheckError) {
+        console.log('ℹ️ [BattleIntegration] BattleScene pas accessible:', sceneCheckError.message);
+        battleSceneExists = false;
       }
       
       // 4. Si pas trouvée, créer et ajouter la BattleScene
@@ -102,8 +109,13 @@ export class BattleIntegration {
         }
         
         try {
-          phaserGame.scene.add('BattleScene', this.battleScene, false);
-          console.log('✅ [BattleIntegration] BattleScene ajoutée à Phaser');
+          // ✅ PROTECTION: Vérifier que le scene manager est prêt avant d'ajouter
+          if (phaserGame.scene && phaserGame.scene.add) {
+            phaserGame.scene.add('BattleScene', this.battleScene, false);
+            console.log('✅ [BattleIntegration] BattleScene ajoutée à Phaser');
+          } else {
+            console.warn('⚠️ [BattleIntegration] Scene manager pas prêt pour ajout');
+          }
         } catch (addError) {
           console.warn('⚠️ [BattleIntegration] Erreur ajout BattleScene:', addError);
           // Continuer quand même
@@ -197,11 +209,22 @@ export class BattleIntegration {
     console.log('🎬 [BattleIntegration] === LANCEMENT BATTLESCENE ===');
     console.log('🎮 PhaserGame disponible:', !!this.phaserGame);
     
-    // ✅ PROTECTION: Vérifier que le scene manager existe
-    if (this.phaserGame?.scene?.manager?.keys) {
-      console.log('📊 Scènes disponibles:', Object.keys(this.phaserGame.scene.manager.keys));
-    } else {
-      console.warn('⚠️ [BattleIntegration] Scene manager non disponible, utilisation fallback');
+    // ✅ PROTECTION: Vérifier que le scene manager existe (version sécurisée)
+    try {
+      if (this.phaserGame?.scene?.manager?.keys) {
+        const sceneKeys = Object.keys(this.phaserGame.scene.manager.keys);
+        console.log('📊 Scènes Phaser disponibles:', sceneKeys);
+        
+        // Vérifier si BattleScene existe
+        const hasBattleScene = sceneKeys.includes('BattleScene');
+        console.log(`🎬 BattleScene existe: ${hasBattleScene}`);
+        
+      } else {
+        console.warn('⚠️ [BattleIntegration] Scene manager Phaser pas encore prêt');
+      }
+    } catch (sceneError) {
+      console.warn('⚠️ [BattleIntegration] Erreur accès scene manager:', sceneError.message);
+      console.log('🆘 [BattleIntegration] Passage en mode fallback DOM forcé');
     }
     
     try {
@@ -320,6 +343,12 @@ export class BattleIntegration {
   createTemporaryBattleInterface(data) {
     console.log('🆘 [BattleIntegration] Création interface temporaire DOM...');
 
+    // ✅ Gestion améliorée du Room ID pour le debug
+    const debugRoomId = this.currentBattleRoomId || 
+                       this.battleConnection?.currentBattleRoomId || 
+                       this.battleConnection?.battleRoomId || 
+                       'En cours...';
+
     // ✅ Créer un overlay DOM simple
     const overlay = document.createElement('div');
     overlay.id = 'temp-battle-overlay';
@@ -353,7 +382,8 @@ export class BattleIntegration {
         <div style="margin: 30px 0;">
           <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
             <p>🔄 <strong>Connexion au système de combat...</strong></p>
-            <p style="color: #FFD700;">BattleRoom ID: ${this.currentBattleRoomId || this.battleConnection?.currentBattleRoomId || this.battleConnection?.battleRoomId || 'En cours...'}</p>
+            <p style="color: #FFD700;">BattleRoom ID: ${debugRoomId}</p>
+            <p style="color: #87CEEB; font-size: 0.9em;">Status: ${this.battleConnection?.isConnected ? 'Connecté' : 'Connexion...'}</p>
           </div>
         </div>
         
@@ -410,6 +440,12 @@ export class BattleIntegration {
     console.log('🎬 [BattleIntegration] Démarrage BattleScene...');
     
     try {
+      // ✅ PROTECTION: Vérifier que scene est disponible
+      if (!this.phaserGame.scene) {
+        console.error('❌ [BattleIntegration] Phaser scene manager indisponible');
+        return;
+      }
+      
       // Réveiller ou démarrer la BattleScene
       if (this.phaserGame.scene.isActive('BattleScene')) {
         this.phaserGame.scene.bringToTop('BattleScene');
@@ -450,8 +486,12 @@ export class BattleIntegration {
       this.battleScene.endBattle();
       
       // Remettre la scène en sommeil
-      if (this.phaserGame?.scene.isActive('BattleScene')) {
-        this.phaserGame.scene.sleep('BattleScene');
+      try {
+        if (this.phaserGame?.scene?.isActive('BattleScene')) {
+          this.phaserGame.scene.sleep('BattleScene');
+        }
+      } catch (error) {
+        console.warn('⚠️ [BattleIntegration] Erreur fermeture BattleScene:', error);
       }
     }
     
@@ -691,7 +731,13 @@ export class BattleIntegration {
     
     // Nettoyer la BattleScene
     if (this.battleScene && this.phaserGame) {
-      this.phaserGame.scene.remove('BattleScene');
+      try {
+        if (this.phaserGame.scene) {
+          this.phaserGame.scene.remove('BattleScene');
+        }
+      } catch (error) {
+        console.warn('⚠️ [BattleIntegration] Erreur suppression BattleScene:', error);
+      }
       this.battleScene = null;
     }
     
