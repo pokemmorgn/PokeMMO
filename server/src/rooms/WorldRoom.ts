@@ -26,6 +26,9 @@ import { movementBlockManager, BlockReason } from "../managers/MovementBlockMana
 
 import { BattleHandlers } from "../handlers/BattleHandlers";
 
+import { StarterHandlers } from "../handlers/StarterHandlers";
+
+
 // Interfaces pour typer les réponses des quêtes
 interface QuestStartResult {
   success: boolean;
@@ -51,6 +54,8 @@ export class WorldRoom extends Room<PokeWorldState> {
   private teamHandlers!: TeamHandlers;
   private questHandlers!: QuestHandlers;
   private battleHandlers!: BattleHandlers;
+  private starterHandlers!: StarterHandlers;
+
   // Limite pour auto-scaling
   maxClients = 50;
   private lastStateUpdate = 0;
@@ -73,6 +78,10 @@ export class WorldRoom extends Room<PokeWorldState> {
       movementBlockManager.cleanup();
     }, 30000);
 
+      // ✅ NOUVEAU: Initialiser les StarterHandlers
+      this.starterHandlers = new StarterHandlers(this);
+      console.log(`✅ StarterHandlers initialisé`);
+    
     // Initialiser le ZoneManager
     this.zoneManager = new ZoneManager(this);
     console.log(`✅ ZoneManager initialisé`);
@@ -399,6 +408,10 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.questHandlers.setupHandlers();
     this.battleHandlers.setupHandlers();
     // === HANDLERS EXISTANTS ===
+
+      // ✅ NOUVEAU: Configurer les handlers de starter
+      this.starterHandlers.setupHandlers();
+
     
     // Mouvement du joueur
     this.onMessage("playerMove", (client, data) => {
@@ -1578,6 +1591,12 @@ export class WorldRoom extends Room<PokeWorldState> {
       this.timeWeatherService = null;
     }
 
+      // ✅ NOUVEAU: Nettoyer les StarterHandlers
+  if (this.starterHandlers) {
+    this.starterHandlers.cleanup();
+    console.log(`🧹 StarterHandlers nettoyés`);
+  }
+    
     // Nettoyer les EncounterHandlers
     if (this.encounterHandlers) {
       this.encounterHandlers.cleanup();
