@@ -1,6 +1,9 @@
-// server/src/rooms/BattleRoom.ts
+// server/src/rooms/BattleRoom.ts - VERSION AVEC VRAI COMBAT
 import { Room, Client } from "@colyseus/core";
 import { BattleState, BattlePokemon, BattleAction } from "../schema/BattleState";
+import { BattleManager } from "../managers/BattleManager";
+import { MoveManager } from "../managers/MoveManager";
+import { CaptureManager, CaptureAttempt } from "../managers/CaptureManager";
 import { WildPokemon } from "../managers/EncounterManager";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
@@ -11,8 +14,8 @@ export interface BattleInitData {
   playerData: {
     sessionId: string;
     name: string;
-    worldRoomId: string;  // Pour communiquer avec WorldRoom
-    activePokemonId?: string; // Pokémon actif choisi
+    worldRoomId: string;
+    activePokemonId?: string;
   };
   wildPokemon?: WildPokemon;
   player2Data?: {
@@ -22,98 +25,75 @@ export interface BattleInitData {
   };
 }
 
-// Types pour les icônes de statut
 export type BattleStatusIcon = 
-  | "entering_battle"    // ⚔️ 
-  | "battle_advantage"   // 😤
-  | "battle_struggling"  // 😰 
-  | "battle_critical"    // 😵
-  | "battle_victory"     // 🎉
-  | "battle_defeat"      // 😢
-  | "battle_fled"        // 🏃
-  | "capturing"          // 🎯
-  | "switching_pokemon"; // 🔄
+  | "entering_battle" | "battle_advantage" | "battle_struggling" 
+  | "battle_critical" | "battle_victory" | "battle_defeat" 
+  | "battle_fled" | "capturing" | "switching_pokemon";
 
 export class BattleRoom extends Room<BattleState> {
   private battleInitData!: BattleInitData;
   private teamManagers: Map<string, TeamManager> = new Map();
-  private worldRoomRef: any = null; // Référence vers WorldRoom
+  private worldRoomRef: any = null;
+  private battleManager!: BattleManager; // ✅ AJOUT: Instance du BattleManager
   
   // Combat timing
-  private actionTimeoutMs = 30000; // 30s pour choisir action
+  private actionTimeoutMs = 30000;
   private currentActionTimer?: NodeJS.Timeout;
 
   // Statistiques pour icônes
   private playerHpPercentages: Map<string, number> = new Map();
   private lastStatusIcons: Map<string, BattleStatusIcon> = new Map();
 
-  maxClients = 2; // 1 pour sauvage, 2 pour PvP
+  maxClients = 2;
 
   async onCreate(options: BattleInitData) {
-    console.log(`⚔️ === CRÉATION BATTLEROOM ===`);
+    console.log(`⚔️ === CRÉATION BATTLEROOM AVEC VRAI COMBAT ===`);
     console.log(`🎯 Type: ${options.battleType}`);
     console.log(`👤 Joueur 1: ${options.playerData.name}`);
     
     this.battleInitData = options;
     this.setState(new BattleState());
     
+    // ✅ NOUVEAU: Initialiser BattleManager avec le state
+    this.battleManager = new BattleManager(this.state);
+    
     // Configuration de base
     this.state.battleId = `${options.battleType}_${Date.now()}_${this.roomId}`;
     this.state.battleType = options.battleType;
     this.state.phase = "waiting";
     
-    console.log(`✅ BattleRoom ${this.roomId} créée`);
+    // ✅ NOUVEAU: Initialiser MoveManager si pas encore fait
+    await MoveManager.initialize();
     
-    // Setup des handlers
+    console.log(`✅ BattleRoom ${this.roomId} créée avec BattleManager`);
+    
     this.setupMessageHandlers();
-    
-    // Récupérer référence vers WorldRoom pour notifications de statut
     await this.setupWorldRoomConnection();
   }
 
-private async setupWorldRoomConnection() {
-  try {
-    console.log(`🔗 [BattleRoom] Tentative de connexion à WorldRoom...`);
-    
-    // ✅ CORRECTION: Utiliser le bon chemin d'import et vérifier l'existence
-    const { ServiceRegistry } = require('../services/ServiceRegistry');
-    
-    if (!ServiceRegistry) {
-      console.warn(`⚠️ [BattleRoom] ServiceRegistry non trouvé, mode dégradé`);
+  private async setupWorldRoomConnection() {
+    try {
+      console.log(`🔗 [BattleRoom] Connexion à WorldRoom...`);
+      const { ServiceRegistry } = require('../services/ServiceRegistry');
+      
+      if (ServiceRegistry) {
+        const registry = ServiceRegistry.getInstance();
+        this.worldRoomRef = registry?.getWorldRoom();
+        
+        if (this.worldRoomRef) {
+          console.log(`✅ [BattleRoom] WorldRoom connectée`);
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ [BattleRoom] Mode dégradé sans WorldRoom`);
       this.worldRoomRef = null;
-      return;
     }
-    
-    const registry = ServiceRegistry.getInstance();
-    
-    if (!registry) {
-      console.warn(`⚠️ [BattleRoom] Instance ServiceRegistry non disponible`);
-      this.worldRoomRef = null;
-      return;
-    }
-    
-    // ✅ CORRECTION: Utiliser la méthode getWorldRoom() qui existe maintenant
-    this.worldRoomRef = registry.getWorldRoom();
-    
-    if (this.worldRoomRef) {
-      console.log(`✅ [BattleRoom] Connectée à WorldRoom avec succès`);
-    } else {
-      console.warn(`⚠️ [BattleRoom] WorldRoom non disponible dans ServiceRegistry`);
-      console.log(`ℹ️ [BattleRoom] Mode dégradé : notifications de statut désactivées`);
-    }
-    
-  } catch (error) {
-    console.error(`❌ [BattleRoom] Erreur connexion WorldRoom:`, error);
-    console.log(`🔄 [BattleRoom] Passage en mode dégradé sans WorldRoom`);
-    this.worldRoomRef = null;
   }
-}
 
   private setupMessageHandlers() {
     console.log(`📨 Configuration handlers BattleRoom...`);
 
-    // === ACTIONS DE COMBAT ===
-    
+    // ✅ AMÉLIORÉ: Actions de combat avec vraie logique
     this.onMessage("battleAction", async (client, data: {
       actionType: "attack" | "item" | "switch" | "run";
       moveId?: string;
@@ -123,39 +103,30 @@ private async setupWorldRoomConnection() {
       await this.handleBattleAction(client, data);
     });
 
-    // === CHOIX POKÉMON INITIAL ===
-    
     this.onMessage("choosePokemon", async (client, data: { pokemonId: string }) => {
       await this.handleChoosePokemon(client, data.pokemonId);
     });
 
-    // === CAPTURE ===
-    
     this.onMessage("attemptCapture", async (client, data: { ballType: string }) => {
       await this.handleCaptureAttempt(client, data.ballType);
     });
 
-    // === FUITE ===
-    
     this.onMessage("attemptFlee", async (client) => {
       await this.handleFleeAttempt(client);
     });
 
-    // === CHANGEMENT POKÉMON ===
-    
     this.onMessage("switchPokemon", async (client, data: { newPokemonId: string }) => {
       await this.handleSwitchPokemon(client, data.newPokemonId);
     });
 
-    // === DEBUG ===
-    
     this.onMessage("getBattleState", (client) => {
       client.send("battleStateUpdate", {
         phase: this.state.phase,
         currentTurn: this.state.currentTurn,
-        player1Pokemon: this.state.player1Pokemon,
-        player2Pokemon: this.state.player2Pokemon,
-        battleLog: Array.from(this.state.battleLog)
+        player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+        player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+        battleLog: Array.from(this.state.battleLog),
+        turnNumber: this.state.turnNumber
       });
     });
 
@@ -168,10 +139,8 @@ private async setupWorldRoomConnection() {
     console.log(`👤 Joueur ${client.sessionId} rejoint BattleRoom`);
     
     try {
-      // Bloquer le mouvement dans WorldRoom
       this.blockPlayerInWorldRoom(client.sessionId, "Entré en combat");
       
-      // Charger le TeamManager du joueur
       const playerName = this.getPlayerName(client.sessionId);
       if (playerName) {
         const teamManager = new TeamManager(playerName);
@@ -180,7 +149,6 @@ private async setupWorldRoomConnection() {
         console.log(`📁 TeamManager chargé pour ${playerName}`);
       }
 
-      // Configurer le joueur dans le state
       if (this.state.player1Id === "" || this.state.player1Id === client.sessionId) {
         this.state.player1Id = client.sessionId;
         this.state.player1Name = playerName || "Player1";
@@ -189,20 +157,16 @@ private async setupWorldRoomConnection() {
         this.state.player2Name = playerName || "Player2";
       }
 
-      // Initialiser HP à 100% pour le calcul d'icône
       this.playerHpPercentages.set(client.sessionId, 100);
       
-      // Envoyer l'état initial
       client.send("battleJoined", {
         battleId: this.state.battleId,
         battleType: this.state.battleType,
         yourRole: this.getPlayerRole(client.sessionId)
       });
 
-      // Mettre à jour le statut visuel
       this.updatePlayerStatusIcon(client.sessionId, "entering_battle");
 
-      // Démarrer le combat si tout le monde est là
       if (this.shouldStartBattle()) {
         this.clock.setTimeout(() => this.startBattle(), 1000);
       }
@@ -214,21 +178,15 @@ private async setupWorldRoomConnection() {
   }
 
   async onLeave(client: Client, consented: boolean) {
-    console.log(`👋 ${client.sessionId} quitte BattleRoom (consenti: ${consented})`);
+    console.log(`👋 ${client.sessionId} quitte BattleRoom`);
     
     try {
-      // Débloquer le mouvement
       this.unblockPlayerInWorldRoom(client.sessionId);
-      
-      // Nettoyer le statut visuel
       this.clearPlayerStatusIcon(client.sessionId);
-      
-      // Nettoyer les données
       this.teamManagers.delete(client.sessionId);
       this.playerHpPercentages.delete(client.sessionId);
       this.lastStatusIcons.delete(client.sessionId);
       
-      // Si le combat était en cours, l'arrêter
       if (this.state.phase === "battle") {
         this.endBattleEarly("player_disconnected");
       }
@@ -238,43 +196,24 @@ private async setupWorldRoomConnection() {
     }
   }
 
-  async onDispose() {
-    console.log(`💀 BattleRoom ${this.roomId} détruite`);
-    
-    // Nettoyer tous les blocages
-    this.clients.forEach(client => {
-      this.unblockPlayerInWorldRoom(client.sessionId);
-      this.clearPlayerStatusIcon(client.sessionId);
-    });
-    
-    // Nettoyer le timer
-    if (this.currentActionTimer) {
-      clearTimeout(this.currentActionTimer);
-    }
-    
-    console.log(`✅ BattleRoom ${this.roomId} nettoyée`);
-  }
-
-  // === LOGIQUE DE COMBAT ===
+  // === DÉMARRAGE DU COMBAT ===
 
   private async startBattle() {
-    console.log(`🎬 DÉMARRAGE DU COMBAT !`);
+    console.log(`🎬 DÉMARRAGE DU COMBAT AVEC BATTLEMANAGER !`);
     
     try {
       this.state.phase = "intro";
       
-      // Configurer le combat selon le type
       if (this.state.battleType === "wild") {
-        await this.setupWildBattle();
+        await this.setupWildBattleWithManager();
       } else {
         await this.setupPvPBattle();
       }
       
-      // Passer en phase de sélection d'équipe
       this.state.phase = "team_selection";
       this.broadcast("phaseChange", { phase: "team_selection" });
       
-      console.log(`✅ Combat configuré, attente sélection équipe`);
+      console.log(`✅ Combat configuré avec BattleManager`);
       
     } catch (error) {
       console.error(`❌ Erreur startBattle:`, error);
@@ -282,65 +221,21 @@ private async setupWorldRoomConnection() {
     }
   }
 
-  private async setupWildBattle() {
-    console.log(`🌿 Configuration combat sauvage`);
+  // ✅ NOUVEAU: Setup combat sauvage avec BattleManager
+  private async setupWildBattleWithManager() {
+    console.log(`🌿 Configuration combat sauvage avec BattleManager`);
     
     if (!this.battleInitData.wildPokemon) {
       throw new Error("Données Pokémon sauvage manquantes");
     }
 
-    const wildPokemon = this.battleInitData.wildPokemon;
+    // ✅ Le BattleManager va créer les BattlePokemon directement
+    // On n'a pas besoin de les créer manuellement ici
     
-    // Créer le BattlePokemon sauvage
-    const wildBattlePokemon = new BattlePokemon();
-    
-    // Récupérer les données du Pokémon
-    const pokemonData = await getPokemonById(wildPokemon.pokemonId);
-    if (!pokemonData) {
-      throw new Error(`Pokémon ${wildPokemon.pokemonId} introuvable`);
-    }
-
-    // Configurer le Pokémon sauvage
-    wildBattlePokemon.pokemonId = wildPokemon.pokemonId;
-    wildBattlePokemon.name = pokemonData.name;
-    wildBattlePokemon.level = wildPokemon.level;
-    wildBattlePokemon.isWild = true;
-    wildBattlePokemon.gender = wildPokemon.gender;
-    wildBattlePokemon.shiny = wildPokemon.shiny;
-    
-    // Types
-    wildBattlePokemon.types.clear();
-    pokemonData.types.forEach(type => wildBattlePokemon.types.push(type));
-    
-    // Calculer les stats avec IVs
-    const stats = this.calculateStats(pokemonData, wildPokemon.level, wildPokemon.ivs);
-    wildBattlePokemon.maxHp = stats.hp;
-    wildBattlePokemon.currentHp = stats.hp;
-    wildBattlePokemon.attack = stats.attack;
-    wildBattlePokemon.defense = stats.defense;
-    wildBattlePokemon.specialAttack = stats.specialAttack;
-    wildBattlePokemon.specialDefense = stats.specialDefense;
-    wildBattlePokemon.speed = stats.speed;
-    
-    // Moves
-    wildBattlePokemon.moves.clear();
-    wildPokemon.moves.forEach(move => wildBattlePokemon.moves.push(move));
-    
-    // Assigner comme player2 (adversaire)
-    this.state.player2Pokemon = wildBattlePokemon;
-    this.state.player2Name = `${pokemonData.name} sauvage`;
-    
-    this.addBattleMessage(`Un ${pokemonData.name} sauvage apparaît !`);
-    
-    console.log(`✅ ${pokemonData.name} sauvage configuré (Niv.${wildPokemon.level})`);
+    console.log(`✅ Combat sauvage configuré pour BattleManager`);
   }
 
-  private async setupPvPBattle() {
-    console.log(`⚔️ Configuration combat PvP`);
-    // TODO: À implémenter pour les combats joueur vs joueur
-    this.addBattleMessage("Combat PvP à implémenter");
-  }
-
+  // ✅ AMÉLIORÉ: Choisir Pokémon et initialiser le BattleManager
   private async handleChoosePokemon(client: Client, pokemonId: string) {
     console.log(`🎯 ${client.sessionId} choisit Pokémon: ${pokemonId}`);
     
@@ -351,7 +246,6 @@ private async setupWorldRoomConnection() {
         return;
       }
 
-      // Récupérer le Pokémon de l'équipe
       const team = await teamManager.getTeam();
       const selectedPokemon = team.find(p => p._id.toString() === pokemonId);
       
@@ -365,20 +259,19 @@ private async setupWorldRoomConnection() {
         return;
       }
 
-      // Créer le BattlePokemon
-      const battlePokemon = await this.createBattlePokemonFromTeam(selectedPokemon);
-      
-      // Assigner selon le rôle du joueur
-      if (client.sessionId === this.state.player1Id) {
-        this.state.player1Pokemon = battlePokemon;
-      } else if (client.sessionId === this.state.player2Id) {
-        this.state.player2Pokemon = battlePokemon;
-      }
-
-      console.log(`✅ ${selectedPokemon.nickname || 'Pokémon'} assigné`);
-
-      // Vérifier si on peut commencer le combat
-      if (this.canStartActualBattle()) {
+      // ✅ NOUVEAU: Utiliser BattleManager pour initialiser le combat
+      if (this.state.battleType === "wild" && this.battleInitData.wildPokemon) {
+        await this.battleManager.initializeWildBattle(
+          this.state.player1Id,
+          this.state.player1Name,
+          selectedPokemon.pokemonId,
+          this.battleInitData.wildPokemon,
+          this.battleInitData.wildPokemon.pokemonId.toString() // location simplifiée
+        );
+        
+        console.log(`✅ Combat sauvage initialisé avec BattleManager`);
+        
+        // Le BattleManager a mis à jour le state, on peut commencer
         this.startActualBattle();
       }
 
@@ -388,104 +281,29 @@ private async setupWorldRoomConnection() {
     }
   }
 
-  private async createBattlePokemonFromTeam(teamPokemon: any): Promise<BattlePokemon> {
-    const battlePokemon = new BattlePokemon();
-    
-    // Récupérer les données de base
-    const pokemonData = await getPokemonById(teamPokemon.pokemonId);
-    if (!pokemonData) {
-      throw new Error(`Données Pokémon ${teamPokemon.pokemonId} introuvables`);
-    }
-
-    // Configuration de base
-    battlePokemon.pokemonId = teamPokemon.pokemonId;
-    battlePokemon.name = teamPokemon.customName || pokemonData.name;
-    battlePokemon.level = teamPokemon.level;
-    battlePokemon.isWild = false;
-    battlePokemon.gender = teamPokemon.gender;
-    battlePokemon.shiny = teamPokemon.shiny;
-    
-    // Types
-    battlePokemon.types.clear();
-    (teamPokemon.types || pokemonData.types).forEach((type: string) => battlePokemon.types.push(type));
-    
-    // Stats actuelles (avec IVs, nature, etc.)
-    battlePokemon.maxHp = teamPokemon.maxHp;
-    battlePokemon.currentHp = teamPokemon.currentHp;
-    battlePokemon.attack = teamPokemon.calculatedStats?.attack || 50;
-    battlePokemon.defense = teamPokemon.calculatedStats?.defense || 50;
-    battlePokemon.specialAttack = teamPokemon.calculatedStats?.spAttack || 50;
-    battlePokemon.specialDefense = teamPokemon.calculatedStats?.spDefense || 50;
-    battlePokemon.speed = teamPokemon.calculatedStats?.speed || 50;
-    
-    // Moves
-    battlePokemon.moves.clear();
-    // TODO: Récupérer les moves réels du Pokémon de l'équipe
-    // Pour l'instant, utiliser les moves de base
-    const baseMoves = pokemonData.learnset
-      .filter((learn: any) => learn.level <= teamPokemon.level)
-      .slice(-4)
-      .map((learn: any) => learn.moveId);
-    
-    (baseMoves || ["tackle"]).forEach((move: string) => battlePokemon.moves.push(move));
-    
-    // Status
-    battlePokemon.statusCondition = teamPokemon.status || "normal";
-    
-    return battlePokemon;
-  }
-
   private startActualBattle() {
-    console.log(`⚔️ DÉBUT DU COMBAT RÉEL !`);
+    console.log(`⚔️ DÉBUT DU COMBAT RÉEL AVEC BATTLEMANAGER !`);
     
     this.state.phase = "battle";
     this.state.waitingForAction = true;
-    this.state.turnNumber = 1;
     
-    // Déterminer qui commence (plus rapide en premier)
-    this.determineTurnOrder();
+    // Le BattleManager a déjà déterminé l'ordre et configuré le state
     
-    // Messages d'introduction
-    this.addBattleMessage(`${this.state.player1Pokemon.name} ! Je te choisis !`);
-    
-    if (this.state.battleType === "wild") {
-      this.addBattleMessage(`Face à ${this.state.player2Pokemon.name} sauvage !`);
-    }
-    
-    // Broadcast de début
     this.broadcast("battleStart", {
       player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
       player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
       currentTurn: this.state.currentTurn,
-      turnNumber: this.state.turnNumber
+      turnNumber: this.state.turnNumber,
+      battleLog: Array.from(this.state.battleLog)
     });
     
-    // Mettre à jour les icônes
     this.updateBattleStatusIcons();
-    
-    // Démarrer le timer d'action
     this.startActionTimer();
     
-    console.log(`✅ Combat ${this.state.battleId} en cours !`);
+    console.log(`✅ Combat ${this.state.battleId} en cours avec BattleManager !`);
   }
 
-  private determineTurnOrder() {
-    const player1Speed = this.state.player1Pokemon.speed;
-    const player2Speed = this.state.player2Pokemon.speed;
-    
-    if (player1Speed > player2Speed) {
-      this.state.currentTurn = "player1";
-    } else if (player2Speed > player1Speed) {
-      this.state.currentTurn = "player2";
-    } else {
-      // Égalité : aléatoire
-      this.state.currentTurn = Math.random() < 0.5 ? "player1" : "player2";
-    }
-    
-    console.log(`🎲 Tour: ${this.state.currentTurn} (Speed: P1=${player1Speed}, P2=${player2Speed})`);
-  }
-
-  // === ACTIONS DE COMBAT ===
+  // === ACTIONS DE COMBAT AVEC BATTLEMANAGER ===
 
   private async handleBattleAction(client: Client, data: any) {
     if (this.state.phase !== "battle") {
@@ -502,33 +320,36 @@ private async setupWorldRoomConnection() {
     console.log(`🎮 Action de ${client.sessionId}: ${data.actionType}`);
 
     try {
-      // Créer l'action
+      // ✅ NOUVEAU: Créer BattleAction pour BattleManager
       const action = new BattleAction();
       action.type = data.actionType;
       action.playerId = client.sessionId;
       action.data = JSON.stringify(data);
       
-      // Traiter selon le type
-      switch (data.actionType) {
-        case "attack":
-          await this.processAttackAction(client, data.moveId);
-          break;
-        case "item":
-          await this.processItemAction(client, data.itemId);
-          break;
-        case "switch":
-          await this.processSwitchAction(client, data.targetPokemonId);
-          break;
-        case "run":
-          await this.processRunAction(client);
-          break;
-        default:
-          client.send("error", { message: "Action inconnue" });
-          return;
+      // ✅ Calculer priorité et vitesse pour l'ordre d'action
+      if (data.actionType === "attack" && data.moveId) {
+        const moveData = MoveManager.getMoveData(data.moveId);
+        action.priority = moveData?.priority || 0;
+        
+        const currentPokemon = this.getCurrentPlayerPokemon();
+        action.speed = currentPokemon.speed;
       }
 
-      // Passer au tour suivant
-      this.nextTurn();
+      // ✅ NOUVEAU: Utiliser BattleManager pour traiter l'action
+      await this.battleManager.processAction(action);
+      
+      // ✅ Le BattleManager met à jour automatiquement le state
+      // On broadcast les changements
+      this.broadcastBattleUpdate();
+      
+      // ✅ Vérifier si le combat est terminé
+      if (this.state.battleEnded) {
+        await this.handleBattleEnd();
+      } else {
+        // Mettre à jour les icônes de statut
+        this.updatePlayerHpPercentages();
+        this.updateBattleStatusIcons();
+      }
 
     } catch (error) {
       console.error(`❌ Erreur handleBattleAction:`, error);
@@ -536,134 +357,219 @@ private async setupWorldRoomConnection() {
     }
   }
 
-  private async processAttackAction(client: Client, moveId: string) {
-    // TODO: Implémenter logique d'attaque complète
-    this.addBattleMessage(`${this.getCurrentPlayerPokemon().name} utilise ${moveId} !`);
-    
-    // Simulation simple pour test
-    const damage = Math.floor(Math.random() * 50) + 10;
-    const opponent = this.getOpponentPokemon();
-    opponent.currentHp = Math.max(0, opponent.currentHp - damage);
-    
-    this.addBattleMessage(`${opponent.name} perd ${damage} PV !`);
-    
-    // Mettre à jour les HP pour les icônes
-    this.updatePlayerHpPercentages();
-    this.updateBattleStatusIcons();
-    
-    // Vérifier fin de combat
-    if (opponent.currentHp <= 0) {
-      this.endBattle("victory");
-    }
-  }
-
-  private async processItemAction(client: Client, itemId: string) {
-    this.addBattleMessage(`${this.state.player1Name} utilise ${itemId} !`);
-    
-    if (itemId.includes("ball") && this.state.battleType === "wild") {
-      // Tentative de capture
-      this.updatePlayerStatusIcon(client.sessionId, "capturing");
-      // TODO: Logique de capture
-      this.addBattleMessage("*Boing*");
-    }
-  }
-
-  private async processSwitchAction(client: Client, targetPokemonId: string) {
-    this.updatePlayerStatusIcon(client.sessionId, "switching_pokemon");
-    this.addBattleMessage(`${this.state.player1Name} rappelle son Pokémon !`);
-    // TODO: Logique de changement
-  }
-
-  private async processRunAction(client: Client) {
-    if (this.state.battleType === "wild") {
-      this.updatePlayerStatusIcon(client.sessionId, "battle_fled");
-      this.addBattleMessage(`${this.state.player1Name} prend la fuite !`);
-      this.endBattle("fled");
-    } else {
-      client.send("error", { message: "Impossible de fuir un combat de dresseur !" });
-    }
-  }
-
-  // === GESTION DES TOURS ===
-
-  private nextTurn() {
-    // Nettoyer le timer précédent
-    if (this.currentActionTimer) {
-      clearTimeout(this.currentActionTimer);
-    }
-
-    // Changer de tour
-    this.state.currentTurn = this.state.currentTurn === "player1" ? "player2" : "player1";
-    this.state.turnNumber++;
-    
-    console.log(`🔄 Tour ${this.state.turnNumber}: ${this.state.currentTurn}`);
-
-    // Si c'est l'IA (combat sauvage), jouer automatiquement
-    if (this.state.battleType === "wild" && this.state.currentTurn === "player2") {
-      this.clock.setTimeout(() => this.playAITurn(), 1500);
-    } else {
-      // Joueur humain : démarrer timer
-      this.startActionTimer();
-    }
-
-    // Broadcast du changement
-    this.broadcast("turnChange", {
+  // ✅ NOUVEAU: Broadcast des mises à jour de combat
+  private broadcastBattleUpdate() {
+    this.broadcast("battleUpdate", {
+      player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+      player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
       currentTurn: this.state.currentTurn,
-      turnNumber: this.state.turnNumber
+      turnNumber: this.state.turnNumber,
+      battleLog: Array.from(this.state.battleLog),
+      lastMessage: this.state.lastMessage,
+      battleEnded: this.state.battleEnded,
+      winner: this.state.winner
     });
   }
 
-  private playAITurn() {
-    console.log(`🤖 Tour de l'IA`);
+  // ✅ NOUVEAU: Gestion de la fin de combat avec BattleManager
+  private async handleBattleEnd() {
+    console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BATTLEMANAGER`);
     
-    // IA simple : attaque aléatoire
-    const moves = Array.from(this.state.player2Pokemon.moves);
-    const randomMove = moves[Math.floor(Math.random() * moves.length)] || "tackle";
+    // Récupérer les résultats du BattleManager
+    const battleResult = this.battleManager.getBattleResult();
     
-    this.addBattleMessage(`${this.state.player2Pokemon.name} utilise ${randomMove} !`);
+    console.log(`📊 Résultat:`, battleResult);
     
-    // Simulation dégâts sur player1
-    const damage = Math.floor(Math.random() * 40) + 10;
-    this.state.player1Pokemon.currentHp = Math.max(0, this.state.player1Pokemon.currentHp - damage);
+    // Déterminer le type de fin
+    let endType: "victory" | "defeat" | "fled" | "draw";
     
-    this.addBattleMessage(`${this.state.player1Pokemon.name} perd ${damage} PV !`);
-    
-    // Mettre à jour icônes
-    this.updatePlayerHpPercentages();
-    this.updateBattleStatusIcons();
-    
-    // Vérifier fin
-    if (this.state.player1Pokemon.currentHp <= 0) {
-      this.endBattle("defeat");
+    if (this.state.pokemonCaught) {
+      endType = "victory";
+      this.updatePlayerStatusIcon(this.state.player1Id, "battle_victory");
+    } else if (battleResult.winner === 'player') {
+      endType = "victory";
+      this.updatePlayerStatusIcon(this.state.player1Id, "battle_victory");
+    } else if (battleResult.winner === 'opponent') {
+      endType = "defeat";
+      this.updatePlayerStatusIcon(this.state.player1Id, "battle_defeat");
     } else {
-      this.nextTurn();
+      endType = "draw";
+    }
+    
+    // Sauvegarder les changements des Pokémon
+    await this.updatePokemonAfterBattle(this.state.player1Id, this.state.player1Pokemon);
+    
+    // Calculer les récompenses
+    const rewards = this.calculateRewards(endType, battleResult);
+    
+    // Broadcast du résultat final
+    this.broadcast("battleEnd", {
+      result: endType,
+      rewards: rewards,
+      finalLog: Array.from(this.state.battleLog),
+      battleResult: battleResult
+    });
+    
+    // Programmer la fermeture
+    this.clock.setTimeout(() => {
+      this.disconnect();
+    }, 5000);
+  }
+
+  // ✅ AMÉLIORÉ: Capture avec CaptureManager réel
+  private async handleCaptureAttempt(client: Client, ballType: string) {
+    if (this.state.battleType !== "wild") {
+      client.send("error", { message: "Impossible de capturer un Pokémon de dresseur !" });
+      return;
+    }
+    
+    if (this.state.phase !== "battle") {
+      client.send("error", { message: "Combat non actif" });
+      return;
+    }
+    
+    console.log(`🎯 Tentative de capture avec ${ballType}`);
+    
+    try {
+      this.updatePlayerStatusIcon(client.sessionId, "capturing");
+      
+      // ✅ NOUVEAU: Utiliser CaptureManager réel
+      const captureAttempt: CaptureAttempt = {
+        pokemonId: this.state.player2Pokemon.pokemonId,
+        pokemonLevel: this.state.player2Pokemon.level,
+        currentHp: this.state.player2Pokemon.currentHp,
+        maxHp: this.state.player2Pokemon.maxHp,
+        statusCondition: this.state.player2Pokemon.statusCondition,
+        ballType: ballType,
+        location: this.state.encounterLocation
+      };
+
+      const pokemonData = await getPokemonById(this.state.player2Pokemon.pokemonId);
+      const captureResult = CaptureManager.calculateCaptureRate(captureAttempt, pokemonData);
+      
+      // ✅ NOUVEAU: Animation réaliste de capture
+      this.addBattleMessage(`${this.state.player1Name} lance une ${ballType} !`);
+      
+      // Animation progressive
+      this.broadcast("captureStart", { ballType, captureRate: captureResult.finalProbability });
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      this.addBattleMessage("*Boing*");
+      this.broadcast("captureBounce");
+      
+      // Secousses réalistes
+      for (let i = 0; i < captureResult.shakeCount; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        this.addBattleMessage("*Clic*");
+        this.broadcast("captureShake", { shakeNumber: i + 1, totalShakes: captureResult.shakeCount });
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (captureResult.success) {
+        this.addBattleMessage(`Gotcha ! ${this.state.player2Pokemon.name} a été capturé !`);
+        
+        if (captureResult.criticalCapture) {
+          this.addBattleMessage("Capture critique !");
+        }
+        
+        this.state.pokemonCaught = true;
+        this.state.battleEnded = true;
+        this.state.winner = this.state.player1Id;
+        
+        // TODO: Ajouter le Pokémon capturé à l'équipe/PC
+        
+        this.broadcast("captureSuccess", { 
+          pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+          criticalCapture: captureResult.criticalCapture
+        });
+        
+        await this.handleBattleEnd();
+        
+      } else {
+        this.addBattleMessage(`Oh non ! ${this.state.player2Pokemon.name} s'est échappé !`);
+        this.broadcast("captureFailure", { shakeCount: captureResult.shakeCount });
+        
+        // Le combat continue - tour de l'IA
+        this.clock.setTimeout(() => {
+          this.playAITurn();
+        }, 1500);
+      }
+      
+    } catch (error) {
+      console.error(`❌ Erreur capture:`, error);
+      client.send("error", { message: "Erreur lors de la capture" });
     }
   }
 
-  private startActionTimer() {
-    this.currentActionTimer = setTimeout(() => {
-      console.log(`⏰ Timeout d'action pour ${this.state.currentTurn}`);
+  // ✅ AMÉLIORÉ: Fuite avec calcul réaliste
+  private async handleFleeAttempt(client: Client) {
+    if (this.state.battleType !== "wild") {
+      client.send("error", { message: "Impossible de fuir un combat de dresseur !" });
+      return;
+    }
+    
+    console.log(`🏃 ${client.sessionId} tente de fuir`);
+    
+    // ✅ NOUVEAU: Utiliser BattleManager pour la logique de fuite
+    const action = new BattleAction();
+    action.type = "run";
+    action.playerId = client.sessionId;
+    action.data = JSON.stringify({});
+    
+    try {
+      await this.battleManager.processAction(action);
       
-      if (this.state.currentTurn === "player1") {
-        // Joueur n'a pas agi : action par défaut (attaque de base)
-        this.addBattleMessage(`${this.state.player1Pokemon.name} utilise Charge !`);
-        // Simulation action par défaut
-        this.nextTurn();
+      // Le BattleManager a mis à jour le state
+      if (this.state.battleEnded && this.state.phase === "fled") {
+        this.updatePlayerStatusIcon(client.sessionId, "battle_fled");
+        await this.handleBattleEnd();
+      } else {
+        // Échec de fuite - continuer le combat
+        this.playAITurn();
       }
-    }, this.actionTimeoutMs);
+      
+    } catch (error) {
+      console.error(`❌ Erreur fuite:`, error);
+      client.send("error", { message: "Erreur lors de la fuite" });
+    }
   }
 
-  // === GESTION DES ICÔNES DE STATUT ===
+  // === TOUR DE L'IA AMÉLIORÉ ===
+
+  private async playAITurn() {
+    console.log(`🤖 Tour de l'IA avec BattleManager`);
+    
+    // ✅ Le BattleManager génère automatiquement l'action IA
+    // Quand on processAction du joueur, l'IA répond automatiquement
+    // Donc cette méthode est maintenant simplifiée
+    
+    // Appliquer les effets de fin de tour
+    this.battleManager.processEndOfTurnEffects();
+    
+    // Vérifier si le combat continue
+    if (!this.state.battleEnded) {
+      this.updatePlayerHpPercentages();
+      this.updateBattleStatusIcons();
+      this.broadcastBattleUpdate();
+    }
+  }
+
+  // === MÉTHODES UTILITAIRES AMÉLIORÉES ===
+
+  private getCurrentPlayerPokemon(): BattlePokemon {
+    return this.state.currentTurn === "player1" 
+      ? this.state.player1Pokemon 
+      : this.state.player2Pokemon;
+  }
 
   private updatePlayerHpPercentages() {
-    // Player 1
-    if (this.state.player1Pokemon.maxHp > 0) {
+    if (this.state.player1Pokemon?.maxHp > 0) {
       const hp1 = (this.state.player1Pokemon.currentHp / this.state.player1Pokemon.maxHp) * 100;
       this.playerHpPercentages.set(this.state.player1Id, hp1);
     }
     
-    // Player 2 (si humain)
-    if (this.state.player2Id && this.state.player2Pokemon.maxHp > 0) {
+    if (this.state.player2Id && this.state.player2Pokemon?.maxHp > 0) {
       const hp2 = (this.state.player2Pokemon.currentHp / this.state.player2Pokemon.maxHp) * 100;
       this.playerHpPercentages.set(this.state.player2Id, hp2);
     }
@@ -682,7 +588,6 @@ private async setupWorldRoomConnection() {
         newIcon = "battle_critical";
       }
       
-      // Mettre à jour seulement si changé
       const lastIcon = this.lastStatusIcons.get(client.sessionId);
       if (lastIcon !== newIcon) {
         this.updatePlayerStatusIcon(client.sessionId, newIcon);
@@ -690,295 +595,41 @@ private async setupWorldRoomConnection() {
     });
   }
 
-private updatePlayerStatusIcon(sessionId: string, icon: any) {
-  this.lastStatusIcons.set(sessionId, icon);
-  
-  if (this.worldRoomRef) {
-    try {
-      // Notifier WorldRoom du changement d'icône
-      this.worldRoomRef.broadcast("playerStatusIcon", {
-        playerId: sessionId,
-        icon: icon,
-        iconEmoji: this.getIconEmoji(icon)
-      });
-      
-      console.log(`📱 Icône ${icon} mise à jour pour ${sessionId}`);
-    } catch (error) {
-      console.error(`❌ Erreur mise à jour icône:`, error);
-    }
-  } else {
-    // Mode dégradé : just log
-    console.log(`📱 [DÉGRADÉ] Icône ${icon} pour ${sessionId} (WorldRoom indisponible)`);
-  }
-}
-
-
-private clearPlayerStatusIcon(sessionId: string) {
-  this.lastStatusIcons.delete(sessionId);
-  
-  if (this.worldRoomRef) {
-    try {
-      this.worldRoomRef.broadcast("playerStatusIcon", {
-        playerId: sessionId,
-        icon: null,
-        iconEmoji: null
-      });
-      
-      console.log(`🧹 Icône nettoyée pour ${sessionId}`);
-    } catch (error) {
-      console.error(`❌ Erreur nettoyage icône:`, error);
-    }
-  } else {
-    // Mode dégradé : just log
-    console.log(`🧹 [DÉGRADÉ] Icône nettoyée pour ${sessionId} (WorldRoom indisponible)`);
-  }
-}
-
-  private getIconEmoji(icon: BattleStatusIcon): string {
-    const iconMap = {
-      "entering_battle": "⚔️",
-      "battle_advantage": "😤", 
-      "battle_struggling": "😰",
-      "battle_critical": "😵",
-      "battle_victory": "🎉",
-      "battle_defeat": "😢",
-      "battle_fled": "🏃",
-      "capturing": "🎯",
-      "switching_pokemon": "🔄"
-    };
+  private addBattleMessage(message: string) {
+    this.state.battleLog.push(message);
+    this.state.lastMessage = message;
     
-    return iconMap[icon] || "❓";
+    console.log(`💬 [COMBAT] ${message}`);
+    
+    if (this.state.battleLog.length > 50) {
+      this.state.battleLog.splice(0, this.state.battleLog.length - 50);
+    }
+    
+    this.broadcast("battleMessage", { message });
   }
 
-  // === FIN DE COMBAT ===
-
-  private async endBattle(result: "victory" | "defeat" | "fled" | "draw") {
-    console.log(`🏁 FIN DE COMBAT: ${result}`);
-    
-    this.state.phase = "ended";
-    this.state.battleEnded = true;
-    
-    // Nettoyer le timer
-    if (this.currentActionTimer) {
-      clearTimeout(this.currentActionTimer);
-    }
-    
-    // Messages de fin
-    switch (result) {
-      case "victory":
-        this.addBattleMessage(`${this.state.player1Name} remporte le combat !`);
-        this.updatePlayerStatusIcon(this.state.player1Id, "battle_victory");
-        break;
-      case "defeat":
-        this.addBattleMessage(`${this.state.player1Name} est défait...`);
-        this.updatePlayerStatusIcon(this.state.player1Id, "battle_defeat");
-        break;
-      case "fled":
-        this.addBattleMessage(`${this.state.player1Name} s'enfuit !`);
-        this.updatePlayerStatusIcon(this.state.player1Id, "battle_fled");
-        break;
-      case "draw":
-        this.addBattleMessage("Match nul !");
-        break;
-    }
-    
-    // Sauvegarder les changements des Pokémon
-    if (this.state.player1Pokemon) {
-      await this.updatePokemonAfterBattle(this.state.player1Id, this.state.player1Pokemon);
-    }
-    
-    if (this.state.player2Id && this.state.player2Pokemon && !this.state.player2Pokemon.isWild) {
-      await this.updatePokemonAfterBattle(this.state.player2Id, this.state.player2Pokemon);
-    }
-    
-    // Calculer les récompenses
-    const rewards = this.calculateRewards(result);
-    
-    // Broadcast du résultat
-    this.broadcast("battleEnd", {
-      result: result,
-      rewards: rewards,
-      finalLog: Array.from(this.state.battleLog)
-    });
-    
-    // Programmer la fermeture de la room
-    this.clock.setTimeout(() => {
-      this.disconnect();
-    }, 5000); // 5 secondes pour voir les résultats
-  }
-
-  private endBattleEarly(reason: string) {
-    console.log(`⚠️ ARRÊT PRÉMATURÉ: ${reason}`);
-    
-    this.state.phase = "ended";
-    this.state.battleEnded = true;
-    
-    this.addBattleMessage(`Combat interrompu: ${reason}`);
-    
-    this.broadcast("battleInterrupted", {
-      reason: reason,
-      message: "Le combat a été interrompu"
-    });
-    
-    // Fermeture immédiate
-    this.clock.setTimeout(() => {
-      this.disconnect();
-    }, 2000);
-  }
-
-  private calculateRewards(result: "victory" | "defeat" | "fled" | "draw") {
+  private calculateRewards(result: string, battleResult: any) {
     const rewards: any = {
-      experience: 0,
+      experience: battleResult.expGained || 0,
       gold: 0,
       items: [],
-      pokemonCaught: null
+      pokemonCaught: this.state.pokemonCaught
     };
     
     if (result === "victory" && this.state.battleType === "wild") {
-      // XP basé sur le niveau du Pokémon sauvage
       const wildLevel = this.state.player2Pokemon.level;
-      rewards.experience = Math.floor((wildLevel * 50) + Math.random() * 20);
-      
-      // Or bonus
       rewards.gold = Math.floor(wildLevel * 10 + Math.random() * 50);
       
-      console.log(`🎁 Récompenses: ${rewards.experience} XP, ${rewards.gold} gold`);
+      console.log(`🎁 Récompenses calculées:`, rewards);
     }
     
     return rewards;
   }
 
-  // === CAPTURE ===
-
-  private async handleCaptureAttempt(client: Client, ballType: string) {
-    if (this.state.battleType !== "wild") {
-      client.send("error", { message: "Impossible de capturer un Pokémon de dresseur !" });
-      return;
-    }
-    
-    if (this.state.phase !== "battle") {
-      client.send("error", { message: "Combat non actif" });
-      return;
-    }
-    
-    console.log(`🎯 Tentative de capture avec ${ballType}`);
-    
-    this.updatePlayerStatusIcon(client.sessionId, "capturing");
-    this.addBattleMessage(`${this.state.player1Name} lance une ${ballType} !`);
-    
-    // TODO: Utiliser le vrai CaptureManager
-    // Pour l'instant, simulation simple
-    const captureRate = this.calculateSimpleCaptureRate();
-    const success = Math.random() < captureRate;
-    
-    // Animation de capture
-    this.addBattleMessage("*Boing*");
-    
-    // Simulation des secousses
-    const shakes = success ? 3 : Math.floor(Math.random() * 3);
-    
-    for (let i = 0; i < shakes; i++) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      this.addBattleMessage("*Clic*");
-      this.broadcast("captureShake", { shakeNumber: i + 1 });
-    }
-    
-    if (success) {
-      this.addBattleMessage(`Gotcha ! ${this.state.player2Pokemon.name} a été capturé !`);
-      this.state.pokemonCaught = true;
-      this.endBattle("victory");
-      
-      // TODO: Ajouter le Pokémon à l'équipe/PC du joueur
-      
-    } else {
-      this.addBattleMessage(`Oh non ! ${this.state.player2Pokemon.name} s'est échappé !`);
-      this.nextTurn();
-    }
-  }
-
-  private calculateSimpleCaptureRate(): number {
-    const currentHp = this.state.player2Pokemon.currentHp;
-    const maxHp = this.state.player2Pokemon.maxHp;
-    const hpRatio = currentHp / maxHp;
-    
-    // Taux plus élevé si HP bas
-    let rate = 0.1; // Base 10%
-    if (hpRatio < 0.25) rate = 0.7;       // 70% si <25% HP
-    else if (hpRatio < 0.5) rate = 0.4;   // 40% si <50% HP
-    else if (hpRatio < 0.75) rate = 0.2;  // 20% si <75% HP
-    
-    return rate;
-  }
-
-  private async handleFleeAttempt(client: Client) {
-    if (this.state.battleType !== "wild") {
-      client.send("error", { message: "Impossible de fuir un combat de dresseur !" });
-      return;
-    }
-    
-    console.log(`🏃 ${client.sessionId} tente de fuir`);
-    
-    // Calcul simple de réussite de fuite
-    const playerSpeed = this.state.player1Pokemon.speed;
-    const wildSpeed = this.state.player2Pokemon.speed;
-    
-    let fleeChance = 0.75; // Base 75%
-    if (playerSpeed >= wildSpeed) {
-      fleeChance = 1.0; // Garanti si plus rapide
-    } else {
-      fleeChance = Math.min(0.9, 0.5 + (playerSpeed / wildSpeed) * 0.4);
-    }
-    
-    if (Math.random() < fleeChance) {
-      this.endBattle("fled");
-    } else {
-      this.addBattleMessage("Impossible de fuir !");
-      this.nextTurn();
-    }
-  }
-
-  private async handleSwitchPokemon(client: Client, newPokemonId: string) {
-    console.log(`🔄 ${client.sessionId} change pour Pokémon ${newPokemonId}`);
-    
-    try {
-      const teamManager = this.teamManagers.get(client.sessionId);
-      if (!teamManager) {
-        client.send("error", { message: "Équipe non trouvée" });
-        return;
-      }
-      
-      // TODO: Logique complète de changement
-      this.updatePlayerStatusIcon(client.sessionId, "switching_pokemon");
-      this.addBattleMessage(`${this.state.player1Name} rappelle son Pokémon !`);
-      
-      // Simuler le changement
-      setTimeout(() => {
-        this.addBattleMessage(`Vas-y, nouveau Pokémon !`);
-        this.nextTurn();
-      }, 2000);
-      
-    } catch (error) {
-      console.error(`❌ Erreur changement Pokémon:`, error);
-      client.send("error", { message: "Erreur lors du changement" });
-    }
-  }
-
-  // === MÉTHODES UTILITAIRES ===
+  // === MÉTHODES D'INFRASTRUCTURE ===
 
   private shouldStartBattle(): boolean {
-    if (this.state.battleType === "wild") {
-      return this.clients.length >= 1; // Juste le joueur
-    } else {
-      return this.clients.length >= 2; // Les deux joueurs
-    }
-  }
-
-  private canStartActualBattle(): boolean {
-    if (this.state.battleType === "wild") {
-      return !!this.state.player1Pokemon && !!this.state.player2Pokemon;
-    } else {
-      return !!this.state.player1Pokemon && !!this.state.player2Pokemon;
-    }
+    return this.state.battleType === "wild" ? this.clients.length >= 1 : this.clients.length >= 2;
   }
 
   private getPlayerName(sessionId: string): string | null {
@@ -997,34 +648,9 @@ private clearPlayerStatusIcon(sessionId: string) {
     return null;
   }
 
-  private getCurrentPlayerPokemon(): BattlePokemon {
-    return this.state.currentTurn === "player1" 
-      ? this.state.player1Pokemon 
-      : this.state.player2Pokemon;
-  }
-
-  private getOpponentPokemon(): BattlePokemon {
-    return this.state.currentTurn === "player1" 
-      ? this.state.player2Pokemon 
-      : this.state.player1Pokemon;
-  }
-
-  private addBattleMessage(message: string) {
-    this.state.battleLog.push(message);
-    this.state.lastMessage = message;
-    
-    console.log(`💬 [COMBAT] ${message}`);
-    
-    // Limiter à 50 messages
-    if (this.state.battleLog.length > 50) {
-      this.state.battleLog.splice(0, this.state.battleLog.length - 50);
-    }
-    
-    // Broadcast immédiat du message
-    this.broadcast("battleMessage", { message });
-  }
-
   private serializePokemonForClient(pokemon: BattlePokemon) {
+    if (!pokemon) return null;
+    
     return {
       pokemonId: pokemon.pokemonId,
       name: pokemon.name,
@@ -1036,30 +662,19 @@ private clearPlayerStatusIcon(sessionId: string) {
       statusCondition: pokemon.statusCondition,
       gender: pokemon.gender,
       shiny: pokemon.shiny,
-      isWild: pokemon.isWild
+      isWild: pokemon.isWild,
+      // Stats pour l'affichage
+      attack: pokemon.attack,
+      defense: pokemon.defense,
+      specialAttack: pokemon.specialAttack,
+      specialDefense: pokemon.specialDefense,
+      speed: pokemon.speed,
+      // Modificateurs temporaires
+      attackStage: pokemon.attackStage,
+      defenseStage: pokemon.defenseStage,
+      speedStage: pokemon.speedStage
     };
   }
-
-  private calculateStats(pokemonData: any, level: number, ivs: any) {
-    const calculateStat = (baseStat: number, iv: number, isHP: boolean = false): number => {
-      if (isHP) {
-        return Math.floor(((2 * baseStat + iv) * level) / 100) + level + 10;
-      } else {
-        return Math.floor(((2 * baseStat + iv) * level) / 100) + 5;
-      }
-    };
-
-    return {
-      hp: calculateStat(pokemonData.baseStats.hp, ivs.hp, true),
-      attack: calculateStat(pokemonData.baseStats.attack, ivs.attack),
-      defense: calculateStat(pokemonData.baseStats.defense, ivs.defense),
-      specialAttack: calculateStat(pokemonData.baseStats.specialAttack, ivs.spAttack),
-      specialDefense: calculateStat(pokemonData.baseStats.specialDefense, ivs.spDefense),
-      speed: calculateStat(pokemonData.baseStats.speed, ivs.speed)
-    };
-  }
-
-  // === GESTION DES DÉGÂTS ET PP ===
 
   private async updatePokemonAfterBattle(sessionId: string, battlePokemon: BattlePokemon) {
     console.log(`💾 Mise à jour ${battlePokemon.name} après combat`);
@@ -1071,69 +686,288 @@ private clearPlayerStatusIcon(sessionId: string) {
         return;
       }
 
-      // Récupérer l'équipe
-      const team = await teamManager.getTeam();
-      const pokemonIndex = team.findIndex(p => p._id.toString() === battlePokemon.pokemonId.toString());
-      
-      if (pokemonIndex === -1) {
-        console.warn(`⚠️ Pokémon non trouvé dans l'équipe`);
-        return;
-      }
-
-      const teamPokemon = team[pokemonIndex];
-      
-      // Mettre à jour les HP
-      if (teamPokemon.currentHp !== battlePokemon.currentHp) {
-        console.log(`💔 HP: ${teamPokemon.currentHp} → ${battlePokemon.currentHp}`);
-        // TODO: Utiliser une méthode du TeamManager pour sauvegarder
-        // teamManager.updatePokemonHp(pokemonIndex, battlePokemon.currentHp);
-      }
-      
-      // Mettre à jour le statut
-      if (teamPokemon.status !== battlePokemon.statusCondition) {
-        console.log(`🌡️ Status: ${teamPokemon.status} → ${battlePokemon.statusCondition}`);
-        // TODO: Utiliser une méthode du TeamManager pour sauvegarder
-        // teamManager.updatePokemonStatus(pokemonIndex, battlePokemon.statusCondition);
-      }
-      
-      // TODO: Mettre à jour les PP des moves utilisés
-      
-      console.log(`✅ ${battlePokemon.name} mis à jour`);
+      // TODO: Implémenter la sauvegarde des HP et status
+      console.log(`✅ ${battlePokemon.name} mis à jour (TODO: vraie sauvegarde)`);
       
     } catch (error) {
       console.error(`❌ Erreur mise à jour Pokémon:`, error);
     }
   }
 
-  // === COMMUNICATION AVEC WORLDROOM ===
+  // === GESTION DES ICÔNES ET WORLDROOM ===
 
-// === COMMUNICATION AVEC WORLDROOM ===
-
-private blockPlayerInWorldRoom(sessionId: string, reason: string) {
-  if (this.worldRoomRef) {
-    try {
-      this.worldRoomRef.blockPlayerMovement(sessionId, "battle", 0, { reason });
-      console.log(`🚫 Mouvement bloqué pour ${sessionId}: ${reason}`);
-    } catch (error) {
-      console.error(`❌ Erreur blocage mouvement:`, error);
+  private updatePlayerStatusIcon(sessionId: string, icon: BattleStatusIcon) {
+    this.lastStatusIcons.set(sessionId, icon);
+    
+    if (this.worldRoomRef) {
+      try {
+        this.worldRoomRef.broadcast("playerStatusIcon", {
+          playerId: sessionId,
+          icon: icon,
+          iconEmoji: this.getIconEmoji(icon)
+        });
+        
+        console.log(`📱 Icône ${icon} mise à jour pour ${sessionId}`);
+      } catch (error) {
+        console.error(`❌ Erreur mise à jour icône:`, error);
+      }
     }
-  } else {
-    // ✅ AJOUT: Mode dégradé - juste logger
-    console.log(`🚫 [DÉGRADÉ] Mouvement bloqué pour ${sessionId}: ${reason} (WorldRoom indisponible)`);
+  }
+
+  private clearPlayerStatusIcon(sessionId: string) {
+    this.lastStatusIcons.delete(sessionId);
+    
+    if (this.worldRoomRef) {
+      try {
+        this.worldRoomRef.broadcast("playerStatusIcon", {
+          playerId: sessionId,
+          icon: null,
+          iconEmoji: null
+        });
+        
+        console.log(`🧹 Icône nettoyée pour ${sessionId}`);
+      } catch (error) {
+        console.error(`❌ Erreur nettoyage icône:`, error);
+      }
+    }
+  }
+
+  private getIconEmoji(icon: BattleStatusIcon): string {
+    const iconMap = {
+      "entering_battle": "⚔️",
+      "battle_advantage": "😤", 
+      "battle_struggling": "😰",
+      "battle_critical": "😵",
+      "battle_victory": "🎉",
+      "battle_defeat": "😢",
+      "battle_fled": "🏃",
+      "capturing": "🎯",
+      "switching_pokemon": "🔄"
+    };
+    
+    return iconMap[icon] || "❓";
+  }
+
+  private blockPlayerInWorldRoom(sessionId: string, reason: string) {
+    if (this.worldRoomRef) {
+      try {
+        this.worldRoomRef.blockPlayerMovement(sessionId, "battle", 0, { reason });
+        console.log(`🚫 Mouvement bloqué pour ${sessionId}: ${reason}`);
+      } catch (error) {
+        console.error(`❌ Erreur blocage mouvement:`, error);
+      }
+    } else {
+      console.log(`🚫 [DÉGRADÉ] Mouvement bloqué pour ${sessionId}: ${reason}`);
+    }
+  }
+
+  private unblockPlayerInWorldRoom(sessionId: string) {
+    if (this.worldRoomRef) {
+      try {
+        this.worldRoomRef.unblockPlayerMovement(sessionId, "battle");
+        console.log(`✅ Mouvement débloqué pour ${sessionId}`);
+      } catch (error) {
+        console.error(`❌ Erreur déblocage mouvement:`, error);
+      }
+    } else {
+      console.log(`✅ [DÉGRADÉ] Mouvement débloqué pour ${sessionId}`);
+    }
+  }
+
+  // === GESTION DES TIMERS ===
+
+  private startActionTimer() {
+    this.currentActionTimer = setTimeout(() => {
+      console.log(`⏰ Timeout d'action pour ${this.state.currentTurn}`);
+      
+      if (this.state.currentTurn === "player1") {
+        // Action par défaut : attaque de base
+        this.handleDefaultAction();
+      }
+    }, this.actionTimeoutMs);
+  }
+
+  private async handleDefaultAction() {
+    console.log(`🔄 Action par défaut pour ${this.state.currentTurn}`);
+    
+    try {
+      // Utiliser la première attaque disponible
+      const moves = Array.from(this.state.player1Pokemon.moves);
+      const defaultMove = moves[0] || "tackle";
+      
+      const action = new BattleAction();
+      action.type = "attack";
+      action.playerId = this.state.player1Id;
+      action.data = JSON.stringify({ moveId: defaultMove });
+      action.priority = 0;
+      action.speed = this.state.player1Pokemon.speed;
+      
+      await this.battleManager.processAction(action);
+      this.broadcastBattleUpdate();
+      
+      if (!this.state.battleEnded) {
+        this.updatePlayerHpPercentages();
+        this.updateBattleStatusIcons();
+      }
+      
+    } catch (error) {
+      console.error(`❌ Erreur action par défaut:`, error);
+    }
+  }
+
+  // === GESTION DES CHANGEMENTS DE POKÉMON ===
+
+  private async handleSwitchPokemon(client: Client, newPokemonId: string) {
+    console.log(`🔄 ${client.sessionId} change pour Pokémon ${newPokemonId}`);
+    
+    try {
+      const teamManager = this.teamManagers.get(client.sessionId);
+      if (!teamManager) {
+        client.send("error", { message: "Équipe non trouvée" });
+        return;
+      }
+      
+      const team = await teamManager.getTeam();
+      const newPokemon = team.find(p => p._id.toString() === newPokemonId);
+      
+      if (!newPokemon) {
+        client.send("error", { message: "Pokémon non trouvé dans votre équipe" });
+        return;
+      }
+      
+      if (newPokemon.currentHp <= 0) {
+        client.send("error", { message: "Ce Pokémon est KO !" });
+        return;
+      }
+      
+      this.updatePlayerStatusIcon(client.sessionId, "switching_pokemon");
+      this.addBattleMessage(`${this.state.player1Name} rappelle ${this.state.player1Pokemon.name} !`);
+      
+      // Créer le nouveau BattlePokemon
+      const newBattlePokemon = await this.createBattlePokemonFromTeam(newPokemon);
+      
+      // Remplacer dans le state
+      this.state.player1Pokemon = newBattlePokemon;
+      
+      this.addBattleMessage(`Vas-y, ${newBattlePokemon.name} !`);
+      
+      // Broadcast du changement
+      this.broadcast("pokemonSwitched", {
+        playerId: client.sessionId,
+        newPokemon: this.serializePokemonForClient(newBattlePokemon)
+      });
+      
+      // Le changement coûte un tour dans un vrai combat Pokémon
+      this.clock.setTimeout(() => {
+        this.playAITurn();
+      }, 2000);
+      
+    } catch (error) {
+      console.error(`❌ Erreur changement Pokémon:`, error);
+      client.send("error", { message: "Erreur lors du changement" });
+    }
+  }
+
+  private async createBattlePokemonFromTeam(teamPokemon: any): Promise<BattlePokemon> {
+    const battlePokemon = new BattlePokemon();
+    
+    const pokemonData = await getPokemonById(teamPokemon.pokemonId);
+    if (!pokemonData) {
+      throw new Error(`Données Pokémon ${teamPokemon.pokemonId} introuvables`);
+    }
+
+    // Configuration de base
+    battlePokemon.pokemonId = teamPokemon.pokemonId;
+    battlePokemon.name = teamPokemon.customName || pokemonData.name;
+    battlePokemon.level = teamPokemon.level;
+    battlePokemon.isWild = false;
+    battlePokemon.gender = teamPokemon.gender;
+    battlePokemon.shiny = teamPokemon.shiny;
+    
+    // Types
+    battlePokemon.types.clear();
+    (teamPokemon.types || pokemonData.types).forEach((type: string) => battlePokemon.types.push(type));
+    
+    // Stats actuelles
+    battlePokemon.maxHp = teamPokemon.maxHp;
+    battlePokemon.currentHp = teamPokemon.currentHp;
+    battlePokemon.attack = teamPokemon.calculatedStats?.attack || this.calculateBaseStat(pokemonData.baseStats.attack, teamPokemon.level);
+    battlePokemon.defense = teamPokemon.calculatedStats?.defense || this.calculateBaseStat(pokemonData.baseStats.defense, teamPokemon.level);
+    battlePokemon.specialAttack = teamPokemon.calculatedStats?.spAttack || this.calculateBaseStat(pokemonData.baseStats.specialAttack, teamPokemon.level);
+    battlePokemon.specialDefense = teamPokemon.calculatedStats?.spDefense || this.calculateBaseStat(pokemonData.baseStats.specialDefense, teamPokemon.level);
+    battlePokemon.speed = teamPokemon.calculatedStats?.speed || this.calculateBaseStat(pokemonData.baseStats.speed, teamPokemon.level);
+    
+    // Moves
+    battlePokemon.moves.clear();
+    if (teamPokemon.moves && teamPokemon.moves.length > 0) {
+      teamPokemon.moves.forEach((move: any) => {
+        if (typeof move === 'string') {
+          battlePokemon.moves.push(move);
+        } else if (move.moveId) {
+          battlePokemon.moves.push(move.moveId);
+        }
+      });
+    } else {
+      // Fallback : moves de base selon le niveau
+      const baseMoves = pokemonData.learnset
+        .filter((learn: any) => learn.level <= teamPokemon.level)
+        .slice(-4)
+        .map((learn: any) => learn.moveId);
+      
+      (baseMoves.length > 0 ? baseMoves : ["tackle"]).forEach((move: string) => {
+        battlePokemon.moves.push(move);
+      });
+    }
+    
+    // Status
+    battlePokemon.statusCondition = teamPokemon.status || "normal";
+    
+    return battlePokemon;
+  }
+
+  private calculateBaseStat(baseStat: number, level: number): number {
+    // Formule simplifiée pour calculer une stat
+    return Math.floor(((2 * baseStat + 31) * level) / 100) + 5;
+  }
+
+  // === GESTION DE LA DÉCONNEXION ===
+
+  private endBattleEarly(reason: string) {
+    console.log(`⚠️ ARRÊT PRÉMATURÉ: ${reason}`);
+    
+    this.state.phase = "ended";
+    this.state.battleEnded = true;
+    
+    if (this.currentActionTimer) {
+      clearTimeout(this.currentActionTimer);
+    }
+    
+    this.addBattleMessage(`Combat interrompu: ${reason}`);
+    
+    this.broadcast("battleInterrupted", {
+      reason: reason,
+      message: "Le combat a été interrompu"
+    });
+    
+    this.clock.setTimeout(() => {
+      this.disconnect();
+    }, 2000);
+  }
+
+  async onDispose() {
+    console.log(`💀 BattleRoom ${this.roomId} détruite`);
+    
+    // Nettoyer tous les blocages
+    this.clients.forEach(client => {
+      this.unblockPlayerInWorldRoom(client.sessionId);
+      this.clearPlayerStatusIcon(client.sessionId);
+    });
+    
+    // Nettoyer le timer
+    if (this.currentActionTimer) {
+      clearTimeout(this.currentActionTimer);
+    }
+    
+    console.log(`✅ BattleRoom ${this.roomId} nettoyée`);
   }
 }
-
-private unblockPlayerInWorldRoom(sessionId: string) {
-  if (this.worldRoomRef) {
-    try {
-      this.worldRoomRef.unblockPlayerMovement(sessionId, "battle");
-      console.log(`✅ Mouvement débloqué pour ${sessionId}`);
-    } catch (error) {
-      console.error(`❌ Erreur déblocage mouvement:`, error);
-    }
-  } else {
-    // ✅ AJOUT: Mode dégradé - juste logger
-    console.log(`✅ [DÉGRADÉ] Mouvement débloqué pour ${sessionId} (WorldRoom indisponible)`);
-  }
-}
-}  
