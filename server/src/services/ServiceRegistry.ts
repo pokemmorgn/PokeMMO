@@ -33,6 +33,14 @@ export class ServiceRegistry {
     return this.questManager;
   }
 
+  // ✅ MÉTHODE MANQUANTE: Accès public au WorldRoom
+  getWorldRoom(): any | null {
+    if (!this.worldRoom) {
+      console.warn(`⚠️ WorldRoom non disponible dans ServiceRegistry`);
+    }
+    return this.worldRoom;
+  }
+
   // Helper pour notifier un joueur (utilisé par QuestManager)
   notifyPlayer(playerName: string, eventType: string, data: any): boolean {
     if (!this.worldRoom) {
