@@ -214,6 +214,13 @@ export class BattleIntegration {
         console.warn('⚠️ [BattleIntegration] getScene échoué:', e.message);
       }
       
+      // ✅ TEMPORAIRE: Toujours utiliser l'interface temporaire pour l'instant
+      console.log('🎬 [BattleIntegration] Utilisation interface temporaire (développement)');
+      this.createTemporaryBattleInterface(data);
+      return;
+      
+      // ✅ CODE BATTLESCENE (désactivé temporairement)
+      /*
       if (!battleScene) {
         console.error('❌ [BattleIntegration] BattleScene introuvable!');
         
@@ -395,7 +402,7 @@ export class BattleIntegration {
         <div style="margin: 30px 0;">
           <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
             <p>🔄 <strong>Connexion au système de combat...</strong></p>
-            <p style="color: #FFD700;">BattleRoom ID: ${this.battleConnection?.battleRoomId || 'En attente'}</p>
+            <p style="color: #FFD700;">BattleRoom ID: ${this.currentBattleRoomId || this.battleConnection?.currentBattleRoomId || this.battleConnection?.battleRoomId || 'En cours...'}</p>
           </div>
         </div>
         
