@@ -44,6 +44,11 @@ export class StarterHandlers {
       await this.handleCheckEligibility(client);
     });
 
+    // Handler pour forcer un starter (admin/debug)
+    this.room.onMessage("forceGiveStarter", async (client, data) => {
+      await this.handleForceStarter(client, data);
+    });
+
     this.log(`✅ Handlers de starter configurés`);
   }
 
@@ -76,7 +81,8 @@ export class StarterHandlers {
       }
 
       // 🔒 SÉCURITÉ: Bloquer temporairement pour éviter le spam
-      this.room.blockPlayerMovement(client.sessionId, 'starter_selection', 10000, {
+      this.room.blockPlayerMovement(client.sessionId, 'dialog', 10000, {
+        type: 'starter_selection',
         pokemonId: data.pokemonId,
         timestamp: Date.now()
       });
@@ -109,7 +115,7 @@ export class StarterHandlers {
         });
 
         // Débloquer le mouvement
-        this.room.unblockPlayerMovement(client.sessionId, 'starter_selection');
+        this.room.unblockPlayerMovement(client.sessionId, 'dialog');
 
         // Log d'audit (toujours actif pour la sécurité)
         console.log(`🏆 [AUDIT] ${player.name} a reçu ${this.getPokemonName(starter.pokemonId)} (ID: ${starter._id})`);
@@ -118,7 +124,7 @@ export class StarterHandlers {
         this.logError(`Erreur création starter pour ${player.name}:`, creationError);
         
         // Débloquer en cas d'erreur
-        this.room.unblockPlayerMovement(client.sessionId, 'starter_selection');
+        this.room.unblockPlayerMovement(client.sessionId, 'dialog');
         
         client.send("starterReceived", {
           success: false,
@@ -128,7 +134,7 @@ export class StarterHandlers {
       
     } catch (error) {
       // Débloquer même en cas d'erreur générale
-      this.room.unblockPlayerMovement(client.sessionId, 'starter_selection');
+      this.room.unblockPlayerMovement(client.sessionId, 'dialog');
       
       this.logError(`Erreur générale starter pour ${client.sessionId}:`, error);
       client.send("starterReceived", {
@@ -231,6 +237,66 @@ export class StarterHandlers {
   }
 
   // ================================================================================================
+  // HANDLER FORCE STARTER (ADMIN/DEBUG)
+  // ================================================================================================
+
+  private async handleForceStarter(client: Client, data: { 
+    pokemonId: number; 
+    targetPlayer?: string;
+    adminKey?: string;
+  }): Promise<void> {
+    try {
+      // Vérification basique d'admin (tu peux améliorer ça)
+      if (data.adminKey !== "dev_mode_2024") {
+        client.send("forceStarterResult", {
+          success: false,
+          message: "Accès refusé"
+        });
+        return;
+      }
+
+      const targetName = data.targetPlayer || this.room.state.players.get(client.sessionId)?.name;
+      if (!targetName) {
+        client.send("forceStarterResult", {
+          success: false,
+          message: "Joueur cible non trouvé"
+        });
+        return;
+      }
+
+      this.log(`🔧 [ADMIN] Force starter ${data.pokemonId} pour ${targetName}`);
+
+      // Supprimer les Pokémon existants pour les tests
+      await OwnedPokemon.deleteMany({ owner: targetName });
+      this.log(`🗑️ [ADMIN] Pokémon existants supprimés pour ${targetName}`);
+
+      // Créer le starter forcé
+      const starter = await giveStarterToPlayer(targetName, data.pokemonId as 1 | 4 | 7);
+
+      client.send("forceStarterResult", {
+        success: true,
+        pokemon: {
+          id: starter._id,
+          pokemonId: starter.pokemonId,
+          name: this.getPokemonName(starter.pokemonId),
+          level: starter.level
+        },
+        message: `Starter forcé créé pour ${targetName}`
+      });
+
+      // Log d'audit admin
+      console.log(`🔧 [ADMIN AUDIT] Force starter par ${client.sessionId} → ${targetName} (Pokémon #${data.pokemonId})`);
+
+    } catch (error) {
+      this.logError(`Erreur force starter:`, error);
+      client.send("forceStarterResult", {
+        success: false,
+        message: "Erreur lors de la création forcée"
+      });
+    }
+  }
+
+  // ================================================================================================
   // UTILITAIRES
   // ================================================================================================
 
@@ -255,9 +321,54 @@ export class StarterHandlers {
   }
 
   /**
+   * Obtenir les statistiques des starters
+   */
+  public async getStats(): Promise<any> {
+    try {
+      const totalStarters = await OwnedPokemon.countDocuments({
+        pokemonId: { $in: [1, 4, 7] },
+        level: { $lte: 10 }
+      });
+
+      const startersByType = await OwnedPokemon.aggregate([
+        { $match: { pokemonId: { $in: [1, 4, 7] }, level: { $lte: 10 } } },
+        { $group: { _id: "$pokemonId", count: { $sum: 1 } } }
+      ]);
+
+      return {
+        totalStarters,
+        distribution: startersByType,
+        logsEnabled: this.enableLogs
+      };
+    } catch (error) {
+      this.logError(`Erreur getStats:`, error);
+      return { error: "Impossible de récupérer les stats" };
+    }
+  }
+
+  /**
+   * Nettoyer tous les starters (admin/dev)
+   */
+  public async cleanupAllStarters(): Promise<number> {
+    try {
+      const result = await OwnedPokemon.deleteMany({
+        pokemonId: { $in: [1, 4, 7] },
+        level: { $lte: 10 }
+      });
+
+      this.log(`🗑️ ${result.deletedCount || 0} starters supprimés`);
+      return result.deletedCount || 0;
+    } catch (error) {
+      this.logError(`Erreur cleanup:`, error);
+      return 0;
+    }
+  }
+
+  /**
    * Nettoyage à la destruction
    */
   public cleanup(): void {
     this.log(`🧹 Nettoyage des handlers de starter`);
+    // Nettoyage si nécessaire
   }
 }
