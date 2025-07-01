@@ -418,6 +418,20 @@ export class StarterSelector {
       this.onStarterConfirmed(data);
     });
 
+    // ✅ NOUVEAU: Écouter la réponse du starter
+  this.networkManager.room.onMessage("starterReceived", (data) => {
+    this.isAnimating = false; // Débloquer l'UI
+    
+    if (data.success) {
+      this.showNotification(`${data.pokemon.name} ajouté à votre équipe !`, 'success');
+      this.hide(); // Fermer la sélection
+    } else {
+      this.showNotification(data.message, 'error');
+      this.resetSelection(); // Permettre une nouvelle sélection
+    }
+  });
+
+    
     // Écouter les erreurs de sélection
     this.networkManager.room.onMessage("starterSelectionError", (data) => {
       console.error("❌ [StarterSelector] Erreur sélection:", data);
@@ -633,39 +647,21 @@ export class StarterSelector {
 
   // ✅ MÉTHODE: Confirmer la sélection
   confirmSelection() {
-    if (!this.selectedStarterId || this.isAnimating) {
-      console.error("❌ [StarterSelector] Impossible de confirmer - données manquantes");
-      return;
-    }
+  if (!this.selectedStarterId || this.isAnimating) return;
+  
+  console.log("📤 Demande starter sécurisée:", this.selectedStarterId);
+  this.isAnimating = true;
 
-    console.log("📤 [StarterSelector] Envoi confirmation au serveur:", this.selectedStarterId);
-    
-    this.isAnimating = true;
-
-    // Animation de confirmation
-    this.animateConfirmation();
-
-    // Envoyer au serveur si disponible
-    if (this.networkManager?.room) {
-      this.networkManager.room.send("selectStarter", {
-        starterId: this.selectedStarterId,
-        timestamp: Date.now()
-      });
-    } else {
-      // Mode test - confirmer automatiquement
-      console.log("🧪 [StarterSelector] Mode test - confirmation automatique");
-      setTimeout(() => {
-        this.onStarterConfirmed({ 
-          starterId: this.selectedStarterId,
-          success: true 
-        });
-      }, 1000);
-    }
-
-    // Notification
-    this.showNotification("Sélection envoyée...", 'info');
+  if (this.networkManager?.room) {
+    this.networkManager.room.send("giveStarterChoice", {
+      pokemonId: this.getStarterPokemonId(this.selectedStarterId)
+    });
   }
+}
 
+getStarterPokemonId(starterId) {
+  return { 'bulbasaur': 1, 'charmander': 4, 'squirtle': 7 }[starterId] || 1;
+}
   // ✅ MÉTHODE: Animation de confirmation
   animateConfirmation() {
     if (this.container) {
