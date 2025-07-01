@@ -140,7 +140,7 @@ export class MovementBlockHandler {
     try {
       // ✅ LISTENERS AVEC PROTECTION CONTRE LES DOUBLONS
       this.networkManager.onMessage("movementBlocked", (data) => {
-        console.log('🚫 Mouvement bloqué par le serveur:', data);
+     //   console.log('🚫 Mouvement bloqué par le serveur:', data);
         this.handleServerBlock(data);
       });
 
@@ -160,7 +160,7 @@ export class MovementBlockHandler {
       });
 
       this.networkManager.onMessage("forcePlayerPosition", (data) => {
-        console.log('⛔ Position forcée reçue:', data);
+       // console.log('⛔ Position forcée reçue:', data);
         this.handleForcePosition(data);
       });
 
