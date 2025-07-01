@@ -488,8 +488,6 @@ leaveBattle(reason = 'manual') {
   }
   this._leavingBattle = true;
 
-  console.log(`[DEBUG NETWORK BATTLE] 🚪 Quitter combat: ${reason}`);
-
   this.sendToWorld('leaveBattle', {
     battleRoomId: this.battleRoomId,
     reason: reason
@@ -497,7 +495,9 @@ leaveBattle(reason = 'manual') {
 
   this.disconnectFromBattleRoom();
 
-  setTimeout(() => { this._leavingBattle = false; }, 2000);
+  // ✅ Remettre le flag à false peu après pour permettre d'autres combats
+  setTimeout(() => { this._leavingBattle = false; }, 250);
+
   return true;
 }
 
@@ -523,29 +523,24 @@ leaveBattle(reason = 'manual') {
   // === DÉCONNEXION ===
 
 async disconnectFromBattleRoom() {
-  // Empêche toute déconnexion multiple ou redondante
   if (!this.battleRoom || this._isDisconnecting) {
     console.log('[DEBUG NETWORK BATTLE] ℹ️ Aucune BattleRoom à déconnecter ou déjà en déconnexion');
     return;
   }
   this._isDisconnecting = true;
-
-  console.log('[DEBUG NETWORK BATTLE] 🔌 Déconnexion BattleRoom...');
-
   try {
     await this.battleRoom.leave();
     console.log('[DEBUG NETWORK BATTLE] ✅ BattleRoom quittée proprement');
   } catch (error) {
     console.warn('[DEBUG NETWORK BATTLE] ⚠️ Erreur déconnexion BattleRoom:', error);
   }
-
   this.isConnectedToBattle = false;
   this.battleRoom = null;
   this.battleRoomId = null;
   this.pendingMessages = [];
 
-  // Après un court délai, autorise à nouveau
-  setTimeout(() => { this._isDisconnecting = false; }, 2000);
+  // ✅ Toujours remettre le flag à false après (dans tous les cas)
+  setTimeout(() => { this._isDisconnecting = false; }, 250);
 }
 
 
