@@ -32,97 +32,96 @@ export class BattleIntegration {
   /**
    * Initialise le système de combat
    */
-async initialize(worldRoom, phaserGame) {
-  console.log('🔧 [BattleIntegration] Initialisation du système de combat...');
-  
-  if (!worldRoom || !phaserGame) {
-    console.error('❌ [BattleIntegration] WorldRoom ou PhaserGame manquant');
-    return false;
-  }
-  
-  this.worldRoom = worldRoom;
-  this.phaserGame = phaserGame;
-  
-  try {
-    // 1. Créer la BattleConnection
-    this.battleConnection = new BattleConnection(this.gameManager);
+  async initialize(worldRoom, phaserGame) {
+    console.log('🔧 [BattleIntegration] Initialisation du système de combat...');
     
-    // 2. ✅ CORRECTION: Créer un mock NetworkManager pour BattleConnection
-    const mockNetworkManager = {
-      worldRoom: worldRoom,
-      client: worldRoom.connection || worldRoom._client,
-      room: worldRoom,
-      isConnected: true
-    };
-    
-    const connectionSuccess = this.battleConnection.initialize(mockNetworkManager);
-    
-    if (!connectionSuccess) {
-      console.error('❌ [BattleIntegration] Échec initialisation BattleConnection');
+    if (!worldRoom || !phaserGame) {
+      console.error('❌ [BattleIntegration] WorldRoom ou PhaserGame manquant');
       return false;
     }
     
-    // 3. ✅ CORRECTION: Vérifier que la BattleScene existe dans Phaser
-    let battleSceneExists = false;
+    this.worldRoom = worldRoom;
+    this.phaserGame = phaserGame;
     
     try {
-      const existingScene = phaserGame.scene.getScene('BattleScene');
-      if (existingScene) {
-        console.log('✅ [BattleIntegration] BattleScene trouvée dans Phaser');
-        this.battleScene = existingScene;
-        battleSceneExists = true;
-      }
-    } catch (e) {
-      console.log('ℹ️ [BattleIntegration] BattleScene pas encore ajoutée');
-    }
-    
-    // 4. Si pas trouvée, créer et ajouter la BattleScene
-    if (!battleSceneExists) {
-      console.log('🏗️ [BattleIntegration] Création de la BattleScene...');
+      // 1. Créer la BattleConnection
+      this.battleConnection = new BattleConnection(this.gameManager);
       
-      // ✅ CORRECTION: Import dynamique si BattleScene pas disponible
-      if (typeof BattleScene === 'undefined') {
-        console.log('⚠️ [BattleIntegration] BattleScene non importée, création basique...');
-        
-        // Créer une BattleScene basique temporaire
-        this.battleScene = {
-          scene: { key: 'BattleScene' },
-          battleManager: null,
-          isActive: false,
-          endBattle: () => console.log('🏁 Combat terminé'),
-          showBattleInterface: () => console.log('🖥️ Interface de combat'),
-          create: () => {},
-          init: (data) => {
-            console.log('🎬 BattleScene initialisée avec:', data);
-            this.battleManager = data.battleManager || null;
-          }
-        };
-      } else {
-        this.battleScene = new BattleScene();
+      // 2. ✅ CORRECTION: Créer un mock NetworkManager pour BattleConnection
+      const mockNetworkManager = {
+        worldRoom: worldRoom,
+        client: worldRoom.connection || worldRoom._client,
+        room: worldRoom,
+        isConnected: true
+      };
+      
+      const connectionSuccess = this.battleConnection.initialize(mockNetworkManager);
+      
+      if (!connectionSuccess) {
+        console.error('❌ [BattleIntegration] Échec initialisation BattleConnection');
+        return false;
       }
+      
+      // 3. ✅ CORRECTION: Vérifier que la BattleScene existe dans Phaser
+      let battleSceneExists = false;
       
       try {
-        phaserGame.scene.add('BattleScene', this.battleScene, false);
-        console.log('✅ [BattleIntegration] BattleScene ajoutée à Phaser');
-      } catch (addError) {
-        console.warn('⚠️ [BattleIntegration] Erreur ajout BattleScene:', addError);
-        // Continuer quand même
+        const existingScene = phaserGame.scene.getScene('BattleScene');
+        if (existingScene) {
+          console.log('✅ [BattleIntegration] BattleScene trouvée dans Phaser');
+          this.battleScene = existingScene;
+          battleSceneExists = true;
+        }
+      } catch (e) {
+        console.log('ℹ️ [BattleIntegration] BattleScene pas encore ajoutée');
       }
+      
+      // 4. Si pas trouvée, créer et ajouter la BattleScene
+      if (!battleSceneExists) {
+        console.log('🏗️ [BattleIntegration] Création de la BattleScene...');
+        
+        // ✅ CORRECTION: Import dynamique si BattleScene pas disponible
+        if (typeof BattleScene === 'undefined') {
+          console.log('⚠️ [BattleIntegration] BattleScene non importée, création basique...');
+          
+          // Créer une BattleScene basique temporaire
+          this.battleScene = {
+            scene: { key: 'BattleScene' },
+            battleManager: null,
+            isActive: false,
+            endBattle: () => console.log('🏁 Combat terminé'),
+            showBattleInterface: () => console.log('🖥️ Interface de combat'),
+            create: () => {},
+            init: (data) => {
+              console.log('🎬 BattleScene initialisée avec:', data);
+              this.battleManager = data.battleManager || null;
+            }
+          };
+        } else {
+          this.battleScene = new BattleScene();
+        }
+        
+        try {
+          phaserGame.scene.add('BattleScene', this.battleScene, false);
+          console.log('✅ [BattleIntegration] BattleScene ajoutée à Phaser');
+        } catch (addError) {
+          console.warn('⚠️ [BattleIntegration] Erreur ajout BattleScene:', addError);
+          // Continuer quand même
+        }
+      }
+      
+      // 5. Setup des événements
+      this.setupBattleEvents();
+      
+      this.isInitialized = true;
+      console.log('✅ [BattleIntegration] Système de combat initialisé');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ [BattleIntegration] Erreur lors de l\'initialisation:', error);
+      return false;
     }
-    
-    // 5. Setup des événements
-    this.setupBattleEvents();
-    
-    this.isInitialized = true;
-    console.log('✅ [BattleIntegration] Système de combat initialisé');
-    return true;
-    
-  } catch (error) {
-    console.error('❌ [BattleIntegration] Erreur lors de l\'initialisation:', error);
-    return false;
   }
-}
-
 
   // === CONFIGURATION DES ÉVÉNEMENTS ===
 
@@ -132,7 +131,7 @@ async initialize(worldRoom, phaserGame) {
     console.log('🔗 [BattleIntegration] Configuration des événements...');
     
     // Événements de la BattleConnection
-    this.battleConnection.on('encounterStart', (data) => {
+    this.battleConnection.on('wildEncounterStart', (data) => {
       this.handleEncounterStart(data);
     });
     
@@ -140,7 +139,7 @@ async initialize(worldRoom, phaserGame) {
       this.handleBattleRoomCreated(data);
     });
     
-    this.battleConnection.on('battleRoomJoined', (data) => {
+    this.battleConnection.on('battleRoomConnected', (data) => {
       this.handleBattleRoomJoined(data);
     });
     
@@ -178,44 +177,92 @@ async initialize(worldRoom, phaserGame) {
 
   // === HANDLERS D'ÉVÉNEMENTS ===
 
-handleEncounterStart(data) {
-  console.log('🐾 [BattleIntegration] Début de rencontre:', data);
+  handleEncounterStart(data) {
+    console.log('🐾 [BattleIntegration] Début de rencontre:', data);
 
-  if (this.isInBattle) {
-    console.warn('⚠️ [BattleIntegration] Déjà en combat, ignoré');
-    return;
+    if (this.isInBattle) {
+      console.warn('⚠️ [BattleIntegration] Déjà en combat, ignoré');
+      return;
+    }
+
+    // Marquer comme en combat
+    this.isInBattle = true;
+
+    // Notifier le GameManager s'il a un callback
+    if (this.gameManager?.onBattleStart) {
+      this.gameManager.onBattleStart(data);
+    }
+
+    // === ✅ CORRECTION: LANCER LA SCÈNE DE COMBAT IMMÉDIATEMENT ===
+    console.log('🎬 [BattleIntegration] === LANCEMENT BATTLESCENE ===');
+    console.log('🎮 PhaserGame disponible:', !!this.phaserGame);
+    console.log('📊 Scènes disponibles:', Object.keys(this.phaserGame.scene.manager.keys));
+    
+    try {
+      // ✅ VÉRIFIER QUE LA BATTLESCENE EXISTE
+      const battleScene = this.phaserGame.scene.getScene('BattleScene');
+      if (!battleScene) {
+        console.error('❌ [BattleIntegration] BattleScene introuvable!');
+        
+        // ✅ FALLBACK: Créer une interface DOM temporaire
+        this.createTemporaryBattleInterface(data);
+        return;
+      }
+      
+      // ✅ LANCER OU RÉVEILLER LA BATTLESCENE
+      if (this.phaserGame.scene.isActive('BattleScene')) {
+        console.log('🎬 [BattleIntegration] BattleScene déjà active - restart');
+        this.phaserGame.scene.restart('BattleScene', {
+          gameManager: this.gameManager,
+          networkHandler: this.battleConnection,
+          encounterData: data
+        });
+      } else if (this.phaserGame.scene.isSleeping('BattleScene')) {
+        console.log('🎬 [BattleIntegration] BattleScene en veille - wake');
+        this.phaserGame.scene.wake('BattleScene', {
+          gameManager: this.gameManager,
+          networkHandler: this.battleConnection,
+          encounterData: data
+        });
+      } else {
+        console.log('🎬 [BattleIntegration] Lancement BattleScene...');
+        this.phaserGame.scene.launch('BattleScene', {
+          gameManager: this.gameManager,
+          networkHandler: this.battleConnection,
+          encounterData: data
+        });
+      }
+      
+      // ✅ FORCER LA BATTLESCENE AU PREMIER PLAN
+      setTimeout(() => {
+        this.phaserGame.scene.bringToTop('BattleScene');
+        console.log('✅ [BattleIntegration] BattleScene amenée au premier plan');
+      }, 100);
+
+    } catch (error) {
+      console.error('❌ [BattleIntegration] Erreur lancement BattleScene:', error);
+      
+      // ✅ FALLBACK: Interface DOM temporaire
+      this.createTemporaryBattleInterface(data);
+    }
+
+    console.log('✅ [BattleIntegration] handleEncounterStart terminé');
   }
 
-  // Marquer comme en combat
-  this.isInBattle = true;
-
-  // Notifier le GameManager s’il a un callback
-  if (this.gameManager?.onBattleStart) {
-    this.gameManager.onBattleStart(data);
+  handleBattleRoomCreated(data) {
+    console.log('🏠 [BattleIntegration] BattleRoom créée:', data.battleRoomId);
+    
+    this.battleState.battleId = data.battleRoomId;
+    this.battleState.battleType = data.battleType;
+    
+    // Rejoindre automatiquement la BattleRoom
+    if (this.battleConnection) {
+      console.log('🚪 [BattleIntegration] Tentative de rejoindre BattleRoom...');
+      this.battleConnection.joinRoom(data.battleRoomId);
+    }
+    
+    this.triggerEvent('battleRoomCreated', data);
   }
-
-  // === LANCER LA SCÈNE DE COMBAT ===
-  if (!this.phaserGame.scene.isActive('BattleScene')) {
-    console.log('🎬 [BattleIntegration] Lancement BattleScene...');
-    this.phaserGame.scene.launch('BattleScene', {
-      gameManager: this.gameManager,
-      networkHandler: this.battleConnection,
-      encounterData: data
-    });
-  } else {
-    console.log('🎬 [BattleIntegration] BattleScene déjà active, bringToTop...');
-    this.phaserGame.scene.bringToTop('BattleScene');
-  }
-
-  // Facultatif : mettre en pause le jeu principal si besoin
-  if (this.gameManager?.pauseGame) {
-    this.gameManager.pauseGame('battle');
-  }
-
-  // Tu peux log pour bien voir le flow
-  console.log('✅ [BattleIntegration] handleEncounterStart terminé');
-}
-
 
   handleBattleRoomJoined(data) {
     console.log('🚪 [BattleIntegration] BattleRoom rejointe:', data);
@@ -288,6 +335,93 @@ handleEncounterStart(data) {
     }
   }
 
+  // === ✅ NOUVELLE MÉTHODE: Interface DOM temporaire ===
+
+  /**
+   * Crée une interface de combat temporaire en DOM si la BattleScene échoue
+   */
+  createTemporaryBattleInterface(data) {
+    console.log('🆘 [BattleIntegration] Création interface temporaire DOM...');
+
+    // ✅ Créer un overlay DOM simple
+    const overlay = document.createElement('div');
+    overlay.id = 'temp-battle-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Courier New', monospace;
+      color: white;
+      text-align: center;
+    `;
+
+    // ✅ Contenu de l'interface
+    overlay.innerHTML = `
+      <div style="background: rgba(0,0,0,0.8); padding: 30px; border-radius: 15px; border: 3px solid #gold;">
+        <h1 style="color: #FFD700; margin-bottom: 20px; font-size: 2.5em;">⚔️ COMBAT POKÉMON ⚔️</h1>
+        
+        <div style="margin: 20px 0; font-size: 1.5em;">
+          <p>🐾 Un ${data.pokemon?.name || 'Pokémon'} sauvage apparaît !</p>
+          <p style="color: #90EE90;">Niveau ${data.pokemon?.level || '?'}</p>
+        </div>
+        
+        <div style="margin: 30px 0;">
+          <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
+            <p>🔄 <strong>Connexion au système de combat...</strong></p>
+            <p style="color: #FFD700;">BattleRoom ID: ${this.battleConnection?.battleRoomId || 'En attente'}</p>
+          </div>
+        </div>
+        
+        <div style="margin-top: 30px;">
+          <button id="temp-battle-exit" style="
+            background: #DC143C;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+          ">🚪 Quitter le Combat</button>
+        </div>
+        
+        <div style="margin-top: 20px; font-size: 0.9em; color: #DDD;">
+          <p>💡 <em>Interface temporaire - Le système de combat est en cours de développement</em></p>
+        </div>
+      </div>
+    `;
+
+    // ✅ Ajouter au DOM
+    document.body.appendChild(overlay);
+
+    // ✅ Gérer le bouton de sortie
+    const exitButton = overlay.querySelector('#temp-battle-exit');
+    exitButton.addEventListener('click', () => {
+      console.log('🚪 [BattleIntegration] Sortie du combat temporaire');
+      this.exitBattle('manual');
+      overlay.remove();
+    });
+
+    // ✅ Auto-fermeture après 30 secondes
+    setTimeout(() => {
+      if (overlay.parentNode) {
+        console.log('⏰ [BattleIntegration] Auto-fermeture interface temporaire');
+        this.exitBattle('timeout');
+        overlay.remove();
+      }
+    }, 30000);
+
+    console.log('✅ [BattleIntegration] Interface temporaire créée');
+  }
+
   // === GESTION DE LA BATTLESCENE ===
 
   startBattleScene(data) {
@@ -327,6 +461,13 @@ handleEncounterStart(data) {
     
     this.isInBattle = false;
     
+    // ✅ Fermer l'interface temporaire si elle existe
+    const tempOverlay = document.getElementById('temp-battle-overlay');
+    if (tempOverlay) {
+      console.log('🧹 [BattleIntegration] Suppression interface temporaire');
+      tempOverlay.remove();
+    }
+    
     // Fermer la BattleScene
     if (this.battleScene) {
       this.battleScene.endBattle();
@@ -344,7 +485,7 @@ handleEncounterStart(data) {
     
     // Nettoyer la connexion battle
     if (this.battleConnection) {
-      this.battleConnection.disconnectFromBattleRoom();
+      this.battleConnection.leaveBattle();
     }
     
     // Notifier le GameManager
@@ -504,19 +645,52 @@ handleEncounterStart(data) {
   testBattle() {
     console.log('🧪 [BattleIntegration] Test de combat...');
     
+    if (!this.isInitialized) {
+      console.error('❌ [BattleIntegration] Système non initialisé');
+      return false;
+    }
+    
     const testPokemon = {
       pokemonId: 25, // Pikachu
       level: 5,
       name: 'Pikachu',
       shiny: false,
-      gender: 'male'
+      gender: 'male',
+      hp: 20,
+      maxHp: 20,
+      moves: ['thunder_shock', 'growl', 'tail_whip', 'thunder_wave']
     };
     
-    return this.startWildBattle({
+    console.log('🎮 [BattleIntegration] Simulation encounter start...');
+    
+    // ✅ Simuler directement un encounter start pour tester l'interface
+    this.handleEncounterStart({
+      type: 'wild',
       pokemon: testPokemon,
       location: 'test_area',
-      method: 'test'
+      method: 'manual_test',
+      message: `Un ${testPokemon.name} sauvage apparaît !`
     });
+    
+    return true;
+  }
+
+  /**
+   * Test de l'interface temporaire uniquement
+   */
+  testTemporaryInterface() {
+    console.log('🧪 [BattleIntegration] Test interface temporaire...');
+    
+    const testData = {
+      pokemon: {
+        name: 'Pikachu Test',
+        level: 10
+      }
+    };
+    
+    this.createTemporaryBattleInterface(testData);
+    
+    return true;
   }
 
   // === NETTOYAGE ===
