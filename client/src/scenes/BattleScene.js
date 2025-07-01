@@ -548,18 +548,22 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  hideBattleInterface() {
-    console.log('🖥️ [BattleScene] Masquage interface de combat');
-    
-    if (this.battleOverlay) {
-      this.battleOverlay.classList.remove('active');
-      this.isVisible = false;
-      
-      // Revenir à la scène principale
+hideBattleInterface() {
+  console.log('🖥️ [BattleScene] Masquage interface de combat');
+  
+  if (this.battleOverlay) {
+    this.battleOverlay.classList.remove('active');
+    this.isVisible = false;
+
+    // Revenir à la scène principale en toute sécurité
     if (this.scene && typeof this.scene.sleep === 'function') {
       this.scene.sleep();
+    } else {
+      console.warn('[BattleScene] Impossible d\'appeler this.scene.sleep() : scène non définie ou mauvaise instance');
     }
   }
+}
+
 
   updateBattleTitle(title) {
     const titleElement = this.battleOverlay?.querySelector('.battle-title');
