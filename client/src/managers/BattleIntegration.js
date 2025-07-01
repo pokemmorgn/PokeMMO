@@ -442,17 +442,6 @@ export class BattleIntegration {
     
     return false;
   }
-    console.log('🎬 [BattleIntegration] === DÉBUT DU COMBAT ===');
-    console.log('📊 Data de combat:', data);
-    
-    // Lancer l'interface de combat
-    this.startBattleInterface(data);
-    
-    // Notifier le GameManager
-    if (this.gameManager?.onBattleStart) {
-      this.gameManager.onBattleStart(data);
-    }
-  }
 
   startBattleInterface(battleData) {
     console.log('🖥️ [BattleIntegration] === LANCEMENT INTERFACE DE COMBAT ===');
