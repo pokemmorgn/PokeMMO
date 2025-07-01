@@ -226,68 +226,120 @@ export class BattleIntegration {
     // Stocker les données de combat
     this.currentBattleData = data;
     
-    // Marquer comme en cours de sélection
-    this.isSelectingPokemon = true;
-    
     // Notifier le GameManager
     if (this.gameManager?.onEncounterStart) {
       this.gameManager.onEncounterStart(data);
     }
     
-    // Lancer la sélection de Pokémon
-    console.log('🔄 [BattleIntegration] Lancement sélection Pokémon...');
+    // ✅ NOUVEAU: Sélection automatique du premier Pokémon disponible
+    console.log('🤖 [BattleIntegration] Sélection automatique du premier Pokémon...');
     
     try {
-      // Vérifier si l'équipe a des Pokémon disponibles
-      if (!this.pokemonSelectionUI.hasAvailablePokemon()) {
+      // Obtenir le premier Pokémon disponible
+      const firstAvailable = this.getFirstAvailablePokemon();
+      
+      if (!firstAvailable) {
         console.error('❌ [BattleIntegration] Aucun Pokémon disponible !');
         this.showError('Aucun Pokémon disponible pour le combat !');
         this.cancelBattle();
         return;
       }
       
-      // Afficher l'interface de sélection
-      this.pokemonSelectionUI.show();
+      // Sélectionner automatiquement
+      this.selectedPokemon = firstAvailable;
+      console.log(`✅ [BattleIntegration] Pokémon auto-sélectionné: ${firstAvailable.name}`);
+      
+      // Marquer comme en cours de combat
+      this.isInBattle = true;
+      
+      // Désactiver le mouvement immédiatement
+      this.disablePlayerMovement();
+      
+      // Envoyer le choix au serveur
+      console.log('📤 [BattleIntegration] Envoi du choix au serveur...');
+      
+      const success = this.battleConnection.choosePokemon(firstAvailable.id);
+      if (!success) {
+        console.error('❌ [BattleIntegration] Échec envoi choix Pokémon');
+        this.showError('Erreur de communication avec le serveur');
+        this.cancelBattle();
+        return;
+      }
+      
+      console.log('✅ [BattleIntegration] Choix envoyé, attente du serveur...');
       
     } catch (error) {
-      console.error('❌ [BattleIntegration] Erreur sélection Pokémon:', error);
-      
-      // Fallback : sélection automatique
-      console.log('🤖 [BattleIntegration] Sélection automatique fallback...');
-      const firstAvailable = this.pokemonSelectionUI.getFirstAvailablePokemon();
-      if (firstAvailable) {
-        this.handlePokemonSelected(firstAvailable);
-      } else {
-        this.cancelBattle();
-      }
+      console.error('❌ [BattleIntegration] Erreur sélection auto:', error);
+      this.cancelBattle();
     }
   }
 
-  handlePokemonSelected(selectedPokemon) {
-    console.log('🎯 [BattleIntegration] Pokémon sélectionné:', selectedPokemon);
+  // ✅ NOUVEAU: Méthode pour obtenir le premier Pokémon disponible
+  getFirstAvailablePokemon() {
+    // TODO: Récupérer l'équipe réelle du joueur depuis le GameManager
+    // Pour l'instant, équipe de test
+    const playerTeam = [
+      {
+        id: 'pokemon_1',
+        pokemonId: 1,
+        name: 'Bulbasaur',
+        level: 5,
+        currentHp: 20,
+        maxHp: 20,
+        types: ['grass', 'poison'],
+        moves: ['tackle', 'growl', 'vine_whip'],
+        statusCondition: 'normal',
+        available: true
+      },
+      {
+        id: 'pokemon_2',
+        pokemonId: 4,
+        name: 'Charmander',
+        level: 6,
+        currentHp: 21,
+        maxHp: 21,
+        types: ['fire'],
+        moves: ['scratch', 'growl', 'ember'],
+        statusCondition: 'normal',
+        available: true
+      },
+      {
+        id: 'pokemon_3',
+        pokemonId: 7,
+        name: 'Squirtle',
+        level: 5,
+        currentHp: 0,
+        maxHp: 19,
+        types: ['water'],
+        moves: ['tackle', 'tail_whip', 'bubble'],
+        statusCondition: 'ko',
+        available: false
+      }
+    ];
     
+    // Retourner le premier Pokémon disponible (HP > 0)
+    return playerTeam.find(pokemon => 
+      pokemon.available && pokemon.currentHp > 0
+    ) || null;
+  }
+
+  // ✅ MODIFIÉ: Plus besoin de cette méthode pour les rencontres
+  handlePokemonSelected(selectedPokemon) {
+    console.log('🔄 [BattleIntegration] Pokémon sélectionné pour changement:', selectedPokemon);
+    
+    // Cette méthode est maintenant utilisée seulement pour les changements pendant le combat
     this.isSelectingPokemon = false;
     
     if (!selectedPokemon) {
-      console.log('❌ [BattleIntegration] Sélection annulée');
-      this.cancelBattle();
+      console.log('❌ [BattleIntegration] Changement annulé');
       return;
     }
     
-    this.selectedPokemon = selectedPokemon;
-    
-    // Envoyer le choix au serveur
-    console.log('📤 [BattleIntegration] Envoi du choix au serveur...');
-    
-    const success = this.battleConnection.choosePokemon(selectedPokemon.id);
-    if (!success) {
-      console.error('❌ [BattleIntegration] Échec envoi choix Pokémon');
-      this.showError('Erreur de communication avec le serveur');
-      this.cancelBattle();
-      return;
+    // Envoyer l'action de changement au serveur
+    if (this.battleConnection && this.isInBattle) {
+      console.log('🔄 [BattleIntegration] Envoi changement de Pokémon...');
+      this.battleConnection.switchPokemon(selectedPokemon.id);
     }
-    
-    console.log('✅ [BattleIntegration] Choix envoyé, attente du serveur...');
   }
 
   // === GESTION DU COMBAT ===
@@ -774,8 +826,33 @@ export class BattleIntegration {
   }
 
   /**
-   * Teste le système avec un combat factice
+   * Affiche l'interface de sélection pour changer de Pokémon pendant le combat
    */
+  showPokemonSelectionForSwitch() {
+    if (!this.isInBattle) {
+      console.warn('⚠️ [BattleIntegration] Pas en combat - impossible de changer');
+      return false;
+    }
+    
+    if (this.isSelectingPokemon) {
+      console.warn('⚠️ [BattleIntegration] Sélection déjà en cours');
+      return false;
+    }
+    
+    console.log('🔄 [BattleIntegration] Affichage sélection pour changement...');
+    
+    this.isSelectingPokemon = true;
+    
+    // Configurer le callback pour changement
+    this.pokemonSelectionUI.onPokemonSelected = (selectedPokemon) => {
+      this.handlePokemonSelected(selectedPokemon);
+    };
+    
+    // Afficher l'interface
+    this.pokemonSelectionUI.show();
+    
+    return true;
+  }
   testBattle() {
     console.log('🧪 [BattleIntegration] Test du système complet...');
     
