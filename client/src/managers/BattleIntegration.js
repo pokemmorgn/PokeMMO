@@ -64,9 +64,6 @@ export class BattleIntegration {
       // 4. Setup des événements globaux
       this.setupIntegrationEvents();
       
-      // 5. Charger les styles CSS
-      this.loadBattleStyles();
-      
       this.isInitialized = true;
       console.log('✅ [BattleIntegration] Système complet initialisé');
       return true;
@@ -713,39 +710,7 @@ export class BattleIntegration {
   }
 
   // === STYLES CSS ===
-
-loadBattleStyles() {
-  console.log('🎨 [BattleIntegration] Chargement des styles CSS...');
-  
-  // Vérifier si les styles sont déjà chargés
-  if (document.querySelector('#battle-styles')) {
-    console.log('✅ [BattleIntegration] Styles déjà chargés');
-    return;
-  }
-  
-  // ✅ Votre fichier existant battle.css
-  const battleCSS = document.createElement('link');
-  battleCSS.id = 'battle-styles';
-  battleCSS.rel = 'stylesheet';
-  battleCSS.href = '/css/battle.css';
-  document.head.appendChild(battleCSS);
-  
-  // 🆕 Nouveau fichier pour sélection
-  const selectionCSS = document.createElement('link');
-  selectionCSS.id = 'selection-styles';
-  selectionCSS.rel = 'stylesheet';
-  selectionCSS.href = '/css/pokemon-selection.css';
-  document.head.appendChild(selectionCSS);
-  
-  // 🆕 Nouveau fichier pour overlay centré
-  const centeredCSS = document.createElement('link');
-  centeredCSS.id = 'centered-styles';
-  centeredCSS.rel = 'stylesheet';
-  centeredCSS.href = '/css/battle-centered.css';
-  document.head.appendChild(centeredCSS);
-  
-  console.log('✅ [BattleIntegration] Styles chargés');
-}
+  // Styles maintenant chargés via index.html ✅
 
   // === MÉTHODES PUBLIQUES ===
 
@@ -941,12 +906,8 @@ loadBattleStyles() {
       this.battleScene = null;
     }
     
-    // Supprimer les styles CSS
-    const styleElements = ['#battle-styles', '#selection-styles', '#centered-styles'];
-    styleElements.forEach(selector => {
-      const element = document.querySelector(selector);
-      if (element) element.remove();
-    });
+    // Supprimer les styles CSS - maintenant dans index.html
+    // Les styles restent chargés globalement ✅
     
     // Fermer toutes les interfaces
     this.closeAllBattleInterfaces();
