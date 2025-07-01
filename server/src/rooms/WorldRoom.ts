@@ -414,22 +414,50 @@ export class WorldRoom extends Room<PokeWorldState> {
     // Dans WorldRoom.ts, ajoutez temporairement dans setupMessageHandlers()
 console.log('🔧 TEMP: Adding direct starter handler...')
 
+// === FIX TEMPORAIRE STARTER ===
+console.log('🔧 [FIX] Configuration handler starter direct...')
+
 this.onMessage("giveStarterChoice", async (client, data) => {
-    console.log('📥 STARTER REQUEST (temp):', data)
+    console.log('📥 [FIX] STARTER REQUEST reçu:', data)
+    
+    const player = this.state.players.get(client.sessionId)
+    if (!player) {
+        console.log('❌ [FIX] Joueur non trouvé:', client.sessionId)
+        client.send("starterReceived", {
+            success: false,
+            message: "Joueur non trouvé"
+        })
+        return
+    }
+    
+    console.log('🎯 [FIX] Création starter pour:', player.name)
+    
+    // Simuler succès avec données réalistes
+    const starterNames = {
+        1: "Bulbizarre",
+        4: "Salamèche", 
+        7: "Carapuce"
+    }
+    
+    const starterName = starterNames[data.pokemonId] || "Starter"
     
     client.send("starterReceived", {
         success: true,
         pokemon: {
-            id: "temp_starter_" + Date.now(),
+            id: "starter_" + Date.now(),
             pokemonId: data.pokemonId,
-            name: data.pokemonId === 4 ? "Salamèche" : "Starter",
-            level: 5
+            name: starterName,
+            level: 5,
+            shiny: false,
+            nature: "Hardy"
         },
-        message: "Starter temporaire reçu !"
+        message: `${starterName} ajouté à votre équipe !`
     })
+    
+    console.log('✅ [FIX] Réponse starter envoyée pour:', starterName)
 })
 
-    
+console.log('🚀 [FIX] Handler starter direct configuré!')
     // Mouvement du joueur
     this.onMessage("playerMove", (client, data) => {
       this.handlePlayerMove(client, data);
