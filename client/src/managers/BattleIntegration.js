@@ -205,59 +205,10 @@ export class BattleIntegration {
     }
     
     try {
-      // ✅ VÉRIFIER QUE LA BATTLESCENE EXISTE
-      let battleScene = null;
-      
-      try {
-        battleScene = this.phaserGame?.scene?.getScene('BattleScene');
-      } catch (e) {
-        console.warn('⚠️ [BattleIntegration] getScene échoué:', e.message);
-      }
-      
       // ✅ TEMPORAIRE: Toujours utiliser l'interface temporaire pour l'instant
       console.log('🎬 [BattleIntegration] Utilisation interface temporaire (développement)');
       this.createTemporaryBattleInterface(data);
       return;
-      
-      // ✅ CODE BATTLESCENE (désactivé temporairement)
-      /*
-      if (!battleScene) {
-        console.error('❌ [BattleIntegration] BattleScene introuvable!');
-        
-        // ✅ FALLBACK: Créer une interface DOM temporaire
-        this.createTemporaryBattleInterface(data);
-        return;
-      }
-      
-      // ✅ LANCER OU RÉVEILLER LA BATTLESCENE
-      if (this.phaserGame.scene.isActive('BattleScene')) {
-        console.log('🎬 [BattleIntegration] BattleScene déjà active - restart');
-        this.phaserGame.scene.restart('BattleScene', {
-          gameManager: this.gameManager,
-          networkHandler: this.battleConnection,
-          encounterData: data
-        });
-      } else if (this.phaserGame.scene.isSleeping('BattleScene')) {
-        console.log('🎬 [BattleIntegration] BattleScene en veille - wake');
-        this.phaserGame.scene.wake('BattleScene', {
-          gameManager: this.gameManager,
-          networkHandler: this.battleConnection,
-          encounterData: data
-        });
-      } else {
-        console.log('🎬 [BattleIntegration] Lancement BattleScene...');
-        this.phaserGame.scene.launch('BattleScene', {
-          gameManager: this.gameManager,
-          networkHandler: this.battleConnection,
-          encounterData: data
-        });
-      }
-      
-      // ✅ FORCER LA BATTLESCENE AU PREMIER PLAN
-      setTimeout(() => {
-        this.phaserGame.scene.bringToTop('BattleScene');
-        console.log('✅ [BattleIntegration] BattleScene amenée au premier plan');
-      }, 100);
 
     } catch (error) {
       console.error('❌ [BattleIntegration] Erreur lancement BattleScene:', error);
