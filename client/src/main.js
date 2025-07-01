@@ -262,8 +262,6 @@ window.fixBattleClient = function() {
     console.error('❌ NetworkHandler introuvable');
     return false;
 };
-false;
-};
 
 // Appliquez la correction
 window.fixBattleClient();
