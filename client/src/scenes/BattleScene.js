@@ -556,6 +556,7 @@ export class BattleScene extends Phaser.Scene {
       this.isVisible = false;
       
       // Revenir à la scène principale
+    if (this.scene && typeof this.scene.sleep === 'function') {
       this.scene.sleep();
     }
   }
