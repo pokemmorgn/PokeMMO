@@ -235,6 +235,22 @@ export class BattleRoom extends Room<BattleState> {
     console.log(`✅ Combat sauvage configuré pour BattleManager`);
   }
 
+  private async setupPvPBattle() {
+    console.log(`⚔️ Configuration combat PvP`);
+    // TODO: À implémenter pour les combats joueur vs joueur
+    this.addBattleMessage("Combat PvP à implémenter");
+    
+    // Pour l'instant, configuration basique pour éviter les erreurs
+    if (!this.battleInitData.player2Data) {
+      throw new Error("Données joueur 2 manquantes pour combat PvP");
+    }
+    
+    // Configuration minimale en attendant l'implémentation complète
+    this.state.player2Name = this.battleInitData.player2Data.name;
+    
+    console.log(`✅ Combat PvP configuré (implémentation basique)`);
+  }
+
   // ✅ AMÉLIORÉ: Choisir Pokémon et initialiser le BattleManager
   private async handleChoosePokemon(client: Client, pokemonId: string) {
     console.log(`🎯 ${client.sessionId} choisit Pokémon: ${pokemonId}`);
@@ -563,6 +579,24 @@ export class BattleRoom extends Room<BattleState> {
       : this.state.player2Pokemon;
   }
 
+  private getOpponentPokemon(): BattlePokemon {
+    return this.state.currentTurn === "player1" 
+      ? this.state.player2Pokemon 
+      : this.state.player1Pokemon;
+  }
+
+  private shouldStartBattle(): boolean {
+    return this.state.battleType === "wild" ? this.clients.length >= 1 : this.clients.length >= 2;
+  }
+
+  private canStartActualBattle(): boolean {
+    if (this.state.battleType === "wild") {
+      return !!this.state.player1Pokemon && !!this.state.player2Pokemon;
+    } else {
+      return !!this.state.player1Pokemon && !!this.state.player2Pokemon;
+    }
+  }
+
   private updatePlayerHpPercentages() {
     if (this.state.player1Pokemon?.maxHp > 0) {
       const hp1 = (this.state.player1Pokemon.currentHp / this.state.player1Pokemon.maxHp) * 100;
@@ -593,6 +627,19 @@ export class BattleRoom extends Room<BattleState> {
         this.updatePlayerStatusIcon(client.sessionId, newIcon);
       }
     });
+  }
+
+  private addBattleMessage(message: string) {
+    this.state.battleLog.push(message);
+    this.state.lastMessage = message;
+    
+    console.log(`💬 [COMBAT] ${message}`);
+    
+    if (this.state.battleLog.length > 50) {
+      this.state.battleLog.splice(0, this.state.battleLog.length - 50);
+    }
+    
+    this.broadcast("battleMessage", { message });
   }
 
   private addBattleMessage(message: string) {
