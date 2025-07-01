@@ -36,6 +36,8 @@ export class StarterHandlers {
 
     // Handler principal pour la sélection de starter
     this.room.onMessage("giveStarterChoice", async (client, data) => {
+        console.log("[StarterHandlers] Reçu giveStarterChoice", data, "de", client.sessionId);
+
       await this.handleStarterChoice(client, data);
     });
 
