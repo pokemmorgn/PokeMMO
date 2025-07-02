@@ -1254,9 +1254,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// ✅ NOUVEAU: Export des fonctions d'auto-réparation
-export { autoInitializePokemonUI, createMinimalPokemonUI };
-
 console.log('✅ [PokemonUI] Système UI Pokémon chargé avec auto-réparation !');
 console.log('🎮 Utilisez initializePokemonUI() pour démarrer (complet)');
 console.log('🔧 Utilisez autoInitializePokemonUI() pour auto-réparation');
