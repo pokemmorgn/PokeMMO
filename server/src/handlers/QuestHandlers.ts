@@ -14,6 +14,11 @@ export class QuestHandlers {
   setupHandlers() {
     console.log(`📨 Setup Quest handlers (COMPLET)...`);
 
+        if (step === 'intro_started') {
+      console.log(`🎬 [QuestHandlers] Intro démarrée pour ${player.name} - pas de progression encore`);
+      return;
+    }
+    
     // ✅ === HANDLERS PROGRESSION QUÊTES ===
     this.room.onMessage("progressIntroQuest", async (client: Client, data: { step: string }) => {
       console.log(`📨 PROGRESS INTRO RECEIVED...`);
@@ -68,7 +73,21 @@ export class QuestHandlers {
       this.handleCheckAutoIntroQuest(client);
     });
 
-
+    // ✅ AJOUTER APRÈS this.room.onMessage("progressIntroQuest"...
+    this.room.onMessage("intro_started", async (client: Client) => {
+      console.log(`🎬 [QuestHandlers] Intro démarrée pour ${client.sessionId}`);
+      await this.handleProgressIntroQuest(client, "intro_started");
+    });
+    
+    this.room.onMessage("dialogue_completed", async (client: Client) => {
+      console.log(`💬 [QuestHandlers] Dialogue terminé pour ${client.sessionId}`);
+      await this.handleProgressIntroQuest(client, "dialogue_completed");
+    });
+    
+    this.room.onMessage("intro_completed", async (client: Client) => {
+      console.log(`🎉 [QuestHandlers] Intro complétée pour ${client.sessionId}`);
+      await this.handleProgressIntroQuest(client, "intro_completed");
+    });
     console.log(`✅ Quest handlers configurés (${this.getHandlerCount()} handlers)`);
   }
 
@@ -625,6 +644,23 @@ private async handleCheckAutoIntroQuest(client: Client) {
 
   private convertStepToProgressEvent(step: string): any | null {
     switch (step) {
+      case 'intro_started':
+        return null; // Pas de progression, juste tracking
+      
+      case 'dialogue_completed':
+        return {
+          type: 'talk',
+          npcId: 999,
+          targetId: '999',
+          amount: 1
+        };
+      
+      case 'intro_completed':
+        return {
+          type: 'reach',
+          targetId: 'intro_sequence_finished',
+          amount: 1
+        };
       case 'intro_watched':
         return {
           type: 'reach',
