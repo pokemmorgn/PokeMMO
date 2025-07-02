@@ -133,7 +133,7 @@ export class BattleScene extends Phaser.Scene {
       // 1. Créer le background de combat
       this.createBattleBackground();
       
-      // 2. Préparer les zones pour sprites Pokémon
+      // 2. ✅ CORRECTION: Calculer les positions AVANT tout
       this.createPokemonPositions();
       
       // 3. Initialiser le BattleManager (simplifié pour cette étape)
@@ -144,6 +144,7 @@ export class BattleScene extends Phaser.Scene {
       
       this.isActive = true;
       console.log('✅ [BattleScene] Scène créée - Prête pour sprites Pokémon');
+      console.log('🐾 [BattleScene] Positions calculées:', this.pokemonPositions);
       
     } catch (error) {
       console.error('❌ [BattleScene] Erreur lors de la création:', error);
@@ -218,6 +219,12 @@ export class BattleScene extends Phaser.Scene {
   displayPlayerPokemon(pokemonData) {
     console.log('👤 [BattleScene] Affichage Pokémon joueur:', pokemonData);
     
+    // ✅ CORRECTION: Vérifier que les positions sont disponibles
+    if (!this.pokemonPositions?.playerAbsolute) {
+      console.error('❌ [BattleScene] Positions non calculées, recalcul...');
+      this.createPokemonPositions();
+    }
+    
     // Supprimer l'ancien sprite
     if (this.playerPokemonSprite) {
       this.playerPokemonSprite.destroy();
@@ -263,6 +270,12 @@ export class BattleScene extends Phaser.Scene {
   // 🆕 MÉTHODE: Affichage d'un Pokémon adversaire (vue de face)
   displayOpponentPokemon(pokemonData) {
     console.log('👹 [BattleScene] Affichage Pokémon adversaire:', pokemonData);
+    
+    // ✅ CORRECTION: Vérifier que les positions sont disponibles
+    if (!this.pokemonPositions?.opponentAbsolute) {
+      console.error('❌ [BattleScene] Positions non calculées, recalcul...');
+      this.createPokemonPositions();
+    }
     
     // Supprimer l'ancien sprite
     if (this.opponentPokemonSprite) {
@@ -328,9 +341,20 @@ export class BattleScene extends Phaser.Scene {
   createPokemonPlaceholder(type, pokemonData) {
     console.log(`🎭 [BattleScene] Création placeholder ${type}:`, pokemonData.name);
     
+    // ✅ CORRECTION: Vérifier que les positions sont calculées
+    if (!this.pokemonPositions?.playerAbsolute || !this.pokemonPositions?.opponentAbsolute) {
+      console.error('❌ [BattleScene] Positions non calculées, recalcul...');
+      this.createPokemonPositions();
+    }
+    
     const position = type === 'player' ? 
       this.pokemonPositions.playerAbsolute : 
       this.pokemonPositions.opponentAbsolute;
+    
+    if (!position) {
+      console.error(`❌ [BattleScene] Position ${type} non disponible`);
+      return;
+    }
     
     // Couleur selon le type principal du Pokémon
     const primaryType = pokemonData.types?.[0] || 'normal';
