@@ -1,11 +1,12 @@
-// client/src/Battle/BattleUI.js - Interface utilisateur du combat
+// client/src/Battle/BattleUI.js - Interface utilisateur du combat avec background intégré
 export class BattleUI {
   constructor(scene, battleManager) {
     this.scene = scene;
     this.battleManager = battleManager;
     
-    // Éléments Phaser
+    // Éléments Phaser principaux
     this.background = null;
+    this.battleBgImage = null;
     this.playerPokemonSprite = null;
     this.opponentPokemonSprite = null;
     this.playerHealthBar = null;
@@ -18,11 +19,51 @@ export class BattleUI {
     // Conteneurs
     this.pokemonContainer = null;
     this.uiContainer = null;
+    this.backgroundContainer = null;
+    
+    // Positions optimisées selon l'image de référence
+    this.layout = {
+      // Background settings
+      background: {
+        scale: 1.0,
+        depth: -100
+      },
+      
+      // Positions des Pokémon (style classique)
+      playerPokemon: {
+        x: 0.15,  // 15% depuis la gauche
+        y: 0.75,  // 75% depuis le haut (premier plan)
+        scale: 2.8,
+        depth: 20
+      },
+      
+      opponentPokemon: {
+        x: 0.75,  // 75% depuis la gauche  
+        y: 0.35,  // 35% depuis le haut (arrière-plan)
+        scale: 2.2,
+        depth: 15
+      },
+      
+      // Barres de vie style Pokémon
+      playerHealthBar: {
+        x: 0.55,  // Droite de l'écran
+        y: 0.7,   // Bas
+        width: 350,
+        height: 90
+      },
+      
+      opponentHealthBar: {
+        x: 0.05,  // Gauche de l'écran
+        y: 0.1,   // Haut
+        width: 350,
+        height: 90
+      }
+    };
     
     // État
     this.isInitialized = false;
     
-    console.log('🎨 [BattleUI] Constructeur initialisé');
+    console.log('🎨 [BattleUI] Constructeur initialisé avec layout optimisé');
   }
 
   // === INITIALISATION ===
@@ -36,162 +77,282 @@ export class BattleUI {
     }
     
     try {
-      this.createBackground();
-      this.createPokemonContainers();
-      this.createHealthBars();
+      // Ordre d'initialisation optimisé
+      this.createContainers();
+      this.createBattleBackground();
+      this.createPokemonPositions();
+      this.createStylizedHealthBars();
       this.setupEventListeners();
       
       this.isInitialized = true;
-      console.log('✅ [BattleUI] Interface initialisée');
+      console.log('✅ [BattleUI] Interface initialisée avec background de combat');
       
     } catch (error) {
       console.error('❌ [BattleUI] Erreur lors de l\'initialisation:', error);
     }
   }
 
-  // === CRÉATION DU BACKGROUND ===
+  // === CRÉATION DES CONTENEURS ===
 
-  createBackground() {
-    console.log('🖼️ [BattleUI] Création du background...');
+  createContainers() {
+    console.log('📦 [BattleUI] Création des conteneurs...');
     
-    const { width, height } = this.scene.cameras.main;
+    // Conteneur principal pour le background
+    this.backgroundContainer = this.scene.add.container(0, 0);
+    this.backgroundContainer.setDepth(-100);
     
-    // Background principal (dégradé ciel vers herbe)
-    this.background = this.scene.add.graphics();
-    this.background.fillGradientStyle(0x87CEEB, 0x87CEEB, 0x228B22, 0x32CD32);
-    this.background.fillRect(0, 0, width, height);
-    this.background.setDepth(-100);
-    
-    // Ligne d'horizon
-    const horizonY = height * 0.6;
-    this.background.lineStyle(2, 0x2F4F2F, 0.5);
-    this.background.lineBetween(0, horizonY, width, horizonY);
-    
-    // Plateforme joueur (plus proche, plus basse)
-    const playerPlatform = this.scene.add.ellipse(
-      width * 0.25, height * 0.75, 
-      120, 40, 
-      0x228B22, 0.3
-    );
-    playerPlatform.setDepth(-50);
-    
-    // Plateforme adversaire (plus loin, plus haute)
-    const opponentPlatform = this.scene.add.ellipse(
-      width * 0.75, height * 0.45, 
-      100, 30, 
-      0x32CD32, 0.3
-    );
-    opponentPlatform.setDepth(-50);
-    
-    console.log('✅ [BattleUI] Background créé');
-  }
-
-  // === CRÉATION DES CONTENEURS POKÉMON ===
-
-  createPokemonContainers() {
-    console.log('🐾 [BattleUI] Création des conteneurs Pokémon...');
-    
-    const { width, height } = this.scene.cameras.main;
-    
-    // Conteneur principal pour les Pokémon
+    // Conteneur pour les Pokémon
     this.pokemonContainer = this.scene.add.container(0, 0);
     this.pokemonContainer.setDepth(10);
     
-    // Positions des Pokémon (style classique Pokémon)
-    this.playerPokemonPos = {
-      x: width * 0.25,
-      y: height * 0.65
-    };
-    
-    this.opponentPokemonPos = {
-      x: width * 0.75,
-      y: height * 0.35
-    };
+    // Conteneur pour l'UI Phaser (barres de vie, effets)
+    this.uiContainer = this.scene.add.container(0, 0);
+    this.uiContainer.setDepth(50);
     
     console.log('✅ [BattleUI] Conteneurs créés');
   }
 
-  // === CRÉATION DES BARRES DE VIE ===
+  // === CRÉATION DU BACKGROUND DE COMBAT ===
 
-  createHealthBars() {
-    console.log('❤️ [BattleUI] Création des barres de vie...');
+  createBattleBackground() {
+    console.log('🖼️ [BattleUI] Création du background de combat...');
     
     const { width, height } = this.scene.cameras.main;
     
-    // Conteneur pour l'UI
-    this.uiContainer = this.scene.add.container(0, 0);
-    this.uiContainer.setDepth(50);
+    // ✅ NOUVEAU: Utiliser l'image de background chargée
+    if (this.scene.textures.exists('battlebg01')) {
+      console.log('🎨 [BattleUI] Utilisation du background chargé: battlebg01');
+      
+      this.battleBgImage = this.scene.add.image(width/2, height/2, 'battlebg01');
+      
+      // Ajuster la taille pour couvrir l'écran
+      const scaleX = width / this.battleBgImage.width;
+      const scaleY = height / this.battleBgImage.height;
+      const scale = Math.max(scaleX, scaleY);
+      
+      this.battleBgImage.setScale(scale);
+      this.battleBgImage.setDepth(this.layout.background.depth);
+      
+      this.backgroundContainer.add(this.battleBgImage);
+      
+    } else {
+      console.warn('⚠️ [BattleUI] Background battlebg01 non trouvé, création fallback');
+      this.createFallbackBackground();
+    }
     
-    // Barre de vie adversaire (en haut à droite)
+    console.log('✅ [BattleUI] Background de combat créé');
+  }
+
+  createFallbackBackground() {
+    const { width, height } = this.scene.cameras.main;
+    
+    // Background de base si l'image n'est pas disponible
+    this.background = this.scene.add.graphics();
+    
+    // Dégradé ciel vers terrain (style Pokémon)
+    this.background.fillGradientStyle(
+      0x87CEEB, 0x87CEEB,  // Bleu ciel en haut
+      0x32CD32, 0x228B22   // Vert herbe en bas
+    );
+    this.background.fillRect(0, 0, width, height);
+    this.background.setDepth(-100);
+    
+    // Ligne d'horizon
+    const horizonY = height * 0.55;
+    this.background.lineStyle(3, 0x2F4F2F, 0.6);
+    this.background.lineBetween(0, horizonY, width, horizonY);
+    
+    // Zones de combat (plateformes)
+    this.createBattlePlatforms();
+    
+    this.backgroundContainer.add(this.background);
+  }
+
+  createBattlePlatforms() {
+    const { width, height } = this.scene.cameras.main;
+    
+    // Plateforme joueur (premier plan, plus grande)
+    const playerPlatform = this.scene.add.ellipse(
+      width * this.layout.playerPokemon.x, 
+      height * (this.layout.playerPokemon.y + 0.05), 
+      140, 45, 
+      0x228B22, 0.4
+    );
+    playerPlatform.setDepth(-50);
+    playerPlatform.setStrokeStyle(2, 0x1F5F1F, 0.8);
+    
+    // Plateforme adversaire (arrière-plan, plus petite)
+    const opponentPlatform = this.scene.add.ellipse(
+      width * this.layout.opponentPokemon.x, 
+      height * (this.layout.opponentPokemon.y + 0.08), 
+      110, 35, 
+      0x32CD32, 0.3
+    );
+    opponentPlatform.setDepth(-50);
+    opponentPlatform.setStrokeStyle(2, 0x2F4F2F, 0.6);
+    
+    this.backgroundContainer.add([playerPlatform, opponentPlatform]);
+  }
+
+  // === POSITIONS DES POKÉMON ===
+
+  createPokemonPositions() {
+    console.log('🐾 [BattleUI] Configuration des positions Pokémon...');
+    
+    const { width, height } = this.scene.cameras.main;
+    
+    // Positions basées sur le layout optimisé
+    this.playerPokemonPos = {
+      x: width * this.layout.playerPokemon.x,
+      y: height * this.layout.playerPokemon.y
+    };
+    
+    this.opponentPokemonPos = {
+      x: width * this.layout.opponentPokemon.x,
+      y: height * this.layout.opponentPokemon.y
+    };
+    
+    console.log('✅ [BattleUI] Positions configurées:', {
+      player: this.playerPokemonPos,
+      opponent: this.opponentPokemonPos
+    });
+  }
+
+  // === BARRES DE VIE STYLISÉES ===
+
+  createStylizedHealthBars() {
+    console.log('❤️ [BattleUI] Création des barres de vie stylisées...');
+    
+    const { width, height } = this.scene.cameras.main;
+    
+    // Barre de vie adversaire (en haut à gauche)
     this.opponentHealthBar = this.createHealthBarGroup(
-      width - 220, 20, 'opponent'
+      width * this.layout.opponentHealthBar.x, 
+      height * this.layout.opponentHealthBar.y, 
+      'opponent'
     );
     
-    // Barre de vie joueur (en bas à gauche)
+    // Barre de vie joueur (en bas à droite)
     this.playerHealthBar = this.createHealthBarGroup(
-      20, height - 120, 'player'
+      width * this.layout.playerHealthBar.x, 
+      height * this.layout.playerHealthBar.y, 
+      'player'
     );
     
-    console.log('✅ [BattleUI] Barres de vie créées');
+    console.log('✅ [BattleUI] Barres de vie stylisées créées');
   }
 
   createHealthBarGroup(x, y, type) {
     const container = this.scene.add.container(x, y);
     container.setDepth(60);
     
-    // Background de la barre de vie
-    const bgWidth = 200;
-    const bgHeight = 60;
+    const layout = type === 'player' ? this.layout.playerHealthBar : this.layout.opponentHealthBar;
+    const isPlayer = type === 'player';
+    
+    // ✅ NOUVEAU: Design inspiré des vrais jeux Pokémon
+    
+    // Background principal avec bordure
+    const bgWidth = layout.width;
+    const bgHeight = layout.height;
     
     const background = this.scene.add.graphics();
-    background.fillStyle(0x000000, 0.7);
-    background.fillRoundedRect(0, 0, bgWidth, bgHeight, 8);
-    background.lineStyle(2, 0xFFFFFF, 0.8);
-    background.strokeRoundedRect(0, 0, bgWidth, bgHeight, 8);
+    background.fillStyle(0x000000, 0.8);
+    background.fillRoundedRect(0, 0, bgWidth, bgHeight, 12);
     
-    // Nom du Pokémon
-    const nameText = this.scene.add.text(10, 8, 'Pokémon', {
-      fontSize: '14px',
+    // Bordure dorée
+    background.lineStyle(3, 0xFFD700, 0.9);
+    background.strokeRoundedRect(0, 0, bgWidth, bgHeight, 12);
+    
+    // Bordure intérieure
+    background.lineStyle(1, 0xFFFFFF, 0.5);
+    background.strokeRoundedRect(2, 2, bgWidth-4, bgHeight-4, 10);
+    
+    // ✅ Zone nom et niveau
+    const nameText = this.scene.add.text(15, 12, 'Pokémon', {
+      fontSize: '18px',
       fontFamily: 'Arial, sans-serif',
       color: '#FFFFFF',
-      fontWeight: 'bold'
+      fontWeight: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2
     });
     
-    // Niveau
-    const levelText = this.scene.add.text(bgWidth - 40, 8, 'Lv5', {
-      fontSize: '12px',
+    const levelText = this.scene.add.text(bgWidth - 25, 12, 'L??', {
+      fontSize: '16px',
       fontFamily: 'Arial, sans-serif',
-      color: '#FFFF99'
-    });
+      color: '#FFFF99',
+      fontWeight: 'bold',
+      stroke: '#000000',
+      strokeThickness: 1
+    }).setOrigin(1, 0);
     
-    // Container pour la barre de HP
+    // ✅ Barre de HP avec style Pokémon
+    const hpBarY = 40;
+    const hpBarWidth = 200;
+    const hpBarHeight = 12;
+    
+    // Background de la barre HP
     const hpBarBg = this.scene.add.graphics();
     hpBarBg.fillStyle(0x404040);
-    hpBarBg.fillRoundedRect(10, 28, 120, 8, 4);
+    hpBarBg.fillRoundedRect(15, hpBarY, hpBarWidth, hpBarHeight, 6);
+    hpBarBg.lineStyle(1, 0x202020);
+    hpBarBg.strokeRoundedRect(15, hpBarY, hpBarWidth, hpBarHeight, 6);
     
+    // Barre de HP remplie
     const hpBarFill = this.scene.add.graphics();
     hpBarFill.fillStyle(0x00FF00);
-    hpBarFill.fillRoundedRect(10, 28, 120, 8, 4);
+    hpBarFill.fillRoundedRect(15, hpBarY, hpBarWidth, hpBarHeight, 6);
     
-    // Texte HP (seulement pour le joueur)
+    // ✅ Texte HP (seulement pour le joueur)
     let hpText = null;
-    if (type === 'player') {
-      hpText = this.scene.add.text(10, 42, '20/20', {
-        fontSize: '10px',
+    if (isPlayer) {
+      hpText = this.scene.add.text(15, hpBarY + 18, 'HP: ??/??', {
+        fontSize: '12px',
         fontFamily: 'Arial, sans-serif',
-        color: '#FFFFFF'
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        stroke: '#000000',
+        strokeThickness: 1
       });
     }
     
-    // Indicateur de statut
-    const statusIcon = this.scene.add.text(bgWidth - 20, 28, '', {
-      fontSize: '16px',
-      fontFamily: 'Arial, sans-serif'
+    // ✅ Label HP
+    const hpLabel = this.scene.add.text(15, hpBarY - 15, 'HP', {
+      fontSize: '12px',
+      fontFamily: 'Arial, sans-serif',
+      color: '#FFD700',
+      fontWeight: 'bold',
+      stroke: '#000000',
+      strokeThickness: 1
     });
     
-    // Ajouter tout au container
-    container.add([background, nameText, levelText, hpBarBg, hpBarFill, statusIcon]);
-    if (hpText) container.add(hpText);
+    // ✅ Indicateur de statut
+    const statusIcon = this.scene.add.text(bgWidth - 30, hpBarY + 15, '', {
+      fontSize: '20px',
+      fontFamily: 'Arial, sans-serif'
+    }).setOrigin(0.5);
+    
+    // ✅ Barre d'expérience (seulement pour le joueur)
+    let expBar = null;
+    if (isPlayer) {
+      const expBarY = hpBarY + 25;
+      const expBarBg = this.scene.add.graphics();
+      expBarBg.fillStyle(0x404040);
+      expBarBg.fillRoundedRect(15, expBarY, hpBarWidth * 0.8, 4, 2);
+      
+      const expBarFill = this.scene.add.graphics();
+      expBarFill.fillStyle(0x0080FF);
+      expBarFill.fillRoundedRect(15, expBarY, hpBarWidth * 0.6, 4, 2);
+      
+      expBar = { bg: expBarBg, fill: expBarFill };
+      container.add([expBarBg, expBarFill]);
+    }
+    
+    // Ajouter tous les éléments au container
+    const elements = [background, nameText, levelText, hpLabel, hpBarBg, hpBarFill, statusIcon];
+    if (hpText) elements.push(hpText);
+    
+    container.add(elements);
     
     // Cacher par défaut
     container.setVisible(false);
@@ -200,11 +361,13 @@ export class BattleUI {
       container: container,
       nameText: nameText,
       levelText: levelText,
+      hpLabel: hpLabel,
       hpBarBg: hpBarBg,
       hpBarFill: hpBarFill,
       hpText: hpText,
       statusIcon: statusIcon,
-      maxWidth: 120
+      expBar: expBar,
+      maxWidth: hpBarWidth
     };
   }
 
@@ -234,20 +397,30 @@ export class BattleUI {
       this.playerPokemonSprite.destroy();
     }
     
-    // Créer le sprite (vue de dos pour le joueur)
-    const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId, 'back');
-    this.playerPokemonSprite = this.scene.add.sprite(
-      this.playerPokemonPos.x,
-      this.playerPokemonPos.y,
-      spriteKey
-    );
+    // ✅ Créer le sprite (vue de dos pour le joueur)
+    const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'back');
     
-    // Configuration du sprite
-    this.playerPokemonSprite.setScale(2.5); // Plus gros car plus proche
-    this.playerPokemonSprite.setDepth(20);
-    
-    // Animation d'entrée
-    this.animatePokemonEntry(this.playerPokemonSprite, 'left');
+    try {
+      this.playerPokemonSprite = this.scene.add.sprite(
+        this.playerPokemonPos.x,
+        this.playerPokemonPos.y,
+        spriteKey
+      );
+      
+      // Configuration du sprite
+      this.playerPokemonSprite.setScale(this.layout.playerPokemon.scale);
+      this.playerPokemonSprite.setDepth(this.layout.playerPokemon.depth);
+      
+      // Animation d'entrée depuis la gauche
+      this.animatePokemonEntry(this.playerPokemonSprite, 'left');
+      
+      this.pokemonContainer.add(this.playerPokemonSprite);
+      
+    } catch (error) {
+      console.warn('⚠️ [BattleUI] Erreur création sprite joueur:', error);
+      // Créer un placeholder
+      this.createPokemonPlaceholder(this.playerPokemonPos, pokemonData, 'player');
+    }
     
     // Mettre à jour la barre de vie
     this.updatePlayerHealthBar(pokemonData);
@@ -265,30 +438,89 @@ export class BattleUI {
       this.opponentPokemonSprite.destroy();
     }
     
-    // Créer le sprite (vue de face pour l'adversaire)
-    const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId, 'front');
-    this.opponentPokemonSprite = this.scene.add.sprite(
-      this.opponentPokemonPos.x,
-      this.opponentPokemonPos.y,
-      spriteKey
-    );
+    // ✅ Créer le sprite (vue de face pour l'adversaire)
+    const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'front');
     
-    // Configuration du sprite
-    this.opponentPokemonSprite.setScale(2.0); // Plus petit car plus loin
-    this.opponentPokemonSprite.setDepth(20);
-    
-    // Effet shiny si applicable
-    if (pokemonData.shiny) {
-      this.addShinyEffect(this.opponentPokemonSprite);
+    try {
+      this.opponentPokemonSprite = this.scene.add.sprite(
+        this.opponentPokemonPos.x,
+        this.opponentPokemonPos.y,
+        spriteKey
+      );
+      
+      // Configuration du sprite
+      this.opponentPokemonSprite.setScale(this.layout.opponentPokemon.scale);
+      this.opponentPokemonSprite.setDepth(this.layout.opponentPokemon.depth);
+      
+      // Effet shiny si applicable
+      if (pokemonData.shiny) {
+        this.addShinyEffect(this.opponentPokemonSprite);
+      }
+      
+      // Animation d'entrée depuis la droite
+      this.animatePokemonEntry(this.opponentPokemonSprite, 'right');
+      
+      this.pokemonContainer.add(this.opponentPokemonSprite);
+      
+    } catch (error) {
+      console.warn('⚠️ [BattleUI] Erreur création sprite adversaire:', error);
+      // Créer un placeholder
+      this.createPokemonPlaceholder(this.opponentPokemonPos, pokemonData, 'opponent');
     }
-    
-    // Animation d'entrée
-    this.animatePokemonEntry(this.opponentPokemonSprite, 'right');
     
     // Mettre à jour la barre de vie
     this.updateOpponentHealthBar(pokemonData);
     
     console.log('✅ [BattleUI] Pokémon adversaire affiché');
+  }
+
+  createPokemonPlaceholder(position, pokemonData, type) {
+    console.log(`🎭 [BattleUI] Création placeholder ${type}:`, pokemonData.name);
+    
+    // Placeholder coloré selon le type principal
+    const primaryType = pokemonData.types?.[0] || 'normal';
+    const typeColor = this.getTypeColor(primaryType);
+    
+    const placeholder = this.scene.add.circle(
+      position.x, position.y,
+      50, typeColor, 0.8
+    );
+    
+    // Texte avec le nom
+    const nameText = this.scene.add.text(
+      position.x, position.y,
+      pokemonData.name || 'Pokémon',
+      {
+        fontSize: '14px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2
+      }
+    ).setOrigin(0.5);
+    
+    // Échelle selon le type
+    const scale = type === 'player' ? this.layout.playerPokemon.scale * 0.4 : this.layout.opponentPokemon.scale * 0.4;
+    placeholder.setScale(scale);
+    nameText.setScale(scale);
+    
+    // Depth
+    const depth = type === 'player' ? this.layout.playerPokemon.depth : this.layout.opponentPokemon.depth;
+    placeholder.setDepth(depth);
+    nameText.setDepth(depth + 1);
+    
+    // Stocker la référence
+    if (type === 'player') {
+      this.playerPokemonSprite = placeholder;
+    } else {
+      this.opponentPokemonSprite = placeholder;
+    }
+    
+    this.pokemonContainer.add([placeholder, nameText]);
+    
+    // Animation d'entrée
+    this.animatePokemonEntry(placeholder, type === 'player' ? 'left' : 'right');
   }
 
   // === MISE À JOUR DES BARRES DE VIE ===
@@ -300,24 +532,34 @@ export class BattleUI {
     
     // Nom et niveau
     nameText.setText(pokemonData.name || 'Pokémon');
-    levelText.setText(`Lv${pokemonData.level || 1}`);
+    levelText.setText(`L${pokemonData.level || 1}`);
     
-    // Barre de HP
+    // Barre de HP avec animation
     const hpPercent = pokemonData.maxHp > 0 ? pokemonData.currentHp / pokemonData.maxHp : 0;
     const barWidth = Math.max(0, maxWidth * hpPercent);
     
-    // Couleur selon les HP
+    // Couleur selon les HP (style Pokémon)
     let hpColor = 0x00FF00; // Vert
-    if (hpPercent < 0.5) hpColor = 0xFFFF00; // Jaune
-    if (hpPercent < 0.2) hpColor = 0xFF0000; // Rouge
+    if (hpPercent <= 0.5) hpColor = 0xFFFF00; // Jaune
+    if (hpPercent <= 0.2) hpColor = 0xFF0000; // Rouge
     
-    hpBarFill.clear();
-    hpBarFill.fillStyle(hpColor);
-    hpBarFill.fillRoundedRect(10, 28, barWidth, 8, 4);
+    // Animation de la barre
+    this.scene.tweens.add({
+      targets: { width: 0 },
+      width: barWidth,
+      duration: 500,
+      ease: 'Power2.easeOut',
+      onUpdate: (tween) => {
+        const currentWidth = tween.getValue();
+        hpBarFill.clear();
+        hpBarFill.fillStyle(hpColor);
+        hpBarFill.fillRoundedRect(15, 40, currentWidth, 12, 6);
+      }
+    });
     
     // Texte HP
     if (hpText) {
-      hpText.setText(`${pokemonData.currentHp}/${pokemonData.maxHp}`);
+      hpText.setText(`HP: ${pokemonData.currentHp}/${pokemonData.maxHp}`);
     }
     
     // Statut
@@ -327,10 +569,12 @@ export class BattleUI {
     // Afficher la barre
     container.setVisible(true);
     
-    // Animation si HP faibles
-    if (hpPercent < 0.2 && hpPercent > 0) {
-      this.addLowHpAnimation(container);
+    // Animation si HP critiques
+    if (hpPercent <= 0.2 && hpPercent > 0) {
+      this.addCriticalHpAnimation(container);
     }
+    
+    console.log(`✅ [BattleUI] Barre joueur mise à jour: ${pokemonData.currentHp}/${pokemonData.maxHp}`);
   }
 
   updateOpponentHealthBar(pokemonData) {
@@ -340,20 +584,30 @@ export class BattleUI {
     
     // Nom et niveau
     nameText.setText(pokemonData.name || 'Pokémon');
-    levelText.setText(`Lv${pokemonData.level || 1}`);
+    levelText.setText(`L${pokemonData.level || 1}`);
     
-    // Barre de HP
+    // Barre de HP avec animation
     const hpPercent = pokemonData.maxHp > 0 ? pokemonData.currentHp / pokemonData.maxHp : 0;
     const barWidth = Math.max(0, maxWidth * hpPercent);
     
     // Couleur selon les HP
     let hpColor = 0x00FF00; // Vert
-    if (hpPercent < 0.5) hpColor = 0xFFFF00; // Jaune
-    if (hpPercent < 0.2) hpColor = 0xFF0000; // Rouge
+    if (hpPercent <= 0.5) hpColor = 0xFFFF00; // Jaune
+    if (hpPercent <= 0.2) hpColor = 0xFF0000; // Rouge
     
-    hpBarFill.clear();
-    hpBarFill.fillStyle(hpColor);
-    hpBarFill.fillRoundedRect(10, 28, barWidth, 8, 4);
+    // Animation de la barre
+    this.scene.tweens.add({
+      targets: { width: maxWidth },
+      width: barWidth,
+      duration: 800,
+      ease: 'Power2.easeOut',
+      onUpdate: (tween) => {
+        const currentWidth = tween.getValue();
+        hpBarFill.clear();
+        hpBarFill.fillStyle(hpColor);
+        hpBarFill.fillRoundedRect(15, 40, currentWidth, 12, 6);
+      }
+    });
     
     // Statut
     const statusEmoji = this.getStatusEmoji(pokemonData.statusCondition);
@@ -361,6 +615,8 @@ export class BattleUI {
     
     // Afficher la barre
     container.setVisible(true);
+    
+    console.log(`✅ [BattleUI] Barre adversaire mise à jour: ${pokemonData.currentHp}/${pokemonData.maxHp}`);
   }
 
   // === ANIMATIONS ===
@@ -372,26 +628,49 @@ export class BattleUI {
     const originalY = sprite.y;
     
     // Position de départ (hors écran)
-    const startX = direction === 'left' ? -100 : this.scene.cameras.main.width + 100;
-    sprite.setPosition(startX, originalY);
+    const startX = direction === 'left' ? -150 : this.scene.cameras.main.width + 150;
+    sprite.setPosition(startX, originalY + 50);
     sprite.setAlpha(0);
+    sprite.setScale(sprite.scaleX * 0.5);
     
-    // Animation d'entrée
+    // Animation d'entrée dynamique
     this.scene.tweens.add({
       targets: sprite,
       x: originalX,
+      y: originalY,
       alpha: 1,
-      duration: 800,
+      scaleX: sprite.scaleX * 2,
+      scaleY: sprite.scaleY * 2,
+      duration: 1000,
       ease: 'Back.easeOut',
       onComplete: () => {
         // Petite animation d'atterrissage
         this.scene.tweens.add({
           targets: sprite,
-          y: originalY + 10,
-          duration: 200,
+          y: originalY + 8,
+          duration: 300,
           yoyo: true,
           ease: 'Bounce.easeOut'
         });
+      }
+    });
+  }
+
+  addCriticalHpAnimation(container) {
+    if (!container) return;
+    
+    // Animation de clignotement rouge pour HP critiques
+    this.scene.tweens.add({
+      targets: container,
+      alpha: 0.3,
+      tint: 0xFF0000,
+      duration: 300,
+      yoyo: true,
+      repeat: 5,
+      ease: 'Power2',
+      onComplete: () => {
+        container.clearTint();
+        container.setAlpha(1);
       }
     });
   }
@@ -403,97 +682,35 @@ export class BattleUI {
     this.scene.tweens.add({
       targets: sprite,
       tint: 0xFFD700,
-      duration: 1000,
+      duration: 1200,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut'
     });
     
-    // Particules dorées
-    this.createShinyParticles(sprite.x, sprite.y);
-  }
-
-  createShinyParticles(x, y) {
-    // TODO: Ajouter des particules dorées
-    console.log('✨ [BattleUI] Effet shiny à implémenter');
-  }
-
-  addLowHpAnimation(container) {
-    if (!container) return;
-    
-    // Animation de clignotement pour HP bas
-    this.scene.tweens.add({
-      targets: container,
-      alpha: 0.5,
-      duration: 500,
-      yoyo: true,
-      repeat: 3,
-      ease: 'Power2'
-    });
-  }
-
-  // === ANIMATIONS D'ATTAQUE ===
-
-  animateAttack(attackerType, targetType, moveData) {
-    console.log(`💥 [BattleUI] Animation attaque: ${attackerType} → ${targetType}`);
-    
-    const attacker = attackerType === 'player' ? this.playerPokemonSprite : this.opponentPokemonSprite;
-    const target = targetType === 'player' ? this.playerPokemonSprite : this.opponentPokemonSprite;
-    
-    if (!attacker || !target) return;
-    
-    // Animation de l'attaquant
-    this.scene.tweens.add({
-      targets: attacker,
-      x: attacker.x + (attackerType === 'player' ? 50 : -50),
-      duration: 300,
-      yoyo: true,
-      ease: 'Power2.easeOut'
-    });
-    
-    // Animation du défenseur (dégâts)
-    setTimeout(() => {
-      this.animateHit(target);
-    }, 300);
-  }
-
-  animateHit(sprite) {
-    if (!sprite) return;
-    
-    // Secousse
-    this.scene.tweens.add({
-      targets: sprite,
-      x: sprite.x + 10,
-      duration: 100,
-      yoyo: true,
-      repeat: 3,
-      ease: 'Power2.easeInOut'
-    });
-    
-    // Flash rouge
-    this.scene.tweens.add({
-      targets: sprite,
-      tint: 0xFF0000,
-      duration: 200,
-      yoyo: true,
-      ease: 'Power2.easeInOut',
-      onComplete: () => {
-        sprite.clearTint();
-      }
-    });
+    console.log('✨ [BattleUI] Effet shiny appliqué');
   }
 
   // === MÉTHODES UTILITAIRES ===
 
   getPokemonSpriteKey(pokemonId, view = 'front') {
-    // Retourner le sprite approprié ou un placeholder
-    const spriteKey = `pokemon_${pokemonId}_${view}`;
+    // Mapping des sprites selon l'ID
+    const spriteMap = {
+      1: view === 'back' ? 'bulbasaur_back' : 'bulbasaur_front',
+      4: view === 'back' ? 'charmander_back' : 'charmander_front', 
+      7: view === 'back' ? 'squirtle_back' : 'squirtle_front',
+      25: view === 'back' ? 'pikachu_back' : 'pikachu_front',
+      // Ajouter d'autres Pokémon selon les besoins
+    };
+    
+    const spriteKey = spriteMap[pokemonId];
     
     // Vérifier si le sprite existe, sinon utiliser placeholder
-    if (this.scene.textures.exists(spriteKey)) {
+    if (spriteKey && this.scene.textures.exists(spriteKey)) {
       return spriteKey;
     } else {
-      console.warn(`⚠️ [BattleUI] Sprite manquant: ${spriteKey}, utilisation placeholder`);
+      console.warn(`⚠️ [BattleUI] Sprite manquant: ${spriteKey || `pokemon_${pokemonId}_${view}`}`);
+      // Retourner un placeholder générique
       return view === 'back' ? 'pokemon_placeholder_back' : 'pokemon_placeholder_front';
     }
   }
@@ -506,189 +723,12 @@ export class BattleUI {
       'paralysis': '⚡',
       'sleep': '💤',
       'freeze': '❄️',
-      'confusion': '😵'
+      'confusion': '😵',
+      'ko': '💀'
     };
     
     return statusEmojis[status] || '';
   }
-
-  // === EFFETS SPÉCIAUX ===
-
-  showDamageNumber(damage, target) {
-    if (!target || damage <= 0) return;
-    
-    const damageText = this.scene.add.text(target.x, target.y - 50, `-${damage}`, {
-      fontSize: '24px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#FF0000',
-      fontWeight: 'bold',
-      stroke: '#FFFFFF',
-      strokeThickness: 2
-    });
-    
-    damageText.setOrigin(0.5);
-    damageText.setDepth(100);
-    
-    // Animation du nombre de dégâts
-    this.scene.tweens.add({
-      targets: damageText,
-      y: damageText.y - 100,
-      alpha: 0,
-      scale: 1.5,
-      duration: 1500,
-      ease: 'Power2.easeOut',
-      onComplete: () => {
-        damageText.destroy();
-      }
-    });
-  }
-
-  showHealNumber(heal, target) {
-    if (!target || heal <= 0) return;
-    
-    const healText = this.scene.add.text(target.x, target.y - 50, `+${heal}`, {
-      fontSize: '20px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#00FF00',
-      fontWeight: 'bold',
-      stroke: '#FFFFFF',
-      strokeThickness: 2
-    });
-    
-    healText.setOrigin(0.5);
-    healText.setDepth(100);
-    
-    // Animation du nombre de soins
-    this.scene.tweens.add({
-      targets: healText,
-      y: healText.y - 80,
-      alpha: 0,
-      scale: 1.2,
-      duration: 1200,
-      ease: 'Power2.easeOut',
-      onComplete: () => {
-        healText.destroy();
-      }
-    });
-  }
-
-  showStatusEffect(effect, target) {
-    if (!target || !effect) return;
-    
-    const effectEmoji = this.getStatusEmoji(effect);
-    if (!effectEmoji) return;
-    
-    const effectText = this.scene.add.text(target.x, target.y - 30, effectEmoji, {
-      fontSize: '32px',
-      fontFamily: 'Arial, sans-serif'
-    });
-    
-    effectText.setOrigin(0.5);
-    effectText.setDepth(100);
-    
-    // Animation de l'effet de statut
-    this.scene.tweens.add({
-      targets: effectText,
-      y: effectText.y - 60,
-      alpha: 0,
-      duration: 2000,
-      ease: 'Power2.easeOut',
-      onComplete: () => {
-        effectText.destroy();
-      }
-    });
-  }
-
-  // === ANIMATIONS DE CAPTURE ===
-
-  animateCapture(ballType, targetPokemon) {
-    console.log(`🎯 [BattleUI] Animation de capture: ${ballType}`);
-    
-    if (!targetPokemon || !this.opponentPokemonSprite) return;
-    
-    // Créer la Poké Ball
-    const ballSprite = this.scene.add.sprite(
-      this.playerPokemonPos.x,
-      this.playerPokemonPos.y - 50,
-      'poke_ball' // Placeholder
-    );
-    ballSprite.setScale(0.5);
-    ballSprite.setDepth(30);
-    
-    // Animation de lancer
-    this.scene.tweens.add({
-      targets: ballSprite,
-      x: this.opponentPokemonSprite.x,
-      y: this.opponentPokemonSprite.y - 20,
-      duration: 800,
-      ease: 'Power2.easeOut',
-      onComplete: () => {
-        // Animation de capture
-        this.animatePokemonCapture(ballSprite);
-      }
-    });
-  }
-
-  animatePokemonCapture(ballSprite) {
-    if (!this.opponentPokemonSprite) return;
-    
-    // Flash blanc
-    const flash = this.scene.add.rectangle(
-      this.opponentPokemonSprite.x,
-      this.opponentPokemonSprite.y,
-      100, 100,
-      0xFFFFFF
-    );
-    flash.setDepth(40);
-    
-    this.scene.tweens.add({
-      targets: flash,
-      alpha: 0,
-      duration: 300,
-      onComplete: () => {
-        flash.destroy();
-      }
-    });
-    
-    // Faire disparaître le Pokémon
-    this.scene.tweens.add({
-      targets: this.opponentPokemonSprite,
-      alpha: 0,
-      scale: 0.1,
-      duration: 300
-    });
-    
-    // Animation de la Ball qui secoue
-    this.animateBallShakes(ballSprite);
-  }
-
-  animateBallShakes(ballSprite, shakes = 3) {
-    let currentShake = 0;
-    
-    const shake = () => {
-      if (currentShake >= shakes) {
-        // Fin des secousses - succès ou échec déterminé ailleurs
-        return;
-      }
-      
-      currentShake++;
-      
-      // Secousse de la Ball
-      this.scene.tweens.add({
-        targets: ballSprite,
-        rotation: 0.3,
-        duration: 200,
-        yoyo: true,
-        onComplete: () => {
-          setTimeout(shake, 500);
-        }
-      });
-    };
-    
-    setTimeout(shake, 500);
-  }
-
-  // === GESTION DES TYPES DE POKÉMON ===
 
   getTypeColor(type) {
     const typeColors = {
@@ -713,6 +753,312 @@ export class BattleUI {
     };
     
     return typeColors[type.toLowerCase()] || 0xFFFFFF;
+  }
+
+  // === EFFETS SPÉCIAUX ===
+
+  showDamageNumber(damage, target) {
+    if (!target || damage <= 0) return;
+    
+    const damageText = this.scene.add.text(target.x, target.y - 60, `-${damage}`, {
+      fontSize: '28px',
+      fontFamily: 'Arial, sans-serif',
+      color: '#FF0000',
+      fontWeight: 'bold',
+      stroke: '#FFFFFF',
+      strokeThickness: 3
+    });
+    
+    damageText.setOrigin(0.5);
+    damageText.setDepth(100);
+    
+    // Animation du nombre de dégâts
+    this.scene.tweens.add({
+      targets: damageText,
+      y: damageText.y - 120,
+      alpha: 0,
+      scale: 1.8,
+      duration: 1800,
+      ease: 'Power2.easeOut',
+      onComplete: () => {
+        damageText.destroy();
+      }
+    });
+  }
+
+  showHealNumber(heal, target) {
+    if (!target || heal <= 0) return;
+    
+    const healText = this.scene.add.text(target.x, target.y - 60, `+${heal}`, {
+      fontSize: '24px',
+      fontFamily: 'Arial, sans-serif',
+      color: '#00FF00',
+      fontWeight: 'bold',
+      stroke: '#FFFFFF',
+      strokeThickness: 3
+    });
+    
+    healText.setOrigin(0.5);
+    healText.setDepth(100);
+    
+    // Animation du nombre de soins
+    this.scene.tweens.add({
+      targets: healText,
+      y: healText.y - 100,
+      alpha: 0,
+      scale: 1.4,
+      duration: 1500,
+      ease: 'Power2.easeOut',
+      onComplete: () => {
+        healText.destroy();
+      }
+    });
+  }
+
+  showStatusEffect(effect, target) {
+    if (!target || !effect) return;
+    
+    const effectEmoji = this.getStatusEmoji(effect);
+    if (!effectEmoji) return;
+    
+    const effectText = this.scene.add.text(target.x, target.y - 40, effectEmoji, {
+      fontSize: '36px',
+      fontFamily: 'Arial, sans-serif'
+    });
+    
+    effectText.setOrigin(0.5);
+    effectText.setDepth(100);
+    
+    // Animation de l'effet de statut
+    this.scene.tweens.add({
+      targets: effectText,
+      y: effectText.y - 80,
+      alpha: 0,
+      scale: 1.5,
+      duration: 2500,
+      ease: 'Power2.easeOut',
+      onComplete: () => {
+        effectText.destroy();
+      }
+    });
+  }
+
+  // === ANIMATIONS D'ATTAQUE ===
+
+  animateAttack(attackerType, targetType, moveData) {
+    console.log(`💥 [BattleUI] Animation attaque: ${attackerType} → ${targetType}`, moveData);
+    
+    const attacker = attackerType === 'player' ? this.playerPokemonSprite : this.opponentPokemonSprite;
+    const target = targetType === 'player' ? this.playerPokemonSprite : this.opponentPokemonSprite;
+    
+    if (!attacker || !target) return;
+    
+    // Animation de l'attaquant (mouvement vers l'avant)
+    const originalX = attacker.x;
+    const moveDistance = attackerType === 'player' ? 80 : -80;
+    
+    this.scene.tweens.add({
+      targets: attacker,
+      x: originalX + moveDistance,
+      duration: 400,
+      ease: 'Power2.easeOut',
+      yoyo: true,
+      onComplete: () => {
+        // Retour en position
+        attacker.x = originalX;
+      }
+    });
+    
+    // Animation du défenseur (impact)
+    setTimeout(() => {
+      this.animateHit(target);
+      
+      // Effet visuel d'impact
+      this.createImpactEffect(target.x, target.y);
+    }, 400);
+  }
+
+  animateHit(sprite) {
+    if (!sprite) return;
+    
+    const originalX = sprite.x;
+    
+    // Secousse horizontale
+    this.scene.tweens.add({
+      targets: sprite,
+      x: originalX + 15,
+      duration: 80,
+      yoyo: true,
+      repeat: 4,
+      ease: 'Power2.easeInOut',
+      onComplete: () => {
+        sprite.x = originalX;
+      }
+    });
+    
+    // Flash rouge
+    this.scene.tweens.add({
+      targets: sprite,
+      tint: 0xFF0000,
+      duration: 150,
+      yoyo: true,
+      ease: 'Power2.easeInOut',
+      onComplete: () => {
+        sprite.clearTint();
+      }
+    });
+  }
+
+  createImpactEffect(x, y) {
+    // Effet d'étoiles d'impact
+    const stars = [];
+    const starCount = 8;
+    
+    for (let i = 0; i < starCount; i++) {
+      const angle = (i / starCount) * Math.PI * 2;
+      const distance = 30;
+      
+      const star = this.scene.add.text(
+        x + Math.cos(angle) * distance,
+        y + Math.sin(angle) * distance,
+        '★',
+        {
+          fontSize: '20px',
+          color: '#FFFF00',
+          stroke: '#FF0000',
+          strokeThickness: 2
+        }
+      );
+      
+      star.setOrigin(0.5);
+      star.setDepth(90);
+      stars.push(star);
+      
+      // Animation des étoiles
+      this.scene.tweens.add({
+        targets: star,
+        x: x + Math.cos(angle) * 80,
+        y: y + Math.sin(angle) * 80,
+        alpha: 0,
+        scale: 0.2,
+        duration: 600,
+        ease: 'Power2.easeOut',
+        onComplete: () => {
+          star.destroy();
+        }
+      });
+    }
+  }
+
+  // === ANIMATIONS DE CAPTURE ===
+
+  animateCapture(ballType, targetPokemon) {
+    console.log(`🎯 [BattleUI] Animation de capture: ${ballType}`);
+    
+    if (!targetPokemon || !this.opponentPokemonSprite) return;
+    
+    // Créer la Poké Ball
+    const ballSprite = this.scene.add.circle(
+      this.playerPokemonPos.x - 50,
+      this.playerPokemonPos.y - 30,
+      15,
+      0xFF0000 // Rouge de la Poké Ball
+    );
+    ballSprite.setStrokeStyle(3, 0x000000);
+    ballSprite.setDepth(30);
+    
+    // Ligne centrale de la Ball
+    const ballLine = this.scene.add.graphics();
+    ballLine.lineStyle(2, 0x000000);
+    ballLine.lineBetween(-15, 0, 15, 0);
+    ballLine.setDepth(31);
+    
+    const ballContainer = this.scene.add.container(
+      this.playerPokemonPos.x - 50,
+      this.playerPokemonPos.y - 30,
+      [ballSprite, ballLine]
+    );
+    
+    // Animation de lancer vers le Pokémon
+    this.scene.tweens.add({
+      targets: ballContainer,
+      x: this.opponentPokemonSprite.x,
+      y: this.opponentPokemonSprite.y - 20,
+      rotation: Math.PI * 4, // Rotation pendant le vol
+      duration: 1000,
+      ease: 'Power2.easeOut',
+      onComplete: () => {
+        // Animation de capture
+        this.animatePokemonCapture(ballContainer);
+      }
+    });
+  }
+
+  animatePokemonCapture(ballContainer) {
+    if (!this.opponentPokemonSprite) return;
+    
+    // Flash blanc de capture
+    const flash = this.scene.add.rectangle(
+      this.opponentPokemonSprite.x,
+      this.opponentPokemonSprite.y,
+      120, 120,
+      0xFFFFFF
+    );
+    flash.setDepth(40);
+    
+    this.scene.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 400,
+      onComplete: () => {
+        flash.destroy();
+      }
+    });
+    
+    // Faire disparaître le Pokémon avec effet
+    this.scene.tweens.add({
+      targets: this.opponentPokemonSprite,
+      alpha: 0,
+      scale: 0.1,
+      duration: 400,
+      ease: 'Power2.easeIn'
+    });
+    
+    // Animation de la Ball qui tombe et secoue
+    setTimeout(() => {
+      this.animateBallShakes(ballContainer);
+    }, 500);
+  }
+
+  animateBallShakes(ballContainer, shakes = 3) {
+    let currentShake = 0;
+    
+    const shake = () => {
+      if (currentShake >= shakes) {
+        // Fin des secousses - succès ou échec déterminé par le serveur
+        console.log('🎯 [BattleUI] Fin des secousses de la Ball');
+        return;
+      }
+      
+      currentShake++;
+      
+      // Secousse de la Ball
+      this.scene.tweens.add({
+        targets: ballContainer,
+        rotation: ballContainer.rotation + 0.5,
+        y: ballContainer.y - 10,
+        duration: 200,
+        yoyo: true,
+        ease: 'Power2.easeInOut',
+        onComplete: () => {
+          // Attendre avant la prochaine secousse
+          setTimeout(shake, 800);
+        }
+      });
+    };
+    
+    // Première secousse après un délai
+    setTimeout(shake, 600);
   }
 
   // === ÉVÉNEMENTS ET CALLBACKS ===
@@ -803,16 +1149,16 @@ export class BattleUI {
   show() {
     console.log('👁️ [BattleUI] Affichage de l\'interface');
     
+    if (this.backgroundContainer) {
+      this.backgroundContainer.setVisible(true);
+    }
+    
     if (this.pokemonContainer) {
       this.pokemonContainer.setVisible(true);
     }
     
     if (this.uiContainer) {
       this.uiContainer.setVisible(true);
-    }
-    
-    if (this.background) {
-      this.background.setVisible(true);
     }
   }
 
@@ -822,16 +1168,16 @@ export class BattleUI {
   hide() {
     console.log('👁️ [BattleUI] Masquage de l\'interface');
     
+    if (this.backgroundContainer) {
+      this.backgroundContainer.setVisible(false);
+    }
+    
     if (this.pokemonContainer) {
       this.pokemonContainer.setVisible(false);
     }
     
     if (this.uiContainer) {
       this.uiContainer.setVisible(false);
-    }
-    
-    if (this.background) {
-      this.background.setVisible(false);
     }
     
     // Cacher les barres de vie
@@ -892,9 +1238,8 @@ export class BattleUI {
       this.uiContainer.destroy();
     }
     
-    // Nettoyer le background
-    if (this.background) {
-      this.background.destroy();
+    if (this.backgroundContainer) {
+      this.backgroundContainer.destroy();
     }
     
     // Nettoyer les barres de vie
