@@ -123,7 +123,8 @@ export class VillageLabScene extends BaseZoneScene {
         this.triggerStarterSelection();
       } else {
         console.log("❌ [E] Joueur trop loin de la table");
-        this.showSimpleDialog("", "Approchez-vous de la table du professeur.");
+        // Utiliser une méthode sûre pour afficher le message
+        this.showSafeMessage("Approchez-vous de la table du professeur.");
       }
     });
 
@@ -391,7 +392,30 @@ export class VillageLabScene extends BaseZoneScene {
     });
   }
 
-  showSimpleDialog(npcName, message) {
+  // ✅ MÉTHODE SÉCURISÉE: Afficher un message sans boucle infinie
+  showSafeMessage(message) {
+    // Utiliser directement console.log au lieu des notifications
+    console.log(`💬 [VillageLabScene] ${message}`);
+    
+    // Optionnel: Créer un dialogue simple sans passer par le système de notifications
+    const dialogueBox = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY + 100,
+      message,
+      {
+        fontSize: '14px',
+        fontFamily: 'monospace',
+        color: '#ffffff',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: { x: 10, y: 8 },
+        wordWrap: { width: 300 },
+      }
+    ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
+
+    this.time.delayedCall(2000, () => {
+      dialogueBox.destroy();
+    });
+  }
     const dialogueBox = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY + 100,
