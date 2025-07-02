@@ -2,7 +2,7 @@
 
 export class UIManager {
   constructor(options = {}) {
-    this.debug = options.debug !== false;
+    this.debug = options.debug !== true;
     
     // 🆕 Configuration de performance
     this.performanceConfig = {
