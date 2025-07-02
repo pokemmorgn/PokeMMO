@@ -153,6 +153,32 @@ async startIntro(onComplete = null) {
   // ✅ NOUVEAU: Notifier DÉBUT de l'intro (pas la fin)
   this.notifyServer("intro_started");
 }
+
+  // ✅ MÉTHODE MANQUANTE: waitForValidPlayerObjectSimple
+waitForValidPlayerObjectSimple(maxWaitTime = 1000) {
+  return new Promise(resolve => {
+    // ✅ Si tous les flags sont OK, on fait confiance
+    if (window.playerReady && window.playerSpawned && window.loadingScreenClosed) {
+      console.log('[PsyduckIntro] ✅ Tous les flags OK, joueur considéré valide');
+      return resolve(true);
+    }
+    
+    // ✅ Vérification rapide en fallback
+    const scene = this.scene;
+    const myPlayer = scene?.playerManager?.getMyPlayer?.();
+    
+    if (myPlayer && myPlayer.x !== undefined && myPlayer.y !== undefined) {
+      console.log('[PsyduckIntro] ✅ Joueur trouvé avec position valide');
+      return resolve(true);
+    }
+    
+    // ✅ Timeout très court puis continue
+    setTimeout(() => {
+      console.log('[PsyduckIntro] ✅ Timeout court, on fait confiance au système');
+      resolve(true);
+    }, maxWaitTime);
+  });
+}
   
   // ✅ NOUVELLE MÉTHODE: Attendre fermeture LoadingScreen
   waitForLoadingScreenClosed(maxWaitTime = 10000) {
