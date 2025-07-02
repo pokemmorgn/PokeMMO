@@ -1,4 +1,4 @@
-// client/src/components/LoadingScreen.js - Système d'écran de chargement joueur
+// client/src/components/LoadingScreen.js - Système d'écran de chargement joueur avec blocage inputs
 
 export class LoadingScreen {
   constructor(options = {}) {
@@ -18,6 +18,11 @@ export class LoadingScreen {
     this.currentStep = 0;
     this.stepCount = 0;
     this.stepTexts = [];
+    
+    // ✅ NOUVEAU: Flags pour blocage inputs
+    this.inputsBlocked = false;
+    this.originalInputStates = {};
+    this.keyboardBlockHandler = null;
     
     // Thèmes prédéfinis
     this.themes = {
@@ -324,7 +329,7 @@ export class LoadingScreen {
     document.head.appendChild(style);
   }
 
-  // ✅ Afficher l'écran de chargement
+  // ✅ Afficher l'écran de chargement avec blocage inputs
   show(themeOrSteps = 'player', options = {}) {
     if (!this.enabled) {
       console.log('📱 LoadingScreen désactivé, skip');
@@ -332,6 +337,9 @@ export class LoadingScreen {
     }
 
     return new Promise((resolve) => {
+      // ✅ BLOQUER LES INPUTS DÈS LE DÉBUT
+      this.blockPlayerInputs();
+      
       // Configuration du thème
       const theme = typeof themeOrSteps === 'string' ? 
         this.themes[themeOrSteps] || this.themes.player : 
@@ -373,19 +381,18 @@ export class LoadingScreen {
       this.overlay.classList.add('fast-mode');
     }
 
-this.overlay.innerHTML = `
-  <div class="loading-screen-container theme-${this.theme}">
-    <div class="loading-screen-icon">${theme.icon}</div>
-    <div class="loading-screen-title">${theme.title}</div>
-    <div class="loading-screen-progress" id="loading-progress-text">${theme.steps[0]}</div>
-    <div class="loading-screen-bar">
-      <div class="loading-screen-fill" id="loading-progress-bar"></div>
-    </div>
-    <div class="loading-screen-step" id="loading-step-indicator">Step 1/${this.stepCount}</div>
-    <div class="loading-screen-footer">Please wait... (Wild Pokémon may appear!)</div>
-  </div>
-`;
-
+    this.overlay.innerHTML = `
+      <div class="loading-screen-container theme-${this.theme}">
+        <div class="loading-screen-icon">${theme.icon}</div>
+        <div class="loading-screen-title">${theme.title}</div>
+        <div class="loading-screen-progress" id="loading-progress-text">${theme.steps[0]}</div>
+        <div class="loading-screen-bar">
+          <div class="loading-screen-fill" id="loading-progress-bar"></div>
+        </div>
+        <div class="loading-screen-step" id="loading-step-indicator">Step 1/${this.stepCount}</div>
+        <div class="loading-screen-footer">Please wait... (Wild Pokémon may appear!)</div>
+      </div>
+    `;
 
     this.textElement = this.overlay.querySelector('#loading-progress-text');
     this.progressElement = this.overlay.querySelector('#loading-progress-bar');
@@ -452,56 +459,164 @@ this.overlay.innerHTML = `
     console.log(`📱 LoadingScreen: Étape ${stepIndex + 1}/${this.stepCount} - ${stepText}`);
   }
 
-  // ✅ Masquer l'écran de chargement
-hide() {
-  if (!this.isVisible || !this.overlay) {
-    return Promise.resolve();
+  // ✅ Masquer l'écran de chargement avec déblocage inputs
+  hide() {
+    if (!this.isVisible || !this.overlay) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      this.isVisible = false;
+
+      // Animation de sortie
+      this.overlay.classList.remove('visible');
+
+      setTimeout(() => {
+        if (this.overlay && this.overlay.parentNode) {
+          this.overlay.parentNode.removeChild(this.overlay);
+        }
+        
+        // ✅ DÉBLOQUER LES INPUTS AVANT LE CLEANUP
+        this.unblockPlayerInputs();
+        
+        this.cleanup();
+
+        // === FLAGS GLOBAUX AMÉLIORÉS ===
+        console.log('🏁 [LoadingScreen] Mise à jour flags globaux après fermeture...');
+        
+        // ✅ MARQUER LOADING SCREEN COMME FERMÉ
+        window.loadingScreenClosed = true;
+        console.log('[GLOBAL] loadingScreenClosed = true');
+        
+        // ✅ VÉRIFIER ET METTRE À JOUR playerReady
+        if (window.playerSpawned && !window.playerReady) {
+          window.playerReady = true;
+          console.log('[GLOBAL] playerReady = true (playerSpawned + loading fermé)');
+        } else if (window.playerSpawned && window.playerReady) {
+          console.log('[GLOBAL] playerReady déjà true, aucun changement');
+        } else if (!window.playerSpawned) {
+          console.log('[GLOBAL] playerSpawned pas encore true, playerReady reste false');
+        }
+        
+        // ✅ DEBUG STATUS COMPLET
+        console.log('🏁 [LoadingScreen] État final des flags:', {
+          playerSpawned: window.playerSpawned,
+          loadingScreenClosed: window.loadingScreenClosed,
+          playerReady: window.playerReady
+        });
+
+        resolve();
+      }, this.fastMode ? 100 : 400);
+    });
   }
 
-  return new Promise((resolve) => {
-    this.isVisible = false;
-
-    // Animation de sortie
-    this.overlay.classList.remove('visible');
-
-    setTimeout(() => {
-      if (this.overlay && this.overlay.parentNode) {
-        this.overlay.parentNode.removeChild(this.overlay);
+  // ✅ NOUVELLE MÉTHODE: Bloquer les inputs du joueur
+  blockPlayerInputs() {
+    if (this.inputsBlocked) return;
+    
+    console.log('🔒 [LoadingScreen] Blocage inputs pendant chargement...');
+    
+    try {
+      // ✅ Récupérer la scène active
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      
+      if (activeScene) {
+        // ✅ Bloquer clavier Phaser
+        if (activeScene.input?.keyboard) {
+          this.originalInputStates.keyboardEnabled = activeScene.input.keyboard.enabled;
+          activeScene.input.keyboard.enabled = false;
+          console.log('🔒 [LoadingScreen] Clavier Phaser bloqué');
+        }
+        
+        // ✅ Bloquer le joueur physiquement
+        const myPlayer = activeScene.playerManager?.getMyPlayer?.();
+        if (myPlayer?.body) {
+          this.originalInputStates.playerBodyEnabled = myPlayer.body.enable;
+          myPlayer.body.enable = false;
+          myPlayer.body.setVelocity(0, 0); // Arrêter le mouvement
+          console.log('🔒 [LoadingScreen] Joueur physiquement bloqué');
+        }
+        
+        // ✅ Marquer la scène comme bloquée
+        if (activeScene._introBlocked !== undefined) {
+          this.originalInputStates.sceneIntroBlocked = activeScene._introBlocked;
+          activeScene._introBlocked = true;
+        }
       }
-      this.cleanup();
+      
+      // ✅ Bloquer événements clavier DOM (sécurité)
+      this.keyboardBlockHandler = (e) => {
+        // Bloquer WASD et flèches
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      };
+      
+      document.addEventListener('keydown', this.keyboardBlockHandler, true);
+      document.addEventListener('keyup', this.keyboardBlockHandler, true);
+      
+      this.inputsBlocked = true;
+      console.log('✅ [LoadingScreen] Tous les inputs bloqués');
+      
+    } catch (error) {
+      console.error('❌ [LoadingScreen] Erreur blocage inputs:', error);
+    }
+  }
 
-      // === FLAGS GLOBAUX AMÉLIORÉS ===
-      console.log('🏁 [LoadingScreen] Mise à jour flags globaux après fermeture...');
+  // ✅ NOUVELLE MÉTHODE: Débloquer les inputs du joueur
+  unblockPlayerInputs() {
+    if (!this.inputsBlocked) return;
+    
+    console.log('🔓 [LoadingScreen] Déblocage inputs après chargement...');
+    
+    try {
+      // ✅ Récupérer la scène active
+      const activeScene = window.game?.scene?.getScenes(true)[0];
       
-      // ✅ MARQUER LOADING SCREEN COMME FERMÉ
-      window.loadingScreenClosed = true;
-      console.log('[GLOBAL] loadingScreenClosed = true');
-      
-      // ✅ VÉRIFIER ET METTRE À JOUR playerReady
-      if (window.playerSpawned && !window.playerReady) {
-        window.playerReady = true;
-        console.log('[GLOBAL] playerReady = true (playerSpawned + loading fermé)');
-      } else if (window.playerSpawned && window.playerReady) {
-        console.log('[GLOBAL] playerReady déjà true, aucun changement');
-      } else if (!window.playerSpawned) {
-        console.log('[GLOBAL] playerSpawned pas encore true, playerReady reste false');
+      if (activeScene) {
+        // ✅ Restaurer clavier Phaser
+        if (activeScene.input?.keyboard && this.originalInputStates.keyboardEnabled !== undefined) {
+          activeScene.input.keyboard.enabled = this.originalInputStates.keyboardEnabled;
+          console.log('🔓 [LoadingScreen] Clavier Phaser restauré');
+        }
+        
+        // ✅ Restaurer le joueur physiquement
+        const myPlayer = activeScene.playerManager?.getMyPlayer?.();
+        if (myPlayer?.body && this.originalInputStates.playerBodyEnabled !== undefined) {
+          myPlayer.body.enable = this.originalInputStates.playerBodyEnabled;
+          console.log('🔓 [LoadingScreen] Joueur physiquement débloqué');
+        }
+        
+        // ✅ Restaurer état scène
+        if (activeScene._introBlocked !== undefined && this.originalInputStates.sceneIntroBlocked !== undefined) {
+          activeScene._introBlocked = this.originalInputStates.sceneIntroBlocked;
+        }
       }
       
-      // ✅ DEBUG STATUS COMPLET
-      console.log('🏁 [LoadingScreen] État final des flags:', {
-        playerSpawned: window.playerSpawned,
-        loadingScreenClosed: window.loadingScreenClosed,
-        playerReady: window.playerReady
-      });
+      // ✅ Supprimer les événements DOM
+      if (this.keyboardBlockHandler) {
+        document.removeEventListener('keydown', this.keyboardBlockHandler, true);
+        document.removeEventListener('keyup', this.keyboardBlockHandler, true);
+        this.keyboardBlockHandler = null;
+      }
+      
+      this.inputsBlocked = false;
+      this.originalInputStates = {};
+      console.log('✅ [LoadingScreen] Tous les inputs débloqués');
+      
+    } catch (error) {
+      console.error('❌ [LoadingScreen] Erreur déblocage inputs:', error);
+    }
+  }
 
-      resolve();
-    }, this.fastMode ? 100 : 400);
-  });
-}
-
-
-  // ✅ Nettoyage
+  // ✅ Nettoyage avec déblocage inputs
   cleanup() {
+    // ✅ S'ASSURER QUE LES INPUTS SONT DÉBLOQUÉS
+    if (this.inputsBlocked) {
+      this.unblockPlayerInputs();
+    }
+    
     if (this.dotsTimer) {
       clearInterval(this.dotsTimer);
       this.dotsTimer = null;
@@ -554,46 +669,50 @@ hide() {
   showShopLoading() {
     return this.show('shop');
   }
+  
   showCustomLoading(steps, options = {}) {
     return this.show(steps, options);
   }
 
   // ✅ Méthodes avancées pour contrôle manuel
-showManual(title, icon = '⏳') {
-  if (!this.enabled) return Promise.resolve();
+  showManual(title, icon = '⏳') {
+    if (!this.enabled) return Promise.resolve();
 
-  // ✅ FIX: Créer un thème minimal avec AU MOINS une étape
-  const theme = {
-    title,
-    steps: [title], // ← AJOUTER AU MOINS UNE ÉTAPE
-    icon,
-    color: 'rgba(74, 144, 226, 0.8)',
-    stepDelay: 0
-  };
+    // ✅ BLOQUER INPUTS MÊME EN MODE MANUEL
+    this.blockPlayerInputs();
 
-  // ✅ FIX: Configurer stepTexts et stepCount correctement
-  this.stepTexts = theme.steps;
-  this.stepCount = theme.steps.length; // ← MAINTENANT = 1 au lieu de 0
-  this.currentStep = 0;
+    // ✅ FIX: Créer un thème minimal avec AU MOINS une étape
+    const theme = {
+      title,
+      steps: [title], // ← AJOUTER AU MOINS UNE ÉTAPE
+      icon,
+      color: 'rgba(74, 144, 226, 0.8)',
+      stepDelay: 0
+    };
 
-  this.createOverlay(theme);
-  document.body.appendChild(this.overlay);
-  
-  setTimeout(() => {
-    this.overlay.classList.add('visible');
-    this.isVisible = true;
-  }, 50);
+    // ✅ FIX: Configurer stepTexts et stepCount correctement
+    this.stepTexts = theme.steps;
+    this.stepCount = theme.steps.length; // ← MAINTENANT = 1 au lieu de 0
+    this.currentStep = 0;
 
-  return Promise.resolve();
-}
+    this.createOverlay(theme);
+    document.body.appendChild(this.overlay);
+    
+    setTimeout(() => {
+      this.overlay.classList.add('visible');
+      this.isVisible = true;
+    }, 50);
 
-// ✅ BONUS: Ajouter une méthode pour finir manuellement
-finishManualLoading() {
-  if (this.isVisible && this.overlay) {
-    return this.hide();
+    return Promise.resolve();
   }
-  return Promise.resolve();
-}
+
+  // ✅ BONUS: Ajouter une méthode pour finir manuellement
+  finishManualLoading() {
+    if (this.isVisible && this.overlay) {
+      return this.hide();
+    }
+    return Promise.resolve();
+  }
 
   updateManual(text, progress = null) {
     if (!this.isVisible || !this.textElement) return;
@@ -602,6 +721,51 @@ finishManualLoading() {
     
     if (progress !== null && this.progressElement) {
       this.progressElement.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+    }
+  }
+
+  // ✅ NOUVELLES MÉTHODES DE DEBUG
+
+  // ✅ Debug état des inputs
+  debugInputState() {
+    console.log('🔍 [LoadingScreen] === DEBUG INPUT STATE ===');
+    
+    const activeScene = window.game?.scene?.getScenes(true)[0];
+    const myPlayer = activeScene?.playerManager?.getMyPlayer?.();
+    
+    console.log('📊 LoadingScreen input state:', {
+      inputsBlocked: this.inputsBlocked,
+      isVisible: this.isVisible,
+      originalStates: this.originalInputStates,
+      hasKeyboardHandler: !!this.keyboardBlockHandler
+    });
+    
+    console.log('📊 Scène active state:', {
+      sceneKey: activeScene?.scene?.key,
+      keyboardEnabled: activeScene?.input?.keyboard?.enabled,
+      introBlocked: activeScene?._introBlocked,
+      playerBodyEnabled: myPlayer?.body?.enable,
+      playerVelocity: myPlayer?.body ? { x: myPlayer.body.velocity.x, y: myPlayer.body.velocity.y } : null
+    });
+    
+    console.log('=======================================');
+  }
+
+  // ✅ Test blocage/déblocage
+  testInputBlock() {
+    console.log('🧪 [LoadingScreen] Test blocage inputs...');
+    
+    if (!this.inputsBlocked) {
+      this.blockPlayerInputs();
+      setTimeout(() => {
+        console.log('🧪 Déblocage dans 3 secondes...');
+        setTimeout(() => {
+          this.unblockPlayerInputs();
+          console.log('✅ Test terminé');
+        }, 3000);
+      }, 1000);
+    } else {
+      this.unblockPlayerInputs();
     }
   }
 
@@ -641,12 +805,18 @@ finishManualLoading() {
       isVisible: this.isVisible,
       currentStep: this.currentStep,
       stepCount: this.stepCount,
+      inputsBlocked: this.inputsBlocked,
       availableThemes: Object.keys(this.themes)
     });
   }
 
-  // ✅ Nettoyage complet
+  // ✅ Nettoyage complet avec déblocage inputs
   destroy() {
+    // ✅ DÉBLOQUER AVANT DESTRUCTION
+    if (this.inputsBlocked) {
+      this.unblockPlayerInputs();
+    }
+    
     this.hide();
     
     // Supprimer les styles si c'est la dernière instance
