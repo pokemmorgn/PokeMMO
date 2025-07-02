@@ -519,6 +519,9 @@ document.head.appendChild(starterStyleSheet);
     // ✅ 4. RÉCUPÉRER LA ROOM DEPUIS LE NETWORKMANAGER
     window.currentGameRoom = window.globalNetworkManager.room;
     console.log("✅ Connecté à la WorldRoom via NetworkManager:", window.currentGameRoom.sessionId);
+
+    // 🆕 Force l'initialisation du système d'équipe dès que la room est prête
+    window.forceInitTeamSystem(window.currentGameRoom);
     
     // ✅ 5. CONNEXION DU TIMESERVICE
     console.log("🕐 Connexion du TimeService au serveur...");
