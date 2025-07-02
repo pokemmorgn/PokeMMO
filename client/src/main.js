@@ -1662,43 +1662,44 @@ window.toggleTeam = function() {
     });
     
     // ✅ NOUVEAU: Fonction d'initialisation UI avec LoadingScreen
-    window.initializeUIWithLoading = async function() {
-      console.log("🚀 [MAIN] === INITIALISATION UI AVEC CHARGEMENT ===");
-      
-      try {
-        // Afficher l'écran de chargement
-        await window.globalLoadingScreen.showUIInitLoading();
-        
-        // Initialiser le système UI pendant le chargement
-        const uiResult = await initializePokemonUI();
-        
-        if (uiResult.success) {
-          console.log("✅ Système UI Pokémon initialisé avec succès !");
-          window.showGameNotification?.("Interface utilisateur prête !", "success", { 
-            duration: 2000, 
-            position: 'bottom-center' 
-          });
-        } else {
-          console.error("❌ Erreur initialisation UI Pokémon:", uiResult.error);
-          window.showGameNotification?.("Erreur interface utilisateur", "error", { 
-            duration: 3000, 
-            position: 'top-center' 
-          });
-        }
-        
-        return uiResult;
-        
-      } catch (error) {
-        console.error("❌ Erreur critique initialisation UI:", error);
-        window.showGameNotification?.("Erreur critique interface", "error", { 
-          duration: 5000, 
-          position: 'top-center' 
-        });
-        return { success: false, error: error.message };
-      }
-    };
+window.initializePokemonUI = async function() {
+  console.log("🚀 [MAIN] === INITIALISATION POKÉMON UI CORRIGÉE ===");
+  
+  try {
+    // Afficher l'écran de chargement
+    await window.globalLoadingScreen.showUIInitLoading();
     
-    console.log("✅ [MAIN] Système de chargement UI configuré - prêt pour activation par les scènes");
+    // Initialiser le système UI pendant le chargement
+    const uiResult = await initializePokemonUI();
+    
+    if (uiResult.success) {
+      console.log("✅ Système UI Pokémon initialisé avec succès !");
+      window.showGameNotification?.("Interface utilisateur prête !", "success", { 
+        duration: 2000, 
+        position: 'bottom-center' 
+      });
+    } else {
+      console.error("❌ Erreur initialisation UI Pokémon:", uiResult.error);
+      window.showGameNotification?.("Erreur interface utilisateur", "error", { 
+        duration: 3000, 
+        position: 'top-center' 
+      });
+    }
+    
+    return uiResult;
+    
+  } catch (error) {
+    console.error("❌ Erreur critique initialisation UI:", error);
+    window.showGameNotification?.("Erreur critique interface", "error", { 
+      duration: 5000, 
+      position: 'top-center' 
+    });
+    return { success: false, error: error.message };
+  }
+};
+
+// ✅ NOUVEAU: Alias pour compatibilité (maintenir l'ancienne fonction temporairement)
+window.initializeUIWithLoading = window.initializePokemonUI;
 
 // === Notification d'aide et ready ===
     showNotificationInstructions();
