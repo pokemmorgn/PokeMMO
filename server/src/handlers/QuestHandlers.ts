@@ -14,15 +14,26 @@ export class QuestHandlers {
   setupHandlers() {
     console.log(`📨 Setup Quest handlers (COMPLET)...`);
 
-        if (step === 'intro_started') {
-      console.log(`🎬 [QuestHandlers] Intro démarrée pour ${player.name} - pas de progression encore`);
-      return;
-    }
-    
     // ✅ === HANDLERS PROGRESSION QUÊTES ===
     this.room.onMessage("progressIntroQuest", async (client: Client, data: { step: string }) => {
       console.log(`📨 PROGRESS INTRO RECEIVED...`);
       await this.handleProgressIntroQuest(client, data.step);
+    });
+
+    // ✅ === NOUVEAUX HANDLERS POUR LES MESSAGES INTRO ===
+    this.room.onMessage("intro_started", async (client: Client) => {
+      console.log(`🎬 [QuestHandlers] Intro démarrée pour ${client.sessionId}`);
+      await this.handleProgressIntroQuest(client, "intro_started");
+    });
+
+    this.room.onMessage("dialogue_completed", async (client: Client) => {
+      console.log(`💬 [QuestHandlers] Dialogue terminé pour ${client.sessionId}`);
+      await this.handleProgressIntroQuest(client, "dialogue_completed");
+    });
+
+    this.room.onMessage("intro_completed", async (client: Client) => {
+      console.log(`🎉 [QuestHandlers] Intro complétée pour ${client.sessionId}`);
+      await this.handleProgressIntroQuest(client, "intro_completed");
     });
 
     // ✅ === HANDLERS GESTION AUTOMATIQUE ===
@@ -67,97 +78,88 @@ export class QuestHandlers {
 
     // ✅ HANDLER CLIENT READY (le nouveau)
     this.room.onMessage("clientIntroReady", (client: Client) => {
-        console.log(`📨 RECEIVED READY FROM PLAYER...`);
-      // Tu peux bloquer le joueur ici si besoin (facultatif)
-      // this.room.blockPlayerMovement(client.sessionId, "intro", 3000, {});
+      console.log(`📨 RECEIVED READY FROM PLAYER...`);
       this.handleCheckAutoIntroQuest(client);
     });
 
-    // ✅ AJOUTER APRÈS this.room.onMessage("progressIntroQuest"...
-    this.room.onMessage("intro_started", async (client: Client) => {
-      console.log(`🎬 [QuestHandlers] Intro démarrée pour ${client.sessionId}`);
-      await this.handleProgressIntroQuest(client, "intro_started");
-    });
-    
-    this.room.onMessage("dialogue_completed", async (client: Client) => {
-      console.log(`💬 [QuestHandlers] Dialogue terminé pour ${client.sessionId}`);
-      await this.handleProgressIntroQuest(client, "dialogue_completed");
-    });
-    
-    this.room.onMessage("intro_completed", async (client: Client) => {
-      console.log(`🎉 [QuestHandlers] Intro complétée pour ${client.sessionId}`);
-      await this.handleProgressIntroQuest(client, "intro_completed");
-    });
     console.log(`✅ Quest handlers configurés (${this.getHandlerCount()} handlers)`);
   }
 
   private getHandlerCount(): number {
-    return 10; // Nombre de handlers configurés
+    return 13; // Nombre de handlers configurés (mis à jour)
   }
 
   // ✅ === NOUVEAU HANDLER: VÉRIFICATION AUTO INTRO ===
-private async handleCheckAutoIntroQuest(client: Client) {
-  try {
-    console.log(`🎬 [QuestHandlers] Vérification intro quest pour ${client.sessionId}`);
+  private async handleCheckAutoIntroQuest(client: Client) {
+    try {
+      console.log(`🎬 [QuestHandlers] Vérification intro quest pour ${client.sessionId}`);
 
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) {
-      console.warn(`⚠️ [QuestHandlers] Joueur non trouvé: ${client.sessionId}`);
-      return;
-    }
-
-    const questManager = ServiceRegistry.getInstance().getQuestManager();
-    if (!questManager) {
-      console.error(`❌ [QuestHandlers] QuestManager non disponible`);
-      return;
-    }
-
-    const introQuestId = "beach_intro_quest";
-    const questStatus = await questManager.checkQuestStatus(player.name, introQuestId);
-
-    console.log(`🔍 [QuestHandlers] Statut quête intro pour ${player.name}: ${questStatus}`);
-
-    if (questStatus === 'available') {
-      // Donne la quête (questGranted envoyé automatiquement via ServiceRegistry)
-      const result = await questManager.giveQuest(player.name, introQuestId);
-
-      if (result.success) {
-        // Envoie SEULEMENT triggerIntroSequence (la notif de prise de quête est déjà envoyée)
-        ServiceRegistry.getInstance().notifyPlayer(player.name, "triggerIntroSequence", {
-          questId: introQuestId,
-          questName: result.quest?.name || "Bienvenue à GreenRoot",
-          message: "Bienvenue dans votre aventure !",
-          shouldStartIntro: true
-        });
-        console.log(`📤 [QuestHandlers] triggerIntroSequence envoyé`);
+      const player = this.room.state.players.get(client.sessionId);
+      if (!player) {
+        console.warn(`⚠️ [QuestHandlers] Joueur non trouvé: ${client.sessionId}`);
+        return;
       }
-    } else if (questStatus === 'active') {
-      // Si la quête est déjà active mais le joueur n'a pas vu l'intro, envoie juste triggerIntroSequence
-      const activeQuests = await questManager.getPlayerActiveQuests(player.name);
-      const introQuest = activeQuests.find(q => q.id === introQuestId);
 
-      if (introQuest) {
-        const firstStep = introQuest.steps[0];
-        const hasSeenIntro = firstStep?.objectives.some((obj: any) => obj.completed);
+      const questManager = ServiceRegistry.getInstance().getQuestManager();
+      if (!questManager) {
+        console.error(`❌ [QuestHandlers] QuestManager non disponible`);
+        return;
+      }
 
-        if (!hasSeenIntro) {
-          ServiceRegistry.getInstance().notifyPlayer(player.name, "triggerIntroSequence", {
-            questId: introQuestId,
-            questName: introQuest.name,
-            message: "Continuons votre aventure !",
-            shouldStartIntro: true
-          });
-          console.log(`📤 [QuestHandlers] triggerIntroSequence envoyé (quête déjà donnée)`);
+      const introQuestId = "beach_intro_quest";
+      const questStatus = await questManager.checkQuestStatus(player.name, introQuestId);
+
+      console.log(`🔍 [QuestHandlers] Statut quête intro pour ${player.name}: ${questStatus}`);
+
+      if (questStatus === 'available') {
+        // ✅ DONNER LA QUÊTE MAIS PAS ENCORE LA VALIDER
+        const result = await questManager.giveQuest(player.name, introQuestId);
+
+        if (result.success) {
+          console.log(`📋 [QuestHandlers] Quête intro donnée à ${player.name}`);
+          
+          // ✅ ENVOYER TRIGGER INTRO APRÈS UN DÉLAI
+          setTimeout(() => {
+            ServiceRegistry.getInstance().notifyPlayer(player.name, "triggerIntroSequence", {
+              questId: introQuestId,
+              questName: result.quest?.name || "Bienvenue à GreenRoot",
+              message: "Bienvenue dans votre aventure !",
+              shouldStartIntro: true
+            });
+            console.log(`📤 [QuestHandlers] triggerIntroSequence envoyé avec délai`);
+          }, 1000);
         }
+      } else if (questStatus === 'active') {
+        // ✅ VÉRIFIER SI L'INTRO A ÉTÉ VUE
+        const activeQuests = await questManager.getPlayerActiveQuests(player.name);
+        const introQuest = activeQuests.find(q => q.id === introQuestId);
+
+        if (introQuest && introQuest.steps.length > 0) {
+          const firstStep = introQuest.steps[0];
+          const hasSeenIntro = firstStep.objectives.some((obj: any) => obj.completed);
+
+          if (!hasSeenIntro) {
+            console.log(`🔄 [QuestHandlers] Quête active mais intro pas vue pour ${player.name}`);
+            
+            ServiceRegistry.getInstance().notifyPlayer(player.name, "triggerIntroSequence", {
+              questId: introQuestId,
+              questName: introQuest.name,
+              message: "Continuons votre aventure !",
+              shouldStartIntro: true
+            });
+            console.log(`📤 [QuestHandlers] triggerIntroSequence envoyé (quête existante)`);
+          } else {
+            console.log(`✅ [QuestHandlers] Intro déjà vue pour ${player.name}`);
+          }
+        }
+      } else if (questStatus === 'completed') {
+        console.log(`🎉 [QuestHandlers] Quête intro déjà terminée pour ${player.name}`);
       }
+
+    } catch (error) {
+      console.error(`❌ [QuestHandlers] Erreur handleCheckAutoIntroQuest:`, error);
     }
-
-  } catch (error) {
-    console.error(`❌ [QuestHandlers] Erreur handleCheckAutoIntroQuest:`, error);
   }
-}
-
-
 
   // ✅ === HANDLER PROGRESSION INTRO (maintenant public) ===
   public async handleProgressIntroQuest(client: Client, step: string) {
@@ -176,10 +178,16 @@ private async handleCheckAutoIntroQuest(client: Client) {
         return;
       }
 
+      // ✅ GESTION SPÉCIALE POUR intro_started (pas de progression)
+      if (step === 'intro_started') {
+        console.log(`🎬 [QuestHandlers] Intro démarrée pour ${player.name} - pas de progression encore`);
+        return;
+      }
+
       // Conversion step → event de progression
       const progressEvent = this.convertStepToProgressEvent(step);
       if (!progressEvent) {
-        console.warn(`⚠️ [QuestHandlers] Étape intro inconnue: ${step}`);
+        console.warn(`⚠️ [QuestHandlers] Étape intro non-progressive: ${step}`);
         return;
       }
 
@@ -204,6 +212,9 @@ private async handleCheckAutoIntroQuest(client: Client) {
             });
           }
         }
+
+        // ✅ METTRE À JOUR LES STATUTS DE QUÊTE
+        await this.updateQuestStatuses(player.name);
       }
       
     } catch (error) {
@@ -646,7 +657,7 @@ private async handleCheckAutoIntroQuest(client: Client) {
     switch (step) {
       case 'intro_started':
         return null; // Pas de progression, juste tracking
-      
+
       case 'dialogue_completed':
         return {
           type: 'talk',
@@ -654,13 +665,14 @@ private async handleCheckAutoIntroQuest(client: Client) {
           targetId: '999',
           amount: 1
         };
-      
+
       case 'intro_completed':
         return {
           type: 'reach',
           targetId: 'intro_sequence_finished',
           amount: 1
         };
+
       case 'intro_watched':
         return {
           type: 'reach',
@@ -673,13 +685,6 @@ private async handleCheckAutoIntroQuest(client: Client) {
           type: 'talk',
           npcId: 999,
           targetId: '999',
-          amount: 1
-        };
-
-      case 'intro_completed':
-        return {
-          type: 'reach',
-          targetId: 'intro_sequence_finished',
           amount: 1
         };
 
