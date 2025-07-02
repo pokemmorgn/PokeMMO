@@ -1,4 +1,5 @@
 // ✅ Système de sélection de starter CORRIGÉ pour PokéMon MMO
+// 🔧 FIX: Conflit avec TeamUI résolu - utilise window.starterSelector au lieu de window.teamUI
 
 export class StarterSelector {
   constructor(scene) {
@@ -100,7 +101,7 @@ export class StarterSelector {
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
-        z-index: 10000 !important;
+        z-index: 1100 !important;
         backdrop-filter: blur(5px) !important;
         opacity: 1 !important;
         transition: opacity 0.3s ease !important;
