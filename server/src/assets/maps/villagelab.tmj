@@ -215,6 +215,23 @@
                  "width":0,
                  "x":246.166666666666,
                  "y":343.333333333333
+                }, 
+                {
+                 "height":38.5,
+                 "id":14,
+                 "name":"startertable",
+                 "properties":[
+                        {
+                         "name":"startertable",
+                         "type":"bool",
+                         "value":true
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":51.25,
+                 "x":223,
+                 "y":218
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -440,7 +457,7 @@
          "y":0
         }],
  "nextlayerid":12,
- "nextobjectid":13,
+ "nextobjectid":15,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
