@@ -638,48 +638,39 @@ setTimeout(async () => {
       throw new Error("Pré-requis manquants pour le système de combat");
     }
     
-    // ✅ CORRECTION: Utiliser directement la room du NetworkManager
-    const battleInitSuccess = await window.battleSystem.initialize(
-      window.globalNetworkManager.room, // Utiliser directement la room du NetworkManager
-      window.game
-    );
-    
-    if (battleInitSuccess) {
-      console.log("✅ Système de combat initialisé avec succès");
-      window.showGameNotification?.("Système de combat prêt !", "success", { 
-        duration: 2000, 
-        position: 'top-center' 
-      });
+    // ✅ FIX: Vérifier si BattleScene existe déjà avant de l'ajouter
+    const existingBattleScene = window.game.scene.getScene('BattleScene');
+    if (existingBattleScene) {
+      console.log("ℹ️ [MAIN] BattleScene existe déjà, pas besoin de la créer");
+      
+      // Initialiser le BattleSystem sans créer la scène
+      window.battleSystem = new BattleIntegration(window);
+      const battleInitSuccess = await window.battleSystem.initializeWithExistingScene(
+        window.globalNetworkManager.room,
+        window.game,
+        existingBattleScene
+      );
+      
+      if (battleInitSuccess) {
+        console.log("✅ Système de combat initialisé avec scène existante");
+      }
     } else {
-      throw new Error("Échec initialisation système de combat");
+      // Utiliser la méthode normale si la scène n'existe pas
+      const battleInitSuccess = await window.battleSystem.initialize(
+        window.globalNetworkManager.room,
+        window.game
+      );
+      
+      if (battleInitSuccess) {
+        console.log("✅ Système de combat initialisé avec nouvelle scène");
+      }
     }
     
   } catch (error) {
     console.error("❌ Erreur initialisation système de combat:", error);
-    window.showGameNotification?.("Erreur système de combat", "error", { 
-      duration: 3000, 
-      position: 'top-center' 
-    });
-    
-    // ✅ AJOUT: Fonction de debug pour diagnostiquer
-    window.debugBattleInitialization = function() {
-      console.log("🔍 === DEBUG INITIALISATION COMBAT ===");
-      console.log("Game:", !!window.game);
-      console.log("NetworkManager:", !!window.globalNetworkManager);
-      console.log("Room:", !!window.currentGameRoom);
-      console.log("BattleSystem:", !!window.battleSystem);
-      console.log("Connected:", window.globalNetworkManager?.isConnected);
-      console.log("Room ID:", window.currentGameRoom?.id);
-      console.log("Session ID:", window.globalNetworkManager?.sessionId);
-      
-      if (window.battleSystem) {
-        console.log("BattleSystem debug:", window.battleSystem.debug?.());
-      }
-    };
-    
-    console.log("🔧 Utilisez window.debugBattleInitialization() pour diagnostiquer");
+    // Continuer sans système de combat pour ne pas bloquer le jeu
   }
-}, 3000); 
+}, 5000); // Plus de délai pour que tout soit prêt
 
     // ✅ 10. VÉRIFIER QUE TOUTES LES SCÈNES SONT BIEN ENREGISTRÉES
     /*
