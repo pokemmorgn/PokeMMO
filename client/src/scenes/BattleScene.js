@@ -762,10 +762,49 @@ window.testFrameSize = function(width, height, type = 'both') {
   }
 };
 
-// 🆕 FONCTION SPÉCIALISÉE POUR TESTER 40x45 BACK SPRITES
-window.testBackSprites40x45 = function() {
-  console.log('🧪 Test spécialisé: Back sprites 40x45...');
-  window.testFrameSize(40, 45, 'back');
+// 🆕 FONCTION POUR CALCULER AUTOMATIQUEMENT LES TAILLES 9x9
+window.calculateFrameSize9x9 = function(imageWidth, imageHeight) {
+  const frameWidth = Math.floor(imageWidth / 9);
+  const frameHeight = Math.floor(imageHeight / 9);
+  
+  console.log(`📐 Calcul grille 9x9:`);
+  console.log(`   Image: ${imageWidth}x${imageHeight}`);
+  console.log(`   Frame: ${frameWidth}x${frameHeight}`);
+  console.log(`   Total frames: 81`);
+  
+  return { frameWidth, frameHeight };
+};
+
+// 🆕 FONCTION POUR TESTER AVEC CALCUL AUTOMATIQUE
+window.testSpritesheetCalculation = function() {
+  console.log('🧮 Test calcul automatique spritesheet 9x9...');
+  
+  // Exemples de tailles communes
+  const commonSizes = [
+    { w: 360, h: 360, name: "360x360 (40x40 par frame)" },
+    { w: 405, h: 405, name: "405x405 (45x45 par frame)" },
+    { w: 576, h: 576, name: "576x576 (64x64 par frame)" },
+    { w: 720, h: 720, name: "720x720 (80x80 par frame)" },
+    { w: 288, h: 288, name: "288x288 (32x32 par frame)" }
+  ];
+  
+  console.log('🔍 Calculs pour différentes tailles d\'images:');
+  commonSizes.forEach(size => {
+    const result = window.calculateFrameSize9x9(size.w, size.h);
+    console.log(`📊 ${size.name} → Frame: ${result.frameWidth}x${result.frameHeight}`);
+  });
+  
+  console.log('💡 Utilisez: window.testFrameSize9x9(imageWidth, imageHeight)');
+};
+
+// 🆕 FONCTION POUR TESTER UNE TAILLE SPÉCIFIQUE CALCULÉE
+window.testFrameSize9x9 = function(imageWidth, imageHeight) {
+  console.log(`🧮 Test avec image ${imageWidth}x${imageHeight} en grille 9x9...`);
+  
+  const { frameWidth, frameHeight } = window.calculateFrameSize9x9(imageWidth, imageHeight);
+  
+  // Tester avec les back sprites
+  window.testFrameSize(frameWidth, frameHeight, 'back');
 };
 
 // 🆕 FONCTION POUR TESTER TAILLES COMMUNES
@@ -805,67 +844,19 @@ window.clearBattleScreen = function() {
   }
 };
 
-// 🆕 FONCTION DE TEST GLOBALE AVEC UI FORCÉE
+// 🆕 FONCTION DE TEST GLOBALE AVEC UI FORCÉE (VERSION AMÉLIORÉE)
 window.testBattleSprites = function() {
   console.log('🧪 Test affichage sprites Pokémon avec UI cachée...');
   
   // ✅ ÉTAPE 0: Nettoyer d'abord l'écran
   window.clearBattleScreen();
   
-  // ✅ ÉTAPE 1: FORCER le passage en mode battle pour cacher TOUTE l'UI
-  console.log('🎮 FORÇAGE du mode battle pour masquer l\'UI...');
+  // ✅ ÉTAPE 1: UTILISER LA FONCTION QUI FONCTIONNE
+  console.log('🎮 Masquage complet de l\'UI...');
+  const hiddenCount = window.hideAllUI();
+  console.log(`✅ ${hiddenCount} éléments UI masqués`);
   
-  if (window.pokemonUISystem) {
-    console.log('📊 État UI avant:', window.pokemonUISystem.globalState.currentGameState);
-    
-    // Forcer le mode battle avec toutes les options
-    const battleSuccess = window.pokemonUISystem.setGameState('battle', { 
-      animated: true,
-      force: true 
-    });
-    
-    if (battleSuccess) {
-      console.log('✅ Mode battle activé avec succès');
-    } else {
-      console.warn('⚠️ Échec mode battle, forçage manuel...');
-      
-      // Fallback : cacher manuellement tous les modules
-      ['inventory', 'team', 'quest', 'questTracker', 'chat'].forEach(moduleId => {
-        console.log(`🔸 Masquage manuel: ${moduleId}`);
-        window.pokemonUISystem.hideModule(moduleId, { animated: true });
-      });
-    }
-    
-    // ✅ NOUVEAU: Cacher explicitement le QuestTracker DOM
-    const questTracker = document.querySelector('#quest-tracker');
-    if (questTracker) {
-      console.log('🔸 Masquage QuestTracker DOM');
-      questTracker.style.display = 'none';
-    }
-    
-    // ✅ EXTENSION: Cacher TOUS les éléments UI potentiels
-    const elementsToHide = [
-      '#inventory-icon', '#team-icon', '#quest-icon', 
-      '#questTracker', '#quest-tracker',  // ✅ AJOUTÉ
-      '#chat', '.ui-icon', '.game-icon',
-      '.quest-tracker',  // ✅ CLASSE CSS
-      '.inventory-ui', '.team-ui', '.quest-ui'
-    ];
-    
-    elementsToHide.forEach(selector => {
-      const elements = document.querySelectorAll(selector);
-      elements.forEach(el => {
-        console.log(`🔸 Masquage DOM: ${selector}`);
-        el.style.display = 'none';
-      });
-    });
-    
-    console.log('📊 État UI après:', window.pokemonUISystem.globalState.currentGameState);
-  } else {
-    console.error('❌ PokemonUISystem non trouvé');
-  }
-  
-  // ✅ ÉTAPE 2: Attendre un peu puis activer la BattleScene
+  // ✅ ÉTAPE 2: Activer la BattleScene immédiatement
   setTimeout(() => {
     const battleScene = window.game?.scene?.getScene('BattleScene');
     if (battleScene) {
@@ -885,11 +876,11 @@ window.testBattleSprites = function() {
         battleScene.testDisplayPokemon();
       }
       
-      console.log('✅ Test lancé - L\'UI devrait être COMPLÈTEMENT cachée (y compris QuestTracker)');
+      console.log('✅ Test lancé - L\'UI est COMPLÈTEMENT cachée (QuestTracker inclus)');
     } else {
       console.error('❌ BattleScene non trouvée');
     }
-  }, 800); // Délai pour laisser les animations UI se terminer
+  }, 300); // Délai réduit car hideAllUI() est instantané
 };
 
 // 🆕 FONCTION DE TEST DES RENCONTRES AVEC UI FORCÉE
