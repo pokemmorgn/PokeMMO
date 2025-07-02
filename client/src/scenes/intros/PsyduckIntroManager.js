@@ -46,7 +46,6 @@ export class PsyduckIntroManager {
                 this.notifyServer("intro_completed");
               }
             });
-            this.notifyServer("intro_watched");
           });
         } else if (data.shouldStartIntro && this.isPlaying) {
           this.upgradeToServerMode();
@@ -466,7 +465,7 @@ waitForValidPlayerObject(maxWaitTime = 1000) {
       console.log('[PsyduckIntro] 💬 Phase 3: Interaction et dialogue');
       this.psyduck.anims.stop();
       this.psyduck.setFrame(0);
-      
+      this.notifyServer("intro_watched");
       this.notifyServer("psyduck_talked");
       
       this.showDialogue([
