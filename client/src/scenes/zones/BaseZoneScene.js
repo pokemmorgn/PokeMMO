@@ -986,27 +986,40 @@ initializeZoneEnvironment() {
     console.log(`[${this.scene.key}] ✅ onPlayerReady appelé pour ${player.sessionId}`);
   }
   
-  initPlayerSpawnFromSceneData() {
-    const data = this.scene.settings.data || {};
-    const sessionId = this.mySessionId;
-    let spawnX = 360, spawnY = 120;
-
-    // Si transition de zone, coordonnées transmises
-    if (typeof data.spawnX === 'number') spawnX = data.spawnX;
-    if (typeof data.spawnY === 'number') spawnY = data.spawnY;
-
-    // ✅ Création réelle du joueur avec Character System
-    if (this.playerManager && !this.playerManager.getMyPlayer()) {
-      // Récupérer l'ID du personnage depuis les données de scène ou utiliser brendan
-      const characterId = data.characterId || 'brendan';
-      console.log(`[${this.scene.key}] Création joueur avec personnage: ${characterId}`);
-      
-      this.playerManager.createPlayer(sessionId, spawnX, spawnY, characterId);
-      console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY}) avec personnage ${characterId}`);
-    } else {
-      console.log(`[${this.scene.key}] Joueur déjà présent ou playerManager manquant.`);
-    }
+initPlayerSpawnFromSceneData() {
+  const data = this.scene.settings.data || {};
+  const sessionId = this.mySessionId;
+  
+  // ✅ FIX: Vérifier que sessionId existe
+  if (!sessionId) {
+    console.warn(`⚠️ [${this.scene.key}] sessionId manquant, retry dans 1s...`);
+    setTimeout(() => {
+      if (this.networkManager?.getSessionId()) {
+        this.mySessionId = this.networkManager.getSessionId();
+        this.initPlayerSpawnFromSceneData();
+      }
+    }, 1000);
+    return;
   }
+  
+  let spawnX = 360, spawnY = 120;
+
+  // Si transition de zone, coordonnées transmises
+  if (typeof data.spawnX === 'number') spawnX = data.spawnX;
+  if (typeof data.spawnY === 'number') spawnY = data.spawnY;
+
+  // ✅ Création réelle du joueur avec Character System
+  if (this.playerManager && !this.playerManager.getMyPlayer()) {
+    // Récupérer l'ID du personnage depuis les données de scène ou utiliser brendan
+    const characterId = data.characterId || 'brendan';
+    console.log(`[${this.scene.key}] Création joueur avec personnage: ${characterId}`);
+    
+    this.playerManager.createPlayer(sessionId, spawnX, spawnY, characterId);
+    console.log(`[${this.scene.key}] Joueur spawn à (${spawnX}, ${spawnY}) avec personnage ${characterId}`);
+  } else {
+    console.log(`[${this.scene.key}] Joueur déjà présent ou playerManager manquant.`);
+  }
+}
 
   // ✅ MÉTHODE INCHANGÉE: Demander la zone au serveur
   requestServerZone() {
