@@ -108,33 +108,64 @@ create() {
 
   
 // ✅ NOUVELLE MÉTHODE: Chargement optimisé avec LoadingScreen
- startOptimizedLoading() {
-    console.log(`🚀 [${this.scene.key}] === CHARGEMENT MINIMAL SANS ÉCRANS ===`);
+startOptimizedLoading() {
+    console.log(`🚀 [${this.scene.key}] === UTILISER L'ÉCRAN EXISTANT ===`);
     
-    // ✅ CHARGEMENT DIRECT - AUCUN ÉCRAN
-    this.createPlayerAnimations();
-    this.setupManagers();
-    this.initPlayerSpawnFromSceneData();
-    this.justArrivedAtZone = true;
-    this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
-    
-    this.loadMap();
-    this.setupInputs();
-    this.createUI();
-    this.myPlayerReady = false;
-    this.isSceneReady = true;
-    
-    this.initializeWithExistingConnection();
-    this.setupPlayerReadyHandler();
-    this.setupCleanupHandlers();
+    // ✅ PAS de nouvel écran - utiliser l'existant
+    this.continueExistingLoadingScreen();
+}
 
-    this.events.once('shutdown', this.cleanup, this);
-    this.events.once('destroy', this.cleanup, this);
+async continueExistingLoadingScreen() {
+    console.log(`🌍 [${this.scene.key}] === CONTINUER L'ÉCRAN EXISTANT ===`);
     
-    // ✅ UI EN ARRIÈRE-PLAN SANS ÉCRAN
-    this.time.delayedCall(1000, () => {
-        this.initializeUIQuietly();
-    });
+    if (!window.extendedLoadingScreen) {
+        console.warn(`⚠️ [${this.scene.key}] Pas d'écran étendu, chargement direct`);
+        this.performDirectLoading();
+        return;
+    }
+    
+    try {
+        // ✅ Étape 3: Chargement zone
+        window.extendedLoadingScreen.updateManual('Chargement de la première zone...', 40);
+        await this.loadZoneComponents();
+        
+        // ✅ Étape 4: Interface
+        window.extendedLoadingScreen.updateManual('Initialisation de l\'interface...', 55);
+        await this.initializeUIComponents();
+        
+        // ✅ Étape 5: Inventaire  
+        window.extendedLoadingScreen.updateManual('Chargement inventaire...', 70);
+        await this.promisifyMethod(() => this.initializeInventorySystem());
+        
+        // ✅ Étape 6: Équipe
+        window.extendedLoadingScreen.updateManual('Chargement équipe Pokémon...', 80);
+        await this.promisifyMethod(() => this.initializeTeamSystemSafely());
+        
+        // ✅ Étape 7: Quêtes
+        window.extendedLoadingScreen.updateManual('Chargement système de quêtes...', 90);
+        await this.promisifyMethod(() => this.initializeQuestSystem());
+        
+        // ✅ Étape 8: Finalisation
+        window.extendedLoadingScreen.updateManual('Finalisation...', 95);
+        await this.delay(500);
+        
+        // ✅ Étape 9: Prêt !
+        window.extendedLoadingScreen.updateManual('Bienvenue dans PokeWorld !', 100);
+        await this.delay(1000);
+        
+        // ✅ FERMER L'ÉCRAN - TOUT EST PRÊT !
+        await window.extendedLoadingScreen.hide();
+        
+        console.log(`✅ [${this.scene.key}] Chargement étendu terminé !`);
+        
+    } catch (error) {
+        console.error(`❌ [${this.scene.key}] Erreur chargement étendu:`, error);
+        // En cas d'erreur, fermer quand même l'écran
+        if (window.extendedLoadingScreen) {
+            window.extendedLoadingScreen.hide();
+        }
+        this.performDirectLoading();
+    }
 }
 
 // ✅ NOUVELLE MÉTHODE - UI EN SILENCE TOTALE
@@ -2908,4 +2939,88 @@ debugMusicSystem() {
     
     console.log(`🔧 [${this.scene.key}] Fonctions debug exposées: window.debug_${this.scene.key}`);
   }
+  // ✅ MÉTHODES DE CHARGEMENT ASYNC
+async loadZoneComponents() {
+    return new Promise(resolve => {
+        this.createPlayerAnimations();
+        this.setupManagers();
+        this.initPlayerSpawnFromSceneData();
+        this.justArrivedAtZone = true;
+        this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
+        
+        this.loadMap();
+        this.setupInputs();
+        this.createUI();
+        this.myPlayerReady = false;
+        this.isSceneReady = true;
+        
+        this.initializeWithExistingConnection();
+        this.setupPlayerReadyHandler();
+        this.setupCleanupHandlers();
+
+        this.events.once('shutdown', this.cleanup, this);
+        this.events.once('destroy', this.cleanup, this);
+        
+        setTimeout(resolve, 300);
+    });
+}
+
+async initializeUIComponents() {
+    return new Promise(async resolve => {
+        try {
+            if (typeof initializePokemonUI === 'function') {
+                await initializePokemonUI();
+                console.log(`✅ [${this.scene.key}] Interface utilisateur initialisée`);
+            } else {
+                console.warn(`⚠️ [${this.scene.key}] initializePokemonUI non disponible`);
+            }
+            resolve();
+        } catch (error) {
+            console.error(`❌ [${this.scene.key}] Erreur UI:`, error);
+            resolve(); // Continuer même en cas d'erreur
+        }
+    });
+}
+
+performDirectLoading() {
+    console.log(`🔄 [${this.scene.key}] Chargement direct de secours...`);
+    
+    this.createPlayerAnimations();
+    this.setupManagers();
+    this.initPlayerSpawnFromSceneData();
+    this.justArrivedAtZone = true;
+    this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
+    
+    this.loadMap();
+    this.setupInputs();
+    this.createUI();
+    this.myPlayerReady = false;
+    this.isSceneReady = true;
+    
+    this.initializeWithExistingConnection();
+    this.setupPlayerReadyHandler();
+    this.setupCleanupHandlers();
+
+    this.events.once('shutdown', this.cleanup, this);
+    this.events.once('destroy', this.cleanup, this);
+    
+    this.initializeGameSystems();
+}
+
+// ✅ FONCTIONS UTILITAIRES
+delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+promisifyMethod(method) {
+    return new Promise(resolve => {
+        try {
+            method();
+            setTimeout(resolve, 200);
+        } catch (error) {
+            console.error('Erreur dans promisifyMethod:', error);
+            resolve();
+        }
+    });
+}
 }
