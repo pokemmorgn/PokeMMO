@@ -439,25 +439,26 @@ setupServerListeners() {
 }
 
 
-  show() {
-    if (this.isVisible) return;
-    
-    this.isVisible = true;
-    this.overlay.classList.remove('hidden');
-    this.requestTeamData();
-    
-    console.log('⚔️ Interface d\'équipe ouverte');
-  }
+show() {
+  if (this.isVisible) return;
+  this.isVisible = true;
+  this.overlay.classList.remove('hidden');
+  this.overlay.style.display = 'flex'; // Force la visibilité (debug)
+  this.overlay.style.opacity = '1';
+  this.requestTeamData();
+  console.log('[DEBUG] TeamUI.show() appelé, overlay devrait être visible');
+}
 
-  hide() {
-    if (!this.isVisible) return;
-    
-    this.isVisible = false;
-    this.overlay.classList.add('hidden');
-    this.deselectPokemon();
-    
-    console.log('⚔️ Interface d\'équipe fermée');
-  }
+hide() {
+  if (!this.isVisible) return;
+  this.isVisible = false;
+  this.overlay.classList.add('hidden');
+  this.overlay.style.display = 'none';
+  this.overlay.style.opacity = '0';
+  this.deselectPokemon();
+  console.log('[DEBUG] TeamUI.hide() appelé, overlay caché');
+}
+
 
   toggle() {
     if (this.isVisible) {
