@@ -9,6 +9,7 @@ import { DayNightWeatherManagerPhaser } from './game/DayNightWeatherManager.js';
 import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
 import { ClientTimeWeatherManager } from './managers/ClientTimeWeatherManager.js';
 import { StarterUtils, integrateStarterSelectorToScene } from './components/StarterSelector.js';
+import { BattleUITransition } from './battle/BattleUITransition.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
@@ -631,43 +632,329 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       return window.initEncounterSystem(scene, mapData);
     };
 
-    window.initBattleSystem = function(gameRoom) {
-      console.log('⚔️ [MAIN] Initialisation du système de combat...');
-      
-      if (window.battleSystem && window.battleSystem.isInitialized) {
-        console.log('ℹ️ [MAIN] Système de combat déjà initialisé - réutilisation');
-        return window.battleSystem;
-      }
-      
-      try {
-        if (!window.battleSystem) {
-          window.battleSystem = new BattleIntegration(window);
-        }
-        
-        if (window.game) {
-          window.battleSystem.initialize(
-            gameRoom || window.currentGameRoom,
-            window.game
-          ).then(success => {
-            if (success) {
-              console.log('✅ [MAIN] Système de combat initialisé avec succès');
-              if (typeof window.onSystemInitialized === 'function') {
-                window.onSystemInitialized('battle');
-              }
+window.initBattleSystem = function(gameRoom) {
+  console.log('⚔️ [MAIN] Initialisation du système de combat avec UI...');
+  
+  if (window.battleSystem && window.battleSystem.isInitialized) {
+    console.log('ℹ️ [MAIN] Système de combat déjà initialisé - réutilisation');
+    return window.battleSystem;
+  }
+  
+  try {
+    if (!window.battleSystem) {
+      // ✅ NOUVEAU: Utiliser la BattleIntegration mise à jour
+      window.battleSystem = new BattleIntegration(window);
+    }
+    
+    if (window.game) {
+      window.battleSystem.initialize(
+        gameRoom || window.currentGameRoom,
+        window.game
+      ).then(success => {
+        if (success) {
+          console.log('✅ [MAIN] Système de combat avec UI initialisé avec succès');
+          
+          // ✅ NOUVEAU: Test de la transition UI
+          window.testBattleUITransition = function() {
+            console.log('🧪 [MAIN] Test transition UI battle...');
+            
+            if (window.battleSystem?.battleUITransition) {
+              return window.battleSystem.battleUITransition.startBattleTransition({
+                pokemon: { name: 'Pikachu Test', level: 5 },
+                location: 'test_zone'
+              }).then(success => {
+                if (success) {
+                  console.log('✅ Transition UI vers combat OK');
+                  
+                  // Retour après 3 secondes
+                  setTimeout(() => {
+                    window.battleSystem.battleUITransition.endBattleTransition({
+                      result: 'victory',
+                      experience: 50
+                    }).then(returned => {
+                      if (returned) {
+                        console.log('✅ Retour exploration OK');
+                      }
+                    });
+                  }, 3000);
+                }
+                return success;
+              });
             } else {
-              console.error('❌ [MAIN] Échec initialisation système de combat');
+              console.error('❌ BattleUITransition non disponible');
+              return false;
             }
-          });
+          };
+          
+          if (typeof window.onSystemInitialized === 'function') {
+            window.onSystemInitialized('battle');
+          }
+        } else {
+          console.error('❌ [MAIN] Échec initialisation système de combat');
         }
-        
-        return window.battleSystem;
-        
-      } catch (error) {
-        console.error('❌ [MAIN] Erreur initialisation système de combat:', error);
-        return null;
-      }
-    };
+      });
+    }
+    
+    return window.battleSystem;
+    
+  } catch (error) {
+    console.error('❌ [MAIN] Erreur initialisation système de combat:', error);
+    return null;
+  }
+};
+window.testBattleUIOnly = function() {
+  console.log('🎨 [MAIN] Test transition UI battle uniquement...');
+  
+  if (!window.pokemonUISystem) {
+    console.error('❌ PokemonUISystem requis pour le test');
+    return false;
+  }
+  
+  const transition = new BattleUITransition(
+    window.pokemonUISystem.uiManager,
+    window.globalNetworkManager
+  );
+  
+  // Test transition
+  return transition.startBattleTransition({
+    pokemon: { name: 'Pikachu UI Test', level: 8 },
+    location: 'ui_test'
+  }).then(success => {
+    if (success) {
+      console.log('✅ Transition UI OK - icônes masquées');
+      
+      // Retour après 2 secondes
+      setTimeout(() => {
+        transition.endBattleTransition({
+          result: 'victory'
+        }).then(() => {
+          console.log('✅ Retour UI OK - icônes restaurées');
+        });
+      }, 2000);
+    }
+    return success;
+  });
+};
 
+// ✅ NOUVELLE: Test complet battle avec UI
+window.testCompleteBattleWithUI = function() {
+  console.log('🚀 [MAIN] Test combat complet avec transition UI...');
+  
+  if (!window.battleSystem?.isInitialized) {
+    console.error('❌ Système de combat non initialisé');
+    return false;
+  }
+  
+  // Test avec le système complet
+  const testPokemon = {
+    pokemonId: 25,
+    level: 10,
+    name: 'Pikachu Complet',
+    shiny: false,
+    gender: 'male',
+    currentHp: 30,
+    maxHp: 30,
+    moves: ['thunder_shock', 'growl', 'tail_whip', 'thunder_wave']
+  };
+  
+  return window.battleSystem.startWildBattle({
+    pokemon: testPokemon,
+    location: 'test_complete',
+    method: 'ui_test'
+  });
+};
+
+// === MISE À JOUR DES FONCTIONS DEBUG (ligne ~580) ===
+
+// ✅ MISE À JOUR: Debug système de combat avec UI
+window.debugBattleSystem = function() {
+  console.log('🔍 === DEBUG SYSTÈME DE COMBAT COMPLET AVEC UI ===');
+  
+  const battleStatus = {
+    battleSystemGlobal: {
+      exists: !!window.battleSystem,
+      initialized: window.battleSystem?.isInitialized || false,
+      type: typeof window.battleSystem
+    },
+    
+    battleScene: {
+      existsInPhaser: !!window.game?.scene?.getScene('BattleScene'),
+      isActive: window.game?.scene?.isActive('BattleScene') || false,
+      isVisible: window.game?.scene?.isVisible('BattleScene') || false
+    },
+    
+    battleState: {
+      inBattle: window.battleSystem?.isCurrentlyInBattle() || false,
+      currentState: window.battleSystem?.getCurrentBattleState() || null
+    },
+    
+    // ✅ NOUVEAU: Debug UI Transition
+    uiTransition: {
+      available: !!(window.battleSystem?.battleUITransition),
+      active: window.battleSystem?.battleUITransition?.isBattleActive() || false,
+      transitioning: window.battleSystem?.battleUITransition?.isCurrentlyTransitioning() || false,
+      state: window.battleSystem?.battleUITransition?.getCurrentUIState() || null
+    },
+    
+    // ✅ NOUVEAU: Debug UI Manager
+    uiManager: {
+      pokemonUISystem: !!window.pokemonUISystem,
+      uiManagerGlobal: !!window.uiManager,
+      currentGameState: window.pokemonUISystem?.currentGameState || 'unknown'
+    },
+    
+    functions: {
+      initBattleSystem: typeof window.initBattleSystem,
+      testBattle: typeof window.testBattle,
+      testBattleUIOnly: typeof window.testBattleUIOnly,
+      testCompleteBattleWithUI: typeof window.testCompleteBattleWithUI,
+      startWildBattle: typeof window.startWildBattle,
+      exitBattle: typeof window.exitBattle
+    }
+  };
+  
+  console.log('📊 Status système de combat avec UI:', battleStatus);
+  
+  // ✅ NOUVEAU: Debug détaillé si système initialisé
+  if (window.battleSystem?.debug) {
+    console.log('🔧 Debug détaillé BattleIntegration:');
+    const detailedDebug = window.battleSystem.debug();
+    console.log(detailedDebug);
+  }
+  
+  return battleStatus;
+};
+
+// === MISE À JOUR AIDE (ligne ~650) ===
+
+// ✅ AJOUT dans window.showGameHelp: nouvelles fonctions
+/*
+Ajouter ces lignes dans la section "=== Fonctions combat ===" :
+
+• window.testBattleUIOnly() - Test transition UI uniquement
+• window.testCompleteBattleWithUI() - Test combat complet avec UI
+• window.testBattleUITransition() - Test transition UI du système
+
+=== UI Transition Battle ===
+• Les icônes UI disparaissent automatiquement en combat
+• Transition fluide avec overlay d'information
+• Retour automatique après combat
+• Compatible avec système UI Pokémon professionnel
+*/
+
+// === NOUVEAUX RACCOURCIS CLAVIER (ligne ~750) ===
+
+// ✅ AJOUT: Raccourci pour test UI battle
+document.addEventListener('keydown', (event) => {
+  // ... code existant ...
+  
+  // ✅ NOUVEAU: U = Test UI Transition uniquement
+  if (event.key.toLowerCase() === 'u' && !window.shouldBlockInput()) {
+    event.preventDefault();
+    console.log('🎨 [MAIN] Raccourci U - Test transition UI battle');
+    window.testBattleUIOnly?.();
+  }
+  
+  // ✅ MISE À JOUR: B = Test combat complet avec UI
+  if (event.key.toLowerCase() === 'b' && !window.shouldBlockInput()) {
+    event.preventDefault();
+    console.log('⚔️ [MAIN] Raccourci B - Test combat complet avec UI');
+    if (window.testCompleteBattleWithUI) {
+      window.testCompleteBattleWithUI();
+    } else {
+      // Fallback vers ancien test
+      window.testBattle?.();
+    }
+  }
+});
+
+// === NOUVELLE SECTION: INTÉGRATION ÉVÉNEMENTS UI BATTLE ===
+
+// ✅ NOUVEAU: Écouter les événements de transition UI
+document.addEventListener('DOMContentLoaded', () => {
+  
+  // Écouter les événements de transition UI battle
+  window.addEventListener('battleUITransitionComplete', (event) => {
+    console.log('🎬 [MAIN] Transition UI battle terminée:', event.detail);
+    
+    // Notifier autres systèmes si nécessaire
+    if (window.onBattleUIReady) {
+      window.onBattleUIReady(event.detail);
+    }
+  });
+  
+  // Synchroniser états UI entre systèmes
+  window.addEventListener('pokemonUIStateChanged', (event) => {
+    const { newState } = event.detail;
+    console.log(`🎮 [MAIN] État UI changé: ${newState}`);
+    
+    // Synchroniser avec système de combat si nécessaire
+    if (window.battleSystem?.battleUITransition) {
+      // La transition UI se synchronise automatiquement
+      console.log('🔄 [MAIN] Synchronisation UI battle automatique');
+    }
+  });
+  
+  console.log('✅ [MAIN] Événements UI battle configurés');
+});
+
+// === VALIDATION SYSTÈME AU DÉMARRAGE ===
+
+// ✅ NOUVEAU: Validation que tous les composants UI battle sont prêts
+window.validateBattleUISystem = function() {
+  console.log('🔍 [MAIN] Validation système UI battle...');
+  
+  const requirements = {
+    pokemonUISystem: !!window.pokemonUISystem,
+    uiManager: !!(window.pokemonUISystem?.uiManager || window.uiManager),
+    battleSystem: !!window.battleSystem,
+    battleUITransition: !!(window.battleSystem?.battleUITransition),
+    gameManager: !!window.globalNetworkManager,
+    phaserGame: !!window.game
+  };
+  
+  console.log('📋 Pré-requis UI battle:', requirements);
+  
+  const allReady = Object.values(requirements).every(req => req === true);
+  
+  if (allReady) {
+    console.log('✅ [MAIN] Système UI battle complet et prêt !');
+    console.log('🧪 Utilisez window.testBattleUIOnly() pour tester la transition UI');
+    console.log('⚔️ Utilisez window.testCompleteBattleWithUI() pour test complet');
+  } else {
+    console.warn('⚠️ [MAIN] Système UI battle incomplet:');
+    Object.entries(requirements).forEach(([key, value]) => {
+      if (!value) {
+        console.warn(`  ❌ ${key}: manquant`);
+      }
+    });
+  }
+  
+  return allReady;
+};
+
+// === NOUVELLES INSTRUCTIONS FINALES ===
+
+console.log(`
+🎉 === POKÉMON MMO AVEC UI BATTLE TRANSITION PRÊT ===
+Nouvelles fonctionnalités UI Battle:
+🎨 Utilisez 'U' pour tester la transition UI uniquement
+⚔️ Utilisez 'B' pour test combat complet avec UI
+🔍 Utilisez window.debugBattleSystem() pour debug complet
+🧪 Utilisez window.validateBattleUISystem() pour validation
+📱 Transition UI fluide: icônes disparaissent en combat
+🎬 Overlay informatif pendant la transition
+🔄 Retour automatique après combat
+==============================
+`);
+
+// Auto-validation au chargement (après délai pour init)
+setTimeout(() => {
+  if (typeof window.validateBattleUISystem === 'function') {
+    window.validateBattleUISystem();
+  }
+}, 10000); // 10 secondes après le chargement
+    
     // Debug functions
     window.debugTeamSystem = function() {
       console.log('🔍 === DEBUG SYSTÈME D\'ÉQUIPE COMPLET ===');
