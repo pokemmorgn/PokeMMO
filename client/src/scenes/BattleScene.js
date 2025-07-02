@@ -648,84 +648,193 @@ export class BattleScene extends Phaser.Scene {
   }
 }
 
-// 🆕 FONCTION DE TEST GLOBALE
+// 🆕 FONCTION DE TEST GLOBALE AVEC UI FORCÉE
 window.testBattleSprites = function() {
   console.log('🧪 Test affichage sprites Pokémon avec UI cachée...');
   
-  const battleScene = window.game?.scene?.getScene('BattleScene');
-  if (battleScene) {
-    // ✅ ÉTAPE 1: Passer en mode battle pour cacher l'UI
-    if (window.pokemonUISystem && window.pokemonUISystem.setGameState) {
-      console.log('🎮 Passage en mode battle pour masquer l\'UI...');
-      window.pokemonUISystem.setGameState('battle', { animated: true });
-    }
+  // ✅ ÉTAPE 1: FORCER le passage en mode battle pour cacher TOUTE l'UI
+  console.log('🎮 FORÇAGE du mode battle pour masquer l\'UI...');
+  
+  if (window.pokemonUISystem) {
+    console.log('📊 État UI avant:', window.pokemonUISystem.globalState.currentGameState);
     
-    // ✅ ÉTAPE 2: Activer la BattleScene
-    if (!window.game.scene.isActive('BattleScene')) {
-      console.log('🎬 Activation de la BattleScene...');
-      window.game.scene.start('BattleScene');
-      
-      // Attendre que la scène soit créée
-      setTimeout(() => {
-        const activeBattleScene = window.game.scene.getScene('BattleScene');
-        if (activeBattleScene) {
-          activeBattleScene.testDisplayPokemon();
-        }
-      }, 500);
+    // Forcer le mode battle avec toutes les options
+    const battleSuccess = window.pokemonUISystem.setGameState('battle', { 
+      animated: true,
+      force: true 
+    });
+    
+    if (battleSuccess) {
+      console.log('✅ Mode battle activé avec succès');
     } else {
-      battleScene.testDisplayPokemon();
+      console.warn('⚠️ Échec mode battle, forçage manuel...');
+      
+      // Fallback : cacher manuellement tous les modules
+      ['inventory', 'team', 'quest', 'questTracker', 'chat'].forEach(moduleId => {
+        console.log(`🔸 Masquage manuel: ${moduleId}`);
+        window.pokemonUISystem.hideModule(moduleId, { animated: true });
+      });
+      
+      // Cacher aussi les éléments DOM directement
+      const elementsToHide = [
+        '#inventory-icon', '#team-icon', '#quest-icon', 
+        '#questTracker', '#chat', '.ui-icon', '.game-icon'
+      ];
+      
+      elementsToHide.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+          console.log(`🔸 Masquage DOM: ${selector}`);
+          el.style.display = 'none';
+        });
+      });
     }
     
-    console.log('✅ Test lancé - L\'UI devrait être cachée et les sprites visibles');
+    console.log('📊 État UI après:', window.pokemonUISystem.globalState.currentGameState);
   } else {
-    console.error('❌ BattleScene non trouvée');
+    console.error('❌ PokemonUISystem non trouvé');
   }
+  
+  // ✅ ÉTAPE 2: Attendre un peu puis activer la BattleScene
+  setTimeout(() => {
+    const battleScene = window.game?.scene?.getScene('BattleScene');
+    if (battleScene) {
+      // Activer la BattleScene
+      if (!window.game.scene.isActive('BattleScene')) {
+        console.log('🎬 Activation de la BattleScene...');
+        window.game.scene.start('BattleScene');
+        
+        // Attendre que la scène soit créée
+        setTimeout(() => {
+          const activeBattleScene = window.game.scene.getScene('BattleScene');
+          if (activeBattleScene) {
+            activeBattleScene.testDisplayPokemon();
+          }
+        }, 500);
+      } else {
+        battleScene.testDisplayPokemon();
+      }
+      
+      console.log('✅ Test lancé - L\'UI devrait être COMPLÈTEMENT cachée');
+    } else {
+      console.error('❌ BattleScene non trouvée');
+    }
+  }, 800); // Délai pour laisser les animations UI se terminer
 };
 
-// 🆕 FONCTION DE TEST DES RENCONTRES (comme le vrai système)
+// 🆕 FONCTION DE TEST DES RENCONTRES AVEC UI FORCÉE
 window.testBattleEncounter = function() {
-  console.log('🧪 Test rencontre via BattleUITransition...');
+  console.log('🧪 Test rencontre via BattleUITransition avec UI forcée...');
   
-  const battleScene = window.game?.scene?.getScene('BattleScene');
-  if (battleScene) {
-    // Simuler une rencontre comme le ferait le système
-    const encounterData = {
-      pokemon: {
-        pokemonId: 25,
-        id: 'wild_pikachu_test',
-        name: 'Pikachu',
-        level: 8,
-        currentHp: 25,
-        maxHp: 25,
-        types: ['electric'],
-        shiny: false
-      },
-      location: 'test_zone',
-      method: 'debug_encounter'
-    };
+  // ✅ FORCER le mode battle
+  console.log('🎮 FORÇAGE du mode battle...');
+  
+  if (window.pokemonUISystem) {
+    // Mode battle avec force
+    window.pokemonUISystem.setGameState('battle', { 
+      animated: true,
+      force: true 
+    });
     
-    // Passer en mode battle
-    if (window.pokemonUISystem && window.pokemonUISystem.setGameState) {
-      window.pokemonUISystem.setGameState('battle', { animated: true });
-    }
+    // Double vérification - masquer explicitement
+    ['inventory', 'team', 'quest', 'questTracker', 'chat'].forEach(moduleId => {
+      window.pokemonUISystem.hideModule(moduleId, { animated: false });
+      window.pokemonUISystem.disableModule(moduleId);
+    });
     
-    // Activer la scène si nécessaire
-    if (!window.game.scene.isActive('BattleScene')) {
-      window.game.scene.start('BattleScene');
-      setTimeout(() => {
-        const activeBattleScene = window.game.scene.getScene('BattleScene');
-        if (activeBattleScene) {
-          activeBattleScene.handleEncounterStart(encounterData);
-        }
-      }, 500);
-    } else {
-      battleScene.handleEncounterStart(encounterData);
-    }
-    
-    console.log('✅ Test de rencontre lancé');
-  } else {
-    console.error('❌ BattleScene non trouvée');
+    console.log('✅ Mode battle forcé et modules cachés');
   }
+  
+  // Attendre puis lancer la rencontre
+  setTimeout(() => {
+    const battleScene = window.game?.scene?.getScene('BattleScene');
+    if (battleScene) {
+      // Simuler une rencontre
+      const encounterData = {
+        pokemon: {
+          pokemonId: 25,
+          id: 'wild_pikachu_test',
+          name: 'Pikachu',
+          level: 8,
+          currentHp: 25,
+          maxHp: 25,
+          types: ['electric'],
+          shiny: false
+        },
+        location: 'test_zone',
+        method: 'debug_encounter'
+      };
+      
+      // Activer la scène si nécessaire
+      if (!window.game.scene.isActive('BattleScene')) {
+        window.game.scene.start('BattleScene');
+        setTimeout(() => {
+          const activeBattleScene = window.game.scene.getScene('BattleScene');
+          if (activeBattleScene) {
+            activeBattleScene.handleEncounterStart(encounterData);
+          }
+        }, 500);
+      } else {
+        battleScene.handleEncounterStart(encounterData);
+      }
+      
+      console.log('✅ Test de rencontre lancé avec UI cachée');
+    } else {
+      console.error('❌ BattleScene non trouvée');
+    }
+  }, 800);
+};
+
+// 🆕 FONCTION DE DEBUG DE L'UI
+window.debugUIState = function() {
+  console.log('🔍 === DEBUG ÉTAT UI ===');
+  
+  if (window.pokemonUISystem) {
+    console.log('📊 État global:', window.pokemonUISystem.globalState);
+    console.log('🎮 État de jeu actuel:', window.pokemonUISystem.globalState.currentGameState);
+    
+    // Vérifier chaque module
+    ['inventory', 'team', 'quest', 'questTracker', 'chat'].forEach(moduleId => {
+      const module = window.pokemonUISystem.getModule(moduleId);
+      const state = window.pokemonUISystem.getModuleState(moduleId);
+      
+      console.log(`🔸 ${moduleId}:`, {
+        initialized: window.pokemonUISystem.isModuleInitialized(moduleId),
+        state: state,
+        visible: state?.visible,
+        enabled: state?.enabled,
+        domElement: !!module?.iconElement,
+        domVisible: module?.iconElement ? 
+          window.getComputedStyle(module.iconElement).display !== 'none' : 'N/A'
+      });
+    });
+    
+    // Vérifier les éléments DOM
+    const elementsToCheck = [
+      '#inventory-icon', '#team-icon', '#quest-icon', 
+      '#questTracker', '#chat'
+    ];
+    
+    console.log('🔍 Vérification DOM:');
+    elementsToCheck.forEach(selector => {
+      const element = document.querySelector(selector);
+      if (element) {
+        const style = window.getComputedStyle(element);
+        console.log(`🔸 ${selector}:`, {
+          exists: true,
+          display: style.display,
+          visibility: style.visibility,
+          opacity: style.opacity
+        });
+      } else {
+        console.log(`🔸 ${selector}: NOT FOUND`);
+      }
+    });
+  } else {
+    console.error('❌ PokemonUISystem non trouvé');
+  }
+  
+  console.log('🔍 === FIN DEBUG ===');
 };
 
 console.log('✅ BattleScene modifiée - Focus sprites Pokémon');
