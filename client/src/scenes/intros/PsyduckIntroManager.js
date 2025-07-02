@@ -101,85 +101,52 @@ export class PsyduckIntroManager {
   }
 
   // ✅ FIX: Attendre VRAIMENT que tout soit prêt
-async startIntro(onComplete = null) {
-  if (this.isPlaying || !this.scene) return;
+  async startIntro(onComplete = null) {
+    if (this.isPlaying || !this.scene) return;
 
-  if (!this.listenersSetup) {
-    this.ensureListenersSetup();
-  }
-
-  this.isPlaying = true;
-  this.onCompleteCallback = onComplete;
-
-  console.log('[PsyduckIntro] === DÉMARRAGE INTRO - VÉRIFICATIONS ===');
-
-  // ✅ ÉTAPE 1: Attendre que le LoadingScreen soit fermé
-  const loadingClosed = await this.waitForLoadingScreenClosed(10000);
-  if (!loadingClosed) {
-    console.warn('[PsyduckIntro] LoadingScreen pas fermé après 10s, continue quand même');
-  }
-
-  // ✅ ÉTAPE 2: Attendre que le flag global playerReady soit true
-  const playerReady = await this.waitForPlayerReady(8000);
-  if (!playerReady) {
-    console.warn('[PsyduckIntro] Flag playerReady pas prêt après 8s, annulation intro');
-    this.cleanup();
-    return;
-  }
-
-  // ✅ ÉTAPE 3: Vérification simple du joueur (version rapide)
-  const playerObject = await this.waitForValidPlayerObjectSimple(1000);
-  if (!playerObject) {
-    console.warn('[PsyduckIntro] Objet joueur pas valide après 1s, continue quand même');
-  }
-
-  console.log('[PsyduckIntro] ✅ Toutes les vérifications passées');
-
-  // ✅ DÉLAI DE 2 SECONDES avant démarrage
-  console.log('[PsyduckIntro] ⏳ Attente 2 secondes supplémentaires...');
-  await new Promise(resolve => setTimeout(resolve, 2000));
-
-  console.log('[PsyduckIntro] 🚀 Démarrage intro après délai');
-
-  // ✅ ÉTAPE 4: Bloquer les inputs et charger Psyduck
-  this.blockPlayerInputs();
-  this.loadPsyduckSpritesheet();
-
-  // ✅ ÉTAPE 5: Délai final avant spawn Psyduck
-  this.scene.time.delayedCall(800, () => {
-    this.spawnPsyduck();
-  });
-
-  // ✅ NOUVEAU: Notifier DÉBUT de l'intro (pas la fin)
-  this.notifyServer("intro_started");
-}
-
-  // ✅ MÉTHODE MANQUANTE: waitForValidPlayerObjectSimple
-waitForValidPlayerObjectSimple(maxWaitTime = 1000) {
-  return new Promise(resolve => {
-    // ✅ Si tous les flags sont OK, on fait confiance
-    if (window.playerReady && window.playerSpawned && window.loadingScreenClosed) {
-      console.log('[PsyduckIntro] ✅ Tous les flags OK, joueur considéré valide');
-      return resolve(true);
+    if (!this.listenersSetup) {
+      this.ensureListenersSetup();
     }
-    
-    // ✅ Vérification rapide en fallback
-    const scene = this.scene;
-    const myPlayer = scene?.playerManager?.getMyPlayer?.();
-    
-    if (myPlayer && myPlayer.x !== undefined && myPlayer.y !== undefined) {
-      console.log('[PsyduckIntro] ✅ Joueur trouvé avec position valide');
-      return resolve(true);
+
+    this.isPlaying = true;
+    this.onCompleteCallback = onComplete;
+
+    console.log('[PsyduckIntro] === DÉMARRAGE INTRO - VÉRIFICATIONS ===');
+
+    // ✅ ÉTAPE 1: Attendre que le LoadingScreen soit fermé
+    const loadingClosed = await this.waitForLoadingScreenClosed(10000);
+    if (!loadingClosed) {
+      console.warn('[PsyduckIntro] LoadingScreen pas fermé après 10s, continue quand même');
     }
-    
-    // ✅ Timeout très court puis continue
-    setTimeout(() => {
-      console.log('[PsyduckIntro] ✅ Timeout court, on fait confiance au système');
-      resolve(true);
-    }, maxWaitTime);
-  });
-}
-  
+
+    // ✅ ÉTAPE 2: Attendre que le flag global playerReady soit true
+    const playerReady = await this.waitForPlayerReady(8000);
+    if (!playerReady) {
+      console.warn('[PsyduckIntro] Flag playerReady pas prêt après 8s, annulation intro');
+      this.cleanup();
+      return;
+    }
+
+    // ✅ ÉTAPE 3: Vérifier que l'objet joueur existe et est valide
+    const playerObject = await this.waitForValidPlayerObject(3000);
+    if (!playerObject) {
+      console.warn('[PsyduckIntro] Objet joueur pas valide après 3s, annulation intro');
+      this.cleanup();
+      return;
+    }
+
+    console.log('[PsyduckIntro] ✅ Toutes les vérifications passées, démarrage intro');
+
+    // ✅ ÉTAPE 4: Bloquer les inputs et charger Psyduck
+    this.blockPlayerInputs();
+    this.loadPsyduckSpritesheet();
+
+    // ✅ ÉTAPE 5: Délai final avant spawn Psyduck
+    this.scene.time.delayedCall(800, () => {
+      this.spawnPsyduck();
+    });
+  }
+
   // ✅ NOUVELLE MÉTHODE: Attendre fermeture LoadingScreen
   waitForLoadingScreenClosed(maxWaitTime = 10000) {
     return new Promise((resolve) => {
@@ -246,30 +213,63 @@ waitForValidPlayerObjectSimple(maxWaitTime = 1000) {
   }
 
   // ✅ NOUVELLE MÉTHODE: Attendre objet joueur valide
-waitForValidPlayerObject(maxWaitTime = 1000) {
-  return new Promise(resolve => {
-    // ✅ Si tous les flags sont OK, on fait confiance
-    if (window.playerReady && window.playerSpawned && window.loadingScreenClosed) {
-      console.log('[PsyduckIntro] ✅ Tous les flags OK, joueur considéré valide');
-      return resolve(true);
-    }
-    
-    // ✅ Sinon, vérification rapide
-    const scene = this.scene;
-    const myPlayer = scene?.playerManager?.getMyPlayer?.();
-    
-    if (myPlayer && myPlayer.x !== undefined && myPlayer.y !== undefined) {
-      console.log('[PsyduckIntro] ✅ Joueur trouvé avec position valide');
-      return resolve(true);
-    }
-    
-    // ✅ Timeout court
-    setTimeout(() => {
-      console.log('[PsyduckIntro] ✅ Timeout court écoulé, on continue');
-      resolve(true);
-    }, maxWaitTime);
-  });
-}
+  waitForValidPlayerObject(maxWaitTime = 3000) {
+    return new Promise(resolve => {
+      const start = Date.now();
+
+      const check = () => {
+        const scene = this.scene;
+        if (!scene || !scene.playerManager) {
+          if (Date.now() - start > maxWaitTime) return resolve(false);
+          setTimeout(check, 100);
+          return;
+        }
+
+        const myPlayer = scene.playerManager.getMyPlayer?.();
+        if (myPlayer && myPlayer.sprite && 
+            myPlayer.x !== undefined && myPlayer.y !== undefined &&
+            myPlayer.x !== 0 && myPlayer.y !== 0) {
+          console.log('[PsyduckIntro] ✅ Objet joueur valide trouvé');
+          return resolve(true);
+        }
+
+        if (Date.now() - start > maxWaitTime) {
+          console.warn('[PsyduckIntro] ⏰ Timeout attente objet joueur valide');
+          return resolve(false);
+        }
+        
+        setTimeout(check, 100);
+      };
+      
+      check();
+    });
+  }
+
+  // ✅ MÉTHODE MANQUANTE: waitForValidPlayerObjectSimple
+  waitForValidPlayerObjectSimple(maxWaitTime = 1000) {
+    return new Promise(resolve => {
+      // ✅ Si tous les flags sont OK, on fait confiance
+      if (window.playerReady && window.playerSpawned && window.loadingScreenClosed) {
+        console.log('[PsyduckIntro] ✅ Tous les flags OK, joueur considéré valide');
+        return resolve(true);
+      }
+      
+      // ✅ Vérification rapide en fallback
+      const scene = this.scene;
+      const myPlayer = scene?.playerManager?.getMyPlayer?.();
+      
+      if (myPlayer && myPlayer.x !== undefined && myPlayer.y !== undefined) {
+        console.log('[PsyduckIntro] ✅ Joueur trouvé avec position valide');
+        return resolve(true);
+      }
+      
+      // ✅ Timeout très court puis continue
+      setTimeout(() => {
+        console.log('[PsyduckIntro] ✅ Timeout court, on fait confiance au système');
+        resolve(true);
+      }, maxWaitTime);
+    });
+  }
 
   notifyServer(step) {
     if (!this.questIntegrationEnabled || !this.scene.room || this.fallbackMode) {
@@ -485,173 +485,183 @@ waitForValidPlayerObject(maxWaitTime = 1000) {
     }
   }
 
-startPhase3_Interaction() {
-  if (!this.psyduck) {
-    this.cleanup();
-    return;
-  }
-
-  try {
-    console.log('[PsyduckIntro] 💬 Phase 3: Interaction et dialogue');
-    this.psyduck.anims.stop();
-    this.psyduck.setFrame(0);
-    
-    // ✅ SUPPRIMER CETTE LIGNE:
-    // this.notifyServer("psyduck_talked");
-    
-    this.showDialogue([
-      { text: "Psy? Psy... duck?", speaker: "???", portrait: "/assets/portrait/psyduckPortrait.png" },
-      { text: "The yellow duck-like creature tilts its head, looking confused", speaker: "Narrator", hideName: true },
-      { text: "It holds its head with both hands... seems to have a headache", speaker: "Narrator", hideName: true },
-      { text: "Psy... psy duck? Psy?", speaker: "???", portrait: "/assets/portrait/psyduckPortrait.png" },
-      { text: "Despite its confusion, it points toward some buildings in the distance", speaker: "Narrator", hideName: true },
-      { text: "Maybe it's trying to tell you something about that place?", speaker: "Narrator", hideName: true }
-    ]);
-
-  } catch (error) {
-    console.error(`[PsyduckIntro] Error in phase 3:`, error);
-    this.cleanup();
-  }
-}
-
-  // === DIALOGUE SYSTEM ===
-
-async showDialogue(messages) {
-  if (!messages || messages.length === 0) {
-    console.error(`[PsyduckIntro] No messages to display`);
-    this.finishIntro();
-    return;
-  }
-
-  try {
-    const apiAvailable = await this.waitForSequentialAPI(5000);
-    
-    if (!apiAvailable) {
-      this.fallbackToConsole(messages);
+  startPhase3_Interaction() {
+    if (!this.psyduck) {
+      this.cleanup();
       return;
     }
 
-    const success = await window.createSequentialDiscussion(
-      "???", 
-      "/assets/portrait/psyduckPortrait.png", 
-      messages, 
-      {
-        showProgress: true,
-        narratorName: "Narrator",
-        narratorPortrait: "/assets/portrait/systemPortrait.png",
-        hideName: true,
-        onComplete: () => {
-          // ✅ NOUVEAU: Notifier dialogue terminé AVANT finishIntro
-          console.log('[PsyduckIntro] 💬 Dialogue terminé, notification serveur...');
-          this.notifyServer("dialogue_completed");
-          
-          this.finishIntro();
-        }
+    try {
+      console.log('[PsyduckIntro] 💬 Phase 3: Interaction et dialogue');
+      this.psyduck.anims.stop();
+      this.psyduck.setFrame(0);
+      
+      this.notifyServer("psyduck_talked");
+      
+      this.showDialogue([
+        { text: "Psy? Psy... duck?", speaker: "???", portrait: "/assets/portrait/psyduckPortrait.png" },
+        { text: "The yellow duck-like creature tilts its head, looking confused", speaker: "Narrator", hideName: true },
+        { text: "It holds its head with both hands... seems to have a headache", speaker: "Narrator", hideName: true },
+        { text: "Psy... psy duck? Psy?", speaker: "???", portrait: "/assets/portrait/psyduckPortrait.png" },
+        { text: "Despite its confusion, it points toward some buildings in the distance", speaker: "Narrator", hideName: true },
+        { text: "Maybe it's trying to tell you something about that place?", speaker: "Narrator", hideName: true }
+      ]);
+
+    } catch (error) {
+      console.error(`[PsyduckIntro] Error in phase 3:`, error);
+      this.cleanup();
+    }
+  }
+
+  // === DIALOGUE SYSTEM ===
+
+  async showDialogue(messages) {
+    if (!messages || messages.length === 0) {
+      console.error(`[PsyduckIntro] No messages to display`);
+      this.finishIntro();
+      return;
+    }
+
+    try {
+      const apiAvailable = await this.waitForSequentialAPI(5000);
+      
+      if (!apiAvailable) {
+        this.fallbackToConsole(messages);
+        return;
       }
-    );
-    
-    if (!success) {
+
+      const success = await window.createSequentialDiscussion(
+        "???", 
+        "/assets/portrait/psyduckPortrait.png", 
+        messages, 
+        {
+          showProgress: true,
+          narratorName: "Narrator",
+          narratorPortrait: "/assets/portrait/systemPortrait.png",
+          hideName: true,
+          onComplete: () => {
+            this.finishIntro();
+          }
+        }
+      );
+      
+      if (!success) {
+        this.fallbackToConsole(messages);
+      }
+      
+    } catch (error) {
+      console.error(`[PsyduckIntro] Dialogue error:`, error);
       this.fallbackToConsole(messages);
     }
-    
-  } catch (error) {
-    console.error(`[PsyduckIntro] Dialogue error:`, error);
-    this.fallbackToConsole(messages);
-  }
-}
-
-  fallbackToConsole(messages) {
-  console.log(`[PsyduckIntro] === PSYDUCK MESSAGES (Fallback) ===`);
-  messages.forEach((msg, i) => {
-    if (typeof msg === 'string') {
-      console.log(`  ${i + 1}. ${msg}`);
-    } else {
-      console.log(`  ${i + 1}. [${msg.speaker || 'Unknown'}] ${msg.text}`);
-    }
-  });
-  console.log(`===============================================`);
-  
-  // ✅ NOUVEAU: Notifier dialogue terminé en mode fallback aussi
-  setTimeout(() => {
-    console.log('[PsyduckIntro] 💬 Dialogue fallback terminé, notification serveur...');
-    this.notifyServer("dialogue_completed");
-    this.finishIntro();
-  }, 2000);
-}
-  // === INTRO COMPLETION ===
-
-finishIntro() {
-  if (!this.psyduck || !this.scene) {
-    this.cleanup();
-    return;
   }
 
-  try {
-    console.log('[PsyduckIntro] 🔚 Fin de l\'intro - retour de Psyduck');
-    
-    // Return to top
-    this.psyduck.anims.play('psyduck_walk_up');
-    
-    this.scene.tweens.add({
-      targets: this.psyduck,
-      y: 32,
-      duration: 2500,
-      ease: 'Linear',
-      onComplete: () => {
-        if (!this.psyduck || !this.scene) {
-          this.cleanup();
+  waitForSequentialAPI(maxWaitTime = 5000) {
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      
+      const checkAPI = () => {
+        if (typeof window.createSequentialDiscussion === 'function') {
+          resolve(true);
           return;
         }
         
-        // Return to left
-        this.psyduck.anims.play('psyduck_walk_left');
+        if (Date.now() - startTime >= maxWaitTime) {
+          resolve(false);
+          return;
+        }
         
-        this.scene.tweens.add({
-          targets: this.psyduck,
-          x: 160,
-          duration: 3000,
-          ease: 'Linear',
-          onComplete: () => {
-            if (!this.psyduck || !this.scene) {
-              this.cleanup();
-              return;
-            }
-            
-            // Fade out
-            this.scene.tweens.add({
-              targets: this.psyduck,
-              alpha: 0,
-              duration: 1000,
-              onComplete: () => {
-                if (this.psyduck && this.psyduck.destroy) {
-                  this.psyduck.destroy();
-                }
-                this.psyduck = null;
+        setTimeout(checkAPI, 100);
+      };
+      
+      checkAPI();
+    });
+  }
 
-                // ✅ NOUVEAU: Notifier intro VRAIMENT terminée
-                console.log('[PsyduckIntro] ✅ Intro complètement terminée, notification finale...');
-                this.notifyServer("intro_completed");
-
-                this.cleanup();
-                
-                // ✅ GARDER CETTE LIGNE pour compatibilité
-                if (this.scene.room) {
-                  this.scene.room.send("progressIntroQuest", {
-                    step: "intro_watched",
-                    playerName: this.scene.playerManager?.getMyPlayer()?.name || "unknown"
-                  });
-                }
-              }
-            });
-          }
-        });
+  fallbackToConsole(messages) {
+    console.log(`[PsyduckIntro] === PSYDUCK MESSAGES (Fallback) ===`);
+    messages.forEach((msg, i) => {
+      if (typeof msg === 'string') {
+        console.log(`  ${i + 1}. ${msg}`);
+      } else {
+        console.log(`  ${i + 1}. [${msg.speaker || 'Unknown'}] ${msg.text}`);
       }
     });
-  } catch (error) {
-    console.error(`[PsyduckIntro] Error finishing intro:`, error);
-    this.cleanup();
+    console.log(`===============================================`);
+    
+    setTimeout(() => {
+      this.finishIntro();
+    }, 2000);
   }
-}
+
+  // === INTRO COMPLETION ===
+
+  finishIntro() {
+    if (!this.psyduck || !this.scene) {
+      this.cleanup();
+      return;
+    }
+
+    try {
+      console.log('[PsyduckIntro] 🔚 Fin de l\'intro - retour de Psyduck');
+      
+      // Return to top
+      this.psyduck.anims.play('psyduck_walk_up');
+      
+      this.scene.tweens.add({
+        targets: this.psyduck,
+        y: 32,
+        duration: 2500,
+        ease: 'Linear',
+        onComplete: () => {
+          if (!this.psyduck || !this.scene) {
+            this.cleanup();
+            return;
+          }
+          
+          // Return to left
+          this.psyduck.anims.play('psyduck_walk_left');
+          
+          this.scene.tweens.add({
+            targets: this.psyduck,
+            x: 160,
+            duration: 3000,
+            ease: 'Linear',
+            onComplete: () => {
+              if (!this.psyduck || !this.scene) {
+                this.cleanup();
+                return;
+              }
+              
+              // Fade out
+              this.scene.tweens.add({
+                targets: this.psyduck,
+                alpha: 0,
+                duration: 1000,
+                onComplete: () => {
+                  if (this.psyduck && this.psyduck.destroy) {
+                    this.psyduck.destroy();
+                  }
+                  this.psyduck = null;
+
+                  this.cleanup();
+                  
+                  if (this.scene.room) {
+                    this.scene.room.send("progressIntroQuest", {
+                      step: "intro_watched",
+                      playerName: this.scene.playerManager?.getMyPlayer()?.name || "unknown"
+                    });
+                  }
+                }
+              });
+            }
+          });
+        }
+      });
+    } catch (error) {
+      console.error(`[PsyduckIntro] Error finishing intro:`, error);
+      this.cleanup();
+    }
+  }
 
   cleanup() {
     try {
