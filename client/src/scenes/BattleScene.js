@@ -56,15 +56,15 @@ export class BattleScene extends Phaser.Scene {
       this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
     }
     
-    // 🆕 SPRITES POKÉMON - Charger une gamme de sprites disponibles
-    this.loadPokemonSprites();
+    // 🆕 SPRITES POKÉMON - Charger comme SPRITESHEETS avec frame 0
+    this.loadPokemonSpritesheets();
     
     console.log('✅ [BattleScene] Préchargement en cours...');
   }
 
-  // 🆕 MÉTHODE: Chargement sprites Pokémon
-  loadPokemonSprites() {
-    console.log('🐾 [BattleScene] Chargement sprites Pokémon...');
+  // 🆕 MÉTHODE: Chargement sprites Pokémon en spritesheets
+  loadPokemonSpritesheets() {
+    console.log('🐾 [BattleScene] Chargement sprites Pokémon (spritesheets)...');
     
     // Liste des Pokémon de base avec sprites disponibles
     const pokemonSprites = [
@@ -99,31 +99,45 @@ export class BattleScene extends Phaser.Scene {
       { id: 150, name: 'mewtwo' }
     ];
     
-    // Charger front et back pour chaque Pokémon
+    // ✅ CORRECTION: Charger comme spritesheets avec frame 0
     pokemonSprites.forEach(pokemon => {
       const frontKey = `pokemon_${pokemon.id}_front`;
       const backKey = `pokemon_${pokemon.id}_back`;
       
       // Vérifier si pas déjà chargé
       if (!this.textures.exists(frontKey)) {
-        this.load.image(frontKey, `assets/pokemon/${pokemon.name}/front.png`);
+        // Charger comme spritesheet avec frame size appropriée
+        this.load.spritesheet(frontKey, `assets/pokemon/${pokemon.name}/front.png`, {
+          frameWidth: 96,  // Taille standard frame front
+          frameHeight: 96
+        });
       }
       
       if (!this.textures.exists(backKey)) {
-        this.load.image(backKey, `assets/pokemon/${pokemon.name}/back.png`);
+        // Charger comme spritesheet avec frame size appropriée  
+        this.load.spritesheet(backKey, `assets/pokemon/${pokemon.name}/back.png`, {
+          frameWidth: 96,  // Taille standard frame back
+          frameHeight: 96
+        });
       }
     });
     
     // 🆕 PLACEHOLDERS si sprites manquent
     if (!this.textures.exists('pokemon_placeholder_front')) {
-      this.load.image('pokemon_placeholder_front', 'assets/pokemon/placeholder_front.png');
+      this.load.spritesheet('pokemon_placeholder_front', 'assets/pokemon/placeholder_front.png', {
+        frameWidth: 96,
+        frameHeight: 96
+      });
     }
     
     if (!this.textures.exists('pokemon_placeholder_back')) {
-      this.load.image('pokemon_placeholder_back', 'assets/pokemon/placeholder_back.png');
+      this.load.spritesheet('pokemon_placeholder_back', 'assets/pokemon/placeholder_back.png', {
+        frameWidth: 96,
+        frameHeight: 96
+      });
     }
     
-    console.log(`✅ [BattleScene] ${pokemonSprites.length} Pokémon sprites en cours de chargement`);
+    console.log(`✅ [BattleScene] ${pokemonSprites.length} Pokémon spritesheets en cours de chargement`);
   }
 
   create() {
@@ -246,11 +260,12 @@ export class BattleScene extends Phaser.Scene {
     const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'back');
     
     try {
-      // Créer le sprite
+      // ✅ CORRECTION: Créer le sprite avec frame 0 pour spritesheet
       this.playerPokemonSprite = this.add.sprite(
         this.pokemonPositions.playerAbsolute.x,
         this.pokemonPositions.playerAbsolute.y,
-        spriteKey
+        spriteKey,
+        0  // ✅ FRAME 0 pour spritesheet
       );
       
       // ✅ MARQUER le sprite pour le nettoyage
@@ -268,7 +283,7 @@ export class BattleScene extends Phaser.Scene {
       // Stocker les données
       this.currentPlayerPokemon = pokemonData;
       
-      console.log(`✅ [BattleScene] Pokémon joueur affiché: ${pokemonData.name} (${spriteKey})`);
+      console.log(`✅ [BattleScene] Pokémon joueur affiché: ${pokemonData.name} (${spriteKey}, frame 0)`);
       
     } catch (error) {
       console.error('❌ [BattleScene] Erreur affichage Pokémon joueur:', error);
@@ -303,11 +318,12 @@ export class BattleScene extends Phaser.Scene {
     const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'front');
     
     try {
-      // Créer le sprite
+      // ✅ CORRECTION: Créer le sprite avec frame 0 pour spritesheet
       this.opponentPokemonSprite = this.add.sprite(
         this.pokemonPositions.opponentAbsolute.x,
         this.pokemonPositions.opponentAbsolute.y,
-        spriteKey
+        spriteKey,
+        0  // ✅ FRAME 0 pour spritesheet
       );
       
       // ✅ MARQUER le sprite pour le nettoyage
@@ -330,7 +346,7 @@ export class BattleScene extends Phaser.Scene {
       // Stocker les données
       this.currentOpponentPokemon = pokemonData;
       
-      console.log(`✅ [BattleScene] Pokémon adversaire affiché: ${pokemonData.name} (${spriteKey})`);
+      console.log(`✅ [BattleScene] Pokémon adversaire affiché: ${pokemonData.name} (${spriteKey}, frame 0)`);
       
     } catch (error) {
       console.error('❌ [BattleScene] Erreur affichage Pokémon adversaire:', error);
