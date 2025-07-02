@@ -1525,6 +1525,20 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
       console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
 
 
+      // === APPEL AJOUT STARTER ===
+      try {
+        const starterResult = await starterService.ensurePlayerHasStarter(player.name);
+        if (starterResult.given) {
+          console.log(`🎁 Starter donné à ${player.name}: ${starterResult.pokemonName}`);
+          client.send("starterGranted", { pokemonName: starterResult.pokemonName });
+        } else if (starterResult.needed === false && starterResult.given === false) {
+          // Ajoute ce log pour bien tracer le cas "déjà un starter"
+          console.log(`ℹ️ [StarterService] ${player.name} a déjà un Pokémon starter`);
+        }
+      } catch (e) {
+        console.error(`❌ [StarterService] Erreur sur ${player.name}:`, e);
+      }
+      
       // Étape 2: Confirmer immédiatement au client avec ses données
       client.send("playerSpawned", {
         id: client.sessionId,
