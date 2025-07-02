@@ -1,9 +1,17 @@
-// client/src/components/InventoryIcon.js - Version mise à jour
+// client/src/components/InventoryIcon.js - Version compatible UIManager (v2.0)
+// ✅ NOUVEAU: Compatible avec UIManager professionnel + fonctionnalité existante conservée
 
 export class InventoryIcon {
   constructor(inventoryUI) {
     this.inventoryUI = inventoryUI;
     this.iconElement = null;
+    
+    // ✅ NOUVEAU: État UIManager
+    this.uiManagerState = {
+      visible: true,
+      enabled: true,
+      initialized: false
+    };
     
     this.init();
   }
@@ -11,7 +19,11 @@ export class InventoryIcon {
   init() {
     this.createIcon();
     this.setupEventListeners();
-    console.log('🎒 Inventory icon created');
+    
+    // ✅ NOUVEAU: Marquer comme initialisé pour UIManager
+    this.uiManagerState.initialized = true;
+    
+    console.log('🎒 Inventory icon created (UIManager compatible)');
   }
 
   createIcon() {
@@ -149,7 +161,52 @@ export class InventoryIcon {
         100% { transform: scale(1) rotate(0deg); }
       }
 
-      /* ✅ NOUVEAU: Responsive position avec ajustement pour l'icône de quête */
+      /* ✅ NOUVEAU: États UIManager */
+      .inventory-icon.ui-hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(20px);
+      }
+
+      .inventory-icon.ui-disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        filter: grayscale(50%);
+      }
+
+      .inventory-icon.ui-disabled:hover {
+        transform: none !important;
+      }
+
+      /* ✅ NOUVEAU: Animations UIManager */
+      .inventory-icon.ui-fade-in {
+        animation: uiFadeIn 0.3s ease-out forwards;
+      }
+
+      .inventory-icon.ui-fade-out {
+        animation: uiFadeOut 0.2s ease-in forwards;
+      }
+
+      .inventory-icon.ui-pulse {
+        animation: uiPulse 0.15s ease-out;
+      }
+
+      @keyframes uiFadeIn {
+        from { opacity: 0; transform: translateY(20px) scale(0.8); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes uiFadeOut {
+        from { opacity: 1; transform: translateY(0) scale(1); }
+        to { opacity: 0; transform: translateY(20px) scale(0.8); }
+      }
+
+      @keyframes uiPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+
+      /* ✅ NOUVEAU: Responsive design optimisé pour UIManager */
       @media (max-width: 768px) {
         .inventory-icon {
           bottom: 15px;
@@ -171,14 +228,27 @@ export class InventoryIcon {
         }
       }
 
-      /* ✅ NOUVEAU: Quand les deux icônes sont présentes, ajuster l'espacement */
+      @media (max-width: 1024px) and (min-width: 769px) {
+        .inventory-icon {
+          width: 65px;
+          height: 75px;
+        }
+
+        .inventory-icon .icon-background {
+          height: 65px;
+        }
+
+        .inventory-icon .icon-emoji {
+          font-size: 26px;
+        }
+      }
+
+      /* Responsive position avec ajustement pour l'icône de quête */
       .inventory-icon.with-quest-icon {
         right: 20px; /* Garde la position principale */
       }
 
-      /* L'icône de quête sera positionnée à droite: 100px (à côté) */
-
-      /* Special states */
+      /* Special states - compatibilité existante conservée */
       .inventory-icon.disabled {
         opacity: 0.5;
         cursor: not-allowed;
@@ -207,8 +277,7 @@ export class InventoryIcon {
         }
       }
 
-
-      /* ✅ NOUVEAU: Style pour l'indicateur de groupe d'icônes */
+      /* Style pour l'indicateur de groupe d'icônes */
       .ui-icons-group {
         position: fixed;
         bottom: 20px;
@@ -219,7 +288,7 @@ export class InventoryIcon {
         z-index: 500;
       }
 
-      /* ✅ NOUVEAU: Ajustements quand dans un groupe */
+      /* Ajustements quand dans un groupe */
       .ui-icons-group .inventory-icon,
       .ui-icons-group .quest-icon {
         position: relative;
@@ -228,7 +297,7 @@ export class InventoryIcon {
         margin: 0;
       }
 
-      /* ✅ NOUVEAU: Animation de groupe lors de l'ajout/suppression d'icônes */
+      /* Animation de groupe lors de l'ajout/suppression d'icônes */
       .ui-icons-group.adding-icon {
         animation: groupExpand 0.3s ease;
       }
@@ -336,7 +405,209 @@ export class InventoryIcon {
     }, 2000);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Gérer le positionnement en groupe
+  // ===== ✅ NOUVELLES MÉTHODES REQUISES POUR UIMANAGER =====
+
+  /**
+   * ✅ MÉTHODE REQUISE: Afficher le module
+   * Compatible avec UIManager et système existant
+   */
+  show() {
+    try {
+      // Mise à jour état UIManager
+      this.uiManagerState.visible = true;
+      
+      // Supprimer classes de masquage
+      this.iconElement.classList.remove('ui-hidden', 'hidden');
+      
+      // Ajouter animation d'apparition
+      this.iconElement.classList.add('ui-fade-in');
+      setTimeout(() => {
+        this.iconElement.classList.remove('ui-fade-in');
+      }, 300);
+      
+      // Conserver compatibilité avec ancien système
+      this.iconElement.classList.add('appearing');
+      setTimeout(() => {
+        this.iconElement.classList.remove('appearing');
+      }, 500);
+      
+      // Vérifier et ajuster le positionnement
+      setTimeout(() => {
+        this.checkAndAdjustPosition();
+      }, 100);
+      
+      console.log('🎒 [UIManager] Inventory icon shown');
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Error showing inventory icon:', error);
+    }
+  }
+
+  /**
+   * ✅ MÉTHODE REQUISE: Cacher le module
+   * Compatible avec UIManager et système existant
+   */
+  hide() {
+    try {
+      // Mise à jour état UIManager
+      this.uiManagerState.visible = false;
+      
+      // Ajouter animation de disparition
+      this.iconElement.classList.add('ui-fade-out');
+      
+      setTimeout(() => {
+        // Appliquer le masquage après animation
+        this.iconElement.classList.add('ui-hidden');
+        this.iconElement.classList.remove('ui-fade-out');
+        
+        // Conserver compatibilité avec ancien système
+        this.iconElement.classList.add('hidden');
+        
+        // Réajuster le groupe après disparition
+        setTimeout(() => {
+          this.checkAndAdjustPosition();
+        }, 300);
+        
+      }, 200);
+      
+      console.log('🎒 [UIManager] Inventory icon hidden');
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Error hiding inventory icon:', error);
+    }
+  }
+
+  /**
+   * ✅ MÉTHODE REQUISE: Activer/désactiver le module
+   * Compatible avec UIManager et système existant
+   */
+  setEnabled(enabled) {
+    try {
+      // Mise à jour état UIManager
+      this.uiManagerState.enabled = enabled;
+      
+      if (enabled) {
+        // Activer le module
+        this.iconElement.classList.remove('ui-disabled', 'disabled');
+        
+        // Animation d'activation
+        this.iconElement.classList.add('ui-pulse');
+        setTimeout(() => {
+          this.iconElement.classList.remove('ui-pulse');
+        }, 150);
+        
+      } else {
+        // Désactiver le module
+        this.iconElement.classList.add('ui-disabled');
+        
+        // Conserver compatibilité avec ancien système
+        this.iconElement.classList.add('disabled');
+      }
+      
+      console.log(`🎒 [UIManager] Inventory icon ${enabled ? 'enabled' : 'disabled'}`);
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Error setting inventory icon enabled state:', error);
+    }
+  }
+
+  /**
+   * ✅ MÉTHODE OPTIONNELLE: Nettoyage du module
+   * Compatible avec UIManager et système existant
+   */
+  destroy() {
+    try {
+      // Arrêter l'observer
+      this.stopPositionObserver();
+      
+      // Nettoyer le groupe si nécessaire
+      const iconsGroup = document.querySelector('.ui-icons-group');
+      if (iconsGroup && this.iconElement.parentNode === iconsGroup) {
+        // Remettre les autres icônes dans le body
+        Array.from(iconsGroup.children).forEach(child => {
+          if (child !== this.iconElement) {
+            document.body.appendChild(child);
+          }
+        });
+        iconsGroup.remove();
+      }
+      
+      // Supprimer l'élément
+      if (this.iconElement && this.iconElement.parentNode) {
+        this.iconElement.remove();
+      }
+      
+      // Nettoyer les références
+      this.iconElement = null;
+      this.inventoryUI = null;
+      
+      console.log('🎒 [UIManager] Inventory icon destroyed');
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Error destroying inventory icon:', error);
+    }
+  }
+
+  /**
+   * ✅ MÉTHODE OPTIONNELLE: Mise à jour du module
+   * Compatible avec UIManager et système existant
+   */
+  update(data) {
+    try {
+      if (!data) return;
+      
+      // Mise à jour selon le type de données
+      if (data.type === 'notification' && data.count !== undefined) {
+        this.updateNotificationCount(data.count);
+      }
+      
+      if (data.type === 'item' && data.itemId) {
+        this.onInventoryUpdate({ type: 'add', itemId: data.itemId });
+      }
+      
+      if (data.type === 'state') {
+        if (data.visible !== undefined) {
+          data.visible ? this.show() : this.hide();
+        }
+        if (data.enabled !== undefined) {
+          this.setEnabled(data.enabled);
+        }
+      }
+      
+      console.log('🎒 [UIManager] Inventory icon updated:', data);
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Error updating inventory icon:', error);
+    }
+  }
+
+  /**
+   * ✅ PROPRIÉTÉ REQUISE: État pour UIManager
+   */
+  getUIManagerState() {
+    return {
+      ...this.uiManagerState,
+      canOpen: this.canOpenInventory(),
+      hasIconElement: !!this.iconElement,
+      isVisible: this.uiManagerState.visible && !this.iconElement?.classList.contains('ui-hidden'),
+      isEnabled: this.uiManagerState.enabled && !this.iconElement?.classList.contains('ui-disabled')
+    };
+  }
+
+  /**
+   * ✅ MÉTHODE UTILITAIRE: Compatibilité toggle
+   */
+  toggle() {
+    if (this.inventoryUI && typeof this.inventoryUI.toggle === 'function') {
+      this.inventoryUI.toggle();
+    } else {
+      this.handleClick();
+    }
+  }
+
+  // ===== MÉTHODES EXISTANTES CONSERVÉES =====
+
+  // Gérer le positionnement en groupe
   setupIconGroup() {
     // Chercher l'icône de quête
     const questIcon = document.querySelector('#quest-icon');
@@ -369,7 +640,7 @@ export class InventoryIcon {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Remettre à la position par défaut
+  // Remettre à la position par défaut
   resetToDefaultPosition() {
     const iconsGroup = document.querySelector('.ui-icons-group');
     
@@ -386,7 +657,7 @@ export class InventoryIcon {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Vérifier et ajuster le positionnement
+  // Vérifier et ajuster le positionnement
   checkAndAdjustPosition() {
     // Vérifier périodiquement si l'icône de quête existe
     const questIcon = document.querySelector('#quest-icon');
@@ -398,33 +669,7 @@ export class InventoryIcon {
     }
   }
 
-  // Public methods for icon state
-
-  show() {
-    this.iconElement.classList.remove('hidden');
-    this.iconElement.classList.add('appearing');
-    setTimeout(() => {
-      this.iconElement.classList.remove('appearing');
-    }, 500);
-    
-    // ✅ Vérifier le positionnement après apparition
-    setTimeout(() => {
-      this.checkAndAdjustPosition();
-    }, 100);
-  }
-
-  hide() {
-    this.iconElement.classList.add('hidden');
-    
-    // ✅ Réajuster le groupe après disparition
-    setTimeout(() => {
-      this.checkAndAdjustPosition();
-    }, 300);
-  }
-
-  setEnabled(enabled) {
-    this.iconElement.classList.toggle('disabled', !enabled);
-  }
+  // Public methods for icon state - CONSERVÉES
 
   showNotification(show = true) {
     const notification = this.iconElement.querySelector('#inventory-notification');
@@ -457,7 +702,7 @@ export class InventoryIcon {
 
   // Method to change position (if needed)
   setPosition(bottom, right) {
-    // ✅ Si l'icône est dans un groupe, ajuster le groupe
+    // Si l'icône est dans un groupe, ajuster le groupe
     const iconsGroup = document.querySelector('.ui-icons-group');
     
     if (iconsGroup && this.iconElement.parentNode === iconsGroup) {
@@ -512,7 +757,7 @@ export class InventoryIcon {
     return iconMap[itemId] || '📦';
   }
 
-  // ✅ NOUVELLE MÉTHODE: Observer les changements d'icônes
+  // Observer les changements d'icônes
   startPositionObserver() {
     // Observer pour détecter l'ajout/suppression de l'icône de quête
     const observer = new MutationObserver((mutations) => {
@@ -543,7 +788,7 @@ export class InventoryIcon {
     this.positionObserver = observer;
   }
 
-  // ✅ NOUVELLE MÉTHODE: Arrêter l'observation
+  // Arrêter l'observation
   stopPositionObserver() {
     if (this.positionObserver) {
       this.positionObserver.disconnect();
@@ -551,29 +796,7 @@ export class InventoryIcon {
     }
   }
 
-  destroy() {
-    // ✅ Arrêter l'observer
-    this.stopPositionObserver();
-    
-    // ✅ Nettoyer le groupe si nécessaire
-    const iconsGroup = document.querySelector('.ui-icons-group');
-    if (iconsGroup && this.iconElement.parentNode === iconsGroup) {
-      // Remettre les autres icônes dans le body
-      Array.from(iconsGroup.children).forEach(child => {
-        if (child !== this.iconElement) {
-          document.body.appendChild(child);
-        }
-      });
-      iconsGroup.remove();
-    }
-    
-    if (this.iconElement && this.iconElement.parentNode) {
-      this.iconElement.remove();
-    }
-    console.log('🎒 Inventory icon removed');
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Initialiser avec observateur
+  // Initialiser avec observateur
   initWithPositionObserver() {
     this.init();
     this.startPositionObserver();
