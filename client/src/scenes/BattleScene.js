@@ -834,21 +834,31 @@ window.testBattleSprites = function() {
         console.log(`🔸 Masquage manuel: ${moduleId}`);
         window.pokemonUISystem.hideModule(moduleId, { animated: true });
       });
-      
-      // Cacher aussi les éléments DOM directement
-      const elementsToHide = [
-        '#inventory-icon', '#team-icon', '#quest-icon', 
-        '#questTracker', '#chat', '.ui-icon', '.game-icon'
-      ];
-      
-      elementsToHide.forEach(selector => {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach(el => {
-          console.log(`🔸 Masquage DOM: ${selector}`);
-          el.style.display = 'none';
-        });
-      });
     }
+    
+    // ✅ NOUVEAU: Cacher explicitement le QuestTracker DOM
+    const questTracker = document.querySelector('#quest-tracker');
+    if (questTracker) {
+      console.log('🔸 Masquage QuestTracker DOM');
+      questTracker.style.display = 'none';
+    }
+    
+    // ✅ EXTENSION: Cacher TOUS les éléments UI potentiels
+    const elementsToHide = [
+      '#inventory-icon', '#team-icon', '#quest-icon', 
+      '#questTracker', '#quest-tracker',  // ✅ AJOUTÉ
+      '#chat', '.ui-icon', '.game-icon',
+      '.quest-tracker',  // ✅ CLASSE CSS
+      '.inventory-ui', '.team-ui', '.quest-ui'
+    ];
+    
+    elementsToHide.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(el => {
+        console.log(`🔸 Masquage DOM: ${selector}`);
+        el.style.display = 'none';
+      });
+    });
     
     console.log('📊 État UI après:', window.pokemonUISystem.globalState.currentGameState);
   } else {
@@ -875,7 +885,7 @@ window.testBattleSprites = function() {
         battleScene.testDisplayPokemon();
       }
       
-      console.log('✅ Test lancé - L\'UI devrait être COMPLÈTEMENT cachée');
+      console.log('✅ Test lancé - L\'UI devrait être COMPLÈTEMENT cachée (y compris QuestTracker)');
     } else {
       console.error('❌ BattleScene non trouvée');
     }
@@ -972,7 +982,7 @@ window.debugUIState = function() {
     // Vérifier les éléments DOM
     const elementsToCheck = [
       '#inventory-icon', '#team-icon', '#quest-icon', 
-      '#questTracker', '#chat'
+      '#questTracker', '#quest-tracker', '#chat'  // ✅ AJOUTÉ quest-tracker
     ];
     
     console.log('🔍 Vérification DOM:');
@@ -984,12 +994,25 @@ window.debugUIState = function() {
           exists: true,
           display: style.display,
           visibility: style.visibility,
-          opacity: style.opacity
+          opacity: style.opacity,
+          zIndex: style.zIndex
         });
       } else {
         console.log(`🔸 ${selector}: NOT FOUND`);
       }
     });
+    
+    // ✅ NOUVEAU: Vérifier spécifiquement le QuestTracker
+    const questTracker = document.querySelector('#quest-tracker');
+    if (questTracker) {
+      console.log('🎯 QUEST TRACKER spécifique:', {
+        className: questTracker.className,
+        style: questTracker.style.cssText,
+        offsetParent: !!questTracker.offsetParent,
+        clientHeight: questTracker.clientHeight,
+        isConnected: questTracker.isConnected
+      });
+    }
   } else {
     console.error('❌ PokemonUISystem non trouvé');
   }
@@ -997,5 +1020,86 @@ window.debugUIState = function() {
   console.log('🔍 === FIN DEBUG ===');
 };
 
-console.log('✅ BattleScene modifiée - Focus sprites Pokémon');
-console.log('🧪 Utilisez window.testBattleSprites() pour tester');
+// 🆕 FONCTION SPÉCIALISÉE POUR MASQUER COMPLÈTEMENT L'UI
+window.hideAllUI = function() {
+  console.log('🚫 Masquage complet de toute l\'UI...');
+  
+  // 1. Via le système UI
+  if (window.pokemonUISystem) {
+    window.pokemonUISystem.setGameState('battle', { animated: false, force: true });
+    ['inventory', 'team', 'quest', 'questTracker', 'chat'].forEach(moduleId => {
+      window.pokemonUISystem.hideModule(moduleId, { animated: false });
+      window.pokemonUISystem.disableModule(moduleId);
+    });
+  }
+  
+  // 2. Masquage DOM direct de TOUS les éléments UI possibles
+  const allUIElements = [
+    // Modules classiques
+    '#inventory-icon', '#team-icon', '#quest-icon', '#chat',
+    '.inventory-ui', '.team-ui', '.quest-ui', '.chat-container',
+    
+    // QuestTracker spécifique
+    '#questTracker', '#quest-tracker', '.quest-tracker',
+    
+    // Classes génériques
+    '.ui-icon', '.game-icon', '.interface-icon',
+    '.ui-module', '.game-module',
+    
+    // Autres éléments UI potentiels
+    '.minimap', '.health-bar', '.status-bar',
+    '.notification-container', '.tooltip'
+  ];
+  
+  let hiddenCount = 0;
+  allUIElements.forEach(selector => {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach(el => {
+      if (window.getComputedStyle(el).display !== 'none') {
+        el.style.display = 'none';
+        hiddenCount++;
+        console.log(`🔸 Masqué: ${selector}`);
+      }
+    });
+  });
+  
+  console.log(`✅ ${hiddenCount} éléments UI masqués`);
+  
+  // 3. Vérification finale
+  const questTracker = document.querySelector('#quest-tracker');
+  if (questTracker && window.getComputedStyle(questTracker).display !== 'none') {
+    console.log('🎯 Masquage forcé final du QuestTracker');
+    questTracker.style.display = 'none !important';
+    questTracker.style.visibility = 'hidden';
+    questTracker.style.opacity = '0';
+  }
+  
+  return hiddenCount;
+};
+
+// 🆕 FONCTION POUR RESTAURER L'UI
+window.showAllUI = function() {
+  console.log('👁️ Restauration de l\'UI...');
+  
+  // 1. Via le système UI
+  if (window.pokemonUISystem) {
+    window.pokemonUISystem.setGameState('exploration', { animated: true });
+  }
+  
+  // 2. Restauration DOM
+  const allUIElements = document.querySelectorAll('[style*="display: none"]');
+  let restoredCount = 0;
+  
+  allUIElements.forEach(el => {
+    if (el.style.display === 'none') {
+      el.style.display = '';
+      el.style.visibility = '';
+      el.style.opacity = '';
+      restoredCount++;
+    }
+  });
+  
+  console.log(`✅ ${restoredCount} éléments UI restaurés`);
+  
+  return restoredCount;
+};
