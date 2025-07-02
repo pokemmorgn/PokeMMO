@@ -112,41 +112,42 @@ export class BattleIntegration {
     console.log('✅ [BattleIntegration] PokemonSelectionUI initialisée');
   }
 
-  async initializeBattleScene() {
-    console.log('🎬 [BattleIntegration] Initialisation BattleScene...');
-    
-    try {
-      // Vérifier si BattleScene existe déjà
-      let battleSceneExists = false;
-      
-      if (this.phaserGame?.scene?.manager) {
-        const existingScene = this.phaserGame.scene.getScene('BattleScene');
-        if (existingScene) {
-          this.battleScene = existingScene;
-          battleSceneExists = true;
-          console.log('✅ [BattleIntegration] BattleScene existante trouvée');
-        }
+async initializeBattleScene() {
+  console.log('🎬 [BattleIntegration] Initialisation BattleScene...');
+
+  try {
+    let battleSceneExists = false;
+
+    // Vérifier si BattleScene existe dans le manager Phaser
+    if (this.phaserGame?.scene?.getScene) {
+      const existingScene = this.phaserGame.scene.getScene('BattleScene');
+      if (existingScene) {
+        this.battleScene = existingScene;
+        battleSceneExists = true;
+        console.log('✅ [BattleIntegration] BattleScene déjà présente (manager)');
       }
-      
-      // Créer la BattleScene si nécessaire
-      if (!battleSceneExists) {
-        this.battleScene = new BattleScene();
-        
-        if (this.phaserGame.scene && this.phaserGame.scene.add) {
-          this.phaserGame.scene.add('BattleScene', this.battleScene, false);
-          console.log('✅ [BattleIntegration] BattleScene créée et ajoutée');
-        } else {
-          console.warn('⚠️ [BattleIntegration] Scene manager non disponible');
-        }
-      }
-      
-    } catch (error) {
-      console.warn('⚠️ [BattleIntegration] Erreur BattleScene:', error);
-      // Continuer même en cas d'erreur pour utiliser l'interface DOM
     }
-    
-    console.log('✅ [BattleIntegration] BattleScene initialisée');
+
+    // N'AJOUTER QUE SI ELLE N'EXISTE PAS DU TOUT
+    if (!battleSceneExists) {
+      this.battleScene = new BattleScene();
+
+      // On vérifie que la scène n'est pas déjà dans la liste avant d'ajouter !
+      if (!this.phaserGame.scene.keys['BattleScene']) {
+        this.phaserGame.scene.add('BattleScene', this.battleScene, false);
+        console.log('✅ [BattleIntegration] BattleScene ajoutée dynamiquement');
+      } else {
+        console.log('ℹ️ [BattleIntegration] BattleScene déjà enregistrée, ajout ignoré');
+      }
+    }
+
+  } catch (error) {
+    console.warn('⚠️ [BattleIntegration] Erreur BattleScene:', error);
+    // Continue avec fallback DOM si besoin
   }
+
+  console.log('✅ [BattleIntegration] BattleScene initialisée');
+}
 
   // === ÉVÉNEMENTS GLOBAUX ===
 
