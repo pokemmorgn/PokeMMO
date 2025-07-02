@@ -1500,6 +1500,16 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       }
     };
 
+    // === PATCH DEV anti-crash module quest ===
+if (!window.questSystemGlobal && typeof window.initQuestSystem !== "function") {
+  window.questSystemGlobal = {
+    openQuestJournal: () => { alert("Journal de quêtes non dispo !"); },
+    isQuestJournalOpen: () => false,
+    canPlayerInteract: () => true
+  };
+  console.warn("[PATCH] Système de quêtes factice injecté (fallback dev)");
+}
+    
     window.initializeUIWithLoading = window.initializePokemonUI;
 
     showNotificationInstructions();
