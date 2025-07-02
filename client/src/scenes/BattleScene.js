@@ -1,4 +1,4 @@
-// client/src/scenes/BattleScene.js - Scène de combat avec overlay centré
+// client/src/scenes/BattleScene.js - Version corrigée avec séparation DOM/Phaser
 import { BattleManager } from '../Battle/BattleManager.js';
 import { BattleUI } from '../Battle/BattleUI.js';
 
@@ -16,14 +16,18 @@ export class BattleScene extends Phaser.Scene {
     this.isActive = false;
     this.isVisible = false;
     
-    // Références DOM
+    // ✅ SÉPARATION: DOM vs Phaser
+    // DOM: Interface d'actions, log, menus
     this.battleOverlay = null;
+    
+    // Phaser: Background, sprites, effets visuels
+    // (géré par BattleUI)
     
     // Données actuelles
     this.currentPlayerPokemon = null;
     this.currentOpponentPokemon = null;
     
-    console.log('⚔️ [BattleScene] Constructeur initialisé');
+    console.log('⚔️ [BattleScene] Constructeur initialisé (version corrigée)');
   }
 
   // === INITIALISATION ===
@@ -45,14 +49,47 @@ export class BattleScene extends Phaser.Scene {
 
   preload() {
     console.log('📁 [BattleScene] Préchargement...');
-    // Le préchargement se fait maintenant via les sprites Phaser dans BattleUI
+    
+    // ✅ S'assurer que le background de combat est chargé
+    if (!this.textures.exists('battlebg01')) {
+      console.log('📥 [BattleScene] Chargement background de combat...');
+      this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
+    }
+    
+    // ✅ Sprites Pokémon de base (si pas déjà chargés)
+    const pokemonSprites = [
+      { id: 1, name: 'bulbasaur' },
+      { id: 4, name: 'charmander' },
+      { id: 7, name: 'squirtle' },
+      { id: 25, name: 'pikachu' }
+    ];
+    
+    pokemonSprites.forEach(pokemon => {
+      const frontKey = `${pokemon.name}_front`;
+      const backKey = `${pokemon.name}_back`;
+      
+      if (!this.textures.exists(frontKey)) {
+        this.load.image(frontKey, `assets/pokemon/${pokemon.name}_front.png`);
+      }
+      if (!this.textures.exists(backKey)) {
+        this.load.image(backKey, `assets/pokemon/${pokemon.name}_back.png`);
+      }
+    });
+    
+    // ✅ Placeholders si sprites manquants
+    if (!this.textures.exists('pokemon_placeholder_front')) {
+      // Créer placeholder générique
+      this.load.image('pokemon_placeholder_front', 'assets/pokemon/placeholder_front.png');
+      this.load.image('pokemon_placeholder_back', 'assets/pokemon/placeholder_back.png');
+    }
   }
 
   create() {
     console.log('🎨 [BattleScene] Création de la scène...');
     
     try {
-      // Initialiser le BattleManager
+      // ✅ ORDRE CORRIGÉ:
+      // 1. Initialiser le BattleManager
       this.battleManager = new BattleManager();
       
       if (!this.gameManager || !this.networkHandler) {
@@ -62,166 +99,122 @@ export class BattleScene extends Phaser.Scene {
       
       this.battleManager.initialize(this.gameManager, this.networkHandler);
       
-      // Créer l'overlay DOM centré
-      this.createCenteredBattleOverlay();
-      
-      // Initialiser l'interface de combat Phaser
+      // 2. Créer l'interface Phaser (background, sprites, barres de vie)
       this.battleUI = new BattleUI(this, this.battleManager);
       this.battleUI.initialize();
 
-      // Setup des événements
+      // 3. Créer l'overlay DOM (actions, log, menus)
+      this.createBattleActionInterface();
+      
+      // 4. Setup des événements
       this.setupBattleEvents();
       
       // La scène est créée mais pas visible
       this.isActive = true;
       this.isVisible = false;
       
-      console.log('✅ [BattleScene] Scène créée avec succès');
+      console.log('✅ [BattleScene] Scène créée avec succès (séparation DOM/Phaser)');
       
     } catch (error) {
       console.error('❌ [BattleScene] Erreur lors de la création:', error);
     }
   }
 
-  // === CRÉATION DE L'OVERLAY CENTRÉ ===
+  // === CRÉATION DE L'INTERFACE D'ACTIONS (DOM) ===
 
-  createCenteredBattleOverlay() {
-    console.log('🖥️ [BattleScene] Création de l\'overlay centré...');
+  createBattleActionInterface() {
+    console.log('🖥️ [BattleScene] Création interface d\'actions DOM...');
     
-    // ✅ NOUVEAU: Overlay centré 85% avec monde visible derrière
+    // ✅ NOUVEAU: Interface plus simple focalisée sur les actions
     this.battleOverlay = document.createElement('div');
-    this.battleOverlay.className = 'battle-overlay centered-overlay';
-    this.battleOverlay.id = 'battleOverlay';
+    this.battleOverlay.className = 'battle-action-overlay';
+    this.battleOverlay.id = 'battleActionOverlay';
     
-    // ✅ Styles pour centrer l'overlay
+    // Style optimisé pour ne pas couvrir le rendu Phaser
     this.battleOverlay.style.cssText = `
       position: fixed;
-      top: 7.5%;
-      left: 7.5%;
-      width: 85%;
-      height: 85%;
-      z-index: 5000;
-      border-radius: 15px;
-      box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
-      overflow: hidden;
+      bottom: 0;
+      left: 0;
+      width: 100vw;
+      height: 40vh;
+      z-index: 6000;
       display: none;
       flex-direction: column;
+      background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 50%, rgba(0,0,0,0.3) 100%);
+      font-family: 'Arial', sans-serif;
+      color: white;
+      pointer-events: all;
     `;
     
-    // Structure HTML complète avec interface de combat
+    // ✅ Structure simplifiée : Log + Actions
     this.battleOverlay.innerHTML = `
-      <!-- Header avec titre et contrôles -->
-      <div class="battle-header">
-        <div class="battle-info">
-          <h2 class="battle-title" id="battleTitle">Combat Pokémon</h2>
-          <div class="battle-turn-info">
-            <span class="turn-indicator" id="turnIndicator">En attente...</span>
-          </div>
-        </div>
-        <div class="battle-controls">
-          <button class="battle-btn" id="battleMenuBtn">Menu</button>
-          <button class="battle-btn" id="battleExitBtn">Quitter</button>
-        </div>
-      </div>
-      
-      <!-- Champ de bataille avec Pokémon -->
-      <div class="battle-field">
-        <div id="battleBackground"></div>
-        
-        <!-- Barres de vie des Pokémon -->
-        <div class="pokemon-health-bar opponent" id="opponentHealthBar" style="display: none;">
-          <div class="pokemon-name">
-            <span id="opponentName">Pokémon</span>
-            <span class="pokemon-level" id="opponentLevel">Lv.?</span>
-          </div>
-          <div class="health-bar-container">
-            <div class="health-bar high" id="opponentHealthBarFill"></div>
-          </div>
-          <div class="status-indicator" id="opponentStatus"></div>
-        </div>
-        
-        <div class="pokemon-health-bar player" id="playerHealthBar" style="display: none;">
-          <div class="pokemon-name">
-            <span id="playerName">Votre Pokémon</span>
-            <span class="pokemon-level" id="playerLevel">Lv.?</span>
-          </div>
-          <div class="health-bar-container">
-            <div class="health-bar high" id="playerHealthBarFill"></div>
-          </div>
-          <div class="health-text" id="playerHealthText">??/??</div>
-          <div class="status-indicator" id="playerStatus"></div>
-        </div>
-        
-        <!-- Zone des sprites Pokémon (géré par BattleUI Phaser) -->
-        <div id="pokemonField">
-          <!-- Les sprites Pokémon seront affichés ici par BattleUI -->
-        </div>
-        
-        <!-- Zone des effets de combat -->
-        <div id="battleEffects">
-          <!-- Effets visuels temporaires -->
-        </div>
-      </div>
-      
-      <!-- Interface de combat (log + actions) -->
-      <div class="battle-interface">
+      <!-- Zone de log de combat (style Pokémon) -->
+      <div class="battle-log-section">
         <div class="battle-log" id="battleLog">
           <div class="battle-log-message">Combat en cours d'initialisation...</div>
         </div>
-        
-        <div class="battle-actions" id="battleActions">
+      </div>
+      
+      <!-- Interface d'actions principale -->
+      <div class="battle-actions-section">
+        <div class="battle-actions-grid" id="battleActions">
           <button class="action-button fight" data-action="fight" disabled>
-            <span class="action-icon">⚔️</span>
-            <span class="action-text">Attaque</span>
+            <div class="action-icon">⚔️</div>
+            <div class="action-text">Attaque</div>
           </button>
           <button class="action-button bag" data-action="bag" disabled>
-            <span class="action-icon">🎒</span>
-            <span class="action-text">Sac</span>
+            <div class="action-icon">🎒</div>
+            <div class="action-text">Sac</div>
           </button>
           <button class="action-button pokemon" data-action="pokemon" disabled>
-            <span class="action-icon">🔄</span>
-            <span class="action-text">Pokémon</span>
+            <div class="action-icon">🔄</div>
+            <div class="action-text">Pokémon</div>
           </button>
           <button class="action-button run" data-action="run" disabled>
-            <span class="action-icon">🏃</span>
-            <span class="action-text">Fuir</span>
+            <div class="action-icon">🏃</div>
+            <div class="action-text">Fuir</div>
           </button>
+        </div>
+        
+        <!-- Indicateur de tour -->
+        <div class="turn-indicator" id="turnIndicator">
+          <span class="turn-text">En attente...</span>
         </div>
       </div>
       
-      <!-- Sous-menus (cachés par défaut) -->
-      <div class="battle-submenu" id="movesSubmenu">
+      <!-- Sous-menus d'actions -->
+      <div class="battle-submenu hidden" id="movesSubmenu">
         <div class="submenu-header">
-          <h3 class="submenu-title">Choisissez une attaque</h3>
-          <button class="submenu-close" id="closeMovesSubmenu">×</button>
+          <h3>Choisissez une attaque</h3>
+          <button class="submenu-close" data-close="moves">×</button>
         </div>
         <div class="submenu-content">
           <div class="moves-grid" id="movesGrid">
-            <!-- Attaques seront injectées ici -->
+            <!-- Attaques injectées dynamiquement -->
           </div>
         </div>
       </div>
       
-      <div class="battle-submenu" id="itemsSubmenu">
+      <div class="battle-submenu hidden" id="itemsSubmenu">
         <div class="submenu-header">
-          <h3 class="submenu-title">Choisissez un objet</h3>
-          <button class="submenu-close" id="closeItemsSubmenu">×</button>
+          <h3>Choisissez un objet</h3>
+          <button class="submenu-close" data-close="items">×</button>
         </div>
         <div class="submenu-content">
           <div id="itemsList">
-            <!-- Objets seront injectés ici -->
+            <!-- Objets injectés dynamiquement -->
           </div>
         </div>
       </div>
       
-      <div class="battle-submenu" id="pokemonSubmenu">
+      <div class="battle-submenu hidden" id="pokemonSubmenu">
         <div class="submenu-header">
-          <h3 class="submenu-title">Choisissez un Pokémon</h3>
-          <button class="submenu-close" id="closePokemonSubmenu">×</button>
+          <h3>Choisissez un Pokémon</h3>
+          <button class="submenu-close" data-close="pokemon">×</button>
         </div>
         <div class="submenu-content">
           <div id="pokemonList">
-            <!-- Pokémon seront injectés ici -->
+            <!-- Pokémon injectés dynamiquement -->
           </div>
         </div>
       </div>
@@ -230,10 +223,356 @@ export class BattleScene extends Phaser.Scene {
     // Ajouter au DOM
     document.body.appendChild(this.battleOverlay);
     
+    // Ajouter les styles CSS
+    this.addBattleActionStyles();
+    
     // Setup des événements DOM
     this.setupDOMEvents();
     
-    console.log('✅ [BattleScene] Overlay centré créé');
+    console.log('✅ [BattleScene] Interface d\'actions DOM créée');
+  }
+
+  addBattleActionStyles() {
+    if (document.querySelector('#battle-action-styles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'battle-action-styles';
+    style.textContent = `
+      /* Styles pour l'interface d'actions de combat */
+      .battle-action-overlay {
+        font-family: 'Arial', sans-serif;
+        user-select: none;
+      }
+      
+      /* Section log de combat */
+      .battle-log-section {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        padding: 10px 20px;
+        min-height: 80px;
+      }
+      
+      .battle-log {
+        width: 100%;
+        max-height: 60px;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.8);
+        border: 2px solid #FFD700;
+        border-radius: 8px;
+        padding: 10px 15px;
+        font-size: 16px;
+        line-height: 1.4;
+      }
+      
+      .battle-log-message {
+        margin: 2px 0;
+        color: #FFFFFF;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      }
+      
+      /* Section actions */
+      .battle-actions-section {
+        flex: 0 0 auto;
+        padding: 10px 20px 20px;
+      }
+      
+      .battle-actions-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 15px;
+      }
+      
+      .action-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 60px;
+        background: linear-gradient(145deg, #4CAF50 0%, #45a049 100%);
+        border: 3px solid #FFD700;
+        border-radius: 12px;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .action-button:not(:disabled):hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        background: linear-gradient(145deg, #5CBF60 0%, #55b059 100%);
+      }
+      
+      .action-button:disabled {
+        background: linear-gradient(145deg, #666 0%, #555 100%);
+        border-color: #888;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      
+      .action-button .action-icon {
+        font-size: 24px;
+        margin-right: 8px;
+      }
+      
+      .action-button .action-text {
+        font-size: 16px;
+        font-weight: bold;
+      }
+      
+      /* Couleurs spécifiques par action */
+      .action-button.fight {
+        background: linear-gradient(145deg, #FF6B6B 0%, #FF5252 100%);
+      }
+      .action-button.fight:not(:disabled):hover {
+        background: linear-gradient(145deg, #FF7B7B 0%, #FF6262 100%);
+      }
+      
+      .action-button.bag {
+        background: linear-gradient(145deg, #4ECDC4 0%, #26A69A 100%);
+      }
+      .action-button.bag:not(:disabled):hover {
+        background: linear-gradient(145deg, #5EDCD4 0%, #36B6AA 100%);
+      }
+      
+      .action-button.pokemon {
+        background: linear-gradient(145deg, #FFB74D 0%, #FF9800 100%);
+      }
+      .action-button.pokemon:not(:disabled):hover {
+        background: linear-gradient(145deg, #FFC75D 0%, #FFA810 100%);
+      }
+      
+      .action-button.run {
+        background: linear-gradient(145deg, #9575CD 0%, #7E57C2 100%);
+      }
+      .action-button.run:not(:disabled):hover {
+        background: linear-gradient(145deg, #A585DD 0%, #8E67D2 100%);
+      }
+      
+      /* Indicateur de tour */
+      .turn-indicator {
+        text-align: center;
+        padding: 8px 15px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 2px solid #FFD700;
+        border-radius: 20px;
+        margin-top: 10px;
+      }
+      
+      .turn-indicator .turn-text {
+        color: #FFD700;
+        font-weight: bold;
+        font-size: 14px;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      }
+      
+      .turn-indicator.my-turn .turn-text {
+        color: #00FF00;
+        animation: pulse 1s infinite;
+      }
+      
+      .turn-indicator.opponent-turn .turn-text {
+        color: #FF6666;
+      }
+      
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+      
+      /* Sous-menus */
+      .battle-submenu {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        display: flex;
+        flex-direction: column;
+        transition: all 0.3s ease;
+        transform: translateY(100%);
+      }
+      
+      .battle-submenu:not(.hidden) {
+        transform: translateY(0);
+      }
+      
+      .battle-submenu.hidden {
+        transform: translateY(100%);
+        pointer-events: none;
+      }
+      
+      .submenu-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        background: rgba(255, 215, 0, 0.2);
+        border-bottom: 2px solid #FFD700;
+      }
+      
+      .submenu-header h3 {
+        color: #FFD700;
+        margin: 0;
+        font-size: 18px;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      }
+      
+      .submenu-close {
+        background: #FF6B6B;
+        border: none;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      .submenu-close:hover {
+        background: #FF5252;
+        transform: scale(1.1);
+      }
+      
+      .submenu-content {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+      }
+      
+      /* Grille des attaques */
+      .moves-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      
+      .move-button {
+        background: linear-gradient(145deg, #2196F3 0%, #1976D2 100%);
+        border: 2px solid #FFD700;
+        border-radius: 8px;
+        color: white;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-height: 60px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+      }
+      
+      .move-button:hover {
+        background: linear-gradient(145deg, #42A5F5 0%, #2196F3 100%);
+        transform: translateY(-2px);
+      }
+      
+      .move-button .move-name {
+        font-weight: bold;
+        font-size: 14px;
+        margin-bottom: 5px;
+      }
+      
+      .move-button .move-info {
+        font-size: 12px;
+        opacity: 0.8;
+      }
+      
+      /* Liste des objets */
+      #itemsList {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      
+      .item-button {
+        background: linear-gradient(145deg, #4CAF50 0%, #388E3C 100%);
+        border: 2px solid #FFD700;
+        border-radius: 8px;
+        color: white;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-height: 50px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .item-button:hover {
+        background: linear-gradient(145deg, #66BB6A 0%, #4CAF50 100%);
+        transform: translateY(-2px);
+      }
+      
+      .item-name {
+        font-weight: bold;
+        font-size: 14px;
+      }
+      
+      .item-count {
+        font-size: 12px;
+        opacity: 0.8;
+      }
+      
+      /* Liste des Pokémon */
+      #pokemonList {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .pokemon-button {
+        background: linear-gradient(145deg, #FF9800 0%, #F57C00 100%);
+        border: 2px solid #FFD700;
+        border-radius: 8px;
+        color: white;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .pokemon-button:hover {
+        background: linear-gradient(145deg, #FFB74D 0%, #FF9800 100%);
+        transform: translateY(-2px);
+      }
+      
+      .pokemon-button:disabled {
+        background: linear-gradient(145deg, #666 0%, #555 100%);
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      
+      .pokemon-info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+      }
+      
+      .pokemon-name {
+        font-weight: bold;
+        font-size: 14px;
+      }
+      
+      .pokemon-hp, .pokemon-status {
+        font-size: 12px;
+        opacity: 0.9;
+      }
+    `;
+    
+    document.head.appendChild(style);
   }
 
   // === ÉVÉNEMENTS DOM ===
@@ -250,22 +589,13 @@ export class BattleScene extends Phaser.Scene {
       });
     });
     
-    // Boutons de contrôle
-    const menuBtn = this.battleOverlay.querySelector('#battleMenuBtn');
-    const exitBtn = this.battleOverlay.querySelector('#battleExitBtn');
-    
-    if (menuBtn) {
-      menuBtn.addEventListener('click', () => this.toggleBattleMenu());
-    }
-    
-    if (exitBtn) {
-      exitBtn.addEventListener('click', () => this.attemptExitBattle());
-    }
-    
     // Boutons de fermeture des sous-menus
     const closeButtons = this.battleOverlay.querySelectorAll('.submenu-close');
     closeButtons.forEach(button => {
-      button.addEventListener('click', () => this.hideAllSubmenus());
+      button.addEventListener('click', (e) => {
+        const submenuType = e.currentTarget.dataset.close;
+        this.hideSubmenu(submenuType);
+      });
     });
     
     console.log('✅ [BattleScene] Événements DOM configurés');
@@ -323,16 +653,10 @@ export class BattleScene extends Phaser.Scene {
     this.showBattleInterface();
     
     // Mettre à jour les informations
-    this.updateBattleTitle('Combat sauvage !');
     this.addBattleLogMessage(`Un ${data.pokemon?.name || 'Pokémon'} sauvage apparaît !`);
     
     // Stocker les données du Pokémon adversaire
     this.currentOpponentPokemon = data.pokemon;
-    
-    // Mettre à jour l'affichage de l'adversaire
-    if (this.currentOpponentPokemon) {
-      this.updateOpponentDisplay(this.currentOpponentPokemon);
-    }
   }
 
   handleBattleStart(data) {
@@ -342,14 +666,10 @@ export class BattleScene extends Phaser.Scene {
     this.currentPlayerPokemon = data.player1Pokemon;
     this.currentOpponentPokemon = data.player2Pokemon;
     
-    // Afficher les Pokémon dans l'interface Phaser
+    // ✅ Afficher les Pokémon dans l'interface Phaser
     if (this.battleUI) {
       this.battleUI.displayPokemon(this.currentPlayerPokemon, this.currentOpponentPokemon);
     }
-    
-    // Mettre à jour les barres de vie
-    this.updatePlayerDisplay(this.currentPlayerPokemon);
-    this.updateOpponentDisplay(this.currentOpponentPokemon);
     
     // Mettre à jour le tour
     this.updateTurnIndicator(data.currentTurn);
@@ -401,84 +721,6 @@ export class BattleScene extends Phaser.Scene {
     this.disableActionButtons();
   }
 
-  // === MISE À JOUR DE L'AFFICHAGE ===
-
-  updatePlayerDisplay(pokemonData) {
-    if (!pokemonData) return;
-    
-    const healthBar = this.battleOverlay.querySelector('#playerHealthBar');
-    const nameElement = this.battleOverlay.querySelector('#playerName');
-    const levelElement = this.battleOverlay.querySelector('#playerLevel');
-    const healthFill = this.battleOverlay.querySelector('#playerHealthBarFill');
-    const healthText = this.battleOverlay.querySelector('#playerHealthText');
-    const statusElement = this.battleOverlay.querySelector('#playerStatus');
-    
-    if (healthBar) healthBar.style.display = 'block';
-    if (nameElement) nameElement.textContent = pokemonData.name || 'Votre Pokémon';
-    if (levelElement) levelElement.textContent = `Lv.${pokemonData.level || 1}`;
-    if (healthText) healthText.textContent = `${pokemonData.currentHp || 0}/${pokemonData.maxHp || 1}`;
-    
-    // Barre de vie
-    if (healthFill && pokemonData.maxHp > 0) {
-      const hpPercent = (pokemonData.currentHp / pokemonData.maxHp) * 100;
-      healthFill.style.width = `${hpPercent}%`;
-      
-      // Couleur selon les HP
-      healthFill.className = 'health-bar';
-      if (hpPercent > 50) {
-        healthFill.classList.add('high');
-      } else if (hpPercent > 20) {
-        healthFill.classList.add('medium');
-      } else {
-        healthFill.classList.add('low');
-      }
-    }
-    
-    // Statut
-    if (statusElement) {
-      const statusEmoji = this.getStatusEmoji(pokemonData.statusCondition);
-      statusElement.textContent = statusEmoji;
-      statusElement.className = `status-indicator ${pokemonData.statusCondition || ''}`;
-    }
-  }
-
-  updateOpponentDisplay(pokemonData) {
-    if (!pokemonData) return;
-    
-    const healthBar = this.battleOverlay.querySelector('#opponentHealthBar');
-    const nameElement = this.battleOverlay.querySelector('#opponentName');
-    const levelElement = this.battleOverlay.querySelector('#opponentLevel');
-    const healthFill = this.battleOverlay.querySelector('#opponentHealthBarFill');
-    const statusElement = this.battleOverlay.querySelector('#opponentStatus');
-    
-    if (healthBar) healthBar.style.display = 'block';
-    if (nameElement) nameElement.textContent = pokemonData.name || 'Pokémon';
-    if (levelElement) levelElement.textContent = `Lv.${pokemonData.level || 1}`;
-    
-    // Barre de vie
-    if (healthFill && pokemonData.maxHp > 0) {
-      const hpPercent = (pokemonData.currentHp / pokemonData.maxHp) * 100;
-      healthFill.style.width = `${hpPercent}%`;
-      
-      // Couleur selon les HP
-      healthFill.className = 'health-bar';
-      if (hpPercent > 50) {
-        healthFill.classList.add('high');
-      } else if (hpPercent > 20) {
-        healthFill.classList.add('medium');
-      } else {
-        healthFill.classList.add('low');
-      }
-    }
-    
-    // Statut
-    if (statusElement) {
-      const statusEmoji = this.getStatusEmoji(pokemonData.statusCondition);
-      statusElement.textContent = statusEmoji;
-      statusElement.className = `status-indicator ${pokemonData.statusCondition || ''}`;
-    }
-  }
-
   // === GESTION DES ACTIONS ===
 
   handleActionClick(action) {
@@ -512,7 +754,7 @@ export class BattleScene extends Phaser.Scene {
     
     const submenu = this.battleOverlay?.querySelector(`#${type}Submenu`);
     if (submenu) {
-      submenu.classList.add('active');
+      submenu.classList.remove('hidden');
       
       // Remplir le contenu selon le type
       switch (type) {
@@ -529,10 +771,17 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  hideSubmenu(type) {
+    const submenu = this.battleOverlay?.querySelector(`#${type}Submenu`);
+    if (submenu) {
+      submenu.classList.add('hidden');
+    }
+  }
+
   hideAllSubmenus() {
     const submenus = this.battleOverlay?.querySelectorAll('.battle-submenu');
     submenus?.forEach(submenu => {
-      submenu.classList.remove('active');
+      submenu.classList.add('hidden');
     });
   }
 
@@ -651,6 +900,7 @@ export class BattleScene extends Phaser.Scene {
     }
     
     this.addBattleLogMessage(`${this.currentPlayerPokemon?.name || 'Votre Pokémon'} utilise ${this.getMoveName(moveId)} !`);
+    this.hideAllSubmenus();
   }
 
   selectItem(itemId) {
@@ -661,6 +911,7 @@ export class BattleScene extends Phaser.Scene {
     }
     
     this.addBattleLogMessage(`Vous utilisez ${this.getItemName(itemId)} !`);
+    this.hideAllSubmenus();
   }
 
   selectPokemon(pokemonId) {
@@ -676,9 +927,9 @@ export class BattleScene extends Phaser.Scene {
   showBattleInterface() {
     console.log('🖥️ [BattleScene] Affichage interface de combat');
     
+    // Afficher l'overlay DOM
     if (this.battleOverlay) {
       this.battleOverlay.style.display = 'flex';
-      this.battleOverlay.classList.add('active');
       this.isVisible = true;
       
       // Faire passer la scène en premier plan
@@ -686,17 +937,25 @@ export class BattleScene extends Phaser.Scene {
         this.scene.bringToTop();
       }
     }
+    
+    // Afficher l'interface Phaser
+    if (this.battleUI) {
+      this.battleUI.show();
+    }
   }
 
   hideBattleInterface() {
     console.log('🖥️ [BattleScene] Masquage interface de combat');
     
+    // Cacher l'overlay DOM
     if (this.battleOverlay) {
-      this.battleOverlay.classList.remove('active');
-      setTimeout(() => {
-        this.battleOverlay.style.display = 'none';
-      }, 300); // Attendre la fin de l'animation
+      this.battleOverlay.style.display = 'none';
       this.isVisible = false;
+    }
+    
+    // Cacher l'interface Phaser
+    if (this.battleUI) {
+      this.battleUI.hide();
     }
     
     // Revenir à la scène principale
@@ -705,21 +964,16 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  updateBattleTitle(title) {
-    const titleElement = this.battleOverlay?.querySelector('#battleTitle');
-    if (titleElement) {
-      titleElement.textContent = title;
-    }
-  }
-
   updateTurnIndicator(currentTurn) {
     const indicator = this.battleOverlay?.querySelector('#turnIndicator');
-    if (indicator) {
+    const turnText = indicator?.querySelector('.turn-text');
+    
+    if (indicator && turnText) {
       if (currentTurn === 'player1') {
-        indicator.textContent = 'Votre tour';
+        turnText.textContent = 'Votre tour';
         indicator.className = 'turn-indicator my-turn';
       } else {
-        indicator.textContent = 'Tour adversaire';
+        turnText.textContent = 'Tour adversaire';
         indicator.className = 'turn-indicator opponent-turn';
       }
     }
@@ -729,7 +983,6 @@ export class BattleScene extends Phaser.Scene {
     const buttons = this.battleOverlay?.querySelectorAll('.action-button');
     buttons?.forEach(button => {
       button.disabled = false;
-      button.classList.remove('disabled');
     });
   }
 
@@ -737,7 +990,6 @@ export class BattleScene extends Phaser.Scene {
     const buttons = this.battleOverlay?.querySelectorAll('.action-button');
     buttons?.forEach(button => {
       button.disabled = true;
-      button.classList.add('disabled');
     });
   }
 
@@ -754,63 +1006,11 @@ export class BattleScene extends Phaser.Scene {
     // Faire défiler vers le bas
     battleLog.scrollTop = battleLog.scrollHeight;
     
-    // Limiter le nombre de messages (garder les 20 derniers)
+    // Limiter le nombre de messages (garder les 15 derniers)
     const messages = battleLog.querySelectorAll('.battle-log-message');
-    if (messages.length > 20) {
+    if (messages.length > 15) {
       messages[0].remove();
     }
-  }
-
-  // === EFFETS VISUELS ===
-
-  showDamageNumber(damage, target) {
-    const effectsContainer = this.battleOverlay?.querySelector('#battleEffects');
-    if (!effectsContainer || !target) return;
-    
-    const damageElement = document.createElement('div');
-    damageElement.className = 'battle-effect damage-number';
-    damageElement.textContent = `-${damage}`;
-    
-    // Position relative au target
-    const rect = target.getBoundingClientRect();
-    const containerRect = effectsContainer.getBoundingClientRect();
-    
-    damageElement.style.left = `${rect.left - containerRect.left + rect.width/2}px`;
-    damageElement.style.top = `${rect.top - containerRect.top}px`;
-    
-    effectsContainer.appendChild(damageElement);
-    
-    // Supprimer après l'animation
-    setTimeout(() => {
-      if (damageElement.parentNode) {
-        damageElement.parentNode.removeChild(damageElement);
-      }
-    }, 1500);
-  }
-
-  showHealNumber(heal, target) {
-    const effectsContainer = this.battleOverlay?.querySelector('#battleEffects');
-    if (!effectsContainer || !target) return;
-    
-    const healElement = document.createElement('div');
-    healElement.className = 'battle-effect heal-number';
-    healElement.textContent = `+${heal}`;
-    
-    // Position relative au target
-    const rect = target.getBoundingClientRect();
-    const containerRect = effectsContainer.getBoundingClientRect();
-    
-    healElement.style.left = `${rect.left - containerRect.left + rect.width/2}px`;
-    healElement.style.top = `${rect.top - containerRect.top}px`;
-    
-    effectsContainer.appendChild(healElement);
-    
-    // Supprimer après l'animation
-    setTimeout(() => {
-      if (healElement.parentNode) {
-        healElement.parentNode.removeChild(healElement);
-      }
-    }, 1200);
   }
 
   showRewards(rewards) {
@@ -838,7 +1038,7 @@ export class BattleScene extends Phaser.Scene {
   // === MÉTHODES UTILITAIRES ===
 
   getMoveName(moveId) {
-    // Table des noms d'attaques - à remplacer par une vraie DB
+    // Table des noms d'attaques
     const moveNames = {
       'tackle': 'Charge',
       'growl': 'Grondement', 
@@ -856,7 +1056,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getMovePP(moveId) {
-    // Table des PP d'attaques - à remplacer par une vraie DB
+    // Table des PP d'attaques
     const movePP = {
       'tackle': '35/35',
       'growl': '40/40',
@@ -885,20 +1085,6 @@ export class BattleScene extends Phaser.Scene {
     };
     
     return itemNames[itemId] || itemId.replace('_', ' ');
-  }
-
-  getStatusEmoji(status) {
-    const statusEmojis = {
-      'normal': '',
-      'poison': '☠️',
-      'burn': '🔥', 
-      'paralysis': '⚡',
-      'sleep': '💤',
-      'freeze': '❄️',
-      'confusion': '😵'
-    };
-    
-    return statusEmojis[status] || '';
   }
 
   getStatusText(status) {
@@ -932,27 +1118,6 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  toggleBattleMenu() {
-    console.log('📋 [BattleScene] Toggle menu de combat');
-    // TODO: Implémenter menu de combat (sauvegarde, options, etc.)
-    this.addBattleLogMessage('Menu de combat en cours de développement...');
-  }
-
-  attemptExitBattle() {
-    console.log('🚪 [BattleScene] Tentative de sortie de combat');
-    
-    if (this.battleManager && this.battleManager.isActive) {
-      // Tenter de fuir
-      const success = this.battleManager.attemptRun();
-      if (!success) {
-        this.addBattleLogMessage('Impossible de fuir !');
-      }
-    } else {
-      // Fermer directement
-      this.hideBattleInterface();
-    }
-  }
-
   // === INTÉGRATION AVEC LE RÉSEAU ===
 
   /**
@@ -963,12 +1128,18 @@ export class BattleScene extends Phaser.Scene {
     
     if (battleState.player1Pokemon) {
       this.currentPlayerPokemon = battleState.player1Pokemon;
-      this.updatePlayerDisplay(this.currentPlayerPokemon);
+      // Mettre à jour l'affichage Phaser
+      if (this.battleUI) {
+        this.battleUI.updatePlayerHealthBar(this.currentPlayerPokemon);
+      }
     }
     
     if (battleState.player2Pokemon) {
       this.currentOpponentPokemon = battleState.player2Pokemon;
-      this.updateOpponentDisplay(this.currentOpponentPokemon);
+      // Mettre à jour l'affichage Phaser
+      if (this.battleUI) {
+        this.battleUI.updateOpponentHealthBar(this.currentOpponentPokemon);
+      }
     }
     
     if (battleState.currentTurn) {
@@ -1037,21 +1208,29 @@ export class BattleScene extends Phaser.Scene {
     if (data.damage > 0) {
       this.addBattleLogMessage(`${target?.name || 'Pokémon'} perd ${data.damage} PV !`);
       
-      // Effet visuel de dégâts
-      const targetElement = data.target === 'player1' ? 
-        this.battleOverlay.querySelector('#playerHealthBar') :
-        this.battleOverlay.querySelector('#opponentHealthBar');
-      
-      if (targetElement) {
-        this.showDamageNumber(data.damage, targetElement);
+      // ✅ Effet visuel dans BattleUI
+      if (this.battleUI) {
+        const targetSprite = data.target === 'player1' ? 
+          this.battleUI.playerPokemonSprite : this.battleUI.opponentPokemonSprite;
+        
+        if (targetSprite) {
+          this.battleUI.showDamageNumber(data.damage, targetSprite);
+          this.battleUI.animateHit(targetSprite);
+        }
       }
     }
     
     // Mettre à jour l'affichage des Pokémon
     if (data.target === 'player1') {
-      this.updatePlayerDisplay(data.targetPokemon);
+      this.currentPlayerPokemon = data.targetPokemon;
+      if (this.battleUI) {
+        this.battleUI.updatePlayerHealthBar(this.currentPlayerPokemon);
+      }
     } else {
-      this.updateOpponentDisplay(data.targetPokemon);
+      this.currentOpponentPokemon = data.targetPokemon;
+      if (this.battleUI) {
+        this.battleUI.updateOpponentHealthBar(this.currentOpponentPokemon);
+      }
     }
   }
 
@@ -1063,9 +1242,15 @@ export class BattleScene extends Phaser.Scene {
     
     // Mettre à jour l'affichage
     if (data.owner === 'player1') {
-      this.updatePlayerDisplay(data.pokemon);
+      this.currentPlayerPokemon = data.pokemon;
+      if (this.battleUI) {
+        this.battleUI.updatePlayerHealthBar(this.currentPlayerPokemon);
+      }
     } else {
-      this.updateOpponentDisplay(data.pokemon);
+      this.currentOpponentPokemon = data.pokemon;
+      if (this.battleUI) {
+        this.battleUI.updateOpponentHealthBar(this.currentOpponentPokemon);
+      }
     }
   }
 
@@ -1077,11 +1262,27 @@ export class BattleScene extends Phaser.Scene {
     
     this.addBattleLogMessage(`${pokemonName} est ${statusText} !`);
     
+    // ✅ Effet visuel dans BattleUI
+    if (this.battleUI) {
+      const targetSprite = data.owner === 'player1' ? 
+        this.battleUI.playerPokemonSprite : this.battleUI.opponentPokemonSprite;
+      
+      if (targetSprite) {
+        this.battleUI.showStatusEffect(data.status, targetSprite);
+      }
+    }
+    
     // Mettre à jour l'affichage
     if (data.owner === 'player1') {
-      this.updatePlayerDisplay(data.pokemon);
+      this.currentPlayerPokemon = data.pokemon;
+      if (this.battleUI) {
+        this.battleUI.updatePlayerHealthBar(this.currentPlayerPokemon);
+      }
     } else {
-      this.updateOpponentDisplay(data.pokemon);
+      this.currentOpponentPokemon = data.pokemon;
+      if (this.battleUI) {
+        this.battleUI.updateOpponentHealthBar(this.currentOpponentPokemon);
+      }
     }
   }
 
@@ -1090,7 +1291,10 @@ export class BattleScene extends Phaser.Scene {
     
     this.addBattleLogMessage(`La ${this.getItemName(data.ballType)} bouge...`);
     
-    // TODO: Animation de secousse de la Ball
+    // ✅ Animation dans BattleUI
+    if (this.battleUI) {
+      // L'animation de secousse est gérée par animateBallShakes dans BattleUI
+    }
   }
 
   handleCaptureResult(data) {
@@ -1141,6 +1345,11 @@ export class BattleScene extends Phaser.Scene {
     this.currentPlayerPokemon = null;
     this.currentOpponentPokemon = null;
     
+    // Reset de l'interface Phaser
+    if (this.battleUI) {
+      this.battleUI.reset();
+    }
+    
     // Revenir à la scène principale
     if (this.scene && this.scene.sleep) {
       this.scene.sleep();
@@ -1175,6 +1384,12 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleOverlay && this.battleOverlay.parentNode) {
       this.battleOverlay.parentNode.removeChild(this.battleOverlay);
       this.battleOverlay = null;
+    }
+    
+    // Supprimer les styles CSS
+    const styles = document.querySelector('#battle-action-styles');
+    if (styles) {
+      styles.remove();
     }
     
     // Nettoyer les managers
