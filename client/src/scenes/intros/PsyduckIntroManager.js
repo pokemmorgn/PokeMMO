@@ -135,8 +135,12 @@ export class PsyduckIntroManager {
       return;
     }
 
+        // ✅ NOUVEAU: DÉLAI DE 2 SECONDES avant démarrage
+    console.log('[PsyduckIntro] ⏳ Attente 2 secondes supplémentaires...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     console.log('[PsyduckIntro] ✅ Toutes les vérifications passées, démarrage intro');
-
+    
     // ✅ ÉTAPE 4: Bloquer les inputs et charger Psyduck
     this.blockPlayerInputs();
     this.loadPsyduckSpritesheet();
