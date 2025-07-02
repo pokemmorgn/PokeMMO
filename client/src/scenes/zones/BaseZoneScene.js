@@ -548,6 +548,8 @@ setRoom(room) {
     
     console.log(`✅ [${this.scene.key}] Planification initialisation systèmes terminée`);
 
+  }
+
 
   // 🆕 NOUVELLE MÉTHODE: Initialisation du ClientEncounterManager
   initializeEncounterManager() {
