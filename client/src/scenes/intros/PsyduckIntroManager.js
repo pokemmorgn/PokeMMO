@@ -465,7 +465,6 @@ waitForValidPlayerObject(maxWaitTime = 1000) {
       console.log('[PsyduckIntro] 💬 Phase 3: Interaction et dialogue');
       this.psyduck.anims.stop();
       this.psyduck.setFrame(0);
-      this.notifyServer("intro_watched");
       this.notifyServer("psyduck_talked");
       
       this.showDialogue([
@@ -601,7 +600,7 @@ waitForValidPlayerObject(maxWaitTime = 1000) {
                 this.cleanup();
                 return;
               }
-              
+               this.notifyServer("intro_watched");
               // Fade out
               this.scene.tweens.add({
                 targets: this.psyduck,
