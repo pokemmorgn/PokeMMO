@@ -1,5 +1,5 @@
 // ===============================================
-// VillageLabScene.js - Version complète corrigée
+// VillageLabScene.js - Version complète corrigée avec détection startertable
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 import { integrateStarterSelectorToScene } from '../../components/StarterSelector.js';
@@ -9,6 +9,7 @@ export class VillageLabScene extends BaseZoneScene {
     super('VillageLabScene', 'villagelab');
     this.transitionCooldowns = {};
     this.starterSelector = null;
+    this.starterTableZones = []; // Zones de détection pour la table starter
   }
 
   // ✅ AMÉLIORATION: Position par défaut pour VillageLabScene
@@ -31,7 +32,7 @@ export class VillageLabScene extends BaseZoneScene {
     super.create();
     console.log("✅ BaseZoneScene.create() appelé");
 
-    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "T" to test StarterSelector', {
+    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "T" to test StarterSelector\nPress "E" near starter table', {
       font: '18px monospace',
       fill: '#000000',
       padding: { x: 20, y: 10 },
@@ -61,29 +62,30 @@ export class VillageLabScene extends BaseZoneScene {
 
     // Gestion des messages serveur (dialogues, starter...)
     if (this.networkManager?.room) {
-    this.networkManager.room.onMessage('professorDialog', (data) => this.showProfessorDialog(data));
-    this.networkManager.room.onMessage('starterReceived', (data) => this.showStarterReceived(data));
-    this.networkManager.room.onMessage('welcomeToLab', (data) => this.showWelcomeMessage(data));
-    this.networkManager.room.onMessage("requestStarterSelection", (data) => {
-      console.log("📥 [VillageLabScene] Demande de sélection starter du serveur");
-      this.showStarterSelection(data.availableStarters);
-    });
-    this.networkManager.room.onMessage("starterSelected", (data) => {
-      console.log("✅ [VillageLabScene] Starter confirmé:", data);
-      this.onStarterConfirmed(data);
-    });
+      this.networkManager.room.onMessage('professorDialog', (data) => this.showProfessorDialog(data));
+      this.networkManager.room.onMessage('starterReceived', (data) => this.showStarterReceived(data));
+      this.networkManager.room.onMessage('welcomeToLab', (data) => this.showWelcomeMessage(data));
+      this.networkManager.room.onMessage("requestStarterSelection", (data) => {
+        console.log("📥 [VillageLabScene] Demande de sélection starter du serveur");
+        this.showStarterSelection(data.availableStarters);
+      });
+      this.networkManager.room.onMessage("starterSelected", (data) => {
+        console.log("✅ [VillageLabScene] Starter confirmé:", data);
+        this.onStarterConfirmed(data);
+      });
 
-    // 👉 AJOUTE CE BLOC POUR 'starterEligibility'
-    this.networkManager.room.onMessage("starterEligibility", (data) => {
-      console.log("[VillageLabScene] Réponse starterEligibility:", data);
-      if (data.eligible) {
-        this.showStarterSelection();
-      } else {
-        this.showSimpleDialog("Professeur", data.message || "Vous ne pouvez pas choisir de starter.");
-      }
-    });
+      // Handler pour la réponse d'éligibilité
+      this.networkManager.room.onMessage("starterEligibility", (data) => {
+        console.log("[VillageLabScene] Réponse starterEligibility:", data);
+        if (data.eligible) {
+          this.showStarterSelection();
+        } else {
+          this.showSimpleDialog("Professeur", data.message || "Vous ne pouvez pas choisir de starter.");
+        }
+      });
+    }
   }
-}
+
   setupStarterSelector() {
     try {
       // Intégrer le StarterSelector à cette scène
@@ -91,7 +93,7 @@ export class VillageLabScene extends BaseZoneScene {
       
       console.log("✅ [VillageLabScene] StarterSelector intégré");
       
-      // Ajouter un test de démo
+      // Ajouter les triggers
       this.addStarterTrigger();
       
     } catch (error) {
@@ -99,36 +101,211 @@ export class VillageLabScene extends BaseZoneScene {
     }
   }
 
+  // ✅ MÉTHODE MODIFIÉE: Configuration des triggers avec détection automatique
   addStarterTrigger() {
-    // ✅ TRIGGER: Touche T pour tester
+    console.log("🎯 [VillageLabScene] Configuration triggers starter...");
+    
+    // Charger les zones de starter table depuis la carte
+    this.loadStarterTableZones();
+    
+    // ✅ TRIGGER: Touche T pour test (toujours disponible)
     this.input.keyboard.on('keydown-T', () => {
-      console.log("🧪 [VillageLabScene] Test StarterSelector (Touche T)");
+      console.log("🧪 [TEST] Touche T - Test StarterSelector");
       this.showStarterSelection();
     });
 
-    // ✅ TRIGGER: Zone interactive pour ouvrir la sélection (table du labo)
-    const labTable = this.add.rectangle(200, 150, 80, 40, 0x8B4513, 0.8);
-    labTable.setInteractive();
-    labTable.setDepth(10);
-    
-    // Texte indicatif
-    this.add.text(200, 130, 'Starter Table', {
-      fontSize: '10px',
-      fontFamily: 'monospace',
-      color: '#ffffff',
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      padding: { x: 4, y: 2 },
-    }).setOrigin(0.5).setDepth(11);
-
-    labTable.on('pointerdown', () => {
-      console.log("🧪 [VillageLabScene] Clic sur table du labo");
-if (this.networkManager?.room) {
-    this.networkManager.room.send("checkStarterEligibility");
-  }
+    // ✅ TRIGGER: Touche E pour interaction avec table starter
+    this.input.keyboard.on('keydown-E', () => {
+      console.log("🎯 [E] Tentative interaction starter...");
+      
+      if (this.isPlayerNearStarterTable()) {
+        console.log("✅ [E] Joueur près de la table - Déclenchement");
+        this.triggerStarterSelection();
+      } else {
+        console.log("❌ [E] Joueur trop loin de la table");
+        this.showSimpleDialog("", "Approchez-vous de la table du professeur.");
+      }
     });
 
-    // ✅ TRIGGER: Interaction avec le Professeur pour commencer
-    // (sera géré dans createNPC pour le Professeur)
+    console.log("✅ [VillageLabScene] Triggers starter configurés");
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Charger les zones depuis la carte Tiled
+  loadStarterTableZones() {
+    console.log("📍 [StarterTable] Recherche des zones starter table...");
+    
+    this.starterTableZones = []; // Reset
+    
+    if (!this.map) {
+      console.error("❌ [StarterTable] Carte non chargée");
+      return;
+    }
+
+    // Chercher dans tous les layers
+    let foundZones = 0;
+    
+    this.map.layers.forEach((layer) => {
+      if (layer.type === 'objectgroup' && layer.objects) {
+        console.log(`🔍 [StarterTable] Vérification layer: ${layer.name} (${layer.objects.length} objets)`);
+        
+        layer.objects.forEach((obj, index) => {
+          console.log(`🔍 [StarterTable] Objet ${index}:`, {
+            name: obj.name,
+            type: obj.type,
+            properties: obj.properties,
+            x: obj.x,
+            y: obj.y
+          });
+          
+          // Vérifier si cet objet a la propriété "startertable"
+          if (this.hasStarterTableProperty(obj)) {
+            const zone = {
+              x: obj.x,
+              y: obj.y,
+              width: obj.width || 32,
+              height: obj.height || 32,
+              centerX: obj.x + (obj.width || 32) / 2,
+              centerY: obj.y + (obj.height || 32) / 2,
+              name: obj.name || 'StarterTable'
+            };
+            
+            this.starterTableZones.push(zone);
+            foundZones++;
+            
+            console.log(`✅ [StarterTable] Zone starter détectée:`, zone);
+            
+            // Créer un indicateur visuel (optionnel, pour debug)
+            this.createStarterTableIndicator(zone);
+          }
+        });
+      }
+    });
+    
+    console.log(`📊 [StarterTable] Total zones starter trouvées: ${foundZones}`);
+    
+    if (foundZones === 0) {
+      console.warn("⚠️ [StarterTable] Aucune zone starter table trouvée!");
+      console.log("💡 [StarterTable] Assurez-vous que votre carte Tiled contient un objet avec la propriété 'startertable' = true");
+    }
+  }
+
+  // ✅ MÉTHODE: Vérifier si un objet a la propriété startertable
+  hasStarterTableProperty(obj) {
+    // Vérifier les propriétés custom de Tiled
+    if (obj.properties) {
+      // Tiled peut stocker les propriétés de différentes façons
+      if (Array.isArray(obj.properties)) {
+        // Format tableau (Tiled récent)
+        const starterProp = obj.properties.find(prop => 
+          prop.name === 'startertable' || prop.name === 'starterTable'
+        );
+        if (starterProp && (starterProp.value === true || starterProp.value === 'true')) {
+          console.log(`🎯 [StarterTable] Propriété trouvée (array):`, starterProp);
+          return true;
+        }
+      } else if (typeof obj.properties === 'object') {
+        // Format objet (Tiled ancien)
+        if (obj.properties.startertable === true || 
+            obj.properties.startertable === 'true' ||
+            obj.properties.starterTable === true || 
+            obj.properties.starterTable === 'true') {
+          console.log(`🎯 [StarterTable] Propriété trouvée (object):`, obj.properties);
+          return true;
+        }
+      }
+    }
+    
+    // Fallback: Vérifier le nom ou type
+    if (obj.name && obj.name.toLowerCase().includes('starter')) {
+      console.log(`🎯 [StarterTable] Détecté par nom: ${obj.name}`);
+      return true;
+    }
+    
+    if (obj.type && obj.type.toLowerCase().includes('starter')) {
+      console.log(`🎯 [StarterTable] Détecté par type: ${obj.type}`);
+      return true;
+    }
+    
+    return false;
+  }
+
+  // ✅ MÉTHODE: Créer un indicateur visuel pour debug
+  createStarterTableIndicator(zone) {
+    // Rectangle de debug (semi-transparent)
+    const indicator = this.add.rectangle(
+      zone.centerX,
+      zone.centerY,
+      zone.width,
+      zone.height,
+      0x00ff00,
+      0.3
+    );
+    indicator.setDepth(5);
+    
+    // Texte indicatif
+    const label = this.add.text(
+      zone.centerX,
+      zone.centerY - zone.height / 2 - 10,
+      'STARTER TABLE\n[E] pour interagir',
+      {
+        fontSize: '10px',
+        fontFamily: 'monospace',
+        color: '#ffffff',
+        backgroundColor: 'rgba(0, 150, 0, 0.8)',
+        padding: { x: 4, y: 2 },
+        align: 'center'
+      }
+    );
+    label.setOrigin(0.5).setDepth(6);
+    
+    console.log(`🎨 [StarterTable] Indicateur visuel créé à (${zone.centerX}, ${zone.centerY})`);
+  }
+
+  // ✅ MÉTHODE: Vérifier si le joueur est près d'une starter table
+  isPlayerNearStarterTable() {
+    if (!this.player || !this.starterTableZones || this.starterTableZones.length === 0) {
+      console.log("❌ [Proximité] Pas de joueur ou pas de zones starter");
+      return false;
+    }
+    
+    const playerX = this.player.x;
+    const playerY = this.player.y;
+    const detectionRange = 50; // Distance de détection en pixels
+    
+    for (const zone of this.starterTableZones) {
+      const distance = Phaser.Math.Distance.Between(
+        playerX, playerY,
+        zone.centerX, zone.centerY
+      );
+      
+      if (distance <= detectionRange) {
+        console.log(`🎯 [StarterTable] Joueur près de ${zone.name}: distance ${Math.round(distance)}px`);
+        return true;
+      }
+    }
+    
+    console.log(`❌ [StarterTable] Joueur trop loin. Position: (${playerX}, ${playerY})`);
+    
+    // Debug: afficher les zones disponibles
+    this.starterTableZones.forEach((zone, index) => {
+      const dist = Phaser.Math.Distance.Between(playerX, playerY, zone.centerX, zone.centerY);
+      console.log(`  📏 ${zone.name}: centre(${zone.centerX}, ${zone.centerY}) - distance: ${Math.round(dist)}px`);
+    });
+    
+    return false;
+  }
+
+  // ✅ MÉTHODE: Déclencher la sélection starter avec vérification serveur
+  triggerStarterSelection() {
+    console.log("🎯 [VillageLabScene] Déclenchement sélection starter...");
+    
+    if (this.networkManager?.room) {
+      console.log("📤 [VillageLabScene] Envoi checkStarterEligibility...");
+      this.networkManager.room.send("checkStarterEligibility");
+    } else {
+      console.warn("⚠️ [VillageLabScene] NetworkManager indisponible, test direct");
+      this.showStarterSelection();
+    }
   }
 
   setupNPCs() {
@@ -177,23 +354,20 @@ if (this.networkManager?.room) {
   }
 
   interactWithNPC(npcName) {
-  console.log(`💬 Interaction avec ${npcName}`);
-  if (npcName === 'Professeur') {
-    // ✅ Interaction avec Professeur = demande d'éligibilité starter au serveur
-    if (this.networkManager?.room) {
-      this.networkManager.room.send("checkStarterEligibility");
+    console.log(`💬 Interaction avec ${npcName}`);
+    if (npcName === 'Professeur') {
+      // ✅ Interaction avec Professeur = demande d'éligibilité starter au serveur
+      this.triggerStarterSelection();
+    } else {
+      const messages = {
+        Assistant: 'Je m\'occupe de l\'entretien du laboratoire.',
+        Chercheur: 'Nous étudions les Pokémon ici. Fascinant !',
+        Stagiaire: 'J\'apprends encore... C\'est compliqué !',
+      };
+      const message = messages[npcName] || 'Bonjour ! Je travaille ici.';
+      this.showSimpleDialog(npcName, message);
     }
-  } else {
-    const messages = {
-      Assistant: 'Je m\'occupe de l\'entretien du laboratoire.',
-      Chercheur: 'Nous étudions les Pokémon ici. Fascinant !',
-      Stagiaire: 'J\'apprends encore... C\'est compliqué !',
-    };
-    const message = messages[npcName] || 'Bonjour ! Je travaille ici.';
-    this.showSimpleDialog(npcName, message);
   }
-}
-
 
   showProfessorStarterDialog() {
     const dialogueBox = this.add.text(
@@ -366,6 +540,9 @@ if (this.networkManager?.room) {
       this.starterSelector = null;
     }
 
+    // Nettoyer les zones starter
+    this.starterTableZones = [];
+
     this.transitionCooldowns = {};
     console.log("⚙️ VillageLabScene cleanup appelé");
     super.cleanup();
@@ -377,6 +554,9 @@ if (this.networkManager?.room) {
       this.starterSelector.destroy();
       this.starterSelector = null;
     }
+
+    // Nettoyer les zones starter
+    this.starterTableZones = [];
 
     super.destroy();
   }
@@ -394,4 +574,18 @@ window.testLabStarter = () => {
 
 window.getLabScene = () => {
   return window.game?.scene?.getScene('VillageLabScene');
+};
+
+// ✅ FONCTION DEBUG POUR TESTER LA DÉTECTION
+window.debugStarterTable = () => {
+  const labScene = window.game?.scene?.getScene('VillageLabScene');
+  if (labScene) {
+    console.log("🔍 Debug StarterTable zones:", labScene.starterTableZones);
+    console.log("🎯 Joueur près d'une table:", labScene.isPlayerNearStarterTable());
+    if (labScene.map) {
+      console.log("🗺️ Layers disponibles:", labScene.map.layers.map(l => `${l.name} (${l.type})`));
+    }
+  } else {
+    console.warn("❌ VillageLabScene non trouvée");
+  }
 };
