@@ -122,6 +122,12 @@ export class BattleIntegration {
       console.error('❌ [BattleIntegration] Échec transition UI');
       return;
     }
+      // 🟢 === AJOUTER CETTE LIGNE :
+  await this.showBattleInterface({
+    pokemon: data.pokemon,
+    location: data.location,
+    method: data.method
+  });
     
     console.log('✅ [BattleIntegration] Transition UI lancée - interface dans 2 secondes');
   }
