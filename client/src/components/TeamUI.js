@@ -141,6 +141,8 @@ export class TeamUI {
   }
 
   createTeamInterface() {
+ const existing = document.getElementById('team-overlay');
+  if (existing) existing.remove();
     const overlay = document.createElement('div');
     overlay.id = 'team-overlay';
     overlay.className = 'team-overlay hidden';
