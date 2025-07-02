@@ -583,25 +583,28 @@ window.extendedLoadingScreen.addCustomTheme('extended', {
 // Fonction de chargement étendu
 async function startExtendedLoading() {
   try {
-    // Démarrer l'écran
-    window.extendedLoadingScreen.showManual('PokeWorld MMO', '🌍');
+    console.log("🚀 Démarrage chargement étendu...");
     
-    // Étape 1: Moteur de jeu
-    window.extendedLoadingScreen.updateManual('Chargement du moteur de jeu...', 10);
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // ✅ FIX: Utiliser show() avec le thème 'extended' au lieu de showManual()
+    // Cela va démarrer la séquence automatique ET se fermer automatiquement
     
-    // Lancer Phaser
-    window.game = new Phaser.Game(config);
+    // Ne pas attendre le show() - il va faire toute la séquence tout seul
+    window.extendedLoadingScreen.show('extended');
     
-    // Étape 2: Connexion serveur  
-    window.extendedLoadingScreen.updateManual('Connexion au serveur...', 25);
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // ✅ Pendant que l'écran se déroule, lancer Phaser en arrière-plan
+    setTimeout(() => {
+      console.log("🎮 Lancement Phaser en arrière-plan...");
+      window.game = new Phaser.Game(config);
+    }, 1000); // Laisser le temps à l'écran de démarrer
     
-    console.log("✅ Chargement étendu Phase 1 terminé - BaseZoneScene prendra le relais");
+    console.log("✅ Chargement étendu lancé - l'écran va se gérer automatiquement");
     
   } catch (error) {
     console.error("❌ Erreur chargement étendu:", error);
     // Fallback vers lancement normal
+    if (window.extendedLoadingScreen) {
+      window.extendedLoadingScreen.hide();
+    }
     window.game = new Phaser.Game(config);
   }
 }
