@@ -71,6 +71,22 @@ export class LoadingScreen {
         icon: '🏪',
         color: 'rgba(245, 158, 11, 0.8)',
         stepDelay: 200
+      },
+      // ✅ NOUVEAU: Thème pour initialisation UI
+      uiInit: {
+        title: 'Initialisation de l\'interface',
+        steps: [
+          "Démarrage du système UI...",
+          "Configuration des modules...",
+          "Chargement de l'inventaire...",
+          "Chargement de l'équipe...",
+          "Chargement des quêtes...",
+          "Finalisation de l'interface...",
+          "Interface prête !"
+        ],
+        icon: '🎮',
+        color: 'rgba(139, 69, 19, 0.8)',
+        stepDelay: 400
       }
     };
     
@@ -502,11 +518,15 @@ export class LoadingScreen {
   showBattleLoading() {
     return this.show('battle');
   }
-
+  
+  // ✅ NOUVEAU: Méthode pour chargement UI
+  showUIInitLoading() {
+    return this.show('uiInit');
+  }
+  
   showShopLoading() {
     return this.show('shop');
   }
-
   showCustomLoading(steps, options = {}) {
     return this.show(steps, options);
   }
@@ -633,6 +653,7 @@ export const QuickLoading = {
   zone: () => LoadingScreen.getGlobal().showZoneLoading(),
   battle: () => LoadingScreen.getGlobal().showBattleLoading(),
   shop: () => LoadingScreen.getGlobal().showShopLoading(),
+  uiInit: () => LoadingScreen.getGlobal().showUIInitLoading(),
   custom: (steps, options) => LoadingScreen.getGlobal().showCustomLoading(steps, options),
   hide: () => LoadingScreen.getGlobal().hide()
 };
