@@ -35,62 +35,32 @@ import { LavandiaHouse8Scene } from './scenes/zones/LavandiaHouse8Scene.js';
 import { LavandiaHouse9Scene } from './scenes/zones/LavandiaHouse9Scene.js';
 import { LavandiaResearchLabScene } from './scenes/zones/LavandiaResearchLabScene.js';
 import { LavandiaShopScene } from './scenes/zones/LavandiaShopScene.js';
-//import { NoctherCave1Scene } from './scenes/zones/NoctherCave1Scene.js';
-//import { NoctherCave2Scene } from './scenes/zones/NoctherCave2Scene.js';
-//import { NoctherCave2BisScene } from './scenes/zones/NoctherCave2BisScene.js';
 import { Road1HouseScene } from './scenes/zones/Road1HouseScene.js';
 import { Road1HiddenScene } from './scenes/zones/Road1HiddenScene.js';
-//import { Road2Scene } from './scenes/zones/Road2Scene.js';
-//import { Road3Scene } from './scenes/zones/Road3Scene.js';
 import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
 import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
 
-// === Colyseus.js ===
 import { Client } from 'colyseus.js';
-
-// === Import du chat séparé ===
 import { initPokeChat } from './network/PokeChatSystem.js';
-
-// === Import du HUD de sélection de starter ===
 import { StarterSelectionHUD } from './components/StarterSelectionHUD.js';
-
-// === Import du système de quêtes ===
 import { QuestSystem } from './game/QuestSystem.js';
-
-// === Import du système d'inventaire ===
 import { InventorySystem } from './game/InventorySystem.js';
-
-// === Import du système de notification centralisé ===
 import { initializeGameNotifications, showNotificationInstructions } from './notification.js';
-
-// === Import de l'intro
 import { PsyduckIntroManager } from './scenes/intros/PsyduckIntroManager.js';
-
-// === Import UI ===
 import { initializePokemonUI } from './ui.js';
-
-// === Import du debug de notifications ===
 import './debug-notifications.js';
-
-// 🆕 NOUVEAU: Import du ClientEncounterManager
 import { ClientEncounterManager } from './managers/EncounterManager.js';
-
-// 🆕 NOUVEAU: Import du système de combat
 import { BattleIntegration } from './managers/BattleIntegration.js';
 import { BattleScene } from './scenes/BattleScene.js';
 
-// --- Endpoint dynamique ---
 const ENDPOINT =
   (location.protocol === "https:" ? "wss://" : "ws://") +
   location.hostname +
   (location.port ? ":" + location.port : "") +
   "/ws";
 
-// 1. Instancie un client Colyseus
 const client = new Client(ENDPOINT);
-
-window.client = client; // Exposer le client globalement
-
+window.client = client;
 console.log("✅ Client Colyseus exposé globalement");
 
 function getWalletFromUrl() {
@@ -108,14 +78,11 @@ if (!username) {
 }
 window.username = username;
 
-
-// ✅ NOUVEAU: Fonction d'initialisation du système de scènes
 async function initializeSceneSystem() {
   console.log("🏗️ [MAIN] === INITIALISATION SYSTÈME DE SCÈNES ===");
   
   const registry = SceneRegistry.getInstance();
   
-  // ✅ Enregistrer toutes les classes de scènes dans le registry
   console.log("📝 [MAIN] Enregistrement des classes de scènes...");
   registry.registerSceneClass('beach', BeachScene);
   registry.registerSceneClass('village', VillageScene);
@@ -126,22 +93,18 @@ async function initializeSceneSystem() {
   
   console.log("✅ [MAIN] Toutes les scènes enregistrées dans le registry");
   
-  // ✅ Exposer globalement pour l'utilisation dans les transitions
   window.sceneRegistry = registry;
   
-  // ✅ Ajouter des fonctions utilitaires globales
   window.switchToZone = async function(zoneName, transitionData = {}) {
     const sceneKey = registry.getSceneKey(zoneName);
     console.log(`🔄 [MAIN] Changement vers zone: ${zoneName} (${sceneKey})`);
     
-    // Vérifier si la scène existe
     const targetScene = window.game.scene.getScene(sceneKey);
     if (!targetScene) {
       console.error(`❌ [MAIN] Scène ${sceneKey} introuvable`);
       return false;
     }
     
-    // Redémarrage propre
     if (window.game.scene.isActive(sceneKey)) {
       window.game.scene.stop(sceneKey);
     }
@@ -174,7 +137,6 @@ async function initializeSceneSystem() {
     console.log(`🔍 [MAIN] === DEBUG SCENE REGISTRY ===`);
     registry.debugInfo();
     
-    // Vérifier aussi les scènes dans Phaser
     const phaserScenes = Object.keys(window.game?.scene?.manager?.keys || {});
     console.log(`🎬 Scènes Phaser:`, phaserScenes);
     
@@ -187,107 +149,53 @@ async function initializeSceneSystem() {
   return registry;
 }
 
-// Dans la console, corrigez le client :
-// === CORRECTIONS À APPLIQUER DANS main.js ===
-
-// 1. ❌ SUPPRIMER ces lignes (lignes 190-230 environ) :
-// Dans la console, corrigez le client :
 window.fixBattleClient = function() {
-    console.log('🔧 === CORRECTION CLIENT BATTLE ===');
-    
-    // Vérifier que le système global client existe
-    if (!window.client) {
-        console.error('❌ Client Colyseus global manquant');
-        return false;
-    }
-    
-    // Vérifier que le battleSystem existe
-    if (!window.battleSystem) {
-        console.error('❌ BattleSystem manquant');
-        return false;
-    }
-    
-    // Récupérer le NetworkHandler et corriger le client
-    const battleConnection = window.battleSystem.battleConnection;
-    const networkHandler = battleConnection?.networkHandler;
-    
-    if (networkHandler) {
-        console.log('🔄 Correction du client dans BattleNetworkHandler...');
-        
-        // Forcer le bon client
-        networkHandler.client = window.client;
-        
-        console.log('✅ Client corrigé:', {
-            hasJoinById: typeof networkHandler.client.joinById === 'function',
-            clientType: typeof networkHandler.client,
-            clientKeys: Object.keys(networkHandler.client)
-        });
-        
-        return true;
-    }
-    
-    console.error('❌ NetworkHandler introuvable');
+  console.log('🔧 === CORRECTION CLIENT BATTLE ===');
+  
+  if (!window.client) {
+    console.error('❌ Client Colyseus global manquant');
     return false;
-};
-
-window.fixBattleClient = function() {
-    console.log('🔧 === CORRECTION CLIENT BATTLE ===');
-    
-    // Vérifier que le système global client existe
-    if (!window.client) {
-        console.error('❌ Client Colyseus global manquant');
-        return false;
-    }
-    
-    // ✅ CORRECTION: Vérifier si battleSystem existe avant d'essayer de l'utiliser
-    if (!window.battleSystem) {
-        console.warn('⚠️ BattleSystem pas encore initialisé (normal au chargement)');
-        return false;
-    }
-    
-    // Récupérer le NetworkHandler et corriger le client
-    const battleConnection = window.battleSystem.battleConnection;
-    const networkHandler = battleConnection?.networkHandler;
-    
-    if (networkHandler) {
-        console.log('🔄 Correction du client dans BattleNetworkHandler...');
-        
-        // Forcer le bon client
-        networkHandler.client = window.client;
-        
-        console.log('✅ Client corrigé:', {
-            hasJoinById: typeof networkHandler.client.joinById === 'function',
-            clientType: typeof networkHandler.client,
-            clientKeys: Object.keys(networkHandler.client)
-        });
-        
-        return true;
-    }
-    
-    console.error('❌ NetworkHandler introuvable');
+  }
+  
+  if (!window.battleSystem) {
+    console.warn('⚠️ BattleSystem pas encore initialisé (normal au chargement)');
     return false;
+  }
+  
+  const battleConnection = window.battleSystem.battleConnection;
+  const networkHandler = battleConnection?.networkHandler;
+  
+  if (networkHandler) {
+    console.log('🔄 Correction du client dans BattleNetworkHandler...');
+    
+    networkHandler.client = window.client;
+    
+    console.log('✅ Client corrigé:', {
+      hasJoinById: typeof networkHandler.client.joinById === 'function',
+      clientType: typeof networkHandler.client,
+      clientKeys: Object.keys(networkHandler.client)
+    });
+    
+    return true;
+  }
+  
+  console.error('❌ NetworkHandler introuvable');
+  return false;
 };
-
-// Appliquez la correction
-window.fixBattleClient();
 
 async function initializeGlobalWeatherSystem() {
   console.log("🌤️ [MAIN] === INITIALISATION SYSTÈME MÉTÉO GLOBAL SIMPLE ===");
   
   try {
-    // ✅ INITIALISER LE SYSTÈME GLOBAL
     console.log("🌍 [MAIN] Initialisation GlobalWeatherManager...");
     const success = await globalWeatherManager.initialize(window.globalNetworkManager);
     
     if (success) {
       console.log("✅ [MAIN] GlobalWeatherManager initialisé avec succès");
       
-      // ✅ EXPOSER GLOBALEMENT
       window.globalWeatherManager = globalWeatherManager;
-      window.weatherManagerGlobal = globalWeatherManager; // ← AJOUTEZ CETTE LIGNE
-
+      window.weatherManagerGlobal = globalWeatherManager;
       
-      // ✅ FONCTIONS UTILITAIRES GLOBALES
       window.getGlobalWeather = function() {
         return globalWeatherManager.getCurrentWeather();
       };
@@ -296,7 +204,6 @@ async function initializeGlobalWeatherSystem() {
         return globalWeatherManager.getCurrentTime();
       };
       
-      // ✅ FONCTION D'ENREGISTREMENT SIMPLIFIÉE
       window.registerSceneToWeather = function(scene, zoneName) {
         if (!globalWeatherManager.isInitialized) {
           console.warn("⚠️ [GLOBAL] Système météo pas prêt pour enregistrement");
@@ -307,12 +214,10 @@ async function initializeGlobalWeatherSystem() {
         return globalWeatherManager.registerScene(scene, zoneName);
       };
       
-      // ✅ FONCTION DE CHANGEMENT DE ZONE
       window.onWeatherZoneChanged = function(zoneName) {
         globalWeatherManager.onZoneChanged(zoneName);
       };
       
-      // ✅ FONCTIONS DE DEBUG
       window.debugGlobalWeather = function() {
         globalWeatherManager.debug();
       };
@@ -330,7 +235,6 @@ async function initializeGlobalWeatherSystem() {
   } catch (error) {
     console.error("❌ [MAIN] Erreur initialisation système météo global:", error);
     
-    // ✅ FALLBACK SÉCURISÉ en cas d'erreur
     window.globalWeatherManager = {
       isInitialized: false,
       error: error.message,
@@ -349,7 +253,6 @@ async function initializeGlobalWeatherSystem() {
   }
 }
 
-// ✅ NOUVELLES FONCTIONS DE DEBUG AMÉLIORES
 window.quickWeatherDebug = function() {
   console.log('⚡ === DEBUG RAPIDE MÉTÉO GLOBAL ===');
   
@@ -381,13 +284,11 @@ window.testGlobalWeather = function() {
   console.log('⏰ Temps actuel:', currentTime);
   console.log('🌦️ Météo actuelle:', currentWeather);
   
-  // Test de forçage d'update
   window.forceWeatherUpdate();
   
   return true;
 };
 
-// === CONFIG PHASER ===
 const config = {
   type: Phaser.AUTO,
   width: 800,
@@ -397,56 +298,37 @@ const config = {
   roundPixels: true,
   antialias: false,
   pauseOnBlur: false,
-  // ✅ GARDER TOUTES LES SCÈNES pour éviter les problèmes de "scène introuvable"
-  // 🆕 NOUVEAU: Ajouter BattleScene
   scene: [
-  LoaderScene,
-
-  // Village
-  VillageScene,
-  VillageLabScene,
-  VillageHouse1Scene,
-  VillageHouse2Scene,
-  VillageFloristScene,
-
-  // Beach
-  BeachScene,
-
-  // Road
-  Road1Scene,
-  Road1HouseScene,
-  Road1HiddenScene,
-  //Road2Scene,
-//  Road3Scene,
-
-  // Lavandia
-  LavandiaScene,
-  LavandiaAnalysisScene,
-  LavandiaBossRoomScene,
-  LavandiaCelebiTempleScene,
-  LavandiaEquipmentScene,
-  LavandiaFurnitureScene,
-  LavandiaHealingCenterScene,
-  LavandiaHouse1Scene,
-  LavandiaHouse2Scene,
-  LavandiaHouse3Scene,
-  LavandiaHouse4Scene,
-  LavandiaHouse5Scene,
-  LavandiaHouse6Scene,
-  LavandiaHouse7Scene,
-  LavandiaHouse8Scene,
-  LavandiaHouse9Scene,
-  LavandiaResearchLabScene,
-  LavandiaShopScene,
-
-  // NoctherCave
-  //NoctherCave1Scene,
-  //NoctherCave2Scene,
-  //NoctherCave2BisScene
-
-  // 🆕 NOUVEAU: Battle Scene
-  BattleScene
-],
+    LoaderScene,
+    VillageScene,
+    VillageLabScene,
+    VillageHouse1Scene,
+    VillageHouse2Scene,
+    VillageFloristScene,
+    BeachScene,
+    Road1Scene,
+    Road1HouseScene,
+    Road1HiddenScene,
+    LavandiaScene,
+    LavandiaAnalysisScene,
+    LavandiaBossRoomScene,
+    LavandiaCelebiTempleScene,
+    LavandiaEquipmentScene,
+    LavandiaFurnitureScene,
+    LavandiaHealingCenterScene,
+    LavandiaHouse1Scene,
+    LavandiaHouse2Scene,
+    LavandiaHouse3Scene,
+    LavandiaHouse4Scene,
+    LavandiaHouse5Scene,
+    LavandiaHouse6Scene,
+    LavandiaHouse7Scene,
+    LavandiaHouse8Scene,
+    LavandiaHouse9Scene,
+    LavandiaResearchLabScene,
+    LavandiaShopScene,
+    BattleScene
+  ],
   physics: {
     default: 'arcade',
     arcade: {
@@ -469,7 +351,6 @@ const config = {
   }
 };
 
-// === CSS pour le HUD de sélection de starter ===
 const starterHudCSS = `
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 #starter-selection-hud { font-family: 'Orbitron', 'Arial', sans-serif !important; animation: fadeIn 0.5s ease-in-out; }
@@ -490,23 +371,15 @@ styleSheet.textContent = starterHudCSS;
 document.head.appendChild(styleSheet);
 
 console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
-const starterSelectorCSS = `[LE CSS D'ARTIFACTS ICI]`;
-const starterStyleSheet = document.createElement('style');
-starterStyleSheet.textContent = starterSelectorCSS;
-document.head.appendChild(starterStyleSheet);
-// ==== Connexion Colyseus + Initialisation des systèmes ====
-// 🚨 NE PAS LANCER Phaser AVANT D'AVOIR UN NETWORK CONNECTÉ 🚨
+
 (async () => {
   try {
-    // 1. Notifications
     const notificationSystem = initializeGameNotifications();
     console.log("✅ Système de notification initialisé");
     
-    // ✅ 2. CRÉER LE NETWORKMANAGER GLOBAL ET SE CONNECTER
     console.log("🌐 Création et connexion du NetworkManager global...");
     window.globalNetworkManager = new NetworkManager(client, window.username);
     
-    // ✅ 3. SE CONNECTER VIA LE NETWORKMANAGER (PAS EN PARALLÈLE)
     const connectionSuccess = await window.globalNetworkManager.connect("beach", {
       spawnX: 52,
       spawnY: 48
@@ -516,11 +389,9 @@ document.head.appendChild(starterStyleSheet);
       throw new Error("Échec de connexion à la WorldRoom via NetworkManager");
     }
     
-    // ✅ 4. RÉCUPÉRER LA ROOM DEPUIS LE NETWORKMANAGER
     window.currentGameRoom = window.globalNetworkManager.room;
     console.log("✅ Connecté à la WorldRoom via NetworkManager:", window.currentGameRoom.sessionId);
     
-    // ✅ 5. CONNEXION DU TIMESERVICE
     console.log("🕐 Connexion du TimeService au serveur...");
     TimeService.getInstance().connectToRoom(window.currentGameRoom);
 
@@ -530,195 +401,139 @@ document.head.appendChild(starterStyleSheet);
     console.log("- Room existe:", !!window.globalNetworkManager.room);
     console.log("- NetworkManager connecté:", window.globalNetworkManager.isConnected);
 
-    // ✅ 5.5. INITIALISER LE SYSTÈME MÉTÉO GLOBAL
-console.log("🌤️ Initialisation du système météo global...");
+    console.log("🌤️ Initialisation du système météo global...");
+    await initializeGlobalWeatherSystem();
+    console.log("✅ Système météo global initialisé");
     
-await initializeGlobalWeatherSystem();
-console.log("✅ Système météo global initialisé");
-
-    
-    // ✅ 6. INITIALISER LE SYSTÈME DE SCÈNES AVANT PHASER
     console.log("🏗️ Initialisation du système de scènes...");
     const sceneRegistry = await initializeSceneSystem();
     console.log("✅ Système de scènes initialisé");
     
-    // ✅ 7. CONNEXION AU CHAT (SÉPARÉE)
     console.log("💬 Connexion à la WorldChatRoom...");
     const worldChat = await client.joinOrCreate("worldchat", { username });
     window.worldChat = worldChat;
     console.log("✅ Connecté à la WorldChatRoom");
 
-    // 8. Initialise le chat
     initPokeChat(worldChat, window.username);
 
-// ✅ 9. LANCEMENT DE PHASER AVEC CHARGEMENT ÉTENDU
-console.log("🎮 Lancement de Phaser avec chargement étendu...");
+    console.log("🎮 Lancement de Phaser avec chargement étendu...");
 
-// Créer l'écran de chargement étendu AVANT Phaser
-window.extendedLoadingScreen = LoadingScreen.createGlobal({
-  enabled: true,
-  fastMode: false,
-  theme: 'extended'
-});
+    window.extendedLoadingScreen = LoadingScreen.createGlobal({
+      enabled: true,
+      fastMode: false,
+      theme: 'extended'
+    });
 
-// Ajouter le thème étendu
-window.extendedLoadingScreen.addCustomTheme('extended', {
-  title: 'PokeWorld MMO',
-  steps: [
-    "Booting up the Pokédex OS...",
-    "Syncing with Professor Oak’s Wi-Fi...",
-    "Waking up Pikachu (please wait, he’s grumpy)...",
-    "Sprinkling wild grass and hiding rare candies...",
-    "Unpacking your Pokéballs & fresh running shoes...",
-    "Calling Nurse Joy for your starter checkup...",
-    "Polishing badges (don’t eat the Marsh Badge)...",
-    "Initializing quest logs and Team Rocket traps...",
-    "Final tip from your Mom: 'Don’t forget your hat!'",
-    "Welcome to PokeWorld! Press START to begin your journey!"
-  ],
-  icon: '🌍',
-  color: 'rgba(34, 197, 94, 0.8)',
-  stepDelay: 800
-});
+    window.extendedLoadingScreen.addCustomTheme('extended', {
+      title: 'PokeWorld MMO',
+      steps: [
+        "Booting up the Pokédex OS...",
+        "Syncing with Professor Oak's Wi-Fi...",
+        "Waking up Pikachu (please wait, he's grumpy)...",
+        "Sprinkling wild grass and hiding rare candies...",
+        "Unpacking your Pokéballs & fresh running shoes...",
+        "Calling Nurse Joy for your starter checkup...",
+        "Polishing badges (don't eat the Marsh Badge)...",
+        "Initializing quest logs and Team Rocket traps...",
+        "Final tip from your Mom: 'Don't forget your hat!'",
+        "Welcome to PokeWorld! Press START to begin your journey!"
+      ],
+      icon: '🌍',
+      color: 'rgba(34, 197, 94, 0.8)',
+      stepDelay: 800
+    });
 
-
-
-// Fonction de chargement étendu
-async function startExtendedLoading() {
-  try {
-    console.log("🚀 Démarrage chargement étendu...");
-    
-    // ✅ FIX: Utiliser show() avec le thème 'extended' au lieu de showManual()
-    // Cela va démarrer la séquence automatique ET se fermer automatiquement
-    
-    // Ne pas attendre le show() - il va faire toute la séquence tout seul
-    window.extendedLoadingScreen.show('extended');
-    
-    // ✅ Pendant que l'écran se déroule, lancer Phaser en arrière-plan
-    setTimeout(() => {
-      console.log("🎮 Lancement Phaser en arrière-plan...");
-      window.game = new Phaser.Game(config);
-    }, 1000); // Laisser le temps à l'écran de démarrer
-    
-    console.log("✅ Chargement étendu lancé - l'écran va se gérer automatiquement");
-    
-  } catch (error) {
-    console.error("❌ Erreur chargement étendu:", error);
-    // Fallback vers lancement normal
-    if (window.extendedLoadingScreen) {
-      window.extendedLoadingScreen.hide();
+    async function startExtendedLoading() {
+      try {
+        console.log("🚀 Démarrage chargement étendu...");
+        
+        window.extendedLoadingScreen.show('extended');
+        
+        setTimeout(() => {
+          console.log("🎮 Lancement Phaser en arrière-plan...");
+          window.game = new Phaser.Game(config);
+        }, 1000);
+        
+        console.log("✅ Chargement étendu lancé - l'écran va se gérer automatiquement");
+        
+      } catch (error) {
+        console.error("❌ Erreur chargement étendu:", error);
+        if (window.extendedLoadingScreen) {
+          window.extendedLoadingScreen.hide();
+        }
+        window.game = new Phaser.Game(config);
+      }
     }
-    window.game = new Phaser.Game(config);
-  }
-}
 
-// Démarrer le processus
-startExtendedLoading();
+    startExtendedLoading();
 
     document.addEventListener('click', function resumeAudioContext() {
-  if (window.game?.sound?.context?.state === 'suspended') {
-    window.game.sound.context.resume().then(() => {
-      console.log('🔊 AudioContext resumed after user interaction');
-    });
-  }
-  document.removeEventListener('click', resumeAudioContext);
-}, { once: true });
+      if (window.game?.sound?.context?.state === 'suspended') {
+        window.game.sound.context.resume().then(() => {
+          console.log('🔊 AudioContext resumed after user interaction');
+        });
+      }
+      document.removeEventListener('click', resumeAudioContext);
+    }, { once: true });
     
-    // 🆕 NOUVEAU: 9.5. INITIALISER LE SYSTÈME DE COMBAT APRÈS PHASER
-console.log("⚔️ Initialisation du système de combat...");
-window.battleSystem = new BattleIntegration(window);
-
-// ✅ CORRECTION: Attendre que Phaser soit complètement initialisé ET que le NetworkManager soit prêt
-setTimeout(async () => {
-  try {
-    console.log("🔧 [MAIN] Vérification pré-requis système de combat...");
-    
-    // Vérifications
-    const hasGame = !!window.game;
-    const hasNetworkManager = !!window.globalNetworkManager;
-    const hasRoom = !!window.currentGameRoom;
-    const networkConnected = window.globalNetworkManager?.isConnected;
-    
-    console.log("📊 [MAIN] Pré-requis:", {
-      hasGame,
-      hasNetworkManager,
-      hasRoom,
-      networkConnected
-    });
-    
-    if (!hasGame || !hasNetworkManager || !hasRoom || !networkConnected) {
-      throw new Error("Pré-requis manquants pour le système de combat");
-    }
-
-    // ✅ PATCH : Toujours utiliser initialize() pour éviter le bug
+    console.log("⚔️ Initialisation du système de combat...");
     window.battleSystem = new BattleIntegration(window);
-    const battleInitSuccess = await window.battleSystem.initialize(
-      window.globalNetworkManager.room,
-      window.game
-    );
-    if (battleInitSuccess) {
-      console.log("✅ Système de combat initialisé");
-    }
 
-  } catch (error) {
-    console.error("❌ Erreur initialisation système de combat:", error);
-    // Continuer sans système de combat pour ne pas bloquer le jeu
-  }
-}, 5000); // Plus de délai pour que tout soit prêt
+    setTimeout(async () => {
+      try {
+        console.log("🔧 [MAIN] Vérification pré-requis système de combat...");
+        
+        const hasGame = !!window.game;
+        const hasNetworkManager = !!window.globalNetworkManager;
+        const hasRoom = !!window.currentGameRoom;
+        const networkConnected = window.globalNetworkManager?.isConnected;
+        
+        console.log("📊 [MAIN] Pré-requis:", {
+          hasGame,
+          hasNetworkManager,
+          hasRoom,
+          networkConnected
+        });
+        
+        if (!hasGame || !hasNetworkManager || !hasRoom || !networkConnected) {
+          throw new Error("Pré-requis manquants pour le système de combat");
+        }
 
-    // ✅ 10. VÉRIFIER QUE TOUTES LES SCÈNES SONT BIEN ENREGISTRÉES
-    /*
-    setTimeout(() => {
-      console.log("🔍 [MAIN] Vérification des scènes Phaser...");
-      const phaserScenes = Object.keys(window.game.scene.manager.keys);
-      const registryZones = sceneRegistry.getAvailableZones();
-      
-      console.log(`🎬 Scènes dans Phaser: ${phaserScenes.length}`, phaserScenes);
-      console.log(`📋 Zones dans Registry: ${registryZones.length}`, registryZones);
-      
-      // Vérifier correspondance
-      registryZones.forEach(zone => {
-        const sceneKey = sceneRegistry.getSceneKey(zone);
-        const hasScene = phaserScenes.includes(sceneKey);
-        console.log(`   ${zone} (${sceneKey}): ${hasScene ? '✅' : '❌'}`);
-      });
-      
-      // Vérifier BattleScene
-      const hasBattleScene = phaserScenes.includes('BattleScene');
-      console.log(`   BattleScene: ${hasBattleScene ? '✅' : '❌'}`);
-      
-    }, 1000);
-    */
+        window.battleSystem = new BattleIntegration(window);
+        const battleInitSuccess = await window.battleSystem.initialize(
+          window.globalNetworkManager.room,
+          window.game
+        );
+        if (battleInitSuccess) {
+          console.log("✅ Système de combat initialisé");
+        }
 
-    // ✅ 11. SETUP GLOBAL POUR TES SYSTÈMES
+      } catch (error) {
+        console.error("❌ Erreur initialisation système de combat:", error);
+      }
+    }, 5000);
+
     window.starterHUD = null;
     window.questSystemGlobal = null;
     window.inventorySystemGlobal = null;
     window.teamManagerGlobal = null;
-    // 🆕 NOUVEAU: Variable globale pour EncounterManager
     window.encounterManagerGlobal = null;
-    window.weatherManagerGlobal = null;
 
-    // 🆕 NOUVEAU: Fonction d'initialisation du système d'encounters
     window.initEncounterSystem = function(scene, mapData = null) {
       console.log('🎲 [MAIN] Initialisation du système d\'encounters...');
       
-      // ✅ VÉRIFIER SI DÉJÀ INITIALISÉ POUR CETTE SCÈNE
       if (scene && scene.encounterManager && scene.encounterInitialized) {
         console.log('ℹ️ [MAIN] Système d\'encounters déjà initialisé pour cette scène - réutilisation');
         return scene.encounterManager;
       }
       
       try {
-        // ✅ CRÉER UN NOUVEL ENCOUNTER MANAGER
         const encounterManager = new ClientEncounterManager();
         
-        // ✅ CHARGER LES DONNÉES DE CARTE SI DISPONIBLES
         if (mapData) {
           console.log('🗺️ [MAIN] Chargement données carte pour encounters...');
           encounterManager.loadMapData(mapData);
         } else if (scene && scene.map) {
-          // Essayer de récupérer les données depuis la scène
           const mapKey = scene.mapKey || scene.scene.key.toLowerCase();
           const tilemapData = scene.cache?.tilemap?.get(mapKey);
           if (tilemapData && tilemapData.data) {
@@ -729,10 +544,8 @@ setTimeout(async () => {
           }
         }
         
-        // ✅ EXPOSER GLOBALEMENT
         window.encounterManagerGlobal = encounterManager;
         
-        // ✅ SI ON A UNE SCÈNE, L'ASSOCIER
         if (scene) {
           scene.encounterManager = encounterManager;
           scene.encounterInitialized = true;
@@ -740,7 +553,6 @@ setTimeout(async () => {
         
         console.log('✅ [MAIN] Système d\'encounters initialisé avec succès');
         
-        // ✅ DÉCLENCHER L'ÉVÉNEMENT
         if (typeof window.onSystemInitialized === 'function') {
           window.onSystemInitialized('encounters');
         }
@@ -752,10 +564,10 @@ setTimeout(async () => {
         return null;
       }
     };
-        window.forceInitTeamSystem = function(gameRoom) {
+
+    window.forceInitTeamSystem = function(gameRoom) {
       console.log('🔧 [MAIN] Force initialisation système d\'équipe...');
       
-      // Nettoyer l'ancien système si il existe
       if (window.teamManagerGlobal) {
         console.log('🧹 [MAIN] Nettoyage ancien TeamManager...');
         if (window.teamManagerGlobal.destroy) {
@@ -764,7 +576,6 @@ setTimeout(async () => {
         window.teamManagerGlobal = null;
       }
       
-      // Nettoyer les autres références
       if (window.TeamManager) {
         console.log('🧹 [MAIN] Nettoyage window.TeamManager...');
         if (window.TeamManager.destroy) {
@@ -780,14 +591,12 @@ setTimeout(async () => {
         window.teamSystem = null;
       }
       
-      // Forcer la réinitialisation
       try {
         window.teamManagerGlobal = setupTeamSystem(gameRoom || window.currentGameRoom);
         
         if (window.teamManagerGlobal) {
           console.log('✅ [MAIN] Système d\'équipe forcé avec succès');
           
-          // Déclencher l'événement
           if (typeof window.onSystemInitialized === 'function') {
             window.onSystemInitialized('team');
           }
@@ -803,12 +612,12 @@ setTimeout(async () => {
         return null;
       }
     };
+
     window.forceInitTeamSystem(window.currentGameRoom);
-    // 🆕 NOUVEAU: Fonction de force init pour encounters
+
     window.forceInitEncounterSystem = function(scene, mapData = null) {
       console.log('🔧 [MAIN] Force initialisation système d\'encounters...');
       
-      // Nettoyer l'ancien système
       if (window.encounterManagerGlobal) {
         console.log('🧹 [MAIN] Nettoyage ancien EncounterManager...');
         window.encounterManagerGlobal = null;
@@ -819,11 +628,9 @@ setTimeout(async () => {
         scene.encounterInitialized = false;
       }
       
-      // Forcer la réinitialisation
       return window.initEncounterSystem(scene, mapData);
     };
 
-    // 🆕 NOUVEAU: Initialisation du système de combat
     window.initBattleSystem = function(gameRoom) {
       console.log('⚔️ [MAIN] Initialisation du système de combat...');
       
@@ -837,7 +644,6 @@ setTimeout(async () => {
           window.battleSystem = new BattleIntegration(window);
         }
         
-        // Attendre que Phaser soit prêt
         if (window.game) {
           window.battleSystem.initialize(
             gameRoom || window.currentGameRoom,
@@ -862,12 +668,11 @@ setTimeout(async () => {
       }
     };
 
-    // ===== 3. ✅ FONCTIONS DE DEBUG AMÉLIORÉES =====
+    // Debug functions
     window.debugTeamSystem = function() {
       console.log('🔍 === DEBUG SYSTÈME D\'ÉQUIPE COMPLET ===');
       
       const teamStatus = {
-        // Vérifications globales
         teamManagerGlobal: {
           exists: !!window.teamManagerGlobal,
           initialized: window.teamManagerGlobal?.isInitialized || false,
@@ -879,14 +684,12 @@ setTimeout(async () => {
           type: typeof window.TeamManager
         },
         
-        // Vérifications UI
         teamIcon: {
           exists: !!document.querySelector('#team-icon'),
           visible: document.querySelector('#team-icon')?.style.display !== 'none',
           classes: document.querySelector('#team-icon')?.className || 'N/A'
         },
         
-        // Vérifications réseau
         network: {
           globalNetworkManager: !!window.globalNetworkManager,
           currentGameRoom: !!window.currentGameRoom,
@@ -894,7 +697,6 @@ setTimeout(async () => {
           roomState: window.globalNetworkManager?.room?.connection?.readyState || 'N/A'
         },
         
-        // Fonctions disponibles
         functions: {
           initTeamSystem: typeof window.initTeamSystem,
           forceInitTeamSystem: typeof window.forceInitTeamSystem,
@@ -905,7 +707,6 @@ setTimeout(async () => {
       
       console.log('📊 Status complet:', teamStatus);
       
-      // Tests supplémentaires
       const activeScene = window.game?.scene?.getScenes(true)[0];
       if (activeScene) {
         console.log('🎬 Scène active:', {
@@ -919,12 +720,10 @@ setTimeout(async () => {
       return teamStatus;
     };
 
-    // 🆕 NOUVEAU: Fonction de debug pour encounters
     window.debugEncounterSystem = function() {
       console.log('🔍 === DEBUG SYSTÈME D\'ENCOUNTERS COMPLET ===');
       
       const encounterStatus = {
-        // Vérifications globales - CORRIGÉ
         encounterManagerGlobal: {
           exists: !!window.encounterManagerGlobal && window.encounterManagerGlobal !== null,
           type: typeof window.encounterManagerGlobal,
@@ -934,10 +733,8 @@ setTimeout(async () => {
           hasGetStats: !!(window.encounterManagerGlobal?.getStats)
         },
         
-        // Vérifications scène active
         activeScene: null,
         
-        // Fonctions disponibles
         functions: {
           initEncounterSystem: typeof window.initEncounterSystem,
           forceInitEncounterSystem: typeof window.forceInitEncounterSystem,
@@ -946,7 +743,6 @@ setTimeout(async () => {
         }
       };
 
-      // ✅ RÉCUPÉRER LES STATS SI POSSIBLE
       try {
         if (window.encounterManagerGlobal && typeof window.encounterManagerGlobal.getStats === 'function') {
           encounterStatus.encounterManagerGlobal.stats = window.encounterManagerGlobal.getStats();
@@ -955,7 +751,6 @@ setTimeout(async () => {
         encounterStatus.encounterManagerGlobal.statsError = error.message;
       }
       
-      // Tests scène active
       const activeScene = window.game?.scene?.getScenes(true)[0];
       if (activeScene) {
         encounterStatus.activeScene = {
@@ -967,7 +762,6 @@ setTimeout(async () => {
           encounterSystemStatus: activeScene.getEncounterSystemStatus ? activeScene.getEncounterSystemStatus() : 'N/A'
         };
 
-        // ✅ RÉCUPÉRER STATS DE LA SCÈNE
         try {
           if (activeScene.encounterManager && typeof activeScene.encounterManager.getStats === 'function') {
             encounterStatus.activeScene.sceneStats = activeScene.encounterManager.getStats();
@@ -979,7 +773,6 @@ setTimeout(async () => {
       
       console.log('📊 Status encounters:', encounterStatus);
 
-      // ✅ DIAGNOSTIC AUTOMATIQUE
       console.log('🔧 === DIAGNOSTIC AUTOMATIQUE ===');
       if (!encounterStatus.encounterManagerGlobal.exists) {
         console.log('❌ EncounterManager global manquant ou null');
@@ -1006,32 +799,27 @@ setTimeout(async () => {
       return encounterStatus;
     };
 
-    // 🆕 NOUVEAU: Fonction de debug pour le système de combat
     window.debugBattleSystem = function() {
       console.log('🔍 === DEBUG SYSTÈME DE COMBAT COMPLET ===');
       
       const battleStatus = {
-        // Vérifications globales
         battleSystemGlobal: {
           exists: !!window.battleSystem,
           initialized: window.battleSystem?.isInitialized || false,
           type: typeof window.battleSystem
         },
         
-        // Vérifications scène
         battleScene: {
           existsInPhaser: !!window.game?.scene?.getScene('BattleScene'),
           isActive: window.game?.scene?.isActive('BattleScene') || false,
           isVisible: window.game?.scene?.isVisible('BattleScene') || false
         },
         
-        // État du combat
         battleState: {
           inBattle: window.battleSystem?.isCurrentlyInBattle() || false,
           currentState: window.battleSystem?.getCurrentBattleState() || null
         },
         
-        // Fonctions disponibles
         functions: {
           initBattleSystem: typeof window.initBattleSystem,
           testBattle: typeof window.testBattle,
@@ -1056,7 +844,6 @@ setTimeout(async () => {
       
       console.log(`🎬 Réparation sur scène: ${currentScene.scene.key}`);
       
-      // 1. Force réinitialisation global
       const teamManager = window.forceInitTeamSystem();
       
       if (!teamManager) {
@@ -1064,34 +851,29 @@ setTimeout(async () => {
         return false;
       }
       
-      // 2. Marquer la scène comme initialisée
       if (currentScene.teamSystemInitialized !== undefined) {
         currentScene.teamSystemInitialized = true;
         console.log('✅ Scène marquée comme team initialisée');
       }
       
-      // 3. Vérifier l'icône
       setTimeout(() => {
         const teamIcon = document.querySelector('#team-icon');
         if (!teamIcon) {
           console.warn('⚠️ Icône team manquante, création...');
-          // L'icône devrait se créer automatiquement avec le TeamManager
         } else {
           console.log('✅ Icône team présente');
         }
         
-        // 4. Test final
         setTimeout(() => {
           window.debugTeamSystem();
           console.log('🎯 Essayez window.testTeam() pour tester');
         }, 1000);
         
-              }, 500);
+      }, 500);
       
       return true;
     };
 
-    // 🆕 NOUVEAU: Fonction de réparation pour encounters
     window.fixEncounterSystem = function() {
       console.log('🔧 === TENTATIVE DE RÉPARATION SYSTÈME D\'ENCOUNTERS ===');
       
@@ -1103,7 +885,6 @@ setTimeout(async () => {
       
       console.log(`🎬 Réparation encounters sur scène: ${currentScene.scene.key}`);
       
-      // 1. Force réinitialisation
       const encounterManager = window.forceInitEncounterSystem(currentScene);
       
       if (!encounterManager) {
@@ -1111,7 +892,6 @@ setTimeout(async () => {
         return false;
       }
       
-      // 2. Test final
       setTimeout(() => {
         window.debugEncounterSystem();
         console.log('🎯 Essayez window.testEncounter() pour tester');
@@ -1120,11 +900,9 @@ setTimeout(async () => {
       return true;
     };
 
-    // 🆕 NOUVEAU: Fonction de réparation pour le système de combat
     window.fixBattleSystem = function() {
       console.log('🔧 === TENTATIVE DE RÉPARATION SYSTÈME DE COMBAT ===');
       
-      // 1. Nettoyer l'ancien système
       if (window.battleSystem) {
         console.log('🧹 Nettoyage ancien BattleSystem...');
         if (window.battleSystem.destroy) {
@@ -1133,7 +911,6 @@ setTimeout(async () => {
         window.battleSystem = null;
       }
       
-      // 2. Réinitialiser
       const battleSystem = window.initBattleSystem();
       
       if (battleSystem) {
@@ -1151,8 +928,7 @@ setTimeout(async () => {
       }
     };
 
-    // ===== 4. ✅ COMMANDES RAPIDES POUR LE DEBUG =====
-
+    // Quick debug functions
     window.quickTeamDebug = function() {
       console.log('⚡ === DEBUG RAPIDE TEAM ===');
       console.log('TeamManager Global:', !!window.teamManagerGlobal);
@@ -1170,7 +946,6 @@ setTimeout(async () => {
       }
     };
 
-    // 🆕 NOUVEAU: Debug rapide encounters avec auto-fix
     window.quickEncounterDebug = function() {
       console.log('⚡ === DEBUG RAPIDE ENCOUNTERS ===');
       
@@ -1194,7 +969,6 @@ setTimeout(async () => {
       }
     };
 
-    // 🆕 NOUVEAU: Debug rapide système de combat
     window.quickBattleDebug = function() {
       console.log('⚡ === DEBUG RAPIDE COMBAT ===');
       
@@ -1217,7 +991,6 @@ setTimeout(async () => {
       }
     };
 
-    // 🆕 NOUVEAU: Fonction de réparation automatique
     window.autoFixEncounters = function() {
       console.log('🔧 === RÉPARATION AUTOMATIQUE ENCOUNTERS ===');
       
@@ -1229,7 +1002,6 @@ setTimeout(async () => {
       
       console.log(`🎬 Réparation sur scène: ${activeScene.scene.key}`);
       
-      // 1. Nettoyer complètement
       console.log('🧹 Nettoyage complet...');
       window.encounterManagerGlobal = null;
       if (activeScene.encounterManager) {
@@ -1237,14 +1009,12 @@ setTimeout(async () => {
         activeScene.encounterInitialized = false;
       }
       
-      // 2. Réinitialiser
       console.log('🚀 Réinitialisation...');
       const result = window.initEncounterSystem(activeScene);
       
       if (result) {
         console.log('✅ Réparation réussie !');
         
-        // 3. Test automatique
         setTimeout(() => {
           const testResult = window.quickEncounterDebug();
           if (testResult) {
@@ -1267,8 +1037,7 @@ setTimeout(async () => {
       }
     };
 
-
-    // === FONCTIONS DE DEBUG POUR LES ICÔNES ===
+    // UI Debug functions
     window.debugUIIcons = function() {
       console.log('🔍 === DEBUG UI ICONS ===');
       
@@ -1341,8 +1110,7 @@ setTimeout(async () => {
       }
     };
 
-    
-    // === Fonctions d'accès rapide, notifications, tests etc ===
+    // UI functions
     window.openInventory = function() {
       if (window.inventorySystemGlobal) {
         window.inventorySystemGlobal.openInventory();
@@ -1352,62 +1120,59 @@ setTimeout(async () => {
       }
     };
     
-window.toggleInventory = function() {
-  // ✅ NOUVEAU: Utiliser le système UI Manager en priorité
-  if (window.pokemonUISystem && window.pokemonUISystem.getOriginalModule) {
-    const inventoryModule = window.pokemonUISystem.getOriginalModule('inventory');
-    if (inventoryModule && inventoryModule.toggleInventory) {
-      inventoryModule.toggleInventory();
-      return;
-    }
-  }
-  
-  // ✅ Fallback vers l'ancien système
-  if (window.inventorySystemGlobal) {
-    const wasOpen = window.inventorySystemGlobal.isInventoryOpen();
-    window.inventorySystemGlobal.toggleInventory();
-    if (!wasOpen) {
-      window.showGameNotification("Inventaire ouvert", "info", { duration: 1000, position: 'bottom-right' });
-    }
-  } else {
-    window.showGameAlert?.("Aucun système d'inventaire disponible");
-  }
-};
-    // === FONCTIONS STARTER SYSTEM ===
-// ✅ FONCTION DE TEST POUR STARTER SELECTION
-window.testStarterSelection = function() {
-  console.log("🧪 Test du système de sélection de starter...");
-  return StarterUtils.test();
-};
+    window.toggleInventory = function() {
+      if (window.pokemonUISystem && window.pokemonUISystem.getOriginalModule) {
+        const inventoryModule = window.pokemonUISystem.getOriginalModule('inventory');
+        if (inventoryModule && inventoryModule.toggleInventory) {
+          inventoryModule.toggleInventory();
+          return;
+        }
+      }
+      
+      if (window.inventorySystemGlobal) {
+        const wasOpen = window.inventorySystemGlobal.isInventoryOpen();
+        window.inventorySystemGlobal.toggleInventory();
+        if (!wasOpen) {
+          window.showGameNotification("Inventaire ouvert", "info", { duration: 1000, position: 'bottom-right' });
+        }
+      } else {
+        window.showGameAlert?.("Aucun système d'inventaire disponible");
+      }
+    };
 
-window.showStarterSelection = function(availableStarters = null) {
-  return StarterUtils.showSelection(availableStarters);
-};
+    // Starter functions
+    window.testStarterSelection = function() {
+      console.log("🧪 Test du système de sélection de starter...");
+      return StarterUtils.test();
+    };
 
-window.hideStarterSelection = function() {
-  StarterUtils.hideSelection();
-};
+    window.showStarterSelection = function(availableStarters = null) {
+      return StarterUtils.showSelection(availableStarters);
+    };
 
-window.isStarterSelectionActive = function() {
-  return StarterUtils.isActive();
-};
+    window.hideStarterSelection = function() {
+      StarterUtils.hideSelection();
+    };
 
-    // Ajoute cette fonction après window.isStarterSelectionActive()
-window.debugStarterSelection = function() {
-  console.log("🔍 Debug du système de starter...");
-  const activeScene = window.game?.scene?.getScenes(true)[0];
-  
-  if (activeScene) {
-    console.log("Scène active:", {
-      key: activeScene.scene.key,
-      hasShowFunction: typeof activeScene.showStarterSelection === 'function',
-      isActive: activeScene.isStarterSelectionActive?.() || false
-    });
-  }
-  
-  console.log("StarterUtils disponible:", typeof StarterUtils === 'object');
-  console.log("Fonction test:", typeof StarterUtils.test === 'function');
-};
+    window.isStarterSelectionActive = function() {
+      return StarterUtils.isActive();
+    };
+
+    window.debugStarterSelection = function() {
+      console.log("🔍 Debug du système de starter...");
+      const activeScene = window.game?.scene?.getScenes(true)[0];
+      
+      if (activeScene) {
+        console.log("Scène active:", {
+          key: activeScene.scene.key,
+          hasShowFunction: typeof activeScene.showStarterSelection === 'function',
+          isActive: activeScene.isStarterSelectionActive?.() || false
+        });
+      }
+      
+      console.log("StarterUtils disponible:", typeof StarterUtils === 'object');
+      console.log("Fonction test:", typeof StarterUtils.test === 'function');
+    };
     
     window.testInventory = function() {
       if (window.inventorySystemGlobal) {
@@ -1429,27 +1194,25 @@ window.debugStarterSelection = function() {
       }
     };
 
-window.toggleTeam = function() {
-  // ✅ NOUVEAU: Utiliser le système UI Manager en priorité
-  if (window.pokemonUISystem && window.pokemonUISystem.getOriginalModule) {
-    const teamModule = window.pokemonUISystem.getOriginalModule('team');
-    if (teamModule && teamModule.toggleTeamUI) {
-      teamModule.toggleTeamUI();
-      return;
-    }
-  }
-  
-  // ✅ Fallback vers l'ancien système
-  if (window.teamManagerGlobal) {
-    const wasOpen = window.teamManagerGlobal.teamUI?.isOpen();
-    window.teamManagerGlobal.toggleTeamUI();
-    if (!wasOpen) {
-      window.showGameNotification("Équipe ouverte", "info", { duration: 1000, position: 'bottom-right' });
-    }
-  } else {
-    window.showGameAlert?.("Aucun système d'équipe disponible");
-  }
-};
+    window.toggleTeam = function() {
+      if (window.pokemonUISystem && window.pokemonUISystem.getOriginalModule) {
+        const teamModule = window.pokemonUISystem.getOriginalModule('team');
+        if (teamModule && teamModule.toggleTeamUI) {
+          teamModule.toggleTeamUI();
+          return;
+        }
+      }
+      
+      if (window.teamManagerGlobal) {
+        const wasOpen = window.teamManagerGlobal.teamUI?.isOpen();
+        window.teamManagerGlobal.toggleTeamUI();
+        if (!wasOpen) {
+          window.showGameNotification("Équipe ouverte", "info", { duration: 1000, position: 'bottom-right' });
+        }
+      } else {
+        window.showGameAlert?.("Aucun système d'équipe disponible");
+      }
+    };
 
     window.testTeam = function() {
       if (window.teamManagerGlobal) {
@@ -1462,7 +1225,7 @@ window.toggleTeam = function() {
       }
     };
 
-    // 🆕 NOUVELLES FONCTIONS DE TEST POUR LES ENCOUNTERS
+    // Encounter test functions
     window.testEncounter = function() {
       const activeScene = window.game?.scene?.getScenes(true)[0];
       if (!activeScene) {
@@ -1561,7 +1324,7 @@ window.toggleTeam = function() {
       }
     };
 
-    // 🆕 NOUVELLES FONCTIONS DE TEST POUR LE SYSTÈME DE COMBAT
+    // Battle test functions
     window.testBattle = function() {
       if (!window.battleSystem) {
         window.showGameAlert?.("Système de combat non initialisé");
@@ -1594,7 +1357,7 @@ window.toggleTeam = function() {
       }
 
       const testPokemon = pokemonData || {
-        pokemonId: 25, // Pikachu
+        pokemonId: 25,
         level: 5,
         name: 'Pikachu',
         shiny: false,
@@ -1666,7 +1429,7 @@ window.toggleTeam = function() {
       return window.battleSystem.battleConnection.getConnectionStatus();
     };
     
-    // ✅ NOUVELLES FONCTIONS POUR TESTER LES TRANSITIONS
+    // Transition functions
     window.testTransition = function(targetZone = 'village') {
       console.log(`🧪 [MAIN] Test transition vers: ${targetZone}`);
       
@@ -1686,18 +1449,16 @@ window.toggleTeam = function() {
     window.forceTransition = function(targetZone) {
       console.log(`🚀 [MAIN] Transition forcée vers: ${targetZone}`);
       
-      // Obtenir la scène active
       const activeScene = window.game.scene.getScenes(true)[0];
       if (activeScene && activeScene.transitionManager) {
         activeScene.transitionManager.forceTransition(targetZone);
       } else {
         console.warn(`⚠️ [MAIN] Aucun TransitionManager trouvé sur la scène active`);
-        // Fallback avec switch simple
         window.switchToZone(targetZone);
       }
     };
 
-// ✅ NOUVEAU: Créer le LoadingScreen global pour l'UI
+    // UI initialization
     console.log("🎮 Création du système de chargement UI...");
     window.globalLoadingScreen = LoadingScreen.createGlobal({
       enabled: true,
@@ -1705,50 +1466,45 @@ window.toggleTeam = function() {
       theme: 'uiInit'
     });
     
-    // ✅ NOUVEAU: Fonction d'initialisation UI avec LoadingScreen
-window.initializePokemonUI = async function() {
-  console.log("🚀 [MAIN] === INITIALISATION POKÉMON UI CORRIGÉE ===");
-  
-  try {
-    // Afficher l'écran de chargement
-    await window.globalLoadingScreen.showUIInitLoading();
-    
-    // Initialiser le système UI pendant le chargement
-    const uiResult = await initializePokemonUI();
-    
-    if (uiResult.success) {
-      console.log("✅ Système UI Pokémon initialisé avec succès !");
-      window.showGameNotification?.("Interface utilisateur prête !", "success", { 
-        duration: 2000, 
-        position: 'bottom-center' 
-      });
-    } else {
-      console.error("❌ Erreur initialisation UI Pokémon:", uiResult.error);
-      window.showGameNotification?.("Erreur interface utilisateur", "error", { 
-        duration: 3000, 
-        position: 'top-center' 
-      });
-    }
-    
-    return uiResult;
-    
-  } catch (error) {
-    console.error("❌ Erreur critique initialisation UI:", error);
-    window.showGameNotification?.("Erreur critique interface", "error", { 
-      duration: 5000, 
-      position: 'top-center' 
-    });
-    return { success: false, error: error.message };
-  }
-};
+    window.initializePokemonUI = async function() {
+      console.log("🚀 [MAIN] === INITIALISATION POKÉMON UI CORRIGÉE ===");
+      
+      try {
+        await window.globalLoadingScreen.showUIInitLoading();
+        
+        const uiResult = await initializePokemonUI();
+        
+        if (uiResult.success) {
+          console.log("✅ Système UI Pokémon initialisé avec succès !");
+          window.showGameNotification?.("Interface utilisateur prête !", "success", { 
+            duration: 2000, 
+            position: 'bottom-center' 
+          });
+        } else {
+          console.error("❌ Erreur initialisation UI Pokémon:", uiResult.error);
+          window.showGameNotification?.("Erreur interface utilisateur", "error", { 
+            duration: 3000, 
+            position: 'top-center' 
+          });
+        }
+        
+        return uiResult;
+        
+      } catch (error) {
+        console.error("❌ Erreur critique initialisation UI:", error);
+        window.showGameNotification?.("Erreur critique interface", "error", { 
+          duration: 5000, 
+          position: 'top-center' 
+        });
+        return { success: false, error: error.message };
+      }
+    };
 
-// ✅ NOUVEAU: Alias pour compatibilité (maintenir l'ancienne fonction temporairement)
-window.initializeUIWithLoading = window.initializePokemonUI;
+    window.initializeUIWithLoading = window.initializePokemonUI;
 
-// === Notification d'aide et ready ===
     showNotificationInstructions();
 
-    // ✅ NOUVELLES FONCTIONS UI MANAGER POKÉMON
+    // Pokemon UI Manager functions
     window.setUIGameState = function(stateName, options = {}) {
       if (window.pokemonUISystem) {
         console.log(`🎮 [UI] Changement état UI: ${stateName}`);
@@ -1819,7 +1575,6 @@ window.initializeUIWithLoading = window.initializePokemonUI;
     console.log("🔄 Utilisez window.testTransition('village') pour tester les transitions");
     console.log("⚔️ Utilisez window.testBattle() pour tester le système de combat");
     
-    // ✅ DEBUG: Vérifier l'état du NetworkManager
     console.log("🔍 État du NetworkManager global:", {
       exists: !!window.globalNetworkManager,
       isConnected: window.globalNetworkManager?.isConnected,
@@ -1835,18 +1590,21 @@ window.initializeUIWithLoading = window.initializePokemonUI;
   }
 })();
 
-export default {}; // plus besoin d'exporter le game ici, il est sur window
+export default {};
 
-// === Fonctions utilitaires exposées (raccourcis) ===
+// Utility functions
 window.isChatFocused = function() {
   return window.pokeChat ? window.pokeChat.hasFocus() : false;
 };
+
 window.isStarterHUDOpen = function() {
   return window.starterHUD ? window.starterHUD.isVisible : false;
 };
+
 window.isQuestJournalOpen = function() {
   return window.questSystemGlobal ? window.questSystemGlobal.isQuestJournalOpen() : false;
 };
+
 window.isInventoryOpen = function() {
   if (window.inventorySystemGlobal) return window.inventorySystemGlobal.isInventoryOpen();
   if (typeof window.isInventoryVisible === 'function') return window.isInventoryVisible();
@@ -1857,13 +1615,11 @@ window.isTeamOpen = function() {
   return window.teamManagerGlobal ? window.teamManagerGlobal.teamUI?.isOpen() || false : false;
 };
 
-// 🆕 NOUVEAU: Fonction pour vérifier si un encounter est en cours
 window.isEncounterActive = function() {
   const activeScene = window.game?.scene?.getScenes(true)[0];
   return activeScene?.encounterActive || false;
 };
 
-// 🆕 NOUVEAU: Fonction pour vérifier si un combat est en cours
 window.isBattleActive = function() {
   return window.battleSystem?.isCurrentlyInBattle() || false;
 };
@@ -1874,10 +1630,9 @@ window.shouldBlockInput = function() {
     window.isQuestJournalOpen() ||
     window.isInventoryOpen() ||
     window.isTeamOpen() ||
-    window.isEncounterActive() || // 🆕 NOUVEAU: Bloquer aussi pendant encounters
-    window.isBattleActive() || // 🆕 NOUVEAU: Bloquer pendant combat
-    window.isStarterSelectionActive(); // ← AJOUTER CETTE LIGNE
-
+    window.isEncounterActive() ||
+    window.isBattleActive() ||
+    window.isStarterSelectionActive();
 };
 
 window.canPlayerInteract = function() {
@@ -1886,7 +1641,6 @@ window.canPlayerInteract = function() {
   return !window.shouldBlockInput();
 };
 
-// ✅ FONCTION DEBUG AMÉLIORÉE AVEC ENCOUNTERS ET COMBAT
 window.getGameSystemsStatus = function() {
   const status = {
     chat: { initialized: !!window.pokeChat, focused: window.isChatFocused() },
@@ -1894,14 +1648,12 @@ window.getGameSystemsStatus = function() {
     quests: { initialized: !!window.questSystemGlobal, journalOpen: window.isQuestJournalOpen() },
     starter: { initialized: !!window.starterHUD, open: window.isStarterHUDOpen() },
     team: { initialized: !!window.teamManagerGlobal, open: window.isTeamOpen() },
-    // 🆕 NOUVEAU: Status encounters
     encounters: { 
       initialized: !!window.encounterManagerGlobal, 
       active: window.isEncounterActive(),
       globalManager: !!window.encounterManagerGlobal,
       sceneManager: !!window.game?.scene?.getScenes(true)[0]?.encounterManager
     },
-    // 🆕 NOUVEAU: Status combat
     battle: {
       initialized: !!window.battleSystem,
       systemReady: window.battleSystem?.isInitialized || false,
@@ -1919,12 +1671,11 @@ window.getGameSystemsStatus = function() {
       manager: window.NotificationManager ? 'Available' : 'Not Available',
       ready: window.gameNotificationSystem ? window.gameNotificationSystem.isReady() : false
     },
-    starter: { 
-    initialized: !!window.starterSelector, 
-    active: window.isStarterSelectionActive?.() || false,
-    utils: typeof StarterUtils === 'object'
+    starterSelection: { 
+      initialized: !!window.starterSelector, 
+      active: window.isStarterSelectionActive?.() || false,
+      utils: typeof StarterUtils === 'object'
     },
-    // ✅ Info du SceneRegistry
     sceneRegistry: {
       initialized: !!window.sceneRegistry,
       availableZones: window.sceneRegistry?.getAvailableZones() || [],
@@ -1941,7 +1692,6 @@ window.debugGameSystems = function() {
   console.log("🔍 État des systèmes de jeu:", status);
   window.debugNotificationSystem && window.debugNotificationSystem();
   
-  // ✅ DEBUG SUPPLÉMENTAIRE NETWORKMANAGER
   if (window.globalNetworkManager) {
     console.log("📡 Debug NetworkManager:");
     window.globalNetworkManager.debugState();
@@ -1949,7 +1699,6 @@ window.debugGameSystems = function() {
     console.log("❌ NetworkManager global introuvable");
   }
   
-  // ✅ DEBUG SCENE REGISTRY
   if (window.sceneRegistry) {
     console.log("🏗️ Debug SceneRegistry:");
     window.debugSceneRegistry();
@@ -1957,7 +1706,6 @@ window.debugGameSystems = function() {
     console.log("❌ SceneRegistry global introuvable");
   }
 
-  // 🆕 NOUVEAU: DEBUG ENCOUNTER SYSTEM
   if (window.encounterManagerGlobal) {
     console.log("🎲 Debug EncounterManager:");
     window.debugEncounterSystem();
@@ -1965,7 +1713,6 @@ window.debugGameSystems = function() {
     console.log("❌ EncounterManager global introuvable");
   }
 
-  // 🆕 NOUVEAU: DEBUG BATTLE SYSTEM
   if (window.battleSystem) {
     console.log("⚔️ Debug BattleSystem:");
     window.debugBattleSystem();
@@ -1981,7 +1728,6 @@ window.quickTestNotifications = function() {
   window.testNotifications?.();
 };
 
-// ✅ AIDE AMÉLIORÉE AVEC ENCOUNTERS ET COMBAT
 window.showGameHelp = function() {
   window.showGameNotification?.("Aide affichée dans la console", "info", { duration: 3000, position: 'top-center' });
   console.log(`
@@ -2016,7 +1762,7 @@ window.showGameHelp = function() {
 • window.getCurrentEncounterInfo() - Info position actuelle
 • window.quickEncounterDebug() - Debug rapide encounters
 
-=== Fonctions combat (NOUVEAU) ===
+=== Fonctions combat ===
 • window.testBattle() - Test complet du système
 • window.startWildBattle() - Démarrer combat sauvage
 • window.exitBattle() - Quitter combat en cours
@@ -2075,32 +1821,3 @@ Tous les systèmes sont initialisés et prêts !
 🎮 États de jeu: exploration, battle, pokemonCenter, dialogue
 ==============================
 `);
-
-// ✅ FONCTIONS DE TEST MÉTÉO GLOBAL
-window.quickWeatherDebug = function() {
-  console.log('⚡ === DEBUG RAPIDE MÉTÉO ===');
-  console.log('Global Manager:', !!window.weatherManagerGlobal);
-  console.log('Initialized:', window.weatherManagerGlobal?.isInitialized);
-  console.log('Active Scenes:', window.game?.scene?.getScenes(true)?.length || 0);
-  
-  if (!window.weatherManagerGlobal || !window.weatherManagerGlobal.isInitialized) {
-    console.log('🔧 Problème détecté - système météo pas prêt');
-  } else {
-    console.log('✅ Système météo global OK');
-  }
-};
-
-window.testGlobalWeather = function() {
-  if (!window.weatherManagerGlobal?.isInitialized) {
-    console.error('❌ Système météo global pas prêt');
-    return false;
-  }
-  
-  const currentTime = window.getGlobalTime();
-  const currentWeather = window.getGlobalWeather();
-  
-  console.log('⏰ Temps actuel:', currentTime);
-  console.log('🌦️ Météo actuelle:', currentWeather);
-  
-  return true;
-};
