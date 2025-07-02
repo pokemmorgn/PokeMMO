@@ -419,21 +419,25 @@ export class TeamUI {
     });
   }
 
-  setupServerListeners() {
-    if (!this.gameRoom) return;
+setupServerListeners() {
+  if (this._serverListenersSet) return; // ⬅️ Ne pas double-register
+  this._serverListenersSet = true;
 
-    this.gameRoom.onMessage("teamData", (data) => {
-      this.updateTeamData(data);
-    });
+  if (!this.gameRoom) return;
 
-    this.gameRoom.onMessage("teamActionResult", (data) => {
-      this.handleTeamActionResult(data);
-    });
+  this.gameRoom.onMessage("teamData", (data) => {
+    this.updateTeamData(data);
+  });
 
-    this.gameRoom.onMessage("pokemonUpdate", (data) => {
-      this.handlePokemonUpdate(data);
-    });
-  }
+  this.gameRoom.onMessage("teamActionResult", (data) => {
+    this.handleTeamActionResult(data);
+  });
+
+  this.gameRoom.onMessage("pokemonUpdate", (data) => {
+    this.handlePokemonUpdate(data);
+  });
+}
+
 
   show() {
     if (this.isVisible) return;
