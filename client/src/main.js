@@ -1747,12 +1747,6 @@ window.initializeUIWithLoading = window.initializePokemonUI;
 
 // === Notification d'aide et ready ===
     showNotificationInstructions();
-    
-    // ✅ NOUVEAU: Message ready immédiat (UI sera initialisée par les scènes)
-    window.showGameNotification?.("Core systems ready!", "success", { 
-      duration: 2000, 
-      position: 'top-center' 
-    });
 
     // ✅ NOUVELLES FONCTIONS UI MANAGER POKÉMON
     window.setUIGameState = function(stateName, options = {}) {
