@@ -160,6 +160,39 @@ create() {
     });
   }
 
+  // ✅ NOUVELLE MÉTHODE: Démarrer LoadingScreen avec UI intégrée
+  startIntegratedLoadingScreen() {
+    console.log(`🎮 [${this.scene.key}] === CHARGEMENT INTÉGRÉ ZONE + UI ===`);
+    
+    // Créer un LoadingScreen personnalisé pour cette zone avec UI intégrée
+    if (window.globalLoadingScreen) {
+      // Étapes combinées : zone + UI
+      const integratedSteps = [
+        "Chargement de la carte...",
+        "Initialisation des joueurs...",
+        "Configuration réseau...",
+        "Démarrage interface utilisateur...",
+        "Chargement modules UI...",
+        "Configuration des icônes...",
+        "Finalisation de l'interface...",
+        "Zone prête !"
+      ];
+      
+      // Démarrer l'écran de chargement personnalisé
+      window.globalLoadingScreen.showCustomLoading(integratedSteps, {
+        title: `Chargement ${this.scene.key}`,
+        icon: '🌍',
+        stepDelay: 400
+      }).then(() => {
+        console.log(`✅ [${this.scene.key}] Chargement intégré terminé`);
+        // L'écran se ferme automatiquement
+      });
+      
+    } else {
+      console.warn(`⚠️ [${this.scene.key}] GlobalLoadingScreen non disponible`);
+    }
+  }
+  
   // ✅ NOUVELLE MÉTHODE: Initialisation UI avec LoadingScreen
   async initializeUISystemsWithLoading() {
     console.log(`🎮 [${this.scene.key}] === INITIALISATION UI AVEC CHARGEMENT ===`);
