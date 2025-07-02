@@ -132,36 +132,51 @@ export class BattleIntegration {
     console.log('✅ [BattleIntegration] Transition UI lancée - interface dans 2 secondes');
   }
 
-  async showBattleInterface(encounterData) {
-    console.log('🖥️ [BattleIntegration] === AFFICHAGE INTERFACE COMBAT ===');
-    
-    try {
-      // ✅ ÉTAPE 1: Obtenir ou initialiser BattleScene
-      if (!this.battleScene) {
-        this.battleScene = this.gameManager?.currentScene?.scene?.get('BattleScene');
-      }
-      
-      if (!this.battleScene) {
-        console.error('❌ [BattleIntegration] BattleScene non disponible');
-        return;
-      }
-      
-      // ✅ ÉTAPE 2: Initialiser BattleScene si nécessaire
-      if (!this.battleScene.isActive) {
-        await this.initializeBattleScene();
-      }
-      
-      // ✅ ÉTAPE 3: Déclencher l'encounter dans BattleScene
-      console.log('⚔️ [BattleIntegration] Déclenchement encounter...');
-      this.battleScene.handleEncounterStart(encounterData);
-      
-      console.log('✅ [BattleIntegration] Interface de combat affichée');
-      
-    } catch (error) {
-      console.error('❌ [BattleIntegration] Erreur affichage interface:', error);
-      await this.cancelBattle();
+async showBattleInterface(encounterData) {
+  console.log('🖥️ [BattleIntegration] === AFFICHAGE INTERFACE COMBAT ===');
+
+  try {
+    // 🔍 Toujours utiliser la récupération la plus sûre via phaserGame
+    if (
+      !this.battleScene &&
+      this.gameManager?.phaserGame?.scene?.getScene
+    ) {
+      this.battleScene = this.gameManager.phaserGame.scene.getScene('BattleScene');
+      console.log('[BattleIntegration] 🔍 BattleScene récupérée via phaserGame:', this.battleScene);
     }
+
+    // Sécurité supplémentaire : retente si battleScene toujours pas trouvée
+    if (!this.battleScene && this.gameManager?.currentScene?.scene?.get) {
+      this.battleScene = this.gameManager.currentScene.scene.get('BattleScene');
+      console.log('[BattleIntegration] 🔍 BattleScene récupérée via currentScene:', this.battleScene);
+    }
+
+    if (!this.battleScene) {
+      console.error('❌ [BattleIntegration] BattleScene non disponible');
+      return;
+    }
+
+    // 🧩 Passe TOUJOURS le bon gameManager & networkHandler
+    if (!this.battleScene.isActive) {
+      console.log('🧩 [BattleIntegration] Passage à BattleScene.init avec:', {
+        gameManager: this.gameManager,
+        phaserGame: this.gameManager?.phaserGame,
+        networkHandler: this.networkManager
+      });
+      await this.initializeBattleScene();
+    }
+
+    // ✅ Déclenche l'encounter dans BattleScene
+    console.log('⚔️ [BattleIntegration] Déclenchement encounter...');
+    this.battleScene.handleEncounterStart(encounterData);
+
+    console.log('✅ [BattleIntegration] Interface de combat affichée');
+
+  } catch (error) {
+    console.error('❌ [BattleIntegration] Erreur affichage interface:', error);
+    await this.cancelBattle();
   }
+}
 
 async initializeBattleScene() {
   console.log('🔧 [BattleIntegration] Initialisation BattleScene...');
