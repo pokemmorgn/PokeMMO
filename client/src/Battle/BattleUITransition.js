@@ -1,6 +1,4 @@
-// client/src/battle/BattleUITransition.js - Gestionnaire de transition UI pour le combat
-// ✅ PHASE 1: Passage en mode BATTLE pour masquer les icônes et transitions fluides
-
+// client/src/Battle/BattleUITransition.js - Version fixée qui passe à l'interface
 export class BattleUITransition {
   constructor(uiManager, gameManager) {
     this.uiManager = uiManager;
@@ -19,13 +17,6 @@ export class BattleUITransition {
 
   // === TRANSITION VERS LE COMBAT ===
 
-  /**
-   * Lance la transition vers le mode combat
-   * ✅ ÉTAPE 1: Créer overlay de transition
-   * ✅ ÉTAPE 2: Masquer icônes UI progressivement 
-   * ✅ ÉTAPE 3: Changer état UI vers 'battle'
-   * ✅ ÉTAPE 4: Préparer l'espace pour BattleScene
-   */
   async startBattleTransition(encounterData = {}) {
     if (this.isTransitioning || this.battleActive) {
       console.warn('⚠️ [BattleUITransition] Transition déjà en cours');
@@ -53,13 +44,15 @@ export class BattleUITransition {
       // ÉTAPE 5: Préparer l'espace pour la BattleScene
       this.prepareBattleSpace();
 
+      // ✅ NOUVEAU: ÉTAPE 6: Auto-transition vers interface de combat après 2 secondes
+      setTimeout(() => {
+        this.proceedToBattleInterface(encounterData);
+      }, 2000);
+
       this.battleActive = true;
       this.isTransitioning = false;
 
       console.log('✅ [BattleUITransition] Transition vers combat terminée');
-      
-      // Déclencher événement pour BattleIntegration
-      this.notifyBattleUIReady();
       
       return true;
 
@@ -71,7 +64,104 @@ export class BattleUITransition {
     }
   }
 
-  // === SAUVEGARDE ÉTAT UI ===
+  // ✅ NOUVELLE MÉTHODE: Procéder à l'interface de combat
+  async proceedToBattleInterface(encounterData) {
+    console.log('🖥️ [BattleUITransition] === PASSAGE À L\'INTERFACE COMBAT ===');
+    
+    try {
+      // 1. Masquer graduellement l'overlay de transition
+      await this.fadeOutTransitionOverlay();
+      
+      // 2. Obtenir BattleScene et l'initialiser
+      const battleScene = this.getBattleScene();
+      if (battleScene) {
+        // Initialiser BattleScene si nécessaire
+        if (!battleScene.isActive) {
+          await this.initializeBattleScene(battleScene, encounterData);
+        }
+        
+        // Déclencher l'encounter
+        battleScene.handleEncounterStart(encounterData);
+        
+        console.log('✅ [BattleUITransition] Interface de combat lancée');
+      } else {
+        console.error('❌ [BattleUITransition] BattleScene non trouvée');
+        await this.cancelTransition();
+      }
+      
+    } catch (error) {
+      console.error('❌ [BattleUITransition] Erreur passage interface:', error);
+      await this.cancelTransition();
+    }
+  }
+
+  async fadeOutTransitionOverlay() {
+    if (!this.transitionOverlay) return;
+    
+    console.log('🌅 [BattleUITransition] Masquage overlay de transition...');
+    
+    return new Promise(resolve => {
+      // Animation de sortie
+      this.transitionOverlay.style.transition = 'all 0.8s ease-out';
+      this.transitionOverlay.style.opacity = '0';
+      this.transitionOverlay.style.transform = 'scale(0.9)';
+      
+      setTimeout(() => {
+        if (this.transitionOverlay) {
+          this.transitionOverlay.style.display = 'none';
+        }
+        resolve();
+      }, 800);
+    });
+  }
+
+  getBattleScene() {
+    // Essayer plusieurs méthodes pour obtenir BattleScene
+    let battleScene = null;
+    
+    // Méthode 1: Via gameManager
+    if (this.gameManager?.currentScene?.scene?.get) {
+      battleScene = this.gameManager.currentScene.scene.get('BattleScene');
+    }
+    
+    // Méthode 2: Via Phaser global
+    if (!battleScene && window.game?.scene?.getScene) {
+      battleScene = window.game.scene.getScene('BattleScene');
+    }
+    
+    // Méthode 3: Via scene manager global
+    if (!battleScene && window.scenes?.BattleScene) {
+      battleScene = window.scenes.BattleScene;
+    }
+    
+    console.log(`🎮 [BattleUITransition] BattleScene trouvée: ${!!battleScene}`);
+    return battleScene;
+  }
+
+  async initializeBattleScene(battleScene, encounterData) {
+    console.log('🔧 [BattleUITransition] Initialisation BattleScene...');
+    
+    try {
+      // Passer les managers à BattleScene
+      battleScene.init({
+        gameManager: this.gameManager,
+        networkHandler: this.gameManager?.networkHandler || window.globalNetworkManager
+      });
+      
+      // S'assurer que la scène est créée
+      if (!battleScene.isActive) {
+        battleScene.create();
+      }
+      
+      console.log('✅ [BattleUITransition] BattleScene initialisée');
+      
+    } catch (error) {
+      console.error('❌ [BattleUITransition] Erreur init BattleScene:', error);
+      throw error;
+    }
+  }
+
+  // === MÉTHODES EXISTANTES (inchangées) ===
 
   saveCurrentUIState() {
     console.log('💾 [BattleUITransition] Sauvegarde état UI actuel...');
@@ -82,7 +172,6 @@ export class BattleUITransition {
         moduleStates: new Map()
       };
 
-      // Sauvegarder l'état de chaque module
       const moduleIds = ['inventory', 'team', 'quest', 'questTracker', 'chat'];
       moduleIds.forEach(moduleId => {
         const module = window.pokemonUISystem.getModule(moduleId);
@@ -106,19 +195,15 @@ export class BattleUITransition {
     }
   }
 
-  // === CRÉATION OVERLAY DE TRANSITION ===
-
   async createTransitionOverlay(encounterData) {
     console.log('🎨 [BattleUITransition] Création overlay de transition...');
 
-    // Supprimer overlay existant
     this.removeTransitionOverlay();
 
     this.transitionOverlay = document.createElement('div');
     this.transitionOverlay.className = 'battle-transition-overlay';
     this.transitionOverlay.id = 'battleTransitionOverlay';
 
-    // Styles pour transition fluide
     this.transitionOverlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -139,7 +224,6 @@ export class BattleUITransition {
       text-align: center;
     `;
 
-    // Contenu de transition avec info du Pokémon
     this.transitionOverlay.innerHTML = `
       <div class="transition-content" style="
         background: rgba(0, 0, 0, 0.7);
@@ -181,13 +265,8 @@ export class BattleUITransition {
       </div>
     `;
 
-    // Ajouter styles d'animation
     this.addTransitionStyles();
-
-    // Ajouter au DOM
     document.body.appendChild(this.transitionOverlay);
-
-    // Animation d'apparition
     await this.animateTransitionIn();
   }
 
@@ -232,10 +311,7 @@ export class BattleUITransition {
 
   async animateTransitionIn() {
     return new Promise(resolve => {
-      // Forcer le reflow
       this.transitionOverlay.offsetHeight;
-      
-      // Déclencher l'animation
       this.transitionOverlay.style.opacity = '1';
       
       const content = this.transitionOverlay.querySelector('.transition-content');
@@ -248,8 +324,6 @@ export class BattleUITransition {
       setTimeout(resolve, 800);
     });
   }
-
-  // === MASQUAGE ICÔNES UI AVEC ANIMATION ===
 
   async hideUIIconsWithAnimation() {
     console.log('👻 [BattleUITransition] Masquage animé des icônes UI...');
@@ -265,7 +339,6 @@ export class BattleUITransition {
 
     const iconsToHide = [];
 
-    // Trouver toutes les icônes visibles
     iconSelectors.forEach(selector => {
       const elements = document.querySelectorAll(selector);
       elements.forEach(element => {
@@ -282,16 +355,13 @@ export class BattleUITransition {
       return;
     }
 
-    // Animation de masquage échelonnée
     return new Promise(resolve => {
       let hiddenCount = 0;
 
       iconsToHide.forEach((icon, index) => {
         setTimeout(() => {
-          // Appliquer classe d'animation
           icon.classList.add('ui-icon-hiding');
           
-          // Masquer complètement après l'animation
           setTimeout(() => {
             icon.classList.add('ui-icon-hidden');
             icon.classList.remove('ui-icon-hiding');
@@ -301,14 +371,12 @@ export class BattleUITransition {
               console.log('✅ [BattleUITransition] Toutes les icônes masquées');
               resolve();
             }
-          }, 400); // Durée de l'animation CSS
+          }, 400);
           
-        }, index * 100); // Délai échelonné entre chaque icône
+        }, index * 100);
       });
     });
   }
-
-  // === CHANGEMENT ÉTAT UI ===
 
   async setUIToBattleMode() {
     console.log('🎮 [BattleUITransition] Passage en mode battle UI...');
@@ -316,7 +384,7 @@ export class BattleUITransition {
     if (window.pokemonUISystem && window.pokemonUISystem.setGameState) {
       try {
         const success = window.pokemonUISystem.setGameState('battle', {
-          animated: false, // Pas d'animation car on gère manuellement
+          animated: false,
           force: true
         });
         
@@ -332,7 +400,6 @@ export class BattleUITransition {
       console.warn('⚠️ [BattleUITransition] PokemonUISystem.setGameState non disponible');
     }
 
-    // Fallback : masquage manuel si le système UI n'est pas dispo
     this.fallbackHideAllUI();
   }
 
@@ -354,58 +421,27 @@ export class BattleUITransition {
     });
   }
 
-  // === PRÉPARATION ESPACE BATTLE ===
-
   prepareBattleSpace() {
     console.log('🏗️ [BattleUITransition] Préparation espace battle...');
 
-    // Désactiver interactions avec le monde
     if (this.gameManager?.pauseWorldInteractions) {
       this.gameManager.pauseWorldInteractions();
     }
 
-    // Désactiver mouvement du joueur
     if (this.gameManager?.player?.setMovementEnabled) {
       this.gameManager.player.setMovementEnabled(false);
     }
 
-    // Préparer le canvas/DOM pour la BattleScene
     const gameCanvas = document.querySelector('#game-canvas, canvas');
     if (gameCanvas) {
-      // Ajouter classe pour signaler mode battle
       gameCanvas.classList.add('battle-mode-active');
     }
 
     console.log('✅ [BattleUITransition] Espace battle préparé');
   }
 
-  // === NOTIFICATION SYSTÈME PRÊT ===
-
-  notifyBattleUIReady() {
-    console.log('📢 [BattleUITransition] Notification système prêt...');
-
-    // Événement personnalisé pour BattleIntegration
-    window.dispatchEvent(new CustomEvent('battleUITransitionComplete', {
-      detail: {
-        ready: true,
-        transitionDuration: 800,
-        previousUIState: this.previousUIState
-      }
-    }));
-
-    // Callback pour BattleIntegration si définie
-    if (window.battleSystem?.onUITransitionComplete) {
-      window.battleSystem.onUITransitionComplete(this.previousUIState);
-    }
-
-    console.log('✅ [BattleUITransition] Notifications envoyées');
-  }
-
   // === TRANSITION DE RETOUR ===
 
-  /**
-   * Restaure l'UI normale après le combat
-   */
   async endBattleTransition(battleResult = {}) {
     if (!this.battleActive) {
       console.warn('⚠️ [BattleUITransition] Pas en mode battle');
@@ -418,19 +454,10 @@ export class BattleUITransition {
     this.isTransitioning = true;
 
     try {
-      // ÉTAPE 1: Animation de fin (optionnelle)
       await this.showBattleEndAnimation(battleResult);
-
-      // ÉTAPE 2: Restaurer l'état UI précédent
       await this.restorePreviousUIState();
-
-      // ÉTAPE 3: Réafficher les icônes avec animation
       await this.showUIIconsWithAnimation();
-
-      // ÉTAPE 4: Nettoyer l'overlay de transition
       await this.removeTransitionOverlay();
-
-      // ÉTAPE 5: Réactiver les interactions
       this.restoreWorldInteractions();
 
       this.battleActive = false;
@@ -454,7 +481,6 @@ export class BattleUITransition {
 
     const content = this.transitionOverlay.querySelector('.transition-content');
     if (content) {
-      // Changer le contenu pour le résultat
       content.innerHTML = `
         <div class="end-icon" style="font-size: 4em; margin-bottom: 20px;">
           ${this.getBattleResultIcon(battleResult.result)}
@@ -467,7 +493,6 @@ export class BattleUITransition {
         </p>
       `;
 
-      // Animation du résultat
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
@@ -480,7 +505,6 @@ export class BattleUITransition {
       return;
     }
 
-    // Restaurer l'état de jeu
     if (window.pokemonUISystem?.setGameState) {
       const restored = window.pokemonUISystem.setGameState(
         this.previousUIState.gameState || 'exploration',
@@ -496,7 +520,6 @@ export class BattleUITransition {
   async showUIIconsWithAnimation() {
     console.log('👁️ [BattleUITransition] Réaffichage animé des icônes...');
 
-    // Supprimer les classes de masquage
     const hiddenIcons = document.querySelectorAll('.ui-icon-hidden');
     
     return new Promise(resolve => {
@@ -511,15 +534,12 @@ export class BattleUITransition {
 
       hiddenIcons.forEach((icon, index) => {
         setTimeout(() => {
-          // Retirer classe de masquage
           icon.classList.remove('ui-icon-hidden');
           
-          // Animation d'apparition
           icon.style.opacity = '0';
           icon.style.transform = 'scale(0.5)';
           icon.style.display = '';
           
-          // Forcer reflow puis animer
           icon.offsetHeight;
           icon.style.transition = 'all 0.4s ease-out';
           icon.style.opacity = '1';
@@ -539,17 +559,14 @@ export class BattleUITransition {
   restoreWorldInteractions() {
     console.log('🌍 [BattleUITransition] Restauration interactions monde...');
 
-    // Réactiver les interactions
     if (this.gameManager?.resumeWorldInteractions) {
       this.gameManager.resumeWorldInteractions();
     }
 
-    // Réactiver le mouvement
     if (this.gameManager?.player?.setMovementEnabled) {
       this.gameManager.player.setMovementEnabled(true);
     }
 
-    // Retirer classe battle du canvas
     const gameCanvas = document.querySelector('#game-canvas, canvas');
     if (gameCanvas) {
       gameCanvas.classList.remove('battle-mode-active');
@@ -581,13 +598,11 @@ export class BattleUITransition {
   async cancelTransition() {
     console.log('❌ [BattleUITransition] Annulation transition...');
 
-    // Restaurer l'état si possible
     if (this.previousUIState) {
       await this.restorePreviousUIState();
       await this.showUIIconsWithAnimation();
     }
 
-    // Nettoyer
     await this.removeTransitionOverlay();
     this.restoreWorldInteractions();
 
@@ -660,21 +675,17 @@ export class BattleUITransition {
   destroy() {
     console.log('💀 [BattleUITransition] Destruction...');
 
-    // Annuler toute transition en cours
     if (this.isTransitioning) {
       this.cancelTransition();
     }
 
-    // Nettoyer l'overlay
     this.removeTransitionOverlay();
 
-    // Nettoyer les styles
     const styles = document.querySelector('#battle-transition-styles');
     if (styles) {
       styles.remove();
     }
 
-    // Réinitialiser les propriétés
     this.uiManager = null;
     this.gameManager = null;
     this.previousUIState = null;
@@ -687,47 +698,43 @@ export class BattleUITransition {
 
 // === INTÉGRATION GLOBALE ===
 
-// Exposer globalement pour les tests
 window.BattleUITransition = BattleUITransition;
 
-// Fonction de création globale
 window.createBattleUITransition = function(uiManager, gameManager) {
   return new BattleUITransition(uiManager, gameManager);
 };
 
-// Fonctions de test globales
+// ✅ FONCTION DE TEST AMÉLIORÉE
 window.testBattleUITransition = function() {
-  console.log('🧪 Test transition UI battle...');
+  console.log('🧪 Test transition UI battle avec auto-passage...');
   
   const transition = new BattleUITransition(
     window.pokemonUISystem?.uiManager,
     window.gameManager || window.globalNetworkManager
   );
   
-  // Test transition vers combat
+  // Test avec données Pokémon
   transition.startBattleTransition({
-    pokemon: { name: 'Pikachu', level: 5 },
+    pokemon: { 
+      name: 'Pikachu', 
+      level: 5,
+      pokemonId: 25,
+      currentHp: 20,
+      maxHp: 20,
+      types: ['electric'],
+      moves: ['thunder_shock', 'growl']
+    },
     location: 'test_zone'
   }).then(success => {
     if (success) {
-      console.log('✅ Transition vers combat OK');
-      
-      // Test retour après 3 secondes
-      setTimeout(() => {
-        transition.endBattleTransition({
-          result: 'victory',
-          experience: 50
-        }).then(returned => {
-          if (returned) {
-            console.log('✅ Retour exploration OK');
-          }
-        });
-      }, 3000);
+      console.log('✅ Transition lancée - interface de combat dans 2 secondes');
+    } else {
+      console.error('❌ Échec transition');
     }
   });
   
   return transition;
 };
 
-console.log('✅ [BattleUITransition] Module chargé');
+console.log('✅ [BattleUITransition] Module chargé avec auto-passage');
 console.log('🧪 Utilisez window.testBattleUITransition() pour tester');
