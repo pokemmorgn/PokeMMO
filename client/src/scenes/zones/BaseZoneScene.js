@@ -109,12 +109,9 @@ create() {
   
 // ✅ NOUVELLE MÉTHODE: Chargement optimisé avec LoadingScreen
  startOptimizedLoading() {
-    console.log(`🚀 [${this.scene.key}] === CHARGEMENT OPTIMISÉ AVEC UI ===`);
+    console.log(`🚀 [${this.scene.key}] === CHARGEMENT MINIMAL SANS ÉCRANS ===`);
     
-    // Phase 1: Démarrer l'écran de chargement IMMÉDIATEMENT
-    this.startIntegratedLoadingScreen();
-    
-    // Phase 2: Chargement base (immédiat, en arrière-plan)
+    // ✅ CHARGEMENT DIRECT - AUCUN ÉCRAN
     this.createPlayerAnimations();
     this.setupManagers();
     this.initPlayerSpawnFromSceneData();
@@ -127,7 +124,6 @@ create() {
     this.myPlayerReady = false;
     this.isSceneReady = true;
     
-    // Phase 3: Connexion réseau (rapide, en arrière-plan)
     this.initializeWithExistingConnection();
     this.setupPlayerReadyHandler();
     this.setupCleanupHandlers();
@@ -135,11 +131,32 @@ create() {
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
     
-    // Phase 4: Initialiser UI PENDANT le LoadingScreen (pas après)
-    this.time.delayedCall(300, () => {
-      this.initializeUISystemsDuringLoading();
+    // ✅ UI EN ARRIÈRE-PLAN SANS ÉCRAN
+    this.time.delayedCall(1000, () => {
+        this.initializeUIQuietly();
     });
-  }
+}
+
+// ✅ NOUVELLE MÉTHODE - UI EN SILENCE TOTALE
+async initializeUIQuietly() {
+    console.log(`🤫 [${this.scene.key}] UI en silence...`);
+    
+    if (this.uiInitialized) return;
+    
+    try {
+        // ✅ DIRECT - SANS AUCUN ÉCRAN
+        if (typeof initializePokemonUI === 'function') {
+            const result = await initializePokemonUI();
+            
+            if (result.success) {
+                this.uiInitialized = true;
+                console.log(`✅ [${this.scene.key}] UI prête en silence`);
+            }
+        }
+    } catch (error) {
+        console.error(`❌ [${this.scene.key}] Erreur UI silencieuse:`, error);
+    }
+}
 
   // ✅ NOUVELLE MÉTHODE: Démarrer LoadingScreen avec UI intégrée
   startIntegratedLoadingScreen() {
