@@ -715,16 +715,20 @@ export class BattleScene extends Phaser.Scene {
 }
 
 // 🆕 FONCTION POUR TESTER DIFFÉRENTES TAILLES DE FRAMES
-window.testFrameSize = function(width, height) {
-  console.log(`🔍 Test de taille de frame: ${width}x${height}`);
+window.testFrameSize = function(width, height, type = 'both') {
+  console.log(`🔍 Test de taille de frame: ${width}x${height} pour ${type}`);
   
-  // Recharger les textures avec la nouvelle taille
   const scene = window.game?.scene?.getScene('BattleScene');
   if (scene) {
-    // Supprimer les textures existantes
-    const texturesToRemove = [
-      'pokemon_4_back', 'pokemon_25_front'
-    ];
+    // Supprimer les textures existantes selon le type
+    const texturesToRemove = [];
+    
+    if (type === 'back' || type === 'both') {
+      texturesToRemove.push('pokemon_4_back');
+    }
+    if (type === 'front' || type === 'both') {
+      texturesToRemove.push('pokemon_25_front');
+    }
     
     texturesToRemove.forEach(key => {
       if (scene.textures.exists(key)) {
@@ -734,24 +738,34 @@ window.testFrameSize = function(width, height) {
     });
     
     // Recharger avec la nouvelle taille
-    scene.load.spritesheet('pokemon_4_back', 'assets/pokemon/charmander/back.png', {
-      frameWidth: width,
-      frameHeight: height
-    });
+    if (type === 'back' || type === 'both') {
+      scene.load.spritesheet('pokemon_4_back', 'assets/pokemon/charmander/back.png', {
+        frameWidth: width,
+        frameHeight: height
+      });
+    }
     
-    scene.load.spritesheet('pokemon_25_front', 'assets/pokemon/pikachu/front.png', {
-      frameWidth: width,
-      frameHeight: height
-    });
+    if (type === 'front' || type === 'both') {
+      scene.load.spritesheet('pokemon_25_front', 'assets/pokemon/pikachu/front.png', {
+        frameWidth: width,
+        frameHeight: height
+      });
+    }
     
     scene.load.start();
     
     scene.load.once('complete', () => {
-      console.log(`✅ Rechargement terminé avec ${width}x${height}`);
+      console.log(`✅ Rechargement terminé avec ${width}x${height} pour ${type}`);
       // Relancer le test
       window.testBattleSprites();
     });
   }
+};
+
+// 🆕 FONCTION SPÉCIALISÉE POUR TESTER 40x45 BACK SPRITES
+window.testBackSprites40x45 = function() {
+  console.log('🧪 Test spécialisé: Back sprites 40x45...');
+  window.testFrameSize(40, 45, 'back');
 };
 
 // 🆕 FONCTION POUR TESTER TAILLES COMMUNES
@@ -760,6 +774,7 @@ window.testCommonFrameSizes = function() {
   
   const sizes = [
     { w: 32, h: 32, name: 'Mini' },
+    { w: 40, h: 45, name: 'Back Pokémon (spécialisé)' }, // ✅ AJOUTÉ
     { w: 48, h: 48, name: 'Petite' },
     { w: 64, h: 64, name: 'Classique' },
     { w: 80, h: 80, name: 'Moyenne' },
@@ -772,7 +787,9 @@ window.testCommonFrameSizes = function() {
     console.log(`${index + 1}. ${size.name}: ${size.w}x${size.h} - window.testFrameSize(${size.w}, ${size.h})`);
   });
   
-  console.log('💡 Utilisez: window.testFrameSize(64, 64) par exemple');
+  console.log('💡 Fonctions spécialisées:');
+  console.log('🎯 Back sprites 40x45: window.testBackSprites40x45()');
+  console.log('🎯 Front sprites 64x64: window.testFrameSize(64, 64, "front")');
 };
 
 // 🆕 FONCTION POUR NETTOYER L'ÉCRAN
