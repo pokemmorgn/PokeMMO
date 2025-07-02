@@ -3,6 +3,8 @@
 // 🆕 NOUVEAU: Intégration complète du ClientEncounterManager
 // 🔒 MODIFIÉ: Système MovementBlockHandler uniquement
 
+// ✅ NOUVEAU: Import du système de chargement
+import { QuickLoading } from '../../components/LoadingScreen.js';
 import { PlayerManager } from "../../game/PlayerManager.js";
 import { CameraManager } from "../../camera/CameraManager.js";
 import { NpcManager } from "../../game/NpcManager.ts";
@@ -76,6 +78,11 @@ export class BaseZoneScene extends Phaser.Scene {
     // 🔒 NOUVEAU: InputManager
     this.inputManager = null;
     this.inputManagerReady = false;
+
+  // ✅ NOUVEAU: Tracking initialisation UI
+    this.uiInitialized = false;
+    this.uiInitializationAttempts = 0;
+    this.maxUIInitAttempts = 3;
   }
 
   preload() {
@@ -89,11 +96,12 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
 create() {
-    if (window.showLoadingOverlay) window.showLoadingOverlay("Chargement de la zone...");
+    // ✅ NOUVEAU: Démarrer avec le LoadingScreen optimisé
+    console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} ===`);
+    this.startOptimizedLoading();
 
     TransitionIntegration.setupTransitions(this);
 
-    console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} ===`);
     console.log(`📊 Scene data reçue:`, this.scene.settings.data);
 
     this.createPlayerAnimations();
@@ -118,7 +126,120 @@ create() {
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
 }
+// ✅ NOUVELLE MÉTHODE: Chargement optimisé avec LoadingScreen
+  startOptimizedLoading() {
+    console.log(`🚀 [${this.scene.key}] === CHARGEMENT OPTIMISÉ ===`);
+    
+    // Phase 1: Chargement base (immédiat)
+    this.createPlayerAnimations();
+    this.setupManagers();
+    this.initPlayerSpawnFromSceneData();
+    this.justArrivedAtZone = true;
+    this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
+    
+    this.loadMap();
+    this.setupInputs();
+    this.createUI();
+    this.myPlayerReady = false;
+    this.isSceneReady = true;
+    
+    // Phase 2: Connexion réseau (rapide)
+    this.initializeWithExistingConnection();
+    this.setupPlayerReadyHandler();
+    this.setupCleanupHandlers();
 
+    this.events.once('shutdown', this.cleanup, this);
+    this.events.once('destroy', this.cleanup, this);
+    
+    // Phase 3: Déclencher l'initialisation UI (parallèle)
+    this.time.delayedCall(800, () => {
+      this.initializeUISystemsWithLoading();
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Initialisation UI avec LoadingScreen
+  async initializeUISystemsWithLoading() {
+    console.log(`🎮 [${this.scene.key}] === INITIALISATION UI AVEC CHARGEMENT ===`);
+    
+    // Protection contre initialisations multiples
+    if (this.uiInitialized) {
+      console.log(`ℹ️ [${this.scene.key}] UI déjà initialisée`);
+      return;
+    }
+    
+    if (this.uiInitializationAttempts >= this.maxUIInitAttempts) {
+      console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation UI - abandon`);
+      return;
+    }
+    
+    this.uiInitializationAttempts++;
+    console.log(`🎮 [${this.scene.key}] Tentative UI ${this.uiInitializationAttempts}/${this.maxUIInitAttempts}`);
+    
+    try {
+      // Vérifier que les pré-requis sont prêts
+      if (!window.globalNetworkManager?.isConnected) {
+        console.warn(`⚠️ [${this.scene.key}] NetworkManager pas prêt, retry dans 2s...`);
+        this.time.delayedCall(2000, () => {
+          this.initializeUISystemsWithLoading();
+        });
+        return;
+      }
+      
+      // Déclencher l'initialisation UI avec LoadingScreen
+      if (typeof window.initializeUIWithLoading === 'function') {
+        console.log(`🚀 [${this.scene.key}] Lancement initialisation UI avec écran de chargement...`);
+        
+        const result = await window.initializeUIWithLoading();
+        
+        if (result.success) {
+          this.uiInitialized = true;
+          console.log(`✅ [${this.scene.key}] Interface utilisateur initialisée avec succès !`);
+          
+          // Cacher l'ancien overlay s'il existe
+          if (window.hideLoadingOverlay) {
+            window.hideLoadingOverlay();
+          }
+          
+        } else {
+          console.error(`❌ [${this.scene.key}] Erreur initialisation UI:`, result.error);
+          this.handleUIInitializationFailure(result.error);
+        }
+        
+      } else {
+        console.error(`❌ [${this.scene.key}] window.initializeUIWithLoading non disponible !`);
+        this.handleUIInitializationFailure("Fonction d'initialisation UI manquante");
+      }
+      
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur critique initialisation UI:`, error);
+      this.handleUIInitializationFailure(error.message);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Gestion des échecs d'initialisation UI
+  handleUIInitializationFailure(errorMessage) {
+    if (this.uiInitializationAttempts < this.maxUIInitAttempts) {
+      console.log(`🔄 [${this.scene.key}] Retry initialisation UI dans 3s... (${this.uiInitializationAttempts}/${this.maxUIInitAttempts})`);
+      this.time.delayedCall(3000, () => {
+        this.initializeUISystemsWithLoading();
+      });
+    } else {
+      console.error(`❌ [${this.scene.key}] Échec définitif d'initialisation UI`);
+      
+      // Afficher un fallback notification
+      if (typeof window.showGameNotification === 'function') {
+        window.showGameNotification('Interface utilisateur indisponible', 'error', {
+          duration: 5000,
+          position: 'top-center'
+        });
+      }
+      
+      // Cacher l'overlay même en cas d'échec pour ne pas bloquer le jeu
+      if (window.hideLoadingOverlay) {
+        window.hideLoadingOverlay();
+      }
+    }
+  }
   // ✅ MÉTHODE INCHANGÉE: Utiliser la connexion existante de main.js
  initializeWithExistingConnection() {
   console.log(`📡 [${this.scene.key}] === UTILISATION CONNEXION EXISTANTE ===`);
