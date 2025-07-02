@@ -350,12 +350,16 @@ destroy() {
 
   // Nettoyer les événements
   if (this.interactiveZone) {
+    // ✅ AJOUTE CETTE LIGNE
+    if (this.interactiveZone.input) {
+      this.interactiveZone.removeInteractive();
+    }
+
     this.interactiveZone.off('pointerdown', this.onPointerDown, this);
     if (this.isMobile) {
       this.interactiveZone.off('pointerout', this.onPointerUp, this);
       this.interactiveZone.off('pointercancel', this.onPointerUp, this);
     }
-    // 🔥 Ajoute ceci :
     if (this.interactiveZone.destroy) {
       this.interactiveZone.destroy();
     }
@@ -368,7 +372,7 @@ destroy() {
   }
 
   if (this.joystickContainer) {
-    this.joystickContainer.destroy(true); // force child destroy
+    this.joystickContainer.destroy(true);
     this.joystickContainer = null;
   }
 
@@ -383,5 +387,6 @@ destroy() {
 
   console.log('✅ MobileJoystick détruit');
 }
+
 
 }
