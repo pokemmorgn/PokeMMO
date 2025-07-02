@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import AnimatedTiles from 'phaser-animated-tiles/dist/AnimatedTiles.js';
 import { NetworkManager } from "./network/NetworkManager.js";
+import { NetworkManager } from "./network/NetworkManager.js"
 import { setupTeamSystem } from './integration/teamIntegration.js';
 import { SceneRegistry } from './scenes/SceneRegistry.js';
 import { TimeService } from './services/TimeService.js';
@@ -1652,36 +1653,61 @@ window.toggleTeam = function() {
       }
     };
 
-    // === Notification d'aide et ready ===
-console.log("🎮 Initialisation du système UI Pokémon...");
-
-setTimeout(async () => {
-  try {
-    const uiResult = await initializePokemonUI();
+// ✅ NOUVEAU: Créer le LoadingScreen global pour l'UI
+    console.log("🎮 Création du système de chargement UI...");
+    window.globalLoadingScreen = LoadingScreen.createGlobal({
+      enabled: true,
+      fastMode: false,
+      theme: 'uiInit'
+    });
     
-    if (uiResult.success) {
-      console.log("✅ Système UI Pokémon initialisé avec succès !");
-      window.showGameNotification("Interface utilisateur prête !", "success", { 
-        duration: 2000, 
-        position: 'bottom-center' 
-      });
-    } else {
-      console.error("❌ Erreur initialisation UI Pokémon:", uiResult.error);
-      window.showGameNotification("Erreur interface utilisateur", "error", { 
-        duration: 3000, 
-        position: 'top-center' 
-      });
-    }
-  } catch (error) {
-    console.error("❌ Erreur critique initialisation UI:", error);
-  }
-}, 2500);
+    // ✅ NOUVEAU: Fonction d'initialisation UI avec LoadingScreen
+    window.initializeUIWithLoading = async function() {
+      console.log("🚀 [MAIN] === INITIALISATION UI AVEC CHARGEMENT ===");
+      
+      try {
+        // Afficher l'écran de chargement
+        await window.globalLoadingScreen.showUIInitLoading();
+        
+        // Initialiser le système UI pendant le chargement
+        const uiResult = await initializePokemonUI();
+        
+        if (uiResult.success) {
+          console.log("✅ Système UI Pokémon initialisé avec succès !");
+          window.showGameNotification?.("Interface utilisateur prête !", "success", { 
+            duration: 2000, 
+            position: 'bottom-center' 
+          });
+        } else {
+          console.error("❌ Erreur initialisation UI Pokémon:", uiResult.error);
+          window.showGameNotification?.("Erreur interface utilisateur", "error", { 
+            duration: 3000, 
+            position: 'top-center' 
+          });
+        }
+        
+        return uiResult;
+        
+      } catch (error) {
+        console.error("❌ Erreur critique initialisation UI:", error);
+        window.showGameNotification?.("Erreur critique interface", "error", { 
+          duration: 5000, 
+          position: 'top-center' 
+        });
+        return { success: false, error: error.message };
+      }
+    };
+    
+    console.log("✅ [MAIN] Système de chargement UI configuré - prêt pour activation par les scènes");
 
 // === Notification d'aide et ready ===
-showNotificationInstructions();
-setTimeout(() => {
-  window.showGameNotification("Game system ready!", "success", { duration: 3000, position: 'top-center', bounce: true });
-}, 4000); // ✅ Délai augmenté pour laisser l'UI s'initialiser
+    showNotificationInstructions();
+    
+    // ✅ NOUVEAU: Message ready immédiat (UI sera initialisée par les scènes)
+    window.showGameNotification?.("Core systems ready!", "success", { 
+      duration: 2000, 
+      position: 'top-center' 
+    });er
 
     // ✅ NOUVELLES FONCTIONS UI MANAGER POKÉMON
     window.setUIGameState = function(stateName, options = {}) {
