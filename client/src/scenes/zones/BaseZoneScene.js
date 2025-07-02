@@ -96,36 +96,17 @@ export class BaseZoneScene extends Phaser.Scene {
   }
 
 create() {
-    // ✅ NOUVEAU: Démarrer avec le LoadingScreen optimisé
     console.log(`🌍 === CRÉATION ZONE: ${this.scene.key} ===`);
-    this.startOptimizedLoading();
-
-    TransitionIntegration.setupTransitions(this);
-
     console.log(`📊 Scene data reçue:`, this.scene.settings.data);
-
-    this.createPlayerAnimations();
-    this.setupManagers();
-    this.initPlayerSpawnFromSceneData();
-    this.justArrivedAtZone = true;
-    this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
-
-    // 🔧 FIX: Intégration musique APRÈS le chargement de la map
-    // Ne PAS intégrer ici, attendre que tout soit prêt
     
-    this.loadMap();
-    this.setupInputs();
-    this.createUI();
-    this.myPlayerReady = false;
-    this.isSceneReady = true;
+    // ✅ SETUP DES TRANSITIONS (garde ça)
+    TransitionIntegration.setupTransitions(this);
     
-    this.initializeWithExistingConnection();
-    this.setupPlayerReadyHandler();
-    this.setupCleanupHandlers();
-
-    this.events.once('shutdown', this.cleanup, this);
-    this.events.once('destroy', this.cleanup, this);
+    // ✅ UN SEUL APPEL - startOptimizedLoading() fait TOUT
+    this.startOptimizedLoading();
 }
+
+  
 // ✅ NOUVELLE MÉTHODE: Chargement optimisé avec LoadingScreen
  startOptimizedLoading() {
     console.log(`🚀 [${this.scene.key}] === CHARGEMENT OPTIMISÉ AVEC UI ===`);
