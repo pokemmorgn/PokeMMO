@@ -532,27 +532,41 @@ export class LoadingScreen {
   }
 
   // ✅ Méthodes avancées pour contrôle manuel
-  showManual(title, icon = '⏳') {
-    if (!this.enabled) return Promise.resolve();
+showManual(title, icon = '⏳') {
+  if (!this.enabled) return Promise.resolve();
 
-    const theme = {
-      title,
-      steps: [title],
-      icon,
-      color: 'rgba(74, 144, 226, 0.8)',
-      stepDelay: 0
-    };
+  // ✅ FIX: Créer un thème minimal avec AU MOINS une étape
+  const theme = {
+    title,
+    steps: [title], // ← AJOUTER AU MOINS UNE ÉTAPE
+    icon,
+    color: 'rgba(74, 144, 226, 0.8)',
+    stepDelay: 0
+  };
 
-    this.createOverlay(theme);
-    document.body.appendChild(this.overlay);
-    
-    setTimeout(() => {
-      this.overlay.classList.add('visible');
-      this.isVisible = true;
-    }, 50);
+  // ✅ FIX: Configurer stepTexts et stepCount correctement
+  this.stepTexts = theme.steps;
+  this.stepCount = theme.steps.length; // ← MAINTENANT = 1 au lieu de 0
+  this.currentStep = 0;
 
-    return Promise.resolve();
+  this.createOverlay(theme);
+  document.body.appendChild(this.overlay);
+  
+  setTimeout(() => {
+    this.overlay.classList.add('visible');
+    this.isVisible = true;
+  }, 50);
+
+  return Promise.resolve();
+}
+
+// ✅ BONUS: Ajouter une méthode pour finir manuellement
+finishManualLoading() {
+  if (this.isVisible && this.overlay) {
+    return this.hide();
   }
+  return Promise.resolve();
+}
 
   updateManual(text, progress = null) {
     if (!this.isVisible || !this.textElement) return;
