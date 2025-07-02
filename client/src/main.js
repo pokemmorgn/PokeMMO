@@ -9,7 +9,6 @@ import { DayNightWeatherManagerPhaser } from './game/DayNightWeatherManager.js';
 import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
 import { ClientTimeWeatherManager } from './managers/ClientTimeWeatherManager.js';
 import { StarterUtils, integrateStarterSelectorToScene } from './components/StarterSelector.js';
-import { LoadingScreen } from './components/LoadingScreen.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
