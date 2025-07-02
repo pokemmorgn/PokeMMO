@@ -213,37 +213,30 @@ export class PsyduckIntroManager {
   }
 
   // ✅ NOUVELLE MÉTHODE: Attendre objet joueur valide
-  waitForValidPlayerObject(maxWaitTime = 3000) {
-    return new Promise(resolve => {
-      const start = Date.now();
-
-      const check = () => {
-        const scene = this.scene;
-        if (!scene || !scene.playerManager) {
-          if (Date.now() - start > maxWaitTime) return resolve(false);
-          setTimeout(check, 100);
-          return;
-        }
-
-        const myPlayer = scene.playerManager.getMyPlayer?.();
-        if (myPlayer && myPlayer.sprite && 
-            myPlayer.x !== undefined && myPlayer.y !== undefined &&
-            myPlayer.x !== 0 && myPlayer.y !== 0) {
-          console.log('[PsyduckIntro] ✅ Objet joueur valide trouvé');
-          return resolve(true);
-        }
-
-        if (Date.now() - start > maxWaitTime) {
-          console.warn('[PsyduckIntro] ⏰ Timeout attente objet joueur valide');
-          return resolve(false);
-        }
-        
-        setTimeout(check, 100);
-      };
-      
-      check();
-    });
-  }
+waitForValidPlayerObject(maxWaitTime = 1000) {
+  return new Promise(resolve => {
+    // ✅ Si tous les flags sont OK, on fait confiance
+    if (window.playerReady && window.playerSpawned && window.loadingScreenClosed) {
+      console.log('[PsyduckIntro] ✅ Tous les flags OK, joueur considéré valide');
+      return resolve(true);
+    }
+    
+    // ✅ Sinon, vérification rapide
+    const scene = this.scene;
+    const myPlayer = scene?.playerManager?.getMyPlayer?.();
+    
+    if (myPlayer && myPlayer.x !== undefined && myPlayer.y !== undefined) {
+      console.log('[PsyduckIntro] ✅ Joueur trouvé avec position valide');
+      return resolve(true);
+    }
+    
+    // ✅ Timeout court
+    setTimeout(() => {
+      console.log('[PsyduckIntro] ✅ Timeout court écoulé, on continue');
+      resolve(true);
+    }, maxWaitTime);
+  });
+}
 
   notifyServer(step) {
     if (!this.questIntegrationEnabled || !this.scene.room || this.fallbackMode) {
