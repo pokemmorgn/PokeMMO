@@ -474,47 +474,75 @@ export class TeamUI {
     console.log('⚔️ Données d\'équipe mises à jour:', this.teamData);
   }
 
-  refreshTeamDisplay() {
-    const slotsContainer = this.overlay.querySelector('.team-slots-grid');
-    
-    // Clear existing pokemon cards
-    slotsContainer.querySelectorAll('.pokemon-card').forEach(card => card.remove());
-    
-    // Reset all slots to empty state
-    slotsContainer.querySelectorAll('.slot-background').forEach((bg, index) => {
-      const slot = bg.parentElement;
-      bg.classList.remove('has-pokemon');
-      slot.classList.remove('selected');
-      slot.classList.add('empty-enhanced');
-      
-      const emptySlot = bg.querySelector('.empty-slot');
-      if (emptySlot) emptySlot.style.display = 'flex';
-    });
-    
-    // Display each pokemon
-    this.teamData.forEach((pokemon, index) => {
-      if (pokemon && index < 6) {
-        const slot = slotsContainer.querySelector(`[data-slot="${index}"]`);
-        this.displayPokemonInSlot(slot, pokemon, index);
-      }
-    });
+refreshTeamDisplay() {
+  const slotsContainer = this.overlay.querySelector('.team-slots-grid');
+  slotsContainer.innerHTML = ''; // Vide la grille à chaque refresh
 
-    // ✅ Test de clic direct après création
-    setTimeout(() => {
-      const testCard = slotsContainer.querySelector('.pokemon-card');
-      if (testCard) {
-        console.log('🧪 Test - Carte trouvée:', testCard);
-        console.log('🧪 Test - onclick défini:', testCard.onclick ? 'OUI' : 'NON');
-        console.log('🧪 Test - dataset:', testCard.dataset);
-        console.log('🧪 Tapez "window.teamUI.testSelection()" dans la console pour tester la sélection');
-      }
-    }, 200);
+  for (let i = 0; i < 6; i++) {
+    const pokemon = this.teamData[i];
+
+    // Crée le slot
+    const slot = document.createElement('div');
+    slot.className = 'team-slot';
+    slot.dataset.slot = i;
+
+    const slotBackground = document.createElement('div');
+    slotBackground.className = 'slot-background';
+
+    const slotNumber = document.createElement('div');
+    slotNumber.className = 'slot-number';
+    slotNumber.textContent = i + 1;
+    slotBackground.appendChild(slotNumber);
+
+    if (pokemon) {
+      // === Affichage de la carte Pokémon ===
+      this.displayPokemonInSlot(slot, pokemon, i);
+      // (displayPokemonInSlot va ajouter la carte sur slotBackground, et mettre à jour les classes)
+    } else {
+      // === Slot vide ===
+      slot.classList.add('empty-enhanced');
+
+      const emptySlot = document.createElement('div');
+      emptySlot.className = 'empty-slot';
+      emptySlot.style.display = 'flex';
+
+      const emptyIcon = document.createElement('div');
+      emptyIcon.className = 'empty-icon';
+      emptyIcon.textContent = '➕';
+
+      const emptyText = document.createElement('div');
+      emptyText.className = 'empty-text';
+      emptyText.textContent = 'Add Pokémon';
+
+      emptySlot.appendChild(emptyIcon);
+      emptySlot.appendChild(emptyText);
+
+      slotBackground.appendChild(emptySlot);
+    }
+
+    slot.appendChild(slotBackground);
+    slotsContainer.appendChild(slot);
   }
+
+  // Ajoute les listeners sur les slots (pour le clic)
+  this.setupSlotSelection();
+
+  setTimeout(() => {
+    const testCard = slotsContainer.querySelector('.pokemon-card');
+    if (testCard) {
+      console.log('🧪 Test - Carte trouvée:', testCard);
+      console.log('🧪 Test - onclick défini:', testCard.onclick ? 'OUI' : 'NON');
+      console.log('🧪 Test - dataset:', testCard.dataset);
+      console.log('🧪 Tapez "window.teamUI.testSelection()" dans la console pour tester la sélection');
+    }
+  }, 200);
+}
+
 
   displayPokemonInSlot(slot, pokemon, index) {
     console.log('[DEBUG] Affichage Pokémon:', pokemon.pokemonId, this.getPokemonName(pokemon.pokemonId));
     
-    const slotBackground = slot.querySelector('.slot-background');
+    const slotBackground = slot.querySelector('.slot-background') || slot;
     
     // Hide empty slot and update classes
     const emptySlot = slot.querySelector('.empty-slot');
