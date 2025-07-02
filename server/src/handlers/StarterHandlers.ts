@@ -57,7 +57,7 @@ export class StarterHandlers {
         }
         
       } catch (error) {
-        console.warn(`⚠️ [StarterHandlers] Impossible de charger ${zoneName}:`, error.message);
+        console.warn(`⚠️ [StarterHandlers] Impossible de charger ${zoneName}:`, error instanceof Error ? error.message : String(error));
         
         // Fallback pour villagelab si le fichier n'existe pas
         if (zoneName === 'villagelab') {
