@@ -612,6 +612,15 @@ async function startExtendedLoading() {
 // Démarrer le processus
 startExtendedLoading();
 
+    document.addEventListener('click', function resumeAudioContext() {
+  if (window.game?.sound?.context?.state === 'suspended') {
+    window.game.sound.context.resume().then(() => {
+      console.log('🔊 AudioContext resumed after user interaction');
+    });
+  }
+  document.removeEventListener('click', resumeAudioContext);
+}, { once: true });
+    
     // 🆕 NOUVEAU: 9.5. INITIALISER LE SYSTÈME DE COMBAT APRÈS PHASER
 console.log("⚔️ Initialisation du système de combat...");
 window.battleSystem = new BattleIntegration(window);
