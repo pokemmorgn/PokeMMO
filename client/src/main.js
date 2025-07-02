@@ -565,20 +565,22 @@ window.extendedLoadingScreen = LoadingScreen.createGlobal({
 window.extendedLoadingScreen.addCustomTheme('extended', {
   title: 'PokeWorld MMO',
   steps: [
-    "Loading the adventure engine...",
-    "Connecting to Professor Oak’s lab...",
-    "Preparing your starter Pokéball...",
-    "Generating wild grass and tall tales...",
-    "Stocking your backpack with goodies...",
-    "Gathering your Pokémon team...",
-    "Initializing quest logs and Pokédex...",
-    "Almost ready – tightening your headband...",
-    "Welcome to PokeWorld! Your journey begins!"
+    "Booting up the Pokédex OS...",
+    "Syncing with Professor Oak’s Wi-Fi...",
+    "Waking up Pikachu (please wait, he’s grumpy)...",
+    "Sprinkling wild grass and hiding rare candies...",
+    "Unpacking your Pokéballs & fresh running shoes...",
+    "Calling Nurse Joy for your starter checkup...",
+    "Polishing badges (don’t eat the Marsh Badge)...",
+    "Initializing quest logs and Team Rocket traps...",
+    "Final tip from your Mom: 'Don’t forget your hat!'",
+    "Welcome to PokeWorld! Press START to begin your journey!"
   ],
   icon: '🌍',
   color: 'rgba(34, 197, 94, 0.8)',
   stepDelay: 800
 });
+
 
 
 // Fonction de chargement étendu
