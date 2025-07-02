@@ -271,7 +271,7 @@ export class VillageLabScene extends BaseZoneScene {
     
     const playerX = this.player.x;
     const playerY = this.player.y;
-    const detectionRange = 50; // Distance de détection en pixels
+    const detectionRange = 300; // Distance de détection en pixels
     
     for (const zone of this.starterTableZones) {
       const distance = Phaser.Math.Distance.Between(
