@@ -373,18 +373,19 @@ export class LoadingScreen {
       this.overlay.classList.add('fast-mode');
     }
 
-    this.overlay.innerHTML = `
-      <div class="loading-screen-container theme-${this.theme}">
-        <div class="loading-screen-icon">${theme.icon}</div>
-        <div class="loading-screen-title">${theme.title}</div>
-        <div class="loading-screen-progress" id="loading-progress-text">${theme.steps[0]}</div>
-        <div class="loading-screen-bar">
-          <div class="loading-screen-fill" id="loading-progress-bar"></div>
-        </div>
-        <div class="loading-screen-step" id="loading-step-indicator">Étape 1/${this.stepCount}</div>
-        <div class="loading-screen-footer">Veuillez patienter...</div>
-      </div>
-    `;
+this.overlay.innerHTML = `
+  <div class="loading-screen-container theme-${this.theme}">
+    <div class="loading-screen-icon">${theme.icon}</div>
+    <div class="loading-screen-title">${theme.title}</div>
+    <div class="loading-screen-progress" id="loading-progress-text">${theme.steps[0]}</div>
+    <div class="loading-screen-bar">
+      <div class="loading-screen-fill" id="loading-progress-bar"></div>
+    </div>
+    <div class="loading-screen-step" id="loading-step-indicator">Step 1/${this.stepCount}</div>
+    <div class="loading-screen-footer">Please wait... (Wild Pokémon may appear!)</div>
+  </div>
+`;
+
 
     this.textElement = this.overlay.querySelector('#loading-progress-text');
     this.progressElement = this.overlay.querySelector('#loading-progress-bar');
