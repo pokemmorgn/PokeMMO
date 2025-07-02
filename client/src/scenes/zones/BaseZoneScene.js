@@ -192,6 +192,68 @@ create() {
       console.warn(`⚠️ [${this.scene.key}] GlobalLoadingScreen non disponible`);
     }
   }
+
+  // ✅ NOUVELLE MÉTHODE: Initialisation UI PENDANT le chargement (pas après)
+  async initializeUISystemsDuringLoading() {
+    console.log(`🎮 [${this.scene.key}] === INITIALISATION UI PENDANT CHARGEMENT ===`);
+    
+    // Protection contre initialisations multiples
+    if (this.uiInitialized) {
+      console.log(`ℹ️ [${this.scene.key}] UI déjà initialisée`);
+      return;
+    }
+    
+    if (this.uiInitializationAttempts >= this.maxUIInitAttempts) {
+      console.warn(`⚠️ [${this.scene.key}] Trop de tentatives d'initialisation UI - abandon`);
+      return;
+    }
+    
+    this.uiInitializationAttempts++;
+    console.log(`🎮 [${this.scene.key}] Tentative UI ${this.uiInitializationAttempts}/${this.maxUIInitAttempts}`);
+    
+    try {
+      // Vérifier que les pré-requis sont prêts
+      if (!window.globalNetworkManager?.isConnected) {
+        console.warn(`⚠️ [${this.scene.key}] NetworkManager pas prêt, retry dans 1s...`);
+        this.time.delayedCall(1000, () => {
+          this.initializeUISystemsDuringLoading();
+        });
+        return;
+      }
+      
+      // ✅ NOUVEAU: Initialiser directement sans LoadingScreen séparé
+      if (typeof window.initializePokemonUI === 'function') {
+        console.log(`🚀 [${this.scene.key}] Initialisation directe PokemonUI...`);
+        
+        const result = await window.initializePokemonUI();
+        
+        if (result.success) {
+          this.uiInitialized = true;
+          console.log(`✅ [${this.scene.key}] Interface utilisateur initialisée !`);
+          
+          // Déclencher notification de succès
+          if (typeof window.showGameNotification === 'function') {
+            window.showGameNotification('Interface prête !', 'success', { 
+              duration: 1500, 
+              position: 'bottom-center' 
+            });
+          }
+          
+        } else {
+          console.error(`❌ [${this.scene.key}] Erreur initialisation UI:`, result.error);
+          this.handleUIInitializationFailure(result.error);
+        }
+        
+      } else {
+        console.error(`❌ [${this.scene.key}] window.initializePokemonUI non disponible !`);
+        this.handleUIInitializationFailure("Fonction d'initialisation UI manquante");
+      }
+      
+    } catch (error) {
+      console.error(`❌ [${this.scene.key}] Erreur critique initialisation UI:`, error);
+      this.handleUIInitializationFailure(error.message);
+    }
+  }
   
   // ✅ NOUVELLE MÉTHODE: Initialisation UI avec LoadingScreen
   async initializeUISystemsWithLoading() {
