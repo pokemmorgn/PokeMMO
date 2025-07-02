@@ -70,8 +70,6 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
     this.load.spritesheet('oldman1', 'assets/npc/oldman1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('Scientist', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('OldLady', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.spritesheet('BrownGuy', 'assets/npc/boy1.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.spritesheet('BlondeGirl', 'assets/npc/sophievillage.png', { frameWidth: 32, frameHeight: 32 });
 
     // Charger le spritesheet du joueur (32x32 par frame)
     this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
