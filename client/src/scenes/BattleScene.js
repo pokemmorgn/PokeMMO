@@ -534,6 +534,49 @@ export class BattleScene extends Phaser.Scene {
   // === MÉTHODES PUBLIQUES ===
 
   /**
+   * 🆕 MÉTHODE REQUISE: Gestion du début de rencontre (appelée par BattleUITransition)
+   */
+  handleEncounterStart(encounterData) {
+    console.log('🐾 [BattleScene] handleEncounterStart appelée:', encounterData);
+    
+    if (!this.isActive) {
+      console.warn('⚠️ [BattleScene] Scène non active, activation...');
+      if (this.scene && this.scene.wake) {
+        this.scene.wake();
+      }
+    }
+    
+    // S'assurer que les positions sont calculées
+    if (!this.pokemonPositions?.playerAbsolute) {
+      this.createPokemonPositions();
+    }
+    
+    // Afficher le Pokémon adversaire de la rencontre
+    if (encounterData.pokemon) {
+      console.log('👹 [BattleScene] Affichage Pokémon de la rencontre...');
+      this.displayOpponentPokemon(encounterData.pokemon);
+    }
+    
+    // Pour les tests, afficher aussi un Pokémon joueur par défaut
+    if (!this.currentPlayerPokemon) {
+      console.log('👤 [BattleScene] Affichage Pokémon joueur par défaut...');
+      const defaultPlayerPokemon = {
+        pokemonId: 4,
+        id: 'player_charmander',
+        name: 'Charmander',
+        level: 5,
+        currentHp: 18,
+        maxHp: 18,
+        types: ['fire']
+      };
+      this.displayPlayerPokemon(defaultPlayerPokemon);
+    }
+    
+    this.isVisible = true;
+    console.log('✅ [BattleScene] Rencontre traitée avec succès');
+  }
+
+  /**
    * Point d'entrée principal pour démarrer un combat
    */
   startBattle(battleData) {
@@ -634,6 +677,52 @@ window.testBattleSprites = function() {
     }
     
     console.log('✅ Test lancé - L\'UI devrait être cachée et les sprites visibles');
+  } else {
+    console.error('❌ BattleScene non trouvée');
+  }
+};
+
+// 🆕 FONCTION DE TEST DES RENCONTRES (comme le vrai système)
+window.testBattleEncounter = function() {
+  console.log('🧪 Test rencontre via BattleUITransition...');
+  
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (battleScene) {
+    // Simuler une rencontre comme le ferait le système
+    const encounterData = {
+      pokemon: {
+        pokemonId: 25,
+        id: 'wild_pikachu_test',
+        name: 'Pikachu',
+        level: 8,
+        currentHp: 25,
+        maxHp: 25,
+        types: ['electric'],
+        shiny: false
+      },
+      location: 'test_zone',
+      method: 'debug_encounter'
+    };
+    
+    // Passer en mode battle
+    if (window.pokemonUISystem && window.pokemonUISystem.setGameState) {
+      window.pokemonUISystem.setGameState('battle', { animated: true });
+    }
+    
+    // Activer la scène si nécessaire
+    if (!window.game.scene.isActive('BattleScene')) {
+      window.game.scene.start('BattleScene');
+      setTimeout(() => {
+        const activeBattleScene = window.game.scene.getScene('BattleScene');
+        if (activeBattleScene) {
+          activeBattleScene.handleEncounterStart(encounterData);
+        }
+      }, 500);
+    } else {
+      battleScene.handleEncounterStart(encounterData);
+    }
+    
+    console.log('✅ Test de rencontre lancé');
   } else {
     console.error('❌ BattleScene non trouvée');
   }
