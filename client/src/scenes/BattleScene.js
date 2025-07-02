@@ -198,20 +198,25 @@ export class BattleScene extends Phaser.Scene {
     
     const { width, height } = this.cameras.main;
     
-    // Calculer positions absolues basées sur l'image de référence
-    this.pokemonPositions.playerAbsolute = {
-      x: width * this.pokemonPositions.player.x,
-      y: height * this.pokemonPositions.player.y
-    };
+    // ✅ CORRECTION: S'assurer que les propriétés existent
+    if (!this.pokemonPositions.playerAbsolute) {
+      this.pokemonPositions.playerAbsolute = {};
+    }
+    if (!this.pokemonPositions.opponentAbsolute) {
+      this.pokemonPositions.opponentAbsolute = {};
+    }
     
-    this.pokemonPositions.opponentAbsolute = {
-      x: width * this.pokemonPositions.opponent.x,
-      y: height * this.pokemonPositions.opponent.y
-    };
+    // Calculer positions absolues basées sur l'image de référence
+    this.pokemonPositions.playerAbsolute.x = width * this.pokemonPositions.player.x;
+    this.pokemonPositions.playerAbsolute.y = height * this.pokemonPositions.player.y;
+    
+    this.pokemonPositions.opponentAbsolute.x = width * this.pokemonPositions.opponent.x;
+    this.pokemonPositions.opponentAbsolute.y = height * this.pokemonPositions.opponent.y;
     
     console.log('✅ [BattleScene] Positions calculées:', {
       player: this.pokemonPositions.playerAbsolute,
-      opponent: this.pokemonPositions.opponentAbsolute
+      opponent: this.pokemonPositions.opponentAbsolute,
+      screen: { width, height }
     });
   }
 
@@ -602,12 +607,33 @@ export class BattleScene extends Phaser.Scene {
 
 // 🆕 FONCTION DE TEST GLOBALE
 window.testBattleSprites = function() {
-  console.log('🧪 Test affichage sprites Pokémon...');
+  console.log('🧪 Test affichage sprites Pokémon avec UI cachée...');
   
   const battleScene = window.game?.scene?.getScene('BattleScene');
   if (battleScene) {
-    battleScene.testDisplayPokemon();
-    console.log('✅ Test lancé - Vérifiez l\'affichage des sprites');
+    // ✅ ÉTAPE 1: Passer en mode battle pour cacher l'UI
+    if (window.pokemonUISystem && window.pokemonUISystem.setGameState) {
+      console.log('🎮 Passage en mode battle pour masquer l\'UI...');
+      window.pokemonUISystem.setGameState('battle', { animated: true });
+    }
+    
+    // ✅ ÉTAPE 2: Activer la BattleScene
+    if (!window.game.scene.isActive('BattleScene')) {
+      console.log('🎬 Activation de la BattleScene...');
+      window.game.scene.start('BattleScene');
+      
+      // Attendre que la scène soit créée
+      setTimeout(() => {
+        const activeBattleScene = window.game.scene.getScene('BattleScene');
+        if (activeBattleScene) {
+          activeBattleScene.testDisplayPokemon();
+        }
+      }, 500);
+    } else {
+      battleScene.testDisplayPokemon();
+    }
+    
+    console.log('✅ Test lancé - L\'UI devrait être cachée et les sprites visibles');
   } else {
     console.error('❌ BattleScene non trouvée');
   }
