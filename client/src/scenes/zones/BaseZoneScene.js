@@ -127,10 +127,13 @@ create() {
     this.events.once('destroy', this.cleanup, this);
 }
 // ✅ NOUVELLE MÉTHODE: Chargement optimisé avec LoadingScreen
-  startOptimizedLoading() {
-    console.log(`🚀 [${this.scene.key}] === CHARGEMENT OPTIMISÉ ===`);
+ startOptimizedLoading() {
+    console.log(`🚀 [${this.scene.key}] === CHARGEMENT OPTIMISÉ AVEC UI ===`);
     
-    // Phase 1: Chargement base (immédiat)
+    // Phase 1: Démarrer l'écran de chargement IMMÉDIATEMENT
+    this.startIntegratedLoadingScreen();
+    
+    // Phase 2: Chargement base (immédiat, en arrière-plan)
     this.createPlayerAnimations();
     this.setupManagers();
     this.initPlayerSpawnFromSceneData();
@@ -143,7 +146,7 @@ create() {
     this.myPlayerReady = false;
     this.isSceneReady = true;
     
-    // Phase 2: Connexion réseau (rapide)
+    // Phase 3: Connexion réseau (rapide, en arrière-plan)
     this.initializeWithExistingConnection();
     this.setupPlayerReadyHandler();
     this.setupCleanupHandlers();
@@ -151,9 +154,9 @@ create() {
     this.events.once('shutdown', this.cleanup, this);
     this.events.once('destroy', this.cleanup, this);
     
-    // Phase 3: Déclencher l'initialisation UI (parallèle)
-    this.time.delayedCall(800, () => {
-      this.initializeUISystemsWithLoading();
+    // Phase 4: Initialiser UI PENDANT le LoadingScreen (pas après)
+    this.time.delayedCall(300, () => {
+      this.initializeUISystemsDuringLoading();
     });
   }
 
