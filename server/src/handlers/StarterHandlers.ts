@@ -1,15 +1,19 @@
-// server/src/handlers/StarterHandlers.ts - Version propre
+// server/src/handlers/StarterHandlers.ts - Version complète avec auto-détection
 import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { OwnedPokemon } from "../models/OwnedPokemon";
 import { giveStarterToPlayer } from "../services/PokemonService";
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 export class StarterHandlers {
   private room: WorldRoom;
   private enableLogs: boolean = true;
+  private starterTablePositions: Map<string, { centerX: number, centerY: number, radius: number }> = new Map();
 
   constructor(room: WorldRoom) {
     this.room = room;
+    this.loadStarterTablePositions(); // ✅ AUTO-CHARGEMENT
   }
 
   // ✅ Configuration des logs
@@ -28,6 +32,130 @@ export class StarterHandlers {
   private logError(message: string, ...args: any[]): void {
     // Les erreurs sont toujours loggées pour la sécurité
     console.error(`❌ [StarterHandlers] ${message}`, ...args);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Charger les positions des tables depuis les cartes Tiled
+  private loadStarterTablePositions(): void {
+    console.log(`🗺️ [StarterHandlers] Chargement des positions de tables starter...`);
+    
+    // Liste des zones qui peuvent avoir des tables starter
+    const zonesToCheck = ['villagelab', 'village', 'lavandia', 'lavandiaresearchlab'];
+    
+    zonesToCheck.forEach(zoneName => {
+      try {
+        const mapPath = join(__dirname, `../../assets/maps/${zoneName}.tmj`);
+        console.log(`📂 [StarterHandlers] Lecture carte: ${mapPath}`);
+        
+        const mapData = JSON.parse(readFileSync(mapPath, 'utf8'));
+        const starterTable = this.findStarterTableInMap(mapData, zoneName);
+        
+        if (starterTable) {
+          this.starterTablePositions.set(zoneName, starterTable);
+          console.log(`✅ [StarterHandlers] Table starter trouvée dans ${zoneName}:`, starterTable);
+        } else {
+          console.log(`ℹ️ [StarterHandlers] Pas de table starter dans ${zoneName}`);
+        }
+        
+      } catch (error) {
+        console.warn(`⚠️ [StarterHandlers] Impossible de charger ${zoneName}:`, error.message);
+        
+        // Fallback pour villagelab si le fichier n'existe pas
+        if (zoneName === 'villagelab') {
+          this.starterTablePositions.set(zoneName, {
+            centerX: 210,
+            centerY: 160,
+            radius: 80
+          });
+          console.log(`🔄 [StarterHandlers] Fallback villagelab activé`);
+        }
+      }
+    });
+    
+    console.log(`📊 [StarterHandlers] Total zones avec tables: ${this.starterTablePositions.size}`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Chercher la table starter dans une carte Tiled
+  private findStarterTableInMap(mapData: any, zoneName: string): { centerX: number, centerY: number, radius: number } | null {
+    console.log(`🔍 [StarterHandlers] Recherche table starter dans ${zoneName}...`);
+    
+    if (!mapData.layers) {
+      console.warn(`⚠️ [StarterHandlers] Pas de layers dans ${zoneName}`);
+      return null;
+    }
+    
+    // Parcourir tous les layers d'objets
+    for (const layer of mapData.layers) {
+      if (layer.type === 'objectgroup' && layer.objects) {
+        console.log(`🔍 [StarterHandlers] Vérification layer "${layer.name}" (${layer.objects.length} objets)`);
+        
+        for (const obj of layer.objects) {
+          if (this.isStarterTableObject(obj)) {
+            const centerX = obj.x + (obj.width || 32) / 2;
+            const centerY = obj.y + (obj.height || 32) / 2;
+            const radius = Math.max(obj.width || 32, obj.height || 32) + 40; // Rayon généreux
+            
+            console.log(`🎯 [StarterHandlers] Table starter trouvée dans ${zoneName}:`, {
+              objectName: obj.name,
+              objectType: obj.type,
+              originalPos: `(${obj.x}, ${obj.y})`,
+              size: `${obj.width || 32}x${obj.height || 32}`,
+              calculatedCenter: `(${centerX}, ${centerY})`,
+              detectionRadius: radius
+            });
+            
+            return { centerX, centerY, radius };
+          }
+        }
+      }
+    }
+    
+    console.log(`❌ [StarterHandlers] Aucune table starter trouvée dans ${zoneName}`);
+    return null;
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Vérifier si un objet est une table starter
+  private isStarterTableObject(obj: any): boolean {
+    // Vérifier les propriétés custom de Tiled
+    if (obj.properties) {
+      // Format tableau (Tiled récent)
+      if (Array.isArray(obj.properties)) {
+        const starterProp = obj.properties.find((prop: any) => 
+          prop.name === 'startertable' || prop.name === 'starterTable'
+        );
+        if (starterProp && (starterProp.value === true || starterProp.value === 'true')) {
+          return true;
+        }
+      } 
+      // Format objet (Tiled ancien)
+      else if (typeof obj.properties === 'object') {
+        if (obj.properties.startertable === true || 
+            obj.properties.startertable === 'true' ||
+            obj.properties.starterTable === true || 
+            obj.properties.starterTable === 'true') {
+          return true;
+        }
+      }
+    }
+    
+    // Fallback: Vérifier le nom ou type
+    if (obj.name && (
+        obj.name.toLowerCase().includes('starter') ||
+        obj.name.toLowerCase().includes('professor') ||
+        obj.name.toLowerCase().includes('table')
+    )) {
+      console.log(`🎯 [StarterHandlers] Objet détecté par nom: ${obj.name}`);
+      return true;
+    }
+    
+    if (obj.type && (
+        obj.type.toLowerCase().includes('starter') ||
+        obj.type.toLowerCase().includes('professor')
+    )) {
+      console.log(`🎯 [StarterHandlers] Objet détecté par type: ${obj.type}`);
+      return true;
+    }
+    
+    return false;
   }
 
   // ✅ Configuration des handlers
@@ -50,7 +178,65 @@ export class StarterHandlers {
       await this.handleForceStarter(client, data);
     });
 
-    this.log(`✅ Handlers de starter configurés`);
+    // ✅ NOUVEAUX HANDLERS POUR DEBUG AUTO-DÉTECTION
+    this.room.onMessage("debugStarterTables", (client) => {
+      console.log(`🔍 [StarterHandlers] Debug tables demandé par ${client.sessionId}`);
+      this.debugStarterTablePositions();
+      
+      client.send("starterTablesDebug", {
+        message: "Debug affiché dans la console serveur",
+        tablesCount: this.starterTablePositions.size
+      });
+    });
+
+    this.room.onMessage("testStarterProximity", (client) => {
+      const player = this.room.state.players.get(client.sessionId);
+      if (player) {
+        const result = this.testPlayerProximity(player.name);
+        
+        client.send("starterProximityResult", {
+          near: result,
+          playerName: player.name,
+          position: { x: player.x, y: player.y },
+          zone: player.currentZone,
+          tablePosition: this.starterTablePositions.get(player.currentZone) || null
+        });
+      } else {
+        client.send("starterProximityResult", {
+          near: false,
+          error: "Joueur non trouvé"
+        });
+      }
+    });
+
+    this.room.onMessage("reloadStarterTables", (client) => {
+      console.log(`🔄 [StarterHandlers] Rechargement tables demandé par ${client.sessionId}`);
+      this.reloadStarterTablePositions();
+      
+      client.send("starterTablesReloaded", {
+        message: "Tables starter rechargées depuis les cartes Tiled",
+        tablesCount: this.starterTablePositions.size
+      });
+    });
+
+    this.room.onMessage("setStarterTablePosition", (client, data: {
+      zone: string;
+      centerX: number;
+      centerY: number;
+      radius?: number;
+    }) => {
+      console.log(`🔧 [StarterHandlers] Position manuelle reçue de ${client.sessionId}:`, data);
+      
+      this.addStarterTablePosition(data.zone, data.centerX, data.centerY, data.radius || 80);
+      
+      client.send("starterTablePositionSet", {
+        success: true,
+        zone: data.zone,
+        position: { centerX: data.centerX, centerY: data.centerY, radius: data.radius || 80 }
+      });
+    });
+
+    this.log(`✅ Handlers de starter configurés (y compris debug auto-détection)`);
   }
 
   // ================================================================================================
@@ -70,7 +256,7 @@ export class StarterHandlers {
 
       this.log(`🔍 Demande starter de ${player.name}: Pokémon #${data.pokemonId}`);
 
-      // 🔒 VALIDATION COMPLÈTE
+      // 🔒 VALIDATION COMPLÈTE AVEC AUTO-DÉTECTION
       const validation = await this.validateStarterRequest(player, data.pokemonId);
       if (!validation.valid) {
         this.log(`❌ Validation échouée pour ${player.name}: ${validation.reason}`);
@@ -146,7 +332,7 @@ export class StarterHandlers {
   }
 
   // ================================================================================================
-  // VALIDATION SÉCURISÉE AVEC PROXIMITÉ
+  // VALIDATION SÉCURISÉE AVEC AUTO-DÉTECTION
   // ================================================================================================
 
   private async validateStarterRequest(player: any, pokemonId: number): Promise<{
@@ -163,12 +349,17 @@ export class StarterHandlers {
       };
     }
 
-    // 🔒 SÉCURITÉ 2: NOUVEAU - Vérifier la proximité de la starter table
+    // 🔒 SÉCURITÉ 2: Vérifier la proximité avec AUTO-DÉTECTION
     if (!this.isPlayerNearStarterTable(player)) {
+      const tablePosition = this.starterTablePositions.get(player.currentZone);
+      const debugInfo = tablePosition 
+        ? `Table détectée à (${tablePosition.centerX}, ${tablePosition.centerY}) dans un rayon de ${tablePosition.radius}px` 
+        : 'Aucune table configurée pour cette zone';
+        
       return {
         valid: false,
         reason: "not_near_starter_table",
-        message: "Approchez-vous de la table du professeur pour choisir votre starter !"
+        message: `Approchez-vous de la table du professeur ! ${debugInfo}`
       };
     }
 
@@ -206,34 +397,30 @@ export class StarterHandlers {
     };
   }
 
-  // ✅ MÉTHODE UNIQUE: Vérifier la proximité côté serveur
+  // ✅ MÉTHODE MISE À JOUR: Vérifier la proximité avec auto-détection
   private isPlayerNearStarterTable(player: any): boolean {
     console.log(`🔍 [StarterHandlers] Vérification proximité pour ${player.name}`);
     console.log(`📍 [StarterHandlers] Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
     
-    if (player.currentZone !== "villagelab") {
-      console.log(`❌ [StarterHandlers] Mauvaise zone: ${player.currentZone}`);
+    // Récupérer la position de la table pour cette zone
+    const tablePosition = this.starterTablePositions.get(player.currentZone);
+    
+    if (!tablePosition) {
+      console.warn(`⚠️ [StarterHandlers] Aucune table starter configurée pour la zone: ${player.currentZone}`);
+      console.log(`📋 [StarterHandlers] Zones disponibles:`, Array.from(this.starterTablePositions.keys()));
       return false;
     }
     
-    // Zone approximative où devrait être la table du professeur dans villagelab
-    // Ajustez ces coordonnées selon votre carte
-    const starterTableArea = {
-      centerX: 210,  // Centre X de votre table - AJUSTEZ SELON VOTRE CARTE
-      centerY: 160,  // Centre Y de votre table - AJUSTEZ SELON VOTRE CARTE
-      radius: 80     // Rayon de détection généreuse
-    };
-    
     const distance = Math.sqrt(
-      Math.pow(player.x - starterTableArea.centerX, 2) + 
-      Math.pow(player.y - starterTableArea.centerY, 2)
+      Math.pow(player.x - tablePosition.centerX, 2) + 
+      Math.pow(player.y - tablePosition.centerY, 2)
     );
     
-    const isNear = distance <= starterTableArea.radius;
+    const isNear = distance <= tablePosition.radius;
     
-    console.log(`🎯 [StarterHandlers] Distance à la table: ${Math.round(distance)}px`);
-    console.log(`📊 [StarterHandlers] Zone table: centre(${starterTableArea.centerX}, ${starterTableArea.centerY}) rayon=${starterTableArea.radius}`);
-    console.log(`✅ [StarterHandlers] Résultat proximité: ${isNear}`);
+    console.log(`🎯 [StarterHandlers] Table ${player.currentZone}: centre(${tablePosition.centerX}, ${tablePosition.centerY}) rayon=${tablePosition.radius}`);
+    console.log(`📏 [StarterHandlers] Distance calculée: ${Math.round(distance)}px`);
+    console.log(`✅ [StarterHandlers] Résultat proximité: ${isNear ? 'PROCHE' : 'TROP LOIN'}`);
     
     return isNear;
   }
@@ -266,9 +453,11 @@ export class StarterHandlers {
         requiredZone: "villagelab",
         playerPosition: { x: player.x, y: player.y },
         nearStarterTable: this.isPlayerNearStarterTable(player),
+        tablePosition: this.starterTablePositions.get(player.currentZone) || null,
         debugInfo: {
           timestamp: Date.now(),
-          sessionId: client.sessionId
+          sessionId: client.sessionId,
+          tablesConfigured: this.starterTablePositions.size
         }
       };
 
@@ -346,6 +535,59 @@ export class StarterHandlers {
   }
 
   // ================================================================================================
+  // MÉTHODES DEBUG AUTO-DÉTECTION
+  // ================================================================================================
+
+  // ✅ NOUVELLE MÉTHODE: Debug des positions détectées
+  public debugStarterTablePositions(): void {
+    console.log(`🔍 === DEBUG POSITIONS TABLES STARTER ===`);
+    console.log(`📊 Nombre de zones configurées: ${this.starterTablePositions.size}`);
+    
+    this.starterTablePositions.forEach((position, zoneName) => {
+      console.log(`🌍 Zone: ${zoneName}`);
+      console.log(`  📍 Centre: (${position.centerX}, ${position.centerY})`);
+      console.log(`  🎯 Rayon: ${position.radius}px`);
+    });
+    
+    if (this.starterTablePositions.size === 0) {
+      console.warn(`❌ Aucune table starter détectée !`);
+      console.log(`💡 Vérifiez que vos cartes Tiled contiennent des objets avec la propriété 'startertable'`);
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Recharger les positions (pour les tests)
+  public reloadStarterTablePositions(): void {
+    console.log(`🔄 [StarterHandlers] Rechargement des positions...`);
+    this.starterTablePositions.clear();
+    this.loadStarterTablePositions();
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Ajouter manuellement une position (pour les tests)
+  public addStarterTablePosition(zoneName: string, centerX: number, centerY: number, radius: number = 80): void {
+    this.starterTablePositions.set(zoneName, { centerX, centerY, radius });
+    console.log(`🎯 [StarterHandlers] Position manuelle ajoutée pour ${zoneName}: (${centerX}, ${centerY}) r=${radius}`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Test de proximité pour un joueur spécifique
+  public testPlayerProximity(playerName: string): boolean {
+    console.log(`🧪 [StarterHandlers] Test proximité pour ${playerName}...`);
+    
+    // Trouver le joueur
+    const player = Array.from(this.room.state.players.values())
+      .find(p => p.name === playerName);
+    
+    if (!player) {
+      console.error(`❌ [StarterHandlers] Joueur ${playerName} non trouvé`);
+      return false;
+    }
+    
+    const result = this.isPlayerNearStarterTable(player);
+    console.log(`🎯 [StarterHandlers] Test proximité ${playerName}: ${result ? 'SUCCÈS' : 'ÉCHEC'}`);
+    
+    return result;
+  }
+
+  // ================================================================================================
   // UTILITAIRES
   // ================================================================================================
 
@@ -387,7 +629,9 @@ export class StarterHandlers {
       return {
         totalStarters,
         distribution: startersByType,
-        logsEnabled: this.enableLogs
+        logsEnabled: this.enableLogs,
+        tablesConfigured: this.starterTablePositions.size,
+        configuredZones: Array.from(this.starterTablePositions.keys())
       };
     } catch (error) {
       this.logError(`Erreur getStats:`, error);
@@ -414,10 +658,25 @@ export class StarterHandlers {
   }
 
   /**
+   * Obtenir les positions configurées (pour debug)
+   */
+  public getConfiguredPositions(): Map<string, { centerX: number, centerY: number, radius: number }> {
+    return new Map(this.starterTablePositions);
+  }
+
+  /**
+   * Forcer une position (pour les tests en live)
+   */
+  public forceTablePosition(zoneName: string, centerX: number, centerY: number, radius: number = 80): void {
+    this.addStarterTablePosition(zoneName, centerX, centerY, radius);
+    console.log(`🔧 [StarterHandlers] Position forcée pour ${zoneName}: (${centerX}, ${centerY}) r=${radius}`);
+  }
+
+  /**
    * Nettoyage à la destruction
    */
   public cleanup(): void {
     this.log(`🧹 Nettoyage des handlers de starter`);
-    // Nettoyage si nécessaire
+    this.starterTablePositions.clear();
   }
 }
