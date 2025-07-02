@@ -93,12 +93,12 @@ export class UIManager {
         }
       },
       battle: {
-        visibleModules: ['team', 'inventory'],
-        enabledModules: ['team'],
-        hiddenModules: ['questTracker', 'chat'],
-        disabledModules: ['inventory', 'quest'],
+        visibleModules: ['chat'],
+        enabledModules: ['chat'],
+        hiddenModules: ['inventory', 'team', 'quest', 'questTracker'],
+        disabledModules: ['inventory', 'team', 'quest', 'questTracker'],
         responsive: {
-          mobile: { visibleModules: ['team'], hiddenModules: ['inventory', 'questTracker', 'chat'] }
+          mobile: { visibleModules: ['chat'], hiddenModules: ['inventory', 'team', 'quest', 'questTracker'] }
         }
       },
       menu: {
