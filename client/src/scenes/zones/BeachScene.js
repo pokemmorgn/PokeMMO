@@ -227,17 +227,29 @@ export class BeachScene extends BaseZoneScene {
     super.onPlayerReady(player);
   }
 
-  // ✅ OVERRIDE: positionPlayer - NE PLUS déclencher l'intro ici
-  positionPlayer(player) {
-    console.log(`📍 [BeachScene] Position joueur en cours...`);
-    super.positionPlayer(player);
-    
-    // ✅ NE PLUS déclencher l'intro ici !
-    // L'intro sera déclenchée par le serveur via triggerIntroSequence
-    // ou par le fallback si pas de serveur
-    
-    console.log(`👤 [BeachScene] Joueur positionné à (${player.x}, ${player.y})`);
-  }
+// ✅ REMPLACEZ LES DEUX MÉTHODES positionPlayer() PAR CELLE-CI
+positionPlayer(player) {
+  console.log(`🏖️ [BeachScene] Force position Beach à (360, 120)`);
+  
+  // ✅ FORCER la position peu importe ce qui se passe
+  player.x = 360;
+  player.y = 120;
+  player.targetX = 360;
+  player.targetY = 120;
+  
+  // Faire le reste (visibilité, caméra, etc.)
+  super.positionPlayer(player);
+  
+  // ✅ Double vérification après le super
+  player.x = 360;
+  player.y = 120;
+  
+  // ✅ NE PLUS déclencher l'intro ici !
+  // L'intro sera déclenchée par le serveur via triggerIntroSequence
+  // ou par le fallback si pas de serveur
+  
+  console.log(`👤 [BeachScene] Joueur positionné à (${player.x}, ${player.y})`);
+}
 
   // ✅ NOUVEAU: Fonction pour attendre que le joueur soit prêt
   waitForPlayerThenStartIntro(callback) {
