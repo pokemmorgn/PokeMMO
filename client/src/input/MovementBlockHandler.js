@@ -270,22 +270,22 @@ export class MovementBlockHandler {
       }
     }
     
-    // Si c'est un blocage système (pas juste une collision)
-    if (data.blocked && data.reason) {
-      console.log(`🚫 Position forcée à cause d'un blocage: ${data.reason}`);
-      this.showBlockMessage(data.message || `Mouvement bloqué: ${data.reason}`, 'warning');
-      
-      // S'assurer que le blocage est actif côté client
-      if (!this.isBlockedFor(data.reason)) {
-        this.activeBlocks.set(data.reason, {
-          timestamp: Date.now(),
-          duration: null, // Permanent jusqu'à déblocage serveur
-          metadata: null,
-          message: data.message
-        });
-        this.updateBlockState();
-      }
-    }
+// Si c'est un blocage système (pas juste une collision)
+if (data.blocked && data.reason) {
+  // Ne logue que si le blocage n'existait pas déjà
+  if (!this.isBlockedFor(data.reason)) {
+    console.log(`🚫 Position forcée à cause d'un blocage: ${data.reason}`);
+    this.showBlockMessage(data.message || `Mouvement bloqué: ${data.reason}`, 'warning');
+    this.activeBlocks.set(data.reason, {
+      timestamp: Date.now(),
+      duration: null,
+      metadata: null,
+      message: data.message
+    });
+    this.updateBlockState();
+  }
+}
+
     
     // Si c'est juste une collision
     if (data.collision && !data.blocked) {
