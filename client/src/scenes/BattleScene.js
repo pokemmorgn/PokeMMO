@@ -714,6 +714,67 @@ export class BattleScene extends Phaser.Scene {
   }
 }
 
+// 🆕 FONCTION POUR TESTER DIFFÉRENTES TAILLES DE FRAMES
+window.testFrameSize = function(width, height) {
+  console.log(`🔍 Test de taille de frame: ${width}x${height}`);
+  
+  // Recharger les textures avec la nouvelle taille
+  const scene = window.game?.scene?.getScene('BattleScene');
+  if (scene) {
+    // Supprimer les textures existantes
+    const texturesToRemove = [
+      'pokemon_4_back', 'pokemon_25_front'
+    ];
+    
+    texturesToRemove.forEach(key => {
+      if (scene.textures.exists(key)) {
+        scene.textures.remove(key);
+        console.log(`🗑️ Texture ${key} supprimée`);
+      }
+    });
+    
+    // Recharger avec la nouvelle taille
+    scene.load.spritesheet('pokemon_4_back', 'assets/pokemon/charmander/back.png', {
+      frameWidth: width,
+      frameHeight: height
+    });
+    
+    scene.load.spritesheet('pokemon_25_front', 'assets/pokemon/pikachu/front.png', {
+      frameWidth: width,
+      frameHeight: height
+    });
+    
+    scene.load.start();
+    
+    scene.load.once('complete', () => {
+      console.log(`✅ Rechargement terminé avec ${width}x${height}`);
+      // Relancer le test
+      window.testBattleSprites();
+    });
+  }
+};
+
+// 🆕 FONCTION POUR TESTER TAILLES COMMUNES
+window.testCommonFrameSizes = function() {
+  console.log('🧪 Test des tailles de frames communes...');
+  
+  const sizes = [
+    { w: 32, h: 32, name: 'Mini' },
+    { w: 48, h: 48, name: 'Petite' },
+    { w: 64, h: 64, name: 'Classique' },
+    { w: 80, h: 80, name: 'Moyenne' },
+    { w: 96, h: 96, name: 'Grande' },
+    { w: 128, h: 128, name: 'Très grande' }
+  ];
+  
+  console.log('📏 Tailles disponibles:');
+  sizes.forEach((size, index) => {
+    console.log(`${index + 1}. ${size.name}: ${size.w}x${size.h} - window.testFrameSize(${size.w}, ${size.h})`);
+  });
+  
+  console.log('💡 Utilisez: window.testFrameSize(64, 64) par exemple');
+};
+
 // 🆕 FONCTION POUR NETTOYER L'ÉCRAN
 window.clearBattleScreen = function() {
   console.log('🧹 Nettoyage de l\'écran de combat...');
