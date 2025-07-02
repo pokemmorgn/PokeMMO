@@ -682,6 +682,7 @@ setTimeout(async () => {
 }, 3000); 
 
     // ✅ 10. VÉRIFIER QUE TOUTES LES SCÈNES SONT BIEN ENREGISTRÉES
+    /*
     setTimeout(() => {
       console.log("🔍 [MAIN] Vérification des scènes Phaser...");
       const phaserScenes = Object.keys(window.game.scene.manager.keys);
@@ -702,6 +703,7 @@ setTimeout(async () => {
       console.log(`   BattleScene: ${hasBattleScene ? '✅' : '❌'}`);
       
     }, 1000);
+    */
 
     // ✅ 11. SETUP GLOBAL POUR TES SYSTÈMES
     window.starterHUD = null;
