@@ -540,14 +540,14 @@ setRoom(room) {
         window.initTeamSystem(this.networkManager.room);
       }
     }, 1500);
-}, 1200);
+    }, 1200);
     // 🆕 6. EncounterManager (après le chargement de la carte)
     setTimeout(() => {
       this.initializeEncounterManager();
     }, 1800);
     
     console.log(`✅ [${this.scene.key}] Planification initialisation systèmes terminée`);
-  }
+
 
   // 🆕 NOUVELLE MÉTHODE: Initialisation du ClientEncounterManager
   initializeEncounterManager() {
