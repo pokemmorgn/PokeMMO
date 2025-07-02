@@ -230,8 +230,9 @@ export class BattleScene extends Phaser.Scene {
       this.createPokemonPositions();
     }
     
-    // Supprimer l'ancien sprite
+    // ✅ CORRECTION: Supprimer l'ancien sprite proprement
     if (this.playerPokemonSprite) {
+      console.log('🗑️ [BattleScene] Suppression ancien sprite joueur');
       this.playerPokemonSprite.destroy();
       this.playerPokemonSprite = null;
     }
@@ -251,6 +252,10 @@ export class BattleScene extends Phaser.Scene {
         this.pokemonPositions.playerAbsolute.y,
         spriteKey
       );
+      
+      // ✅ MARQUER le sprite pour le nettoyage
+      this.playerPokemonSprite.setData('isPokemon', true);
+      this.playerPokemonSprite.setData('pokemonType', 'player');
       
       // Configuration du sprite joueur
       this.playerPokemonSprite.setScale(2.5);  // Plus grand (premier plan)
@@ -282,8 +287,9 @@ export class BattleScene extends Phaser.Scene {
       this.createPokemonPositions();
     }
     
-    // Supprimer l'ancien sprite
+    // ✅ CORRECTION: Supprimer l'ancien sprite proprement
     if (this.opponentPokemonSprite) {
+      console.log('🗑️ [BattleScene] Suppression ancien sprite adversaire');
       this.opponentPokemonSprite.destroy();
       this.opponentPokemonSprite = null;
     }
@@ -303,6 +309,10 @@ export class BattleScene extends Phaser.Scene {
         this.pokemonPositions.opponentAbsolute.y,
         spriteKey
       );
+      
+      // ✅ MARQUER le sprite pour le nettoyage
+      this.opponentPokemonSprite.setData('isPokemon', true);
+      this.opponentPokemonSprite.setData('pokemonType', 'opponent');
       
       // Configuration du sprite adversaire
       this.opponentPokemonSprite.setScale(2.0);  // Plus petit (arrière-plan)
@@ -498,6 +508,9 @@ export class BattleScene extends Phaser.Scene {
   testDisplayPokemon() {
     console.log('🧪 [BattleScene] Test affichage Pokémon...');
     
+    // ✅ CORRECTION: Nettoyer d'abord tous les sprites existants
+    this.clearAllPokemonSprites();
+    
     // Pokémon joueur test
     const testPlayerPokemon = {
       pokemonId: 4,
@@ -529,6 +542,43 @@ export class BattleScene extends Phaser.Scene {
     setTimeout(() => {
       this.displayOpponentPokemon(testOpponentPokemon);
     }, 1200);
+  }
+
+  // 🆕 MÉTHODE: Nettoyer tous les sprites Pokémon
+  clearAllPokemonSprites() {
+    console.log('🧹 [BattleScene] Nettoyage de tous les sprites Pokémon...');
+    
+    // Supprimer le sprite joueur
+    if (this.playerPokemonSprite) {
+      this.playerPokemonSprite.destroy();
+      this.playerPokemonSprite = null;
+    }
+    
+    // Supprimer le sprite adversaire
+    if (this.opponentPokemonSprite) {
+      this.opponentPokemonSprite.destroy();
+      this.opponentPokemonSprite = null;
+    }
+    
+    // ✅ CORRECTION: Nettoyer TOUS les sprites avec les tags "pokemon"
+    // Au cas où il y aurait des sprites orphelins
+    const allChildren = this.children.list.slice(); // Copie pour éviter les modifications pendant l'itération
+    allChildren.forEach(child => {
+      if (child.texture && (
+        child.texture.key.includes('pokemon_') || 
+        child.texture.key.includes('placeholder') ||
+        (child.getData && child.getData('isPokemon'))
+      )) {
+        console.log('🗑️ [BattleScene] Suppression sprite orphelin:', child.texture.key);
+        child.destroy();
+      }
+    });
+    
+    // Nettoyer les données
+    this.currentPlayerPokemon = null;
+    this.currentOpponentPokemon = null;
+    
+    console.log('✅ [BattleScene] Nettoyage terminé');
   }
 
   // === MÉTHODES PUBLIQUES ===
@@ -648,9 +698,25 @@ export class BattleScene extends Phaser.Scene {
   }
 }
 
+// 🆕 FONCTION POUR NETTOYER L'ÉCRAN
+window.clearBattleScreen = function() {
+  console.log('🧹 Nettoyage de l\'écran de combat...');
+  
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (battleScene && battleScene.clearAllPokemonSprites) {
+    battleScene.clearAllPokemonSprites();
+    console.log('✅ Écran nettoyé');
+  } else {
+    console.warn('⚠️ BattleScene non trouvée ou méthode manquante');
+  }
+};
+
 // 🆕 FONCTION DE TEST GLOBALE AVEC UI FORCÉE
 window.testBattleSprites = function() {
   console.log('🧪 Test affichage sprites Pokémon avec UI cachée...');
+  
+  // ✅ ÉTAPE 0: Nettoyer d'abord l'écran
+  window.clearBattleScreen();
   
   // ✅ ÉTAPE 1: FORCER le passage en mode battle pour cacher TOUTE l'UI
   console.log('🎮 FORÇAGE du mode battle pour masquer l\'UI...');
