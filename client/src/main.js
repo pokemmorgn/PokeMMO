@@ -9,6 +9,7 @@ import { DayNightWeatherManagerPhaser } from './game/DayNightWeatherManager.js';
 import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
 import { ClientTimeWeatherManager } from './managers/ClientTimeWeatherManager.js';
 import { StarterUtils, integrateStarterSelectorToScene } from './components/StarterSelector.js';
+import { LoadingScreen } from './components/LoadingScreen.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
@@ -551,9 +552,63 @@ console.log("✅ Système météo global initialisé");
     // 8. Initialise le chat
     initPokeChat(worldChat, window.username);
 
-    // ✅ 9. LANCEMENT DE PHASER APRÈS TOUT LE SETUP
-    console.log("🎮 Lancement de Phaser...");
+// ✅ 9. LANCEMENT DE PHASER AVEC CHARGEMENT ÉTENDU
+console.log("🎮 Lancement de Phaser avec chargement étendu...");
+
+// Créer l'écran de chargement étendu AVANT Phaser
+window.extendedLoadingScreen = LoadingScreen.createGlobal({
+  enabled: true,
+  fastMode: false,
+  theme: 'extended'
+});
+
+// Ajouter le thème étendu
+window.extendedLoadingScreen.addCustomTheme('extended', {
+  title: 'PokeWorld MMO',
+  steps: [
+    "Chargement du moteur de jeu...",
+    "Connexion au serveur...",
+    "Chargement de la première zone...",
+    "Initialisation de l'interface...",
+    "Chargement inventaire...",
+    "Chargement équipe Pokémon...",
+    "Chargement système de quêtes...",
+    "Finalisation...",
+    "Bienvenue dans PokeWorld !"
+  ],
+  icon: '🌍',
+  color: 'rgba(34, 197, 94, 0.8)',
+  stepDelay: 800
+});
+
+// Fonction de chargement étendu
+async function startExtendedLoading() {
+  try {
+    // Démarrer l'écran
+    window.extendedLoadingScreen.showManual('PokeWorld MMO', '🌍');
+    
+    // Étape 1: Moteur de jeu
+    window.extendedLoadingScreen.updateManual('Chargement du moteur de jeu...', 10);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Lancer Phaser
     window.game = new Phaser.Game(config);
+    
+    // Étape 2: Connexion serveur  
+    window.extendedLoadingScreen.updateManual('Connexion au serveur...', 25);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    console.log("✅ Chargement étendu Phase 1 terminé - BaseZoneScene prendra le relais");
+    
+  } catch (error) {
+    console.error("❌ Erreur chargement étendu:", error);
+    // Fallback vers lancement normal
+    window.game = new Phaser.Game(config);
+  }
+}
+
+// Démarrer le processus
+startExtendedLoading();
 
     // 🆕 NOUVEAU: 9.5. INITIALISER LE SYSTÈME DE COMBAT APRÈS PHASER
 console.log("⚔️ Initialisation du système de combat...");
