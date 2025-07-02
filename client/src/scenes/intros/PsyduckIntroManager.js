@@ -99,23 +99,31 @@ export class PsyduckIntroManager {
     });
   }
 
-  startIntro(onComplete = null) {
-    if (this.isPlaying || !this.scene) return;
+async startIntro(onComplete = null) {
+  if (this.isPlaying || !this.scene) return;
 
-    if (!this.listenersSetup) {
-      this.ensureListenersSetup();
-    }
-
-    this.isPlaying = true;
-    this.onCompleteCallback = onComplete;
-    
-    this.blockPlayerInputs();
-    this.loadPsyduckSpritesheet();
-    
-    this.scene.time.delayedCall(500, () => {
-      this.spawnPsyduck();
-    });
+  if (!this.listenersSetup) {
+    this.ensureListenersSetup();
   }
+
+  this.isPlaying = true;
+  this.onCompleteCallback = onComplete;
+
+  this.blockPlayerInputs();
+  this.loadPsyduckSpritesheet();
+
+  // ✅ Attendre que le joueur soit prêt (max 8s)
+  const playerReady = await this.waitForPlayerReady(8000);
+  if (!playerReady) {
+    console.warn('[PsyduckIntro] Joueur pas prêt après 8s, annulation intro');
+    this.cleanup();
+    return;
+  }
+
+  this.scene.time.delayedCall(500, () => {
+    this.spawnPsyduck();
+  });
+}
 
   notifyServer(step) {
     if (!this.questIntegrationEnabled || !this.scene.room || this.fallbackMode) {
@@ -603,6 +611,24 @@ export class PsyduckIntroManager {
     }
   }
 
+  async waitForPlayerReady(maxWaitTime = 8000) {
+  const scene = this.scene;
+  if (!scene || !scene.playerManager) return false;
+  const start = Date.now();
+
+  return new Promise(resolve => {
+    const check = () => {
+      const myPlayer = scene.playerManager.getMyPlayer?.();
+      const isReady = !!myPlayer && !!myPlayer.sprite && myPlayer.x !== undefined && myPlayer.y !== undefined;
+      if (isReady) return resolve(true);
+      if (Date.now() - start > maxWaitTime) return resolve(false);
+      setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
+  
   destroy() {
     try {
       this.forceStop();
