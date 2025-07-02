@@ -5,7 +5,7 @@ import { BattleScene } from '../scenes/BattleScene.js';
 import { BattleManager } from '../Battle/BattleManager.js';
 import { BattleConnection } from '../Battle/BattleConnection.js';
 import { PokemonSelectionUI } from '../Battle/PokemonSelectionUI.js';
-import { BattleUITransition } from '../battle/BattleUITransition.js'; // ✅ NOUVEAU
+import { BattleUITransition } from '../Battle/BattleUITransition.js'; // ✅ NOUVEAU
 
 /**
  * Gestionnaire d'intégration complet du système de combat
