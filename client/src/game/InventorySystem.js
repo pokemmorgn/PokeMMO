@@ -376,26 +376,31 @@ export class InventorySystem {
     });
   }
 
-  setupSystemIntegration() {
-    // Intégration avec le système de quêtes
-    if (window.questSystem) {
-      // Écouter les événements de ramassage d'objets pour les quêtes
-      this.gameRoom?.onMessage("inventoryUpdate", (data) => {
-        if (data.type === 'add') {
-          window.questSystem.triggerCollectEvent(data.itemId, data.quantity);
-        }
+setupSystemIntegration() {
+  // Intégration avec le système de quêtes
+  if (window.questSystem) {
+    this.gameRoom?.onMessage("inventoryUpdate", (data) => {
+      if (data.type === 'add') {
+        window.questSystem.triggerCollectEvent(data.itemId, data.quantity);
+      }
+    });
+  }
+
+  // Intégration avec le chat
+  if (typeof window.isChatFocused === 'function') {
+    // On récupère l’input du chat (à adapter selon ton code)
+    const chatInput = document.querySelector('#chat-input'); // Mets le bon sélecteur !
+    if (chatInput) {
+      chatInput.addEventListener('focus', () => {
+        this.inventoryIcon.setEnabled(false);
+      });
+      chatInput.addEventListener('blur', () => {
+        this.inventoryIcon.setEnabled(true);
       });
     }
-
-    // Intégration avec le chat
-    if (typeof window.isChatFocused === 'function') {
-      // Désactiver l'inventaire quand le chat est actif
-      setInterval(() => {
-        const chatFocused = window.isChatFocused();
-        this.inventoryIcon.setEnabled(!chatFocused);
-      }, 1000);
-    }
   }
+}
+
 
   // === MÉTHODES PUBLIQUES INCHANGÉES ===
 
