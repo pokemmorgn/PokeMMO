@@ -983,10 +983,59 @@ initializeZoneEnvironment() {
     }
   }
 
-  onPlayerReady(player) {
-    // Hook vide par défaut. Sera utilisé si défini dans une scène spécifique.
-    console.log(`[${this.scene.key}] ✅ onPlayerReady appelé pour ${player.sessionId}`);
+onPlayerReady(player) {
+  console.log(`✅ [${this.scene.key}] === PLAYER READY HOOK ===`);
+  console.log(`👤 Joueur prêt: ${player.sessionId} à (${player.x}, ${player.y})`);
+  
+  // ✅ MARQUER comme spawné
+  this._playerFullySpawned = true;
+  
+  // ✅ NOUVEAU: Mettre à jour le flag global playerSpawned
+  if (typeof window !== "undefined") {
+    window.playerSpawned = true;
+    console.log('[GLOBAL] playerSpawned = true (joueur prêt)');
+    
+    // ✅ Si le loading screen est déjà fermé, marquer playerReady
+    if (window.loadingScreenClosed && !window.playerReady) {
+      window.playerReady = true;
+      console.log('[GLOBAL] playerReady = true (playerSpawned + loading déjà fermé)');
+    }
   }
+  
+  // ✅ VÉRIFIER position valide
+  if (player.x !== undefined && player.y !== undefined && player.x !== 0 && player.y !== 0) {
+    this._playerPositionConfirmed = true;
+    console.log(`📍 [${this.scene.key}] Position joueur confirmée: (${player.x}, ${player.y})`);
+  }
+  
+  // ✅ Si on attendait le spawn pour envoyer clientReady
+  if (this._waitingForPlayerSpawn && !this._clientReadySent) {
+    console.log(`🚦 [${this.scene.key}] Joueur prêt, envoi clientReady maintenant`);
+    this.time.delayedCall(500, () => {
+      this.sendClientReady();
+    });
+  }
+  
+  // ✅ DÉLAI SÉCURISÉ avant de pouvoir démarrer l'intro
+  this.time.delayedCall(1000, () => {
+    this._introReadyToStart = true;
+    console.log(`🎬 [${this.scene.key}] Intro maintenant autorisée à démarrer`);
+    
+    // Si on a une intro en attente, la démarrer maintenant
+    if (this._pendingIntroStart) {
+      console.log(`🚀 [${this.scene.key}] Démarrage intro qui était en attente`);
+      this._pendingIntroStart();
+      this._pendingIntroStart = null;
+    }
+  });
+  
+  // ✅ Debug final
+  console.log('🏁 [BaseZoneScene] État flags après onPlayerReady:', {
+    playerSpawned: window?.playerSpawned,
+    loadingScreenClosed: window?.loadingScreenClosed,
+    playerReady: window?.playerReady
+  });
+}
   
 initPlayerSpawnFromSceneData() {
   const data = this.scene.settings.data || {};
