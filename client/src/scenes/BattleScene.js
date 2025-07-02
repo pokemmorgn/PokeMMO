@@ -762,17 +762,107 @@ window.testFrameSize = function(width, height, type = 'both') {
   }
 };
 
-// 🆕 FONCTION POUR CALCULER AUTOMATIQUEMENT LES TAILLES 9x9
-window.calculateFrameSize9x9 = function(imageWidth, imageHeight) {
-  const frameWidth = Math.floor(imageWidth / 9);
-  const frameHeight = Math.floor(imageHeight / 9);
+// 🔧 AUTO-CORRECTION DU SYSTÈME DE COMBAT RÉEL
+window.fixRealBattleSystem = function() {
+  console.log('🔧 === CORRECTION AUTOMATIQUE DU SYSTÈME DE COMBAT ===');
   
-  console.log(`📐 Calcul grille 9x9:`);
-  console.log(`   Image: ${imageWidth}x${imageHeight}`);
-  console.log(`   Frame: ${frameWidth}x${frameHeight}`);
-  console.log(`   Total frames: 81`);
+  let fixesApplied = 0;
   
-  return { frameWidth, frameHeight };
+  // 1. Corriger BattleUITransition
+  if (window.fixBattleUITransition) {
+    window.fixBattleUITransition();
+    fixesApplied++;
+    console.log('✅ BattleUITransition corrigée');
+  }
+  
+  if (window.fixBattleEndTransition) {
+    window.fixBattleEndTransition();
+    fixesApplied++;
+    console.log('✅ Fin de combat corrigée');
+  }
+  
+  // 2. Corriger le BattleIntegration si disponible
+  if (window.gameManager?.battleIntegration) {
+    const battleIntegration = window.gameManager.battleIntegration;
+    
+    if (battleIntegration.handleWildEncounterStart) {
+      const originalHandler = battleIntegration.handleWildEncounterStart.bind(battleIntegration);
+      
+      battleIntegration.handleWildEncounterStart = function(data) {
+        console.log('🐾 [BattleIntegration CORRIGÉ] Rencontre sauvage avec masquage UI complet');
+        
+        // ✅ MASQUER COMPLÈTEMENT L'UI AVANT TOUT
+        if (window.hideAllUI) {
+          const hiddenCount = window.hideAllUI();
+          console.log(`✅ [BattleIntegration] ${hiddenCount} éléments UI masqués`);
+        }
+        
+        // Appeler l'handler original
+        return originalHandler(data);
+      };
+      
+      fixesApplied++;
+      console.log('✅ BattleIntegration.handleWildEncounterStart corrigé');
+    }
+  }
+  
+  // 3. Corriger directement dans le network handler si accessible
+  if (window.globalNetworkManager?.battleNetworkHandler) {
+    const battleHandler = window.globalNetworkManager.battleNetworkHandler;
+    
+    if (battleHandler.handleWildEncounterStart) {
+      const originalNetworkHandler = battleHandler.handleWildEncounterStart.bind(battleHandler);
+      
+      battleHandler.handleWildEncounterStart = function(data) {
+        console.log('🌐 [BattleNetworkHandler CORRIGÉ] Rencontre avec masquage UI');
+        
+        // ✅ MASQUER L'UI IMMÉDIATEMENT
+        if (window.hideAllUI) {
+          window.hideAllUI();
+        }
+        
+        return originalNetworkHandler(data);
+      };
+      
+      fixesApplied++;
+      console.log('✅ BattleNetworkHandler.handleWildEncounterStart corrigé');
+    }
+  }
+  
+  // 4. Hook sur tous les événements wildEncounterStart possibles
+  if (window.addEventListener) {
+    window.addEventListener('wildEncounterStart', function(event) {
+      console.log('🎣 [HOOK] wildEncounterStart intercepté - masquage UI');
+      if (window.hideAllUI) {
+        window.hideAllUI();
+      }
+    });
+    fixesApplied++;
+    console.log('✅ Hook global wildEncounterStart ajouté');
+  }
+  
+  console.log(`🎯 ${fixesApplied} corrections appliquées au système de combat`);
+  console.log('✅ Le système devrait maintenant cacher le QuestTracker automatiquement');
+  
+  return fixesApplied > 0;
+};
+
+// 🧪 FONCTION DE TEST DU SYSTÈME CORRIGÉ
+window.testRealBattle = function() {
+  console.log('🧪 Test du système de combat réel...');
+  
+  // Appliquer les corrections
+  const fixed = window.fixRealBattleSystem();
+  
+  if (fixed) {
+    console.log('✅ Corrections appliquées, le combat dans l\'herbe devrait maintenant masquer le QuestTracker');
+    console.log('🌱 Allez dans l\'herbe pour tester !');
+  } else {
+    console.warn('⚠️ Aucune correction appliquée - vérifiez que le système de combat est chargé');
+  }
+  
+  // Afficher l'état actuel
+  window.debugUIState();
 };
 
 // 🆕 FONCTION POUR TESTER AVEC CALCUL AUTOMATIQUE
