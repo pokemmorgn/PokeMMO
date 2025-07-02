@@ -1,5 +1,5 @@
 // ===============================================
-// BeachScene.js - Beach + Intro automatique avec fix timing complet (flow clientReady)
+// BeachScene.js - Fix timing intro après spawn player complet
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 import { PsyduckIntroManager } from '../intros/PsyduckIntroManager.js';
@@ -21,7 +21,6 @@ class PokemonSpriteManager {
     }
   }
 
-  
   createPokemonSprite(pokemonName, x, y, direction = "left") {
     const key = `${pokemonName}_Walk`;
     this.createAnimations(key);
@@ -72,38 +71,46 @@ export class BeachScene extends BaseZoneScene {
     this._fallbackTimer = null;
     this._roomConnectionTimer = null;
     this._clientReadySent = false;
+    
+    // ✅ NOUVEAU: Flags pour gérer le timing correct
+    this._playerFullySpawned = false;
+    this._playerPositionConfirmed = false;
+    this._introReadyToStart = false;
+    this._waitingForPlayerSpawn = false;
   }
 
-onRoomAvailable(room) {
-  // Ce hook sera appelé dès que la room est dispo (hérité de BaseZoneScene)
-  if (!this.psyduckIntroManager) {
-    // Re-essaie plus tard si nécessaire
-    this.time.delayedCall(50, () => this.onRoomAvailable(room));
-    return;
+  // ✅ HOOK: Room disponible
+  onRoomAvailable(room) {
+    console.log(`📡 [BeachScene] Room disponible, setup listeners...`);
+    if (!this.psyduckIntroManager) {
+      this.time.delayedCall(50, () => this.onRoomAvailable(room));
+      return;
+    }
+    this.setupEarlyListeners();
   }
-  this.setupEarlyListeners();
-}
   
   async create() {
+    console.log(`🏖️ [BeachScene] === CRÉATION SCENE ===`);
     super.create();
     this.pokemonSpriteManager = new PokemonSpriteManager(this);
     this.psyduckIntroManager = new PsyduckIntroManager(this);
-
-    // ✅ Configurer les listeners immédiatement si room disponible
-    //  this.setupEarlyListeners();
     this.setupBeachEvents();
+    
+    console.log(`✅ [BeachScene] Création terminée, attente spawn joueur...`);
   }
 
-  // === SETUP LISTENERS TÔT, puis send clientReady ===
+  // ✅ SETUP LISTENERS: Attendre room + délai sécurisé pour clientReady
   setupEarlyListeners() {
     const checkRoom = () => {
       if (this.room) {
-        console.log(`📡 [BeachScene] Room détectée dans create(), setup listeners`);
+        console.log(`📡 [BeachScene] Room détectée, setup listeners...`);
         this.psyduckIntroManager.ensureListenersSetup();
         this.setupServerListeners();
-        this.time.delayedCall(2000, () => {
-        console.log(`📡 [INTRO] Ready sent`);
-        this.sendClientReady();
+        
+        // ✅ DÉLAI PLUS LONG pour être sûr que tout soit prêt
+        this.time.delayedCall(3000, () => {
+          console.log(`📡 [BeachScene] Envoi clientReady après délai sécurisé`);
+          this.sendClientReady();
         });
         return true;
       }
@@ -121,93 +128,200 @@ onRoomAvailable(room) {
           if (checkRoom()) {
             roomTimer.remove();
           } else if (attempts >= maxAttempts) {
-            console.log(`⚠️ [BeachScene] Timeout attente room dans create()`);
+            console.warn(`⚠️ [BeachScene] Timeout attente room, mode fallback`);
             roomTimer.remove();
+            this.activateFallbackMode();
           }
         }
       });
     }
   }
 
-  // === Envoi clientReady (flow 100% sûr) ===
+  // ✅ NOUVEAU: Mode fallback si pas de serveur
+  activateFallbackMode() {
+    console.log(`🔄 [BeachScene] Activation mode fallback sans serveur`);
+    
+    // Attendre que le joueur soit prêt avant de démarrer l'intro fallback
+    this.waitForPlayerThenStartIntro(() => {
+      console.log(`🎬 [BeachScene] Démarrage intro fallback`);
+      this.startIntroFallback();
+    });
+  }
+
+  // ✅ Envoi clientReady seulement quand tout est prêt
   sendClientReady() {
     if (this.room && !this._clientReadySent) {
-      this.room.send("clientIntroReady");
-      this._clientReadySent = true;
-      console.log("🚦 [BeachScene] clientReady envoyé au serveur");
-      // Ici, on n'envoie plus jamais checkAutoIntroQuest !
+      // ✅ VÉRIFIER que le joueur est prêt avant d'envoyer clientReady
+      if (this._playerFullySpawned && this._playerPositionConfirmed) {
+        this.room.send("clientIntroReady");
+        this._clientReadySent = true;
+        console.log("🚦 [BeachScene] clientReady envoyé au serveur");
+      } else {
+        console.log("⏳ [BeachScene] Attente spawn joueur avant clientReady...");
+        this._waitingForPlayerSpawn = true;
+        
+        // Retry après délai
+        this.time.delayedCall(1000, () => {
+          this.sendClientReady();
+        });
+      }
     }
   }
 
-  // === Plus d'appel à triggerIntroCheck ni checkAutoIntroQuest dans cette version ===
-
-  // === CONFIGURATION ÉCOUTES SERVEUR SIMPLIFIÉE ===
+  // ✅ CONFIGURATION ÉCOUTES SERVEUR
   setupServerListeners() {
     if (!this.room) {
-      console.warn(`⚠️ [BeachScene] Pas de room disponible pour les écoutes serveur`);
-      console.log(`ℹ️ [BeachScene] Mode déconnecté: intro fallback disponible`);
+      console.warn(`⚠️ [BeachScene] Pas de room pour écoutes serveur`);
       return;
     }
 
-    console.log(`📡 [BeachScene] Configuration écoutes serveur avec room connectée`);
+    console.log(`📡 [BeachScene] Configuration écoutes serveur...`);
 
-    // NE PAS écouter triggerIntroSequence ici - c'est PsyduckIntroManager qui s’en charge
     this.room.onMessage("questGranted", (data) => {
-      console.log("🎁 [BeachScene] Nouvelle quête reçue (BeachScene):", data);
+      console.log("🎁 [BeachScene] Nouvelle quête reçue:", data);
     });
 
     this.room.onMessage("introQuestCompleted", (data) => {
-      console.log("🎉 [BeachScene] Quête d'intro terminée (BeachScene):", data);
+      console.log("🎉 [BeachScene] Quête d'intro terminée:", data);
     });
 
-    console.log(`✅ [BeachScene] Écoutes serveur BeachScene configurées`);
+    console.log(`✅ [BeachScene] Écoutes serveur configurées`);
   }
 
-  // === Fallback si pas de serveur ou bug côté serveur ===
+  // ✅ OVERRIDE: onPlayerReady - Hook quand le joueur est prêt
+  onPlayerReady(player) {
+    console.log(`✅ [BeachScene] === PLAYER READY HOOK ===`);
+    console.log(`👤 Joueur prêt: ${player.sessionId} à (${player.x}, ${player.y})`);
+    
+    // ✅ MARQUER comme spawné
+    this._playerFullySpawned = true;
+    
+    // ✅ VÉRIFIER position valide
+    if (player.x !== undefined && player.y !== undefined && player.x !== 0 && player.y !== 0) {
+      this._playerPositionConfirmed = true;
+      console.log(`📍 [BeachScene] Position joueur confirmée: (${player.x}, ${player.y})`);
+    }
+    
+    // ✅ Si on attendait le spawn pour envoyer clientReady
+    if (this._waitingForPlayerSpawn && !this._clientReadySent) {
+      console.log(`🚦 [BeachScene] Joueur prêt, envoi clientReady maintenant`);
+      this.time.delayedCall(500, () => {
+        this.sendClientReady();
+      });
+    }
+    
+    // ✅ DÉLAI SÉCURISÉ avant de pouvoir démarrer l'intro
+    this.time.delayedCall(1000, () => {
+      this._introReadyToStart = true;
+      console.log(`🎬 [BeachScene] Intro maintenant autorisée à démarrer`);
+      
+      // Si on a une intro en attente, la démarrer maintenant
+      if (this._pendingIntroStart) {
+        console.log(`🚀 [BeachScene] Démarrage intro qui était en attente`);
+        this._pendingIntroStart();
+        this._pendingIntroStart = null;
+      }
+    });
+    
+    // ✅ Appeler le parent
+    super.onPlayerReady(player);
+  }
+
+  // ✅ OVERRIDE: positionPlayer - NE PLUS déclencher l'intro ici
+  positionPlayer(player) {
+    console.log(`📍 [BeachScene] Position joueur en cours...`);
+    super.positionPlayer(player);
+    
+    // ✅ NE PLUS déclencher l'intro ici !
+    // L'intro sera déclenchée par le serveur via triggerIntroSequence
+    // ou par le fallback si pas de serveur
+    
+    console.log(`👤 [BeachScene] Joueur positionné à (${player.x}, ${player.y})`);
+  }
+
+  // ✅ NOUVEAU: Fonction pour attendre que le joueur soit prêt
+  waitForPlayerThenStartIntro(callback) {
+    if (this._playerFullySpawned && this._playerPositionConfirmed && this._introReadyToStart) {
+      console.log(`✅ [BeachScene] Joueur prêt, exécution callback intro`);
+      callback();
+      return;
+    }
+    
+    console.log(`⏳ [BeachScene] Attente spawn complet joueur...`);
+    console.log(`📊 Status: spawned=${this._playerFullySpawned}, positioned=${this._playerPositionConfirmed}, ready=${this._introReadyToStart}`);
+    
+    // ✅ Stocker le callback pour l'exécuter plus tard
+    this._pendingIntroStart = callback;
+    
+    // ✅ Timeout de sécurité
+    this.time.delayedCall(10000, () => {
+      if (this._pendingIntroStart) {
+        console.warn(`⚠️ [BeachScene] Timeout attente joueur, force start intro`);
+        callback();
+        this._pendingIntroStart = null;
+      }
+    });
+  }
+
+  // ✅ Hook après positionnement complet
+  onPlayerPositioned(player, initData) {
+    console.log(`✅ [BeachScene] Joueur définitivement positionné à (${player.x}, ${player.y})`);
+    
+    // ✅ S'assurer que le joueur est visible
+    if (player.setVisible) player.setVisible(true);
+    if (player.alpha !== undefined) player.alpha = 1;
+    
+    // ✅ Marquer position comme confirmée
+    this._playerPositionConfirmed = true;
+    
+    console.log(`👁️ [BeachScene] Visibilité joueur confirmée`);
+    
+    // ✅ Appeler le parent
+    super.onPlayerPositioned(player, initData);
+  }
+
+  // ✅ MODIFIÉ: Fallback intro - attendre joueur
   startIntroFallback() {
     if (this._introTriggered) {
       console.log(`ℹ️ [BeachScene] Intro déjà déclenchée`);
       return;
     }
-    console.log(`🎬 [BeachScene] Démarrage intro en mode fallback (pas de serveur)`);
-    this._introTriggered = true;
-    if (this.psyduckIntroManager) {
-      this.psyduckIntroManager.startIntroFallback();
-    }
+    
+    console.log(`🎬 [BeachScene] Demande démarrage intro fallback...`);
+    
+    // ✅ Attendre que le joueur soit complètement prêt
+    this.waitForPlayerThenStartIntro(() => {
+      if (this._introTriggered) return; // Double-check
+      
+      console.log(`🎬 [BeachScene] Démarrage intro fallback avec joueur prêt`);
+      this._introTriggered = true;
+      
+      if (this.psyduckIntroManager) {
+        this.psyduckIntroManager.startIntroFallback();
+      }
+    });
   }
 
-  // === POSITION PLAYER CORRIGÉE ===
-  positionPlayer(player) {
-    const initData = this.scene.settings.data;
-    super.positionPlayer(player);
-    console.log(`👤 [BeachScene] Joueur positionné: ${player.name || 'joueur'} à (${player.x}, ${player.y})`);
-    if (!this._introTriggered && !this._serverCheckSent) {
-      this.time.delayedCall(200, () => {
-        if (!this._introTriggered) {
-          this._introTriggered = true;
-          this.startIntroWithServerDetection();
-        }
-      });
-    }
+  // ✅ NOUVEAU: Démarrage intro serveur - attendre joueur
+  startServerIntro() {
+    console.log(`🎬 [BeachScene] Demande démarrage intro serveur...`);
+    
+    // ✅ Attendre que le joueur soit complètement prêt
+    this.waitForPlayerThenStartIntro(() => {
+      if (this._introTriggered) return; // Double-check
+      
+      console.log(`🎬 [BeachScene] Démarrage intro serveur avec joueur prêt`);
+      this._introTriggered = true;
+      
+      if (this.psyduckIntroManager) {
+        this.psyduckIntroManager.startIntro(() => {
+          console.log("✅ [BeachScene] Intro serveur terminée");
+        });
+      }
+    });
   }
 
-  // === Hook après positionnement joueur
-  onPlayerPositioned(player, initData) {
-    console.log(`✅ [BeachScene] Joueur définitivement positionné à (${player.x}, ${player.y})`);
-    if (player.setVisible) player.setVisible(true);
-    if (player.alpha !== undefined) player.alpha = 1;
-    console.log(`👁️ [BeachScene] Visibilité joueur vérifiée`);
-  }
-
-  // === Démarrage intro + détection serveur (utilisé seulement si fallback nécessaire)
-  startIntroWithServerDetection() {
-    console.log(`🎬 [BeachScene] Démarrage intro avec détection serveur en parallèle`);
-    if (this.psyduckIntroManager) {
-      this.psyduckIntroManager.startIntroFallback();
-    }
-    // (Pas besoin de checkAutoIntroQuest ici)
-  }
-
+  // ✅ UPDATE: Vérifier si inputs bloqués
   update() {
     if (this.shouldBlockInput()) return;
     super.update();
@@ -225,15 +339,19 @@ onRoomAvailable(room) {
     return { x: 360, y: 120 };
   }
 
-  // === Intro Psyduck classique ===
+  // ✅ MÉTHODE PUBLIQUE: Démarrer intro Psyduck (avec attente joueur)
   startPsyduckIntro() {
-    if (this.psyduckIntroManager) {
-      console.log(`🎬 [BeachScene] Démarrage intro Psyduck avec intégration serveur`);
-      this.psyduckIntroManager.ensureListenersSetup();
-      this.psyduckIntroManager.startIntro(() => {
-        console.log("✅ [BeachScene] Intro Psyduck terminée");
-      });
-    }
+    console.log(`🎬 [BeachScene] Demande démarrage intro Psyduck...`);
+    
+    this.waitForPlayerThenStartIntro(() => {
+      if (this.psyduckIntroManager) {
+        console.log(`🎬 [BeachScene] Démarrage intro Psyduck avec intégration serveur`);
+        this.psyduckIntroManager.ensureListenersSetup();
+        this.psyduckIntroManager.startIntro(() => {
+          console.log("✅ [BeachScene] Intro Psyduck terminée");
+        });
+      }
+    });
   }
 
   setupBeachEvents() {
@@ -250,7 +368,7 @@ onRoomAvailable(room) {
     }
   }
 
-  // === Debug et autres méthodes (inchangées) ===
+  // ✅ FONCTIONS DE DEBUG ET TEST
 
   forceStartIntro() {
     console.log(`🧪 [BeachScene] Force start intro (mode test)`);
@@ -266,6 +384,12 @@ onRoomAvailable(room) {
     this._introTriggered = false;
     this._serverCheckSent = false;
     this._clientReadySent = false;
+    this._playerFullySpawned = false;
+    this._playerPositionConfirmed = false;
+    this._introReadyToStart = false;
+    this._waitingForPlayerSpawn = false;
+    this._pendingIntroStart = null;
+    
     if (this._fallbackTimer) {
       this._fallbackTimer.remove();
       this._fallbackTimer = null;
@@ -280,6 +404,12 @@ onRoomAvailable(room) {
     return {
       introTriggered: this._introTriggered,
       serverCheckSent: this._serverCheckSent,
+      clientReadySent: this._clientReadySent,
+      playerFullySpawned: this._playerFullySpawned,
+      playerPositionConfirmed: this._playerPositionConfirmed,
+      introReadyToStart: this._introReadyToStart,
+      waitingForPlayerSpawn: this._waitingForPlayerSpawn,
+      pendingIntroStart: this._pendingIntroStart !== null,
       fallbackTimerActive: this._fallbackTimer !== null,
       roomConnectionTimerActive: this._roomConnectionTimer !== null,
       psyduckManagerReady: this.psyduckIntroManager !== null,
@@ -296,6 +426,7 @@ onRoomAvailable(room) {
       inputBlocked: this._introBlocked,
       roomConnected: this.room !== null
     });
+    
     const myPlayer = this.playerManager?.getMyPlayer();
     if (myPlayer) {
       console.log(`👤 Joueur:`, {
@@ -303,19 +434,24 @@ onRoomAvailable(room) {
         y: myPlayer.y,
         visible: myPlayer.visible,
         alpha: myPlayer.alpha,
-        exists: true
+        exists: true,
+        sessionId: myPlayer.sessionId
       });
     } else {
       console.log(`👤 Joueur: NON TROUVÉ`);
     }
+    
     if (this.psyduckIntroManager) {
-      this.psyduckIntroManager.debugStatus();
+      console.log(`🦆 PsyduckIntroManager:`, this.psyduckIntroManager.getStatus());
     }
+    
     console.log(`=======================================`);
   }
 
+  // ✅ CLEANUP: Nettoyer tous les flags
   cleanup() {
     console.log(`🧹 [BeachScene] Nettoyage...`);
+    
     if (this._fallbackTimer) {
       this._fallbackTimer.remove();
       this._fallbackTimer = null;
@@ -328,10 +464,17 @@ onRoomAvailable(room) {
       this.psyduckIntroManager.destroy();
       this.psyduckIntroManager = null;
     }
+    
     this.transitionCooldowns = {};
     this._introTriggered = false;
     this._serverCheckSent = false;
     this._clientReadySent = false;
+    this._playerFullySpawned = false;
+    this._playerPositionConfirmed = false;
+    this._introReadyToStart = false;
+    this._waitingForPlayerSpawn = false;
+    this._pendingIntroStart = null;
+    
     console.log(`✅ [BeachScene] Nettoyage terminé`);
     super.cleanup();
   }
@@ -341,7 +484,8 @@ onRoomAvailable(room) {
     this.cleanup();
   }
 
-  // === Compatibilité, intro animée starter (inutile pour intro server)
+  // ✅ MÉTHODES DE COMPATIBILITÉ (intro animée classique)
+  
   startIntroSequence(player) {
     console.log("🎬 [BeachScene] Démarrage de l'intro animée classique");
     this.input.keyboard.enabled = false;
