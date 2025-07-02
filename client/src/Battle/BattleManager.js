@@ -80,51 +80,101 @@ export class BattleManager {
   /**
    * Configure les événements réseau pour le combat
    */
-  setupNetworkEvents() {
-    if (!this.networkHandler) return;
+setupNetworkEvents() {
+  console.log('📡 [BattleManager] Configuration des événements réseau...');
+  
+  // ✅ PROTECTION: Vérifier que networkHandler existe et a les bonnes méthodes
+  if (!this.networkHandler) {
+    console.warn('⚠️ [BattleManager] NetworkHandler manquant - événements ignorés');
+    return;
+  }
+  
+  // ✅ CORRECTION: Essayer plusieurs sources pour les événements de combat
+  let battleEventSource = null;
+  
+  // Option 1: BattleNetworkHandler direct (le meilleur)
+  if (this.networkHandler.battleNetworkHandler && typeof this.networkHandler.battleNetworkHandler.on === 'function') {
+    battleEventSource = this.networkHandler.battleNetworkHandler;
+    console.log('✅ [BattleManager] Utilisation BattleNetworkHandler direct');
+  }
+  // Option 2: NetworkHandler principal avec méthode .on()
+  else if (typeof this.networkHandler.on === 'function') {
+    battleEventSource = this.networkHandler;
+    console.log('✅ [BattleManager] Utilisation NetworkHandler principal');
+  }
+  // Option 3: BattleNetworkHandler global
+  else if (window.globalNetworkManager?.battleNetworkHandler && typeof window.globalNetworkManager.battleNetworkHandler.on === 'function') {
+    battleEventSource = window.globalNetworkManager.battleNetworkHandler;
+    console.log('✅ [BattleManager] Utilisation BattleNetworkHandler global');
+  }
+  else {
+    console.error('❌ [BattleManager] Aucune source d\'événements de combat trouvée');
+    console.log('🔍 Debug networkHandler:', {
+      networkHandler: !!this.networkHandler,
+      networkHandlerKeys: this.networkHandler ? Object.keys(this.networkHandler).slice(0, 10) : [],
+      hasBattleHandler: !!(this.networkHandler?.battleNetworkHandler),
+      hasOnMethod: typeof this.networkHandler?.on === 'function',
+      globalBattleHandler: !!(window.globalNetworkManager?.battleNetworkHandler)
+    });
+    return;
+  }
 
+  // ✅ CONFIGURER LES ÉVÉNEMENTS avec la source trouvée
+  try {
     // Rencontre sauvage avec combat immédiat
-    this.networkHandler.on('wildEncounterStart', (data) => {
+    battleEventSource.on('wildEncounterStart', (data) => {
+      console.log('🐾 [BattleManager] wildEncounterStart reçu:', data);
       this.handleWildEncounterStart(data);
     });
 
     // BattleRoom créée
-    this.networkHandler.on('battleRoomCreated', (data) => {
+    battleEventSource.on('battleRoomCreated', (data) => {
+      console.log('🏠 [BattleManager] battleRoomCreated reçu:', data);
       this.handleBattleRoomCreated(data);
     });
 
     // Rejoindre BattleRoom
-    this.networkHandler.on('joinBattleRoom', (data) => {
+    battleEventSource.on('joinBattleRoom', (data) => {
+      console.log('🚪 [BattleManager] joinBattleRoom reçu:', data);
       this.handleJoinBattleRoom(data);
     });
 
     // Combat commencé
-    this.networkHandler.on('battleStart', (data) => {
+    battleEventSource.on('battleStart', (data) => {
+      console.log('⚔️ [BattleManager] battleStart reçu:', data);
       this.handleBattleStart(data);
     });
 
     // Changement de tour
-    this.networkHandler.on('turnChange', (data) => {
+    battleEventSource.on('turnChange', (data) => {
+      console.log('🔄 [BattleManager] turnChange reçu:', data);
       this.handleTurnChange(data);
     });
 
     // Message de combat
-    this.networkHandler.on('battleMessage', (data) => {
+    battleEventSource.on('battleMessage', (data) => {
+      console.log('💬 [BattleManager] battleMessage reçu:', data);
       this.addBattleMessage(data.message);
     });
 
     // Fin de combat
-    this.networkHandler.on('battleEnd', (data) => {
+    battleEventSource.on('battleEnd', (data) => {
+      console.log('🏁 [BattleManager] battleEnd reçu:', data);
       this.handleBattleEnd(data);
     });
 
     // Erreurs de combat
-    this.networkHandler.on('battleError', (data) => {
+    battleEventSource.on('battleError', (data) => {
+      console.error('❌ [BattleManager] battleError reçu:', data);
       this.handleBattleError(data);
     });
 
-    console.log('📡 [BattleManager] Événements réseau configurés');
+    console.log('✅ [BattleManager] Événements réseau configurés avec succès');
+
+  } catch (error) {
+    console.error('❌ [BattleManager] Erreur configuration événements:', error);
   }
+}
 
   // === GESTION DES ÉVÉNEMENTS RÉSEAU ===
 
