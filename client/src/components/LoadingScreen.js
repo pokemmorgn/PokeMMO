@@ -453,26 +453,35 @@ this.overlay.innerHTML = `
   }
 
   // ✅ Masquer l'écran de chargement
-  hide() {
-    if (!this.isVisible || !this.overlay) {
-      return Promise.resolve();
-    }
-
-    return new Promise((resolve) => {
-      this.isVisible = false;
-
-      // Animation de sortie
-      this.overlay.classList.remove('visible');
-
-      setTimeout(() => {
-        if (this.overlay && this.overlay.parentNode) {
-          this.overlay.parentNode.removeChild(this.overlay);
-        }
-        this.cleanup();
-        resolve();
-      }, this.fastMode ? 100 : 400);
-    });
+hide() {
+  if (!this.isVisible || !this.overlay) {
+    return Promise.resolve();
   }
+
+  return new Promise((resolve) => {
+    this.isVisible = false;
+
+    // Animation de sortie
+    this.overlay.classList.remove('visible');
+
+    setTimeout(() => {
+      if (this.overlay && this.overlay.parentNode) {
+        this.overlay.parentNode.removeChild(this.overlay);
+      }
+      this.cleanup();
+
+      // === FLAG GLOBAL À LA FIN DU LOADING ===
+      window.loadingScreenClosed = true;
+      if (window.playerSpawned && !window.playerReady) {
+        window.playerReady = true;
+        console.log('[GLOBAL] playerReady = true (fin loading + joueur OK)');
+      }
+
+      resolve();
+    }, this.fastMode ? 100 : 400);
+  });
+}
+
 
   // ✅ Nettoyage
   cleanup() {
