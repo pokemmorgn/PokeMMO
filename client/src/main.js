@@ -565,20 +565,21 @@ window.extendedLoadingScreen = LoadingScreen.createGlobal({
 window.extendedLoadingScreen.addCustomTheme('extended', {
   title: 'PokeWorld MMO',
   steps: [
-    "Chargement du moteur de jeu...",
-    "Connexion au serveur...",
-    "Chargement de la première zone...",
-    "Initialisation de l'interface...",
-    "Chargement inventaire...",
-    "Chargement équipe Pokémon...",
-    "Chargement système de quêtes...",
-    "Finalisation...",
-    "Bienvenue dans PokeWorld !"
+    "Loading the adventure engine...",
+    "Connecting to Professor Oak’s lab...",
+    "Preparing your starter Pokéball...",
+    "Generating wild grass and tall tales...",
+    "Stocking your backpack with goodies...",
+    "Gathering your Pokémon team...",
+    "Initializing quest logs and Pokédex...",
+    "Almost ready – tightening your headband...",
+    "Welcome to PokeWorld! Your journey begins!"
   ],
   icon: '🌍',
   color: 'rgba(34, 197, 94, 0.8)',
   stepDelay: 800
 });
+
 
 // Fonction de chargement étendu
 async function startExtendedLoading() {
