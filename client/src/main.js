@@ -1707,7 +1707,7 @@ window.toggleTeam = function() {
     window.showGameNotification?.("Core systems ready!", "success", { 
       duration: 2000, 
       position: 'top-center' 
-    });er
+    });
 
     // ✅ NOUVELLES FONCTIONS UI MANAGER POKÉMON
     window.setUIGameState = function(stateName, options = {}) {
