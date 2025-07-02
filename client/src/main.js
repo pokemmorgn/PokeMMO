@@ -646,35 +646,17 @@ setTimeout(async () => {
     if (!hasGame || !hasNetworkManager || !hasRoom || !networkConnected) {
       throw new Error("Pré-requis manquants pour le système de combat");
     }
-    
-    // ✅ FIX: Vérifier si BattleScene existe déjà avant de l'ajouter
-    const existingBattleScene = window.game.scene.getScene('BattleScene');
-    if (existingBattleScene) {
-      console.log("ℹ️ [MAIN] BattleScene existe déjà, pas besoin de la créer");
-      
-      // Initialiser le BattleSystem sans créer la scène
-      window.battleSystem = new BattleIntegration(window);
-      const battleInitSuccess = await window.battleSystem.initializeWithExistingScene(
-        window.globalNetworkManager.room,
-        window.game,
-        existingBattleScene
-      );
-      
-      if (battleInitSuccess) {
-        console.log("✅ Système de combat initialisé avec scène existante");
-      }
-    } else {
-      // Utiliser la méthode normale si la scène n'existe pas
-      const battleInitSuccess = await window.battleSystem.initialize(
-        window.globalNetworkManager.room,
-        window.game
-      );
-      
-      if (battleInitSuccess) {
-        console.log("✅ Système de combat initialisé avec nouvelle scène");
-      }
+
+    // ✅ PATCH : Toujours utiliser initialize() pour éviter le bug
+    window.battleSystem = new BattleIntegration(window);
+    const battleInitSuccess = await window.battleSystem.initialize(
+      window.globalNetworkManager.room,
+      window.game
+    );
+    if (battleInitSuccess) {
+      console.log("✅ Système de combat initialisé");
     }
-    
+
   } catch (error) {
     console.error("❌ Erreur initialisation système de combat:", error);
     // Continuer sans système de combat pour ne pas bloquer le jeu
