@@ -1,6 +1,5 @@
-// client/src/managers/BattleIntegration.js - Coordination complète du système de combat
+// client/src/managers/BattleIntegration.js - Version simplifiée qui utilise le réseau existant
 import { BattleUITransition } from '../Battle/BattleUITransition.js';
-import { BattleConnection } from '../Battle/BattleConnection.js';
 
 export class BattleIntegration {
   constructor(gameManager, networkManager) {
@@ -9,14 +8,13 @@ export class BattleIntegration {
     
     // Gestionnaires
     this.battleUITransition = null;
-    this.battleConnection = null;
     this.battleScene = null;
     
     // État
     this.isInitialized = false;
     this.currentBattle = null;
     
-    console.log('🎮 [BattleIntegration] Gestionnaire principal créé');
+    console.log('🎮 [BattleIntegration] Gestionnaire principal créé (version simplifiée)');
   }
 
   // === INITIALISATION ===
@@ -31,13 +29,8 @@ export class BattleIntegration {
         this.gameManager
       );
       
-      // 2. Initialiser la connexion réseau
-      this.battleConnection = new BattleConnection(this.gameManager);
-      const connectionSuccess = this.battleConnection.initialize(this.networkManager);
-      
-      if (!connectionSuccess) {
-        throw new Error('Échec initialisation BattleConnection');
-      }
+      // 2. ✅ UTILISER LE RÉSEAU EXISTANT au lieu de créer BattleConnection
+      // Ton système réseau fonctionne déjà !
       
       // 3. Obtenir la référence à BattleScene
       this.battleScene = this.gameManager?.currentScene?.scene?.get('BattleScene');
@@ -45,11 +38,11 @@ export class BattleIntegration {
         console.warn('⚠️ [BattleIntegration] BattleScene non trouvée, sera initialisée plus tard');
       }
       
-      // 4. Setup des événements
+      // 4. Setup des événements sur le réseau existant
       this.setupEvents();
       
       this.isInitialized = true;
-      console.log('✅ [BattleIntegration] Système de combat initialisé');
+      console.log('✅ [BattleIntegration] Système de combat initialisé (sans BattleConnection)');
       
       return true;
       
@@ -62,38 +55,48 @@ export class BattleIntegration {
   // === CONFIGURATION DES ÉVÉNEMENTS ===
 
   setupEvents() {
-    console.log('📡 [BattleIntegration] Configuration des événements...');
+    console.log('📡 [BattleIntegration] Configuration des événements sur réseau existant...');
     
-    // Événements de transition UI
-    if (this.battleUITransition) {
-      // Aucun événement spécifique, on gère manuellement
-    }
+    // ✅ UTILISER LE SYSTÈME RÉSEAU EXISTANT
+    // Ton BattleNetworkHandler fonctionne déjà !
     
-    // Événements réseau
-    if (this.battleConnection) {
-      this.battleConnection.on('wildEncounterStart', (data) => {
+    // Écouter les événements existants
+    if (window.globalNetworkManager?.battleHandler) {
+      const battleHandler = window.globalNetworkManager.battleHandler;
+      
+      battleHandler.on('wildEncounterStart', (data) => {
         this.handleWildEncounterStart(data);
       });
       
-      this.battleConnection.on('battleRoomCreated', (data) => {
+      battleHandler.on('battleRoomCreated', (data) => {
         this.handleBattleRoomCreated(data);
       });
       
-      this.battleConnection.on('battleStart', (data) => {
+      battleHandler.on('battleStart', (data) => {
         this.handleBattleStart(data);
       });
       
-      this.battleConnection.on('battleEnd', (data) => {
+      battleHandler.on('battleEnd', (data) => {
         this.handleBattleEnd(data);
       });
     }
     
-    // ✅ NOUVEAU: Écouter l'événement de fin de transition
-    window.addEventListener('battleUITransitionComplete', (event) => {
-      this.handleTransitionComplete(event.detail);
-    });
+    // Fallback : écouter sur le networkManager principal
+    if (this.networkManager?.on) {
+      this.networkManager.on('wildEncounterStart', (data) => {
+        this.handleWildEncounterStart(data);
+      });
+      
+      this.networkManager.on('battleStart', (data) => {
+        this.handleBattleStart(data);
+      });
+      
+      this.networkManager.on('battleEnd', (data) => {
+        this.handleBattleEnd(data);
+      });
+    }
     
-    console.log('✅ [BattleIntegration] Événements configurés');
+    console.log('✅ [BattleIntegration] Événements configurés sur réseau existant');
   }
 
   // === GESTION DES ÉVÉNEMENTS ===
@@ -120,38 +123,14 @@ export class BattleIntegration {
       return;
     }
     
-    // ✅ ÉTAPE 2: Attendre un peu puis passer à l'interface de combat
-    console.log('⏳ [BattleIntegration] Attente puis interface de combat...');
-    setTimeout(() => {
-      this.showBattleInterface(data);
-    }, 2000); // 2 secondes d'affichage de transition
-  }
-
-  handleTransitionComplete(detail) {
-    console.log('🎬 [BattleIntegration] Transition UI terminée:', detail);
-    // La transition est terminée, l'interface de combat peut être affichée
+    console.log('✅ [BattleIntegration] Transition UI lancée - interface dans 2 secondes');
   }
 
   async showBattleInterface(encounterData) {
     console.log('🖥️ [BattleIntegration] === AFFICHAGE INTERFACE COMBAT ===');
     
     try {
-      // ✅ ÉTAPE 1: Masquer l'overlay de transition
-      if (this.battleUITransition && this.battleUITransition.transitionOverlay) {
-        console.log('🧹 [BattleIntegration] Masquage overlay de transition...');
-        
-        const overlay = this.battleUITransition.transitionOverlay;
-        overlay.style.opacity = '0';
-        overlay.style.transform = 'scale(0.9)';
-        
-        setTimeout(() => {
-          if (overlay.parentNode) {
-            overlay.style.display = 'none';
-          }
-        }, 500);
-      }
-      
-      // ✅ ÉTAPE 2: Obtenir ou initialiser BattleScene
+      // ✅ ÉTAPE 1: Obtenir ou initialiser BattleScene
       if (!this.battleScene) {
         this.battleScene = this.gameManager?.currentScene?.scene?.get('BattleScene');
       }
@@ -161,12 +140,12 @@ export class BattleIntegration {
         return;
       }
       
-      // ✅ ÉTAPE 3: Initialiser BattleScene si nécessaire
+      // ✅ ÉTAPE 2: Initialiser BattleScene si nécessaire
       if (!this.battleScene.isActive) {
         await this.initializeBattleScene();
       }
       
-      // ✅ ÉTAPE 4: Déclencher l'encounter dans BattleScene
+      // ✅ ÉTAPE 3: Déclencher l'encounter dans BattleScene
       console.log('⚔️ [BattleIntegration] Déclenchement encounter...');
       this.battleScene.handleEncounterStart(encounterData);
       
@@ -174,8 +153,6 @@ export class BattleIntegration {
       
     } catch (error) {
       console.error('❌ [BattleIntegration] Erreur affichage interface:', error);
-      
-      // Fallback: restaurer l'état normal
       await this.cancelBattle();
     }
   }
@@ -188,7 +165,7 @@ export class BattleIntegration {
     // Passer les managers à BattleScene
     this.battleScene.init({
       gameManager: this.gameManager,
-      networkHandler: this.battleConnection
+      networkHandler: this.networkManager // Utiliser le networkManager existant
     });
     
     // S'assurer que la scène est créée
@@ -255,8 +232,6 @@ export class BattleIntegration {
       
     } catch (error) {
       console.error('❌ [BattleIntegration] Erreur retour exploration:', error);
-      
-      // Forcer le nettoyage
       await this.forceCleanup();
     }
   }
@@ -324,10 +299,10 @@ export class BattleIntegration {
   // === MÉTHODES PUBLIQUES ===
 
   /**
-   * Démarre un combat sauvage manuellement
+   * ✅ VERSION SIMPLIFIÉE : Démarrage manuel avec données de test
    */
-  async startWildBattle(pokemonData, location = 'unknown') {
-    console.log('🎮 [BattleIntegration] Démarrage combat sauvage manuel...');
+  async startTestBattle() {
+    console.log('🎮 [BattleIntegration] Démarrage combat de test...');
     
     if (!this.isInitialized) {
       console.error('❌ [BattleIntegration] Système non initialisé');
@@ -335,11 +310,22 @@ export class BattleIntegration {
     }
     
     // Simuler l'événement de rencontre sauvage
-    await this.handleWildEncounterStart({
-      pokemon: pokemonData,
-      location: location,
+    const testData = {
+      pokemon: {
+        pokemonId: 16, // Pidgey
+        name: 'Pidgey',
+        level: 3,
+        currentHp: 15,
+        maxHp: 15,
+        types: ['normal', 'flying'],
+        moves: ['tackle', 'sand_attack'],
+        statusCondition: 'normal'
+      },
+      location: 'test_zone',
       method: 'manual'
-    });
+    };
+    
+    await this.handleWildEncounterStart(testData);
     
     return true;
   }
@@ -365,8 +351,8 @@ export class BattleIntegration {
       initialized: this.isInitialized,
       components: {
         transition: !!this.battleUITransition,
-        connection: !!this.battleConnection,
-        scene: !!this.battleScene
+        scene: !!this.battleScene,
+        networkExists: !!(this.networkManager || window.globalNetworkManager)
       }
     };
   }
@@ -374,32 +360,21 @@ export class BattleIntegration {
   // === DEBUG ET TEST ===
 
   /**
-   * Test complet du système
+   * Test simple qui utilise les données de ton réseau existant
    */
   async testBattleSystem() {
     console.log('🧪 [BattleIntegration] === TEST SYSTÈME COMBAT ===');
     
-    const testPokemon = {
-      pokemonId: 25,
-      name: 'Pikachu',
-      level: 5,
-      currentHp: 20,
-      maxHp: 20,
-      types: ['electric'],
-      moves: ['thunder_shock', 'growl', 'tail_whip'],
-      statusCondition: 'normal'
-    };
-    
-    const success = await this.startWildBattle(testPokemon, 'test_zone');
+    const success = await this.startTestBattle();
     
     if (success) {
-      console.log('✅ [BattleIntegration] Test démarré - combat dans 5 secondes');
+      console.log('✅ [BattleIntegration] Test démarré - transition UI lancée');
       
-      // Auto-terminer le test après 10 secondes
+      // Auto-terminer le test après 15 secondes
       setTimeout(async () => {
         console.log('🧪 [BattleIntegration] Fin auto du test...');
         await this.returnToExploration({ result: 'victory', experience: 50 });
-      }, 10000);
+      }, 15000);
       
     } else {
       console.error('❌ [BattleIntegration] Échec du test');
@@ -408,26 +383,25 @@ export class BattleIntegration {
     return success;
   }
 
-  /**
-   * Debug du système
-   */
   debug() {
     console.log('🔍 [BattleIntegration] === DEBUG SYSTÈME ===');
     
     const status = this.getBattleStatus();
     console.log('📊 Statut:', status);
     
-    if (this.battleConnection) {
-      console.log('📡 Connexion:', this.battleConnection.getConnectionStatus());
-    }
-    
     if (this.battleUITransition) {
       console.log('🎬 Transition:', this.battleUITransition.getCurrentUIState());
     }
     
     if (this.battleScene) {
-      console.log('🎮 Scène:', this.battleScene.getBattleState());
+      console.log('🎮 Scène:', this.battleScene.getBattleState ? this.battleScene.getBattleState() : 'Non défini');
     }
+    
+    console.log('🌐 Réseau existant:', {
+      networkManager: !!this.networkManager,
+      globalNetworkManager: !!window.globalNetworkManager,
+      battleHandler: !!(window.globalNetworkManager?.battleHandler)
+    });
     
     return status;
   }
@@ -437,23 +411,15 @@ export class BattleIntegration {
   async destroy() {
     console.log('💀 [BattleIntegration] Destruction...');
     
-    // Arrêter tout combat en cours
     if (this.currentBattle) {
       await this.cancelBattle();
     }
     
-    // Détruire les composants
     if (this.battleUITransition) {
       this.battleUITransition.destroy();
       this.battleUITransition = null;
     }
     
-    if (this.battleConnection) {
-      await this.battleConnection.destroy();
-      this.battleConnection = null;
-    }
-    
-    // Nettoyer les références
     this.battleScene = null;
     this.gameManager = null;
     this.networkManager = null;
@@ -466,20 +432,17 @@ export class BattleIntegration {
 
 // === INTÉGRATION GLOBALE ===
 
-// Exposer pour tests
 window.BattleIntegration = BattleIntegration;
 
-// Fonction de test globale
-window.testBattleIntegration = async function() {
-  console.log('🧪 Test intégration combat...');
+// ✅ FONCTION DE TEST SIMPLIFIÉE
+window.testBattleIntegrationSimple = async function() {
+  console.log('🧪 Test intégration combat simple (sans BattleConnection)...');
   
-  // Créer l'intégration
   const integration = new BattleIntegration(
     window.gameManager || window.globalNetworkManager?.gameManager,
     window.globalNetworkManager || window.networkManager
   );
   
-  // Initialiser
   const initialized = await integration.initialize();
   if (initialized) {
     console.log('✅ Intégration initialisée');
@@ -493,5 +456,5 @@ window.testBattleIntegration = async function() {
   return integration;
 };
 
-console.log('🎮 [BattleIntegration] Module chargé');
-console.log('🧪 Utilisez window.testBattleIntegration() pour tester');
+console.log('🎮 [BattleIntegration] Module chargé (version simplifiée)');
+console.log('🧪 Utilisez window.testBattleIntegrationSimple() pour tester');
