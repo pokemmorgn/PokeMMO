@@ -470,12 +470,29 @@ hide() {
       }
       this.cleanup();
 
-      // === FLAG GLOBAL À LA FIN DU LOADING ===
+      // === FLAGS GLOBAUX AMÉLIORÉS ===
+      console.log('🏁 [LoadingScreen] Mise à jour flags globaux après fermeture...');
+      
+      // ✅ MARQUER LOADING SCREEN COMME FERMÉ
       window.loadingScreenClosed = true;
+      console.log('[GLOBAL] loadingScreenClosed = true');
+      
+      // ✅ VÉRIFIER ET METTRE À JOUR playerReady
       if (window.playerSpawned && !window.playerReady) {
         window.playerReady = true;
-        console.log('[GLOBAL] playerReady = true (fin loading + joueur OK)');
+        console.log('[GLOBAL] playerReady = true (playerSpawned + loading fermé)');
+      } else if (window.playerSpawned && window.playerReady) {
+        console.log('[GLOBAL] playerReady déjà true, aucun changement');
+      } else if (!window.playerSpawned) {
+        console.log('[GLOBAL] playerSpawned pas encore true, playerReady reste false');
       }
+      
+      // ✅ DEBUG STATUS COMPLET
+      console.log('🏁 [LoadingScreen] État final des flags:', {
+        playerSpawned: window.playerSpawned,
+        loadingScreenClosed: window.loadingScreenClosed,
+        playerReady: window.playerReady
+      });
 
       resolve();
     }, this.fastMode ? 100 : 400);
