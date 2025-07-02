@@ -109,63 +109,30 @@ create() {
   
 // ✅ NOUVELLE MÉTHODE: Chargement optimisé avec LoadingScreen
 startOptimizedLoading() {
-    console.log(`🚀 [${this.scene.key}] === UTILISER L'ÉCRAN EXISTANT ===`);
+    console.log(`🚀 [${this.scene.key}] === CHARGEMENT DIRECT SANS ÉCRAN ===`);
     
-    // ✅ PAS de nouvel écran - utiliser l'existant
-    this.continueExistingLoadingScreen();
-}
+    // ✅ Faire tout le chargement DIRECTEMENT (pas d'écran)
+    this.createPlayerAnimations();
+    this.setupManagers();
+    this.initPlayerSpawnFromSceneData();
+    this.justArrivedAtZone = true;
+    this.time.delayedCall(500, () => { this.justArrivedAtZone = false; });
+    
+    this.loadMap();
+    this.setupInputs();
+    this.createUI();
+    this.myPlayerReady = false;
+    this.isSceneReady = true;
+    
+    this.initializeWithExistingConnection();
+    this.setupPlayerReadyHandler();
+    this.setupCleanupHandlers();
 
-async continueExistingLoadingScreen() {
-    console.log(`🌍 [${this.scene.key}] === CONTINUER L'ÉCRAN EXISTANT ===`);
+    this.events.once('shutdown', this.cleanup, this);
+    this.events.once('destroy', this.cleanup, this);
     
-    if (!window.extendedLoadingScreen) {
-        console.warn(`⚠️ [${this.scene.key}] Pas d'écran étendu, chargement direct`);
-        this.performDirectLoading();
-        return;
-    }
-    
-    try {
-        // ✅ Étape 3: Chargement zone
-        window.extendedLoadingScreen.updateManual('Chargement de la première zone...', 40);
-        await this.loadZoneComponents();
-        
-        // ✅ Étape 4: Interface
-        window.extendedLoadingScreen.updateManual('Initialisation de l\'interface...', 55);
-        await this.initializeUIComponents();
-        
-        // ✅ Étape 5: Inventaire  
-        window.extendedLoadingScreen.updateManual('Chargement inventaire...', 70);
-        await this.promisifyMethod(() => this.initializeInventorySystem());
-        
-        // ✅ Étape 6: Équipe
-        window.extendedLoadingScreen.updateManual('Chargement équipe Pokémon...', 80);
-        await this.promisifyMethod(() => this.initializeTeamSystemSafely());
-        
-        // ✅ Étape 7: Quêtes
-        window.extendedLoadingScreen.updateManual('Chargement système de quêtes...', 90);
-        await this.promisifyMethod(() => this.initializeQuestSystem());
-        
-        // ✅ Étape 8: Finalisation
-        window.extendedLoadingScreen.updateManual('Finalisation...', 95);
-        await this.delay(500);
-        
-        // ✅ Étape 9: Prêt !
-        window.extendedLoadingScreen.updateManual('Bienvenue dans PokeWorld !', 100);
-        await this.delay(1000);
-        
-        // ✅ FERMER L'ÉCRAN - TOUT EST PRÊT !
-        await window.extendedLoadingScreen.hide();
-        
-        console.log(`✅ [${this.scene.key}] Chargement étendu terminé !`);
-        
-    } catch (error) {
-        console.error(`❌ [${this.scene.key}] Erreur chargement étendu:`, error);
-        // En cas d'erreur, fermer quand même l'écran
-        if (window.extendedLoadingScreen) {
-            window.extendedLoadingScreen.hide();
-        }
-        this.performDirectLoading();
-    }
+    // ✅ Initialiser les systèmes en arrière-plan
+    this.initializeGameSystems();
 }
 
 // ✅ NOUVELLE MÉTHODE - UI EN SILENCE TOTALE
