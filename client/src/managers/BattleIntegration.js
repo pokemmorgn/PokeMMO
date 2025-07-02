@@ -163,24 +163,34 @@ export class BattleIntegration {
     }
   }
 
-  async initializeBattleScene() {
-    console.log('🔧 [BattleIntegration] Initialisation BattleScene...');
-    
-    if (!this.battleScene) return;
-    
-    // Passer les managers à BattleScene
-    this.battleScene.init({
-      gameManager: this.gameManager,
-      networkHandler: this.networkManager // Utiliser le networkManager existant
-    });
-    
-    // S'assurer que la scène est créée
-    if (!this.battleScene.isActive) {
-      this.battleScene.create();
-    }
-    
-    console.log('✅ [BattleIntegration] BattleScene initialisée');
+async initializeBattleScene() {
+  console.log('🔧 [BattleIntegration] Initialisation BattleScene...');
+
+  // Meilleur accès à la BattleScene si tu as phaserGame
+  if (this.gameManager?.phaserGame?.scene?.getScene) {
+    this.battleScene = this.gameManager.phaserGame.scene.getScene('BattleScene');
   }
+
+  if (!this.battleScene) return;
+
+  // SECURE: Log ce que tu passes !
+  console.log('🧩 [BattleIntegration] Passage à BattleScene.init avec:', {
+    gameManager: this.gameManager,
+    networkHandler: this.networkManager
+  });
+
+  this.battleScene.init({
+    gameManager: this.gameManager,
+    networkHandler: this.networkManager
+  });
+
+  if (!this.battleScene.isActive) {
+    this.battleScene.create();
+  }
+
+  console.log('✅ [BattleIntegration] BattleScene initialisée');
+}
+
 
   handleBattleRoomCreated(data) {
     console.log('🏠 [BattleIntegration] BattleRoom créée:', data.battleRoomId);
