@@ -106,7 +106,7 @@ export class PsyduckIntroManager {
     if (!this.listenersSetup) {
       this.ensureListenersSetup();
     }
-
+    this.blockPlayerInputs();
     this.isPlaying = true;
     this.onCompleteCallback = onComplete;
 
