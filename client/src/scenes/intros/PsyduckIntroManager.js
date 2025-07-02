@@ -611,22 +611,28 @@ async startIntro(onComplete = null) {
     }
   }
 
-  async waitForPlayerReady(maxWaitTime = 8000) {
+async waitForPlayerReady(maxWaitTime = 8000) {
   const scene = this.scene;
-  if (!scene || !scene.playerManager) return false;
   const start = Date.now();
 
   return new Promise(resolve => {
     const check = () => {
-      const myPlayer = scene.playerManager.getMyPlayer?.();
-      const isReady = !!myPlayer && !!myPlayer.sprite && myPlayer.x !== undefined && myPlayer.y !== undefined;
-      if (isReady) return resolve(true);
+      // On considère que le joueur est prêt SI le flag global est true
+      const globalFlag = typeof window !== "undefined" && window.playerReady === true;
+      if (globalFlag) return resolve(true);
+
+      // On laisse un fallback: on continue à checker l'objet player au cas où (optionnel)
+      const myPlayer = scene?.playerManager?.getMyPlayer?.();
+      const playerLoaded = !!myPlayer && !!myPlayer.sprite && myPlayer.x !== undefined && myPlayer.y !== undefined;
+      if (playerLoaded) return resolve(true);
+
       if (Date.now() - start > maxWaitTime) return resolve(false);
       setTimeout(check, 100);
     };
     check();
   });
 }
+
 
   
   destroy() {
