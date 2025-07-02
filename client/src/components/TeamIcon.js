@@ -1,4 +1,5 @@
-// client/src/components/TeamIcon.js - Version harmonisée avec les autres icônes
+// client/src/components/TeamIcon.js - Version compatible UIManager (v2.0)
+// ✅ NOUVEAU: Compatible avec UIManager professionnel + fonctionnalité existante conservée
 
 export class TeamIcon {
   constructor(teamUI) {
@@ -8,13 +9,24 @@ export class TeamIcon {
     this.aliveCount = 0;
     this.canBattle = false;
     
+    // ✅ NOUVEAU: État UIManager
+    this.uiManagerState = {
+      visible: true,
+      enabled: true,
+      initialized: false
+    };
+    
     this.init();
   }
 
   init() {
     this.createIcon();
     this.setupEventListeners();
-    console.log('⚔️ Team icon created');
+    
+    // ✅ NOUVEAU: Marquer comme initialisé pour UIManager
+    this.uiManagerState.initialized = true;
+    
+    console.log('⚔️ Team icon created (UIManager compatible)');
   }
 
   createIcon() {
@@ -255,6 +267,51 @@ export class TeamIcon {
         50% { box-shadow: 0 4px 25px rgba(74, 144, 226, 0.8); }
       }
 
+      /* ✅ NOUVEAU: États UIManager */
+      .team-icon.ui-hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(20px);
+      }
+
+      .team-icon.ui-disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        filter: grayscale(50%);
+      }
+
+      .team-icon.ui-disabled:hover {
+        transform: none !important;
+      }
+
+      /* ✅ NOUVEAU: Animations UIManager */
+      .team-icon.ui-fade-in {
+        animation: uiFadeIn 0.3s ease-out forwards;
+      }
+
+      .team-icon.ui-fade-out {
+        animation: uiFadeOut 0.2s ease-in forwards;
+      }
+
+      .team-icon.ui-pulse {
+        animation: uiPulse 0.15s ease-out;
+      }
+
+      @keyframes uiFadeIn {
+        from { opacity: 0; transform: translateY(20px) scale(0.8); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes uiFadeOut {
+        from { opacity: 1; transform: translateY(0) scale(1); }
+        to { opacity: 0; transform: translateY(20px) scale(0.8); }
+      }
+
+      @keyframes uiPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+
       /* ===== RESPONSIVE DESIGN HARMONISÉ ===== */
       @media (max-width: 768px) {
         .team-icon {
@@ -281,6 +338,29 @@ export class TeamIcon {
 
         .team-icon .icon-label {
           font-size: 10px;
+        }
+      }
+
+      @media (max-width: 1024px) and (min-width: 769px) {
+        .team-icon {
+          width: 65px;
+          height: 75px;
+        }
+
+        .team-icon .icon-background {
+          height: 65px;
+        }
+
+        .team-icon .icon-emoji {
+          font-size: 19px;
+        }
+
+        .team-indicator {
+          font-size: 11px;
+        }
+
+        .team-count {
+          font-size: 12px;
         }
       }
 
@@ -452,14 +532,235 @@ export class TeamIcon {
     }, 2000);
   }
 
-  // ✅ SYSTÈME DE POSITIONNEMENT AMÉLIORÉ - ESPACEMENT TRÈS RÉDUIT
+  // ===== ✅ NOUVELLES MÉTHODES REQUISES POUR UIMANAGER =====
+
+  /**
+   * ✅ MÉTHODE REQUISE: Afficher le module
+   * Compatible avec UIManager et système existant
+   */
+  show() {
+    try {
+      // Mise à jour état UIManager
+      this.uiManagerState.visible = true;
+      
+      // Supprimer classes de masquage
+      this.iconElement.classList.remove('ui-hidden', 'hidden');
+      
+      // Ajouter animation d'apparition
+      this.iconElement.classList.add('ui-fade-in');
+      setTimeout(() => {
+        this.iconElement.classList.remove('ui-fade-in');
+      }, 300);
+      
+      // Conserver compatibilité avec ancien système
+      this.iconElement.classList.add('appearing');
+      setTimeout(() => {
+        this.iconElement.classList.remove('appearing');
+      }, 500);
+      
+      // Ajuster la position après apparition
+      this.checkAndAdjustPosition();
+      
+      console.log('⚔️ [UIManager] Team icon shown');
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Error showing team icon:', error);
+    }
+  }
+
+  /**
+   * ✅ MÉTHODE REQUISE: Cacher le module
+   * Compatible avec UIManager et système existant
+   */
+  hide() {
+    try {
+      // Mise à jour état UIManager
+      this.uiManagerState.visible = false;
+      
+      // Ajouter animation de disparition
+      this.iconElement.classList.add('ui-fade-out');
+      
+      setTimeout(() => {
+        // Appliquer le masquage après animation
+        this.iconElement.classList.add('ui-hidden');
+        this.iconElement.classList.remove('ui-fade-out');
+        
+        // Conserver compatibilité avec ancien système
+        this.iconElement.classList.add('hidden');
+        
+        // Réajuster les positions après disparition
+        setTimeout(() => {
+          this.adjustPosition();
+        }, 300);
+        
+      }, 200);
+      
+      console.log('⚔️ [UIManager] Team icon hidden');
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Error hiding team icon:', error);
+    }
+  }
+
+  /**
+   * ✅ MÉTHODE REQUISE: Activer/désactiver le module
+   * Compatible avec UIManager et système existant
+   */
+  setEnabled(enabled) {
+    try {
+      // Mise à jour état UIManager
+      this.uiManagerState.enabled = enabled;
+      
+      if (enabled) {
+        // Activer le module
+        this.iconElement.classList.remove('ui-disabled', 'disabled');
+        
+        // Animation d'activation
+        this.iconElement.classList.add('ui-pulse');
+        setTimeout(() => {
+          this.iconElement.classList.remove('ui-pulse');
+        }, 150);
+        
+      } else {
+        // Désactiver le module
+        this.iconElement.classList.add('ui-disabled');
+        
+        // Conserver compatibilité avec ancien système
+        this.iconElement.classList.add('disabled');
+      }
+      
+      console.log(`⚔️ [UIManager] Team icon ${enabled ? 'enabled' : 'disabled'}`);
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Error setting team icon enabled state:', error);
+    }
+  }
+
+  /**
+   * ✅ MÉTHODE OPTIONNELLE: Nettoyage du module
+   * Compatible avec UIManager et système existant
+   */
+  destroy() {
+    try {
+      // Arrêter l'observer de position
+      this.stopPositionObserver();
+      
+      // Supprimer l'élément
+      if (this.iconElement && this.iconElement.parentNode) {
+        this.iconElement.remove();
+      }
+      
+      // Nettoyer les références
+      this.iconElement = null;
+      this.teamUI = null;
+      
+      console.log('⚔️ [UIManager] Team icon destroyed');
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Error destroying team icon:', error);
+    }
+  }
+
+  /**
+   * ✅ MÉTHODE OPTIONNELLE: Mise à jour du module
+   * Compatible avec UIManager et système existant
+   */
+  update(data) {
+    try {
+      if (!data) return;
+      
+      // Mise à jour selon le type de données
+      if (data.type === 'stats') {
+        this.updateTeamStats(data.stats);
+      }
+      
+      if (data.type === 'notification' && data.count !== undefined) {
+        this.updateNotificationCount(data.count);
+      }
+      
+      if (data.type === 'battle') {
+        if (data.started) {
+          this.onBattleStart();
+        } else {
+          this.onBattleEnd();
+        }
+      }
+      
+      if (data.type === 'pokemon') {
+        switch (data.action) {
+          case 'added':
+            this.onPokemonAdded(data.pokemon);
+            break;
+          case 'removed':
+            this.onPokemonRemoved();
+            break;
+          case 'fainted':
+            this.onPokemonFainted();
+            break;
+          case 'healed':
+            this.iconElement.classList.add('team-updated');
+            setTimeout(() => {
+              this.iconElement.classList.remove('team-updated');
+            }, 600);
+            break;
+        }
+      }
+      
+      if (data.type === 'state') {
+        if (data.visible !== undefined) {
+          data.visible ? this.show() : this.hide();
+        }
+        if (data.enabled !== undefined) {
+          this.setEnabled(data.enabled);
+        }
+      }
+      
+      console.log('⚔️ [UIManager] Team icon updated:', data);
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Error updating team icon:', error);
+    }
+  }
+
+  /**
+   * ✅ PROPRIÉTÉ REQUISE: État pour UIManager
+   */
+  getUIManagerState() {
+    return {
+      ...this.uiManagerState,
+      canOpen: this.canOpenTeam(),
+      hasIconElement: !!this.iconElement,
+      isVisible: this.uiManagerState.visible && !this.iconElement?.classList.contains('ui-hidden'),
+      isEnabled: this.uiManagerState.enabled && !this.iconElement?.classList.contains('ui-disabled'),
+      teamStats: {
+        teamCount: this.teamCount,
+        aliveCount: this.aliveCount,
+        canBattle: this.canBattle
+      }
+    };
+  }
+
+  /**
+   * ✅ MÉTHODE UTILITAIRE: Compatibilité toggle
+   */
+  toggle() {
+    if (this.teamUI && typeof this.teamUI.toggle === 'function') {
+      this.teamUI.toggle();
+    } else {
+      this.handleClick();
+    }
+  }
+
+  // ===== MÉTHODES EXISTANTES CONSERVÉES =====
+
+  // SYSTÈME DE POSITIONNEMENT AMÉLIORÉ - ESPACEMENT TRÈS RÉDUIT
   adjustPosition() {
     const inventoryIcon = document.querySelector('#inventory-icon');
     const questIcon = document.querySelector('#quest-icon');
     
     const baseRight = 20;
     const iconWidth = 70;
-    const spacing = 10; // ✅ Espacement réduit à 10px seulement !
+    const spacing = 10; // Espacement réduit à 10px seulement !
     
     let rightPosition = baseRight;
     let iconsCount = 0;
@@ -521,29 +822,14 @@ export class TeamIcon {
     }
   }
 
-  // ✅ VÉRIFICATION ET AJUSTEMENT DE POSITION
+  // VÉRIFICATION ET AJUSTEMENT DE POSITION
   checkAndAdjustPosition() {
     setTimeout(() => {
       this.adjustPosition();
     }, 100);
   }
 
-  show() {
-    this.iconElement.classList.remove('hidden');
-    this.iconElement.classList.add('appearing');
-    setTimeout(() => {
-      this.iconElement.classList.remove('appearing');
-    }, 500);
-    
-    // Ajuster la position après apparition
-    this.checkAndAdjustPosition();
-  }
-
-  hide() {
-    this.iconElement.classList.add('hidden');
-  }
-
-  // Méthodes publiques pour la gestion de l'état
+  // Méthodes publiques pour la gestion de l'état - CONSERVÉES
   updateTeamStats(stats) {
     this.teamCount = stats.totalPokemon || 0;
     this.aliveCount = stats.alivePokemon || 0;
@@ -639,10 +925,6 @@ export class TeamIcon {
     }, duration);
   }
 
-  setEnabled(enabled) {
-    this.iconElement.classList.toggle('disabled', !enabled);
-  }
-
   showNotification(show = true) {
     const notification = this.iconElement.querySelector('#team-notification');
     notification.style.display = show ? 'flex' : 'none';
@@ -684,14 +966,5 @@ export class TeamIcon {
         }, 600);
         break;
     }
-  }
-
-  destroy() {
-    this.stopPositionObserver();
-    
-    if (this.iconElement && this.iconElement.parentNode) {
-      this.iconElement.remove();
-    }
-    console.log('⚔️ Team icon removed');
   }
 }
