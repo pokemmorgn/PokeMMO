@@ -412,6 +412,7 @@ export class InventoryIcon {
    * Compatible avec UIManager et système existant
    */
   show() {
+    console.trace('🎒 [UIManager] Inventory icon shown');
     try {
       // Mise à jour état UIManager
       this.uiManagerState.visible = true;
@@ -482,6 +483,7 @@ export class InventoryIcon {
    * Compatible avec UIManager et système existant
    */
   setEnabled(enabled) {
+    console.trace(`🎒 [UIManager] Inventory icon ${enabled ? 'enabled' : 'disabled'}`);
     try {
       // Mise à jour état UIManager
       this.uiManagerState.enabled = enabled;
