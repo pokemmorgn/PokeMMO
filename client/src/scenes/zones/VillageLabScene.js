@@ -1,5 +1,5 @@
 // ===============================================
-// VillageLabScene.js - Version complète mise à jour avec synchronisation serveur
+// VillageLabScene.js - Version complète corrigée sans blocage
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 import { integrateStarterSelectorToScene } from '../../components/StarterSelector.js';
@@ -11,6 +11,10 @@ export class VillageLabScene extends BaseZoneScene {
     this.starterSelector = null;
     this.starterTableZones = []; // Zones de détection pour la table starter
     this.serverSyncEnabled = true; // Activer la synchronisation serveur
+    
+    // ✅ FIX: Initialiser l'état du starter selector par défaut
+    this.isStarterSelectionActive = () => false;
+    this.starterSelectorVisible = false;
   }
 
   // ✅ Position par défaut pour VillageLabScene
@@ -33,7 +37,7 @@ export class VillageLabScene extends BaseZoneScene {
     super.create();
     console.log("✅ BaseZoneScene.create() appelé");
 
-    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "T" to test StarterSelector\nPress "E" near starter table\nPress "F" to force starter test\nPress "S" to sync with server', {
+    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "T" to test StarterSelector\nPress "E" near starter table\nPress "F" to force starter test\nPress "S" to sync with server\nPress "U" to force unblock', {
       font: '18px monospace',
       fill: '#000000',
       padding: { x: 20, y: 10 },
@@ -48,6 +52,12 @@ export class VillageLabScene extends BaseZoneScene {
     
     console.log("⚙️ Setup StarterSelector...");
     this.setupStarterSelector();
+
+    // ✅ FIX: Ajouter une touche de déblocage d'urgence
+    this.input.keyboard.on('keydown-U', () => {
+      console.log("🚨 DÉBLOCAGE D'URGENCE ACTIVÉ");
+      this.forceUnblock();
+    });
 
     console.log("🚨 FIN VillageLabScene.create()");
   }
@@ -131,11 +141,21 @@ export class VillageLabScene extends BaseZoneScene {
       
       console.log("✅ [VillageLabScene] StarterSelector intégré");
       
+      // ✅ FIX: S'assurer que la méthode isStarterSelectionActive est définie
+      if (this.starterSelector && typeof this.starterSelector.isActive === 'function') {
+        this.isStarterSelectionActive = () => this.starterSelector.isActive();
+      } else {
+        console.warn("⚠️ [VillageLabScene] StarterSelector.isActive() non disponible, utilisation par défaut");
+        this.isStarterSelectionActive = () => this.starterSelectorVisible;
+      }
+      
       // Ajouter les triggers
       this.addStarterTrigger();
       
     } catch (error) {
       console.error("❌ [VillageLabScene] Erreur intégration StarterSelector:", error);
+      // ✅ FIX: En cas d'erreur, s'assurer qu'on a une fonction par défaut
+      this.isStarterSelectionActive = () => false;
     }
   }
 
@@ -693,6 +713,9 @@ export class VillageLabScene extends BaseZoneScene {
   onStarterConfirmed(data) {
     console.log("🎉 [VillageLabScene] Actions après sélection du starter:", data);
     
+    // Marquer que la sélection n'est plus active
+    this.starterSelectorVisible = false;
+    
     // Dialogue de félicitations
     const congratsBox = this.add.text(
       this.cameras.main.centerX,
@@ -725,50 +748,158 @@ export class VillageLabScene extends BaseZoneScene {
     });
   }
 
+  // ✅ Méthode pour afficher la sélection de starter
+  showStarterSelection(availableStarters = null) {
+    console.log("🎯 [VillageLabScene] Affichage sélection starter");
+    
+    // Marquer que la sélection est active
+    this.starterSelectorVisible = true;
+    
+    // Si on a un StarterSelector intégré, l'utiliser
+    if (this.starterSelector && typeof this.starterSelector.show === 'function') {
+      this.starterSelector.show(availableStarters);
+    } else {
+      console.warn("⚠️ [VillageLabScene] StarterSelector non disponible");
+      this.showSafeMessage("StarterSelector non disponible", 'error');
+    }
+  }
+
   // ✅ Test manuel
   testStarterSelection() {
     console.log("🧪 [VillageLabScene] Test manuel du StarterSelector");
     this.showStarterSelection();
   }
 
-  // ✅ Gérer les inputs de la scène
-  update() {
-    // Vérifier si la sélection de starter est active
-    if (this.isStarterSelectionActive && this.isStarterSelectionActive()) {
-      // Désactiver les mouvements du joueur pendant la sélection
-      return; // Sortir de update() pour bloquer les autres inputs
+  // ✅ NOUVELLE MÉTHODE: Déblocage d'urgence
+  forceUnblock() {
+    console.log("🚨 [VillageLabScene] DÉBLOCAGE D'URGENCE ACTIVÉ");
+    
+    // 1. Réinitialiser l'état du starter selector
+    this.starterSelectorVisible = false;
+    this.isStarterSelectionActive = () => false;
+    
+    // 2. Fermer le starter selector s'il est ouvert
+    if (this.starterSelector) {
+      if (typeof this.starterSelector.close === 'function') {
+        this.starterSelector.close();
+      }
+      if (typeof this.starterSelector.hide === 'function') {
+        this.starterSelector.hide();
+      }
+      // Reset de la visibilité
+      if (this.starterSelector.visible !== undefined) {
+        this.starterSelector.visible = false;
+      }
     }
+    
+    // 3. Réactiver les mouvements du joueur
+    if (this.playerManager) {
+      if (typeof this.playerManager.setMovementEnabled === 'function') {
+        this.playerManager.setMovementEnabled(true);
+      }
+      // Fallback: essayer de réactiver directement
+      if (this.playerManager.movementEnabled !== undefined) {
+        this.playerManager.movementEnabled = true;
+      }
+    }
+    
+    // 4. Réactiver les inputs de la scène
+    if (this.input && this.input.keyboard) {
+      this.input.keyboard.enabled = true;
+    }
+    
+    // 5. S'assurer que les physics sont actives
+    if (this.physics && this.physics.world) {
+      this.physics.world.resume();
+    }
+    
+    // 6. Nettoyer les éventuels overlays bloquants
+    this.children.list.forEach(child => {
+      if (child.getData && child.getData('isStarterOverlay')) {
+        child.destroy();
+      }
+    });
+    
+    console.log("✅ [VillageLabScene] Déblocage terminé");
+    this.showSafeMessage("Laboratoire débloqué avec succès!", 'success');
+  }
 
-    // Appeler l'update parent pour le reste
+  // ✅ Méthode pour vérifier l'état du starter selector
+  checkStarterSelectorState() {
+    console.log("🔍 [VillageLabScene] État StarterSelector:", {
+      exists: !!this.starterSelector,
+      isActive: this.isStarterSelectionActive ? this.isStarterSelectionActive() : 'fonction non définie',
+      visible: this.starterSelector ? this.starterSelector.visible : 'N/A',
+      starterSelectorVisible: this.starterSelectorVisible
+    });
+    
+    return {
+      exists: !!this.starterSelector,
+      isActive: this.isStarterSelectionActive(),
+      visible: this.starterSelectorVisible
+    };
+  }
+
+  // ✅ FIX PRINCIPAL: Méthode update() sécurisée
+  update() {
+    // ✅ TOUJOURS appeler super.update() en premier pour maintenir le système de base
     super.update();
+    
+    // ✅ Logique additionnelle seulement si nécessaire
+    // Pas de blocage possible ici car super.update() est déjà appelé
+    
+    // Debug occasionnel (optionnel)
+    if (this.time.now % 5000 < 16) { // Toutes les 5 secondes environ
+      const state = this.checkStarterSelectorState();
+      if (state.isActive) {
+        console.log("🔄 [VillageLabScene] StarterSelector actif détecté");
+      }
+    }
   }
 
   // ✅ CLEAN UP
   cleanup() {
+    console.log("⚙️ [VillageLabScene] Nettoyage en cours...");
+    
     // Nettoyer le StarterSelector
     if (this.starterSelector) {
-      this.starterSelector.destroy();
+      if (typeof this.starterSelector.destroy === 'function') {
+        this.starterSelector.destroy();
+      }
       this.starterSelector = null;
     }
 
     // Nettoyer les zones starter
     this.starterTableZones = [];
+    
+    // Reset des états
+    this.starterSelectorVisible = false;
+    this.isStarterSelectionActive = () => false;
 
     this.transitionCooldowns = {};
-    console.log("⚙️ VillageLabScene cleanup appelé");
+    console.log("✅ [VillageLabScene] Nettoyage terminé");
     super.cleanup();
   }
 
   destroy() {
+    console.log("🗑️ [VillageLabScene] Destruction en cours...");
+    
     // Nettoyer le StarterSelector au destroy aussi
     if (this.starterSelector) {
-      this.starterSelector.destroy();
+      if (typeof this.starterSelector.destroy === 'function') {
+        this.starterSelector.destroy();
+      }
       this.starterSelector = null;
     }
 
     // Nettoyer les zones starter
     this.starterTableZones = [];
+    
+    // Reset des états
+    this.starterSelectorVisible = false;
+    this.isStarterSelectionActive = () => false;
 
+    console.log("✅ [VillageLabScene] Destruction terminée");
     super.destroy();
   }
 }
@@ -850,6 +981,16 @@ window.testServerProximity = () => {
   }
 };
 
+// ✅ NOUVELLE FONCTION: Déblocage d'urgence
+window.forceUnblockLab = () => {
+  const labScene = window.game?.scene?.getScene('VillageLabScene');
+  if (labScene && labScene.forceUnblock) {
+    labScene.forceUnblock();
+  } else {
+    console.warn("❌ VillageLabScene non trouvée ou pas de méthode forceUnblock");
+  }
+};
+
 // ✅ FONCTION DEBUG COMPLÈTE
 window.debugStarterSystem = () => {
   const labScene = window.game?.scene?.getScene('VillageLabScene');
@@ -873,6 +1014,9 @@ window.debugStarterSystem = () => {
   
   console.log("🔗 NetworkManager:", !!labScene.networkManager);
   console.log("🏠 Room:", !!labScene.networkManager?.room);
+  
+  // État du StarterSelector
+  labScene.checkStarterSelectorState();
   
   // Test serveur si disponible
   if (labScene.networkManager?.room) {
@@ -899,6 +1043,28 @@ window.forceTablePosition = (x, y, radius = 100) => {
   }
 };
 
+// ✅ NOUVELLE FONCTION: Redémarrer la scène
+window.restartLabScene = () => {
+  const labScene = window.game?.scene?.getScene('VillageLabScene');
+  if (labScene) {
+    console.log("🔄 Redémarrage de VillageLabScene...");
+    labScene.scene.restart();
+  } else {
+    console.warn("❌ VillageLabScene non trouvée");
+  }
+};
+
+// ✅ NOUVELLE FONCTION: Retour au village
+window.backToVillage = () => {
+  const labScene = window.game?.scene?.getScene('VillageLabScene');
+  if (labScene) {
+    console.log("🏠 Retour au village...");
+    labScene.scene.start('VillageScene');
+  } else {
+    console.warn("❌ VillageLabScene non trouvée");
+  }
+};
+
 // ✅ AFFICHAGE DES COMMANDES DISPONIBLES
 console.log("🎯 === COMMANDES STARTER DISPONIBLES ===");
 console.log("📋 Commandes de base :");
@@ -912,6 +1078,11 @@ console.log("  • window.syncStarterTables() - Synchroniser avec serveur");
 console.log("  • window.testServerProximity() - Test proximité serveur");
 console.log("  • window.debugStarterSystem() - Debug complet du système");
 console.log("");
+console.log("📋 Commandes de déblocage :");
+console.log("  • window.forceUnblockLab() - DÉBLOCAGE D'URGENCE");
+console.log("  • window.restartLabScene() - Redémarrer la scène");
+console.log("  • window.backToVillage() - Retour au village");
+console.log("");
 console.log("📋 Commandes avancées :");
 console.log("  • window.forceTablePosition(x, y, radius) - Forcer position table");
 console.log("  • window.getLabScene() - Récupérer la scène laboratoire");
@@ -921,4 +1092,5 @@ console.log("  • [T] - Test StarterSelector");
 console.log("  • [F] - Test forcé (bypass proximité)");
 console.log("  • [S] - Synchroniser avec serveur");
 console.log("  • [E] - Interagir avec table starter");
+console.log("  • [U] - DÉBLOCAGE D'URGENCE");
 console.log("==================================");
