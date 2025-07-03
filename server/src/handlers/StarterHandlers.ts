@@ -4,7 +4,9 @@ import { WorldRoom } from "../rooms/WorldRoom";
 import { OwnedPokemon } from "../models/OwnedPokemon";
 import { giveStarterToPlayer } from "../services/PokemonService";
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { join, resolve } from 'path';
+import * as fs from 'fs';
+import * as path from 'path'
 
 export class StarterHandlers {
   private room: WorldRoom;
@@ -36,38 +38,37 @@ export class StarterHandlers {
 
   // ✅ Charger les positions des tables depuis les cartes Tiled
   private loadStarterTablePositions(): void {
-    console.log(`🗺️ [StarterHandlers] Chargement des positions de tables starter...`);
-    
-    // Liste des zones qui peuvent avoir des tables starter
-    const zonesToCheck = ['villagelab', 'village', 'lavandia', 'lavandiaresearchlab'];
-    
-    zonesToCheck.forEach(zoneName => {
-      try {
-  const fileName = mapPath.endsWith('.tmj') ? mapPath : mapPath.replace(/\.[^.]+$/, '') + '.tmj';
-  const resolvedPath = path.resolve(__dirname, "../../build/assets/maps", fileName);
-        
-  const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
-        const starterTable = this.findStarterTableInMap(mapData, zoneName);
-        
-        if (starterTable) {
-          this.starterTablePositions.set(zoneName, starterTable);
-          console.log(`✅ [StarterHandlers] Table starter trouvée dans ${zoneName}:`, starterTable);
-        } else {
-          console.log(`ℹ️ [StarterHandlers] Pas de table starter dans ${zoneName}`);
-        }
-        
-      } catch (error) {
-        console.warn(`⚠️ [StarterHandlers] Impossible de charger ${zoneName}:`, error instanceof Error ? error.message : String(error));
-        
-        // Fallback pour villagelab si le fichier n'existe pas
-       console.log(`ℹ️ [StarterHandlers] Aucun fallback - vérifiez votre carte Tiled ${zoneName}`);
-
+  console.log(`🗺️ [StarterHandlers] Chargement des positions de tables starter...`);
+  
+  // Liste des zones qui peuvent avoir des tables starter
+  const zonesToCheck = ['villagelab', 'village', 'lavandia', 'lavandiaresearchlab'];
+  
+  zonesToCheck.forEach(zoneName => {
+    try {
+      // Créer le nom de fichier avec l'extension .tmj
+      const fileName = `${zoneName}.tmj`;
+      const resolvedPath = path.resolve(__dirname, "../../build/assets/maps", fileName);
+      
+      console.log(`📂 [StarterHandlers] Tentative lecture: ${resolvedPath}`);
+      
+      const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
+      const starterTable = this.findStarterTableInMap(mapData, zoneName);
+      
+      if (starterTable) {
+        this.starterTablePositions.set(zoneName, starterTable);
+        console.log(`✅ [StarterHandlers] Table starter trouvée dans ${zoneName}:`, starterTable);
+      } else {
+        console.log(`ℹ️ [StarterHandlers] Pas de table starter dans ${zoneName}`);
       }
-    });
-    
-    console.log(`📊 [StarterHandlers] Total zones avec tables: ${this.starterTablePositions.size}`);
-  }
-
+      
+    } catch (error) {
+      console.warn(`⚠️ [StarterHandlers] Impossible de charger ${zoneName}:`, error instanceof Error ? error.message : String(error));
+      console.log(`ℹ️ [StarterHandlers] Aucun fallback - vérifiez votre carte Tiled ${zoneName}`);
+    }
+  });
+  
+  console.log(`📊 [StarterHandlers] Total zones avec tables: ${this.starterTablePositions.size}`);
+}
   // ✅ Chercher la table starter dans une carte Tiled
   private findStarterTableInMap(mapData: any, zoneName: string): { centerX: number, centerY: number, radius: number } | null {
     console.log(`🔍 [StarterHandlers] Recherche table starter dans ${zoneName}...`);
