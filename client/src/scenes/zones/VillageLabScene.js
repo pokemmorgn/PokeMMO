@@ -1,5 +1,5 @@
 // ===============================================
-// VillageLabScene.js - Version corrigée avec debug amélioré
+// VillageLabScene.js - Version complète mise à jour avec synchronisation serveur
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 import { integrateStarterSelectorToScene } from '../../components/StarterSelector.js';
@@ -10,6 +10,7 @@ export class VillageLabScene extends BaseZoneScene {
     this.transitionCooldowns = {};
     this.starterSelector = null;
     this.starterTableZones = []; // Zones de détection pour la table starter
+    this.serverSyncEnabled = true; // Activer la synchronisation serveur
   }
 
   // ✅ Position par défaut pour VillageLabScene
@@ -32,7 +33,7 @@ export class VillageLabScene extends BaseZoneScene {
     super.create();
     console.log("✅ BaseZoneScene.create() appelé");
 
-    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "T" to test StarterSelector\nPress "E" near starter table\nPress "F" to force starter test', {
+    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "T" to test StarterSelector\nPress "E" near starter table\nPress "F" to force starter test\nPress "S" to sync with server', {
       font: '18px monospace',
       fill: '#000000',
       padding: { x: 20, y: 10 },
@@ -97,6 +98,29 @@ export class VillageLabScene extends BaseZoneScene {
           this.showSimpleDialog("Professeur", message);
         }
       });
+
+      // ✅ NOUVEAUX HANDLERS pour la synchronisation serveur
+      this.networkManager.room.onMessage("starterTablePositionSynced", (data) => {
+        console.log("✅ [VillageLabScene] Position synchronisée avec serveur:", data);
+        
+        if (data.success) {
+          this.showSafeMessage(`Table starter configurée dans ${data.zone}`, 'success');
+        }
+      });
+
+      this.networkManager.room.onMessage("starterProximityResult", (data) => {
+        console.log("📊 [VillageLabScene] Résultat test proximité:", data);
+        
+        if (data.near) {
+          console.log("✅ [VillageLabScene] Serveur confirme: Joueur proche");
+          this.showSafeMessage("Serveur: Joueur détecté proche de la table", 'success');
+        } else {
+          console.warn("⚠️ [VillageLabScene] Serveur: Joueur non détecté proche");
+          this.showSafeMessage("Serveur: Joueur trop loin de la table", 'warning');
+          console.log("📍 Position joueur:", data.position);
+          console.log("📍 Position table serveur:", data.tablePosition);
+        }
+      });
     }
   }
 
@@ -134,6 +158,12 @@ export class VillageLabScene extends BaseZoneScene {
       this.triggerStarterSelection();
     });
 
+    // ✅ NOUVEAU TRIGGER: Touche S pour synchroniser avec serveur
+    this.input.keyboard.on('keydown-S', () => {
+      console.log("📡 [SYNC] Touche S - Synchronisation avec serveur");
+      this.syncWithServer();
+    });
+
     // ✅ TRIGGER: Touche E pour interaction avec table starter
     this.input.keyboard.on('keydown-E', () => {
       console.log("🎯 [E] === INTERACTION E DÉCLENCHÉE ===");
@@ -154,8 +184,9 @@ export class VillageLabScene extends BaseZoneScene {
         if (this.starterTableZones.length > 0) {
           console.log("🏢 Tables disponibles:");
           this.starterTableZones.forEach((zone, i) => {
-            const distance = this.player ? Phaser.Math.Distance.Between(
-              this.player.x, this.player.y,
+            const player = this.playerManager?.getMyPlayer();
+            const distance = player ? Phaser.Math.Distance.Between(
+              player.x, player.y,
               zone.centerX, zone.centerY
             ) : -1;
             console.log(`  ${i}: ${zone.name} à (${zone.centerX}, ${zone.centerY}) - Distance: ${Math.round(distance)}px`);
@@ -171,83 +202,139 @@ export class VillageLabScene extends BaseZoneScene {
     console.log("✅ [VillageLabScene] Triggers starter configurés");
   }
 
-  // ✅ Charger les zones depuis la carte Tiled
-  // ✅ Charger les zones depuis la carte Tiled - VERSION AVEC TILES
-loadStarterTableZones() {
-  console.log("📍 [StarterTable] Recherche des zones starter table...");
-  
-  this.starterTableZones = []; // Reset
-  
-  if (!this.map) {
-    console.error("❌ [StarterTable] Carte non chargée");
-    return;
-  }
-
-  let foundZones = 0;
-  
-  // ✅ FIX: Utiliser getObjectLayer() pour les objectgroups
-  const worldsObjectLayer = this.map.getObjectLayer('Worlds');
-  
-  if (worldsObjectLayer && worldsObjectLayer.objects) {
-    console.log(`🔍 [StarterTable] ObjectLayer "Worlds" trouvé avec ${worldsObjectLayer.objects.length} objets`);
+  // ✅ Charger les zones depuis la carte Tiled - VERSION AVEC SYNCHRONISATION
+  loadStarterTableZones() {
+    console.log("📍 [StarterTable] Recherche des zones starter table...");
     
-    worldsObjectLayer.objects.forEach((obj, index) => {
-      console.log(`🔍 [StarterTable] Objet ${index}:`, {
-        name: obj.name,
-        type: obj.type,
-        properties: obj.properties,
-        x: obj.x,
-        y: obj.y
-      });
+    this.starterTableZones = []; // Reset
+    
+    if (!this.map) {
+      console.error("❌ [StarterTable] Carte non chargée");
+      return;
+    }
+
+    let foundZones = 0;
+    
+    // ✅ FIX: Utiliser getObjectLayer() pour les objectgroups
+    const worldsObjectLayer = this.map.getObjectLayer('Worlds');
+    
+    if (worldsObjectLayer && worldsObjectLayer.objects) {
+      console.log(`🔍 [StarterTable] ObjectLayer "Worlds" trouvé avec ${worldsObjectLayer.objects.length} objets`);
       
-      if (this.hasStarterTableProperty(obj)) {
-        const zone = {
+      worldsObjectLayer.objects.forEach((obj, index) => {
+        console.log(`🔍 [StarterTable] Objet ${index}:`, {
+          name: obj.name,
+          type: obj.type,
+          properties: obj.properties,
           x: obj.x,
-          y: obj.y,
-          width: obj.width || 32,
-          height: obj.height || 32,
-          centerX: obj.x + (obj.width || 32) / 2,
-          centerY: obj.y + (obj.height || 32) / 2,
-          name: obj.name || 'StarterTable'
-        };
+          y: obj.y
+        });
         
-        this.starterTableZones.push(zone);
-        foundZones++;
-        console.log(`✅ [StarterTable] Zone starter détectée:`, zone);
-        this.createStarterTableIndicator(zone);
-      }
-    });
-  } else {
-    console.warn("⚠️ [StarterTable] Layer 'Worlds' non trouvé");
-  }
-  
-  console.log(`📊 [StarterTable] Total zones starter trouvées: ${foundZones}`);
-  
-  if (foundZones === 0) {
-    console.warn("⚠️ [StarterTable] Aucune zone starter table trouvée!");
-  }
-}
-
-
-// ✅ NOUVELLE MÉTHODE: Récupérer les infos d'une tile
-getTileInfo(gid) {
-  if (!this.map.tilesets) return null;
-  
-  for (const tileset of this.map.tilesets) {
-    if (gid >= tileset.firstgid && gid < tileset.firstgid + tileset.tilecount) {
-      const localId = gid - tileset.firstgid;
-      
-      if (tileset.tiles) {
-        const tile = tileset.tiles.find(t => t.id === localId);
-        if (tile) {
-          return { tileset, tile, localId };
+        if (this.hasStarterTableProperty(obj)) {
+          const zone = {
+            x: obj.x,
+            y: obj.y,
+            width: obj.width || 32,
+            height: obj.height || 32,
+            centerX: obj.x + (obj.width || 32) / 2,
+            centerY: obj.y + (obj.height || 32) / 2,
+            name: obj.name || 'StarterTable',
+            // ✅ AJOUT: Rayon de détection identique au serveur
+            radius: Math.max(obj.width || 32, obj.height || 32) + 60
+          };
+          
+          this.starterTableZones.push(zone);
+          foundZones++;
+          console.log(`✅ [StarterTable] Zone starter détectée:`, zone);
+          this.createStarterTableIndicator(zone);
+          
+          // ✅ NOUVEAU: Synchroniser automatiquement avec le serveur
+          if (this.serverSyncEnabled) {
+            this.syncStarterTableWithServer(zone);
+          }
         }
-      }
+      });
+    } else {
+      console.warn("⚠️ [StarterTable] Layer 'Worlds' non trouvé");
+    }
+    
+    console.log(`📊 [StarterTable] Total zones starter trouvées: ${foundZones}`);
+    
+    if (foundZones === 0) {
+      console.warn("⚠️ [StarterTable] Aucune zone starter table trouvée!");
     }
   }
-  
-  return null;
-}
+
+  // ✅ NOUVELLE MÉTHODE: Synchroniser avec le serveur
+  syncStarterTableWithServer(zone) {
+    // Vérifier qu'on a un NetworkManager et une room
+    if (!this.networkManager?.room) {
+      console.warn("⚠️ [StarterTable] NetworkManager non disponible pour sync");
+      return;
+    }
+    
+    // Obtenir le nom de la zone actuelle
+    const currentZone = this.scene?.key || 'villagelab';
+    
+    console.log(`📡 [StarterTable] Synchronisation avec serveur pour zone: ${currentZone}`);
+    
+    // Envoyer la position au serveur
+    this.networkManager.room.send("syncStarterTablePosition", {
+      zone: currentZone,
+      centerX: zone.centerX,
+      centerY: zone.centerY,
+      radius: zone.radius,
+      source: "client_detection",
+      timestamp: Date.now()
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Synchronisation manuelle avec serveur
+  syncWithServer() {
+    console.log("📡 [StarterTable] Synchronisation manuelle avec serveur...");
+    
+    if (this.starterTableZones.length === 0) {
+      console.warn("⚠️ [StarterTable] Aucune zone à synchroniser");
+      this.showSafeMessage("Aucune table starter détectée à synchroniser", 'warning');
+      return;
+    }
+    
+    // Synchroniser toutes les zones
+    this.starterTableZones.forEach(zone => {
+      this.syncStarterTableWithServer(zone);
+    });
+    
+    // Test de proximité après synchronisation
+    setTimeout(() => {
+      if (this.networkManager?.room) {
+        this.networkManager.room.send("testStarterProximity");
+      }
+    }, 1000);
+    
+    this.showSafeMessage("Synchronisation en cours...", 'info');
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Test complet client-serveur
+  async testClientServerSync() {
+    console.log("🧪 [StarterTable] Test synchronisation client-serveur...");
+    
+    if (!this.networkManager?.room) {
+      console.error("❌ [StarterTable] NetworkManager non disponible");
+      return;
+    }
+    
+    // 1. Envoyer les positions détectées côté client
+    this.starterTableZones.forEach(zone => {
+      this.syncStarterTableWithServer(zone);
+    });
+    
+    // 2. Attendre un peu puis tester la proximité
+    setTimeout(() => {
+      this.networkManager.room.send("testStarterProximity");
+    }, 2000);
+    
+    this.showSafeMessage("Test de synchronisation démarré...", 'info');
+  }
 
   // ✅ Vérifier si un objet a la propriété startertable
   hasStarterTableProperty(obj) {
@@ -302,11 +389,17 @@ getTileInfo(gid) {
     );
     indicator.setDepth(5);
     
+    // Cercle de rayon de détection
+    const radiusCircle = this.add.graphics();
+    radiusCircle.lineStyle(2, 0x00ff00, 0.5);
+    radiusCircle.strokeCircle(zone.centerX, zone.centerY, zone.radius);
+    radiusCircle.setDepth(4);
+    
     // Texte indicatif
     const label = this.add.text(
       zone.centerX,
       zone.centerY - zone.height / 2 - 10,
-      'STARTER TABLE\n[E] pour interagir\n[F] pour forcer',
+      `STARTER TABLE\n[E] pour interagir\n[F] pour forcer\n[S] pour sync\nRayon: ${zone.radius}px`,
       {
         fontSize: '10px',
         fontFamily: 'monospace',
@@ -318,53 +411,50 @@ getTileInfo(gid) {
     );
     label.setOrigin(0.5).setDepth(6);
     
-    console.log(`🎨 [StarterTable] Indicateur visuel créé à (${zone.centerX}, ${zone.centerY})`);
+    console.log(`🎨 [StarterTable] Indicateur visuel créé à (${zone.centerX}, ${zone.centerY}) r=${zone.radius}`);
   }
 
-  // ✅ Vérifier si le joueur est près d'une starter table AVEC DEBUG AMÉLIORÉ
- // ✅ Vérifier si le joueur est près d'une starter table AVEC FIX PLAYER
-isPlayerNearStarterTable() {
-  console.log("🔍 [CLIENT] === VÉRIFICATION PROXIMITÉ TABLE ===");
-  
-  // ✅ FIX: Récupérer le joueur depuis PlayerManager
-  const player = this.playerManager?.getMyPlayer();
-  
-  if (!player || !this.starterTableZones || this.starterTableZones.length === 0) {
-    console.log("❌ [CLIENT] Pas de joueur ou pas de zones starter");
-    console.log("  - player:", !!player);
-    console.log("  - this.starterTableZones:", this.starterTableZones);
+  // ✅ Vérifier si le joueur est près d'une starter table AVEC FIX PLAYER
+  isPlayerNearStarterTable() {
+    console.log("🔍 [CLIENT] === VÉRIFICATION PROXIMITÉ TABLE ===");
+    
+    // ✅ FIX: Récupérer le joueur depuis PlayerManager
+    const player = this.playerManager?.getMyPlayer();
+    
+    if (!player || !this.starterTableZones || this.starterTableZones.length === 0) {
+      console.log("❌ [CLIENT] Pas de joueur ou pas de zones starter");
+      console.log("  - player:", !!player);
+      console.log("  - this.starterTableZones:", this.starterTableZones);
+      return false;
+    }
+    
+    const playerX = player.x;
+    const playerY = player.y;
+    
+    console.log(`👤 [CLIENT] Position joueur: (${playerX}, ${playerY})`);
+    console.log(`📊 [CLIENT] Nombre de zones starter: ${this.starterTableZones.length}`);
+    
+    for (const zone of this.starterTableZones) {
+      const distance = Phaser.Math.Distance.Between(
+        playerX, playerY,
+        zone.centerX, zone.centerY
+      );
+      
+      console.log(`📏 [CLIENT] Zone ${zone.name}:`);
+      console.log(`  - Centre: (${zone.centerX}, ${zone.centerY})`);
+      console.log(`  - Distance: ${Math.round(distance)}px`);
+      console.log(`  - Seuil: ${zone.radius}px`);
+      console.log(`  - Proche: ${distance <= zone.radius ? 'OUI' : 'NON'}`);
+      
+      if (distance <= zone.radius) {
+        console.log(`✅ [CLIENT] JOUEUR PROCHE de ${zone.name}!`);
+        return true;
+      }
+    }
+    
+    console.log(`❌ [CLIENT] JOUEUR TROP LOIN de toutes les tables`);
     return false;
   }
-  
-  const playerX = player.x;
-  const playerY = player.y;
-  const detectionRange = 100; // Range généreux pour les tests
-  
-  console.log(`👤 [CLIENT] Position joueur: (${playerX}, ${playerY})`);
-  console.log(`🎯 [CLIENT] Range de détection: ${detectionRange}px`);
-  console.log(`📊 [CLIENT] Nombre de zones starter: ${this.starterTableZones.length}`);
-  
-  for (const zone of this.starterTableZones) {
-    const distance = Phaser.Math.Distance.Between(
-      playerX, playerY,
-      zone.centerX, zone.centerY
-    );
-    
-    console.log(`📏 [CLIENT] Zone ${zone.name}:`);
-    console.log(`  - Centre: (${zone.centerX}, ${zone.centerY})`);
-    console.log(`  - Distance: ${Math.round(distance)}px`);
-    console.log(`  - Seuil: ${detectionRange}px`);
-    console.log(`  - Proche: ${distance <= detectionRange ? 'OUI' : 'NON'}`);
-    
-    if (distance <= detectionRange) {
-      console.log(`✅ [CLIENT] JOUEUR PROCHE de ${zone.name}!`);
-      return true;
-    }
-  }
-  
-  console.log(`❌ [CLIENT] JOUEUR TROP LOIN de toutes les tables`);
-  return false;
-}
 
   // ✅ Déclencher la sélection starter avec debug amélioré
   triggerStarterSelection() {
@@ -403,9 +493,19 @@ isPlayerNearStarterTable() {
     }
   }
 
-  // ✅ Afficher un message sans boucle infinie
-  showSafeMessage(message) {
+  // ✅ Afficher un message sans boucle infinie - VERSION AMÉLIORÉE
+  showSafeMessage(message, type = 'info') {
     console.log(`💬 [VillageLabScene] ${message}`);
+    
+    // Couleurs selon le type
+    const colors = {
+      info: { bg: 'rgba(0, 100, 200, 0.8)', text: '#ffffff' },
+      success: { bg: 'rgba(0, 150, 0, 0.8)', text: '#ffffff' },
+      warning: { bg: 'rgba(255, 165, 0, 0.8)', text: '#000000' },
+      error: { bg: 'rgba(200, 0, 0, 0.8)', text: '#ffffff' }
+    };
+    
+    const color = colors[type] || colors.info;
     
     // Créer un dialogue simple sans passer par le système de notifications
     const dialogueBox = this.add.text(
@@ -415,8 +515,8 @@ isPlayerNearStarterTable() {
       {
         fontSize: '14px',
         fontFamily: 'monospace',
-        color: '#ffffff',
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        color: color.text,
+        backgroundColor: color.bg,
         padding: { x: 10, y: 8 },
         wordWrap: { width: 300 },
       }
@@ -702,7 +802,6 @@ window.debugStarterTable = () => {
 };
 
 // ✅ FONCTION POUR FORCER LA POSITION DU JOUEUR (debug)
-// ✅ FONCTION POUR FORCER LA POSITION DU JOUEUR (debug)
 window.movePlayerToTable = () => {
   const labScene = window.game?.scene?.getScene('VillageLabScene');
   if (labScene && labScene.playerManager && labScene.starterTableZones.length > 0) {
@@ -720,3 +819,106 @@ window.movePlayerToTable = () => {
     console.warn("❌ Impossible de déplacer le joueur");
   }
 };
+
+// ✅ NOUVELLES FONCTIONS DE TEST ET SYNCHRONISATION
+window.testStarterTableSync = () => {
+  const labScene = window.game?.scene?.getScene('VillageLabScene');
+  if (labScene && labScene.testClientServerSync) {
+    labScene.testClientServerSync();
+  } else {
+    console.warn("❌ VillageLabScene non trouvée ou pas de méthode testClientServerSync");
+  }
+};
+
+window.syncStarterTables = () => {
+  const labScene = window.game?.scene?.getScene('VillageLabScene');
+  if (labScene && labScene.syncWithServer) {
+    labScene.syncWithServer();
+  } else {
+    console.warn("❌ VillageLabScene non trouvée ou pas de méthode syncWithServer");
+  }
+};
+
+// ✅ FONCTION POUR TESTER LA PROXIMITÉ SERVEUR
+window.testServerProximity = () => {
+  const labScene = window.game?.scene?.getScene('VillageLabScene');
+  if (labScene && labScene.networkManager?.room) {
+    console.log("🧪 Test proximité serveur...");
+    labScene.networkManager.room.send("testStarterProximity");
+  } else {
+    console.warn("❌ Impossible de tester la proximité serveur");
+  }
+};
+
+// ✅ FONCTION DEBUG COMPLÈTE
+window.debugStarterSystem = () => {
+  const labScene = window.game?.scene?.getScene('VillageLabScene');
+  if (!labScene) {
+    console.warn("❌ VillageLabScene non trouvée");
+    return;
+  }
+  
+  console.log("🔍 === DEBUG COMPLET SYSTÈME STARTER ===");
+  console.log("📊 Zones détectées côté client:", labScene.starterTableZones.length);
+  
+  labScene.starterTableZones.forEach((zone, i) => {
+    console.log(`  Zone ${i}:`, zone);
+  });
+  
+  const player = labScene.playerManager?.getMyPlayer();
+  if (player) {
+    console.log("👤 Position joueur:", { x: player.x, y: player.y });
+    console.log("🎯 Proximité client:", labScene.isPlayerNearStarterTable());
+  }
+  
+  console.log("🔗 NetworkManager:", !!labScene.networkManager);
+  console.log("🏠 Room:", !!labScene.networkManager?.room);
+  
+  // Test serveur si disponible
+  if (labScene.networkManager?.room) {
+    console.log("🧪 Test proximité serveur...");
+    labScene.networkManager.room.send("testStarterProximity");
+  }
+};
+
+// ✅ FONCTION POUR FORCER UNE POSITION DE TABLE
+window.forceTablePosition = (x, y, radius = 100) => {
+  const labScene = window.game?.scene?.getScene('VillageLabScene');
+  if (labScene && labScene.networkManager?.room) {
+    console.log(`🔧 Force position table: (${x}, ${y}) r=${radius}`);
+    
+    labScene.networkManager.room.send("syncStarterTablePosition", {
+      zone: 'villagelab',
+      centerX: x,
+      centerY: y,
+      radius: radius,
+      source: "manual_override"
+    });
+  } else {
+    console.warn("❌ Impossible de forcer la position");
+  }
+};
+
+// ✅ AFFICHAGE DES COMMANDES DISPONIBLES
+console.log("🎯 === COMMANDES STARTER DISPONIBLES ===");
+console.log("📋 Commandes de base :");
+console.log("  • window.testLabStarter() - Test sélection starter");
+console.log("  • window.debugStarterTable() - Debug zones détectées");
+console.log("  • window.movePlayerToTable() - Déplacer joueur à la table");
+console.log("");
+console.log("📋 Commandes de synchronisation :");
+console.log("  • window.testStarterTableSync() - Test sync client-serveur");
+console.log("  • window.syncStarterTables() - Synchroniser avec serveur");
+console.log("  • window.testServerProximity() - Test proximité serveur");
+console.log("  • window.debugStarterSystem() - Debug complet du système");
+console.log("");
+console.log("📋 Commandes avancées :");
+console.log("  • window.forceTablePosition(x, y, radius) - Forcer position table");
+console.log("  • window.getLabScene() - Récupérer la scène laboratoire");
+console.log("");
+console.log("🎮 Touches en jeu :");
+console.log("  • [T] - Test StarterSelector");
+console.log("  • [F] - Test forcé (bypass proximité)");
+console.log("  • [S] - Synchroniser avec serveur");
+console.log("  • [E] - Interagir avec table starter");
+console.log("==================================");
