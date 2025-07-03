@@ -1694,25 +1694,6 @@ class UIAnimationManager {
       default: return 250;
     }
   }
-
-    // Ajoutez ces méthodes à votre UIManager existant :
-
-// 1. GlobalState
-if (!this.globalState) {
-  this.globalState = {
-    currentGameState: 'exploration',
-    previousGameState: null,
-    timestamp: Date.now()
-  };
-}
-
-// 2. GetModuleState
-getModuleState(moduleId) {
-  const moduleSelectors = {
-    'questTracker': '#questTracker, #quest-tracker',
-    'inventory': '#inventory-icon',
-    'team': '#team-icon'
-  };
   
   clearAllAnimations() {
     this.activeAnimations.clear();
