@@ -227,56 +227,7 @@ loadStarterTableZones() {
     console.warn("⚠️ [StarterTable] Aucune zone starter table trouvée!");
   }
 }
-    
-    // ✅ NOUVEAU: TILELAYER pour chercher dans "Worlds"
-    else if (layer.type === 'tilelayer' && layer.name.toLowerCase().includes('worlds')) {
-      console.log(`🔍 [StarterTable] TileLayer "${layer.name}": recherche tiles avec propriétés`);
-      
-      // Parcourir les tiles de ce layer
-      if (layer.data && this.map.tilesets) {
-        for (let y = 0; y < layer.height; y++) {
-          for (let x = 0; x < layer.width; x++) {
-            const tileIndex = y * layer.width + x;
-            const gid = layer.data[tileIndex];
-            
-            if (gid > 0) {
-              // Trouver le tileset et la tile
-              const tileInfo = this.getTileInfo(gid);
-              
-              if (tileInfo && tileInfo.tile && tileInfo.tile.properties) {
-                // Vérifier si cette tile a la propriété startertable
-                if (this.hasStarterTableProperty(tileInfo.tile)) {
-                  const zone = {
-                    x: x * this.map.tilewidth,
-                    y: y * this.map.tileheight,
-                    width: this.map.tilewidth,
-                    height: this.map.tileheight,
-                    centerX: (x * this.map.tilewidth) + (this.map.tilewidth / 2),
-                    centerY: (y * this.map.tileheight) + (this.map.tileheight / 2),
-                    name: `StarterTable_Tile_${x}_${y}`
-                  };
-                  
-                  this.starterTableZones.push(zone);
-                  foundZones++;
-                  console.log(`✅ [StarterTable] Zone starter détectée (tilelayer):`, zone);
-                  this.createStarterTableIndicator(zone);
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  });
-  
-  console.log(`📊 [StarterTable] Total zones starter trouvées: ${foundZones}`);
-  
-  if (foundZones === 0) {
-    console.warn("⚠️ [StarterTable] Aucune zone starter table trouvée!");
-    console.log("💡 [StarterTable] Assurez-vous que votre carte Tiled contient un objet avec la propriété 'startertable' = true");
-    console.log("📋 [StarterTable] Vérifiez le nom de vos layers et objets dans Tiled");
-  }
-}
+
 
 // ✅ NOUVELLE MÉTHODE: Récupérer les infos d'une tile
 getTileInfo(gid) {
