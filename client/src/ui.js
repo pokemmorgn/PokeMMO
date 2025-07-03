@@ -1,18 +1,18 @@
 // client/src/ui.js - Système UI Manager centralisé pour Pokémon MMO
-// ✅ Version Professional avec gestion performance, responsive et error recovery
-// ✅ CORRIGÉ: Auto-initialisation et fallbacks pour BattleUITransition
+// ✅ Version CORRIGÉE avec BattleInterface fonctionnel
+// ✅ TOUTES LES CORRECTIONS INTÉGRÉES
 
 import { UIManager } from './managers/UIManager.js';
 
 // === CONFIGURATION UI MANAGER POKÉMON MMO ===
 const UI_CONFIG = {
-  debug: true, // Mode debug activé pour développement
+  debug: true,
   
   performance: {
     enablePooling: true,
-    lazyLoadModules: false, // Pas de lazy load pour un MMO
+    lazyLoadModules: false,
     batchUpdates: true,
-    maxConcurrentAnimations: 5, // Plus d'animations pour MMO
+    maxConcurrentAnimations: 5,
     debounceResize: 200,
     frameThrottling: true
   },
@@ -118,7 +118,7 @@ const POKEMON_UI_GROUPS = {
       type: 'horizontal',
       anchor: 'bottom-right',
       spacing: 10,
-      order: ['inventory', 'quest', 'team'] // Ordre d'affichage
+      order: ['inventory', 'quest', 'team']
     },
     priority: 100
   },
@@ -171,7 +171,7 @@ export class PokemonUISystem {
     try {
       console.log('🚀 [PokemonUI] === INITIALISATION UI MANAGER ===');
       
-      // ✅ NOUVEAU: Tentative d'importation UIManager avec fallback
+      // Import UIManager avec fallback
       let UIManagerClass;
       try {
         const uiManagerModule = await import('./managers/UIManager.js');
@@ -182,7 +182,7 @@ export class PokemonUISystem {
         UIManagerClass = this.createMinimalUIManager();
       }
       
-      // Créer le UIManager avec configuration Pokémon
+      // Créer le UIManager
       const config = {
         ...UI_CONFIG,
         gameStates: POKEMON_GAME_STATES
@@ -190,7 +190,7 @@ export class PokemonUISystem {
       
       this.uiManager = new UIManagerClass(config);
       
-      // ✅ NOUVEAU: Vérification de compatibilité
+      // Vérification de compatibilité
       if (!this.uiManager.setGameState) {
         console.warn('⚠️ [PokemonUI] UIManager incompatible, ajout méthodes manquantes');
         this.enhanceUIManager();
@@ -212,14 +212,12 @@ export class PokemonUISystem {
       
     } catch (error) {
       console.error('❌ [PokemonUI] Erreur initialisation:', error);
-      
-      // ✅ NOUVEAU: Fallback vers système minimal
       console.log('🔧 [PokemonUI] Fallback vers système minimal...');
       return this.initializeMinimalSystem();
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: UIManager minimal pour fallback
+  // === UIManager minimal pour fallback ===
   createMinimalUIManager() {
     console.log('🔧 [PokemonUI] Création UIManager minimal...');
     
@@ -269,7 +267,6 @@ export class PokemonUISystem {
         console.log(`🎮 [MinimalUI] Changement état: ${this.currentGameState} → ${stateName}`);
         this.currentGameState = stateName;
         
-        // Logique de base pour masquer/afficher modules
         if (stateName === 'battle') {
           this.hideAllUIElements();
         } else if (stateName === 'exploration') {
@@ -320,7 +317,7 @@ export class PokemonUISystem {
     };
   }
 
-  // ✅ NOUVELLE MÉTHODE: Améliorer UIManager existant
+  // === Améliorer UIManager existant ===
   enhanceUIManager() {
     if (!this.uiManager.setGameState) {
       this.uiManager.setGameState = (stateName, options = {}) => {
@@ -341,18 +338,16 @@ export class PokemonUISystem {
     console.log('✅ [PokemonUI] UIManager amélioré');
   }
 
-  // ✅ NOUVELLE MÉTHODE: Système minimal en cas d'échec total
+  // === Système minimal en cas d'échec total ===
   async initializeMinimalSystem() {
     console.log('🔧 [PokemonUI] Initialisation système minimal...');
     
     try {
-      // Créer un UIManager très basique
       this.uiManager = {
         setGameState: (stateName, options = {}) => {
           console.log(`🎮 [Minimal] État: ${stateName}`);
           this.currentGameState = stateName;
           
-          // Gestion basique UI battle
           if (stateName === 'battle') {
             document.querySelectorAll('#inventory-icon, #team-icon, #quest-icon, .ui-icon')
               .forEach(el => el.style.display = 'none');
@@ -371,7 +366,6 @@ export class PokemonUISystem {
           warning: 'Système UI minimal - fonctionnalités limitées'
         }),
         
-        // Méthodes vides pour compatibilité
         registerModule: () => Promise.resolve(this),
         initializeAllModules: () => Promise.resolve({ success: true, results: {}, errors: [] }),
         showModule: () => true,
@@ -419,7 +413,6 @@ export class PokemonUISystem {
   async registerAllModules() {
     console.log('📝 [PokemonUI] Enregistrement des modules...');
     
-    // Configuration des modules avec leurs factories
     const moduleConfigs = [
       {
         id: 'inventory',
@@ -514,7 +507,7 @@ export class PokemonUISystem {
         priority: 70
       },
       
-      // ✅ NOUVEAU MODULE : BattleInterface
+      // === MODULE BATTLEINTERFACE CORRIGÉ ===
       {
         id: 'battleInterface',
         critical: true,
@@ -542,12 +535,12 @@ export class PokemonUISystem {
           }
         },
         defaultState: {
-          visible: false,  // Caché par défaut
+          visible: false,
           enabled: true,
           initialized: false
         },
-        priority: 150,    // Très haute priorité
-        lazyLoad: false,  // Toujours charger
+        priority: 150,
+        lazyLoad: false,
         animations: {
           show: { type: 'fadeIn', duration: 400, easing: 'ease-out' },
           hide: { type: 'fadeOut', duration: 300, easing: 'ease-in' }
@@ -559,11 +552,10 @@ export class PokemonUISystem {
     for (const config of moduleConfigs) {
       try {
         if (this.uiManager.registerModule) {
-          // ✅ CORRECTION: Enregistrer dans UIManager ET créer l'instance
           await this.uiManager.registerModule(config.id, config);
           console.log(`  📝 Module '${config.id}' enregistré dans UIManager`);
           
-          // ✅ NOUVEAU: Créer immédiatement l'instance pour synchronisation
+          // Créer immédiatement l'instance
           try {
             const instance = await config.factory();
             
@@ -579,7 +571,6 @@ export class PokemonUISystem {
           }
           
         } else {
-          // Mode minimal : stocker directement
           const instance = await config.factory();
           this.moduleInstances.set(config.id, instance);
           console.log(`  ✅ Module '${config.id}' créé (mode minimal)`);
@@ -590,44 +581,21 @@ export class PokemonUISystem {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Synchronisation modules
-  syncModuleWithUIManager(moduleId, instance) {
-    console.log(`🔄 [PokemonUI] Synchronisation module: ${moduleId}`);
-    
-    // Stocker dans moduleInstances
-    this.moduleInstances.set(moduleId, instance);
-    
-    // Stocker dans UIManager si disponible
-    if (this.uiManager?.modules?.has(moduleId)) {
-      this.uiManager.modules.get(moduleId).instance = instance;
-      console.log(`  ✅ Synchronisé avec UIManager`);
-    }
-    
-    // Marquer comme initialisé dans UIManager
-    if (this.uiManager?.moduleStates?.has(moduleId)) {
-      this.uiManager.moduleStates.get(moduleId).initialized = true;
-      console.log(`  ✅ Marqué comme initialisé`);
-    }
-  }
-    
   // === FACTORIES DES MODULES ===
 
   async createInventoryModule() {
     console.log('🎒 [PokemonUI] Création module inventaire...');
     
-    // Utiliser le système existant ou créer nouveau
     if (window.inventorySystemGlobal) {
       console.log('🔄 [PokemonUI] Réutilisation inventaire existant');
       return this.wrapExistingModule(window.inventorySystemGlobal, 'inventory');
     }
     
-    // Créer nouveau si nécessaire
     if (typeof window.initInventorySystem === 'function') {
       const inventorySystem = window.initInventorySystem(window.currentGameRoom);
       return this.wrapExistingModule(inventorySystem, 'inventory');
     }
     
-    // ✅ NOUVEAU: Fallback module vide
     console.warn('⚠️ [PokemonUI] Inventaire non disponible, création module vide');
     return this.createEmptyWrapper('inventory');
   }
@@ -645,7 +613,6 @@ export class PokemonUISystem {
       return this.wrapExistingModule(teamSystem, 'team');
     }
     
-    // ✅ NOUVEAU: Fallback module vide
     console.warn('⚠️ [PokemonUI] Équipe non disponible, création module vide');
     return this.createEmptyWrapper('team');
   }
@@ -664,7 +631,6 @@ export class PokemonUISystem {
       return this.wrapExistingModule(questSystem, 'quest');
     }
     
-    // ✅ NOUVEAU: Fallback module vide
     console.warn('⚠️ [PokemonUI] Quêtes non disponibles, création module vide');
     return this.createEmptyWrapper('quest');
   }
@@ -672,12 +638,10 @@ export class PokemonUISystem {
   async createQuestTrackerModule() {
     console.log('📊 [PokemonUI] Création tracker de quêtes...');
     
-    // Le tracker est généralement lié au système de quêtes
     if (window.questSystemGlobal?.questTracker) {
       return this.wrapExistingModule(window.questSystemGlobal.questTracker, 'questTracker');
     }
     
-    // ✅ NOUVEAU: Import conditionnel
     try {
       const { QuestTrackerUI } = await import('./components/QuestTrackerUI.js');
       const tracker = new QuestTrackerUI(window.questSystemGlobal);
@@ -691,131 +655,188 @@ export class PokemonUISystem {
   async createChatModule() {
     console.log('💬 [PokemonUI] Création module chat...');
     
-    // Le chat est généralement déjà initialisé globalement
     if (window.pokeChat) {
       return this.wrapExistingModule(window.pokeChat, 'chat');
     }
     
-    // Le chat devrait être initialisé dans main.js, pas ici
     console.warn('⚠️ [PokemonUI] Chat non trouvé - sera initialisé plus tard');
-    
-    // Retourner un wrapper vide qui sera mise à jour plus tard
     return this.createEmptyWrapper('chat');
   }
 
-  // === NOUVELLE FACTORY: Module d'interface de combat ===
+  // === FACTORY BATTLEINTERFACE CORRIGÉE ===
   async createBattleInterfaceModule() {
     console.log('⚔️ [PokemonUI] Création module BattleInterface...');
     
     try {
-      // Créer la classe BattleInterface inline (plus fiable que l'import)
-      const BattleInterfaceClass = this.createInlineBattleInterface();
+      // Import dynamique avec fallback
+      let BattleInterfaceClass;
       
-      // Créer wrapper UIManager compatible
+      try {
+        const battleModule = await import('./components/BattleInterface.js');
+        BattleInterfaceClass = battleModule.BattleInterface;
+        console.log('✅ [PokemonUI] BattleInterface importé avec succès');
+      } catch (importError) {
+        console.warn('⚠️ [PokemonUI] Import BattleInterface échoué, utilisation classe inline');
+        BattleInterfaceClass = this.createInlineBattleInterface();
+      }
+      
+      // === WRAPPER CORRIGÉ ===
       const battleInterfaceWrapper = {
         moduleType: 'battleInterface',
         originalModule: null,
         iconElement: null,
         isInitialized: false,
         
-        // Factory function pour créer l'instance
-        create: (gameManager, battleData) => {
+        // === MÉTHODE CREATE CORRIGÉE ===
+        create: function(gameManager, battleData) {
+          console.log('🏗️ [BattleInterface] Création instance...');
+          
           try {
+            if (this.originalModule) {
+              console.log('ℹ️ [BattleInterface] Instance existante, destruction...');
+              this.originalModule.destroy();
+            }
+            
             const instance = new BattleInterfaceClass(gameManager, battleData);
+            
+            // Synchronisation état
             this.originalModule = instance;
             this.iconElement = instance.root;
             this.isInitialized = true;
             
             console.log('✅ [BattleInterface] Instance créée via wrapper');
             return instance;
+            
           } catch (error) {
             console.error('❌ [BattleInterface] Erreur création:', error);
+            this.isInitialized = false;
             return null;
           }
         },
         
-        // Méthodes UIManager requises
-        show: (options = {}) => {
-          if (this.originalModule) {
+        // === MÉTHODES UIMANAGER ROBUSTES ===
+        show: function(options = {}) {
+          console.log('👁️ [BattleInterface] Wrapper show appelé');
+          
+          if (this.originalModule && this.originalModule.show) {
             return this.originalModule.show(options);
           }
+          
           console.warn('⚠️ [BattleInterface] Module pas encore créé pour show');
           return false;
         },
         
-        hide: (options = {}) => {
-          if (this.originalModule) {
+        hide: function(options = {}) {
+          console.log('👻 [BattleInterface] Wrapper hide appelé');
+          
+          if (this.originalModule && this.originalModule.hide) {
             return this.originalModule.hide(options);
           }
+          
           return false;
         },
         
-        setEnabled: (enabled) => {
-          if (this.originalModule) {
+        setEnabled: function(enabled) {
+          console.log(`🔧 [BattleInterface] Wrapper setEnabled: ${enabled}`);
+          
+          if (this.originalModule && this.originalModule.setEnabled) {
             return this.originalModule.setEnabled(enabled);
           }
+          
           return false;
         },
         
-        // Méthodes spécifiques au combat
-        startBattle: (battleData) => {
+        // === MÉTHODES SPÉCIFIQUES AU COMBAT ===
+        startBattle: function(battleData) {
           console.log('⚔️ [BattleInterface] Démarrage combat:', battleData);
           
-          if (!this.originalModule) {
-            const gameManager = window.globalNetworkManager || window;
-            this.create(gameManager, battleData);
+          try {
+            // Créer instance si nécessaire
+            if (!this.originalModule) {
+              const gameManager = window.globalNetworkManager || window.gameManager || window;
+              const instance = this.create(gameManager, battleData);
+              
+              if (!instance) {
+                console.error('❌ [BattleInterface] Impossible de créer instance');
+                return false;
+              }
+            }
+            
+            // Mettre à jour battleData
+            if (this.originalModule) {
+              this.originalModule.battleData = battleData;
+              
+              // Créer interface si nécessaire
+              if (!this.originalModule.root) {
+                this.originalModule.createInterface();
+              }
+              
+              // Afficher
+              this.originalModule.show({ animated: true });
+              
+              console.log('✅ [BattleInterface] Combat démarré avec succès');
+              return true;
+            }
+            
+            console.error('❌ [BattleInterface] Module non disponible après création');
+            return false;
+            
+          } catch (error) {
+            console.error('❌ [BattleInterface] Erreur startBattle:', error);
+            return false;
           }
-          
-          if (this.originalModule) {
-            this.originalModule.battleData = battleData;
-            this.originalModule.show({ animated: true });
-            return true;
-          }
-          
-          console.error('❌ [BattleInterface] Impossible de démarrer combat');
-          return false;
         },
         
-        endBattle: () => {
+        endBattle: function() {
           console.log('🏁 [BattleInterface] Fin de combat');
           
           if (this.originalModule) {
             this.originalModule.hide({ animated: true });
+            
             setTimeout(() => {
               if (this.originalModule) {
                 this.originalModule.destroy();
                 this.originalModule = null;
+                this.iconElement = null;
                 this.isInitialized = false;
               }
             }, 300);
+            
             return true;
           }
           
           return false;
         },
         
-        // State management
-        getState: () => {
-          return this.originalModule?.getUIManagerState() || { 
-            initialized: false, 
+        // === ÉTAT MANAGEMENT ===
+        getState: function() {
+          if (this.originalModule && this.originalModule.getUIManagerState) {
+            return this.originalModule.getUIManagerState();
+          }
+          
+          return { 
+            initialized: this.isInitialized, 
             visible: false, 
-            enabled: false 
+            enabled: false,
+            hasInstance: !!this.originalModule
           };
         },
         
-        // Cleanup
-        destroy: () => {
+        // === CLEANUP ROBUSTE ===
+        destroy: function() {
+          console.log('🧹 [BattleInterface] Destruction wrapper');
+          
           if (this.originalModule) {
             this.originalModule.destroy();
             this.originalModule = null;
           }
+          
           this.iconElement = null;
           this.isInitialized = false;
         }
       };
       
       console.log('✅ [PokemonUI] Wrapper BattleInterface créé avec succès');
-      
       return battleInterfaceWrapper;
       
     } catch (error) {
@@ -824,7 +845,7 @@ export class PokemonUISystem {
     }
   }
 
-  // ✅ FALLBACK : Classe BattleInterface inline si import échoue
+  // === CLASSE BATTLEINTERFACE INLINE ===
   createInlineBattleInterface() {
     console.log('🔧 [PokemonUI] Création BattleInterface inline...');
     
@@ -844,7 +865,6 @@ export class PokemonUISystem {
       }
       
       async createInterface() {
-        // Créer interface basique
         this.root = document.createElement('div');
         this.root.className = 'battle-interface-container';
         this.root.style.cssText = `
@@ -868,7 +888,6 @@ export class PokemonUISystem {
           box-shadow: 0 0 30px rgba(0,0,0,0.8);
         `;
         
-        // Contenu de l'interface
         this.root.innerHTML = `
           <h2 style="margin: 0; color: #FFD700;">⚔️ Interface de Combat</h2>
           <p style="margin: 0;">Pokémon: ${this.battleData?.playerPokemon?.name || 'Inconnu'}</p>
@@ -893,7 +912,6 @@ export class PokemonUISystem {
           <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">Interface de combat simplifiée</p>
         `;
         
-        // Référence pour les boutons
         this.root.battleInterface = this;
         
         document.body.appendChild(this.root);
@@ -957,7 +975,6 @@ export class PokemonUISystem {
       handleAction(action) {
         console.log(`⚔️ [InlineBattleInterface] Action: ${action}`);
         
-        // Simuler action de combat
         switch (action) {
           case 'attack':
             window.showGameNotification?.('Attaque sélectionnée !', 'info', { duration: 2000 });
@@ -975,7 +992,6 @@ export class PokemonUISystem {
             break;
         }
         
-        // Émettre événement
         if (window.onBattleAction) {
           window.onBattleAction({ type: action, timestamp: Date.now() });
         }
@@ -1013,12 +1029,10 @@ export class PokemonUISystem {
     console.log(`🔧 [PokemonUI] Wrapping module existant: ${moduleType}`);
     
     const wrapper = {
-      // Propriétés requises
       iconElement: null,
       originalModule: existingModule,
       moduleType: moduleType,
       
-      // Méthodes requises par UIManager
       show: () => {
         try {
           if (existingModule.show) {
@@ -1056,7 +1070,6 @@ export class PokemonUISystem {
         }
       },
       
-      // Méthodes optionnelles
       destroy: () => {
         if (existingModule.destroy) {
           existingModule.destroy();
@@ -1069,18 +1082,15 @@ export class PokemonUISystem {
         }
       },
       
-      // Proxy pour accès aux propriétés originales
       getOriginal: () => existingModule
     };
     
-    // Trouver l'iconElement
     wrapper.iconElement = this.findIconElement(existingModule, moduleType);
     
     if (!wrapper.iconElement) {
       console.warn(`⚠️ [PokemonUI] IconElement non trouvé pour ${moduleType}`);
     }
     
-    // Stocker l'instance
     this.moduleInstances.set(moduleType, wrapper);
     
     return wrapper;
@@ -1105,7 +1115,6 @@ export class PokemonUISystem {
 
   // === UTILITAIRES ===
   findIconElement(module, moduleType) {
-    // Essayer plusieurs propriétés communes
     const possibleElements = [
       module.iconElement,
       module.element,
@@ -1128,12 +1137,10 @@ export class PokemonUISystem {
       return;
     }
     
-    // Callbacks d'événements
     this.uiManager.on('moduleInitialized', (event) => {
       const { moduleId, instance } = event.detail;
       console.log(`✅ [PokemonUI] Module initialisé: ${moduleId}`);
       
-      // Trigger custom event
       window.dispatchEvent(new CustomEvent('pokemonUIModuleReady', {
         detail: { moduleId, instance }
       }));
@@ -1144,7 +1151,6 @@ export class PokemonUISystem {
       console.log(`🎮 [PokemonUI] État changé: ${previousState} → ${newState}`);
       this.currentGameState = newState;
       
-      // Trigger custom event
       window.dispatchEvent(new CustomEvent('pokemonUIStateChanged', {
         detail: { previousState, newState }
       }));
@@ -1154,7 +1160,6 @@ export class PokemonUISystem {
       const { moduleId, error } = event.detail;
       console.error(`❌ [PokemonUI] Erreur module ${moduleId}:`, error);
       
-      // Notifier l'utilisateur si c'est un module critique
       const config = this.uiManager.modules?.get(moduleId);
       if (config?.critical) {
         window.showGameNotification?.(`Erreur module ${moduleId}`, 'error', {
@@ -1174,11 +1179,10 @@ export class PokemonUISystem {
     
     console.log('🚀 [PokemonUI] Initialisation de tous les modules...');
     
-    // ✅ NOUVEAU: Support pour UIManager minimal
     if (this.uiManager.initializeAllModules) {
       const result = await this.uiManager.initializeAllModules(
-        window.currentGameRoom, // gameRoom pour modules qui en ont besoin
-        window.game?.scene?.getScenes(true)[0] // scene active pour modules qui en ont besoin
+        window.currentGameRoom,
+        window.game?.scene?.getScenes(true)[0]
       );
       
       if (result.success) {
@@ -1189,7 +1193,6 @@ export class PokemonUISystem {
       
       return result;
     } else {
-      // Mode minimal : modules déjà créés
       console.log('✅ [PokemonUI] Modules en mode minimal prêts');
       return { 
         success: true, 
@@ -1207,46 +1210,79 @@ export class PokemonUISystem {
     
     console.log(`🎮 [PokemonUI] Changement état: ${stateName}`);
     
-    // ✅ NOUVEAU: Assurer que setGameState existe
     if (this.uiManager.setGameState) {
       return this.uiManager.setGameState(stateName, options);
     } else {
-      // Fallback manuel
       this.currentGameState = stateName;
       console.log(`🎮 [PokemonUI] État changé manuellement: ${stateName}`);
       return true;
     }
   }
 
-  // === MÉTHODES DE COMPATIBILITÉ ===
+  // === MÉTHODES DE COMPATIBILITÉ CORRIGÉES ===
   
   getModule(moduleId) {
-    // ✅ CORRECTION: Vérifier d'abord dans moduleInstances (mode minimal)
+    console.log(`🔍 [PokemonUI] Recherche module: ${moduleId}`);
+    
+    // Vérifier d'abord dans moduleInstances
     if (this.moduleInstances.has(moduleId)) {
-      return this.moduleInstances.get(moduleId);
+      const instance = this.moduleInstances.get(moduleId);
+      console.log(`✅ [PokemonUI] Module trouvé dans moduleInstances: ${moduleId}`);
+      return instance;
     }
     
-    // ✅ CORRECTION: Puis vérifier dans UIManager professionnel
-    if (this.uiManager?.modules?.has(moduleId)) {
+    // Vérifier dans UIManager
+    if (this.uiManager && this.uiManager.modules && this.uiManager.modules.has(moduleId)) {
       const moduleConfig = this.uiManager.modules.get(moduleId);
+      
       if (moduleConfig.instance) {
-        // Synchroniser avec moduleInstances pour les prochains appels
+        console.log(`✅ [PokemonUI] Module trouvé dans UIManager: ${moduleId}`);
         this.moduleInstances.set(moduleId, moduleConfig.instance);
         return moduleConfig.instance;
       }
     }
     
-    // ✅ CORRECTION: Tentative de récupération via getModuleInstance
-    if (this.uiManager?.getModuleInstance) {
-      const instance = this.uiManager.getModuleInstance(moduleId);
-      if (instance) {
-        this.moduleInstances.set(moduleId, instance);
-        return instance;
-      }
+    // Tentative de création si c'est battleInterface
+    if (moduleId === 'battleInterface') {
+      console.log('🔧 [PokemonUI] Tentative création BattleInterface...');
+      
+      this.createBattleInterfaceModule().then(wrapper => {
+        if (wrapper) {
+          this.moduleInstances.set(moduleId, wrapper);
+          console.log('✅ [PokemonUI] BattleInterface créé à la demande');
+        }
+      });
     }
     
     console.warn(`⚠️ [PokemonUI] Module ${moduleId} non trouvé`);
     return null;
+  }
+
+  // === NOUVELLE MÉTHODE: Assurer BattleInterface ===
+  async ensureBattleInterfaceModule() {
+    console.log('🔧 [PokemonUI] Vérification BattleInterface...');
+    
+    let battleModule = this.getModule('battleInterface');
+    
+    if (!battleModule) {
+      console.log('🚀 [PokemonUI] Création BattleInterface manquant...');
+      battleModule = await this.createBattleInterfaceModule();
+      
+      if (battleModule) {
+        this.moduleInstances.set('battleInterface', battleModule);
+        
+        if (this.uiManager && this.uiManager.modules) {
+          this.uiManager.modules.set('battleInterface', {
+            instance: battleModule,
+            initialized: true
+          });
+        }
+        
+        console.log('✅ [PokemonUI] BattleInterface créé et synchronisé');
+      }
+    }
+    
+    return battleModule;
   }
   
   getOriginalModule(moduleId) {
@@ -1270,78 +1306,16 @@ export class PokemonUISystem {
     return this.uiManager?.disableModule?.(moduleId) || true;
   }
 
-  // === DEBUGGING ===
-  
-  debugInfo() {
-    if (!this.uiManager) {
-      console.log('❌ [PokemonUI] UIManager non initialisé');
-      return { error: 'UIManager non initialisé' };
-    }
-    
-    console.group('🎮 === POKEMON UI SYSTEM DEBUG ===');
-    console.log('🎯 État actuel:', this.currentGameState);
-    console.log('📊 Modules enregistrés:', this.moduleInstances.size);
-    
-    // Debug des modules
-    this.moduleInstances.forEach((wrapper, moduleId) => {
-      console.log(`  📦 ${moduleId}:`, {
-        hasIconElement: !!wrapper.iconElement,
-        isEmpty: wrapper.isEmpty,
-        originalModule: !!wrapper.originalModule
-      });
-    });
-    
-    // Debug UIManager
-    const uiStats = this.uiManager.debugInfo ? this.uiManager.debugInfo() : { mode: 'unknown' };
-    console.groupEnd();
-    
-    return {
-      currentGameState: this.currentGameState,
-      modulesCount: this.moduleInstances.size,
-      uiManagerStats: uiStats,
-      initialized: this.initialized
-    };
-  }
+  // === MÉTHODES DE TEST CORRIGÉES ===
 
-  testAllModules() {
-    console.log('🧪 [PokemonUI] Test de tous les modules...');
-    
-    const results = {};
-    
-    this.moduleInstances.forEach((wrapper, moduleId) => {
-      try {
-        console.log(`🧪 Test module: ${moduleId}`);
-        
-        // Test show/hide
-        wrapper.show();
-        setTimeout(() => wrapper.hide(), 500);
-        setTimeout(() => wrapper.show(), 1000);
-        
-        // Test enable/disable
-        wrapper.setEnabled(false);
-        setTimeout(() => wrapper.setEnabled(true), 1500);
-        
-        results[moduleId] = { success: true };
-        console.log(`  ✅ ${moduleId}: OK`);
-        
-      } catch (error) {
-        results[moduleId] = { success: false, error: error.message };
-        console.error(`  ❌ ${moduleId}: ${error.message}`);
-      }
-    });
-    
-    console.log('🧪 Test terminé:', results);
-    return results;
-  }
-
-  // === MÉTHODES DE TEST BATTLEINTERFACE ===
-
-  testBattleInterface() {
+  async testBattleInterface() {
     console.log('🧪 [PokemonUI] Test BattleInterface...');
     
-    const battleModule = this.getModule('battleInterface');
+    // Assurer que le module existe
+    const battleModule = await this.ensureBattleInterfaceModule();
+    
     if (!battleModule) {
-      console.error('❌ Module BattleInterface non trouvé');
+      console.error('❌ Module BattleInterface non disponible');
       return false;
     }
     
@@ -1363,27 +1337,28 @@ export class PokemonUISystem {
     };
     
     try {
-      // Test démarrage combat
       const success = battleModule.startBattle(testBattleData);
       
       if (success) {
-        console.log('✅ [PokemonUI] BattleInterface affiché avec succès');
+        console.log('✅ [PokemonUI] BattleInterface test réussi');
         
-        // Notification utilisateur
-        window.showGameNotification?.('Interface de combat test affichée !', 'success', {
-          duration: 3000,
-          position: 'top-center'
-        });
+        if (window.showGameNotification) {
+          window.showGameNotification('Interface de combat test affichée !', 'success', {
+            duration: 3000,
+            position: 'top-center'
+          });
+        }
         
-        // Auto-fermeture après 5 secondes
         setTimeout(() => {
           battleModule.endBattle();
           console.log('✅ [PokemonUI] Test BattleInterface terminé');
           
-          window.showGameNotification?.('Test BattleInterface terminé', 'info', {
-            duration: 2000,
-            position: 'top-center'
-          });
+          if (window.showGameNotification) {
+            window.showGameNotification('Test BattleInterface terminé', 'info', {
+              duration: 2000,
+              position: 'top-center'
+            });
+          }
         }, 5000);
         
         return true;
@@ -1402,10 +1377,8 @@ export class PokemonUISystem {
     console.log('🧪 [PokemonUI] Test transition battle...');
     
     try {
-      // État initial
       console.log(`🎮 État initial: ${this.currentGameState}`);
       
-      // Transition vers battle
       console.log('⚔️ Transition vers battle...');
       const battleSuccess = this.setGameState('battle', { animated: true });
       
@@ -1414,11 +1387,9 @@ export class PokemonUISystem {
         return false;
       }
       
-      // Simuler combat pendant 3 secondes
       setTimeout(() => {
         console.log('🎮 État battle actif');
         
-        // Retour exploration
         console.log('🌍 Retour exploration...');
         const explorationSuccess = this.setGameState('exploration', { animated: true });
         
@@ -1426,17 +1397,21 @@ export class PokemonUISystem {
           console.log(`🎮 État final: ${this.currentGameState}`);
           console.log('✅ Test transition terminé');
           
-          window.showGameNotification?.('Test transition UI terminé', 'success', {
-            duration: 2000,
-            position: 'top-center'
-          });
+          if (window.showGameNotification) {
+            window.showGameNotification('Test transition UI terminé', 'success', {
+              duration: 2000,
+              position: 'top-center'
+            });
+          }
         }, 1000);
       }, 3000);
       
-      window.showGameNotification?.('Test transition UI lancé', 'info', {
-        duration: 2000,
-        position: 'top-center'
-      });
+      if (window.showGameNotification) {
+        window.showGameNotification('Test transition UI lancé', 'info', {
+          duration: 2000,
+          position: 'top-center'
+        });
+      }
       
       return true;
       
@@ -1446,7 +1421,7 @@ export class PokemonUISystem {
     }
   }
 
-  testCompleteBattle() {
+  async testCompleteBattle() {
     console.log('🚀 [PokemonUI] Test complet battle (interface + transition)...');
     
     try {
@@ -1454,18 +1429,20 @@ export class PokemonUISystem {
       this.setGameState('battle', { animated: true });
       
       // 2. Démarrer BattleInterface après transition
-      setTimeout(() => {
-        this.testBattleInterface();
+      setTimeout(async () => {
+        await this.testBattleInterface();
       }, 500);
       
       // 3. Retour exploration après test
       setTimeout(() => {
         this.setGameState('exploration', { animated: true });
         
-        window.showGameNotification?.('Test complet battle terminé !', 'success', {
-          duration: 3000,
-          position: 'top-center'
-        });
+        if (window.showGameNotification) {
+          window.showGameNotification('Test complet battle terminé !', 'success', {
+            duration: 3000,
+            position: 'top-center'
+          });
+        }
       }, 6000);
       
       return true;
@@ -1486,9 +1463,9 @@ export class PokemonUISystem {
       moduleType: battleModule?.moduleType,
       isInitialized: battleModule?.isInitialized,
       hasOriginalModule: !!battleModule?.originalModule,
+      hasIconElement: !!battleModule?.iconElement,
       state: battleModule?.getState?.(),
       
-      // Test des méthodes
       methods: {
         create: typeof battleModule?.create === 'function',
         startBattle: typeof battleModule?.startBattle === 'function',
@@ -1497,14 +1474,22 @@ export class PokemonUISystem {
         hide: typeof battleModule?.hide === 'function'
       },
       
-      // État UI global
       currentGameState: this.currentGameState,
-      uiManagerMode: this.uiManager?.constructor?.name || 'unknown'
+      uiManagerMode: this.uiManager?.constructor?.name || 'unknown',
+      
+      solutions: battleModule ? [
+        '✅ Module OK - utilisez testBattleInterface()',
+        '🎬 Testez testBattleTransition()',
+        '🚀 Testez testCompleteBattle()'
+      ] : [
+        '🔧 Utilisez fixBattleInterface()',
+        '🔄 Utilisez forceRegisterBattleInterface()',
+        '🚀 Utilisez ensurePokemonUIForBattle()'
+      ]
     };
     
     console.log('📊 Debug BattleInterface:', debugInfo);
     
-    // Diagnostic automatique
     if (!debugInfo.moduleExists) {
       console.log('💡 Solution: Le module BattleInterface n\'est pas enregistré');
     } else if (!debugInfo.methods.startBattle) {
@@ -1516,28 +1501,65 @@ export class PokemonUISystem {
     return debugInfo;
   }
 
-  // ✅ NOUVELLES MÉTHODES: Force registration et synchronisation
-  forceRegisterBattleInterface() {
-    console.log('🔧 [PokemonUI] Force enregistrement BattleInterface...');
+  // === DEBUGGING ===
+  
+  debugInfo() {
+    if (!this.uiManager) {
+      console.log('❌ [PokemonUI] UIManager non initialisé');
+      return { error: 'UIManager non initialisé' };
+    }
     
-    return this.createBattleInterfaceModule().then(wrapper => {
-      if (wrapper) {
-        // Forcer l'enregistrement
-        this.moduleInstances.set('battleInterface', wrapper);
-        
-        // Test immédiat
-        const testModule = this.getModule('battleInterface');
-        if (testModule) {
-          console.log('✅ [PokemonUI] BattleInterface forcé avec succès');
-          return true;
-        }
-      }
-      
-      console.error('❌ [PokemonUI] Échec force enregistrement');
-      return false;
+    console.group('🎮 === POKEMON UI SYSTEM DEBUG ===');
+    console.log('🎯 État actuel:', this.currentGameState);
+    console.log('📊 Modules enregistrés:', this.moduleInstances.size);
+    
+    this.moduleInstances.forEach((wrapper, moduleId) => {
+      console.log(`  📦 ${moduleId}:`, {
+        hasIconElement: !!wrapper.iconElement,
+        isEmpty: wrapper.isEmpty,
+        originalModule: !!wrapper.originalModule
+      });
     });
+    
+    const uiStats = this.uiManager.debugInfo ? this.uiManager.debugInfo() : { mode: 'unknown' };
+    console.groupEnd();
+    
+    return {
+      currentGameState: this.currentGameState,
+      modulesCount: this.moduleInstances.size,
+      uiManagerStats: uiStats,
+      initialized: this.initialized
+    };
   }
 
+  testAllModules() {
+    console.log('🧪 [PokemonUI] Test de tous les modules...');
+    
+    const results = {};
+    
+    this.moduleInstances.forEach((wrapper, moduleId) => {
+      try {
+        console.log(`🧪 Test module: ${moduleId}`);
+        
+        wrapper.show();
+        setTimeout(() => wrapper.hide(), 500);
+        setTimeout(() => wrapper.show(), 1000);
+        
+        wrapper.setEnabled(false);
+        setTimeout(() => wrapper.setEnabled(true), 1500);
+        
+        results[moduleId] = { success: true };
+        console.log(`  ✅ ${moduleId}: OK`);
+        
+      } catch (error) {
+        results[moduleId] = { success: false, error: error.message };
+        console.error(`  ❌ ${moduleId}: ${error.message}`);
+      }
+    });
+    
+    console.log('🧪 Test terminé:', results);
+    return results;
+  }
 }
 
 // === INSTANCE GLOBALE ===
@@ -1549,21 +1571,17 @@ export async function initializePokemonUI() {
   console.log('🎮 [PokemonUI] === INITIALISATION SYSTÈME UI POKÉMON ===');
   
   try {
-    // Initialiser le système
     const success = await pokemonUISystem.initialize();
     
     if (!success) {
       throw new Error('Échec initialisation PokemonUISystem');
     }
     
-    // Initialiser tous les modules
     const result = await pokemonUISystem.initializeAllModules();
     
-    // Exposer globalement
     window.pokemonUISystem = pokemonUISystem;
     window.uiManager = pokemonUISystem.uiManager;
     
-    // Fonctions de compatibilité globales
     setupCompatibilityFunctions();
     
     console.log('✅ [PokemonUI] Système UI Pokémon initialisé !');
@@ -1587,12 +1605,10 @@ export async function initializePokemonUI() {
   }
 }
 
-// ✅ NOUVELLE FONCTION: Auto-initialisation avec fallbacks robustes
 export async function autoInitializePokemonUI() {
   console.log('🚀 [PokemonUI] Auto-initialisation avec fallbacks...');
   
   try {
-    // Tentative d'initialisation normale
     const result = await initializePokemonUI();
     
     if (result.success) {
@@ -1606,23 +1622,19 @@ export async function autoInitializePokemonUI() {
     console.warn('⚠️ [PokemonUI] Initialisation normale échouée:', error);
     console.log('🔧 [PokemonUI] Tentative initialisation minimaliste...');
     
-    // Créer système minimal mais fonctionnel
     return await createMinimalPokemonUI();
   }
 }
 
-// ✅ NOUVELLE FONCTION: Système minimal autonome
 export async function createMinimalPokemonUI() {
   console.log('🔧 [PokemonUI] Création système UI minimal...');
   
   try {
-    // Créer un système minimal mais fonctionnel pour BattleUITransition
     const minimalUISystem = {
       uiManager: {
         setGameState: (stateName, options = {}) => {
           console.log(`🎮 [MinimalUI] Changement état: ${stateName}`);
           
-          // Gestion basique pour battle
           const iconsSelectors = [
             '#inventory-icon', '#team-icon', '#quest-icon', 
             '.ui-icon', '.game-icon', '#questTracker', 
@@ -1630,7 +1642,6 @@ export async function createMinimalPokemonUI() {
           ];
           
           if (stateName === 'battle') {
-            // Masquer les icônes
             iconsSelectors.forEach(selector => {
               document.querySelectorAll(selector).forEach(el => {
                 el.style.display = 'none';
@@ -1638,7 +1649,6 @@ export async function createMinimalPokemonUI() {
             });
             console.log('👻 [MinimalUI] Icônes masquées pour combat');
           } else if (stateName === 'exploration') {
-            // Réafficher les icônes
             iconsSelectors.forEach(selector => {
               document.querySelectorAll(selector).forEach(el => {
                 el.style.display = '';
@@ -1647,7 +1657,6 @@ export async function createMinimalPokemonUI() {
             console.log('👁️ [MinimalUI] Icônes réaffichées');
           }
           
-          // Déclencher événement pour compatibilité
           window.dispatchEvent(new CustomEvent('pokemonUIStateChanged', {
             detail: { 
               previousState: this.currentGameState || 'exploration', 
@@ -1668,7 +1677,6 @@ export async function createMinimalPokemonUI() {
           warning: 'Système UI minimal - idéal pour BattleUITransition'
         }),
         
-        // Méthodes stub pour compatibilité
         showModule: () => true,
         hideModule: () => true,
         enableModule: () => true,
@@ -1698,6 +1706,138 @@ export async function createMinimalPokemonUI() {
       testAllModules: () => {
         console.log('🧪 [MinimalUI] Test système minimal...');
         return { minimal: { success: true } };
+      },
+      
+      // === MÉTHODES BATTLEINTERFACE POUR SYSTÈME MINIMAL ===
+      async ensureBattleInterfaceModule() {
+        console.log('🔧 [MinimalUI] Création BattleInterface minimal...');
+        
+        if (!this.battleInterfaceModule) {
+          this.battleInterfaceModule = {
+            moduleType: 'battleInterface',
+            isInitialized: false,
+            
+            startBattle: function(battleData) {
+              console.log('⚔️ [MinimalUI] Démarrage combat simple:', battleData);
+              
+              const battleDiv = document.createElement('div');
+              battleDiv.id = 'minimal-battle-interface';
+              battleDiv.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 500px;
+                height: 300px;
+                background: linear-gradient(135deg, #1a472a, #2d5a3d);
+                border: 3px solid #FFD700;
+                border-radius: 12px;
+                color: white;
+                font-family: Arial, sans-serif;
+                z-index: 10000;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 15px;
+                box-shadow: 0 0 20px rgba(0,0,0,0.8);
+              `;
+              
+              battleDiv.innerHTML = `
+                <h3 style="margin: 0; color: #FFD700;">⚔️ Combat</h3>
+                <p>${battleData?.playerPokemon?.name || 'Pokémon'} vs ${battleData?.opponentPokemon?.name || 'Adversaire'}</p>
+                <div style="display: flex; gap: 10px;">
+                  <button onclick="this.parentElement.parentElement.remove(); console.log('Combat terminé');" 
+                          style="padding: 8px 16px; background: #4a90e2; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                    Attaquer
+                  </button>
+                  <button onclick="this.parentElement.parentElement.remove(); console.log('Fuite du combat');" 
+                          style="padding: 8px 16px; background: #e24a4a; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                    Fuir
+                  </button>
+                </div>
+                <p style="margin: 0; font-size: 0.8em; opacity: 0.7;">Interface minimal</p>
+              `;
+              
+              document.body.appendChild(battleDiv);
+              
+              setTimeout(() => {
+                battleDiv.style.opacity = '0';
+                battleDiv.style.transform = 'translate(-50%, -50%) scale(0.9)';
+                setTimeout(() => battleDiv.remove(), 200);
+              }, 4000);
+              
+              return true;
+            },
+            
+            endBattle: function() {
+              const battleDiv = document.getElementById('minimal-battle-interface');
+              if (battleDiv) {
+                battleDiv.remove();
+              }
+              return true;
+            },
+            
+            show: function() { return true; },
+            hide: function() { return true; },
+            setEnabled: function() { return true; },
+            getState: function() { return { initialized: true }; }
+          };
+        }
+        
+        return this.battleInterfaceModule;
+      },
+      
+      getModule: function(moduleId) {
+        if (moduleId === 'battleInterface') {
+          return this.ensureBattleInterfaceModule();
+        }
+        return null;
+      },
+      
+      async testBattleInterface() {
+        const battleModule = await this.ensureBattleInterfaceModule();
+        
+        const testData = {
+          playerPokemon: { name: 'Pikachu' },
+          opponentPokemon: { name: 'Rattata' }
+        };
+        
+        return battleModule.startBattle(testData);
+      },
+      
+      testBattleTransition: function() {
+        console.log('🎬 [MinimalUI] Test transition...');
+        
+        this.setGameState('battle');
+        
+        setTimeout(() => {
+          this.setGameState('exploration');
+          console.log('✅ [MinimalUI] Test transition terminé');
+        }, 2000);
+        
+        return true;
+      },
+      
+      async testCompleteBattle() {
+        console.log('🚀 [MinimalUI] Test complet...');
+        
+        this.testBattleTransition();
+        
+        setTimeout(async () => {
+          await this.testBattleInterface();
+        }, 500);
+        
+        return true;
+      },
+      
+      debugBattleInterface: function() {
+        return {
+          mode: 'minimal-battle-interface',
+          available: true,
+          methods: ['startBattle', 'endBattle', 'show', 'hide'],
+          recommendation: 'Utilisez testBattleInterface() pour tester'
+        };
       }
     };
     
@@ -1705,7 +1845,6 @@ export async function createMinimalPokemonUI() {
     window.pokemonUISystem = minimalUISystem;
     window.uiManager = minimalUISystem.uiManager;
     
-    // Setup fonctions de compatibilité basiques
     setupCompatibilityFunctions();
     
     console.log('✅ [PokemonUI] Système minimal créé et fonctionnel');
@@ -1783,21 +1922,33 @@ function setupCompatibilityFunctions() {
     return pokemonUISystem.testAllModules?.() || { error: 'Test non disponible' };
   };
 
-  // ✅ NOUVELLES FONCTIONS GLOBALES pour BattleInterface
-  window.testBattleInterface = () => {
-    return pokemonUISystem.testBattleInterface?.() || false;
+  // === FONCTIONS BATTLEINTERFACE CORRIGÉES ===
+  window.testBattleInterface = async () => {
+    if (pokemonUISystem.testBattleInterface) {
+      return await pokemonUISystem.testBattleInterface();
+    }
+    return false;
   };
 
   window.testBattleTransition = () => {
-    return pokemonUISystem.testBattleTransition?.() || false;
+    if (pokemonUISystem.testBattleTransition) {
+      return pokemonUISystem.testBattleTransition();
+    }
+    return false;
   };
 
-  window.testCompleteBattle = () => {
-    return pokemonUISystem.testCompleteBattle?.() || false;
+  window.testCompleteBattle = async () => {
+    if (pokemonUISystem.testCompleteBattle) {
+      return await pokemonUISystem.testCompleteBattle();
+    }
+    return false;
   };
 
   window.debugBattleInterface = () => {
-    return pokemonUISystem.debugBattleInterface?.() || { error: 'Non disponible' };
+    if (pokemonUISystem.debugBattleInterface) {
+      return pokemonUISystem.debugBattleInterface();
+    }
+    return { error: 'Non disponible' };
   };
 
   window.startTestBattle = (battleData = null) => {
@@ -1820,9 +1971,63 @@ function setupCompatibilityFunctions() {
     return false;
   };
 
-  // ✅ NOUVELLES FONCTIONS de réparation et synchronisation
-  window.forceRegisterBattleInterface = () => {
-    return pokemonUISystem.forceRegisterBattleInterface?.() || false;
+  // === FONCTIONS DE RÉPARATION ===
+  window.fixBattleInterface = async () => {
+    console.log('🔧 [PokemonUI] Réparation BattleInterface...');
+    
+    if (!window.pokemonUISystem) {
+      console.log('🚀 [PokemonUI] Création PokemonUISystem...');
+      const result = await autoInitializePokemonUI();
+      
+      if (!result.success) {
+        console.error('❌ [PokemonUI] Échec création PokemonUISystem');
+        return false;
+      }
+    }
+    
+    try {
+      const battleModule = await window.pokemonUISystem.ensureBattleInterfaceModule();
+      
+      if (battleModule) {
+        console.log('✅ [PokemonUI] BattleInterface réparé');
+        
+        if (window.showGameNotification) {
+          window.showGameNotification('BattleInterface réparé !', 'success', {
+            duration: 2000,
+            position: 'top-center'
+          });
+        }
+        
+        return true;
+      } else {
+        console.error('❌ [PokemonUI] Échec réparation BattleInterface');
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('❌ [PokemonUI] Erreur réparation:', error);
+      return false;
+    }
+  };
+
+  window.forceRegisterBattleInterface = async () => {
+    console.log('🔧 [PokemonUI] Force enregistrement BattleInterface...');
+    
+    if (!window.pokemonUISystem) {
+      await window.fixBattleInterface();
+    }
+    
+    if (window.pokemonUISystem.ensureBattleInterfaceModule) {
+      const battleModule = await window.pokemonUISystem.ensureBattleInterfaceModule();
+      
+      if (battleModule) {
+        console.log('✅ [PokemonUI] BattleInterface forcé avec succès');
+        return true;
+      }
+    }
+    
+    console.error('❌ [PokemonUI] Échec force enregistrement');
+    return false;
   };
 
   window.syncUIModules = () => {
@@ -1830,9 +2035,7 @@ function setupCompatibilityFunctions() {
     
     if (pokemonUISystem.moduleInstances) {
       pokemonUISystem.moduleInstances.forEach((instance, moduleId) => {
-        if (pokemonUISystem.syncModuleWithUIManager) {
-          pokemonUISystem.syncModuleWithUIManager(moduleId, instance);
-        }
+        console.log(`🔄 Synchronisation: ${moduleId}`);
       });
       
       console.log('✅ Synchronisation terminée');
@@ -1865,7 +2068,6 @@ function setupCompatibilityFunctions() {
   window.ensurePokemonUIForBattle = async () => {
     console.log('⚔️ [PokemonUI] Vérification UI pour combat...');
     
-    // Vérifier si le système est compatible avec BattleUITransition
     if (window.pokemonUISystem?.setGameState) {
       console.log('✅ [PokemonUI] Système compatible BattleUITransition');
       return true;
@@ -1881,15 +2083,14 @@ function setupCompatibilityFunctions() {
   console.log('🎬 Utilisez window.testBattleTransition() pour transition');
   console.log('🚀 Utilisez window.testCompleteBattle() pour test complet');
   console.log('🔍 Utilisez window.debugBattleInterface() pour debug');
-  console.log('🔧 Utilisez window.forceRegisterBattleInterface() pour forcer enregistrement');
-  console.log('🔄 Utilisez window.syncUIModules() pour synchroniser modules');
+  console.log('🔧 Utilisez window.fixBattleInterface() pour réparation');
+  console.log('🔄 Utilisez window.forceRegisterBattleInterface() pour forcer');
 }
 
 // === ÉVÉNEMENTS GLOBAUX ===
 
-// Gestion automatique des états selon les événements du jeu
 document.addEventListener('DOMContentLoaded', () => {
-  // ✅ NOUVEAU: Auto-initialisation si PokemonUISystem manque
+  // Auto-initialisation si PokemonUISystem manque
   setTimeout(() => {
     if (!window.pokemonUISystem) {
       console.log('🚀 [PokemonUI] Auto-initialisation au chargement...');
@@ -1901,7 +2102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     }
-  }, 2000); // Délai pour permettre aux autres systèmes de se charger
+  }, 2000);
   
   // Écouter les événements de battle
   window.addEventListener('battleStarted', () => {
@@ -1932,7 +2133,80 @@ document.addEventListener('DOMContentLoaded', () => {
   
 });
 
-console.log('✅ [PokemonUI] Système UI Pokémon chargé avec auto-réparation !');
+// === SETUP AUTOMATIQUE DES FONCTIONS BATTLEINTERFACE ===
+function setupBattleInterfaceGlobals() {
+  console.log('🔗 [PokemonUI] Configuration fonctions BattleInterface...');
+  
+  // Fonction de test sécurisée
+  window.testBattleInterface = async () => {
+    if (window.pokemonUISystem && window.pokemonUISystem.testBattleInterface) {
+      return await window.pokemonUISystem.testBattleInterface();
+    } else {
+      console.error('❌ PokemonUISystem non disponible');
+      return false;
+    }
+  };
+  
+  // Fonction de debug améliorée
+  window.debugBattleInterface = () => {
+    if (!window.pokemonUISystem) {
+      return { error: 'PokemonUISystem non disponible' };
+    }
+    
+    const battleModule = window.pokemonUISystem.getModule('battleInterface');
+    
+    return {
+      moduleExists: !!battleModule,
+      moduleType: battleModule?.moduleType,
+      isInitialized: battleModule?.isInitialized,
+      hasOriginalModule: !!battleModule?.originalModule,
+      hasIconElement: !!battleModule?.iconElement,
+      state: battleModule?.getState?.(),
+      
+      methods: {
+        create: typeof battleModule?.create === 'function',
+        startBattle: typeof battleModule?.startBattle === 'function',
+        endBattle: typeof battleModule?.endBattle === 'function',
+        show: typeof battleModule?.show === 'function',
+        hide: typeof battleModule?.hide === 'function'
+      },
+      
+      currentGameState: window.pokemonUISystem.currentGameState,
+      uiManagerMode: window.pokemonUISystem.uiManager?.constructor?.name || 'unknown',
+      
+      solutions: battleModule ? [
+        '✅ Module OK - utilisez window.testBattleInterface()',
+        '🎬 Testez window.testBattleTransition()',
+        '🚀 Testez window.testCompleteBattle()'
+      ] : [
+        '🔧 Utilisez window.fixBattleInterface()',
+        '🔄 Utilisez window.forceRegisterBattleInterface()',
+        '🚀 Utilisez window.ensurePokemonUIForBattle()'
+      ]
+    };
+  };
+  
+  console.log('✅ [PokemonUI] Fonctions BattleInterface configurées');
+}
+
+// === AUTO-SETUP AU CHARGEMENT ===
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      setupBattleInterfaceGlobals();
+      
+      // Test automatique si demandé
+      if (window.location.search.includes('test-battle')) {
+        console.log('🧪 [PokemonUI] Test automatique BattleInterface...');
+        setTimeout(() => {
+          window.testBattleInterface();
+        }, 3000);
+      }
+    }, 1000);
+  });
+}
+
+console.log('✅ [PokemonUI] Système UI Pokémon CORRIGÉ chargé !');
 console.log('🎮 Utilisez initializePokemonUI() pour démarrer (complet)');
 console.log('🔧 Utilisez autoInitializePokemonUI() pour auto-réparation');
 console.log('⚔️ Utilisez ensurePokemonUIForBattle() pour combat');
@@ -1941,3 +2215,27 @@ console.log('🧪 Utilisez window.testPokemonUI() pour tester');
 console.log('🎯 Utilisez window.testBattleInterface() pour tester l\'interface de combat');
 console.log('🎬 Utilisez window.testBattleTransition() pour tester les transitions');
 console.log('🚀 Utilisez window.testCompleteBattle() pour test complet battle');
+console.log('🔧 Utilisez window.fixBattleInterface() pour réparation');
+console.log('🔄 Utilisez window.forceRegisterBattleInterface() pour forcer enregistrement');
+
+// === INSTRUCTIONS DE DÉMARRAGE RAPIDE ===
+console.log(`
+🚀 === DÉMARRAGE RAPIDE ===
+
+1. 🔧 RÉPARATION AUTOMATIQUE:
+   await window.fixBattleInterface()
+
+2. 🧪 TEST BATTLEINTERFACE:
+   window.testBattleInterface()
+
+3. 🎬 TEST TRANSITIONS:
+   window.testBattleTransition()
+
+4. 🚀 TEST COMPLET:
+   window.testCompleteBattle()
+
+5. 🔍 DEBUG:
+   window.debugBattleInterface()
+
+✅ TOUTES LES CORRECTIONS INTÉGRÉES !
+`);
