@@ -38,18 +38,23 @@ export class StarterHandlers {
 
   // ✅ Charger les positions des tables depuis les cartes Tiled
   private loadStarterTablePositions(): void {
-  console.log(`🗺️ [StarterHandlers] Chargement des positions de tables starter...`);
+  console.log(`🗺️ [StarterHandlers] Chargement des positions via cartes déjà chargées...`);
   
-  // Liste des zones qui peuvent avoir des tables starter
-  const zonesToCheck = ['villagelab', 'village', 'lavandia', 'lavandiaresearchlab'];
+  // Utiliser les mêmes chemins que le CollisionManager
+  const zonesToCheck = ['lavandiaresearchlab'];
   
   zonesToCheck.forEach(zoneName => {
     try {
-      // Créer le nom de fichier avec l'extension .tmj
+      // Utiliser EXACTEMENT la même logique que CollisionManager
       const fileName = `${zoneName}.tmj`;
       const resolvedPath = path.resolve(__dirname, "../../build/assets/maps", fileName);
       
-      console.log(`📂 [StarterHandlers] Tentative lecture: ${resolvedPath}`);
+      console.log(`📂 [StarterHandlers] Lecture: ${resolvedPath}`);
+      
+      if (!fs.existsSync(resolvedPath)) {
+        console.warn(`⚠️ [StarterHandlers] Fichier inexistant: ${resolvedPath}`);
+        return;
+      }
       
       const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
       const starterTable = this.findStarterTableInMap(mapData, zoneName);
@@ -62,13 +67,13 @@ export class StarterHandlers {
       }
       
     } catch (error) {
-      console.warn(`⚠️ [StarterHandlers] Impossible de charger ${zoneName}:`, error instanceof Error ? error.message : String(error));
-      console.log(`ℹ️ [StarterHandlers] Aucun fallback - vérifiez votre carte Tiled ${zoneName}`);
+      console.warn(`⚠️ [StarterHandlers] Erreur traitement ${zoneName}:`, error instanceof Error ? error.message : String(error));
     }
   });
   
   console.log(`📊 [StarterHandlers] Total zones avec tables: ${this.starterTablePositions.size}`);
 }
+  
   // ✅ Chercher la table starter dans une carte Tiled
   private findStarterTableInMap(mapData: any, zoneName: string): { centerX: number, centerY: number, radius: number } | null {
     console.log(`🔍 [StarterHandlers] Recherche table starter dans ${zoneName}...`);
