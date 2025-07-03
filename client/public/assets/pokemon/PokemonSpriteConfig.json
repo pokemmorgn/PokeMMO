@@ -1,0 +1,17 @@
+{
+  "default": {
+    "offsetX": 0,
+    "offsetY": 0,
+    "scale": 1.0,
+    "spriteWidth": 96,
+    "spriteHeight": 96,
+    "sheetCols": 8,
+    "sheetRows": 6
+  },
+  "1": { "offsetY": 8, "scale": 1.10 },         // Bulbizarre
+  "4": { "offsetY": 6, "scale": 1.05 },         // Salamèche
+  "7": { "offsetY": 4, "scale": 1.05 },         // Carapuce
+  "25": { "offsetY": 0, "scale": 1.12 },        // Pikachu
+  "143": { "offsetY": -24, "scale": 1.35 },     // Ronflex
+  "6": { "offsetY": -10, "scale": 1.34, "spriteWidth": 96, "spriteHeight": 96 } // Dracaufeu
+}
