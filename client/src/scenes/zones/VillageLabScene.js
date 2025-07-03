@@ -172,64 +172,124 @@ export class VillageLabScene extends BaseZoneScene {
   }
 
   // ✅ Charger les zones depuis la carte Tiled
-  loadStarterTableZones() {
-    console.log("📍 [StarterTable] Recherche des zones starter table...");
-    
-    this.starterTableZones = []; // Reset
-    
-    if (!this.map) {
-      console.error("❌ [StarterTable] Carte non chargée");
-      return;
-    }
-
-    // Chercher dans tous les layers
-    let foundZones = 0;
-    
-    this.map.layers.forEach((layer) => {
-      if (layer.type === 'objectgroup' && layer.objects) {
-        console.log(`🔍 [StarterTable] Vérification layer: ${layer.name} (${layer.objects.length} objets)`);
-        
-        layer.objects.forEach((obj, index) => {
-          console.log(`🔍 [StarterTable] Objet ${index}:`, {
-            name: obj.name,
-            type: obj.type,
-            properties: obj.properties,
-            x: obj.x,
-            y: obj.y
-          });
-          
-          // Vérifier si cet objet a la propriété "startertable"
-          if (this.hasStarterTableProperty(obj)) {
-            const zone = {
-              x: obj.x,
-              y: obj.y,
-              width: obj.width || 32,
-              height: obj.height || 32,
-              centerX: obj.x + (obj.width || 32) / 2,
-              centerY: obj.y + (obj.height || 32) / 2,
-              name: obj.name || 'StarterTable'
-            };
-            
-            this.starterTableZones.push(zone);
-            foundZones++;
-            
-            console.log(`✅ [StarterTable] Zone starter détectée:`, zone);
-            
-            // Créer un indicateur visuel (optionnel, pour debug)
-            this.createStarterTableIndicator(zone);
-          }
-        });
-      }
-    });
-    
-    console.log(`📊 [StarterTable] Total zones starter trouvées: ${foundZones}`);
-    
-if (foundZones === 0) {
-  console.warn("⚠️ [StarterTable] Aucune zone starter table trouvée!");
-  console.log("💡 [StarterTable] Assurez-vous que votre carte Tiled contient un objet avec la propriété 'startertable' = true");
-  console.log("📋 [StarterTable] Vérifiez le nom de vos layers et objets dans Tiled");
-}
+  // ✅ Charger les zones depuis la carte Tiled - VERSION AVEC TILES
+loadStarterTableZones() {
+  console.log("📍 [StarterTable] Recherche des zones starter table...");
+  
+  this.starterTableZones = []; // Reset
+  
+  if (!this.map) {
+    console.error("❌ [StarterTable] Carte non chargée");
+    return;
   }
+
+  // Chercher dans tous les layers
+  let foundZones = 0;
+  
+  this.map.layers.forEach((layer) => {
+    console.log(`🔍 [StarterTable] Vérification layer: ${layer.name} (type: ${layer.type})`);
+    
+    // ✅ OBJECTGROUP (comme avant)
+    if (layer.type === 'objectgroup' && layer.objects) {
+      console.log(`🔍 [StarterTable] ObjectGroup "${layer.name}": ${layer.objects.length} objets`);
+      
+      layer.objects.forEach((obj, index) => {
+        console.log(`🔍 [StarterTable] Objet ${index}:`, {
+          name: obj.name,
+          type: obj.type,
+          properties: obj.properties,
+          x: obj.x,
+          y: obj.y
+        });
+        
+        if (this.hasStarterTableProperty(obj)) {
+          const zone = {
+            x: obj.x,
+            y: obj.y,
+            width: obj.width || 32,
+            height: obj.height || 32,
+            centerX: obj.x + (obj.width || 32) / 2,
+            centerY: obj.y + (obj.height || 32) / 2,
+            name: obj.name || 'StarterTable'
+          };
+          
+          this.starterTableZones.push(zone);
+          foundZones++;
+          console.log(`✅ [StarterTable] Zone starter détectée (objectgroup):`, zone);
+          this.createStarterTableIndicator(zone);
+        }
+      });
+    }
+    
+    // ✅ NOUVEAU: TILELAYER pour chercher dans "Worlds"
+    else if (layer.type === 'tilelayer' && layer.name.toLowerCase().includes('worlds')) {
+      console.log(`🔍 [StarterTable] TileLayer "${layer.name}": recherche tiles avec propriétés`);
+      
+      // Parcourir les tiles de ce layer
+      if (layer.data && this.map.tilesets) {
+        for (let y = 0; y < layer.height; y++) {
+          for (let x = 0; x < layer.width; x++) {
+            const tileIndex = y * layer.width + x;
+            const gid = layer.data[tileIndex];
+            
+            if (gid > 0) {
+              // Trouver le tileset et la tile
+              const tileInfo = this.getTileInfo(gid);
+              
+              if (tileInfo && tileInfo.tile && tileInfo.tile.properties) {
+                // Vérifier si cette tile a la propriété startertable
+                if (this.hasStarterTableProperty(tileInfo.tile)) {
+                  const zone = {
+                    x: x * this.map.tilewidth,
+                    y: y * this.map.tileheight,
+                    width: this.map.tilewidth,
+                    height: this.map.tileheight,
+                    centerX: (x * this.map.tilewidth) + (this.map.tilewidth / 2),
+                    centerY: (y * this.map.tileheight) + (this.map.tileheight / 2),
+                    name: `StarterTable_Tile_${x}_${y}`
+                  };
+                  
+                  this.starterTableZones.push(zone);
+                  foundZones++;
+                  console.log(`✅ [StarterTable] Zone starter détectée (tilelayer):`, zone);
+                  this.createStarterTableIndicator(zone);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+  
+  console.log(`📊 [StarterTable] Total zones starter trouvées: ${foundZones}`);
+  
+  if (foundZones === 0) {
+    console.warn("⚠️ [StarterTable] Aucune zone starter table trouvée!");
+    console.log("💡 [StarterTable] Assurez-vous que votre carte Tiled contient un objet avec la propriété 'startertable' = true");
+    console.log("📋 [StarterTable] Vérifiez le nom de vos layers et objets dans Tiled");
+  }
+}
+
+// ✅ NOUVELLE MÉTHODE: Récupérer les infos d'une tile
+getTileInfo(gid) {
+  if (!this.map.tilesets) return null;
+  
+  for (const tileset of this.map.tilesets) {
+    if (gid >= tileset.firstgid && gid < tileset.firstgid + tileset.tilecount) {
+      const localId = gid - tileset.firstgid;
+      
+      if (tileset.tiles) {
+        const tile = tileset.tiles.find(t => t.id === localId);
+        if (tile) {
+          return { tileset, tile, localId };
+        }
+      }
+    }
+  }
+  
+  return null;
+}
 
   // ✅ Vérifier si un objet a la propriété startertable
   hasStarterTableProperty(obj) {
