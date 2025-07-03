@@ -42,18 +42,22 @@ export class BattleScene extends Phaser.Scene {
 
   // === INITIALISATION ===
 
-  init(data = {}) {
-    console.log('🔧 [BattleScene] Init avec data:', data);
-    
-    this.gameManager = data.gameManager || this.scene.get('GameScene')?.gameManager;
-    this.networkHandler = data.networkHandler || this.scene.get('GameScene')?.networkHandler;
-    
-    if (!this.gameManager || !this.networkHandler) {
-      console.warn('⚠️ [BattleScene] Managers partiellement manquants dans init');
-    }
-    
-    console.log('✅ [BattleScene] Init terminé');
+init(data = {}) {
+  this.gameManager = data.gameManager
+    || this.scene.get('GameScene')?.gameManager
+    || window.pokemonUISystem?.gameManager
+    || window.gameManager;
+
+  this.networkHandler = data.networkHandler
+    || this.scene.get('GameScene')?.networkHandler
+    || window.pokemonUISystem?.networkHandler
+    || window.networkHandler;
+
+  if (!this.gameManager || !this.networkHandler) {
+    console.warn('⚠️ [BattleScene] Managers partiellement manquants dans init');
   }
+}
+
 
   preload() {
     console.log('📁 [BattleScene] Préchargement sprites Pokémon 9x9...');
@@ -106,10 +110,10 @@ export class BattleScene extends Phaser.Scene {
   activateBattleUI() {
     console.log('🎮 [BattleScene] Activation UI battle via UIManager...');
     
-    if (window.pokemonUISystem && window.pokemonUISystem.globalState) {
+    if (window.pokemonUISystem && window.pokemonUISystem.setGameState) {
       try {
         this.previousUIState = {
-          gameState: window.pokemonUISystem.globalState.currentGameState || 'exploration',
+          gameState: window.pokemonUISystem.setGameState.currentGameState || 'exploration',
           timestamp: Date.now()
         };
         
@@ -936,9 +940,9 @@ export class BattleScene extends Phaser.Scene {
     
     // Debug état UI
     try {
-      if (window.pokemonUISystem && window.pokemonUISystem.globalState) {
+      if (window.pokemonUISystem && window.pokemonUISystem.setGameState) {
         console.log('🎮 État UI actuel:', {
-          gameState: window.pokemonUISystem.globalState.currentGameState || 'inconnu',
+          gameState: window.pokemonUISystem.setGameState.currentGameState || 'inconnu',
           questTrackerState: window.pokemonUISystem.getModuleState ? 
             window.pokemonUISystem.getModuleState('questTracker') : 'méthode non disponible'
         });
