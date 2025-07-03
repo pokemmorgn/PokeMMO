@@ -625,6 +625,63 @@ export class PokemonUISystem {
     return this.createEmptyWrapper('chat');
   }
 
+  // === NOUVELLE FACTORY: Module d'interface de combat ===
+  async createBattleInterfaceModule() {
+    console.log('⚔️ [PokemonUI] Création module BattleInterface...');
+    try {
+      const { BattleInterface } = await import('./components/BattleInterface.js');
+      let instance = null;
+
+      // Retourne un wrapper compatible UIManager
+      return {
+        moduleType: 'battleInterface',
+        originalModule: null,
+        iconElement: null,
+        isInitialized: false,
+
+        create: (gameManager, battleData) => {
+          if (instance) {
+            instance.battleData = battleData;
+            instance.show();
+            return instance;
+          }
+          instance = new BattleInterface(gameManager, battleData);
+          this.originalModule = instance;
+          this.iconElement = instance.root;
+          this.isInitialized = true;
+          return instance;
+        },
+
+        show: (options = {}) => { if (instance) instance.show(options); },
+        hide: (options = {}) => { if (instance) instance.hide(options); },
+        setEnabled: (enabled) => { if (instance) instance.setEnabled(enabled); },
+        startBattle: (battleData) => {
+          if (instance) {
+            instance.battleData = battleData;
+            instance.show({ animated: true });
+          }
+        },
+        endBattle: () => {
+          if (instance) {
+            instance.hide({ animated: true });
+            setTimeout(() => { instance.destroy(); instance = null; }, 350);
+          }
+        },
+        getState: () => instance?.getUIManagerState() || { initialized: false, visible: false, enabled: false },
+        destroy: () => { if (instance) { instance.destroy(); instance = null; } }
+      };
+    } catch (error) {
+      console.error('❌ [PokemonUI] Erreur création BattleInterface:', error);
+      return {
+        show: () => {},
+        hide: () => {},
+        setEnabled: () => {},
+        destroy: () => {},
+        getState: () => ({ initialized: false, visible: false, enabled: false })
+      };
+    }
+  }
+  
   // === WRAPPER POUR MODULES EXISTANTS ===
   wrapExistingModule(existingModule, moduleType) {
     console.log(`🔧 [PokemonUI] Wrapping module existant: ${moduleType}`);
