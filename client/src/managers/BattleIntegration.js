@@ -426,12 +426,13 @@ export class BattleIntegration {
             this.phaserGame.scene.bringToTop('BattleScene');
           } else {
             console.log('🚀 Démarrage de la BattleScene...');
-            this.phaserGame.scene.start('BattleScene', {
-              gameManager: this.gameManager,
-              networkHandler: this.battleConnection,
-              battleData: battleData,
-              selectedPokemon: this.selectedPokemon
-            });
+          this.phaserGame.scene.start('BattleScene', {
+            gameManager: this.gameManager,
+            networkHandler: this.battleConnection,
+            battleData: battleData,
+            selectedPokemon: this.selectedPokemon,
+            currentZone: (battleData && battleData.location) || this.currentZone || 'unknown'
+          });
           }
           
           if (this.gameManager?.pauseGame) {
