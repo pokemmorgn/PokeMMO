@@ -43,10 +43,10 @@ export class StarterHandlers {
     
     zonesToCheck.forEach(zoneName => {
       try {
-        const mapPath = join(__dirname, `../../build/assets/maps/${zoneName}.tmj`);
-        console.log(`📂 [StarterHandlers] Lecture carte: ${mapPath}`);
+  const fileName = mapPath.endsWith('.tmj') ? mapPath : mapPath.replace(/\.[^.]+$/, '') + '.tmj';
+  const resolvedPath = path.resolve(__dirname, "../../build/assets/maps", fileName);
         
-        const mapData = JSON.parse(readFileSync(mapPath, 'utf8'));
+  const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
         const starterTable = this.findStarterTableInMap(mapData, zoneName);
         
         if (starterTable) {
