@@ -685,7 +685,7 @@ export class UIManager {
   getModuleInstance(moduleId) { return this.modules.get(moduleId)?.instance || null; }
   getModuleState(moduleId) { return this.moduleStates.get(moduleId) || null; }
   isModuleInitialized(moduleId) { return this.getModuleState(moduleId)?.initialized || false; }
-  
+  getGlobalState() { return this.globalState; }
   _setModuleState(moduleId, newState) {
     if (!this.modules.has(moduleId)) {
       this.warn(`Module ${moduleId} non enregistré`);
