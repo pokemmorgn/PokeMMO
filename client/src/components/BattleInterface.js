@@ -1,10 +1,6 @@
 // client/src/components/BattleInterface.js
 import './../../../public/css/battle-interface.css';
 
-/**
- * BattleInterface
- * Module UIManager-compatible pour le menu de combat Pokémon.
- */
 export class BattleInterface {
   /**
    * @param {GameManager} gameManager - Référence au gestionnaire principal du jeu
@@ -15,24 +11,36 @@ export class BattleInterface {
     this.battleData = battleData;
     this.root = null;
 
-    // Navigation state
-    this.menuStack = ['main'];
-    this.selectedIndices = {
-      main: 0,
-      attacks: 0,
-      bag: 0,
-      pokemon: 0
-    };
-
-    this.buttonRefs = [];
-    this.isOpen = false;
-
-    // UIManager state
+    // === UIManager integration
+    this.moduleType = 'battleInterface';
+    this.iconElement = null; // Sera le root de l’UI
+    this.isUIManagerMode = true;
     this.uiManagerState = {
       visible: false,
       enabled: true,
       initialized: false
     };
+    this.responsiveConfig = {
+      mobile: {
+        scaleFactor: 0.8,
+        simplifiedLayout: true,
+        hiddenElements: ['.battle-breadcrumb']
+      },
+      tablet: {
+        scaleFactor: 0.9,
+        simplifiedLayout: false
+      },
+      desktop: {
+        scaleFactor: 1.0,
+        simplifiedLayout: false
+      }
+    };
+
+    // === State
+    this.menuStack = ['main'];
+    this.selectedIndices = { main: 0, attacks: 0, bag: 0, pokemon: 0 };
+    this.buttonRefs = [];
+    this.isOpen = false;
 
     // Binding event handlers
     this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -54,9 +62,12 @@ export class BattleInterface {
     setTimeout(() => { this.root.style.display = ''; }, 60);
 
     this.isOpen = true;
+    this.iconElement = this.root;
     this.uiManagerState.initialized = true;
+
     this.showMainMenu();
 
+    // Events
     window.addEventListener('keydown', this.handleKeyDown);
     this.root.addEventListener('pointerdown', e => e.stopPropagation());
     this.root.focus();
@@ -68,80 +79,20 @@ export class BattleInterface {
       this.root.parentNode.removeChild(this.root);
     }
     this.root = null;
+    this.iconElement = null;
     this.isOpen = false;
     this.uiManagerState.visible = false;
     this.uiManagerState.initialized = false;
   }
 
-  // =========== UIManager API ===========
-
-  /** Afficher l'interface (UIManager) */
-  show() {
-    if (!this.root) this.createInterface();
-    this.root.classList.remove('ui-hidden');
-    this.root.style.display = '';
-    this.isOpen = true;
-    this.uiManagerState.visible = true;
-    this.root.focus?.();
-  }
-
-  /** Cacher l'interface (UIManager) */
-  hide() {
-    if (this.root) {
-      this.root.classList.add('ui-hidden');
-      this.root.style.display = 'none';
-      this.isOpen = false;
-      this.uiManagerState.visible = false;
-    }
-  }
-
-  /** Activer/désactiver (UIManager) */
-  setEnabled(enabled) {
-    this.uiManagerState.enabled = enabled;
-    if (this.root) {
-      this.root.classList.toggle('ui-disabled', !enabled);
-      Array.from(this.root.querySelectorAll('button')).forEach(btn => {
-        btn.disabled = !enabled;
-      });
-    }
-  }
-
-  /** MAJ dynamique (optionnel pour UIManager) */
-  update(data) {
-    if (data?.type === 'state') {
-      if (data.visible !== undefined) data.visible ? this.show() : this.hide();
-      if (data.enabled !== undefined) this.setEnabled(data.enabled);
-    }
-    // Tu peux traiter d'autres updates ici...
-  }
-
-  /** Optionnel : retourne l'état UIManager */
-  getUIManagerState() {
-    return { ...this.uiManagerState, hasRoot: !!this.root, isOpen: this.isOpen };
-  }
-
-  // =========== BattleInterface logique existante ===========
-
+  /** Affiche le menu principal */
   showMainMenu() {
     this.menuStack = ['main'];
     this.render();
   }
-
-  showAttacksMenu() {
-    this.menuStack = ['main', 'attacks'];
-    this.render();
-  }
-
-  showBagMenu() {
-    this.menuStack = ['main', 'bag'];
-    this.render();
-  }
-
-  showPokemonMenu() {
-    this.menuStack = ['main', 'pokemon'];
-    this.render();
-  }
-
+  showAttacksMenu() { this.menuStack = ['main', 'attacks']; this.render(); }
+  showBagMenu()     { this.menuStack = ['main', 'bag'];    this.render(); }
+  showPokemonMenu() { this.menuStack = ['main', 'pokemon']; this.render(); }
   goBack() {
     if (this.menuStack.length > 1) {
       this.menuStack.pop();
@@ -153,22 +104,21 @@ export class BattleInterface {
     if (!this.root) return;
     this.root.innerHTML = '';
 
-    // Breadcrumb (état de navigation)
+    // Breadcrumb
     const bc = document.createElement('div');
     bc.className = 'battle-breadcrumb';
     bc.textContent = this.getBreadcrumbLabel();
     this.root.appendChild(bc);
 
-    // Menus selon l'état
-    const current = this.menuStack[this.menuStack.length - 1];
+    // Menus
+    const current = this.menuStack.at(-1);
     this.buttonRefs = [];
-
-    if (current === 'main') this.renderMainMenu();
+    if (current === 'main')     this.renderMainMenu();
     else if (current === 'attacks') this.renderAttacksMenu();
-    else if (current === 'bag') this.renderBagMenu();
+    else if (current === 'bag')     this.renderBagMenu();
     else if (current === 'pokemon') this.renderPokemonMenu();
 
-    // Affiche le bouton retour (sauf sur menu principal)
+    // Bouton retour (sauf menu principal)
     if (this.menuStack.length > 1) {
       const backBtn = document.createElement('button');
       backBtn.className = 'battle-menu-back';
@@ -182,28 +132,23 @@ export class BattleInterface {
   renderMainMenu() {
     const menu = document.createElement('div');
     menu.className = 'battle-menu-main';
-
     const actions = [
       { key: 'attack', label: 'Attaquer', enabled: true },
       { key: 'bag', label: 'Sac', enabled: !!this.battleData.canUseBag },
       { key: 'pokemon', label: 'Pokémon', enabled: true },
       { key: 'flee', label: 'Fuir', enabled: !!this.battleData.canFlee }
     ];
-
     actions.forEach((action, i) => {
       const btn = document.createElement('button');
       btn.className = 'battle-action-button';
       btn.textContent = action.label;
       if (!action.enabled) btn.disabled = true;
       btn.setAttribute('data-action', action.key);
-
       if (this.selectedIndices.main === i) btn.setAttribute('aria-selected', 'true');
       btn.onclick = () => this.handleAction(action.key);
-
       this.buttonRefs.push(btn);
       menu.appendChild(btn);
     });
-
     this.root.appendChild(menu);
     this.updateButtonSelection('main');
   }
@@ -222,7 +167,6 @@ export class BattleInterface {
       btn.className = 'battle-action-button';
       btn.setAttribute('data-action', 'attack');
       btn.setAttribute('data-index', i);
-
       if (move) {
         btn.innerHTML = `
           ${move.name}
@@ -239,7 +183,6 @@ export class BattleInterface {
       this.buttonRefs.push(btn);
       menu.appendChild(btn);
     }
-
     this.root.appendChild(menu);
     this.updateButtonSelection('attacks');
   }
@@ -247,8 +190,6 @@ export class BattleInterface {
   renderBagMenu() {
     const menu = document.createElement('div');
     menu.className = 'battle-menu-bag';
-
-    // À implémenter: Récupérer items du sac (exemple statique)
     const items = [
       { name: 'Potion', id: 'potion', enabled: true },
       { name: 'Poké Ball', id: 'pokeball', enabled: true }
@@ -263,7 +204,6 @@ export class BattleInterface {
       this.buttonRefs.push(btn);
       menu.appendChild(btn);
     });
-
     this.root.appendChild(menu);
     this.updateButtonSelection('bag');
   }
@@ -271,8 +211,6 @@ export class BattleInterface {
   renderPokemonMenu() {
     const menu = document.createElement('div');
     menu.className = 'battle-menu-pokemon';
-
-    // À implémenter: Récupérer équipe du joueur (exemple statique)
     const team = [
       { name: this.battleData.playerPokemon.name, current: true },
       { name: 'Salamèche', current: false }
@@ -287,56 +225,31 @@ export class BattleInterface {
       this.buttonRefs.push(btn);
       menu.appendChild(btn);
     });
-
     this.root.appendChild(menu);
     this.updateButtonSelection('pokemon');
   }
 
-  // ===========================
-  // === NAVIGATION CLAVIER ====
-  // ===========================
+  // === NAVIGATION CLAVIER ===
   handleKeyDown(e) {
     if (!this.isOpen) return;
-
-    const current = this.menuStack[this.menuStack.length - 1];
+    const current = this.menuStack.at(-1);
     let idx = this.selectedIndices[current] || 0;
     const maxIdx = this.buttonRefs.length - 1;
-
-    // Layout (pour attacks: 2x2)
     const isGrid = (current === 'attacks');
-    const gridCols = 2;
-    const gridRows = 2;
+    const gridCols = 2, gridRows = 2;
 
     let handled = true;
     switch (e.key) {
-      case 'ArrowRight':
-        if (isGrid) idx = (idx + 1) % 4;
-        else idx = Math.min(idx + 1, maxIdx);
-        break;
-      case 'ArrowLeft':
-        if (isGrid) idx = (idx + 3) % 4;
-        else idx = Math.max(idx - 1, 0);
-        break;
-      case 'ArrowUp':
-        if (isGrid) idx = (idx + 2) % 4;
-        else idx = Math.max(idx - 1, 0);
-        break;
-      case 'ArrowDown':
-        if (isGrid) idx = (idx + 2) % 4;
-        else idx = Math.min(idx + 1, maxIdx);
-        break;
-      case 'Enter':
-      case ' ':
+      case 'ArrowRight': if (isGrid) idx = (idx + 1) % 4; else idx = Math.min(idx + 1, maxIdx); break;
+      case 'ArrowLeft':  if (isGrid) idx = (idx + 3) % 4; else idx = Math.max(idx - 1, 0); break;
+      case 'ArrowUp':    if (isGrid) idx = (idx + 2) % 4; else idx = Math.max(idx - 1, 0); break;
+      case 'ArrowDown':  if (isGrid) idx = (idx + 2) % 4; else idx = Math.min(idx + 1, maxIdx); break;
+      case 'Enter': case ' ':
         if (this.buttonRefs[idx] && !this.buttonRefs[idx].disabled) this.buttonRefs[idx].click();
         break;
-      case 'Escape':
-        this.goBack();
-        break;
-      case 'Tab': // Navigation circulaire
-        idx = (idx + 1) % (maxIdx + 1);
-        break;
-      default:
-        handled = false;
+      case 'Escape': this.goBack(); break;
+      case 'Tab': idx = (idx + 1) % (maxIdx + 1); break;
+      default: handled = false;
     }
     if (handled) {
       this.selectedIndices[current] = idx;
@@ -358,32 +271,26 @@ export class BattleInterface {
     });
   }
 
-  // ===========================
-  // === GESTION DES ACTIONS ===
-  // ===========================
+  // === ACTIONS ===
   handleAction(actionType, actionData = {}) {
     switch (actionType) {
       case 'attack':
-        if (this.menuStack.at(-1) === 'main') {
-          this.showAttacksMenu();
-        } else if (this.menuStack.at(-1) === 'attacks') {
-          // Envoie l'action d'attaque sélectionnée
+        if (this.menuStack.at(-1) === 'main')      { this.showAttacksMenu(); }
+        else if (this.menuStack.at(-1) === 'attacks') {
           this.emitBattleAction({ type: 'attack', ...actionData });
           this.close();
         }
         break;
       case 'bag':
-        if (this.menuStack.at(-1) === 'main') {
-          this.showBagMenu();
-        } else {
+        if (this.menuStack.at(-1) === 'main')      { this.showBagMenu(); }
+        else {
           this.emitBattleAction({ type: 'bag', ...actionData });
           this.close();
         }
         break;
       case 'pokemon':
-        if (this.menuStack.at(-1) === 'main') {
-          this.showPokemonMenu();
-        } else {
+        if (this.menuStack.at(-1) === 'main')      { this.showPokemonMenu(); }
+        else {
           this.emitBattleAction({ type: 'pokemon', ...actionData });
           this.close();
         }
@@ -391,9 +298,6 @@ export class BattleInterface {
       case 'flee':
         this.emitBattleAction({ type: 'flee' });
         this.close();
-        break;
-      default:
-        // console.warn('[BattleInterface] Action inconnue:', actionType, actionData);
         break;
     }
   }
@@ -404,8 +308,7 @@ export class BattleInterface {
   }
 
   close() {
-    this.hide();
-    setTimeout(() => this.destroy(), 200); // Optionnel : délai pour animation de sortie
+    this.destroy();
   }
 
   /** Libellé du breadcrumb selon le menu */
@@ -414,43 +317,80 @@ export class BattleInterface {
     const last = this.menuStack.at(-1);
     switch (last) {
       case 'attacks': return "Sélectionne une attaque";
-      case 'bag': return "Sélectionne un objet";
+      case 'bag':     return "Sélectionne un objet";
       case 'pokemon': return "Change de Pokémon";
-      default: return '';
+      default:        return '';
     }
   }
 
-  // Optionnel, pour homogénéité UIManager (utilisé pour .iconElement dans d'autres modules)
-  get iconElement() { return this.root; }
-}
+  // ============ UIManager required methods ==============
 
-// === FONCTION DE TEST ===
-window.testBattleInterface = (battleData) => {
-  const gm = window.gameManager || {};
-  const data = battleData || {
-    playerPokemon: {
-      name: "Pikachu",
-      level: 25,
-      currentHp: 45,
-      maxHp: 60,
-      moves: [
-        { id: "thunder_shock", name: "Éclair", type: "electric", pp: 30, maxPp: 30 },
-        { id: "growl", name: "Rugissement", type: "normal", pp: 40, maxPp: 40 },
-        { id: "quick_attack", name: "Vive-Attaque", type: "normal", pp: 30, maxPp: 30 },
-        { id: "thunder_wave", name: "Cage Éclair", type: "electric", pp: 20, maxPp: 20 }
-      ]
-    },
-    opponentPokemon: {
-      name: "Rattata",
-      level: 3,
-      currentHp: 15,
-      maxHp: 15
-    },
-    canFlee: true,
-    canUseBag: true
-  };
-  const iface = new BattleInterface(gm, data);
-  iface.createInterface();
-  window._battleInterface = iface;
-  return iface;
-};
+  show(options = {}) {
+    if (!this.root) this.createInterface();
+    this.root.classList.remove('ui-hidden', 'ui-fade-out');
+    this.root.style.display = '';
+    this.isOpen = true;
+    this.uiManagerState.visible = true;
+    if (options.device) this.applyResponsiveConfig(options.device);
+    this.root.focus?.();
+  }
+
+  hide(options = {}) {
+    if (this.root) {
+      if (options.animated !== false) {
+        this.root.classList.add('ui-fade-out');
+        setTimeout(() => {
+          this.root.classList.add('ui-hidden');
+          this.root.style.display = 'none';
+        }, 200);
+      } else {
+        this.root.classList.add('ui-hidden');
+        this.root.style.display = 'none';
+      }
+      this.isOpen = false;
+      this.uiManagerState.visible = false;
+    }
+  }
+
+  setEnabled(enabled) {
+    this.uiManagerState.enabled = enabled;
+    if (this.root) {
+      this.root.classList.toggle('ui-disabled', !enabled);
+      Array.from(this.root.querySelectorAll('button')).forEach(btn => {
+        btn.disabled = !enabled;
+      });
+    }
+  }
+
+  applyResponsiveConfig(device) {
+    if (!this.root || !this.responsiveConfig[device]) return;
+    const config = this.responsiveConfig[device];
+    // Scaling
+    if (config.scaleFactor !== 1.0) {
+      this.root.style.transform = `scale(${config.scaleFactor})`;
+      this.root.style.transformOrigin = 'center center';
+    }
+    // Simplified layout
+    if (config.simplifiedLayout) {
+      this.root.classList.add('mobile-layout');
+    }
+    // Hide elements
+    if (config.hiddenElements) {
+      config.hiddenElements.forEach(selector => {
+        const elements = this.root.querySelectorAll(selector);
+        elements.forEach(el => el.style.display = 'none');
+      });
+    }
+  }
+
+  // API for UIManager state
+  getUIManagerState() {
+    return {
+      ...this.uiManagerState,
+      hasRoot: !!this.root,
+      isOpen: this.isOpen,
+      currentMenu: this.menuStack.at(-1),
+      selectedIndex: this.selectedIndices[this.menuStack.at(-1)] || 0
+    };
+  }
+}
