@@ -1,4 +1,4 @@
-// server/src/handlers/StarterHandlers.ts - Version complète avec auto-détection
+// server/src/handlers/StarterHandlers.ts - Version corrigée avec logs détaillés
 import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { OwnedPokemon } from "../models/OwnedPokemon";
@@ -13,7 +13,7 @@ export class StarterHandlers {
 
   constructor(room: WorldRoom) {
     this.room = room;
-    this.loadStarterTablePositions(); // ✅ AUTO-CHARGEMENT
+    this.loadStarterTablePositions();
   }
 
   // ✅ Configuration des logs
@@ -34,7 +34,7 @@ export class StarterHandlers {
     console.error(`❌ [StarterHandlers] ${message}`, ...args);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Charger les positions des tables depuis les cartes Tiled
+  // ✅ Charger les positions des tables depuis les cartes Tiled
   private loadStarterTablePositions(): void {
     console.log(`🗺️ [StarterHandlers] Chargement des positions de tables starter...`);
     
@@ -64,9 +64,9 @@ export class StarterHandlers {
           this.starterTablePositions.set(zoneName, {
             centerX: 210,
             centerY: 160,
-            radius: 80
+            radius: 100
           });
-          console.log(`🔄 [StarterHandlers] Fallback villagelab activé`);
+          console.log(`🔄 [StarterHandlers] Fallback villagelab activé avec radius généreux`);
         }
       }
     });
@@ -74,7 +74,7 @@ export class StarterHandlers {
     console.log(`📊 [StarterHandlers] Total zones avec tables: ${this.starterTablePositions.size}`);
   }
 
-  // ✅ NOUVELLE MÉTHODE: Chercher la table starter dans une carte Tiled
+  // ✅ Chercher la table starter dans une carte Tiled
   private findStarterTableInMap(mapData: any, zoneName: string): { centerX: number, centerY: number, radius: number } | null {
     console.log(`🔍 [StarterHandlers] Recherche table starter dans ${zoneName}...`);
     
@@ -92,7 +92,7 @@ export class StarterHandlers {
           if (this.isStarterTableObject(obj)) {
             const centerX = obj.x + (obj.width || 32) / 2;
             const centerY = obj.y + (obj.height || 32) / 2;
-            const radius = Math.max(obj.width || 32, obj.height || 32) + 40; // Rayon généreux
+            const radius = Math.max(obj.width || 32, obj.height || 32) + 60; // Rayon plus généreux
             
             console.log(`🎯 [StarterHandlers] Table starter trouvée dans ${zoneName}:`, {
               objectName: obj.name,
@@ -113,7 +113,7 @@ export class StarterHandlers {
     return null;
   }
 
-  // ✅ NOUVELLE MÉTHODE: Vérifier si un objet est une table starter
+  // ✅ Vérifier si un objet est une table starter
   private isStarterTableObject(obj: any): boolean {
     // Vérifier les propriétés custom de Tiled
     if (obj.properties) {
@@ -158,48 +158,70 @@ export class StarterHandlers {
     return false;
   }
 
-  // ✅ Configuration des handlers
+  // ✅ Configuration des handlers AVEC LOGS DÉTAILLÉS
   setupHandlers(): void {
     this.log(`📨 Configuration des handlers de starter...`);
 
     // Handler principal pour la sélection de starter
     this.room.onMessage("giveStarterChoice", async (client, data) => {
-      console.log("[StarterHandlers] Reçu giveStarterChoice", data, "de", client.sessionId);
+      console.log("📥 [StarterHandlers] === MESSAGE REÇU: giveStarterChoice ===");
+      console.log("👤 Client:", client.sessionId);
+      console.log("📊 Data:", data);
       await this.handleStarterChoice(client, data);
     });
 
-    // Handler pour vérifier l'éligibilité
+    // ✅ Handler pour vérifier l'éligibilité AVEC LOGS DÉTAILLÉS
     this.room.onMessage("checkStarterEligibility", async (client) => {
+      console.log("📥 [StarterHandlers] === MESSAGE REÇU: checkStarterEligibility ===");
+      console.log("👤 Client:", client.sessionId);
+      console.log("⏰ Timestamp:", new Date().toISOString());
+      
+      const player = this.room.state.players.get(client.sessionId);
+      if (player) {
+        console.log("🎯 Joueur trouvé:", player.name);
+        console.log("📍 Position:", `(${player.x}, ${player.y})`);
+        console.log("🌍 Zone:", player.currentZone);
+      } else {
+        console.log("❌ Joueur non trouvé dans le state");
+      }
+      
       await this.handleCheckEligibility(client);
     });
 
     // Handler pour forcer un starter (admin/debug)
     this.room.onMessage("forceGiveStarter", async (client, data) => {
+      console.log("📥 [StarterHandlers] === MESSAGE REÇU: forceGiveStarter ===");
+      console.log("👤 Client:", client.sessionId);
+      console.log("📊 Data:", data);
       await this.handleForceStarter(client, data);
     });
 
-    // ✅ NOUVEAUX HANDLERS POUR DEBUG AUTO-DÉTECTION
+    // ✅ NOUVEAUX HANDLERS POUR DEBUG
     this.room.onMessage("debugStarterTables", (client) => {
       console.log(`🔍 [StarterHandlers] Debug tables demandé par ${client.sessionId}`);
       this.debugStarterTablePositions();
       
       client.send("starterTablesDebug", {
         message: "Debug affiché dans la console serveur",
-        tablesCount: this.starterTablePositions.size
+        tablesCount: this.starterTablePositions.size,
+        tables: Array.from(this.starterTablePositions.entries())
       });
     });
 
     this.room.onMessage("testStarterProximity", (client) => {
+      console.log(`🧪 [StarterHandlers] Test proximité demandé par ${client.sessionId}`);
+      
       const player = this.room.state.players.get(client.sessionId);
       if (player) {
-        const result = this.testPlayerProximity(player.name);
+        const result = this.isPlayerNearStarterTable(player);
         
         client.send("starterProximityResult", {
           near: result,
           playerName: player.name,
           position: { x: player.x, y: player.y },
           zone: player.currentZone,
-          tablePosition: this.starterTablePositions.get(player.currentZone) || null
+          tablePosition: this.starterTablePositions.get(player.currentZone) || null,
+          allTables: Array.from(this.starterTablePositions.entries())
         });
       } else {
         client.send("starterProximityResult", {
@@ -209,34 +231,7 @@ export class StarterHandlers {
       }
     });
 
-    this.room.onMessage("reloadStarterTables", (client) => {
-      console.log(`🔄 [StarterHandlers] Rechargement tables demandé par ${client.sessionId}`);
-      this.reloadStarterTablePositions();
-      
-      client.send("starterTablesReloaded", {
-        message: "Tables starter rechargées depuis les cartes Tiled",
-        tablesCount: this.starterTablePositions.size
-      });
-    });
-
-    this.room.onMessage("setStarterTablePosition", (client, data: {
-      zone: string;
-      centerX: number;
-      centerY: number;
-      radius?: number;
-    }) => {
-      console.log(`🔧 [StarterHandlers] Position manuelle reçue de ${client.sessionId}:`, data);
-      
-      this.addStarterTablePosition(data.zone, data.centerX, data.centerY, data.radius || 80);
-      
-      client.send("starterTablePositionSet", {
-        success: true,
-        zone: data.zone,
-        position: { centerX: data.centerX, centerY: data.centerY, radius: data.radius || 80 }
-      });
-    });
-
-    this.log(`✅ Handlers de starter configurés (y compris debug auto-détection)`);
+    console.log(`✅ [StarterHandlers] Handlers configurés (${this.starterTablePositions.size} tables chargées)`);
   }
 
   // ================================================================================================
@@ -247,6 +242,7 @@ export class StarterHandlers {
     try {
       const player = this.room.state.players.get(client.sessionId);
       if (!player) {
+        console.log("❌ [StarterHandlers] Joueur non trouvé:", client.sessionId);
         client.send("starterReceived", {
           success: false,
           message: "Joueur non trouvé"
@@ -256,13 +252,14 @@ export class StarterHandlers {
 
       this.log(`🔍 Demande starter de ${player.name}: Pokémon #${data.pokemonId}`);
 
-      // 🔒 VALIDATION COMPLÈTE AVEC AUTO-DÉTECTION
+      // 🔒 VALIDATION COMPLÈTE
       const validation = await this.validateStarterRequest(player, data.pokemonId);
       if (!validation.valid) {
         this.log(`❌ Validation échouée pour ${player.name}: ${validation.reason}`);
         client.send("starterReceived", {
           success: false,
-          message: validation.message
+          message: validation.message,
+          reason: validation.reason
         });
         return;
       }
@@ -277,7 +274,7 @@ export class StarterHandlers {
       this.log(`🎁 Création starter ${data.pokemonId} pour ${player.name}`);
 
       try {
-        // Créer le starter avec ton service existant
+        // Créer le starter avec le service existant
         const starter = await giveStarterToPlayer(player.name, data.pokemonId as 1 | 4 | 7);
         
         this.log(`✅ Starter créé et ajouté à l'équipe de ${player.name}`, {
@@ -332,7 +329,7 @@ export class StarterHandlers {
   }
 
   // ================================================================================================
-  // VALIDATION SÉCURISÉE AVEC AUTO-DÉTECTION
+  // VALIDATION SÉCURISÉE AVEC LOGS DÉTAILLÉS
   // ================================================================================================
 
   private async validateStarterRequest(player: any, pokemonId: number): Promise<{
@@ -340,76 +337,100 @@ export class StarterHandlers {
     reason?: string;
     message: string;
   }> {
+    console.log(`🔍 [StarterHandlers] === VALIDATION STARTER REQUEST ===`);
+    console.log(`👤 Joueur: ${player.name}`);
+    console.log(`📍 Position: (${player.x}, ${player.y})`);
+    console.log(`🌍 Zone: ${player.currentZone}`);
+    console.log(`🎯 Pokémon demandé: #${pokemonId}`);
+
     // 🔒 SÉCURITÉ 1: Vérifier la zone
     if (player.currentZone !== "villagelab") {
+      console.log(`❌ [Validation] Zone incorrecte: ${player.currentZone} (requis: villagelab)`);
       return {
         valid: false,
         reason: "wrong_zone",
         message: "Vous devez être dans le laboratoire du professeur !"
       };
     }
+    console.log(`✅ [Validation] Zone OK: ${player.currentZone}`);
 
-    // 🔒 SÉCURITÉ 2: Vérifier la proximité avec AUTO-DÉTECTION
-    if (!this.isPlayerNearStarterTable(player)) {
+    // 🔒 SÉCURITÉ 2: Vérifier la proximité
+    const proximityResult = this.isPlayerNearStarterTable(player);
+    if (!proximityResult) {
       const tablePosition = this.starterTablePositions.get(player.currentZone);
       const debugInfo = tablePosition 
-        ? `Table détectée à (${tablePosition.centerX}, ${tablePosition.centerY}) dans un rayon de ${tablePosition.radius}px` 
-        : 'Aucune table configurée pour cette zone';
+        ? `Table à (${tablePosition.centerX}, ${tablePosition.centerY}) rayon=${tablePosition.radius}px` 
+        : 'Aucune table configurée';
         
+      console.log(`❌ [Validation] Proximité échouée: ${debugInfo}`);
       return {
         valid: false,
         reason: "not_near_starter_table",
-        message: `Approchez-vous de la table du professeur ! ${debugInfo}`
+        message: `Approchez-vous de la table du professeur ! (${debugInfo})`
       };
     }
+    console.log(`✅ [Validation] Proximité OK`);
 
     // 🔒 SÉCURITÉ 3: Vérifier qu'il n'a pas déjà de Pokémon
     const existingCount = await OwnedPokemon.countDocuments({ owner: player.name });
+    console.log(`🔍 [Validation] Pokémon existants: ${existingCount}`);
+    
     if (existingCount > 0) {
+      console.log(`❌ [Validation] Joueur a déjà ${existingCount} Pokémon`);
       return {
         valid: false,
         reason: "already_has_pokemon",
         message: "Vous avez déjà un Pokémon ! Un seul starter par dresseur."
       };
     }
+    console.log(`✅ [Validation] Pas de Pokémon existant`);
 
     // 🔒 SÉCURITÉ 4: Valider l'ID du starter
     if (![1, 4, 7].includes(pokemonId)) {
+      console.log(`❌ [Validation] ID starter invalide: ${pokemonId}`);
       return {
         valid: false,
         reason: "invalid_starter",
         message: "Starter invalide ! Choisissez parmi les Pokémon proposés."
       };
     }
+    console.log(`✅ [Validation] ID starter valide: ${pokemonId}`);
 
-    // 🔒 SÉCURITÉ 5: Vérifier que le joueur n'est pas déjà en train de faire quelque chose
+    // 🔒 SÉCURITÉ 5: Vérifier que le joueur n'est pas déjà occupé
     if (this.room.isPlayerMovementBlocked(player.id)) {
+      console.log(`❌ [Validation] Joueur déjà occupé`);
       return {
         valid: false,
         reason: "player_busy",
         message: "Vous êtes déjà en train de faire quelque chose. Attendez un moment."
       };
     }
+    console.log(`✅ [Validation] Joueur disponible`);
 
+    console.log(`🎉 [Validation] TOUTES LES VALIDATIONS RÉUSSIES !`);
     return {
       valid: true,
       message: "Validation réussie"
     };
   }
 
-  // ✅ MÉTHODE MISE À JOUR: Vérifier la proximité avec auto-détection
+  // ✅ Vérifier la proximité avec logs détaillés
   private isPlayerNearStarterTable(player: any): boolean {
-    console.log(`🔍 [StarterHandlers] Vérification proximité pour ${player.name}`);
-    console.log(`📍 [StarterHandlers] Position: (${player.x}, ${player.y}) dans ${player.currentZone}`);
+    console.log(`🔍 [StarterHandlers] === VÉRIFICATION PROXIMITÉ ===`);
+    console.log(`👤 Joueur: ${player.name}`);
+    console.log(`📍 Position: (${player.x}, ${player.y})`);
+    console.log(`🌍 Zone: ${player.currentZone}`);
     
     // Récupérer la position de la table pour cette zone
     const tablePosition = this.starterTablePositions.get(player.currentZone);
     
     if (!tablePosition) {
-      console.warn(`⚠️ [StarterHandlers] Aucune table starter configurée pour la zone: ${player.currentZone}`);
-      console.log(`📋 [StarterHandlers] Zones disponibles:`, Array.from(this.starterTablePositions.keys()));
+      console.log(`❌ [Proximité] Aucune table starter configurée pour: ${player.currentZone}`);
+      console.log(`📋 [Proximité] Zones disponibles:`, Array.from(this.starterTablePositions.keys()));
       return false;
     }
+    
+    console.log(`🏢 [Proximité] Table trouvée:`, tablePosition);
     
     const distance = Math.sqrt(
       Math.pow(player.x - tablePosition.centerX, 2) + 
@@ -418,33 +439,38 @@ export class StarterHandlers {
     
     const isNear = distance <= tablePosition.radius;
     
-    console.log(`🎯 [StarterHandlers] Table ${player.currentZone}: centre(${tablePosition.centerX}, ${tablePosition.centerY}) rayon=${tablePosition.radius}`);
-    console.log(`📏 [StarterHandlers] Distance calculée: ${Math.round(distance)}px`);
-    console.log(`✅ [StarterHandlers] Résultat proximité: ${isNear ? 'PROCHE' : 'TROP LOIN'}`);
+    console.log(`📏 [Proximité] Distance calculée: ${Math.round(distance)}px`);
+    console.log(`🎯 [Proximité] Seuil autorisé: ${tablePosition.radius}px`);
+    console.log(`✅ [Proximité] Résultat: ${isNear ? 'PROCHE' : 'TROP LOIN'}`);
     
     return isNear;
   }
 
   // ================================================================================================
-  // HANDLER VÉRIFICATION D'ÉLIGIBILITÉ
+  // HANDLER VÉRIFICATION D'ÉLIGIBILITÉ AVEC LOGS DÉTAILLÉS
   // ================================================================================================
 
   private async handleCheckEligibility(client: Client): Promise<void> {
     try {
+      console.log(`🔍 [StarterHandlers] === VÉRIFICATION ÉLIGIBILITÉ ===`);
+      
       const player = this.room.state.players.get(client.sessionId);
       if (!player) {
+        console.log(`❌ [Éligibilité] Joueur non trouvé: ${client.sessionId}`);
         client.send("starterEligibility", {
           eligible: false,
-          reason: "Joueur non trouvé"
+          reason: "player_not_found",
+          message: "Joueur non trouvé"
         });
         return;
       }
 
-      this.log(`🔍 Vérification éligibilité starter pour ${player.name}`);
+      console.log(`🎯 [Éligibilité] Vérification pour: ${player.name}`);
 
       // Vérifier l'éligibilité sans créer de Pokémon
       const validation = await this.validateStarterRequest(player, 1); // Test avec Bulbasaur
 
+      const tablePosition = this.starterTablePositions.get(player.currentZone);
       const response = {
         eligible: validation.valid,
         reason: validation.reason,
@@ -453,23 +479,38 @@ export class StarterHandlers {
         requiredZone: "villagelab",
         playerPosition: { x: player.x, y: player.y },
         nearStarterTable: this.isPlayerNearStarterTable(player),
-        tablePosition: this.starterTablePositions.get(player.currentZone) || null,
+        tablePosition: tablePosition || null,
         debugInfo: {
           timestamp: Date.now(),
           sessionId: client.sessionId,
-          tablesConfigured: this.starterTablePositions.size
+          tablesConfigured: this.starterTablePositions.size,
+          allTables: Array.from(this.starterTablePositions.entries())
         }
       };
 
+      console.log(`📤 [Éligibilité] Envoi réponse:`, {
+        eligible: response.eligible,
+        reason: response.reason,
+        message: response.message,
+        playerPos: response.playerPosition,
+        tablePos: response.tablePosition
+      });
+
       client.send("starterEligibility", response);
-      this.log(`📊 Éligibilité ${player.name}: ${validation.valid ? 'ÉLIGIBLE' : 'NON ÉLIGIBLE'} (${validation.reason || 'OK'})`);
+      
+      console.log(`📊 [Éligibilité] Résultat pour ${player.name}: ${validation.valid ? 'ÉLIGIBLE' : 'NON ÉLIGIBLE'}`);
+      if (!validation.valid) {
+        console.log(`📋 [Éligibilité] Raison: ${validation.reason}`);
+        console.log(`💬 [Éligibilité] Message: ${validation.message}`);
+      }
 
     } catch (error) {
       this.logError(`Erreur vérification éligibilité pour ${client.sessionId}:`, error);
       client.send("starterEligibility", {
         eligible: false,
         reason: "server_error",
-        message: "Erreur serveur"
+        message: "Erreur serveur",
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   }
@@ -484,8 +525,11 @@ export class StarterHandlers {
     adminKey?: string;
   }): Promise<void> {
     try {
-      // Vérification basique d'admin (tu peux améliorer ça)
+      console.log(`🔧 [StarterHandlers] === FORCE STARTER (ADMIN) ===`);
+      
+      // Vérification basique d'admin
       if (data.adminKey !== "dev_mode_2024") {
+        console.log(`❌ [Force] Clé admin incorrecte de ${client.sessionId}`);
         client.send("forceStarterResult", {
           success: false,
           message: "Accès refusé"
@@ -495,6 +539,7 @@ export class StarterHandlers {
 
       const targetName = data.targetPlayer || this.room.state.players.get(client.sessionId)?.name;
       if (!targetName) {
+        console.log(`❌ [Force] Joueur cible non trouvé`);
         client.send("forceStarterResult", {
           success: false,
           message: "Joueur cible non trouvé"
@@ -502,14 +547,21 @@ export class StarterHandlers {
         return;
       }
 
-      this.log(`🔧 [ADMIN] Force starter ${data.pokemonId} pour ${targetName}`);
+      console.log(`🔧 [Force] Création forcée starter ${data.pokemonId} pour ${targetName}`);
 
       // Supprimer les Pokémon existants pour les tests
-      await OwnedPokemon.deleteMany({ owner: targetName });
-      this.log(`🗑️ [ADMIN] Pokémon existants supprimés pour ${targetName}`);
+      const deletedCount = await OwnedPokemon.deleteMany({ owner: targetName });
+      console.log(`🗑️ [Force] ${deletedCount.deletedCount} Pokémon supprimés pour ${targetName}`);
 
       // Créer le starter forcé
       const starter = await giveStarterToPlayer(targetName, data.pokemonId as 1 | 4 | 7);
+
+      console.log(`✅ [Force] Starter créé:`, {
+        id: starter._id,
+        pokemonId: starter.pokemonId,
+        name: this.getPokemonName(starter.pokemonId),
+        level: starter.level
+      });
 
       client.send("forceStarterResult", {
         success: true,
@@ -519,7 +571,8 @@ export class StarterHandlers {
           name: this.getPokemonName(starter.pokemonId),
           level: starter.level
         },
-        message: `Starter forcé créé pour ${targetName}`
+        message: `Starter forcé créé pour ${targetName}`,
+        deletedPrevious: deletedCount.deletedCount
       });
 
       // Log d'audit admin
@@ -529,16 +582,16 @@ export class StarterHandlers {
       this.logError(`Erreur force starter:`, error);
       client.send("forceStarterResult", {
         success: false,
-        message: "Erreur lors de la création forcée"
+        message: "Erreur lors de la création forcée",
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   }
 
   // ================================================================================================
-  // MÉTHODES DEBUG AUTO-DÉTECTION
+  // MÉTHODES DEBUG
   // ================================================================================================
 
-  // ✅ NOUVELLE MÉTHODE: Debug des positions détectées
   public debugStarterTablePositions(): void {
     console.log(`🔍 === DEBUG POSITIONS TABLES STARTER ===`);
     console.log(`📊 Nombre de zones configurées: ${this.starterTablePositions.size}`);
@@ -555,36 +608,15 @@ export class StarterHandlers {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Recharger les positions (pour les tests)
   public reloadStarterTablePositions(): void {
     console.log(`🔄 [StarterHandlers] Rechargement des positions...`);
     this.starterTablePositions.clear();
     this.loadStarterTablePositions();
   }
 
-  // ✅ NOUVELLE MÉTHODE: Ajouter manuellement une position (pour les tests)
   public addStarterTablePosition(zoneName: string, centerX: number, centerY: number, radius: number = 80): void {
     this.starterTablePositions.set(zoneName, { centerX, centerY, radius });
     console.log(`🎯 [StarterHandlers] Position manuelle ajoutée pour ${zoneName}: (${centerX}, ${centerY}) r=${radius}`);
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Test de proximité pour un joueur spécifique
-  public testPlayerProximity(playerName: string): boolean {
-    console.log(`🧪 [StarterHandlers] Test proximité pour ${playerName}...`);
-    
-    // Trouver le joueur
-    const player = Array.from(this.room.state.players.values())
-      .find(p => p.name === playerName);
-    
-    if (!player) {
-      console.error(`❌ [StarterHandlers] Joueur ${playerName} non trouvé`);
-      return false;
-    }
-    
-    const result = this.isPlayerNearStarterTable(player);
-    console.log(`🎯 [StarterHandlers] Test proximité ${playerName}: ${result ? 'SUCCÈS' : 'ÉCHEC'}`);
-    
-    return result;
   }
 
   // ================================================================================================
@@ -604,16 +636,10 @@ export class StarterHandlers {
   // MÉTHODES PUBLIQUES
   // ================================================================================================
 
-  /**
-   * Active/désactive les logs depuis l'extérieur
-   */
   public toggleLogs(enabled: boolean): void {
     this.setLogging(enabled);
   }
 
-  /**
-   * Obtenir les statistiques des starters
-   */
   public async getStats(): Promise<any> {
     try {
       const totalStarters = await OwnedPokemon.countDocuments({
@@ -639,9 +665,6 @@ export class StarterHandlers {
     }
   }
 
-  /**
-   * Nettoyer tous les starters (admin/dev)
-   */
   public async cleanupAllStarters(): Promise<number> {
     try {
       const result = await OwnedPokemon.deleteMany({
@@ -657,24 +680,15 @@ export class StarterHandlers {
     }
   }
 
-  /**
-   * Obtenir les positions configurées (pour debug)
-   */
   public getConfiguredPositions(): Map<string, { centerX: number, centerY: number, radius: number }> {
     return new Map(this.starterTablePositions);
   }
 
-  /**
-   * Forcer une position (pour les tests en live)
-   */
   public forceTablePosition(zoneName: string, centerX: number, centerY: number, radius: number = 80): void {
     this.addStarterTablePosition(zoneName, centerX, centerY, radius);
     console.log(`🔧 [StarterHandlers] Position forcée pour ${zoneName}: (${centerX}, ${centerY}) r=${radius}`);
   }
 
-  /**
-   * Nettoyage à la destruction
-   */
   public cleanup(): void {
     this.log(`🧹 Nettoyage des handlers de starter`);
     this.starterTablePositions.clear();
