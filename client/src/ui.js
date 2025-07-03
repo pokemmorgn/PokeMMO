@@ -1695,6 +1695,49 @@ function setupCompatibilityFunctions() {
   window.debugPokemonUI = () => {
     return pokemonUISystem.debugInfo?.() || { error: 'Debug non disponible' };
   };
+
+   // ✅ NOUVELLES FONCTIONS GLOBALES pour BattleInterface
+  window.testBattleInterface = () => {
+    return pokemonUISystem.testBattleInterface?.() || false;
+  };
+
+  window.testBattleTransition = () => {
+    return pokemonUISystem.testBattleTransition?.() || false;
+  };
+
+  window.testCompleteBattle = () => {
+    return pokemonUISystem.testCompleteBattle?.() || false;
+  };
+
+  window.debugBattleInterface = () => {
+    return pokemonUISystem.debugBattleInterface?.() || { error: 'Non disponible' };
+  };
+
+  window.startTestBattle = (battleData = null) => {
+    const module = pokemonUISystem.getModule?.('battleInterface');
+    if (module && module.startBattle) {
+      const testData = battleData || {
+        playerPokemon: { name: 'Pikachu', level: 20, moves: [] },
+        opponentPokemon: { name: 'Rattata', level: 15 }
+      };
+      return module.startBattle(testData);
+    }
+    return false;
+  };
+
+  window.endTestBattle = () => {
+    const module = pokemonUISystem.getModule?.('battleInterface');
+    if (module && module.endBattle) {
+      return module.endBattle();
+    }
+    return false;
+  };
+
+  console.log('✅ [PokemonUI] Fonctions de test BattleInterface configurées');
+  console.log('🧪 Utilisez window.testBattleInterface() pour tester');
+  console.log('🎬 Utilisez window.testBattleTransition() pour transition');
+  console.log('🚀 Utilisez window.testCompleteBattle() pour test complet');
+  console.log('🔍 Utilisez window.debugBattleInterface() pour debug');
   
   window.testPokemonUI = () => {
     return pokemonUISystem.testAllModules?.() || { error: 'Test non disponible' };
