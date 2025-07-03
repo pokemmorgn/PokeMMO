@@ -651,13 +651,306 @@ export class UIManager {
     return true;
   }
 
-  hideModule(moduleId, options = {}) {
-    if (!this._setModuleState(moduleId, { visible: false })) return false;
-    if (options.animated !== false && !this.globalState.performanceMode) {
-      this.animationManager.animateHide(moduleId);
-    }
-    return true;
+hideModule(moduleId, options = {}) {
+  console.log(`🫥 [UIManager] Masquage module: ${moduleId}`);
+  
+  const {
+    forceRemoval = false,     // Suppression du DOM si true
+    useImportant = true,      // Utiliser !important sur les styles
+    storeForRestore = true    // Stocker pour restauration
+  } = options;
+
+  // ✅ CAS SPÉCIAL: QuestTracker (module récalcitrant)
+  if (moduleId === 'questTracker' || moduleId === 'quest-tracker') {
+    return this.hideQuestTrackerRobust(forceRemoval, storeForRestore);
   }
+
+  // ✅ CAS STANDARD: Autres modules
+  const module = this.getModule(moduleId);
+  if (!module) {
+    console.warn(`⚠️ [UIManager] Module ${moduleId} non trouvé`);
+    return false;
+  }
+
+  // Masquage standard
+  if (module.iconElement) {
+    if (useImportant) {
+      module.iconElement.style.setProperty('display', 'none', 'important');
+      module.iconElement.style.setProperty('visibility', 'hidden', 'important');
+    } else {
+      module.iconElement.style.display = 'none';
+    }
+    
+    if (storeForRestore) {
+      module.iconElement.setAttribute('data-ui-hidden-by', 'uimanager');
+    }
+  }
+
+  console.log(`✅ [UIManager] Module ${moduleId} masqué`);
+  return true;
+}
+
+// ✅ MÉTHODE SPÉCIALISÉE POUR QUESTTRACKER
+hideQuestTrackerRobust(forceRemoval = false, storeForRestore = true) {
+  console.log(`🎯 [UIManager] Masquage robuste QuestTracker (removal: ${forceRemoval})`);
+  
+  const questTrackerSelectors = [
+    '#questTracker',
+    '#quest-tracker', 
+    '.quest-tracker',
+    '.questTracker',
+    '[data-module="questTracker"]',
+    '[data-module="quest-tracker"]'
+  ];
+
+  let elementsFound = 0;
+  const hiddenElements = [];
+
+  questTrackerSelectors.forEach(selector => {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach(el => {
+      elementsFound++;
+      
+      if (forceRemoval) {
+        // ✅ MÉTHODE BRUTALE: Suppression temporaire du DOM
+        if (storeForRestore) {
+          // Stocker pour restauration
+          el.setAttribute('data-ui-hidden-by', 'uimanager-removal');
+          el.setAttribute('data-original-parent', el.parentNode?.tagName || 'unknown');
+          el.setAttribute('data-original-display', getComputedStyle(el).display);
+          
+          // Stocker dans le module ou globalement
+          if (!window._uiManagerHiddenElements) {
+            window._uiManagerHiddenElements = [];
+          }
+          window._uiManagerHiddenElements.push({
+            element: el,
+            originalParent: el.parentNode,
+            nextSibling: el.nextSibling,
+            moduleId: 'questTracker'
+          });
+        }
+        
+        el.remove();
+        console.log(`🗑️ [UIManager] QuestTracker supprimé du DOM:`, el);
+      } else {
+        // ✅ MÉTHODE TRIPLE PROTECTION: Styles multiples
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('opacity', '0', 'important');
+        el.style.setProperty('position', 'absolute', 'important');
+        el.style.setProperty('top', '-9999px', 'important');
+        el.style.setProperty('left', '-9999px', 'important');
+        el.style.setProperty('z-index', '-9999', 'important');
+        
+        if (storeForRestore) {
+          el.setAttribute('data-ui-hidden-by', 'uimanager-styles');
+          el.setAttribute('data-original-display', getComputedStyle(el).display);
+        }
+        
+        console.log(`👻 [UIManager] QuestTracker masqué par styles:`, el);
+      }
+      
+      hiddenElements.push(el);
+    });
+  });
+
+  if (elementsFound === 0) {
+    console.warn(`⚠️ [UIManager] Aucun QuestTracker trouvé à masquer`);
+    return false;
+  }
+
+  console.log(`✅ [UIManager] ${elementsFound} QuestTracker(s) masqué(s) avec succès`);
+  return true;
+}
+
+// ✅ MÉTHODE DE RESTAURATION AMÉLIORÉE
+showModule(moduleId, options = {}) {
+  console.log(`👁️ [UIManager] Affichage module: ${moduleId}`);
+  
+  const {
+    restoreFromDOM = true,    // Restaurer depuis stockage DOM si supprimé
+    removeImportant = true    // Supprimer les !important
+  } = options;
+
+  // ✅ CAS SPÉCIAL: QuestTracker
+  if (moduleId === 'questTracker' || moduleId === 'quest-tracker') {
+    return this.showQuestTrackerRobust(restoreFromDOM, removeImportant);
+  }
+
+  // ✅ CAS STANDARD: Autres modules
+  const module = this.getModule(moduleId);
+  if (!module) {
+    console.warn(`⚠️ [UIManager] Module ${moduleId} non trouvé`);
+    return false;
+  }
+
+  if (module.iconElement) {
+    if (removeImportant) {
+      module.iconElement.style.removeProperty('display');
+      module.iconElement.style.removeProperty('visibility');
+      module.iconElement.style.removeProperty('opacity');
+    } else {
+      module.iconElement.style.display = '';
+    }
+    
+    module.iconElement.removeAttribute('data-ui-hidden-by');
+  }
+
+  console.log(`✅ [UIManager] Module ${moduleId} affiché`);
+  return true;
+}
+
+// ✅ RESTAURATION SPÉCIALISÉE QUESTTRACKER
+showQuestTrackerRobust(restoreFromDOM = true, removeImportant = true) {
+  console.log(`🎯 [UIManager] Restauration robuste QuestTracker (fromDOM: ${restoreFromDOM})`);
+  
+  let restoredCount = 0;
+
+  // ✅ ÉTAPE 1: Restaurer depuis le stockage DOM si supprimé
+  if (restoreFromDOM && window._uiManagerHiddenElements) {
+    const questTrackerElements = window._uiManagerHiddenElements.filter(item => 
+      item.moduleId === 'questTracker'
+    );
+    
+    questTrackerElements.forEach(item => {
+      if (item.originalParent && item.element) {
+        try {
+          // Restaurer à la position originale
+          if (item.nextSibling && item.nextSibling.parentNode === item.originalParent) {
+            item.originalParent.insertBefore(item.element, item.nextSibling);
+          } else {
+            item.originalParent.appendChild(item.element);
+          }
+          
+          item.element.removeAttribute('data-ui-hidden-by');
+          item.element.removeAttribute('data-original-parent');
+          item.element.removeAttribute('data-original-display');
+          
+          restoredCount++;
+          console.log(`🔄 [UIManager] QuestTracker restauré dans DOM:`, item.element);
+        } catch (error) {
+          console.error(`❌ [UIManager] Erreur restauration DOM:`, error);
+        }
+      }
+    });
+    
+    // Nettoyer le stockage
+    window._uiManagerHiddenElements = window._uiManagerHiddenElements.filter(item => 
+      item.moduleId !== 'questTracker'
+    );
+  }
+
+  // ✅ ÉTAPE 2: Restaurer les éléments masqués par styles
+  const questTrackerSelectors = [
+    '#questTracker',
+    '#quest-tracker', 
+    '.quest-tracker',
+    '.questTracker'
+  ];
+
+  questTrackerSelectors.forEach(selector => {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach(el => {
+      if (el.getAttribute('data-ui-hidden-by') === 'uimanager-styles') {
+        if (removeImportant) {
+          // Supprimer tous les styles appliqués
+          el.style.removeProperty('display');
+          el.style.removeProperty('visibility');
+          el.style.removeProperty('opacity');
+          el.style.removeProperty('position');
+          el.style.removeProperty('top');
+          el.style.removeProperty('left');
+          el.style.removeProperty('z-index');
+        } else {
+          // Restauration simple
+          el.style.display = el.getAttribute('data-original-display') || '';
+        }
+        
+        el.removeAttribute('data-ui-hidden-by');
+        el.removeAttribute('data-original-display');
+        
+        restoredCount++;
+        console.log(`👁️ [UIManager] QuestTracker restauré depuis styles:`, el);
+      }
+    });
+  });
+
+  if (restoredCount === 0) {
+    console.warn(`⚠️ [UIManager] Aucun QuestTracker à restaurer`);
+    return false;
+  }
+
+  console.log(`✅ [UIManager] ${restoredCount} QuestTracker(s) restauré(s)`);
+  return true;
+}
+
+// ✅ MÉTHODE UTILITAIRE: Vérifier l'état d'un module
+getModuleState(moduleId) {
+  if (moduleId === 'questTracker') {
+    const elements = document.querySelectorAll('#questTracker, #quest-tracker, .quest-tracker');
+    if (elements.length === 0) {
+      return { visible: false, state: 'removed_from_dom' };
+    }
+    
+    const visibleElements = Array.from(elements).filter(el => {
+      const style = getComputedStyle(el);
+      return style.display !== 'none' && 
+             style.visibility !== 'hidden' && 
+             style.opacity !== '0' &&
+             parseInt(style.top) > -1000;
+    });
+    
+    return {
+      visible: visibleElements.length > 0,
+      state: visibleElements.length > 0 ? 'visible' : 'hidden',
+      totalElements: elements.length,
+      visibleElements: visibleElements.length,
+      hiddenBy: elements[0]?.getAttribute('data-ui-hidden-by') || 'unknown'
+    };
+  }
+
+  // État standard pour autres modules
+  const module = this.getModule(moduleId);
+  if (!module || !module.iconElement) {
+    return { visible: false, state: 'not_found' };
+  }
+
+  const style = getComputedStyle(module.iconElement);
+  return {
+    visible: style.display !== 'none',
+    state: style.display !== 'none' ? 'visible' : 'hidden',
+    element: module.iconElement
+  };
+}
+
+// ✅ MÉTHODE DE TEST COMPLET
+testQuestTrackerHiding() {
+  console.log('🧪 [UIManager] === TEST QUESTTRACKER HIDING ===');
+  
+  // État initial
+  console.log('📊 État initial:', this.getModuleState('questTracker'));
+  
+  // Test masquage styles
+  console.log('🫥 Test masquage par styles...');
+  this.hideModule('questTracker', { forceRemoval: false });
+  console.log('📊 Après masquage styles:', this.getModuleState('questTracker'));
+  
+  // Attendre un peu puis tester masquage DOM
+  setTimeout(() => {
+    console.log('🗑️ Test masquage par suppression DOM...');
+    this.hideModule('questTracker', { forceRemoval: true });
+    console.log('📊 Après suppression DOM:', this.getModuleState('questTracker'));
+    
+    // Test restauration
+    setTimeout(() => {
+      console.log('🔄 Test restauration...');
+      this.showModule('questTracker');
+      console.log('📊 Après restauration:', this.getModuleState('questTracker'));
+    }, 1000);
+  }, 1000);
+}
+
 
   enableModule(moduleId) {
     if (!this._setModuleState(moduleId, { enabled: true })) return false;
@@ -1700,3 +1993,24 @@ class UIAnimationManager {
     this.animationQueue = [];
   }
 }
+
+// ✅ EXPOSER DANS WINDOW POUR TESTS
+window.testUIManagerQuestTracker = function() {
+  if (window.pokemonUISystem && window.pokemonUISystem.testQuestTrackerHiding) {
+    window.pokemonUISystem.testQuestTrackerHiding();
+  } else {
+    console.error('❌ testQuestTrackerHiding non disponible dans pokemonUISystem');
+  }
+};
+
+console.log('✅ === MÉTHODES UIMANAGER RENFORCÉES ===');
+console.log('🫥 hideModule(moduleId, options) - Masquage robuste');
+console.log('👁️ showModule(moduleId, options) - Restauration intelligente');
+console.log('📊 getModuleState(moduleId) - État détaillé du module');
+console.log('🧪 testQuestTrackerHiding() - Test complet QuestTracker');
+console.log('');
+console.log('🎯 USAGE:');
+console.log('  window.pokemonUISystem.hideModule("questTracker", { forceRemoval: true })');
+console.log('  window.pokemonUISystem.showModule("questTracker")');
+console.log('  window.pokemonUISystem.getModuleState("questTracker")');
+console.log('  window.testUIManagerQuestTracker()');
