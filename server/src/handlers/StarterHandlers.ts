@@ -8,6 +8,30 @@ import { join, resolve } from 'path';
 import * as fs from 'fs';
 import * as path from 'path'
 
+// ✅ INTERFACE pour typer les données de carte Tiled
+interface TiledMapData {
+  layers: TiledLayer[];
+  [key: string]: any;
+}
+
+interface TiledLayer {
+  type: string;
+  name: string;
+  objects?: TiledObject[];
+  [key: string]: any;
+}
+
+interface TiledObject {
+  name?: string;
+  type?: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  properties?: any;
+  [key: string]: any;
+}
+
 export class StarterHandlers {
   private room: WorldRoom;
   private enableLogs: boolean = true;
@@ -93,7 +117,7 @@ export class StarterHandlers {
   }
   
   // ✅ Chercher la table starter dans une carte Tiled - ADAPTÉ LOGIQUE CLIENT
-  private findStarterTableInMap(mapData: any, zoneName: string): { centerX: number, centerY: number, radius: number } | null {
+  private findStarterTableInMap(mapData: TiledMapData, zoneName: string): { centerX: number, centerY: number, radius: number } | null {
     console.log(`🔍 [StarterHandlers] Recherche table starter dans ${zoneName}...`);
     
     if (!mapData.layers) {
@@ -102,7 +126,7 @@ export class StarterHandlers {
     }
     
     // ✅ ADAPTATION: Chercher spécifiquement le layer "Worlds" comme côté client
-    const worldsLayer = mapData.layers.find(layer => 
+    const worldsLayer = mapData.layers.find((layer: TiledLayer) => 
       layer.type === 'objectgroup' && layer.name === 'Worlds'
     );
     
@@ -154,7 +178,7 @@ export class StarterHandlers {
   }
 
   // ✅ NOUVEAU: Méthode fallback pour chercher dans tous les layers
-  private findStarterTableInAllLayers(mapData: any, zoneName: string): { centerX: number, centerY: number, radius: number } | null {
+  private findStarterTableInAllLayers(mapData: TiledMapData, zoneName: string): { centerX: number, centerY: number, radius: number } | null {
     console.log(`🔍 [StarterHandlers] Fallback: recherche dans tous les layers de ${zoneName}...`);
     
     // Parcourir tous les layers d'objets
@@ -188,7 +212,7 @@ export class StarterHandlers {
   }
 
   // ✅ Vérifier si un objet est une table starter
-  private isStarterTableObject(obj: any): boolean {
+  private isStarterTableObject(obj: TiledObject): boolean {
     // Vérifier les propriétés custom de Tiled
     if (obj.properties) {
       // Format tableau (Tiled récent)
