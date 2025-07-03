@@ -420,136 +420,157 @@ export class PokemonUISystem {
     console.log('📝 [PokemonUI] Enregistrement des modules...');
     
     // Configuration des modules avec leurs factories
-    const moduleConfigs = [
-      {
-        id: 'inventory',
-        critical: true,
-        factory: this.createInventoryModule.bind(this),
-        groups: ['ui-icons'],
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 0,
-          spacing: 10
-        },
-        responsive: {
-          mobile: { scale: 0.8 },
-          tablet: { scale: 0.9 },
-          desktop: { scale: 1.0 }
-        },
-        priority: 100
+ const moduleConfigs = [
+    {
+      id: 'inventory',
+      critical: true,
+      factory: this.createInventoryModule.bind(this),
+      groups: ['ui-icons'],
+      layout: {
+        type: 'icon',
+        anchor: 'bottom-right',
+        order: 0,
+        spacing: 10
       },
-      
-      {
-        id: 'team',
-        critical: true,
-        factory: this.createTeamModule.bind(this),
-        groups: ['ui-icons', 'battle-ui'],
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 2,
-          spacing: 10
-        },
-        responsive: {
-          mobile: { scale: 0.8, position: { right: '15px' } },
-          tablet: { scale: 0.9 },
-          desktop: { scale: 1.0 }
-        },
-        priority: 110
+      responsive: {
+        mobile: { scale: 0.8 },
+        tablet: { scale: 0.9 },
+        desktop: { scale: 1.0 }
       },
-      
-      {
-        id: 'quest',
-        critical: false,
-        factory: this.createQuestModule.bind(this),
-        groups: ['ui-icons'],
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 1,
-          spacing: 10
-        },
-        responsive: {
-          mobile: { scale: 0.8 },
-          tablet: { scale: 0.9 },
-          desktop: { scale: 1.0 }
-        },
-        priority: 90
+      priority: 100
+    },
+    
+    {
+      id: 'team',
+      critical: true,
+      factory: this.createTeamModule.bind(this),
+      groups: ['ui-icons', 'battle-ui'],
+      layout: {
+        type: 'icon',
+        anchor: 'bottom-right',
+        order: 2,
+        spacing: 10
       },
-      
-      {
-        id: 'questTracker',
-        critical: false,
-        factory: this.createQuestTrackerModule.bind(this),
-        groups: ['panels'],
-        layout: {
-          type: 'panel',
-          anchor: 'top-right',
-          order: 0
-        },
-        responsive: {
-          mobile: { hidden: true },
-          tablet: { scale: 0.9 },
-          desktop: { scale: 1.0 }
-        },
-        priority: 80
+      responsive: {
+        mobile: { scale: 0.8, position: { right: '15px' } },
+        tablet: { scale: 0.9 },
+        desktop: { scale: 1.0 }
       },
-      
-      {
-        id: 'chat',
-        critical: false,
-        factory: this.createChatModule.bind(this),
-        groups: ['social'],
-        layout: {
-          type: 'overlay',
-          anchor: 'bottom-left',
-          order: 0
-        },
-        responsive: {
-          mobile: { hidden: true },
-          tablet: { hidden: true },
-          desktop: { scale: 1.0 }
-        },
-        priority: 70
+      priority: 110
+    },
+    
+    {
+      id: 'quest',
+      critical: false,
+      factory: this.createQuestModule.bind(this),
+      groups: ['ui-icons'],
+      layout: {
+        type: 'icon',
+        anchor: 'bottom-right',
+        order: 1,
+        spacing: 10
       },
-      {
-        id: 'battleInterface',
-        critical: true,
-        factory: this.createBattleInterfaceModule.bind(this),
-        groups: ['battle-ui'],
-        layout: {
-          type: 'battle-ui',
-          anchor: 'bottom-center',
-          order: 0,
-          spacing: 0
+      responsive: {
+        mobile: { scale: 0.8 },
+        tablet: { scale: 0.9 },
+        desktop: { scale: 1.0 }
+      },
+      priority: 90
+    },
+    
+    {
+      id: 'questTracker',
+      critical: false,
+      factory: this.createQuestTrackerModule.bind(this),
+      groups: ['panels'],
+      layout: {
+        type: 'panel',
+        anchor: 'top-right',
+        order: 0
+      },
+      responsive: {
+        mobile: { hidden: true },
+        tablet: { scale: 0.9 },
+        desktop: { scale: 1.0 }
+      },
+      priority: 80
+    },
+    
+    {
+      id: 'chat',
+      critical: false,
+      factory: this.createChatModule.bind(this),
+      groups: ['social'],
+      layout: {
+        type: 'overlay',
+        anchor: 'bottom-left',
+        order: 0
+      },
+      responsive: {
+        mobile: { hidden: true },
+        tablet: { hidden: true },
+        desktop: { scale: 1.0 }
+      },
+      priority: 70
+    },
+    
+    // ✅ NOUVEAU MODULE : BattleInterface
+    {
+      id: 'battleInterface',
+      critical: true,
+      factory: this.createBattleInterfaceModule.bind(this),
+      groups: ['battle-ui'],
+      layout: {
+        type: 'overlay',
+        anchor: 'center',
+        order: 0,
+        zIndex: 9999
+      },
+      responsive: {
+        mobile: { 
+          scale: 0.8,
+          simplifiedLayout: true,
+          position: { top: '5%', left: '5%', right: '5%', bottom: '5%' }
         },
-        responsive: {
-          mobile: { hidden: false },
-          tablet: { hidden: false },
-          desktop: { hidden: false }
+        tablet: { 
+          scale: 0.9,
+          position: { top: '10%', left: '10%', right: '10%', bottom: '10%' }
         },
-        priority: 120
-      }
-    ];
-
-    // Enregistrer chaque module
-    for (const config of moduleConfigs) {
-      try {
-        if (this.uiManager.registerModule) {
-          await this.uiManager.registerModule(config.id, config);
-          console.log(`  ✅ Module '${config.id}' enregistré`);
-        } else {
-          // Mode minimal : stocker directement
-          this.moduleInstances.set(config.id, await config.factory());
-          console.log(`  ✅ Module '${config.id}' créé (mode minimal)`);
+        desktop: { 
+          scale: 1.0,
+          position: { top: '7.5%', left: '7.5%', right: '7.5%', bottom: '7.5%' }
         }
-      } catch (error) {
-        console.error(`  ❌ Erreur module '${config.id}':`, error);
+      },
+      defaultState: {
+        visible: false,  // Caché par défaut
+        enabled: true,
+        initialized: false
+      },
+      priority: 150,    // Très haute priorité
+      lazyLoad: false,  // Toujours charger
+      animations: {
+        show: { type: 'fadeIn', duration: 400, easing: 'ease-out' },
+        hide: { type: 'fadeOut', duration: 300, easing: 'ease-in' }
       }
     }
-  }
+  ];
 
+  // Enregistrer chaque module
+  for (const config of moduleConfigs) {
+    try {
+      if (this.uiManager.registerModule) {
+        await this.uiManager.registerModule(config.id, config);
+        console.log(`  ✅ Module '${config.id}' enregistré`);
+      } else {
+        // Mode minimal : stocker directement
+        this.moduleInstances.set(config.id, await config.factory());
+        console.log(`  ✅ Module '${config.id}' créé (mode minimal)`);
+      }
+    } catch (error) {
+      console.error(`  ❌ Erreur module '${config.id}':`, error);
+    }
+  }
+}
   // === FACTORIES DES MODULES ===
 
   async createInventoryModule() {
@@ -644,61 +665,316 @@ export class PokemonUISystem {
   }
 
   // === NOUVELLE FACTORY: Module d'interface de combat ===
-  async createBattleInterfaceModule() {
-    console.log('⚔️ [PokemonUI] Création module BattleInterface...');
+async createBattleInterfaceModule() {
+  console.log('⚔️ [PokemonUI] Création module BattleInterface...');
+  
+  try {
+    // ✅ Import conditionnel avec fallback
+    let BattleInterface;
     try {
-      const { BattleInterface } = await import('./components/BattleInterface.js');
-      let instance = null;
-
-      // Retourne un wrapper compatible UIManager
-      return {
-        moduleType: 'battleInterface',
-        originalModule: null,
-        iconElement: null,
-        isInitialized: false,
-
-        create: (gameManager, battleData) => {
-          if (instance) {
-            instance.battleData = battleData;
-            instance.show();
-            return instance;
-          }
-          instance = new BattleInterface(gameManager, battleData);
+      const battleModule = await import('./components/BattleInterface.js');
+      BattleInterface = battleModule.BattleInterface;
+    } catch (importError) {
+      console.warn('⚠️ [PokemonUI] Import BattleInterface échoué:', importError);
+      // Utiliser la classe inline si import échoue
+      BattleInterface = this.createInlineBattleInterface();
+    }
+    
+    // Créer wrapper UIManager
+    const battleInterfaceWrapper = {
+      moduleType: 'battleInterface',
+      originalModule: null,
+      iconElement: null,
+      isInitialized: false,
+      
+      // Factory function pour créer l'instance
+      create: (gameManager, battleData) => {
+        try {
+          const instance = new BattleInterface(gameManager, battleData);
           this.originalModule = instance;
           this.iconElement = instance.root;
           this.isInitialized = true;
+          console.log('✅ [PokemonUI] BattleInterface instance créée');
           return instance;
-        },
+        } catch (error) {
+          console.error('❌ [PokemonUI] Erreur création BattleInterface:', error);
+          return null;
+        }
+      },
+      
+      // Méthodes UIManager requises
+      show: (options = {}) => {
+        if (this.originalModule) {
+          return this.originalModule.show(options);
+        }
+        console.warn('⚠️ [PokemonUI] BattleInterface pas encore créé pour show');
+        return false;
+      },
+      
+      hide: (options = {}) => {
+        if (this.originalModule) {
+          return this.originalModule.hide(options);
+        }
+        return false;
+      },
+      
+      setEnabled: (enabled) => {
+        if (this.originalModule) {
+          return this.originalModule.setEnabled(enabled);
+        }
+        return false;
+      },
+      
+      // Méthodes spécifiques au combat
+      startBattle: (battleData) => {
+        console.log('⚔️ [PokemonUI] Démarrage combat avec data:', battleData);
+        
+        if (!this.originalModule) {
+          // Créer l'instance si elle n'existe pas
+          const gameManager = window.globalNetworkManager || window;
+          this.create(gameManager, battleData);
+        }
+        
+        if (this.originalModule) {
+          this.originalModule.battleData = battleData;
+          this.originalModule.show({ animated: true });
+          return true;
+        }
+        
+        console.error('❌ [PokemonUI] Impossible de démarrer combat');
+        return false;
+      },
+      
+      endBattle: () => {
+        console.log('🏁 [PokemonUI] Fin de combat');
+        
+        if (this.originalModule) {
+          this.originalModule.hide({ animated: true });
+          setTimeout(() => {
+            if (this.originalModule) {
+              this.originalModule.destroy();
+              this.originalModule = null;
+              this.isInitialized = false;
+            }
+          }, 300);
+          return true;
+        }
+        
+        return false;
+      },
+      
+      // State management
+      getState: () => {
+        return this.originalModule?.getUIManagerState() || { 
+          initialized: false, 
+          visible: false, 
+          enabled: false 
+        };
+      },
+      
+      // Cleanup
+      destroy: () => {
+        if (this.originalModule) {
+          this.originalModule.destroy();
+          this.originalModule = null;
+        }
+        this.iconElement = null;
+        this.isInitialized = false;
+      }
+    };
+    
+    console.log('✅ [PokemonUI] Wrapper BattleInterface créé');
+    return battleInterfaceWrapper;
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur création BattleInterface:', error);
+    return this.createEmptyWrapper('battleInterface');
+  }
+}
 
-        show: (options = {}) => { if (instance) instance.show(options); },
-        hide: (options = {}) => { if (instance) instance.hide(options); },
-        setEnabled: (enabled) => { if (instance) instance.setEnabled(enabled); },
-        startBattle: (battleData) => {
-          if (instance) {
-            instance.battleData = battleData;
-            instance.show({ animated: true });
-          }
-        },
-        endBattle: () => {
-          if (instance) {
-            instance.hide({ animated: true });
-            setTimeout(() => { instance.destroy(); instance = null; }, 350);
-          }
-        },
-        getState: () => instance?.getUIManagerState() || { initialized: false, visible: false, enabled: false },
-        destroy: () => { if (instance) { instance.destroy(); instance = null; } }
+// ✅ FALLBACK : Classe BattleInterface inline si import échoue
+createInlineBattleInterface() {
+  console.log('🔧 [PokemonUI] Création BattleInterface inline...');
+  
+  return class InlineBattleInterface {
+    constructor(gameManager, battleData) {
+      this.gameManager = gameManager;
+      this.battleData = battleData;
+      this.root = null;
+      this.isOpen = false;
+      this.uiManagerState = {
+        visible: false,
+        enabled: true,
+        initialized: false
       };
-    } catch (error) {
-      console.error('❌ [PokemonUI] Erreur création BattleInterface:', error);
+      
+      console.log('🔧 [InlineBattleInterface] Instance créée');
+    }
+    
+    async createInterface() {
+      // Créer interface basique
+      this.root = document.createElement('div');
+      this.root.className = 'battle-interface-container';
+      this.root.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 600px;
+        height: 400px;
+        background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
+        border: 4px solid #FFD700;
+        border-radius: 15px;
+        color: white;
+        font-family: Arial, sans-serif;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        box-shadow: 0 0 30px rgba(0,0,0,0.8);
+      `;
+      
+      // Contenu de l'interface
+      this.root.innerHTML = `
+        <h2 style="margin: 0; color: #FFD700;">⚔️ Interface de Combat</h2>
+        <p style="margin: 0;">Pokémon: ${this.battleData?.playerPokemon?.name || 'Inconnu'}</p>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+          <button onclick="this.parentElement.parentElement.battleInterface.handleAction('attack')" 
+                  style="padding: 10px 20px; background: #4a90e2; color: white; border: none; border-radius: 8px; cursor: pointer;">
+            Attaquer
+          </button>
+          <button onclick="this.parentElement.parentElement.battleInterface.handleAction('bag')" 
+                  style="padding: 10px 20px; background: #4a90e2; color: white; border: none; border-radius: 8px; cursor: pointer;">
+            Sac
+          </button>
+          <button onclick="this.parentElement.parentElement.battleInterface.handleAction('pokemon')" 
+                  style="padding: 10px 20px; background: #4a90e2; color: white; border: none; border-radius: 8px; cursor: pointer;">
+            Pokémon
+          </button>
+          <button onclick="this.parentElement.parentElement.battleInterface.handleAction('flee')" 
+                  style="padding: 10px 20px; background: #e24a4a; color: white; border: none; border-radius: 8px; cursor: pointer;">
+            Fuir
+          </button>
+        </div>
+        <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">Interface de combat simplifiée</p>
+      `;
+      
+      // Référence pour les boutons
+      this.root.battleInterface = this;
+      
+      document.body.appendChild(this.root);
+      this.uiManagerState.initialized = true;
+      
+      console.log('✅ [InlineBattleInterface] Interface créée');
+    }
+    
+    show(options = {}) {
+      if (!this.root) this.createInterface();
+      
+      this.root.style.display = 'flex';
+      this.isOpen = true;
+      this.uiManagerState.visible = true;
+      
+      if (options.animated !== false) {
+        this.root.style.opacity = '0';
+        this.root.style.transform = 'translate(-50%, -50%) scale(0.8)';
+        setTimeout(() => {
+          this.root.style.transition = 'all 0.3s ease-out';
+          this.root.style.opacity = '1';
+          this.root.style.transform = 'translate(-50%, -50%) scale(1)';
+        }, 50);
+      }
+      
+      console.log('✅ [InlineBattleInterface] Interface affichée');
+      return true;
+    }
+    
+    hide(options = {}) {
+      if (!this.root) return false;
+      
+      if (options.animated !== false) {
+        this.root.style.transition = 'all 0.3s ease-in';
+        this.root.style.opacity = '0';
+        this.root.style.transform = 'translate(-50%, -50%) scale(0.8)';
+        setTimeout(() => {
+          this.root.style.display = 'none';
+        }, 300);
+      } else {
+        this.root.style.display = 'none';
+      }
+      
+      this.isOpen = false;
+      this.uiManagerState.visible = false;
+      
+      console.log('✅ [InlineBattleInterface] Interface masquée');
+      return true;
+    }
+    
+    setEnabled(enabled) {
+      if (!this.root) return false;
+      
+      this.root.style.opacity = enabled ? '1' : '0.5';
+      this.root.style.pointerEvents = enabled ? 'auto' : 'none';
+      this.uiManagerState.enabled = enabled;
+      
+      return true;
+    }
+    
+    handleAction(action) {
+      console.log(`⚔️ [InlineBattleInterface] Action: ${action}`);
+      
+      // Simuler action de combat
+      switch (action) {
+        case 'attack':
+          window.showGameNotification?.('Attaque sélectionnée !', 'info', { duration: 2000 });
+          break;
+        case 'bag':
+          window.showGameNotification?.('Ouverture du sac...', 'info', { duration: 2000 });
+          break;
+        case 'pokemon':
+          window.showGameNotification?.('Changement de Pokémon...', 'info', { duration: 2000 });
+          break;
+        case 'flee':
+          window.showGameNotification?.('Fuite du combat !', 'warning', { duration: 2000 });
+          this.hide({ animated: true });
+          setTimeout(() => this.destroy(), 500);
+          break;
+      }
+      
+      // Émettre événement
+      if (window.onBattleAction) {
+        window.onBattleAction({ type: action, timestamp: Date.now() });
+      }
+    }
+    
+    destroy() {
+      if (this.root && this.root.parentNode) {
+        this.root.parentNode.removeChild(this.root);
+      }
+      this.root = null;
+      this.isOpen = false;
+      this.uiManagerState.visible = false;
+      this.uiManagerState.initialized = false;
+      
+      console.log('✅ [InlineBattleInterface] Interface détruite');
+    }
+    
+    getUIManagerState() {
       return {
-        show: () => {},
-        hide: () => {},
-        setEnabled: () => {},
-        destroy: () => {},
-        getState: () => ({ initialized: false, visible: false, enabled: false })
+        ...this.uiManagerState,
+        hasRoot: !!this.root,
+        isOpen: this.isOpen,
+        battling: !!this.battleData
       };
     }
-  }
+    
+    get iconElement() {
+      return this.root;
+    }
+  };
+}
   
   // === WRAPPER POUR MODULES EXISTANTS ===
   wrapExistingModule(existingModule, moduleType) {
