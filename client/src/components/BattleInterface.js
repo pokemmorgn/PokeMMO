@@ -1,6 +1,10 @@
 // client/src/components/BattleInterface.js
 import './../../../public/css/battle-interface.css';
 
+/**
+ * BattleInterface
+ * Module UIManager-compatible pour le menu de combat Pokémon.
+ */
 export class BattleInterface {
   /**
    * @param {GameManager} gameManager - Référence au gestionnaire principal du jeu
@@ -12,17 +16,23 @@ export class BattleInterface {
     this.root = null;
 
     // Navigation state
-    this.menuStack = ['main'];   // breadcrumb (ex: ['main'], ['main', 'attacks'])
-    this.selectedIndices = {     // mémorise le dernier bouton sélectionné dans chaque menu
+    this.menuStack = ['main'];
+    this.selectedIndices = {
       main: 0,
       attacks: 0,
       bag: 0,
       pokemon: 0
     };
 
-    // Reference to all button nodes for keyboard navigation
     this.buttonRefs = [];
     this.isOpen = false;
+
+    // UIManager state
+    this.uiManagerState = {
+      visible: false,
+      enabled: true,
+      initialized: false
+    };
 
     // Binding event handlers
     this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -44,9 +54,9 @@ export class BattleInterface {
     setTimeout(() => { this.root.style.display = ''; }, 60);
 
     this.isOpen = true;
+    this.uiManagerState.initialized = true;
     this.showMainMenu();
 
-    // Events
     window.addEventListener('keydown', this.handleKeyDown);
     this.root.addEventListener('pointerdown', e => e.stopPropagation());
     this.root.focus();
@@ -59,33 +69,79 @@ export class BattleInterface {
     }
     this.root = null;
     this.isOpen = false;
+    this.uiManagerState.visible = false;
+    this.uiManagerState.initialized = false;
   }
 
-  /** Affiche le menu principal */
+  // =========== UIManager API ===========
+
+  /** Afficher l'interface (UIManager) */
+  show() {
+    if (!this.root) this.createInterface();
+    this.root.classList.remove('ui-hidden');
+    this.root.style.display = '';
+    this.isOpen = true;
+    this.uiManagerState.visible = true;
+    this.root.focus?.();
+  }
+
+  /** Cacher l'interface (UIManager) */
+  hide() {
+    if (this.root) {
+      this.root.classList.add('ui-hidden');
+      this.root.style.display = 'none';
+      this.isOpen = false;
+      this.uiManagerState.visible = false;
+    }
+  }
+
+  /** Activer/désactiver (UIManager) */
+  setEnabled(enabled) {
+    this.uiManagerState.enabled = enabled;
+    if (this.root) {
+      this.root.classList.toggle('ui-disabled', !enabled);
+      Array.from(this.root.querySelectorAll('button')).forEach(btn => {
+        btn.disabled = !enabled;
+      });
+    }
+  }
+
+  /** MAJ dynamique (optionnel pour UIManager) */
+  update(data) {
+    if (data?.type === 'state') {
+      if (data.visible !== undefined) data.visible ? this.show() : this.hide();
+      if (data.enabled !== undefined) this.setEnabled(data.enabled);
+    }
+    // Tu peux traiter d'autres updates ici...
+  }
+
+  /** Optionnel : retourne l'état UIManager */
+  getUIManagerState() {
+    return { ...this.uiManagerState, hasRoot: !!this.root, isOpen: this.isOpen };
+  }
+
+  // =========== BattleInterface logique existante ===========
+
   showMainMenu() {
     this.menuStack = ['main'];
     this.render();
   }
 
-  /** Affiche le menu des attaques */
   showAttacksMenu() {
     this.menuStack = ['main', 'attacks'];
     this.render();
   }
 
-  /** Affiche le menu Sac */
   showBagMenu() {
     this.menuStack = ['main', 'bag'];
     this.render();
   }
 
-  /** Affiche le menu Pokémon */
   showPokemonMenu() {
     this.menuStack = ['main', 'pokemon'];
     this.render();
   }
 
-  /** Retour au menu précédent */
   goBack() {
     if (this.menuStack.length > 1) {
       this.menuStack.pop();
@@ -93,13 +149,11 @@ export class BattleInterface {
     }
   }
 
-  /** Affiche le menu en fonction de l'état courant */
   render() {
     if (!this.root) return;
     this.root.innerHTML = '';
 
     // Breadcrumb (état de navigation)
-    const crumb = this.menuStack.join(' ⟩ ');
     const bc = document.createElement('div');
     bc.className = 'battle-breadcrumb';
     bc.textContent = this.getBreadcrumbLabel();
@@ -125,7 +179,6 @@ export class BattleInterface {
     }
   }
 
-  /** Menu principal : Attaquer / Sac / Pokémon / Fuir */
   renderMainMenu() {
     const menu = document.createElement('div');
     menu.className = 'battle-menu-main';
@@ -155,7 +208,6 @@ export class BattleInterface {
     this.updateButtonSelection('main');
   }
 
-  /** Menu des attaques (grille 2x2) */
   renderAttacksMenu() {
     const menu = document.createElement('div');
     menu.className = 'battle-menu-attacks';
@@ -177,9 +229,7 @@ export class BattleInterface {
           <span class="battle-pp-indicator">${move.pp}/${move.maxPp} PP</span>
           <span class="battle-move-type" data-type="${move.type}">${move.type}</span>
         `;
-        if (move.pp <= 0) {
-          btn.disabled = true;
-        }
+        if (move.pp <= 0) btn.disabled = true;
       } else {
         btn.textContent = '—';
         btn.disabled = true;
@@ -194,7 +244,6 @@ export class BattleInterface {
     this.updateButtonSelection('attacks');
   }
 
-  /** Menu Sac (placeholder, exemple) */
   renderBagMenu() {
     const menu = document.createElement('div');
     menu.className = 'battle-menu-bag';
@@ -219,7 +268,6 @@ export class BattleInterface {
     this.updateButtonSelection('bag');
   }
 
-  /** Menu Changement de Pokémon (placeholder, exemple) */
   renderPokemonMenu() {
     const menu = document.createElement('div');
     menu.className = 'battle-menu-pokemon';
@@ -352,12 +400,12 @@ export class BattleInterface {
 
   emitBattleAction(action) {
     // TODO: Intégration réseau avec NetworkManager / Colyseus
-    // Ex: this.gameManager.network.emit('battle:action', action);
     if (window.onBattleAction) window.onBattleAction(action);
   }
 
   close() {
-    this.destroy();
+    this.hide();
+    setTimeout(() => this.destroy(), 200); // Optionnel : délai pour animation de sortie
   }
 
   /** Libellé du breadcrumb selon le menu */
@@ -371,9 +419,12 @@ export class BattleInterface {
       default: return '';
     }
   }
+
+  // Optionnel, pour homogénéité UIManager (utilisé pour .iconElement dans d'autres modules)
+  get iconElement() { return this.root; }
 }
 
-// === FONCTIONS DE TEST ===
+// === FONCTION DE TEST ===
 window.testBattleInterface = (battleData) => {
   const gm = window.gameManager || {};
   const data = battleData || {
