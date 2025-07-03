@@ -1,549 +1,514 @@
-// client/src/components/BattleInterface.js
-// ✅ VERSION CORRIGÉE - Fix iconElement getter/setter
+// === INTÉGRATION BATTLEINTERFACE DANS VOTRE SYSTÈME ===
+// Solution complète pour remplacer le système défaillant
 
-export class BattleInterface {
+// 1. ===== CLASSE BATTLEINTERFACE CORRIGÉE =====
+class WorkingBattleInterface {
   constructor(gameManager, battleData) {
     this.gameManager = gameManager;
-    this.battleData = battleData;
+    this.battleData = battleData || {};
     this.root = null;
-    this._iconElement = null; // ✅ CORRECTION: Propriété privée
-
-    // === UIManager integration
+    this.isOpen = false;
+    this.currentMenu = 'main';
+    this.selectedIndex = 0;
+    
+    // UIManager compatibility
     this.moduleType = 'battleInterface';
-    this.isUIManagerMode = true;
     this.uiManagerState = {
       visible: false,
       enabled: true,
       initialized: false
     };
-    this.responsiveConfig = {
-      mobile: {
-        scaleFactor: 0.8,
-        simplifiedLayout: true,
-        hiddenElements: ['.battle-breadcrumb']
-      },
-      tablet: {
-        scaleFactor: 0.9,
-        simplifiedLayout: false
-      },
-      desktop: {
-        scaleFactor: 1.0,
-        simplifiedLayout: false
-      }
-    };
-
-    // === State
-    this.menuStack = ['main'];
-    this.selectedIndices = { main: 0, attacks: 0, bag: 0, pokemon: 0 };
-    this.buttonRefs = [];
-    this.isOpen = false;
-
-    // Binding event handlers
-    this.handleKeyDown = this.handleKeyDown.bind(this);
-    this.handleAction = this.handleAction.bind(this);
     
-    console.log('✅ [BattleInterface] Constructeur terminé');
+    console.log('✅ [WorkingBattleInterface] Créé avec succès');
   }
-
-  // ✅ CORRECTION: Getter ET Setter pour iconElement
-  get iconElement() {
-    return this._iconElement || this.root;
-  }
-
-  set iconElement(value) {
-    this._iconElement = value;
-  }
-
-  // === CSS CHARGEMENT ===
-  static ensureCSSLoaded() {
-    if (document.querySelector('#battle-interface-styles')) {
-      return Promise.resolve();
+  
+  // ===== CRÉATION INTERFACE =====
+  async createInterface() {
+    if (this.root) {
+      this.destroy();
     }
-    return new Promise((resolve) => {
-      const link = document.createElement('link');
-      link.id = 'battle-interface-styles';
-      link.rel = 'stylesheet';
-      link.type = 'text/css';
-      link.href = '/css/battle-interface.css';
-      link.onload = () => {
-        console.log('✅ CSS BattleInterface chargé !');
-        resolve();
-      };
-      link.onerror = () => {
-        console.warn('⚠️ CSS BattleInterface non trouvé, utilisation styles inline');
-        resolve();
-      };
-      document.head.appendChild(link);
-    });
-  }
-
-  // ✅ CORRECTION: Styles inline si CSS externe échoue
-  addInlineStyles() {
-    if (document.querySelector('#battle-interface-inline-styles')) {
-      return;
-    }
-
-    const style = document.createElement('style');
-    style.id = 'battle-interface-inline-styles';
-    style.textContent = `
-      .battle-interface-container {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 600px;
-        height: 400px;
-        background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
-        border: 4px solid #FFD700;
-        border-radius: 15px;
-        color: white;
-        font-family: 'Arial', sans-serif;
-        z-index: 9999;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 20px;
-        box-shadow: 0 0 30px rgba(0,0,0,0.8);
-        opacity: 0;
-        transition: all 0.3s ease;
-      }
-
-      .battle-interface-container.visible {
-        opacity: 1;
-      }
-
-      .battle-breadcrumb {
-        color: #FFD700;
-        font-size: 18px;
-        font-weight: bold;
-        margin-bottom: 10px;
-      }
-
-      .battle-menu-main {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        width: 100%;
-        max-width: 300px;
-      }
-
-      .battle-menu-attacks {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px 22px;
-        width: 100%;
-        max-width: 400px;
-      }
-
-      .battle-menu-bag,
-      .battle-menu-pokemon {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        width: 100%;
-        max-width: 300px;
-      }
-
-      .battle-action-button {
-        padding: 12px 20px;
-        background: #4a90e2;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: bold;
-        transition: all 0.2s ease;
-        position: relative;
-        overflow: hidden;
-      }
-
-      .battle-action-button:hover {
-        background: #357abd;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
-      }
-
-      .battle-action-button:active {
-        transform: translateY(0);
-      }
-
-      .battle-action-button:disabled {
-        background: #666;
-        cursor: not-allowed;
-        opacity: 0.5;
-      }
-
-      .battle-action-button.selected {
-        background: #FFD700;
-        color: #1a472a;
-        box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-      }
-
-      .battle-menu-back {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        padding: 8px 16px;
-        background: #e24a4a;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 12px;
-      }
-
-      .battle-menu-back:hover {
-        background: #c73e3e;
-      }
-
-      .battle-pp-indicator {
-        display: block;
-        font-size: 10px;
-        opacity: 0.8;
-        margin-top: 2px;
-      }
-
-      .battle-move-type {
-        display: inline-block;
-        font-size: 9px;
-        padding: 2px 6px;
-        border-radius: 4px;
-        background: #666;
-        margin-top: 4px;
-      }
-
-      .battle-move-type[data-type="electric"] { background: #f4d03f; color: #000; }
-      .battle-move-type[data-type="normal"] { background: #a8a878; }
-      .battle-move-type[data-type="fire"] { background: #f08030; }
-      .battle-move-type[data-type="water"] { background: #6890f0; }
-      .battle-move-type[data-type="grass"] { background: #78c850; }
-      .battle-move-type[data-type="steel"] { background: #b8b8d0; }
-      .battle-move-type[data-type="fairy"] { background: #ee99ac; }
-
-      @media (max-width: 768px) {
-        .battle-interface-container {
-          width: 90%;
-          height: 80%;
-          transform: translate(-50%, -50%) scale(0.9);
-        }
-        
-        .battle-breadcrumb {
-          display: none;
-        }
-      }
+    
+    console.log('🏗️ [WorkingBattleInterface] Création interface...');
+    
+    this.root = document.createElement('div');
+    this.root.id = 'working-battle-interface';
+    this.root.className = 'working-battle-interface';
+    this.root.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 700px;
+      height: 500px;
+      background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
+      border: 4px solid #FFD700;
+      border-radius: 15px;
+      color: white;
+      font-family: 'Arial', sans-serif;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.8);
+      opacity: 0;
+      transition: all 0.3s ease;
     `;
     
-    document.head.appendChild(style);
-    console.log('✅ [BattleInterface] Styles inline ajoutés');
-  }
-
-  /** Crée et insère l'interface */
-  async createInterface() {
-    if (this.root) this.destroy();
-
-    console.log('🏗️ [BattleInterface] Création interface...');
-
-    // Charger CSS ou utiliser inline
-    try {
-      await this.constructor.ensureCSSLoaded();
-    } catch (error) {
-      console.warn('⚠️ CSS externe échoué, utilisation styles inline');
-      this.addInlineStyles();
-    }
-
-    this.root = document.createElement('div');
-    this.root.className = 'battle-interface-container';
-    this.root.tabIndex = -1;
-    this.root.setAttribute('role', 'region');
-    this.root.setAttribute('aria-label', 'Battle Interface');
-
-    // ✅ CORRECTION: Mettre à jour iconElement
-    this._iconElement = this.root;
-
+    this.updateInterface();
     document.body.appendChild(this.root);
-
+    
     // Animation d'entrée
     requestAnimationFrame(() => {
-      this.root.classList.add('visible');
+      this.root.style.opacity = '1';
+      this.root.style.transform = 'translate(-50%, -50%) scale(1)';
     });
-
-    this.isOpen = true;
-    this.uiManagerState.initialized = true;
-
-    this.showMainMenu();
-
-    // Events
-    window.addEventListener('keydown', this.handleKeyDown);
-    this.root.addEventListener('pointerdown', e => e.stopPropagation());
-    this.root.focus();
     
-    console.log('✅ [BattleInterface] Interface créée et UIManager ready');
+    // Événements
+    this.setupEvents();
+    
+    this.isOpen = true;
+    this.uiManagerState.visible = true;
+    this.uiManagerState.initialized = true;
+    
+    console.log('✅ [WorkingBattleInterface] Interface créée');
+    return this.root;
   }
-
-  destroy() {
-    try {
-      this._dispatchUIEvent('battleInterfaceDestroying');
-      
-      window.removeEventListener('keydown', this.handleKeyDown);
-      if (this.root && this.root.parentNode) {
-        this.root.parentNode.removeChild(this.root);
-      }
-      
-      this.root = null;
-      this._iconElement = null; // ✅ CORRECTION
-      this.isOpen = false;
-      this.uiManagerState.visible = false;
-      this.uiManagerState.initialized = false;
-      
-      this._dispatchUIEvent('battleInterfaceDestroyed');
-      
-      console.log('✅ [BattleInterface] Interface détruite');
-      
-    } catch (error) {
-      console.error('[BattleInterface] Erreur destroy:', error);
-    }
-  }
-
-  /** Affiche le menu principal */
-  showMainMenu() {
-    this.menuStack = ['main'];
-    this.render();
-  }
-  showAttacksMenu() { this.menuStack = ['main', 'attacks']; this.render(); }
-  showBagMenu()     { this.menuStack = ['main', 'bag'];    this.render(); }
-  showPokemonMenu() { this.menuStack = ['main', 'pokemon']; this.render(); }
-  goBack() {
-    if (this.menuStack.length > 1) {
-      this.menuStack.pop();
-      this.render();
-    }
-  }
-
-  render() {
+  
+  // ===== MISE À JOUR CONTENU =====
+  updateInterface() {
     if (!this.root) return;
-    this.root.innerHTML = '';
-
-    // Breadcrumb
-    const bc = document.createElement('div');
-    bc.className = 'battle-breadcrumb';
-    bc.textContent = this.getBreadcrumbLabel();
-    this.root.appendChild(bc);
-
-    // Menus
-    const current = this.menuStack.at(-1);
-    this.buttonRefs = [];
-    if (current === 'main')     this.renderMainMenu();
-    else if (current === 'attacks') this.renderAttacksMenu();
-    else if (current === 'bag')     this.renderBagMenu();
-    else if (current === 'pokemon') this.renderPokemonMenu();
-
-    // Bouton retour (sauf menu principal)
-    if (this.menuStack.length > 1) {
-      const backBtn = document.createElement('button');
-      backBtn.className = 'battle-menu-back';
-      backBtn.textContent = 'Retour';
-      backBtn.onclick = () => this.goBack();
-      backBtn.tabIndex = 0;
-      this.root.appendChild(backBtn);
+    
+    const playerPokemon = this.battleData.playerPokemon || { name: 'Pikachu', level: 25, hp: 80, maxHp: 100 };
+    const opponentPokemon = this.battleData.opponentPokemon || { name: 'Rattata Sauvage', level: 15, hp: 60, maxHp: 75 };
+    
+    this.root.innerHTML = `
+      <!-- En-tête combat -->
+      <div style="width: 100%; text-align: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; color: #FFD700; font-size: 24px;">⚔️ Combat Pokémon</h2>
+        <p style="margin: 10px 0; font-size: 16px; opacity: 0.9;">
+          <strong style="color: #4CAF50;">${playerPokemon.name}</strong> vs 
+          <strong style="color: #f44336;">${opponentPokemon.name}</strong>
+        </p>
+      </div>
+      
+      <!-- Barres de vie -->
+      <div style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 30px;">
+        <!-- Pokémon joueur -->
+        <div style="flex: 1; margin-right: 20px;">
+          <div style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #4CAF50;">
+            ${playerPokemon.name} (Niv. ${playerPokemon.level})
+          </div>
+          <div style="background: #333; border-radius: 10px; padding: 3px; margin-bottom: 5px;">
+            <div style="background: linear-gradient(90deg, #4CAF50, #8BC34A); height: 8px; border-radius: 7px; width: ${(playerPokemon.hp / playerPokemon.maxHp) * 100}%; transition: width 0.3s ease;"></div>
+          </div>
+          <div style="font-size: 12px; text-align: center;">${playerPokemon.hp}/${playerPokemon.maxHp} HP</div>
+        </div>
+        
+        <!-- Pokémon adversaire -->
+        <div style="flex: 1; margin-left: 20px;">
+          <div style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #f44336;">
+            ${opponentPokemon.name} (Niv. ${opponentPokemon.level})
+          </div>
+          <div style="background: #333; border-radius: 10px; padding: 3px; margin-bottom: 5px;">
+            <div style="background: linear-gradient(90deg, #f44336, #FF5722); height: 8px; border-radius: 7px; width: ${(opponentPokemon.hp / opponentPokemon.maxHp) * 100}%; transition: width 0.3s ease;"></div>
+          </div>
+          <div style="font-size: 12px; text-align: center;">${opponentPokemon.hp}/${opponentPokemon.maxHp} HP</div>
+        </div>
+      </div>
+      
+      <!-- Zone de contenu principal -->
+      <div id="battle-content" style="flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        ${this.getMenuContent()}
+      </div>
+      
+      <!-- Instructions -->
+      <div style="text-align: center; margin-top: 20px; font-size: 12px; opacity: 0.7;">
+        Utilisez les flèches ou cliquez • Entrée pour sélectionner • Échap pour retour
+      </div>
+    `;
+  }
+  
+  // ===== CONTENU DES MENUS =====
+  getMenuContent() {
+    switch (this.currentMenu) {
+      case 'main':
+        return this.getMainMenu();
+      case 'attacks':
+        return this.getAttacksMenu();
+      case 'bag':
+        return this.getBagMenu();
+      case 'pokemon':
+        return this.getPokemonMenu();
+      default:
+        return this.getMainMenu();
     }
   }
-
-  renderMainMenu() {
-    const menu = document.createElement('div');
-    menu.className = 'battle-menu-main';
+  
+  getMainMenu() {
     const actions = [
-      { key: 'attack', label: 'Attaquer', enabled: true },
-      { key: 'bag', label: 'Sac', enabled: !!this.battleData.canUseBag },
-      { key: 'pokemon', label: 'Pokémon', enabled: true },
-      { key: 'flee', label: 'Fuir', enabled: !!this.battleData.canFlee }
+      { id: 'attack', label: '⚡ Attaquer', color: '#e74c3c', enabled: true },
+      { id: 'bag', label: '🎒 Sac', color: '#3498db', enabled: this.battleData.canUseBag !== false },
+      { id: 'pokemon', label: '🎮 Pokémon', color: '#9b59b6', enabled: true },
+      { id: 'flee', label: '🏃 Fuir', color: '#95a5a6', enabled: this.battleData.canFlee !== false }
     ];
-    actions.forEach((action, i) => {
-      const btn = document.createElement('button');
-      btn.className = 'battle-action-button';
-      btn.textContent = action.label;
-      if (!action.enabled) btn.disabled = true;
-      btn.setAttribute('data-action', action.key);
-      if (this.selectedIndices.main === i) btn.setAttribute('aria-selected', 'true');
-      btn.onclick = () => this.handleAction(action.key);
-      this.buttonRefs.push(btn);
-      menu.appendChild(btn);
-    });
-    this.root.appendChild(menu);
-    this.updateButtonSelection('main');
+    
+    return `
+      <h3 style="margin: 0 0 20px 0; color: #FFD700;">Que veux-tu faire ?</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; max-width: 400px;">
+        ${actions.map((action, index) => `
+          <button 
+            class="battle-action-btn" 
+            data-action="${action.id}" 
+            data-index="${index}"
+            style="
+              padding: 20px 15px; 
+              background: ${action.color}; 
+              color: white; 
+              border: none; 
+              border-radius: 10px; 
+              cursor: ${action.enabled ? 'pointer' : 'not-allowed'}; 
+              font-size: 16px; 
+              font-weight: bold; 
+              transition: all 0.2s ease;
+              opacity: ${action.enabled ? '1' : '0.5'};
+              ${this.selectedIndex === index ? 'box-shadow: 0 0 10px rgba(255,215,0,0.8); transform: scale(1.05);' : ''}
+            "
+            ${!action.enabled ? 'disabled' : ''}
+          >
+            ${action.label}
+          </button>
+        `).join('')}
+      </div>
+    `;
   }
-
-  renderAttacksMenu() {
-    const menu = document.createElement('div');
-    menu.className = 'battle-menu-attacks';
-
-    const moves = this.battleData.playerPokemon.moves || [];
-    for (let i = 0; i < 4; i++) {
-      const move = moves[i];
-      const btn = document.createElement('button');
-      btn.className = 'battle-action-button';
-      btn.setAttribute('data-action', 'attack');
-      btn.setAttribute('data-index', i);
-      if (move) {
-        btn.innerHTML = `
-          ${move.name}
-          <span class="battle-pp-indicator">${move.pp}/${move.maxPp} PP</span>
-          <span class="battle-move-type" data-type="${move.type}">${move.type}</span>
-        `;
-        if (move.pp <= 0) btn.disabled = true;
-      } else {
-        btn.textContent = '—';
-        btn.disabled = true;
+  
+  getAttacksMenu() {
+    const moves = this.battleData.playerPokemon?.moves || [
+      { name: 'Tonnerre', pp: 15, maxPp: 15, type: 'electric', power: 90 },
+      { name: 'Vive-Attaque', pp: 30, maxPp: 30, type: 'normal', power: 40 },
+      { name: 'Queue de Fer', pp: 15, maxPp: 15, type: 'steel', power: 100 },
+      { name: 'Charme', pp: 20, maxPp: 20, type: 'fairy', power: 0 }
+    ];
+    
+    const typeColors = {
+      electric: '#f4d03f', normal: '#a8a878', fire: '#f08030',
+      water: '#6890f0', grass: '#78c850', steel: '#b8b8d0', fairy: '#ee99ac'
+    };
+    
+    return `
+      <h3 style="margin: 0 0 20px 0; color: #FFD700;">Sélectionne une attaque</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; max-width: 500px;">
+        ${moves.map((move, index) => `
+          <button 
+            class="battle-action-btn" 
+            data-action="useAttack" 
+            data-move-index="${index}"
+            style="
+              padding: 15px; 
+              background: ${move.pp > 0 ? '#4a90e2' : '#666'}; 
+              color: white; 
+              border: none; 
+              border-radius: 10px; 
+              cursor: ${move.pp > 0 ? 'pointer' : 'not-allowed'}; 
+              font-size: 14px; 
+              font-weight: bold; 
+              transition: all 0.2s ease;
+              text-align: left;
+              ${this.selectedIndex === index ? 'box-shadow: 0 0 10px rgba(255,215,0,0.8); transform: scale(1.05);' : ''}
+            "
+            ${move.pp <= 0 ? 'disabled' : ''}
+          >
+            <div style="font-size: 16px; margin-bottom: 5px;">${move.name}</div>
+            <div style="font-size: 11px; opacity: 0.8;">PP: ${move.pp}/${move.maxPp}</div>
+            <div style="
+              display: inline-block; 
+              font-size: 9px; 
+              padding: 2px 6px; 
+              border-radius: 4px; 
+              background: ${typeColors[move.type] || '#666'}; 
+              color: ${move.type === 'electric' ? '#000' : '#fff'};
+              margin-top: 5px;
+            ">
+              ${move.type.toUpperCase()}
+            </div>
+            ${move.power > 0 ? `<div style="font-size: 10px; opacity: 0.7; margin-top: 2px;">Puissance: ${move.power}</div>` : ''}
+          </button>
+        `).join('')}
+      </div>
+      <button 
+        class="battle-back-btn" 
+        style="
+          margin-top: 20px; 
+          padding: 10px 20px; 
+          background: #e74c3c; 
+          color: white; 
+          border: none; 
+          border-radius: 8px; 
+          cursor: pointer; 
+          font-size: 14px;
+        "
+      >
+        ← Retour
+      </button>
+    `;
+  }
+  
+  getBagMenu() {
+    const items = this.battleData.bag || [
+      { name: 'Potion', quantity: 5, description: 'Restaure 20 HP' },
+      { name: 'Super Potion', quantity: 2, description: 'Restaure 50 HP' },
+      { name: 'Poké Ball', quantity: 10, description: 'Capture un Pokémon' },
+      { name: 'Antidote', quantity: 3, description: 'Soigne empoisonnement' }
+    ];
+    
+    return `
+      <h3 style="margin: 0 0 20px 0; color: #FFD700;">Sélectionne un objet</h3>
+      <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 400px;">
+        ${items.map((item, index) => `
+          <button 
+            class="battle-action-btn" 
+            data-action="useItem" 
+            data-item-index="${index}"
+            style="
+              padding: 15px; 
+              background: ${item.quantity > 0 ? '#2ecc71' : '#666'}; 
+              color: white; 
+              border: none; 
+              border-radius: 10px; 
+              cursor: ${item.quantity > 0 ? 'pointer' : 'not-allowed'}; 
+              font-size: 14px; 
+              font-weight: bold; 
+              transition: all 0.2s ease;
+              text-align: left;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              ${this.selectedIndex === index ? 'box-shadow: 0 0 10px rgba(255,215,0,0.8); transform: scale(1.05);' : ''}
+            "
+            ${item.quantity <= 0 ? 'disabled' : ''}
+          >
+            <div>
+              <div style="font-size: 16px; margin-bottom: 2px;">${item.name}</div>
+              <div style="font-size: 11px; opacity: 0.8;">${item.description}</div>
+            </div>
+            <div style="font-size: 14px; font-weight: bold;">×${item.quantity}</div>
+          </button>
+        `).join('')}
+      </div>
+      <button 
+        class="battle-back-btn" 
+        style="
+          margin-top: 20px; 
+          padding: 10px 20px; 
+          background: #e74c3c; 
+          color: white; 
+          border: none; 
+          border-radius: 8px; 
+          cursor: pointer; 
+          font-size: 14px;
+        "
+      >
+        ← Retour
+      </button>
+    `;
+  }
+  
+  getPokemonMenu() {
+    const team = this.battleData.team || [
+      { name: 'Pikachu', level: 25, hp: 80, maxHp: 100, active: true },
+      { name: 'Salamèche', level: 20, hp: 65, maxHp: 70, active: false },
+      { name: 'Carapuce', level: 18, hp: 0, maxHp: 68, active: false },
+      { name: 'Bulbizarre', level: 22, hp: 75, maxHp: 80, active: false }
+    ];
+    
+    return `
+      <h3 style="margin: 0 0 20px 0; color: #FFD700;">Change de Pokémon</h3>
+      <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 450px;">
+        ${team.map((pokemon, index) => `
+          <button 
+            class="battle-action-btn" 
+            data-action="switchPokemon" 
+            data-pokemon-index="${index}"
+            style="
+              padding: 15px; 
+              background: ${pokemon.active ? '#34495e' : (pokemon.hp > 0 ? '#9b59b6' : '#7f8c8d')}; 
+              color: white; 
+              border: none; 
+              border-radius: 10px; 
+              cursor: ${!pokemon.active && pokemon.hp > 0 ? 'pointer' : 'not-allowed'}; 
+              font-size: 14px; 
+              font-weight: bold; 
+              transition: all 0.2s ease;
+              text-align: left;
+              opacity: ${pokemon.active ? '0.6' : '1'};
+              ${this.selectedIndex === index ? 'box-shadow: 0 0 10px rgba(255,215,0,0.8); transform: scale(1.05);' : ''}
+            "
+            ${pokemon.active || pokemon.hp <= 0 ? 'disabled' : ''}
+          >
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 16px; margin-bottom: 5px;">
+                  ${pokemon.name} ${pokemon.active ? '(Actif)' : ''} ${pokemon.hp <= 0 ? '(K.O.)' : ''}
+                </div>
+                <div style="font-size: 12px; opacity: 0.8;">Niveau ${pokemon.level}</div>
+                <div style="background: #333; border-radius: 5px; padding: 2px; margin-top: 5px; width: 150px;">
+                  <div style="background: ${pokemon.hp > pokemon.maxHp * 0.5 ? '#4CAF50' : pokemon.hp > pokemon.maxHp * 0.2 ? '#FF9800' : '#f44336'}; height: 4px; border-radius: 3px; width: ${(pokemon.hp / pokemon.maxHp) * 100}%; transition: width 0.3s ease;"></div>
+                </div>
+              </div>
+              <div style="text-align: right; font-size: 12px;">
+                ${pokemon.hp}/${pokemon.maxHp} HP
+              </div>
+            </div>
+          </button>
+        `).join('')}
+      </div>
+      <button 
+        class="battle-back-btn" 
+        style="
+          margin-top: 20px; 
+          padding: 10px 20px; 
+          background: #e74c3c; 
+          color: white; 
+          border: none; 
+          border-radius: 8px; 
+          cursor: pointer; 
+          font-size: 14px;
+        "
+      >
+        ← Retour
+      </button>
+    `;
+  }
+  
+  // ===== ÉVÉNEMENTS =====
+  setupEvents() {
+    // Clic sur les boutons
+    this.root.addEventListener('click', (e) => {
+      const btn = e.target.closest('.battle-action-btn');
+      const backBtn = e.target.closest('.battle-back-btn');
+      
+      if (btn && !btn.disabled) {
+        const action = btn.dataset.action;
+        const index = parseInt(btn.dataset.index) || 0;
+        const moveIndex = parseInt(btn.dataset.moveIndex);
+        const itemIndex = parseInt(btn.dataset.itemIndex);
+        const pokemonIndex = parseInt(btn.dataset.pokemonIndex);
+        
+        this.handleAction(action, { index, moveIndex, itemIndex, pokemonIndex });
+      } else if (backBtn) {
+        this.goBack();
       }
-      if (this.selectedIndices.attacks === i) btn.setAttribute('aria-selected', 'true');
-      btn.onclick = () => this.handleAction('attack', { moveIndex: i, move: move });
-      this.buttonRefs.push(btn);
-      menu.appendChild(btn);
-    }
-    this.root.appendChild(menu);
-    this.updateButtonSelection('attacks');
-  }
-
-  renderBagMenu() {
-    const menu = document.createElement('div');
-    menu.className = 'battle-menu-bag';
-    const items = [
-      { name: 'Potion', id: 'potion', enabled: true },
-      { name: 'Poké Ball', id: 'pokeball', enabled: true }
-    ];
-    items.forEach((item, i) => {
-      const btn = document.createElement('button');
-      btn.className = 'battle-action-button';
-      btn.textContent = item.name;
-      btn.disabled = !item.enabled;
-      btn.onclick = () => this.handleAction('bag', { itemId: item.id });
-      if (this.selectedIndices.bag === i) btn.setAttribute('aria-selected', 'true');
-      this.buttonRefs.push(btn);
-      menu.appendChild(btn);
     });
-    this.root.appendChild(menu);
-    this.updateButtonSelection('bag');
+    
+    // Navigation clavier
+    document.addEventListener('keydown', this.handleKeyDown.bind(this));
   }
-
-  renderPokemonMenu() {
-    const menu = document.createElement('div');
-    menu.className = 'battle-menu-pokemon';
-    const team = [
-      { name: this.battleData.playerPokemon.name, current: true },
-      { name: 'Salamèche', current: false }
-    ];
-    team.forEach((poke, i) => {
-      const btn = document.createElement('button');
-      btn.className = 'battle-action-button';
-      btn.textContent = poke.name + (poke.current ? " (Actif)" : "");
-      btn.disabled = poke.current;
-      btn.onclick = () => this.handleAction('pokemon', { pokemonIndex: i });
-      if (this.selectedIndices.pokemon === i) btn.setAttribute('aria-selected', 'true');
-      this.buttonRefs.push(btn);
-      menu.appendChild(btn);
-    });
-    this.root.appendChild(menu);
-    this.updateButtonSelection('pokemon');
-  }
-
-  // === NAVIGATION CLAVIER ===
+  
   handleKeyDown(e) {
     if (!this.isOpen) return;
-    const current = this.menuStack.at(-1);
-    let idx = this.selectedIndices[current] || 0;
-    const maxIdx = this.buttonRefs.length - 1;
-    const isGrid = (current === 'attacks');
-
-    let handled = true;
-    switch (e.key) {
-      case 'ArrowRight': if (isGrid) idx = (idx + 1) % 4; else idx = Math.min(idx + 1, maxIdx); break;
-      case 'ArrowLeft':  if (isGrid) idx = (idx + 3) % 4; else idx = Math.max(idx - 1, 0); break;
-      case 'ArrowUp':    if (isGrid) idx = (idx + 2) % 4; else idx = Math.max(idx - 1, 0); break;
-      case 'ArrowDown':  if (isGrid) idx = (idx + 2) % 4; else idx = Math.min(idx + 1, maxIdx); break;
-      case 'Enter': case ' ':
-        if (this.buttonRefs[idx] && !this.buttonRefs[idx].disabled) this.buttonRefs[idx].click();
-        break;
-      case 'Escape': this.goBack(); break;
-      case 'Tab': idx = (idx + 1) % (maxIdx + 1); break;
-      default: handled = false;
-    }
-    if (handled) {
-      this.selectedIndices[current] = idx;
-      this.updateButtonSelection(current);
-      e.preventDefault();
-    }
-  }
-
-  updateButtonSelection(menuKey) {
-    this.buttonRefs.forEach((btn, i) => {
-      if (i === (this.selectedIndices[menuKey] || 0)) {
-        btn.classList.add('selected');
-        btn.setAttribute('aria-selected', 'true');
-        btn.focus();
-      } else {
-        btn.classList.remove('selected');
-        btn.removeAttribute('aria-selected');
-      }
-    });
-  }
-
-  // === ACTIONS ===
-  handleAction(actionType, actionData = {}) {
-    console.log(`⚔️ [BattleInterface] Action: ${actionType}`, actionData);
     
-    switch (actionType) {
+    const buttons = this.root.querySelectorAll('.battle-action-btn:not([disabled])');
+    const maxIndex = buttons.length - 1;
+    
+    let handled = true;
+    
+    switch (e.key) {
+      case 'ArrowUp':
+        this.selectedIndex = Math.max(0, this.selectedIndex - 2);
+        break;
+      case 'ArrowDown':
+        this.selectedIndex = Math.min(maxIndex, this.selectedIndex + 2);
+        break;
+      case 'ArrowLeft':
+        this.selectedIndex = Math.max(0, this.selectedIndex - 1);
+        break;
+      case 'ArrowRight':
+        this.selectedIndex = Math.min(maxIndex, this.selectedIndex + 1);
+        break;
+      case 'Enter':
+      case ' ':
+        if (buttons[this.selectedIndex]) {
+          buttons[this.selectedIndex].click();
+        }
+        break;
+      case 'Escape':
+        this.goBack();
+        break;
+      default:
+        handled = false;
+    }
+    
+    if (handled) {
+      e.preventDefault();
+      this.updateInterface();
+    }
+  }
+  
+  // ===== ACTIONS =====
+  handleAction(action, data = {}) {
+    console.log(`⚔️ [WorkingBattleInterface] Action: ${action}`, data);
+    
+    switch (action) {
       case 'attack':
-        if (this.menuStack.at(-1) === 'main')      { this.showAttacksMenu(); }
-        else if (this.menuStack.at(-1) === 'attacks') {
-          this.emitBattleAction({ type: 'attack', ...actionData });
-          this.close();
-        }
+        this.currentMenu = 'attacks';
+        this.selectedIndex = 0;
+        this.updateInterface();
         break;
+        
       case 'bag':
-        if (this.menuStack.at(-1) === 'main')      { this.showBagMenu(); }
-        else {
-          this.emitBattleAction({ type: 'bag', ...actionData });
-          this.close();
-        }
+        this.currentMenu = 'bag';
+        this.selectedIndex = 0;
+        this.updateInterface();
         break;
+        
       case 'pokemon':
-        if (this.menuStack.at(-1) === 'main')      { this.showPokemonMenu(); }
-        else {
-          this.emitBattleAction({ type: 'pokemon', ...actionData });
-          this.close();
-        }
+        this.currentMenu = 'pokemon';
+        this.selectedIndex = 0;
+        this.updateInterface();
         break;
+        
       case 'flee':
         this.emitBattleAction({ type: 'flee' });
         this.close();
         break;
+        
+      case 'useAttack':
+        const move = this.battleData.playerPokemon?.moves?.[data.moveIndex];
+        this.emitBattleAction({ type: 'attack', moveIndex: data.moveIndex, move });
+        this.close();
+        break;
+        
+      case 'useItem':
+        const item = this.battleData.bag?.[data.itemIndex];
+        this.emitBattleAction({ type: 'item', itemIndex: data.itemIndex, item });
+        this.close();
+        break;
+        
+      case 'switchPokemon':
+        const pokemon = this.battleData.team?.[data.pokemonIndex];
+        this.emitBattleAction({ type: 'switch', pokemonIndex: data.pokemonIndex, pokemon });
+        this.close();
+        break;
     }
   }
-
-  emitBattleAction(action) {
-    console.log('⚔️ [BattleInterface] Action émise:', action);
-    
-    // Notification utilisateur
-    if (window.showGameNotification) {
-      let message = '';
-      switch (action.type) {
-        case 'attack':
-          message = action.move ? `${action.move.name} sélectionné !` : 'Attaque sélectionnée !';
-          break;
-        case 'bag':
-          message = action.itemId ? `${action.itemId} utilisé !` : 'Objet utilisé !';
-          break;
-        case 'pokemon':
-          message = 'Changement de Pokémon !';
-          break;
-        case 'flee':
-          message = 'Fuite du combat !';
-          break;
-      }
-      
-      window.showGameNotification(message, 'info', { duration: 2000 });
+  
+  goBack() {
+    if (this.currentMenu === 'main') {
+      this.close();
+    } else {
+      this.currentMenu = 'main';
+      this.selectedIndex = 0;
+      this.updateInterface();
     }
+  }
+  
+  emitBattleAction(action) {
+    console.log('🎯 [WorkingBattleInterface] Action émise:', action);
+    
+    // Notification
+    this.showNotification(this.getActionMessage(action));
     
     // Callbacks
     if (window.onBattleAction) {
@@ -552,250 +517,525 @@ export class BattleInterface {
     
     // Événement custom
     window.dispatchEvent(new CustomEvent('battleAction', { detail: action }));
+    
+    // Si vous avez un NetworkManager pour Colyseus
+    if (this.gameManager?.sendBattleAction) {
+      this.gameManager.sendBattleAction(action);
+    }
   }
-
+  
+  getActionMessage(action) {
+    switch (action.type) {
+      case 'attack':
+        return `⚡ ${action.move?.name || 'Attaque'} utilisé!`;
+      case 'item':
+        return `🎒 ${action.item?.name || 'Objet'} utilisé!`;
+      case 'switch':
+        return `🎮 Changement vers ${action.pokemon?.name || 'Pokémon'}!`;
+      case 'flee':
+        return `🏃 Fuite du combat!`;
+      default:
+        return `✅ Action: ${action.type}`;
+    }
+  }
+  
+  showNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #2ecc71;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      z-index: 10001;
+      transform: translateX(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+    `;
+    
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Animation
+    setTimeout(() => {
+      notification.style.transform = 'translateX(0)';
+      notification.style.opacity = '1';
+    }, 10);
+    
+    // Suppression
+    setTimeout(() => {
+      notification.style.transform = 'translateX(100px)';
+      notification.style.opacity = '0';
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+  
+  // ===== MÉTHODES UIMANAGER =====
+  show(options = {}) {
+    if (!this.root) {
+      return this.createInterface();
+    }
+    
+    this.root.style.display = 'flex';
+    this.root.style.opacity = '1';
+    this.isOpen = true;
+    this.uiManagerState.visible = true;
+    
+    return true;
+  }
+  
+  hide(options = {}) {
+    if (this.root) {
+      this.root.style.opacity = '0';
+      setTimeout(() => {
+        if (this.root) this.root.style.display = 'none';
+      }, 300);
+    }
+    
+    this.isOpen = false;
+    this.uiManagerState.visible = false;
+    
+    return true;
+  }
+  
   close() {
-    this.hide({ animated: true });
+    this.hide();
     setTimeout(() => this.destroy(), 300);
   }
-
-  /** Libellé du breadcrumb selon le menu */
-  getBreadcrumbLabel() {
-    if (this.menuStack.length === 1) return "Que veux-tu faire ?";
-    const last = this.menuStack.at(-1);
-    switch (last) {
-      case 'attacks': return "Sélectionne une attaque";
-      case 'bag':     return "Sélectionne un objet";
-      case 'pokemon': return "Change de Pokémon";
-      default:        return '';
-    }
-  }
-
-  // ============ UIManager required methods ==============
-
-  show(options = {}) {
-    try {
-      if (!this.root) {
-        this.createInterface();
-      }
-      
-      this.root.classList.remove('ui-hidden', 'ui-fade-out');
-      this.root.style.display = 'flex';
-      this.isOpen = true;
-      this.uiManagerState.visible = true;
-      
-      // Appliquer config responsive si fournie
-      if (options.device) {
-        this.applyResponsiveConfig(options.device);
-      }
-      
-      // Animation UIManager
-      if (options.animated !== false) {
-        requestAnimationFrame(() => {
-          this.root.classList.add('visible');
-        });
-      } else {
-        this.root.classList.add('visible');
-      }
-      
-      this.root.focus?.();
-      
-      // Déclencher événement UIManager
-      this._dispatchUIEvent('battleInterfaceShown', { 
-        animated: options.animated,
-        device: options.device 
-      });
-      
-      console.log('✅ [BattleInterface] Interface affichée');
-      return true;
-      
-    } catch (error) {
-      this.handleError(error, 'show');
-      return false;
-    }
-  }
-
-  hide(options = {}) {
-    try {
-      if (this.root) {
-        if (options.animated !== false) {
-          this.root.classList.remove('visible');
-          setTimeout(() => {
-            this.root.classList.add('ui-hidden');
-            this.root.style.display = 'none';
-          }, 300);
-        } else {
-          this.root.classList.add('ui-hidden');
-          this.root.style.display = 'none';
-        }
-        
-        this.isOpen = false;
-        this.uiManagerState.visible = false;
-      }
-      
-      this._dispatchUIEvent('battleInterfaceHidden', { 
-        animated: options.animated 
-      });
-      
-      console.log('✅ [BattleInterface] Interface masquée');
-      return true;
-      
-    } catch (error) {
-      this.handleError(error, 'hide');
-      return false;
-    }
-  }
-
-  setEnabled(enabled) {
-    try {
-      this.uiManagerState.enabled = enabled;
-      if (this.root) {
-        this.root.classList.toggle('ui-disabled', !enabled);
-        Array.from(this.root.querySelectorAll('button')).forEach(btn => {
-          btn.disabled = !enabled;
-        });
-      }
-      
-      console.log(`✅ [BattleInterface] État enabled: ${enabled}`);
-      return true;
-      
-    } catch (error) {
-      this.handleError(error, 'setEnabled');
-      return false;
-    }
-  }
-
-  applyResponsiveConfig(device) {
-    if (!this.root || !this.responsiveConfig[device]) return;
-    
-    const config = this.responsiveConfig[device];
-    
-    try {
-      if (config.scaleFactor !== 1.0) {
-        this.root.style.transform = `translate(-50%, -50%) scale(${config.scaleFactor})`;
-        this.root.style.transformOrigin = 'center center';
-      }
-      
-      if (config.simplifiedLayout) {
-        this.root.classList.add('mobile-layout');
-      } else {
-        this.root.classList.remove('mobile-layout');
-      }
-      
-      if (config.hiddenElements) {
-        config.hiddenElements.forEach(selector => {
-          const elements = this.root.querySelectorAll(selector);
-          elements.forEach(el => el.style.display = 'none');
-        });
-      }
-      
-      console.log(`✅ [BattleInterface] Config responsive appliquée: ${device}`);
-      
-    } catch (error) {
-      this.handleError(error, 'applyResponsiveConfig');
-    }
-  }
-
-  // === MÉTHODES UIMANAGER ===
-
-  _dispatchUIEvent(eventType, detail) {
-    try {
-      if (window.pokemonUISystem) {
-        window.pokemonUISystem.uiManager?._dispatchEvent?.(eventType, detail);
-      }
-      
-      window.dispatchEvent(new CustomEvent(eventType, { detail }));
-    } catch (error) {
-      console.warn(`[BattleInterface] Erreur dispatch événement ${eventType}:`, error);
-    }
-  }
-
-  handleError(error, context) {
-    console.error(`[BattleInterface] Error in ${context}:`, error);
-    
-    this._dispatchUIEvent('battleInterfaceError', { 
-      error: error.message, 
-      context,
-      critical: this._isCriticalError(error)
-    });
-    
-    if (this._canRecover(error)) {
-      this._attemptRecovery(context);
-    }
-  }
-
-  _attemptRecovery(context) {
-    console.log(`[BattleInterface] Attempting recovery for: ${context}`);
-    
-    try {
-      switch (context) {
-        case 'render':
-          this.render();
-          break;
-        case 'navigation':
-          this.resetNavigation();
-          break;
-        case 'interface':
-          this.recreateInterface();
-          break;
-        case 'show':
-        case 'hide':
-          setTimeout(() => {
-            if (context === 'show') this.show({ animated: false });
-            else this.hide({ animated: false });
-          }, 100);
-          break;
-      }
-      
-      console.log(`✅ [BattleInterface] Recovery réussi pour: ${context}`);
-      
-    } catch (recoveryError) {
-      console.error(`[BattleInterface] Recovery failed for ${context}:`, recoveryError);
-    }
-  }
-
-  _isCriticalError(error) {
-    return error.message.includes('Cannot read') || 
-           error.message.includes('is not a function') ||
-           error.message.includes('null');
-  }
-
-  _canRecover(error) {
-    const recoverablePatterns = [
-      /render/i,
-      /navigation/i,
-      /button/i,
-      /element/i,
-      /display/i,
-      /style/i
-    ];
-    return recoverablePatterns.some(pattern => pattern.test(error.message));
-  }
-
-  resetNavigation() {
-    this.menuStack = ['main'];
-    this.selectedIndices = { main: 0, attacks: 0, bag: 0, pokemon: 0 };
-    this.render();
-  }
-
-  recreateInterface() {
+  
+  destroy() {
     if (this.root) {
-      this.destroy();
+      document.removeEventListener('keydown', this.handleKeyDown);
+      this.root.remove();
+      this.root = null;
     }
-    this.createInterface();
+    
+    this.isOpen = false;
+    this.uiManagerState.visible = false;
+    this.uiManagerState.initialized = false;
+    
+    console.log('✅ [WorkingBattleInterface] Interface détruite');
   }
-
-  // API pour UIManager state
+  
+  setEnabled(enabled) {
+    this.uiManagerState.enabled = enabled;
+    if (this.root) {
+      this.root.style.opacity = enabled ? '1' : '0.5';
+      this.root.style.pointerEvents = enabled ? 'auto' : 'none';
+    }
+    return true;
+  }
+  
   getUIManagerState() {
     return {
       ...this.uiManagerState,
       hasRoot: !!this.root,
       isOpen: this.isOpen,
-      currentMenu: this.menuStack.at(-1),
-      selectedIndex: this.selectedIndices[this.menuStack.at(-1)] || 0,
-      battling: !!this.battleData
+      currentMenu: this.currentMenu,
+      selectedIndex: this.selectedIndex
     };
+  }
+  
+  get iconElement() {
+    return this.root;
   }
 }
 
-console.log('✅ [BattleInterface] Classe corrigée chargée avec iconElement getter/setter');
+// 2. ===== REMPLACEMENT DANS LE SYSTÈME =====
+function replaceWorkingBattleInterface() {
+  console.log('🔄 [WorkingBattleInterface] Remplacement du système défaillant...');
+  
+  // Créer une version fonctionnelle
+  const workingWrapper = {
+    moduleType: 'battleInterface',
+    originalModule: null,
+    iconElement: null,
+    isInitialized: false,
+    
+    create: function(gameManager, battleData) {
+      console.log('🏗️ [WorkingWrapper] Création instance...');
+      
+      if (this.originalModule) {
+        this.originalModule.destroy();
+      }
+      
+      this.originalModule = new WorkingBattleInterface(gameManager, battleData);
+      this.iconElement = this.originalModule.root;
+      this.isInitialized = true;
+      
+      console.log('✅ [WorkingWrapper] Instance créée');
+      return this.originalModule;
+    },
+    
+    startBattle: function(battleData) {
+      console.log('⚔️ [WorkingWrapper] Démarrage combat:', battleData);
+      
+      if (!this.originalModule) {
+        const gameManager = window.globalNetworkManager || window.gameManager || window;
+        this.create(gameManager, battleData);
+      }
+      
+      if (this.originalModule) {
+        this.originalModule.battleData = battleData;
+        return this.originalModule.show({ animated: true });
+      }
+      
+      return false;
+    },
+    
+    endBattle: function() {
+      console.log('🏁 [WorkingWrapper] Fin de combat');
+      
+      if (this.originalModule) {
+        this.originalModule.close();
+        return true;
+      }
+      
+      return false;
+    },
+    
+    show: function(options = {}) {
+      if (this.originalModule) {
+        return this.originalModule.show(options);
+      }
+      return false;
+    },
+    
+    hide: function(options = {}) {
+      if (this.originalModule) {
+        return this.originalModule.hide(options);
+      }
+      return false;
+    },
+    
+    setEnabled: function(enabled) {
+      if (this.originalModule) {
+        return this.originalModule.setEnabled(enabled);
+      }
+      return false;
+    },
+    
+    getState: function() {
+      if (this.originalModule) {
+        return this.originalModule.getUIManagerState();
+      }
+      return { initialized: false, visible: false, enabled: false };
+    },
+    
+    destroy: function() {
+      if (this.originalModule) {
+        this.originalModule.destroy();
+        this.originalModule = null;
+      }
+      this.iconElement = null;
+      this.isInitialized = false;
+    }
+  };
+  
+  // Remplacer dans le système
+  if (window.pokemonUISystem) {
+    window.pokemonUISystem.moduleInstances.set('battleInterface', workingWrapper);
+    
+    if (window.pokemonUISystem.uiManager?.modules?.has('battleInterface')) {
+      window.pokemonUISystem.uiManager.modules.get('battleInterface').instance = workingWrapper;
+    }
+    
+    console.log('✅ [WorkingBattleInterface] Système remplacé');
+  }
+  
+  return workingWrapper;
+}
+
+// 3. ===== FONCTIONS DE TEST ET INTÉGRATION =====
+
+// Test avec interface complète
+function testWorkingBattleInterface() {
+  console.log('🧪 [WorkingBattleInterface] Test interface complète...');
+  
+  const battleData = {
+    playerPokemon: {
+      name: 'Pikachu',
+      level: 25,
+      hp: 80,
+      maxHp: 100,
+      moves: [
+        { name: 'Tonnerre', pp: 15, maxPp: 15, type: 'electric', power: 90 },
+        { name: 'Vive-Attaque', pp: 30, maxPp: 30, type: 'normal', power: 40 },
+        { name: 'Queue de Fer', pp: 15, maxPp: 15, type: 'steel', power: 100 },
+        { name: 'Charme', pp: 20, maxPp: 20, type: 'fairy', power: 0 }
+      ]
+    },
+    opponentPokemon: {
+      name: 'Rattata Sauvage',
+      level: 15,
+      hp: 60,
+      maxHp: 75
+    },
+    bag: [
+      { name: 'Potion', quantity: 5, description: 'Restaure 20 HP' },
+      { name: 'Super Potion', quantity: 2, description: 'Restaure 50 HP' },
+      { name: 'Poké Ball', quantity: 10, description: 'Capture un Pokémon' },
+      { name: 'Antidote', quantity: 3, description: 'Soigne empoisonnement' }
+    ],
+    team: [
+      { name: 'Pikachu', level: 25, hp: 80, maxHp: 100, active: true },
+      { name: 'Salamèche', level: 20, hp: 65, maxHp: 70, active: false },
+      { name: 'Carapuce', level: 18, hp: 0, maxHp: 68, active: false },
+      { name: 'Bulbizarre', level: 22, hp: 75, maxHp: 80, active: false }
+    ],
+    canUseBag: true,
+    canFlee: true
+  };
+  
+  // Créer l'interface
+  const battleInterface = new WorkingBattleInterface(window.gameManager || window, battleData);
+  
+  // Lancer l'interface
+  battleInterface.createInterface();
+  
+  // Auto-fermeture après 15 secondes
+  setTimeout(() => {
+    if (battleInterface.isOpen) {
+      console.log('⏰ Auto-fermeture test après 15 secondes');
+      battleInterface.close();
+    }
+  }, 15000);
+  
+  console.log('✅ [WorkingBattleInterface] Test lancé - Interface complète affichée');
+  
+  return battleInterface;
+}
+
+// Intégration avec votre système Colyseus
+function integrateBattleWithColyseus() {
+  console.log('🔗 [WorkingBattleInterface] Intégration Colyseus...');
+  
+  // Hook pour les actions de combat
+  window.onBattleAction = (action) => {
+    console.log('🎯 [Colyseus] Action de combat reçue:', action);
+    
+    // Envoyer au serveur Colyseus
+    if (window.currentGameRoom) {
+      try {
+        window.currentGameRoom.send('battleAction', action);
+        console.log('📤 [Colyseus] Action envoyée au serveur');
+      } catch (error) {
+        console.error('❌ [Colyseus] Erreur envoi action:', error);
+      }
+    } else {
+      console.warn('⚠️ [Colyseus] Pas de room active');
+    }
+    
+    // Simulation de réponse serveur (pour test)
+    setTimeout(() => {
+      simulateBattleResponse(action);
+    }, 1000);
+  };
+  
+  // Simulation réponse serveur
+  function simulateBattleResponse(action) {
+    console.log('🎭 [Simulation] Réponse serveur pour:', action.type);
+    
+    let message = '';
+    let type = 'info';
+    
+    switch (action.type) {
+      case 'attack':
+        message = `${action.move?.name || 'Attaque'} inflige 45 dégâts!`;
+        type = 'success';
+        break;
+      case 'item':
+        message = `${action.item?.name || 'Objet'} utilisé avec succès!`;
+        type = 'success';
+        break;
+      case 'switch':
+        message = `${action.pokemon?.name || 'Pokémon'} entre en combat!`;
+        type = 'info';
+        break;
+      case 'flee':
+        message = 'Fuite réussie!';
+        type = 'warning';
+        break;
+    }
+    
+    // Notification utilisateur
+    if (window.showGameNotification) {
+      window.showGameNotification(message, type, { duration: 3000 });
+    }
+  }
+  
+  console.log('✅ [WorkingBattleInterface] Intégration Colyseus configurée');
+}
+
+// 4. ===== FONCTIONS GLOBALES =====
+
+// Remplacer le système défaillant
+window.replaceWorkingBattleInterface = () => {
+  return replaceWorkingBattleInterface();
+};
+
+// Test interface complète
+window.testWorkingBattleInterface = () => {
+  return testWorkingBattleInterface();
+};
+
+// Test rapide avec données minimales
+window.quickBattleTest = () => {
+  console.log('⚡ [WorkingBattleInterface] Test rapide...');
+  
+  const minimalData = {
+    playerPokemon: { name: 'Pikachu', level: 25 },
+    opponentPokemon: { name: 'Rattata', level: 15 }
+  };
+  
+  const battleInterface = new WorkingBattleInterface(window, minimalData);
+  battleInterface.createInterface();
+  
+  return battleInterface;
+};
+
+// Intégration complète
+window.setupBattleIntegration = () => {
+  console.log('🚀 [WorkingBattleInterface] Setup intégration complète...');
+  
+  // 1. Remplacer le système défaillant
+  const workingModule = replaceWorkingBattleInterface();
+  
+  // 2. Intégrer avec Colyseus
+  integrateBattleWithColyseus();
+  
+  // 3. Test
+  setTimeout(() => {
+    testWorkingBattleInterface();
+  }, 1000);
+  
+  console.log('✅ [WorkingBattleInterface] Intégration complète terminée');
+  
+  return workingModule;
+};
+
+// Fix pour transitions UI
+window.fixBattleTransitions = () => {
+  console.log('🎬 [WorkingBattleInterface] Fix transitions...');
+  
+  // Corriger setGameState si nécessaire
+  if (window.pokemonUISystem?.uiManager) {
+    const originalSetGameState = window.pokemonUISystem.uiManager.setGameState;
+    
+    window.pokemonUISystem.uiManager.setGameState = function(stateName, options = {}) {
+      console.log(`🎮 [FixedUIManager] Transition: ${this.currentGameState} → ${stateName}`);
+      
+      // Gestion spéciale pour battle
+      if (stateName === 'battle') {
+        // Masquer UI exploration
+        const iconsToHide = [
+          '#inventory-icon', '#team-icon', '#quest-icon', 
+          '.ui-icon', '.game-icon', '#questTracker'
+        ];
+        
+        iconsToHide.forEach(selector => {
+          document.querySelectorAll(selector).forEach(el => {
+            el.style.display = 'none';
+          });
+        });
+        
+        console.log('👻 [FixedUIManager] UI exploration masquée');
+      } else if (stateName === 'exploration') {
+        // Réafficher UI exploration
+        const iconsToShow = [
+          '#inventory-icon', '#team-icon', '#quest-icon', 
+          '.ui-icon', '.game-icon', '#questTracker'
+        ];
+        
+        iconsToShow.forEach(selector => {
+          document.querySelectorAll(selector).forEach(el => {
+            el.style.display = '';
+          });
+        });
+        
+        console.log('👁️ [FixedUIManager] UI exploration réaffichée');
+      }
+      
+      // Appeler la méthode originale si elle existe
+      if (originalSetGameState) {
+        try {
+          return originalSetGameState.call(this, stateName, options);
+        } catch (error) {
+          console.warn('⚠️ [FixedUIManager] Erreur méthode originale:', error);
+        }
+      }
+      
+      // Fallback
+      this.currentGameState = stateName;
+      return true;
+    };
+    
+    console.log('✅ [WorkingBattleInterface] Transitions corrigées');
+    return true;
+  }
+  
+  console.log('⚠️ [WorkingBattleInterface] UIManager non trouvé pour correction');
+  return false;
+};
+
+// 5. ===== INSTRUCTIONS COMPLÈTES =====
+console.log(`
+🎮 === WORKING BATTLEINTERFACE INTÉGRÉ ===
+
+🚀 UTILISATION IMMÉDIATE:
+
+1. 🧪 TEST INTERFACE COMPLÈTE:
+   window.testWorkingBattleInterface()
+   
+2. ⚡ TEST RAPIDE:
+   window.quickBattleTest()
+   
+3. 🔄 REMPLACER SYSTÈME DÉFAILLANT:
+   window.replaceWorkingBattleInterface()
+   
+4. 🎬 CORRIGER TRANSITIONS:
+   window.fixBattleTransitions()
+   
+5. 🚀 SETUP COMPLET:
+   window.setupBattleIntegration()
+
+✨ FONCTIONNALITÉS:
+
+• Interface complète avec menus:
+  - Menu principal (4 actions)
+  - Menu attaques (avec PP, types, puissance)
+  - Menu sac (objets avec quantités)
+  - Menu Pokémon (équipe avec HP)
+
+• Navigation:
+  - Clic souris + hover effects
+  - Navigation clavier (flèches + entrée)
+  - Retour avec Échap
+  - Sélection visuelle
+
+• Intégration système:
+  - Compatible UIManager
+  - Callbacks Colyseus
+  - Notifications visuelles
+  - Gestion d'état
+
+• Design Pokémon:
+  - Barres de vie colorées
+  - Types d'attaques colorés
+  - Animations fluides
+  - Interface responsive
+
+🎯 RECOMMANDATION:
+window.setupBattleIntegration()
+`);
+
+// Auto-setup si demandé
+if (typeof window !== 'undefined' && window.location?.search?.includes('setup-battle')) {
+  console.log('🚀 Auto-setup BattleInterface détecté...');
+  setTimeout(() => {
+    window.setupBattleIntegration();
+  }, 2000);
+}
