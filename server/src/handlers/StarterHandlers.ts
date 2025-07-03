@@ -60,14 +60,8 @@ export class StarterHandlers {
         console.warn(`⚠️ [StarterHandlers] Impossible de charger ${zoneName}:`, error instanceof Error ? error.message : String(error));
         
         // Fallback pour villagelab si le fichier n'existe pas
-        if (zoneName === 'villagelab') {
-          this.starterTablePositions.set(zoneName, {
-            centerX: 210,
-            centerY: 160,
-            radius: 100
-          });
-          console.log(`🔄 [StarterHandlers] Fallback villagelab activé avec radius généreux`);
-        }
+       console.log(`ℹ️ [StarterHandlers] Aucun fallback - vérifiez votre carte Tiled ${zoneName}`);
+
       }
     });
     
