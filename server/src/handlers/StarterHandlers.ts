@@ -1,4 +1,4 @@
-// server/src/handlers/StarterHandlers.ts - Version corrigée avec logs détaillés
+// server/src/handlers/StarterHandlers.ts - Version corrigée pour villagelab
 import { Client } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { OwnedPokemon } from "../models/OwnedPokemon";
@@ -38,43 +38,61 @@ export class StarterHandlers {
 
   // ✅ Charger les positions des tables depuis les cartes Tiled
   private loadStarterTablePositions(): void {
-  console.log(`🗺️ [StarterHandlers] Chargement des positions via cartes déjà chargées...`);
-  
-  // Utiliser les mêmes chemins que le CollisionManager
-  const zonesToCheck = ['lavandiaresearchlab'];
-  
-  zonesToCheck.forEach(zoneName => {
-    try {
-      // Utiliser EXACTEMENT la même logique que CollisionManager
-      const fileName = `${zoneName}.tmj`;
-      const resolvedPath = path.resolve(__dirname, "../../build/assets/maps", fileName);
-      
-      console.log(`📂 [StarterHandlers] Lecture: ${resolvedPath}`);
-      
-      if (!fs.existsSync(resolvedPath)) {
-        console.warn(`⚠️ [StarterHandlers] Fichier inexistant: ${resolvedPath}`);
-        return;
+    console.log(`🗺️ [StarterHandlers] Chargement des positions via cartes déjà chargées...`);
+    
+    // ✅ FIX: Utiliser la bonne zone - villagelab au lieu de lavandiaresearchlab
+    const zonesToCheck = ['villagelab'];
+    
+    zonesToCheck.forEach(zoneName => {
+      try {
+        // Utiliser EXACTEMENT la même logique que CollisionManager
+        const fileName = `${zoneName}.tmj`;
+        const resolvedPath = path.resolve(__dirname, "../../build/assets/maps", fileName);
+        
+        console.log(`📂 [StarterHandlers] Lecture: ${resolvedPath}`);
+        
+        if (!fs.existsSync(resolvedPath)) {
+          console.warn(`⚠️ [StarterHandlers] Fichier inexistant: ${resolvedPath}`);
+          // ✅ FIX: Ajouter une position par défaut pour villagelab si le fichier n'existe pas
+          this.addDefaultStarterTablePosition(zoneName);
+          return;
+        }
+        
+        const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
+        const starterTable = this.findStarterTableInMap(mapData, zoneName);
+        
+        if (starterTable) {
+          this.starterTablePositions.set(zoneName, starterTable);
+          console.log(`✅ [StarterHandlers] Table starter trouvée dans ${zoneName}:`, starterTable);
+        } else {
+          console.log(`ℹ️ [StarterHandlers] Pas de table starter dans ${zoneName}, ajout position par défaut`);
+          this.addDefaultStarterTablePosition(zoneName);
+        }
+        
+      } catch (error) {
+        console.warn(`⚠️ [StarterHandlers] Erreur traitement ${zoneName}:`, error instanceof Error ? error.message : String(error));
+        // ✅ FIX: Ajouter une position par défaut en cas d'erreur
+        this.addDefaultStarterTablePosition(zoneName);
       }
-      
-      const mapData = JSON.parse(fs.readFileSync(resolvedPath, "utf-8"));
-      const starterTable = this.findStarterTableInMap(mapData, zoneName);
-      
-      if (starterTable) {
-        this.starterTablePositions.set(zoneName, starterTable);
-        console.log(`✅ [StarterHandlers] Table starter trouvée dans ${zoneName}:`, starterTable);
-      } else {
-        console.log(`ℹ️ [StarterHandlers] Pas de table starter dans ${zoneName}`);
-      }
-      
-    } catch (error) {
-      console.warn(`⚠️ [StarterHandlers] Erreur traitement ${zoneName}:`, error instanceof Error ? error.message : String(error));
-    }
-  });
+    });
+    
+    console.log(`📊 [StarterHandlers] Total zones avec tables: ${this.starterTablePositions.size}`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Ajouter une position par défaut pour villagelab
+  private addDefaultStarterTablePosition(zoneName: string): void {
+    // Position par défaut basée sur la position typique d'un labo Pokémon
+    const defaultPosition = {
+      centerX: 200,
+      centerY: 200,
+      radius: 100
+    };
+    
+    this.starterTablePositions.set(zoneName, defaultPosition);
+    console.log(`🔧 [StarterHandlers] Position par défaut ajoutée pour ${zoneName}:`, defaultPosition);
+  }
   
-  console.log(`📊 [StarterHandlers] Total zones avec tables: ${this.starterTablePositions.size}`);
-}
-  
-  // ✅ Chercher la table starter dans une carte Tiled
+  // ✅ Chercher la table starter dans une carte Tiled - ADAPTÉ LOGIQUE CLIENT
   private findStarterTableInMap(mapData: any, zoneName: string): { centerX: number, centerY: number, radius: number } | null {
     console.log(`🔍 [StarterHandlers] Recherche table starter dans ${zoneName}...`);
     
@@ -82,6 +100,62 @@ export class StarterHandlers {
       console.warn(`⚠️ [StarterHandlers] Pas de layers dans ${zoneName}`);
       return null;
     }
+    
+    // ✅ ADAPTATION: Chercher spécifiquement le layer "Worlds" comme côté client
+    const worldsLayer = mapData.layers.find(layer => 
+      layer.type === 'objectgroup' && layer.name === 'Worlds'
+    );
+    
+    if (!worldsLayer) {
+      console.warn(`⚠️ [StarterHandlers] Layer "Worlds" non trouvé dans ${zoneName}`);
+      // Fallback: chercher dans tous les layers d'objets
+      return this.findStarterTableInAllLayers(mapData, zoneName);
+    }
+    
+    console.log(`🔍 [StarterHandlers] Layer "Worlds" trouvé avec ${worldsLayer.objects?.length || 0} objets`);
+    
+    if (!worldsLayer.objects) {
+      console.warn(`⚠️ [StarterHandlers] Pas d'objets dans le layer "Worlds"`);
+      return null;
+    }
+    
+    // Parcourir les objets du layer "Worlds"
+    for (const obj of worldsLayer.objects) {
+      console.log(`🔍 [StarterHandlers] Objet trouvé:`, {
+        name: obj.name,
+        type: obj.type,
+        properties: obj.properties,
+        x: obj.x,
+        y: obj.y,
+        width: obj.width,
+        height: obj.height
+      });
+      
+      if (this.isStarterTableObject(obj)) {
+        const centerX = obj.x + (obj.width || 32) / 2;
+        const centerY = obj.y + (obj.height || 32) / 2;
+        const radius = Math.max(obj.width || 32, obj.height || 32) + 60; // Rayon plus généreux
+        
+        console.log(`🎯 [StarterHandlers] Table starter trouvée dans ${zoneName}:`, {
+          objectName: obj.name,
+          objectType: obj.type,
+          originalPos: `(${obj.x}, ${obj.y})`,
+          size: `${obj.width || 32}x${obj.height || 32}`,
+          calculatedCenter: `(${centerX}, ${centerY})`,
+          detectionRadius: radius
+        });
+        
+        return { centerX, centerY, radius };
+      }
+    }
+    
+    console.log(`❌ [StarterHandlers] Aucune table starter trouvée dans le layer "Worlds" de ${zoneName}`);
+    return null;
+  }
+
+  // ✅ NOUVEAU: Méthode fallback pour chercher dans tous les layers
+  private findStarterTableInAllLayers(mapData: any, zoneName: string): { centerX: number, centerY: number, radius: number } | null {
+    console.log(`🔍 [StarterHandlers] Fallback: recherche dans tous les layers de ${zoneName}...`);
     
     // Parcourir tous les layers d'objets
     for (const layer of mapData.layers) {
@@ -94,7 +168,7 @@ export class StarterHandlers {
             const centerY = obj.y + (obj.height || 32) / 2;
             const radius = Math.max(obj.width || 32, obj.height || 32) + 60; // Rayon plus généreux
             
-            console.log(`🎯 [StarterHandlers] Table starter trouvée dans ${zoneName}:`, {
+            console.log(`🎯 [StarterHandlers] Table starter trouvée dans ${zoneName} (layer ${layer.name}):`, {
               objectName: obj.name,
               objectType: obj.type,
               originalPos: `(${obj.x}, ${obj.y})`,
@@ -206,6 +280,38 @@ export class StarterHandlers {
         tablesCount: this.starterTablePositions.size,
         tables: Array.from(this.starterTablePositions.entries())
       });
+    });
+
+    // ✅ NOUVEAU HANDLER: Recevoir les positions depuis le client
+    this.room.onMessage("syncStarterTablePosition", (client, data) => {
+      console.log(`📡 [StarterHandlers] === SYNC POSITION DEPUIS CLIENT ===`);
+      console.log(`👤 Client: ${client.sessionId}`);
+      console.log(`📊 Data:`, data);
+      
+      // Vérifier que le client est dans la bonne zone
+      const player = this.room.state.players.get(client.sessionId);
+      if (player && player.currentZone === data.zone) {
+        console.log(`✅ [StarterHandlers] Position synchronisée pour ${data.zone}`);
+        
+        // Mettre à jour la position
+        this.starterTablePositions.set(data.zone, {
+          centerX: data.centerX,
+          centerY: data.centerY,
+          radius: data.radius
+        });
+        
+        // Confirmer au client
+        client.send("starterTablePositionSynced", {
+          success: true,
+          zone: data.zone,
+          position: { centerX: data.centerX, centerY: data.centerY, radius: data.radius },
+          message: `Position de table mise à jour pour ${data.zone}`
+        });
+        
+        console.log(`🎯 [StarterHandlers] Table ${data.zone} mise à jour: (${data.centerX}, ${data.centerY}) r=${data.radius}`);
+      } else {
+        console.warn(`⚠️ [StarterHandlers] Client pas dans la bonne zone: ${player?.currentZone} vs ${data.zone}`);
+      }
     });
 
     this.room.onMessage("testStarterProximity", (client) => {
@@ -687,6 +793,70 @@ export class StarterHandlers {
   public forceTablePosition(zoneName: string, centerX: number, centerY: number, radius: number = 80): void {
     this.addStarterTablePosition(zoneName, centerX, centerY, radius);
     console.log(`🔧 [StarterHandlers] Position forcée pour ${zoneName}: (${centerX}, ${centerY}) r=${radius}`);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Ajuster la position pour une zone spécifique
+  public adjustTablePositionForPlayer(client: Client, offsetX: number = 0, offsetY: number = 0): void {
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) {
+      console.log(`❌ [StarterHandlers] Joueur non trouvé pour ajustement: ${client.sessionId}`);
+      return;
+    }
+
+    const zoneName = player.currentZone;
+    const newCenterX = player.x + offsetX;
+    const newCenterY = player.y + offsetY;
+    const radius = 100;
+
+    this.starterTablePositions.set(zoneName, {
+      centerX: newCenterX,
+      centerY: newCenterY,
+      radius
+    });
+
+    console.log(`🎯 [StarterHandlers] Position ajustée pour ${zoneName} basée sur ${player.name}:`);
+    console.log(`  📍 Joueur: (${player.x}, ${player.y})`);
+    console.log(`  🎯 Table: (${newCenterX}, ${newCenterY}) r=${radius}`);
+    console.log(`  🔧 Offset: (${offsetX}, ${offsetY})`);
+
+    // Confirmer à l'utilisateur
+    client.send("tablePositionAdjusted", {
+      success: true,
+      zone: zoneName,
+      oldPosition: player,
+      newTablePosition: { centerX: newCenterX, centerY: newCenterY, radius },
+      message: `Position de la table ajustée pour ${zoneName}`
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Test de proximité en temps réel
+  public startProximityTest(client: Client): void {
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) return;
+
+    const testInterval = setInterval(() => {
+      const isNear = this.isPlayerNearStarterTable(player);
+      const tablePosition = this.starterTablePositions.get(player.currentZone);
+      
+      client.send("proximityTestUpdate", {
+        playerName: player.name,
+        position: { x: player.x, y: player.y },
+        zone: player.currentZone,
+        isNear,
+        tablePosition,
+        timestamp: Date.now()
+      });
+    }, 1000);
+
+    // Arrêter le test après 30 secondes
+    setTimeout(() => {
+      clearInterval(testInterval);
+      client.send("proximityTestStopped", {
+        message: "Test de proximité terminé"
+      });
+    }, 30000);
+
+    console.log(`🧪 [StarterHandlers] Test de proximité démarré pour ${player.name}`);
   }
 
   public cleanup(): void {
