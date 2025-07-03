@@ -431,8 +431,10 @@ const startData = {
   networkHandler: this.battleConnection,
   battleData: battleData,
   selectedPokemon: this.selectedPokemon,
-  currentZone: (battleData && battleData.location) || this.currentZone || 'unknown'
+  // Prends en priorité le champ currentZone, sinon fallback sur location, sinon 'unknown'
+  currentZone: (battleData && (battleData.currentZone || battleData.location)) || this.currentZone || 'unknown'
 };
+
 
 console.log('[LOG BATTLE] Données transmises à BattleScene :', startData);
 
