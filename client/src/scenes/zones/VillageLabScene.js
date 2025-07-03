@@ -224,25 +224,11 @@ export class VillageLabScene extends BaseZoneScene {
     
     console.log(`📊 [StarterTable] Total zones starter trouvées: ${foundZones}`);
     
-    if (foundZones === 0) {
-      console.warn("⚠️ [StarterTable] Aucune zone starter table trouvée!");
-      console.log("💡 [StarterTable] Création d'une zone par défaut pour les tests...");
-      
-      // Zone par défaut pour les tests
-      const defaultZone = {
-        x: 180,
-        y: 140,
-        width: 64,
-        height: 64,
-        centerX: 212,
-        centerY: 172,
-        name: 'StarterTable_Default'
-      };
-      
-      this.starterTableZones.push(defaultZone);
-      this.createStarterTableIndicator(defaultZone);
-      console.log("✅ [StarterTable] Zone par défaut créée:", defaultZone);
-    }
+if (foundZones === 0) {
+  console.warn("⚠️ [StarterTable] Aucune zone starter table trouvée!");
+  console.log("💡 [StarterTable] Assurez-vous que votre carte Tiled contient un objet avec la propriété 'startertable' = true");
+  console.log("📋 [StarterTable] Vérifiez le nom de vos layers et objets dans Tiled");
+}
   }
 
   // ✅ Vérifier si un objet a la propriété startertable
@@ -318,45 +304,49 @@ export class VillageLabScene extends BaseZoneScene {
   }
 
   // ✅ Vérifier si le joueur est près d'une starter table AVEC DEBUG AMÉLIORÉ
-  isPlayerNearStarterTable() {
-    console.log("🔍 [CLIENT] === VÉRIFICATION PROXIMITÉ TABLE ===");
-    
-    if (!this.player || !this.starterTableZones || this.starterTableZones.length === 0) {
-      console.log("❌ [CLIENT] Pas de joueur ou pas de zones starter");
-      console.log("  - this.player:", !!this.player);
-      console.log("  - this.starterTableZones:", this.starterTableZones);
-      return false;
-    }
-    
-    const playerX = this.player.x;
-    const playerY = this.player.y;
-    const detectionRange = 100; // Range généreux pour les tests
-    
-    console.log(`👤 [CLIENT] Position joueur: (${playerX}, ${playerY})`);
-    console.log(`🎯 [CLIENT] Range de détection: ${detectionRange}px`);
-    console.log(`📊 [CLIENT] Nombre de zones starter: ${this.starterTableZones.length}`);
-    
-    for (const zone of this.starterTableZones) {
-      const distance = Phaser.Math.Distance.Between(
-        playerX, playerY,
-        zone.centerX, zone.centerY
-      );
-      
-      console.log(`📏 [CLIENT] Zone ${zone.name}:`);
-      console.log(`  - Centre: (${zone.centerX}, ${zone.centerY})`);
-      console.log(`  - Distance: ${Math.round(distance)}px`);
-      console.log(`  - Seuil: ${detectionRange}px`);
-      console.log(`  - Proche: ${distance <= detectionRange ? 'OUI' : 'NON'}`);
-      
-      if (distance <= detectionRange) {
-        console.log(`✅ [CLIENT] JOUEUR PROCHE de ${zone.name}!`);
-        return true;
-      }
-    }
-    
-    console.log(`❌ [CLIENT] JOUEUR TROP LOIN de toutes les tables`);
+ // ✅ Vérifier si le joueur est près d'une starter table AVEC FIX PLAYER
+isPlayerNearStarterTable() {
+  console.log("🔍 [CLIENT] === VÉRIFICATION PROXIMITÉ TABLE ===");
+  
+  // ✅ FIX: Récupérer le joueur depuis PlayerManager
+  const player = this.playerManager?.getMyPlayer();
+  
+  if (!player || !this.starterTableZones || this.starterTableZones.length === 0) {
+    console.log("❌ [CLIENT] Pas de joueur ou pas de zones starter");
+    console.log("  - player:", !!player);
+    console.log("  - this.starterTableZones:", this.starterTableZones);
     return false;
   }
+  
+  const playerX = player.x;
+  const playerY = player.y;
+  const detectionRange = 100; // Range généreux pour les tests
+  
+  console.log(`👤 [CLIENT] Position joueur: (${playerX}, ${playerY})`);
+  console.log(`🎯 [CLIENT] Range de détection: ${detectionRange}px`);
+  console.log(`📊 [CLIENT] Nombre de zones starter: ${this.starterTableZones.length}`);
+  
+  for (const zone of this.starterTableZones) {
+    const distance = Phaser.Math.Distance.Between(
+      playerX, playerY,
+      zone.centerX, zone.centerY
+    );
+    
+    console.log(`📏 [CLIENT] Zone ${zone.name}:`);
+    console.log(`  - Centre: (${zone.centerX}, ${zone.centerY})`);
+    console.log(`  - Distance: ${Math.round(distance)}px`);
+    console.log(`  - Seuil: ${detectionRange}px`);
+    console.log(`  - Proche: ${distance <= detectionRange ? 'OUI' : 'NON'}`);
+    
+    if (distance <= detectionRange) {
+      console.log(`✅ [CLIENT] JOUEUR PROCHE de ${zone.name}!`);
+      return true;
+    }
+  }
+  
+  console.log(`❌ [CLIENT] JOUEUR TROP LOIN de toutes les tables`);
+  return false;
+}
 
   // ✅ Déclencher la sélection starter avec debug amélioré
   triggerStarterSelection() {
@@ -694,13 +684,20 @@ window.debugStarterTable = () => {
 };
 
 // ✅ FONCTION POUR FORCER LA POSITION DU JOUEUR (debug)
+// ✅ FONCTION POUR FORCER LA POSITION DU JOUEUR (debug)
 window.movePlayerToTable = () => {
   const labScene = window.game?.scene?.getScene('VillageLabScene');
-  if (labScene && labScene.player && labScene.starterTableZones.length > 0) {
+  if (labScene && labScene.playerManager && labScene.starterTableZones.length > 0) {
+    const player = labScene.playerManager.getMyPlayer();
     const table = labScene.starterTableZones[0];
-    labScene.player.x = table.centerX;
-    labScene.player.y = table.centerY;
-    console.log(`🎯 Joueur déplacé à (${table.centerX}, ${table.centerY})`);
+    
+    if (player && table) {
+      player.x = table.centerX;
+      player.y = table.centerY;
+      console.log(`🎯 Joueur déplacé à (${table.centerX}, ${table.centerY})`);
+    } else {
+      console.warn("❌ Joueur ou table non trouvé");
+    }
   } else {
     console.warn("❌ Impossible de déplacer le joueur");
   }
