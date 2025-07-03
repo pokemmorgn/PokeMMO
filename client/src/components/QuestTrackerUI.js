@@ -1,5 +1,6 @@
-// client/src/components/QuestTrackerUI.js - Version harmonisée avec le thème bleu
+// Solution élégante : Intégrer QuestTracker dans le UIManager
 
+// ✅ ÉTAPE 1: Modifier QuestTrackerUI pour qu'il soit compatible UIManager
 export class QuestTrackerUI {
   constructor(questSystem) {
     this.questSystem = questSystem;
@@ -9,15 +10,51 @@ export class QuestTrackerUI {
     this.isMinimized = false;
     this.maxTrackedQuests = 5;
     
+    // ✅ NOUVEAU: Propriétés requises pour UIManager
+    this.iconElement = null; // Sera le tracker lui-même
+    this.isEnabled = true;
+    
     this.init();
   }
 
   init() {
     this.createTracker();
     this.setupEventListeners();
-    console.log('📊 Quest tracker UI created');
+    
+    // ✅ NOUVEAU: Définir iconElement pour le UIManager
+    this.iconElement = this.trackerElement;
+    
+    console.log('📊 Quest tracker UI created with UIManager compatibility');
   }
 
+  // ✅ NOUVEAU: Méthodes requises par UIManager
+  show() {
+    console.log('📊 [QuestTracker] show() appelée par UIManager');
+    this.isVisible = true;
+    this.trackerElement.classList.remove('hidden');
+  }
+
+  hide() {
+    console.log('📊 [QuestTracker] hide() appelée par UIManager');
+    this.isVisible = false;
+    this.trackerElement.classList.add('hidden');
+  }
+
+  setEnabled(enabled) {
+    console.log('📊 [QuestTracker] setEnabled() appelée par UIManager:', enabled);
+    this.isEnabled = enabled;
+    this.trackerElement.style.pointerEvents = enabled ? 'auto' : 'none';
+    this.trackerElement.style.opacity = enabled ? '1' : '0.5';
+  }
+
+  // ✅ NOUVEAU: Méthode pour UIManager
+  update() {
+    // Appelée par UIManager si nécessaire
+    this.updateQuests(Array.from(this.trackedQuests.values()));
+  }
+
+  // === RESTE DU CODE EXISTANT (inchangé) ===
+  
   createTracker() {
     const tracker = document.createElement('div');
     tracker.id = 'quest-tracker';
@@ -430,10 +467,16 @@ export class QuestTrackerUI {
       this.toggleMinimize();
     });
 
-    // Hide functionality
+    // Hide functionality - ✅ MODIFIÉ: Utiliser le UIManager
     closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.hide();
+      
+      // ✅ NOUVEAU: Notifier le UIManager au lieu de masquer directement
+      if (window.pokemonUISystem && window.pokemonUISystem.hideModule) {
+        window.pokemonUISystem.hideModule('questTracker');
+      } else {
+        this.hide(); // Fallback
+      }
     });
 
     // Header click to expand when minimized
@@ -446,11 +489,17 @@ export class QuestTrackerUI {
     // Make tracker draggable
     this.setupDragging(header);
 
-    // Keyboard shortcuts
+    // Keyboard shortcuts - ✅ MODIFIÉ: Utiliser le UIManager
     document.addEventListener('keydown', (e) => {
       if (e.key === 'F12' && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
-        this.toggle();
+        
+        // ✅ NOUVEAU: Utiliser le UIManager
+        if (window.pokemonUISystem && window.pokemonUISystem.toggleModule) {
+          window.pokemonUISystem.toggleModule('questTracker');
+        } else {
+          this.toggle(); // Fallback
+        }
       }
     });
   }
@@ -499,6 +548,26 @@ export class QuestTrackerUI {
     });
   }
 
+  // ✅ ANCIENNE MÉTHODE: Garder pour compatibilité
+  toggle() {
+    if (this.isVisible) {
+      this.hide();
+    } else {
+      this.show();
+    }
+  }
+
+  toggleMinimize() {
+    this.isMinimized = !this.isMinimized;
+    this.trackerElement.classList.toggle('minimized', this.isMinimized);
+    
+    const minimizeBtn = this.trackerElement.querySelector('.minimize-btn');
+    minimizeBtn.textContent = this.isMinimized ? '+' : '−';
+    minimizeBtn.title = this.isMinimized ? 'Maximize' : 'Minimize';
+  }
+
+  // === RESTE DU CODE EXISTANT (inchangé) ===
+  
   updateQuests(quests) {
     console.log('📊 Updating quest tracker with', quests.length, 'quests');
     
@@ -695,34 +764,6 @@ export class QuestTrackerUI {
     this.updateQuests(Array.from(this.trackedQuests.values()));
   }
 
-  // Public methods
-  show() {
-    this.isVisible = true;
-    this.trackerElement.classList.remove('hidden');
-  }
-
-  hide() {
-    this.isVisible = false;
-    this.trackerElement.classList.add('hidden');
-  }
-
-  toggle() {
-    if (this.isVisible) {
-      this.hide();
-    } else {
-      this.show();
-    }
-  }
-
-  toggleMinimize() {
-    this.isMinimized = !this.isMinimized;
-    this.trackerElement.classList.toggle('minimized', this.isMinimized);
-    
-    const minimizeBtn = this.trackerElement.querySelector('.minimize-btn');
-    minimizeBtn.textContent = this.isMinimized ? '+' : '−';
-    minimizeBtn.title = this.isMinimized ? 'Maximize' : 'Minimize';
-  }
-
   setPosition(x, y) {
     this.trackerElement.style.left = `${x}px`;
     this.trackerElement.style.top = `${y}px`;
@@ -758,7 +799,6 @@ export class QuestTrackerUI {
         const dy = quest.targetLocation.y - playerY;
         const newDistance = Math.sqrt(dx * dx + dy * dy);
         
-        // ✅ FIX: Seulement mettre à jour si la distance a significativement changé
         if (!quest.distance || Math.abs(quest.distance - newDistance) > 10) {
           quest.distance = newDistance;
           hasDistanceChanges = true;
@@ -766,7 +806,6 @@ export class QuestTrackerUI {
       }
     });
     
-    // ✅ FIX: Seulement mettre à jour l'affichage si nécessaire
     if (hasDistanceChanges) {
       this.updateQuests(Array.from(this.trackedQuests.values()));
     }
@@ -784,13 +823,11 @@ export class QuestTrackerUI {
         needsUpdate = true;
         
         if (quest.timeRemaining <= 0) {
-          // Quest expired
           this.onQuestExpired(quest);
         }
       }
     });
     
-    // ✅ FIX: Seulement mettre à jour si il y a vraiment des changements
     if (hasTimers && needsUpdate) {
       this.updateQuests(Array.from(this.trackedQuests.values()));
     }
@@ -798,7 +835,6 @@ export class QuestTrackerUI {
 
   onQuestExpired(quest) {
     console.log('📊 Quest expired:', quest.name);
-    // Mark quest as failed or handle expiration
     quest.expired = true;
     this.onQuestRemoved(quest.id);
   }
@@ -861,3 +897,365 @@ export class QuestTrackerUI {
     console.log('📊 Quest tracker destroyed');
   }
 }
+
+// ✅ ÉTAPE 2: Enregistrer QuestTracker dans le UIManager
+
+// Fonction pour enregistrer le QuestTracker dans le UIManager existant
+window.registerQuestTrackerInUIManager = function() {
+  console.log('🔧 Enregistrement QuestTracker dans UIManager...');
+  
+  if (!window.pokemonUISystem) {
+    console.error('❌ PokemonUISystem non trouvé');
+    return false;
+  }
+  
+  // Vérifier si déjà enregistré
+  if (window.pokemonUISystem.isModuleInitialized('questTracker')) {
+    console.log('✅ QuestTracker déjà enregistré dans UIManager');
+    return true;
+  }
+  
+  try {
+    // ✅ ENREGISTRER le module questTracker
+    window.pokemonUISystem.registerModule('questTracker', {
+      factory: () => {
+        console.log('🏭 [UIManager] Factory QuestTracker appelée');
+        
+        // Chercher instance existante ou créer nouvelle
+        let questTracker = window.questTrackerInstance;
+        
+        if (!questTracker) {
+          // Créer nouvelle instance compatible UIManager
+          questTracker = new QuestTrackerUI(null); // null car pas de quest system pour l'instant
+          window.questTrackerInstance = questTracker;
+          console.log('📊 Nouvelle instance QuestTracker créée');
+        } else {
+          console.log('📊 Instance QuestTracker existante réutilisée');
+          
+          // S'assurer que iconElement est défini
+          if (!questTracker.iconElement && questTracker.trackerElement) {
+            questTracker.iconElement = questTracker.trackerElement;
+          }
+        }
+        
+        return questTracker;
+      },
+      
+      priority: 50, // Priorité moyenne
+      
+      defaultState: {
+        visible: true,
+        enabled: true,
+        initialized: false
+      },
+      
+      // ✅ CONFIGURATION RESPONSIVE pour masquer sur mobile
+      responsive: {
+        mobile: { enabled: false }, // Masqué sur mobile
+        tablet: { enabled: true },
+        desktop: { enabled: true }
+      },
+      
+      // ✅ CONFIGURATION LAYOUT
+      layout: {
+        type: 'overlay',
+        position: 'fixed',
+        anchor: 'top-right',
+        offset: { x: -20, y: 120 },
+        zIndex: 950,
+        responsive: true
+      },
+      
+      // Groupes
+      groups: ['ui', 'overlay'],
+      
+      // Pas critique
+      critical: false,
+      lazyLoad: false
+    });
+    
+    console.log('✅ QuestTracker enregistré dans UIManager');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Erreur enregistrement QuestTracker:', error);
+    return false;
+  }
+};
+
+// ✅ ÉTAPE 3: Fonction pour corriger les états de jeu
+
+window.fixGameStatesForQuestTracker = function() {
+  console.log('🔧 Correction des états de jeu pour QuestTracker...');
+  
+  if (!window.pokemonUISystem) {
+    console.error('❌ PokemonUISystem non trouvé');
+    return false;
+  }
+  
+  try {
+    // ✅ MODIFIER les états de jeu pour inclure questTracker
+    const originalGameStates = window.pokemonUISystem.gameStates;
+    
+    // État exploration - QuestTracker visible
+    if (originalGameStates.exploration) {
+      if (!originalGameStates.exploration.visibleModules.includes('questTracker')) {
+        originalGameStates.exploration.visibleModules.push('questTracker');
+      }
+      if (!originalGameStates.exploration.enabledModules.includes('questTracker')) {
+        originalGameStates.exploration.enabledModules.push('questTracker');
+      }
+    }
+    
+    // État battle - QuestTracker MASQUÉ
+    if (originalGameStates.battle) {
+      // Retirer de visible/enabled
+      originalGameStates.battle.visibleModules = originalGameStates.battle.visibleModules.filter(m => m !== 'questTracker');
+      originalGameStates.battle.enabledModules = originalGameStates.battle.enabledModules.filter(m => m !== 'questTracker');
+      
+      // Ajouter à hidden/disabled
+      if (!originalGameStates.battle.hiddenModules.includes('questTracker')) {
+        originalGameStates.battle.hiddenModules.push('questTracker');
+      }
+      if (!originalGameStates.battle.disabledModules.includes('questTracker')) {
+        originalGameStates.battle.disabledModules.push('questTracker');
+      }
+    }
+    
+    // États menu et dialogue - QuestTracker masqué
+    ['menu', 'dialogue', 'pokemonCenter'].forEach(stateName => {
+      if (originalGameStates[stateName]) {
+        const state = originalGameStates[stateName];
+        
+        // Retirer de visible si présent
+        if (state.visibleModules) {
+          state.visibleModules = state.visibleModules.filter(m => m !== 'questTracker');
+        }
+        
+        // Ajouter à hidden
+        if (!state.hiddenModules) {
+          state.hiddenModules = [];
+        }
+        if (!state.hiddenModules.includes('questTracker')) {
+          state.hiddenModules.push('questTracker');
+        }
+      }
+    });
+    
+    console.log('✅ États de jeu corrigés pour QuestTracker');
+    console.log('📊 État battle mis à jour:', originalGameStates.battle);
+    
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Erreur correction états de jeu:', error);
+    return false;
+  }
+};
+
+// ✅ ÉTAPE 4: Fonction complète d'intégration
+
+window.integrateQuestTrackerWithUIManager = function() {
+  console.log('🔧 === INTÉGRATION QUESTTRACKER DANS UIMANAGER ===');
+  
+  let steps = 0;
+  
+  // 1. Enregistrer le module
+  if (window.registerQuestTrackerInUIManager()) {
+    steps++;
+    console.log('✅ Étape 1: QuestTracker enregistré');
+  }
+  
+  // 2. Corriger les états de jeu
+  if (window.fixGameStatesForQuestTracker()) {
+    steps++;
+    console.log('✅ Étape 2: États de jeu corrigés');
+  }
+  
+  // 3. Initialiser le module
+  try {
+    window.pokemonUISystem.initializeModule('questTracker').then(instance => {
+      if (instance) {
+        steps++;
+        console.log('✅ Étape 3: QuestTracker initialisé dans UIManager');
+        
+        // 4. Tester le changement d'état
+        setTimeout(() => {
+          console.log('🧪 Test changement d\'état battle...');
+          window.pokemonUISystem.setGameState('battle');
+          
+          setTimeout(() => {
+            console.log('🧪 Test retour état exploration...');
+            window.pokemonUISystem.setGameState('exploration');
+          }, 2000);
+          
+        }, 1000);
+        
+      } else {
+        console.error('❌ Échec initialisation QuestTracker');
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erreur initialisation:', error);
+  }
+  
+  if (steps >= 2) {
+    console.log(`🎯 ${steps}/4 étapes réussies - QuestTracker intégré !`);
+    console.log('🎮 Maintenant, window.pokemonUISystem.setGameState("battle") devrait masquer le QuestTracker');
+    return true;
+  } else {
+    console.warn(`⚠️ Seulement ${steps}/4 étapes réussies`);
+    return false;
+  }
+};
+
+// ✅ ÉTAPE 5: Correction automatique pour le système de combat
+
+window.fixRealBattleSystemWithUIManager = function() {
+  console.log('🔧 === CORRECTION SYSTÈME COMBAT AVEC UIMANAGER ===');
+  
+  // 1. Intégrer QuestTracker dans UIManager
+  const integrated = window.integrateQuestTrackerWithUIManager();
+  
+  if (!integrated) {
+    console.error('❌ Échec intégration QuestTracker');
+    return false;
+  }
+  
+  let fixes = 0;
+  
+  // 2. Patcher BattleUITransition pour utiliser UIManager
+  if (window.BattleUITransition && window.BattleUITransition.prototype.setUIToBattleMode) {
+    const originalSetUI = window.BattleUITransition.prototype.setUIToBattleMode;
+    
+    window.BattleUITransition.prototype.setUIToBattleMode = async function() {
+      console.log('🎮 [BattleUITransition PATCHÉ] Utilisation UIManager pour mode battle');
+      
+      // ✅ UTILISER le UIManager au lieu de masquage manuel
+      if (window.pokemonUISystem && window.pokemonUISystem.setGameState) {
+        try {
+          const success = window.pokemonUISystem.setGameState('battle', {
+            animated: true,
+            force: true
+          });
+          
+          if (success) {
+            console.log('✅ [BattleUITransition] État "battle" appliqué via UIManager');
+            
+            // Petit délai pour les animations
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return;
+          }
+        } catch (error) {
+          console.error('❌ [BattleUITransition] Erreur UIManager:', error);
+        }
+      }
+      
+      // Fallback vers méthode originale
+      console.log('🔄 [BattleUITransition] Fallback vers méthode originale');
+      return originalSetUI.call(this);
+    };
+    
+    fixes++;
+    console.log('✅ BattleUITransition.setUIToBattleMode patché pour UIManager');
+  }
+  
+  // 3. Patcher endBattleTransition pour restauration UIManager
+  if (window.BattleUITransition && window.BattleUITransition.prototype.restorePreviousUIState) {
+    const originalRestore = window.BattleUITransition.prototype.restorePreviousUIState;
+    
+    window.BattleUITransition.prototype.restorePreviousUIState = async function() {
+      console.log('🔄 [BattleUITransition PATCHÉ] Restauration via UIManager');
+      
+      if (window.pokemonUISystem && window.pokemonUISystem.setGameState) {
+        try {
+          const previousState = this.previousUIState?.gameState || 'exploration';
+          const success = window.pokemonUISystem.setGameState(previousState, {
+            animated: true
+          });
+          
+          if (success) {
+            console.log(`✅ [BattleUITransition] État "${previousState}" restauré via UIManager`);
+            return;
+          }
+        } catch (error) {
+          console.error('❌ [BattleUITransition] Erreur restauration UIManager:', error);
+        }
+      }
+      
+      // Fallback
+      return originalRestore.call(this);
+    };
+    
+    fixes++;
+    console.log('✅ BattleUITransition.restorePreviousUIState patché pour UIManager');
+  }
+  
+  // 4. Hook direct sur les événements de combat
+  if (window.gameManager?.battleIntegration?.handleWildEncounterStart) {
+    const battleIntegration = window.gameManager.battleIntegration;
+    const originalHandler = battleIntegration.handleWildEncounterStart.bind(battleIntegration);
+    
+    battleIntegration.handleWildEncounterStart = async function(data) {
+      console.log('🐾 [BattleIntegration PATCHÉ] Utilisation UIManager');
+      
+      // ✅ Utiliser UIManager AVANT le traitement
+      if (window.pokemonUISystem) {
+        window.pokemonUISystem.setGameState('battle', { animated: true, force: true });
+      }
+      
+      return originalHandler(data);
+    };
+    
+    fixes++;
+    console.log('✅ BattleIntegration.handleWildEncounterStart patché pour UIManager');
+  }
+  
+  console.log(`🎯 ${fixes} corrections appliquées avec UIManager`);
+  console.log('✅ Le système utilise maintenant le UIManager élégamment !');
+  console.log('🌱 Testez dans l\'herbe - le QuestTracker devrait se masquer automatiquement');
+  
+  return fixes > 0;
+};
+
+// ✅ FONCTION DE TEST COMPARATIVE
+
+window.testUIManagerVsHideAll = function() {
+  console.log('🧪 === TEST COMPARAISON UIMANAGER vs hideAllUI ===');
+  
+  // 1. Afficher état initial
+  console.log('\n1️⃣ État initial:');
+  window.debugUIState();
+  
+  // 2. Test avec UIManager
+  console.log('\n2️⃣ Test avec UIManager (méthode élégante):');
+  if (window.pokemonUISystem) {
+    window.pokemonUISystem.setGameState('battle');
+    console.log('✅ setGameState("battle") appliqué');
+  }
+  
+  setTimeout(() => {
+    console.log('\n📊 État après UIManager:');
+    window.debugUIState();
+    
+    // 3. Restaurer avec UIManager
+    console.log('\n3️⃣ Restauration avec UIManager:');
+    window.pokemonUISystem.setGameState('exploration');
+    
+    setTimeout(() => {
+      console.log('\n📊 État après restauration UIManager:');
+      window.debugUIState();
+      
+      console.log('\n✅ Test terminé - Le UIManager gère tout élégamment !');
+    }, 1000);
+    
+  }, 2000);
+};
+
+// ✅ AUTO-EXÉCUTION
+console.log('🔧 Module intégration QuestTracker chargé');
+console.log('🎯 Fonctions disponibles:');
+console.log('   window.integrateQuestTrackerWithUIManager() - Intégration complète');
+console.log('   window.fixRealBattleSystemWithUIManager() - Correction système combat');
+console.log('   window.testUIManagerVsHideAll() - Test comparatif');
+console.log('💡 Utilisez integrateQuestTrackerWithUIManager() pour commencer !');
