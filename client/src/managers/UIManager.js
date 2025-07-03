@@ -1994,6 +1994,11 @@ class UIAnimationManager {
   }
 }
 
+getModule(moduleId) {
+  // Récupère la config (et donc l'instance si initialisée) d'un module
+  return this.modules.get(moduleId) || null;
+}
+
 // ✅ EXPOSER DANS WINDOW POUR TESTS
 window.testUIManagerQuestTracker = function() {
   if (window.pokemonUISystem && window.pokemonUISystem.testQuestTrackerHiding) {
