@@ -221,6 +221,31 @@ export class InteractionManager {
       }
       this.handleInteractionResult(data);
     });
+
+    this.networkManager.onMessage("starterEligibility", (data) => {
+    console.log("📥 Réponse éligibilité starter:", data);
+    
+    if (data.eligible) {
+      console.log("✅ Joueur éligible - affichage starter");
+      if (this.scene.showStarterSelection) {
+        this.scene.showStarterSelection();
+      }
+    } else {
+      console.log("❌ Joueur non éligible:", data.reason);
+      this.showMessage(data.message || "Starter non disponible", 'error');
+    }
+  });
+
+    this.networkManager.onMessage("starterReceived", (data) => {
+    console.log("📥 Starter reçu:", data);
+    
+    if (data.success) {
+      const pokemonName = data.pokemon?.name || 'Pokémon';
+      this.showMessage(`${pokemonName} ajouté à votre équipe !`, 'success');
+    } else {
+      this.showMessage(data.message || 'Erreur sélection', 'error');
+    }
+  });
   }
 
   isShopInteraction(data) {
