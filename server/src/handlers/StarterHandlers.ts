@@ -610,6 +610,33 @@ export class StarterHandlers {
         playerPosition: { x: player.x, y: player.y },
         nearStarterTable: this.isPlayerNearStarterTable(player),
         tablePosition: tablePosition || null,
+          availableStarters: [
+    {
+      id: 'bulbasaur',
+      pokemonId: 1,
+      name: 'Bulbizarre',
+      type: 'Plante',
+      description: 'Un Pokémon Graine docile et loyal.',
+      color: '#4CAF50'
+    },
+    {
+      id: 'charmander',
+      pokemonId: 4,
+      name: 'Salamèche',
+      type: 'Feu',
+      description: 'Un Pokémon Lézard fougueux et brave.',
+      color: '#FF5722'
+    },
+    {
+      id: 'squirtle',
+      pokemonId: 7,
+      name: 'Carapuce',
+      type: 'Eau',
+      description: 'Un Pokémon Minitortue calme et sage.',
+      color: '#2196F3'
+    }
+  ],
+        
         debugInfo: {
           timestamp: Date.now(),
           sessionId: client.sessionId,
