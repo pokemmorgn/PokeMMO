@@ -1,4 +1,4 @@
-// client/src/Battle/BattleUITransition.js - Version fixée qui passe à l'interface
+// client/src/Battle/BattleUITransition.js - Version avec masquage automatique QuestTracker
 export class BattleUITransition {
   constructor(uiManager, gameManager) {
     this.uiManager = uiManager;
@@ -35,7 +35,7 @@ export class BattleUITransition {
       // ÉTAPE 2: Créer l'overlay de transition
       await this.createTransitionOverlay(encounterData);
 
-      // ÉTAPE 3: Animation de masquage des icônes UI
+      // ÉTAPE 3: Animation de masquage des icônes UI + QUESTTRACKER AUTO
       await this.hideUIIconsWithAnimation();
 
       // ÉTAPE 4: Changer l'état UI vers 'battle'
@@ -325,6 +325,7 @@ export class BattleUITransition {
     });
   }
 
+  // ✅ MODIFIÉ: Méthode avec masquage automatique QuestTracker
   async hideUIIconsWithAnimation() {
     console.log('👻 [BattleUITransition] Masquage animé des icônes UI...');
 
@@ -347,6 +348,9 @@ export class BattleUITransition {
         }
       });
     });
+
+    // ✅ AJOUT: Masquage brutal QuestTracker automatique
+    this.forceHideQuestTracker();
 
     console.log(`🎯 [BattleUITransition] ${iconsToHide.length} icônes à masquer`);
 
@@ -378,6 +382,29 @@ export class BattleUITransition {
     });
   }
 
+  // ✅ NOUVELLE MÉTHODE: Masquage brutal QuestTracker
+  forceHideQuestTracker() {
+    const questTrackerSelectors = [
+      '#questTracker',
+      '#quest-tracker',
+      '.quest-tracker',
+      '.questTracker',
+      '[data-module="questTracker"]',
+      '[data-module="quest-tracker"]'
+    ];
+    
+    questTrackerSelectors.forEach(selector => {
+      document.querySelectorAll(selector).forEach(el => {
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('opacity', '0', 'important');
+        el.style.setProperty('position', 'absolute', 'important');
+        el.style.setProperty('top', '-9999px', 'important');
+        el.setAttribute('data-battle-hidden', 'questTracker');
+      });
+    });
+  }
+
   async setUIToBattleMode() {
     console.log('🎮 [BattleUITransition] Passage en mode battle UI...');
 
@@ -403,6 +430,7 @@ export class BattleUITransition {
     this.fallbackHideAllUI();
   }
 
+  // ✅ MODIFIÉ: Fallback avec QuestTracker inclus
   fallbackHideAllUI() {
     console.log('🔧 [BattleUITransition] Fallback masquage UI manuel...');
     
@@ -410,13 +438,15 @@ export class BattleUITransition {
       '.ui-icon', '.game-icon', '.interface-icon',
       '#inventory-icon', '#team-icon', '#quest-icon',
       '.inventory-ui', '.team-ui', '.quest-ui',
-      '#questTracker', '#chat', '.chat-container'
+      '#questTracker', '#quest-tracker', '.quest-tracker', '.questTracker',
+      '#chat', '.chat-container'
     ];
 
     allUISelectors.forEach(selector => {
       const elements = document.querySelectorAll(selector);
       elements.forEach(element => {
         element.style.display = 'none';
+        element.setAttribute('data-battle-hidden', 'fallback');
       });
     });
   }
@@ -517,8 +547,20 @@ export class BattleUITransition {
     }
   }
 
+  // ✅ MODIFIÉ: Restauration avec QuestTracker inclus
   async showUIIconsWithAnimation() {
     console.log('👁️ [BattleUITransition] Réaffichage animé des icônes...');
+
+    // Restaurer tous les éléments masqués par data-battle-hidden
+    const hiddenElements = document.querySelectorAll('[data-battle-hidden]');
+    hiddenElements.forEach(el => {
+      el.style.removeProperty('display');
+      el.style.removeProperty('visibility');
+      el.style.removeProperty('opacity');
+      el.style.removeProperty('position');
+      el.style.removeProperty('top');
+      el.removeAttribute('data-battle-hidden');
+    });
 
     const hiddenIcons = document.querySelectorAll('.ui-icon-hidden');
     
