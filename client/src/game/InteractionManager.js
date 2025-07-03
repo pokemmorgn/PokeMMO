@@ -222,20 +222,25 @@ export class InteractionManager {
       this.handleInteractionResult(data);
     });
 
-    this.networkManager.onMessage("starterEligibility", (data) => {
-    console.log("📥 Réponse éligibilité starter:", data);
+   this.networkManager.onMessage("starterEligibility", (data) => {
+  console.log("📥 Réponse éligibilité starter:", data);
+  
+  if (data.eligible) {
+    console.log("✅ Joueur éligible - affichage starter");
     
-    if (data.eligible) {
-      console.log("✅ Joueur éligible - affichage starter");
-      if (this.scene.showStarterSelection) {
-        this.scene.showStarterSelection();
-      }
-    } else {
-      console.log("❌ Joueur non éligible:", data.reason);
-      this.showMessage(data.message || "Starter non disponible", 'error');
+    // ✅ FORCER LA RÉINITIALISATION AVANT AFFICHAGE
+    if (this.scene.starterSelector && !this.scene.starterSelector.starterOptions) {
+      this.scene.starterSelector.starterOptions = data.availableStarters || [];
     }
-  });
-
+    
+    // Utiliser les starters du serveur
+    this.scene.showStarterSelection(data.availableStarters);
+  } else {
+    console.log("❌ Joueur non éligible:", data.reason);
+    // ✅ LOG SIMPLE AU LIEU DE showMessage
+    console.log(`❌ ${data.message || "Starter non disponible"}`);
+  }
+});
     this.networkManager.onMessage("starterReceived", (data) => {
     console.log("📥 Starter reçu:", data);
     
