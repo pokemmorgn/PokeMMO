@@ -1,4 +1,5 @@
 // client/src/components/BattleInterface.js
+// ✅ VERSION COMPLÈTE avec intégration UIManager
 
 export class BattleInterface {
   /**
@@ -12,7 +13,7 @@ export class BattleInterface {
 
     // === UIManager integration
     this.moduleType = 'battleInterface';
-    this.iconElement = null; // Sera le root de l’UI
+    this.iconElement = null; // Sera le root de l'UI
     this.isUIManagerMode = true;
     this.uiManagerState = {
       visible: false,
@@ -98,18 +99,34 @@ export class BattleInterface {
     window.addEventListener('keydown', this.handleKeyDown);
     this.root.addEventListener('pointerdown', e => e.stopPropagation());
     this.root.focus();
+    
+    console.log('✅ [BattleInterface] Interface créée et UIManager ready');
   }
 
   destroy() {
-    window.removeEventListener('keydown', this.handleKeyDown);
-    if (this.root && this.root.parentNode) {
-      this.root.parentNode.removeChild(this.root);
+    try {
+      this._dispatchUIEvent('battleInterfaceDestroying');
+      
+      // Cleanup existant
+      window.removeEventListener('keydown', this.handleKeyDown);
+      if (this.root && this.root.parentNode) {
+        this.root.parentNode.removeChild(this.root);
+      }
+      
+      // Reset state
+      this.root = null;
+      this.iconElement = null;
+      this.isOpen = false;
+      this.uiManagerState.visible = false;
+      this.uiManagerState.initialized = false;
+      
+      this._dispatchUIEvent('battleInterfaceDestroyed');
+      
+      console.log('✅ [BattleInterface] Interface détruite');
+      
+    } catch (error) {
+      console.error('[BattleInterface] Erreur destroy:', error);
     }
-    this.root = null;
-    this.iconElement = null;
-    this.isOpen = false;
-    this.uiManagerState.visible = false;
-    this.uiManagerState.initialized = false;
   }
 
   /** Affiche le menu principal */
@@ -331,11 +348,13 @@ export class BattleInterface {
 
   emitBattleAction(action) {
     // TODO: Intégration réseau avec NetworkManager / Colyseus
+    console.log('⚔️ [BattleInterface] Action émise:', action);
     if (window.onBattleAction) window.onBattleAction(action);
   }
 
   close() {
-    this.destroy();
+    this.hide({ animated: true });
+    setTimeout(() => this.destroy(), 300);
   }
 
   /** Libellé du breadcrumb selon le menu */
@@ -353,71 +372,233 @@ export class BattleInterface {
   // ============ UIManager required methods ==============
 
   show(options = {}) {
-    if (!this.root) this.createInterface();
-    this.root.classList.remove('ui-hidden', 'ui-fade-out');
-    this.root.style.display = '';
-    this.isOpen = true;
-    this.uiManagerState.visible = true;
-    if (options.device) this.applyResponsiveConfig(options.device);
-    this.root.focus?.();
+    try {
+      if (!this.root) this.createInterface();
+      
+      this.root.classList.remove('ui-hidden', 'ui-fade-out');
+      this.root.style.display = '';
+      this.isOpen = true;
+      this.uiManagerState.visible = true;
+      
+      // Appliquer config responsive si fournie
+      if (options.device) {
+        this.applyResponsiveConfig(options.device);
+      }
+      
+      // Animation UIManager
+      if (options.animated !== false) {
+        this.root.classList.add('ui-fade-in');
+        setTimeout(() => this.root.classList.remove('ui-fade-in'), 400);
+      }
+      
+      this.root.focus?.();
+      
+      // Déclencher événement UIManager
+      this._dispatchUIEvent('battleInterfaceShown', { 
+        animated: options.animated,
+        device: options.device 
+      });
+      
+      console.log('✅ [BattleInterface] Interface affichée');
+      return true;
+      
+    } catch (error) {
+      this.handleError(error, 'show');
+      return false;
+    }
   }
 
   hide(options = {}) {
-    if (this.root) {
-      if (options.animated !== false) {
-        this.root.classList.add('ui-fade-out');
-        setTimeout(() => {
+    try {
+      if (this.root) {
+        if (options.animated !== false) {
+          this.root.classList.add('ui-fade-out');
+          setTimeout(() => {
+            this.root.classList.add('ui-hidden');
+            this.root.style.display = 'none';
+          }, 300);
+        } else {
           this.root.classList.add('ui-hidden');
           this.root.style.display = 'none';
-        }, 200);
-      } else {
-        this.root.classList.add('ui-hidden');
-        this.root.style.display = 'none';
+        }
+        
+        this.isOpen = false;
+        this.uiManagerState.visible = false;
       }
-      this.isOpen = false;
-      this.uiManagerState.visible = false;
+      
+      this._dispatchUIEvent('battleInterfaceHidden', { 
+        animated: options.animated 
+      });
+      
+      console.log('✅ [BattleInterface] Interface masquée');
+      return true;
+      
+    } catch (error) {
+      this.handleError(error, 'hide');
+      return false;
     }
   }
 
   setEnabled(enabled) {
-    this.uiManagerState.enabled = enabled;
-    if (this.root) {
-      this.root.classList.toggle('ui-disabled', !enabled);
-      Array.from(this.root.querySelectorAll('button')).forEach(btn => {
-        btn.disabled = !enabled;
-      });
+    try {
+      this.uiManagerState.enabled = enabled;
+      if (this.root) {
+        this.root.classList.toggle('ui-disabled', !enabled);
+        Array.from(this.root.querySelectorAll('button')).forEach(btn => {
+          btn.disabled = !enabled;
+        });
+      }
+      
+      console.log(`✅ [BattleInterface] État enabled: ${enabled}`);
+      return true;
+      
+    } catch (error) {
+      this.handleError(error, 'setEnabled');
+      return false;
     }
   }
 
   applyResponsiveConfig(device) {
     if (!this.root || !this.responsiveConfig[device]) return;
+    
     const config = this.responsiveConfig[device];
-    // Scaling
-    if (config.scaleFactor !== 1.0) {
-      this.root.style.transform = `scale(${config.scaleFactor})`;
-      this.root.style.transformOrigin = 'center center';
-    }
-    // Simplified layout
-    if (config.simplifiedLayout) {
-      this.root.classList.add('mobile-layout');
-    }
-    // Hide elements
-    if (config.hiddenElements) {
-      config.hiddenElements.forEach(selector => {
-        const elements = this.root.querySelectorAll(selector);
-        elements.forEach(el => el.style.display = 'none');
-      });
+    
+    try {
+      // Appliquer scaling
+      if (config.scaleFactor !== 1.0) {
+        this.root.style.transform = `scale(${config.scaleFactor})`;
+        this.root.style.transformOrigin = 'center center';
+      }
+      
+      // Layout simplifié sur mobile
+      if (config.simplifiedLayout) {
+        this.root.classList.add('mobile-layout');
+      } else {
+        this.root.classList.remove('mobile-layout');
+      }
+      
+      // Masquer éléments si nécessaire
+      if (config.hiddenElements) {
+        config.hiddenElements.forEach(selector => {
+          const elements = this.root.querySelectorAll(selector);
+          elements.forEach(el => el.style.display = 'none');
+        });
+      }
+      
+      console.log(`✅ [BattleInterface] Config responsive appliquée: ${device}`);
+      
+    } catch (error) {
+      this.handleError(error, 'applyResponsiveConfig');
     }
   }
 
-  // API for UIManager state
+  // === NOUVELLES MÉTHODES UIMANAGER ===
+
+  _dispatchUIEvent(eventType, detail) {
+    try {
+      if (window.pokemonUISystem) {
+        window.pokemonUISystem.uiManager?._dispatchEvent?.(eventType, detail);
+      }
+      
+      // Événement DOM alternatif
+      window.dispatchEvent(new CustomEvent(eventType, { detail }));
+    } catch (error) {
+      console.warn(`[BattleInterface] Erreur dispatch événement ${eventType}:`, error);
+    }
+  }
+
+  handleError(error, context) {
+    console.error(`[BattleInterface] Error in ${context}:`, error);
+    
+    // Notifier UIManager de l'erreur
+    this._dispatchUIEvent('battleInterfaceError', { 
+      error: error.message, 
+      context,
+      critical: this._isCriticalError(error)
+    });
+    
+    // Recovery automatique si possible
+    if (this._canRecover(error)) {
+      this._attemptRecovery(context);
+    }
+  }
+
+  _attemptRecovery(context) {
+    console.log(`[BattleInterface] Attempting recovery for: ${context}`);
+    
+    try {
+      switch (context) {
+        case 'render':
+          this.render();
+          break;
+        case 'navigation':
+          this.resetNavigation();
+          break;
+        case 'interface':
+          this.recreateInterface();
+          break;
+        case 'show':
+        case 'hide':
+          // Retry après délai
+          setTimeout(() => {
+            if (context === 'show') this.show({ animated: false });
+            else this.hide({ animated: false });
+          }, 100);
+          break;
+      }
+      
+      console.log(`✅ [BattleInterface] Recovery réussi pour: ${context}`);
+      
+    } catch (recoveryError) {
+      console.error(`[BattleInterface] Recovery failed for ${context}:`, recoveryError);
+    }
+  }
+
+  _isCriticalError(error) {
+    return error.message.includes('Cannot read') || 
+           error.message.includes('is not a function') ||
+           error.message.includes('null');
+  }
+
+  _canRecover(error) {
+    const recoverablePatterns = [
+      /render/i,
+      /navigation/i,
+      /button/i,
+      /element/i,
+      /display/i,
+      /style/i
+    ];
+    return recoverablePatterns.some(pattern => pattern.test(error.message));
+  }
+
+  resetNavigation() {
+    this.menuStack = ['main'];
+    this.selectedIndices = { main: 0, attacks: 0, bag: 0, pokemon: 0 };
+    this.render();
+  }
+
+  recreateInterface() {
+    if (this.root) {
+      this.destroy();
+    }
+    this.createInterface();
+  }
+
+  // API pour UIManager state
   getUIManagerState() {
     return {
       ...this.uiManagerState,
       hasRoot: !!this.root,
       isOpen: this.isOpen,
       currentMenu: this.menuStack.at(-1),
-      selectedIndex: this.selectedIndices[this.menuStack.at(-1)] || 0
+      selectedIndex: this.selectedIndices[this.menuStack.at(-1)] || 0,
+      battling: !!this.battleData
     };
+  }
+
+  // Adapter l'iconElement pour UIManager
+  get iconElement() {
+    return this.root;
   }
 }
