@@ -6,19 +6,6 @@ export class BattleScene extends Phaser.Scene {
   constructor() {
     super({ key: 'BattleScene' });
     this.currentZone = null;
-
-     init(data) {
-        // Copier la zone logique passée
-        this.currentZone = data.currentZone || data.battleData?.currentZone || null;
-    
-        // Log pour debug
-        console.log('[BATTLE SCENE] init > currentZone =', this.currentZone);
-      }
-    
-      create(data) {
-        // (optionnel) log aussi ici pour vérifier
-        console.log('[BATTLE SCENE] create > currentZone =', this.currentZone);
-      }
     
     // Managers
     this.battleManager = null;
