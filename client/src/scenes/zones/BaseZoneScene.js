@@ -699,7 +699,8 @@ handleWildEncounter(data) {
           zoneId: encounterData.zoneId,
           method: encounterData.method,
           encounterRate: encounterData.encounterRate,
-          timestamp: now
+          timestamp: now,
+          zone: this.zoneName
         });
       }
     }
