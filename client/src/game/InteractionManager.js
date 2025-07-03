@@ -74,6 +74,15 @@ export class InteractionManager {
   // === SYSTÈMES D'INTERACTION ===
 
   registerInteractionSystems() {
+
+  this.registerSystem('starter', {
+    priority: 0,
+    canHandle: (npc) => npc?.properties?.startertable === true,
+    handle: (npc) => this.triggerStarter(),
+    validateState: () => true,
+    description: "Table starter Pokémon"
+  });
+    
     this.registerSystem('shop', {
       priority: 1,
       canHandle: (npc) => this.isNpcMerchant(npc),
@@ -749,5 +758,15 @@ async createSequentialDiscussion(npcName, npcPortrait, messages, options = {}) {
     this.shopSystem = null;
     this.questSystem = null;
     this.scene = null;
+  }
+
+  triggerStarter() {
+    console.log("🎯 Déclenchement starter via InteractionManager");
+    
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("checkStarterEligibility");
+    } else {
+      this.showMessage("Connexion serveur requise", 'error');
+    }
   }
 }
