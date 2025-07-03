@@ -4,8 +4,8 @@
 export class LoaderScene extends Phaser.Scene {
   constructor() {
     super({ key: 'LoaderScene' });
+        window.PokemonSpriteConfig = null;
   }
-
   preload() {
     this.createLoadingBar();
 
@@ -263,5 +263,21 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
       fontFamily: 'monospace',
       color: '#cccccc'
     }).setOrigin(0.5);
+  }
+    async create() {
+    // Charge ton JSON custom
+    try {
+      const res = await fetch('assets/pokemon/PokemonSpriteConfig.json');
+      window.PokemonSpriteConfig = await res.json();
+      console.log('✅ PokemonSpriteConfig chargé !', window.PokemonSpriteConfig);
+    } catch (err) {
+      console.warn('❌ Impossible de charger PokemonSpriteConfig.json, fallback utilisé.', err);
+      window.PokemonSpriteConfig = {
+        default: { offsetX: 0, offsetY: 0, scale: 1, spriteWidth: 64, spriteHeight: 64, sheetCols: 9, sheetRows: 9 }
+      };
+    }
+
+    // Ensuite, démarre le jeu
+    this.startGame();
   }
 }
