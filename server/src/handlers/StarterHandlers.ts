@@ -43,7 +43,7 @@ export class StarterHandlers {
     
     zonesToCheck.forEach(zoneName => {
       try {
-        const mapPath = join(__dirname, `../../assets/maps/${zoneName}.tmj`);
+        const mapPath = join(__dirname, `../dist/assets/maps/${zoneName}.tmj`);
         console.log(`📂 [StarterHandlers] Lecture carte: ${mapPath}`);
         
         const mapData = JSON.parse(readFileSync(mapPath, 'utf8'));
