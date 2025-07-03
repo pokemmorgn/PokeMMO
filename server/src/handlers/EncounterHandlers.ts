@@ -90,8 +90,11 @@ export class EncounterHandlers {
     forced?: boolean;
     fromNotification?: boolean;
     timestamp?: number;
+    zone?: string; 
   }): Promise<void> {
     const player = this.room.state.players.get(client.sessionId);
+    const zoneName = data.zone || player.currentZone || "unknown";
+    console.log(`[DEBUG] Zone encounter propagée :`, zoneName, encounterData.zoneId);
     if (!player) {
       console.warn(`⚠️ [EncounterHandlers] Joueur ${client.sessionId} non trouvé`);
       return;
