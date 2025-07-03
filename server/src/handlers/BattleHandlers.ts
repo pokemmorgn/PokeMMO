@@ -107,6 +107,8 @@ export class BattleHandlers {
     wildPokemon: WildPokemon;
     location: string;
     method: string;
+    currentZone?: string;   // <--- AJOUTE CETTE LIGNE
+    zoneId?: string;        // (optionnel)
   }): Promise<void> {
     const player = this.room.state.players.get(client.sessionId);
     if (!player) {
@@ -182,6 +184,8 @@ export class BattleHandlers {
         },
         location: data.location,
         method: data.method,
+        currentZone: data.currentZone || player.currentZone || "unknown", // <--- PROPAGATION FINALE
+        zoneId: data.zoneId,
         message: `Un ${this.getPokemonName(data.wildPokemon.pokemonId)} sauvage apparaît !`
       });
 
