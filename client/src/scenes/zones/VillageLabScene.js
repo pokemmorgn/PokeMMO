@@ -183,43 +183,50 @@ loadStarterTableZones() {
     return;
   }
 
-  // Chercher dans tous les layers
   let foundZones = 0;
   
-  this.map.layers.forEach((layer) => {
-    console.log(`🔍 [StarterTable] Vérification layer: ${layer.name} (type: ${layer.type})`);
+  // ✅ FIX: Utiliser getObjectLayer() pour les objectgroups
+  const worldsObjectLayer = this.map.getObjectLayer('Worlds');
+  
+  if (worldsObjectLayer && worldsObjectLayer.objects) {
+    console.log(`🔍 [StarterTable] ObjectLayer "Worlds" trouvé avec ${worldsObjectLayer.objects.length} objets`);
     
-    // ✅ OBJECTGROUP (comme avant)
-    if (layer.type === 'objectgroup' && layer.objects) {
-      console.log(`🔍 [StarterTable] ObjectGroup "${layer.name}": ${layer.objects.length} objets`);
-      
-      layer.objects.forEach((obj, index) => {
-        console.log(`🔍 [StarterTable] Objet ${index}:`, {
-          name: obj.name,
-          type: obj.type,
-          properties: obj.properties,
-          x: obj.x,
-          y: obj.y
-        });
-        
-        if (this.hasStarterTableProperty(obj)) {
-          const zone = {
-            x: obj.x,
-            y: obj.y,
-            width: obj.width || 32,
-            height: obj.height || 32,
-            centerX: obj.x + (obj.width || 32) / 2,
-            centerY: obj.y + (obj.height || 32) / 2,
-            name: obj.name || 'StarterTable'
-          };
-          
-          this.starterTableZones.push(zone);
-          foundZones++;
-          console.log(`✅ [StarterTable] Zone starter détectée (objectgroup):`, zone);
-          this.createStarterTableIndicator(zone);
-        }
+    worldsObjectLayer.objects.forEach((obj, index) => {
+      console.log(`🔍 [StarterTable] Objet ${index}:`, {
+        name: obj.name,
+        type: obj.type,
+        properties: obj.properties,
+        x: obj.x,
+        y: obj.y
       });
-    }
+      
+      if (this.hasStarterTableProperty(obj)) {
+        const zone = {
+          x: obj.x,
+          y: obj.y,
+          width: obj.width || 32,
+          height: obj.height || 32,
+          centerX: obj.x + (obj.width || 32) / 2,
+          centerY: obj.y + (obj.height || 32) / 2,
+          name: obj.name || 'StarterTable'
+        };
+        
+        this.starterTableZones.push(zone);
+        foundZones++;
+        console.log(`✅ [StarterTable] Zone starter détectée:`, zone);
+        this.createStarterTableIndicator(zone);
+      }
+    });
+  } else {
+    console.warn("⚠️ [StarterTable] Layer 'Worlds' non trouvé");
+  }
+  
+  console.log(`📊 [StarterTable] Total zones starter trouvées: ${foundZones}`);
+  
+  if (foundZones === 0) {
+    console.warn("⚠️ [StarterTable] Aucune zone starter table trouvée!");
+  }
+}
     
     // ✅ NOUVEAU: TILELAYER pour chercher dans "Worlds"
     else if (layer.type === 'tilelayer' && layer.name.toLowerCase().includes('worlds')) {
