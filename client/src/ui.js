@@ -512,6 +512,24 @@ export class PokemonUISystem {
           desktop: { scale: 1.0 }
         },
         priority: 70
+      },
+      {
+        id: 'battleInterface',
+        critical: true,
+        factory: this.createBattleInterfaceModule.bind(this),
+        groups: ['battle-ui'],
+        layout: {
+          type: 'battle-ui',
+          anchor: 'bottom-center',
+          order: 0,
+          spacing: 0
+        },
+        responsive: {
+          mobile: { hidden: false },
+          tablet: { hidden: false },
+          desktop: { hidden: false }
+        },
+        priority: 120
       }
     ];
 
