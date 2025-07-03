@@ -1,19 +1,15 @@
 // client/src/components/BattleInterface.js
-// ✅ VERSION COMPLÈTE avec intégration UIManager
+// ✅ VERSION CORRIGÉE - Fix iconElement getter/setter
 
 export class BattleInterface {
-  /**
-   * @param {GameManager} gameManager - Référence au gestionnaire principal du jeu
-   * @param {object} battleData - Données de combat à afficher
-   */
   constructor(gameManager, battleData) {
     this.gameManager = gameManager;
     this.battleData = battleData;
     this.root = null;
+    this._iconElement = null; // ✅ CORRECTION: Propriété privée
 
     // === UIManager integration
     this.moduleType = 'battleInterface';
-    this.iconElement = null; // Sera le root de l'UI
     this.isUIManagerMode = true;
     this.uiManagerState = {
       visible: false,
@@ -45,15 +41,25 @@ export class BattleInterface {
     // Binding event handlers
     this.handleKeyDown = this.handleKeyDown.bind(this);
     this.handleAction = this.handleAction.bind(this);
+    
+    console.log('✅ [BattleInterface] Constructeur terminé');
   }
 
-  // === UTILITAIRE CSS CHARGEMENT ===
+  // ✅ CORRECTION: Getter ET Setter pour iconElement
+  get iconElement() {
+    return this._iconElement || this.root;
+  }
+
+  set iconElement(value) {
+    this._iconElement = value;
+  }
+
+  // === CSS CHARGEMENT ===
   static ensureCSSLoaded() {
     if (document.querySelector('#battle-interface-styles')) {
-      // Déjà chargé
       return Promise.resolve();
     }
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const link = document.createElement('link');
       link.id = 'battle-interface-styles';
       link.rel = 'stylesheet';
@@ -63,34 +69,207 @@ export class BattleInterface {
         console.log('✅ CSS BattleInterface chargé !');
         resolve();
       };
-      link.onerror = (e) => {
-        console.error('❌ Erreur chargement CSS BattleInterface', e);
-        // Si tu veux, ajoute ici un fallback : this.addInlineStyles()
+      link.onerror = () => {
+        console.warn('⚠️ CSS BattleInterface non trouvé, utilisation styles inline');
         resolve();
       };
       document.head.appendChild(link);
     });
   }
 
+  // ✅ CORRECTION: Styles inline si CSS externe échoue
+  addInlineStyles() {
+    if (document.querySelector('#battle-interface-inline-styles')) {
+      return;
+    }
+
+    const style = document.createElement('style');
+    style.id = 'battle-interface-inline-styles';
+    style.textContent = `
+      .battle-interface-container {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 600px;
+        height: 400px;
+        background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
+        border: 4px solid #FFD700;
+        border-radius: 15px;
+        color: white;
+        font-family: 'Arial', sans-serif;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        opacity: 0;
+        transition: all 0.3s ease;
+      }
+
+      .battle-interface-container.visible {
+        opacity: 1;
+      }
+
+      .battle-breadcrumb {
+        color: #FFD700;
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      .battle-menu-main {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+        max-width: 300px;
+      }
+
+      .battle-menu-attacks {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px 22px;
+        width: 100%;
+        max-width: 400px;
+      }
+
+      .battle-menu-bag,
+      .battle-menu-pokemon {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+        max-width: 300px;
+      }
+
+      .battle-action-button {
+        padding: 12px 20px;
+        background: #4a90e2;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .battle-action-button:hover {
+        background: #357abd;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+      }
+
+      .battle-action-button:active {
+        transform: translateY(0);
+      }
+
+      .battle-action-button:disabled {
+        background: #666;
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+
+      .battle-action-button.selected {
+        background: #FFD700;
+        color: #1a472a;
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+      }
+
+      .battle-menu-back {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        padding: 8px 16px;
+        background: #e24a4a;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+
+      .battle-menu-back:hover {
+        background: #c73e3e;
+      }
+
+      .battle-pp-indicator {
+        display: block;
+        font-size: 10px;
+        opacity: 0.8;
+        margin-top: 2px;
+      }
+
+      .battle-move-type {
+        display: inline-block;
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #666;
+        margin-top: 4px;
+      }
+
+      .battle-move-type[data-type="electric"] { background: #f4d03f; color: #000; }
+      .battle-move-type[data-type="normal"] { background: #a8a878; }
+      .battle-move-type[data-type="fire"] { background: #f08030; }
+      .battle-move-type[data-type="water"] { background: #6890f0; }
+      .battle-move-type[data-type="grass"] { background: #78c850; }
+      .battle-move-type[data-type="steel"] { background: #b8b8d0; }
+      .battle-move-type[data-type="fairy"] { background: #ee99ac; }
+
+      @media (max-width: 768px) {
+        .battle-interface-container {
+          width: 90%;
+          height: 80%;
+          transform: translate(-50%, -50%) scale(0.9);
+        }
+        
+        .battle-breadcrumb {
+          display: none;
+        }
+      }
+    `;
+    
+    document.head.appendChild(style);
+    console.log('✅ [BattleInterface] Styles inline ajoutés');
+  }
+
   /** Crée et insère l'interface */
   async createInterface() {
     if (this.root) this.destroy();
 
-    // 👇 Important : charger CSS AVANT tout
-    await this.constructor.ensureCSSLoaded();
+    console.log('🏗️ [BattleInterface] Création interface...');
+
+    // Charger CSS ou utiliser inline
+    try {
+      await this.constructor.ensureCSSLoaded();
+    } catch (error) {
+      console.warn('⚠️ CSS externe échoué, utilisation styles inline');
+      this.addInlineStyles();
+    }
 
     this.root = document.createElement('div');
     this.root.className = 'battle-interface-container';
-    this.root.tabIndex = -1; // for focus
+    this.root.tabIndex = -1;
     this.root.setAttribute('role', 'region');
     this.root.setAttribute('aria-label', 'Battle Interface');
-    this.root.style.display = 'none';
+
+    // ✅ CORRECTION: Mettre à jour iconElement
+    this._iconElement = this.root;
 
     document.body.appendChild(this.root);
-    setTimeout(() => { this.root.style.display = ''; }, 60);
+
+    // Animation d'entrée
+    requestAnimationFrame(() => {
+      this.root.classList.add('visible');
+    });
 
     this.isOpen = true;
-    this.iconElement = this.root;
     this.uiManagerState.initialized = true;
 
     this.showMainMenu();
@@ -107,15 +286,13 @@ export class BattleInterface {
     try {
       this._dispatchUIEvent('battleInterfaceDestroying');
       
-      // Cleanup existant
       window.removeEventListener('keydown', this.handleKeyDown);
       if (this.root && this.root.parentNode) {
         this.root.parentNode.removeChild(this.root);
       }
       
-      // Reset state
       this.root = null;
-      this.iconElement = null;
+      this._iconElement = null; // ✅ CORRECTION
       this.isOpen = false;
       this.uiManagerState.visible = false;
       this.uiManagerState.initialized = false;
@@ -200,9 +377,6 @@ export class BattleInterface {
   renderAttacksMenu() {
     const menu = document.createElement('div');
     menu.className = 'battle-menu-attacks';
-    menu.style.display = 'grid';
-    menu.style.gridTemplateColumns = '1fr 1fr';
-    menu.style.gap = '14px 22px';
 
     const moves = this.battleData.playerPokemon.moves || [];
     for (let i = 0; i < 4; i++) {
@@ -280,7 +454,6 @@ export class BattleInterface {
     let idx = this.selectedIndices[current] || 0;
     const maxIdx = this.buttonRefs.length - 1;
     const isGrid = (current === 'attacks');
-    const gridCols = 2, gridRows = 2;
 
     let handled = true;
     switch (e.key) {
@@ -317,6 +490,8 @@ export class BattleInterface {
 
   // === ACTIONS ===
   handleAction(actionType, actionData = {}) {
+    console.log(`⚔️ [BattleInterface] Action: ${actionType}`, actionData);
+    
     switch (actionType) {
       case 'attack':
         if (this.menuStack.at(-1) === 'main')      { this.showAttacksMenu(); }
@@ -347,9 +522,36 @@ export class BattleInterface {
   }
 
   emitBattleAction(action) {
-    // TODO: Intégration réseau avec NetworkManager / Colyseus
     console.log('⚔️ [BattleInterface] Action émise:', action);
-    if (window.onBattleAction) window.onBattleAction(action);
+    
+    // Notification utilisateur
+    if (window.showGameNotification) {
+      let message = '';
+      switch (action.type) {
+        case 'attack':
+          message = action.move ? `${action.move.name} sélectionné !` : 'Attaque sélectionnée !';
+          break;
+        case 'bag':
+          message = action.itemId ? `${action.itemId} utilisé !` : 'Objet utilisé !';
+          break;
+        case 'pokemon':
+          message = 'Changement de Pokémon !';
+          break;
+        case 'flee':
+          message = 'Fuite du combat !';
+          break;
+      }
+      
+      window.showGameNotification(message, 'info', { duration: 2000 });
+    }
+    
+    // Callbacks
+    if (window.onBattleAction) {
+      window.onBattleAction(action);
+    }
+    
+    // Événement custom
+    window.dispatchEvent(new CustomEvent('battleAction', { detail: action }));
   }
 
   close() {
@@ -373,10 +575,12 @@ export class BattleInterface {
 
   show(options = {}) {
     try {
-      if (!this.root) this.createInterface();
+      if (!this.root) {
+        this.createInterface();
+      }
       
       this.root.classList.remove('ui-hidden', 'ui-fade-out');
-      this.root.style.display = '';
+      this.root.style.display = 'flex';
       this.isOpen = true;
       this.uiManagerState.visible = true;
       
@@ -387,8 +591,11 @@ export class BattleInterface {
       
       // Animation UIManager
       if (options.animated !== false) {
-        this.root.classList.add('ui-fade-in');
-        setTimeout(() => this.root.classList.remove('ui-fade-in'), 400);
+        requestAnimationFrame(() => {
+          this.root.classList.add('visible');
+        });
+      } else {
+        this.root.classList.add('visible');
       }
       
       this.root.focus?.();
@@ -412,7 +619,7 @@ export class BattleInterface {
     try {
       if (this.root) {
         if (options.animated !== false) {
-          this.root.classList.add('ui-fade-out');
+          this.root.classList.remove('visible');
           setTimeout(() => {
             this.root.classList.add('ui-hidden');
             this.root.style.display = 'none';
@@ -464,20 +671,17 @@ export class BattleInterface {
     const config = this.responsiveConfig[device];
     
     try {
-      // Appliquer scaling
       if (config.scaleFactor !== 1.0) {
-        this.root.style.transform = `scale(${config.scaleFactor})`;
+        this.root.style.transform = `translate(-50%, -50%) scale(${config.scaleFactor})`;
         this.root.style.transformOrigin = 'center center';
       }
       
-      // Layout simplifié sur mobile
       if (config.simplifiedLayout) {
         this.root.classList.add('mobile-layout');
       } else {
         this.root.classList.remove('mobile-layout');
       }
       
-      // Masquer éléments si nécessaire
       if (config.hiddenElements) {
         config.hiddenElements.forEach(selector => {
           const elements = this.root.querySelectorAll(selector);
@@ -492,7 +696,7 @@ export class BattleInterface {
     }
   }
 
-  // === NOUVELLES MÉTHODES UIMANAGER ===
+  // === MÉTHODES UIMANAGER ===
 
   _dispatchUIEvent(eventType, detail) {
     try {
@@ -500,7 +704,6 @@ export class BattleInterface {
         window.pokemonUISystem.uiManager?._dispatchEvent?.(eventType, detail);
       }
       
-      // Événement DOM alternatif
       window.dispatchEvent(new CustomEvent(eventType, { detail }));
     } catch (error) {
       console.warn(`[BattleInterface] Erreur dispatch événement ${eventType}:`, error);
@@ -510,14 +713,12 @@ export class BattleInterface {
   handleError(error, context) {
     console.error(`[BattleInterface] Error in ${context}:`, error);
     
-    // Notifier UIManager de l'erreur
     this._dispatchUIEvent('battleInterfaceError', { 
       error: error.message, 
       context,
       critical: this._isCriticalError(error)
     });
     
-    // Recovery automatique si possible
     if (this._canRecover(error)) {
       this._attemptRecovery(context);
     }
@@ -539,7 +740,6 @@ export class BattleInterface {
           break;
         case 'show':
         case 'hide':
-          // Retry après délai
           setTimeout(() => {
             if (context === 'show') this.show({ animated: false });
             else this.hide({ animated: false });
@@ -596,9 +796,6 @@ export class BattleInterface {
       battling: !!this.battleData
     };
   }
-
-  // Adapter l'iconElement pour UIManager
-  get iconElement() {
-    return this.root;
-  }
 }
+
+console.log('✅ [BattleInterface] Classe corrigée chargée avec iconElement getter/setter');
