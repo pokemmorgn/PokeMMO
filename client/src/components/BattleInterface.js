@@ -1,5 +1,4 @@
 // client/src/components/BattleInterface.js
-import './../../../public/css/battle-interface.css';
 
 export class BattleInterface {
   /**
@@ -47,9 +46,37 @@ export class BattleInterface {
     this.handleAction = this.handleAction.bind(this);
   }
 
+  // === UTILITAIRE CSS CHARGEMENT ===
+  static ensureCSSLoaded() {
+    if (document.querySelector('#battle-interface-styles')) {
+      // Déjà chargé
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const link = document.createElement('link');
+      link.id = 'battle-interface-styles';
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = '/css/battle-interface.css';
+      link.onload = () => {
+        console.log('✅ CSS BattleInterface chargé !');
+        resolve();
+      };
+      link.onerror = (e) => {
+        console.error('❌ Erreur chargement CSS BattleInterface', e);
+        // Si tu veux, ajoute ici un fallback : this.addInlineStyles()
+        resolve();
+      };
+      document.head.appendChild(link);
+    });
+  }
+
   /** Crée et insère l'interface */
-  createInterface() {
+  async createInterface() {
     if (this.root) this.destroy();
+
+    // 👇 Important : charger CSS AVANT tout
+    await this.constructor.ensureCSSLoaded();
 
     this.root = document.createElement('div');
     this.root.className = 'battle-interface-container';
