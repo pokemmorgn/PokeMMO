@@ -231,7 +231,9 @@ export class EncounterHandlers {
       await battleHandlers.handleStartWildBattle(client, {
         wildPokemon: wildPokemon,
         location: `${player.currentZone} (${encounterData.zoneId})`,
-        method: encounterData.method
+        method: encounterData.method,
+        currentZone: player.currentZone,  // <-- AJOUTE CETTE LIGNE !
+        zoneId: encounterData.zoneId      // (optionnel pour debug)
       });
 
       console.log(`✅ [EncounterHandlers] Combat démarré via BattleHandlers`);
