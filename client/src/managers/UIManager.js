@@ -976,6 +976,9 @@ testQuestTrackerHiding() {
   enableGroup(groupId) { /* ... */ }
   disableGroup(groupId) { /* ... */ }
   getModuleInstance(moduleId) { return this.modules.get(moduleId)?.instance || null; }
+  getModule(moduleId) {
+  return this.modules.get(moduleId) || null;
+}
   getModuleState(moduleId) { return this.moduleStates.get(moduleId) || null; }
   isModuleInitialized(moduleId) { return this.getModuleState(moduleId)?.initialized || false; }
   getGlobalState() { return this.globalState; }
@@ -1687,10 +1690,6 @@ class UILayoutManager {
     };
 
     this.initializeViewport();
-  }
-  getModule(moduleId) {
-    // Récupère la config (et donc l'instance si initialisée) d'un module
-    return this.modules.get(moduleId) || null;
   }
   initializeViewport() {
     let resizeTimeout;
