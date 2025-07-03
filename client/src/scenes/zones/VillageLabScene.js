@@ -1,5 +1,5 @@
 // ===============================================
-// VillageLabScene.js - Version avec syntaxe corrigée
+// VillageLabScene.js - Version corrigée avec debug amélioré
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 import { integrateStarterSelectorToScene } from '../../components/StarterSelector.js';
@@ -12,7 +12,7 @@ export class VillageLabScene extends BaseZoneScene {
     this.starterTableZones = []; // Zones de détection pour la table starter
   }
 
-  // ✅ AMÉLIORATION: Position par défaut pour VillageLabScene
+  // ✅ Position par défaut pour VillageLabScene
   getDefaultSpawnPosition(fromZone) {
     switch(fromZone) {
       case 'VillageScene':
@@ -22,7 +22,7 @@ export class VillageLabScene extends BaseZoneScene {
     }
   }
 
-  // ✅ NOUVEAU: Hook pour logique spécifique après positionnement
+  // ✅ Hook pour logique spécifique après positionnement
   onPlayerPositioned(player, initData) {
     console.log(`[VillageLabScene] Joueur positionné à (${player.x}, ${player.y})`);
   }
@@ -32,7 +32,7 @@ export class VillageLabScene extends BaseZoneScene {
     super.create();
     console.log("✅ BaseZoneScene.create() appelé");
 
-    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "T" to test StarterSelector\nPress "E" near starter table', {
+    this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes\nPress "T" to test StarterSelector\nPress "E" near starter table\nPress "F" to force starter test', {
       font: '18px monospace',
       fill: '#000000',
       padding: { x: 20, y: 10 },
@@ -76,11 +76,25 @@ export class VillageLabScene extends BaseZoneScene {
 
       // Handler pour la réponse d'éligibilité
       this.networkManager.room.onMessage("starterEligibility", (data) => {
-        console.log("[VillageLabScene] Réponse starterEligibility:", data);
+        console.log("📥 [VillageLabScene] === RÉPONSE ÉLIGIBILITÉ REÇUE ===");
+        console.log("📊 Données reçues:", data);
+        
         if (data.eligible) {
+          console.log("✅ [VillageLabScene] Joueur éligible - Affichage sélection");
           this.showStarterSelection();
         } else {
-          this.showSimpleDialog("Professeur", data.message || "Vous ne pouvez pas choisir de starter.");
+          console.log("❌ [VillageLabScene] Joueur non éligible:", data.reason);
+          console.log("📍 Debug position:", data.playerPosition);
+          console.log("🏢 Table configurée:", data.tablePosition);
+          
+          let message = data.message || "Vous ne pouvez pas choisir de starter.";
+          
+          // Ajouter des infos de debug si disponibles
+          if (data.debugInfo) {
+            message += `\nDébug: ${data.debugInfo.tablesConfigured} tables configurées`;
+          }
+          
+          this.showSimpleDialog("Professeur", message);
         }
       });
     }
@@ -101,7 +115,7 @@ export class VillageLabScene extends BaseZoneScene {
     }
   }
 
-  // ✅ MÉTHODE MODIFIÉE: Configuration des triggers avec détection automatique
+  // ✅ Configuration des triggers avec détection automatique et debug amélioré
   addStarterTrigger() {
     console.log("🎯 [VillageLabScene] Configuration triggers starter...");
     
@@ -114,16 +128,42 @@ export class VillageLabScene extends BaseZoneScene {
       this.showStarterSelection();
     });
 
+    // ✅ TRIGGER: Touche F pour forcer le test (bypass proximité)
+    this.input.keyboard.on('keydown-F', () => {
+      console.log("🔧 [FORCE] Touche F - Test forcé avec bypass");
+      this.triggerStarterSelection();
+    });
+
     // ✅ TRIGGER: Touche E pour interaction avec table starter
     this.input.keyboard.on('keydown-E', () => {
-      console.log("🎯 [E] Tentative interaction starter...");
+      console.log("🎯 [E] === INTERACTION E DÉCLENCHÉE ===");
+      
+      console.log("🎯 [E] Vérification proximité...");
       
       if (this.isPlayerNearStarterTable()) {
-        console.log("✅ [E] Joueur près de la table - Déclenchement");
+        console.log("✅ [E] Joueur proche - Déclenchement");
         this.triggerStarterSelection();
       } else {
-        console.log("❌ [E] Joueur trop loin de la table");
-        // Utiliser une méthode sûre pour afficher le message
+        console.log("❌ [E] Joueur trop loin");
+        
+        // Afficher la position et les zones pour debug
+        if (this.player) {
+          console.log(`👤 Position actuelle: (${this.player.x}, ${this.player.y})`);
+        }
+        
+        if (this.starterTableZones.length > 0) {
+          console.log("🏢 Tables disponibles:");
+          this.starterTableZones.forEach((zone, i) => {
+            const distance = this.player ? Phaser.Math.Distance.Between(
+              this.player.x, this.player.y,
+              zone.centerX, zone.centerY
+            ) : -1;
+            console.log(`  ${i}: ${zone.name} à (${zone.centerX}, ${zone.centerY}) - Distance: ${Math.round(distance)}px`);
+          });
+        } else {
+          console.log("❌ Aucune table starter détectée!");
+        }
+        
         this.showSafeMessage("Approchez-vous de la table du professeur.");
       }
     });
@@ -131,7 +171,7 @@ export class VillageLabScene extends BaseZoneScene {
     console.log("✅ [VillageLabScene] Triggers starter configurés");
   }
 
-  // ✅ NOUVELLE MÉTHODE: Charger les zones depuis la carte Tiled
+  // ✅ Charger les zones depuis la carte Tiled
   loadStarterTableZones() {
     console.log("📍 [StarterTable] Recherche des zones starter table...");
     
@@ -186,11 +226,26 @@ export class VillageLabScene extends BaseZoneScene {
     
     if (foundZones === 0) {
       console.warn("⚠️ [StarterTable] Aucune zone starter table trouvée!");
-      console.log("💡 [StarterTable] Assurez-vous que votre carte Tiled contient un objet avec la propriété 'startertable' = true");
+      console.log("💡 [StarterTable] Création d'une zone par défaut pour les tests...");
+      
+      // Zone par défaut pour les tests
+      const defaultZone = {
+        x: 180,
+        y: 140,
+        width: 64,
+        height: 64,
+        centerX: 212,
+        centerY: 172,
+        name: 'StarterTable_Default'
+      };
+      
+      this.starterTableZones.push(defaultZone);
+      this.createStarterTableIndicator(defaultZone);
+      console.log("✅ [StarterTable] Zone par défaut créée:", defaultZone);
     }
   }
 
-  // ✅ MÉTHODE: Vérifier si un objet a la propriété startertable
+  // ✅ Vérifier si un objet a la propriété startertable
   hasStarterTableProperty(obj) {
     // Vérifier les propriétés custom de Tiled
     if (obj.properties) {
@@ -230,7 +285,7 @@ export class VillageLabScene extends BaseZoneScene {
     return false;
   }
 
-  // ✅ MÉTHODE: Créer un indicateur visuel pour debug
+  // ✅ Créer un indicateur visuel pour debug
   createStarterTableIndicator(zone) {
     // Rectangle de debug (semi-transparent)
     const indicator = this.add.rectangle(
@@ -247,7 +302,7 @@ export class VillageLabScene extends BaseZoneScene {
     const label = this.add.text(
       zone.centerX,
       zone.centerY - zone.height / 2 - 10,
-      'STARTER TABLE\n[E] pour interagir',
+      'STARTER TABLE\n[E] pour interagir\n[F] pour forcer',
       {
         fontSize: '10px',
         fontFamily: 'monospace',
@@ -262,16 +317,24 @@ export class VillageLabScene extends BaseZoneScene {
     console.log(`🎨 [StarterTable] Indicateur visuel créé à (${zone.centerX}, ${zone.centerY})`);
   }
 
-  // ✅ MÉTHODE: Vérifier si le joueur est près d'une starter table
+  // ✅ Vérifier si le joueur est près d'une starter table AVEC DEBUG AMÉLIORÉ
   isPlayerNearStarterTable() {
+    console.log("🔍 [CLIENT] === VÉRIFICATION PROXIMITÉ TABLE ===");
+    
     if (!this.player || !this.starterTableZones || this.starterTableZones.length === 0) {
-      console.log("❌ [Proximité] Pas de joueur ou pas de zones starter");
+      console.log("❌ [CLIENT] Pas de joueur ou pas de zones starter");
+      console.log("  - this.player:", !!this.player);
+      console.log("  - this.starterTableZones:", this.starterTableZones);
       return false;
     }
     
     const playerX = this.player.x;
     const playerY = this.player.y;
-    const detectionRange = 300; // Distance de détection en pixels
+    const detectionRange = 100; // Range généreux pour les tests
+    
+    console.log(`👤 [CLIENT] Position joueur: (${playerX}, ${playerY})`);
+    console.log(`🎯 [CLIENT] Range de détection: ${detectionRange}px`);
+    console.log(`📊 [CLIENT] Nombre de zones starter: ${this.starterTableZones.length}`);
     
     for (const zone of this.starterTableZones) {
       const distance = Phaser.Math.Distance.Between(
@@ -279,42 +342,64 @@ export class VillageLabScene extends BaseZoneScene {
         zone.centerX, zone.centerY
       );
       
+      console.log(`📏 [CLIENT] Zone ${zone.name}:`);
+      console.log(`  - Centre: (${zone.centerX}, ${zone.centerY})`);
+      console.log(`  - Distance: ${Math.round(distance)}px`);
+      console.log(`  - Seuil: ${detectionRange}px`);
+      console.log(`  - Proche: ${distance <= detectionRange ? 'OUI' : 'NON'}`);
+      
       if (distance <= detectionRange) {
-        console.log(`🎯 [StarterTable] Joueur près de ${zone.name}: distance ${Math.round(distance)}px`);
+        console.log(`✅ [CLIENT] JOUEUR PROCHE de ${zone.name}!`);
         return true;
       }
     }
     
-    console.log(`❌ [StarterTable] Joueur trop loin. Position: (${playerX}, ${playerY})`);
-    
-    // Debug: afficher les zones disponibles
-    this.starterTableZones.forEach((zone, index) => {
-      const dist = Phaser.Math.Distance.Between(playerX, playerY, zone.centerX, zone.centerY);
-      console.log(`  📏 ${zone.name}: centre(${zone.centerX}, ${zone.centerY}) - distance: ${Math.round(dist)}px`);
-    });
-    
+    console.log(`❌ [CLIENT] JOUEUR TROP LOIN de toutes les tables`);
     return false;
   }
 
-  // ✅ MÉTHODE: Déclencher la sélection starter avec vérification serveur
+  // ✅ Déclencher la sélection starter avec debug amélioré
   triggerStarterSelection() {
-    console.log("🎯 [VillageLabScene] Déclenchement sélection starter...");
+    console.log("🎯 [CLIENT] === DÉCLENCHEMENT SÉLECTION STARTER ===");
     
-    if (this.networkManager?.room) {
-      console.log("📤 [VillageLabScene] Envoi checkStarterEligibility...");
+    // Vérifier NetworkManager
+    if (!this.networkManager) {
+      console.error("❌ [CLIENT] NetworkManager indisponible!");
+      this.showSafeMessage("Erreur réseau - NetworkManager manquant");
+      return;
+    }
+    
+    if (!this.networkManager.room) {
+      console.error("❌ [CLIENT] Room non connectée!");
+      this.showSafeMessage("Erreur réseau - Room non connectée");
+      return;
+    }
+    
+    console.log("✅ [CLIENT] NetworkManager OK, envoi de la demande...");
+    console.log("📤 [CLIENT] Envoi checkStarterEligibility...");
+    
+    try {
       this.networkManager.room.send("checkStarterEligibility");
-    } else {
-      console.warn("⚠️ [VillageLabScene] NetworkManager indisponible, test direct");
-      this.showStarterSelection();
+      console.log("✅ [CLIENT] Message checkStarterEligibility envoyé!");
+      
+      // Debug: Afficher l'état de la connexion
+      console.log("🔗 [CLIENT] État Room:", {
+        id: this.networkManager.room.id,
+        sessionId: this.networkManager.room.sessionId,
+        state: this.networkManager.room.state
+      });
+      
+    } catch (error) {
+      console.error("❌ [CLIENT] Erreur envoi message:", error);
+      this.showSafeMessage("Erreur lors de l'envoi de la demande");
     }
   }
 
-  // ✅ MÉTHODE SÉCURISÉE: Afficher un message sans boucle infinie
+  // ✅ Afficher un message sans boucle infinie
   showSafeMessage(message) {
-    // Utiliser directement console.log au lieu des notifications
     console.log(`💬 [VillageLabScene] ${message}`);
     
-    // Optionnel: Créer un dialogue simple sans passer par le système de notifications
+    // Créer un dialogue simple sans passer par le système de notifications
     const dialogueBox = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY + 100,
@@ -329,7 +414,7 @@ export class VillageLabScene extends BaseZoneScene {
       }
     ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
 
-    this.time.delayedCall(2000, () => {
+    this.time.delayedCall(3000, () => {
       dialogueBox.destroy();
     });
   }
@@ -441,7 +526,6 @@ export class VillageLabScene extends BaseZoneScene {
   // === Gestion du dialogue professeur & starter via serveur ===
 
   showProfessorDialog(data) {
-    // Simple : à adapter selon ce que tu veux côté UI
     const dialogBox = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY,
@@ -497,10 +581,8 @@ export class VillageLabScene extends BaseZoneScene {
     }
   }
 
-  // ✅ NOUVELLES MÉTHODES STARTER SELECTOR
-
+  // ✅ Actions après confirmation du starter
   onStarterConfirmed(data) {
-    // Actions après confirmation du starter
     console.log("🎉 [VillageLabScene] Actions après sélection du starter:", data);
     
     // Dialogue de félicitations
@@ -533,20 +615,15 @@ export class VillageLabScene extends BaseZoneScene {
     this.time.delayedCall(5000, () => {
       congratsBox.destroy();
     });
-
-    // Optionnel: Retour au village après sélection
-    // this.time.delayedCall(6000, () => {
-    //   this.changeToZone('VillageScene', { x: 400, y: 300 });
-    // });
   }
 
-  // ✅ MÉTHODE PUBLIQUE: Test manuel
+  // ✅ Test manuel
   testStarterSelection() {
     console.log("🧪 [VillageLabScene] Test manuel du StarterSelector");
     this.showStarterSelection();
   }
 
-  // ✅ MÉTHODE: Gérer les inputs de la scène
+  // ✅ Gérer les inputs de la scène
   update() {
     // Vérifier si la sélection de starter est active
     if (this.isStarterSelectionActive && this.isStarterSelectionActive()) {
@@ -613,5 +690,18 @@ window.debugStarterTable = () => {
     }
   } else {
     console.warn("❌ VillageLabScene non trouvée");
+  }
+};
+
+// ✅ FONCTION POUR FORCER LA POSITION DU JOUEUR (debug)
+window.movePlayerToTable = () => {
+  const labScene = window.game?.scene?.getScene('VillageLabScene');
+  if (labScene && labScene.player && labScene.starterTableZones.length > 0) {
+    const table = labScene.starterTableZones[0];
+    labScene.player.x = table.centerX;
+    labScene.player.y = table.centerY;
+    console.log(`🎯 Joueur déplacé à (${table.centerX}, ${table.centerY})`);
+  } else {
+    console.warn("❌ Impossible de déplacer le joueur");
   }
 };
