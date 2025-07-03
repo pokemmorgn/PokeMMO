@@ -1603,16 +1603,8 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('starterSelectionEnded', () => {
     pokemonUISystem?.setGameState?.('exploration', { animated: true });
   });
-});
 
-// Dans client/src/ui.js - Ajout des fonctions de test
-// ✅ NOUVELLES FONCTIONS : Test BattleInterface
-
-// Ajouter à la fin de la classe PokemonUISystem, avant la fermeture de classe :
-
-// === FONCTIONS DE TEST BATTLEINTERFACE ===
-
-testBattleInterface() {
+  testBattleInterface() {
   console.log('🧪 [PokemonUI] Test BattleInterface...');
   
   const battleModule = this.getModule('battleInterface');
@@ -1839,6 +1831,8 @@ console.log('🧪 Utilisez window.testBattleInterface() pour tester');
 console.log('🎬 Utilisez window.testBattleTransition() pour transition');
 console.log('🚀 Utilisez window.testCompleteBattle() pour test complet');
 console.log('🔍 Utilisez window.debugBattleInterface() pour debug');
+  
+});
 
 console.log('✅ [PokemonUI] Système UI Pokémon chargé avec auto-réparation !');
 console.log('🎮 Utilisez initializePokemonUI() pour démarrer (complet)');
