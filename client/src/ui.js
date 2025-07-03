@@ -1605,6 +1605,241 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// Dans client/src/ui.js - Ajout des fonctions de test
+// ✅ NOUVELLES FONCTIONS : Test BattleInterface
+
+// Ajouter à la fin de la classe PokemonUISystem, avant la fermeture de classe :
+
+// === FONCTIONS DE TEST BATTLEINTERFACE ===
+
+testBattleInterface() {
+  console.log('🧪 [PokemonUI] Test BattleInterface...');
+  
+  const battleModule = this.getModule('battleInterface');
+  if (!battleModule) {
+    console.error('❌ Module BattleInterface non trouvé');
+    return false;
+  }
+  
+  // Données de test
+  const testBattleData = {
+    playerPokemon: { 
+      name: 'Pikachu Test', 
+      level: 25, 
+      moves: [
+        { name: 'Tonnerre', pp: 15, maxPp: 15, type: 'electric' },
+        { name: 'Vive-Attaque', pp: 30, maxPp: 30, type: 'normal' },
+        { name: 'Queue de Fer', pp: 15, maxPp: 15, type: 'steel' },
+        { name: 'Charme', pp: 20, maxPp: 20, type: 'fairy' }
+      ]
+    },
+    opponentPokemon: { name: 'Rattata Sauvage', level: 12 },
+    canUseBag: true,
+    canFlee: true
+  };
+  
+  try {
+    // Test démarrage combat
+    const success = battleModule.startBattle(testBattleData);
+    
+    if (success) {
+      console.log('✅ [PokemonUI] BattleInterface affiché avec succès');
+      
+      // Notification utilisateur
+      window.showGameNotification?.('Interface de combat test affichée !', 'success', {
+        duration: 3000,
+        position: 'top-center'
+      });
+      
+      // Auto-fermeture après 5 secondes
+      setTimeout(() => {
+        battleModule.endBattle();
+        console.log('✅ [PokemonUI] Test BattleInterface terminé');
+        
+        window.showGameNotification?.('Test BattleInterface terminé', 'info', {
+          duration: 2000,
+          position: 'top-center'
+        });
+      }, 5000);
+      
+      return true;
+    } else {
+      console.error('❌ [PokemonUI] Échec démarrage BattleInterface');
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur test BattleInterface:', error);
+    return false;
+  }
+}
+
+testBattleTransition() {
+  console.log('🧪 [PokemonUI] Test transition battle...');
+  
+  try {
+    // État initial
+    console.log(`🎮 État initial: ${this.currentGameState}`);
+    
+    // Transition vers battle
+    console.log('⚔️ Transition vers battle...');
+    const battleSuccess = this.setGameState('battle', { animated: true });
+    
+    if (!battleSuccess) {
+      console.error('❌ Échec transition vers battle');
+      return false;
+    }
+    
+    // Simuler combat pendant 3 secondes
+    setTimeout(() => {
+      console.log('🎮 État battle actif');
+      
+      // Retour exploration
+      console.log('🌍 Retour exploration...');
+      const explorationSuccess = this.setGameState('exploration', { animated: true });
+      
+      setTimeout(() => {
+        console.log(`🎮 État final: ${this.currentGameState}`);
+        console.log('✅ Test transition terminé');
+        
+        window.showGameNotification?.('Test transition UI terminé', 'success', {
+          duration: 2000,
+          position: 'top-center'
+        });
+      }, 1000);
+    }, 3000);
+    
+    window.showGameNotification?.('Test transition UI lancé', 'info', {
+      duration: 2000,
+      position: 'top-center'
+    });
+    
+    return true;
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur test transition:', error);
+    return false;
+  }
+}
+
+// ✅ FONCTION GLOBALE : Test complet BattleInterface + transition
+testCompleteBattle() {
+  console.log('🚀 [PokemonUI] Test complet battle (interface + transition)...');
+  
+  try {
+    // 1. Test transition vers battle
+    this.setGameState('battle', { animated: true });
+    
+    // 2. Démarrer BattleInterface après transition
+    setTimeout(() => {
+      this.testBattleInterface();
+    }, 500);
+    
+    // 3. Retour exploration après test
+    setTimeout(() => {
+      this.setGameState('exploration', { animated: true });
+      
+      window.showGameNotification?.('Test complet battle terminé !', 'success', {
+        duration: 3000,
+        position: 'top-center'
+      });
+    }, 6000);
+    
+    return true;
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur test complet:', error);
+    return false;
+  }
+}
+
+// === FONCTION DE DEBUG BATTLEINTERFACE ===
+
+debugBattleInterface() {
+  console.log('🔍 === DEBUG BATTLEINTERFACE ===');
+  
+  const battleModule = this.getModule('battleInterface');
+  
+  const debugInfo = {
+    moduleExists: !!battleModule,
+    moduleType: battleModule?.moduleType,
+    isInitialized: battleModule?.isInitialized,
+    hasOriginalModule: !!battleModule?.originalModule,
+    state: battleModule?.getState?.(),
+    
+    // Test des méthodes
+    methods: {
+      create: typeof battleModule?.create === 'function',
+      startBattle: typeof battleModule?.startBattle === 'function',
+      endBattle: typeof battleModule?.endBattle === 'function',
+      show: typeof battleModule?.show === 'function',
+      hide: typeof battleModule?.hide === 'function'
+    },
+    
+    // État UI global
+    currentGameState: this.currentGameState,
+    uiManagerMode: this.uiManager?.constructor?.name || 'unknown'
+  };
+  
+  console.log('📊 Debug BattleInterface:', debugInfo);
+  
+  // Diagnostic automatique
+  if (!debugInfo.moduleExists) {
+    console.log('💡 Solution: Le module BattleInterface n\'est pas enregistré');
+  } else if (!debugInfo.methods.startBattle) {
+    console.log('💡 Solution: Le module manque de méthodes battle');
+  } else {
+    console.log('✅ Module BattleInterface OK - utilisez testBattleInterface()');
+  }
+  
+  return debugInfo;
+}
+
+// Ajouter à la fin de setupCompatibilityFunctions() :
+
+// ✅ NOUVELLES FONCTIONS GLOBALES pour BattleInterface
+window.testBattleInterface = () => {
+  return pokemonUISystem.testBattleInterface?.() || false;
+};
+
+window.testBattleTransition = () => {
+  return pokemonUISystem.testBattleTransition?.() || false;
+};
+
+window.testCompleteBattle = () => {
+  return pokemonUISystem.testCompleteBattle?.() || false;
+};
+
+window.debugBattleInterface = () => {
+  return pokemonUISystem.debugBattleInterface?.() || { error: 'Non disponible' };
+};
+
+window.startTestBattle = (battleData = null) => {
+  const module = pokemonUISystem.getModule?.('battleInterface');
+  if (module && module.startBattle) {
+    const testData = battleData || {
+      playerPokemon: { name: 'Pikachu', level: 20, moves: [] },
+      opponentPokemon: { name: 'Rattata', level: 15 }
+    };
+    return module.startBattle(testData);
+  }
+  return false;
+};
+
+window.endTestBattle = () => {
+  const module = pokemonUISystem.getModule?.('battleInterface');
+  if (module && module.endBattle) {
+    return module.endBattle();
+  }
+  return false;
+};
+
+console.log('✅ [PokemonUI] Fonctions de test BattleInterface configurées');
+console.log('🧪 Utilisez window.testBattleInterface() pour tester');
+console.log('🎬 Utilisez window.testBattleTransition() pour transition');
+console.log('🚀 Utilisez window.testCompleteBattle() pour test complet');
+console.log('🔍 Utilisez window.debugBattleInterface() pour debug');
+
 console.log('✅ [PokemonUI] Système UI Pokémon chargé avec auto-réparation !');
 console.log('🎮 Utilisez initializePokemonUI() pour démarrer (complet)');
 console.log('🔧 Utilisez autoInitializePokemonUI() pour auto-réparation');
