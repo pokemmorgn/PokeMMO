@@ -166,6 +166,34 @@ export class UIManager {
     }
   }
 
+  // Ajoutez ces méthodes à votre UIManager existant :
+
+// 1. GlobalState
+if (!this.globalState) {
+  this.globalState = {
+    currentGameState: 'exploration',
+    previousGameState: null,
+    timestamp: Date.now()
+  };
+}
+
+// 2. GetModuleState
+getModuleState(moduleId) {
+  const moduleSelectors = {
+    'questTracker': '#questTracker, #quest-tracker',
+    'inventory': '#inventory-icon',
+    'team': '#team-icon'
+  };
+  
+  const element = document.querySelector(moduleSelectors[moduleId]);
+  if (!element) return null;
+  
+  return {
+    id: moduleId,
+    visible: window.getComputedStyle(element).display !== 'none',
+    element: element
+  };
+}
   // ===== 🚀 PERFORMANCE OPTIMIZED MODULE MANAGEMENT =====
 
   registerModule(moduleId, moduleConfig) {
