@@ -113,24 +113,6 @@ init(data = {}) {
 
   // === GESTION UI ÉLÉGANTE avec UIManager ===
 
-  // === MÉTHODE DE TEST TEMPORAIRE ===
-testBattleActionInterface() {
-  console.log('🧪 [BattleScene] Test interface d\'actions...');
-  
-  if (this.battleActionUI) {
-    // Afficher l'interface après 1 seconde
-    setTimeout(() => {
-      console.log('👁️ [BattleScene] Affichage interface d\'actions...');
-      this.battleActionUI.show();
-    }, 1000);
-    
-    console.log('✅ [BattleScene] Interface d\'actions disponible pour test');
-    return true;
-  } else {
-    console.error('❌ [BattleScene] Interface d\'actions non créée');
-    return false;
-  }
-}
   
   activateBattleUI() {
     console.log('🎮 [BattleScene] Activation UI battle via UIManager...');
@@ -1043,9 +1025,6 @@ testBattleActionInterface() {
     }, 3000);
     
     console.log('✅ [BattleScene] Test lancé avec HealthBarManager modulaire');
-
-    // ✅ NOUVEAU: Tester l'interface d'actions
-    this.testBattleActionInterface();
   }
 // === GESTION DES ÉVÉNEMENTS D'INTERFACE ===
 setupBattleActionEvents() {
@@ -1180,7 +1159,6 @@ executePlayerRun() {
     
     // Étape 1: Démarrer combat
     console.log('1️⃣ Démarrage combat...');
-    this.testDisplayPokemonWithHealthBarManager();
     
     // Étape 2: Simuler quelques actions de combat
     setTimeout(() => {
@@ -1362,77 +1340,6 @@ waitForPlayerAction() {
 }
 
 // ✅ FONCTIONS GLOBALES MODULAIRES AVEC HEALTHBARMANAGER
-
-// Fonction principale de test avec HealthBarManager modulaire
-window.testBattleWithHealthBarManager = function() {
-  console.log('🧪 === TEST COMPLET AVEC HEALTHBARMANAGER MODULAIRE ===');
-  
-  // Diagnostic préalable
-  console.log('🏥 Diagnostic UIManager...');
-  const uiOK = window.diagnosticUIManager && window.diagnosticUIManager();
-  
-  if (!uiOK) {
-    console.error('❌ UIManager non fonctionnel - utilisez diagnosticUIManager() pour plus d\'infos');
-    return false;
-  }
-  
-  const battleScene = window.game?.scene?.getScene('BattleScene');
-  if (!battleScene) {
-    console.error('❌ BattleScene non trouvée');
-    return false;
-  }
-  
-  console.log('🩺 Test avec HealthBarManager modulaire !');
-  
-  // Activer la scène si nécessaire
-  if (!window.game.scene.isActive('BattleScene')) {
-    console.log('🎬 Activation BattleScene...');
-    window.game.scene.start('BattleScene');
-    
-    setTimeout(() => {
-      const activeBattleScene = window.game.scene.getScene('BattleScene');
-      if (activeBattleScene && activeBattleScene.testDisplayPokemonWithHealthBarManager) {
-        activeBattleScene.testDisplayPokemonWithHealthBarManager();
-      } else {
-        console.error('❌ testDisplayPokemonWithHealthBarManager non disponible');
-      }
-    }, 500);
-  } else {
-    if (battleScene.testDisplayPokemonWithHealthBarManager) {
-      battleScene.testDisplayPokemonWithHealthBarManager();
-    } else {
-      console.error('❌ testDisplayPokemonWithHealthBarManager non disponible');
-    }
-  }
-  
-  console.log('✅ Test HealthBarManager modulaire lancé !');
-  return true;
-};
-
-// Test cycle complet avec HealthBarManager modulaire
-window.testFullBattleWithHealthBarManager = function() {
-  console.log('🧪 === TEST CYCLE COMPLET AVEC HEALTHBARMANAGER MODULAIRE ===');
-  
-  const battleScene = window.game?.scene?.getScene('BattleScene');
-  if (!battleScene) {
-    console.error('❌ BattleScene non trouvée');
-    return;
-  }
-  
-  if (!window.game.scene.isActive('BattleScene')) {
-    window.game.scene.start('BattleScene');
-    setTimeout(() => {
-      const activeBattleScene = window.game.scene.getScene('BattleScene');
-      if (activeBattleScene) {
-        activeBattleScene.testFullBattleCycleWithHealthBarManager();
-      }
-    }, 500);
-  } else {
-    battleScene.testFullBattleCycleWithHealthBarManager();
-  }
-  
-  console.log('✅ Test cycle complet HealthBarManager modulaire lancé !');
-};
 
 // Test animations spécifiques HealthBarManager
 window.testHealthBarManagerAnimations = function() {
