@@ -80,7 +80,7 @@ if (!this.battleNetworkHandler) {
     }
     
     // Sprites Pokémon avec calcul automatique des frames
-    // this.loadPokemonSpritesheets9x9();
+    this.loadPokemonSpritesheets9x9();
     
     // Événement de completion pour debug
     this.load.on('complete', () => {
@@ -231,6 +231,8 @@ if (!this.battleNetworkHandler) {
   // === SPRITES POKÉMON ===
 
 // REMPLACER la méthode loadPokemonSpritesheets9x9()
+// Remplacez la méthode loadPokemonSpritesheets9x9() dans BattleScene
+
 async loadPokemonSpritesheets9x9() {
   console.log('🐾 [BattleScene] Chargement avec PokemonSpriteConfig...');
   
@@ -248,28 +250,96 @@ async loadPokemonSpritesheets9x9() {
   console.log('✅ [BattleScene] Config chargée:', pokemonSpriteConfig);
 }
 
-// NOUVELLE méthode pour charger un Pokémon spécifique
-loadPokemonSprite(pokemonId, view = 'front') {
+// NOUVELLE méthode pour charger un Pokémon spécifique avec la config
+async loadPokemonSprite(pokemonId, view = 'front') {
   const spriteKey = `pokemon_${pokemonId}_${view}`;
   
   if (this.textures.exists(spriteKey)) {
-    return spriteKey; // Déjà chargé
+    console.log(`✅ [BattleScene] Sprite déjà chargé: ${spriteKey}`);
+    return spriteKey;
   }
   
-  // Récupérer la config (spécifique ou default)
-  const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
+  console.log(`📁 [BattleScene] Chargement dynamique: ${spriteKey}`);
   
-  // Construire le chemin (on peut améliorer ça plus tard)
-  const imagePath = `assets/pokemon/pokemon_${pokemonId}/${view}.png`;
+  try {
+    // S'assurer que la config est chargée
+    if (!pokemonSpriteConfig) {
+      await this.loadPokemonSpritesheets9x9();
+    }
+    
+    // ✅ UTILISER LA CONFIG JSON
+    const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
+    
+    // ✅ NOUVEAU CHEMIN CORRECT
+    const paddedId = pokemonId.toString().padStart(3, '0'); // 1 -> "001"
+    const imagePath = `assets/pokemon/${paddedId}/${view}.png`;
+    
+    console.log(`🔍 [BattleScene] Chemin: ${imagePath}`);
+    console.log(`📐 [BattleScene] Config pour ${pokemonId}:`, config);
+    
+    // Charger comme spritesheet avec les dimensions de la config
+    this.load.spritesheet(spriteKey, imagePath, {
+      frameWidth: config.spriteWidth,   // 38 par défaut
+      frameHeight: config.spriteHeight  // 38 par défaut
+    });
+    
+    // Attendre le chargement
+    await new Promise((resolve, reject) => {
+      this.load.once('complete', resolve);
+      this.load.once('loaderror', (file) => {
+        if (file.key === spriteKey) {
+          reject(new Error(`Erreur chargement: ${file.src}`));
+        }
+      });
+      this.load.start();
+    });
+    
+    if (this.textures.exists(spriteKey)) {
+      console.log(`✅ [BattleScene] Spritesheet chargé: ${spriteKey} (${config.spriteWidth}x${config.spriteHeight})`);
+      return spriteKey;
+    } else {
+      throw new Error(`Spritesheet non créé: ${spriteKey}`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ [BattleScene] Erreur chargement ${spriteKey}:`, error);
+    return this.createFallbackSprite(view);
+  }
+}
+
+// Méthode pour créer un sprite de fallback
+createFallbackSprite(view) {
+  const fallbackKey = `pokemon_placeholder_${view}`;
   
-  this.load.spritesheet(spriteKey, imagePath, {
-    frameWidth: config.spriteWidth,
-    frameHeight: config.spriteHeight
-  });
+  if (!this.textures.exists(fallbackKey)) {
+    console.log(`🎭 [BattleScene] Création placeholder: ${fallbackKey}`);
+    
+    // Créer un canvas simple
+    const canvas = document.createElement('canvas');
+    canvas.width = 38;
+    canvas.height = 38;
+    const ctx = canvas.getContext('2d');
+    
+    // Dessiner un cercle coloré
+    ctx.fillStyle = view === 'front' ? '#4A90E2' : '#7ED321';
+    ctx.beginPath();
+    ctx.arc(19, 19, 15, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('?', 19, 23);
+    
+    // Ajouter au cache des textures
+    this.textures.addCanvas(fallbackKey, canvas);
+  }
   
-  this.load.start();
-  
-  return spriteKey;
+  return fallbackKey;
 }
 
   loadPokemonWithMultipleSizes(pokemonConfig) {
