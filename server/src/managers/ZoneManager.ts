@@ -11,6 +11,8 @@ import { Villagehouse1 } from "../rooms/zones/Villagehouse1";
 // Zones Village supplémentaires
 import { VillageFloristZone } from "../rooms/zones/VillageFloristZone";
 import { VillageHouse2Zone } from "../rooms/zones/VillageHouse2Zone";
+import { VillageWindmillZone } from "../rooms/zones/VillageWindmillZone";
+
 
 // Zones Lavandia
 import { LavandiaAnalysisZone } from "../rooms/zones/LavandiaAnalysisZone";
@@ -29,6 +31,7 @@ import { LavandiaHouse7Zone } from "../rooms/zones/LavandiaHouse7Zone";
 import { LavandiaHouse8Zone } from "../rooms/zones/LavandiaHouse8Zone";
 import { LavandiaHouse9Zone } from "../rooms/zones/LavandiaHouse9Zone";
 import { LavandiaResearchLabZone } from "../rooms/zones/LavandiaResearchLabZone";
+
 
 // Zones Nocther Cave
 import { NoctherCave1Zone } from "../rooms/zones/NoctherCave1Zone";
@@ -97,6 +100,10 @@ export class ZoneManager {
     this.loadZone('village', new VillageZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour village");
     this.collisions.set('village', new CollisionManager("village.tmj"));
+
+    this.loadZone('villagewindmill', new VillageZone(this.room));
+    console.log("[ZoneManager] Initialisation collisions pour village");
+    this.collisions.set('villagewindmill', new CollisionManager("villagewindmill.tmj"));
     
     this.loadZone('villagelab', new VillageLabZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour villagelab");
