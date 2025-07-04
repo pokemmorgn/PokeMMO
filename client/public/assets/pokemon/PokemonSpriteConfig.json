@@ -1,22 +1,9 @@
 {
-  "default": {
-    "offsetX": 0,
-    "offsetY": 0,
-    "scale": 1.0,
-    "spriteWidth": 68,     
-    "spriteHeight": 68,  
-    "sheetCols": 48,      
-    "sheetRows": 1        
-  },
-  "1": { 
-    "offsetY": 8, 
-    "scale": 1.10, 
-    "spriteWidth": 38, 
-    "spriteHeight": 38
-  },
-  "4": { "offsetY": 6, "scale": 1.05 },
-  "7": { "offsetY": 4, "scale": 1.05 },
-  "25": { "offsetY": 0, "scale": 1.12 },
-  "143": { "offsetY": -24, "scale": 1.35 },
-  "6": { "offsetY": -10, "scale": 1.34, "spriteWidth": 96, "spriteHeight": 96 }
+  "default": { "offsetX": 0, "offsetY": 0, "scale": 1.0, "spriteWidth": 38, "spriteHeight": 38, "sheetCols": 49, "sheetRows": 1 },
+  "1": { "offsetY": 8, "scale": 1.10, "spriteWidth": 38, "spriteHeight": 38 },
+  "4": { "offsetY": 6, "scale": 1.05, "spriteWidth": 38, "spriteHeight": 38 },
+  "7": { "offsetY": 4, "scale": 1.05, "spriteWidth": 38, "spriteHeight": 38 },
+  "25": { "offsetY": 0, "scale": 1.12, "spriteWidth": 38, "spriteHeight": 38 },
+  "143": { "offsetY": -24, "scale": 1.35, "spriteWidth": 38, "spriteHeight": 38 },
+  "6": { "offsetY": -10, "scale": 1.34, "spriteWidth": 38, "spriteHeight": 38 }
 }
