@@ -4,7 +4,7 @@ import { WorldRoom } from "../rooms/WorldRoom";
 import { BattleRoom, BattleInitData } from "../rooms/BattleRoom";
 import { WildPokemon } from "../managers/EncounterManager";
 import { TeamManager } from "../managers/TeamManager";
-
+import { getPokemonById } from '../data/PokemonData';
 /**
  * Gestionnaire centralisé pour tous les handlers de combat
  * Gère la création, connexion et communication avec les BattleRoom
@@ -378,17 +378,20 @@ private async getPlayerBattlePokemon(playerName: string): Promise<any | null> {
       return null;
     }
     
-    console.log(`✅ [BattleHandlers] Pokémon trouvé: ${battleReadyPokemon.nickname || 'Pokémon'} (ID: ${battleReadyPokemon.pokemonId})`);
+    // ✅ NOUVEAU: Récupérer les vraies données depuis PokemonData
+    const pokemonData = await getPokemonById(battleReadyPokemon.pokemonId);
+    
+    console.log(`✅ [BattleHandlers] Pokémon trouvé: ${battleReadyPokemon.nickname || pokemonData?.name || 'Pokémon'} (ID: ${battleReadyPokemon.pokemonId})`);
     
     return {
       id: battleReadyPokemon._id.toString(),
       pokemonId: battleReadyPokemon.pokemonId,
-      name: battleReadyPokemon.nickname || this.getPokemonName(battleReadyPokemon.pokemonId), // ✅ Nom réel
+      name: battleReadyPokemon.nickname || pokemonData?.name || `Pokémon #${battleReadyPokemon.pokemonId}`, // ✅ Vrai nom
       level: battleReadyPokemon.level,
       currentHp: battleReadyPokemon.currentHp,
       maxHp: battleReadyPokemon.maxHp,
       statusCondition: battleReadyPokemon.status || 'normal',
-      types: this.getPokemonTypes(battleReadyPokemon.pokemonId), // ✅ Vrais types
+      types: pokemonData?.types || ['normal'], // ✅ Vrais types depuis la base de données
       moves: battleReadyPokemon.moves.map((move: any) => move.moveId),
       stats: battleReadyPokemon.calculatedStats,
       isWild: false
