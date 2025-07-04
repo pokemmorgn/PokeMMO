@@ -137,38 +137,43 @@ export class BattleIntegration {
     console.log('✅ [BattleIntegration] PokemonSelectionUI initialisée');
   }
 
-  async initializeBattleScene() {
-    console.log('🎬 [BattleIntegration] Initialisation BattleScene...');
-
-    try {
-      let battleSceneExists = false;
-
-      if (this.phaserGame?.scene?.getScene) {
-        const existingScene = this.phaserGame.scene.getScene('BattleScene');
-        if (existingScene) {
-          this.battleScene = existingScene;
-          battleSceneExists = true;
-          console.log('✅ [BattleIntegration] BattleScene déjà présente');
-        }
+async initializeBattleScene() {
+  console.log('🎬 [BattleIntegration] Initialisation BattleScene...');
+  try {
+    let battleSceneExists = false;
+    if (this.phaserGame?.scene?.getScene) {
+      const existingScene = this.phaserGame.scene.getScene('BattleScene');
+      if (existingScene) {
+        this.battleScene = existingScene;
+        battleSceneExists = true;
+        console.log('✅ [BattleIntegration] BattleScene déjà présente');
       }
-
-      if (!battleSceneExists) {
-        this.battleScene = new BattleScene();
-
-        if (!this.phaserGame.scene.keys['BattleScene']) {
-          this.phaserGame.scene.add('BattleScene', this.battleScene, false);
-          console.log('✅ [BattleIntegration] BattleScene ajoutée dynamiquement');
-        } else {
-          console.log('ℹ️ [BattleIntegration] BattleScene déjà enregistrée');
-        }
-      }
-
-    } catch (error) {
-      console.warn('⚠️ [BattleIntegration] Erreur BattleScene:', error);
     }
-
-    console.log('✅ [BattleIntegration] BattleScene initialisée');
+    if (!battleSceneExists) {
+      this.battleScene = new BattleScene();
+      if (!this.phaserGame.scene.keys['BattleScene']) {
+        this.phaserGame.scene.add('BattleScene', this.battleScene, false);
+        console.log('✅ [BattleIntegration] BattleScene ajoutée dynamiquement');
+      } else {
+        console.log('ℹ️ [BattleIntegration] BattleScene déjà enregistrée');
+      }
+    }
+    
+    // ✅ AJOUT: Démarrer BattleScene immédiatement
+    if (!this.phaserGame.scene.isActive('BattleScene')) {
+      console.log('🚀 [BattleIntegration] Démarrage BattleScene...');
+      this.phaserGame.scene.start('BattleScene', {
+        battleNetworkHandler: this.battleConnection.networkHandler,
+        gameManager: this.gameManager
+      });
+      console.log('✅ [BattleIntegration] BattleScene démarrée et prête');
+    }
+    
+  } catch (error) {
+    console.warn('⚠️ [BattleIntegration] Erreur BattleScene:', error);
   }
+  console.log('✅ [BattleIntegration] BattleScene initialisée et active');
+}
 
   // === ÉVÉNEMENTS GLOBAUX MISE À JOUR ===
 
