@@ -701,37 +701,18 @@ handleEncounterStart(encounterData) {
   console.log('✅ [BattleScene] Rencontre traitée - attente données serveur');
 }
 
-  startBattle(battleData) {
-    console.log('⚔️ [BattleScene] Démarrage combat avec HealthBarManager:', battleData);
-    
-    if (!this.isActive) {
-      console.error('❌ [BattleScene] Scène non active');
-      return;
-    }
-    
-    // Réveiller scène si nécessaire
-    if (this.scene && !this.scene.isActive()) {
-      this.scene.wake();
-    }
-    
-    // Activer l'UI de combat via UIManager
-    const uiActivated = this.activateBattleUI();
-    if (uiActivated) {
-      console.log('✅ [BattleScene] UI de combat activée pour startBattle');
-    }
-    
-    // Afficher les Pokémon avec HealthBarManager
-    if (battleData.playerPokemon) {
-      this.displayPlayerPokemon(battleData.playerPokemon);
-    }
-    
-    if (battleData.opponentPokemon) {
-      this.displayOpponentPokemon(battleData.opponentPokemon);
-    }
-    
-    this.isVisible = true;
-    console.log('✅ [BattleScene] Combat démarré avec HealthBarManager');
+startBattle(battleData) {
+  console.log('⚔️ [BattleScene] Démarrage combat réseau:', battleData);
+  
+  if (!this.isActive) {
+    console.error('❌ [BattleScene] Scène non active');
+    return;
   }
+  
+  // Les données viennent maintenant du serveur via handleNetworkBattleStart
+  // Cette méthode sert surtout de fallback
+  this.handleNetworkBattleStart(battleData);
+}
 
   hideBattle() {
     console.log('🖥️ [BattleScene] Masquage combat avec HealthBarManager...');
