@@ -689,6 +689,10 @@ testBattleActionInterface() {
         this.scene.wake();
       }
     }
+
+    setTimeout(() => {
+    this.showPlayerActionMenu();
+  }, 3000); // 3 secondes après l'affichage des Pokémon
     
     // Activer l'UI de combat
     const uiActivated = this.activateBattleUI();
