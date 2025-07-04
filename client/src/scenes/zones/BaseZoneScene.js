@@ -1420,74 +1420,57 @@ initPlayerSpawnFromSceneData() {
   }
 
   // ✅ MÉTHODE CORRIGÉE: Position du joueur avec priorité serveur
-  positionPlayer(player) {
-    const initData = this.scene.settings.data;
+positionPlayer(player) {
+  const initData = this.scene.settings.data;
+  
+  console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
+  console.log(`📊 InitData:`, initData);
+  console.log(`👤 Position actuelle du joueur: (${player.x}, ${player.y})`);
+  
+  // ✅ PRIORITÉ 1: Transition avec données explicites (MÊME SI le joueur a déjà une position)
+  if (initData?.fromTransition && initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
+    console.log(`📍 [${this.scene.key}] OVERRIDE - Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
+    player.x = initData.spawnX;
+    player.y = initData.spawnY;
+    player.targetX = initData.spawnX;
+    player.targetY = initData.spawnY;
     
-    console.log(`📍 [${this.scene.key}] Positionnement joueur...`);
-    console.log(`📊 InitData:`, initData);
-    console.log(`👤 Position actuelle du joueur: (${player.x}, ${player.y})`);
-    
-    // ✅ PRIORITÉ 1: Si le joueur a déjà une position valide du serveur, LA CONSERVER !
-    if (player.x !== undefined && player.y !== undefined && 
-        player.x !== 0 && player.y !== 0) {
-      console.log(`📍 [${this.scene.key}] Position serveur conservée: (${player.x}, ${player.y})`);
-      
-      // Juste s'assurer que le joueur est visible et actif
-      player.setVisible(true);
-      player.setActive(true);
-      player.setDepth(5);
-
-      if (player.indicator) {
-        player.indicator.x = player.x;
-        player.indicator.y = player.y - 32;
-        player.indicator.setVisible(true);
-      }
-
-      // Envoyer la position au serveur pour confirmation
-      if (this.networkManager && this.networkManager.isConnected) {
-        this.networkManager.sendMove(player.x, player.y, 'down', false);
-      }
-
-      this.onPlayerPositioned(player, initData);
-      return; // ✅ SORTIR ICI - Ne pas toucher à la position !
-    }
-    
-    // ✅ PRIORITÉ 2: Transition avec données explicites
-    if (initData?.fromTransition && initData?.spawnX !== undefined && initData?.spawnY !== undefined) {
-      console.log(`📍 [${this.scene.key}] Position depuis transition: ${initData.spawnX}, ${initData.spawnY}`);
-      player.x = initData.spawnX;
-      player.y = initData.spawnY;
-      player.targetX = initData.spawnX;
-      player.targetY = initData.spawnY;
-    } 
-    // ✅ PRIORITÉ 3: Fallback seulement si vraiment aucune position
-    else {
-      console.warn(`⚠️ [${this.scene.key}] FALLBACK - Aucune position valide trouvée`);
-      const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
-      console.log(`📍 [${this.scene.key}] Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
-      player.x = defaultPos.x;
-      player.y = defaultPos.y;
-      player.targetX = defaultPos.x;
-      player.targetY = defaultPos.y;
-    }
-
-    // Setup final du joueur
-    player.setVisible(true);
-    player.setActive(true);
-    player.setDepth(5);
-
-    if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-      player.indicator.setVisible(true);
-    }
-
-    if (this.networkManager && this.networkManager.isConnected) {
-      this.networkManager.sendMove(player.x, player.y, 'down', false);
-    }
-
-    this.onPlayerPositioned(player, initData);
+    // Forcer la mise à jour visuelle
+    player.setPosition(initData.spawnX, initData.spawnY);
+  } 
+  // ✅ PRIORITÉ 2: Si le joueur a déjà une position valide du serveur ET qu'on n'est pas en transition
+  else if (player.x !== undefined && player.y !== undefined && 
+           player.x !== 0 && player.y !== 0) {
+    console.log(`📍 [${this.scene.key}] Position serveur conservée: (${player.x}, ${player.y})`);
+  } 
+  // ✅ PRIORITÉ 3: Fallback seulement si vraiment aucune position
+  else {
+    console.warn(`⚠️ [${this.scene.key}] FALLBACK - Aucune position valide trouvée`);
+    const defaultPos = this.getDefaultSpawnPosition(initData?.fromZone);
+    console.log(`📍 [${this.scene.key}] Position par défaut: ${defaultPos.x}, ${defaultPos.y}`);
+    player.x = defaultPos.x;
+    player.y = defaultPos.y;
+    player.targetX = defaultPos.x;
+    player.targetY = defaultPos.y;
   }
+
+  // Setup final du joueur
+  player.setVisible(true);
+  player.setActive(true);
+  player.setDepth(5);
+
+  if (player.indicator) {
+    player.indicator.x = player.x;
+    player.indicator.y = player.y - 32;
+    player.indicator.setVisible(true);
+  }
+
+  if (this.networkManager && this.networkManager.isConnected) {
+    this.networkManager.sendMove(player.x, player.y, 'down', false);
+  }
+
+  this.onPlayerPositioned(player, initData);
+}
 
   // ✅ MÉTHODE INCHANGÉE: Affichage d'état d'erreur
   showErrorState(message) {
