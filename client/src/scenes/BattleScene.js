@@ -689,6 +689,10 @@ testBattleActionInterface() {
         this.scene.wake();
       }
     }
+
+    setTimeout(() => {
+    this.showPlayerActionMenu();
+  }, 3000); // 3 secondes après l'affichage des Pokémon
     
     // Activer l'UI de combat
     const uiActivated = this.activateBattleUI();
@@ -1218,6 +1222,40 @@ executePlayerRun() {
     }, 14000);
   }
 
+  // === GESTION DES TOURS ===
+
+showPlayerActionMenu() {
+  console.log('🎮 [BattleScene] Affichage menu actions joueur...');
+  
+  if (this.battleActionUI) {
+    // Vérifier le contexte (combat sauvage vs dresseur)
+    const context = {
+      canFlee: true,        // Peut fuir en combat sauvage
+      canUseBag: true,      // Peut utiliser le sac
+      canSwitchPokemon: false // Pas de changement en combat sauvage
+    };
+    
+    this.battleActionUI.showContextualActions(context);
+  } else {
+    console.warn('⚠️ [BattleScene] Interface d\'actions non disponible');
+  }
+}
+
+waitForPlayerAction() {
+  console.log('⏳ [BattleScene] Attente action joueur...');
+  
+  return new Promise((resolve) => {
+    this.showPlayerActionMenu();
+    
+    // Écouter l'action une seule fois
+    const handleAction = (actionData) => {
+      this.events.off('battleActionSelected', handleAction);
+      resolve(actionData);
+    };
+    
+    this.events.once('battleActionSelected', handleAction);
+  });
+}
   /**
    * Test spécifique des animations de barres via HealthBarManager
    */
