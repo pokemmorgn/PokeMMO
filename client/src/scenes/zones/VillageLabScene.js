@@ -1,5 +1,5 @@
 // ===============================================
-// VillageLabScene.js - Version SANS STARTER pour debug transition
+// VillageLabScene.js - Version avec InteractionManager SIMPLE
 // ===============================================
 import { BaseZoneScene } from './BaseZoneScene.js';
 
@@ -15,7 +15,7 @@ export class VillageLabScene extends BaseZoneScene {
     console.log(`[VillageLabScene] Mon joueur est prêt à (${myPlayer.x}, ${myPlayer.y})`);
 
     // Affichage instructions
-    this.add.text(16, 16, 'Laboratoire Pokémon (SANS STARTER)\nFlèches pour se déplacer\nTestez la transition vers le village', {
+    this.add.text(16, 16, 'Laboratoire Pokémon\nFlèches pour se déplacer\nAppuyez sur "E" près de la table starter', {
       font: '16px monospace',
       fill: '#000000',
       padding: { x: 10, y: 5 },
@@ -28,19 +28,18 @@ export class VillageLabScene extends BaseZoneScene {
 
   setupLabEvents() {
     this.time.delayedCall(1000, () => {
-      console.log("[VillageLabScene] Bienvenue au Laboratoire (version test) !");
+      console.log("[VillageLabScene] Bienvenue au Laboratoire !");
       if (this.infoText) {
-        this.infoText.setText('PokeWorld MMO\nLaboratoire Pokémon (Test)\nConnected!');
+        this.infoText.setText('PokeWorld MMO\nLaboratoire Pokémon\nConnected!');
       }
     });
   }
 
   cleanup() {
-    console.log("[VillageLabScene] cleanup appelé (version sans starter)");
+    console.log("[VillageLabScene] cleanup appelé");
     this.transitionCooldowns = {};
     super.cleanup();
   }
 }
 
-console.log("✅ VillageLabScene chargée SANS système starter");
-console.log("🎮 Version de test pour debug transitions");
+console.log("✅ VillageLabScene chargée avec InteractionManager pour starter");
