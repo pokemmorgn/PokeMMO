@@ -172,35 +172,24 @@ async activateBattleScene(battleScene) {
       return false;
     }
     
-    // Vérifier si la BattleScene existe dans le gestionnaire
-    const sceneExists = phaserGame.scene.getScene('BattleScene');
+    // Obtenir la BattleScene
+    const sceneInstance = phaserGame.scene.getScene('BattleScene');
     
-    if (!sceneExists) {
+    if (!sceneInstance) {
       console.error('❌ [BattleUITransition] BattleScene non trouvée dans le gestionnaire');
       return false;
     }
     
-    // Réveiller si endormie
-    if (phaserGame.scene.isSleeping('BattleScene')) {
-      console.log('😴 [BattleUITransition] Réveil BattleScene...');
-      phaserGame.scene.wake('BattleScene');
+    // ✅ NOUVEAU: Utiliser la méthode dédiée de BattleScene
+    const success = sceneInstance.activateFromTransition();
+    
+    if (success) {
+      console.log('✅ [BattleUITransition] BattleScene activée via activateFromTransition');
+      return true;
+    } else {
+      console.error('❌ [BattleUITransition] Échec activation via activateFromTransition');
+      return false;
     }
-    
-    // Activer si inactive
-    if (!phaserGame.scene.isActive('BattleScene')) {
-      console.log('🚀 [BattleUITransition] Activation BattleScene...');
-      phaserGame.scene.setActive(true, 'BattleScene');
-    }
-    
-    // Rendre visible
-    console.log('👁️ [BattleUITransition] Rendu visible BattleScene...');
-    phaserGame.scene.setVisible(true, 'BattleScene');
-    
-    // Mettre au premier plan
-    phaserGame.scene.bringToTop('BattleScene');
-    
-    console.log('✅ [BattleUITransition] BattleScene activée et visible');
-    return true;
     
   } catch (error) {
     console.error('❌ [BattleUITransition] Erreur activation BattleScene:', error);
