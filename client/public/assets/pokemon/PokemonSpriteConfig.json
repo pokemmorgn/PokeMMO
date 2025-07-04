@@ -13,7 +13,7 @@
     "scale": 1.10, 
     "spriteWidth": 38, 
     "spriteHeight": 38
-  }
+  },
   "4": { "offsetY": 6, "scale": 1.05 },
   "7": { "offsetY": 4, "scale": 1.05 },
   "25": { "offsetY": 0, "scale": 1.12 },
