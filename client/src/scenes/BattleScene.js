@@ -696,6 +696,8 @@ const spriteKey = `pokemon_${paddedId}_${view}`;
 
   animatePokemonEntry(sprite, direction) {
     if (!sprite) return;
+      // FORCE l'affichage dès le début de l'animation !
+    sprite.setVisible(true);
     
     const originalX = sprite.x;
     const originalY = sprite.y;
