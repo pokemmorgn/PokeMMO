@@ -78,9 +78,7 @@ if (!this.battleNetworkHandler) {
     if (!this.textures.exists('battlebg01')) {
       this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
     }
-    
-    // Sprites Pokémon avec calcul automatique des frames
-    this.loadPokemonSpritesheets9x9();
+  
     
     // Événement de completion pour debug
     this.load.on('complete', () => {
@@ -230,45 +228,26 @@ if (!this.battleNetworkHandler) {
 
   // === SPRITES POKÉMON ===
 
-// REMPLACER la méthode loadPokemonSpritesheets9x9()
-async loadPokemonSpritesheets9x9() {
-  console.log('🐾 [BattleScene] Chargement avec PokemonSpriteConfig...');
-  
-  // Charger la config une seule fois
-  if (!this.cache.json.has('pokemonSpriteConfig')) {
-    this.load.json('pokemonSpriteConfig', 'assets/pokemon/PokemonSpriteConfig.json');
-    this.load.start();
-    
-    await new Promise(resolve => {
-      this.load.once('complete', resolve);
-    });
-  }
-  
-  pokemonSpriteConfig = this.cache.json.get('pokemonSpriteConfig');
-  console.log('✅ [BattleScene] Config chargée:', pokemonSpriteConfig);
-}
-
 // NOUVELLE méthode pour charger un Pokémon spécifique
 loadPokemonSprite(pokemonId, view = 'front') {
   const spriteKey = `pokemon_${pokemonId}_${view}`;
   
   if (this.textures.exists(spriteKey)) {
-    return spriteKey; // Déjà chargé
+    return spriteKey;
   }
   
   // Récupérer la config (spécifique ou default)
   const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
   
-  // Construire le chemin (on peut améliorer ça plus tard)
   const imagePath = `assets/pokemon/pokemon_${pokemonId}/${view}.png`;
   
   this.load.spritesheet(spriteKey, imagePath, {
-    frameWidth: config.spriteWidth,
-    frameHeight: config.spriteHeight
+    frameWidth: config.spriteWidth,    // 38
+    frameHeight: config.spriteHeight   // 38
+    // PAS de startFrame ou endFrame car c'est automatique
   });
   
   this.load.start();
-  
   return spriteKey;
 }
 
@@ -415,28 +394,32 @@ loadPokemonSprite(pokemonId, view = 'front') {
 
   // === ✅ AFFICHAGE POKÉMON AVEC HEALTHBARMANAGER ===
 
-  displayPlayerPokemon(pokemonData) {
-    console.log('👤 [BattleScene] Affichage Pokémon joueur avec HealthBarManager:', pokemonData);
-    
-    if (!this.pokemonPositions?.playerAbsolute) {
-      this.createPokemonPositions();
-    }
-    
-    if (this.playerPokemonSprite) {
-      this.playerPokemonSprite.destroy();
-      this.playerPokemonSprite = null;
-    }
-    
-    if (!pokemonData) return;
-    
-    const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'back');
-    
+displayPlayerPokemon(pokemonData) {
+  console.log('👤 [BattleScene] Affichage Pokémon joueur:', pokemonData);
+  
+  if (!this.pokemonPositions?.playerAbsolute) {
+    this.createPokemonPositions();
+  }
+  
+  if (this.playerPokemonSprite) {
+    this.playerPokemonSprite.destroy();
+    this.playerPokemonSprite = null;
+  }
+  
+  if (!pokemonData) return;
+  
+  // ✅ NOUVEAU: Charger le sprite à la demande
+  const pokemonId = pokemonData.pokemonId || pokemonData.id;
+  const spriteKey = this.loadPokemonSprite(pokemonId, 'back');
+  
+  // Attendre que le sprite soit chargé
+  this.load.once('complete', () => {
     try {
       this.playerPokemonSprite = this.add.sprite(
         this.pokemonPositions.playerAbsolute.x,
         this.pokemonPositions.playerAbsolute.y,
         spriteKey,
-        0  // Frame 0 pour spritesheet 9x9
+        0  // Frame 0
       );
       
       if (!this.playerPokemonSprite.texture || this.playerPokemonSprite.texture.key === '__MISSING') {
@@ -454,27 +437,32 @@ loadPokemonSprite(pokemonId, view = 'front') {
       this.animatePokemonEntry(this.playerPokemonSprite, 'left');
       this.currentPlayerPokemon = pokemonData;
       
-      // ✅ NOUVEAU: Utiliser HealthBarManager
+      // HealthBar après animation
       setTimeout(() => {
         if (this.healthBarManager) {
           this.healthBarManager.updatePlayerHealthBar(pokemonData);
         }
       }, 800);
       
-      console.log(`✅ [BattleScene] Pokémon joueur affiché avec HealthBarManager: ${pokemonData.name}`);
+      console.log(`✅ [BattleScene] Pokémon joueur affiché: ${pokemonData.name}`);
       
     } catch (error) {
       console.error('❌ [BattleScene] Erreur affichage Pokémon joueur:', error);
       this.createPokemonPlaceholder('player', pokemonData);
       
-      // Barre de vie même pour placeholder
       setTimeout(() => {
         if (this.healthBarManager) {
           this.healthBarManager.updatePlayerHealthBar(pokemonData);
         }
       }, 800);
     }
+  });
+  
+  // Démarrer le chargement si nécessaire
+  if (this.load.list.size > 0) {
+    this.load.start();
   }
+}
 
   displayOpponentPokemon(pokemonData) {
     console.log('👹 [BattleScene] Affichage Pokémon adversaire avec HealthBarManager:', pokemonData);
