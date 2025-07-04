@@ -40,6 +40,7 @@ import { Road1HouseScene } from './scenes/zones/Road1HouseScene.js';
 import { Road1HiddenScene } from './scenes/zones/Road1HiddenScene.js';
 import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
 import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
+import { VillageWindmillScene } from './scenes/zones/VillageWindmillScene.js';
 
 import { Client } from 'colyseus.js';
 import { initPokeChat } from './network/PokeChatSystem.js';
@@ -306,6 +307,7 @@ const config = {
     VillageHouse1Scene,
     VillageHouse2Scene,
     VillageFloristScene,
+    VillageWindmillScene,
     BeachScene,
     Road1Scene,
     Road1HouseScene,
