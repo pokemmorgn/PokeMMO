@@ -462,8 +462,9 @@ createPokemonAnimation(pokemonId, view) {
 }
   
 // MODIFIER la méthode displayPlayerPokemon() pour utiliser sprite animé
-async displayPlayerPokemon(pokemonData) {
-  console.log('👤 [BattleScene] Affichage Pokémon joueur animé:', pokemonData);
+// MODIFIER la méthode displayPlayerPokemon() - VERSION SIMPLE QUI MARCHE
+displayPlayerPokemon(pokemonData) {
+  console.log('👤 [BattleScene] Affichage Pokémon joueur:', pokemonData);
   
   if (!this.pokemonPositions?.playerAbsolute) {
     this.createPokemonPositions();
@@ -476,18 +477,58 @@ async displayPlayerPokemon(pokemonData) {
   
   if (!pokemonData) return;
   
-  // ✅ ATTENDRE que le sprite soit chargé
-  const spriteKey = await this.ensurePokemonSpriteLoaded(pokemonData.pokemonId || pokemonData.id, 'back');
-  
   try {
-    // ✅ Maintenant le sprite est garanti d'être chargé
-    this.playerPokemonSprite = this.add.sprite(
-      this.pokemonPositions.playerAbsolute.x,
-      this.pokemonPositions.playerAbsolute.y,
-      spriteKey
-    );
+    const pokemonId = pokemonData.pokemonId || pokemonData.id;
+    const spriteKey = `pokemon_${pokemonId}_back`;
     
-    // ... reste du code inchangé ...
+    // ✅ CHARGER exactement comme dans le test qui marche
+    this.load.spritesheet(spriteKey, `assets/pokemon/${pokemonId.toString().padStart(3, '0')}/back.png`, {
+      frameWidth: 38,
+      frameHeight: 38
+    });
+    
+    this.load.start();
+    
+    this.load.once('complete', () => {
+      // ✅ CRÉER exactement comme dans le test qui marche
+      this.playerPokemonSprite = this.add.sprite(
+        this.pokemonPositions.playerAbsolute.x,
+        this.pokemonPositions.playerAbsolute.y,
+        spriteKey
+      );
+      this.playerPokemonSprite.setScale(2.8);
+      this.playerPokemonSprite.setDepth(20);
+      this.playerPokemonSprite.setOrigin(0.5, 1);
+      
+      // ✅ ANIMATION exactement comme dans le test qui marche
+      const animKey = `pokemon_${pokemonId}_back_idle`;
+      if (!this.anims.exists(animKey)) {
+        this.anims.create({
+          key: animKey,
+          frames: this.anims.generateFrameNumbers(spriteKey, { start: 0, end: 48 }),
+          frameRate: 8,
+          repeat: -1
+        });
+      }
+      
+      this.playerPokemonSprite.play(animKey);
+      
+      this.playerPokemonSprite.setData('isPokemon', true);
+      this.playerPokemonSprite.setData('pokemonType', 'player');
+      this.playerPokemonSprite.setData('pokemonId', pokemonData.pokemonId);
+      
+      this.currentPlayerPokemon = pokemonData;
+      
+      // HealthBar après chargement
+      setTimeout(() => {
+        if (this.healthBarManager) {
+          this.healthBarManager.updatePlayerHealthBar(pokemonData);
+        }
+      }, 800);
+      
+      console.log(`✅ [BattleScene] Pokémon joueur affiché: ${pokemonData.name}`);
+    });
+    
   } catch (error) {
     console.error('❌ [BattleScene] Erreur affichage Pokémon joueur:', error);
     this.createPokemonPlaceholder('player', pokemonData);
