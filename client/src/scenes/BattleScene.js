@@ -612,7 +612,8 @@ displayPlayerPokemon(pokemonData) {
   }
 
 getPokemonSpriteKey(pokemonId, view = 'front') {
-  const spriteKey = `pokemon_${pokemonId}_${view}`;
+const paddedId = pokemonId.toString().padStart(3, '0');
+const spriteKey = `pokemon_${paddedId}_${view}`;
   
   if (this.textures.exists(spriteKey)) {
     // ✅ NOUVEAU: Message plus simple car on sait que ça vient du LoaderScene
