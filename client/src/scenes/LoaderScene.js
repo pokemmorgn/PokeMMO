@@ -74,14 +74,12 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
 
     // ✅ SPRITES POKÉMON ESSENTIELS
 // Bulbasaur (ID: 1) - Starter
-// ✅ CORRECT - pour des spritesheets 9x9
-// ✅ CORRECT - pour des spritesheets 9x9
-this.load.spritesheet('pokemon_1_front', 'assets/sprites/pokemon_1_front.png', {
-  frameWidth: 64,  // Ajustez selon votre config
+this.load.spritesheet('pokemon_1_front', 'assets/pokemon/001/front.png', {
+  frameWidth: 64,  // À ajuster selon votre image
   frameHeight: 64
 });
-this.load.spritesheet('pokemon_1_back', 'assets/sprites/pokemon_1_back.png', {
-  frameWidth: 64,  // Ajustez selon votre config  
+this.load.spritesheet('pokemon_1_back', 'assets/pokemon/001/back.png', {
+  frameWidth: 64,
   frameHeight: 64
 });
 
