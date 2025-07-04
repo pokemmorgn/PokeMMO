@@ -1977,13 +1977,19 @@ initPlayerSpawnFromSceneData() {
     this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
     
     // ✅ STOCKER LES LAYERS POUR COLLISIONS
-    this.collisionLayers = [];
-    Object.values(this.layers).forEach(layer => {
-      if (layer && layer.layer && layer.layer.name.toLowerCase().includes('world')) {
-        layer.setCollisionByProperty({ collides: true });
-        this.collisionLayers.push(layer);
-      }
-    });
+    // ✅ STOCKER LES LAYERS POUR COLLISIONS
+this.collisionLayers = [];
+Object.values(this.layers).forEach(layer => {
+  if (layer && layer.layer) {
+    const layerName = layer.layer.name.toLowerCase();
+    // Inclure les layers "world" ET "bellowplayer2"
+    if (layerName.includes('world') || layerName.includes('bellowplayer2')) {
+      layer.setCollisionByProperty({ collides: true });
+      this.collisionLayers.push(layer);
+      console.log(`[BaseZoneScene] Collisions activées pour: ${layer.layer.name}`);
+    }
+  }
+});
     
     // 🔥 NOUVEAU: CRÉER LES COLLIDERS
     this.time.delayedCall(100, () => {
