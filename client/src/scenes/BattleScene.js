@@ -1,4 +1,4 @@
-// client/src/scenes/BattleScene.js - VERSION MODULAIRE avec HealthBarManager
+// client/src/scenes/BattleScene.js - VERSION MODULAIRE avec HealthBarManagerAA
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
@@ -1259,8 +1259,12 @@ waitForPlayerAction() {
       console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour événements');
       return;
     }
-    
     // Événements de combat
+    this.battleNetworkHandler.on('battleRoomCreated', (data) => {
+      console.log('🏠 [BattleScene] battleRoomCreated reçu:', data);
+      this.handleNetworkBattleRoomCreated(data);
+    });
+    
     this.battleNetworkHandler.on('battleStart', (data) => {
       console.log('⚔️ [BattleScene] battleStart reçu:', data);
       this.handleNetworkBattleStart(data);
@@ -1300,6 +1304,45 @@ waitForPlayerAction() {
 }
   // === HANDLERS ÉVÉNEMENTS RÉSEAU ===
 
+  handleNetworkBattleRoomCreated(data) {
+  console.log('🏠 [BattleScene] Traitement battleRoomCreated:', data);
+  
+  // Afficher les Pokémon depuis les données de création
+  if (data.playerPokemon) {
+    console.log('👤 [BattleScene] Affichage Pokémon joueur depuis battleRoomCreated...');
+    this.displayPlayerPokemon(data.playerPokemon);
+  }
+  
+  if (data.wildPokemon) {
+    console.log('👹 [BattleScene] Affichage Pokémon adversaire depuis battleRoomCreated...');
+    
+    // Convertir les données wild en format complet
+    const opponentData = {
+      pokemonId: data.wildPokemon.pokemonId,
+      name: `Pokémon sauvage #${data.wildPokemon.pokemonId}`,
+      level: data.wildPokemon.level,
+      currentHp: 50, // Valeur temporaire
+      maxHp: 50,
+      statusCondition: 'normal',
+      types: ['normal'],
+      shiny: data.wildPokemon.shiny,
+      gender: data.wildPokemon.gender,
+      isWild: true
+    };
+    
+    this.displayOpponentPokemon(opponentData);
+  }
+  
+  // Activer l'UI et afficher le menu d'actions
+  this.activateBattleUI();
+  this.isVisible = true;
+  
+  // Afficher le menu d'actions après un délai
+  setTimeout(() => {
+    this.showPlayerActionMenu();
+  }, 3000);
+}
+  
 handleNetworkBattleStart(data) {
   console.log('⚔️ [BattleScene] Traitement battleStart réseau:', data);
   
