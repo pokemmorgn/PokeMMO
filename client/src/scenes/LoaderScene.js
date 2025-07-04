@@ -88,8 +88,22 @@ this.load.on('filecomplete-spritesheet-pokemon_1_front', () => {
   console.log('✅ pokemon_1_front spritesheet chargé avec succès !');
 });
 
-this.load.on('filecomplete-spritesheet-pokemon_1_back', () => {
-  console.log('✅ pokemon_1_back spritesheet chargé avec succès !');
+// ✅ TEST pour connaître les dimensions
+this.load.image('pokemon_1_back_test', 'assets/pokemon/001/back.png');
+
+this.load.on('filecomplete-image-pokemon_1_back_test', (key, type, texture) => {
+  const width = texture.source[0].width;
+  const height = texture.source[0].height;
+  console.log(`📏 Taille totale: ${width}x${height}`);
+  
+  // Calculer pour différentes tailles de frames
+  [32, 48, 64, 80, 96].forEach(frameSize => {
+    const framesX = width / frameSize;
+    const framesY = height / frameSize;
+    if (framesX % 1 === 0 && framesY % 1 === 0) {
+      console.log(`🎯 Possible: frameWidth=${frameSize}, frameHeight=${frameSize}, frames=${framesX * framesY}`);
+    }
+  });
 });
 
 // ❌ DEBUG - ÉCHEC
