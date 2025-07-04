@@ -519,12 +519,21 @@ async activateBattleScene(battleScene) {
 
     this.isTransitioning = true;
 
-    try {
-      await this.showBattleEndAnimation(battleResult);
-      await this.restorePreviousUIState();
-      await this.showUIIconsWithAnimation();
-      await this.removeTransitionOverlay();
-      this.restoreWorldInteractions();
+try {
+  // ✅ 1. Désactiver la BattleScene
+  await this.deactivateBattleScene();
+  
+  // 2. Afficher animation de fin si nécessaire
+  if (battleResult.result && battleResult.result !== 'fled') {
+    await this.showBattleEndAnimation(battleResult);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+  
+  // 3. Restaurer l'UI d'exploration
+  await this.restorePreviousUIState();
+  await this.showUIIconsWithAnimation();
+  await this.removeTransitionOverlay();
+  this.restoreWorldInteractions();
 
       this.battleActive = false;
       this.isTransitioning = false;
@@ -540,6 +549,44 @@ async activateBattleScene(battleScene) {
     }
   }
 
+  // ✅ NOUVELLE MÉTHODE: Désactiver la BattleScene pour retour exploration
+async deactivateBattleScene() {
+  console.log('🛑 [BattleUITransition] Désactivation BattleScene...');
+  
+  try {
+    // Obtenir le jeu Phaser
+    const phaserGame = window.game || window.phaserGame;
+    
+    if (!phaserGame || !phaserGame.scene) {
+      console.warn('⚠️ [BattleUITransition] PhaserGame non disponible');
+      return false;
+    }
+    
+    // Obtenir la BattleScene
+    const sceneInstance = phaserGame.scene.getScene('BattleScene');
+    
+    if (!sceneInstance) {
+      console.log('ℹ️ [BattleUITransition] BattleScene non trouvée - déjà supprimée ?');
+      return true;
+    }
+    
+    // ✅ NOUVEAU: Utiliser la méthode dédiée de BattleScene
+    const success = sceneInstance.deactivateForTransition();
+    
+    if (success) {
+      console.log('✅ [BattleUITransition] BattleScene désactivée via deactivateForTransition');
+      return true;
+    } else {
+      console.warn('⚠️ [BattleUITransition] Problème désactivation via deactivateForTransition');
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('❌ [BattleUITransition] Erreur désactivation BattleScene:', error);
+    return false;
+  }
+}
+  
   async showBattleEndAnimation(battleResult) {
     if (!this.transitionOverlay) return;
 
