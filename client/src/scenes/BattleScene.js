@@ -462,7 +462,6 @@ createPokemonAnimation(pokemonId, view) {
 }
   
 // MODIFIER la méthode displayPlayerPokemon() pour utiliser sprite animé
-// MODIFIER la méthode displayPlayerPokemon() - VERSION SIMPLE QUI MARCHE
 displayPlayerPokemon(pokemonData) {
   console.log('👤 [BattleScene] Affichage Pokémon joueur:', pokemonData);
   
@@ -477,64 +476,60 @@ displayPlayerPokemon(pokemonData) {
   
   if (!pokemonData) return;
   
-  try {
-    const pokemonId = pokemonData.pokemonId || pokemonData.id;
-    const spriteKey = `pokemon_${pokemonId}_back`;
+  const pokemonId = pokemonData.pokemonId || pokemonData.id;
+  const spriteKey = `pokemon_${pokemonId}_back`;
+  
+  console.log('1. Sprite key:', spriteKey);
+  console.log('2. Texture exists avant chargement:', this.textures.exists(spriteKey));
+  
+  // ✅ EXACT COPY du code qui marche
+  this.load.spritesheet(spriteKey, `assets/pokemon/001/back.png`, {
+    frameWidth: 38,
+    frameHeight: 38
+  });
+  
+  console.log('3. Chargement lancé');
+  
+  // ✅ UTILISER load.on au lieu de load.once
+  this.load.on('complete', () => {
+    console.log('4. ✅ Complete déclenché !');
     
-    // ✅ CHARGER exactement comme dans le test qui marche
-    this.load.spritesheet(spriteKey, `assets/pokemon/${pokemonId.toString().padStart(3, '0')}/back.png`, {
-      frameWidth: 38,
-      frameHeight: 38
-    });
+    this.playerPokemonSprite = this.add.sprite(
+      this.pokemonPositions.playerAbsolute.x,
+      this.pokemonPositions.playerAbsolute.y,
+      spriteKey
+    );
+    this.playerPokemonSprite.setScale(2.8);
+    this.playerPokemonSprite.setDepth(20);
+    this.playerPokemonSprite.setOrigin(0.5, 1);
     
-    this.load.start();
+    // Animation
+    const animKey = `${spriteKey}_idle`;
+    if (!this.anims.exists(animKey)) {
+      this.anims.create({
+        key: animKey,
+        frames: this.anims.generateFrameNumbers(spriteKey, { start: 0, end: 48 }),
+        frameRate: 8,
+        repeat: -1
+      });
+    }
     
-    this.load.once('complete', () => {
-      // ✅ CRÉER exactement comme dans le test qui marche
-      this.playerPokemonSprite = this.add.sprite(
-        this.pokemonPositions.playerAbsolute.x,
-        this.pokemonPositions.playerAbsolute.y,
-        spriteKey
-      );
-      this.playerPokemonSprite.setScale(2.8);
-      this.playerPokemonSprite.setDepth(20);
-      this.playerPokemonSprite.setOrigin(0.5, 1);
-      
-      // ✅ ANIMATION exactement comme dans le test qui marche
-      const animKey = `pokemon_${pokemonId}_back_idle`;
-      if (!this.anims.exists(animKey)) {
-        this.anims.create({
-          key: animKey,
-          frames: this.anims.generateFrameNumbers(spriteKey, { start: 0, end: 48 }),
-          frameRate: 8,
-          repeat: -1
-        });
+    this.playerPokemonSprite.play(animKey);
+    this.currentPlayerPokemon = pokemonData;
+    
+    // HealthBar
+    setTimeout(() => {
+      if (this.healthBarManager) {
+        this.healthBarManager.updatePlayerHealthBar(pokemonData);
       }
-      
-      this.playerPokemonSprite.play(animKey);
-      
-      this.playerPokemonSprite.setData('isPokemon', true);
-      this.playerPokemonSprite.setData('pokemonType', 'player');
-      this.playerPokemonSprite.setData('pokemonId', pokemonData.pokemonId);
-      
-      this.currentPlayerPokemon = pokemonData;
-      
-      // HealthBar après chargement
-      setTimeout(() => {
-        if (this.healthBarManager) {
-          this.healthBarManager.updatePlayerHealthBar(pokemonData);
-        }
-      }, 800);
-      
-      console.log(`✅ [BattleScene] Pokémon joueur affiché: ${pokemonData.name}`);
-    });
+    }, 800);
     
-  } catch (error) {
-    console.error('❌ [BattleScene] Erreur affichage Pokémon joueur:', error);
-    this.createPokemonPlaceholder('player', pokemonData);
-  }
+    console.log(`✅ [BattleScene] Pokémon joueur affiché: ${pokemonData.name}`);
+  });
+  
+  this.load.start();
+  console.log('6. Load.start() appelé');
 }
-
 // ✅ NOUVELLE méthode pour garantir le chargement
 async ensurePokemonSpriteLoaded(pokemonId, view = 'front') {
   const spriteKey = `pokemon_${pokemonId}_${view}`;
