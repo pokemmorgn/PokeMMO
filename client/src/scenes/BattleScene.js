@@ -1061,7 +1061,6 @@ setupBattleActionEvents() {
   console.log('✅ [BattleScene] Événements interface configurés');
 }
 
-// Gérer les actions du joueur
 // Gérer les actions du joueur avec vraies actions de combat
 handlePlayerActionSelected(actionData) {
   console.log('⚔️ [BattleScene] Traitement action:', actionData.type);
@@ -1168,14 +1167,6 @@ executePlayerRun() {
   setTimeout(() => {
     this.endBattle({ result: 'fled' });
   }, 2000);
-}
-  
-  // Pour l'instant, on reaffiche l'interface après 3 secondes
-  setTimeout(() => {
-    if (this.battleActionUI) {
-      this.battleActionUI.show();
-    }
-  }, 3000);
 }
   /**
    * Test cycle complet combat avec HealthBarManager
