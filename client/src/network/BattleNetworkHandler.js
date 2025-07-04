@@ -199,6 +199,7 @@ export class BattleNetworkHandler {
     this.triggerEvent('battleRoomCreated', {
       battleRoomId: this.battleRoomId,
       battleType: data.battleType,
+      playerPokemon: data.playerPokemon,
       wildPokemon: data.wildPokemon
     });
 
