@@ -531,6 +531,84 @@
                  "width":55.3333333333333,
                  "x":1066,
                  "y":620
+                }, 
+                {
+                 "height":0,
+                 "id":135,
+                 "name":"teleport",
+                 "polygon":[
+                        {
+                         "x":0,
+                         "y":0
+                        }, 
+                        {
+                         "x":-9.45454545454544,
+                         "y":15.0909090909091
+                        }, 
+                        {
+                         "x":-9.63636363636363,
+                         "y":34.5454545454545
+                        }, 
+                        {
+                         "x":-5.63636363636363,
+                         "y":40.3636363636364
+                        }, 
+                        {
+                         "x":19.6363636363636,
+                         "y":40.1818181818182
+                        }, 
+                        {
+                         "x":20.5454545454546,
+                         "y":34.1818181818182
+                        }, 
+                        {
+                         "x":19.4545454545454,
+                         "y":14
+                        }, 
+                        {
+                         "x":11.2727272727273,
+                         "y":-0.545454545454561
+                        }],
+                 "properties":[
+                        {
+                         "name":"targetspawn",
+                         "type":"string",
+                         "value":"fromvillage"
+                        }, 
+                        {
+                         "name":"targetzone",
+                         "type":"string",
+                         "value":"villagewindmill"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":488.909090909091,
+                 "y":256.909090909091
+                }, 
+                {
+                 "height":0,
+                 "id":136,
+                 "name":"spawn",
+                 "point":true,
+                 "properties":[
+                        {
+                         "name":"targetspawn",
+                         "type":"string",
+                         "value":"fromvillagewindmill"
+                        }, 
+                        {
+                         "name":"targetzone",
+                         "type":"string",
+                         "value":"village"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":486.727272727273,
+                 "y":323.636363636364
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -686,7 +764,7 @@
          "y":0
         }],
  "nextlayerid":20,
- "nextobjectid":135,
+ "nextobjectid":137,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
