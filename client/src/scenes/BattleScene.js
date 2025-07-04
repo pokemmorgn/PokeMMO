@@ -2214,9 +2214,11 @@ window.testModernBattle = function() {
     return;
   }
   
+  // Correction: utiliser les bonnes méthodes de scène
   if (!window.game.scene.isActive('BattleScene')) {
+    console.log('🎬 Activation BattleScene...');
     window.game.scene.wake('BattleScene');
-    window.game.scene.setVisible('BattleScene', true);
+    battleScene.scene.setVisible(true);
   }
   
   battleScene.testModernBattleDisplay();
@@ -2233,8 +2235,9 @@ window.testModernBattleSequence = function() {
   }
   
   if (!window.game.scene.isActive('BattleScene')) {
+    console.log('🎬 Activation BattleScene...');
     window.game.scene.wake('BattleScene');
-    window.game.scene.setVisible('BattleScene', true);
+    battleScene.scene.setVisible(true);
   }
   
   battleScene.testModernBattleSequence();
@@ -2307,8 +2310,9 @@ window.testModernPokemonEntry = function() {
   }
   
   if (!window.game.scene.isActive('BattleScene')) {
+    console.log('🎬 Activation BattleScene...');
     window.game.scene.wake('BattleScene');
-    window.game.scene.setVisible('BattleScene', true);
+    battleScene.scene.setVisible(true);
   }
   
   const testPokemon = {
@@ -2335,8 +2339,9 @@ window.testModernShinyPokemon = function() {
   }
   
   if (!window.game.scene.isActive('BattleScene')) {
+    console.log('🎬 Activation BattleScene...');
     window.game.scene.wake('BattleScene');
-    window.game.scene.setVisible('BattleScene', true);
+    battleScene.scene.setVisible(true);
   }
   
   const shinyPokemon = {
