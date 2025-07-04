@@ -83,11 +83,12 @@ preload() {
   }
   
   // Événement quand tout est chargé
-  this.load.on('complete', () => {
-    // ✅ SAUVEGARDER LA CONFIG GLOBALEMENT
-    pokemonSpriteConfig = this.cache.json.get('pokemonSpriteConfig');
-    console.log('✅ [BattleScene] Config chargée:', pokemonSpriteConfig);
-  });
+this.load.on('complete', () => {
+  // ✅ SAUVEGARDER LA CONFIG GLOBALEMENT ET EN WINDOW
+  pokemonSpriteConfig = this.cache.json.get('pokemonSpriteConfig');
+  window.pokemonSpriteConfig = pokemonSpriteConfig; // ✅ AJOUT
+  console.log('✅ [BattleScene] Config chargée:', pokemonSpriteConfig);
+});
 }
 
   create() {
@@ -255,13 +256,13 @@ loadPokemonSprite(pokemonId, view = 'front') {
     return spriteKey;
   }
   
-  // ✅ RÉCUPÉRER LA CONFIG JSON (qui doit être chargée avant)
-  if (!pokemonSpriteConfig) {
+  // ✅ UTILISER window.pokemonSpriteConfig au lieu de pokemonSpriteConfig
+  if (!window.pokemonSpriteConfig) {
     console.error('❌ [BattleScene] PokemonSpriteConfig pas encore chargé');
     return null;
   }
   
-  const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
+  const config = window.pokemonSpriteConfig[pokemonId] || window.pokemonSpriteConfig.default;
   
   // ✅ CHEMIN NUMÉRIQUE CORRECT
   const pokemonFolder = pokemonId.toString().padStart(3, '0');
