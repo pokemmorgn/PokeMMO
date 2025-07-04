@@ -3,15 +3,15 @@
     "offsetX": 0,
     "offsetY": 0,
     "scale": 1.0,
-    "spriteWidth": 68,     // ✅ Taille réelle
-    "spriteHeight": 68,    // ✅ Taille réelle
-    "sheetCols": 48,       // ✅ 48 colonnes horizontales
-    "sheetRows": 1         // ✅ 1 seule rangée
+    "spriteWidth": 68,     
+    "spriteHeight": 68,  
+    "sheetCols": 48,      
+    "sheetRows": 1        
   },
-  "1": { "offsetY": 8, "scale": 1.10, "spriteWidth": 68, "spriteHeight": 69}, // Bulbizarre
-  "4": { "offsetY": 6, "scale": 1.05 },         // Salamèche
-  "7": { "offsetY": 4, "scale": 1.05 },         // Carapuce
-  "25": { "offsetY": 0, "scale": 1.12 },        // Pikachu
-  "143": { "offsetY": -24, "scale": 1.35 },     // Ronflex
-  "6": { "offsetY": -10, "scale": 1.34, "spriteWidth": 96, "spriteHeight": 96 } // Dracaufeu
+  "1": { "offsetY": 8, "scale": 1.10, "spriteWidth": 68, "spriteHeight": 69},
+  "4": { "offsetY": 6, "scale": 1.05 },
+  "7": { "offsetY": 4, "scale": 1.05 },
+  "25": { "offsetY": 0, "scale": 1.12 },
+  "143": { "offsetY": -24, "scale": 1.35 },
+  "6": { "offsetY": -10, "scale": 1.34, "spriteWidth": 96, "spriteHeight": 96 }
 }
