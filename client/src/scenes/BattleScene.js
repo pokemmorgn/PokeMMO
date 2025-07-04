@@ -545,8 +545,21 @@ displayPlayerPokemon(pokemonData) {
     this.playerPokemonSprite.setData('pokemonType', 'player');
     this.playerPokemonSprite.setData('pokemonId', pokemonData.pokemonId);
     
-    console.log('🎬 [bulbi animation] === LANCEMENT ANIMATION JOUEUR ===');
-    this.animatePokemonEntry(this.playerPokemonSprite, 'left');
+    console.log('🎬 [bulbi animation] === LANCEMENT ANIMATION JOUEUR (avec vérification) ===');
+    
+    // ✅ Vérifier que le sprite est prêt avant l'animation
+    const startAnimation = () => {
+      if (this.playerPokemonSprite && this.playerPokemonSprite.texture.source[0]?.image) {
+        console.log('🎬 [bulbi animation] Sprite prêt, lancement animation...');
+        this.animatePokemonEntry(this.playerPokemonSprite, 'left');
+      } else {
+        console.log('⏳ [bulbi animation] Sprite pas encore prêt, nouvelle tentative...');
+        setTimeout(startAnimation, 50);
+      }
+    };
+    
+    // Délai initial puis vérification
+    setTimeout(startAnimation, 100);
     
     this.currentPlayerPokemon = pokemonData;
     
