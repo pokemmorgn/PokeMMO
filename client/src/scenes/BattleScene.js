@@ -1,6 +1,7 @@
 // client/src/scenes/BattleScene.js - VERSION MODULAIRE avec HealthBarManager
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
+import { BattleActionUI } from '../Battle/BattleActionUI.js';
 
 export class BattleScene extends Phaser.Scene {
   constructor() {
@@ -12,6 +13,7 @@ export class BattleScene extends Phaser.Scene {
     this.gameManager = null;
     this.networkHandler = null;
     this.healthBarManager = null; // ✅ NOUVEAU: Manager des barres de vie
+    this.battleActionUI = null;
     
     // État de la scène
     this.isActive = false;
@@ -93,7 +95,10 @@ init(data = {}) {
       // ✅ 3. NOUVEAU: Initialiser le HealthBarManager
       this.healthBarManager = new HealthBarManager(this);
       this.healthBarManager.createHealthBars();
-      
+
+      this.battleActionUI = new BattleActionUI(this, this.battleManager);
+      this.battleActionUI.create();
+      this.setupBattleActionEvents();
       // 4. Setup managers et événements
       this.setupBasicBattleManager();
       this.setupBasicEvents();
@@ -108,6 +113,25 @@ init(data = {}) {
 
   // === GESTION UI ÉLÉGANTE avec UIManager ===
 
+  // === MÉTHODE DE TEST TEMPORAIRE ===
+testBattleActionInterface() {
+  console.log('🧪 [BattleScene] Test interface d\'actions...');
+  
+  if (this.battleActionUI) {
+    // Afficher l'interface après 1 seconde
+    setTimeout(() => {
+      console.log('👁️ [BattleScene] Affichage interface d\'actions...');
+      this.battleActionUI.show();
+    }, 1000);
+    
+    console.log('✅ [BattleScene] Interface d\'actions disponible pour test');
+    return true;
+  } else {
+    console.error('❌ [BattleScene] Interface d\'actions non créée');
+    return false;
+  }
+}
+  
   activateBattleUI() {
     console.log('🎮 [BattleScene] Activation UI battle via UIManager...');
     
@@ -1015,8 +1039,144 @@ init(data = {}) {
     }, 3000);
     
     console.log('✅ [BattleScene] Test lancé avec HealthBarManager modulaire');
-  }
 
+    // ✅ NOUVEAU: Tester l'interface d'actions
+    this.testBattleActionInterface();
+  }
+// === GESTION DES ÉVÉNEMENTS D'INTERFACE ===
+setupBattleActionEvents() {
+  console.log('🔗 [BattleScene] Configuration événements interface d\'actions...');
+  
+  if (!this.battleActionUI) {
+    console.warn('⚠️ [BattleScene] BattleActionUI non disponible pour événements');
+    return;
+  }
+  
+  // Écouter les actions de combat sélectionnées
+  this.events.on('battleActionSelected', (actionData) => {
+    console.log('🎯 [BattleScene] Action reçue:', actionData);
+    this.handlePlayerActionSelected(actionData);
+  });
+  
+  console.log('✅ [BattleScene] Événements interface configurés');
+}
+
+// Gérer les actions du joueur
+// Gérer les actions du joueur avec vraies actions de combat
+handlePlayerActionSelected(actionData) {
+  console.log('⚔️ [BattleScene] Traitement action:', actionData.type);
+  
+  // Masquer l'interface
+  if (this.battleActionUI) {
+    this.battleActionUI.hide();
+  }
+  
+  // Traiter l'action selon le type
+  switch (actionData.type) {
+    case 'move':
+      this.executePlayerMove(actionData.moveId);
+      break;
+      
+    case 'item':
+      this.executePlayerItem(actionData.itemId);
+      break;
+      
+    case 'run':
+      this.executePlayerRun();
+      break;
+      
+    default:
+      console.warn('⚠️ [BattleScene] Type d\'action inconnu:', actionData.type);
+      // Réafficher l'interface si action inconnue
+      setTimeout(() => {
+        if (this.battleActionUI) {
+          this.battleActionUI.show();
+        }
+      }, 1000);
+  }
+}
+
+  // === EXÉCUTION DES ACTIONS DE COMBAT ===
+
+executePlayerMove(moveId) {
+  console.log(`💥 [BattleScene] Attaque: ${moveId}`);
+  
+  if (window.showGameNotification) {
+    window.showGameNotification(`${this.currentPlayerPokemon?.name || 'Votre Pokémon'} utilise ${moveId}!`, 'info', {
+      duration: 2000,
+      position: 'top-center'
+    });
+  }
+  
+  // Simuler des dégâts sur l'adversaire
+  setTimeout(() => {
+    const damage = Math.floor(Math.random() * 15) + 5; // 5-20 dégâts
+    const remainingHp = this.simulateOpponentDamage(damage);
+    
+    // Réafficher l'interface après l'action
+    setTimeout(() => {
+      if (this.battleActionUI) {
+        this.battleActionUI.show();
+      }
+    }, 2000);
+  }, 1000);
+}
+
+executePlayerItem(itemId) {
+  console.log(`🎒 [BattleScene] Utilisation objet: ${itemId}`);
+  
+  if (window.showGameNotification) {
+    window.showGameNotification(`Utilisation de ${itemId}`, 'info', {
+      duration: 2000,
+      position: 'top-center'
+    });
+  }
+  
+  // Si c'est une potion, soigner le Pokémon
+  if (itemId === 'potion' && this.currentPlayerPokemon && this.healthBarManager) {
+    const oldHp = this.currentPlayerPokemon.currentHp;
+    this.currentPlayerPokemon.currentHp = Math.min(
+      this.currentPlayerPokemon.maxHp,
+      this.currentPlayerPokemon.currentHp + 20
+    );
+    
+    // Mettre à jour la barre de vie
+    this.healthBarManager.updatePlayerHealthBar(this.currentPlayerPokemon);
+    
+    console.log(`💚 Pokémon soigné: ${oldHp} → ${this.currentPlayerPokemon.currentHp} PV`);
+  }
+  
+  // Réafficher l'interface
+  setTimeout(() => {
+    if (this.battleActionUI) {
+      this.battleActionUI.show();
+    }
+  }, 2000);
+}
+
+executePlayerRun() {
+  console.log(`🏃 [BattleScene] Tentative de fuite`);
+  
+  if (window.showGameNotification) {
+    window.showGameNotification('Vous prenez la fuite !', 'warning', {
+      duration: 2000,
+      position: 'top-center'
+    });
+  }
+  
+  // Terminer le combat après 2 secondes
+  setTimeout(() => {
+    this.endBattle({ result: 'fled' });
+  }, 2000);
+}
+  
+  // Pour l'instant, on reaffiche l'interface après 3 secondes
+  setTimeout(() => {
+    if (this.battleActionUI) {
+      this.battleActionUI.show();
+    }
+  }, 3000);
+}
   /**
    * Test cycle complet combat avec HealthBarManager
    */
