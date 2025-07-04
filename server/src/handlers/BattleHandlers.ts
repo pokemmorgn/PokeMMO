@@ -3,6 +3,7 @@ import { Client, matchMaker } from "@colyseus/core";
 import { WorldRoom } from "../rooms/WorldRoom";
 import { BattleRoom, BattleInitData } from "../rooms/BattleRoom";
 import { WildPokemon } from "../managers/EncounterManager";
+import { TeamManager } from "../managers/TeamManager";
 
 /**
  * Gestionnaire centralisé pour tous les handlers de combat
@@ -348,6 +349,55 @@ export class BattleHandlers {
     }
   }
 
+  /**
+ * Récupère le premier Pokémon disponible pour le combat
+ */
+private async getPlayerBattlePokemon(playerName: string): Promise<any | null> {
+  try {
+    console.log(`🔍 [BattleHandlers] Recherche Pokémon de combat pour ${playerName}`);
+    
+    const teamManager = new (require('../managers/TeamManager').TeamManager)(playerName);
+    await teamManager.load();
+    
+    const team = await teamManager.getTeam();
+    if (!team || team.length === 0) {
+      console.log(`❌ [BattleHandlers] Aucun Pokémon dans l'équipe de ${playerName}`);
+      return null;
+    }
+    
+    // Trouver le premier Pokémon en état de combattre
+    const battleReadyPokemon = team.find((pokemon: any) => 
+      pokemon.currentHp > 0 && 
+      pokemon.status !== 'fainted' &&
+      pokemon.moves && pokemon.moves.length > 0
+    );
+    
+    if (!battleReadyPokemon) {
+      console.log(`❌ [BattleHandlers] Aucun Pokémon en état de combattre pour ${playerName}`);
+      return null;
+    }
+    
+    console.log(`✅ [BattleHandlers] Pokémon trouvé: ${battleReadyPokemon.nickname || 'Pokémon'} (ID: ${battleReadyPokemon.pokemonId})`);
+    
+    return {
+      id: battleReadyPokemon._id.toString(),
+      pokemonId: battleReadyPokemon.pokemonId,
+      name: battleReadyPokemon.nickname || `Pokémon #${battleReadyPokemon.pokemonId}`,
+      level: battleReadyPokemon.level,
+      currentHp: battleReadyPokemon.currentHp,
+      maxHp: battleReadyPokemon.maxHp,
+      statusCondition: battleReadyPokemon.status || 'normal',
+      types: ['normal'], // TODO: récupérer les vrais types
+      moves: battleReadyPokemon.moves.map((move: any) => move.moveId),
+      stats: battleReadyPokemon.calculatedStats,
+      isWild: false
+    };
+    
+  } catch (error) {
+    console.error(`❌ [BattleHandlers] Erreur récupération Pokémon:`, error);
+    return null;
+  }
+}
   // ✅ === HANDLERS DE RÉCOMPENSES ===
 
   /**
