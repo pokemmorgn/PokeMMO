@@ -17,6 +17,8 @@ this.load.tilemapTiledJSON('villagelab', 'assets/maps/villagelab.tmj');
 this.load.tilemapTiledJSON('villagehouse1', 'assets/maps/villagehouse1.tmj');
 this.load.tilemapTiledJSON('villagehouse2', 'assets/maps/villagehouse2.tmj');
 this.load.tilemapTiledJSON('villageflorist', 'assets/maps/villageflorist.tmj');
+this.load.tilemapTiledJSON('villagewindmill', 'assets/maps/villagewindmill.tmj');
+
 
 this.load.tilemapTiledJSON('road1', 'assets/maps/road1.tmj');
 this.load.tilemapTiledJSON('road1house', 'assets/maps/road1house.tmj');
@@ -158,6 +160,9 @@ this.load.on('loaderror', (file) => {
         break;
       case 'villageflorist':
         this.scene.start('VillageFloristScene');
+        break;
+        case 'villagewindmill':
+        this.scene.start('VillageWindmillScene');
         break;
 
       // Beach
