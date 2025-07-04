@@ -3,6 +3,8 @@
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
 
+let pokemonSpriteConfig = null;
+
 export class BattleScene extends Phaser.Scene {
   constructor() {
     super({ key: 'BattleScene' });
@@ -228,28 +230,49 @@ if (!this.battleNetworkHandler) {
 
   // === SPRITES POKÉMON ===
 
-  loadPokemonSpritesheets9x9() {
-    console.log('🐾 [BattleScene] Chargement intelligent sprites 9x9...');
+// REMPLACER la méthode loadPokemonSpritesheets9x9()
+async loadPokemonSpritesheets9x9() {
+  console.log('🐾 [BattleScene] Chargement avec PokemonSpriteConfig...');
+  
+  // Charger la config une seule fois
+  if (!this.cache.json.has('pokemonSpriteConfig')) {
+    this.load.json('pokemonSpriteConfig', 'assets/pokemon/PokemonSpriteConfig.json');
+    this.load.start();
     
-    const pokemonConfigs = [
-      { id: 1, name: 'bulbasaur', commonSizes: [360, 405, 288] },
-      { id: 4, name: 'charmander', commonSizes: [360, 405, 288] },
-      { id: 7, name: 'squirtle', commonSizes: [360, 405, 288] },
-      { id: 25, name: 'pikachu', commonSizes: [360, 576, 288] },
-      { id: 39, name: 'jigglypuff', commonSizes: [288, 360] },
-      { id: 52, name: 'meowth', commonSizes: [288, 360] },
-      { id: 54, name: 'psyduck', commonSizes: [360, 405] },
-      { id: 150, name: 'mewtwo', commonSizes: [576, 720] }
-    ];
-    
-    pokemonConfigs.forEach(pokemon => {
-      this.loadPokemonWithMultipleSizes(pokemon);
+    await new Promise(resolve => {
+      this.load.once('complete', resolve);
     });
-    
-    this.loadPlaceholderSprites();
-    
-    console.log(`✅ [BattleScene] ${pokemonConfigs.length} Pokémon configurés pour chargement 9x9`);
   }
+  
+  pokemonSpriteConfig = this.cache.json.get('pokemonSpriteConfig');
+  console.log('✅ [BattleScene] Config chargée:', pokemonSpriteConfig);
+}
+
+// NOUVELLE méthode pour charger un Pokémon spécifique
+loadPokemonSprite(pokemonId, view = 'front') {
+  const spriteKey = `pokemon_${pokemonId}_${view}`;
+  
+  if (this.textures.exists(spriteKey)) {
+    return spriteKey;
+  }
+  
+  // Récupérer la config
+  const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
+  
+  // ✅ NOUVEAU: Structure numérique simple
+  const pokemonFolder = pokemonId.toString().padStart(3, '0');
+  const imagePath = `assets/pokemon/${pokemonFolder}/${view}.png`;
+  
+  console.log(`🔍 [BattleScene] Chargement: ${imagePath}`);
+  
+  this.load.spritesheet(spriteKey, imagePath, {
+    frameWidth: config.spriteWidth,
+    frameHeight: config.spriteHeight
+  });
+  
+  this.load.start();
+  return spriteKey;
+}
 
   loadPokemonWithMultipleSizes(pokemonConfig) {
     const { id, name, commonSizes } = pokemonConfig;
@@ -520,25 +543,16 @@ if (!this.battleNetworkHandler) {
     }
   }
 
-  getPokemonSpriteKey(pokemonId, view = 'front') {
-    const spriteKey = `pokemon_${pokemonId}_${view}`;
-    
-    if (this.textures.exists(spriteKey)) {
-      const texture = this.textures.get(spriteKey);
-      console.log(`✅ [BattleScene] Sprite trouvé: ${spriteKey} (${texture.source[0].width}x${texture.source[0].height})`);
-      return spriteKey;
-    } else {
-      console.warn(`⚠️ [BattleScene] Sprite manquant: ${spriteKey}, fallback placeholder`);
-      
-      const placeholderKey = `pokemon_placeholder_${view}`;
-      if (this.textures.exists(placeholderKey)) {
-        return placeholderKey;
-      } else {
-        return this.textures.exists('pokemon_placeholder_front') ? 
-          'pokemon_placeholder_front' : '__DEFAULT';
-      }
-    }
+getPokemonSpriteKey(pokemonId, view = 'front') {
+  const spriteKey = `pokemon_${pokemonId}_${view}`;
+  
+  // Si pas encore chargé, le charger maintenant
+  if (!this.textures.exists(spriteKey)) {
+    this.loadPokemonSprite(pokemonId, view);
   }
+  
+  return spriteKey;
+}
 
   createPokemonPlaceholder(type, pokemonData) {
     console.log(`🎭 [BattleScene] Création placeholder intelligent ${type}:`, pokemonData.name);
