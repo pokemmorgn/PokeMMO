@@ -8,7 +8,12 @@
     "sheetCols": 48,      
     "sheetRows": 1        
   },
-  "1": { "offsetY": 8, "scale": 1.10, "spriteWidth": 68, "spriteHeight": 69},
+  "1": { 
+    "offsetY": 8, 
+    "scale": 1.10, 
+    "spriteWidth": 38, 
+    "spriteHeight": 38
+  }
   "4": { "offsetY": 6, "scale": 1.05 },
   "7": { "offsetY": 4, "scale": 1.05 },
   "25": { "offsetY": 0, "scale": 1.12 },
