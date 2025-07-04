@@ -254,20 +254,17 @@ export class BattleScene extends Phaser.Scene {
   }
 
   createBattleGround(width, height) {
-    // Terrain principal
+    // Terrain principal simplifié - SANS BASE D'HERBE
     const groundY = height * 0.75;
     const ground = this.add.graphics();
     
-    // Herbe avec texture
-    ground.fillStyle(0x228B22, 0.8);
+    // Sol basique sans texture d'herbe
+    ground.fillStyle(0x87CEEB, 0.1);  // Bleu très transparent pour continuité
     ground.fillRect(0, groundY, width, height - groundY);
     
-    // Lignes de terrain pour la perspective
-    ground.lineStyle(1, 0x1a5c1a, 0.5);
-    for (let i = 1; i <= 3; i++) {
-      const y = groundY + (height - groundY) * (i / 4);
-      ground.lineBetween(0, y, width, y);
-    }
+    // Ligne d'horizon simple
+    ground.lineStyle(1, 0x2F4F2F, 0.2);
+    ground.lineBetween(0, groundY, width, groundY);
     
     ground.setDepth(-60);
     this.groundElements.push(ground);
@@ -476,17 +473,17 @@ export class BattleScene extends Phaser.Scene {
     
     const { width, height } = this.cameras.main;
     
-    // Conteneur principal pour l'interface
-    this.actionInterface = this.add.container(0, height - 180);
+    // Conteneur principal pour l'interface - DÉPLACÉ À DROITE
+    this.actionInterface = this.add.container(width - 420, height - 180);
     
     // Panel principal avec style Pokémon moderne
     const mainPanel = this.add.graphics();
     mainPanel.fillStyle(0x1a1a1a, 0.95);
-    mainPanel.fillRoundedRect(20, 0, width - 40, 160, 16);
+    mainPanel.fillRoundedRect(20, 0, 380, 160, 16);  // Ajusté la largeur
     
     // Bordure stylée
     mainPanel.lineStyle(4, 0x4A90E2, 1);
-    mainPanel.strokeRoundedRect(20, 0, width - 40, 160, 16);
+    mainPanel.strokeRoundedRect(20, 0, 380, 160, 16);
     
     // Boutons d'action modernes
     this.createActionButtons();
@@ -495,18 +492,17 @@ export class BattleScene extends Phaser.Scene {
     this.actionInterface.setDepth(200);
     this.actionInterface.setVisible(false);
     
-    console.log('✅ [BattleScene] Interface d\'actions moderne créée');
+    console.log('✅ [BattleScene] Interface d\'actions moderne créée à droite');
   }
 
   createActionButtons() {
-    const { width } = this.cameras.main;
     const buttonConfig = {
-      width: 180,
+      width: 160,  // Légèrement réduit pour s'adapter à droite
       height: 50,
-      gap: 20
+      gap: 15
     };
     
-    const startX = 50;
+    const startX = 40;
     const startY = 40;
     
     const actions = [
