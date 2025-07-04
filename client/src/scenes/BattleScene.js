@@ -71,25 +71,25 @@ if (!this.battleNetworkHandler) {
 }
 
 
-preload() {
-  console.log('📁 [BattleScene] Préchargement...');
-  
-  // ✅ CHARGER LA CONFIG EN PREMIER
-  this.load.json('pokemonSpriteConfig', 'assets/pokemon/PokemonSpriteConfig.json');
-  
-  // Background
-  if (!this.textures.exists('battlebg01')) {
-    this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
+  preload() {
+    console.log('📁 [BattleScene] Préchargement sprites Pokémon 9x9...');
+    
+    // Background de combat
+    if (!this.textures.exists('battlebg01')) {
+      this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
+    }
+    
+    // Sprites Pokémon avec calcul automatique des frames
+    this.loadPokemonSpritesheets9x9();
+    
+    // Événement de completion pour debug
+    this.load.on('complete', () => {
+      console.log('✅ [BattleScene] Chargement sprites terminé');
+      this.debugLoadedTextures();
+    });
+    
+    console.log('✅ [BattleScene] Préchargement configuré avec calcul 9x9');
   }
-  
-  // Événement quand tout est chargé
-this.load.on('complete', () => {
-  // ✅ SAUVEGARDER LA CONFIG GLOBALEMENT ET EN WINDOW
-  pokemonSpriteConfig = this.cache.json.get('pokemonSpriteConfig');
-  window.pokemonSpriteConfig = pokemonSpriteConfig; // ✅ AJOUT
-  console.log('✅ [BattleScene] Config chargée:', pokemonSpriteConfig);
-});
-}
 
   create() {
     console.log('🎨 [BattleScene] Création de la scène modulaire...');
@@ -256,24 +256,18 @@ loadPokemonSprite(pokemonId, view = 'front') {
     return spriteKey;
   }
   
-  // ✅ UTILISER window.pokemonSpriteConfig au lieu de pokemonSpriteConfig
-  if (!window.pokemonSpriteConfig) {
-    console.error('❌ [BattleScene] PokemonSpriteConfig pas encore chargé');
-    return null;
-  }
+  // Récupérer la config
+  const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
   
-  const config = window.pokemonSpriteConfig[pokemonId] || window.pokemonSpriteConfig.default;
-  
-  // ✅ CHEMIN NUMÉRIQUE CORRECT
+  // ✅ NOUVEAU: Structure numérique simple
   const pokemonFolder = pokemonId.toString().padStart(3, '0');
   const imagePath = `assets/pokemon/${pokemonFolder}/${view}.png`;
   
-  console.log(`🔍 [BattleScene] Chargement: ${imagePath}`, config);
+  console.log(`🔍 [BattleScene] Chargement: ${imagePath}`);
   
-  // ✅ UTILISER LES BONNES DIMENSIONS DE LA CONFIG
   this.load.spritesheet(spriteKey, imagePath, {
-    frameWidth: config.spriteWidth,   // 38
-    frameHeight: config.spriteHeight  // 38
+    frameWidth: config.spriteWidth,
+    frameHeight: config.spriteHeight
   });
   
   this.load.start();
