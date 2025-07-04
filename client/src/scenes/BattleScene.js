@@ -97,7 +97,13 @@ if (!this.battleNetworkHandler) {
     try {
       // 1. Créer le background
       this.createBattleBackground();
-      
+
+        // ✅ GARDER: Masquer la scène par défaut
+        this.scene.setVisible(false);
+        this.scene.sleep(); // Mettre en veille
+        
+        // ✅ AJOUT: Marquer comme prête pour activation
+        this.isReadyForActivation = true;
       // 2. Calculer les positions
       this.createPokemonPositions();
       
