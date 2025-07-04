@@ -3,12 +3,12 @@
     "offsetX": 0,
     "offsetY": 0,
     "scale": 1.0,
-    "spriteWidth": 96,
-    "spriteHeight": 96,
-    "sheetCols": 8,
-    "sheetRows": 6
+    "spriteWidth": 68,     // ✅ Taille réelle
+    "spriteHeight": 68,    // ✅ Taille réelle
+    "sheetCols": 48,       // ✅ 48 colonnes horizontales
+    "sheetRows": 1         // ✅ 1 seule rangée
   },
-  "1": { "offsetY": 8, "scale": 1.10 },         // Bulbizarre
+  "1": { "offsetY": 8, "scale": 1.10, "spriteWidth": 68, "spriteHeight": 69}, // Bulbizarre
   "4": { "offsetY": 6, "scale": 1.05 },         // Salamèche
   "7": { "offsetY": 4, "scale": 1.05 },         // Carapuce
   "25": { "offsetY": 0, "scale": 1.12 },        // Pikachu
