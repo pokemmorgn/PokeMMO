@@ -670,58 +670,36 @@ if (!this.battleNetworkHandler) {
 
   // === ✅ MÉTHODES PUBLIQUES AVEC HEALTHBARMANAGER ===
 
-  handleEncounterStart(encounterData) {
-    console.log('🐾 [BattleScene] handleEncounterStart avec HealthBarManager:', encounterData);
-    
-    if (!this.isActive) {
-      console.warn('⚠️ [BattleScene] Scène non active, activation...');
-      if (this.scene && this.scene.wake) {
-        this.scene.wake();
-      }
+handleEncounterStart(encounterData) {
+  console.log('🐾 [BattleScene] handleEncounterStart avec réseau:', encounterData);
+  
+  if (!this.isActive) {
+    console.warn('⚠️ [BattleScene] Scène non active, activation...');
+    if (this.scene && this.scene.wake) {
+      this.scene.wake();
     }
-
-    setTimeout(() => {
-    this.showPlayerActionMenu();
-  }, 3000); // 3 secondes après l'affichage des Pokémon
-    
-    // Activer l'UI de combat
-    const uiActivated = this.activateBattleUI();
-    if (uiActivated) {
-      console.log('✅ [BattleScene] UI de combat activée via UIManager');
-    }
-    
-    // S'assurer que les positions sont calculées
-    if (!this.pokemonPositions?.playerAbsolute) {
-      this.createPokemonPositions();
-    }
-    
-    // Afficher le Pokémon adversaire de la rencontre
-    if (encounterData.pokemon) {
-      console.log('👹 [BattleScene] Affichage Pokémon de la rencontre...');
-      this.displayOpponentPokemon(encounterData.pokemon);
-    }
-    
-    // Pokémon joueur par défaut si nécessaire
-    if (!this.currentPlayerPokemon) {
-      console.log('👤 [BattleScene] Affichage Pokémon joueur par défaut...');
-      const defaultPlayerPokemon = {
-        pokemonId: 4,
-        id: 'player_charmander_default',
-        name: 'Charmander',
-        level: 5,
-        currentHp: 15,
-        maxHp: 18,
-        currentExp: 45,
-        expToNext: 100,
-        statusCondition: 'normal',
-        types: ['fire']
-      };
-      this.displayPlayerPokemon(defaultPlayerPokemon);
-    }
-    
-    this.isVisible = true;
-    console.log('✅ [BattleScene] Rencontre traitée avec HealthBarManager');
   }
+  
+  // Activer l'UI de combat
+  const uiActivated = this.activateBattleUI();
+  if (uiActivated) {
+    console.log('✅ [BattleScene] UI de combat activée via UIManager');
+  }
+  
+  // S'assurer que les positions sont calculées
+  if (!this.pokemonPositions?.playerAbsolute) {
+    this.createPokemonPositions();
+  }
+  
+  // Afficher seulement le Pokémon adversaire (le serveur enverra les données complètes via battleStart)
+  if (encounterData.pokemon) {
+    console.log('👹 [BattleScene] Affichage Pokémon de la rencontre (temporaire)...');
+    this.displayOpponentPokemon(encounterData.pokemon);
+  }
+  
+  this.isVisible = true;
+  console.log('✅ [BattleScene] Rencontre traitée - attente données serveur');
+}
 
   startBattle(battleData) {
     console.log('⚔️ [BattleScene] Démarrage combat avec HealthBarManager:', battleData);
