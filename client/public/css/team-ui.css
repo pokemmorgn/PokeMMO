@@ -255,8 +255,6 @@
   grid-template-columns: 2fr 1fr;
   gap: 25px;
   height: 100%;
-  width: 100%;         /* ✅ AJOUT */
-  padding: 20px;       /* ✅ AJOUT */
 }
 
 .team-slots-grid {
@@ -266,10 +264,9 @@
   gap: 15px;
   width: 100%;
   max-width: 500px;
-  min-width: 400px;    /* ✅ FIX */
-  height: 400px;       /* ✅ FIX */
+  min-width: 330px;
   margin: 0 auto;
-  padding: 20px;       /* ✅ AJOUT */
+  height: 100%;
 }
 
 
@@ -280,8 +277,7 @@
   position: relative;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-width: 150px;     /* ✅ AJOUT */
-  min-height: 120px;    
+  min-height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
