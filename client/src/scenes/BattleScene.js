@@ -466,7 +466,7 @@ createPokemonAnimation(pokemonId, view) {
 }
   
 // MODIFIER la méthode displayPlayerPokemon() pour utiliser sprite animé
-displayPlayerPokemon(pokemonData) {
+async displayPlayerPokemon(pokemonData) {
   console.log('👤 [BattleScene] Affichage Pokémon joueur animé:', pokemonData);
   
   if (!this.pokemonPositions?.playerAbsolute) {
@@ -480,8 +480,6 @@ displayPlayerPokemon(pokemonData) {
   
   if (!pokemonData) return;
   
-  const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'back');
-  
   try {
     // ✅ ATTENDRE le chargement du sprite
     const spriteKey = await this.loadPokemonSprite(pokemonData.pokemonId || pokemonData.id, 'back');
@@ -489,6 +487,13 @@ displayPlayerPokemon(pokemonData) {
     if (!spriteKey) {
       throw new Error(`Impossible de charger ${pokemonData.pokemonId}`);
     }
+    
+    // ✅ CRÉER le sprite APRÈS le chargement
+    this.playerPokemonSprite = this.add.sprite(
+      this.pokemonPositions.playerAbsolute.x,
+      this.pokemonPositions.playerAbsolute.y,
+      spriteKey
+    );
     
     if (!this.playerPokemonSprite.texture || this.playerPokemonSprite.texture.key === '__MISSING') {
       throw new Error(`Texture manquante pour ${spriteKey}`);
