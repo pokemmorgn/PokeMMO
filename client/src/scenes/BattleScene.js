@@ -1,9 +1,7 @@
-// client/src/scenes/BattleScene.js - VERSION MODULAIRE avec HealthBarManagerAA
+// client/src/scenes/BattleScene.js - VERSION MODULAIRE avec HealthBarManager
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
-
-let pokemonSpriteConfig = null;
 
 export class BattleScene extends Phaser.Scene {
   constructor() {
@@ -16,7 +14,6 @@ export class BattleScene extends Phaser.Scene {
     this.networkHandler = null;
     this.healthBarManager = null; // ✅ NOUVEAU: Manager des barres de vie
     this.battleActionUI = null;
-    this.battleNetworkHandler = null;
     
     // État de la scène
     this.isActive = false;
@@ -54,16 +51,10 @@ init(data = {}) {
     || window.pokemonUISystem?.gameManager
     || window.gameManager;
 
-this.battleNetworkHandler = data.battleNetworkHandler
-  || window.battleSystem?.battleConnection?.networkHandler
-  || window.globalNetworkManager?.battleNetworkHandler
-  || null;
-
-if (!this.battleNetworkHandler) {
-  console.warn('⚠️ [BattleScene] BattleNetworkHandler non trouvé dans init');
-} else {
-  console.log('✅ [BattleScene] BattleNetworkHandler trouvé :', this.battleNetworkHandler);
-}
+  this.networkHandler = data.networkHandler
+    || this.scene.get('GameScene')?.networkHandler
+    || window.pokemonUISystem?.networkHandler
+    || window.networkHandler;
 
   if (!this.gameManager || !this.networkHandler) {
     console.warn('⚠️ [BattleScene] Managers partiellement manquants dans init');
@@ -71,25 +62,25 @@ if (!this.battleNetworkHandler) {
 }
 
 
-preload() {
-  console.log('📁 [BattleScene] Préchargement...');
-  
-  // ✅ CHARGER LA CONFIG EN PREMIER
-  this.load.json('pokemonSpriteConfig', 'assets/pokemon/PokemonSpriteConfig.json');
-  
-  // Background
-  if (!this.textures.exists('battlebg01')) {
-    this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
+  preload() {
+    console.log('📁 [BattleScene] Préchargement sprites Pokémon 9x9...');
+    
+    // Background de combat
+    if (!this.textures.exists('battlebg01')) {
+      this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
+    }
+    
+    // Sprites Pokémon avec calcul automatique des frames
+    this.loadPokemonSpritesheets9x9();
+    
+    // Événement de completion pour debug
+    this.load.on('complete', () => {
+      console.log('✅ [BattleScene] Chargement sprites terminé');
+      this.debugLoadedTextures();
+    });
+    
+    console.log('✅ [BattleScene] Préchargement configuré avec calcul 9x9');
   }
-  
-  // Événement quand tout est chargé
-this.load.on('complete', () => {
-  // ✅ SAUVEGARDER LA CONFIG GLOBALEMENT ET EN WINDOW
-  pokemonSpriteConfig = this.cache.json.get('pokemonSpriteConfig');
-  window.pokemonSpriteConfig = pokemonSpriteConfig; // ✅ AJOUT
-  console.log('✅ [BattleScene] Config chargée:', pokemonSpriteConfig);
-});
-}
 
   create() {
     console.log('🎨 [BattleScene] Création de la scène modulaire...');
@@ -111,7 +102,6 @@ this.load.on('complete', () => {
       // 4. Setup managers et événements
       this.setupBasicBattleManager();
       this.setupBasicEvents();
-      this.setupBattleNetworkEvents();
       
       this.isActive = true;
       console.log('✅ [BattleScene] Scène créée avec HealthBarManager modulaire');
@@ -123,6 +113,24 @@ this.load.on('complete', () => {
 
   // === GESTION UI ÉLÉGANTE avec UIManager ===
 
+  // === MÉTHODE DE TEST TEMPORAIRE ===
+testBattleActionInterface() {
+  console.log('🧪 [BattleScene] Test interface d\'actions...');
+  
+  if (this.battleActionUI) {
+    // Afficher l'interface après 1 seconde
+    setTimeout(() => {
+      console.log('👁️ [BattleScene] Affichage interface d\'actions...');
+      this.battleActionUI.show();
+    }, 1000);
+    
+    console.log('✅ [BattleScene] Interface d\'actions disponible pour test');
+    return true;
+  } else {
+    console.error('❌ [BattleScene] Interface d\'actions non créée');
+    return false;
+  }
+}
   
   activateBattleUI() {
     console.log('🎮 [BattleScene] Activation UI battle via UIManager...');
@@ -230,55 +238,28 @@ this.load.on('complete', () => {
 
   // === SPRITES POKÉMON ===
 
-// REMPLACER la méthode loadPokemonSpritesheets9x9()
-async loadPokemonSpritesheets9x9() {
-  console.log('🐾 [BattleScene] Chargement avec PokemonSpriteConfig...');
-  
-  // Charger la config une seule fois
-  if (!this.cache.json.has('pokemonSpriteConfig')) {
-    this.load.json('pokemonSpriteConfig', 'assets/pokemon/PokemonSpriteConfig.json');
-    this.load.start();
+  loadPokemonSpritesheets9x9() {
+    console.log('🐾 [BattleScene] Chargement intelligent sprites 9x9...');
     
-    await new Promise(resolve => {
-      this.load.once('complete', resolve);
+    const pokemonConfigs = [
+      { id: 1, name: 'bulbasaur', commonSizes: [360, 405, 288] },
+      { id: 4, name: 'charmander', commonSizes: [360, 405, 288] },
+      { id: 7, name: 'squirtle', commonSizes: [360, 405, 288] },
+      { id: 25, name: 'pikachu', commonSizes: [360, 576, 288] },
+      { id: 39, name: 'jigglypuff', commonSizes: [288, 360] },
+      { id: 52, name: 'meowth', commonSizes: [288, 360] },
+      { id: 54, name: 'psyduck', commonSizes: [360, 405] },
+      { id: 150, name: 'mewtwo', commonSizes: [576, 720] }
+    ];
+    
+    pokemonConfigs.forEach(pokemon => {
+      this.loadPokemonWithMultipleSizes(pokemon);
     });
+    
+    this.loadPlaceholderSprites();
+    
+    console.log(`✅ [BattleScene] ${pokemonConfigs.length} Pokémon configurés pour chargement 9x9`);
   }
-  
-  pokemonSpriteConfig = this.cache.json.get('pokemonSpriteConfig');
-  console.log('✅ [BattleScene] Config chargée:', pokemonSpriteConfig);
-}
-
-// NOUVELLE méthode pour charger un Pokémon spécifique
-loadPokemonSprite(pokemonId, view = 'front') {
-  const spriteKey = `pokemon_${pokemonId}_${view}`;
-  
-  if (this.textures.exists(spriteKey)) {
-    return spriteKey;
-  }
-  
-  // ✅ UTILISER window.pokemonSpriteConfig au lieu de pokemonSpriteConfig
-  if (!window.pokemonSpriteConfig) {
-    console.error('❌ [BattleScene] PokemonSpriteConfig pas encore chargé');
-    return null;
-  }
-  
-  const config = window.pokemonSpriteConfig[pokemonId] || window.pokemonSpriteConfig.default;
-  
-  // ✅ CHEMIN NUMÉRIQUE CORRECT
-  const pokemonFolder = pokemonId.toString().padStart(3, '0');
-  const imagePath = `assets/pokemon/${pokemonFolder}/${view}.png`;
-  
-  console.log(`🔍 [BattleScene] Chargement: ${imagePath}`, config);
-  
-  // ✅ UTILISER LES BONNES DIMENSIONS DE LA CONFIG
-  this.load.spritesheet(spriteKey, imagePath, {
-    frameWidth: config.spriteWidth,   // 38
-    frameHeight: config.spriteHeight  // 38
-  });
-  
-  this.load.start();
-  return spriteKey;
-}
 
   loadPokemonWithMultipleSizes(pokemonConfig) {
     const { id, name, commonSizes } = pokemonConfig;
@@ -423,82 +404,66 @@ loadPokemonSprite(pokemonId, view = 'front') {
 
   // === ✅ AFFICHAGE POKÉMON AVEC HEALTHBARMANAGER ===
 
-  // AJOUTER cette nouvelle méthode dans BattleScene.js
-createPokemonAnimation(pokemonId, view) {
-  const animKey = `pokemon_${pokemonId}_${view}_idle`;
-  const spriteKey = `pokemon_${pokemonId}_${view}`;
-  
-  // Si l'animation existe déjà, ne pas la recréer
-  if (this.anims.exists(animKey)) {
-    return animKey;
-  }
-  
-  // Récupérer la config du Pokémon
-  const config = pokemonSpriteConfig?.[pokemonId] || pokemonSpriteConfig?.default;
-  if (!config) {
-    console.warn(`⚠️ [BattleScene] Config manquante pour Pokémon ${pokemonId}`);
-    return null;
-  }
-  
-  try {
-    // Créer l'animation avec toutes les frames
-    this.anims.create({
-      key: animKey,
-      frames: this.anims.generateFrameNumbers(spriteKey, { 
-        start: 0, 
-        end: (config.sheetCols * config.sheetRows) - 1 
-      }),
-      frameRate: 8, // Vitesse d'animation
-      repeat: -1    // Répéter à l'infini
-    });
+  displayPlayerPokemon(pokemonData) {
+    console.log('👤 [BattleScene] Affichage Pokémon joueur avec HealthBarManager:', pokemonData);
     
-    console.log(`✅ [BattleScene] Animation créée: ${animKey}`);
-    return animKey;
+    if (!this.pokemonPositions?.playerAbsolute) {
+      this.createPokemonPositions();
+    }
     
-  } catch (error) {
-    console.error(`❌ [BattleScene] Erreur création animation ${animKey}:`, error);
-    return null;
+    if (this.playerPokemonSprite) {
+      this.playerPokemonSprite.destroy();
+      this.playerPokemonSprite = null;
+    }
+    
+    if (!pokemonData) return;
+    
+    const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'back');
+    
+    try {
+      this.playerPokemonSprite = this.add.sprite(
+        this.pokemonPositions.playerAbsolute.x,
+        this.pokemonPositions.playerAbsolute.y,
+        spriteKey,
+        0  // Frame 0 pour spritesheet 9x9
+      );
+      
+      if (!this.playerPokemonSprite.texture || this.playerPokemonSprite.texture.key === '__MISSING') {
+        throw new Error(`Texture manquante pour ${spriteKey}`);
+      }
+      
+      this.playerPokemonSprite.setScale(2.8);
+      this.playerPokemonSprite.setDepth(20);
+      this.playerPokemonSprite.setOrigin(0.5, 1);
+      
+      this.playerPokemonSprite.setData('isPokemon', true);
+      this.playerPokemonSprite.setData('pokemonType', 'player');
+      this.playerPokemonSprite.setData('pokemonId', pokemonData.pokemonId);
+      
+      this.animatePokemonEntry(this.playerPokemonSprite, 'left');
+      this.currentPlayerPokemon = pokemonData;
+      
+      // ✅ NOUVEAU: Utiliser HealthBarManager
+      setTimeout(() => {
+        if (this.healthBarManager) {
+          this.healthBarManager.updatePlayerHealthBar(pokemonData);
+        }
+      }, 800);
+      
+      console.log(`✅ [BattleScene] Pokémon joueur affiché avec HealthBarManager: ${pokemonData.name}`);
+      
+    } catch (error) {
+      console.error('❌ [BattleScene] Erreur affichage Pokémon joueur:', error);
+      this.createPokemonPlaceholder('player', pokemonData);
+      
+      // Barre de vie même pour placeholder
+      setTimeout(() => {
+        if (this.healthBarManager) {
+          this.healthBarManager.updatePlayerHealthBar(pokemonData);
+        }
+      }, 800);
+    }
   }
-}
-  
-// MODIFIER la méthode displayPlayerPokemon() pour utiliser sprite animé
-displayPlayerPokemon(pokemonData) {
-  console.log('👤 [BattleScene] Affichage Pokémon joueur:', pokemonData);
-  
-  if (!this.pokemonPositions?.playerAbsolute) {
-    this.createPokemonPositions();
-  }
-  
-  if (this.playerPokemonSprite) {
-    this.playerPokemonSprite.destroy();
-    this.playerPokemonSprite = null;
-  }
-  
-  if (!pokemonData) return;
-  
-  const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'back');
-  
-  try {
-    this.playerPokemonSprite = this.add.sprite(
-      this.pokemonPositions.playerAbsolute.x,
-      this.pokemonPositions.playerAbsolute.y,
-      spriteKey
-    );
-    
-    this.playerPokemonSprite.setScale(2.8);
-    this.playerPokemonSprite.setDepth(20);
-    this.playerPokemonSprite.setOrigin(0.5, 1);
-    
-    this.currentPlayerPokemon = pokemonData;
-    
-    console.log(`✅ [BattleScene] Pokémon joueur affiché: ${pokemonData.name}`);
-    
-  } catch (error) {
-    console.error('❌ [BattleScene] Erreur affichage Pokémon joueur:', error);
-    this.createPokemonPlaceholder('player', pokemonData);
-  }
-}
-
 
   displayOpponentPokemon(pokemonData) {
     console.log('👹 [BattleScene] Affichage Pokémon adversaire avec HealthBarManager:', pokemonData);
@@ -565,16 +530,25 @@ displayPlayerPokemon(pokemonData) {
     }
   }
 
-getPokemonSpriteKey(pokemonId, view = 'front') {
-  const spriteKey = `pokemon_${pokemonId}_${view}`;
-  
-  // Si pas encore chargé, le charger maintenant
-  if (!this.textures.exists(spriteKey)) {
-    this.loadPokemonSprite(pokemonId, view);
+  getPokemonSpriteKey(pokemonId, view = 'front') {
+    const spriteKey = `pokemon_${pokemonId}_${view}`;
+    
+    if (this.textures.exists(spriteKey)) {
+      const texture = this.textures.get(spriteKey);
+      console.log(`✅ [BattleScene] Sprite trouvé: ${spriteKey} (${texture.source[0].width}x${texture.source[0].height})`);
+      return spriteKey;
+    } else {
+      console.warn(`⚠️ [BattleScene] Sprite manquant: ${spriteKey}, fallback placeholder`);
+      
+      const placeholderKey = `pokemon_placeholder_${view}`;
+      if (this.textures.exists(placeholderKey)) {
+        return placeholderKey;
+      } else {
+        return this.textures.exists('pokemon_placeholder_front') ? 
+          'pokemon_placeholder_front' : '__DEFAULT';
+      }
+    }
   }
-  
-  return spriteKey;
-}
 
   createPokemonPlaceholder(type, pokemonData) {
     console.log(`🎭 [BattleScene] Création placeholder intelligent ${type}:`, pokemonData.name);
@@ -706,49 +680,86 @@ getPokemonSpriteKey(pokemonId, view = 'front') {
 
   // === ✅ MÉTHODES PUBLIQUES AVEC HEALTHBARMANAGER ===
 
-handleEncounterStart(encounterData) {
-  console.log('🐾 [BattleScene] handleEncounterStart avec réseau:', encounterData);
-  
-  if (!this.isActive) {
-    console.warn('⚠️ [BattleScene] Scène non active, activation...');
-    if (this.scene && this.scene.wake) {
+  handleEncounterStart(encounterData) {
+    console.log('🐾 [BattleScene] handleEncounterStart avec HealthBarManager:', encounterData);
+    
+    if (!this.isActive) {
+      console.warn('⚠️ [BattleScene] Scène non active, activation...');
+      if (this.scene && this.scene.wake) {
+        this.scene.wake();
+      }
+    }
+    
+    // Activer l'UI de combat
+    const uiActivated = this.activateBattleUI();
+    if (uiActivated) {
+      console.log('✅ [BattleScene] UI de combat activée via UIManager');
+    }
+    
+    // S'assurer que les positions sont calculées
+    if (!this.pokemonPositions?.playerAbsolute) {
+      this.createPokemonPositions();
+    }
+    
+    // Afficher le Pokémon adversaire de la rencontre
+    if (encounterData.pokemon) {
+      console.log('👹 [BattleScene] Affichage Pokémon de la rencontre...');
+      this.displayOpponentPokemon(encounterData.pokemon);
+    }
+    
+    // Pokémon joueur par défaut si nécessaire
+    if (!this.currentPlayerPokemon) {
+      console.log('👤 [BattleScene] Affichage Pokémon joueur par défaut...');
+      const defaultPlayerPokemon = {
+        pokemonId: 4,
+        id: 'player_charmander_default',
+        name: 'Charmander',
+        level: 5,
+        currentHp: 15,
+        maxHp: 18,
+        currentExp: 45,
+        expToNext: 100,
+        statusCondition: 'normal',
+        types: ['fire']
+      };
+      this.displayPlayerPokemon(defaultPlayerPokemon);
+    }
+    
+    this.isVisible = true;
+    console.log('✅ [BattleScene] Rencontre traitée avec HealthBarManager');
+  }
+
+  startBattle(battleData) {
+    console.log('⚔️ [BattleScene] Démarrage combat avec HealthBarManager:', battleData);
+    
+    if (!this.isActive) {
+      console.error('❌ [BattleScene] Scène non active');
+      return;
+    }
+    
+    // Réveiller scène si nécessaire
+    if (this.scene && !this.scene.isActive()) {
       this.scene.wake();
     }
+    
+    // Activer l'UI de combat via UIManager
+    const uiActivated = this.activateBattleUI();
+    if (uiActivated) {
+      console.log('✅ [BattleScene] UI de combat activée pour startBattle');
+    }
+    
+    // Afficher les Pokémon avec HealthBarManager
+    if (battleData.playerPokemon) {
+      this.displayPlayerPokemon(battleData.playerPokemon);
+    }
+    
+    if (battleData.opponentPokemon) {
+      this.displayOpponentPokemon(battleData.opponentPokemon);
+    }
+    
+    this.isVisible = true;
+    console.log('✅ [BattleScene] Combat démarré avec HealthBarManager');
   }
-  
-  // Activer l'UI de combat
-  const uiActivated = this.activateBattleUI();
-  if (uiActivated) {
-    console.log('✅ [BattleScene] UI de combat activée via UIManager');
-  }
-  
-  // S'assurer que les positions sont calculées
-  if (!this.pokemonPositions?.playerAbsolute) {
-    this.createPokemonPositions();
-  }
-  
-  // Afficher seulement le Pokémon adversaire (le serveur enverra les données complètes via battleStart)
-  if (encounterData.pokemon) {
-    console.log('👹 [BattleScene] Affichage Pokémon de la rencontre (temporaire)...');
-    this.displayOpponentPokemon(encounterData.pokemon);
-  }
-  
-  this.isVisible = true;
-  console.log('✅ [BattleScene] Rencontre traitée - attente données serveur');
-}
-
-startBattle(battleData) {
-  console.log('⚔️ [BattleScene] Démarrage combat réseau:', battleData);
-  
-  if (!this.isActive) {
-    console.error('❌ [BattleScene] Scène non active');
-    return;
-  }
-  
-  // Les données viennent maintenant du serveur via handleNetworkBattleStart
-  // Cette méthode sert surtout de fallback
-  this.handleNetworkBattleStart(battleData);
-}
 
   hideBattle() {
     console.log('🖥️ [BattleScene] Masquage combat avec HealthBarManager...');
@@ -1028,6 +1039,9 @@ startBattle(battleData) {
     }, 3000);
     
     console.log('✅ [BattleScene] Test lancé avec HealthBarManager modulaire');
+
+    // ✅ NOUVEAU: Tester l'interface d'actions
+    this.testBattleActionInterface();
   }
 // === GESTION DES ÉVÉNEMENTS D'INTERFACE ===
 setupBattleActionEvents() {
@@ -1047,6 +1061,7 @@ setupBattleActionEvents() {
   console.log('✅ [BattleScene] Événements interface configurés');
 }
 
+// Gérer les actions du joueur
 // Gérer les actions du joueur avec vraies actions de combat
 handlePlayerActionSelected(actionData) {
   console.log('⚔️ [BattleScene] Traitement action:', actionData.type);
@@ -1086,16 +1101,6 @@ handlePlayerActionSelected(actionData) {
 executePlayerMove(moveId) {
   console.log(`💥 [BattleScene] Attaque: ${moveId}`);
   
-  // Envoyer l'action au serveur
-  if (this.battleNetworkHandler) {
-    const success = this.battleNetworkHandler.useMove(moveId);
-    if (success) {
-      console.log('📤 [BattleScene] Action envoyée au serveur');
-    } else {
-      console.error('❌ [BattleScene] Échec envoi action au serveur');
-    }
-  }
-  
   if (window.showGameNotification) {
     window.showGameNotification(`${this.currentPlayerPokemon?.name || 'Votre Pokémon'} utilise ${moveId}!`, 'info', {
       duration: 2000,
@@ -1103,16 +1108,22 @@ executePlayerMove(moveId) {
     });
   }
   
-  // Ne plus simuler localement - le serveur va répondre
+  // Simuler des dégâts sur l'adversaire
+  setTimeout(() => {
+    const damage = Math.floor(Math.random() * 15) + 5; // 5-20 dégâts
+    const remainingHp = this.simulateOpponentDamage(damage);
+    
+    // Réafficher l'interface après l'action
+    setTimeout(() => {
+      if (this.battleActionUI) {
+        this.battleActionUI.show();
+      }
+    }, 2000);
+  }, 1000);
 }
 
 executePlayerItem(itemId) {
   console.log(`🎒 [BattleScene] Utilisation objet: ${itemId}`);
-  
-  // Envoyer au serveur
-  if (this.battleNetworkHandler) {
-    this.battleNetworkHandler.useItem(itemId);
-  }
   
   if (window.showGameNotification) {
     window.showGameNotification(`Utilisation de ${itemId}`, 'info', {
@@ -1120,22 +1131,51 @@ executePlayerItem(itemId) {
       position: 'top-center'
     });
   }
+  
+  // Si c'est une potion, soigner le Pokémon
+  if (itemId === 'potion' && this.currentPlayerPokemon && this.healthBarManager) {
+    const oldHp = this.currentPlayerPokemon.currentHp;
+    this.currentPlayerPokemon.currentHp = Math.min(
+      this.currentPlayerPokemon.maxHp,
+      this.currentPlayerPokemon.currentHp + 20
+    );
+    
+    // Mettre à jour la barre de vie
+    this.healthBarManager.updatePlayerHealthBar(this.currentPlayerPokemon);
+    
+    console.log(`💚 Pokémon soigné: ${oldHp} → ${this.currentPlayerPokemon.currentHp} PV`);
+  }
+  
+  // Réafficher l'interface
+  setTimeout(() => {
+    if (this.battleActionUI) {
+      this.battleActionUI.show();
+    }
+  }, 2000);
 }
 
 executePlayerRun() {
   console.log(`🏃 [BattleScene] Tentative de fuite`);
   
-  // Envoyer au serveur
-  if (this.battleNetworkHandler) {
-    this.battleNetworkHandler.attemptRun();
-  }
-  
   if (window.showGameNotification) {
-    window.showGameNotification('Tentative de fuite...', 'warning', {
+    window.showGameNotification('Vous prenez la fuite !', 'warning', {
       duration: 2000,
       position: 'top-center'
     });
   }
+  
+  // Terminer le combat après 2 secondes
+  setTimeout(() => {
+    this.endBattle({ result: 'fled' });
+  }, 2000);
+}
+  
+  // Pour l'instant, on reaffiche l'interface après 3 secondes
+  setTimeout(() => {
+    if (this.battleActionUI) {
+      this.battleActionUI.show();
+    }
+  }, 3000);
 }
   /**
    * Test cycle complet combat avec HealthBarManager
@@ -1145,6 +1185,7 @@ executePlayerRun() {
     
     // Étape 1: Démarrer combat
     console.log('1️⃣ Démarrage combat...');
+    this.testDisplayPokemonWithHealthBarManager();
     
     // Étape 2: Simuler quelques actions de combat
     setTimeout(() => {
@@ -1186,40 +1227,6 @@ executePlayerRun() {
     }, 14000);
   }
 
-  // === GESTION DES TOURS ===
-
-showPlayerActionMenu() {
-  console.log('🎮 [BattleScene] Affichage menu actions joueur...');
-  
-  if (this.battleActionUI) {
-    // Vérifier le contexte (combat sauvage vs dresseur)
-    const context = {
-      canFlee: true,        // Peut fuir en combat sauvage
-      canUseBag: true,      // Peut utiliser le sac
-      canSwitchPokemon: false // Pas de changement en combat sauvage
-    };
-    
-    this.battleActionUI.showContextualActions(context);
-  } else {
-    console.warn('⚠️ [BattleScene] Interface d\'actions non disponible');
-  }
-}
-
-waitForPlayerAction() {
-  console.log('⏳ [BattleScene] Attente action joueur...');
-  
-  return new Promise((resolve) => {
-    this.showPlayerActionMenu();
-    
-    // Écouter l'action une seule fois
-    const handleAction = (actionData) => {
-      this.events.off('battleActionSelected', handleAction);
-      resolve(actionData);
-    };
-    
-    this.events.once('battleActionSelected', handleAction);
-  });
-}
   /**
    * Test spécifique des animations de barres via HealthBarManager
    */
@@ -1288,205 +1295,6 @@ waitForPlayerAction() {
     // Version simplifiée pour focus sur HealthBarManager
   }
 
-setupBattleNetworkEvents() {
-  console.log('📡 [BattleScene] Configuration événements réseau...');
-  
-  if (!this.battleNetworkHandler) {
-    console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour événements');
-    return;
-  }
-  
-  // ✅ DEBUG: Vérifier la référence
-  console.log('🔍 [BattleScene] BattleNetworkHandler référence:', this.battleNetworkHandler);
-  console.log('🔍 [BattleScene] Test événement sur cet objet...');
-  
-  // Test simple
-  this.battleNetworkHandler.on('battleRoomCreated', (data) => {
-    console.log('🎯 [BattleScene] ÉVÉNEMENT REÇU battleRoomCreated:', data);
-    this.handleNetworkBattleRoomCreated(data);
-  });
-    
-    this.battleNetworkHandler.on('turnChange', (data) => {
-      console.log('🔄 [BattleScene] turnChange reçu:', data);
-      this.handleNetworkTurnChange(data);
-    });
-    
-    this.battleNetworkHandler.on('battleMessage', (data) => {
-      console.log('💬 [BattleScene] battleMessage reçu:', data);
-      this.handleNetworkBattleMessage(data);
-    });
-
-        // Événements de résultats d'actions
-    this.battleNetworkHandler.on('attackResult', (data) => {
-      console.log('💥 [BattleScene] attackResult reçu:', data);
-      this.handleNetworkAttackResult(data);
-    });
-    
-    this.battleNetworkHandler.on('pokemonFainted', (data) => {
-      console.log('😵 [BattleScene] pokemonFainted reçu:', data);
-      this.handleNetworkPokemonFainted(data);
-    });
-    
-    this.battleNetworkHandler.on('battleEnd', (data) => {
-      console.log('🏁 [BattleScene] battleEnd reçu:', data);
-      this.handleNetworkBattleEnd(data);
-    });
-    
-    this.battleNetworkHandler.on('statusEffectApplied', (data) => {
-      console.log('🌡️ [BattleScene] statusEffectApplied reçu:', data);
-      this.handleNetworkStatusEffect(data);
-    });
-    console.log('✅ [BattleScene] Événements réseau configurés');
-}
-  // === HANDLERS ÉVÉNEMENTS RÉSEAU ===
-
-  handleNetworkBattleRoomCreated(data) {
-  console.log('🏠 [BattleScene] Traitement battleRoomCreated:', data);
-  
-  // Afficher les Pokémon depuis les données de création
-  if (data.playerPokemon) {
-    console.log('👤 [BattleScene] Affichage Pokémon joueur depuis battleRoomCreated...');
-    this.displayPlayerPokemon(data.playerPokemon);
-  }
-  
-  if (data.wildPokemon) {
-    console.log('👹 [BattleScene] Affichage Pokémon adversaire depuis battleRoomCreated...');
-    
-    // Convertir les données wild en format complet
-    const opponentData = {
-      pokemonId: data.wildPokemon.pokemonId,
-      name: `Pokémon sauvage #${data.wildPokemon.pokemonId}`,
-      level: data.wildPokemon.level,
-      currentHp: 50, // Valeur temporaire
-      maxHp: 50,
-      statusCondition: 'normal',
-      types: ['normal'],
-      shiny: data.wildPokemon.shiny,
-      gender: data.wildPokemon.gender,
-      isWild: true
-    };
-    
-    this.displayOpponentPokemon(opponentData);
-  }
-  
-  // Activer l'UI et afficher le menu d'actions
-  this.activateBattleUI();
-  this.isVisible = true;
-  
-  // Afficher le menu d'actions après un délai
-  setTimeout(() => {
-    this.showPlayerActionMenu();
-  }, 3000);
-}
-  
-handleNetworkBattleStart(data) {
-  console.log('⚔️ [BattleScene] Traitement battleStart réseau:', data);
-  
-  // ✅ Si les données viennent de battleRoomCreated, les utiliser
-  if (data.playerPokemon) {
-    this.displayPlayerPokemon(data.playerPokemon);
-  }
-  // Afficher les Pokémon depuis les données serveur
-  if (data.playerPokemon) {
-    this.displayPlayerPokemon(data.playerPokemon);
-  }
-  
-  if (data.opponentPokemon) {
-    this.displayOpponentPokemon(data.opponentPokemon);
-  }
-  
-  // Activer l'UI de combat
-  this.activateBattleUI();
-  this.isVisible = true;
-}
-
-handleNetworkTurnChange(data) {
-  console.log('🔄 [BattleScene] Traitement turnChange réseau:', data);
-  
-  // Si c'est le tour du joueur, afficher le menu d'actions
-  if (data.currentTurn === 'player' || data.isPlayerTurn) {
-    setTimeout(() => {
-      this.showPlayerActionMenu();
-    }, 1000);
-  }
-}
-
-handleNetworkBattleMessage(data) {
-  console.log('💬 [BattleScene] Message de combat:', data.message);
-  
-  // Afficher le message via notifications
-  if (window.showGameNotification) {
-    window.showGameNotification(data.message, 'info', {
-      duration: 3000,
-      position: 'top-center'
-    });
-  }
-}
-
-  handleNetworkAttackResult(data) {
-  console.log('💥 [BattleScene] Résultat attaque:', data);
-  
-  // Mettre à jour les HP via HealthBarManager
-  if (data.targetType === 'player' && data.damage > 0) {
-    if (this.currentPlayerPokemon) {
-      this.currentPlayerPokemon.currentHp = Math.max(0, this.currentPlayerPokemon.currentHp - data.damage);
-      this.healthBarManager?.updatePlayerHealthBar(this.currentPlayerPokemon);
-    }
-  } else if (data.targetType === 'opponent' && data.damage > 0) {
-    if (this.currentOpponentPokemon) {
-      this.currentOpponentPokemon.currentHp = Math.max(0, this.currentOpponentPokemon.currentHp - data.damage);
-      this.healthBarManager?.updateOpponentHealthBar(this.currentOpponentPokemon);
-    }
-  }
-  
-  // Réafficher le menu après l'action
-  setTimeout(() => {
-    this.showPlayerActionMenu();
-  }, 2000);
-}
-
-handleNetworkPokemonFainted(data) {
-  console.log('😵 [BattleScene] Pokémon KO:', data);
-  
-  if (window.showGameNotification) {
-    window.showGameNotification(`${data.pokemonName} est KO !`, 'warning', {
-      duration: 3000,
-      position: 'top-center'
-    });
-  }
-}
-
-handleNetworkBattleEnd(data) {
-  console.log('🏁 [BattleScene] Fin de combat réseau:', data);
-  
-  // Afficher le résultat
-  if (window.showGameNotification) {
-    const message = data.result === 'victory' ? 'Victoire !' : 
-                   data.result === 'defeat' ? 'Défaite...' : 'Combat terminé';
-    window.showGameNotification(message, data.result === 'victory' ? 'success' : 'info', {
-      duration: 4000,
-      position: 'top-center'
-    });
-  }
-  
-  // Terminer le combat après un délai
-  setTimeout(() => {
-    this.endBattle(data);
-  }, 3000);
-}
-
-handleNetworkStatusEffect(data) {
-  console.log('🌡️ [BattleScene] Effet de statut:', data);
-  
-  // Mettre à jour le statut via HealthBarManager
-  if (data.targetType === 'player' && this.currentPlayerPokemon) {
-    this.currentPlayerPokemon.statusCondition = data.status;
-    this.healthBarManager?.updatePlayerHealthBar(this.currentPlayerPokemon);
-  } else if (data.targetType === 'opponent' && this.currentOpponentPokemon) {
-    this.currentOpponentPokemon.statusCondition = data.status;
-    this.healthBarManager?.updateOpponentHealthBar(this.currentOpponentPokemon);
-  }
-}
   // === NETTOYAGE FINAL ===
 
   destroy() {
@@ -1524,8 +1332,78 @@ handleNetworkStatusEffect(data) {
   }
 }
 
-
 // ✅ FONCTIONS GLOBALES MODULAIRES AVEC HEALTHBARMANAGER
+
+// Fonction principale de test avec HealthBarManager modulaire
+window.testBattleWithHealthBarManager = function() {
+  console.log('🧪 === TEST COMPLET AVEC HEALTHBARMANAGER MODULAIRE ===');
+  
+  // Diagnostic préalable
+  console.log('🏥 Diagnostic UIManager...');
+  const uiOK = window.diagnosticUIManager && window.diagnosticUIManager();
+  
+  if (!uiOK) {
+    console.error('❌ UIManager non fonctionnel - utilisez diagnosticUIManager() pour plus d\'infos');
+    return false;
+  }
+  
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (!battleScene) {
+    console.error('❌ BattleScene non trouvée');
+    return false;
+  }
+  
+  console.log('🩺 Test avec HealthBarManager modulaire !');
+  
+  // Activer la scène si nécessaire
+  if (!window.game.scene.isActive('BattleScene')) {
+    console.log('🎬 Activation BattleScene...');
+    window.game.scene.start('BattleScene');
+    
+    setTimeout(() => {
+      const activeBattleScene = window.game.scene.getScene('BattleScene');
+      if (activeBattleScene && activeBattleScene.testDisplayPokemonWithHealthBarManager) {
+        activeBattleScene.testDisplayPokemonWithHealthBarManager();
+      } else {
+        console.error('❌ testDisplayPokemonWithHealthBarManager non disponible');
+      }
+    }, 500);
+  } else {
+    if (battleScene.testDisplayPokemonWithHealthBarManager) {
+      battleScene.testDisplayPokemonWithHealthBarManager();
+    } else {
+      console.error('❌ testDisplayPokemonWithHealthBarManager non disponible');
+    }
+  }
+  
+  console.log('✅ Test HealthBarManager modulaire lancé !');
+  return true;
+};
+
+// Test cycle complet avec HealthBarManager modulaire
+window.testFullBattleWithHealthBarManager = function() {
+  console.log('🧪 === TEST CYCLE COMPLET AVEC HEALTHBARMANAGER MODULAIRE ===');
+  
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (!battleScene) {
+    console.error('❌ BattleScene non trouvée');
+    return;
+  }
+  
+  if (!window.game.scene.isActive('BattleScene')) {
+    window.game.scene.start('BattleScene');
+    setTimeout(() => {
+      const activeBattleScene = window.game.scene.getScene('BattleScene');
+      if (activeBattleScene) {
+        activeBattleScene.testFullBattleCycleWithHealthBarManager();
+      }
+    }, 500);
+  } else {
+    battleScene.testFullBattleCycleWithHealthBarManager();
+  }
+  
+  console.log('✅ Test cycle complet HealthBarManager modulaire lancé !');
+};
 
 // Test animations spécifiques HealthBarManager
 window.testHealthBarManagerAnimations = function() {
