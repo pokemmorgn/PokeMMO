@@ -383,12 +383,12 @@ private async getPlayerBattlePokemon(playerName: string): Promise<any | null> {
     return {
       id: battleReadyPokemon._id.toString(),
       pokemonId: battleReadyPokemon.pokemonId,
-      name: battleReadyPokemon.nickname || `Pokémon #${battleReadyPokemon.pokemonId}`,
+      name: battleReadyPokemon.nickname || this.getPokemonName(battleReadyPokemon.pokemonId), // ✅ Nom réel
       level: battleReadyPokemon.level,
       currentHp: battleReadyPokemon.currentHp,
       maxHp: battleReadyPokemon.maxHp,
       statusCondition: battleReadyPokemon.status || 'normal',
-      types: ['normal'], // TODO: récupérer les vrais types
+      types: this.getPokemonTypes(battleReadyPokemon.pokemonId), // ✅ Vrais types
       moves: battleReadyPokemon.moves.map((move: any) => move.moveId),
       stats: battleReadyPokemon.calculatedStats,
       isWild: false
