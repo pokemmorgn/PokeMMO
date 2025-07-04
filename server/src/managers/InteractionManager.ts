@@ -18,6 +18,8 @@ export interface NpcInteractionResult {
   npcName?: string;
   questId?: string;
   questName?: string;
+  starterData?: any;
+
 }
 
 export class InteractionManager {
@@ -66,6 +68,11 @@ export class InteractionManager {
       return await this.handleMerchantInteraction(player, npc, npcId);
     }
 
+    // ✅ === NOUVEAU : VÉRIFIER SI C'EST UNE TABLE STARTER ===
+if (npc.properties.startertable === true || npc.properties.startertable === 'true') {
+  console.log(`🎯 Table starter détectée`);
+  return await this.handleStarterTableInteraction(player, npc, npcId);
+}
     // ✅ === LOGIQUE EXISTANTE : VÉRIFIER D'ABORD LES OBJECTIFS TALK ===
     
     const talkValidationResult = await this.checkTalkObjectiveValidation(player.name, npcId);
@@ -278,6 +285,39 @@ export class InteractionManager {
     };
   }
 
+    // ✅ === NOUVELLE MÉTHODE : GESTION TABLE STARTER ===
+  private async handleStarterTableInteraction(player: Player, npc: any, npcId: number): Promise<NpcInteractionResult> {
+    console.log(`🎯 === INTERACTION TABLE STARTER ===`);
+    console.log(`👤 Player: ${player.name}`);
+    
+    // Pour l'instant, toujours éligible
+    const isEligible = true;
+    
+    if (isEligible) {
+      return {
+        type: "starterTable",
+        message: "Choisissez votre Pokémon starter !",
+        npcId: npcId,
+        npcName: npc.name || "Table des starters",
+        lines: [
+          "Voici les trois Pokémon starter !",
+          "Choisissez celui qui vous accompagnera dans votre aventure !"
+        ]
+      };
+    } else {
+      return {
+        type: "dialogue",
+        message: "Vous avez déjà votre starter.",
+        npcId: npcId,
+        npcName: npc.name || "Table des starters",
+        lines: [
+          "Vous avez déjà choisi votre Pokémon starter.",
+          "Bonne chance dans votre aventure !"
+        ]
+      };
+    }
+  }
+  
   // ✅ === NOUVELLE MÉTHODE : TRANSACTIONS SHOP ===
  async handleShopTransaction(
     player: Player, 
