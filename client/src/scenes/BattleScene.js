@@ -694,40 +694,54 @@ const spriteKey = `pokemon_${paddedId}_${view}`;
 
   // === ANIMATIONS ===
 
-  animatePokemonEntry(sprite, direction) {
-    console.log('🟢 [animatePokemonEntry] Appelée pour:', sprite?.texture?.key, 'direction:', direction, 'visible:', sprite?.visible);
-    if (!sprite) return;
-    sprite.setVisible(true);
-      // FORCE l'affichage dès le début de l'animation !
-    console.log('🎬 Animation entrée sur', sprite.texture.key);
-    const originalX = sprite.x;
-    const originalY = sprite.y;
-    
-    const startX = direction === 'left' ? -150 : this.cameras.main.width + 150;
-    sprite.setPosition(startX, originalY + 50);
-    sprite.setAlpha(0);
-    sprite.setScale(sprite.scaleX * 0.5);
-    
-    this.tweens.add({
-      targets: sprite,
-      x: originalX,
-      y: originalY,
-      alpha: 1,
-      scaleX: sprite.scaleX * 2,
-      scaleY: sprite.scaleY * 2,
-      duration: 1000,
-      ease: 'Back.easeOut',
-      onComplete: () => {
-        this.tweens.add({
-          targets: sprite,
-          y: originalY + 8,
-          duration: 300,
-          yoyo: true,
-          ease: 'Bounce.easeOut'
-        });
-      }
-    });
+animatePokemonEntry(sprite, direction) {
+  console.log('🟢 [animatePokemonEntry] Appelée pour:', sprite?.texture?.key, 'direction:', direction, 'visible:', sprite?.visible);
+  if (!sprite) {
+    console.warn('🟡 [animatePokemonEntry] Appelée avec sprite falsy !', sprite);
+    return;
   }
+
+  sprite.setVisible(true);
+  console.log('🟢 [animatePokemonEntry] après setVisible, visible:', sprite.visible);
+
+  const originalX = sprite.x;
+  const originalY = sprite.y;
+
+  const startX = direction === 'left' ? -150 : this.cameras.main.width + 150;
+  sprite.setPosition(startX, originalY + 50);
+  sprite.setAlpha(0);
+  sprite.setScale(sprite.scaleX * 0.5);
+
+  console.log('🟢 [animatePokemonEntry] avant tween:', {
+    x: sprite.x,
+    y: sprite.y,
+    alpha: sprite.alpha,
+    scale: sprite.scaleX
+  });
+
+  this.tweens.add({
+    targets: sprite,
+    x: originalX,
+    y: originalY,
+    alpha: 1,
+    scaleX: sprite.scaleX * 2,
+    scaleY: sprite.scaleY * 2,
+    duration: 1000,
+    ease: 'Back.easeOut',
+    onComplete: () => {
+      this.tweens.add({
+        targets: sprite,
+        y: originalY + 8,
+        duration: 300,
+        yoyo: true,
+        ease: 'Bounce.easeOut'
+      });
+      console.log('🟢 [animatePokemonEntry] Animation principale terminée, post-bounce lancé');
+    }
+  });
+
+  console.log('🟢 [animatePokemonEntry] Tween lancé !');
+}
 
   addShinyEffect(sprite) {
     if (!sprite) return;
