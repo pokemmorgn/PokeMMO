@@ -463,7 +463,7 @@ createPokemonAnimation(pokemonId, view) {
   
 // MODIFIER la méthode displayPlayerPokemon() pour utiliser sprite animé
 displayPlayerPokemon(pokemonData) {
-  console.log('👤 [BattleScene] Affichage Pokémon joueur:', pokemonData);
+  console.log('👤 [BattleScene] Test avec nom exact...');
   
   if (!this.pokemonPositions?.playerAbsolute) {
     this.createPokemonPositions();
@@ -476,60 +476,38 @@ displayPlayerPokemon(pokemonData) {
   
   if (!pokemonData) return;
   
-  const pokemonId = pokemonData.pokemonId || pokemonData.id;
-  const spriteKey = `pokemon_${pokemonId}_back`;
-  
-  console.log('1. Sprite key:', spriteKey);
-  console.log('2. Texture exists avant chargement:', this.textures.exists(spriteKey));
-  
-  // ✅ EXACT COPY du code qui marche
-  this.load.spritesheet(spriteKey, `assets/pokemon/001/back.png`, {
+  // ✅ UTILISER EXACTEMENT LE MÊME NOM QUE DANS LE TEST
+  this.load.spritesheet('pokemon_1_back_test', 'assets/pokemon/001/back.png', {
     frameWidth: 38,
     frameHeight: 38
   });
   
-  console.log('3. Chargement lancé');
+  this.load.start();
   
-  // ✅ UTILISER load.on au lieu de load.once
-  this.load.on('complete', () => {
-    console.log('4. ✅ Complete déclenché !');
-    
+  this.load.once('complete', () => {
     this.playerPokemonSprite = this.add.sprite(
       this.pokemonPositions.playerAbsolute.x,
       this.pokemonPositions.playerAbsolute.y,
-      spriteKey
+      'pokemon_1_back_test'  // ✅ MÊME NOM
     );
     this.playerPokemonSprite.setScale(2.8);
     this.playerPokemonSprite.setDepth(20);
-    this.playerPokemonSprite.setOrigin(0.5, 1);
     
-    // Animation
-    const animKey = `${spriteKey}_idle`;
-    if (!this.anims.exists(animKey)) {
-      this.anims.create({
-        key: animKey,
-        frames: this.anims.generateFrameNumbers(spriteKey, { start: 0, end: 48 }),
-        frameRate: 8,
-        repeat: -1
-      });
-    }
+    // Animation avec MÊME NOM
+    this.anims.create({
+      key: 'bulbasaur_idle',
+      frames: this.anims.generateFrameNumbers('pokemon_1_back_test', { start: 0, end: 48 }),
+      frameRate: 8,
+      repeat: -1
+    });
     
-    this.playerPokemonSprite.play(animKey);
+    this.playerPokemonSprite.play('bulbasaur_idle');
     this.currentPlayerPokemon = pokemonData;
     
-    // HealthBar
-    setTimeout(() => {
-      if (this.healthBarManager) {
-        this.healthBarManager.updatePlayerHealthBar(pokemonData);
-      }
-    }, 800);
-    
-    console.log(`✅ [BattleScene] Pokémon joueur affiché: ${pokemonData.name}`);
+    console.log('✅ Pokémon affiché avec même nom !');
   });
-  
-  this.load.start();
-  console.log('6. Load.start() appelé');
 }
+  
 // ✅ NOUVELLE méthode pour garantir le chargement
 async ensurePokemonSpriteLoaded(pokemonId, view = 'front') {
   const spriteKey = `pokemon_${pokemonId}_${view}`;
