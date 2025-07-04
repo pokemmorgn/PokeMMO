@@ -73,14 +73,14 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
     this.load.spritesheet('OldLady', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
 
     // ✅ TEST SIMPLE - Bulbasaur back
-this.load.spritesheet('pokemon_1_back', 'assets/pokemon/001/back.png', {
+this.load.spritesheet('pokemon_001_back', 'assets/pokemon/001/back.png', {
   frameWidth: 38,
   frameHeight: 38
 });
 
 // ✅ DEBUG pour voir si ça marche
 this.load.on('filecomplete-spritesheet-pokemon_1_back', () => {
-  console.log('✅ pokemon_1_back spritesheet chargé avec succès ! (38x38)');
+  console.log('✅ pokemon_001_back spritesheet chargé avec succès ! (38x38)');
 });
 
 this.load.on('loaderror', (file) => {
