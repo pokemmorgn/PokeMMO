@@ -75,6 +75,7 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
     // ✅ SPRITES POKÉMON ESSENTIELS
 // Bulbasaur (ID: 1) - Starter
 // ✅ CORRECT - pour des spritesheets 9x9
+// ✅ CORRECT - pour des spritesheets 9x9
 this.load.spritesheet('pokemon_1_front', 'assets/sprites/pokemon_1_front.png', {
   frameWidth: 64,  // Ajustez selon votre config
   frameHeight: 64
@@ -83,7 +84,22 @@ this.load.spritesheet('pokemon_1_back', 'assets/sprites/pokemon_1_back.png', {
   frameWidth: 64,  // Ajustez selon votre config  
   frameHeight: 64
 });
-    
+
+// ✅ DEBUG pour spritesheets - SUCCÈS
+this.load.on('filecomplete-spritesheet-pokemon_1_front', () => {
+  console.log('✅ pokemon_1_front spritesheet chargé avec succès !');
+});
+
+this.load.on('filecomplete-spritesheet-pokemon_1_back', () => {
+  console.log('✅ pokemon_1_back spritesheet chargé avec succès !');
+});
+
+// ❌ DEBUG - ÉCHEC
+this.load.on('loaderror', (file) => {
+  if (file.key === 'pokemon_1_front' || file.key === 'pokemon_1_back') {
+    console.error('❌ ÉCHEC chargement Pokémon:', file.key, file.src, file.error);
+  }
+});
 // Charmander (ID: 4) - Starter
 this.load.image('pokemon_4_front', 'assets/sprites/pokemon_4_front.png');
 this.load.image('pokemon_4_back', 'assets/sprites/pokemon_4_back.png');
