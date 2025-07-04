@@ -75,9 +75,9 @@ if (!this.battleNetworkHandler) {
     console.log('📁 [BattleScene] Préchargement sprites Pokémon 9x9...');
     
     // Background de combat
-  //  if (!this.textures.exists('battlebg01')) {
-  //    this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
-  //  }
+   if (!this.textures.exists('battlebg01')) {
+      this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
+    }
     
     // Sprites Pokémon avec calcul automatique des frames
    // this.loadPokemonSpritesheets9x9();
