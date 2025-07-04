@@ -1303,6 +1303,10 @@ waitForPlayerAction() {
 handleNetworkBattleStart(data) {
   console.log('⚔️ [BattleScene] Traitement battleStart réseau:', data);
   
+  // ✅ Si les données viennent de battleRoomCreated, les utiliser
+  if (data.playerPokemon) {
+    this.displayPlayerPokemon(data.playerPokemon);
+  }
   // Afficher les Pokémon depuis les données serveur
   if (data.playerPokemon) {
     this.displayPlayerPokemon(data.playerPokemon);
