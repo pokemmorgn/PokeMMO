@@ -1252,23 +1252,23 @@ waitForPlayerAction() {
     // Version simplifiée pour focus sur HealthBarManager
   }
 
-  setupBattleNetworkEvents() {
-    console.log('📡 [BattleScene] Configuration événements réseau...');
-    
-    if (!this.battleNetworkHandler) {
-      console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour événements');
-      return;
-    }
-    // Événements de combat
-    this.battleNetworkHandler.on('battleRoomCreated', (data) => {
-      console.log('🏠 [BattleScene] battleRoomCreated reçu:', data);
-      this.handleNetworkBattleRoomCreated(data);
-    });
-    
-    this.battleNetworkHandler.on('battleStart', (data) => {
-      console.log('⚔️ [BattleScene] battleStart reçu:', data);
-      this.handleNetworkBattleStart(data);
-    });
+setupBattleNetworkEvents() {
+  console.log('📡 [BattleScene] Configuration événements réseau...');
+  
+  if (!this.battleNetworkHandler) {
+    console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour événements');
+    return;
+  }
+  
+  // ✅ DEBUG: Vérifier la référence
+  console.log('🔍 [BattleScene] BattleNetworkHandler référence:', this.battleNetworkHandler);
+  console.log('🔍 [BattleScene] Test événement sur cet objet...');
+  
+  // Test simple
+  this.battleNetworkHandler.on('battleRoomCreated', (data) => {
+    console.log('🎯 [BattleScene] ÉVÉNEMENT REÇU battleRoomCreated:', data);
+    this.handleNetworkBattleRoomCreated(data);
+  });
     
     this.battleNetworkHandler.on('turnChange', (data) => {
       console.log('🔄 [BattleScene] turnChange reçu:', data);
