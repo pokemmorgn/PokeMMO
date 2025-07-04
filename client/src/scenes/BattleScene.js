@@ -247,16 +247,16 @@ async loadPokemonSpritesheets9x9() {
   pokemonSpriteConfig = this.cache.json.get('pokemonSpriteConfig');
   console.log('✅ [BattleScene] Config chargée:', pokemonSpriteConfig);
   
-  // ✅ CHARGER les sprites qu'on va utiliser
-  const pokemonToLoad = [1, 4, 7, 25]; // Les plus courants
+  // ✅ CHARGER les sprites avec le bon chemin
+  const pokemonToLoad = [1, 4, 7, 25];
   
   pokemonToLoad.forEach(pokemonId => {
     const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
     
-    // Charger front et back
     ['front', 'back'].forEach(view => {
       const spriteKey = `pokemon_${pokemonId}_${view}`;
-      const imagePath = `assets/pokemon/pokemon_${pokemonId}/${view}.png`;
+      // ✅ CORRECTION: Bon chemin
+      const imagePath = `assets/sprites/pokemon_${pokemonId}_${view}.png`;
       
       this.load.spritesheet(spriteKey, imagePath, {
         frameWidth: config.spriteWidth,
@@ -277,8 +277,8 @@ loadPokemonSprite(pokemonId, view = 'front') {
   // Récupérer la config (spécifique ou default)
   const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
   
-  // Construire le chemin (on peut améliorer ça plus tard)
-  const imagePath = `assets/pokemon/pokemon_${pokemonId}/${view}.png`;
+  // ✅ CORRECTION: Bon chemin vers assets/sprites/
+  const imagePath = `assets/sprites/pokemon_${pokemonId}_${view}.png`;
   
   this.load.spritesheet(spriteKey, imagePath, {
     frameWidth: config.spriteWidth,
