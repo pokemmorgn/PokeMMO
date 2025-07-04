@@ -502,12 +502,9 @@ displayPlayerPokemon(pokemonData) {
   const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'back');
   
   try {
-    this.playerPokemonSprite = this.add.sprite(
-      this.pokemonPositions.playerAbsolute.x,
-      this.pokemonPositions.playerAbsolute.y,
-      spriteKey,
-      0  // Frame 0 pour spritesheet
-    );
+const pos = this.pokemonPositions.playerAbsolute;
+console.log('🎯 Création sprite à position:', pos);
+this.playerPokemonSprite = this.add.sprite(pos.x, pos.y, spriteKey, 0);
     
     if (!this.playerPokemonSprite.texture || this.playerPokemonSprite.texture.key === '__MISSING') {
       throw new Error(`Texture manquante pour ${spriteKey}`);
