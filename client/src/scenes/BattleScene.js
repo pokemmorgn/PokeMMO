@@ -253,14 +253,17 @@ loadPokemonSprite(pokemonId, view = 'front') {
   const spriteKey = `pokemon_${pokemonId}_${view}`;
   
   if (this.textures.exists(spriteKey)) {
-    return spriteKey; // Déjà chargé
+    return spriteKey;
   }
   
-  // Récupérer la config (spécifique ou default)
+  // Récupérer la config
   const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
   
-  // Construire le chemin (on peut améliorer ça plus tard)
-  const imagePath = `assets/pokemon/pokemon_${pokemonId}/${view}.png`;
+  // ✅ NOUVEAU: Structure numérique simple
+  const pokemonFolder = pokemonId.toString().padStart(3, '0');
+  const imagePath = `assets/pokemon/${pokemonFolder}/${view}.png`;
+  
+  console.log(`🔍 [BattleScene] Chargement: ${imagePath}`);
   
   this.load.spritesheet(spriteKey, imagePath, {
     frameWidth: config.spriteWidth,
@@ -268,7 +271,6 @@ loadPokemonSprite(pokemonId, view = 'front') {
   });
   
   this.load.start();
-  
   return spriteKey;
 }
 
@@ -541,25 +543,16 @@ loadPokemonSprite(pokemonId, view = 'front') {
     }
   }
 
-  getPokemonSpriteKey(pokemonId, view = 'front') {
-    const spriteKey = `pokemon_${pokemonId}_${view}`;
-    
-    if (this.textures.exists(spriteKey)) {
-      const texture = this.textures.get(spriteKey);
-      console.log(`✅ [BattleScene] Sprite trouvé: ${spriteKey} (${texture.source[0].width}x${texture.source[0].height})`);
-      return spriteKey;
-    } else {
-      console.warn(`⚠️ [BattleScene] Sprite manquant: ${spriteKey}, fallback placeholder`);
-      
-      const placeholderKey = `pokemon_placeholder_${view}`;
-      if (this.textures.exists(placeholderKey)) {
-        return placeholderKey;
-      } else {
-        return this.textures.exists('pokemon_placeholder_front') ? 
-          'pokemon_placeholder_front' : '__DEFAULT';
-      }
-    }
+getPokemonSpriteKey(pokemonId, view = 'front') {
+  const spriteKey = `pokemon_${pokemonId}_${view}`;
+  
+  // Si pas encore chargé, le charger maintenant
+  if (!this.textures.exists(spriteKey)) {
+    this.loadPokemonSprite(pokemonId, view);
   }
+  
+  return spriteKey;
+}
 
   createPokemonPlaceholder(type, pokemonData) {
     console.log(`🎭 [BattleScene] Création placeholder intelligent ${type}:`, pokemonData.name);
