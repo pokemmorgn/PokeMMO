@@ -497,11 +497,19 @@ displayPlayerPokemon(pokemonData) {
   console.log('👤 [bulbi animation] === DÉBUT AFFICHAGE POKÉMON JOUEUR ===');
   console.log('👤 [bulbi animation] Données reçues:', pokemonData);
   
+  // ✅ VÉRIFIER ET ACTIVER LA SCÈNE SI NÉCESSAIRE
+  if (!window.game.scene.isActive('BattleScene')) {
+    console.log('🎬 [bulbi animation] Activation BattleScene...');
+    window.game.scene.wake('BattleScene');
+    window.game.scene.setVisible('BattleScene', true);
+  }
+  
   if (!this.pokemonPositions?.playerAbsolute) {
     console.log('📐 [bulbi animation] Création positions Pokémon...');
     this.createPokemonPositions();
   }
   
+  // Nettoyer ancien sprite
   if (this.playerPokemonSprite) {
     console.log('🗑️ [bulbi animation] Destruction ancien sprite joueur...');
     this.playerPokemonSprite.destroy();
@@ -513,65 +521,76 @@ displayPlayerPokemon(pokemonData) {
     return;
   }
   
+  // Générer la clé de sprite
   const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'back');
   console.log('🔑 [bulbi animation] Clé sprite générée:', spriteKey);
   
   try {
     console.log('🏗️ [bulbi animation] Création sprite à la position:', this.pokemonPositions.playerAbsolute);
     
+    // ✅ CRÉATION DU SPRITE
     this.playerPokemonSprite = this.add.sprite(
       this.pokemonPositions.playerAbsolute.x,
       this.pokemonPositions.playerAbsolute.y,
       spriteKey,
-      0
+      0  // Frame 0 pour spritesheet
     );
     
+    // ✅ VÉRIFICATION TEXTURE
     if (!this.playerPokemonSprite.texture || this.playerPokemonSprite.texture.key === '__MISSING') {
       throw new Error(`Texture manquante pour ${spriteKey}`);
     }
     
     console.log('✅ [bulbi animation] Sprite créé avec texture:', this.playerPokemonSprite.texture.key);
     
+    // ✅ CONFIGURATION SPRITE
     console.log('🎨 [bulbi animation] Configuration sprite - scale: 2.8, depth: 20');
     this.playerPokemonSprite.setScale(2.8);
     this.playerPokemonSprite.setDepth(20);
     this.playerPokemonSprite.setOrigin(0.5, 1);
     
+    // ✅ ACTIVATION OBLIGATOIRE
     console.log('⚡ [bulbi animation] ACTIVATION du sprite...');
     this.playerPokemonSprite.setActive(true);
     
+    // ✅ DONNÉES DU SPRITE
     console.log('📊 [bulbi animation] Attribution données sprite...');
     this.playerPokemonSprite.setData('isPokemon', true);
     this.playerPokemonSprite.setData('pokemonType', 'player');
     this.playerPokemonSprite.setData('pokemonId', pokemonData.pokemonId);
     
-    console.log('🎬 [bulbi animation] === LANCEMENT ANIMATION JOUEUR (délai 4s) ===');
+    // ✅ LANCEMENT ANIMATION IMMÉDIAT
+    console.log('🎬 [bulbi animation] === LANCEMENT ANIMATION JOUEUR ===');
+    const animationResult = this.animatePokemonEntry(this.playerPokemonSprite, 'left');
     
-    // ✅ DÉLAI DE 4 SECONDES pour être sûr
-    setTimeout(() => {
-      console.log('🎬 [bulbi animation] === 4 SECONDES ÉCOULÉES - LANCEMENT ANIMATION ===');
-      if (this.playerPokemonSprite) {
-        console.log('🎬 [bulbi animation] Sprite existe encore, animation...');
-        this.animatePokemonEntry(this.playerPokemonSprite, 'left');
-      } else {
-        console.error('❌ [bulbi animation] Sprite perdu après 4s !');
-      }
-    }, 4000);  // 4 secondes
+    if (!animationResult) {
+      console.error('❌ [bulbi animation] ÉCHEC animation - affichage direct de secours');
+      this.playerPokemonSprite.setAlpha(1);
+      this.playerPokemonSprite.setVisible(true);
+      console.log('🆘 [bulbi animation] Sprite affiché en mode secours');
+    } else {
+      console.log('✅ [bulbi animation] Animation lancée avec succès');
+    }
     
+    // ✅ SAUVEGARDER DONNÉES
     this.currentPlayerPokemon = pokemonData;
     
-    console.log('⏰ [bulbi animation] Programmation barre de vie dans 800ms...');
+    // HealthBar après délai réduit
+    console.log('⏰ [bulbi animation] Programmation barre de vie dans 600ms...');
     setTimeout(() => {
       if (this.healthBarManager) {
         console.log('❤️ [bulbi animation] Mise à jour barre de vie...');
         this.healthBarManager.updatePlayerHealthBar(pokemonData);
+      } else {
+        console.warn('⚠️ [bulbi animation] HealthBarManager manquant !');
       }
-    }, 800);
+    }, 600);
     
     console.log(`✅ [bulbi animation] === POKÉMON JOUEUR CONFIGURÉ: ${pokemonData.name} ===`);
     
   } catch (error) {
     console.error('❌ [bulbi animation] ERREUR affichage Pokémon joueur:', error);
+    console.log('🆘 [bulbi animation] Création placeholder de secours...');
     this.createPokemonPlaceholder('player', pokemonData);
   }
 }
