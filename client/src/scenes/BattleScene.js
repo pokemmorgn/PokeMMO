@@ -1,4 +1,4 @@
-// client/src/scenes/BattleScene.js - VERSION MODULAIRE avec HealthBarManager
+// client/src/scenes/BattleScene.js - VERSION MODULAIRE avec HealthBarManagerAA
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
@@ -1259,13 +1259,12 @@ waitForPlayerAction() {
       console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour événements');
       return;
     }
-    
     // Événements de combat
-    
     this.battleNetworkHandler.on('battleRoomCreated', (data) => {
       console.log('🏠 [BattleScene] battleRoomCreated reçu:', data);
       this.handleNetworkBattleRoomCreated(data);
     });
+    
     this.battleNetworkHandler.on('battleStart', (data) => {
       console.log('⚔️ [BattleScene] battleStart reçu:', data);
       this.handleNetworkBattleStart(data);
