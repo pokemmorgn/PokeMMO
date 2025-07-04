@@ -80,7 +80,7 @@ if (!this.battleNetworkHandler) {
     }
     
     // Sprites Pokémon avec calcul automatique des frames
-    this.loadPokemonSpritesheets9x9();
+   // this.loadPokemonSpritesheets9x9();
     
     // Événement de completion pour debug
     this.load.on('complete', () => {
@@ -611,25 +611,18 @@ createFallbackSprite(view) {
     }
   }
 
-  getPokemonSpriteKey(pokemonId, view = 'front') {
-    const spriteKey = `pokemon_${pokemonId}_${view}`;
-    
-    if (this.textures.exists(spriteKey)) {
-      const texture = this.textures.get(spriteKey);
-      console.log(`✅ [BattleScene] Sprite trouvé: ${spriteKey} (${texture.source[0].width}x${texture.source[0].height})`);
-      return spriteKey;
-    } else {
-      console.warn(`⚠️ [BattleScene] Sprite manquant: ${spriteKey}, fallback placeholder`);
-      
-      const placeholderKey = `pokemon_placeholder_${view}`;
-      if (this.textures.exists(placeholderKey)) {
-        return placeholderKey;
-      } else {
-        return this.textures.exists('pokemon_placeholder_front') ? 
-          'pokemon_placeholder_front' : '__DEFAULT';
-      }
-    }
+getPokemonSpriteKey(pokemonId, view = 'front') {
+  const spriteKey = `pokemon_${pokemonId}_${view}`;
+  
+  if (this.textures.exists(spriteKey)) {
+    // ✅ NOUVEAU: Message plus simple car on sait que ça vient du LoaderScene
+    console.log(`✅ [BattleScene] Sprite utilisé depuis LoaderScene: ${spriteKey}`);
+    return spriteKey;
+  } else {
+    console.warn(`⚠️ [BattleScene] Sprite non chargé: ${spriteKey}, fallback placeholder`);
+    return this.createFallbackSprite(view);
   }
+}
 
   createPokemonPlaceholder(type, pokemonData) {
     console.log(`🎭 [BattleScene] Création placeholder intelligent ${type}:`, pokemonData.name);
