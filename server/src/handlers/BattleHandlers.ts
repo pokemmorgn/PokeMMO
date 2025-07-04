@@ -121,6 +121,27 @@ export class BattleHandlers {
     console.log(`🐾 Pokémon: ${data.wildPokemon.pokemonId} Niv.${data.wildPokemon.level}`);
     console.log(`📍 Lieu: ${data.location}`);
 
+        // Récupérer l'équipe du joueur
+    const teamHandlers = this.room.getTeamHandlers();
+    if (!teamHandlers) {
+      client.send("battleError", { 
+        message: "Système d'équipe non disponible",
+        code: "TEAM_SYSTEM_ERROR"
+      });
+      return;
+    }
+    
+    // Obtenir le premier Pokémon disponible pour le combat
+    const playerPokemon = await this.getPlayerBattlePokemon(player.name);
+    if (!playerPokemon) {
+      client.send("battleError", { 
+        message: "Aucun Pokémon disponible pour le combat",
+        code: "NO_BATTLE_POKEMON"
+      });
+      return;
+    }
+
+    console.log(`👤 Pokémon joueur: ${playerPokemon.name} Niv.${playerPokemon.level}`);
     try {
       // Vérifier si le joueur peut combattre
       const canBattle = await this.checkPlayerCanBattle(client.sessionId);
