@@ -15,7 +15,7 @@ export class VillageWindmillScene extends BaseZoneScene {
     console.log(`[VillageWindmillScene] Mon joueur est prêt à (${myPlayer.x}, ${myPlayer.y})`);
 
     // Affichage instructions spécifiques au Moulin
-    this.add.text(16, 16, 'Moulin du Village\nFlèches pour se déplacer\nAppuyez sur "D" pour les hitboxes\nLe moulin produit de la farine !', {
+    this.add.text(16, 16, 'Moulin du Village\nFlèches pour se déplacer\nAppuyez sur "D" pour les hitboxes', {
       font: '16px monospace',
       fill: '#000000',
       padding: { x: 10, y: 5 },
@@ -32,17 +32,9 @@ export class VillageWindmillScene extends BaseZoneScene {
     this.time.delayedCall(1000, () => {
       console.log("[VillageWindmillScene] Bienvenue au Moulin du Village !");
       if (this.infoText) {
-        this.infoText.setText('PokeWorld MMO\nMoulin du Village\nConnected!\n🌾 Production active');
+        this.infoText.setText('PokeWorld MMO\nMoulin du Village\nConnected!');
         console.log("[VillageWindmillScene] InfoText mise à jour");
       }
-    });
-
-    // Événement de production de farine
-    this.time.addEvent({
-      delay: 5000,
-      callback: this.produceFlour,
-      callbackScope: this,
-      loop: true
     });
   }
 
@@ -109,32 +101,7 @@ export class VillageWindmillScene extends BaseZoneScene {
     }
   }
 
-  produceFlour() {
-    console.log("[VillageWindmillScene] 🌾 Production de farine en cours...");
-    
-    // Effet visuel de production
-    const productionText = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY - 50,
-      '🌾 Farine produite ! 🌾',
-      {
-        fontSize: '18px',
-        fontFamily: 'monospace',
-        color: '#FFD700',
-        backgroundColor: 'rgba(139, 69, 19, 0.8)',
-        padding: { x: 12, y: 8 },
-      }
-    ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
 
-    // Animation de fade out
-    this.tweens.add({
-      targets: productionText,
-      alpha: 0,
-      y: productionText.y - 50,
-      duration: 2000,
-      onComplete: () => productionText.destroy()
-    });
-  }
 
 
 
