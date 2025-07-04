@@ -1,4 +1,4 @@
-// client/src/scenes/BattleScene.js - VERSION MODULAIRE avec HealthBarManagerAA
+// client/src/scenes/BattleScene.js - VERSION MODULAIRE avec HealthBarManagerAAaa
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
