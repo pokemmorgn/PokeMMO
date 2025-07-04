@@ -767,17 +767,24 @@ animatePokemonEntry(sprite, direction) {
   console.log('🔍 [DIAGNOSTIC] Sprite alpha AVANT:', sprite.alpha);
   console.log('🔍 [DIAGNOSTIC] === FIN DIAGNOSTIC ===');
 
-  // ✅ VÉRIFICATION CRITIQUE
-  if (!sprite.texture.ready || !sprite.texture.valid) {
-    console.error('🔍 [DIAGNOSTIC] ❌ TEXTURE PAS PRÊTE - ABANDON ANIMATION');
-    console.error('🔍 [DIAGNOSTIC] Ready:', sprite.texture.ready, 'Valid:', sprite.texture.valid);
-    return null;
-  }
+  // ✅ VÉRIFICATION CRITIQUE CORRIGÉE
+  // Dans Phaser, ready et valid peuvent être undefined mais le sprite peut quand même fonctionner
+  // Si la source existe et l'image est présente, on peut tenter l'animation
+  const hasValidSource = sprite.texture.source && sprite.texture.source[0] && sprite.texture.source[0].image;
+  const hasValidFrame = sprite.frame && sprite.frame.width > 0 && sprite.frame.height > 0;
   
-  if (!sprite.texture.source || !sprite.texture.source[0]) {
+  if (!hasValidSource) {
     console.error('🔍 [DIAGNOSTIC] ❌ SOURCE TEXTURE MANQUANTE - ABANDON ANIMATION');
     return null;
   }
+  
+  if (!hasValidFrame) {
+    console.error('🔍 [DIAGNOSTIC] ❌ FRAME INVALIDE - ABANDON ANIMATION');
+    return null;
+  }
+  
+  console.log('🔍 [DIAGNOSTIC] ✅ TEXTURE UTILISABLE (source et frame valides)');
+  console.log('🔍 [DIAGNOSTIC] Proceeding with animation despite undefined ready/valid status');
 
   // ✅ CONFIGURATION DU SPRITE
   sprite.setVisible(true);
