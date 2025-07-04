@@ -190,18 +190,25 @@ export class BattleNetworkHandler {
     });
   }
 
-  async handleBattleRoomCreated(data) {
-    console.log('[DEBUG NETWORK BATTLE] 🏠 Traitement création BattleRoom...', data);
+async handleBattleRoomCreated(data) {
+  console.log('[DEBUG NETWORK BATTLE] 🏠 Traitement création BattleRoom...', data);
+  
+  // ✅ DEBUG: Vérifier les données
+  console.log('[DEBUG] data.playerPokemon existe ?', !!data.playerPokemon);
+  console.log('[DEBUG] data.wildPokemon existe ?', !!data.wildPokemon);
+  console.log('[DEBUG] Avant triggerEvent...');
+  
+  this.battleRoomId = data.battleRoomId;
 
-    this.battleRoomId = data.battleRoomId;
-
-    // Notifier la création
-    this.triggerEvent('battleRoomCreated', {
-      battleRoomId: this.battleRoomId,
-      battleType: data.battleType,
-      playerPokemon: data.playerPokemon,
-      wildPokemon: data.wildPokemon
-    });
+  // Notifier la création
+  this.triggerEvent('battleRoomCreated', {
+    battleRoomId: this.battleRoomId,
+    battleType: data.battleType,
+    playerPokemon: data.playerPokemon,
+    wildPokemon: data.wildPokemon
+  });
+  
+  console.log('[DEBUG] Après triggerEvent...');
 
     // Connexion automatique
     const success = await this.connectToBattleRoom(this.battleRoomId);
