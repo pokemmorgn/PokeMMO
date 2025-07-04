@@ -463,7 +463,7 @@ createPokemonAnimation(pokemonId, view) {
   
 // MODIFIER la méthode displayPlayerPokemon() pour utiliser sprite animé
 displayPlayerPokemon(pokemonData) {
-  console.log('👤 [BattleScene] Test avec nom exact...');
+  console.log('👤 [BattleScene] Affichage Pokémon joueur:', pokemonData);
   
   if (!this.pokemonPositions?.playerAbsolute) {
     this.createPokemonPositions();
@@ -476,63 +476,29 @@ displayPlayerPokemon(pokemonData) {
   
   if (!pokemonData) return;
   
-  // ✅ UTILISER EXACTEMENT LE MÊME NOM QUE DANS LE TEST
-  this.load.spritesheet('pokemon_1_back_test', 'assets/pokemon/001/back.png', {
-    frameWidth: 38,
-    frameHeight: 38
-  });
+  const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'back');
   
-  this.load.start();
-  
-  this.load.once('complete', () => {
+  try {
     this.playerPokemonSprite = this.add.sprite(
       this.pokemonPositions.playerAbsolute.x,
       this.pokemonPositions.playerAbsolute.y,
-      'pokemon_1_back_test'  // ✅ MÊME NOM
+      spriteKey
     );
+    
     this.playerPokemonSprite.setScale(2.8);
     this.playerPokemonSprite.setDepth(20);
+    this.playerPokemonSprite.setOrigin(0.5, 1);
     
-    // Animation avec MÊME NOM
-    this.anims.create({
-      key: 'bulbasaur_idle',
-      frames: this.anims.generateFrameNumbers('pokemon_1_back_test', { start: 0, end: 48 }),
-      frameRate: 8,
-      repeat: -1
-    });
-    
-    this.playerPokemonSprite.play('bulbasaur_idle');
     this.currentPlayerPokemon = pokemonData;
     
-    console.log('✅ Pokémon affiché avec même nom !');
-  });
-}
-  
-// ✅ NOUVELLE méthode pour garantir le chargement
-async ensurePokemonSpriteLoaded(pokemonId, view = 'front') {
-  const spriteKey = `pokemon_${pokemonId}_${view}`;
-  
-  // Si déjà chargé, retourner immédiatement
-  if (this.textures.exists(spriteKey)) {
-    return spriteKey;
+    console.log(`✅ [BattleScene] Pokémon joueur affiché: ${pokemonData.name}`);
+    
+  } catch (error) {
+    console.error('❌ [BattleScene] Erreur affichage Pokémon joueur:', error);
+    this.createPokemonPlaceholder('player', pokemonData);
   }
-  
-  // Sinon, charger et attendre
-  return new Promise((resolve) => {
-    this.loadPokemonSprite(pokemonId, view);
-    
-    // Attendre que le chargement soit terminé
-    const checkLoaded = () => {
-      if (this.textures.exists(spriteKey)) {
-        resolve(spriteKey);
-      } else {
-        setTimeout(checkLoaded, 100); // Vérifier toutes les 100ms
-      }
-    };
-    
-    setTimeout(checkLoaded, 100);
-  });
 }
+
 
   displayOpponentPokemon(pokemonData) {
     console.log('👹 [BattleScene] Affichage Pokémon adversaire avec HealthBarManager:', pokemonData);
