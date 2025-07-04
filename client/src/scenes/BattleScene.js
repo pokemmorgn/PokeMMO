@@ -80,7 +80,7 @@ if (!this.battleNetworkHandler) {
     }
     
     // Sprites Pokémon avec calcul automatique des frames
-    this.loadPokemonSpritesheets9x9();
+    // this.loadPokemonSpritesheets9x9();
     
     // Événement de completion pour debug
     this.load.on('complete', () => {
