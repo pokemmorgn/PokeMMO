@@ -15,31 +15,47 @@ export class ClientCollisionManager {
 
   // ✅ Charger les collisions depuis la tilemap
   loadCollisionsFromTilemap() {
+  console.log(`🔍 [ClientCollision] Chargement collisions...`);
+  
+  this.collisionTiles.clear();
+  this.tileWidth = this.scene.map.tileWidth || 16;
+  this.tileHeight = this.scene.map.tileHeight || 16;
+  
+  let collisionsCount = 0;
+  
+  // ✅ VÉRIFIER TOUS LES LAYERS DE COLLISION (pas seulement worldLayer)
+  if (this.scene.collisionLayers && this.scene.collisionLayers.length > 0) {
+    console.log(`🔍 [ClientCollision] Vérification de ${this.scene.collisionLayers.length} layers`);
+    
+    this.scene.collisionLayers.forEach(layer => {
+      console.log(`🔍 [ClientCollision] Scanning layer: ${layer.layer.name}`);
+      
+      layer.forEachTile((tile) => {
+        if (tile && tile.collides) {
+          this.collisionTiles.add(`${tile.x},${tile.y}`);
+          collisionsCount++;
+        }
+      });
+    });
+  } else {
+    // Fallback vers worldLayer si collisionLayers n'existe pas
     if (!this.scene.worldLayer) {
-      console.warn(`⚠️ [ClientCollision] Pas de worldLayer`);
+      console.warn(`⚠️ [ClientCollision] Ni collisionLayers ni worldLayer trouvé`);
       return false;
     }
-
-    console.log(`🔍 [ClientCollision] Chargement collisions...`);
     
-    this.collisionTiles.clear();
-    this.tileWidth = this.scene.map.tileWidth || 16;
-    this.tileHeight = this.scene.map.tileHeight || 16;
-    
-    let collisionsCount = 0;
-    
-    // Parcourir toutes les tiles du worldLayer
     this.scene.worldLayer.forEachTile((tile) => {
       if (tile && tile.collides) {
         this.collisionTiles.add(`${tile.x},${tile.y}`);
         collisionsCount++;
       }
     });
-
-    console.log(`✅ [ClientCollision] ${collisionsCount} tiles bloquantes`);
-    this.isLoaded = true;
-    return true;
   }
+  
+  console.log(`✅ [ClientCollision] ${collisionsCount} tiles bloquantes trouvées`);
+  this.isLoaded = true;
+  return true;
+}
 
   // ✅ Vérifier si une position (pixels) est bloquée
   isBlocked(x, y) {
