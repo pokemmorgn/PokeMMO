@@ -246,24 +246,6 @@ async loadPokemonSpritesheets9x9() {
   
   pokemonSpriteConfig = this.cache.json.get('pokemonSpriteConfig');
   console.log('✅ [BattleScene] Config chargée:', pokemonSpriteConfig);
-  
-  // ✅ CHARGER les sprites avec le BON chemin
-  const pokemonToLoad = [1, 4, 7, 25];
-  
-  pokemonToLoad.forEach(pokemonId => {
-    const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
-    
-    ['front', 'back'].forEach(view => {
-      const spriteKey = `pokemon_${pokemonId}_${view}`;
-      // ✅ SEULE CORRECTION: le chemin
-      const imagePath = `assets/sprites/pokemon_${pokemonId}_${view}.png`;
-      
-      this.load.spritesheet(spriteKey, imagePath, {
-        frameWidth: config.spriteWidth,
-        frameHeight: config.spriteHeight
-      });
-    });
-  });
 }
 
 // NOUVELLE méthode pour charger un Pokémon spécifique
@@ -433,74 +415,67 @@ loadPokemonSprite(pokemonId, view = 'front') {
 
   // === ✅ AFFICHAGE POKÉMON AVEC HEALTHBARMANAGER ===
 
-displayPlayerPokemon(pokemonData) {
-  console.log('👤 [BattleScene] Affichage Pokémon joueur:', pokemonData);
-  
-  if (!this.pokemonPositions?.playerAbsolute) {
-    this.createPokemonPositions();
-  }
-  
-  if (this.playerPokemonSprite) {
-    this.playerPokemonSprite.destroy();
-    this.playerPokemonSprite = null;
-  }
-  
-  if (!pokemonData) return;
-  
-  const pokemonId = pokemonData.pokemonId || pokemonData.id;
-  const spriteKey = this.getPokemonSpriteKey(pokemonId, 'back');
-  
-  try {
-    // ✅ CORRECTION: Vérifier que la texture existe vraiment avant création
-    if (!this.textures.exists(spriteKey)) {
-      throw new Error(`Texture ${spriteKey} non trouvée`);
+  displayPlayerPokemon(pokemonData) {
+    console.log('👤 [BattleScene] Affichage Pokémon joueur avec HealthBarManager:', pokemonData);
+    
+    if (!this.pokemonPositions?.playerAbsolute) {
+      this.createPokemonPositions();
     }
     
-    // ✅ CORRECTION: Créer le sprite avec la bonne méthode
-    this.playerPokemonSprite = this.add.sprite(
-      this.pokemonPositions.playerAbsolute.x,
-      this.pokemonPositions.playerAbsolute.y,
-      spriteKey,
-      0  // Frame 0
-    );
-    
-    // ✅ CORRECTION: Vérifier immédiatement après création
-    if (!this.playerPokemonSprite.texture || this.playerPokemonSprite.texture.key === '__MISSING' || this.playerPokemonSprite.texture.key === '__DEFAULT') {
-      throw new Error(`Sprite créé avec texture invalide: ${this.playerPokemonSprite.texture.key}`);
+    if (this.playerPokemonSprite) {
+      this.playerPokemonSprite.destroy();
+      this.playerPokemonSprite = null;
     }
     
-    this.playerPokemonSprite.setScale(2.8);
-    this.playerPokemonSprite.setDepth(20);
-    this.playerPokemonSprite.setOrigin(0.5, 1);
-    this.playerPokemonSprite.setVisible(true); // ✅ CORRECTION: Forcer visible
+    if (!pokemonData) return;
     
-    this.playerPokemonSprite.setData('isPokemon', true);
-    this.playerPokemonSprite.setData('pokemonType', 'player');
-    this.playerPokemonSprite.setData('pokemonId', pokemonData.pokemonId);
+    const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'back');
     
-    this.animatePokemonEntry(this.playerPokemonSprite, 'left');
-    this.currentPlayerPokemon = pokemonData;
-    
-    // HealthBar après animation
-    setTimeout(() => {
-      if (this.healthBarManager) {
-        this.healthBarManager.updatePlayerHealthBar(pokemonData);
+    try {
+      this.playerPokemonSprite = this.add.sprite(
+        this.pokemonPositions.playerAbsolute.x,
+        this.pokemonPositions.playerAbsolute.y,
+        spriteKey,
+        0  // Frame 0 pour spritesheet 9x9
+      );
+      
+      if (!this.playerPokemonSprite.texture || this.playerPokemonSprite.texture.key === '__MISSING') {
+        throw new Error(`Texture manquante pour ${spriteKey}`);
       }
-    }, 800);
-    
-    console.log(`✅ [BattleScene] Pokémon joueur affiché: ${pokemonData.name}`);
-    
-  } catch (error) {
-    console.error('❌ [BattleScene] Erreur affichage Pokémon joueur:', error);
-    this.createPokemonPlaceholder('player', pokemonData);
-    
-    setTimeout(() => {
-      if (this.healthBarManager) {
-        this.healthBarManager.updatePlayerHealthBar(pokemonData);
-      }
-    }, 800);
+      
+      this.playerPokemonSprite.setScale(2.8);
+      this.playerPokemonSprite.setDepth(20);
+      this.playerPokemonSprite.setOrigin(0.5, 1);
+      
+      this.playerPokemonSprite.setData('isPokemon', true);
+      this.playerPokemonSprite.setData('pokemonType', 'player');
+      this.playerPokemonSprite.setData('pokemonId', pokemonData.pokemonId);
+      
+      this.animatePokemonEntry(this.playerPokemonSprite, 'left');
+      this.currentPlayerPokemon = pokemonData;
+      
+      // ✅ NOUVEAU: Utiliser HealthBarManager
+      setTimeout(() => {
+        if (this.healthBarManager) {
+          this.healthBarManager.updatePlayerHealthBar(pokemonData);
+        }
+      }, 800);
+      
+      console.log(`✅ [BattleScene] Pokémon joueur affiché avec HealthBarManager: ${pokemonData.name}`);
+      
+    } catch (error) {
+      console.error('❌ [BattleScene] Erreur affichage Pokémon joueur:', error);
+      this.createPokemonPlaceholder('player', pokemonData);
+      
+      // Barre de vie même pour placeholder
+      setTimeout(() => {
+        if (this.healthBarManager) {
+          this.healthBarManager.updatePlayerHealthBar(pokemonData);
+        }
+      }, 800);
+    }
   }
-}
+
   displayOpponentPokemon(pokemonData) {
     console.log('👹 [BattleScene] Affichage Pokémon adversaire avec HealthBarManager:', pokemonData);
     
