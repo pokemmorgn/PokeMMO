@@ -72,6 +72,23 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
     this.load.spritesheet('Scientist', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('OldLady', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
 
+    // ✅ SPRITES POKÉMON ESSENTIELS
+// Bulbasaur (ID: 1) - Starter
+this.load.image('pokemon_1_front', 'assets/sprites/pokemon_1_front.png');
+this.load.image('pokemon_1_back', 'assets/sprites/pokemon_1_back.png');
+
+// Charmander (ID: 4) - Starter
+this.load.image('pokemon_4_front', 'assets/sprites/pokemon_4_front.png');
+this.load.image('pokemon_4_back', 'assets/sprites/pokemon_4_back.png');
+
+// Squirtle (ID: 7) - Starter
+this.load.image('pokemon_7_front', 'assets/sprites/pokemon_7_front.png');
+this.load.image('pokemon_7_back', 'assets/sprites/pokemon_7_back.png');
+
+// Pikachu (ID: 25) - Commun
+this.load.image('pokemon_25_front', 'assets/sprites/pokemon_25_front.png');
+this.load.image('pokemon_25_back', 'assets/sprites/pokemon_25_back.png');
+    
     // Charger le spritesheet du joueur (32x32 par frame)
     this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
     frameWidth: 32,
