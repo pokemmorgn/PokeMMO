@@ -33,7 +33,7 @@ export class InteractionManager {
   constructor(
     getNpcManager: (zoneName: string) => any, 
     questManager: QuestManager,
-    shopManager: ShopManager // ✅ NOUVEAU PARAMÈTRE
+    shopManager: ShopManager, // ✅ NOUVEAU PARAMÈTRE
     starterHandlers: StarterHandlers // ✅ NOUVEAU PARAMÈTRE
 
   ) {
