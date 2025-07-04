@@ -256,8 +256,7 @@ async loadPokemonSpritesheets9x9() {
     // Charger front et back
     ['front', 'back'].forEach(view => {
       const spriteKey = `pokemon_${pokemonId}_${view}`;
-    const paddedId = String(pokemonId).padStart(3, '0');
-    const imagePath = `assets/pokemon/${paddedId}/${view}.png`;
+      const imagePath = `assets/pokemon/pokemon_${pokemonId}/${view}.png`;
       
       this.load.spritesheet(spriteKey, imagePath, {
         frameWidth: config.spriteWidth,
