@@ -2046,6 +2046,141 @@ window.setStatus = function(target = 'player', status = 'poison') {
   }
 };
 
+// === TEST COMBAT COMPLET AVEC HEALTHBARMANAGER ===
+window.testBattleWithHealthBarManager = function() {
+  console.log('🧪 === TEST COMBAT COMPLET AVEC HEALTHBARMANAGER ===');
+  
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (!battleScene) {
+    console.error('❌ BattleScene non trouvée');
+    return;
+  }
+  
+  // ✅ ACTIVER LA SCÈNE
+  if (!window.game.scene.isActive('BattleScene')) {
+    console.log('🎬 Activation BattleScene...');
+    window.game.scene.wake('BattleScene');
+    window.game.scene.setVisible('BattleScene', true);
+  }
+  
+  // ✅ NETTOYAGE COMPLET
+  console.log('🧹 Nettoyage complet...');
+  battleScene.clearAllPokemonSprites();
+  if (battleScene.healthBarManager) {
+    battleScene.healthBarManager.clearHealthBars();
+  }
+  
+  // ✅ ACTIVER L'UI DE COMBAT
+  console.log('🎮 Activation UI battle...');
+  const uiResult = battleScene.activateBattleUI();
+  console.log('🎮 UI activée:', uiResult);
+  
+  // ✅ DONNÉES POKÉMON JOUEUR
+  const testPlayerPokemon = {
+    pokemonId: 1,
+    id: 'test_bulbasaur_battle',
+    name: 'Bulbasaur',
+    level: 8,
+    currentHp: 22,
+    maxHp: 25,
+    currentExp: 120,
+    expToNext: 200,
+    statusCondition: 'normal',
+    types: ['grass', 'poison']
+  };
+  
+  // ✅ DONNÉES POKÉMON ADVERSAIRE
+  const testOpponentPokemon = {
+    pokemonId: 25,
+    id: 'wild_pikachu_battle',
+    name: 'Pikachu',
+    level: 6,
+    currentHp: 18,
+    maxHp: 20,
+    statusCondition: 'normal',
+    types: ['electric'],
+    shiny: false,
+    gender: 'male',
+    isWild: true
+  };
+  
+  console.log('🌱 === AFFICHAGE POKÉMON JOUEUR (BULBASAUR) ===');
+  console.log('📋 Données joueur:', testPlayerPokemon);
+  
+  // ✅ AFFICHER LE POKÉMON JOUEUR AVEC DÉLAI
+  setTimeout(() => {
+    try {
+      battleScene.displayPlayerPokemon(testPlayerPokemon);
+      console.log('✅ Pokémon joueur affiché');
+    } catch (error) {
+      console.error('❌ Erreur affichage joueur:', error);
+    }
+  }, 500);
+  
+  console.log('⚡ === AFFICHAGE POKÉMON ADVERSAIRE (PIKACHU) ===');
+  console.log('📋 Données adversaire:', testOpponentPokemon);
+  
+  // ✅ AFFICHER LE POKÉMON ADVERSAIRE AVEC DÉLAI
+  setTimeout(() => {
+    try {
+      battleScene.displayOpponentPokemon(testOpponentPokemon);
+      console.log('✅ Pokémon adversaire affiché');
+    } catch (error) {
+      console.error('❌ Erreur affichage adversaire:', error);
+    }
+  }, 1200);
+  
+  // ✅ DIAGNOSTICS APRÈS AFFICHAGE
+  setTimeout(() => {
+    console.log('🔍 === DIAGNOSTIC SPRITES APRÈS AFFICHAGE ===');
+    
+    // Debug Pokémon joueur
+    if (battleScene.playerPokemonSprite) {
+      const playerSprite = battleScene.playerPokemonSprite;
+      console.log('🌱 Pokémon joueur:');
+      console.log('  📍 Position:', { x: playerSprite.x, y: playerSprite.y });
+      console.log('  👁️ Visibilité:', { visible: playerSprite.visible, alpha: playerSprite.alpha });
+      console.log('  🖼️ Texture:', playerSprite.texture.key);
+    } else {
+      console.warn('⚠️ Aucun sprite joueur');
+    }
+    
+    // Debug Pokémon adversaire  
+    if (battleScene.opponentPokemonSprite) {
+      const opponentSprite = battleScene.opponentPokemonSprite;
+      console.log('⚡ Pokémon adversaire:');
+      console.log('  📍 Position:', { x: opponentSprite.x, y: opponentSprite.y });
+      console.log('  👁️ Visibilité:', { visible: opponentSprite.visible, alpha: opponentSprite.alpha });
+      console.log('  🖼️ Texture:', opponentSprite.texture.key);
+    } else {
+      console.warn('⚠️ Aucun sprite adversaire');
+    }
+    
+    // Debug HealthBarManager
+    console.log('❤️ HealthBarManager:');
+    console.log('  🔧 Initialisé:', !!battleScene.healthBarManager);
+    if (battleScene.healthBarManager) {
+      console.log('  👤 Barre joueur:', !!battleScene.healthBarManager.playerHealthBar);
+      console.log('  👹 Barre adversaire:', !!battleScene.healthBarManager.opponentHealthBar);
+    }
+    
+  }, 3500);
+  
+  // ✅ AFFICHAGE MENU D'ACTIONS
+  setTimeout(() => {
+    console.log('🎮 === AFFICHAGE MENU D\'ACTIONS ===');
+    try {
+      battleScene.showPlayerActionMenu();
+      console.log('✅ Menu d\'actions affiché');
+    } catch (error) {
+      console.error('❌ Erreur affichage menu:', error);
+    }
+  }, 4000);
+  
+  console.log('🚀 Test combat complet lancé...');
+  console.log('⏱️ Bulbasaur dans 0.5s, Pikachu dans 1.2s, menu dans 4s');
+};
+
 // Debug HealthBarManager
 window.debugHealthBarManager = function() {
   console.log('🔍 === DEBUG HEALTHBARMANAGER ===');
