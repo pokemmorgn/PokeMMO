@@ -259,22 +259,22 @@ export class TeamUI {
   }
 
   generateTeamSlots() {
-    let slotsHTML = '';
-    for (let i = 0; i < 6; i++) {
-      slotsHTML += `
-        <div class="team-slot empty-enhanced" data-slot="${i}">
-          <div class="slot-background">
-            <div class="slot-number">${i + 1}</div>
-            <div class="empty-slot">
-              <div class="empty-icon">➕</div>
-              <div class="empty-text">Add Pokémon</div>
-            </div>
+  let slotsHTML = '';
+  for (let i = 0; i < 6; i++) {
+    slotsHTML += `
+      <div class="team-slot empty-enhanced" data-slot="${i}">
+        <div class="slot-background">
+          <div class="slot-number">${i + 1}</div>
+          <div class="empty-slot">
+            <div class="empty-icon">➕</div>
+            <div class="empty-text">Add Pokémon</div>
           </div>
         </div>
-      `;
-    }
-    return slotsHTML;
+      </div>
+    `;
   }
+  return slotsHTML;
+}
 
   setupEventListeners() {
     // Fermeture
@@ -483,68 +483,61 @@ hide() {
 
 refreshTeamDisplay() {
   const slotsContainer = this.overlay.querySelector('.team-slots-grid');
-  slotsContainer.innerHTML = ''; // Vide la grille à chaque refresh
-
+  
+  // ✅ FIX: Ne pas vider, juste mettre à jour chaque slot
   for (let i = 0; i < 6; i++) {
     const pokemon = this.teamData[i];
-
-    // Crée le slot
-    const slot = document.createElement('div');
-    slot.className = 'team-slot';
-    slot.dataset.slot = i;
-
-    const slotBackground = document.createElement('div');
-    slotBackground.className = 'slot-background';
-
-    const slotNumber = document.createElement('div');
-    slotNumber.className = 'slot-number';
-    slotNumber.textContent = i + 1;
-    slotBackground.appendChild(slotNumber);
-
+    let slot = slotsContainer.querySelector(`[data-slot="${i}"]`);
+    
+    // Si le slot n'existe pas, le créer
+    if (!slot) {
+      slot = document.createElement('div');
+      slot.className = 'team-slot';
+      slot.dataset.slot = i;
+      
+      const slotBackground = document.createElement('div');
+      slotBackground.className = 'slot-background';
+      
+      const slotNumber = document.createElement('div');
+      slotNumber.className = 'slot-number';
+      slotNumber.textContent = i + 1;
+      slotBackground.appendChild(slotNumber);
+      
+      slot.appendChild(slotBackground);
+      slotsContainer.appendChild(slot);
+    }
+    
+    const slotBackground = slot.querySelector('.slot-background');
+    
     if (pokemon) {
-      // === Affichage de la carte Pokémon ===
+      // ✅ Afficher le Pokémon
+      slot.classList.remove('empty-enhanced');
       this.displayPokemonInSlot(slot, pokemon, i);
-      // (displayPokemonInSlot va ajouter la carte sur slotBackground, et mettre à jour les classes)
     } else {
-      // === Slot vide ===
+      // ✅ Afficher slot vide
       slot.classList.add('empty-enhanced');
-
+      
+      // Nettoyer le contenu existant sauf le numéro
+      const existingCard = slot.querySelector('.pokemon-card');
+      if (existingCard) existingCard.remove();
+      
+      const existingEmpty = slot.querySelector('.empty-slot');
+      if (existingEmpty) existingEmpty.remove();
+      
+      // Ajouter l'affichage vide
       const emptySlot = document.createElement('div');
       emptySlot.className = 'empty-slot';
-      emptySlot.style.display = 'flex';
-
-      const emptyIcon = document.createElement('div');
-      emptyIcon.className = 'empty-icon';
-      emptyIcon.textContent = '➕';
-
-      const emptyText = document.createElement('div');
-      emptyText.className = 'empty-text';
-      emptyText.textContent = 'Add Pokémon';
-
-      emptySlot.appendChild(emptyIcon);
-      emptySlot.appendChild(emptyText);
-
+      emptySlot.innerHTML = `
+        <div class="empty-icon">➕</div>
+        <div class="empty-text">Add Pokémon</div>
+      `;
       slotBackground.appendChild(emptySlot);
     }
-
-    slot.appendChild(slotBackground);
-    slotsContainer.appendChild(slot);
   }
 
-  // Ajoute les listeners sur les slots (pour le clic)
+  // Réinstaller les listeners
   this.setupSlotSelection();
-
-  setTimeout(() => {
-    const testCard = slotsContainer.querySelector('.pokemon-card');
-    if (testCard) {
-      console.log('🧪 Test - Carte trouvée:', testCard);
-      console.log('🧪 Test - onclick défini:', testCard.onclick ? 'OUI' : 'NON');
-      console.log('🧪 Test - dataset:', testCard.dataset);
-      console.log('🧪 Tapez "window.teamUI.testSelection()" dans la console pour tester la sélection');
-    }
-  }, 200);
 }
-
 
   displayPokemonInSlot(slot, pokemon, index) {
     console.log('[DEBUG] Affichage Pokémon:', pokemon.pokemonId, this.getPokemonName(pokemon.pokemonId));
