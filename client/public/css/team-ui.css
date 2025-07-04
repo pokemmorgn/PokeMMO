@@ -262,8 +262,13 @@
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(3, 1fr);
   gap: 15px;
+  width: 100%;
+  max-width: 500px;
+  min-width: 330px;
+  margin: 0 auto;
   height: 100%;
 }
+
 
 .team-slot {
   background: rgba(255, 255, 255, 0.05);
