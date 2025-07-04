@@ -72,6 +72,23 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
     this.load.spritesheet('Scientist', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('OldLady', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
 
+    // ✅ TEST SIMPLE - Bulbasaur back
+this.load.spritesheet('pokemon_1_back', 'assets/pokemon/001/back.png', {
+  frameWidth: 38,
+  frameHeight: 38
+});
+
+// ✅ DEBUG pour voir si ça marche
+this.load.on('filecomplete-spritesheet-pokemon_1_back', () => {
+  console.log('✅ pokemon_1_back spritesheet chargé avec succès ! (38x38)');
+});
+
+this.load.on('loaderror', (file) => {
+  if (file.key === 'pokemon_1_back') {
+    console.error('❌ ÉCHEC chargement pokemon_1_back:', file.src, file.error);
+  }
+});
+    
     // Charger le spritesheet du joueur (32x32 par frame)
     this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
     frameWidth: 32,
