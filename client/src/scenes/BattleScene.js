@@ -533,6 +533,10 @@ displayPlayerPokemon(pokemonData) {
     this.playerPokemonSprite.setDepth(20);
     this.playerPokemonSprite.setOrigin(0.5, 1);
     
+    // ✅ FIX CRITIQUE: Activer le sprite pour permettre les animations
+    console.log('⚡ [bulbi animation] ACTIVATION du sprite pour les tweens...');
+    this.playerPokemonSprite.setActive(true);
+    
     // ✅ FIX: Commencer invisible pour l'animation
     console.log('👻 [bulbi animation] Mise invisible pour préparation animation...');
     this.playerPokemonSprite.setVisible(false);
