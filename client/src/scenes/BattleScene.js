@@ -14,6 +14,7 @@ export class BattleScene extends Phaser.Scene {
     this.networkHandler = null;
     this.healthBarManager = null; // ✅ NOUVEAU: Manager des barres de vie
     this.battleActionUI = null;
+    this.battleNetworkHandler = null;
     
     // État de la scène
     this.isActive = false;
@@ -51,10 +52,14 @@ init(data = {}) {
     || window.pokemonUISystem?.gameManager
     || window.gameManager;
 
-  this.networkHandler = data.networkHandler
-    || this.scene.get('GameScene')?.networkHandler
-    || window.pokemonUISystem?.networkHandler
-    || window.networkHandler;
+this.battleNetworkHandler = data.battleNetworkHandler
+  || window.battleSystem?.battleConnection?.networkHandler
+  || window.globalNetworkManager?.battleNetworkHandler
+  || null;
+
+if (!this.battleNetworkHandler) {
+  console.warn('⚠️ [BattleScene] BattleNetworkHandler non trouvé dans init');
+}
 
   if (!this.gameManager || !this.networkHandler) {
     console.warn('⚠️ [BattleScene] Managers partiellement manquants dans init');
