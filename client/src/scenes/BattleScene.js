@@ -232,42 +232,13 @@ export class BattleScene extends Phaser.Scene {
   }
 
   createAtmosphereEffects(width, height) {
-    // Particules d'herbe qui volent
-    this.createGrassParticles(width, height);
-    
-    // Effet de luminosité douce
+    // Effet de luminosité douce (herbe supprimée)
     this.createAmbientLighting(width, height);
   }
 
   createGrassParticles(width, height) {
-    for (let i = 0; i < 8; i++) {
-      const particle = this.add.rectangle(
-        Phaser.Math.Between(0, width),
-        height * 0.8,
-        3, 8,
-        0x228B22,
-        0.6
-      );
-      particle.setDepth(-80);
-      
-      // Animation particule
-      this.tweens.add({
-        targets: particle,
-        x: particle.x + Phaser.Math.Between(-50, 50),
-        y: particle.y - Phaser.Math.Between(100, 200),
-        alpha: 0,
-        duration: Phaser.Math.Between(2000, 4000),
-        delay: Phaser.Math.Between(0, 2000),
-        repeat: -1,
-        onRepeat: () => {
-          particle.setPosition(
-            Phaser.Math.Between(0, width),
-            height * 0.8
-          );
-          particle.setAlpha(0.6);
-        }
-      });
-    }
+    // Méthode supprimée - plus de particules d'herbe
+    return;
   }
 
   createAmbientLighting(width, height) {
@@ -376,9 +347,9 @@ export class BattleScene extends Phaser.Scene {
     
     const { width, height } = this.cameras.main;
     
-    // Barre de vie adversaire (en haut à droite)
+    // Barre de vie adversaire (à gauche du Pokémon adversaire)
     this.createModernHealthBar('opponent', {
-      x: width * 0.65,
+      x: width * 0.05,  // Changé de 0.65 à 0.05 (à gauche)
       y: height * 0.15,
       width: 280,
       height: 80
