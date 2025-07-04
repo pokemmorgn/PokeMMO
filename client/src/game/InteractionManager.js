@@ -76,12 +76,12 @@ export class InteractionManager {
   registerInteractionSystems() {
 
   this.registerSystem('starter', {
-    priority: 0,
-    canHandle: (npc) => npc?.properties?.startertable === true,
-    handle: (npc) => this.triggerStarter(),
-    validateState: () => true,
-    description: "Table starter Pokémon"
-  });
+  priority: 0,
+  canHandle: (npc) => npc?.properties?.startertable === true,
+  handle: (npc, data) => this.handleStarterInteraction(npc, data),  // ✅ MODIFIÉ !
+  validateState: () => true,
+  description: "Table starter Pokémon"
+});
     
     this.registerSystem('shop', {
       priority: 1,
@@ -317,7 +317,8 @@ export class InteractionManager {
       'questComplete': 'quest',
       'questProgress': 'quest',
       'heal': 'heal',
-      'dialogue': 'dialogue'
+      'dialogue': 'dialogue',
+      'starterTable': 'starter'
     };
     
     if (data.shopId || (data.npcType && data.npcType === "merchant")) return 'shop';
@@ -456,6 +457,18 @@ export class InteractionManager {
     this.handleDialogueInteraction(npc, healData);
   }
 
+  handleStarterInteraction(npc, data) {
+  console.log("🎯 [InteractionManager] Handling starter interaction", data);
+  
+  // Déclencher le StarterSelector directement
+  if (this.scene.showStarterSelection) {
+    this.scene.showStarterSelection();
+  } else {
+    console.error("❌ showStarterSelection not available");
+    this.showMessage("Système starter non disponible", 'error');
+  }
+}
+  
   handleDialogueInteraction(npc, data) {
     if (typeof window.showNpcDialogue !== 'function') {
       this.showMessage("Système de dialogue non disponible", 'error');
