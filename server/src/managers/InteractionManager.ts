@@ -20,7 +20,8 @@ export interface NpcInteractionResult {
   questId?: string;
   questName?: string;
   starterData?: any;
-
+  starterEligible?: boolean; // ✅ AJOUTÉ
+  starterReason?: string;    // ✅ AJOUTÉ
 }
 
 export class InteractionManager {
