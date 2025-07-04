@@ -724,190 +724,191 @@ const spriteKey = `pokemon_${paddedId}_${view}`;
   // === ANIMATIONS ===
 
 animatePokemonEntry(sprite, direction) {
-  console.log('🎬 [bulbi animation] === DÉBUT ANIMATION FIXÉE ===');
+  console.log('🎬 [bulbi animation] === DÉBUT ANIMATION + DIAGNOSTIC TEXTURE ===');
   console.log('🎬 [bulbi animation] Sprite reçu:', sprite?.texture?.key, 'direction:', direction);
   
   if (!sprite) {
-    console.error('🎬 [bulbi animation] ERREUR: Sprite manquant !');
-    return null;
+    console.error('🎬 [bulbi animation] ERREUR: Sprite manquant !', sprite);
+    return;
   }
 
-  // ✅ VÉRIFICATION TEXTURE SIMPLIFIÉE
+  // ✅ DIAGNOSTIC COMPLET DE LA TEXTURE
+  console.log('🔍 [DIAGNOSTIC] === ÉTAT TEXTURE DÉTAILLÉ ===');
+  console.log('🔍 [DIAGNOSTIC] Texture key:', sprite.texture.key);
+  console.log('🔍 [DIAGNOSTIC] Texture exists in manager:', this.textures.exists(sprite.texture.key));
+  console.log('🔍 [DIAGNOSTIC] Texture ready:', sprite.texture.ready);
+  console.log('🔍 [DIAGNOSTIC] Texture valid:', sprite.texture.valid);
+  console.log('🔍 [DIAGNOSTIC] Texture source exists:', !!sprite.texture.source);
+  console.log('🔍 [DIAGNOSTIC] Texture source length:', sprite.texture.source?.length || 0);
+  
+  if (sprite.texture.source && sprite.texture.source[0]) {
+    const source = sprite.texture.source[0];
+    console.log('🔍 [DIAGNOSTIC] Source width:', source.width);
+    console.log('🔍 [DIAGNOSTIC] Source height:', source.height);
+    console.log('🔍 [DIAGNOSTIC] Source loaded:', source.isReady);
+    console.log('🔍 [DIAGNOSTIC] Source image:', !!source.image);
+  } else {
+    console.error('🔍 [DIAGNOSTIC] ❌ AUCUNE SOURCE TEXTURE !');
+  }
+  
+  // ✅ DIAGNOSTIC FRAME
+  console.log('🔍 [DIAGNOSTIC] Frame name:', sprite.frame.name);
+  console.log('🔍 [DIAGNOSTIC] Frame width:', sprite.frame.width);
+  console.log('🔍 [DIAGNOSTIC] Frame height:', sprite.frame.height);
+  console.log('🔍 [DIAGNOSTIC] Frame cutX:', sprite.frame.cutX);
+  console.log('🔍 [DIAGNOSTIC] Frame cutY:', sprite.frame.cutY);
+  
+  // ✅ DIAGNOSTIC SPRITE
+  console.log('🔍 [DIAGNOSTIC] Sprite width:', sprite.width);
+  console.log('🔍 [DIAGNOSTIC] Sprite height:', sprite.height);
+  console.log('🔍 [DIAGNOSTIC] Sprite displayWidth:', sprite.displayWidth);
+  console.log('🔍 [DIAGNOSTIC] Sprite displayHeight:', sprite.displayHeight);
+  console.log('🔍 [DIAGNOSTIC] Sprite active AVANT:', sprite.active);
+  console.log('🔍 [DIAGNOSTIC] Sprite visible AVANT:', sprite.visible);
+  console.log('🔍 [DIAGNOSTIC] Sprite alpha AVANT:', sprite.alpha);
+  console.log('🔍 [DIAGNOSTIC] === FIN DIAGNOSTIC ===');
+
+  // ✅ VÉRIFICATION CRITIQUE CORRIGÉE
+  // Dans Phaser, ready et valid peuvent être undefined mais le sprite peut quand même fonctionner
+  // Si la source existe et l'image est présente, on peut tenter l'animation
   const hasValidSource = sprite.texture.source && sprite.texture.source[0] && sprite.texture.source[0].image;
   const hasValidFrame = sprite.frame && sprite.frame.width > 0 && sprite.frame.height > 0;
   
-  if (!hasValidSource || !hasValidFrame) {
-    console.error('🔍 [DIAGNOSTIC] ❌ TEXTURE OU FRAME INVALIDE - ABANDON');
+  if (!hasValidSource) {
+    console.error('🔍 [DIAGNOSTIC] ❌ SOURCE TEXTURE MANQUANTE - ABANDON ANIMATION');
     return null;
   }
   
-  console.log('🔍 [DIAGNOSTIC] ✅ TEXTURE VALIDE - PROCÉDURE ANIMATION');
+  if (!hasValidFrame) {
+    console.error('🔍 [DIAGNOSTIC] ❌ FRAME INVALIDE - ABANDON ANIMATION');
+    return null;
+  }
+  
+  console.log('🔍 [DIAGNOSTIC] ✅ TEXTURE UTILISABLE (source et frame valides)');
+  console.log('🔍 [DIAGNOSTIC] Proceeding with animation despite undefined ready/valid status');
 
-  // ✅ SAUVEGARDER LES VALEURS CIBLES (POSITION FINALE)
-  const targetX = sprite.x;
-  const targetY = sprite.y;
-  const targetScaleX = sprite.scaleX;
-  const targetScaleY = sprite.scaleY;
-  
-  console.log('🎯 [bulbi animation] Position cible:', { x: targetX, y: targetY });
-  console.log('🎯 [bulbi animation] Scale cible:', { x: targetScaleX, y: targetScaleY });
-
-  // ✅ CALCULER POSITION DE DÉPART
-  const screenWidth = this.cameras.main.width;
-  const startX = direction === 'left' ? -100 : screenWidth + 100;
-  const startY = targetY + 30; // Légèrement plus bas
-  const startScale = Math.max(0.3, targetScaleX * 0.4); // Échelle minimum
-  
-  console.log('🚀 [bulbi animation] Position de départ:', { x: startX, y: startY, scale: startScale });
-  
-  // ✅ CONFIGURATION IMMÉDIATE DU SPRITE
-  sprite.setPosition(startX, startY);
-  sprite.setScale(startScale);
-  sprite.setAlpha(0);
+  // ✅ CONFIGURATION DU SPRITE
   sprite.setVisible(true);
   sprite.setActive(true);
+  console.log('🎬 [bulbi animation] Sprite rendu visible et actif');
+  console.log('🔍 [DIAGNOSTIC] Sprite active APRÈS setActive:', sprite.active);
+  console.log('🔍 [DIAGNOSTIC] Sprite visible APRÈS setVisible:', sprite.visible);
+
+  const originalX = sprite.x;
+  const originalY = sprite.y;
+  const originalScaleX = sprite.scaleX;
+  const originalScaleY = sprite.scaleY;
   
-  console.log('⚙️ [bulbi animation] Sprite configuré - État actuel:', {
+  console.log('🎬 [bulbi animation] Position originale:', { x: originalX, y: originalY });
+  console.log('🎬 [bulbi animation] Scale originale:', { x: originalScaleX, y: originalScaleY });
+
+  const startX = direction === 'left' ? -150 : this.cameras.main.width + 150;
+  console.log('🎬 [bulbi animation] Position de départ calculée:', startX);
+  
+  // ✅ CONFIGURATION INITIALE AVEC VÉRIFICATIONS
+  sprite.setPosition(startX, originalY + 50);
+  sprite.setAlpha(0);
+  sprite.setScale(originalScaleX * 0.5, originalScaleY * 0.5);
+
+  console.log('🎬 [bulbi animation] Position initiale configurée:', {
     x: sprite.x,
     y: sprite.y,
     alpha: sprite.alpha,
     scaleX: sprite.scaleX,
-    visible: sprite.visible,
-    active: sprite.active
+    scaleY: sprite.scaleY
   });
   
-  // ✅ FORCER LA MISE À JOUR DU RENDU
-  if (sprite.scene && sprite.scene.sys && sprite.scene.sys.displayList) {
-    sprite.scene.sys.displayList.bringToTop(sprite);
-  }
+  // ✅ VÉRIFICATION FINALE AVANT TWEEN
+  console.log('🔍 [DIAGNOSTIC] === VÉRIFICATION FINALE AVANT TWEEN ===');
+  console.log('🔍 [DIAGNOSTIC] Sprite dans scene.children:', this.children.exists(sprite));
+  console.log('🔍 [DIAGNOSTIC] Sprite scene reference:', sprite.scene === this);
+  console.log('🔍 [DIAGNOSTIC] TweenManager exists:', !!this.tweens);
+  console.log('🔍 [DIAGNOSTIC] TweenManager active:', this.tweens.manager?.isActive);
 
   // ✅ ID UNIQUE POUR LE TWEEN
-  const tweenId = `pokemon_entry_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+  const tweenId = `pokemon_entry_${sprite.texture.key}_${direction}_${Date.now()}`;
   console.log('🎬 [bulbi animation] ID tween unique:', tweenId);
 
-  console.log('🚀 [bulbi animation] LANCEMENT TWEEN IMMÉDIAT...');
+  console.log('🎬 [bulbi animation] 🚀 LANCEMENT TWEEN VERS POSITION FINALE...');
   
   try {
-    // ✅ ANIMATION PRINCIPALE CORRIGÉE
     const mainTween = this.tweens.add({
       targets: sprite,
-      x: targetX,
-      y: targetY,
+      x: originalX,
+      y: originalY,
       alpha: 1,
-      scaleX: targetScaleX,
-      scaleY: targetScaleY,
-      duration: 1200,
+      scaleX: originalScaleX,
+      scaleY: originalScaleY,
+      duration: 1000,
       ease: 'Back.easeOut',
       
-      // ✅ PROPRIÉTÉS TWEEN AMÉLIORÉES
-      paused: false,        // S'assurer qu'il n'est pas en pause
-      repeat: 0,            // Pas de répétition
-      yoyo: false,          // Pas d'aller-retour
+      // ✅ Propriétés pour éviter les conflits
+      id: tweenId,
+      persist: true,
       
       onStart: () => {
-        console.log('🎬 [bulbi animation] ✅ TWEEN DÉMARRÉ !');
-        console.log('📍 Position sprite au démarrage:', { x: sprite.x, y: sprite.y, alpha: sprite.alpha });
+        console.log('🎬 [bulbi animation] ✅ TWEEN DÉMARRÉ !', tweenId);
+        console.log('🔍 [DIAGNOSTIC] Targets du tween:', mainTween.targets?.length);
+        console.log('🔍 [DIAGNOSTIC] État tween:', mainTween.state);
       },
       
       onUpdate: (tween, target) => {
-        // Log périodique plus fréquent pour debug
-        if (tween.totalProgress > 0 && Math.random() < 0.1) { // 10% de chance
-          console.log('🎬 [bulbi animation] Progression:', {
-            progress: Math.round(tween.totalProgress * 100) + '%',
+        if (Math.random() < 0.03) { // 3% de chance par frame
+          console.log('🎬 [bulbi animation] Animation en cours:', {
+            id: tweenId,
+            progress: Math.round(tween.progress * 100) + '%',
             x: Math.round(target.x),
-            y: Math.round(target.y),
             alpha: Math.round(target.alpha * 100) / 100,
-            scale: Math.round(target.scaleX * 100) / 100,
             visible: target.visible
           });
         }
       },
       
       onComplete: () => {
-        console.log('🎬 [bulbi animation] ✅ ANIMATION TERMINÉE !');
-        console.log('📍 Position finale:', { 
-          x: sprite.x, 
-          y: sprite.y, 
+        console.log('🎬 [bulbi animation] ✅ ANIMATION PRINCIPALE TERMINÉE !', tweenId);
+        console.log('🎬 [bulbi animation] Position finale:', {
+          x: sprite.x,
+          y: sprite.y,
           alpha: sprite.alpha,
           scale: sprite.scaleX,
           visible: sprite.visible
         });
         
-        // ✅ ANIMATION DE REBOND SIMPLIFIÉE
-        console.log('🎾 [bulbi animation] Lancement rebond final...');
+        // Animation de rebond final avec ID unique
+        const bounceId = `pokemon_bounce_${sprite.texture.key}_${Date.now()}`;
+        console.log('🎬 [bulbi animation] Lancement rebond final:', bounceId);
         
         this.tweens.add({
           targets: sprite,
-          y: targetY - 10,
-          duration: 200,
-          ease: 'Quad.easeOut',
+          y: originalY + 8,
+          duration: 300,
           yoyo: true,
+          ease: 'Bounce.easeOut',
+          id: bounceId,
+          onStart: () => {
+            console.log('🎬 [bulbi animation] ✅ REBOND DÉMARRÉ !', bounceId);
+          },
           onComplete: () => {
-            console.log('🎬 [bulbi animation] ✅ REBOND TERMINÉ !');
-            // S'assurer que la position finale est correcte
-            sprite.setPosition(targetX, targetY);
-            sprite.setAlpha(1);
-            sprite.setScale(targetScaleX, targetScaleY);
+            console.log('🎬 [bulbi animation] ✅ REBOND FINAL TERMINÉ !', bounceId);
           }
         });
       },
       
-      onStop: () => {
-        console.warn('⚠️ [bulbi animation] TWEEN ARRÊTÉ PRÉMATURÉMENT');
+      onError: (tween, error) => {
+        console.error('🎬 [bulbi animation] ❌ ERREUR TWEEN:', error);
       }
     });
     
-    // ✅ VÉRIFICATION IMMÉDIATE APRÈS CRÉATION
-    console.log('🔍 [DIAGNOSTIC] === VÉRIFICATION TWEEN ===');
-    console.log('🔍 Tween créé:', !!mainTween);
-    console.log('🔍 Tween state initial:', mainTween.state);
-    console.log('🔍 Tween paused:', mainTween.paused);
-    console.log('🔍 Tween targets:', mainTween.targets?.length);
-    console.log('🔍 TweenManager actif:', this.tweens.manager?.state);
-    
-    // ✅ FORCER LE DÉMARRAGE SI NÉCESSAIRE
-    if (mainTween.state !== 2) { // Si pas en état RUNNING
-      console.log('🔧 [bulbi animation] Forçage démarrage tween...');
-      mainTween.restart();
-    }
-    
-    // ✅ VÉRIFICATION APRÈS 100ms
-    setTimeout(() => {
-      console.log('🕒 [bulbi animation] Vérification après 100ms:');
-      console.log('📍 Position actuelle:', { x: sprite.x, y: sprite.y, alpha: sprite.alpha });
-      console.log('🔍 État tween:', mainTween.state);
-      
-      if (mainTween.state !== 2 && sprite.alpha < 0.1) {
-        console.error('❌ [bulbi animation] TWEEN BLOQUÉ - ANIMATION MANUELLE');
-        
-        // Animation de secours manuelle
-        this.tweens.add({
-          targets: sprite,
-          alpha: 1,
-          x: targetX,
-          y: targetY,
-          scaleX: targetScaleX,
-          scaleY: targetScaleY,
-          duration: 800,
-          ease: 'Power2.easeOut',
-          onStart: () => console.log('🆘 Animation de secours démarrée'),
-          onComplete: () => console.log('🆘 Animation de secours terminée')
-        });
-      }
-    }, 100);
+    console.log('🎬 [bulbi animation] === TWEEN CONFIGURÉ ET LANCÉ ===', tweenId);
+    console.log('🔍 [DIAGNOSTIC] Tween créé:', !!mainTween);
+    console.log('🔍 [DIAGNOSTIC] Tween ID:', mainTween.id);
+    console.log('🔍 [DIAGNOSTIC] Tween targets:', mainTween.targets?.length);
     
     return mainTween;
     
   } catch (error) {
-    console.error('❌ [bulbi animation] EXCEPTION TWEEN:', error);
-    
-    // ✅ FALLBACK : AFFICHAGE IMMÉDIAT
-    console.log('🆘 [bulbi animation] FALLBACK - Affichage immédiat');
-    sprite.setPosition(targetX, targetY);
-    sprite.setScale(targetScaleX, targetScaleY);
-    sprite.setAlpha(1);
-    sprite.setVisible(true);
-    
+    console.error('🎬 [bulbi animation] ❌ EXCEPTION LORS CRÉATION TWEEN:', error);
+    console.error('🔍 [DIAGNOSTIC] Stack trace:', error.stack);
     return null;
   }
 }
@@ -1869,6 +1870,170 @@ window.addExp = function(exp = 20) {
   } else {
     console.warn('⚠️ BattleScene non active');
   }
+};
+
+window.testPlayerPokemonOnly = function() {
+  console.log('🧪 === TEST POKÉMON JOUEUR SEUL ===');
+  console.log('🌱 Test focus sur Bulbasaur uniquement...');
+  
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (!battleScene) {
+    console.error('❌ BattleScene non trouvée');
+    return;
+  }
+  
+  // ✅ ACTIVER LA SCÈNE SI NÉCESSAIRE
+  if (!window.game.scene.isActive('BattleScene')) {
+    console.log('🎬 Activation BattleScene...');
+    window.game.scene.wake('BattleScene');
+    window.game.scene.setVisible('BattleScene', true);
+  }
+  
+  // ✅ NETTOYER COMPLÈTEMENT
+  console.log('🧹 Nettoyage complet...');
+  battleScene.clearAllPokemonSprites();
+  if (battleScene.healthBarManager) {
+    battleScene.healthBarManager.clearHealthBars();
+  }
+  
+  // ✅ ACTIVER L'UI DE COMBAT
+  console.log('🎮 Activation UI battle...');
+  const uiResult = battleScene.activateBattleUI();
+  console.log('🎮 UI activée:', uiResult);
+  
+  // ✅ DONNÉES DE TEST POKÉMON JOUEUR
+  const testPlayerPokemon = {
+    pokemonId: 1,
+    id: 'test_bulbasaur_player',
+    name: 'Bulbasaur',
+    level: 5,
+    currentHp: 18,
+    maxHp: 20,
+    currentExp: 45,
+    expToNext: 100,
+    statusCondition: 'normal',
+    types: ['grass', 'poison']
+  };
+  
+  console.log('🌱 === AFFICHAGE BULBASAUR JOUEUR ===');
+  console.log('📋 Données:', testPlayerPokemon);
+  
+  // ✅ AFFICHER LE POKÉMON JOUEUR
+  try {
+    battleScene.displayPlayerPokemon(testPlayerPokemon);
+    console.log('✅ displayPlayerPokemon() appelée');
+  } catch (error) {
+    console.error('❌ Erreur dans displayPlayerPokemon():', error);
+  }
+  
+  // ✅ DIAGNOSTICS IMMÉDIATS
+  console.log('🔍 === DIAGNOSTIC IMMÉDIAT ===');
+  setTimeout(() => {
+    console.log('📊 État sprite joueur après 500ms:');
+    
+    if (battleScene.playerPokemonSprite) {
+      const sprite = battleScene.playerPokemonSprite;
+      console.log('✅ Sprite existe');
+      console.log('📍 Position:', { x: sprite.x, y: sprite.y });
+      console.log('👁️ Visibilité:', { 
+        visible: sprite.visible, 
+        alpha: sprite.alpha,
+        active: sprite.active 
+      });
+      console.log('🎨 Apparence:', {
+        scaleX: sprite.scaleX,
+        scaleY: sprite.scaleY,
+        depth: sprite.depth
+      });
+      console.log('🖼️ Texture:', sprite.texture.key);
+      console.log('🎯 Frame:', sprite.frame.name);
+      console.log('📐 Dimensions:', {
+        width: sprite.width,
+        height: sprite.height,
+        displayWidth: sprite.displayWidth,
+        displayHeight: sprite.displayHeight
+      });
+      
+      // Vérifier si dans la caméra
+      const camera = battleScene.cameras.main;
+      const inView = sprite.x >= 0 && sprite.x <= camera.width && 
+                     sprite.y >= 0 && sprite.y <= camera.height;
+      console.log('📷 Dans le champ de vision:', inView);
+      
+      // Forcer visibilité si problème
+      if (!sprite.visible || sprite.alpha < 0.1) {
+        console.log('🆘 FORÇAGE VISIBILITÉ...');
+        sprite.setVisible(true);
+        sprite.setAlpha(1);
+        sprite.setActive(true);
+        console.log('🆘 Sprite forcé à visible');
+      }
+      
+    } else {
+      console.error('❌ Aucun sprite joueur créé !');
+    }
+    
+    // Debug positions calculées
+    console.log('📐 Positions calculées:');
+    console.log('- playerAbsolute:', battleScene.pokemonPositions?.playerAbsolute);
+    console.log('- Camera:', { 
+      width: battleScene.cameras.main.width, 
+      height: battleScene.cameras.main.height 
+    });
+    
+    // Debug textures chargées
+    console.log('🖼️ Textures Pokémon disponibles:');
+    const pokemonTextures = [];
+    battleScene.textures.each((key, texture) => {
+      if (key.includes('pokemon_')) {
+        pokemonTextures.push(key);
+      }
+    });
+    console.log('📝 Liste:', pokemonTextures);
+    
+  }, 500);
+  
+  // ✅ DIAGNOSTIC APPROFONDI
+  setTimeout(() => {
+    console.log('🔍 === DIAGNOSTIC FINAL (2s) ===');
+    
+    if (battleScene.playerPokemonSprite) {
+      const sprite = battleScene.playerPokemonSprite;
+      console.log('✅ Sprite toujours présent');
+      console.log('📍 Position finale:', { x: sprite.x, y: sprite.y });
+      console.log('👁️ État final:', { 
+        visible: sprite.visible, 
+        alpha: sprite.alpha 
+      });
+      
+      // Test manuel de déplacement
+      console.log('🎯 Test déplacement manuel vers centre...');
+      sprite.setPosition(400, 300);
+      sprite.setAlpha(1);
+      sprite.setVisible(true);
+      console.log('🎯 Sprite déplacé au centre (400, 300)');
+      
+    } else {
+      console.error('❌ Sprite joueur perdu !');
+    }
+    
+    // Debug scene children
+    console.log('👥 Enfants de la scène:');
+    const children = battleScene.children.list;
+    console.log(`📊 Total: ${children.length} objets`);
+    
+    const pokemonSprites = children.filter(child => 
+      child.getData && child.getData('isPokemon')
+    );
+    console.log(`🐾 Sprites Pokémon: ${pokemonSprites.length}`);
+    
+    pokemonSprites.forEach((sprite, index) => {
+      console.log(`  ${index + 1}. ${sprite.getData('pokemonType')} - ${sprite.texture.key} - visible: ${sprite.visible}`);
+    });
+    
+  }, 2000);
+  
+  console.log('🚀 Test lancé - vérifiez les logs dans 2 secondes...');
 };
 
 window.setStatus = function(target = 'player', status = 'poison') {
