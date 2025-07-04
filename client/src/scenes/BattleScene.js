@@ -719,30 +719,37 @@ const spriteKey = `pokemon_${paddedId}_${view}`;
   // === ANIMATIONS ===
 
 animatePokemonEntry(sprite, direction) {
-  console.log('🟢 [animatePokemonEntry] Appelée pour:', sprite?.texture?.key, 'direction:', direction, 'visible:', sprite?.visible);
+  console.log('🎬 [bulbi animation] === DÉBUT ANIMATION ===');
+  console.log('🎬 [bulbi animation] Sprite reçu:', sprite?.texture?.key, 'direction:', direction);
+  console.log('🎬 [bulbi animation] Sprite visible avant:', sprite?.visible);
+  
   if (!sprite) {
-    console.warn('🟡 [animatePokemonEntry] Appelée avec sprite falsy !', sprite);
+    console.error('🎬 [bulbi animation] ERREUR: Sprite manquant !', sprite);
     return;
   }
 
   sprite.setVisible(true);
-  console.log('🟢 [animatePokemonEntry] après setVisible, visible:', sprite.visible);
+  console.log('🎬 [bulbi animation] Sprite rendu visible, état:', sprite.visible);
 
   const originalX = sprite.x;
   const originalY = sprite.y;
+  console.log('🎬 [bulbi animation] Position originale:', { x: originalX, y: originalY });
 
   const startX = direction === 'left' ? -150 : this.cameras.main.width + 150;
+  console.log('🎬 [bulbi animation] Position de départ calculée:', startX);
+  
   sprite.setPosition(startX, originalY + 50);
   sprite.setAlpha(0);
   sprite.setScale(sprite.scaleX * 0.5);
 
-  console.log('🟢 [animatePokemonEntry] avant tween:', {
+  console.log('🎬 [bulbi animation] Position initiale configurée:', {
     x: sprite.x,
     y: sprite.y,
     alpha: sprite.alpha,
     scale: sprite.scaleX
   });
 
+  console.log('🎬 [bulbi animation] Lancement tween vers position finale...');
   this.tweens.add({
     targets: sprite,
     x: originalX,
@@ -752,19 +759,48 @@ animatePokemonEntry(sprite, direction) {
     scaleY: sprite.scaleY * 2,
     duration: 1000,
     ease: 'Back.easeOut',
+    
+    onStart: () => {
+      console.log('🎬 [bulbi animation] ✅ TWEEN DÉMARRÉ !');
+    },
+    
+    onUpdate: (tween, target) => {
+      // Log moins fréquent pour éviter le spam
+      if (Math.random() < 0.05) { // 5% de chance par frame
+        console.log('🎬 [bulbi animation] Animation en cours:', {
+          progress: Math.round(tween.progress * 100) + '%',
+          x: Math.round(target.x),
+          alpha: Math.round(target.alpha * 100) / 100
+        });
+      }
+    },
+    
     onComplete: () => {
+      console.log('🎬 [bulbi animation] ✅ ANIMATION PRINCIPALE TERMINÉE !');
+      console.log('🎬 [bulbi animation] Position finale:', {
+        x: sprite.x,
+        y: sprite.y,
+        alpha: sprite.alpha,
+        scale: sprite.scaleX,
+        visible: sprite.visible
+      });
+      
+      // Animation de rebond final
+      console.log('🎬 [bulbi animation] Lancement rebond final...');
       this.tweens.add({
         targets: sprite,
         y: originalY + 8,
         duration: 300,
         yoyo: true,
-        ease: 'Bounce.easeOut'
+        ease: 'Bounce.easeOut',
+        onComplete: () => {
+          console.log('🎬 [bulbi animation] ✅ REBOND FINAL TERMINÉ - ANIMATION COMPLÈTE !');
+        }
       });
-      console.log('🟢 [animatePokemonEntry] Animation principale terminée, post-bounce lancé');
     }
   });
 
-  console.log('🟢 [animatePokemonEntry] Tween lancé !');
+  console.log('🎬 [bulbi animation] === TWEEN CONFIGURÉ ET LANCÉ ===');
 }
 
   addShinyEffect(sprite) {
