@@ -255,6 +255,20 @@
   grid-template-columns: 2fr 1fr;
   gap: 25px;
   height: 100%;
+  padding: 20px;
+}
+
+/* ✅ FIX: S'assurer que la grille des slots est correcte */
+.team-overview .team-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 15px;
+  width: 100%;
+  max-width: 500px;
+  min-width: 330px;
+  margin: 0 auto;
+  height: 100%;
 }
 
 .team-slots-grid {
@@ -1406,6 +1420,61 @@
 .team-view::-webkit-scrollbar-thumb {
   background: rgba(74, 144, 226, 0.6);
   border-radius: 4px;
+}
+
+/* ✅ STYLES MANQUANTS POUR LES SLOTS VIDES */
+.team-slot.empty-enhanced {
+  background: 
+    linear-gradient(45deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.08) 100%),
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      rgba(255, 255, 255, 0.01) 10px,
+      rgba(255, 255, 255, 0.01) 20px
+    );
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.team-slot.empty-enhanced:hover {
+  background: rgba(74, 144, 226, 0.08);
+  border-color: rgba(74, 144, 226, 0.4);
+  box-shadow: inset 0 0 20px rgba(74, 144, 226, 0.1);
+}
+
+.empty-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+  text-align: center;
+}
+
+.team-slot:hover .empty-slot {
+  opacity: 0.8;
+}
+
+.empty-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  color: #95a5a6;
+  animation: emptySlotFloat 3s ease-in-out infinite;
+}
+
+@keyframes emptySlotFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+
+.empty-text {
+  font-size: 11px;
+  color: #95a5a6;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .team-view::-webkit-scrollbar-thumb:hover {
