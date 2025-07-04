@@ -462,7 +462,7 @@ export class StarterHandlers {
   // VALIDATION SÉCURISÉE AVEC LOGS DÉTAILLÉS
   // ================================================================================================
 
-  private async validateStarterRequest(player: any, pokemonId: number): Promise<{
+  public async validateStarterRequest(player: any, pokemonId: number): Promise<{
     valid: boolean;
     reason?: string;
     message: string;
