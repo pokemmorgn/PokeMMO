@@ -141,8 +141,6 @@ export class TeamUI {
   }
 
   createTeamInterface() {
- const existing = document.getElementById('team-overlay');
-  if (existing) existing.remove();
     const overlay = document.createElement('div');
     overlay.id = 'team-overlay';
     overlay.className = 'team-overlay hidden';
@@ -259,22 +257,22 @@ export class TeamUI {
   }
 
   generateTeamSlots() {
-  let slotsHTML = '';
-  for (let i = 0; i < 6; i++) {
-    slotsHTML += `
-      <div class="team-slot empty-enhanced" data-slot="${i}">
-        <div class="slot-background">
-          <div class="slot-number">${i + 1}</div>
-          <div class="empty-slot">
-            <div class="empty-icon">➕</div>
-            <div class="empty-text">Add Pokémon</div>
+    let slotsHTML = '';
+    for (let i = 0; i < 6; i++) {
+      slotsHTML += `
+        <div class="team-slot empty-enhanced" data-slot="${i}">
+          <div class="slot-background">
+            <div class="slot-number">${i + 1}</div>
+            <div class="empty-slot">
+              <div class="empty-icon">➕</div>
+              <div class="empty-text">Add Pokémon</div>
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
+    }
+    return slotsHTML;
   }
-  return slotsHTML;
-}
 
   setupEventListeners() {
     // Fermeture
@@ -419,46 +417,41 @@ export class TeamUI {
     });
   }
 
-setupServerListeners() {
-  if (this._serverListenersSet) return; // ⬅️ Ne pas double-register
-  this._serverListenersSet = true;
+  setupServerListeners() {
+    if (!this.gameRoom) return;
 
-  if (!this.gameRoom) return;
+    this.gameRoom.onMessage("teamData", (data) => {
+      this.updateTeamData(data);
+    });
 
-  this.gameRoom.onMessage("teamData", (data) => {
-    this.updateTeamData(data);
-  });
+    this.gameRoom.onMessage("teamActionResult", (data) => {
+      this.handleTeamActionResult(data);
+    });
 
-  this.gameRoom.onMessage("teamActionResult", (data) => {
-    this.handleTeamActionResult(data);
-  });
+    this.gameRoom.onMessage("pokemonUpdate", (data) => {
+      this.handlePokemonUpdate(data);
+    });
+  }
 
-  this.gameRoom.onMessage("pokemonUpdate", (data) => {
-    this.handlePokemonUpdate(data);
-  });
-}
+  show() {
+    if (this.isVisible) return;
+    
+    this.isVisible = true;
+    this.overlay.classList.remove('hidden');
+    this.requestTeamData();
+    
+    console.log('⚔️ Interface d\'équipe ouverte');
+  }
 
-
-show() {
-  if (this.isVisible) return;
-  this.isVisible = true;
-  this.overlay.classList.remove('hidden');
-  this.overlay.style.display = 'flex'; // Force la visibilité (debug)
-  this.overlay.style.opacity = '1';
-  this.requestTeamData();
-  console.log('[DEBUG] TeamUI.show() appelé, overlay devrait être visible');
-}
-
-hide() {
-  if (!this.isVisible) return;
-  this.isVisible = false;
-  this.overlay.classList.add('hidden');
-  this.overlay.style.display = 'none';
-  this.overlay.style.opacity = '0';
-  this.deselectPokemon();
-  console.log('[DEBUG] TeamUI.hide() appelé, overlay caché');
-}
-
+  hide() {
+    if (!this.isVisible) return;
+    
+    this.isVisible = false;
+    this.overlay.classList.add('hidden');
+    this.deselectPokemon();
+    
+    console.log('⚔️ Interface d\'équipe fermée');
+  }
 
   toggle() {
     if (this.isVisible) {
@@ -481,68 +474,47 @@ hide() {
     console.log('⚔️ Données d\'équipe mises à jour:', this.teamData);
   }
 
-refreshTeamDisplay() {
-  const slotsContainer = this.overlay.querySelector('.team-slots-grid');
-  
-  // ✅ FIX: Ne pas vider, juste mettre à jour chaque slot
-  for (let i = 0; i < 6; i++) {
-    const pokemon = this.teamData[i];
-    let slot = slotsContainer.querySelector(`[data-slot="${i}"]`);
+  refreshTeamDisplay() {
+    const slotsContainer = this.overlay.querySelector('.team-slots-grid');
     
-    // Si le slot n'existe pas, le créer
-    if (!slot) {
-      slot = document.createElement('div');
-      slot.className = 'team-slot';
-      slot.dataset.slot = i;
-      
-      const slotBackground = document.createElement('div');
-      slotBackground.className = 'slot-background';
-      
-      const slotNumber = document.createElement('div');
-      slotNumber.className = 'slot-number';
-      slotNumber.textContent = i + 1;
-      slotBackground.appendChild(slotNumber);
-      
-      slot.appendChild(slotBackground);
-      slotsContainer.appendChild(slot);
-    }
+    // Clear existing pokemon cards
+    slotsContainer.querySelectorAll('.pokemon-card').forEach(card => card.remove());
     
-    const slotBackground = slot.querySelector('.slot-background');
-    
-    if (pokemon) {
-      // ✅ Afficher le Pokémon
-      slot.classList.remove('empty-enhanced');
-      this.displayPokemonInSlot(slot, pokemon, i);
-    } else {
-      // ✅ Afficher slot vide
+    // Reset all slots to empty state
+    slotsContainer.querySelectorAll('.slot-background').forEach((bg, index) => {
+      const slot = bg.parentElement;
+      bg.classList.remove('has-pokemon');
+      slot.classList.remove('selected');
       slot.classList.add('empty-enhanced');
       
-      // Nettoyer le contenu existant sauf le numéro
-      const existingCard = slot.querySelector('.pokemon-card');
-      if (existingCard) existingCard.remove();
-      
-      const existingEmpty = slot.querySelector('.empty-slot');
-      if (existingEmpty) existingEmpty.remove();
-      
-      // Ajouter l'affichage vide
-      const emptySlot = document.createElement('div');
-      emptySlot.className = 'empty-slot';
-      emptySlot.innerHTML = `
-        <div class="empty-icon">➕</div>
-        <div class="empty-text">Add Pokémon</div>
-      `;
-      slotBackground.appendChild(emptySlot);
-    }
-  }
+      const emptySlot = bg.querySelector('.empty-slot');
+      if (emptySlot) emptySlot.style.display = 'flex';
+    });
+    
+    // Display each pokemon
+    this.teamData.forEach((pokemon, index) => {
+      if (pokemon && index < 6) {
+        const slot = slotsContainer.querySelector(`[data-slot="${index}"]`);
+        this.displayPokemonInSlot(slot, pokemon, index);
+      }
+    });
 
-  // Réinstaller les listeners
-  this.setupSlotSelection();
-}
+    // ✅ Test de clic direct après création
+    setTimeout(() => {
+      const testCard = slotsContainer.querySelector('.pokemon-card');
+      if (testCard) {
+        console.log('🧪 Test - Carte trouvée:', testCard);
+        console.log('🧪 Test - onclick défini:', testCard.onclick ? 'OUI' : 'NON');
+        console.log('🧪 Test - dataset:', testCard.dataset);
+        console.log('🧪 Tapez "window.teamUI.testSelection()" dans la console pour tester la sélection');
+      }
+    }, 200);
+  }
 
   displayPokemonInSlot(slot, pokemon, index) {
     console.log('[DEBUG] Affichage Pokémon:', pokemon.pokemonId, this.getPokemonName(pokemon.pokemonId));
     
-    const slotBackground = slot.querySelector('.slot-background') || slot;
+    const slotBackground = slot.querySelector('.slot-background');
     
     // Hide empty slot and update classes
     const emptySlot = slot.querySelector('.empty-slot');
