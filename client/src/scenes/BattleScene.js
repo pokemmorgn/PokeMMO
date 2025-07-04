@@ -1311,32 +1311,72 @@ waitForPlayerAction() {
   }
 
   setupBattleNetworkEvents() {
-  console.log('📡 [BattleScene] Configuration événements réseau...');
+    console.log('📡 [BattleScene] Configuration événements réseau...');
+    
+    if (!this.battleNetworkHandler) {
+      console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour événements');
+      return;
+    }
+    
+    // Événements de combat
+    this.battleNetworkHandler.on('battleStart', (data) => {
+      console.log('⚔️ [BattleScene] battleStart reçu:', data);
+      this.handleNetworkBattleStart(data);
+    });
+    
+    this.battleNetworkHandler.on('turnChange', (data) => {
+      console.log('🔄 [BattleScene] turnChange reçu:', data);
+      this.handleNetworkTurnChange(data);
+    });
+    
+    this.battleNetworkHandler.on('battleMessage', (data) => {
+      console.log('💬 [BattleScene] battleMessage reçu:', data);
+      this.handleNetworkBattleMessage(data);
+    });
+    
+    console.log('✅ [BattleScene] Événements réseau configurés');
+}
+  // === HANDLERS ÉVÉNEMENTS RÉSEAU ===
+
+handleNetworkBattleStart(data) {
+  console.log('⚔️ [BattleScene] Traitement battleStart réseau:', data);
   
-  if (!this.battleNetworkHandler) {
-    console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour événements');
-    return;
+  // Afficher les Pokémon depuis les données serveur
+  if (data.playerPokemon) {
+    this.displayPlayerPokemon(data.playerPokemon);
   }
   
-  // Événements de combat
-  this.battleNetworkHandler.on('battleStart', (data) => {
-    console.log('⚔️ [BattleScene] battleStart reçu:', data);
-    this.handleNetworkBattleStart(data);
-  });
+  if (data.opponentPokemon) {
+    this.displayOpponentPokemon(data.opponentPokemon);
+  }
   
-  this.battleNetworkHandler.on('turnChange', (data) => {
-    console.log('🔄 [BattleScene] turnChange reçu:', data);
-    this.handleNetworkTurnChange(data);
-  });
-  
-  this.battleNetworkHandler.on('battleMessage', (data) => {
-    console.log('💬 [BattleScene] battleMessage reçu:', data);
-    this.handleNetworkBattleMessage(data);
-  });
-  
-  console.log('✅ [BattleScene] Événements réseau configurés');
+  // Activer l'UI de combat
+  this.activateBattleUI();
+  this.isVisible = true;
 }
+
+handleNetworkTurnChange(data) {
+  console.log('🔄 [BattleScene] Traitement turnChange réseau:', data);
   
+  // Si c'est le tour du joueur, afficher le menu d'actions
+  if (data.currentTurn === 'player' || data.isPlayerTurn) {
+    setTimeout(() => {
+      this.showPlayerActionMenu();
+    }, 1000);
+  }
+}
+
+handleNetworkBattleMessage(data) {
+  console.log('💬 [BattleScene] Message de combat:', data.message);
+  
+  // Afficher le message via notifications
+  if (window.showGameNotification) {
+    window.showGameNotification(data.message, 'info', {
+      duration: 3000,
+      position: 'top-center'
+    });
+  }
+}
   // === NETTOYAGE FINAL ===
 
   destroy() {
