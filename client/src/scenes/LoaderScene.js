@@ -69,6 +69,8 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
       this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
     // Npcs
     this.load.spritesheet('oldman1', 'assets/npc/oldman1.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.on('filecomplete-image-oldman1', () => {
+    console.log('✅ oldman1 chargé avec succès !');
     this.load.spritesheet('Scientist', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('OldLady', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
 
