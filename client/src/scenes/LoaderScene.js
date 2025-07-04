@@ -69,19 +69,19 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
       this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
     // Npcs
     this.load.spritesheet('oldman1', 'assets/npc/oldman1.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.on('filecomplete-image-oldman1', () => {
-    console.log('✅ oldman1 chargé avec succès !');
-      });
     this.load.spritesheet('Scientist', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('OldLady', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
 
     // ✅ SPRITES POKÉMON ESSENTIELS
 // Bulbasaur (ID: 1) - Starter
-this.load.image('pokemon_1_front', 'assets/sprites/pokemon_1_front.png');
-this.load.image('pokemon_1_back', 'assets/sprites/pokemon_1_back.png');
-
-    this.load.on('filecomplete-image-pokemon_1_back', () => {
-  console.log('✅ pokemon_1_back chargé avec succès !');
+// ✅ CORRECT - pour des spritesheets 9x9
+this.load.spritesheet('pokemon_1_front', 'assets/sprites/pokemon_1_front.png', {
+  frameWidth: 64,  // Ajustez selon votre config
+  frameHeight: 64
+});
+this.load.spritesheet('pokemon_1_back', 'assets/sprites/pokemon_1_back.png', {
+  frameWidth: 64,  // Ajustez selon votre config  
+  frameHeight: 64
 });
     
 // Charmander (ID: 4) - Starter
