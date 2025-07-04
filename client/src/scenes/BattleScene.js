@@ -1091,6 +1091,16 @@ handlePlayerActionSelected(actionData) {
 executePlayerMove(moveId) {
   console.log(`💥 [BattleScene] Attaque: ${moveId}`);
   
+  // Envoyer l'action au serveur
+  if (this.battleNetworkHandler) {
+    const success = this.battleNetworkHandler.useMove(moveId);
+    if (success) {
+      console.log('📤 [BattleScene] Action envoyée au serveur');
+    } else {
+      console.error('❌ [BattleScene] Échec envoi action au serveur');
+    }
+  }
+  
   if (window.showGameNotification) {
     window.showGameNotification(`${this.currentPlayerPokemon?.name || 'Votre Pokémon'} utilise ${moveId}!`, 'info', {
       duration: 2000,
@@ -1098,22 +1108,16 @@ executePlayerMove(moveId) {
     });
   }
   
-  // Simuler des dégâts sur l'adversaire
-  setTimeout(() => {
-    const damage = Math.floor(Math.random() * 15) + 5; // 5-20 dégâts
-    const remainingHp = this.simulateOpponentDamage(damage);
-    
-    // Réafficher l'interface après l'action
-    setTimeout(() => {
-      if (this.battleActionUI) {
-        this.battleActionUI.show();
-      }
-    }, 2000);
-  }, 1000);
+  // Ne plus simuler localement - le serveur va répondre
 }
 
 executePlayerItem(itemId) {
   console.log(`🎒 [BattleScene] Utilisation objet: ${itemId}`);
+  
+  // Envoyer au serveur
+  if (this.battleNetworkHandler) {
+    this.battleNetworkHandler.useItem(itemId);
+  }
   
   if (window.showGameNotification) {
     window.showGameNotification(`Utilisation de ${itemId}`, 'info', {
@@ -1121,43 +1125,22 @@ executePlayerItem(itemId) {
       position: 'top-center'
     });
   }
-  
-  // Si c'est une potion, soigner le Pokémon
-  if (itemId === 'potion' && this.currentPlayerPokemon && this.healthBarManager) {
-    const oldHp = this.currentPlayerPokemon.currentHp;
-    this.currentPlayerPokemon.currentHp = Math.min(
-      this.currentPlayerPokemon.maxHp,
-      this.currentPlayerPokemon.currentHp + 20
-    );
-    
-    // Mettre à jour la barre de vie
-    this.healthBarManager.updatePlayerHealthBar(this.currentPlayerPokemon);
-    
-    console.log(`💚 Pokémon soigné: ${oldHp} → ${this.currentPlayerPokemon.currentHp} PV`);
-  }
-  
-  // Réafficher l'interface
-  setTimeout(() => {
-    if (this.battleActionUI) {
-      this.battleActionUI.show();
-    }
-  }, 2000);
 }
 
 executePlayerRun() {
   console.log(`🏃 [BattleScene] Tentative de fuite`);
   
+  // Envoyer au serveur
+  if (this.battleNetworkHandler) {
+    this.battleNetworkHandler.attemptRun();
+  }
+  
   if (window.showGameNotification) {
-    window.showGameNotification('Vous prenez la fuite !', 'warning', {
+    window.showGameNotification('Tentative de fuite...', 'warning', {
       duration: 2000,
       position: 'top-center'
     });
   }
-  
-  // Terminer le combat après 2 secondes
-  setTimeout(() => {
-    this.endBattle({ result: 'fled' });
-  }, 2000);
 }
   /**
    * Test cycle complet combat avec HealthBarManager
