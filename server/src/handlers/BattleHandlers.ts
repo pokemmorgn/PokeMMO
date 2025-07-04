@@ -198,6 +198,7 @@ export class BattleHandlers {
         success: true,
         battleRoomId: battleRoom.roomId,
         battleType: "wild",
+        playerPokemon: playerPokemon,  // ✅ AJOUT
         wildPokemon: {
           pokemonId: data.wildPokemon.pokemonId,
           level: data.wildPokemon.level,
