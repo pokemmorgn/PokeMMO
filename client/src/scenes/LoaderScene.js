@@ -88,7 +88,8 @@ this.load.image('pokemon_7_back', 'assets/sprites/pokemon_7_back.png');
 // Pikachu (ID: 25) - Commun
 this.load.image('pokemon_25_front', 'assets/sprites/pokemon_25_front.png');
 this.load.image('pokemon_25_back', 'assets/sprites/pokemon_25_back.png');
-    
+
+    console.log('🐾 [LoaderScene] Sprites Pokémon ajoutés au loader !');
     // Charger le spritesheet du joueur (32x32 par frame)
     this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
     frameWidth: 32,
