@@ -725,7 +725,6 @@ const spriteKey = `pokemon_${paddedId}_${view}`;
 animatePokemonEntry(sprite, direction) {
   console.log('🎬 [bulbi animation] === DÉBUT ANIMATION ===');
   console.log('🎬 [bulbi animation] Sprite reçu:', sprite?.texture?.key, 'direction:', direction);
-  console.log('🎬 [bulbi animation] Sprite visible avant:', sprite?.visible);
   
   if (!sprite) {
     console.error('🎬 [bulbi animation] ERREUR: Sprite manquant !', sprite);
@@ -733,18 +732,19 @@ animatePokemonEntry(sprite, direction) {
   }
 
   sprite.setVisible(true);
-  console.log('🎬 [bulbi animation] Sprite rendu visible, état:', sprite.visible);
+  sprite.setActive(true); // ✅ Assurer que le sprite est actif
+  console.log('🎬 [bulbi animation] Sprite rendu visible et actif');
 
   const originalX = sprite.x;
   const originalY = sprite.y;
-  console.log('🎬 [bulbi animation] Position originale:', { x: originalX, y: originalY });
+  const originalScaleX = sprite.scaleX;
+  const originalScaleY = sprite.scaleY;
 
   const startX = direction === 'left' ? -150 : this.cameras.main.width + 150;
-  console.log('🎬 [bulbi animation] Position de départ calculée:', startX);
   
   sprite.setPosition(startX, originalY + 50);
   sprite.setAlpha(0);
-  sprite.setScale(sprite.scaleX * 0.5);
+  sprite.setScale(originalScaleX * 0.5, originalScaleY * 0.5);
 
   console.log('🎬 [bulbi animation] Position initiale configurée:', {
     x: sprite.x,
@@ -753,25 +753,33 @@ animatePokemonEntry(sprite, direction) {
     scale: sprite.scaleX
   });
 
+  // ✅ FIX: ID unique pour chaque tween basé sur la texture et direction
+  const tweenId = `pokemon_entry_${sprite.texture.key}_${direction}_${Date.now()}`;
+  console.log('🎬 [bulbi animation] ID tween unique:', tweenId);
+
   console.log('🎬 [bulbi animation] Lancement tween vers position finale...');
-  this.tweens.add({
+  const mainTween = this.tweens.add({
     targets: sprite,
     x: originalX,
     y: originalY,
     alpha: 1,
-    scaleX: sprite.scaleX * 2,
-    scaleY: sprite.scaleY * 2,
+    scaleX: originalScaleX,
+    scaleY: originalScaleY,
     duration: 1000,
     ease: 'Back.easeOut',
     
+    // ✅ FIX: Propriétés pour éviter les conflits
+    id: tweenId,
+    persist: true,
+    
     onStart: () => {
-      console.log('🎬 [bulbi animation] ✅ TWEEN DÉMARRÉ !');
+      console.log('🎬 [bulbi animation] ✅ TWEEN DÉMARRÉ !', tweenId);
     },
     
     onUpdate: (tween, target) => {
-      // Log moins fréquent pour éviter le spam
-      if (Math.random() < 0.05) { // 5% de chance par frame
+      if (Math.random() < 0.03) { // 3% de chance par frame
         console.log('🎬 [bulbi animation] Animation en cours:', {
+          id: tweenId,
           progress: Math.round(tween.progress * 100) + '%',
           x: Math.round(target.x),
           alpha: Math.round(target.alpha * 100) / 100
@@ -780,31 +788,26 @@ animatePokemonEntry(sprite, direction) {
     },
     
     onComplete: () => {
-      console.log('🎬 [bulbi animation] ✅ ANIMATION PRINCIPALE TERMINÉE !');
-      console.log('🎬 [bulbi animation] Position finale:', {
-        x: sprite.x,
-        y: sprite.y,
-        alpha: sprite.alpha,
-        scale: sprite.scaleX,
-        visible: sprite.visible
-      });
+      console.log('🎬 [bulbi animation] ✅ ANIMATION PRINCIPALE TERMINÉE !', tweenId);
       
-      // Animation de rebond final
-      console.log('🎬 [bulbi animation] Lancement rebond final...');
+      // Animation de rebond final avec ID unique
+      const bounceId = `pokemon_bounce_${sprite.texture.key}_${Date.now()}`;
       this.tweens.add({
         targets: sprite,
         y: originalY + 8,
         duration: 300,
         yoyo: true,
         ease: 'Bounce.easeOut',
+        id: bounceId,
         onComplete: () => {
-          console.log('🎬 [bulbi animation] ✅ REBOND FINAL TERMINÉ - ANIMATION COMPLÈTE !');
+          console.log('🎬 [bulbi animation] ✅ REBOND FINAL TERMINÉ !', bounceId);
         }
       });
     }
   });
 
-  console.log('🎬 [bulbi animation] === TWEEN CONFIGURÉ ET LANCÉ ===');
+  console.log('🎬 [bulbi animation] === TWEEN CONFIGURÉ ET LANCÉ ===', tweenId);
+  return mainTween;
 }
 
   addShinyEffect(sprite) {
