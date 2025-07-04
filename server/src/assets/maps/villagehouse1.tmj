@@ -219,7 +219,7 @@
                 }, 
                 {
                  "height":0,
-                 "id":15,
+                 "id":16,
                  "name":"spawn",
                  "point":true,
                  "properties":[
@@ -237,8 +237,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":202.5,
-                 "y":365
+                 "x":211,
+                 "y":364
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -372,7 +372,7 @@
          "y":0
         }],
  "nextlayerid":11,
- "nextobjectid":16,
+ "nextobjectid":17,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
@@ -38250,12 +38250,12 @@
          "columns":58,
          "firstgid":10126,
          "image":"..\/_Sprites\/AssetsInterior.png",
-         "imageheight":1056,
+         "imageheight":1296,
          "imagewidth":928,
          "margin":0,
          "name":"AssetsInterior",
          "spacing":0,
-         "tilecount":3828,
+         "tilecount":4698,
          "tileheight":16,
          "tiles":[
                 {
