@@ -545,21 +545,18 @@ displayPlayerPokemon(pokemonData) {
     this.playerPokemonSprite.setData('pokemonType', 'player');
     this.playerPokemonSprite.setData('pokemonId', pokemonData.pokemonId);
     
-    console.log('🎬 [bulbi animation] === LANCEMENT ANIMATION JOUEUR (avec vérification) ===');
+    console.log('🎬 [bulbi animation] === LANCEMENT ANIMATION JOUEUR (délai 4s) ===');
     
-    // ✅ Vérifier que le sprite est prêt avant l'animation
-    const startAnimation = () => {
-      if (this.playerPokemonSprite && this.playerPokemonSprite.texture.source[0]?.image) {
-        console.log('🎬 [bulbi animation] Sprite prêt, lancement animation...');
+    // ✅ DÉLAI DE 4 SECONDES pour être sûr
+    setTimeout(() => {
+      console.log('🎬 [bulbi animation] === 4 SECONDES ÉCOULÉES - LANCEMENT ANIMATION ===');
+      if (this.playerPokemonSprite) {
+        console.log('🎬 [bulbi animation] Sprite existe encore, animation...');
         this.animatePokemonEntry(this.playerPokemonSprite, 'left');
       } else {
-        console.log('⏳ [bulbi animation] Sprite pas encore prêt, nouvelle tentative...');
-        setTimeout(startAnimation, 50);
+        console.error('❌ [bulbi animation] Sprite perdu après 4s !');
       }
-    };
-    
-    // Délai initial puis vérification
-    setTimeout(startAnimation, 100);
+    }, 4000);  // 4 secondes
     
     this.currentPlayerPokemon = pokemonData;
     
