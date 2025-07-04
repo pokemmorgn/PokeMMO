@@ -158,16 +158,32 @@ async initializeBattleScene() {
         console.log('ℹ️ [BattleIntegration] BattleScene déjà enregistrée');
       }
     }
+
     
-    // ✅ AJOUT: Démarrer BattleScene immédiatement
-    if (!this.phaserGame.scene.isActive('BattleScene')) {
-      console.log('🚀 [BattleIntegration] Démarrage BattleScene...');
-      this.phaserGame.scene.start('BattleScene', {
-        battleNetworkHandler: this.battleConnection.networkHandler,
-        gameManager: this.gameManager
-      });
-      console.log('✅ [BattleIntegration] BattleScene démarrée et prête');
-    }
+
+      // ✅ MODIFIÉ: Démarrer BattleScene mais la laisser masquée
+      if (!this.phaserGame.scene.isActive('BattleScene')) {
+        console.log('🚀 [BattleIntegration] Démarrage BattleScene (masquée)...');
+        this.phaserGame.scene.start('BattleScene', {
+          battleNetworkHandler: this.battleConnection.networkHandler,
+          gameManager: this.gameManager
+        });
+        
+        // ✅ IMPORTANT: Vérifier qu'elle est bien masquée après démarrage
+        setTimeout(() => {
+          if (this.phaserGame.scene.isActive('BattleScene')) {
+            const battleScene = this.phaserGame.scene.getScene('BattleScene');
+            if (battleScene && battleScene.isVisible) {
+              console.log('⚠️ [BattleIntegration] BattleScene était visible, force le masquage...');
+              this.phaserGame.scene.setVisible(false, 'BattleScene');
+              this.phaserGame.scene.sleep('BattleScene');
+            }
+            console.log('😴 [BattleIntegration] BattleScene démarrée mais masquée');
+          }
+        }, 100);
+  
+  console.log('✅ [BattleIntegration] BattleScene préparée et masquée');
+}
     
   } catch (error) {
     console.warn('⚠️ [BattleIntegration] Erreur BattleScene:', error);
