@@ -1872,9 +1872,9 @@ window.addExp = function(exp = 20) {
   }
 };
 
-// === TEST ANIMATION POKÉMON JOUEUR ISOLÉ ===
-window.testPlayerAnimationOnly = function() {
-  console.log('🎬 === TEST ANIMATION JOUEUR ISOLÉ ===');
+window.testPlayerPokemonOnly = function() {
+  console.log('🧪 === TEST POKÉMON JOUEUR SEUL ===');
+  console.log('🌱 Test focus sur Bulbasaur uniquement...');
   
   const battleScene = window.game?.scene?.getScene('BattleScene');
   if (!battleScene) {
@@ -1882,143 +1882,167 @@ window.testPlayerAnimationOnly = function() {
     return;
   }
   
-  // S'assurer que le sprite existe
-  if (!battleScene.playerPokemonSprite) {
-    console.error('❌ Aucun sprite joueur - lancez d\'abord testPlayerPokemonOnly()');
-    return;
+  // ✅ ACTIVER LA SCÈNE SI NÉCESSAIRE
+  if (!window.game.scene.isActive('BattleScene')) {
+    console.log('🎬 Activation BattleScene...');
+    window.game.scene.wake('BattleScene');
+    window.game.scene.setVisible('BattleScene', true);
   }
   
-  const sprite = battleScene.playerPokemonSprite;
-  console.log('🎯 Sprite trouvé:', sprite.texture.key);
-  
-  // Position cible (centre de l'écran pour test)
-  const targetX = 200; // Position joueur normale
-  const targetY = 450; // Position joueur normale
-  
-  console.log('📍 Position actuelle:', {x: sprite.x, y: sprite.y});
-  console.log('🎯 Position cible:', {x: targetX, y: targetY});
-  
-  // Réinitialiser le sprite à gauche
-  sprite.setPosition(-100, targetY + 30);
-  sprite.setScale(1.4); // Scale réduite
-  sprite.setAlpha(0);
-  sprite.setVisible(true);
-  sprite.setActive(true);
-  
-  console.log('🚀 Position de départ configurée:', {
-    x: sprite.x, 
-    y: sprite.y, 
-    alpha: sprite.alpha,
-    scale: sprite.scaleX
-  });
-  
-  // Lancer l'animation manuellement
-  console.log('🎬 LANCEMENT ANIMATION MANUELLE...');
-  
-  const tween = battleScene.tweens.add({
-    targets: sprite,
-    x: targetX,
-    y: targetY,
-    alpha: 1,
-    scaleX: 2.8,
-    scaleY: 2.8,
-    duration: 1000,
-    ease: 'Back.easeOut',
-    
-    onStart: () => {
-      console.log('✅ ANIMATION DÉMARRÉE !');
-      console.log('📍 Position au démarrage:', {x: sprite.x, y: sprite.y});
-    },
-    
-    onUpdate: (tween, target) => {
-      if (Math.random() < 0.05) { // 5% de chance
-        console.log('📈 Progression:', {
-          progress: Math.round(tween.progress * 100) + '%',
-          x: Math.round(target.x),
-          y: Math.round(target.y),
-          alpha: Math.round(target.alpha * 100) / 100
-        });
-      }
-    },
-    
-    onComplete: () => {
-      console.log('✅ ANIMATION TERMINÉE !');
-      console.log('📍 Position finale:', {
-        x: sprite.x, 
-        y: sprite.y, 
-        alpha: sprite.alpha,
-        scale: sprite.scaleX
-      });
-      
-      // Rebond final
-      battleScene.tweens.add({
-        targets: sprite,
-        y: targetY - 10,
-        duration: 200,
-        ease: 'Bounce.easeOut',
-        yoyo: true,
-        onComplete: () => {
-          console.log('🎾 REBOND TERMINÉ !');
-        }
-      });
-    }
-  });
-  
-  console.log('🔍 État tween après création:', tween.state);
-  console.log('🎬 Animation lancée - observez le sprite !');
-};
-
-// === TEST POSITIONS CALCULÉES ===
-window.debugPlayerPositions = function() {
-  console.log('📐 === DEBUG POSITIONS JOUEUR ===');
-  
-  const battleScene = window.game?.scene?.getScene('BattleScene');
-  if (!battleScene) {
-    console.error('❌ BattleScene non trouvée');
-    return;
+  // ✅ NETTOYER COMPLÈTEMENT
+  console.log('🧹 Nettoyage complet...');
+  battleScene.clearAllPokemonSprites();
+  if (battleScene.healthBarManager) {
+    battleScene.healthBarManager.clearHealthBars();
   }
   
-  console.log('📏 Caméra:', {
-    width: battleScene.cameras.main.width,
-    height: battleScene.cameras.main.height
-  });
+  // ✅ ACTIVER L'UI DE COMBAT
+  console.log('🎮 Activation UI battle...');
+  const uiResult = battleScene.activateBattleUI();
+  console.log('🎮 UI activée:', uiResult);
   
-  console.log('📍 Positions configurées:');
-  console.log('- pokemonPositions.player (%):', battleScene.pokemonPositions.player);
-  console.log('- pokemonPositions.playerAbsolute:', battleScene.pokemonPositions.playerAbsolute);
-  
-  if (battleScene.playerPokemonSprite) {
-    console.log('🎯 Position sprite actuelle:', {
-      x: battleScene.playerPokemonSprite.x,
-      y: battleScene.playerPokemonSprite.y
-    });
-  }
-  
-  // Calculer manuellement les positions
-  const { width, height } = battleScene.cameras.main;
-  const calculatedPlayer = {
-    x: width * 0.15,  // 15% de la largeur
-    y: height * 0.75  // 75% de la hauteur
+  // ✅ DONNÉES DE TEST POKÉMON JOUEUR
+  const testPlayerPokemon = {
+    pokemonId: 1,
+    id: 'test_bulbasaur_player',
+    name: 'Bulbasaur',
+    level: 5,
+    currentHp: 18,
+    maxHp: 20,
+    currentExp: 45,
+    expToNext: 100,
+    statusCondition: 'normal',
+    types: ['grass', 'poison']
   };
   
-  console.log('🧮 Position calculée manuellement:', calculatedPlayer);
+  console.log('🌱 === AFFICHAGE BULBASAUR JOUEUR ===');
+  console.log('📋 Données:', testPlayerPokemon);
   
-  // Test si les positions sont cohérentes
-  const stored = battleScene.pokemonPositions?.playerAbsolute;
-  if (stored) {
-    const diff = {
-      x: Math.abs(stored.x - calculatedPlayer.x),
-      y: Math.abs(stored.y - calculatedPlayer.y)
-    };
-    console.log('📊 Différence avec stockée:', diff);
+  // ✅ AFFICHER LE POKÉMON JOUEUR
+  try {
+    battleScene.displayPlayerPokemon(testPlayerPokemon);
+    console.log('✅ displayPlayerPokemon() appelée');
+  } catch (error) {
+    console.error('❌ Erreur dans displayPlayerPokemon():', error);
+  }
+  
+  // ✅ DIAGNOSTICS IMMÉDIATS
+  console.log('🔍 === DIAGNOSTIC IMMÉDIAT ===');
+  setTimeout(() => {
+    console.log('📊 État sprite joueur après 500ms:');
     
-    if (diff.x > 5 || diff.y > 5) {
-      console.warn('⚠️ INCOHÉRENCE dans les positions !');
+    if (battleScene.playerPokemonSprite) {
+      const sprite = battleScene.playerPokemonSprite;
+      console.log('✅ Sprite existe');
+      console.log('📍 Position:', { x: sprite.x, y: sprite.y });
+      console.log('👁️ Visibilité:', { 
+        visible: sprite.visible, 
+        alpha: sprite.alpha,
+        active: sprite.active 
+      });
+      console.log('🎨 Apparence:', {
+        scaleX: sprite.scaleX,
+        scaleY: sprite.scaleY,
+        depth: sprite.depth
+      });
+      console.log('🖼️ Texture:', sprite.texture.key);
+      console.log('🎯 Frame:', sprite.frame.name);
+      console.log('📐 Dimensions:', {
+        width: sprite.width,
+        height: sprite.height,
+        displayWidth: sprite.displayWidth,
+        displayHeight: sprite.displayHeight
+      });
       
-      // Corriger
-      battleScene.pokemonPositions.playerAbsolute = calculatedPlayer;
-      console.log('🔧 Position corrigée');
+      // Vérifier si dans la caméra
+      const camera = battleScene.cameras.main;
+      const inView = sprite.x >= 0 && sprite.x <= camera.width && 
+                     sprite.y >= 0 && sprite.y <= camera.height;
+      console.log('📷 Dans le champ de vision:', inView);
+      
+      // Forcer visibilité si problème
+      if (!sprite.visible || sprite.alpha < 0.1) {
+        console.log('🆘 FORÇAGE VISIBILITÉ...');
+        sprite.setVisible(true);
+        sprite.setAlpha(1);
+        sprite.setActive(true);
+        console.log('🆘 Sprite forcé à visible');
+      }
+      
+    } else {
+      console.error('❌ Aucun sprite joueur créé !');
     }
+    
+    // Debug positions calculées
+    console.log('📐 Positions calculées:');
+    console.log('- playerAbsolute:', battleScene.pokemonPositions?.playerAbsolute);
+    console.log('- Camera:', { 
+      width: battleScene.cameras.main.width, 
+      height: battleScene.cameras.main.height 
+    });
+    
+    // Debug textures chargées
+    console.log('🖼️ Textures Pokémon disponibles:');
+    const pokemonTextures = [];
+    battleScene.textures.each((key, texture) => {
+      if (key.includes('pokemon_')) {
+        pokemonTextures.push(key);
+      }
+    });
+    console.log('📝 Liste:', pokemonTextures);
+    
+  }, 500);
+  
+  // ✅ DIAGNOSTIC APPROFONDI
+  setTimeout(() => {
+    console.log('🔍 === DIAGNOSTIC FINAL (2s) ===');
+    
+    if (battleScene.playerPokemonSprite) {
+      const sprite = battleScene.playerPokemonSprite;
+      console.log('✅ Sprite toujours présent');
+      console.log('📍 Position finale:', { x: sprite.x, y: sprite.y });
+      console.log('👁️ État final:', { 
+        visible: sprite.visible, 
+        alpha: sprite.alpha 
+      });
+      
+      // Test manuel de déplacement
+      console.log('🎯 Test déplacement manuel vers centre...');
+      sprite.setPosition(400, 300);
+      sprite.setAlpha(1);
+      sprite.setVisible(true);
+      console.log('🎯 Sprite déplacé au centre (400, 300)');
+      
+    } else {
+      console.error('❌ Sprite joueur perdu !');
+    }
+    
+    // Debug scene children
+    console.log('👥 Enfants de la scène:');
+    const children = battleScene.children.list;
+    console.log(`📊 Total: ${children.length} objets`);
+    
+    const pokemonSprites = children.filter(child => 
+      child.getData && child.getData('isPokemon')
+    );
+    console.log(`🐾 Sprites Pokémon: ${pokemonSprites.length}`);
+    
+    pokemonSprites.forEach((sprite, index) => {
+      console.log(`  ${index + 1}. ${sprite.getData('pokemonType')} - ${sprite.texture.key} - visible: ${sprite.visible}`);
+    });
+    
+  }, 2000);
+  
+  console.log('🚀 Test lancé - vérifiez les logs dans 2 secondes...');
+};
+
+window.setStatus = function(target = 'player', status = 'poison') {
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (battleScene && window.game.scene.isActive('BattleScene')) {
+    const result = battleScene.changeStatus(target, status);
+    console.log(`🔮 Statut ${target}: ${result}`);
+  } else {
+    console.warn('⚠️ BattleScene non active');
   }
 };
 
