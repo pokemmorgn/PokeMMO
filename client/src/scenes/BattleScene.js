@@ -488,14 +488,24 @@ createFallbackSprite(view) {
 displayPlayerPokemon(pokemonData) {
   console.log('👤 [BattleScene] Affichage Pokémon joueur - VERSION CORRIGÉE:', pokemonData);
   
-  // ✅ CORRECTION 1: S'assurer que la scène est complètement active
-  if (!this.isActive || !this.scene.isActive()) {
-    console.warn('⚠️ [BattleScene] Scène non active, activation forcée...');
-    this.scene.wake();
+  // ✅ CORRECTION: Bonne méthode pour vérifier si la scène est active
+  const isSceneActive = this.scene.isActive('BattleScene');
+  
+  if (!this.isActive || !isSceneActive) {
+    console.warn('⚠️ [BattleScene] Scène non active, activation forcée...', {
+      thisIsActive: this.isActive,
+      sceneIsActive: isSceneActive
+    });
+    
+    // Réveiller la scène si elle dort
+    if (this.scene.isSleeping('BattleScene')) {
+      this.scene.wake('BattleScene');
+    }
+    
     this.isActive = true;
   }
   
-  // ✅ CORRECTION 2: Attendre que la scène soit vraiment prête
+  // ✅ CORRECTION: Attendre que la scène soit vraiment prête
   this.time.delayedCall(50, () => {
     this._displayPlayerPokemonImmediate(pokemonData);
   });
