@@ -695,10 +695,11 @@ const spriteKey = `pokemon_${paddedId}_${view}`;
   // === ANIMATIONS ===
 
   animatePokemonEntry(sprite, direction) {
+    console.log('🟢 [animatePokemonEntry] Appelée pour:', sprite?.texture?.key, 'direction:', direction, 'visible:', sprite?.visible);
     if (!sprite) return;
-      // FORCE l'affichage dès le début de l'animation !
     sprite.setVisible(true);
-    
+      // FORCE l'affichage dès le début de l'animation !
+    console.log('🎬 Animation entrée sur', sprite.texture.key);
     const originalX = sprite.x;
     const originalY = sprite.y;
     
