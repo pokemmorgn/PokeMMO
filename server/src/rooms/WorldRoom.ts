@@ -54,7 +54,8 @@ export class WorldRoom extends Room<PokeWorldState> {
   private teamHandlers!: TeamHandlers;
   private questHandlers!: QuestHandlers;
   private battleHandlers!: BattleHandlers;
-  private starterHandlers!: StarterHandlers;
+  public starterHandlers!: StarterHandlers;
+  
 
   // Limite pour auto-scaling
   maxClients = 50;
