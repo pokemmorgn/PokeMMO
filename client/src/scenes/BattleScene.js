@@ -8,7 +8,8 @@ let pokemonSpriteConfig = null;
 export class BattleScene extends Phaser.Scene {
   constructor() {
     super({ key: 'BattleScene' });
-    this.currentZone = null;
+    this.currentZone = null  // ✅ SAUVEGARDER LES VALEURS ORIGINALES AVANT MODIFICATION
+    
     
     // Managers
     this.battleManager = null;
@@ -768,8 +769,6 @@ animatePokemonEntry(sprite, direction) {
   console.log('🔍 [DIAGNOSTIC] === FIN DIAGNOSTIC ===');
 
   // ✅ VÉRIFICATION CRITIQUE CORRIGÉE
-  // Dans Phaser, ready et valid peuvent être undefined mais le sprite peut quand même fonctionner
-  // Si la source existe et l'image est présente, on peut tenter l'animation
   const hasValidSource = sprite.texture.source && sprite.texture.source[0] && sprite.texture.source[0].image;
   const hasValidFrame = sprite.frame && sprite.frame.width > 0 && sprite.frame.height > 0;
   
@@ -786,13 +785,7 @@ animatePokemonEntry(sprite, direction) {
   console.log('🔍 [DIAGNOSTIC] ✅ TEXTURE UTILISABLE (source et frame valides)');
   console.log('🔍 [DIAGNOSTIC] Proceeding with animation despite undefined ready/valid status');
 
-  // ✅ CONFIGURATION DU SPRITE
-  sprite.setVisible(true);
-  sprite.setActive(true);
-  console.log('🎬 [bulbi animation] Sprite rendu visible et actif');
-  console.log('🔍 [DIAGNOSTIC] Sprite active APRÈS setActive:', sprite.active);
-  console.log('🔍 [DIAGNOSTIC] Sprite visible APRÈS setVisible:', sprite.visible);
-
+  // ✅ SAUVEGARDER LES VALEURS ORIGINALES AVANT MODIFICATION
   const originalX = sprite.x;
   const originalY = sprite.y;
   const originalScaleX = sprite.scaleX;
@@ -804,10 +797,18 @@ animatePokemonEntry(sprite, direction) {
   const startX = direction === 'left' ? -150 : this.cameras.main.width + 150;
   console.log('🎬 [bulbi animation] Position de départ calculée:', startX);
   
-  // ✅ CONFIGURATION INITIALE AVEC VÉRIFICATIONS
+  // ✅ FIX CRITIQUE: CONFIGURATION INITIALE AVANT ACTIVATION
   sprite.setPosition(startX, originalY + 50);
   sprite.setAlpha(0);
   sprite.setScale(originalScaleX * 0.5, originalScaleY * 0.5);
+  
+  // ✅ FIX: ACTIVER LE SPRITE APRÈS CONFIGURATION INITIALE
+  sprite.setActive(true);
+  sprite.setVisible(true);
+  
+  console.log('🎬 [bulbi animation] Sprite configuré puis activé');
+  console.log('🔍 [DIAGNOSTIC] Sprite active APRÈS setActive:', sprite.active);
+  console.log('🔍 [DIAGNOSTIC] Sprite visible APRÈS setVisible:', sprite.visible);
 
   console.log('🎬 [bulbi animation] Position initiale configurée:', {
     x: sprite.x,
