@@ -327,8 +327,8 @@ const config = {
     LavandiaHouse8Scene,
     LavandiaHouse9Scene,
     LavandiaResearchLabScene,
-    LavandiaShopScene,
-    BattleScene
+    LavandiaShopScene
+    //BattleScene
   ],
   physics: {
     default: 'arcade',
