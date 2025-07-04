@@ -77,7 +77,8 @@ export class ZoneManager {
       this.interactionManager = new InteractionManager(
         this.room.getNpcManager.bind(this.room),
         this.questManager,
-        this.shopManager
+        this.shopManager,
+        this.room.starterHandlers // ✅ PASSER L'INSTANCE
       );
       console.log(`✅ InteractionManager initialisé avec ShopManager`);
     } catch (error) {
