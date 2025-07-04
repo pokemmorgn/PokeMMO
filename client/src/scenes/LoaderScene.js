@@ -72,59 +72,6 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
     this.load.spritesheet('Scientist', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('OldLady', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
 
-    // ✅ SPRITES POKÉMON ESSENTIELS
-// Bulbasaur (ID: 1) - Starter
-this.load.spritesheet('pokemon_1_front', 'assets/pokemon/001/front.png', {
-  frameWidth: 64,  // À ajuster selon votre image
-  frameHeight: 64
-});
-this.load.spritesheet('pokemon_1_back', 'assets/pokemon/001/back.png', {
-  frameWidth: 64,
-  frameHeight: 64
-});
-
-// ✅ DEBUG pour spritesheets - SUCCÈS
-this.load.on('filecomplete-spritesheet-pokemon_1_front', () => {
-  console.log('✅ pokemon_1_front spritesheet chargé avec succès !');
-});
-
-// ✅ TEST pour connaître les dimensions
-this.load.image('pokemon_1_back_test', 'assets/pokemon/001/back.png');
-
-this.load.on('filecomplete-image-pokemon_1_back_test', (key, type, texture) => {
-  const width = texture.source[0].width;
-  const height = texture.source[0].height;
-  console.log(`📏 Taille totale: ${width}x${height}`);
-  
-  // Calculer pour différentes tailles de frames
-  [32, 48, 64, 80, 96].forEach(frameSize => {
-    const framesX = width / frameSize;
-    const framesY = height / frameSize;
-    if (framesX % 1 === 0 && framesY % 1 === 0) {
-      console.log(`🎯 Possible: frameWidth=${frameSize}, frameHeight=${frameSize}, frames=${framesX * framesY}`);
-    }
-  });
-});
-
-// ❌ DEBUG - ÉCHEC
-this.load.on('loaderror', (file) => {
-  if (file.key === 'pokemon_1_front' || file.key === 'pokemon_1_back') {
-    console.error('❌ ÉCHEC chargement Pokémon:', file.key, file.src, file.error);
-  }
-});
-// Charmander (ID: 4) - Starter
-this.load.image('pokemon_4_front', 'assets/sprites/pokemon_4_front.png');
-this.load.image('pokemon_4_back', 'assets/sprites/pokemon_4_back.png');
-
-// Squirtle (ID: 7) - Starter
-this.load.image('pokemon_7_front', 'assets/sprites/pokemon_7_front.png');
-this.load.image('pokemon_7_back', 'assets/sprites/pokemon_7_back.png');
-
-// Pikachu (ID: 25) - Commun
-this.load.image('pokemon_25_front', 'assets/sprites/pokemon_25_front.png');
-this.load.image('pokemon_25_back', 'assets/sprites/pokemon_25_back.png');
-
-    console.log('🐾 [LoaderScene] Sprites Pokémon ajoutés au loader !');
     // Charger le spritesheet du joueur (32x32 par frame)
     this.load.spritesheet('BoyWalk', 'assets/character/BoyWalk.png', {
     frameWidth: 32,
