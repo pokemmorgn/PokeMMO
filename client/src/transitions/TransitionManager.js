@@ -824,6 +824,7 @@ this.startSceneWithData(targetSceneKey, result);
     'BeachScene': 'beach',
     'VillageScene': 'village',
     'VillageLabScene': 'villagelab',
+    'VillageWindmillScene': 'villagewindmill',
     'Road1Scene': 'road1',
     'VillageHouse1Scene': 'villagehouse1',
     'LavandiaScene': 'lavandia',
@@ -871,6 +872,7 @@ getSceneFromZone(zoneName) {
     // Zones existantes
     'beach': 'BeachScene',
     'village': 'VillageScene',
+    'villagewindmill': 'VillageWindmillScene',
     'villagelab': 'VillageLabScene',
     'road1': 'Road1Scene',
     'villagehouse1': 'VillageHouse1Scene',
