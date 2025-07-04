@@ -941,6 +941,7 @@ export class NetworkManager {
     'VillageHouse1Scene': 'villagehouse1',
     'VillageHouse2Scene': 'villagehouse2',
     'VillageFloristScene': 'villageflorist',
+    'VillageWindmillScene': 'villagewindmill',
 
     // Road
     'Road1Scene': 'road1',
