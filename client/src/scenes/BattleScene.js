@@ -59,6 +59,8 @@ this.battleNetworkHandler = data.battleNetworkHandler
 
 if (!this.battleNetworkHandler) {
   console.warn('⚠️ [BattleScene] BattleNetworkHandler non trouvé dans init');
+} else {
+  console.log('✅ [BattleScene] BattleNetworkHandler trouvé :', this.battleNetworkHandler);
 }
 
   if (!this.gameManager || !this.networkHandler) {
