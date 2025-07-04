@@ -38,6 +38,13 @@
       "description": "Laboratoire de recherche Pokémon",
       "fixedSpawn": { "x": 242.52, "y": 358.00 }
     },
+      "villagelab": {
+      "name": "villagewindmill",
+      "displayName": "Moulin du village",
+      "minLevel": 1,
+      "description": "Moulin du village",
+      "fixedSpawn": { "x": 242.52, "y": 358.00 }
+    },
     "villagehouse1": {
       "name": "villagehouse1",
       "displayName": "Maison du village",
@@ -242,6 +249,30 @@
       "description": "Accès libre au laboratoire",
       "fromZone": "village",
       "toZone": "villagelab",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+        {
+      "id": "village_to_windmill",
+      "name": "Village vers Windmill",
+      "description": "Accès libre au windmill",
+      "fromZone": "village",
+      "toZone": "villagewindmill",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+        {
+      "id": "windmill_to_village",
+      "name": "Villagewindmill vers village",
+      "description": "Accès libre au village",
+      "fromZone": "villagewindmill",
+      "toZone": "village",
       "conditions": {
         "minLevel": 1,
         "proximityCheck": { "enabled": true }
