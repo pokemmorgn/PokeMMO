@@ -91,42 +91,43 @@ if (!this.battleNetworkHandler) {
     console.log('✅ [BattleScene] Préchargement configuré avec calcul 9x9');
   }
 
-  create() {
-    console.log('🎨 [BattleScene] Création de la scène modulaire...');
+create() {
+  console.log('🎨 [BattleScene] Création de la scène modulaire...');
+
+  // ✅ GARDER: Masquer la scène par défaut AVANT de créer les éléments
+  this.scene.setVisible(false);
+  this.scene.sleep(); // Mettre en veille
+  
+  // ✅ AJOUT: Marquer comme prête pour activation
+  this.isReadyForActivation = true;
+  
+  try {
+    // 1. Créer le background
+    this.createBattleBackground();
     
-    try {
-      // 1. Créer le background
-      this.createBattleBackground();
+    // 2. Calculer les positions
+    this.createPokemonPositions();
+    
+    // ✅ 3. NOUVEAU: Initialiser le HealthBarManager
+    this.healthBarManager = new HealthBarManager(this);
+    this.healthBarManager.createHealthBars();
 
-        // ✅ GARDER: Masquer la scène par défaut
-        this.scene.setVisible(false);
-        this.scene.sleep(); // Mettre en veille
-        
-        // ✅ AJOUT: Marquer comme prête pour activation
-        this.isReadyForActivation = true;
-      // 2. Calculer les positions
-      this.createPokemonPositions();
-      
-      // ✅ 3. NOUVEAU: Initialiser le HealthBarManager
-      this.healthBarManager = new HealthBarManager(this);
-      this.healthBarManager.createHealthBars();
-
-      this.battleActionUI = new BattleActionUI(this, this.battleManager);
-      this.battleActionUI.create();
-      this.setupBattleActionEvents();
-      // 4. Setup managers et événements
-      this.setupBasicBattleManager();
-      this.setupBasicEvents();
-      this.setupBattleNetworkEvents();
-      
-      this.isActive = true;
-      console.log('✅ [BattleScene] Scène créée avec HealthBarManager modulaire');
-      
-    } catch (error) {
-      console.error('❌ [BattleScene] Erreur lors de la création:', error);
-    }
+    this.battleActionUI = new BattleActionUI(this, this.battleManager);
+    this.battleActionUI.create();
+    this.setupBattleActionEvents();
+    
+    // 4. Setup managers et événements
+    this.setupBasicBattleManager();
+    this.setupBasicEvents();
+    this.setupBattleNetworkEvents();
+    
+    this.isActive = true;
+    console.log('✅ [BattleScene] Scène créée avec HealthBarManager modulaire');
+    
+  } catch (error) {
+    console.error('❌ [BattleScene] Erreur lors de la création:', error);
   }
-
+}
   // === GESTION UI ÉLÉGANTE avec UIManager ===
 
   
@@ -1559,6 +1560,67 @@ handleNetworkStatusEffect(data) {
     this.healthBarManager?.updateOpponentHealthBar(this.currentOpponentPokemon);
   }
 }
+
+  // === ✅ MÉTHODES D'ACTIVATION POUR BATTLEUITRANSITION ===
+
+/**
+ * Active la BattleScene depuis BattleUITransition
+ */
+activateFromTransition() {
+  console.log('🎬 [BattleScene] Activation depuis BattleUITransition...');
+  
+  if (!this.isReadyForActivation) {
+    console.warn('⚠️ [BattleScene] Scène non prête pour activation');
+    return false;
+  }
+  
+  try {
+    // Réveiller si endormie
+    if (this.scene.isSleeping()) {
+      this.scene.wake();
+    }
+    
+    // Rendre visible
+    this.scene.setVisible(true);
+    
+    // Marquer comme visible
+    this.isVisible = true;
+    
+    console.log('✅ [BattleScene] Activée depuis BattleUITransition');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ [BattleScene] Erreur activation:', error);
+    return false;
+  }
+}
+
+/**
+ * Désactive la BattleScene pour retour à l'exploration
+ */
+deactivateForTransition() {
+  console.log('🛑 [BattleScene] Désactivation pour transition retour...');
+  
+  try {
+    // Masquer
+    this.scene.setVisible(false);
+    
+    // Mettre en veille
+    this.scene.sleep();
+    
+    // Marquer comme non visible
+    this.isVisible = false;
+    
+    console.log('✅ [BattleScene] Désactivée pour transition');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ [BattleScene] Erreur désactivation:', error);
+    return false;
+  }
+}
+
+  
   // === NETTOYAGE FINAL ===
 
   destroy() {
