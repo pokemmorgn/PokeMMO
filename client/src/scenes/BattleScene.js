@@ -468,7 +468,7 @@ export class BattleScene extends Phaser.Scene {
 
   // === INTERFACE D'ACTIONS MODERNE ===
 
-  createModernActionInterface() {
+createModernActionInterface() {
     console.log('🎮 [BattleScene] Création interface d\'actions moderne...');
     
     const { width, height } = this.cameras.main;
@@ -476,7 +476,7 @@ export class BattleScene extends Phaser.Scene {
     // Conteneur principal pour l'interface - DÉPLACÉ À DROITE
     this.actionInterface = this.add.container(width - 420, height - 180);
     
-    // Panel principal avec style Pokémon moderne
+    // Panel principal avec style Pokémon moderne - AJOUTÉ EN PREMIER
     const mainPanel = this.add.graphics();
     mainPanel.fillStyle(0x1a1a1a, 0.95);
     mainPanel.fillRoundedRect(20, 0, 380, 160, 16);  // Ajusté la largeur
@@ -485,10 +485,12 @@ export class BattleScene extends Phaser.Scene {
     mainPanel.lineStyle(4, 0x4A90E2, 1);
     mainPanel.strokeRoundedRect(20, 0, 380, 160, 16);
     
-    // Boutons d'action modernes
+    // IMPORTANT: Ajouter le panel en PREMIER pour qu'il soit en arrière-plan
+    this.actionInterface.add(mainPanel);
+    
+    // Boutons d'action modernes - AJOUTÉS APRÈS pour être au premier plan
     this.createActionButtons();
     
-    this.actionInterface.add(mainPanel);
     this.actionInterface.setDepth(200);
     this.actionInterface.setVisible(false);
     
