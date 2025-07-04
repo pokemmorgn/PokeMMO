@@ -251,10 +251,12 @@
 
 /* ===== OVERVIEW VIEW ===== */
 .team-overview {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
+  display: flex;
+  flex-direction: row;
   gap: 25px;
   height: 100%;
+  width: 100%;
+  padding: 20px;
 }
 
 .team-slots-grid {
@@ -262,11 +264,12 @@
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(3, 1fr);
   gap: 15px;
-  width: 100%;
-  max-width: 500px;
-  min-width: 330px;
-  margin: 0 auto;
-  height: 100%;
+  width: 400px;        /* ✅ FIX: taille fixe */
+  height: 350px;       /* ✅ FIX: hauteur fixe */
+  min-width: 400px;
+  min-height: 350px;
+  flex: 1;
+  margin: 0;
 }
 
 
@@ -277,7 +280,8 @@
   position: relative;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-height: 120px;
+  min-width: 180px;    /* ✅ FIX: largeur minimum */
+  min-height: 100px;   /* ✅ FIX: hauteur minimum */
   display: flex;
   align-items: center;
   justify-content: center;
