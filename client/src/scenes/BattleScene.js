@@ -1316,7 +1316,27 @@ waitForPlayerAction() {
       console.log('💬 [BattleScene] battleMessage reçu:', data);
       this.handleNetworkBattleMessage(data);
     });
+
+        // Événements de résultats d'actions
+    this.battleNetworkHandler.on('attackResult', (data) => {
+      console.log('💥 [BattleScene] attackResult reçu:', data);
+      this.handleNetworkAttackResult(data);
+    });
     
+    this.battleNetworkHandler.on('pokemonFainted', (data) => {
+      console.log('😵 [BattleScene] pokemonFainted reçu:', data);
+      this.handleNetworkPokemonFainted(data);
+    });
+    
+    this.battleNetworkHandler.on('battleEnd', (data) => {
+      console.log('🏁 [BattleScene] battleEnd reçu:', data);
+      this.handleNetworkBattleEnd(data);
+    });
+    
+    this.battleNetworkHandler.on('statusEffectApplied', (data) => {
+      console.log('🌡️ [BattleScene] statusEffectApplied reçu:', data);
+      this.handleNetworkStatusEffect(data);
+    });
     console.log('✅ [BattleScene] Événements réseau configurés');
 }
   // === HANDLERS ÉVÉNEMENTS RÉSEAU ===
@@ -1358,6 +1378,71 @@ handleNetworkBattleMessage(data) {
       duration: 3000,
       position: 'top-center'
     });
+  }
+}
+
+  handleNetworkAttackResult(data) {
+  console.log('💥 [BattleScene] Résultat attaque:', data);
+  
+  // Mettre à jour les HP via HealthBarManager
+  if (data.targetType === 'player' && data.damage > 0) {
+    if (this.currentPlayerPokemon) {
+      this.currentPlayerPokemon.currentHp = Math.max(0, this.currentPlayerPokemon.currentHp - data.damage);
+      this.healthBarManager?.updatePlayerHealthBar(this.currentPlayerPokemon);
+    }
+  } else if (data.targetType === 'opponent' && data.damage > 0) {
+    if (this.currentOpponentPokemon) {
+      this.currentOpponentPokemon.currentHp = Math.max(0, this.currentOpponentPokemon.currentHp - data.damage);
+      this.healthBarManager?.updateOpponentHealthBar(this.currentOpponentPokemon);
+    }
+  }
+  
+  // Réafficher le menu après l'action
+  setTimeout(() => {
+    this.showPlayerActionMenu();
+  }, 2000);
+}
+
+handleNetworkPokemonFainted(data) {
+  console.log('😵 [BattleScene] Pokémon KO:', data);
+  
+  if (window.showGameNotification) {
+    window.showGameNotification(`${data.pokemonName} est KO !`, 'warning', {
+      duration: 3000,
+      position: 'top-center'
+    });
+  }
+}
+
+handleNetworkBattleEnd(data) {
+  console.log('🏁 [BattleScene] Fin de combat réseau:', data);
+  
+  // Afficher le résultat
+  if (window.showGameNotification) {
+    const message = data.result === 'victory' ? 'Victoire !' : 
+                   data.result === 'defeat' ? 'Défaite...' : 'Combat terminé';
+    window.showGameNotification(message, data.result === 'victory' ? 'success' : 'info', {
+      duration: 4000,
+      position: 'top-center'
+    });
+  }
+  
+  // Terminer le combat après un délai
+  setTimeout(() => {
+    this.endBattle(data);
+  }, 3000);
+}
+
+handleNetworkStatusEffect(data) {
+  console.log('🌡️ [BattleScene] Effet de statut:', data);
+  
+  // Mettre à jour le statut via HealthBarManager
+  if (data.targetType === 'player' && this.currentPlayerPokemon) {
+    this.currentPlayerPokemon.statusCondition = data.status;
+    this.healthBarManager?.updatePlayerHealthBar(this.currentPlayerPokemon);
+  } else if (data.targetType === 'opponent' && this.currentOpponentPokemon) {
+    this.currentOpponentPokemon.statusCondition = data.status;
+    this.healthBarManager?.updateOpponentHealthBar(this.currentOpponentPokemon);
   }
 }
   // === NETTOYAGE FINAL ===
