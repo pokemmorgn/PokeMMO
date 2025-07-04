@@ -41,14 +41,102 @@ export class StarterSelector {
     console.log("🎯 [StarterSelector] Version ultra-simplifiée initialisée");
   }
 
-  // ✅ SIMPLE: Juste stocker NetworkManager
+  // ✅ SIMPLE: Juste stocker NetworkManager + FIX CSS
   initialize(networkManager) {
     this.networkManager = networkManager;
-    console.log("✅ [StarterSelector] Initialisé (ultra-simple)");
+    
+    // ✅ FIX: Forcer le chargement du CSS immédiatement
+    this.ensureCSS();
+    
+    // ✅ FIX: S'assurer que starterConfig n'est jamais null
+    if (!this.starterConfig) {
+      this.starterConfig = this.getDefaultStarters();
+    }
+    
+    console.log("✅ [StarterSelector] Initialisé (ultra-simple + fixes)");
     return this;
   }
 
-  // ✅ MÉTHODE PRINCIPALE: Afficher la sélection
+  // ✅ NOUVELLE MÉTHODE: S'assurer que le CSS est chargé
+  ensureCSS() {
+    if (document.querySelector('#starter-selector-manual-styles, #starter-selector-fallback-styles, #starter-selector-styles')) {
+      return; // CSS déjà présent
+    }
+
+    console.log("🎨 [StarterSelector] Ajout CSS de secours...");
+    
+    const style = document.createElement('style');
+    style.id = 'starter-selector-fallback-styles';
+    style.textContent = `
+      .starter-overlay {
+        position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+        background: rgba(0, 0, 0, 0.8) !important; display: flex !important; justify-content: center !important;
+        align-items: center !important; z-index: 9999 !important; backdrop-filter: blur(5px) !important; opacity: 1 !important;
+      }
+      .starter-overlay.hidden { opacity: 0 !important; pointer-events: none !important; }
+      .starter-container {
+        width: 90% !important; max-width: 600px !important; background: linear-gradient(145deg, #2a3f5f, #1e2d42) !important;
+        border: 3px solid #4a90e2 !important; border-radius: 20px !important; display: flex !important;
+        flex-direction: column !important; color: white !important; font-family: 'Segoe UI', Arial, sans-serif !important;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7) !important; transform: scale(1) !important;
+      }
+      .starter-header {
+        background: linear-gradient(90deg, #4a90e2, #357abd) !important; padding: 20px 25px !important;
+        border-radius: 17px 17px 0 0 !important; text-align: center !important;
+      }
+      .starter-main-title { font-size: 24px !important; font-weight: bold !important; color: #FFD700 !important; margin: 0 !important; }
+      .starter-subtitle { font-size: 14px !important; color: #E2E8F0 !important; margin: 5px 0 0 0 !important; }
+      .starter-content { padding: 40px 30px !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 30px !important; }
+      .starter-pokeballs { display: flex !important; justify-content: center !important; gap: 40px !important; width: 100% !important; }
+      .starter-pokeball-slot {
+        display: flex !important; flex-direction: column !important; align-items: center !important; gap: 15px !important;
+        cursor: pointer !important; padding: 20px !important; border-radius: 15px !important;
+        background: rgba(255, 255, 255, 0.05) !important; border: 2px solid rgba(255, 255, 255, 0.1) !important;
+        transition: all 0.3s ease !important;
+      }
+      .starter-pokeball-slot:hover { background: rgba(74, 144, 226, 0.1) !important; transform: translateY(-5px) !important; }
+      .starter-pokeball-slot.selected { background: rgba(74, 144, 226, 0.2) !important; border-color: #4a90e2 !important; }
+      .starter-pokeball { width: 64px !important; height: 64px !important; background-size: contain !important; background-repeat: no-repeat !important; }
+      .starter-name { font-size: 16px !important; font-weight: bold !important; color: #ecf0f1 !important; }
+      .starter-type { font-size: 12px !important; padding: 4px 8px !important; border-radius: 8px !important; font-weight: bold !important; color: white !important; }
+      .starter-type.plante { background: #78C850 !important; } .starter-type.feu { background: #F08030 !important; } .starter-type.eau { background: #6890F0 !important; }
+      .starter-info-section { width: 100% !important; background: rgba(255, 255, 255, 0.08) !important; border: 2px solid rgba(74, 144, 226, 0.3) !important; border-radius: 15px !important; padding: 20px !important; text-align: center !important; }
+      .starter-footer { background: rgba(0, 0, 0, 0.3) !important; padding: 20px 25px !important; text-align: center !important; border-radius: 0 0 17px 17px !important; }
+      .starter-confirm-btn { background: linear-gradient(145deg, #059669, #047857) !important; border: none !important; color: white !important; padding: 12px 30px !important; border-radius: 12px !important; cursor: pointer !important; font-size: 16px !important; font-weight: bold !important; opacity: 0 !important; transition: all 0.3s ease !important; }
+      .starter-confirm-btn.visible { opacity: 1 !important; }
+      .starter-confirm-btn:hover { background: linear-gradient(145deg, #10B981, #059669) !important; transform: translateY(-2px) !important; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Configuration par défaut
+  getDefaultStarters() {
+    return [
+      {
+        id: 'bulbasaur',
+        name: 'Bulbizarre',
+        type: 'Plante',
+        description: 'Un Pokémon Graine docile et loyal.',
+        color: '#4CAF50'
+      },
+      {
+        id: 'charmander', 
+        name: 'Salamèche',
+        type: 'Feu',
+        description: 'Un Pokémon Lézard fougueux et brave.',
+        color: '#FF5722'
+      },
+      {
+        id: 'squirtle',
+        name: 'Carapuce', 
+        type: 'Eau',
+        description: 'Un Pokémon Minitortue calme et sage.',
+        color: '#2196F3'
+      }
+    ];
+  }
+
+  // ✅ MÉTHODE PRINCIPALE: Afficher la sélection (FIXÉE)
   show(availableStarters = null) {
     if (this.isVisible) {
       console.warn("⚠️ [StarterSelector] Déjà visible");
@@ -57,8 +145,13 @@ export class StarterSelector {
 
     console.log("🎯 [StarterSelector] Affichage de la sélection...");
     
-    // Utiliser les starters fournis ou la config par défaut
-    this.starterOptions = availableStarters || this.starterConfig;
+    // ✅ FIX: S'assurer que starterConfig existe
+    if (!this.starterConfig) {
+      this.starterConfig = this.getDefaultStarters();
+    }
+    
+    // ✅ FIX: Utiliser les starters fournis ou la config par défaut (garantie non-null)
+    this.starterOptions = availableStarters || this.starterConfig || this.getDefaultStarters();
     
     // Créer l'interface
     this.createHTMLInterface();
