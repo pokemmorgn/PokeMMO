@@ -249,14 +249,13 @@ async loadPokemonSpritesheets9x9() {
 }
 
 // NOUVELLE méthode pour charger un Pokémon spécifique
-loadPokemonSprite(pokemonId, view = 'front') {
+async loadPokemonSprite(pokemonId, view = 'front') {
   const spriteKey = `pokemon_${pokemonId}_${view}`;
   
   if (this.textures.exists(spriteKey)) {
     return spriteKey;
   }
   
-  // ✅ UTILISER window.pokemonSpriteConfig au lieu de pokemonSpriteConfig
   if (!window.pokemonSpriteConfig) {
     console.error('❌ [BattleScene] PokemonSpriteConfig pas encore chargé');
     return null;
@@ -264,20 +263,25 @@ loadPokemonSprite(pokemonId, view = 'front') {
   
   const config = window.pokemonSpriteConfig[pokemonId] || window.pokemonSpriteConfig.default;
   
-  // ✅ CHEMIN NUMÉRIQUE CORRECT
   const pokemonFolder = pokemonId.toString().padStart(3, '0');
   const imagePath = `assets/pokemon/${pokemonFolder}/${view}.png`;
   
   console.log(`🔍 [BattleScene] Chargement: ${imagePath}`, config);
   
-  // ✅ UTILISER LES BONNES DIMENSIONS DE LA CONFIG
-  this.load.spritesheet(spriteKey, imagePath, {
-    frameWidth: config.spriteWidth,   // 38
-    frameHeight: config.spriteHeight  // 38
+  // ✅ ATTENDRE que le chargement soit terminé
+  return new Promise((resolve) => {
+    this.load.spritesheet(spriteKey, imagePath, {
+      frameWidth: config.spriteWidth,
+      frameHeight: config.spriteHeight
+    });
+    
+    this.load.once('complete', () => {
+      console.log(`✅ [BattleScene] Sprite chargé: ${spriteKey}`);
+      resolve(spriteKey);
+    });
+    
+    this.load.start();
   });
-  
-  this.load.start();
-  return spriteKey;
 }
 
   loadPokemonWithMultipleSizes(pokemonConfig) {
@@ -479,12 +483,12 @@ displayPlayerPokemon(pokemonData) {
   const spriteKey = this.getPokemonSpriteKey(pokemonData.pokemonId || pokemonData.id, 'back');
   
   try {
-    // ✅ UTILISER add.sprite() au lieu de add.image() pour l'animation
-    this.playerPokemonSprite = this.add.sprite(
-      this.pokemonPositions.playerAbsolute.x,
-      this.pokemonPositions.playerAbsolute.y,
-      spriteKey
-    );
+    // ✅ ATTENDRE le chargement du sprite
+    const spriteKey = await this.loadPokemonSprite(pokemonData.pokemonId || pokemonData.id, 'back');
+    
+    if (!spriteKey) {
+      throw new Error(`Impossible de charger ${pokemonData.pokemonId}`);
+    }
     
     if (!this.playerPokemonSprite.texture || this.playerPokemonSprite.texture.key === '__MISSING') {
       throw new Error(`Texture manquante pour ${spriteKey}`);
