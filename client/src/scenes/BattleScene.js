@@ -109,6 +109,7 @@ if (!this.battleNetworkHandler) {
       // 4. Setup managers et événements
       this.setupBasicBattleManager();
       this.setupBasicEvents();
+      this.setupBattleNetworkEvents();
       
       this.isActive = true;
       console.log('✅ [BattleScene] Scène créée avec HealthBarManager modulaire');
@@ -1344,6 +1345,33 @@ waitForPlayerAction() {
     
     console.log('✅ [BattleScene] Détruite avec HealthBarManager modulaire');
   }
+}
+
+setupBattleNetworkEvents() {
+  console.log('📡 [BattleScene] Configuration événements réseau...');
+  
+  if (!this.battleNetworkHandler) {
+    console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour événements');
+    return;
+  }
+  
+  // Événements de combat
+  this.battleNetworkHandler.on('battleStart', (data) => {
+    console.log('⚔️ [BattleScene] battleStart reçu:', data);
+    this.handleNetworkBattleStart(data);
+  });
+  
+  this.battleNetworkHandler.on('turnChange', (data) => {
+    console.log('🔄 [BattleScene] turnChange reçu:', data);
+    this.handleNetworkTurnChange(data);
+  });
+  
+  this.battleNetworkHandler.on('battleMessage', (data) => {
+    console.log('💬 [BattleScene] battleMessage reçu:', data);
+    this.handleNetworkBattleMessage(data);
+  });
+  
+  console.log('✅ [BattleScene] Événements réseau configurés');
 }
 
 // ✅ FONCTIONS GLOBALES MODULAIRES AVEC HEALTHBARMANAGER
