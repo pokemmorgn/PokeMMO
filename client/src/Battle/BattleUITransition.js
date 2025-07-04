@@ -75,10 +75,8 @@ export class BattleUITransition {
       // 2. Obtenir BattleScene et l'initialiser
       const battleScene = this.getBattleScene();
       if (battleScene) {
-        // Initialiser BattleScene si nécessaire
-        if (!battleScene.isActive) {
-          await this.initializeBattleScene(battleScene, encounterData);
-        }
+        // ✅ NOUVEAU: Activer et rendre visible la BattleScene
+        await this.activateBattleScene(battleScene);
         
         // Déclencher l'encounter
         battleScene.handleEncounterStart(encounterData);
@@ -161,6 +159,55 @@ export class BattleUITransition {
     }
   }
 
+  // ✅ NOUVELLE MÉTHODE: Activer et rendre visible la BattleScene
+async activateBattleScene(battleScene) {
+  console.log('🎮 [BattleUITransition] Activation BattleScene...');
+  
+  try {
+    // Obtenir le jeu Phaser
+    const phaserGame = window.game || window.phaserGame;
+    
+    if (!phaserGame || !phaserGame.scene) {
+      console.error('❌ [BattleUITransition] PhaserGame non disponible');
+      return false;
+    }
+    
+    // Vérifier si la BattleScene existe dans le gestionnaire
+    const sceneExists = phaserGame.scene.getScene('BattleScene');
+    
+    if (!sceneExists) {
+      console.error('❌ [BattleUITransition] BattleScene non trouvée dans le gestionnaire');
+      return false;
+    }
+    
+    // Réveiller si endormie
+    if (phaserGame.scene.isSleeping('BattleScene')) {
+      console.log('😴 [BattleUITransition] Réveil BattleScene...');
+      phaserGame.scene.wake('BattleScene');
+    }
+    
+    // Activer si inactive
+    if (!phaserGame.scene.isActive('BattleScene')) {
+      console.log('🚀 [BattleUITransition] Activation BattleScene...');
+      phaserGame.scene.setActive(true, 'BattleScene');
+    }
+    
+    // Rendre visible
+    console.log('👁️ [BattleUITransition] Rendu visible BattleScene...');
+    phaserGame.scene.setVisible(true, 'BattleScene');
+    
+    // Mettre au premier plan
+    phaserGame.scene.bringToTop('BattleScene');
+    
+    console.log('✅ [BattleUITransition] BattleScene activée et visible');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ [BattleUITransition] Erreur activation BattleScene:', error);
+    return false;
+  }
+}
+  
   // === MÉTHODES EXISTANTES (inchangées) ===
 
   saveCurrentUIState() {
