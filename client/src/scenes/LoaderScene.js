@@ -77,6 +77,10 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
 this.load.image('pokemon_1_front', 'assets/sprites/pokemon_1_front.png');
 this.load.image('pokemon_1_back', 'assets/sprites/pokemon_1_back.png');
 
+    this.load.on('filecomplete-image-pokemon_1_back', () => {
+  console.log('✅ pokemon_1_back chargé avec succès !');
+});
+    
 // Charmander (ID: 4) - Starter
 this.load.image('pokemon_4_front', 'assets/sprites/pokemon_4_front.png');
 this.load.image('pokemon_4_back', 'assets/sprites/pokemon_4_back.png');
