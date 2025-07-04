@@ -93,10 +93,6 @@ if (!this.battleNetworkHandler) {
 
   create() {
     console.log('🎨 [BattleScene] Création de la scène modulaire...');
-
-  // ✅ NOUVEAU: Masquer la scène par défaut
-  this.scene.setVisible(false);
-  this.scene.sleep(); // Mettre en veille
     
     try {
       // 1. Créer le background
