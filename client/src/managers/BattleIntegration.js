@@ -330,7 +330,7 @@ async handleBattleRoomCreated(data) {
       playerPokemon: this.selectedPokemon,
       opponentPokemon: this.currentBattleData?.pokemon || data.wildPokemon
     };
-    
+    console.log('[BUGPOKEMON] 📞 Appel startBattleInterface avec:', battleData);
     this.startBattleInterface(battleData);
   }
 }
@@ -424,6 +424,11 @@ async handleBattleRoomCreated(data) {
     console.log('📊 Données:', battleData);
     console.log('🎮 PhaserGame disponible:', !!this.phaserGame);
     console.log('🎬 BattleScene disponible:', !!this.battleScene);
+    console.log('[BUGPOKEMON] 🖥️ startBattleInterface appelée avec:', battleData);
+    console.log('[BUGPOKEMON] 🔍 battleScene existe ?', !!this.battleScene);
+    console.log('[BUGPOKEMON] 🔍 phaserGame existe ?', !!this.phaserGame);
+  
+  console.log('🖥️ [BattleIntegration] === LANCEMENT INTERFACE DE COMBAT ===');
     
     try {
       if (this.battleScene && this.phaserGame?.scene) {
