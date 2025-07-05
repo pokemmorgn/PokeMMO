@@ -364,7 +364,16 @@ async connectToBattleRoom(battleRoomId) {
 
     try {
       // === ÉVÉNEMENTS DE COMBAT ===
-
+      
+            this.battleRoom.onMessage('battleUpdate', (data) => {
+        console.log('🔄 [CLIENT] battleUpdate reçu:', data);
+        console.log('🔄 [CLIENT] HP reçus:', {
+          player1: data.player1Pokemon?.currentHp + '/' + data.player1Pokemon?.maxHp,
+          player2: data.player2Pokemon?.currentHp + '/' + data.player2Pokemon?.maxHp
+        });
+        this.triggerEvent('battleUpdate', data);
+      });
+            
       this.battleRoom.onMessage('battleJoined', (data) => {
         console.log('[DEBUG NETWORK BATTLE] ⚔️ battleJoined:', data);
         this.triggerEvent('battleJoined', data);
