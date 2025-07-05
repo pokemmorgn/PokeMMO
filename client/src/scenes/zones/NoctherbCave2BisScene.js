@@ -99,3 +99,22 @@ export class NoctherbCave2BisScene extends BaseZoneScene {
       {
         fontSize: '14px',
         fontFamily: 'monospace',
+        color: '#ffffff',
+        backgroundColor: 'rgba(153, 50, 204, 0.8)',
+        padding: { x: 10, y: 8 },
+        wordWrap: { width: 300 },
+      }
+    ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
+
+    this.time.delayedCall(3000, () => {
+      dialogueBox.destroy();
+      console.log(`[NoctherbCave2BisScene] 💬 Dialogue avec ${npcName} détruit`);
+    });
+  }
+
+  cleanup() {
+    console.log("[NoctherbCave2BisScene] cleanup appelé");
+    this.transitionCooldowns = {};
+    super.cleanup();
+  }
+}
