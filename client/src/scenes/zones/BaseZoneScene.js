@@ -1797,9 +1797,12 @@ positionPlayer(player) {
       'VillageHouse2Scene': 'villagehouse2',
       'Road2Scene': 'road2',
       'Road3Scene': 'road3',
-      'NoctherCave1Scene': 'nocthercave1',
-      'NoctherCave2Scene': 'nocthercave2',
-      'NoctherCave2BisScene': 'nocthercave2bis'
+      'NoctherbCave1Scene': 'noctherbcave1',
+      'NoctherbCave2Scene': 'noctherbcave2',
+      'NoctherbCave2BisScene': 'noctherbcave2bis'
+      'WraithmoorScene': 'wraithmoor',
+      'WraithmoorCimeteryScene': 'wraithmoorcimetery',
+      'WraithmoorManor1Scene': 'wraithmoormanor1'
     };
     return mapping[sceneName] || sceneName.toLowerCase();
   }
@@ -1836,9 +1839,12 @@ positionPlayer(player) {
       'villagehouse2': 'VillageHouse2Scene',
       'road2': 'Road2Scene',
       'road3': 'Road3Scene',
-      'nocthercave1': 'NoctherCave1Scene',
-      'nocthercave2': 'NoctherCave2Scene',
-      'nocthercave2bis': 'NoctherCave2BisScene'
+      'noctherbcave1': 'NoctherbCave1Scene',
+      'noctherbcave2': 'NoctherbCave2Scene',
+      'noctherbcave2bis': 'NoctherbCave2BisScene'
+      'wraithmoor': 'WraithmoorScene',
+      'wraithmoorcimetery': 'WraithmoorCimeteryScene',
+      'wraithmoormanor1': 'WraithmoorManor1Scene'
     };
     return mapping[zoneName.toLowerCase()] || zoneName;
   }
