@@ -8,34 +8,6 @@ export class VillageHouse1Scene extends BaseZoneScene {
     this.interactiveObjects = []; // initialise ici
   }
 
- 
-  positionPlayer(player) {
-    const spawnLayer = this.map.getObjectLayer('SpawnPoint');
-    if (spawnLayer) {
-      const spawnPoint = spawnLayer.objects.find(obj => obj.name === 'SpawnPoint_House1');
-      if (spawnPoint) {
-        player.x = spawnPoint.x + spawnPoint.width / 2;
-        player.y = spawnPoint.y + spawnPoint.height / 2;
-        console.log(`🏠 Joueur positionné au SpawnPoint_House1: ${player.x}, ${player.y}`);
-      } else {
-        player.x = 300;
-        player.y = 200;
-      }
-    } else {
-      player.x = 300;
-      player.y = 200;
-    }
-
-    if (player.indicator) {
-      player.indicator.x = player.x;
-      player.indicator.y = player.y - 32;
-    }
-
-    if (this.networkManager) {
-      this.networkManager.sendMove(player.x, player.y);
-    }
-  }
-
   create() {
     console.log('🚨 DEBUT VillageHouse1Scene.create()');
     super.create();
