@@ -419,69 +419,69 @@ async handleBattleRoomCreated(data) {
 
   // === INTERFACE DE COMBAT (LÉGÈREMENT MISE À JOUR) ===
 
-  startBattleInterface(battleData) {
-    console.log('🖥️ [BattleIntegration] === LANCEMENT INTERFACE DE COMBAT ===');
-    console.log('📊 Données:', battleData);
-    console.log('🎮 PhaserGame disponible:', !!this.phaserGame);
-    console.log('🎬 BattleScene disponible:', !!this.battleScene);
-    console.log('[BUGPOKEMON] 🖥️ startBattleInterface appelée avec:', battleData);
-    console.log('[BUGPOKEMON] 🔍 battleScene existe ?', !!this.battleScene);
-    console.log('[BUGPOKEMON] 🔍 phaserGame existe ?', !!this.phaserGame);
+startBattleInterface(battleData) {
+  console.log('[BUGPOKEMON] 🖥️ startBattleInterface appelée avec:', battleData);
+  console.log('[BUGPOKEMON] 🔍 battleScene existe ?', !!this.battleScene);
+  console.log('[BUGPOKEMON] 🔍 phaserGame existe ?', !!this.phaserGame);
   
   console.log('🖥️ [BattleIntegration] === LANCEMENT INTERFACE DE COMBAT ===');
-    
-    try {
-      if (this.battleScene && this.phaserGame?.scene) {
-        console.log('🎬 [BattleIntegration] Utilisation BattleScene Phaser...');
-        
-        const sceneExists = this.phaserGame.scene.getScene('BattleScene');
-        console.log('🔍 BattleScene existe dans manager:', !!sceneExists);
-        
-        if (sceneExists) {
-          if (this.phaserGame.scene.isActive('BattleScene')) {
-            console.log('🔄 BattleScene déjà active, mise au premier plan...');
-            this.phaserGame.scene.bringToTop('BattleScene');
-          } else {
-            console.log('🚀 Démarrage de la BattleScene...');
-const startData = {
-  gameManager: this.gameManager,
-  networkHandler: this.battleConnection,
-  battleData: battleData,
-  selectedPokemon: this.selectedPokemon,
-  // Prends en priorité le champ currentZone, sinon fallback sur location, sinon 'unknown'
-  currentZone: (battleData && (battleData.currentZone || battleData.location)) || this.currentZone || 'unknown'
-};
-
-
-console.log('[LOG BATTLE] Données transmises à BattleScene :', startData);
-
-this.phaserGame.scene.start('BattleScene', startData);
-
-          }
-          
-          if (this.gameManager?.pauseGame) {
-            this.gameManager.pauseGame('battle');
-          }
-          
-          console.log('✅ [BattleIntegration] BattleScene lancée avec succès');
-          return;
-          
+  console.log('📊 Données:', battleData);
+  console.log('🎮 PhaserGame disponible:', !!this.phaserGame);
+  console.log('🎬 BattleScene disponible:', !!this.battleScene);
+  
+  try {
+    if (this.battleScene && this.phaserGame?.scene) {
+      console.log('[BUGPOKEMON] 🎬 Utilisation BattleScene Phaser...');
+      
+      const sceneExists = this.phaserGame.scene.getScene('BattleScene');
+      console.log('[BUGPOKEMON] 🔍 BattleScene existe dans manager:', !!sceneExists);
+      
+      if (sceneExists) {
+        if (this.phaserGame.scene.isActive('BattleScene')) {
+          console.log('[BUGPOKEMON] 🔄 BattleScene déjà active, mise au premier plan...');
+          this.phaserGame.scene.bringToTop('BattleScene');
         } else {
-          console.warn('⚠️ [BattleIntegration] BattleScene non trouvée dans le manager');
+          console.log('[BUGPOKEMON] 🚀 Démarrage de la BattleScene...');
+          
+          const startData = {
+            gameManager: this.gameManager,
+            networkHandler: this.battleConnection,
+            battleData: battleData,
+            selectedPokemon: this.selectedPokemon,
+            currentZone: (battleData && (battleData.currentZone || battleData.location)) || this.currentZone || 'unknown'
+          };
+          
+          console.log('[BUGPOKEMON] 📦 startData préparée:', startData);
+          console.log('[BUGPOKEMON] 🚀 Appel scene.start("BattleScene")...');
+          
+          this.phaserGame.scene.start('BattleScene', startData);
+          
+          console.log('[BUGPOKEMON] ✅ scene.start terminé');
         }
+        
+        if (this.gameManager?.pauseGame) {
+          this.gameManager.pauseGame('battle');
+        }
+        
+        console.log('[BUGPOKEMON] ✅ BattleScene lancée avec succès');
+        return;
+        
       } else {
-        console.warn('⚠️ [BattleIntegration] BattleScene ou PhaserGame non disponible');
+        console.warn('[BUGPOKEMON] ⚠️ BattleScene non trouvée dans le manager');
       }
-      
-      console.log('🆘 [BattleIntegration] Passage en fallback interface DOM...');
-      this.createFallbackBattleInterface(battleData);
-      
-    } catch (error) {
-      console.error('❌ [BattleIntegration] Erreur lancement interface:', error);
-      console.log('🆘 [BattleIntegration] Fallback forcé après erreur...');
-      this.createFallbackBattleInterface(battleData);
+    } else {
+      console.warn('[BUGPOKEMON] ⚠️ BattleScene ou PhaserGame non disponible');
     }
+    
+    console.log('[BUGPOKEMON] 🆘 Passage en fallback interface DOM...');
+    this.createFallbackBattleInterface(battleData);
+    
+  } catch (error) {
+    console.error('[BUGPOKEMON] ❌ Erreur lancement interface:', error);
+    console.log('[BUGPOKEMON] 🆘 Fallback forcé après erreur...');
+    this.createFallbackBattleInterface(battleData);
   }
+}
 
   createFallbackBattleInterface(battleData) {
     console.log('🆘 [BattleIntegration] Création interface fallback...');
