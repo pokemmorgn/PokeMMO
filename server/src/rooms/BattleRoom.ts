@@ -405,28 +405,88 @@ private async autoSelectFirstPokemon() {
     }
   }
 
-  private startActualBattle() {
-    console.log(`⚔️ DÉBUT DU COMBAT RÉEL AVEC BATTLEMANAGER !`);
+private startActualBattle() {
+  console.log(`⚔️ DÉBUT DU COMBAT RÉEL AVEC BATTLEMANAGER !`);
+  
+  this.state.phase = "battle";
+  this.state.waitingForAction = true;
+  
+  this.broadcast("battleStart", {
+    player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+    player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+    currentTurn: this.state.currentTurn,
+    turnNumber: this.state.turnNumber,
+    battleLog: Array.from(this.state.battleLog)
+  });
+  
+  this.updateBattleStatusIcons();
+  this.startActionTimer();
+  
+  console.log(`✅ Combat ${this.state.battleId} en cours avec BattleManager !`);
+  
+  // ✅ NOUVEAU: Vérifier si l'IA doit jouer en premier
+  this.clock.setTimeout(() => {
+    this.checkAndPlayAITurn();
+  }, 2000);
+}
+
+private async playAITurnNow() {
+  console.log(`🤖 [AI TURN] === TOUR DE L'IA ===`);
+  
+  try {
+    // Choisir une attaque aléatoire
+    const moves = Array.from(this.state.player2Pokemon.moves);
+    const randomMove = moves.length > 0 ? moves[Math.floor(Math.random() * moves.length)] : "tackle";
     
-    this.state.phase = "battle";
-    this.state.waitingForAction = true;
+    console.log(`🤖 [AI TURN] IA utilise: ${randomMove}`);
+    console.log(`🤖 [AI TURN] Moves disponibles:`, moves);
     
-    // Le BattleManager a déjà déterminé l'ordre et configuré le state
-    
-    this.broadcast("battleStart", {
-      player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
-      player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
-      currentTurn: this.state.currentTurn,
-      turnNumber: this.state.turnNumber,
-      battleLog: Array.from(this.state.battleLog)
+    // Créer l'action de l'IA
+    const aiAction = new BattleAction();
+    aiAction.type = "attack";
+    aiAction.playerId = "ai"; // ID spécial pour l'IA
+    aiAction.data = JSON.stringify({
+      actionType: "attack",
+      moveId: randomMove
     });
     
-    this.updateBattleStatusIcons();
-    this.startActionTimer();
+    // Calculer priorité et vitesse
+    const moveData = MoveManager.getMoveData(randomMove);
+    aiAction.priority = moveData?.priority || 0;
+    aiAction.speed = this.state.player2Pokemon.speed;
     
-    console.log(`✅ Combat ${this.state.battleId} en cours avec BattleManager !`);
+    console.log(`🤖 [AI TURN] Action IA créée:`, {
+      move: randomMove,
+      priority: aiAction.priority,
+      speed: aiAction.speed
+    });
+    
+    // Traiter l'action via BattleManager
+    this.state.waitingForAction = false;
+    await this.battleManager.processAction(aiAction);
+    
+    console.log(`🤖 [AI TURN] Action IA traitée`);
+    
+    // Broadcast des changements
+    this.broadcastBattleUpdate();
+    
+    // Vérifier fin de combat
+    if (this.state.battleEnded) {
+      await this.handleBattleEnd();
+    } else {
+      this.updatePlayerHpPercentages();
+      this.updateBattleStatusIcons();
+      
+      // Vérifier si c'est encore le tour de l'IA
+      this.clock.setTimeout(() => {
+        this.checkAndPlayAITurn();
+      }, 1000);
+    }
+    
+  } catch (error) {
+    console.error(`🤖 [AI TURN] Erreur tour IA:`, error);
   }
-
+}
   // === ACTIONS DE COMBAT AVEC BATTLEMANAGER ===
 
 private async handleBattleAction(client: Client, data: any) {
