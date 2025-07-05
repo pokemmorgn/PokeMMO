@@ -137,49 +137,40 @@ export class BattleRoom extends Room<BattleState> {
 
 async onJoin(client: Client, options: any) {
   console.log(`🔥 [JOIN DEBUG] === JOUEUR REJOINT BATTLEROOM ===`);
-  console.log(`🔥 [JOIN DEBUG] Client: ${client.sessionId}`);
+  console.log(`🔥 [JOIN DEBUG] Client sessionId: ${client.sessionId}`);
+  console.log(`🔥 [JOIN DEBUG] Options reçues:`, options);
   console.log(`🔥 [JOIN DEBUG] Expected Player1: ${this.battleInitData.playerData.sessionId}`);
-  console.log(`🔥 [JOIN DEBUG] Phase actuelle: ${this.state.phase}`);
   
   try {
-    // ✅ CORRECTION SPÉCIALE: Forcer le bon joueur comme Player1
-    const playerName = this.getPlayerName(client.sessionId);
-    console.log(`🔥 [JOIN DEBUG] Nom du joueur récupéré: ${playerName}`);
+    // ✅ SOLUTION: Utiliser worldSessionId des options si disponible
+    const effectiveSessionId = options?.worldSessionId || client.sessionId;
+    const playerName = options?.playerName || this.getPlayerName(effectiveSessionId);
     
-    // ✅ FORCER: Si c'est le joueur attendu, l'assigner comme Player1
-    if (client.sessionId === this.battleInitData.playerData.sessionId) {
-      console.log(`🔥 [JOIN DEBUG] 🎯 CLIENT ATTENDU! Assignation forcée comme Player1`);
-      this.state.player1Id = client.sessionId;
+    console.log(`🔥 [JOIN DEBUG] SessionId effectif: ${effectiveSessionId}`);
+    console.log(`🔥 [JOIN DEBUG] Nom du joueur: ${playerName}`);
+    
+    // ✅ Vérification avec le bon sessionId
+    if (effectiveSessionId === this.battleInitData.playerData.sessionId) {
+      console.log(`🔥 [JOIN DEBUG] ✅ CLIENT ATTENDU TROUVÉ! Assignation Player1`);
+      this.state.player1Id = client.sessionId; // Garder le vrai sessionId de la BattleRoom
       this.state.player1Name = this.battleInitData.playerData.name;
-      console.log(`🔥 [JOIN DEBUG] Player1 forcé: ${this.state.player1Name} (${this.state.player1Id})`);
-    } else {
-      console.log(`🔥 [JOIN DEBUG] ⚠️ CLIENT INATTENDU: ${client.sessionId} !== ${this.battleInitData.playerData.sessionId}`);
       
-      // Assigner quand même mais avec avertissement
-      if (this.state.player1Id === "" || this.state.player1Id === undefined) {
-        this.state.player1Id = client.sessionId;
-        this.state.player1Name = playerName || "Player1";
-        console.log(`🔥 [JOIN DEBUG] ⚠️ Player1 assigné par défaut: ${this.state.player1Name}`);
-      } else {
-        this.state.player2Id = client.sessionId;
-        this.state.player2Name = playerName || "Player2";
-        console.log(`🔥 [JOIN DEBUG] Player2 assigné: ${this.state.player2Name}`);
-      }
-    }
-    
-    // ✅ CORRECTION 2: Créer TeamManager avec le vrai nom
-    const finalPlayerName = this.state.player1Name || this.battleInitData.playerData.name;
-    if (finalPlayerName && finalPlayerName !== "Player1" && finalPlayerName !== "Player2") {
-      console.log(`🔥 [JOIN DEBUG] Création TeamManager pour ${finalPlayerName}...`);
-      const teamManager = new TeamManager(finalPlayerName);
+      // ✅ Créer TeamManager avec le vrai nom
+      console.log(`🔥 [JOIN DEBUG] Création TeamManager pour ${this.battleInitData.playerData.name}...`);
+      const teamManager = new TeamManager(this.battleInitData.playerData.name);
       await teamManager.load();
       this.teamManagers.set(client.sessionId, teamManager);
-      console.log(`🔥 [JOIN DEBUG] ✅ TeamManager créé et chargé pour ${finalPlayerName}`);
+      console.log(`🔥 [JOIN DEBUG] ✅ TeamManager créé !`);
+      
     } else {
-      console.warn(`🔥 [JOIN DEBUG] ❌ Nom invalide pour TeamManager: ${finalPlayerName}`);
+      console.log(`🔥 [JOIN DEBUG] ⚠️ CLIENT INATTENDU: ${effectiveSessionId} !== ${this.battleInitData.playerData.sessionId}`);
+      
+      // Assigner quand même
+      this.state.player1Id = client.sessionId;
+      this.state.player1Name = playerName || "Player1";
     }
-
-    // ✅ Le reste comme avant...
+    
+    // ✅ Le reste...
     this.blockPlayerInWorldRoom(client.sessionId, "Entré en combat");
     this.playerHpPercentages.set(client.sessionId, 100);
     
@@ -191,27 +182,19 @@ async onJoin(client: Client, options: any) {
 
     this.updatePlayerStatusIcon(client.sessionId, "entering_battle");
     
-    console.log(`🔥 [JOIN DEBUG] État final après join:`, {
+    console.log(`🔥 [JOIN DEBUG] État final:`, {
       player1Id: this.state.player1Id,
       player1Name: this.state.player1Name,
-      hasTeamManager: this.teamManagers.has(client.sessionId),
-      teamManagerForName: finalPlayerName
+      hasTeamManager: this.teamManagers.has(client.sessionId)
     });
 
     if (this.shouldStartBattle()) {
-      console.log(`🔥 [JOIN DEBUG] 🚀 CONDITIONS OK! Démarrage combat dans 1s...`);
-      this.clock.setTimeout(() => {
-        this.startBattle();
-      }, 1000);
-    } else {
-      console.log(`🔥 [JOIN DEBUG] ❌ Conditions pas encore réunies`);
+      console.log(`🔥 [JOIN DEBUG] 🚀 DÉMARRAGE COMBAT!`);
+      this.clock.setTimeout(() => this.startBattle(), 1000);
     }
 
   } catch (error) {
-    console.error(`🔥 [JOIN DEBUG] Erreur onJoin:`, error);
-    if (error instanceof Error) {
-      console.error(`🔥 [JOIN DEBUG] Stack:`, error.stack);
-    }
+    console.error(`🔥 [JOIN DEBUG] Erreur:`, error);
     client.leave(1000, "Erreur lors de l'entrée en combat");
   }
 }
