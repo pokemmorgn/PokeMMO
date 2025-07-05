@@ -214,6 +214,12 @@ public async handleStartWildBattle(client: Client, data: {
         wildPokemon: data.wildPokemon.pokemonId
       }
     );
+      console.log(`📤 [BattleHandlers] ENVOI battleRoomCreated à ${client.sessionId}`);
+      console.log(`📦 [BattleHandlers] Données envoyées:`, {
+        playerPokemon: playerPokemon?.name,
+        opponentPokemon: wildPokemonComplete?.name,
+        opponentHp: `${wildPokemonComplete?.currentHp}/${wildPokemonComplete?.maxHp}`
+      });
 
     // ✅ CORRECTION : Envoyer opponentPokemon au lieu de wildPokemon
     client.send("battleRoomCreated", {
