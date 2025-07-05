@@ -66,7 +66,7 @@ export class NoctherbCave1Zone implements IZone {
 
     const zoneData = this.getZoneData();
     client.send("zoneData", {
-      zone: "nocthercave1",
+      zone: "noctherbcave1",
       ...zoneData
     });
 
