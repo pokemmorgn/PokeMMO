@@ -34,9 +34,9 @@ import { LavandiaResearchLabZone } from "../rooms/zones/LavandiaResearchLabZone"
 
 
 // Zones Nocther Cave
-import { NoctherCave1Zone } from "../rooms/zones/NoctherbCave1Zone";
-import { NoctherCave2Zone } from "../rooms/zones/NoctherbCave2Zone";
-import { NoctherCave2BisZone } from "../rooms/zones/NoctherbCave2BisZone";
+import { NoctherbCave1Zone } from "../rooms/zones/NoctherbCave1Zone";
+import { NoctherbCave2Zone } from "../rooms/zones/NoctherbCave2Zone";
+import { NoctherbCave2BisZone } from "../rooms/zones/NoctherbCave2BisZone";
 
 // Zones Road
 import { Road1Zone } from "../rooms/zones/Road1Zone";
