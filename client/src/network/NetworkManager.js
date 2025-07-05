@@ -973,7 +973,7 @@ export class NetworkManager {
     // NoctherCave
     'NoctherbCave1Scene': 'noctherbcave1',
     'NoctherbCave2Scene': 'noctherbcave2',
-    'NoctherbCave2BisScene': 'noctherbcave2bis'
+    'NoctherbCave2BisScene': 'noctherbcave2bis',
 
     // Wraithmoor
     'WraithmoorScene': 'wraithmoor',
