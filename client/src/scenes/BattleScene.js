@@ -64,27 +64,41 @@ export class BattleScene extends Phaser.Scene {
 
   // === INITIALISATION ===
 
-  init(data = {}) {
-    this.gameManager = data.gameManager
-      || this.scene.get('GameScene')?.gameManager
-      || window.pokemonUISystem?.gameManager
-      || window.gameManager;
+init(data = {}) {
+  console.log('[BUGPOKEMON] 🔧 BattleScene.init appelée avec:', data);
+  console.log('[BUGPOKEMON] 🔍 data.battleData existe ?', !!data.battleData);
+  console.log('[BUGPOKEMON] 🔍 data.selectedPokemon existe ?', !!data.selectedPokemon);
+  
+  this.gameManager = data.gameManager
+    || this.scene.get('GameScene')?.gameManager
+    || window.pokemonUISystem?.gameManager
+    || window.gameManager;
 
-    this.battleNetworkHandler = data.battleNetworkHandler
-      || window.battleSystem?.battleConnection?.networkHandler
-      || window.globalNetworkManager?.battleNetworkHandler
-      || null;
+  this.battleNetworkHandler = data.battleNetworkHandler
+    || window.battleSystem?.battleConnection?.networkHandler
+    || window.globalNetworkManager?.battleNetworkHandler
+    || null;
 
-    if (!this.battleNetworkHandler) {
-      console.warn('⚠️ [BattleScene] BattleNetworkHandler non trouvé dans init');
-    } else {
-      console.log('✅ [BattleScene] BattleNetworkHandler trouvé');
-    }
-
-    if (!this.gameManager) {
-      console.warn('⚠️ [BattleScene] GameManager manquant dans init');
-    }
+  if (!this.battleNetworkHandler) {
+    console.warn('[BUGPOKEMON] ⚠️ BattleNetworkHandler non trouvé dans init');
+  } else {
+    console.log('[BUGPOKEMON] ✅ BattleNetworkHandler trouvé');
   }
+
+  if (!this.gameManager) {
+    console.warn('[BUGPOKEMON] ⚠️ GameManager manquant dans init');
+  }
+  
+  // ✅ AJOUTER : Si on a des battleData, déclencher le combat !
+  if (data.battleData) {
+    console.log('[BUGPOKEMON] 🎯 Déclenchement automatique startBattle...');
+    // Attendre que la scène soit complètement créée
+    this.events.once('create', () => {
+      console.log('[BUGPOKEMON] 🚀 Scene créée, appel startBattle...');
+      this.startBattle(data.battleData);
+    });
+  }
+}
 
   preload() {
     console.log('📁 [BattleScene] Préchargement ressources modernes...');
