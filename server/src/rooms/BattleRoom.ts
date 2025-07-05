@@ -198,29 +198,111 @@ export class BattleRoom extends Room<BattleState> {
 
   // === DÉMARRAGE DU COMBAT ===
 
-  private async startBattle() {
-    console.log(`🎬 DÉMARRAGE DU COMBAT AVEC BATTLEMANAGER !`);
+private async startBattle() {
+  console.log(`🔥 [AUTO PHASE] === DÉMARRAGE DU COMBAT AVEC BATTLEMANAGER ===`);
+  console.log(`🔥 [AUTO PHASE] Phase initiale: ${this.state.phase}`);
+  console.log(`🔥 [AUTO PHASE] Type de combat: ${this.state.battleType}`);
+  console.log(`🔥 [AUTO PHASE] Player1Id: ${this.state.player1Id}`);
+  console.log(`🔥 [AUTO PHASE] Player1Name: ${this.state.player1Name}`);
+  
+  try {
+    console.log(`🔥 [AUTO PHASE] Passage en phase intro...`);
+    this.state.phase = "intro";
     
-    try {
-      this.state.phase = "intro";
-      
-      if (this.state.battleType === "wild") {
-        await this.setupWildBattleWithManager();
-      } else {
-        await this.setupPvPBattle();
-      }
-      
-      this.state.phase = "team_selection";
-      this.broadcast("phaseChange", { phase: "team_selection" });
-      
-      console.log(`✅ Combat configuré avec BattleManager`);
-      
-    } catch (error) {
-      console.error(`❌ Erreur startBattle:`, error);
-      this.endBattleEarly("setup_error");
+    if (this.state.battleType === "wild") {
+      console.log(`🔥 [AUTO PHASE] Setup combat sauvage automatique...`);
+      await this.setupWildBattleWithManager();
+      console.log(`🔥 [AUTO PHASE] Setup sauvage terminé`);
+    } else {
+      console.log(`🔥 [AUTO PHASE] Setup combat PvP...`);
+      await this.setupPvPBattle();
+      console.log(`🔥 [AUTO PHASE] Setup PvP terminé`);
     }
+    
+    console.log(`🔥 [AUTO PHASE] Passage en phase team_selection...`);
+    this.state.phase = "team_selection";
+    this.broadcast("phaseChange", { phase: "team_selection" });
+    
+    // ✅ ICI IL FAUT AJOUTER LA LOGIQUE AUTOMATIQUE
+    console.log(`🔥 [AUTO PHASE] Démarrage automatique sélection Pokémon...`);
+    
+    // Pour un combat sauvage, choisir automatiquement le premier Pokémon disponible
+    if (this.state.battleType === "wild") {
+      await this.autoSelectFirstPokemon();
+    }
+    
+    console.log(`🔥 [AUTO PHASE] startBattle terminé`);
+    
+  } catch (error) {
+    console.error(`🔥 [AUTO PHASE] Erreur startBattle:`, error);
+    if (error instanceof Error) {
+      console.error(`🔥 [AUTO PHASE] Stack trace:`, error.stack);
+    }
+    this.endBattleEarly("setup_error");
   }
+}
 
+  private async autoSelectFirstPokemon() {
+  console.log(`🔥 [AUTO SELECT] Sélection automatique du premier Pokémon...`);
+  
+  try {
+    // Récupérer le premier client (le joueur)
+    const playerClient = Array.from(this.clients)[0];
+    if (!playerClient) {
+      throw new Error("Aucun client trouvé");
+    }
+    
+    console.log(`🔥 [AUTO SELECT] Client trouvé: ${playerClient.sessionId}`);
+    
+    const teamManager = this.teamManagers.get(playerClient.sessionId);
+    if (!teamManager) {
+      throw new Error("TeamManager non trouvé");
+    }
+    
+    console.log(`🔥 [AUTO SELECT] TeamManager trouvé, récupération équipe...`);
+    const team = await teamManager.getTeam();
+    
+    // Trouver le premier Pokémon disponible
+    const firstAvailablePokemon = team.find(pokemon => 
+      pokemon.currentHp > 0 && 
+      pokemon.status !== 'fainted' &&
+      pokemon.moves && pokemon.moves.length > 0
+    );
+    
+    if (!firstAvailablePokemon) {
+      throw new Error("Aucun Pokémon disponible pour le combat");
+    }
+    
+    console.log(`🔥 [AUTO SELECT] Premier Pokémon trouvé: ${firstAvailablePokemon.nickname || 'Sans nom'} (ID: ${firstAvailablePokemon.pokemonId})`);
+    
+    // Initialiser le combat avec ce Pokémon
+    if (this.battleInitData.wildPokemon) {
+      console.log(`🔥 [AUTO SELECT] Initialisation combat avec BattleManager...`);
+      
+      await this.battleManager.initializeWildBattle(
+        this.state.player1Id,
+        this.state.player1Name,
+        firstAvailablePokemon.pokemonId,
+        this.battleInitData.wildPokemon,
+        "auto_wild_encounter"
+      );
+      
+      console.log(`🔥 [AUTO SELECT] BattleManager initialisé`);
+      console.log(`🔥 [AUTO SELECT] Nouvelle phase: ${this.state.phase}`);
+      console.log(`🔥 [AUTO SELECT] Tour actuel: ${this.state.currentTurn}`);
+      
+      // Démarrer le combat réel
+      console.log(`🔥 [AUTO SELECT] Démarrage combat réel...`);
+      this.startActualBattle();
+      console.log(`🔥 [AUTO SELECT] Combat réel démarré`);
+    }
+    
+  } catch (error) {
+    console.error(`🔥 [AUTO SELECT] Erreur sélection auto:`, error);
+    throw error;
+  }
+}
+  
   // ✅ NOUVEAU: Setup combat sauvage avec BattleManager
   private async setupWildBattleWithManager() {
     console.log(`🌿 Configuration combat sauvage avec BattleManager`);
