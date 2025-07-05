@@ -1433,11 +1433,7 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
       // Données de base
       player.id = client.sessionId;
       player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
-      if (savedData && savedData.username) {
-  player.name = savedData.username;
-  console.log(`📝 [WorldRoom] Nom récupéré depuis DB: ${player.name}`);
-}
-      
+
       // Debug d'abord
       await this.positionSaver.debugPlayerPosition(player.name);
 
@@ -1468,6 +1464,12 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
         player.x = Math.round(savedData.lastX);
         player.y = Math.round(savedData.lastY);
         player.currentZone = savedData.lastMap;
+
+        // ✅ NOUVEAU: Récupérer aussi le nom d'utilisateur
+  if (savedData.username) {
+    player.name = savedData.username;
+    console.log(`📝 [WorldRoom] Nom utilisateur récupéré depuis DB: ${player.name}`);
+  }
         
         console.log(`💾 [PRIORITÉ DB] Position restaurée: ${player.name}`);
         console.log(`📍 Position finale: (${player.x}, ${player.y}) dans ${player.currentZone}`);
