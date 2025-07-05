@@ -38,9 +38,18 @@ import { LavandiaResearchLabScene } from './scenes/zones/LavandiaResearchLabScen
 import { LavandiaShopScene } from './scenes/zones/LavandiaShopScene.js';
 import { Road1HouseScene } from './scenes/zones/Road1HouseScene.js';
 import { Road1HiddenScene } from './scenes/zones/Road1HiddenScene.js';
+import { Road2Scene } from './scenes/zones/Road2Scene.js';
+import { Road3Scene } from './scenes/zones/Road3Scene.js';
 import { VillageFloristScene } from './scenes/zones/VillageFloristScene.js';
 import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
 import { VillageWindmillScene } from './scenes/zones/VillageWindmillScene.js';
+import { NoctherbCave1Scene } from './scenes/zones/NoctherbCave1Scene.js';
+import { NoctherbCave2Scene } from './scenes/zones/NoctherbCave2Scene.js';
+import { NoctherbCave2bisScene } from './scenes/zones/NoctherbCave2bisScene.js';
+import { WraithmoorScene } from './scenes/zones/WraithmoorScene.js';
+import { WraithmoorCimeteryScene } from './scenes/zones/WraithmoorCimeteryScene.js';
+import { WraithmoorManor1Scene } from './scenes/zones/WraithmoorManor1Scene.js';
+
 
 import { Client } from 'colyseus.js';
 import { initPokeChat } from './network/PokeChatSystem.js';
@@ -312,6 +321,8 @@ const config = {
     Road1Scene,
     Road1HouseScene,
     Road1HiddenScene,
+    Road2,
+    Road3,
     LavandiaScene,
     LavandiaAnalysisScene,
     LavandiaBossRoomScene,
@@ -330,6 +341,12 @@ const config = {
     LavandiaHouse9Scene,
     LavandiaResearchLabScene,
     LavandiaShopScene,
+    NoctherbCave1Scene,
+    NoctherbCave2Scene,
+    NoctherebCave2bisScene,
+    WraithmoorScene,
+    WraithmoorManor1Scene,
+    WraithmoorCimeteryScene,
     { scene: BattleScene, active: false, visible: false }
   ],
   physics: {
