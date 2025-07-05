@@ -300,12 +300,12 @@ async handleWildEncounterStart(data) {
   // === GESTION DU COMBAT (INCHANGÉE MAIS AVEC LOGS) ===
 
 async handleBattleRoomCreated(data) {
-  console.log('🏠 [BattleIntegration] BattleRoom créée:', data.battleRoomId);
+  console.log('[BUGPOKEMON] 🏠 BattleRoom créée:', data.battleRoomId);
+  console.log('[BUGPOKEMON] 🔍 data.opponentPokemon reçu:', JSON.stringify(data.opponentPokemon, null, 2));
   
   this.currentBattleRoomId = data.battleRoomId;
   this.currentBattleType = data.battleType;
   
-  // ✅ RÉCUPÉRER LE POKÉMON DU SERVEUR
   if (data.playerPokemon) {
     this.selectedPokemon = data.playerPokemon;
     console.log(`✅ [BattleIntegration] Pokémon reçu du serveur: ${data.playerPokemon.name}`);
@@ -328,14 +328,14 @@ async handleBattleRoomCreated(data) {
       battleId: data.battleRoomId,
       battleType: data.battleType,
       playerPokemon: this.selectedPokemon,
-      opponentPokemon: this.currentBattleData?.pokemon || data.wildPokemon
+      opponentPokemon: data.opponentPokemon  // ✅ UTILISER data.opponentPokemon au lieu de this.currentBattleData?.pokemon
     };
-    console.log('[BUGPOKEMON] 📞 Appel startBattleInterface avec:', battleData);
-    console.log('[BUGPOKEMON] 🔗 battleData avant startBattleInterface:', JSON.stringify(battleData.opponentPokemon, null, 2));
+    
+    console.log('[BUGPOKEMON] 🔗 battleData.opponentPokemon avant startBattleInterface:', JSON.stringify(battleData.opponentPokemon, null, 2));
+    
     this.startBattleInterface(battleData);
   }
 }
-
   handleBattleRoomConnected(data) {
     console.log('🚪 [BattleIntegration] Connecté à la BattleRoom');
     
