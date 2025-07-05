@@ -187,16 +187,16 @@ export class ZoneManager {
     this.collisions.set('lavandiaresearchlab', new CollisionManager("lavandiaresearchlab.tmj"));
     
     // Zones Nocther Cave
-    this.loadZone('noctherbcave1', new NoctherCave1Zone(this.room));
-    console.log("[ZoneManager] Initialisation collisions pour nocthercave1");
+    this.loadZone('noctherbcave1', new NoctherbCave1Zone(this.room));
+    console.log("[ZoneManager] Initialisation collisions pour noctherbcave1");
     this.collisions.set('noctherbcave1', new CollisionManager("noctherbcave1.tmj"));
     
-    this.loadZone('noctherbcave2', new NoctherCave2Zone(this.room));
-    console.log("[ZoneManager] Initialisation collisions pour nocthercave2");
+    this.loadZone('noctherbcave2', new NoctherbCave2Zone(this.room));
+    console.log("[ZoneManager] Initialisation collisions pour noctherbcave2");
     this.collisions.set('noctherbcave2', new CollisionManager("noctherbcave2.tmj"));
     
-    this.loadZone('noctherbcave2bis', new NoctherCave2BisZone(this.room));
-    console.log("[ZoneManager] Initialisation collisions pour nocthercave2bis");
+    this.loadZone('noctherbcave2bis', new NoctherbCave2BisZone(this.room));
+    console.log("[ZoneManager] Initialisation collisions pour noctherbcave2bis");
     this.collisions.set('noctherbcave2bis', new CollisionManager("noctherbcave2bis.tmj"));
     
     // Zones Road
