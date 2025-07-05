@@ -34,9 +34,9 @@ import { LavandiaResearchLabZone } from "../rooms/zones/LavandiaResearchLabZone"
 
 
 // Zones Nocther Cave
-import { NoctherCave1Zone } from "../rooms/zones/NoctherCave1Zone";
-import { NoctherCave2Zone } from "../rooms/zones/NoctherCave2Zone";
-import { NoctherCave2BisZone } from "../rooms/zones/NoctherCave2BisZone";
+import { NoctherCave1Zone } from "../rooms/zones/NoctherbCave1Zone";
+import { NoctherCave2Zone } from "../rooms/zones/NoctherbCave2Zone";
+import { NoctherCave2BisZone } from "../rooms/zones/NoctherbCave2BisZone";
 
 // Zones Road
 import { Road1Zone } from "../rooms/zones/Road1Zone";
@@ -187,17 +187,17 @@ export class ZoneManager {
     this.collisions.set('lavandiaresearchlab', new CollisionManager("lavandiaresearchlab.tmj"));
     
     // Zones Nocther Cave
-    this.loadZone('nocthercave1', new NoctherCave1Zone(this.room));
+    this.loadZone('noctherbcave1', new NoctherCave1Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour nocthercave1");
-    this.collisions.set('nocthercave1', new CollisionManager("noctherbcave1.tmj"));
+    this.collisions.set('noctherbcave1', new CollisionManager("noctherbcave1.tmj"));
     
-    this.loadZone('nocthercave2', new NoctherCave2Zone(this.room));
+    this.loadZone('noctherbcave2', new NoctherCave2Zone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour nocthercave2");
-    this.collisions.set('nocthercave2', new CollisionManager("noctherbcave2.tmj"));
+    this.collisions.set('noctherbcave2', new CollisionManager("noctherbcave2.tmj"));
     
-    this.loadZone('nocthercave2bis', new NoctherCave2BisZone(this.room));
+    this.loadZone('noctherbcave2bis', new NoctherCave2BisZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour nocthercave2bis");
-    this.collisions.set('nocthercave2bis', new CollisionManager("noctherbcave2bis.tmj"));
+    this.collisions.set('noctherbcave2bis', new CollisionManager("noctherbcave2bis.tmj"));
     
     // Zones Road
     this.loadZone('road1', new Road1Zone(this.room));
