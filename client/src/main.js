@@ -343,7 +343,7 @@ const config = {
     LavandiaShopScene,
     NoctherbCave1Scene,
     NoctherbCave2Scene,
-    NoctherebCave2BisScene,
+    NoctherbCave2BisScene,
     WraithmoorScene,
     WraithmoorManor1Scene,
     WraithmoorCimeteryScene,
