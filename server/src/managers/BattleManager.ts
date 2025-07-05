@@ -219,12 +219,72 @@ export class BattleManager {
     }
   }
 
-  private shouldExecuteActions(): boolean {
-    if (this.battleState.battleType === "wild") {
-      return this.battleState.pendingActions.length >= 2; // ✅ FIX: Joueur + IA
+private async executeActions(): Promise<void> {
+  console.log(`🔥 [BATTLE MANAGER] === EXÉCUTION ACTIONS ===`);
+  console.log(`🔥 [BATTLE MANAGER] Nombre d'actions: ${this.battleState.pendingActions.length}`);
+  console.log(`🔥 [BATTLE MANAGER] Tour actuel AVANT: ${this.battleState.currentTurn}`);
+  console.log(`🔥 [BATTLE MANAGER] Turn number AVANT: ${this.battleState.turnNumber}`);
+  
+  // Trier les actions par priorité puis par vitesse
+  const sortedActions = Array.from(this.battleState.pendingActions).sort((a, b) => {
+    if (a.priority !== b.priority) {
+      return b.priority - a.priority; // Priorité plus haute en premier
     }
-    return this.battleState.pendingActions.length >= 2; // Deux actions pour combat PvP
+    return b.speed - a.speed; // Vitesse plus haute en premier
+  });
+
+  console.log(`🔥 [BATTLE MANAGER] Actions triées:`, sortedActions.map(a => ({
+    playerId: a.playerId,
+    type: a.type,
+    priority: a.priority,
+    speed: a.speed
+  })));
+
+  // Exécuter chaque action
+  for (const action of sortedActions) {
+    if (this.battleState.battleEnded) break;
+    
+    console.log(`🔥 [BATTLE MANAGER] Exécution action:`, {
+      playerId: action.playerId,
+      type: action.type,
+      priority: action.priority,
+      speed: action.speed
+    });
+    
+    await this.executeAction(action);
   }
+
+  // Nettoyer les actions
+  this.battleState.pendingActions.clear();
+  console.log(`🔥 [BATTLE MANAGER] Actions nettoyées`);
+
+  // ✅ FIX: Appliquer les effets de fin de tour
+  if (!this.battleState.battleEnded) {
+    console.log(`🔥 [BATTLE MANAGER] Application effets fin de tour...`);
+    this.processEndOfTurnEffects();
+  }
+
+  // Vérifier les conditions de fin
+  console.log(`🔥 [BATTLE MANAGER] Vérification fin de combat...`);
+  this.checkBattleEnd();
+
+  if (!this.battleState.battleEnded) {
+    this.battleState.turnNumber++;
+    
+    // ✅ FIX: Alterner les tours correctement
+    const oldTurn = this.battleState.currentTurn;
+    this.battleState.currentTurn = this.battleState.currentTurn === "player1" ? "player2" : "player1";
+    this.battleState.waitingForAction = true;
+    
+    console.log(`🔥 [BATTLE MANAGER] === NOUVEAU TOUR ===`);
+    console.log(`🔥 [BATTLE MANAGER] Tour ${this.battleState.turnNumber}`);
+    console.log(`🔥 [BATTLE MANAGER] Ancien tour: ${oldTurn}`);
+    console.log(`🔥 [BATTLE MANAGER] Nouveau tour: ${this.battleState.currentTurn}`);
+    console.log(`🔥 [BATTLE MANAGER] Waiting for action: ${this.battleState.waitingForAction}`);
+  } else {
+    console.log(`🔥 [BATTLE MANAGER] Combat terminé, pas de nouveau tour`);
+  }
+}
 
   // ✅ FIX: Amélioration de la génération d'action IA
   private generateAIAction(): BattleAction {
