@@ -1154,19 +1154,23 @@ updateModernHealthBar(type, pokemonData) {
     }
   }
 
-  showAttackMenu() {
-    // Ici vous pourriez créer un sous-menu pour les attaques
-    this.showBattleMessage('Sélectionnez une attaque...', 2000);
-    
-    // Pour l'exemple, utiliser la première attaque
-    setTimeout(() => {
-      this.executePlayerAction({
-        type: 'move',
-        moveId: 'tackle',
-        moveName: 'Charge'
-      });
-    }, 1000);
-  }
+showAttackMenu() {
+  console.log('[BUGPOKEMON] ⚔️ showAttackMenu appelée');
+  console.log('[BUGPOKEMON] 🔍 Pokémon joueur actuel:', this.currentPlayerPokemon);
+  console.log('[BUGPOKEMON] 🔍 Attaques disponibles:', this.currentPlayerPokemon?.moves);
+  
+  // Ici vous pourriez créer un sous-menu pour les attaques
+  this.showBattleMessage('Sélectionnez une attaque...', 2000);
+  
+  // Pour l'exemple, utiliser la première attaque
+  setTimeout(() => {
+    this.executePlayerAction({
+      type: 'move',
+      moveId: 'tackle',
+      moveName: 'Charge'
+    });
+  }, 1000);
+}
 
   showBagMenu() {
     this.showBattleMessage('Ouverture du sac...', 2000);
