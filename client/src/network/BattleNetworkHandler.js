@@ -203,24 +203,36 @@ async handleBattleRoomCreated(data) {
   console.log('[DEBUG] Avant triggerEvent...');
   
   this.battleRoomId = data.battleRoomId;
-
-  // ✅ IMPORTANT: Connexion automatique AVANT de notifier
-  console.log('[BUGPOKEMON] 🔗 Connexion automatique à la BattleRoom...');
-  const success = await this.connectToBattleRoom(this.battleRoomId);
-  if (!success) {
-    console.error('[BUGPOKEMON] ❌ Échec connexion auto BattleRoom');
-    this.triggerEvent('battleConnectionFailed', { battleRoomId: this.battleRoomId });
+  
+  console.log('[BUGPOKEMON] 🔧 DEBUG: Avant connexion...');
+  console.log('[BUGPOKEMON] 🔍 this.battleRoomId:', this.battleRoomId);
+  console.log('[BUGPOKEMON] 🔍 this.connectToBattleRoom existe:', typeof this.connectToBattleRoom);
+  
+  try {
+    // ✅ IMPORTANT: Connexion automatique AVANT de notifier
+    console.log('[BUGPOKEMON] 🔗 Connexion automatique à la BattleRoom...');
+    const success = await this.connectToBattleRoom(this.battleRoomId);
+    
+    console.log('[BUGPOKEMON] 🔍 Résultat connexion:', success);
+    
+    if (!success) {
+      console.error('[BUGPOKEMON] ❌ Échec connexion auto BattleRoom');
+      this.triggerEvent('battleConnectionFailed', { battleRoomId: this.battleRoomId });
+      return;
+    }
+    
+    console.log('[BUGPOKEMON] ✅ Connecté à la BattleRoom, transmission des données...');
+  } catch (error) {
+    console.error('[BUGPOKEMON] 💥 Erreur lors de la connexion:', error);
     return;
   }
-
-  console.log('[BUGPOKEMON] ✅ Connecté à la BattleRoom, transmission des données...');
-
+  
   // ✅ Notifier la création APRÈS connexion réussie
   this.triggerEvent('battleRoomCreated', {
     battleRoomId: this.battleRoomId,
     battleType: data.battleType,
     playerPokemon: data.playerPokemon,
-    opponentPokemon: data.opponentPokemon,  // ✅ IMPORTANT: transmettre opponentPokemon
+    opponentPokemon: data.opponentPokemon,
     wildPokemon: data.wildPokemon,
     location: data.location,
     method: data.method,
