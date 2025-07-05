@@ -96,7 +96,7 @@ export const ZONE_ENVIRONMENTS: Record<string, ZoneEnvironmentConfig> = {
   },
 
   // === GROTTES ===
-  'nocthercave1': {
+  'noctherbcave1': {
     environment: 'cave',
     lighting: {
       hasNaturalLight: false,
@@ -109,7 +109,7 @@ export const ZONE_ENVIRONMENTS: Record<string, ZoneEnvironmentConfig> = {
     }
   },
   
-  'nocthercave2': {
+  'noctherbcave2': {
     environment: 'cave',
     lighting: {
       hasNaturalLight: false,
@@ -122,7 +122,7 @@ export const ZONE_ENVIRONMENTS: Record<string, ZoneEnvironmentConfig> = {
     }
   },
   
-  'nocthercave2bis': {
+  'noctherbcave2bis': {
     environment: 'cave',
     lighting: {
       hasNaturalLight: false,
