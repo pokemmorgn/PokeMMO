@@ -242,7 +242,7 @@ private async startBattle() {
   }
 }
 
-  private async autoSelectFirstPokemon() {
+private async autoSelectFirstPokemon() {
   console.log(`🔥 [AUTO SELECT] Sélection automatique du premier Pokémon...`);
   
   try {
@@ -262,10 +262,9 @@ private async startBattle() {
     console.log(`🔥 [AUTO SELECT] TeamManager trouvé, récupération équipe...`);
     const team = await teamManager.getTeam();
     
-    // Trouver le premier Pokémon disponible
+    // ✅ CORRECTION: Vérifier seulement HP et moves
     const firstAvailablePokemon = team.find(pokemon => 
       pokemon.currentHp > 0 && 
-      pokemon.status !== 'fainted' &&
       pokemon.moves && pokemon.moves.length > 0
     );
     
@@ -274,6 +273,8 @@ private async startBattle() {
     }
     
     console.log(`🔥 [AUTO SELECT] Premier Pokémon trouvé: ${firstAvailablePokemon.nickname || 'Sans nom'} (ID: ${firstAvailablePokemon.pokemonId})`);
+    console.log(`🔥 [AUTO SELECT] HP: ${firstAvailablePokemon.currentHp}/${firstAvailablePokemon.maxHp}`);
+    console.log(`🔥 [AUTO SELECT] Moves: ${firstAvailablePokemon.moves?.length || 0}`);
     
     // Initialiser le combat avec ce Pokémon
     if (this.battleInitData.wildPokemon) {
@@ -299,6 +300,9 @@ private async startBattle() {
     
   } catch (error) {
     console.error(`🔥 [AUTO SELECT] Erreur sélection auto:`, error);
+    if (error instanceof Error) {
+      console.error(`🔥 [AUTO SELECT] Stack trace:`, error.stack);
+    }
     throw error;
   }
 }
