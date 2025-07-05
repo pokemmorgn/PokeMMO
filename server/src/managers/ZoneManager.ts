@@ -41,7 +41,7 @@ import { NoctherbCave2BisZone } from "../rooms/zones/NoctherbCave2BisZone";
 // Zones Nocther Cave
 import { WraithmoorZone } from "../rooms/zones/WraithmoorZone";
 import { WraithmoorCimeteryZone } from "../rooms/zones/WraithmoorCimeteryZone";
-import { WreaithmoorManor1Zone } from "../rooms/zones/WreaithmoorManor1Zone";
+import { WraithmoorManor1Zone } from "../rooms/zones/WraithmoorManor1Zone";
 
 // Zones Road
 import { Road1Zone } from "../rooms/zones/Road1Zone";
