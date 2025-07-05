@@ -307,7 +307,7 @@ async handleWildEncounterStart(data) {
   this.isInBattle = true;
   
   console.log('⏳ [BattleIntegration] Attente création BattleRoom...');
-  // Le Pokémon sera fourni par handleBattleRoomCreated quand le serveur répondra
+  // ❌ NE PAS LANCER LA BATTLESCENE ICI - Attendre handleBattleRoomCreated
 }
 
   // ✅ NOUVEAU CALLBACK: Appelé quand la transition UI est terminée
@@ -326,10 +326,20 @@ handleBattleRoomCreated(data) {
   this.currentBattleRoomId = data.battleRoomId;
   this.currentBattleType = data.battleType;
   
-  // ✅ NOUVEAU: Récupérer le Pokémon du serveur
+  // ✅ RÉCUPÉRER LE POKÉMON DU SERVEUR
   if (data.playerPokemon) {
     this.selectedPokemon = data.playerPokemon;
     console.log(`✅ [BattleIntegration] Pokémon reçu du serveur: ${data.playerPokemon.name}`);
+    
+    // ✅ MAINTENANT LANCER LA BATTLESCENE AVEC LES DEUX POKÉMON
+    const battleData = {
+      battleId: data.battleRoomId,
+      battleType: data.battleType,
+      playerPokemon: this.selectedPokemon,
+      opponentPokemon: this.currentBattleData?.pokemon || data.wildPokemon
+    };
+    
+    this.startBattleInterface(battleData);
   }
 }
 
