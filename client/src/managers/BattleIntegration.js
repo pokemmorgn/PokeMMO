@@ -262,71 +262,53 @@ async initializeBattleScene() {
 
   // === GESTION DES RENCONTRES MISE À JOUR ===
 
-  async handleWildEncounterStart(data) {
-    console.log('🐾 [BattleIntegration] === DÉBUT RENCONTRE SAUVAGE AVEC UI ===');
-    console.log('📊 Data reçue:', data);
+async handleWildEncounterStart(data) {
+  console.log('🐾 [BattleIntegration] === DÉBUT RENCONTRE SAUVAGE AVEC UI ===');
+  console.log('📊 Data reçue:', data);
+  
+  if (this.isInBattle || this.isSelectingPokemon) {
+    console.warn('⚠️ [BattleIntegration] Combat déjà en cours, ignoré');
+    return;
+  }
+  
+  // ✅ ÉTAPE 1: LANCER LA TRANSITION UI IMMÉDIATEMENT
+  console.log('🎬 [BattleIntegration] Lancement transition UI...');
+  
+  if (this.battleUITransition) {
+    const transitionSuccess = await this.battleUITransition.startBattleTransition({
+      pokemon: data.pokemon || data.wildPokemon,
+      location: data.location,
+      method: data.method
+    });
     
-    if (this.isInBattle || this.isSelectingPokemon) {
-      console.warn('⚠️ [BattleIntegration] Combat déjà en cours, ignoré');
+    if (!transitionSuccess) {
+      console.error('❌ [BattleIntegration] Échec transition UI');
+      this.showError('Erreur lors de la préparation du combat');
       return;
     }
     
-    // ✅ ÉTAPE 1: LANCER LA TRANSITION UI IMMÉDIATEMENT
-    console.log('🎬 [BattleIntegration] Lancement transition UI...');
-    
-    if (this.battleUITransition) {
-      const transitionSuccess = await this.battleUITransition.startBattleTransition({
-        pokemon: data.pokemon || data.wildPokemon,
-        location: data.location,
-        method: data.method
-      });
-      
-      if (!transitionSuccess) {
-        console.error('❌ [BattleIntegration] Échec transition UI');
-        this.showError('Erreur lors de la préparation du combat');
-        return;
-      }
-      
-      console.log('✅ [BattleIntegration] Transition UI réussie');
-    } else {
-      console.warn('⚠️ [BattleIntegration] BattleUITransition non disponible');
-    }
-    
-    // Stocker les données de combat
-    this.currentBattleData = data;
-    
-    // Notifier le GameManager
-    if (this.gameManager?.onEncounterStart) {
-      this.gameManager.onEncounterStart(data);
-    }
-    
-    // ✅ ÉTAPE 2: Préparation du Pokémon (après transition UI)
-    console.log('🤖 [BattleIntegration] Préparation du premier Pokémon...');
-    
-    try {
-      // Le Pokémon sera fourni par handleBattleRoomCreated
-      console.log('⏳ [BattleIntegration] Attente données serveur...');
-      
-      if (!firstAvailable) {
-        console.error('❌ [BattleIntegration] Aucun Pokémon disponible !');
-        this.showError('Aucun Pokémon disponible pour le combat !');
-        await this.cancelBattle();
-        return;
-      }
-      
-      this.selectedPokemon = firstAvailable;
-      console.log(`✅ [BattleIntegration] Pokémon préparé: ${firstAvailable.name}`);
-      
-      // Marquer comme en cours
-      this.isInBattle = true;
-      
-      console.log('⏳ [BattleIntegration] Attente création BattleRoom...');
-      
-    } catch (error) {
-      console.error('❌ [BattleIntegration] Erreur préparation:', error);
-      await this.cancelBattle();
-    }
+    console.log('✅ [BattleIntegration] Transition UI réussie');
+  } else {
+    console.warn('⚠️ [BattleIntegration] BattleUITransition non disponible');
   }
+  
+  // Stocker les données de combat
+  this.currentBattleData = data;
+  
+  // Notifier le GameManager
+  if (this.gameManager?.onEncounterStart) {
+    this.gameManager.onEncounterStart(data);
+  }
+  
+  // ✅ ÉTAPE 2: Marquer comme en cours et attendre le serveur
+  console.log('🤖 [BattleIntegration] Préparation du combat...');
+  
+  // Marquer comme en cours
+  this.isInBattle = true;
+  
+  console.log('⏳ [BattleIntegration] Attente création BattleRoom...');
+  // Le Pokémon sera fourni par handleBattleRoomCreated quand le serveur répondra
+}
 
   // ✅ NOUVEAU CALLBACK: Appelé quand la transition UI est terminée
   onUITransitionComplete(transitionData) {
