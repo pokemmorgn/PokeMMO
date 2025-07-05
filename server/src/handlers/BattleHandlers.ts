@@ -104,129 +104,146 @@ export class BattleHandlers {
   /**
    * Démarre un combat sauvage
    */
-  public async handleStartWildBattle(client: Client, data: {
-    wildPokemon: WildPokemon;
-    location: string;
-    method: string;
-    currentZone?: string;   // <--- AJOUTE CETTE LIGNE
-    zoneId?: string;        // (optionnel)
-  }): Promise<void> {
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) {
-      client.send("battleError", { message: "Joueur non trouvé" });
-      return;
-    }
+public async handleStartWildBattle(client: Client, data: {
+  wildPokemon: WildPokemon;
+  location: string;
+  method: string;
+  currentZone?: string;
+  zoneId?: string;
+}): Promise<void> {
+  const player = this.room.state.players.get(client.sessionId);
+  if (!player) {
+    client.send("battleError", { message: "Joueur non trouvé" });
+    return;
+  }
 
-    console.log(`⚔️ [BattleHandlers] === DÉMARRAGE COMBAT SAUVAGE ===`);
-    console.log(`👤 Joueur: ${player.name}`);
-    console.log(`🐾 Pokémon: ${data.wildPokemon.pokemonId} Niv.${data.wildPokemon.level}`);
-    console.log(`📍 Lieu: ${data.location}`);
+  console.log(`⚔️ [BattleHandlers] === DÉMARRAGE COMBAT SAUVAGE ===`);
+  console.log(`👤 Joueur: ${player.name}`);
+  console.log(`🐾 Pokémon: ${data.wildPokemon.pokemonId} Niv.${data.wildPokemon.level}`);
+  console.log(`📍 Lieu: ${data.location}`);
 
-        // Récupérer l'équipe du joueur
-    const teamHandlers = this.room.getTeamHandlers();
-    if (!teamHandlers) {
+  // Récupérer l'équipe du joueur
+  const teamHandlers = this.room.getTeamHandlers();
+  if (!teamHandlers) {
+    client.send("battleError", { 
+      message: "Système d'équipe non disponible",
+      code: "TEAM_SYSTEM_ERROR"
+    });
+    return;
+  }
+  
+  // Obtenir le premier Pokémon disponible pour le combat
+  const playerPokemon = await this.getPlayerBattlePokemon(player.name);
+  if (!playerPokemon) {
+    client.send("battleError", { 
+      message: "Aucun Pokémon disponible pour le combat",
+      code: "NO_BATTLE_POKEMON"
+    });
+    return;
+  }
+
+  console.log(`👤 Pokémon joueur: ${playerPokemon.name} Niv.${playerPokemon.level}`);
+  
+  try {
+    // Vérifier si le joueur peut combattre
+    const canBattle = await this.checkPlayerCanBattle(client.sessionId);
+    if (!canBattle.canBattle) {
       client.send("battleError", { 
-        message: "Système d'équipe non disponible",
-        code: "TEAM_SYSTEM_ERROR"
+        message: canBattle.reason || "Impossible de combattre",
+        code: "CANNOT_BATTLE"
       });
       return;
     }
-    
-    // Obtenir le premier Pokémon disponible pour le combat
-    const playerPokemon = await this.getPlayerBattlePokemon(player.name);
-    if (!playerPokemon) {
+
+    // Vérifier qu'il n'est pas déjà en combat
+    if (this.isPlayerInBattle(client.sessionId)) {
       client.send("battleError", { 
-        message: "Aucun Pokémon disponible pour le combat",
-        code: "NO_BATTLE_POKEMON"
+        message: "Vous êtes déjà en combat !",
+        code: "ALREADY_IN_BATTLE"
       });
       return;
     }
 
-    console.log(`👤 Pokémon joueur: ${playerPokemon.name} Niv.${playerPokemon.level}`);
-    try {
-      // Vérifier si le joueur peut combattre
-      const canBattle = await this.checkPlayerCanBattle(client.sessionId);
-      if (!canBattle.canBattle) {
-        client.send("battleError", { 
-          message: canBattle.reason || "Impossible de combattre",
-          code: "CANNOT_BATTLE"
-        });
-        return;
-      }
+    // ✅ NOUVEAU : Récupérer les vraies données du Pokémon sauvage
+    const pokemonData = await getPokemonById(data.wildPokemon.pokemonId);
+    const baseHp = pokemonData?.baseStats?.hp || 50;
+    const calculatedMaxHp = Math.floor(((baseHp * 2) * data.wildPokemon.level) / 100) + data.wildPokemon.level + 10;
 
-      // Vérifier qu'il n'est pas déjà en combat
-      if (this.isPlayerInBattle(client.sessionId)) {
-        client.send("battleError", { 
-          message: "Vous êtes déjà en combat !",
-          code: "ALREADY_IN_BATTLE"
-        });
-        return;
-      }
+    const wildPokemonComplete = {
+      pokemonId: data.wildPokemon.pokemonId,
+      name: pokemonData?.name || this.getPokemonName(data.wildPokemon.pokemonId),
+      level: data.wildPokemon.level,
+      currentHp: calculatedMaxHp,
+      maxHp: calculatedMaxHp,
+      types: pokemonData?.types || ['Normal'],
+      statusCondition: 'normal',
+      shiny: data.wildPokemon.shiny,
+      gender: data.wildPokemon.gender,
+      moves: data.wildPokemon.moves || ['tackle', 'growl'],
+      isWild: true
+    };
 
-      // Préparer les données de combat
-      const battleInitData: BattleInitData = {
-        battleType: "wild",
-        playerData: {
-          sessionId: client.sessionId,
-          name: player.name,
-          worldRoomId: this.room.roomId
-        },
-        wildPokemon: data.wildPokemon
-      };
+    console.log(`🐾 Pokémon sauvage complet: ${wildPokemonComplete.name} (${calculatedMaxHp} PV)`);
 
-      // Créer la BattleRoom
-      const battleRoom = await matchMaker.createRoom("battle", battleInitData)
-      console.log(`🏠 [BattleHandlers] BattleRoom créée: ${battleRoom.roomId}`);
+    // Préparer les données de combat
+    const battleInitData: BattleInitData = {
+      battleType: "wild",
+      playerData: {
+        sessionId: client.sessionId,
+        name: player.name,
+        worldRoomId: this.room.roomId
+      },
+      wildPokemon: data.wildPokemon
+    };
 
-      // Enregistrer le combat
-      this.activeBattles.set(client.sessionId, battleRoom.roomId);
+    // Créer la BattleRoom
+    const battleRoom = await matchMaker.createRoom("battle", battleInitData);
+    console.log(`🏠 [BattleHandlers] BattleRoom créée: ${battleRoom.roomId}`);
 
-      // Bloquer le mouvement du joueur
-      this.room.blockPlayerMovement(
-        client.sessionId, 
-        "battle", 
-        0, // Durée illimitée jusqu'à fin de combat
-        { 
-          battleRoomId: battleRoom.roomId,
-          battleType: "wild",
-          wildPokemon: data.wildPokemon.pokemonId
-        }
-      );
+    // Enregistrer le combat
+    this.activeBattles.set(client.sessionId, battleRoom.roomId);
 
-      // Envoyer l'invitation de combat au client
-      client.send("battleRoomCreated", {
-        success: true,
+    // Bloquer le mouvement du joueur
+    this.room.blockPlayerMovement(
+      client.sessionId, 
+      "battle", 
+      0,
+      { 
         battleRoomId: battleRoom.roomId,
         battleType: "wild",
-        playerPokemon: playerPokemon,  // ✅ AJOUT
-        wildPokemon: {
-          pokemonId: data.wildPokemon.pokemonId,
-          level: data.wildPokemon.level,
-          shiny: data.wildPokemon.shiny,
-          gender: data.wildPokemon.gender
-        },
-        location: data.location,
-        method: data.method,
-        currentZone: data.currentZone || player.currentZone || "unknown", // <--- PROPAGATION FINALE
-        zoneId: data.zoneId,
-        message: `Un ${this.getPokemonName(data.wildPokemon.pokemonId)} sauvage apparaît !`
-      });
+        wildPokemon: data.wildPokemon.pokemonId
+      }
+    );
 
-      console.log(`✅ [BattleHandlers] Combat sauvage préparé pour ${player.name}`);
+    // ✅ CORRECTION : Envoyer opponentPokemon au lieu de wildPokemon
+    client.send("battleRoomCreated", {
+      success: true,
+      battleRoomId: battleRoom.roomId,
+      battleType: "wild",
+      playerPokemon: playerPokemon,
+      opponentPokemon: wildPokemonComplete, // ✅ Données complètes avec PV et types
+      location: data.location,
+      method: data.method,
+      currentZone: data.currentZone || player.currentZone || "unknown",
+      zoneId: data.zoneId,
+      message: `Un ${wildPokemonComplete.name} sauvage apparaît !`
+    });
 
-    } catch (error) {
-      console.error(`❌ [BattleHandlers] Erreur création combat:`, error);
-      
-      // Nettoyer en cas d'erreur
-      this.activeBattles.delete(client.sessionId);
-      this.room.unblockPlayerMovement(client.sessionId, "battle");
-      
-      client.send("battleError", {
-        message: "Erreur lors de la création du combat",
-        error: error instanceof Error ? error.message : "Erreur inconnue"
-      });
-    }
+    console.log(`✅ [BattleHandlers] Combat sauvage préparé pour ${player.name}`);
+
+  } catch (error) {
+    console.error(`❌ [BattleHandlers] Erreur création combat:`, error);
+    
+    // Nettoyer en cas d'erreur
+    this.activeBattles.delete(client.sessionId);
+    this.room.unblockPlayerMovement(client.sessionId, "battle");
+    
+    client.send("battleError", {
+      message: "Erreur lors de la création du combat",
+      error: error instanceof Error ? error.message : "Erreur inconnue"
+    });
   }
+}
 
   /**
    * Réponse à une proposition de combat
