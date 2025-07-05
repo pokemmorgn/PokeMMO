@@ -1693,7 +1693,7 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
     // ✅ ÉTAPE 1: Validation des mouvements via MovementBlockManager
     const validation = movementBlockManager.validateMovement(client.sessionId, data);
     if (!validation.allowed) {
-      console.log(`🚫 [WorldRoom] Mouvement refusé pour ${player.name}: ${validation.reason}`);
+ //     console.log(`🚫 [WorldRoom] Mouvement refusé pour ${player.name}: ${validation.reason}`);
       
       // Renvoyer la position serveur pour rollback avec info de blocage
       client.send("forcePlayerPosition", {
