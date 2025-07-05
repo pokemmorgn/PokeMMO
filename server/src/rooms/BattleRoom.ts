@@ -411,7 +411,12 @@ private async handleBattleAction(client: Client, data: any) {
 
   } catch (error) {
     console.error(`🔥 [DEBUG] ERREUR dans handleBattleAction:`, error);
-    console.error(`🔥 [DEBUG] Stack trace:`, error.stack);
+    // ✅ CORRECTION: Gestion TypeScript-safe de l'erreur
+    if (error instanceof Error) {
+      console.error(`🔥 [DEBUG] Stack trace:`, error.stack);
+    } else {
+      console.error(`🔥 [DEBUG] Erreur non-Error:`, String(error));
+    }
     client.send("error", { message: "Erreur lors de l'action" });
   }
 }
