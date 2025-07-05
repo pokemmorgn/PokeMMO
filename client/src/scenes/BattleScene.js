@@ -1429,38 +1429,45 @@ createModernActionInterface() {
 
   // === HANDLERS RÉSEAU ===
 
-  handleNetworkBattleStart(data) {
-    console.log('⚔️ [BattleScene] Début combat réseau:', data);
-    
-    if (data.playerPokemon) {
-      this.displayPlayerPokemon(data.playerPokemon);
-    }
-    
-    if (data.opponentPokemon || data.wildPokemon) {
-      const opponent = data.opponentPokemon || {
-        pokemonId: data.wildPokemon.pokemonId,
-        name: `Pokémon sauvage #${data.wildPokemon.pokemonId}`,
-        level: data.wildPokemon.level,
-        currentHp: 50,
-        maxHp: 50,
-        statusCondition: 'normal',
-        types: ['normal'],
-        shiny: data.wildPokemon.shiny
-      };
-      
-      this.displayOpponentPokemon(opponent);
-    }
-    
-    this.activateBattleUI();
-    this.isVisible = true;
-    
-    setTimeout(() => {
-      this.showBattleMessage('Un combat commence !', 2000);
-      setTimeout(() => {
-        this.showModernActionMenu();
-      }, 2500);
-    }, 1500);
+handleNetworkBattleStart(data) {
+  console.log('[BUGPOKEMON] ⚔️ Début combat réseau:', data);
+  
+  // ✅ AFFICHER LE POKÉMON JOUEUR EN PREMIER
+  if (data.playerPokemon) {
+    console.log('[BUGPOKEMON] 👤 Données Pokémon joueur:', data.playerPokemon);
+    this.displayPlayerPokemon(data.playerPokemon);
   }
+  
+  // ✅ PUIS AFFICHER LE POKÉMON ADVERSAIRE
+  if (data.opponentPokemon || data.wildPokemon) {
+    const opponent = data.opponentPokemon || {
+      pokemonId: data.wildPokemon.pokemonId,
+      name: `Pokémon sauvage #${data.wildPokemon.pokemonId}`,
+      level: data.wildPokemon.level,
+      currentHp: 50,
+      maxHp: 50,
+      statusCondition: 'normal',
+      types: ['normal'],
+      shiny: data.wildPokemon.shiny
+    };
+    
+    console.log('[BUGPOKEMON] 👹 Données Pokémon adversaire construites:', opponent);
+    console.log('[BUGPOKEMON] 👹 data.opponentPokemon original:', data.opponentPokemon);
+    console.log('[BUGPOKEMON] 👹 data.wildPokemon original:', data.wildPokemon);
+    
+    this.displayOpponentPokemon(opponent);
+  }
+  
+  this.activateBattleUI();
+  this.isVisible = true;
+  
+  setTimeout(() => {
+    this.showBattleMessage('Un combat commence !', 2000);
+    setTimeout(() => {
+      this.showModernActionMenu();
+    }, 2500);
+  }, 1500);
+}
 
   handleNetworkAttackResult(data) {
     console.log('💥 [BattleScene] Résultat attaque réseau:', data);
