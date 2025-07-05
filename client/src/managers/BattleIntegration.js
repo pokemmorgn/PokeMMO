@@ -331,6 +331,7 @@ async handleBattleRoomCreated(data) {
       opponentPokemon: this.currentBattleData?.pokemon || data.wildPokemon
     };
     console.log('[BUGPOKEMON] 📞 Appel startBattleInterface avec:', battleData);
+    console.log('[BUGPOKEMON] 🔗 battleData avant startBattleInterface:', JSON.stringify(battleData.opponentPokemon, null, 2));
     this.startBattleInterface(battleData);
   }
 }
