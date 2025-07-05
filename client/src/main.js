@@ -45,7 +45,7 @@ import { VillageHouse2Scene } from './scenes/zones/VillageHouse2Scene.js';
 import { VillageWindmillScene } from './scenes/zones/VillageWindmillScene.js';
 import { NoctherbCave1Scene } from './scenes/zones/NoctherbCave1Scene.js';
 import { NoctherbCave2Scene } from './scenes/zones/NoctherbCave2Scene.js';
-import { NoctherbCave2bisScene } from './scenes/zones/NoctherbCave2bisScene.js';
+import { NoctherbCave2BisScene } from './scenes/zones/NoctherbCave2BisScene.js';
 import { WraithmoorScene } from './scenes/zones/WraithmoorScene.js';
 import { WraithmoorCimeteryScene } from './scenes/zones/WraithmoorCimeteryScene.js';
 import { WraithmoorManor1Scene } from './scenes/zones/WraithmoorManor1Scene.js';
@@ -343,7 +343,7 @@ const config = {
     LavandiaShopScene,
     NoctherbCave1Scene,
     NoctherbCave2Scene,
-    NoctherebCave2bisScene,
+    NoctherebCave2BisScene,
     WraithmoorScene,
     WraithmoorManor1Scene,
     WraithmoorCimeteryScene,
