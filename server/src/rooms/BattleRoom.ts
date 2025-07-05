@@ -135,47 +135,78 @@ export class BattleRoom extends Room<BattleState> {
 
   // === MÉTHODES PRINCIPALES ===
 
-  async onJoin(client: Client, options: any) {
-    console.log(`👤 Joueur ${client.sessionId} rejoint BattleRoom`);
+ async onJoin(client: Client, options: any) {
+  console.log(`🔥 [JOIN DEBUG] === JOUEUR REJOINT BATTLEROOM ===`);
+  console.log(`🔥 [JOIN DEBUG] Client: ${client.sessionId}`);
+  console.log(`🔥 [JOIN DEBUG] Phase actuelle: ${this.state.phase}`);
+  console.log(`🔥 [JOIN DEBUG] Player1Id avant: ${this.state.player1Id}`);
+  console.log(`🔥 [JOIN DEBUG] Player1Name avant: ${this.state.player1Name}`);
+  
+  try {
+    // ✅ CORRECTION 1: Assigner le joueur AVANT tout
+    const playerName = this.getPlayerName(client.sessionId);
+    console.log(`🔥 [JOIN DEBUG] Nom du joueur récupéré: ${playerName}`);
     
-    try {
-      this.blockPlayerInWorldRoom(client.sessionId, "Entré en combat");
-      
-      const playerName = this.getPlayerName(client.sessionId);
-      if (playerName) {
-        const teamManager = new TeamManager(playerName);
-        await teamManager.load();
-        this.teamManagers.set(client.sessionId, teamManager);
-        console.log(`📁 TeamManager chargé pour ${playerName}`);
-      }
-
-      if (this.state.player1Id === "" || this.state.player1Id === client.sessionId) {
-        this.state.player1Id = client.sessionId;
-        this.state.player1Name = playerName || "Player1";
-      } else if (this.state.player2Id === "" || this.state.player2Id === client.sessionId) {
-        this.state.player2Id = client.sessionId;
-        this.state.player2Name = playerName || "Player2";
-      }
-
-      this.playerHpPercentages.set(client.sessionId, 100);
-      
-      client.send("battleJoined", {
-        battleId: this.state.battleId,
-        battleType: this.state.battleType,
-        yourRole: this.getPlayerRole(client.sessionId)
-      });
-
-      this.updatePlayerStatusIcon(client.sessionId, "entering_battle");
-
-      if (this.shouldStartBattle()) {
-        this.clock.setTimeout(() => this.startBattle(), 1000);
-      }
-
-    } catch (error) {
-      console.error(`❌ Erreur onJoin BattleRoom:`, error);
-      client.leave(1000, "Erreur lors de l'entrée en combat");
+    if (this.state.player1Id === "" || this.state.player1Id === client.sessionId) {
+      this.state.player1Id = client.sessionId;
+      this.state.player1Name = playerName || "Player1";
+      console.log(`🔥 [JOIN DEBUG] Joueur assigné comme Player1: ${this.state.player1Name}`);
+    } else if (this.state.player2Id === "" || this.state.player2Id === client.sessionId) {
+      this.state.player2Id = client.sessionId;
+      this.state.player2Name = playerName || "Player2";
+      console.log(`🔥 [JOIN DEBUG] Joueur assigné comme Player2: ${this.state.player2Name}`);
     }
+    
+    // ✅ CORRECTION 2: Créer TeamManager IMMÉDIATEMENT
+    if (playerName) {
+      console.log(`🔥 [JOIN DEBUG] Création TeamManager pour ${playerName}...`);
+      const teamManager = new TeamManager(playerName);
+      await teamManager.load();
+      this.teamManagers.set(client.sessionId, teamManager);
+      console.log(`🔥 [JOIN DEBUG] TeamManager créé et chargé pour ${playerName}`);
+    } else {
+      console.warn(`🔥 [JOIN DEBUG] ⚠️ Nom de joueur non trouvé pour ${client.sessionId}`);
+    }
+
+    // ✅ Bloquer mouvement et setup de base
+    this.blockPlayerInWorldRoom(client.sessionId, "Entré en combat");
+    this.playerHpPercentages.set(client.sessionId, 100);
+    
+    // ✅ Envoyer confirmation de join
+    client.send("battleJoined", {
+      battleId: this.state.battleId,
+      battleType: this.state.battleType,
+      yourRole: this.getPlayerRole(client.sessionId)
+    });
+
+    this.updatePlayerStatusIcon(client.sessionId, "entering_battle");
+    
+    console.log(`🔥 [JOIN DEBUG] État après join:`, {
+      player1Id: this.state.player1Id,
+      player1Name: this.state.player1Name,
+      hasTeamManager: this.teamManagers.has(client.sessionId),
+      shouldStartBattle: this.shouldStartBattle()
+    });
+
+    // ✅ CORRECTION 3: Démarrer le combat seulement après setup complet
+    if (this.shouldStartBattle()) {
+      console.log(`🔥 [JOIN DEBUG] Conditions réunies, démarrage combat dans 1s...`);
+      this.clock.setTimeout(() => {
+        console.log(`🔥 [JOIN DEBUG] Lancement startBattle maintenant...`);
+        this.startBattle();
+      }, 1000);
+    } else {
+      console.log(`🔥 [JOIN DEBUG] Conditions pas encore réunies pour démarrer`);
+    }
+
+  } catch (error) {
+    console.error(`🔥 [JOIN DEBUG] Erreur onJoin BattleRoom:`, error);
+    if (error instanceof Error) {
+      console.error(`🔥 [JOIN DEBUG] Stack trace:`, error.stack);
+    }
+    client.leave(1000, "Erreur lors de l'entrée en combat");
   }
+}
 
   async onLeave(client: Client, consented: boolean) {
     console.log(`👋 ${client.sessionId} quitte BattleRoom`);
@@ -784,17 +815,28 @@ private async handleBattleAction(client: Client, data: any) {
 
   // === MÉTHODES D'INFRASTRUCTURE ===
 
-  private shouldStartBattle(): boolean {
-    return this.state.battleType === "wild" ? this.clients.length >= 1 : this.clients.length >= 2;
+private shouldStartBattle(): boolean {
+  console.log(`🔥 [SHOULD START] Vérification conditions démarrage:`);
+  console.log(`🔥 [SHOULD START] - Type: ${this.state.battleType}`);
+  console.log(`🔥 [SHOULD START] - Clients: ${this.clients.length}`);
+  console.log(`🔥 [SHOULD START] - Player1Id: ${this.state.player1Id}`);
+  console.log(`🔥 [SHOULD START] - Player1Name: ${this.state.player1Name}`);
+  console.log(`🔥 [SHOULD START] - TeamManagers: ${this.teamManagers.size}`);
+  
+  if (this.state.battleType === "wild") {
+    const canStart = this.clients.length >= 1 && 
+                     this.state.player1Id !== "" && 
+                     this.state.player1Name !== "" &&
+                     this.teamManagers.size >= 1;
+    
+    console.log(`🔥 [SHOULD START] Peut démarrer: ${canStart}`);
+    return canStart;
+  } else {
+    const canStart = this.clients.length >= 2;
+    console.log(`🔥 [SHOULD START] Peut démarrer (PvP): ${canStart}`);
+    return canStart;
   }
-
-  private canStartActualBattle(): boolean {
-    if (this.state.battleType === "wild") {
-      return !!this.state.player1Pokemon && !!this.state.player2Pokemon;
-    } else {
-      return !!this.state.player1Pokemon && !!this.state.player2Pokemon;
-    }
-  }
+}
 
   private getPlayerName(sessionId: string): string | null {
     if (sessionId === this.battleInitData.playerData.sessionId) {
