@@ -201,23 +201,26 @@ export class BattleManager {
   }
 
   // ✅ FIX: Traiter une action de combat avec gestion améliorée
-  async processAction(action: BattleAction): Promise<void> {
-    console.log(`🎮 [BattleManager] Action reçue: ${action.type} de ${action.playerId}`);
-    
-    this.battleState.pendingActions.push(action);
+async processAction(action: BattleAction): Promise<void> {
+  console.log(`🎮 [BattleManager] Action reçue: ${action.type} de ${action.playerId}`);
+  
+  this.battleState.pendingActions.push(action);
 
-    // ✅ FIX: Si c'est un combat sauvage et action du joueur, générer l'action de l'IA
-    if (this.battleState.battleType === "wild" && action.playerId === this.battleState.player1Id) {
-      const aiAction = this.generateAIAction();
-      this.battleState.pendingActions.push(aiAction);
-      console.log(`🤖 [BattleManager] Action IA générée: ${aiAction.type}`);
-    }
-
-    // Exécuter les actions quand on en a assez
-    if (this.shouldExecuteActions()) {
-      await this.executeActions();
-    }
+  // ✅ FIX: Si c'est un combat sauvage et action du joueur, générer l'action de l'IA
+  // ✅ CORRECTION: Ne générer l'action IA QUE pour les actions du joueur réel
+  if (this.battleState.battleType === "wild" && 
+      action.playerId === this.battleState.player1Id && 
+      action.playerId !== "ai") {
+    const aiAction = this.generateAIAction();
+    this.battleState.pendingActions.push(aiAction);
+    console.log(`🤖 [BattleManager] Action IA générée: ${aiAction.type}`);
   }
+
+  // Exécuter les actions quand on en a assez
+  if (this.shouldExecuteActions()) {
+    await this.executeActions();
+  }
+}
 
 private async executeActions(): Promise<void> {
   console.log(`🔥 [BATTLE MANAGER] === EXÉCUTION ACTIONS ===`);
