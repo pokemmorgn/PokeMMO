@@ -1196,21 +1196,61 @@ showAttackMenu() {
     }
   }
 
-  executePlayerAction(actionData) {
-    console.log('⚔️ [BattleScene] Exécution action:', actionData);
+executePlayerAction(actionData) {
+  console.log('[BUGPOKEMON] ⚔️ executePlayerAction:', actionData);
+  
+  if (actionData.type === 'move') {
+    this.showBattleMessage(`${this.currentPlayerPokemon?.name} utilise ${actionData.moveName}!`, 2000);
     
-    if (actionData.type === 'move') {
-      this.showBattleMessage(`${this.currentPlayerPokemon?.name} utilise ${actionData.moveName}!`, 2000);
+    // ✅ NOUVEAU: Envoyer l'attaque au serveur
+    if (this.battleNetworkHandler) {
+      console.log('[BUGPOKEMON] 📤 Envoi attaque au serveur:', actionData.moveId);
+      const success = this.battleNetworkHandler.useMove(actionData.moveId);
       
-      if (this.battleNetworkHandler) {
-        this.battleNetworkHandler.useMove(actionData.moveId);
+      if (success) {
+        console.log('[BUGPOKEMON] ✅ Attaque envoyée au serveur');
+      } else {
+        console.log('[BUGPOKEMON] ❌ Échec envoi attaque');
       }
+    } else {
+      console.warn('[BUGPOKEMON] ⚠️ Pas de battleNetworkHandler disponible');
       
-      // Effet visuel d'attaque
-      this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
+      // ✅ FALLBACK: Simulation locale pour test
+      console.log('[BUGPOKEMON] 🔄 Simulation locale...');
+      setTimeout(() => {
+        this.simulateAttackResult({
+          damage: 8,
+          effectiveness: 1,
+          critical: false,
+          targetType: 'opponent'
+        });
+      }, 1000);
     }
+    
+    // Effet visuel d'attaque (côté client)
+    this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
   }
+}
 
+  simulateAttackResult(attackData) {
+  console.log('[BUGPOKEMON] 💥 Simulation résultat attaque:', attackData);
+  
+  if (attackData.targetType === 'opponent' && this.currentOpponentPokemon) {
+    const newHp = Math.max(0, this.currentOpponentPokemon.currentHp - attackData.damage);
+    this.currentOpponentPokemon.currentHp = newHp;
+    
+    console.log('[BUGPOKEMON] 🩸 Dégâts adversaire:', attackData.damage, 'HP restants:', newHp);
+    
+    // Mettre à jour la barre de vie
+    this.updateModernHealthBar('opponent', this.currentOpponentPokemon);
+    
+    // Message de résultat
+    setTimeout(() => {
+      this.showBattleMessage(`Efficace ! ${attackData.damage} dégâts !`, 2000);
+    }, 500);
+  }
+}
+  
   createAttackEffect(attacker, target) {
     if (!attacker || !target) return;
     
