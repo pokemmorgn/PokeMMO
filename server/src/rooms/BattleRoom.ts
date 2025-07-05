@@ -537,7 +537,6 @@ private async handleBattleAction(client: Client, data: any) {
   try {
     console.log(`🔥 [DEBUG] Création BattleAction...`);
     
-    // ✅ NOUVEAU: Créer BattleAction pour BattleManager
     const action = new BattleAction();
     action.type = data.actionType;
     action.playerId = client.sessionId;
@@ -549,7 +548,6 @@ private async handleBattleAction(client: Client, data: any) {
       data: action.data
     });
     
-    // ✅ Calculer priorité et vitesse pour l'ordre d'action
     if (data.actionType === "attack" && data.moveId) {
       console.log(`🔥 [DEBUG] Calcul priorité pour attaque ${data.moveId}`);
       
@@ -564,7 +562,6 @@ private async handleBattleAction(client: Client, data: any) {
 
     console.log(`🔥 [DEBUG] Appel BattleManager.processAction...`);
     
-    // ✅ NOUVEAU: Utiliser BattleManager pour traiter l'action
     await this.battleManager.processAction(action);
     
     console.log(`🔥 [DEBUG] BattleManager.processAction terminé`);
@@ -577,36 +574,28 @@ private async handleBattleAction(client: Client, data: any) {
       lastMessage: this.state.lastMessage
     });
     
-    // ✅ Le BattleManager met à jour automatiquement le state
-    // On broadcast les changements
     console.log(`🔥 [DEBUG] Appel broadcastBattleUpdate...`);
     this.broadcastBattleUpdate();
     console.log(`🔥 [DEBUG] broadcastBattleUpdate terminé`);
     
-    // ✅ Vérifier si le combat est terminé
     if (this.state.battleEnded) {
       console.log(`🔥 [DEBUG] Combat terminé, appel handleBattleEnd...`);
       await this.handleBattleEnd();
     } else {
       console.log(`🔥 [DEBUG] Combat continue, mise à jour statuts...`);
       
-      // Mettre à jour les icônes de statut
       this.updatePlayerHpPercentages();
       this.updateBattleStatusIcons();
       
       console.log(`🔥 [DEBUG] Statuts mis à jour`);
       
-      // ✅ NOUVEAU: Vérifier si c'est le tour de l'IA après l'action du joueur
-      this.clock.setTimeout(() => {
-        this.checkAndPlayAITurn();
-      }, 1500);
+      // ✅ SUPPRIMÉ: L'appel à checkAndPlayAITurn pour éviter la duplication
     }
 
     console.log(`🔥 [DEBUG] handleBattleAction terminé avec succès`);
 
   } catch (error) {
     console.error(`🔥 [DEBUG] ERREUR dans handleBattleAction:`, error);
-    // ✅ CORRECTION: Gestion TypeScript-safe de l'erreur
     if (error instanceof Error) {
       console.error(`🔥 [DEBUG] Stack trace:`, error.stack);
     } else {
@@ -616,7 +605,6 @@ private async handleBattleAction(client: Client, data: any) {
   }
 }
 
-// ✅ NOUVEAU: Broadcast des mises à jour de combat
 private broadcastBattleUpdate() {
   this.broadcast("battleUpdate", {
     player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
@@ -628,12 +616,7 @@ private broadcastBattleUpdate() {
     battleEnded: this.state.battleEnded,
     winner: this.state.winner
   });
-  
-  // ✅ NOUVEAU: Déclencher l'IA après chaque broadcast
-  console.log(`📡 [BattleRoom] Broadcast terminé, vérification IA...`);
-  this.clock.setTimeout(() => {
-    this.checkAndPlayAITurn();
-  }, 1000);
+
 }
 
   // ✅ NOUVEAU: Gestion de la fin de combat avec BattleManager
