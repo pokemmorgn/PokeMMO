@@ -971,9 +971,14 @@ export class NetworkManager {
     'LavandiaShopScene': 'lavandiashop',
 
     // NoctherCave
-    'NoctherCave1Scene': 'nocthercave1',
-    'NoctherCave2Scene': 'nocthercave2',
-    'NoctherCave2BisScene': 'nocthercave2bis'
+    'NoctherbCave1Scene': 'noctherbcave1',
+    'NoctherbCave2Scene': 'noctherbcave2',
+    'NoctherbCave2BisScene': 'noctherbcave2bis'
+
+    // Wraithmoor
+    'WraithmoorScene': 'wraithmoor',
+    'WraithmoorCimeteryScene': 'wraithmoorcimetery',
+    'WraithmoorManor1Scene': 'wraithmoormanor1'
   };
   return mapping[sceneName] || 'beach';
 }
