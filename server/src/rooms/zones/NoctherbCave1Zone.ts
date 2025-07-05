@@ -25,7 +25,7 @@ interface Spawn {
   y: number;
 }
 
-export class NoctherCave1Zone implements IZone {
+export class NoctherbCave1Zone implements IZone {
   private room: WorldRoom;
   private npcs: NPC[] = [];
 
