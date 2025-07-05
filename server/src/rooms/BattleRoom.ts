@@ -616,19 +616,25 @@ private async handleBattleAction(client: Client, data: any) {
   }
 }
 
-  // ✅ NOUVEAU: Broadcast des mises à jour de combat
-  private broadcastBattleUpdate() {
-    this.broadcast("battleUpdate", {
-      player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
-      player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
-      currentTurn: this.state.currentTurn,
-      turnNumber: this.state.turnNumber,
-      battleLog: Array.from(this.state.battleLog),
-      lastMessage: this.state.lastMessage,
-      battleEnded: this.state.battleEnded,
-      winner: this.state.winner
-    });
-  }
+// ✅ NOUVEAU: Broadcast des mises à jour de combat
+private broadcastBattleUpdate() {
+  this.broadcast("battleUpdate", {
+    player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+    player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+    currentTurn: this.state.currentTurn,
+    turnNumber: this.state.turnNumber,
+    battleLog: Array.from(this.state.battleLog),
+    lastMessage: this.state.lastMessage,
+    battleEnded: this.state.battleEnded,
+    winner: this.state.winner
+  });
+  
+  // ✅ NOUVEAU: Déclencher l'IA après chaque broadcast
+  console.log(`📡 [BattleRoom] Broadcast terminé, vérification IA...`);
+  this.clock.setTimeout(() => {
+    this.checkAndPlayAITurn();
+  }, 1000);
+}
 
   // ✅ NOUVEAU: Gestion de la fin de combat avec BattleManager
   private async handleBattleEnd() {
