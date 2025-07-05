@@ -277,14 +277,34 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
     console.log("[PlayerManager] ✅ Indicateur local créé pour", player.sessionId);
   }
 
-  createPlayerNameLabel(player, sessionId) {
+  // ✅ MÉTHODE CORRIGÉE: Création du label nom d'utilisateur
+createPlayerNameLabel(player, sessionId) {
   // Nettoyer l'ancien label si il existe
   if (player.nameLabel) {
     try { player.nameLabel.destroy(); } catch(e) {}
   }
   
-  // Récupérer le nom depuis les données du joueur ou utiliser sessionId
-  const playerName = player.name || sessionId.substring(0, 8);
+  // 🎯 PRIORITÉ: Utiliser le nom depuis le state serveur
+  let playerName = "Unknown";
+  
+  // 1. Essayer depuis le player object (envoyé par le serveur)
+  if (player.name && player.name !== sessionId) {
+    playerName = player.name;
+    console.log(`[PlayerManager] 📝 Nom depuis player.name: ${playerName}`);
+  }
+  // 2. Essayer depuis les données du state
+  else if (this.scene.networkManager?.room?.state?.players?.get(sessionId)?.name) {
+    const statePlayer = this.scene.networkManager.room.state.players.get(sessionId);
+    if (statePlayer.name && statePlayer.name !== sessionId) {
+      playerName = statePlayer.name;
+      console.log(`[PlayerManager] 📝 Nom depuis state: ${playerName}`);
+    }
+  }
+  // 3. Fallback vers sessionId court
+  else {
+    playerName = sessionId.substring(0, 8);
+    console.log(`[PlayerManager] ⚠️ Fallback sessionId: ${playerName}`);
+  }
   
   // Créer le texte du nom
   const nameLabel = this.scene.add.text(player.x, player.y - 40, playerName, {
@@ -296,7 +316,7 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
     align: 'center'
   })
   .setOrigin(0.5, 1)
-  .setDepth(1002); // Au-dessus de l'indicateur
+  .setDepth(1002);
   
   // Différencier mon joueur des autres
   if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
