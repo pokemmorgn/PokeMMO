@@ -1020,43 +1020,64 @@ createModernActionInterface() {
 
   // === BARRES DE VIE MODERNES ===
 
-  updateModernHealthBar(type, pokemonData) {
-    const healthBar = this.modernHealthBars[type];
-    if (!healthBar) return;
-    
-    // Mettre à jour les informations
-    healthBar.nameText.setText(pokemonData.name || 'Pokémon');
-    healthBar.levelText.setText(`Niv. ${pokemonData.level || 1}`);
-    
-    // Calculer pourcentage de vie
-    const hpPercentage = Math.max(0, Math.min(1, pokemonData.currentHp / pokemonData.maxHp));
-    
-    // Animer la barre de vie
-    this.animateHealthBar(healthBar.hpBar, healthBar.config.width - 30, hpPercentage);
-    
-    // Mettre à jour le texte HP pour le joueur
-    if (type === 'player' && healthBar.hpText) {
-      healthBar.hpText.setText(`${pokemonData.currentHp}/${pokemonData.maxHp}`);
-    }
-    
-    // Mettre à jour barre d'expérience pour le joueur
-    if (type === 'player' && healthBar.expBar && pokemonData.currentExp !== undefined) {
-      const expPercentage = pokemonData.currentExp / pokemonData.expToNext;
-      this.animateExpBar(healthBar.expBar, healthBar.config.width - 30, expPercentage);
-    }
-    
-    // Afficher la barre
-    healthBar.container.setVisible(true);
-    
-    // Animation d'apparition
-    healthBar.container.setAlpha(0);
-    this.tweens.add({
-      targets: healthBar.container,
-      alpha: 1,
-      duration: 500,
-      ease: 'Power2.easeOut'
-    });
+updateModernHealthBar(type, pokemonData) {
+  console.log('[BUGPOKEMON] 📊 updateModernHealthBar appelée:', type, pokemonData);
+  
+  const healthBar = this.modernHealthBars[type];
+  if (!healthBar) {
+    console.log('[BUGPOKEMON] ❌ Pas de healthBar pour:', type);
+    return;
   }
+  
+  console.log('[BUGPOKEMON] 🔍 Données reçues:', {
+    name: pokemonData.name,
+    level: pokemonData.level,
+    currentHp: pokemonData.currentHp,
+    maxHp: pokemonData.maxHp,
+    hpPercentage: pokemonData.currentHp / pokemonData.maxHp
+  });
+  
+  // Mettre à jour les informations
+  healthBar.nameText.setText(pokemonData.name || 'Pokémon');
+  healthBar.levelText.setText(`Niv. ${pokemonData.level || 1}`);
+  
+  // Calculer pourcentage de vie
+  const hpPercentage = Math.max(0, Math.min(1, pokemonData.currentHp / pokemonData.maxHp));
+  console.log('[BUGPOKEMON] 💖 HP calculé:', {
+    currentHp: pokemonData.currentHp,
+    maxHp: pokemonData.maxHp,
+    percentage: hpPercentage,
+    percentageDisplay: Math.round(hpPercentage * 100) + '%'
+  });
+  
+  // Animer la barre de vie
+  this.animateHealthBar(healthBar.hpBar, healthBar.config.width - 30, hpPercentage);
+  
+  // Mettre à jour le texte HP pour le joueur
+  if (type === 'player' && healthBar.hpText) {
+    healthBar.hpText.setText(`${pokemonData.currentHp}/${pokemonData.maxHp}`);
+  }
+  
+  // Mettre à jour barre d'expérience pour le joueur
+  if (type === 'player' && healthBar.expBar && pokemonData.currentExp !== undefined) {
+    const expPercentage = pokemonData.currentExp / pokemonData.expToNext;
+    this.animateExpBar(healthBar.expBar, healthBar.config.width - 30, expPercentage);
+  }
+  
+  // Afficher la barre
+  healthBar.container.setVisible(true);
+  
+  // Animation d'apparition
+  healthBar.container.setAlpha(0);
+  this.tweens.add({
+    targets: healthBar.container,
+    alpha: 1,
+    duration: 500,
+    ease: 'Power2.easeOut'
+  });
+  
+  console.log('[BUGPOKEMON] ✅ Mise à jour terminée pour:', type);
+}
 
   animateHealthBar(graphics, maxWidth, targetPercentage) {
     // Animation fluide de la barre de vie
