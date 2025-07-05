@@ -573,6 +573,11 @@ private async handleBattleAction(client: Client, data: any) {
       this.updateBattleStatusIcons();
       
       console.log(`🔥 [DEBUG] Statuts mis à jour`);
+      
+      // ✅ NOUVEAU: Vérifier si c'est le tour de l'IA après l'action du joueur
+      this.clock.setTimeout(() => {
+        this.checkAndPlayAITurn();
+      }, 1500);
     }
 
     console.log(`🔥 [DEBUG] handleBattleAction terminé avec succès`);
