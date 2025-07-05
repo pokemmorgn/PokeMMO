@@ -309,47 +309,13 @@ private async executeActions(): Promise<void> {
     return aiAction;
   }
 
-  private async executeActions(): Promise<void> {
-    console.log(`⚔️ [BattleManager] Exécution de ${this.battleState.pendingActions.length} actions`);
-    
-    // Trier les actions par priorité puis par vitesse
-    const sortedActions = Array.from(this.battleState.pendingActions).sort((a, b) => {
-      if (a.priority !== b.priority) {
-        return b.priority - a.priority; // Priorité plus haute en premier
-      }
-      return b.speed - a.speed; // Vitesse plus haute en premier
-    });
-
-    // Exécuter chaque action
-    for (const action of sortedActions) {
-      if (this.battleState.battleEnded) break;
-      
-      console.log(`🎯 [BattleManager] Exécution: ${action.type} (priorité: ${action.priority}, vitesse: ${action.speed})`);
-      await this.executeAction(action);
-    }
-
-    // Nettoyer les actions
-    this.battleState.pendingActions.clear();
-
-    // ✅ FIX: Appliquer les effets de fin de tour
-    if (!this.battleState.battleEnded) {
-      this.processEndOfTurnEffects();
-    }
-
-    // Vérifier les conditions de fin
-    this.checkBattleEnd();
-
-    if (!this.battleState.battleEnded) {
-      this.battleState.turnNumber++;
-      this.battleState.waitingForAction = true;
-      
-      // ✅ FIX: Alterner les tours correctement
-      this.battleState.currentTurn = this.battleState.currentTurn === "player1" ? "player2" : "player1";
-      
-      console.log(`🔄 [BattleManager] Tour ${this.battleState.turnNumber}, maintenant: ${this.battleState.currentTurn}`);
-    }
+  private shouldExecuteActions(): boolean {
+  if (this.battleState.battleType === "wild") {
+    return this.battleState.pendingActions.length >= 2; // ✅ FIX: Joueur + IA
   }
-
+  return this.battleState.pendingActions.length >= 2; // Deux actions pour combat PvP
+}
+  
   private async executeAction(action: BattleAction): Promise<void> {
     const actionData = JSON.parse(action.data);
 
