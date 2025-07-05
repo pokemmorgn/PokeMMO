@@ -862,7 +862,7 @@ this.startSceneWithData(targetSceneKey, result);
     // Zones Nocther Cave
       'NoctherbCave1Scene': 'noctherbcave1',
       'NoctherbCave2Scene': 'noctherbcave2',
-      'NoctherbCave2BisScene': 'noctherbcave2bis'
+      'NoctherbCave2BisScene': 'noctherbcave2bis',
       'WraithmoorScene': 'wraithmoor',
       'WraithmoorCimeteryScene': 'wraithmoorcimetery',
       'WraithmoorManor1Scene': 'wraithmoormanor1'
@@ -914,7 +914,7 @@ getSceneFromZone(zoneName) {
     // Zones Nocther Cave
       'noctherbcave1': 'NoctherbCave1Scene',
       'noctherbcave2': 'NoctherbCave2Scene',
-      'noctherbcave2bis': 'NoctherbCave2BisScene'
+      'noctherbcave2bis': 'NoctherbCave2BisScene',
       'wraithmoor': 'WraithmoorScene',
       'wraithmoorcimetery': 'WraithmoorCimeteryScene',
       'wraithmoormanor1': 'WraithmoorManor1Scene'
