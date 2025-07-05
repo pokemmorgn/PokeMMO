@@ -606,6 +606,13 @@ private async handleBattleAction(client: Client, data: any) {
 }
 
 private broadcastBattleUpdate() {
+  console.log(`📡 [BattleRoom] Broadcasting update:`, {
+    currentTurn: this.state.currentTurn,
+    turnNumber: this.state.turnNumber,
+    player1Hp: this.state.player1Pokemon?.currentHp,
+    player2Hp: this.state.player2Pokemon?.currentHp
+  });
+  
   this.broadcast("battleUpdate", {
     player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
     player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
@@ -616,6 +623,13 @@ private broadcastBattleUpdate() {
     battleEnded: this.state.battleEnded,
     winner: this.state.winner
   });
+  
+  // ✅ REMETTRE: Vérifier si l'IA doit jouer après le broadcast
+  console.log(`📡 [BattleRoom] Broadcast terminé, vérification IA dans 1s...`);
+  this.clock.setTimeout(() => {
+    this.checkAndPlayAITurn();
+  }, 1000);
+}
 
 }
 
