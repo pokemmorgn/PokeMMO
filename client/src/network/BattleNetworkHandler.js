@@ -525,18 +525,35 @@ async handleBattleRoomCreated(data) {
     return this.sendToBattle('choosePokemon', { pokemonId });
   }
 
-  performBattleAction(actionType, actionData = {}) {
-    console.log('[DEBUG NETWORK BATTLE] [API] performBattleAction', actionType, actionData);
-    return this.sendToBattle('battleAction', {
-      actionType,
-      ...actionData
-    });
-  }
+performBattleAction(actionType, actionData = {}) {
+  console.log('[BUGPOKEMON] 🎮 performBattleAction:', actionType, actionData);
+  console.log('[BUGPOKEMON] 🔍 État avant envoi:', {
+    isConnectedToBattle: this.isConnectedToBattle,
+    battleRoom: !!this.battleRoom,
+    pendingConnection: this.pendingConnection
+  });
+  
+  const result = this.sendToBattle('battleAction', {
+    actionType,
+    ...actionData
+  });
+  
+  console.log('[BUGPOKEMON] 📡 Résultat sendToBattle:', result);
+  return result;
+}
 
-  useMove(moveId) {
-    console.log('[DEBUG NETWORK BATTLE] [API] useMove', moveId);
-    return this.performBattleAction('attack', { moveId });
-  }
+useMove(moveId) {
+  console.log('[BUGPOKEMON] 🎯 useMove appelée avec:', moveId);
+  console.log('[BUGPOKEMON] 🔍 État connexion:', this.getConnectionStatus());
+  console.log('[BUGPOKEMON] 🔍 canSendBattleActions:', this.canSendBattleActions());
+  console.log('[BUGPOKEMON] 🔍 isConnectedToBattle:', this.isConnectedToBattle);
+  console.log('[BUGPOKEMON] 🔍 battleRoom existe:', !!this.battleRoom);
+  
+  const result = this.performBattleAction('attack', { moveId });
+  console.log('[BUGPOKEMON] 📤 Résultat performBattleAction:', result);
+  
+  return result;
+}
 
   useItem(itemId, targetId = null) {
     console.log('[DEBUG NETWORK BATTLE] [API] useItem', itemId, targetId);
