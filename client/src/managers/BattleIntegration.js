@@ -306,6 +306,34 @@ async handleBattleRoomCreated(data) {
   this.currentBattleRoomId = data.battleRoomId;
   this.currentBattleType = data.battleType;
   
+  // ✅ ÉTAPE 1: Connecter à la BattleRoom VIA BattleConnection
+  if (this.battleConnection) {
+    console.log('[BUGPOKEMON] 🔗 Connexion à la BattleRoom via BattleConnection...');
+    
+    try {
+      // Utiliser la méthode de BattleConnection pour se connecter
+      const networkHandler = this.battleConnection.networkHandler;
+      if (networkHandler && networkHandler.connectToBattleRoom) {
+        const connectionSuccess = await networkHandler.connectToBattleRoom(data.battleRoomId);
+        
+        if (connectionSuccess) {
+          console.log('[BUGPOKEMON] ✅ Connecté à la BattleRoom');
+        } else {
+          console.log('[BUGPOKEMON] ❌ Échec connexion BattleRoom');
+          this.showError('Impossible de rejoindre le combat');
+          return;
+        }
+      } else {
+        console.warn('[BUGPOKEMON] ⚠️ NetworkHandler non disponible');
+      }
+    } catch (error) {
+      console.error('[BUGPOKEMON] 💥 Erreur connexion BattleRoom:', error);
+      this.showError('Erreur de connexion au combat');
+      return;
+    }
+  }
+  
+  // ✅ ÉTAPE 2: Traiter les données une fois connecté
   if (data.playerPokemon) {
     this.selectedPokemon = data.playerPokemon;
     console.log(`✅ [BattleIntegration] Pokémon reçu du serveur: ${data.playerPokemon.name}`);
@@ -328,7 +356,7 @@ async handleBattleRoomCreated(data) {
       battleId: data.battleRoomId,
       battleType: data.battleType,
       playerPokemon: this.selectedPokemon,
-      opponentPokemon: data.opponentPokemon  // ✅ UTILISER data.opponentPokemon au lieu de this.currentBattleData?.pokemon
+      opponentPokemon: data.opponentPokemon
     };
     
     console.log('[BUGPOKEMON] 🔗 battleData.opponentPokemon avant startBattleInterface:', JSON.stringify(battleData.opponentPokemon, null, 2));
@@ -336,24 +364,6 @@ async handleBattleRoomCreated(data) {
     this.startBattleInterface(battleData);
   }
 }
-  handleBattleRoomConnected(data) {
-    console.log('🚪 [BattleIntegration] Connecté à la BattleRoom');
-    
-    if (this.selectedPokemon && !this.pokemonChoiceSent) {
-      console.log('📤 [BattleIntegration] Envoi du choix de Pokémon à la BattleRoom...');
-      
-      const success = this.battleConnection.choosePokemon(this.selectedPokemon.id);
-      if (success) {
-        this.pokemonChoiceSent = true;
-        console.log(`✅ [BattleIntegration] Choix envoyé: ${this.selectedPokemon.name}`);
-      } else {
-        console.error('❌ [BattleIntegration] Échec envoi choix Pokémon');
-        this.showError('Erreur de communication avec le serveur');
-        this.cancelBattle();
-      }
-    }
-  }
-
   handleBattleJoined(data) {
     console.log('⚔️ [BattleIntegration] Rejoint le combat:', data);
     
