@@ -38,6 +38,11 @@ import { NoctherbCave1Zone } from "../rooms/zones/NoctherbCave1Zone";
 import { NoctherbCave2Zone } from "../rooms/zones/NoctherbCave2Zone";
 import { NoctherbCave2BisZone } from "../rooms/zones/NoctherbCave2BisZone";
 
+// Zones Nocther Cave
+import { WraithmoorZone } from "../rooms/zones/WraithmoorZone";
+import { WraithmoorCimeteryZone } from "../rooms/zones/WraithmoorCimeteryZone";
+import { WreaithmoorManor1Zone } from "../rooms/zones/WreaithmoorManor1Zone";
+
 // Zones Road
 import { Road1Zone } from "../rooms/zones/Road1Zone";
 import { Road1HouseZone } from "../rooms/zones/Road1HouseZone";
@@ -198,6 +203,18 @@ export class ZoneManager {
     this.loadZone('noctherbcave2bis', new NoctherbCave2BisZone(this.room));
     console.log("[ZoneManager] Initialisation collisions pour noctherbcave2bis");
     this.collisions.set('noctherbcave2bis', new CollisionManager("noctherbcave2bis.tmj"));
+
+    this.loadZone('wraithmoor', new WraithmoorZone(this.room));
+    console.log("[ZoneManager] Initialisation collisions pour wraithmoor");
+    this.collisions.set('wraithmoor', new CollisionManager("wraithmoor.tmj"));
+    
+    this.loadZone('wraithmoorcimetery', new WraithmoorCimeteryZone(this.room));
+    console.log("[ZoneManager] Initialisation collisions pour wraithmoorcimetery");
+    this.collisions.set('wraithmoorcimetery', new CollisionManager("wraithmoorcimetery.tmj"));
+    
+    this.loadZone('wraithmoormanor1', new WraithmoorManor1Zone(this.room));
+    console.log("[ZoneManager] Initialisation collisions pour wraithmoormanor1");
+    this.collisions.set('wraithmoormanor1', new CollisionManager("wraithmoormanor1.tmj"));
     
     // Zones Road
     this.loadZone('road1', new Road1Zone(this.room));
