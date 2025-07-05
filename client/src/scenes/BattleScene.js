@@ -1022,10 +1022,18 @@ createModernActionInterface() {
 
 updateModernHealthBar(type, pokemonData) {
   console.log('[BUGPOKEMON] 📊 updateModernHealthBar appelée:', type, pokemonData);
+  console.log('[BUGPOKEMON] 🔍 STACK TRACE:');
+  console.trace();
   
   const healthBar = this.modernHealthBars[type];
   if (!healthBar) {
     console.log('[BUGPOKEMON] ❌ Pas de healthBar pour:', type);
+    return;
+  }
+  
+  // ✅ PROTECTION: Si pas de HP valides, ignorer cet appel
+  if (pokemonData.currentHp === undefined || pokemonData.maxHp === undefined) {
+    console.log('[BUGPOKEMON] ⚠️ APPEL IGNORÉ - HP manquants !');
     return;
   }
   
@@ -1078,7 +1086,6 @@ updateModernHealthBar(type, pokemonData) {
   
   console.log('[BUGPOKEMON] ✅ Mise à jour terminée pour:', type);
 }
-
   animateHealthBar(graphics, maxWidth, targetPercentage) {
     // Animation fluide de la barre de vie
     let currentPercentage = graphics.currentPercentage || 1;
