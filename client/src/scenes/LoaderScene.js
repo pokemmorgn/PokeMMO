@@ -49,6 +49,11 @@ this.load.tilemapTiledJSON('lavandiashop', 'assets/maps/lavandiashop.tmj');
 this.load.tilemapTiledJSON('nocthercave1', 'assets/maps/noctherbcave1.tmj');
 this.load.tilemapTiledJSON('nocthercave2', 'assets/maps/noctherbcave2.tmj');
 this.load.tilemapTiledJSON('nocthercave2bis', 'assets/maps/noctherbcave2bis.tmj');
+
+this.load.tilemapTiledJSON('wraithmoor', 'assets/maps/wraithmoor.tmj');
+this.load.tilemapTiledJSON('wraithmoorcimetery', 'assets/maps/wraithmoorcimetery.tmj');
+this.load.tilemapTiledJSON('wraithmoormanor1', 'assets/maps/wraithmoormanor1.tmj');
+    
     // ✅ Tilesets
     this.load.image('Assets', 'assets/sprites/Assets.png');
     this.load.image('Greenroot', 'assets/sprites/Greenroot.png');
@@ -252,6 +257,17 @@ this.load.on('loaderror', (file) => {
         break;
       case 'nocthercave2bis':
         this.scene.start('NoctherCave2BisScene');
+        break;
+
+              // NoctherCave
+      case 'wraitmoor':
+        this.scene.start('WraithmoorScene');
+        break;
+      case 'wraitmoorcimetery':
+        this.scene.start('WraithmoorCimeteryScene');
+        break;
+      case 'wraitmoormanor1':
+        this.scene.start('WraithmoorManor1Scene');
         break;
 
       default:
