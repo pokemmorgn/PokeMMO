@@ -1434,31 +1434,17 @@ handleNetworkBattleStart(data) {
   
   // ✅ AFFICHER LE POKÉMON JOUEUR EN PREMIER
   if (data.playerPokemon) {
-    console.log('[BUGPOKEMON] 👤 Données Pokémon joueur:', data.playerPokemon);
+    console.log('[BUGPOKEMON] 👤 Affichage Pokémon joueur:', data.playerPokemon.name);
     this.displayPlayerPokemon(data.playerPokemon);
   }
   
-  // ✅ PUIS AFFICHER LE POKÉMON ADVERSAIRE
-  if (data.opponentPokemon || data.wildPokemon) {
-    console.log('[BUGPOKEMON] 🔍 SERVEUR data.opponentPokemon:', data.opponentPokemon);
-    console.log('[BUGPOKEMON] 🔍 SERVEUR currentHp:', data.opponentPokemon?.currentHp);
-    console.log('[BUGPOKEMON] 🔍 SERVEUR maxHp:', data.opponentPokemon?.maxHp);
-    console.log('[BUGPOKEMON] 🔍 SERVEUR stats:', data.opponentPokemon?.stats);
+  // ✅ AFFICHER LE POKÉMON ADVERSAIRE - UTILISER DIRECTEMENT LES DONNÉES REÇUES
+  if (data.opponentPokemon) {
+    console.log('[BUGPOKEMON] 👹 Affichage Pokémon adversaire:', data.opponentPokemon.name);
+    console.log('[BUGPOKEMON] 💖 PV adversaire:', data.opponentPokemon.currentHp, '/', data.opponentPokemon.maxHp);
     
-    const opponent = data.opponentPokemon || {
-      pokemonId: data.wildPokemon.pokemonId,
-      name: `Pokémon sauvage #${data.wildPokemon.pokemonId}`,
-      level: data.wildPokemon.level,
-      currentHp: 50,
-      maxHp: 50,
-      statusCondition: 'normal',
-      types: ['normal'],
-      shiny: data.wildPokemon.shiny
-    };
-    
-    console.log('[BUGPOKEMON] 👹 Données utilisées FINALES:', opponent);
-    
-    this.displayOpponentPokemon(opponent);
+    // ✅ UTILISER DIRECTEMENT data.opponentPokemon (qui a déjà tout !)
+    this.displayOpponentPokemon(data.opponentPokemon);
   }
   
   this.activateBattleUI();
