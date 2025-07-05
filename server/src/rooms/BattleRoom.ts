@@ -264,6 +264,28 @@ private async startBattle() {
   }
 }
 
+  private checkAndPlayAITurn() {
+  console.log(`🤖 [AI CHECK] Vérification tour IA...`);
+  console.log(`🤖 [AI CHECK] Tour actuel: ${this.state.currentTurn}`);
+  console.log(`🤖 [AI CHECK] Phase: ${this.state.phase}`);
+  console.log(`🤖 [AI CHECK] Waiting for action: ${this.state.waitingForAction}`);
+  
+  // Si c'est le tour de l'IA (player2) et qu'on attend une action
+  if (this.state.currentTurn === "player2" && 
+      this.state.phase === "battle" && 
+      this.state.waitingForAction) {
+    
+    console.log(`🤖 [AI CHECK] ✅ C'est le tour de l'IA, génération action...`);
+    
+    // Attendre un peu pour l'effet visuel
+    this.clock.setTimeout(() => {
+      this.playAITurnNow();
+    }, 1500);
+  } else {
+    console.log(`🤖 [AI CHECK] ❌ Pas le tour de l'IA ou pas prêt`);
+  }
+}
+  
 private async autoSelectFirstPokemon() {
   console.log(`🔥 [AUTO SELECT] Sélection automatique du premier Pokémon...`);
   
