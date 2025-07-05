@@ -204,23 +204,31 @@ async handleBattleRoomCreated(data) {
   
   this.battleRoomId = data.battleRoomId;
 
-  // Notifier la création
+  // ✅ IMPORTANT: Connexion automatique AVANT de notifier
+  console.log('[BUGPOKEMON] 🔗 Connexion automatique à la BattleRoom...');
+  const success = await this.connectToBattleRoom(this.battleRoomId);
+  if (!success) {
+    console.error('[BUGPOKEMON] ❌ Échec connexion auto BattleRoom');
+    this.triggerEvent('battleConnectionFailed', { battleRoomId: this.battleRoomId });
+    return;
+  }
+
+  console.log('[BUGPOKEMON] ✅ Connecté à la BattleRoom, transmission des données...');
+
+  // ✅ Notifier la création APRÈS connexion réussie
   this.triggerEvent('battleRoomCreated', {
     battleRoomId: this.battleRoomId,
     battleType: data.battleType,
     playerPokemon: data.playerPokemon,
-    wildPokemon: data.wildPokemon
+    opponentPokemon: data.opponentPokemon,  // ✅ IMPORTANT: transmettre opponentPokemon
+    wildPokemon: data.wildPokemon,
+    location: data.location,
+    method: data.method,
+    currentZone: data.currentZone
   });
   
-  console.log('[DEBUG] Après triggerEvent...');
-
-    // Connexion automatique
-    const success = await this.connectToBattleRoom(this.battleRoomId);
-    if (!success) {
-      console.error('[DEBUG NETWORK BATTLE] ❌ Échec connexion auto BattleRoom');
-      this.triggerEvent('battleConnectionFailed', { battleRoomId: this.battleRoomId });
-    }
-  }
+  console.log('[BUGPOKEMON] ✅ Données transmises à BattleIntegration');
+}
 
   async handleJoinBattleRoomRequest(data) {
     console.log('[DEBUG NETWORK BATTLE] 🚪 Demande rejoindre BattleRoom...', data);
