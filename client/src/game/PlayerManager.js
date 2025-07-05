@@ -184,6 +184,8 @@ this.animsCreated = true;
   .setScale(1.3);
 player.setDepth(4.5);
 player.sessionId = sessionId;
+    
+this.createPlayerNameLabel(player, sessionId);
 
 // Optionnel mais conseillé pour RPG :
 player.body.setCollideWorldBounds(true); // bloque le joueur dans les bords map
@@ -275,6 +277,40 @@ if (this.scene.anims.exists('idle_down')) player.anims.play('idle_down');
     console.log("[PlayerManager] ✅ Indicateur local créé pour", player.sessionId);
   }
 
+  createPlayerNameLabel(player, sessionId) {
+  // Nettoyer l'ancien label si il existe
+  if (player.nameLabel) {
+    try { player.nameLabel.destroy(); } catch(e) {}
+  }
+  
+  // Récupérer le nom depuis les données du joueur ou utiliser sessionId
+  const playerName = player.name || sessionId.substring(0, 8);
+  
+  // Créer le texte du nom
+  const nameLabel = this.scene.add.text(player.x, player.y - 40, playerName, {
+    fontSize: '12px',
+    fontFamily: 'Arial',
+    fill: '#FFFFFF',
+    stroke: '#000000',
+    strokeThickness: 2,
+    align: 'center'
+  })
+  .setOrigin(0.5, 1)
+  .setDepth(1002); // Au-dessus de l'indicateur
+  
+  // Différencier mon joueur des autres
+  if (sessionId === this.mySessionId || sessionId === this._pendingSessionId) {
+    nameLabel.setStyle({ fill: '#00FF00' }); // Vert pour moi
+  } else {
+    nameLabel.setStyle({ fill: '#FFFFFF' }); // Blanc pour les autres
+  }
+  
+  player.nameLabel = nameLabel;
+  nameLabel.setVisible(true);
+  
+  console.log("[PlayerManager] ✅ Label nom créé pour", playerName, "sessionId:", sessionId);
+}
+  
   updatePlayers(state) {
     if (this.isDestroyed || !state || !state.players) {
       return;
@@ -486,6 +522,11 @@ updatePlayerAnimation(player) {
         player.indicator.y = player.y - 24;
       }
 
+      if (player.nameLabel) {
+  player.nameLabel.x = player.x;
+  player.nameLabel.y = player.y - 40; // Au-dessus de l'indicateur
+}
+      
       // Interpolation de position
       this.updatePlayerPosition(player, sessionId, delta);
     }
@@ -549,6 +590,8 @@ updatePlayerAnimation(player) {
       
       if (player.anims && player.anims.isPlaying) player.anims.stop();
       if (player.indicator) { try { player.indicator.destroy(); } catch (e) {} }
+      if (player.nameLabel) { try { player.nameLabel.destroy(); } catch(e) {} }
+
       if (player.body && player.body.destroy) { try { player.body.destroy(); } catch (e) {} }
       try { player.destroy(); } catch (e) {}
       
