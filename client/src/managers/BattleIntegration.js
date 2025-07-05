@@ -304,7 +304,8 @@ async initializeBattleScene() {
     console.log('🤖 [BattleIntegration] Préparation du premier Pokémon...');
     
     try {
-      const firstAvailable = this.getFirstAvailablePokemon();
+      // Le Pokémon sera fourni par handleBattleRoomCreated
+      console.log('⏳ [BattleIntegration] Attente données serveur...');
       
       if (!firstAvailable) {
         console.error('❌ [BattleIntegration] Aucun Pokémon disponible !');
@@ -337,12 +338,18 @@ async initializeBattleScene() {
 
   // === GESTION DU COMBAT (INCHANGÉE MAIS AVEC LOGS) ===
 
-  handleBattleRoomCreated(data) {
-    console.log('🏠 [BattleIntegration] BattleRoom créée:', data.battleRoomId);
-    
-    this.currentBattleRoomId = data.battleRoomId;
-    this.currentBattleType = data.battleType;
+handleBattleRoomCreated(data) {
+  console.log('🏠 [BattleIntegration] BattleRoom créée:', data.battleRoomId);
+  
+  this.currentBattleRoomId = data.battleRoomId;
+  this.currentBattleType = data.battleType;
+  
+  // ✅ NOUVEAU: Récupérer le Pokémon du serveur
+  if (data.playerPokemon) {
+    this.selectedPokemon = data.playerPokemon;
+    console.log(`✅ [BattleIntegration] Pokémon reçu du serveur: ${data.playerPokemon.name}`);
   }
+}
 
   handleBattleRoomConnected(data) {
     console.log('🚪 [BattleIntegration] Connecté à la BattleRoom');
