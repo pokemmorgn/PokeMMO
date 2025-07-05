@@ -99,12 +99,10 @@ export class BattleNetworkHandler {
         this.handleWildEncounterStart(data);
       });
 
-        this.worldRoom.onMessage('battleRoomCreated', (data) => {
-          console.log('[DEBUG NETWORK BATTLE] 🏠 battleRoomCreated reçu:', data);
-          // Pour un log ultra verbeux :
-          console.log('[DEBUG ULTRA BATTLE DATA]', JSON.stringify(data, null, 2));
-          this.handleBattleRoomCreated(data);
-        });
+      this.worldRoom.onMessage('battleRoomCreated', (data) => {
+        console.log('[DEBUG NETWORK BATTLE] 🏠 battleRoomCreated reçu, transmission...');
+        this.triggerEvent('battleRoomCreated', data);
+      });
 
 
       this.worldRoom.onMessage('joinBattleRoom', (data) => {
