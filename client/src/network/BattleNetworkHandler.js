@@ -194,7 +194,7 @@ async handleBattleRoomCreated(data) {
   console.log('[BUGPOKEMON] 📥 RÉCEPTION battleRoomCreated:', data);
   console.log('[BUGPOKEMON] 📋 Clés reçues:', Object.keys(data));
   console.log('[BUGPOKEMON] 👤 playerPokemon:', data.playerPokemon);
-  console.log('[BUGPOKEMON] 👹 opponentPokemon:', data.opponentPokemon);
+  console.log('[BUGPOKEMON] 🔍 SERVEUR data.opponentPokemon COMPLET:', JSON.stringify(data.opponentPokemon, null, 2));
   console.log('[BUGPOKEMON] 🔍 data.wildPokemon:', data.wildPokemon);
   
   console.log('[DEBUG NETWORK BATTLE] 🏠 Traitement création BattleRoom...', data);
