@@ -631,8 +631,6 @@ private broadcastBattleUpdate() {
   }, 1000);
 }
 
-}
-
   // ✅ NOUVEAU: Gestion de la fin de combat avec BattleManager
   private async handleBattleEnd() {
     console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BATTLEMANAGER`);
