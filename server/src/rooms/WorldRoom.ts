@@ -1433,6 +1433,10 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
       // Données de base
       player.id = client.sessionId;
       player.name = options.name || `Player_${client.sessionId.substring(0, 6)}`;
+      if (savedData && savedData.username) {
+  player.name = savedData.username;
+  console.log(`📝 [WorldRoom] Nom récupéré depuis DB: ${player.name}`);
+}
       
       // Debug d'abord
       await this.positionSaver.debugPlayerPosition(player.name);
