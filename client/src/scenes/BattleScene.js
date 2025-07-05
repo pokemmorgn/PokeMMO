@@ -1440,6 +1440,11 @@ handleNetworkBattleStart(data) {
   
   // ✅ PUIS AFFICHER LE POKÉMON ADVERSAIRE
   if (data.opponentPokemon || data.wildPokemon) {
+    console.log('[BUGPOKEMON] 🔍 SERVEUR data.opponentPokemon:', data.opponentPokemon);
+    console.log('[BUGPOKEMON] 🔍 SERVEUR currentHp:', data.opponentPokemon?.currentHp);
+    console.log('[BUGPOKEMON] 🔍 SERVEUR maxHp:', data.opponentPokemon?.maxHp);
+    console.log('[BUGPOKEMON] 🔍 SERVEUR stats:', data.opponentPokemon?.stats);
+    
     const opponent = data.opponentPokemon || {
       pokemonId: data.wildPokemon.pokemonId,
       name: `Pokémon sauvage #${data.wildPokemon.pokemonId}`,
@@ -1451,9 +1456,7 @@ handleNetworkBattleStart(data) {
       shiny: data.wildPokemon.shiny
     };
     
-    console.log('[BUGPOKEMON] 👹 Données Pokémon adversaire construites:', opponent);
-    console.log('[BUGPOKEMON] 👹 data.opponentPokemon original:', data.opponentPokemon);
-    console.log('[BUGPOKEMON] 👹 data.wildPokemon original:', data.wildPokemon);
+    console.log('[BUGPOKEMON] 👹 Données utilisées FINALES:', opponent);
     
     this.displayOpponentPokemon(opponent);
   }
