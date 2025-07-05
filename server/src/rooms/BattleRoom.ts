@@ -321,57 +321,100 @@ export class BattleRoom extends Room<BattleState> {
 
   // === ACTIONS DE COMBAT AVEC BATTLEMANAGER ===
 
-  private async handleBattleAction(client: Client, data: any) {
-    if (this.state.phase !== "battle") {
-      client.send("error", { message: "Combat non actif" });
-      return;
-    }
-
-    const playerRole = this.getPlayerRole(client.sessionId);
-    if (this.state.currentTurn !== playerRole) {
-      client.send("error", { message: "Ce n'est pas votre tour" });
-      return;
-    }
-
-    console.log(`🎮 Action de ${client.sessionId}: ${data.actionType}`);
-
-    try {
-      // ✅ NOUVEAU: Créer BattleAction pour BattleManager
-      const action = new BattleAction();
-      action.type = data.actionType;
-      action.playerId = client.sessionId;
-      action.data = JSON.stringify(data);
-      
-      // ✅ Calculer priorité et vitesse pour l'ordre d'action
-      if (data.actionType === "attack" && data.moveId) {
-        const moveData = MoveManager.getMoveData(data.moveId);
-        action.priority = moveData?.priority || 0;
-        
-        const currentPokemon = this.getCurrentPlayerPokemon();
-        action.speed = currentPokemon.speed;
-      }
-
-      // ✅ NOUVEAU: Utiliser BattleManager pour traiter l'action
-      await this.battleManager.processAction(action);
-      
-      // ✅ Le BattleManager met à jour automatiquement le state
-      // On broadcast les changements
-      this.broadcastBattleUpdate();
-      
-      // ✅ Vérifier si le combat est terminé
-      if (this.state.battleEnded) {
-        await this.handleBattleEnd();
-      } else {
-        // Mettre à jour les icônes de statut
-        this.updatePlayerHpPercentages();
-        this.updateBattleStatusIcons();
-      }
-
-    } catch (error) {
-      console.error(`❌ Erreur handleBattleAction:`, error);
-      client.send("error", { message: "Erreur lors de l'action" });
-    }
+private async handleBattleAction(client: Client, data: any) {
+  console.log(`🔥 [DEBUG] handleBattleAction appelée:`, data);
+  console.log(`🔥 [DEBUG] Phase actuelle:`, this.state.phase);
+  console.log(`🔥 [DEBUG] Tour actuel:`, this.state.currentTurn);
+  
+  if (this.state.phase !== "battle") {
+    console.log(`🔥 [DEBUG] Combat non actif, rejet`);
+    client.send("error", { message: "Combat non actif" });
+    return;
   }
+
+  const playerRole = this.getPlayerRole(client.sessionId);
+  console.log(`🔥 [DEBUG] Rôle du joueur:`, playerRole);
+  
+  if (this.state.currentTurn !== playerRole) {
+    console.log(`🔥 [DEBUG] Pas le tour du joueur, rejet`);
+    client.send("error", { message: "Ce n'est pas votre tour" });
+    return;
+  }
+
+  console.log(`🔥 [DEBUG] Validation OK, traitement action ${data.actionType}`);
+  console.log(`🎮 Action de ${client.sessionId}: ${data.actionType}`);
+
+  try {
+    console.log(`🔥 [DEBUG] Création BattleAction...`);
+    
+    // ✅ NOUVEAU: Créer BattleAction pour BattleManager
+    const action = new BattleAction();
+    action.type = data.actionType;
+    action.playerId = client.sessionId;
+    action.data = JSON.stringify(data);
+    
+    console.log(`🔥 [DEBUG] BattleAction créée:`, {
+      type: action.type,
+      playerId: action.playerId,
+      data: action.data
+    });
+    
+    // ✅ Calculer priorité et vitesse pour l'ordre d'action
+    if (data.actionType === "attack" && data.moveId) {
+      console.log(`🔥 [DEBUG] Calcul priorité pour attaque ${data.moveId}`);
+      
+      const moveData = MoveManager.getMoveData(data.moveId);
+      action.priority = moveData?.priority || 0;
+      
+      const currentPokemon = this.getCurrentPlayerPokemon();
+      action.speed = currentPokemon.speed;
+      
+      console.log(`🔥 [DEBUG] Priorité: ${action.priority}, Vitesse: ${action.speed}`);
+    }
+
+    console.log(`🔥 [DEBUG] Appel BattleManager.processAction...`);
+    
+    // ✅ NOUVEAU: Utiliser BattleManager pour traiter l'action
+    await this.battleManager.processAction(action);
+    
+    console.log(`🔥 [DEBUG] BattleManager.processAction terminé`);
+    console.log(`🔥 [DEBUG] État du combat après processAction:`, {
+      battleEnded: this.state.battleEnded,
+      currentTurn: this.state.currentTurn,
+      turnNumber: this.state.turnNumber,
+      player1Hp: this.state.player1Pokemon?.currentHp,
+      player2Hp: this.state.player2Pokemon?.currentHp,
+      lastMessage: this.state.lastMessage
+    });
+    
+    // ✅ Le BattleManager met à jour automatiquement le state
+    // On broadcast les changements
+    console.log(`🔥 [DEBUG] Appel broadcastBattleUpdate...`);
+    this.broadcastBattleUpdate();
+    console.log(`🔥 [DEBUG] broadcastBattleUpdate terminé`);
+    
+    // ✅ Vérifier si le combat est terminé
+    if (this.state.battleEnded) {
+      console.log(`🔥 [DEBUG] Combat terminé, appel handleBattleEnd...`);
+      await this.handleBattleEnd();
+    } else {
+      console.log(`🔥 [DEBUG] Combat continue, mise à jour statuts...`);
+      
+      // Mettre à jour les icônes de statut
+      this.updatePlayerHpPercentages();
+      this.updateBattleStatusIcons();
+      
+      console.log(`🔥 [DEBUG] Statuts mis à jour`);
+    }
+
+    console.log(`🔥 [DEBUG] handleBattleAction terminé avec succès`);
+
+  } catch (error) {
+    console.error(`🔥 [DEBUG] ERREUR dans handleBattleAction:`, error);
+    console.error(`🔥 [DEBUG] Stack trace:`, error.stack);
+    client.send("error", { message: "Erreur lors de l'action" });
+  }
+}
 
   // ✅ NOUVEAU: Broadcast des mises à jour de combat
   private broadcastBattleUpdate() {
