@@ -271,26 +271,8 @@ async handleWildEncounterStart(data) {
     return;
   }
   
-  // ✅ ÉTAPE 1: LANCER LA TRANSITION UI IMMÉDIATEMENT
-  console.log('🎬 [BattleIntegration] Lancement transition UI...');
-  
-  if (this.battleUITransition) {
-    const transitionSuccess = await this.battleUITransition.startBattleTransition({
-      pokemon: data.pokemon || data.wildPokemon,
-      location: data.location,
-      method: data.method
-    });
-    
-    if (!transitionSuccess) {
-      console.error('❌ [BattleIntegration] Échec transition UI');
-      this.showError('Erreur lors de la préparation du combat');
-      return;
-    }
-    
-    console.log('✅ [BattleIntegration] Transition UI réussie');
-  } else {
-    console.warn('⚠️ [BattleIntegration] BattleUITransition non disponible');
-  }
+  // ✅ ÉTAPE 1: PAS DE TRANSITION UI ENCORE - Attendre le serveur
+  console.log('⏳ [BattleIntegration] Attente données serveur AVANT transition...');
   
   // Stocker les données de combat
   this.currentBattleData = data;
@@ -300,14 +282,11 @@ async handleWildEncounterStart(data) {
     this.gameManager.onEncounterStart(data);
   }
   
-  // ✅ ÉTAPE 2: Marquer comme en cours et attendre le serveur
-  console.log('🤖 [BattleIntegration] Préparation du combat...');
-  
   // Marquer comme en cours
   this.isInBattle = true;
   
   console.log('⏳ [BattleIntegration] Attente création BattleRoom...');
-  // ❌ NE PAS LANCER LA BATTLESCENE ICI - Attendre handleBattleRoomCreated
+  // La transition UI se fera dans handleBattleRoomCreated
 }
 
   // ✅ NOUVEAU CALLBACK: Appelé quand la transition UI est terminée
@@ -320,7 +299,7 @@ async handleWildEncounterStart(data) {
 
   // === GESTION DU COMBAT (INCHANGÉE MAIS AVEC LOGS) ===
 
-handleBattleRoomCreated(data) {
+async handleBattleRoomCreated(data) {
   console.log('🏠 [BattleIntegration] BattleRoom créée:', data.battleRoomId);
   
   this.currentBattleRoomId = data.battleRoomId;
@@ -331,7 +310,20 @@ handleBattleRoomCreated(data) {
     this.selectedPokemon = data.playerPokemon;
     console.log(`✅ [BattleIntegration] Pokémon reçu du serveur: ${data.playerPokemon.name}`);
     
-    // ✅ MAINTENANT LANCER LA BATTLESCENE AVEC LES DEUX POKÉMON
+    // ✅ MAINTENANT FAIRE LA TRANSITION UI
+    if (this.battleUITransition) {
+      const transitionSuccess = await this.battleUITransition.startBattleTransition({
+        pokemon: this.currentBattleData?.pokemon,
+        location: this.currentBattleData?.location,
+        method: this.currentBattleData?.method
+      });
+      
+      if (transitionSuccess) {
+        console.log('✅ [BattleIntegration] Transition UI après réception Pokémon');
+      }
+    }
+    
+    // ✅ PUIS LANCER LA BATTLESCENE AVEC LES DEUX POKÉMON
     const battleData = {
       battleId: data.battleRoomId,
       battleType: data.battleType,
