@@ -73,7 +73,7 @@ export class MovementController {
   }
 
   resetPlayer(sessionId: string) {
-    console.log(`[ANTICHEAT][${sessionId}] resetPlayer() appelé, suppression lastMoves`);
+ //   console.log(`[ANTICHEAT][${sessionId}] resetPlayer() appelé, suppression lastMoves`);
     this.lastMoves.delete(sessionId);
   }
 }
