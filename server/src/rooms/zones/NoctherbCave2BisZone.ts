@@ -25,7 +25,7 @@ interface Spawn {
   y: number;
 }
 
-export class NoctherCave2BisZone implements IZone {
+export class NoctherbCave2BisZone implements IZone {
   private room: WorldRoom;
   private npcs: NPC[] = [];
 
@@ -66,7 +66,7 @@ export class NoctherCave2BisZone implements IZone {
 
     const zoneData = this.getZoneData();
     client.send("zoneData", {
-      zone: "nocthercave2bis",
+      zone: "noctherbcave2bis",
       ...zoneData
     });
 
