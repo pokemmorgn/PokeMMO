@@ -1579,16 +1579,19 @@ createModernActionInterface() {
 
   // === MÉTHODES PUBLIQUES D'ACTIVATION ===
 
-  startBattle(battleData) {
-    console.log('⚔️ [BattleScene] Démarrage combat moderne:', battleData);
-    
-    if (!this.isActive) {
-      console.error('❌ [BattleScene] Scène non active');
-      return;
-    }
-    
-    this.handleNetworkBattleStart(battleData);
+startBattle(battleData) {
+  console.log('⚔️ [BattleScene] Démarrage combat moderne:', battleData);
+  console.log('🔍 [DEBUG] battleData.playerPokemon existe ?', !!battleData.playerPokemon);
+  console.log('🔍 [DEBUG] battleData.opponentPokemon existe ?', !!battleData.opponentPokemon);
+  console.log('🔍 [DEBUG] Contenu playerPokemon:', battleData.playerPokemon);
+  
+  if (!this.isActive) {
+    console.error('❌ [BattleScene] Scène non active');
+    return;
   }
+  
+  this.handleNetworkBattleStart(battleData);
+}
 
   hideBattle() {
     console.log('🖥️ [BattleScene] Masquage combat moderne...');
