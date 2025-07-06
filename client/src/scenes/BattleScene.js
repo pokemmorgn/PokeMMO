@@ -1888,6 +1888,82 @@ startBattle(battleData) {
     }
   }
 
+  /**
+ * Affiche un message dans la zone d'interface (à la place des boutons)
+ */
+showActionMessage(message, duration = 0) {
+  console.log('💬 [BattleScene] Affichage message interface:', message);
+  
+  if (!this.actionInterface || !this.actionMessageText) return;
+  
+  // Masquer les boutons
+  this.hideActionButtons();
+  
+  // Afficher le texte
+  this.actionMessageText.setText(message);
+  this.actionMessageText.setVisible(true);
+  
+  // Afficher l'interface si cachée
+  if (!this.actionInterface.visible) {
+    this.actionInterface.setVisible(true);
+    this.actionInterface.setAlpha(0);
+    this.tweens.add({
+      targets: this.actionInterface,
+      alpha: 1,
+      duration: 400,
+      ease: 'Power2.easeOut'
+    });
+  }
+  
+  this.interfaceMode = 'message';
+  
+  // Masquer automatiquement après délai si spécifié
+  if (duration > 0) {
+    setTimeout(() => {
+      this.hideActionMessage();
+    }, duration);
+  }
+}
+
+/**
+ * Masque le message et affiche les boutons
+ */
+hideActionMessage() {
+  if (!this.actionMessageText) return;
+  
+  this.actionMessageText.setVisible(false);
+  this.interfaceMode = 'hidden';
+}
+
+/**
+ * Affiche les boutons d'action (masque le texte)
+ */
+showActionButtons() {
+  console.log('🎮 [BattleScene] Affichage boutons interface');
+  
+  // Masquer le texte
+  this.hideActionMessage();
+  
+  // Afficher les boutons
+  this.showModernActionMenu();
+  this.interfaceMode = 'buttons';
+}
+
+/**
+ * Masque les boutons d'action
+ */
+hideActionButtons() {
+  // Parcourir tous les enfants du container pour masquer les boutons
+  if (!this.actionInterface) return;
+  
+  this.actionInterface.list.forEach(child => {
+    // Masquer tout sauf le panel de fond et le texte
+    if (child !== this.actionInterface.list[0] && child !== this.actionMessageText) {
+      child.setVisible(false);
+    }
+  });
+}
+  
   // === MÉTHODES ÉTENDUES POUR RENCONTRES ===
 
   handleEncounterStart(encounterData) {
