@@ -1215,7 +1215,8 @@ executePlayerAction(actionData) {
   console.log('[BUGPOKEMON] ⚔️ executePlayerAction:', actionData);
   
   if (actionData.type === 'move') {
-    this.showBattleMessage(`${this.currentPlayerPokemon?.name} utilise ${actionData.moveName}!`, 2000);
+    this.showActionMessage(`${this.currentPlayerPokemon?.name} utilise ${actionData.moveName}!`); 
+  }
     
     // ✅ NOUVEAU: Envoyer l'attaque au serveur
     if (this.battleNetworkHandler) {
