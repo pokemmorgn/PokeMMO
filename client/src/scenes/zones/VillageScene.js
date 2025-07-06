@@ -1,5 +1,5 @@
 import { BaseZoneScene } from './BaseZoneScene.js';
-import { PsyduckIntroManager } from './intros/PsyduckIntroManager.js'; // ✅ AJOUT
+import { PsyduckIntroManager } from '../intros/PsyduckIntroManager.js'; // ✅ AJOUT
 
 export class VillageScene extends BaseZoneScene {
   constructor() {
