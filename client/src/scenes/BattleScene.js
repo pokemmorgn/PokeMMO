@@ -483,48 +483,59 @@ init(data = {}) {
   // === INTERFACE D'ACTIONS MODERNE ===
 
 createModernActionInterface() {
-  console.log('🎮 [BattleScene] Création interface d\'actions moderne...');
-  
-  const { width, height } = this.cameras.main;
-  
-  // Conteneur principal pour l'interface - DÉPLACÉ À DROITE
-  this.actionInterface = this.add.container(width - 420, height - 180);
-  
-  // Panel principal avec style Pokémon moderne
-  const mainPanel = this.add.graphics();
-  mainPanel.fillStyle(0x1a1a1a, 0.95);
-  mainPanel.fillRoundedRect(20, 0, 380, 160, 16);
-  
-  // Bordure stylée
-  mainPanel.lineStyle(4, 0x4A90E2, 1);
-  mainPanel.strokeRoundedRect(20, 0, 380, 160, 16);
-  
-  this.actionInterface.add(mainPanel);
-  
-  // ✅ NOUVEAU: Zone de texte unifiée (même position que les boutons)
-  this.actionMessageText = this.add.text(200, 80, '', {
-    fontSize: '18px',
-    fontFamily: 'Arial Black, sans-serif',
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    align: 'center',
-    wordWrap: { width: 340 }
-  });
-  this.actionMessageText.setOrigin(0.5, 0.5);
-  this.actionMessageText.setVisible(false);
-  this.actionInterface.add(this.actionMessageText);
-  
-  // Créer les boutons (masqués par défaut)
-  this.createActionButtons();
-  
-  this.actionInterface.setDepth(200);
-  this.actionInterface.setVisible(false);
-  
-  // ✅ NOUVEAU: État de l'interface (message ou boutons)
-  this.interfaceMode = 'hidden'; // 'hidden', 'message', 'buttons'
-  
-  console.log('✅ [BattleScene] Interface d\'actions moderne créée avec zone unifiée');
-}
+    console.log('🎮 [BattleScene] Création interface d\'actions moderne...');
+    
+    const { width, height } = this.cameras.main;
+    
+    // Conteneur principal pour l'interface - DÉPLACÉ À DROITE
+    this.actionInterface = this.add.container(width - 420, height - 180);
+    
+    // Panel principal avec style Pokémon moderne - AJOUTÉ EN PREMIER
+    const mainPanel = this.add.graphics();
+    mainPanel.fillStyle(0x1a1a1a, 0.95);
+    mainPanel.fillRoundedRect(20, 0, 380, 160, 16);  // Ajusté la largeur
+    
+    // Bordure stylée
+    mainPanel.lineStyle(4, 0x4A90E2, 1);
+    mainPanel.strokeRoundedRect(20, 0, 380, 160, 16);
+    
+    // IMPORTANT: Ajouter le panel en PREMIER pour qu'il soit en arrière-plan
+    this.actionInterface.add(mainPanel);
+    
+    // Boutons d'action modernes - AJOUTÉS APRÈS pour être au premier plan
+    this.createActionButtons();
+    
+    this.actionInterface.setDepth(200);
+    this.actionInterface.setVisible(false);
+    
+    console.log('✅ [BattleScene] Interface d\'actions moderne créée à droite');
+  }
+
+  createActionButtons() {
+    const buttonConfig = {
+      width: 160,  // Légèrement réduit pour s'adapter à droite
+      height: 50,
+      gap: 15
+    };
+    
+    const startX = 40;
+    const startY = 40;
+    
+    const actions = [
+      { key: 'attack', text: 'Attaque', color: 0xE74C3C, icon: '⚔️' },
+      { key: 'bag', text: 'Sac', color: 0x9B59B6, icon: '🎒' },
+      { key: 'pokemon', text: 'Pokémon', color: 0x3498DB, icon: '🔄' },
+      { key: 'run', text: 'Fuite', color: 0x95A5A6, icon: '🏃' }
+    ];
+    
+    actions.forEach((action, index) => {
+      const x = startX + (index % 2) * (buttonConfig.width + buttonConfig.gap);
+      const y = startY + Math.floor(index / 2) * (buttonConfig.height + 15);
+      
+      const button = this.createModernButton(x, y, buttonConfig, action);
+      this.actionInterface.add(button);
+    });
+  }
 
   createModernButton(x, y, config, action) {
     const buttonContainer = this.add.container(x, y);
