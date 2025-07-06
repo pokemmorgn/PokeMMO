@@ -312,15 +312,11 @@ private async executeActions(): Promise<void> {
     return aiAction;
   }
 
-  priprivate shouldExecuteActions(): boolean {
+private shouldExecuteActions(): boolean {
   if (this.battleState.battleType === "wild") {
     // Pour les combats sauvages, exécuter dès qu'on a au moins 1 action
     // BattleRoom gérera la génération d'actions IA séparément
     return this.battleState.pendingActions.length >= 1;
-  }
-  return this.battleState.pendingActions.length >= 2; // Deux actions pour combat PvP
-}battleType === "wild") {
-    return this.battleState.pendingActions.length >= 2; // ✅ FIX: Joueur + IA
   }
   return this.battleState.pendingActions.length >= 2; // Deux actions pour combat PvP
 }
