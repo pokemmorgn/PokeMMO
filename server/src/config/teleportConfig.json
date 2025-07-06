@@ -6,7 +6,7 @@
     "enableProximityCheck": true,
     "enableCooldowns": false,
     "defaultCooldownMinutes": 1,
-    "enableLevelRestrictions": true,
+    "enableLevelRestrictions": false,
     "enableVipRestrictions": false,
     "logTransitions": true
   },
