@@ -147,8 +147,9 @@ export class NpcManager {
 
       // ✅ AMÉLIORATION: Création du sprite avec plus de vérifications
       console.log(`🎨 Création sprite avec key: ${spriteKey}`);
-      const sprite = this.scene.add.sprite(npc.x, npc.y, spriteKey)
-        .setOrigin(0.5, 1)
+const sprite = npc.frameIndex !== undefined 
+  ? this.scene.add.sprite(npc.x, npc.y, spriteKey, npc.frameIndex)
+  : this.scene.add.sprite(npc.x, npc.y, spriteKey);        .setOrigin(0.5, 1)
         .setDepth(4)
         .setScale(1);
 
