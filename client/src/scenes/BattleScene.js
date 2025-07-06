@@ -1529,6 +1529,52 @@ handleNetworkBattleStart(data) {
   }, 1500);
 }
 
+  /**
+ * ✅ NOUVEAU: Handler pour les mises à jour de combat (barres de vie, tours, etc.)
+ */
+handleNetworkBattleUpdate(data) {
+  console.log('🔄 [BattleScene] Mise à jour combat reçue:', data);
+  
+  // Extraire les données HP
+  const player1Hp = data.player1Hp || data.player1Pokemon?.currentHp;
+  const player1MaxHp = data.player1MaxHp || data.player1Pokemon?.maxHp;
+  const player2Hp = data.player2Hp || data.player2Pokemon?.currentHp;
+  const player2MaxHp = data.player2MaxHp || data.player2Pokemon?.maxHp;
+  
+  console.log('💖 [BattleScene] HP extraits:', {
+    player1: `${player1Hp}/${player1MaxHp}`,
+    player2: `${player2Hp}/${player2MaxHp}`
+  });
+  
+  // ✅ Mettre à jour le Pokémon joueur (player1)
+  if (this.currentPlayerPokemon && player1Hp !== undefined && player1MaxHp !== undefined) {
+    this.currentPlayerPokemon.currentHp = player1Hp;
+    this.currentPlayerPokemon.maxHp = player1MaxHp;
+    this.updateModernHealthBar('player', this.currentPlayerPokemon);
+  }
+  
+  // ✅ Mettre à jour le Pokémon adversaire (player2/IA)
+  if (this.currentOpponentPokemon && player2Hp !== undefined && player2MaxHp !== undefined) {
+    this.currentOpponentPokemon.currentHp = player2Hp;
+    this.currentOpponentPokemon.maxHp = player2MaxHp;
+    this.updateModernHealthBar('opponent', this.currentOpponentPokemon);
+  }
+  
+  // ✅ NOUVEAU: Gérer l'affichage d'interface selon le tour
+  if (data.currentTurn === 'player1') {
+    // Tour du joueur - afficher les boutons après un délai
+    setTimeout(() => {
+      this.showActionMessage('À votre tour !');
+      setTimeout(() => {
+        this.showActionButtons();
+      }, 1500);
+    }, 1000);
+  } else if (data.currentTurn === 'player2') {
+    // Tour de l'IA - afficher un message
+    this.showActionMessage('L\'adversaire réfléchit...');
+  }
+}
+  
   handleNetworkAttackResult(data) {
     console.log('💥 [BattleScene] Résultat attaque réseau:', data);
     
