@@ -1,4 +1,26 @@
-// client/src/scenes/intros/PsyduckIntroManager.js
+// ✅ Test spécifique pour le village simple
+  testSimpleVillageIntro() {
+    if (this.isPlaying) {
+      this.forceStop();
+      setTimeout(() => {
+        this.startSimpleVillageIntro();
+      }, 1000);
+    } else {
+      this.startSimpleVillageIntro();
+    }
+  }
+
+  // ✅ Test spécifique pour le village (avec dialogue)
+  testVillageIntro() {
+    if (this.isPlaying) {
+      this.forceStop();
+      setTimeout(() => {
+        this.startVillageIntro();
+      }, 1000);
+    } else {
+      this.startVillageIntro();
+    }
+  }// client/src/scenes/intros/PsyduckIntroManager.js
 // Manages Psyduck intro sequence with sequential dialogue system
 // ✅ DEUX SEQUENCES: Beach (originale) + Village (nouvelle avec lab et téléport)
 
@@ -581,17 +603,14 @@ export class PsyduckIntroManager {
     try {
       console.log('[PsyduckIntro] 🦆 Spawn de Psyduck devant le lab (Village)...');
       
-      // ✅ Position devant le laboratoire (à adapter selon votre map)
       const labPosition = this.getLabPosition();
       
       this.psyduck = this.scene.add.sprite(labPosition.x, labPosition.y, 'psyduck_walk', 0)
         .setOrigin(0.5, 1)
         .setDepth(6);
       
-      // ✅ ÉTAPE 1: Fixer la caméra sur Psyduck
       this.focusCameraOnPsyduck();
       
-      // ✅ ÉTAPE 2: Attendre un peu puis démarrer le dialogue
       this.scene.time.delayedCall(1500, () => {
         this.startPsyduckDialogue();
       });
@@ -600,6 +619,85 @@ export class PsyduckIntroManager {
       console.error(`[PsyduckIntro] Error spawning Psyduck at lab:`, error);
       this.cleanup();
     }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Version simple SANS dialogue
+  spawnPsyduckAtLabSimple() {
+    if (!this.scene || !this.scene.add) {
+      this.cleanup();
+      return;
+    }
+
+    try {
+      console.log('[PsyduckIntro] 🦆 Spawn de Psyduck devant le lab (SIMPLE - SANS dialogue)...');
+      
+      const labPosition = this.getLabPosition();
+      
+      this.psyduck = this.scene.add.sprite(labPosition.x, labPosition.y, 'psyduck_walk', 0)
+        .setOrigin(0.5, 1)
+        .setDepth(6);
+      
+      // ✅ Fixer la caméra sur Psyduck
+      this.focusCameraOnPsyduck();
+      
+      // ✅ Attendre 1 seconde puis aller directement au téléport (SANS dialogue)
+      this.scene.time.delayedCall(1000, () => {
+        this.startWalkToTeleport();
+      });
+      
+    } catch (error) {
+      console.error(`[PsyduckIntro] Error spawning Psyduck at lab (simple):`, error);
+      this.cleanup();
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Intro village simple (entrée publique)
+  async startSimpleVillageIntro(onComplete = null) {
+    this.introType = 'village_simple';
+    
+    if (this.isPlaying || !this.scene) return;
+
+    if (!this.listenersSetup) {
+      this.ensureListenersSetup();
+    }
+    this.blockPlayerInputs();
+    this.isPlaying = true;
+    this.onCompleteCallback = onComplete;
+
+    console.log(`[PsyduckIntro] === DÉMARRAGE INTRO VILLAGE SIMPLE (SANS DIALOGUE) ===`);
+
+    // ✅ Vérifications comme dans startIntro
+    const loadingClosed = await this.waitForLoadingScreenClosed(10000);
+    if (!loadingClosed) {
+      console.warn('[PsyduckIntro] LoadingScreen pas fermé après 10s, continue quand même');
+    }
+
+    const playerReady = await this.waitForPlayerReady(8000);
+    if (!playerReady) {
+      console.warn('[PsyduckIntro] Flag playerReady pas prêt après 8s, annulation intro');
+      this.cleanup();
+      return;
+    }
+
+    const playerObject = await this.waitForValidPlayerObject(3000);
+    if (!playerObject) {
+      console.warn('[PsyduckIntro] Objet joueur pas valide après 3s, annulation intro');
+      this.cleanup();
+      return;
+    }
+
+    console.log('[PsyduckIntro] ⏳ Attente 2 secondes supplémentaires...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    console.log(`[PsyduckIntro] ✅ Démarrage intro village simple`);
+    
+    this.blockPlayerInputs();
+    this.loadPsyduckSpritesheet();
+
+    // ✅ Spawn Psyduck en mode simple (sans dialogue)
+    this.scene.time.delayedCall(800, () => {
+      this.spawnPsyduckAtLabSimple();
+    });
   }
 
   focusCameraOnPsyduck() {
