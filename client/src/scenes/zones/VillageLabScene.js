@@ -115,6 +115,7 @@ if (npcsToCreate.length > 0) {
 } else {
   console.log(`[VillageLabScene] ℹ️ Aucun NPC à créer`);
 }
+  }
 
   cleanup() {
     console.log("[VillageLabScene] cleanup appelé");
