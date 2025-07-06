@@ -74,55 +74,47 @@ export class VillageLabScene extends BaseZoneScene {
 
     console.log(`[VillageLabScene] Layer NPCs trouvé avec ${npcLayer.objects.length} objet(s)`);
 
-    // Créer les NPCs depuis les objets de la map
-    const npcsToCreate = [];
-    
-    npcLayer.objects.forEach(npcObj => {
-      console.log(`[VillageLabScene] Traitement objet: ${npcObj.name}`, npcObj);
-      
-      // Convertir les propriétés Tiled en format simple
-      const properties = {};
-      if (npcObj.properties) {
-        npcObj.properties.forEach(prop => {
-          properties[prop.name] = prop.value;
-        });
-      }
+// Créer les NPCs depuis les objets de la map
+const npcsToCreate = [];
 
-      const npcData = {
-        id: npcObj.id,
-        name: npcObj.name || 'NPC',
-        x: npcObj.x + (npcObj.width || 32) / 2,
-        y: npcObj.y + (npcObj.height || 32) / 2,
-        sprite: npcObj.name || 'defaultNpc',
-        properties: properties
-      };
-
-          // ✅ SPÉCIFIER LE FRAME POUR TOM ET ERIC
-    if (npcObj.name === 'Tom') {
-      npcData.sprite = 'scientist1';
-      npcData.frameIndex = 9; // ✅ Tom utilise le frame 9
-      console.log(`[VillageLabScene] 🧪 Tom configuré avec scientist1 frame ${npcData.frameIndex}`);
-    }
-    
-    if (npcObj.name === 'Eric') {
-      npcData.sprite = 'scientist1';
-      npcData.frameIndex = 5; // ✅ Eric utilise le frame 5
-      console.log(`[VillageLabScene] 🧪 Eric configuré avec scientist1 frame ${npcData.frameIndex}`);
-    }
-      
-      npcsToCreate.push(npcData);
-      console.log(`[VillageLabScene] 👤 NPC préparé: ${npcData.name}`, npcData);
+npcLayer.objects.forEach(npcObj => {
+  console.log(`[VillageLabScene] Traitement objet: ${npcObj.name}`, npcObj);
+  
+  // Convertir les propriétés Tiled en format simple
+  const properties = {};
+  if (npcObj.properties) {
+    npcObj.properties.forEach(prop => {
+      properties[prop.name] = prop.value;
     });
-
-    // Créer tous les NPCs
-    if (npcsToCreate.length > 0) {
-      console.log(`[VillageLabScene] 🚀 Création de ${npcsToCreate.length} NPC(s)...`);
-      this.npcManager.spawnNpcs(npcsToCreate);
-      console.log(`[VillageLabScene] ✅ NPCs créés avec succès`);
-    } else {
-      console.log(`[VillageLabScene] ℹ️ Aucun NPC à créer`);
-    }
   }
+
+  const npcData = {
+    id: npcObj.id,
+    name: npcObj.name || 'NPC',
+    x: npcObj.x + (npcObj.width || 32) / 2,
+    y: npcObj.y + (npcObj.height || 32) / 2,
+    sprite: properties.sprite || npcObj.name || 'defaultNpc', // ✅ Depuis Tiled
+    frameIndex: properties.frameIndex, // ✅ Depuis Tiled
+    properties: properties
+  };
+  
+  // ✅ OPTIONNEL: Log pour debug
+  if (npcData.frameIndex !== undefined) {
+    console.log(`[VillageLabScene] 🖼️ ${npcData.name} frameIndex depuis Tiled: ${npcData.frameIndex}`);
+  }
+  
+  npcsToCreate.push(npcData);
+  console.log(`[VillageLabScene] 👤 NPC préparé: ${npcData.name}`, npcData);
+});
+
+// Créer tous les NPCs
+if (npcsToCreate.length > 0) {
+  console.log(`[VillageLabScene] 🚀 Création de ${npcsToCreate.length} NPC(s)...`);
+  this.npcManager.spawnNpcs(npcsToCreate);
+  console.log(`[VillageLabScene] ✅ NPCs créés avec succès`);
+} else {
+  console.log(`[VillageLabScene] ℹ️ Aucun NPC à créer`);
+}
 
   cleanup() {
     console.log("[VillageLabScene] cleanup appelé");
