@@ -75,15 +75,14 @@ export class InteractionManager {
 
   registerInteractionSystems() {
 
-  this.registerSystem('starter', {
-  priority: 0,
-  canHandle: (npc) => npc?.properties?.startertable === true,
-  handle: (npc, data) => this.handleStarterInteraction(npc, data),  // ✅ MODIFIÉ !
-  validateState: () => true,
-  description: "Table starter Pokémon"
-});
+      this.registerSystem('starter', {
+      priority: 0,
+      canHandle: (npc) => npc?.properties?.startertable === true,
+      handle: (npc, data) => this.handleStarterInteraction(npc, data),  // ✅ MODIFIÉ !
+      validateState: () => true,
+      description: "Table starter Pokémon"
+    });
   
-
     this.registerSystem('quest', {
       priority: 2,
       canHandle: (npc) => this.isNpcQuestGiver(npc),
