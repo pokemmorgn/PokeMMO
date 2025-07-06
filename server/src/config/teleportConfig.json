@@ -86,21 +86,21 @@
     "road1hidden": {
       "name": "road1hidden",
       "displayName": "Zone Cachée Route 1",
-      "minLevel": 5,
+      "minLevel": 1,
       "description": "Zone mystérieuse cachée de la Route 1",
       "fixedSpawn": { "x": 200, "y": 250 }
     },
         "road2": {
       "name": "road2",
       "displayName": "Zone  Route 2",
-      "minLevel": 5,
+      "minLevel": 1,
       "description": "Zone  de la Route 2",
       "fixedSpawn": { "x": 200, "y": 250 }
     },
         "road3": {
       "name": "road3",
       "displayName": "Zone Cachée Route 3",
-      "minLevel": 5,
+      "minLevel": 1,
       "description": "Zone   de la Route 3",
       "fixedSpawn": { "x": 200, "y": 250 }
     },
