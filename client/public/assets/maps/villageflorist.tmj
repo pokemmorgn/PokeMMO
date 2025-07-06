@@ -259,6 +259,11 @@
                          "value":""
                         }, 
                         {
+                         "name":"frameIndex",
+                         "type":"int",
+                         "value":9
+                        }, 
+                        {
                          "name":"givesItem",
                          "type":"bool",
                          "value":true
