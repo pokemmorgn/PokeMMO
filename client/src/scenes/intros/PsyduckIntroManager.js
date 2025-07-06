@@ -1183,11 +1183,11 @@ export class PsyduckIntroManager {
 
   // ✅ Configuration des positions
   getLabPosition() {
-    return this.labPosition || { x: 400, y: 250 };
+    return this.labPosition || { x: 885, y: 435 };
   }
 
   getTeleportPosition() {
-    return this.teleportPosition || { x: 400, y: 180 };
+    return this.teleportPosition || { x: 885, y: 521 };
   }
 
   setLabAndTeleportPositions(labX, labY, teleportX, teleportY) {
