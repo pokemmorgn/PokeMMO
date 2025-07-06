@@ -111,8 +111,7 @@ export class InteractionManager {
     this.registerSystem('dialogue', {
       priority: 99,
       canHandle: (npc) => true,
-      handle: (npc, data) => this.handleDialogueInteraction(npc, data),
-      validateState: () => !this.isDialogueOpen(),
+      validateState: () => true, // ✅ TOUJOURS PERMETTRE LES DIALOGUES !
       description: "Système de dialogue générique"
     });
   }
