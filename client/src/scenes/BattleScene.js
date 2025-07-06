@@ -1530,6 +1530,43 @@ handleNetworkBattleStart(data) {
 }
 
   /**
+ * Séquence d'introduction authentique style Pokémon
+ */
+startBattleIntroSequence(opponentPokemon) {
+  console.log('🎬 [BattleScene] Début séquence introduction...');
+  
+  const opponentName = opponentPokemon?.name || 'Pokémon sauvage';
+  
+  // Phase 1: Apparition du Pokémon sauvage
+  setTimeout(() => {
+    this.showActionMessage(`Un ${opponentName} sauvage apparaît !`);
+  }, 500);
+  
+  // Phase 2: Message de combat
+  setTimeout(() => {
+    this.showActionMessage('Le combat commence !');
+  }, 3000);
+  
+  // Phase 3: Début du tour (selon la vitesse)
+  setTimeout(() => {
+    this.checkWhoStartsFirst();
+  }, 5000);
+}
+
+/**
+ * Détermine qui commence le combat et lance le premier tour
+ */
+checkWhoStartsFirst() {
+  // Pour l'instant, on affiche toujours les boutons du joueur
+  // Plus tard on gérera la vitesse
+  this.showActionMessage('Que voulez-vous faire ?');
+  
+  setTimeout(() => {
+    this.showActionButtons();
+  }, 2000);
+}
+  
+  /**
  * ✅ NOUVEAU: Handler pour les mises à jour de combat (barres de vie, tours, etc.)
  */
 handleNetworkBattleUpdate(data) {
