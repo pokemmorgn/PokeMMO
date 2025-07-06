@@ -314,22 +314,24 @@ setupNetworkHandlers() {
     }
   }
 
-  mapResponseToSystem(data) {
-    const typeMapping = {
-      'shop': 'shop',
-      'merchant': 'shop',
-      'questGiver': 'quest',
-      'questComplete': 'quest',
-      'questProgress': 'quest',
-      'heal': 'heal',
-      'dialogue': 'dialogue',
-      'starterTable': 'starter'
-    };
-    
-    if (data.shopId || (data.npcType && data.npcType === "merchant")) return 'shop';
-    if (data.type && typeMapping[data.type]) return typeMapping[data.type];
-    return 'dialogue';
-  }
+mapResponseToSystem(data) {
+  const typeMapping = {
+    // ✅ MODIFIÉ : Les shops deviennent des dialogues !
+    'shop': 'dialogue',
+    'merchant': 'dialogue', 
+    'questGiver': 'quest',
+    'questComplete': 'quest',
+    'questProgress': 'quest',
+    'heal': 'heal',
+    'dialogue': 'dialogue',
+    'starterTable': 'starter'
+  };
+  
+  // ✅ MODIFIÉ : Les marchands passent par le dialogue !
+  if (data.shopId || (data.npcType && data.npcType === "merchant")) return 'dialogue';
+  if (data.type && typeMapping[data.type]) return typeMapping[data.type];
+  return 'dialogue';
+}
 
   // === ÉTAT & BLOQUEURS ===
 
