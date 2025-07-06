@@ -1480,7 +1480,11 @@ executePlayerAction(actionData) {
     this.battleNetworkHandler.on('battleStart', (data) => {
       this.handleNetworkBattleStart(data);
     });
-    
+
+      this.battleNetworkHandler.on('battleUpdate', (data) => {
+    this.handleNetworkBattleUpdate(data);
+  });
+      
     this.battleNetworkHandler.on('attackResult', (data) => {
       this.handleNetworkAttackResult(data);
     });
