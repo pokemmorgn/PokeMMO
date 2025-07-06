@@ -81,6 +81,10 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
     this.load.spritesheet('floristvillage', 'assets/npc/floristvillage.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('scientist1', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('oldlady1', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('fatman1', 'assets/npc/fatman1.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('blondegirl', 'assets/npc/blondegirl.png', { frameWidth: 32, frameHeight: 32 });
+
+
 
     
 
