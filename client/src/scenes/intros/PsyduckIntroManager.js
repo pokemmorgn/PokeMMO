@@ -1,6 +1,6 @@
 // client/src/scenes/intros/PsyduckIntroManager.js
-// Manages Psyduck intro sequence avec apparition devant le lab et téléportation
-// ✅ NOUVELLE VERSION: Psyduck spawn devant le lab, caméra fixée, monte vers téléport
+// Manages Psyduck intro sequence with sequential dialogue system
+// ✅ DEUX SEQUENCES: Beach (originale) + Village (nouvelle avec lab et téléport)
 
 export class PsyduckIntroManager {
   constructor(scene) {
@@ -13,6 +13,7 @@ export class PsyduckIntroManager {
     this.listenersSetup = false;
     this.cameraFollowingPsyduck = false;
     this.originalCameraTarget = null;
+    this.introType = 'beach'; // 'beach' ou 'village'
   }
 
   // === SERVER LISTENERS SETUP ===
@@ -101,6 +102,18 @@ export class PsyduckIntroManager {
     });
   }
 
+  // ✅ NOUVELLE MÉTHODE: Démarrer intro pour le village (avec lab et téléport)
+  startVillageIntro(onComplete = null) {
+    this.introType = 'village';
+    this.startIntro(onComplete);
+  }
+
+  // ✅ MÉTHODE ORIGINALE: Démarrer intro pour la beach
+  startBeachIntro(onComplete = null) {
+    this.introType = 'beach';
+    this.startIntro(onComplete);
+  }
+
   // ✅ FIX: Attendre VRAIMENT que tout soit prêt
   async startIntro(onComplete = null) {
     if (this.isPlaying || !this.scene) return;
@@ -112,7 +125,7 @@ export class PsyduckIntroManager {
     this.isPlaying = true;
     this.onCompleteCallback = onComplete;
 
-    console.log('[PsyduckIntro] === DÉMARRAGE INTRO LAB - VÉRIFICATIONS ===');
+    console.log(`[PsyduckIntro] === DÉMARRAGE INTRO ${this.introType.toUpperCase()} - VÉRIFICATIONS ===`);
 
     // ✅ ÉTAPE 1: Attendre que le LoadingScreen soit fermé
     const loadingClosed = await this.waitForLoadingScreenClosed(10000);
@@ -140,15 +153,19 @@ export class PsyduckIntroManager {
     console.log('[PsyduckIntro] ⏳ Attente 2 secondes supplémentaires...');
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    console.log('[PsyduckIntro] ✅ Toutes les vérifications passées, démarrage intro lab');
+    console.log(`[PsyduckIntro] ✅ Toutes les vérifications passées, démarrage intro ${this.introType}`);
     
     // ✅ ÉTAPE 4: Bloquer les inputs et charger Psyduck
     this.blockPlayerInputs();
     this.loadPsyduckSpritesheet();
 
-    // ✅ ÉTAPE 5: Délai final avant spawn Psyduck devant le lab
+    // ✅ ÉTAPE 5: Délai final avant spawn Psyduck selon le type d'intro
     this.scene.time.delayedCall(800, () => {
-      this.spawnPsyduckAtLab();
+      if (this.introType === 'village') {
+        this.spawnPsyduckAtLab();
+      } else {
+        this.spawnPsyduck(); // Version beach originale
+      }
     });
   }
 
@@ -362,7 +379,6 @@ export class PsyduckIntroManager {
         });
       }
 
-      // ✅ NOUVELLE ANIMATION: Idle (statique)
       if (!anims.exists('psyduck_idle')) {
         anims.create({
           key: 'psyduck_idle',
@@ -376,9 +392,186 @@ export class PsyduckIntroManager {
     }
   }
 
-  // === NOUVELLES PHASES POUR LE LAB ===
+  // === BEACH INTRO PHASES (VERSION ORIGINALE) ===
 
-  // ✅ NOUVEAU: Spawn Psyduck devant le laboratoire
+  spawnPsyduck() {
+    if (!this.scene || !this.scene.add) {
+      this.cleanup();
+      return;
+    }
+
+    try {
+      console.log('[PsyduckIntro] 🦆 Spawn de Psyduck (Beach)...');
+      this.psyduck = this.scene.add.sprite(160, 32, 'psyduck_walk', 8)
+        .setOrigin(0.5, 1)
+        .setDepth(6);
+      
+      this.startPhase1_WalkRight();
+    } catch (error) {
+      console.error(`[PsyduckIntro] Error spawning Psyduck:`, error);
+      this.cleanup();
+    }
+  }
+
+  startPhase1_WalkRight() {
+    if (!this.psyduck || !this.scene) {
+      this.cleanup();
+      return;
+    }
+
+    try {
+      console.log('[PsyduckIntro] 🚶 Phase 1: Marche vers la droite (Beach)');
+      this.psyduck.anims.play('psyduck_walk_right');
+      
+      this.scene.tweens.add({
+        targets: this.psyduck,
+        x: 360,
+        duration: 3000,
+        ease: 'Linear',
+        onUpdate: () => {
+          if (this.psyduck && this.psyduck.anims && !this.psyduck.anims.isPlaying) {
+            this.psyduck.anims.play('psyduck_walk_right');
+          }
+        },
+        onComplete: () => {
+          this.startPhase2_WalkDown();
+        }
+      });
+    } catch (error) {
+      console.error(`[PsyduckIntro] Error in phase 1:`, error);
+      this.cleanup();
+    }
+  }
+
+  startPhase2_WalkDown() {
+    if (!this.psyduck || !this.scene) {
+      this.cleanup();
+      return;
+    }
+
+    try {
+      console.log('[PsyduckIntro] ⬇️ Phase 2: Marche vers le bas (Beach)');
+      this.psyduck.anims.play('psyduck_walk_down');
+      
+      this.scene.tweens.add({
+        targets: this.psyduck,
+        y: 90,
+        duration: 2500,
+        ease: 'Linear',
+        onUpdate: () => {
+          if (this.psyduck && this.psyduck.anims && !this.psyduck.anims.isPlaying) {
+            this.psyduck.anims.play('psyduck_walk_down');
+          }
+        },
+        onComplete: () => {
+          this.startPhase3_Interaction();
+        }
+      });
+    } catch (error) {
+      console.error(`[PsyduckIntro] Error in phase 2:`, error);
+      this.cleanup();
+    }
+  }
+
+  startPhase3_Interaction() {
+    if (!this.psyduck) {
+      this.cleanup();
+      return;
+    }
+
+    try {
+      console.log('[PsyduckIntro] 💬 Phase 3: Interaction et dialogue (Beach)');
+      this.psyduck.anims.stop();
+      this.psyduck.setFrame(0);
+      this.notifyServer("psyduck_talked");
+      
+      this.showDialogue([
+        { text: "Psy? Psy... duck?", speaker: "???", portrait: "/assets/portrait/psyduckPortrait.png" },
+        { text: "The yellow duck-like creature tilts its head, looking confused", speaker: "Narrator", hideName: true },
+        { text: "It holds its head with both hands... seems to have a headache", speaker: "Narrator", hideName: true },
+        { text: "Psy... psy duck? Psy?", speaker: "???", portrait: "/assets/portrait/psyduckPortrait.png" },
+        { text: "Despite its confusion, it points toward some buildings in the distance", speaker: "Narrator", hideName: true },
+        { text: "Maybe it's trying to tell you something about that place?", speaker: "Narrator", hideName: true }
+      ], () => {
+        this.finishBeachIntro();
+      });
+
+    } catch (error) {
+      console.error(`[PsyduckIntro] Error in phase 3:`, error);
+      this.cleanup();
+    }
+  }
+
+  finishBeachIntro() {
+    if (!this.psyduck || !this.scene) {
+      this.cleanup();
+      return;
+    }
+
+    try {
+      console.log('[PsyduckIntro] 🔚 Fin de l\'intro beach - retour de Psyduck');
+      
+      // Return to top
+      this.psyduck.anims.play('psyduck_walk_up');
+      
+      this.scene.tweens.add({
+        targets: this.psyduck,
+        y: 32,
+        duration: 2500,
+        ease: 'Linear',
+        onComplete: () => {
+          if (!this.psyduck || !this.scene) {
+            this.cleanup();
+            return;
+          }
+          
+          // Return to left
+          this.psyduck.anims.play('psyduck_walk_left');
+          
+          this.scene.tweens.add({
+            targets: this.psyduck,
+            x: 160,
+            duration: 3000,
+            ease: 'Linear',
+            onComplete: () => {
+              if (!this.psyduck || !this.scene) {
+                this.cleanup();
+                return;
+              }
+              this.notifyServer("intro_watched");
+              // Fade out
+              this.scene.tweens.add({
+                targets: this.psyduck,
+                alpha: 0,
+                duration: 1000,
+                onComplete: () => {
+                  if (this.psyduck && this.psyduck.destroy) {
+                    this.psyduck.destroy();
+                  }
+                  this.psyduck = null;
+
+                  this.cleanup();
+                  
+                  if (this.scene.room) {
+                    this.scene.room.send("progressIntroQuest", {
+                      step: "intro_watched",
+                      playerName: this.scene.playerManager?.getMyPlayer()?.name || "unknown"
+                    });
+                  }
+                }
+              });
+            }
+          });
+        }
+      });
+    } catch (error) {
+      console.error(`[PsyduckIntro] Error finishing beach intro:`, error);
+      this.cleanup();
+    }
+  }
+
+  // === VILLAGE INTRO PHASES (NOUVELLE VERSION AVEC LAB) ===
+
   spawnPsyduckAtLab() {
     if (!this.scene || !this.scene.add) {
       this.cleanup();
@@ -386,14 +579,12 @@ export class PsyduckIntroManager {
     }
 
     try {
-      console.log('[PsyduckIntro] 🦆 Spawn de Psyduck devant le lab...');
+      console.log('[PsyduckIntro] 🦆 Spawn de Psyduck devant le lab (Village)...');
       
       // ✅ Position devant le laboratoire (à adapter selon votre map)
-      // Supposons que le lab soit vers x: 400, y: 200
-      const labX = 400;
-      const labY = 250; // Devant le lab
+      const labPosition = this.getLabPosition();
       
-      this.psyduck = this.scene.add.sprite(labX, labY, 'psyduck_walk', 0)
+      this.psyduck = this.scene.add.sprite(labPosition.x, labPosition.y, 'psyduck_walk', 0)
         .setOrigin(0.5, 1)
         .setDepth(6);
       
@@ -411,7 +602,6 @@ export class PsyduckIntroManager {
     }
   }
 
-  // ✅ NOUVEAU: Fixer la caméra sur Psyduck
   focusCameraOnPsyduck() {
     if (!this.scene || !this.scene.cameras || !this.psyduck) return;
 
@@ -421,7 +611,7 @@ export class PsyduckIntroManager {
       const camera = this.scene.cameras.main;
       
       // ✅ Sauvegarder la cible actuelle de la caméra
-      this.originalCameraTarget = camera.startFollow ? camera._target : null;
+      this.originalCameraTarget = camera._target || null;
       
       // ✅ Arrêter le suivi actuel
       camera.stopFollow();
@@ -436,7 +626,6 @@ export class PsyduckIntroManager {
     }
   }
 
-  // ✅ NOUVEAU: Dialogue avec Psyduck devant le lab
   startPsyduckDialogue() {
     if (!this.psyduck) {
       this.cleanup();
@@ -446,11 +635,9 @@ export class PsyduckIntroManager {
     try {
       console.log('[PsyduckIntro] 💬 Dialogue avec Psyduck devant le lab');
       
-      // ✅ Psyduck regarde vers le joueur (frame idle)
       this.psyduck.anims.play('psyduck_idle');
       this.notifyServer("psyduck_talked");
       
-      // ✅ Messages pour la scène du lab
       const labMessages = [
         { text: "Psy? Psy... duck?", speaker: "???", portrait: "/assets/portrait/psyduckPortrait.png" },
         { text: "The yellow duck-like creature appears to be waiting for something...", speaker: "Narrator", hideName: true },
@@ -460,7 +647,6 @@ export class PsyduckIntroManager {
       ];
       
       this.showDialogue(labMessages, () => {
-        // ✅ Après le dialogue, Psyduck va vers le téléport
         this.startWalkToTeleport();
       });
 
@@ -470,7 +656,6 @@ export class PsyduckIntroManager {
     }
   }
 
-  // ✅ NOUVEAU: Psyduck marche vers le téléport
   startWalkToTeleport() {
     if (!this.psyduck || !this.scene) {
       this.cleanup();
@@ -480,16 +665,14 @@ export class PsyduckIntroManager {
     try {
       console.log('[PsyduckIntro] 🚶 Psyduck marche vers le téléport');
       
-      // ✅ Position du téléport (à adapter selon votre map)
-      const teleportX = 400; // Même x que le lab
-      const teleportY = 180; // Plus haut, vers le téléport
+      const teleportPosition = this.getTeleportPosition();
       
-      // ✅ Animation de marche vers le haut
       this.psyduck.anims.play('psyduck_walk_up');
       
       this.scene.tweens.add({
         targets: this.psyduck,
-        y: teleportY,
+        x: teleportPosition.x,
+        y: teleportPosition.y,
         duration: 3000,
         ease: 'Linear',
         onUpdate: () => {
@@ -498,7 +681,6 @@ export class PsyduckIntroManager {
           }
         },
         onComplete: () => {
-          // ✅ Arrivé au téléport, disparition
           this.psyduckTeleportDisappear();
         }
       });
@@ -509,7 +691,6 @@ export class PsyduckIntroManager {
     }
   }
 
-  // ✅ NOUVEAU: Psyduck disparaît par téléportation
   psyduckTeleportDisappear() {
     if (!this.psyduck || !this.scene) {
       this.cleanup();
@@ -519,11 +700,10 @@ export class PsyduckIntroManager {
     try {
       console.log('[PsyduckIntro] ✨ Psyduck disparaît par téléportation');
       
-      // ✅ Arrêter l'animation
       this.psyduck.anims.stop();
       this.psyduck.setFrame(16); // Frame vers le haut
       
-      // ✅ Effet de téléportation (fade out + scaling)
+      // ✅ Effet de téléportation
       this.scene.tweens.add({
         targets: this.psyduck,
         alpha: 0,
@@ -541,14 +721,13 @@ export class PsyduckIntroManager {
           
           this.notifyServer("intro_watched");
           
-          // ✅ Délai avant de rendre la caméra au joueur
           this.scene.time.delayedCall(1500, () => {
             this.returnCameraToPlayer();
           });
         }
       });
       
-      // ✅ Optionnel: Effet sonore de téléportation
+      // ✅ Optionnel: Effet sonore
       // this.scene.sound.play('teleport_sound');
       
     } catch (error) {
@@ -557,7 +736,6 @@ export class PsyduckIntroManager {
     }
   }
 
-  // ✅ NOUVEAU: Rendre la caméra au joueur
   returnCameraToPlayer() {
     if (!this.scene || !this.scene.cameras) {
       this.cleanup();
@@ -568,19 +746,14 @@ export class PsyduckIntroManager {
       console.log('[PsyduckIntro] 📷 Retour caméra au joueur');
       
       const camera = this.scene.cameras.main;
-      
-      // ✅ Arrêter le suivi de Psyduck
       camera.stopFollow();
       
-      // ✅ Retrouver le joueur
       const myPlayer = this.scene.playerManager?.getMyPlayer();
       
       if (myPlayer) {
-        // ✅ Faire suivre le joueur
         camera.startFollow(myPlayer, true, 0.08, 0.08);
         console.log('[PsyduckIntro] ✅ Caméra rendue au joueur');
       } else if (this.originalCameraTarget) {
-        // ✅ Fallback: retourner à la cible originale
         camera.startFollow(this.originalCameraTarget, true, 0.08, 0.08);
         console.log('[PsyduckIntro] ✅ Caméra rendue à la cible originale');
       } else {
@@ -590,7 +763,6 @@ export class PsyduckIntroManager {
       this.cameraFollowingPsyduck = false;
       this.originalCameraTarget = null;
       
-      // ✅ Finaliser l'intro
       this.finishIntro();
       
     } catch (error) {
@@ -599,12 +771,16 @@ export class PsyduckIntroManager {
     }
   }
 
-  // === DIALOGUE SYSTEM (MODIFIÉ) ===
+  // === DIALOGUE SYSTEM ===
 
   async showDialogue(messages, onDialogueComplete = null) {
     if (!messages || messages.length === 0) {
       console.error(`[PsyduckIntro] No messages to display`);
-      if (onDialogueComplete) onDialogueComplete();
+      if (onDialogueComplete) {
+        onDialogueComplete();
+      } else {
+        this.finishIntro();
+      }
       return;
     }
 
@@ -687,14 +863,14 @@ export class PsyduckIntroManager {
     }, 2000);
   }
 
-  // === INTRO COMPLETION (MODIFIÉE) ===
+  // === INTRO COMPLETION ===
 
   finishIntro() {
     try {
-      console.log('[PsyduckIntro] 🔚 Fin de l\'intro lab terminée');
+      console.log(`[PsyduckIntro] 🔚 Fin de l'intro ${this.introType} terminée`);
       
-      // ✅ S'assurer que la caméra soit revenue au joueur
-      if (this.cameraFollowingPsyduck) {
+      // ✅ S'assurer que la caméra soit revenue au joueur pour le village
+      if (this.introType === 'village' && this.cameraFollowingPsyduck) {
         this.returnCameraToPlayer();
         return; // returnCameraToPlayer appellera cleanup
       }
@@ -717,7 +893,7 @@ export class PsyduckIntroManager {
 
   cleanup() {
     try {
-      console.log('[PsyduckIntro] 🧹 Nettoyage intro lab...');
+      console.log(`[PsyduckIntro] 🧹 Nettoyage intro ${this.introType}...`);
       
       // ✅ Nettoyer la caméra si nécessaire
       if (this.cameraFollowingPsyduck && this.scene && this.scene.cameras) {
@@ -801,7 +977,7 @@ export class PsyduckIntroManager {
     if (!this.isPlaying) return;
     
     try {
-      console.log('[PsyduckIntro] 🛑 Arrêt forcé de l\'intro lab');
+      console.log(`[PsyduckIntro] 🛑 Arrêt forcé de l'intro ${this.introType}`);
       
       if (this.psyduck) {
         if (this.psyduck.destroy) {
@@ -828,6 +1004,7 @@ export class PsyduckIntroManager {
   getStatus() {
     return {
       isPlaying: this.isPlaying,
+      introType: this.introType,
       questIntegrationEnabled: this.questIntegrationEnabled,
       fallbackMode: this.fallbackMode,
       listenersSetup: this.listenersSetup,
@@ -836,7 +1013,6 @@ export class PsyduckIntroManager {
       hasRoom: this.scene?.room !== null,
       hasCallback: this.onCompleteCallback !== null,
       cameraFollowingPsyduck: this.cameraFollowingPsyduck,
-      // ✅ NOUVEAUX STATUTS
       playerReady: typeof window !== "undefined" && window.playerReady === true,
       loadingScreenClosed: typeof window !== "undefined" && window.loadingScreenClosed === true,
       validPlayerObject: this.scene?.playerManager?.getMyPlayer?.() !== null
@@ -854,21 +1030,42 @@ export class PsyduckIntroManager {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Debug complet des flags
+  // ✅ Test spécifique pour le village
+  testVillageIntro() {
+    if (this.isPlaying) {
+      this.forceStop();
+      setTimeout(() => {
+        this.startVillageIntro();
+      }, 1000);
+    } else {
+      this.startVillageIntro();
+    }
+  }
+
+  // ✅ Test spécifique pour la beach
+  testBeachIntro() {
+    if (this.isPlaying) {
+      this.forceStop();
+      setTimeout(() => {
+        this.startBeachIntro();
+      }, 1000);
+    } else {
+      this.startBeachIntro();
+    }
+  }
+
   debugStatus() {
-    console.log(`🔍 [PsyduckIntro] === DEBUG STATUS COMPLET LAB ===`);
+    console.log(`🔍 [PsyduckIntro] === DEBUG STATUS COMPLET ${this.introType.toUpperCase()} ===`);
     
     const status = this.getStatus();
     console.log(`📊 Status général:`, status);
     
-    // Vérifications détaillées
     console.log(`🏁 Flags globaux:`, {
       playerReady: window?.playerReady,
       playerSpawned: window?.playerSpawned,
       loadingScreenClosed: window?.loadingScreenClosed
     });
     
-    // État du joueur
     const myPlayer = this.scene?.playerManager?.getMyPlayer?.();
     console.log(`👤 Joueur:`, {
       exists: !!myPlayer,
@@ -877,7 +1074,6 @@ export class PsyduckIntroManager {
       validPosition: myPlayer ? (myPlayer.x !== 0 && myPlayer.y !== 0) : false
     });
     
-    // État de la scène
     console.log(`🎬 Scène:`, {
       exists: !!this.scene,
       key: this.scene?.scene?.key,
@@ -886,7 +1082,6 @@ export class PsyduckIntroManager {
       hasRoom: !!this.scene?.room
     });
     
-    // État de la caméra
     console.log(`📷 Caméra:`, {
       followingPsyduck: this.cameraFollowingPsyduck,
       hasOriginalTarget: !!this.originalCameraTarget,
@@ -897,26 +1092,15 @@ export class PsyduckIntroManager {
     return status;
   }
 
-  // ✅ NOUVELLE MÉTHODE: Adapter les positions selon votre map
+  // ✅ Configuration des positions
   getLabPosition() {
-    // ✅ À personnaliser selon votre carte
-    // Retournez les coordonnées de votre laboratoire
-    return {
-      x: 400,
-      y: 250
-    };
+    return this.labPosition || { x: 400, y: 250 };
   }
 
   getTeleportPosition() {
-    // ✅ À personnaliser selon votre carte  
-    // Retournez les coordonnées de votre téléporteur
-    return {
-      x: 400,
-      y: 180
-    };
+    return this.teleportPosition || { x: 400, y: 180 };
   }
 
-  // ✅ NOUVELLE MÉTHODE: Configuration personnalisable
   setLabAndTeleportPositions(labX, labY, teleportX, teleportY) {
     this.labPosition = { x: labX, y: labY };
     this.teleportPosition = { x: teleportX, y: teleportY };
@@ -924,7 +1108,7 @@ export class PsyduckIntroManager {
   
   destroy() {
     try {
-      console.log('[PsyduckIntro] 💀 Destruction du manager lab');
+      console.log('[PsyduckIntro] 💀 Destruction du manager');
       this.forceStop();
       this.scene = null;
       this.onCompleteCallback = null;
@@ -933,6 +1117,7 @@ export class PsyduckIntroManager {
       this.listenersSetup = false;
       this.cameraFollowingPsyduck = false;
       this.originalCameraTarget = null;
+      this.introType = 'beach';
     } catch (error) {
       console.error(`[PsyduckIntro] Destruction error:`, error);
     }
