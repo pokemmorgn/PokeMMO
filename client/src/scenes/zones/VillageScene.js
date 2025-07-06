@@ -78,12 +78,18 @@ export class VillageScene extends BaseZoneScene {
   }
 
   shouldPlayPsyduckIntro() {
-    // ✅ Pour le moment, toujours jouer (vous pouvez modifier cette logique)
+    // ✅ POUR L'INSTANT: Toujours jouer l'intro village
+    console.log('[VillageScene] 🎬 Intro village autorisée (mode test)');
+    return true;
+    
+    /* ✅ CODE POUR PLUS TARD (quand vous voulez activer la logique de quête)
+    
+    // Vérifier si on a déjà joué l'intro dans cette session
     if (this.hasPlayedIntro) {
       return false;
     }
     
-    // ✅ Vérifier localStorage pour éviter de rejouer
+    // Vérifier localStorage pour éviter de rejouer
     if (typeof window !== 'undefined') {
       const hasSeenVillageIntro = window.localStorage?.getItem('hasSeenVillageIntro');
       if (hasSeenVillageIntro === 'true') {
@@ -91,7 +97,23 @@ export class VillageScene extends BaseZoneScene {
       }
     }
     
-    return true; // Jouer l'intro
+    // Vérifier si on a la quête de l'intro beach
+    if (!this.hasBeachIntroQuest()) {
+      console.log('[VillageScene] ❌ Pas de quête beach intro - village intro non autorisée');
+      return false;
+    }
+    
+    console.log('[VillageScene] ✅ Quête beach intro détectée - village intro autorisée');
+    return true;
+    
+    */
+  }
+
+  hasBeachIntroQuest() {
+    // ✅ POUR L'INSTANT: Toujours retourner true
+    return true;
+  }return true;
+    */
   }
 
   onPsyduckIntroComplete() {
