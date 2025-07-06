@@ -10,6 +10,7 @@ import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
 import { ClientTimeWeatherManager } from './managers/ClientTimeWeatherManager.js';
 import { StarterUtils, integrateStarterSelectorToScene } from './components/StarterSelector.js';
 import { BattleUITransition } from './Battle/BattleUITransition.js';
+import { createTeamUIIntegration } from './src/components/TeamUIIntegration.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
@@ -1820,6 +1821,129 @@ if (!window.questSystemGlobal && typeof window.initQuestSystem !== "function") {
 
     showNotificationInstructions();
 
+    // 🔥 AJOUTER ICI LE CODE TEAM UI INTEGRATION 🔥
+// === INTÉGRATION TEAM UI AVEC UIMANAGER ===
+window.initializeTeamUIIntegration = async function() {
+  console.log("🔧 [MAIN] === INTÉGRATION TEAM UI AVEC UIMANAGER ===");
+  
+  try {
+    // Vérifier les pré-requis
+    if (!window.pokemonUISystem) {
+      throw new Error("PokemonUISystem requis pour intégration TeamUI");
+    }
+    
+    if (!window.globalNetworkManager?.room) {
+      throw new Error("NetworkManager et room requis");
+    }
+    
+    // Obtenir l'UIManager du système UI Pokémon
+    const uiManager = window.pokemonUISystem.uiManager || window.uiManager;
+    if (!uiManager) {
+      throw new Error("UIManager non disponible");
+    }
+    
+    console.log("🚀 [MAIN] Création intégration TeamUI...");
+    
+    // Créer l'intégration TeamUI
+    const teamIntegration = await createTeamUIIntegration(
+      uiManager, 
+      window.globalNetworkManager.room
+    );
+    
+    // Stocker globalement
+    window.teamUIIntegration = teamIntegration;
+    
+    // Les modules TeamUI sont maintenant disponibles
+    console.log("✅ [MAIN] TeamUI intégré avec UIManager !");
+    console.log("🎮 Modules disponibles: teamUI, teamIcon");
+    
+    // Fonction pour ouvrir l'interface team
+    window.openTeamUI = function() {
+      return uiManager.showModule('teamUI');
+    };
+    
+    // Fonction pour fermer l'interface team
+    window.closeTeamUI = function() {
+      return uiManager.hideModule('teamUI');
+    };
+    
+    // Fonction pour basculer l'interface team
+    window.toggleTeamUI = function() {
+      return uiManager.toggleModule('teamUI');
+    };
+    
+    // Notification de succès
+    window.showGameNotification?.("Team UI intégré avec succès !", "success", { 
+      duration: 3000, 
+      position: 'bottom-center' 
+    });
+    
+    return teamIntegration;
+    
+  } catch (error) {
+    console.error("❌ [MAIN] Erreur intégration TeamUI:", error);
+    window.showGameNotification?.("Erreur intégration Team UI", "error", { 
+      duration: 5000, 
+      position: 'top-center' 
+    });
+    return null;
+  }
+};
+
+// === DÉCLENCHEMENT DE L'INTÉGRATION ===
+setTimeout(async () => {
+  console.log("🔄 [MAIN] Démarrage intégration TeamUI...");
+  
+  // Attendre que le système UI Pokémon soit prêt
+  let attempts = 0;
+  const maxAttempts = 20;
+  
+  const waitForUI = async () => {
+    attempts++;
+    
+    if (window.pokemonUISystem && window.globalNetworkManager?.room) {
+      console.log("✅ [MAIN] Pré-requis TeamUI détectés, intégration...");
+      
+      const result = await window.initializeTeamUIIntegration();
+      
+      if (result) {
+        console.log("🎯 [MAIN] TeamUI prêt ! Utilisez 'T' pour ouvrir");
+        console.log("🎯 [MAIN] Ou window.toggleTeamUI() en code");
+        
+        // Test de validation
+        setTimeout(() => {
+          if (window.teamUIIntegration?.isInitialized()) {
+            console.log("✅ [MAIN] Validation TeamUI intégration réussie");
+          }
+        }, 2000);
+        
+      } else {
+        console.warn("⚠️ [MAIN] Intégration TeamUI échouée mais on continue");
+      }
+      
+    } else if (attempts < maxAttempts) {
+      console.log(`⏳ [MAIN] Attente pré-requis TeamUI (${attempts}/${maxAttempts})...`);
+      setTimeout(waitForUI, 1000);
+    } else {
+      console.warn("⚠️ [MAIN] Timeout intégration TeamUI - mode fallback");
+      
+      // Mode fallback - utiliser l'ancien système
+      window.toggleTeamUI = function() {
+        if (window.teamManagerGlobal) {
+          window.teamManagerGlobal.toggleTeamUI();
+        } else {
+          window.showGameAlert?.("Système Team non disponible");
+        }
+      };
+    }
+  };
+  
+  waitForUI();
+  
+}, 8000); // 8 secondes après le chargement initial
+
+// 🔥 FIN DE L'AJOUT 🔥
+    
     // Pokemon UI Manager functions
     window.setUIGameState = function(stateName, options = {}) {
       if (window.pokemonUISystem) {
