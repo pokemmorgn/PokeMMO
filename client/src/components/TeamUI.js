@@ -1,4 +1,5 @@
-// client/src/components/TeamUI.js - Interface d'équipe Pokémon
+// client/src/components/TeamUI.js - Adapté UIManager Professional
+// ✅ Version optimisée compatible avec le nouveau UIManager
 
 export class TeamUI {
   constructor(gameRoom) {
@@ -7,78 +8,167 @@ export class TeamUI {
     this.teamData = [];
     this.selectedPokemon = null;
     this.selectedSlot = null;
-    this.draggedPokemon = null;
     this.currentView = 'overview';
     this.pokemonLocalizations = {};
     this.language = 'en';
+    
+    // ✅ NOUVEAU: État UIManager Professional
+    this.uiManagerState = {
+      visible: false,
+      enabled: true,
+      initialized: false
+    };
+    
+    // ✅ NOUVEAU: Optimisations performance
+    this.performanceMode = false;
+    this.renderQueue = [];
+    this.updateDebounce = null;
+    
     this._initAsync();
   }
 
   async _initAsync() {
-    await this.loadPokemonLocalizations();
-    await this.loadCSS();
-    this.init();
+    try {
+      await this.loadPokemonLocalizations();
+      await this.loadCSS();
+      this.init();
+      
+      // ✅ Marquer comme initialisé pour UIManager
+      this.uiManagerState.initialized = true;
+      console.log('✅ TeamUI initialisé (UIManager compatible)');
+    } catch (error) {
+      console.error('❌ Erreur init TeamUI:', error);
+    }
   }
 
   async loadCSS() {
-    if (document.querySelector('#team-ui-styles')) {
-      console.log('🎨 CSS Team UI déjà chargé');
-      return;
-    }
+    if (document.querySelector('#team-ui-styles')) return;
 
     try {
       const link = document.createElement('link');
       link.id = 'team-ui-styles';
       link.rel = 'stylesheet';
-      link.type = 'text/css';
       link.href = '/css/team-ui.css';
       
-      return new Promise((resolve, reject) => {
-        link.onload = () => {
-          console.log('✅ CSS Team UI chargé !');
-          resolve();
-        };
+      await new Promise((resolve, reject) => {
+        link.onload = resolve;
         link.onerror = () => {
-          console.error('❌ Erreur chargement CSS Team UI');
-          this.addInlineStyles();
+          this.addFallbackStyles();
           resolve();
         };
-        
         document.head.appendChild(link);
       });
     } catch (err) {
-      console.error('❌ Erreur lors du chargement du CSS:', err);
-      this.addInlineStyles();
+      this.addFallbackStyles();
     }
   }
 
-  addInlineStyles() {
-    if (document.querySelector('#team-ui-fallback-styles')) return;
+  addFallbackStyles() {
+    if (document.querySelector('#team-ui-fallback')) return;
     
     const style = document.createElement('style');
-    style.id = 'team-ui-fallback-styles';
+    style.id = 'team-ui-fallback';
     style.textContent = `
-      .team-overlay { 
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-        background: rgba(0,0,0,0.8); display: flex; 
-        justify-content: center; align-items: center; z-index: 1000; 
+      .team-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.85); display: flex;
+        justify-content: center; align-items: center; z-index: 1000;
+        backdrop-filter: blur(3px); transition: all 0.3s ease;
+        font-family: 'Segoe UI', Arial, sans-serif;
       }
-      .team-overlay.hidden { opacity: 0; pointer-events: none; }
-      .team-container { 
-        width: 90%; height: 80%; background: #2a3f5f; 
-        border-radius: 20px; color: white; display: flex; flex-direction: column;
+      .team-overlay.hidden { opacity: 0; pointer-events: none; transform: scale(0.95); }
+      .team-container {
+        width: min(95vw, 900px); height: min(90vh, 650px);
+        background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+        border: 3px solid #4a90e2; border-radius: 16px;
+        color: white; display: flex; flex-direction: column;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.6);
       }
-      .team-slot { 
-        background: rgba(255,255,255,0.1); border-radius: 10px; 
-        padding: 10px; min-height: 100px; cursor: pointer;
+      .team-header {
+        background: linear-gradient(90deg, #4a90e2, #357abd);
+        padding: 16px 24px; border-bottom: 3px solid #357abd;
+        display: flex; justify-content: space-between; align-items: center;
       }
-      .pokemon-card { 
-        background: rgba(255,255,255,0.1); border-radius: 8px; 
-        padding: 8px; height: 100%;
+      .team-title { display: flex; align-items: center; gap: 16px; }
+      .team-icon { font-size: 24px; }
+      .team-name { font-size: 18px; font-weight: bold; text-transform: uppercase; }
+      .team-close-btn {
+        background: #4a90e2; border: none; color: white;
+        width: 36px; height: 36px; border-radius: 50%;
+        cursor: pointer; transition: all 0.2s ease;
+      }
+      .team-close-btn:hover { background: #87ceeb; transform: scale(1.1); }
+      .team-content { flex: 1; padding: 20px; overflow-y: auto; }
+      .team-slots-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(2, 1fr); gap: 16px;
+        max-width: 600px; margin: 0 auto;
+      }
+      .team-slot {
+        background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.2);
+        border-radius: 12px; min-height: 120px; cursor: pointer;
+        transition: all 0.3s ease; display: flex; align-items: center;
+        justify-content: center; position: relative;
+      }
+      .team-slot:hover {
+        background: rgba(74,144,226,0.15); border-color: #4a90e2;
+        transform: translateY(-2px);
+      }
+      .team-slot.empty { border-style: dashed; opacity: 0.6; }
+      .slot-number {
+        position: absolute; top: 8px; left: 8px;
+        background: rgba(0,0,0,0.6); color: #87ceeb;
+        width: 20px; height: 20px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 10px; font-weight: bold;
+      }
+      .pokemon-card {
+        width: 100%; height: 100%; padding: 8px;
+        display: flex; flex-direction: column; text-align: center;
+      }
+      .pokemon-name { font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+      .pokemon-level { font-size: 10px; color: #87ceeb; margin-bottom: 8px; }
+      .pokemon-sprite { flex: 1; display: flex; align-items: center; justify-content: center; }
+      .pokemon-portrait {
+        width: 64px; height: 64px; background-size: cover;
+        background-position: center; border-radius: 8px;
+        border: 2px solid rgba(255,255,255,0.3);
+      }
+      .pokemon-health { margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+      .health-bar {
+        flex: 1; height: 4px; background: rgba(0,0,0,0.4);
+        border-radius: 2px; overflow: hidden;
+      }
+      .health-fill {
+        height: 100%; transition: width 0.3s ease;
+        background: #2ecc71;
+      }
+      .health-fill.medium { background: #f39c12; }
+      .health-fill.low { background: #e74c3c; }
+      .health-text { font-size: 9px; color: #bdc3c7; }
+      .empty-slot { text-align: center; opacity: 0.5; }
+      .empty-icon { font-size: 32px; margin-bottom: 8px; }
+      .empty-text { font-size: 12px; color: #95a5a6; }
+      
+      /* Responsive */
+      @media (max-width: 768px) {
+        .team-container { width: 98vw; height: 95vh; }
+        .team-slots-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 1fr); }
+        .team-slot { min-height: 100px; }
+        .pokemon-portrait { width: 48px; height: 48px; }
       }
     `;
     document.head.appendChild(style);
-    console.log('🔄 Styles fallback chargés');
+  }
+
+  async loadPokemonLocalizations() {
+    try {
+      const response = await fetch('/localization/pokemon/gen1/en.json');
+      this.pokemonLocalizations = await response.json();
+    } catch (err) {
+      console.error('❌ Erreur chargement localizations:', err);
+      this.pokemonLocalizations = {};
+    }
   }
   
   init() {
@@ -86,63 +176,16 @@ export class TeamUI {
     this.setupEventListeners();
     this.setupServerListeners();
     
-    // ✅ RENDRE ACCESSIBLE GLOBALEMENT DÈS L'INIT
+    // ✅ Exposer globalement
     window.teamUI = this;
     
-    console.log('⚔️ Interface d\'équipe initialisée');
-    console.log('⚔️ TeamUI accessible globalement:', window.teamUI ? 'OUI' : 'NON');
-  }
-
-  async loadPokemonLocalizations() {
-    try {
-      const response = await fetch('/localization/pokemon/gen1/en.json');
-      this.pokemonLocalizations = await response.json();
-      console.log('✅ Pokémon loca chargée !');
-    } catch (err) {
-      console.error('❌ Erreur chargement loca Pokémon', err);
-      this.pokemonLocalizations = {};
-    }
-  }
-
-  getPokemonName(pokemonId) {
-    const idStr = String(pokemonId).padStart(3, '0');
-    return (
-      (this.pokemonLocalizations[idStr] && this.pokemonLocalizations[idStr].name) ||
-      (this.pokemonLocalizations[pokemonId] && this.pokemonLocalizations[pokemonId].name) ||
-      `#${pokemonId}`
-    );
-  }
-
-  getPortraitSpriteStyle(pokemonId, options = {}) {
-    const frameWidth = 80;
-    const frameHeight = 80;
-    const numCols = 10;
-    const numRows = 10;
-    const col = 0;
-    const row = 0;
-
-    let id = Number(pokemonId);
-    let variant = options.shiny ? '_shiny' : '';
-    const url = `/assets/pokemon/portraitanime/${id}${variant}.png`;
-
-    const sheetWidth = frameWidth * numCols;
-    const sheetHeight = frameHeight * numRows;
-
-    return `
-      width: ${frameWidth}px;
-      height: ${frameHeight}px;
-      background-image: url('${url}');
-      background-size: ${sheetWidth}px ${sheetHeight}px;
-      background-position: ${-col * frameWidth}px ${-row * frameHeight}px;
-      background-repeat: no-repeat;
-      image-rendering: pixelated;
-      display: inline-block;
-    `;
+    console.log('⚔️ TeamUI initialisé');
   }
 
   createTeamInterface() {
- const existing = document.getElementById('team-overlay');
-  if (existing) existing.remove();
+    const existing = document.getElementById('team-overlay');
+    if (existing) existing.remove();
+
     const overlay = document.createElement('div');
     overlay.id = 'team-overlay';
     overlay.className = 'team-overlay hidden';
@@ -165,90 +208,10 @@ export class TeamUI {
             <button class="team-close-btn">✕</button>
           </div>
         </div>
-
-        <div class="team-tabs">
-          <button class="team-tab active" data-view="overview">
-            <span class="tab-icon">👥</span>
-            <span class="tab-text">Overview</span>
-          </button>
-          <button class="team-tab" data-view="details">
-            <span class="tab-icon">📊</span>
-            <span class="tab-text">Details</span>
-          </button>
-          <button class="team-tab" data-view="moves">
-            <span class="tab-icon">⚡</span>
-            <span class="tab-text">Moves</span>
-          </button>
-        </div>
-
+        
         <div class="team-content">
-          <div class="team-view team-overview active" id="team-overview">
-            <div class="team-slots-grid">
-              ${this.generateTeamSlots()}
-            </div>
-            
-            <div class="team-summary">
-              <div class="summary-section">
-                <h4>🏆 Team Summary</h4>
-                <div class="summary-stats">
-                  <div class="stat-item">
-                    <span class="stat-label">Average Level</span>
-                    <span class="stat-value" id="avg-level">0</span>
-                  </div>
-                  <div class="stat-item">
-                    <span class="stat-label">Total HP</span>
-                    <span class="stat-value" id="total-hp">0/0</span>
-                  </div>
-                  <div class="stat-item">
-                    <span class="stat-label">Battle Ready</span>
-                    <span class="stat-value" id="battle-ready">No</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="summary-section">
-                <h4>🎯 Type Coverage</h4>
-                <div class="type-coverage" id="type-coverage">
-                  <!-- Types seront générés ici -->
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="team-view team-details" id="team-details">
-            <div class="pokemon-detail-panel">
-              <div class="no-selection">
-                <div class="no-selection-icon">⚔️</div>
-                <p>Sélectionnez un Pokémon pour voir ses détails</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="team-view team-moves" id="team-moves">
-            <div class="moves-grid" id="moves-grid">
-              <!-- Attaques seront générées ici -->
-            </div>
-          </div>
-        </div>
-
-        <div class="team-footer">
-          <div class="team-actions">
-            <button class="team-btn" id="heal-team-btn">
-              <span class="btn-icon">💊</span>
-              <span class="btn-text">Heal All</span>
-            </button>
-            <button class="team-btn" id="pc-access-btn">
-              <span class="btn-icon">💻</span>
-              <span class="btn-text">PC Storage</span>
-            </button>
-            <button class="team-btn secondary" id="auto-arrange-btn">
-              <span class="btn-icon">🔄</span>
-              <span class="btn-text">Auto Arrange</span>
-            </button>
-          </div>
-          
-          <div class="team-info">
-            <div class="info-tip">💡 Drag & drop to reorder Pokémon</div>
+          <div class="team-slots-grid">
+            ${this.generateTeamSlots()}
           </div>
         </div>
       </div>
@@ -262,13 +225,11 @@ export class TeamUI {
     let slotsHTML = '';
     for (let i = 0; i < 6; i++) {
       slotsHTML += `
-        <div class="team-slot empty-enhanced" data-slot="${i}">
-          <div class="slot-background">
-            <div class="slot-number">${i + 1}</div>
-            <div class="empty-slot">
-              <div class="empty-icon">➕</div>
-              <div class="empty-text">Add Pokémon</div>
-            </div>
+        <div class="team-slot empty" data-slot="${i}">
+          <div class="slot-number">${i + 1}</div>
+          <div class="empty-slot">
+            <div class="empty-icon">➕</div>
+            <div class="empty-text">Slot libre</div>
           </div>
         </div>
       `;
@@ -282,87 +243,28 @@ export class TeamUI {
       this.hide();
     });
 
-    // Fermeture avec ESC
+    // ESC pour fermer
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.isVisible) {
         this.hide();
       }
     });
 
-    // Navigation entre les vues
-    this.overlay.querySelectorAll('.team-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        const view = tab.dataset.view;
-        this.switchToView(view);
-      });
-    });
-
-    // Actions du footer
-    this.overlay.querySelector('#heal-team-btn').addEventListener('click', () => {
-      this.healTeam();
-    });
-
-    this.overlay.querySelector('#pc-access-btn').addEventListener('click', () => {
-      this.openPCStorage();
-    });
-
-    this.overlay.querySelector('#auto-arrange-btn').addEventListener('click', () => {
-      this.autoArrangeTeam();
-    });
-
-    // Drag & Drop
-    this.setupDragAndDrop();
-
-    // Sélection des slots
-    this.setupSlotSelection();
-
-    // Fermeture en cliquant à l'extérieur
+    // Clic extérieur pour fermer
     this.overlay.addEventListener('click', (e) => {
       if (e.target === this.overlay) {
         this.hide();
       }
     });
+
+    // Gestion des slots
+    this.setupSlotSelection();
   }
 
   setupSlotSelection() {
     const slotsContainer = this.overlay.querySelector('.team-slots-grid');
     
-    // Utiliser la délégation d'événements plus précise
     slotsContainer.addEventListener('click', (e) => {
-      // Ignorer les clics sur le menu contextuel
-      if (e.target.closest('.pokemon-context-menu')) {
-        return;
-      }
-
-      const slot = e.target.closest('.team-slot');
-      if (!slot) return;
-
-      const slotIndex = parseInt(slot.dataset.slot);
-      const pokemonCard = slot.querySelector('.pokemon-card');
-      
-      console.log('🎯 Clic sur slot:', slotIndex, pokemonCard ? 'avec Pokémon' : 'vide');
-      
-      if (pokemonCard) {
-        // Sélectionner le Pokémon
-        const pokemon = this.teamData[slotIndex];
-        if (pokemon) {
-          console.log('🎯 Sélection de:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-          this.selectPokemon(pokemon, pokemonCard, slotIndex);
-        }
-      } else {
-        // Slot vide - désélectionner
-        console.log('🎯 Désélection (slot vide)');
-        this.deselectPokemon();
-      }
-    });
-
-    // Double-clic pour voir les détails
-    slotsContainer.addEventListener('dblclick', (e) => {
-      // Ignorer les clics sur le menu contextuel
-      if (e.target.closest('.pokemon-context-menu')) {
-        return;
-      }
-
       const slot = e.target.closest('.team-slot');
       if (!slot) return;
 
@@ -370,95 +272,179 @@ export class TeamUI {
       const pokemon = this.teamData[slotIndex];
       
       if (pokemon) {
-        console.log('🎯 Double-clic pour détails:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-        this.showPokemonDetails(pokemon);
-      }
-    });
-
-    // Event listeners spécifiques pour les cartes Pokémon
-    this.setupPokemonCardListeners();
-  }
-
-  setupPokemonCardListeners() {
-    // Cette fonction sera appelée après chaque refresh pour ajouter les listeners aux nouvelles cartes
-    const pokemonCards = this.overlay.querySelectorAll('.pokemon-card');
-    
-    pokemonCards.forEach((card, index) => {
-      // Supprimer les anciens listeners pour éviter les doublons
-      const newCard = card.cloneNode(true);
-      card.parentNode.replaceChild(newCard, card);
-      
-      const slotIndex = parseInt(newCard.dataset.slot);
-      const pokemon = this.teamData[slotIndex];
-      
-      if (!pokemon) return;
-
-      // Clic simple pour sélection
-      newCard.addEventListener('click', (e) => {
-        e.stopPropagation();
-        console.log('🎯 Clic direct sur carte Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-        this.selectPokemon(pokemon, newCard, slotIndex);
-      });
-
-      // Double-clic pour détails
-      newCard.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        console.log('🎯 Double-clic direct sur carte pour détails:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-        this.showPokemonDetails(pokemon);
-      });
-
-      // Context menu
-      const contextMenu = newCard.querySelector('.pokemon-context-menu');
-      if (contextMenu) {
-        contextMenu.addEventListener('click', (e) => {
-          e.stopPropagation();
-          console.log('🎯 Menu contextuel:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-          this.showPokemonContextMenu(pokemon, e);
-        });
+        this.selectPokemon(pokemon, slot, slotIndex);
+      } else {
+        this.deselectPokemon();
       }
     });
   }
 
-setupServerListeners() {
-  if (this._serverListenersSet) return; // ⬅️ Ne pas double-register
-  this._serverListenersSet = true;
+  setupServerListeners() {
+    if (!this.gameRoom) return;
 
-  if (!this.gameRoom) return;
+    this.gameRoom.onMessage("teamData", (data) => {
+      this.updateTeamData(data);
+    });
 
-  this.gameRoom.onMessage("teamData", (data) => {
-    this.updateTeamData(data);
-  });
+    this.gameRoom.onMessage("teamActionResult", (data) => {
+      this.handleTeamActionResult(data);
+    });
+  }
 
-  this.gameRoom.onMessage("teamActionResult", (data) => {
-    this.handleTeamActionResult(data);
-  });
+  // ===== ✅ MÉTHODES REQUISES POUR UIMANAGER =====
 
-  this.gameRoom.onMessage("pokemonUpdate", (data) => {
-    this.handlePokemonUpdate(data);
-  });
-}
+  /**
+   * ✅ MÉTHODE REQUISE: Afficher le module
+   */
+  show() {
+    try {
+      this.uiManagerState.visible = true;
+      this.isVisible = true;
+      
+      this.overlay.classList.remove('hidden');
+      this.overlay.style.display = 'flex';
+      
+      this.requestTeamData();
+      
+      // Animation d'entrée optimisée
+      if (!this.performanceMode) {
+        this.overlay.style.animation = 'fadeIn 0.3s ease-out';
+      }
+      
+      console.log('⚔️ [UIManager] TeamUI affiché');
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Erreur show TeamUI:', error);
+    }
+  }
 
+  /**
+   * ✅ MÉTHODE REQUISE: Cacher le module
+   */
+  hide() {
+    try {
+      this.uiManagerState.visible = false;
+      this.isVisible = false;
+      
+      if (!this.performanceMode) {
+        this.overlay.style.animation = 'fadeOut 0.2s ease-in';
+        setTimeout(() => {
+          this.overlay.classList.add('hidden');
+          this.overlay.style.display = 'none';
+        }, 200);
+      } else {
+        this.overlay.classList.add('hidden');
+        this.overlay.style.display = 'none';
+      }
+      
+      this.deselectPokemon();
+      
+      console.log('⚔️ [UIManager] TeamUI masqué');
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Erreur hide TeamUI:', error);
+    }
+  }
 
-show() {
-  if (this.isVisible) return;
-  this.isVisible = true;
-  this.overlay.classList.remove('hidden');
-  this.overlay.style.display = 'flex'; // Force la visibilité (debug)
-  this.overlay.style.opacity = '1';
-  this.requestTeamData();
-  console.log('[DEBUG] TeamUI.show() appelé, overlay devrait être visible');
-}
+  /**
+   * ✅ MÉTHODE REQUISE: Activer/désactiver le module
+   */
+  setEnabled(enabled) {
+    try {
+      this.uiManagerState.enabled = enabled;
+      
+      if (this.overlay) {
+        if (enabled) {
+          this.overlay.classList.remove('ui-disabled');
+          this.overlay.style.pointerEvents = '';
+          this.overlay.style.opacity = '';
+        } else {
+          this.overlay.classList.add('ui-disabled');
+          this.overlay.style.pointerEvents = 'none';
+          this.overlay.style.opacity = '0.5';
+        }
+      }
+      
+      console.log(`⚔️ [UIManager] TeamUI ${enabled ? 'activé' : 'désactivé'}`);
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Erreur setEnabled TeamUI:', error);
+    }
+  }
 
-hide() {
-  if (!this.isVisible) return;
-  this.isVisible = false;
-  this.overlay.classList.add('hidden');
-  this.overlay.style.display = 'none';
-  this.overlay.style.opacity = '0';
-  this.deselectPokemon();
-  console.log('[DEBUG] TeamUI.hide() appelé, overlay caché');
-}
+  /**
+   * ✅ MÉTHODE OPTIONNELLE: Mise à jour du module
+   */
+  update(data) {
+    try {
+      if (!data) return;
+      
+      // ✅ Debouncer les mises à jour pour optimiser
+      if (this.updateDebounce) {
+        clearTimeout(this.updateDebounce);
+      }
+      
+      this.updateDebounce = setTimeout(() => {
+        this.processUpdate(data);
+      }, 50);
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Erreur update TeamUI:', error);
+    }
+  }
 
+  processUpdate(data) {
+    if (data.type === 'teamData') {
+      this.updateTeamData(data.payload);
+    } else if (data.type === 'state') {
+      if (data.visible !== undefined) {
+        data.visible ? this.show() : this.hide();
+      }
+      if (data.enabled !== undefined) {
+        this.setEnabled(data.enabled);
+      }
+    }
+  }
+
+  /**
+   * ✅ MÉTHODE OPTIONNELLE: Nettoyage
+   */
+  destroy() {
+    try {
+      if (this.updateDebounce) {
+        clearTimeout(this.updateDebounce);
+      }
+      
+      if (this.overlay && this.overlay.parentNode) {
+        this.overlay.remove();
+      }
+      
+      // Nettoyer les références globales
+      if (window.teamUI === this) {
+        window.teamUI = null;
+      }
+      
+      console.log('⚔️ [UIManager] TeamUI détruit');
+      
+    } catch (error) {
+      console.error('❌ [UIManager] Erreur destroy TeamUI:', error);
+    }
+  }
+
+  /**
+   * ✅ PROPRIÉTÉ REQUISE: État pour UIManager
+   */
+  getUIManagerState() {
+    return {
+      ...this.uiManagerState,
+      teamCount: this.teamData.length,
+      isOpen: this.isVisible,
+      canOpen: this.canPlayerInteract(),
+      hasOverlay: !!this.overlay
+    };
+  }
+
+  // ===== MÉTHODES MÉTIER CORE =====
 
   toggle() {
     if (this.isVisible) {
@@ -476,692 +462,166 @@ hide() {
 
   updateTeamData(data) {
     this.teamData = data.team || [];
-    this.refreshTeamDisplay();
-    this.updateTeamStats();
-    console.log('⚔️ Données d\'équipe mises à jour:', this.teamData);
-  }
-
-refreshTeamDisplay() {
-  const slotsContainer = this.overlay.querySelector('.team-slots-grid');
-  slotsContainer.innerHTML = ''; // Vide la grille à chaque refresh
-
-  for (let i = 0; i < 6; i++) {
-    const pokemon = this.teamData[i];
-
-    // Crée le slot
-    const slot = document.createElement('div');
-    slot.className = 'team-slot';
-    slot.dataset.slot = i;
-
-    const slotBackground = document.createElement('div');
-    slotBackground.className = 'slot-background';
-
-    const slotNumber = document.createElement('div');
-    slotNumber.className = 'slot-number';
-    slotNumber.textContent = i + 1;
-    slotBackground.appendChild(slotNumber);
-
-    if (pokemon) {
-      // === Affichage de la carte Pokémon ===
-      this.displayPokemonInSlot(slot, pokemon, i);
-      // (displayPokemonInSlot va ajouter la carte sur slotBackground, et mettre à jour les classes)
+    
+    // ✅ Optimisation: batcher les mises à jour
+    if (this.performanceMode) {
+      this.renderQueue.push(() => this.refreshTeamDisplay());
+      this.flushRenderQueue();
     } else {
-      // === Slot vide ===
-      slot.classList.add('empty-enhanced');
-
-      const emptySlot = document.createElement('div');
-      emptySlot.className = 'empty-slot';
-      emptySlot.style.display = 'flex';
-
-      const emptyIcon = document.createElement('div');
-      emptyIcon.className = 'empty-icon';
-      emptyIcon.textContent = '➕';
-
-      const emptyText = document.createElement('div');
-      emptyText.className = 'empty-text';
-      emptyText.textContent = 'Add Pokémon';
-
-      emptySlot.appendChild(emptyIcon);
-      emptySlot.appendChild(emptyText);
-
-      slotBackground.appendChild(emptySlot);
+      this.refreshTeamDisplay();
     }
-
-    slot.appendChild(slotBackground);
-    slotsContainer.appendChild(slot);
+    
+    this.updateTeamStats();
+    console.log('⚔️ Données équipe mises à jour:', this.teamData.length, 'Pokémon');
   }
 
-  // Ajoute les listeners sur les slots (pour le clic)
-  this.setupSlotSelection();
+  flushRenderQueue() {
+    if (this.renderQueue.length === 0) return;
+    
+    requestAnimationFrame(() => {
+      while (this.renderQueue.length > 0) {
+        const renderFn = this.renderQueue.shift();
+        renderFn();
+      }
+    });
+  }
 
-  setTimeout(() => {
-    const testCard = slotsContainer.querySelector('.pokemon-card');
-    if (testCard) {
-      console.log('🧪 Test - Carte trouvée:', testCard);
-      console.log('🧪 Test - onclick défini:', testCard.onclick ? 'OUI' : 'NON');
-      console.log('🧪 Test - dataset:', testCard.dataset);
-      console.log('🧪 Tapez "window.teamUI.testSelection()" dans la console pour tester la sélection');
+  refreshTeamDisplay() {
+    const slotsContainer = this.overlay.querySelector('.team-slots-grid');
+    if (!slotsContainer) return;
+
+    // ✅ Mise à jour optimisée des slots
+    for (let i = 0; i < 6; i++) {
+      const slot = slotsContainer.querySelector(`[data-slot="${i}"]`);
+      const pokemon = this.teamData[i];
+      
+      if (pokemon) {
+        this.displayPokemonInSlot(slot, pokemon, i);
+      } else {
+        this.displayEmptySlot(slot, i);
+      }
     }
-  }, 200);
-}
-
+  }
 
   displayPokemonInSlot(slot, pokemon, index) {
-    console.log('[DEBUG] Affichage Pokémon:', pokemon.pokemonId, this.getPokemonName(pokemon.pokemonId));
+    slot.className = 'team-slot';
     
-    const slotBackground = slot.querySelector('.slot-background') || slot;
-    
-    // Hide empty slot and update classes
-    const emptySlot = slot.querySelector('.empty-slot');
-    if (emptySlot) emptySlot.style.display = 'none';
-    
-    slotBackground.classList.add('has-pokemon');
-    slot.classList.remove('empty-enhanced');
-
-    // Create pokemon card
-    const pokemonCard = document.createElement('div');
-    pokemonCard.className = 'pokemon-card';
-    pokemonCard.dataset.pokemonId = pokemon._id;
-    pokemonCard.dataset.slot = index;
-    
-    // ✅ DÉSACTIVER TEMPORAIREMENT LE DRAG AND DROP
-    // pokemonCard.draggable = true;
-
-    // Add type-based border class
-    if (pokemon.types && pokemon.types.length > 0) {
-      pokemonCard.classList.add(`type-${pokemon.types[0].toLowerCase()}`);
-    }
-
     const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
     const healthClass = this.getHealthClass(healthPercent);
-    const statusDisplay = this.getStatusDisplay(pokemon.status);
-    const typesDisplay = this.getTypesDisplay(pokemon.types);
-    const genderDisplay = this.getGenderDisplay(pokemon.gender);
-
-    pokemonCard.innerHTML = `
-      <div class="pokemon-header">
-        <div class="pokemon-name" title="${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}">
-          ${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}
+    
+    slot.innerHTML = `
+      <div class="slot-number">${index + 1}</div>
+      <div class="pokemon-card" data-pokemon-id="${pokemon._id}">
+        <div class="pokemon-name">${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}</div>
+        <div class="pokemon-level">Niv. ${pokemon.level}</div>
+        <div class="pokemon-sprite">
+          <div class="pokemon-portrait" style="${this.getPortraitSpriteStyle(pokemon.pokemonId)}"></div>
         </div>
-        <div class="pokemon-level">Lv.${pokemon.level}</div>
-      </div>
-      
-      ${genderDisplay}
-      
-      <div class="pokemon-context-menu" title="More options">
-        ℹ️
-      </div>
-          
-      <div class="pokemon-sprite">
-        <div 
-          class="pokemon-portrait"
-          style="${this.getPortraitSpriteStyle(pokemon.pokemonId, { shiny: pokemon.shiny })}"
-          title="${this.getPokemonName(pokemon.pokemonId)}"
-        ></div>
-      </div>
-          
-      <div class="pokemon-health">
-        <div class="health-bar">
-          <div class="health-fill ${healthClass}" style="width: ${healthPercent}%"></div>
+        <div class="pokemon-health">
+          <div class="health-bar">
+            <div class="health-fill ${healthClass}" style="width: ${healthPercent}%"></div>
+          </div>
+          <div class="health-text">${pokemon.currentHp}/${pokemon.maxHp}</div>
         </div>
-        <div class="health-text">${pokemon.currentHp}/${pokemon.maxHp}</div>
-      </div>
-      
-      <div class="pokemon-status">
-        ${statusDisplay}
-      </div>
-      
-      <div class="pokemon-types">
-        ${typesDisplay}
       </div>
     `;
-
-    slotBackground.appendChild(pokemonCard);
-
-    // ✅ MULTIPLE APPROACHES POUR CAPTURER LE CLIC
-    const self = this;
-
-    // Méthode 1: onclick direct
-    pokemonCard.onclick = function(e) {
-      console.log('🎯 ONCLICK METHOD - Clic détecté !');
-      e.preventDefault();
-      e.stopPropagation();
-      self.selectPokemon(pokemon, pokemonCard, index);
-      return false;
-    };
-
-    // Méthode 2: addEventListener avec capture
-    pokemonCard.addEventListener('click', function(e) {
-      console.log('🎯 ADDEVENTLISTENER METHOD - Clic détecté !');
-      e.preventDefault();
-      e.stopPropagation();
-      self.selectPokemon(pokemon, pokemonCard, index);
-    }, true);
-
-    // Méthode 3: mousedown (plus immédiat que click)
-    pokemonCard.addEventListener('mousedown', function(e) {
-      console.log('🎯 MOUSEDOWN METHOD - Clic détecté !');
-      e.preventDefault();
-      e.stopPropagation();
-      self.selectPokemon(pokemon, pokemonCard, index);
-    });
-
-    // Méthode 4: Événement sur tous les enfants aussi
-    pokemonCard.addEventListener('click', function(e) {
-      console.log('🎯 CHILDREN CLICK - Élément cliqué:', e.target);
-      e.preventDefault();
-      e.stopPropagation();
-      self.selectPokemon(pokemon, pokemonCard, index);
-    });
-
-    // Test immédiat
-    setTimeout(() => {
-      console.log('🧪 Test click programmé...');
-      pokemonCard.click();
-    }, 1000);
-
-    // ✅ RENDRE TEAMUI ACCESSIBLE GLOBALEMENT
-    window.teamUI = this;
-
-    // Animation
-    setTimeout(() => {
-      pokemonCard.classList.add('new');
-    }, index * 100);
-
-    console.log('✅ Carte Pokémon créée avec TOUS les listeners');
   }
 
-  getGenderDisplay(gender) {
-    if (!gender) return '';
-    
-    const genderSymbol = gender === 'male' ? '♂' : gender === 'female' ? '♀' : '';
-    const genderClass = gender === 'male' ? 'male' : gender === 'female' ? 'female' : '';
-    
-    return genderSymbol ? `<div class="pokemon-gender ${genderClass}">${genderSymbol}</div>` : '';
+  displayEmptySlot(slot, index) {
+    slot.className = 'team-slot empty';
+    slot.innerHTML = `
+      <div class="slot-number">${index + 1}</div>
+      <div class="empty-slot">
+        <div class="empty-icon">➕</div>
+        <div class="empty-text">Slot libre</div>
+      </div>
+    `;
   }
 
-  showPokemonContextMenu(pokemon, event) {
-    // Simple context menu for now - could be expanded
-    const actions = [
-      { text: 'View Details', action: () => this.showPokemonDetails(pokemon) },
-      { text: 'Heal', action: () => this.healPokemon(pokemon._id) },
-      { text: 'Move to PC', action: () => this.removePokemon(pokemon._id) }
-    ];
-    
-    // For now, just show details
-    this.showPokemonDetails(pokemon);
-  }
-
-  getHealthClass(healthPercent) {
-    if (healthPercent > 75) return 'high';
-    if (healthPercent > 50) return 'medium';
-    if (healthPercent > 25) return 'low';
-    return 'critical';
-  }
-
-  getStatusDisplay(status) {
-    if (!status || status === 'normal') return '';
-    
-    const statusMap = {
-      poison: '<span class="status-indicator status-poison">PSN</span>',
-      burn: '<span class="status-indicator status-burn">BRN</span>',
-      sleep: '<span class="status-indicator status-sleep">SLP</span>',
-      paralysis: '<span class="status-indicator status-paralysis">PAR</span>',
-      freeze: '<span class="status-indicator status-freeze">FRZ</span>'
-    };
-    
-    return statusMap[status] || '';
-  }
-
-  getTypesDisplay(types) {
-    if (!types || !Array.isArray(types)) return '';
-    
-    return types.map(type => 
-      `<span class="type-badge type-${type.toLowerCase()}">${type}</span>`
-    ).join('');
-  }
-
-  // ✅ MÉTHODE DE TEST DIRECT
-  testSelection() {
-    console.log('🧪 Test de sélection...');
-    
-    if (this.teamData.length > 0) {
-      const pokemon = this.teamData[0];
-      const card = this.overlay.querySelector('.pokemon-card');
-      
-      if (pokemon && card) {
-        console.log('🧪 Tentative de sélection directe...');
-        this.selectPokemon(pokemon, card, 0);
-      } else {
-        console.log('❌ Pas de Pokémon ou carte trouvé');
-      }
-    } else {
-      console.log('❌ Aucune données d\'équipe');
-    }
-  }
-
-  selectPokemon(pokemon, cardElement, slotIndex) {
-    console.log('🎯 ===== SÉLECTION POKÉMON =====');
-    console.log('🎯 Pokémon:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
-    console.log('🎯 Élément carte:', cardElement);
-    console.log('🎯 Slot:', slotIndex);
-    
+  selectPokemon(pokemon, slot, slotIndex) {
     // Désélectionner l'ancien
-    this.overlay.querySelectorAll('.team-slot').forEach(slot => {
-      slot.classList.remove('selected');
-      console.log('🎯 Slot désélectionné:', slot);
-    });
-    this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
-      card.classList.remove('active');
-      console.log('🎯 Carte désactivée:', card);
-    });
-
-    // Sélectionner le nouveau
-    const slot = cardElement.closest('.team-slot');
-    if (slot) {
-      slot.classList.add('selected');
-      console.log('🎯 Slot sélectionné:', slot);
-    } else {
-      console.log('❌ Slot parent non trouvé');
-    }
+    this.overlay.querySelectorAll('.team-slot').forEach(s => s.classList.remove('selected'));
     
-    cardElement.classList.add('active');
-    console.log('🎯 Carte activée:', cardElement);
+    // Sélectionner le nouveau
+    slot.classList.add('selected');
     
     this.selectedPokemon = pokemon;
     this.selectedSlot = slotIndex;
-
-    console.log('🎯 État final - selectedPokemon:', this.selectedPokemon);
-    console.log('🎯 État final - selectedSlot:', this.selectedSlot);
-
-    // Mettre à jour les vues
-    this.updateDetailView();
     
-    console.log('🎯 ===== FIN SÉLECTION =====');
+    console.log('🎯 Pokémon sélectionné:', pokemon.nickname || this.getPokemonName(pokemon.pokemonId));
   }
 
   deselectPokemon() {
-    this.overlay.querySelectorAll('.team-slot').forEach(slot => {
-      slot.classList.remove('selected');
-    });
-    this.overlay.querySelectorAll('.pokemon-card').forEach(card => {
-      card.classList.remove('active');
-    });
-    
+    this.overlay.querySelectorAll('.team-slot').forEach(s => s.classList.remove('selected'));
     this.selectedPokemon = null;
     this.selectedSlot = null;
-    this.updateDetailView();
-  }
-
-  showPokemonDetails(pokemon) {
-    this.selectedPokemon = pokemon;
-    this.switchToView('details');
-    this.updateDetailView();
-  }
-
-  updateDetailView() {
-    const detailPanel = this.overlay.querySelector('.pokemon-detail-panel');
-    
-    if (!this.selectedPokemon) {
-      detailPanel.innerHTML = `
-        <div class="no-selection">
-          <div class="no-selection-icon">⚔️</div>
-          <p>Sélectionnez un Pokémon pour voir ses détails</p>
-        </div>
-      `;
-      return;
-    }
-
-    const pokemon = this.selectedPokemon;
-    const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
-    const healthClass = this.getHealthClass(healthPercent);
-
-    detailPanel.innerHTML = `
-      <div class="pokemon-detail-content">
-        <div class="pokemon-detail-header">
-          <div class="pokemon-detail-icon">
-            <div
-              class="pokemon-portrait"
-              style="${this.getPortraitSpriteStyle(pokemon.pokemonId, { shiny: pokemon.shiny })}"
-              title="${this.getPokemonName(pokemon.pokemonId)}"
-            ></div>
-          </div>
-
-          <div class="pokemon-detail-info">
-            <h3>${pokemon.nickname || this.getPokemonName(pokemon.pokemonId)}</h3>
-            <div class="pokemon-detail-subtitle">
-              Level ${pokemon.level} • ${pokemon.types?.join('/') || 'Unknown Type'}
-            </div>
-            <div class="pokemon-detail-nature">Nature: ${pokemon.nature || 'Unknown'}</div>
-            ${this.getGenderDisplay(pokemon.gender)}
-          </div>
-        </div>
-
-        <div class="pokemon-stats-section">
-          <h4>📊 Battle Stats</h4>
-          <div class="stats-grid">
-            <div class="stat-row">
-              <span class="stat-name">HP</span>
-              <div class="stat-bar-container">
-                <div class="stat-bar">
-                  <div class="stat-fill ${healthClass}" style="width: ${healthPercent}%"></div>
-                </div>
-                <span class="stat-value">${pokemon.currentHp}/${pokemon.maxHp}</span>
-              </div>
-            </div>
-            <div class="stat-row">
-              <span class="stat-name">Attack</span>
-              <div class="stat-bar-container">
-                <div class="stat-bar">
-                  <div class="stat-fill" style="width: ${Math.min((pokemon.calculatedStats?.attack || 0) / 200 * 100, 100)}%"></div>
-                </div>
-                <span class="stat-value">${pokemon.calculatedStats?.attack || 0}</span>
-              </div>
-            </div>
-            <div class="stat-row">
-              <span class="stat-name">Defense</span>
-              <div class="stat-bar-container">
-                <div class="stat-bar">
-                  <div class="stat-fill" style="width: ${Math.min((pokemon.calculatedStats?.defense || 0) / 200 * 100, 100)}%"></div>
-                </div>
-                <span class="stat-value">${pokemon.calculatedStats?.defense || 0}</span>
-              </div>
-            </div>
-            <div class="stat-row">
-              <span class="stat-name">Sp. Atk</span>
-              <div class="stat-bar-container">
-                <div class="stat-bar">
-                  <div class="stat-fill" style="width: ${Math.min((pokemon.calculatedStats?.spAttack || 0) / 200 * 100, 100)}%"></div>
-                </div>
-                <span class="stat-value">${pokemon.calculatedStats?.spAttack || 0}</span>
-              </div>
-            </div>
-            <div class="stat-row">
-              <span class="stat-name">Sp. Def</span>
-              <div class="stat-bar-container">
-                <div class="stat-bar">
-                  <div class="stat-fill" style="width: ${Math.min((pokemon.calculatedStats?.spDefense || 0) / 200 * 100, 100)}%"></div>
-                </div>
-                <span class="stat-value">${pokemon.calculatedStats?.spDefense || 0}</span>
-              </div>
-            </div>
-            <div class="stat-row">
-              <span class="stat-name">Speed</span>
-              <div class="stat-bar-container">
-                <div class="stat-bar">
-                  <div class="stat-fill" style="width: ${Math.min((pokemon.calculatedStats?.speed || 0) / 200 * 100, 100)}%"></div>
-                </div>
-                <span class="stat-value">${pokemon.calculatedStats?.speed || 0}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="pokemon-moves-section">
-          <h4>⚡ Known Moves</h4>
-          <div class="moves-list">
-            ${this.getMovesDisplay(pokemon.moves)}
-          </div>
-        </div>
-
-        <div class="pokemon-actions">
-          <button class="detail-btn" onclick="window.teamUI?.healPokemon('${pokemon._id}')">
-            <span class="btn-icon">💊</span>
-            <span class="btn-text">Heal</span>
-          </button>
-          <button class="detail-btn secondary" onclick="window.teamUI?.removePokemon('${pokemon._id}')">
-            <span class="btn-icon">📦</span>
-            <span class="btn-text">To PC</span>
-          </button>
-        </div>
-      </div>
-    `;
-  }
-
-  getMovesDisplay(moves) {
-    if (!moves || !Array.isArray(moves) || moves.length === 0) {
-      return '<div class="no-moves">No moves learned</div>';
-    }
-
-    return moves.map(move => {
-      const ppPercent = (move.currentPp / move.maxPp) * 100;
-      const ppClass = ppPercent > 50 ? 'high' : ppPercent > 25 ? 'medium' : 'low';
-      
-      return `
-        <div class="move-item">
-          <div class="move-header">
-            <span class="move-name">${this.formatMoveName(move.moveId)}</span>
-            <span class="move-pp ${ppClass}">${move.currentPp}/${move.maxPp}</span>
-          </div>
-          <div class="move-pp-bar">
-            <div class="move-pp-fill ${ppClass}" style="width: ${ppPercent}%"></div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  formatMoveName(moveId) {
-    return moveId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  }
-
-  switchToView(viewName) {
-    // Update tabs
-    this.overlay.querySelectorAll('.team-tab').forEach(tab => {
-      tab.classList.toggle('active', tab.dataset.view === viewName);
-    });
-
-    // Update views
-    this.overlay.querySelectorAll('.team-view').forEach(view => {
-      view.classList.toggle('active', view.id === `team-${viewName}`);
-    });
-
-    this.currentView = viewName;
-
-    // Update view-specific content
-    if (viewName === 'moves') {
-      this.updateMovesView();
-    }
-  }
-
-  updateMovesView() {
-    const movesGrid = this.overlay.querySelector('#moves-grid');
-    
-    if (this.teamData.length === 0) {
-      movesGrid.innerHTML = `
-        <div class="no-team">
-          <div class="no-team-icon">⚔️</div>
-          <p>No Pokémon in team</p>
-        </div>
-      `;
-      return;
-    }
-
-    const allMoves = new Map();
-    
-    // Collecter toutes les attaques de l'équipe
-    this.teamData.forEach(pokemon => {
-      if (pokemon.moves) {
-        pokemon.moves.forEach(move => {
-          if (!allMoves.has(move.moveId)) {
-            allMoves.set(move.moveId, {
-              moveId: move.moveId,
-              users: [],
-              maxPp: move.maxPp
-            });
-          }
-          allMoves.get(move.moveId).users.push({
-            pokemon: pokemon.nickname || this.getPokemonName(pokemon.pokemonId),
-            currentPp: move.currentPp,
-            maxPp: move.maxPp
-          });
-        });
-      }
-    });
-
-    if (allMoves.size === 0) {
-      movesGrid.innerHTML = `
-        <div class="no-moves">
-          <div class="no-moves-icon">⚡</div>
-          <p>No moves learned by team</p>
-        </div>
-      `;
-      return;
-    }
-
-    const movesHTML = Array.from(allMoves.values()).map(moveData => {
-      const usersHTML = moveData.users.map(user => {
-        const ppPercent = (user.currentPp / user.maxPp) * 100;
-        const ppClass = ppPercent > 50 ? 'high' : ppPercent > 25 ? 'medium' : 'low';
-        
-        return `
-          <div class="move-user">
-            <span class="user-name">${user.pokemon}</span>
-            <span class="user-pp ${ppClass}">${user.currentPp}/${user.maxPp}</span>
-          </div>
-        `;
-      }).join('');
-
-      return `
-        <div class="team-move-card">
-          <div class="team-move-header">
-            <span class="team-move-name">${this.formatMoveName(moveData.moveId)}</span>
-            <span class="team-move-count">${moveData.users.length} user(s)</span>
-          </div>
-          <div class="team-move-users">
-            ${usersHTML}
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    movesGrid.innerHTML = movesHTML;
   }
 
   updateTeamStats() {
     const teamCount = this.teamData.length;
     const aliveCount = this.teamData.filter(p => p.currentHp > 0).length;
-    const avgLevel = teamCount > 0 ? 
-      Math.round(this.teamData.reduce((sum, p) => sum + p.level, 0) / teamCount) : 0;
-    const totalCurrentHp = this.teamData.reduce((sum, p) => sum + p.currentHp, 0);
-    const totalMaxHp = this.teamData.reduce((sum, p) => sum + p.maxHp, 0);
     const canBattle = aliveCount > 0;
-    const teamReady = teamCount === 6;
 
-    // Update header stats
-    const teamStatsElement = this.overlay.querySelector('.team-stats');
-    this.overlay.querySelector('.team-count').textContent = `${teamCount}/6`;
-    this.overlay.querySelector('.team-status').textContent = canBattle ? 'Ready' : 'Not Ready';
-    this.overlay.querySelector('.team-status').style.color = canBattle ? '#2ecc71' : '#e74c3c';
+    // Mettre à jour l'affichage
+    const countElement = this.overlay.querySelector('.team-count');
+    const statusElement = this.overlay.querySelector('.team-status');
     
-    // Add team ready class for special animation
-    if (teamReady) {
-      teamStatsElement.classList.add('team-ready');
+    if (countElement) countElement.textContent = `${teamCount}/6`;
+    if (statusElement) {
+      statusElement.textContent = canBattle ? 'Prêt' : 'Non prêt';
+      statusElement.style.color = canBattle ? '#2ecc71' : '#e74c3c';
+    }
+  }
+
+  handleTeamActionResult(data) {
+    if (data.success) {
+      this.showNotification(data.message || 'Action réussie', 'success');
+      this.requestTeamData();
     } else {
-      teamStatsElement.classList.remove('team-ready');
+      this.showNotification(data.message || 'Action échouée', 'error');
     }
-
-    // Update summary stats
-    this.overlay.querySelector('#avg-level').textContent = avgLevel;
-    this.overlay.querySelector('#total-hp').textContent = `${totalCurrentHp}/${totalMaxHp}`;
-    this.overlay.querySelector('#battle-ready').textContent = canBattle ? 'Yes' : 'No';
-    this.overlay.querySelector('#battle-ready').style.color = canBattle ? '#2ecc71' : '#e74c3c';
-
-    // Update type coverage
-    this.updateTypeCoverage();
   }
 
-  updateTypeCoverage() {
-    const coverageContainer = this.overlay.querySelector('#type-coverage');
-    const types = new Set();
+  // ===== UTILITAIRES =====
+
+  getPokemonName(pokemonId) {
+    const idStr = String(pokemonId).padStart(3, '0');
+    return this.pokemonLocalizations[idStr]?.name || 
+           this.pokemonLocalizations[pokemonId]?.name || 
+           `#${pokemonId}`;
+  }
+
+  getPortraitSpriteStyle(pokemonId) {
+    const url = `/assets/pokemon/portraitanime/${pokemonId}.png`;
+    return `background-image: url('${url}'); background-size: cover; background-position: center;`;
+  }
+
+  getHealthClass(healthPercent) {
+    if (healthPercent > 50) return '';
+    if (healthPercent > 25) return 'medium';
+    return 'low';
+  }
+
+  canPlayerInteract() {
+    const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
+    const inventoryOpen = typeof window.isInventoryOpen === 'function' ? window.isInventoryOpen() : false;
+    const questOpen = typeof window.isQuestJournalOpen === 'function' ? window.isQuestJournalOpen() : false;
     
-    this.teamData.forEach(pokemon => {
-      if (pokemon.types) {
-        pokemon.types.forEach(type => types.add(type));
-      }
-    });
-
-    if (types.size === 0) {
-      coverageContainer.innerHTML = '<div class="no-coverage">No type coverage</div>';
-      return;
-    }
-
-    const typesHTML = Array.from(types).map(type => 
-      `<span class="coverage-type type-${type.toLowerCase()}">${type}</span>`
-    ).join('');
-    
-    coverageContainer.innerHTML = typesHTML;
+    return !chatOpen && !inventoryOpen && !questOpen;
   }
 
-  setupDragAndDrop() {
-    const slotsContainer = this.overlay.querySelector('.team-slots-grid');
-
-    slotsContainer.addEventListener('dragstart', (e) => {
-      if (e.target.classList.contains('pokemon-card')) {
-        this.draggedPokemon = {
-          element: e.target,
-          originalSlot: parseInt(e.target.dataset.slot),
-          pokemonId: e.target.dataset.pokemonId
-        };
-        e.target.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-      }
-    });
-
-    slotsContainer.addEventListener('dragend', (e) => {
-      if (e.target.classList.contains('pokemon-card')) {
-        e.target.classList.remove('dragging');
-        // Remove drag-over class from all slots
-        this.overlay.querySelectorAll('.team-slot').forEach(slot => {
-          slot.classList.remove('drag-over');
-        });
-        this.draggedPokemon = null;
-      }
-    });
-
-    slotsContainer.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    });
-
-    slotsContainer.addEventListener('dragenter', (e) => {
-      const targetSlot = e.target.closest('.team-slot');
-      if (targetSlot && this.draggedPokemon) {
-        targetSlot.classList.add('drag-over');
-      }
-    });
-
-    slotsContainer.addEventListener('dragleave', (e) => {
-      const targetSlot = e.target.closest('.team-slot');
-      if (targetSlot && !targetSlot.contains(e.relatedTarget)) {
-        targetSlot.classList.remove('drag-over');
-      }
-    });
-
-    slotsContainer.addEventListener('drop', (e) => {
-      e.preventDefault();
-      const targetSlot = e.target.closest('.team-slot');
-      
-      if (targetSlot && this.draggedPokemon) {
-        targetSlot.classList.remove('drag-over');
-        const targetSlotIndex = parseInt(targetSlot.dataset.slot);
-        
-        if (targetSlotIndex !== this.draggedPokemon.originalSlot) {
-          this.swapPokemon(this.draggedPokemon.originalSlot, targetSlotIndex);
-        }
-      }
-    });
-  }
-
-  swapPokemon(fromSlot, toSlot) {
-    if (this.gameRoom) {
-      this.gameRoom.send("swapTeamSlots", {
-        slotA: fromSlot,
-        slotB: toSlot
-      });
+  showNotification(message, type = 'info') {
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification(message, type, { duration: 2000, position: 'bottom-right' });
+    } else {
+      console.log(`📢 [${type}]: ${message}`);
     }
   }
 
+  // Méthodes publiques pour compatibilité
+  isOpen() { return this.isVisible; }
+  
+  // Actions d'équipe
   healTeam() {
     if (this.gameRoom) {
       this.gameRoom.send("healTeam");
@@ -1174,180 +634,10 @@ refreshTeamDisplay() {
     }
   }
 
-  removePokemon(pokemonId) {
-    if (this.gameRoom) {
-      this.gameRoom.send("removeFromTeam", { pokemonId });
-    }
-  }
-
-  openPCStorage() {
-    this.showNotification("PC Storage not yet implemented", "info");
-  }
-
-  autoArrangeTeam() {
-    if (this.gameRoom) {
-      this.gameRoom.send("autoArrangeTeam");
-    }
-  }
-
-  handleTeamActionResult(data) {
-    if (data.success) {
-      this.showNotification(data.message || "Action completed successfully", "success");
-      this.requestTeamData();
-    } else {
-      this.showNotification(data.message || "Action failed", "error");
-    }
-  }
-
-  handlePokemonUpdate(data) {
-    const pokemonIndex = this.teamData.findIndex(p => p._id === data.pokemonId);
-    if (pokemonIndex !== -1) {
-      this.teamData[pokemonIndex] = { ...this.teamData[pokemonIndex], ...data.updates };
-      this.refreshTeamDisplay();
-      this.updateTeamStats();
-      
-      if (this.selectedPokemon && this.selectedPokemon._id === data.pokemonId) {
-        this.selectedPokemon = this.teamData[pokemonIndex];
-        this.updateDetailView();
-      }
-    }
-  }
-
-  showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = 'team-notification';
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      border-radius: 8px;
-      color: white;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-      z-index: 1002;
-      animation: slideInRight 0.4s ease;
-      max-width: 300px;
-      border-left: 4px solid;
-    `;
-
-    switch (type) {
-      case 'success':
-        notification.style.background = 'rgba(46, 204, 113, 0.95)';
-        notification.style.borderLeftColor = '#2ecc71';
-        break;
-      case 'error':
-        notification.style.background = 'rgba(231, 76, 60, 0.95)';
-        notification.style.borderLeftColor = '#e74c3c';
-        break;
-      default:
-        notification.style.background = 'rgba(52, 152, 219, 0.95)';
-        notification.style.borderLeftColor = '#3498db';
-    }
-
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.style.animation = 'slideOutRight 0.4s ease';
-        setTimeout(() => notification.remove(), 400);
-      }
-    }, 3000);
-  }
-
-  // Méthodes publiques pour l'intégration
-  isOpen() {
-    return this.isVisible;
-  }
-
-  canPlayerInteract() {
-    const questDialogOpen = document.querySelector('.quest-dialog-overlay') !== null;
-    const chatOpen = typeof window.isChatFocused === 'function' ? window.isChatFocused() : false;
-    const inventoryOpen = typeof window.isInventoryOpen === 'function' ? window.isInventoryOpen() : false;
-    
-    return !this.isVisible && !questDialogOpen && !chatOpen && !inventoryOpen;
-  }
-
-  handleKeyPress(key) {
-    if (!this.isVisible) return false;
-
-    switch (key) {
-      case 'Escape':
-        this.hide();
-        return true;
-      case 'Tab':
-        this.switchToNextView();
-        return true;
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-      case '6':
-        const slotIndex = parseInt(key) - 1;
-        this.selectPokemonBySlot(slotIndex);
-        return true;
-      case 'h':
-      case 'H':
-        this.healTeam();
-        return true;
-    }
-
-    return false;
-  }
-
-  switchToNextView() {
-    const views = ['overview', 'details', 'moves'];
-    const currentIndex = views.indexOf(this.currentView);
-    const nextIndex = (currentIndex + 1) % views.length;
-    this.switchToView(views[nextIndex]);
-  }
-
-  selectPokemonBySlot(slotIndex) {
-    if (slotIndex < this.teamData.length) {
-      const pokemon = this.teamData[slotIndex];
-      const pokemonCard = this.overlay.querySelector(`[data-slot="${slotIndex}"] .pokemon-card`);
-      if (pokemon && pokemonCard) {
-        this.selectPokemon(pokemon, pokemonCard, slotIndex);
-      }
-    }
-  }
-
-  destroy() {
-    if (this.overlay && this.overlay.parentNode) {
-      this.overlay.parentNode.removeChild(this.overlay);
-    }
-    
-    const cssLink = document.querySelector('#team-ui-styles');
-    if (cssLink) {
-      cssLink.remove();
-    }
-    
-    this.gameRoom = null;
-    this.teamData = [];
-    this.selectedPokemon = null;
-    this.overlay = null;
-    
-    console.log('⚔️ TeamUI détruit');
-  }
-
-  onPokemonCaught(pokemon) {
-    this.showNotification(`${pokemon.name} added to team!`, 'success');
-    this.requestTeamData();
-  }
-
-  onBattleStart() {
-    if (this.isVisible) {
-      this.hide();
-    }
-  }
-
   exportData() {
     return {
       currentView: this.currentView,
-      selectedPokemonId: this.selectedPokemon ? this.selectedPokemon._id : null
+      selectedPokemonId: this.selectedPokemon?._id || null
     };
   }
 
@@ -1358,7 +648,11 @@ refreshTeamDisplay() {
   }
 }
 
-// Rendre disponible globalement pour les boutons onclick
+// Rendre disponible globalement
 if (typeof window !== 'undefined') {
   window.TeamUI = TeamUI;
 }
+
+console.log('✅ TeamUI adapté UIManager Professional chargé');
+console.log('🎮 Méthodes UIManager: show(), hide(), setEnabled(), update(), destroy()');
+console.log('⚔️ Méthodes métier: toggle(), requestTeamData(), healTeam()');
