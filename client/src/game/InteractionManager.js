@@ -82,7 +82,16 @@ export class InteractionManager {
       validateState: () => true,
       description: "Table starter Pokémon"
     });
-  
+
+      // ✅ REMETTRE ÇA :
+  this.registerSystem('shop', {
+    priority: 98,  // Priorité basse
+    canHandle: (npc) => false,  // ✅ DÉSACTIVÉ !
+    handle: (npc, data) => this.handleShopInteraction(npc, data),
+    validateState: () => !this.isShopOpen(),
+    description: "Système de boutique/marchand"
+  });
+    
     this.registerSystem('quest', {
       priority: 2,
       canHandle: (npc) => this.isNpcQuestGiver(npc),
