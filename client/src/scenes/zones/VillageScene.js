@@ -44,8 +44,8 @@ export class VillageScene extends BaseZoneScene {
       // ✅ Configurer les positions selon votre carte village
       // À adapter selon les coordonnées réelles de votre laboratoire et téléport
       this.psyduckIntroManager.setLabAndTeleportPositions(
-        400, 250,  // Position devant le lab (x, y) - À ADAPTER
-        400, 180   // Position du téléport (x, y) - À ADAPTER
+        885, 435,  // Position devant le lab (x, y) - À ADAPTER
+        897, 521   // Position du téléport (x, y) - À ADAPTER
       );
       
       console.log('[VillageScene] ✅ Manager Psyduck initialisé');
@@ -112,8 +112,6 @@ export class VillageScene extends BaseZoneScene {
   hasBeachIntroQuest() {
     // ✅ POUR L'INSTANT: Toujours retourner true
     return true;
-  }return true;
-    */
   }
 
   onPsyduckIntroComplete() {
