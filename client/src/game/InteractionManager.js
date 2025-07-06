@@ -75,23 +75,22 @@ export class InteractionManager {
 
   registerInteractionSystems() {
 
-      this.registerSystem('starter', {
-      priority: 0,
-      canHandle: (npc) => npc?.properties?.startertable === true,
-      handle: (npc, data) => this.handleStarterInteraction(npc, data),  // ✅ MODIFIÉ !
-      validateState: () => true,
-      description: "Table starter Pokémon"
+  this.registerSystem('starter', {
+  priority: 0,
+  canHandle: (npc) => npc?.properties?.startertable === true,
+  handle: (npc, data) => this.handleStarterInteraction(npc, data),  // ✅ MODIFIÉ !
+  validateState: () => true,
+  description: "Table starter Pokémon"
+});
+    
+    this.registerSystem('shop', {
+      priority: 1,
+      canHandle: (npc) => this.isNpcMerchant(npc),
+      handle: (npc, data) => this.handleShopInteraction(npc, data),
+      validateState: () => !this.isShopOpen(),
+      description: "Système de boutique/marchand"
     });
 
-      // ✅ REMETTRE ÇA :
-  this.registerSystem('shop', {
-    priority: 98,  // Priorité basse
-    canHandle: (npc) => false,  // ✅ DÉSACTIVÉ !
-    handle: (npc, data) => this.handleShopInteraction(npc, data),
-    validateState: () => !this.isShopOpen(),
-    description: "Système de boutique/marchand"
-  });
-    
     this.registerSystem('quest', {
       priority: 2,
       canHandle: (npc) => this.isNpcQuestGiver(npc),
@@ -111,7 +110,8 @@ export class InteractionManager {
     this.registerSystem('dialogue', {
       priority: 99,
       canHandle: (npc) => true,
-      validateState: () => true, // ✅ TOUJOURS PERMETTRE LES DIALOGUES !
+      handle: (npc, data) => this.handleDialogueInteraction(npc, data),
+      validateState: () => !this.isDialogueOpen(),
       description: "Système de dialogue générique"
     });
   }
@@ -211,42 +211,37 @@ export class InteractionManager {
 
   // === GESTION RÉSEAU ===
 
-setupNetworkHandlers() {
-  if (!this.networkManager) return;
+  setupNetworkHandlers() {
+    if (!this.networkManager) return;
 
-  // ✅ MODIFIÉ : Ne plus traiter les shops automatiquement
-  this.networkManager.onMessage("npcInteractionResult", (data) => {
-    // ✅ COMMENTÉ : Ne plus ouvrir le shop directement
-    // if (this.isShopInteraction(data)) {
-    //   this.handleShopInteractionResult(data);
-    //   return;
-    // }
-    
-    // ✅ Maintenant tout passe par handleInteractionResult (y compris les shops)
-    this.handleInteractionResult(data);
-  });
-
-  this.networkManager.onMessage("starterEligibility", (data) => {
-    console.log("📥 Réponse éligibilité starter:", data);
-    
-    if (data.eligible) {
-      console.log("✅ Joueur éligible - affichage starter");
-      
-      // ✅ FORCER LA RÉINITIALISATION AVANT AFFICHAGE
-      if (this.scene.starterSelector && !this.scene.starterSelector.starterOptions) {
-        this.scene.starterSelector.starterOptions = data.availableStarters || [];
+    this.networkManager.onMessage("npcInteractionResult", (data) => {
+      if (this.isShopInteraction(data)) {
+        this.handleShopInteractionResult(data);
+        return;
       }
-      
-      // Utiliser les starters du serveur
-      this.scene.showStarterSelection(data.availableStarters);
-    } else {
-      console.log("❌ Joueur non éligible:", data.reason);
-      // ✅ LOG SIMPLE AU LIEU DE showMessage
-      console.log(`❌ ${data.message || "Starter non disponible"}`);
-    }
-  });
+      this.handleInteractionResult(data);
+    });
 
-  this.networkManager.onMessage("starterReceived", (data) => {
+   this.networkManager.onMessage("starterEligibility", (data) => {
+  console.log("📥 Réponse éligibilité starter:", data);
+  
+  if (data.eligible) {
+    console.log("✅ Joueur éligible - affichage starter");
+    
+    // ✅ FORCER LA RÉINITIALISATION AVANT AFFICHAGE
+    if (this.scene.starterSelector && !this.scene.starterSelector.starterOptions) {
+      this.scene.starterSelector.starterOptions = data.availableStarters || [];
+    }
+    
+    // Utiliser les starters du serveur
+    this.scene.showStarterSelection(data.availableStarters);
+  } else {
+    console.log("❌ Joueur non éligible:", data.reason);
+    // ✅ LOG SIMPLE AU LIEU DE showMessage
+    console.log(`❌ ${data.message || "Starter non disponible"}`);
+  }
+});
+    this.networkManager.onMessage("starterReceived", (data) => {
     console.log("📥 Starter reçu:", data);
     
     if (data.success) {
@@ -256,7 +251,7 @@ setupNetworkHandlers() {
       this.showMessage(data.message || 'Erreur sélection', 'error');
     }
   });
-}
+  }
 
   isShopInteraction(data) {
     return !!(
@@ -296,6 +291,7 @@ setupNetworkHandlers() {
   }
 
   handleInteractionResult(data) {
+    if (this.isShopInteraction(data)) return;
     if (window._questDialogActive) return;
 
     const systemName = this.mapResponseToSystem(data);
@@ -313,24 +309,22 @@ setupNetworkHandlers() {
     }
   }
 
-mapResponseToSystem(data) {
-  const typeMapping = {
-    // ✅ MODIFIÉ : Les shops deviennent des dialogues !
-    'shop': 'dialogue',
-    'merchant': 'dialogue', 
-    'questGiver': 'quest',
-    'questComplete': 'quest',
-    'questProgress': 'quest',
-    'heal': 'heal',
-    'dialogue': 'dialogue',
-    'starterTable': 'starter'
-  };
-  
-  // ✅ MODIFIÉ : Les marchands passent par le dialogue !
-  if (data.shopId || (data.npcType && data.npcType === "merchant")) return 'dialogue';
-  if (data.type && typeMapping[data.type]) return typeMapping[data.type];
-  return 'dialogue';
-}
+  mapResponseToSystem(data) {
+    const typeMapping = {
+      'shop': 'shop',
+      'merchant': 'shop',
+      'questGiver': 'quest',
+      'questComplete': 'quest',
+      'questProgress': 'quest',
+      'heal': 'heal',
+      'dialogue': 'dialogue',
+      'starterTable': 'starter'
+    };
+    
+    if (data.shopId || (data.npcType && data.npcType === "merchant")) return 'shop';
+    if (data.type && typeMapping[data.type]) return typeMapping[data.type];
+    return 'dialogue';
+  }
 
   // === ÉTAT & BLOQUEURS ===
 
@@ -475,82 +469,20 @@ mapResponseToSystem(data) {
   }
 }
   
-handleDialogueInteraction(npc, data) {
-  if (typeof window.showNpcDialogue !== 'function') {
-    this.showMessage("Système de dialogue non disponible", 'error');
-    return;
-  }
-  
-  const dialogueData = this.createDialogueData(npc, data);
-  
-  // ✅ NOUVEAU : Détecter si c'est un marchand
-  const isMerchant = npc && this.isNpcMerchant(npc);
-  if (isMerchant) {
-    dialogueData.onClose = () => {
-      // Afficher le menu avec les choix "Acheter" et "Quitter"
-      this.showMerchantChoiceMenu(npc);
-    };
-  }
-  
-  try {
-    window.showNpcDialogue(dialogueData);
-  } catch (error) {
-    this.showMessage(`Erreur dialogue: ${error.message}`, 'error');
-  }
-}
-
-  showMerchantChoiceMenu(npc) {
-  // Créer un dialogue stylé Pokémon pour le menu marchand
-  const merchantName = npc.name || "Marchand";
-  const portrait = npc.portrait || `/assets/portrait/${npc.sprite}Portrait.png` || "/assets/portrait/defaultPortrait.png";
-  
-  // Messages d'accueil variés selon le type de marchand
-  const greetingMessages = [
-    "Bienvenue dans ma boutique ! Que puis-je faire pour vous ?",
-    "Salut dresseur ! Besoin d'équipement pour votre aventure ?", 
-    "Bonjour ! J'ai tout ce qu'il faut pour un bon dresseur !",
-    "Ah, un client ! Jetez un œil à mes articles de qualité !",
-    "Que puis-je vous proposer aujourd'hui, jeune dresseur ?"
-  ];
-  
-  const randomGreeting = greetingMessages[Math.floor(Math.random() * greetingMessages.length)];
-  
-  // Utiliser le système de dialogue avec menu
-  window.showNpcDialogue({
-    portrait: portrait,
-    name: merchantName,
-    lines: [randomGreeting],
-    onClose: () => {
-      // Quand ce dialogue se ferme, afficher les choix
-      this.showMerchantOptions(npc);
+  handleDialogueInteraction(npc, data) {
+    if (typeof window.showNpcDialogue !== 'function') {
+      this.showMessage("Système de dialogue non disponible", 'error');
+      return;
     }
-  });
-}
-
-showMerchantOptions(npc) {
-  const merchantName = npc.name || "Marchand";
-  const portrait = npc.portrait || `/assets/portrait/${npc.sprite}Portrait.png` || "/assets/portrait/defaultPortrait.png";
-  
-  // Dialogue avec les options stylées
-  window.showNpcDialogue({
-    portrait: portrait,
-    name: merchantName,
-    lines: [
-      "╔══════════════════╗",
-      "║    [A] Acheter   ║", 
-      "║    [Q] Quitter   ║",
-      "╚══════════════════╝"
-    ],
-    onClose: () => {
-      // Si le joueur ferme sans choisir, on ne fait rien
-      console.log("Menu marchand fermé sans choix");
+    
+    const dialogueData = this.createDialogueData(npc, data);
+    try {
+      window.showNpcDialogue(dialogueData);
+    } catch (error) {
+      this.showMessage(`Erreur dialogue: ${error.message}`, 'error');
     }
-  });
-  
-  // Écouter les touches A et Q pendant que le menu est ouvert
-  this.setupMerchantMenuListeners(npc);
-}
-  
+  }
+
   handleFallbackInteraction(data) {
     this.handleDialogueInteraction(null, {
       message: data?.message || "Interaction non gérée"
