@@ -78,6 +78,8 @@ this.load.audio('road1_theme', 'assets/audio/music/road1_theme.mp3');
     this.load.spritesheet('oldman1', 'assets/npc/oldman1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('Scientist', 'assets/npc/scientist1.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('OldLady', 'assets/npc/oldlady1.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('Olivia', 'assets/npc/floristvillage.png', { frameWidth: 32, frameHeight: 32 });
+
 
     // ✅ TEST SIMPLE - Bulbasaur back
 this.load.spritesheet('pokemon_001_back', 'assets/pokemon/001/back.png', {
