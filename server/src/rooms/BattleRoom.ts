@@ -466,7 +466,7 @@ private async playAITurnNow() {
     // Créer l'action de l'IA
     const aiAction = new BattleAction();
     aiAction.type = "attack";
-    aiAction.playerId = "ai"; // ID spécial pour l'IA
+    aiAction.playerId = "ai";
     aiAction.data = JSON.stringify({
       actionType: "attack",
       moveId: randomMove
@@ -489,6 +489,20 @@ private async playAITurnNow() {
     
     console.log(`🤖 [AI TURN] Action IA traitée`);
     
+    // ✅ NOUVEAU: Forcer le changement de tour vers le joueur
+    if (!this.state.battleEnded) {
+      console.log(`🔄 [AI TURN] Changement de tour forcé: player2 → player1`);
+      this.state.currentTurn = "player1";
+      this.state.waitingForAction = true;
+      this.state.turnNumber++;
+      
+      console.log(`🔄 [AI TURN] Nouveau état:`, {
+        currentTurn: this.state.currentTurn,
+        waitingForAction: this.state.waitingForAction,
+        turnNumber: this.state.turnNumber
+      });
+    }
+    
     // Broadcast des changements
     this.broadcastBattleUpdate();
     
@@ -498,11 +512,6 @@ private async playAITurnNow() {
     } else {
       this.updatePlayerHpPercentages();
       this.updateBattleStatusIcons();
-      
-      // Vérifier si c'est encore le tour de l'IA
-      this.clock.setTimeout(() => {
-        this.checkAndPlayAITurn();
-      }, 1000);
     }
     
   } catch (error) {
