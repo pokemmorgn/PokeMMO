@@ -1527,25 +1527,40 @@ handleNetworkBattleStart(data) {
   /**
  * Séquence d'introduction authentique style Pokémon
  */
+/**
+ * Séquence d'introduction authentique style Pokémon
+ */
 startBattleIntroSequence(opponentPokemon) {
   console.log('🎬 [BattleScene] Début séquence introduction...');
   
   const opponentName = opponentPokemon?.name || 'Pokémon sauvage';
   
-  // Phase 1: Apparition du Pokémon sauvage
+  // Phase 1: Apparition du Pokémon sauvage (plus long)
   setTimeout(() => {
     this.showActionMessage(`Un ${opponentName} sauvage apparaît !`);
   }, 500);
   
-  // Phase 2: Message de combat
+  // Phase 2: Message de combat (plus long)
   setTimeout(() => {
     this.showActionMessage('Le combat commence !');
-  }, 3000);
+  }, 4000);  // ✅ 4 secondes au lieu de 3
   
-  // Phase 3: Début du tour (selon la vitesse)
+  // Phase 3: Début du tour (plus long)
   setTimeout(() => {
     this.checkWhoStartsFirst();
-  }, 5000);
+  }, 7000);  // ✅ 7 secondes au lieu de 5
+}
+
+/**
+ * Détermine qui commence le combat et lance le premier tour
+ */
+checkWhoStartsFirst() {
+  // ✅ TEXTE AUTHENTIQUE POKÉMON
+  this.showActionMessage('Que voulez-vous faire ?');
+  
+  setTimeout(() => {
+    this.showActionButtons();
+  }, 2500);  // ✅ Légèrement plus long
 }
 
 /**
