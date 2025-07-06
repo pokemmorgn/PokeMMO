@@ -10,7 +10,7 @@ import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
 import { ClientTimeWeatherManager } from './managers/ClientTimeWeatherManager.js';
 import { StarterUtils, integrateStarterSelectorToScene } from './components/StarterSelector.js';
 import { BattleUITransition } from './Battle/BattleUITransition.js';
-import { createTeamUIIntegration } from './src/components/TeamUIIntegration.js';
+import { createTeamUIIntegration } from './components/TeamUIIntegration.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
