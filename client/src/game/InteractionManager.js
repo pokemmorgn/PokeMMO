@@ -212,37 +212,42 @@ export class InteractionManager {
 
   // === GESTION RÉSEAU ===
 
-  setupNetworkHandlers() {
-    if (!this.networkManager) return;
+setupNetworkHandlers() {
+  if (!this.networkManager) return;
 
-    this.networkManager.onMessage("npcInteractionResult", (data) => {
-      if (this.isShopInteraction(data)) {
-        this.handleShopInteractionResult(data);
-        return;
+  // ✅ MODIFIÉ : Ne plus traiter les shops automatiquement
+  this.networkManager.onMessage("npcInteractionResult", (data) => {
+    // ✅ COMMENTÉ : Ne plus ouvrir le shop directement
+    // if (this.isShopInteraction(data)) {
+    //   this.handleShopInteractionResult(data);
+    //   return;
+    // }
+    
+    // ✅ Maintenant tout passe par handleInteractionResult (y compris les shops)
+    this.handleInteractionResult(data);
+  });
+
+  this.networkManager.onMessage("starterEligibility", (data) => {
+    console.log("📥 Réponse éligibilité starter:", data);
+    
+    if (data.eligible) {
+      console.log("✅ Joueur éligible - affichage starter");
+      
+      // ✅ FORCER LA RÉINITIALISATION AVANT AFFICHAGE
+      if (this.scene.starterSelector && !this.scene.starterSelector.starterOptions) {
+        this.scene.starterSelector.starterOptions = data.availableStarters || [];
       }
-      this.handleInteractionResult(data);
-    });
-
-   this.networkManager.onMessage("starterEligibility", (data) => {
-  console.log("📥 Réponse éligibilité starter:", data);
-  
-  if (data.eligible) {
-    console.log("✅ Joueur éligible - affichage starter");
-    
-    // ✅ FORCER LA RÉINITIALISATION AVANT AFFICHAGE
-    if (this.scene.starterSelector && !this.scene.starterSelector.starterOptions) {
-      this.scene.starterSelector.starterOptions = data.availableStarters || [];
+      
+      // Utiliser les starters du serveur
+      this.scene.showStarterSelection(data.availableStarters);
+    } else {
+      console.log("❌ Joueur non éligible:", data.reason);
+      // ✅ LOG SIMPLE AU LIEU DE showMessage
+      console.log(`❌ ${data.message || "Starter non disponible"}`);
     }
-    
-    // Utiliser les starters du serveur
-    this.scene.showStarterSelection(data.availableStarters);
-  } else {
-    console.log("❌ Joueur non éligible:", data.reason);
-    // ✅ LOG SIMPLE AU LIEU DE showMessage
-    console.log(`❌ ${data.message || "Starter non disponible"}`);
-  }
-});
-    this.networkManager.onMessage("starterReceived", (data) => {
+  });
+
+  this.networkManager.onMessage("starterReceived", (data) => {
     console.log("📥 Starter reçu:", data);
     
     if (data.success) {
@@ -252,7 +257,7 @@ export class InteractionManager {
       this.showMessage(data.message || 'Erreur sélection', 'error');
     }
   });
-  }
+}
 
   isShopInteraction(data) {
     return !!(
@@ -292,7 +297,6 @@ export class InteractionManager {
   }
 
   handleInteractionResult(data) {
-    if (this.isShopInteraction(data)) return;
     if (window._questDialogActive) return;
 
     const systemName = this.mapResponseToSystem(data);
