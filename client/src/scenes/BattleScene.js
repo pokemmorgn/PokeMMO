@@ -1216,7 +1216,6 @@ executePlayerAction(actionData) {
   
   if (actionData.type === 'move') {
     this.showActionMessage(`${this.currentPlayerPokemon?.name} utilise ${actionData.moveName}!`); // ✅ BONNE MÉTHODE !
-  }
     
     // ✅ NOUVEAU: Envoyer l'attaque au serveur
     if (this.battleNetworkHandler) {
@@ -1245,7 +1244,7 @@ executePlayerAction(actionData) {
     
     // Effet visuel d'attaque (côté client)
     this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
-  }
+  } // ✅ ACCOLADE DÉPLACÉE ICI !
 }
 
   simulateAttackResult(attackData) {
