@@ -1944,11 +1944,22 @@ showActionButtons() {
   // Masquer le texte
   this.hideActionMessage();
   
-  // Afficher les boutons
-  this.showModernActionMenu();
+  // ✅ CORRECTION: Réafficher tous les boutons
+  if (this.actionInterface) {
+    this.actionInterface.list.forEach(child => {
+      // Réafficher tout sauf le panel de fond (index 0) et le texte
+      if (child !== this.actionInterface.list[0] && child !== this.actionMessageText) {
+        child.setVisible(true);
+      }
+    });
+    
+    // S'assurer que l'interface est visible
+    this.actionInterface.setVisible(true);
+    this.actionInterface.setAlpha(1);
+  }
+  
   this.interfaceMode = 'buttons';
 }
-
 /**
  * Masque les boutons d'action
  */
