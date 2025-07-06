@@ -97,6 +97,19 @@ export class VillageLabScene extends BaseZoneScene {
         properties: properties
       };
 
+          // ✅ SPÉCIFIER LE FRAME POUR TOM ET ERIC
+    if (npcObj.name === 'Tom') {
+      npcData.sprite = 'scientist1';
+      npcData.frameIndex = 9; // ✅ Tom utilise le frame 9
+      console.log(`[VillageLabScene] 🧪 Tom configuré avec scientist1 frame ${npcData.frameIndex}`);
+    }
+    
+    if (npcObj.name === 'Eric') {
+      npcData.sprite = 'scientist1';
+      npcData.frameIndex = 5; // ✅ Eric utilise le frame 5
+      console.log(`[VillageLabScene] 🧪 Eric configuré avec scientist1 frame ${npcData.frameIndex}`);
+    }
+      
       npcsToCreate.push(npcData);
       console.log(`[VillageLabScene] 👤 NPC préparé: ${npcData.name}`, npcData);
     });
