@@ -206,15 +206,9 @@ async processAction(action: BattleAction): Promise<void> {
   
   this.battleState.pendingActions.push(action);
 
-  // ✅ FIX: Si c'est un combat sauvage et action du joueur, générer l'action de l'IA
-  // ✅ CORRECTION: Ne générer l'action IA QUE pour les actions du joueur réel
-  if (this.battleState.battleType === "wild" && 
-      action.playerId === this.battleState.player1Id && 
-      action.playerId !== "ai") {
-    const aiAction = this.generateAIAction();
-    this.battleState.pendingActions.push(aiAction);
-    console.log(`🤖 [BattleManager] Action IA générée: ${aiAction.type}`);
-  }
+  // ✅ SUPPRIMÉ: La génération automatique d'action IA 
+  // Maintenant BattleRoom se charge de générer les actions IA séparément
+  console.log(`🎮 [BattleManager] Action ajoutée, ${this.battleState.pendingActions.length} action(s) en attente`);
 
   // Exécuter les actions quand on en a assez
   if (this.shouldExecuteActions()) {
@@ -271,39 +265,29 @@ private async executeActions(): Promise<void> {
   console.log(`🔥 [BATTLE MANAGER] Vérification fin de combat...`);
   this.checkBattleEnd();
 
-if (!this.battleState.battleEnded) {
-  this.battleState.turnNumber++;
-  
-  // ✅ FIX: Alterner les tours correctement
-  const oldTurn = this.battleState.currentTurn;
-  this.battleState.currentTurn = this.battleState.currentTurn === "player1" ? "player2" : "player1";
-  this.battleState.waitingForAction = true;
-  
-  console.log(`🔥 [BATTLE MANAGER] === NOUVEAU TOUR ===`);
-  console.log(`🔥 [BATTLE MANAGER] Tour ${this.battleState.turnNumber}`);
-  console.log(`🔥 [BATTLE MANAGER] Ancien tour: ${oldTurn}`);
-  console.log(`🔥 [BATTLE MANAGER] Nouveau tour: ${this.battleState.currentTurn}`);
-  console.log(`🔥 [BATTLE MANAGER] Waiting for action: ${this.battleState.waitingForAction}`);
-  
-  // ✅ NOUVEAU: Si c'est le tour de l'IA, générer son action automatiquement
-  if (this.battleState.battleType === "wild" && this.battleState.currentTurn === "player2") {
-    console.log('🤖 [AI CHECK] ✅ Nouveau tour IA, génération action dans 1 seconde...');
-    setTimeout(() => {
-      if (!this.battleState.battleEnded && this.battleState.currentTurn === "player2") {
-        console.log('🤖 [AI CHECK] ✅ Génération action IA différée...');
-        const aiAction = this.generateAIAction();
-        this.battleState.pendingActions.push(aiAction);
-        console.log(`🤖 [AI CHECK] Action IA ajoutée: ${aiAction.type}`);
-        
-        // Exécuter immédiatement l'action IA
-        this.executeActions();
-      }
-    }, 1000);
+  if (!this.battleState.battleEnded) {
+    this.battleState.turnNumber++;
+    
+    // ✅ FIX: Alterner les tours correctement
+    const oldTurn = this.battleState.currentTurn;
+    this.battleState.currentTurn = this.battleState.currentTurn === "player1" ? "player2" : "player1";
+    this.battleState.waitingForAction = true;
+    
+    console.log(`🔥 [BATTLE MANAGER] === NOUVEAU TOUR ===`);
+    console.log(`🔥 [BATTLE MANAGER] Tour ${this.battleState.turnNumber}`);
+    console.log(`🔥 [BATTLE MANAGER] Ancien tour: ${oldTurn}`);
+    console.log(`🔥 [BATTLE MANAGER] Nouveau tour: ${this.battleState.currentTurn}`);
+    console.log(`🔥 [BATTLE MANAGER] Waiting for action: ${this.battleState.waitingForAction}`);
+    
+    // ✅ SUPPRIMÉ: Toute la logique de génération d'action IA
+    // BattleRoom va maintenant gérer les tours d'IA via broadcastBattleUpdate()
+    console.log(`🔥 [BATTLE MANAGER] Tour changé, BattleRoom va gérer l'IA si nécessaire`);
+    
+  } else {
+    console.log(`🔥 [BATTLE MANAGER] Combat terminé, pas de nouveau tour`);
   }
-} else {
-  console.log(`🔥 [BATTLE MANAGER] Combat terminé, pas de nouveau tour`);
 }
-}
+
 
   // ✅ FIX: Amélioration de la génération d'action IA
   private generateAIAction(): BattleAction {
@@ -328,8 +312,14 @@ if (!this.battleState.battleEnded) {
     return aiAction;
   }
 
-  private shouldExecuteActions(): boolean {
+  priprivate shouldExecuteActions(): boolean {
   if (this.battleState.battleType === "wild") {
+    // Pour les combats sauvages, exécuter dès qu'on a au moins 1 action
+    // BattleRoom gérera la génération d'actions IA séparément
+    return this.battleState.pendingActions.length >= 1;
+  }
+  return this.battleState.pendingActions.length >= 2; // Deux actions pour combat PvP
+}battleType === "wild") {
     return this.battleState.pendingActions.length >= 2; // ✅ FIX: Joueur + IA
   }
   return this.battleState.pendingActions.length >= 2; // Deux actions pour combat PvP
