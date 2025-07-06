@@ -1521,12 +1521,7 @@ handleNetworkBattleStart(data) {
   this.activateBattleUI();
   this.isVisible = true;
   
-  setTimeout(() => {
-    this.showBattleMessage('Un combat commence !', 2000);
-    setTimeout(() => {
-      this.showModernActionMenu();
-    }, 2500);
-  }, 1500);
+  this.startBattleIntroSequence(data.opponentPokemon);
 }
 
   /**
