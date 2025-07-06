@@ -1538,12 +1538,7 @@ startBattleIntroSequence(opponentPokemon) {
   // Phase 1: Apparition du Pokémon sauvage (plus long)
   setTimeout(() => {
     this.showActionMessage(`Un ${opponentName} sauvage apparaît !`);
-  }, 500);
-  
-  // Phase 2: Message de combat (plus long)
-  setTimeout(() => {
-    this.showActionMessage('Le combat commence !');
-  }, 4000);  // ✅ 4 secondes au lieu de 3
+  }, 2000);
   
   // Phase 3: Début du tour (plus long)
   setTimeout(() => {
@@ -1563,19 +1558,6 @@ checkWhoStartsFirst() {
   }, 2500);  // ✅ Légèrement plus long
 }
 
-/**
- * Détermine qui commence le combat et lance le premier tour
- */
-checkWhoStartsFirst() {
-  // Pour l'instant, on affiche toujours les boutons du joueur
-  // Plus tard on gérera la vitesse
-  this.showActionMessage('Que voulez-vous faire ?');
-  
-  setTimeout(() => {
-    this.showActionButtons();
-  }, 2000);
-}
-  
   /**
  * ✅ NOUVEAU: Handler pour les mises à jour de combat (barres de vie, tours, etc.)
  */
