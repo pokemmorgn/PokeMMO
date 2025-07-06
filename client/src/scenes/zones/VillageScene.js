@@ -16,10 +16,24 @@ export class VillageScene extends BaseZoneScene {
     
     console.log(`[VillageScene] Mon joueur est prêt à (${myPlayer.x}, ${myPlayer.y})`);
     
-    // ✅ INITIALISER L'INTRO PSYDUCK (sans dialogue)
+    // ✅ Setup des listeners serveur en premier
+    this.setupServerListeners();
+    
+    // ✅ VÉRIFIER le contexte d'arrivée
+    const initData = this.scene.settings.data || {};
+    const fromBeach = initData.fromZone === 'BeachScene' || initData.fromZone === 'beach';
+    
+    console.log(`[VillageScene] 📊 Contexte:`, {
+      fromBeach,
+      fromZone: initData.fromZone,
+      fromTransition: initData.fromTransition,
+      playerPosition: { x: myPlayer.x, y: myPlayer.y }
+    });
+    
+    // ✅ INITIALISER L'INTRO
     this.initializePsyduckIntro();
     
-    // Affichage instructions (exemple)
+    // Affichage instructions
     this.add.text(16, 16, 'Arrow keys to move\nPress "D" to show hitboxes', {
       font: '18px monospace',
       fill: '#000000',
@@ -27,32 +41,25 @@ export class VillageScene extends BaseZoneScene {
       backgroundColor: '#ffffff',
     }).setScrollFactor(0).setDepth(30);
     
-    // Evénements d'accueil custom
+    // Evénements d'accueil
     this.setupVillageEvents();
     
-    // ✅ DÉMARRER L'INTRO PSYDUCK SIMPLE (sans dialogue)
-    this.startPsyduckIntroIfNeeded();
+    // ✅ DÉMARRER L'INTRO seulement si vient de la plage ET a la quête
+    if (fromBeach) {
+      console.log('[VillageScene] 🎬 Arrivée depuis plage - vérification quête...');
+      this.startPsyduckIntroIfNeeded();
+    } else {
+      console.log('[VillageScene] 🔄 Pas depuis la plage - pas d\'intro');
+    }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Initialiser le manager Psyduck
-  initializePsyduckIntro() {
-    try {
-      console.log('[VillageScene] 🦆 Initialisation intro Psyduck...');
-      
-      this.psyduckIntroManager = new PsyduckIntroManager(this);
-      
-      // ✅ Configurer les positions selon votre carte village
-      // À adapter selon les coordonnées réelles de votre laboratoire et téléport
-      this.psyduckIntroManager.setLabAndTeleportPositions(
-        885, 435,  // Position devant le lab (x, y) - À ADAPTER
-        897, 521   // Position du téléport (x, y) - À ADAPTER
-      );
-      
-      console.log('[VillageScene] ✅ Manager Psyduck initialisé');
-      
-    } catch (error) {
-      console.error('[VillageScene] ❌ Erreur init Psyduck:', error);
-    }
+  // ✅ MÉTHODE SIMPLIFIÉE: Setup des listeners (optionnel)
+  setupServerListeners() {
+    if (!this.networkManager?.room) return;
+    
+    // ✅ Les handlers existent déjà dans QuestHandlers.ts
+    // On peut écouter les événements de quête si besoin
+    console.log('[VillageScene] ✅ Connexion au système de quêtes existant');
   }
 
   // ✅ MÉTHODE SIMPLIFIÉE: Démarrer l'intro simple (sans dialogue)
@@ -77,41 +84,89 @@ export class VillageScene extends BaseZoneScene {
     }
   }
 
+  // ✅ MÉTHODE MODIFIÉE: Condition pour jouer l'intro
   shouldPlayPsyduckIntro() {
-    // ✅ POUR L'INSTANT: Toujours jouer l'intro village
-    console.log('[VillageScene] 🎬 Intro village autorisée (mode test)');
-    return true;
-    
-    /* ✅ CODE POUR PLUS TARD (quand vous voulez activer la logique de quête)
-    
-    // Vérifier si on a déjà joué l'intro dans cette session
+    // ✅ Vérifier si on a déjà joué l'intro dans cette session
     if (this.hasPlayedIntro) {
+      console.log('[VillageScene] ❌ Intro déjà jouée cette session');
       return false;
     }
     
-    // Vérifier localStorage pour éviter de rejouer
+    // ✅ Vérifier localStorage pour éviter de rejouer
     if (typeof window !== 'undefined') {
       const hasSeenVillageIntro = window.localStorage?.getItem('hasSeenVillageIntro');
       if (hasSeenVillageIntro === 'true') {
+        console.log('[VillageScene] ❌ Intro déjà vue (localStorage)');
         return false;
       }
     }
     
-    // Vérifier si on a la quête de l'intro beach
+    // ✅ NOUVEAU: Vérifier si on a la quête beach d'intro
     if (!this.hasBeachIntroQuest()) {
       console.log('[VillageScene] ❌ Pas de quête beach intro - village intro non autorisée');
       return false;
     }
     
-    console.log('[VillageScene] ✅ Quête beach intro détectée - village intro autorisée');
-    return true;
+    // ✅ NOUVEAU: Vérifier si on vient bien de la plage (première fois)
+    const initData = this.scene.settings.data || {};
+    const fromBeach = initData.fromZone === 'BeachScene' || initData.fromZone === 'beach';
     
-    */
+    if (fromBeach) {
+      console.log('[VillageScene] ✅ Quête beach intro détectée + arrivée depuis plage - intro autorisée');
+      return true;
+    }
+    
+    console.log('[VillageScene] ❌ Pas depuis la plage - pas d\'intro');
+    return false;
   }
 
+  // ✅ MÉTHODE SIMPLIFIÉE: Vérifier la quête beach via système existant
   hasBeachIntroQuest() {
-    // ✅ POUR L'INSTANT: Toujours retourner true
-    return true;
+    try {
+      // ✅ Vérifier via le système de quêtes global
+      if (window.questSystem) {
+        const hasActiveBeachQuest = window.questSystem.hasActiveQuest?.('beach_intro_quest');
+        const hasCompletedBeachQuest = window.questSystem.hasCompletedQuest?.('beach_intro_quest');
+        
+        const hasBeachQuest = hasActiveBeachQuest || hasCompletedBeachQuest;
+        console.log('[VillageScene] 🔍 Quête beach:', {
+          active: hasActiveBeachQuest,
+          completed: hasCompletedBeachQuest,
+          hasQuest: hasBeachQuest
+        });
+        
+        return hasBeachQuest;
+      }
+      
+      // ✅ Fallback - retourner false si pas de système
+      console.warn('[VillageScene] ⚠️ QuestSystem pas disponible - pas d\'intro');
+      return false;
+      
+    } catch (error) {
+      console.error('[VillageScene] ❌ Erreur vérification quête beach:', error);
+      return false;
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Initialiser le manager Psyduck
+  initializePsyduckIntro() {
+    try {
+      console.log('[VillageScene] 🦆 Initialisation intro Psyduck...');
+      
+      this.psyduckIntroManager = new PsyduckIntroManager(this);
+      
+      // ✅ Configurer les positions selon votre carte village
+      // À adapter selon les coordonnées réelles de votre laboratoire et téléport
+      this.psyduckIntroManager.setLabAndTeleportPositions(
+        885, 435,  // Position devant le lab (x, y) - À ADAPTER
+        897, 521   // Position du téléport (x, y) - À ADAPTER
+      );
+      
+      console.log('[VillageScene] ✅ Manager Psyduck initialisé');
+      
+    } catch (error) {
+      console.error('[VillageScene] ❌ Erreur init Psyduck:', error);
+    }
   }
 
   onPsyduckIntroComplete() {
@@ -211,6 +266,12 @@ export class VillageScene extends BaseZoneScene {
     
     // ✅ TOUCHES DE TEST pour développement
     if (this.input && this.input.keyboard) {
+      // Touche Q : Debug statut quête
+      this.input.keyboard.on('keydown-Q', () => {
+        console.log('[VillageScene] 🔍 Debug quest status...');
+        this.debugQuestStatus();
+      });
+      
       this.input.keyboard.on('keydown-T', () => {
         console.log('[VillageScene] 🧪 Test intro Psyduck SIMPLE...');
         if (this.psyduckIntroManager) {
@@ -238,6 +299,31 @@ export class VillageScene extends BaseZoneScene {
         this.resetPsyduckIntro();
       });
     }
+  }
+
+  // ✅ MÉTHODE SIMPLIFIÉE: Debug via système existant
+  debugQuestStatus() {
+    console.log(`🔍 [VillageScene] === DEBUG QUEST STATUS ===`);
+    
+    // Vérifier le système de quêtes global
+    if (window.questSystem) {
+      console.log(`✅ [VillageScene] QuestSystem global disponible`);
+      
+      // Utiliser les méthodes existantes
+      const hasBeachActive = window.questSystem.hasActiveQuest?.('beach_intro_quest');
+      const hasBeachCompleted = window.questSystem.hasCompletedQuest?.('beach_intro_quest');
+      
+      console.log(`🏖️ [VillageScene] Quête beach - Active: ${hasBeachActive}, Terminée: ${hasBeachCompleted}`);
+      
+      // Debug général du système
+      if (typeof window.questSystem.debugQuests === 'function') {
+        window.questSystem.debugQuests();
+      }
+    } else {
+      console.error(`❌ [VillageScene] QuestSystem global MANQUANT`);
+    }
+    
+    console.log(`=======================================`);
   }
 
   resetPsyduckIntro() {
