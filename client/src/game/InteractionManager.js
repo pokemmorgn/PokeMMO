@@ -84,8 +84,8 @@ export class InteractionManager {
 });
     
 this.registerSystem('shop', {
-  priority: 98,  // ← Priorité basse, ne se déclenche plus automatiquement
-  canHandle: (npc) => false, // ← Désactivé temporairement
+  priority: 98,  // ✅ Priorité basse 
+  canHandle: (npc) => false, // ✅ IMPORTANT: Désactivé !
   handle: (npc, data) => this.handleShopInteraction(npc, data),
   validateState: () => !this.isShopOpen(),
   description: "Système de boutique/marchand"
