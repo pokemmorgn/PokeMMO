@@ -387,9 +387,6 @@
         "minLevel": 1,
         "proximityCheck": { "enabled": true }
       },
-      "message": {
-        "failure": "Vous devez être niveau 5+ pour accéder à la Route 1"
-      },
       "enabled": true
     },
     {
@@ -462,9 +459,6 @@
         "minLevel": 1,
         "proximityCheck": { "enabled": true }
       },
-      "message": {
-        "failure": "Vous devez être niveau 15+ et avoir terminé la quête starter pour accéder à Lavandia"
-      },
       "enabled": true
     },
     {
@@ -490,10 +484,6 @@
         "vipOnly": true,
         "proximityCheck": { "enabled": true }
       },
-      "message": {
-        "success": "Téléportation VIP vers Route 1 !",
-        "failure": "Accès VIP requis pour cette téléportation"
-      },
       "enabled": false
     },
     {
@@ -510,9 +500,6 @@
         },
         "proximityCheck": { "enabled": true }
       },
-      "message": {
-        "failure": "Cette transition n'est disponible que la nuit (22h-6h)"
-      },
       "enabled": false
     },
     {
@@ -528,9 +515,6 @@
           "allowedDays": [0, 6]
         },
         "proximityCheck": { "enabled": true }
-      },
-      "message": {
-        "failure": "Cette téléportation spéciale n'est disponible que le weekend"
       },
       "enabled": false
     },
