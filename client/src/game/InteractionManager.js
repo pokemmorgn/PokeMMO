@@ -83,13 +83,13 @@ export class InteractionManager {
   description: "Table starter Pokémon"
 });
     
-    this.registerSystem('shop', {
-      priority: 1,
-      canHandle: (npc) => this.isNpcMerchant(npc),
-      handle: (npc, data) => this.handleShopInteraction(npc, data),
-      validateState: () => !this.isShopOpen(),
-      description: "Système de boutique/marchand"
-    });
+this.registerSystem('shop', {
+  priority: 98,  // ← Priorité basse, ne se déclenche plus automatiquement
+  canHandle: (npc) => false, // ← Désactivé temporairement
+  handle: (npc, data) => this.handleShopInteraction(npc, data),
+  validateState: () => !this.isShopOpen(),
+  description: "Système de boutique/marchand"
+});
 
     this.registerSystem('quest', {
       priority: 2,
@@ -469,20 +469,82 @@ export class InteractionManager {
   }
 }
   
-  handleDialogueInteraction(npc, data) {
-    if (typeof window.showNpcDialogue !== 'function') {
-      this.showMessage("Système de dialogue non disponible", 'error');
-      return;
-    }
-    
-    const dialogueData = this.createDialogueData(npc, data);
-    try {
-      window.showNpcDialogue(dialogueData);
-    } catch (error) {
-      this.showMessage(`Erreur dialogue: ${error.message}`, 'error');
-    }
+handleDialogueInteraction(npc, data) {
+  if (typeof window.showNpcDialogue !== 'function') {
+    this.showMessage("Système de dialogue non disponible", 'error');
+    return;
   }
+  
+  const dialogueData = this.createDialogueData(npc, data);
+  
+  // ✅ NOUVEAU : Détecter si c'est un marchand
+  const isMerchant = npc && this.isNpcMerchant(npc);
+  if (isMerchant) {
+    dialogueData.onClose = () => {
+      // Afficher le menu avec les choix "Acheter" et "Quitter"
+      this.showMerchantChoiceMenu(npc);
+    };
+  }
+  
+  try {
+    window.showNpcDialogue(dialogueData);
+  } catch (error) {
+    this.showMessage(`Erreur dialogue: ${error.message}`, 'error');
+  }
+}
 
+  showMerchantChoiceMenu(npc) {
+  // Créer un dialogue stylé Pokémon pour le menu marchand
+  const merchantName = npc.name || "Marchand";
+  const portrait = npc.portrait || `/assets/portrait/${npc.sprite}Portrait.png` || "/assets/portrait/defaultPortrait.png";
+  
+  // Messages d'accueil variés selon le type de marchand
+  const greetingMessages = [
+    "Bienvenue dans ma boutique ! Que puis-je faire pour vous ?",
+    "Salut dresseur ! Besoin d'équipement pour votre aventure ?", 
+    "Bonjour ! J'ai tout ce qu'il faut pour un bon dresseur !",
+    "Ah, un client ! Jetez un œil à mes articles de qualité !",
+    "Que puis-je vous proposer aujourd'hui, jeune dresseur ?"
+  ];
+  
+  const randomGreeting = greetingMessages[Math.floor(Math.random() * greetingMessages.length)];
+  
+  // Utiliser le système de dialogue avec menu
+  window.showNpcDialogue({
+    portrait: portrait,
+    name: merchantName,
+    lines: [randomGreeting],
+    onClose: () => {
+      // Quand ce dialogue se ferme, afficher les choix
+      this.showMerchantOptions(npc);
+    }
+  });
+}
+
+showMerchantOptions(npc) {
+  const merchantName = npc.name || "Marchand";
+  const portrait = npc.portrait || `/assets/portrait/${npc.sprite}Portrait.png` || "/assets/portrait/defaultPortrait.png";
+  
+  // Dialogue avec les options stylées
+  window.showNpcDialogue({
+    portrait: portrait,
+    name: merchantName,
+    lines: [
+      "╔══════════════════╗",
+      "║    [A] Acheter   ║", 
+      "║    [Q] Quitter   ║",
+      "╚══════════════════╝"
+    ],
+    onClose: () => {
+      // Si le joueur ferme sans choisir, on ne fait rien
+      console.log("Menu marchand fermé sans choix");
+    }
+  });
+  
+  // Écouter les touches A et Q pendant que le menu est ouvert
+  this.setupMerchantMenuListeners(npc);
+}
+  
   handleFallbackInteraction(data) {
     this.handleDialogueInteraction(null, {
       message: data?.message || "Interaction non gérée"
