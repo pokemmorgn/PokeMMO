@@ -1,12 +1,13 @@
 import { BaseZoneScene } from './BaseZoneScene.js';
-import { PsyduckIntroManager } from '../intros/PsyduckIntroManager.js'; // ✅ AJOUT
+// ✅ AJUSTER LE CHEMIN selon votre structure de dossiers
+import { PsyduckIntroManager } from '../intros/PsyduckIntroManager.js';
 
 export class VillageScene extends BaseZoneScene {
   constructor() {
     super('VillageScene', 'village');
     this.transitionCooldowns = {};
-    this.psyduckIntroManager = null; // ✅ AJOUT
-    this.hasPlayedIntro = false; // ✅ AJOUT: Flag pour éviter de rejouer l'intro
+    this.psyduckIntroManager = null;
+    this.hasPlayedIntro = false;
   }
 
   // 🔥 HOOK appelé UNE FOIS dès que le joueur local est prêt et positionné
@@ -15,7 +16,7 @@ export class VillageScene extends BaseZoneScene {
     
     console.log(`[VillageScene] Mon joueur est prêt à (${myPlayer.x}, ${myPlayer.y})`);
     
-    // ✅ INITIALISER L'INTRO PSYDUCK
+    // ✅ INITIALISER L'INTRO PSYDUCK (sans dialogue)
     this.initializePsyduckIntro();
     
     // Affichage instructions (exemple)
@@ -29,7 +30,7 @@ export class VillageScene extends BaseZoneScene {
     // Evénements d'accueil custom
     this.setupVillageEvents();
     
-    // ✅ DÉMARRER L'INTRO PSYDUCK (après un délai pour que tout soit stable)
+    // ✅ DÉMARRER L'INTRO PSYDUCK SIMPLE (sans dialogue)
     this.startPsyduckIntroIfNeeded();
   }
 
@@ -43,8 +44,8 @@ export class VillageScene extends BaseZoneScene {
       // ✅ Configurer les positions selon votre carte village
       // À adapter selon les coordonnées réelles de votre laboratoire et téléport
       this.psyduckIntroManager.setLabAndTeleportPositions(
-        400, 250,  // Position devant le lab (x, y)
-        400, 180   // Position du téléport (x, y)
+        400, 250,  // Position devant le lab (x, y) - À ADAPTER
+        400, 180   // Position du téléport (x, y) - À ADAPTER
       );
       
       console.log('[VillageScene] ✅ Manager Psyduck initialisé');
@@ -54,19 +55,19 @@ export class VillageScene extends BaseZoneScene {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Démarrer l'intro si nécessaire
+  // ✅ MÉTHODE SIMPLIFIÉE: Démarrer l'intro simple (sans dialogue)
   startPsyduckIntroIfNeeded() {
-    // ✅ Vérifier si on doit jouer l'intro
     if (this.shouldPlayPsyduckIntro()) {
-      console.log('[VillageScene] 🎬 Démarrage intro Psyduck village...');
+      console.log('[VillageScene] 🎬 Démarrage intro Psyduck village SIMPLE...');
       
       // ✅ Délai pour s'assurer que tout est stable
       this.time.delayedCall(2000, () => {
         if (this.psyduckIntroManager && !this.hasPlayedIntro) {
           this.hasPlayedIntro = true;
           
-          this.psyduckIntroManager.startVillageIntro(() => {
-            console.log('[VillageScene] ✅ Intro Psyduck terminée');
+          // ✅ DÉMARRER LA SÉQUENCE SIMPLE (spawn → caméra → monte → disparaît)
+          this.psyduckIntroManager.startSimpleVillageIntro(() => {
+            console.log('[VillageScene] ✅ Intro Psyduck simple terminée');
             this.onPsyduckIntroComplete();
           });
         }
@@ -76,17 +77,13 @@ export class VillageScene extends BaseZoneScene {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Déterminer si on doit jouer l'intro
   shouldPlayPsyduckIntro() {
-    // ✅ Option 1: Toujours jouer (pour test)
-    // return true;
-    
-    // ✅ Option 2: Jouer seulement la première fois
+    // ✅ Pour le moment, toujours jouer (vous pouvez modifier cette logique)
     if (this.hasPlayedIntro) {
       return false;
     }
     
-    // ✅ Option 3: Vérifier un flag de session/localStorage
+    // ✅ Vérifier localStorage pour éviter de rejouer
     if (typeof window !== 'undefined') {
       const hasSeenVillageIntro = window.localStorage?.getItem('hasSeenVillageIntro');
       if (hasSeenVillageIntro === 'true') {
@@ -94,61 +91,21 @@ export class VillageScene extends BaseZoneScene {
       }
     }
     
-    // ✅ Option 4: Vérifier via le serveur/quête
-    // if (this.room) {
-    //   // Logique serveur pour déterminer si l'intro doit être jouée
-    // }
-    
-    return true; // Par défaut, jouer l'intro
+    return true; // Jouer l'intro
   }
 
-  // ✅ NOUVELLE MÉTHODE: Actions après l'intro
   onPsyduckIntroComplete() {
-    console.log('[VillageScene] 🎉 Intro Psyduck complétée');
+    console.log('[VillageScene] 🎉 Intro Psyduck simple complétée');
     
-    // ✅ Marquer comme vu pour cette session
     this.hasPlayedIntro = true;
     
-    // ✅ Sauvegarder dans localStorage (optionnel)
+    // ✅ Sauvegarder pour éviter de rejouer
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.setItem('hasSeenVillageIntro', 'true');
     }
     
-    // ✅ Actions post-intro (optionnel)
-    // - Débloquer certaines fonctionnalités
-    // - Afficher un message de bienvenue
-    // - Démarrer une quête
-    this.showWelcomeMessage();
-  }
-
-  // ✅ NOUVELLE MÉTHODE: Message de bienvenue après intro
-  showWelcomeMessage() {
-    const welcomeText = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY - 50,
-      'Welcome to GreenRoot Village!\nExplore and discover new adventures!',
-      {
-        fontSize: '18px',
-        fontFamily: 'monospace',
-        color: '#ffffff',
-        backgroundColor: 'rgba(0, 100, 0, 0.8)',
-        padding: { x: 15, y: 10 },
-        wordWrap: { width: 400 },
-        align: 'center'
-      }
-    ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
-
-    // ✅ Fade out après 4 secondes
-    this.time.delayedCall(4000, () => {
-      this.tweens.add({
-        targets: welcomeText,
-        alpha: 0,
-        duration: 1000,
-        onComplete: () => {
-          welcomeText.destroy();
-        }
-      });
-    });
+    // ✅ PAS de message de bienvenue - juste un log
+    console.log('[VillageScene] Le joueur peut maintenant jouer normalement');
   }
 
   setupVillageEvents() {
@@ -229,22 +186,18 @@ export class VillageScene extends BaseZoneScene {
     });
   }
 
-  // ✅ NOUVELLES MÉTHODES: Debug et test pour développement
-  
-  // Méthode pour tester l'intro manuellement (touche T par exemple)
   create() {
     super.create();
     
-    // ✅ AJOUT: Touche de test pour développement
+    // ✅ TOUCHES DE TEST pour développement
     if (this.input && this.input.keyboard) {
       this.input.keyboard.on('keydown-T', () => {
-        console.log('[VillageScene] 🧪 Test intro Psyduck...');
+        console.log('[VillageScene] 🧪 Test intro Psyduck SIMPLE...');
         if (this.psyduckIntroManager) {
-          this.psyduckIntroManager.testVillageIntro();
+          this.psyduckIntroManager.testSimpleVillageIntro();
         }
       });
 
-      // ✅ Touche pour forcer l'arrêt de l'intro
       this.input.keyboard.on('keydown-Y', () => {
         console.log('[VillageScene] 🛑 Arrêt forcé intro Psyduck...');
         if (this.psyduckIntroManager) {
@@ -252,17 +205,21 @@ export class VillageScene extends BaseZoneScene {
         }
       });
 
-      // ✅ Touche pour debug status
       this.input.keyboard.on('keydown-U', () => {
         console.log('[VillageScene] 🔍 Debug Psyduck status...');
         if (this.psyduckIntroManager) {
           this.psyduckIntroManager.debugStatus();
         }
       });
+
+      // ✅ NOUVELLE TOUCHE: Reset pour tester à nouveau
+      this.input.keyboard.on('keydown-R', () => {
+        console.log('[VillageScene] 🔄 Reset intro pour test...');
+        this.resetPsyduckIntro();
+      });
     }
   }
 
-  // ✅ Méthode pour réinitialiser l'intro (développement)
   resetPsyduckIntro() {
     this.hasPlayedIntro = false;
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -274,7 +231,6 @@ export class VillageScene extends BaseZoneScene {
   cleanup() {
     this.transitionCooldowns = {};
     
-    // ✅ AJOUT: Nettoyer le manager Psyduck
     if (this.psyduckIntroManager) {
       this.psyduckIntroManager.destroy();
       this.psyduckIntroManager = null;
