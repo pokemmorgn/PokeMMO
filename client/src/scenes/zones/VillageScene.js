@@ -128,14 +128,13 @@ export class VillageScene extends BaseZoneScene {
       
       this.psyduckIntroManager = new PsyduckIntroManager(this);
       
-      // ✅ Configurer les positions selon votre carte village
-      // À adapter selon les coordonnées réelles de votre laboratoire et téléport
+      // ✅ POSITIONS CORRECTES pour votre carte village
       this.psyduckIntroManager.setLabAndTeleportPositions(
-        885, 435,  // Position devant le lab (x, y) - À ADAPTER
-        897, 521   // Position du téléport (x, y) - À ADAPTER
+        896, 528,  // Position devant le lab (spawn Psyduck)
+        896, 480   // Position du téléport (un peu plus haut)
       );
       
-      console.log('[VillageScene] ✅ Manager Psyduck initialisé');
+      console.log('[VillageScene] ✅ Manager Psyduck initialisé - spawn à (896, 528)');
       
     } catch (error) {
       console.error('[VillageScene] ❌ Erreur init Psyduck:', error);
