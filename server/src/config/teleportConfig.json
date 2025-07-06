@@ -465,6 +465,30 @@
       },
       "enabled": true
     },
+        {
+      "id": "lavandia_to_road2",
+      "name": "Lavandia to road 2",
+      "description": "Acces vers road 2",
+      "fromZone": "lavandia",
+      "toZone": "road2",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
+        {
+      "id": "road2_to_lavandia",
+      "name": "Road 2 vers Lavandia",
+      "description": "Accès libre à lavandia",
+      "fromZone": "road2",
+      "toZone": "lavandia",
+      "conditions": {
+        "minLevel": 1,
+        "proximityCheck": { "enabled": true }
+      },
+      "enabled": true
+    },
     {
       "id": "beach_to_road1_vip",
       "name": "Plage vers Route 1 (VIP)",
