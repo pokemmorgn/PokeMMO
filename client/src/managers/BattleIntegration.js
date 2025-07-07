@@ -24,11 +24,28 @@ export class BattleIntegration {
     this.isInBattle = false;
     this.isTransitioning = false;
     
-    // ✅ AJOUT: Système battleUITransition manquant
+    // ✅ AJOUT: Système battleUITransition qui utilise pokemonUISystem
     this.battleUITransition = {
       isActive: false,
-      start: () => { this.battleUITransition.isActive = true; },
-      complete: () => { this.battleUITransition.isActive = false; }
+      start: (fromState, toState, options = {}) => {
+        this.battleUITransition.isActive = true;
+        console.log(`🎬 Transition UI: ${fromState} → ${toState}`);
+        
+        // Utiliser le vrai système de transition
+        if (window.pokemonUISystem?.setGameState) {
+          return window.pokemonUISystem.setGameState(toState, { 
+            animated: true, 
+            fromState: fromState,
+            ...options 
+          });
+        }
+        
+        return false;
+      },
+      complete: () => { 
+        this.battleUITransition.isActive = false; 
+        console.log('✅ Transition UI terminée');
+      }
     };
     
     // Références système existant
@@ -224,6 +241,10 @@ export class BattleIntegration {
     this.isTransitioning = true;
     this.currentBattleData = data;
     
+    // ✅ CORRECTION: Démarrer la vraie transition UI
+    console.log('🎬 Démarrage transition vers battle...');
+    this.battleUITransition.start('exploration', 'battle', { animated: true });
+    
     if (this.gameManager?.onEncounterStart) {
       this.gameManager.onEncounterStart(data);
     }
@@ -390,14 +411,24 @@ export class BattleIntegration {
   // === GESTION DE L'UI ===
 
   hideWorldUI() {
+    // ✅ CORRECTION: Utiliser pokemonUISystem pour une vraie transition animée
     if (window.pokemonUISystem?.setGameState) {
       try {
         this.previousUIState = window.pokemonUISystem.getCurrentGameState?.() || 'exploration';
-        window.pokemonUISystem.setGameState('battle', { animated: true });
-        console.log('✅ UI système cachée via pokemonUISystem');
-        return;
+        
+        // ✅ Transition animée vers battle
+        const success = window.pokemonUISystem.setGameState('battle', { 
+          animated: true,
+          fromState: this.previousUIState,
+          duration: 800  // Durée de transition
+        });
+        
+        if (success) {
+          console.log('✅ Transition UI animée vers battle');
+          return;
+        }
       } catch (error) {
-        console.warn('⚠️ Erreur UISystem:', error);
+        console.warn('⚠️ Erreur transition UISystem:', error);
       }
     }
     
@@ -417,16 +448,30 @@ export class BattleIntegration {
       });
     });
     
-    console.log('✅ UI manuelle cachée');
+    console.log('✅ UI manuelle cachée (sans animation)');
   }
 
   restoreWorldUI() {
+    // ✅ CORRECTION: Restaurer avec transition animée
     if (window.pokemonUISystem?.setGameState && this.previousUIState) {
       try {
-        window.pokemonUISystem.setGameState(this.previousUIState, { animated: true });
-        this.previousUIState = null;
-        console.log('✅ UI système restaurée');
-        return;
+        const success = window.pokemonUISystem.setGameState(this.previousUIState, { 
+          animated: true,
+          fromState: 'battle',
+          duration: 600  // Transition de retour plus rapide
+        });
+        
+        if (success) {
+          this.previousUIState = null;
+          console.log('✅ Transition UI animée vers', this.previousUIState || 'exploration');
+          
+          // Marquer la transition comme terminée
+          setTimeout(() => {
+            this.battleUITransition.complete();
+          }, 600);
+          
+          return;
+        }
       } catch (error) {
         console.warn('⚠️ Erreur restauration UISystem:', error);
       }
@@ -439,7 +484,7 @@ export class BattleIntegration {
       el.removeAttribute('data-battle-hidden');
     });
     
-    console.log('✅ UI manuelle restaurée');
+    console.log('✅ UI manuelle restaurée (sans animation)');
   }
 
   // === MESSAGES ET NOTIFICATIONS ===
