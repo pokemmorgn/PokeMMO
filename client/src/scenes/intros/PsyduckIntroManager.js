@@ -664,7 +664,10 @@ export class PsyduckIntroManager {
       this.psyduck = this.scene.add.sprite(labPosition.x, labPosition.y, 'psyduck_walk', 0)
         .setOrigin(0.5, 1)
         .setDepth(6);
-      
+
+      this.scene.time.delayedCall(200, () => {
+            this.startPsyduckDialoguevillage();
+        });
       // ✅ Fixer la caméra sur Psyduck
       this.focusCameraOnPsyduck();
       
@@ -703,14 +706,14 @@ export class PsyduckIntroManager {
     }
   }
 
-  startPsyduckDialogue() {
+    startPsyduckDialogue() {
     if (!this.psyduck) {
       this.cleanup();
       return;
     }
 
     try {
-      console.log('[PsyduckIntro] 💬 Dialogue avec Psyduck devant le lab');
+      console.log('[PsyduckIntro] 💬 Dialogue avec Psyduck sur la plage');
       
       this.psyduck.anims.play('psyduck_idle');
       this.notifyServer("psyduck_talked");
@@ -728,11 +731,37 @@ export class PsyduckIntroManager {
       });
 
     } catch (error) {
-      console.error(`[PsyduckIntro] Error in lab dialogue:`, error);
+      console.error(`[PsyduckIntro] Error in plage dialogue:`, error);
       this.cleanup();
     }
   }
 
+    startPsyduckDialoguevillage() {
+    if (!this.psyduck) {
+      this.cleanup();
+      return;
+    }
+
+    try {
+      console.log('[PsyduckIntro] 💬 Dialogue avec Psyduck avant labo (narrateur)');
+      this.notifyServer("follow_psyduck");
+      
+      const labMessages = [
+        { text: "Well, that weird yellow duck thing just waddled right into that big building… whatever that is.", speaker: "Narrator", hideName: true },
+        { text: "You don’t really know what’s going on, but hey — following a random Pokémon is as good a plan as any, right?", speaker: "Narrator", hideName: true },
+        { text: "Let’s see what kind of trouble it’s getting into inside that lab.", speaker: "Narrator", hideName: true },
+      ];
+      
+      this.showDialogue(labMessages, () => {
+        this.startWalkToTeleport();
+      });
+
+    } catch (error) {
+      console.error(`[PsyduckIntro] Error in village dialogue:`, error);
+      this.cleanup();
+    }
+  }
+  
   startWalkToTeleport() {
     if (!this.psyduck || !this.scene) {
       this.cleanup();
