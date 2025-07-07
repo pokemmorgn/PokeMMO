@@ -223,6 +223,7 @@ async onJoin(client: Client, options: any) {
   return {
     broadcastMessage: (messageId: string, data: any) => {
       console.log(`📡 [BattleRoom] Broadcasting message: ${messageId}`);
+      this.addBattleMessage(data.message || messageId); // ✅ AJOUT: Ajouter au battleLog
       this.broadcast('battleMessage', {
         messageId,
         message: data.message || messageId,
@@ -248,8 +249,17 @@ async onJoin(client: Client, options: any) {
 
     changeTurn: (newTurn: string) => {
       console.log(`🔄 [BattleRoom] Change turn: ${newTurn}`);
-      this.state.currentTurn = newTurn === 'ai' ? 'player2' : newTurn;
+      // ✅ CORRECTION: Bien mapper les tours
+      if (newTurn === 'player1' || newTurn === this.state.player1Id) {
+        this.state.currentTurn = "player1";
+      } else if (newTurn === 'ai' || newTurn === 'player2') {
+        this.state.currentTurn = "player2";
+      } else {
+        this.state.currentTurn = newTurn as any;
+      }
       this.state.turnNumber++;
+      
+      console.log(`🔄 [BattleRoom] Tour mis à jour: ${this.state.currentTurn}`);
     },
 
     endBattle: (result: any) => {
@@ -261,7 +271,6 @@ async onJoin(client: Client, options: any) {
 
     logBattleEvent: (event: any) => {
       console.log(`📝 [BattleRoom] Log event: ${event.type}`);
-      // Optionnel : ajouter au battleLog si nécessaire
     }
   };
 }
@@ -500,20 +509,44 @@ private startActualBattle() {
   
   this.state.phase = "battle";
   this.state.waitingForAction = true;
+  this.state.turnNumber = 1;
+  
+  // ✅ CALCUL CORRECT: Qui joue en premier selon la vitesse
+  const player1Speed = this.state.player1Pokemon?.speed || 0;
+  const player2Speed = this.state.player2Pokemon?.speed || 0;
+  
+  let firstPlayer: string;
+  if (player1Speed > player2Speed) {
+    firstPlayer = "player1";
+  } else if (player2Speed > player1Speed) {
+    firstPlayer = "player2";
+  } else {
+    // Égalité = aléatoire
+    firstPlayer = Math.random() < 0.5 ? "player1" : "player2";
+  }
+  
+  this.state.currentTurn = firstPlayer;
+  
+  console.log(`⚡ [BattleRoom] Vitesses: Player1=${player1Speed} vs Player2=${player2Speed}`);
+  console.log(`🎯 [BattleRoom] Premier tour: ${firstPlayer}`);
   
   this.broadcast("battleStart", {
     player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
     player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
     currentTurn: this.state.currentTurn,
     turnNumber: this.state.turnNumber,
-    battleLog: Array.from(this.state.battleLog)
+    battleLog: Array.from(this.state.battleLog),
+    speedComparison: { // ✅ Info pour le client
+      player1Speed,
+      player2Speed,
+      firstPlayer
+    }
   });
   
   this.updateBattleStatusIcons();
   this.startActionTimer();
   
   console.log(`✅ Combat ${this.state.battleId} en cours avec BattleIntegration !`);
-  
 }
   
 private async playAITurnNow() {
