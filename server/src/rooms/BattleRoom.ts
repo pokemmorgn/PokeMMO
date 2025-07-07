@@ -684,6 +684,19 @@ private getMoveDisplayName(moveId: string): string {
 }
   // === ACTIONS DE COMBAT AVEC BattleIntegration ===
 
+  private broadcastBattleUpdate() {
+  this.broadcast("battleUpdate", {
+    player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+    player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+    currentTurn: this.state.currentTurn,
+    turnNumber: this.state.turnNumber,
+    battleLog: Array.from(this.state.battleLog),
+    lastMessage: this.state.lastMessage,
+    battleEnded: this.state.battleEnded,
+    winner: this.state.winner
+  });
+}
+  
 private async handleBattleAction(client: Client, data: any) {
   console.log(`🔥 [DEBUG] handleBattleAction appelée:`, data);
   
