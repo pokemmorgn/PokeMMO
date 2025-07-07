@@ -731,47 +731,46 @@ private async handleBattleAction(client: Client, data: any) {
 }
 
   // ✅ NOUVEAU: Gestion de la fin de combat avec BattleIntegration
-  private async handleBattleEnd() {
-    console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BattleIntegration`);
-    
-  const context = this.battleIntegration.getCurrentContext();
-  console.log(`📊 Résultat:`, context);
-    
-    // Déterminer le type de fin
-    let endType: "victory" | "defeat" | "fled" | "draw";
-    
-    if (this.state.pokemonCaught) {
-      endType = "victory";
-      this.updatePlayerStatusIcon(this.state.player1Id, "battle_victory");
-    } else if (battleResult.winner === 'player') {
-      endType = "victory";
-      this.updatePlayerStatusIcon(this.state.player1Id, "battle_victory");
-    } else if (battleResult.winner === 'opponent') {
-      endType = "defeat";
-      this.updatePlayerStatusIcon(this.state.player1Id, "battle_defeat");
-    } else {
-      endType = "draw";
-    }
-    
-    // Sauvegarder les changements des Pokémon
-    await this.updatePokemonAfterBattle(this.state.player1Id, this.state.player1Pokemon);
-    
-    // Calculer les récompenses
-    const rewards = this.calculateRewards(endType, battleResult);
-    
-    // Broadcast du résultat final
-    this.broadcast("battleEnd", {
-      result: endType,
-      rewards: rewards,
-      finalLog: Array.from(this.state.battleLog),
-      battleResult: battleResult
-    });
-    
-    // Programmer la fermeture
-    this.clock.setTimeout(() => {
-      this.disconnect();
-    }, 5000);
+private async handleBattleEnd() {
+  console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BattleIntegration`);
+  
+  // Déterminer le type de fin selon l'état
+  let endType: "victory" | "defeat" | "fled" | "draw";
+  
+  if (this.state.pokemonCaught) {
+    endType = "victory";
+    this.updatePlayerStatusIcon(this.state.player1Id, "battle_victory");
+  } else if (this.state.winner === this.state.player1Id) {
+    endType = "victory";
+    this.updatePlayerStatusIcon(this.state.player1Id, "battle_victory");
+  } else if (this.state.winner === this.state.player2Id || this.state.winner === 'ai') {
+    endType = "defeat";
+    this.updatePlayerStatusIcon(this.state.player1Id, "battle_defeat");
+  } else if (this.state.phase === "fled") {
+    endType = "fled";
+    this.updatePlayerStatusIcon(this.state.player1Id, "battle_fled");
+  } else {
+    endType = "draw";
   }
+  
+  // Sauvegarder les changements des Pokémon
+  await this.updatePokemonAfterBattle(this.state.player1Id, this.state.player1Pokemon);
+  
+  // Calculer les récompenses
+  const rewards = this.calculateRewards(endType, { expGained: 50 }); // Valeurs par défaut
+  
+  // Broadcast du résultat final
+  this.broadcast("battleEnd", {
+    result: endType,
+    rewards: rewards,
+    finalLog: Array.from(this.state.battleLog)
+  });
+  
+  // Programmer la fermeture
+  this.clock.setTimeout(() => {
+    this.disconnect();
+  }, 5000);
+}
 
   // ✅ AMÉLIORÉ: Capture avec CaptureManager réel
   private async handleCaptureAttempt(client: Client, ballType: string) {
