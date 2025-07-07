@@ -407,8 +407,8 @@ const convertToBattlePokemonData = (battlePokemon: BattlePokemon): any => {
       evasion: 0
     },
     statusCondition: battlePokemon.statusCondition || 'normal',
-    ability: null,
-    heldItem: null,
+ability: undefined as string | undefined,
+heldItem: undefined as string | undefined,
     gender: battlePokemon.gender,
     shiny: battlePokemon.shiny,
     isWild: battlePokemon.isWild,
