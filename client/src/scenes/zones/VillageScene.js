@@ -44,21 +44,123 @@ export class VillageScene extends BaseZoneScene {
     // Evénements d'accueil
     this.setupVillageEvents();
     
-    // ✅ DÉMARRER L'INTRO - TOUJOURS SI PAS ENCORE JOUÉE
-    console.log('[VillageScene] 🎬 Vérification intro...');
-    this.startPsyduckIntroIfNeeded();
+    // ✅ NOUVEAU: Démarrer l'intro seulement après vérification de la quête
+    console.log('[VillageScene] 🎬 Vérification conditions intro...');
+    this.checkQuestAndStartIntro();
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Setup des listeners (optionnel)
+  // ✅ VERSION SIMPLE: Vérifier la quête avant de démarrer l'intro
+  async checkQuestAndStartIntro() {
+    console.log('[VillageScene] 🔍 Vérification quête "A Strange New World"...');
+    
+    // Délai pour laisser le temps aux systèmes de se charger
+    this.time.delayedCall(1000, () => {
+      this.performSimpleQuestCheck();
+    });
+  }
+
+  // ✅ MÉTHODE SIMPLE: Vérification directe via le serveur
+  performSimpleQuestCheck() {
+    if (!this.networkManager?.room) {
+      console.warn('[VillageScene] ⚠️ Pas de room - intro par défaut');
+      this.startPsyduckIntroIfNeeded();
+      return;
+    }
+
+    console.log('[VillageScene] 📡 Vérification quête via serveur...');
+    
+    // Écouter la réponse du serveur (une seule fois)
+    this.networkManager.room.onMessage('questCheckResult', (data) => {
+      if (data.questId === 'beach_intro_quest') {
+        console.log('[VillageScene] 📨 Résultat quête:', data);
+        
+        if (data.hasQuest || data.completed) {
+          console.log('[VillageScene] ✅ Quête beach OK - lancement intro');
+          this.startPsyduckIntroIfNeeded();
+        } else {
+          console.log('[VillageScene] ❌ Pas de quête beach - pas d\'intro');
+          this.showNoQuestMessage();
+        }
+      }
+    });
+    
+    // Demander au serveur
+    this.networkManager.room.send('checkPlayerQuest', {
+      questId: 'beach_intro_quest'
+    });
+    
+    // Timeout de sécurité
+    this.time.delayedCall(3000, () => {
+      if (!this.hasPlayedIntro) {
+        console.warn('[VillageScene] ⏰ Timeout - intro par défaut');
+        this.startPsyduckIntroIfNeeded();
+      }
+    });
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Afficher message si pas de quête
+  showNoQuestMessage() {
+    const message = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY,
+      'Vous devez d\'abord terminer votre aventure sur la plage\navant de découvrir les secrets du village...',
+      {
+        fontSize: '16px',
+        fontFamily: 'Arial',
+        color: '#ffffff',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: { x: 20, y: 15 },
+        align: 'center',
+        wordWrap: { width: 400 }
+      }
+    ).setOrigin(0.5).setScrollFactor(0).setDepth(1000);
+
+    // Animation d'apparition
+    message.setAlpha(0);
+    this.tweens.add({
+      targets: message,
+      alpha: 1,
+      duration: 1000,
+      ease: 'Power2'
+    });
+
+    // Disparition automatique après 5 secondes
+    this.time.delayedCall(5000, () => {
+      this.tweens.add({
+        targets: message,
+        alpha: 0,
+        duration: 1000,
+        ease: 'Power2',
+        onComplete: () => {
+          message.destroy();
+        }
+      });
+    });
+
+    console.log('[VillageScene] 💬 Message d\'avertissement affiché');
+  }
+
+  // ✅ MÉTHODE EXISTANTE MODIFIÉE: Setup des listeners (optionnel)
   setupServerListeners() {
     if (!this.networkManager?.room) return;
     
-    // ✅ Les handlers existent déjà dans QuestHandlers.ts
-    // On peut écouter les événements de quête si besoin
+    // ✅ NOUVEAU: Écouter les mises à jour de quête
+    this.networkManager.room.onMessage('questProgressUpdate', (data) => {
+      console.log('[VillageScene] 📈 Mise à jour quête reçue:', data);
+      
+      // Si la quête beach vient d'être complétée et qu'on n'a pas encore joué l'intro
+      if (data.questId === 'beach_intro_quest' && data.completed && !this.hasPlayedIntro) {
+        console.log('[VillageScene] 🎉 Quête beach complétée - autorisation intro différée');
+        this.time.delayedCall(2000, () => {
+          this.startPsyduckIntroIfNeeded();
+        });
+      }
+    });
+    
     console.log('[VillageScene] ✅ Connexion au système de quêtes existant');
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Démarrer l'intro simple (sans dialogue)
+  // ✅ MÉTHODE EXISTANTE INCHANGÉE: Démarrer l'intro simple (sans dialogue)
   startPsyduckIntroIfNeeded() {
     if (this.shouldPlayPsyduckIntro()) {
       console.log('[VillageScene] 🎬 Démarrage intro Psyduck village SIMPLE...');
@@ -80,7 +182,7 @@ export class VillageScene extends BaseZoneScene {
     }
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Condition pour jouer l'intro (TOUJOURS JOUER)
+  // ✅ MÉTHODE EXISTANTE INCHANGÉE: Condition pour jouer l'intro
   shouldPlayPsyduckIntro() {
     // ✅ Vérifier si on a déjà joué l'intro dans cette session
     if (this.hasPlayedIntro) {
@@ -93,7 +195,7 @@ export class VillageScene extends BaseZoneScene {
     return true;
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Vérifier la quête beach via système existant
+  // ✅ MÉTHODES EXISTANTES INCHANGÉES...
   hasBeachIntroQuest() {
     try {
       // ✅ Vérifier via le système de quêtes global
@@ -121,7 +223,7 @@ export class VillageScene extends BaseZoneScene {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Initialiser le manager Psyduck
+  // ✅ MÉTHODE EXISTANTE INCHANGÉE: Initialiser le manager Psyduck
   initializePsyduckIntro() {
     try {
       console.log('[VillageScene] 🦆 Initialisation intro Psyduck...');
@@ -265,29 +367,41 @@ export class VillageScene extends BaseZoneScene {
         console.log('[VillageScene] 🔄 Reset intro pour test...');
         this.resetPsyduckIntro();
       });
+
+      // ✅ NOUVELLE TOUCHE: Forcer vérification quête
+      this.input.keyboard.on('keydown-C', () => {
+        console.log('[VillageScene] 🔍 Force vérification quête...');
+        this.checkQuestAndStartIntro();
+      });
     }
   }
 
-  // ✅ MÉTHODE SIMPLIFIÉE: Debug via système existant
+  // ✅ MÉTHODE EXISTANTE MISE À JOUR: Debug via système existant
   debugQuestStatus() {
     console.log(`🔍 [VillageScene] === DEBUG QUEST STATUS ===`);
     
     // Vérifier le système de quêtes global
-    if (window.questSystem) {
+    if (window.questSystemGlobal || window.questSystem) {
+      const questSystem = window.questSystemGlobal || window.questSystem;
       console.log(`✅ [VillageScene] QuestSystem global disponible`);
       
       // Utiliser les méthodes existantes
-      const hasBeachActive = window.questSystem.hasActiveQuest?.('beach_intro_quest');
-      const hasBeachCompleted = window.questSystem.hasCompletedQuest?.('beach_intro_quest');
-      
-      console.log(`🏖️ [VillageScene] Quête beach - Active: ${hasBeachActive}, Terminée: ${hasBeachCompleted}`);
+      if (typeof questSystem.hasActiveQuest === 'function') {
+        const hasBeachActive = questSystem.hasActiveQuest('beach_intro_quest');
+        const hasBeachCompleted = questSystem.hasCompletedQuest?.('beach_intro_quest');
+        
+        console.log(`🏖️ [VillageScene] Quête beach - Active: ${hasBeachActive}, Terminée: ${hasBeachCompleted}`);
+      }
       
       // Debug général du système
-      if (typeof window.questSystem.debugQuests === 'function') {
-        window.questSystem.debugQuests();
+      if (typeof questSystem.debugQuests === 'function') {
+        questSystem.debugQuests();
       }
     } else {
       console.error(`❌ [VillageScene] QuestSystem global MANQUANT`);
+      
+      // Tester la vérification serveur
+      this.performServerQuestCheck();
     }
     
     console.log(`=======================================`);
@@ -295,7 +409,7 @@ export class VillageScene extends BaseZoneScene {
 
   resetPsyduckIntro() {
     this.hasPlayedIntro = false;
-    // ✅ Plus de localStorage à nettoyer
+    this.questSystemReady = false;
     console.log('[VillageScene] 🔄 Intro Psyduck réinitialisée');
   }
 
