@@ -744,6 +744,7 @@ export class BattleRoom extends Room<BattleState> {
   }
 
   // === UTILITAIRES ===
+  private calculateStat(baseStat: number, level: number): number {
     return Math.floor(((2 * baseStat + 31) * level) / 100) + 5;
   }
 
