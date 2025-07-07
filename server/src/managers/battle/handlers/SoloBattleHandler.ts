@@ -220,6 +220,7 @@ class SoloBattleHandler implements IBattleHandler {
     }
     
     console.log(`⚔️ [SoloBattleHandler] ${attacker.name} attaque ${defender.name} avec ${moveData.name}`);
+    console.log(`💖 [DEBUG HP] HP avant: ${defender.name} ${defender.currentHp}/${defender.maxHp}`);
     
     // Vérifier si l'attaque peut être utilisée
     if (!this.canUseMove(attacker, moveData)) {
@@ -250,23 +251,45 @@ class SoloBattleHandler implements IBattleHandler {
     
     console.log(`💥 [SoloBattleHandler] Dégâts calculés: ${damageResult.finalDamage}`);
     
-    // Appliquer les dégâts au défenseur dans le contexte
-    const defenderParticipant = context.participants.find(p => p.team[0] && p.team[0].pokemonId === defender.pokemonId);
+    // ✅ CALCUL CORRECT DES NOUVEAUX HP
+    const oldHp = defender.currentHp;
+    const newHp = Math.max(0, oldHp - damageResult.finalDamage);
+    const defenderFainted = newHp <= 0;
+    
+    console.log(`💖 [DEBUG HP] ${defender.name}: ${oldHp} - ${damageResult.finalDamage} = ${newHp}`);
+    console.log(`💀 [DEBUG K.O.] ${defender.name} K.O. ? ${defenderFainted} (HP: ${newHp})`);
+    
+    // ✅ MISE À JOUR DU CONTEXTE AVEC LES BONNES HP
+    const defenderParticipant = context.participants.find(p => 
+      p.team[0] && p.team[0].pokemonId === defender.pokemonId
+    );
+    
     if (defenderParticipant && defenderParticipant.team[0]) {
-      const newHp = Math.max(0, defenderParticipant.team[0].currentHp - damageResult.finalDamage);
       defenderParticipant.team[0].currentHp = newHp;
-      console.log(`💖 [SoloBattleHandler] HP mis à jour: ${defender.name} ${newHp}/${defenderParticipant.team[0].maxHp}`);
+      console.log(`💖 [SoloBattleHandler] HP mis à jour dans contexte: ${defender.name} ${newHp}/${defenderParticipant.team[0].maxHp}`);
+    } else {
+      console.error(`❌ [SoloBattleHandler] Participant défenseur non trouvé pour mise à jour HP`);
     }
     
-    const defenderFainted = defender.currentHp - damageResult.finalDamage <= 0;
-    console.log(`💀 [SoloBattleHandler] Défenseur KO: ${defenderFainted}`);
+    // ✅ SI K.O. → FORCER LA FIN DU COMBAT IMMÉDIATEMENT
+    if (defenderFainted) {
+      console.log(`🏁 [SoloBattleHandler] ${defender.name} K.O. → FIN COMBAT`);
+      context.phase = 'ended' as any; // ✅ FORCER LA FIN
+    }
     
     // Créer la séquence d'attaque
     return this.createAttackSequence(
       attacker,
       defender,
       moveData,
-      damageResult,
+      {
+        ...damageResult,
+        targetCurrentHp: oldHp,
+        targetNewHp: newHp,
+        targetFainted: defenderFainted,
+        attackerName: attacker.name,
+        targetName: defender.name
+      },
       defenderFainted,
       context
     );
