@@ -135,119 +135,126 @@ class SoloBattleHandler implements IBattleHandler {
   /**
    * Traite une attaque
    */
-  private async processAttackAction(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
-    console.log(`💥 [SoloBattleHandler] Traitement attaque...`);
-    console.log(`💥 [SoloBattleHandler] === DEBUG ATTAQUE ===`);
-    console.log(`🎯 Move ID: ${action.data.moveId}`);
-    console.log(`👤 Attaquant: ${action.playerId}`);
-    
-    // Debug du contexte
-    console.log(`📋 Participants:`, context.participants.length);
-    context.participants.forEach((p, i) => {
-      console.log(`   ${i}: ${p.sessionId} (${p.name}) - Team: ${p.team.length} Pokémon`);
-      if (p.team[0]) {
-        console.log(`      Pokémon actif: ${p.team[0].name} (HP: ${p.team[0].currentHp}/${p.team[0].maxHp})`);
-      }
-    });
-    
-    const moveId = action.data.moveId;
-    if (!moveId) {
-      console.error(`❌ [SoloBattleHandler] Pas de moveId dans l'action`);
-      return this.createErrorSequence('MSG_MOVE_FAILED');
+private async processAttackAction(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
+  console.log(`💥 [SoloBattleHandler] Traitement attaque...`);
+  console.log(`💥 [SoloBattleHandler] === DEBUG ATTAQUE ===`);
+  console.log(`🎯 Move ID: ${action.data.moveId}`);
+  console.log(`👤 Attaquant: ${action.playerId}`);
+  
+  // Debug du contexte
+  console.log(`📋 Participants:`, context.participants.length);
+  context.participants.forEach((p, i) => {
+    console.log(`   ${i}: ${p.sessionId} (${p.name}) - Team: ${p.team.length} Pokémon`);
+    if (p.team[0]) {
+      console.log(`      Pokémon actif: ${p.team[0].name} (HP: ${p.team[0].currentHp}/${p.team[0].maxHp})`);
     }
-    
-    // Obtenir les données de l'attaque
-    const moveData = await this.getMoveData(moveId);
-    if (!moveData) {
-      console.error(`❌ [SoloBattleHandler] Données move non trouvées: ${moveId}`);
-      return this.createErrorSequence('MSG_MOVE_FAILED');
-    }
-    
-    // Obtenir attaquant et défenseur
-    const attacker = this.getPokemonById(action.playerId, context);
-    const defender = this.getOpponentPokemon(action.playerId, context);
-    
-    if (!attacker || !defender) {
-      console.error(`❌ [SoloBattleHandler] Pokémon manquants - attacker: ${!!attacker}, defender: ${!!defender}`);
-      return this.createErrorSequence('MSG_MOVE_FAILED');
-    }
-    
-    console.log(`⚔️ [SoloBattleHandler] ${attacker.name} attaque ${defender.name} avec ${moveData.name}`);
-    console.log(`💖 [DEBUG HP] HP avant: ${defender.name} ${defender.currentHp}/${defender.maxHp}`);
-    
-    // Vérifier si l'attaque peut être utilisée
-    if (!this.canUseMove(attacker, moveData)) {
-      console.log(`⚠️ [SoloBattleHandler] Move bloqué`);
-      return this.createMoveBlockedSequence(attacker, moveData);
-    }
-    
-    // Calculer précision
-    if (!this.checkMoveAccuracy(moveData, attacker, defender)) {
-      console.log(`❌ [SoloBattleHandler] Attaque ratée`);
-      return this.createMissSequence(attacker, moveData);
-    }
-    
-    // Calculer coup critique
-    const isCritical = this.calculateCriticalHit(attacker, moveData);
-    console.log(`💥 [SoloBattleHandler] Critique: ${isCritical}`);
-    
-    // Calculer dégâts
-    const damageResult = DamageCalculator.calculateDamage({
-      attacker,
-      defender,
-      move: moveData,
-      moveType: moveData.type || 'Normal',
-      weather: context.environment?.weather,
-      terrain: context.environment?.terrain,
-      isCritical
-    });
-    
-    console.log(`💥 [SoloBattleHandler] Dégâts calculés: ${damageResult.finalDamage}`);
-    
-    // ✅ CALCUL CORRECT DES NOUVEAUX HP
-    const oldHp = defender.currentHp;
-    const newHp = Math.max(0, oldHp - damageResult.finalDamage);
-    const defenderFainted = newHp <= 0;
-    
-    console.log(`💖 [DEBUG HP] ${defender.name}: ${oldHp} - ${damageResult.finalDamage} = ${newHp}`);
-    console.log(`💀 [DEBUG K.O.] ${defender.name} K.O. ? ${defenderFainted} (HP: ${newHp})`);
-    
-    // ✅ MISE À JOUR DU CONTEXTE AVEC LES BONNES HP
-    const defenderParticipant = context.participants.find(p => 
-      p.team[0] && p.team[0].pokemonId === defender.pokemonId
-    );
-    
-    if (defenderParticipant && defenderParticipant.team[0]) {
-      defenderParticipant.team[0].currentHp = newHp;
-      console.log(`💖 [SoloBattleHandler] HP mis à jour dans contexte: ${defender.name} ${newHp}/${defenderParticipant.team[0].maxHp}`);
-    } else {
-      console.error(`❌ [SoloBattleHandler] Participant défenseur non trouvé pour mise à jour HP`);
-    }
-    
-    // ✅ SI K.O. → FORCER LA FIN DU COMBAT IMMÉDIATEMENT
-    if (defenderFainted) {
-      console.log(`🏁 [SoloBattleHandler] ${defender.name} K.O. → FIN COMBAT`);
-      context.phase = 'ended' as any; // ✅ FORCER LA FIN
-    }
-    
-    // Créer la séquence d'attaque
-    return this.createAttackSequence(
-      attacker,
-      defender,
-      moveData,
-      {
-        ...damageResult,
-        targetCurrentHp: oldHp,
-        targetNewHp: newHp,
-        targetFainted: defenderFainted,
-        attackerName: attacker.name,
-        targetName: defender.name
-      },
-      defenderFainted,
-      context
-    );
+  });
+  
+  const moveId = action.data.moveId;
+  if (!moveId) {
+    console.error(`❌ [SoloBattleHandler] Pas de moveId dans l'action`);
+    return this.createErrorSequence('MSG_MOVE_FAILED');
   }
   
+  // Obtenir les données de l'attaque
+  const moveData = await this.getMoveData(moveId);
+  if (!moveData) {
+    console.error(`❌ [SoloBattleHandler] Données move non trouvées: ${moveId}`);
+    return this.createErrorSequence('MSG_MOVE_FAILED');
+  }
+  
+  // Obtenir attaquant et défenseur
+  const attacker = this.getPokemonById(action.playerId, context);
+  const defender = this.getOpponentPokemon(action.playerId, context);
+  
+  if (!attacker || !defender) {
+    console.error(`❌ [SoloBattleHandler] Pokémon manquants - attacker: ${!!attacker}, defender: ${!!defender}`);
+    return this.createErrorSequence('MSG_MOVE_FAILED');
+  }
+  
+  console.log(`⚔️ [SoloBattleHandler] ${attacker.name} attaque ${defender.name} avec ${moveData.name}`);
+  
+  // ✅ CAPTURE HP AVANT ATTAQUE - TRÈS IMPORTANT
+  const defenderHpBeforeAttack = defender.currentHp;
+  console.log(`💖 [DEBUG HP] HP avant attaque: ${defender.name} ${defenderHpBeforeAttack}/${defender.maxHp}`);
+  
+  // Vérifier si l'attaque peut être utilisée
+  if (!this.canUseMove(attacker, moveData)) {
+    console.log(`⚠️ [SoloBattleHandler] Move bloqué`);
+    return this.createMoveBlockedSequence(attacker, moveData);
+  }
+  
+  // Calculer précision
+  if (!this.checkMoveAccuracy(moveData, attacker, defender)) {
+    console.log(`❌ [SoloBattleHandler] Attaque ratée`);
+    return this.createMissSequence(attacker, moveData);
+  }
+  
+  // Calculer coup critique
+  const isCritical = this.calculateCriticalHit(attacker, moveData);
+  console.log(`💥 [SoloBattleHandler] Critique: ${isCritical}`);
+  
+  // Calculer dégâts
+  const damageResult = DamageCalculator.calculateDamage({
+    attacker,
+    defender,
+    move: moveData,
+    moveType: moveData.type || 'Normal',
+    weather: context.environment?.weather,
+    terrain: context.environment?.terrain,
+    isCritical
+  });
+  
+  console.log(`💥 [SoloBattleHandler] Dégâts calculés: ${damageResult.finalDamage}`);
+  
+  // ✅ CALCUL CORRECT DES NOUVEAUX HP
+  const oldHp = defenderHpBeforeAttack; // ✅ Utiliser HP capturée AVANT
+  const newHp = Math.max(0, oldHp - damageResult.finalDamage);
+  const defenderFainted = newHp <= 0;
+  
+  console.log(`💖 [DEBUG HP] ${defender.name}: ${oldHp} - ${damageResult.finalDamage} = ${newHp}`);
+  console.log(`💀 [DEBUG K.O.] ${defender.name} K.O. ? ${defenderFainted} (HP: ${newHp})`);
+  
+  // ✅ MISE À JOUR DU CONTEXTE AVEC LES BONNES HP
+  const defenderParticipant = context.participants.find(p => 
+    p.team[0] && p.team[0].pokemonId === defender.pokemonId
+  );
+  
+  if (defenderParticipant && defenderParticipant.team[0]) {
+    // ✅ METTRE À JOUR le contexte avec les nouvelles HP
+    defenderParticipant.team[0].currentHp = newHp;
+    console.log(`💖 [SoloBattleHandler] HP mis à jour dans contexte: ${defender.name} ${newHp}/${defenderParticipant.team[0].maxHp}`);
+  } else {
+    console.error(`❌ [SoloBattleHandler] Participant défenseur non trouvé pour mise à jour HP`);
+  }
+  
+  // ✅ SI K.O. → FORCER LA FIN DU COMBAT IMMÉDIATEMENT
+  if (defenderFainted) {
+    console.log(`🏁 [SoloBattleHandler] ${defender.name} K.O. → FIN COMBAT`);
+    context.phase = 'ended' as any; // ✅ FORCER LA FIN
+  }
+  
+  // ✅ CRÉER LA SÉQUENCE AVEC LES BONNES VALEURS
+  return this.createAttackSequence(
+    attacker,
+    defender,
+    moveData,
+    {
+      ...damageResult,
+      // ✅ VALEURS CRITIQUES POUR LE FIX
+      targetCurrentHp: oldHp,           // HP AVANT l'attaque
+      targetNewHp: newHp,               // HP APRÈS l'attaque
+      targetFainted: defenderFainted,   // État K.O.
+      attackerName: attacker.name,      // Nom attaquant
+      targetName: defender.name,        // Nom défenseur
+      // ✅ VALIDATION SUPPLÉMENTAIRE
+      damageApplied: oldHp - newHp,     // Dégâts réellement appliqués
+      wasValidHit: damageResult.finalDamage > 0 && damageResult.effectiveness > 0
+    },
+    defenderFainted,
+    context
+  );
+}
   /**
    * Traite l'utilisation d'un objet
    */
@@ -784,56 +791,60 @@ class SoloBattleHandler implements IBattleHandler {
   
   // === CRÉATION DE SÉQUENCES ===
   
-  private createAttackSequence(
-    attacker: BattlePokemonData,
-    defender: BattlePokemonData,
-    move: any,
-    damageResult: any,
-    defenderFainted: boolean,
-    context: BattleContext
-  ): BattleSequence {
-    const events: any[] = [];
-    let currentDelay = 0;
-    
-    console.log(`🎬 [SoloBattleHandler] Création séquence attaque: ${attacker.name} → ${defender.name}`);
-    
-    // Messages d'attaque
-    const attackMessages = createAttackMessages(
-      attacker.name,
-      move.name,
-      damageResult.effectiveness,
-      damageResult.critical,
-      attacker.pokemonId.toString() !== context.currentPlayer
-    );
-    
-    attackMessages.forEach(msg => {
-      events.push({
-        eventId: `attack_msg_${events.length}`,
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: msg.id, variables: msg.variables },
-        message: msg.template,
-        delay: currentDelay
-      });
-      currentDelay += msg.timing;
+private createAttackSequence(
+  attacker: BattlePokemonData,
+  defender: BattlePokemonData,
+  move: any,
+  damageResult: any,
+  defenderFainted: boolean,
+  context: BattleContext
+): BattleSequence {
+  const events: any[] = [];
+  let currentDelay = 0;
+  
+  console.log(`🎬 [SoloBattleHandler] Création séquence attaque: ${attacker.name} → ${defender.name}`);
+  
+  // Messages d'attaque
+  const attackMessages = createAttackMessages(
+    attacker.name,
+    move.name,
+    damageResult.effectiveness,
+    damageResult.critical,
+    attacker.pokemonId.toString() !== context.currentPlayer
+  );
+  
+  attackMessages.forEach(msg => {
+    events.push({
+      eventId: `attack_msg_${events.length}`,
+      type: 'message',
+      timestamp: Date.now(),
+      data: { messageId: msg.id, variables: msg.variables },
+      message: msg.template,
+      delay: currentDelay
     });
+    currentDelay += msg.timing;
+  });
+  
+  // ✅ FIX: Animation et dégâts avec calculs corrects
+  if (damageResult.finalDamage > 0) {
+    // ✅ CORRECTION: Utiliser les valeurs du damageResult directement
+    const newHp = Math.max(0, damageResult.targetCurrentHp - damageResult.finalDamage);
     
-    // Animation et dégâts
-    if (damageResult.finalDamage > 0) {
-      events.push({
-        eventId: 'damage_event',
-        type: 'damage',
-        timestamp: Date.now(),
-        targetId: defender.pokemonId.toString(),
-        data: {
-          damage: damageResult.finalDamage,
-          currentHp: defender.currentHp - damageResult.finalDamage,
-          effectiveness: damageResult.effectiveness
-        },
-        delay: currentDelay
-      });
-      currentDelay += BATTLE_TIMINGS.DAMAGE_ANIMATION;
-    }
+    events.push({
+      eventId: 'damage_event',
+      type: 'damage',
+      timestamp: Date.now(),
+      targetId: defender.pokemonId.toString(),
+      data: {
+        damage: damageResult.finalDamage,
+        currentHp: newHp, // ✅ Utiliser la valeur calculée correctement
+        oldHp: damageResult.targetCurrentHp, // ✅ Ajouter l'ancienne HP pour debug
+        effectiveness: damageResult.effectiveness
+      },
+      delay: currentDelay
+    });
+    currentDelay += BATTLE_TIMINGS.DAMAGE_ANIMATION;
+  }
     
     // K.O. si nécessaire
     if (defenderFainted) {
