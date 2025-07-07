@@ -299,18 +299,21 @@ export class BattleIntegration {
     };
   }
   
-  private convertParticipant(participant: any): BattleParticipant {
-    return {
-      sessionId: participant.sessionId || participant.id || 'unknown',
-      name: participant.name || 'Participant',
-      role: participant.role || 'player1',
-      team: participant.team || [],
-      activePokemon: participant.activePokemon || '1',
-      isAI: participant.isAI || false,
-      isConnected: participant.isConnected !== false,
-      lastActionTime: Date.now()
-    };
-  }
+private convertParticipant(participant: any): BattleParticipant {
+  return {
+    sessionId: participant.sessionId || participant.id || 'unknown',
+    name: participant.name || 'Participant',
+    role: participant.role || 'player1',
+    team: Array.isArray(participant.team)
+      ? participant.team.map(pk => pk.stats && pk.statStages ? pk : BattleIntegration.convertToBattlePokemon(pk))
+      : [],
+    activePokemon: participant.activePokemon || '1',
+    isAI: participant.isAI || false,
+    isConnected: participant.isConnected !== false,
+    lastActionTime: Date.now()
+  };
+}
+
   
   private getPlayerSpeed(playerId: string): number | null {
     if (!this.currentContext) return null;
@@ -474,8 +477,7 @@ const context = integration.initializeBattle(silentCallbacks, 'wild', [
     }]
   }
 ]);
-
-    
+   
     // Exécuter de nombreuses actions
     for (let i = 0; i < actionCount; i++) {
       await integration.processAction('player1', 'attack', {
