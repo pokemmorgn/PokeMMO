@@ -655,7 +655,7 @@ export function migrateBattleRoomToBattleSystem(
 
 // === TESTS AUTOMATIQUES ===
 
-if (true) {
+if (false) {
   // Exécuter tous les tests au chargement
   setTimeout(async () => {
     console.log('\n🚀 [BattleIntegration] LANCEMENT TESTS AUTOMATIQUES...\n');
