@@ -238,94 +238,299 @@ export class BattleRoom extends Room<BattleState> {
 
   // === CRÉATION DES COMPOSANTS DE COMBAT ===
 
-  private createBattleCallbacks(): IBattleRoomCallbacks {
-    return {
-      broadcastMessage: (messageId: string, data: any) => {
-        console.log(`📡 [BattleRoom] Broadcasting message: ${messageId}`);
-        this.addBattleMessage(data.message || messageId);
-        this.broadcast('battleMessage', {
-          messageId,
-          message: data.message || messageId,
-          variables: data.variables || {},
-          timing: data.timing || 2000
-        });
-      },
+/**
+ * Crée les callbacks pour BattleIntegration - VERSION COMPLÈTE CORRIGÉE
+ */
+private createBattleCallbacks(): IBattleRoomCallbacks {
+  return {
+    /**
+     * Diffuse un message de combat à tous les clients
+     */
+    broadcastMessage: (messageId: string, data: any) => {
+      console.log(`📡 [BattleRoom] Broadcasting message: ${messageId}`);
+      
+      // Ajouter au log de combat
+      const displayMessage = data.message || messageId;
+      this.addBattleMessage(displayMessage);
+      
+      // Diffuser aux clients
+      this.broadcast('battleMessage', {
+        messageId,
+        message: displayMessage,
+        variables: data.variables || {},
+        timing: data.timing || 2000
+      });
+    },
 
-      broadcastUpdate: (updateData: any) => {
-        console.log(`📡 [BattleRoom] Broadcasting update`);
-        this.broadcast('battleUpdate', updateData);
-      },
-
-      updatePokemonHP: (pokemonId: string, newHp: number) => {
-        console.log(`🩹 [CALLBACK] DamageManager.updatePokemonHP appelé`);
-        console.log(`🔍 [CALLBACK DEBUG] === DÉTAILS CALLBACK ===`);
-        console.log(`🔍 [CALLBACK DEBUG] pokemonId: ${pokemonId}`);
-        console.log(`🔍 [CALLBACK DEBUG] newHp reçu: ${newHp}`);
-        
-        // ✅ NOUVEAU: Vérifier l'état actuel AVANT la mise à jour
-        const currentHpInState = this.getCurrentHPFromState(pokemonId);
-        console.log(`🔍 [CALLBACK DEBUG] HP actuel dans state: ${currentHpInState}`);
-        console.log(`🔍 [CALLBACK DEBUG] Différence attendue: ${currentHpInState} → ${newHp} = ${(currentHpInState || 0) - newHp} dégâts`);
-        
-        // ✅ NOUVEAU: Utiliser DamageManager pour synchronisation parfaite
-        const result = DamageManager.updatePokemonHP(
-          pokemonId, 
-          newHp, 
-          this.state, 
-          this.battleContext,
-          'attack'
-        );
-        
-        if (result) {
-          console.log(`✅ [CALLBACK] HP synchronisés: ${result.pokemonName} ${result.oldHp} → ${result.newHp}`);
-          console.log(`🔍 [CALLBACK DEBUG] Dégâts calculés par DamageManager: ${result.damage}`);
-          
-          if (result.wasKnockedOut) {
-            console.log(`💀 [CALLBACK] ${result.pokemonName} K.O. confirmé par DamageManager !`);
-          }
-        } else {
-          console.error(`❌ [CALLBACK] Erreur synchronisation HP pour pokemonId: ${pokemonId}`);
-        }
-        
-        console.log(`🔍 [CALLBACK DEBUG] === FIN CALLBACK ===`);
-      },
-
-      changeTurn: (newTurn: string) => {
-        // ✅ CRITIQUE: Ne plus changer automatiquement les tours ici !
-        // Le TurnSystem gère maintenant les tours
-        console.log(`🔄 [CALLBACK] Demande changement tour: ${newTurn} (ignoré - TurnSystem gère)`);
-      },
-
-      endBattle: (result: any) => {
-        console.log(`🏁 [CALLBACK] Fin combat:`, result);
-        this.state.battleEnded = true;
-        this.state.winner = result.winner;
-        this.state.phase = result.result === 'fled' ? 'fled' : 'ended';
-        this.handleBattleEnd();
-      },
-
-      logBattleEvent: (event: any) => {
-        console.log(`📝 [EVENT] ${event.type}`);
-        
-        // ✅ NOUVEAU: Debug spécial pour les événements de dégâts
-        if (event.type === 'damage') {
-          console.log(`🔍 [EVENT DEBUG] === ÉVÉNEMENT DAMAGE ===`);
-          console.log(`🔍 [EVENT DEBUG] targetId: ${event.targetId}`);
-          console.log(`🔍 [EVENT DEBUG] damage dans event.data: ${event.data?.damage}`);
-          console.log(`🔍 [EVENT DEBUG] currentHp dans event.data: ${event.data?.currentHp}`);
-          console.log(`🔍 [EVENT DEBUG] effectiveness: ${event.data?.effectiveness}`);
-          
-          // Vérifier l'état actuel avant l'événement
-          if (event.targetId) {
-            const currentHp = this.getCurrentHPFromState(event.targetId);
-            console.log(`🔍 [EVENT DEBUG] HP actuel dans state: ${currentHp}`);
-            console.log(`🔍 [EVENT DEBUG] Nouvelle HP qui sera envoyée: ${(currentHp || 0) - (event.data?.damage || 0)}`);
-          }
-          console.log(`🔍 [EVENT DEBUG] === FIN EVENT DEBUG ===`);
-        }
+    /**
+     * Diffuse une mise à jour générale de combat
+     */
+    broadcastUpdate: (updateData: any) => {
+      console.log(`📡 [BattleRoom] Broadcasting update`);
+      
+      // Mettre à jour le state si nécessaire
+      if (updateData.phase) {
+        this.state.phase = updateData.phase;
       }
-    };
-  }
+      
+      if (updateData.currentTurn) {
+        this.state.currentTurn = updateData.currentTurn;
+      }
+      
+      // Diffuser la mise à jour
+      this.broadcast('battleUpdate', {
+        ...updateData,
+        battleState: this.getClientBattleState()
+      });
+    },
+
+    /**
+     * ✅ CALLBACK PRINCIPAL CORRIGÉ - Met à jour les HP d'un Pokémon
+     */
+    updatePokemonHP: (pokemonId: string, newHp: number) => {
+      console.log(`🩹 [CALLBACK] DamageManager.updatePokemonHP appelé`);
+      console.log(`🔍 [CALLBACK DEBUG] === DÉTAILS CALLBACK ===`);
+      console.log(`🔍 [CALLBACK DEBUG] pokemonId: ${pokemonId}`);
+      console.log(`🔍 [CALLBACK DEBUG] newHp reçu: ${newHp}`);
+      
+      // ✅ NOUVEAU: Vérifier l'état actuel AVANT la mise à jour
+      const currentHpInState = this.getCurrentHPFromState(pokemonId);
+      console.log(`🔍 [CALLBACK DEBUG] HP actuel dans state: ${currentHpInState}`);
+      
+      if (currentHpInState !== null) {
+        const expectedDamage = currentHpInState - newHp;
+        console.log(`🔍 [CALLBACK DEBUG] Différence attendue: ${currentHpInState} → ${newHp} = ${expectedDamage} dégâts`);
+      }
+      
+      // ✅ VALIDATIONS DE SÉCURITÉ
+      if (newHp < 0) {
+        console.error(`🚨 [CALLBACK ERROR] newHp négatif: ${newHp} pour pokemonId: ${pokemonId}`);
+        newHp = 0; // Forcer à 0 pour éviter les bugs
+      }
+      
+      if (currentHpInState !== null && newHp > currentHpInState + 100) {
+        console.error(`🚨 [CALLBACK ERROR] newHp trop élevé: ${newHp} vs actuel: ${currentHpInState} pour pokemonId: ${pokemonId}`);
+        console.error(`🚨 [CALLBACK ERROR] Callback ignoré pour éviter corruption des données`);
+        return; // Ne pas appliquer si la différence est suspecte
+      }
+      
+      // ✅ UTILISER DamageManager pour synchronisation parfaite
+      const result = DamageManager.updatePokemonHP(
+        pokemonId, 
+        newHp, 
+        this.state, 
+        this.battleContext,
+        'attack'
+      );
+      
+      if (result) {
+        console.log(`✅ [CALLBACK] HP synchronisés: ${result.pokemonName} ${result.oldHp} → ${result.newHp}`);
+        console.log(`🔍 [CALLBACK DEBUG] Dégâts calculés par DamageManager: ${result.damage}`);
+        
+        if (result.wasKnockedOut) {
+          console.log(`💀 [CALLBACK] ${result.pokemonName} K.O. confirmé par DamageManager !`);
+          
+          // ✅ Mettre à jour les indicateurs de state
+          if (pokemonId === this.state.player1Pokemon?.pokemonId.toString()) {
+            this.state.player1Pokemon.currentHp = 0;
+          } else if (pokemonId === this.state.player2Pokemon?.pokemonId.toString()) {
+            this.state.player2Pokemon.currentHp = 0;
+          }
+        }
+        
+        // ✅ Diffuser la mise à jour HP aux clients
+        this.broadcast('pokemonHPUpdate', {
+          pokemonId: pokemonId,
+          oldHp: result.oldHp,
+          newHp: result.newHp,
+          maxHp: result.maxHp,
+          damage: result.damage,
+          isKnockedOut: result.wasKnockedOut,
+          pokemonName: result.pokemonName
+        });
+        
+      } else {
+        console.error(`❌ [CALLBACK] Erreur synchronisation HP pour pokemonId: ${pokemonId}`);
+      }
+      
+      console.log(`🔍 [CALLBACK DEBUG] === FIN CALLBACK ===`);
+    },
+
+    /**
+     * ✅ CHANGEMENT DE TOUR - NE PLUS UTILISER (TurnSystem gère maintenant)
+     */
+    changeTurn: (newTurn: string) => {
+      // ✅ CRITIQUE: Ne plus changer automatiquement les tours ici !
+      // Le TurnSystem gère maintenant les tours
+      console.log(`🔄 [CALLBACK] Demande changement tour: ${newTurn} (ignoré - TurnSystem gère)`);
+      
+      // ✅ OPTIONNEL: Logger pour debug mais ne pas changer le tour
+      if (this.state.currentTurn !== newTurn) {
+        console.log(`🔄 [CALLBACK] Tour actuel: ${this.state.currentTurn}, demandé: ${newTurn}`);
+      }
+    },
+
+    /**
+     * Termine le combat avec un résultat
+     */
+    endBattle: (result: any) => {
+      console.log(`🏁 [CALLBACK] Fin combat:`, result);
+      
+      // Mettre à jour le state
+      this.state.battleEnded = true;
+      this.state.winner = result.winner || '';
+      
+      // Déterminer la phase selon le résultat
+      if (result.result === 'fled') {
+        this.state.phase = 'fled';
+      } else if (result.result === 'captured') {
+        this.state.phase = 'ended';
+        this.state.pokemonCaught = true;
+      } else {
+        this.state.phase = 'ended';
+      }
+      
+      // ✅ Mettre à jour les icônes de statut
+      let iconType: BattleStatusIcon = "battle_victory";
+      if (result.result === 'defeat') {
+        iconType = "battle_defeat";
+      } else if (result.result === 'fled') {
+        iconType = "battle_fled";
+      }
+      this.updatePlayerStatusIcon(this.state.player1Id, iconType);
+      
+      // Déclencher la gestion de fin
+      this.handleBattleEnd();
+    },
+
+    /**
+     * ✅ CALLBACK DE LOG AMÉLIORÉ - Log des événements de combat
+     */
+    logBattleEvent: (event: any) => {
+      console.log(`📝 [EVENT] ${event.type}`);
+      
+      // ✅ NOUVEAU: Debug spécial pour les événements de dégâts
+      if (event.type === 'damage') {
+        console.log(`🔍 [EVENT DEBUG] === ÉVÉNEMENT DAMAGE ===`);
+        console.log(`🔍 [EVENT DEBUG] targetId: ${event.targetId}`);
+        console.log(`🔍 [EVENT DEBUG] damage dans event.data: ${event.data?.damage}`);
+        console.log(`🔍 [EVENT DEBUG] currentHp dans event.data: ${event.data?.currentHp}`);
+        console.log(`🔍 [EVENT DEBUG] oldHp dans event.data: ${event.data?.oldHp}`);
+        console.log(`🔍 [EVENT DEBUG] effectiveness: ${event.data?.effectiveness}`);
+        console.log(`🔍 [EVENT DEBUG] pokemonName: ${event.data?.pokemonName}`);
+        console.log(`🔍 [EVENT DEBUG] attackName: ${event.data?.attackName}`);
+        
+        // Vérifier l'état actuel avant l'événement
+        if (event.targetId) {
+          const currentHp = this.getCurrentHPFromState(event.targetId);
+          console.log(`🔍 [EVENT DEBUG] HP actuel dans state: ${currentHp}`);
+          
+          if (event.data?.oldHp !== undefined && currentHp !== event.data.oldHp) {
+            console.warn(`⚠️ [EVENT DEBUG] Incohérence HP: state=${currentHp}, event.oldHp=${event.data.oldHp}`);
+          }
+          
+          console.log(`🔍 [EVENT DEBUG] Nouvelle HP qui sera envoyée: ${event.data?.currentHp}`);
+        }
+        console.log(`🔍 [EVENT DEBUG] === FIN EVENT DEBUG ===`);
+      }
+      
+      // ✅ Debug pour autres types d'événements
+      if (event.type === 'message') {
+        console.log(`💬 [EVENT] Message: ${event.message || event.data?.message}`);
+      }
+      
+      if (event.type === 'heal') {
+        console.log(`💚 [EVENT] Soin: ${event.data?.healing} HP pour ${event.targetId}`);
+      }
+      
+      if (event.type === 'status') {
+        console.log(`🌟 [EVENT] Statut: ${event.data?.status} appliqué à ${event.targetId}`);
+      }
+      
+      if (event.type === 'battle_end') {
+        console.log(`🏁 [EVENT] Fin combat: ${event.data?.result} - ${event.data?.reason}`);
+      }
+      
+      // ✅ Ajouter l'événement au log pour debug
+      if (this.state.battleLog.length < 100) { // Éviter spam
+        const logMessage = `[${event.type.toUpperCase()}] ${event.data?.pokemonName || event.targetId || 'Unknown'}: ${event.data?.message || event.message || 'Event triggered'}`;
+        this.addBattleMessage(logMessage);
+      }
+    },
+
+    /**
+     * ✅ NOUVEAU: Met à jour le statut d'un Pokémon
+     */
+    updatePokemonStatus: (pokemonId: string, newStatus: string) => {
+      console.log(`🌟 [CALLBACK] Mise à jour statut: ${pokemonId} → ${newStatus}`);
+      
+      // Mettre à jour dans le state
+      if (this.state.player1Pokemon?.pokemonId.toString() === pokemonId) {
+        this.state.player1Pokemon.statusCondition = newStatus;
+      } else if (this.state.player2Pokemon?.pokemonId.toString() === pokemonId) {
+        this.state.player2Pokemon.statusCondition = newStatus;
+      }
+      
+      // Mettre à jour dans le contexte
+      if (this.battleContext) {
+        this.battleContext.participants.forEach(participant => {
+          if (participant.activePokemon.pokemonId.toString() === pokemonId) {
+            participant.activePokemon.statusCondition = newStatus;
+          }
+        });
+      }
+      
+      // Diffuser la mise à jour
+      this.broadcast('pokemonStatusUpdate', {
+        pokemonId,
+        newStatus,
+        pokemonName: this.getPokemonName(parseInt(pokemonId))
+      });
+    },
+
+    /**
+     * ✅ NOUVEAU: Met à jour les stats stages d'un Pokémon
+     */
+    updatePokemonStats: (pokemonId: string, statChanges: any) => {
+      console.log(`📊 [CALLBACK] Mise à jour stats: ${pokemonId}`, statChanges);
+      
+      // TODO: Implémenter quand on aura les stat stages dans BattlePokemon
+      this.broadcast('pokemonStatsUpdate', {
+        pokemonId,
+        statChanges,
+        pokemonName: this.getPokemonName(parseInt(pokemonId))
+      });
+    },
+
+    /**
+     * ✅ NOUVEAU: Joue une animation de combat
+     */
+    playAnimation: (animationType: string, animationData: any) => {
+      console.log(`🎬 [CALLBACK] Animation: ${animationType}`, animationData);
+      
+      this.broadcast('battleAnimation', {
+        type: animationType,
+        data: animationData,
+        timestamp: Date.now()
+      });
+    },
+
+    /**
+     * ✅ NOUVEAU: Met à jour les PP d'une attaque
+     */
+    updateMovePP: (pokemonId: string, moveId: string, newPP: number) => {
+      console.log(`⚡ [CALLBACK] Mise à jour PP: ${pokemonId} ${moveId} → ${newPP}`);
+      
+      // TODO: Implémenter quand on aura les PP dans BattlePokemon
+      this.broadcast('movePPUpdate', {
+        pokemonId,
+        moveId,
+        newPP,
+        pokemonName: this.getPokemonName(parseInt(pokemonId))
+      });
+    }
+  };
+}
 
   private createParticipants(): any[] {
     const convertPokemon = (battlePokemon: BattlePokemon) => ({
