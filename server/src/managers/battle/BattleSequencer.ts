@@ -355,21 +355,21 @@ export class BattleSequencer {
     });
   }
   
-  private handleDamageEvent(event: BattleEvent): void {
-    if (!this.battleRoomCallbacks || !event.targetId) return;
-    
-    const damage = event.data.damage || 0;
-    const newHp = Math.max(0, (event.data.currentHp || 0) - damage);
-    
-    this.battleRoomCallbacks.updatePokemonHP(event.targetId, newHp);
-    
-    // Optionnel: garder l'animation de dégâts avec un autre nom
-    this.battleRoomCallbacks.broadcastMessage('damageAnimation', {
-      pokemonId: event.targetId,
-      damage: damage,
-      effectiveness: event.data.effectiveness
-    });
-  }
+private handleDamageEvent(event: BattleEvent): void {
+  if (!this.battleRoomCallbacks || !event.targetId) return;
+  
+  // ✅ Utiliser calculatedNewHp si disponible, sinon calculer
+  const newHp = event.data.calculatedNewHp ?? 
+    Math.max(0, (event.data.currentHp || 0) - (event.data.damage || 0));
+  
+  this.battleRoomCallbacks.updatePokemonHP(event.data.targetPokemonId || event.targetId, newHp);
+  
+  this.battleRoomCallbacks.broadcastMessage('damageAnimation', {
+    pokemonId: event.targetId,
+    damage: event.data.damage || 0,
+    effectiveness: event.data.effectiveness
+  });
+}
   
   private handleHealEvent(event: BattleEvent): void {
     if (!this.battleRoomCallbacks || !event.targetId) return;
