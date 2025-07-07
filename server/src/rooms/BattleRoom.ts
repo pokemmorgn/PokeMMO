@@ -398,9 +398,6 @@ private async autoSelectFirstPokemon() {
       
       // Maintenant initialiser BattleIntegration
       const callbacks = this.createBattleCallbacks();
-
-const callbacks = this.createBattleCallbacks();
-
 // ✅ FONCTION HELPER pour convertir BattlePokemon → BattlePokemonData
 const convertToBattlePokemonData = async (battlePokemon: BattlePokemon): Promise<any> => {
   return {
