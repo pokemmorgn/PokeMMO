@@ -54,8 +54,8 @@ export class BattleRoom extends Room<BattleState> {
     this.battleInitData = options;
     this.setState(new BattleState());
     
-    // ✅ NOUVEAU: Initialiser BattleManager avec le state
-    this.battleIntegration = new BattleManager(this.state);
+    // ✅ NOUVEAU: Initialiser BattleIntegration avec le state
+    this.battleIntegration = new BattleIntegration(this.state);
     
     // Configuration de base
     this.state.battleId = `${options.battleType}_${Date.now()}_${this.roomId}`;
@@ -65,7 +65,7 @@ export class BattleRoom extends Room<BattleState> {
     // ✅ NOUVEAU: Initialiser MoveManager si pas encore fait
     await MoveManager.initialize();
     
-    console.log(`✅ BattleRoom ${this.roomId} créée avec BattleManager`);
+    console.log(`✅ BattleRoom ${this.roomId} créée avec BattleIntegration`);
     
     this.setupMessageHandlers();
     await this.setupWorldRoomConnection();
@@ -267,7 +267,7 @@ async onJoin(client: Client, options: any) {
   // === DÉMARRAGE DU COMBAT ===
 
 private async startBattle() {
-  console.log(`🔥 [AUTO PHASE] === DÉMARRAGE DU COMBAT AVEC BATTLEMANAGER ===`);
+  console.log(`🔥 [AUTO PHASE] === DÉMARRAGE DU COMBAT AVEC BattleIntegration ===`);
   console.log(`🔥 [AUTO PHASE] Phase initiale: ${this.state.phase}`);
   console.log(`🔥 [AUTO PHASE] Type de combat: ${this.state.battleType}`);
   console.log(`🔥 [AUTO PHASE] Player1Id: ${this.state.player1Id}`);
@@ -382,7 +382,7 @@ private async autoSelectFirstPokemon() {
     
     // Initialiser le combat avec ce Pokémon
     if (this.battleInitData.wildPokemon) {
-      console.log(`🔥 [AUTO SELECT] Initialisation combat avec BattleManager...`);
+      console.log(`🔥 [AUTO SELECT] Initialisation combat avec BattleIntegration...`);
       
       await this.battleIntegration.initializeWildBattle(
         this.state.player1Id,
@@ -392,7 +392,7 @@ private async autoSelectFirstPokemon() {
         "auto_wild_encounter"
       );
       
-      console.log(`🔥 [AUTO SELECT] BattleManager initialisé`);
+      console.log(`🔥 [AUTO SELECT] BattleIntegration initialisé`);
       console.log(`🔥 [AUTO SELECT] Nouvelle phase: ${this.state.phase}`);
       console.log(`🔥 [AUTO SELECT] Tour actuel: ${this.state.currentTurn}`);
       
@@ -411,18 +411,18 @@ private async autoSelectFirstPokemon() {
   }
 }
   
-  // ✅ NOUVEAU: Setup combat sauvage avec BattleManager
+  // ✅ NOUVEAU: Setup combat sauvage avec BattleIntegration
   private async setupWildBattleWithManager() {
-    console.log(`🌿 Configuration combat sauvage avec BattleManager`);
+    console.log(`🌿 Configuration combat sauvage avec BattleIntegration`);
     
     if (!this.battleInitData.wildPokemon) {
       throw new Error("Données Pokémon sauvage manquantes");
     }
 
-    // ✅ Le BattleManager va créer les BattlePokemon directement
+    // ✅ Le BattleIntegration va créer les BattlePokemon directement
     // On n'a pas besoin de les créer manuellement ici
     
-    console.log(`✅ Combat sauvage configuré pour BattleManager`);
+    console.log(`✅ Combat sauvage configuré pour BattleIntegration`);
   }
 
   private async setupPvPBattle() {
@@ -441,7 +441,7 @@ private async autoSelectFirstPokemon() {
     console.log(`✅ Combat PvP configuré (implémentation basique)`);
   }
 
-  // ✅ AMÉLIORÉ: Choisir Pokémon et initialiser le BattleManager
+  // ✅ AMÉLIORÉ: Choisir Pokémon et initialiser le BattleIntegration
   private async handleChoosePokemon(client: Client, pokemonId: string) {
     console.log(`🎯 ${client.sessionId} choisit Pokémon: ${pokemonId}`);
     
@@ -465,7 +465,7 @@ private async autoSelectFirstPokemon() {
         return;
       }
 
-      // ✅ NOUVEAU: Utiliser BattleManager pour initialiser le combat
+      // ✅ NOUVEAU: Utiliser BattleIntegration pour initialiser le combat
       if (this.state.battleType === "wild" && this.battleInitData.wildPokemon) {
         await this.battleIntegration.initializeWildBattle(
           this.state.player1Id,
@@ -475,9 +475,9 @@ private async autoSelectFirstPokemon() {
           this.battleInitData.wildPokemon.pokemonId.toString() // location simplifiée
         );
         
-        console.log(`✅ Combat sauvage initialisé avec BattleManager`);
+        console.log(`✅ Combat sauvage initialisé avec BattleIntegration`);
         
-        // Le BattleManager a mis à jour le state, on peut commencer
+        // Le BattleIntegration a mis à jour le state, on peut commencer
         this.startActualBattle();
       }
 
@@ -488,7 +488,7 @@ private async autoSelectFirstPokemon() {
   }
 
 private startActualBattle() {
-  console.log(`⚔️ DÉBUT DU COMBAT RÉEL AVEC BATTLEMANAGER !`);
+  console.log(`⚔️ DÉBUT DU COMBAT RÉEL AVEC BattleIntegration !`);
   
   this.state.phase = "battle";
   this.state.waitingForAction = true;
@@ -504,7 +504,7 @@ private startActualBattle() {
   this.updateBattleStatusIcons();
   this.startActionTimer();
   
-  console.log(`✅ Combat ${this.state.battleId} en cours avec BattleManager !`);
+  console.log(`✅ Combat ${this.state.battleId} en cours avec BattleIntegration !`);
   
 }
   
@@ -538,7 +538,7 @@ private async playAITurnNow() {
     aiAction.priority = moveData?.priority || 0;
     aiAction.speed = this.state.player2Pokemon.speed;
     
-    // Traiter l'action via BattleManager
+    // Traiter l'action via BattleIntegration
     this.state.waitingForAction = false;
     await this.battleIntegration.processAction(aiAction);
     
@@ -613,7 +613,7 @@ private getMoveDisplayName(moveId: string): string {
   
   return moveNames[moveId] || moveId.charAt(0).toUpperCase() + moveId.slice(1);
 }
-  // === ACTIONS DE COMBAT AVEC BATTLEMANAGER ===
+  // === ACTIONS DE COMBAT AVEC BattleIntegration ===
 
 private async handleBattleAction(client: Client, data: any) {
   console.log(`🔥 [DEBUG] handleBattleAction appelée:`, data);
@@ -664,11 +664,11 @@ private async handleBattleAction(client: Client, data: any) {
       console.log(`🔥 [DEBUG] Priorité: ${action.priority}, Vitesse: ${action.speed}`);
     }
 
-    console.log(`🔥 [DEBUG] Appel BattleManager.processAction...`);
+    console.log(`🔥 [DEBUG] Appel BattleIntegration.processAction...`);
     
     await this.battleIntegration.processAction(action);
     
-    console.log(`🔥 [DEBUG] BattleManager.processAction terminé`);
+    console.log(`🔥 [DEBUG] BattleIntegration.processAction terminé`);
     console.log(`🔥 [DEBUG] État du combat après processAction:`, {
       battleEnded: this.state.battleEnded,
       currentTurn: this.state.currentTurn,
@@ -709,11 +709,11 @@ private async handleBattleAction(client: Client, data: any) {
   }
 }
 
-  // ✅ NOUVEAU: Gestion de la fin de combat avec BattleManager
+  // ✅ NOUVEAU: Gestion de la fin de combat avec BattleIntegration
   private async handleBattleEnd() {
-    console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BATTLEMANAGER`);
+    console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BattleIntegration`);
     
-    // Récupérer les résultats du BattleManager
+    // Récupérer les résultats du BattleIntegration
     const battleResult = this.battleIntegration.getBattleResult();
     
     console.log(`📊 Résultat:`, battleResult);
@@ -849,7 +849,7 @@ private async handleBattleAction(client: Client, data: any) {
     
     console.log(`🏃 ${client.sessionId} tente de fuir`);
     
-    // ✅ NOUVEAU: Utiliser BattleManager pour la logique de fuite
+    // ✅ NOUVEAU: Utiliser BattleIntegration pour la logique de fuite
     const action = new BattleAction();
     action.type = "run";
     action.playerId = client.sessionId;
@@ -858,7 +858,7 @@ private async handleBattleAction(client: Client, data: any) {
     try {
       await this.battleIntegration.processAction(action);
       
-      // Le BattleManager a mis à jour le state
+      // Le BattleIntegration a mis à jour le state
       if (this.state.battleEnded && this.state.phase === "fled") {
         this.updatePlayerStatusIcon(client.sessionId, "battle_fled");
         await this.handleBattleEnd();
@@ -876,9 +876,9 @@ private async handleBattleAction(client: Client, data: any) {
   // === TOUR DE L'IA AMÉLIORÉ ===
 
   private async playAITurn() {
-    console.log(`🤖 Tour de l'IA avec BattleManager`);
+    console.log(`🤖 Tour de l'IA avec BattleIntegration`);
     
-    // ✅ Le BattleManager génère automatiquement l'action IA
+    // ✅ Le BattleIntegration génère automatiquement l'action IA
     // Quand on processAction du joueur, l'IA répond automatiquement
     // Donc cette méthode est maintenant simplifiée
     
