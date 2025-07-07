@@ -5,7 +5,7 @@ import { BattleIntegration } from '../managers/battle/BattleIntegration';
 import { ActionType } from '../managers/battle/types/BattleTypes';
 import { IBattleRoomCallbacks } from '../managers/battle/BattleSequencer';
 import { MoveManager } from "../managers/MoveManager";
-import { CaptureManager, CaptureAttempt } from "../managers/CaptureManager";
+import { CaptureManager, CaptureAttempt } from "./CaptureManager";
 import { WildPokemon } from "../managers/EncounterManager";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
@@ -591,40 +591,85 @@ export class BattleRoom extends Room<BattleState> {
     console.log(`🎯 [CAPTURE] Tentative avec ${ballType}`);
     
     try {
+      // ✅ NOUVEAU: Validation avec CaptureManager
+      const pokemonData = await getPokemonById(this.state.player2Pokemon.pokemonId);
+      if (!pokemonData) {
+        client.send("error", { message: "Données Pokémon introuvables" });
+        return;
+      }
+
+      if (!CaptureManager.canCapture(this.state.battleType, pokemonData)) {
+        client.send("error", { message: "Ce Pokémon ne peut pas être capturé" });
+        return;
+      }
+
       this.updatePlayerStatusIcon(client.sessionId, "capturing");
       
-      const captureAttempt: CaptureAttempt = {
+      // ✅ NOUVEAU: Utiliser CaptureManager pour toute la logique
+      const attempt: CaptureAttempt = {
         pokemonId: this.state.player2Pokemon.pokemonId,
         pokemonLevel: this.state.player2Pokemon.level,
         currentHp: this.state.player2Pokemon.currentHp,
         maxHp: this.state.player2Pokemon.maxHp,
         statusCondition: this.state.player2Pokemon.statusCondition,
         ballType: ballType,
-        location: this.state.encounterLocation
+        location: this.state.encounterLocation || 'unknown'
       };
 
-      const pokemonData = await getPokemonById(this.state.player2Pokemon.pokemonId);
-      const captureResult = CaptureManager.calculateCaptureRate(captureAttempt, pokemonData);
-      
-      this.addBattleMessage(`${this.state.player1Name} lance une ${ballType} !`);
-      
-      // Animation simple
-      this.broadcast("captureStart", { ballType });
-      
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      if (captureResult.success) {
-        this.addBattleMessage(`Gotcha ! ${this.state.player2Pokemon.name} a été capturé !`);
-        this.state.pokemonCaught = true;
-        this.state.battleEnded = true;
-        this.state.winner = this.state.player1Id;
-        this.broadcast("captureSuccess", { pokemon: this.serializePokemon(this.state.player2Pokemon) });
-        await this.handleBattleEnd();
-      } else {
-        this.addBattleMessage(`${this.state.player2Pokemon.name} s'est échappé !`);
-        this.broadcast("captureFailure");
-        this.changeTurn(); // ✅ Tour IA après échec
+      // Validation de la tentative
+      const validationError = CaptureManager.validateCaptureAttempt(attempt);
+      if (validationError) {
+        client.send("error", { message: validationError });
+        return;
       }
+
+      console.log(`🎯 [CAPTURE] Démarrage capture avec CaptureManager...`);
+
+      // ✅ NOUVEAU: Traitement complet via CaptureManager
+      const result = await CaptureManager.processCaptureAttempt(
+        attempt,
+        this.state.player2Pokemon.name,
+        this.state.player1Name,
+        { 
+          turnNumber: this.state.turnNumber,
+          timeOfDay: 'day', // TODO: Récupérer l'heure réelle
+          location: this.state.encounterLocation,
+          isFirstCapture: false // TODO: Vérifier si c'est la première capture
+        },
+        {
+          onMessage: (message: string) => {
+            this.addBattleMessage(message);
+          },
+          
+          onAnimationStep: (animation: any) => {
+            console.log(`🎬 [CAPTURE] Animation: ${animation.phase} - ${animation.message}`);
+            this.broadcast("captureAnimation", {
+              phase: animation.phase,
+              shakeNumber: animation.shakeNumber,
+              totalShakes: animation.totalShakes,
+              message: animation.message,
+              sound: animation.sound
+            });
+          },
+          
+          onCaptureSuccess: (capturedPokemon: any) => {
+            console.log(`✅ [CAPTURE] Succès ! Pokémon capturé:`, capturedPokemon.species);
+            this.handlePokemonCaptured(capturedPokemon);
+          },
+          
+          onCaptureFailed: () => {
+            console.log(`❌ [CAPTURE] Échec de capture`);
+            this.handleCaptureFailure();
+          }
+        }
+      );
+
+      console.log(`🎯 [CAPTURE] Résultat final:`, {
+        success: result.success,
+        criticalCapture: result.criticalCapture,
+        shakeCount: result.shakeCount,
+        probability: `${((result.finalRate / 255) * 100).toFixed(1)}%`
+      });
       
     } catch (error) {
       console.error(`❌ [CAPTURE] Erreur:`, error);
@@ -654,9 +699,51 @@ export class BattleRoom extends Room<BattleState> {
     }
   }
 
-  // === UTILITAIRES ===
+  // === GESTION DES RÉSULTATS DE CAPTURE ===
 
-  private calculateStat(baseStat: number, level: number): number {
+  private handlePokemonCaptured(capturedPokemon: any) {
+    console.log(`🎊 [CAPTURE] Pokémon capturé avec succès !`);
+    
+    // Marquer la fin du combat
+    this.state.pokemonCaught = true;
+    this.state.battleEnded = true;
+    this.state.winner = this.state.player1Id;
+    this.state.phase = "ended";
+    
+    // TODO: Ajouter le Pokémon à l'équipe ou au PC du joueur
+    // const teamManager = this.teamManagers.get(this.state.player1Id);
+    // if (teamManager) {
+    //   await teamManager.addCapturedPokemon(capturedPokemon);
+    // }
+    
+    // Broadcast du succès avec les données complètes
+    this.broadcast("captureSuccess", { 
+      pokemon: {
+        ...this.serializePokemon(this.state.player2Pokemon),
+        captureInfo: capturedPokemon.captureInfo,
+        ivs: capturedPokemon.ivs,
+        nature: capturedPokemon.nature
+      },
+      criticalCapture: capturedPokemon.captureInfo?.criticalCapture || false
+    });
+    
+    // Déclencher la fin du combat
+    this.handleBattleEnd();
+  }
+
+  private handleCaptureFailure() {
+    console.log(`💔 [CAPTURE] Échec de capture`);
+    
+    // Broadcast de l'échec
+    this.broadcast("captureFailure", {
+      pokemon: this.serializePokemon(this.state.player2Pokemon)
+    });
+    
+    // Le combat continue - tour de l'IA
+    this.changeTurn();
+  }
+
+  // === UTILITAIRES ===
     return Math.floor(((2 * baseStat + 31) * level) / 100) + 5;
   }
 
