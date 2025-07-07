@@ -1488,25 +1488,20 @@ setupBattleNetworkEvents() {
     this.handleNetworkBattleStart(data);
   });
 
-  this.battleNetworkHandler.on('battleUpdate', (data) => {
-    this.handleNetworkBattleUpdate(data);
-  });
-    
-  this.battleNetworkHandler.on('attackResult', (data) => {
-    this.handleNetworkAttackResult(data);
-  });
-  
-  // ✅ NOUVEAU: Handler pour les messages de combat (attaques IA, etc.)
   this.battleNetworkHandler.on('battleMessage', (data) => {
     this.handleNetworkBattleMessage(data);
   });
-  
-  this.battleNetworkHandler.on('battleEnd', (data) => {
-    this.handleNetworkBattleEnd(data);
+    
+  this.battleNetworkHandler.on('pokemonHPUpdate', (data) => {
+    this.handleNetworkBattleUpdate(data);
   });
   
-  this.battleNetworkHandler.on('turnChange', (data) => {
+  this.battleNetworkHandler.on('yourTurn', (data) => {
     this.handleNetworkTurnChange(data);
+  });
+  
+  this.battleNetworkHandler.on('battleEndWithRewards', (data) => {
+    this.handleNetworkBattleEnd(data);
   });
 }
 
