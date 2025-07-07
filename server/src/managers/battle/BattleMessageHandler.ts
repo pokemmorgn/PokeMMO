@@ -25,6 +25,7 @@ export interface MessageContext {
   move?: string;
   item?: string;
   trainer?: string;
+  trainerName?: string;  // ✅ AJOUT manquant
   target?: string;
   damage?: number;
   effectiveness?: EffectivenessMultiplier;
@@ -35,6 +36,7 @@ export interface MessageContext {
   ballType?: string;
   shakeCount?: number;
   money?: number;
+  hp?: number;           // ✅ AJOUT pour les soins
 }
 
 export class BattleMessageHandler {
