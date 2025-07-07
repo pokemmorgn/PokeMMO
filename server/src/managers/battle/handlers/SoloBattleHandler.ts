@@ -121,7 +121,7 @@ class SoloBattleHandler implements IBattleHandler {
       return false;
     }
     
-    // ✅ CRITIQUE 4: L'IA ne joue QUE si c'est SON tour
+    // ✅ CRITIQUE 4: L'IA ne joue QUE si c'est SON tour ET pas déjà une action IA en cours
     const hasAI = context.participants.some(p => p.isAI);
     const battleActive = context.phase === 'battle';
     const isAITurn = context.currentPlayer === 'ai';
@@ -132,12 +132,11 @@ class SoloBattleHandler implements IBattleHandler {
     console.log(`🤖 [SoloBattleHandler] - aiPokemon HP: ${aiPokemon.currentHp}/${aiPokemon.maxHp}`);
     console.log(`🤖 [SoloBattleHandler] - playerPokemon HP: ${playerPokemon.currentHp}/${playerPokemon.maxHp}`);
     
-    // ✅ LA CONDITION CORRECTE : L'IA joue SEULEMENT si c'est son tour ET combat actif ET Pokémon vivants
-    const shouldPlay = hasAI && battleActive && isAITurn;
+    // ✅ RETOURNER FALSE : Nous ne voulons JAMAIS programmer d'action IA automatique
+    // L'IA jouera via le système de changement de tour dans BattleRoom
+    console.log(`🤖 [SoloBattleHandler] ✅ IA doit jouer ? false (gestion par BattleRoom)`);
     
-    console.log(`🤖 [SoloBattleHandler] ✅ IA doit jouer ? ${shouldPlay}`);
-    
-    return shouldPlay;
+    return false; // ✅ JAMAIS programmer d'IA automatique !
   }
   
   /**
