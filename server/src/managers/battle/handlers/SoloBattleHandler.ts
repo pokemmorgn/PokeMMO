@@ -88,82 +88,62 @@ class SoloBattleHandler implements IBattleHandler {
   /**
    * ✅ CORRIGÉ: Détermine si l'IA doit jouer après cette action
    */
-shouldPlayAITurn(context: BattleContext): boolean {
-  console.log(`🤖 [SoloBattleHandler] Vérification tour IA...`);
-  console.log(`🤖 [SoloBattleHandler] - currentPlayer: ${context.currentPlayer}`);
-  console.log(`🤖 [SoloBattleHandler] - phase: ${context.phase}`);
-  
-  // ✅ VÉRIFICATION 1: Combat actif
-  const battleActive = context.phase === 'battle';
-  if (!battleActive) {
-    console.log(`🤖 [SoloBattleHandler] ❌ Combat non actif: ${context.phase}`);
-    return false;
-  }
-  
-  // ✅ VÉRIFICATION 2: IA présente
-  const aiParticipant = context.participants.find(p => p.isAI);
-  if (!aiParticipant) {
-    console.log(`🤖 [SoloBattleHandler] ❌ Pas d'IA trouvée`);
-    return false;
-  }
-  
-  // ✅ VÉRIFICATION 3: Pokémon IA vivant
-  const aiPokemon = aiParticipant.team[0];
-  if (!aiPokemon || aiPokemon.currentHp <= 0) {
-    console.log(`🤖 [SoloBattleHandler] ❌ Pokémon IA mort ou absent`);
-    console.log(`🤖 [SoloBattleHandler] IA HP: ${aiPokemon?.currentHp || 0}/${aiPokemon?.maxHp || 0}`);
+  shouldPlayAITurn(context: BattleContext): boolean {
+    console.log(`🤖 [SoloBattleHandler] Vérification tour IA...`);
+    console.log(`🤖 [SoloBattleHandler] - currentPlayer: ${context.currentPlayer}`);
+    console.log(`🤖 [SoloBattleHandler] - phase: ${context.phase}`);
+    console.log(`🤖 [SoloBattleHandler] - participants:`, context.participants.map(p => ({ id: p.sessionId, isAI: p.isAI })));
     
-    // ✅ TERMINER LE COMBAT
-    this.endBattleForKO(context, 'ai_fainted');
-    return false;
-  }
-  
-  // ✅ VÉRIFICATION 4: Pokémon joueur vivant
-  const playerParticipant = context.participants.find(p => !p.isAI);
-  const playerPokemon = playerParticipant?.team[0];
-  if (!playerPokemon || playerPokemon.currentHp <= 0) {
-    console.log(`🤖 [SoloBattleHandler] ❌ Pokémon joueur mort`);
-    console.log(`🤖 [SoloBattleHandler] Joueur HP: ${playerPokemon?.currentHp || 0}/${playerPokemon?.maxHp || 0}`);
+    const hasAI = context.participants.some(p => p.isAI);
+    const battleActive = context.phase === 'battle';
     
-    // ✅ TERMINER LE COMBAT
-    this.endBattleForKO(context, 'player_fainted');
-    return false;
+    // ✅ LOGIQUE SIMPLIFIÉE: L'IA joue si elle existe et le combat est actif
+    // Le changement de tour est géré par BattleSequencer
+    const shouldPlay = hasAI && battleActive;
+    
+    console.log(`🤖 [SoloBattleHandler] - hasAI: ${hasAI}`);
+    console.log(`🤖 [SoloBattleHandler] - battleActive: ${battleActive}`);
+    console.log(`🤖 [SoloBattleHandler] IA doit jouer ? ${shouldPlay}`);
+    
+    return shouldPlay;
   }
   
-  // ✅ VÉRIFICATION 5: Tour de l'IA
-  const isAITurn = context.currentPlayer === 'ai';
-  if (!isAITurn) {
-    console.log(`🤖 [SoloBattleHandler] ❌ Pas le tour de l'IA: ${context.currentPlayer}`);
-    return false;
+  /**
+   * Génère une action IA intelligente
+   */
+  async generateAIAction(context: BattleContext): Promise<BattleAction> {
+    console.log(`🧠 [SoloBattleHandler] Génération action IA...`);
+    
+    // Obtenir les données actuelles
+    const aiPokemon = this.getAIPokemon(context);
+    const playerPokemon = this.getPlayerPokemon(context);
+    
+    if (!aiPokemon || !playerPokemon) {
+      console.error('🤖 [SoloBattleHandler] Pokémon manquants pour l\'IA');
+      console.error('🤖 [SoloBattleHandler] aiPokemon:', aiPokemon);
+      console.error('🤖 [SoloBattleHandler] playerPokemon:', playerPokemon);
+      throw new Error('Pokémon manquants pour l\'IA');
+    }
+    
+    // Déterminer la personnalité IA
+    const personality = this.getAIPersonality(context);
+    
+    // Logique de décision
+    const decision = await this.makeAIDecision(aiPokemon, playerPokemon, personality, context);
+    
+    console.log(`🤖 [SoloBattleHandler] Décision IA:`, decision);
+    
+    return {
+      actionId: `ai_action_${Date.now()}`,
+      playerId: 'ai',
+      type: decision.type,
+      targetId: decision.targetId,
+      data: decision.data,
+      priority: decision.priority || 0,
+      speed: aiPokemon.stats.speed,
+      timestamp: Date.now()
+    };
   }
-  
-  console.log(`🤖 [SoloBattleHandler] ✅ IA peut jouer`);
-  return true;
-}
-
-// ✅ AJOUTER cette nouvelle méthode pour terminer le combat :
-private endBattleForKO(context: BattleContext, reason: string): void {
-  console.log(`🏁 [SoloBattleHandler] Fin combat pour K.O.: ${reason}`);
-  
-  // Marquer le combat comme terminé
-  context.phase = 'ended' as any;
-  
-  // Créer un événement de fin
-  const endEvent: any = {
-    eventId: `battle_end_${Date.now()}`,
-    type: 'battle_end',
-    timestamp: Date.now(),
-    data: {
-      result: reason === 'ai_fainted' ? 'victory' : 'defeat',
-      reason: reason,
-      winner: reason === 'ai_fainted' ? 'player' : 'ai'
-    },
-    delay: 0
-  };
-  
-  // TODO: Déclencher l'événement de fin via les callbacks si disponible
-  console.log(`🏁 [SoloBattleHandler] Combat terminé:`, endEvent.data);
-}
   
   // === TRAITEMENT DES ACTIONS SPÉCIFIQUES ===
   
