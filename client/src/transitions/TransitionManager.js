@@ -1,5 +1,8 @@
 // client/src/transitions/TransitionManager.js
-// ✅ VERSION AVEC FIX POUR RETÉLÉPORTATION VERS ZONES VISITÉES
+// ✅ VERSION CENTRALISÉE AVEC ZONEMAPPING
+
+// ✅ IMPORTER LES FONCTIONS DE MAPPING
+import { sceneToZone, zoneToScene } from '../config/ZoneMapping.js';
 
 export class TransitionManager {
   constructor(scene) {
@@ -10,7 +13,7 @@ export class TransitionManager {
     
     // Collections locales (pour collision seulement)
     this.teleportZones = new Map(); // Zones de collision pour téléports
-    this.currentZone = this.getZoneFromScene(scene.scene.key);
+    this.currentZone = sceneToZone(scene.scene.key); // ✅ UTILISER LA FONCTION CENTRALISÉE
     
     // Loading overlay
     this.loadingOverlay = null;
@@ -353,15 +356,17 @@ export class TransitionManager {
     
     console.log(`✅ [TransitionManager] Listener de validation configuré`);
   }
-waitForQueueToBeEmpty() {
-  // Petite pause, permet à Phaser de finir d’éteindre les scènes avant de redémarrer.
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
+
+  waitForQueueToBeEmpty() {
+    // Petite pause, permet à Phaser de finir d'éteindre les scènes avant de redémarrer.
+    return new Promise(resolve => setTimeout(resolve, 0));
+  }
+
   // ✅ SUCCÈS DE TRANSITION - VERSION AGGRESSIVE POUR ZONES VISITÉES
   async handleTransitionSuccess(result, teleportData) {
     try {
       const targetZone = teleportData.targetZone;
-      const targetSceneKey = this.getSceneFromZone(targetZone);
+      const targetSceneKey = zoneToScene(targetZone); // ✅ UTILISER LA FONCTION CENTRALISÉE
 
       if (!targetSceneKey) {
         console.error(`[TransitionManager] ❌ Scene introuvable pour zone: ${targetZone}`);
@@ -375,8 +380,8 @@ waitForQueueToBeEmpty() {
 
       // ✅ STRATÉGIE AGGRESSIVE POUR RETÉLÉPORTATION
       if (this.transitionStrategy === 'aggressive') {
-    await this.cleanSceneRestart(targetSceneKey, result); // ← Force clean au lieu d'aggressive
-} else if (this.transitionStrategy === 'recreate') {
+        await this.cleanSceneRestart(targetSceneKey, result); // ← Force clean au lieu d'aggressive
+      } else if (this.transitionStrategy === 'recreate') {
         await this.fullSceneRecreation(targetSceneKey, result);
       } else {
         await this.cleanSceneRestart(targetSceneKey, result);
@@ -404,7 +409,6 @@ waitForQueueToBeEmpty() {
     activeScenes.forEach(scene => {
       if (scene.scene.key !== 'LoaderScene' && scene.scene.key !== targetSceneKey) {
         console.log(`⏹️ [TransitionManager] Stop ${scene.scene.key}`);
-     //   sceneManager.stop(scene.scene.key);
       }
     });
 
@@ -442,8 +446,8 @@ waitForQueueToBeEmpty() {
     }
 
     // ✅ ÉTAPE 6: Démarrer avec un délai pour s'assurer que tout est propre
-   await this.waitForQueueToBeEmpty();
-this.startSceneWithData(targetSceneKey, result);
+    await this.waitForQueueToBeEmpty();
+    this.startSceneWithData(targetSceneKey, result);
   }
 
   // ✅ NOUVELLE MÉTHODE: Attendre que toutes les scènes s'arrêtent
@@ -500,8 +504,8 @@ this.startSceneWithData(targetSceneKey, result);
       }
       
       // Démarrer avec nouvelles données
-await this.waitForQueueToBeEmpty();
-this.startSceneWithData(targetSceneKey, result);      
+      await this.waitForQueueToBeEmpty();
+      this.startSceneWithData(targetSceneKey, result);      
     } else {
       console.error(`❌ [TransitionManager] Scène ${targetSceneKey} n'existe pas dans Phaser!`);
       console.error(`💡 Les scènes disponibles:`, Object.keys(sceneManager.keys));
@@ -538,7 +542,7 @@ this.startSceneWithData(targetSceneKey, result);
       try {
         console.log(`🏭 [TransitionManager] Création via SceneRegistry...`);
         const SceneClass = await window.sceneRegistry.getSceneClass(
-          this.getZoneFromScene(targetSceneKey)
+          sceneToZone(targetSceneKey) // ✅ UTILISER LA FONCTION CENTRALISÉE
         );
         
         const sceneInstance = new SceneClass();
@@ -817,111 +821,6 @@ this.startSceneWithData(targetSceneKey, result);
     return prop ? prop.value : null;
   }
 
-  // ✅ MAPPING ZONE ↔ SCÈNE
- getZoneFromScene(sceneName) {
-  const mapping = {
-    // Zones existantes
-    'BeachScene': 'beach',
-    'VillageScene': 'village',
-    'VillageLabScene': 'villagelab',
-    'VillageWindmillScene': 'villagewindmill',
-    'Road1Scene': 'road1',
-    'VillageHouse1Scene': 'villagehouse1',
-    'LavandiaScene': 'lavandia',
-    
-    // Zones Lavandia
-    'LavandiaAnalysisScene': 'lavandiaanalysis',
-    'LavandiaBossRoomScene': 'lavandiabossroom',
-    'LavandiaCelibTempleScene': 'lavandiacelebitemple',
-    'LavandiaEquipmentScene': 'lavandiaequipment',
-    'LavandiaFurnitureScene': 'lavandiafurniture',
-    'LavandiaHealingCenterScene': 'lavandiahealingcenter',
-    'LavandiaHouse1Scene': 'lavandiahouse1',
-    'LavandiaHouse2Scene': 'lavandiahouse2',
-    'LavandiaHouse3Scene': 'lavandiahouse3',
-    'LavandiaHouse4Scene': 'lavandiahouse4',
-    'LavandiaHouse5Scene': 'lavandiahouse5',
-    'LavandiaHouse6Scene': 'lavandiahouse6',
-    'LavandiaHouse7Scene': 'lavandiahouse7',
-    'LavandiaHouse8Scene': 'lavandiahouse8',
-    'LavandiaHouse9Scene': 'lavandiahouse9',
-    'LavandiaResearchLabScene': 'lavandiaresearchlab',
-    'LavandiaShopScene': 'lavandiashop',
-    
-    // Zones Village supplémentaires
-    'VillageFloristScene': 'villageflorist',
-    'VillageHouse2Scene': 'villagehouse2',
-    
-    // Zones Road
-    'Road1HouseScene': 'road1house',
-        'Road1HiddenScene': 'road1hidden',
-
-    'Road2Scene': 'road2',
-    'Road3Scene': 'road3',
-    
-    // Zones Nocther Cave
-      'NoctherbCave1Scene': 'noctherbcave1',
-      'NoctherbCave2Scene': 'noctherbcave2',
-      'NoctherbCave2BisScene': 'noctherbcave2bis',
-      'WraithmoorScene': 'wraithmoor',
-      'WraithmoorCimeteryScene': 'wraithmoorcimetery',
-      'WraithmoorManor1Scene': 'wraithmoormanor1'
-  };
-  return mapping[sceneName] || sceneName.toLowerCase();
-}
-
-getSceneFromZone(zoneName) {
-  const mapping = {
-    // Zones existantes
-    'beach': 'BeachScene',
-    'village': 'VillageScene',
-    'villagewindmill': 'VillageWindmillScene',
-    'villagelab': 'VillageLabScene',
-    'road1': 'Road1Scene',
-    'villagehouse1': 'VillageHouse1Scene',
-    'lavandia': 'LavandiaScene',
-    
-    // Zones Lavandia
-    'lavandiaanalysis': 'LavandiaAnalysisScene',
-    'lavandiabossroom': 'LavandiaBossRoomScene',
-    'lavandiacelebitemple': 'LavandiaCelibTempleScene',
-    'lavandiaequipment': 'LavandiaEquipmentScene',
-    'lavandiafurniture': 'LavandiaFurnitureScene',
-    'lavandiahealingcenter': 'LavandiaHealingCenterScene',
-    'lavandiahouse1': 'LavandiaHouse1Scene',
-    'lavandiahouse2': 'LavandiaHouse2Scene',
-    'lavandiahouse3': 'LavandiaHouse3Scene',
-    'lavandiahouse4': 'LavandiaHouse4Scene',
-    'lavandiahouse5': 'LavandiaHouse5Scene',
-    'lavandiahouse6': 'LavandiaHouse6Scene',
-    'lavandiahouse7': 'LavandiaHouse7Scene',
-    'lavandiahouse8': 'LavandiaHouse8Scene',
-    'lavandiahouse9': 'LavandiaHouse9Scene',
-    'lavandiaresearchlab': 'LavandiaResearchLabScene',
-    'lavandiashop': 'LavandiaShopScene',
-    
-    // Zones Village supplémentaires
-    'villageflorist': 'VillageFloristScene',
-    'villagehouse2': 'VillageHouse2Scene',
-    
-    // Zones Road
-    'road1house': 'Road1HouseScene',
-        'road1hidden': 'Road1HiddenScene',
-
-    'road2': 'Road2Scene',
-    'road3': 'Road3Scene',
-    
-    // Zones Nocther Cave
-      'noctherbcave1': 'NoctherbCave1Scene',
-      'noctherbcave2': 'NoctherbCave2Scene',
-      'noctherbcave2bis': 'NoctherbCave2BisScene',
-      'wraithmoor': 'WraithmoorScene',
-      'wraithmoorcimetery': 'WraithmoorCimeteryScene',
-      'wraithmoormanor1': 'WraithmoorManor1Scene'
-  };
-  return mapping[zoneName.toLowerCase()] || null;
-}
-
   // ✅ CONFIGURATION
   setTransitionStrategy(strategy = 'aggressive') {
     this.transitionStrategy = strategy;
@@ -1035,12 +934,12 @@ getSceneFromZone(zoneName) {
       console.log(`  📋 ${sceneKey}: ${status} ${scene ? '✅' : '❌'}`);
     });
     
-    // Vérifier si toutes nos zones ont leur scène
+    // Vérifier si toutes nos zones ont leur scène en utilisant les fonctions centralisées
     const expectedZones = ['beach', 'village', 'villagelab', 'road1', 'villagehouse1', 'lavandia'];
     
     console.log(`🌍 Vérification des zones attendues:`);
     expectedZones.forEach(zone => {
-      const sceneKey = this.getSceneFromZone(zone);
+      const sceneKey = zoneToScene(zone); // ✅ UTILISER LA FONCTION CENTRALISÉE
       const hasScene = !!sceneManager.get(sceneKey);
       console.log(`  🗺️ ${zone} (${sceneKey}): ${hasScene ? '✅' : '❌'}`);
     });
@@ -1130,7 +1029,7 @@ getSceneFromZone(zoneName) {
     
     // Réinitialiser les états
     this.teleportZones = new Map();
-    this.currentZone = this.getZoneFromScene(this.scene.scene.key);
+    this.currentZone = sceneToZone(this.scene.scene.key); // ✅ UTILISER LA FONCTION CENTRALISÉE
     this.isActive = false;
     this.isTransitioning = false;
     this.loadingOverlay = null;
