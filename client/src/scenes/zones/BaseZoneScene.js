@@ -21,6 +21,8 @@ import { ClientEncounterManager } from "../../managers/EncounterManager.js";
 import { movementBlockHandler } from "../../input/MovementBlockHandler.js";
 import { InputManager } from "../../input/InputManager.js";
 import { integrateMusicToScene } from "../../managers/MapMusicManager.js";
+import { sceneToZone, zoneToScene } from '../../config/ZoneMapping.js';
+
 
 
 export class BaseZoneScene extends Phaser.Scene {
@@ -1765,89 +1767,14 @@ positionPlayer(player) {
 
   // === MÉTHODES UTILITAIRES CONSERVÉES ===
 
-  mapSceneToZone(sceneName) {
-    const mapping = {
-      'BeachScene': 'beach',
-      'VillageScene': 'village',
-      'VillageLabScene': 'villagelab',
-      'VillageWindmillScene': 'villagewindmill',
-      'Road1Scene': 'road1',
-      'Road1HiddenScene': 'road1hidden',
-      'Road1HouseScene': 'road1house',
-      'VillageHouse1Scene': 'villagehouse1',
-      'LavandiaScene': 'lavandia',
-      'LavandiaAnalysisScene': 'lavandiaanalysis',
-      'LavandiaBossRoomScene': 'lavandiabossroom',
-      'LavandiaCelebiTempleScene': 'lavandiacelebitemple',
-      'LavandiaEquipmentScene': 'lavandiaequipment',
-      'LavandiaFurnitureScene': 'lavandiafurniture',
-      'LavandiaHealingCenterScene': 'lavandiahealingcenter',
-      'LavandiaHouse1Scene': 'lavandiahouse1',
-      'LavandiaHouse2Scene': 'lavandiahouse2',
-      'LavandiaHouse3Scene': 'lavandiahouse3',
-      'LavandiaHouse4Scene': 'lavandiahouse4',
-      'LavandiaHouse5Scene': 'lavandiahouse5',
-      'LavandiaHouse6Scene': 'lavandiahouse6',
-      'LavandiaHouse7Scene': 'lavandiahouse7',
-      'LavandiaHouse8Scene': 'lavandiahouse8',
-      'LavandiaHouse9Scene': 'lavandiahouse9',
-      'LavandiaResearchLabScene': 'lavandiaresearchlab',
-      'LavandiaShopScene': 'lavandiashop',
-      'VillageFloristScene': 'villageflorist',
-      'VillageHouse2Scene': 'villagehouse2',
-      'Road2Scene': 'road2',
-      'Road3Scene': 'road3',
-      'NoctherbCave1Scene': 'noctherbcave1',
-      'NoctherbCave2Scene': 'noctherbcave2',
-      'NoctherbCave2BisScene': 'noctherbcave2bis',
-      'WraithmoorScene': 'wraithmoor',
-      'WraithmoorCimeteryScene': 'wraithmoorcimetery',
-      'WraithmoorManor1Scene': 'wraithmoormanor1'
-    };
-    return mapping[sceneName] || sceneName.toLowerCase();
-  }
+ // Remplacer les méthodes mapSceneToZone et mapZoneToScene
+mapSceneToZone(sceneName) {
+  return sceneToZone(sceneName);
+}
 
-  mapZoneToScene(zoneName) {
-    const mapping = {
-      'beach': 'BeachScene',
-      'village': 'VillageScene',
-      'villagelab': 'VillageLabScene',
-      'villagewindmill': 'VillageWindmillScene',
-      'road1': 'Road1Scene',
-      'road1house': 'Road1HouseScene',
-      'road1hidden': 'Road1HiddenScene',
-      'villagehouse1': 'VillageHouse1Scene',
-      'lavandia': 'LavandiaScene',
-      'lavandiaanalysis': 'LavandiaAnalysisScene',
-      'lavandiabossroom': 'LavandiaBossRoomScene',
-      'lavandiacelebitemple': 'LavandiaCelebiTempleScene',
-      'lavandiaequipment': 'LavandiaEquipmentScene',
-      'lavandiafurniture': 'LavandiaFurnitureScene',
-      'lavandiahealingcenter': 'LavandiaHealingCenterScene',
-      'lavandiahouse1': 'LavandiaHouse1Scene',
-      'lavandiahouse2': 'LavandiaHouse2Scene',
-      'lavandiahouse3': 'LavandiaHouse3Scene',
-      'lavandiahouse4': 'LavandiaHouse4Scene',
-      'lavandiahouse5': 'LavandiaHouse5Scene',
-      'lavandiahouse6': 'LavandiaHouse6Scene',
-      'lavandiahouse7': 'LavandiaHouse7Scene',
-      'lavandiahouse8': 'LavandiaHouse8Scene',
-      'lavandiahouse9': 'LavandiaHouse9Scene',
-      'lavandiaresearchlab': 'LavandiaResearchLabScene',
-      'lavandiashop': 'LavandiaShopScene',
-      'villageflorist': 'VillageFloristScene',
-      'villagehouse2': 'VillageHouse2Scene',
-      'road2': 'Road2Scene',
-      'road3': 'Road3Scene',
-      'noctherbcave1': 'NoctherbCave1Scene',
-      'noctherbcave2': 'NoctherbCave2Scene',
-      'noctherbcave2bis': 'NoctherbCave2BisScene',
-      'wraithmoor': 'WraithmoorScene',
-      'wraithmoorcimetery': 'WraithmoorCimeteryScene',
-      'wraithmoormanor1': 'WraithmoorManor1Scene'
-    };
-    return mapping[zoneName.toLowerCase()] || zoneName;
-  }
+mapZoneToScene(zoneName) {
+  return zoneToScene(zoneName);
+}
 
   normalizeZoneName(sceneName) {
     return this.mapSceneToZone(sceneName);
