@@ -482,13 +482,6 @@ private async autoSelectFirstPokemon() {
       if (this.state.battleType === "wild" && this.battleInitData.wildPokemon) {
         const callbacks = this.createBattleCallbacks();
         this.battleIntegration.initializeBattle(callbacks, 'wild', []);
-        await this.battleIntegration.initializeWildBattle(
-          this.state.player1Id,
-          this.state.player1Name,
-          selectedPokemon.pokemonId,
-          this.battleInitData.wildPokemon,
-          this.battleInitData.wildPokemon.pokemonId.toString() // location simplifiée
-        );
         
         console.log(`✅ Combat sauvage initialisé avec BattleIntegration`);
         
@@ -876,7 +869,11 @@ private async handleBattleEnd() {
     action.data = JSON.stringify({});
     
     try {
-      await this.battleIntegration.processAction(action);
+        await this.battleIntegration.processAction(
+          action.playerId,
+          action.type as ActionType,
+          {}
+        );
       
       // Le BattleIntegration a mis à jour le state
       if (this.state.battleEnded && this.state.phase === "fled") {
@@ -1196,7 +1193,11 @@ private getPlayerName(sessionId: string): string | null {
       action.priority = 0;
       action.speed = this.state.player1Pokemon.speed;
       
-      await this.battleIntegration.processAction(action);
+      await this.battleIntegration.processAction(
+        action.playerId,
+        action.type as ActionType,
+        { moveId: defaultMove }
+      );
       this.broadcastBattleUpdate();
       
       if (!this.state.battleEnded) {
