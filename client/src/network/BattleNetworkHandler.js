@@ -417,9 +417,9 @@ async connectToBattleRoom(battleRoomId) {
 
       // === ÉVÉNEMENTS D'ACTIONS ===
 
-      this.battleRoom.onMessage('pokemonHPUpdate', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 💥 pokemonHPUpdate:', data);
-        this.triggerEvent('pokemonHPUpdate', data);
+      this.battleRoom.onMessage('pokemonDamage', (data) => {
+        console.log('[DEBUG NETWORK BATTLE] 💥 pokemonDamage:', data);
+        this.triggerEvent('pokemonDamage', data);
       });
 
       this.battleRoom.onMessage('captureShake', (data) => {
