@@ -614,99 +614,6 @@ export class BattleRoom extends Room<BattleState> {
     this.turnSystem.startTurn();
     this.processTurn();
   }
-
-  private processTurn() {
-    console.log(`🎲 [TURN] Tour ${this.state.currentTurn}`);
-    
-    if (this.state.battleEnded) {
-      console.log(`🎲 [TURN] Combat terminé, arrêt`);
-      return;
-    }
-    
-    if (this.state.currentTurn === "player1") {
-      this.processHumanTurn();
-    } else if (this.state.currentTurn === "player2") {
-      this.processAITurn();
-    }
-  }
-
-  private processHumanTurn() {
-    console.log(`👤 [TURN] Tour joueur humain`);
-    
-    this.startActionTimer();
-    
-    const client = this.clients.find(c => c.sessionId === this.state.player1Id);
-    if (client) {
-      client.send("yourTurn", { 
-        timeRemaining: this.actionTimeoutMs,
-        turnNumber: this.state.turnNumber
-      });
-    }
-  }
-
-  private processAITurn() {
-    console.log(`🤖 [TURN] Tour IA`);
-    
-    // ✅ NOUVEAU: Délai réaliste puis action IA
-    this.clock.setTimeout(() => {
-      if (this.state.currentTurn === "player2" && !this.state.battleEnded) {
-        this.executeAIAction();
-      }
-    }, 1500);
-  }
-
-  private async executeAIAction() {
-    console.log(`🤖 [AI] Exécution action IA`);
-    
-    try {
-      // ✅ SIMPLIFIÉ: Action IA basique
-      const aiMoves = Array.from(this.state.player2Pokemon.moves);
-      const randomMove = aiMoves[0] || "tackle";
-      
-      await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
-      
-      // ✅ NOUVEAU: Mettre à jour le contexte et vérifier la fin
-      this.updateBattleContext();
-      
-      const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
-      if (endCondition) {
-        console.log(`🏁 [AI] Condition de fin détectée:`, endCondition);
-        await this.processBattleEndWithManager(endCondition);
-        return;
-      }
-      
-      // ✅ NOUVEAU: Changer de tour manuellement (plus via callback)
-      this.changeTurn();
-      
-    } catch (error) {
-      console.error(`❌ [AI] Erreur:`, error);
-      this.changeTurn(); // Continuer même en cas d'erreur
-    }
-  }
-
-  private changeTurn() {
-    console.log(`🔄 [TURN] Changement de tour`);
-    
-    // ✅ ALTERNANCE SIMPLE
-    if (this.state.currentTurn === "player1") {
-      this.state.currentTurn = "player2";
-    } else {
-      this.state.currentTurn = "player1";
-    }
-    
-    this.state.turnNumber++;
-    
-    // ✅ NOUVEAU: Mettre à jour le contexte
-    this.battleContext.turnNumber = this.state.turnNumber;
-    
-    console.log(`🔄 [TURN] Nouveau tour: ${this.state.currentTurn}`);
-    
-    this.broadcast("battleUpdate", this.getClientBattleState());
-    
-    // Continuer le cycle
-    this.processTurn();
-  }
-
   // === GESTION DU CONTEXTE DE COMBAT ===
 
   private updateBattleContext() {
@@ -847,53 +754,149 @@ export class BattleRoom extends Room<BattleState> {
 
   // === ACTIONS DE COMBAT ===
 
-  private async handleBattleAction(client: Client, data: any) {
-    console.log(`🎮 [ACTION] ${client.sessionId}: ${data.actionType}`);
-    
-    if (this.state.phase !== "battle" || this.state.battleEnded) {
-      client.send("error", { message: "Combat terminé" });
-      return;
-    }
-
-    if (this.state.currentTurn !== "player1" || client.sessionId !== this.state.player1Id) {
-      client.send("error", { message: "Ce n'est pas votre tour" });
-      return;
-    }
-
-    try {
-      this.clearActionTimer();
-      
-      await this.battleIntegration.processAction(
-        client.sessionId,
-        data.actionType as ActionType,
-        data
-      );
-      
-      // ✅ NOUVEAU: Mettre à jour le contexte de combat
-      this.updateBattleContext();
-      
-      // ✅ NOUVEAU: Vérifier les conditions de fin avec BattleEndManager
-      const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
-      if (endCondition) {
-        console.log(`🏁 [BATTLE] Condition de fin détectée:`, endCondition);
-        await this.processBattleEndWithManager(endCondition);
-        return;
-      }
-      
-      if (this.state.battleEnded) {
-        await this.handleBattleEnd();
-      } else {
-        this.updatePlayerHpPercentages();
-        this.updateBattleStatusIcons();
-        this.changeTurn(); // ✅ CHANGEMENT MANUEL
-      }
-
-    } catch (error) {
-      console.error(`❌ [ACTION] Erreur:`, error);
-      client.send("error", { message: "Erreur lors de l'action" });
-    }
+private async handleBattleAction(client: Client, data: any) {
+  console.log(`🎮 [ACTION] ${client.sessionId}: ${data.actionType}`);
+  
+  if (this.state.phase !== "battle" || this.state.battleEnded) {
+    client.send("error", { message: "Combat terminé" });
+    return;
   }
 
+  // ✅ VALIDATION TURNSYSTEM
+  if (!this.turnSystem.canPlayerAct(client.sessionId)) {
+    client.send("error", { message: "Ce n'est pas votre tour" });
+    return;
+  }
+
+  try {
+    this.clearActionTimer();
+    
+    // ✅ 1. TRAITER L'ACTION AVEC BATTLEINTEGRATION
+    await this.battleIntegration.processAction(
+      client.sessionId,
+      data.actionType as ActionType,
+      data
+    );
+    
+    // ✅ 2. INFORMER TURNSYSTEM QUE L'ACTION EST TERMINÉE
+    const actionSuccess = this.turnSystem.submitAction(client.sessionId, {
+      type: data.actionType,
+      moveId: data.moveId,
+      targetId: data.targetPokemonId,
+      data: data
+    });
+    
+    if (!actionSuccess) {
+      console.error(`❌ [TURN] TurnSystem a rejeté l'action`);
+      return;
+    }
+    
+    // ✅ 3. METTRE À JOUR LE CONTEXTE
+    this.updateBattleContext();
+    
+    // ✅ 4. VÉRIFIER FIN DE COMBAT
+    const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
+    if (endCondition) {
+      await this.processBattleEndWithManager(endCondition);
+      return;
+    }
+    
+    // ✅ 5. MISE À JOUR UI
+    this.updatePlayerHpPercentages();
+    this.updateBattleStatusIcons();
+    
+    // ✅ 6. TURNSYSTEM GÈRE LA SUITE AUTOMATIQUEMENT
+    console.log(`✅ [TURN] Action terminée, TurnSystem gère la suite`);
+
+  } catch (error) {
+    console.error(`❌ [ACTION] Erreur:`, error);
+    client.send("error", { message: "Erreur lors de l'action" });
+  }
+}
+
+  // ✅ NOUVELLE MÉTHODE À AJOUTER
+private setupTurnSystemHandlers() {
+  // Quand TurnSystem dit qu'un joueur doit jouer
+  this.turnSystem.onPlayerTurnStart = (playerId: string) => {
+    console.log(`🎯 [TURNSYSTEM] Tour de: ${playerId}`);
+    
+    if (playerId === 'ai') {
+      this.handleAITurn();
+    } else {
+      this.handleHumanTurn(playerId);
+    }
+  };
+  
+  // Quand TurnSystem change de tour
+  this.turnSystem.onTurnChange = (newPlayerId: string, turnNumber: number) => {
+    console.log(`🔄 [TURNSYSTEM] Nouveau tour: ${newPlayerId} (tour ${turnNumber})`);
+    
+    this.state.currentTurn = newPlayerId === 'ai' ? 'player2' : 'player1';
+    this.state.turnNumber = turnNumber;
+    
+    this.broadcast("battleUpdate", this.getClientBattleState());
+  };
+}
+
+private handleHumanTurn(playerId: string) {
+  console.log(`👤 [TURN] Tour joueur humain: ${playerId}`);
+  
+  this.startActionTimer();
+  
+  const client = this.clients.find(c => c.sessionId === playerId);
+  if (client) {
+    client.send("yourTurn", { 
+      timeRemaining: this.actionTimeoutMs,
+      turnNumber: this.state.turnNumber
+    });
+  }
+}
+
+private async handleAITurn() {
+  console.log(`🤖 [TURN] Tour IA`);
+  
+  // Délai réaliste puis action IA via TurnSystem
+  this.clock.setTimeout(async () => {
+    if (!this.state.battleEnded) {
+      await this.executeAIActionViaTurnSystem();
+    }
+  }, 1500);
+}
+
+private async executeAIActionViaTurnSystem() {
+  console.log(`🤖 [AI] Génération action via TurnSystem`);
+  
+  try {
+    // ✅ GÉNÉRER ACTION IA
+    const aiMoves = Array.from(this.state.player2Pokemon.moves);
+    const randomMove = aiMoves[0] || "tackle";
+    
+    const aiAction = {
+      type: 'attack',
+      moveId: randomMove,
+      data: { moveId: randomMove }
+    };
+    
+    // ✅ SOUMETTRE À TURNSYSTEM
+    const success = this.turnSystem.submitAction('ai', aiAction);
+    
+    if (success) {
+      // ✅ EXÉCUTER L'ACTION
+      await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
+      
+      // ✅ VÉRIFIER FIN
+      this.updateBattleContext();
+      const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
+      if (endCondition) {
+        await this.processBattleEndWithManager(endCondition);
+      }
+    }
+    
+  } catch (error) {
+    console.error(`❌ [AI] Erreur:`, error);
+  }
+}
+  
   private async handleChoosePokemon(client: Client, pokemonId: string) {
     console.log(`🎯 [CHOOSE] Pokémon: ${pokemonId}`);
     
