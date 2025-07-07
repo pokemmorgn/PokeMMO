@@ -207,7 +207,7 @@ export class BattleEndManager {
       rewards.items = this.generateItemRewards(context, config);
 
       // 4. Badges et achievements spéciaux
-      if (config.badgeReward) {
+      if ('badgeReward' in config && config.badgeReward) {
         rewards.badges = this.calculateBadgeRewards(context);
       }
 
@@ -560,7 +560,7 @@ export class BattleEndManager {
         const newState = {
           currentHp: pokemon.currentHp,
           statusCondition: pokemon.statusCondition,
-          experience: pokemon.experience || 0, // TODO: Calculer la nouvelle exp
+          experience: 0, // TODO: Calculer la nouvelle exp à partir du niveau
           level: pokemon.level
         };
 
