@@ -77,23 +77,27 @@ export const BattleEffectRegistry: Record<
 > = {
   // -- Exemples standards (à étoffer selon besoin) --
   // INTIMIDATE (Talent)
-  "ability_intimidate": {
-    id: "ability_intimidate",
-    type: "ability",
-    hooks: {
-      onSwitchIn: ({ context, effect, target }) => {
-        // Baisse l’attaque du(s) Pokémon adverse(s)
-        context.participants.forEach((p) => {
-          if (target && p.sessionId !== target.pokemonId && p.team[0]) {
-            p.team[0].statStages.attack = Math.max(
-              -6,
-              (p.team[0].statStages.attack || 0) - 1
-            );
-          }
-        });
-        return { message: "L’intimidation baisse l’Attaque !" };
-      },
+"ability_intimidate": {
+  id: "ability_intimidate",
+  type: "ability",
+  hooks: {
+    onSwitchIn: ({ context, effect, target }) => {
+      // Baisse l’attaque du(s) Pokémon adverse(s)
+      context.participants.forEach((p) => {
+        // Appliquer à tous les Pokémon adverses sauf celui qui switch in
+        if (
+          target &&
+          p.team[0] &&                    // Vérifie que le Pokémon existe
+          p.team[0].pokemonId !== target.pokemonId // Compare bien les IDs numériques
+        ) {
+          // Clamp le stage d'attaque à [-6, 6]
+          p.team[0].statStages.attack = Math.max(-6, Math.min(6, (p.team[0].statStages.attack || 0) - 1)) as StatStage;
+        }
+      });
+      return { message: "L’intimidation baisse l’Attaque !" };
     },
+  },
+}
     display: {
       name: "Intimidate",
       description: "Baisse l'Attaque de l'adversaire lors de l'entrée en combat.",
