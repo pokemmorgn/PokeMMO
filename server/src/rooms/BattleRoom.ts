@@ -1,13 +1,13 @@
 // server/src/rooms/BattleRoom.ts - VERSION AVEC VRAI COMBAT
 import { Room, Client } from "@colyseus/core";
 import { BattleState, BattlePokemon, BattleAction } from "../schema/BattleState";
-import { BattleManager } from "../managers/BattleManager";
+import { BattleIntegration, IBattleRoomCallbacks } from '../managers/battle/BattleIntegration';
 import { MoveManager } from "../managers/MoveManager";
 import { CaptureManager, CaptureAttempt } from "../managers/CaptureManager";
 import { WildPokemon } from "../managers/EncounterManager";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
-import '../managers/battle/BattleIntegration';
+import { BattleIntegration, IBattleRoomCallbacks } from '../managers/battle/BattleIntegration';
 // Interface pour les données initiales du combat
 export interface BattleInitData {
   battleType: "wild" | "pvp";
@@ -34,7 +34,7 @@ export class BattleRoom extends Room<BattleState> {
   private battleInitData!: BattleInitData;
   private teamManagers: Map<string, TeamManager> = new Map();
   private worldRoomRef: any = null;
-  private battleManager!: BattleManager; // ✅ AJOUT: Instance du BattleManager
+  private battleIntegration!: BattleIntegration;
   
   // Combat timing
   private actionTimeoutMs = 30000;
@@ -218,6 +218,52 @@ async onJoin(client: Client, options: any) {
     }
   }
 
+  private createBattleCallbacks(): IBattleRoomCallbacks {
+  return {
+    broadcastMessage: (messageId: string, data: any) => {
+      console.log(`📡 [BattleRoom] Broadcasting message: ${messageId}`);
+      this.broadcast('battleMessage', {
+        messageId,
+        message: data.message || messageId,
+        variables: data.variables || {},
+        timing: data.timing || 2000
+      });
+    },
+
+    broadcastUpdate: (updateData: any) => {
+      console.log(`📡 [BattleRoom] Broadcasting update`);
+      this.broadcast('battleUpdate', updateData);
+    },
+
+    updatePokemonHP: (pokemonId: string, newHp: number) => {
+      console.log(`💖 [BattleRoom] Update HP: ${pokemonId} → ${newHp}`);
+      // Mettre à jour le HP dans le state
+      if (this.state.player1Pokemon?.pokemonId.toString() === pokemonId) {
+        this.state.player1Pokemon.currentHp = newHp;
+      } else if (this.state.player2Pokemon?.pokemonId.toString() === pokemonId) {
+        this.state.player2Pokemon.currentHp = newHp;
+      }
+    },
+
+    changeTurn: (newTurn: string) => {
+      console.log(`🔄 [BattleRoom] Change turn: ${newTurn}`);
+      this.state.currentTurn = newTurn === 'ai' ? 'player2' : newTurn;
+      this.state.turnNumber++;
+    },
+
+    endBattle: (result: any) => {
+      console.log(`🏁 [BattleRoom] End battle:`, result);
+      this.state.battleEnded = true;
+      this.state.winner = result.winner;
+      this.state.phase = result.result === 'fled' ? 'fled' : 'ended';
+    },
+
+    logBattleEvent: (event: any) => {
+      console.log(`📝 [BattleRoom] Log event: ${event.type}`);
+      // Optionnel : ajouter au battleLog si nécessaire
+    }
+  };
+}
   // === DÉMARRAGE DU COMBAT ===
 
 private async startBattle() {
@@ -299,6 +345,7 @@ private checkAndPlayAITurn() {
     this.playAITurnNow();
   }, 1000);
 }
+  
 private async autoSelectFirstPokemon() {
   console.log(`🔥 [AUTO SELECT] Sélection automatique du premier Pokémon...`);
   
