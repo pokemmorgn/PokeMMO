@@ -171,6 +171,50 @@ setTimeout(() => {
       console.log(`🤖 [BattleSequencer] Programmation tour IA automatique...`);
       
       // Délai avant que l'IA joue (2 secondes pour laisser lire)
+setTimeout(() => {
+  try {
+    // ⚡ Déclencher tous les effets de fin de tour
+    const results = BattleEffectSystem.triggerHook(context, "onTurnEnd", {});
+    if (results && results.length) {
+      results.forEach((r) => {
+        if (r?.message) {
+          this.battleRoomCallbacks?.broadcastMessage("battleMessage", {
+            message: r.message,
+            timing: 1800
+          });
+        }
+      });
+    }
+
+    // ✅ AJOUT: Changer le tour après l'action
+    console.log(`🔄 [BattleSequencer] Changement de tour automatique...`);
+    console.log(`🔄 [BattleSequencer] Tour actuel: ${context.currentPlayer}`);
+    
+    // Alterner entre player1 et AI
+    if (context.currentPlayer === context.participants.find(p => !p.isAI)?.sessionId) {
+      // Tour du joueur → Tour de l'IA
+      context.currentPlayer = 'ai';
+      console.log(`🔄 [BattleSequencer] Nouveau tour: ai`);
+      
+      // Informer le BattleRoom du changement
+      this.battleRoomCallbacks?.changeTurn('ai');
+      
+    } else if (context.currentPlayer === 'ai') {
+      // Tour de l'IA → Tour du joueur
+      const playerSessionId = context.participants.find(p => !p.isAI)?.sessionId || 'player1';
+      context.currentPlayer = playerSessionId;
+      console.log(`🔄 [BattleSequencer] Nouveau tour: ${playerSessionId}`);
+      
+      // Informer le BattleRoom du changement
+      this.battleRoomCallbacks?.changeTurn(playerSessionId);
+    }
+
+    // ✅ MAINTENANT vérifier si l'IA doit jouer
+    const handler = this.findHandler(context);
+    if (handler && handler.shouldPlayAITurn(context)) {
+      console.log(`🤖 [BattleSequencer] Programmation tour IA automatique...`);
+      
+      // Délai avant que l'IA joue (2 secondes pour laisser lire)
       setTimeout(async () => {
         try {
           const aiAction = await handler.generateAIAction(context);
