@@ -187,34 +187,7 @@ export class BattleSequencer {
           // Informer le BattleRoom du changement
           this.battleRoomCallbacks?.changeTurn(playerSessionId);
         }
-  const aiParticipant = context.participants.find(p => p.isAI);
-const playerParticipant = context.participants.find(p => !p.isAI);
 
-const aiPokemon = aiParticipant?.team[0];
-const playerPokemon = playerParticipant?.team[0];
-
-// Si un Pokémon est mort, terminer le combat
-if (!aiPokemon || aiPokemon.currentHp <= 0) {
-  console.log(`🏁 [BattleSequencer] Pokémon IA K.O., fin du combat`);
-  context.phase = 'ended' as any;
-  this.battleRoomCallbacks?.endBattle({
-    result: 'victory',
-    winner: 'player',
-    reason: 'ai_fainted'
-  });
-  return; // ✅ ARRÊTER ICI
-}
-
-if (!playerPokemon || playerPokemon.currentHp <= 0) {
-  console.log(`🏁 [BattleSequencer] Pokémon joueur K.O., fin du combat`);
-  context.phase = 'ended' as any;
-  this.battleRoomCallbacks?.endBattle({
-    result: 'defeat', 
-    winner: 'ai',
-    reason: 'player_fainted'
-  });
-  return; // ✅ ARRÊTER ICI
-}  
         // ✅ VÉRIFIER si l'IA doit jouer APRÈS le changement de tour
         const handler = this.findHandler(context);
         if (handler && handler.shouldPlayAITurn(context)) {
