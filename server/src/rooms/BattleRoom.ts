@@ -399,89 +399,93 @@ private async autoSelectFirstPokemon() {
       const callbacks = this.createBattleCallbacks();
       
       // ✅ FONCTION HELPER pour convertir BattlePokemon → BattlePokemonData
-      const convertToBattlePokemonData = async (battlePokemon: BattlePokemon): Promise<any> => {
-        return {
-          pokemonId: battlePokemon.pokemonId,
-          name: battlePokemon.name,
-          level: battlePokemon.level,
-          currentHp: battlePokemon.currentHp,
-          maxHp: battlePokemon.maxHp,
-          types: Array.from(battlePokemon.types),
-          moves: await Promise.all(
-            Array.from(battlePokemon.moves).map(async (moveId) => {
-              const moveData = MoveManager.getMoveData(moveId);
-              const category = moveData?.category?.toLowerCase() || 'physical';
-              return {
-                moveId,
-                name: moveData?.name || moveId,
-                type: moveData?.type || 'Normal',
-                category: category as 'physical' | 'special' | 'status',
-                power: moveData?.power || 0,
-                accuracy: moveData?.accuracy || 100,
-                pp: moveData?.pp || 35,
-                maxPp: moveData?.pp || 35,
-                priority: moveData?.priority || 0,
-                description: moveData?.description || ''
-              };
-            })
-          ),
-          stats: {
-            attack: battlePokemon.attack,
-            defense: battlePokemon.defense,
-            specialAttack: battlePokemon.specialAttack,
-            specialDefense: battlePokemon.specialDefense,
-            speed: battlePokemon.speed,
-            hp: battlePokemon.maxHp
-          },
-          statStages: {
-            attack: battlePokemon.attackStage || 0,
-            defense: battlePokemon.defenseStage || 0,
-            specialAttack: battlePokemon.specialAttackStage || 0,
-            specialDefense: battlePokemon.specialDefenseStage || 0,
-            speed: battlePokemon.speedStage || 0,
-            accuracy: 0, 
-            evasion: 0
-          },
-          statusCondition: battlePokemon.statusCondition || 'normal',
-          ability: undefined, // ✅ FIX - propriété n'existe pas dans BattlePokemon
-          heldItem: undefined, // ✅ FIX - propriété n'existe pas dans BattlePokemon
-          gender: battlePokemon.gender,
-          shiny: battlePokemon.shiny,
-          isWild: battlePokemon.isWild,
-          nature: 'Hardy'
-        };
+const convertToBattlePokemonData = (battlePokemon: BattlePokemon): any => {
+  console.log(`🔧 [CONVERT] Conversion ${battlePokemon.name}`);
+  console.log(`🔧 [CONVERT] Types source:`, Array.from(battlePokemon.types));
+  
+  const converted = {
+    pokemonId: battlePokemon.pokemonId,
+    name: battlePokemon.name,
+    level: battlePokemon.level,
+    currentHp: battlePokemon.currentHp,
+    maxHp: battlePokemon.maxHp,
+    types: Array.from(battlePokemon.types), // ✅ FIX: Préserver les types
+    moves: Array.from(battlePokemon.moves).map((moveId) => {
+      const moveData = MoveManager.getMoveData(moveId);
+      return {
+        moveId,
+        name: moveData?.name || moveId,
+        type: moveData?.type || 'Normal',
+        category: (moveData?.category?.toLowerCase() || 'physical') as 'physical' | 'special' | 'status',
+        power: moveData?.power || 0,
+        accuracy: moveData?.accuracy || 100,
+        pp: moveData?.pp || 35,
+        maxPp: moveData?.pp || 35,
+        priority: moveData?.priority || 0,
+        description: moveData?.description || ''
       };
-      
-      // ✅ PARTICIPANTS DYNAMIQUES
-      const participants = [
-        {
-          sessionId: this.state.player1Id,
-          name: this.state.player1Name,
-          role: 'player1',
-          team: [await convertToBattlePokemonData(this.state.player1Pokemon)],
-          activePokemon: this.state.player1Pokemon.pokemonId.toString(),
-          isAI: false,
-          isConnected: true,
-          lastActionTime: Date.now()
-        },
-        {
-          sessionId: 'ai',
-          name: 'Pokémon Sauvage',
-          role: 'player2',
-          team: [await convertToBattlePokemonData(this.state.player2Pokemon)],
-          activePokemon: this.state.player2Pokemon.pokemonId.toString(),
-          isAI: true,
-          isConnected: true,
-          lastActionTime: Date.now()
-        }
-      ];
-          
-          console.log(`🔧 [AUTO SELECT] Participants créés:`, participants.length);
-          participants.forEach((p, i) => {
-            console.log(`   ${i}: ${p.sessionId} (${p.name}) - Pokémon: ${p.team[0]?.name}`);
-          });
-          
-          this.battleIntegration.initializeBattle(callbacks, 'wild', participants);
+    }),
+    stats: {
+      attack: battlePokemon.attack,
+      defense: battlePokemon.defense,
+      specialAttack: battlePokemon.specialAttack,
+      specialDefense: battlePokemon.specialDefense,
+      speed: battlePokemon.speed,
+      hp: battlePokemon.maxHp
+    },
+    statStages: {
+      attack: battlePokemon.attackStage || 0,
+      defense: battlePokemon.defenseStage || 0,
+      specialAttack: battlePokemon.specialAttackStage || 0,
+      specialDefense: battlePokemon.specialDefenseStage || 0,
+      speed: battlePokemon.speedStage || 0,
+      accuracy: 0,
+      evasion: 0
+    },
+    statusCondition: battlePokemon.statusCondition || 'normal',
+    ability: undefined,
+    heldItem: undefined,
+    gender: battlePokemon.gender,
+    shiny: battlePokemon.shiny,
+    isWild: battlePokemon.isWild,
+    nature: 'Hardy'
+  };
+  
+  console.log(`🔧 [CONVERT] Types finaux:`, converted.types);
+  return converted;
+};
+
+// ✅ PARTICIPANTS CORRIGÉS
+const participants = [
+  {
+    sessionId: this.state.player1Id,
+    name: this.state.player1Name,
+    role: 'player1' as any,
+    team: [convertToBattlePokemonData(this.state.player1Pokemon)], // ✅ Conversion correcte
+    activePokemon: this.state.player1Pokemon.pokemonId.toString(),
+    isAI: false,
+    isConnected: true,
+    lastActionTime: Date.now()
+  },
+  {
+    sessionId: 'ai',
+    name: 'Pokémon Sauvage',
+    role: 'player2' as any,
+    team: [convertToBattlePokemonData(this.state.player2Pokemon)], // ✅ Conversion correcte
+    activePokemon: this.state.player2Pokemon.pokemonId.toString(),
+    isAI: true,
+    isConnected: true,
+    lastActionTime: Date.now()
+  }
+];
+
+console.log(`🔧 [AUTO SELECT] Participants créés:`, participants.length);
+participants.forEach((p, i) => {
+  console.log(`   ${i}: ${p.sessionId} (${p.name}) - Pokémon: ${p.team[0]?.name}`);
+  console.log(`      Types: [${p.team[0]?.types?.join(', ')}]`); // ✅ Debug types
+});
+
+this.battleIntegration.initializeBattle(callbacks, 'wild', participants);
           
           // Démarrer le combat réel
           this.startActualBattle();
