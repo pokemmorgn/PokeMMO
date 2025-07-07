@@ -1,6 +1,6 @@
 // server/src/managers/battle/handlers/SoloBattleHandler.ts
 // Handler spécialisé pour les combats Solo (PvE) - Sauvage et Dresseur
-// ✅ VERSION CORRIGÉE: Architecture Event-Driven + Délégation complète
+// ✅ VERSION FINALE: Architecture Event-Driven + Délégation complète
 
 import { 
   BattleContext, 
@@ -147,15 +147,6 @@ class SoloBattleHandler implements IBattleHandler {
     console.log(`🧮 [SoloBattleHandler] === ORCHESTRATION ATTAQUE ===`);
     console.log(`🎯 Move ID: ${action.data.moveId}`);
     console.log(`👤 Attaquant: ${action.playerId}`);
-    
-    // Debug du contexte
-    console.log(`📋 Participants:`, context.participants.length);
-    context.participants.forEach((p, i) => {
-      console.log(`   ${i}: ${p.sessionId} (${p.name}) - Team: ${p.team.length} Pokémon`);
-      if (p.team[0]) {
-        console.log(`      Pokémon actif: ${p.team[0].name} (HP: ${p.team[0].currentHp}/${p.team[0].maxHp})`);
-      }
-    });
     
     const moveId = action.data.moveId;
     if (!moveId) {
@@ -785,6 +776,7 @@ class SoloBattleHandler implements IBattleHandler {
         eventId: 'damage_event',
         type: 'damage',
         timestamp: Date.now(),
+        targetId: defender.pokemonId.toString(), // ✅ Pour BattleSequencer
         data: {
           // ✅ DONNÉES COMPLÈTES POUR DAMAGEMANAGER
           targetPokemonId: defender.pokemonId.toString(),
@@ -1131,6 +1123,7 @@ class SoloBattleHandler implements IBattleHandler {
       eventId: 'heal_effect',
       type: 'heal',
       timestamp: Date.now(),
+      targetId: targetId, // ✅ Pour BattleSequencer
       data: {
         targetPokemonId: targetId,
         healing: healAmount,
@@ -1205,6 +1198,7 @@ class SoloBattleHandler implements IBattleHandler {
       eventId: 'status_heal',
       type: 'status',
       timestamp: Date.now(),
+      targetId: targetId, // ✅ Pour BattleSequencer
       data: {
         targetPokemonId: targetId,
         status: 'normal',
