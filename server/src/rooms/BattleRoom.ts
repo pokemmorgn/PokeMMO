@@ -264,28 +264,41 @@ private async startBattle() {
   }
 }
 
-  private checkAndPlayAITurn() {
+private checkAndPlayAITurn() {
   console.log(`🤖 [AI CHECK] Vérification tour IA...`);
   console.log(`🤖 [AI CHECK] Tour actuel: ${this.state.currentTurn}`);
   console.log(`🤖 [AI CHECK] Phase: ${this.state.phase}`);
   console.log(`🤖 [AI CHECK] Waiting for action: ${this.state.waitingForAction}`);
+  console.log(`🤖 [AI CHECK] Battle ended: ${this.state.battleEnded}`);
   
-  // Si c'est le tour de l'IA (player2) et qu'on attend une action
-  if (this.state.currentTurn === "player2" && 
-      this.state.phase === "battle" && 
-      this.state.waitingForAction) {
-    
-    console.log(`🤖 [AI CHECK] ✅ C'est le tour de l'IA, génération action...`);
-    
-    // Attendre un peu pour l'effet visuel
-    this.clock.setTimeout(() => {
-      this.playAITurnNow();
-    }, 1500);
-  } else {
-    console.log(`🤖 [AI CHECK] ❌ Pas le tour de l'IA ou pas prêt`);
+  // Vérifications renforcées
+  if (this.state.battleEnded) {
+    console.log(`🤖 [AI CHECK] ❌ Combat terminé, IA ignore`);
+    return;
   }
-}
   
+  if (this.state.phase !== "battle") {
+    console.log(`🤖 [AI CHECK] ❌ Phase incorrecte: ${this.state.phase}`);
+    return;
+  }
+  
+  if (this.state.currentTurn !== "player2") {
+    console.log(`🤖 [AI CHECK] ❌ Pas le tour de l'IA: ${this.state.currentTurn}`);
+    return;
+  }
+  
+  if (!this.state.waitingForAction) {
+    console.log(`🤖 [AI CHECK] ❌ Pas en attente d'action`);
+    return;
+  }
+  
+  // ✅ Toutes les conditions OK, l'IA peut jouer
+  console.log(`🤖 [AI CHECK] ✅ Conditions OK, IA va jouer dans 1s...`);
+  
+  this.clock.setTimeout(() => {
+    this.playAITurnNow();
+  }, 1000);
+}
 private async autoSelectFirstPokemon() {
   console.log(`🔥 [AUTO SELECT] Sélection automatique du premier Pokémon...`);
   
@@ -446,12 +459,8 @@ private startActualBattle() {
   
   console.log(`✅ Combat ${this.state.battleId} en cours avec BattleManager !`);
   
-  // ✅ NOUVEAU: Vérifier si l'IA doit jouer en premier
-  this.clock.setTimeout(() => {
-    this.checkAndPlayAITurn();
-  }, 2000);
 }
-
+  
 private async playAITurnNow() {
   console.log(`🤖 [AI TURN] === TOUR DE L'IA ===`);
   
@@ -655,13 +664,16 @@ private broadcastBattleUpdate() {
     winner: this.state.winner
   });
   
-  // ✅ REMETTRE: Vérifier si l'IA doit jouer après le broadcast
-  console.log(`📡 [BattleRoom] Broadcast terminé, vérification IA dans 1s...`);
-  this.clock.setTimeout(() => {
-    this.checkAndPlayAITurn();
-  }, 1000);
+  // ✅ AMÉLIORATION: Vérifier si l'IA doit jouer SEULEMENT si c'est son tour
+  if (!this.state.battleEnded && this.state.currentTurn === "player2") {
+    console.log(`📡 [BattleRoom] Tour de l'IA détecté, vérification dans 1.5s...`);
+    this.clock.setTimeout(() => {
+      this.checkAndPlayAITurn();
+    }, 1500);
+  } else {
+    console.log(`📡 [BattleRoom] Pas le tour de l'IA (${this.state.currentTurn}) ou combat terminé`);
+  }
 }
-
   // ✅ NOUVEAU: Gestion de la fin de combat avec BattleManager
   private async handleBattleEnd() {
     console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BATTLEMANAGER`);
