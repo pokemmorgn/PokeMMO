@@ -754,6 +754,7 @@ export class PsyduckIntroManager {
       
       this.showDialogue(labMessages, () => {
         this.startWalkToTeleport();
+        this.notifyServer("follow_psyduck");  
       });
 
     } catch (error) {
