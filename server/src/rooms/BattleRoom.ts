@@ -480,6 +480,8 @@ private async autoSelectFirstPokemon() {
 
       // ✅ NOUVEAU: Utiliser BattleIntegration pour initialiser le combat
       if (this.state.battleType === "wild" && this.battleInitData.wildPokemon) {
+        const callbacks = this.createBattleCallbacks();
+        this.battleIntegration.initializeBattle(callbacks, 'wild', []);
         await this.battleIntegration.initializeWildBattle(
           this.state.player1Id,
           this.state.player1Name,
