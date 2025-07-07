@@ -470,13 +470,15 @@ private async playAITurnNow() {
     const randomMove = moves.length > 0 ? moves[Math.floor(Math.random() * moves.length)] : "tackle";
     
     console.log(`🤖 [AI TURN] IA utilise: ${randomMove}`);
-    console.log(`🤖 [AI TURN] Moves disponibles:`, moves);
     
-    // ✅ AJOUT: Afficher le message d'attaque de l'IA !
+    // ✅ ÉTAPE 1: Afficher le message d'attaque de l'IA
     const moveDisplayName = this.getMoveDisplayName(randomMove);
     this.addBattleMessage(`${this.state.player2Pokemon.name} utilise ${moveDisplayName} !`);
     
-    // Créer l'action de l'IA
+    // ✅ ÉTAPE 2: Attendre 1.5s avant d'appliquer les dégâts (temps de lecture)
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // ✅ ÉTAPE 3: Créer et traiter l'action
     const aiAction = new BattleAction();
     aiAction.type = "attack";
     aiAction.playerId = "ai";
@@ -485,16 +487,9 @@ private async playAITurnNow() {
       moveId: randomMove
     });
     
-    // Calculer priorité et vitesse
     const moveData = MoveManager.getMoveData(randomMove);
     aiAction.priority = moveData?.priority || 0;
     aiAction.speed = this.state.player2Pokemon.speed;
-    
-    console.log(`🤖 [AI TURN] Action IA créée:`, {
-      move: randomMove,
-      priority: aiAction.priority,
-      speed: aiAction.speed
-    });
     
     // Traiter l'action via BattleManager
     this.state.waitingForAction = false;
@@ -502,21 +497,18 @@ private async playAITurnNow() {
     
     console.log(`🤖 [AI TURN] Action IA traitée`);
     
-    // ✅ NOUVEAU: Forcer le changement de tour vers le joueur
+    // ✅ ÉTAPE 4: Attendre 1s supplémentaire pour les effets visuels
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // ✅ ÉTAPE 5: Changer le tour SEULEMENT si le combat continue
     if (!this.state.battleEnded) {
-      console.log(`🔄 [AI TURN] Changement de tour forcé: player2 → player1`);
+      console.log(`🔄 [AI TURN] Changement de tour: player2 → player1`);
       this.state.currentTurn = "player1";
       this.state.waitingForAction = true;
       this.state.turnNumber++;
-      
-      console.log(`🔄 [AI TURN] Nouveau état:`, {
-        currentTurn: this.state.currentTurn,
-        waitingForAction: this.state.waitingForAction,
-        turnNumber: this.state.turnNumber
-      });
     }
     
-    // Broadcast des changements
+    // ✅ ÉTAPE 6: Broadcast avec timing respecté
     this.broadcastBattleUpdate();
     
     // Vérifier fin de combat
@@ -530,6 +522,31 @@ private async playAITurnNow() {
   } catch (error) {
     console.error(`🤖 [AI TURN] Erreur tour IA:`, error);
   }
+}
+
+// ✅ AMÉLIORATION de broadcastBattleUpdate() sans double appel IA
+private broadcastBattleUpdate() {
+  console.log(`📡 [BattleRoom] Broadcasting update:`, {
+    currentTurn: this.state.currentTurn,
+    turnNumber: this.state.turnNumber,
+    player1Hp: this.state.player1Pokemon?.currentHp,
+    player2Hp: this.state.player2Pokemon?.currentHp
+  });
+  
+  this.broadcast("battleUpdate", {
+    player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+    player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+    currentTurn: this.state.currentTurn,
+    turnNumber: this.state.turnNumber,
+    battleLog: Array.from(this.state.battleLog),
+    lastMessage: this.state.lastMessage,
+    battleEnded: this.state.battleEnded,
+    winner: this.state.winner
+  });
+  
+  // ✅ SUPPRIMÉ: Plus d'appel automatique à l'IA ici
+  // L'IA se déclenche maintenant via handleBattleAction() avec le bon timing
+  console.log(`📡 [BattleRoom] Broadcast terminé sans appel automatique IA`);
 }
 
 // ✅ AJOUT: Helper pour obtenir le nom d'affichage d'une attaque
