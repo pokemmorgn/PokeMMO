@@ -24,7 +24,6 @@ import { QuestHandlers } from "../handlers/QuestHandlers";
 import { starterService } from "../services/StarterPokemonService";
 import { movementBlockManager, BlockReason } from "../managers/MovementBlockManager";
 
-import { BattleHandlers } from "../handlers/BattleHandlers";
 
 import { StarterHandlers } from "../handlers/StarterHandlers";
 
@@ -53,7 +52,6 @@ export class WorldRoom extends Room<PokeWorldState> {
   private autoSaveTimer: NodeJS.Timeout | null = null;
   private teamHandlers!: TeamHandlers;
   private questHandlers!: QuestHandlers;
-  private battleHandlers!: BattleHandlers;
   public starterHandlers!: StarterHandlers;
   
 
@@ -107,10 +105,7 @@ export class WorldRoom extends Room<PokeWorldState> {
     
     this.questHandlers = new QuestHandlers(this);
     console.log(`✅ QuestHandlers initialisé`);
-    
-    // Initialiser les BattleHandlers
-    this.battleHandlers = new BattleHandlers(this);
-    console.log(`✅ BattleHandlers initialisé`);
+  
         
     // Initialiser les EncounterHandlers
     this.encounterHandlers = new EncounterHandlers(this);
@@ -407,7 +402,6 @@ export class WorldRoom extends Room<PokeWorldState> {
     this.encounterHandlers.setupHandlers();
 
     this.questHandlers.setupHandlers();
-    this.battleHandlers.setupHandlers();
     // === HANDLERS EXISTANTS ===
 
  // ✅ NOUVEAU: Configurer les handlers de starter
@@ -1637,7 +1631,6 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
 
     // ✅ NOUVEAU: Nettoyer tous les blocages du joueur qui part
     movementBlockManager.forceUnblockAll(client.sessionId);
-    await this.battleHandlers.onPlayerLeave(client.sessionId);
     console.log(`🧹 [WorldRoom] Blocages nettoyés pour ${client.sessionId}`);
 
     console.log(`👋 Client ${client.sessionId} déconnecté`);
@@ -1677,10 +1670,6 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
     if (this.encounterHandlers) {
       this.encounterHandlers.cleanup();
       console.log(`🧹 EncounterHandlers nettoyés`);
-    }
-    if (this.battleHandlers) {
-      this.battleHandlers.cleanup();
-      console.log(`🧹 BattleHandlers nettoyés`);
     }
     console.log(`✅ WorldRoom fermée`);
   }
@@ -2133,10 +2122,6 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
   // Méthodes d'accès aux EncounterHandlers
   getEncounterHandlers(): EncounterHandlers {
     return this.encounterHandlers;
-  }
-  // Méthode d'accès aux BattleHandlers
-  getBattleHandlers(): BattleHandlers {
-    return this.battleHandlers;
   }
   public getEncounterManager() {
     return this.encounterHandlers.getEncounterManager();
