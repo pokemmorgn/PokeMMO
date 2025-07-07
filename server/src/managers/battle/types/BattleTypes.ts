@@ -92,6 +92,7 @@ export interface BattleContext {
   currentPlayer: string;
   isMultiplayer: boolean;
   maxClients: number;
+  escapeAttempts?: number;
 }
 
 export interface BattleParticipant {
@@ -162,6 +163,7 @@ export interface BattleAction {
     moveId?: string;
     itemId?: string;
     targetPokemonId?: string;
+    ballType?: string; 
     message?: string;
   };
   priority: number;
