@@ -235,7 +235,10 @@ export class BattleRoom extends Room<BattleState> {
 
   private onTurnChanged() {
   console.log(`🎯 [BattleRoom] Tour changé → ${this.state.currentTurn}`);
-  
+
+     // Debug
+  this.debugTurnSystem();
+    
   // Identifier qui doit jouer
   const currentPlayerInfo = this.getCurrentPlayerInfo();
   if (!currentPlayerInfo) {
@@ -1365,7 +1368,19 @@ private async handleDefaultAction() {
     console.error(`❌ Erreur action par défaut:`, error);
   }
 }
-
+/**
+ * ✅ DEBUG: Vérifie l'état du système de tours
+ */
+private debugTurnSystem() {
+  const state = this.turnSystem.getState();
+  console.log(`🔍 [TurnSystem Debug] ===`);
+  console.log(`   Tour: ${state.turnNumber}`);
+  console.log(`   Phase: ${state.currentPhase.name}`);
+  console.log(`   En attente: [${state.currentPhase.waitingFor.join(', ')}]`);
+  console.log(`   Joueurs actifs: ${state.players.filter((p: any) => p.isActive).length}`);
+  console.log(`   BattleRoom currentTurn: ${this.state.currentTurn}`);
+}
+  
   // === GESTION DES CHANGEMENTS DE POKÉMON ===
 
   private async handleSwitchPokemon(client: Client, newPokemonId: string) {
