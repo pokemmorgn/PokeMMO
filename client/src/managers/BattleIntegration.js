@@ -102,16 +102,22 @@ export class BattleIntegration {
       
       // Créer la BattleScene si elle n'existe pas
       if (!battleSceneExists) {
-        this.battleScene = new BattleScene();
-        
-        if (!this.phaserGame.scene.keys['BattleScene']) {
-          this.phaserGame.scene.add('BattleScene', this.battleScene, false);
-          console.log('✅ BattleScene ajoutée au SceneManager');
+        // ✅ CORRECTION: Vérifier que BattleScene est disponible
+        if (typeof BattleScene !== 'undefined') {
+          this.battleScene = new BattleScene();
+          
+          if (this.phaserGame?.scene?.add && !this.phaserGame.scene.keys?.['BattleScene']) {
+            this.phaserGame.scene.add('BattleScene', this.battleScene, false);
+            console.log('✅ BattleScene ajoutée au SceneManager');
+          }
+        } else {
+          console.warn('⚠️ BattleScene class non disponible, mode fallback');
+          this.battleScene = null;
         }
       }
 
-      // ✅ IMPORTANT: Démarrer la scène MAIS la laisser endormie
-      if (!this.phaserGame.scene.isActive('BattleScene')) {
+      // ✅ IMPORTANT: Démarrer la scène MAIS la laisser endormie (seulement si Phaser réel)
+      if (this.battleScene && this.phaserGame?.scene?.start && !this.phaserGame.scene.isActive?.('BattleScene')) {
         console.log('💤 Démarrage BattleScene en mode endormi...');
         this.phaserGame.scene.start('BattleScene', {
           battleNetworkHandler: this.battleNetworkHandler,
@@ -120,12 +126,14 @@ export class BattleIntegration {
         
         // Endormir immédiatement
         setTimeout(() => {
-          if (this.phaserGame.scene.isActive('BattleScene')) {
-            this.phaserGame.scene.setVisible(false, 'BattleScene');
-            this.phaserGame.scene.sleep('BattleScene');
+          if (this.phaserGame.scene.isActive?.('BattleScene')) {
+            this.phaserGame.scene.setVisible?.(false, 'BattleScene');
+            this.phaserGame.scene.sleep?.('BattleScene');
             console.log('💤 BattleScene endormie');
           }
         }, 100);
+      } else {
+        console.log('💤 BattleScene préparée en mode fallback');
       }
       
       console.log('✅ BattleScene préparée');
@@ -833,7 +841,7 @@ export class BattleIntegration {
 // === FONCTIONS GLOBALES DE TEST ===
 
 /**
- * Test d'intégration complète
+ * Test d'intégration complète avec correction timing
  */
 window.testBattleIntegration = function() {
   console.log('🧪 === TEST BATTLE INTEGRATION COMPLÈTE ===');
@@ -856,22 +864,27 @@ window.testBattleIntegration = function() {
       isActive: () => false,
       start: () => console.log('Mock scene.start'),
       setVisible: () => console.log('Mock scene.setVisible'),
-      sleep: () => console.log('Mock scene.sleep')
+      sleep: () => console.log('Mock scene.sleep'),
+      keys: {}
     }
   };
   
+  // ✅ CORRECTION: Attendre l'initialisation complète
   integration.initialize(mockWorldRoom, mockPhaserGame).then(success => {
     console.log(`Initialisation: ${success ? '✅ SUCCÈS' : '❌ ÉCHEC'}`);
     
     if (success) {
       console.log('État:', integration.getCurrentBattleState());
       
-      // Test combat
+      // ✅ CORRECTION: Test combat seulement après initialisation complète
       setTimeout(() => {
+        console.log('🧪 [BattleIntegration] Test système complet...');
         const testResult = integration.test();
         console.log(`Test combat: ${testResult ? '✅ DÉMARRÉ' : '❌ ÉCHEC'}`);
-      }, 1000);
+      }, 500); // Délai plus court mais suffisant
     }
+  }).catch(error => {
+    console.error('❌ Erreur initialisation:', error);
   });
   
   return integration;
