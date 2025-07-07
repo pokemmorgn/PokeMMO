@@ -701,8 +701,8 @@ private processAITurn() {
   }
 
 private startActualBattle() {
-  console.log(`⚔️ DÉBUT DU COMBAT RÉEL AVEC BattleIntegration !`);
-  
+  console.log(`🎯 [BattleRoom] Combat démarré avec TurnSystem !`);
+  this.debugTurnSystem();
   // ✅ AJOUTER : Configuration des joueurs dans TurnSystem
   const playerData = [
     { id: this.state.player1Id, type: 'human' as PlayerType, name: this.state.player1Name },
