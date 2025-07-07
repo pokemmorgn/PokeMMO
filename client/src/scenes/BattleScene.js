@@ -1496,6 +1496,25 @@ executePlayerAction(actionData) {
     this.battleNetworkHandler.on('turnChange', (data) => {
       this.handleNetworkTurnChange(data);
     });
+    handleNetworkBattleMessage(data) {
+  console.log('💬 [BattleScene] Message de combat reçu:', data.message);
+  
+  // Afficher le message dans la zone d'interface unifiée
+  this.showActionMessage(data.message, 2500);
+  
+  // Si c'est une attaque de l'IA, programmer l'affichage des boutons après
+  if (data.message && data.message.includes('utilise')) {
+    setTimeout(() => {
+      // Vérifier que c'est toujours le tour du joueur avant d'afficher les boutons
+      if (this.battleNetworkHandler && !this.state?.battleEnded) {
+        this.showActionMessage('À votre tour !');
+        setTimeout(() => {
+          this.showActionButtons();
+        }, 1500);
+      }
+    }, 3000);
+  }
+}
   }
 
   // === HANDLERS RÉSEAU ===
