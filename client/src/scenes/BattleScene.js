@@ -1528,7 +1528,19 @@ setupBattleNetworkEvents() {
   this.battleNetworkHandler.on('battleMessage', (data) => {
     this.handleNetworkBattleMessage(data);
   });
-    
+  
+    // ✅ AJOUT: Handler pour les mises à jour HP
+  this.battleNetworkHandler.on('pokemonHPUpdate', (data) => {
+    console.log('💖 [BattleScene] HP Update reçu:', data);
+    this.handleNetworkHPUpdate(data);
+  });
+  
+  // ✅ AJOUT: Handler pour les animations de dégâts
+  this.battleNetworkHandler.on('damageAnimation', (data) => {
+    console.log('💥 [BattleScene] Animation dégâts:', data);
+    this.handleNetworkDamageAnimation(data);
+  });
+  
   this.battleNetworkHandler.on('pokemonDamage', (data) => {
     this.handleNetworkBattleUpdate(data);
   });
