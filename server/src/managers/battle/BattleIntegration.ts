@@ -15,7 +15,7 @@ import {
 import { DamageCalculator } from './DamageCalculator';
 import { TypeEffectiveness } from './TypeEffectiveness';
 import { BattleMessageHandler } from './BattleMessageHandler';
-import { ALL_MOVES } from "../../data/loadAllMoves";
+import { MoveManager } from '../MoveManager'; //
 /**
  * INTÉGRATEUR PRINCIPAL
  * 
@@ -205,29 +205,49 @@ export class BattleIntegration {
       currentHp: oldPokemon.currentHp || 20,
       maxHp: oldPokemon.maxHp || 20,
       types: Array.isArray(oldPokemon.types) ? Array.from(oldPokemon.types) : ['Normal'],
-      moves: Array.isArray(oldPokemon.moves) ? 
-        Array.from(oldPokemon.moves).map((moveId: unknown) => ({
-          moveId: moveId as string,
-          name: (moveId as string).charAt(0).toUpperCase() + (moveId as string).slice(1),
-          type: 'Normal',
-          category: 'physical' as const,  // ✅ CORRECTION: minuscule
-          power: 40,
-          accuracy: 100,
-          pp: 35,
-          maxPp: 35,
-          priority: 0
-        })) : 
-        [{
-          moveId: 'tackle',
-          name: 'Charge',
-          type: 'Normal',
-          category: 'physical' as const,  // ✅ CORRECTION: minuscule
-          power: 40,
-          accuracy: 100,
-          pp: 35,
-          maxPp: 35,
-          priority: 0
-        }],
+      moves: Array.isArray(oldPokemon.moves)
+        ? oldPokemon.moves.map((moveId: string) => {
+            const moveData = MoveManager.getMoveData(moveId);
+            return moveData
+              ? {
+                  moveId: moveData.id,
+                  name: moveData.name,
+                  type: moveData.type,
+                  category: moveData.category.toLowerCase(), // En minuscule pour compatibilité
+                  power: moveData.power,
+                  accuracy: moveData.accuracy,
+                  pp: moveData.pp,
+                  maxPp: moveData.pp,
+                  priority: moveData.priority,
+                  description: moveData.description,
+                  effects: moveData.effects,
+                  contact: moveData.contact,
+                }
+              : {
+                  moveId,
+                  name: moveId,
+                  type: 'Normal',
+                  category: 'physical',
+                  power: 40,
+                  accuracy: 100,
+                  pp: 35,
+                  maxPp: 35,
+                  priority: 0,
+                  description: 'Default move',
+                };
+          })
+        : [{
+            moveId: 'tackle',
+            name: 'Charge',
+            type: 'Normal',
+            category: 'physical',
+            power: 40,
+            accuracy: 100,
+            pp: 35,
+            maxPp: 35,
+            priority: 0,
+            description: 'Default move'
+          }],
       ability: oldPokemon.ability,
       heldItem: oldPokemon.heldItem,
       statusCondition: oldPokemon.statusCondition || 'normal',
