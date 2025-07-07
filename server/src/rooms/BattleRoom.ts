@@ -2,6 +2,7 @@
 import { Room, Client } from "@colyseus/core";
 import { BattleState, BattlePokemon, BattleAction } from "../schema/BattleState";
 import { BattleIntegration } from '../managers/battle/BattleIntegration';
+import { ActionType } from '../managers/battle/types/BattleTypes';
 import { IBattleRoomCallbacks } from '../managers/battle/BattleSequencer';
 import { MoveManager } from "../managers/MoveManager";
 import { CaptureManager, CaptureAttempt } from "../managers/CaptureManager";
@@ -552,7 +553,11 @@ private async playAITurnNow() {
     
     // Traiter l'action via BattleIntegration
     this.state.waitingForAction = false;
-    await this.battleIntegration.processAction(aiAction);
+    await this.battleIntegration.processAction(
+      aiAction.playerId,
+      aiAction.type as ActionType,
+      JSON.parse(aiAction.data)
+    );
     
     console.log(`🤖 [AI TURN] Action IA traitée`);
     
@@ -681,7 +686,7 @@ private async handleBattleAction(client: Client, data: any) {
     await this.battleIntegration.processAction(
       action.playerId,
       action.type as ActionType,
-      action.data ? JSON.parse(action.data) : {}
+      typeof action.data === 'string' ? JSON.parse(action.data) : action.data
     );
         
     console.log(`🔥 [DEBUG] BattleIntegration.processAction terminé`);
