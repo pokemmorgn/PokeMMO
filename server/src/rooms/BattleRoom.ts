@@ -1216,6 +1216,15 @@ export class BattleRoom extends Room<BattleState> {
     }, this.actionTimeoutMs);
   }
 
+    private clearActionTimer() {
+    if (this.currentActionTimer) {
+      clearTimeout(this.currentActionTimer);
+      this.currentActionTimer = undefined;
+      console.log(`⏰ [BattleRoom] Timer d'action annulé`);
+    }
+  }
+
+  
   private async handleDefaultAction() {
     console.log(`🔄 Action par défaut pour ${this.state.currentTurn}`);
     
