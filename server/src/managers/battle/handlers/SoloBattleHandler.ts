@@ -88,18 +88,27 @@ class SoloBattleHandler implements IBattleHandler {
   /**
    * Détermine si l'IA doit jouer après cette action
    */
-  shouldPlayAITurn(context: BattleContext): boolean {
-    // L'IA joue si :
-    // - Le tour est à l'IA
-    // - Le combat n'est pas terminé
-    // - Aucune action en attente
-    
-    const isAITurn = context.currentPlayer === 'ai' || context.currentPlayer === 'player2';
-    const battleActive = context.phase === 'battle';
-    
-    console.log(`🤖 [SoloBattleHandler] IA doit jouer ? ${isAITurn && battleActive}`);
-    return isAITurn && battleActive;
-  }
+shouldPlayAITurn(context: BattleContext): boolean {
+  console.log(`🤖 [SoloBattleHandler] Vérification tour IA...`);
+  console.log(`🤖 [SoloBattleHandler] - currentPlayer: ${context.currentPlayer}`);
+  console.log(`🤖 [SoloBattleHandler] - phase: ${context.phase}`);
+  console.log(`🤖 [SoloBattleHandler] - participants:`, context.participants.map(p => ({ id: p.sessionId, isAI: p.isAI })));
+  
+  // ✅ FIX: Après l'action du joueur, c'est maintenant le tour de l'IA
+  // On doit changer le tour vers l'IA avant de vérifier
+  const hasAI = context.participants.some(p => p.isAI);
+  const battleActive = context.phase === 'battle';
+  
+  // ✅ LOGIQUE CORRIGÉE: Si on vient de traiter l'action du joueur,
+  // alors c'est maintenant le tour de l'IA
+  const shouldPlay = hasAI && battleActive;
+  
+  console.log(`🤖 [SoloBattleHandler] - hasAI: ${hasAI}`);
+  console.log(`🤖 [SoloBattleHandler] - battleActive: ${battleActive}`);
+  console.log(`🤖 [SoloBattleHandler] IA doit jouer ? ${shouldPlay}`);
+  
+  return shouldPlay;
+}
   
   /**
    * Génère une action IA intelligente
