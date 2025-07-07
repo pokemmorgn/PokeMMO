@@ -314,12 +314,28 @@ export class BattleEndManager {
   // === VÉRIFICATION DES CONDITIONS DE FIN ===
 
   private static checkPokemonKO(context: BattleContext): BattleEndCondition | null {
+    console.log(`🔍 [DEBUG K.O.] === VÉRIFICATION POKÉMON K.O. ===`);
+    
     for (const participant of context.participants) {
+      console.log(`🔍 [DEBUG K.O.] Participant: ${participant.name} (${participant.sessionId})`);
+      console.log(`🔍 [DEBUG K.O.] Équipe: ${participant.team.length} Pokémon`);
+      
+      // Vérifier chaque Pokémon de l'équipe
+      participant.team.forEach((pokemon, index) => {
+        console.log(`🔍 [DEBUG K.O.] Pokémon ${index}: ${pokemon.name || 'Inconnu'} - HP: ${pokemon.currentHp}/${pokemon.maxHp}`);
+      });
+      
       // Vérifier si tous les Pokémon du participant sont K.O.
-      const allFainted = participant.team.every(pokemon => pokemon.currentHp <= 0);
+      const allFainted = participant.team.every(pokemon => {
+        const isFainted = pokemon.currentHp <= 0;
+        console.log(`🔍 [DEBUG K.O.] ${pokemon.name || 'Pokémon'}: HP=${pokemon.currentHp}, K.O.=${isFainted}`);
+        return isFainted;
+      });
+      
+      console.log(`🔍 [DEBUG K.O.] ${participant.name}: Tous K.O.? ${allFainted}`);
       
       if (allFainted) {
-        console.log(`💀 [BattleEndManager] Tous les Pokémon de ${participant.name} sont K.O.`);
+        console.log(`💀 [BattleEndManager] ✅ DÉTECTION K.O.: Tous les Pokémon de ${participant.name} sont K.O.`);
         
         const isPlayerDefeated = !participant.isAI;
         
@@ -333,6 +349,7 @@ export class BattleEndManager {
       }
     }
 
+    console.log(`🔍 [DEBUG K.O.] Aucun participant avec tous les Pokémon K.O.`);
     return null;
   }
 
