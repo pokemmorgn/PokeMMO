@@ -463,6 +463,10 @@ private async playAITurnNow() {
     console.log(`🤖 [AI TURN] IA utilise: ${randomMove}`);
     console.log(`🤖 [AI TURN] Moves disponibles:`, moves);
     
+    // ✅ AJOUT: Afficher le message d'attaque de l'IA !
+    const moveDisplayName = this.getMoveDisplayName(randomMove);
+    this.addBattleMessage(`${this.state.player2Pokemon.name} utilise ${moveDisplayName} !`);
+    
     // Créer l'action de l'IA
     const aiAction = new BattleAction();
     aiAction.type = "attack";
@@ -517,6 +521,24 @@ private async playAITurnNow() {
   } catch (error) {
     console.error(`🤖 [AI TURN] Erreur tour IA:`, error);
   }
+}
+
+// ✅ AJOUT: Helper pour obtenir le nom d'affichage d'une attaque
+private getMoveDisplayName(moveId: string): string {
+  const moveNames: { [key: string]: string } = {
+    'tackle': 'Charge',
+    'scratch': 'Griffe', 
+    'growl': 'Rugissement',
+    'thundershock': 'Éclair',
+    'quick_attack': 'Vive-Attaque',
+    'bite': 'Morsure',
+    'ember': 'Flammèche',
+    'water_gun': 'Pistolet à O',
+    'vine_whip': 'Fouet Lianes',
+    'peck': 'Picpic'
+  };
+  
+  return moveNames[moveId] || moveId.charAt(0).toUpperCase() + moveId.slice(1);
 }
   // === ACTIONS DE COMBAT AVEC BATTLEMANAGER ===
 
