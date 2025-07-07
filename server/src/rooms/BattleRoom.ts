@@ -55,7 +55,7 @@ export class BattleRoom extends Room<BattleState> {
     this.setState(new BattleState());
     
     // ✅ NOUVEAU: Initialiser BattleManager avec le state
-    this.battleManager = new BattleManager(this.state);
+    this.battleIntegration = new BattleManager(this.state);
     
     // Configuration de base
     this.state.battleId = `${options.battleType}_${Date.now()}_${this.roomId}`;
@@ -384,7 +384,7 @@ private async autoSelectFirstPokemon() {
     if (this.battleInitData.wildPokemon) {
       console.log(`🔥 [AUTO SELECT] Initialisation combat avec BattleManager...`);
       
-      await this.battleManager.initializeWildBattle(
+      await this.battleIntegration.initializeWildBattle(
         this.state.player1Id,
         this.state.player1Name,
         firstAvailablePokemon.pokemonId,
@@ -467,7 +467,7 @@ private async autoSelectFirstPokemon() {
 
       // ✅ NOUVEAU: Utiliser BattleManager pour initialiser le combat
       if (this.state.battleType === "wild" && this.battleInitData.wildPokemon) {
-        await this.battleManager.initializeWildBattle(
+        await this.battleIntegration.initializeWildBattle(
           this.state.player1Id,
           this.state.player1Name,
           selectedPokemon.pokemonId,
@@ -540,7 +540,7 @@ private async playAITurnNow() {
     
     // Traiter l'action via BattleManager
     this.state.waitingForAction = false;
-    await this.battleManager.processAction(aiAction);
+    await this.battleIntegration.processAction(aiAction);
     
     console.log(`🤖 [AI TURN] Action IA traitée`);
     
@@ -666,7 +666,7 @@ private async handleBattleAction(client: Client, data: any) {
 
     console.log(`🔥 [DEBUG] Appel BattleManager.processAction...`);
     
-    await this.battleManager.processAction(action);
+    await this.battleIntegration.processAction(action);
     
     console.log(`🔥 [DEBUG] BattleManager.processAction terminé`);
     console.log(`🔥 [DEBUG] État du combat après processAction:`, {
@@ -714,7 +714,7 @@ private async handleBattleAction(client: Client, data: any) {
     console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BATTLEMANAGER`);
     
     // Récupérer les résultats du BattleManager
-    const battleResult = this.battleManager.getBattleResult();
+    const battleResult = this.battleIntegration.getBattleResult();
     
     console.log(`📊 Résultat:`, battleResult);
     
@@ -856,7 +856,7 @@ private async handleBattleAction(client: Client, data: any) {
     action.data = JSON.stringify({});
     
     try {
-      await this.battleManager.processAction(action);
+      await this.battleIntegration.processAction(action);
       
       // Le BattleManager a mis à jour le state
       if (this.state.battleEnded && this.state.phase === "fled") {
@@ -883,7 +883,7 @@ private async handleBattleAction(client: Client, data: any) {
     // Donc cette méthode est maintenant simplifiée
     
     // Appliquer les effets de fin de tour
-    this.battleManager.processEndOfTurnEffects();
+    this.battleIntegration.processEndOfTurnEffects();
     
     // Vérifier si le combat continue
     if (!this.state.battleEnded) {
@@ -1178,7 +1178,7 @@ private getPlayerName(sessionId: string): string | null {
       action.priority = 0;
       action.speed = this.state.player1Pokemon.speed;
       
-      await this.battleManager.processAction(action);
+      await this.battleIntegration.processAction(action);
       this.broadcastBattleUpdate();
       
       if (!this.state.battleEnded) {
