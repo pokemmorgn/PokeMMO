@@ -6,6 +6,7 @@ import { ActionType } from '../managers/battle/types/BattleTypes';
 import { IBattleRoomCallbacks } from '../managers/battle/BattleSequencer';
 import { MoveManager } from "../managers/MoveManager";
 import { CaptureManager, CaptureAttempt } from "../managers/battle/CaptureManager";
+import { BattleEndManager, BattleEndCondition, BattleRewards, BattleContext, BattleParticipant } from "../managers/battle/BattleEndManager";
 import { WildPokemon } from "../managers/EncounterManager";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
@@ -44,6 +45,13 @@ export class BattleRoom extends Room<BattleState> {
   private currentActionTimer?: NodeJS.Timeout;
   private playerHpPercentages: Map<string, number> = new Map();
   private lastStatusIcons: Map<string, BattleStatusIcon> = new Map();
+
+  // ✅ NOUVEAU: Contexte de combat pour BattleEndManager
+  private battleContext!: BattleContext;
+  private battleStartTime!: Date;
+  private damageDealt: Map<string, number> = new Map();
+  private damageReceived: Map<string, number> = new Map();
+  private pokemonDefeated: Map<string, number> = new Map();
 
   maxClients = 2;
 
@@ -249,11 +257,39 @@ export class BattleRoom extends Room<BattleState> {
       },
 
       updatePokemonHP: (pokemonId: string, newHp: number) => {
-        // ✅ SIMPLIFIÉ: Mise à jour directe
+        // ✅ NOUVEAU: Calculer et traquer les dégâts
+        let oldHp = 0;
+        let targetPlayerId = '';
+        
         if (this.state.player1Pokemon?.pokemonId.toString() === pokemonId) {
+          oldHp = this.state.player1Pokemon.currentHp;
           this.state.player1Pokemon.currentHp = newHp;
+          targetPlayerId = this.state.player1Id;
         } else if (this.state.player2Pokemon?.pokemonId.toString() === pokemonId) {
+          oldHp = this.state.player2Pokemon.currentHp;
           this.state.player2Pokemon.currentHp = newHp;
+          targetPlayerId = 'ai';
+        }
+        
+        // Calculer les dégâts infligés
+        const damage = Math.max(0, oldHp - newHp);
+        if (damage > 0 && targetPlayerId) {
+          const currentDamageReceived = this.damageReceived.get(targetPlayerId) || 0;
+          this.damageReceived.set(targetPlayerId, currentDamageReceived + damage);
+          
+          // Ajouter aux dégâts infligés de l'attaquant
+          const attackerId = targetPlayerId === this.state.player1Id ? 'ai' : this.state.player1Id;
+          const currentDamageDealt = this.damageDealt.get(attackerId) || 0;
+          this.damageDealt.set(attackerId, currentDamageDealt + damage);
+          
+          console.log(`💥 [DAMAGE] ${damage} dégâts infligés à ${targetPlayerId}`);
+          
+          // Vérifier si le Pokémon est K.O.
+          if (newHp <= 0) {
+            const currentDefeated = this.pokemonDefeated.get(attackerId) || 0;
+            this.pokemonDefeated.set(attackerId, currentDefeated + 1);
+            console.log(`💀 [K.O.] Pokémon ${pokemonId} mis K.O. par ${attackerId}`);
+          }
         }
       },
 
@@ -408,6 +444,10 @@ export class BattleRoom extends Room<BattleState> {
   private startActualBattle() {
     console.log(`🎯 [BATTLE] Démarrage avec TurnSystem`);
     
+    // ✅ NOUVEAU: Initialiser le contexte de combat
+    this.battleStartTime = new Date();
+    this.initializeBattleContext();
+    
     // ✅ NOUVEAU: Configuration TurnSystem
     const playerData = [
       { id: this.state.player1Id, type: 'human' as PlayerType, name: this.state.player1Name },
@@ -486,6 +526,16 @@ export class BattleRoom extends Room<BattleState> {
       
       await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
       
+      // ✅ NOUVEAU: Mettre à jour le contexte et vérifier la fin
+      this.updateBattleContext();
+      
+      const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
+      if (endCondition) {
+        console.log(`🏁 [AI] Condition de fin détectée:`, endCondition);
+        await this.processBattleEndWithManager(endCondition);
+        return;
+      }
+      
       // ✅ NOUVEAU: Changer de tour manuellement (plus via callback)
       this.changeTurn();
       
@@ -507,12 +557,140 @@ export class BattleRoom extends Room<BattleState> {
     
     this.state.turnNumber++;
     
+    // ✅ NOUVEAU: Mettre à jour le contexte
+    this.battleContext.turnNumber = this.state.turnNumber;
+    
     console.log(`🔄 [TURN] Nouveau tour: ${this.state.currentTurn}`);
     
     this.broadcast("battleUpdate", this.getClientBattleState());
     
     // Continuer le cycle
     this.processTurn();
+  }
+
+  // === GESTION DU CONTEXTE DE COMBAT ===
+
+  private updateBattleContext() {
+    console.log(`🔄 [CONTEXT] Mise à jour du contexte de combat`);
+    
+    // Mettre à jour les participants
+    this.battleContext.participants.forEach(participant => {
+      if (participant.sessionId === this.state.player1Id) {
+        participant.activePokemon = this.state.player1Pokemon;
+        participant.team = [this.state.player1Pokemon]; // TODO: Équipe complète
+        participant.isConnected = this.clients.some(c => c.sessionId === this.state.player1Id);
+      } else if (participant.sessionId === 'ai') {
+        participant.activePokemon = this.state.player2Pokemon;
+        participant.team = [this.state.player2Pokemon];
+      }
+    });
+    
+    this.battleContext.turnNumber = this.state.turnNumber;
+  }
+
+  private async processBattleEndWithManager(endCondition: BattleEndCondition) {
+    console.log(`🏆 [BATTLE] Traitement fin avec BattleEndManager`);
+    
+    try {
+      const rewards = await BattleEndManager.processBattleEnd(
+        endCondition,
+        this.battleContext,
+        {
+          onExperienceGained: (pokemonId: number, expGained: number, newLevel?: number) => {
+            console.log(`📈 [EXP] Pokémon ${pokemonId} gagne ${expGained} XP`);
+            if (newLevel) {
+              console.log(`⬆️ [LEVEL] Pokémon ${pokemonId} monte au niveau ${newLevel} !`);
+            }
+            this.addBattleMessage(`${this.getPokemonName(pokemonId)} gagne ${expGained} points d'expérience !`);
+          },
+          
+          onLevelUp: (pokemonId: number, newLevel: number, movesLearned: string[]) => {
+            console.log(`🎉 [LEVEL UP] Pokémon ${pokemonId} niveau ${newLevel}`);
+            this.addBattleMessage(`${this.getPokemonName(pokemonId)} monte au niveau ${newLevel} !`);
+            
+            if (movesLearned.length > 0) {
+              movesLearned.forEach(moveId => {
+                this.addBattleMessage(`${this.getPokemonName(pokemonId)} apprend ${moveId} !`);
+              });
+            }
+          },
+          
+          onMoneyGained: (amount: number) => {
+            console.log(`💰 [MONEY] +${amount} argent`);
+            this.addBattleMessage(`Vous trouvez ${amount}₽ !`);
+          },
+          
+          onItemReceived: (itemId: string, quantity: number) => {
+            console.log(`📦 [ITEM] +${quantity}x ${itemId}`);
+            this.addBattleMessage(`Vous trouvez ${quantity}x ${itemId} !`);
+          },
+          
+          onBadgeEarned: (badgeId: string) => {
+            console.log(`🏅 [BADGE] Badge obtenu: ${badgeId}`);
+            this.addBattleMessage(`Vous obtenez le badge ${badgeId} !`);
+          },
+          
+          onAchievementUnlocked: (achievementId: string) => {
+            console.log(`🏆 [ACHIEVEMENT] ${achievementId} débloqué`);
+            this.addBattleMessage(`Achievement débloqué: ${achievementId} !`);
+          },
+          
+          onPokemonStateUpdate: (pokemonId: number, newState: any) => {
+            console.log(`💾 [SAVE] État Pokémon ${pokemonId} sauvé`);
+            // TODO: Sauvegarder dans TeamManager
+          },
+          
+          onPlayerStatsUpdate: (playerId: string, stats: any) => {
+            console.log(`📊 [STATS] Statistiques mises à jour pour ${playerId}`);
+            // TODO: Sauvegarder les statistiques du joueur
+          }
+        }
+      );
+      
+      // Marquer la fin du combat
+      this.state.battleEnded = true;
+      this.state.winner = endCondition.winner || '';
+      this.state.phase = endCondition.result === 'fled' ? 'fled' : 'ended';
+      
+      // Déterminer le type de fin pour l'icône
+      let iconType: BattleStatusIcon = "battle_victory";
+      if (endCondition.result === 'defeat') {
+        iconType = "battle_defeat";
+      } else if (endCondition.result === 'fled') {
+        iconType = "battle_fled";
+      }
+      
+      this.updatePlayerStatusIcon(this.state.player1Id, iconType);
+      
+      // Broadcast des récompenses
+      this.broadcast("battleEndWithRewards", {
+        result: endCondition.result,
+        reason: endCondition.reason,
+        rewards: rewards,
+        finalLog: Array.from(this.state.battleLog),
+        battleStats: {
+          duration: Date.now() - this.battleStartTime.getTime(),
+          totalTurns: this.state.turnNumber,
+          damageDealt: this.damageDealt.get(this.state.player1Id) || 0,
+          damageReceived: this.damageReceived.get(this.state.player1Id) || 0
+        }
+      });
+      
+      console.log(`🏆 [BATTLE] Fin traitée avec succès:`, {
+        result: endCondition.result,
+        exp: rewards.experience.reduce((sum, exp) => sum + exp.gained, 0),
+        money: rewards.money,
+        items: rewards.items.length
+      });
+      
+      // Programmer la fermeture
+      this.clock.setTimeout(() => this.disconnect(), 8000);
+      
+    } catch (error) {
+      console.error(`💥 [BATTLE] Erreur traitement fin:`, error);
+      // Fallback vers l'ancienne méthode
+      await this.handleBattleEnd();
+    }
   }
 
   // === ACTIONS DE COMBAT ===
@@ -538,6 +716,17 @@ export class BattleRoom extends Room<BattleState> {
         data.actionType as ActionType,
         data
       );
+      
+      // ✅ NOUVEAU: Mettre à jour le contexte de combat
+      this.updateBattleContext();
+      
+      // ✅ NOUVEAU: Vérifier les conditions de fin avec BattleEndManager
+      const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
+      if (endCondition) {
+        console.log(`🏁 [BATTLE] Condition de fin détectée:`, endCondition);
+        await this.processBattleEndWithManager(endCondition);
+        return;
+      }
       
       if (this.state.battleEnded) {
         await this.handleBattleEnd();
@@ -701,6 +890,51 @@ export class BattleRoom extends Room<BattleState> {
 
   // === GESTION DES RÉSULTATS DE CAPTURE ===
 
+  private initializeBattleContext() {
+    console.log(`🎮 [CONTEXT] Initialisation du contexte de combat`);
+    
+    const participants: BattleParticipant[] = [
+      {
+        sessionId: this.state.player1Id,
+        name: this.state.player1Name,
+        isAI: false,
+        activePokemon: this.state.player1Pokemon,
+        team: [this.state.player1Pokemon], // TODO: Équipe complète
+        isConnected: true
+      },
+      {
+        sessionId: 'ai',
+        name: 'Pokémon Sauvage',
+        isAI: true,
+        activePokemon: this.state.player2Pokemon,
+        team: [this.state.player2Pokemon],
+        isConnected: true
+      }
+    ];
+
+    this.battleContext = {
+      battleId: this.state.battleId,
+      battleType: this.state.battleType as any,
+      turnNumber: 1,
+      startTime: this.battleStartTime,
+      location: this.state.encounterLocation || 'unknown',
+      participants,
+      damageDealt: this.damageDealt,
+      damageReceived: this.damageReceived,
+      pokemonDefeated: this.pokemonDefeated
+    };
+
+    // Initialiser les compteurs
+    this.damageDealt.set(this.state.player1Id, 0);
+    this.damageDealt.set('ai', 0);
+    this.damageReceived.set(this.state.player1Id, 0);
+    this.damageReceived.set('ai', 0);
+    this.pokemonDefeated.set(this.state.player1Id, 0);
+    this.pokemonDefeated.set('ai', 0);
+
+    console.log(`✅ [CONTEXT] Contexte initialisé pour ${participants.length} participants`);
+  }
+
   private handlePokemonCaptured(capturedPokemon: any) {
     console.log(`🎊 [CAPTURE] Pokémon capturé avec succès !`);
     
@@ -744,6 +978,16 @@ export class BattleRoom extends Room<BattleState> {
   }
 
   // === UTILITAIRES ===
+  private getPokemonName(pokemonId: number): string {
+    if (this.state.player1Pokemon?.pokemonId === pokemonId) {
+      return this.state.player1Pokemon.name;
+    }
+    if (this.state.player2Pokemon?.pokemonId === pokemonId) {
+      return this.state.player2Pokemon.name;
+    }
+    return `Pokémon #${pokemonId}`;
+  }
+
   private calculateStat(baseStat: number, level: number): number {
     return Math.floor(((2 * baseStat + 31) * level) / 100) + 5;
   }
