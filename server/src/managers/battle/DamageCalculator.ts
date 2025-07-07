@@ -170,8 +170,24 @@ export class DamageCalculator {
     isCritical: boolean
   ) {
     // STAB (Same Type Attack Bonus)
-    const stab = TypeEffectiveness.getSTABMultiplier(moveType, attacker.types);
-    console.log(`🔍 [STAB DEBUG] Move: ${moveType}, Pokemon: [${attacker.types.join(', ')}], STAB: ${stab}`);
+console.log(`🔍 [STAB DEBUG] === CALCUL STAB DÉTAILLÉ ===`);
+console.log(`🔍 [STAB DEBUG] Move: "${moveType}"`);
+console.log(`🔍 [STAB DEBUG] Pokemon types: [${attacker.types.join(', ')}]`);
+console.log(`🔍 [STAB DEBUG] Types array length: ${attacker.types.length}`);
+
+const stab = TypeEffectiveness.getSTABMultiplier(moveType, attacker.types);
+
+console.log(`🔍 [STAB DEBUG] Résultat STAB: ${stab}`);
+console.log(`🔍 [STAB DEBUG] Expected STAB pour Bulbasaur+Tackle: 1.0`);
+console.log(`🔍 [STAB DEBUG] Expected STAB pour Bulbasaur+VineWhip: 1.5`);
+
+if (stab !== 1.0 && !TypeEffectiveness.hasSTAB(moveType, attacker.types)) {
+  console.error(`🚨 [STAB ERROR] STAB incorrect! Move "${moveType}" avec types [${attacker.types.join(', ')}] devrait être 1.0 mais obtient ${stab}`);
+}
+
+if (stab !== 1.5 && TypeEffectiveness.hasSTAB(moveType, attacker.types)) {
+  console.error(`🚨 [STAB ERROR] STAB manqué! Move "${moveType}" avec types [${attacker.types.join(', ')}] devrait être 1.5 mais obtient ${stab}`);
+}
     
     // Efficacité des types
     const effectiveness = TypeEffectiveness.getTotalEffectiveness(moveType, defender.types);
