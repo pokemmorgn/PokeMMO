@@ -319,42 +319,6 @@ private async startBattle() {
     this.endBattleEarly("setup_error");
   }
 }
-
-private checkAndPlayAITurn() {
-  console.log(`🤖 [AI CHECK] Vérification tour IA...`);
-  console.log(`🤖 [AI CHECK] Tour actuel: ${this.state.currentTurn}`);
-  console.log(`🤖 [AI CHECK] Phase: ${this.state.phase}`);
-  console.log(`🤖 [AI CHECK] Waiting for action: ${this.state.waitingForAction}`);
-  console.log(`🤖 [AI CHECK] Battle ended: ${this.state.battleEnded}`);
-  
-  // Vérifications renforcées
-  if (this.state.battleEnded) {
-    console.log(`🤖 [AI CHECK] ❌ Combat terminé, IA ignore`);
-    return;
-  }
-  
-  if (this.state.phase !== "battle") {
-    console.log(`🤖 [AI CHECK] ❌ Phase incorrecte: ${this.state.phase}`);
-    return;
-  }
-  
-  if (this.state.currentTurn !== "player2") {
-    console.log(`🤖 [AI CHECK] ❌ Pas le tour de l'IA: ${this.state.currentTurn}`);
-    return;
-  }
-  
-  if (!this.state.waitingForAction) {
-    console.log(`🤖 [AI CHECK] ❌ Pas en attente d'action`);
-    return;
-  }
-  
-  // ✅ Toutes les conditions OK, l'IA peut jouer
-  console.log(`🤖 [AI CHECK] ✅ Conditions OK, IA va jouer dans 1s...`);
-  
-  this.clock.setTimeout(() => {
-    this.playAITurnNow();
-  }, 1000);
-}
   
 private async autoSelectFirstPokemon() {
   console.log(`🔥 [AUTO SELECT] Sélection automatique du premier Pokémon...`);
@@ -668,82 +632,11 @@ private startActualBattle() {
   
   console.log(`✅ Combat ${this.state.battleId} en cours avec BattleIntegration !`);
 }
-  
-private async playAITurnNow() {
-  console.log(`🤖 [AI TURN] === TOUR DE L'IA ===`);
-  
-  try {
-    // Choisir une attaque aléatoire
-    const moves = Array.from(this.state.player2Pokemon.moves);
-    const randomMove = moves.length > 0 ? moves[Math.floor(Math.random() * moves.length)] : "tackle";
-    
-    console.log(`🤖 [AI TURN] IA utilise: ${randomMove}`);
-    
-    // ✅ ÉTAPE 1: Afficher le message d'attaque de l'IA
-    const moveDisplayName = this.getMoveDisplayName(randomMove);
-    this.addBattleMessage(`${this.state.player2Pokemon.name} utilise ${moveDisplayName} !`);
-    
-    // ✅ ÉTAPE 2: Attendre 1.5s avant d'appliquer les dégâts (temps de lecture)
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // ✅ ÉTAPE 3: Créer et traiter l'action
-    const aiAction = new BattleAction();
-    aiAction.type = "attack";
-    aiAction.playerId = "ai";
-    aiAction.data = JSON.stringify({
-      actionType: "attack",
-      moveId: randomMove
-    });
-    
-    const moveData = MoveManager.getMoveData(randomMove);
-    aiAction.priority = moveData?.priority || 0;
-    aiAction.speed = this.state.player2Pokemon.speed;
-    
-    // Traiter l'action via BattleIntegration
-    this.state.waitingForAction = false;
-    await this.battleIntegration.processAction(
-      aiAction.playerId,
-      aiAction.type as ActionType,
-      JSON.parse(aiAction.data)
-    );
-    
-    console.log(`🤖 [AI TURN] Action IA traitée`);
-    
-    // ✅ ÉTAPE 4: Attendre 1s supplémentaire pour les effets visuels
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // ✅ ÉTAPE 5: Changer le tour SEULEMENT si le combat continue
-    if (!this.state.battleEnded) {
-      console.log(`🔄 [AI TURN] Changement de tour: player2 → player1`);
-      this.state.currentTurn = "player1";
-      this.state.waitingForAction = true;
-      this.state.turnNumber++;
-    }
-    
-    // ✅ ÉTAPE 6: Broadcast avec timing respecté
-    this.broadcastBattleUpdate();
-    
-    // Vérifier fin de combat
-    if (this.state.battleEnded) {
-      await this.handleBattleEnd();
-    } else {
-      this.updatePlayerHpPercentages();
-      this.updateBattleStatusIcons();
-    }
-    
-  } catch (error) {
-    console.error(`🤖 [AI TURN] Erreur tour IA:`, error);
-  }
-}
+
 
 // ✅ AMÉLIORATION de broadcastBattleUpdate() sans double appel IA
 private broadcastBattleUpdate() {
-  console.log(`📡 [BattleRoom] Broadcasting update:`, {
-    currentTurn: this.state.currentTurn,
-    turnNumber: this.state.turnNumber,
-    player1Hp: this.state.player1Pokemon?.currentHp,
-    player2Hp: this.state.player2Pokemon?.currentHp
-  });
+  console.log(`📡 [BattleRoom] Broadcasting update`);
   
   this.broadcast("battleUpdate", {
     player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
@@ -755,10 +648,6 @@ private broadcastBattleUpdate() {
     battleEnded: this.state.battleEnded,
     winner: this.state.winner
   });
-  
-  // ✅ SUPPRIMÉ: Plus d'appel automatique à l'IA ici
-  // L'IA se déclenche maintenant via handleBattleAction() avec le bon timing
-  console.log(`📡 [BattleRoom] Broadcast terminé sans appel automatique IA`);
 }
 
 // ✅ AJOUT: Helper pour obtenir le nom d'affichage d'une attaque
@@ -782,98 +671,46 @@ private getMoveDisplayName(moveId: string): string {
 
 private async handleBattleAction(client: Client, data: any) {
   console.log(`🔥 [DEBUG] handleBattleAction appelée:`, data);
-  console.log(`🔥 [DEBUG] Phase actuelle:`, this.state.phase);
-  console.log(`🔥 [DEBUG] Tour actuel:`, this.state.currentTurn);
   
   if (this.state.phase !== "battle") {
-    console.log(`🔥 [DEBUG] Combat non actif, rejet`);
     client.send("error", { message: "Combat non actif" });
     return;
   }
 
   const playerRole = this.getPlayerRole(client.sessionId);
-  console.log(`🔥 [DEBUG] Rôle du joueur:`, playerRole);
-  
   if (this.state.currentTurn !== playerRole) {
-    console.log(`🔥 [DEBUG] Pas le tour du joueur, rejet`);
     client.send("error", { message: "Ce n'est pas votre tour" });
     return;
   }
 
-  console.log(`🔥 [DEBUG] Validation OK, traitement action ${data.actionType}`);
   console.log(`🎮 Action de ${client.sessionId}: ${data.actionType}`);
 
   try {
-    console.log(`🔥 [DEBUG] Création BattleAction...`);
-    
-    const action = new BattleAction();
-    action.type = data.actionType;
-    action.playerId = client.sessionId;
-    action.data = JSON.stringify(data);
-    
-    console.log(`🔥 [DEBUG] BattleAction créée:`, {
-      type: action.type,
-      playerId: action.playerId,
-      data: action.data
-    });
-    
-    if (data.actionType === "attack" && data.moveId) {
-      console.log(`🔥 [DEBUG] Calcul priorité pour attaque ${data.moveId}`);
-      
-      const moveData = MoveManager.getMoveData(data.moveId);
-      action.priority = moveData?.priority || 0;
-      
-      const currentPokemon = this.getCurrentPlayerPokemon();
-      action.speed = currentPokemon.speed;
-      
-      console.log(`🔥 [DEBUG] Priorité: ${action.priority}, Vitesse: ${action.speed}`);
-    }
-
-    console.log(`🔥 [DEBUG] Appel BattleIntegration.processAction...`);
-    
+    // ✅ ÉTAPE 1: Traiter l'action du joueur via BattleIntegration
     await this.battleIntegration.processAction(
-      action.playerId,
-      action.type as ActionType,
-      typeof action.data === 'string' ? JSON.parse(action.data) : action.data
+      client.sessionId,
+      data.actionType as ActionType,
+      data
     );
-        
-    console.log(`🔥 [DEBUG] BattleIntegration.processAction terminé`);
-    console.log(`🔥 [DEBUG] État du combat après processAction:`, {
-      battleEnded: this.state.battleEnded,
-      currentTurn: this.state.currentTurn,
-      turnNumber: this.state.turnNumber,
-      player1Hp: this.state.player1Pokemon?.currentHp,
-      player2Hp: this.state.player2Pokemon?.currentHp,
-      lastMessage: this.state.lastMessage
-    });
     
-    console.log(`🔥 [DEBUG] Appel broadcastBattleUpdate...`);
+    console.log(`✅ [BattleRoom] Action joueur traitée`);
+    
+    // ✅ ÉTAPE 2: Mettre à jour l'interface
     this.broadcastBattleUpdate();
-    console.log(`🔥 [DEBUG] broadcastBattleUpdate terminé`);
     
+    // ✅ ÉTAPE 3: Vérifier fin de combat
     if (this.state.battleEnded) {
-      console.log(`🔥 [DEBUG] Combat terminé, appel handleBattleEnd...`);
       await this.handleBattleEnd();
     } else {
-      console.log(`🔥 [DEBUG] Combat continue, mise à jour statuts...`);
-      
       this.updatePlayerHpPercentages();
       this.updateBattleStatusIcons();
-      
-      console.log(`🔥 [DEBUG] Statuts mis à jour`);
-      
-      // ✅ SUPPRIMÉ: L'appel à checkAndPlayAITurn pour éviter la duplication
     }
-
-    console.log(`🔥 [DEBUG] handleBattleAction terminé avec succès`);
-
+    
+    // ✅ SUPPRIMÉ: Plus d'appel manuel à l'IA
+    // Le BattleSequencer s'en charge automatiquement
+    
   } catch (error) {
-    console.error(`🔥 [DEBUG] ERREUR dans handleBattleAction:`, error);
-    if (error instanceof Error) {
-      console.error(`🔥 [DEBUG] Stack trace:`, error.stack);
-    } else {
-      console.error(`🔥 [DEBUG] Erreur non-Error:`, String(error));
-    }
+    console.error(`❌ Erreur handleBattleAction:`, error);
     client.send("error", { message: "Erreur lors de l'action" });
   }
 }
@@ -1040,24 +877,6 @@ private async handleBattleEnd() {
     } catch (error) {
       console.error(`❌ Erreur fuite:`, error);
       client.send("error", { message: "Erreur lors de la fuite" });
-    }
-  }
-
-  // === TOUR DE L'IA AMÉLIORÉ ===
-
-  private async playAITurn() {
-    console.log(`🤖 Tour de l'IA avec BattleIntegration`);
-    
-    // ✅ Le BattleIntegration génère automatiquement l'action IA
-    // Quand on processAction du joueur, l'IA répond automatiquement
-    // Donc cette méthode est maintenant simplifiée
-    
-    
-    // Vérifier si le combat continue
-    if (!this.state.battleEnded) {
-      this.updatePlayerHpPercentages();
-      this.updateBattleStatusIcons();
-      this.broadcastBattleUpdate();
     }
   }
 
