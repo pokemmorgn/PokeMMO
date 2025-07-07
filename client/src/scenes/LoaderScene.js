@@ -46,9 +46,9 @@ this.load.tilemapTiledJSON('lavandiahouse9', 'assets/maps/lavandiahouse9.tmj');
 this.load.tilemapTiledJSON('lavandiaresearchlab', 'assets/maps/lavandiaresearchlab.tmj');
 this.load.tilemapTiledJSON('lavandiashop', 'assets/maps/lavandiashop.tmj');
 
-this.load.tilemapTiledJSON('nocthercave1', 'assets/maps/noctherbcave1.tmj');
-this.load.tilemapTiledJSON('nocthercave2', 'assets/maps/noctherbcave2.tmj');
-this.load.tilemapTiledJSON('nocthercave2bis', 'assets/maps/noctherbcave2bis.tmj');
+this.load.tilemapTiledJSON('noctherbcave1', 'assets/maps/noctherbcave1.tmj');
+this.load.tilemapTiledJSON('noctherbcave2', 'assets/maps/noctherbcave2.tmj');
+this.load.tilemapTiledJSON('noctherbcave2bis', 'assets/maps/noctherbcave2bis.tmj');
 
 this.load.tilemapTiledJSON('wraithmoor', 'assets/maps/wraithmoor.tmj');
 this.load.tilemapTiledJSON('wraithmoorcimetery', 'assets/maps/wraithmoorcimetery.tmj');
@@ -261,14 +261,14 @@ this.load.on('loaderror', (file) => {
         break;
 
       // NoctherCave
-      case 'nocthercave1':
-        this.scene.start('NoctherCave1Scene');
+      case 'noctherbcave1':
+        this.scene.start('NoctherbCave1Scene');
         break;
-      case 'nocthercave2':
-        this.scene.start('NoctherCave2Scene');
+      case 'noctherbcave2':
+        this.scene.start('NoctherbCave2Scene');
         break;
-      case 'nocthercave2bis':
-        this.scene.start('NoctherCave2BisScene');
+      case 'noctherbcave2bis':
+        this.scene.start('NoctherbCave2BisScene');
         break;
 
               // NoctherCave
