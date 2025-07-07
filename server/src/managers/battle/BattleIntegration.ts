@@ -2,7 +2,7 @@
 // Intégration finale du nouveau système de combat avec BattleRoom
 
 import BattleSequencer, { IBattleRoomCallbacks } from './BattleSequencer';
-import { SoloBattleHandler } from './handlers/SoloBattleHandler';  // ✅ Import du vrai handler
+import SoloBattleHandler from './handlers/SoloBattleHandler';
 import { 
   BattleContext, 
   BattleAction, 
