@@ -171,6 +171,7 @@ export class DamageCalculator {
   ) {
     // STAB (Same Type Attack Bonus)
     const stab = TypeEffectiveness.getSTABMultiplier(moveType, attacker.types);
+    console.log(`🔍 [STAB DEBUG] Move: ${moveType}, Pokemon: [${attacker.types.join(', ')}], STAB: ${stab}`);
     
     // Efficacité des types
     const effectiveness = TypeEffectiveness.getTotalEffectiveness(moveType, defender.types);
