@@ -42,21 +42,55 @@ export class StarterSelector {
   }
 
   // ✅ SIMPLE: Juste stocker NetworkManager + FIX CSS
-  initialize(networkManager) {
-    this.networkManager = networkManager;
-    
-    // ✅ FIX: Forcer le chargement du CSS immédiatement
-    this.ensureCSS();
-    
-    // ✅ FIX: S'assurer que starterConfig n'est jamais null
-    if (!this.starterConfig) {
-      this.starterConfig = this.getDefaultStarters();
-    }
-    
-    console.log("✅ [StarterSelector] Initialisé (ultra-simple + fixes)");
-    return this;
+initialize(networkManager) {
+  this.networkManager = networkManager;
+  
+  // ✅ FIX: Forcer le chargement du CSS immédiatement
+  this.ensureCSS();
+  
+  // ✅ FIX: S'assurer que starterConfig n'est jamais null
+  if (!this.starterConfig) {
+    this.starterConfig = this.getDefaultStarters();
+  }
+  
+  // ✅ NOUVEAU: Setup des listeners serveur
+  this.setupServerMessageListeners();
+  
+  console.log("✅ [StarterSelector] Initialisé (ultra-simple + fixes + listeners)");
+  return this;
+}
+
+  setupServerMessageListeners() {
+  if (!this.networkManager?.room) {
+    console.warn("⚠️ [StarterSelector] NetworkManager ou room manquant");
+    return;
   }
 
+  console.log("📡 [StarterSelector] Setup des listeners serveur...");
+
+  // ✅ LISTENER: Réponse du serveur après sélection
+  this.networkManager.room.onMessage("starterReceived", (data) => {
+    console.log("📥 [StarterSelector] starterReceived:", data);
+    
+    if (data.success) {
+      // Succès : fermer l'UI après un délai pour voir la confirmation
+      this.showNotification(data.message || "Pokémon reçu avec succès !", 'success');
+      setTimeout(() => {
+        this.hide();
+      }, 2000);
+    } else {
+      // Erreur : afficher le message et permettre une nouvelle sélection
+      this.showNotification(data.message || "Erreur lors de la sélection", 'error');
+      // Réactiver le bouton de confirmation
+      const confirmBtn = this.overlay?.querySelector('.starter-confirm-btn');
+      if (confirmBtn) {
+        confirmBtn.classList.remove('disabled');
+        confirmBtn.textContent = '⚡ Confirmer';
+      }
+    }
+  });
+}
+  
   // ✅ NOUVELLE MÉTHODE: S'assurer que le CSS est chargé
   ensureCSS() {
     if (document.querySelector('#starter-selector-manual-styles, #starter-selector-fallback-styles, #starter-selector-styles')) {
@@ -344,24 +378,31 @@ export class StarterSelector {
 
   // ✅ MÉTHODE: Confirmer la sélection
   confirmSelection() {
-    if (!this.selectedStarterId) return;
-    
-    console.log("📤 [StarterSelector] Envoi sélection au serveur:", this.selectedStarterId);
-    
-    if (this.networkManager?.room) {
-      this.networkManager.room.send("giveStarterChoice", {
-        pokemonId: this.getStarterPokemonId(this.selectedStarterId)
-      });
-      
-      // Animation de confirmation
-      this.animateConfirmation();
-      
-      // Notification d'envoi
-      this.showNotification("Sélection envoyée au serveur...", 'info');
-    } else {
-      this.showNotification("Erreur de connexion serveur", 'error');
+  if (!this.selectedStarterId) return;
+  
+  console.log("📤 [StarterSelector] Envoi sélection au serveur:", this.selectedStarterId);
+  
+  if (this.networkManager?.room) {
+    // Désactiver le bouton pendant l'envoi
+    const confirmBtn = this.overlay?.querySelector('.starter-confirm-btn');
+    if (confirmBtn) {
+      confirmBtn.classList.add('disabled');
+      confirmBtn.textContent = '⏳ Envoi...';
     }
+    
+    this.networkManager.room.send("giveStarterChoice", {
+      pokemonId: this.getStarterPokemonId(this.selectedStarterId)
+    });
+    
+    // Animation de confirmation
+    this.animateConfirmation();
+    
+    // Notification d'envoi
+    this.showNotification("Sélection envoyée au serveur...", 'info');
+  } else {
+    this.showNotification("Erreur de connexion serveur", 'error');
   }
+}
 
   getStarterPokemonId(starterId) {
     const mapping = {
