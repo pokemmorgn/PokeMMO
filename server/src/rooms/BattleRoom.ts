@@ -713,9 +713,6 @@ private async handleBattleAction(client: Client, data: any) {
   private async handleBattleEnd() {
     console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BattleIntegration`);
     
-    // Récupérer les résultats du BattleIntegration
-    const battleResult = this.battleIntegration.getBattleResult();
-    
     console.log(`📊 Résultat:`, battleResult);
     
     // Déterminer le type de fin
@@ -882,8 +879,6 @@ private async handleBattleAction(client: Client, data: any) {
     // Quand on processAction du joueur, l'IA répond automatiquement
     // Donc cette méthode est maintenant simplifiée
     
-    // Appliquer les effets de fin de tour
-    this.battleIntegration.processEndOfTurnEffects();
     
     // Vérifier si le combat continue
     if (!this.state.battleEnded) {
