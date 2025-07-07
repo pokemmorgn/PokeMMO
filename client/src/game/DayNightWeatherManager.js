@@ -116,7 +116,7 @@ export class OptimizedPhaserOverlayManager {
       'day-fog-outdoor': { color: 0xCCCCCC, alpha: 0.1 },
       
       'night-clear-outdoor': { color: 0x000044, alpha: 0.4 },
-      'night-rain-outdoor': { color: 0x223366, alpha: 0.5 },
+      'night-rain-outdoor': { color: 0x000044, alpha: 0.4 },
       'night-storm-outdoor': { color: 0x111133, alpha: 0.6 },
       'night-snow-outdoor': { color: 0x334466, alpha: 0.45 },
       'night-fog-outdoor': { color: 0x555577, alpha: 0.55 },
@@ -162,9 +162,9 @@ export class OptimizedPhaserOverlayManager {
   
   // ✅ EFFETS MÉTÉO (s'ajoutent à la nuit)
   if (weather === 'rain') {
-    targetColor = 0x4488FF;
+    targetColor = 0x000044;
     targetAlpha = Math.max(targetAlpha, 0.1); // Au moins 0.1 pour la pluie
-    if (!isDayTime) targetAlpha = 0.5; // Plus fort la nuit
+    if (!isDayTime) targetAlpha = 0.4; // Plus fort la nuit
     console.log(`🌧️ [PhaserOverlay] Effet pluie: alpha ${targetAlpha}`);
   } else if (weather === 'storm') {
     targetColor = 0x333366;
