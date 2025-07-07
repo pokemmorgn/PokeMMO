@@ -407,8 +407,8 @@ const convertToBattlePokemonData = (battlePokemon: BattlePokemon): any => {
       evasion: 0
     },
     statusCondition: battlePokemon.statusCondition || 'normal',
-    ability: undefined,
-    heldItem: undefined,
+    ability: null,
+    heldItem: null,
     gender: battlePokemon.gender,
     shiny: battlePokemon.shiny,
     isWild: battlePokemon.isWild,
@@ -833,7 +833,7 @@ private async handleBattleEnd() {
         
         // Le combat continue - tour de l'IA
         this.clock.setTimeout(() => {
-          this.playAITurn();
+          
         }, 1500);
       }
       
@@ -871,7 +871,7 @@ private async handleBattleEnd() {
         await this.handleBattleEnd();
       } else {
         // Échec de fuite - continuer le combat
-        this.playAITurn();
+        
       }
       
     } catch (error) {
@@ -1226,7 +1226,7 @@ private getPlayerName(sessionId: string): string | null {
       
       // Le changement coûte un tour dans un vrai combat Pokémon
       this.clock.setTimeout(() => {
-        this.playAITurn();
+        
       }, 2000);
       
     } catch (error) {
