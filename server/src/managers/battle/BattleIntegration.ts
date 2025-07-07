@@ -9,11 +9,11 @@ import {
   ActionType,
   BATTLE_TIMINGS,
   POKEMON_CONSTANTS
-} from '../types/BattleTypes.ts';
-import { IBattleHandler } from '../BattleSequencer.ts';
-import { DamageCalculator } from '../DamageCalculator.ts';
-import { TypeEffectiveness } from '../TypeEffectiveness.ts';
-import { BattleMessageHandler, createBattleMessage, createAttackMessages } from '../BattleMessageHandler.ts';
+} from './types/BattleTypes.ts';
+import { IBattleHandler } from './BattleSequencer.ts';
+import { DamageCalculator } from './DamageCalculator.ts';
+import { TypeEffectiveness } from './TypeEffectiveness.ts';
+import { BattleMessageHandler, createBattleMessage, createAttackMessages } from './BattleMessageHandler.ts';
 
 /**
  * HANDLER POUR COMBATS SOLO (PvE)
