@@ -107,6 +107,10 @@ export class DamageCalculator {
     move: ExistingMoveData, 
     isCritical: boolean
   ): number {
+      if (!pokemon || !pokemon.stats || !pokemon.statStages) {
+    console.error('[DamageCalc] Données Pokémon invalides:', pokemon);
+    return 1;
+  }
     // Choisir la bonne stat selon la catégorie du move
     const baseStat = move.category === "Physical" 
       ? pokemon.stats.attack 
