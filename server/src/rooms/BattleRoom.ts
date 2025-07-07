@@ -631,23 +631,38 @@ private startActualBattle() {
   this.startActionTimer();
   
   console.log(`✅ Combat ${this.state.battleId} en cours avec BattleIntegration !`);
+  
+  // ✅ AJOUT: Si l'IA joue en premier, la démarrer automatiquement
+  if (this.state.currentTurn === "player2") {
+    console.log(`🤖 [BattleRoom] IA joue en premier, démarrage dans 2s...`);
+    this.clock.setTimeout(() => {
+      this.triggerAITurn();
+    }, 2000);
+  }
 }
 
-
-// ✅ AMÉLIORATION de broadcastBattleUpdate() sans double appel IA
-private broadcastBattleUpdate() {
-  console.log(`📡 [BattleRoom] Broadcasting update`);
+// ✅ AJOUT: Méthode pour déclencher le tour de l'IA
+private async triggerAITurn() {
+  console.log(`🤖 [BattleRoom] Déclenchement tour IA...`);
   
-  this.broadcast("battleUpdate", {
-    player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
-    player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
-    currentTurn: this.state.currentTurn,
-    turnNumber: this.state.turnNumber,
-    battleLog: Array.from(this.state.battleLog),
-    lastMessage: this.state.lastMessage,
-    battleEnded: this.state.battleEnded,
-    winner: this.state.winner
-  });
+  try {
+    // Choisir une attaque aléatoire pour l'IA
+    const aiMoves = Array.from(this.state.player2Pokemon.moves);
+    const randomMove = aiMoves.length > 0 ? aiMoves[Math.floor(Math.random() * aiMoves.length)] : "tackle";
+    
+    console.log(`🤖 [BattleRoom] IA utilise: ${randomMove}`);
+    
+    // Traiter l'action via BattleIntegration
+    await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
+    
+    // Mettre à jour l'interface
+    this.broadcastBattleUpdate();
+    
+    console.log(`✅ [BattleRoom] Tour IA terminé`);
+    
+  } catch (error) {
+    console.error(`❌ [BattleRoom] Erreur tour IA:`, error);
+  }
 }
 
 // ✅ AJOUT: Helper pour obtenir le nom d'affichage d'une attaque
