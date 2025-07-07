@@ -3,6 +3,8 @@
 
 import { GAME_CONFIG } from "../config/gameConfig.js";
 import { BattleNetworkHandler } from "./BattleNetworkHandler.js";
+import { sceneToZone, zoneToScene } from "../config/ZoneMapping.js";
+
 
 export class NetworkManager {
   /**
@@ -931,56 +933,7 @@ export class NetworkManager {
   }
 
   mapSceneToZone(sceneName) {
-    const mapping = {
-    // Beach
-    'BeachScene': 'beach',
-
-    // Village
-    'VillageScene': 'village',
-    'VillageLabScene': 'villagelab',
-    'VillageHouse1Scene': 'villagehouse1',
-    'VillageHouse2Scene': 'villagehouse2',
-    'VillageFloristScene': 'villageflorist',
-    'VillageWindmillScene': 'villagewindmill',
-
-    // Road
-    'Road1Scene': 'road1',
-    'Road1HouseScene': 'road1house',
-    'Road1HiddenScene': 'road1hidden',
-    'Road2Scene': 'road2',
-    'Road3Scene': 'road3',
-
-    // Lavandia
-    'LavandiaScene': 'lavandia',
-    'LavandiaAnalysisScene': 'lavandiaanalysis',
-    'LavandiaBossRoomScene': 'lavandiabossroom',
-    'LavandiaCelebiTempleScene': 'lavandiacelebitemple',
-    'LavandiaEquipmentScene': 'lavandiaequipment',
-    'LavandiaFurnitureScene': 'lavandiafurniture',
-    'LavandiaHealingCenterScene': 'lavandiahealingcenter',
-    'LavandiaHouse1Scene': 'lavandiahouse1',
-    'LavandiaHouse2Scene': 'lavandiahouse2',
-    'LavandiaHouse3Scene': 'lavandiahouse3',
-    'LavandiaHouse4Scene': 'lavandiahouse4',
-    'LavandiaHouse5Scene': 'lavandiahouse5',
-    'LavandiaHouse6Scene': 'lavandiahouse6',
-    'LavandiaHouse7Scene': 'lavandiahouse7',
-    'LavandiaHouse8Scene': 'lavandiahouse8',
-    'LavandiaHouse9Scene': 'lavandiahouse9',
-    'LavandiaResearchLabScene': 'lavandiaresearchlab',
-    'LavandiaShopScene': 'lavandiashop',
-
-    // NoctherCave
-    'NoctherbCave1Scene': 'noctherbcave1',
-    'NoctherbCave2Scene': 'noctherbcave2',
-    'NoctherbCave2BisScene': 'noctherbcave2bis',
-
-    // Wraithmoor
-    'WraithmoorScene': 'wraithmoor',
-    'WraithmoorCimeteryScene': 'wraithmoorcimetery',
-    'WraithmoorManor1Scene': 'wraithmoormanor1'
-  };
-  return mapping[sceneName] || 'beach';
+  return sceneToZone(sceneName);
 }
 
   async forceZoneSynchronization(currentScene) {
