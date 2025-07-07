@@ -88,25 +88,57 @@ class SoloBattleHandler implements IBattleHandler {
   /**
    * ✅ CORRIGÉ: Détermine si l'IA doit jouer après cette action
    */
-  shouldPlayAITurn(context: BattleContext): boolean {
-    console.log(`🤖 [SoloBattleHandler] Vérification tour IA...`);
-    console.log(`🤖 [SoloBattleHandler] - currentPlayer: ${context.currentPlayer}`);
-    console.log(`🤖 [SoloBattleHandler] - phase: ${context.phase}`);
-    console.log(`🤖 [SoloBattleHandler] - participants:`, context.participants.map(p => ({ id: p.sessionId, isAI: p.isAI })));
-    
-    const hasAI = context.participants.some(p => p.isAI);
-    const battleActive = context.phase === 'battle';
-    
-    // ✅ LOGIQUE SIMPLIFIÉE: L'IA joue si elle existe et le combat est actif
-    // Le changement de tour est géré par BattleSequencer
-    const shouldPlay = hasAI && battleActive;
-    
-    console.log(`🤖 [SoloBattleHandler] - hasAI: ${hasAI}`);
-    console.log(`🤖 [SoloBattleHandler] - battleActive: ${battleActive}`);
-    console.log(`🤖 [SoloBattleHandler] IA doit jouer ? ${shouldPlay}`);
-    
-    return shouldPlay;
+shouldPlayAITurn(context: BattleContext): boolean {
+  console.log(`🤖 [SoloBattleHandler] Vérification tour IA...`);
+  console.log(`🤖 [SoloBattleHandler] - currentPlayer: ${context.currentPlayer}`);
+  console.log(`🤖 [SoloBattleHandler] - phase: ${context.phase}`);
+  console.log(`🤖 [SoloBattleHandler] - participants:`, context.participants.map(p => ({ id: p.sessionId, isAI: p.isAI })));
+  
+  // ✅ AJOUT CRITIQUE 1: Vérifier si combat déjà terminé
+  if (context.phase === 'ended' || context.phase === 'victory' || context.phase === 'defeat' || context.phase === 'fled') {
+    console.log(`🤖 [SoloBattleHandler] ❌ Combat terminé (phase: ${context.phase}), IA ne doit PAS jouer`);
+    return false;
   }
+  
+  // ✅ AJOUT CRITIQUE 2: Vérifier l'état des Pokémon
+  const aiPokemon = this.getAIPokemon(context);
+  const playerPokemon = this.getPlayerPokemon(context);
+  
+  if (!aiPokemon) {
+    console.log(`🤖 [SoloBattleHandler] ❌ Pokémon IA non trouvé, IA ne doit PAS jouer`);
+    return false;
+  }
+  
+  if (!playerPokemon) {
+    console.log(`🤖 [SoloBattleHandler] ❌ Pokémon joueur non trouvé, IA ne doit PAS jouer`);
+    return false;
+  }
+  
+  // ✅ AJOUT CRITIQUE 3: Vérifier si l'un des Pokémon est K.O.
+  if (aiPokemon.currentHp <= 0) {
+    console.log(`🤖 [SoloBattleHandler] ❌ Pokémon IA K.O. (${aiPokemon.currentHp} HP), combat terminé`);
+    return false;
+  }
+  
+  if (playerPokemon.currentHp <= 0) {
+    console.log(`🤖 [SoloBattleHandler] ❌ Pokémon joueur K.O. (${playerPokemon.currentHp} HP), combat terminé`);
+    return false;
+  }
+  
+  const hasAI = context.participants.some(p => p.isAI);
+  const battleActive = context.phase === 'battle';
+  
+  // ✅ LOGIQUE SIMPLIFIÉE: L'IA joue si elle existe et le combat est actif ET les Pokémon sont vivants
+  const shouldPlay = hasAI && battleActive;
+  
+  console.log(`🤖 [SoloBattleHandler] - hasAI: ${hasAI}`);
+  console.log(`🤖 [SoloBattleHandler] - battleActive: ${battleActive}`);
+  console.log(`🤖 [SoloBattleHandler] - aiPokemon HP: ${aiPokemon.currentHp}/${aiPokemon.maxHp}`);
+  console.log(`🤖 [SoloBattleHandler] - playerPokemon HP: ${playerPokemon.currentHp}/${playerPokemon.maxHp}`);
+  console.log(`🤖 [SoloBattleHandler] ✅ IA doit jouer ? ${shouldPlay}`);
+  
+  return shouldPlay;
+}
   
   /**
    * Génère une action IA intelligente
