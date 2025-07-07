@@ -707,15 +707,15 @@ export class BattleRoom extends Room<BattleState> {
 
   // === ACTIONS DE COMBAT AVEC BattleIntegration ===
 
-  private async handleBattleAction(client: Client, data: any) {
+ private async handleBattleAction(client: Client, data: any) {
     console.log(`🔥 [DEBUG] handleBattleAction appelée:`, data);
     console.log(`🔥 [DEBUG] Phase: ${this.state.phase}`);
-    console.log(`🔥 [DEBUG] Tour actuel: ${this.state.currentTurn}`);
-    console.log(`🔥 [DEBUG] Client sessionId: ${client.sessionId}`);
+    console.log(`🔥 [DEBUG] Combat terminé: ${this.state.battleEnded}`);
     
-    if (this.state.phase !== "battle") {
-      console.log(`🔥 [DEBUG] ❌ Phase incorrecte: ${this.state.phase}`);
-      client.send("error", { message: "Combat non actif" });
+    // ✅ VÉRIFICATION CRITIQUE: Combat déjà terminé ?
+    if (this.state.phase !== "battle" || this.state.battleEnded) {
+      console.log(`🔥 [DEBUG] ❌ Combat non actif ou terminé`);
+      client.send("error", { message: "Combat terminé" });
       return;
     }
 
@@ -732,6 +732,9 @@ export class BattleRoom extends Room<BattleState> {
     console.log(`🎮 Action de ${client.sessionId}: ${data.actionType}`);
 
     try {
+      // ✅ ANNULER LE TIMER D'ACTION QUAND LE JOUEUR AGIT
+      this.clearActionTimer();
+      
       console.log(`🔥 [DEBUG] Appel BattleIntegration.processAction...`);
       
       await this.battleIntegration.processAction(
@@ -762,6 +765,11 @@ export class BattleRoom extends Room<BattleState> {
         
         this.updatePlayerHpPercentages();
         this.updateBattleStatusIcons();
+        
+        // ✅ REDÉMARRER LE TIMER SEULEMENT SI COMBAT ACTIF
+        if (this.state.phase === "battle" && !this.state.battleEnded) {
+          this.startActionTimer();
+        }
       }
 
       console.log(`🔥 [DEBUG] handleBattleAction terminé avec succès`);
@@ -771,10 +779,13 @@ export class BattleRoom extends Room<BattleState> {
       client.send("error", { message: "Erreur lors de l'action" });
     }
   }
-
+  
   // ✅ NOUVEAU: Gestion de la fin de combat avec BattleIntegration
-  private async handleBattleEnd() {
+ private async handleBattleEnd() {
     console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BattleIntegration`);
+    
+    // ✅ ANNULER LE TIMER D'ACTION IMMÉDIATEMENT
+    this.clearActionTimer();
     
     // Déterminer le type de fin selon l'état
     let endType: "victory" | "defeat" | "fled" | "draw";
@@ -799,7 +810,7 @@ export class BattleRoom extends Room<BattleState> {
     await this.updatePokemonAfterBattle(this.state.player1Id, this.state.player1Pokemon);
     
     // Calculer les récompenses
-    const rewards = this.calculateRewards(endType, { expGained: 50 }); // Valeurs par défaut
+    const rewards = this.calculateRewards(endType, { expGained: 50 });
     
     // Broadcast du résultat final
     this.broadcast("battleEnd", {
@@ -1394,8 +1405,11 @@ export class BattleRoom extends Room<BattleState> {
     }, 2000);
   }
 
-  async onDispose() {
+ async onDispose() {
     console.log(`💀 BattleRoom ${this.roomId} détruite`);
+    
+    // ✅ NETTOYER LE TIMER D'ACTION
+    this.clearActionTimer();
     
     // Nettoyer tous les blocages
     this.clients.forEach(client => {
@@ -1403,12 +1417,10 @@ export class BattleRoom extends Room<BattleState> {
       this.clearPlayerStatusIcon(client.sessionId);
     });
     
-    // Nettoyer le timer
-    if (this.currentActionTimer) {
-      clearTimeout(this.currentActionTimer);
-    }
-    
-    // ✅ AJOUT: Reset anti-spam IA
+    // Nettoyer les autres données
+    this.teamManagers.clear();
+    this.playerHpPercentages.clear();
+    this.lastStatusIcons.clear();
     this.aiTurnInProgress = false;
     
     console.log(`✅ BattleRoom ${this.roomId} nettoyée`);
