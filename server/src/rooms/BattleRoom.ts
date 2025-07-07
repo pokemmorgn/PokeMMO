@@ -9,6 +9,7 @@ import { CaptureManager, CaptureAttempt } from "../managers/CaptureManager";
 import { WildPokemon } from "../managers/EncounterManager";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
+import { TurnSystem, BATTLE_CONFIGS, PlayerType } from '../managers/battle/TurnSystem';
 
 // Interface pour les données initiales du combat
 export interface BattleInitData {
@@ -33,6 +34,7 @@ export type BattleStatusIcon =
   | "battle_fled" | "capturing" | "switching_pokemon";
 
 export class BattleRoom extends Room<BattleState> {
+  private turnSystem!: TurnSystem;
   private battleInitData!: BattleInitData;
   private teamManagers: Map<string, TeamManager> = new Map();
   private worldRoomRef: any = null;
@@ -66,6 +68,11 @@ export class BattleRoom extends Room<BattleState> {
     this.state.battleId = `${options.battleType}_${Date.now()}_${this.roomId}`;
     this.state.battleType = options.battleType;
     this.state.phase = "waiting";
+
+      const config = options.battleType === 'wild' 
+    ? BATTLE_CONFIGS.SINGLE_PVE 
+    : BATTLE_CONFIGS.SINGLE_PVP;
+    this.turnSystem = new TurnSystem(config);
     
     // ✅ NOUVEAU: Initialiser MoveManager si pas encore fait
     await MoveManager.initialize();
@@ -596,58 +603,67 @@ export class BattleRoom extends Room<BattleState> {
     }
   }
 
-  private startActualBattle() {
-    console.log(`⚔️ DÉBUT DU COMBAT RÉEL AVEC BattleIntegration !`);
-    
-    this.state.phase = "battle";
-    this.state.waitingForAction = true;
-    this.state.turnNumber = 1;
-    
-    // ✅ CALCUL CORRECT: Qui joue en premier selon la vitesse
-    const player1Speed = this.state.player1Pokemon?.speed || 0;
-    const player2Speed = this.state.player2Pokemon?.speed || 0;
-    
-    let firstPlayer: string;
-    if (player1Speed > player2Speed) {
-      firstPlayer = "player1";
-    } else if (player2Speed > player1Speed) {
-      firstPlayer = "player2";
-    } else {
-      // Égalité = aléatoire
-      firstPlayer = Math.random() < 0.5 ? "player1" : "player2";
-    }
-    
-    this.state.currentTurn = firstPlayer;
-    
-    console.log(`⚡ [BattleRoom] Vitesses: Player1=${player1Speed} vs Player2=${player2Speed}`);
-    console.log(`🎯 [BattleRoom] Premier tour: ${firstPlayer}`);
-    
-    this.broadcast("battleStart", {
-      player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
-      player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
-      currentTurn: this.state.currentTurn,
-      turnNumber: this.state.turnNumber,
-      battleLog: Array.from(this.state.battleLog),
-      speedComparison: { // ✅ Info pour le client
-        player1Speed,
-        player2Speed,
-        firstPlayer
-      }
-    });
-    
-    this.updateBattleStatusIcons();
-    this.startActionTimer();
-    
-    console.log(`✅ Combat ${this.state.battleId} en cours avec BattleIntegration !`);
-    
-    // ✅ AJOUT: Si l'IA joue en premier, la démarrer automatiquement
-    if (this.state.currentTurn === "player2") {
-      console.log(`🤖 [BattleRoom] IA joue en premier, démarrage dans 2s...`);
-      this.clock.setTimeout(() => {
-        this.triggerAITurn();
-      }, 2000);
-    }
+private startActualBattle() {
+  console.log(`⚔️ DÉBUT DU COMBAT RÉEL AVEC BattleIntegration !`);
+  
+  // ✅ AJOUTER : Configuration des joueurs dans TurnSystem
+  const playerData = [
+    { id: this.state.player1Id, type: 'human' as PlayerType, name: this.state.player1Name },
+    { id: 'ai', type: 'ai' as PlayerType, name: 'Pokémon Sauvage' }
+  ];
+  this.turnSystem.autoConfigurePlayers(playerData);
+  
+  this.state.phase = "battle";
+  this.state.waitingForAction = true;
+  this.state.turnNumber = 1;
+  
+  // ✅ CALCUL CORRECT: Qui joue en premier selon la vitesse
+  const player1Speed = this.state.player1Pokemon?.speed || 0;
+  const player2Speed = this.state.player2Pokemon?.speed || 0;
+  
+  let firstPlayer: string;
+  if (player1Speed > player2Speed) {
+    firstPlayer = "player1";
+  } else if (player2Speed > player1Speed) {
+    firstPlayer = "player2";
+  } else {
+    // Égalité = aléatoire
+    firstPlayer = Math.random() < 0.5 ? "player1" : "player2";
   }
+  
+  this.state.currentTurn = firstPlayer;
+  
+  console.log(`⚡ [BattleRoom] Vitesses: Player1=${player1Speed} vs Player2=${player2Speed}`);
+  console.log(`🎯 [BattleRoom] Premier tour: ${firstPlayer}`);
+  console.log(`🎯 [TurnSystem] État:`, this.turnSystem.getState());
+  
+  this.broadcast("battleStart", {
+    player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+    player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+    currentTurn: this.state.currentTurn,
+    turnNumber: this.state.turnNumber,
+    battleLog: Array.from(this.state.battleLog),
+    speedComparison: { // ✅ Info pour le client
+      player1Speed,
+      player2Speed,
+      firstPlayer
+    },
+    turnSystemState: this.turnSystem.getState() // ✅ Ajout état TurnSystem
+  });
+  
+  this.updateBattleStatusIcons();
+  this.startActionTimer();
+  
+  console.log(`✅ Combat ${this.state.battleId} en cours avec BattleIntegration !`);
+  
+  // ✅ AJOUT: Si l'IA joue en premier, la démarrer automatiquement
+  if (this.state.currentTurn === "player2") {
+    console.log(`🤖 [BattleRoom] IA joue en premier, démarrage dans 2s...`);
+    this.clock.setTimeout(() => {
+      this.triggerAITurn();
+    }, 2000);
+  }
+}
 
   // ✅ AJOUT: Méthode pour déclencher le tour de l'IA avec protection anti-spam
   private async triggerAITurn() {
@@ -707,78 +723,78 @@ export class BattleRoom extends Room<BattleState> {
 
   // === ACTIONS DE COMBAT AVEC BattleIntegration ===
 
- private async handleBattleAction(client: Client, data: any) {
-    console.log(`🔥 [DEBUG] handleBattleAction appelée:`, data);
-    console.log(`🔥 [DEBUG] Phase: ${this.state.phase}`);
-    console.log(`🔥 [DEBUG] Combat terminé: ${this.state.battleEnded}`);
-    
-    // ✅ VÉRIFICATION CRITIQUE: Combat déjà terminé ?
-    if (this.state.phase !== "battle" || this.state.battleEnded) {
-      console.log(`🔥 [DEBUG] ❌ Combat non actif ou terminé`);
-      client.send("error", { message: "Combat terminé" });
-      return;
-    }
-
-    const playerRole = this.getPlayerRole(client.sessionId);
-    console.log(`🔥 [DEBUG] Rôle joueur: ${playerRole}`);
-    
-    if (this.state.currentTurn !== playerRole) {
-      console.log(`🔥 [DEBUG] ❌ Pas le tour du joueur: ${this.state.currentTurn} !== ${playerRole}`);
-      client.send("error", { message: "Ce n'est pas votre tour" });
-      return;
-    }
-
-    console.log(`🔥 [DEBUG] Validation OK, traitement action ${data.actionType}`);
-    console.log(`🎮 Action de ${client.sessionId}: ${data.actionType}`);
-
-    try {
-      // ✅ ANNULER LE TIMER D'ACTION QUAND LE JOUEUR AGIT
-      this.clearActionTimer();
-      
-      console.log(`🔥 [DEBUG] Appel BattleIntegration.processAction...`);
-      
-      await this.battleIntegration.processAction(
-        client.sessionId,
-        data.actionType as ActionType,
-        data
-      );
-          
-      console.log(`🔥 [DEBUG] BattleIntegration.processAction terminé`);
-      
-      // Mettre à jour l'interface
-      this.broadcast("battleUpdate", {
-        player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
-        player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
-        currentTurn: this.state.currentTurn,
-        turnNumber: this.state.turnNumber,
-        battleLog: Array.from(this.state.battleLog),
-        lastMessage: this.state.lastMessage,
-        battleEnded: this.state.battleEnded,
-        winner: this.state.winner
-      });
-      
-      if (this.state.battleEnded) {
-        console.log(`🔥 [DEBUG] Combat terminé, appel handleBattleEnd...`);
-        await this.handleBattleEnd();
-      } else {
-        console.log(`🔥 [DEBUG] Combat continue, mise à jour statuts...`);
-        
-        this.updatePlayerHpPercentages();
-        this.updateBattleStatusIcons();
-        
-        // ✅ REDÉMARRER LE TIMER SEULEMENT SI COMBAT ACTIF
-        if (this.state.phase === "battle" && !this.state.battleEnded) {
-          this.startActionTimer();
-        }
-      }
-
-      console.log(`🔥 [DEBUG] handleBattleAction terminé avec succès`);
-
-    } catch (error) {
-      console.error(`🔥 [DEBUG] ERREUR dans handleBattleAction:`, error);
-      client.send("error", { message: "Erreur lors de l'action" });
-    }
+private async handleBattleAction(client: Client, data: any) {
+  console.log(`🔥 [DEBUG] handleBattleAction appelée:`, data);
+  console.log(`🔥 [DEBUG] Phase: ${this.state.phase}`);
+  console.log(`🔥 [DEBUG] Combat terminé: ${this.state.battleEnded}`);
+  
+  // ✅ VÉRIFICATION CRITIQUE: Combat déjà terminé ?
+  if (this.state.phase !== "battle" || this.state.battleEnded) {
+    console.log(`🔥 [DEBUG] ❌ Combat non actif ou terminé`);
+    client.send("error", { message: "Combat terminé" });
+    return;
   }
+
+  // ✅ NOUVEAU: Vérifier avec TurnSystem au lieu de la logique manuelle
+  if (!this.turnSystem.canPlayerAct(client.sessionId)) {
+    console.log(`🔥 [DEBUG] ❌ TurnSystem: joueur ne peut pas agir`);
+    client.send("error", { message: "Ce n'est pas votre tour" });
+    return;
+  }
+
+  console.log(`🔥 [DEBUG] Validation TurnSystem OK, traitement action ${data.actionType}`);
+  console.log(`🎮 Action de ${client.sessionId}: ${data.actionType}`);
+
+  try {
+    // ✅ ANNULER LE TIMER D'ACTION QUAND LE JOUEUR AGIT
+    this.clearActionTimer();
+    
+    console.log(`🔥 [DEBUG] Appel BattleIntegration.processAction...`);
+    
+    await this.battleIntegration.processAction(
+      client.sessionId,
+      data.actionType as ActionType,
+      data
+    );
+        
+    console.log(`🔥 [DEBUG] BattleIntegration.processAction terminé`);
+    
+    // ✅ NOUVEAU: Notifier TurnSystem que l'action est terminée
+    this.turnSystem.submitAction(client.sessionId, data);
+    
+    // Mettre à jour l'interface
+    this.broadcast("battleUpdate", {
+      player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+      player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+      currentTurn: this.state.currentTurn,
+      turnNumber: this.state.turnNumber,
+      battleLog: Array.from(this.state.battleLog),
+      lastMessage: this.state.lastMessage,
+      battleEnded: this.state.battleEnded,
+      winner: this.state.winner,
+      turnSystemState: this.turnSystem.getState() // ✅ État TurnSystem
+    });
+    
+    if (this.state.battleEnded) {
+      console.log(`🔥 [DEBUG] Combat terminé, appel handleBattleEnd...`);
+      await this.handleBattleEnd();
+    } else {
+      console.log(`🔥 [DEBUG] Combat continue, mise à jour statuts...`);
+      
+      this.updatePlayerHpPercentages();
+      this.updateBattleStatusIcons();
+      
+      // ✅ NOUVEAU: Laisser TurnSystem gérer le tour suivant
+      // Plus de startActionTimer() automatique ici
+    }
+
+    console.log(`🔥 [DEBUG] handleBattleAction terminé avec succès`);
+
+  } catch (error) {
+    console.error(`🔥 [DEBUG] ERREUR dans handleBattleAction:`, error);
+    client.send("error", { message: "Erreur lors de l'action" });
+  }
+}
   
   // ✅ NOUVEAU: Gestion de la fin de combat avec BattleIntegration
  private async handleBattleEnd() {
