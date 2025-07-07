@@ -290,19 +290,36 @@ setTimeout(() => {
     });
   }
   
-  private handleHealEvent(event: BattleEvent): void {
-    if (!this.battleRoomCallbacks || !event.targetId) return;
-    
-    const healing = event.data.healing || 0;
-    const newHp = Math.min(event.data.maxHp || 100, (event.data.currentHp || 0) + healing);
-    
-    this.battleRoomCallbacks.updatePokemonHP(event.targetId, newHp);
-    this.battleRoomCallbacks.broadcastMessage('pokemonHeal', {
-      pokemonId: event.targetId,
-      healing: healing,
-      newHp: newHp
-    });
+private handleHealEvent(event: BattleEvent): void {
+  if (!this.battleRoomCallbacks || !event.targetId) return;
+  
+  const healing = event.data.healing || 0;
+  const newHp = Math.min(event.data.maxHp || 100, (event.data.currentHp || 0) + healing);
+  
+  this.battleRoomCallbacks.updatePokemonHP(event.targetId, newHp);
+
+  // 🟢 Déclencher les hooks onHeal si besoin
+  // (optionnel, tu peux aussi nommer le hook "onHeal" dans BattleEffectSystem si tu veux le standardiser)
+  // Il faut le context : tu peux le passer dans event.context ou aller le chercher selon ton archi
+  if (event.context) {
+    const participant = event.context.participants.find(
+      (p) => p.team[0]?.pokemonId?.toString() === event.targetId.toString()
+    );
+    if (participant && participant.team[0]) {
+      BattleEffectSystem.triggerHook(
+        event.context,
+        "onHeal", // Ce hook peut être personnalisé selon ta table d’effets
+        { user: participant.team[0], amount: healing, event }
+      );
+    }
   }
+
+  this.battleRoomCallbacks.broadcastMessage('pokemonHeal', {
+    pokemonId: event.targetId,
+    healing: healing,
+    newHp: newHp
+  });
+}
   
   private handleStatusEvent(event: BattleEvent): void {
     if (!this.battleRoomCallbacks) return;
@@ -314,14 +331,26 @@ setTimeout(() => {
     });
   }
   
-  private handleFaintEvent(event: BattleEvent): void {
-    if (!this.battleRoomCallbacks || !event.targetId) return;
-    
-    this.battleRoomCallbacks.updatePokemonHP(event.targetId, 0);
-    this.battleRoomCallbacks.broadcastMessage('pokemonFaint', {
-      pokemonId: event.targetId
-    });
+private handleFaintEvent(event: BattleEvent): void {
+  if (!this.battleRoomCallbacks || !event.targetId) return;
+
+  this.battleRoomCallbacks.updatePokemonHP(event.targetId, 0);
+
+  // Déclencher les hooks onFaint
+  const participant = this.findParticipantByPokemonId(event.targetId, event); // À créer ci-dessous
+  if (participant && participant.team[0]) {
+    BattleEffectSystem.triggerHook(
+      event.context, // Il te faut peut-être le context ici
+      "onFaint",
+      { user: participant.team[0], event }
+    );
   }
+
+  this.battleRoomCallbacks.broadcastMessage('pokemonFaint', {
+    pokemonId: event.targetId
+  });
+}
+
   
   private handleUIUpdateEvent(event: BattleEvent): void {
     if (!this.battleRoomCallbacks) return;
