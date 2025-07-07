@@ -94,37 +94,43 @@ export class BattleSequencer {
   /**
    * MÉTHODE PRINCIPALE : Traite une action de combat
    */
-  async processAction(action: BattleAction, context: BattleContext): Promise<boolean> {
-    console.log(`🎮 [BattleSequencer] === TRAITEMENT ACTION ===`);
-    console.log(`🎯 Action: ${action.type} par ${action.playerId}`);
-    console.log(`⚔️ Combat: ${context.battleId} (${context.battleType})`);
-    
-    try {
-      // 1. Trouver le handler approprié
-      const handler = this.findHandler(context);
-      if (!handler) {
-        console.error(`❌ [BattleSequencer] Aucun handler disponible`);
-        return false;
-      }
-      
-      // 2. Traiter l'action via le handler
-      const sequence = await handler.processAction(action, context);
-      
-      // 3. Exécuter la séquence avec timing
-      await this.executeSequence(sequence, context);
-      
-      // 4. Vérifier si l'IA doit jouer
-      if (handler.shouldPlayAITurn(context)) {
-        await this.scheduleAITurn(handler, context);
-      }
-      
-      return true;
-      
-    } catch (error) {
-      console.error(`💥 [BattleSequencer] Erreur traitement action:`, error);
+ async processAction(action: BattleAction, context: BattleContext): Promise<boolean> {
+  console.log(`🎮 [BattleSequencer] === TRAITEMENT ACTION ===`);
+  console.log(`🎯 Action: ${action.type} par ${action.playerId}`);
+  console.log(`⚔️ Combat: ${context.battleId} (${context.battleType})`);
+
+  try {
+    // 1. Trouver le handler approprié
+    const handler = this.findHandler(context);
+    if (!handler) {
+      console.error(`❌ [BattleSequencer] Aucun handler disponible`);
       return false;
     }
+
+    // 2.1 Déclencher les hooks "début de tour"
+    const turnStartResults = BattleEffectSystem.triggerHook(context, "onTurnStart", { action });
+    turnStartResults.forEach(res => {
+      if (res?.message) console.log('🔔 [EffectTurnStart]', res.message);
+    });
+
+    // 2. Traiter l'action via le handler
+    const sequence = await handler.processAction(action, context);
+
+    // 3. Exécuter la séquence avec timing
+    await this.executeSequence(sequence, context);
+
+    // 4. Vérifier si l'IA doit jouer
+    if (handler.shouldPlayAITurn(context)) {
+      await this.scheduleAITurn(handler, context);
+    }
+
+    return true;
+
+  } catch (error) {
+    console.error(`💥 [BattleSequencer] Erreur traitement action:`, error);
+    return false;
   }
+}
   
   /**
    * Exécute une séquence d'événements avec timing authentique
