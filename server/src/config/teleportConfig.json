@@ -216,7 +216,14 @@
       "minLevel": 1,
       "description": "Magasin général de la ville",
       "fixedSpawn": { "x": 360, "y": 320 }
-    }
+    },
+    "noctherbcave1": {
+  "name": "noctherbcave1",
+  "displayName": "Grotte Noctherb - Entrée",
+  "minLevel": 1,
+  "description": "Entrée de la grotte Noctherb.",
+  "fixedSpawn": { "x": 160, "y": 480 }
+}
   },
   "rules": [
     {
@@ -489,6 +496,30 @@
       },
       "enabled": true
     },
+    {
+  "id": "road2_to_noctherbcave1",
+  "name": "Road 2 vers Noctherb Cave 1",
+  "description": "Accès vers la première partie de la grotte Noctherb",
+  "fromZone": "road2",
+  "toZone": "noctherbcave1",
+  "conditions": {
+    "minLevel": 1,
+    "proximityCheck": { "enabled": true }
+  },
+  "enabled": true
+},
+{
+  "id": "noctherbcave1_to_road2",
+  "name": "Noctherb Cave 1 vers Road 2",
+  "description": "Sortie vers Road 2",
+  "fromZone": "noctherbcave1",
+  "toZone": "road2",
+  "conditions": {
+    "minLevel": 1,
+    "proximityCheck": { "enabled": true }
+  },
+  "enabled": true
+}
     {
       "id": "beach_to_road1_vip",
       "name": "Plage vers Route 1 (VIP)",
