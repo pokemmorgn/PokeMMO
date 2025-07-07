@@ -51,19 +51,19 @@ export class CaptureManager {
       multiplier: 1.0, 
       name: 'Poké Ball',
       criticalRate: 0.0,
-      specialCondition: null
+      specialCondition: null as string | null
     },
     'greatball': { 
       multiplier: 1.5, 
       name: 'Super Ball',
       criticalRate: 0.0,
-      specialCondition: null
+      specialCondition: null as string | null
     },
     'ultraball': { 
       multiplier: 2.0, 
       name: 'Hyper Ball',
       criticalRate: 0.0,
-      specialCondition: null
+      specialCondition: null as string | null
     },
     'masterball': { 
       multiplier: 255.0, 
