@@ -230,31 +230,7 @@ export class BattleSequencer {
         }
         
         // ✅ VÉRIFIER si l'IA doit jouer APRÈS le changement de tour
-        const handler = this.findHandler(context);
-        if (handler && handler.shouldPlayAITurn(context)) {
-          console.log(`🤖 [BattleSequencer] Programmation tour IA après changement...`);
-          
-          const aiTimerId = `ai_turn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          
-          const aiTimer = setTimeout(async () => {
-            this.removeTimer(aiTimerId, context.battleId);
-            
-            // ✅ DOUBLE VÉRIFICATION avant de jouer
-            if (context.phase === 'ended' || !handler.shouldPlayAITurn(context)) {
-              console.log(`🤖 [BattleSequencer] IA annulée - combat terminé ou pas son tour`);
-              return;
-            }
-            
-            try {
-              const aiAction = await handler.generateAIAction(context);
-              await this.processAction(aiAction, context);
-            } catch (error) {
-              console.error(`🤖 [BattleSequencer] Erreur tour IA:`, error);
-            }
-          }, 2000);
-          
-          this.storeTimer(aiTimerId, aiTimer, context.battleId);
-        }
+      console.log(`🎯 [BattleSequencer] Changement de tour terminé - BattleRoom gère la suite`);
         
       } catch (err) {
         console.error("[BattleSequencer] Erreur dans executeSequence:", err);
