@@ -220,29 +220,19 @@
         {
           "id": "talk_to_psyduck",
           "type": "talk",
-          "description": "Chase after the mysterious yellow creature.",
+          "description": "Talk to the Psyduck (he seems to know what's up… maybe).",
           "target": "999",
           "targetName": "Psyduck",
           "requiredAmount": 1
         }
       ],
-      "rewards": []
-    },
-    {
-      "id": "follow_psyduck",
-      "name": "Follow the Strange Creature",
-      "description": "This strange yellow creature seems confused. You don’t know what it is, but it might lead you somewhere."
-      "objectives": [
+      "rewards": [
         {
-          "id": "talk_to_psyduck2",
-          "type": "talk",
-          "description": "Looks like the creature went into a lab. Follow closely.",
-          "target": "999A",
-          "targetName": "Psyduck",
-          "requiredAmount": 1
+          "type": "item",
+          "itemId": "potion",
+          "amount": 2
         }
-      ],
-      "rewards": []
+      ]
     },
     {
       "id": "finish_intro",
