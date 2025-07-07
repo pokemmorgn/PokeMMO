@@ -55,7 +55,7 @@ export class BattleRoom extends Room<BattleState> {
     this.setState(new BattleState());
     
     // ✅ NOUVEAU: Initialiser BattleIntegration avec le state
-    this.battleIntegration = new BattleIntegration(this.state);
+    this.battleIntegration = new BattleIntegration();
     
     // Configuration de base
     this.state.battleId = `${options.battleType}_${Date.now()}_${this.roomId}`;
@@ -384,14 +384,26 @@ private async autoSelectFirstPokemon() {
     if (this.battleInitData.wildPokemon) {
       console.log(`🔥 [AUTO SELECT] Initialisation combat avec BattleIntegration...`);
       
-      await this.battleIntegration.initializeWildBattle(
-        this.state.player1Id,
-        this.state.player1Name,
-        firstAvailablePokemon.pokemonId,
-        this.battleInitData.wildPokemon,
-        "auto_wild_encounter"
-      );
-      
+    const callbacks = this.createBattleCallbacks();
+    const context = this.battleIntegration.initializeBattle(
+      callbacks,
+      'wild',
+      [
+        {
+          sessionId: this.state.player1Id,
+          name: this.state.player1Name,
+          isAI: false,
+          team: [/* données du Pokémon du joueur */]
+        },
+        {
+          sessionId: 'ai',
+          name: 'Pokémon Sauvage',
+          isAI: true,
+          team: [/* données du Pokémon sauvage */]
+        }
+      ]
+    );
+          
       console.log(`🔥 [AUTO SELECT] BattleIntegration initialisé`);
       console.log(`🔥 [AUTO SELECT] Nouvelle phase: ${this.state.phase}`);
       console.log(`🔥 [AUTO SELECT] Tour actuel: ${this.state.currentTurn}`);
@@ -666,8 +678,12 @@ private async handleBattleAction(client: Client, data: any) {
 
     console.log(`🔥 [DEBUG] Appel BattleIntegration.processAction...`);
     
-    await this.battleIntegration.processAction(action);
-    
+    await this.battleIntegration.processAction(
+      action.playerId,
+      action.type as ActionType,
+      action.data ? JSON.parse(action.data) : {}
+    );
+        
     console.log(`🔥 [DEBUG] BattleIntegration.processAction terminé`);
     console.log(`🔥 [DEBUG] État du combat après processAction:`, {
       battleEnded: this.state.battleEnded,
@@ -713,7 +729,8 @@ private async handleBattleAction(client: Client, data: any) {
   private async handleBattleEnd() {
     console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BattleIntegration`);
     
-    console.log(`📊 Résultat:`, battleResult);
+  const context = this.battleIntegration.getCurrentContext();
+  console.log(`📊 Résultat:`, context);
     
     // Déterminer le type de fin
     let endType: "victory" | "defeat" | "fled" | "draw";
