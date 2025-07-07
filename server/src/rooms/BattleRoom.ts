@@ -1181,13 +1181,11 @@ export class BattleRoom extends Room<BattleState> {
     }
     return `Pokémon #${pokemonId}`;
   }
-
+    private calculateStat(baseStat: number, level: number): number {
+      return Math.floor(((2 * baseStat + 31) * level) / 100) + 5;  // ❌ +5 pour autres stats
+    }
     private calculateHPStat(baseStat: number, level: number): number {
       return Math.floor(((2 * baseStat + 31) * level) / 100) + level + 10;  // ✅ +level+10 pour HP
-    }
-    
-    private calculateOtherStat(baseStat: number, level: number): number {
-      return Math.floor(((2 * baseStat + 31) * level) / 100) + 5;  // ✅ +5 pour autres stats
     }
 
   private canStartBattle(): boolean {
