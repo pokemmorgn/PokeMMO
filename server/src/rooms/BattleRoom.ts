@@ -360,23 +360,17 @@ private async autoSelectFirstPokemon() {
   console.log(`🔥 [AUTO SELECT] Sélection automatique du premier Pokémon...`);
   
   try {
-    // Récupérer le premier client (le joueur)
     const playerClient = Array.from(this.clients)[0];
     if (!playerClient) {
       throw new Error("Aucun client trouvé");
     }
-    
-    console.log(`🔥 [AUTO SELECT] Client trouvé: ${playerClient.sessionId}`);
     
     const teamManager = this.teamManagers.get(playerClient.sessionId);
     if (!teamManager) {
       throw new Error("TeamManager non trouvé");
     }
     
-    console.log(`🔥 [AUTO SELECT] TeamManager trouvé, récupération équipe...`);
     const team = await teamManager.getTeam();
-    
-    // ✅ CORRECTION: Vérifier seulement HP et moves
     const firstAvailablePokemon = team.find(pokemon => 
       pokemon.currentHp > 0 && 
       pokemon.moves && pokemon.moves.length > 0
@@ -386,51 +380,78 @@ private async autoSelectFirstPokemon() {
       throw new Error("Aucun Pokémon disponible pour le combat");
     }
     
-    console.log(`🔥 [AUTO SELECT] Premier Pokémon trouvé: ${firstAvailablePokemon.nickname || 'Sans nom'} (ID: ${firstAvailablePokemon.pokemonId})`);
-    console.log(`🔥 [AUTO SELECT] HP: ${firstAvailablePokemon.currentHp}/${firstAvailablePokemon.maxHp}`);
-    console.log(`🔥 [AUTO SELECT] Moves: ${firstAvailablePokemon.moves?.length || 0}`);
+    console.log(`🔥 [AUTO SELECT] Premier Pokémon trouvé: ${firstAvailablePokemon.nickname || 'Sans nom'}`);
     
-    // Initialiser le combat avec ce Pokémon
     if (this.battleInitData.wildPokemon) {
-      console.log(`🔥 [AUTO SELECT] Initialisation combat avec BattleIntegration...`);
+      // ✅ AJOUT: Créer les BattlePokemon dans le state AVANT d'initialiser BattleIntegration
+      console.log(`🔧 [AUTO SELECT] Création des BattlePokemon...`);
       
-    const callbacks = this.createBattleCallbacks();
-    const context = this.battleIntegration.initializeBattle(
-      callbacks,
-      'wild',
-      [
-        {
-          sessionId: this.state.player1Id,
-          name: this.state.player1Name,
-          isAI: false,
-          team: [/* données du Pokémon du joueur */]
-        },
-        {
-          sessionId: 'ai',
-          name: 'Pokémon Sauvage',
-          isAI: true,
-          team: [/* données du Pokémon sauvage */]
-        }
-      ]
-    );
-          
-      console.log(`🔥 [AUTO SELECT] BattleIntegration initialisé`);
-      console.log(`🔥 [AUTO SELECT] Nouvelle phase: ${this.state.phase}`);
-      console.log(`🔥 [AUTO SELECT] Tour actuel: ${this.state.currentTurn}`);
+      // Créer le Pokémon du joueur
+      this.state.player1Pokemon = await this.createBattlePokemonFromTeam(firstAvailablePokemon);
+      
+      // Créer le Pokémon sauvage
+      this.state.player2Pokemon = await this.createWildBattlePokemon(this.battleInitData.wildPokemon);
+      
+      console.log(`✅ [AUTO SELECT] BattlePokemon créés:`);
+      console.log(`   Player1: ${this.state.player1Pokemon.name} (vitesse: ${this.state.player1Pokemon.speed})`);
+      console.log(`   Player2: ${this.state.player2Pokemon.name} (vitesse: ${this.state.player2Pokemon.speed})`);
+      
+      // Maintenant initialiser BattleIntegration
+      const callbacks = this.createBattleCallbacks();
+      this.battleIntegration.initializeBattle(callbacks, 'wild', []);
       
       // Démarrer le combat réel
-      console.log(`🔥 [AUTO SELECT] Démarrage combat réel...`);
       this.startActualBattle();
-      console.log(`🔥 [AUTO SELECT] Combat réel démarré`);
     }
     
   } catch (error) {
     console.error(`🔥 [AUTO SELECT] Erreur sélection auto:`, error);
-    if (error instanceof Error) {
-      console.error(`🔥 [AUTO SELECT] Stack trace:`, error.stack);
-    }
     throw error;
   }
+}
+
+  private async createWildBattlePokemon(wildPokemon: any): Promise<BattlePokemon> {
+  const battlePokemon = new BattlePokemon();
+  
+  const pokemonData = await getPokemonById(wildPokemon.pokemonId);
+  if (!pokemonData) {
+    throw new Error(`Données Pokémon sauvage ${wildPokemon.pokemonId} introuvables`);
+  }
+
+  battlePokemon.pokemonId = wildPokemon.pokemonId;
+  battlePokemon.name = pokemonData.name;
+  battlePokemon.level = wildPokemon.level;
+  battlePokemon.isWild = true;
+  battlePokemon.gender = wildPokemon.gender;
+  battlePokemon.shiny = wildPokemon.shiny;
+  
+  // Types
+  battlePokemon.types.clear();
+  pokemonData.types.forEach((type: string) => battlePokemon.types.push(type));
+  
+  // Stats calculées
+  battlePokemon.maxHp = wildPokemon.hp;
+  battlePokemon.currentHp = wildPokemon.hp;
+  battlePokemon.attack = wildPokemon.attack;
+  battlePokemon.defense = wildPokemon.defense;
+  battlePokemon.specialAttack = wildPokemon.specialAttack;
+  battlePokemon.specialDefense = wildPokemon.specialDefense;
+  battlePokemon.speed = wildPokemon.speed;
+  
+  // Moves de base
+  battlePokemon.moves.clear();
+  const baseMoves = pokemonData.learnset
+    .filter((learn: any) => learn.level <= wildPokemon.level)
+    .slice(-4)
+    .map((learn: any) => learn.moveId);
+  
+  (baseMoves.length > 0 ? baseMoves : ["tackle"]).forEach((move: string) => {
+    battlePokemon.moves.push(move);
+  });
+  
+  battlePokemon.statusCondition = "normal";
+  
+  return battlePokemon;
 }
   
   // ✅ NOUVEAU: Setup combat sauvage avec BattleIntegration
