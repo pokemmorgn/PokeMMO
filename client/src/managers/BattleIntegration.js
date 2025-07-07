@@ -144,15 +144,10 @@ export class BattleIntegration {
     }
   }
 
-  // ✅ CORRECTION: Méthode pour endormir la scène avec la bonne API
+  // ✅ CORRECTION: Méthode pour endormir la scène SANS setVisible
   sleepBattleScene() {
     try {
       if (this.phaserGame.scene.isActive?.('BattleScene')) {
-        // ✅ CORRECTION: Utiliser la bonne API
-        const battleScene = this.phaserGame.scene.get('BattleScene');
-        if (battleScene) {
-          battleScene.scene.setVisible(false);
-        }
         this.phaserGame.scene.sleep?.('BattleScene');
         console.log('💤 BattleScene endormie');
       }
@@ -348,29 +343,33 @@ export class BattleIntegration {
     console.log('⏳ Interface prête, attente battleStart...');
   }
 
-  // ✅ CORRECTION PRINCIPALE: Activation interface corrigée
+  // ✅ CORRECTION FINALE: Activation interface SANS setVisible
   activateBattleInterface(battleData) {
     console.log('🎮 [BattleIntegration] === ACTIVATION INTERFACE ===');
     
     try {
-      // ✅ CORRECTION: Réveiller et afficher la BattleScene avec la bonne API
+      // ✅ CORRECTION: Seulement réveiller et amener au premier plan
       if (this.battleScene && this.phaserGame?.scene) {
-        if (this.phaserGame.scene.isSleeping('BattleScene')) {
+        
+        // Réveiller la scène si elle dort
+        if (this.phaserGame.scene.isSleeping && this.phaserGame.scene.isSleeping('BattleScene')) {
           this.phaserGame.scene.wake('BattleScene');
+          console.log('😴 BattleScene réveillée');
         }
         
-        // ✅ CORRECTION: Utiliser la bonne méthode pour rendre visible
-        const battleSceneInstance = this.phaserGame.scene.get('BattleScene');
-        if (battleSceneInstance) {
-          battleSceneInstance.scene.setVisible(true);
+        // Amener au premier plan si possible
+        if (this.phaserGame.scene.bringToTop) {
+          this.phaserGame.scene.bringToTop('BattleScene');
+          console.log('🔝 BattleScene amenée au premier plan');
         }
         
         // Démarrer le combat dans la scène
         if (this.battleScene.startBattle) {
           this.battleScene.startBattle(battleData);
+          console.log('⚔️ Combat démarré dans BattleScene');
         }
         
-        console.log('✅ BattleScene activée');
+        console.log('✅ BattleScene activée SANS setVisible');
       } else {
         console.error('❌ BattleScene non disponible');
         throw new Error('BattleScene non disponible');
@@ -383,7 +382,7 @@ export class BattleIntegration {
       
     } catch (error) {
       console.error('❌ Erreur activation interface:', error);
-      // ✅ PAS d'interface de secours - juste log l'erreur
+      // Juste log l'erreur, pas d'interface de secours
       console.error('💀 [BattleIntegration] Impossible d\'activer l\'interface');
     }
   }
@@ -532,15 +531,12 @@ export class BattleIntegration {
   }
 
   closeBattleInterface() {
-    // ✅ CORRECTION: Fermer BattleScene avec la bonne API
+    // ✅ CORRECTION: Fermer BattleScene SANS setVisible
     if (this.battleScene && this.phaserGame?.scene) {
       try {
-        if (this.phaserGame.scene.isActive('BattleScene')) {
-          const battleSceneInstance = this.phaserGame.scene.get('BattleScene');
-          if (battleSceneInstance) {
-            battleSceneInstance.scene.setVisible(false);
-          }
+        if (this.phaserGame.scene.isActive && this.phaserGame.scene.isActive('BattleScene')) {
           this.phaserGame.scene.sleep('BattleScene');
+          console.log('💤 BattleScene fermée');
         }
       } catch (error) {
         console.warn('⚠️ Erreur fermeture BattleScene:', error);
@@ -717,8 +713,8 @@ window.testBattleIntegration = function() {
 };
 
 console.log('✅ [BattleIntegration] MODULE CORRIGÉ CHARGÉ !');
-console.log('🔧 CORRECTION: API Phaser scene.setVisible corrigée');
+console.log('🔧 CORRECTION: Suppression complète de setVisible');
+console.log('✅ UTILISE: Seulement wake() + bringToTop() + sleep()');
 console.log('✅ AJOUT: Système battleUITransition');
-console.log('❌ SUPPRIMÉ: Interface de secours inutile');
 console.log('🧪 Test: window.testBattleIntegration()');
 console.log('🚀 Prêt pour intégration dans votre GameManager !');
