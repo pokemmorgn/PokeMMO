@@ -15,7 +15,7 @@ import {
 import { DamageCalculator } from './DamageCalculator';
 import { TypeEffectiveness } from './TypeEffectiveness';
 import { BattleMessageHandler } from './BattleMessageHandler';
-
+import { ALL_MOVES } from "./data/loadAllMoves";
 /**
  * INTÉGRATEUR PRINCIPAL
  * 
