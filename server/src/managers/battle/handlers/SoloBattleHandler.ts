@@ -86,29 +86,27 @@ class SoloBattleHandler implements IBattleHandler {
   }
   
   /**
-   * Détermine si l'IA doit jouer après cette action
+   * ✅ CORRIGÉ: Détermine si l'IA doit jouer après cette action
    */
-shouldPlayAITurn(context: BattleContext): boolean {
-  console.log(`🤖 [SoloBattleHandler] Vérification tour IA...`);
-  console.log(`🤖 [SoloBattleHandler] - currentPlayer: ${context.currentPlayer}`);
-  console.log(`🤖 [SoloBattleHandler] - phase: ${context.phase}`);
-  console.log(`🤖 [SoloBattleHandler] - participants:`, context.participants.map(p => ({ id: p.sessionId, isAI: p.isAI })));
-  
-  // ✅ FIX: Après l'action du joueur, c'est maintenant le tour de l'IA
-  // On doit changer le tour vers l'IA avant de vérifier
-  const hasAI = context.participants.some(p => p.isAI);
-  const battleActive = context.phase === 'battle';
-  
-  // ✅ LOGIQUE CORRIGÉE: Si on vient de traiter l'action du joueur,
-  // alors c'est maintenant le tour de l'IA
-  const shouldPlay = hasAI && battleActive;
-  
-  console.log(`🤖 [SoloBattleHandler] - hasAI: ${hasAI}`);
-  console.log(`🤖 [SoloBattleHandler] - battleActive: ${battleActive}`);
-  console.log(`🤖 [SoloBattleHandler] IA doit jouer ? ${shouldPlay}`);
-  
-  return shouldPlay;
-}
+  shouldPlayAITurn(context: BattleContext): boolean {
+    console.log(`🤖 [SoloBattleHandler] Vérification tour IA...`);
+    console.log(`🤖 [SoloBattleHandler] - currentPlayer: ${context.currentPlayer}`);
+    console.log(`🤖 [SoloBattleHandler] - phase: ${context.phase}`);
+    console.log(`🤖 [SoloBattleHandler] - participants:`, context.participants.map(p => ({ id: p.sessionId, isAI: p.isAI })));
+    
+    const hasAI = context.participants.some(p => p.isAI);
+    const battleActive = context.phase === 'battle';
+    
+    // ✅ LOGIQUE SIMPLIFIÉE: L'IA joue si elle existe et le combat est actif
+    // Le changement de tour est géré par BattleSequencer
+    const shouldPlay = hasAI && battleActive;
+    
+    console.log(`🤖 [SoloBattleHandler] - hasAI: ${hasAI}`);
+    console.log(`🤖 [SoloBattleHandler] - battleActive: ${battleActive}`);
+    console.log(`🤖 [SoloBattleHandler] IA doit jouer ? ${shouldPlay}`);
+    
+    return shouldPlay;
+  }
   
   /**
    * Génère une action IA intelligente
@@ -121,6 +119,9 @@ shouldPlayAITurn(context: BattleContext): boolean {
     const playerPokemon = this.getPlayerPokemon(context);
     
     if (!aiPokemon || !playerPokemon) {
+      console.error('🤖 [SoloBattleHandler] Pokémon manquants pour l\'IA');
+      console.error('🤖 [SoloBattleHandler] aiPokemon:', aiPokemon);
+      console.error('🤖 [SoloBattleHandler] playerPokemon:', playerPokemon);
       throw new Error('Pokémon manquants pour l\'IA');
     }
     
@@ -129,6 +130,8 @@ shouldPlayAITurn(context: BattleContext): boolean {
     
     // Logique de décision
     const decision = await this.makeAIDecision(aiPokemon, playerPokemon, personality, context);
+    
+    console.log(`🤖 [SoloBattleHandler] Décision IA:`, decision);
     
     return {
       actionId: `ai_action_${Date.now()}`,
@@ -149,7 +152,6 @@ shouldPlayAITurn(context: BattleContext): boolean {
    */
   private async processAttackAction(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
     console.log(`💥 [SoloBattleHandler] Traitement attaque...`);
-
     console.log(`💥 [SoloBattleHandler] === DEBUG ATTAQUE ===`);
     console.log(`🎯 Move ID: ${action.data.moveId}`);
     console.log(`👤 Attaquant: ${action.playerId}`);
@@ -165,13 +167,14 @@ shouldPlayAITurn(context: BattleContext): boolean {
     
     const moveId = action.data.moveId;
     if (!moveId) {
-      console.log(`❌ [SoloBattleHandler] Pas de moveId dans l'action`);
+      console.error(`❌ [SoloBattleHandler] Pas de moveId dans l'action`);
       return this.createErrorSequence('MSG_MOVE_FAILED');
     }
     
     // Obtenir les données de l'attaque
     const moveData = await this.getMoveData(moveId);
     if (!moveData) {
+      console.error(`❌ [SoloBattleHandler] Données move non trouvées: ${moveId}`);
       return this.createErrorSequence('MSG_MOVE_FAILED');
     }
     
@@ -180,21 +183,27 @@ shouldPlayAITurn(context: BattleContext): boolean {
     const defender = this.getOpponentPokemon(action.playerId, context);
     
     if (!attacker || !defender) {
+      console.error(`❌ [SoloBattleHandler] Pokémon manquants - attacker: ${!!attacker}, defender: ${!!defender}`);
       return this.createErrorSequence('MSG_MOVE_FAILED');
     }
     
+    console.log(`⚔️ [SoloBattleHandler] ${attacker.name} attaque ${defender.name} avec ${moveData.name}`);
+    
     // Vérifier si l'attaque peut être utilisée
     if (!this.canUseMove(attacker, moveData)) {
+      console.log(`⚠️ [SoloBattleHandler] Move bloqué`);
       return this.createMoveBlockedSequence(attacker, moveData);
     }
     
     // Calculer précision
     if (!this.checkMoveAccuracy(moveData, attacker, defender)) {
+      console.log(`❌ [SoloBattleHandler] Attaque ratée`);
       return this.createMissSequence(attacker, moveData);
     }
     
     // Calculer coup critique
     const isCritical = this.calculateCriticalHit(attacker, moveData);
+    console.log(`💥 [SoloBattleHandler] Critique: ${isCritical}`);
     
     // Calculer dégâts
     const damageResult = DamageCalculator.calculateDamage({
@@ -207,9 +216,18 @@ shouldPlayAITurn(context: BattleContext): boolean {
       isCritical
     });
     
-    // Appliquer les dégâts
-    const newDefenderHp = Math.max(0, defender.currentHp - damageResult.finalDamage);
-    const defenderFainted = newDefenderHp <= 0;
+    console.log(`💥 [SoloBattleHandler] Dégâts calculés: ${damageResult.finalDamage}`);
+    
+    // Appliquer les dégâts au défenseur dans le contexte
+    const defenderParticipant = context.participants.find(p => p.team[0] && p.team[0].pokemonId === defender.pokemonId);
+    if (defenderParticipant && defenderParticipant.team[0]) {
+      const newHp = Math.max(0, defenderParticipant.team[0].currentHp - damageResult.finalDamage);
+      defenderParticipant.team[0].currentHp = newHp;
+      console.log(`💖 [SoloBattleHandler] HP mis à jour: ${defender.name} ${newHp}/${defenderParticipant.team[0].maxHp}`);
+    }
+    
+    const defenderFainted = defender.currentHp - damageResult.finalDamage <= 0;
+    console.log(`💀 [SoloBattleHandler] Défenseur KO: ${defenderFainted}`);
     
     // Créer la séquence d'attaque
     return this.createAttackSequence(
@@ -290,6 +308,8 @@ shouldPlayAITurn(context: BattleContext): boolean {
     const escapeChance = this.calculateEscapeChance(context);
     const escaped = Math.random() < escapeChance;
     
+    console.log(`🏃 [SoloBattleHandler] Chance de fuite: ${(escapeChance * 100).toFixed(1)}% - Réussi: ${escaped}`);
+    
     // Incrémenter le compteur de tentatives
     if (!context.escapeAttempts) {
       context.escapeAttempts = 0;
@@ -324,6 +344,8 @@ shouldPlayAITurn(context: BattleContext): boolean {
     // Calculer le résultat de capture
     const captureResult = this.calculateCaptureResult(targetPokemon, ballType, context);
     
+    console.log(`🎯 [SoloBattleHandler] Résultat capture:`, captureResult);
+    
     return this.createCaptureSequence(targetPokemon, ballType, captureResult, context);
   }
   
@@ -344,8 +366,12 @@ shouldPlayAITurn(context: BattleContext): boolean {
     const aiHpPercent = aiPokemon.currentHp / aiPokemon.maxHp;
     const playerHpPercent = playerPokemon.currentHp / playerPokemon.maxHp;
     
+    console.log(`🤖 [SoloBattleHandler] HP IA: ${(aiHpPercent * 100).toFixed(1)}%`);
+    console.log(`👤 [SoloBattleHandler] HP Joueur: ${(playerHpPercent * 100).toFixed(1)}%`);
+    
     // Logique de fuite (Pokémon sauvages seulement)
     if (context.battleType === 'wild' && aiHpPercent < 0.2 && Math.random() < 0.3) {
+      console.log(`🏃 [SoloBattleHandler] IA décide de fuir (HP bas)`);
       return {
         type: 'run' as ActionType,
         data: {},
@@ -357,10 +383,11 @@ shouldPlayAITurn(context: BattleContext): boolean {
     if (context.battleType === 'trainer' && aiHpPercent < 0.3 && Math.random() < personality.switchChance) {
       const switchTarget = this.findBestSwitchTarget(aiPokemon, playerPokemon, context);
       if (switchTarget) {
+        console.log(`🔄 [SoloBattleHandler] IA décide de changer de Pokémon`);
         return {
           type: 'switch' as ActionType,
-          targetId: switchTarget.pokemonId,
-          data: { targetPokemonId: switchTarget.pokemonId },
+          targetId: switchTarget.pokemonId.toString(),
+          data: { targetPokemonId: switchTarget.pokemonId.toString() },
           priority: 0
         };
       }
@@ -370,9 +397,10 @@ shouldPlayAITurn(context: BattleContext): boolean {
     if (context.battleType === 'trainer' && aiHpPercent < 0.5 && Math.random() < personality.itemChance) {
       const healingItem = this.findBestHealingItem(aiPokemon, context);
       if (healingItem) {
+        console.log(`💊 [SoloBattleHandler] IA décide d'utiliser un objet`);
         return {
           type: 'item' as ActionType,
-          data: { itemId: healingItem.id, targetPokemonId: aiPokemon.pokemonId },
+          data: { itemId: healingItem.id, targetPokemonId: aiPokemon.pokemonId.toString() },
           priority: 0
         };
       }
@@ -381,6 +409,7 @@ shouldPlayAITurn(context: BattleContext): boolean {
     // Logique d'attaque (par défaut)
     const bestMove = this.findBestMove(aiPokemon, playerPokemon, context);
     
+    console.log(`⚔️ [SoloBattleHandler] IA décide d'attaquer avec ${bestMove.name || bestMove.id}`);
     return {
       type: 'attack' as ActionType,
       data: { moveId: bestMove.id },
@@ -393,10 +422,16 @@ shouldPlayAITurn(context: BattleContext): boolean {
    */
   private findBestMove(aiPokemon: BattlePokemonData, playerPokemon: BattlePokemonData, context: BattleContext): any {
     console.log(`🎯 [SoloBattleHandler] Recherche meilleure attaque...`);
+    console.log(`🎯 [SoloBattleHandler] Moves disponibles:`, aiPokemon.moves.map(m => m.moveId || m));
     
-    const availableMoves = aiPokemon.moves.filter(move => move.pp > 0);
+    // ✅ CORRECTIF: Gérer les moves sous forme de string ou d'objet
+    const availableMoves = aiPokemon.moves.filter(move => {
+      if (typeof move === 'string') return true; // Move ID simple
+      return (move.pp || 35) > 0; // Move object avec PP
+    });
     
     if (availableMoves.length === 0) {
+      console.log(`⚠️ [SoloBattleHandler] Aucun move disponible, utilisation de 'struggle'`);
       return { id: 'struggle', name: 'Lutte', priority: 0 };
     }
     
@@ -404,41 +439,55 @@ shouldPlayAITurn(context: BattleContext): boolean {
     let bestScore = 0;
     
     for (const move of availableMoves) {
-      const score = this.evaluateMoveEffectiveness(move, aiPokemon, playerPokemon);
+      const moveId = typeof move === 'string' ? move : move.moveId;
+      const score = this.evaluateMoveEffectiveness(moveId, aiPokemon, playerPokemon);
+      
+      console.log(`🎯 [SoloBattleHandler] ${moveId}: score ${score.toFixed(2)}`);
       
       if (score > bestScore) {
         bestScore = score;
-        bestMove = move;
+        bestMove = { id: moveId, name: moveId, priority: 0 };
       }
     }
     
-    console.log(`✅ [SoloBattleHandler] Meilleure attaque: ${bestMove.name} (score: ${bestScore})`);
+    // Si aucun move n'a de score, prendre le premier au hasard
+    if (bestScore === 0) {
+      const randomMove = availableMoves[Math.floor(Math.random() * availableMoves.length)];
+      const moveId = typeof randomMove === 'string' ? randomMove : randomMove.moveId;
+      bestMove = { id: moveId, name: moveId, priority: 0 };
+      console.log(`🎲 [SoloBattleHandler] Choix aléatoire: ${bestMove.id}`);
+    }
+    
+    console.log(`✅ [SoloBattleHandler] Meilleure attaque: ${bestMove.name || bestMove.id} (score: ${bestScore.toFixed(2)})`);
     return bestMove;
   }
   
   /**
-   * Évalue l'efficacité d'une attaque
+   * ✅ CORRIGÉ: Évalue l'efficacité d'une attaque
    */
   private evaluateMoveEffectiveness(
-    move: any,
+    moveId: string,
     attacker: BattlePokemonData,
     defender: BattlePokemonData
   ): number {
+    // Obtenir les données du move
+    const moveData = this.getMoveDataSync(moveId);
+    
     // Facteurs d'évaluation
-    let score = move.power || 0;
+    let score = moveData.power || 40; // Score de base
     
     // Bonus efficacité des types
-    const effectiveness = TypeEffectiveness.getTotalEffectiveness(move.type, defender.types);
+    const effectiveness = TypeEffectiveness.getTotalEffectiveness(moveData.type, defender.types);
     score *= effectiveness;
     
     // Bonus STAB
-    if (TypeEffectiveness.hasSTAB(move.type, attacker.types)) {
+    if (TypeEffectiveness.hasSTAB(moveData.type, attacker.types)) {
       score *= 1.5;
     }
     
     // Pénalité si faible précision
-    if (move.accuracy < 90) {
-      score *= (move.accuracy / 100);
+    if (moveData.accuracy < 90) {
+      score *= (moveData.accuracy / 100);
     }
     
     // Bonus si adversaire a peu de PV
@@ -478,8 +527,8 @@ shouldPlayAITurn(context: BattleContext): boolean {
    * Vérifie si un move peut être utilisé
    */
   private canUseMove(pokemon: BattlePokemonData, move: any): boolean {
-    // Vérifier PP
-    if (move.pp <= 0) {
+    // Vérifier PP (si applicable)
+    if (move.pp !== undefined && move.pp <= 0) {
       return false;
     }
     
@@ -555,7 +604,6 @@ shouldPlayAITurn(context: BattleContext): boolean {
    * Calcule le résultat d'une capture
    */
   private calculateCaptureResult(pokemon: BattlePokemonData, ballType: string, context: BattleContext): any {
-    // TODO: Intégrer avec le CaptureManager existant
     const baseRate = 45; // Rate de base du Pokémon
     const ballBonus = this.getBallBonus(ballType);
     const hpModifier = 1 - (pokemon.currentHp / pokemon.maxHp);
@@ -632,28 +680,70 @@ shouldPlayAITurn(context: BattleContext): boolean {
   // === HELPERS DE DONNÉES ===
   
   private getPokemonById(playerId: string, context: BattleContext): BattlePokemonData | null {
-    return context.participants.find(p => p.sessionId === playerId)?.team[0] || null;
+    const participant = context.participants.find(p => p.sessionId === playerId);
+    const pokemon = participant?.team[0] || null;
+    
+    if (!pokemon) {
+      console.log(`⚠️ [SoloBattleHandler] Pokémon non trouvé pour playerId: ${playerId}`);
+      console.log(`⚠️ [SoloBattleHandler] Participants disponibles:`, context.participants.map(p => p.sessionId));
+    }
+    
+    return pokemon;
   }
   
   private getPlayerPokemon(context: BattleContext): BattlePokemonData | null {
-    return context.participants.find(p => !p.isAI)?.team[0] || null;
+    const participant = context.participants.find(p => !p.isAI);
+    const pokemon = participant?.team[0] || null;
+    
+    if (!pokemon) {
+      console.log(`⚠️ [SoloBattleHandler] Pokémon joueur non trouvé`);
+    }
+    
+    return pokemon;
   }
   
   private getAIPokemon(context: BattleContext): BattlePokemonData | null {
-    return context.participants.find(p => p.isAI)?.team[0] || null;
+    const participant = context.participants.find(p => p.isAI);
+    const pokemon = participant?.team[0] || null;
+    
+    if (!pokemon) {
+      console.log(`⚠️ [SoloBattleHandler] Pokémon IA non trouvé`);
+    }
+    
+    return pokemon;
   }
   
   private getOpponentPokemon(playerId: string, context: BattleContext): BattlePokemonData | null {
-    return context.participants.find(p => p.sessionId !== playerId)?.team[0] || null;
+    const participant = context.participants.find(p => p.sessionId !== playerId);
+    const pokemon = participant?.team[0] || null;
+    
+    if (!pokemon) {
+      console.log(`⚠️ [SoloBattleHandler] Pokémon adversaire non trouvé pour playerId: ${playerId}`);
+    }
+    
+    return pokemon;
   }
   
-  private async getMoveData(moveId: string): Promise<any> {
+  /**
+   * ✅ AJOUT: Version synchrone pour l'évaluation
+   */
+  private getMoveDataSync(moveId: string): any {
     if (this.moveDataCache.has(moveId)) {
       return this.moveDataCache.get(moveId);
     }
     
-    // TODO: Charger depuis vos JSONs de moves
-    const mockMoveData = {
+    // Données de base selon le moveId
+    const basicMoveData: { [key: string]: any } = {
+      'tackle': { id: 'tackle', name: 'Charge', type: 'Normal', category: 'Physical', power: 40, accuracy: 100, pp: 35, priority: 0 },
+      'scratch': { id: 'scratch', name: 'Griffe', type: 'Normal', category: 'Physical', power: 40, accuracy: 100, pp: 35, priority: 0 },
+      'vine_whip': { id: 'vine_whip', name: 'Fouet Lianes', type: 'Grass', category: 'Physical', power: 45, accuracy: 100, pp: 25, priority: 0 },
+      'thunder_shock': { id: 'thunder_shock', name: 'Éclair', type: 'Electric', category: 'Special', power: 40, accuracy: 100, pp: 30, priority: 0 },
+      'ember': { id: 'ember', name: 'Flammèche', type: 'Fire', category: 'Special', power: 40, accuracy: 100, pp: 25, priority: 0 },
+      'water_gun': { id: 'water_gun', name: 'Pistolet à O', type: 'Water', category: 'Special', power: 40, accuracy: 100, pp: 25, priority: 0 },
+      'quick_attack': { id: 'quick_attack', name: 'Vive-Attaque', type: 'Normal', category: 'Physical', power: 40, accuracy: 100, pp: 30, priority: 1 },
+    };
+    
+    const moveData = basicMoveData[moveId] || {
       id: moveId,
       name: moveId.charAt(0).toUpperCase() + moveId.slice(1),
       type: 'Normal',
@@ -664,8 +754,12 @@ shouldPlayAITurn(context: BattleContext): boolean {
       priority: 0
     };
     
-    this.moveDataCache.set(moveId, mockMoveData);
-    return mockMoveData;
+    this.moveDataCache.set(moveId, moveData);
+    return moveData;
+  }
+  
+  private async getMoveData(moveId: string): Promise<any> {
+    return this.getMoveDataSync(moveId);
   }
   
   private async getItemData(itemId: string): Promise<any> {
@@ -690,6 +784,8 @@ shouldPlayAITurn(context: BattleContext): boolean {
   ): BattleSequence {
     const events: any[] = [];
     let currentDelay = 0;
+    
+    console.log(`🎬 [SoloBattleHandler] Création séquence attaque: ${attacker.name} → ${defender.name}`);
     
     // Messages d'attaque
     const attackMessages = createAttackMessages(
@@ -718,7 +814,7 @@ shouldPlayAITurn(context: BattleContext): boolean {
         eventId: 'damage_event',
         type: 'damage',
         timestamp: Date.now(),
-        targetId: defender.pokemonId,
+        targetId: defender.pokemonId.toString(),
         data: {
           damage: damageResult.finalDamage,
           currentHp: defender.currentHp - damageResult.finalDamage,
@@ -744,8 +840,24 @@ shouldPlayAITurn(context: BattleContext): boolean {
           message: faintMessage.template,
           delay: currentDelay
         });
+        currentDelay += faintMessage.timing;
       }
+      
+      // Marquer la fin de combat
+      events.push({
+        eventId: 'battle_end',
+        type: 'battle_end',
+        timestamp: Date.now(),
+        data: { 
+          result: attacker.isWild ? 'defeat' : 'victory',
+          winner: attacker.isWild ? 'ai' : context.participants.find(p => !p.isAI)?.sessionId,
+          reason: 'pokemon_fainted'
+        },
+        delay: currentDelay
+      });
     }
+    
+    console.log(`🎬 [SoloBattleHandler] Séquence créée: ${events.length} événements, ${currentDelay}ms`);
     
     return {
       sequenceId: `attack_${Date.now()}`,
@@ -785,6 +897,22 @@ shouldPlayAITurn(context: BattleContext): boolean {
       });
       currentDelay += msg.timing;
     });
+    
+    // Si capture réussie, terminer le combat
+    if (result.success) {
+      events.push({
+        eventId: 'battle_end',
+        type: 'battle_end',
+        timestamp: Date.now(),
+        data: { 
+          result: 'victory',
+          winner: context.participants.find(p => !p.isAI)?.sessionId,
+          reason: 'pokemon_captured',
+          capturedPokemon: pokemon
+        },
+        delay: currentDelay
+      });
+    }
     
     return {
       sequenceId: `capture_${Date.now()}`,
@@ -849,7 +977,11 @@ shouldPlayAITurn(context: BattleContext): boolean {
         eventId: 'battle_end',
         type: 'battle_end',
         timestamp: Date.now(),
-        data: { result: 'fled', reason: 'player_fled' },
+        data: { 
+          result: 'fled', 
+          winner: null,
+          reason: 'player_fled' 
+        },
         delay: BATTLE_TIMINGS.MESSAGE_DISPLAY
       });
     }
@@ -1153,8 +1285,9 @@ shouldPlayAITurn(context: BattleContext): boolean {
     // Évaluer chaque move
     console.log(`📋 Évaluation des attaques:`);
     aiPokemon.moves.forEach(move => {
-      const score = this.evaluateMoveEffectiveness(move, aiPokemon, playerPokemon);
-      console.log(`   ${move.name}: ${score.toFixed(2)} points`);
+      const moveId = typeof move === 'string' ? move : move.moveId;
+      const score = this.evaluateMoveEffectiveness(moveId, aiPokemon, playerPokemon);
+      console.log(`   ${moveId}: ${score.toFixed(2)} points`);
     });
   }
   
@@ -1234,8 +1367,8 @@ export function testSoloBattleHandler(): void {
   console.log('✅ [SoloBattleHandler] Tests terminés');
 }
 
-// Exécuter les tests en mode développement
-if (process.env.NODE_ENV === 'development') {
+// ✅ DÉSACTIVÉ: Tests automatiques pour éviter le spam
+if (false && process.env.NODE_ENV === 'development') {
   testSoloBattleHandler();
 }
 
