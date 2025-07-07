@@ -1215,36 +1215,43 @@ executePlayerAction(actionData) {
   console.log('[BUGPOKEMON] ⚔️ executePlayerAction:', actionData);
   
   if (actionData.type === 'move') {
-    this.showActionMessage(`${this.currentPlayerPokemon?.name} utilise ${actionData.moveName}!`); // ✅ BONNE MÉTHODE !
+    // ✅ ÉTAPE 1: Masquer les boutons immédiatement
+    this.hideActionButtons();
     
-    // ✅ NOUVEAU: Envoyer l'attaque au serveur
-    if (this.battleNetworkHandler) {
-      console.log('[BUGPOKEMON] 📤 Envoi attaque au serveur:', actionData.moveId);
-      const success = this.battleNetworkHandler.useMove(actionData.moveId);
-      
-      if (success) {
-        console.log('[BUGPOKEMON] ✅ Attaque envoyée au serveur');
+    // ✅ ÉTAPE 2: Afficher l'attaque du joueur
+    this.showActionMessage(`${this.currentPlayerPokemon?.name} utilise ${actionData.moveName}!`);
+    
+    // ✅ ÉTAPE 3: Envoyer au serveur après 1 seconde (temps de lecture)
+    setTimeout(() => {
+      if (this.battleNetworkHandler) {
+        console.log('[BUGPOKEMON] 📤 Envoi attaque au serveur:', actionData.moveId);
+        const success = this.battleNetworkHandler.useMove(actionData.moveId);
+        
+        if (success) {
+          console.log('[BUGPOKEMON] ✅ Attaque envoyée au serveur');
+        } else {
+          console.log('[BUGPOKEMON] ❌ Échec envoi attaque');
+        }
       } else {
-        console.log('[BUGPOKEMON] ❌ Échec envoi attaque');
+        console.warn('[BUGPOKEMON] ⚠️ Pas de battleNetworkHandler disponible');
+        
+        // ✅ FALLBACK: Simulation locale pour test
+        console.log('[BUGPOKEMON] 🔄 Simulation locale...');
+        setTimeout(() => {
+          this.simulateAttackResult({
+            damage: 8,
+            effectiveness: 1,
+            critical: false,
+            targetType: 'opponent'
+          });
+        }, 1000);
       }
-    } else {
-      console.warn('[BUGPOKEMON] ⚠️ Pas de battleNetworkHandler disponible');
       
-      // ✅ FALLBACK: Simulation locale pour test
-      console.log('[BUGPOKEMON] 🔄 Simulation locale...');
-      setTimeout(() => {
-        this.simulateAttackResult({
-          damage: 8,
-          effectiveness: 1,
-          critical: false,
-          targetType: 'opponent'
-        });
-      }, 1000);
-    }
-    
-    // Effet visuel d'attaque (côté client)
-    this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
-  } // ✅ ACCOLADE DÉPLACÉE ICI !
+      // ✅ ÉTAPE 4: Effet visuel d'attaque
+      this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
+      
+    }, 1000); // Pause pour lire le message d'attaque
+  }
 }
 
   simulateAttackResult(attackData) {
@@ -1507,20 +1514,24 @@ setupBattleNetworkEvents() {
 handleNetworkBattleMessage(data) {
   console.log('💬 [BattleScene] Message de combat reçu:', data.message);
   
-  // Afficher le message dans la zone d'interface unifiée
-  this.showActionMessage(data.message, 2500);
+  // ✅ Afficher le message dans la zone d'interface
+  this.showActionMessage(data.message);
   
-  // Si c'est une attaque de l'IA, programmer l'affichage des boutons après
+  // ✅ TIMING AUTHENTIQUE: Si c'est une attaque de l'IA
   if (data.message && data.message.includes('utilise')) {
+    console.log('🤖 [BattleScene] Attaque IA détectée, séquence timing...');
+    
+    // Temps pour lire le message (2s) + animation (2s) = 4s total
     setTimeout(() => {
-      // Vérifier que c'est toujours le tour du joueur avant d'afficher les boutons
-      if (this.battleNetworkHandler && !this.state?.battleEnded) {
-        this.showActionMessage('À votre tour !');
-        setTimeout(() => {
-          this.showActionButtons();
-        }, 1500);
-      }
-    }, 3000);
+      // Message de transition
+      this.showActionMessage('À votre tour !');
+      
+      // Puis afficher les boutons après 1.5s supplémentaires
+      setTimeout(() => {
+        this.showActionButtons();
+      }, 1500);
+      
+    }, 4000); // ✅ 4 secondes pour l'attaque complète de l'IA
   }
 }
 
@@ -1601,33 +1612,28 @@ handleNetworkBattleUpdate(data) {
     player2: `${player2Hp}/${player2MaxHp}`
   });
   
-  // ✅ Mettre à jour le Pokémon joueur (player1)
+  // ✅ Mettre à jour les HP avec timing
   if (this.currentPlayerPokemon && player1Hp !== undefined && player1MaxHp !== undefined) {
-    this.currentPlayerPokemon.currentHp = player1Hp;
-    this.currentPlayerPokemon.maxHp = player1MaxHp;
-    this.updateModernHealthBar('player', this.currentPlayerPokemon);
-  }
-  
-  // ✅ Mettre à jour le Pokémon adversaire (player2/IA)
-  if (this.currentOpponentPokemon && player2Hp !== undefined && player2MaxHp !== undefined) {
-    this.currentOpponentPokemon.currentHp = player2Hp;
-    this.currentOpponentPokemon.maxHp = player2MaxHp;
-    this.updateModernHealthBar('opponent', this.currentOpponentPokemon);
-  }
-  
-  // ✅ NOUVEAU: Gérer l'affichage d'interface selon le tour
-  if (data.currentTurn === 'player1') {
-    // Tour du joueur - afficher les boutons après un délai
+    // Délai pour les animations de dégâts
     setTimeout(() => {
-      this.showActionMessage('À votre tour !');
-      setTimeout(() => {
-        this.showActionButtons();
-      }, 1500);
-    }, 1000);
-  } else if (data.currentTurn === 'player2') {
-    // Tour de l'IA - afficher un message
-    this.showActionMessage('L\'adversaire réfléchit...');
+      this.currentPlayerPokemon.currentHp = player1Hp;
+      this.currentPlayerPokemon.maxHp = player1MaxHp;
+      this.updateModernHealthBar('player', this.currentPlayerPokemon);
+    }, 500);
   }
+  
+  if (this.currentOpponentPokemon && player2Hp !== undefined && player2MaxHp !== undefined) {
+    setTimeout(() => {
+      this.currentOpponentPokemon.currentHp = player2Hp;
+      this.currentOpponentPokemon.maxHp = player2MaxHp;
+      this.updateModernHealthBar('opponent', this.currentOpponentPokemon);
+    }, 500);
+  }
+  
+  // ✅ NE PAS afficher les boutons automatiquement ici
+  // Les boutons seront affichés via handleNetworkBattleMessage() avec le bon timing
+  
+  console.log('🔄 [BattleScene] Mise à jour avec timing appliquée');
 }
   
   handleNetworkAttackResult(data) {
