@@ -5,7 +5,7 @@ import { BattleIntegration } from '../managers/battle/BattleIntegration';
 import { ActionType } from '../managers/battle/types/BattleTypes';
 import { IBattleRoomCallbacks } from '../managers/battle/BattleSequencer';
 import { MoveManager } from "../managers/MoveManager";
-import { CaptureManager, CaptureAttempt } from "./CaptureManager";
+import { CaptureManager, CaptureAttempt } from "../managers/battle/CaptureManager";
 import { WildPokemon } from "../managers/EncounterManager";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
