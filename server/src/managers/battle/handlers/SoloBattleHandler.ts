@@ -128,7 +128,7 @@ export class SoloBattleHandler implements IBattleHandler {
       targetId: decision.targetId,
       data: decision.data,
       priority: decision.priority || 0,
-      speed: aiPokemon.speed,
+      speed: aiPokemon.stats.speed,  // ✅ CORRECTION: utiliser stats.speed
       timestamp: Date.now()
     };
   }
@@ -668,7 +668,7 @@ export class SoloBattleHandler implements IBattleHandler {
       move.name,
       damageResult.effectiveness,
       damageResult.critical,
-      attacker.pokemonId !== context.currentPlayer
+      attacker.pokemonId.toString() !== context.currentPlayer  // ✅ CORRECTION: convertir en string
     );
     
     attackMessages.forEach(msg => {
@@ -978,7 +978,7 @@ export class SoloBattleHandler implements IBattleHandler {
     const healAmount = this.calculateHealAmount(item);
     const healMessage = createBattleMessage('MSG_POTION_USED', {
       pokemon: 'Pokémon', // TODO: Nom du Pokémon cible
-      hp: healAmount.toString()
+      hp: healAmount  // ✅ CORRECTION: garder en number
     });
     
     if (healMessage) {
@@ -1014,13 +1014,13 @@ export class SoloBattleHandler implements IBattleHandler {
     };
   }
   
-  private processPokeball(item: any, context: BattleContext): BattleSequence {
+  private async processPokeball(item: any, context: BattleContext): Promise<BattleSequence> {
     // Rediriger vers la capture
-    return this.processCaptureAction({
+    return await this.processCaptureAction({  // ✅ CORRECTION: ajouter await
       actionId: `capture_${Date.now()}`,
       playerId: context.currentPlayer,
       type: 'capture',
-      data: { ballType: item.id },
+      data: { ballType: item.id },  // ✅ ballType maintenant supporté
       priority: 0,
       speed: 0,
       timestamp: Date.now()
