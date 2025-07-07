@@ -305,7 +305,7 @@ private convertParticipant(participant: any): BattleParticipant {
     name: participant.name || 'Participant',
     role: participant.role || 'player1',
     team: Array.isArray(participant.team)
-      ? participant.team.map(pk => pk.stats && pk.statStages ? pk : BattleIntegration.convertToBattlePokemon(pk))
+      ? participant.team.map((pk: any) => pk.stats && pk.statStages ? pk : BattleIntegration.convertToBattlePokemon(pk))
       : [],
     activePokemon: participant.activePokemon || '1',
     isAI: participant.isAI || false,
@@ -313,6 +313,7 @@ private convertParticipant(participant: any): BattleParticipant {
     lastActionTime: Date.now()
   };
 }
+
 
   
   private getPlayerSpeed(playerId: string): number | null {
