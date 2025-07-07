@@ -233,6 +233,96 @@ export class BattleRoom extends Room<BattleState> {
     }
   }
 
+  private onTurnChanged() {
+  console.log(`🎯 [BattleRoom] Tour changé → ${this.state.currentTurn}`);
+  
+  // Identifier qui doit jouer
+  const currentPlayerInfo = this.getCurrentPlayerInfo();
+  if (!currentPlayerInfo) {
+    console.error(`🎯 [BattleRoom] ❌ Impossible d'identifier le joueur actuel`);
+    return;
+  }
+  
+  console.log(`🎯 [BattleRoom] Joueur actuel: ${currentPlayerInfo.type} (${currentPlayerInfo.id})`);
+  
+  // Déclencher l'action appropriée selon le type
+  switch (currentPlayerInfo.type) {
+    case 'human':
+      this.processHumanTurn(currentPlayerInfo.id);
+      break;
+      
+    case 'ai':
+      this.processAITurn();
+      break;
+      
+    default:
+      console.error(`🎯 [BattleRoom] Type de joueur inconnu: ${currentPlayerInfo.type}`);
+  }
+}
+
+/**
+ * ✅ NOUVEAU: Obtient les infos du joueur actuel
+ */
+private getCurrentPlayerInfo(): { type: 'human' | 'ai', id: string } | null {
+  switch (this.state.currentTurn) {
+    case 'player1':
+      return { type: 'human', id: this.state.player1Id };
+      
+    case 'player2':
+      if (this.state.battleType === 'wild') {
+        return { type: 'ai', id: 'ai' };
+      } else {
+        return { type: 'human', id: this.state.player2Id || 'player2' };
+      }
+      
+    default:
+      return null;
+  }
+}
+
+/**
+ * ✅ NOUVEAU: Traite le tour d'un joueur humain
+ */
+private processHumanTurn(playerId: string) {
+  console.log(`👤 [BattleRoom] Tour joueur humain: ${playerId}`);
+  
+  // Démarrer le timer d'action pour ce joueur
+  this.startActionTimer();
+  
+  // Notifier le client que c'est son tour
+  const client = this.clients.find(c => c.sessionId === playerId);
+  if (client) {
+    client.send("yourTurn", { 
+      timeRemaining: this.actionTimeoutMs,
+      turnNumber: this.state.turnNumber
+    });
+  }
+}
+
+/**
+ * ✅ NOUVEAU: Traite le tour de l'IA
+ */
+private processAITurn() {
+  console.log(`🤖 [BattleRoom] Tour IA`);
+  
+  // Délai pour l'animation + réflexion IA
+  setTimeout(async () => {
+    // Double vérification que c'est encore le tour de l'IA
+    if (this.state.currentTurn !== 'player2' || this.state.battleEnded) {
+      console.log(`🤖 [BattleRoom] Tour IA annulé - état changé`);
+      return;
+    }
+    
+    try {
+      // Utiliser l'ancien système triggerAITurn pour l'instant
+      await this.triggerAITurn();
+      
+    } catch (error) {
+      console.error(`🤖 [BattleRoom] Erreur tour IA:`, error);
+    }
+  }, 1500);
+}
+  
   private createBattleCallbacks(): IBattleRoomCallbacks {
     return {
       broadcastMessage: (messageId: string, data: any) => {
@@ -263,7 +353,8 @@ export class BattleRoom extends Room<BattleState> {
 
       changeTurn: (newTurn: string) => {
         console.log(`🔄 [BattleRoom] Change turn: ${newTurn}`);
-        // ✅ CORRECTION: Bien mapper les tours
+        
+        // ✅ ANCIEN SYSTÈME: Maintenir pour compatibilité
         if (newTurn === 'player1' || newTurn === this.state.player1Id) {
           this.state.currentTurn = "player1";
         } else if (newTurn === 'ai' || newTurn === 'player2') {
@@ -274,6 +365,9 @@ export class BattleRoom extends Room<BattleState> {
         this.state.turnNumber++;
         
         console.log(`🔄 [BattleRoom] Tour mis à jour: ${this.state.currentTurn}`);
+        
+        // ✅ NOUVEAU: Notifier TurnSystem et démarrer le tour
+        this.onTurnChanged();
       },
 
       endBattle: (result: any) => {
