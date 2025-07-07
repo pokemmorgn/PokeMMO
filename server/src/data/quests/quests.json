@@ -235,6 +235,22 @@
       ]
     },
     {
+      "id": "follow_psyduck",
+      "name": "Follow the Strange Creature",
+      "description": "This strange yellow creature seems confused. You don’t know what it is, but it might lead you somewhere.",
+      "objectives": [
+        {
+          "id": "follow_creature_lab",
+          "type": "reach",
+          "description": "Looks like the creature went into a lab. Follow closely.",
+          "target": "psyduck_lab_area",
+          "targetName": "Lab Entrance",
+          "requiredAmount": 1
+        }
+      ],
+      "rewards": []
+    },
+    {
       "id": "finish_intro",
       "name": "Embrace the Weirdness",
       "description": "You made it through your first day without running away from talking Pokémon. Or did you?",
@@ -262,5 +278,6 @@
     }
   ]
 }
+
   ]
 }
