@@ -1,15 +1,14 @@
-// client/src/managers/BattleIntegration.js - MISE À JOUR avec BattleUITransition
-// ✅ AJOUT: Intégration complète du gestionnaire de transition UI
+// client/src/managers/BattleIntegration.js - VERSION MODERNE COMPATIBLE
+// 🔄 RÉCRÉE pour être compatible avec votre système d'encounter existant
 
 import { BattleScene } from '../scenes/BattleScene.js';
-import { BattleManager } from '../Battle/BattleManager.js';
-import { BattleConnection } from '../Battle/BattleConnection.js';
-import { PokemonSelectionUI } from '../Battle/PokemonSelectionUI.js';
-import { BattleUITransition } from '../Battle/BattleUITransition.js'; // ✅ NOUVEAU
+import { BattleNetworkHandler } from '../network/BattleNetworkHandler.js';
 
 /**
- * Gestionnaire d'intégration complet du système de combat
- * ✅ NOUVEAU: Intégration avec BattleUITransition pour gestion UI fluide
+ * INTÉGRATEUR DE COMBAT MODERNE
+ * ✅ Compatible avec votre système d'encounter existant
+ * ✅ Ne casse rien, s'intègre proprement
+ * ✅ Synchronisé avec le serveur modernisé
  */
 export class BattleIntegration {
   constructor(gameManager) {
@@ -17,35 +16,31 @@ export class BattleIntegration {
     
     // Composants du système de combat
     this.battleScene = null;
-    this.battleManager = null;
-    this.battleConnection = null;
-    this.pokemonSelectionUI = null;
-    this.battleUITransition = null; // ✅ NOUVEAU
+    this.battleNetworkHandler = null;
     
     // État
     this.isInitialized = false;
     this.isInBattle = false;
-    this.isSelectingPokemon = false;
+    this.isTransitioning = false;
     
-    // Références
+    // Références système existant
     this.worldRoom = null;
     this.phaserGame = null;
     
     // Combat en cours
     this.currentBattleData = null;
     this.selectedPokemon = null;
-    this.pokemonChoiceSent = false;
     
-    console.log('⚔️ [BattleIntegration] Constructeur initialisé (avec UI transition)');
+    console.log('⚔️ [BattleIntegration] Constructeur moderne compatible');
   }
 
-  // === INITIALISATION MISE À JOUR ===
+  // === INITIALISATION COMPATIBLE ===
 
   async initialize(worldRoom, phaserGame) {
-    console.log('🔧 [BattleIntegration] Initialisation du système complet...');
+    console.log('🔧 [BattleIntegration] Initialisation compatible...');
     
     if (!worldRoom || !phaserGame) {
-      console.error('❌ [BattleIntegration] WorldRoom ou PhaserGame manquant');
+      console.error('❌ WorldRoom ou PhaserGame manquant');
       return false;
     }
     
@@ -53,923 +48,684 @@ export class BattleIntegration {
     this.phaserGame = phaserGame;
     
     try {
-      // 1. Créer la BattleConnection
-      await this.initializeBattleConnection();
+      // 1. Créer le BattleNetworkHandler moderne
+      await this.initializeBattleNetworkHandler();
       
-      // 2. Créer l'interface de sélection Pokémon
-      await this.initializePokemonSelection();
+      // 2. Préparer la BattleScene (sans la démarrer)
+      await this.prepareBattleScene();
       
-      // 3. Créer et initialiser la BattleScene
-      await this.initializeBattleScene();
-      
-      // ✅ 4. NOUVEAU: Créer le gestionnaire de transition UI
-      await this.initializeBattleUITransition();
-      
-      // 5. Setup des événements globaux
+      // 3. Setup des événements d'intégration
       this.setupIntegrationEvents();
       
       this.isInitialized = true;
-      console.log('✅ [BattleIntegration] Système complet initialisé avec UI Transition');
+      console.log('✅ [BattleIntegration] Système moderne initialisé');
       return true;
       
     } catch (error) {
-      console.error('❌ [BattleIntegration] Erreur lors de l\'initialisation:', error);
+      console.error('❌ [BattleIntegration] Erreur initialisation:', error);
       return false;
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Initialisation du gestionnaire de transition UI
-  async initializeBattleUITransition() {
-    console.log('🎨 [BattleIntegration] Initialisation BattleUITransition...');
-    
-    // Récupérer le UIManager depuis le système UI Pokémon
-    const uiManager = window.pokemonUISystem?.uiManager || window.uiManager;
-    
-    if (!uiManager) {
-      console.warn('⚠️ [BattleIntegration] UIManager non trouvé - transition UI limitée');
-    }
-    
-    // Créer le gestionnaire de transition
-    this.battleUITransition = new BattleUITransition(uiManager, this.gameManager);
-    
-    // Écouter l'événement de fin de transition UI
-    window.addEventListener('battleUITransitionComplete', (event) => {
-      console.log('🎬 [BattleIntegration] Transition UI terminée:', event.detail);
-      this.onUITransitionComplete(event.detail);
-    });
-    
-    console.log('✅ [BattleIntegration] BattleUITransition initialisée');
-  }
+  // === INITIALISATION DES COMPOSANTS ===
 
-  // === INITIALISATION DES AUTRES COMPOSANTS (INCHANGÉE) ===
-
-  async initializeBattleConnection() {
-    console.log('🌐 [BattleIntegration] Initialisation BattleConnection...');
+  async initializeBattleNetworkHandler() {
+    console.log('🌐 [BattleIntegration] Initialisation BattleNetworkHandler...');
     
-    this.battleConnection = new BattleConnection(this.gameManager);
+    // Créer le handler moderne
+    this.battleNetworkHandler = new BattleNetworkHandler(this.gameManager);
     
-    const mockNetworkManager = {
-      worldRoom: this.worldRoom,
-      client: this.worldRoom.connection || this.worldRoom._client || window.client,
-      room: this.worldRoom,
-      isConnected: true
-    };
-    
-    const success = this.battleConnection.initialize(mockNetworkManager);
+    // L'initialiser avec votre WorldRoom existante
+    const success = this.battleNetworkHandler.initialize(this.worldRoom, window.client);
     
     if (!success) {
-      throw new Error('Échec initialisation BattleConnection');
+      throw new Error('Échec initialisation BattleNetworkHandler');
     }
     
-    console.log('✅ [BattleIntegration] BattleConnection initialisée');
+    console.log('✅ [BattleIntegration] BattleNetworkHandler initialisé');
   }
 
-  async initializePokemonSelection() {
-    console.log('🔄 [BattleIntegration] Initialisation PokemonSelectionUI...');
+  async prepareBattleScene() {
+    console.log('🎬 [BattleIntegration] Préparation BattleScene...');
     
-    this.pokemonSelectionUI = new PokemonSelectionUI(
-      this.gameManager,
-      (selectedPokemon) => this.handlePokemonSelected(selectedPokemon)
-    );
-    
-    this.pokemonSelectionUI.initialize();
-    
-    console.log('✅ [BattleIntegration] PokemonSelectionUI initialisée');
-  }
-
-async initializeBattleScene() {
-  console.log('🎬 [BattleIntegration] Initialisation BattleScene...');
-  try {
-    let battleSceneExists = false;
-    if (this.phaserGame?.scene?.getScene) {
-      const existingScene = this.phaserGame.scene.getScene('BattleScene');
-      if (existingScene) {
-        this.battleScene = existingScene;
-        battleSceneExists = true;
-        console.log('✅ [BattleIntegration] BattleScene déjà présente');
+    try {
+      // Vérifier si la BattleScene existe déjà
+      let battleSceneExists = false;
+      if (this.phaserGame?.scene?.getScene) {
+        const existingScene = this.phaserGame.scene.getScene('BattleScene');
+        if (existingScene) {
+          this.battleScene = existingScene;
+          battleSceneExists = true;
+          console.log('✅ BattleScene existante trouvée');
+        }
       }
-    }
-    if (!battleSceneExists) {
-      this.battleScene = new BattleScene();
-      if (!this.phaserGame.scene.keys['BattleScene']) {
-        this.phaserGame.scene.add('BattleScene', this.battleScene, false);
-        console.log('✅ [BattleIntegration] BattleScene ajoutée dynamiquement');
-      } else {
-        console.log('ℹ️ [BattleIntegration] BattleScene déjà enregistrée');
+      
+      // Créer la BattleScene si elle n'existe pas
+      if (!battleSceneExists) {
+        this.battleScene = new BattleScene();
+        
+        if (!this.phaserGame.scene.keys['BattleScene']) {
+          this.phaserGame.scene.add('BattleScene', this.battleScene, false);
+          console.log('✅ BattleScene ajoutée au SceneManager');
+        }
       }
-    }
 
-    
-
-      // ✅ MODIFIÉ: Démarrer BattleScene mais la laisser masquée
+      // ✅ IMPORTANT: Démarrer la scène MAIS la laisser endormie
       if (!this.phaserGame.scene.isActive('BattleScene')) {
-        console.log('🚀 [BattleIntegration] Démarrage BattleScene (masquée)...');
+        console.log('💤 Démarrage BattleScene en mode endormi...');
         this.phaserGame.scene.start('BattleScene', {
-          battleNetworkHandler: this.battleConnection.networkHandler,
+          battleNetworkHandler: this.battleNetworkHandler,
           gameManager: this.gameManager
         });
         
-        // ✅ IMPORTANT: Vérifier qu'elle est bien masquée après démarrage
+        // Endormir immédiatement
         setTimeout(() => {
           if (this.phaserGame.scene.isActive('BattleScene')) {
-            const battleScene = this.phaserGame.scene.getScene('BattleScene');
-            if (battleScene && battleScene.isVisible) {
-              console.log('⚠️ [BattleIntegration] BattleScene était visible, force le masquage...');
-              this.phaserGame.scene.setVisible(false, 'BattleScene');
-              this.phaserGame.scene.sleep('BattleScene');
-            }
-            console.log('😴 [BattleIntegration] BattleScene démarrée mais masquée');
+            this.phaserGame.scene.setVisible(false, 'BattleScene');
+            this.phaserGame.scene.sleep('BattleScene');
+            console.log('💤 BattleScene endormie');
           }
         }, 100);
-  
-  console.log('✅ [BattleIntegration] BattleScene préparée et masquée');
-}
-    
-  } catch (error) {
-    console.warn('⚠️ [BattleIntegration] Erreur BattleScene:', error);
+      }
+      
+      console.log('✅ BattleScene préparée');
+      
+    } catch (error) {
+      console.warn('⚠️ Erreur préparation BattleScene:', error);
+    }
   }
-  console.log('✅ [BattleIntegration] BattleScene initialisée et active');
-}
 
-  // === ÉVÉNEMENTS GLOBAUX MISE À JOUR ===
+  // === ÉVÉNEMENTS D'INTÉGRATION ===
 
   setupIntegrationEvents() {
-    if (!this.battleConnection) return;
+    if (!this.battleNetworkHandler) return;
     
-    console.log('🔗 [BattleIntegration] Configuration des événements d\'intégration...');
+    console.log('🔗 [BattleIntegration] Configuration événements...');
     
-    // === ÉVÉNEMENTS DE RENCONTRE MISE À JOUR ===
-    this.battleConnection.on('wildEncounterStart', (data) => {
+    // === ÉVÉNEMENTS DE RENCONTRE (COMPATIBLES SYSTÈME EXISTANT) ===
+    
+    this.battleNetworkHandler.on('wildEncounterStart', (data) => {
       this.handleWildEncounterStart(data);
     });
     
-    this.battleConnection.on('battleRoomCreated', (data) => {
+    this.battleNetworkHandler.on('battleRoomCreated', (data) => {
       this.handleBattleRoomCreated(data);
     });
     
-    this.battleConnection.on('battleRoomConnected', (data) => {
+    this.battleNetworkHandler.on('battleRoomConnected', (data) => {
       this.handleBattleRoomConnected(data);
     });
     
     // === ÉVÉNEMENTS DE COMBAT ===
-    this.battleConnection.on('battleJoined', (data) => {
+    
+    this.battleNetworkHandler.on('battleJoined', (data) => {
       this.handleBattleJoined(data);
     });
     
-    this.battleConnection.on('phaseChange', (data) => {
-      this.handlePhaseChange(data);
-    });
-    
-    this.battleConnection.on('battleStart', (data) => {
+    this.battleNetworkHandler.on('battleStart', (data) => {
       this.handleBattleStart(data);
     });
     
-    this.battleConnection.on('battleEnd', (data) => {
+    this.battleNetworkHandler.on('yourTurn', (data) => {
+      this.handleYourTurn(data);
+    });
+    
+    this.battleNetworkHandler.on('battleMessage', (data) => {
+      this.handleBattleMessage(data);
+    });
+    
+    this.battleNetworkHandler.on('pokemonHPUpdate', (data) => {
+      this.handleHPUpdate(data);
+    });
+    
+    this.battleNetworkHandler.on('battleEndWithRewards', (data) => {
       this.handleBattleEnd(data);
     });
     
-    this.battleConnection.on('battleLeft', (data) => {
-      this.handleBattleLeft(data);
-    });
+    // === ÉVÉNEMENTS D'ERREUR ===
     
-    this.battleConnection.on('battleError', (data) => {
+    this.battleNetworkHandler.on('battleError', (data) => {
       this.handleBattleError(data);
     });
     
-    // === ÉVÉNEMENTS RÉSEAU SPÉCIALISÉS ===
-    this.battleConnection.on('attackResult', (data) => {
-      this.forwardToBattleScene('attackResult', data);
+    this.battleNetworkHandler.on('battleConnectionError', (data) => {
+      this.handleConnectionError(data);
     });
     
-    this.battleConnection.on('pokemonFainted', (data) => {
-      this.forwardToBattleScene('pokemonFainted', data);
-    });
-    
-    this.battleConnection.on('statusEffectApplied', (data) => {
-      this.forwardToBattleScene('statusEffectApplied', data);
-    });
-    
-    this.battleConnection.on('captureShake', (data) => {
-      this.forwardToBattleScene('captureShake', data);
-    });
-    
-    this.battleConnection.on('battleStateChange', (data) => {
-      this.updateBattleState(data.state);
-    });
-    
-    console.log('✅ [BattleIntegration] Événements d\'intégration configurés');
+    console.log('✅ Événements d\'intégration configurés');
   }
 
-  // === GESTION DES RENCONTRES MISE À JOUR ===
+  // === HANDLERS D'ÉVÉNEMENTS ===
 
-async handleWildEncounterStart(data) {
-  console.log('🐾 [BattleIntegration] === DÉBUT RENCONTRE SAUVAGE AVEC UI ===');
-  console.log('📊 Data reçue:', data);
-  
-  if (this.isInBattle || this.isSelectingPokemon) {
-    console.warn('⚠️ [BattleIntegration] Combat déjà en cours, ignoré');
-    return;
-  }
-  
-  // ✅ ÉTAPE 1: PAS DE TRANSITION UI ENCORE - Attendre le serveur
-  console.log('⏳ [BattleIntegration] Attente données serveur AVANT transition...');
-  
-  // Stocker les données de combat
-  this.currentBattleData = data;
-  
-  // Notifier le GameManager
-  if (this.gameManager?.onEncounterStart) {
-    this.gameManager.onEncounterStart(data);
-  }
-  
-  // Marquer comme en cours
-  this.isInBattle = true;
-  
-  console.log('⏳ [BattleIntegration] Attente création BattleRoom...');
-  // La transition UI se fera dans handleBattleRoomCreated
-}
-
-  // ✅ NOUVEAU CALLBACK: Appelé quand la transition UI est terminée
-  onUITransitionComplete(transitionData) {
-    console.log('🎬 [BattleIntegration] Transition UI terminée:', transitionData);
+  /**
+   * ✅ COMPATIBLE: Début de rencontre sauvage
+   */
+  handleWildEncounterStart(data) {
+    console.log('🐾 [BattleIntegration] === DÉBUT RENCONTRE COMPATIBLE ===');
+    console.log('📊 Data encounter:', data);
     
-    // L'UI est maintenant en mode battle, on peut procéder au combat
-    // La suite du processus continue avec les autres handlers
-  }
-
-  // === GESTION DU COMBAT (INCHANGÉE MAIS AVEC LOGS) ===
-
-async handleBattleRoomCreated(data) {
-  console.log('[BUGPOKEMON] 🏠 BattleRoom créée:', data.battleRoomId);
-  console.log('[BUGPOKEMON] 🔍 data.opponentPokemon reçu:', JSON.stringify(data.opponentPokemon, null, 2));
-  
-  this.currentBattleRoomId = data.battleRoomId;
-  this.currentBattleType = data.battleType;
-  
-  // ✅ ÉTAPE 1: Connecter à la BattleRoom VIA BattleConnection
-  if (this.battleConnection) {
-    console.log('[BUGPOKEMON] 🔗 Connexion à la BattleRoom via BattleConnection...');
-    
-    try {
-      // Utiliser la méthode de BattleConnection pour se connecter
-      const networkHandler = this.battleConnection.networkHandler;
-      if (networkHandler && networkHandler.connectToBattleRoom) {
-        const connectionSuccess = await networkHandler.connectToBattleRoom(data.battleRoomId);
-        
-        if (connectionSuccess) {
-          console.log('[BUGPOKEMON] ✅ Connecté à la BattleRoom');
-        } else {
-          console.log('[BUGPOKEMON] ❌ Échec connexion BattleRoom');
-          this.showError('Impossible de rejoindre le combat');
-          return;
-        }
-      } else {
-        console.warn('[BUGPOKEMON] ⚠️ NetworkHandler non disponible');
-      }
-    } catch (error) {
-      console.error('[BUGPOKEMON] 💥 Erreur connexion BattleRoom:', error);
-      this.showError('Erreur de connexion au combat');
+    if (this.isInBattle || this.isTransitioning) {
+      console.warn('⚠️ Combat déjà en cours, ignoré');
       return;
     }
-  }
-  
-  // ✅ ÉTAPE 2: Traiter les données une fois connecté
-  if (data.playerPokemon) {
-    this.selectedPokemon = data.playerPokemon;
-    console.log(`✅ [BattleIntegration] Pokémon reçu du serveur: ${data.playerPokemon.name}`);
     
-    // ✅ MAINTENANT FAIRE LA TRANSITION UI
-    if (this.battleUITransition) {
-      const transitionSuccess = await this.battleUITransition.startBattleTransition({
-        pokemon: this.currentBattleData?.pokemon,
-        location: this.currentBattleData?.location,
-        method: this.currentBattleData?.method
-      });
-      
-      if (transitionSuccess) {
-        console.log('✅ [BattleIntegration] Transition UI après réception Pokémon');
-      }
+    // Marquer comme en transition
+    this.isTransitioning = true;
+    this.currentBattleData = data;
+    
+    // ✅ COMPATIBLE: Notifier le GameManager existant
+    if (this.gameManager?.onEncounterStart) {
+      this.gameManager.onEncounterStart(data);
     }
     
-    // ✅ PUIS LANCER LA BATTLESCENE AVEC LES DEUX POKÉMON
-    const battleData = {
-      battleId: data.battleRoomId,
+    // ✅ COMPATIBLE: Afficher message d'encounter si système UI existe
+    this.showEncounterMessage(data);
+    
+    console.log('⏳ Attente création BattleRoom...');
+  }
+
+  /**
+   * ✅ MODERN: BattleRoom créée par le serveur
+   */
+  async handleBattleRoomCreated(data) {
+    console.log('🏠 [BattleIntegration] === BATTLEROOM CRÉÉE ===');
+    console.log('📊 Data BattleRoom:', {
+      battleRoomId: data.battleRoomId,
       battleType: data.battleType,
-      playerPokemon: this.selectedPokemon,
-      opponentPokemon: data.opponentPokemon
+      hasPlayerPokemon: !!data.playerPokemon,
+      hasOpponentPokemon: !!data.opponentPokemon
+    });
+    
+    // Sauvegarder les données de combat
+    this.currentBattleData = {
+      ...this.currentBattleData,
+      ...data
     };
     
-    console.log('[BUGPOKEMON] 🔗 battleData.opponentPokemon avant startBattleInterface:', JSON.stringify(battleData.opponentPokemon, null, 2));
-    
-    this.startBattleInterface(battleData);
+    // ✅ Le BattleNetworkHandler s'est déjà connecté automatiquement
+    console.log('✅ BattleRoom créée et connexion en cours...');
   }
-}
-  handleBattleJoined(data) {
-    console.log('⚔️ [BattleIntegration] Rejoint le combat:', data);
+
+  /**
+   * ✅ MODERN: Connecté à la BattleRoom
+   */
+  handleBattleRoomConnected(data) {
+    console.log('🔗 [BattleIntegration] === CONNECTÉ À BATTLEROOM ===');
     
+    // Marquer comme en combat
     this.isInBattle = true;
+    this.isTransitioning = false;
     
-    console.log('🖥️ [BattleIntegration] Déclenchement interface après battleJoined...');
-    
-    const battleData = {
-      battleId: data.battleId,
-      battleType: data.battleType,
-      yourRole: data.yourRole,
-      playerPokemon: this.selectedPokemon,
-      opponentPokemon: this.currentBattleData?.pokemon
-    };
-    
-    this.startBattleInterface(battleData);
+    // ✅ MODERN: Préparer l'interface de combat
+    this.prepareBattleInterface();
   }
 
-  handlePhaseChange(data) {
-    console.log('🔄 [BattleIntegration] Changement de phase:', data.phase);
+  /**
+   * ✅ MODERN: Combat rejoint
+   */
+  handleBattleJoined(data) {
+    console.log('⚔️ [BattleIntegration] Combat rejoint:', data);
     
-    switch (data.phase) {
-      case 'team_selection':
-        console.log('🔄 [BattleIntegration] Phase sélection équipe');
-        
-        if (this.selectedPokemon && !this.pokemonChoiceSent) {
-          console.log('📤 [BattleIntegration] Envoi tardif du choix de Pokémon...');
-          
-          const success = this.battleConnection.choosePokemon(this.selectedPokemon.id);
-          if (success) {
-            this.pokemonChoiceSent = true;
-            console.log(`✅ [BattleIntegration] Choix tardif envoyé: ${this.selectedPokemon.name}`);
-          }
-        }
-        break;
-        
-      case 'battle':
-        console.log('⚔️ [BattleIntegration] Phase de combat');
-        
-        if (!this.isBattleInterfaceActive()) {
-          const battleData = {
-            phase: 'battle',
-            playerPokemon: this.selectedPokemon,
-            opponentPokemon: this.currentBattleData?.pokemon
-          };
-          this.startBattleInterface(battleData);
-        }
-        break;
+    // ✅ COMPATIBLE: Notifier le système existant
+    if (this.gameManager?.onBattleJoined) {
+      this.gameManager.onBattleJoined(data);
     }
   }
 
-  isBattleInterfaceActive() {
-    if (this.phaserGame?.scene?.isActive('BattleScene')) {
-      return true;
-    }
+  /**
+   * ✅ MODERN: Combat démarré avec données complètes
+   */
+  handleBattleStart(data) {
+    console.log('🚀 [BattleIntegration] === COMBAT DÉMARRÉ ===');
+    console.log('📊 Data combat:', data);
     
-    const fallbackOverlay = document.getElementById('fallback-battle-overlay');
-    if (fallbackOverlay && fallbackOverlay.style.display !== 'none') {
-      return true;
-    }
-    
-    return false;
+    // ✅ MODERN: Activer l'interface de combat
+    this.activateBattleInterface(data);
   }
 
-  // === INTERFACE DE COMBAT (LÉGÈREMENT MISE À JOUR) ===
-
-startBattleInterface(battleData) {
-  console.log('[BUGPOKEMON] 🖥️ startBattleInterface appelée avec:', battleData);
-  console.log('[BUGPOKEMON] 🔍 battleScene existe ?', !!this.battleScene);
-  console.log('[BUGPOKEMON] 🔍 phaserGame existe ?', !!this.phaserGame);
-  
-  console.log('🖥️ [BattleIntegration] === LANCEMENT INTERFACE DE COMBAT ===');
-  console.log('📊 Données:', battleData);
-  console.log('🎮 PhaserGame disponible:', !!this.phaserGame);
-  console.log('🎬 BattleScene disponible:', !!this.battleScene);
-  
-  try {
-    if (this.battleScene && this.phaserGame?.scene) {
-      console.log('[BUGPOKEMON] 🎬 Utilisation BattleScene Phaser...');
-      
-      const sceneExists = this.phaserGame.scene.getScene('BattleScene');
-      console.log('[BUGPOKEMON] 🔍 BattleScene existe dans manager:', !!sceneExists);
-      
-      if (sceneExists) {
-        if (this.phaserGame.scene.isActive('BattleScene')) {
-          console.log('[BUGPOKEMON] 🔄 BattleScene déjà active, mise au premier plan...');
-          this.phaserGame.scene.bringToTop('BattleScene');
-        } else {
-          console.log('[BUGPOKEMON] 🚀 Démarrage de la BattleScene...');
-          
-          const startData = {
-            gameManager: this.gameManager,
-            networkHandler: this.battleConnection,
-            battleData: battleData,
-            selectedPokemon: this.selectedPokemon,
-            currentZone: (battleData && (battleData.currentZone || battleData.location)) || this.currentZone || 'unknown'
-          };
-          
-          console.log('[BUGPOKEMON] 📦 startData préparée:', startData);
-          console.log('[BUGPOKEMON] 🚀 Appel scene.start("BattleScene")...');
-          
-          this.phaserGame.scene.start('BattleScene', startData);
-          
-          console.log('[BUGPOKEMON] ✅ scene.start terminé');
-        }
-        
-        if (this.gameManager?.pauseGame) {
-          this.gameManager.pauseGame('battle');
-        }
-        
-        console.log('[BUGPOKEMON] ✅ BattleScene lancée avec succès');
-        return;
-        
-      } else {
-        console.warn('[BUGPOKEMON] ⚠️ BattleScene non trouvée dans le manager');
-      }
-    } else {
-      console.warn('[BUGPOKEMON] ⚠️ BattleScene ou PhaserGame non disponible');
-    }
+  /**
+   * ✅ MODERN: Notre tour de jouer
+   */
+  handleYourTurn(data) {
+    console.log('🎯 [BattleIntegration] === VOTRE TOUR ===');
+    console.log('⏰ Temps restant:', data.timeRemaining);
     
-    console.log('[BUGPOKEMON] 🆘 Passage en fallback interface DOM...');
-    this.createFallbackBattleInterface(battleData);
-    
-  } catch (error) {
-    console.error('[BUGPOKEMON] ❌ Erreur lancement interface:', error);
-    console.log('[BUGPOKEMON] 🆘 Fallback forcé après erreur...');
-    this.createFallbackBattleInterface(battleData);
-  }
-}
-
-  createFallbackBattleInterface(battleData) {
-    console.log('🆘 [BattleIntegration] Création interface fallback...');
-    
-    const existingOverlay = document.getElementById('fallback-battle-overlay');
-    if (existingOverlay) {
-      existingOverlay.remove();
-    }
-    
-    const overlay = document.createElement('div');
-    overlay.id = 'fallback-battle-overlay';
-    overlay.style.cssText = `
-      position: fixed;
-      top: 7.5%;
-      left: 7.5%;
-      width: 85%;
-      height: 85%;
-      background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      font-family: 'Arial', sans-serif;
-      color: white;
-      text-align: center;
-      border-radius: 15px;
-      border: 4px solid #FFD700;
-      box-shadow: 0 0 30px rgba(0,0,0,0.8);
-    `;
-    
-    const playerPokemon = this.selectedPokemon;
-    const opponentPokemon = this.currentBattleData?.pokemon;
-    
-    overlay.innerHTML = `
-      <div style="background: rgba(0,0,0,0.8); padding: 30px; border-radius: 15px; max-width: 600px; width: 90%;">
-        <h1 style="color: #FFD700; margin-bottom: 20px; font-size: 2.5em;">⚔️ COMBAT POKÉMON ⚔️</h1>
-        
-        <div style="display: flex; justify-content: space-between; align-items: center; margin: 30px 0;">
-          <div style="text-align: left; flex: 1;">
-            <h3 style="color: #90EE90; margin-bottom: 10px;">🔹 Votre Pokémon</h3>
-            <p style="font-size: 1.2em; font-weight: bold;">${playerPokemon?.name || 'Inconnu'}</p>
-            <p style="color: #87CEEB;">Niveau ${playerPokemon?.level || '?'}</p>
-            <p style="color: #FFB6C1;">PV: ${playerPokemon?.currentHp || '?'}/${playerPokemon?.maxHp || '?'}</p>
-          </div>
-          
-          <div style="font-size: 3em; margin: 0 20px;">⚡</div>
-          
-          <div style="text-align: right; flex: 1;">
-            <h3 style="color: #FFB6C1; margin-bottom: 10px;">🔸 Adversaire</h3>
-            <p style="font-size: 1.2em; font-weight: bold;">${opponentPokemon?.name || 'Pokémon sauvage'}</p>
-            <p style="color: #87CEEB;">Niveau ${opponentPokemon?.level || '?'}</p>
-            <p style="color: #90EE90;">PV: ${opponentPokemon?.currentHp || '?'}/${opponentPokemon?.maxHp || '?'}</p>
-          </div>
-        </div>
-        
-        <div style="margin: 30px 0;">
-          <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
-            <p id="battleStatus">🔄 <strong>Combat en cours...</strong></p>
-            <p style="color: #FFD700; font-size: 0.9em;">Interface complète en cours de développement</p>
-          </div>
-        </div>
-        
-        <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px;">
-          <button id="attackBtn" style="
-            background: #DC143C; color: white; border: none; padding: 15px 25px;
-            font-size: 1.1em; border-radius: 10px; cursor: pointer; font-weight: bold;
-          ">⚔️ Attaquer</button>
-          
-          <button id="bagBtn" style="
-            background: #4169E1; color: white; border: none; padding: 15px 25px;
-            font-size: 1.1em; border-radius: 10px; cursor: pointer; font-weight: bold;
-          ">🎒 Sac</button>
-          
-          <button id="runBtn" style="
-            background: #696969; color: white; border: none; padding: 15px 25px;
-            font-size: 1.1em; border-radius: 10px; cursor: pointer; font-weight: bold;
-          ">🏃 Fuir</button>
-        </div>
-        
-        <div style="margin-top: 20px; font-size: 0.9em; color: #DDD;">
-          <p>💡 <em>Interface temporaire - l'UI complète va être ajoutée</em></p>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(overlay);
-    this.setupFallbackEvents(overlay);
-    
-    console.log('✅ [BattleIntegration] Interface fallback créée');
-  }
-
-  setupFallbackEvents(overlay) {
-    const attackBtn = overlay.querySelector('#attackBtn');
-    const bagBtn = overlay.querySelector('#bagBtn');
-    const runBtn = overlay.querySelector('#runBtn');
-    const statusElement = overlay.querySelector('#battleStatus');
-    
-    if (attackBtn) {
-      attackBtn.addEventListener('click', () => {
-        statusElement.textContent = '💥 Attaque lancée !';
-        attackBtn.disabled = true;
-        
-        if (this.battleConnection) {
-          this.battleConnection.useMove('tackle');
-        }
-        
-        setTimeout(() => {
-          attackBtn.disabled = false;
-        }, 2000);
-      });
-    }
-    
-    if (bagBtn) {
-      bagBtn.addEventListener('click', () => {
-        statusElement.textContent = '🎒 Utilisation d\'un objet...';
-        
-        if (this.battleConnection) {
-          this.battleConnection.useItem('potion');
-        }
-      });
-    }
-    
-    if (runBtn) {
-      runBtn.addEventListener('click', () => {
-        statusElement.textContent = '🏃 Tentative de fuite...';
-        
-        if (this.battleConnection) {
-          this.battleConnection.attemptRun();
-        }
-      });
+    // ✅ Notifier la BattleScene
+    if (this.battleScene && this.phaserGame.scene.isActive('BattleScene')) {
+      this.battleScene.events.emit('yourTurn', data);
     }
   }
 
-  // === GESTION DE FIN DE COMBAT MISE À JOUR ===
+  /**
+   * ✅ MODERN: Message de combat
+   */
+  handleBattleMessage(data) {
+    console.log('💬 [BattleIntegration] Message:', data.message);
+    
+    // ✅ Transmettre à la BattleScene
+    if (this.battleScene && this.phaserGame.scene.isActive('BattleScene')) {
+      this.battleScene.events.emit('battleMessage', data);
+    }
+  }
 
+  /**
+   * ✅ MODERN: Mise à jour HP synchronisée
+   */
+  handleHPUpdate(data) {
+    console.log('💖 [BattleIntegration] HP Update:', {
+      pokemonId: data.pokemonId,
+      hp: `${data.newHp}/${data.maxHp}`,
+      damage: data.damage,
+      isKO: data.isKnockedOut
+    });
+    
+    // ✅ Transmettre à la BattleScene
+    if (this.battleScene && this.phaserGame.scene.isActive('BattleScene')) {
+      this.battleScene.events.emit('pokemonHPUpdate', data);
+    }
+  }
+
+  /**
+   * ✅ MODERN: Fin de combat avec récompenses
+   */
   handleBattleEnd(data) {
-    console.log('🏁 [BattleIntegration] === FIN DE COMBAT AVEC UI ===');
-    console.log('📊 Résultat:', data);
+    console.log('🏁 [BattleIntegration] === FIN DE COMBAT ===');
+    console.log('🏆 Résultat:', data.result);
+    console.log('🎁 Récompenses:', data.rewards);
     
-    this.showBattleResult(data);
+    // ✅ COMPATIBLE: Afficher les résultats
+    this.showBattleResults(data);
     
-    // ✅ PROGRAMMER LA TRANSITION UI DE RETOUR
+    // ✅ Programmer la fermeture
     setTimeout(() => {
       this.endBattle(data);
     }, 5000);
   }
 
-  handleBattleLeft(data) {
-    console.log('👋 [BattleIntegration] Combat quitté:', data);
-    this.endBattle(data);
-  }
-
+  /**
+   * ✅ Gestion des erreurs
+   */
   handleBattleError(data) {
-    console.error('❌ [BattleIntegration] Erreur de combat:', data);
-    
-    this.showError(`Erreur de combat: ${data.message}`);
+    console.error('❌ [BattleIntegration] Erreur combat:', data);
+    this.showError(`Erreur: ${data.message}`);
     
     if (data.critical) {
       setTimeout(() => {
-        this.endBattle({ reason: 'error', error: data });
+        this.cancelBattle();
       }, 3000);
     }
   }
 
-  // ✅ MÉTHODE MISE À JOUR: Fin de combat avec transition UI
-  endBattle(data = {}) {
-    console.log('🏁 [BattleIntegration] === NETTOYAGE FIN DE COMBAT AVEC UI ===');
+  handleConnectionError(data) {
+    console.error('❌ [BattleIntegration] Erreur connexion:', data);
+    this.showError('Impossible de rejoindre le combat');
+    this.cancelBattle();
+  }
+
+  // === INTERFACE DE COMBAT ===
+
+  /**
+   * ✅ COMPATIBLE: Prépare l'interface sans l'activer
+   */
+  prepareBattleInterface() {
+    console.log('🖥️ [BattleIntegration] Préparation interface...');
     
-    this.isInBattle = false;
-    this.isSelectingPokemon = false;
+    // ✅ COMPATIBLE: Masquer l'UI existante si nécessaire
+    this.hideWorldUI();
     
-    // ✅ ÉTAPE 1: Lancer la transition UI de retour
-    if (this.battleUITransition && this.battleUITransition.isBattleActive()) {
-      console.log('🎬 [BattleIntegration] Lancement transition UI retour...');
+    // ✅ La BattleScene est déjà préparée, on attend battleStart
+    console.log('⏳ Interface prête, attente battleStart...');
+  }
+
+  /**
+   * ✅ MODERN: Active l'interface de combat
+   */
+  activateBattleInterface(battleData) {
+    console.log('🎮 [BattleIntegration] === ACTIVATION INTERFACE ===');
+    
+    try {
+      // ✅ MODERN: Réveiller la BattleScene
+      if (this.battleScene && this.phaserGame?.scene) {
+        if (this.phaserGame.scene.isSleeping('BattleScene')) {
+          this.phaserGame.scene.wake('BattleScene');
+        }
+        
+        this.phaserGame.scene.setVisible(true, 'BattleScene');
+        
+        // ✅ MODERN: Démarrer le combat dans la scène
+        if (this.battleScene.startBattle) {
+          this.battleScene.startBattle(battleData);
+        }
+        
+        console.log('✅ BattleScene activée');
+      } else {
+        console.warn('⚠️ BattleScene non disponible, fallback...');
+        this.createFallbackInterface(battleData);
+      }
       
-      this.battleUITransition.endBattleTransition({
-        result: data.result || 'ended',
-        rewards: data.rewards,
-        reason: data.reason
-      }).then(success => {
-        if (success) {
-          console.log('✅ [BattleIntegration] Transition UI retour réussie');
-        } else {
-          console.warn('⚠️ [BattleIntegration] Problème transition UI retour');
-        }
-      });
+      // ✅ COMPATIBLE: Notifier le GameManager
+      if (this.gameManager?.pauseGame) {
+        this.gameManager.pauseGame('battle');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur activation interface:', error);
+      this.createFallbackInterface(battleData);
     }
+  }
+
+  /**
+   * ✅ COMPATIBLE: Interface de secours
+   */
+  createFallbackInterface(battleData) {
+    console.log('🆘 [BattleIntegration] Interface de secours...');
     
-    // ÉTAPE 2: Fermer toutes les interfaces de combat
-    this.closeAllBattleInterfaces();
+    // Créer une interface DOM simple et fonctionnelle
+    const overlay = document.createElement('div');
+    overlay.id = 'battle-fallback-interface';
+    overlay.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
+      z-index: 10000; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; color: white;
+      font-family: Arial, sans-serif; text-align: center;
+    `;
     
-    // ÉTAPE 3: Fermer la BattleScene si active
-    if (this.battleScene && this.phaserGame?.scene) {
+    const playerPokemon = battleData.playerPokemon || this.currentBattleData?.playerPokemon;
+    const opponentPokemon = battleData.opponentPokemon || this.currentBattleData?.opponentPokemon;
+    
+    overlay.innerHTML = `
+      <div style="background: rgba(0,0,0,0.8); padding: 30px; border-radius: 15px; max-width: 600px;">
+        <h1 style="color: #FFD700; margin-bottom: 20px;">⚔️ COMBAT POKÉMON ⚔️</h1>
+        
+        <div style="display: flex; justify-content: space-between; margin: 20px 0;">
+          <div style="text-align: left;">
+            <h3 style="color: #90EE90;">🔹 ${playerPokemon?.name || 'Votre Pokémon'}</h3>
+            <p>Niveau ${playerPokemon?.level || '?'}</p>
+            <p>PV: ${playerPokemon?.currentHp || '?'}/${playerPokemon?.maxHp || '?'}</p>
+          </div>
+          
+          <div style="font-size: 3em;">⚡</div>
+          
+          <div style="text-align: right;">
+            <h3 style="color: #FFB6C1;">🔸 ${opponentPokemon?.name || 'Adversaire'}</h3>
+            <p>Niveau ${opponentPokemon?.level || '?'}</p>
+            <p>PV: ${opponentPokemon?.currentHp || '?'}/${opponentPokemon?.maxHp || '?'}</p>
+          </div>
+        </div>
+        
+        <div style="margin: 20px 0;">
+          <p id="battleStatus">🔄 Combat en cours...</p>
+        </div>
+        
+        <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+          <button id="attackBtn" onclick="window.battleSystem.useAttack()">⚔️ Attaquer</button>
+          <button id="runBtn" onclick="window.battleSystem.attemptRun()">🏃 Fuir</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // Exposer les actions
+    window.battleSystem = {
+      useAttack: () => {
+        if (this.battleNetworkHandler) {
+          this.battleNetworkHandler.useMove('tackle');
+          document.getElementById('battleStatus').textContent = '⚔️ Attaque lancée !';
+        }
+      },
+      attemptRun: () => {
+        if (this.battleNetworkHandler) {
+          this.battleNetworkHandler.attemptRun();
+          document.getElementById('battleStatus').textContent = '🏃 Tentative de fuite...';
+        }
+      }
+    };
+    
+    console.log('✅ Interface de secours créée');
+  }
+
+  // === GESTION DE L'UI ===
+
+  /**
+   * ✅ COMPATIBLE: Cache l'UI du monde
+   */
+  hideWorldUI() {
+    // ✅ COMPATIBLE: Ne pas casser l'UI existante
+    if (window.pokemonUISystem?.setGameState) {
       try {
-        if (this.phaserGame.scene.isActive('BattleScene')) {
-          this.phaserGame.scene.sleep('BattleScene');
-        }
+        this.previousUIState = window.pokemonUISystem.getCurrentGameState?.() || 'exploration';
+        window.pokemonUISystem.setGameState('battle', { animated: true });
+        console.log('✅ UI système cachée via pokemonUISystem');
+        return;
       } catch (error) {
-        console.warn('⚠️ [BattleIntegration] Erreur fermeture BattleScene:', error);
+        console.warn('⚠️ Erreur UISystem:', error);
       }
     }
     
-    // ÉTAPE 4: Reprendre le jeu principal
-    if (this.gameManager?.resumeGame) {
-      this.gameManager.resumeGame('battle');
-    }
-    
-    // ÉTAPE 5: Nettoyer la connexion battle
-    if (this.battleConnection) {
-      this.battleConnection.leaveBattle();
-    }
-    
-    // ÉTAPE 6: Nettoyer les données temporaires
-    this.currentBattleData = null;
-    this.selectedPokemon = null;
-    this.pokemonChoiceSent = false;
-    this.currentBattleRoomId = null;
-    this.currentBattleType = null;
-    
-    console.log('✅ [BattleIntegration] Combat terminé et nettoyé avec UI');
-  }
-
-  // ✅ MÉTHODE MISE À JOUR: Annulation avec transition UI
-  async cancelBattle() {
-    console.log('❌ [BattleIntegration] Annulation du combat avec UI');
-    
-    this.isInBattle = false;
-    this.isSelectingPokemon = false;
-    
-    // ✅ Annuler la transition UI si en cours
-    if (this.battleUITransition) {
-      if (this.battleUITransition.isCurrentlyTransitioning()) {
-        console.log('🔄 [BattleIntegration] Annulation transition UI en cours...');
-        await this.battleUITransition.cancelTransition();
-      } else if (this.battleUITransition.isBattleActive()) {
-        console.log('🔄 [BattleIntegration] Retour UI depuis annulation...');
-        await this.battleUITransition.endBattleTransition({
-          result: 'cancelled',
-          reason: 'manual_cancel'
-        });
-      }
-    }
-    
-    this.closeAllBattleInterfaces();
-    
-    if (this.battleConnection && this.currentBattleRoomId) {
-      this.battleConnection.leaveBattle('cancelled');
-    }
-    
-    // Nettoyer
-    this.currentBattleData = null;
-    this.selectedPokemon = null;
-    this.pokemonChoiceSent = false;
-    
-    console.log('✅ [BattleIntegration] Combat annulé avec UI');
-  }
-
-  // === UTILITAIRES D'INTERFACE ===
-
-  closeAllBattleInterfaces() {
-    // Fermer l'interface de sélection
-    if (this.pokemonSelectionUI) {
-      this.pokemonSelectionUI.hide();
-    }
-    
-    // Fermer l'interface fallback
-    const fallbackOverlay = document.getElementById('fallback-battle-overlay');
-    if (fallbackOverlay) {
-      fallbackOverlay.remove();
-    }
-    
-    // Fermer l'interface temporaire
-    const tempOverlay = document.getElementById('temp-battle-overlay');
-    if (tempOverlay) {
-      tempOverlay.remove();
-    }
-  }
-
-  // === GESTION DU MOUVEMENT (INCHANGÉE) ===
-
-  disablePlayerMovement() {
-    if (this.gameManager && this.gameManager.player) {
-      this.gameManager.player.setMovementEnabled(false);
-      console.log('🚫 [BattleIntegration] Mouvement désactivé');
-    }
-  }
-
-  enablePlayerMovement() {
-    if (this.gameManager && this.gameManager.player) {
-      this.gameManager.player.setMovementEnabled(true);
-      console.log('✅ [BattleIntegration] Mouvement réactivé');
-    }
-  }
-
-  // === FORWARDING D'ÉVÉNEMENTS ===
-
-  forwardToBattleScene(eventType, data) {
-    if (this.battleScene && this.battleScene.handleNetworkEvent) {
-      this.battleScene.handleNetworkEvent(eventType, data);
-    }
-  }
-
-  updateBattleState(battleState) {
-    if (this.battleScene && this.battleScene.updateBattleState) {
-      this.battleScene.updateBattleState(battleState);
-    }
-  }
-
-  // === MÉTHODES UTILITAIRES ===
-
-  getFirstAvailablePokemon() {
-    // TODO: Récupérer l'équipe réelle du joueur depuis le GameManager
-    // Pour l'instant, équipe de test
-    const playerTeam = [
-      {
-        id: 'pokemon_1',
-        pokemonId: 1,
-        name: 'Bulbasaur',
-        level: 5,
-        currentHp: 20,
-        maxHp: 20,
-        types: ['grass', 'poison'],
-        moves: ['tackle', 'growl', 'vine_whip'],
-        statusCondition: 'normal',
-        available: true
-      },
-      {
-        id: 'pokemon_2',
-        pokemonId: 4,
-        name: 'Charmander',
-        level: 6,
-        currentHp: 21,
-        maxHp: 21,
-        types: ['fire'],
-        moves: ['scratch', 'growl', 'ember'],
-        statusCondition: 'normal',
-        available: true
-      },
-      {
-        id: 'pokemon_3',
-        pokemonId: 7,
-        name: 'Squirtle',
-        level: 5,
-        currentHp: 0,
-        maxHp: 19,
-        types: ['water'],
-        moves: ['tackle', 'tail_whip', 'bubble'],
-        statusCondition: 'ko',
-        available: false
-      }
+    // ✅ FALLBACK: Cache manuellement
+    const elementsToHide = [
+      '#inventory-icon', '#team-icon', '#quest-icon', 
+      '#questTracker', '#chat', '.ui-icon'
     ];
     
-    return playerTeam.find(pokemon => 
-      pokemon.available && pokemon.currentHp > 0
-    ) || null;
+    elementsToHide.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(el => {
+        if (window.getComputedStyle(el).display !== 'none') {
+          el.style.display = 'none';
+          el.setAttribute('data-battle-hidden', 'true');
+        }
+      });
+    });
+    
+    console.log('✅ UI manuelle cachée');
   }
 
-  showBattleResult(data) {
-    const result = data.result;
-    const rewards = data.rewards;
-    
-    let resultMessage = '';
-    let resultColor = '#FFD700';
-    
-    switch (result) {
-      case 'victory':
-        resultMessage = '🎉 VICTOIRE ! 🎉';
-        resultColor = '#00FF00';
-        break;
-      case 'defeat':
-        resultMessage = '💀 DÉFAITE 💀';
-        resultColor = '#FF0000';
-        break;
-      case 'fled':
-        resultMessage = '🏃 FUITE RÉUSSIE 🏃';
-        resultColor = '#FFD700';
-        break;
-      case 'captured':
-        resultMessage = '🎯 POKÉMON CAPTURÉ ! 🎯';
-        resultColor = '#00FF00';
-        break;
-      default:
-        resultMessage = '⚔️ COMBAT TERMINÉ ⚔️';
-    }
-    
-    // Mettre à jour l'interface existante ou créer un overlay de résultats
-    const statusElement = document.querySelector('#battleStatus');
-    if (statusElement) {
-      statusElement.innerHTML = `<span style="color: ${resultColor}; font-size: 1.2em;">${resultMessage}</span>`;
-      
-      if (rewards) {
-        let rewardsText = '<br><br>🎁 Récompenses:<br>';
-        if (rewards.experience > 0) {
-          rewardsText += `✨ +${rewards.experience} XP<br>`;
-        }
-        if (rewards.gold > 0) {
-          rewardsText += `💰 +${rewards.gold} Or<br>`;
-        }
-        statusElement.innerHTML += rewardsText;
+  /**
+   * ✅ COMPATIBLE: Restaure l'UI du monde
+   */
+  restoreWorldUI() {
+    // ✅ COMPATIBLE: Restaurer via le système
+    if (window.pokemonUISystem?.setGameState && this.previousUIState) {
+      try {
+        window.pokemonUISystem.setGameState(this.previousUIState, { animated: true });
+        this.previousUIState = null;
+        console.log('✅ UI système restaurée');
+        return;
+      } catch (error) {
+        console.warn('⚠️ Erreur restauration UISystem:', error);
       }
     }
     
-    // Notifier le GameManager
-    if (this.gameManager?.onBattleEnd) {
-      this.gameManager.onBattleEnd(data);
+    // ✅ FALLBACK: Restaurer manuellement
+    const hiddenElements = document.querySelectorAll('[data-battle-hidden="true"]');
+    hiddenElements.forEach(el => {
+      el.style.display = '';
+      el.removeAttribute('data-battle-hidden');
+    });
+    
+    console.log('✅ UI manuelle restaurée');
+  }
+
+  // === MESSAGES ET NOTIFICATIONS ===
+
+  showEncounterMessage(data) {
+    const pokemonName = data.pokemon?.name || 'un Pokémon sauvage';
+    const message = `Un ${pokemonName} apparaît !`;
+    
+    if (window.showGameNotification) {
+      window.showGameNotification(message, 'encounter', { duration: 3000 });
+    } else {
+      console.log(`🐾 ${message}`);
+    }
+  }
+
+  showBattleResults(data) {
+    let message = '';
+    switch (data.result) {
+      case 'victory': message = '🎉 Victoire !'; break;
+      case 'defeat': message = '💀 Défaite...'; break;
+      case 'fled': message = '🏃 Fuite réussie !'; break;
+      default: message = '⚔️ Combat terminé';
+    }
+    
+    if (data.rewards && data.rewards.experience?.length > 0) {
+      const totalExp = data.rewards.experience.reduce((sum, exp) => sum + exp.gained, 0);
+      message += ` (+${totalExp} XP)`;
+    }
+    
+    if (window.showGameNotification) {
+      window.showGameNotification(message, 'battle_result', { duration: 4000 });
+    } else {
+      console.log(`🏆 ${message}`);
     }
   }
 
   showError(message) {
     console.error(`❌ [BattleIntegration] ${message}`);
     
-    // Afficher l'erreur à l'utilisateur
-    if (this.gameManager?.showNotification) {
-      this.gameManager.showNotification(message, 'error');
-    } else if (window.showGameNotification) {
-      window.showGameNotification(message, 'error', {
-        duration: 5000,
-        position: 'top-center'
-      });
+    if (window.showGameNotification) {
+      window.showGameNotification(message, 'error', { duration: 5000 });
     } else {
-      // Fallback : alert simple
-      alert(`Erreur de combat: ${message}`);
+      alert(`Erreur: ${message}`);
     }
   }
 
-  // === MÉTHODES PUBLIQUES ===
+  // === FIN DE COMBAT ===
 
   /**
-   * Démarre un combat sauvage manuellement
+   * ✅ COMPATIBLE: Fin de combat propre
    */
-  startWildBattle(wildPokemonData) {
-    if (!this.isInitialized) {
-      console.error('❌ [BattleIntegration] Système non initialisé');
-      return false;
+  endBattle(data = {}) {
+    console.log('🏁 [BattleIntegration] === FIN DE COMBAT COMPATIBLE ===');
+    
+    this.isInBattle = false;
+    this.isTransitioning = false;
+    
+    // ✅ COMPATIBLE: Fermer toutes les interfaces
+    this.closeBattleInterface();
+    
+    // ✅ COMPATIBLE: Restaurer l'UI
+    this.restoreWorldUI();
+    
+    // ✅ COMPATIBLE: Reprendre le jeu
+    if (this.gameManager?.resumeGame) {
+      this.gameManager.resumeGame('battle');
     }
     
-    if (this.isInBattle || this.isSelectingPokemon) {
-      console.warn('⚠️ [BattleIntegration] Combat déjà en cours');
-      return false;
+    // ✅ MODERN: Nettoyer la connexion
+    if (this.battleNetworkHandler) {
+      // La BattleRoom se déconnecte automatiquement
     }
     
-    console.log('🐾 [BattleIntegration] Démarrage combat sauvage manuel...');
+    // ✅ Nettoyer les données
+    this.currentBattleData = null;
+    this.selectedPokemon = null;
     
-    // Envoyer la demande via la WorldRoom
-    if (this.battleConnection?.worldRoom) {
-      const success = this.battleConnection.sendToWorld('startWildBattle', {
-        wildPokemon: wildPokemonData.pokemon || wildPokemonData,
-        location: wildPokemonData.location || 'manual_test',
-        method: wildPokemonData.method || 'manual'
-      });
-      
-      if (success) {
-        console.log('✅ [BattleIntegration] Demande de combat envoyée');
-        return true;
+    // ✅ COMPATIBLE: Notifier le système existant
+    if (this.gameManager?.onBattleEnd) {
+      this.gameManager.onBattleEnd(data);
+    }
+    
+    console.log('✅ Combat terminé et système nettoyé');
+  }
+
+  /**
+   * ✅ COMPATIBLE: Annulation de combat
+   */
+  async cancelBattle() {
+    console.log('❌ [BattleIntegration] Annulation combat...');
+    
+    this.isInBattle = false;
+    this.isTransitioning = false;
+    
+    this.closeBattleInterface();
+    this.restoreWorldUI();
+    
+    if (this.battleNetworkHandler && this.battleNetworkHandler.canSendBattleActions()) {
+      this.battleNetworkHandler.leaveBattle('cancelled');
+    }
+    
+    this.currentBattleData = null;
+    this.selectedPokemon = null;
+    
+    console.log('✅ Combat annulé');
+  }
+
+  /**
+   * ✅ Ferme toutes les interfaces
+   */
+  closeBattleInterface() {
+    // Fermer BattleScene
+    if (this.battleScene && this.phaserGame?.scene) {
+      try {
+        if (this.phaserGame.scene.isActive('BattleScene')) {
+          this.phaserGame.scene.setVisible(false, 'BattleScene');
+          this.phaserGame.scene.sleep('BattleScene');
+        }
+      } catch (error) {
+        console.warn('⚠️ Erreur fermeture BattleScene:', error);
       }
     }
     
-    console.error('❌ [BattleIntegration] Échec envoi demande combat');
+    // Fermer interface fallback
+    const fallbackInterface = document.getElementById('battle-fallback-interface');
+    if (fallbackInterface) {
+      fallbackInterface.remove();
+    }
+    
+    // Nettoyer les exports globaux
+    if (window.battleSystem) {
+      delete window.battleSystem;
+    }
+  }
+
+  // === API PUBLIQUE ===
+
+  /**
+   * ✅ COMPATIBLE: Démarrage manuel d'un combat
+   */
+  startWildBattle(wildPokemonData) {
+    if (!this.isInitialized) {
+      console.error('❌ Système non initialisé');
+      return false;
+    }
+    
+    if (this.isInBattle || this.isTransitioning) {
+      console.warn('⚠️ Combat déjà en cours');
+      return false;
+    }
+    
+    console.log('🐾 Démarrage combat sauvage manuel...');
+    
+    if (this.battleNetworkHandler) {
+      return this.battleNetworkHandler.requestWildBattle({
+        pokemon: wildPokemonData.pokemon || wildPokemonData,
+        location: wildPokemonData.location || 'manual_test',
+        method: wildPokemonData.method || 'manual'
+      });
+    }
+    
     return false;
   }
 
   /**
-   * Quitte le combat actuel
+   * ✅ COMPATIBLE: Quitter le combat
    */
   exitBattle(reason = 'manual') {
-    if (!this.isInBattle && !this.isSelectingPokemon) {
-      console.warn('⚠️ [BattleIntegration] Pas en combat');
+    if (!this.isInBattle && !this.isTransitioning) {
+      console.warn('⚠️ Pas en combat');
       return false;
     }
     
-    console.log(`🚪 [BattleIntegration] Sortie de combat: ${reason}`);
+    console.log(`🚪 Sortie combat: ${reason}`);
     
-    if (this.isSelectingPokemon) {
+    if (this.isTransitioning) {
       this.cancelBattle();
-    } else if (this.battleConnection) {
-      this.battleConnection.leaveBattle(reason);
+    } else if (this.battleNetworkHandler) {
+      this.battleNetworkHandler.leaveBattle(reason);
     } else {
       this.endBattle({ reason });
     }
@@ -977,56 +733,45 @@ startBattleInterface(battleData) {
     return true;
   }
 
+  // === ÉTAT ET DEBUG ===
+
   /**
-   * Affiche l'interface de sélection pour changer de Pokémon pendant le combat
+   * ✅ État du système
    */
-  showPokemonSelectionForSwitch() {
-    if (!this.isInBattle) {
-      console.warn('⚠️ [BattleIntegration] Pas en combat - impossible de changer');
-      return false;
-    }
-    
-    if (this.isSelectingPokemon) {
-      console.warn('⚠️ [BattleIntegration] Sélection déjà en cours');
-      return false;
-    }
-    
-    console.log('🔄 [BattleIntegration] Affichage sélection pour changement...');
-    
-    this.isSelectingPokemon = true;
-    
-    // Configurer le callback pour changement
-    this.pokemonSelectionUI.onPokemonSelected = (selectedPokemon) => {
-      this.handlePokemonSelected(selectedPokemon);
+  getCurrentBattleState() {
+    return {
+      isInitialized: this.isInitialized,
+      isInBattle: this.isInBattle,
+      isTransitioning: this.isTransitioning,
+      currentBattleData: this.currentBattleData,
+      networkStatus: this.battleNetworkHandler?.getConnectionStatus(),
+      sceneActive: this.phaserGame?.scene?.isActive('BattleScene') || false
     };
-    
-    // Afficher l'interface
-    this.pokemonSelectionUI.show();
-    
-    return true;
   }
 
-  handlePokemonSelected(selectedPokemon) {
-    console.log('🔄 [BattleIntegration] Pokémon sélectionné pour changement:', selectedPokemon);
+  /**
+   * ✅ Debug complet
+   */
+  debug() {
+    console.log('🔍 === DEBUG BATTLE INTEGRATION ===');
+    const state = this.getCurrentBattleState();
+    console.log('📊 État:', state);
     
-    this.isSelectingPokemon = false;
-    
-    if (!selectedPokemon) {
-      console.log('❌ [BattleIntegration] Changement annulé');
-      return;
+    if (this.battleNetworkHandler) {
+      console.log('🌐 Network:', this.battleNetworkHandler.debug());
     }
     
-    if (this.battleConnection && this.isInBattle) {
-      console.log('🔄 [BattleIntegration] Envoi changement de Pokémon...');
-      this.battleConnection.switchPokemon(selectedPokemon.id);
-    }
+    return state;
   }
 
-  testBattle() {
-    console.log('🧪 [BattleIntegration] Test du système complet avec UI...');
+  /**
+   * ✅ Test du système complet
+   */
+  test() {
+    console.log('🧪 [BattleIntegration] Test système complet...');
     
     if (!this.isInitialized) {
-      console.error('❌ [BattleIntegration] Système non initialisé');
+      console.error('❌ Système non initialisé');
       return false;
     }
     
@@ -1034,11 +779,8 @@ startBattleInterface(battleData) {
       pokemonId: 25,
       level: 8,
       name: 'Pikachu Test',
-      shiny: false,
-      gender: 'male',
       currentHp: 28,
-      maxHp: 28,
-      moves: ['thunder_shock', 'growl', 'tail_whip', 'thunder_wave']
+      maxHp: 28
     };
     
     return this.startWildBattle({
@@ -1048,126 +790,95 @@ startBattleInterface(battleData) {
     });
   }
 
-  // === MÉTHODES D'ÉTAT ===
-
-  /**
-   * Vérifie si on est en combat
-   */
-  isCurrentlyInBattle() {
-    return this.isInBattle || this.isSelectingPokemon;
-  }
-
-  /**
-   * Obtient l'état du combat actuel
-   */
-  getCurrentBattleState() {
-    return {
-      isInitialized: this.isInitialized,
-      isInBattle: this.isInBattle,
-      isSelectingPokemon: this.isSelectingPokemon,
-      battleRoomId: this.currentBattleRoomId,
-      battleType: this.currentBattleType,
-      selectedPokemon: this.selectedPokemon,
-      battleData: this.currentBattleData,
-      connectionStatus: this.battleConnection?.getConnectionStatus(),
-      uiTransitionActive: this.battleUITransition?.isBattleActive() || false,
-      uiTransitioning: this.battleUITransition?.isCurrentlyTransitioning() || false
-    };
-  }
-
-  // === UTILITAIRES ===
-
-  /**
-   * Vérifie la compatibilité système
-   */
-  checkCompatibility() {
-    const checks = {
-      phaserGame: !!this.phaserGame,
-      worldRoom: !!this.worldRoom,
-      battleConnection: !!this.battleConnection,
-      pokemonSelectionUI: !!this.pokemonSelectionUI,
-      battleScene: !!this.battleScene,
-      gameManager: !!this.gameManager,
-      battleUITransition: !!this.battleUITransition,
-      uiManager: !!(window.pokemonUISystem?.uiManager || window.uiManager),
-      cssLoaded: !!document.querySelector('#battle-styles')
-    };
-    
-    console.log('🔍 [BattleIntegration] Vérification compatibilité:', checks);
-    
-    return checks;
-  }
-
-  /**
-   * Debug complet du système avec UI
-   */
-  debug() {
-    return {
-      isInitialized: this.isInitialized,
-      state: this.getCurrentBattleState(),
-      compatibility: this.checkCompatibility(),
-      networkStatus: this.battleConnection?.debug(),
-      hasAvailablePokemon: this.pokemonSelectionUI?.hasAvailablePokemon(),
-      uiTransition: this.battleUITransition ? {
-        active: this.battleUITransition.isBattleActive(),
-        transitioning: this.battleUITransition.isCurrentlyTransitioning(),
-        state: this.battleUITransition.getCurrentUIState()
-      } : null
-    };
-  }
-
   // === NETTOYAGE ===
 
   /**
-   * Nettoie et détruit le système complet
+   * ✅ COMPATIBLE: Destruction propre
    */
   async destroy() {
-    console.log('💀 [BattleIntegration] Destruction du système complet...');
+    console.log('💀 [BattleIntegration] Destruction...');
     
     // Terminer tout combat en cours
-    if (this.isCurrentlyInBattle()) {
+    if (this.isInBattle || this.isTransitioning) {
       await this.exitBattle('destroy');
     }
     
-    // ✅ Détruire le gestionnaire de transition UI
-    if (this.battleUITransition) {
-      this.battleUITransition.destroy();
-      this.battleUITransition = null;
-    }
-    
     // Détruire les composants
-    if (this.battleConnection) {
-      await this.battleConnection.destroy();
-      this.battleConnection = null;
+    if (this.battleNetworkHandler) {
+      await this.battleNetworkHandler.destroy();
+      this.battleNetworkHandler = null;
     }
     
-    if (this.pokemonSelectionUI) {
-      this.pokemonSelectionUI.destroy();
-      this.pokemonSelectionUI = null;
-    }
+    // Fermer les interfaces
+    this.closeBattleInterface();
     
-    if (this.battleScene && this.phaserGame?.scene) {
-      try {
-        this.phaserGame.scene.remove('BattleScene');
-      } catch (error) {
-        console.warn('⚠️ [BattleIntegration] Erreur suppression BattleScene:', error);
-      }
-      this.battleScene = null;
-    }
-    
-    // Fermer toutes les interfaces
-    this.closeAllBattleInterfaces();
+    // Restaurer l'UI
+    this.restoreWorldUI();
     
     // Nettoyer les références
     this.gameManager = null;
     this.worldRoom = null;
     this.phaserGame = null;
+    this.battleScene = null;
     
     // Réinitialiser l'état
     this.isInitialized = false;
     this.isInBattle = false;
-    this.isSelectingPokemon = false;
+    this.isTransitioning = false;
     
-    console.log('✅ [BattleIntegration] Système complet détruit avec UI');
+    console.log('✅ BattleIntegration détruit proprement');
   }
 }
+
+// === FONCTIONS GLOBALES DE TEST ===
+
+/**
+ * Test d'intégration complète
+ */
+window.testBattleIntegration = function() {
+  console.log('🧪 === TEST BATTLE INTEGRATION COMPLÈTE ===');
+  
+  // Créer une instance de test
+  const integration = new BattleIntegration(window.gameManager || {});
+  
+  // Test d'initialisation
+  const mockWorldRoom = {
+    id: 'test_world',
+    sessionId: 'test_session',
+    onMessage: (type, callback) => console.log(`Mock onMessage: ${type}`),
+    send: (type, data) => console.log(`Mock send: ${type}`, data)
+  };
+  
+  const mockPhaserGame = {
+    scene: {
+      add: () => console.log('Mock scene.add'),
+      getScene: () => null,
+      isActive: () => false,
+      start: () => console.log('Mock scene.start'),
+      setVisible: () => console.log('Mock scene.setVisible'),
+      sleep: () => console.log('Mock scene.sleep')
+    }
+  };
+  
+  integration.initialize(mockWorldRoom, mockPhaserGame).then(success => {
+    console.log(`Initialisation: ${success ? '✅ SUCCÈS' : '❌ ÉCHEC'}`);
+    
+    if (success) {
+      console.log('État:', integration.getCurrentBattleState());
+      
+      // Test combat
+      setTimeout(() => {
+        const testResult = integration.test();
+        console.log(`Test combat: ${testResult ? '✅ DÉMARRÉ' : '❌ ÉCHEC'}`);
+      }, 1000);
+    }
+  });
+  
+  return integration;
+};
+
+console.log('✅ [BattleIntegration] MODULE MODERNE COMPATIBLE CHARGÉ !');
+console.log('🔧 COMPATIBLE avec votre système d\'encounter existant');
+console.log('🌐 SYNCHRONISÉ avec le serveur modernisé');
+console.log('🧪 Test: window.testBattleIntegration()');
+console.log('🚀 Prêt pour intégration dans votre GameManager !');
