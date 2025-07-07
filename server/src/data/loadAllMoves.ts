@@ -3,35 +3,49 @@
 import fs from "fs";
 import path from "path";
 
-// Pour adapter, change "./moves-index.json" selon l'endroit d'appel
+// Dépend du contexte d'exécutioN
 const movesIndex = require("./moves-index.json"); // { moveName: type }
 const MOVES_PATH = path.join(__dirname, "moves");
 
-function loadAllMoves() {
+function loadAllMoves(): Record<string, any> {
+  // Log au tout début pour vérifier le chargement
+  console.log("🔄 [ALL_MOVES] Lancement du chargement de toutes les attaques Pokémon…");
+
   const allMoves: Record<string, any> = {};
 
   let loaded = 0, notFound = 0;
 
   for (const [moveName, type] of Object.entries(movesIndex)) {
-    const typeFile = path.join(MOVES_PATH, `${type}.json`);
+    const typeStr = String(type);
+    const typeFile = path.join(MOVES_PATH, `${typeStr}.json`);
+
     if (!fs.existsSync(typeFile)) {
       notFound++;
       continue;
     }
-    const movesOfType = JSON.parse(fs.readFileSync(typeFile, "utf8"));
+    let movesOfType: Record<string, any> = {};
+    try {
+      movesOfType = JSON.parse(fs.readFileSync(typeFile, "utf8"));
+    } catch (e) {
+      console.warn(`⚠️ [ALL_MOVES] Erreur lecture JSON: ${typeFile}`, e);
+      notFound++;
+      continue;
+    }
+
     const moveData = movesOfType[moveName];
     if (moveData) {
       allMoves[moveName] = {
         moveId: moveName,
-        type: type.charAt(0).toUpperCase() + type.slice(1),
+        type: typeStr.charAt(0).toUpperCase() + typeStr.slice(1),
         ...moveData,
         maxPp: moveData.pp,
       };
       loaded++;
     } else {
+      // Move absent dans le fichier, fallback par défaut
       allMoves[moveName] = {
         moveId: moveName,
-        type,
+        type: typeStr.charAt(0).toUpperCase() + typeStr.slice(1),
         name: moveName,
         category: "Physical",
         power: 40,
@@ -47,7 +61,7 @@ function loadAllMoves() {
 
   // 🟢 Log d'autotest au démarrage
   console.log(
-    `🟢 [ALL_MOVES] Chargement des attaques : ${loaded} moves trouvés, ${notFound} moves manquants ou partiels.`
+    `🟢 [ALL_MOVES] Chargement des attaques terminé : ${loaded} moves trouvés, ${notFound} moves manquants ou partiels.`
   );
   return allMoves;
 }
