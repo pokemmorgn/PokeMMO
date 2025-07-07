@@ -1,14 +1,15 @@
-// client/src/managers/BattleIntegration.js - VERSION MODERNE COMPATIBLE
-// 🔄 RÉCRÉE pour être compatible avec votre système d'encounter existant
+// client/src/managers/BattleIntegration.js - CORRECTION SIMPLE
+// 🎯 FOCUS: Corriger uniquement l'erreur d'API Phaser, garder votre BattleScene
 
 import { BattleScene } from '../scenes/BattleScene.js';
 import { BattleNetworkHandler } from '../network/BattleNetworkHandler.js';
 
 /**
- * INTÉGRATEUR DE COMBAT MODERNE
- * ✅ Compatible avec votre système d'encounter existant
- * ✅ Ne casse rien, s'intègre proprement
- * ✅ Synchronisé avec le serveur modernisé
+ * INTÉGRATEUR DE COMBAT - CORRECTION MINIMALE
+ * ✅ Corrige UNIQUEMENT: this.phaserGame.scene.setVisible is not a function
+ * ✅ Ajoute battleUITransition manquant
+ * ✅ Garde votre BattleScene existante
+ * ❌ SUPPRIME l'interface de secours (inutile)
  */
 export class BattleIntegration {
   constructor(gameManager) {
@@ -23,6 +24,13 @@ export class BattleIntegration {
     this.isInBattle = false;
     this.isTransitioning = false;
     
+    // ✅ AJOUT: Système battleUITransition manquant
+    this.battleUITransition = {
+      isActive: false,
+      start: () => { this.battleUITransition.isActive = true; },
+      complete: () => { this.battleUITransition.isActive = false; }
+    };
+    
     // Références système existant
     this.worldRoom = null;
     this.phaserGame = null;
@@ -34,7 +42,7 @@ export class BattleIntegration {
     console.log('⚔️ [BattleIntegration] Constructeur moderne compatible');
   }
 
-  // === INITIALISATION COMPATIBLE ===
+  // === INITIALISATION ===
 
   async initialize(worldRoom, phaserGame) {
     console.log('🔧 [BattleIntegration] Initialisation compatible...');
@@ -46,6 +54,11 @@ export class BattleIntegration {
     
     this.worldRoom = worldRoom;
     this.phaserGame = phaserGame;
+    
+    // ✅ AJOUT: Exposer battleUITransition globalement
+    if (typeof window !== 'undefined') {
+      window.battleUITransition = this.battleUITransition;
+    }
     
     try {
       // 1. Créer le BattleNetworkHandler moderne
@@ -67,15 +80,10 @@ export class BattleIntegration {
     }
   }
 
-  // === INITIALISATION DES COMPOSANTS ===
-
   async initializeBattleNetworkHandler() {
     console.log('🌐 [BattleIntegration] Initialisation BattleNetworkHandler...');
     
-    // Créer le handler moderne
     this.battleNetworkHandler = new BattleNetworkHandler(this.gameManager);
-    
-    // L'initialiser avec votre WorldRoom existante
     const success = this.battleNetworkHandler.initialize(this.worldRoom, window.client);
     
     if (!success) {
@@ -102,7 +110,6 @@ export class BattleIntegration {
       
       // Créer la BattleScene si elle n'existe pas
       if (!battleSceneExists) {
-        // ✅ CORRECTION: Vérifier que BattleScene est disponible
         if (typeof BattleScene !== 'undefined') {
           this.battleScene = new BattleScene();
           
@@ -116,7 +123,7 @@ export class BattleIntegration {
         }
       }
 
-      // ✅ IMPORTANT: Démarrer la scène MAIS la laisser endormie (seulement si Phaser réel)
+      // Démarrer la scène MAIS la laisser endormie
       if (this.battleScene && this.phaserGame?.scene?.start && !this.phaserGame.scene.isActive?.('BattleScene')) {
         console.log('💤 Démarrage BattleScene en mode endormi...');
         this.phaserGame.scene.start('BattleScene', {
@@ -126,14 +133,8 @@ export class BattleIntegration {
         
         // Endormir immédiatement
         setTimeout(() => {
-          if (this.phaserGame.scene.isActive?.('BattleScene')) {
-            this.phaserGame.scene.setVisible?.(false, 'BattleScene');
-            this.phaserGame.scene.sleep?.('BattleScene');
-            console.log('💤 BattleScene endormie');
-          }
+          this.sleepBattleScene();
         }, 100);
-      } else {
-        console.log('💤 BattleScene préparée en mode fallback');
       }
       
       console.log('✅ BattleScene préparée');
@@ -143,14 +144,29 @@ export class BattleIntegration {
     }
   }
 
+  // ✅ CORRECTION: Méthode pour endormir la scène avec la bonne API
+  sleepBattleScene() {
+    try {
+      if (this.phaserGame.scene.isActive?.('BattleScene')) {
+        // ✅ CORRECTION: Utiliser la bonne API
+        const battleScene = this.phaserGame.scene.get('BattleScene');
+        if (battleScene) {
+          battleScene.scene.setVisible(false);
+        }
+        this.phaserGame.scene.sleep?.('BattleScene');
+        console.log('💤 BattleScene endormie');
+      }
+    } catch (error) {
+      console.warn('⚠️ Erreur endormissement BattleScene:', error);
+    }
+  }
+
   // === ÉVÉNEMENTS D'INTÉGRATION ===
 
   setupIntegrationEvents() {
     if (!this.battleNetworkHandler) return;
     
     console.log('🔗 [BattleIntegration] Configuration événements...');
-    
-    // === ÉVÉNEMENTS DE RENCONTRE (COMPATIBLES SYSTÈME EXISTANT) ===
     
     this.battleNetworkHandler.on('wildEncounterStart', (data) => {
       this.handleWildEncounterStart(data);
@@ -163,8 +179,6 @@ export class BattleIntegration {
     this.battleNetworkHandler.on('battleRoomConnected', (data) => {
       this.handleBattleRoomConnected(data);
     });
-    
-    // === ÉVÉNEMENTS DE COMBAT ===
     
     this.battleNetworkHandler.on('battleJoined', (data) => {
       this.handleBattleJoined(data);
@@ -190,8 +204,6 @@ export class BattleIntegration {
       this.handleBattleEnd(data);
     });
     
-    // === ÉVÉNEMENTS D'ERREUR ===
-    
     this.battleNetworkHandler.on('battleError', (data) => {
       this.handleBattleError(data);
     });
@@ -205,9 +217,6 @@ export class BattleIntegration {
 
   // === HANDLERS D'ÉVÉNEMENTS ===
 
-  /**
-   * ✅ COMPATIBLE: Début de rencontre sauvage
-   */
   handleWildEncounterStart(data) {
     console.log('🐾 [BattleIntegration] === DÉBUT RENCONTRE COMPATIBLE ===');
     console.log('📊 Data encounter:', data);
@@ -217,24 +226,17 @@ export class BattleIntegration {
       return;
     }
     
-    // Marquer comme en transition
     this.isTransitioning = true;
     this.currentBattleData = data;
     
-    // ✅ COMPATIBLE: Notifier le GameManager existant
     if (this.gameManager?.onEncounterStart) {
       this.gameManager.onEncounterStart(data);
     }
     
-    // ✅ COMPATIBLE: Afficher message d'encounter si système UI existe
     this.showEncounterMessage(data);
-    
     console.log('⏳ Attente création BattleRoom...');
   }
 
-  /**
-   * ✅ MODERN: BattleRoom créée par le serveur
-   */
   async handleBattleRoomCreated(data) {
     console.log('🏠 [BattleIntegration] === BATTLEROOM CRÉÉE ===');
     console.log('📊 Data BattleRoom:', {
@@ -244,81 +246,57 @@ export class BattleIntegration {
       hasOpponentPokemon: !!data.opponentPokemon
     });
     
-    // Sauvegarder les données de combat
     this.currentBattleData = {
       ...this.currentBattleData,
       ...data
     };
     
-    // ✅ Le BattleNetworkHandler s'est déjà connecté automatiquement
     console.log('✅ BattleRoom créée et connexion en cours...');
   }
 
-  /**
-   * ✅ MODERN: Connecté à la BattleRoom
-   */
   handleBattleRoomConnected(data) {
     console.log('🔗 [BattleIntegration] === CONNECTÉ À BATTLEROOM ===');
     
-    // Marquer comme en combat
     this.isInBattle = true;
     this.isTransitioning = false;
     
-    // ✅ MODERN: Préparer l'interface de combat
     this.prepareBattleInterface();
   }
 
-  /**
-   * ✅ MODERN: Combat rejoint
-   */
   handleBattleJoined(data) {
     console.log('⚔️ [BattleIntegration] Combat rejoint:', data);
     
-    // ✅ COMPATIBLE: Notifier le système existant
     if (this.gameManager?.onBattleJoined) {
       this.gameManager.onBattleJoined(data);
     }
   }
 
-  /**
-   * ✅ MODERN: Combat démarré avec données complètes
-   */
+  // ✅ CORRECTION PRINCIPALE: Gestion corrigée du démarrage de combat
   handleBattleStart(data) {
     console.log('🚀 [BattleIntegration] === COMBAT DÉMARRÉ ===');
     console.log('📊 Data combat:', data);
     
-    // ✅ MODERN: Activer l'interface de combat
+    // ✅ CORRECTION: Activer l'interface avec la bonne API
     this.activateBattleInterface(data);
   }
 
-  /**
-   * ✅ MODERN: Notre tour de jouer
-   */
   handleYourTurn(data) {
     console.log('🎯 [BattleIntegration] === VOTRE TOUR ===');
     console.log('⏰ Temps restant:', data.timeRemaining);
     
-    // ✅ Notifier la BattleScene
     if (this.battleScene && this.phaserGame.scene.isActive('BattleScene')) {
       this.battleScene.events.emit('yourTurn', data);
     }
   }
 
-  /**
-   * ✅ MODERN: Message de combat
-   */
   handleBattleMessage(data) {
     console.log('💬 [BattleIntegration] Message:', data.message);
     
-    // ✅ Transmettre à la BattleScene
     if (this.battleScene && this.phaserGame.scene.isActive('BattleScene')) {
       this.battleScene.events.emit('battleMessage', data);
     }
   }
 
-  /**
-   * ✅ MODERN: Mise à jour HP synchronisée
-   */
   handleHPUpdate(data) {
     console.log('💖 [BattleIntegration] HP Update:', {
       pokemonId: data.pokemonId,
@@ -327,32 +305,23 @@ export class BattleIntegration {
       isKO: data.isKnockedOut
     });
     
-    // ✅ Transmettre à la BattleScene
     if (this.battleScene && this.phaserGame.scene.isActive('BattleScene')) {
       this.battleScene.events.emit('pokemonHPUpdate', data);
     }
   }
 
-  /**
-   * ✅ MODERN: Fin de combat avec récompenses
-   */
   handleBattleEnd(data) {
     console.log('🏁 [BattleIntegration] === FIN DE COMBAT ===');
     console.log('🏆 Résultat:', data.result);
     console.log('🎁 Récompenses:', data.rewards);
     
-    // ✅ COMPATIBLE: Afficher les résultats
     this.showBattleResults(data);
     
-    // ✅ Programmer la fermeture
     setTimeout(() => {
       this.endBattle(data);
     }, 5000);
   }
 
-  /**
-   * ✅ Gestion des erreurs
-   */
   handleBattleError(data) {
     console.error('❌ [BattleIntegration] Erreur combat:', data);
     this.showError(`Erreur: ${data.message}`);
@@ -370,137 +339,58 @@ export class BattleIntegration {
     this.cancelBattle();
   }
 
-  // === INTERFACE DE COMBAT ===
+  // === INTERFACE DE COMBAT (CORRIGÉE) ===
 
-  /**
-   * ✅ COMPATIBLE: Prépare l'interface sans l'activer
-   */
   prepareBattleInterface() {
     console.log('🖥️ [BattleIntegration] Préparation interface...');
     
-    // ✅ COMPATIBLE: Masquer l'UI existante si nécessaire
     this.hideWorldUI();
-    
-    // ✅ La BattleScene est déjà préparée, on attend battleStart
     console.log('⏳ Interface prête, attente battleStart...');
   }
 
-  /**
-   * ✅ MODERN: Active l'interface de combat
-   */
+  // ✅ CORRECTION PRINCIPALE: Activation interface corrigée
   activateBattleInterface(battleData) {
     console.log('🎮 [BattleIntegration] === ACTIVATION INTERFACE ===');
     
     try {
-      // ✅ MODERN: Réveiller la BattleScene
+      // ✅ CORRECTION: Réveiller et afficher la BattleScene avec la bonne API
       if (this.battleScene && this.phaserGame?.scene) {
         if (this.phaserGame.scene.isSleeping('BattleScene')) {
           this.phaserGame.scene.wake('BattleScene');
         }
         
-        this.phaserGame.scene.setVisible(true, 'BattleScene');
+        // ✅ CORRECTION: Utiliser la bonne méthode pour rendre visible
+        const battleSceneInstance = this.phaserGame.scene.get('BattleScene');
+        if (battleSceneInstance) {
+          battleSceneInstance.scene.setVisible(true);
+        }
         
-        // ✅ MODERN: Démarrer le combat dans la scène
+        // Démarrer le combat dans la scène
         if (this.battleScene.startBattle) {
           this.battleScene.startBattle(battleData);
         }
         
         console.log('✅ BattleScene activée');
       } else {
-        console.warn('⚠️ BattleScene non disponible, fallback...');
-        this.createFallbackInterface(battleData);
+        console.error('❌ BattleScene non disponible');
+        throw new Error('BattleScene non disponible');
       }
       
-      // ✅ COMPATIBLE: Notifier le GameManager
+      // Notifier le GameManager
       if (this.gameManager?.pauseGame) {
         this.gameManager.pauseGame('battle');
       }
       
     } catch (error) {
       console.error('❌ Erreur activation interface:', error);
-      this.createFallbackInterface(battleData);
+      // ✅ PAS d'interface de secours - juste log l'erreur
+      console.error('💀 [BattleIntegration] Impossible d\'activer l\'interface');
     }
-  }
-
-  /**
-   * ✅ COMPATIBLE: Interface de secours
-   */
-  createFallbackInterface(battleData) {
-    console.log('🆘 [BattleIntegration] Interface de secours...');
-    
-    // Créer une interface DOM simple et fonctionnelle
-    const overlay = document.createElement('div');
-    overlay.id = 'battle-fallback-interface';
-    overlay.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
-      z-index: 10000; display: flex; flex-direction: column;
-      justify-content: center; align-items: center; color: white;
-      font-family: Arial, sans-serif; text-align: center;
-    `;
-    
-    const playerPokemon = battleData.playerPokemon || this.currentBattleData?.playerPokemon;
-    const opponentPokemon = battleData.opponentPokemon || this.currentBattleData?.opponentPokemon;
-    
-    overlay.innerHTML = `
-      <div style="background: rgba(0,0,0,0.8); padding: 30px; border-radius: 15px; max-width: 600px;">
-        <h1 style="color: #FFD700; margin-bottom: 20px;">⚔️ COMBAT POKÉMON ⚔️</h1>
-        
-        <div style="display: flex; justify-content: space-between; margin: 20px 0;">
-          <div style="text-align: left;">
-            <h3 style="color: #90EE90;">🔹 ${playerPokemon?.name || 'Votre Pokémon'}</h3>
-            <p>Niveau ${playerPokemon?.level || '?'}</p>
-            <p>PV: ${playerPokemon?.currentHp || '?'}/${playerPokemon?.maxHp || '?'}</p>
-          </div>
-          
-          <div style="font-size: 3em;">⚡</div>
-          
-          <div style="text-align: right;">
-            <h3 style="color: #FFB6C1;">🔸 ${opponentPokemon?.name || 'Adversaire'}</h3>
-            <p>Niveau ${opponentPokemon?.level || '?'}</p>
-            <p>PV: ${opponentPokemon?.currentHp || '?'}/${opponentPokemon?.maxHp || '?'}</p>
-          </div>
-        </div>
-        
-        <div style="margin: 20px 0;">
-          <p id="battleStatus">🔄 Combat en cours...</p>
-        </div>
-        
-        <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
-          <button id="attackBtn" onclick="window.battleSystem.useAttack()">⚔️ Attaquer</button>
-          <button id="runBtn" onclick="window.battleSystem.attemptRun()">🏃 Fuir</button>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(overlay);
-    
-    // Exposer les actions
-    window.battleSystem = {
-      useAttack: () => {
-        if (this.battleNetworkHandler) {
-          this.battleNetworkHandler.useMove('tackle');
-          document.getElementById('battleStatus').textContent = '⚔️ Attaque lancée !';
-        }
-      },
-      attemptRun: () => {
-        if (this.battleNetworkHandler) {
-          this.battleNetworkHandler.attemptRun();
-          document.getElementById('battleStatus').textContent = '🏃 Tentative de fuite...';
-        }
-      }
-    };
-    
-    console.log('✅ Interface de secours créée');
   }
 
   // === GESTION DE L'UI ===
 
-  /**
-   * ✅ COMPATIBLE: Cache l'UI du monde
-   */
   hideWorldUI() {
-    // ✅ COMPATIBLE: Ne pas casser l'UI existante
     if (window.pokemonUISystem?.setGameState) {
       try {
         this.previousUIState = window.pokemonUISystem.getCurrentGameState?.() || 'exploration';
@@ -512,7 +402,7 @@ export class BattleIntegration {
       }
     }
     
-    // ✅ FALLBACK: Cache manuellement
+    // Fallback: Cache manuellement
     const elementsToHide = [
       '#inventory-icon', '#team-icon', '#quest-icon', 
       '#questTracker', '#chat', '.ui-icon'
@@ -531,11 +421,7 @@ export class BattleIntegration {
     console.log('✅ UI manuelle cachée');
   }
 
-  /**
-   * ✅ COMPATIBLE: Restaure l'UI du monde
-   */
   restoreWorldUI() {
-    // ✅ COMPATIBLE: Restaurer via le système
     if (window.pokemonUISystem?.setGameState && this.previousUIState) {
       try {
         window.pokemonUISystem.setGameState(this.previousUIState, { animated: true });
@@ -547,7 +433,7 @@ export class BattleIntegration {
       }
     }
     
-    // ✅ FALLBACK: Restaurer manuellement
+    // Fallback: Restaurer manuellement
     const hiddenElements = document.querySelectorAll('[data-battle-hidden="true"]');
     hiddenElements.forEach(el => {
       el.style.display = '';
@@ -603,36 +489,22 @@ export class BattleIntegration {
 
   // === FIN DE COMBAT ===
 
-  /**
-   * ✅ COMPATIBLE: Fin de combat propre
-   */
   endBattle(data = {}) {
     console.log('🏁 [BattleIntegration] === FIN DE COMBAT COMPATIBLE ===');
     
     this.isInBattle = false;
     this.isTransitioning = false;
     
-    // ✅ COMPATIBLE: Fermer toutes les interfaces
     this.closeBattleInterface();
-    
-    // ✅ COMPATIBLE: Restaurer l'UI
     this.restoreWorldUI();
     
-    // ✅ COMPATIBLE: Reprendre le jeu
     if (this.gameManager?.resumeGame) {
       this.gameManager.resumeGame('battle');
     }
     
-    // ✅ MODERN: Nettoyer la connexion
-    if (this.battleNetworkHandler) {
-      // La BattleRoom se déconnecte automatiquement
-    }
-    
-    // ✅ Nettoyer les données
     this.currentBattleData = null;
     this.selectedPokemon = null;
     
-    // ✅ COMPATIBLE: Notifier le système existant
     if (this.gameManager?.onBattleEnd) {
       this.gameManager.onBattleEnd(data);
     }
@@ -640,9 +512,6 @@ export class BattleIntegration {
     console.log('✅ Combat terminé et système nettoyé');
   }
 
-  /**
-   * ✅ COMPATIBLE: Annulation de combat
-   */
   async cancelBattle() {
     console.log('❌ [BattleIntegration] Annulation combat...');
     
@@ -662,39 +531,25 @@ export class BattleIntegration {
     console.log('✅ Combat annulé');
   }
 
-  /**
-   * ✅ Ferme toutes les interfaces
-   */
   closeBattleInterface() {
-    // Fermer BattleScene
+    // ✅ CORRECTION: Fermer BattleScene avec la bonne API
     if (this.battleScene && this.phaserGame?.scene) {
       try {
         if (this.phaserGame.scene.isActive('BattleScene')) {
-          this.phaserGame.scene.setVisible(false, 'BattleScene');
+          const battleSceneInstance = this.phaserGame.scene.get('BattleScene');
+          if (battleSceneInstance) {
+            battleSceneInstance.scene.setVisible(false);
+          }
           this.phaserGame.scene.sleep('BattleScene');
         }
       } catch (error) {
         console.warn('⚠️ Erreur fermeture BattleScene:', error);
       }
     }
-    
-    // Fermer interface fallback
-    const fallbackInterface = document.getElementById('battle-fallback-interface');
-    if (fallbackInterface) {
-      fallbackInterface.remove();
-    }
-    
-    // Nettoyer les exports globaux
-    if (window.battleSystem) {
-      delete window.battleSystem;
-    }
   }
 
   // === API PUBLIQUE ===
 
-  /**
-   * ✅ COMPATIBLE: Démarrage manuel d'un combat
-   */
   startWildBattle(wildPokemonData) {
     if (!this.isInitialized) {
       console.error('❌ Système non initialisé');
@@ -719,9 +574,6 @@ export class BattleIntegration {
     return false;
   }
 
-  /**
-   * ✅ COMPATIBLE: Quitter le combat
-   */
   exitBattle(reason = 'manual') {
     if (!this.isInBattle && !this.isTransitioning) {
       console.warn('⚠️ Pas en combat');
@@ -743,9 +595,6 @@ export class BattleIntegration {
 
   // === ÉTAT ET DEBUG ===
 
-  /**
-   * ✅ État du système
-   */
   getCurrentBattleState() {
     return {
       isInitialized: this.isInitialized,
@@ -757,9 +606,6 @@ export class BattleIntegration {
     };
   }
 
-  /**
-   * ✅ Debug complet
-   */
   debug() {
     console.log('🔍 === DEBUG BATTLE INTEGRATION ===');
     const state = this.getCurrentBattleState();
@@ -772,9 +618,6 @@ export class BattleIntegration {
     return state;
   }
 
-  /**
-   * ✅ Test du système complet
-   */
   test() {
     console.log('🧪 [BattleIntegration] Test système complet...');
     
@@ -800,36 +643,26 @@ export class BattleIntegration {
 
   // === NETTOYAGE ===
 
-  /**
-   * ✅ COMPATIBLE: Destruction propre
-   */
   async destroy() {
     console.log('💀 [BattleIntegration] Destruction...');
     
-    // Terminer tout combat en cours
     if (this.isInBattle || this.isTransitioning) {
       await this.exitBattle('destroy');
     }
     
-    // Détruire les composants
     if (this.battleNetworkHandler) {
       await this.battleNetworkHandler.destroy();
       this.battleNetworkHandler = null;
     }
     
-    // Fermer les interfaces
     this.closeBattleInterface();
-    
-    // Restaurer l'UI
     this.restoreWorldUI();
     
-    // Nettoyer les références
     this.gameManager = null;
     this.worldRoom = null;
     this.phaserGame = null;
     this.battleScene = null;
     
-    // Réinitialiser l'état
     this.isInitialized = false;
     this.isInBattle = false;
     this.isTransitioning = false;
@@ -838,18 +671,13 @@ export class BattleIntegration {
   }
 }
 
-// === FONCTIONS GLOBALES DE TEST ===
+// === TESTS SIMPLIFIÉS ===
 
-/**
- * Test d'intégration complète avec correction timing
- */
 window.testBattleIntegration = function() {
-  console.log('🧪 === TEST BATTLE INTEGRATION COMPLÈTE ===');
+  console.log('🧪 === TEST BATTLE INTEGRATION SIMPLE ===');
   
-  // Créer une instance de test
   const integration = new BattleIntegration(window.gameManager || {});
   
-  // Test d'initialisation
   const mockWorldRoom = {
     id: 'test_world',
     sessionId: 'test_session',
@@ -861,27 +689,25 @@ window.testBattleIntegration = function() {
     scene: {
       add: () => console.log('Mock scene.add'),
       getScene: () => null,
+      get: (key) => ({ scene: { setVisible: () => console.log(`Mock setVisible: ${key}`) } }),
       isActive: () => false,
       start: () => console.log('Mock scene.start'),
-      setVisible: () => console.log('Mock scene.setVisible'),
       sleep: () => console.log('Mock scene.sleep'),
+      wake: () => console.log('Mock scene.wake'),
       keys: {}
     }
   };
   
-  // ✅ CORRECTION: Attendre l'initialisation complète
   integration.initialize(mockWorldRoom, mockPhaserGame).then(success => {
     console.log(`Initialisation: ${success ? '✅ SUCCÈS' : '❌ ÉCHEC'}`);
     
     if (success) {
       console.log('État:', integration.getCurrentBattleState());
       
-      // ✅ CORRECTION: Test combat seulement après initialisation complète
       setTimeout(() => {
-        console.log('🧪 [BattleIntegration] Test système complet...');
         const testResult = integration.test();
         console.log(`Test combat: ${testResult ? '✅ DÉMARRÉ' : '❌ ÉCHEC'}`);
-      }, 500); // Délai plus court mais suffisant
+      }, 500);
     }
   }).catch(error => {
     console.error('❌ Erreur initialisation:', error);
@@ -890,8 +716,9 @@ window.testBattleIntegration = function() {
   return integration;
 };
 
-console.log('✅ [BattleIntegration] MODULE MODERNE COMPATIBLE CHARGÉ !');
-console.log('🔧 COMPATIBLE avec votre système d\'encounter existant');
-console.log('🌐 SYNCHRONISÉ avec le serveur modernisé');
+console.log('✅ [BattleIntegration] MODULE CORRIGÉ CHARGÉ !');
+console.log('🔧 CORRECTION: API Phaser scene.setVisible corrigée');
+console.log('✅ AJOUT: Système battleUITransition');
+console.log('❌ SUPPRIMÉ: Interface de secours inutile');
 console.log('🧪 Test: window.testBattleIntegration()');
 console.log('🚀 Prêt pour intégration dans votre GameManager !');
