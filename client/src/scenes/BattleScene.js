@@ -698,104 +698,125 @@ createModernActionInterface() {
 
   // === GESTION DES POKÉMON AVEC STYLE MODERNE ===
 
-  async displayPlayerPokemon(pokemonData) {
-    console.log('👤 [BattleScene] Affichage Pokémon joueur moderne:', pokemonData);
-    
-    if (!this.pokemonPositions) {
-      this.calculatePokemonPositions();
-    }
-    
-    // Nettoyer ancien sprite
-    if (this.playerPokemonSprite) {
-      this.playerPokemonSprite.destroy();
-      this.playerPokemonSprite = null;
-    }
-    
-    if (!pokemonData) return;
-    
-    try {
-      // Charger et créer le sprite
-      const spriteKey = await this.loadPokemonSprite(pokemonData.pokemonId || pokemonData.id, 'back');
-      
-      const { width, height } = this.cameras.main;
-      const x = width * this.pokemonPositions.player.x;
-      const y = height * this.pokemonPositions.player.y;
-      
-      this.playerPokemonSprite = this.add.sprite(x, y, spriteKey, 0);
-      this.playerPokemonSprite.setScale(3.5);
-      this.playerPokemonSprite.setDepth(25);
-      this.playerPokemonSprite.setOrigin(0.5, 1);
-      
-      // Animation d'entrée moderne
-      this.animateModernPokemonEntry(this.playerPokemonSprite, 'left');
-      
-      // Sauvegarder données
-      this.currentPlayerPokemon = pokemonData;
-      
-      // Mettre à jour la barre de vie
-      setTimeout(() => {
-        this.updateModernHealthBar('player', pokemonData);
-      }, 500);
-      
-      console.log('✅ [BattleScene] Pokémon joueur affiché avec style moderne');
-      
-    } catch (error) {
-      console.error('❌ [BattleScene] Erreur affichage Pokémon joueur:', error);
-      this.createModernPokemonPlaceholder('player', pokemonData);
-    }
+async displayPlayerPokemon(pokemonData) {
+  console.log('[DEBUG] 👤 displayPlayerPokemon début:', pokemonData);
+  
+  if (!pokemonData) {
+    console.error('[DEBUG] ❌ pokemonData null/undefined');
+    return;
   }
+  
+  if (!this.pokemonPositions) {
+    console.log('[DEBUG] 🔧 Calcul positions Pokémon...');
+    this.calculatePokemonPositions();
+  }
+  
+  // Nettoyer ancien sprite
+  if (this.playerPokemonSprite) {
+    console.log('[DEBUG] 🧹 Nettoyage ancien sprite joueur...');
+    this.playerPokemonSprite.destroy();
+    this.playerPokemonSprite = null;
+  }
+  
+  try {
+    console.log('[DEBUG] 📁 Chargement sprite Pokémon ID:', pokemonData.pokemonId || pokemonData.id);
+    const spriteKey = await this.loadPokemonSprite(pokemonData.pokemonId || pokemonData.id, 'back');
+    console.log('[DEBUG] ✅ Sprite chargé:', spriteKey);
+    
+    const { width, height } = this.cameras.main;
+    const x = width * this.pokemonPositions.player.x;
+    const y = height * this.pokemonPositions.player.y;
+    
+    console.log('[DEBUG] 📍 Position sprite:', { x, y });
+    
+    this.playerPokemonSprite = this.add.sprite(x, y, spriteKey, 0);
+    this.playerPokemonSprite.setScale(3.5);
+    this.playerPokemonSprite.setDepth(25);
+    this.playerPokemonSprite.setOrigin(0.5, 1);
+    
+    console.log('[DEBUG] 🎨 Sprite créé, animation d\'entrée...');
+    this.animateModernPokemonEntry(this.playerPokemonSprite, 'left');
+    
+    // Sauvegarder données
+    this.currentPlayerPokemon = pokemonData;
+    
+    // Mettre à jour la barre de vie
+    setTimeout(() => {
+      console.log('[DEBUG] ❤️ Mise à jour barre de vie joueur...');
+      this.updateModernHealthBar('player', pokemonData);
+    }, 500);
+    
+    console.log('[DEBUG] ✅ Pokémon joueur affiché avec succès');
+    
+  } catch (error) {
+    console.error('[DEBUG] ❌ Erreur affichage Pokémon joueur:', error);
+    console.log('[DEBUG] 🆘 Création placeholder...');
+    this.createModernPokemonPlaceholder('player', pokemonData);
+  }
+}
 
-  async displayOpponentPokemon(pokemonData) {
-    console.log('👹 [BattleScene] Affichage Pokémon adversaire moderne:', pokemonData);
-    
-    if (!this.pokemonPositions) {
-      this.calculatePokemonPositions();
-    }
-    
-    // Nettoyer ancien sprite
-    if (this.opponentPokemonSprite) {
-      this.opponentPokemonSprite.destroy();
-      this.opponentPokemonSprite = null;
-    }
-    
-    if (!pokemonData) return;
-    
-    try {
-      // Charger et créer le sprite
-      const spriteKey = await this.loadPokemonSprite(pokemonData.pokemonId || pokemonData.id, 'front');
-      
-      const { width, height } = this.cameras.main;
-      const x = width * this.pokemonPositions.opponent.x;
-      const y = height * this.pokemonPositions.opponent.y;
-      
-      this.opponentPokemonSprite = this.add.sprite(x, y, spriteKey, 0);
-      this.opponentPokemonSprite.setScale(2.8);
-      this.opponentPokemonSprite.setDepth(20);
-      this.opponentPokemonSprite.setOrigin(0.5, 1);
-      
-      // Animation d'entrée moderne
-      this.animateModernPokemonEntry(this.opponentPokemonSprite, 'right');
-      
-      // Effet shiny si applicable
-      if (pokemonData.shiny) {
-        this.addModernShinyEffect(this.opponentPokemonSprite);
-      }
-      
-      // Sauvegarder données
-      this.currentOpponentPokemon = pokemonData;
-      
-      // Mettre à jour la barre de vie
-      setTimeout(() => {
-        this.updateModernHealthBar('opponent', pokemonData);
-      }, 800);
-      
-      console.log('✅ [BattleScene] Pokémon adversaire affiché avec style moderne');
-      
-    } catch (error) {
-      console.error('❌ [BattleScene] Erreur affichage Pokémon adversaire:', error);
-      this.createModernPokemonPlaceholder('opponent', pokemonData);
-    }
+async displayOpponentPokemon(pokemonData) {
+  console.log('[DEBUG] 👹 displayOpponentPokemon début:', pokemonData);
+  
+  if (!pokemonData) {
+    console.error('[DEBUG] ❌ pokemonData null/undefined');
+    return;
   }
+  
+  if (!this.pokemonPositions) {
+    console.log('[DEBUG] 🔧 Calcul positions Pokémon...');
+    this.calculatePokemonPositions();
+  }
+  
+  // Nettoyer ancien sprite
+  if (this.opponentPokemonSprite) {
+    console.log('[DEBUG] 🧹 Nettoyage ancien sprite adversaire...');
+    this.opponentPokemonSprite.destroy();
+    this.opponentPokemonSprite = null;
+  }
+  
+  try {
+    console.log('[DEBUG] 📁 Chargement sprite adversaire ID:', pokemonData.pokemonId || pokemonData.id);
+    const spriteKey = await this.loadPokemonSprite(pokemonData.pokemonId || pokemonData.id, 'front');
+    console.log('[DEBUG] ✅ Sprite adversaire chargé:', spriteKey);
+    
+    const { width, height } = this.cameras.main;
+    const x = width * this.pokemonPositions.opponent.x;
+    const y = height * this.pokemonPositions.opponent.y;
+    
+    console.log('[DEBUG] 📍 Position sprite adversaire:', { x, y });
+    
+    this.opponentPokemonSprite = this.add.sprite(x, y, spriteKey, 0);
+    this.opponentPokemonSprite.setScale(2.8);
+    this.opponentPokemonSprite.setDepth(20);
+    this.opponentPokemonSprite.setOrigin(0.5, 1);
+    
+    console.log('[DEBUG] 🎨 Sprite adversaire créé, animation d\'entrée...');
+    this.animateModernPokemonEntry(this.opponentPokemonSprite, 'right');
+    
+    // Effet shiny si applicable
+    if (pokemonData.shiny) {
+      console.log('[DEBUG] ✨ Ajout effet shiny...');
+      this.addModernShinyEffect(this.opponentPokemonSprite);
+    }
+    
+    // Sauvegarder données
+    this.currentOpponentPokemon = pokemonData;
+    
+    // Mettre à jour la barre de vie
+    setTimeout(() => {
+      console.log('[DEBUG] ❤️ Mise à jour barre de vie adversaire...');
+      this.updateModernHealthBar('opponent', pokemonData);
+    }, 800);
+    
+    console.log('[DEBUG] ✅ Pokémon adversaire affiché avec succès');
+    
+  } catch (error) {
+    console.error('[DEBUG] ❌ Erreur affichage Pokémon adversaire:', error);
+    console.log('[DEBUG] 🆘 Création placeholder adversaire...');
+    this.createModernPokemonPlaceholder('opponent', pokemonData);
+  }
+}
 
   animateModernPokemonEntry(sprite, direction) {
     if (!sprite) return null;
@@ -1036,14 +1057,27 @@ createModernActionInterface() {
   // === BARRES DE VIE MODERNES ===
 
 updateModernHealthBar(type, pokemonData) {
+  console.log('[DEBUG] ❤️ updateModernHealthBar début:', type, pokemonData);
+  
   const healthBar = this.modernHealthBars[type];
-  if (!healthBar) return;
+  if (!healthBar) {
+    console.error('[DEBUG] ❌ Barre de vie non trouvée pour:', type);
+    console.log('[DEBUG] 📊 Barres disponibles:', Object.keys(this.modernHealthBars));
+    return;
+  }
   
   // ✅ PROTECTION: Si pas de HP valides, ignorer cet appel
   if (pokemonData.currentHp === undefined || pokemonData.maxHp === undefined) {
-    console.warn(`⚠️ [BattleScene] HP manquants pour ${type}, appel ignoré`);
+    console.warn(`[DEBUG] ⚠️ HP manquants pour ${type}, appel ignoré`);
+    console.log('[DEBUG] 📊 Données reçues:', pokemonData);
     return;
   }
+  
+  console.log('[DEBUG] 📝 Mise à jour infos:', {
+    name: pokemonData.name,
+    level: pokemonData.level,
+    hp: `${pokemonData.currentHp}/${pokemonData.maxHp}`
+  });
   
   // Mettre à jour les informations
   healthBar.nameText.setText(pokemonData.name || 'Pokémon');
@@ -1051,6 +1085,7 @@ updateModernHealthBar(type, pokemonData) {
   
   // Calculer pourcentage de vie
   const hpPercentage = Math.max(0, Math.min(1, pokemonData.currentHp / pokemonData.maxHp));
+  console.log('[DEBUG] 💚 Pourcentage HP:', Math.round(hpPercentage * 100) + '%');
   
   // Animer la barre de vie
   this.animateHealthBar(healthBar.hpBar, healthBar.config.width - 30, hpPercentage);
@@ -1077,6 +1112,8 @@ updateModernHealthBar(type, pokemonData) {
     duration: 500,
     ease: 'Power2.easeOut'
   });
+  
+  console.log('[DEBUG] ✅ Barre de vie mise à jour avec succès');
 }
 
 
@@ -1533,27 +1570,39 @@ handleNetworkBattleMessage(data) {
   // === HANDLERS RÉSEAU ===
 
 handleNetworkBattleStart(data) {
-  console.log('[BUGPOKEMON] ⚔️ Début combat réseau:', data);
+  console.log('[DEBUG] ⚔️ handleNetworkBattleStart début:', data);
+  
+  // ✅ CORRECTION: Mapper les données selon le format reçu
+  let playerPokemon = data.playerPokemon || data.player1Pokemon;
+  let opponentPokemon = data.opponentPokemon || data.player2Pokemon;
+  
+  console.log('[DEBUG] 👤 playerPokemon mappé:', playerPokemon);
+  console.log('[DEBUG] 👹 opponentPokemon mappé:', opponentPokemon);
   
   // ✅ AFFICHER LE POKÉMON JOUEUR EN PREMIER
-  if (data.playerPokemon) {
-    console.log('[BUGPOKEMON] 👤 Affichage Pokémon joueur:', data.playerPokemon.name);
-    this.displayPlayerPokemon(data.playerPokemon);
+  if (playerPokemon) {
+    console.log('[DEBUG] 👤 Affichage Pokémon joueur:', playerPokemon.name);
+    console.log('[DEBUG] 💖 PV joueur:', playerPokemon.currentHp, '/', playerPokemon.maxHp);
+    this.displayPlayerPokemon(playerPokemon);
+  } else {
+    console.error('[DEBUG] ❌ Pas de données playerPokemon');
   }
   
-  // ✅ AFFICHER LE POKÉMON ADVERSAIRE - UTILISER DIRECTEMENT LES DONNÉES REÇUES
-  if (data.opponentPokemon) {
-    console.log('[BUGPOKEMON] 👹 Affichage Pokémon adversaire:', data.opponentPokemon.name);
-    console.log('[BUGPOKEMON] 💖 PV adversaire:', data.opponentPokemon.currentHp, '/', data.opponentPokemon.maxHp);
-    
-    // ✅ UTILISER DIRECTEMENT data.opponentPokemon (qui a déjà tout !)
-    this.displayOpponentPokemon(data.opponentPokemon);
+  // ✅ AFFICHER LE POKÉMON ADVERSAIRE
+  if (opponentPokemon) {
+    console.log('[DEBUG] 👹 Affichage Pokémon adversaire:', opponentPokemon.name);
+    console.log('[DEBUG] 💖 PV adversaire:', opponentPokemon.currentHp, '/', opponentPokemon.maxHp);
+    this.displayOpponentPokemon(opponentPokemon);
+  } else {
+    console.error('[DEBUG] ❌ Pas de données opponentPokemon');
   }
   
+  console.log('[DEBUG] 🎮 Activation UI battle...');
   this.activateBattleUI();
   this.isVisible = true;
   
-  this.startBattleIntroSequence(data.opponentPokemon);
+  console.log('[DEBUG] 🎬 Démarrage séquence introduction...');
+  this.startBattleIntroSequence(opponentPokemon);
 }
 
   /**
@@ -1763,16 +1812,31 @@ handleNetworkBattleUpdate(data) {
   // === MÉTHODES PUBLIQUES D'ACTIVATION ===
 
 startBattle(battleData) {
-  console.log('[BUGPOKEMON] ⚔️ startBattle appelée avec:', battleData);
-  console.log('[BUGPOKEMON] 🔍 playerPokemon existe ?', !!battleData.playerPokemon);
-  console.log('[BUGPOKEMON] 🔍 opponentPokemon existe ?', !!battleData.opponentPokemon);
-  console.log('[BUGPOKEMON] 🔍 Contenu playerPokemon:', battleData.playerPokemon);
+  console.log('[DEBUG] ⚔️ startBattle appelée avec:', battleData);
+  console.log('[DEBUG] 🔍 playerPokemon existe ?', !!battleData.playerPokemon);
+  console.log('[DEBUG] 🔍 opponentPokemon existe ?', !!battleData.opponentPokemon);
+  console.log('[DEBUG] 🔍 player1Pokemon existe ?', !!battleData.player1Pokemon);
+  console.log('[DEBUG] 🔍 player2Pokemon existe ?', !!battleData.player2Pokemon);
+  
+  if (battleData.playerPokemon) {
+    console.log('[DEBUG] 👤 Contenu playerPokemon:', JSON.stringify(battleData.playerPokemon, null, 2));
+  }
+  if (battleData.opponentPokemon) {
+    console.log('[DEBUG] 👹 Contenu opponentPokemon:', JSON.stringify(battleData.opponentPokemon, null, 2));
+  }
+  if (battleData.player1Pokemon) {
+    console.log('[DEBUG] 👤 Contenu player1Pokemon:', JSON.stringify(battleData.player1Pokemon, null, 2));
+  }
+  if (battleData.player2Pokemon) {
+    console.log('[DEBUG] 👹 Contenu player2Pokemon:', JSON.stringify(battleData.player2Pokemon, null, 2));
+  }
   
   if (!this.isActive) {
-    console.error('[BUGPOKEMON] ❌ Scène non active');
+    console.error('[DEBUG] ❌ Scène non active');
     return;
   }
   
+  console.log('[DEBUG] 🚀 Appel handleNetworkBattleStart...');
   this.handleNetworkBattleStart(battleData);
 }
 
@@ -2541,6 +2605,50 @@ window.debugModernBattle = function() {
   } else {
     console.error('❌ BattleScene non trouvée');
   }
+};
+
+window.debugBattleScene = function() {
+  console.log('🔍 === DEBUG BATTLESCENE COMPLET ===');
+  
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (!battleScene) {
+    console.error('❌ BattleScene non trouvée');
+    return;
+  }
+  
+  console.log('📊 État BattleScene:', {
+    isActive: battleScene.isActive,
+    isVisible: battleScene.isVisible,
+    currentPlayerPokemon: !!battleScene.currentPlayerPokemon,
+    currentOpponentPokemon: !!battleScene.currentOpponentPokemon,
+    modernHealthBars: !!battleScene.modernHealthBars,
+    playerSprite: !!battleScene.playerPokemonSprite,
+    opponentSprite: !!battleScene.opponentPokemonSprite
+  });
+  
+  // Test données factices
+  console.log('🧪 Test avec données factices...');
+  
+  const testData = {
+    playerPokemon: {
+      pokemonId: 1,
+      name: 'Bulbasaur Test',
+      level: 5,
+      currentHp: 20,
+      maxHp: 22,
+      types: ['grass', 'poison']
+    },
+    opponentPokemon: {
+      pokemonId: 4,
+      name: 'Charmander Test',
+      level: 5,
+      currentHp: 18,
+      maxHp: 20,
+      types: ['fire']
+    }
+  };
+  
+  battleScene.startBattle(testData);
 };
 
 // Fonctions de test spécialisées
