@@ -1,57 +1,11 @@
+import { generateEnvironmentConfig } from "../config/ZoneMapping.js";
+
+
 export class ZoneEnvironmentManager {
   constructor() {
-    this.zoneEnvironments = this.initializeZoneEnvironments();
+    this.zoneEnvironments = generateEnvironmentConfig();
   }
 
-  // ✅ CONFIGURATION COMPLÈTE DES ENVIRONNEMENTS
-  initializeZoneEnvironments() {
-    return {
-      // === ZONES EXTÉRIEURES (Jour/Nuit s'applique) ===
-      'beach': 'outdoor',
-      'village': 'outdoor', 
-      'lavandia': 'outdoor',
-      'road1': 'outdoor',
-      'road2': 'outdoor',
-      'road3': 'outdoor',
-      
-      // Grottes (environnement spécial - toujours sombre)
-      'nocthercave1': 'cave',
-      'nocthercave2': 'cave',
-      'nocthercave2bis': 'cave',
-      
-      // === ZONES INTÉRIEURES (Pas d'effet jour/nuit) ===
-      
-      // Maisons du village
-      'villagehouse1': 'indoor',
-      'villagehouse2': 'indoor',
-      'villageflorist': 'indoor',
-      'villagelab': 'indoor',
-      
-      // Road houses
-      'road1house': 'indoor',
-      
-      // Toutes les maisons de Lavandia
-      'lavandiahouse1': 'indoor',
-      'lavandiahouse2': 'indoor',
-      'lavandiahouse3': 'indoor',
-      'lavandiahouse4': 'indoor',
-      'lavandiahouse5': 'indoor',
-      'lavandiahouse6': 'indoor',
-      'lavandiahouse7': 'indoor',
-      'lavandiahouse8': 'indoor',
-      'lavandiahouse9': 'indoor',
-      
-      // Bâtiments publics de Lavandia
-      'lavandiashop': 'indoor',
-      'lavandiaanalysis': 'indoor',
-      'lavandiabossroom': 'indoor',
-      'lavandiacelebitemple': 'indoor',
-      'lavandiaequipment': 'indoor',
-      'lavandiafurniture': 'indoor',
-      'lavandiahealingcenter': 'indoor',
-      'lavandiaresearchlab': 'indoor'
-    };
-  }
 
   // ✅ MÉTHODE PRINCIPALE: Vérifier si une zone est affectée par le jour/nuit
   shouldApplyDayNightCycle(zoneName) {
