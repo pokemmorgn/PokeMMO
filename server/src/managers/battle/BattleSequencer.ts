@@ -1,6 +1,6 @@
 // server/src/managers/battle/BattleSequencer.ts
-// Orchestrateur principal du système de combat - Gère timing et séquences
-// ✅ VERSION FINALE ANTI-SPAM IA
+// Orchestrateur principal du système de combat - Version TurnSystem
+// ✅ VERSION FINALE SANS GESTION DE TOURS
 
 import { 
   BattleContext, 
@@ -34,7 +34,7 @@ export interface IBattleRoomCallbacks {
   endBattle(result: any): void;
   logBattleEvent(event: BattleEvent): void;
 
-    // ✅ NOUVELLES MÉTHODES À AJOUTER
+  // ✅ NOUVELLES MÉTHODES À AJOUTER
   updatePokemonStatus?: (pokemonId: string, newStatus: string) => void;
   updatePokemonStats?: (pokemonId: string, statChanges: any) => void;
   playAnimation?: (animationType: string, animationData: any) => void;
@@ -48,7 +48,7 @@ export interface IBattleRoomCallbacks {
  * - Router les actions vers les bons handlers (Solo/Multi)
  * - Gérer le timing authentique Pokémon
  * - Coordonner les messages et animations
- * - Maintenir la séquence de combat
+ * - ✅ PLUS DE GESTION DE TOURS (TurnSystem s'en charge)
  */
 export class BattleSequencer {
   
@@ -63,13 +63,13 @@ export class BattleSequencer {
     battleId: string;
   }> = [];
   
-  // ✅ NOUVEAU: Gestion complète des timers par combat
+  // ✅ Gestion complète des timers par combat
   private activeTimers: Map<string, NodeJS.Timeout> = new Map();
   private battleTimers: Map<string, Set<string>> = new Map(); // battleId -> Set<timerId>
   
   constructor(callbacks?: IBattleRoomCallbacks) {
     this.battleRoomCallbacks = callbacks;
-    console.log('🎼 [BattleSequencer] Orchestrateur initialisé');
+    console.log('🎼 [BattleSequencer] Orchestrateur initialisé (TurnSystem mode)');
   }
   
   // === REGISTRATION DES HANDLERS ===
@@ -127,10 +127,7 @@ export class BattleSequencer {
       // 3. Exécuter la séquence avec timing
       await this.executeSequence(sequence, context);
 
-      // 4. Vérifier si l'IA doit jouer
-      if (handler.shouldPlayAITurn(context)) {
-        await this.scheduleAITurn(handler, context);
-      }
+      // ✅ SUPPRIMÉ: Plus de gestion IA automatique - TurnSystem s'en charge
 
       return true;
 
@@ -141,7 +138,7 @@ export class BattleSequencer {
   }
   
   /**
-   * ✅ FINAL: Exécute une séquence avec gestion complète des timers
+   * ✅ FINAL: Exécute une séquence SANS gestion de tours
    */
   private async executeSequence(sequence: BattleSequence, context: BattleContext): Promise<void> {
     console.log(`🎬 [BattleSequencer] Exécution séquence "${sequence.sequenceId}"`);
@@ -172,39 +169,15 @@ export class BattleSequencer {
       try {
         this.removeTimer(sequenceTimerId, context.battleId);
         
-        // ✅ CRITIQUE: Vérifier IMMÉDIATEMENT l'état des Pokémon
-        let battleShouldEnd = false;
-        let endReason = '';
-        let winnerPlayerId = '';
-        
-        context.participants.forEach(participant => {
-          if (participant.team[0] && participant.team[0].currentHp <= 0) {
-            battleShouldEnd = true;
-            
-            if (participant.isAI) {
-              endReason = 'ai_pokemon_fainted';
-              winnerPlayerId = context.participants.find(p => !p.isAI)?.sessionId || 'player1';
-            } else {
-              endReason = 'player_pokemon_fainted';
-              winnerPlayerId = 'ai';
-            }
-            
-            console.log(`💀 [BattleSequencer] Pokémon K.O. détecté: ${participant.team[0].name} (${participant.sessionId})`);
-          }
-        });
-        
-        // ✅ SI POKÉMON K.O. OU ÉVÉNEMENT FIN → ARRÊTER TOUT DE SUITE
-        if (battleShouldEnd || hasBattleEndEvent) {
-          console.log(`🏁 [BattleSequencer] Combat terminé: ${endReason || 'événement'}`);
+        // ✅ SI ÉVÉNEMENT FIN COMBAT → TRAITER VIA CALLBACKS
+        if (hasBattleEndEvent) {
+          console.log(`🏁 [BattleSequencer] Fin combat détectée: ${battleEndData?.reason || 'événement'}`);
           
-          context.phase = 'ended' as any;
-          
-          // Déclencher fin combat via callbacks
           if (this.battleRoomCallbacks) {
             this.battleRoomCallbacks.endBattle({
-              result: endReason.includes('player') ? 'defeat' : 'victory',
-              winner: winnerPlayerId || battleEndData?.winner,
-              reason: endReason || battleEndData?.reason || 'battle_end_event'
+              result: battleEndData?.result || 'victory',
+              winner: battleEndData?.winner,
+              reason: battleEndData?.reason || 'battle_end_event'
             });
           }
           
@@ -215,28 +188,8 @@ export class BattleSequencer {
           return; // ✅ SORTIR IMMÉDIATEMENT
         }
         
-        // ✅ SI COMBAT CONTINUE : Changer de tour correctement
-        console.log(`🔄 [BattleSequencer] Combat continue, changement de tour...`);
-        console.log(`🔄 [BattleSequencer] Tour actuel: ${context.currentPlayer}`);
-        
-        // ✅ ALTERNANCE CORRECTE DES TOURS
-        const playerSessionId = context.participants.find(p => !p.isAI)?.sessionId || 'player1';
-        
-        if (context.currentPlayer === playerSessionId) {
-          // Tour du joueur → Tour de l'IA
-          context.currentPlayer = 'ai';
-          console.log(`🔄 [BattleSequencer] Nouveau tour: ai`);
-          this.battleRoomCallbacks?.changeTurn('ai');
-          
-        } else if (context.currentPlayer === 'ai') {
-          // Tour de l'IA → Tour du joueur
-          context.currentPlayer = playerSessionId;
-          console.log(`🔄 [BattleSequencer] Nouveau tour: ${playerSessionId}`);
-          this.battleRoomCallbacks?.changeTurn(playerSessionId);
-        }
-        
-        // ✅ VÉRIFIER si l'IA doit jouer APRÈS le changement de tour
-      console.log(`🎯 [BattleSequencer] Changement de tour terminé - BattleRoom gère la suite`);
+        // ✅ NOUVEAU: Plus de gestion de tours - TurnSystem s'en charge
+        console.log(`✅ [BattleSequencer] Séquence "${sequence.sequenceId}" terminée - TurnSystem gère les tours`);
         
       } catch (err) {
         console.error("[BattleSequencer] Erreur dans executeSequence:", err);
@@ -244,13 +197,12 @@ export class BattleSequencer {
 
       // Nettoyage normal
       this.activeSequences.delete(context.battleId);
-      console.log(`✅ [BattleSequencer] Séquence "${sequence.sequenceId}" terminée`);
     }, sequence.totalDuration);
     
     this.storeTimer(sequenceTimerId, timer, context.battleId);
   }
   
-  // ✅ NOUVELLES MÉTHODES DE GESTION DES TIMERS
+  // ✅ MÉTHODES DE GESTION DES TIMERS (INCHANGÉES)
   
   /**
    * Stocke un timer avec son ID pour un combat
@@ -306,7 +258,7 @@ export class BattleSequencer {
     
     this.eventQueue.push({ event, executeAt, battleId });
     
-    // ✅ NOUVEAU: Timer avec ID unique
+    // ✅ Timer avec ID unique
     const eventTimerId = `event_${event.eventId}_${Date.now()}`;
     
     const timer = setTimeout(() => {
@@ -314,7 +266,7 @@ export class BattleSequencer {
       this.executeEvent(event, battleId);
     }, delay);
     
-    // ✅ NOUVEAU: Stocker le timer d'événement
+    // ✅ Stocker le timer d'événement
     this.storeTimer(eventTimerId, timer, battleId);
     
     console.log(`⏰ [BattleSequencer] Événement "${event.type}" programmé dans ${delay}ms`);
@@ -461,7 +413,10 @@ export class BattleSequencer {
   private handleTurnChangeEvent(event: BattleEvent): void {
     if (!this.battleRoomCallbacks) return;
     
-    this.battleRoomCallbacks.changeTurn(event.data.newTurn);
+    // ✅ MODIFIÉ: Plus de gestion active des tours
+    console.log(`🔄 [BattleSequencer] Turn change event: ${event.data.newTurn} (TurnSystem gère)`);
+    
+    // ✅ Juste broadcaster l'info, sans changer réellement le tour
     this.battleRoomCallbacks.broadcastMessage('turnChange', {
       newTurn: event.data.newTurn,
       turnNumber: event.data.turnNumber
@@ -472,40 +427,6 @@ export class BattleSequencer {
     if (!this.battleRoomCallbacks) return;
     
     this.battleRoomCallbacks.endBattle(event.data);
-  }
-  
-  // === GESTION DE L'IA ===
-  
-  /**
-   * Programme le tour de l'IA avec délai authentique
-   */
-  private async scheduleAITurn(handler: IBattleHandler, context: BattleContext): Promise<void> {
-    console.log(`🤖 [BattleSequencer] Programmation tour IA...`);
-    
-    // Délai réaliste pour l'IA (1-3 secondes)
-    const aiThinkingTime = Math.random() * 2000 + 1000;
-    
-    // ✅ NOUVEAU: Timer IA avec ID unique
-    const aiScheduleTimerId = `ai_schedule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    const aiScheduleTimer = setTimeout(async () => {
-      this.removeTimer(aiScheduleTimerId, context.battleId);
-      try {
-        console.log(`🤖 [BattleSequencer] IA commence son tour`);
-        
-        // Générer l'action IA
-        const aiAction = await handler.generateAIAction(context);
-        
-        // Traiter l'action IA
-        await this.processAction(aiAction, context);
-        
-      } catch (error) {
-        console.error(`💥 [BattleSequencer] Erreur tour IA:`, error);
-      }
-    }, aiThinkingTime);
-    
-    // ✅ NOUVEAU: Stocker le timer IA
-    this.storeTimer(aiScheduleTimerId, aiScheduleTimer, context.battleId);
   }
   
   // === UTILITAIRES DE CRÉATION DE SÉQUENCES ===
@@ -684,7 +605,7 @@ export class BattleSequencer {
   }
   
   /**
-   * Crée une séquence de changement de tour
+   * ✅ MODIFIÉ: Crée une séquence de changement de tour (simplifiée)
    */
   createTurnChangeSequence(
     newTurn: string,
@@ -694,40 +615,26 @@ export class BattleSequencer {
     const events: BattleEvent[] = [];
     const sequenceId = `turn_change_${Date.now()}`;
     
-    // Message "À votre tour"
-    if (newTurn === context.participants[0]?.sessionId) {
-      const turnMessage = createBattleMessage('MSG_TURN_START');
-      if (turnMessage) {
-        events.push({
-          eventId: `turn_msg`,
-          type: 'message',
-          timestamp: Date.now(),
-          data: {
-            messageId: turnMessage.id,
-            variables: turnMessage.variables
-          },
-          message: turnMessage.template,
-          delay: 0
-        });
-      }
+    // ✅ SIMPLIFIÉ: Juste un message informatif, pas de vraie gestion
+    const turnMessage = createBattleMessage('MSG_TURN_START');
+    if (turnMessage) {
+      events.push({
+        eventId: `turn_msg`,
+        type: 'message',
+        timestamp: Date.now(),
+        data: {
+          messageId: turnMessage.id,
+          variables: turnMessage.variables
+        },
+        message: turnMessage.template,
+        delay: 0
+      });
     }
-    
-    // Changement de tour
-    events.push({
-      eventId: `turn_change`,
-      type: 'turn_change',
-      timestamp: Date.now(),
-      data: {
-        newTurn,
-        turnNumber
-      },
-      delay: BATTLE_TIMINGS.TURN_TRANSITION
-    });
     
     return {
       sequenceId,
       events,
-      totalDuration: BATTLE_TIMINGS.TURN_TRANSITION + BATTLE_TIMINGS.MESSAGE_DISPLAY,
+      totalDuration: BATTLE_TIMINGS.MESSAGE_DISPLAY,
       priority: 60
     };
   }
@@ -749,7 +656,7 @@ export class BattleSequencer {
   cancelBattleSequences(battleId: string): void {
     console.log(`🛑 [BattleSequencer] Annulation séquences pour ${battleId}`);
     
-    // ✅ NOUVEAU: Annuler tous les timers du combat
+    // ✅ Annuler tous les timers du combat
     this.cancelAllBattleTimers(battleId);
     
     // Nettoyer les séquences actives
@@ -792,7 +699,8 @@ export class BattleSequencer {
       activeTimersCount: this.activeTimers.size,
       battleTimersCount: this.battleTimers.size,
       eventQueueLength: this.eventQueue.length,
-      hasCallbacks: !!this.battleRoomCallbacks
+      hasCallbacks: !!this.battleRoomCallbacks,
+      mode: "TurnSystem"
     };
   }
 }
