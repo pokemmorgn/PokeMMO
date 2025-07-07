@@ -164,6 +164,22 @@ setTimeout(() => {
         }
       });
     }
+
+    // ✅ AJOUT: Vérifier si l'IA doit jouer après cette séquence
+    const handler = this.findHandler(context);
+    if (handler && handler.shouldPlayAITurn(context)) {
+      console.log(`🤖 [BattleSequencer] Programmation tour IA automatique...`);
+      
+      // Délai avant que l'IA joue (2 secondes pour laisser lire)
+      setTimeout(async () => {
+        try {
+          const aiAction = await handler.generateAIAction(context);
+          await this.processAction(aiAction, context);
+        } catch (error) {
+          console.error(`🤖 [BattleSequencer] Erreur tour IA auto:`, error);
+        }
+      }, 2000);
+    }
   } catch (err) {
     console.error("[BattleSequencer] Erreur effet onTurnEnd:", err);
   }
