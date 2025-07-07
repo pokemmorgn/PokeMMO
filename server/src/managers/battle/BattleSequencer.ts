@@ -270,7 +270,7 @@ export class BattleSequencer {
     this.activeSequences.delete(context.battleId);
     console.log(`✅ [BattleSequencer] Séquence "${sequence.sequenceId}" terminée`);
   }, sequence.totalDuration);
-  
+ }
   /**
    * Programme un événement à exécuter après un délai
    */
