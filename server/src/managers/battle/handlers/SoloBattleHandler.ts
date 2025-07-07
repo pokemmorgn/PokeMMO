@@ -141,8 +141,22 @@ class SoloBattleHandler implements IBattleHandler {
   private async processAttackAction(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
     console.log(`💥 [SoloBattleHandler] Traitement attaque...`);
     
+    console.log(`💥 [SoloBattleHandler] === DEBUG ATTAQUE ===`);
+    console.log(`🎯 Move ID: ${action.data.moveId}`);
+    console.log(`👤 Attaquant: ${action.playerId}`);
+    
+    // Debug du contexte
+    console.log(`📋 Participants:`, context.participants.length);
+    context.participants.forEach((p, i) => {
+      console.log(`   ${i}: ${p.sessionId} (${p.name}) - Team: ${p.team.length} Pokémon`);
+      if (p.team[0]) {
+        console.log(`      Pokémon actif: ${p.team[0].name} (HP: ${p.team[0].currentHp}/${p.team[0].maxHp})`);
+      }
+    });
+    
     const moveId = action.data.moveId;
     if (!moveId) {
+      console.log(`❌ [SoloBattleHandler] Pas de moveId dans l'action`);
       return this.createErrorSequence('MSG_MOVE_FAILED');
     }
     
