@@ -1492,7 +1492,7 @@ setupBattleNetworkEvents() {
     this.handleNetworkBattleMessage(data);
   });
     
-  this.battleNetworkHandler.on('pokemonHPUpdate', (data) => {
+  this.battleNetworkHandler.on('pokemonDamage', (data) => {
     this.handleNetworkBattleUpdate(data);
   });
   
