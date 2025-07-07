@@ -237,7 +237,7 @@
           "id": "talk_to_psyduck2",
           "type": "talk",
           "description": "Looks like the creature went into a lab. Follow closely.",
-          "target": "999",
+          "target": "999A",
           "targetName": "Psyduck",
           "requiredAmount": 1
         }
