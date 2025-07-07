@@ -135,123 +135,102 @@ export class BattleSequencer {
   /**
    * Exécute une séquence d'événements avec timing authentique
    */
-  private async executeSequence(sequence: BattleSequence, context: BattleContext): Promise<void> {
-    console.log(`🎬 [BattleSequencer] Exécution séquence "${sequence.sequenceId}"`);
-    console.log(`📋 [BattleSequencer] ${sequence.events.length} événements, durée: ${sequence.totalDuration}ms`);
-    
-    this.activeSequences.set(context.battleId, sequence);
-    
-    let currentTime = 0;
-    
-    for (const event of sequence.events) {
-      // Programmer l'événement
-      this.scheduleEvent(event, currentTime, context.battleId);
-      currentTime += event.delay;
-    }
-    
-    // Nettoyer après la séquence complète
-setTimeout(() => {
-  try {
-    // ⚡ Déclencher tous les effets de fin de tour (brûlure, poison, météo…)
-    const results = BattleEffectSystem.triggerHook(context, "onTurnEnd", {});
-    if (results && results.length) {
-      results.forEach((r) => {
-        if (r?.message) {
-          this.battleRoomCallbacks?.broadcastMessage("battleMessage", {
-            message: r.message,
-            timing: 1800
-          });
-        }
-      });
-    }
-
-    // ✅ AJOUT: Vérifier si l'IA doit jouer après cette séquence
-    const handler = this.findHandler(context);
-    if (handler && handler.shouldPlayAITurn(context)) {
-      console.log(`🤖 [BattleSequencer] Programmation tour IA automatique...`);
-      
-      // Délai avant que l'IA joue (2 secondes pour laisser lire)
-setTimeout(() => {
-  try {
-    // ⚡ Déclencher tous les effets de fin de tour
-    const results = BattleEffectSystem.triggerHook(context, "onTurnEnd", {});
-    if (results && results.length) {
-      results.forEach((r) => {
-        if (r?.message) {
-          this.battleRoomCallbacks?.broadcastMessage("battleMessage", {
-            message: r.message,
-            timing: 1800
-          });
-        }
-      });
-    }
-
-    // ✅ AJOUT: Changer le tour après l'action
-    console.log(`🔄 [BattleSequencer] Changement de tour automatique...`);
-    console.log(`🔄 [BattleSequencer] Tour actuel: ${context.currentPlayer}`);
-    
-    // Alterner entre player1 et AI
-    if (context.currentPlayer === context.participants.find(p => !p.isAI)?.sessionId) {
-      // Tour du joueur → Tour de l'IA
-      context.currentPlayer = 'ai';
-      console.log(`🔄 [BattleSequencer] Nouveau tour: ai`);
-      
-      // Informer le BattleRoom du changement
-      this.battleRoomCallbacks?.changeTurn('ai');
-      
-    } else if (context.currentPlayer === 'ai') {
-      // Tour de l'IA → Tour du joueur
-      const playerSessionId = context.participants.find(p => !p.isAI)?.sessionId || 'player1';
-      context.currentPlayer = playerSessionId;
-      console.log(`🔄 [BattleSequencer] Nouveau tour: ${playerSessionId}`);
-      
-      // Informer le BattleRoom du changement
-      this.battleRoomCallbacks?.changeTurn(playerSessionId);
-    }
-
-    // ✅ MAINTENANT vérifier si l'IA doit jouer
-    const handler = this.findHandler(context);
-    if (handler && handler.shouldPlayAITurn(context)) {
-      console.log(`🤖 [BattleSequencer] Programmation tour IA automatique...`);
-      
-      // Délai avant que l'IA joue (2 secondes pour laisser lire)
-      setTimeout(async () => {
-        try {
-          const aiAction = await handler.generateAIAction(context);
-          await this.processAction(aiAction, context);
-        } catch (error) {
-          console.error(`🤖 [BattleSequencer] Erreur tour IA auto:`, error);
-        }
-      }, 2000);
-    }
-  } catch (err) {
-    console.error("[BattleSequencer] Erreur effet onTurnEnd:", err);
-  }
-
-  // Nettoyage normal
-  this.activeSequences.delete(context.battleId);
-  console.log(`✅ [BattleSequencer] Séquence "${sequence.sequenceId}" terminée`);
-}, sequence.totalDuration);
+private async executeSequence(sequence: BattleSequence, context: BattleContext): Promise<void> {
+  console.log(`🎬 [BattleSequencer] Exécution séquence "${sequence.sequenceId}"`);
+  console.log(`📋 [BattleSequencer] ${sequence.events.length} événements, durée: ${sequence.totalDuration}ms`);
+  
+  this.activeSequences.set(context.battleId, sequence);
+  
+  let currentTime = 0;
+  
+  for (const event of sequence.events) {
+    // Programmer l'événement
+    this.scheduleEvent(event, currentTime, context.battleId);
+    currentTime += event.delay;
   }
   
-  /**
-   * Programme un événement à exécuter après un délai
-   */
-  private scheduleEvent(event: BattleEvent, delay: number, battleId: string): void {
-    const executeAt = Date.now() + delay;
-    
-    this.eventQueue.push({ event, executeAt, battleId });
-    
-    const timer = setTimeout(() => {
-      this.executeEvent(event, battleId);
-      this.activeTimers.delete(event.eventId);
-    }, delay);
-    
-    this.activeTimers.set(event.eventId, timer);
-    
-    console.log(`⏰ [BattleSequencer] Événement "${event.type}" programmé dans ${delay}ms`);
-  }
+  // ✅ CORRECTIF: Un seul setTimeout avec toute la logique
+  setTimeout(() => {
+    try {
+      // ⚡ Déclencher tous les effets de fin de tour (brûlure, poison, météo…)
+      const results = BattleEffectSystem.triggerHook(context, "onTurnEnd", {});
+      if (results && results.length) {
+        results.forEach((r) => {
+          if (r?.message) {
+            this.battleRoomCallbacks?.broadcastMessage("battleMessage", {
+              message: r.message,
+              timing: 1800
+            });
+          }
+        });
+      }
+
+      // ✅ CHANGEMENT DE TOUR après l'action
+      console.log(`🔄 [BattleSequencer] Changement de tour automatique...`);
+      console.log(`🔄 [BattleSequencer] Tour actuel: ${context.currentPlayer}`);
+      
+      // Alterner entre player1 et AI
+      if (context.currentPlayer === context.participants.find(p => !p.isAI)?.sessionId) {
+        // Tour du joueur → Tour de l'IA
+        context.currentPlayer = 'ai';
+        console.log(`🔄 [BattleSequencer] Nouveau tour: ai`);
+        
+        // Informer le BattleRoom du changement
+        this.battleRoomCallbacks?.changeTurn('ai');
+        
+      } else if (context.currentPlayer === 'ai') {
+        // Tour de l'IA → Tour du joueur
+        const playerSessionId = context.participants.find(p => !p.isAI)?.sessionId || 'player1';
+        context.currentPlayer = playerSessionId;
+        console.log(`🔄 [BattleSequencer] Nouveau tour: ${playerSessionId}`);
+        
+        // Informer le BattleRoom du changement
+        this.battleRoomCallbacks?.changeTurn(playerSessionId);
+      }
+
+      // ✅ VÉRIFIER si l'IA doit jouer APRÈS le changement de tour
+      const handler = this.findHandler(context);
+      if (handler && handler.shouldPlayAITurn(context)) {
+        console.log(`🤖 [BattleSequencer] Programmation tour IA automatique...`);
+        
+        // Délai avant que l'IA joue (2 secondes pour laisser lire)
+        setTimeout(async () => {
+          try {
+            const aiAction = await handler.generateAIAction(context);
+            await this.processAction(aiAction, context);
+          } catch (error) {
+            console.error(`🤖 [BattleSequencer] Erreur tour IA auto:`, error);
+          }
+        }, 2000);
+      }
+      
+    } catch (err) {
+      console.error("[BattleSequencer] Erreur dans executeSequence:", err);
+    }
+
+    // Nettoyage normal
+    this.activeSequences.delete(context.battleId);
+    console.log(`✅ [BattleSequencer] Séquence "${sequence.sequenceId}" terminée`);
+  }, sequence.totalDuration);
+}
+
+/**
+ * Programme un événement à exécuter après un délai
+ */
+private scheduleEvent(event: BattleEvent, delay: number, battleId: string): void {
+  const executeAt = Date.now() + delay;
   
+  this.eventQueue.push({ event, executeAt, battleId });
+  
+  const timer = setTimeout(() => {
+    this.executeEvent(event, battleId);
+    this.activeTimers.delete(event.eventId);
+  }, delay);
+  
+  this.activeTimers.set(event.eventId, timer);
+  
+  console.log(`⏰ [BattleSequencer] Événement "${event.type}" programmé dans ${delay}ms`);
+}
   /**
    * Exécute un événement au bon moment
    */
