@@ -688,6 +688,15 @@ export class QuestHandlers {
           amount: 1
         };
 
+     case 'follow_psyduck':
+        return {
+          type: 'talk',
+          npcId: 999,
+          targetId: '999A',
+          amount: 1
+        };
+
+        
       default:
         return null;
     }
