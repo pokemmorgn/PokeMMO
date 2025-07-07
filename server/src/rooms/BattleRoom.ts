@@ -410,7 +410,7 @@ private async autoSelectFirstPokemon() {
   }
 }
 
-  private async createWildBattlePokemon(wildPokemon: any): Promise<BattlePokemon> {
+private async createWildBattlePokemon(wildPokemon: any): Promise<BattlePokemon> {
   const battlePokemon = new BattlePokemon();
   
   const pokemonData = await getPokemonById(wildPokemon.pokemonId);
@@ -429,14 +429,26 @@ private async autoSelectFirstPokemon() {
   battlePokemon.types.clear();
   pokemonData.types.forEach((type: string) => battlePokemon.types.push(type));
   
-  // Stats calculées
-  battlePokemon.maxHp = wildPokemon.hp;
-  battlePokemon.currentHp = wildPokemon.hp;
-  battlePokemon.attack = wildPokemon.attack;
-  battlePokemon.defense = wildPokemon.defense;
-  battlePokemon.specialAttack = wildPokemon.specialAttack;
-  battlePokemon.specialDefense = wildPokemon.specialDefense;
-  battlePokemon.speed = wildPokemon.speed;
+  // ✅ CORRECTION: Utiliser les stats de wildPokemon ou calculer
+  console.log(`🔧 [WildPokemon] Stats reçues:`, {
+    hp: wildPokemon.hp,
+    attack: wildPokemon.attack,
+    speed: wildPokemon.speed
+  });
+  
+  battlePokemon.maxHp = wildPokemon.hp || this.calculateBaseStat(pokemonData.baseStats.hp, wildPokemon.level);
+  battlePokemon.currentHp = wildPokemon.hp || this.calculateBaseStat(pokemonData.baseStats.hp, wildPokemon.level);
+  battlePokemon.attack = wildPokemon.attack || this.calculateBaseStat(pokemonData.baseStats.attack, wildPokemon.level);
+  battlePokemon.defense = wildPokemon.defense || this.calculateBaseStat(pokemonData.baseStats.defense, wildPokemon.level);
+  battlePokemon.specialAttack = wildPokemon.specialAttack || this.calculateBaseStat(pokemonData.baseStats.specialAttack, wildPokemon.level);
+  battlePokemon.specialDefense = wildPokemon.specialDefense || this.calculateBaseStat(pokemonData.baseStats.specialDefense, wildPokemon.level);
+  battlePokemon.speed = wildPokemon.speed || this.calculateBaseStat(pokemonData.baseStats.speed, wildPokemon.level);
+  
+  console.log(`✅ [WildPokemon] Stats finales:`, {
+    hp: battlePokemon.maxHp,
+    attack: battlePokemon.attack,
+    speed: battlePokemon.speed
+  });
   
   // Moves de base
   battlePokemon.moves.clear();
