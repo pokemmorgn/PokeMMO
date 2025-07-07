@@ -33,6 +33,12 @@ export interface IBattleRoomCallbacks {
   changeTurn(newTurn: string): void;
   endBattle(result: any): void;
   logBattleEvent(event: BattleEvent): void;
+
+    // ✅ NOUVELLES MÉTHODES À AJOUTER
+  updatePokemonStatus?: (pokemonId: string, newStatus: string) => void;
+  updatePokemonStats?: (pokemonId: string, statChanges: any) => void;
+  playAnimation?: (animationType: string, animationData: any) => void;
+  updateMovePP?: (pokemonId: string, moveId: string, newPP: number) => void;
 }
 
 /**
