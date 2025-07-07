@@ -220,7 +220,7 @@
         {
           "id": "talk_to_psyduck",
           "type": "talk",
-          "description": "Talk to the Psyduck (he seems to know what's up… maybe).",
+          "description": "Follow the mysterious yellow creature.",
           "target": "999",
           "targetName": "Psyduck",
           "requiredAmount": 1
