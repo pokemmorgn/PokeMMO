@@ -1,472 +1,311 @@
-// client/src/network/BattleNetworkHandler.js - Version complète corrigée avec timing
+// client/src/network/BattleNetworkHandler.js - VERSION MINIMALE MODERNE
+// 🔄 COMPLÈTEMENT RECRÉE pour correspondre au serveur modernisé
 
 /**
- * Gestionnaire réseau spécialisé pour le système de combat
- * ✅ CORRECTION: Configuration immédiate des événements pour éviter les "onMessage not registered"
+ * GESTIONNAIRE RÉSEAU MINIMAL ET MODERNE
+ * Synchronisé avec le serveur BattleRoom + BattleIntegration
  */
 export class BattleNetworkHandler {
   constructor(mainNetworkManager) {
     this.networkManager = mainNetworkManager;
 
     // Connexions
-    this.worldRoom = null;      // Référence vers WorldRoom
-    this.battleRoom = null;     // Connexion BattleRoom dédiée
-    this.client = null;         // Client Colyseus
+    this.worldRoom = null;
+    this.battleRoom = null;
+    this.client = null;
 
-    // État
+    // État simplifié
     this.isConnectedToBattle = false;
     this.battleRoomId = null;
     this.pendingConnection = false;
 
-    // Callbacks d'événements
+    // Système d'événements
     this.eventCallbacks = new Map();
 
-    // Messages en attente si pas encore connecté
+    // Messages en attente
     this.pendingMessages = [];
 
-    // Flags pour éviter les appels multiples
-    this._leavingBattle = false;
-    this._isDisconnecting = false;
-
-    console.log('[DEBUG NETWORK BATTLE] 🌐 BattleNetworkHandler Initialisé');
+    console.log('🌐 [BattleNetworkHandler] Version moderne initialisée');
   }
 
-  // === INITIALISATION IMMÉDIATE ===
+  // === INITIALISATION ===
 
-  /**
-   * ✅ CORRECTION CRITIQUE: Initialise et configure les événements IMMÉDIATEMENT
-   */
   initialize(worldRoom, client) {
-    console.log('[DEBUG NETWORK BATTLE] 🔧 Initialisation IMMÉDIATE...');
+    console.log('🔧 [BattleNetworkHandler] Initialisation moderne...');
 
     if (!worldRoom) {
-      console.error('[DEBUG NETWORK BATTLE] ❌ WorldRoom manquante');
+      console.error('❌ WorldRoom manquante');
       return false;
     }
 
     this.worldRoom = worldRoom;
 
-    // ✅ CORRECTION: Prioriser window.client puis le client passé
+    // Prioriser window.client
     if (window.client && typeof window.client.joinById === 'function') {
       this.client = window.client;
-      console.log('[DEBUG NETWORK BATTLE] ✅ Utilisation client global (window.client)');
+      console.log('✅ Client global utilisé');
     } else if (client && typeof client.joinById === 'function') {
       this.client = client;
-      console.log('[DEBUG NETWORK BATTLE] ✅ Utilisation client fourni');
+      console.log('✅ Client fourni utilisé');
     } else {
-      console.error('[DEBUG NETWORK BATTLE] ❌ Aucun client Colyseus valide disponible');
-      console.log('[DEBUG NETWORK BATTLE] 🔍 Debug clients:', {
-        windowClient: !!window.client,
-        windowClientType: typeof window.client,
-        windowClientJoinById: typeof window.client?.joinById,
-        providedClient: !!client,
-        providedClientType: typeof client,
-        providedClientJoinById: typeof client?.joinById
-      });
+      console.error('❌ Aucun client Colyseus valide');
       return false;
     }
 
-    // ✅ CORRECTION CRITIQUE: Configurer les événements IMMÉDIATEMENT
-    // AVANT que le serveur puisse envoyer des messages
-    this.setupWorldRoomBattleEvents();
+    // ✅ IMMÉDIAT: Configurer les événements WorldRoom
+    this.setupWorldRoomEvents();
 
-    console.log('[DEBUG NETWORK BATTLE] ✅ Initialisé avec événements configurés IMMÉDIATEMENT');
+    console.log('✅ BattleNetworkHandler moderne initialisé');
     return true;
   }
 
-  // === ÉVÉNEMENTS WORLDROOM (CONFIGURÉS IMMÉDIATEMENT) ===
+  // === ÉVÉNEMENTS WORLDROOM (SYNCHRONISÉS SERVEUR) ===
 
-  setupWorldRoomBattleEvents() {
-    if (!this.worldRoom) {
-      console.error('[DEBUG NETWORK BATTLE] ❌ Pas de WorldRoom pour configurer événements');
+  setupWorldRoomEvents() {
+    if (!this.worldRoom?.onMessage) {
+      console.error('❌ worldRoom.onMessage non disponible');
       return;
     }
 
-    console.log('[DEBUG NETWORK BATTLE] 📡 Configuration IMMÉDIATE événements WorldRoom...');
-
-    // ✅ CORRECTION: Vérifier que onMessage existe
-    if (typeof this.worldRoom.onMessage !== 'function') {
-      console.error('[DEBUG NETWORK BATTLE] ❌ worldRoom.onMessage n\'est pas une fonction:', typeof this.worldRoom.onMessage);
-      console.log('[DEBUG NETWORK BATTLE] 🔍 WorldRoom keys:', Object.keys(this.worldRoom).slice(0, 10));
-      return;
-    }
+    console.log('📡 Configuration événements WorldRoom modernes...');
 
     try {
-      // === RENCONTRES ET CRÉATION DE COMBAT ===
-
+      // ✅ RENCONTRES - correspond à BattleRoom.ts
       this.worldRoom.onMessage('wildEncounterStart', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🐾 wildEncounterStart reçu:', data);
-        this.handleWildEncounterStart(data);
+        console.log('🐾 wildEncounterStart reçu:', data);
+        this.triggerEvent('wildEncounterStart', {
+          type: 'wild',
+          pokemon: data.wildPokemon || data.pokemon,
+          location: data.location,
+          method: data.method
+        });
       });
 
+      // ✅ CRÉATION BATTLEROOM - correspond aux callbacks BattleIntegration
       this.worldRoom.onMessage('battleRoomCreated', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🏠 battleRoomCreated reçu, transmission...');
-        this.triggerEvent('battleRoomCreated', data);
+        console.log('🏠 battleRoomCreated reçu:', data);
+        this.handleBattleRoomCreated(data);
       });
 
-
-      this.worldRoom.onMessage('joinBattleRoom', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🚪 joinBattleRoom reçu:', data);
-        this.handleJoinBattleRoomRequest(data);
-      });
-
-      // === GESTION DES ERREURS ===
-
+      // ✅ ERRORS ET STATUS
       this.worldRoom.onMessage('battleError', (data) => {
-        console.error('[DEBUG NETWORK BATTLE] ❌ Erreur combat WorldRoom:', data);
+        console.error('❌ Erreur combat:', data);
         this.triggerEvent('battleError', data);
       });
 
       this.worldRoom.onMessage('encounterFailed', (data) => {
-        console.error('[DEBUG NETWORK BATTLE] ❌ encounterFailed reçu:', data);
+        console.error('❌ Rencontre échouée:', data);
         this.triggerEvent('battleError', { 
           message: data.message || 'Échec rencontre',
           type: 'encounter_failed'
         });
       });
 
-      this.worldRoom.onMessage('battleLeft', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 👋 battleLeft reçu:', data);
-        this.handleBattleLeftFromWorld(data);
-      });
-
-      // === STATUTS ET NOTIFICATIONS ===
-
-      this.worldRoom.onMessage('battleStatus', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 📊 battleStatus reçu:', data);
-        this.triggerEvent('battleStatusUpdate', data);
-      });
-
-      this.worldRoom.onMessage('canBattleResult', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] ✅ canBattleResult reçu:', data);
-        this.triggerEvent('canBattleResult', data);
-      });
-
-      this.worldRoom.onMessage('battleDeclined', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] ❌ battleDeclined reçu:', data);
-        this.triggerEvent('battleDeclined', data);
-      });
-
-      // === RÉCOMPENSES ===
-
-      this.worldRoom.onMessage('rewardsClaimed', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🎁 rewardsClaimed reçu:', data);
-        this.triggerEvent('rewardsClaimed', data);
-      });
-
-      this.worldRoom.onMessage('rewardsError', (data) => {
-        console.error('[DEBUG NETWORK BATTLE] ❌ rewardsError reçu:', data);
-        this.triggerEvent('rewardsError', data);
-      });
-
-      // === DEBUG ===
-
-      this.worldRoom.onMessage('battleDebugInfo', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🔍 battleDebugInfo reçu:', data);
-        this.triggerEvent('battleDebugInfo', data);
-      });
-
-      console.log('[DEBUG NETWORK BATTLE] ✅ Événements WorldRoom configurés IMMÉDIATEMENT');
+      console.log('✅ Événements WorldRoom configurés');
 
     } catch (error) {
-      console.error('[DEBUG NETWORK BATTLE] ❌ Erreur configuration événements WorldRoom:', error);
+      console.error('❌ Erreur configuration événements:', error);
     }
   }
 
-  // === HANDLERS DES ÉVÉNEMENTS WORLDROOM ===
+  // === HANDLER BATTLEROOM CREATED ===
 
-  handleWildEncounterStart(data) {
-    console.log('[DEBUG NETWORK BATTLE] 🐾 Traitement rencontre sauvage...', data);
-
-    // Notifier le système de combat
-    this.triggerEvent('wildEncounterStart', {
-      type: 'wild',
-      pokemon: data.wildPokemon || data.pokemon,
-      location: data.location,
-      method: data.method,
-      message: data.message
+  async handleBattleRoomCreated(data) {
+    console.log('🏠 Traitement création BattleRoom moderne...');
+    console.log('📊 Données reçues:', {
+      battleRoomId: data.battleRoomId,
+      battleType: data.battleType,
+      hasPlayerPokemon: !!data.playerPokemon,
+      hasOpponentPokemon: !!data.opponentPokemon
     });
-  }
 
-async handleBattleRoomCreated(data) {
-  console.log('[BUGPOKEMON] 📥 RÉCEPTION battleRoomCreated:', data);
-  console.log('[BUGPOKEMON] 📋 Clés reçues:', Object.keys(data));
-  console.log('[BUGPOKEMON] 👤 playerPokemon:', data.playerPokemon);
-  console.log('[BUGPOKEMON] 🔍 SERVEUR data.opponentPokemon COMPLET:', JSON.stringify(data.opponentPokemon, null, 2));
-  console.log('[BUGPOKEMON] 🔍 data.wildPokemon:', data.wildPokemon);
-  
-  console.log('[DEBUG NETWORK BATTLE] 🏠 Traitement création BattleRoom...', data);
-  
-  // ✅ DEBUG: Vérifier les données
-  console.log('[DEBUG] data.playerPokemon existe ?', !!data.playerPokemon);
-  console.log('[DEBUG] data.wildPokemon existe ?', !!data.wildPokemon);
-  console.log('[DEBUG] Avant triggerEvent...');
-  
-  this.battleRoomId = data.battleRoomId;
-  
-  console.log('[BUGPOKEMON] 🔧 DEBUG: Avant connexion...');
-  console.log('[BUGPOKEMON] 🔍 this.battleRoomId:', this.battleRoomId);
-  console.log('[BUGPOKEMON] 🔍 this.connectToBattleRoom existe:', typeof this.connectToBattleRoom);
-  
-  try {
-    // ✅ IMPORTANT: Connexion automatique AVANT de notifier
-    console.log('[BUGPOKEMON] 🔗 Connexion automatique à la BattleRoom...');
-    const success = await this.connectToBattleRoom(this.battleRoomId);
-    
-    console.log('[BUGPOKEMON] 🔍 Résultat connexion:', success);
-    
-    if (!success) {
-      console.error('[BUGPOKEMON] ❌ Échec connexion auto BattleRoom');
-      this.triggerEvent('battleConnectionFailed', { battleRoomId: this.battleRoomId });
-      return;
-    }
-    
-    console.log('[BUGPOKEMON] ✅ Connecté à la BattleRoom, transmission des données...');
-  } catch (error) {
-    console.error('[BUGPOKEMON] 💥 Erreur lors de la connexion:', error);
-    return;
-  }
-  
-  // ✅ Notifier la création APRÈS connexion réussie
-  this.triggerEvent('battleRoomCreated', {
-    battleRoomId: this.battleRoomId,
-    battleType: data.battleType,
-    playerPokemon: data.playerPokemon,
-    opponentPokemon: data.opponentPokemon,
-    wildPokemon: data.wildPokemon,
-    location: data.location,
-    method: data.method,
-    currentZone: data.currentZone
-  });
-  
-  console.log('[BUGPOKEMON] ✅ Données transmises à BattleIntegration');
-}
+    this.battleRoomId = data.battleRoomId;
 
-  async handleJoinBattleRoomRequest(data) {
-    console.log('[DEBUG NETWORK BATTLE] 🚪 Demande rejoindre BattleRoom...', data);
+    try {
+      // ✅ CONNEXION AUTOMATIQUE à la BattleRoom
+      console.log('🔗 Connexion automatique BattleRoom...');
+      const success = await this.connectToBattleRoom(this.battleRoomId);
 
-    if (!this.isConnectedToBattle && data.battleRoomId) {
-      await this.connectToBattleRoom(data.battleRoomId);
-    }
-
-    this.triggerEvent('joinBattleRoomRequested', data);
-  }
-
-  handleBattleLeftFromWorld(data) {
-    console.log('[DEBUG NETWORK BATTLE] 👋 Combat quitté depuis WorldRoom...', data);
-
-    // Nettoyer la connexion BattleRoom
-    this.disconnectFromBattleRoom();
-
-    this.triggerEvent('battleLeft', {
-      reason: data.reason || 'server_request',
-      message: data.message
-    });
-  }
-
-  // === CONNEXION À LA BATTLEROOM ===
-
-async connectToBattleRoom(battleRoomId) {
-  console.log(`🔥 [CLIENT DEBUG] === CONNEXION BATTLEROOM AVEC OPTIONS ===`);
-  console.log(`🔥 [CLIENT DEBUG] battleRoomId: ${battleRoomId}`);
-  console.log(`🔥 [CLIENT DEBUG] WorldRoom sessionId: ${this.worldRoom?.sessionId}`);
-  
-  if (!battleRoomId) {
-    console.error(`🔥 [CLIENT DEBUG] ❌ battleRoomId manquant`);
-    return false;
-  }
-
-  if (this.pendingConnection) {
-    console.warn(`🔥 [CLIENT DEBUG] ⚠️ Connexion déjà en cours`);
-    return false;
-  }
-
-  this.pendingConnection = true;
-
-  try {
-    // ✅ Double vérification du client
-    if (!this.client || typeof this.client.joinById !== 'function') {
-      console.error(`🔥 [CLIENT DEBUG] ❌ Client invalide:`, typeof this.client);
-
-      if (window.client && typeof window.client.joinById === 'function') {
-        console.log(`🔥 [CLIENT DEBUG] 🔄 Récupération client global`);
-        this.client = window.client;
-      } else {
-        throw new Error('Aucun client Colyseus valide disponible');
+      if (!success) {
+        console.error('❌ Échec connexion BattleRoom');
+        this.triggerEvent('battleConnectionFailed', { battleRoomId: this.battleRoomId });
+        return;
       }
+
+      // ✅ NOTIFICATION avec données complètes
+      this.triggerEvent('battleRoomCreated', {
+        battleRoomId: this.battleRoomId,
+        battleType: data.battleType,
+        playerPokemon: data.playerPokemon,
+        opponentPokemon: data.opponentPokemon,
+        wildPokemon: data.wildPokemon,
+        location: data.location,
+        currentZone: data.currentZone
+      });
+
+      console.log('✅ BattleRoom créée et connectée');
+
+    } catch (error) {
+      console.error('💥 Erreur traitement BattleRoom:', error);
     }
-
-    // ✅ SOLUTION: Passer des options pour préserver l'identité
-    const joinOptions = {
-      // Passer le sessionId de la WorldRoom pour maintenir l'identité
-      worldSessionId: this.worldRoom?.sessionId,
-      playerName: this.worldRoom?.state?.players?.get(this.worldRoom.sessionId)?.name || 'Unknown'
-    };
-
-    console.log(`🔥 [CLIENT DEBUG] 🚀 Tentative joinById avec options:`, joinOptions);
-    
-    // ✅ CORRECTION: Utiliser joinById avec options
-    this.battleRoom = await this.client.joinById(battleRoomId, joinOptions);
-
-    if (!this.battleRoom) {
-      throw new Error('BattleRoom reçue null');
-    }
-
-    console.log(`🔥 [CLIENT DEBUG] ✅ Connecté à BattleRoom: ${battleRoomId}`);
-    console.log(`🔥 [CLIENT DEBUG] 🎮 Room info:`, {
-      id: this.battleRoom.id,
-      sessionId: this.battleRoom.sessionId,
-      name: this.battleRoom.name
-    });
-    console.log(`🔥 [CLIENT DEBUG] 🔍 Comparaison sessionIds:`, {
-      worldSessionId: this.worldRoom?.sessionId,
-      battleSessionId: this.battleRoom.sessionId,
-      sameId: this.worldRoom?.sessionId === this.battleRoom.sessionId
-    });
-
-    // Configuration des événements BattleRoom
-    this.setupBattleRoomEvents();
-
-    this.isConnectedToBattle = true;
-    this.pendingConnection = false;
-
-    // Envoyer les messages en attente
-    this.processPendingMessages();
-
-    // Notifier la connexion réussie
-    this.triggerEvent('battleRoomConnected', {
-      battleRoomId: battleRoomId,
-      room: this.battleRoom
-    });
-
-    return true;
-
-  } catch (error) {
-    console.error(`🔥 [CLIENT DEBUG] ❌ Erreur connexion BattleRoom:`, error);
-    this.pendingConnection = false;
-
-    this.triggerEvent('battleConnectionError', {
-      error: error.message || 'Connection failed',
-      battleRoomId: battleRoomId,
-      details: error.toString()
-    });
-
-    return false;
   }
-}
 
-  // === ÉVÉNEMENTS BATTLEROOM ===
+  // === CONNEXION BATTLEROOM ===
+
+  async connectToBattleRoom(battleRoomId) {
+    console.log(`🔗 Connexion BattleRoom: ${battleRoomId}`);
+
+    if (!battleRoomId || this.pendingConnection) {
+      console.warn('⚠️ Connexion impossible');
+      return false;
+    }
+
+    this.pendingConnection = true;
+
+    try {
+      // ✅ Vérification client
+      if (!this.client?.joinById) {
+        if (window.client?.joinById) {
+          this.client = window.client;
+        } else {
+          throw new Error('Client Colyseus invalide');
+        }
+      }
+
+      // ✅ Options de connexion avec identité préservée
+      const joinOptions = {
+        worldSessionId: this.worldRoom?.sessionId,
+        playerName: this.worldRoom?.state?.players?.get(this.worldRoom.sessionId)?.name || 'Joueur'
+      };
+
+      console.log('🚀 Tentative joinById avec options:', joinOptions);
+
+      // ✅ CONNEXION
+      this.battleRoom = await this.client.joinById(battleRoomId, joinOptions);
+
+      if (!this.battleRoom) {
+        throw new Error('BattleRoom null reçue');
+      }
+
+      console.log('✅ Connecté à BattleRoom:', {
+        id: this.battleRoom.id,
+        sessionId: this.battleRoom.sessionId
+      });
+
+      // ✅ Configuration événements BattleRoom
+      this.setupBattleRoomEvents();
+
+      this.isConnectedToBattle = true;
+      this.pendingConnection = false;
+
+      // ✅ Traiter messages en attente
+      this.processPendingMessages();
+
+      // ✅ Notification connexion réussie
+      this.triggerEvent('battleRoomConnected', {
+        battleRoomId,
+        room: this.battleRoom
+      });
+
+      return true;
+
+    } catch (error) {
+      console.error('❌ Erreur connexion BattleRoom:', error);
+      this.pendingConnection = false;
+
+      this.triggerEvent('battleConnectionError', {
+        error: error.message,
+        battleRoomId
+      });
+
+      return false;
+    }
+  }
+
+  // === ÉVÉNEMENTS BATTLEROOM (SYNCHRONISÉS SERVEUR) ===
 
   setupBattleRoomEvents() {
     if (!this.battleRoom) return;
 
-    console.log('[DEBUG NETWORK BATTLE] ⚔️ Configuration événements BattleRoom...');
+    console.log('⚔️ Configuration événements BattleRoom modernes...');
 
     try {
-      // === ÉVÉNEMENTS DE COMBAT ===
-      
-            this.battleRoom.onMessage('battleMessage', (data) => {
-        console.log('🔄 [CLIENT] battleMessage reçu:', data);
-        console.log('🔄 [CLIENT] HP reçus:', {
-          player1: data.player1Pokemon?.currentHp + '/' + data.player1Pokemon?.maxHp,
-          player2: data.player2Pokemon?.currentHp + '/' + data.player2Pokemon?.maxHp
-        });
-        this.triggerEvent('battleMessage', data);
-      });
-            
+      // ✅ ÉVÉNEMENTS COMBAT - correspondent aux callbacks BattleRoom.ts
+
       this.battleRoom.onMessage('battleJoined', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] ⚔️ battleJoined:', data);
+        console.log('⚔️ battleJoined:', data);
         this.triggerEvent('battleJoined', data);
       });
 
       this.battleRoom.onMessage('phaseChange', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🔄 phaseChange:', data.phase);
+        console.log('🔄 phaseChange:', data.phase);
         this.triggerEvent('phaseChange', data);
       });
 
       this.battleRoom.onMessage('battleStart', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] ⚔️ battleStart:', data);
+        console.log('⚔️ battleStart:', data);
         this.triggerEvent('battleStart', data);
       });
 
       this.battleRoom.onMessage('yourTurn', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🔄 turnChange:', data);
+        console.log('🎯 yourTurn:', data);
         this.triggerEvent('yourTurn', data);
       });
 
+      // ✅ MESSAGES DE COMBAT - correspond aux broadcastMessage
       this.battleRoom.onMessage('battleMessage', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 💬 battleMessage:', data.message);
+        console.log('💬 battleMessage:', data.message);
         this.triggerEvent('battleMessage', data);
       });
 
+      // ✅ MISES À JOUR HP - correspond aux callbacks updatePokemonHP
+      this.battleRoom.onMessage('pokemonHPUpdate', (data) => {
+        console.log('💖 pokemonHPUpdate:', data);
+        this.triggerEvent('pokemonHPUpdate', data);
+      });
+
+      // ✅ FIN DE COMBAT - correspond aux BattleEndManager
       this.battleRoom.onMessage('battleEndWithRewards', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🏁 battleEndWithRewards:', data);
+        console.log('🏁 battleEndWithRewards:', data);
         this.triggerEvent('battleEndWithRewards', data);
 
-        // Programmer la déconnexion
+        // Programmer déconnexion
         setTimeout(() => {
           this.disconnectFromBattleRoom();
         }, 3000);
       });
 
+      // ✅ INTERRUPTIONS
       this.battleRoom.onMessage('battleInterrupted', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] ⚠️ battleInterrupted:', data);
+        console.log('⚠️ battleInterrupted:', data);
         this.triggerEvent('battleInterrupted', data);
         this.disconnectFromBattleRoom();
       });
 
-      // === ÉVÉNEMENTS D'ACTIONS ===
-
-      this.battleRoom.onMessage('pokemonDamage', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 💥 pokemonDamage:', data);
-        this.triggerEvent('pokemonDamage', data);
-      });
-
-      this.battleRoom.onMessage('captureShake', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🎯 captureShake:', data);
-        this.triggerEvent('captureShake', data);
-      });
-
-      this.battleRoom.onMessage('captureResult', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🎯 captureResult:', data);
-        this.triggerEvent('captureResult', data);
-      });
-
-      this.battleRoom.onMessage('pokemonFainted', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 😵 pokemonFainted:', data);
-        this.triggerEvent('pokemonFainted', data);
-      });
-
-      this.battleRoom.onMessage('statusEffectApplied', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🌡️ statusEffectApplied:', data);
-        this.triggerEvent('statusEffectApplied', data);
-      });
-
-      // === ÉVÉNEMENTS DE CONNEXION ===
-
+      // ✅ ÉVÉNEMENTS DE CONNEXION
       this.battleRoom.onStateChange((state) => {
         this.triggerEvent('battleStateChange', { state });
       });
 
       this.battleRoom.onLeave((code) => {
-        console.log(`[DEBUG NETWORK BATTLE] 👋 onLeave BattleRoom (${code})`);
+        console.log(`👋 BattleRoom quittée (${code})`);
         this.handleBattleRoomDisconnect(code);
       });
 
       this.battleRoom.onError((code, message) => {
-        console.error(`[DEBUG NETWORK BATTLE] ❌ Erreur BattleRoom: ${code} - ${message}`);
+        console.error(`❌ Erreur BattleRoom: ${code} - ${message}`);
         this.triggerEvent('battleRoomError', { code, message });
       });
 
-      console.log('[DEBUG NETWORK BATTLE] ✅ Événements BattleRoom configurés');
+      console.log('✅ Événements BattleRoom configurés');
 
     } catch (error) {
-      console.error('[DEBUG NETWORK BATTLE] ❌ Erreur configuration événements BattleRoom:', error);
+      console.error('❌ Erreur configuration événements BattleRoom:', error);
     }
   }
 
   handleBattleRoomDisconnect(code) {
-    console.log(`[DEBUG NETWORK BATTLE] 👋 Déconnexion BattleRoom: ${code}`);
+    console.log(`👋 Déconnexion BattleRoom: ${code}`);
 
     this.isConnectedToBattle = false;
     this.battleRoom = null;
@@ -475,66 +314,55 @@ async connectToBattleRoom(battleRoomId) {
     this.triggerEvent('battleRoomDisconnected', { code });
   }
 
-  // === ENVOI DE MESSAGES ===
+  // === ENVOI DE MESSAGES (SYNCHRONISÉS SERVEUR) ===
 
   /**
-   * Envoie un message à la WorldRoom
+   * ✅ Envoie vers WorldRoom
    */
   sendToWorld(messageType, data = {}) {
     if (!this.worldRoom) {
-      console.error('[DEBUG NETWORK BATTLE] ❌ WorldRoom non connectée');
+      console.error('❌ WorldRoom non connectée');
       return false;
-    }
-
-    // Log du readyState si dispo (pour debug profond)
-    if (this.worldRoom.connection?.ws) {
-      console.log('[DEBUG NETWORK BATTLE] [WS WorldRoom] readyState =', this.worldRoom.connection.ws.readyState);
     }
 
     try {
       this.worldRoom.send(messageType, data);
-      console.log(`[DEBUG NETWORK BATTLE] 📤➡️ → WorldRoom: ${messageType}`, data);
+      console.log(`📤➡️ WorldRoom: ${messageType}`, data);
       return true;
     } catch (error) {
-      console.error(`[DEBUG NETWORK BATTLE] ❌ Erreur envoi WorldRoom:`, error);
+      console.error(`❌ Erreur envoi WorldRoom:`, error);
       return false;
     }
   }
 
   /**
-   * Envoie un message à la BattleRoom
+   * ✅ Envoie vers BattleRoom - correspond aux handlers BattleRoom.ts
    */
   sendToBattle(messageType, data = {}) {
     if (!this.isConnectedToBattle || !this.battleRoom) {
-      console.warn(`[DEBUG NETWORK BATTLE] ⚠️ BattleRoom non connectée, mise en attente: ${messageType}`);
+      console.warn(`⚠️ BattleRoom non connectée, mise en attente: ${messageType}`);
       this.pendingMessages.push({ messageType, data, timestamp: Date.now() });
       return false;
     }
 
-    // Log du readyState si dispo (pour debug profond)
-    if (this.battleRoom.connection?.ws) {
-      console.log('[DEBUG NETWORK BATTLE] [WS BattleRoom] readyState =', this.battleRoom.connection.ws.readyState);
-    }
-
     try {
       this.battleRoom.send(messageType, data);
-      console.log(`[DEBUG NETWORK BATTLE] 📤⚔️ → BattleRoom: ${messageType}`, data);
+      console.log(`📤⚔️ BattleRoom: ${messageType}`, data);
       return true;
     } catch (error) {
-      console.error(`[DEBUG NETWORK BATTLE] ❌ Erreur envoi BattleRoom:`, error);
+      console.error(`❌ Erreur envoi BattleRoom:`, error);
       return false;
     }
   }
 
   /**
-   * Traite les messages en attente après connexion BattleRoom
+   * ✅ Traite les messages en attente
    */
   processPendingMessages() {
     if (this.pendingMessages.length === 0) return;
 
-    console.log(`[DEBUG NETWORK BATTLE] 📤 Traitement ${this.pendingMessages.length} messages en attente...`);
+    console.log(`📤 Traitement ${this.pendingMessages.length} messages en attente...`);
 
-    // Filtrer les messages trop anciens (>30s)
     const now = Date.now();
     const validMessages = this.pendingMessages.filter(msg => (now - msg.timestamp) < 30000);
 
@@ -543,14 +371,16 @@ async connectToBattleRoom(battleRoomId) {
     });
 
     this.pendingMessages = [];
-
-    console.log(`[DEBUG NETWORK BATTLE] ✅ ${validMessages.length} messages traités`);
+    console.log(`✅ ${validMessages.length} messages traités`);
   }
 
-  // === ACTIONS DE COMBAT SPÉCIFIQUES ===
+  // === ACTIONS DE COMBAT (SYNCHRONISÉES SERVEUR) ===
 
+  /**
+   * ✅ Demande de combat sauvage - correspond à startWildBattle WorldRoom
+   */
   requestWildBattle(wildPokemonData) {
-    console.log('[DEBUG NETWORK BATTLE] [API] requestWildBattle', wildPokemonData);
+    console.log('🐾 Demande combat sauvage:', wildPokemonData);
     return this.sendToWorld('startWildBattle', {
       wildPokemon: wildPokemonData.pokemon || wildPokemonData,
       location: wildPokemonData.location || 'unknown',
@@ -558,119 +388,99 @@ async connectToBattleRoom(battleRoomId) {
     });
   }
 
+  /**
+   * ✅ Choix de Pokémon - correspond au handler choosePokemon
+   */
   choosePokemon(pokemonId) {
-    console.log('[DEBUG NETWORK BATTLE] [API] choosePokemon', pokemonId);
+    console.log('🔄 Choix Pokémon:', pokemonId);
     return this.sendToBattle('choosePokemon', { pokemonId });
   }
 
-performBattleAction(actionType, actionData = {}) {
-  console.log('[BUGPOKEMON] 🎮 performBattleAction:', actionType, actionData);
-  console.log('[BUGPOKEMON] 🔍 État avant envoi:', {
-    isConnectedToBattle: this.isConnectedToBattle,
-    battleRoom: !!this.battleRoom,
-    pendingConnection: this.pendingConnection
-  });
-  
-  const result = this.sendToBattle('battleAction', {
-    actionType,
-    ...actionData
-  });
-  
-  console.log('[BUGPOKEMON] 📡 Résultat sendToBattle:', result);
-  return result;
-}
+  /**
+   * ✅ Action de combat - correspond au handler battleAction
+   */
+  performBattleAction(actionType, actionData = {}) {
+    console.log('🎮 Action combat:', actionType, actionData);
+    return this.sendToBattle('battleAction', {
+      actionType,
+      ...actionData
+    });
+  }
 
-useMove(moveId) {
-  console.log('[BUGPOKEMON] 🎯 useMove appelée avec:', moveId);
-  console.log('[BUGPOKEMON] 🔍 État connexion:', this.getConnectionStatus());
-  console.log('[BUGPOKEMON] 🔍 canSendBattleActions:', this.canSendBattleActions());
-  console.log('[BUGPOKEMON] 🔍 isConnectedToBattle:', this.isConnectedToBattle);
-  console.log('[BUGPOKEMON] 🔍 battleRoom existe:', !!this.battleRoom);
-  
-  const result = this.performBattleAction('attack', { moveId });
-  console.log('[BUGPOKEMON] 📤 Résultat performBattleAction:', result);
-  
-  return result;
-}
+  /**
+   * ✅ Utiliser une attaque - correspond au processAction avec 'attack'
+   */
+  useMove(moveId) {
+    console.log('⚔️ Utilisation attaque:', moveId);
+    return this.performBattleAction('attack', { moveId });
+  }
 
+  /**
+   * ✅ Utiliser un objet - correspond au processAction avec 'item'
+   */
   useItem(itemId, targetId = null) {
-    console.log('[DEBUG NETWORK BATTLE] [API] useItem', itemId, targetId);
+    console.log('🎒 Utilisation objet:', itemId);
     return this.performBattleAction('item', { itemId, targetId });
   }
 
+  /**
+   * ✅ Changer de Pokémon - correspond au processAction avec 'switch'
+   */
   switchPokemon(newPokemonId) {
-    console.log('[DEBUG NETWORK BATTLE] [API] switchPokemon', newPokemonId);
+    console.log('🔄 Changement Pokémon:', newPokemonId);
     return this.performBattleAction('switch', { targetPokemonId: newPokemonId });
   }
 
+  /**
+   * ✅ Tentative de fuite - correspond au handler attemptFlee
+   */
   attemptRun() {
-    console.log('[DEBUG NETWORK BATTLE] [API] attemptRun');
-    return this.performBattleAction('run', {});
+    console.log('🏃 Tentative fuite');
+    return this.sendToBattle('attemptFlee', {});
   }
 
+  /**
+   * ✅ Tentative de capture - correspond au handler attemptCapture
+   */
   attemptCapture(ballType) {
-    console.log('[DEBUG NETWORK BATTLE] [API] attemptCapture', ballType);
+    console.log('🎯 Tentative capture:', ballType);
     return this.sendToBattle('attemptCapture', { ballType });
   }
 
+  /**
+   * ✅ Quitter le combat - correspond aux handlers de fin
+   */
   leaveBattle(reason = 'manual') {
-    if (this._leavingBattle) {
-      console.log('[DEBUG NETWORK BATTLE] ⚠️ leaveBattle déjà en cours, ignore');
-      return false;
-    }
-    this._leavingBattle = true;
+    console.log('🚪 Quitter combat:', reason);
 
     this.sendToWorld('leaveBattle', {
       battleRoomId: this.battleRoomId,
-      reason: reason
+      reason
     });
 
     this.disconnectFromBattleRoom();
-
-    // ✅ Remettre le flag à false peu après pour permettre d'autres combats
-    setTimeout(() => { this._leavingBattle = false; }, 250);
-
     return true;
-  }
-
-  // === REQUÊTES D'INFORMATION ===
-
-  checkCanBattle() {
-    console.log('[DEBUG NETWORK BATTLE] [API] checkCanBattle');
-    return this.sendToWorld('canBattle', {});
-  }
-
-  getBattleStatus() {
-    console.log('[DEBUG NETWORK BATTLE] [API] getBattleStatus');
-    return this.sendToWorld('getBattleStatus', {});
-  }
-
-  getBattleState() {
-    console.log('[DEBUG NETWORK BATTLE] [API] getBattleState');
-    return this.sendToBattle('getBattleState', {});
   }
 
   // === DÉCONNEXION ===
 
   async disconnectFromBattleRoom() {
-    if (!this.battleRoom || this._isDisconnecting) {
-      console.log('[DEBUG NETWORK BATTLE] ℹ️ Aucune BattleRoom à déconnecter ou déjà en déconnexion');
+    if (!this.battleRoom) {
+      console.log('ℹ️ Aucune BattleRoom à déconnecter');
       return;
     }
-    this._isDisconnecting = true;
+
     try {
       await this.battleRoom.leave();
-      console.log('[DEBUG NETWORK BATTLE] ✅ BattleRoom quittée proprement');
+      console.log('✅ BattleRoom quittée proprement');
     } catch (error) {
-      console.warn('[DEBUG NETWORK BATTLE] ⚠️ Erreur déconnexion BattleRoom:', error);
+      console.warn('⚠️ Erreur déconnexion BattleRoom:', error);
     }
+
     this.isConnectedToBattle = false;
     this.battleRoom = null;
     this.battleRoomId = null;
     this.pendingMessages = [];
-
-    // ✅ Toujours remettre le flag à false après (dans tous les cas)
-    setTimeout(() => { this._isDisconnecting = false; }, 250);
   }
 
   // === SYSTÈME D'ÉVÉNEMENTS ===
@@ -693,13 +503,13 @@ useMove(moveId) {
   }
 
   triggerEvent(eventName, data = {}) {
-    console.log('[DEBUG NETWORK BATTLE] [TRIGGER]', eventName, data);
+    console.log(`[EVENT] ${eventName}`, data);
     if (this.eventCallbacks.has(eventName)) {
       this.eventCallbacks.get(eventName).forEach(callback => {
         try {
           callback(data);
         } catch (error) {
-          console.error(`[DEBUG NETWORK BATTLE] ❌ Erreur callback ${eventName}:`, error);
+          console.error(`❌ Erreur callback ${eventName}:`, error);
         }
       });
     }
@@ -720,118 +530,97 @@ useMove(moveId) {
       },
       client: {
         available: !!this.client,
-        hasJoinById: typeof this.client?.joinById === 'function',
-        isGlobal: this.client === window.client
+        hasJoinById: typeof this.client?.joinById === 'function'
       },
       pendingMessages: this.pendingMessages.length
     };
   }
 
   canSendBattleActions() {
-    return this.isConnectedToBattle &&
-           this.battleRoom &&
-           !this.pendingConnection;
+    return this.isConnectedToBattle && this.battleRoom && !this.pendingConnection;
   }
 
   debug() {
-    console.log('[DEBUG NETWORK BATTLE] === DEBUG ===');
-
+    console.log('🔍 === DEBUG BATTLE NETWORK HANDLER ===');
     const status = this.getConnectionStatus();
-    console.log('[DEBUG NETWORK BATTLE] 📊 État connexions:', status);
-
-    if (this.worldRoom) {
-      console.log('[DEBUG NETWORK BATTLE] 🌍 WorldRoom:', {
-        id: this.worldRoom.id,
-        sessionId: this.worldRoom.sessionId
-      });
-    }
-
-    if (this.battleRoom) {
-      console.log('[DEBUG NETWORK BATTLE] ⚔️ BattleRoom:', {
-        id: this.battleRoom.id,
-        sessionId: this.battleRoom.sessionId,
-        state: this.battleRoom.state ? 'présent' : 'manquant'
-      });
-    }
-
-    if (this.client) {
-      console.log('[DEBUG NETWORK BATTLE] 🔗 Client:', {
-        type: typeof this.client,
-        hasJoinById: typeof this.client.joinById === 'function',
-        isGlobal: this.client === window.client,
-        keys: Object.keys(this.client).slice(0, 10)
-      });
-    }
-
-    console.log('[DEBUG NETWORK BATTLE] 📋 Événements écoutés:', Array.from(this.eventCallbacks.keys()));
-    console.log('[DEBUG NETWORK BATTLE] 📤 Messages en attente:', this.pendingMessages.length);
-    console.log('[DEBUG NETWORK BATTLE] =====================================');
-
-    return {
-      status,
-      canSendActions: this.canSendBattleActions(),
-      eventListeners: Array.from(this.eventCallbacks.keys()),
-      pendingMessagesCount: this.pendingMessages.length
-    };
-  }
-
-  // === MÉTHODES UTILITAIRES ===
-
-  updateClient(newClient) {
-    if (newClient && typeof newClient.joinById === 'function') {
-      console.log('[DEBUG NETWORK BATTLE] 🔄 Mise à jour forcée du client');
-      this.client = newClient;
-      return true;
-    }
-    return false;
-  }
-
-  validateAndFixClient() {
-    console.log('[DEBUG NETWORK BATTLE] 🔧 Validation du client...');
-
-    if (!this.client || typeof this.client.joinById !== 'function') {
-      console.warn('[DEBUG NETWORK BATTLE] ⚠️ Client invalide détecté');
-
-      if (window.client && typeof window.client.joinById === 'function') {
-        console.log('[DEBUG NETWORK BATTLE] 🔄 Auto-correction avec client global');
-        this.client = window.client;
-        return true;
-      } else {
-        console.error('[DEBUG NETWORK BATTLE] ❌ Aucun client valide disponible pour correction');
-        return false;
-      }
-    }
-
-    console.log('[DEBUG NETWORK BATTLE] ✅ Client valide');
-    return true;
+    console.log('📊 État:', status);
+    console.log('📋 Événements écoutés:', Array.from(this.eventCallbacks.keys()));
+    console.log('📤 Messages en attente:', this.pendingMessages.length);
+    return status;
   }
 
   // === NETTOYAGE ===
 
   async destroy() {
-    console.log('[DEBUG NETWORK BATTLE] 💀 Destruction...');
+    console.log('💀 Destruction BattleNetworkHandler...');
 
-    // Déconnecter de la BattleRoom
     await this.disconnectFromBattleRoom();
 
-    // Nettoyer les références
     this.worldRoom = null;
     this.client = null;
     this.networkManager = null;
-
-    // Nettoyer les callbacks
     this.eventCallbacks.clear();
-
-    // Nettoyer les messages en attente
     this.pendingMessages = [];
 
-    // Réinitialiser l'état
     this.isConnectedToBattle = false;
     this.battleRoomId = null;
     this.pendingConnection = false;
-    this._leavingBattle = false;
-    this._isDisconnecting = false;
 
-    console.log('[DEBUG NETWORK BATTLE] ✅ Détruit');
+    console.log('✅ BattleNetworkHandler détruit');
   }
 }
+
+// === FONCTIONS DE TEST ===
+
+/**
+ * Test de connexion basique
+ */
+window.testBattleNetwork = function() {
+  console.log('🧪 === TEST BATTLE NETWORK ===');
+  
+  const mockWorldRoom = {
+    id: 'test_world',
+    sessionId: 'test_session',
+    onMessage: (type, callback) => {
+      console.log(`📝 Mock onMessage: ${type}`);
+    },
+    send: (type, data) => {
+      console.log(`📤 Mock send: ${type}`, data);
+    }
+  };
+
+  const handler = new BattleNetworkHandler(null);
+  const success = handler.initialize(mockWorldRoom, window.client);
+  
+  console.log(`Résultat: ${success ? '✅ SUCCÈS' : '❌ ÉCHEC'}`);
+  console.log('État:', handler.getConnectionStatus());
+  
+  return handler;
+};
+
+/**
+ * Simulation d'un combat
+ */
+window.simulateBattle = function() {
+  console.log('🎮 === SIMULATION COMBAT ===');
+  
+  const handler = window.testBattleNetwork();
+  
+  if (handler.getConnectionStatus().worldRoom.connected) {
+    // Simuler une demande de combat
+    handler.requestWildBattle({
+      pokemon: { pokemonId: 25, level: 5, name: 'Pikachu' },
+      location: 'test_route_1'
+    });
+    
+    console.log('✅ Demande de combat envoyée');
+  } else {
+    console.log('❌ WorldRoom non connectée');
+  }
+};
+
+console.log('✅ BattleNetworkHandler MODERNE chargé !');
+console.log('🧪 Tests disponibles:');
+console.log('   window.testBattleNetwork() - Test connexion');
+console.log('   window.simulateBattle() - Simulation combat');
+console.log('🚀 Prêt pour intégration avec BattleIntegration !');
