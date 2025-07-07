@@ -241,6 +241,7 @@ export class BattleRoom extends Room<BattleState> {
   private createBattleCallbacks(): IBattleRoomCallbacks {
     return {
       broadcastMessage: (messageId: string, data: any) => {
+        console.log(`📡 [BattleRoom] Broadcasting message: ${messageId}`);
         this.addBattleMessage(data.message || messageId);
         this.broadcast('battleMessage', {
           messageId,
@@ -251,11 +252,20 @@ export class BattleRoom extends Room<BattleState> {
       },
 
       broadcastUpdate: (updateData: any) => {
+        console.log(`📡 [BattleRoom] Broadcasting update`);
         this.broadcast('battleUpdate', updateData);
       },
 
       updatePokemonHP: (pokemonId: string, newHp: number) => {
         console.log(`🩹 [CALLBACK] DamageManager.updatePokemonHP appelé`);
+        console.log(`🔍 [CALLBACK DEBUG] === DÉTAILS CALLBACK ===`);
+        console.log(`🔍 [CALLBACK DEBUG] pokemonId: ${pokemonId}`);
+        console.log(`🔍 [CALLBACK DEBUG] newHp reçu: ${newHp}`);
+        
+        // ✅ NOUVEAU: Vérifier l'état actuel AVANT la mise à jour
+        const currentHpInState = this.getCurrentHPFromState(pokemonId);
+        console.log(`🔍 [CALLBACK DEBUG] HP actuel dans state: ${currentHpInState}`);
+        console.log(`🔍 [CALLBACK DEBUG] Différence attendue: ${currentHpInState} → ${newHp} = ${(currentHpInState || 0) - newHp} dégâts`);
         
         // ✅ NOUVEAU: Utiliser DamageManager pour synchronisation parfaite
         const result = DamageManager.updatePokemonHP(
@@ -268,6 +278,7 @@ export class BattleRoom extends Room<BattleState> {
         
         if (result) {
           console.log(`✅ [CALLBACK] HP synchronisés: ${result.pokemonName} ${result.oldHp} → ${result.newHp}`);
+          console.log(`🔍 [CALLBACK DEBUG] Dégâts calculés par DamageManager: ${result.damage}`);
           
           if (result.wasKnockedOut) {
             console.log(`💀 [CALLBACK] ${result.pokemonName} K.O. confirmé par DamageManager !`);
@@ -275,6 +286,8 @@ export class BattleRoom extends Room<BattleState> {
         } else {
           console.error(`❌ [CALLBACK] Erreur synchronisation HP pour pokemonId: ${pokemonId}`);
         }
+        
+        console.log(`🔍 [CALLBACK DEBUG] === FIN CALLBACK ===`);
       },
 
       changeTurn: (newTurn: string) => {
@@ -293,6 +306,23 @@ export class BattleRoom extends Room<BattleState> {
 
       logBattleEvent: (event: any) => {
         console.log(`📝 [EVENT] ${event.type}`);
+        
+        // ✅ NOUVEAU: Debug spécial pour les événements de dégâts
+        if (event.type === 'damage') {
+          console.log(`🔍 [EVENT DEBUG] === ÉVÉNEMENT DAMAGE ===`);
+          console.log(`🔍 [EVENT DEBUG] targetId: ${event.targetId}`);
+          console.log(`🔍 [EVENT DEBUG] damage dans event.data: ${event.data?.damage}`);
+          console.log(`🔍 [EVENT DEBUG] currentHp dans event.data: ${event.data?.currentHp}`);
+          console.log(`🔍 [EVENT DEBUG] effectiveness: ${event.data?.effectiveness}`);
+          
+          // Vérifier l'état actuel avant l'événement
+          if (event.targetId) {
+            const currentHp = this.getCurrentHPFromState(event.targetId);
+            console.log(`🔍 [EVENT DEBUG] HP actuel dans state: ${currentHp}`);
+            console.log(`🔍 [EVENT DEBUG] Nouvelle HP qui sera envoyée: ${(currentHp || 0) - (event.data?.damage || 0)}`);
+          }
+          console.log(`🔍 [EVENT DEBUG] === FIN EVENT DEBUG ===`);
+        }
       }
     };
   }
@@ -974,6 +1004,16 @@ export class BattleRoom extends Room<BattleState> {
   }
 
   // === UTILITAIRES ===
+  private getCurrentHPFromState(pokemonId: string): number | null {
+    if (this.state.player1Pokemon?.pokemonId.toString() === pokemonId) {
+      return this.state.player1Pokemon.currentHp;
+    }
+    if (this.state.player2Pokemon?.pokemonId.toString() === pokemonId) {
+      return this.state.player2Pokemon.currentHp;
+    }
+    return null;
+  }
+
   private getPokemonName(pokemonId: number): string {
     if (this.state.player1Pokemon?.pokemonId === pokemonId) {
       return this.state.player1Pokemon.name;
