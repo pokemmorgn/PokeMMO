@@ -1364,7 +1364,19 @@ private getPlayerName(sessionId: string): string | null {
     if (!pokemonData) {
       throw new Error(`Données Pokémon ${teamPokemon.pokemonId} introuvables`);
     }
-
+    console.log(`🔧 [CREATE POKEMON] ${teamPokemon.pokemonId} - ${pokemonData.name}`);
+    console.log(`🔧 [CREATE POKEMON] teamPokemon.types:`, teamPokemon.types);
+    console.log(`🔧 [CREATE POKEMON] pokemonData.types:`, pokemonData.types);
+    
+    // Types
+    battlePokemon.types.clear();
+    (teamPokemon.types || pokemonData.types).forEach((type: string) => {
+      console.log(`🔧 [CREATE POKEMON] Ajout type: ${type}`);
+      battlePokemon.types.push(type);
+    });
+    
+    console.log(`🔧 [CREATE POKEMON] Types finaux:`, Array.from(battlePokemon.types));
+    
     // Configuration de base
     battlePokemon.pokemonId = teamPokemon.pokemonId;
     battlePokemon.name = teamPokemon.customName || pokemonData.name;
