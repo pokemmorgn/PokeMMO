@@ -140,7 +140,7 @@ class SoloBattleHandler implements IBattleHandler {
    */
   private async processAttackAction(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
     console.log(`💥 [SoloBattleHandler] Traitement attaque...`);
-    
+
     console.log(`💥 [SoloBattleHandler] === DEBUG ATTAQUE ===`);
     console.log(`🎯 Move ID: ${action.data.moveId}`);
     console.log(`👤 Attaquant: ${action.playerId}`);
