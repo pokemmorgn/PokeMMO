@@ -1,7 +1,8 @@
 // server/src/rooms/BattleRoom.ts - VERSION AVEC VRAI COMBAT
 import { Room, Client } from "@colyseus/core";
 import { BattleState, BattlePokemon, BattleAction } from "../schema/BattleState";
-import { BattleIntegration, IBattleRoomCallbacks } from '../managers/battle/BattleIntegration';
+import { BattleIntegration } from '../managers/battle/BattleIntegration';
+import { IBattleRoomCallbacks } from '../managers/battle/BattleSequencer';
 import { MoveManager } from "../managers/MoveManager";
 import { CaptureManager, CaptureAttempt } from "../managers/CaptureManager";
 import { WildPokemon } from "../managers/EncounterManager";
