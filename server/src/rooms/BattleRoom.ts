@@ -398,7 +398,35 @@ private async autoSelectFirstPokemon() {
       
       // Maintenant initialiser BattleIntegration
       const callbacks = this.createBattleCallbacks();
-      this.battleIntegration.initializeBattle(callbacks, 'wild', []);
+      const participants = [
+        {
+          sessionId: this.state.player1Id,
+          name: this.state.player1Name,
+          role: 'player1',
+          team: [this.state.player1Pokemon], // ✅ Utiliser le BattlePokemon créé
+          activePokemon: this.state.player1Pokemon.pokemonId.toString(),
+          isAI: false,
+          isConnected: true,
+          lastActionTime: Date.now()
+        },
+        {
+          sessionId: 'ai',
+          name: 'Pokémon Sauvage',
+          role: 'player2',
+          team: [this.state.player2Pokemon], // ✅ Utiliser le BattlePokemon créé
+          activePokemon: this.state.player2Pokemon.pokemonId.toString(),
+          isAI: true,
+          isConnected: true,
+          lastActionTime: Date.now()
+        }
+      ];
+      
+      console.log(`🔧 [AUTO SELECT] Participants créés:`, participants.length);
+      participants.forEach((p, i) => {
+        console.log(`   ${i}: ${p.sessionId} (${p.name}) - Pokémon: ${p.team[0]?.name}`);
+      });
+      
+      this.battleIntegration.initializeBattle(callbacks, 'wild', participants);
       
       // Démarrer le combat réel
       this.startActualBattle();
