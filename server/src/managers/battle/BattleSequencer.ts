@@ -14,6 +14,7 @@ import {
 import { DamageCalculator } from './DamageCalculator';
 import { TypeEffectiveness } from './TypeEffectiveness';
 import { BattleMessageHandler, createBattleMessage, createAttackMessages } from './BattleMessageHandler';
+import { BattleEffectSystem } from './BattleEffectSystem';
 
 // Interfaces pour les handlers spécialisés
 export interface IBattleHandler {
@@ -143,10 +144,28 @@ export class BattleSequencer {
     }
     
     // Nettoyer après la séquence complète
-    setTimeout(() => {
-      this.activeSequences.delete(context.battleId);
-      console.log(`✅ [BattleSequencer] Séquence "${sequence.sequenceId}" terminée`);
-    }, sequence.totalDuration);
+setTimeout(() => {
+  try {
+    // ⚡ Déclencher tous les effets de fin de tour (brûlure, poison, météo…)
+    const results = BattleEffectSystem.triggerHook(context, "onTurnEnd", {});
+    if (results && results.length) {
+      results.forEach((r) => {
+        if (r?.message) {
+          this.battleRoomCallbacks?.broadcastMessage("battleMessage", {
+            message: r.message,
+            timing: 1800
+          });
+        }
+      });
+    }
+  } catch (err) {
+    console.error("[BattleSequencer] Erreur effet onTurnEnd:", err);
+  }
+
+  // Nettoyage normal
+  this.activeSequences.delete(context.battleId);
+  console.log(`✅ [BattleSequencer] Séquence "${sequence.sequenceId}" terminée`);
+}, sequence.totalDuration);
   }
   
   /**
