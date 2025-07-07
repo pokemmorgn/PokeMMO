@@ -1,265 +1,146 @@
-// BattleEffectSystem.ts
-// Système de hooks génériques pour tous les effets du jeu Pokémon
+// server/src/managers/battle/BattleEffectSystem.ts
+// Système centralisé de gestion des effets et hooks génériques du moteur de combat Pokémon
 
-import {
-  BattleContext,
-  BattlePokemonData,
-  BattleAction,
-  BattleEvent,
-  DamageCalculationInput,
-  DamageCalculationResult,
-} from "./types/BattleTypes";
+import { BattleContext, BattlePokemonData, StatStage } from "./types/BattleTypes";
 
-// === TYPES GÉNÉRIQUES ===
+// === TYPES DE BASE POUR LES EFFETS GÉNÉRIQUES ===
 
-export type BattleEffectTrigger =
-  | "onStartTurn"
-  | "onBeforeMove"
-  | "onAfterMove"
-  | "onDamageCalc"
-  | "onDamageTaken"
-  | "onStatusChange"
+export type BattleEffectType = "ability" | "item" | "status" | "terrain" | "weather";
+export type EffectHook =
   | "onSwitchIn"
   | "onSwitchOut"
+  | "onTurnStart"
+  | "onTurnEnd"
+  | "onAttack"
+  | "onHit"
+  | "onDamaged"
   | "onFaint"
-  | "onEndTurn"
   | "onCapture"
-  | "onVictory"
-  | "onBattleStart"
-  | "onBattleEnd"
-  | "onTryRun"
-  | "onItemUse"
-  | "onWeatherChange"
-  | "onTerrainChange";
+  | "onMoveUsed";
 
-export type BattleEffect = {
-  /** Nom interne ou id unique */
+// Interface commune pour tout effet pouvant réagir à un hook
+export interface BattleEffect {
   id: string;
-  /** Source de l'effet : 'ability', 'item', 'status', 'move', 'terrain', 'weather', 'custom'... */
-  type: string;
-  /** Qui possède l'effet ? (pokemonId ou 'global') */
-  owner?: string | number;
-  /** Hooks : callbacks pour chaque trigger possible */
-  hooks: Partial<Record<BattleEffectTrigger, BattleEffectHook>>;
-  /** Optionnel : durée de l’effet (ex : 3 tours, 'permanent', etc.) */
-  duration?: number | "permanent";
-  /** Source d’affichage, pour log ou UI */
-  display?: {
-    name?: string;
-    icon?: string;
-    description?: string;
-    color?: string;
-  };
-  /** Statut actif/inactif */
-  active?: boolean;
-};
-
-export type BattleEffectHook = (
-  options: {
-    context: BattleContext;
-    effect: BattleEffect;
-    target?: BattlePokemonData;
-    source?: BattlePokemonData;
-    action?: BattleAction;
-    event?: BattleEvent;
-    damageInput?: DamageCalculationInput;
-    damageResult?: DamageCalculationResult;
-    value?: any; // pour custom ou chaining
-    [key: string]: any;
-  }
-) => any | void | Promise<any>;
-
-// === RÉGISTRY D’EFFETS (mapping id → BattleEffect) ===
-
-export const BattleEffectRegistry: Record<
-  string,
-  Omit<BattleEffect, "owner">
-> = {
-  // -- Exemples standards (à étoffer selon besoin) --
-  // INTIMIDATE (Talent)
-"ability_intimidate": {
-  id: "ability_intimidate",
-  type: "ability",
-  hooks: {
-    onSwitchIn: ({ context, effect, target }) => {
-      // Baisse l’attaque du(s) Pokémon adverse(s)
-      context.participants.forEach((p) => {
-        // Appliquer à tous les Pokémon adverses sauf celui qui switch in
-        if (
-          target &&
-          p.team[0] &&                    // Vérifie que le Pokémon existe
-          p.team[0].pokemonId !== target.pokemonId // Compare bien les IDs numériques
-        ) {
-          // Clamp le stage d'attaque à [-6, 6]
-          p.team[0].statStages.attack = Math.max(-6, Math.min(6, (p.team[0].statStages.attack || 0) - 1)) as StatStage;
-        }
-      });
-      return { message: "L’intimidation baisse l’Attaque !" };
-    },
-  },
+  type: BattleEffectType;
+  name?: string;
+  desc?: string;
+  hooks: Partial<Record<EffectHook, BattleEffectHookFn>>;
 }
-    display: {
-      name: "Intimidate",
-      description: "Baisse l'Attaque de l'adversaire lors de l'entrée en combat.",
-    },
-    duration: "permanent",
-  },
-  // LEFTOVERS (Objet)
-  "item_leftovers": {
-    id: "item_leftovers",
-    type: "item",
+
+// Signature d'une fonction de hook d'effet
+export type BattleEffectHookFn = (params: {
+  context: BattleContext;
+  effect: BattleEffect;
+  user?: BattlePokemonData;
+  target?: BattlePokemonData;
+  [key: string]: any;
+}) => any;
+
+// Clamp pour stat stage (Pokémon = -6 à +6)
+function clampStatStage(val: number): StatStage {
+  return Math.max(-6, Math.min(6, val)) as StatStage;
+}
+
+// === TABLE DES EFFETS PRÉDÉFINIS (exemples à étendre) ===
+
+export const BattleEffects: Record<string, BattleEffect> = {
+  // --- EXEMPLE ABILITY ---
+  "ability_intimidate": {
+    id: "ability_intimidate",
+    type: "ability",
+    name: "Intimidate",
+    desc: "Baisse l’Attaque du Pokémon adverse à l'entrée en combat.",
     hooks: {
-      onEndTurn: ({ context, target }) => {
-        if (!target) return;
-        const heal = Math.floor(target.maxHp / 16);
-        target.currentHp = Math.min(target.currentHp + heal, target.maxHp);
-        return { message: `Les Restes rendent ${heal} PV à ${target.name}!` };
-      },
-    },
-    display: {
-      name: "Restes",
-      description: "Rend quelques PV à chaque tour.",
-    },
-    duration: "permanent",
-  },
-  // SLEEP (Statut)
-  "status_sleep": {
-    id: "status_sleep",
-    type: "status",
-    hooks: {
-      onBeforeMove: ({ target }) => {
-        if (!target) return;
-        // Réveil après X tours, ou bloque le move
-        if ((target as any).sleepTurns !== undefined) {
-          (target as any).sleepTurns--;
-          if ((target as any).sleepTurns <= 0) {
-            target.statusCondition = "normal";
-            return { message: `${target.name} se réveille !` };
+      onSwitchIn: ({ context, user }) => {
+        // Appliqué à l'entrée en combat : baisse l'attaque des adversaires
+        context.participants.forEach((p) => {
+          // Baisse tous les adversaires sauf le lanceur lui-même
+          if (
+            user &&
+            p.team[0] &&
+            p.team[0].pokemonId !== user.pokemonId
+          ) {
+            p.team[0].statStages.attack = clampStatStage(
+              (p.team[0].statStages.attack || 0) - 1
+            );
           }
-        }
-        // Sinon, empêche d’agir
-        return { cancelMove: true, message: `${target.name} dort.` };
+        });
+        return { message: "L’intimidation baisse l’Attaque !" };
       },
     },
-    display: {
-      name: "Sommeil",
-      description: "Empêche d'agir pendant plusieurs tours.",
-    },
-    duration: 3,
   },
-  // ... Ajouter tous les autres effets !
+
+  // --- EXEMPLE STATUT ---
+  "status_burn": {
+    id: "status_burn",
+    type: "status",
+    name: "Brûlure",
+    desc: "Diminue l'Attaque et inflige des dégâts à chaque tour.",
+    hooks: {
+      onTurnEnd: ({ user }) => {
+        if (user) {
+          const dmg = Math.floor(user.maxHp / 8);
+          user.currentHp = Math.max(0, user.currentHp - dmg);
+          return { message: `${user.name} souffre de sa brûlure !`, damage: dmg };
+        }
+      },
+    },
+  },
+
+  // --- AUTRES EFFETS À AJOUTER ICI ---
+  // Suivez la même logique : clé = id, hooks = événements concernés
 };
 
-// === SYSTÈME PRINCIPAL ===
+// === SYSTÈME CENTRALISÉ : GÈRE LES TRIGGERS DE HOOKS POUR TOUS LES EFFETS ===
 
 export class BattleEffectSystem {
-  // Effets actifs du combat (context.effects, ou local à la classe)
-  public activeEffects: BattleEffect[] = [];
-
-  constructor(effects?: BattleEffect[]) {
-    if (effects) this.activeEffects = effects;
-  }
-
-  /** Ajoute un effet */
-  addEffect(effect: BattleEffect) {
-    this.activeEffects.push(effect);
-  }
-
-  /** Retire un effet par id */
-  removeEffect(id: string, owner?: string | number) {
-    this.activeEffects = this.activeEffects.filter(
-      (eff) => eff.id !== id || (owner && eff.owner !== owner)
-    );
-  }
-
-  /** Applique tous les hooks pour un trigger */
-  async runHooks(
-    trigger: BattleEffectTrigger,
-    options: {
-      context: BattleContext;
-      target?: BattlePokemonData;
-      source?: BattlePokemonData;
-      action?: BattleAction;
-      event?: BattleEvent;
-      damageInput?: DamageCalculationInput;
-      damageResult?: DamageCalculationResult;
-      value?: any;
-      [key: string]: any;
-    }
-  ): Promise<any[]> {
+  /**
+   * Déclenche tous les hooks du type donné (ability, status, item...) pour tous les Pokémon du contexte.
+   * Exemple : BattleEffectSystem.triggerHook(ctx, "onTurnEnd", { ... });
+   */
+  static triggerHook(
+    context: BattleContext,
+    hook: EffectHook,
+    params: { user?: BattlePokemonData; target?: BattlePokemonData; [key: string]: any }
+  ): any[] {
     const results: any[] = [];
-    for (const effect of this.activeEffects) {
-      if (effect.active === false) continue;
-      const hook = effect.hooks[trigger];
-      if (typeof hook === "function") {
-        const res = await hook({ ...options, effect });
-        if (res !== undefined) results.push(res);
-      }
-    }
-    return results;
-  }
 
-  /** Génère automatiquement les effets de la situation courante (abilities, objets, statuts, terrains, météo, moves spéciaux, etc.) */
-  static fromContext(context: BattleContext): BattleEffectSystem {
-    const effects: BattleEffect[] = [];
+    context.participants.forEach((participant) => {
+      const mon = participant.team[0];
+      if (!mon) return;
 
-    // --- Abilities des participants ---
-    context.participants.forEach((p) => {
-      const poke = p.team[0];
-      if (poke && poke.ability) {
-        const effectDef = BattleEffectRegistry[`ability_${poke.ability}`];
-        if (effectDef)
-          effects.push({ ...effectDef, owner: poke.pokemonId, active: true });
+      // Ability
+      if (mon.ability) {
+        const eff = BattleEffects[`ability_${mon.ability.toLowerCase()}`];
+        if (eff?.hooks?.[hook]) {
+          results.push(
+            eff.hooks[hook]({ context, effect: eff, user: mon, ...params })
+          );
+        }
       }
-      // --- Objets tenus ---
-      if (poke && poke.heldItem) {
-        const effectDef = BattleEffectRegistry[`item_${poke.heldItem}`];
-        if (effectDef)
-          effects.push({ ...effectDef, owner: poke.pokemonId, active: true });
+
+      // Status
+      if (mon.statusCondition && mon.statusCondition !== "normal") {
+        const eff = BattleEffects[`status_${mon.statusCondition.toLowerCase()}`];
+        if (eff?.hooks?.[hook]) {
+          results.push(
+            eff.hooks[hook]({ context, effect: eff, user: mon, ...params })
+          );
+        }
       }
-      // --- Statut (ex: sleep, burn, etc.) ---
-      if (poke && poke.statusCondition && poke.statusCondition !== "normal") {
-        const effectDef = BattleEffectRegistry[`status_${poke.statusCondition}`];
-        if (effectDef)
-          effects.push({ ...effectDef, owner: poke.pokemonId, active: true });
-      }
+
+      // TODO: Items, terrains, weather, etc (à brancher ici)
     });
 
-    // --- Terrain/Météo globaux ---
-    if (context.environment?.terrain) {
-      const effectDef = BattleEffectRegistry[`terrain_${context.environment.terrain}`];
-      if (effectDef)
-        effects.push({ ...effectDef, owner: "global", active: true });
-    }
-    if (context.environment?.weather) {
-      const effectDef = BattleEffectRegistry[`weather_${context.environment.weather}`];
-      if (effectDef)
-        effects.push({ ...effectDef, owner: "global", active: true });
-    }
-
-    // ... Ajouter d'autres effets globaux/temporaires/moves spéciaux...
-
-    return new BattleEffectSystem(effects);
-  }
-
-  /** Debug, état courant */
-  debug() {
-    console.log("🪄 [BattleEffectSystem] Effets actifs :", this.activeEffects);
+    return results;
   }
 }
 
-// === UTILISATION (exemple dans un handler) ===
-// const effectSystem = BattleEffectSystem.fromContext(context);
-// await effectSystem.runHooks("onDamageCalc", { context, target, source, damageInput });
-
-// === AJOUTER UN EFFET EN COURS DE COMBAT ===
-// effectSystem.addEffect({
-//   id: "custom_effect",
-//   type: "move",
-//   owner: pokemonId,
-//   hooks: { onBeforeMove: ({target}) => { ... } },
-//   duration: 3,
-//   display: { name: "Effet Custom" }
-// });
+// === EXEMPLE D'UTILISATION EN JEU ===
+//
+// BattleEffectSystem.triggerHook(context, "onTurnEnd", { /* ... */ });
+//
+// Ajoutez vos hooks dans BattleEffects et le moteur s'occupera de tout !
+//
 
 export default BattleEffectSystem;
