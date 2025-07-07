@@ -398,45 +398,99 @@ private async autoSelectFirstPokemon() {
       
       // Maintenant initialiser BattleIntegration
       const callbacks = this.createBattleCallbacks();
-      const participants = [
-        {
-          sessionId: this.state.player1Id,
-          name: this.state.player1Name,
-          role: 'player1',
-          team: [this.state.player1Pokemon], // ✅ Utiliser le BattlePokemon créé
-          activePokemon: this.state.player1Pokemon.pokemonId.toString(),
-          isAI: false,
-          isConnected: true,
-          lastActionTime: Date.now()
+
+    // ✅ FONCTION HELPER pour convertir BattlePokemon → BattlePokemonData
+    const convertToBattlePokemonData = async (battlePokemon: BattlePokemon): Promise<any> => {
+      return {
+        pokemonId: battlePokemon.pokemonId,
+        name: battlePokemon.name,
+        level: battlePokemon.level,
+        currentHp: battlePokemon.currentHp,
+        maxHp: battlePokemon.maxHp,
+        types: Array.from(battlePokemon.types), // ✅ CONVERSION DYNAMIQUE DES TYPES
+        moves: await Promise.all(
+          Array.from(battlePokemon.moves).map(async (moveId) => {
+            const moveData = MoveManager.getMoveData(moveId);
+            return {
+              moveId,
+              name: moveData?.name || moveId,
+              type: moveData?.type || 'Normal',
+              category: (moveData?.category?.toLowerCase() || 'physical') as const,
+              power: moveData?.power || 0,
+              accuracy: moveData?.accuracy || 100,
+              pp: moveData?.pp || 35,
+              maxPp: moveData?.pp || 35,
+              priority: moveData?.priority || 0,
+              description: moveData?.description || ''
+            };
+          })
+        ),
+        stats: {
+          attack: battlePokemon.attack,
+          defense: battlePokemon.defense,
+          specialAttack: battlePokemon.specialAttack,
+          specialDefense: battlePokemon.specialDefense,
+          speed: battlePokemon.speed,
+          hp: battlePokemon.maxHp
         },
-        {
-          sessionId: 'ai',
-          name: 'Pokémon Sauvage',
-          role: 'player2',
-          team: [this.state.player2Pokemon], // ✅ Utiliser le BattlePokemon créé
-          activePokemon: this.state.player2Pokemon.pokemonId.toString(),
-          isAI: true,
-          isConnected: true,
-          lastActionTime: Date.now()
-        }
-      ];
-      
-      console.log(`🔧 [AUTO SELECT] Participants créés:`, participants.length);
-      participants.forEach((p, i) => {
-        console.log(`   ${i}: ${p.sessionId} (${p.name}) - Pokémon: ${p.team[0]?.name}`);
-      });
-      
-      this.battleIntegration.initializeBattle(callbacks, 'wild', participants);
-      
-      // Démarrer le combat réel
-      this.startActualBattle();
-    }
+        statStages: {
+          attack: battlePokemon.attackStage || 0,
+          defense: battlePokemon.defenseStage || 0,
+          specialAttack: battlePokemon.specialAttackStage || 0,
+          specialDefense: battlePokemon.specialDefenseStage || 0,
+          speed: battlePokemon.speedStage || 0,
+          accuracy: 0, evasion: 0
+        },
+        statusCondition: (battlePokemon.statusCondition || 'normal') as const,
+        ability: battlePokemon.ability,
+        heldItem: battlePokemon.heldItem,
+        gender: battlePokemon.gender,
+        shiny: battlePokemon.shiny,
+        isWild: battlePokemon.isWild,
+        nature: 'Hardy' // TODO: récupérer la vraie nature si disponible
+      };
+    };
     
-  } catch (error) {
-    console.error(`🔥 [AUTO SELECT] Erreur sélection auto:`, error);
-    throw error;
-  }
-}
+    // ✅ PARTICIPANTS DYNAMIQUES
+    const participants = [
+      {
+        sessionId: this.state.player1Id,
+        name: this.state.player1Name,
+        role: 'player1',
+        team: [await convertToBattlePokemonData(this.state.player1Pokemon)],
+        activePokemon: this.state.player1Pokemon.pokemonId.toString(),
+        isAI: false,
+        isConnected: true,
+        lastActionTime: Date.now()
+      },
+      {
+        sessionId: 'ai',
+        name: 'Pokémon Sauvage',
+        role: 'player2',
+        team: [await convertToBattlePokemonData(this.state.player2Pokemon)],
+        activePokemon: this.state.player2Pokemon.pokemonId.toString(),
+        isAI: true,
+        isConnected: true,
+        lastActionTime: Date.now()
+      }
+    ];
+          
+          console.log(`🔧 [AUTO SELECT] Participants créés:`, participants.length);
+          participants.forEach((p, i) => {
+            console.log(`   ${i}: ${p.sessionId} (${p.name}) - Pokémon: ${p.team[0]?.name}`);
+          });
+          
+          this.battleIntegration.initializeBattle(callbacks, 'wild', participants);
+          
+          // Démarrer le combat réel
+          this.startActualBattle();
+        }
+        
+      } catch (error) {
+        console.error(`🔥 [AUTO SELECT] Erreur sélection auto:`, error);
+        throw error;
+      }
+    }
 
 private async createWildBattlePokemon(wildPokemon: any): Promise<BattlePokemon> {
   const battlePokemon = new BattlePokemon();
