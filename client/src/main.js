@@ -1632,30 +1632,102 @@ setTimeout(() => {
     };
 
     // Battle test functions
-    window.testBattle = function() {
-      if (!window.battleSystem) {
-        window.showGameAlert?.("Système de combat non initialisé");
-        console.log("❌ Utilisez window.initBattleSystem() pour l'initialiser");
-        return;
-      }
+  window.testBattle = function() {
+  if (!window.battleSystem) {
+    window.showGameAlert?.("Système de combat non initialisé");
+    console.log("❌ Utilisez window.initBattleSystem() pour l'initialiser");
+    return;
+  }
 
-      if (!window.battleSystem.isInitialized) {
-        window.showGameAlert?.("Système de combat pas encore prêt");
-        console.log("⏳ Système en cours d'initialisation...");
-        return;
-      }
+  if (!window.battleSystem.isInitialized) {
+    window.showGameAlert?.("Système de combat pas encore prêt");
+    console.log("⏳ Système en cours d'initialisation...");
+    return;
+  }
 
-      console.log("🧪 Test du système de combat...");
-      
-      const result = window.battleSystem.testBattle();
-      if (result) {
-        window.showGameNotification("Test de combat lancé !", "info", { duration: 2000, position: 'top-center' });
-        console.log("✅ Combat de test démarré");
-      } else {
-        window.showGameAlert?.("Échec du test de combat");
-        console.log("❌ Échec du test de combat");
-      }
+  console.log("🧪 Test du système de combat...");
+  
+  // ✅ NOUVEAU: Utiliser la méthode moderne
+  const result = window.battleSystem.test ? window.battleSystem.test() : window.battleSystem.testBattle?.();
+  
+  if (result) {
+    window.showGameNotification("Test de combat lancé !", "info", { duration: 2000, position: 'top-center' });
+    console.log("✅ Combat de test démarré");
+  } else {
+    window.showGameAlert?.("Échec du test de combat");
+    console.log("❌ Échec du test de combat");
+  }
+};
+
+// ✅ NOUVEAU: Fonction moderne directe
+window.testBattleModern = function() {
+  if (!window.battleSystem?.isInitialized) {
+    console.error('❌ Système de combat non initialisé');
+    return false;
+  }
+  
+  return window.battleSystem.test();
+};
+
+// ✅ NOUVEAU: Compatibilité avec votre startWildBattle existant
+window.startWildBattle = function(pokemonData = null) {
+  if (!window.battleSystem) {
+    window.showGameAlert?.("Système de combat non initialisé");
+    return false;
+  }
+
+  if (!window.battleSystem.isInitialized) {
+    window.showGameAlert?.("Système de combat pas encore prêt");
+    return false;
+  }
+
+  const testPokemon = pokemonData || {
+    pokemonId: 25,
+    level: 5,
+    name: 'Pikachu',
+    shiny: false,
+    gender: 'male'
+  };
+
+  console.log("⚔️ Démarrage combat sauvage:", testPokemon);
+  
+  // ✅ NOUVEAU: Utiliser la méthode moderne
+  const result = window.battleSystem.startWildBattle({
+    pokemon: testPokemon,
+    location: 'test_zone',
+    method: 'manual'
+  });
+
+  if (result) {
+    window.showGameNotification("Combat sauvage démarré !", "info", { duration: 2000, position: 'top-center' });
+    console.log("✅ Combat sauvage lancé");
+  } else {
+    window.showGameAlert?.("Impossible de démarrer le combat");
+    console.log("❌ Échec démarrage combat");
+  }
+
+  return result;
+};
+
+// ✅ NOUVEAU: Debug moderne
+window.debugBattleSystem = function() {
+  console.log('🔍 === DEBUG SYSTÈME DE COMBAT MODERNE ===');
+  
+  if (window.battleSystem?.debug) {
+    return window.battleSystem.debug();
+  } else {
+    const status = {
+      battleSystemExists: !!window.battleSystem,
+      isInitialized: window.battleSystem?.isInitialized || false,
+      isInBattle: window.battleSystem?.isInBattle || false,
+      hasTest: typeof window.battleSystem?.test === 'function',
+      hasDebug: typeof window.battleSystem?.debug === 'function'
     };
+    
+    console.log('📊 Status système:', status);
+    return status;
+  }
+};
 
     window.startWildBattle = function(pokemonData = null) {
       if (!window.battleSystem) {
