@@ -1,5 +1,6 @@
 // client/src/managers/MapMusicManager.js
 // 🔧 VERSION CORRIGÉE - Fix pour le changement de musique entre maps
+import { generateMusicConfig, sceneToZone } from "../config/ZoneMapping.js";
 
 export class MapMusicManager {
   constructor() {
@@ -17,75 +18,13 @@ export class MapMusicManager {
     this.activeSound = null; // Track du son actuel
     
     // Configuration musicale des zones
-    this.zoneMusic = this.initializeZoneMusic();
+    this.zoneMusic = generateMusicConfig();
     
-    console.log('🎵 [MapMusicManager] Initialisé (version corrigée)');
+    console.log('🎵 [MapMusicManager] Initialisé avec config centralisée');
   }
 
   // ✅ CONFIGURATION MUSICALE IDENTIQUE
-  initializeZoneMusic() {
-    return {
-      // === ZONES PRINCIPALES ===
-      'beach': {
-        track: 'road1_theme',
-        volume: 0.5,
-        loop: true,
-        fadeIn: true
-      },
-      'village': {
-        track: 'village_theme', 
-        volume: 0.6,
-        loop: true,
-        fadeIn: true
-      },
-      'lavandia': {
-        track: 'lavandia_theme',
-        volume: 0.7,
-        loop: true,
-        fadeIn: true
-      },
-      
-      // === TOUTES LES ROUTES → road1_theme ===
-      'road1': { track: 'road1_theme', volume: 0.5, loop: true, fadeIn: true },
-      'road2': { track: 'road1_theme', volume: 0.5, loop: true, fadeIn: true },
-      'road3': { track: 'road1_theme', volume: 0.5, loop: true, fadeIn: true },
-      
-      // === GROTTES → road1_theme (en attendant) ===
-      'nocthercave1': { track: 'road1_theme', volume: 0.3, loop: true, fadeIn: true },
-      'nocthercave2': { track: 'road1_theme', volume: 0.3, loop: true, fadeIn: true },
-      'nocthercave2bis': { track: 'road1_theme', volume: 0.3, loop: true, fadeIn: true },
-      
-      // === INTÉRIEURS VILLAGE → village_theme mais plus doux ===
-      'villagehouse1': { track: 'village_theme', volume: 0.3, loop: true, fadeIn: false },
-      'villagehouse2': { track: 'village_theme', volume: 0.3, loop: true, fadeIn: false },
-      'villageflorist': { track: 'village_theme', volume: 0.4, loop: true, fadeIn: false },
-      'villagelab': { track: 'village_theme', volume: 0.4, loop: true, fadeIn: false },
-      
-      // === INTÉRIEURS LAVANDIA → lavandia_theme mais plus doux ===
-      'lavandiashop': { track: 'lavandia_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiahealingcenter': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiaresearchlab': { track: 'lavandia_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiabossroom': { track: 'lavandia_theme', volume: 0.8, loop: true, fadeIn: true },
-      'lavandiacelebitemple': { track: 'lavandia_theme', volume: 0.5, loop: true, fadeIn: true },
-      
-      // === TOUTES LES MAISONS LAVANDIA → lavandia_theme doux ===
-      'lavandiahouse1': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiahouse2': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiahouse3': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiahouse4': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiahouse5': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiahouse6': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiahouse7': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiahouse8': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiahouse9': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiaanalysis': { track: 'lavandia_theme', volume: 0.3, loop: true, fadeIn: false },
-      'lavandiaequipment': { track: 'lavandia_theme', volume: 0.4, loop: true, fadeIn: false },
-      'lavandiafurniture': { track: 'lavandia_theme', volume: 0.4, loop: true, fadeIn: false },
-      
-      // === ROUTES HOUSES → village_theme ===
-      'road1house': { track: 'village_theme', volume: 0.3, loop: true, fadeIn: false }
-    };
-  }
+  
 
   // 🔧 FIX: Méthode d'initialisation avec vérifications renforcées
   initialize(scene) {
@@ -142,66 +81,13 @@ export class MapMusicManager {
   }
 
   // 🔧 FIX: Méthode robuste d'extraction de zone
-  extractZoneFromSceneKey(sceneKey) {
+    extractZoneFromSceneKey(sceneKey) {
     console.log(`🔍 [MapMusicManager] Extraction zone de: ${sceneKey}`);
     
-    // 🔧 FIX: Mapping plus robuste
-    const zoneMapping = {
-      // Principales
-      'BeachScene': 'beach',
-      'VillageScene': 'village', 
-      'LavandiaScene': 'lavandia',
-      'VillageLabScene': 'villagelab',
-      
-      // Routes
-      'Road1Scene': 'road1',
-      'Road2Scene': 'road2', 
-      'Road3Scene': 'road3',
-      'Road1HouseScene': 'road1house',
-      
-      // Maisons Village
-      'VillageHouse1Scene': 'villagehouse1',
-      'VillageHouse2Scene': 'villagehouse2',
-      'VillageFloristScene': 'villageflorist',
-      
-      // Maisons Lavandia
-      'LavandiaHouse1Scene': 'lavandiahouse1',
-      'LavandiaHouse2Scene': 'lavandiahouse2',
-      'LavandiaHouse3Scene': 'lavandiahouse3',
-      'LavandiaHouse4Scene': 'lavandiahouse4',
-      'LavandiaHouse5Scene': 'lavandiahouse5',
-      'LavandiaHouse6Scene': 'lavandiahouse6',
-      'LavandiaHouse7Scene': 'lavandiahouse7',
-      'LavandiaHouse8Scene': 'lavandiahouse8',
-      'LavandiaHouse9Scene': 'lavandiahouse9',
-      
-      // Bâtiments Lavandia
-      'LavandiaShopScene': 'lavandiashop',
-      'LavandiaHealingCenterScene': 'lavandiahealingcenter',
-      'LavandiaResearchLabScene': 'lavandiaresearchlab',
-      'LavandiaBossRoomScene': 'lavandiabossroom',
-      'LavandiaCelibTempleScene': 'lavandiacelebitemple',
-      'LavandiaAnalysisScene': 'lavandiaanalysis',
-      'LavandiaequipmentScene': 'lavandiaequipment',
-      'LavandiaFurnitureScene': 'lavandiafurniture',
-      
-      // Grottes
-      'NoctherCave1Scene': 'nocthercave1',
-      'NoctherCave2Scene': 'nocthercave2', 
-      'NoctherCave2BisScene': 'nocthercave2bis'
-    };
+    const zoneName = sceneToZone(sceneKey);
+    console.log(`✅ [MapMusicManager] Zone extraite: ${sceneKey} → ${zoneName}`);
     
-    const mappedZone = zoneMapping[sceneKey];
-    
-    if (mappedZone) {
-      console.log(`✅ [MapMusicManager] Zone mappée: ${sceneKey} → ${mappedZone}`);
-      return mappedZone;
-    }
-    
-    // 🔧 FIX: Fallback avec extraction intelligente
-    const fallbackZone = sceneKey.toLowerCase().replace('scene', '');
-    console.warn(`⚠️ [MapMusicManager] Zone non mappée, fallback: ${sceneKey} → ${fallbackZone}`);
-    return fallbackZone;
+    return zoneName;
   }
 
   // 🔧 FIX: Setup débloquage audio amélioré
