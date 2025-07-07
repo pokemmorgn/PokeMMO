@@ -9,6 +9,7 @@ import { CaptureManager, CaptureAttempt } from "../managers/CaptureManager";
 import { WildPokemon } from "../managers/EncounterManager";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
+
 // Interface pour les données initiales du combat
 export interface BattleInitData {
   battleType: "wild" | "pvp";
@@ -44,6 +45,9 @@ export class BattleRoom extends Room<BattleState> {
   // Statistiques pour icônes
   private playerHpPercentages: Map<string, number> = new Map();
   private lastStatusIcons: Map<string, BattleStatusIcon> = new Map();
+
+  // ✅ AJOUT: Protection anti-spam IA
+  private aiTurnInProgress = false;
 
   maxClients = 2;
 
@@ -136,69 +140,69 @@ export class BattleRoom extends Room<BattleState> {
 
   // === MÉTHODES PRINCIPALES ===
 
-async onJoin(client: Client, options: any) {
-  console.log(`🔥 [JOIN DEBUG] === JOUEUR REJOINT BATTLEROOM ===`);
-  console.log(`🔥 [JOIN DEBUG] Client sessionId: ${client.sessionId}`);
-  console.log(`🔥 [JOIN DEBUG] Options reçues:`, options);
-  console.log(`🔥 [JOIN DEBUG] Expected Player1: ${this.battleInitData.playerData.sessionId}`);
-  
-  try {
-    // ✅ SOLUTION: Utiliser worldSessionId des options si disponible
-    const effectiveSessionId = options?.worldSessionId || client.sessionId;
-    const playerName = options?.playerName || this.getPlayerName(effectiveSessionId);
+  async onJoin(client: Client, options: any) {
+    console.log(`🔥 [JOIN DEBUG] === JOUEUR REJOINT BATTLEROOM ===`);
+    console.log(`🔥 [JOIN DEBUG] Client sessionId: ${client.sessionId}`);
+    console.log(`🔥 [JOIN DEBUG] Options reçues:`, options);
+    console.log(`🔥 [JOIN DEBUG] Expected Player1: ${this.battleInitData.playerData.sessionId}`);
     
-    console.log(`🔥 [JOIN DEBUG] SessionId effectif: ${effectiveSessionId}`);
-    console.log(`🔥 [JOIN DEBUG] Nom du joueur: ${playerName}`);
-    
-    // ✅ Vérification avec le bon sessionId
-    if (effectiveSessionId === this.battleInitData.playerData.sessionId) {
-      console.log(`🔥 [JOIN DEBUG] ✅ CLIENT ATTENDU TROUVÉ! Assignation Player1`);
-      this.state.player1Id = client.sessionId; // Garder le vrai sessionId de la BattleRoom
-      this.state.player1Name = this.battleInitData.playerData.name;
+    try {
+      // ✅ SOLUTION: Utiliser worldSessionId des options si disponible
+      const effectiveSessionId = options?.worldSessionId || client.sessionId;
+      const playerName = options?.playerName || this.getPlayerName(effectiveSessionId);
       
-      // ✅ Créer TeamManager avec le vrai nom
-      console.log(`🔥 [JOIN DEBUG] Création TeamManager pour ${this.battleInitData.playerData.name}...`);
-      const teamManager = new TeamManager(this.battleInitData.playerData.name);
-      await teamManager.load();
-      this.teamManagers.set(client.sessionId, teamManager);
-      console.log(`🔥 [JOIN DEBUG] ✅ TeamManager créé !`);
+      console.log(`🔥 [JOIN DEBUG] SessionId effectif: ${effectiveSessionId}`);
+      console.log(`🔥 [JOIN DEBUG] Nom du joueur: ${playerName}`);
       
-    } else {
-      console.log(`🔥 [JOIN DEBUG] ⚠️ CLIENT INATTENDU: ${effectiveSessionId} !== ${this.battleInitData.playerData.sessionId}`);
+      // ✅ Vérification avec le bon sessionId
+      if (effectiveSessionId === this.battleInitData.playerData.sessionId) {
+        console.log(`🔥 [JOIN DEBUG] ✅ CLIENT ATTENDU TROUVÉ! Assignation Player1`);
+        this.state.player1Id = client.sessionId; // Garder le vrai sessionId de la BattleRoom
+        this.state.player1Name = this.battleInitData.playerData.name;
+        
+        // ✅ Créer TeamManager avec le vrai nom
+        console.log(`🔥 [JOIN DEBUG] Création TeamManager pour ${this.battleInitData.playerData.name}...`);
+        const teamManager = new TeamManager(this.battleInitData.playerData.name);
+        await teamManager.load();
+        this.teamManagers.set(client.sessionId, teamManager);
+        console.log(`🔥 [JOIN DEBUG] ✅ TeamManager créé !`);
+        
+      } else {
+        console.log(`🔥 [JOIN DEBUG] ⚠️ CLIENT INATTENDU: ${effectiveSessionId} !== ${this.battleInitData.playerData.sessionId}`);
+        
+        // Assigner quand même
+        this.state.player1Id = client.sessionId;
+        this.state.player1Name = playerName || "Player1";
+      }
       
-      // Assigner quand même
-      this.state.player1Id = client.sessionId;
-      this.state.player1Name = playerName || "Player1";
+      // ✅ Le reste...
+      this.blockPlayerInWorldRoom(client.sessionId, "Entré en combat");
+      this.playerHpPercentages.set(client.sessionId, 100);
+      
+      client.send("battleJoined", {
+        battleId: this.state.battleId,
+        battleType: this.state.battleType,
+        yourRole: this.getPlayerRole(client.sessionId)
+      });
+
+      this.updatePlayerStatusIcon(client.sessionId, "entering_battle");
+      
+      console.log(`🔥 [JOIN DEBUG] État final:`, {
+        player1Id: this.state.player1Id,
+        player1Name: this.state.player1Name,
+        hasTeamManager: this.teamManagers.has(client.sessionId)
+      });
+
+      if (this.shouldStartBattle()) {
+        console.log(`🔥 [JOIN DEBUG] 🚀 DÉMARRAGE COMBAT!`);
+        this.clock.setTimeout(() => this.startBattle(), 1000);
+      }
+
+    } catch (error) {
+      console.error(`🔥 [JOIN DEBUG] Erreur:`, error);
+      client.leave(1000, "Erreur lors de l'entrée en combat");
     }
-    
-    // ✅ Le reste...
-    this.blockPlayerInWorldRoom(client.sessionId, "Entré en combat");
-    this.playerHpPercentages.set(client.sessionId, 100);
-    
-    client.send("battleJoined", {
-      battleId: this.state.battleId,
-      battleType: this.state.battleType,
-      yourRole: this.getPlayerRole(client.sessionId)
-    });
-
-    this.updatePlayerStatusIcon(client.sessionId, "entering_battle");
-    
-    console.log(`🔥 [JOIN DEBUG] État final:`, {
-      player1Id: this.state.player1Id,
-      player1Name: this.state.player1Name,
-      hasTeamManager: this.teamManagers.has(client.sessionId)
-    });
-
-    if (this.shouldStartBattle()) {
-      console.log(`🔥 [JOIN DEBUG] 🚀 DÉMARRAGE COMBAT!`);
-      this.clock.setTimeout(() => this.startBattle(), 1000);
-    }
-
-  } catch (error) {
-    console.error(`🔥 [JOIN DEBUG] Erreur:`, error);
-    client.leave(1000, "Erreur lors de l'entrée en combat");
   }
-}
   
   async onLeave(client: Client, consented: boolean) {
     console.log(`👋 ${client.sessionId} quitte BattleRoom`);
@@ -210,6 +214,9 @@ async onJoin(client: Client, options: any) {
       this.playerHpPercentages.delete(client.sessionId);
       this.lastStatusIcons.delete(client.sessionId);
       
+      // ✅ AJOUT: Reset anti-spam IA
+      this.aiTurnInProgress = false;
+      
       if (this.state.phase === "battle") {
         this.endBattleEarly("player_disconnected");
       }
@@ -220,302 +227,303 @@ async onJoin(client: Client, options: any) {
   }
 
   private createBattleCallbacks(): IBattleRoomCallbacks {
-  return {
-    broadcastMessage: (messageId: string, data: any) => {
-      console.log(`📡 [BattleRoom] Broadcasting message: ${messageId}`);
-      this.addBattleMessage(data.message || messageId); // ✅ AJOUT: Ajouter au battleLog
-      this.broadcast('battleMessage', {
-        messageId,
-        message: data.message || messageId,
-        variables: data.variables || {},
-        timing: data.timing || 2000
-      });
-    },
+    return {
+      broadcastMessage: (messageId: string, data: any) => {
+        console.log(`📡 [BattleRoom] Broadcasting message: ${messageId}`);
+        this.addBattleMessage(data.message || messageId); // ✅ AJOUT: Ajouter au battleLog
+        this.broadcast('battleMessage', {
+          messageId,
+          message: data.message || messageId,
+          variables: data.variables || {},
+          timing: data.timing || 2000
+        });
+      },
 
-    broadcastUpdate: (updateData: any) => {
-      console.log(`📡 [BattleRoom] Broadcasting update`);
-      this.broadcast('battleUpdate', updateData);
-    },
+      broadcastUpdate: (updateData: any) => {
+        console.log(`📡 [BattleRoom] Broadcasting update`);
+        this.broadcast('battleUpdate', updateData);
+      },
 
-    updatePokemonHP: (pokemonId: string, newHp: number) => {
-      console.log(`💖 [BattleRoom] Update HP: ${pokemonId} → ${newHp}`);
-      // Mettre à jour le HP dans le state
-      if (this.state.player1Pokemon?.pokemonId.toString() === pokemonId) {
-        this.state.player1Pokemon.currentHp = newHp;
-      } else if (this.state.player2Pokemon?.pokemonId.toString() === pokemonId) {
-        this.state.player2Pokemon.currentHp = newHp;
+      updatePokemonHP: (pokemonId: string, newHp: number) => {
+        console.log(`💖 [BattleRoom] Update HP: ${pokemonId} → ${newHp}`);
+        // Mettre à jour le HP dans le state
+        if (this.state.player1Pokemon?.pokemonId.toString() === pokemonId) {
+          this.state.player1Pokemon.currentHp = newHp;
+        } else if (this.state.player2Pokemon?.pokemonId.toString() === pokemonId) {
+          this.state.player2Pokemon.currentHp = newHp;
+        }
+      },
+
+      changeTurn: (newTurn: string) => {
+        console.log(`🔄 [BattleRoom] Change turn: ${newTurn}`);
+        // ✅ CORRECTION: Bien mapper les tours
+        if (newTurn === 'player1' || newTurn === this.state.player1Id) {
+          this.state.currentTurn = "player1";
+        } else if (newTurn === 'ai' || newTurn === 'player2') {
+          this.state.currentTurn = "player2";
+        } else {
+          this.state.currentTurn = newTurn as any;
+        }
+        this.state.turnNumber++;
+        
+        console.log(`🔄 [BattleRoom] Tour mis à jour: ${this.state.currentTurn}`);
+      },
+
+      endBattle: (result: any) => {
+        console.log(`🏁 [BattleRoom] End battle:`, result);
+        this.state.battleEnded = true;
+        this.state.winner = result.winner;
+        this.state.phase = result.result === 'fled' ? 'fled' : 'ended';
+      },
+
+      logBattleEvent: (event: any) => {
+        console.log(`📝 [BattleRoom] Log event: ${event.type}`);
       }
-    },
+    };
+  }
 
-    changeTurn: (newTurn: string) => {
-      console.log(`🔄 [BattleRoom] Change turn: ${newTurn}`);
-      // ✅ CORRECTION: Bien mapper les tours
-      if (newTurn === 'player1' || newTurn === this.state.player1Id) {
-        this.state.currentTurn = "player1";
-      } else if (newTurn === 'ai' || newTurn === 'player2') {
-        this.state.currentTurn = "player2";
-      } else {
-        this.state.currentTurn = newTurn as any;
-      }
-      this.state.turnNumber++;
-      
-      console.log(`🔄 [BattleRoom] Tour mis à jour: ${this.state.currentTurn}`);
-    },
-
-    endBattle: (result: any) => {
-      console.log(`🏁 [BattleRoom] End battle:`, result);
-      this.state.battleEnded = true;
-      this.state.winner = result.winner;
-      this.state.phase = result.result === 'fled' ? 'fled' : 'ended';
-    },
-
-    logBattleEvent: (event: any) => {
-      console.log(`📝 [BattleRoom] Log event: ${event.type}`);
-    }
-  };
-}
   // === DÉMARRAGE DU COMBAT ===
 
-private async startBattle() {
-  console.log(`🔥 [AUTO PHASE] === DÉMARRAGE DU COMBAT AVEC BattleIntegration ===`);
-  console.log(`🔥 [AUTO PHASE] Phase initiale: ${this.state.phase}`);
-  console.log(`🔥 [AUTO PHASE] Type de combat: ${this.state.battleType}`);
-  console.log(`🔥 [AUTO PHASE] Player1Id: ${this.state.player1Id}`);
-  console.log(`🔥 [AUTO PHASE] Player1Name: ${this.state.player1Name}`);
-  
-  try {
-    console.log(`🔥 [AUTO PHASE] Passage en phase intro...`);
-    this.state.phase = "intro";
+  private async startBattle() {
+    console.log(`🔥 [AUTO PHASE] === DÉMARRAGE DU COMBAT AVEC BattleIntegration ===`);
+    console.log(`🔥 [AUTO PHASE] Phase initiale: ${this.state.phase}`);
+    console.log(`🔥 [AUTO PHASE] Type de combat: ${this.state.battleType}`);
+    console.log(`🔥 [AUTO PHASE] Player1Id: ${this.state.player1Id}`);
+    console.log(`🔥 [AUTO PHASE] Player1Name: ${this.state.player1Name}`);
     
-    if (this.state.battleType === "wild") {
-      console.log(`🔥 [AUTO PHASE] Setup combat sauvage automatique...`);
-      await this.setupWildBattleWithManager();
-      console.log(`🔥 [AUTO PHASE] Setup sauvage terminé`);
-    } else {
-      console.log(`🔥 [AUTO PHASE] Setup combat PvP...`);
-      await this.setupPvPBattle();
-      console.log(`🔥 [AUTO PHASE] Setup PvP terminé`);
-    }
-    
-    console.log(`🔥 [AUTO PHASE] Passage en phase team_selection...`);
-    this.state.phase = "team_selection";
-    this.broadcast("phaseChange", { phase: "team_selection" });
-    
-    // ✅ ICI IL FAUT AJOUTER LA LOGIQUE AUTOMATIQUE
-    console.log(`🔥 [AUTO PHASE] Démarrage automatique sélection Pokémon...`);
-    
-    // Pour un combat sauvage, choisir automatiquement le premier Pokémon disponible
-    if (this.state.battleType === "wild") {
-      await this.autoSelectFirstPokemon();
-    }
-    
-    console.log(`🔥 [AUTO PHASE] startBattle terminé`);
-    
-  } catch (error) {
-    console.error(`🔥 [AUTO PHASE] Erreur startBattle:`, error);
-    if (error instanceof Error) {
-      console.error(`🔥 [AUTO PHASE] Stack trace:`, error.stack);
-    }
-    this.endBattleEarly("setup_error");
-  }
-}
-  
-private async autoSelectFirstPokemon() {
-  console.log(`🔥 [AUTO SELECT] Sélection automatique du premier Pokémon...`);
-  
-  try {
-    const playerClient = Array.from(this.clients)[0];
-    if (!playerClient) {
-      throw new Error("Aucun client trouvé");
-    }
-    
-    const teamManager = this.teamManagers.get(playerClient.sessionId);
-    if (!teamManager) {
-      throw new Error("TeamManager non trouvé");
-    }
-    
-    const team = await teamManager.getTeam();
-    const firstAvailablePokemon = team.find(pokemon => 
-      pokemon.currentHp > 0 && 
-      pokemon.moves && pokemon.moves.length > 0
-    );
-    
-    if (!firstAvailablePokemon) {
-      throw new Error("Aucun Pokémon disponible pour le combat");
-    }
-    
-    console.log(`🔥 [AUTO SELECT] Premier Pokémon trouvé: ${firstAvailablePokemon.nickname || 'Sans nom'}`);
-    
-    if (this.battleInitData.wildPokemon) {
-      // ✅ AJOUT: Créer les BattlePokemon dans le state AVANT d'initialiser BattleIntegration
-      console.log(`🔧 [AUTO SELECT] Création des BattlePokemon...`);
+    try {
+      console.log(`🔥 [AUTO PHASE] Passage en phase intro...`);
+      this.state.phase = "intro";
       
-      // Créer le Pokémon du joueur
-      this.state.player1Pokemon = await this.createBattlePokemonFromTeam(firstAvailablePokemon);
-      
-      // Créer le Pokémon sauvage
-      this.state.player2Pokemon = await this.createWildBattlePokemon(this.battleInitData.wildPokemon);
-      
-      console.log(`✅ [AUTO SELECT] BattlePokemon créés:`);
-      console.log(`   Player1: ${this.state.player1Pokemon.name} (vitesse: ${this.state.player1Pokemon.speed})`);
-      console.log(`   Player2: ${this.state.player2Pokemon.name} (vitesse: ${this.state.player2Pokemon.speed})`);
-      
-      const callbacks = this.createBattleCallbacks();
-      
-      // ✅ FONCTION HELPER pour convertir BattlePokemon → BattlePokemonData
-const convertToBattlePokemonData = (battlePokemon: BattlePokemon): any => {
-  console.log(`🔧 [CONVERT] Conversion ${battlePokemon.name}`);
-  console.log(`🔧 [CONVERT] Types source:`, Array.from(battlePokemon.types));
-  
-  const converted = {
-    pokemonId: battlePokemon.pokemonId,
-    name: battlePokemon.name,
-    level: battlePokemon.level,
-    currentHp: battlePokemon.currentHp,
-    maxHp: battlePokemon.maxHp,
-    types: Array.from(battlePokemon.types), // ✅ FIX: Préserver les types
-    moves: Array.from(battlePokemon.moves).map((moveId) => {
-      const moveData = MoveManager.getMoveData(moveId);
-      return {
-        moveId,
-        name: moveData?.name || moveId,
-        type: moveData?.type || 'Normal',
-        category: (moveData?.category?.toLowerCase() || 'physical') as 'physical' | 'special' | 'status',
-        power: moveData?.power || 0,
-        accuracy: moveData?.accuracy || 100,
-        pp: moveData?.pp || 35,
-        maxPp: moveData?.pp || 35,
-        priority: moveData?.priority || 0,
-        description: moveData?.description || ''
-      };
-    }),
-    stats: {
-      attack: battlePokemon.attack,
-      defense: battlePokemon.defense,
-      specialAttack: battlePokemon.specialAttack,
-      specialDefense: battlePokemon.specialDefense,
-      speed: battlePokemon.speed,
-      hp: battlePokemon.maxHp
-    },
-    statStages: {
-      attack: battlePokemon.attackStage || 0,
-      defense: battlePokemon.defenseStage || 0,
-      specialAttack: battlePokemon.specialAttackStage || 0,
-      specialDefense: battlePokemon.specialDefenseStage || 0,
-      speed: battlePokemon.speedStage || 0,
-      accuracy: 0,
-      evasion: 0
-    },
-    statusCondition: battlePokemon.statusCondition || 'normal',
-ability: undefined as string | undefined,
-heldItem: undefined as string | undefined,
-    gender: battlePokemon.gender,
-    shiny: battlePokemon.shiny,
-    isWild: battlePokemon.isWild,
-    nature: 'Hardy'
-  };
-  
-  console.log(`🔧 [CONVERT] Types finaux:`, converted.types);
-  return converted;
-};
-
-// ✅ PARTICIPANTS CORRIGÉS
-const participants = [
-  {
-    sessionId: this.state.player1Id,
-    name: this.state.player1Name,
-    role: 'player1' as any,
-    team: [convertToBattlePokemonData(this.state.player1Pokemon)], // ✅ Conversion correcte
-    activePokemon: this.state.player1Pokemon.pokemonId.toString(),
-    isAI: false,
-    isConnected: true,
-    lastActionTime: Date.now()
-  },
-  {
-    sessionId: 'ai',
-    name: 'Pokémon Sauvage',
-    role: 'player2' as any,
-    team: [convertToBattlePokemonData(this.state.player2Pokemon)], // ✅ Conversion correcte
-    activePokemon: this.state.player2Pokemon.pokemonId.toString(),
-    isAI: true,
-    isConnected: true,
-    lastActionTime: Date.now()
-  }
-];
-
-console.log(`🔧 [AUTO SELECT] Participants créés:`, participants.length);
-participants.forEach((p, i) => {
-  console.log(`   ${i}: ${p.sessionId} (${p.name}) - Pokémon: ${p.team[0]?.name}`);
-  console.log(`      Types: [${p.team[0]?.types?.join(', ')}]`); // ✅ Debug types
-});
-
-this.battleIntegration.initializeBattle(callbacks, 'wild', participants);
-          
-          // Démarrer le combat réel
-          this.startActualBattle();
-        }
-        
-      } catch (error) {
-        console.error(`🔥 [AUTO SELECT] Erreur sélection auto:`, error);
-        throw error;
+      if (this.state.battleType === "wild") {
+        console.log(`🔥 [AUTO PHASE] Setup combat sauvage automatique...`);
+        await this.setupWildBattleWithManager();
+        console.log(`🔥 [AUTO PHASE] Setup sauvage terminé`);
+      } else {
+        console.log(`🔥 [AUTO PHASE] Setup combat PvP...`);
+        await this.setupPvPBattle();
+        console.log(`🔥 [AUTO PHASE] Setup PvP terminé`);
       }
+      
+      console.log(`🔥 [AUTO PHASE] Passage en phase team_selection...`);
+      this.state.phase = "team_selection";
+      this.broadcast("phaseChange", { phase: "team_selection" });
+      
+      // ✅ ICI IL FAUT AJOUTER LA LOGIQUE AUTOMATIQUE
+      console.log(`🔥 [AUTO PHASE] Démarrage automatique sélection Pokémon...`);
+      
+      // Pour un combat sauvage, choisir automatiquement le premier Pokémon disponible
+      if (this.state.battleType === "wild") {
+        await this.autoSelectFirstPokemon();
+      }
+      
+      console.log(`🔥 [AUTO PHASE] startBattle terminé`);
+      
+    } catch (error) {
+      console.error(`🔥 [AUTO PHASE] Erreur startBattle:`, error);
+      if (error instanceof Error) {
+        console.error(`🔥 [AUTO PHASE] Stack trace:`, error.stack);
+      }
+      this.endBattleEarly("setup_error");
     }
-
-private async createWildBattlePokemon(wildPokemon: any): Promise<BattlePokemon> {
-  const battlePokemon = new BattlePokemon();
-  
-  const pokemonData = await getPokemonById(wildPokemon.pokemonId);
-  if (!pokemonData) {
-    throw new Error(`Données Pokémon sauvage ${wildPokemon.pokemonId} introuvables`);
   }
 
-  battlePokemon.pokemonId = wildPokemon.pokemonId;
-  battlePokemon.name = pokemonData.name;
-  battlePokemon.level = wildPokemon.level;
-  battlePokemon.isWild = true;
-  battlePokemon.gender = wildPokemon.gender;
-  battlePokemon.shiny = wildPokemon.shiny;
-  
-  // Types
-  battlePokemon.types.clear();
-  pokemonData.types.forEach((type: string) => battlePokemon.types.push(type));
-  
-  // ✅ CORRECTION: Utiliser les stats de wildPokemon ou calculer
-  console.log(`🔧 [WildPokemon] Stats reçues:`, {
-    hp: wildPokemon.hp,
-    attack: wildPokemon.attack,
-    speed: wildPokemon.speed
-  });
-  
-  battlePokemon.maxHp = wildPokemon.hp || this.calculateBaseStat(pokemonData.baseStats.hp, wildPokemon.level);
-  battlePokemon.currentHp = wildPokemon.hp || this.calculateBaseStat(pokemonData.baseStats.hp, wildPokemon.level);
-  battlePokemon.attack = wildPokemon.attack || this.calculateBaseStat(pokemonData.baseStats.attack, wildPokemon.level);
-  battlePokemon.defense = wildPokemon.defense || this.calculateBaseStat(pokemonData.baseStats.defense, wildPokemon.level);
-  battlePokemon.specialAttack = wildPokemon.specialAttack || this.calculateBaseStat(pokemonData.baseStats.specialAttack, wildPokemon.level);
-  battlePokemon.specialDefense = wildPokemon.specialDefense || this.calculateBaseStat(pokemonData.baseStats.specialDefense, wildPokemon.level);
-  battlePokemon.speed = wildPokemon.speed || this.calculateBaseStat(pokemonData.baseStats.speed, wildPokemon.level);
-  
-  console.log(`✅ [WildPokemon] Stats finales:`, {
-    hp: battlePokemon.maxHp,
-    attack: battlePokemon.attack,
-    speed: battlePokemon.speed
-  });
-  
-  // Moves de base
-  battlePokemon.moves.clear();
-  const baseMoves = pokemonData.learnset
-    .filter((learn: any) => learn.level <= wildPokemon.level)
-    .slice(-4)
-    .map((learn: any) => learn.moveId);
-  
-  (baseMoves.length > 0 ? baseMoves : ["tackle"]).forEach((move: string) => {
-    battlePokemon.moves.push(move);
-  });
-  
-  battlePokemon.statusCondition = "normal";
-  
-  return battlePokemon;
-}
+  private async autoSelectFirstPokemon() {
+    console.log(`🔥 [AUTO SELECT] Sélection automatique du premier Pokémon...`);
+    
+    try {
+      const playerClient = Array.from(this.clients)[0];
+      if (!playerClient) {
+        throw new Error("Aucun client trouvé");
+      }
+      
+      const teamManager = this.teamManagers.get(playerClient.sessionId);
+      if (!teamManager) {
+        throw new Error("TeamManager non trouvé");
+      }
+      
+      const team = await teamManager.getTeam();
+      const firstAvailablePokemon = team.find(pokemon => 
+        pokemon.currentHp > 0 && 
+        pokemon.moves && pokemon.moves.length > 0
+      );
+      
+      if (!firstAvailablePokemon) {
+        throw new Error("Aucun Pokémon disponible pour le combat");
+      }
+      
+      console.log(`🔥 [AUTO SELECT] Premier Pokémon trouvé: ${firstAvailablePokemon.nickname || 'Sans nom'}`);
+      
+      if (this.battleInitData.wildPokemon) {
+        // ✅ AJOUT: Créer les BattlePokemon dans le state AVANT d'initialiser BattleIntegration
+        console.log(`🔧 [AUTO SELECT] Création des BattlePokemon...`);
+        
+        // Créer le Pokémon du joueur
+        this.state.player1Pokemon = await this.createBattlePokemonFromTeam(firstAvailablePokemon);
+        
+        // Créer le Pokémon sauvage
+        this.state.player2Pokemon = await this.createWildBattlePokemon(this.battleInitData.wildPokemon);
+        
+        console.log(`✅ [AUTO SELECT] BattlePokemon créés:`);
+        console.log(`   Player1: ${this.state.player1Pokemon.name} (vitesse: ${this.state.player1Pokemon.speed})`);
+        console.log(`   Player2: ${this.state.player2Pokemon.name} (vitesse: ${this.state.player2Pokemon.speed})`);
+        
+        const callbacks = this.createBattleCallbacks();
+        
+        // ✅ FONCTION HELPER pour convertir BattlePokemon → BattlePokemonData
+        const convertToBattlePokemonData = (battlePokemon: BattlePokemon): any => {
+          console.log(`🔧 [CONVERT] Conversion ${battlePokemon.name}`);
+          console.log(`🔧 [CONVERT] Types source:`, Array.from(battlePokemon.types));
+          
+          const converted = {
+            pokemonId: battlePokemon.pokemonId,
+            name: battlePokemon.name,
+            level: battlePokemon.level,
+            currentHp: battlePokemon.currentHp,
+            maxHp: battlePokemon.maxHp,
+            types: Array.from(battlePokemon.types), // ✅ FIX: Préserver les types
+            moves: Array.from(battlePokemon.moves).map((moveId) => {
+              const moveData = MoveManager.getMoveData(moveId);
+              return {
+                moveId,
+                name: moveData?.name || moveId,
+                type: moveData?.type || 'Normal',
+                category: (moveData?.category?.toLowerCase() || 'physical') as 'physical' | 'special' | 'status',
+                power: moveData?.power || 0,
+                accuracy: moveData?.accuracy || 100,
+                pp: moveData?.pp || 35,
+                maxPp: moveData?.pp || 35,
+                priority: moveData?.priority || 0,
+                description: moveData?.description || ''
+              };
+            }),
+            stats: {
+              attack: battlePokemon.attack,
+              defense: battlePokemon.defense,
+              specialAttack: battlePokemon.specialAttack,
+              specialDefense: battlePokemon.specialDefense,
+              speed: battlePokemon.speed,
+              hp: battlePokemon.maxHp
+            },
+            statStages: {
+              attack: battlePokemon.attackStage || 0,
+              defense: battlePokemon.defenseStage || 0,
+              specialAttack: battlePokemon.specialAttackStage || 0,
+              specialDefense: battlePokemon.specialDefenseStage || 0,
+              speed: battlePokemon.speedStage || 0,
+              accuracy: 0,
+              evasion: 0
+            },
+            statusCondition: battlePokemon.statusCondition || 'normal',
+            ability: undefined as string | undefined,
+            heldItem: undefined as string | undefined,
+            gender: battlePokemon.gender,
+            shiny: battlePokemon.shiny,
+            isWild: battlePokemon.isWild,
+            nature: 'Hardy'
+          };
+          
+          console.log(`🔧 [CONVERT] Types finaux:`, converted.types);
+          return converted;
+        };
+        
+        // ✅ PARTICIPANTS DYNAMIQUES
+        const participants = [
+          {
+            sessionId: this.state.player1Id,
+            name: this.state.player1Name,
+            role: 'player1' as any,
+            team: [convertToBattlePokemonData(this.state.player1Pokemon)],
+            activePokemon: this.state.player1Pokemon.pokemonId.toString(),
+            isAI: false,
+            isConnected: true,
+            lastActionTime: Date.now()
+          },
+          {
+            sessionId: 'ai',
+            name: 'Pokémon Sauvage',
+            role: 'player2' as any,
+            team: [convertToBattlePokemonData(this.state.player2Pokemon)],
+            activePokemon: this.state.player2Pokemon.pokemonId.toString(),
+            isAI: true,
+            isConnected: true,
+            lastActionTime: Date.now()
+          }
+        ];
+            
+        console.log(`🔧 [AUTO SELECT] Participants créés:`, participants.length);
+        participants.forEach((p, i) => {
+          console.log(`   ${i}: ${p.sessionId} (${p.name}) - Pokémon: ${p.team[0]?.name}`);
+          console.log(`      Types: [${p.team[0]?.types?.join(', ')}]`); // ✅ Debug types
+        });
+        
+        this.battleIntegration.initializeBattle(callbacks, 'wild', participants);
+        
+        // Démarrer le combat réel
+        this.startActualBattle();
+      }
+      
+    } catch (error) {
+      console.error(`🔥 [AUTO SELECT] Erreur sélection auto:`, error);
+      throw error;
+    }
+  }
+
+  private async createWildBattlePokemon(wildPokemon: any): Promise<BattlePokemon> {
+    const battlePokemon = new BattlePokemon();
+    
+    const pokemonData = await getPokemonById(wildPokemon.pokemonId);
+    if (!pokemonData) {
+      throw new Error(`Données Pokémon sauvage ${wildPokemon.pokemonId} introuvables`);
+    }
+
+    battlePokemon.pokemonId = wildPokemon.pokemonId;
+    battlePokemon.name = pokemonData.name;
+    battlePokemon.level = wildPokemon.level;
+    battlePokemon.isWild = true;
+    battlePokemon.gender = wildPokemon.gender;
+    battlePokemon.shiny = wildPokemon.shiny;
+    
+    // Types
+    battlePokemon.types.clear();
+    pokemonData.types.forEach((type: string) => battlePokemon.types.push(type));
+    
+    // ✅ CORRECTION: Utiliser les stats de wildPokemon ou calculer
+    console.log(`🔧 [WildPokemon] Stats reçues:`, {
+      hp: wildPokemon.hp,
+      attack: wildPokemon.attack,
+      speed: wildPokemon.speed
+    });
+    
+    battlePokemon.maxHp = wildPokemon.hp || this.calculateBaseStat(pokemonData.baseStats.hp, wildPokemon.level);
+    battlePokemon.currentHp = wildPokemon.hp || this.calculateBaseStat(pokemonData.baseStats.hp, wildPokemon.level);
+    battlePokemon.attack = wildPokemon.attack || this.calculateBaseStat(pokemonData.baseStats.attack, wildPokemon.level);
+    battlePokemon.defense = wildPokemon.defense || this.calculateBaseStat(pokemonData.baseStats.defense, wildPokemon.level);
+    battlePokemon.specialAttack = wildPokemon.specialAttack || this.calculateBaseStat(pokemonData.baseStats.specialAttack, wildPokemon.level);
+    battlePokemon.specialDefense = wildPokemon.specialDefense || this.calculateBaseStat(pokemonData.baseStats.specialDefense, wildPokemon.level);
+    battlePokemon.speed = wildPokemon.speed || this.calculateBaseStat(pokemonData.baseStats.speed, wildPokemon.level);
+    
+    console.log(`✅ [WildPokemon] Stats finales:`, {
+      hp: battlePokemon.maxHp,
+      attack: battlePokemon.attack,
+      speed: battlePokemon.speed
+    });
+    
+    // Moves de base
+    battlePokemon.moves.clear();
+    const baseMoves = pokemonData.learnset
+      .filter((learn: any) => learn.level <= wildPokemon.level)
+      .slice(-4)
+      .map((learn: any) => learn.moveId);
+    
+    (baseMoves.length > 0 ? baseMoves : ["tackle"]).forEach((move: string) => {
+      battlePokemon.moves.push(move);
+    });
+    
+    battlePokemon.statusCondition = "normal";
+    
+    return battlePokemon;
+  }
   
   // ✅ NOUVEAU: Setup combat sauvage avec BattleIntegration
   private async setupWildBattleWithManager() {
@@ -588,202 +596,223 @@ private async createWildBattlePokemon(wildPokemon: any): Promise<BattlePokemon> 
     }
   }
 
-private startActualBattle() {
-  console.log(`⚔️ DÉBUT DU COMBAT RÉEL AVEC BattleIntegration !`);
-  
-  this.state.phase = "battle";
-  this.state.waitingForAction = true;
-  this.state.turnNumber = 1;
-  
-  // ✅ CALCUL CORRECT: Qui joue en premier selon la vitesse
-  const player1Speed = this.state.player1Pokemon?.speed || 0;
-  const player2Speed = this.state.player2Pokemon?.speed || 0;
-  
-  let firstPlayer: string;
-  if (player1Speed > player2Speed) {
-    firstPlayer = "player1";
-  } else if (player2Speed > player1Speed) {
-    firstPlayer = "player2";
-  } else {
-    // Égalité = aléatoire
-    firstPlayer = Math.random() < 0.5 ? "player1" : "player2";
-  }
-  
-  this.state.currentTurn = firstPlayer;
-  
-  console.log(`⚡ [BattleRoom] Vitesses: Player1=${player1Speed} vs Player2=${player2Speed}`);
-  console.log(`🎯 [BattleRoom] Premier tour: ${firstPlayer}`);
-  
-  this.broadcast("battleStart", {
-    player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
-    player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
-    currentTurn: this.state.currentTurn,
-    turnNumber: this.state.turnNumber,
-    battleLog: Array.from(this.state.battleLog),
-    speedComparison: { // ✅ Info pour le client
-      player1Speed,
-      player2Speed,
-      firstPlayer
+  private startActualBattle() {
+    console.log(`⚔️ DÉBUT DU COMBAT RÉEL AVEC BattleIntegration !`);
+    
+    this.state.phase = "battle";
+    this.state.waitingForAction = true;
+    this.state.turnNumber = 1;
+    
+    // ✅ CALCUL CORRECT: Qui joue en premier selon la vitesse
+    const player1Speed = this.state.player1Pokemon?.speed || 0;
+    const player2Speed = this.state.player2Pokemon?.speed || 0;
+    
+    let firstPlayer: string;
+    if (player1Speed > player2Speed) {
+      firstPlayer = "player1";
+    } else if (player2Speed > player1Speed) {
+      firstPlayer = "player2";
+    } else {
+      // Égalité = aléatoire
+      firstPlayer = Math.random() < 0.5 ? "player1" : "player2";
     }
-  });
-  
-  this.updateBattleStatusIcons();
-  this.startActionTimer();
-  
-  console.log(`✅ Combat ${this.state.battleId} en cours avec BattleIntegration !`);
-  
-  // ✅ AJOUT: Si l'IA joue en premier, la démarrer automatiquement
-  if (this.state.currentTurn === "player2") {
-    console.log(`🤖 [BattleRoom] IA joue en premier, démarrage dans 2s...`);
-    this.clock.setTimeout(() => {
-      this.triggerAITurn();
-    }, 2000);
+    
+    this.state.currentTurn = firstPlayer;
+    
+    console.log(`⚡ [BattleRoom] Vitesses: Player1=${player1Speed} vs Player2=${player2Speed}`);
+    console.log(`🎯 [BattleRoom] Premier tour: ${firstPlayer}`);
+    
+    this.broadcast("battleStart", {
+      player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+      player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+      currentTurn: this.state.currentTurn,
+      turnNumber: this.state.turnNumber,
+      battleLog: Array.from(this.state.battleLog),
+      speedComparison: { // ✅ Info pour le client
+        player1Speed,
+        player2Speed,
+        firstPlayer
+      }
+    });
+    
+    this.updateBattleStatusIcons();
+    this.startActionTimer();
+    
+    console.log(`✅ Combat ${this.state.battleId} en cours avec BattleIntegration !`);
+    
+    // ✅ AJOUT: Si l'IA joue en premier, la démarrer automatiquement
+    if (this.state.currentTurn === "player2") {
+      console.log(`🤖 [BattleRoom] IA joue en premier, démarrage dans 2s...`);
+      this.clock.setTimeout(() => {
+        this.triggerAITurn();
+      }, 2000);
+    }
   }
-}
 
-// ✅ AJOUT: Méthode pour déclencher le tour de l'IA
-private async triggerAITurn() {
-  console.log(`🤖 [BattleRoom] Déclenchement tour IA...`);
-  
-  try {
-    // Choisir une attaque aléatoire pour l'IA
-    const aiMoves = Array.from(this.state.player2Pokemon.moves);
-    const randomMove = aiMoves.length > 0 ? aiMoves[Math.floor(Math.random() * aiMoves.length)] : "tackle";
+  // ✅ AJOUT: Méthode pour déclencher le tour de l'IA avec protection anti-spam
+  private async triggerAITurn() {
+    console.log(`🤖 [BattleRoom] Déclenchement tour IA...`);
     
-    console.log(`🤖 [BattleRoom] IA utilise: ${randomMove}`);
+    // ✅ PROTECTION ANTI-SPAM
+    if (this.aiTurnInProgress) {
+      console.log(`🤖 [BattleRoom] ⚠️ IA déjà en cours, ignoré`);
+      return;
+    }
     
-    // Traiter l'action via BattleIntegration
-    await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
+    if (this.state.battleEnded) {
+      console.log(`🤖 [BattleRoom] ⚠️ Combat terminé, IA ignorée`);
+      return;
+    }
     
-    // Mettre à jour l'interface
-    this.broadcastBattleUpdate();
+    if (this.state.currentTurn !== "player2") {
+      console.log(`🤖 [BattleRoom] ⚠️ Pas le tour de l'IA (${this.state.currentTurn}), ignoré`);
+      return;
+    }
     
-    console.log(`✅ [BattleRoom] Tour IA terminé`);
+    // ✅ VERROUILLER
+    this.aiTurnInProgress = true;
+    console.log(`🤖 [BattleRoom] 🔒 IA verrouillée`);
     
-  } catch (error) {
-    console.error(`❌ [BattleRoom] Erreur tour IA:`, error);
+    try {
+      // Choisir une attaque aléatoire pour l'IA
+      const aiMoves = Array.from(this.state.player2Pokemon.moves);
+      const randomMove = aiMoves.length > 0 ? aiMoves[Math.floor(Math.random() * aiMoves.length)] : "tackle";
+      
+      console.log(`🤖 [BattleRoom] IA utilise: ${randomMove}`);
+      
+      // Traiter l'action via BattleIntegration
+      await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
+      
+      // Broadcast
+      this.broadcast("battleUpdate", {
+        player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+        player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+        currentTurn: this.state.currentTurn,
+        turnNumber: this.state.turnNumber,
+        battleLog: Array.from(this.state.battleLog)
+      });
+      
+      console.log(`✅ [BattleRoom] Tour IA terminé`);
+      
+    } catch (error) {
+      console.error(`❌ [BattleRoom] Erreur tour IA:`, error);
+    } finally {
+      // ✅ DÉVERROUILLER APRÈS 2 SECONDES
+      setTimeout(() => {
+        this.aiTurnInProgress = false;
+        console.log(`🤖 [BattleRoom] 🔓 IA déverrouillée`);
+      }, 2000);
+    }
   }
-}
 
-// ✅ AJOUT: Helper pour obtenir le nom d'affichage d'une attaque
-private getMoveDisplayName(moveId: string): string {
-  const moveNames: { [key: string]: string } = {
-    'tackle': 'Charge',
-    'scratch': 'Griffe', 
-    'growl': 'Rugissement',
-    'thundershock': 'Éclair',
-    'quick_attack': 'Vive-Attaque',
-    'bite': 'Morsure',
-    'ember': 'Flammèche',
-    'water_gun': 'Pistolet à O',
-    'vine_whip': 'Fouet Lianes',
-    'peck': 'Picpic'
-  };
-  
-  return moveNames[moveId] || moveId.charAt(0).toUpperCase() + moveId.slice(1);
-}
   // === ACTIONS DE COMBAT AVEC BattleIntegration ===
 
-  private broadcastBattleUpdate() {
-  this.broadcast("battleUpdate", {
-    player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
-    player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
-    currentTurn: this.state.currentTurn,
-    turnNumber: this.state.turnNumber,
-    battleLog: Array.from(this.state.battleLog),
-    lastMessage: this.state.lastMessage,
-    battleEnded: this.state.battleEnded,
-    winner: this.state.winner
-  });
-}
-  
-private async handleBattleAction(client: Client, data: any) {
-  console.log(`🔥 [DEBUG] handleBattleAction appelée:`, data);
-  
-  if (this.state.phase !== "battle") {
-    client.send("error", { message: "Combat non actif" });
-    return;
-  }
-
-  const playerRole = this.getPlayerRole(client.sessionId);
-  if (this.state.currentTurn !== playerRole) {
-    client.send("error", { message: "Ce n'est pas votre tour" });
-    return;
-  }
-
-  console.log(`🎮 Action de ${client.sessionId}: ${data.actionType}`);
-
-  try {
-    // ✅ ÉTAPE 1: Traiter l'action du joueur via BattleIntegration
-    await this.battleIntegration.processAction(
-      client.sessionId,
-      data.actionType as ActionType,
-      data
-    );
+  private async handleBattleAction(client: Client, data: any) {
+    console.log(`🔥 [DEBUG] handleBattleAction appelée:`, data);
+    console.log(`🔥 [DEBUG] Phase: ${this.state.phase}`);
+    console.log(`🔥 [DEBUG] Tour actuel: ${this.state.currentTurn}`);
+    console.log(`🔥 [DEBUG] Client sessionId: ${client.sessionId}`);
     
-    console.log(`✅ [BattleRoom] Action joueur traitée`);
-    
-    // ✅ ÉTAPE 2: Mettre à jour l'interface
-    this.broadcastBattleUpdate();
-    
-    // ✅ ÉTAPE 3: Vérifier fin de combat
-    if (this.state.battleEnded) {
-      await this.handleBattleEnd();
-    } else {
-      this.updatePlayerHpPercentages();
-      this.updateBattleStatusIcons();
+    if (this.state.phase !== "battle") {
+      console.log(`🔥 [DEBUG] ❌ Phase incorrecte: ${this.state.phase}`);
+      client.send("error", { message: "Combat non actif" });
+      return;
     }
+
+    const playerRole = this.getPlayerRole(client.sessionId);
+    console.log(`🔥 [DEBUG] Rôle joueur: ${playerRole}`);
     
-    // ✅ SUPPRIMÉ: Plus d'appel manuel à l'IA
-    // Le BattleSequencer s'en charge automatiquement
-    
-  } catch (error) {
-    console.error(`❌ Erreur handleBattleAction:`, error);
-    client.send("error", { message: "Erreur lors de l'action" });
+    if (this.state.currentTurn !== playerRole) {
+      console.log(`🔥 [DEBUG] ❌ Pas le tour du joueur: ${this.state.currentTurn} !== ${playerRole}`);
+      client.send("error", { message: "Ce n'est pas votre tour" });
+      return;
+    }
+
+    console.log(`🔥 [DEBUG] Validation OK, traitement action ${data.actionType}`);
+    console.log(`🎮 Action de ${client.sessionId}: ${data.actionType}`);
+
+    try {
+      console.log(`🔥 [DEBUG] Appel BattleIntegration.processAction...`);
+      
+      await this.battleIntegration.processAction(
+        client.sessionId,
+        data.actionType as ActionType,
+        data
+      );
+          
+      console.log(`🔥 [DEBUG] BattleIntegration.processAction terminé`);
+      
+      // Mettre à jour l'interface
+      this.broadcast("battleUpdate", {
+        player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+        player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+        currentTurn: this.state.currentTurn,
+        turnNumber: this.state.turnNumber,
+        battleLog: Array.from(this.state.battleLog),
+        lastMessage: this.state.lastMessage,
+        battleEnded: this.state.battleEnded,
+        winner: this.state.winner
+      });
+      
+      if (this.state.battleEnded) {
+        console.log(`🔥 [DEBUG] Combat terminé, appel handleBattleEnd...`);
+        await this.handleBattleEnd();
+      } else {
+        console.log(`🔥 [DEBUG] Combat continue, mise à jour statuts...`);
+        
+        this.updatePlayerHpPercentages();
+        this.updateBattleStatusIcons();
+      }
+
+      console.log(`🔥 [DEBUG] handleBattleAction terminé avec succès`);
+
+    } catch (error) {
+      console.error(`🔥 [DEBUG] ERREUR dans handleBattleAction:`, error);
+      client.send("error", { message: "Erreur lors de l'action" });
+    }
   }
-}
 
   // ✅ NOUVEAU: Gestion de la fin de combat avec BattleIntegration
-private async handleBattleEnd() {
-  console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BattleIntegration`);
-  
-  // Déterminer le type de fin selon l'état
-  let endType: "victory" | "defeat" | "fled" | "draw";
-  
-  if (this.state.pokemonCaught) {
-    endType = "victory";
-    this.updatePlayerStatusIcon(this.state.player1Id, "battle_victory");
-  } else if (this.state.winner === this.state.player1Id) {
-    endType = "victory";
-    this.updatePlayerStatusIcon(this.state.player1Id, "battle_victory");
-  } else if (this.state.winner === this.state.player2Id || this.state.winner === 'ai') {
-    endType = "defeat";
-    this.updatePlayerStatusIcon(this.state.player1Id, "battle_defeat");
-  } else if (this.state.phase === "fled") {
-    endType = "fled";
-    this.updatePlayerStatusIcon(this.state.player1Id, "battle_fled");
-  } else {
-    endType = "draw";
+  private async handleBattleEnd() {
+    console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BattleIntegration`);
+    
+    // Déterminer le type de fin selon l'état
+    let endType: "victory" | "defeat" | "fled" | "draw";
+    
+    if (this.state.pokemonCaught) {
+      endType = "victory";
+      this.updatePlayerStatusIcon(this.state.player1Id, "battle_victory");
+    } else if (this.state.winner === this.state.player1Id) {
+      endType = "victory";
+      this.updatePlayerStatusIcon(this.state.player1Id, "battle_victory");
+    } else if (this.state.winner === this.state.player2Id || this.state.winner === 'ai') {
+      endType = "defeat";
+      this.updatePlayerStatusIcon(this.state.player1Id, "battle_defeat");
+    } else if (this.state.phase === "fled") {
+      endType = "fled";
+      this.updatePlayerStatusIcon(this.state.player1Id, "battle_fled");
+    } else {
+      endType = "draw";
+    }
+    
+    // Sauvegarder les changements des Pokémon
+    await this.updatePokemonAfterBattle(this.state.player1Id, this.state.player1Pokemon);
+    
+    // Calculer les récompenses
+    const rewards = this.calculateRewards(endType, { expGained: 50 }); // Valeurs par défaut
+    
+    // Broadcast du résultat final
+    this.broadcast("battleEnd", {
+      result: endType,
+      rewards: rewards,
+      finalLog: Array.from(this.state.battleLog)
+    });
+    
+    // Programmer la fermeture
+    this.clock.setTimeout(() => {
+      this.disconnect();
+    }, 5000);
   }
-  
-  // Sauvegarder les changements des Pokémon
-  await this.updatePokemonAfterBattle(this.state.player1Id, this.state.player1Pokemon);
-  
-  // Calculer les récompenses
-  const rewards = this.calculateRewards(endType, { expGained: 50 }); // Valeurs par défaut
-  
-  // Broadcast du résultat final
-  this.broadcast("battleEnd", {
-    result: endType,
-    rewards: rewards,
-    finalLog: Array.from(this.state.battleLog)
-  });
-  
-  // Programmer la fermeture
-  this.clock.setTimeout(() => {
-    this.disconnect();
-  }, 5000);
-}
 
   // ✅ AMÉLIORÉ: Capture avec CaptureManager réel
   private async handleCaptureAttempt(client: Client, ballType: string) {
@@ -859,10 +888,8 @@ private async handleBattleEnd() {
         this.addBattleMessage(`Oh non ! ${this.state.player2Pokemon.name} s'est échappé !`);
         this.broadcast("captureFailure", { shakeCount: captureResult.shakeCount });
         
-        // Le combat continue - tour de l'IA
-        this.clock.setTimeout(() => {
-          
-        }, 1500);
+        // Le combat continue
+        console.log(`🤖 L'IA jouera automatiquement après cet échec de capture`);
       }
       
     } catch (error) {
@@ -887,11 +914,11 @@ private async handleBattleEnd() {
     action.data = JSON.stringify({});
     
     try {
-        await this.battleIntegration.processAction(
-          action.playerId,
-          action.type as ActionType,
-          {}
-        );
+      await this.battleIntegration.processAction(
+        action.playerId,
+        action.type as ActionType,
+        {}
+      );
       
       // Le BattleIntegration a mis à jour le state
       if (this.state.battleEnded && this.state.phase === "fled") {
@@ -899,7 +926,7 @@ private async handleBattleEnd() {
         await this.handleBattleEnd();
       } else {
         // Échec de fuite - continuer le combat
-        
+        console.log(`🤖 L'IA jouera automatiquement après cet échec de fuite`);
       }
       
     } catch (error) {
@@ -987,51 +1014,51 @@ private async handleBattleEnd() {
 
   // === MÉTHODES D'INFRASTRUCTURE ===
 
-private shouldStartBattle(): boolean {
-  console.log(`🔥 [SHOULD START] Vérification conditions démarrage:`);
-  console.log(`🔥 [SHOULD START] - Type: ${this.state.battleType}`);
-  console.log(`🔥 [SHOULD START] - Clients: ${this.clients.length}`);
-  console.log(`🔥 [SHOULD START] - Player1Id: ${this.state.player1Id}`);
-  console.log(`🔥 [SHOULD START] - Player1Name: ${this.state.player1Name}`);
-  console.log(`🔥 [SHOULD START] - TeamManagers: ${this.teamManagers.size}`);
-  
-  if (this.state.battleType === "wild") {
-    const canStart = this.clients.length >= 1 && 
-                     this.state.player1Id !== "" && 
-                     this.state.player1Name !== "" &&
-                     this.teamManagers.size >= 1;
+  private shouldStartBattle(): boolean {
+    console.log(`🔥 [SHOULD START] Vérification conditions démarrage:`);
+    console.log(`🔥 [SHOULD START] - Type: ${this.state.battleType}`);
+    console.log(`🔥 [SHOULD START] - Clients: ${this.clients.length}`);
+    console.log(`🔥 [SHOULD START] - Player1Id: ${this.state.player1Id}`);
+    console.log(`🔥 [SHOULD START] - Player1Name: ${this.state.player1Name}`);
+    console.log(`🔥 [SHOULD START] - TeamManagers: ${this.teamManagers.size}`);
     
-    console.log(`🔥 [SHOULD START] Peut démarrer: ${canStart}`);
-    return canStart;
-  } else {
-    const canStart = this.clients.length >= 2;
-    console.log(`🔥 [SHOULD START] Peut démarrer (PvP): ${canStart}`);
-    return canStart;
+    if (this.state.battleType === "wild") {
+      const canStart = this.clients.length >= 1 && 
+                       this.state.player1Id !== "" && 
+                       this.state.player1Name !== "" &&
+                       this.teamManagers.size >= 1;
+      
+      console.log(`🔥 [SHOULD START] Peut démarrer: ${canStart}`);
+      return canStart;
+    } else {
+      const canStart = this.clients.length >= 2;
+      console.log(`🔥 [SHOULD START] Peut démarrer (PvP): ${canStart}`);
+      return canStart;
+    }
   }
-}
 
-private getPlayerName(sessionId: string): string | null {
-  console.log(`🔥 [GET NAME] === DEBUG getPlayerName ===`);
-  console.log(`🔥 [GET NAME] Recherche nom pour: ${sessionId}`);
-  console.log(`🔥 [GET NAME] battleInitData.playerData:`, {
-    sessionId: this.battleInitData.playerData.sessionId,
-    name: this.battleInitData.playerData.name
-  });
-  console.log(`🔥 [GET NAME] battleInitData.player2Data:`, this.battleInitData.player2Data);
-  
-  if (sessionId === this.battleInitData.playerData.sessionId) {
-    console.log(`🔥 [GET NAME] Match Player1: ${this.battleInitData.playerData.name}`);
-    return this.battleInitData.playerData.name;
+  private getPlayerName(sessionId: string): string | null {
+    console.log(`🔥 [GET NAME] === DEBUG getPlayerName ===`);
+    console.log(`🔥 [GET NAME] Recherche nom pour: ${sessionId}`);
+    console.log(`🔥 [GET NAME] battleInitData.playerData:`, {
+      sessionId: this.battleInitData.playerData.sessionId,
+      name: this.battleInitData.playerData.name
+    });
+    console.log(`🔥 [GET NAME] battleInitData.player2Data:`, this.battleInitData.player2Data);
+    
+    if (sessionId === this.battleInitData.playerData.sessionId) {
+      console.log(`🔥 [GET NAME] Match Player1: ${this.battleInitData.playerData.name}`);
+      return this.battleInitData.playerData.name;
+    }
+    
+    if (this.battleInitData.player2Data && sessionId === this.battleInitData.player2Data.sessionId) {
+      console.log(`🔥 [GET NAME] Match Player2: ${this.battleInitData.player2Data.name}`);
+      return this.battleInitData.player2Data.name;
+    }
+    
+    console.log(`🔥 [GET NAME] ❌ AUCUN MATCH TROUVÉ pour ${sessionId}`);
+    return null;
   }
-  
-  if (this.battleInitData.player2Data && sessionId === this.battleInitData.player2Data.sessionId) {
-    console.log(`🔥 [GET NAME] Match Player2: ${this.battleInitData.player2Data.name}`);
-    return this.battleInitData.player2Data.name;
-  }
-  
-  console.log(`🔥 [GET NAME] ❌ AUCUN MATCH TROUVÉ pour ${sessionId}`);
-  return null;
-}
   
   private getPlayerRole(sessionId: string): "player1" | "player2" | null {
     if (sessionId === this.state.player1Id) return "player1";
@@ -1198,7 +1225,13 @@ private getPlayerName(sessionId: string): string | null {
         action.type as ActionType,
         { moveId: defaultMove }
       );
-      this.broadcastBattleUpdate();
+      this.broadcast("battleUpdate", {
+        player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+        player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+        currentTurn: this.state.currentTurn,
+        turnNumber: this.state.turnNumber,
+        battleLog: Array.from(this.state.battleLog)
+      });
       
       if (!this.state.battleEnded) {
         this.updatePlayerHpPercentages();
@@ -1254,7 +1287,7 @@ private getPlayerName(sessionId: string): string | null {
       
       // Le changement coûte un tour dans un vrai combat Pokémon
       this.clock.setTimeout(() => {
-        
+        console.log(`🤖 L'IA jouera automatiquement après ce changement de Pokémon`);
       }, 2000);
       
     } catch (error) {
@@ -1374,6 +1407,9 @@ private getPlayerName(sessionId: string): string | null {
     if (this.currentActionTimer) {
       clearTimeout(this.currentActionTimer);
     }
+    
+    // ✅ AJOUT: Reset anti-spam IA
+    this.aiTurnInProgress = false;
     
     console.log(`✅ BattleRoom ${this.roomId} nettoyée`);
   }
