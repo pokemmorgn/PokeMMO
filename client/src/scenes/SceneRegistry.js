@@ -182,9 +182,9 @@ this.importMap.set('lavandiashop', () => import('./zones/LavandiaShopScene.js'))
     'road3': 'Road3Scene',
     
     // Zones Nocther Cave
-    'nocthercave1': 'NoctherCave1Scene',
-    'nocthercave2': 'NoctherCave2Scene',
-    'nocthercave2bis': 'NoctherCave2BisScene'
+    'noctherbcave1': 'NoctherbCave1Scene',
+    'noctherbcave2': 'NoctherbCave2Scene',
+    'noctherbcave2bis': 'NoctherbCave2BisScene'
     };
     return mapping[zoneName] || `${zoneName}Scene`;
   }
@@ -227,9 +227,9 @@ this.importMap.set('lavandiashop', () => import('./zones/LavandiaShopScene.js'))
     'Road3Scene': 'road3',
     
     // Zones Nocther Cave
-    'NoctherCave1Scene': 'nocthercave1',
-    'NoctherCave2Scene': 'nocthercave2',
-    'NoctherCave2BisScene': 'nocthercave2bis'
+    'NoctherbCave1Scene': 'noctherbcave1',
+    'NoctherbCave2Scene': 'noctherbcave2',
+    'NoctherbCave2BisScene': 'noctherbcave2bis'
     };
     return mapping[sceneKey] || sceneKey.toLowerCase();
   }
