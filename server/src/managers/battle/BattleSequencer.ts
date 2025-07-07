@@ -135,84 +135,141 @@ export class BattleSequencer {
   /**
    * Exécute une séquence d'événements avec timing authentique
    */
-  private async executeSequence(sequence: BattleSequence, context: BattleContext): Promise<void> {
-    console.log(`🎬 [BattleSequencer] Exécution séquence "${sequence.sequenceId}"`);
-    console.log(`📋 [BattleSequencer] ${sequence.events.length} événements, durée: ${sequence.totalDuration}ms`);
-    
-    this.activeSequences.set(context.battleId, sequence);
-    
-    let currentTime = 0;
-    
-    for (const event of sequence.events) {
-      // Programmer l'événement
-      this.scheduleEvent(event, currentTime, context.battleId);
-      currentTime += event.delay;
+ private async executeSequence(sequence: BattleSequence, context: BattleContext): Promise<void> {
+  console.log(`🎬 [BattleSequencer] Exécution séquence "${sequence.sequenceId}"`);
+  console.log(`📋 [BattleSequencer] ${sequence.events.length} événements, durée: ${sequence.totalDuration}ms`);
+  
+  this.activeSequences.set(context.battleId, sequence);
+  
+  let currentTime = 0;
+  
+  // ✅ AJOUT: Détection d'événements de fin de combat
+  let hasBattleEndEvent = false;
+  let battleEndData: any = null;
+  
+  for (const event of sequence.events) {
+    // ✅ VÉRIFIER si c'est un événement de fin de combat
+    if (event.type === 'battle_end') {
+      hasBattleEndEvent = true;
+      battleEndData = event.data;
+      console.log(`🏁 [BattleSequencer] ÉVÉNEMENT FIN COMBAT détecté:`, battleEndData);
     }
     
-    // ✅ CORRECTIF: Un seul setTimeout avec toute la logique
-    setTimeout(() => {
-      try {
-        // ⚡ Déclencher tous les effets de fin de tour (brûlure, poison, météo…)
-        const results = BattleEffectSystem.triggerHook(context, "onTurnEnd", {});
-        if (results && results.length) {
-          results.forEach((r) => {
-            if (r?.message) {
-              this.battleRoomCallbacks?.broadcastMessage("battleMessage", {
-                message: r.message,
-                timing: 1800
-              });
-            }
+    // Programmer l'événement
+    this.scheduleEvent(event, currentTime, context.battleId);
+    currentTime += event.delay;
+  }
+  
+  // ✅ NOUVEAU: setTimeout avec logique conditionnelle
+  setTimeout(() => {
+    try {
+      // ✅ CRITIQUE: Si événement fin combat détecté, ne PAS continuer
+      if (hasBattleEndEvent) {
+        console.log(`🏁 [BattleSequencer] Combat terminé par événement, arrêt de la séquence`);
+        
+        // Mettre à jour le contexte pour marquer la fin
+        context.phase = 'ended' as any;
+        
+        // Nettoyer immédiatement
+        this.activeSequences.delete(context.battleId);
+        console.log(`✅ [BattleSequencer] Séquence "${sequence.sequenceId}" terminée avec fin combat`);
+        return; // ✅ SORTIR sans déclencher IA
+      }
+      
+      // ✅ AJOUT: Vérifier l'état des Pokémon avant tout changement
+      let battleShouldEnd = false;
+      let endReason = '';
+      
+      context.participants.forEach(participant => {
+        if (participant.team[0] && participant.team[0].currentHp <= 0) {
+          battleShouldEnd = true;
+          endReason = participant.isAI ? 'ai_pokemon_fainted' : 'player_pokemon_fainted';
+          console.log(`💀 [BattleSequencer] Pokémon K.O. détecté: ${participant.team[0].name} (${participant.sessionId})`);
+        }
+      });
+      
+      // ✅ CRITIQUE: Si Pokémon K.O., arrêter immédiatement
+      if (battleShouldEnd) {
+        console.log(`🏁 [BattleSequencer] Combat terminé par K.O.: ${endReason}`);
+        
+        // Mettre à jour le contexte
+        context.phase = 'ended' as any;
+        
+        // Déclencher fin combat via callbacks
+        if (this.battleRoomCallbacks) {
+          this.battleRoomCallbacks.endBattle({
+            result: endReason.includes('player') ? 'defeat' : 'victory',
+            winner: endReason.includes('player') ? 'ai' : context.participants.find(p => !p.isAI)?.sessionId,
+            reason: endReason
           });
         }
-
-        // ✅ CHANGEMENT DE TOUR après l'action
-        console.log(`🔄 [BattleSequencer] Changement de tour automatique...`);
-        console.log(`🔄 [BattleSequencer] Tour actuel: ${context.currentPlayer}`);
         
-        // Alterner entre player1 et AI
-        if (context.currentPlayer === context.participants.find(p => !p.isAI)?.sessionId) {
-          // Tour du joueur → Tour de l'IA
-          context.currentPlayer = 'ai';
-          console.log(`🔄 [BattleSequencer] Nouveau tour: ai`);
-          
-          // Informer le BattleRoom du changement
-          this.battleRoomCallbacks?.changeTurn('ai');
-          
-        } else if (context.currentPlayer === 'ai') {
-          // Tour de l'IA → Tour du joueur
-          const playerSessionId = context.participants.find(p => !p.isAI)?.sessionId || 'player1';
-          context.currentPlayer = playerSessionId;
-          console.log(`🔄 [BattleSequencer] Nouveau tour: ${playerSessionId}`);
-          
-          // Informer le BattleRoom du changement
-          this.battleRoomCallbacks?.changeTurn(playerSessionId);
-        }
-
-        // ✅ VÉRIFIER si l'IA doit jouer APRÈS le changement de tour
-        const handler = this.findHandler(context);
-        if (handler && handler.shouldPlayAITurn(context)) {
-          console.log(`🤖 [BattleSequencer] Programmation tour IA automatique...`);
-          
-          // Délai avant que l'IA joue (2 secondes pour laisser lire)
-          setTimeout(async () => {
-            try {
-              const aiAction = await handler.generateAIAction(context);
-              await this.processAction(aiAction, context);
-            } catch (error) {
-              console.error(`🤖 [BattleSequencer] Erreur tour IA auto:`, error);
-            }
-          }, 2000);
-        }
-        
-      } catch (err) {
-        console.error("[BattleSequencer] Erreur dans executeSequence:", err);
+        // Nettoyer immédiatement
+        this.activeSequences.delete(context.battleId);
+        console.log(`✅ [BattleSequencer] Séquence "${sequence.sequenceId}" terminée avec détection K.O.`);
+        return; // ✅ SORTIR sans déclencher IA
+      }
+      
+      // ⚡ Déclencher tous les effets de fin de tour (brûlure, poison, météo…)
+      const results = BattleEffectSystem.triggerHook(context, "onTurnEnd", {});
+      if (results && results.length) {
+        results.forEach((r) => {
+          if (r?.message) {
+            this.battleRoomCallbacks?.broadcastMessage("battleMessage", {
+              message: r.message,
+              timing: 1800
+            });
+          }
+        });
       }
 
-      // Nettoyage normal
-      this.activeSequences.delete(context.battleId);
-      console.log(`✅ [BattleSequencer] Séquence "${sequence.sequenceId}" terminée`);
-    }, sequence.totalDuration);
-  }
+      // ✅ CHANGEMENT DE TOUR après l'action
+      console.log(`🔄 [BattleSequencer] Changement de tour automatique...`);
+      console.log(`🔄 [BattleSequencer] Tour actuel: ${context.currentPlayer}`);
+      
+      // Alterner entre player1 et AI
+      if (context.currentPlayer === context.participants.find(p => !p.isAI)?.sessionId) {
+        // Tour du joueur → Tour de l'IA
+        context.currentPlayer = 'ai';
+        console.log(`🔄 [BattleSequencer] Nouveau tour: ai`);
+        
+        // Informer le BattleRoom du changement
+        this.battleRoomCallbacks?.changeTurn('ai');
+        
+      } else if (context.currentPlayer === 'ai') {
+        // Tour de l'IA → Tour du joueur
+        const playerSessionId = context.participants.find(p => !p.isAI)?.sessionId || 'player1';
+        context.currentPlayer = playerSessionId;
+        console.log(`🔄 [BattleSequencer] Nouveau tour: ${playerSessionId}`);
+        
+        // Informer le BattleRoom du changement
+        this.battleRoomCallbacks?.changeTurn(playerSessionId);
+      }
+
+      // ✅ VÉRIFIER si l'IA doit jouer APRÈS le changement de tour
+      const handler = this.findHandler(context);
+      if (handler && handler.shouldPlayAITurn(context)) {
+        console.log(`🤖 [BattleSequencer] Programmation tour IA automatique...`);
+        
+        // Délai avant que l'IA joue (2 secondes pour laisser lire)
+        setTimeout(async () => {
+          try {
+            const aiAction = await handler.generateAIAction(context);
+            await this.processAction(aiAction, context);
+          } catch (error) {
+            console.error(`🤖 [BattleSequencer] Erreur tour IA auto:`, error);
+          }
+        }, 2000);
+      }
+      
+    } catch (err) {
+      console.error("[BattleSequencer] Erreur dans executeSequence:", err);
+    }
+
+    // Nettoyage normal
+    this.activeSequences.delete(context.battleId);
+    console.log(`✅ [BattleSequencer] Séquence "${sequence.sequenceId}" terminée`);
+  }, sequence.totalDuration);
   
   /**
    * Programme un événement à exécuter après un délai
