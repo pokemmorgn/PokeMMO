@@ -749,71 +749,53 @@ private startActualBattle() {
   this.startActionTimer();
   
   console.log(`✅ Combat ${this.state.battleId} en cours avec BattleIntegration !`);
-  
-  // ✅ AJOUT: Si l'IA joue en premier, la démarrer automatiquement
-  if (this.state.currentTurn === "player2") {
-    console.log(`🤖 [BattleRoom] IA joue en premier, démarrage dans 2s...`);
-    this.clock.setTimeout(() => {
-      this.triggerAITurn();
-    }, 2000);
-  }
+  this.onTurnChanged();
 }
 
   // ✅ AJOUT: Méthode pour déclencher le tour de l'IA avec protection anti-spam
-  private async triggerAITurn() {
-    console.log(`🤖 [BattleRoom] Déclenchement tour IA...`);
-    
-    // ✅ PROTECTION ANTI-SPAM
-    if (this.aiTurnInProgress) {
-      console.log(`🤖 [BattleRoom] ⚠️ IA déjà en cours, ignoré`);
-      return;
-    }
-    
-    if (this.state.battleEnded) {
-      console.log(`🤖 [BattleRoom] ⚠️ Combat terminé, IA ignorée`);
-      return;
-    }
-    
-    if (this.state.currentTurn !== "player2") {
-      console.log(`🤖 [BattleRoom] ⚠️ Pas le tour de l'IA (${this.state.currentTurn}), ignoré`);
-      return;
-    }
-    
-    // ✅ VERROUILLER
-    this.aiTurnInProgress = true;
-    console.log(`🤖 [BattleRoom] 🔒 IA verrouillée`);
-    
-    try {
-      // Choisir une attaque aléatoire pour l'IA
-      const aiMoves = Array.from(this.state.player2Pokemon.moves);
-      const randomMove = aiMoves.length > 0 ? aiMoves[Math.floor(Math.random() * aiMoves.length)] : "tackle";
-      
-      console.log(`🤖 [BattleRoom] IA utilise: ${randomMove}`);
-      
-      // Traiter l'action via BattleIntegration
-      await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
-      
-      // Broadcast
-      this.broadcast("battleUpdate", {
-        player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
-        player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
-        currentTurn: this.state.currentTurn,
-        turnNumber: this.state.turnNumber,
-        battleLog: Array.from(this.state.battleLog)
-      });
-      
-      console.log(`✅ [BattleRoom] Tour IA terminé`);
-      
-    } catch (error) {
-      console.error(`❌ [BattleRoom] Erreur tour IA:`, error);
-    } finally {
-      // ✅ DÉVERROUILLER APRÈS 2 SECONDES
-      setTimeout(() => {
-        this.aiTurnInProgress = false;
-        console.log(`🤖 [BattleRoom] 🔓 IA déverrouillée`);
-      }, 2000);
-    }
+private async triggerAITurn() {
+  console.log(`🤖 [BattleRoom] Déclenchement tour IA...`);
+  
+  // Vérifications de sécurité
+  if (this.state.battleEnded || this.state.phase !== "battle") {
+    console.log(`🤖 [BattleRoom] ⚠️ Combat terminé, IA ignorée`);
+    return;
   }
+  
+  if (this.state.currentTurn !== "player2") {
+    console.log(`🤖 [BattleRoom] ⚠️ Pas le tour de l'IA (${this.state.currentTurn}), ignoré`);
+    return;
+  }
+  
+  try {
+    // Choisir une attaque pour l'IA (simple pour l'instant)
+    const aiMoves = Array.from(this.state.player2Pokemon.moves);
+    const randomMove = aiMoves.length > 0 ? aiMoves[Math.floor(Math.random() * aiMoves.length)] : "tackle";
+    
+    console.log(`🤖 [BattleRoom] IA utilise: ${randomMove}`);
+    
+    // Traiter l'action via BattleIntegration
+    await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
+    
+    // ✅ NOUVEAU: Notifier TurnSystem
+    this.turnSystem.submitAction('ai', { actionType: 'attack', moveId: randomMove });
+    
+    // Broadcast
+    this.broadcast("battleUpdate", {
+      player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+      player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+      currentTurn: this.state.currentTurn,
+      turnNumber: this.state.turnNumber,
+      battleLog: Array.from(this.state.battleLog),
+      turnSystemState: this.turnSystem.getState()
+    });
+    
+    console.log(`✅ [BattleRoom] Tour IA terminé`);
+    
+  } catch (error) {
+    console.error(`❌ [BattleRoom] Erreur tour IA:`, error);
+  }
+}
 
   // === ACTIONS DE COMBAT AVEC BattleIntegration ===
 
@@ -1335,43 +1317,54 @@ private async handleBattleAction(client: Client, data: any) {
   }
 
   
-  private async handleDefaultAction() {
-    console.log(`🔄 Action par défaut pour ${this.state.currentTurn}`);
-    
-    try {
-      // Utiliser la première attaque disponible
-      const moves = Array.from(this.state.player1Pokemon.moves);
-      const defaultMove = moves[0] || "tackle";
-      
-      const action = new BattleAction();
-      action.type = "attack";
-      action.playerId = this.state.player1Id;
-      action.data = JSON.stringify({ moveId: defaultMove });
-      action.priority = 0;
-      action.speed = this.state.player1Pokemon.speed;
-      
-      await this.battleIntegration.processAction(
-        action.playerId,
-        action.type as ActionType,
-        { moveId: defaultMove }
-      );
-      this.broadcast("battleUpdate", {
-        player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
-        player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
-        currentTurn: this.state.currentTurn,
-        turnNumber: this.state.turnNumber,
-        battleLog: Array.from(this.state.battleLog)
-      });
-      
-      if (!this.state.battleEnded) {
-        this.updatePlayerHpPercentages();
-        this.updateBattleStatusIcons();
-      }
-      
-    } catch (error) {
-      console.error(`❌ Erreur action par défaut:`, error);
-    }
+private async handleDefaultAction() {
+  console.log(`🔄 Action par défaut pour ${this.state.currentTurn}`);
+  
+  // ✅ VÉRIFICATION: Combat toujours actif ?
+  if (this.state.battleEnded || this.state.phase !== "battle") {
+    console.log(`🔄 Combat terminé, action par défaut annulée`);
+    return;
   }
+  
+  // ✅ VÉRIFICATION: Vérifier avec TurnSystem
+  const playerId = this.state.currentTurn === "player1" ? this.state.player1Id : 'ai';
+  if (!this.turnSystem.canPlayerAct(playerId)) {
+    console.log(`🔄 TurnSystem: joueur ne peut plus agir`);
+    return;
+  }
+  
+  try {
+    // Utiliser la première attaque disponible
+    const moves = Array.from(this.state.player1Pokemon.moves);
+    const defaultMove = moves[0] || "tackle";
+    
+    await this.battleIntegration.processAction(
+      playerId,
+      'attack' as ActionType,
+      { moveId: defaultMove }
+    );
+    
+    // ✅ NOUVEAU: Notifier TurnSystem
+    this.turnSystem.submitAction(playerId, { actionType: 'attack', moveId: defaultMove });
+    
+    this.broadcast("battleUpdate", {
+      player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
+      player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
+      currentTurn: this.state.currentTurn,
+      turnNumber: this.state.turnNumber,
+      battleLog: Array.from(this.state.battleLog),
+      turnSystemState: this.turnSystem.getState()
+    });
+    
+    if (!this.state.battleEnded) {
+      this.updatePlayerHpPercentages();
+      this.updateBattleStatusIcons();
+    }
+    
+  } catch (error) {
+    console.error(`❌ Erreur action par défaut:`, error);
+  }
+}
 
   // === GESTION DES CHANGEMENTS DE POKÉMON ===
 
