@@ -365,13 +365,13 @@ async connectToBattleRoom(battleRoomId) {
     try {
       // === ÉVÉNEMENTS DE COMBAT ===
       
-            this.battleRoom.onMessage('battleUpdate', (data) => {
-        console.log('🔄 [CLIENT] battleUpdate reçu:', data);
+            this.battleRoom.onMessage('battleMessage', (data) => {
+        console.log('🔄 [CLIENT] battleMessage reçu:', data);
         console.log('🔄 [CLIENT] HP reçus:', {
           player1: data.player1Pokemon?.currentHp + '/' + data.player1Pokemon?.maxHp,
           player2: data.player2Pokemon?.currentHp + '/' + data.player2Pokemon?.maxHp
         });
-        this.triggerEvent('battleUpdate', data);
+        this.triggerEvent('battleMessage', data);
       });
             
       this.battleRoom.onMessage('battleJoined', (data) => {
@@ -389,9 +389,9 @@ async connectToBattleRoom(battleRoomId) {
         this.triggerEvent('battleStart', data);
       });
 
-      this.battleRoom.onMessage('turnChange', (data) => {
+      this.battleRoom.onMessage('yourTurn', (data) => {
         console.log('[DEBUG NETWORK BATTLE] 🔄 turnChange:', data);
-        this.triggerEvent('turnChange', data);
+        this.triggerEvent('yourTurn', data);
       });
 
       this.battleRoom.onMessage('battleMessage', (data) => {
@@ -399,9 +399,9 @@ async connectToBattleRoom(battleRoomId) {
         this.triggerEvent('battleMessage', data);
       });
 
-      this.battleRoom.onMessage('battleEnd', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 🏁 battleEnd:', data);
-        this.triggerEvent('battleEnd', data);
+      this.battleRoom.onMessage('battleEndWithRewards', (data) => {
+        console.log('[DEBUG NETWORK BATTLE] 🏁 battleEndWithRewards:', data);
+        this.triggerEvent('battleEndWithRewards', data);
 
         // Programmer la déconnexion
         setTimeout(() => {
@@ -417,9 +417,9 @@ async connectToBattleRoom(battleRoomId) {
 
       // === ÉVÉNEMENTS D'ACTIONS ===
 
-      this.battleRoom.onMessage('attackResult', (data) => {
-        console.log('[DEBUG NETWORK BATTLE] 💥 attackResult:', data);
-        this.triggerEvent('attackResult', data);
+      this.battleRoom.onMessage('pokemonHPUpdate', (data) => {
+        console.log('[DEBUG NETWORK BATTLE] 💥 pokemonHPUpdate:', data);
+        this.triggerEvent('pokemonHPUpdate', data);
       });
 
       this.battleRoom.onMessage('captureShake', (data) => {
