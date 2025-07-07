@@ -440,10 +440,41 @@ export class BattleIntegration {
     const actionCount = 100;
     
     // Initialiser un combat
-    const context = integration.initializeBattle(silentCallbacks, 'wild', [
-      { sessionId: 'player1', name: 'TestPlayer', isAI: false },
-      { sessionId: 'ai', name: 'AI', isAI: true }
-    ]);
+const context = integration.initializeBattle(silentCallbacks, 'wild', [
+  {
+    sessionId: 'player1',
+    name: 'TestPlayer',
+    isAI: false,
+    team: [{
+      pokemonId: 25,
+      name: 'Pikachu',
+      level: 12,
+      currentHp: 40,
+      maxHp: 40,
+      types: ['Electric'],
+      moves: ['thunder_shock', 'quick_attack'],
+      stats: { attack: 30, defense: 25, specialAttack: 35, specialDefense: 30, speed: 60, hp: 40 },
+      statStages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0, speed: 0, accuracy: 0, evasion: 0 }
+    }]
+  },
+  {
+    sessionId: 'ai',
+    name: 'AI',
+    isAI: true,
+    team: [{
+      pokemonId: 16,
+      name: 'Roucool',
+      level: 8,
+      currentHp: 32,
+      maxHp: 32,
+      types: ['Normal', 'Flying'],
+      moves: ['tackle', 'gust'],
+      stats: { attack: 18, defense: 20, specialAttack: 15, specialDefense: 18, speed: 25, hp: 32 },
+      statStages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0, speed: 0, accuracy: 0, evasion: 0 }
+    }]
+  }
+]);
+
     
     // Exécuter de nombreuses actions
     for (let i = 0; i < actionCount; i++) {
