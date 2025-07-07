@@ -410,10 +410,11 @@ export class BattleSequencer {
     const newHp = Math.max(0, (event.data.currentHp || 0) - damage);
     
     this.battleRoomCallbacks.updatePokemonHP(event.targetId, newHp);
-    this.battleRoomCallbacks.broadcastMessage('pokemonDamage', {
+    
+    // Optionnel: garder l'animation de dégâts avec un autre nom
+    this.battleRoomCallbacks.broadcastMessage('damageAnimation', {
       pokemonId: event.targetId,
       damage: damage,
-      newHp: newHp,
       effectiveness: event.data.effectiveness
     });
   }
