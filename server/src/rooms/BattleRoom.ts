@@ -7,6 +7,7 @@ import { IBattleRoomCallbacks } from '../managers/battle/BattleSequencer';
 import { MoveManager } from "../managers/MoveManager";
 import { CaptureManager, CaptureAttempt } from "../managers/battle/CaptureManager";
 import { BattleEndManager, BattleEndCondition, BattleRewards, BattleContext, BattleParticipant } from "../managers/battle/BattleEndManager";
+import { DamageManager } from "../managers/battle/DamageManager";
 import { WildPokemon } from "../managers/EncounterManager";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
@@ -49,9 +50,6 @@ export class BattleRoom extends Room<BattleState> {
   // ✅ NOUVEAU: Contexte de combat pour BattleEndManager
   private battleContext!: BattleContext;
   private battleStartTime!: Date;
-  private damageDealt: Map<string, number> = new Map();
-  private damageReceived: Map<string, number> = new Map();
-  private pokemonDefeated: Map<string, number> = new Map();
 
   maxClients = 2;
 
@@ -257,67 +255,26 @@ export class BattleRoom extends Room<BattleState> {
       },
 
       updatePokemonHP: (pokemonId: string, newHp: number) => {
-        console.log(`🔍 [DEBUG HP] === CALLBACK updatePokemonHP ===`);
-        console.log(`🔍 [DEBUG HP] pokemonId: ${pokemonId}`);
-        console.log(`🔍 [DEBUG HP] newHp reçu: ${newHp}`);
+        console.log(`🩹 [CALLBACK] DamageManager.updatePokemonHP appelé`);
         
-        // ✅ NOUVEAU: Calculer et traquer les dégâts
-        let oldHp = 0;
-        let targetPlayerId = '';
-        let pokemonName = '';
+        // ✅ NOUVEAU: Utiliser DamageManager pour synchronisation parfaite
+        const result = DamageManager.updatePokemonHP(
+          pokemonId, 
+          newHp, 
+          this.state, 
+          this.battleContext,
+          'attack'
+        );
         
-        if (this.state.player1Pokemon?.pokemonId.toString() === pokemonId) {
-          oldHp = this.state.player1Pokemon.currentHp;
-          this.state.player1Pokemon.currentHp = newHp;
-          targetPlayerId = this.state.player1Id;
-          pokemonName = this.state.player1Pokemon.name;
-          console.log(`🔍 [DEBUG HP] Player1 Pokémon: ${pokemonName}`);
-        } else if (this.state.player2Pokemon?.pokemonId.toString() === pokemonId) {
-          oldHp = this.state.player2Pokemon.currentHp;
-          this.state.player2Pokemon.currentHp = newHp;
-          targetPlayerId = 'ai';
-          pokemonName = this.state.player2Pokemon.name;
-          console.log(`🔍 [DEBUG HP] Player2 Pokémon: ${pokemonName}`);
-        } else {
-          console.log(`🔍 [DEBUG HP] ❌ Pokémon non trouvé pour ID: ${pokemonId}`);
-          return;
-        }
-        
-        console.log(`🔍 [DEBUG HP] ${pokemonName}: ${oldHp} → ${newHp} (diff: ${oldHp - newHp})`);
-        
-        // Calculer les dégâts infligés
-        const damage = Math.max(0, oldHp - newHp);
-        console.log(`🔍 [DEBUG HP] Dégâts calculés: ${damage}`);
-        
-        if (damage > 0 && targetPlayerId) {
-          const currentDamageReceived = this.damageReceived.get(targetPlayerId) || 0;
-          this.damageReceived.set(targetPlayerId, currentDamageReceived + damage);
+        if (result) {
+          console.log(`✅ [CALLBACK] HP synchronisés: ${result.pokemonName} ${result.oldHp} → ${result.newHp}`);
           
-          // Ajouter aux dégâts infligés de l'attaquant
-          const attackerId = targetPlayerId === this.state.player1Id ? 'ai' : this.state.player1Id;
-          const currentDamageDealt = this.damageDealt.get(attackerId) || 0;
-          this.damageDealt.set(attackerId, currentDamageDealt + damage);
-          
-          console.log(`💥 [DAMAGE] ${damage} dégâts infligés à ${targetPlayerId} par ${attackerId}`);
-          console.log(`🔍 [DEBUG HP] Damage totaux - Reçus par ${targetPlayerId}: ${this.damageReceived.get(targetPlayerId)}, Infligés par ${attackerId}: ${this.damageDealt.get(attackerId)}`);
-          
-          // ✅ CORRECTION: Vérifier si le Pokémon est VRAIMENT K.O.
-          console.log(`🔍 [DEBUG HP] Vérification K.O.: newHp = ${newHp}, condition: ${newHp} <= 0 = ${newHp <= 0}`);
-          
-          if (newHp <= 0) {
-            const currentDefeated = this.pokemonDefeated.get(attackerId) || 0;
-            this.pokemonDefeated.set(attackerId, currentDefeated + 1);
-            console.log(`💀 [K.O.] ✅ VRAI K.O.: Pokémon ${pokemonId} (${pokemonName}) mis K.O. par ${attackerId}`);
-          } else {
-            console.log(`💚 [ALIVE] Pokémon ${pokemonId} (${pokemonName}) encore vivant avec ${newHp} HP`);
+          if (result.wasKnockedOut) {
+            console.log(`💀 [CALLBACK] ${result.pokemonName} K.O. confirmé par DamageManager !`);
           }
-        } else if (damage === 0) {
-          console.log(`🔍 [DEBUG HP] Aucun dégât (probablement une guérison ou mise à jour d'état)`);
         } else {
-          console.log(`🔍 [DEBUG HP] ❌ Situation anormale: damage=${damage}, targetPlayerId='${targetPlayerId}'`);
+          console.error(`❌ [CALLBACK] Erreur synchronisation HP pour pokemonId: ${pokemonId}`);
         }
-        
-        console.log(`🔍 [DEBUG HP] === FIN CALLBACK ===`);
       },
 
       changeTurn: (newTurn: string) => {
@@ -622,6 +579,10 @@ export class BattleRoom extends Room<BattleState> {
     });
     
     this.battleContext.turnNumber = this.state.turnNumber;
+    
+    // ✅ NOUVEAU: Synchroniser les statistiques DamageManager avec le contexte
+    DamageManager.syncStatisticsToContext(this.battleContext);
+    
     console.log(`🔄 [CONTEXT] === FIN MISE À JOUR ===`);
   }
 
@@ -708,8 +669,9 @@ export class BattleRoom extends Room<BattleState> {
         battleStats: {
           duration: Date.now() - this.battleStartTime.getTime(),
           totalTurns: this.state.turnNumber,
-          damageDealt: this.damageDealt.get(this.state.player1Id) || 0,
-          damageReceived: this.damageReceived.get(this.state.player1Id) || 0
+          damageDealt: DamageManager.getTotalDamageDealt(this.state.player1Id),
+          damageReceived: DamageManager.getTotalDamageReceived(this.state.player1Id),
+          pokemonKnockedOut: DamageManager.getPokemonKnockedOut(this.state.player1Id)
         }
       });
       
@@ -956,20 +918,17 @@ export class BattleRoom extends Room<BattleState> {
       startTime: this.battleStartTime,
       location: this.state.encounterLocation || 'unknown',
       participants,
-      damageDealt: this.damageDealt,
-      damageReceived: this.damageReceived,
-      pokemonDefeated: this.pokemonDefeated
+      damageDealt: new Map(),
+      damageReceived: new Map(),
+      pokemonDefeated: new Map()
     };
 
-    // Initialiser les compteurs
-    this.damageDealt.set(this.state.player1Id, 0);
-    this.damageDealt.set('ai', 0);
-    this.damageReceived.set(this.state.player1Id, 0);
-    this.damageReceived.set('ai', 0);
-    this.pokemonDefeated.set(this.state.player1Id, 0);
-    this.pokemonDefeated.set('ai', 0);
+    // ✅ NOUVEAU: Initialiser DamageManager pour ce combat
+    const playerIds = [this.state.player1Id, 'ai'];
+    DamageManager.initializeForBattle(playerIds);
 
     console.log(`✅ [CONTEXT] Contexte initialisé pour ${participants.length} participants`);
+    console.log(`✅ [CONTEXT] DamageManager initialisé pour ${playerIds.length} joueurs`);
   }
 
   private handlePokemonCaptured(capturedPokemon: any) {
@@ -1295,6 +1254,10 @@ export class BattleRoom extends Room<BattleState> {
     this.clients.forEach(client => {
       this.cleanupPlayer(client.sessionId);
     });
+    
+    // ✅ NOUVEAU: Nettoyer DamageManager
+    DamageManager.cleanup();
+    console.log(`🧹 [DISPOSE] DamageManager nettoyé`);
     
     console.log(`✅ [DISPOSE] Nettoyage terminé`);
   }
