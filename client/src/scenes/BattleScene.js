@@ -1515,7 +1515,6 @@ executePlayerAction(actionData) {
     }, 3000);
   }
 }
-  }
 
   // === HANDLERS RÉSEAU ===
 
