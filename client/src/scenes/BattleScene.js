@@ -1472,31 +1472,39 @@ executePlayerAction(actionData) {
     });
   }
 
-  setupBattleNetworkEvents() {
-    if (!this.battleNetworkHandler) return;
-    
-    console.log('📡 [BattleScene] Configuration événements réseau...');
-    
-    this.battleNetworkHandler.on('battleStart', (data) => {
-      this.handleNetworkBattleStart(data);
-    });
+setupBattleNetworkEvents() {
+  if (!this.battleNetworkHandler) return;
+  
+  console.log('📡 [BattleScene] Configuration événements réseau...');
+  
+  this.battleNetworkHandler.on('battleStart', (data) => {
+    this.handleNetworkBattleStart(data);
+  });
 
-      this.battleNetworkHandler.on('battleUpdate', (data) => {
+  this.battleNetworkHandler.on('battleUpdate', (data) => {
     this.handleNetworkBattleUpdate(data);
   });
-      
-    this.battleNetworkHandler.on('attackResult', (data) => {
-      this.handleNetworkAttackResult(data);
-    });
     
-    this.battleNetworkHandler.on('battleEnd', (data) => {
-      this.handleNetworkBattleEnd(data);
-    });
-    
-    this.battleNetworkHandler.on('turnChange', (data) => {
-      this.handleNetworkTurnChange(data);
-    });
-    handleNetworkBattleMessage(data) {
+  this.battleNetworkHandler.on('attackResult', (data) => {
+    this.handleNetworkAttackResult(data);
+  });
+  
+  // ✅ NOUVEAU: Handler pour les messages de combat (attaques IA, etc.)
+  this.battleNetworkHandler.on('battleMessage', (data) => {
+    this.handleNetworkBattleMessage(data);
+  });
+  
+  this.battleNetworkHandler.on('battleEnd', (data) => {
+    this.handleNetworkBattleEnd(data);
+  });
+  
+  this.battleNetworkHandler.on('turnChange', (data) => {
+    this.handleNetworkTurnChange(data);
+  });
+}
+
+// ✅ NOUVEAU: Handler pour afficher les messages de combat dans l'interface
+handleNetworkBattleMessage(data) {
   console.log('💬 [BattleScene] Message de combat reçu:', data.message);
   
   // Afficher le message dans la zone d'interface unifiée
