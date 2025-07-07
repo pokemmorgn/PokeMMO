@@ -409,10 +409,10 @@ class SoloBattleHandler implements IBattleHandler {
     // Logique d'attaque (par défaut)
     const bestMove = this.findBestMove(aiPokemon, playerPokemon, context);
     
-    console.log(`⚔️ [SoloBattleHandler] IA décide d'attaquer avec ${bestMove.name || bestMove.id}`);
+    console.log(`⚔️ [SoloBattleHandler] IA décide d'attaquer avec ${bestMove.name || bestMove.moveId}`);
     return {
       type: 'attack' as ActionType,
-      data: { moveId: bestMove.id },
+      data: { moveId: bestMove.moveId },
       priority: bestMove.priority || 0
     };
   }
@@ -432,10 +432,12 @@ class SoloBattleHandler implements IBattleHandler {
     
     if (availableMoves.length === 0) {
       console.log(`⚠️ [SoloBattleHandler] Aucun move disponible, utilisation de 'struggle'`);
-      return { id: 'struggle', name: 'Lutte', priority: 0 };
+      return { moveId: 'struggle', name: 'Lutte', type: 'Normal', category: 'physical', power: 40, accuracy: 100, pp: 35, maxPp: 35, priority: 0, description: '' };
     }
     
-    let bestMove = availableMoves[0];
+    let bestMove = typeof availableMoves[0] === 'string' 
+      ? { moveId: availableMoves[0], name: availableMoves[0], type: 'Normal', category: 'physical', power: 40, accuracy: 100, pp: 35, maxPp: 35, priority: 0, description: '' }
+      : availableMoves[0];
     let bestScore = 0;
     
     for (const move of availableMoves) {
@@ -446,7 +448,7 @@ class SoloBattleHandler implements IBattleHandler {
       
       if (score > bestScore) {
         bestScore = score;
-        bestMove = { id: moveId, name: moveId, priority: 0 };
+        bestMove = { moveId: moveId, name: moveId, type: 'Normal', category: 'physical', power: 40, accuracy: 100, pp: 35, maxPp: 35, priority: 0, description: '' };
       }
     }
     
@@ -454,11 +456,11 @@ class SoloBattleHandler implements IBattleHandler {
     if (bestScore === 0) {
       const randomMove = availableMoves[Math.floor(Math.random() * availableMoves.length)];
       const moveId = typeof randomMove === 'string' ? randomMove : randomMove.moveId;
-      bestMove = { id: moveId, name: moveId, priority: 0 };
-      console.log(`🎲 [SoloBattleHandler] Choix aléatoire: ${bestMove.id}`);
+      bestMove = { moveId: moveId, name: moveId, type: 'Normal', category: 'physical', power: 40, accuracy: 100, pp: 35, maxPp: 35, priority: 0, description: '' };
+      console.log(`🎲 [SoloBattleHandler] Choix aléatoire: ${bestMove.moveId}`);
     }
     
-    console.log(`✅ [SoloBattleHandler] Meilleure attaque: ${bestMove.name || bestMove.id} (score: ${bestScore.toFixed(2)})`);
+    console.log(`✅ [SoloBattleHandler] Meilleure attaque: ${bestMove.name || bestMove.moveId} (score: ${bestScore.toFixed(2)})`);
     return bestMove;
   }
   
