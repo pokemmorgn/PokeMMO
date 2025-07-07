@@ -662,35 +662,6 @@ private async handleBattleAction(client: Client, data: any) {
   }
 }
 
-private broadcastBattleUpdate() {
-  console.log(`📡 [BattleRoom] Broadcasting update:`, {
-    currentTurn: this.state.currentTurn,
-    turnNumber: this.state.turnNumber,
-    player1Hp: this.state.player1Pokemon?.currentHp,
-    player2Hp: this.state.player2Pokemon?.currentHp
-  });
-  
-  this.broadcast("battleUpdate", {
-    player1Pokemon: this.serializePokemonForClient(this.state.player1Pokemon),
-    player2Pokemon: this.serializePokemonForClient(this.state.player2Pokemon),
-    currentTurn: this.state.currentTurn,
-    turnNumber: this.state.turnNumber,
-    battleLog: Array.from(this.state.battleLog),
-    lastMessage: this.state.lastMessage,
-    battleEnded: this.state.battleEnded,
-    winner: this.state.winner
-  });
-  
-  // ✅ AMÉLIORATION: Vérifier si l'IA doit jouer SEULEMENT si c'est son tour
-  if (!this.state.battleEnded && this.state.currentTurn === "player2") {
-    console.log(`📡 [BattleRoom] Tour de l'IA détecté, vérification dans 1.5s...`);
-    this.clock.setTimeout(() => {
-      this.checkAndPlayAITurn();
-    }, 1500);
-  } else {
-    console.log(`📡 [BattleRoom] Pas le tour de l'IA (${this.state.currentTurn}) ou combat terminé`);
-  }
-}
   // ✅ NOUVEAU: Gestion de la fin de combat avec BattleManager
   private async handleBattleEnd() {
     console.log(`🏁 FIN DE COMBAT DÉTECTÉE PAR BATTLEMANAGER`);
