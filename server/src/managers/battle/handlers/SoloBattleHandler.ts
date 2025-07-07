@@ -25,7 +25,7 @@ import { BattleMessageHandler, createBattleMessage, createAttackMessages } from 
  * - Captures de Pokémon sauvages
  * - Fuite de combat
  */
-export class SoloBattleHandler implements IBattleHandler {
+class SoloBattleHandler implements IBattleHandler {
   
   // Cache des données de moves pour performance
   private moveDataCache: Map<string, any> = new Map();
@@ -128,7 +128,7 @@ export class SoloBattleHandler implements IBattleHandler {
       targetId: decision.targetId,
       data: decision.data,
       priority: decision.priority || 0,
-      speed: aiPokemon.stats.speed,  // ✅ CORRECTION: utiliser stats.speed
+      speed: aiPokemon.stats.speed,
       timestamp: Date.now()
     };
   }
@@ -266,6 +266,12 @@ export class SoloBattleHandler implements IBattleHandler {
     // Calcul de réussite de fuite
     const escapeChance = this.calculateEscapeChance(context);
     const escaped = Math.random() < escapeChance;
+    
+    // Incrémenter le compteur de tentatives
+    if (!context.escapeAttempts) {
+      context.escapeAttempts = 0;
+    }
+    context.escapeAttempts++;
     
     if (escaped) {
       return this.createRunSuccessSequence(context);
@@ -668,7 +674,7 @@ export class SoloBattleHandler implements IBattleHandler {
       move.name,
       damageResult.effectiveness,
       damageResult.critical,
-      attacker.pokemonId.toString() !== context.currentPlayer  // ✅ CORRECTION: convertir en string
+      attacker.pokemonId.toString() !== context.currentPlayer
     );
     
     attackMessages.forEach(msg => {
@@ -978,7 +984,7 @@ export class SoloBattleHandler implements IBattleHandler {
     const healAmount = this.calculateHealAmount(item);
     const healMessage = createBattleMessage('MSG_POTION_USED', {
       pokemon: 'Pokémon', // TODO: Nom du Pokémon cible
-      hp: healAmount  // ✅ CORRECTION: garder en number
+      hp: healAmount
     });
     
     if (healMessage) {
@@ -1016,11 +1022,11 @@ export class SoloBattleHandler implements IBattleHandler {
   
   private async processPokeball(item: any, context: BattleContext): Promise<BattleSequence> {
     // Rediriger vers la capture
-    return await this.processCaptureAction({  // ✅ CORRECTION: ajouter await
+    return await this.processCaptureAction({
       actionId: `capture_${Date.now()}`,
       playerId: context.currentPlayer,
       type: 'capture',
-      data: { ballType: item.id },  // ✅ ballType maintenant supporté
+      data: { ballType: item.id },
       priority: 0,
       speed: 0,
       timestamp: Date.now()
@@ -1210,5 +1216,4 @@ if (process.env.NODE_ENV === 'development') {
   testSoloBattleHandler();
 }
 
-export { SoloBattleHandler };  // ✅ AJOUT: Export nommé
 export default SoloBattleHandler;
