@@ -7,7 +7,6 @@ import { CaptureManager, CaptureAttempt } from "../managers/CaptureManager";
 import { WildPokemon } from "../managers/EncounterManager";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
-import { BattleIntegration, IBattleRoomCallbacks } from '../managers/battle/BattleIntegration';
 // Interface pour les données initiales du combat
 export interface BattleInitData {
   battleType: "wild" | "pvp";
