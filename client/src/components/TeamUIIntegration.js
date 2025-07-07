@@ -21,280 +21,244 @@ export class TeamUIIntegration {
   async register() {
     try {
       // ===== 🎯 ENREGISTREMENT DU MODULE TEAM UI =====
-      // ===== CORRECTION SYNTAXE TeamUIIntegration.js =====
+      await this.uiManager.registerModule('teamUI', {
+        factory: async () => {
+          console.log('🏭 [UIManager] Creating TeamUI instance via factory...');
+          
+          const teamUIInstance = new TeamUI(this.gameRoom);
+          
+          await this.waitForInitialization(teamUIInstance);
+          
+          this.teamUI = teamUIInstance;
+          
+          console.log('✅ [UIManager] TeamUI instance created and initialized');
+          return teamUIInstance;
+        },
 
-// ✅ ÉTAPE 1 : Corriger la méthode waitForInitialization (ligne ~69)
-// REMPLACER :
-// async waitForInitialization(teamUIInstance = null) {
+        dependencies: [],
 
-// PAR :
-async waitForInitialization(teamUIInstance) {
-  const instance = teamUIInstance || this.teamUI;
-  
-  if (instance && typeof instance.show === 'function' && typeof instance.hide === 'function') {
-    return Promise.resolve();
-  }
+        defaultState: {
+          visible: false,
+          enabled: true,
+          initialized: false
+        },
 
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error('TeamUI initialization timeout'));
-    }, 10000);
+        priority: 50,
 
-    let checkCount = 0;
-    const maxChecks = 100;
-    
-    const checkInitialization = () => {
-      checkCount++;
-      
-      if (instance && typeof instance.show === 'function' && typeof instance.hide === 'function') {
-        clearTimeout(timeout);
-        console.log(`✅ [UIManager] TeamUI initialisé après ${checkCount} vérifications`);
-        resolve();
-      } else if (checkCount >= maxChecks) {
-        clearTimeout(timeout);
-        reject(new Error(`TeamUI initialization failed after ${maxChecks} checks`));
-      } else {
-        setTimeout(checkInitialization, 100);
-      }
-    };
+        layout: {
+          type: 'overlay',
+          position: 'center',
+          anchor: 'center',
+          offset: { x: 0, y: 0 },
+          zIndex: 1000,
+          order: 0,
+          spacing: 0,
+          responsive: true
+        },
 
-    checkInitialization();
-  });
-}
+        responsive: {
+          mobile: {
+            enabled: true,
+            layout: {
+              type: 'overlay',
+              position: 'fullscreen'
+            },
+            optimizations: {
+              compactView: true,
+              touchOptimized: true,
+              reducedAnimations: true
+            }
+          },
+          tablet: {
+            enabled: true,
+            layout: {
+              type: 'overlay',
+              position: 'center'
+            },
+            optimizations: {
+              compactView: false,
+              touchOptimized: true,
+              reducedAnimations: false
+            }
+          },
+          desktop: {
+            enabled: true,
+            layout: {
+              type: 'overlay',
+              position: 'center'
+            },
+            optimizations: {
+              compactView: false,
+              touchOptimized: false,
+              reducedAnimations: false
+            }
+          }
+        },
 
-// ✅ ÉTAPE 2 : Corriger la factory function dans registerModule (ligne ~77)
-// DANS LA MÉTHODE register(), REMPLACER le bloc teamUI par :
+        groups: ['pokemon', 'management', 'overlay'],
 
-await this.uiManager.registerModule('teamUI', {
-  factory: async () => {
-    console.log('🏭 [UIManager] Creating TeamUI instance via factory...');
-    
-    const teamUIInstance = new TeamUI(this.gameRoom);
-    
-    await this.waitForInitialization(teamUIInstance);
-    
-    this.teamUI = teamUIInstance;
-    
-    console.log('✅ [UIManager] TeamUI instance created and initialized');
-    return teamUIInstance;
-  },
+        animations: {
+          show: { 
+            type: 'custom', 
+            duration: 500, 
+            easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+            customFunction: (element) => this.animateShow(element)
+          },
+          hide: { 
+            type: 'custom', 
+            duration: 300, 
+            easing: 'ease-in',
+            customFunction: (element) => this.animateHide(element)
+          },
+          enable: { 
+            type: 'pulse', 
+            duration: 200 
+          },
+          disable: { 
+            type: 'fade', 
+            duration: 200 
+          }
+        },
 
-  dependencies: [],
+        performance: {
+          lazyLoad: false,
+          preload: true,
+          cache: true,
+          debounce: 100,
+          maxUpdatesPerSecond: 30
+        },
 
-  defaultState: {
-    visible: false,
-    enabled: true,
-    initialized: false
-  },
+        metadata: {
+          name: 'Team Manager',
+          description: 'Advanced Pokemon team management interface',
+          version: '2.0.0',
+          author: 'Pokemon Game Dev Team',
+          category: 'Pokemon Management',
+          tags: ['pokemon', 'team', 'management', 'battle']
+        },
 
-  priority: 50,
+        accessibility: {
+          keyboardNavigation: true,
+          screenReader: true,
+          highContrast: true,
+          reducedMotion: true,
+          ariaLabels: true
+        },
 
-  layout: {
-    type: 'overlay',
-    position: 'center',
-    anchor: 'center',
-    offset: { x: 0, y: 0 },
-    zIndex: 1000,
-    order: 0,
-    spacing: 0,
-    responsive: true
-  },
+        hooks: {
+          beforeShow: () => this.beforeShow(),
+          afterShow: () => this.afterShow(),
+          beforeHide: () => this.beforeHide(),
+          afterHide: () => this.afterHide(),
+          onError: (error) => this.onError(error),
+          onUpdate: (data) => this.onUpdate(data)
+        },
 
-  responsive: {
-    mobile: {
-      enabled: true,
-      layout: {
-        type: 'overlay',
-        position: 'fullscreen'
-      },
-      optimizations: {
-        compactView: true,
-        touchOptimized: true,
-        reducedAnimations: true
-      }
-    },
-    tablet: {
-      enabled: true,
-      layout: {
-        type: 'overlay',
-        position: 'center'
-      },
-      optimizations: {
-        compactView: false,
-        touchOptimized: true,
-        reducedAnimations: false
-      }
-    },
-    desktop: {
-      enabled: true,
-      layout: {
-        type: 'overlay',
-        position: 'center'
-      },
-      optimizations: {
-        compactView: false,
-        touchOptimized: false,
-        reducedAnimations: false
-      }
-    }
-  },
+        persistence: {
+          enabled: true,
+          key: 'teamUI_state',
+          storage: 'sessionStorage',
+          fields: ['currentView', 'selectedPokemon', 'preferences']
+        },
 
-  groups: ['pokemon', 'management', 'overlay'],
+        critical: false,
 
-  animations: {
-    show: { 
-      type: 'custom', 
-      duration: 500, 
-      easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-      customFunction: (element) => this.animateShow(element)
-    },
-    hide: { 
-      type: 'custom', 
-      duration: 300, 
-      easing: 'ease-in',
-      customFunction: (element) => this.animateHide(element)
-    },
-    enable: { 
-      type: 'pulse', 
-      duration: 200 
-    },
-    disable: { 
-      type: 'fade', 
-      duration: 200 
-    }
-  },
-
-  performance: {
-    lazyLoad: false,
-    preload: true,
-    cache: true,
-    debounce: 100,
-    maxUpdatesPerSecond: 30
-  },
-
-  metadata: {
-    name: 'Team Manager',
-    description: 'Advanced Pokemon team management interface',
-    version: '2.0.0',
-    author: 'Pokemon Game Dev Team',
-    category: 'Pokemon Management',
-    tags: ['pokemon', 'team', 'management', 'battle']
-  },
-
-  accessibility: {
-    keyboardNavigation: true,
-    screenReader: true,
-    highContrast: true,
-    reducedMotion: true,
-    ariaLabels: true
-  },
-
-  hooks: {
-    beforeShow: () => this.beforeShow(),
-    afterShow: () => this.afterShow(),
-    beforeHide: () => this.beforeHide(),
-    afterHide: () => this.afterHide(),
-    onError: (error) => this.onError(error),
-    onUpdate: (data) => this.onUpdate(data)
-  },
-
-  persistence: {
-    enabled: true,
-    key: 'teamUI_state',
-    storage: 'sessionStorage', // Corrigé pour Claude.ai
-    fields: ['currentView', 'selectedPokemon', 'preferences']
-  },
-
-  critical: false,
-
-  debug: process.env.NODE_ENV === 'development'
-});
-
+        debug: process.env.NODE_ENV === 'development'
+      });
 
       // ===== 🎯 ENREGISTREMENT DU MODULE TEAM ICON =====
       await this.uiManager.registerModule('teamIcon', {
-  factory: async () => {
-    console.log('🏭 [UIManager] Creating TeamIcon instance...');
-    
-    const teamIconInstance = new TeamIcon(this.teamUI);
-    
-    console.log('✅ [UIManager] TeamIcon instance created');
-    return teamIconInstance;
-  },
+        factory: async () => {
+          console.log('🏭 [UIManager] Creating TeamIcon instance...');
+          
+          const teamIconInstance = new TeamIcon(this.teamUI);
+          
+          console.log('✅ [UIManager] TeamIcon instance created');
+          return teamIconInstance;
+        },
 
-  dependencies: ['teamUI'],
+        dependencies: ['teamUI'],
 
-  defaultState: {
-    visible: true,
-    enabled: true,
-    initialized: false
-  },
+        defaultState: {
+          visible: true,
+          enabled: true,
+          initialized: false
+        },
 
-  priority: 60,
+        priority: 60,
 
-  layout: {
-    type: 'icon',
-    position: 'auto',
-    anchor: 'bottom-right',
-    offset: { x: -20, y: -20 },
-    zIndex: 500,
-    order: 2,
-    spacing: 10,
-    responsive: true
-  },
+        layout: {
+          type: 'icon',
+          position: 'auto',
+          anchor: 'bottom-right',
+          offset: { x: -20, y: -20 },
+          zIndex: 500,
+          order: 2,
+          spacing: 10,
+          responsive: true
+        },
 
-  responsive: {
-    mobile: {
-      enabled: true,
-      layout: {
-        anchor: 'bottom-right',
-        offset: { x: -15, y: -15 },
-        order: 2,
-        spacing: 8
-      },
-      optimizations: {
-        smallerIcon: true,
-        simplifiedTooltips: true
-      }
-    },
-    tablet: {
-      enabled: true,
-      layout: {
-        anchor: 'bottom-right',
-        offset: { x: -18, y: -18 },
-        order: 2,
-        spacing: 9
-      }
-    },
-    desktop: {
-      enabled: true,
-      layout: {
-        anchor: 'bottom-right',
-        offset: { x: -20, y: -20 },
-        order: 2,
-        spacing: 10
-      }
+        responsive: {
+          mobile: {
+            enabled: true,
+            layout: {
+              anchor: 'bottom-right',
+              offset: { x: -15, y: -15 },
+              order: 2,
+              spacing: 8
+            },
+            optimizations: {
+              smallerIcon: true,
+              simplifiedTooltips: true
+            }
+          },
+          tablet: {
+            enabled: true,
+            layout: {
+              anchor: 'bottom-right',
+              offset: { x: -18, y: -18 },
+              order: 2,
+              spacing: 9
+            }
+          },
+          desktop: {
+            enabled: true,
+            layout: {
+              anchor: 'bottom-right',
+              offset: { x: -20, y: -20 },
+              order: 2,
+              spacing: 10
+            }
+          }
+        },
+
+        groups: ['pokemon', 'icons', 'ui'],
+
+        animations: {
+          show: { type: 'fadeIn', duration: 300, easing: 'ease-out' },
+          hide: { type: 'fadeOut', duration: 200, easing: 'ease-in' },
+          enable: { type: 'pulse', duration: 150 },
+          disable: { type: 'grayscale', duration: 200 }
+        },
+
+        metadata: {
+          name: 'Team Icon',
+          description: 'Quick access icon for team management',
+          version: '2.0.0',
+          category: 'UI Icons'
+        },
+
+        critical: false
+      });
+
+      this.initialized = true;
+      console.log('✅ TeamUI modules registered successfully in UIManager');
+      
+    } catch (error) {
+      console.error('❌ Failed to register TeamUI modules:', error);
+      throw error;
     }
-  },
-
-  groups: ['pokemon', 'icons', 'ui'],
-
-  animations: {
-    show: { type: 'fadeIn', duration: 300, easing: 'ease-out' },
-    hide: { type: 'fadeOut', duration: 200, easing: 'ease-in' },
-    enable: { type: 'pulse', duration: 150 },
-    disable: { type: 'grayscale', duration: 200 }
-  },
-
-  metadata: {
-    name: 'Team Icon',
-    description: 'Quick access icon for team management',
-    version: '2.0.0',
-    category: 'UI Icons'
-  },
-
-  critical: false
-});
+  }
 
   /**
    * Initialiser les modules TeamUI
@@ -326,6 +290,43 @@ await this.uiManager.registerModule('teamUI', {
       console.error('❌ Failed to initialize TeamUI modules:', error);
       throw error;
     }
+  }
+
+  /**
+   * Attendre l'initialisation complète du TeamUI
+   */
+  async waitForInitialization(teamUIInstance) {
+    const instance = teamUIInstance || this.teamUI;
+    
+    if (instance && typeof instance.show === 'function' && typeof instance.hide === 'function') {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('TeamUI initialization timeout'));
+      }, 10000);
+
+      let checkCount = 0;
+      const maxChecks = 100;
+      
+      const checkInitialization = () => {
+        checkCount++;
+        
+        if (instance && typeof instance.show === 'function' && typeof instance.hide === 'function') {
+          clearTimeout(timeout);
+          console.log(`✅ [UIManager] TeamUI initialisé après ${checkCount} vérifications`);
+          resolve();
+        } else if (checkCount >= maxChecks) {
+          clearTimeout(timeout);
+          reject(new Error(`TeamUI initialization failed after ${maxChecks} checks`));
+        } else {
+          setTimeout(checkInitialization, 100);
+        }
+      };
+
+      checkInitialization();
+    });
   }
 
   /**
@@ -457,43 +458,6 @@ await this.uiManager.registerModule('teamUI', {
       }
     });
   }
-
-  /**
-   * Attendre l'initialisation complète du TeamUI
-   */
-  async waitForInitialization(teamUIInstance) {
-  const instance = teamUIInstance || this.teamUI;
-  
-  if (instance && typeof instance.show === 'function' && typeof instance.hide === 'function') {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error('TeamUI initialization timeout'));
-    }, 10000);
-
-    let checkCount = 0;
-    const maxChecks = 100;
-    
-    const checkInitialization = () => {
-      checkCount++;
-      
-      if (instance && typeof instance.show === 'function' && typeof instance.hide === 'function') {
-        clearTimeout(timeout);
-        console.log(`✅ [UIManager] TeamUI initialisé après ${checkCount} vérifications`);
-        resolve();
-      } else if (checkCount >= maxChecks) {
-        clearTimeout(timeout);
-        reject(new Error(`TeamUI initialization failed after ${maxChecks} checks`));
-      } else {
-        setTimeout(checkInitialization, 100);
-      }
-    };
-
-    checkInitialization();
-  });
-}
 
   // ===== HOOKS D'ÉVÉNEMENTS UIMANAGER =====
 
