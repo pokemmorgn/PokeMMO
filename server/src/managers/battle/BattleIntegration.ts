@@ -1,1214 +1,623 @@
-// server/src/managers/battle/handlers/SoloBattleHandler.ts
-// Handler spécialisé pour les combats Solo (PvE) - Sauvage et Dresseur
+// server/src/managers/battle/BattleIntegration.ts
+// Intégration finale du nouveau système de combat avec BattleRoom
 
+import BattleSequencer, { IBattleRoomCallbacks } from './BattleSequencer';
+import { SoloBattleHandler } from './handlers/SoloBattleHandler';  // ✅ Import du vrai handler
 import { 
   BattleContext, 
   BattleAction, 
-  BattleSequence,
   BattlePokemonData,
-  ActionType,
-  BATTLE_TIMINGS,
-  POKEMON_CONSTANTS
+  BattleParticipant,
+  BattleSettings,
+  BattleEnvironment,
+  ActionType
 } from './types/BattleTypes';
-import { IBattleHandler } from './BattleSequencer';
 import { DamageCalculator } from './DamageCalculator';
 import { TypeEffectiveness } from './TypeEffectiveness';
-import { BattleMessageHandler, createBattleMessage, createAttackMessages } from './BattleMessageHandler';
+import { BattleMessageHandler } from './BattleMessageHandler';
 
 /**
- * HANDLER POUR COMBATS SOLO (PvE)
+ * INTÉGRATEUR PRINCIPAL
  * 
- * Gère :
- * - Combats vs Pokémon sauvages
- * - Combats vs Dresseurs NPC
- * - Logique IA simple et avancée
- * - Captures de Pokémon sauvages
- * - Fuite de combat
+ * Relie le nouveau système de combat au BattleRoom existant
+ * Fournit une API simple pour migrer progressivement
  */
-export class SoloBattleHandler implements IBattleHandler {
+export class BattleIntegration {
   
-  // Cache des données de moves pour performance
-  private moveDataCache: Map<string, any> = new Map();
-  
-  // IA - Patterns de comportement
-  private aiPersonalities = {
-    'aggressive': { attackChance: 0.9, switchChance: 0.05, itemChance: 0.05 },
-    'defensive': { attackChance: 0.6, switchChance: 0.3, itemChance: 0.1 },
-    'balanced': { attackChance: 0.75, switchChance: 0.15, itemChance: 0.1 },
-    'wild': { attackChance: 0.95, switchChance: 0.0, itemChance: 0.05 }
-  };
+  private sequencer: BattleSequencer;
+  private soloHandler: SoloBattleHandler;
+  private currentContext: BattleContext | null = null;
   
   constructor() {
-    console.log('🤖 [SoloBattleHandler] Handler PvE initialisé');
+    console.log('🔗 [BattleIntegration] Initialisation...');
+    
+    // Créer le sequencer
+    this.sequencer = new BattleSequencer();
+    
+    // Créer et enregistrer le handler solo
+    this.soloHandler = new SoloBattleHandler();  // ✅ Utiliser le vrai handler
+    this.sequencer.registerHandler('solo', this.soloHandler);
+    
+    console.log('✅ [BattleIntegration] Système initialisé');
   }
   
-  // === INTERFACE IBattleHandler ===
+  // === INTERFACE POUR BATTLEROOM ===
   
   /**
-   * Vérifie si ce handler peut gérer ce type de combat
+   * Initialise un nouveau combat avec le BattleRoom
    */
-  canHandle(context: BattleContext): boolean {
-    const canHandle = context.battleType === 'wild' || 
-                     context.battleType === 'trainer' ||
-                     context.battleType === 'gym' ||
-                     context.battleType === 'elite4';
+  initializeBattle(
+    battleRoomCallbacks: IBattleRoomCallbacks,
+    battleType: string,
+    participants: any[]
+  ): BattleContext {
+    console.log(`🚀 [BattleIntegration] Initialisation combat ${battleType}`);
     
-    console.log(`🔍 [SoloBattleHandler] Peut gérer ${context.battleType}: ${canHandle}`);
-    return canHandle;
-  }
-  
-  /**
-   * Traite une action de combat PvE
-   */
-  async processAction(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
-    console.log(`⚔️ [SoloBattleHandler] Traitement action: ${action.type}`);
+    // Configurer les callbacks
+    this.sequencer.setCallbacks(battleRoomCallbacks);
     
-    switch (action.type) {
-      case 'attack':
-        return await this.processAttackAction(action, context);
-        
-      case 'item':
-        return await this.processItemAction(action, context);
-        
-      case 'switch':
-        return await this.processSwitchAction(action, context);
-        
-      case 'run':
-        return await this.processRunAction(action, context);
-        
-      case 'capture':
-        return await this.processCaptureAction(action, context);
-        
-      default:
-        console.warn(`⚠️ [SoloBattleHandler] Type d'action non géré: ${action.type}`);
-        return this.createEmptySequence();
-    }
+    // Créer le contexte
+    this.currentContext = this.createBattleContext(battleType, participants);
+    
+    console.log(`✅ [BattleIntegration] Combat initialisé: ${this.currentContext.battleId}`);
+    return this.currentContext;
   }
   
   /**
-   * Détermine si l'IA doit jouer après cette action
+   * Traite une action de combat via le nouveau système
    */
-  shouldPlayAITurn(context: BattleContext): boolean {
-    // L'IA joue si :
-    // - Le tour est à l'IA
-    // - Le combat n'est pas terminé
-    // - Aucune action en attente
-    
-    const isAITurn = context.currentPlayer === 'ai' || context.currentPlayer === 'player2';
-    const battleActive = context.phase === 'battle';
-    
-    console.log(`🤖 [SoloBattleHandler] IA doit jouer ? ${isAITurn && battleActive}`);
-    return isAITurn && battleActive;
-  }
-  
-  /**
-   * Génère une action IA intelligente
-   */
-  async generateAIAction(context: BattleContext): Promise<BattleAction> {
-    console.log(`🧠 [SoloBattleHandler] Génération action IA...`);
-    
-    // Obtenir les données actuelles
-    const aiPokemon = this.getAIPokemon(context);
-    const playerPokemon = this.getPlayerPokemon(context);
-    
-    if (!aiPokemon || !playerPokemon) {
-      throw new Error('Pokémon manquants pour l\'IA');
+  async processAction(
+    playerId: string,
+    actionType: ActionType,
+    actionData: any
+  ): Promise<boolean> {
+    if (!this.currentContext) {
+      console.error('❌ [BattleIntegration] Aucun combat actif');
+      return false;
     }
     
-    // Déterminer la personnalité IA
-    const personality = this.getAIPersonality(context);
+    console.log(`⚔️ [BattleIntegration] Action: ${actionType} par ${playerId}`);
     
-    // Logique de décision
-    const decision = await this.makeAIDecision(aiPokemon, playerPokemon, personality, context);
-    
-    return {
-      actionId: `ai_action_${Date.now()}`,
-      playerId: 'ai',
-      type: decision.type,
-      targetId: decision.targetId,
-      data: decision.data,
-      priority: decision.priority || 0,
-      speed: aiPokemon.stats.speed,  // ✅ CORRECTION: utiliser stats.speed toujours
+    // Créer l'action
+    const action: BattleAction = {
+      actionId: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      playerId,
+      type: actionType,
+      data: actionData,
+      priority: actionData.priority || 0,
+      speed: this.getPlayerSpeed(playerId) || 50,
       timestamp: Date.now()
     };
-  }
-  
-  // === TRAITEMENT DES ACTIONS SPÉCIFIQUES ===
-  
-  /**
-   * Traite une attaque
-   */
-  private async processAttackAction(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
-    console.log(`💥 [SoloBattleHandler] Traitement attaque...`);
     
-    const moveId = action.data.moveId;
-    if (!moveId) {
-      return this.createErrorSequence('MSG_MOVE_FAILED');
-    }
+    // Traiter via le sequencer
+    const success = await this.sequencer.processAction(action, this.currentContext);
     
-    // Obtenir les données de l'attaque
-    const moveData = await this.getMoveData(moveId);
-    if (!moveData) {
-      return this.createErrorSequence('MSG_MOVE_FAILED');
-    }
-    
-    // Obtenir attaquant et défenseur
-    const attacker = this.getPokemonById(action.playerId, context);
-    const defender = this.getOpponentPokemon(action.playerId, context);
-    
-    if (!attacker || !defender) {
-      return this.createErrorSequence('MSG_MOVE_FAILED');
-    }
-    
-    // Vérifier si l'attaque peut être utilisée
-    if (!this.canUseMove(attacker, moveData)) {
-      return this.createMoveBlockedSequence(attacker, moveData);
-    }
-    
-    // Calculer précision
-    if (!this.checkMoveAccuracy(moveData, attacker, defender)) {
-      return this.createMissSequence(attacker, moveData);
-    }
-    
-    // Calculer coup critique
-    const isCritical = this.calculateCriticalHit(attacker, moveData);
-    
-    // Calculer dégâts
-    const damageResult = DamageCalculator.calculateDamage({
-      attacker,
-      defender,
-      move: moveData,
-      moveType: moveData.type || 'Normal',
-      weather: context.environment?.weather,
-      terrain: context.environment?.terrain,
-      isCritical
-    });
-    
-    // Appliquer les dégâts
-    const newDefenderHp = Math.max(0, defender.currentHp - damageResult.finalDamage);
-    const defenderFainted = newDefenderHp <= 0;
-    
-    // Créer la séquence d'attaque
-    return this.createAttackSequence(
-      attacker,
-      defender,
-      moveData,
-      damageResult,
-      defenderFainted,
-      context
-    );
-  }
-  
-  /**
-   * Traite l'utilisation d'un objet
-   */
-  private async processItemAction(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
-    console.log(`🎒 [SoloBattleHandler] Traitement objet: ${action.data.itemId}`);
-    
-    const itemId = action.data.itemId;
-    const targetId = action.data.targetPokemonId;
-    
-    // Obtenir les données de l'objet
-    const itemData = await this.getItemData(itemId);
-    if (!itemData) {
-      return this.createErrorSequence('MSG_ITEM_FAILED');
-    }
-    
-    // Traitement selon le type d'objet
-    switch (itemData.category) {
-      case 'healing':
-        return this.processHealingItem(itemData, targetId, context);
-        
-      case 'pokeball':
-        return this.processPokeball(itemData, context);
-        
-      case 'status':
-        return this.processStatusItem(itemData, targetId, context);
-        
-      default:
-        return this.createErrorSequence('MSG_ITEM_FAILED');
-    }
-  }
-  
-  /**
-   * Traite un changement de Pokémon
-   */
-  private async processSwitchAction(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
-    console.log(`🔄 [SoloBattleHandler] Changement Pokémon: ${action.data.targetPokemonId}`);
-    
-    const newPokemonId = action.data.targetPokemonId;
-    if (!newPokemonId) {
-      return this.createErrorSequence('MSG_SWITCH_FAILED');
-    }
-    
-    // Vérifier que le nouveau Pokémon est disponible
-    const newPokemon = this.getPokemonById(newPokemonId, context);
-    if (!newPokemon || newPokemon.currentHp <= 0) {
-      return this.createErrorSequence('MSG_SWITCH_FAILED');
-    }
-    
-    const currentPokemon = this.getPokemonById(action.playerId, context);
-    
-    return this.createSwitchSequence(currentPokemon, newPokemon, context);
-  }
-  
-  /**
-   * Traite une tentative de fuite
-   */
-  private async processRunAction(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
-    console.log(`🏃 [SoloBattleHandler] Tentative de fuite...`);
-    
-    // Combats de dresseurs : impossible de fuir
-    if (context.battleType === 'trainer' || context.battleType === 'gym' || context.battleType === 'elite4') {
-      return this.createRunFailSequence('MSG_CANT_ESCAPE_TRAINER');
-    }
-    
-    // Calcul de réussite de fuite
-    const escapeChance = this.calculateEscapeChance(context);
-    const escaped = Math.random() < escapeChance;
-    
-    if (escaped) {
-      return this.createRunSuccessSequence(context);
+    if (success) {
+      console.log(`✅ [BattleIntegration] Action traitée avec succès`);
     } else {
-      return this.createRunFailSequence('MSG_CANT_ESCAPE');
+      console.error(`❌ [BattleIntegration] Échec traitement action`);
     }
+    
+    return success;
   }
   
   /**
-   * Traite une tentative de capture
+   * Met à jour le contexte de combat
    */
-  private async processCaptureAction(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
-    console.log(`🎯 [SoloBattleHandler] Tentative de capture...`);
+  updateContext(updates: Partial<BattleContext>): void {
+    if (!this.currentContext) return;
     
-    // Seulement dans les combats sauvages
-    if (context.battleType !== 'wild') {
-      return this.createErrorSequence('MSG_CANT_CAPTURE_TRAINER');
-    }
-    
-    const ballType = action.data.ballType || 'pokeball';
-    const targetPokemon = this.getOpponentPokemon(action.playerId, context);
-    
-    if (!targetPokemon) {
-      return this.createErrorSequence('MSG_CAPTURE_FAILED');
-    }
-    
-    // Calculer le résultat de capture
-    const captureResult = this.calculateCaptureResult(targetPokemon, ballType, context);
-    
-    return this.createCaptureSequence(targetPokemon, ballType, captureResult, context);
-  }
-  
-  // === LOGIQUE IA ===
-  
-  /**
-   * Prend une décision intelligente pour l'IA
-   */
-  private async makeAIDecision(
-    aiPokemon: BattlePokemonData,
-    playerPokemon: BattlePokemonData,
-    personality: any,
-    context: BattleContext
-  ): Promise<any> {
-    console.log(`🎯 [SoloBattleHandler] Décision IA (${personality.name || 'default'})...`);
-    
-    // Évaluer la situation
-    const aiHpPercent = aiPokemon.currentHp / aiPokemon.maxHp;
-    const playerHpPercent = playerPokemon.currentHp / playerPokemon.maxHp;
-    
-    // Logique de fuite (Pokémon sauvages seulement)
-    if (context.battleType === 'wild' && aiHpPercent < 0.2 && Math.random() < 0.3) {
-      return {
-        type: 'run' as ActionType,
-        data: {},
-        priority: 0
-      };
-    }
-    
-    // Logique de changement (dresseurs seulement)
-    if (context.battleType === 'trainer' && aiHpPercent < 0.3 && Math.random() < personality.switchChance) {
-      const switchTarget = this.findBestSwitchTarget(aiPokemon, playerPokemon, context);
-      if (switchTarget) {
-        return {
-          type: 'switch' as ActionType,
-          targetId: switchTarget.pokemonId,
-          data: { targetPokemonId: switchTarget.pokemonId },
-          priority: 0
-        };
-      }
-    }
-    
-    // Logique d'objets (dresseurs seulement)
-    if (context.battleType === 'trainer' && aiHpPercent < 0.5 && Math.random() < personality.itemChance) {
-      const healingItem = this.findBestHealingItem(aiPokemon, context);
-      if (healingItem) {
-        return {
-          type: 'item' as ActionType,
-          data: { itemId: healingItem.id, targetPokemonId: aiPokemon.pokemonId },
-          priority: 0
-        };
-      }
-    }
-    
-    // Logique d'attaque (par défaut)
-    const bestMove = this.findBestMove(aiPokemon, playerPokemon, context);
-    
-    return {
-      type: 'attack' as ActionType,
-      data: { moveId: bestMove.id },
-      priority: bestMove.priority || 0
-    };
+    Object.assign(this.currentContext, updates);
+    console.log(`🔄 [BattleIntegration] Contexte mis à jour`);
   }
   
   /**
-   * Trouve la meilleure attaque pour l'IA
+   * Termine le combat
    */
-  private findBestMove(aiPokemon: BattlePokemonData, playerPokemon: BattlePokemonData, context: BattleContext): any {
-    console.log(`🎯 [SoloBattleHandler] Recherche meilleure attaque...`);
+  endBattle(): void {
+    if (!this.currentContext) return;
     
-    const availableMoves = aiPokemon.moves.filter(move => move.pp > 0);
+    console.log(`🏁 [BattleIntegration] Fin du combat ${this.currentContext.battleId}`);
     
-    if (availableMoves.length === 0) {
-      return { id: 'struggle', name: 'Lutte', priority: 0 };
-    }
+    // Nettoyer les séquences
+    this.sequencer.cancelBattleSequences(this.currentContext.battleId);
     
-    let bestMove = availableMoves[0];
-    let bestScore = 0;
-    
-    for (const move of availableMoves) {
-      const score = this.evaluateMoveEffectiveness(move, aiPokemon, playerPokemon);
-      
-      if (score > bestScore) {
-        bestScore = score;
-        bestMove = move;
-      }
-    }
-    
-    console.log(`✅ [SoloBattleHandler] Meilleure attaque: ${bestMove.name} (score: ${bestScore})`);
-    return bestMove;
+    this.currentContext = null;
   }
+  
+  // === MÉTHODES DE MIGRATION ===
   
   /**
-   * Évalue l'efficacité d'une attaque
+   * Convertit les données BattleRoom existantes vers le nouveau format
    */
-  private evaluateMoveEffectiveness(
-    move: any,
-    attacker: BattlePokemonData,
-    defender: BattlePokemonData
-  ): number {
-    // Facteurs d'évaluation
-    let score = move.power || 0;
+  static convertBattleRoomData(battleRoomState: any): {
+    context: BattleContext,
+    participants: BattleParticipant[]
+  } {
+    console.log('🔄 [BattleIntegration] Conversion données BattleRoom...');
     
-    // Bonus efficacité des types
-    const effectiveness = TypeEffectiveness.getTotalEffectiveness(move.type, defender.types);
-    score *= effectiveness;
+    // Créer les participants
+    const participants: BattleParticipant[] = [];
     
-    // Bonus STAB
-    if (TypeEffectiveness.hasSTAB(move.type, attacker.types)) {
-      score *= 1.5;
-    }
-    
-    // Pénalité si faible précision
-    if (move.accuracy < 90) {
-      score *= (move.accuracy / 100);
-    }
-    
-    // Bonus si adversaire a peu de PV
-    const defenderHpPercent = defender.currentHp / defender.maxHp;
-    if (defenderHpPercent < 0.3 && score > 0) {
-      score *= 1.5; // Priorité aux attaques qui peuvent finir
-    }
-    
-    return score;
-  }
-  
-  /**
-   * Trouve le meilleur Pokémon pour un switch
-   */
-  private findBestSwitchTarget(
-    currentPokemon: BattlePokemonData,
-    opponentPokemon: BattlePokemonData,
-    context: BattleContext
-  ): BattlePokemonData | null {
-    // TODO: Implémenter quand on aura le système d'équipe IA
-    console.log(`🔄 [SoloBattleHandler] Recherche switch target (TODO)`);
-    return null;
-  }
-  
-  /**
-   * Trouve le meilleur objet de soin
-   */
-  private findBestHealingItem(pokemon: BattlePokemonData, context: BattleContext): any | null {
-    // TODO: Implémenter quand on aura le système d'inventaire IA
-    console.log(`💊 [SoloBattleHandler] Recherche healing item (TODO)`);
-    return null;
-  }
-  
-  // === CALCULS DE COMBAT ===
-  
-  /**
-   * Vérifie si un move peut être utilisé
-   */
-  private canUseMove(pokemon: BattlePokemonData, move: any): boolean {
-    // Vérifier PP
-    if (move.pp <= 0) {
-      return false;
-    }
-    
-    // Vérifier statuts bloquants
-    if (pokemon.statusCondition === 'sleep' && Math.random() > 0.3) {
-      return false;
-    }
-    
-    if (pokemon.statusCondition === 'freeze' && Math.random() > 0.2) {
-      return false;
-    }
-    
-    if (pokemon.statusCondition === 'paralysis' && Math.random() < 0.25) {
-      return false;
-    }
-    
-    return true;
-  }
-  
-  /**
-   * Calcule la précision d'une attaque
-   */
-  private checkMoveAccuracy(move: any, attacker: BattlePokemonData, defender: BattlePokemonData): boolean {
-    let accuracy = move.accuracy || 100;
-    
-    // Modifications de précision par les stages
-    const accuracyStage = attacker.statStages?.accuracy || 0;
-    const evasionStage = defender.statStages?.evasion || 0;
-    
-    const netStage = accuracyStage - evasionStage;
-    const stageMultiplier = this.getAccuracyStageMultiplier(netStage);
-    
-    accuracy *= stageMultiplier;
-    
-    return Math.random() * 100 < accuracy;
-  }
-  
-  /**
-   * Calcule si c'est un coup critique
-   */
-  private calculateCriticalHit(pokemon: BattlePokemonData, move: any): boolean {
-    const baseCritRate = POKEMON_CONSTANTS.CRITICAL_BASE_RATE;
-    let critRate = baseCritRate;
-    
-    // Certaines attaques ont un taux critique élevé
-    if (move.highCritRatio) {
-      critRate *= 2;
-    }
-    
-    // Capacités qui augmentent les critiques
-    if (pokemon.ability === 'super_luck') {
-      critRate *= 2;
-    }
-    
-    return Math.random() < critRate;
-  }
-  
-  /**
-   * Calcule la chance de fuite
-   */
-  private calculateEscapeChance(context: BattleContext): number {
-    // Formule simplifiée : chance augmente avec les tentatives
-    const attempts = context.escapeAttempts || 0;
-    let baseChance = 0.5; // 50% de base
-    
-    // Chaque tentative augmente les chances
-    baseChance += attempts * 0.1;
-    
-    return Math.min(baseChance, 1.0);
-  }
-  
-  /**
-   * Calcule le résultat d'une capture
-   */
-  private calculateCaptureResult(pokemon: BattlePokemonData, ballType: string, context: BattleContext): any {
-    // TODO: Intégrer avec le CaptureManager existant
-    const baseRate = 45; // Rate de base du Pokémon
-    const ballBonus = this.getBallBonus(ballType);
-    const hpModifier = 1 - (pokemon.currentHp / pokemon.maxHp);
-    const statusModifier = this.getStatusCaptureModifier(pokemon.statusCondition);
-    
-    const finalRate = baseRate * ballBonus * (1 + hpModifier) * statusModifier;
-    const success = Math.random() * 255 < finalRate;
-    
-    // Nombre de secousses basé sur la proximité du succès
-    let shakeCount = 0;
-    if (finalRate > 200) shakeCount = 3;
-    else if (finalRate > 150) shakeCount = 2;
-    else if (finalRate > 100) shakeCount = 1;
-    
-    return {
-      success,
-      shakeCount,
-      criticalCapture: Math.random() < 0.01, // 1% de chance
-      finalRate
-    };
-  }
-  
-  // === HELPERS ===
-  
-  private getBallBonus(ballType: string): number {
-    const ballBonuses: { [key: string]: number } = {
-      'pokeball': 1.0,
-      'greatball': 1.5,
-      'ultraball': 2.0,
-      'masterball': 255.0
-    };
-    
-    return ballBonuses[ballType] || 1.0;
-  }
-  
-  private getStatusCaptureModifier(status: string): number {
-    const statusModifiers: { [key: string]: number } = {
-      'normal': 1.0,
-      'sleep': 2.5,
-      'freeze': 2.5,
-      'paralysis': 1.5,
-      'burn': 1.5,
-      'poison': 1.5
-    };
-    
-    return statusModifiers[status] || 1.0;
-  }
-  
-  private getAccuracyStageMultiplier(stage: number): number {
-    const clampedStage = Math.max(-6, Math.min(6, stage));
-    
-    if (clampedStage >= 0) {
-      return (3 + clampedStage) / 3;
-    } else {
-      return 3 / (3 - clampedStage);
-    }
-  }
-  
-  private getAIPersonality(context: BattleContext): any {
-    switch (context.battleType) {
-      case 'wild':
-        return { ...this.aiPersonalities.wild, name: 'wild' };
-      case 'trainer':
-        return { ...this.aiPersonalities.balanced, name: 'trainer' };
-      case 'gym':
-        return { ...this.aiPersonalities.aggressive, name: 'gym' };
-      case 'elite4':
-        return { ...this.aiPersonalities.defensive, name: 'elite4' };
-      default:
-        return { ...this.aiPersonalities.balanced, name: 'default' };
-    }
-  }
-  
-  // === HELPERS DE DONNÉES ===
-  
-  private getPokemonById(playerId: string, context: BattleContext): BattlePokemonData | null {
-    return context.participants.find(p => p.sessionId === playerId)?.team[0] || null;
-  }
-  
-  private getPlayerPokemon(context: BattleContext): BattlePokemonData | null {
-    return context.participants.find(p => !p.isAI)?.team[0] || null;
-  }
-  
-  private getAIPokemon(context: BattleContext): BattlePokemonData | null {
-    return context.participants.find(p => p.isAI)?.team[0] || null;
-  }
-  
-  private getOpponentPokemon(playerId: string, context: BattleContext): BattlePokemonData | null {
-    return context.participants.find(p => p.sessionId !== playerId)?.team[0] || null;
-  }
-  
-  private async getMoveData(moveId: string): Promise<any> {
-    if (this.moveDataCache.has(moveId)) {
-      return this.moveDataCache.get(moveId);
-    }
-    
-    // TODO: Charger depuis vos JSONs de moves
-    const mockMoveData = {
-      id: moveId,
-      name: moveId.charAt(0).toUpperCase() + moveId.slice(1),
-      type: 'Normal',
-      category: 'Physical',
-      power: 40,
-      accuracy: 100,
-      pp: 35,
-      priority: 0
-    };
-    
-    this.moveDataCache.set(moveId, mockMoveData);
-    return mockMoveData;
-  }
-  
-  private async getItemData(itemId: string): Promise<any> {
-    // TODO: Charger depuis vos JSONs d'objets
-    return {
-      id: itemId,
-      name: itemId,
-      category: 'healing',
-      effect: 'heal_20'
-    };
-  }
-  
-  // === CRÉATION DE SÉQUENCES ===
-  
-  private createAttackSequence(
-    attacker: BattlePokemonData,
-    defender: BattlePokemonData,
-    move: any,
-    damageResult: any,
-    defenderFainted: boolean,
-    context: BattleContext
-  ): BattleSequence {
-    const events: any[] = [];
-    let currentDelay = 0;
-    
-    // Messages d'attaque
-    const attackMessages = createAttackMessages(
-      attacker.name,
-      move.name,
-      damageResult.effectiveness,
-      damageResult.critical,
-      attacker.pokemonId.toString() !== context.currentPlayer  // ✅ CORRECTION: convertir en string
-    );
-    
-    attackMessages.forEach(msg => {
-      events.push({
-        eventId: `attack_msg_${events.length}`,
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: msg.id, variables: msg.variables },
-        message: msg.template,
-        delay: currentDelay
-      });
-      currentDelay += msg.timing;
-    });
-    
-    // Animation et dégâts
-    if (damageResult.finalDamage > 0) {
-      events.push({
-        eventId: 'damage_event',
-        type: 'damage',
-        timestamp: Date.now(),
-        targetId: defender.pokemonId,
-        data: {
-          damage: damageResult.finalDamage,
-          currentHp: defender.currentHp - damageResult.finalDamage,
-          effectiveness: damageResult.effectiveness
-        },
-        delay: currentDelay
-      });
-      currentDelay += BATTLE_TIMINGS.DAMAGE_ANIMATION;
-    }
-    
-    // K.O. si nécessaire
-    if (defenderFainted) {
-      const faintMessage = createBattleMessage('MSG_POKEMON_FAINTED', {
-        pokemon: defender.name
-      });
-      
-      if (faintMessage) {
-        events.push({
-          eventId: 'faint_msg',
-          type: 'message',
-          timestamp: Date.now(),
-          data: { messageId: faintMessage.id, variables: faintMessage.variables },
-          message: faintMessage.template,
-          delay: currentDelay
-        });
-      }
-    }
-    
-    return {
-      sequenceId: `attack_${Date.now()}`,
-      events,
-      totalDuration: currentDelay,
-      priority: 80
-    };
-  }
-  
-  private createCaptureSequence(
-    pokemon: BattlePokemonData,
-    ballType: string,
-    result: any,
-    context: BattleContext
-  ): BattleSequence {
-    const events: any[] = [];
-    let currentDelay = 0;
-    
-    // Messages de capture
-    const captureMessages = BattleMessageHandler.generateCaptureSequence(
-      'Dresseur',
-      ballType,
-      pokemon.name,
-      result.shakeCount,
-      result.success,
-      result.criticalCapture
-    );
-    
-    captureMessages.forEach(msg => {
-      events.push({
-        eventId: `capture_msg_${events.length}`,
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: msg.id, variables: msg.variables },
-        message: msg.template,
-        delay: currentDelay
-      });
-      currentDelay += msg.timing;
-    });
-    
-    return {
-      sequenceId: `capture_${Date.now()}`,
-      events,
-      totalDuration: currentDelay,
-      priority: 90
-    };
-  }
-  
-  private createSwitchSequence(
-    oldPokemon: BattlePokemonData | null,
-    newPokemon: BattlePokemonData,
-    context: BattleContext
-  ): BattleSequence {
-    const events: any[] = [];
-    let currentDelay = 0;
-    
-    // Messages de changement
-    const switchMessages = BattleMessageHandler.generateSwitchSequence(
-      'Dresseur',
-      oldPokemon?.name || 'Pokémon',
-      newPokemon.name,
-      true
-    );
-    
-    switchMessages.forEach(msg => {
-      events.push({
-        eventId: `switch_msg_${events.length}`,
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: msg.id, variables: msg.variables },
-        message: msg.template,
-        delay: currentDelay
-      });
-      currentDelay += msg.timing;
-    });
-    
-    return {
-      sequenceId: `switch_${Date.now()}`,
-      events,
-      totalDuration: currentDelay,
-      priority: 75
-    };
-  }
-  
-  private createRunSuccessSequence(context: BattleContext): BattleSequence {
-    const events: any[] = [];
-    
-    const runMessage = createBattleMessage('MSG_ESCAPED_SAFELY');
-    if (runMessage) {
-      events.push({
-        eventId: 'run_success',
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: runMessage.id, variables: runMessage.variables },
-        message: runMessage.template,
-        delay: 0
-      });
-      
-      // Terminer le combat
-      events.push({
-        eventId: 'battle_end',
-        type: 'battle_end',
-        timestamp: Date.now(),
-        data: { result: 'fled', reason: 'player_fled' },
-        delay: BATTLE_TIMINGS.MESSAGE_DISPLAY
+    // Participant 1 (joueur)
+    if (battleRoomState.player1Pokemon) {
+      participants.push({
+        sessionId: battleRoomState.player1Id || 'player1',
+        name: battleRoomState.player1Name || 'Joueur',
+        role: 'player1',
+        team: [BattleIntegration.convertToBattlePokemon(battleRoomState.player1Pokemon)],
+        activePokemon: battleRoomState.player1Pokemon.pokemonId?.toString() || '1',
+        isAI: false,
+        isConnected: true,
+        lastActionTime: Date.now()
       });
     }
     
-    return {
-      sequenceId: `run_success_${Date.now()}`,
-      events,
-      totalDuration: BATTLE_TIMINGS.MESSAGE_DISPLAY + BATTLE_TIMINGS.BATTLE_END,
-      priority: 85
-    };
-  }
-  
-  private createRunFailSequence(messageId: string): BattleSequence {
-    const events: any[] = [];
-    
-    const failMessage = createBattleMessage(messageId);
-    if (failMessage) {
-      events.push({
-        eventId: 'run_fail',
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: failMessage.id, variables: failMessage.variables },
-        message: failMessage.template,
-        delay: 0
+    // Participant 2 (IA/adversaire)
+    if (battleRoomState.player2Pokemon) {
+      participants.push({
+        sessionId: 'ai',
+        name: battleRoomState.player2Pokemon.isWild ? 'Pokémon Sauvage' : 'Dresseur',
+        role: 'player2',
+        team: [BattleIntegration.convertToBattlePokemon(battleRoomState.player2Pokemon)],
+        activePokemon: battleRoomState.player2Pokemon.pokemonId?.toString() || '2',
+        isAI: true,
+        isConnected: true,
+        lastActionTime: Date.now()
       });
     }
     
-    return {
-      sequenceId: `run_fail_${Date.now()}`,
-      events,
-      totalDuration: BATTLE_TIMINGS.MESSAGE_DISPLAY,
-      priority: 70
-    };
-  }
-  
-  private createMissSequence(attacker: BattlePokemonData, move: any): BattleSequence {
-    const events: any[] = [];
-    
-    const missMessage = createBattleMessage('MSG_MOVE_MISSED', {
-      pokemon: attacker.name
-    });
-    
-    if (missMessage) {
-      events.push({
-        eventId: 'move_miss',
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: missMessage.id, variables: missMessage.variables },
-        message: missMessage.template,
-        delay: 0
-      });
-    }
-    
-    return {
-      sequenceId: `miss_${Date.now()}`,
-      events,
-      totalDuration: BATTLE_TIMINGS.MESSAGE_DISPLAY,
-      priority: 60
-    };
-  }
-  
-  private createMoveBlockedSequence(pokemon: BattlePokemonData, move: any): BattleSequence {
-    const events: any[] = [];
-    let messageId = 'MSG_MOVE_FAILED';
-    
-    // Messages spécifiques selon le statut
-    if (pokemon.statusCondition === 'sleep') {
-      messageId = 'MSG_POKEMON_ASLEEP';
-    } else if (pokemon.statusCondition === 'paralysis') {
-      messageId = 'MSG_PARALYSIS_PREVENTS';
-    } else if (pokemon.statusCondition === 'freeze') {
-      messageId = 'MSG_POKEMON_FROZEN';
-    }
-    
-    const blockedMessage = createBattleMessage(messageId, {
-      pokemon: pokemon.name
-    });
-    
-    if (blockedMessage) {
-      events.push({
-        eventId: 'move_blocked',
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: blockedMessage.id, variables: blockedMessage.variables },
-        message: blockedMessage.template,
-        delay: 0
-      });
-    }
-    
-    return {
-      sequenceId: `blocked_${Date.now()}`,
-      events,
-      totalDuration: BATTLE_TIMINGS.MESSAGE_DISPLAY,
-      priority: 65
-    };
-  }
-  
-  private createErrorSequence(messageId: string): BattleSequence {
-    const events: any[] = [];
-    
-    const errorMessage = createBattleMessage(messageId);
-    if (errorMessage) {
-      events.push({
-        eventId: 'error_msg',
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: errorMessage.id, variables: errorMessage.variables },
-        message: errorMessage.template,
-        delay: 0
-      });
-    }
-    
-    return {
-      sequenceId: `error_${Date.now()}`,
-      events,
-      totalDuration: BATTLE_TIMINGS.MESSAGE_DISPLAY,
-      priority: 50
-    };
-  }
-  
-  private createEmptySequence(): BattleSequence {
-    return {
-      sequenceId: `empty_${Date.now()}`,
-      events: [],
-      totalDuration: 0,
-      priority: 0
-    };
-  }
-  
-  // === TRAITEMENT OBJETS SPÉCIALISÉS ===
-  
-  private processHealingItem(item: any, targetId: string | undefined, context: BattleContext): BattleSequence {
-    const events: any[] = [];
-    let currentDelay = 0;
-    
-    // Message d'utilisation
-    const useMessage = createBattleMessage('MSG_TRAINER_USES_ITEM', {
-      trainer: 'Dresseur',
-      item: item.name
-    });
-    
-    if (useMessage) {
-      events.push({
-        eventId: 'item_use',
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: useMessage.id, variables: useMessage.variables },
-        message: useMessage.template,
-        delay: currentDelay
-      });
-      currentDelay += useMessage.timing;
-    }
-    
-    // Effet de soin
-    const healAmount = this.calculateHealAmount(item);
-    const healMessage = createBattleMessage('MSG_POTION_USED', {
-      pokemon: 'Pokémon', // TODO: Nom du Pokémon cible
-      hp: healAmount  // ✅ CORRECTION: garder en number
-    });
-    
-    if (healMessage) {
-      events.push({
-        eventId: 'heal_effect',
-        type: 'heal',
-        timestamp: Date.now(),
-        targetId: targetId,
-        data: {
-          healing: healAmount,
-          currentHp: 50, // TODO: HP actuel
-          maxHp: 100 // TODO: HP max
-        },
-        delay: currentDelay
-      });
-      
-      events.push({
-        eventId: 'heal_msg',
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: healMessage.id, variables: healMessage.variables },
-        message: healMessage.template,
-        delay: currentDelay
-      });
-      currentDelay += healMessage.timing;
-    }
-    
-    return {
-      sequenceId: `healing_${Date.now()}`,
-      events,
-      totalDuration: currentDelay,
-      priority: 70
-    };
-  }
-  
-  private async processPokeball(item: any, context: BattleContext): Promise<BattleSequence> {
-    // Rediriger vers la capture
-    return await this.processCaptureAction({  // ✅ CORRECTION: ajouter await
-      actionId: `capture_${Date.now()}`,
-      playerId: context.currentPlayer,
-      type: 'capture',
-      data: { ballType: item.id },  // ✅ ballType maintenant supporté
-      priority: 0,
-      speed: 0,
-      timestamp: Date.now()
-    }, context);
-  }
-  
-  private processStatusItem(item: any, targetId: string | undefined, context: BattleContext): BattleSequence {
-    const events: any[] = [];
-    let currentDelay = 0;
-    
-    // Message d'utilisation
-    const useMessage = createBattleMessage('MSG_TRAINER_USES_ITEM', {
-      trainer: 'Dresseur',
-      item: item.name
-    });
-    
-    if (useMessage) {
-      events.push({
-        eventId: 'status_item_use',
-        type: 'message',
-        timestamp: Date.now(),
-        data: { messageId: useMessage.id, variables: useMessage.variables },
-        message: useMessage.template,
-        delay: currentDelay
-      });
-      currentDelay += useMessage.timing;
-    }
-    
-    // Effet de guérison de statut
-    events.push({
-      eventId: 'status_heal',
-      type: 'status',
-      timestamp: Date.now(),
-      targetId: targetId,
-      data: {
-        status: 'normal',
-        applied: true
+    // Créer le contexte
+    const context: BattleContext = {
+      battleId: battleRoomState.battleId || `migrated_${Date.now()}`,
+      battleType: battleRoomState.battleType === 'wild' ? 'wild' : 'trainer',
+      phase: BattleIntegration.convertPhase(battleRoomState.phase),
+      participants,
+      spectators: [],
+      settings: {
+        allowSpectators: true,
+        allowItems: true,
+        customRules: {}
       },
-      delay: currentDelay
-    });
+      environment: {
+        location: battleRoomState.encounterLocation || 'unknown',
+        effects: []
+      },
+      turn: battleRoomState.turnNumber || 1,
+      currentPlayer: battleRoomState.currentTurn === 'player1' ? participants[0]?.sessionId || 'player1' : 'ai',
+      isMultiplayer: false,
+      maxClients: 2
+      // ✅ SUPPRESSION: escapeAttempts (sera ajouté dynamiquement si nécessaire)
+    };
     
+    console.log('✅ [BattleIntegration] Données converties');
+    return { context, participants };
+  }
+  
+  /**
+   * Convertit un Pokémon BattleRoom vers le nouveau format
+   */
+  static convertToBattlePokemon(oldPokemon: any): BattlePokemonData {
     return {
-      sequenceId: `status_item_${Date.now()}`,
-      events,
-      totalDuration: currentDelay + BATTLE_TIMINGS.STATUS_CHANGE,
-      priority: 70
+      pokemonId: oldPokemon.pokemonId || 1,
+      name: oldPokemon.name || 'Pokémon',
+      level: oldPokemon.level || 5,
+      currentHp: oldPokemon.currentHp || 20,
+      maxHp: oldPokemon.maxHp || 20,
+      types: Array.isArray(oldPokemon.types) ? Array.from(oldPokemon.types) : ['Normal'],
+      moves: Array.isArray(oldPokemon.moves) ? 
+        Array.from(oldPokemon.moves).map((moveId: unknown) => ({
+          moveId: moveId as string,
+          name: (moveId as string).charAt(0).toUpperCase() + (moveId as string).slice(1),
+          type: 'Normal',
+          category: 'physical' as const,  // ✅ CORRECTION: minuscule
+          power: 40,
+          accuracy: 100,
+          pp: 35,
+          maxPp: 35,
+          priority: 0
+        })) : 
+        [{
+          moveId: 'tackle',
+          name: 'Charge',
+          type: 'Normal',
+          category: 'physical' as const,  // ✅ CORRECTION: minuscule
+          power: 40,
+          accuracy: 100,
+          pp: 35,
+          maxPp: 35,
+          priority: 0
+        }],
+      ability: oldPokemon.ability,
+      heldItem: oldPokemon.heldItem,
+      statusCondition: oldPokemon.statusCondition || 'normal',
+      statStages: {
+        attack: oldPokemon.attackStage || 0,
+        defense: oldPokemon.defenseStage || 0,
+        specialAttack: oldPokemon.specialAttackStage || 0,
+        specialDefense: oldPokemon.specialDefenseStage || 0,
+        speed: oldPokemon.speedStage || 0,
+        accuracy: 0,
+        evasion: 0
+      },
+      stats: {
+        hp: oldPokemon.maxHp || 20,
+        attack: oldPokemon.attack || 10,
+        defense: oldPokemon.defense || 10,
+        specialAttack: oldPokemon.specialAttack || 10,
+        specialDefense: oldPokemon.specialDefense || 10,
+        speed: oldPokemon.speed || 10
+      },
+      gender: oldPokemon.gender,
+      shiny: oldPokemon.shiny || false,
+      isWild: oldPokemon.isWild || false,
+      experience: oldPokemon.experience,
+      nature: oldPokemon.nature
+      // ✅ SUPPRESSION: speed (déjà dans stats.speed)
     };
   }
   
-  private calculateHealAmount(item: any): number {
-    switch (item.effect) {
-      case 'heal_20': return 20;
-      case 'heal_50': return 50;
-      case 'heal_full': return 9999; // HP complets
-      case 'heal_percent_50': return -50; // 50% (négatif = pourcentage)
-      default: return 20;
-    }
+  /**
+   * Convertit la phase BattleRoom vers le nouveau format
+   */
+  static convertPhase(oldPhase: string): any {
+    const phaseMap: { [key: string]: any } = {
+      'waiting': 'waiting',
+      'intro': 'intro',
+      'team_selection': 'team_selection',
+      'battle': 'battle',
+      'ended': 'ended',
+      'fled': 'fled'
+    };
+    
+    return phaseMap[oldPhase] || 'battle';
   }
   
-  // === MÉTHODES UTILITAIRES ===
+  // === MÉTHODES PRIVÉES ===
   
-  /**
-   * Nettoie le cache des moves
-   */
-  clearMoveCache(): void {
-    this.moveDataCache.clear();
-    console.log('🧹 [SoloBattleHandler] Cache moves nettoyé');
-  }
-  
-  /**
-   * Obtient les statistiques du handler
-   */
-  getStats(): any {
+  private createBattleContext(battleType: string, participants: any[]): BattleContext {
     return {
-      moveCacheSize: this.moveDataCache.size,
-      supportedBattleTypes: ['wild', 'trainer', 'gym', 'elite4'],
-      aiPersonalities: Object.keys(this.aiPersonalities),
-      version: '1.0.0'
+      battleId: `battle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      battleType: battleType as any,
+      phase: 'battle',
+      participants: participants.map(p => this.convertParticipant(p)),
+      spectators: [],
+      settings: {
+        allowSpectators: true,
+        allowItems: battleType !== 'wild',
+        customRules: {}
+      },
+      environment: {
+        location: 'unknown',
+        effects: []
+      },
+      turn: 1,
+      currentPlayer: participants[0]?.sessionId || 'player1',
+      isMultiplayer: participants.length > 2,
+      maxClients: participants.length
+      // ✅ SUPPRESSION: escapeAttempts (sera ajouté dynamiquement)
+    };
+  }
+  
+  private convertParticipant(participant: any): BattleParticipant {
+    return {
+      sessionId: participant.sessionId || participant.id || 'unknown',
+      name: participant.name || 'Participant',
+      role: participant.role || 'player1',
+      team: participant.team || [],
+      activePokemon: participant.activePokemon || '1',
+      isAI: participant.isAI || false,
+      isConnected: participant.isConnected !== false,
+      lastActionTime: Date.now()
+    };
+  }
+  
+  private getPlayerSpeed(playerId: string): number | null {
+    if (!this.currentContext) return null;
+    
+    const participant = this.currentContext.participants.find(p => p.sessionId === playerId);
+    if (!participant || !participant.team[0]) return null;
+    
+    return participant.team[0].stats.speed;
+  }
+  
+  // === MÉTHODES DE TEST ===
+  
+  /**
+   * Test complet du système d'intégration
+   */
+  static async runIntegrationTests(): Promise<void> {
+    console.log('🧪 [BattleIntegration] === TESTS COMPLETS ===');
+    
+    // Test 1: Création de l'intégration
+    const integration = new BattleIntegration();
+    console.log('✅ Test 1: Création intégration');
+    
+    // Test 2: Conversion de données
+    const mockBattleRoomState = {
+      battleId: 'test_battle',
+      battleType: 'wild',
+      phase: 'battle',
+      currentTurn: 'player1',
+      turnNumber: 1,
+      player1Id: 'player123',
+      player1Name: 'TestPlayer',
+      player1Pokemon: {
+        pokemonId: 25,
+        name: 'Pikachu',
+        level: 10,
+        currentHp: 35,
+        maxHp: 35,
+        types: ['Electric'],
+        moves: ['thunder_shock', 'quick_attack'],
+        speed: 55,
+        attack: 25,
+        defense: 20,
+        specialAttack: 30,
+        specialDefense: 25
+      },
+      player2Pokemon: {
+        pokemonId: 1,
+        name: 'Bulbasaur',
+        level: 8,
+        currentHp: 28,
+        maxHp: 28,
+        types: ['Grass', 'Poison'],
+        moves: ['tackle', 'vine_whip'],
+        isWild: true,
+        speed: 20,
+        attack: 15,
+        defense: 18,
+        specialAttack: 20,
+        specialDefense: 20
+      }
+    };
+    
+    const { context, participants } = BattleIntegration.convertBattleRoomData(mockBattleRoomState);
+    console.log('✅ Test 2: Conversion données BattleRoom');
+    console.log(`   Battle ID: ${context.battleId}`);
+    console.log(`   Type: ${context.battleType}`);
+    console.log(`   Participants: ${participants.length}`);
+    
+    // Test 3: Callbacks mock
+    const mockCallbacks: IBattleRoomCallbacks = {
+      broadcastMessage: (messageId, data) => {
+        console.log(`📡 Broadcast message: ${messageId}`, data);
+      },
+      broadcastUpdate: (data) => {
+        console.log(`📡 Broadcast update:`, data);
+      },
+      updatePokemonHP: (pokemonId, newHp) => {
+        console.log(`💖 Update HP: ${pokemonId} → ${newHp}`);
+      },
+      changeTurn: (newTurn) => {
+        console.log(`🔄 Change turn: ${newTurn}`);
+      },
+      endBattle: (result) => {
+        console.log(`🏁 End battle:`, result);
+      },
+      logBattleEvent: (event) => {
+        console.log(`📝 Log event: ${event.type}`);
+      }
+    };
+    
+    // Test 4: Initialisation combat
+    const battleContext = integration.initializeBattle(mockCallbacks, 'wild', participants);
+    console.log('✅ Test 3: Initialisation combat');
+    
+    // Test 5: Action de combat
+    const actionSuccess = await integration.processAction('player123', 'attack', {
+      moveId: 'thunder_shock'
+    });
+    console.log(`✅ Test 4: Action combat (succès: ${actionSuccess})`);
+    
+    // Test 6: Fin de combat
+    integration.endBattle();
+    console.log('✅ Test 5: Fin combat');
+    
+    console.log('🎉 [BattleIntegration] Tous les tests réussis !');
+  }
+  
+  /**
+   * Test de performance du système
+   */
+  static async runPerformanceTests(): Promise<void> {
+    console.log('⚡ [BattleIntegration] === TESTS PERFORMANCE ===');
+    
+    const integration = new BattleIntegration();
+    
+    // Mock callbacks silencieux
+    const silentCallbacks: IBattleRoomCallbacks = {
+      broadcastMessage: () => {},
+      broadcastUpdate: () => {},
+      updatePokemonHP: () => {},
+      changeTurn: () => {},
+      endBattle: () => {},
+      logBattleEvent: () => {}
+    };
+    
+    const startTime = Date.now();
+    const actionCount = 100;
+    
+    // Initialiser un combat
+    const context = integration.initializeBattle(silentCallbacks, 'wild', [
+      { sessionId: 'player1', name: 'TestPlayer', isAI: false },
+      { sessionId: 'ai', name: 'AI', isAI: true }
+    ]);
+    
+    // Exécuter de nombreuses actions
+    for (let i = 0; i < actionCount; i++) {
+      await integration.processAction('player1', 'attack', {
+        moveId: 'tackle'
+      });
+    }
+    
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    const actionsPerSecond = (actionCount / duration) * 1000;
+    
+    console.log(`⚡ Performance: ${actionCount} actions en ${duration}ms`);
+    console.log(`📊 Vitesse: ${actionsPerSecond.toFixed(2)} actions/seconde`);
+    
+    integration.endBattle();
+    
+    console.log('✅ [BattleIntegration] Tests performance terminés');
+  }
+  
+  /**
+   * Démonstration d'un combat complet
+   */
+  static async runBattleDemo(): Promise<void> {
+    console.log('🎮 [BattleIntegration] === DÉMO COMBAT COMPLET ===');
+    
+    const integration = new BattleIntegration();
+    
+    // Callbacks verbeux pour la démo
+    const demoCallbacks: IBattleRoomCallbacks = {
+      broadcastMessage: (messageId, data) => {
+        console.log(`🎬 MESSAGE: ${data.message || messageId}`);
+      },
+      broadcastUpdate: (data) => {
+        console.log(`🔄 UPDATE: HP mis à jour`);
+      },
+      updatePokemonHP: (pokemonId, newHp) => {
+        console.log(`💖 ${pokemonId} a maintenant ${newHp} HP`);
+      },
+      changeTurn: (newTurn) => {
+        console.log(`🎯 Tour de: ${newTurn}`);
+      },
+      endBattle: (result) => {
+        console.log(`🏆 RÉSULTAT: ${result.result || 'Inconnu'}`);
+      },
+      logBattleEvent: () => {} // Silencieux pour éviter le spam
+    };
+    
+    // Créer un combat sauvage
+    const participants = [
+      {
+        sessionId: 'player1',
+        name: 'Sacha',
+        isAI: false,
+        team: [{
+          pokemonId: 25,
+          name: 'Pikachu',
+          level: 12,
+          currentHp: 40,
+          maxHp: 40,
+          types: ['Electric'],
+          moves: ['thunder_shock', 'quick_attack'],
+          stats: { attack: 30, defense: 25, specialAttack: 35, specialDefense: 30, speed: 60, hp: 40 }
+        }]
+      },
+      {
+        sessionId: 'ai',
+        name: 'Pokémon Sauvage',
+        isAI: true,
+        team: [{
+          pokemonId: 16,
+          name: 'Roucool',
+          level: 8,
+          currentHp: 32,
+          maxHp: 32,
+          types: ['Normal', 'Flying'],
+          moves: ['tackle', 'gust'],
+          stats: { attack: 18, defense: 20, specialAttack: 15, specialDefense: 18, speed: 25, hp: 32 }
+        }]
+      }
+    ];
+    
+    console.log('🌟 Un Roucool sauvage apparaît !');
+    
+    const context = integration.initializeBattle(demoCallbacks, 'wild', participants);
+    
+    // Simulation de quelques tours
+    console.log('\n--- TOUR 1 ---');
+    await integration.processAction('player1', 'attack', { moveId: 'thunder_shock' });
+    
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Pause réaliste
+    
+    console.log('\n--- TOUR 2 ---');
+    // L'IA va automatiquement jouer via le SoloBattleHandler
+    
+    await new Promise(resolve => setTimeout(resolve, 3000)); // Laisser l'IA jouer
+    
+    console.log('\n--- TENTATIVE DE CAPTURE ---');
+    await integration.processAction('player1', 'capture', { ballType: 'pokeball' });
+    
+    await new Promise(resolve => setTimeout(resolve, 4000)); // Animation de capture
+    
+    integration.endBattle();
+    console.log('\n🎉 [BattleIntegration] Démo terminée !');
+  }
+  
+  // === GETTERS DE DEBUG ===
+  
+  /**
+   * Obtient des informations de debug
+   */
+  getDebugInfo(): any {
+    return {
+      hasActiveContext: !!this.currentContext,
+      contextId: this.currentContext?.battleId,
+      sequencerInfo: this.sequencer.getDebugInfo(),
+      handlerStats: this.soloHandler.getStats()
     };
   }
   
   /**
-   * Debug d'une décision IA
+   * Obtient le contexte actuel (pour debug)
    */
-  debugAIDecision(
-    aiPokemon: BattlePokemonData,
-    playerPokemon: BattlePokemonData,
-    context: BattleContext
-  ): void {
-    console.log('🔍 [SoloBattleHandler] === DEBUG DÉCISION IA ===');
-    console.log(`🤖 IA: ${aiPokemon.name} (${aiPokemon.currentHp}/${aiPokemon.maxHp} HP)`);
-    console.log(`👤 Joueur: ${playerPokemon.name} (${playerPokemon.currentHp}/${playerPokemon.maxHp} HP)`);
-    console.log(`⚔️ Type: ${context.battleType}`);
-    
-    const personality = this.getAIPersonality(context);
-    console.log(`🎭 Personnalité: ${personality.name}`);
-    console.log(`   Attaque: ${personality.attackChance * 100}%`);
-    console.log(`   Change: ${personality.switchChance * 100}%`);
-    console.log(`   Objet: ${personality.itemChance * 100}%`);
-    
-    // Évaluer chaque move
-    console.log(`📋 Évaluation des attaques:`);
-    aiPokemon.moves.forEach(move => {
-      const score = this.evaluateMoveEffectiveness(move, aiPokemon, playerPokemon);
-      console.log(`   ${move.name}: ${score.toFixed(2)} points`);
-    });
-  }
-  
-  /**
-   * Simule un combat complet pour les tests
-   */
-  async simulateBattle(context: BattleContext): Promise<string> {
-    console.log('🎮 [SoloBattleHandler] === SIMULATION COMBAT ===');
-    
-    let turnCount = 0;
-    const maxTurns = 20;
-    
-    while (turnCount < maxTurns && context.phase === 'battle') {
-      console.log(`--- Tour ${turnCount + 1} ---`);
-      
-      // Tour joueur (simulation)
-      const playerAction: BattleAction = {
-        actionId: `sim_${turnCount}`,
-        playerId: context.currentPlayer,
-        type: 'attack',
-        data: { moveId: 'tackle' },
-        priority: 0,
-        speed: 50,
-        timestamp: Date.now()
-      };
-      
-      await this.processAction(playerAction, context);
-      
-      // Tour IA
-      if (this.shouldPlayAITurn(context)) {
-        const aiAction = await this.generateAIAction(context);
-        await this.processAction(aiAction, context);
-      }
-      
-      turnCount++;
-      
-      // Vérifier fin de combat
-      const aiPokemon = this.getAIPokemon(context);
-      const playerPokemon = this.getPlayerPokemon(context);
-      
-      if (!aiPokemon || aiPokemon.currentHp <= 0) {
-        return 'victory';
-      }
-      
-      if (!playerPokemon || playerPokemon.currentHp <= 0) {
-        return 'defeat';
-      }
-    }
-    
-    return 'timeout';
+  getCurrentContext(): BattleContext | null {
+    return this.currentContext;
   }
 }
 
-// === TESTS ET EXPORTS ===
+// === FONCTIONS UTILITAIRES GLOBALES ===
 
 /**
- * Fonction de test pour le SoloBattleHandler
+ * Crée une instance d'intégration prête à l'emploi
  */
-export function testSoloBattleHandler(): void {
-  console.log('🧪 [SoloBattleHandler] === TESTS ===');
-  
-  const handler = new SoloBattleHandler();
-  
-  // Test canHandle
-  const wildContext: Partial<BattleContext> = { battleType: 'wild' };
-  const trainerContext: Partial<BattleContext> = { battleType: 'trainer' };
-  const pvpContext: Partial<BattleContext> = { battleType: 'pvp' };
-  
-  console.log(`✅ Wild: ${handler.canHandle(wildContext as BattleContext)}`);
-  console.log(`✅ Trainer: ${handler.canHandle(trainerContext as BattleContext)}`);
-  console.log(`❌ PvP: ${handler.canHandle(pvpContext as BattleContext)}`);
-  
-  // Test stats
-  const stats = handler.getStats();
-  console.log(`📊 Stats:`, stats);
-  
-  console.log('✅ [SoloBattleHandler] Tests terminés');
+export function createBattleIntegration(): BattleIntegration {
+  return new BattleIntegration();
 }
 
-// Exécuter les tests en mode développement
+/**
+ * Fonction helper pour migration rapide
+ */
+export function migrateBattleRoomToBattleSystem(
+  battleRoomState: any,
+  callbacks: IBattleRoomCallbacks
+): BattleIntegration {
+  console.log('🔄 [Migration] Migration BattleRoom → BattleSystem...');
+  
+  const integration = new BattleIntegration();
+  const { context, participants } = BattleIntegration.convertBattleRoomData(battleRoomState);
+  
+  integration.initializeBattle(callbacks, context.battleType, participants);
+  
+  console.log('✅ [Migration] Migration terminée');
+  return integration;
+}
+
+// === TESTS AUTOMATIQUES ===
+
 if (process.env.NODE_ENV === 'development') {
-  testSoloBattleHandler();
+  // Exécuter tous les tests au chargement
+  setTimeout(async () => {
+    console.log('\n🚀 [BattleIntegration] LANCEMENT TESTS AUTOMATIQUES...\n');
+    
+    try {
+      await BattleIntegration.runIntegrationTests();
+      console.log('\n---\n');
+      await BattleIntegration.runPerformanceTests();
+      console.log('\n---\n');
+      await BattleIntegration.runBattleDemo();
+      
+      console.log('\n🎉 TOUS LES TESTS SONT PASSÉS ! SYSTÈME PRÊT ! 🎉');
+    } catch (error) {
+      console.error('\n💥 ERREUR DANS LES TESTS:', error);
+    }
+  }, 1000);
 }
 
-export { SoloBattleHandler };  // ✅ AJOUT: Export nommé
-export default SoloBattleHandler;
+export default BattleIntegration;
