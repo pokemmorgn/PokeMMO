@@ -186,8 +186,8 @@ export class BattleIntegration {
       turn: battleRoomState.turnNumber || 1,
       currentPlayer: battleRoomState.currentTurn === 'player1' ? participants[0]?.sessionId || 'player1' : 'ai',
       isMultiplayer: false,
-      maxClients: 2,
-      escapeAttempts: 0
+      maxClients: 2
+      // ✅ SUPPRESSION: escapeAttempts (sera ajouté dynamiquement si nécessaire)
     };
     
     console.log('✅ [BattleIntegration] Données converties');
@@ -206,11 +206,11 @@ export class BattleIntegration {
       maxHp: oldPokemon.maxHp || 20,
       types: Array.isArray(oldPokemon.types) ? Array.from(oldPokemon.types) : ['Normal'],
       moves: Array.isArray(oldPokemon.moves) ? 
-        Array.from(oldPokemon.moves).map((moveId: string) => ({
-          moveId,
-          name: moveId.charAt(0).toUpperCase() + moveId.slice(1),
+        Array.from(oldPokemon.moves).map((moveId: unknown) => ({
+          moveId: moveId as string,
+          name: (moveId as string).charAt(0).toUpperCase() + (moveId as string).slice(1),
           type: 'Normal',
-          category: 'Physical' as const,
+          category: 'physical' as const,  // ✅ CORRECTION: minuscule
           power: 40,
           accuracy: 100,
           pp: 35,
@@ -221,7 +221,7 @@ export class BattleIntegration {
           moveId: 'tackle',
           name: 'Charge',
           type: 'Normal',
-          category: 'Physical' as const,
+          category: 'physical' as const,  // ✅ CORRECTION: minuscule
           power: 40,
           accuracy: 100,
           pp: 35,
@@ -294,8 +294,8 @@ export class BattleIntegration {
       turn: 1,
       currentPlayer: participants[0]?.sessionId || 'player1',
       isMultiplayer: participants.length > 2,
-      maxClients: participants.length,
-      escapeAttempts: 0
+      maxClients: participants.length
+      // ✅ SUPPRESSION: escapeAttempts (sera ajouté dynamiquement)
     };
   }
   
