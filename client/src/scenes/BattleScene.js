@@ -832,53 +832,277 @@ export class BattleScene extends Phaser.Scene {
     const selectMoveMessage = this.battleTranslator.translate('selectMove', {}) || 'Sélectionnez une attaque...';
     this.showActionMessage(selectMoveMessage, 0); // Pas de timeout automatique
     
-    // TODO: Implémenter vraie sélection d'attaques
-    // Pour l'instant, créer menu temporaire
-    this.createTemporaryMoveMenu();
+    // 🎮 NOUVEAU: Créer vraie interface de sélection d'attaques
+    this.createMoveSelectionInterface();
   }
 
   /**
-   * 🆕 Menu temporaire de sélection d'attaques
+   * 🆕 Interface de sélection d'attaques interactive
    */
-  createTemporaryMoveMenu() {
+  createMoveSelectionInterface() {
+    // Masquer le message et créer les boutons d'attaques
+    this.hideActionMessage();
+    
     const moves = [
-      { id: 'tackle', name: 'Charge', type: 'normal' },
-      { id: 'thunderbolt', name: 'Tonnerre', type: 'electric' },
-      { id: 'quick-attack', name: 'Vive-Attaque', type: 'normal' },
-      { id: 'growl', name: 'Rugissement', type: 'normal' }
+      { id: 'tackle', name: 'Charge', type: 'normal', pp: 35 },
+      { id: 'thunderbolt', name: 'Tonnerre', type: 'electric', pp: 15 },
+      { id: 'quick-attack', name: 'Vive-Attaque', type: 'normal', pp: 30 },
+      { id: 'growl', name: 'Rugissement', type: 'normal', pp: 40 }
     ];
 
-    // Afficher les attaques dans le dialogue
-    const moveList = moves.map((move, index) => 
-      `${index + 1}. ${move.name}`
-    ).join('\n');
-    
-    this.showActionMessage(`Choisissez une attaque:\n${moveList}\n\n(Cliquez sur "Attaque" pour Charge)`, 0);
-    
-    // Revenir aux boutons d'action après 3 secondes
-    setTimeout(() => {
-      this.showActionButtons();
-    }, 3000);
+    // Créer les boutons d'attaques
+    this.createMoveButtons(moves);
   }
 
-  executePlayerAction(actionData) {
-    if (actionData.type === 'move') {
-      this.hideActionButtons();
+  /**
+   * 🆕 Créer les boutons d'attaques
+   */
+  createMoveButtons(moves) {
+    // Supprimer les anciens boutons d'action temporairement
+    this.actionInterface.list.forEach(child => {
+      if (child !== this.actionInterface.list[0] && child !== this.actionMessageText) {
+        child.setVisible(false);
+      }
+    });
+
+    // Créer boutons d'attaques
+    const startX = 40;
+    const startY = 20;
+    const buttonWidth = 160;
+    const buttonHeight = 40;
+    const gap = 10;
+
+    this.moveButtons = [];
+
+    moves.forEach((move, index) => {
+      const x = startX + (index % 2) * (buttonWidth + gap);
+      const y = startY + Math.floor(index / 2) * (buttonHeight + gap);
       
-      // 🌍 NOUVEAU: Queue événement d'attaque traduit
-      this.queueBattleEvent('moveUsed', {
-        pokemonName: this.currentPlayerPokemon?.name || 'Votre Pokémon',
-        moveName: actionData.moveName
+      const moveButton = this.createMoveButton(x, y, { width: buttonWidth, height: buttonHeight }, move);
+      this.actionInterface.add(moveButton);
+      this.moveButtons.push(moveButton);
+    });
+
+    // Bouton retour
+    const backButton = this.createBackButton(startX, startY + 100, { width: buttonWidth, height: 35 });
+    this.actionInterface.add(backButton);
+    this.moveButtons.push(backButton);
+
+    // Assurer que l'interface est visible
+    this.actionInterface.setVisible(true);
+  }
+
+  /**
+   * 🆕 Créer un bouton d'attaque
+   */
+  createMoveButton(x, y, config, move) {
+    const buttonContainer = this.add.container(x, y);
+    
+    // Couleur selon le type
+    const typeColors = {
+      'normal': 0xA8A878,
+      'electric': 0xFFDD00,
+      'fire': 0xFF4444,
+      'water': 0x4488FF,
+      'grass': 0x44DD44
+    };
+    const color = typeColors[move.type] || 0xA8A878;
+    
+    // Background
+    const bg = this.add.graphics();
+    bg.fillStyle(color, 0.8);
+    bg.fillRoundedRect(0, 0, config.width, config.height, 8);
+    bg.lineStyle(2, 0xFFFFFF, 0.8);
+    bg.strokeRoundedRect(0, 0, config.width, config.height, 8);
+    
+    // Nom de l'attaque
+    const text = this.add.text(10, config.height/2, move.name, {
+      fontSize: '14px',
+      fontFamily: 'Arial Black, sans-serif',
+      color: '#FFFFFF',
+      fontWeight: 'bold'
+    });
+    text.setOrigin(0, 0.5);
+    
+    // PP
+    const ppText = this.add.text(config.width - 10, config.height/2, `PP: ${move.pp}`, {
+      fontSize: '10px',
+      fontFamily: 'Arial, sans-serif',
+      color: '#FFFFFF'
+    });
+    ppText.setOrigin(1, 0.5);
+    
+    buttonContainer.add([bg, text, ppText]);
+    buttonContainer.setSize(config.width, config.height);
+    buttonContainer.setInteractive();
+    
+    // Effets hover
+    buttonContainer.on('pointerover', () => {
+      bg.clear();
+      bg.fillStyle(color, 1);
+      bg.fillRoundedRect(0, 0, config.width, config.height, 8);
+      bg.lineStyle(3, 0xFFD700, 1);
+      bg.strokeRoundedRect(0, 0, config.width, config.height, 8);
+      
+      this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.05, scaleY: 1.05,
+        duration: 100
       });
+    });
+    
+    buttonContainer.on('pointerout', () => {
+      bg.clear();
+      bg.fillStyle(color, 0.8);
+      bg.fillRoundedRect(0, 0, config.width, config.height, 8);
+      bg.lineStyle(2, 0xFFFFFF, 0.8);
+      bg.strokeRoundedRect(0, 0, config.width, config.height, 8);
       
+      this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1, scaleY: 1,
+        duration: 100
+      });
+    });
+    
+    // Action clic - UTILISER L'ATTAQUE
+    buttonContainer.on('pointerdown', () => {
+      console.log('[BattleScene] 🎯 Attaque sélectionnée:', move.name);
+      this.selectMove(move);
+    });
+    
+    return buttonContainer;
+  }
+
+  /**
+   * 🆕 Créer bouton retour
+   */
+  createBackButton(x, y, config) {
+    const buttonContainer = this.add.container(x, y);
+    
+    // Background
+    const bg = this.add.graphics();
+    bg.fillStyle(0x95A5A6, 0.8);
+    bg.fillRoundedRect(0, 0, config.width, config.height, 8);
+    bg.lineStyle(2, 0xFFFFFF, 0.8);
+    bg.strokeRoundedRect(0, 0, config.width, config.height, 8);
+    
+    // Texte
+    const text = this.add.text(config.width/2, config.height/2, '← Retour', {
+      fontSize: '14px',
+      fontFamily: 'Arial Black, sans-serif',
+      color: '#FFFFFF',
+      fontWeight: 'bold'
+    });
+    text.setOrigin(0.5, 0.5);
+    
+    buttonContainer.add([bg, text]);
+    buttonContainer.setSize(config.width, config.height);
+    buttonContainer.setInteractive();
+    
+    // Effets hover
+    buttonContainer.on('pointerover', () => {
+      bg.clear();
+      bg.fillStyle(0x95A5A6, 1);
+      bg.fillRoundedRect(0, 0, config.width, config.height, 8);
+      bg.lineStyle(3, 0xFFD700, 1);
+      bg.strokeRoundedRect(0, 0, config.width, config.height, 8);
+    });
+    
+    buttonContainer.on('pointerout', () => {
+      bg.clear();
+      bg.fillStyle(0x95A5A6, 0.8);
+      bg.fillRoundedRect(0, 0, config.width, config.height, 8);
+      bg.lineStyle(2, 0xFFFFFF, 0.8);
+      bg.strokeRoundedRect(0, 0, config.width, config.height, 8);
+    });
+    
+    // Action clic - RETOUR
+    buttonContainer.on('pointerdown', () => {
+      this.closeMoveMenu();
+    });
+    
+    return buttonContainer;
+  }
+
+  /**
+   * 🆕 Sélectionner une attaque (SANS attaque automatique !)
+   */
+  selectMove(move) {
+    console.log('[BattleScene] ✅ Attaque choisie par le joueur:', move.name);
+    
+    // Fermer le menu d'attaques
+    this.closeMoveMenu();
+    
+    // Afficher le message de sélection
+    const moveMessage = this.battleTranslator.translate('moveUsed', {
+      pokemonName: this.currentPlayerPokemon?.name || 'Votre Pokémon',
+      moveName: move.name
+    }) || `${this.currentPlayerPokemon?.name || 'Votre Pokémon'} utilise ${move.name} !`;
+    
+    this.showActionMessage(moveMessage, 2000);
+    
+    // ENVOYER L'ATTAQUE AU SERVEUR (pas d'exécution automatique locale)
+    if (this.battleNetworkHandler) {
+      this.battleNetworkHandler.useMove(move.id);
+      console.log('[BattleScene] 📡 Attaque envoyée au serveur:', move.id);
+    } else {
+      console.warn('[BattleScene] ⚠️ Pas de connexion réseau - simulation locale');
+      // Simulation locale seulement si pas de réseau
       setTimeout(() => {
-        if (this.battleNetworkHandler) {
-          this.battleNetworkHandler.useMove(actionData.moveId);
-        }
+        this.simulateLocalMoveExecution(move);
       }, 1000);
     }
   }
 
+  /**
+   * 🆕 Fermer le menu d'attaques
+   */
+  closeMoveMenu() {
+    // Supprimer les boutons d'attaques
+    if (this.moveButtons) {
+      this.moveButtons.forEach(button => {
+        if (button && button.destroy) {
+          button.destroy();
+        }
+      });
+      this.moveButtons = [];
+    }
+    
+    // Remettre les boutons d'action normaux
+    setTimeout(() => {
+      this.showActionButtons();
+    }, 500);
+  }
+
+  /**
+   * 🆕 Simulation locale (seulement si pas de réseau)
+   */
+  simulateLocalMoveExecution(move) {
+    console.log('[BattleScene] 🎮 Simulation locale de l\'attaque:', move.name);
+    
+    // Créer effet visuel
+    this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
+    
+    // Simuler dégâts après délai
+    setTimeout(() => {
+      const damage = Math.floor(Math.random() * 15) + 5;
+      this.queueBattleEvent('damageDealt', {
+        targetPlayerId: 'opponent',
+        pokemonName: this.currentOpponentPokemon?.name || 'Pokémon adverse',
+        damage: damage
+      });
+      
+      // Tour de l'adversaire après
+      setTimeout(() => {
+        this.queueBattleEvent('opponentTurn', {});
+      }, 2000);
+    }, 800);
+  }
+
+  // === ANCIENNE FONCTION SUPPRIMÉE ===
+  // executePlayerAction() supprimée - remplacée par selectMove()
+  
   // === AFFICHAGE POKÉMON ===
 
   async displayPlayerPokemon(pokemonData) {
