@@ -16,7 +16,8 @@ export class BattleScene extends Phaser.Scene {
     this.healthBarManager = null;
     this.battleActionUI = null;
     this.battleNetworkHandler = null;
-    
+     // Rôle du joueur dans le combat
+    this.playerRole = null; // 'player1' ou 'player2'   
     // État de la scène
     this.isActive = false;
     this.isVisible = false;
@@ -1520,6 +1521,11 @@ setupBattleNetworkEvents() {
   if (!this.battleNetworkHandler) return;
   
   console.log('📡 [BattleScene] Configuration événements réseau...');
+
+  this.battleNetworkHandler.on('battleJoined', (data) => {
+  console.log('⚔️ [BattleScene] Battle joined, rôle:', data.yourRole);
+  this.playerRole = data.yourRole;
+  });
   
   this.battleNetworkHandler.on('battleStart', (data) => {
     this.handleNetworkBattleStart(data);
@@ -1583,13 +1589,28 @@ handleNetworkBattleMessage(data) {
 
 handleNetworkBattleStart(data) {
   console.log('[DEBUG] ⚔️ handleNetworkBattleStart début:', data);
+  console.log('[DEBUG] 🎭 Rôle du joueur:', this.playerRole);
   
-  // ✅ CORRECTION: Mapper les données selon le format reçu
-  let playerPokemon = data.playerPokemon || data.player1Pokemon;
-  let opponentPokemon = data.opponentPokemon || data.player2Pokemon;
+  // ✅ CORRECTION: Mapper selon le rôle réel du joueur
+  let playerPokemon, opponentPokemon;
   
-  console.log('[DEBUG] 👤 playerPokemon mappé:', playerPokemon);
-  console.log('[DEBUG] 👹 opponentPokemon mappé:', opponentPokemon);
+  if (this.playerRole === 'player1') {
+    playerPokemon = data.player1Pokemon;
+    opponentPokemon = data.player2Pokemon;
+    console.log('[DEBUG] 👤 Je suis player1');
+  } else if (this.playerRole === 'player2') {
+    playerPokemon = data.player2Pokemon;
+    opponentPokemon = data.player1Pokemon;
+    console.log('[DEBUG] 👤 Je suis player2');
+  } else {
+    // Fallback si playerRole non défini
+    console.warn('[DEBUG] ⚠️ playerRole non défini, utilisation fallback');
+    playerPokemon = data.playerPokemon || data.player1Pokemon;
+    opponentPokemon = data.opponentPokemon || data.player2Pokemon;
+  }
+  
+  console.log('[DEBUG] 👤 playerPokemon final:', playerPokemon);
+  console.log('[DEBUG] 👹 opponentPokemon final:', opponentPokemon);
   
   // ✅ AFFICHER LE POKÉMON JOUEUR EN PREMIER
   if (playerPokemon) {
