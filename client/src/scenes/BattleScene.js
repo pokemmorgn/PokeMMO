@@ -1042,8 +1042,11 @@ export class BattleScene extends Phaser.Scene {
           }, 500);
         }
         
-        // Afficher événements avec timing
-        if (data.events && data.events.length > 0) {
+        // ✅ NOUVEAU: Traiter les événements typés
+        if (data.battleEvents && data.battleEvents.length > 0) {
+          this.processBattleEvents(data.battleEvents);
+        } else if (data.events && data.events.length > 0) {
+          // ✅ Fallback vers ancien système pour compatibilité
           this.displayBattleEventsWithTiming(data.events);
         }
       }
@@ -1161,7 +1164,44 @@ handleBattleEvent(eventType, data = {}) {
     console.warn('[BattleScene] ⚠️ Traducteur non initialisé pour:', eventType);
   }
 }
+
+  // === TRAITEMENT DES ÉVÉNEMENTS DE COMBAT ===
+processBattleEvents(battleEvents) {
+  console.log('⚔️ [BattleScene] Traitement événements de combat:', battleEvents);
   
+  let currentDelay = 0;
+  
+  battleEvents.forEach((event, index) => {
+    setTimeout(() => {
+      this.handleBattleEvent(event.type, event.data);
+      
+      // ✅ Interface après dernier événement
+      if (index === battleEvents.length - 1) {
+        setTimeout(() => {
+          if (!event.type.includes('End')) { // Pas d'interface si combat fini
+            this.showActionButtons();
+          }
+        }, 2000);
+      }
+    }, currentDelay);
+    
+    // ✅ Délai entre événements selon le type
+    currentDelay += this.getEventDelay(event.type);
+  });
+}
+
+getEventDelay(eventType) {
+  const delays = {
+    'moveUsed': 2000,
+    'damageDealt': 2500,
+    'criticalHit': 1800,
+    'superEffective': 2200,
+    'pokemonFainted': 3000,
+    'battleEnd': 5000
+  };
+  
+  return delays[eventType] || 2000;
+}
   // === TIMING DES MESSAGES ===
 
   displayBattleEventsWithTiming(events) {
