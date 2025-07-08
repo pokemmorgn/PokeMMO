@@ -307,6 +307,7 @@ export class TurnSystem {
       return priorityB - priorityA; // Priorité décroissante
     });
   }
+
   
   /**
    * Obtient la priorité d'une action
@@ -400,7 +401,16 @@ export class TurnSystem {
       config: this.config
     };
   }
-  
+
+  /**
+ * Réinitialise les actions des joueurs pour un nouveau tour
+ */
+resetPlayerActions(): void {
+  this.players.forEach(player => {
+    player.hasActed = false;
+  });
+  console.log(`🔄 [TurnSystem] Actions réinitialisées pour le nouveau tour`);
+}
   /**
    * Vérifie si un joueur peut agir
    */
