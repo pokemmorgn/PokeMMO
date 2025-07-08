@@ -304,23 +304,38 @@ export class PokemonFollowerManager {
    * Met à jour un follower existant
    */
   updateFollower(sessionId, followerData) {
-    const follower = this.followers.get(sessionId);
-    if (!follower) {
-      console.warn(`⚠️ [PokemonFollowerManager] Follower ${sessionId} non trouvé pour mise à jour`);
-      return;
-    }
+  const follower = this.followers.get(sessionId);
+  if (!follower) {
+    console.warn(`⚠️ [PokemonFollowerManager] Follower ${sessionId} non trouvé pour mise à jour`);
+    return;
+  }
 
-    // Mettre à jour la position cible
-    if (followerData.x !== undefined) follower.targetX = followerData.x;
-    if (followerData.y !== undefined) follower.targetY = followerData.y;
+  // Mettre à jour la position cible
+  if (followerData.x !== undefined) follower.targetX = followerData.x;
+  if (followerData.y !== undefined) follower.targetY = followerData.y;
+  
+  // Mettre à jour l'état de mouvement
+  if (followerData.isMoving !== undefined) {
+    follower.isMoving = followerData.isMoving;
+  }
+  
+  // ✅ FIX: Détecter l'arrêt même si isMoving n'est pas envoyé
+  const isNearTarget = follower.targetX !== undefined && follower.targetY !== undefined &&
+    Math.abs(follower.x - follower.targetX) < 2 && 
+    Math.abs(follower.y - follower.targetY) < 2;
+  
+  // Si le follower est proche de sa cible, le considérer comme arrêté
+  if (isNearTarget && follower.isMoving) {
+    follower.isMoving = false;
+    console.log(`🛑 [PokemonFollowerManager] Auto-stop détecté pour ${sessionId}`);
+  }
+  
+  // Mettre à jour la direction et l'animation
+  if (followerData.direction !== undefined) {
+    const directionChanged = followerData.direction !== follower.lastDirection;
+    const movementChanged = followerData.isMoving !== undefined;
     
-    // Mettre à jour l'état de mouvement
-    if (followerData.isMoving !== undefined) {
-      follower.isMoving = followerData.isMoving;
-    }
-    
-    // Mettre à jour la direction et l'animation
-    if (followerData.direction && followerData.direction !== follower.lastDirection) {
+    if (directionChanged || movementChanged) {
       follower.lastDirection = followerData.direction;
       
       const pokemonDirection = this.getPlayerToPokemonDirection(followerData.direction);
@@ -337,6 +352,7 @@ export class PokemonFollowerManager {
       }
     }
   }
+}
 
   /**
    * Supprime un follower
@@ -366,18 +382,40 @@ export class PokemonFollowerManager {
    * Met à jour tous les followers (interpolation de position)
    */
   update(delta = 16) {
-    this.followers.forEach((follower, sessionId) => {
-      if (!follower || !follower.scene) return;
+  this.followers.forEach((follower, sessionId) => {
+    if (!follower || !follower.scene) return;
+    
+    // Interpolation de position (plus lente que les joueurs pour l'effet de suivi)
+    if (follower.targetX !== undefined && follower.targetY !== undefined) {
+      const lerpSpeed = 0.12; // Plus lent que les joueurs (0.18)
       
-      // Interpolation de position (plus lente que les joueurs pour l'effet de suivi)
-      if (follower.targetX !== undefined && follower.targetY !== undefined) {
-        const lerpSpeed = 0.12; // Plus lent que les joueurs (0.18)
+      const oldX = follower.x;
+      const oldY = follower.y;
+      
+      follower.x += (follower.targetX - follower.x) * lerpSpeed;
+      follower.y += (follower.targetY - follower.y) * lerpSpeed;
+      
+      // ✅ FIX: Détecter automatiquement quand le follower s'arrête
+      const isNearTarget = Math.abs(follower.x - follower.targetX) < 2 && 
+                          Math.abs(follower.y - follower.targetY) < 2;
+      const wasMoving = follower.isMoving;
+      
+      if (isNearTarget && wasMoving) {
+        follower.isMoving = false;
         
-        follower.x += (follower.targetX - follower.x) * lerpSpeed;
-        follower.y += (follower.targetY - follower.y) * lerpSpeed;
+        // Changer automatiquement vers l'animation idle
+        const pokemonDirection = this.getPlayerToPokemonDirection(follower.lastDirection || 'down');
+        const idleAnimKey = `pokemon_${follower.pokemonId}_idle_${pokemonDirection}`;
+        
+        if (this.scene.anims.exists(idleAnimKey) && 
+            (!follower.anims.isPlaying || follower.anims.currentAnim?.key !== idleAnimKey)) {
+          follower.anims.play(idleAnimKey, true);
+          console.log(`🛑 [PokemonFollowerManager] Auto-idle: ${idleAnimKey}`);
+        }
       }
-    });
-  }
+    }
+  });
+}
 
   /**
    * Nettoie tous les followers
