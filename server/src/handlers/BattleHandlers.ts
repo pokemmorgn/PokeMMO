@@ -5,8 +5,9 @@ import { BattleRoom, BattleInitData } from "../rooms/BattleRoom";
 import { WildPokemon } from "../managers/EncounterManager";
 import { TeamManager } from "../managers/TeamManager";
 import { getPokemonById } from '../data/PokemonData';
+
 /**
- * Gestionnaire centralisé pour tous les handlers de combat
+ * Gestionnaire centralisé pour tous les handlers de combat + CAPTURE
  * Gère la création, connexion et communication avec les BattleRoom
  */
 export class BattleHandlers {
@@ -18,12 +19,12 @@ export class BattleHandlers {
 
   constructor(room: WorldRoom) {
     this.room = room;
-    console.log(`⚔️ [BattleHandlers] Initialisé pour ${room.constructor.name}`);
+    console.log(`⚔️ [BattleHandlers] Initialisé pour ${room.constructor.name} + capture`);
   }
 
   // ✅ CONFIGURATION DES HANDLERS
   setupHandlers(): void {
-    console.log(`📨 [BattleHandlers] Configuration des handlers...`);
+    console.log(`📨 [BattleHandlers] Configuration des handlers + capture...`);
 
     // === HANDLERS PRINCIPAUX ===
     
@@ -52,6 +53,14 @@ export class BattleHandlers {
       await this.handleLeaveBattle(client, data);
     });
 
+    // ✅ NOUVEAU: Tenter de capturer un Pokémon
+    this.room.onMessage("attemptCapture", async (client, data: {
+      ballType: string;
+      battleRoomId?: string;
+    }) => {
+      await this.handleAttemptCapture(client, data);
+    });
+
     // === HANDLERS D'ÉTAT ===
     
     // Obtenir l'état du combat actuel
@@ -74,7 +83,18 @@ export class BattleHandlers {
       await this.handleClaimRewards(client, data);
     });
 
-    
+    // ✅ NOUVEAU: Résultat de capture
+    this.room.onMessage("captureResult", async (client, data: {
+      success: boolean;
+      pokemonName?: string;
+      ballUsed?: string;
+      shakes?: number;
+      addedTo?: 'team' | 'pc';
+      battleEnded?: boolean;
+    }) => {
+      await this.handleCaptureResult(client, data);
+    });
+
     // === HANDLERS PVP (POUR PLUS TARD) ===
     
     // Défier un autre joueur
@@ -97,7 +117,7 @@ export class BattleHandlers {
       await this.handleForceBattleEnd(client, data);
     });
 
-    console.log(`✅ [BattleHandlers] Tous les handlers configurés`);
+    console.log(`✅ [BattleHandlers] Tous les handlers configurés + capture`);
   }
 
   // ✅ === HANDLERS PRINCIPAUX ===
@@ -333,6 +353,70 @@ public async handleStartWildBattle(client: Client, data: {
     });
   }
 
+  // ✅ === NOUVEAU: HANDLERS DE CAPTURE ===
+
+  /**
+   * Tenter de capturer un Pokémon sauvage
+   */
+  public async handleAttemptCapture(client: Client, data: {
+    ballType: string;
+    battleRoomId?: string;
+  }): Promise<void> {
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("captureError", { message: "Joueur non trouvé" });
+      return;
+    }
+
+    console.log(`🎯 [BattleHandlers] Tentative capture: ${player.name} utilise ${data.ballType}`);
+
+    try {
+      // Vérifier que le joueur est en combat
+      const battleRoomId = data.battleRoomId || this.activeBattles.get(client.sessionId);
+      if (!battleRoomId) {
+        client.send("captureError", { 
+          message: "Aucun combat actif pour la capture",
+          code: "NO_ACTIVE_BATTLE"
+        });
+        return;
+      }
+
+      // Vérifier que c'est un combat sauvage
+      // TODO: Ajouter vérification du type de combat si nécessaire
+
+      // Récupérer le TeamManager pour la capture
+      const teamManager = await this.room.getTeamManager(player.name);
+      if (!teamManager) {
+        client.send("captureError", { 
+          message: "Impossible d'accéder à votre équipe",
+          code: "TEAM_MANAGER_ERROR"
+        });
+        return;
+      }
+
+      // Transmettre la tentative de capture au BattleRoom
+      // Le BattleRoom gérera l'action via BattleEngine.processAction()
+      console.log(`📤 [BattleHandlers] Transmission capture vers BattleRoom ${battleRoomId}`);
+      
+      // Envoyer au client pour qu'il transmette au BattleRoom
+      client.send("processCaptureAction", {
+        battleRoomId: battleRoomId,
+        ballType: data.ballType,
+        message: `Tentative de capture avec ${data.ballType}`
+      });
+
+      console.log(`✅ [BattleHandlers] Capture transmise pour ${player.name}`);
+
+    } catch (error) {
+      console.error(`❌ [BattleHandlers] Erreur tentative capture:`, error);
+      
+      client.send("captureError", {
+        message: "Erreur lors de la tentative de capture",
+        error: error instanceof Error ? error.message : "Erreur inconnue"
+      });
+    }
+  }
+
   // ✅ === HANDLERS D'ÉTAT ===
 
   /**
@@ -484,6 +568,54 @@ private async getPlayerBattlePokemon(playerName: string): Promise<any | null> {
       
       client.send("rewardsError", {
         message: "Erreur lors de la distribution des récompenses"
+      });
+    }
+  }
+
+  /**
+   * Traiter le résultat d'une capture
+   */
+  public async handleCaptureResult(client: Client, data: {
+    success: boolean;
+    pokemonName?: string;
+    ballUsed?: string;
+    shakes?: number;
+    addedTo?: 'team' | 'pc';
+    battleEnded?: boolean;
+  }): Promise<void> {
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) return;
+
+    console.log(`🎯 [BattleHandlers] Résultat capture: ${player.name} -> ${data.success ? 'SUCCÈS' : 'ÉCHEC'}`);
+
+    if (data.success) {
+      console.log(`🎉 [BattleHandlers] ${data.pokemonName} capturé avec ${data.ballUsed} (${data.shakes} secousses)`);
+      console.log(`📦 [BattleHandlers] Pokémon ajouté à: ${data.addedTo}`);
+
+      // Si le combat est terminé par capture, nettoyer
+      if (data.battleEnded) {
+        await this.cleanupBattle(client.sessionId, "capture_success");
+      }
+
+      // Notifier le succès
+      client.send("captureSuccess", {
+        pokemonName: data.pokemonName,
+        ballUsed: data.ballUsed,
+        shakes: data.shakes,
+        addedTo: data.addedTo,
+        battleEnded: data.battleEnded,
+        message: `${data.pokemonName} a été capturé !`
+      });
+
+    } else {
+      console.log(`💨 [BattleHandlers] ${data.pokemonName} s'est échappé après ${data.shakes} secousse(s)`);
+
+      // Notifier l'échec
+      client.send("captureFailed", {
+        pokemonName: data.pokemonName,
+        ballUsed: data.ballUsed,
+        shakes: data.shakes,
+        message: `${data.pokemonName} s'est échappé !`
       });
     }
   }
