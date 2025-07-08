@@ -42,59 +42,174 @@ export class StarterSelector {
   }
 
   // ✅ SIMPLE: Juste stocker NetworkManager + FIX CSS
-initialize(networkManager) {
-  this.networkManager = networkManager;
-  
-  // ✅ FIX: Forcer le chargement du CSS immédiatement
-  this.ensureCSS();
-  
-  // ✅ FIX: S'assurer que starterConfig n'est jamais null
-  if (!this.starterConfig) {
-    this.starterConfig = this.getDefaultStarters();
+  initialize(networkManager) {
+    this.networkManager = networkManager;
+    
+    // ✅ FIX: Forcer le chargement du CSS immédiatement
+    this.ensureCSS();
+    
+    // ✅ FIX: S'assurer que starterConfig n'est jamais null
+    if (!this.starterConfig) {
+      this.starterConfig = this.getDefaultStarters();
+    }
+    
+    // ✅ NOUVEAU: Setup des listeners serveur
+    this.setupServerMessageListeners();
+    
+    console.log("✅ [StarterSelector] Initialisé (ultra-simple + fixes + listeners)");
+    return this;
   }
-  
-  // ✅ NOUVEAU: Setup des listeners serveur
-  this.setupServerMessageListeners();
-  
-  console.log("✅ [StarterSelector] Initialisé (ultra-simple + fixes + listeners)");
-  return this;
-}
 
   setupServerMessageListeners() {
-  if (!this.networkManager?.room) {
-    console.warn("⚠️ [StarterSelector] NetworkManager ou room manquant");
-    return;
+    if (!this.networkManager?.room) {
+      console.warn("⚠️ [StarterSelector] NetworkManager ou room manquant");
+      return;
+    }
+
+    console.log("📡 [StarterSelector] Setup des listeners serveur...");
+
+    // ✅ LISTENER: Réponse du serveur après sélection
+    this.networkManager.room.onMessage("starterReceived", (data) => {
+      console.log("📥 [StarterSelector] starterReceived:", data);
+      
+      if (data.success) {
+        // ✅ TRIPLE FIX: Forcer la mise à jour de TOUS les systèmes
+        this.forceCompleteTeamUpdate();
+        
+        // Succès : fermer l'UI après un délai pour voir la confirmation
+        this.showNotification(data.message || "Pokémon reçu avec succès !", 'success');
+        setTimeout(() => {
+          this.hide();
+        }, 2000);
+      } else {
+        // Erreur : afficher le message et permettre une nouvelle sélection
+        this.showNotification(data.message || "Erreur lors de la sélection", 'error');
+        // Réactiver le bouton de confirmation
+        const confirmBtn = this.overlay?.querySelector('.starter-confirm-btn');
+        if (confirmBtn) {
+          confirmBtn.classList.remove('disabled');
+          confirmBtn.textContent = '⚡ Confirmer';
+        }
+      }
+    });
   }
 
-  console.log("📡 [StarterSelector] Setup des listeners serveur...");
-
-  // ✅ LISTENER: Réponse du serveur après sélection
-this.networkManager.room.onMessage("starterReceived", (data) => {
-  console.log("📥 [StarterSelector] starterReceived:", data);
-  
-  if (data.success) {
-    // ✅ AJOUT: Demander immédiatement les données d'équipe
+  // ✅ NOUVELLE MÉTHODE: Forcer la mise à jour complète de tous les systèmes
+  forceCompleteTeamUpdate() {
+    console.log("🔄 [StarterSelector] === FORCE COMPLETE TEAM UPDATE ===");
+    
+    // 1. Demander les données d'équipe fraîches
     if (this.networkManager?.room) {
+      console.log("📡 [StarterSelector] Demande getTeam");
       this.networkManager.room.send("getTeam");
     }
     
-    // Succès : fermer l'UI après un délai pour voir la confirmation
-    this.showNotification(data.message || "Pokémon reçu avec succès !", 'success');
+    // 2. Mettre à jour TeamIcon IMMÉDIATEMENT
+    this.updateTeamIcon();
+    
+    // 3. Mettre à jour TeamUI si il existe
+    this.updateTeamUI();
+    
+    // 4. Forcer une deuxième vague après un délai
     setTimeout(() => {
-      this.hide();
-    }, 2000);
-  } else {
-    // Erreur : afficher le message et permettre une nouvelle sélection
-    this.showNotification(data.message || "Erreur lors de la sélection", 'error');
-    // Réactiver le bouton de confirmation
-    const confirmBtn = this.overlay?.querySelector('.starter-confirm-btn');
-    if (confirmBtn) {
-      confirmBtn.classList.remove('disabled');
-      confirmBtn.textContent = '⚡ Confirmer';
+      console.log("🔄 [StarterSelector] Deuxième vague de mise à jour");
+      if (this.networkManager?.room) {
+        this.networkManager.room.send("getTeam");
+      }
+      this.updateTeamIcon();
+      this.updateTeamUI();
+    }, 500);
+    
+    // 5. Troisième tentative plus tard pour être sûr
+    setTimeout(() => {
+      console.log("🔄 [StarterSelector] Troisième vague de mise à jour");
+      if (this.networkManager?.room) {
+        this.networkManager.room.send("getTeam");
+      }
+      this.updateTeamIcon();
+    }, 1500);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Mettre à jour TeamIcon
+  updateTeamIcon() {
+    console.log("⚔️ [StarterSelector] Mise à jour TeamIcon");
+    
+    // Chercher l'icône d'équipe
+    const teamIcon = document.querySelector('#team-icon') || window.teamIcon;
+    
+    if (teamIcon) {
+      console.log("⚔️ [StarterSelector] TeamIcon trouvé, mise à jour...");
+      
+      // Si c'est un élément DOM
+      if (teamIcon.querySelector) {
+        const countElement = teamIcon.querySelector('.team-count');
+        if (countElement) {
+          countElement.textContent = '1';
+          console.log("⚔️ [StarterSelector] Compteur TeamIcon mis à jour: 1");
+        }
+        
+        // Ajouter classe d'animation
+        teamIcon.classList.add('team-updated');
+        setTimeout(() => {
+          teamIcon.classList.remove('team-updated');
+        }, 600);
+      }
+      
+      // Si c'est l'objet TeamIcon
+      if (teamIcon.updateTeamStats) {
+        teamIcon.updateTeamStats({
+          totalPokemon: 1,
+          alivePokemon: 1,
+          canBattle: true
+        });
+        console.log("⚔️ [StarterSelector] TeamIcon.updateTeamStats appelé");
+      }
+      
+      // Si c'est via window.teamIcon
+      if (window.teamIcon && window.teamIcon.updateTeamStats) {
+        window.teamIcon.updateTeamStats({
+          totalPokemon: 1,
+          alivePokemon: 1,
+          canBattle: true
+        });
+        console.log("⚔️ [StarterSelector] window.teamIcon.updateTeamStats appelé");
+      }
+    } else {
+      console.warn("⚠️ [StarterSelector] TeamIcon non trouvé");
     }
   }
-});
-}
+
+  // ✅ NOUVELLE MÉTHODE: Mettre à jour TeamUI
+  updateTeamUI() {
+    console.log("📱 [StarterSelector] Mise à jour TeamUI");
+    
+    // Chercher TeamUI de toutes les façons possibles
+    const teamUI = window.teamUI || window.TeamUI || this.scene?.teamUI;
+    
+    if (teamUI) {
+      console.log("📱 [StarterSelector] TeamUI trouvé, mise à jour...");
+      
+      // Forcer une demande de données
+      if (teamUI.requestTeamData) {
+        teamUI.requestTeamData();
+        console.log("📱 [StarterSelector] teamUI.requestTeamData() appelé");
+      }
+      
+      // Forcer un refresh si l'UI est visible
+      if (teamUI.isVisible && teamUI.refreshTeamDisplay) {
+        teamUI.refreshTeamDisplay();
+        console.log("📱 [StarterSelector] teamUI.refreshTeamDisplay() appelé");
+      }
+      
+      // Mettre à jour les stats
+      if (teamUI.updateTeamStats) {
+        teamUI.updateTeamStats();
+        console.log("📱 [StarterSelector] teamUI.updateTeamStats() appelé");
+      }
+    } else {
+      console.warn("⚠️ [StarterSelector] TeamUI non trouvé");
+    }
+  }
   
   // ✅ NOUVELLE MÉTHODE: S'assurer que le CSS est chargé
   ensureCSS() {
@@ -383,31 +498,31 @@ this.networkManager.room.onMessage("starterReceived", (data) => {
 
   // ✅ MÉTHODE: Confirmer la sélection
   confirmSelection() {
-  if (!this.selectedStarterId) return;
-  
-  console.log("📤 [StarterSelector] Envoi sélection au serveur:", this.selectedStarterId);
-  
-  if (this.networkManager?.room) {
-    // Désactiver le bouton pendant l'envoi
-    const confirmBtn = this.overlay?.querySelector('.starter-confirm-btn');
-    if (confirmBtn) {
-      confirmBtn.classList.add('disabled');
-      confirmBtn.textContent = '⏳ Envoi...';
+    if (!this.selectedStarterId) return;
+    
+    console.log("📤 [StarterSelector] Envoi sélection au serveur:", this.selectedStarterId);
+    
+    if (this.networkManager?.room) {
+      // Désactiver le bouton pendant l'envoi
+      const confirmBtn = this.overlay?.querySelector('.starter-confirm-btn');
+      if (confirmBtn) {
+        confirmBtn.classList.add('disabled');
+        confirmBtn.textContent = '⏳ Envoi...';
+      }
+      
+      this.networkManager.room.send("giveStarterChoice", {
+        pokemonId: this.getStarterPokemonId(this.selectedStarterId)
+      });
+      
+      // Animation de confirmation
+      this.animateConfirmation();
+      
+      // Notification d'envoi
+      this.showNotification("Sélection envoyée au serveur...", 'info');
+    } else {
+      this.showNotification("Erreur de connexion serveur", 'error');
     }
-    
-    this.networkManager.room.send("giveStarterChoice", {
-      pokemonId: this.getStarterPokemonId(this.selectedStarterId)
-    });
-    
-    // Animation de confirmation
-    this.animateConfirmation();
-    
-    // Notification d'envoi
-    this.showNotification("Sélection envoyée au serveur...", 'info');
-  } else {
-    this.showNotification("Erreur de connexion serveur", 'error');
   }
-}
 
   getStarterPokemonId(starterId) {
     const mapping = {
