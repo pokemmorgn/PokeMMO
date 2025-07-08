@@ -2031,14 +2031,74 @@ startBattle(battleData) {
     }
   }
 
-  endBattle(battleResult = {}) {
-    console.log('🏁 [BattleScene] Fin combat moderne:', battleResult);
-    
-    this.deactivateBattleUI();
-    this.clearAllPokemonSprites();
-    this.clearAllEffects();
-    this.hideBattle();
+endBattle(battleResult = {}) {
+  console.log('🏁 [BattleScene] Fin combat moderne:', battleResult);
+  
+  // ✅ NETTOYAGE COMPLET pour permettre un nouveau combat
+  
+  // 1. Déconnecter de la BattleRoom
+  if (this.battleNetworkHandler) {
+    console.log('🔌 [BattleScene] Déconnexion BattleRoom...');
+    this.battleNetworkHandler.disconnectFromBattleRoom();
   }
+  
+  // 2. Reset état de combat local
+  this.isInBattle = false;
+  this.battleRoomId = null;
+  this.playerRole = null;
+  
+  // 3. Nettoyer données Pokémon
+  this.currentPlayerPokemon = null;
+  this.currentOpponentPokemon = null;
+  
+  // 4. Désactiver l'UI de combat
+  this.deactivateBattleUI();
+  
+  // 5. Nettoyer sprites et effets
+  this.clearAllPokemonSprites();
+  this.clearAllEffects();
+  
+  // 6. Masquer la scène
+  this.hideBattle();
+  
+  // ✅ CRITICAL: Nettoyer COMPLÈTEMENT le battleSystem global
+  if (window.battleSystem) {
+    console.log('🔄 [BattleScene] Reset COMPLET du système de combat global...');
+    
+    // Reset de TOUS les états
+    window.battleSystem.isInBattle = false;
+    window.battleSystem.isTransitioning = false;
+    window.battleSystem.currentBattleRoom = null;
+    window.battleSystem.currentBattleData = null;  // ← CRITICAL !
+    window.battleSystem.selectedPokemon = null;
+    
+    // Reset de l'UI transition
+    if (window.battleSystem.battleUITransition) {
+      window.battleSystem.battleUITransition.isActive = false;
+    }
+    
+    console.log('✅ [BattleScene] battleSystem complètement nettoyé');
+  }
+  
+  // ✅ CRITICAL: Reset du GameManager si disponible
+  if (this.gameManager && this.gameManager.battleState) {
+    console.log('🔄 [BattleScene] Reset GameManager.battleState...');
+    this.gameManager.battleState = 'none';
+    this.gameManager.inBattle = false;
+  }
+  
+  // ✅ CRITICAL: Forcer le retour à l'état d'exploration
+  if (window.pokemonUISystem?.setGameState) {
+    try {
+      window.pokemonUISystem.setGameState('exploration', { force: true });
+      console.log('🔄 [BattleScene] UI forcée vers exploration');
+    } catch (error) {
+      console.warn('⚠️ [BattleScene] Erreur reset UI:', error);
+    }
+  }
+  
+  console.log('✅ [BattleScene] Nettoyage complet terminé - Nouveau combat possible');
+}
 
   activateFromTransition() {
     console.log('🎬 [BattleScene] Activation depuis transition...');
