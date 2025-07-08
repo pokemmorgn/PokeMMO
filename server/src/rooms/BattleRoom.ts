@@ -301,6 +301,11 @@ private notifyCurrentPlayer() {
 
   private async handleTurnSystemAction(client: Client, data: any) {
     console.log(`🎮 [TURNSYSTEM] Action ${client.sessionId}: ${data.actionType}`);
+
+      // ✅ AJOUTER CES LOGS
+  console.log(`🔍 [DEBUG] Phase: ${this.state.phase}, BattleEnded: ${this.state.battleEnded}`);
+  console.log(`🔍 [DEBUG] canPlayerAct: ${this.turnSystem.canPlayerAct(client.sessionId)}`);
+
     
     if (this.state.phase !== "battle" || this.state.battleEnded) {
       client.send("error", { message: "Combat terminé" });
@@ -420,7 +425,8 @@ private notifyCurrentPlayer() {
     
     this.state.turnNumber++;
     this.battleContext.turnNumber = this.state.turnNumber;
-    
+      // ✅ AJOUTER CETTE LIGNE CRUCIALE
+    this.turnSystem.startTurn();
     console.log(`🔄 [TURNSYSTEM] Nouveau tour: ${this.state.currentTurn} (${this.state.turnNumber})`);
     
     this.broadcast("battleUpdate", this.getClientBattleState());
