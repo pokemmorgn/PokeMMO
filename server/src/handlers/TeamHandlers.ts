@@ -34,6 +34,9 @@ export class TeamHandlers {
     this.room.onMessage("swapTeamSlots", this.handleSwapTeamSlots.bind(this));
     this.room.onMessage("reorganizeTeam", this.handleReorganizeTeam.bind(this));
 
+    this.room.onMessage("getBoxPokemon", this.handleGetBoxPokemon.bind(this));
+    this.room.onMessage("transferPokemon", this.handleTransferPokemon.bind(this));
+    
     // === HANDLERS DE SOIN ===
     this.room.onMessage("healTeam", this.handleHealTeam.bind(this));
     this.room.onMessage("healPokemon", this.handleHealPokemon.bind(this));
@@ -671,7 +674,47 @@ export class TeamHandlers {
       });
     }
   }
+  
+  // ================================================================================================
+  // HANLDLERS POKEMON BOX
+  // ================================================================================================
+  /**
+ * Récupère les Pokémon d'une box spécifique (PC)
+ */
+  private async handleGetBoxPokemon(client: Client, data: { boxNumber?: number } = {}): Promise<void> {
+    try {
+      const player = this.room.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("boxPokemonList", { boxNumber: data.boxNumber || 0, pokemons: [], message: "Joueur non trouvé" });
+        return;
+      }
+      const teamManager = new TeamManager(player.name);
+      const pokemons = await teamManager.getBoxPokemon(data.boxNumber || 0);
+      client.send("boxPokemonList", { boxNumber: data.boxNumber || 0, pokemons });
+    } catch (err) {
+      client.send("boxPokemonList", { boxNumber: data.boxNumber || 0, pokemons: [], error: err.message });
+    }
+  }
+  
+  /**
+   * Transfère un Pokémon entre l’équipe et le PC (box)
+   */
+  private async handleTransferPokemon(client: Client, data: { pokemonId: string, toTeam: boolean }): Promise<void> {
+    try {
+      const player = this.room.state.players.get(client.sessionId);
+      if (!player) {
+        client.send("transferPokemonResult", { success: false, message: "Joueur non trouvé" });
+        return;
+      }
+      const teamManager = new TeamManager(player.name);
+      const result = await teamManager.transferPokemon(new mongoose.Types.ObjectId(data.pokemonId), data.toTeam);
+      client.send("transferPokemonResult", { success: !!result });
+    } catch (err) {
+      client.send("transferPokemonResult", { success: false, message: err.message });
+    }
+  }
 
+  
   // ================================================================================================
   // MÉTHODES UTILITAIRES PRIVÉES
   // ================================================================================================
