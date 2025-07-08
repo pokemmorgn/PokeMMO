@@ -1562,26 +1562,41 @@ setupBattleNetworkEvents() {
 
 // ✅ NOUVEAU: Handler pour afficher les messages de combat dans l'interface
 handleNetworkBattleMessage(data) {
-  console.log('💬 [BattleScene] Message de combat reçu:', data.message);
+  console.log('💬 [BattleScene] Message de combat reçu:', data.message, 'timing:', data.timing);
   
-  // ✅ Afficher le message dans la zone d'interface
-  this.showActionMessage(data.message);
+  // ✅ Utiliser le timing du serveur (ou 2000ms par défaut)
+  const displayDuration = data.timing || 2000;
   
-  // ✅ TIMING AUTHENTIQUE: Si c'est une attaque de l'IA
+  // Afficher le message dans l'interface
+  this.showActionMessage(data.message, displayDuration);
+  
+  // ✅ Gérer les séquences d'attaque avec le timing du serveur
   if (data.message && data.message.includes('utilise')) {
-    console.log('🤖 [BattleScene] Attaque IA détectée, séquence timing...');
+    console.log('⚔️ [BattleScene] Attaque détectée:', data.message);
     
-    // Temps pour lire le message (2s) + animation (2s) = 4s total
-    setTimeout(() => {
-      // Message de transition
-      this.showActionMessage('À votre tour !');
+    // Déterminer si c'est une attaque de l'IA/adversaire
+    const isOpponentAttack = data.message.includes('ennemi') || 
+                            data.message.includes('sauvage') ||
+                            !data.message.includes(this.currentPlayerPokemon?.name);
+    
+    if (isOpponentAttack) {
+      console.log('🤖 [BattleScene] Attaque IA/adversaire, timing:', displayDuration);
       
-      // Puis afficher les boutons après 1.5s supplémentaires
+      // ✅ Calculer le délai total basé sur les timings serveur
+      // Message (timing) + Animation dégâts (1500ms) + Pause (500ms)
+      const totalDelay = displayDuration + 1500 + 500;
+      
       setTimeout(() => {
-        this.showActionButtons();
-      }, 1500);
-      
-    }, 4000); // ✅ 4 secondes pour l'attaque complète de l'IA
+        // Message de transition
+        this.showActionMessage('Que voulez-vous faire ?', 1500);
+        
+        // Puis afficher les boutons
+        setTimeout(() => {
+          this.showActionButtons();
+        }, 1500);
+        
+      }, totalDelay);
+    }
   }
 }
 
@@ -2183,9 +2198,15 @@ startBattle(battleData) {
  * Affiche un message dans la zone d'interface (à la place des boutons)
  */
 showActionMessage(message, duration = 0) {
-  console.log('💬 [BattleScene] Affichage message interface:', message);
+  console.log('💬 [BattleScene] Affichage message interface:', message, 'durée:', duration);
   
   if (!this.actionInterface || !this.actionMessageText) return;
+  
+  // Annuler tout timer précédent
+  if (this.messageTimer) {
+    clearTimeout(this.messageTimer);
+    this.messageTimer = null;
+  }
   
   // Masquer les boutons
   this.hideActionButtons();
@@ -2208,12 +2229,8 @@ showActionMessage(message, duration = 0) {
   
   this.interfaceMode = 'message';
   
-  // Masquer automatiquement après délai si spécifié
-  if (duration > 0) {
-    setTimeout(() => {
-      this.hideActionMessage();
-    }, duration);
-  }
+  // NE PAS masquer automatiquement si duration > 0
+  // (on laisse handleNetworkBattleMessage gérer la suite)
 }
 
 /**
@@ -2315,12 +2332,6 @@ hideActionButtons() {
     setTimeout(() => {
       this.showModernActionMenu();
     }, 3000);
-  }
-
-  handleNetworkBattleMessage(data) {
-    console.log('💬 [BattleScene] Message combat:', data.message);
-    
-    this.showBattleMessage(data.message, 3000);
   }
 
   handleNetworkPokemonFainted(data) {
