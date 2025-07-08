@@ -4,6 +4,7 @@
 import { Room, Client } from "@colyseus/core";
 import { BattleState, BattlePokemon } from "../schema/BattleState";
 import { BattleEngine } from "../battle/BattleEngine";
+import { TurnManager } from "../battle/modules/TurnManager';
 import { BattleConfig, BattleGameState, Pokemon, BattleAction } from "../battle/types/BattleTypes";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
