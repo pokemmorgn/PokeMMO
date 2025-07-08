@@ -451,41 +451,45 @@ export class BattleRoom extends Room<BattleState> {
         });
       },
 
-      updatePokemonHP: (pokemonId: string, newHp: number) => {
-        console.log(`🩹 [CALLBACK] HP Update: ${pokemonId} → ${newHp}`);
-        
-        const result = DamageManager.updatePokemonHP(
-          pokemonId, 
-          newHp, 
-          this.state, 
-          this.battleContext,
-          'attack'
-        );
-        
-        if (result) {
-          console.log(`✅ [CALLBACK] HP synchronisés: ${result.pokemonName} ${result.oldHp} → ${result.newHp}`);
-          
-          if (result.wasKnockedOut) {
-            console.log(`💀 [CALLBACK] ${result.pokemonName} K.O. !`);
-            
-            if (pokemonId === this.state.player1Pokemon?.pokemonId.toString()) {
-              this.state.player1Pokemon.currentHp = 0;
-            } else if (pokemonId === this.state.player2Pokemon?.pokemonId.toString()) {
-              this.state.player2Pokemon.currentHp = 0;
-            }
-          }
-          
-          this.broadcast('pokemonHPUpdate', {
-            pokemonId: pokemonId,
-            targetPlayer: result.targetPlayerId,
-            oldHp: result.oldHp,
-            newHp: result.newHp,
-            damage: result.damage,
-            isKnockedOut: result.wasKnockedOut,
-            pokemonName: result.pokemonName
-          });
-        }
-      },
+updatePokemonHP: (pokemonId: string, newHp: number) => {
+  console.log(`🩹 [CALLBACK] HP Update: ${pokemonId} → ${newHp}`);
+  
+  const result = DamageManager.updatePokemonHP(
+    pokemonId, 
+    newHp, 
+    this.state, 
+    this.battleContext,
+    'attack'
+  );
+  
+  if (result) {
+    // ✅ MAPPER sessionId vers player1/player2
+    let targetPlayer: 'player1' | 'player2';
+    
+    if (result.targetPlayerId === this.state.player1Id || result.targetPlayerId === 'ai' && this.state.player1Id === '') {
+      targetPlayer = 'player1';
+    } else {
+      targetPlayer = 'player2';
+    }
+    
+    // Pour un combat sauvage, l'IA est toujours player2
+    if (this.state.battleType === 'wild' && result.targetPlayerId === 'ai') {
+      targetPlayer = 'player2';
+    }
+    
+    console.log(`✅ [CALLBACK] Mapping ${result.targetPlayerId} → ${targetPlayer}`);
+    
+    this.broadcast('pokemonHPUpdate', {
+      pokemonId: pokemonId,
+      targetPlayer: targetPlayer,  // ✅ Maintenant c'est "player1" ou "player2"
+      oldHp: result.oldHp,
+      newHp: result.newHp,
+      damage: result.damage,
+      isKnockedOut: result.wasKnockedOut,
+      pokemonName: result.pokemonName
+    });
+  }
+},
 
       // ✅ SIMPLIFIÉ: Ne plus gérer les tours ici
       changeTurn: (newTurn: string) => {
