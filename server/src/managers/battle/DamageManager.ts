@@ -14,6 +14,7 @@ export interface DamageResult {
   attackerId: string;
   pokemonName: string;
   isHealing: boolean;
+  targetPlayer?: string;
 }
 
 export interface DamageEvent {
