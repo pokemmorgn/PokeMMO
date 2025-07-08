@@ -1081,8 +1081,7 @@ export class BattleScene extends Phaser.Scene {
     
     // IA réfléchit
     this.battleNetworkHandler.on('aiThinking', (data) => {
-      this.hideActionButtons();
-      this.showActionMessage(data.message || "L'adversaire réfléchit...");
+      this.handleBattleEvent('aiTurn', data);
     });
     
     // Tour changé
@@ -1130,6 +1129,30 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  // === SYSTÈME DE TRADUCTION D'ÉVÉNEMENTS ===
+handleBattleEvent(eventType, data = {}) {
+  console.log(`🌍 [BattleScene] Événement: ${eventType}`, data);
+  
+  // Actions d'interface
+  if (eventType === 'yourTurn') {
+    this.showActionButtons();
+    return;
+  }
+  
+  if (eventType === 'aiTurn') {
+    this.hideActionButtons();
+  }
+  
+  // Traduction du message
+  if (this.battleTranslator) {
+    const message = this.battleTranslator.translate(eventType, data);
+    if (message) {
+      this.showActionMessage(message);
+      console.log(`💬 Message traduit: "${message}"`);
+    }
+  }
+}
+  
   // === TIMING DES MESSAGES ===
 
   displayBattleEventsWithTiming(events) {
