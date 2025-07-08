@@ -1558,53 +1558,7 @@ setupBattleNetworkEvents() {
   this.battleNetworkHandler.on('battleEndWithRewards', (data) => {
     this.handleNetworkBattleEnd(data);
   });
-}
-
-  this.battleNetworkHandler.on('actionResult', (data) => {
-  console.log('🎮 [BattleScene] actionResult reçu:', data);
-  
-  if (data.success && data.gameState) {
-    console.log('✅ [BattleScene] Mise à jour gameState depuis actionResult');
-    
-    // ✅ SYNCHRONISER LES HP DIRECTEMENT depuis gameState
-    if (data.gameState.player1?.pokemon) {
-      console.log('💖 [BattleScene] HP Player1:', data.gameState.player1.pokemon.currentHp, '/', data.gameState.player1.pokemon.maxHp);
-      
-      // Mettre à jour données locales
-      this.currentPlayerPokemon.currentHp = data.gameState.player1.pokemon.currentHp;
-      this.currentPlayerPokemon.maxHp = data.gameState.player1.pokemon.maxHp;
-      
-      // Mettre à jour barre de vie
-      this.updateModernHealthBar('player', this.currentPlayerPokemon);
-    }
-    
-    if (data.gameState.player2?.pokemon) {
-      console.log('💥 [BattleScene] HP Player2:', data.gameState.player2.pokemon.currentHp, '/', data.gameState.player2.pokemon.maxHp);
-      
-      // Mettre à jour données locales
-      this.currentOpponentPokemon.currentHp = data.gameState.player2.pokemon.currentHp;
-      this.currentOpponentPokemon.maxHp = data.gameState.player2.pokemon.maxHp;
-      
-      // Mettre à jour barre de vie
-      this.updateModernHealthBar('opponent', this.currentOpponentPokemon);
-    }
-    
-    // ✅ AFFICHER LES MESSAGES DE COMBAT
-    if (data.events && data.events.length > 0) {
-      data.events.forEach((event, index) => {
-        setTimeout(() => {
-          this.showActionMessage(event, 2000);
-        }, index * 1000);
-      });
-    }
-  }
-  
-  if (!data.success) {
-    console.error('❌ [BattleScene] Action échouée:', data.error);
-    this.showActionMessage(`Erreur: ${data.error}`, 2000);
-  }
-});
-  
+}  
 // ✅ NOUVEAU: Handler pour afficher les messages de combat dans l'interface
 handleNetworkBattleMessage(data) {
   console.log('💬 [BattleScene] Message de combat reçu:', data.message, 'timing:', data.timing);
