@@ -354,65 +354,63 @@ private notifyCurrentPlayer() {
     }
   }
 
-  private async executePlayerAction(playerId: string, data: any) {
-    console.log(`⚔️ [EXECUTE] Action joueur: ${data.actionType}`);
-    
-    await this.battleIntegration.processAction(
-      playerId,
-      data.actionType as ActionType,
-      data
-    );
-      // ✅ Forcer la synchronisation après l'action
+private async executePlayerAction(playerId: string, data: any) {
+  console.log(`⚔️ [EXECUTE] Action joueur: ${data.actionType}`);
+  
+  // ✅ Synchroniser AVANT l'action pour que le context ait les bonnes valeurs de départ
   this.updateBattleContext();
-  }
+  
+  await this.battleIntegration.processAction(
+    playerId,
+    data.actionType as ActionType,
+    data
+  );
 
-  private async executeAITurnAction() {
-    console.log(`🤖 [AI] Exécution action IA via TurnSystem`);
-    
-    try {
-      // ✅ Vérifier que l'IA peut jouer
-      if (!this.turnSystem.canPlayerAct('ai')) {
-        console.log(`🤖 [AI] IA ne peut pas jouer maintenant`);
-        return;
-      }
+}
 
-      // ✅ Soumettre action IA au TurnSystem
-      const aiMoves = Array.from(this.state.player2Pokemon.moves);
-      const randomMove = aiMoves[0] || "tackle";
-      
-      const actionSubmitted = this.turnSystem.submitAction('ai', {
-        type: 'attack',
-        moveId: randomMove
-      });
-
-      if (!actionSubmitted) {
-        console.error(`❌ [AI] Action IA refusée par TurnSystem`);
-        return;
-      }
-
-      // ✅ Exécuter l'action IA
-      await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
-      
-      // ✅ Mettre à jour et vérifier fin
-      this.updateBattleContext();
-      
-      const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
-      if (endCondition) {
-        console.log(`🏁 [AI] Condition de fin détectée:`, endCondition);
-        await this.processBattleEndWithManager(endCondition);
-        return;
-      }
-      
-      // ✅ TurnSystem gère le prochain tour
-      this.proceedToNextTurn();
-        // ✅ Forcer la synchronisation après l'action
-      this.updateBattleContext();
-      
-    } catch (error) {
-      console.error(`❌ [AI] Erreur:`, error);
-      this.proceedToNextTurn(); // Continuer même en cas d'erreur
+private async executeAITurnAction() {
+  console.log(`🤖 [AI] Exécution action IA via TurnSystem`);
+  
+  try {
+    if (!this.turnSystem.canPlayerAct('ai')) {
+      console.log(`🤖 [AI] IA ne peut pas jouer maintenant`);
+      return;
     }
+
+    // ✅ Synchroniser AVANT l'action
+    this.updateBattleContext();
+
+    const aiMoves = Array.from(this.state.player2Pokemon.moves);
+    const randomMove = aiMoves[0] || "tackle";
+    
+    const actionSubmitted = this.turnSystem.submitAction('ai', {
+      type: 'attack',
+      moveId: randomMove
+    });
+
+    if (!actionSubmitted) {
+      console.error(`❌ [AI] Action IA refusée par TurnSystem`);
+      return;
+    }
+
+    await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
+    
+    // ❌ NE PAS synchroniser après
+    
+    const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
+    if (endCondition) {
+      console.log(`🏁 [AI] Condition de fin détectée:`, endCondition);
+      await this.processBattleEndWithManager(endCondition);
+      return;
+    }
+    
+    this.proceedToNextTurn();
+    
+  } catch (error) {
+    console.error(`❌ [AI] Erreur:`, error);
+    this.proceedToNextTurn();
   }
+}
 
 private proceedToNextTurn() {
   console.log(`🔄 [TURNSYSTEM] Passage au tour suivant`);
@@ -476,8 +474,6 @@ updatePokemonHP: (pokemonId: string, newHp: number) => {
   );
   
   if (result) {
-    // ✅ FORCER la synchronisation immédiate
-    this.updateBattleContext();
     
     // ✅ MAPPER sessionId vers player1/player2
     let targetPlayer: 'player1' | 'player2';
@@ -811,13 +807,16 @@ private createParticipants(): any[] {
   // === GESTION DU CONTEXTE (INCHANGÉ) ===
 
 private updateBattleContext() {
-  console.log(`🔄 [CONTEXT] Mise à jour contexte`);
+  console.log(`🔄 [CONTEXT] Mise à jour contexte depuis state`);
   
   this.battleContext.participants.forEach((participant) => {
     if (participant.sessionId === this.state.player1Id || participant.sessionId === 'player1') {
-      // ✅ FORCER la mise à jour depuis le state
       if (participant.team[0] && this.state.player1Pokemon) {
-        participant.team[0].currentHp = this.state.player1Pokemon.currentHp;
+        // ✅ Seulement mettre à jour si les valeurs sont différentes
+        if (participant.team[0].currentHp !== this.state.player1Pokemon.currentHp) {
+          console.log(`🔄 [CONTEXT] Sync P1 HP: ${participant.team[0].currentHp} → ${this.state.player1Pokemon.currentHp}`);
+          participant.team[0].currentHp = this.state.player1Pokemon.currentHp;
+        }
         participant.team[0].maxHp = this.state.player1Pokemon.maxHp;
         participant.team[0].name = this.state.player1Pokemon.name;
         participant.team[0].pokemonId = this.state.player1Pokemon.pokemonId;
@@ -826,9 +825,12 @@ private updateBattleContext() {
       participant.isConnected = this.clients.some(c => c.sessionId === this.state.player1Id);
       
     } else if (participant.sessionId === 'ai' || participant.sessionId === 'player2') {
-      // ✅ FORCER la mise à jour depuis le state
       if (participant.team[0] && this.state.player2Pokemon) {
-        participant.team[0].currentHp = this.state.player2Pokemon.currentHp;
+        // ✅ Seulement mettre à jour si les valeurs sont différentes
+        if (participant.team[0].currentHp !== this.state.player2Pokemon.currentHp) {
+          console.log(`🔄 [CONTEXT] Sync P2 HP: ${participant.team[0].currentHp} → ${this.state.player2Pokemon.currentHp}`);
+          participant.team[0].currentHp = this.state.player2Pokemon.currentHp;
+        }
         participant.team[0].maxHp = this.state.player2Pokemon.maxHp;
         participant.team[0].name = this.state.player2Pokemon.name;
         participant.team[0].pokemonId = this.state.player2Pokemon.pokemonId;
@@ -836,6 +838,10 @@ private updateBattleContext() {
       participant.activePokemon = this.state.player2Pokemon;
     }
   });
+  
+  this.battleContext.turnNumber = this.state.turnNumber;
+  DamageManager.syncStatisticsToContext(this.battleContext);
+}
   
   this.battleContext.turnNumber = this.state.turnNumber;
   DamageManager.syncStatisticsToContext(this.battleContext);
