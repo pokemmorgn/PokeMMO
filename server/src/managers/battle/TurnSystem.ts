@@ -237,37 +237,37 @@ setOnTurnStartCallback(callback: () => void): void {
   /**
    * Reçoit une action d'un joueur
    */
-  submitAction(playerId: string, action: any): boolean {
-    const player = this.players.get(playerId);
-    if (!player) {
-      console.error(`❌ [TurnSystem] Joueur inconnu: ${playerId}`);
-      return false;
-    }
-    
-    if (player.hasActed) {
-      console.warn(`⚠️ [TurnSystem] ${player.name} a déjà agi ce tour`);
-      return false;
-    }
-    
-    if (!this.currentPhase.waitingFor.includes(playerId)) {
-      console.warn(`⚠️ [TurnSystem] Pas le tour de ${player.name}`);
-      return false;
-    }
-    
-    console.log(`✅ [TurnSystem] Action reçue: ${player.name} → ${action.type}`);
-    
-    // Stocker l'action
-    this.actionQueue.set(playerId, action);
-    player.hasActed = true;
-    
-    // Retirer de la liste d'attente
-    this.currentPhase.waitingFor = this.currentPhase.waitingFor.filter(id => id !== playerId);
-    
-    // Vérifier si on peut continuer
-    this.checkTurnProgression();
-    
-    return true;
+submitAction(playerId: string, action: any): boolean {
+  const player = this.players.get(playerId);
+  if (!player) {
+    console.error(`❌ [TurnSystem] Joueur inconnu: ${playerId}`);
+    return false;
   }
+  
+  // ✅ VÉRIFICATION CRITIQUE : Empêcher double soumission
+  if (player.hasActed) {
+    console.warn(`⚠️ [TurnSystem] ${player.name} a déjà agi ce tour`);
+    return false;
+  }
+  
+  if (!this.currentPhase.waitingFor.includes(playerId)) {
+    console.warn(`⚠️ [TurnSystem] Pas le tour de ${player.name}`);
+    console.warn(`⚠️ [TurnSystem] waitingFor: [${this.currentPhase.waitingFor.join(', ')}]`);
+    console.warn(`⚠️ [TurnSystem] playerId: ${playerId}`);
+    return false;
+  }
+  
+  console.log(`✅ [TurnSystem] Action reçue: ${player.name} → ${action.type}`);
+  
+  this.actionQueue.set(playerId, action);
+  player.hasActed = true;
+  
+  this.currentPhase.waitingFor = this.currentPhase.waitingFor.filter(id => id !== playerId);
+  
+  this.checkTurnProgression();
+  
+  return true;
+}
   
   /**
    * Vérifie si on peut passer à l'étape suivante
