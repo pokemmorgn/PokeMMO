@@ -1,4 +1,4 @@
-// === GESTION CONNEXIONS ===// server/src/rooms/BattleRoom.ts
+// server/src/rooms/BattleRoom.ts
 // VERSION 2 : Clean avec BattleEngine
 
 import { Room, Client } from "@colyseus/core";
@@ -17,75 +17,6 @@ export interface BattleInitData {
     name: string;
     worldRoomId: string;
     activePokemonId?: string;
-  }
-  
-  // === GESTION IA ===
-  
-  private async executeAIAction() {
-    console.log(`🤖 [BattleRoom] Exécution action IA`);
-    
-    try {
-      // Vérifier que le combat est toujours en cours
-      if (!this.battleGameState || this.battleGameState.isEnded) {
-        console.log(`⏸️ [BattleRoom] Combat terminé, annulation action IA`);
-        return;
-      }
-      
-      // Générer l'action IA
-      const aiAction = this.battleEngine.generateAIAction();
-      
-      if (!aiAction) {
-        console.error(`❌ [BattleRoom] Impossible de générer action IA`);
-        // En cas d'échec, passer au tour suivant
-        this.handleAIActionFailure();
-        return;
-      }
-      
-      console.log(`🤖 [BattleRoom] IA utilise: ${aiAction.data.moveId}`);
-      
-      // Traiter l'action IA via BattleEngine
-      const result = this.battleEngine.processAction(aiAction);
-      
-      if (result.success) {
-        console.log(`✅ [BattleRoom] Action IA traitée avec succès`);
-        
-        // Synchroniser le state
-        this.syncStateFromGameState();
-        
-        // Notifier tous les clients de l'action IA
-        this.broadcast("aiAction", {
-          success: true,
-          events: result.events,
-          data: result.data,
-          gameState: this.getClientBattleState()
-        });
-        
-        // Vérifier conditions de fin de combat
-        this.checkBattleEnd();
-        
-      } else {
-        console.error(`❌ [BattleRoom] Échec action IA: ${result.error}`);
-        this.handleAIActionFailure();
-      }
-      
-    } catch (error) {
-      console.error(`❌ [BattleRoom] Erreur executeAIAction:`, error);
-      this.handleAIActionFailure();
-    }
-  }
-  
-  private handleAIActionFailure() {
-    console.log(`⚠️ [BattleRoom] Gestion échec action IA`);
-    
-    // En cas d'échec de l'IA, forcer le passage au tour suivant
-    // pour éviter que le combat reste bloqué
-    
-    this.broadcast("aiActionFailure", {
-      message: "L'IA n'a pas pu agir, passage au tour suivant"
-    });
-    
-    // TODO: Implémenter le passage de tour forcé si nécessaire
-    // Pour l'instant, on laisse le système se débrouiller
   };
   wildPokemon?: any;
   player2Data?: {
@@ -217,8 +148,8 @@ export class BattleRoom extends Room<BattleState> {
     if (!this.battleGameState) return;
     
     // Vérifier si un Pokémon est K.O.
-    const player1KO = this.battleGameState.player1.pokemon?.currentHp <= 0;
-    const player2KO = this.battleGameState.player2.pokemon?.currentHp <= 0;
+    const player1KO = (this.battleGameState.player1.pokemon?.currentHp || 0) <= 0;
+    const player2KO = (this.battleGameState.player2.pokemon?.currentHp || 0) <= 0;
     
     if (player1KO || player2KO) {
       console.log(`🏁 [BattleRoom] Fin de combat détectée`);
@@ -240,6 +171,8 @@ export class BattleRoom extends Room<BattleState> {
       this.clock.setTimeout(() => this.disconnect(), 5000);
     }
   }
+  
+  // === GESTION CONNEXIONS ===
   
   async onJoin(client: Client, options: any) {
     console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom V2`);
@@ -400,6 +333,75 @@ export class BattleRoom extends Room<BattleState> {
     });
     
     // TODO: Ajouter d'autres événements dans les prochaines étapes
+  }
+  
+  // === GESTION IA ===
+  
+  private async executeAIAction() {
+    console.log(`🤖 [BattleRoom] Exécution action IA`);
+    
+    try {
+      // Vérifier que le combat est toujours en cours
+      if (!this.battleGameState || this.battleGameState.isEnded) {
+        console.log(`⏸️ [BattleRoom] Combat terminé, annulation action IA`);
+        return;
+      }
+      
+      // Générer l'action IA
+      const aiAction = this.battleEngine.generateAIAction();
+      
+      if (!aiAction) {
+        console.error(`❌ [BattleRoom] Impossible de générer action IA`);
+        // En cas d'échec, passer au tour suivant
+        this.handleAIActionFailure();
+        return;
+      }
+      
+      console.log(`🤖 [BattleRoom] IA utilise: ${aiAction.data.moveId}`);
+      
+      // Traiter l'action IA via BattleEngine
+      const result = this.battleEngine.processAction(aiAction);
+      
+      if (result.success) {
+        console.log(`✅ [BattleRoom] Action IA traitée avec succès`);
+        
+        // Synchroniser le state
+        this.syncStateFromGameState();
+        
+        // Notifier tous les clients de l'action IA
+        this.broadcast("aiAction", {
+          success: true,
+          events: result.events,
+          data: result.data,
+          gameState: this.getClientBattleState()
+        });
+        
+        // Vérifier conditions de fin de combat
+        this.checkBattleEnd();
+        
+      } else {
+        console.error(`❌ [BattleRoom] Échec action IA: ${result.error}`);
+        this.handleAIActionFailure();
+      }
+      
+    } catch (error) {
+      console.error(`❌ [BattleRoom] Erreur executeAIAction:`, error);
+      this.handleAIActionFailure();
+    }
+  }
+  
+  private handleAIActionFailure() {
+    console.log(`⚠️ [BattleRoom] Gestion échec action IA`);
+    
+    // En cas d'échec de l'IA, forcer le passage au tour suivant
+    // pour éviter que le combat reste bloqué
+    
+    this.broadcast("aiActionFailure", {
+      message: "L'IA n'a pas pu agir, passage au tour suivant"
+    });
+    
+    // TODO: Implémenter le passage de tour forcé si nécessaire
+    // Pour l'instant, on laisse le système se débrouiller
   }
   
   // === CONVERSION DE DONNÉES ===
