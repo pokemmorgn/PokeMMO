@@ -61,7 +61,10 @@ export class BattleEngine {
       this.turnManager.initialize(this.gameState);
       
       // 4. Déterminer qui commence
-      const firstPlayer = this.determineFirstPlayer();
+      const firstPlayer = this.turnManager.determineFirstPlayer(
+        this.gameState.player1.pokemon,
+        this.gameState.player2.pokemon
+      );
       this.gameState.currentTurn = firstPlayer;
       
       this.isInitialized = true;
@@ -212,14 +215,7 @@ export class BattleEngine {
     };
   }
   
-  private determineFirstPlayer(): 'player1' | 'player2' {
-    const p1Speed = this.gameState.player1.pokemon?.speed || 0;
-    const p2Speed = this.gameState.player2.pokemon?.speed || 0;
-    
-    console.log(`⚡ [BattleEngine] Vitesses: P1=${p1Speed} vs P2=${p2Speed}`);
-    
-    return p1Speed >= p2Speed ? 'player1' : 'player2';
-  }
+
 }
 
 export default BattleEngine;
