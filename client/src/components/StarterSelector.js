@@ -69,26 +69,31 @@ initialize(networkManager) {
   console.log("📡 [StarterSelector] Setup des listeners serveur...");
 
   // ✅ LISTENER: Réponse du serveur après sélection
-  this.networkManager.room.onMessage("starterReceived", (data) => {
-    console.log("📥 [StarterSelector] starterReceived:", data);
-    
-    if (data.success) {
-      // Succès : fermer l'UI après un délai pour voir la confirmation
-      this.showNotification(data.message || "Pokémon reçu avec succès !", 'success');
-      setTimeout(() => {
-        this.hide();
-      }, 2000);
-    } else {
-      // Erreur : afficher le message et permettre une nouvelle sélection
-      this.showNotification(data.message || "Erreur lors de la sélection", 'error');
-      // Réactiver le bouton de confirmation
-      const confirmBtn = this.overlay?.querySelector('.starter-confirm-btn');
-      if (confirmBtn) {
-        confirmBtn.classList.remove('disabled');
-        confirmBtn.textContent = '⚡ Confirmer';
-      }
+this.networkManager.room.onMessage("starterReceived", (data) => {
+  console.log("📥 [StarterSelector] starterReceived:", data);
+  
+  if (data.success) {
+    // ✅ AJOUT: Demander immédiatement les données d'équipe
+    if (this.networkManager?.room) {
+      this.networkManager.room.send("getTeam");
     }
-  });
+    
+    // Succès : fermer l'UI après un délai pour voir la confirmation
+    this.showNotification(data.message || "Pokémon reçu avec succès !", 'success');
+    setTimeout(() => {
+      this.hide();
+    }, 2000);
+  } else {
+    // Erreur : afficher le message et permettre une nouvelle sélection
+    this.showNotification(data.message || "Erreur lors de la sélection", 'error');
+    // Réactiver le bouton de confirmation
+    const confirmBtn = this.overlay?.querySelector('.starter-confirm-btn');
+    if (confirmBtn) {
+      confirmBtn.classList.remove('disabled');
+      confirmBtn.textContent = '⚡ Confirmer';
+    }
+  }
+});
 }
   
   // ✅ NOUVELLE MÉTHODE: S'assurer que le CSS est chargé
