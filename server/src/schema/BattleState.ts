@@ -3,7 +3,7 @@ import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
 
 export class BattlePokemon extends Schema {
   @type("number") pokemonId: number;
-  @type("number") combatId: number;
+  @type("string") combatId: number;
   @type("string") name: string;
   @type("number") level: number;
   @type("number") currentHp: number;
