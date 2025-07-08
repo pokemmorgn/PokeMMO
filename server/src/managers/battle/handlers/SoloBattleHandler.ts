@@ -87,59 +87,76 @@ class SoloBattleHandler implements IBattleHandler {
   
   // === ✅ TRAITEMENT ATTAQUE CORRIGÉ ===
   
-  private async processAttack(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
-    console.log(`💥 [SoloBattleHandler] Traitement attaque simple...`);
-    
-    const moveId = action.data.moveId;
-    if (!moveId) {
-      return this.createSimpleSequence('no_move');
-    }
-    
-    // Récupérer attaquant et défenseur
-    const attacker = this.getPokemonByPlayerId(action.playerId, context);
-    const defender = this.getOpponentPokemon(action.playerId, context);
-    
-    if (!attacker || !defender) {
-      console.error(`❌ [SoloBattleHandler] Pokémon manquants`);
-      return this.createSimpleSequence('pokemon_missing');
-    }
-    
-    console.log(`⚔️ [SoloBattleHandler] ${attacker.name} attaque ${defender.name} avec ${moveId}`);
-    
-    // Données de move depuis MoveManager
-    const moveData = this.getMoveData(moveId);
-    
-    // Calculer dégâts
-    const isCritical = Math.random() < 0.1; // 10% critique
-    const damageResult = DamageCalculator.calculateDamage({
-      attacker,
-      defender,
-      move: moveData,
-      moveType: moveData.type,
-      weather: undefined,
-      terrain: undefined,
-      isCritical
-    });
-    
-    console.log(`💥 [SoloBattleHandler] Dégâts calculés: ${damageResult.finalDamage}`);
-    
-    // ✅ CORRECTION MAJEURE: LIRE les HP actuels SANS LES MODIFIER
-    const currentDefenderHp = defender.currentHp;
-    const newDefenderHp = Math.max(0, currentDefenderHp - damageResult.finalDamage);
-    
-    // ✅ LOGS DE DEBUG pour traquer le problème
-    console.log(`🔍 [DEBUG-HP] Context HP AVANT événement: ${defender.currentHp}`);
-    console.log(`🔍 [DEBUG-HP] HP calculés: ${currentDefenderHp} → ${newDefenderHp}`);
-    console.log(`🔍 [DEBUG-HP] Dégâts appliqués: ${damageResult.finalDamage}`);
-    
-    // ❌ CETTE LIGNE ÉTAIT LE BUG - SUPPRIMÉE !
-    // defender.currentHp = newDefenderHp; // ← NE JAMAIS FAIRE ÇA!
-    
-    // ✅ CORRECTION: Laisser l'événement damage s'en charger UNIQUEMENT
-    return this.createAttackSequence(attacker, defender, moveData, damageResult, currentDefenderHp, newDefenderHp, context);
+private async processAttack(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
+  console.log(`💥 [SoloBattleHandler] Traitement attaque simple...`);
+  
+  const moveId = action.data.moveId;
+  if (!moveId) {
+    return this.createSimpleSequence('no_move');
   }
   
+  // Récupérer attaquant et défenseur
+  const attacker = this.getPokemonByPlayerId(action.playerId, context);
+  const defender = this.getOpponentPokemon(action.playerId, context);
+  
+  if (!attacker || !defender) {
+    console.error(`❌ [SoloBattleHandler] Pokémon manquants`);
+    return this.createSimpleSequence('pokemon_missing');
+  }
+  
+  console.log(`⚔️ [SoloBattleHandler] ${attacker.name} attaque ${defender.name} avec ${moveId}`);
+  
+  // ✅ LOG AVANT CALCUL
+  console.log(`🔍 [HP-TRACK-1] AVANT calcul - Context: ${defender.currentHp}, State: ${this.getStateHP(defender.combatId)}`);
+  
+  // Données de move depuis MoveManager
+  const moveData = this.getMoveData(moveId);
+  
+  // Calculer dégâts
+  const isCritical = Math.random() < 0.1; // 10% critique
+  const damageResult = DamageCalculator.calculateDamage({
+    attacker,
+    defender,
+    move: moveData,
+    moveType: moveData.type,
+    weather: undefined,
+    terrain: undefined,
+    isCritical
+  });
+  
+  // ✅ LOG APRÈS CALCUL
+  console.log(`🔍 [HP-TRACK-2] APRÈS calcul - Context: ${defender.currentHp}, State: ${this.getStateHP(defender.combatId)}`);
+  
+  console.log(`💥 [SoloBattleHandler] Dégâts calculés: ${damageResult.finalDamage}`);
+  
+  // LIRE les HP actuels SANS LES MODIFIER
+  const currentDefenderHp = defender.currentHp;
+  const newDefenderHp = Math.max(0, currentDefenderHp - damageResult.finalDamage);
+  
+  // ✅ LOG AVANT CRÉATION SÉQUENCE
+  console.log(`🔍 [HP-TRACK-3] AVANT séquence - Context: ${defender.currentHp}, State: ${this.getStateHP(defender.combatId)}`);
+  
+  console.log(`🔍 [DEBUG-HP] Context HP AVANT événement: ${defender.currentHp}`);
+  console.log(`🔍 [DEBUG-HP] HP calculés: ${currentDefenderHp} → ${newDefenderHp}`);
+  console.log(`🔍 [DEBUG-HP] Dégâts appliqués: ${damageResult.finalDamage}`);
+  
+  // Créer séquence
+  const sequence = this.createAttackSequence(attacker, defender, moveData, damageResult, currentDefenderHp, newDefenderHp, context);
+  
+  // ✅ LOG APRÈS CRÉATION SÉQUENCE
+  console.log(`🔍 [HP-TRACK-4] APRÈS séquence - Context: ${defender.currentHp}, State: ${this.getStateHP(defender.combatId)}`);
+  
+  return sequence;
+}
+  
   // === ✅ CRÉATION DE SÉQUENCES CORRIGÉE ===
+
+  // ✅ MÉTHODE HELPER POUR LIRE LES HP DU STATE
+private getStateHP(combatId: string): number {
+  // Tu devras adapter cette méthode selon comment tu accèdes au state depuis SoloBattleHandler
+  // Ou passer le state en paramètre depuis BattleRoom
+  return -1; // Placeholder - remplace par la vraie logique
+}
   
   private createAttackSequence(
     attacker: BattlePokemonData,
