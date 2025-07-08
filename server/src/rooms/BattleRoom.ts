@@ -272,26 +272,30 @@ export class BattleRoom extends Room<BattleState> {
     this.notifyCurrentPlayer();
   }
 
-  private notifyCurrentPlayer() {
-    console.log(`📢 [TURNSYSTEM] Notification tour: ${this.state.currentTurn}`);
-    
-    if (this.state.currentTurn === "player1") {
-      const client = this.clients.find(c => c.sessionId === this.state.player1Id);
-      if (client) {
-        client.send("yourTurn", { 
-          timeRemaining: this.actionTimeoutMs,
-          turnNumber: this.state.turnNumber
-        });
-      }
-    } else if (this.state.currentTurn === "player2") {
-      // ✅ IA joue automatiquement après délai
-      this.clock.setTimeout(() => {
-        if (!this.state.battleEnded) {
-          this.executeAITurnAction();
-        }
-      }, 1500);
+private notifyCurrentPlayer() {
+  console.log(`📢 [TURNSYSTEM] Notification tour: ${this.state.currentTurn}`);
+  
+  if (this.state.currentTurn === "player1") {
+    const client = this.clients.find(c => c.sessionId === this.state.player1Id);
+    if (client) {
+      client.send("yourTurn", { 
+        timeRemaining: this.actionTimeoutMs,
+        turnNumber: this.state.turnNumber
+      });
     }
+  } else if (this.state.currentTurn === "player2") {
+    // ✅ DÉLAI PLUS RÉALISTE POUR L'IA
+    const aiThinkingTime = 2000 + Math.random() * 2000; // Entre 2 et 4 secondes
+    
+    console.log(`🤖 [AI] Réflexion pendant ${aiThinkingTime}ms...`);
+    
+    this.clock.setTimeout(() => {
+      if (!this.state.battleEnded) {
+        this.executeAITurnAction();
+      }
+    }, aiThinkingTime);  // ✅ Délai variable pour plus de réalisme
   }
+}
 
   // === ✅ NOUVEAU: GESTION DES ACTIONS VIA TURNSYSTEM ===
 
