@@ -1620,8 +1620,13 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
         await this.updateQuestStatusesFixed(player.name, client);
       }, 2000);
       
-      console.log(`🎉 ${player.name} a rejoint le monde !`);
+// Étape 6: Initialiser le follower si le joueur a une équipe
+this.clock.setTimeout(async () => {
+  console.log(`🐾 [WorldRoom] Initialisation follower pour ${player.name}`);
+  await this.followerHandlers.onTeamChanged(client.sessionId);
+}, 4000); // Après les quêtes (2000ms) + délai sécurisé
 
+console.log(`🎉 ${player.name} a rejoint le monde !`);
     } catch (error) {
       console.error(`❌ Erreur lors du join:`, error);
       
