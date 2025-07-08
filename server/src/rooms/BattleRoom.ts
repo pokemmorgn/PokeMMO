@@ -144,8 +144,10 @@ export class BattleRoom extends Room<BattleState> {
         
         console.log(`✅ [BattleRoom] Combat V2 démarré avec succès`);
         
-        // Notifier le client
+        // Notifier le client avec le format attendu
         this.broadcast("battleStart", {
+          playerPokemon: this.battleGameState.player1.pokemon,
+          opponentPokemon: this.battleGameState.player2.pokemon,
           gameState: this.getClientBattleState(),
           events: result.events
         });
