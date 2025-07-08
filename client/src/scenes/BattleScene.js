@@ -1522,6 +1522,55 @@ setupBattleNetworkEvents() {
   
   console.log('📡 [BattleScene] Configuration événements réseau...');
 
+  this.battleNetworkHandler.on('actionResult', (data) => {
+  console.log('🎮 [BattleScene] actionResult reçu:', data);
+  
+  if (data.success && data.gameState) {
+    console.log('✅ [BattleScene] Mise à jour gameState depuis actionResult');
+    
+    // ✅ SYNCHRONISER LES HP DIRECTEMENT depuis gameState
+    if (data.gameState.player1?.pokemon && this.currentPlayerPokemon) {
+      console.log('💖 [BattleScene] HP Player1:', data.gameState.player1.pokemon.currentHp, '/', data.gameState.player1.pokemon.maxHp);
+      
+      // Mettre à jour données locales
+      this.currentPlayerPokemon.currentHp = data.gameState.player1.pokemon.currentHp;
+      this.currentPlayerPokemon.maxHp = data.gameState.player1.pokemon.maxHp;
+      
+      // Mettre à jour barre de vie avec animation
+      setTimeout(() => {
+        this.updateModernHealthBar('player', this.currentPlayerPokemon);
+      }, 500);
+    }
+    
+    if (data.gameState.player2?.pokemon && this.currentOpponentPokemon) {
+      console.log('💥 [BattleScene] HP Player2:', data.gameState.player2.pokemon.currentHp, '/', data.gameState.player2.pokemon.maxHp);
+      
+      // Mettre à jour données locales
+      this.currentOpponentPokemon.currentHp = data.gameState.player2.pokemon.currentHp;
+      this.currentOpponentPokemon.maxHp = data.gameState.player2.pokemon.maxHp;
+      
+      // Mettre à jour barre de vie avec animation
+      setTimeout(() => {
+        this.updateModernHealthBar('opponent', this.currentOpponentPokemon);
+      }, 500);
+    }
+    
+    // ✅ AFFICHER LES MESSAGES DE COMBAT
+    if (data.events && data.events.length > 0) {
+      data.events.forEach((event, index) => {
+        setTimeout(() => {
+          this.showActionMessage(event, 1500);
+        }, index * 800);
+      });
+    }
+  }
+  
+  if (!data.success) {
+    console.error('❌ [BattleScene] Action échouée:', data.error);
+    this.showActionMessage(`Erreur: ${data.error}`, 2000);
+  }
+});
+  
   this.battleNetworkHandler.on('battleJoined', (data) => {
   console.log('⚔️ [BattleScene] Battle joined, rôle:', data.yourRole);
   this.playerRole = data.yourRole;
