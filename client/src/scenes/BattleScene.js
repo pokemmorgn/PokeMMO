@@ -1611,23 +1611,27 @@ this.battleNetworkHandler.on('aiThinking', (data) => {
 });
 
   // ✅ CRITICAL: Handler turnChanged
-  this.battleNetworkHandler.on('turnChanged', (data) => {
-    console.log('🔄 [BattleScene] Tour changé reçu:', data.currentTurn);
+this.battleNetworkHandler.on('turnChanged', (data) => {
+  console.log('🔄 [BattleScene] Tour changé reçu:', data.currentTurn);
+  
+  if (data.currentTurn === 'player1') {
+    console.log('👤 [BattleScene] C\'est mon tour !');
     
-    if (data.currentTurn === 'player1') {
-      console.log('👤 [BattleScene] C\'est mon tour !');
-      setTimeout(() => {
-        this.showActionMessage('Que voulez-vous faire ?', 1500);
-        setTimeout(() => {
-          this.showActionButtons();
-        }, 1500);
-      }, 2000);
-    } else {
-      console.log('🤖 [BattleScene] Tour de l\'IA...');
-      this.hideActionButtons();
-      this.showActionMessage('Tour de l\'adversaire...');
-    }
-  });
+    // ✅ AUTHENTIQUE: Interface directe, pas de message
+    setTimeout(() => {
+      this.showActionButtons(); // ← DIRECT, sans texte
+    }, 1000);
+    
+  } else if (data.currentTurn === 'player2') {
+    console.log('🤖 [BattleScene] Tour de l\'IA...');
+    this.hideActionButtons();
+    // ✅ PAS de message "Tour de l'adversaire" non plus
+    
+  } else if (data.currentTurn === 'narrator') {
+    console.log('📖 [BattleScene] Mode narrateur...');
+    this.hideActionButtons();
+  }
+});
 
   // ✅ NOUVEAU: Handler pour la fin de combat
   this.battleNetworkHandler.on('battleEnd', (data) => {
@@ -1678,18 +1682,14 @@ this.battleNetworkHandler.on('aiThinking', (data) => {
     this.handleNetworkBattleUpdate(data);
   });
   
-  this.battleNetworkHandler.on('yourTurn', (data) => {
-    console.log('🎯 [BattleScene] yourTurn reçu - AFFICHAGE INTERFACE:', data);
-    
-    // Attendre un délai pour la fluidité
-    setTimeout(() => {
-      this.showActionMessage('Que voulez-vous faire ?');
-      
-      setTimeout(() => {
-        this.showActionButtons();
-      }, 1000);
-    }, 500);
-  });
+this.battleNetworkHandler.on('yourTurn', (data) => {
+  console.log('🎯 [BattleScene] yourTurn reçu - INTERFACE DIRECTE:', data);
+  
+  // ✅ AUTHENTIQUE: Interface immédiate, comme Rouge/Bleu
+  setTimeout(() => {
+    this.showActionButtons(); // ← DIRECT
+  }, 500);
+})
   
   this.battleNetworkHandler.on('battleEndWithRewards', (data) => {
     this.handleNetworkBattleEnd(data);
@@ -1827,43 +1827,29 @@ handleNetworkBattleStart(data) {
  * Séquence d'introduction authentique style Pokémon
  */
 startBattleIntroSequence(opponentPokemon) {
-  console.log('🎬 [BattleScene] ANCIENNE séquence introduction...');
+  console.log('🎬 [BattleScene] Séquence introduction authentique...');
   
   const opponentName = opponentPokemon?.name || 'Pokémon sauvage';
   
-  // ✅ NOUVEAU: Cette méthode est maintenant un FALLBACK
-  // Le vrai flow passe par narrativeStart → narrativeEnd → turnChanged
-  
+  // Phase 1: Apparition du Pokémon sauvage
   setTimeout(() => {
     this.showActionMessage(`Un ${opponentName} sauvage apparaît !`);
-  }, 1000);
-  
-  setTimeout(() => {
-    this.checkWhoStartsFirst();
-  }, 4000);
-}
-
-checkWhoStartsFirst() {
-  console.log('🎯 [BattleScene] ANCIENNE logique premier tour...');
-  
-  // ✅ FALLBACK pour anciens combats
-  this.showActionMessage('Que voulez-vous faire ?');
-  
-  setTimeout(() => {
-    this.showActionButtons();
   }, 2000);
+  
+  // Phase 2: Interface directe (SANS "Que voulez-vous faire ?")
+  setTimeout(() => {
+    this.hideActionMessage(); // Enlever le message
+    this.showActionButtons();  // Interface directe
+  }, 5000);
 }
 
-/**
- * Détermine qui commence le combat et lance le premier tour
- */
 checkWhoStartsFirst() {
-  // ✅ TEXTE AUTHENTIQUE POKÉMON
-  this.showActionMessage('Que voulez-vous faire ?');
+  console.log('🎯 [BattleScene] Premier tour authentique...');
   
+  // ✅ AUTHENTIQUE: Interface directe
   setTimeout(() => {
-    this.showActionButtons();
-  }, 2500);  // ✅ Légèrement plus long
+    this.showActionButtons(); // ← DIRECT
+  }, 1500);
 }
 
   /**
@@ -2614,12 +2600,12 @@ hideActionMessage() {
  * Affiche les boutons d'action (masque le texte)
  */
 showActionButtons() {
-  console.log('🎮 [BattleScene] Affichage boutons interface');
+  console.log('🎮 [BattleScene] Interface directe authentique');
   
-  // Masquer le texte
+  // Masquer tout message précédent
   this.hideActionMessage();
   
-  // ✅ CORRECTION: Réafficher tous les boutons
+  // ✅ Réafficher tous les boutons directement
   if (this.actionInterface) {
     this.actionInterface.list.forEach(child => {
       // Réafficher tout sauf le panel de fond (index 0) et le texte
