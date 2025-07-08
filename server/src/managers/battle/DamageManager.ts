@@ -257,8 +257,11 @@ export class DamageManager {
   }
 
   private static findAndUpdateInContext(pokemonId: string, newHp: number, battleContext: BattleContext): any {
-    console.log(`🔍 [DamageManager] Recherche dans context...`);
-    
+  console.log(`🔍 [DamageManager] Recherche dans context...`);
+  console.log(`🔍 [DamageManager] État actuel du context:`, {
+    player1Hp: battleContext.participants[0]?.team[0]?.currentHp,
+    player2Hp: battleContext.participants[1]?.team[0]?.currentHp
+  });
     for (const participant of battleContext.participants) {
       // Vérifier le Pokémon actif
       if (participant.activePokemon.pokemonId.toString() === pokemonId) {
