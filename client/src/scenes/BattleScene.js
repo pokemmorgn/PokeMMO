@@ -2183,7 +2183,20 @@ startBattle(battleData) {
       });
     }
   }
+// Écouter les nouveaux événements
+this.battleNetworkHandler.on('actionResult', (data) => {
+  if (data.success) {
+    console.log('✅ Action réussie:', data.events);
+    // Afficher les messages de combat
+  } else {
+    console.error('❌ Action échouée:', data.error);
+  }
+});
 
+this.battleNetworkHandler.on('turnChanged', (data) => {
+  console.log('🔄 Tour changé:', data.currentTurn);
+  // Activer/désactiver les boutons selon le tour
+});
   /**
  * Affiche un message dans la zone d'interface (à la place des boutons)
  */
@@ -2353,6 +2366,7 @@ hideActionButtons() {
     this.createStatusEffect(data.targetType, data.status);
   }
 
+  
   createKOEffect(sprite) {
     if (!sprite) return;
     
