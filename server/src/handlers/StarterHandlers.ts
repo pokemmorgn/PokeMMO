@@ -498,7 +498,7 @@ private async sendTeamDataToClient(client: Client, playerName: string): Promise<
   } catch (error) {
     console.error("❌ [StarterHandlers] Erreur envoi teamData:", error);
   }
-}
+
         
         // Envoyer la confirmation au client
         client.send("starterReceived", {
