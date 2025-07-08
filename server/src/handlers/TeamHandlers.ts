@@ -327,7 +327,10 @@ export class TeamHandlers {
         // Renvoyer l'équipe mise à jour
         const updatedTeam = await teamManager.getTeam();
         const stats = await teamManager.getTeamStats();
-        
+              const followerHandlers = this.room.getFollowerHandlers();
+      if (followerHandlers) {
+        await followerHandlers.onTeamChanged(client.sessionId);
+      }
         client.send("teamData", {
           success: true,
           team: updatedTeam,
@@ -384,7 +387,10 @@ export class TeamHandlers {
         // Renvoyer l'équipe mise à jour
         const team = await teamManager.getTeam();
         const stats = await teamManager.getTeamStats();
-        
+             const followerHandlers = this.room.getFollowerHandlers();
+      if (followerHandlers) {
+        await followerHandlers.onTeamChanged(client.sessionId);
+      }
         client.send("teamData", {
           success: true,
           team: team,
@@ -450,7 +456,12 @@ export class TeamHandlers {
           team: team,
           stats: stats
         });
-        
+              if (data.slotA === 0 || data.slotB === 0) {
+        const followerHandlers = this.room.getFollowerHandlers();
+        if (followerHandlers) {
+          await followerHandlers.onTeamChanged(client.sessionId);
+        }
+      }
         client.send("teamActionResult", {
           success: true,
           message: "Pokémon échangés !"
@@ -560,7 +571,10 @@ export class TeamHandlers {
       const teamManager = new TeamManager(player.name);
       await teamManager.load();
       await teamManager.healTeam();
-      
+          const followerHandlers = this.room.getFollowerHandlers();
+    if (followerHandlers) {
+      await followerHandlers.onTeamChanged(client.sessionId);
+    }
       client.send("teamHealed", {
         success: true,
         message: "Équipe soignée avec succès !"
