@@ -250,7 +250,7 @@ private startTurnSystemBattle() {
   // Configuration TurnSystem avec les vrais joueurs
   const playerData = [
     { id: this.state.player1Id, type: 'human' as PlayerType, name: this.state.player1Name },
-    { id: 'ai', type: 'ai' as PlayerType, name: 'Pokémon Sauvage' }
+    { id: 'player2', type: 'ai', name: 'Pokémon Sauvage' }
   ];
   
   this.turnSystem.autoConfigurePlayers(playerData);
@@ -394,7 +394,7 @@ private async executeAITurnAction() {
     console.log(`🤖 [AI] IA choisit: ${randomMove}`);
     
     // ✅ Soumettre l'action au TurnSystem avec le bon ID
-    const actionSubmitted = this.turnSystem.submitAction('ai', {
+    const actionSubmitted = this.turnSystem.submitAction('player2', {
       type: 'attack',
       moveId: randomMove
     });
@@ -508,7 +508,7 @@ updatePokemonHP: (combatId: string, newHp: number) => {
     }
     
     // Pour un combat sauvage, l'IA est toujours player2
-    if (this.state.battleType === 'wild' && result.targetPlayerId === 'ai') {
+    if (this.state.battleType === 'wild' && result.targetPlayerId === 'player2') {
       targetPlayer = 'player2';
     }
     
@@ -623,7 +623,7 @@ private createParticipants(): any[] {
       lastActionTime: Date.now()
     },
     {
-      sessionId: 'ai',
+      sessionId: 'player2'
       name: 'Pokémon Sauvage',
       role: 'player2',
       team: [convertPokemon(this.state.player2Pokemon)],
