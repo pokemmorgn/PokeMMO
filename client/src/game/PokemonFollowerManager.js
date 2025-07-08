@@ -1,5 +1,5 @@
 // ================================================================================================
-// CLIENT/SRC/GAME/POKEMONFOLLOWERMANAGER.JS - VERSION CORRIGÉE
+// CLIENT/SRC/GAME/POKEMONFOLLOWERMANAGER.JS - VERSION ADAPTATIVE COMPLÈTE
 // ================================================================================================
 
 export class PokemonFollowerManager {
@@ -8,8 +8,71 @@ export class PokemonFollowerManager {
     this.followers = new Map(); // sessionId -> follower sprite
     this.loadedSprites = new Set(); // Cache des sprites déjà chargés
     this.loadingSprites = new Set(); // Cache des sprites en cours de chargement
+    this.spriteStructures = new Map(); // Cache des structures détectées par pokemonId
     
     console.log("🐾 [PokemonFollowerManager] Initialisé");
+  }
+
+  /**
+   * Détecte automatiquement la structure du spritesheet Pokémon
+   */
+  detectSpriteStructure(width, height) {
+    // Possibilités communes pour les spritesheets Pokémon PokeMMO
+    const possibilities = [
+      { cols: 6, rows: 8, priority: 1 }, // Le plus commun
+      { cols: 4, rows: 8, priority: 2 }, // Version simple
+      { cols: 8, rows: 8, priority: 3 }, // Version étendue
+      { cols: 5, rows: 8, priority: 4 }, // Rare
+      { cols: 7, rows: 8, priority: 5 }, // Original (pour compatibility)
+    ];
+
+    const validOptions = [];
+
+    possibilities.forEach(p => {
+      const frameW = width / p.cols;
+      const frameH = height / p.rows;
+      
+      // Vérifier que c'est un nombre entier
+      if (frameW % 1 === 0 && frameH % 1 === 0) {
+        validOptions.push({
+          cols: p.cols,
+          rows: p.rows,
+          frameWidth: frameW,
+          frameHeight: frameH,
+          totalFrames: p.cols * p.rows,
+          priority: p.priority,
+          // Bonus si les frames sont carrées ou proches
+          squareBonus: Math.abs(frameW - frameH) < 5 ? 10 : 0
+        });
+      }
+    });
+
+    if (validOptions.length === 0) {
+      console.warn(`⚠️ [PokemonFollowerManager] Aucune structure valide trouvée pour ${width}×${height}`);
+      // Fallback : essayer de deviner
+      return {
+        cols: Math.round(width / 32), // Assume 32px par frame
+        rows: 8,
+        frameWidth: Math.round(width / Math.round(width / 32)),
+        frameHeight: Math.round(height / 8)
+      };
+    }
+
+    // Trier par priorité et bonus de carré
+    validOptions.sort((a, b) => {
+      const scoreA = (10 - a.priority) + a.squareBonus;
+      const scoreB = (10 - b.priority) + b.squareBonus;
+      return scoreB - scoreA;
+    });
+
+    const best = validOptions[0];
+    console.log(`📐 [PokemonFollowerManager] Structure détectée: ${best.cols}×${best.rows} (${best.frameWidth}×${best.frameHeight}px par frame)`);
+    
+    if (validOptions.length > 1) {
+      console.log(`📊 [PokemonFollowerManager] Autres options possibles:`, validOptions.slice(1));
+    }
+
+    return best;
   }
 
   /**
@@ -47,24 +110,24 @@ export class PokemonFollowerManager {
             const width = texture.source[0].width;
             const height = texture.source[0].height;
             
-            // Calculer taille des frames (7 colonnes, 8 lignes)
-            const frameWidth = Math.floor(width / 7);
-            const frameHeight = Math.floor(height / 8);
+            // ✅ NOUVELLE: Détection adaptative de la structure
+            const structure = this.detectSpriteStructure(width, height);
+            this.spriteStructures.set(pokemonId, structure);
             
-            console.log(`📐 [PokemonFollowerManager] Pokémon ${pokemonId}: ${width}x${height} → frames ${frameWidth}x${frameHeight}`);
+            console.log(`📐 [PokemonFollowerManager] Pokémon ${pokemonId}: ${width}x${height} → structure ${structure.cols}×${structure.rows}, frames ${structure.frameWidth}×${structure.frameHeight}`);
             
             // Étape 2: Charger comme spritesheet avec les bonnes dimensions
             this.scene.load.spritesheet(spriteKey, spritePath, {
-              frameWidth: frameWidth,
-              frameHeight: frameHeight
+              frameWidth: structure.frameWidth,
+              frameHeight: structure.frameHeight
             });
             
             this.scene.load.once('complete', () => {
               // Nettoyer la texture temporaire
               this.scene.textures.remove(tempKey);
               
-              // Créer les animations
-              this.createPokemonAnimations(pokemonId, spriteKey);
+              // Créer les animations avec la structure détectée
+              this.createPokemonAnimations(pokemonId, spriteKey, structure);
               
               this.loadedSprites.add(spriteKey);
               this.loadingSprites.delete(spriteKey);
@@ -101,9 +164,9 @@ export class PokemonFollowerManager {
   }
 
   /**
-   * Crée les animations pour un Pokémon - VERSION CORRIGÉE
+   * Crée les animations pour un Pokémon - VERSION ADAPTATIVE
    */
-  createPokemonAnimations(pokemonId, spriteKey) {
+  createPokemonAnimations(pokemonId, spriteKey, structure) {
     const directions = [
       { name: 'down', row: 0 },      // bas
       { name: 'down-right', row: 1 }, // bas droite
@@ -119,11 +182,11 @@ export class PokemonFollowerManager {
       const walkKey = `pokemon_${pokemonId}_walk_${dir.name}`;
       const idleKey = `pokemon_${pokemonId}_idle_${dir.name}`;
       
-      // ✅ FIX: Calculer correctement les frames pour chaque ligne
-      const startFrame = dir.row * 7;  // Première frame de la ligne
-      const endFrame = startFrame + 6; // Dernière frame de la ligne (7 frames = 0-6)
+      // ✅ Calculer les frames selon la structure détectée
+      const startFrame = dir.row * structure.cols;
+      const endFrame = startFrame + (structure.cols - 1); // cols-1 car on commence à 0
       
-      // Animation de marche (frames 0-6 de la ligne spécifique)
+      // Animation de marche (toutes les frames de la ligne)
       if (!this.scene.anims.exists(walkKey)) {
         this.scene.anims.create({
           key: walkKey,
@@ -154,7 +217,7 @@ export class PokemonFollowerManager {
       }
     });
 
-    console.log(`✅ [PokemonFollowerManager] Toutes les animations créées pour Pokémon ${pokemonId}`);
+    console.log(`✅ [PokemonFollowerManager] Toutes les animations créées pour Pokémon ${pokemonId} (structure ${structure.cols}×${structure.rows})`);
   }
 
   /**
@@ -238,7 +301,7 @@ export class PokemonFollowerManager {
   }
 
   /**
-   * Met à jour un follower existant - VERSION AVEC MEILLEUR DEBUG
+   * Met à jour un follower existant
    */
   updateFollower(sessionId, followerData) {
     const follower = this.followers.get(sessionId);
@@ -329,6 +392,7 @@ export class PokemonFollowerManager {
     this.followers.clear();
     this.loadedSprites.clear();
     this.loadingSprites.clear();
+    this.spriteStructures.clear();
   }
 
   /**
@@ -339,6 +403,12 @@ export class PokemonFollowerManager {
     console.log(`📊 Followers actifs: ${this.followers.size}`);
     console.log(`🎨 Sprites chargés: ${this.loadedSprites.size}`);
     console.log(`⏳ Sprites en chargement: ${this.loadingSprites.size}`);
+    console.log(`📐 Structures détectées: ${this.spriteStructures.size}`);
+    
+    // Debug des structures
+    this.spriteStructures.forEach((structure, pokemonId) => {
+      console.log(`📐 Pokémon ${pokemonId}: ${structure.cols}×${structure.rows} (${structure.frameWidth}×${structure.frameHeight}px)`);
+    });
     
     this.followers.forEach((follower, sessionId) => {
       console.log(`🐾 ${sessionId}:`, {
@@ -358,7 +428,15 @@ export class PokemonFollowerManager {
    */
   debugAnimations(pokemonId) {
     const spriteKey = `pokemon_${pokemonId}`;
+    const structure = this.spriteStructures.get(pokemonId);
+    
     console.log(`🔍 [PokemonFollowerManager] === DEBUG ANIMATIONS ${spriteKey} ===`);
+    
+    if (structure) {
+      console.log(`📐 Structure: ${structure.cols}×${structure.rows} (${structure.frameWidth}×${structure.frameHeight}px)`);
+    } else {
+      console.warn(`⚠️ Aucune structure trouvée pour Pokémon ${pokemonId}`);
+    }
     
     const directions = ['down', 'right', 'up', 'left'];
     
@@ -372,7 +450,7 @@ export class PokemonFollowerManager {
       
       if (this.scene.anims.exists(walkKey)) {
         const anim = this.scene.anims.get(walkKey);
-        console.log(`    Frames: ${anim.frames[0]?.frame} - ${anim.frames[anim.frames.length-1]?.frame}`);
+        console.log(`    Frames: ${anim.frames[0]?.frame} - ${anim.frames[anim.frames.length-1]?.frame} (${anim.frames.length} frames)`);
       }
     });
   }
@@ -409,6 +487,38 @@ export class PokemonFollowerManager {
   }
 
   /**
+   * Force la recréation des animations d'un Pokémon
+   */
+  recreateAnimations(pokemonId) {
+    const spriteKey = `pokemon_${pokemonId}`;
+    const structure = this.spriteStructures.get(pokemonId);
+    
+    if (!structure) {
+      console.warn(`⚠️ [PokemonFollowerManager] Pas de structure pour Pokémon ${pokemonId}`);
+      return;
+    }
+    
+    console.log(`🔄 [PokemonFollowerManager] Recréation animations pour Pokémon ${pokemonId}`);
+    
+    // Supprimer les anciennes animations
+    const directions = ['down', 'down-right', 'right', 'up-right', 'up', 'up-left', 'left', 'down-left'];
+    directions.forEach(dir => {
+      const walkKey = `pokemon_${pokemonId}_walk_${dir}`;
+      const idleKey = `pokemon_${pokemonId}_idle_${dir}`;
+      
+      if (this.scene.anims.exists(walkKey)) {
+        this.scene.anims.remove(walkKey);
+      }
+      if (this.scene.anims.exists(idleKey)) {
+        this.scene.anims.remove(idleKey);
+      }
+    });
+    
+    // Recréer les animations
+    this.createPokemonAnimations(pokemonId, spriteKey, structure);
+  }
+
+  /**
    * Getters utiles
    */
   getFollower(sessionId) {
@@ -425,5 +535,9 @@ export class PokemonFollowerManager {
 
   getAllFollowers() {
     return Array.from(this.followers.values());
+  }
+
+  getSpriteStructure(pokemonId) {
+    return this.spriteStructures.get(pokemonId);
   }
 }
