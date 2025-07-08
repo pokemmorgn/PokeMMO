@@ -131,10 +131,21 @@ export class BattleEngine {
       if (result.success) {
         console.log(`✅ [BattleEngine] Action traitée avec succès`);
         
+        // ✅ NOUVEAU: Changer de tour après une action réussie
+        const nextPlayer = this.turnManager.nextTurn();
+        console.log(`🔄 [BattleEngine] Tour suivant: ${nextPlayer}`);
+        
+        // Émettre événement de changement de tour
+        this.emit('turnChanged', {
+          newPlayer: nextPlayer,
+          turnNumber: this.turnManager.getCurrentTurnNumber()
+        });
+        
         // Émettre événement d'action
         this.emit('actionProcessed', {
           action: action,
-          result: result
+          result: result,
+          nextPlayer: nextPlayer
         });
       } else {
         console.log(`❌ [BattleEngine] Échec action: ${result.error}`);
