@@ -466,7 +466,7 @@ private proceedToNextTurn() {
       },
 
 updatePokemonHP: (combatId: string, newHp: number) => {
-  console.log(`🩹 [CALLBACK] HP Update: ${pokemonId} → ${newHp}`);
+ console.log(`🩹 [CALLBACK] HP Update: ${combatId} → ${newHp}`);
   
   const result = DamageManager.updatePokemonHP(
     combatId, 
@@ -496,7 +496,7 @@ updatePokemonHP: (combatId: string, newHp: number) => {
     
     this.broadcast('pokemonHPUpdate', {
       combatId: combatId,
-      pokemonId: pokemonId,
+      pokemonId: result.pokemonId,
       targetPlayer: targetPlayer,
       oldHp: result.oldHp,
       newHp: result.newHp,
