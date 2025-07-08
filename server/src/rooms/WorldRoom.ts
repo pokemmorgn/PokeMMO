@@ -16,6 +16,7 @@ import { serverZoneEnvironmentManager } from "../config/zoneEnvironments";
 import { PositionSaverService } from "../services/PositionSaverService";
 import { PlayerData } from "../models/PlayerData";
 
+import { FollowerHandlers } from "../handlers/FollowerHandlers";
 import { TeamManager } from "../managers/TeamManager";
 import { TeamHandlers } from "../handlers/TeamHandlers";
 import { EncounterHandlers } from "../handlers/EncounterHandlers";
@@ -55,6 +56,8 @@ export class WorldRoom extends Room<PokeWorldState> {
   private questHandlers!: QuestHandlers;
   private battleHandlers!: BattleHandlers;
   public starterHandlers!: StarterHandlers;
+    private followerHandlers!: FollowerHandlers;
+
   
 
   // Limite pour auto-scaling
@@ -104,6 +107,9 @@ export class WorldRoom extends Room<PokeWorldState> {
     // Initialiser les TeamHandlers
     this.teamHandlers = new TeamHandlers(this);
     console.log(`✅ TeamHandlers initialisé`);
+
+    this.followerHandlers = new FollowerHandlers(this);
+    console.log(`✅ FollowerHandlers initialisé`);
     
     this.questHandlers = new QuestHandlers(this);
     console.log(`✅ QuestHandlers initialisé`);
@@ -402,7 +408,8 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     // Configurer les handlers d'équipe
     this.teamHandlers.setupHandlers();
-    
+        this.followerHandlers.setupHandlers();
+
     // Configurer les handlers d'encounter
     this.encounterHandlers.setupHandlers();
 
@@ -1634,7 +1641,8 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
       console.log(`💰 Stats finales: Level ${player.level}, ${player.gold} gold`);
       const position = this.positionSaver.extractPosition(player);
       await this.positionSaver.savePosition(position, "disconnect");
-      
+          this.followerHandlers.getFollowerManager().removePlayerFollower(client.sessionId);
+
       // Supprimer du state
       this.state.players.delete(client.sessionId);
       console.log(`🗑️ Joueur ${player.name} supprimé du state`);
@@ -1682,7 +1690,10 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
     this.starterHandlers.cleanup();
     console.log(`🧹 StarterHandlers nettoyés`);
   }
-    
+        if (this.followerHandlers) {
+      this.followerHandlers.cleanup();
+      console.log(`🧹 FollowerHandlers nettoyés`);
+    }
     // Nettoyer les EncounterHandlers
     if (this.encounterHandlers) {
       this.encounterHandlers.cleanup();
@@ -1738,6 +1749,14 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
     player.y = data.y;
     player.direction = data.direction;
     player.isMoving = data.isMoving;
+
+    this.followerHandlers.onPlayerMove(
+      client.sessionId, 
+      data.x, 
+      data.y, 
+      data.direction, 
+      data.isMoving
+    );
 
     // Notification de changement de zone au TimeWeatherService (code existant)
     if (data.currentZone && data.currentZone !== player.currentZone) {
@@ -2139,7 +2158,9 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
   getTeamHandlers(): TeamHandlers {
     return this.teamHandlers;
   }
-
+  getFollowerHandlers(): FollowerHandlers {
+    return this.followerHandlers;
+  }
   // Méthodes d'accès aux EncounterHandlers
   getEncounterHandlers(): EncounterHandlers {
     return this.encounterHandlers;
