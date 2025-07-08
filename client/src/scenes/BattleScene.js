@@ -1054,34 +1054,37 @@ export class BattleScene extends Phaser.Scene {
     });
     
     // Début narratif
-    this.battleNetworkHandler.on('narrativeStart', (data) => {
-      if (this.scene.isSleeping()) {
-        this.scene.wake();
-      }
-      this.scene.setVisible(true);
-      this.scene.bringToTop();
-      
-      if (data.playerPokemon) {
-        this.displayPlayerPokemon(data.playerPokemon);
-      }
-      
-      if (data.opponentPokemon) {
-        this.displayOpponentPokemon(data.opponentPokemon);
-      }
-      
-      this.showActionMessage(data.events[0] || 'Un Pokémon sauvage apparaît !');
-      this.activateBattleUI();
-      this.isVisible = true;
-    });
+  this.battleNetworkHandler.on('narrativeStart', (data) => {
+    if (this.scene.isSleeping()) {
+      this.scene.wake();
+    }
+    this.scene.setVisible(true);
+    this.scene.bringToTop();
+    
+    if (data.playerPokemon) {
+      this.displayPlayerPokemon(data.playerPokemon);
+    }
+    
+    if (data.opponentPokemon) {
+      this.displayOpponentPokemon(data.opponentPokemon);
+      // ✅ NOUVEAU: Utiliser traduction pour Pokémon sauvage
+      this.handleBattleEvent('wildPokemonAppears', { 
+        pokemonName: data.opponentPokemon.name 
+      });
+    }
+    
+    this.activateBattleUI();
+    this.isVisible = true;
+  });
     
     // Fin narratif
     this.battleNetworkHandler.on('narrativeEnd', (data) => {
-      this.showActionMessage(data.message || 'Le combat commence !');
+      this.handleBattleEvent('battleStart', data);
     });
     
     // IA réfléchit
     this.battleNetworkHandler.on('aiThinking', (data) => {
-      this.handleBattleEvent('aiTurn', data);
+      this.handleBattleEvent('opponentTurn', data);  // ← opponentTurn existe !
     });
     
     // Tour changé
@@ -1100,10 +1103,7 @@ export class BattleScene extends Phaser.Scene {
     // Fin de combat
     this.battleNetworkHandler.on('battleEnd', (data) => {
       this.hideActionButtons();
-      const message = data.winner === 'player1' ? 
-        '🎉 Victoire ! Vous avez gagné !' : 
-        '💀 Défaite... Vous avez perdu !';
-      this.showActionMessage(message, 5000);
+      this.handleBattleEvent('battleEnd', { winnerId: data.winner });
       setTimeout(() => {
         this.endBattle(data);
       }, 5000);
@@ -1122,34 +1122,43 @@ export class BattleScene extends Phaser.Scene {
       this.handleNetworkBattleStart(data);
     });
     
-    this.battleNetworkHandler.on('yourTurn', (data) => {
-      setTimeout(() => {
-        this.showActionButtons();
-      }, 500);
-    });
+  this.battleNetworkHandler.on('yourTurn', (data) => {
+    setTimeout(() => {
+      this.handleBattleEvent('yourTurn', data);
+    }, 500);
+  });
   }
 
   // === SYSTÈME DE TRADUCTION D'ÉVÉNEMENTS ===
+// === SYSTÈME DE TRADUCTION D'ÉVÉNEMENTS ===
 handleBattleEvent(eventType, data = {}) {
   console.log(`🌍 [BattleScene] Événement: ${eventType}`, data);
   
-  // Actions d'interface
+  // ✅ 1. Actions d'interface AVANT traduction
   if (eventType === 'yourTurn') {
     this.showActionButtons();
-    return;
+    return; // Pas de message pour yourTurn
   }
   
-  if (eventType === 'aiTurn') {
+  if (eventType === 'opponentTurn') {
     this.hideActionButtons();
   }
   
-  // Traduction du message
+  if (eventType === 'battleEnd') {
+    this.hideActionButtons();
+  }
+  
+  // ✅ 2. Traduction du message
   if (this.battleTranslator) {
     const message = this.battleTranslator.translate(eventType, data);
     if (message) {
-      this.showActionMessage(message);
-      console.log(`💬 Message traduit: "${message}"`);
+      // ✅ Durée spéciale pour battleEnd
+      const duration = eventType === 'battleEnd' ? 5000 : 0;
+      this.showActionMessage(message, duration);
+      console.log(`💬 Message traduit (${this.battleTranslator.language}): "${message}"`);
     }
+  } else {
+    console.warn('[BattleScene] ⚠️ Traducteur non initialisé pour:', eventType);
   }
 }
   
@@ -1213,18 +1222,18 @@ handleBattleEvent(eventType, data = {}) {
     this.startBattleIntroSequence(opponentPokemon);
   }
 
-  startBattleIntroSequence(opponentPokemon) {
-    const opponentName = opponentPokemon?.name || 'Pokémon sauvage';
-    
-    setTimeout(() => {
-      this.showActionMessage(`Un ${opponentName} sauvage apparaît !`);
-    }, 2000);
-    
-    setTimeout(() => {
-      this.hideActionMessage();
-      this.showActionButtons();
-    }, 5000);
-  }
+startBattleIntroSequence(opponentPokemon) {
+  setTimeout(() => {
+    this.handleBattleEvent('wildPokemonAppears', { 
+      pokemonName: opponentPokemon?.name || 'Pokémon' 
+    });
+  }, 2000);
+  
+  setTimeout(() => {
+    this.hideActionMessage();
+    this.showActionButtons();
+  }, 5000);
+}
 
   // === UI MANAGEMENT ===
 
