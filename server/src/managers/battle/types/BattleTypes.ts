@@ -108,6 +108,7 @@ export interface BattleParticipant {
 
 export interface BattlePokemonData {
   pokemonId: number;
+  combatId: string;
   name: string;
   level: number;
   currentHp: number;
