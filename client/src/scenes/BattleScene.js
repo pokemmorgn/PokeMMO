@@ -1522,46 +1522,34 @@ setupBattleNetworkEvents() {
   
   console.log('📡 [BattleScene] Configuration événements réseau...');
 
-  this.battleNetworkHandler.on('actionResult', (data) => {
+this.battleNetworkHandler.on('actionResult', (data) => {
   console.log('🎮 [BattleScene] actionResult reçu:', data);
   
   if (data.success && data.gameState) {
     console.log('✅ [BattleScene] Mise à jour gameState depuis actionResult');
     
-    // ✅ SYNCHRONISER LES HP DIRECTEMENT depuis gameState
+    // Synchroniser les HP
     if (data.gameState.player1?.pokemon && this.currentPlayerPokemon) {
-      console.log('💖 [BattleScene] HP Player1:', data.gameState.player1.pokemon.currentHp, '/', data.gameState.player1.pokemon.maxHp);
-      
-      // Mettre à jour données locales
       this.currentPlayerPokemon.currentHp = data.gameState.player1.pokemon.currentHp;
       this.currentPlayerPokemon.maxHp = data.gameState.player1.pokemon.maxHp;
       
-      // Mettre à jour barre de vie avec animation
       setTimeout(() => {
         this.updateModernHealthBar('player', this.currentPlayerPokemon);
       }, 500);
     }
     
     if (data.gameState.player2?.pokemon && this.currentOpponentPokemon) {
-      console.log('💥 [BattleScene] HP Player2:', data.gameState.player2.pokemon.currentHp, '/', data.gameState.player2.pokemon.maxHp);
-      
-      // Mettre à jour données locales
       this.currentOpponentPokemon.currentHp = data.gameState.player2.pokemon.currentHp;
       this.currentOpponentPokemon.maxHp = data.gameState.player2.pokemon.maxHp;
       
-      // Mettre à jour barre de vie avec animation
       setTimeout(() => {
         this.updateModernHealthBar('opponent', this.currentOpponentPokemon);
       }, 500);
     }
     
-    // ✅ AFFICHER LES MESSAGES DE COMBAT
+    // ✅ NOUVEAU: Afficher les messages avec timings authentiques
     if (data.events && data.events.length > 0) {
-      data.events.forEach((event, index) => {
-        setTimeout(() => {
-          this.showActionMessage(event, 1500);
-        }, index * 800);
-      });
+      this.displayBattleEventsWithTiming(data.events);
     }
   }
   
@@ -1570,6 +1558,7 @@ setupBattleNetworkEvents() {
     this.showActionMessage(`Erreur: ${data.error}`, 2000);
   }
 });
+  
   this.battleNetworkHandler.on('narrativeStart', (data) => {
   console.log('📖 [BattleScene] Narration démarrée:', data);
 
@@ -1892,7 +1881,66 @@ handleNetworkBattleUpdate(data) {
   
   console.log('🔄 [BattleScene] Mise à jour avec timing appliquée');
 }
+
+  displayBattleEventsWithTiming(events) {
+  console.log('📝 [BattleScene] Affichage événements avec timing authentique:', events);
   
+  let currentDelay = 0;
+  
+  events.forEach((event, index) => {
+    setTimeout(() => {
+      // ✅ TIMING SELON LE TYPE DE MESSAGE
+      const duration = this.getMessageDuration(event);
+      console.log(`💬 [${index + 1}/${events.length}] "${event}" (${duration}ms)`);
+      
+      this.showActionMessage(event, duration);
+      
+      // ✅ Si c'est le dernier message, programmer l'interface
+      if (index === events.length - 1) {
+        setTimeout(() => {
+          this.showActionButtons(); // Interface après le dernier message
+        }, duration + 500);
+      }
+      
+    }, currentDelay);
+    
+    // ✅ DÉLAI CUMULATIF pour que les messages ne se chevauchent pas
+    currentDelay += this.getMessageDuration(event) + 300; // +300ms de pause entre messages
+  });
+}
+
+  getMessageDuration(message) {
+  const text = message.toLowerCase();
+  
+  // ✅ TIMINGS AUTHENTIQUES POKÉMON
+  if (text.includes('utilise') || text.includes('attaque')) {
+    return 2000; // 2s pour les attaques
+  }
+  
+  if (text.includes('perd') && text.includes('hp')) {
+    return 2500; // 2.5s pour les dégâts (important à lire)
+  }
+  
+  if (text.includes('k.o') || text.includes('est mis')) {
+    return 3000; // 3s pour les KO
+  }
+  
+  if (text.includes('efficace')) {
+    return 2200; // 2.2s pour l'efficacité
+  }
+  
+  if (text.includes('critique')) {
+    return 1800; // 1.8s pour les critiques
+  }
+  
+  if (text.includes('rate') || text.includes('échoue')) {
+    return 2000; // 2s pour les échecs
+  }
+  
+  // Durée basée sur la longueur du texte
+  const baseTime = Math.max(1500, message.length * 80); // 80ms par caractère, min 1.5s
+  return Math.min(baseTime, 4000); // Max 4s
+}
   handleNetworkAttackResult(data) {
     console.log('💥 [BattleScene] Résultat attaque réseau:', data);
     
