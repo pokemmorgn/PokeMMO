@@ -17,6 +17,75 @@ export interface BattleInitData {
     name: string;
     worldRoomId: string;
     activePokemonId?: string;
+  }
+  
+  // === GESTION IA ===
+  
+  private async executeAIAction() {
+    console.log(`🤖 [BattleRoom] Exécution action IA`);
+    
+    try {
+      // Vérifier que le combat est toujours en cours
+      if (!this.battleGameState || this.battleGameState.isEnded) {
+        console.log(`⏸️ [BattleRoom] Combat terminé, annulation action IA`);
+        return;
+      }
+      
+      // Générer l'action IA
+      const aiAction = this.battleEngine.generateAIAction();
+      
+      if (!aiAction) {
+        console.error(`❌ [BattleRoom] Impossible de générer action IA`);
+        // En cas d'échec, passer au tour suivant
+        this.handleAIActionFailure();
+        return;
+      }
+      
+      console.log(`🤖 [BattleRoom] IA utilise: ${aiAction.data.moveId}`);
+      
+      // Traiter l'action IA via BattleEngine
+      const result = this.battleEngine.processAction(aiAction);
+      
+      if (result.success) {
+        console.log(`✅ [BattleRoom] Action IA traitée avec succès`);
+        
+        // Synchroniser le state
+        this.syncStateFromGameState();
+        
+        // Notifier tous les clients de l'action IA
+        this.broadcast("aiAction", {
+          success: true,
+          events: result.events,
+          data: result.data,
+          gameState: this.getClientBattleState()
+        });
+        
+        // Vérifier conditions de fin de combat
+        this.checkBattleEnd();
+        
+      } else {
+        console.error(`❌ [BattleRoom] Échec action IA: ${result.error}`);
+        this.handleAIActionFailure();
+      }
+      
+    } catch (error) {
+      console.error(`❌ [BattleRoom] Erreur executeAIAction:`, error);
+      this.handleAIActionFailure();
+    }
+  }
+  
+  private handleAIActionFailure() {
+    console.log(`⚠️ [BattleRoom] Gestion échec action IA`);
+    
+    // En cas d'échec de l'IA, forcer le passage au tour suivant
+    // pour éviter que le combat reste bloqué
+    
+    this.broadcast("aiActionFailure", {
+      message: "L'IA n'a pas pu agir, passage au tour suivant"
+    });
+    
+    // TODO: Implémenter le passage de tour forcé si nécessaire
+    // Pour l'instant, on laisse le système se débrouiller
   };
   wildPokemon?: any;
   player2Data?: {
@@ -316,8 +385,17 @@ export class BattleRoom extends Room<BattleState> {
           });
         }
       } else if (data.newPlayer === 'player2') {
-        // TODO: Déclencher l'IA dans la prochaine étape
-        console.log(`🤖 [BattleRoom] Tour de l'IA (pas encore implémenté)`);
+        // ✅ NOUVEAU: Déclencher l'IA automatiquement
+        console.log(`🤖 [BattleRoom] Tour de l'IA - Démarrage automatique`);
+        
+        // Obtenir le délai de réflexion
+        const thinkingDelay = this.battleEngine.getAIThinkingDelay();
+        console.log(`🤔 [BattleRoom] IA réfléchit pendant ${thinkingDelay}ms...`);
+        
+        // Déclencher l'action IA après le délai
+        this.clock.setTimeout(() => {
+          this.executeAIAction();
+        }, thinkingDelay);
       }
     });
     
