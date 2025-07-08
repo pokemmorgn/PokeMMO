@@ -1702,52 +1702,32 @@ handleNetworkDamageAnimation(data) {
   
 handleNetworkBattleStart(data) {
   console.log('[DEBUG] ⚔️ handleNetworkBattleStart début:', data);
-  console.log('[DEBUG] 🎭 Rôle du joueur:', this.playerRole);
+  console.log('[DEBUG] 🔍 data.playerPokemon:', data.playerPokemon);
+  console.log('[DEBUG] 🔍 data.opponentPokemon:', data.opponentPokemon);
   
-  // ✅ CORRECTION: Mapper selon le rôle réel du joueur
-  let playerPokemon, opponentPokemon;
-  
-  if (this.playerRole === 'player1') {
-    playerPokemon = data.player1Pokemon;
-    opponentPokemon = data.player2Pokemon;
-    console.log('[DEBUG] 👤 Je suis player1');
-  } else if (this.playerRole === 'player2') {
-    playerPokemon = data.player2Pokemon;
-    opponentPokemon = data.player1Pokemon;
-    console.log('[DEBUG] 👤 Je suis player2');
-  } else {
-    // Fallback si playerRole non défini
-    console.warn('[DEBUG] ⚠️ playerRole non défini, utilisation fallback');
-    playerPokemon = data.playerPokemon || data.player1Pokemon;
-    opponentPokemon = data.opponentPokemon || data.player2Pokemon;
-  }
+  // ✅ UTILISER LES BONNES CLÉS !
+  const playerPokemon = data.playerPokemon;      // ← CHANGÉ
+  const opponentPokemon = data.opponentPokemon;  // ← CHANGÉ
   
   console.log('[DEBUG] 👤 playerPokemon final:', playerPokemon);
   console.log('[DEBUG] 👹 opponentPokemon final:', opponentPokemon);
   
-  // ✅ AFFICHER LE POKÉMON JOUEUR EN PREMIER
   if (playerPokemon) {
     console.log('[DEBUG] 👤 Affichage Pokémon joueur:', playerPokemon.name);
-    console.log('[DEBUG] 💖 PV joueur:', playerPokemon.currentHp, '/', playerPokemon.maxHp);
     this.displayPlayerPokemon(playerPokemon);
   } else {
     console.error('[DEBUG] ❌ Pas de données playerPokemon');
   }
   
-  // ✅ AFFICHER LE POKÉMON ADVERSAIRE
   if (opponentPokemon) {
     console.log('[DEBUG] 👹 Affichage Pokémon adversaire:', opponentPokemon.name);
-    console.log('[DEBUG] 💖 PV adversaire:', opponentPokemon.currentHp, '/', opponentPokemon.maxHp);
     this.displayOpponentPokemon(opponentPokemon);
   } else {
     console.error('[DEBUG] ❌ Pas de données opponentPokemon');
   }
   
-  console.log('[DEBUG] 🎮 Activation UI battle...');
   this.activateBattleUI();
   this.isVisible = true;
-  
-  console.log('[DEBUG] 🎬 Démarrage séquence introduction...');
   this.startBattleIntroSequence(opponentPokemon);
 }
 
