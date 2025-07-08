@@ -368,137 +368,54 @@ export class StarterHandlers {
   // HANDLER PRINCIPAL - SÉLECTION SÉCURISÉE
   // ================================================================================================
 
-  // ✅ FIX: StarterHandlers.ts - Structure corrigée
-// Remplacez la méthode handleStarterChoice par ceci:
-
-private async handleStarterChoice(client: Client, data: { pokemonId: number }): Promise<void> {
-  try {
-    const player = this.room.state.players.get(client.sessionId);
-    if (!player) {
-      console.log("❌ [StarterHandlers] Joueur non trouvé:", client.sessionId);
-      client.send("starterReceived", {
-        success: false,
-        message: "Joueur non trouvé"
-      });
-      return;
-    }
-
-    this.log(`🔍 Demande starter de ${player.name}: Pokémon #${data.pokemonId}`);
-
-    // 🔒 VALIDATION COMPLÈTE
-    const validation = await this.validateStarterRequest(player, data.pokemonId);
-    if (!validation.valid) {
-      this.log(`❌ Validation échouée pour ${player.name}: ${validation.reason}`);
-      client.send("starterReceived", {
-        success: false,
-        message: validation.message,
-        reason: validation.reason
-      });
-      return;
-    }
-
-    // 🔒 SÉCURITÉ: Bloquer temporairement pour éviter le spam
-    this.room.blockPlayerMovement(client.sessionId, 'dialog', 10000, {
-      type: 'starter_selection',
-      pokemonId: data.pokemonId,
-      timestamp: Date.now()
-    });
-
-    this.log(`🎁 Création starter ${data.pokemonId} pour ${player.name}`);
-
+  private async handleStarterChoice(client: Client, data: { pokemonId: number }): Promise<void> {
     try {
-      // Créer le starter avec le service existant
-      const starter = await giveStarterToPlayer(player.name, data.pokemonId as 1 | 4 | 7);
-      
-      this.log(`✅ Starter créé et ajouté à l'équipe de ${player.name}`, {
-        starterId: starter._id,
-        pokemonId: starter.pokemonId,
-        level: starter.level,
-        shiny: starter.shiny
+      const player = this.room.state.players.get(client.sessionId);
+      if (!player) {
+        console.log("❌ [StarterHandlers] Joueur non trouvé:", client.sessionId);
+        client.send("starterReceived", {
+          success: false,
+          message: "Joueur non trouvé"
+        });
+        return;
+      }
+
+      this.log(`🔍 Demande starter de ${player.name}: Pokémon #${data.pokemonId}`);
+
+      // 🔒 VALIDATION COMPLÈTE
+      const validation = await this.validateStarterRequest(player, data.pokemonId);
+      if (!validation.valid) {
+        this.log(`❌ Validation échouée pour ${player.name}: ${validation.reason}`);
+        client.send("starterReceived", {
+          success: false,
+          message: validation.message,
+          reason: validation.reason
+        });
+        return;
+      }
+
+      // 🔒 SÉCURITÉ: Bloquer temporairement pour éviter le spam
+      this.room.blockPlayerMovement(client.sessionId, 'dialog', 10000, {
+        type: 'starter_selection',
+        pokemonId: data.pokemonId,
+        timestamp: Date.now()
       });
-      
-      // ✅ NOUVEAU: Envoyer automatiquement les données d'équipe mises à jour
-      await this.sendTeamDataToClient(client, player.name);
-      
-      // Envoyer la confirmation au client
-      client.send("starterReceived", {
-        success: true,
-        pokemon: {
-          id: starter._id,
+
+      this.log(`🎁 Création starter ${data.pokemonId} pour ${player.name}`);
+
+      try {
+        // Créer le starter avec le service existant
+        const starter = await giveStarterToPlayer(player.name, data.pokemonId as 1 | 4 | 7);
+        
+        this.log(`✅ Starter créé et ajouté à l'équipe de ${player.name}`, {
+          starterId: starter._id,
           pokemonId: starter.pokemonId,
-          name: starter.nickname || this.getPokemonName(starter.pokemonId),
           level: starter.level,
-          shiny: starter.shiny,
-          nature: starter.nature
-        },
-        message: `${starter.nickname || this.getPokemonName(starter.pokemonId)} a été ajouté à votre équipe !`
-      });
-
-      // Débloquer le mouvement
-      this.room.unblockPlayerMovement(client.sessionId, 'dialog');
-
-      // Log d'audit (toujours actif pour la sécurité)
-      console.log(`🏆 [AUDIT] ${player.name} a reçu ${this.getPokemonName(starter.pokemonId)} (ID: ${starter._id})`);
-
-    } catch (creationError) {
-      this.logError(`Erreur création starter pour ${player.name}:`, creationError);
-      
-      // Débloquer en cas d'erreur
-      this.room.unblockPlayerMovement(client.sessionId, 'dialog');
-      
-      client.send("starterReceived", {
-        success: false,
-        message: "Erreur lors de la création du starter. Réessayez."
-      });
-    }
-    
-  } catch (error) {
-    // Débloquer même en cas d'erreur générale
-    this.room.unblockPlayerMovement(client.sessionId, 'dialog');
-    
-    this.logError(`Erreur générale starter pour ${client.sessionId}:`, error);
-    client.send("starterReceived", {
-      success: false,
-      message: "Erreur serveur. Contactez un administrateur."
-    });
-  }
-}
-
-// ✅ NOUVELLE MÉTHODE: À ajouter APRÈS la méthode handleStarterChoice (pas dedans)
-private async sendTeamDataToClient(client: Client, playerName: string): Promise<void> {
-  try {
-    // Importer TeamManager
-    const { TeamManager } = await import('../managers/TeamManager');
-    
-    const teamManager = new TeamManager(playerName);
-    await teamManager.load();
-    
-    const team = await teamManager.getTeam();
-    const stats = await teamManager.getTeamStats();
-    
-    // Enrichir les données comme dans TeamHandlers
-    const enrichedTeam = team.map(pokemon => ({
-      ...pokemon.toObject(),
-      canBattle: pokemon.currentHp > 0,
-      hpPercentage: pokemon.maxHp > 0 ? (pokemon.currentHp / pokemon.maxHp) * 100 : 0,
-      isHealthy: pokemon.status === 'normal' && pokemon.currentHp > 0
-    }));
-    
-    // ✅ IMPORTANT: Envoyer directement teamData (comme le fait TeamHandlers)
-    client.send("teamData", {
-      success: true,
-      team: enrichedTeam,
-      stats: stats,
-      canBattle: stats.canBattle,
-      timestamp: Date.now()
-    });
-    
-    console.log(`✅ [StarterHandlers] TeamData envoyé automatiquement à ${playerName}`);
-    
-  } catch (error) {
-    console.error("❌ [StarterHandlers] Erreur envoi teamData:", error);
-  }
-
+          shiny: starter.shiny
+        });
+        
+        // ✅ NOUVEAU: Envoyer automatiquement les données d'équipe mises à jour
+        await this.sendTeamDataToClient(client, player.name);
         
         // Envoyer la confirmation au client
         client.send("starterReceived", {
@@ -541,6 +458,42 @@ private async sendTeamDataToClient(client: Client, playerName: string): Promise<
         success: false,
         message: "Erreur serveur. Contactez un administrateur."
       });
+    }
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Envoyer teamData automatiquement
+  private async sendTeamDataToClient(client: Client, playerName: string): Promise<void> {
+    try {
+      // Importer TeamManager
+      const { TeamManager } = await import('../managers/TeamManager');
+      
+      const teamManager = new TeamManager(playerName);
+      await teamManager.load();
+      
+      const team = await teamManager.getTeam();
+      const stats = await teamManager.getTeamStats();
+      
+      // Enrichir les données comme dans TeamHandlers
+      const enrichedTeam = team.map(pokemon => ({
+        ...pokemon.toObject(),
+        canBattle: pokemon.currentHp > 0,
+        hpPercentage: pokemon.maxHp > 0 ? (pokemon.currentHp / pokemon.maxHp) * 100 : 0,
+        isHealthy: pokemon.status === 'normal' && pokemon.currentHp > 0
+      }));
+      
+      // ✅ IMPORTANT: Envoyer directement teamData
+      client.send("teamData", {
+        success: true,
+        team: enrichedTeam,
+        stats: stats,
+        canBattle: stats.canBattle,
+        timestamp: Date.now()
+      });
+      
+      console.log(`✅ [StarterHandlers] TeamData envoyé automatiquement à ${playerName}`);
+      
+    } catch (error) {
+      console.error("❌ [StarterHandlers] Erreur envoi teamData:", error);
     }
   }
 
