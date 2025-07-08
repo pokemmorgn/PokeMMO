@@ -1535,7 +1535,7 @@ setupBattleNetworkEvents() {
     this.handleNetworkBattleMessage(data);
   });
   
-    // ✅ AJOUT: Handler pour les mises à jour HP
+// ✅ AJOUT: Handler pour les mises à jour HP
   this.battleNetworkHandler.on('pokemonHPUpdate', (data) => {
     console.log('💖 [BattleScene] HP Update reçu:', data);
     this.handleNetworkHPUpdate(data);
@@ -1587,6 +1587,95 @@ handleNetworkBattleMessage(data) {
 
   // === HANDLERS RÉSEAU ===
 
+  // ✅ NOUVEAU: Handler pour les mises à jour HP du serveur
+handleNetworkHPUpdate(data) {
+  console.log('💖 [BattleScene] Mise à jour HP reçue:', data);
+  
+  // Déterminer qui est touché selon l'ID du Pokémon
+  const isPlayerPokemon = (this.playerRole === 'player1' && data.pokemonId === 'player1') ||
+                         (this.playerRole === 'player2' && data.pokemonId === 'player2');
+  
+  if (isPlayerPokemon && this.currentPlayerPokemon) {
+    console.log('💔 [BattleScene] Mise à jour HP joueur:', data.newHp, '/', this.currentPlayerPokemon.maxHp);
+    
+    // Mettre à jour les données
+    this.currentPlayerPokemon.currentHp = data.newHp;
+    
+    // Mettre à jour l'affichage
+    this.updateModernHealthBar('player', this.currentPlayerPokemon);
+    
+    // Effet visuel de dégâts si applicable
+    if (data.damage > 0) {
+      this.createDamageEffect(this.playerPokemonSprite, data.damage);
+    }
+    
+  } else if (!isPlayerPokemon && this.currentOpponentPokemon) {
+    console.log('💥 [BattleScene] Mise à jour HP adversaire:', data.newHp, '/', this.currentOpponentPokemon.maxHp);
+    
+    // Mettre à jour les données
+    this.currentOpponentPokemon.currentHp = data.newHp;
+    
+    // Mettre à jour l'affichage
+    this.updateModernHealthBar('opponent', this.currentOpponentPokemon);
+    
+    // Effet visuel de dégâts si applicable
+    if (data.damage > 0) {
+      this.createDamageEffect(this.opponentPokemonSprite, data.damage);
+    }
+  }
+  
+  // Vérifier si KO
+  if (data.isKnockedOut) {
+    console.log('☠️ [BattleScene] Pokémon KO !');
+    const targetSprite = isPlayerPokemon ? this.playerPokemonSprite : this.opponentPokemonSprite;
+    if (targetSprite) {
+      this.createKOEffect(targetSprite);
+    }
+  }
+}
+
+  // ✅ NOUVEAU: Handler pour les animations de dégâts
+handleNetworkDamageAnimation(data) {
+  console.log('💥 [BattleScene] Animation dégâts reçue:', data);
+  
+  // Déterminer la cible selon pokemonId
+  const isPlayerTarget = (this.playerRole === 'player1' && data.pokemonId === 'player1') ||
+                        (this.playerRole === 'player2' && data.pokemonId === 'player2');
+  
+  const targetSprite = isPlayerTarget ? this.playerPokemonSprite : this.opponentPokemonSprite;
+  
+  if (!targetSprite) {
+    console.warn('⚠️ [BattleScene] Sprite cible non trouvé pour animation');
+    return;
+  }
+  
+  // Créer l'effet de dégâts
+  this.createDamageEffect(targetSprite, data.damage);
+  
+  // Message d'efficacité si applicable
+  let effectivenessMessage = '';
+  if (data.effectiveness > 1) {
+    effectivenessMessage = "C'est super efficace !";
+  } else if (data.effectiveness < 1 && data.effectiveness > 0) {
+    effectivenessMessage = "Ce n'est pas très efficace...";
+  } else if (data.effectiveness === 0) {
+    effectivenessMessage = "Ça n'a aucun effet !";
+  }
+  
+  if (effectivenessMessage) {
+    setTimeout(() => {
+      this.showBattleMessage(effectivenessMessage, 2000);
+    }, 500);
+  }
+  
+  // Message critique si applicable
+  if (data.critical) {
+    setTimeout(() => {
+      this.showBattleMessage("Coup critique !", 1500);
+    }, effectivenessMessage ? 2500 : 500);
+  }
+}
+  
 handleNetworkBattleStart(data) {
   console.log('[DEBUG] ⚔️ handleNetworkBattleStart début:', data);
   console.log('[DEBUG] 🎭 Rôle du joueur:', this.playerRole);
