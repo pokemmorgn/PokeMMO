@@ -22,6 +22,7 @@ import { movementBlockHandler } from "../../input/MovementBlockHandler.js";
 import { InputManager } from "../../input/InputManager.js";
 import { integrateMusicToScene } from "../../managers/MapMusicManager.js";
 import { sceneToZone, zoneToScene } from '../../config/ZoneMapping.js';
+import { PokemonFollowerManager } from "../../game/PokemonFollowerManager.js";
 
 
 
@@ -65,7 +66,8 @@ export class BaseZoneScene extends Phaser.Scene {
     this.teamSystemInitialized = false;
     this.teamInitializationAttempts = 0;
     this.maxTeamInitAttempts = 3;
-
+    this.pokemonFollowerManager = null;
+    this.followerSystemInitialized = false;
     // 🆕 NOUVEAU: ClientEncounterManager
     this.encounterManager = null;
     this.encounterInitialized = false;
@@ -1122,7 +1124,9 @@ initPlayerSpawnFromSceneData() {
       if (!this.playerManager) return;
 
       this.synchronizeSessionId();
-      
+            if (this.pokemonFollowerManager && state && state.players) {
+        this.updateFollowersFromState(state);
+      }
       this.playerManager.updatePlayers(state);
       this.handleMyPlayerFromState();
     });
@@ -1147,6 +1151,45 @@ initPlayerSpawnFromSceneData() {
     });
   }
 
+  updateFollowersFromState(state) {
+    if (!this.pokemonFollowerManager || !this.isSceneReady) {
+      return;
+    }
+    
+    state.players.forEach((playerState, sessionId) => {
+      // Vérifier si le joueur est dans la même zone
+      const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
+      
+      if (shouldShowPlayer && playerState.follower) {
+        // Créer ou mettre à jour le follower
+        if (!this.pokemonFollowerManager.hasFollower(sessionId)) {
+          this.pokemonFollowerManager.createFollower(sessionId, {
+            pokemonId: playerState.follower.pokemonId,
+            nickname: playerState.follower.nickname,
+            x: playerState.follower.x,
+            y: playerState.follower.y,
+            direction: playerState.follower.direction,
+            isMoving: playerState.follower.isMoving,
+            isShiny: playerState.follower.isShiny,
+            level: playerState.follower.level
+          });
+        } else {
+          this.pokemonFollowerManager.updateFollower(sessionId, {
+            x: playerState.follower.x,
+            y: playerState.follower.y,
+            direction: playerState.follower.direction,
+            isMoving: playerState.follower.isMoving
+          });
+        }
+      } else {
+        // Supprimer le follower si le joueur n'est plus dans la zone ou n'a plus de follower
+        if (this.pokemonFollowerManager.hasFollower(sessionId)) {
+          this.pokemonFollowerManager.removeFollower(sessionId);
+        }
+      }
+    });
+  }
+  
   // ✅ MÉTHODE INCHANGÉE: Redirection vers la bonne scène
   redirectToCorrectScene(correctScene, serverData) {
     console.warn('=== [DEBUG] REDIRECTION SCENE ===');
@@ -1518,7 +1561,9 @@ positionPlayer(player) {
     if (!this.networkManager?.getSessionId()) return;
     const myPlayerState = this.networkManager.getPlayerState(this.networkManager.getSessionId());
     if (!myPlayerState) return;
-
+    if (this.pokemonFollowerManager) {
+      this.pokemonFollowerManager.update();
+    }
     this.handleMovement(myPlayerState);
 
     // 🆕 NOUVEAU: Vérifier les encounters pendant le mouvement
@@ -1550,7 +1595,10 @@ positionPlayer(player) {
       this.networkManager.room.removeAllListeners("encounterZoneInfo");
       console.log(`[${this.scene.key}] 🎧 Nettoyage des écouteurs réseau`);
     }
-
+    if (this.pokemonFollowerManager) {
+      this.pokemonFollowerManager.cleanup();
+      this.pokemonFollowerManager = null;
+    }
     console.log(`🧹 [${this.scene.key}] Nettoyage optimisé...`);
 
     // AJOUTER JUSTE APRÈS :
@@ -1941,6 +1989,11 @@ onPlayerPositioned(player, initData) {
   setupManagers() {
     this.playerManager = new PlayerManager(this);
     this.npcManager = new NpcManager(this);
+    
+    // AJOUTER
+    this.pokemonFollowerManager = new PokemonFollowerManager(this);
+    console.log("✅ PokemonFollowerManager initialisé");
+    
     if (this.mySessionId) {
       this.playerManager.setMySessionId(this.mySessionId);
     }
