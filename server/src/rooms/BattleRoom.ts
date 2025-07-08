@@ -88,6 +88,7 @@ private async handleBattleAction(client: Client, data: any) {
   console.log(`🎮 [BattleRoom] Action reçue: ${data.actionType} de ${client.sessionId}`);
   
   try {
+    // Créer l'action pour BattleEngine
     const action: BattleAction = {
       actionId: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       playerId: client.sessionId,
@@ -116,14 +117,16 @@ private async handleBattleAction(client: Client, data: any) {
         events: result.events,
         data: result.data,
         gameState: this.getClientBattleState(),
-        battleEnded: result.data?.battleEnded || false // ✅ NOUVEAU
+        battleEnded: result.data?.battleEnded || false
       });
       
-      // ❌ SUPPRIMER: checkBattleEnd() - maintenant géré par BattleEngine
+      // ❌ LIGNE À SUPPRIMER - La fin de combat est maintenant gérée par BattleEngine
+      // this.checkBattleEnd(); // ← SUPPRIMER CETTE LIGNE
       
     } else {
       console.log(`❌ [BattleRoom] Échec action: ${result.error}`);
       
+      // Notifier seulement le client qui a échoué
       client.send("actionResult", {
         success: false,
         error: result.error,
