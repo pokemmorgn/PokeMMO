@@ -106,8 +106,8 @@ class SoloBattleHandler implements IBattleHandler {
     
     console.log(`⚔️ [SoloBattleHandler] ${attacker.name} attaque ${defender.name} avec ${moveId}`);
     
-    // Données de move simples
-    const moveData = this.getSimpleMoveData(moveId);
+    // Données de move depuis MoveManager
+    const moveData = this.getMoveData(moveId);
     
     // Calculer dégâts
     const isCritical = Math.random() < 0.1; // 10% critique
@@ -267,7 +267,7 @@ class SoloBattleHandler implements IBattleHandler {
     return participant?.team[0] || null;
   }
   
-  private getSimpleMoveData(moveId: string): any {
+  private getMoveData(moveId: string): any {
     const moveData = MoveManager.getMoveData(moveId);
     
     if (moveData) {
@@ -285,7 +285,6 @@ class SoloBattleHandler implements IBattleHandler {
       accuracy: 100 
     };
   }
-}
 
   /**
    * Obtient les statistiques du handler (pour BattleIntegration)
@@ -301,21 +300,3 @@ class SoloBattleHandler implements IBattleHandler {
 }
 
 export default SoloBattleHandler;
-
-/*
-🎯 AVANTAGES DE CETTE VERSION :
-
-✅ ULTRA-SIMPLE : 200 lignes au lieu de 600
-✅ BUG CORRIGÉ : Utilise les HP actuels du context
-✅ MÊME INTERFACE : BattleRoom ne change pas
-✅ IA SIMPLE : Attaque aléatoire qui marche
-✅ LOGS CLAIRS : Facile à debugger
-✅ ÉVOLUTIF : On ajoutera les features plus tard
-
-🔧 FONCTIONNEMENT :
-1. processAttack() → Récupère attaquant/défenseur
-2. Calcule dégâts avec DamageCalculator  
-3. ✅ Utilise defender.currentHp (HP actuels)
-4. Crée événement damage avec les BONS HP
-5. FINI !
-*/
