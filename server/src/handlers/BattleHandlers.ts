@@ -606,6 +606,41 @@ private async getPlayerBattlePokemon(playerName: string): Promise<any | null> {
     }
   }
 
+  // ✅ === NOUVELLE MÉTHODE POUR FIX BUG "DÉJÀ EN COMBAT" ===
+
+  /**
+   * Notification qu'un combat est terminé (appelée depuis WorldRoom)
+   */
+  public onBattleFinished(playerId: string, battleResult: string): void {
+    console.log(`🏁 [BattleHandlers] onBattleFinished pour ${playerId}: ${battleResult}`);
+    
+    // 1. Supprimer des combats actifs
+    const battleRoomId = this.activeBattles.get(playerId);
+    if (battleRoomId) {
+      this.activeBattles.delete(playerId);
+      console.log(`🧹 [BattleHandlers] Combat actif supprimé: ${playerId} -> ${battleRoomId}`);
+    }
+    
+    // 2. Supprimer des requêtes en attente
+    if (this.battleRequests.has(playerId)) {
+      this.battleRequests.delete(playerId);
+      console.log(`🧹 [BattleHandlers] Requête en attente supprimée: ${playerId}`);
+    }
+    
+    // 3. Débloquer le mouvement (sécurité)
+    this.room.unblockPlayerMovement(playerId, 'battle');
+    
+    // 4. Nettoyer les icônes de statut
+    this.room.broadcast("playerStatusIcon", {
+      playerId: playerId,
+      icon: null,
+      iconEmoji: null
+    });
+    
+    console.log(`✅ [BattleHandlers] État combat complètement nettoyé pour ${playerId}`);
+    console.log(`📊 [BattleHandlers] Combats actifs restants: ${this.activeBattles.size}`);
+  }
+
   /**
    * Obtenir le nom d'un Pokémon (helper)
    */
@@ -637,6 +672,24 @@ private async getPlayerBattlePokemon(playerName: string): Promise<any | null> {
     console.log(`🔍 [BattleHandlers] Combats actifs:`, debugInfo);
 
     client.send("battleDebugInfo", debugInfo);
+  }
+
+  /**
+   * Debug des états de combat
+   */
+  public debugBattleStates(): void {
+    console.log(`🔍 [BattleHandlers] === DEBUG ÉTATS COMBAT ===`);
+    console.log(`👥 Combats actifs: ${this.activeBattles.size}`);
+    
+    for (const [playerId, battleRoomId] of this.activeBattles) {
+      console.log(`  🎮 ${playerId}: room ${battleRoomId}`);
+    }
+    
+    console.log(`📋 Requêtes en attente: ${this.battleRequests.size}`);
+    for (const [playerId, request] of this.battleRequests) {
+      console.log(`  ⏳ ${playerId}: ${JSON.stringify(request)}`);
+    }
+    console.log(`=======================================`);
   }
 
   /**
@@ -683,11 +736,6 @@ private async getPlayerBattlePokemon(playerName: string): Promise<any | null> {
     }
   }
 
-  public onBattleFinished(playerId: string, battleResult: string): void {
-  // CRITIQUE: Nettoyer l'état "en combat"
-  this.playerBattleStates.delete(playerId);
-  this.battleRoomReferences.delete(playerId);
-}
   /**
    * Obtenir les statistiques des combats
    */
