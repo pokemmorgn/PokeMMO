@@ -1591,9 +1591,8 @@ handleNetworkBattleMessage(data) {
 handleNetworkHPUpdate(data) {
   console.log('💖 [BattleScene] Mise à jour HP reçue:', data);
   
-  // Déterminer qui est touché selon l'ID du Pokémon
-const isPlayerPokemon = this.currentPlayerPokemon && 
-                       String(this.currentPlayerPokemon.pokemonId) === String(data.pokemonId);
+  // ✅ NOUVEAU: Utiliser targetPlayer du serveur
+  const isPlayerPokemon = (data.targetPlayer === this.playerRole);
   
   if (isPlayerPokemon && this.currentPlayerPokemon) {
     console.log('💔 [BattleScene] Mise à jour HP joueur:', data.newHp, '/', this.currentPlayerPokemon.maxHp);
@@ -1633,16 +1632,16 @@ const isPlayerPokemon = this.currentPlayerPokemon &&
     }
   }
 }
-
   // ✅ NOUVEAU: Handler pour les animations de dégâts
 handleNetworkDamageAnimation(data) {
   console.log('💥 [BattleScene] Animation dégâts reçue:', data);
   
-// Déterminer qui est touché en comparant l'ID du Pokémon
-const isPlayerPokemon = this.currentPlayerPokemon && 
-                       String(this.currentPlayerPokemon.pokemonId) === String(data.pokemonId);
+  const isPlayerTarget = data.targetPlayer ? 
+    (data.targetPlayer === this.playerRole) :
+    (this.currentPlayerPokemon && String(this.currentPlayerPokemon.pokemonId) === String(data.pokemonId));
   
   const targetSprite = isPlayerTarget ? this.playerPokemonSprite : this.opponentPokemonSprite;
+
   
   if (!targetSprite) {
     console.warn('⚠️ [BattleScene] Sprite cible non trouvé pour animation');
