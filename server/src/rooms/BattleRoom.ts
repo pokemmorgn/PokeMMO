@@ -250,7 +250,7 @@ private startTurnSystemBattle() {
   // Configuration TurnSystem avec les vrais joueurs
   const playerData = [
     { id: this.state.player1Id, type: 'human' as PlayerType, name: this.state.player1Name },
-    { id: 'player2', type: 'ai', name: 'Pokémon Sauvage' }
+    { id: 'player2', type: 'ai' as PlayerType, name: 'Pokémon Sauvage' }
   ];
   
   this.turnSystem.autoConfigurePlayers(playerData);
@@ -406,7 +406,7 @@ private async executeAITurnAction() {
     }
 
     // ✅ Exécuter l'action via BattleIntegration
-    await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
+    await this.battleIntegration.processAction('player2', 'attack', { moveId: randomMove });
     
     // ✅ Synchroniser APRÈS l'action
     this.updateBattleContext();
