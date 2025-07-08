@@ -1530,28 +1530,6 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
       console.log("🧪 onJoin - client.sessionId =", client.sessionId);
       console.log(`✅ Joueur ${player.name} ajouté au state`);
       console.log(`📊 Total joueurs dans le state: ${this.state.players.size}`);
-
-      // ====== ICI, AJOUTE TON STARTER AUTO ======
-try {
-  // On checke si le joueur a déjà un Pokémon
-  const { OwnedPokemon } = await import('../models/OwnedPokemon');
-  const count = await OwnedPokemon.countDocuments({ owner: player.name });
-  if (count === 0) {
-    // On donne le starter Bulbizarre (id=1)
-    const { giveStarterToPlayer } = await import('../services/PokemonService');
-    const starter = await giveStarterToPlayer(player.name, 1);
-    if (starter) {
-      console.log(`✅ Starter auto donné à ${player.name}`);
-      // Optionnel : notif client (décommente si tu veux)
-      // client.send("starterReceived", { success: true, pokemon: starter, message: "Bulbizarre ajouté à votre équipe !" });
-    }
-  } else {
-    console.log(`ℹ️ Starter déjà présent pour ${player.name}, rien à faire`);
-  }
-} catch (err) {
-  console.error('❌ Erreur auto-give starter:', err);
-}
-// ====== FIN DU BLOC STARTER ======
       
       // Étape 2: Confirmer immédiatement au client avec ses données
       client.send("playerSpawned", {
