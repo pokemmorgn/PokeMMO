@@ -200,6 +200,7 @@ export class BattleIntegration {
   static convertToBattlePokemon(oldPokemon: any): BattlePokemonData {
     return {
       pokemonId: oldPokemon.pokemonId || 1,
+      combatId: oldPokemon.combatId || `combat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ✅ AJOUT
       name: oldPokemon.name || 'Pokémon',
       level: oldPokemon.level || 5,
       currentHp: oldPokemon.currentHp || 20,
