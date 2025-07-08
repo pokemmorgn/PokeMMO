@@ -802,20 +802,25 @@ updatePokemonHP: (pokemonId: string, newHp: number) => {
 private updateBattleContext() {
   console.log(`🔄 [CONTEXT] Mise à jour contexte`);
   
-  this.battleContext.participants.forEach((participant, index) => {
-    if (participant.sessionId === this.state.player1Id) {
-      // ✅ Mettre à jour avec les vraies valeurs du state
-      if (participant.team[0]) {
+  this.battleContext.participants.forEach((participant) => {
+    if (participant.sessionId === this.state.player1Id || participant.sessionId === 'player1') {
+      // ✅ FORCER la mise à jour depuis le state
+      if (participant.team[0] && this.state.player1Pokemon) {
         participant.team[0].currentHp = this.state.player1Pokemon.currentHp;
         participant.team[0].maxHp = this.state.player1Pokemon.maxHp;
+        participant.team[0].name = this.state.player1Pokemon.name;
+        participant.team[0].pokemonId = this.state.player1Pokemon.pokemonId;
       }
       participant.activePokemon = this.state.player1Pokemon;
       participant.isConnected = this.clients.some(c => c.sessionId === this.state.player1Id);
-    } else if (participant.sessionId === 'ai') {
-      // ✅ Mettre à jour avec les vraies valeurs du state
-      if (participant.team[0]) {
+      
+    } else if (participant.sessionId === 'ai' || participant.sessionId === 'player2') {
+      // ✅ FORCER la mise à jour depuis le state
+      if (participant.team[0] && this.state.player2Pokemon) {
         participant.team[0].currentHp = this.state.player2Pokemon.currentHp;
         participant.team[0].maxHp = this.state.player2Pokemon.maxHp;
+        participant.team[0].name = this.state.player2Pokemon.name;
+        participant.team[0].pokemonId = this.state.player2Pokemon.pokemonId;
       }
       participant.activePokemon = this.state.player2Pokemon;
     }
