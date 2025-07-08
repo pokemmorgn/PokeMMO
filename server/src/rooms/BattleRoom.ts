@@ -477,6 +477,7 @@ export class BattleRoom extends Room<BattleState> {
           
           this.broadcast('pokemonHPUpdate', {
             pokemonId: pokemonId,
+            targetPlayer: result.targetPlayerId,
             oldHp: result.oldHp,
             newHp: result.newHp,
             damage: result.damage,
