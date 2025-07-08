@@ -127,19 +127,31 @@ export class TurnSystem {
   /**
    * Démarre un nouveau tour
    */
-  startTurn(): void {
-    console.log(`🔄 [TurnSystem] === DÉBUT TOUR ${this.turnNumber} ===`);
-    
-    // Reset des flags
-    this.players.forEach(player => {
-      player.hasActed = false;
-    });
-    
-    this.actionQueue.clear();
-    
-    // Démarrer phase de sélection/action
-    this.startActionPhase();
+startTurn(): void {
+  console.log(`🔄 [TurnSystem] === DÉBUT TOUR ${this.turnNumber} ===`);
+  
+  // Reset des flags
+  this.players.forEach(player => {
+    player.hasActed = false;
+  });
+  
+  this.actionQueue.clear();
+  
+  // Démarrer phase de sélection/action
+  this.startActionPhase();
+  
+  // ✅ AJOUT: Callback pour notifier le démarrage du tour
+  if (this.onTurnStartCallback) {
+    this.onTurnStartCallback();
   }
+}
+
+  // Ajouter un callback optionnel
+private onTurnStartCallback?: () => void;
+
+setOnTurnStartCallback(callback: () => void): void {
+  this.onTurnStartCallback = callback;
+}
   
   /**
    * Phase d'action selon le mode de tour
@@ -175,19 +187,20 @@ export class TurnSystem {
   /**
    * Mode séquentiel : Un joueur après l'autre
    */
-  private processSequentialTurn(): void {
-    const nextPlayer = this.getNextPlayerToAct();
-    if (!nextPlayer) {
-      this.endTurn();
-      return;
+    private processSequentialTurn(): void {
+      const nextPlayer = this.getNextPlayerToAct();
+      if (!nextPlayer) {
+        console.log(`🔄 [TurnSystem] Plus de joueur à faire jouer, fin du tour`);
+        this.endTurn();
+        return;
+      }
+      
+      this.currentPhase.waitingFor = [nextPlayer.id];
+      console.log(`👤 [TurnSystem] Tour séquentiel: ${nextPlayer.name} (${nextPlayer.type})`);
+      
+      // Notifier que c'est le tour de ce joueur
+      this.onPlayerTurnStart(nextPlayer);
     }
-    
-    this.currentPhase.waitingFor = [nextPlayer.id];
-    console.log(`👤 [TurnSystem] Tour séquentiel: ${nextPlayer.name}`);
-    
-    // Notifier que c'est le tour de ce joueur
-    this.onPlayerTurnStart(nextPlayer);
-  }
   
   /**
    * Mode simultané : Tous les joueurs agissent en même temps
@@ -382,11 +395,13 @@ export class TurnSystem {
     // TODO: Exécution des actions via BattleIntegration
   }
   
-  private endTurn(): void {
-    this.turnNumber++;
-    console.log(`🏁 [TurnSystem] Fin du tour ${this.turnNumber - 1}`);
-    // TODO: Vérifier conditions de fin, démarrer tour suivant
-  }
+private endTurn(): void {
+  this.turnNumber++;
+  console.log(`🏁 [TurnSystem] Fin du tour ${this.turnNumber - 1}`);
+  
+  // ✅ NE PAS redémarrer automatiquement le tour
+  // C'est BattleRoom qui va appeler startTurn() à nouveau
+}
   
   // === API PUBLIQUE ===
   
