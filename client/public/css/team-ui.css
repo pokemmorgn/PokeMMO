@@ -16,10 +16,10 @@
 }
 
 .team-container {
-  width: 92%;
-  max-width: 950px;
-  height: 86%;
-  max-height: 750px;
+  width: 98%;
+  max-width: 1300px;  /* Avant : 950px */
+  height: 90%;
+  max-height: 800px;  /* Avant : 750px */
   background: linear-gradient(140deg, #243a5b, #18304c 90%);
   border: 3px solid #4a90e2;
   border-radius: 22px;
