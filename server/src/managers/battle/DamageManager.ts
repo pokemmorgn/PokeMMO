@@ -320,7 +320,8 @@ export class DamageManager {
       targetPlayerId,
       attackerId: finalAttackerId,
       pokemonName: stateResult.pokemonName,
-      isHealing
+      isHealing,
+      targetPlayer: stateResult.playerId
     };
   }
 
