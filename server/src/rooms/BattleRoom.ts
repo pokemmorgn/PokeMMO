@@ -419,9 +419,6 @@ private async executeAITurnAction() {
       return;
     }
     
-    // ✅ Passer au tour suivant
-    this.proceedToNextTurn();
-    
   } catch (error) {
     console.error(`❌ [AI] Erreur:`, error);
     this.proceedToNextTurn();
