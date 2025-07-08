@@ -193,33 +193,43 @@ export class BattleRoom extends Room<BattleState> {
     }
   }
   
-  private checkBattleEnd() {
-    if (!this.battleGameState) return;
+private checkBattleEnd() {
+  if (!this.battleGameState) return;
+  
+  // Vérifier si un Pokémon est K.O.
+  const player1KO = this.battleGameState.player1.pokemon?.currentHp <= 0;
+  const player2KO = this.battleGameState.player2.pokemon?.currentHp <= 0;
+  
+  if (player1KO || player2KO) {
+    console.log(`🏁 [BattleRoom] Fin de combat détectée`);
     
-    // Vérifier si un Pokémon est K.O.
-    const player1KO = this.battleGameState.player1.pokemon?.currentHp <= 0;
-    const player2KO = this.battleGameState.player2.pokemon?.currentHp <= 0;
+    // ✅ AJOUTEZ CETTE LIGNE CRITIQUE :
+    this.battleGameState.isEnded = true;  // ← EMPÊCHE L'IA DE JOUER !
     
-    if (player1KO || player2KO) {
-      console.log(`🏁 [BattleRoom] Fin de combat détectée`);
-      
-      const winner = player1KO ? 'player2' : 'player1';
-      const reason = player1KO ? 'Player 1 K.O.' : 'Player 2 K.O.';
-      
-      this.battleGameState.isEnded = true;
-      this.battleGameState.winner = winner;
-      this.battleGameState.phase = 'ended';
-      
-      this.broadcast("battleEnd", {
-        winner: winner,
-        reason: reason,
-        gameState: this.getClientBattleState()
-      });
-      
-      // Fermer la room dans 5 secondes
-      this.clock.setTimeout(() => this.disconnect(), 5000);
-    }
+    const winner = player1KO ? 'player2' : 'player1';
+    const reason = player1KO ? 'Player 1 K.O.' : 'Player 2 K.O.';
+    
+    this.battleGameState.winner = winner;
+    this.battleGameState.phase = 'ended';
+    
+    // ✅ ENVOYER LE MESSAGE DE FIN AU CLIENT
+    this.broadcast("battleEnd", {
+      winner: winner,
+      reason: reason,
+      gameState: this.getClientBattleState()
+    });
+    
+    // ✅ ENVOYER MESSAGE DE VICTOIRE
+    const victoryMessage = winner === 'player1' ? 'Vous avez gagné !' : 'Vous avez perdu !';
+    this.broadcast("battleMessage", {
+      message: victoryMessage,
+      timing: 3000
+    });
+    
+    // Fermer la room dans 5 secondes
+    this.clock.setTimeout(() => this.disconnect(), 5000);
   }
+}
   
   async onJoin(client: Client, options: any) {
     console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom V2`);
