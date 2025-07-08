@@ -1571,6 +1571,44 @@ setupBattleNetworkEvents() {
   }
 });
 
+  // ✅ CRITICAL: Handler turnChanged
+  this.battleNetworkHandler.on('turnChanged', (data) => {
+    console.log('🔄 [BattleScene] Tour changé reçu:', data.currentTurn);
+    
+    if (data.currentTurn === 'player1') {
+      console.log('👤 [BattleScene] C\'est mon tour !');
+      setTimeout(() => {
+        this.showActionMessage('Que voulez-vous faire ?', 1500);
+        setTimeout(() => {
+          this.showActionButtons();
+        }, 1500);
+      }, 2000);
+    } else {
+      console.log('🤖 [BattleScene] Tour de l\'IA...');
+      this.hideActionButtons();
+      this.showActionMessage('Tour de l\'adversaire...');
+    }
+  });
+
+  // ✅ NOUVEAU: Handler pour la fin de combat
+  this.battleNetworkHandler.on('battleEnd', (data) => {
+    console.log('🏁 [BattleScene] Fin de combat reçue:', data);
+    
+    // Masquer immédiatement les boutons d'action
+    this.hideActionButtons();
+    
+    // Afficher le message de fin
+    const message = data.winner === 'player1' ? 
+      '🎉 Victoire ! Vous avez gagné !' : 
+      '💀 Défaite... Vous avez perdu !';
+    
+    this.showActionMessage(message, 5000);
+    
+    // Fermer le combat après 5 secondes
+    setTimeout(() => {
+      this.endBattle(data);
+    }, 5000);
+  });
   
   this.battleNetworkHandler.on('battleJoined', (data) => {
   console.log('⚔️ [BattleScene] Battle joined, rôle:', data.yourRole);
@@ -1608,48 +1646,6 @@ setupBattleNetworkEvents() {
   this.battleNetworkHandler.on('battleEndWithRewards', (data) => {
     this.handleNetworkBattleEnd(data);
   });
-}  
-// ✅ NOUVEAU: Handler pour afficher les messages de combat dans l'interface
-handleNetworkBattleMessage(data) {
-  console.log('💬 [BattleScene] Message de combat reçu:', data.message, 'timing:', data.timing);
-  
-  // ✅ SUPPRIMÉ LE FILTRE QUI BLOQUAIT TOUT !
-  // Plus de filtrage des messages - on laisse tout passer
-  
-  // ✅ Utiliser le timing du serveur (ou 2000ms par défaut)
-  const displayDuration = data.timing || 2000;
-  
-  // Afficher le message dans l'interface
-  this.showActionMessage(data.message, displayDuration);
-  
-  // ✅ Gérer les séquences d'attaque avec le timing du serveur
-  if (data.message && data.message.includes('utilise')) {
-    console.log('⚔️ [BattleScene] Attaque détectée:', data.message);
-    
-    // Déterminer si c'est une attaque de l'IA/adversaire
-    const isOpponentAttack = data.message.includes('ennemi') || 
-                            data.message.includes('sauvage') ||
-                            !data.message.includes(this.currentPlayerPokemon?.name);
-    
-    if (isOpponentAttack) {
-      console.log('🤖 [BattleScene] Attaque IA/adversaire, timing:', displayDuration);
-      
-      // ✅ Calculer le délai total basé sur les timings serveur
-      // Message (timing) + Animation dégâts (1500ms) + Pause (500ms)
-      const totalDelay = displayDuration + 1500 + 500;
-      
-      setTimeout(() => {
-        // Message de transition
-        this.showActionMessage('Que voulez-vous faire ?', 1500);
-        
-        // Puis afficher les boutons
-        setTimeout(() => {
-          this.showActionButtons();
-        }, 1500);
-        
-      }, totalDelay);
-    }
-  }
 }
 
   // === HANDLERS RÉSEAU ===
