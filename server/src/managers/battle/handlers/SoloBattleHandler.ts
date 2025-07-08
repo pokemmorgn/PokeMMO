@@ -137,7 +137,8 @@ class SoloBattleHandler implements IBattleHandler {
 
   private getCurrentHpFromState(pokemon: BattlePokemonData, context: BattleContext): number {
   // Utiliser le state qui est toujours à jour
-  const battleState = context.battleState; // On peut passer ça en paramètre
+  const currentDefenderHp = defender.currentHp;
+  console.log(`🔍 [DEBUG] HP défenseur du context: ${currentDefenderHp}`);
   // OU récupérer depuis BattleRoom directement
   return pokemon.currentHp; // Pour l'instant
 }
