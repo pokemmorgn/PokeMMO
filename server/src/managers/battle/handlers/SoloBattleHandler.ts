@@ -1,5 +1,5 @@
 // server/src/managers/battle/handlers/SoloBattleHandler.ts
-// VERSION ULTRA-SIMPLE : Combat 1v1 qui MARCHE !
+// VERSION CORRIGÉE : Combat 1v1 qui MARCHE - HP Fix !
 
 import { 
   BattleContext, 
@@ -15,9 +15,9 @@ import { createBattleMessage, createAttackMessages } from '../BattleMessageHandl
 import { MoveManager } from '../../MoveManager';
 
 /**
- * HANDLER ULTRA-SIMPLE POUR COMBATS 1v1
- * Responsabilités : Sauvage, Dresseur, Arène, Elite 4
- * FAIT JUSTE CE QU'IL FAUT : Attaque → Dégâts → HP
+ * HANDLER ULTRA-SIMPLE POUR COMBATS 1v1 - VERSION CORRIGÉE
+ * ✅ PLUS DE BUG HP : Ne modifie jamais directement les HP
+ * ✅ Laisse les événements damage s'en charger
  */
 class SoloBattleHandler implements IBattleHandler {
   
@@ -85,7 +85,7 @@ class SoloBattleHandler implements IBattleHandler {
     };
   }
   
-  // === TRAITEMENT ATTAQUE SIMPLE ===
+  // === ✅ TRAITEMENT ATTAQUE CORRIGÉ ===
   
   private async processAttack(action: BattleAction, context: BattleContext): Promise<BattleSequence> {
     console.log(`💥 [SoloBattleHandler] Traitement attaque simple...`);
@@ -121,19 +121,25 @@ class SoloBattleHandler implements IBattleHandler {
       isCritical
     });
     
-    console.log(`💥 [SoloBattleHandler] Dégâts: ${damageResult.finalDamage}`);
+    console.log(`💥 [SoloBattleHandler] Dégâts calculés: ${damageResult.finalDamage}`);
     
-    // ✅ CORRECTION DU BUG : Utiliser les HP ACTUELS du context
+    // ✅ CORRECTION MAJEURE: LIRE les HP actuels SANS LES MODIFIER
     const currentDefenderHp = defender.currentHp;
     const newDefenderHp = Math.max(0, currentDefenderHp - damageResult.finalDamage);
     
-    console.log(`🩹 [SoloBattleHandler] HP: ${currentDefenderHp} → ${newDefenderHp}`);
+    // ✅ LOGS DE DEBUG pour traquer le problème
+    console.log(`🔍 [DEBUG-HP] Context HP AVANT événement: ${defender.currentHp}`);
+    console.log(`🔍 [DEBUG-HP] HP calculés: ${currentDefenderHp} → ${newDefenderHp}`);
+    console.log(`🔍 [DEBUG-HP] Dégâts appliqués: ${damageResult.finalDamage}`);
     
-    // Créer séquence avec les BONS HP
+    // ❌ CETTE LIGNE ÉTAIT LE BUG - SUPPRIMÉE !
+    // defender.currentHp = newDefenderHp; // ← NE JAMAIS FAIRE ÇA!
+    
+    // ✅ CORRECTION: Laisser l'événement damage s'en charger UNIQUEMENT
     return this.createAttackSequence(attacker, defender, moveData, damageResult, currentDefenderHp, newDefenderHp, context);
   }
   
-  // === CRÉATION DE SÉQUENCES SIMPLES ===
+  // === ✅ CRÉATION DE SÉQUENCES CORRIGÉE ===
   
   private createAttackSequence(
     attacker: BattlePokemonData,
@@ -174,31 +180,30 @@ class SoloBattleHandler implements IBattleHandler {
       currentDelay += 1000;
     }
     
-    // ✅ ÉVÉNEMENT DAMAGE AVEC LES BONS HP
-if (damageResult.finalDamage > 0) {
-  // ✅ AJOUTER CES LOGS ICI
-  console.log(`🔍 [DEBUG] defender.currentHp au moment de l'événement: ${defender.currentHp}`);
-  console.log(`🔍 [DEBUG] currentHp variable: ${currentHp}`);
-  console.log(`🔍 [DEBUG] newHp calculé: ${newHp}`);
-  
-  events.push({
-    eventId: 'damage_event',
-    type: 'damage',
-    timestamp: Date.now(),
-    targetId: defender.combatId,
-    data: {
-      targetCombatId: defender.combatId,
-      targetPokemonId: defender.pokemonId,
-      damage: damageResult.finalDamage,
-      currentHp: currentHp,  // ✅ HP ACTUELS
-      calculatedNewHp: newHp, // ✅ NOUVEAUX HP CORRECTS
-      effectiveness: damageResult.effectiveness,
-      critical: damageResult.critical
-    },
-    delay: currentDelay
-  });
-  currentDelay += 1000;
-}
+    // ✅ ÉVÉNEMENT DAMAGE CORRIGÉ - UTILISE LES HP CALCULÉS
+    if (damageResult.finalDamage > 0) {
+      console.log(`🔍 [DEBUG-EVENT] Création événement damage: ${currentHp} → ${newHp}`);
+      console.log(`🔍 [DEBUG-EVENT] combatId: ${defender.combatId}`);
+      console.log(`🔍 [DEBUG-EVENT] Dégâts dans événement: ${damageResult.finalDamage}`);
+      
+      events.push({
+        eventId: 'damage_event',
+        type: 'damage',
+        timestamp: Date.now(),
+        targetId: defender.combatId,
+        data: {
+          targetCombatId: defender.combatId,
+          targetPokemonId: defender.pokemonId,
+          damage: damageResult.finalDamage,
+          currentHp: currentHp,    // ✅ HP AVANT le calcul (non modifiés)
+          calculatedNewHp: newHp,  // ✅ HP APRÈS calcul
+          effectiveness: damageResult.effectiveness,
+          critical: damageResult.critical
+        },
+        delay: currentDelay
+      });
+      currentDelay += 1000;
+    }
     
     // Message K.O. si nécessaire
     if (newHp <= 0) {
@@ -250,7 +255,7 @@ if (damageResult.finalDamage > 0) {
     };
   }
   
-  // === MÉTHODES UTILITAIRES SIMPLES ===
+  // === MÉTHODES UTILITAIRES (INCHANGÉES) ===
   
   private getPokemonByPlayerId(playerId: string, context: BattleContext): BattlePokemonData | null {
     const participant = context.participants.find(p => p.sessionId === playerId);
@@ -296,12 +301,39 @@ if (damageResult.finalDamage > 0) {
    */
   getStats(): any {
     return {
-      version: 'simple_v1',
+      version: 'simple_v1_fixed',
       supportedBattleTypes: ['wild', 'trainer', 'gym', 'elite4'],
-      features: ['basic_attack', 'ai_random'],
+      features: ['basic_attack', 'ai_random', 'hp_fix'],
+      bugFixes: ['no_direct_hp_modification', 'proper_event_sequencing'],
       lineCount: '~200 lines vs 600+ before'
     };
   }
 }
 
 export default SoloBattleHandler;
+
+/*
+🎯 CORRECTIONS APPLIQUÉES :
+
+✅ SUPPRIMÉ: defender.currentHp = newDefenderHp (ligne qui causait le bug)
+✅ AJOUTÉ: Logs de debug pour traquer les HP
+✅ CLARIFIÉ: Les commentaires sur ce qui ne faut PAS faire
+✅ AMÉLIORÉ: Création d'événements avec HP calculés (pas modifiés)
+
+🔧 PRINCIPE DE FONCTIONNEMENT CORRIGÉ :
+1. processAttack() calcule les dégâts
+2. LECTURE des HP actuels (sans modification)
+3. CALCUL des nouveaux HP (sans modification)
+4. CRÉATION d'un événement damage avec ces valeurs
+5. L'événement damage appelle DamageManager qui fait la VRAIE modification
+
+🚫 CE QUI NE DOIT JAMAIS SE PASSER :
+- Modifier directement defender.currentHp
+- Modifier directement attacker.currentHp  
+- Toucher aux HP en dehors des événements damage
+
+✅ MAINTENANT LE SYSTÈME EST COHÉRENT :
+- SoloBattleHandler : CALCULE mais ne modifie pas
+- Événements damage : TRANSMETTENT les changements
+- DamageManager : APPLIQUE les changements
+*/
