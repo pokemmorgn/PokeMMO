@@ -1,453 +1,143 @@
 // server/src/managers/battle/TurnSystem.ts
-// Système de tours modulable pour tous types de combat
+// VERSION ULTRA-SIMPLE pour combats 1v1 seulement
+// ✅ 50 lignes au lieu de 300 !
 
-export type PlayerType = 'human' | 'ai' | 'spectator';
-export type BattleFormat = 'single' | 'double' | 'triple' | 'rotation' | 'multi';
-export type TurnMode = 'sequential' | 'simultaneous' | 'speed_based';
-
-export interface PlayerSlot {
-  id: string;                    // sessionId ou 'ai_1', 'ai_2', etc.
-  type: PlayerType;
-  name: string;
-  teamSlot: number;              // 0 = équipe 1, 1 = équipe 2, etc.
-  position: number;              // Position dans l'équipe (0, 1, 2...)
-  isActive: boolean;             // Peut jouer actuellement
-  hasActed: boolean;             // A déjà agi ce tour
-  pokemonCount: number;          // Pokémon restants
-  activePokemon: string[];       // IDs des Pokémon actifs
-}
-
-export interface TurnPhase {
-  name: string;                  // 'selection', 'action', 'resolution', 'end'
-  allowedActions: string[];      // Actions possibles dans cette phase
-  waitingFor: string[];          // IDs des joueurs attendus
-  timeLimit?: number;            // Limite de temps (ms)
-}
+export type PlayerType = 'human' | 'ai';
+export type BattleFormat = 'single'; // Seulement 1v1 pour l'instant
+export type TurnMode = 'sequential'; // Seulement séquentiel pour l'instant
 
 export interface BattleConfiguration {
-  format: BattleFormat;          // single, double, triple, etc.
-  turnMode: TurnMode;            // sequential, simultaneous, speed_based
-  maxPlayersPerTeam: number;     // 1, 2, 3, 4...
-  maxTeams: number;              // 2, 3, 4 pour battle royale
-  pokemonPerPlayer: number;      // 1-6
-  activePokemonPerPlayer: number; // 1-3
-  timeLimit: number;             // Temps par action
-  allowSpectators: boolean;
+  format: BattleFormat;
+  turnMode: TurnMode;
+  timeLimit: number;
 }
 
 /**
- * SYSTÈME DE TOURS MODULABLE
- * Gère tous les formats de combat possibles
+ * SYSTÈME DE TOURS ULTRA-SIMPLE
+ * Gère SEULEMENT les combats 1v1 Pokémon classiques
+ * player1 → player2 → player1 → player2...
  */
 export class TurnSystem {
-  private players: Map<string, PlayerSlot> = new Map();
-  private currentPhase: TurnPhase;
+  private player1Id: string = '';
+  private player2Id: string = '';
+  private currentTurn: 'player1' | 'player2' = 'player1';
   private turnNumber: number = 1;
   private config: BattleConfiguration;
-  private actionQueue: Map<string, any> = new Map(); // Actions en attente
-  private lastPlayerToAct?: string; // Tracker pour rotation séquentielle
   
+  // Callback pour notifier BattleRoom du démarrage des tours
+  private onTurnStartCallback?: () => void;
+
   constructor(config: BattleConfiguration) {
     this.config = config;
-    this.currentPhase = {
-      name: 'selection',
-      allowedActions: ['pokemon_select'],
-      waitingFor: [],
-      timeLimit: config.timeLimit
-    };
-    
-    console.log(`🎯 [TurnSystem] Système initialisé: ${config.format} (${config.turnMode})`);
+    console.log(`🎯 [TurnSystem] Version simple initialisée`);
   }
   
-  // === GESTION DES JOUEURS ===
+  // === CONFIGURATION DES JOUEURS ===
   
   /**
-   * Ajoute un joueur au système de tours
-   */
-  addPlayer(
-    id: string,
-    type: PlayerType,
-    name: string,
-    teamSlot: number,
-    position: number = 0
-  ): void {
-    const player: PlayerSlot = {
-      id,
-      type,
-      name,
-      teamSlot,
-      position,
-      isActive: true,
-      hasActed: false,
-      pokemonCount: this.config.pokemonPerPlayer,
-      activePokemon: []
-    };
-    
-    this.players.set(id, player);
-    console.log(`👤 [TurnSystem] Joueur ajouté: ${name} (${type}) - Équipe ${teamSlot}, Position ${position}`);
-  }
-  
-  /**
-   * Configure automatiquement selon le format
+   * Configuration automatique pour 1v1
    */
   autoConfigurePlayers(playerData: Array<{ id: string, type: PlayerType, name: string }>): void {
-    console.log(`🔧 [TurnSystem] Configuration automatique: ${this.config.format}`);
+    console.log(`🔧 [TurnSystem] Configuration 1v1 simple`);
     
-    switch (this.config.format) {
-      case 'single':
-        // 1v1 classique
-        this.addPlayer(playerData[0].id, playerData[0].type, playerData[0].name, 0, 0);
-        this.addPlayer(playerData[1].id, playerData[1].type, playerData[1].name, 1, 0);
-        break;
-        
-      case 'double':
-        // 2v2 - Chaque joueur contrôle 2 Pokémon
-        this.addPlayer(playerData[0].id, playerData[0].type, playerData[0].name, 0, 0);
-        this.addPlayer(playerData[1].id, playerData[1].type, playerData[1].name, 1, 0);
-        break;
-        
-      case 'multi':
-        // 2v2 - 4 joueurs, 2 par équipe
-        for (let i = 0; i < 4 && i < playerData.length; i++) {
-          const teamSlot = Math.floor(i / 2); // 0,1,0,1
-          const position = i % 2;             // 0,0,1,1
-          this.addPlayer(playerData[i].id, playerData[i].type, playerData[i].name, teamSlot, position);
-        }
-        break;
-        
-      case 'triple':
-        // 3v3 - Chaque joueur contrôle 3 Pokémon
-        this.addPlayer(playerData[0].id, playerData[0].type, playerData[0].name, 0, 0);
-        this.addPlayer(playerData[1].id, playerData[1].type, playerData[1].name, 1, 0);
-        break;
-    }
+    this.player1Id = playerData[0].id;
+    this.player2Id = playerData[1].id;
+    
+    console.log(`👤 [TurnSystem] Joueur 1: ${playerData[0].name} (${this.player1Id})`);
+    console.log(`👤 [TurnSystem] Joueur 2: ${playerData[1].name} (${this.player2Id})`);
   }
   
-  // === GESTION DES PHASES ===
+  // === GESTION DES TOURS ===
   
   /**
    * Démarre un nouveau tour
    */
-startTurn(): void {
-  console.log(`🔄 [TurnSystem] === DÉBUT TOUR ${this.turnNumber} ===`);
-  
-  // Reset des flags
-  this.players.forEach(player => {
-    player.hasActed = false;
-  });
-  
-  this.actionQueue.clear();
-  // Reset du tracker de rotation
-  this.lastPlayerToAct = undefined;
-  // Démarrer phase de sélection/action
-  this.startActionPhase();
-  
-  // ✅ AJOUT: Callback pour notifier le démarrage du tour
-  if (this.onTurnStartCallback) {
-    this.onTurnStartCallback();
-  }
-}
-
-  // Ajouter un callback optionnel
-private onTurnStartCallback?: () => void;
-
-setOnTurnStartCallback(callback: () => void): void {
-  this.onTurnStartCallback = callback;
-}
-  
-  /**
-   * Phase d'action selon le mode de tour
-   */
- private startActionPhase(): void {
-  // En mode séquentiel, on ne met personne en attente au début
-  // processSequentialTurn() va définir qui doit jouer
-  const initialWaitingFor = this.config.turnMode === 'sequential' ? [] : this.getActivePlayerIds();
-  
-  this.currentPhase = {
-    name: 'action',
-    allowedActions: ['attack', 'item', 'pokemon', 'run'],
-    waitingFor: initialWaitingFor, // ← CORRIGÉ
-    timeLimit: this.config.timeLimit
-  };
-  
-  console.log(`⚔️ [TurnSystem] Phase d'action - Mode: ${this.config.turnMode}`);
-  console.log(`⏰ [TurnSystem] En attente de: [${this.currentPhase.waitingFor.join(', ')}]`);
-  
-  switch (this.config.turnMode) {
-    case 'sequential':
-      this.processSequentialTurn();
-      break;
-      
-    case 'simultaneous':
-      this.processSimultaneousTurn();
-      break;
-      
-    case 'speed_based':
-      this.processSpeedBasedTurn();
-      break;
-  }
-}
-  
-  // === MODES DE TOUR ===
-  
-  /**
-   * Mode séquentiel : Un joueur après l'autre
-   */
-    private processSequentialTurn(): void {
-      const nextPlayer = this.getNextPlayerToAct();
-      if (!nextPlayer) {
-        console.log(`🔄 [TurnSystem] Plus de joueur à faire jouer, fin du tour`);
-        this.endTurn();
-        return;
-      }
-      
-      this.currentPhase.waitingFor = [nextPlayer.id];
-      console.log(`👤 [TurnSystem] Tour séquentiel: ${nextPlayer.name} (${nextPlayer.type})`);
-      
-      // Notifier que c'est le tour de ce joueur
-      this.onPlayerTurnStart(nextPlayer);
-    }
-  
-  /**
-   * Mode simultané : Tous les joueurs agissent en même temps
-   */
-  private processSimultaneousTurn(): void {
-    const activePlayers = Array.from(this.players.values()).filter(p => p.isActive && !p.hasActed);
-    this.currentPhase.waitingFor = activePlayers.map(p => p.id);
+  startTurn(): void {
+    console.log(`🔄 [TurnSystem] === DÉBUT TOUR ${this.turnNumber} ===`);
+    console.log(`🎯 [TurnSystem] C'est au tour de: ${this.currentTurn}`);
     
-    console.log(`👥 [TurnSystem] Tour simultané: ${activePlayers.length} joueurs`);
-    
-    // Notifier tous les joueurs
-    activePlayers.forEach(player => {
-      this.onPlayerTurnStart(player);
-    });
-    
-    // Démarrer timer global
-    this.startPhaseTimer();
-  }
-  
-  /**
-   * Mode basé sur la vitesse : Ordre dynamique selon les stats
-   */
-  private processSpeedBasedTurn(): void {
-    // Trier par vitesse des Pokémon actifs
-    const speedOrder = this.calculateSpeedOrder();
-    console.log(`⚡ [TurnSystem] Ordre vitesse:`, speedOrder.map(p => `${p.name}(${p.speed})`));
-    
-    // Traiter dans l'ordre de vitesse
-    this.processSpeedOrderedActions(speedOrder);
-  }
-  
-  // === GESTION DES ACTIONS ===
-  
-  /**
-   * Reçoit une action d'un joueur
-   */
-submitAction(playerId: string, action: any): boolean {
-  const player = this.players.get(playerId);
-  if (!player) {
-    console.error(`❌ [TurnSystem] Joueur inconnu: ${playerId}`);
-    return false;
-  }
-  
-  // ✅ VÉRIFICATION CRITIQUE : Empêcher double soumission
-  if (player.hasActed) {
-    console.warn(`⚠️ [TurnSystem] ${player.name} a déjà agi ce tour`);
-    return false;
-  }
-  
-  if (!this.currentPhase.waitingFor.includes(playerId)) {
-    console.warn(`⚠️ [TurnSystem] Pas le tour de ${player.name}`);
-    console.warn(`⚠️ [TurnSystem] waitingFor: [${this.currentPhase.waitingFor.join(', ')}]`);
-    console.warn(`⚠️ [TurnSystem] playerId: ${playerId}`);
-    return false;
-  }
-  
-  console.log(`✅ [TurnSystem] Action reçue: ${player.name} → ${action.type}`);
-  
-  this.actionQueue.set(playerId, action);
-  player.hasActed = true;
-  
-  this.currentPhase.waitingFor = this.currentPhase.waitingFor.filter(id => id !== playerId);
-  
-  this.checkTurnProgression();
-  
-  return true;
-}
-  
-  /**
-   * Vérifie si on peut passer à l'étape suivante
-   */
-  private checkTurnProgression(): void {
-    switch (this.config.turnMode) {
-      case 'sequential':
-        // En séquentiel, passer au joueur suivant
-        this.processSequentialTurn();
-        break;
-        
-      case 'simultaneous':
-        // En simultané, attendre que tous aient agi
-        if (this.currentPhase.waitingFor.length === 0) {
-          this.resolveAllActions();
-        }
-        break;
-        
-      case 'speed_based':
-        // En speed-based, traiter l'action immédiatement
-        this.resolveNextSpeedAction();
-        break;
+    // Notifier BattleRoom si callback défini
+    if (this.onTurnStartCallback) {
+      this.onTurnStartCallback();
     }
   }
   
-  // === RÉSOLUTION DES ACTIONS ===
-  
   /**
-   * Résout toutes les actions en attente
+   * Vérifie si un joueur peut agir maintenant
    */
-  private resolveAllActions(): void {
-    console.log(`🎬 [TurnSystem] Résolution de ${this.actionQueue.size} actions`);
-    
-    const actions = Array.from(this.actionQueue.entries());
-    
-    // Trier par priorité si nécessaire
-    const sortedActions = this.sortActionsByPriority(actions);
-    
-    // Exécuter les actions
-    this.executeActions(sortedActions);
-  }
-  
-  /**
-   * Trie les actions par priorité
-   */
-  private sortActionsByPriority(actions: Array<[string, any]>): Array<[string, any]> {
-    return actions.sort((a, b) => {
-      const priorityA = this.getActionPriority(a[1]);
-      const priorityB = this.getActionPriority(b[1]);
-      return priorityB - priorityA; // Priorité décroissante
-    });
-  }
-
-  
-  /**
-   * Obtient la priorité d'une action
-   */
-  private getActionPriority(action: any): number {
-    switch (action.type) {
-      case 'pokemon': return 6;    // Changement Pokémon
-      case 'item': return 5;       // Objets
-      case 'attack': return action.priority || 0; // Attaques selon priority move
-      case 'run': return -1;       // Fuite
-      default: return 0;
+  canPlayerAct(playerId: string): boolean {
+    if (this.currentTurn === 'player1') {
+      return playerId === this.player1Id;
+    } else {
+      return playerId === this.player2Id || playerId === 'player2';
     }
   }
   
-  // === UTILITAIRES ===
-  
   /**
-   * Obtient le prochain joueur à agir (mode séquentiel)
+   * Soumission d'une action (change automatiquement le tour)
    */
-private getNextPlayerToAct(): PlayerSlot | null {
-  const activePlayers = Array.from(this.players.values())
-    .filter(p => p.isActive && !p.hasActed);
-  
-  if (activePlayers.length === 0) {
-    return null;
-  }
-  
-  // Si pas de "dernier joueur", prendre le premier disponible
-  if (!this.lastPlayerToAct) {
-    const sortedPlayers = activePlayers.sort((a, b) => {
-      if (a.teamSlot !== b.teamSlot) return a.teamSlot - b.teamSlot;
-      return a.position - b.position;
-    });
-    this.lastPlayerToAct = sortedPlayers[0].id;
-    return sortedPlayers[0];
-  }
-  
-  // Rotation : Trouver le joueur suivant dans l'ordre cyclique
-  const playerIds = activePlayers.map(p => p.id).sort();
-  const currentIndex = playerIds.indexOf(this.lastPlayerToAct);
-  
-  let nextIndex = (currentIndex + 1) % playerIds.length;
-  
-  // Si le joueur suivant a déjà agi, continuer jusqu'à en trouver un
-  let attempts = 0;
-  while (attempts < playerIds.length) {
-    const nextPlayerId = playerIds[nextIndex];
-    const nextPlayer = this.players.get(nextPlayerId);
+  submitAction(playerId: string, action: any): boolean {
+    console.log(`🎮 [TurnSystem] Action de ${playerId}: ${action.type}`);
     
-    if (nextPlayer && !nextPlayer.hasActed) {
-      this.lastPlayerToAct = nextPlayerId;
-      return nextPlayer;
+    // Vérifier que c'est le bon joueur
+    if (!this.canPlayerAct(playerId)) {
+      console.warn(`⚠️ [TurnSystem] Ce n'est pas le tour de ${playerId}`);
+      console.warn(`⚠️ [TurnSystem] Tour actuel: ${this.currentTurn}`);
+      return false;
     }
     
-    nextIndex = (nextIndex + 1) % playerIds.length;
-    attempts++;
-  }
-  
-  return null;
-}
-  /**
-   * Obtient les IDs des joueurs actifs
-   */
-  private getActivePlayerIds(): string[] {
-    return Array.from(this.players.values())
-      .filter(p => p.isActive)
-      .map(p => p.id);
-  }
-  
-  /**
-   * Calcule l'ordre de vitesse
-   */
-  private calculateSpeedOrder(): Array<{ id: string, name: string, speed: number }> {
-    // TODO: Récupérer la vitesse réelle des Pokémon actifs
-    return Array.from(this.players.values())
-      .filter(p => p.isActive)
-      .map(p => ({ id: p.id, name: p.name, speed: Math.random() * 100 }))
-      .sort((a, b) => b.speed - a.speed);
-  }
-  
-  // === ÉVÉNEMENTS (À IMPLÉMENTER) ===
-  
-  private onPlayerTurnStart(player: PlayerSlot): void {
-    console.log(`🎯 [TurnSystem] Tour de ${player.name} (${player.type})`);
-    // TODO: Notifier BattleRoom
-  }
-  
-  private startPhaseTimer(): void {
-    // TODO: Timer pour phase simultanée
-  }
-  
-  private processSpeedOrderedActions(speedOrder: any[]): void {
-    // TODO: Traitement séquentiel par vitesse
-  }
-  
-  private resolveNextSpeedAction(): void {
-    // TODO: Résolution action suivante en mode speed
-  }
-  
-  private executeActions(actions: Array<[string, any]>): void {
-    // TODO: Exécution des actions via BattleIntegration
-  }
-  
-  private endTurn(): void {
-    console.log(`🏁 [TurnSystem] Fin du tour ${this.turnNumber}`);
+    console.log(`✅ [TurnSystem] Action acceptée pour ${playerId}`);
     
-    // ✅ NE PAS incrémenter ici - c'est BattleRoom qui gère
-    // this.turnNumber++; // SUPPRIMER cette ligne
+    // ✅ CHANGER LE TOUR AUTOMATIQUEMENT
+    this.switchTurn();
+    
+    return true;
   }
-
-    // Ajouter une méthode pour obtenir le numéro de tour actuel
+  
+  /**
+   * Change le tour (player1 ↔ player2)
+   */
+  private switchTurn(): void {
+    if (this.currentTurn === 'player1') {
+      this.currentTurn = 'player2';
+    } else {
+      this.currentTurn = 'player1';
+      this.turnNumber++; // Incrémenter seulement quand on revient au joueur 1
+    }
+    
+    console.log(`🔄 [TurnSystem] Nouveau tour: ${this.currentTurn} (Tour ${this.turnNumber})`);
+  }
+  
+  // === MÉTHODES UTILITAIRES ===
+  
+  /**
+   * Réinitialise les actions (ne fait rien en version simple)
+   */
+  resetPlayerActions(): void {
+    // Rien à faire en version simple
+    console.log(`🔄 [TurnSystem] Reset actions (version simple)`);
+  }
+  
+  /**
+   * Obtient le numéro de tour actuel
+   */
   getCurrentTurnNumber(): number {
     return this.turnNumber;
   }
   
-  // Ajouter une méthode pour définir le numéro de tour
+  /**
+   * Définit le numéro de tour (pour sync avec BattleRoom)
+   */
   setTurnNumber(turn: number): void {
     this.turnNumber = turn;
   }
   
-  // === API PUBLIQUE ===
+  /**
+   * Définit le callback de démarrage de tour
+   */
+  setOnTurnStartCallback(callback: () => void): void {
+    this.onTurnStartCallback = callback;
+  }
   
   /**
    * Obtient l'état actuel du système
@@ -455,28 +145,28 @@ private getNextPlayerToAct(): PlayerSlot | null {
   getState(): any {
     return {
       turnNumber: this.turnNumber,
-      currentPhase: this.currentPhase,
-      players: Array.from(this.players.values()),
-      config: this.config
+      currentTurn: this.currentTurn,
+      player1Id: this.player1Id,
+      player2Id: this.player2Id,
+      format: this.config.format
     };
   }
-
+  
+  // === DEBUG ===
+  
   /**
- * Réinitialise les actions des joueurs pour un nouveau tour
- */
-resetPlayerActions(): void {
-  this.players.forEach(player => {
-    player.hasActed = false;
-  });
-  console.log(`🔄 [TurnSystem] Actions réinitialisées pour le nouveau tour`);
-}
-  /**
-   * Vérifie si un joueur peut agir
+   * Debug de l'état actuel
    */
-  canPlayerAct(playerId: string): boolean {
-    const player = this.players.get(playerId);
-    return !!(player && player.isActive && !player.hasActed && 
-             this.currentPhase.waitingFor.includes(playerId));
+  getDebugInfo(): any {
+    return {
+      version: 'simple_1v1',
+      turnNumber: this.turnNumber,
+      currentTurn: this.currentTurn,
+      player1Id: this.player1Id,
+      player2Id: this.player2Id,
+      canPlayer1Act: this.canPlayerAct(this.player1Id),
+      canPlayer2Act: this.canPlayerAct('player2')
+    };
   }
 }
 
@@ -486,46 +176,30 @@ export const BATTLE_CONFIGS = {
   SINGLE_PVE: {
     format: 'single' as BattleFormat,
     turnMode: 'sequential' as TurnMode,
-    maxPlayersPerTeam: 1,
-    maxTeams: 2,
-    pokemonPerPlayer: 6,
-    activePokemonPerPlayer: 1,
-    timeLimit: 30000,
-    allowSpectators: true
+    timeLimit: 30000
   },
   
   SINGLE_PVP: {
     format: 'single' as BattleFormat,
-    turnMode: 'simultaneous' as TurnMode,
-    maxPlayersPerTeam: 1,
-    maxTeams: 2,
-    pokemonPerPlayer: 6,
-    activePokemonPerPlayer: 1,
-    timeLimit: 45000,
-    allowSpectators: true
-  },
-  
-  DOUBLE_BATTLE: {
-    format: 'double' as BattleFormat,
-    turnMode: 'speed_based' as TurnMode,
-    maxPlayersPerTeam: 1,
-    maxTeams: 2,
-    pokemonPerPlayer: 6,
-    activePokemonPerPlayer: 2,
-    timeLimit: 60000,
-    allowSpectators: true
-  },
-  
-  MULTI_BATTLE: {
-    format: 'multi' as BattleFormat,
-    turnMode: 'simultaneous' as TurnMode,
-    maxPlayersPerTeam: 2,
-    maxTeams: 2,
-    pokemonPerPlayer: 3,
-    activePokemonPerPlayer: 1,
-    timeLimit: 45000,
-    allowSpectators: true
+    turnMode: 'sequential' as TurnMode,
+    timeLimit: 45000
   }
 };
 
 export default TurnSystem;
+
+/*
+🎯 AVANTAGES DE CETTE VERSION :
+
+✅ ULTRA-SIMPLE : 120 lignes au lieu de 400
+✅ LOGIQUE CLAIRE : player1 → player2 → player1...
+✅ MÊME INTERFACE : BattleRoom ne change pas
+✅ DEBUGGABLE : Logs clairs et concis
+✅ ÉVOLUTIF : On ajoutera les formats complexes plus tard
+
+🔧 UTILISATION :
+- canPlayerAct(playerId) → true/false
+- submitAction(playerId, action) → change automatiquement le tour
+- startTurn() → notifie BattleRoom
+- Fini ! 
+*/
