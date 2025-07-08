@@ -158,31 +158,35 @@ setOnTurnStartCallback(callback: () => void): void {
   /**
    * Phase d'action selon le mode de tour
    */
-  private startActionPhase(): void {
-    this.currentPhase = {
-      name: 'action',
-      allowedActions: ['attack', 'item', 'pokemon', 'run'],
-      waitingFor: this.getActivePlayerIds(),
-      timeLimit: this.config.timeLimit
-    };
-    
-    console.log(`⚔️ [TurnSystem] Phase d'action - Mode: ${this.config.turnMode}`);
-    console.log(`⏰ [TurnSystem] En attente de: [${this.currentPhase.waitingFor.join(', ')}]`);
-    
-    switch (this.config.turnMode) {
-      case 'sequential':
-        this.processSequentialTurn();
-        break;
-        
-      case 'simultaneous':
-        this.processSimultaneousTurn();
-        break;
-        
-      case 'speed_based':
-        this.processSpeedBasedTurn();
-        break;
-    }
+ private startActionPhase(): void {
+  // En mode séquentiel, on ne met personne en attente au début
+  // processSequentialTurn() va définir qui doit jouer
+  const initialWaitingFor = this.config.turnMode === 'sequential' ? [] : this.getActivePlayerIds();
+  
+  this.currentPhase = {
+    name: 'action',
+    allowedActions: ['attack', 'item', 'pokemon', 'run'],
+    waitingFor: initialWaitingFor, // ← CORRIGÉ
+    timeLimit: this.config.timeLimit
+  };
+  
+  console.log(`⚔️ [TurnSystem] Phase d'action - Mode: ${this.config.turnMode}`);
+  console.log(`⏰ [TurnSystem] En attente de: [${this.currentPhase.waitingFor.join(', ')}]`);
+  
+  switch (this.config.turnMode) {
+    case 'sequential':
+      this.processSequentialTurn();
+      break;
+      
+    case 'simultaneous':
+      this.processSimultaneousTurn();
+      break;
+      
+    case 'speed_based':
+      this.processSpeedBasedTurn();
+      break;
   }
+}
   
   // === MODES DE TOUR ===
   
