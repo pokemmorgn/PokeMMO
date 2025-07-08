@@ -14,11 +14,14 @@ export class TeamUI {
     this._initAsync();
   }
 
-  async _initAsync() {
-    await this.loadPokemonLocalizations();
-    await this.loadCSS();
-    this.init();
-  }
+async _initAsync() {
+  await this.loadPokemonLocalizations();
+  await this.loadCSS();
+  this.init();
+  
+  // ✅ FIX CRITICAL: Configurer les listeners APRÈS init
+  this.setupServerListeners();
+}
 
   async loadCSS() {
     if (document.querySelector('#team-ui-styles')) {
@@ -84,7 +87,6 @@ export class TeamUI {
   init() {
     this.createTeamInterface();
     this.setupEventListeners();
-    this.setupServerListeners();
     
     // ✅ RENDRE ACCESSIBLE GLOBALEMENT DÈS L'INIT
     window.teamUI = this;
@@ -419,21 +421,24 @@ export class TeamUI {
     });
   }
 
-setupServerListeners() {
-  if (this._serverListenersSet) return; // ⬅️ Ne pas double-register
+ssetupServerListeners() {
+  if (this._serverListenersSet) return;
   this._serverListenersSet = true;
 
-  if (!this.gameRoom) return;
+  if (!this.gameRoom) {
+    console.warn('⚠️ [TeamUI] GameRoom manquant, retry dans 1s...');
+    setTimeout(() => this.setupServerListeners(), 1000);
+    return;
+  }
 
-  // ✅ FIX: Forcer refresh complet à chaque réception de teamData
+  console.log('📡 [TeamUI] Configuration listeners serveur...');
+
+  // ✅ LISTENER PRINCIPAL
   this.gameRoom.onMessage("teamData", (data) => {
-    console.log("📊 [TeamUI] === TEAM DATA REÇU ===", data);
-    
-    // ✅ Toujours mettre à jour, même si pas visible
+    console.log("📊 [TeamUI] TEAM DATA REÇU:", data);
     this.updateTeamData(data);
-    
-    // ✅ NOUVEAU: Forcer un refresh complet
-    this.forceCompleteRefresh();
+    this.refreshTeamDisplay();
+    this.updateTeamStats();
   });
 
   this.gameRoom.onMessage("teamActionResult", (data) => {
@@ -443,8 +448,9 @@ setupServerListeners() {
   this.gameRoom.onMessage("pokemonUpdate", (data) => {
     this.handlePokemonUpdate(data);
   });
+  
+  console.log('✅ [TeamUI] Listeners configurés avec gameRoom:', !!this.gameRoom);
 }
-
 // ✅ NOUVELLE MÉTHODE: Ajouter cette méthode dans TeamUI.js
 forceCompleteRefresh() {
   console.log("🔄 [TeamUI] === FORCE COMPLETE REFRESH ===");
