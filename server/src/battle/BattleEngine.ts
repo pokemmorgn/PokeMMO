@@ -1,11 +1,10 @@
-/**
-   * Récupère l'état actuel du jeu
-   */// server/src/battle/BattleEngine.ts
-// ÉTAPE 1 : Fondations extensibles - Entrée en combat uniquement
+// server/src/battle/BattleEngine.ts
+// ÉTAPE 2.5 : Ajout du BattleEndManager
 
 import { TurnManager } from './modules/TurnManager';
 import { ActionProcessor } from './modules/ActionProcessor';
 import { AIPlayer } from './modules/AIPlayer';
+import { BattleEndManager } from './modules/BattleEndManager'; // ✅ NOUVEAU
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule } from './types/BattleTypes';
 
 /**
@@ -31,6 +30,7 @@ export class BattleEngine {
   private turnManager: TurnManager;
   private actionProcessor: ActionProcessor;
   private aiPlayer: AIPlayer;
+  private battleEndManager: BattleEndManager; // ✅ NOUVEAU
   
   // === MODULES OPTIONNELS (ajoutés par étapes) ===
   private modules: Map<string, BattleModule> = new Map();
@@ -43,11 +43,12 @@ export class BattleEngine {
     this.turnManager = new TurnManager();
     this.actionProcessor = new ActionProcessor();
     this.aiPlayer = new AIPlayer();
+    this.battleEndManager = new BattleEndManager(); // ✅ NOUVEAU
     
     // État initial vide
     this.gameState = this.createEmptyState();
     
-    console.log('✅ [BattleEngine] Prêt pour le combat');
+    console.log('✅ [BattleEngine] Prêt pour le combat avec BattleEndManager');
   }
   
   // === API PRINCIPALE (STABLE) ===
@@ -69,6 +70,7 @@ export class BattleEngine {
       this.turnManager.initialize(this.gameState);
       this.actionProcessor.initialize(this.gameState);
       this.aiPlayer.initialize(this.gameState);
+      this.battleEndManager.initialize(this.gameState); // ✅ NOUVEAU
       
       // 4. Déterminer qui commence
       const firstPlayer = this.turnManager.determineFirstPlayer(
@@ -137,7 +139,41 @@ export class BattleEngine {
       if (result.success) {
         console.log(`✅ [BattleEngine] Action traitée avec succès`);
         
-        // ✅ NOUVEAU: Changer de tour après une action réussie
+        // ✅ NOUVEAU: Vérifier fin de combat AVANT de changer de tour
+        const battleEndCheck = this.checkBattleEnd();
+        
+        if (battleEndCheck.isEnded) {
+          console.log(`🏁 [BattleEngine] Fin de combat détectée`);
+          
+          // Marquer le combat comme terminé
+          this.gameState.isEnded = true;
+          this.gameState.winner = battleEndCheck.winner;
+          this.gameState.phase = 'ended';
+          
+          // ✅ NOUVEAU: Sauvegarder les Pokémon via BattleEndManager
+          this.savePokemonAfterBattle(); // Asynchrone mais pas bloquant
+          
+          // Émettre événement de fin
+          this.emit('battleEnd', {
+            winner: battleEndCheck.winner,
+            reason: battleEndCheck.reason,
+            gameState: this.gameState
+          });
+          
+          // Retourner résultat avec fin de combat
+          return {
+            success: true,
+            gameState: this.gameState,
+            events: [...result.events, battleEndCheck.reason],
+            data: {
+              ...result.data,
+              battleEnded: true,
+              winner: battleEndCheck.winner
+            }
+          };
+        }
+        
+        // Changer de tour seulement si le combat continue
         const nextPlayer = this.turnManager.nextTurn();
         console.log(`🔄 [BattleEngine] Tour suivant: ${nextPlayer}`);
         
@@ -189,6 +225,12 @@ export class BattleEngine {
       return null;
     }
     
+    // Vérifier que le combat n'est pas terminé
+    if (this.gameState.isEnded) {
+      console.log('⏹️ [BattleEngine] Combat terminé, IA ne joue pas');
+      return null;
+    }
+    
     // Générer l'action via AIPlayer
     const aiAction = this.aiPlayer.generateAction();
     
@@ -201,12 +243,99 @@ export class BattleEngine {
     return aiAction;
   }
   
+  // === ✅ NOUVEAU: VÉRIFICATION FIN DE COMBAT ===
+  
+  /**
+   * Vérifie si le combat est terminé
+   */
+  private checkBattleEnd(): { isEnded: boolean; winner: 'player1' | 'player2' | null; reason: string } {
+    if (!this.gameState) {
+      return { isEnded: false, winner: null, reason: '' };
+    }
+    
+    const player1Pokemon = this.gameState.player1.pokemon;
+    const player2Pokemon = this.gameState.player2.pokemon;
+    
+    if (!player1Pokemon || !player2Pokemon) {
+      return { isEnded: false, winner: null, reason: '' };
+    }
+    
+    // Vérifier si un Pokémon est K.O.
+    const player1KO = player1Pokemon.currentHp <= 0;
+    const player2KO = player2Pokemon.currentHp <= 0;
+    
+    if (player1KO && player2KO) {
+      return {
+        isEnded: true,
+        winner: null,
+        reason: 'Match nul ! Les deux Pokémon sont K.O.'
+      };
+    }
+    
+    if (player1KO) {
+      return {
+        isEnded: true,
+        winner: 'player2',
+        reason: `${player1Pokemon.name} est K.O. ! ${this.gameState.player2.name} gagne !`
+      };
+    }
+    
+    if (player2KO) {
+      return {
+        isEnded: true,
+        winner: 'player1',
+        reason: `${player2Pokemon.name} est K.O. ! ${this.gameState.player1.name} gagne !`
+      };
+    }
+    
+    // TODO: Autres conditions de fin (fuite, capture, etc.)
+    
+    return { isEnded: false, winner: null, reason: '' };
+  }
+  
+  // === ✅ NOUVEAU: SAUVEGARDE POKÉMON ===
+  
+  /**
+   * Sauvegarde les Pokémon après combat (asynchrone)
+   */
+  private async savePokemonAfterBattle(): Promise<void> {
+    console.log('💾 [BattleEngine] Démarrage sauvegarde post-combat...');
+    
+    try {
+      const result = await this.battleEndManager.savePokemonAfterBattle();
+      
+      if (result.success) {
+        console.log('✅ [BattleEngine] Pokémon sauvegardés avec succès');
+        
+        // Émettre événement de sauvegarde
+        this.emit('pokemonSaved', {
+          events: result.events,
+          data: result.data
+        });
+      } else {
+        console.error(`❌ [BattleEngine] Erreur sauvegarde: ${result.error}`);
+        
+        // Émettre événement d'erreur
+        this.emit('saveError', {
+          error: result.error
+        });
+      }
+      
+    } catch (error) {
+      console.error(`❌ [BattleEngine] Erreur critique sauvegarde:`, error);
+    }
+  }
+  
   /**
    * Récupère le délai de réflexion de l'IA
    */
   getAIThinkingDelay(): number {
     return this.aiPlayer.getThinkingDelay();
   }
+  
+  /**
+   * Récupère l'état actuel du jeu
+   */
   getCurrentState(): BattleGameState {
     return { ...this.gameState }; // Copie pour éviter mutations
   }
@@ -297,8 +426,6 @@ export class BattleEngine {
       winner: null
     };
   }
-  
-
 }
 
 export default BattleEngine;
