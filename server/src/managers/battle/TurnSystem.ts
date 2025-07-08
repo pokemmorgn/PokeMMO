@@ -395,13 +395,22 @@ setOnTurnStartCallback(callback: () => void): void {
     // TODO: Exécution des actions via BattleIntegration
   }
   
-private endTurn(): void {
-  this.turnNumber++;
-  console.log(`🏁 [TurnSystem] Fin du tour ${this.turnNumber - 1}`);
+  private endTurn(): void {
+    console.log(`🏁 [TurnSystem] Fin du tour ${this.turnNumber}`);
+    
+    // ✅ NE PAS incrémenter ici - c'est BattleRoom qui gère
+    // this.turnNumber++; // SUPPRIMER cette ligne
+  }
+
+    // Ajouter une méthode pour obtenir le numéro de tour actuel
+  getCurrentTurnNumber(): number {
+    return this.turnNumber;
+  }
   
-  // ✅ NE PAS redémarrer automatiquement le tour
-  // C'est BattleRoom qui va appeler startTurn() à nouveau
-}
+  // Ajouter une méthode pour définir le numéro de tour
+  setTurnNumber(turn: number): void {
+    this.turnNumber = turn;
+  }
   
   // === API PUBLIQUE ===
   
