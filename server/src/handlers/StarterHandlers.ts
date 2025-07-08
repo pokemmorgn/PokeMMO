@@ -404,15 +404,68 @@ export class StarterHandlers {
       this.log(`🎁 Création starter ${data.pokemonId} pour ${player.name}`);
 
       try {
-        // Créer le starter avec le service existant
-        const starter = await giveStarterToPlayer(player.name, data.pokemonId as 1 | 4 | 7);
-        
-        this.log(`✅ Starter créé et ajouté à l'équipe de ${player.name}`, {
-          starterId: starter._id,
-          pokemonId: starter.pokemonId,
-          level: starter.level,
-          shiny: starter.shiny
-        });
+  // Créer le starter avec le service existant
+  const starter = await giveStarterToPlayer(player.name, data.pokemonId as 1 | 4 | 7);
+  
+  this.log(`✅ Starter créé et ajouté à l'équipe de ${player.name}`, {
+    starterId: starter._id,
+    pokemonId: starter.pokemonId,
+    level: starter.level,
+    shiny: starter.shiny
+  });
+  
+  // ✅ NOUVEAU: Envoyer automatiquement les données d'équipe mises à jour
+  await this.sendTeamDataToClient(client, player.name);
+  
+  // Envoyer la confirmation au client
+  client.send("starterReceived", {
+    success: true,
+    pokemon: {
+      id: starter._id,
+      pokemonId: starter.pokemonId,
+      name: starter.nickname || this.getPokemonName(starter.pokemonId),
+      level: starter.level,
+      shiny: starter.shiny,
+      nature: starter.nature
+    },
+    message: `${starter.nickname || this.getPokemonName(starter.pokemonId)} a été ajouté à votre équipe !`
+  });
+
+// ✅ NOUVELLE MÉTHODE: Envoyer les données d'équipe automatiquement
+private async sendTeamDataToClient(client: Client, playerName: string): Promise<void> {
+  try {
+    // Importer TeamManager (ajustez le chemin selon votre structure)
+    const { TeamManager } = await import('../managers/TeamManager');
+    
+    const teamManager = new TeamManager(playerName);
+    await teamManager.load();
+    
+    const team = await teamManager.getTeam();
+    const stats = await teamManager.getTeamStats();
+    
+    // Enrichir les données comme dans TeamHandlers
+    const enrichedTeam = team.map(pokemon => ({
+      ...pokemon.toObject(),
+      canBattle: pokemon.currentHp > 0,
+      hpPercentage: pokemon.maxHp > 0 ? (pokemon.currentHp / pokemon.maxHp) * 100 : 0,
+      isHealthy: pokemon.status === 'normal' && pokemon.currentHp > 0
+    }));
+    
+    // ✅ IMPORTANT: Envoyer directement teamData (comme le fait TeamHandlers)
+    client.send("teamData", {
+      success: true,
+      team: enrichedTeam,
+      stats: stats,
+      canBattle: stats.canBattle,
+      timestamp: Date.now()
+    });
+    
+    console.log(`✅ [StarterHandlers] TeamData envoyé automatiquement à ${playerName}`);
+    
+  } catch (error) {
+    console.error("❌ [StarterHandlers] Erreur envoi teamData:", error);
+  }
+}
         
         // Envoyer la confirmation au client
         client.send("starterReceived", {
