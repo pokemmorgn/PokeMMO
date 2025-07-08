@@ -247,18 +247,13 @@ private startTurnSystemBattle() {
   this.battleStartTime = new Date();
   this.initializeBattleContext();
   
-  // ✅ Configuration TurnSystem avec les vrais joueurs
+  // Configuration TurnSystem avec les vrais joueurs
   const playerData = [
     { id: this.state.player1Id, type: 'human' as PlayerType, name: this.state.player1Name },
     { id: 'ai', type: 'ai' as PlayerType, name: 'Pokémon Sauvage' }
   ];
   
   this.turnSystem.autoConfigurePlayers(playerData);
-  
-  // ✅ AJOUT: Configurer le callback pour notifier après chaque tour
-  this.turnSystem.setOnTurnStartCallback(() => {
-    this.notifyCurrentPlayer();
-  });
   
   this.state.phase = "battle";
   this.state.waitingForAction = true;
@@ -268,7 +263,6 @@ private startTurnSystemBattle() {
   const player1Speed = this.state.player1Pokemon?.speed || 0;
   const player2Speed = this.state.player2Pokemon?.speed || 0;
   
-  // ✅ IMPORTANT: Si l'IA joue en premier, mettre currentTurn à player2
   this.state.currentTurn = player1Speed >= player2Speed ? "player1" : "player2";
   
   console.log(`⚡ [TURNSYSTEM] Vitesses: P1=${player1Speed} vs P2=${player2Speed}`);
@@ -277,9 +271,13 @@ private startTurnSystemBattle() {
   this.broadcast("battleStart", this.getClientBattleState());
   this.updateBattleStatusIcons();
   
-  // ✅ Démarrer le premier tour
+  // Démarrer le premier tour
   this.turnSystem.startTurn();
+  
+  // Notifier manuellement pour le premier tour
+  this.notifyCurrentPlayer();
 }
+
 
 private notifyCurrentPlayer() {
   console.log(`📢 [TURNSYSTEM] Notification tour: ${this.state.currentTurn}`);
@@ -431,27 +429,32 @@ private async executeAITurnAction() {
 private proceedToNextTurn() {
   console.log(`🔄 [TURNSYSTEM] Passage au tour suivant`);
   
-  // ✅ IMPORTANT: Réinitialiser les actions AVANT de changer de tour
+  // Réinitialiser les actions
   this.turnSystem.resetPlayerActions();
   
-  // ✅ IMPORTANT: Redémarrer le tour dans TurnSystem
+  // Incrémenter le tour
+  this.state.turnNumber++;
+  this.battleContext.turnNumber = this.state.turnNumber;
+  
+  // Synchroniser avec TurnSystem
+  this.turnSystem.setTurnNumber(this.state.turnNumber);
+  
+  // Redémarrer le tour dans TurnSystem
   this.turnSystem.startTurn();
   
-  // Alterner les tours dans le state pour l'interface
+  // Alterner les tours
   if (this.state.currentTurn === "player1") {
     this.state.currentTurn = "player2";
   } else {
     this.state.currentTurn = "player1";
   }
   
-  this.state.turnNumber++;
-  this.battleContext.turnNumber = this.state.turnNumber;
-  
   console.log(`🔄 [TURNSYSTEM] Nouveau tour: ${this.state.currentTurn} (Tour ${this.state.turnNumber})`);
   
   this.broadcast("battleUpdate", this.getClientBattleState());
   
-  // ✅ Notifier le joueur actuel sera fait par TurnSystem
+  // Notifier le joueur actuel APRÈS avoir changé le tour
+  this.notifyCurrentPlayer();
 }
 
   // === CALLBACKS BATTLEINTEGRATION (SIMPLIFIÉS) ===
