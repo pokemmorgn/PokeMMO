@@ -1,4 +1,7 @@
 // server/src/rooms/BattleRoom.ts - VERSION TURNSYSTEM INTÉGRÉE
+import { v4 as uuidv4 } from 'uuid';
+
+
 import { Room, Client } from "@colyseus/core";
 import { BattleState, BattlePokemon, BattleAction } from "../schema/BattleState";
 import { BattleIntegration } from '../managers/battle/BattleIntegration';
@@ -616,6 +619,7 @@ private createParticipants(): any[] {
     if (!baseData) throw new Error(`Pokémon ${pokemonData.pokemonId} introuvable`);
 
     battlePokemon.pokemonId = pokemonData.pokemonId;
+    battlePokemon.combatId = uuidv4();
     battlePokemon.name = isWild ? baseData.name : (pokemonData.customName || baseData.name);
     battlePokemon.level = pokemonData.level;
     battlePokemon.isWild = isWild;
