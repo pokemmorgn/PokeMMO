@@ -1,13 +1,4 @@
-// Autres événements
-    this.battleNetworkHandler.on('battleJoined', (data) => {
-      console.log('⚔️ [BattleScene] Battle joined, rôle:', data.yourRole);
-      this.playerRole = data.yourRole;
-    });
-    
-    this.battleNetworkHandler.on('battleStart', (data) => {
-      console.log('🚀 [BattleScene] Battle start:', data);
-      this.handleNetworkBattleStart(data);
-    });// client/src/scenes/BattleScene.js - VERSION NETTOYÉE SANS DOUBLONS
+// client/src/scenes/BattleScene.js - VERSION NETTOYÉE SANS DOUBLONS
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
@@ -51,7 +42,14 @@ export class BattleScene extends Phaser.Scene {
       opponent: { x: 0.78, y: 0.35 },
       playerPlatform: { x: 0.25, y: 0.85 },
       opponentPlatform: { x: 0.75, y: 0.45 }
-    };
+      // Autres événements
+    this.battleNetworkHandler.on('battleJoined', (data) => {
+      this.playerRole = data.yourRole;
+    });
+    
+    this.battleNetworkHandler.on('battleStart', (data) => {
+      this.handleNetworkBattleStart(data);
+    });;
     
     // Interface state
     this.interfaceMode = 'hidden'; // 'hidden', 'message', 'buttons'
@@ -65,7 +63,7 @@ export class BattleScene extends Phaser.Scene {
       playerTurnPending: false
     };
     
-    console.log('⚔️ [BattleScene] Initialisé avec timing manager');
+    console.log('⚔️ [BattleScene] Initialisé proprement avec timing manager');
   }
 
   // === INITIALISATION ===
@@ -1038,10 +1036,8 @@ export class BattleScene extends Phaser.Scene {
   setupBattleNetworkEvents() {
     if (!this.battleNetworkHandler) return;
     
-    // Action result avec timing anti-chevauchement
+    // Action result avec timing amélioré
     this.battleNetworkHandler.on('actionResult', (data) => {
-      console.log('🎮 [BattleScene] actionResult reçu:', data);
-      
       if (data.success && data.gameState) {
         // Synchroniser HP
         if (data.gameState.player1?.pokemon && this.currentPlayerPokemon) {
@@ -1103,18 +1099,15 @@ export class BattleScene extends Phaser.Scene {
       this.showActionMessage(data.message || "L'adversaire réfléchit...");
     });
     
-    // Tour changé avec gestion anti-chevauchement
+    // Tour changé
     this.battleNetworkHandler.on('turnChanged', (data) => {
-      console.log('🔄 [BattleScene] turnChanged reçu:', data.currentTurn);
-      
       if (data.currentTurn === 'player1') {
-        console.log('👤 [BattleScene] Tour joueur détecté');
-        // ✅ NE PAS afficher immédiatement - attendre yourTurn
+        setTimeout(() => {
+          this.showActionButtons();
+        }, 1000);
       } else if (data.currentTurn === 'player2') {
-        console.log('🤖 [BattleScene] Tour IA');
         this.hideActionButtons();
       } else if (data.currentTurn === 'narrator') {
-        console.log('📖 [BattleScene] Mode narrateur');
         this.hideActionButtons();
       }
     });
@@ -1131,13 +1124,13 @@ export class BattleScene extends Phaser.Scene {
       }, 5000);
     });
     
-    // Tour du joueur avec anti-chevauchement
+    // Tour du joueur avec vérification anti-chevauchement
     this.battleNetworkHandler.on('yourTurn', (data) => {
       console.log('🎯 [BattleScene] yourTurn reçu - VÉRIFICATION TIMING:', data);
       
-      // ✅ VÉRIFIER si des événements sont en cours
+      // ✅ VÉRIFIER si des événements sont en cours d'affichage
       if (this.timingManager.isDisplayingEvents) {
-        console.log('⏳ [BattleScene] Événements en cours, tour joueur EN ATTENTE...');
+        console.log('⏳ [BattleScene] Événements en cours, tour joueur en ATTENTE...');
         
         // ✅ MARQUER le tour comme en attente
         this.timingManager.playerTurnPending = true;
@@ -1156,11 +1149,11 @@ export class BattleScene extends Phaser.Scene {
               this.timingManager.playerTurnPending = false;
               this.showActionButtons();
             }
-          }, remainingTime + 200); // +200ms de marge
+          }, remainingTime + 200); // +200ms de marge supplémentaire
         }
       } else {
-        // ✅ Aucun événement en cours, afficher immédiatement
-        console.log('🎯 [BattleScene] Aucun événement en cours, affichage IMMÉDIAT');
+        // ✅ PAS d'événements en cours, afficher immédiatement
+        console.log('🎯 [BattleScene] Aucun événement en cours, interface IMMÉDIATE');
         setTimeout(() => {
           this.showActionButtons();
         }, 500);
@@ -1168,7 +1161,7 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  // === TIMING ANTI-CHEVAUCHEMENT ===
+  // === TIMING DES MESSAGES ANTI-CHEVAUCHEMENT ===
 
   displayBattleEventsWithAntiOverlap(events) {
     console.log('📝 [BattleScene] Affichage événements ANTI-CHEVAUCHEMENT:', events);
@@ -1177,6 +1170,7 @@ export class BattleScene extends Phaser.Scene {
     this.timingManager.isDisplayingEvents = true;
     
     let currentDelay = 0;
+    let totalDuration = 0;
     
     events.forEach((event, index) => {
       const duration = this.getMessageDuration(event);
@@ -1207,9 +1201,30 @@ export class BattleScene extends Phaser.Scene {
       }, currentDelay);
       
       currentDelay += duration + 300; // +300ms entre messages
+      totalDuration = currentDelay;
     });
     
-    console.log(`⏱️ [BattleScene] Durée totale prévue: ${currentDelay}ms`);
+    console.log(`⏱️ [BattleScene] Durée totale prévue: ${totalDuration}ms`);
+  }
+
+  displayBattleEventsWithTiming(events) {
+    let currentDelay = 0;
+    
+    events.forEach((event, index) => {
+      setTimeout(() => {
+        const duration = this.getMessageDuration(event);
+        this.showActionMessage(event, duration);
+        
+        // Interface après dernier message
+        if (index === events.length - 1) {
+          setTimeout(() => {
+            this.showActionButtons();
+          }, duration + 500);
+        }
+      }, currentDelay);
+      
+      currentDelay += this.getMessageDuration(event) + 300;
+    });
   }
 
   getMessageDuration(message) {
@@ -1372,11 +1387,9 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === NETTOYAGE AMÉLIORÉ ===
+  // === AMÉLIORATION DU NETTOYAGE ===
 
   clearAllPokemonSprites() {
-    console.log('🧹 [BattleScene] Nettoyage sprites...');
-    
     // Supprimer sprites spécifiques
     if (this.playerPokemonSprite) {
       this.playerPokemonSprite.destroy();
@@ -1410,12 +1423,7 @@ export class BattleScene extends Phaser.Scene {
     this.currentPlayerPokemon = null;
     this.currentOpponentPokemon = null;
     
-    // ✅ NOUVEAU: Reset timing manager
-    this.timingManager.isDisplayingEvents = false;
-    this.timingManager.playerTurnPending = false;
-    this.timingManager.currentEventEndTime = 0;
-    
-    console.log(`[BattleScene] ${spritesRemoved} sprites supprimés, timing reset`);
+    console.log(`[BattleScene] ${spritesRemoved} sprites supprimés`);
   }
 
   hideBattle() {
@@ -1469,18 +1477,18 @@ export class BattleScene extends Phaser.Scene {
   }
 
   completeBattleCleanup(battleResult) {
-    console.log('🧹 [BattleScene] Nettoyage complet...');
-    
     // Déconnexion
     if (this.battleNetworkHandler) {
       this.battleNetworkHandler.disconnectFromBattleRoom();
     }
     
-    // ✅ NOUVEAU: Reset timing manager complet
-    this.timingManager.isDisplayingEvents = false;
-    this.timingManager.playerTurnPending = false;
-    this.timingManager.currentEventEndTime = 0;
-    this.timingManager.eventQueue = [];
+    // ✅ NOUVEAU: Reset timing manager
+    this.timingManager = {
+      isDisplayingEvents: false,
+      eventQueue: [],
+      currentEventEndTime: 0,
+      playerTurnPending: false
+    };
     
     // Reset système global
     if (window.battleSystem) {
@@ -1509,8 +1517,6 @@ export class BattleScene extends Phaser.Scene {
         console.warn('[BattleScene] ⚠️ Erreur reset UI:', error);
       }
     }
-    
-    console.log('✅ [BattleScene] Nettoyage complet terminé - Timing reset');
   }
 
   // === SIMULATION POUR TESTS ===
