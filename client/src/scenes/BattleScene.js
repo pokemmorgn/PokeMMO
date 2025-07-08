@@ -1,4 +1,4 @@
-// client/src/scenes/BattleScene.js - VERSION NETTOYÉE SANS DOUBLONS
+// client/src/scenes/BattleScene.js - VERSION SERVER-DRIVEN SANS TIMERS CLIENT
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
@@ -45,11 +45,11 @@ export class BattleScene extends Phaser.Scene {
       opponentPlatform: { x: 0.75, y: 0.45 }
     };
     
-    // Interface state
+    // Interface state (simplifié - plus de timers)
     this.interfaceMode = 'hidden'; // 'hidden', 'message', 'buttons'
-    this.messageTimer = null;
     this.battleTranslator = null; // Sera initialisé avec playerRole
-    console.log('⚔️ [BattleScene] Initialisé proprement');
+    
+    console.log('⚔️ [BattleScene] Initialisé - Server-Driven');
   }
 
   // === INITIALISATION ===
@@ -511,15 +511,15 @@ export class BattleScene extends Phaser.Scene {
         this.showAttackMenu();
         break;
       case 'bag':
-        this.showActionMessage('Ouverture du sac...', 2000);
-        setTimeout(() => this.showActionButtons(), 2000);
+        // ✅ SIMPLIFIÉ: Pas de timer côté client
+        this.showActionMessage('Ouverture du sac...');
         break;
       case 'pokemon':
-        this.showActionMessage('Changement de Pokémon indisponible.', 2000);
-        setTimeout(() => this.showActionButtons(), 2000);
+        // ✅ SIMPLIFIÉ: Pas de timer côté client
+        this.showActionMessage('Changement de Pokémon indisponible.');
         break;
       case 'run':
-        this.showActionMessage('Tentative de fuite...', 2000);
+        this.showActionMessage('Tentative de fuite...');
         if (this.battleNetworkHandler) {
           this.battleNetworkHandler.attemptRun();
         }
@@ -528,9 +528,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showAttackMenu() {
-    this.showActionMessage('Sélectionnez une attaque...', 2000);
+    // ✅ SIMPLIFIÉ: Pas de timer côté client
+    this.showActionMessage('Sélectionnez une attaque...');
     
-    // Utiliser première attaque par défaut
+    // Utiliser première attaque par défaut (garde un délai pour l'UX)
     setTimeout(() => {
       this.executePlayerAction({
         type: 'move',
@@ -545,6 +546,7 @@ export class BattleScene extends Phaser.Scene {
       this.hideActionButtons();
       this.showActionMessage(`${this.currentPlayerPokemon?.name} utilise ${actionData.moveName}!`);
       
+      // Délai minimal pour l'UX, puis envoi au serveur
       setTimeout(() => {
         if (this.battleNetworkHandler) {
           this.battleNetworkHandler.useMove(actionData.moveId);
@@ -752,7 +754,8 @@ export class BattleScene extends Phaser.Scene {
     this.battleDialog.setVisible(false);
   }
 
-  showBattleMessage(message, duration = 3000) {
+  // ✅ SIMPLIFIÉ: showBattleMessage sans timer par défaut
+  showBattleMessage(message, duration = 0) {
     if (!this.battleDialog || !this.dialogText) return;
     
     this.dialogText.setText(message);
@@ -766,6 +769,7 @@ export class BattleScene extends Phaser.Scene {
       ease: 'Power2.easeOut'
     });
     
+    // ✅ SEULEMENT si une durée est explicitement demandée
     if (duration > 0) {
       setTimeout(() => {
         this.hideBattleMessage();
@@ -787,16 +791,11 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  // === INTERFACE STATE MANAGEMENT ===
+  // === INTERFACE STATE MANAGEMENT (SIMPLIFIÉ) ===
 
-  showActionMessage(message, duration = 0) {
+  // ✅ SIMPLIFIÉ: showActionMessage sans timer par défaut
+  showActionMessage(message) {
     if (!this.actionInterface || !this.actionMessageText) return;
-    
-    // Annuler timer précédent
-    if (this.messageTimer) {
-      clearTimeout(this.messageTimer);
-      this.messageTimer = null;
-    }
     
     this.hideActionButtons();
     this.actionMessageText.setText(message);
@@ -814,12 +813,6 @@ export class BattleScene extends Phaser.Scene {
     }
     
     this.interfaceMode = 'message';
-    
-    if (duration > 0) {
-      this.messageTimer = setTimeout(() => {
-        this.hideActionMessage();
-      }, duration);
-    }
   }
 
   hideActionMessage() {
@@ -1022,10 +1015,10 @@ export class BattleScene extends Phaser.Scene {
   setupBattleNetworkEvents() {
     if (!this.battleNetworkHandler) return;
     
-    // Action result avec timing amélioré
+    // ✅ SIMPLIFIÉ: Action result sans gestion de timing compliquée
     this.battleNetworkHandler.on('actionResult', (data) => {
       if (data.success && data.gameState) {
-        // Synchroniser HP
+        // Synchroniser HP (garde les setTimeout pour les animations)
         if (data.gameState.player1?.pokemon && this.currentPlayerPokemon) {
           this.currentPlayerPokemon.currentHp = data.gameState.player1.pokemon.currentHp;
           this.currentPlayerPokemon.maxHp = data.gameState.player1.pokemon.maxHp;
@@ -1042,43 +1035,43 @@ export class BattleScene extends Phaser.Scene {
           }, 500);
         }
         
-        // ✅ NOUVEAU: Traiter les événements typés
+        // ✅ NOUVEAU: Événements typés du serveur (si disponibles)
         if (data.battleEvents && data.battleEvents.length > 0) {
-          this.processBattleEvents(data.battleEvents);
+          this.processBattleEventsServerDriven(data.battleEvents);
         } else if (data.events && data.events.length > 0) {
-          // ✅ Fallback vers ancien système pour compatibilité
-          this.displayBattleEventsWithTiming(data.events);
+          // ✅ Fallback: traiter les anciens événements SANS timer
+          this.processLegacyEventsServerDriven(data.events);
         }
       }
       
       if (!data.success) {
-        this.showActionMessage(`Erreur: ${data.error}`, 2000);
+        this.showActionMessage(`Erreur: ${data.error}`);
       }
     });
     
     // Début narratif
-  this.battleNetworkHandler.on('narrativeStart', (data) => {
-    if (this.scene.isSleeping()) {
-      this.scene.wake();
-    }
-    this.scene.setVisible(true);
-    this.scene.bringToTop();
-    
-    if (data.playerPokemon) {
-      this.displayPlayerPokemon(data.playerPokemon);
-    }
-    
-    if (data.opponentPokemon) {
-      this.displayOpponentPokemon(data.opponentPokemon);
-      // ✅ NOUVEAU: Utiliser traduction pour Pokémon sauvage
-      this.handleBattleEvent('wildPokemonAppears', { 
-        pokemonName: data.opponentPokemon.name 
-      });
-    }
-    
-    this.activateBattleUI();
-    this.isVisible = true;
-  });
+    this.battleNetworkHandler.on('narrativeStart', (data) => {
+      if (this.scene.isSleeping()) {
+        this.scene.wake();
+      }
+      this.scene.setVisible(true);
+      this.scene.bringToTop();
+      
+      if (data.playerPokemon) {
+        this.displayPlayerPokemon(data.playerPokemon);
+      }
+      
+      if (data.opponentPokemon) {
+        this.displayOpponentPokemon(data.opponentPokemon);
+        // ✅ Utiliser traduction
+        this.handleBattleEvent('wildPokemonAppears', { 
+          pokemonName: data.opponentPokemon.name 
+        });
+      }
+      
+      this.activateBattleUI();
+      this.isVisible = true;
+    });
     
     // Fin narratif
     this.battleNetworkHandler.on('narrativeEnd', (data) => {
@@ -1087,15 +1080,13 @@ export class BattleScene extends Phaser.Scene {
     
     // IA réfléchit
     this.battleNetworkHandler.on('aiThinking', (data) => {
-      this.handleBattleEvent('opponentTurn', data);  // ← opponentTurn existe !
+      this.handleBattleEvent('opponentTurn', data);
     });
     
-    // Tour changé
+    // ✅ SIMPLIFIÉ: Tour changé sans timer
     this.battleNetworkHandler.on('turnChanged', (data) => {
       if (data.currentTurn === 'player1') {
-        setTimeout(() => {
-          this.showActionButtons();
-        }, 1000);
+        // ✅ Le serveur enverra yourTurn quand il voudra
       } else if (data.currentTurn === 'player2') {
         this.hideActionButtons();
       } else if (data.currentTurn === 'narrator') {
@@ -1103,20 +1094,16 @@ export class BattleScene extends Phaser.Scene {
       }
     });
     
-    // Fin de combat
+    // ✅ SIMPLIFIÉ: Fin de combat sans timer côté client
     this.battleNetworkHandler.on('battleEnd', (data) => {
       this.hideActionButtons();
       this.handleBattleEvent('battleEnd', { winnerId: data.winner });
-      setTimeout(() => {
-        this.endBattle(data);
-      }, 5000);
+      // ✅ Le serveur gérera le timing de endBattle()
     });
     
     // Autres événements
     this.battleNetworkHandler.on('battleJoined', (data) => {
       this.playerRole = data.yourRole;
-      
-      // ✅ NOUVEAU: Initialiser traducteur avec playerRole
       this.battleTranslator = new BattleTranslator(this.playerRole);
       console.log('🌍 [BattleScene] Traducteur initialisé pour:', this.playerRole);
     });
@@ -1125,120 +1112,68 @@ export class BattleScene extends Phaser.Scene {
       this.handleNetworkBattleStart(data);
     });
     
-  this.battleNetworkHandler.on('yourTurn', (data) => {
-    setTimeout(() => {
+    // ✅ SIMPLIFIÉ: yourTurn sans timer
+    this.battleNetworkHandler.on('yourTurn', (data) => {
       this.handleBattleEvent('yourTurn', data);
-    }, 500);
-  });
-  }
-
-  // === SYSTÈME DE TRADUCTION D'ÉVÉNEMENTS ===
-// === SYSTÈME DE TRADUCTION D'ÉVÉNEMENTS ===
-handleBattleEvent(eventType, data = {}) {
-  console.log(`🌍 [BattleScene] Événement: ${eventType}`, data);
-  
-  // ✅ 1. Actions d'interface AVANT traduction
-  if (eventType === 'yourTurn') {
-    this.showActionButtons();
-    return; // Pas de message pour yourTurn
-  }
-  
-  if (eventType === 'opponentTurn') {
-    this.hideActionButtons();
-  }
-  
-  if (eventType === 'battleEnd') {
-    this.hideActionButtons();
-  }
-  
-  // ✅ 2. Traduction du message
-  if (this.battleTranslator) {
-    const message = this.battleTranslator.translate(eventType, data);
-    if (message) {
-      // ✅ Durée spéciale pour battleEnd
-      const duration = eventType === 'battleEnd' ? 5000 : 0;
-      this.showActionMessage(message, duration);
-      console.log(`💬 Message traduit (${this.battleTranslator.language}): "${message}"`);
-    }
-  } else {
-    console.warn('[BattleScene] ⚠️ Traducteur non initialisé pour:', eventType);
-  }
-}
-
-  // === TRAITEMENT DES ÉVÉNEMENTS DE COMBAT ===
-processBattleEvents(battleEvents) {
-  console.log('⚔️ [BattleScene] Traitement événements de combat:', battleEvents);
-  
-  let currentDelay = 0;
-  
-  battleEvents.forEach((event, index) => {
-    setTimeout(() => {
-      this.handleBattleEvent(event.type, event.data);
-      
-      // ✅ Interface après dernier événement
-      if (index === battleEvents.length - 1) {
-        setTimeout(() => {
-          if (!event.type.includes('End')) { // Pas d'interface si combat fini
-            this.showActionButtons();
-          }
-        }, 2000);
-      }
-    }, currentDelay);
-    
-    // ✅ Délai entre événements selon le type
-    currentDelay += this.getEventDelay(event.type);
-  });
-}
-
-getEventDelay(eventType) {
-  const delays = {
-    'moveUsed': 2000,
-    'damageDealt': 2500,
-    'criticalHit': 1800,
-    'superEffective': 2200,
-    'pokemonFainted': 3000,
-    'battleEnd': 5000
-  };
-  
-  return delays[eventType] || 2000;
-}
-  // === TIMING DES MESSAGES ===
-
-  displayBattleEventsWithTiming(events) {
-    let currentDelay = 0;
-    
-    events.forEach((event, index) => {
-      setTimeout(() => {
-        const duration = this.getMessageDuration(event);
-        this.showActionMessage(event, duration);
-        
-        // Interface après dernier message
-        if (index === events.length - 1) {
-          setTimeout(() => {
-            this.showActionButtons();
-          }, duration + 500);
-        }
-      }, currentDelay);
-      
-      currentDelay += this.getMessageDuration(event) + 300;
     });
   }
 
-  getMessageDuration(message) {
-    const text = message.toLowerCase();
+  // === SYSTÈME DE TRADUCTION D'ÉVÉNEMENTS (INCHANGÉ) ===
+
+  handleBattleEvent(eventType, data = {}) {
+    console.log(`🌍 [BattleScene] Événement: ${eventType}`, data);
     
-    if (text.includes('utilise') || text.includes('attaque')) return 2000;
-    if (text.includes('perd') && text.includes('hp')) return 2500;
-    if (text.includes('k.o') || text.includes('est mis')) return 3000;
-    if (text.includes('efficace')) return 2200;
-    if (text.includes('critique')) return 1800;
-    if (text.includes('rate') || text.includes('échoue')) return 2000;
+    // Actions d'interface
+    if (eventType === 'yourTurn') {
+      this.showActionButtons();
+      return; // ✅ Pas de message pour yourTurn
+    }
     
-    const baseTime = Math.max(1500, message.length * 80);
-    return Math.min(baseTime, 4000);
+    if (eventType === 'opponentTurn') {
+      this.hideActionButtons();
+    }
+    
+    if (eventType === 'battleEnd') {
+      this.hideActionButtons();
+    }
+    
+    // Traduction du message
+    if (this.battleTranslator) {
+      const message = this.battleTranslator.translate(eventType, data);
+      if (message) {
+        // ✅ Messages restent affichés jusqu'au prochain événement
+        this.showActionMessage(message);
+        console.log(`💬 Message traduit (${this.battleTranslator.language}): "${message}"`);
+      }
+    } else {
+      console.warn('[BattleScene] ⚠️ Traducteur non initialisé pour:', eventType);
+    }
   }
 
-  // === HANDLERS RÉSEAU ===
+  // === TRAITEMENT DES ÉVÉNEMENTS SERVER-DRIVEN ===
+
+  processBattleEventsServerDriven(battleEvents) {
+    console.log('⚔️ [BattleScene] Traitement événements server-driven:', battleEvents);
+    
+    // ✅ NOUVEAU: Traiter les événements IMMÉDIATEMENT
+    // Le serveur a déjà géré le timing !
+    battleEvents.forEach((event, index) => {
+      this.handleBattleEvent(event.type, event.data);
+    });
+  }
+
+  processLegacyEventsServerDriven(events) {
+    console.log('📜 [BattleScene] Traitement événements legacy server-driven:', events);
+    
+    // ✅ SIMPLIFIÉ: Afficher le dernier événement seulement
+    // Le serveur enverra les nouveaux quand il voudra
+    if (events.length > 0) {
+      const lastEvent = events[events.length - 1];
+      this.showActionMessage(lastEvent);
+    }
+  }
+
+  // === HANDLERS RÉSEAU (SIMPLIFIÉS) ===
 
   handleNetworkBattleStart(data) {
     // Vérifier mode narratif
@@ -1262,20 +1197,19 @@ getEventDelay(eventType) {
     this.startBattleIntroSequence(opponentPokemon);
   }
 
-startBattleIntroSequence(opponentPokemon) {
-  setTimeout(() => {
-    this.handleBattleEvent('wildPokemonAppears', { 
-      pokemonName: opponentPokemon?.name || 'Pokémon' 
-    });
-  }, 2000);
-  
-  setTimeout(() => {
-    this.hideActionMessage();
-    this.showActionButtons();
-  }, 5000);
-}
+  // ✅ SIMPLIFIÉ: Introduction sans timer compliqué
+  startBattleIntroSequence(opponentPokemon) {
+    // Délai minimal pour l'entrée des Pokémon
+    setTimeout(() => {
+      this.handleBattleEvent('wildPokemonAppears', { 
+        pokemonName: opponentPokemon?.name || 'Pokémon' 
+      });
+    }, 2000);
+    
+    // ✅ Le serveur enverra yourTurn quand il voudra !
+  }
 
-  // === UI MANAGEMENT ===
+  // === UI MANAGEMENT (INCHANGÉ) ===
 
   activateBattleUI() {
     if (window.pokemonUISystem?.setGameState) {
@@ -1467,7 +1401,7 @@ startBattleIntroSequence(opponentPokemon) {
       console.error('[BattleScene] ❌ Erreur envoi battleFinished:', error);
     }
     
-    // Nettoyage après délai
+    // ✅ SIMPLIFIÉ: Nettoyage immédiat ou léger délai
     setTimeout(() => {
       this.completeBattleCleanup(battleResult);
     }, 500);
@@ -1564,8 +1498,8 @@ startBattleIntroSequence(opponentPokemon) {
     
     setTimeout(() => this.displayPlayerPokemon(testPlayerPokemon), 500);
     setTimeout(() => this.displayOpponentPokemon(testOpponentPokemon), 1200);
-    setTimeout(() => this.showBattleMessage('Un Pikachu chromatique apparaît !', 2000), 2000);
-    setTimeout(() => this.showActionButtons(), 4500);
+    setTimeout(() => this.showBattleMessage('Un Pikachu chromatique apparaît !'), 2000);
+    // ✅ SIMPLIFIÉ: Pas de timer pour l'interface
   }
 
   // === DESTRUCTION ===
@@ -1573,12 +1507,6 @@ startBattleIntroSequence(opponentPokemon) {
   destroy() {
     this.deactivateBattleUI();
     this.clearAllPokemonSprites();
-    
-    // Nettoyer timers
-    if (this.messageTimer) {
-      clearTimeout(this.messageTimer);
-      this.messageTimer = null;
-    }
     
     // Nettoyer conteneurs
     if (this.actionInterface) {
@@ -1640,5 +1568,6 @@ window.modernDamageOpponent = function(damage = 5) {
   }
 };
 
-console.log('✅ [BattleScene] VERSION NETTOYÉE CHARGÉE - Sans doublons !');
+console.log('✅ [BattleScene] VERSION SERVER-DRIVEN CHARGÉE !');
+console.log('🎯 Système: Messages persistent jusqu\'au prochain événement');
 console.log('🧪 Test: window.testModernBattle()');
