@@ -1563,6 +1563,16 @@ setupBattleNetworkEvents() {
 // ✅ NOUVEAU: Handler pour afficher les messages de combat dans l'interface
 handleNetworkBattleMessage(data) {
   console.log('💬 [BattleScene] Message de combat reçu:', data.message, 'timing:', data.timing);
+
+    // ✅ FILTRER: Ignorer les messages de debug
+  if (data.message && (
+    data.message.includes('[DAMAGE]') || 
+    data.message.includes('[MESSAGE]') ||
+    data.message === 'damageAnimation'
+  )) {
+    console.log('🚫 [BattleScene] Message debug ignoré:', data.message);
+    return;
+  }
   
   // ✅ Utiliser le timing du serveur (ou 2000ms par défaut)
   const displayDuration = data.timing || 2000;
