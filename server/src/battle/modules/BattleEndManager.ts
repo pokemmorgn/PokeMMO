@@ -110,7 +110,17 @@ export class BattleEndManager {
       // Mettre à jour les données de combat
       ownedPokemon.currentHp = pokemon.currentHp;
       ownedPokemon.status = pokemon.status as any;
-      ownedPokemon.statusTurns = pokemon.statusTurns;
+      
+      // Mettre à jour statusTurns seulement si défini
+      if (pokemon.status && pokemon.status !== 'normal') {
+        // statusTurns peut ne pas être défini dans l'interface Pokemon
+        const statusTurns = (pokemon as any).statusTurns;
+        if (statusTurns !== undefined) {
+          ownedPokemon.statusTurns = statusTurns;
+        }
+      } else {
+        ownedPokemon.statusTurns = undefined;
+      }
       
       // Mettre à jour les PP des attaques (pour plus tard)
       // TODO: Synchroniser les PP des moves
