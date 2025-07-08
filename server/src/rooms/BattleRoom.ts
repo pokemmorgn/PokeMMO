@@ -293,6 +293,34 @@ export class BattleRoom extends Room<BattleState> {
       }
     });
     
+    // ✅ NOUVEAU: Écouter les changements de tour
+    this.battleEngine.on('turnChanged', (data: any) => {
+      console.log(`🔄 [BattleRoom] Changement de tour: ${data.newPlayer}`);
+      
+      // Synchroniser le state
+      this.syncStateFromGameState();
+      
+      // Notifier les clients
+      this.broadcast('turnChanged', {
+        currentTurn: data.newPlayer,
+        turnNumber: data.turnNumber,
+        gameState: this.getClientBattleState()
+      });
+      
+      // Notifier spécifiquement le joueur actuel
+      if (data.newPlayer === 'player1') {
+        const client = this.clients.find(c => c.sessionId === this.state.player1Id);
+        if (client) {
+          client.send('yourTurn', { 
+            turnNumber: data.turnNumber 
+          });
+        }
+      } else if (data.newPlayer === 'player2') {
+        // TODO: Déclencher l'IA dans la prochaine étape
+        console.log(`🤖 [BattleRoom] Tour de l'IA (pas encore implémenté)`);
+      }
+    });
+    
     // TODO: Ajouter d'autres événements dans les prochaines étapes
   }
   
