@@ -1,5 +1,6 @@
 // server/src/schema/PokeWorldState.ts
 import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
+import { PokemonFollower } from "./PokemonFollowerSchema";
 
 export class TeamPokemon extends Schema {
   @type("string") id: string;
@@ -21,6 +22,8 @@ export class Player extends Schema {
     @type("string") characterId: string = "brendan"; // ID du personnage choisi
   @type("string") currentZone: string = ""; // Zone courante du joueur
   @type([ TeamPokemon ]) team: ArraySchema<TeamPokemon> = new ArraySchema<TeamPokemon>();
+  @type(PokemonFollower) follower?: PokemonFollower;
+
   
   // ✅ NOUVELLES PROPRIÉTÉS POUR LE SYSTÈME SHOP
   @type("number") level: number = 1;      // Niveau du joueur
