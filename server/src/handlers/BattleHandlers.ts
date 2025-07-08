@@ -74,6 +74,7 @@ export class BattleHandlers {
       await this.handleClaimRewards(client, data);
     });
 
+    
     // === HANDLERS PVP (POUR PLUS TARD) ===
     
     // Défier un autre joueur
@@ -682,6 +683,11 @@ private async getPlayerBattlePokemon(playerName: string): Promise<any | null> {
     }
   }
 
+  public onBattleFinished(playerId: string, battleResult: string): void {
+  // CRITIQUE: Nettoyer l'état "en combat"
+  this.playerBattleStates.delete(playerId);
+  this.battleRoomReferences.delete(playerId);
+}
   /**
    * Obtenir les statistiques des combats
    */
