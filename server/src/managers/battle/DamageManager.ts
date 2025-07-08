@@ -59,31 +59,31 @@ export class DamageManager {
   /**
    * ✅ MÉTHODE PRINCIPALE: Met à jour les HP d'un Pokémon de façon synchronisée
    */
-  static updatePokemonHP(
-    combatId: string,
-    newHp: number,
-    battleState: any,
-    battleContext: BattleContext,
-    source: DamageEvent['source'] = 'attack',
-    attackerId?: string
-  ): DamageResult | null {
-    console.log(`🩹 [DamageManager] === MISE À JOUR HP SYNCHRONISÉE ===`);
-    console.log(`🩹 [DamageManager] Pokémon: ${pokemonId}, newHp: ${newHp}`);
-    
-    try {
-      // 1. Trouver le Pokémon dans le state
-      const stateResult = this.findAndUpdateInState(pokemonId, newHp, battleState);
-      if (!stateResult) {
-        console.error(`❌ [DamageManager] Pokémon ${pokemonId} non trouvé dans le state`);
-        return null;
-      }
+static updatePokemonHP(
+  combatId: string, // ✅ Paramètre combatId
+  newHp: number,
+  battleState: any,
+  battleContext: BattleContext,
+  source: DamageEvent['source'] = 'attack',
+  attackerId?: string
+): DamageResult | null {
+  console.log(`🩹 [DamageManager] === MISE À JOUR HP SYNCHRONISÉE ===`);
+  console.log(`🩹 [DamageManager] CombatId: ${combatId}, newHp: ${newHp}`); // ✅ Utilise combatId
+  
+  try {
+    // 1. Trouver le Pokémon dans le state
+    const stateResult = this.findAndUpdateInState(combatId, newHp, battleState); // ✅ Utilise combatId
+    if (!stateResult) {
+      console.error(`❌ [DamageManager] Pokémon ${combatId} non trouvé dans le state`); // ✅ Utilise combatId
+      return null;
+    }
 
-      // 2. Trouver et mettre à jour dans le contexte
-      const contextResult = this.findAndUpdateInContext(pokemonId, newHp, battleContext);
-      if (!contextResult) {
-        console.error(`❌ [DamageManager] Pokémon ${pokemonId} non trouvé dans le contexte`);
-        return null;
-      }
+    // 2. Trouver et mettre à jour dans le contexte
+    const contextResult = this.findAndUpdateInContext(combatId, newHp, battleContext); // ✅ Utilise combatId
+    if (!contextResult) {
+      console.error(`❌ [DamageManager] Pokémon ${combatId} non trouvé dans le contexte`); // ✅ Utilise combatId
+      return null;
+    }
 
       // 3. Calculer les informations de dégâts
       const damageInfo = this.calculateDamageInfo(
