@@ -1,4 +1,4 @@
-// client/src/network/BattleNetworkHandler.js - VERSION MINIMALE MODERNE
+// client/src/network/BattleNetworkHandler.js - VERSION CORRIGÉE COMPLÈTE
 // 🔄 COMPLÈTEMENT RECRÉE pour correspondre au serveur modernisé
 
 /**
@@ -230,59 +230,66 @@ export class BattleNetworkHandler {
     console.log('⚔️ Configuration événements BattleRoom modernes...');
 
     try {
-      // ✅ ÉVÉNEMENTS COMBAT - correspondent aux callbacks BattleRoom.ts
+      // ✅ ÉVÉNEMENTS COMBAT ESSENTIELS - correspondent aux callbacks BattleRoom.ts
 
-              // ✅ NOUVEAUX MESSAGES V2
-        this.battleRoom.onMessage('actionResult', (data) => {
-          console.log('🎮 actionResult:', data);
-          this.triggerEvent('actionResult', data);
-        });
+      // ✅ CRITICAL: ActionResult - pour synchronisation HP
+      this.battleRoom.onMessage('actionResult', (data) => {
+        console.log('🎮 [NETWORK] actionResult reçu:', data);
+        this.triggerEvent('actionResult', data);
+      });
+      
+      // ✅ CRITICAL: TurnChanged - pour gestion des tours
+      this.battleRoom.onMessage('turnChanged', (data) => {
+        console.log('🔄 [NETWORK] turnChanged reçu:', data.currentTurn);
+        this.triggerEvent('turnChanged', data);
+      });
+      
+      // ✅ CRITICAL: YourTurn - UN SEUL handler
+      this.battleRoom.onMessage('yourTurn', (data) => {
+        console.log('🎯 [NETWORK] yourTurn reçu:', data);
+        console.log('🎯 Déclenchement événement yourTurn...');
+        this.triggerEvent('yourTurn', data);
         
-        this.battleRoom.onMessage('turnChanged', (data) => {
-          console.log('🔄 turnChanged:', data.currentTurn);
-          this.triggerEvent('turnChanged', data);
-        });
-        
-        this.battleRoom.onMessage('yourTurn', (data) => {
-          console.log('🎯 yourTurn:', data);
-          this.triggerEvent('yourTurn', data);
-        });
-          // ✅ NOUVEAUX MESSAGES V2
+        // Debug supplémentaire
+        console.log('🎯 yourTurn événement déclenché, callbacks:', this.eventCallbacks.get('yourTurn')?.length || 0);
+      });
+
+      // ✅ EVENTS DE BATAILLE
       this.battleRoom.onMessage('battleJoined', (data) => {
-        console.log('⚔️ battleJoined:', data);
+        console.log('⚔️ [NETWORK] battleJoined:', data);
         this.triggerEvent('battleJoined', data);
       });
 
-      this.battleRoom.onMessage('phaseChange', (data) => {
-        console.log('🔄 phaseChange:', data.phase);
-        this.triggerEvent('phaseChange', data);
-      });
-
       this.battleRoom.onMessage('battleStart', (data) => {
-        console.log('⚔️ battleStart:', data);
+        console.log('⚔️ [NETWORK] battleStart:', data);
         this.triggerEvent('battleStart', data);
       });
 
-      this.battleRoom.onMessage('yourTurn', (data) => {
-        console.log('🎯 yourTurn:', data);
-        this.triggerEvent('yourTurn', data);
+      this.battleRoom.onMessage('phaseChange', (data) => {
+        console.log('🔄 [NETWORK] phaseChange:', data.phase);
+        this.triggerEvent('phaseChange', data);
       });
 
       // ✅ MESSAGES DE COMBAT - correspond aux broadcastMessage
       this.battleRoom.onMessage('battleMessage', (data) => {
-        console.log('💬 battleMessage:', data.message);
+        console.log('💬 [NETWORK] battleMessage:', data.message);
         this.triggerEvent('battleMessage', data);
       });
 
       // ✅ MISES À JOUR HP - correspond aux callbacks updatePokemonHP
       this.battleRoom.onMessage('pokemonHPUpdate', (data) => {
-        console.log('💖 pokemonHPUpdate:', data);
+        console.log('💖 [NETWORK] pokemonHPUpdate:', data);
         this.triggerEvent('pokemonHPUpdate', data);
       });
 
       // ✅ FIN DE COMBAT - correspond aux BattleEndManager
+      this.battleRoom.onMessage('battleEnd', (data) => {
+        console.log('🏁 [NETWORK] battleEnd:', data);
+        this.triggerEvent('battleEnd', data);
+      });
+
       this.battleRoom.onMessage('battleEndWithRewards', (data) => {
-        console.log('🏁 battleEndWithRewards:', data);
+        console.log('🏁 [NETWORK] battleEndWithRewards:', data);
         this.triggerEvent('battleEndWithRewards', data);
 
         // Programmer déconnexion
@@ -291,29 +298,69 @@ export class BattleNetworkHandler {
         }, 3000);
       });
 
+      // ✅ GESTION D'ERREURS
+      this.battleRoom.onMessage('battleError', (data) => {
+        console.error('❌ [NETWORK] battleError:', data);
+        this.triggerEvent('battleError', data);
+      });
+
       // ✅ INTERRUPTIONS
       this.battleRoom.onMessage('battleInterrupted', (data) => {
-        console.log('⚠️ battleInterrupted:', data);
+        console.log('⚠️ [NETWORK] battleInterrupted:', data);
         this.triggerEvent('battleInterrupted', data);
         this.disconnectFromBattleRoom();
       });
 
+      // ✅ NOUVEAUX HANDLERS POUR SYNCHRONISATION COMPLÈTE
+      this.battleRoom.onMessage('battleStateUpdate', (data) => {
+        console.log('📊 [NETWORK] battleStateUpdate:', data);
+        this.triggerEvent('battleStateUpdate', data);
+      });
+
+      this.battleRoom.onMessage('attackAnimation', (data) => {
+        console.log('⚔️ [NETWORK] attackAnimation:', data);
+        this.triggerEvent('attackAnimation', data);
+      });
+
+      this.battleRoom.onMessage('damageDealt', (data) => {
+        console.log('💥 [NETWORK] damageDealt:', data);
+        this.triggerEvent('damageDealt', data);
+      });
+
+      // ✅ HANDLER GÉNÉRIQUE pour messages non capturés
+      this.battleRoom.onMessage('message', (data) => {
+        console.log('💬 [NETWORK] message générique:', data);
+        this.triggerEvent('message', data);
+      });
+
       // ✅ ÉVÉNEMENTS DE CONNEXION
       this.battleRoom.onStateChange((state) => {
+        // Ne pas loguer le state complet pour éviter le spam
         this.triggerEvent('battleStateChange', { state });
       });
 
       this.battleRoom.onLeave((code) => {
-        console.log(`👋 BattleRoom quittée (${code})`);
+        console.log(`👋 [NETWORK] BattleRoom quittée (${code})`);
         this.handleBattleRoomDisconnect(code);
       });
 
       this.battleRoom.onError((code, message) => {
-        console.error(`❌ Erreur BattleRoom: ${code} - ${message}`);
+        console.error(`❌ [NETWORK] Erreur BattleRoom: ${code} - ${message}`);
         this.triggerEvent('battleRoomError', { code, message });
       });
 
-      console.log('✅ Événements BattleRoom configurés');
+      // ✅ CATCH-ALL pour debug (si supporté par Colyseus)
+      try {
+        this.battleRoom.onMessage('*', (type, data) => {
+          console.log(`🌟 [NETWORK] [CATCH-ALL] ${type}:`, data);
+          // Retransmettre tous les événements non capturés
+          this.triggerEvent(type, data);
+        });
+      } catch (error) {
+        console.log('ℹ️ [NETWORK] Catch-all non supporté par cette version de Colyseus');
+      }
+
+      console.log('✅ Événements BattleRoom configurés avec handlers étendus');
 
     } catch (error) {
       console.error('❌ Erreur configuration événements BattleRoom:', error);
@@ -321,7 +368,7 @@ export class BattleNetworkHandler {
   }
 
   handleBattleRoomDisconnect(code) {
-    console.log(`👋 Déconnexion BattleRoom: ${code}`);
+    console.log(`👋 [NETWORK] Déconnexion BattleRoom: ${code}`);
 
     this.isConnectedToBattle = false;
     this.battleRoom = null;
@@ -506,6 +553,7 @@ export class BattleNetworkHandler {
       this.eventCallbacks.set(eventName, []);
     }
     this.eventCallbacks.get(eventName).push(callback);
+    console.log(`📝 [EVENTS] Handler ajouté pour '${eventName}' (total: ${this.eventCallbacks.get(eventName).length})`);
   }
 
   off(eventName, callback) {
@@ -514,20 +562,27 @@ export class BattleNetworkHandler {
       const index = callbacks.indexOf(callback);
       if (index > -1) {
         callbacks.splice(index, 1);
+        console.log(`📝 [EVENTS] Handler retiré pour '${eventName}' (restants: ${callbacks.length})`);
       }
     }
   }
 
   triggerEvent(eventName, data = {}) {
-    console.log(`[EVENT] ${eventName}`, data);
+    console.log(`🔔 [EVENT] ${eventName}`, data);
     if (this.eventCallbacks.has(eventName)) {
-      this.eventCallbacks.get(eventName).forEach(callback => {
+      const callbacks = this.eventCallbacks.get(eventName);
+      console.log(`🔔 [EVENT] Déclenchement de ${callbacks.length} callback(s) pour '${eventName}'`);
+      
+      callbacks.forEach((callback, index) => {
         try {
+          console.log(`🔔 [EVENT] Exécution callback ${index + 1}/${callbacks.length} pour '${eventName}'`);
           callback(data);
         } catch (error) {
-          console.error(`❌ Erreur callback ${eventName}:`, error);
+          console.error(`❌ Erreur callback ${index + 1} pour ${eventName}:`, error);
         }
       });
+    } else {
+      console.log(`⚠️ [EVENT] Aucun callback pour '${eventName}'`);
     }
   }
 
@@ -548,7 +603,8 @@ export class BattleNetworkHandler {
         available: !!this.client,
         hasJoinById: typeof this.client?.joinById === 'function'
       },
-      pendingMessages: this.pendingMessages.length
+      pendingMessages: this.pendingMessages.length,
+      eventListeners: Array.from(this.eventCallbacks.keys())
     };
   }
 
@@ -562,6 +618,12 @@ export class BattleNetworkHandler {
     console.log('📊 État:', status);
     console.log('📋 Événements écoutés:', Array.from(this.eventCallbacks.keys()));
     console.log('📤 Messages en attente:', this.pendingMessages.length);
+    
+    // Debug détaillé des callbacks
+    this.eventCallbacks.forEach((callbacks, eventName) => {
+      console.log(`📝 [DEBUG] '${eventName}': ${callbacks.length} callback(s)`);
+    });
+    
     return status;
   }
 
@@ -586,7 +648,7 @@ export class BattleNetworkHandler {
   }
 }
 
-// === FONCTIONS DE TEST ===
+// === FONCTIONS DE TEST AMÉLIORÉES ===
 
 /**
  * Test de connexion basique
@@ -615,6 +677,23 @@ window.testBattleNetwork = function() {
 };
 
 /**
+ * Test debug complet
+ */
+window.debugBattleNetworkHandler = function() {
+  console.log('🔍 === DEBUG BATTLE NETWORK HANDLER ===');
+  
+  const handler = window.battleSystem?.battleConnection?.networkHandler;
+  if (handler) {
+    handler.debug();
+  } else {
+    console.error('❌ BattleNetworkHandler non trouvé');
+    console.log('🔍 Chemins testés:');
+    console.log('   window.battleSystem:', !!window.battleSystem);
+    console.log('   window.battleSystem?.battleConnection:', !!window.battleSystem?.battleConnection);
+  }
+};
+
+/**
  * Simulation d'un combat
  */
 window.simulateBattle = function() {
@@ -635,8 +714,15 @@ window.simulateBattle = function() {
   }
 };
 
-console.log('✅ BattleNetworkHandler MODERNE chargé !');
+console.log('✅ BattleNetworkHandler MODERNE CORRIGÉ chargé !');
+console.log('🔧 Corrections apportées:');
+console.log('   ✅ Duplication yourTurn supprimée');
+console.log('   ✅ Handlers manquants ajoutés');
+console.log('   ✅ Logs de debug améliorés');
+console.log('   ✅ Gestion d\'erreurs renforcée');
+console.log('');
 console.log('🧪 Tests disponibles:');
 console.log('   window.testBattleNetwork() - Test connexion');
+console.log('   window.debugBattleNetworkHandler() - Debug complet');
 console.log('   window.simulateBattle() - Simulation combat');
 console.log('🚀 Prêt pour intégration avec BattleIntegration !');
