@@ -23,6 +23,9 @@ export class LoadingScreen {
     this.inputsBlocked = false;
     this.originalInputStates = {};
     this.keyboardBlockHandler = null;
+
+    // === DEBUG FREEZE TIMER ===
+    this._freezeDebugTimer = null;
     
     // Thèmes prédéfinis
     this.themes = {
@@ -365,7 +368,17 @@ export class LoadingScreen {
       setTimeout(() => {
         this.overlay.classList.add('visible');
         this.isVisible = true;
-        
+
+        // === DEBUG FREEZE TIMER ===
+        if (this._freezeDebugTimer) clearTimeout(this._freezeDebugTimer);
+        this._freezeDebugTimer = setTimeout(() => {
+          if (this.isVisible) {
+            console.warn('⏰ [LoadingScreen] Toujours affiché après 15 secondes. Possible freeze détecté.');
+            this.debugInputState && this.debugInputState();
+          }
+        }, 15000);
+        // === FIN DEBUG FREEZE TIMER ===
+
         // Démarrer la séquence d'étapes
         this.startStepSequence(theme.stepDelay, resolve);
       }, 50);
@@ -476,6 +489,13 @@ export class LoadingScreen {
           this.overlay.parentNode.removeChild(this.overlay);
         }
         
+        // === DEBUG FREEZE TIMER ===
+        if (this._freezeDebugTimer) {
+          clearTimeout(this._freezeDebugTimer);
+          this._freezeDebugTimer = null;
+        }
+        // === FIN DEBUG FREEZE TIMER ===
+
         // ✅ DÉBLOQUER LES INPUTS AVANT LE CLEANUP
         this.unblockPlayerInputs();
         
@@ -701,6 +721,16 @@ export class LoadingScreen {
     setTimeout(() => {
       this.overlay.classList.add('visible');
       this.isVisible = true;
+
+      // === DEBUG FREEZE TIMER ===
+      if (this._freezeDebugTimer) clearTimeout(this._freezeDebugTimer);
+      this._freezeDebugTimer = setTimeout(() => {
+        if (this.isVisible) {
+          console.warn('⏰ [LoadingScreen] Toujours affiché après 15 secondes. Possible freeze détecté.');
+          this.debugInputState && this.debugInputState();
+        }
+      }, 15000);
+      // === FIN DEBUG FREEZE TIMER ===
     }, 50);
 
     return Promise.resolve();
