@@ -1570,6 +1570,38 @@ setupBattleNetworkEvents() {
     this.showActionMessage(`Erreur: ${data.error}`, 2000);
   }
 });
+  this.battleNetworkHandler.on('narrativeStart', (data) => {
+  console.log('📖 [BattleScene] Narration démarrée:', data);
+  
+  // Afficher les Pokémon
+  if (data.playerPokemon) {
+    this.displayPlayerPokemon(data.playerPokemon);
+  }
+  
+  if (data.opponentPokemon) {
+    this.displayOpponentPokemon(data.opponentPokemon);
+  }
+  
+  // Afficher message narratif SANS interface d'actions
+  this.showActionMessage(data.events[0] || 'Un Pokémon sauvage apparaît !');
+  
+  this.activateBattleUI();
+  this.isVisible = true;
+});
+
+this.battleNetworkHandler.on('narrativeEnd', (data) => {
+  console.log('📖→⚔️ [BattleScene] Fin narration, combat commence:', data);
+  
+  // Afficher message de transition
+  this.showActionMessage(data.message || 'Le combat commence !');
+});
+
+this.battleNetworkHandler.on('aiThinking', (data) => {
+  console.log('🤖 [BattleScene] IA réfléchit:', data);
+  
+  this.hideActionButtons();
+  this.showActionMessage(data.message || "L'adversaire réfléchit...");
+});
 
   // ✅ CRITICAL: Handler turnChanged
   this.battleNetworkHandler.on('turnChanged', (data) => {
