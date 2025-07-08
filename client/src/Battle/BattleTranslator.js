@@ -1,5 +1,5 @@
-// client/public/localization/BattleTranslator.js
-// Système de traduction complet pour les combats Pokémon
+// client/src/battle/BattleTranslator.js
+// Système de traduction complet pour les combats Pokémon - VERSION ES6
 
 /**
  * 🌍 TRADUCTIONS COMPLÈTES DES ÉVÉNEMENTS DE COMBAT
@@ -451,14 +451,7 @@ class BattleTranslator {
   }
 }
 
-// Export pour utilisation
-if (typeof module !== 'undefined' && module.exports) {
-  // Node.js
-  module.exports = { BattleTranslator, BATTLE_TRANSLATIONS };
-} else {
-  // Browser
-  window.BattleTranslator = BattleTranslator;
-  window.BATTLE_TRANSLATIONS = BATTLE_TRANSLATIONS;
-}
+// ✅ EXPORT ES6 POUR MODULES
+export { BattleTranslator, BATTLE_TRANSLATIONS };
 
 console.log('🌍 [BattleTranslator] Module de traduction chargé - Langues:', Object.keys(BATTLE_TRANSLATIONS));
