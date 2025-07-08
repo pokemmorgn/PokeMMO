@@ -1048,6 +1048,16 @@ export class BattleScene extends Phaser.Scene {
         this.showActionMessage(`Erreur: ${data.error}`);
       }
     });
+
+        // ✅ NOUVEAU: Handler pour déconnexion BattleRoom
+    this.battleNetworkHandler.on('battleRoomDisconnected', (data) => {
+      console.log('👋 [BattleScene] Déconnexion BattleRoom détectée:', data);
+      
+      // Forcer le retour à l'exploration
+      setTimeout(() => {
+        this.endBattle({ result: 'disconnected' });
+      }, 1000);
+    });
     
     // Début narratif
     this.battleNetworkHandler.on('narrativeStart', (data) => {
@@ -1133,9 +1143,14 @@ export class BattleScene extends Phaser.Scene {
       this.hideActionButtons();
     }
     
-    if (eventType === 'battleEnd') {
-      this.hideActionButtons();
-    }
+if (eventType === 'battleEnd') {
+  this.hideActionButtons();
+  
+  // ✅ NOUVEAU: Forcer fermeture après battleEnd
+  setTimeout(() => {
+    this.endBattle({ result: 'ended' });
+  }, 3000);
+}
     
     // Traduction du message
     if (this.battleTranslator) {
