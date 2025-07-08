@@ -197,7 +197,8 @@ export class CaptureManager {
   private async calculateCaptureRate(pokemon: Pokemon, ballType: string): Promise<number> {
     // Utiliser les vraies données Pokémon
     const pokemonData = await getPokemonById(pokemon.id);
-    const baseCaptureRate = pokemonData?.captureRate || 45; // Défaut si pas trouvé
+    // Dans les données JSON, c'est dans la structure: pokemonData.captureRate
+    const baseCaptureRate = (pokemonData as any)?.captureRate || 45; // Défaut si pas trouvé
     
     console.log(`🎯 [CaptureManager] Données ${pokemon.name}: taux de capture de base = ${baseCaptureRate}`);
     
