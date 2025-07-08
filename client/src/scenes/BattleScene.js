@@ -1572,7 +1572,14 @@ setupBattleNetworkEvents() {
 });
   this.battleNetworkHandler.on('narrativeStart', (data) => {
   console.log('📖 [BattleScene] Narration démarrée:', data);
-  
+
+      // ✅ FORCER L'ACTIVATION DE LA SCÈNE
+  if (this.scene.isSleeping()) {
+    this.scene.wake();
+  }
+  this.scene.setVisible(true);
+  this.scene.bringToTop();
+    
   // Afficher les Pokémon
   if (data.playerPokemon) {
     this.displayPlayerPokemon(data.playerPokemon);
