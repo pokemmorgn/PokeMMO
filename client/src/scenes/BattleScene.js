@@ -2004,32 +2004,126 @@ startBattle(battleData) {
   this.handleNetworkBattleStart(battleData);
 }
 
-  hideBattle() {
-    console.log('🖥️ [BattleScene] Masquage combat moderne...');
-    
-    this.deactivateBattleUI();
-    
-    // Masquer tous les éléments UI
-    if (this.actionInterface) {
-      this.actionInterface.setVisible(false);
-    }
-    
-    if (this.battleDialog) {
-      this.battleDialog.setVisible(false);
-    }
-    
-    Object.values(this.modernHealthBars).forEach(healthBar => {
-      if (healthBar?.container) {
-        healthBar.container.setVisible(false);
-      }
-    });
-    
-    this.isVisible = false;
-    
-    if (this.scene?.sleep) {
-      this.scene.sleep();
-    }
+  clearAllPokemonSprites() {
+  console.log('🧹 [BattleScene] Nettoyage RADICAL des sprites...');
+  
+  // ✅ 1. Supprimer sprites spécifiques
+  if (this.playerPokemonSprite) {
+    console.log('🗑️ Suppression sprite joueur');
+    this.playerPokemonSprite.destroy();
+    this.playerPokemonSprite = null;
   }
+  
+  if (this.opponentPokemonSprite) {
+    console.log('🗑️ Suppression sprite adversaire');
+    this.opponentPokemonSprite.destroy();
+    this.opponentPokemonSprite = null;
+  }
+  
+  // ✅ 2. NOUVEAU: Supprimer TOUS les sprites Pokémon orphelins
+  const allSprites = this.children.list.slice(); // Copie pour éviter modification pendant iteration
+  let spritesRemoved = 0;
+  
+  allSprites.forEach(child => {
+    // Supprimer tout ce qui ressemble à un Pokémon
+    if (child && (
+      child.texture?.key?.includes('pokemon_') ||
+      child.getData?.('isPokemon') ||
+      child.getData?.('type') === 'pokemon' ||
+      (child.type === 'Sprite' && child.scale && child.scale > 1.5) || // Sprites agrandis = Pokémon
+      (child.type === 'Container' && child.x && Math.abs(child.x - this.cameras.main.width * 0.22) < 50) || // Position joueur
+      (child.type === 'Container' && child.x && Math.abs(child.x - this.cameras.main.width * 0.78) < 50)    // Position adversaire
+    )) {
+      console.log('🗑️ Suppression sprite orphelin:', child.texture?.key || child.type);
+      child.destroy();
+      spritesRemoved++;
+    }
+  });
+  
+  console.log(`✅ [BattleScene] ${spritesRemoved} sprites supprimés au total`);
+  
+  // ✅ 3. Reset données Pokémon
+  this.currentPlayerPokemon = null;
+  this.currentOpponentPokemon = null;
+  
+  // ✅ 4. NOUVEAU: Forcer le garbage collection des textures
+  this.clearPokemonTextures();
+}
+
+/**
+ * ✅ NOUVEAU: Nettoyage des textures Pokémon en cache
+ */
+clearPokemonTextures() {
+  console.log('🧹 [BattleScene] Nettoyage cache textures...');
+  
+  // Nettoyer le cache des frames
+  if (this.frameSizeCache) {
+    this.frameSizeCache.clear();
+  }
+  
+  // ✅ OPTIONNEL: Supprimer les textures temporaires de combat
+  // (Attention: ne pas supprimer les textures permanentes)
+  const tempKeys = [];
+  this.textures.each((key, texture) => {
+    if (key.includes('_battle_temp_') || key.includes('pokemon_placeholder_')) {
+      tempKeys.push(key);
+    }
+  });
+  
+  tempKeys.forEach(key => {
+    this.textures.remove(key);
+  });
+  
+  console.log(`🗑️ [BattleScene] ${tempKeys.length} textures temporaires supprimées`);
+}
+  
+hideBattle() {
+  console.log('🖥️ [BattleScene] Masquage combat IMMÉDIAT...');
+  
+  // ✅ 1. Masquer sprites AVANT le nettoyage
+  if (this.playerPokemonSprite) {
+    this.playerPokemonSprite.setVisible(false);
+  }
+  if (this.opponentPokemonSprite) {
+    this.opponentPokemonSprite.setVisible(false);
+  }
+  
+  this.deactivateBattleUI();
+  
+  // ✅ 2. Masquer TOUS les éléments UI
+  if (this.actionInterface) {
+    this.actionInterface.setVisible(false);
+  }
+  
+  if (this.battleDialog) {
+    this.battleDialog.setVisible(false);
+  }
+  
+  Object.values(this.modernHealthBars).forEach(healthBar => {
+    if (healthBar?.container) {
+      healthBar.container.setVisible(false);
+    }
+  });
+  
+  // ✅ 3. Masquer plateformes et environnement
+  if (this.playerPlatform) {
+    this.playerPlatform.setVisible(false);
+  }
+  if (this.opponentPlatform) {
+    this.opponentPlatform.setVisible(false);
+  }
+  
+  this.isVisible = false;
+  
+  // ✅ 4. NOUVEAU: Masquer la scène IMMÉDIATEMENT
+  this.scene.setVisible(false);
+  if (this.scene?.sleep) {
+    this.scene.sleep();
+  }
+  
+  console.log('✅ [BattleScene] Combat masqué immédiatement');
+}
+
 
 endBattle(battleResult = {}) {
   console.log('🏁 [BattleScene] Fin combat moderne:', battleResult);
