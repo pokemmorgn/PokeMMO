@@ -5,7 +5,8 @@ import { BattlePokemon } from "../../schema/BattleState";
 import { BattleContext, BattleParticipant } from "./BattleEndManager";
 
 export interface DamageResult {
-  pokemonId: string;
+  pokemonId: string; // ✅ Garde pokemonId pour compatibilité
+  combatId: string;  // ✅ AJOUT
   oldHp: number;
   newHp: number;
   damage: number;
@@ -312,18 +313,19 @@ private static findAndUpdateInContext(combatId: string, newHp: number, battleCon
       }
     }
 
-    return {
-      pokemonId: stateResult.pokemon.pokemonId.toString(),
-      oldHp: stateResult.oldHp,
-      newHp: stateResult.newHp,
-      damage: isHealing ? 0 : damage,
-      wasKnockedOut,
-      targetPlayerId,
-      attackerId: finalAttackerId,
-      pokemonName: stateResult.pokemonName,
-      isHealing,
-      targetPlayer: stateResult.playerId
-    };
+  return {
+    pokemonId: stateResult.pokemon.pokemonId.toString(), // ✅ Garde pokemonId
+    combatId: stateResult.pokemon.combatId, // ✅ AJOUT
+    oldHp: stateResult.oldHp,
+    newHp: stateResult.newHp,
+    damage: isHealing ? 0 : damage,
+    wasKnockedOut,
+    targetPlayerId,
+    attackerId: finalAttackerId,
+    pokemonName: stateResult.pokemonName,
+    isHealing,
+    targetPlayer: stateResult.playerId
+  };
   }
 
   private static updateStatistics(damageInfo: DamageResult, source: DamageEvent['source']): void {
