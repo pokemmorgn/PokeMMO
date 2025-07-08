@@ -828,16 +828,37 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showAttackMenu() {
-    this.showActionMessage('Sélectionnez une attaque...', 2000);
+    // 🌍 NOUVEAU: Message traduit pour sélection d'attaque
+    const selectMoveMessage = this.battleTranslator.translate('selectMove', {}) || 'Sélectionnez une attaque...';
+    this.showActionMessage(selectMoveMessage, 0); // Pas de timeout automatique
     
-    // Utiliser première attaque par défaut
+    // TODO: Implémenter vraie sélection d'attaques
+    // Pour l'instant, créer menu temporaire
+    this.createTemporaryMoveMenu();
+  }
+
+  /**
+   * 🆕 Menu temporaire de sélection d'attaques
+   */
+  createTemporaryMoveMenu() {
+    const moves = [
+      { id: 'tackle', name: 'Charge', type: 'normal' },
+      { id: 'thunderbolt', name: 'Tonnerre', type: 'electric' },
+      { id: 'quick-attack', name: 'Vive-Attaque', type: 'normal' },
+      { id: 'growl', name: 'Rugissement', type: 'normal' }
+    ];
+
+    // Afficher les attaques dans le dialogue
+    const moveList = moves.map((move, index) => 
+      `${index + 1}. ${move.name}`
+    ).join('\n');
+    
+    this.showActionMessage(`Choisissez une attaque:\n${moveList}\n\n(Cliquez sur "Attaque" pour Charge)`, 0);
+    
+    // Revenir aux boutons d'action après 3 secondes
     setTimeout(() => {
-      this.executePlayerAction({
-        type: 'move',
-        moveId: 'tackle',
-        moveName: 'Charge'
-      });
-    }, 1000);
+      this.showActionButtons();
+    }, 3000);
   }
 
   executePlayerAction(actionData) {
