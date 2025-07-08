@@ -1540,6 +1540,44 @@ setupBattleNetworkEvents() {
     console.log('💖 [BattleScene] HP Update reçu:', data);
     this.handleNetworkHPUpdate(data);
   });
+
+    this.battleNetworkHandler.on('actionResult', (data) => {
+    console.log('🎮 [BattleScene] Résultat action:', data);
+    
+    if (data.success) {
+      console.log('✅ Action réussie:', data.events);
+      // Afficher les messages de combat
+      data.events.forEach(event => {
+        this.showBattleMessage(event, 2000);
+      });
+    } else {
+      console.error('❌ Action échouée:', data.error);
+      this.showBattleMessage(`Erreur: ${data.error}`, 2000);
+    }
+  });
+
+  this.battleNetworkHandler.on('turnChanged', (data) => {
+    console.log('🔄 [BattleScene] Tour changé:', data.currentTurn);
+    
+    // Mettre à jour l'UI selon le tour
+    if (data.currentTurn === 'player1') {
+      // C'est ton tour - activer les boutons dans 2 secondes
+      setTimeout(() => {
+        this.showActionButtons();
+      }, 2000);
+    } else {
+      // Tour de l'IA - désactiver les boutons
+      this.hideActionButtons();
+      this.showActionMessage('Tour de l\'adversaire...');
+    }
+  });
+
+  this.battleNetworkHandler.on('yourTurn', (data) => {
+    console.log('🎯 [BattleScene] C\'est votre tour !');
+    setTimeout(() => {
+      this.showActionButtons();
+    }, 1000);
+  });
   
   // ✅ AJOUT: Handler pour les animations de dégâts
   this.battleNetworkHandler.on('damageAnimation', (data) => {
@@ -2183,20 +2221,6 @@ startBattle(battleData) {
       });
     }
   }
-// Écouter les nouveaux événements
-this.battleNetworkHandler.on('actionResult', (data) => {
-  if (data.success) {
-    console.log('✅ Action réussie:', data.events);
-    // Afficher les messages de combat
-  } else {
-    console.error('❌ Action échouée:', data.error);
-  }
-});
-
-this.battleNetworkHandler.on('turnChanged', (data) => {
-  console.log('🔄 Tour changé:', data.currentTurn);
-  // Activer/désactiver les boutons selon le tour
-});
   /**
  * Affiche un message dans la zone d'interface (à la place des boutons)
  */
