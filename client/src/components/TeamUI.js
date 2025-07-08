@@ -140,116 +140,141 @@ export class TeamUI {
     `;
   }
 
-createTeamInterface() {
-  const existing = document.getElementById('team-overlay');
+  createTeamInterface() {
+ const existing = document.getElementById('team-overlay');
   if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'team-overlay';
+    overlay.className = 'team-overlay hidden';
 
-  const overlay = document.createElement('div');
-  overlay.id = 'team-overlay';
-  overlay.className = 'team-overlay hidden';
-
-  overlay.innerHTML = `
-    <div class="team-container">
-      <div class="team-header">
-        <div class="team-title">
-          <div class="team-icon">⚔️</div>
-          <div class="team-title-text">
-            <span class="team-name">Mon Équipe</span>
-            <span class="team-subtitle">Pokémon de Combat</span>
+    overlay.innerHTML = `
+      <div class="team-container">
+        <div class="team-header">
+          <div class="team-title">
+            <div class="team-icon">⚔️</div>
+            <div class="team-title-text">
+              <span class="team-name">Mon Équipe</span>
+              <span class="team-subtitle">Pokémon de Combat</span>
+            </div>
+          </div>
+          <div class="team-controls">
+            <div class="team-stats">
+              <span class="team-count">0/6</span>
+              <span class="team-status">Ready</span>
+            </div>
+            <button class="team-close-btn">✕</button>
           </div>
         </div>
-        <div class="team-controls">
-          <div class="team-stats">
-            <span class="team-count">0/6</span>
-            <span class="team-status">Ready</span>
-          </div>
-          <button class="team-close-btn">✕</button>
-        </div>
-      </div>
 
-      <div class="team-tabs">
-        <button class="team-tab active" data-view="overview">
-          <span class="tab-icon">👥</span>
-          <span class="tab-text">Overview</span>
-        </button>
-        <button class="team-tab" data-view="details">
-          <span class="tab-icon">📊</span>
-          <span class="tab-text">Details</span>
-        </button>
-        <button class="team-tab" data-view="moves">
-          <span class="tab-icon">⚡</span>
-          <span class="tab-text">Moves</span>
-        </button>
-      </div>
-
-      <div class="team-content">
-        <!-- Colonne 1 : Grille d’équipe -->
-        <div class="team-slots-grid">
-          ${this.generateTeamSlots()}
+        <div class="team-tabs">
+          <button class="team-tab active" data-view="overview">
+            <span class="tab-icon">👥</span>
+            <span class="tab-text">Overview</span>
+          </button>
+          <button class="team-tab" data-view="details">
+            <span class="tab-icon">📊</span>
+            <span class="tab-text">Details</span>
+          </button>
+          <button class="team-tab" data-view="moves">
+            <span class="tab-icon">⚡</span>
+            <span class="tab-text">Moves</span>
+          </button>
         </div>
 
-        <!-- Colonne 2 : Résumé d’équipe -->
-        <div class="team-summary">
-          <div class="summary-section">
-            <h4>🏆 Team Summary</h4>
-            <div class="summary-stats">
-              <div class="stat-item">
-                <span class="stat-label">Average Level</span>
-                <span class="stat-value" id="avg-level">0</span>
+        <div class="team-content">
+          <div class="team-view team-overview active" id="team-overview">
+            <div class="team-slots-grid">
+              ${this.generateTeamSlots()}
+            </div>
+            
+            <div class="team-summary">
+              <div class="summary-section">
+                <h4>🏆 Team Summary</h4>
+                <div class="summary-stats">
+                  <div class="stat-item">
+                    <span class="stat-label">Average Level</span>
+                    <span class="stat-value" id="avg-level">0</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Total HP</span>
+                    <span class="stat-value" id="total-hp">0/0</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Battle Ready</span>
+                    <span class="stat-value" id="battle-ready">No</span>
+                  </div>
+                </div>
               </div>
-              <div class="stat-item">
-                <span class="stat-label">Total HP</span>
-                <span class="stat-value" id="total-hp">0/0</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">Battle Ready</span>
-                <span class="stat-value" id="battle-ready">No</span>
+              
+              <div class="summary-section">
+                <h4>🎯 Type Coverage</h4>
+                <div class="type-coverage" id="type-coverage">
+                  <!-- Types seront générés ici -->
+                </div>
               </div>
             </div>
           </div>
-          <div class="summary-section">
-            <h4>🎯 Type Coverage</h4>
-            <div class="type-coverage" id="type-coverage">
-              <!-- Types seront générés ici -->
+
+          <div class="team-view team-details" id="team-details">
+            <div class="pokemon-detail-panel">
+              <div class="no-selection">
+                <div class="no-selection-icon">⚔️</div>
+                <p>Sélectionnez un Pokémon pour voir ses détails</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="team-view team-moves" id="team-moves">
+            <div class="moves-grid" id="moves-grid">
+              <!-- Attaques seront générées ici -->
             </div>
           </div>
         </div>
 
-        <!-- Colonne 3 : Détail du Pokémon sélectionné -->
-        <div class="team-detail-panel">
-          <div class="no-selection">
-            <div class="no-selection-icon">⚔️</div>
-            <p>Sélectionnez un Pokémon pour voir ses détails</p>
+        <div class="team-footer">
+          <div class="team-actions">
+            <button class="team-btn" id="heal-team-btn">
+              <span class="btn-icon">💊</span>
+              <span class="btn-text">Heal All</span>
+            </button>
+            <button class="team-btn" id="pc-access-btn">
+              <span class="btn-icon">💻</span>
+              <span class="btn-text">PC Storage</span>
+            </button>
+            <button class="team-btn secondary" id="auto-arrange-btn">
+              <span class="btn-icon">🔄</span>
+              <span class="btn-text">Auto Arrange</span>
+            </button>
+          </div>
+          
+          <div class="team-info">
+            <div class="info-tip">💡 Drag & drop to reorder Pokémon</div>
           </div>
         </div>
       </div>
+    `;
 
-      <div class="team-footer">
-        <div class="team-actions">
-          <button class="team-btn" id="heal-team-btn">
-            <span class="btn-icon">💊</span>
-            <span class="btn-text">Heal All</span>
-          </button>
-          <button class="team-btn" id="pc-access-btn">
-            <span class="btn-icon">💻</span>
-            <span class="btn-text">PC Storage</span>
-          </button>
-          <button class="team-btn secondary" id="auto-arrange-btn">
-            <span class="btn-icon">🔄</span>
-            <span class="btn-text">Auto Arrange</span>
-          </button>
+    document.body.appendChild(overlay);
+    this.overlay = overlay;
+  }
+
+  generateTeamSlots() {
+    let slotsHTML = '';
+    for (let i = 0; i < 6; i++) {
+      slotsHTML += `
+        <div class="team-slot empty-enhanced" data-slot="${i}">
+          <div class="slot-background">
+            <div class="slot-number">${i + 1}</div>
+            <div class="empty-slot">
+              <div class="empty-icon">➕</div>
+              <div class="empty-text">Add Pokémon</div>
+            </div>
+          </div>
         </div>
-        <div class="team-info">
-          <div class="info-tip">💡 Drag & drop to reorder Pokémon</div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-  this.overlay = overlay;
-}
-
+      `;
+    }
+    return slotsHTML;
+  }
 
   setupEventListeners() {
     // Fermeture
