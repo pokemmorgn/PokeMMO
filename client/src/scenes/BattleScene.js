@@ -1640,7 +1640,16 @@ setupBattleNetworkEvents() {
   });
   
   this.battleNetworkHandler.on('yourTurn', (data) => {
-    this.handleNetworkTurnChange(data);
+    console.log('🎯 [BattleScene] yourTurn reçu - AFFICHAGE INTERFACE:', data);
+    
+    // Attendre un délai pour la fluidité
+    setTimeout(() => {
+      this.showActionMessage('Que voulez-vous faire ?');
+      
+      setTimeout(() => {
+        this.showActionButtons();
+      }, 1000);
+    }, 500);
   });
   
   this.battleNetworkHandler.on('battleEndWithRewards', (data) => {
@@ -1739,33 +1748,36 @@ handleNetworkDamageAnimation(data) {
 }
   
 handleNetworkBattleStart(data) {
-  console.log('[DEBUG] ⚔️ handleNetworkBattleStart début:', data);
+  console.log('[DEBUG] ⚔️ handleNetworkBattleStart - VERSION NARRATIVE:', data);
+  
+  // ✅ NOUVEAU: Vérifier si c'est un événement narratif
+  if (data.isNarrative || data.duration) {
+    console.log('[DEBUG] 📖 Mode narratif détecté, déléguer à narrativeStart');
+    // L'événement narrativeStart va gérer l'affichage
+    return;
+  }
+  
+  // ✅ ANCIEN CODE pour rétrocompatibilité
   console.log('[DEBUG] 🔍 data.playerPokemon:', data.playerPokemon);
   console.log('[DEBUG] 🔍 data.opponentPokemon:', data.opponentPokemon);
   
-  // ✅ UTILISER LES BONNES CLÉS !
-  const playerPokemon = data.playerPokemon;      // ← CHANGÉ
-  const opponentPokemon = data.opponentPokemon;  // ← CHANGÉ
-  
-  console.log('[DEBUG] 👤 playerPokemon final:', playerPokemon);
-  console.log('[DEBUG] 👹 opponentPokemon final:', opponentPokemon);
+  const playerPokemon = data.playerPokemon;
+  const opponentPokemon = data.opponentPokemon;
   
   if (playerPokemon) {
     console.log('[DEBUG] 👤 Affichage Pokémon joueur:', playerPokemon.name);
     this.displayPlayerPokemon(playerPokemon);
-  } else {
-    console.error('[DEBUG] ❌ Pas de données playerPokemon');
   }
   
   if (opponentPokemon) {
     console.log('[DEBUG] 👹 Affichage Pokémon adversaire:', opponentPokemon.name);
     this.displayOpponentPokemon(opponentPokemon);
-  } else {
-    console.error('[DEBUG] ❌ Pas de données opponentPokemon');
   }
   
   this.activateBattleUI();
   this.isVisible = true;
+  
+  // ✅ ANCIENNE LOGIQUE: Démarrer immédiatement
   this.startBattleIntroSequence(opponentPokemon);
 }
 
@@ -1776,19 +1788,31 @@ handleNetworkBattleStart(data) {
  * Séquence d'introduction authentique style Pokémon
  */
 startBattleIntroSequence(opponentPokemon) {
-  console.log('🎬 [BattleScene] Début séquence introduction...');
+  console.log('🎬 [BattleScene] ANCIENNE séquence introduction...');
   
   const opponentName = opponentPokemon?.name || 'Pokémon sauvage';
   
-  // Phase 1: Apparition du Pokémon sauvage (plus long)
+  // ✅ NOUVEAU: Cette méthode est maintenant un FALLBACK
+  // Le vrai flow passe par narrativeStart → narrativeEnd → turnChanged
+  
   setTimeout(() => {
     this.showActionMessage(`Un ${opponentName} sauvage apparaît !`);
-  }, 2000);
+  }, 1000);
   
-  // Phase 3: Début du tour (plus long)
   setTimeout(() => {
     this.checkWhoStartsFirst();
-  }, 7000);  // ✅ 7 secondes au lieu de 5
+  }, 4000);
+}
+
+checkWhoStartsFirst() {
+  console.log('🎯 [BattleScene] ANCIENNE logique premier tour...');
+  
+  // ✅ FALLBACK pour anciens combats
+  this.showActionMessage('Que voulez-vous faire ?');
+  
+  setTimeout(() => {
+    this.showActionButtons();
+  }, 2000);
 }
 
 /**
