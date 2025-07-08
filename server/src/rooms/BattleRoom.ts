@@ -410,30 +410,29 @@ private notifyCurrentPlayer() {
     }
   }
 
-  private proceedToNextTurn() {
-    console.log(`🔄 [TURNSYSTEM] Passage au tour suivant`);
-    
-    // ✅ LAISSER TurnSystem déterminer le prochain joueur
-    const turnState = this.turnSystem.getState();
-    
-    // Mettre à jour l'état pour l'interface
-    if (this.state.currentTurn === "player1") {
-      this.state.currentTurn = "player2";
-    } else {
-      this.state.currentTurn = "player1";
-    }
-    
-    this.state.turnNumber++;
-    this.battleContext.turnNumber = this.state.turnNumber;
-      // ✅ AJOUTER CETTE LIGNE CRUCIALE
-    this.turnSystem.startTurn();
-    console.log(`🔄 [TURNSYSTEM] Nouveau tour: ${this.state.currentTurn} (${this.state.turnNumber})`);
-    
-    this.broadcast("battleUpdate", this.getClientBattleState());
-    
-    // ✅ Notifier le joueur actuel
-    this.notifyCurrentPlayer();
+private proceedToNextTurn() {
+  console.log(`🔄 [TURNSYSTEM] Passage au tour suivant`);
+  
+  // ✅ Utiliser la nouvelle méthode propre
+  this.turnSystem.resetPlayerActions();
+  
+  // Mettre à jour l'état pour l'interface
+  if (this.state.currentTurn === "player1") {
+    this.state.currentTurn = "player2";
+  } else {
+    this.state.currentTurn = "player1";
   }
+  
+  this.state.turnNumber++;
+  this.battleContext.turnNumber = this.state.turnNumber;
+  
+  console.log(`🔄 [TURNSYSTEM] Nouveau tour: ${this.state.currentTurn} (${this.state.turnNumber})`);
+  
+  this.broadcast("battleUpdate", this.getClientBattleState());
+  
+  // ✅ Notifier le joueur actuel
+  this.notifyCurrentPlayer();
+}
 
   // === CALLBACKS BATTLEINTEGRATION (SIMPLIFIÉS) ===
 
