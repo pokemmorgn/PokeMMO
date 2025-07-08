@@ -237,7 +237,23 @@ export class BattleNetworkHandler {
         console.log('🎮 [NETWORK] actionResult reçu:', data);
         this.triggerEvent('actionResult', data);
       });
-      
+
+      this.battleRoom.onMessage('narrativeStart', (data) => {
+      console.log('📖 [NETWORK] narrativeStart reçu:', data);
+      this.triggerEvent('narrativeStart', data);
+    });
+
+    // ✅ Fin narration - Début combat
+    this.battleRoom.onMessage('narrativeEnd', (data) => {
+      console.log('📖→⚔️ [NETWORK] narrativeEnd reçu:', data);
+      this.triggerEvent('narrativeEnd', data);
+    });
+    
+    // ✅ IA en réflexion
+    this.battleRoom.onMessage('aiThinking', (data) => {
+      console.log('🤖 [NETWORK] aiThinking reçu:', data);
+      this.triggerEvent('aiThinking', data);
+    });
       // ✅ CRITICAL: TurnChanged - pour gestion des tours
       this.battleRoom.onMessage('turnChanged', (data) => {
         console.log('🔄 [NETWORK] turnChanged reçu:', data.currentTurn);
