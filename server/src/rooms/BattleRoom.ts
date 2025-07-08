@@ -1,5 +1,5 @@
 // server/src/rooms/BattleRoom.ts
-// VERSION 2.6 : BattleRoom avec système narratif complet
+// VERSION 2.6 : BattleRoom avec système narratif complet + CAPTURE
 
 import { Room, Client } from "@colyseus/core";
 import { BattleState, BattlePokemon } from "../schema/BattleState";
@@ -26,7 +26,7 @@ export interface BattleInitData {
   };
 }
 
-// === BATTLEROOM V2.6 - AVEC SYSTÈME NARRATIF ===
+// === BATTLEROOM V2.6 - AVEC SYSTÈME NARRATIF + CAPTURE ===
 
 export class BattleRoom extends Room<BattleState> {
   
@@ -43,7 +43,7 @@ export class BattleRoom extends Room<BattleState> {
   // === CRÉATION ROOM ===
   
   async onCreate(options: BattleInitData) {
-    console.log(`⚔️ [BattleRoom] Création V2.6 avec système narratif`);
+    console.log(`⚔️ [BattleRoom] Création V2.6 avec système narratif + capture`);
     console.log(`🎯 Type: ${options.battleType}, Joueur: ${options.playerData.name}`);
     
     this.battleInitData = options;
@@ -59,15 +59,15 @@ export class BattleRoom extends Room<BattleState> {
     this.setupBattleEngineEvents();
     this.setupMessageHandlers();
     
-    console.log(`✅ [BattleRoom] ${this.roomId} créée avec BattleEngine narratif V2.6`);
+    console.log(`✅ [BattleRoom] ${this.roomId} créée avec BattleEngine narratif V2.6 + capture`);
   }
   
   // === GESTION MESSAGES ===
   
   private setupMessageHandlers() {
-    console.log('🎮 [BattleRoom] Configuration message handlers narratif V2.6');
+    console.log('🎮 [BattleRoom] Configuration message handlers narratif V2.6 + capture');
     
-    // Handler pour les actions de combat
+    // Handler pour les actions de combat (maintenant async)
     this.onMessage("battleAction", async (client, data: {
       actionType: "attack" | "item" | "switch" | "run" | "capture";
       moveId?: string;
@@ -102,8 +102,22 @@ export class BattleRoom extends Room<BattleState> {
         timestamp: Date.now()
       };
       
-      // Traiter via BattleEngine
-      const result = this.battleEngine.processAction(action);
+      // ✅ NOUVEAU: Récupérer le TeamManager pour la capture
+      let teamManager = null;
+      if (data.actionType === 'capture') {
+        teamManager = this.teamManagers.get(client.sessionId);
+        if (!teamManager) {
+          client.send("actionResult", {
+            success: false,
+            error: "TeamManager non trouvé pour la capture",
+            events: []
+          });
+          return;
+        }
+      }
+      
+      // ✅ CORRIGÉ: Traiter via BattleEngine (maintenant async)
+      const result = await this.battleEngine.processAction(action, teamManager);
       
       if (result.success) {
         console.log(`✅ [BattleRoom] Action traitée avec succès`);
@@ -142,7 +156,7 @@ export class BattleRoom extends Room<BattleState> {
     }
   }
   
-  // === ✅ EXÉCUTION ACTION IA ===
+  // === ✅ EXÉCUTION ACTION IA (maintenant async) ===
   
   private async executeAIAction() {
     console.log('🤖 [BattleRoom] Exécution action IA');
@@ -158,8 +172,8 @@ export class BattleRoom extends Room<BattleState> {
       
       console.log(`🤖 [BattleRoom] IA va utiliser: ${aiAction.data.moveId}`);
       
-      // Traiter l'action via BattleEngine
-      const result = this.battleEngine.processAction(aiAction);
+      // ✅ CORRIGÉ: Traiter l'action via BattleEngine (maintenant async)
+      const result = await this.battleEngine.processAction(aiAction);
       
       if (result.success) {
         console.log(`✅ [BattleRoom] Action IA traitée avec succès`);
@@ -190,7 +204,7 @@ export class BattleRoom extends Room<BattleState> {
   }
   
   async onJoin(client: Client, options: any) {
-    console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom narratif V2.6`);
+    console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom narratif V2.6 + capture`);
     
     try {
       const effectiveSessionId = options?.worldSessionId || client.sessionId;
@@ -220,14 +234,14 @@ export class BattleRoom extends Room<BattleState> {
   }
   
   async onLeave(client: Client) {
-    console.log(`👋 ${client.sessionId} quitte BattleRoom narratif V2.6`);
+    console.log(`👋 ${client.sessionId} quitte BattleRoom narratif V2.6 + capture`);
     this.cleanupPlayer(client.sessionId);
   }
   
   // === DÉMARRAGE COMBAT V2.6 ===
   
   private async startBattleV2() {
-    console.log(`🚀 [BattleRoom] Démarrage combat narratif V2.6`);
+    console.log(`🚀 [BattleRoom] Démarrage combat narratif V2.6 + capture`);
     
     try {
       // 1. Récupérer les données des Pokémon
@@ -268,7 +282,7 @@ export class BattleRoom extends Room<BattleState> {
         this.battleGameState = result.gameState;
         this.syncStateFromGameState();
         
-        console.log(`✅ [BattleRoom] Combat narratif V2.6 démarré avec succès`);
+        console.log(`✅ [BattleRoom] Combat narratif V2.6 + capture démarré avec succès`);
         console.log(`📖 [BattleRoom] Mode narratif actif - Tour ${this.battleGameState.turnNumber}`);
         
       } else {
@@ -276,7 +290,7 @@ export class BattleRoom extends Room<BattleState> {
       }
       
     } catch (error) {
-      console.error(`❌ [BattleRoom] Erreur démarrage narratif V2.6:`, error);
+      console.error(`❌ [BattleRoom] Erreur démarrage narratif V2.6 + capture:`, error);
       this.broadcast("battleError", { 
         message: error instanceof Error ? error.message : 'Erreur inconnue' 
       });
@@ -286,7 +300,7 @@ export class BattleRoom extends Room<BattleState> {
   // === ✅ ÉVÉNEMENTS BATTLEENGINE NARRATIFS COMPLETS ===
   
   private setupBattleEngineEvents() {
-    console.log('🎮 [BattleRoom] Configuration des événements BattleEngine Narratif V2.6');
+    console.log('🎮 [BattleRoom] Configuration des événements BattleEngine Narratif V2.6 + capture');
 
     // === ✅ DÉMARRAGE NARRATIF ===
     this.battleEngine.on('battleStart', (data: any) => {
@@ -377,10 +391,15 @@ export class BattleRoom extends Room<BattleState> {
       }
     });
 
-    // === FIN DE COMBAT ===
+    // === FIN DE COMBAT (avec capture) ===
     this.battleEngine.on('battleEnd', (data: any) => {
       console.log(`🏁 [BattleRoom] Fin de combat: ${data.winner || 'Match nul'}`);
       console.log(`📄 [BattleRoom] Raison: ${data.reason}`);
+      
+      // ✅ NOUVEAU: Vérifier si c'est une fin par capture
+      if (data.captureSuccess) {
+        console.log(`🎯 [BattleRoom] Combat terminé par capture réussie !`);
+      }
       
       // Synchroniser le state final
       this.syncStateFromGameState();
@@ -390,19 +409,25 @@ export class BattleRoom extends Room<BattleState> {
         winner: data.winner,
         reason: data.reason,
         gameState: this.getClientBattleState(),
+        captureSuccess: data.captureSuccess || false,
         timestamp: Date.now()
       });
       
       // Message de victoire/défaite personnalisé
-      const victoryMessage = data.winner === 'player1' ? 
-        'Félicitations ! Vous avez gagné !' : 
-        data.winner === 'player2' ?
-        'Défaite ! Vous avez perdu...' :
-        'Match nul !';
+      let victoryMessage: string;
+      if (data.captureSuccess) {
+        victoryMessage = 'Pokémon capturé avec succès !';
+      } else {
+        victoryMessage = data.winner === 'player1' ? 
+          'Félicitations ! Vous avez gagné !' : 
+          data.winner === 'player2' ?
+          'Défaite ! Vous avez perdu...' :
+          'Match nul !';
+      }
         
       this.broadcast("battleMessage", {
         message: victoryMessage,
-        type: data.winner === 'player1' ? 'victory' : data.winner === 'player2' ? 'defeat' : 'draw',
+        type: data.captureSuccess ? 'capture' : data.winner === 'player1' ? 'victory' : data.winner === 'player2' ? 'defeat' : 'draw',
         timing: 3000
       });
       
@@ -446,6 +471,20 @@ export class BattleRoom extends Room<BattleState> {
       console.log(`⚔️ [BattleRoom] Action traitée: ${data.action.type} → Tour suivant: ${data.nextPlayer}`);
     });
 
+    // === ✅ NOUVEAUX ÉVÉNEMENTS CAPTURE ===
+    
+    // Capture de Pokémon
+    this.battleEngine.on('pokemonCaptured', (data: any) => {
+      console.log(`🎯 [BattleRoom] Pokémon capturé: ${data.pokemon.name}`);
+      
+      this.broadcast("pokemonCaptured", {
+        pokemon: data.pokemon,
+        ball: data.ball,
+        success: data.success,
+        shakes: data.shakes
+      });
+    });
+
     // === ÉVÉNEMENTS FUTURS (prêts pour extension) ===
     
     // Expérience gagnée
@@ -471,17 +510,6 @@ export class BattleRoom extends Room<BattleState> {
       });
     });
 
-    // Capture de Pokémon
-    this.battleEngine.on('pokemonCaptured', (data: any) => {
-      console.log(`🎯 [BattleRoom] Pokémon capturé: ${data.pokemon.name}`);
-      
-      this.broadcast("pokemonCaptured", {
-        pokemon: data.pokemon,
-        ball: data.ball,
-        success: data.success
-      });
-    });
-
     // Fuite du combat
     this.battleEngine.on('battleFled', (data: any) => {
       console.log(`🏃 [BattleRoom] Fuite du combat par ${data.player}`);
@@ -503,7 +531,7 @@ export class BattleRoom extends Room<BattleState> {
       });
     });
 
-    console.log('✅ [BattleRoom] Tous les événements BattleEngine narratifs configurés');
+    console.log('✅ [BattleRoom] Tous les événements BattleEngine narratifs + capture configurés');
   }
   
   // === CONVERSION DE DONNÉES ===
@@ -630,7 +658,7 @@ export class BattleRoom extends Room<BattleState> {
   // === ✅ NETTOYAGE AVEC BATTLEENGINE ===
   
   async onDispose() {
-    console.log(`💀 [BattleRoom] Narratif ${this.roomId} en cours de destruction`);
+    console.log(`💀 [BattleRoom] Narratif + capture ${this.roomId} en cours de destruction`);
     
     // ✅ Nettoyer le BattleEngine
     if (this.battleEngine) {
