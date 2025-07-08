@@ -152,19 +152,4 @@ export interface BattleCallbacks {
   onError?: (error: string) => void;
 }
 
-// === EXPORTS ===
-
-export default {
-  // Types principaux
-  BattleConfig,
-  BattleGameState,
-  BattleAction,
-  BattleResult,
-  BattleModule,
-  
-  // Types utilitaires
-  Pokemon,
-  BattlePlayer,
-  BattleEvent,
-  BattleCallbacks
-};
+// Types exportés individuellement (pas de default export)
