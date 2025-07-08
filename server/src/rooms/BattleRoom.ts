@@ -144,13 +144,21 @@ export class BattleRoom extends Room<BattleState> {
         
         console.log(`✅ [BattleRoom] Combat V2 démarré avec succès`);
         
-        // Notifier le client avec le format attendu
-        this.broadcast("battleStart", {
+        // DEBUG: Vérifier ce qu'on envoie
+        console.log(`🔍 [DEBUG] player1.pokemon:`, this.battleGameState.player1.pokemon);
+        console.log(`🔍 [DEBUG] player2.pokemon:`, this.battleGameState.player2.pokemon);
+        
+        const battleStartData = {
           playerPokemon: this.battleGameState.player1.pokemon,
           opponentPokemon: this.battleGameState.player2.pokemon,
           gameState: this.getClientBattleState(),
           events: result.events
-        });
+        };
+        
+        console.log(`🔍 [DEBUG] Données envoyées au client:`, JSON.stringify(battleStartData, null, 2));
+        
+        // Notifier le client avec le format attendu
+        this.broadcast("battleStart", battleStartData);
         
       } else {
         throw new Error(result.error || 'Erreur démarrage combat');
