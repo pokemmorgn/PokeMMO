@@ -175,25 +175,30 @@ class SoloBattleHandler implements IBattleHandler {
     }
     
     // ✅ ÉVÉNEMENT DAMAGE AVEC LES BONS HP
-    if (damageResult.finalDamage > 0) {
-      events.push({
-        eventId: 'damage_event',
-        type: 'damage',
-        timestamp: Date.now(),
-        targetId: defender.combatId,
-        data: {
-          targetCombatId: defender.combatId,
-          targetPokemonId: defender.pokemonId,
-          damage: damageResult.finalDamage,
-          currentHp: currentHp,  // ✅ HP ACTUELS
-          calculatedNewHp: newHp, // ✅ NOUVEAUX HP CORRECTS
-          effectiveness: damageResult.effectiveness,
-          critical: damageResult.critical
-        },
-        delay: currentDelay
-      });
-      currentDelay += 1000;
-    }
+if (damageResult.finalDamage > 0) {
+  // ✅ AJOUTER CES LOGS ICI
+  console.log(`🔍 [DEBUG] defender.currentHp au moment de l'événement: ${defender.currentHp}`);
+  console.log(`🔍 [DEBUG] currentHp variable: ${currentHp}`);
+  console.log(`🔍 [DEBUG] newHp calculé: ${newHp}`);
+  
+  events.push({
+    eventId: 'damage_event',
+    type: 'damage',
+    timestamp: Date.now(),
+    targetId: defender.combatId,
+    data: {
+      targetCombatId: defender.combatId,
+      targetPokemonId: defender.pokemonId,
+      damage: damageResult.finalDamage,
+      currentHp: currentHp,  // ✅ HP ACTUELS
+      calculatedNewHp: newHp, // ✅ NOUVEAUX HP CORRECTS
+      effectiveness: damageResult.effectiveness,
+      critical: damageResult.critical
+    },
+    delay: currentDelay
+  });
+  currentDelay += 1000;
+}
     
     // Message K.O. si nécessaire
     if (newHp <= 0) {
