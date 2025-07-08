@@ -842,10 +842,6 @@ private updateBattleContext() {
   this.battleContext.turnNumber = this.state.turnNumber;
   DamageManager.syncStatisticsToContext(this.battleContext);
 }
-  
-  this.battleContext.turnNumber = this.state.turnNumber;
-  DamageManager.syncStatisticsToContext(this.battleContext);
-}
 
   private async processBattleEndWithManager(endCondition: BattleEndCondition) {
     console.log(`🏆 [BATTLE] Traitement fin avec BattleEndManager`);
