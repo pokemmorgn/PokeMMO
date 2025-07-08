@@ -1151,44 +1151,69 @@ initPlayerSpawnFromSceneData() {
     });
   }
 
-  updateFollowersFromState(state) {
-    if (!this.pokemonFollowerManager || !this.isSceneReady) {
-      return;
-    }
-    
-    state.players.forEach((playerState, sessionId) => {
-      // Vérifier si le joueur est dans la même zone
-      const shouldShowPlayer = this.shouldDisplayPlayer(sessionId, playerState);
-      
-      if (shouldShowPlayer && playerState.follower) {
-        // Créer ou mettre à jour le follower
-        if (!this.pokemonFollowerManager.hasFollower(sessionId)) {
-          this.pokemonFollowerManager.createFollower(sessionId, {
-            pokemonId: playerState.follower.pokemonId,
-            nickname: playerState.follower.nickname,
-            x: playerState.follower.x,
-            y: playerState.follower.y,
-            direction: playerState.follower.direction,
-            isMoving: playerState.follower.isMoving,
-            isShiny: playerState.follower.isShiny,
-            level: playerState.follower.level
-          });
-        } else {
-          this.pokemonFollowerManager.updateFollower(sessionId, {
-            x: playerState.follower.x,
-            y: playerState.follower.y,
-            direction: playerState.follower.direction,
-            isMoving: playerState.follower.isMoving
-          });
-        }
-      } else {
-        // Supprimer le follower si le joueur n'est plus dans la zone ou n'a plus de follower
-        if (this.pokemonFollowerManager.hasFollower(sessionId)) {
-          this.pokemonFollowerManager.removeFollower(sessionId);
-        }
-      }
-    });
+  // ================================================================================================
+// FIX POUR L'ERREUR shouldDisplayPlayer
+// ================================================================================================
+
+// REMPLACER la méthode updateFollowersFromState dans BaseZoneScene.js
+
+updateFollowersFromState(state) {
+  if (!this.pokemonFollowerManager || !this.isSceneReady || !this.playerManager) {
+    return;
   }
+  
+  state.players.forEach((playerState, sessionId) => {
+    // ✅ FIX: Vérifier que le joueur existe côté PlayerManager
+    const playerExists = this.playerManager.players.has(sessionId);
+    
+    // Logique simple : si le joueur existe dans PlayerManager, afficher son follower
+    const shouldShowPlayer = playerExists;
+    
+    if (shouldShowPlayer && playerState.follower) {
+      // Créer ou mettre à jour le follower
+      if (!this.pokemonFollowerManager.hasFollower(sessionId)) {
+        this.pokemonFollowerManager.createFollower(sessionId, {
+          pokemonId: playerState.follower.pokemonId,
+          nickname: playerState.follower.nickname,
+          x: playerState.follower.x,
+          y: playerState.follower.y,
+          direction: playerState.follower.direction,
+          isMoving: playerState.follower.isMoving,
+          isShiny: playerState.follower.isShiny,
+          level: playerState.follower.level
+        });
+      } else {
+        this.pokemonFollowerManager.updateFollower(sessionId, {
+          x: playerState.follower.x,
+          y: playerState.follower.y,
+          direction: playerState.follower.direction,
+          isMoving: playerState.follower.isMoving
+        });
+      }
+    } else {
+      // Supprimer le follower si le joueur n'est plus dans la zone ou n'a plus de follower
+      if (this.pokemonFollowerManager.hasFollower(sessionId)) {
+        this.pokemonFollowerManager.removeFollower(sessionId);
+      }
+    }
+  });
+}
+
+// ✅ AJOUTER cette méthode fallback dans BaseZoneScene
+shouldShowPlayerFallback(sessionId, playerState) {
+  // Toujours afficher notre propre joueur
+  if (sessionId === this.mySessionId) {
+    return true;
+  }
+  
+  // Pour les autres joueurs, vérifier la zone
+  if (playerState.currentZone && this.zoneName) {
+    return playerState.currentZone === this.zoneName;
+  }
+  
+  // Si pas d'info de zone, afficher par défaut
+  return true;
+}
   
   // ✅ MÉTHODE INCHANGÉE: Redirection vers la bonne scène
   redirectToCorrectScene(correctScene, serverData) {
