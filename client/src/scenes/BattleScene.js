@@ -2599,11 +2599,11 @@ testSendBattleFinished() {
  * Affiche un message dans la zone d'interface (à la place des boutons)
  */
 showActionMessage(message, duration = 0) {
-  console.log('💬 [BattleScene] Affichage message interface:', message, 'durée:', duration);
+  console.log('💬 [BattleScene] Message:', message, 'durée:', duration);
   
   if (!this.actionInterface || !this.actionMessageText) return;
   
-  // Annuler tout timer précédent
+  // ✅ Annuler tout timer précédent
   if (this.messageTimer) {
     clearTimeout(this.messageTimer);
     this.messageTimer = null;
@@ -2630,8 +2630,12 @@ showActionMessage(message, duration = 0) {
   
   this.interfaceMode = 'message';
   
-  // NE PAS masquer automatiquement si duration > 0
-  // (on laisse handleNetworkBattleMessage gérer la suite)
+  // ✅ NOUVEAU: Programmer masquage seulement si durée > 0
+  if (duration > 0) {
+    this.messageTimer = setTimeout(() => {
+      this.hideActionMessage();
+    }, duration);
+  }
 }
 
 /**
