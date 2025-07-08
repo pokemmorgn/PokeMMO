@@ -425,8 +425,15 @@ setupServerListeners() {
 
   if (!this.gameRoom) return;
 
+  // ✅ FIX: Forcer refresh complet à chaque réception de teamData
   this.gameRoom.onMessage("teamData", (data) => {
+    console.log("📊 [TeamUI] === TEAM DATA REÇU ===", data);
+    
+    // ✅ Toujours mettre à jour, même si pas visible
     this.updateTeamData(data);
+    
+    // ✅ NOUVEAU: Forcer un refresh complet
+    this.forceCompleteRefresh();
   });
 
   this.gameRoom.onMessage("teamActionResult", (data) => {
@@ -436,6 +443,43 @@ setupServerListeners() {
   this.gameRoom.onMessage("pokemonUpdate", (data) => {
     this.handlePokemonUpdate(data);
   });
+}
+
+// ✅ NOUVELLE MÉTHODE: Ajouter cette méthode dans TeamUI.js
+forceCompleteRefresh() {
+  console.log("🔄 [TeamUI] === FORCE COMPLETE REFRESH ===");
+  
+  try {
+    // 1. Refresh de l'affichage même si pas visible
+    this.refreshTeamDisplay();
+    console.log("✅ [TeamUI] refreshTeamDisplay() forcé");
+    
+    // 2. Mettre à jour les stats
+    this.updateTeamStats();
+    console.log("✅ [TeamUI] updateTeamStats() forcé");
+    
+    // 3. Si visible, forcer un deuxième refresh
+    if (this.isVisible) {
+      setTimeout(() => {
+        this.refreshTeamDisplay();
+        this.updateTeamStats();
+        console.log("✅ [TeamUI] Deuxième refresh forcé (UI visible)");
+      }, 100);
+    }
+    
+    // 4. Déclencher événement global pour notifier les autres systèmes
+    if (window.gameEvents) {
+      window.gameEvents.emit('teamRefreshed');
+    }
+    
+    // 5. ✅ BONUS: S'assurer que les event listeners sont en place
+    setTimeout(() => {
+      this.setupPokemonCardListeners();
+    }, 200);
+    
+  } catch (error) {
+    console.error("❌ [TeamUI] Erreur forceCompleteRefresh:", error);
+  }
 }
 
 
