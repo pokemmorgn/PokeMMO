@@ -238,42 +238,48 @@ export class BattleRoom extends Room<BattleState> {
 
   // === ✅ NOUVEAU: DÉMARRAGE AVEC TURNSYSTEM ===
 
-  private startTurnSystemBattle() {
-    console.log(`🎯 [TURNSYSTEM] Démarrage avec TurnSystem chef`);
-    
-    // Initialiser le contexte de combat
-    this.battleStartTime = new Date();
-    this.initializeBattleContext();
-    
-    // ✅ Configuration TurnSystem avec les vrais joueurs
-    const playerData = [
-      { id: this.state.player1Id, type: 'human' as PlayerType, name: this.state.player1Name },
-      { id: 'ai', type: 'ai' as PlayerType, name: 'Pokémon Sauvage' }
-    ];
-    
-    this.turnSystem.autoConfigurePlayers(playerData);
-    
-    this.state.phase = "battle";
-    this.state.waitingForAction = true;
-    this.state.turnNumber = 1;
-    
-    // ✅ TurnSystem détermine qui joue en premier
-    const player1Speed = this.state.player1Pokemon?.speed || 0;
-    const player2Speed = this.state.player2Pokemon?.speed || 0;
-    
-    // Mettre à jour le state pour l'interface
-    this.state.currentTurn = player1Speed >= player2Speed ? "player1" : "player2";
-    
-    console.log(`⚡ [TURNSYSTEM] Vitesses: P1=${player1Speed} vs P2=${player2Speed}`);
-    console.log(`🎯 [TURNSYSTEM] Premier tour: ${this.state.currentTurn}`);
-    
-    this.broadcast("battleStart", this.getClientBattleState());
-    this.updateBattleStatusIcons();
-    
-    // ✅ DÉMARRER TurnSystem et laisser faire
-    this.turnSystem.startTurn();
+// server/src/rooms/BattleRoom.ts
+
+private startTurnSystemBattle() {
+  console.log(`🎯 [TURNSYSTEM] Démarrage avec TurnSystem chef`);
+  
+  // Initialiser le contexte de combat
+  this.battleStartTime = new Date();
+  this.initializeBattleContext();
+  
+  // ✅ Configuration TurnSystem avec les vrais joueurs
+  const playerData = [
+    { id: this.state.player1Id, type: 'human' as PlayerType, name: this.state.player1Name },
+    { id: 'ai', type: 'ai' as PlayerType, name: 'Pokémon Sauvage' }
+  ];
+  
+  this.turnSystem.autoConfigurePlayers(playerData);
+  
+  // ✅ AJOUT: Configurer le callback pour notifier après chaque tour
+  this.turnSystem.setOnTurnStartCallback(() => {
     this.notifyCurrentPlayer();
-  }
+  });
+  
+  this.state.phase = "battle";
+  this.state.waitingForAction = true;
+  this.state.turnNumber = 1;
+  
+  // Déterminer qui joue en premier selon la vitesse
+  const player1Speed = this.state.player1Pokemon?.speed || 0;
+  const player2Speed = this.state.player2Pokemon?.speed || 0;
+  
+  // ✅ IMPORTANT: Si l'IA joue en premier, mettre currentTurn à player2
+  this.state.currentTurn = player1Speed >= player2Speed ? "player1" : "player2";
+  
+  console.log(`⚡ [TURNSYSTEM] Vitesses: P1=${player1Speed} vs P2=${player2Speed}`);
+  console.log(`🎯 [TURNSYSTEM] Premier tour: ${this.state.currentTurn}`);
+  
+  this.broadcast("battleStart", this.getClientBattleState());
+  this.updateBattleStatusIcons();
+  
+  // ✅ Démarrer le premier tour
+  this.turnSystem.startTurn();
+}
 
 private notifyCurrentPlayer() {
   console.log(`📢 [TURNSYSTEM] Notification tour: ${this.state.currentTurn}`);
@@ -287,8 +293,8 @@ private notifyCurrentPlayer() {
       });
     }
   } else if (this.state.currentTurn === "player2") {
-    // ✅ DÉLAI PLUS RÉALISTE POUR L'IA
-    const aiThinkingTime = 2000 + Math.random() * 2000; // Entre 2 et 4 secondes
+    // ✅ CORRECTION: Exécuter l'action IA immédiatement
+    const aiThinkingTime = 2000 + Math.random() * 2000;
     
     console.log(`🤖 [AI] Réflexion pendant ${aiThinkingTime}ms...`);
     
@@ -296,7 +302,7 @@ private notifyCurrentPlayer() {
       if (!this.state.battleEnded) {
         this.executeAITurnAction();
       }
-    }, aiThinkingTime);  // ✅ Délai variable pour plus de réalisme
+    }, aiThinkingTime);
   }
 }
 
@@ -375,8 +381,9 @@ private async executeAITurnAction() {
   console.log(`🤖 [AI] Exécution action IA via TurnSystem`);
   
   try {
-    if (!this.turnSystem.canPlayerAct('ai')) {
-      console.log(`🤖 [AI] IA ne peut pas jouer maintenant`);
+    // ✅ IMPORTANT: Vérifier que c'est vraiment le tour de l'IA
+    if (this.state.currentTurn !== "player2") {
+      console.log(`🤖 [AI] Pas le tour de l'IA (current: ${this.state.currentTurn})`);
       return;
     }
 
@@ -384,8 +391,11 @@ private async executeAITurnAction() {
     this.updateBattleContext();
 
     const aiMoves = Array.from(this.state.player2Pokemon.moves);
-    const randomMove = aiMoves[0] || "tackle";
+    const randomMove = aiMoves[Math.floor(Math.random() * aiMoves.length)] || "tackle";
     
+    console.log(`🤖 [AI] IA choisit: ${randomMove}`);
+    
+    // ✅ Soumettre l'action au TurnSystem
     const actionSubmitted = this.turnSystem.submitAction('ai', {
       type: 'attack',
       moveId: randomMove
@@ -393,13 +403,15 @@ private async executeAITurnAction() {
 
     if (!actionSubmitted) {
       console.error(`❌ [AI] Action IA refusée par TurnSystem`);
+      // ✅ Forcer le passage au tour suivant si l'IA ne peut pas jouer
+      this.proceedToNextTurn();
       return;
     }
 
+    // ✅ Exécuter l'action via BattleIntegration
     await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
     
-    // ❌ NE PAS synchroniser après
-    
+    // ✅ Vérifier fin de combat
     const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
     if (endCondition) {
       console.log(`🏁 [AI] Condition de fin détectée:`, endCondition);
@@ -407,6 +419,7 @@ private async executeAITurnAction() {
       return;
     }
     
+    // ✅ Passer au tour suivant
     this.proceedToNextTurn();
     
   } catch (error) {
@@ -418,10 +431,13 @@ private async executeAITurnAction() {
 private proceedToNextTurn() {
   console.log(`🔄 [TURNSYSTEM] Passage au tour suivant`);
   
-  // ✅ Utiliser la nouvelle méthode propre
+  // ✅ IMPORTANT: Réinitialiser les actions AVANT de changer de tour
   this.turnSystem.resetPlayerActions();
   
-  // Mettre à jour l'état pour l'interface
+  // ✅ IMPORTANT: Redémarrer le tour dans TurnSystem
+  this.turnSystem.startTurn();
+  
+  // Alterner les tours dans le state pour l'interface
   if (this.state.currentTurn === "player1") {
     this.state.currentTurn = "player2";
   } else {
@@ -431,12 +447,11 @@ private proceedToNextTurn() {
   this.state.turnNumber++;
   this.battleContext.turnNumber = this.state.turnNumber;
   
-  console.log(`🔄 [TURNSYSTEM] Nouveau tour: ${this.state.currentTurn} (${this.state.turnNumber})`);
+  console.log(`🔄 [TURNSYSTEM] Nouveau tour: ${this.state.currentTurn} (Tour ${this.state.turnNumber})`);
   
   this.broadcast("battleUpdate", this.getClientBattleState());
   
-  // ✅ Notifier le joueur actuel
-  this.notifyCurrentPlayer();
+  // ✅ Notifier le joueur actuel sera fait par TurnSystem
 }
 
   // === CALLBACKS BATTLEINTEGRATION (SIMPLIFIÉS) ===
@@ -812,41 +827,49 @@ private createParticipants(): any[] {
 
   // === GESTION DU CONTEXTE (INCHANGÉ) ===
 
+// server/src/rooms/BattleRoom.ts
+
 private updateBattleContext() {
   console.log(`🔄 [CONTEXT] Mise à jour contexte depuis state`);
   
   this.battleContext.participants.forEach((participant) => {
     if (participant.sessionId === this.state.player1Id || participant.sessionId === 'player1') {
       if (participant.team[0] && this.state.player1Pokemon) {
-        // ✅ Seulement mettre à jour si les valeurs sont différentes
-        if (participant.team[0].currentHp !== this.state.player1Pokemon.currentHp) {
-          console.log(`🔄 [CONTEXT] Sync P1 HP: ${participant.team[0].currentHp} → ${this.state.player1Pokemon.currentHp}`);
-          participant.team[0].currentHp = this.state.player1Pokemon.currentHp;
-        }
+        // ✅ Mise à jour complète
+        participant.team[0].currentHp = this.state.player1Pokemon.currentHp;
         participant.team[0].maxHp = this.state.player1Pokemon.maxHp;
         participant.team[0].name = this.state.player1Pokemon.name;
         participant.team[0].pokemonId = this.state.player1Pokemon.pokemonId;
+        participant.team[0].combatId = this.state.player1Pokemon.combatId;
       }
-      participant.activePokemon = this.state.player1Pokemon;
+      // ✅ IMPORTANT: Mettre à jour aussi activePokemon qui est une référence
+      if (participant.activePokemon && this.state.player1Pokemon) {
+        participant.activePokemon.currentHp = this.state.player1Pokemon.currentHp;
+        participant.activePokemon.maxHp = this.state.player1Pokemon.maxHp;
+      }
       participant.isConnected = this.clients.some(c => c.sessionId === this.state.player1Id);
       
     } else if (participant.sessionId === 'ai' || participant.sessionId === 'player2') {
       if (participant.team[0] && this.state.player2Pokemon) {
-        // ✅ Seulement mettre à jour si les valeurs sont différentes
-        if (participant.team[0].currentHp !== this.state.player2Pokemon.currentHp) {
-          console.log(`🔄 [CONTEXT] Sync P2 HP: ${participant.team[0].currentHp} → ${this.state.player2Pokemon.currentHp}`);
-          participant.team[0].currentHp = this.state.player2Pokemon.currentHp;
-        }
+        // ✅ Mise à jour complète
+        participant.team[0].currentHp = this.state.player2Pokemon.currentHp;
         participant.team[0].maxHp = this.state.player2Pokemon.maxHp;
         participant.team[0].name = this.state.player2Pokemon.name;
         participant.team[0].pokemonId = this.state.player2Pokemon.pokemonId;
+        participant.team[0].combatId = this.state.player2Pokemon.combatId;
       }
-      participant.activePokemon = this.state.player2Pokemon;
+      // ✅ IMPORTANT: Mettre à jour aussi activePokemon
+      if (participant.activePokemon && this.state.player2Pokemon) {
+        participant.activePokemon.currentHp = this.state.player2Pokemon.currentHp;
+        participant.activePokemon.maxHp = this.state.player2Pokemon.maxHp;
+      }
     }
   });
   
   this.battleContext.turnNumber = this.state.turnNumber;
   DamageManager.syncStatisticsToContext(this.battleContext);
+  
+  console.log(`✅ [CONTEXT] Synchronisation terminée - P1: ${this.state.player1Pokemon?.currentHp}HP, P2: ${this.state.player2Pokemon?.currentHp}HP`);
 }
 
   private async processBattleEndWithManager(endCondition: BattleEndCondition) {
