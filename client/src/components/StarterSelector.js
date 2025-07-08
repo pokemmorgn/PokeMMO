@@ -180,126 +180,36 @@ export class StarterSelector {
   }
 
   // ✅ NOUVELLE MÉTHODE: Mettre à jour TeamUI
-  // ✅ FIX DIRECT: StarterSelector.js - Modifiez updateTeamUI() pour être plus agressif
-
-updateTeamUI() {
-  console.log("📱 [StarterSelector] Mise à jour TeamUI AGRESSIVE");
-  
-  // Chercher TeamUI de toutes les façons possibles
-  const teamUI = window.teamUI || window.TeamUI || this.scene?.teamUI;
-  
-  if (teamUI) {
-    console.log("📱 [StarterSelector] TeamUI trouvé, FORCE TOTALE...");
+  updateTeamUI() {
+    console.log("📱 [StarterSelector] Mise à jour TeamUI");
     
-    // ✅ MÉTHODE 1: Forcer une demande de données
-    if (teamUI.requestTeamData) {
-      teamUI.requestTeamData();
-      console.log("📱 [StarterSelector] teamUI.requestTeamData() appelé");
-    }
+    // Chercher TeamUI de toutes les façons possibles
+    const teamUI = window.teamUI || window.TeamUI || this.scene?.teamUI;
     
-    // ✅ MÉTHODE 2: Forcer refresh direct
-    if (teamUI.refreshTeamDisplay) {
-      teamUI.refreshTeamDisplay();
-      console.log("📱 [StarterSelector] teamUI.refreshTeamDisplay() forcé");
-    }
-    
-    // ✅ MÉTHODE 3: Mettre à jour les stats
-    if (teamUI.updateTeamStats) {
-      teamUI.updateTeamStats();
-      console.log("📱 [StarterSelector] teamUI.updateTeamStats() appelé");
-    }
-    
-    // ✅ MÉTHODE 4: NOUVEAU - Forcer ouverture/fermeture pour refresh
-    if (teamUI.isVisible === false) {
-      console.log("📱 [StarterSelector] TeamUI fermé, forçage refresh via show/hide");
-      try {
-        teamUI.show();
-        setTimeout(() => {
-          teamUI.hide();
-        }, 100);
-      } catch (error) {
-        console.warn("⚠️ [StarterSelector] Erreur show/hide TeamUI:", error);
-      }
-    }
-    
-    // ✅ MÉTHODE 5: NOUVEAU - Simuler des données directement
-    console.log("📱 [StarterSelector] Simulation données starter...");
-    try {
-      const starterData = {
-        success: true,
-        team: [{
-          _id: 'temp_starter_id',
-          pokemonId: this.getStarterPokemonId(this.selectedStarterId),
-          nickname: this.getStarterName(this.selectedStarterId),
-          level: 5,
-          currentHp: 100,
-          maxHp: 100,
-          status: 'normal',
-          canBattle: true
-        }],
-        stats: {
-          totalPokemon: 1,
-          alivePokemon: 1,
-          canBattle: true,
-          averageLevel: 5
-        }
-      };
+    if (teamUI) {
+      console.log("📱 [StarterSelector] TeamUI trouvé, mise à jour...");
       
-      if (teamUI.updateTeamData) {
-        teamUI.updateTeamData(starterData);
-        console.log("📱 [StarterSelector] Données starter simulées injectées");
+      // Forcer une demande de données
+      if (teamUI.requestTeamData) {
+        teamUI.requestTeamData();
+        console.log("📱 [StarterSelector] teamUI.requestTeamData() appelé");
       }
       
-    } catch (error) {
-      console.warn("⚠️ [StarterSelector] Erreur simulation données:", error);
+      // Forcer un refresh si l'UI est visible
+      if (teamUI.isVisible && teamUI.refreshTeamDisplay) {
+        teamUI.refreshTeamDisplay();
+        console.log("📱 [StarterSelector] teamUI.refreshTeamDisplay() appelé");
+      }
+      
+      // Mettre à jour les stats
+      if (teamUI.updateTeamStats) {
+        teamUI.updateTeamStats();
+        console.log("📱 [StarterSelector] teamUI.updateTeamStats() appelé");
+      }
+    } else {
+      console.warn("⚠️ [StarterSelector] TeamUI non trouvé");
     }
-    
-  } else {
-    console.warn("⚠️ [StarterSelector] TeamUI non trouvé");
   }
-}
-
-// ✅ NOUVELLE MÉTHODE: Obtenir le nom du starter
-getStarterName(starterId) {
-  const names = {
-    'bulbasaur': 'Bulbizarre',
-    'charmander': 'Salamèche',
-    'squirtle': 'Carapuce'
-  };
-  return names[starterId] || 'Starter';
-}
-
-// ✅ AMÉLIORATION: forceCompleteTeamUpdate avec retry plus agressif
-forceCompleteTeamUpdate() {
-  console.log("🔄 [StarterSelector] === FORCE COMPLETE TEAM UPDATE AGRESSIF ===");
-  
-  // 1. Mettre à jour TeamIcon IMMÉDIATEMENT (ça marche déjà)
-  this.updateTeamIcon();
-  
-  // 2. Mettre à jour TeamUI AGRESSIVEMENT
-  this.updateTeamUI();
-  
-  // 3. Demander getTeam (au cas où)
-  if (this.networkManager?.room) {
-    console.log("📡 [StarterSelector] Demande getTeam");
-    this.networkManager.room.send("getTeam");
-  }
-  
-  // 4. NOUVEAU: Retry TeamUI plusieurs fois avec délais
-  const retryTeamUI = () => {
-    console.log("🔄 [StarterSelector] Retry TeamUI...");
-    this.updateTeamUI();
-    
-    if (this.networkManager?.room) {
-      this.networkManager.room.send("getTeam");
-    }
-  };
-  
-  setTimeout(retryTeamUI, 300);
-  setTimeout(retryTeamUI, 800);
-  setTimeout(retryTeamUI, 1500);
-  setTimeout(retryTeamUI, 3000); // Dernier essai après 3s
-}
   
   // ✅ NOUVELLE MÉTHODE: S'assurer que le CSS est chargé
   ensureCSS() {
