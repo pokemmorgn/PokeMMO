@@ -232,6 +232,22 @@ export class BattleNetworkHandler {
     try {
       // ✅ ÉVÉNEMENTS COMBAT - correspondent aux callbacks BattleRoom.ts
 
+              // ✅ NOUVEAUX MESSAGES V2
+        this.battleRoom.onMessage('actionResult', (data) => {
+          console.log('🎮 actionResult:', data);
+          this.triggerEvent('actionResult', data);
+        });
+        
+        this.battleRoom.onMessage('turnChanged', (data) => {
+          console.log('🔄 turnChanged:', data.currentTurn);
+          this.triggerEvent('turnChanged', data);
+        });
+        
+        this.battleRoom.onMessage('yourTurn', (data) => {
+          console.log('🎯 yourTurn:', data);
+          this.triggerEvent('yourTurn', data);
+        });
+          // ✅ NOUVEAUX MESSAGES V2
       this.battleRoom.onMessage('battleJoined', (data) => {
         console.log('⚔️ battleJoined:', data);
         this.triggerEvent('battleJoined', data);
