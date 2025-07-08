@@ -156,7 +156,9 @@ export class BattleRoom extends Room<BattleState> {
       
     } catch (error) {
       console.error(`❌ [BattleRoom] Erreur démarrage V2:`, error);
-      this.broadcast("battleError", { message: error.message });
+      this.broadcast("battleError", { 
+        message: error instanceof Error ? error.message : 'Erreur inconnue' 
+      });
     }
   }
   
