@@ -1,10 +1,10 @@
-// server/src/rooms/BattleRoom.ts
+// === GESTION CONNEXIONS ===// server/src/rooms/BattleRoom.ts
 // VERSION 2 : Clean avec BattleEngine
 
 import { Room, Client } from "@colyseus/core";
 import { BattleState, BattlePokemon } from "../schema/BattleState";
 import { BattleEngine } from "../battle/BattleEngine";
-import { BattleConfig, BattleGameState, Pokemon } from "../battle/types/BattleTypes";
+import { BattleConfig, BattleGameState, Pokemon, BattleAction } from "../battle/types/BattleTypes";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
 
@@ -57,11 +57,120 @@ export class BattleRoom extends Room<BattleState> {
     // ✅ NOUVEAU : Initialiser BattleEngine
     this.battleEngine = new BattleEngine();
     this.setupBattleEngineEvents();
+    this.setupMessageHandlers();
     
     console.log(`✅ [BattleRoom] ${this.roomId} créée avec BattleEngine V2`);
   }
   
-  // === GESTION CONNEXIONS ===
+  // === GESTION MESSAGES ===
+  
+  private setupMessageHandlers() {
+    console.log('🎮 [BattleRoom] Configuration message handlers V2');
+    
+    // Handler pour les actions de combat
+    this.onMessage("battleAction", async (client, data: {
+      actionType: "attack" | "item" | "switch" | "run" | "capture";
+      moveId?: string;
+      itemId?: string;
+      targetPokemonId?: string;
+      ballType?: string;
+    }) => {
+      await this.handleBattleAction(client, data);
+    });
+    
+    // Handler pour obtenir l'état du combat
+    this.onMessage("getBattleState", (client) => {
+      client.send("battleStateUpdate", this.getClientBattleState());
+    });
+  }
+  
+  private async handleBattleAction(client: Client, data: any) {
+    console.log(`🎮 [BattleRoom] Action reçue: ${data.actionType} de ${client.sessionId}`);
+    
+    try {
+      // Créer l'action pour BattleEngine
+      const action: BattleAction = {
+        actionId: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        playerId: client.sessionId,
+        type: data.actionType,
+        data: {
+          moveId: data.moveId,
+          itemId: data.itemId,
+          targetPokemonId: data.targetPokemonId,
+          ballType: data.ballType
+        },
+        timestamp: Date.now()
+      };
+      
+      // Traiter via BattleEngine
+      const result = this.battleEngine.processAction(action);
+      
+      if (result.success) {
+        console.log(`✅ [BattleRoom] Action traitée avec succès`);
+        
+        // Synchroniser le state
+        this.syncStateFromGameState();
+        
+        // Notifier tous les clients
+        this.broadcast("actionResult", {
+          success: true,
+          events: result.events,
+          data: result.data,
+          gameState: this.getClientBattleState()
+        });
+        
+        // Vérifier conditions de fin de combat
+        this.checkBattleEnd();
+        
+      } else {
+        console.log(`❌ [BattleRoom] Échec action: ${result.error}`);
+        
+        // Notifier seulement le client qui a échoué
+        client.send("actionResult", {
+          success: false,
+          error: result.error,
+          events: result.events
+        });
+      }
+      
+    } catch (error) {
+      console.error(`❌ [BattleRoom] Erreur handleBattleAction:`, error);
+      
+      client.send("actionResult", {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue',
+        events: []
+      });
+    }
+  }
+  
+  private checkBattleEnd() {
+    if (!this.battleGameState) return;
+    
+    // Vérifier si un Pokémon est K.O.
+    const player1KO = this.battleGameState.player1.pokemon?.currentHp <= 0;
+    const player2KO = this.battleGameState.player2.pokemon?.currentHp <= 0;
+    
+    if (player1KO || player2KO) {
+      console.log(`🏁 [BattleRoom] Fin de combat détectée`);
+      
+      const winner = player1KO ? 'player2' : 'player1';
+      const reason = player1KO ? 'Player 1 K.O.' : 'Player 2 K.O.';
+      
+      this.battleGameState.isEnded = true;
+      this.battleGameState.winner = winner;
+      this.battleGameState.phase = 'ended';
+      
+      this.broadcast("battleEnd", {
+        winner: winner,
+        reason: reason,
+        gameState: this.getClientBattleState()
+      });
+      
+      // Fermer la room dans 5 secondes
+      this.clock.setTimeout(() => this.disconnect(), 5000);
+    }
+  }
   
   async onJoin(client: Client, options: any) {
     console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom V2`);
