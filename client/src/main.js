@@ -2133,7 +2133,16 @@ window.isEncounterActive = function() {
 };
 
 window.isBattleActive = function() {
-  return window.battleSystem?.isCurrentlyInBattle() || false;
+  try {
+    return !!(
+      window.battleSystem && 
+      window.battleSystem.isInitialized && 
+      typeof window.battleSystem.isCurrentlyInBattle === 'function' &&
+      window.battleSystem.isCurrentlyInBattle()
+    );
+  } catch (error) {
+    return false;
+  }
 };
 
 window.shouldBlockInput = function() {
