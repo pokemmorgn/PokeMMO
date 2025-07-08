@@ -1,19 +1,21 @@
 // server/src/battle/BattleEngine.ts
-// ÉTAPE 2.6 : BattleEngine avec système narratif
+// ÉTAPE 2.6 : BattleEngine avec système narratif + CAPTURE
 
 import { TurnManager } from './modules/TurnManager';
 import { ActionProcessor } from './modules/ActionProcessor';
 import { AIPlayer } from './modules/AIPlayer';
 import { BattleEndManager } from './modules/BattleEndManager';
+import { CaptureManager } from './modules/CaptureManager';
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule, TurnPlayer, PlayerRole } from './types/BattleTypes';
 
 /**
- * BATTLE ENGINE - Chef d'orchestre du combat avec narrateur
+ * BATTLE ENGINE - Chef d'orchestre du combat avec narrateur + capture
  * 
  * Responsabilités :
  * - Coordonner les modules
  * - Maintenir l'état du jeu
  * - Gérer le tour narratif
+ * - Gérer la capture de Pokémon
  * - API stable pour BattleRoom
  * 
  * Extensibilité :
@@ -33,24 +35,26 @@ export class BattleEngine {
   private actionProcessor: ActionProcessor;
   private aiPlayer: AIPlayer;
   private battleEndManager: BattleEndManager;
+  private captureManager: CaptureManager;
   
   // === MODULES OPTIONNELS (ajoutés par étapes) ===
   private modules: Map<string, BattleModule> = new Map();
   private eventListeners: Map<string, Function[]> = new Map();
   
   constructor() {
-    console.log('🎯 [BattleEngine] Initialisation avec système narratif...');
+    console.log('🎯 [BattleEngine] Initialisation avec système narratif + capture...');
     
     // Modules obligatoires
     this.turnManager = new TurnManager();
     this.actionProcessor = new ActionProcessor();
     this.aiPlayer = new AIPlayer();
     this.battleEndManager = new BattleEndManager();
+    this.captureManager = new CaptureManager();
     
     // État initial vide
     this.gameState = this.createEmptyState();
     
-    console.log('✅ [BattleEngine] Prêt pour le combat narratif');
+    console.log('✅ [BattleEngine] Prêt pour le combat narratif + capture');
   }
   
   // === API PRINCIPALE (STABLE) ===
@@ -73,6 +77,7 @@ export class BattleEngine {
       this.actionProcessor.initialize(this.gameState);
       this.aiPlayer.initialize(this.gameState);
       this.battleEndManager.initialize(this.gameState);
+      this.captureManager.initialize(this.gameState);
       
       // 4. ✅ NOUVEAU: Démarrer par le tour narratif
       this.turnManager.startNarrativeTurn();
@@ -141,9 +146,9 @@ export class BattleEngine {
   }
   
   /**
-   * Traite une action (bloquée pendant la narration)
+   * Traite une action (bloquée pendant la narration) + CAPTURE
    */
-  processAction(action: BattleAction): BattleResult {
+  async processAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
     console.log(`🎮 [BattleEngine] Action reçue: ${action.type} par ${action.playerId}`);
     
     if (!this.isInitialized) {
@@ -176,13 +181,55 @@ export class BattleEngine {
         };
       }
       
-      // Traiter l'action via ActionProcessor
-      const result = this.actionProcessor.processAction(action);
+      // ✅ NOUVEAU: Traiter l'action selon son type
+      let result: BattleResult;
+      
+      if (action.type === 'capture') {
+        // Déléguer au CaptureManager
+        if (!teamManager) {
+          return {
+            success: false,
+            error: 'TeamManager requis pour la capture',
+            gameState: this.gameState,
+            events: []
+          };
+        }
+        result = await this.processCapture(action, teamManager);
+      } else {
+        // Traiter via ActionProcessor pour les autres actions
+        result = this.actionProcessor.processAction(action);
+      }
       
       if (result.success) {
         console.log(`✅ [BattleEngine] Action traitée avec succès`);
         
-        // ✅ Vérifier fin de combat AVANT de changer de tour
+        // ✅ NOUVEAU: Vérifier si la capture a terminé le combat
+        if (action.type === 'capture' && result.data?.captured && result.data?.battleEnded) {
+          console.log(`🎉 [BattleEngine] Combat terminé par capture !`);
+          
+          // Nettoyer le timer narratif si actif
+          if (this.narrativeTimer) {
+            clearTimeout(this.narrativeTimer);
+            this.narrativeTimer = null;
+          }
+          
+          // Marquer le combat comme terminé
+          this.gameState.isEnded = true;
+          this.gameState.winner = result.data.winner;
+          this.gameState.phase = 'ended';
+          
+          // Émettre événement de fin par capture
+          this.emit('battleEnd', {
+            winner: result.data.winner,
+            reason: 'Pokémon capturé !',
+            gameState: this.gameState,
+            captureSuccess: true
+          });
+          
+          return result;
+        }
+        
+        // ✅ Vérifier fin de combat AVANT de changer de tour (pour les autres actions)
         const battleEndCheck = this.checkBattleEnd();
         
         if (battleEndCheck.isEnded) {
@@ -222,21 +269,23 @@ export class BattleEngine {
           };
         }
         
-        // Changer de tour seulement si le combat continue
-        const nextPlayer = this.turnManager.nextTurn();
-        console.log(`🔄 [BattleEngine] Tour suivant: ${nextPlayer}`);
-        
-        // Émettre événement de changement de tour
-        this.emit('turnChanged', {
-          newPlayer: nextPlayer,
-          turnNumber: this.turnManager.getCurrentTurnNumber()
-        });
+        // Changer de tour seulement si le combat continue ET que ce n'est pas une capture ratée
+        if (!(action.type === 'capture' && !result.data?.captured)) {
+          const nextPlayer = this.turnManager.nextTurn();
+          console.log(`🔄 [BattleEngine] Tour suivant: ${nextPlayer}`);
+          
+          // Émettre événement de changement de tour
+          this.emit('turnChanged', {
+            newPlayer: nextPlayer,
+            turnNumber: this.turnManager.getCurrentTurnNumber()
+          });
+        }
         
         // Émettre événement d'action
         this.emit('actionProcessed', {
           action: action,
           result: result,
-          nextPlayer: nextPlayer
+          nextPlayer: this.turnManager.getCurrentPlayer()
         });
       } else {
         console.log(`❌ [BattleEngine] Échec action: ${result.error}`);
@@ -254,6 +303,22 @@ export class BattleEngine {
         events: []
       };
     }
+  }
+  
+  /**
+   * ✅ NOUVEAU: Traite une tentative de capture (délègue au CaptureManager)
+   */
+  private async processCapture(action: BattleAction, teamManager: any): Promise<BattleResult> {
+    console.log(`🎯 [BattleEngine] Tentative capture délégué au CaptureManager`);
+    
+    const ballType = action.data?.ballType || 'poke_ball';
+    
+    // Déléguer au CaptureManager
+    return await this.captureManager.attemptCapture(
+      action.playerId,
+      ballType,
+      teamManager
+    );
   }
   
   /**
@@ -343,7 +408,7 @@ export class BattleEngine {
       };
     }
     
-    // TODO: Autres conditions de fin (fuite, capture, etc.)
+    // TODO: Autres conditions de fin (fuite, etc.)
     
     return { isEnded: false, winner: null, reason: '' };
   }
@@ -448,6 +513,23 @@ export class BattleEngine {
       this.narrativeTimer = null;
     }
     console.log('🧹 [BattleEngine] Nettoyage effectué');
+  }
+  
+  // === MÉTHODES UTILITAIRES ===
+  
+  /**
+   * Récupère le nom du joueur depuis son ID
+   */
+  private getPlayerName(playerId: string): string {
+    if (!this.gameState) return playerId;
+    
+    if (playerId === this.gameState.player1.sessionId) {
+      return this.gameState.player1.name;
+    } else if (playerId === this.gameState.player2.sessionId) {
+      return this.gameState.player2.name;
+    }
+    
+    return playerId;
   }
   
   // === MÉTHODES PRIVÉES ===
