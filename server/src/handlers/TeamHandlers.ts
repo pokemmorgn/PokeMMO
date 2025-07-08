@@ -681,38 +681,43 @@ export class TeamHandlers {
   /**
  * Récupère les Pokémon d'une box spécifique (PC)
  */
-  private async handleGetBoxPokemon(client: Client, data: { boxNumber?: number } = {}): Promise<void> {
-    try {
-      const player = this.room.state.players.get(client.sessionId);
-      if (!player) {
-        client.send("boxPokemonList", { boxNumber: data.boxNumber || 0, pokemons: [], message: "Joueur non trouvé" });
-        return;
-      }
-      const teamManager = new TeamManager(player.name);
-      const pokemons = await teamManager.getBoxPokemon(data.boxNumber || 0);
-      client.send("boxPokemonList", { boxNumber: data.boxNumber || 0, pokemons });
-    } catch (err) {
-      client.send("boxPokemonList", { boxNumber: data.boxNumber || 0, pokemons: [], error: err.message });
+/**
+ * Récupère les Pokémon d'une box spécifique (PC)
+ */
+private async handleGetBoxPokemon(client: Client, data: { boxNumber?: number } = {}): Promise<void> {
+  try {
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("boxPokemonList", { boxNumber: data.boxNumber || 0, pokemons: [], message: "Joueur non trouvé" });
+      return;
     }
+    const teamManager = new TeamManager(player.name);
+    const pokemons = await teamManager.getBoxPokemon(data.boxNumber || 0);
+    client.send("boxPokemonList", { boxNumber: data.boxNumber || 0, pokemons });
+  } catch (err) {
+    const message = (err instanceof Error) ? err.message : String(err);
+    client.send("boxPokemonList", { boxNumber: data.boxNumber || 0, pokemons: [], error: message });
   }
-  
-  /**
-   * Transfère un Pokémon entre l’équipe et le PC (box)
-   */
-  private async handleTransferPokemon(client: Client, data: { pokemonId: string, toTeam: boolean }): Promise<void> {
-    try {
-      const player = this.room.state.players.get(client.sessionId);
-      if (!player) {
-        client.send("transferPokemonResult", { success: false, message: "Joueur non trouvé" });
-        return;
-      }
-      const teamManager = new TeamManager(player.name);
-      const result = await teamManager.transferPokemon(new mongoose.Types.ObjectId(data.pokemonId), data.toTeam);
-      client.send("transferPokemonResult", { success: !!result });
-    } catch (err) {
-      client.send("transferPokemonResult", { success: false, message: err.message });
+}
+
+/**
+ * Transfère un Pokémon entre l’équipe et le PC (box)
+ */
+private async handleTransferPokemon(client: Client, data: { pokemonId: string, toTeam: boolean }): Promise<void> {
+  try {
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) {
+      client.send("transferPokemonResult", { success: false, message: "Joueur non trouvé" });
+      return;
     }
+    const teamManager = new TeamManager(player.name);
+    const result = await teamManager.transferPokemon(new mongoose.Types.ObjectId(data.pokemonId), data.toTeam);
+    client.send("transferPokemonResult", { success: !!result });
+  } catch (err) {
+    const message = (err instanceof Error) ? err.message : String(err);
+    client.send("transferPokemonResult", { success: false, message });
   }
+}
 
   
   // ================================================================================================
