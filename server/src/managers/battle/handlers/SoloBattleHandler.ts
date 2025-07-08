@@ -124,7 +124,7 @@ class SoloBattleHandler implements IBattleHandler {
     console.log(`💥 [SoloBattleHandler] Dégâts: ${damageResult.finalDamage}`);
     
     // ✅ CORRECTION DU BUG : Utiliser les HP ACTUELS du context
-    const currentDefenderHp = defender.currentHp;
+    const currentDefenderHp = this.getCurrentHpFromState(defender, context);
     const newDefenderHp = Math.max(0, currentDefenderHp - damageResult.finalDamage);
     
     console.log(`🩹 [SoloBattleHandler] HP: ${currentDefenderHp} → ${newDefenderHp}`);
@@ -134,6 +134,13 @@ class SoloBattleHandler implements IBattleHandler {
   }
   
   // === CRÉATION DE SÉQUENCES SIMPLES ===
+
+  private getCurrentHpFromState(pokemon: BattlePokemonData, context: BattleContext): number {
+  // Utiliser le state qui est toujours à jour
+  const battleState = context.battleState; // On peut passer ça en paramètre
+  // OU récupérer depuis BattleRoom directement
+  return pokemon.currentHp; // Pour l'instant
+}
   
   private createAttackSequence(
     attacker: BattlePokemonData,
