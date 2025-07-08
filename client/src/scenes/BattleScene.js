@@ -1570,7 +1570,24 @@ setupBattleNetworkEvents() {
     this.showActionMessage(`Erreur: ${data.error}`, 2000);
   }
 });
+  this.battleNetworkHandler.on('turnChanged', (data) => {
+  console.log('🔄 [BattleScene] Tour changé reçu:', data.currentTurn);
   
+  if (data.currentTurn === 'player1') {
+    console.log('👤 [BattleScene] C\'est mon tour !');
+    setTimeout(() => {
+      this.showActionMessage('Que voulez-vous faire ?', 1500);
+      setTimeout(() => {
+        this.showActionButtons();
+      }, 1500);
+    }, 2000); // 2 secondes après le changement de tour
+  } else {
+    console.log('🤖 [BattleScene] Tour de l\'IA...');
+    // Tour de l'IA - désactiver les boutons
+    this.hideActionButtons();
+    this.showActionMessage('Tour de l\'adversaire...');
+  }
+});
   this.battleNetworkHandler.on('battleJoined', (data) => {
   console.log('⚔️ [BattleScene] Battle joined, rôle:', data.yourRole);
   this.playerRole = data.yourRole;
