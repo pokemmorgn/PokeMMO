@@ -362,6 +362,8 @@ private notifyCurrentPlayer() {
       data.actionType as ActionType,
       data
     );
+      // ✅ Forcer la synchronisation après l'action
+  this.updateBattleContext();
   }
 
   private async executeAITurnAction() {
@@ -403,6 +405,8 @@ private notifyCurrentPlayer() {
       
       // ✅ TurnSystem gère le prochain tour
       this.proceedToNextTurn();
+        // ✅ Forcer la synchronisation après l'action
+      this.updateBattleContext();
       
     } catch (error) {
       console.error(`❌ [AI] Erreur:`, error);
@@ -472,6 +476,9 @@ updatePokemonHP: (pokemonId: string, newHp: number) => {
   );
   
   if (result) {
+    // ✅ FORCER la synchronisation immédiate
+    this.updateBattleContext();
+    
     // ✅ MAPPER sessionId vers player1/player2
     let targetPlayer: 'player1' | 'player2';
     
@@ -490,7 +497,7 @@ updatePokemonHP: (pokemonId: string, newHp: number) => {
     
     this.broadcast('pokemonHPUpdate', {
       pokemonId: pokemonId,
-      targetPlayer: targetPlayer,  // ✅ Maintenant c'est "player1" ou "player2"
+      targetPlayer: targetPlayer,
       oldHp: result.oldHp,
       newHp: result.newHp,
       damage: result.damage,
@@ -537,71 +544,75 @@ updatePokemonHP: (pokemonId: string, newHp: number) => {
 
   // === CRÉATION DES COMPOSANTS (INCHANGÉ) ===
 
-  private createParticipants(): any[] {
-    const convertPokemon = (battlePokemon: BattlePokemon) => ({
-      pokemonId: battlePokemon.pokemonId,
-      name: battlePokemon.name,
-      level: battlePokemon.level,
-      currentHp: battlePokemon.currentHp,
-      maxHp: battlePokemon.maxHp,
-      types: Array.from(battlePokemon.types),
-      moves: Array.from(battlePokemon.moves).map(moveId => ({
-        moveId,
-        name: MoveManager.getMoveData(moveId)?.name || moveId,
-        type: MoveManager.getMoveData(moveId)?.type || 'Normal',
-        category: 'physical' as const,
-        power: MoveManager.getMoveData(moveId)?.power || 40,
-        accuracy: MoveManager.getMoveData(moveId)?.accuracy || 100,
-        pp: 35,
-        maxPp: 35,
-        priority: 0,
-        description: ''
-      })),
-      stats: {
-        attack: battlePokemon.attack,
-        defense: battlePokemon.defense,
-        specialAttack: battlePokemon.specialAttack,
-        specialDefense: battlePokemon.specialDefense,
-        speed: battlePokemon.speed,
-        hp: battlePokemon.maxHp
-      },
-      statStages: {
-        attack: 0, defense: 0, specialAttack: 0, 
-        specialDefense: 0, speed: 0, accuracy: 0, evasion: 0
-      },
-      statusCondition: battlePokemon.statusCondition || 'normal',
-      ability: undefined as string | undefined,
-      heldItem: undefined as string | undefined,
-      gender: battlePokemon.gender,
-      shiny: battlePokemon.shiny,
-      isWild: battlePokemon.isWild,
-      nature: 'Hardy'
-    });
+private createParticipants(): any[] {
+  const convertPokemon = (battlePokemon: BattlePokemon) => ({
+    pokemonId: battlePokemon.pokemonId,
+    name: battlePokemon.name,
+    level: battlePokemon.level,
+    currentHp: battlePokemon.currentHp,
+    maxHp: battlePokemon.maxHp,
+    types: Array.from(battlePokemon.types),
+    moves: Array.from(battlePokemon.moves).map(moveId => ({
+      moveId,
+      name: MoveManager.getMoveData(moveId)?.name || moveId,
+      type: MoveManager.getMoveData(moveId)?.type || 'Normal',
+      category: 'physical' as const,
+      power: MoveManager.getMoveData(moveId)?.power || 40,
+      accuracy: MoveManager.getMoveData(moveId)?.accuracy || 100,
+      pp: 35,
+      maxPp: 35,
+      priority: 0,
+      description: ''
+    })),
+    stats: {
+      attack: battlePokemon.attack,
+      defense: battlePokemon.defense,
+      specialAttack: battlePokemon.specialAttack,
+      specialDefense: battlePokemon.specialDefense,
+      speed: battlePokemon.speed,
+      hp: battlePokemon.maxHp
+    },
+    statStages: {
+      attack: 0,
+      defense: 0,
+      specialAttack: 0,
+      specialDefense: 0,
+      speed: 0,
+      accuracy: 0,
+      evasion: 0
+    },
+    statusCondition: battlePokemon.statusCondition || 'normal',
+    ability: undefined as string | undefined,
+    heldItem: undefined as string | undefined,
+    gender: battlePokemon.gender,
+    shiny: battlePokemon.shiny,
+    isWild: battlePokemon.isWild,
+    nature: 'Hardy'
+  });
 
-    return [
-      {
-        sessionId: this.state.player1Id,
-        name: this.state.player1Name,
-        role: 'player1',
-        team: [convertPokemon(this.state.player1Pokemon)],
-        activePokemon: this.state.player1Pokemon.pokemonId.toString(),
-        isAI: false,
-        isConnected: true,
-        lastActionTime: Date.now()
-      },
-      {
-        sessionId: 'ai',
-        name: 'Pokémon Sauvage',
-        role: 'player2',
-        team: [convertPokemon(this.state.player2Pokemon)],
-        activePokemon: this.state.player2Pokemon.pokemonId.toString(),
-        isAI: true,
-        isConnected: true,
-        lastActionTime: Date.now()
-      }
-    ];
-  }
-
+  return [
+    {
+      sessionId: this.state.player1Id,
+      name: this.state.player1Name,
+      role: 'player1',
+      team: [convertPokemon(this.state.player1Pokemon)],
+      activePokemon: this.state.player1Pokemon.pokemonId.toString(),
+      isAI: false,
+      isConnected: true,
+      lastActionTime: Date.now()
+    },
+    {
+      sessionId: 'ai',
+      name: 'Pokémon Sauvage',
+      role: 'player2',
+      team: [convertPokemon(this.state.player2Pokemon)],
+      activePokemon: this.state.player2Pokemon.pokemonId.toString(),
+      isAI: true,
+      isConnected: true,
+      lastActionTime: Date.now()
+    }
+  ];
+}
   private async createBattlePokemon(pokemonData: any, isWild: boolean): Promise<BattlePokemon> {
     const battlePokemon = new BattlePokemon();
     
