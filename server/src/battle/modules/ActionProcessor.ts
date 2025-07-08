@@ -176,16 +176,16 @@ export class ActionProcessor {
   /**
    * Traite une tentative de capture
    */
-  private processCapture(action: BattleAction): BattleResult {
-    console.log(`🎯 [ActionProcessor] Tentative capture (pas encore implémenté)`);
-    
-    return {
-      success: false,
-      error: 'Capture pas encore implémentée',
-      gameState: this.gameState,
-      events: ['La capture sera bientôt disponible !']
-    };
-  }
+private processCapture(action: BattleAction): BattleResult {
+  console.log(`🎯 [ActionProcessor] Délégation capture vers BattleEngine`);
+  
+  return {
+    success: false,
+    error: 'Capture doit être traitée via BattleEngine directement',
+    gameState: this.gameState!,
+    events: ['Utilisez BattleEngine.processAction() pour la capture']
+  };
+}
   
   /**
    * Traite une tentative de fuite
