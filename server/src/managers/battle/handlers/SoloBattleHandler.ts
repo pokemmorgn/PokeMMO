@@ -287,6 +287,8 @@ class SoloBattleHandler implements IBattleHandler {
   }
 }
 
+}
+
 export default SoloBattleHandler;
 
 /*
