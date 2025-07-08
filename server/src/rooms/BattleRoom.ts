@@ -120,8 +120,6 @@ private async handleBattleAction(client: Client, data: any) {
         battleEnded: result.data?.battleEnded || false
       });
       
-      // ❌ LIGNE À SUPPRIMER - La fin de combat est maintenant gérée par BattleEngine
-      // this.checkBattleEnd(); // ← SUPPRIMER CETTE LIGNE
       
     } else {
       console.log(`❌ [BattleRoom] Échec action: ${result.error}`);
@@ -147,52 +145,53 @@ private async handleBattleAction(client: Client, data: any) {
   
   // === ✅ NOUVEAU: EXÉCUTION ACTION IA ===
   
-  private async executeAIAction() {
-    console.log('🤖 [BattleRoom] Exécution action IA');
+private async executeAIAction() {
+  console.log('🤖 [BattleRoom] Exécution action IA');
+  
+  try {
+    // Générer l'action IA
+    const aiAction = this.battleEngine.generateAIAction();
     
-    try {
-      // Générer l'action IA
-      const aiAction = this.battleEngine.generateAIAction();
-      
-      if (!aiAction) {
-        console.error('❌ [BattleRoom] Aucune action IA générée');
-        return;
-      }
-      
-      console.log(`🤖 [BattleRoom] IA va utiliser: ${aiAction.data.moveId}`);
-      
-      // Traiter l'action via BattleEngine
-      const result = this.battleEngine.processAction(aiAction);
-      
-      if (result.success) {
-        console.log(`✅ [BattleRoom] Action IA traitée avec succès`);
-        
-        // Synchroniser le state
-        this.syncStateFromGameState();
-        
-        // Notifier tous les clients
-        this.broadcast("actionResult", {
-          success: true,
-          isAI: true,
-          events: result.events,
-          data: result.data,
-          gameState: this.getClientBattleState()
-        });
-        
-        // Vérifier conditions de fin de combat
-        this.checkBattleEnd();
-        
-      } else {
-        console.error(`❌ [BattleRoom] Échec action IA: ${result.error}`);
-        
-        // En cas d'échec IA, passer au tour suivant
-        // TODO: Gérer les échecs IA plus proprement
-      }
-      
-    } catch (error) {
-      console.error(`❌ [BattleRoom] Erreur executeAIAction:`, error);
+    if (!aiAction) {
+      console.error('❌ [BattleRoom] Aucune action IA générée');
+      return;
     }
+    
+    console.log(`🤖 [BattleRoom] IA va utiliser: ${aiAction.data.moveId}`);
+    
+    // Traiter l'action via BattleEngine
+    const result = this.battleEngine.processAction(aiAction);
+    
+    if (result.success) {
+      console.log(`✅ [BattleRoom] Action IA traitée avec succès`);
+      
+      // Synchroniser le state
+      this.syncStateFromGameState();
+      
+      // Notifier tous les clients
+      this.broadcast("actionResult", {
+        success: true,
+        isAI: true,
+        events: result.events,
+        data: result.data,
+        gameState: this.getClientBattleState(),
+        battleEnded: result.data?.battleEnded || false // ✅ AJOUTÉ
+      });
+      
+      // ❌ SUPPRIMER CETTE LIGNE - La fin de combat est gérée par BattleEngine
+      // this.checkBattleEnd();
+      
+    } else {
+      console.error(`❌ [BattleRoom] Échec action IA: ${result.error}`);
+      
+      // En cas d'échec IA, passer au tour suivant
+      // TODO: Gérer les échecs IA plus proprement
+    }
+    
+  } catch (error) {
+    console.error(`❌ [BattleRoom] Erreur executeAIAction:`, error);
   }
+    }
     
   async onJoin(client: Client, options: any) {
     console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom V2`);
