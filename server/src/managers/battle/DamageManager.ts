@@ -60,7 +60,7 @@ export class DamageManager {
    * ✅ MÉTHODE PRINCIPALE: Met à jour les HP d'un Pokémon de façon synchronisée
    */
   static updatePokemonHP(
-    pokemonId: string,
+    combatId: string,
     newHp: number,
     battleState: any,
     battleContext: BattleContext,
@@ -220,55 +220,67 @@ export class DamageManager {
 
   // === MÉTHODES PRIVÉES DE RECHERCHE ET MISE À JOUR ===
 
-  private static findAndUpdateInState(pokemonId: string, newHp: number, battleState: any): any {
-    console.log(`🔍 [DamageManager] Recherche dans state...`);
+private static findAndUpdateInState(combatId: string, newHp: number, battleState: any): any {
+  console.log(`🔍 [DamageManager] Recherche dans state avec combatId: ${combatId}`);
+  
+  // Player 1
+  if (battleState.player1Pokemon?.combatId === combatId) {
+    const oldHp = battleState.player1Pokemon.currentHp;
+    battleState.player1Pokemon.currentHp = newHp;
     
-    // Player 1
-    if (battleState.player1Pokemon?.pokemonId.toString() === pokemonId) {
-      const oldHp = battleState.player1Pokemon.currentHp;
-      battleState.player1Pokemon.currentHp = newHp;
-      
-      console.log(`🔍 [DamageManager] Trouvé Player1: ${battleState.player1Pokemon.name}`);
-      return {
-        pokemon: battleState.player1Pokemon,
-        oldHp,
-        newHp,
-        playerId: 'player1',
-        pokemonName: battleState.player1Pokemon.name
-      };
-    }
-
-    // Player 2
-    if (battleState.player2Pokemon?.pokemonId.toString() === pokemonId) {
-      const oldHp = battleState.player2Pokemon.currentHp;
-      battleState.player2Pokemon.currentHp = newHp;
-      
-      console.log(`🔍 [DamageManager] Trouvé Player2: ${battleState.player2Pokemon.name}`);
-      return {
-        pokemon: battleState.player2Pokemon,
-        oldHp,
-        newHp,
-        playerId: 'player2',
-        pokemonName: battleState.player2Pokemon.name
-      };
-    }
-
-    return null;
+    console.log(`🔍 [DamageManager] Trouvé Player1: ${battleState.player1Pokemon.name}`);
+    return {
+      pokemon: battleState.player1Pokemon,
+      oldHp,
+      newHp,
+      playerId: 'player1',
+      pokemonName: battleState.player1Pokemon.name
+    };
   }
 
-  private static findAndUpdateInContext(pokemonId: string, newHp: number, battleContext: BattleContext): any {
-  console.log(`🔍 [DamageManager] Recherche dans context...`);
-  console.log(`🔍 [DamageManager] État actuel du context:`, {
-    player1Hp: battleContext.participants[0]?.team[0]?.currentHp,
-    player2Hp: battleContext.participants[1]?.team[0]?.currentHp
-  });
-    for (const participant of battleContext.participants) {
-      // Vérifier le Pokémon actif
-      if (participant.activePokemon.pokemonId.toString() === pokemonId) {
-        const oldHp = participant.activePokemon.currentHp;
-        participant.activePokemon.currentHp = newHp;
+  // Player 2
+  if (battleState.player2Pokemon?.combatId === combatId) {
+    const oldHp = battleState.player2Pokemon.currentHp;
+    battleState.player2Pokemon.currentHp = newHp;
+    
+    console.log(`🔍 [DamageManager] Trouvé Player2: ${battleState.player2Pokemon.name}`);
+    return {
+      pokemon: battleState.player2Pokemon,
+      oldHp,
+      newHp,
+      playerId: 'player2',
+      pokemonName: battleState.player2Pokemon.name
+    };
+  }
+
+  return null;
+}
+
+private static findAndUpdateInContext(combatId: string, newHp: number, battleContext: BattleContext): any {
+  console.log(`🔍 [DamageManager] Recherche dans context avec combatId: ${combatId}`);
+  
+  for (const participant of battleContext.participants) {
+    // Vérifier le Pokémon actif
+    if (participant.activePokemon.combatId === combatId) {
+      const oldHp = participant.activePokemon.currentHp;
+      participant.activePokemon.currentHp = newHp;
+      
+      console.log(`🔍 [DamageManager] Mis à jour dans context: ${participant.name}`);
+      return {
+        participant,
+        oldHp,
+        newHp,
+        sessionId: participant.sessionId
+      };
+    }
+
+    // Vérifier l'équipe complète
+    for (const teamPokemon of participant.team) {
+      if (teamPokemon.combatId === combatId) {
+        const oldHp = teamPokemon.currentHp;
+        teamPokemon.currentHp = newHp;
         
-        console.log(`🔍 [DamageManager] Mis à jour dans context: ${participant.name}`);
+        console.log(`🔍 [DamageManager] Mis à jour dans équipe: ${participant.name}`);
         return {
           participant,
           oldHp,
@@ -276,26 +288,11 @@ export class DamageManager {
           sessionId: participant.sessionId
         };
       }
-
-      // Vérifier l'équipe complète
-      for (const teamPokemon of participant.team) {
-        if (teamPokemon.pokemonId.toString() === pokemonId) {
-          const oldHp = teamPokemon.currentHp;
-          teamPokemon.currentHp = newHp;
-          
-          console.log(`🔍 [DamageManager] Mis à jour dans équipe: ${participant.name}`);
-          return {
-            participant,
-            oldHp,
-            newHp,
-            sessionId: participant.sessionId
-          };
-        }
-      }
     }
-
-    return null;
   }
+
+  return null;
+}
 
   private static calculateDamageInfo(stateResult: any, contextResult: any, attackerId?: string): DamageResult {
     const damage = Math.max(0, stateResult.oldHp - stateResult.newHp);
