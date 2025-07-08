@@ -510,10 +510,14 @@ export class BattleScene extends Phaser.Scene {
       case 'attack':
         this.showAttackMenu();
         break;
-      case 'bag':
-        // ✅ SIMPLIFIÉ: Pas de timer côté client
-        this.showActionMessage('Ouverture du sac...');
-        break;
+    case 'bag':
+      if (window.inventorySystem) {
+        window.inventorySystem.openInventoryToPocket('balls');
+        this.hideActionButtons();
+      } else {
+        this.showActionMessage('Inventaire non disponible');
+      }
+      break;
       case 'pokemon':
         // ✅ SIMPLIFIÉ: Pas de timer côté client
         this.showActionMessage('Changement de Pokémon indisponible.');
