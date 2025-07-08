@@ -2,6 +2,7 @@
 // ÉTAPE 1 : Fondations extensibles - Entrée en combat uniquement
 
 import { TurnManager } from './modules/TurnManager';
+import { ActionProcessor } from './modules/ActionProcessor';
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule } from './types/BattleTypes';
 
 /**
@@ -25,6 +26,7 @@ export class BattleEngine {
   
   // === MODULES CORE ===
   private turnManager: TurnManager;
+  private actionProcessor: ActionProcessor;
   
   // === MODULES OPTIONNELS (ajoutés par étapes) ===
   private modules: Map<string, BattleModule> = new Map();
@@ -33,8 +35,9 @@ export class BattleEngine {
   constructor() {
     console.log('🎯 [BattleEngine] Initialisation...');
     
-    // Module obligatoire : gestion des tours
+    // Modules obligatoires
     this.turnManager = new TurnManager();
+    this.actionProcessor = new ActionProcessor();
     
     // État initial vide
     this.gameState = this.createEmptyState();
@@ -59,6 +62,7 @@ export class BattleEngine {
       
       // 3. Configurer les modules
       this.turnManager.initialize(this.gameState);
+      this.actionProcessor.initialize(this.gameState);
       
       // 4. Déterminer qui commence
       const firstPlayer = this.turnManager.determineFirstPlayer(
@@ -96,10 +100,10 @@ export class BattleEngine {
   }
   
   /**
-   * Traite une action (pour plus tard)
+   * Traite une action
    */
   processAction(action: BattleAction): BattleResult {
-    console.log(`🎮 [BattleEngine] Action reçue: ${action.type}`);
+    console.log(`🎮 [BattleEngine] Action reçue: ${action.type} par ${action.playerId}`);
     
     if (!this.isInitialized) {
       return {
@@ -110,15 +114,44 @@ export class BattleEngine {
       };
     }
     
-    // ÉTAPE 1 : Pas d'actions encore, juste loguer
-    console.log(`⏸️ [BattleEngine] Actions pas encore implémentées`);
-    
-    return {
-      success: false,
-      error: 'Actions pas encore implémentées',
-      gameState: this.gameState,
-      events: ['Actions bientôt disponibles...']
-    };
+    try {
+      // Vérifier si le joueur peut agir
+      if (!this.turnManager.canPlayerAct(action.playerId)) {
+        return {
+          success: false,
+          error: 'Ce n\'est pas votre tour',
+          gameState: this.gameState,
+          events: []
+        };
+      }
+      
+      // Traiter l'action via ActionProcessor
+      const result = this.actionProcessor.processAction(action);
+      
+      if (result.success) {
+        console.log(`✅ [BattleEngine] Action traitée avec succès`);
+        
+        // Émettre événement d'action
+        this.emit('actionProcessed', {
+          action: action,
+          result: result
+        });
+      } else {
+        console.log(`❌ [BattleEngine] Échec action: ${result.error}`);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error(`❌ [BattleEngine] Erreur traitement action:`, error);
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue',
+        gameState: this.gameState,
+        events: []
+      };
+    }
   }
   
   /**
