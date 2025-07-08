@@ -1162,16 +1162,17 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  processLegacyEventsServerDriven(events) {
-    console.log('📜 [BattleScene] Traitement événements legacy server-driven:', events);
-    
-    // ✅ SIMPLIFIÉ: Afficher le dernier événement seulement
-    // Le serveur enverra les nouveaux quand il voudra
-    if (events.length > 0) {
-      const lastEvent = events[events.length - 1];
-      this.showActionMessage(lastEvent);
-    }
+processLegacyEventsServerDriven(events) {
+  console.log('📜 [BattleScene] Traitement événements legacy server-driven:', events);
+  
+  // ✅ CORRECTION: Ne pas afficher si interface boutons active
+  if (events.length > 0 && this.interfaceMode !== 'buttons') {
+    const lastEvent = events[events.length - 1];
+    this.showActionMessage(lastEvent);
+  } else {
+    console.log('🎮 [BattleScene] Interface boutons active, ignorer legacy events');
   }
+}
 
   // === HANDLERS RÉSEAU (SIMPLIFIÉS) ===
 
