@@ -162,8 +162,8 @@ class SoloBattleHandler implements IBattleHandler {
     }
     
     // Obtenir attaquant et défenseur
-    const attacker = this.getPokemonById(action.playerId, context);
-    const defender = this.getOpponentPokemon(action.playerId, context);
+  const attacker = this.getPokemonByPlayerId(action.playerId, context);
+  const defender = this.getOpponentPokemon(action.playerId, context);
     
     if (!attacker || !defender) {
       console.error(`❌ [SoloBattleHandler] Pokémon manquants - attacker: ${!!attacker}, defender: ${!!defender}`);
@@ -579,56 +579,175 @@ class SoloBattleHandler implements IBattleHandler {
     };
   }
   
-  // === HELPERS ===
+// === HELPERS ===
+
+private getBallBonus(ballType: string): number {
+  const ballBonuses: { [key: string]: number } = {
+    'pokeball': 1.0,
+    'greatball': 1.5,
+    'ultraball': 2.0,
+    'masterball': 255.0
+  };
   
-  private getBallBonus(ballType: string): number {
-    const ballBonuses: { [key: string]: number } = {
-      'pokeball': 1.0,
-      'greatball': 1.5,
-      'ultraball': 2.0,
-      'masterball': 255.0
-    };
-    
-    return ballBonuses[ballType] || 1.0;
+  return ballBonuses[ballType] || 1.0;
+}
+
+private getStatusCaptureModifier(status: string): number {
+  const statusModifiers: { [key: string]: number } = {
+    'normal': 1.0,
+    'sleep': 2.5,
+    'freeze': 2.5,
+    'paralysis': 1.5,
+    'burn': 1.5,
+    'poison': 1.5
+  };
+  
+  return statusModifiers[status] || 1.0;
+}
+
+private getAccuracyStageMultiplier(stage: number): number {
+  const clampedStage = Math.max(-6, Math.min(6, stage));
+  
+  if (clampedStage >= 0) {
+    return (3 + clampedStage) / 3;
+  } else {
+    return 3 / (3 - clampedStage);
+  }
+}
+
+private getAIPersonality(context: BattleContext): any {
+  switch (context.battleType) {
+    case 'wild':
+      return { ...this.aiPersonalities.wild, name: 'wild' };
+    case 'trainer':
+      return { ...this.aiPersonalities.balanced, name: 'trainer' };
+    case 'gym':
+      return { ...this.aiPersonalities.aggressive, name: 'gym' };
+    case 'elite4':
+      return { ...this.aiPersonalities.defensive, name: 'elite4' };
+    default:
+      return { ...this.aiPersonalities.balanced, name: 'default' };
+  }
+}
+
+// === HELPERS DE DONNÉES ===
+
+private getPokemonByPlayerId(playerId: string, context: BattleContext): BattlePokemonData | null {
+  const participant = context.participants.find(p => p.sessionId === playerId);
+  const pokemon = participant?.team[0] || null;
+  
+  if (!pokemon) {
+    console.log(`⚠️ [SoloBattleHandler] Pokémon non trouvé pour playerId: ${playerId}`);
+    console.log(`⚠️ [SoloBattleHandler] Participants disponibles:`, context.participants.map(p => ({
+      sessionId: p.sessionId,
+      pokemon: p.team[0]?.name,
+      combatId: p.team[0]?.combatId
+    })));
   }
   
-  private getStatusCaptureModifier(status: string): number {
-    const statusModifiers: { [key: string]: number } = {
-      'normal': 1.0,
-      'sleep': 2.5,
-      'freeze': 2.5,
-      'paralysis': 1.5,
-      'burn': 1.5,
-      'poison': 1.5
-    };
-    
-    return statusModifiers[status] || 1.0;
+  return pokemon;
+}
+
+private getPlayerPokemon(context: BattleContext): BattlePokemonData | null {
+  const participant = context.participants.find(p => !p.isAI);
+  const pokemon = participant?.team[0] || null;
+  
+  if (!pokemon) {
+    console.log(`⚠️ [SoloBattleHandler] Pokémon joueur non trouvé`);
   }
   
-  private getAccuracyStageMultiplier(stage: number): number {
-    const clampedStage = Math.max(-6, Math.min(6, stage));
-    
-    if (clampedStage >= 0) {
-      return (3 + clampedStage) / 3;
-    } else {
-      return 3 / (3 - clampedStage);
-    }
+  return pokemon;
+}
+
+private getAIPokemon(context: BattleContext): BattlePokemonData | null {
+  const participant = context.participants.find(p => p.isAI);
+  const pokemon = participant?.team[0] || null;
+  
+  if (!pokemon) {
+    console.log(`⚠️ [SoloBattleHandler] Pokémon IA non trouvé`);
   }
   
-  private getAIPersonality(context: BattleContext): any {
-    switch (context.battleType) {
-      case 'wild':
-        return { ...this.aiPersonalities.wild, name: 'wild' };
-      case 'trainer':
-        return { ...this.aiPersonalities.balanced, name: 'trainer' };
-      case 'gym':
-        return { ...this.aiPersonalities.aggressive, name: 'gym' };
-      case 'elite4':
-        return { ...this.aiPersonalities.defensive, name: 'elite4' };
-      default:
-        return { ...this.aiPersonalities.balanced, name: 'default' };
-    }
+  return pokemon;
+}
+
+private getOpponentPokemon(playerId: string, context: BattleContext): BattlePokemonData | null {
+  const participant = context.participants.find(p => p.sessionId !== playerId);
+  const pokemon = participant?.team[0] || null;
+  
+  if (!pokemon) {
+    console.log(`⚠️ [SoloBattleHandler] Pokémon adversaire non trouvé pour playerId: ${playerId}`);
   }
+  
+  return pokemon;
+}
+
+/**
+ * ✅ AJOUT: Version synchrone pour l'évaluation
+ */
+private getMoveDataSync(moveId: string): any {
+  if (this.moveDataCache.has(moveId)) {
+    return this.moveDataCache.get(moveId);
+  }
+  
+  // Données de base selon le moveId
+  const basicMoveData: { [key: string]: any } = {
+    'tackle': { id: 'tackle', name: 'Charge', type: 'Normal', category: 'Physical', power: 40, accuracy: 100, pp: 35, priority: 0 },
+    'scratch': { id: 'scratch', name: 'Griffe', type: 'Normal', category: 'Physical', power: 40, accuracy: 100, pp: 35, priority: 0 },
+    'vine_whip': { id: 'vine_whip', name: 'Fouet Lianes', type: 'Grass', category: 'Physical', power: 45, accuracy: 100, pp: 25, priority: 0 },
+    'thunder_shock': { id: 'thunder_shock', name: 'Éclair', type: 'Electric', category: 'Special', power: 40, accuracy: 100, pp: 30, priority: 0 },
+    'ember': { id: 'ember', name: 'Flammèche', type: 'Fire', category: 'Special', power: 40, accuracy: 100, pp: 25, priority: 0 },
+    'water_gun': { id: 'water_gun', name: 'Pistolet à O', type: 'Water', category: 'Special', power: 40, accuracy: 100, pp: 25, priority: 0 },
+    'quick_attack': { id: 'quick_attack', name: 'Vive-Attaque', type: 'Normal', category: 'Physical', power: 40, accuracy: 100, pp: 30, priority: 1 },
+  };
+  
+  const moveData = basicMoveData[moveId] || {
+    id: moveId,
+    name: moveId.charAt(0).toUpperCase() + moveId.slice(1),
+    type: 'Normal',
+    category: 'Physical',
+    power: 40,
+    accuracy: 100,
+    pp: 35,
+    priority: 0
+  };
+  
+  this.moveDataCache.set(moveId, moveData);
+  return moveData;
+}
+
+private async getMoveData(moveId: string): Promise<any> {
+  return this.getMoveDataSync(moveId);
+}
+
+private async getItemData(itemId: string): Promise<any> {
+  // TODO: Charger depuis vos JSONs d'objets
+  return {
+    id: itemId,
+    name: itemId,
+    category: 'healing',
+    effect: 'heal_20'
+  };
+}
+
+/**
+ * Helper pour récupérer le playerId d'un Pokémon
+ */
+private getPlayerIdFromPokemon(pokemon: BattlePokemonData, context: BattleContext): string {
+  const participant = context.participants.find(p => 
+    p.team.some(teamPokemon => teamPokemon.combatId === pokemon.combatId)
+  );
+  return participant?.sessionId || 'unknown';
+}
+
+private calculateHealAmount(item: any): number {
+  switch (item.effect) {
+    case 'heal_20': return 20;
+    case 'heal_50': return 50;
+    case 'heal_full': return 9999; // HP complets
+    case 'heal_percent_50': return -50; // 50% (négatif = pourcentage)
+    default: return 20;
+  }
+}
   
   // === HELPERS DE DONNÉES ===
   
