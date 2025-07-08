@@ -87,6 +87,12 @@ export class BattleEngine {
         firstPlayer: firstPlayer
       });
       
+      // ✅ NOUVEAU: Émettre événement de premier tour
+      this.emit('turnChanged', {
+        newPlayer: firstPlayer,
+        turnNumber: this.gameState.turnNumber
+      });
+      
       console.log(`✅ [BattleEngine] Combat démarré - Premier joueur: ${firstPlayer}`);
       
       return {
