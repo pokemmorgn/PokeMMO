@@ -2034,7 +2034,90 @@ startBattle(battleData) {
 endBattle(battleResult = {}) {
   console.log('🏁 [BattleScene] Fin combat moderne:', battleResult);
   
-  // ✅ NETTOYAGE COMPLET pour permettre un nouveau combat
+  // ✅ CRITICAL: Envoyer battleFinished AVANT tout nettoyage
+  console.log('📤 [BattleScene] === ENVOI BATTLEFINISHED ===');
+  console.log('🔍 battleNetworkHandler existe ?', !!this.battleNetworkHandler);
+  console.log('🔍 sendToWorld existe ?', !!this.battleNetworkHandler?.sendToWorld);
+  
+  try {
+    if (this.battleNetworkHandler && this.battleNetworkHandler.sendToWorld) {
+      console.log('📤 [BattleScene] Envoi battleFinished via sendToWorld...');
+      
+      const success = this.battleNetworkHandler.sendToWorld('battleFinished', {
+        battleResult: typeof battleResult === 'string' ? battleResult : 'completed',
+        timestamp: Date.now()
+      });
+      
+      if (success) {
+        console.log('✅ [BattleScene] battleFinished envoyé avec succès');
+      } else {
+        console.error('❌ [BattleScene] Échec envoi battleFinished');
+      }
+      
+    } else if (window.currentGameRoom) {
+      // ✅ FALLBACK DIRECT: Utiliser currentGameRoom
+      console.log('🔄 [BattleScene] Fallback vers currentGameRoom...');
+      
+      window.currentGameRoom.send('battleFinished', {
+        battleResult: typeof battleResult === 'string' ? battleResult : 'completed',
+        timestamp: Date.now()
+      });
+      
+      console.log('✅ [BattleScene] battleFinished envoyé via currentGameRoom');
+      
+    } else {
+      // ✅ DERNIER RECOURS: Chercher toutes les rooms disponibles
+      console.log('🔍 [BattleScene] Recherche room alternative...');
+      
+      const possibleRooms = [
+        window.worldRoom,
+        window.gameRoom,
+        window.mainRoom
+      ];
+      
+      let sent = false;
+      for (let room of possibleRooms) {
+        if (room && room.send) {
+          try {
+            room.send('battleFinished', {
+              battleResult: typeof battleResult === 'string' ? battleResult : 'completed',
+              timestamp: Date.now()
+            });
+            console.log(`✅ [BattleScene] battleFinished envoyé via ${room.constructor.name || 'room'}`);
+            sent = true;
+            break;
+          } catch (error) {
+            console.warn(`⚠️ [BattleScene] Échec envoi via room:`, error);
+          }
+        }
+      }
+      
+      if (!sent) {
+        console.error('❌ [BattleScene] AUCUNE ROOM TROUVÉE pour battleFinished !');
+        console.log('🔍 [BattleScene] Variables disponibles:', {
+          battleNetworkHandler: !!this.battleNetworkHandler,
+          currentGameRoom: !!window.currentGameRoom,
+          worldRoom: !!window.worldRoom,
+          gameRoom: !!window.gameRoom
+        });
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ [BattleScene] Erreur envoi battleFinished:', error);
+  }
+  
+  // ✅ ATTENDRE un peu avant de nettoyer pour laisser le temps au message d'arriver
+  setTimeout(() => {
+    this.completeBattleCleanup(battleResult);
+  }, 500); // 500ms pour que le serveur traite le message
+}
+
+/**
+ * ✅ NOUVEAU: Nettoyage séparé après envoi du message
+ */
+completeBattleCleanup(battleResult) {
+  console.log('🧹 [BattleScene] Début nettoyage complet...');
   
   // 1. Déconnecter de la BattleRoom
   if (this.battleNetworkHandler) {
@@ -2061,7 +2144,7 @@ endBattle(battleResult = {}) {
   // 6. Masquer la scène
   this.hideBattle();
   
-  // ✅ CRITICAL: Nettoyer COMPLÈTEMENT le battleSystem global
+  // ✅ CRITICAL: Reset COMPLET du système de combat global
   if (window.battleSystem) {
     console.log('🔄 [BattleScene] Reset COMPLET du système de combat global...');
     
@@ -2069,7 +2152,7 @@ endBattle(battleResult = {}) {
     window.battleSystem.isInBattle = false;
     window.battleSystem.isTransitioning = false;
     window.battleSystem.currentBattleRoom = null;
-    window.battleSystem.currentBattleData = null;  // ← CRITICAL !
+    window.battleSystem.currentBattleData = null;
     window.battleSystem.selectedPokemon = null;
     
     // Reset de l'UI transition
@@ -2080,14 +2163,14 @@ endBattle(battleResult = {}) {
     console.log('✅ [BattleScene] battleSystem complètement nettoyé');
   }
   
-  // ✅ CRITICAL: Reset du GameManager si disponible
+  // ✅ Reset du GameManager si disponible
   if (this.gameManager && this.gameManager.battleState) {
     console.log('🔄 [BattleScene] Reset GameManager.battleState...');
     this.gameManager.battleState = 'none';
     this.gameManager.inBattle = false;
   }
   
-  // ✅ CRITICAL: Forcer le retour à l'état d'exploration
+  // ✅ Forcer le retour à l'état d'exploration
   if (window.pokemonUISystem?.setGameState) {
     try {
       window.pokemonUISystem.setGameState('exploration', { force: true });
@@ -2098,6 +2181,46 @@ endBattle(battleResult = {}) {
   }
   
   console.log('✅ [BattleScene] Nettoyage complet terminé - Nouveau combat possible');
+}
+
+// ===================================================================
+// AJOUTEZ AUSSI cette méthode de debug dans BattleScene.js :
+// ===================================================================
+
+/**
+ * ✅ NOUVEAU: Test manuel d'envoi battleFinished
+ */
+testSendBattleFinished() {
+  console.log('🧪 [BattleScene] === TEST MANUAL BATTLEFINISHED ===');
+  
+  console.log('🔍 [DEBUG] État actuel:');
+  console.log('   battleNetworkHandler:', !!this.battleNetworkHandler);
+  console.log('   sendToWorld:', !!this.battleNetworkHandler?.sendToWorld);
+  console.log('   currentGameRoom:', !!window.currentGameRoom);
+  
+  // Test d'envoi
+  try {
+    if (this.battleNetworkHandler?.sendToWorld) {
+      const success = this.battleNetworkHandler.sendToWorld('battleFinished', {
+        battleResult: 'test_manual',
+        timestamp: Date.now()
+      });
+      console.log('📤 Résultat sendToWorld:', success);
+      
+    } else if (window.currentGameRoom) {
+      window.currentGameRoom.send('battleFinished', {
+        battleResult: 'test_manual',
+        timestamp: Date.now()
+      });
+      console.log('📤 Envoyé via currentGameRoom');
+      
+    } else {
+      console.error('❌ Aucune méthode d\'envoi disponible');
+    }
+    
+  } catch (error) {
+    console.error('❌ Erreur test:', error);
+  }
 }
 
   activateFromTransition() {
