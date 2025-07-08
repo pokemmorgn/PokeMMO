@@ -287,6 +287,17 @@ class SoloBattleHandler implements IBattleHandler {
   }
 }
 
+  /**
+   * Obtient les statistiques du handler (pour BattleIntegration)
+   */
+  getStats(): any {
+    return {
+      version: 'simple_v1',
+      supportedBattleTypes: ['wild', 'trainer', 'gym', 'elite4'],
+      features: ['basic_attack', 'ai_random'],
+      lineCount: '~200 lines vs 600+ before'
+    };
+  }
 }
 
 export default SoloBattleHandler;
