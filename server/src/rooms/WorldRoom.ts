@@ -56,8 +56,8 @@ export class WorldRoom extends Room<PokeWorldState> {
   private questHandlers!: QuestHandlers;
   private battleHandlers!: BattleHandlers;
   public starterHandlers!: StarterHandlers;
-    private followerHandlers!: FollowerHandlers;
-
+  private followerHandlers!: FollowerHandlers;
+  private teamManagers: Map<string, TeamManager> = new Map();
   
 
   // Limite pour auto-scaling
@@ -1662,7 +1662,12 @@ console.log(`🎉 ${player.name} a rejoint le monde !`);
     movementBlockManager.forceUnblockAll(client.sessionId);
     await this.battleHandlers.onPlayerLeave(client.sessionId);
     console.log(`🧹 [WorldRoom] Blocages nettoyés pour ${client.sessionId}`);
-
+    // Nettoyer le TeamManager du cache
+    if (player && this.teamManagers.has(player.name)) {
+      this.teamManagers.delete(player.name);
+      console.log(`🗑️ [WorldRoom] TeamManager supprimé du cache pour ${player.name}`);
+    }
+    
     console.log(`👋 Client ${client.sessionId} déconnecté`);
   }
 
@@ -1688,6 +1693,9 @@ console.log(`🎉 ${player.name} a rejoint le monde !`);
       console.log(`🌍 [WorldRoom] Destruction du TimeWeatherService...`);
       this.timeWeatherService.destroy();
       this.timeWeatherService = null;
+      // ✅ NOUVEAU: Nettoyer tous les TeamManager du cache
+    this.teamManagers.clear();
+    console.log(`🧹 [WorldRoom] Cache TeamManager vidé (${this.teamManagers.size} entrées supprimées)`);
     }
 
       // ✅ NOUVEAU: Nettoyer les StarterHandlers
@@ -2163,6 +2171,20 @@ console.log(`🎉 ${player.name} a rejoint le monde !`);
   getTeamHandlers(): TeamHandlers {
     return this.teamHandlers;
   }
+  
+  // ✅ NOUVEAU: Gestionnaire global des TeamManager (cache sécurisé)
+  async getTeamManager(playerName: string): Promise<TeamManager> {
+    if (!this.teamManagers.has(playerName)) {
+      console.log(`🆕 [WorldRoom] Création TeamManager pour ${playerName}`);
+      const teamManager = new TeamManager(playerName);
+      await teamManager.load();
+      this.teamManagers.set(playerName, teamManager);
+    } else {
+      console.log(`♻️ [WorldRoom] Réutilisation TeamManager pour ${playerName}`);
+    }
+    return this.teamManagers.get(playerName)!;
+  }
+  
   getFollowerHandlers(): FollowerHandlers {
     return this.followerHandlers;
   }
