@@ -335,9 +335,9 @@ private async handleTurnSystemAction(client: Client, data: any) {
       return;
     }
 
+    this.updateBattleContext(); // ✅ AVANT l'action !
     await this.executePlayerAction(client.sessionId, data);
-    
-    this.updateBattleContext();
+    this.updateBattleContext(); // ✅ ET après aussi
     
     const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
     if (endCondition) {
