@@ -363,8 +363,72 @@ private async executePlayerAction(playerId: string, data: any) {
   console.log(`⚔️ [EXECUTE] Action joueur: ${data.actionType}`);
   console.log(`🔍 [HP-TRACK-BEFORE] P1: ${this.state.player1Pokemon?.currentHp}, P2: ${this.state.player2Pokemon?.currentHp}`);
   
+  // ✅ DEBUG: État AVANT updateBattleContext
+  console.log(`🚨 [DEBUG-BEFORE-SYNC] State P1: ${this.state.player1Pokemon?.currentHp}, P2: ${this.state.player2Pokemon?.currentHp}`);
+  
+  if (this.battleContext && this.battleContext.participants) {
+    this.battleContext.participants.forEach((p, i) => {
+      if (p.team[0]) {
+        console.log(`🚨 [DEBUG-BEFORE-SYNC] Context P${i+1}: ${p.team[0].currentHp} (combatId: ${p.team[0].combatId})`);
+      }
+    });
+  }
+  
   // Synchroniser AVANT l'action
   this.updateBattleContext();
+  
+  // ✅ DEBUG: État APRÈS updateBattleContext
+  console.log(`🚨 [DEBUG-AFTER-SYNC] State P1: ${this.state.player1Pokemon?.currentHp}, P2: ${this.state.player2Pokemon?.currentHp}`);
+  
+  if (this.battleContext && this.battleContext.participants) {
+    this.battleContext.participants.forEach((p, i) => {
+      if (p.team[0]) {
+        console.log(`🚨 [DEBUG-AFTER-SYNC] Context P${i+1}: ${p.team[0].currentHp} (combatId: ${p.team[0].combatId})`);
+      }
+    });
+  }
+  
+  // ✅ FORCER manuellement la sync si updateBattleContext() ne marche pas
+  if (this.battleContext && this.battleContext.participants) {
+    console.log(`🔧 [FORCE-SYNC] Synchronisation forcée...`);
+    
+    // Forcer P1
+    const p1Participant = this.battleContext.participants.find(p => 
+      p.sessionId === this.state.player1Id || p.sessionId === 'player1'
+    );
+    if (p1Participant && p1Participant.team[0] && this.state.player1Pokemon) {
+      console.log(`🔧 [FORCE-SYNC] P1: ${p1Participant.team[0].currentHp} → ${this.state.player1Pokemon.currentHp}`);
+      p1Participant.team[0].currentHp = this.state.player1Pokemon.currentHp;
+      p1Participant.team[0].combatId = this.state.player1Pokemon.combatId;
+      
+      if (p1Participant.activePokemon) {
+        p1Participant.activePokemon.currentHp = this.state.player1Pokemon.currentHp;
+        p1Participant.activePokemon.combatId = this.state.player1Pokemon.combatId;
+      }
+    }
+    
+    // Forcer P2
+    const p2Participant = this.battleContext.participants.find(p => 
+      p.sessionId === 'ai' || p.sessionId === 'player2'
+    );
+    if (p2Participant && p2Participant.team[0] && this.state.player2Pokemon) {
+      console.log(`🔧 [FORCE-SYNC] P2: ${p2Participant.team[0].currentHp} → ${this.state.player2Pokemon.currentHp}`);
+      p2Participant.team[0].currentHp = this.state.player2Pokemon.currentHp;
+      p2Participant.team[0].combatId = this.state.player2Pokemon.combatId;
+      
+      if (p2Participant.activePokemon) {
+        p2Participant.activePokemon.currentHp = this.state.player2Pokemon.currentHp;
+        p2Participant.activePokemon.combatId = this.state.player2Pokemon.combatId;
+      }
+    }
+    
+    // ✅ VÉRIFIER après le forçage
+    this.battleContext.participants.forEach((p, i) => {
+      if (p.team[0]) {
+        console.log(`✅ [AFTER-FORCE-SYNC] Context P${i+1}: ${p.team[0].currentHp} (combatId: ${p.team[0].combatId})`);
+      }
+    });
+  }
   
   await this.battleIntegration.processAction(
     playerId,
@@ -373,55 +437,6 @@ private async executePlayerAction(playerId: string, data: any) {
   );
   
   console.log(`🔍 [HP-TRACK-AFTER] P1: ${this.state.player1Pokemon?.currentHp}, P2: ${this.state.player2Pokemon?.currentHp}`);
-}
-
-private async executeAITurnAction() {
-  console.log(`🤖 [AI] Exécution action IA via TurnSystem`);
-  
-  try {
-    if (this.state.currentTurn !== "player2" || this.state.battleEnded) {
-      console.log(`🤖 [AI] Pas le tour de l'IA (current: ${this.state.currentTurn})`);
-      return;
-    }
-
-    this.updateBattleContext();
-
-    const aiMoves = Array.from(this.state.player2Pokemon.moves);
-    const randomMove = aiMoves[Math.floor(Math.random() * aiMoves.length)] || "tackle";
-    
-    console.log(`🤖 [AI] IA choisit: ${randomMove}`);
-    
-    // ✅ SOLUTION : Soumettre l'action au TurnSystem AVANT de l'exécuter
-    const actionSubmitted = this.turnSystem.submitAction('player2', {
-      type: 'attack',
-      moveId: randomMove
-    });
-
-    if (!actionSubmitted) {
-      console.error(`❌ [AI] Action IA refusée par TurnSystem`);
-      this.proceedToNextTurn();
-      return;
-    }
-
-    // ✅ Exécuter l'action via BattleIntegration
-    await this.battleIntegration.processAction('player2', 'attack', { moveId: randomMove });
-    
-    this.updateBattleContext();
-    
-    const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
-    if (endCondition) {
-      console.log(`🏁 [AI] Condition de fin détectée:`, endCondition);
-      await this.processBattleEndWithManager(endCondition);
-      return;
-    }
-    
-    // ✅ MAINTENANT on peut passer au tour suivant
-    this.proceedToNextTurn();
-    
-  } catch (error) {
-    console.error(`❌ [AI] Erreur:`, error);
-    this.proceedToNextTurn();
-  }
 }
 
 private proceedToNextTurn() {
@@ -833,55 +848,48 @@ private createParticipants(): any[] {
 private updateBattleContext() {
   console.log(`🔄 [CONTEXT] Mise à jour contexte depuis state`);
   
-  this.battleContext.participants.forEach((participant) => {
+  // ✅ LOG: État initial
+  console.log(`🔍 [UPDATE-CONTEXT] Initial State - P1: ${this.state.player1Pokemon?.currentHp}, P2: ${this.state.player2Pokemon?.currentHp}`);
+  
+  if (!this.battleContext || !this.battleContext.participants) {
+    console.error(`❌ [UPDATE-CONTEXT] battleContext ou participants undefined !`);
+    return;
+  }
+  
+  console.log(`🔍 [UPDATE-CONTEXT] Participants: ${this.battleContext.participants.length}`);
+  
+  this.battleContext.participants.forEach((participant, index) => {
+    console.log(`🔍 [UPDATE-CONTEXT] Participant ${index}: sessionId=${participant.sessionId}, team length=${participant.team?.length}`);
+    
     if (participant.sessionId === this.state.player1Id || participant.sessionId === 'player1') {
+      console.log(`🔍 [UPDATE-CONTEXT] Updating P1...`);
+      
       if (participant.team[0] && this.state.player1Pokemon) {
-        // ✅ LECTURE SEULE: Copier FROM state TO context (pas l'inverse)
+        const oldHp = participant.team[0].currentHp;
+        const newHp = this.state.player1Pokemon.currentHp;
+        
+        console.log(`🔍 [UPDATE-CONTEXT] P1 HP: ${oldHp} → ${newHp}`);
+        
         participant.team[0].currentHp = this.state.player1Pokemon.currentHp;
         participant.team[0].maxHp = this.state.player1Pokemon.maxHp;
-        participant.team[0].name = this.state.player1Pokemon.name;
-        participant.team[0].pokemonId = this.state.player1Pokemon.pokemonId;
         participant.team[0].combatId = this.state.player1Pokemon.combatId;
       }
-      // ✅ LECTURE SEULE: Copier vers activePokemon aussi
-      if (participant.activePokemon && this.state.player1Pokemon) {
-        participant.activePokemon.currentHp = this.state.player1Pokemon.currentHp;
-        participant.activePokemon.maxHp = this.state.player1Pokemon.maxHp;
-      }
-      participant.isConnected = this.clients.some(c => c.sessionId === this.state.player1Id);
       
     } else if (participant.sessionId === 'ai' || participant.sessionId === 'player2') {
+      console.log(`🔍 [UPDATE-CONTEXT] Updating P2...`);
+      
       if (participant.team[0] && this.state.player2Pokemon) {
-        // ❌ PROBLÈME IDENTIFIÉ: Cette ligne modifiait les HP !
-        // ✅ SOLUTION: Vérifier si on a vraiment besoin de sync dans ce sens
-        
-        // 🔍 DEBUG: Voir si les HP changent pendant la sync
         const oldHp = participant.team[0].currentHp;
         const newHp = this.state.player2Pokemon.currentHp;
         
-        if (oldHp !== newHp) {
-          console.log(`🚨 [CONTEXT-BUG] HP change détecté pendant sync: ${oldHp} → ${newHp}`);
-          console.log(`🚨 [CONTEXT-BUG] State HP: ${this.state.player2Pokemon.currentHp}`);
-          console.log(`🚨 [CONTEXT-BUG] Context HP: ${participant.team[0].currentHp}`);
-        }
+        console.log(`🔍 [UPDATE-CONTEXT] P2 HP: ${oldHp} → ${newHp}`);
         
-        // ✅ LECTURE SEULE: Copier FROM state TO context
         participant.team[0].currentHp = this.state.player2Pokemon.currentHp;
         participant.team[0].maxHp = this.state.player2Pokemon.maxHp;
-        participant.team[0].name = this.state.player2Pokemon.name;
-        participant.team[0].pokemonId = this.state.player2Pokemon.pokemonId;
         participant.team[0].combatId = this.state.player2Pokemon.combatId;
-      }
-      // ✅ LECTURE SEULE: Copier vers activePokemon
-      if (participant.activePokemon && this.state.player2Pokemon) {
-        participant.activePokemon.currentHp = this.state.player2Pokemon.currentHp;
-        participant.activePokemon.maxHp = this.state.player2Pokemon.maxHp;
       }
     }
   });
-  
-  this.battleContext.turnNumber = this.state.turnNumber;
-  DamageManager.syncStatisticsToContext(this.battleContext);
   
   console.log(`✅ [CONTEXT] Synchronisation terminée - P1: ${this.state.player1Pokemon?.currentHp}HP, P2: ${this.state.player2Pokemon?.currentHp}HP`);
 }
