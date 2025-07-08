@@ -408,6 +408,16 @@ export class WorldRoom extends Room<PokeWorldState> {
 
     this.questHandlers.setupHandlers();
     this.battleHandlers.setupHandlers();
+
+        // Nouveau handler dans setupMessageHandlers()
+    this.onMessage("battleFinished", (client, data) => {
+      // Reset l'état combat du joueur
+      this.battleHandlers.onBattleFinished(client.sessionId, data.battleResult);
+      // Débloquer le mouvement
+      this.unblockPlayerMovement(client.sessionId, 'battle');
+      // Confirmer au client
+      client.send("battleFinishedAck", { success: true });
+});
     // === HANDLERS EXISTANTS ===
 
  // ✅ NOUVEAU: Configurer les handlers de starter
