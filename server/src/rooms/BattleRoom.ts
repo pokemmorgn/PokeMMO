@@ -799,23 +799,31 @@ updatePokemonHP: (pokemonId: string, newHp: number) => {
 
   // === GESTION DU CONTEXTE (INCHANGÉ) ===
 
-  private updateBattleContext() {
-    console.log(`🔄 [CONTEXT] Mise à jour contexte`);
-    
-    this.battleContext.participants.forEach((participant, index) => {
-      if (participant.sessionId === this.state.player1Id) {
-        participant.activePokemon = this.state.player1Pokemon;
-        participant.team = [this.state.player1Pokemon];
-        participant.isConnected = this.clients.some(c => c.sessionId === this.state.player1Id);
-      } else if (participant.sessionId === 'ai') {
-        participant.activePokemon = this.state.player2Pokemon;
-        participant.team = [this.state.player2Pokemon];
+private updateBattleContext() {
+  console.log(`🔄 [CONTEXT] Mise à jour contexte`);
+  
+  this.battleContext.participants.forEach((participant, index) => {
+    if (participant.sessionId === this.state.player1Id) {
+      // ✅ Mettre à jour avec les vraies valeurs du state
+      if (participant.team[0]) {
+        participant.team[0].currentHp = this.state.player1Pokemon.currentHp;
+        participant.team[0].maxHp = this.state.player1Pokemon.maxHp;
       }
-    });
-    
-    this.battleContext.turnNumber = this.state.turnNumber;
-    DamageManager.syncStatisticsToContext(this.battleContext);
-  }
+      participant.activePokemon = this.state.player1Pokemon;
+      participant.isConnected = this.clients.some(c => c.sessionId === this.state.player1Id);
+    } else if (participant.sessionId === 'ai') {
+      // ✅ Mettre à jour avec les vraies valeurs du state
+      if (participant.team[0]) {
+        participant.team[0].currentHp = this.state.player2Pokemon.currentHp;
+        participant.team[0].maxHp = this.state.player2Pokemon.maxHp;
+      }
+      participant.activePokemon = this.state.player2Pokemon;
+    }
+  });
+  
+  this.battleContext.turnNumber = this.state.turnNumber;
+  DamageManager.syncStatisticsToContext(this.battleContext);
+}
 
   private async processBattleEndWithManager(endCondition: BattleEndCondition) {
     console.log(`🏆 [BATTLE] Traitement fin avec BattleEndManager`);
