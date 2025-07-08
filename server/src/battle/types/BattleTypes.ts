@@ -1,11 +1,12 @@
 // server/src/battle/types/BattleTypes.ts
-// ÉTAPE 1 : Types de base pour le système de combat
+// ÉTAPE 2.6 : Types avec système narratif
 
 // === TYPES DE BASE ===
 
 export type BattleType = 'wild' | 'trainer' | 'pvp';
 export type BattlePhase = 'waiting' | 'battle' | 'ended' | 'fled';
 export type PlayerRole = 'player1' | 'player2';
+export type TurnPlayer = 'narrator' | 'player1' | 'player2'; // ✅ NOUVEAU
 
 // === POKEMON ===
 
@@ -74,7 +75,7 @@ export interface BattleGameState {
   type: BattleType;
   phase: BattlePhase;
   turnNumber: number;
-  currentTurn: PlayerRole;
+  currentTurn: TurnPlayer; // ✅ CHANGÉ : 'narrator' | 'player1' | 'player2'
   player1: BattlePlayer;
   player2: BattlePlayer;
   isEnded: boolean;
@@ -126,10 +127,14 @@ export interface BattleEvent {
 export interface BattleEventData {
   battleStart?: {
     gameState: BattleGameState;
-    firstPlayer: PlayerRole;
+    isNarrative?: boolean; // ✅ NOUVEAU
+  };
+  narrativeEnd?: { // ✅ NOUVEAU
+    firstCombatant: PlayerRole;
+    gameState: BattleGameState;
   };
   turnChange?: {
-    newPlayer: PlayerRole;
+    newPlayer: TurnPlayer; // ✅ CHANGÉ
     turnNumber: number;
   };
   action?: {
@@ -146,6 +151,7 @@ export interface BattleEventData {
 
 export interface BattleCallbacks {
   onBattleStart?: (data: BattleEventData['battleStart']) => void;
+  onNarrativeEnd?: (data: BattleEventData['narrativeEnd']) => void; // ✅ NOUVEAU
   onTurnChange?: (data: BattleEventData['turnChange']) => void;
   onAction?: (data: BattleEventData['action']) => void;
   onBattleEnd?: (data: BattleEventData['battleEnd']) => void;
