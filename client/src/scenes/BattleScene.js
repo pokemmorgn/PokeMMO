@@ -2,6 +2,7 @@
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
+import { BattleTranslator } from '../Battle/BattleTranslator.js';
 
 let pokemonSpriteConfig = null;
 
@@ -47,7 +48,7 @@ export class BattleScene extends Phaser.Scene {
     // Interface state
     this.interfaceMode = 'hidden'; // 'hidden', 'message', 'buttons'
     this.messageTimer = null;
-    
+    this.battleTranslator = null; // Sera initialisé avec playerRole
     console.log('⚔️ [BattleScene] Initialisé proprement');
   }
 
@@ -1112,6 +1113,10 @@ export class BattleScene extends Phaser.Scene {
     // Autres événements
     this.battleNetworkHandler.on('battleJoined', (data) => {
       this.playerRole = data.yourRole;
+      
+      // ✅ NOUVEAU: Initialiser traducteur avec playerRole
+      this.battleTranslator = new BattleTranslator(this.playerRole);
+      console.log('🌍 [BattleScene] Traducteur initialisé pour:', this.playerRole);
     });
     
     this.battleNetworkHandler.on('battleStart', (data) => {
