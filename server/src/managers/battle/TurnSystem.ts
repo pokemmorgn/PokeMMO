@@ -45,6 +45,7 @@ export class TurnSystem {
   private turnNumber: number = 1;
   private config: BattleConfiguration;
   private actionQueue: Map<string, any> = new Map(); // Actions en attente
+  private lastPlayerToAct?: string; // Tracker pour rotation séquentielle
   
   constructor(config: BattleConfiguration) {
     this.config = config;
@@ -136,7 +137,8 @@ startTurn(): void {
   });
   
   this.actionQueue.clear();
-  
+  // Reset du tracker de rotation
+  this.lastPlayerToAct = undefined;
   // Démarrer phase de sélection/action
   this.startActionPhase();
   
@@ -340,18 +342,47 @@ submitAction(playerId: string, action: any): boolean {
   /**
    * Obtient le prochain joueur à agir (mode séquentiel)
    */
-  private getNextPlayerToAct(): PlayerSlot | null {
-    const activePlayers = Array.from(this.players.values())
-      .filter(p => p.isActive && !p.hasActed)
-      .sort((a, b) => {
-        // Trier par équipe puis position
-        if (a.teamSlot !== b.teamSlot) return a.teamSlot - b.teamSlot;
-        return a.position - b.position;
-      });
-    
-    return activePlayers[0] || null;
+private getNextPlayerToAct(): PlayerSlot | null {
+  const activePlayers = Array.from(this.players.values())
+    .filter(p => p.isActive && !p.hasActed);
+  
+  if (activePlayers.length === 0) {
+    return null;
   }
   
+  // Si pas de "dernier joueur", prendre le premier disponible
+  if (!this.lastPlayerToAct) {
+    const sortedPlayers = activePlayers.sort((a, b) => {
+      if (a.teamSlot !== b.teamSlot) return a.teamSlot - b.teamSlot;
+      return a.position - b.position;
+    });
+    this.lastPlayerToAct = sortedPlayers[0].id;
+    return sortedPlayers[0];
+  }
+  
+  // Rotation : Trouver le joueur suivant dans l'ordre cyclique
+  const playerIds = activePlayers.map(p => p.id).sort();
+  const currentIndex = playerIds.indexOf(this.lastPlayerToAct);
+  
+  let nextIndex = (currentIndex + 1) % playerIds.length;
+  
+  // Si le joueur suivant a déjà agi, continuer jusqu'à en trouver un
+  let attempts = 0;
+  while (attempts < playerIds.length) {
+    const nextPlayerId = playerIds[nextIndex];
+    const nextPlayer = this.players.get(nextPlayerId);
+    
+    if (nextPlayer && !nextPlayer.hasActed) {
+      this.lastPlayerToAct = nextPlayerId;
+      return nextPlayer;
+    }
+    
+    nextIndex = (nextIndex + 1) % playerIds.length;
+    attempts++;
+  }
+  
+  return null;
+}
   /**
    * Obtient les IDs des joueurs actifs
    */
