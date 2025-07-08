@@ -379,8 +379,8 @@ private async executeAITurnAction() {
   console.log(`🤖 [AI] Exécution action IA via TurnSystem`);
   
   try {
-    // ✅ IMPORTANT: Vérifier que c'est vraiment le tour de l'IA
-    if (this.state.currentTurn !== "player2") {
+    // ✅ CORRECTION: Vérifier le bon état du tour
+    if (this.state.currentTurn !== "player2" || this.state.battleEnded) {
       console.log(`🤖 [AI] Pas le tour de l'IA (current: ${this.state.currentTurn})`);
       return;
     }
@@ -393,7 +393,7 @@ private async executeAITurnAction() {
     
     console.log(`🤖 [AI] IA choisit: ${randomMove}`);
     
-    // ✅ Soumettre l'action au TurnSystem
+    // ✅ Soumettre l'action au TurnSystem avec le bon ID
     const actionSubmitted = this.turnSystem.submitAction('ai', {
       type: 'attack',
       moveId: randomMove
@@ -401,13 +401,15 @@ private async executeAITurnAction() {
 
     if (!actionSubmitted) {
       console.error(`❌ [AI] Action IA refusée par TurnSystem`);
-      // ✅ Forcer le passage au tour suivant si l'IA ne peut pas jouer
       this.proceedToNextTurn();
       return;
     }
 
     // ✅ Exécuter l'action via BattleIntegration
     await this.battleIntegration.processAction('ai', 'attack', { moveId: randomMove });
+    
+    // ✅ Synchroniser APRÈS l'action
+    this.updateBattleContext();
     
     // ✅ Vérifier fin de combat
     const endCondition = BattleEndManager.checkEndConditions(this.battleContext);
