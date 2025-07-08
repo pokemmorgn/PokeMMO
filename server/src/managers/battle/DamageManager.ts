@@ -1,3 +1,4 @@
+
 // server/src/managers/battle/DamageManager.ts
 // VERSION ULTRA-SIMPLE : Juste changer les HP, point !
 
@@ -32,8 +33,9 @@ export class DamageManager {
     source: string = 'attack',
     attackerId?: string
   ): DamageResult | null {
-    console.log(`🩹 [DamageManager] Mise à jour HP: ${combatId} → ${newHp}`);
-    
+  console.log(`🩹 [DamageManager] Mise à jour HP: ${combatId} → ${newHp}`);
+  console.log(`🔍 [DEBUG-DM] Entrée updatePokemonHP: combatId=${combatId}, newHp=${newHp}`);
+  console.log(`🩹 [DamageManager] === MISE À JOUR HP SYNCHRONISÉE ===`);
     // 1. Trouver et mettre à jour dans le state
     const stateResult = this.updateInState(combatId, newHp, battleState);
     if (!stateResult) {
