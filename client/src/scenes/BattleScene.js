@@ -56,6 +56,11 @@ export class BattleScene extends Phaser.Scene {
     this.eventQueue = [];
     this.isProcessingEvent = false;
     
+    // 🚨 NOUVEAU: Protection contre les conflits
+    this.isLegacyEventActive = false;
+    this.isPlayerTurnActive = false;
+    this.lastHpUpdate = { player: 0, opponent: 0 };
+    
     console.log('⚔️ [BattleScene] Initialisé avec BattleTranslator');
   }
 
@@ -175,9 +180,24 @@ export class BattleScene extends Phaser.Scene {
 
   /**
    * Queue les événements pour éviter les chevauchements
+   * 🚨 NOUVEAU: Mode compatibilité pour éviter les conflits
    */
-  queueBattleEvent(eventType, data = {}) {
-    this.eventQueue.push({ eventType, data, timestamp: Date.now() });
+  queueBattleEvent(eventType, data = {}, priority = 'normal') {
+    const event = { 
+      eventType, 
+      data, 
+      timestamp: Date.now(),
+      priority,
+      source: 'new' // Marquer comme nouveau système
+    };
+    
+    // 🚨 PROTECTION: Éviter les doublons avec l'ancien système
+    if (this.isLegacyEventActive && this.isEventFromLegacySystem(eventType, data)) {
+      console.log(`🔄 [BattleScene] Événement ${eventType} ignoré (legacy actif)`);
+      return;
+    }
+    
+    this.eventQueue.push(event);
     
     if (!this.isProcessingEvent) {
       this.processNextEvent();
@@ -185,16 +205,38 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /**
+   * 🚨 NOUVEAU: Détecte si un événement vient du système legacy
+   */
+  isEventFromLegacySystem(eventType, data) {
+    // Événements critiques à ne pas dupliquer
+    const criticalEvents = ['damageDealt', 'hpChanged', 'pokemonFainted'];
+    
+    if (!criticalEvents.includes(eventType)) {
+      return false;
+    }
+    
+    // Vérifier si un événement similaire récent existe
+    const recentEvents = this.eventQueue.filter(e => 
+      e.eventType === eventType && 
+      (Date.now() - e.timestamp) < 2000
+    );
+    
+    return recentEvents.length > 0;
+  }
+
+  /**
    * Traite le prochain événement dans la queue
+   * 🚨 MODIFIÉ: Protection contre les conflits HP
    */
   async processNextEvent() {
     if (this.eventQueue.length === 0) {
       this.isProcessingEvent = false;
+      this.isLegacyEventActive = false; // Reset legacy flag
       return;
     }
 
     this.isProcessingEvent = true;
-    const { eventType, data } = this.eventQueue.shift();
+    const { eventType, data, priority } = this.eventQueue.shift();
 
     console.log(`🎭 [BattleScene] Traitement événement: ${eventType}`, data);
 
@@ -212,6 +254,7 @@ export class BattleScene extends Phaser.Scene {
 
   /**
    * Gère un événement traduit spécifique
+   * 🚨 MODIFIÉ: Protection HP et tours
    */
   async handleTranslatedBattleEvent(eventType, data) {
     // Traduire le message
@@ -245,9 +288,13 @@ export class BattleScene extends Phaser.Scene {
       case 'damageDealt':
         if (translatedMessage) {
           this.showActionMessage(translatedMessage, 2500);
-          
-          // Mise à jour HP et effet visuel
+        }
+        
+        // 🚨 PROTECTION: Vérifier si HP valides avant mise à jour
+        if (this.isValidHpUpdate(data)) {
           this.handleDamageEvent(data);
+        } else {
+          console.warn('[BattleScene] ⚠️ Mise à jour HP ignorée (conflit détecté)');
         }
         break;
 
@@ -280,13 +327,21 @@ export class BattleScene extends Phaser.Scene {
 
       // === ÉVÉNEMENTS D'INTERFACE ===
       case 'yourTurn':
-        // Pas de message, juste interface
-        setTimeout(() => {
-          this.showActionButtons();
-        }, 500);
+        // 🚨 PROTECTION: Éviter tours multiples
+        if (!this.isPlayerTurnActive) {
+          this.isPlayerTurnActive = true;
+          setTimeout(() => {
+            this.showActionButtons();
+            // Reset après délai
+            setTimeout(() => {
+              this.isPlayerTurnActive = false;
+            }, 5000);
+          }, 500);
+        }
         break;
 
       case 'opponentTurn':
+        this.isPlayerTurnActive = false;
         this.hideActionButtons();
         if (translatedMessage) {
           this.showActionMessage(translatedMessage);
@@ -313,7 +368,10 @@ export class BattleScene extends Phaser.Scene {
 
       // === ÉVÉNEMENTS DE DONNÉES ===
       case 'hpChanged':
-        this.handleHpChangedEvent(data);
+        // 🚨 PROTECTION: Éviter conflits HP
+        if (this.isValidHpUpdate(data)) {
+          this.handleHpChangedEvent(data);
+        }
         break;
 
       case 'expGained':
@@ -339,6 +397,46 @@ export class BattleScene extends Phaser.Scene {
           this.showActionMessage(translatedMessage, 2000);
         }
     }
+  }
+
+  /**
+   * 🚨 NOUVEAU: Valide les mises à jour HP pour éviter conflits
+   */
+  isValidHpUpdate(data) {
+    if (!data.damage && !data.newHp) {
+      return false;
+    }
+    
+    const targetPokemon = data.targetPlayerId === this.myPlayerId ? 
+      this.currentPlayerPokemon : this.currentOpponentPokemon;
+    
+    if (!targetPokemon) {
+      return false;
+    }
+    
+    // Vérifier que la mise à jour est logique
+    if (data.newHp !== undefined) {
+      // HP direct - vérifier qu'il ne remonte pas anormalement
+      if (data.newHp > targetPokemon.currentHp && data.newHp <= targetPokemon.maxHp) {
+        console.warn('[BattleScene] ⚠️ HP remonte - possible conflit');
+        return false;
+      }
+    }
+    
+    if (data.damage !== undefined) {
+      // Dégâts - vérifier cohérence
+      const newHp = targetPokemon.currentHp - data.damage;
+      if (newHp < 0 && targetPokemon.currentHp > 0) {
+        // OK - Pokémon KO
+        return true;
+      }
+      if (data.damage <= 0) {
+        console.warn('[BattleScene] ⚠️ Dégâts négatifs/nuls');
+        return false;
+      }
+    }
+    
+    return true;
   }
 
   /**
@@ -1663,23 +1761,12 @@ export class BattleScene extends Phaser.Scene {
     this.battleNetworkHandler.on('actionResult', (data) => {
       console.log('🔄 [BattleScene] ActionResult (compatibilité):', data);
       
+      // 🚨 NOUVEAU: Marquer système legacy actif
+      this.isLegacyEventActive = true;
+      
       if (data.success && data.gameState) {
-        // Synchroniser HP via événement hpChanged
-        if (data.gameState.player1?.pokemon && this.currentPlayerPokemon) {
-          this.queueBattleEvent('hpChanged', {
-            playerId: 'player1',
-            newHp: data.gameState.player1.pokemon.currentHp,
-            maxHp: data.gameState.player1.pokemon.maxHp
-          });
-        }
-        
-        if (data.gameState.player2?.pokemon && this.currentOpponentPokemon) {
-          this.queueBattleEvent('hpChanged', {
-            playerId: 'player2',
-            newHp: data.gameState.player2.pokemon.currentHp,
-            maxHp: data.gameState.player2.pokemon.maxHp
-          });
-        }
+        // 🚨 PROTECTION: Synchroniser HP seulement si différence significative
+        this.synchronizeGameStateHP(data.gameState);
         
         // Convertir anciens événements en nouveaux événements typés
         if (data.events && data.events.length > 0) {
@@ -1773,6 +1860,47 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // === 🔄 CONVERSION ÉVÉNEMENTS HÉRITÉS ===
+
+  /**
+   * 🚨 NOUVEAU: Synchronise les HP du gameState intelligemment
+   */
+  synchronizeGameStateHP(gameState) {
+    console.log('🩺 [BattleScene] Synchronisation HP gameState');
+    
+    // Player 1 (Joueur)
+    if (gameState.player1?.pokemon && this.currentPlayerPokemon) {
+      const serverHp = gameState.player1.pokemon.currentHp;
+      const clientHp = this.currentPlayerPokemon.currentHp;
+      
+      // Synchroniser seulement si différence significative ou HP plus faible
+      if (Math.abs(serverHp - clientHp) > 2 || serverHp < clientHp) {
+        console.log(`🩺 Player HP: ${clientHp} → ${serverHp}`);
+        this.currentPlayerPokemon.currentHp = serverHp;
+        this.currentPlayerPokemon.maxHp = gameState.player1.pokemon.maxHp;
+        
+        setTimeout(() => {
+          this.updateModernHealthBar('player', this.currentPlayerPokemon);
+        }, 200);
+      }
+    }
+    
+    // Player 2 (Adversaire)
+    if (gameState.player2?.pokemon && this.currentOpponentPokemon) {
+      const serverHp = gameState.player2.pokemon.currentHp;
+      const clientHp = this.currentOpponentPokemon.currentHp;
+      
+      // Synchroniser seulement si différence significative ou HP plus faible
+      if (Math.abs(serverHp - clientHp) > 2 || serverHp < clientHp) {
+        console.log(`🩺 Opponent HP: ${clientHp} → ${serverHp}`);
+        this.currentOpponentPokemon.currentHp = serverHp;
+        this.currentOpponentPokemon.maxHp = gameState.player2.pokemon.maxHp;
+        
+        setTimeout(() => {
+          this.updateModernHealthBar('opponent', this.currentOpponentPokemon);
+        }, 200);
+      }
+    }
+  }
 
   /**
    * Convertit les anciens événements textuels en événements typés
