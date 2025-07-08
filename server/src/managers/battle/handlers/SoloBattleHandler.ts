@@ -776,10 +776,10 @@ class SoloBattleHandler implements IBattleHandler {
         eventId: 'damage_event',
         type: 'damage',
         timestamp: Date.now(),
-        targetId: defender.pokemonId.toString(), // ✅ Pour BattleSequencer
+        targetId: defender.combatId, // ✅ Pour BattleSequencer
         data: {
           // ✅ DONNÉES COMPLÈTES POUR DAMAGEMANAGER
-          targetPokemonId: defender.pokemonId.toString(),
+          targetCombatId: defender.combatId,
           attackerPlayerId: this.getPlayerIdFromPokemon(attacker, context),
           damage: damageResult.finalDamage,
           moveId: move.id || move.moveId,
@@ -842,12 +842,12 @@ class SoloBattleHandler implements IBattleHandler {
   /**
    * Helper pour récupérer le playerId d'un Pokémon
    */
-  private getPlayerIdFromPokemon(pokemon: BattlePokemonData, context: BattleContext): string {
-    const participant = context.participants.find(p => 
-      p.team.some(teamPokemon => teamPokemon.pokemonId === pokemon.pokemonId)
-    );
-    return participant?.sessionId || 'unknown';
-  }
+private getPlayerIdFromPokemon(pokemon: BattlePokemonData, context: BattleContext): string {
+  const participant = context.participants.find(p => 
+    p.team.some(teamPokemon => teamPokemon.combatId === pokemon.combatId)
+  );
+  return participant?.sessionId || 'unknown';
+}
   
   private createCaptureSequence(
     pokemon: BattlePokemonData,
