@@ -360,6 +360,7 @@ private handleDamageEvent(event: BattleEvent): void {
   
   // ✅ Utiliser targetPokemonId des données, pas event.targetId
   const targetCombatId = event.data.targetCombatId;
+  const targetPokemonId = event.data.targetPokemonId;
   const newHp = event.data.calculatedNewHp ?? 
     Math.max(0, (event.data.currentHp || 0) - (event.data.damage || 0));
   
