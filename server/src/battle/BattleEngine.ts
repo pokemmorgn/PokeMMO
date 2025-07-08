@@ -1,8 +1,11 @@
-// server/src/battle/BattleEngine.ts
+/**
+   * Récupère l'état actuel du jeu
+   */// server/src/battle/BattleEngine.ts
 // ÉTAPE 1 : Fondations extensibles - Entrée en combat uniquement
 
 import { TurnManager } from './modules/TurnManager';
 import { ActionProcessor } from './modules/ActionProcessor';
+import { AIPlayer } from './modules/AIPlayer';
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule } from './types/BattleTypes';
 
 /**
@@ -27,6 +30,7 @@ export class BattleEngine {
   // === MODULES CORE ===
   private turnManager: TurnManager;
   private actionProcessor: ActionProcessor;
+  private aiPlayer: AIPlayer;
   
   // === MODULES OPTIONNELS (ajoutés par étapes) ===
   private modules: Map<string, BattleModule> = new Map();
@@ -36,8 +40,9 @@ export class BattleEngine {
     console.log('🎯 [BattleEngine] Initialisation...');
     
     // Modules obligatoires
-    this.turnManager = new TurnManager();
+    this.turnManager = new TurnSystem();
     this.actionProcessor = new ActionProcessor();
+    this.aiPlayer = new AIPlayer();
     
     // État initial vide
     this.gameState = this.createEmptyState();
@@ -63,6 +68,7 @@ export class BattleEngine {
       // 3. Configurer les modules
       this.turnManager.initialize(this.gameState);
       this.actionProcessor.initialize(this.gameState);
+      this.aiPlayer.initialize(this.gameState);
       
       // 4. Déterminer qui commence
       const firstPlayer = this.turnManager.determineFirstPlayer(
@@ -166,8 +172,41 @@ export class BattleEngine {
   }
   
   /**
-   * Récupère l'état actuel du jeu
+   * Génère une action IA
    */
+  generateAIAction(): BattleAction | null {
+    console.log(`🤖 [BattleEngine] Génération action IA`);
+    
+    if (!this.isInitialized) {
+      console.error('❌ [BattleEngine] Combat non initialisé');
+      return null;
+    }
+    
+    // Vérifier que c'est bien le tour de l'IA
+    const currentPlayer = this.turnManager.getCurrentPlayer();
+    if (currentPlayer !== 'player2') {
+      console.error(`❌ [BattleEngine] Pas le tour de l'IA (tour actuel: ${currentPlayer})`);
+      return null;
+    }
+    
+    // Générer l'action via AIPlayer
+    const aiAction = this.aiPlayer.generateAction();
+    
+    if (aiAction) {
+      console.log(`✅ [BattleEngine] Action IA générée: ${aiAction.type}`);
+    } else {
+      console.error(`❌ [BattleEngine] Impossible de générer action IA`);
+    }
+    
+    return aiAction;
+  }
+  
+  /**
+   * Récupère le délai de réflexion de l'IA
+   */
+  getAIThinkingDelay(): number {
+    return this.aiPlayer.getThinkingDelay();
+  }
   getCurrentState(): BattleGameState {
     return { ...this.gameState }; // Copie pour éviter mutations
   }
