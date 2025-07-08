@@ -40,7 +40,7 @@ export class BattleEngine {
     console.log('🎯 [BattleEngine] Initialisation...');
     
     // Modules obligatoires
-    this.turnManager = new TurnSystem();
+    this.turnManager = new TurnManager();
     this.actionProcessor = new ActionProcessor();
     this.aiPlayer = new AIPlayer();
     
@@ -175,10 +175,10 @@ export class BattleEngine {
    * Génère une action IA
    */
   generateAIAction(): BattleAction | null {
-    console.log(`🤖 [BattleEngine] Génération action IA`);
+    console.log('🤖 [BattleEngine] Génération action IA');
     
     if (!this.isInitialized) {
-      console.error('❌ [BattleEngine] Combat non initialisé');
+      console.error('❌ [BattleEngine] Combat non initialisé pour IA');
       return null;
     }
     
@@ -193,9 +193,9 @@ export class BattleEngine {
     const aiAction = this.aiPlayer.generateAction();
     
     if (aiAction) {
-      console.log(`✅ [BattleEngine] Action IA générée: ${aiAction.type}`);
+      console.log(`🤖 [BattleEngine] Action IA générée: ${aiAction.type}`);
     } else {
-      console.error(`❌ [BattleEngine] Impossible de générer action IA`);
+      console.error('❌ [BattleEngine] Échec génération action IA');
     }
     
     return aiAction;
