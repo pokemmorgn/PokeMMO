@@ -623,7 +623,7 @@ private createParticipants(): any[] {
       lastActionTime: Date.now()
     },
     {
-      sessionId: 'player2'
+      sessionId: 'player2',
       name: 'Pokémon Sauvage',
       role: 'player2',
       team: [convertPokemon(this.state.player2Pokemon)],
