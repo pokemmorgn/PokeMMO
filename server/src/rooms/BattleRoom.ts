@@ -465,11 +465,11 @@ private proceedToNextTurn() {
         });
       },
 
-updatePokemonHP: (pokemonId: string, newHp: number) => {
+updatePokemonHP: (combatId: string, newHp: number) => {
   console.log(`🩹 [CALLBACK] HP Update: ${pokemonId} → ${newHp}`);
   
   const result = DamageManager.updatePokemonHP(
-    pokemonId, 
+    combatId, 
     newHp, 
     this.state, 
     this.battleContext,
@@ -495,6 +495,7 @@ updatePokemonHP: (pokemonId: string, newHp: number) => {
     console.log(`✅ [CALLBACK] Mapping ${result.targetPlayerId} → ${targetPlayer}`);
     
     this.broadcast('pokemonHPUpdate', {
+      combatId: combatId,
       pokemonId: pokemonId,
       targetPlayer: targetPlayer,
       oldHp: result.oldHp,
@@ -546,6 +547,7 @@ updatePokemonHP: (pokemonId: string, newHp: number) => {
 private createParticipants(): any[] {
   const convertPokemon = (battlePokemon: BattlePokemon) => ({
     pokemonId: battlePokemon.pokemonId,
+    combatId: battlePokemon.combatId,
     name: battlePokemon.name,
     level: battlePokemon.level,
     currentHp: battlePokemon.currentHp,
