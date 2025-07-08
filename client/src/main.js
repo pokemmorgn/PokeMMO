@@ -2133,7 +2133,12 @@ window.isEncounterActive = function() {
 };
 
 window.isBattleActive = function() {
-  return window.battleSystem?.isCurrentlyInBattle() || false;
+  try {
+    return window.battleSystem?.isCurrentlyInBattle?.() || false;
+  } catch (error) {
+    console.warn('[isBattleActive] Erreur:', error);
+    return false;
+  }
 };
 
 window.shouldBlockInput = function() {
