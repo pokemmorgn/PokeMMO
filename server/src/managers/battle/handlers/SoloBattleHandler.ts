@@ -12,7 +12,7 @@ import {
 import { IBattleHandler } from '../BattleSequencer';
 import { DamageCalculator } from '../DamageCalculator';
 import { createBattleMessage, createAttackMessages } from '../BattleMessageHandler';
-import { MoveManager } from '../MoveManager';
+import { MoveManager } from '.../MoveManager';
 
 /**
  * HANDLER ULTRA-SIMPLE POUR COMBATS 1v1
