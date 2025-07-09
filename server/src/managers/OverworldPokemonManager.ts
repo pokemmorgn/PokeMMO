@@ -472,7 +472,16 @@ export class OverworldPokemonManager {
    * Synchronise tous les Pokémon pour un nouveau client
    */
   syncPokemonForClient(client: any): void {
-    const pokemonList = Array.from(this.overworldPokemon.values()).map(pokemon => ({
+  // ✅ RÉCUPÉRER LA ZONE DU JOUEUR
+  const player = this.room.state.players.get(client.sessionId);
+  if (!player) return;
+  
+  const playerZone = player.currentZone;
+  
+  // ✅ FILTRER PAR ZONE
+  const pokemonList = Array.from(this.overworldPokemon.values())
+    .filter(pokemon => pokemon.areaId === playerZone) // ← AJOUTER CE FILTRE
+    .map(pokemon => ({
       id: pokemon.id,
       pokemonId: pokemon.pokemonId,
       name: pokemon.name,
@@ -485,16 +494,16 @@ export class OverworldPokemonManager {
       animations: pokemon.animations,
       currentAnimation: pokemon.currentAnimation
     }));
-    
-    client.send("overworldPokemon", {
-      type: "OVERWORLD_POKEMON_SYNC",
-      data: {
-        pokemon: pokemonList
-      }
-    });
-    
-    console.log(`🔄 [OverworldPokemonManager] Synchronisation de ${pokemonList.length} Pokémon pour nouveau client`);
-  }
+  
+  client.send("overworldPokemon", {
+    type: "OVERWORLD_POKEMON_SYNC",
+    data: {
+      pokemon: pokemonList
+    }
+  });
+  
+  console.log(`🔄 [OverworldPokemonManager] Synchronisation de ${pokemonList.length} Pokémon pour ${playerZone}`);
+}
 
   /**
    * Supprime un Pokémon
