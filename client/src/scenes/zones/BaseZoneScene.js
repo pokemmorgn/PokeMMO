@@ -2056,6 +2056,10 @@ onPlayerPositioned(player, initData) {
     // AJOUTER
     this.pokemonFollowerManager = new PokemonFollowerManager(this);
     console.log("✅ PokemonFollowerManager initialisé");
+
+      // ✅ AJOUTER CETTE LIGNE MANQUANTE :
+  this.overworldPokemonManager = new OverworldPokemonManager(this);
+  console.log("✅ OverworldPokemonManager initialisé");
     
     if (this.mySessionId) {
       this.playerManager.setMySessionId(this.mySessionId);
