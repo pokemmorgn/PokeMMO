@@ -1076,14 +1076,32 @@ this.loadedSprites = new Set(); // Cache des sprites chargés
         // Détection auto : assumer 1 ligne, calculer colonnes
 let cols, finalFrameWidth;
 
-// Essayer toutes les tailles de 32 à 128px
-for (let testFrameW = 32; testFrameW <= 128; testFrameW++) {
+// Essayer en priorité les tailles communes des Pokémon
+const prioritySizes = [48, 64, 32, 80, 96, 128];
+let found = false;
+
+for (let testFrameW of prioritySizes) {
   if (width % testFrameW === 0) {
     const testCols = width / testFrameW;
     if (testCols >= 10 && testCols <= 100) {
       cols = testCols;
       finalFrameWidth = testFrameW;
+      found = true;
       break;
+    }
+  }
+}
+
+// Si pas trouvé avec les tailles prioritaires, essayer toutes
+if (!found) {
+  for (let testFrameW = 32; testFrameW <= 128; testFrameW++) {
+    if (width % testFrameW === 0) {
+      const testCols = width / testFrameW;
+      if (testCols >= 10 && testCols <= 100) {
+        cols = testCols;
+        finalFrameWidth = testFrameW;
+        break;
+      }
     }
   }
 }
