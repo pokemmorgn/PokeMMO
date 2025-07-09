@@ -97,6 +97,15 @@ export class BattleInventoryUI extends InventoryUI {
     const style = document.createElement('style');
     style.id = this.cssId;
     style.textContent = `
+      /* === FORCER VISIBILITÉ BOUTONS COMBAT === */
+      .battle-interface-container {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 10000 !important;
+        pointer-events: auto !important;
+      }
+      
       /* === STYLES COMBAT SPÉCIALISÉS === */
       
       .battle-inventory-overlay {
