@@ -630,13 +630,12 @@ createBattleInventoryUI() {
         this.showAttackMenu();
         break;
       case 'bag':
-        // ✅ Lazy loading - créer seulement quand nécessaire
         if (!this.battleInventoryUI) {
           this.createBattleInventoryUI();
         }
         
         if (this.battleInventoryUI) {
-          this.hideActionButtons();
+          
           this.battleInventoryUI.openToBalls();
         } else {
           this.showActionMessage('Inventaire de combat non disponible');
