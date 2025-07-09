@@ -254,8 +254,10 @@ export class PokemonFollowerManager {
       
       // Configuration du sprite
       follower.setOrigin(0.5, 1);
-      follower.setDepth(3.5); // ✅ CORRIGÉ: Profondeur plus faible que le joueur (4.5)
       follower.setScale(1.2); // Même échelle que les joueurs
+      
+      // ✅ NOUVEAU: Profondeur initiale selon la direction
+      this.setInitialFollowerDepth(follower, followerData.direction || 'down');
       
       // Propriétés custom
       follower.sessionId = sessionId;
@@ -319,6 +321,9 @@ export class PokemonFollowerManager {
     if (followerData.direction !== undefined) {
       follower.lastDirection = followerData.direction;
       
+      // ✅ NOUVEAU: Ajuster la profondeur selon la direction
+      this.updateFollowerDepth(follower, followerData.direction);
+      
       const pokemonDirection = this.getPlayerToPokemonDirection(followerData.direction);
       const animKey = followerData.isMoving 
         ? `pokemon_${follower.pokemonId}_walk_${pokemonDirection}`
@@ -330,6 +335,79 @@ export class PokemonFollowerManager {
         console.warn(`⚠️ [PokemonFollowerManager] Animation ${animKey} n'existe pas`);
       }
     }
+  }
+
+  /**
+   * ✅ NOUVEAU: Définit la profondeur initiale selon la direction
+   */
+  setInitialFollowerDepth(follower, direction) {
+    const myPlayer = this.getMyPlayer();
+    const playerDepth = myPlayer ? (myPlayer.depth || 4.5) : 4.5;
+    
+    switch (direction) {
+      case 'up':
+        // Si on monte, le follower doit être AU-DESSUS du joueur
+        follower.setDepth(playerDepth + 0.5);
+        break;
+      case 'down':
+        // Si on descend, le joueur doit être AU-DESSUS du follower
+        follower.setDepth(playerDepth - 0.5);
+        break;
+      case 'left':
+      case 'right':
+        // Sur les côtés, légèrement en dessous
+        follower.setDepth(playerDepth - 0.1);
+        break;
+      default:
+        follower.setDepth(playerDepth - 0.5);
+    }
+    
+    console.log(`🎯 [PokemonFollowerManager] Profondeur initiale: ${follower.depth} (direction: ${direction}, joueur: ${playerDepth})`);
+  }
+
+  /**
+   * ✅ NOUVEAU: Met à jour la profondeur selon la direction pour la perspective
+   */
+  updateFollowerDepth(follower, direction) {
+    const myPlayer = this.getMyPlayer();
+    if (!myPlayer) return;
+    
+    const playerDepth = myPlayer.depth || 4.5;
+    const oldDepth = follower.depth;
+    
+    switch (direction) {
+      case 'up':
+        // Si on monte, le follower doit être AU-DESSUS du joueur
+        follower.setDepth(playerDepth + 0.5);
+        break;
+      case 'down':
+        // Si on descend, le joueur doit être AU-DESSUS du follower
+        follower.setDepth(playerDepth - 0.5);
+        break;
+      case 'left':
+      case 'right':
+        // Sur les côtés, même profondeur ou légèrement en dessous
+        follower.setDepth(playerDepth - 0.1);
+        break;
+      default:
+        follower.setDepth(playerDepth - 0.5);
+    }
+    
+    // Log seulement si la profondeur a changé
+    if (Math.abs(oldDepth - follower.depth) > 0.1) {
+      console.log(`🎭 [PokemonFollowerManager] Profondeur mise à jour: ${oldDepth} → ${follower.depth} (direction: ${direction})`);
+    }
+  }
+
+  /**
+   * ✅ NOUVEAU: Récupère le joueur local
+   */
+  getMyPlayer() {
+    // Essayer de récupérer le joueur depuis la scène
+    if (this.scene.playerManager) {
+      return this.scene.playerManager.getMyPlayer();
+    }
+    return null;
   }
 
   /**
