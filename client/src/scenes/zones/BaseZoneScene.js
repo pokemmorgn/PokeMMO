@@ -552,7 +552,9 @@ setRoom(room) {
     setTimeout(() => {
       this.initializeEncounterManager();
     }, 1800);
-    
+      setTimeout(() => {
+    this.initializeOverworldPokemon();
+  }, 2100);
     console.log(`✅ [${this.scene.key}] Planification initialisation systèmes terminée`);
 
   }
@@ -1141,7 +1143,15 @@ initPlayerSpawnFromSceneData() {
       
       console.log(`✅ [${this.scene.key}] Zone serveur confirmée: ${this.zoneName}`);
     });
-
+this.networkManager.onMessage("overworldPokemon", (data) => {
+    console.log(`🌍 [${this.scene.key}] Message overworld Pokémon reçu:`, data.type);
+    
+    if (this.overworldPokemonManager) {
+      this.overworldPokemonManager.handleServerMessage(data);
+    } else {
+      console.warn(`⚠️ [${this.scene.key}] OverworldPokemonManager pas prêt pour message ${data.type}`);
+    }
+  });
     // ✅ Handler d'état avec protection
     this.networkManager.onStateChange((state) => {
       if (!this.isSceneReady || !this.networkSetupComplete) {
