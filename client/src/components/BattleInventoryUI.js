@@ -115,8 +115,10 @@ export class BattleInventoryUI extends InventoryUI {
       }
 
       .battle-inventory-overlay.hidden {
-        opacity: 0;
-        pointer-events: none;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        display: none !important; /* ✅ Force masquage */
+        visibility: hidden !important;
       }
 
       .battle-inventory-container {
@@ -524,7 +526,11 @@ export class BattleInventoryUI extends InventoryUI {
     if (this.isVisible) return;
     
     this.isVisible = true;
+    
+    // ✅ Restaurer styles pour affichage
     this.overlay.classList.remove('hidden');
+    this.overlay.style.display = ''; // Remettre CSS par défaut
+    this.overlay.style.visibility = ''; // Remettre CSS par défaut
     
     // ✅ Auto-focus sur la poche balls
     this.switchToPocket(this.defaultPocket);
@@ -829,7 +835,12 @@ export class BattleInventoryUI extends InventoryUI {
     
     console.log('🔒 [BattleInventory] Fermeture...');
     this.isVisible = false;
+    
+    // ✅ Double sécurité pour masquage
     this.overlay.classList.add('hidden');
+    this.overlay.style.display = 'none'; // Force
+    this.overlay.style.visibility = 'hidden'; // Double sécurité
+    
     this.selectedItem = null;
     
     // ✅ Cleanup listeners
