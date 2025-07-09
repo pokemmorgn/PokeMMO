@@ -60,6 +60,7 @@ export class WorldRoom extends Room<PokeWorldState> {
   private followerHandlers!: FollowerHandlers;
   private teamManagers: Map<string, TeamManager> = new Map();
   
+  private overworldPokemonManager!: OverworldPokemonManager;
 
   // Limite pour auto-scaling
   maxClients = 50;
@@ -503,7 +504,7 @@ setTimeout(() => {
     }
 })
 
-console.log('🚀 [FIX] Handler starter RÉEL configuré !')_
+console.log('🚀 [FIX] Handler starter RÉEL configuré !')
 
         // ✅ ============= AJOUTER ICI LES HANDLERS OVERWORLD POKEMON =============
     
@@ -1689,7 +1690,7 @@ console.log(`🎉 ${player.name} a rejoint le monde !`);
     }
   }
 
-  async onLeave(client: Client, consented: boolean) {
+ async onLeave(client: Client, consented: boolean) {
     console.log(`👋 === PLAYER LEAVE ===`);
     console.log(`🔑 Session: ${client.sessionId}`);
     console.log(`✅ Consenti: ${consented}`);
@@ -1700,7 +1701,7 @@ console.log(`🎉 ${player.name} a rejoint le monde !`);
       console.log(`💰 Stats finales: Level ${player.level}, ${player.gold} gold`);
       const position = this.positionSaver.extractPosition(player);
       await this.positionSaver.savePosition(position, "disconnect");
-          this.followerHandlers.getFollowerManager().removePlayerFollower(client.sessionId);
+      this.followerHandlers.getFollowerManager().removePlayerFollower(client.sessionId);
 
       // Supprimer du state
       this.state.players.delete(client.sessionId);
@@ -1711,15 +1712,70 @@ console.log(`🎉 ${player.name} a rejoint le monde !`);
       this.timeWeatherService.removeClient(client);
       console.log(`🌍 [WorldRoom] Client ${client.sessionId} retiré du TimeWeatherService`);
     }
-   // ✅ NOUVEAU: Arrêter le système si plus de joueurs
+
+    // ✅ NOUVEAU: Arrêter le système si plus de joueurs
     if (this.state.players.size === 0) {
       console.log(`🛑 [WorldRoom] Plus de joueurs - arrêt système Pokémon overworld`);
       this.overworldPokemonManager.stop();
     }
+
+    // ✅ NOUVEAU: Nettoyer tous les blocages du joueur qui part
+    movementBlockManager.forceUnblockAll(client.sessionId);
+    await this.battleHandlers.onPlayerLeave(client.sessionId);
+    console.log(`🧹 [WorldRoom] Blocages nettoyés pour ${client.sessionId}`);
+    
+    // Nettoyer le TeamManager du cache
+    if (player && this.teamManagers.has(player.name)) {
+      this.teamManagers.delete(player.name);
+      console.log(`🗑️ [WorldRoom] TeamManager supprimé du cache pour ${player.name}`);
+    }
     
     console.log(`👋 Client ${client.sessionId} déconnecté`);
   }
+
+  // 4. AJOUTER LES MÉTHODES MANQUANTES POUR OVERWORLD POKEMON
+  /**
+   * Récupère l'OverworldPokemonManager
+   */
+  public getOverworldPokemonManager(): OverworldPokemonManager {
+    return this.overworldPokemonManager;
+  }
+
+  /**
+   * Debug des Pokémon overworld
+   */
+  public debugOverworldPokemon(): void {
+    if (this.overworldPokemonManager) {
+      this.overworldPokemonManager.debug();
+    }
+  }
+
+  /**
+   * Récupère les stats des Pokémon overworld
+   */
+  public getOverworldPokemonStats(): any {
+    return this.overworldPokemonManager ? this.overworldPokemonManager.getStats() : {};
+  }
+
+  /**
+   * Force le spawn d'un Pokémon overworld (pour les admins)
+   */
+  public forceSpawnOverworldPokemon(areaId: string, pokemonId: number, x?: number, y?: number): void {
+    if (this.overworldPokemonManager) {
+      this.overworldPokemonManager.forceSpawn(areaId, pokemonId, x, y);
+    }
+  }
+
+  /**
+   * Nettoie une zone overworld (pour les admins)
+   */
+  public clearOverworldArea(areaId: string): void {
+    if (this.overworldPokemonManager) {
+      this.overworldPokemonManager.clearArea(areaId);
+    }
+  }
 }
+
     // ✅ NOUVEAU: Nettoyer tous les blocages du joueur qui part
     movementBlockManager.forceUnblockAll(client.sessionId);
     await this.battleHandlers.onPlayerLeave(client.sessionId);
