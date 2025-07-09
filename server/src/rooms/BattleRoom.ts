@@ -42,7 +42,7 @@ export class BattleRoom extends Room<BattleState> {
   
   // === CRÉATION ROOM ===
   
-  async onCreate(options: BattleInitData) {
+async onCreate(options: BattleInitData) {
     console.log(`⚔️ [BattleRoom] Création V2.6 avec système narratif + capture`);
     console.log(`🎯 Type: ${options.battleType}, Joueur: ${options.playerData.name}`);
     
@@ -56,10 +56,27 @@ export class BattleRoom extends Room<BattleState> {
     
     // ✅ Initialiser BattleEngine avec système narratif
     this.battleEngine = new BattleEngine();
+    
+    // ✅ CRITIQUE: Configurer callback AVANT tout setup
+    this.configureBroadcastCallback();
+    
     this.setupBattleEngineEvents();
     this.setupMessageHandlers();
     
     console.log(`✅ [BattleRoom] ${this.roomId} créée avec BattleEngine narratif V2.6 + capture`);
+  }
+
+    private configureBroadcastCallback() {
+    console.log('📡 [BattleRoom] Configuration callback BroadcastManager...');
+    
+    this.battleEngine.configureBroadcast((event) => {
+      console.log(`📡 [BattleRoom] BroadcastManager → WebSocket: ${event.eventId}`, event);
+      
+      // ✅ ENVOYER l'événement BroadcastManager aux clients
+      this.broadcast('battleEvent', event);
+    });
+    
+    console.log('✅ [BattleRoom] Callback BroadcastManager configuré AVANT démarrage');
   }
   
   // === GESTION MESSAGES ===
@@ -310,19 +327,9 @@ export class BattleRoom extends Room<BattleState> {
   
   // === ✅ ÉVÉNEMENTS BATTLEENGINE NARRATIFS COMPLETS ===
   
-  private setupBattleEngineEvents() {
+ private setupBattleEngineEvents() {
     console.log('🎮 [BattleRoom] Configuration des événements BattleEngine Narratif V2.6 + capture');
 
-       // === ✅ NOUVEAU: CONFIGURER CALLBACK BROADCASTMANAGER ===
-    this.battleEngine.configureBroadcast((event) => {
-      console.log(`📡 [BattleRoom] BroadcastManager → WebSocket: ${event.eventId}`, event);
-      
-      // ✅ ENVOYER l'événement BroadcastManager aux clients
-      this.broadcast('battleEvent', event);
-    });
-    
-    console.log('📡 [BattleRoom] Callback BroadcastManager configuré');
-    
     // === ✅ DÉMARRAGE NARRATIF ===
     this.battleEngine.on('battleStart', (data: any) => {
       console.log(`📖 [BattleRoom] Mode narratif activé`);
