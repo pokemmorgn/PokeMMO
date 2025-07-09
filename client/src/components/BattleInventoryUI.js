@@ -120,6 +120,10 @@ export class BattleInventoryUI extends InventoryUI {
       }
 
       .battle-inventory-container {
+        position: fixed; /* ✅ Position fixe pour centrage */
+        left: 50%; /* ✅ Centre horizontal */
+        top: 50%; /* ✅ Centre vertical */
+        transform: translate(-50%, -50%) scale(0.95); /* ✅ Centrage + scale */
         width: 600px; /* Plus compact */
         height: 500px; /* Plus petit */
         background: linear-gradient(145deg, #3d1a1a, #2a0f0f); /* Thème rouge combat */
@@ -130,12 +134,11 @@ export class BattleInventoryUI extends InventoryUI {
         color: white;
         font-family: 'Segoe UI', Arial, sans-serif;
         box-shadow: 0 15px 40px rgba(231, 76, 60, 0.4); /* Lueur rouge */
-        transform: scale(0.95);
         transition: transform 0.2s ease;
       }
 
       .battle-inventory-overlay:not(.hidden) .battle-inventory-container {
-        transform: scale(1);
+        transform: translate(-50%, -50%) scale(1); /* ✅ Centré + scale normal quand visible */
       }
 
       .battle-inventory-header {
