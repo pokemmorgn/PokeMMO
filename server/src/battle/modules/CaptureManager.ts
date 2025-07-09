@@ -443,55 +443,75 @@ private performFourChecks(captureRate: number): { captured: boolean; shakeCount:
   // === CRÉATION POKÉMON CAPTURÉ ===
   
   private async createCapturedPokemon(
-    wildPokemon: Pokemon, 
-    ownerName: string, 
-    ballType: string
-  ): Promise<any> {
+  wildPokemon: Pokemon, 
+  ownerName: string, 
+  ballType: string
+): Promise<any> {
+  
+  const pokemonData = await getPokemonById(wildPokemon.id);
+  const baseStats = pokemonData.baseStats;
+  const level = wildPokemon.level;
+  const ivs = this.generateRandomIVs();
+  
+  // ✅ CALCULER LES STATS MANUELLEMENT (requis par le schéma)
+  const calculateStat = (baseStat: number, iv: number): number => {
+    return Math.floor(((2 * baseStat + iv) * level) / 100) + 5;
+  };
+  
+  const calculatedStats = {
+    attack: calculateStat(baseStats.attack, ivs.attack),
+    defense: calculateStat(baseStats.defense, ivs.defense),
+    spAttack: calculateStat(baseStats.specialAttack, ivs.spAttack),
+    spDefense: calculateStat(baseStats.specialDefense, ivs.spDefense),
+    speed: calculateStat(baseStats.speed, ivs.speed)
+  };
+  
+  // ✅ CALCULER HP SÉPARÉMENT
+  const maxHp = Math.floor(((2 * baseStats.hp + ivs.hp) * level) / 100) + level + 10;
+  
+  const ownedPokemon = new OwnedPokemon({
+    owner: ownerName,
+    pokemonId: wildPokemon.id,
+    level: level,
+    experience: this.calculateExperienceForLevel(level),
+    nature: this.generateRandomNature(),
+    nickname: undefined,
+    shiny: wildPokemon.shiny || false,
+    gender: this.generateRandomGender(pokemonData),  // ✅ Maintenant correct
+    ability: this.generateRandomAbility(pokemonData),
     
-    const pokemonData = await getPokemonById(wildPokemon.id);
+    ivs: ivs,
+    evs: { hp: 0, attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0 },
+    calculatedStats: calculatedStats,  // ✅ Stats calculées ajoutées
     
-    const ownedPokemon = new OwnedPokemon({
-      owner: ownerName,
-      pokemonId: wildPokemon.id,
-      level: wildPokemon.level,
-      experience: this.calculateExperienceForLevel(wildPokemon.level),
-      nature: this.generateRandomNature(),
-      nickname: undefined,
-      shiny: wildPokemon.shiny || false,
-      gender: wildPokemon.gender || this.generateRandomGender(pokemonData),
-      ability: this.generateRandomAbility(pokemonData),
-      
-      ivs: this.generateRandomIVs(),
-      evs: { hp: 0, attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0 },
-      
-      moves: wildPokemon.moves.map(moveId => {
-        const moveData = MoveManager.getMoveData(moveId);
-        const maxPp = moveData?.pp || 20;
-        return {
-          moveId: moveId,
-          currentPp: maxPp,
-          maxPp: maxPp
-        };
-      }),
-      
-      currentHp: wildPokemon.currentHp,
-      maxHp: wildPokemon.maxHp,
-      status: 'normal',
-      
-      isInTeam: false,
-      box: 0,
-      
-      caughtAt: new Date(),
-      friendship: this.getBaseFriendship(ballType),
-      pokeball: ballType,
-      originalTrainer: ownerName
-    });
+    moves: wildPokemon.moves.map(moveId => {
+      const moveData = MoveManager.getMoveData(moveId);
+      const maxPp = moveData?.pp || 20;
+      return {
+        moveId: moveId,
+        currentPp: maxPp,
+        maxPp: maxPp
+      };
+    }),
     
-    await ownedPokemon.save();
-    console.log(`🆕 [CaptureManager] ${wildPokemon.name} créé avec ID: ${ownedPokemon._id}`);
+    currentHp: maxHp,  // ✅ HP calculé
+    maxHp: maxHp,
+    status: 'normal',
     
-    return ownedPokemon;
-  }
+    isInTeam: false,
+    box: 0,
+    
+    caughtAt: new Date(),
+    friendship: this.getBaseFriendship(ballType),
+    pokeball: ballType,
+    originalTrainer: ownerName
+  });
+  
+  await ownedPokemon.save();
+  console.log(`🆕 [CaptureManager] ${wildPokemon.name} créé avec ID: ${ownedPokemon._id}`);
+  
+  return ownedPokemon;
+}
   
   // === UTILITAIRES ===
   
