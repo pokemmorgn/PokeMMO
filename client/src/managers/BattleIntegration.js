@@ -1,15 +1,14 @@
-// client/src/managers/BattleIntegration.js - CORRECTION SIMPLE
-// 🎯 FOCUS: Corriger uniquement l'erreur d'API Phaser, garder votre BattleScene
+// client/src/managers/BattleIntegration.js - ADAPTATION BROADCAST MANAGER
+// 🎯 FOCUS: Adapter format événements pour BroadcastManager
 
 import { BattleScene } from '../scenes/BattleScene.js';
 import { BattleNetworkHandler } from '../network/BattleNetworkHandler.js';
 
 /**
- * INTÉGRATEUR DE COMBAT - CORRECTION MINIMALE
- * ✅ Corrige UNIQUEMENT: this.phaserGame.scene.setVisible is not a function
- * ✅ Ajoute battleUITransition manquant
- * ✅ Garde votre BattleScene existante
- * ❌ SUPPRIME l'interface de secours (inutile)
+ * INTÉGRATEUR DE COMBAT - ADAPTATION BROADCASTMANAGER
+ * ✅ Support format BroadcastManager côté serveur
+ * ✅ Rétrocompatibilité format ancien
+ * ✅ Garde toute la logique existante
  */
 export class BattleIntegration {
   constructor(gameManager) {
@@ -56,13 +55,13 @@ export class BattleIntegration {
     this.currentBattleData = null;
     this.selectedPokemon = null;
     
-    console.log('⚔️ [BattleIntegration] Constructeur moderne compatible');
+    console.log('⚔️ [BattleIntegration] Constructeur avec support BroadcastManager');
   }
 
   // === INITIALISATION ===
 
   async initialize(worldRoom, phaserGame) {
-    console.log('🔧 [BattleIntegration] Initialisation compatible...');
+    console.log('🔧 [BattleIntegration] Initialisation avec BroadcastManager...');
     
     if (!worldRoom || !phaserGame) {
       console.error('❌ WorldRoom ou PhaserGame manquant');
@@ -88,7 +87,7 @@ export class BattleIntegration {
       this.setupIntegrationEvents();
       
       this.isInitialized = true;
-      console.log('✅ [BattleIntegration] Système moderne initialisé');
+      console.log('✅ [BattleIntegration] Système BroadcastManager initialisé');
       return true;
       
     } catch (error) {
@@ -173,13 +172,19 @@ export class BattleIntegration {
     }
   }
 
-  // === ÉVÉNEMENTS D'INTÉGRATION ===
+  // === ✅ NOUVEAU: ÉVÉNEMENTS BROADCASTMANAGER ===
 
   setupIntegrationEvents() {
     if (!this.battleNetworkHandler) return;
     
-    console.log('🔗 [BattleIntegration] Configuration événements...');
+    console.log('🔗 [BattleIntegration] Configuration événements BroadcastManager...');
     
+    // ✅ NOUVEAU: Listener générique pour BroadcastManager
+    this.battleNetworkHandler.on('battleEvent', (event) => {
+      this.handleBroadcastEvent(event);
+    });
+    
+    // ✅ ANCIEN: Garde compatibilité format ancien
     this.battleNetworkHandler.on('wildEncounterStart', (data) => {
       this.handleWildEncounterStart(data);
     });
@@ -196,6 +201,7 @@ export class BattleIntegration {
       this.handleBattleJoined(data);
     });
     
+    // ✅ GARDE: Listeners anciens pour rétrocompatibilité
     this.battleNetworkHandler.on('battleStart', (data) => {
       this.handleBattleStart(data);
     });
@@ -224,10 +230,240 @@ export class BattleIntegration {
       this.handleConnectionError(data);
     });
     
-    console.log('✅ Événements d\'intégration configurés');
+    console.log('✅ Événements BroadcastManager + rétrocompatibilité configurés');
   }
 
-  // === HANDLERS D'ÉVÉNEMENTS ===
+  // === ✅ NOUVEAU: HANDLER BROADCASTMANAGER ===
+
+  /**
+   * Traite les événements du format BroadcastManager
+   */
+  handleBroadcastEvent(event) {
+    console.log(`📡 [BattleIntegration] Événement BroadcastManager: ${event.eventId}`, event);
+    
+    // Vérifier le format
+    if (!event.eventId || !event.data) {
+      console.warn('⚠️ Événement BroadcastManager mal formaté:', event);
+      return;
+    }
+    
+    // Router selon l'eventId
+    switch (event.eventId) {
+      case 'battleStart':
+        this.handleBattleStart(event.data);
+        break;
+        
+      case 'narrativeEnd':
+        this.handleNarrativeEnd(event.data);
+        break;
+        
+      case 'yourTurn':
+        this.handleYourTurn(event.data);
+        break;
+        
+      case 'opponentTurn':
+        this.handleOpponentTurn(event.data);
+        break;
+        
+      case 'moveUsed':
+        this.handleMoveUsed(event.data);
+        break;
+        
+      case 'damageDealt':
+        this.handleDamageDealt(event.data);
+        break;
+        
+      case 'pokemonFainted':
+        this.handlePokemonFainted(event.data);
+        break;
+        
+      case 'superEffective':
+        this.handleSuperEffective(event.data);
+        break;
+        
+      case 'notVeryEffective':
+        this.handleNotVeryEffective(event.data);
+        break;
+        
+      case 'criticalHit':
+        this.handleCriticalHit(event.data);
+        break;
+        
+      case 'captureAttempt':
+        this.handleCaptureAttempt(event.data);
+        break;
+        
+      case 'captureShake':
+        this.handleCaptureShake(event.data);
+        break;
+        
+      case 'captureSuccess':
+        this.handleCaptureSuccess(event.data);
+        break;
+        
+      case 'captureFailure':
+        this.handleCaptureFailure(event.data);
+        break;
+        
+      case 'captureCritical':
+        this.handleCaptureCritical(event.data);
+        break;
+        
+      case 'battleEnd':
+        this.handleBattleEndBroadcast(event.data);
+        break;
+        
+      case 'moneyGained':
+        this.handleMoneyGained(event.data);
+        break;
+        
+      default:
+        console.log(`📡 [BattleIntegration] Événement BroadcastManager non géré: ${event.eventId}`);
+        // Transférer à BattleScene si elle gère cet événement
+        if (this.battleScene && this.battleScene.handleBattleEvent) {
+          this.battleScene.handleBattleEvent(event.eventId, event.data);
+        }
+        break;
+    }
+  }
+
+  // === ✅ NOUVEAUX HANDLERS BROADCASTMANAGER ===
+
+  handleNarrativeEnd(data) {
+    console.log('📖→⚔️ [BattleIntegration] Fin narration, début combat');
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('narrativeEnd', data);
+    }
+  }
+
+  handleOpponentTurn(data) {
+    console.log('🤖 [BattleIntegration] Tour adversaire');
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('opponentTurn', data);
+    }
+  }
+
+  handleMoveUsed(data) {
+    console.log(`⚔️ [BattleIntegration] ${data.attackerName} utilise ${data.moveName}`);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('moveUsed', data);
+    }
+  }
+
+  handleDamageDealt(data) {
+    console.log(`💥 [BattleIntegration] ${data.targetName} perd ${data.damage} HP`);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('damageDealt', data);
+    }
+  }
+
+  handlePokemonFainted(data) {
+    console.log(`💀 [BattleIntegration] ${data.pokemonName} est K.O.`);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('pokemonFainted', data);
+    }
+  }
+
+  handleSuperEffective(data) {
+    console.log(`✨ [BattleIntegration] Super efficace !`);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('superEffective', data);
+    }
+  }
+
+  handleNotVeryEffective(data) {
+    console.log(`😐 [BattleIntegration] Pas très efficace...`);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('notVeryEffective', data);
+    }
+  }
+
+  handleCriticalHit(data) {
+    console.log(`💥 [BattleIntegration] Coup critique !`);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('criticalHit', data);
+    }
+  }
+
+  handleCaptureAttempt(data) {
+    console.log(`🎯 [BattleIntegration] ${data.playerName} lance ${data.ballDisplayName}`);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('captureAttempt', data);
+    }
+  }
+
+  handleCaptureShake(data) {
+    console.log(`📳 [BattleIntegration] Secousse ${data.shakeNumber}/${data.totalShakes}`);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('captureShake', data);
+    }
+  }
+
+  handleCaptureSuccess(data) {
+    console.log(`🎉 [BattleIntegration] ${data.pokemonName} capturé !`);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('captureSuccess', data);
+    }
+    
+    // Marquer fin de combat par capture
+    setTimeout(() => {
+      this.endBattle({ result: 'capture', captured: data.pokemonName });
+    }, 3000);
+  }
+
+  handleCaptureFailure(data) {
+    console.log(`😞 [BattleIntegration] ${data.pokemonName} s'est échappé`);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('captureFailure', data);
+    }
+  }
+
+  handleCaptureCritical(data) {
+    console.log(`⭐ [BattleIntegration] Capture critique ! ${data.pokemonName}`);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('captureCritical', data);
+    }
+  }
+
+  handleBattleEndBroadcast(data) {
+    console.log(`🏁 [BattleIntegration] Fin de combat BroadcastManager`, data);
+    
+    if (this.battleScene && this.battleScene.handleBattleEvent) {
+      this.battleScene.handleBattleEvent('battleEnd', data);
+    }
+    
+    // Programmer fin de combat
+    setTimeout(() => {
+      this.endBattle({ 
+        result: data.winner ? 'victory' : 'defeat',
+        winner: data.winner,
+        reason: data.reason
+      });
+    }, 3000);
+  }
+
+  handleMoneyGained(data) {
+    console.log(`💰 [BattleIntegration] +${data.amount}¥ gagnés`);
+    
+    if (window.showGameNotification) {
+      window.showGameNotification(`+${data.amount}¥`, 'money', { duration: 2000 });
+    }
+  }
+
+  // === HANDLERS D'ÉVÉNEMENTS EXISTANTS (inchangés) ===
 
   handleWildEncounterStart(data) {
     console.log('🐾 [BattleIntegration] === DÉBUT RENCONTRE COMPATIBLE ===');
@@ -589,7 +825,7 @@ export class BattleIntegration {
     }
   }
 
-  // === API PUBLIQUE ===
+  // === API PUBLIQUE (inchangée) ===
 
   startWildBattle(wildPokemonData) {
     if (!this.isInitialized) {
@@ -715,7 +951,7 @@ export class BattleIntegration {
 // === TESTS SIMPLIFIÉS ===
 
 window.testBattleIntegration = function() {
-  console.log('🧪 === TEST BATTLE INTEGRATION SIMPLE ===');
+  console.log('🧪 === TEST BATTLE INTEGRATION BROADCASTMANAGER ===');
   
   const integration = new BattleIntegration(window.gameManager || {});
   
@@ -757,9 +993,9 @@ window.testBattleIntegration = function() {
   return integration;
 };
 
-console.log('✅ [BattleIntegration] MODULE CORRIGÉ CHARGÉ !');
-console.log('🔧 CORRECTION: Suppression complète de setVisible');
-console.log('✅ UTILISE: Seulement wake() + bringToTop() + sleep()');
-console.log('✅ AJOUT: Système battleUITransition');
+console.log('✅ [BattleIntegration] MODULE BROADCASTMANAGER CHARGÉ !');
+console.log('📡 NOUVEAU: Support événements BroadcastManager');
+console.log('🔄 GARDE: Rétrocompatibilité format ancien');
+console.log('🎯 TIMING: Server-driven avec traduction client'); 
 console.log('🧪 Test: window.testBattleIntegration()');
-console.log('🚀 Prêt pour intégration dans votre GameManager !');
+console.log('🚀 Prêt pour intégration BroadcastManager !');
