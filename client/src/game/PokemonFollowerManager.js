@@ -1,100 +1,57 @@
-// ================================================================================================
-// CLIENT/SRC/GAME/POKEMONFOLLOWERMANAGER.JS - VERSION ADAPTATIVE COMPLÈTE
-// ================================================================================================
-
+// Version ULTRA SIMPLE du PokemonFollowerManager
 export class PokemonFollowerManager {
   constructor(scene) {
     this.scene = scene;
-    this.followers = new Map(); // sessionId -> follower sprite
-    this.loadedSprites = new Set(); // Cache des sprites déjà chargés
-    this.loadingSprites = new Set(); // Cache des sprites en cours de chargement
-    this.spriteStructures = new Map(); // Cache des structures détectées par pokemonId
+    this.followers = new Map();
+    this.loadedSprites = new Set();
+    this.loadingSprites = new Set();
+    this.spriteStructures = new Map();
     
-    console.log("🐾 [PokemonFollowerManager] Initialisé");
+    console.log("🐾 [PokemonFollowerManager] Version simple initialisée");
   }
 
-  /**
-   * Détecte automatiquement la structure du spritesheet Pokémon
-   */
+  // Méthodes de chargement des sprites (gardées identiques)
   detectSpriteStructure(width, height) {
-    // Possibilités communes pour les spritesheets Pokémon PokeMMO
     const possibilities = [
-      { cols: 6, rows: 8, priority: 1 }, // Le plus commun
-      { cols: 4, rows: 8, priority: 2 }, // Version simple
-      { cols: 8, rows: 8, priority: 3 }, // Version étendue
-      { cols: 5, rows: 8, priority: 4 }, // Rare
-      { cols: 7, rows: 8, priority: 5 }, // Original (pour compatibility)
+      { cols: 6, rows: 8, priority: 1 },
+      { cols: 4, rows: 8, priority: 2 },
+      { cols: 8, rows: 8, priority: 3 }
     ];
 
     const validOptions = [];
-
     possibilities.forEach(p => {
       const frameW = width / p.cols;
       const frameH = height / p.rows;
-      
-      // Vérifier que c'est un nombre entier
       if (frameW % 1 === 0 && frameH % 1 === 0) {
         validOptions.push({
           cols: p.cols,
           rows: p.rows,
           frameWidth: frameW,
           frameHeight: frameH,
-          totalFrames: p.cols * p.rows,
-          priority: p.priority,
-          // Bonus si les frames sont carrées ou proches
-          squareBonus: Math.abs(frameW - frameH) < 5 ? 10 : 0
+          priority: p.priority
         });
       }
     });
 
     if (validOptions.length === 0) {
-      console.warn(`⚠️ [PokemonFollowerManager] Aucune structure valide trouvée pour ${width}×${height}`);
-      // Fallback : essayer de deviner
-      return {
-        cols: Math.round(width / 32), // Assume 32px par frame
-        rows: 8,
-        frameWidth: Math.round(width / Math.round(width / 32)),
-        frameHeight: Math.round(height / 8)
-      };
+      return { cols: Math.round(width / 32), rows: 8, frameWidth: Math.round(width / Math.round(width / 32)), frameHeight: Math.round(height / 8) };
     }
 
-    // Trier par priorité et bonus de carré
-    validOptions.sort((a, b) => {
-      const scoreA = (10 - a.priority) + a.squareBonus;
-      const scoreB = (10 - b.priority) + b.squareBonus;
-      return scoreB - scoreA;
-    });
-
-    const best = validOptions[0];
-    console.log(`📐 [PokemonFollowerManager] Structure détectée: ${best.cols}×${best.rows} (${best.frameWidth}×${best.frameHeight}px par frame)`);
-    
-    if (validOptions.length > 1) {
-      console.log(`📊 [PokemonFollowerManager] Autres options possibles:`, validOptions.slice(1));
-    }
-
-    return best;
+    validOptions.sort((a, b) => a.priority - b.priority);
+    return validOptions[0];
   }
 
-  /**
-   * Charge un sprite Pokémon avec détection automatique de taille
-   */
   async loadPokemonSprite(pokemonId) {
     const spriteKey = `pokemon_${pokemonId}`;
-    
-    // Déjà chargé ou en cours de chargement
     if (this.loadedSprites.has(spriteKey) || this.loadingSprites.has(spriteKey)) {
       return spriteKey;
     }
     
     this.loadingSprites.add(spriteKey);
-    
     const paddedId = pokemonId.toString().padStart(3, '0');
     const spritePath = `/assets/pokemon/${paddedId}/Walk-Anim.png`;
     
-    console.log(`🎨 [PokemonFollowerManager] Chargement sprite Pokémon ${pokemonId}: ${spritePath}`);
-    
     try {
-      // Étape 1: Charger comme image pour détecter la taille
       const tempKey = `${spriteKey}_temp`;
       
       await new Promise((resolve, reject) => {
@@ -103,479 +60,187 @@ export class PokemonFollowerManager {
         this.scene.load.once('complete', () => {
           try {
             const texture = this.scene.textures.get(tempKey);
-            if (!texture || !texture.source[0]) {
-              throw new Error(`Texture ${tempKey} introuvable`);
-            }
-            
             const width = texture.source[0].width;
             const height = texture.source[0].height;
             
-            // ✅ NOUVELLE: Détection adaptative de la structure
             const structure = this.detectSpriteStructure(width, height);
             this.spriteStructures.set(pokemonId, structure);
             
-            console.log(`📐 [PokemonFollowerManager] Pokémon ${pokemonId}: ${width}x${height} → structure ${structure.cols}×${structure.rows}, frames ${structure.frameWidth}×${structure.frameHeight}`);
-            
-            // Étape 2: Charger comme spritesheet avec les bonnes dimensions
             this.scene.load.spritesheet(spriteKey, spritePath, {
               frameWidth: structure.frameWidth,
               frameHeight: structure.frameHeight
             });
             
             this.scene.load.once('complete', () => {
-              // Nettoyer la texture temporaire
               this.scene.textures.remove(tempKey);
-              
-              // Créer les animations avec la structure détectée
               this.createPokemonAnimations(pokemonId, spriteKey, structure);
-              
               this.loadedSprites.add(spriteKey);
               this.loadingSprites.delete(spriteKey);
-              
-              console.log(`✅ [PokemonFollowerManager] Sprite ${spriteKey} chargé et animations créées`);
               resolve(spriteKey);
             });
             
             this.scene.load.start();
-            
           } catch (error) {
-            console.error(`❌ [PokemonFollowerManager] Erreur traitement texture ${tempKey}:`, error);
             this.loadingSprites.delete(spriteKey);
             reject(error);
           }
-        });
-        
-        this.scene.load.once('loaderror', (fileObj) => {
-          console.error(`❌ [PokemonFollowerManager] Erreur chargement ${spritePath}:`, fileObj);
-          this.loadingSprites.delete(spriteKey);
-          reject(new Error(`Impossible de charger ${spritePath}`));
         });
         
         this.scene.load.start();
       });
       
       return spriteKey;
-      
     } catch (error) {
-      console.error(`❌ [PokemonFollowerManager] Erreur loadPokemonSprite ${pokemonId}:`, error);
       this.loadingSprites.delete(spriteKey);
       throw error;
     }
   }
 
-  /**
-   * Crée les animations pour un Pokémon - VERSION ADAPTATIVE
-   */
   createPokemonAnimations(pokemonId, spriteKey, structure) {
     const directions = [
-      { name: 'down', row: 0 },      // bas
-      { name: 'down-right', row: 1 }, // bas droite
-      { name: 'right', row: 2 },     // droite
-      { name: 'up-right', row: 3 },  // haut droite
-      { name: 'up', row: 4 },        // haut
-      { name: 'up-left', row: 5 },   // haut gauche
-      { name: 'left', row: 6 },      // gauche
-      { name: 'down-left', row: 7 }  // bas gauche
+      { name: 'down', row: 0 },
+      { name: 'right', row: 2 },
+      { name: 'up', row: 4 },
+      { name: 'left', row: 6 }
     ];
 
     directions.forEach(dir => {
       const walkKey = `pokemon_${pokemonId}_walk_${dir.name}`;
       const idleKey = `pokemon_${pokemonId}_idle_${dir.name}`;
       
-      // ✅ Calculer les frames selon la structure détectée
       const startFrame = dir.row * structure.cols;
-      const endFrame = startFrame + (structure.cols - 1); // cols-1 car on commence à 0
+      const endFrame = startFrame + (structure.cols - 1);
       
-      // Animation de marche (toutes les frames de la ligne)
       if (!this.scene.anims.exists(walkKey)) {
         this.scene.anims.create({
           key: walkKey,
-          frames: this.scene.anims.generateFrameNumbers(spriteKey, {
-            start: startFrame,
-            end: endFrame
-          }),
+          frames: this.scene.anims.generateFrameNumbers(spriteKey, { start: startFrame, end: endFrame }),
           frameRate: 8,
           repeat: -1
         });
-        
-        console.log(`🎬 [PokemonFollowerManager] Animation créée: ${walkKey} (frames ${startFrame}-${endFrame})`);
       }
       
-      // Animation idle (première frame de la ligne)
       if (!this.scene.anims.exists(idleKey)) {
         this.scene.anims.create({
           key: idleKey,
-          frames: [{
-            key: spriteKey,
-            frame: startFrame // Première frame de la direction
-          }],
+          frames: [{ key: spriteKey, frame: startFrame }],
           frameRate: 1,
           repeat: 0
         });
-        
-        console.log(`🎬 [PokemonFollowerManager] Animation idle créée: ${idleKey} (frame ${startFrame})`);
       }
     });
-
-    console.log(`✅ [PokemonFollowerManager] Toutes les animations créées pour Pokémon ${pokemonId} (structure ${structure.cols}×${structure.rows})`);
   }
 
-  /**
-   * Convertit la direction du joueur en direction Pokémon
-   */
   getPlayerToPokemonDirection(playerDirection) {
-    const mapping = {
-      'down': 'down',    // 0
-      'right': 'right',  // 2
-      'up': 'up',        // 4
-      'left': 'left'     // 6
-    };
-    
+    const mapping = { 'down': 'down', 'right': 'right', 'up': 'up', 'left': 'left' };
     return mapping[playerDirection] || 'down';
   }
 
-  /**
-   * Crée un follower Pokémon pour un joueur
-   */
   async createFollower(sessionId, followerData) {
     try {
-      console.log(`🐾 [PokemonFollowerManager] Création follower pour ${sessionId}:`, followerData);
-      
-      // Supprimer l'ancien follower s'il existe
       this.removeFollower(sessionId);
       
-      if (!followerData || !followerData.pokemonId) {
-        console.warn(`⚠️ [PokemonFollowerManager] Données follower invalides pour ${sessionId}`);
-        return;
-      }
+      if (!followerData || !followerData.pokemonId) return;
       
-      // Charger le sprite si nécessaire
       const spriteKey = await this.loadPokemonSprite(followerData.pokemonId);
       
-      // Créer le sprite
       const follower = this.scene.physics.add.sprite(
         followerData.x || 0,
         followerData.y || 0,
         spriteKey,
-        0 // Frame initiale
+        0
       );
       
-      // Configuration du sprite
       follower.setOrigin(0.5, 1);
-      follower.setDepth(4); // Juste en dessous du joueur (depth 4.5)
-      follower.setScale(1.2); // Même échelle que les joueurs
+      follower.setDepth(4);
+      follower.setScale(1.2);
       
-      // Propriétés custom
       follower.sessionId = sessionId;
       follower.pokemonId = followerData.pokemonId;
-      follower.isShiny = followerData.isShiny || false;
       follower.nickname = followerData.nickname;
-      follower.lastDirection = 'down';
+      follower.lastDirection = followerData.direction || 'down';
       follower.isMoving = false;
       
-      // Position cible pour l'interpolation
-      follower.targetX = followerData.x || 0;
-      follower.targetY = followerData.y || 0;
+      // ✅ ULTRA SIMPLE : Pas de targetX/Y, position directe
+      follower.x = followerData.x || 0;
+      follower.y = followerData.y || 0;
       
-      // Animation initiale
-      const pokemonDirection = this.getPlayerToPokemonDirection(followerData.direction || 'down');
+      const pokemonDirection = this.getPlayerToPokemonDirection(follower.lastDirection);
       const initialAnimKey = `pokemon_${followerData.pokemonId}_idle_${pokemonDirection}`;
       
       if (this.scene.anims.exists(initialAnimKey)) {
         follower.anims.play(initialAnimKey, true);
-        console.log(`🎬 [PokemonFollowerManager] Animation initiale: ${initialAnimKey}`);
-      } else {
-        console.warn(`⚠️ [PokemonFollowerManager] Animation initiale ${initialAnimKey} n'existe pas`);
       }
       
-      // Ajouter au cache
       this.followers.set(sessionId, follower);
-      
-      console.log(`✅ [PokemonFollowerManager] Follower créé: ${followerData.nickname || `Pokémon #${followerData.pokemonId}`} pour ${sessionId}`);
-      
       return follower;
-      
     } catch (error) {
       console.error(`❌ [PokemonFollowerManager] Erreur création follower:`, error);
     }
   }
 
-  /**
-   * Met à jour un follower existant
-   */
+  // ✅ ULTRA SIMPLE : Juste mettre à jour la position directement
   updateFollower(sessionId, followerData) {
-  const follower = this.followers.get(sessionId);
-  if (!follower) {
-    console.warn(`⚠️ [PokemonFollowerManager] Follower ${sessionId} non trouvé pour mise à jour`);
-    return;
-  }
+    const follower = this.followers.get(sessionId);
+    if (!follower) return;
 
-  // Mettre à jour la position cible
-  if (followerData.x !== undefined) follower.targetX = followerData.x;
-  if (followerData.y !== undefined) follower.targetY = followerData.y;
-  
-  // Mettre à jour l'état de mouvement
-  if (followerData.isMoving !== undefined) {
-    follower.isMoving = followerData.isMoving;
-  }
-  
-  // ✅ FIX: Détecter l'arrêt même si isMoving n'est pas envoyé
-  const isNearTarget = follower.targetX !== undefined && follower.targetY !== undefined &&
-    Math.abs(follower.x - follower.targetX) < 2 && 
-    Math.abs(follower.y - follower.targetY) < 2;
-  
-  // Si le follower est proche de sa cible, le considérer comme arrêté
-  if (isNearTarget && follower.isMoving) {
-    follower.isMoving = false;
-    console.log(`🛑 [PokemonFollowerManager] Auto-stop détecté pour ${sessionId}`);
-  }
-  
-  // Mettre à jour la direction et l'animation
-  if (followerData.direction !== undefined) {
-    const directionChanged = followerData.direction !== follower.lastDirection;
-    const movementChanged = followerData.isMoving !== undefined;
+    // Position directe (pas d'interpolation)
+    if (followerData.x !== undefined) follower.x = followerData.x;
+    if (followerData.y !== undefined) follower.y = followerData.y;
     
-    if (directionChanged || movementChanged) {
+    // Direction et animation
+    if (followerData.direction !== undefined) {
       follower.lastDirection = followerData.direction;
       
       const pokemonDirection = this.getPlayerToPokemonDirection(followerData.direction);
-      const animKey = follower.isMoving 
+      const animKey = followerData.isMoving 
         ? `pokemon_${follower.pokemonId}_walk_${pokemonDirection}`
         : `pokemon_${follower.pokemonId}_idle_${pokemonDirection}`;
       
-      console.log(`🎬 [PokemonFollowerManager] Changement animation: ${animKey} (isMoving: ${follower.isMoving})`);
-      
       if (this.scene.anims.exists(animKey)) {
         follower.anims.play(animKey, true);
-      } else {
-        console.warn(`⚠️ [PokemonFollowerManager] Animation ${animKey} n'existe pas`);
       }
     }
   }
-}
 
-  /**
-   * Supprime un follower
-   */
   removeFollower(sessionId) {
     const follower = this.followers.get(sessionId);
     if (follower) {
-      console.log(`🗑️ [PokemonFollowerManager] Suppression follower ${sessionId}`);
-      
-      // Arrêter les animations
       if (follower.anims && follower.anims.isPlaying) {
         follower.anims.stop();
       }
-      
-      // Détruire le sprite
-      if (follower.body && follower.body.destroy) {
-        try { follower.body.destroy(); } catch(e) {}
-      }
-      
       try { follower.destroy(); } catch(e) {}
-      
       this.followers.delete(sessionId);
     }
   }
 
-  /**
-   * Met à jour tous les followers (interpolation de position)
-   */
+  // ✅ ULTRA SIMPLE : Pas d'interpolation, juste nettoyer
   update(delta = 16) {
-  this.followers.forEach((follower, sessionId) => {
-    if (!follower || !follower.scene) return;
-    
-    // Interpolation de position (plus lente que les joueurs pour l'effet de suivi)
-    if (follower.targetX !== undefined && follower.targetY !== undefined) {
-      const lerpSpeed = 0.12; // Plus lent que les joueurs (0.18)
-      
-      const oldX = follower.x;
-      const oldY = follower.y;
-      
-      follower.x += (follower.targetX - follower.x) * lerpSpeed;
-      follower.y += (follower.targetY - follower.y) * lerpSpeed;
-      
-      // ✅ FIX: Détecter automatiquement quand le follower s'arrête
-      const isNearTarget = Math.abs(follower.x - follower.targetX) < 2 && 
-                          Math.abs(follower.y - follower.targetY) < 2;
-      const wasMoving = follower.isMoving;
-      
-      if (isNearTarget && wasMoving) {
-        follower.isMoving = false;
-        
-        // Changer automatiquement vers l'animation idle
-        const pokemonDirection = this.getPlayerToPokemonDirection(follower.lastDirection || 'down');
-        const idleAnimKey = `pokemon_${follower.pokemonId}_idle_${pokemonDirection}`;
-        
-        if (this.scene.anims.exists(idleAnimKey) && 
-            (!follower.anims.isPlaying || follower.anims.currentAnim?.key !== idleAnimKey)) {
-          follower.anims.play(idleAnimKey, true);
-          console.log(`🛑 [PokemonFollowerManager] Auto-idle: ${idleAnimKey}`);
-        }
-      }
-    }
-  });
-}
+    // Rien à faire ! Les positions sont directement mises à jour
+  }
 
-  /**
-   * Nettoie tous les followers
-   */
   cleanup() {
-    console.log(`🧹 [PokemonFollowerManager] Nettoyage de ${this.followers.size} followers`);
-    
     Array.from(this.followers.keys()).forEach(sessionId => {
       this.removeFollower(sessionId);
     });
-    
     this.followers.clear();
     this.loadedSprites.clear();
     this.loadingSprites.clear();
     this.spriteStructures.clear();
   }
 
-  /**
-   * Debug - affiche l'état des followers
-   */
   debugFollowers() {
-    console.log(`🔍 [PokemonFollowerManager] === DEBUG FOLLOWERS ===`);
+    console.log(`🔍 [PokemonFollowerManager] === DEBUG SIMPLE ===`);
     console.log(`📊 Followers actifs: ${this.followers.size}`);
-    console.log(`🎨 Sprites chargés: ${this.loadedSprites.size}`);
-    console.log(`⏳ Sprites en chargement: ${this.loadingSprites.size}`);
-    console.log(`📐 Structures détectées: ${this.spriteStructures.size}`);
-    
-    // Debug des structures
-    this.spriteStructures.forEach((structure, pokemonId) => {
-      console.log(`📐 Pokémon ${pokemonId}: ${structure.cols}×${structure.rows} (${structure.frameWidth}×${structure.frameHeight}px)`);
-    });
     
     this.followers.forEach((follower, sessionId) => {
-      console.log(`🐾 ${sessionId}:`, {
-        pokemonId: follower.pokemonId,
-        nickname: follower.nickname,
-        position: `(${follower.x.toFixed(1)}, ${follower.y.toFixed(1)})`,
-        target: `(${follower.targetX?.toFixed(1)}, ${follower.targetY?.toFixed(1)})`,
-        direction: follower.lastDirection,
-        isMoving: follower.isMoving,
-        visible: follower.visible
-      });
+      console.log(`🐾 ${sessionId}: ${follower.nickname} à (${follower.x}, ${follower.y}) ${follower.lastDirection}`);
     });
   }
 
-  /**
-   * Test debug pour vérifier les animations
-   */
-  debugAnimations(pokemonId) {
-    const spriteKey = `pokemon_${pokemonId}`;
-    const structure = this.spriteStructures.get(pokemonId);
-    
-    console.log(`🔍 [PokemonFollowerManager] === DEBUG ANIMATIONS ${spriteKey} ===`);
-    
-    if (structure) {
-      console.log(`📐 Structure: ${structure.cols}×${structure.rows} (${structure.frameWidth}×${structure.frameHeight}px)`);
-    } else {
-      console.warn(`⚠️ Aucune structure trouvée pour Pokémon ${pokemonId}`);
-    }
-    
-    const directions = ['down', 'right', 'up', 'left'];
-    
-    directions.forEach(dir => {
-      const walkKey = `pokemon_${pokemonId}_walk_${dir}`;
-      const idleKey = `pokemon_${pokemonId}_idle_${dir}`;
-      
-      console.log(`Direction ${dir}:`);
-      console.log(`  - Walk: ${this.scene.anims.exists(walkKey) ? '✅' : '❌'} ${walkKey}`);
-      console.log(`  - Idle: ${this.scene.anims.exists(idleKey) ? '✅' : '❌'} ${idleKey}`);
-      
-      if (this.scene.anims.exists(walkKey)) {
-        const anim = this.scene.anims.get(walkKey);
-        console.log(`    Frames: ${anim.frames[0]?.frame} - ${anim.frames[anim.frames.length-1]?.frame} (${anim.frames.length} frames)`);
-      }
-    });
-  }
-
-  /**
-   * Force la recréation d'un follower (pour les tests)
-   */
-  async recreateFollower(sessionId) {
-    const follower = this.followers.get(sessionId);
-    if (!follower) {
-      console.warn(`⚠️ [PokemonFollowerManager] Pas de follower à recréer pour ${sessionId}`);
-      return;
-    }
-    
-    // Sauvegarder les données
-    const data = {
-      pokemonId: follower.pokemonId,
-      nickname: follower.nickname,
-      x: follower.x,
-      y: follower.y,
-      direction: follower.lastDirection,
-      isMoving: follower.isMoving,
-      isShiny: follower.isShiny
-    };
-    
-    // Supprimer et recréer
-    this.removeFollower(sessionId);
-    
-    setTimeout(async () => {
-      await this.createFollower(sessionId, data);
-    }, 100);
-    
-    console.log(`🔄 [PokemonFollowerManager] Follower ${sessionId} recréé`);
-  }
-
-  /**
-   * Force la recréation des animations d'un Pokémon
-   */
-  recreateAnimations(pokemonId) {
-    const spriteKey = `pokemon_${pokemonId}`;
-    const structure = this.spriteStructures.get(pokemonId);
-    
-    if (!structure) {
-      console.warn(`⚠️ [PokemonFollowerManager] Pas de structure pour Pokémon ${pokemonId}`);
-      return;
-    }
-    
-    console.log(`🔄 [PokemonFollowerManager] Recréation animations pour Pokémon ${pokemonId}`);
-    
-    // Supprimer les anciennes animations
-    const directions = ['down', 'down-right', 'right', 'up-right', 'up', 'up-left', 'left', 'down-left'];
-    directions.forEach(dir => {
-      const walkKey = `pokemon_${pokemonId}_walk_${dir}`;
-      const idleKey = `pokemon_${pokemonId}_idle_${dir}`;
-      
-      if (this.scene.anims.exists(walkKey)) {
-        this.scene.anims.remove(walkKey);
-      }
-      if (this.scene.anims.exists(idleKey)) {
-        this.scene.anims.remove(idleKey);
-      }
-    });
-    
-    // Recréer les animations
-    this.createPokemonAnimations(pokemonId, spriteKey, structure);
-  }
-
-  /**
-   * Getters utiles
-   */
-  getFollower(sessionId) {
-    return this.followers.get(sessionId);
-  }
-
-  hasFollower(sessionId) {
-    return this.followers.has(sessionId);
-  }
-
-  getFollowerCount() {
-    return this.followers.size;
-  }
-
-  getAllFollowers() {
-    return Array.from(this.followers.values());
-  }
-
-  getSpriteStructure(pokemonId) {
-    return this.spriteStructures.get(pokemonId);
-  }
+  // Getters simples
+  getFollower(sessionId) { return this.followers.get(sessionId); }
+  hasFollower(sessionId) { return this.followers.has(sessionId); }
+  getFollowerCount() { return this.followers.size; }
+  getAllFollowers() { return Array.from(this.followers.values()); }
 }
