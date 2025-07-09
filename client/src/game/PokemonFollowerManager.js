@@ -254,7 +254,7 @@ export class PokemonFollowerManager {
       
       // Configuration du sprite
       follower.setOrigin(0.5, 1);
-      follower.setDepth(4); // Juste en dessous du joueur (depth 4.5)
+      follower.setDepth(3.5); // ✅ CORRIGÉ: Profondeur plus faible que le joueur (4.5)
       follower.setScale(1.2); // Même échelle que les joueurs
       
       // Propriétés custom
