@@ -500,39 +500,85 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     console.log("⚔️ Initialisation du système de combat...");
     window.battleSystem = new BattleIntegration(window);
 
-    setTimeout(async () => {
-      try {
-        console.log("🔧 [MAIN] Vérification pré-requis système de combat...");
-        
-        const hasGame = !!window.game;
-        const hasNetworkManager = !!window.globalNetworkManager;
-        const hasRoom = !!window.currentGameRoom;
-        const networkConnected = window.globalNetworkManager?.isConnected;
-        
-        console.log("📊 [MAIN] Pré-requis:", {
-          hasGame,
-          hasNetworkManager,
-          hasRoom,
-          networkConnected
-        });
-        
-        if (!hasGame || !hasNetworkManager || !hasRoom || !networkConnected) {
-          throw new Error("Pré-requis manquants pour le système de combat");
-        }
+// ✅ NOUVEAU : Fonction d'initialisation avec vérifications étendues
+window.initBattleSystemWhenReady = async function() {
+  try {
+    console.log("🔧 [MAIN] Vérification pré-requis système de combat...");
+    
+    const hasGame = !!window.game;
+    const hasNetworkManager = !!window.globalNetworkManager;
+    const hasRoom = !!window.currentGameRoom;
+    const networkConnected = window.globalNetworkManager?.isConnected;
+    const scenesReady = window.game?.scene?.manager?.scenes?.length > 3;
+    const noBattleSystemYet = !window.battleSystem;
+    
+    console.log("📊 [MAIN] Pré-requis:", {
+      hasGame,
+      hasNetworkManager,
+      hasRoom,
+      networkConnected,
+      scenesReady,
+      noBattleSystemYet
+    });
+    
+    if (!hasGame || !hasNetworkManager || !hasRoom || !networkConnected || !scenesReady || !noBattleSystemYet) {
+      const missing = [];
+      if (!hasGame) missing.push('game');
+      if (!hasNetworkManager) missing.push('networkManager');
+      if (!hasRoom) missing.push('room');
+      if (!networkConnected) missing.push('networkConnected');
+      if (!scenesReady) missing.push('scenesReady');
+      if (!noBattleSystemYet) missing.push('battleSystemAlreadyExists');
+      
+      console.log(`⚠️ [MAIN] Pré-requis manquants: ${missing.join(', ')}`);
+      return false;
+    }
 
-        window.battleSystem = new BattleIntegration(window);
-        const battleInitSuccess = await window.battleSystem.initialize(
-          window.globalNetworkManager.room,
-          window.game
-        );
-        if (battleInitSuccess) {
-          console.log("✅ Système de combat initialisé");
-        }
+    console.log("🚀 [MAIN] Tous pré-requis OK, initialisation BattleSystem...");
+    window.battleSystem = new BattleIntegration(window);
+    const battleInitSuccess = await window.battleSystem.initialize(
+      window.globalNetworkManager.room,
+      window.game
+    );
+    
+    if (battleInitSuccess) {
+      console.log("✅ Système de combat initialisé avec succès");
+      return true;
+    } else {
+      console.error("❌ Échec initialisation BattleSystem");
+      return false;
+    }
+    
+  } catch (error) {
+    console.error("❌ Erreur initialisation système de combat:", error);
+    return false;
+  }
+};
 
-      } catch (error) {
-        console.error("❌ Erreur initialisation système de combat:", error);
-      }
-    }, 5000);
+// ✅ NOUVEAU : Système de retry intelligent
+let battleInitAttempts = 0;
+const maxBattleInitAttempts = 15;
+const retryDelay = 1000;
+
+const tryInitBattle = async () => {
+  battleInitAttempts++;
+  console.log(`🔄 [MAIN] Tentative init BattleSystem ${battleInitAttempts}/${maxBattleInitAttempts}`);
+  
+  const success = await window.initBattleSystemWhenReady();
+  
+  if (success) {
+    console.log(`🎯 [MAIN] BattleSystem initialisé après ${battleInitAttempts} tentatives`);
+  } else if (battleInitAttempts < maxBattleInitAttempts) {
+    console.log(`⏳ [MAIN] Retry dans ${retryDelay}ms...`);
+    setTimeout(tryInitBattle, retryDelay);
+  } else {
+    console.warn(`⚠️ [MAIN] Abandon init BattleSystem après ${maxBattleInitAttempts} tentatives`);
+    console.warn("💡 [MAIN] Vous pouvez essayer manuellement: window.initBattleSystemWhenReady()");
+  }
+};
+
+// Démarrer les tentatives après délai minimal
+setTimeout(tryInitBattle, 2000);
 
     window.starterHUD = null;
     window.questSystemGlobal = null;
