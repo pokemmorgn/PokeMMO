@@ -77,6 +77,17 @@ export class BattleRoom extends Room<BattleState> {
     }) => {
       await this.handleBattleAction(client, data);
     });
+
+        // Handler spécifique pour la capture
+    this.onMessage("attemptCapture", async (client, data: {
+      ballType: string;
+    }) => {
+      console.log(`🎯 [BattleRoom] Capture reçue: ${data.ballType}`);
+      await this.handleBattleAction(client, {
+        actionType: "capture",
+        ballType: data.ballType
+      });
+    });
     
     // Handler pour obtenir l'état du combat
     this.onMessage("getBattleState", (client) => {
