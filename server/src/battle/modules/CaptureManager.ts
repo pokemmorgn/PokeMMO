@@ -8,7 +8,8 @@ import { OwnedPokemon } from '../../models/OwnedPokemon';
 import { getPokemonById } from '../../data/PokemonData';
 import { MoveManager } from '../../managers/MoveManager';
 import { BallManager } from './BallManager';
-import { BroadcastManager, BroadcastManagerFactory } from './broadcast/BroadcastManagerFactory';
+import { BroadcastManager } from './broadcast/BroadcastManager';
+import { BroadcastManagerFactory } from './broadcast/BroadcastManagerFactory';
 
 // === INTERFACES (inchangées) ===
 
