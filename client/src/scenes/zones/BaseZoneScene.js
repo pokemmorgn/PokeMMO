@@ -23,6 +23,7 @@ import { InputManager } from "../../input/InputManager.js";
 import { integrateMusicToScene } from "../../managers/MapMusicManager.js";
 import { sceneToZone, zoneToScene } from '../../config/ZoneMapping.js';
 import { PokemonFollowerManager } from "../../game/PokemonFollowerManager.js";
+import { OverworldPokemonManager } from "../../game/OverworldPokemonManager.js";
 
 
 
@@ -49,7 +50,9 @@ export class BaseZoneScene extends Phaser.Scene {
     // Inventaire
     this.inventorySystem = null;
     this.inventoryInitialized = false;
-    
+        // ✅ NOUVEAU: Propriétés pour les Pokémon overworld
+    this.overworldPokemonManager = null;
+    this.overworldPokemonInitialized = false;
     // Zone et état réseau
     this.zoneName = null;
     this.serverZoneConfirmed = false;
@@ -553,7 +556,33 @@ setRoom(room) {
     console.log(`✅ [${this.scene.key}] Planification initialisation systèmes terminée`);
 
   }
-
+// ✅ NOUVELLE MÉTHODE: Initialisation des Pokémon overworld
+initializeOverworldPokemon() {
+  console.log(`🌍 [${this.scene.key}] === INITIALISATION POKÉMON OVERWORLD ===`);
+  
+  try {
+    if (!this.overworldPokemonManager) {
+      console.error(`❌ [${this.scene.key}] OverworldPokemonManager non initialisé`);
+      return;
+    }
+    
+    // Marquer comme initialisé
+    this.overworldPokemonInitialized = true;
+    
+    // Demander la synchronisation au serveur
+    setTimeout(() => {
+      if (this.networkManager?.room) {
+        console.log(`🔄 [${this.scene.key}] Demande synchronisation Pokémon overworld`);
+        this.networkManager.room.send("requestOverworldSync");
+      }
+    }, 3000); // Après tous les autres systèmes
+    
+    console.log(`✅ [${this.scene.key}] Pokémon overworld initialisé`);
+    
+  } catch (error) {
+    console.error(`❌ [${this.scene.key}] Erreur initialisation Pokémon overworld:`, error);
+  }
+}
 
   // 🆕 NOUVELLE MÉTHODE: Initialisation du ClientEncounterManager
   initializeEncounterManager() {
@@ -1573,7 +1602,10 @@ positionPlayer(player) {
 
     if (this.playerManager) this.playerManager.update();
     if (this.cameraManager) this.cameraManager.update();
-
+    // ✅ NOUVEAU: Mettre à jour les Pokémon overworld
+    if (this.overworldPokemonManager) {
+      this.overworldPokemonManager.update();
+    }
     if (this.sys.animatedTiles && typeof this.sys.animatedTiles.update === 'function') {
       this.sys.animatedTiles.update();
     }
@@ -1609,7 +1641,13 @@ positionPlayer(player) {
       this.scene.stop(this.scene.key);
       console.log(`[${this.scene.key}] ⛔ Scene stoppée (cleanup)`);
     }
-
+  // ✅ NOUVEAU: Nettoyer les Pokémon overworld
+    if (this.overworldPokemonManager) {
+      this.overworldPokemonManager.cleanup();
+      this.overworldPokemonManager = null;
+      this.overworldPokemonInitialized = false;
+      console.log(`🧹 [${this.scene.key}] OverworldPokemonManager nettoyé`);
+    }
     if (this.networkManager?.room) {
       this.networkManager.room.removeAllListeners("currentZone");
       this.networkManager.room.removeAllListeners("snap");
@@ -2061,7 +2099,17 @@ onPlayerPositioned(player, initData) {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys('W,S,A,D');
     this.input.keyboard.enableGlobalCapture();
-    
+    this.input.keyboard.on('keydown-O', () => {
+      this.debugOverworldPokemon();
+    });
+
+    this.input.keyboard.on('keydown-P', () => {
+      this.forceSpawnOverworldPokemon();
+    });
+
+    this.input.keyboard.on('keydown-L', () => {
+      this.clearCurrentOverworldArea();
+    });
     try {
       // 🔒 Créer l'InputManager ici AVANT tout le reste
       this.inputManager = new InputManager(this);
@@ -2306,6 +2354,7 @@ onPlayerPositioned(player, initData) {
     });
   }
 
+  
   debugCollisions() {
     console.log("🔍 === DEBUG COLLISIONS ===");
     
@@ -3024,6 +3073,8 @@ performDirectLoading() {
     this.events.once('destroy', this.cleanup, this);
     
     this.initializeGameSystems();
+  this.initializeOverworldPokemon();
+
 }
 
 // ✅ FONCTIONS UTILITAIRES
@@ -3041,5 +3092,78 @@ promisifyMethod(method) {
             resolve();
         }
     });
+}
+  // ✅ NOUVELLES MÉTHODES DE DEBUG pour Pokémon overworld
+
+debugOverworldPokemon() {
+  console.log(`🔍 [${this.scene.key}] === DEBUG POKÉMON OVERWORLD ===`);
+  
+  if (!this.overworldPokemonManager) {
+    console.log("❌ OverworldPokemonManager non initialisé");
+    return;
+  }
+  
+  this.overworldPokemonManager.debugOverworldPokemon();
+  
+  if (this.networkManager?.room) {
+    this.networkManager.room.send("debugOverworldPokemon");
+  }
+  
+  this.showNotification(`Debug Pokémon overworld dans la console`, 'info');
+}
+
+forceSpawnOverworldPokemon() {
+  console.log(`🎯 [${this.scene.key}] Force spawn Pokémon overworld`);
+  
+  const myPlayer = this.playerManager?.getMyPlayer();
+  if (!myPlayer) {
+    console.log("❌ Pas de joueur pour spawn");
+    this.showNotification("Pas de joueur trouvé", 'error');
+    return;
+  }
+  
+  const currentArea = this.mapSceneToArea(this.scene.key);
+  
+  if (this.networkManager?.room) {
+    this.networkManager.room.send("forceSpawnOverworldPokemon", {
+      areaId: currentArea,
+      pokemonId: 17, // Roucoups par défaut
+      x: myPlayer.x,
+      y: myPlayer.y
+    });
+    
+    this.showNotification(`Force spawn Roucoups dans ${currentArea}`, 'success');
+  } else {
+    this.showNotification("Pas de connexion serveur", 'error');
+  }
+}
+
+clearCurrentOverworldArea() {
+  console.log(`🧹 [${this.scene.key}] Nettoyage zone overworld actuelle`);
+  
+  const currentArea = this.mapSceneToArea(this.scene.key);
+  
+  if (this.networkManager?.room) {
+    this.networkManager.room.send("clearOverworldArea", {
+      areaId: currentArea
+    });
+    
+    this.showNotification(`Zone ${currentArea} nettoyée`, 'success');
+  } else {
+    this.showNotification("Pas de connexion serveur", 'error');
+  }
+}
+
+mapSceneToArea(sceneKey) {
+  const mapping = {
+    'VillageScene': 'village',
+    'LavandiaScene': 'lavandia',
+    'BeachScene': 'beach',
+    'Road1Scene': 'road1',
+    'Road2Scene': 'road2',
+    'Road3Scene': 'road3'
+  };
+  
+  return mapping[sceneKey] || 'village'; // Défaut
 }
 }
