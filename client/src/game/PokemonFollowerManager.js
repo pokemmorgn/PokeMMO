@@ -161,9 +161,9 @@ export class PokemonFollowerManager {
       follower.lastDirection = followerData.direction || 'down';
       follower.isMoving = false;
       
-      // ✅ ULTRA SIMPLE : Pas de targetX/Y, position directe
-      follower.x = followerData.x || 0;
-      follower.y = followerData.y || 0;
+      // ✅ AJOUT : Position cible pour interpolation
+      follower.targetX = followerData.x || 0;
+      follower.targetY = followerData.y || 0;
       
       const pokemonDirection = this.getPlayerToPokemonDirection(follower.lastDirection);
       const initialAnimKey = `pokemon_${followerData.pokemonId}_idle_${pokemonDirection}`;
@@ -179,14 +179,16 @@ export class PokemonFollowerManager {
     }
   }
 
-  // ✅ ULTRA SIMPLE : Juste mettre à jour la position directement
+  // ✅ SIMPLE : Position avec interpolation légère pour fluidité
   updateFollower(sessionId, followerData) {
     const follower = this.followers.get(sessionId);
     if (!follower) return;
 
-    // Position directe (pas d'interpolation)
-    if (followerData.x !== undefined) follower.x = followerData.x;
-    if (followerData.y !== undefined) follower.y = followerData.y;
+    // Position cible (du serveur)
+    if (followerData.x !== undefined && followerData.y !== undefined) {
+      follower.targetX = followerData.x;
+      follower.targetY = followerData.y;
+    }
     
     // Direction et animation
     if (followerData.direction !== undefined) {
@@ -214,9 +216,19 @@ export class PokemonFollowerManager {
     }
   }
 
-  // ✅ ULTRA SIMPLE : Pas d'interpolation, juste nettoyer
+  // ✅ SIMPLE : Interpolation légère pour fluidité
   update(delta = 16) {
-    // Rien à faire ! Les positions sont directement mises à jour
+    this.followers.forEach((follower, sessionId) => {
+      if (!follower || !follower.scene) return;
+      
+      // Interpolation douce vers la position cible
+      if (follower.targetX !== undefined && follower.targetY !== undefined) {
+        const lerpSpeed = 0.1; // Très lent pour suivre naturellement
+        
+        follower.x += (follower.targetX - follower.x) * lerpSpeed;
+        follower.y += (follower.targetY - follower.y) * lerpSpeed;
+      }
+    });
   }
 
   cleanup() {
