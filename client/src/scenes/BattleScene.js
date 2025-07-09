@@ -3,6 +3,7 @@
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
 import { BattleTranslator } from '../Battle/BattleTranslator.js';
+import { BattleInventoryUI } from '../components/BattleInventoryUI.js';
 
 let pokemonSpriteConfig = null;
 
@@ -15,7 +16,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleNetworkHandler = null;
     this.healthBarManager = null;
     this.playerRole = null; // 'player1' ou 'player2'
-    
+    this.battleInventoryUI = null;
     // État de la scène
     this.isActive = false;
     this.isVisible = false;
@@ -109,7 +110,7 @@ this.loadedSprites = new Set(); // Cache des sprites chargés
       this.createModernActionInterface();
       this.createBattleDialog();
       this.setupBattleNetworkEvents();
-      
+      this.createBattleInventoryUI();
       this.isActive = true;
       this.isReadyForActivation = true;
       
@@ -208,6 +209,36 @@ this.loadedSprites = new Set(); // Cache des sprites chargés
   
   return score;
 }
+  // Après la méthode create(), ajouter cette nouvelle méthode
+createBattleInventoryUI() {
+  // ✅ Même pattern que endBattle()
+  const gameRoom = this.gameManager?.gameRoom || 
+                   this.battleNetworkHandler?.gameRoom || 
+                   window.currentGameRoom;
+  
+  const battleContext = {
+    battleScene: this,
+    networkHandler: this.battleNetworkHandler,
+    battleRoomId: this.battleNetworkHandler?.battleRoomId || null
+  };
+  
+  if (!gameRoom) {
+    console.warn('⚠️ [BattleScene] GameRoom non trouvé pour BattleInventoryUI');
+    return;
+  }
+  
+  if (!this.battleNetworkHandler) {
+    console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant');
+    return;
+  }
+  
+  this.battleInventoryUI = new BattleInventoryUI(gameRoom, battleContext);
+  console.log('⚔️ BattleInventoryUI créé avec:', {
+    gameRoom: !!gameRoom,
+    networkHandler: !!this.battleNetworkHandler
+  });
+}
+  
   // === ENVIRONNEMENT ===
 
   createBattleEnvironment() {
@@ -599,14 +630,14 @@ this.loadedSprites = new Set(); // Cache des sprites chargés
       case 'attack':
         this.showAttackMenu();
         break;
-    case 'bag':
-      if (window.inventorySystem) {
-        window.inventorySystem.openInventoryToPocket('balls');
-        this.hideActionButtons();
-      } else {
-        this.showActionMessage('Inventaire non disponible');
-      }
-      break;
+      case 'bag':
+        if (this.battleInventoryUI) {
+          this.hideActionButtons(); // Masquer interface combat
+          this.battleInventoryUI.openToBalls(); // Ouvrir direct sur Balls
+        } else {
+          this.showActionMessage('Inventaire de combat non disponible');
+        }
+        break;
       case 'pokemon':
         // ✅ SIMPLIFIÉ: Pas de timer côté client
         this.showActionMessage('Changement de Pokémon indisponible.');
