@@ -4,11 +4,12 @@ import { PokemonFollower } from "../schema/PokemonFollowerSchema";
 
 export class FollowerManager {
   private room: any;
-  private lastPlayerPositions: Map<string, { x: number, y: number, direction: string }> = new Map();
+  private playerTrail: Map<string, Array<{ x: number, y: number, direction: string }>> = new Map();
+  private trailDistance = 2; // Le follower suit à 2 cases de distance
   
   constructor(room: any) {
     this.room = room;
-    console.log("🐾 [FollowerManager] Version simple initialisée");
+    console.log("🐾 [FollowerManager] Version simple initialisée - Distance: 2 cases");
   }
 
   async updatePlayerFollower(playerId: string): Promise<void> {
@@ -46,22 +47,40 @@ export class FollowerManager {
     player.follower.level = pokemon.level;
   }
 
-  // ✅ ULTRA SIMPLE : Le follower prend la position précédente du joueur
+  // ✅ SIMPLE : Le follower suit à 2 cases de distance
   updateFollowerPosition(playerId: string, playerX: number, playerY: number, direction: string, isMoving: boolean): void {
     const player = this.room.state.players.get(playerId);
     if (!player || !player.follower) return;
 
-    // Le follower va à l'ancienne position du joueur
-    const lastPos = this.lastPlayerPositions.get(playerId);
-    if (lastPos) {
-      player.follower.x = lastPos.x;
-      player.follower.y = lastPos.y;
-      player.follower.direction = lastPos.direction;
-      player.follower.isMoving = isMoving;
+    // Initialiser le trail si nécessaire
+    if (!this.playerTrail.has(playerId)) {
+      this.playerTrail.set(playerId, []);
     }
 
-    // Sauvegarder la position actuelle du joueur pour le prochain mouvement
-    this.lastPlayerPositions.set(playerId, { x: playerX, y: playerY, direction });
+    const trail = this.playerTrail.get(playerId)!;
+    
+    // Ajouter la position actuelle au trail
+    trail.push({ x: playerX, y: playerY, direction });
+    
+    // Garder seulement les 5 dernières positions (pour la distance)
+    if (trail.length > 5) {
+      trail.shift();
+    }
+
+    // Le follower prend la position d'il y a 2 cases
+    if (trail.length >= this.trailDistance) {
+      const followerPos = trail[trail.length - this.trailDistance];
+      player.follower.x = followerPos.x;
+      player.follower.y = followerPos.y;
+      player.follower.direction = followerPos.direction;
+      player.follower.isMoving = isMoving;
+    } else {
+      // Pas assez de positions, rester à la position actuelle
+      player.follower.x = playerX;
+      player.follower.y = playerY;
+      player.follower.direction = direction;
+      player.follower.isMoving = false;
+    }
   }
 
   removePlayerFollower(playerId: string): void {
@@ -69,7 +88,7 @@ export class FollowerManager {
     if (player && player.follower) {
       player.follower = undefined;
     }
-    this.lastPlayerPositions.delete(playerId);
+    this.playerTrail.delete(playerId);
   }
 
   cleanup(): void {
@@ -78,17 +97,28 @@ export class FollowerManager {
         player.follower = undefined;
       }
     });
-    this.lastPlayerPositions.clear();
+    this.playerTrail.clear();
+  }
+
+  // ✅ NOUVEAU: Permet de changer la distance dynamiquement
+  setTrailDistance(distance: number): void {
+    this.trailDistance = Math.max(1, Math.min(distance, 5)); // Entre 1 et 5
+    console.log(`🐾 [FollowerManager] Distance changée à: ${this.trailDistance} cases`);
   }
 
   debugFollowers(): void {
-    console.log(`🔍 [FollowerManager] === DEBUG SIMPLE ===`);
+    console.log(`🔍 [FollowerManager] === DEBUG SIMPLE (Distance: ${this.trailDistance}) ===`);
     let count = 0;
     this.room.state.players.forEach((player: any, playerId: string) => {
       if (player.follower) {
         count++;
-        const lastPos = this.lastPlayerPositions.get(playerId);
-        console.log(`🐾 ${player.name}: (${player.follower.x}, ${player.follower.y}) | LastPos: (${lastPos?.x}, ${lastPos?.y})`);
+        const trail = this.playerTrail.get(playerId);
+        const trailLength = trail ? trail.length : 0;
+        console.log(`🐾 ${player.name}: (${player.follower.x}, ${player.follower.y}) | Trail: ${trailLength} positions`);
+        
+        if (trail && trail.length > 0) {
+          console.log(`  📍 Positions: ${trail.map(p => `(${p.x},${p.y})`).join(' → ')}`);
+        }
       }
     });
     console.log(`📊 Total followers: ${count}`);
