@@ -1,5 +1,5 @@
 // ================================================================================================
-// SERVER/SRC/MANAGERS/OVERWORLDPOKEMONMANAGER.TS - POKÉMON OVERWORLD SIMPLIFIÉ
+// SERVER/SRC/MANAGERS/OVERWORLDPOKEMONMANAGER.TS - POKÉMON OVERWORLD AVEC FILTRAGE PAR ZONE
 // ================================================================================================
 
 import * as fs from 'fs';
@@ -107,6 +107,35 @@ export class OverworldPokemonManager {
       console.error('❌ [OverworldPokemonManager] Erreur chargement config:', error);
       this.config = { areas: {}, globalSettings: { updateInterval: 1000 } };
     }
+  }
+
+  /**
+   * ✅ NOUVEAU: Obtient les clients dans une zone spécifique
+   */
+  private getClientsInZone(zoneId: string): any[] {
+    const clientsInZone: any[] = [];
+    
+    this.room.clients.forEach((client: any) => {
+      const player = this.room.state.players.get(client.sessionId);
+      if (player && player.currentZone === zoneId) {
+        clientsInZone.push(client);
+      }
+    });
+    
+    return clientsInZone;
+  }
+
+  /**
+   * ✅ NOUVEAU: Extrait la zone depuis l'ID d'un Pokémon
+   */
+  private extractAreaFromPokemonId(pokemonId: string): string | null {
+    // Format: overworld_ZONE_pokemonId_timestamp_random
+    // Exemple: overworld_village_17_1752093358731_t6y5r6
+    const parts = pokemonId.split('_');
+    if (parts.length >= 3 && parts[0] === 'overworld') {
+      return parts[1]; // La zone est en position 1
+    }
+    return null;
   }
 
   /**
@@ -418,10 +447,15 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * Diffuse la création d'un Pokémon
+   * ✅ MODIFIÉ: Diffuse la création d'un Pokémon (filtré par zone)
    */
   private broadcastPokemonSpawn(pokemon: OverworldPokemonData): void {
-    this.room.broadcast("overworldPokemon", {
+    console.log(`📡 [OverworldPokemonManager] Broadcast spawn ${pokemon.name} dans zone: ${pokemon.areaId}`);
+    
+    // ✅ ENVOYER SEULEMENT AUX JOUEURS DE CETTE ZONE
+    const clientsInZone = this.getClientsInZone(pokemon.areaId);
+    
+    const message = {
       type: "OVERWORLD_POKEMON_SPAWN",
       data: {
         id: pokemon.id,
@@ -436,14 +470,28 @@ export class OverworldPokemonManager {
         animations: pokemon.animations,
         currentAnimation: pokemon.currentAnimation
       }
+    };
+    
+    clientsInZone.forEach(client => {
+      client.send("overworldPokemon", message);
     });
+    
+    console.log(`📤 [OverworldPokemonManager] Spawn ${pokemon.name} envoyé à ${clientsInZone.length} clients dans ${pokemon.areaId}`);
   }
 
   /**
-   * Diffuse la mise à jour d'un Pokémon
+   * ✅ MODIFIÉ: Diffuse la mise à jour d'un Pokémon (filtré par zone)
    */
   private broadcastPokemonUpdate(pokemon: OverworldPokemonData): void {
-    this.room.broadcast("overworldPokemon", {
+    // ✅ ENVOYER SEULEMENT AUX JOUEURS DE CETTE ZONE
+    const clientsInZone = this.getClientsInZone(pokemon.areaId);
+    
+    if (clientsInZone.length === 0) {
+      // Pas de joueurs dans cette zone, pas besoin d'envoyer
+      return;
+    }
+    
+    const message = {
       type: "OVERWORLD_POKEMON_UPDATE",
       data: {
         id: pokemon.id,
@@ -453,57 +501,122 @@ export class OverworldPokemonManager {
         isMoving: pokemon.isMoving,
         currentAnimation: pokemon.currentAnimation
       }
+    };
+    
+    clientsInZone.forEach(client => {
+      client.send("overworldPokemon", message);
     });
+    
+    // Log seulement si debug activé (éviter le spam)
+    if (Math.random() < 0.001) { // 0.1% des updates
+      console.log(`📤 [OverworldPokemonManager] Update ${pokemon.name} envoyé à ${clientsInZone.length} clients dans ${pokemon.areaId}`);
+    }
   }
 
   /**
-   * Diffuse la suppression d'un Pokémon
+   * ✅ MODIFIÉ: Diffuse la suppression d'un Pokémon (filtré par zone)
    */
   private broadcastPokemonRemove(pokemonId: string): void {
-    this.room.broadcast("overworldPokemon", {
+    // ✅ RÉCUPÉRER LA ZONE DEPUIS L'ID
+    const areaId = this.extractAreaFromPokemonId(pokemonId);
+    
+    if (!areaId) {
+      console.warn(`⚠️ [OverworldPokemonManager] Impossible d'extraire la zone de ${pokemonId}`);
+      return;
+    }
+    
+    // ✅ ENVOYER SEULEMENT AUX JOUEURS DE CETTE ZONE
+    const clientsInZone = this.getClientsInZone(areaId);
+    
+    const message = {
       type: "OVERWORLD_POKEMON_REMOVE",
       data: {
         id: pokemonId
       }
+    };
+    
+    clientsInZone.forEach(client => {
+      client.send("overworldPokemon", message);
     });
+    
+    console.log(`🗑️ [OverworldPokemonManager] Remove ${pokemonId} envoyé à ${clientsInZone.length} clients dans ${areaId}`);
   }
 
   /**
-   * Synchronise tous les Pokémon pour un nouveau client
+   * ✅ MODIFIÉ: Synchronise tous les Pokémon pour un nouveau client (filtré par zone)
    */
   syncPokemonForClient(client: any): void {
-  // ✅ RÉCUPÉRER LA ZONE DU JOUEUR
-  const player = this.room.state.players.get(client.sessionId);
-  if (!player) return;
-  
-  const playerZone = player.currentZone;
-  
-  // ✅ FILTRER PAR ZONE
-  const pokemonList = Array.from(this.overworldPokemon.values())
-    .filter(pokemon => pokemon.areaId === playerZone) // ← AJOUTER CE FILTRE
-    .map(pokemon => ({
-      id: pokemon.id,
-      pokemonId: pokemon.pokemonId,
-      name: pokemon.name,
-      x: pokemon.x,
-      y: pokemon.y,
-      direction: pokemon.direction,
-      isMoving: pokemon.isMoving,
-      isShiny: pokemon.isShiny,
-      areaId: pokemon.areaId,
-      animations: pokemon.animations,
-      currentAnimation: pokemon.currentAnimation
-    }));
-  
-  client.send("overworldPokemon", {
-    type: "OVERWORLD_POKEMON_SYNC",
-    data: {
-      pokemon: pokemonList
+    const player = this.room.state.players.get(client.sessionId);
+    if (!player) {
+      console.warn(`⚠️ [OverworldPokemonManager] Joueur ${client.sessionId} non trouvé pour sync`);
+      return;
     }
-  });
-  
-  console.log(`🔄 [OverworldPokemonManager] Synchronisation de ${pokemonList.length} Pokémon pour ${playerZone}`);
-}
+    
+    const playerZone = player.currentZone;
+    console.log(`🔄 [OverworldPokemonManager] Sync Pokémon overworld pour ${client.sessionId} dans zone: ${playerZone}`);
+    
+    // ✅ FILTRER PAR ZONE DU JOUEUR
+    const pokemonList = Array.from(this.overworldPokemon.values())
+      .filter(pokemon => pokemon.areaId === playerZone)
+      .map(pokemon => ({
+        id: pokemon.id,
+        pokemonId: pokemon.pokemonId,
+        name: pokemon.name,
+        x: pokemon.x,
+        y: pokemon.y,
+        direction: pokemon.direction,
+        isMoving: pokemon.isMoving,
+        isShiny: pokemon.isShiny,
+        areaId: pokemon.areaId,
+        animations: pokemon.animations,
+        currentAnimation: pokemon.currentAnimation
+      }));
+    
+    client.send("overworldPokemon", {
+      type: "OVERWORLD_POKEMON_SYNC",
+      data: {
+        pokemon: pokemonList
+      }
+    });
+    
+    console.log(`✅ [OverworldPokemonManager] Synchronisation de ${pokemonList.length} Pokémon pour ${playerZone} → ${client.sessionId}`);
+  }
+
+  /**
+   * ✅ NOUVEAU: Gère les changements de zone d'un joueur
+   */
+  public onPlayerZoneChanged(sessionId: string, oldZone: string, newZone: string): void {
+    console.log(`🔄 [OverworldPokemonManager] Joueur ${sessionId}: ${oldZone} → ${newZone}`);
+    
+    const client = this.room.clients.find((c: any) => c.sessionId === sessionId);
+    if (!client) return;
+    
+    // Supprimer tous les Pokémon de l'ancienne zone côté client
+    this.clearPokemonForClient(client, oldZone);
+    
+    // Synchroniser les Pokémon de la nouvelle zone
+    setTimeout(() => {
+      this.syncPokemonForClient(client);
+    }, 500); // Petit délai pour que le client soit prêt
+  }
+
+  /**
+   * ✅ NOUVEAU: Nettoie les Pokémon d'une zone côté client
+   */
+  private clearPokemonForClient(client: any, zoneId: string): void {
+    const pokemonToRemove = Array.from(this.overworldPokemon.values())
+      .filter(pokemon => pokemon.areaId === zoneId)
+      .map(pokemon => pokemon.id);
+    
+    pokemonToRemove.forEach(pokemonId => {
+      client.send("overworldPokemon", {
+        type: "OVERWORLD_POKEMON_REMOVE",
+        data: { id: pokemonId }
+      });
+    });
+    
+    console.log(`🧹 [OverworldPokemonManager] ${pokemonToRemove.length} Pokémon supprimés côté client pour zone ${zoneId}`);
+  }
 
   /**
    * Supprime un Pokémon
