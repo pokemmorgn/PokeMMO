@@ -1,7 +1,7 @@
 // server/src/battle/modules/broadcast/BroadcastManager.ts
 // SYSTÈME DE TIMING SERVER-DRIVEN POUR COMBATS POKÉMON
 
-import { BattleGameState, PlayerRole } from '../../types/BattleTypes';
+import { BattleGameState, PlayerRole } from '../types/BattleTypes';
 
 // === INTERFACES ===
 
@@ -412,7 +412,7 @@ export class BroadcastManager {
   }
   
   private getTimingForEvent(eventId: string): number {
-    return (BATTLE_TIMINGS as any)[eventId] || BATTLE_TIMINGS.transitionMedium;
+    return (BATTLE_TIMINGS as any)[eventId] || BATTLE_TIMINGS.transitionNormal;
   }
   
   private delay(ms: number): Promise<void> {
