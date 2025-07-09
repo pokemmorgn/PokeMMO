@@ -265,14 +265,16 @@ switch (pokemon.direction) {
 if (pokemon.isMoving) {
   const moveProgress = (Date.now() - (pokemon.moveStartTime || 0)) / (pokemon.moveDuration || 1000);
   if (moveProgress >= 1.0) {
-  // Ne corrige plus la position, on garde la position actuelle (arrêt là où il est)
-  pokemon.isMoving = false;
-  pokemon.lastMoveTime = Date.now();
-  pokemon.lastDirectionFrame = pokemon.direction;
-  this.broadcastPokemonUpdate(pokemon);
-  console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} a arrêté de bouger (idle) à (${pokemon.x}, ${pokemon.y})`);
-}
- else {
+    if (pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
+      pokemon.x = pokemon.targetX;
+      pokemon.y = pokemon.targetY;
+    }
+    pokemon.isMoving = false;
+    pokemon.lastMoveTime = Date.now();
+    pokemon.lastDirectionFrame = pokemon.direction;
+    this.broadcastPokemonUpdate(pokemon);
+    console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à destination (${pokemon.x}, ${pokemon.y})`);
+  } else {
     if (Math.random() < 0.1) {
       this.broadcastPokemonUpdate(pokemon);
     }
