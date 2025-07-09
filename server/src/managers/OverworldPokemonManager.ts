@@ -261,7 +261,11 @@ switch (pokemon.direction) {
 
   private updateRandomMovement(pokemon: OverworldPokemonData, timeSinceLastMove: number, deltaTime: number): void {
     const moveInterval = 2000 + Math.random() * 3000;
-    const moveDuration = 1000 + Math.random() * 1000;
+const dx = target.x - pokemon.x;
+const dy = target.y - pokemon.y;
+const distance = Math.sqrt(dx * dx + dy * dy);
+const speed = pokemon.speed || 80; // pixels/seconde
+const moveDuration = distance / speed * 1000; // ms
     if (pokemon.isMoving) {
       const moveProgress = (Date.now() - (pokemon.moveStartTime || 0)) / (pokemon.moveDuration || 1000);
       if (moveProgress >= 1.0) {
