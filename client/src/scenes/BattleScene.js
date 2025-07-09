@@ -110,7 +110,6 @@ this.loadedSprites = new Set(); // Cache des sprites chargés
       this.createModernActionInterface();
       this.createBattleDialog();
       this.setupBattleNetworkEvents();
-      this.createBattleInventoryUI();
       this.isActive = true;
       this.isReadyForActivation = true;
       
@@ -631,9 +630,14 @@ createBattleInventoryUI() {
         this.showAttackMenu();
         break;
       case 'bag':
+        // ✅ Lazy loading - créer seulement quand nécessaire
+        if (!this.battleInventoryUI) {
+          this.createBattleInventoryUI();
+        }
+        
         if (this.battleInventoryUI) {
-          this.hideActionButtons(); // Masquer interface combat
-          this.battleInventoryUI.openToBalls(); // Ouvrir direct sur Balls
+          this.hideActionButtons();
+          this.battleInventoryUI.openToBalls();
         } else {
           this.showActionMessage('Inventaire de combat non disponible');
         }
