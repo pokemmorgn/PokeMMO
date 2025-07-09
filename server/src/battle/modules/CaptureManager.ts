@@ -154,6 +154,12 @@ export class CaptureManager {
     // Calcul de la chance critique
     const pokemonData = await getPokemonById(pokemon.id);
     const baseCaptureRate = (pokemonData as any)?.captureRate || 45;
+    console.log(`🔍 [DEBUG] PokemonData pour ${pokemon.name}:`, {
+      id: pokemon.id,
+      captureRateFromDB: (pokemonData as any)?.captureRate,
+      baseCaptureRateUsed: baseCaptureRate,
+      pokemonDataKeys: pokemonData ? Object.keys(pokemonData) : 'null'
+    });
     const statusMultiplier = this.getStatusMultiplier(pokemon.status || 'normal');
     
     const criticalBase = Math.min(255, baseCaptureRate * ballEffect.multiplier * statusMultiplier * criticalMultiplier);
