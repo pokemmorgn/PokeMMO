@@ -450,47 +450,48 @@ export class OverworldPokemonManager {
     // ✅ GESTION DU CHANGEMENT D'ÉTAT DE MOUVEMENT
     const wasMoving = pokemon.isMoving;
     if (isMoving !== undefined) pokemon.isMoving = isMoving;
-    
+    const arrived = 
+  Math.abs((pokemon.targetX ?? pokemon.x) - (pokemon.x ?? 0)) < 1 &&
+  Math.abs((pokemon.targetY ?? pokemon.y) - (pokemon.y ?? 0)) < 1;
     // ✅ DÉMARRAGE OU ARRÊT DU MOUVEMENT
-    if (isMoving !== wasMoving) {
-      if (isMoving) {
-        // ✅ DÉBUT DE MOUVEMENT - DÉMARRER L'INTERPOLATION
-        console.log(`🚀 [OverworldPokemonManager] ${pokemon.name} commence le mouvement fluide`);
-        pokemon.isInterpolating = true;
-        
-        // ✅ ANIMATION DE MARCHE
-        const animDirection = this.getDirectionForAnimation(direction || pokemon.lastDirection);
-        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
-        const walkAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${animDirection}`;
-        
-        if (this.scene.anims.exists(walkAnimKey)) {
-          pokemon.anims.play(walkAnimKey, true);
-          console.log(`🎬 [OverworldPokemonManager] Animation marche: ${walkAnimKey}`);
-        }
-        
-      } else {
-        // ✅ FIN DE MOUVEMENT - PASSER EN IDLE
-        console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrête le mouvement`);
-        pokemon.isInterpolating = false;
-        
-        // ✅ POSITION FINALE EXACTE
-        if (x !== undefined) pokemon.x = x;
-        if (y !== undefined) pokemon.y = y;
-        
-        // ✅ ANIMATION IDLE AVEC DERNIÈRE DIRECTION
-        const idleDirection = pokemon.lastDirectionFrame ? 
-          this.getDirectionForAnimation(pokemon.lastDirectionFrame) : 
-          this.getDirectionForAnimation(pokemon.lastDirection);
-        
-        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
-        const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${idleDirection}`;
-        
-        if (this.scene.anims.exists(idleAnimKey)) {
-          pokemon.anims.play(idleAnimKey, true);
-          console.log(`🏃‍♂️ [OverworldPokemonManager] Animation idle: ${idleAnimKey}`);
-        }
-      }
+   if (isMoving !== wasMoving) {
+  if (isMoving) {
+    // Démarrage du mouvement : fixe la direction pour toute la durée
+    pokemon.movementDirection = direction || pokemon.lastDirection;
+    const animDirection = this.getDirectionForAnimation(pokemon.movementDirection);
+    const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+    const walkAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${animDirection}`;
+    pokemon.isInterpolating = true;
+    if (this.scene.anims.exists(walkAnimKey)) {
+      pokemon.anims.play(walkAnimKey, true);
+      console.log(`🎬 [OverworldPokemonManager] Animation marche: ${walkAnimKey}`);
     }
+  } else {
+    // N'affiche l'animation idle QUE si le Pokémon est vraiment arrivé à la cible
+    if (arrived) {
+      pokemon.isInterpolating = false;
+      pokemon.x = pokemon.targetX;
+      pokemon.y = pokemon.targetY;
+      const idleDirection = pokemon.lastDirectionFrame ?
+        this.getDirectionForAnimation(pokemon.lastDirectionFrame) :
+        this.getDirectionForAnimation(pokemon.movementDirection || pokemon.lastDirection);
+      const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+      const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${idleDirection}`;
+      if (this.scene.anims.exists(idleAnimKey)) {
+        pokemon.anims.play(idleAnimKey, true);
+        console.log(`🏃‍♂️ [OverworldPokemonManager] Animation idle: ${idleAnimKey}`);
+      }
+      // Mémorise la direction pour les prochaines fois
+      pokemon.lastDirection = pokemon.movementDirection || pokemon.lastDirection;
+      pokemon.movementDirection = undefined;
+    } else {
+      // Pas arrivé, ignore le passage isMoving à false
+      pokemon.isMoving = true; // Force le flag pour ne pas casser la logique
+      return;
+    }
+  }
+}
+
     
     // ✅ MISE À JOUR DE LA DIRECTION (sans affecter le mouvement en cours)
    
