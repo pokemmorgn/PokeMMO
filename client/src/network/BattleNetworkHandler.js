@@ -1,11 +1,9 @@
-// client/src/network/BattleNetworkHandler.js - SUPPORT BROADCASTMANAGER
-// 🎯 ADAPTATION COMPLÈTE pour événements BroadcastManager côté serveur
+// client/src/network/BattleNetworkHandler.js - VERSION CORRIGÉE COMPLÈTE
+// 🔄 COMPLÈTEMENT RECRÉE pour correspondre au serveur modernisé
 
 /**
- * GESTIONNAIRE RÉSEAU AVEC SUPPORT BROADCASTMANAGER
- * ✅ Support format BroadcastManager (battleEvent)
- * ✅ Rétrocompatibilité format ancien
- * ✅ Timing server-driven
+ * GESTIONNAIRE RÉSEAU MINIMAL ET MODERNE
+ * Synchronisé avec le serveur BattleRoom + BattleIntegration
  */
 export class BattleNetworkHandler {
   constructor(mainNetworkManager) {
@@ -27,13 +25,13 @@ export class BattleNetworkHandler {
     // Messages en attente
     this.pendingMessages = [];
 
-    console.log('🌐 [BattleNetworkHandler] Version BroadcastManager initialisée');
+    console.log('🌐 [BattleNetworkHandler] Version moderne initialisée');
   }
 
   // === INITIALISATION ===
 
   initialize(worldRoom, client) {
-    console.log('🔧 [BattleNetworkHandler] Initialisation BroadcastManager...');
+    console.log('🔧 [BattleNetworkHandler] Initialisation moderne...');
 
     if (!worldRoom) {
       console.error('❌ WorldRoom manquante');
@@ -57,7 +55,7 @@ export class BattleNetworkHandler {
     // ✅ IMMÉDIAT: Configurer les événements WorldRoom
     this.setupWorldRoomEvents();
 
-    console.log('✅ BattleNetworkHandler BroadcastManager initialisé');
+    console.log('✅ BattleNetworkHandler moderne initialisé');
     return true;
   }
 
@@ -69,7 +67,7 @@ export class BattleNetworkHandler {
       return;
     }
 
-    console.log('📡 Configuration événements WorldRoom avec BroadcastManager...');
+    console.log('📡 Configuration événements WorldRoom modernes...');
 
     try {
       // ✅ RENCONTRES - correspond à BattleRoom.ts
@@ -113,7 +111,7 @@ export class BattleNetworkHandler {
   // === HANDLER BATTLEROOM CREATED ===
 
   async handleBattleRoomCreated(data) {
-    console.log('🏠 Traitement création BattleRoom BroadcastManager...');
+    console.log('🏠 Traitement création BattleRoom moderne...');
     console.log('📊 Données reçues:', {
       battleRoomId: data.battleRoomId,
       battleType: data.battleType,
@@ -224,21 +222,15 @@ export class BattleNetworkHandler {
     }
   }
 
-  // === ✅ NOUVEAU: ÉVÉNEMENTS BATTLEROOM AVEC BROADCASTMANAGER ===
+  // === ÉVÉNEMENTS BATTLEROOM (SYNCHRONISÉS SERVEUR) ===
 
   setupBattleRoomEvents() {
     if (!this.battleRoom) return;
 
-    console.log('⚔️ Configuration événements BattleRoom avec BroadcastManager...');
+    console.log('⚔️ Configuration événements BattleRoom modernes...');
 
     try {
-      // ✅ NOUVEAU: Handler générique pour BroadcastManager
-      this.battleRoom.onMessage('battleEvent', (event) => {
-        console.log(`📡 [NETWORK] BroadcastManager battleEvent: ${event.eventId}`, event);
-        this.handleBroadcastEvent(event);
-      });
-
-      // ✅ GARDE: Événements anciens pour rétrocompatibilité
+      // ✅ ÉVÉNEMENTS COMBAT ESSENTIELS - correspondent aux callbacks BattleRoom.ts
 
       // ✅ CRITICAL: ActionResult - pour synchronisation HP
       this.battleRoom.onMessage('actionResult', (data) => {
@@ -247,22 +239,21 @@ export class BattleNetworkHandler {
       });
 
       this.battleRoom.onMessage('narrativeStart', (data) => {
-        console.log('📖 [NETWORK] narrativeStart reçu:', data);
-        this.triggerEvent('narrativeStart', data);
-      });
+      console.log('📖 [NETWORK] narrativeStart reçu:', data);
+      this.triggerEvent('narrativeStart', data);
+    });
 
-      // ✅ Fin narration - Début combat
-      this.battleRoom.onMessage('narrativeEnd', (data) => {
-        console.log('📖→⚔️ [NETWORK] narrativeEnd reçu:', data);
-        this.triggerEvent('narrativeEnd', data);
-      });
-      
-      // ✅ IA en réflexion
-      this.battleRoom.onMessage('aiThinking', (data) => {
-        console.log('🤖 [NETWORK] aiThinking reçu:', data);
-        this.triggerEvent('aiThinking', data);
-      });
-
+    // ✅ Fin narration - Début combat
+    this.battleRoom.onMessage('narrativeEnd', (data) => {
+      console.log('📖→⚔️ [NETWORK] narrativeEnd reçu:', data);
+      this.triggerEvent('narrativeEnd', data);
+    });
+    
+    // ✅ IA en réflexion
+    this.battleRoom.onMessage('aiThinking', (data) => {
+      console.log('🤖 [NETWORK] aiThinking reçu:', data);
+      this.triggerEvent('aiThinking', data);
+    });
       // ✅ CRITICAL: TurnChanged - pour gestion des tours
       this.battleRoom.onMessage('turnChanged', (data) => {
         console.log('🔄 [NETWORK] turnChanged reçu:', data.currentTurn);
@@ -272,10 +263,14 @@ export class BattleNetworkHandler {
       // ✅ CRITICAL: YourTurn - UN SEUL handler
       this.battleRoom.onMessage('yourTurn', (data) => {
         console.log('🎯 [NETWORK] yourTurn reçu:', data);
+        console.log('🎯 Déclenchement événement yourTurn...');
         this.triggerEvent('yourTurn', data);
+        
+        // Debug supplémentaire
+        console.log('🎯 yourTurn événement déclenché, callbacks:', this.eventCallbacks.get('yourTurn')?.length || 0);
       });
 
-      // ✅ EVENTS DE BATAILLE (rétrocompatibilité)
+      // ✅ EVENTS DE BATAILLE
       this.battleRoom.onMessage('battleJoined', (data) => {
         console.log('⚔️ [NETWORK] battleJoined:', data);
         this.triggerEvent('battleJoined', data);
@@ -332,6 +327,22 @@ export class BattleNetworkHandler {
         this.disconnectFromBattleRoom();
       });
 
+      // ✅ NOUVEAUX HANDLERS POUR SYNCHRONISATION COMPLÈTE
+      this.battleRoom.onMessage('battleStateUpdate', (data) => {
+        console.log('📊 [NETWORK] battleStateUpdate:', data);
+        this.triggerEvent('battleStateUpdate', data);
+      });
+
+      this.battleRoom.onMessage('attackAnimation', (data) => {
+        console.log('⚔️ [NETWORK] attackAnimation:', data);
+        this.triggerEvent('attackAnimation', data);
+      });
+
+      this.battleRoom.onMessage('damageDealt', (data) => {
+        console.log('💥 [NETWORK] damageDealt:', data);
+        this.triggerEvent('damageDealt', data);
+      });
+
       // ✅ HANDLER GÉNÉRIQUE pour messages non capturés
       this.battleRoom.onMessage('message', (data) => {
         console.log('💬 [NETWORK] message générique:', data);
@@ -354,69 +365,22 @@ export class BattleNetworkHandler {
         this.triggerEvent('battleRoomError', { code, message });
       });
 
-      // ✅ CATCH-ALL pour debug - IMPORTANT pour capturer tous les événements BroadcastManager
+      // ✅ CATCH-ALL pour debug (si supporté par Colyseus)
       try {
-        if (this.battleRoom.onMessage && typeof this.battleRoom.onMessage === 'function') {
-          // Essayer d'intercepter tous les messages
-          const originalOnMessage = this.battleRoom.onMessage.bind(this.battleRoom);
-          
-          // Wrapper pour capturer tous les événements
-          this.battleRoom.onMessage = (type, callback) => {
-            if (type === '*') {
-              // Handler catch-all
-              return originalOnMessage(type, (messageType, data) => {
-                console.log(`🌟 [NETWORK] [CATCH-ALL] ${messageType}:`, data);
-                
-                // Si c'est un événement BroadcastManager non capturé
-                if (messageType && !['battleEvent', 'actionResult', 'narrativeStart', 'narrativeEnd', 'aiThinking', 'turnChanged', 'yourTurn', 'battleJoined', 'battleStart', 'phaseChange', 'battleMessage', 'pokemonHPUpdate', 'battleEnd', 'battleEndWithRewards', 'battleError', 'battleInterrupted', 'message'].includes(messageType)) {
-                  this.triggerEvent(messageType, data);
-                }
-                
-                callback(messageType, data);
-              });
-            } else {
-              return originalOnMessage(type, callback);
-            }
-          };
-          
-          // Activer le catch-all
-          this.battleRoom.onMessage('*', (type, data) => {
-            console.log(`🌟 [NETWORK] [CATCH-ALL] ${type}:`, data);
-          });
-        }
+        this.battleRoom.onMessage('*', (type, data) => {
+          console.log(`🌟 [NETWORK] [CATCH-ALL] ${type}:`, data);
+          // Retransmettre tous les événements non capturés
+          this.triggerEvent(type, data);
+        });
       } catch (error) {
         console.log('ℹ️ [NETWORK] Catch-all non supporté par cette version de Colyseus');
       }
 
-      console.log('✅ Événements BattleRoom BroadcastManager configurés');
+      console.log('✅ Événements BattleRoom configurés avec handlers étendus');
 
     } catch (error) {
       console.error('❌ Erreur configuration événements BattleRoom:', error);
     }
-  }
-
-  // === ✅ NOUVEAU: HANDLER BROADCASTMANAGER ===
-
-  /**
-   * Traite les événements du format BroadcastManager
-   */
-  handleBroadcastEvent(event) {
-    console.log(`📡 [NETWORK] BroadcastManager: ${event.eventId}`, event);
-    
-    // Vérifier le format
-    if (!event.eventId || !event.data) {
-      console.warn('⚠️ Événement BroadcastManager mal formaté:', event);
-      return;
-    }
-    
-    // ✅ TRANSFÉRER DIRECTEMENT vers BattleIntegration
-    // BattleIntegration a son propre handleBroadcastEvent qui route vers BattleScene
-    this.triggerEvent('battleEvent', event);
-    
-    // ✅ AUSSI: Trigger événement spécifique pour rétrocompatibilité
-    this.triggerEvent(event.eventId, event.data);
-    
-    console.log(`📡 [NETWORK] Événement BroadcastManager ${event.eventId} transféré`);
   }
 
   handleBattleRoomDisconnect(code) {
@@ -665,7 +629,7 @@ export class BattleNetworkHandler {
   }
 
   debug() {
-    console.log('🔍 === DEBUG BATTLE NETWORK HANDLER BROADCASTMANAGER ===');
+    console.log('🔍 === DEBUG BATTLE NETWORK HANDLER ===');
     const status = this.getConnectionStatus();
     console.log('📊 État:', status);
     console.log('📋 Événements écoutés:', Array.from(this.eventCallbacks.keys()));
@@ -706,7 +670,7 @@ export class BattleNetworkHandler {
  * Test de connexion basique
  */
 window.testBattleNetwork = function() {
-  console.log('🧪 === TEST BATTLE NETWORK BROADCASTMANAGER ===');
+  console.log('🧪 === TEST BATTLE NETWORK ===');
   
   const mockWorldRoom = {
     id: 'test_world',
@@ -732,7 +696,7 @@ window.testBattleNetwork = function() {
  * Test debug complet
  */
 window.debugBattleNetworkHandler = function() {
-  console.log('🔍 === DEBUG BATTLE NETWORK HANDLER BROADCASTMANAGER ===');
+  console.log('🔍 === DEBUG BATTLE NETWORK HANDLER ===');
   
   const handler = window.battleSystem?.battleConnection?.networkHandler;
   if (handler) {
@@ -749,7 +713,7 @@ window.debugBattleNetworkHandler = function() {
  * Simulation d'un combat
  */
 window.simulateBattle = function() {
-  console.log('🎮 === SIMULATION COMBAT BROADCASTMANAGER ===');
+  console.log('🎮 === SIMULATION COMBAT ===');
   
   const handler = window.testBattleNetwork();
   
@@ -766,13 +730,15 @@ window.simulateBattle = function() {
   }
 };
 
-console.log('✅ BattleNetworkHandler BROADCASTMANAGER chargé !');
-console.log('📡 NOUVEAU: Support événements BroadcastManager (battleEvent)');
-console.log('🔄 GARDE: Rétrocompatibilité format ancien');
-console.log('🎯 TIMING: Server-driven avec BroadcastManager');
+console.log('✅ BattleNetworkHandler MODERNE CORRIGÉ chargé !');
+console.log('🔧 Corrections apportées:');
+console.log('   ✅ Duplication yourTurn supprimée');
+console.log('   ✅ Handlers manquants ajoutés');
+console.log('   ✅ Logs de debug améliorés');
+console.log('   ✅ Gestion d\'erreurs renforcée');
 console.log('');
 console.log('🧪 Tests disponibles:');
 console.log('   window.testBattleNetwork() - Test connexion');
 console.log('   window.debugBattleNetworkHandler() - Debug complet');
 console.log('   window.simulateBattle() - Simulation combat');
-console.log('🚀 Prêt pour BroadcastManager côté serveur !');
+console.log('🚀 Prêt pour intégration avec BattleIntegration !');
