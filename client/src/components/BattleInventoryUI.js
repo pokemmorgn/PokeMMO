@@ -103,14 +103,14 @@ export class BattleInventoryUI extends InventoryUI {
         position: fixed;
         top: 0;
         left: 0;
-        right: 0;
+        right: 30%; /* ✅ Laisser 30% à droite libre pour les boutons */
         bottom: 0;
-        background: rgba(0, 0, 0, 0.85);
+        background: rgba(0, 0, 0, 0.6); /* ✅ Moins opaque pour voir les boutons */
         display: flex;
-        justify-content: center;
+        justify-content: center; /* ✅ Centrer dans l'espace disponible */
         align-items: center;
-        z-index: 1500; /* Plus élevé que l'inventaire normal */
-        backdrop-filter: blur(3px);
+        z-index: 1200; /* ✅ Moins élevé que l'interface de combat */
+        backdrop-filter: blur(2px); /* ✅ Moins de flou */
         transition: opacity 0.2s ease; /* Plus rapide */
       }
 
@@ -122,12 +122,10 @@ export class BattleInventoryUI extends InventoryUI {
       }
 
       .battle-inventory-container {
-        position: fixed; /* ✅ Position fixe pour centrage */
-        left: 50%; /* ✅ Centre horizontal */
-        top: 50%; /* ✅ Centre vertical */
-        transform: translate(-50%, -50%) scale(0.95); /* ✅ Centrage + scale */
-        width: 600px; /* Plus compact */
-        height: 500px; /* Plus petit */
+        position: relative; /* ✅ Position relative dans l'overlay */
+        transform: scale(0.95); /* ✅ Juste le scale */
+        width: 500px; /* ✅ Plus compact pour laisser de la place */
+        height: 450px; /* ✅ Plus petit */
         background: linear-gradient(145deg, #2a3f5f, #1e2d42); /* Thème bleu habituel */
         border: 3px solid #4a90e2; /* Bleu principal */
         border-radius: 16px;
@@ -140,7 +138,7 @@ export class BattleInventoryUI extends InventoryUI {
       }
 
       .battle-inventory-overlay:not(.hidden) .battle-inventory-container {
-        transform: translate(-50%, -50%) scale(1); /* ✅ Centré + scale normal quand visible */
+        transform: scale(1); /* ✅ Scale normal quand visible */
       }
 
       .battle-inventory-header {
