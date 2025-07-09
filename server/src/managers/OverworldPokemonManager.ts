@@ -105,23 +105,22 @@ export class OverworldPokemonManager {
   }
 
   private calculateFluidMovementTarget(pokemon: OverworldPokemonData): {x: number, y: number} {
-    const moveDistance = 32;
-    let targetX = pokemon.x;
-    let targetY = pokemon.y;
-    switch (pokemon.direction) {
-      case 'up':
-        targetY -= moveDistance;
-        break;
-      case 'down':
-        targetY += moveDistance;
-        break;
-      case 'left':
-        targetX -= moveDistance;
-        break;
-      case 'right':
-        targetX += moveDistance;
-        break;
-    }
+    // Mouvement long : avancer de 5 à 12 cases (aléatoire)
+const minCases = 5;
+const maxCases = 12;
+const cases = minCases + Math.floor(Math.random() * (maxCases - minCases + 1));
+const moveDistance = cases * 32;
+
+let targetX = pokemon.x;
+let targetY = pokemon.y;
+
+switch (pokemon.direction) {
+  case 'up':    targetY -= moveDistance; break;
+  case 'down':  targetY += moveDistance; break;
+  case 'left':  targetX -= moveDistance; break;
+  case 'right': targetX += moveDistance; break;
+}
+
     if (!this.isPositionValid(targetX, targetY, pokemon.boundaries)) {
       const newDirection = this.directions[Math.floor(Math.random() * this.directions.length)];
       pokemon.direction = newDirection;
