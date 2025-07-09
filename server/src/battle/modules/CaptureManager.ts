@@ -563,12 +563,12 @@ private performFourChecks(captureRate: number): { captured: boolean; shakeCount:
   
   private generateRandomGender(pokemonData: any): string {
     const genderRatio = pokemonData.genderRatio;
-    if (genderRatio === -1) return 'unknown';
-    if (genderRatio === 0) return 'male';
-    if (genderRatio === 8) return 'female';
+    if (genderRatio === -1) return 'Genderless';   // ✅ Conforme à l'enum
+    if (genderRatio === 0) return 'Male';          // ✅ Conforme à l'enum
+    if (genderRatio === 8) return 'Female';        // ✅ Conforme à l'enum
     
     const random = Math.random() * 8;
-    return random < genderRatio ? 'female' : 'male';
+    return random < genderRatio ? 'Female' : 'Male';  // ✅ Conforme à l'enum
   }
   
   private generateRandomAbility(pokemonData: any): string {
