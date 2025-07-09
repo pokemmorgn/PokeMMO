@@ -455,11 +455,11 @@ export class OverworldPokemonManager {
   Math.abs((pokemon.targetY ?? pokemon.y) - (pokemon.y ?? 0)) < 1;
     // ✅ DÉMARRAGE OU ARRÊT DU MOUVEMENT
     
-   if (isMoving !== wasMoving) {
+   // ✅ DÉMARRAGE OU ARRÊT DU MOUVEMENT (corrigé pour arrêt net en idle)
+if (isMoving !== wasMoving || (!isMoving && pokemon.anims.currentAnim && !pokemon.anims.currentAnim.key.includes('_idle_'))) {
   if (isMoving) {
-    // Démarrage du mouvement : fixe la direction pour toute la durée
-    pokemon.movementDirection = direction || pokemon.lastDirection;
-    const animDirection = this.getDirectionForAnimation(pokemon.movementDirection);
+    // Animation de marche
+    const animDirection = this.getDirectionForAnimation(direction || pokemon.lastDirection);
     const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
     const walkAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${animDirection}`;
     pokemon.isInterpolating = true;
@@ -468,20 +468,19 @@ export class OverworldPokemonManager {
       console.log(`🎬 [OverworldPokemonManager] Animation marche: ${walkAnimKey}`);
     }
   } else {
-    // NE PAS METTRE EN ANIMATION IDLE
-    // Optionnel : tu peux juste faire la correction de position
+    // Forcer immédiatement l’animation idle dès l’arrêt
     pokemon.isInterpolating = false;
-    if (pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
-      pokemon.x = pokemon.targetX;
-      pokemon.y = pokemon.targetY;
+    const idleDirection = pokemon.lastDirectionFrame
+      ? this.getDirectionForAnimation(pokemon.lastDirectionFrame)
+      : this.getDirectionForAnimation(direction || pokemon.lastDirection);
+    const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+    const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${idleDirection}`;
+    if (this.scene.anims.exists(idleAnimKey)) {
+      pokemon.anims.play(idleAnimKey, true);
+      console.log(`🏃‍♂️ [OverworldPokemonManager] Animation idle: ${idleAnimKey}`);
     }
-    // Mémorise la direction pour la suite si besoin
-    pokemon.lastDirection = pokemon.movementDirection || pokemon.lastDirection;
-    pokemon.movementDirection = undefined;
-    // Ne joue pas l'animation idle
   }
 }
-
 
     
     // ✅ MISE À JOUR DE LA DIRECTION (sans affecter le mouvement en cours)
