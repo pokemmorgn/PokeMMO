@@ -1074,16 +1074,26 @@ this.loadedSprites = new Set(); // Cache des sprites chargés
         const height = texture.source[0].height;
         
         // Détection auto : assumer 1 ligne, calculer colonnes
-        let cols = Math.round(width / 64); // Estimer 64px par frame
-        if (width % 64 !== 0) {
-          // Essayer d'autres tailles
-          for (let frameW = 48; frameW <= 96; frameW += 8) {
-            if (width % frameW === 0) {
-              cols = width / frameW;
-              break;
-            }
-          }
-        }
+        // Détection auto améliorée
+let cols, frameWidth;
+
+// Essayer toutes les tailles de 32 à 128px
+for (let testFrameW = 32; testFrameW <= 128; testFrameW++) {
+  if (width % testFrameW === 0) {
+    const testCols = width / testFrameW;
+    if (testCols >= 10 && testCols <= 100) {
+      cols = testCols;
+      frameWidth = testFrameW;
+      break;
+    }
+  }
+}
+
+// Fallback si rien trouvé
+if (!cols) {
+  cols = Math.round(width / 64);
+  frameWidth = Math.floor(width / cols);
+}
         
         const frameWidth = Math.floor(width / cols);
         const frameHeight = height;
