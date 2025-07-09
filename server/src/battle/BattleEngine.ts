@@ -181,24 +181,24 @@ export class BattleEngine {
         };
       }
       
-      // ✅ NOUVEAU: Traiter l'action selon son type
-      let result: BattleResult;
-      
-      if (action.type === 'capture') {
-        // Déléguer au CaptureManager
-        if (!teamManager) {
-          return {
-            success: false,
-            error: 'TeamManager requis pour la capture',
-            gameState: this.gameState,
-            events: []
-          };
-        }
-        result = await this.processCapture(action, teamManager);
-      } else {
-        // Traiter via ActionProcessor pour les autres actions
-        result = this.actionProcessor.processAction(action);
+    // ✅ NOUVEAU: Traiter l'action selon son type
+    let result: BattleResult;
+    
+    if (action.type === 'capture') {
+      // Déléguer au CaptureManager
+      if (!teamManager) {
+        return {
+          success: false,
+          error: 'TeamManager requis pour la capture',
+          gameState: this.gameState,
+          events: []
+        };
       }
+      result = await this.captureManager.attemptCapture(action.playerId, action.data.ballType || 'poke_ball', teamManager);
+    } else {
+      // Traiter via ActionProcessor pour les autres actions
+      result = this.actionProcessor.processAction(action);
+    }
       
       if (result.success) {
         console.log(`✅ [BattleEngine] Action traitée avec succès`);
