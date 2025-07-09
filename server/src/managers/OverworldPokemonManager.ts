@@ -576,8 +576,8 @@ export class OverworldPokemonManager {
   getStats(): any {
     const stats = {
       totalPokemon: this.overworldPokemon.size,
-      areas: {},
-      pokemonByType: {},
+      areas: {} as { [key: string]: number },
+      pokemonByType: {} as { [key: number]: number },
       movingPokemon: 0,
       shinyPokemon: 0
     };
