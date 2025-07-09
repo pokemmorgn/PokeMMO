@@ -6,6 +6,7 @@ import { ActionProcessor } from './modules/ActionProcessor';
 import { AIPlayer } from './modules/AIPlayer';
 import { BattleEndManager } from './modules/BattleEndManager';
 import { CaptureManager } from './modules/CaptureManager';
+import { SpectatorManager } from './modules/SpectatorManager';
 import { BroadcastManagerFactory } from './modules/broadcast/BroadcastManagerFactory';
 import { BroadcastManager } from './modules/broadcast/BroadcastManager';
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule, TurnPlayer, PlayerRole } from './types/BattleTypes';
@@ -32,8 +33,9 @@ export class BattleEngine {
   private battleEndManager: BattleEndManager;
   private captureManager: CaptureManager;
   
-  // === ✅ NOUVEAU: BROADCAST MANAGER ===
+  // === ✅ NOUVEAU: BROADCAST ET SPECTATEURS ===
   private broadcastManager: BroadcastManager | null = null;
+  private spectatorManager: SpectatorManager | null = null;
   
   // === MODULES OPTIONNELS ===
   private modules: Map<string, BattleModule> = new Map();
@@ -55,7 +57,7 @@ export class BattleEngine {
     console.log('✅ [BattleEngine] Prêt pour le combat avec timing serveur');
   }
   
-  // === ✅ NOUVEAU: CONFIGURATION BROADCAST ===
+  // === ✅ NOUVEAU: CONFIGURATION BROADCAST + SPECTATEURS ===
   
   /**
    * Configure le BroadcastManager avec callback d'émission
@@ -65,6 +67,41 @@ export class BattleEngine {
       this.broadcastManager.setEmitCallback(emitCallback);
       console.log('📡 [BattleEngine] Callback broadcast configuré');
     }
+  }
+  
+  /**
+   * Ajoute un spectateur au combat
+   */
+  addSpectator(sessionId: string, username: string): boolean {
+    if (this.spectatorManager) {
+      const success = this.spectatorManager.addSpectator(sessionId, username);
+      if (success && this.broadcastManager) {
+        this.broadcastManager.addSpectator(sessionId);
+      }
+      return success;
+    }
+    return false;
+  }
+  
+  /**
+   * Retire un spectateur
+   */
+  removeSpectator(sessionId: string): boolean {
+    if (this.spectatorManager) {
+      const success = this.spectatorManager.removeSpectator(sessionId);
+      if (success && this.broadcastManager) {
+        this.broadcastManager.removeUser(sessionId);
+      }
+      return success;
+    }
+    return false;
+  }
+  
+  /**
+   * Récupère les spectateurs
+   */
+  getSpectators(): any[] {
+    return this.spectatorManager?.getSpectatorsList() || [];
   }
   
   // === API PRINCIPALE ===
@@ -82,11 +119,17 @@ export class BattleEngine {
       // 2. Initialiser l'état du jeu
       this.gameState = this.initializeGameState(config);
       
-      // 3. ✅ NOUVEAU: Créer le BroadcastManager
+      // 3. ✅ NOUVEAU: Créer BroadcastManager + SpectatorManager
       this.broadcastManager = BroadcastManagerFactory.createForWildBattle(
         this.gameState.battleId,
         this.gameState,
         this.gameState.player1.sessionId
+      );
+      
+      this.spectatorManager = new SpectatorManager(
+        this.gameState.battleId,
+        this.gameState,
+        { isPublic: config.type === 'wild', maxSpectators: 20 }
       );
       
       // 4. Configurer les modules
@@ -345,7 +388,7 @@ export class BattleEngine {
     console.log(`🎯 [BattleEngine] Traitement capture avec BroadcastManager`);
     
     // Pour l'instant, déléguer au CaptureManager normal
-    // TODO: Intégrer BroadcastManager dans CaptureManager plus tard
+    // ✅ NOUVEAU: Configurer CaptureManager avec BroadcastManager
     if (!teamManager) {
       return {
         success: false,
@@ -356,6 +399,12 @@ export class BattleEngine {
     }
     
     this.captureManager.initialize(this.gameState);
+    
+    // Configurer BroadcastManager dans CaptureManager
+    if (this.broadcastManager) {
+      this.captureManager.setBroadcastManager(this.broadcastManager);
+    }
+    
     return await this.captureManager.attemptCapture(action.playerId, action.data.ballType || 'poke_ball', teamManager);
   }
   
@@ -536,6 +585,11 @@ export class BattleEngine {
     if (this.broadcastManager) {
       this.broadcastManager.cleanup();
       this.broadcastManager = null;
+    }
+    
+    if (this.spectatorManager) {
+      this.spectatorManager.cleanup();
+      this.spectatorManager = null;
     }
     
     console.log('🧹 [BattleEngine] Nettoyage effectué');
