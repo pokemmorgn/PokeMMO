@@ -75,7 +75,6 @@ export const BATTLE_TIMINGS = {
   // Tours et transitions
   yourTurn: 0,              // Instantané (interface)
   enemyThinking: 800,       // IA réfléchit (court)
-  opponentTurn: 800,        // Tour adversaire
   turnTransition: 300,      // Entre les tours
   
   // Expérience et niveaux
@@ -413,7 +412,7 @@ export class BroadcastManager {
   }
   
   private getTimingForEvent(eventId: string): number {
-    return (BATTLE_TIMINGS as any)[eventId] || BATTLE_TIMINGS.transitionNormal;
+    return (BATTLE_TIMINGS as any)[eventId] || BATTLE_TIMINGS.transitionMedium;
   }
   
   private delay(ms: number): Promise<void> {
