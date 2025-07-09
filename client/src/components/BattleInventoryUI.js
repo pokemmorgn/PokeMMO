@@ -103,15 +103,16 @@ export class BattleInventoryUI extends InventoryUI {
         position: fixed;
         top: 0;
         left: 0;
-        right: 30%; /* ✅ Laisser 30% à droite libre pour les boutons */
+        right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.6); /* ✅ Moins opaque pour voir les boutons */
+        background: rgba(0, 0, 0, 0.6);
         display: flex;
-        justify-content: center; /* ✅ Centrer dans l'espace disponible */
+        justify-content: center;
         align-items: center;
-        z-index: 1200; /* ✅ Moins élevé que l'interface de combat */
-        backdrop-filter: blur(2px); /* ✅ Moins de flou */
-        transition: opacity 0.2s ease; /* Plus rapide */
+        z-index: 150; /* ✅ En dessous des boutons BattleScene (200) */
+        backdrop-filter: blur(2px);
+        transition: opacity 0.2s ease;
+        pointer-events: none; /* ✅ Laisser passer les clics */
       }
 
       .battle-inventory-overlay.hidden {
@@ -122,23 +123,26 @@ export class BattleInventoryUI extends InventoryUI {
       }
 
       .battle-inventory-container {
-        position: relative; /* ✅ Position relative dans l'overlay */
-        transform: scale(0.95); /* ✅ Juste le scale */
-        width: 500px; /* ✅ Plus compact pour laisser de la place */
-        height: 450px; /* ✅ Plus petit */
-        background: linear-gradient(145deg, #2a3f5f, #1e2d42); /* Thème bleu habituel */
-        border: 3px solid #4a90e2; /* Bleu principal */
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) scale(0.95);
+        width: 500px;
+        height: 450px;
+        background: linear-gradient(145deg, #2a3f5f, #1e2d42);
+        border: 3px solid #4a90e2;
         border-radius: 16px;
         display: flex;
         flex-direction: column;
         color: white;
         font-family: 'Segoe UI', Arial, sans-serif;
-        box-shadow: 0 15px 40px rgba(74, 144, 226, 0.4); /* Lueur bleue */
+        box-shadow: 0 15px 40px rgba(74, 144, 226, 0.4);
         transition: transform 0.2s ease;
+        pointer-events: auto; /* ✅ Réactiver les clics sur l'inventaire */
       }
 
       .battle-inventory-overlay:not(.hidden) .battle-inventory-container {
-        transform: scale(1); /* ✅ Scale normal quand visible */
+        transform: translate(-50%, -50%) scale(1);
       }
 
       .battle-inventory-header {
