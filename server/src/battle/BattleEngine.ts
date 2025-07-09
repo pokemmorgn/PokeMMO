@@ -159,7 +159,15 @@ export class BattleEngine {
         events: []
       };
     }
-    
+     if (this.gameState.isEnded) {
+    console.log(`❌ [BattleEngine] Action refusée: Combat déjà terminé (winner: ${this.gameState.winner})`);
+    return {
+      success: false,
+      error: 'Combat déjà terminé',
+      gameState: this.gameState,
+      events: ['Le combat est déjà terminé !']
+    };
+    }
     // ✅ NOUVEAU: Bloquer les actions pendant la narration
     if (this.turnManager.isNarrative()) {
       return {
