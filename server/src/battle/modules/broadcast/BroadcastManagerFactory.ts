@@ -1,8 +1,8 @@
 // server/src/battle/modules/broadcast/BroadcastManagerFactory.ts
 // FACTORY + PRESETS POUR BROADCAST MANAGER
 
-import { BroadcastManager, BATTLE_TIMINGS } from './BroadcastManager';
-import { BattleGameState, PlayerRole } from '../../types/BattleTypes';
+import { BroadcastManager, BATTLE_TIMINGS, BattleEvent } from './BroadcastManager';
+import { BattleGameState, PlayerRole } from '../types/BattleTypes';
 
 // === PRESETS DE CONFIGURATION ===
 
@@ -176,7 +176,7 @@ export class BroadcastManagerFactory {
     webSocketHandler: any
   ): void {
     
-    manager.setEmitCallback((event) => {
+    manager.setEmitCallback((event: BattleEvent) => {
       // Envoyer à tous les participants
       const recipients = [
         ...event.participants || [],
@@ -203,7 +203,7 @@ export class BroadcastManagerFactory {
     battleRoom: any
   ): void {
     
-    manager.setEmitCallback((event) => {
+    manager.setEmitCallback((event: BattleEvent) => {
       try {
         // Utiliser la méthode broadcast de BattleRoom
         battleRoom.broadcast('battleEvent', event);
