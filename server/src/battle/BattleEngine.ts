@@ -194,6 +194,7 @@ export class BattleEngine {
           events: []
         };
       }
+      this.captureManager.initialize(this.gameState);
       result = await this.captureManager.attemptCapture(action.playerId, action.data.ballType || 'poke_ball', teamManager);
     } else {
       // Traiter via ActionProcessor pour les autres actions
