@@ -302,10 +302,17 @@ export class PokemonFollowerManager {
       return;
     }
 
-    // Position cible (du serveur)
+    // ✅ POSITION DIRECTE (pas d'interpolation) pour arrêt net
     if (followerData.x !== undefined && followerData.y !== undefined) {
+      follower.x = followerData.x;
+      follower.y = followerData.y;
       follower.targetX = followerData.x;
       follower.targetY = followerData.y;
+    }
+    
+    // ✅ État de mouvement direct
+    if (followerData.isMoving !== undefined) {
+      follower.isMoving = followerData.isMoving;
     }
     
     // Direction et animation
@@ -350,20 +357,11 @@ export class PokemonFollowerManager {
   }
 
   /**
-   * Met à jour tous les followers (interpolation de position)
+   * Met à jour tous les followers - PAS D'INTERPOLATION pour arrêt net
    */
   update(delta = 16) {
-    this.followers.forEach((follower, sessionId) => {
-      if (!follower || !follower.scene) return;
-      
-      // Interpolation douce vers la position cible
-      if (follower.targetX !== undefined && follower.targetY !== undefined) {
-        const lerpSpeed = 0.1; // Très lent pour suivre naturellement
-        
-        follower.x += (follower.targetX - follower.x) * lerpSpeed;
-        follower.y += (follower.targetY - follower.y) * lerpSpeed;
-      }
-    });
+    // ✅ RIEN À FAIRE : Les positions sont mises à jour directement
+    // Pas d'interpolation = arrêt net exactement où le serveur dit
   }
 
   /**
