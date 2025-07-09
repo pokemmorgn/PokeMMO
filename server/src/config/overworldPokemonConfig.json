@@ -20,8 +20,8 @@
           "movePattern": "random",
           "speed": 40,
           "animations": {
-            "idle": "Swing-Anim.png",
-            "walk": "Swing-Anim.png",
+            "idle": "Walk-Anim.png",
+            "walk": "Walk-Anim.png",
             "sleep": "Sleep-Anim.png"
           },
           "currentAnimation": "walk",
