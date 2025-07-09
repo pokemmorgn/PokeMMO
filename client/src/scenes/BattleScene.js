@@ -1,8 +1,10 @@
-// client/src/scenes/BattleScene.js - VERSION SERVER-DRIVEN AVEC DÉTECTION AUTO SPRITES
+// client/src/scenes/BattleScene.js - VERSION SERVER-DRIVEN SANS TIMERS CLIENT
 
 import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
 import { BattleTranslator } from '../Battle/BattleTranslator.js';
+
+let pokemonSpriteConfig = null;
 
 export class BattleScene extends Phaser.Scene {
   constructor() {
@@ -47,12 +49,7 @@ export class BattleScene extends Phaser.Scene {
     this.interfaceMode = 'hidden'; // 'hidden', 'message', 'buttons'
     this.battleTranslator = null; // Sera initialisé avec playerRole
     
-    // 🆕 SYSTÈME DE DÉTECTION AUTOMATIQUE DES SPRITES
-    this.spriteStructures = new Map(); // pokemonId_view -> structure
-    this.loadingSprites = new Set(); // Cache des sprites en cours de chargement
-    this.loadedSprites = new Set(); // Cache des sprites chargés
-    
-    console.log('⚔️ [BattleScene] Initialisé - Server-Driven avec détection auto sprites');
+    console.log('⚔️ [BattleScene] Initialisé - Server-Driven');
   }
 
   // === INITIALISATION ===
@@ -93,7 +90,7 @@ export class BattleScene extends Phaser.Scene {
       this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
     }
     
-    // 🆕 Plus besoin de loadPokemonSpritesheets() - détection auto !
+    this.loadPokemonSpritesheets();
   }
 
   create() {
@@ -119,311 +116,6 @@ export class BattleScene extends Phaser.Scene {
       
     } catch (error) {
       console.error('[BattleScene] ❌ Erreur création:', error);
-    }
-  }
-
-  // === 🆕 SYSTÈME DE DÉTECTION AUTOMATIQUE DES SPRITES ===
-
-  /**
-   * 🆕 Détecte automatiquement la structure d'un sprite Pokémon
-   * Optimisé pour spritesheets avec nombreuses colonnes sur 1 ligne
-   */
-  detectBattleSpriteStructure(width, height, view) {
-    console.log(`🔍 [BattleScene] Détection structure pour ${width}×${height} (${view})`);
-    
-    // Assumer 1 ligne et calculer le nombre de colonnes automatiquement
-    const rows = 1;
-    
-    // Tester différentes largeurs de frame courantes pour les Pokémon
-    const commonFrameWidths = [32, 48, 64, 80, 96, 128];
-    const validOptions = [];
-    
-    // Test 1: Essayer les largeurs courantes
-    commonFrameWidths.forEach(frameWidth => {
-      if (width % frameWidth === 0) {
-        const cols = width / frameWidth;
-        const frameHeight = height / rows;
-        
-        // Vérifier que c'est dans une plage raisonnable
-        if (cols >= 10 && cols <= 200 && frameHeight >= 32) {
-          validOptions.push({
-            cols: cols,
-            rows: rows,
-            frameWidth: frameWidth,
-            frameHeight: frameHeight,
-            totalFrames: cols,
-            description: `${cols} frames (${frameWidth}×${frameHeight}px)`,
-            score: this.calculateSpriteScore(frameWidth, frameHeight, cols, rows),
-            method: 'common_width'
-          });
-        }
-      }
-    });
-    
-    // Test 2: Si pas de largeur courante, essayer division automatique
-    if (validOptions.length === 0) {
-      console.log(`📐 [BattleScene] Pas de largeur standard, test division automatique...`);
-      
-      // Essayer des largeurs de frame entre 32 et 128px
-      for (let frameWidth = 32; frameWidth <= 128; frameWidth += 4) {
-        if (width % frameWidth === 0) {
-          const cols = width / frameWidth;
-          const frameHeight = height;
-          
-          // Accepter si le nombre de colonnes est raisonnable
-          if (cols >= 10 && cols <= 200) {
-            validOptions.push({
-              cols: cols,
-              rows: rows,
-              frameWidth: frameWidth,
-              frameHeight: frameHeight,
-              totalFrames: cols,
-              description: `${cols} frames auto (${frameWidth}×${frameHeight}px)`,
-              score: this.calculateSpriteScore(frameWidth, frameHeight, cols, rows),
-              method: 'auto_division'
-            });
-          }
-        }
-      }
-    }
-    
-    // Test 3: Fallback - estimation intelligente
-    if (validOptions.length === 0) {
-      console.warn(`⚠️ [BattleScene] Pas de division parfaite, estimation pour ${width}×${height}`);
-      
-      // Estimer en supposant des frames de ~64px de large
-      let estimatedFrameWidth = 64;
-      let estimatedCols = Math.round(width / estimatedFrameWidth);
-      
-      // Ajuster pour avoir une division exacte
-      estimatedFrameWidth = width / estimatedCols;
-      
-      validOptions.push({
-        cols: estimatedCols,
-        rows: rows,
-        frameWidth: Math.floor(estimatedFrameWidth),
-        frameHeight: height,
-        totalFrames: estimatedCols,
-        description: `${estimatedCols} frames estimé (${Math.floor(estimatedFrameWidth)}×${height}px)`,
-        score: 0,
-        method: 'fallback_estimate'
-      });
-    }
-
-    // Trier par score (meilleur en premier)
-    validOptions.sort((a, b) => b.score - a.score);
-    
-    const best = validOptions[0];
-    console.log(`✅ [BattleScene] Structure choisie: ${best.description} (méthode: ${best.method})`);
-    
-    if (validOptions.length > 1) {
-      console.log(`📊 [BattleScene] Autres options:`, validOptions.slice(1).map(o => `${o.description} (score: ${o.score})`));
-    }
-
-    return best;
-  }
-
-  /**
-   * 🆕 Calcule un score pour une structure de sprite
-   */
-  calculateSpriteScore(frameW, frameH, cols, rows) {
-    let score = 0;
-    
-    // Bonus pour les tailles courantes de frames Pokémon
-    const commonSizes = [48, 64, 80, 96];
-    if (commonSizes.includes(frameW)) score += 30;
-    if (commonSizes.includes(frameH)) score += 20;
-    
-    // Bonus pour les sprites carrés ou légèrement rectangulaires
-    const aspectRatio = frameW / frameH;
-    if (aspectRatio >= 0.8 && aspectRatio <= 1.2) score += 25; // Carré
-    else if (aspectRatio >= 0.6 && aspectRatio <= 1.5) score += 15; // Proche du carré
-    
-    // Bonus majeur pour 1 ligne (typique combat)
-    if (rows === 1) score += 20;
-    
-    // Bonus pour le nombre de colonnes dans des plages raisonnables
-    if (cols >= 20 && cols <= 50) score += 15; // Plage idéale
-    else if (cols >= 10 && cols <= 100) score += 10; // Plage acceptable
-    
-    // Bonus si la frame width divise bien la largeur totale
-    score += 10; // Bonus de base pour division exacte
-    
-    // Malus pour frames trop petites ou trop grandes
-    if (frameW < 32 || frameW > 200) score -= 20;
-    if (frameH < 32 || frameH > 200) score -= 20;
-    
-    return score;
-  }
-
-  /**
-   * 🆕 Charge un sprite Pokémon avec détection automatique
-   */
-  async loadPokemonSprite(pokemonId, view = 'front') {
-    const spriteKey = `pokemon_${pokemonId.toString().padStart(3, '0')}_${view}`;
-    const structureKey = `${pokemonId}_${view}`;
-    
-    // Déjà chargé
-    if (this.loadedSprites.has(spriteKey)) {
-      return spriteKey;
-    }
-    
-    // En cours de chargement
-    if (this.loadingSprites.has(spriteKey)) {
-      // Attendre que le chargement se termine
-      return new Promise((resolve) => {
-        const checkLoaded = () => {
-          if (this.loadedSprites.has(spriteKey)) {
-            resolve(spriteKey);
-          } else {
-            setTimeout(checkLoaded, 50);
-          }
-        };
-        checkLoaded();
-      });
-    }
-    
-    this.loadingSprites.add(spriteKey);
-    
-    try {
-      const paddedId = pokemonId.toString().padStart(3, '0');
-      const imagePath = `assets/pokemon/${paddedId}/${view}.png`;
-      
-      console.log(`🎨 [BattleScene] Chargement sprite ${spriteKey}: ${imagePath}`);
-      
-      // Étape 1: Charger comme image temporaire pour détecter la taille
-      const tempKey = `${spriteKey}_temp`;
-      
-      await new Promise((resolve, reject) => {
-        this.load.image(tempKey, imagePath);
-        
-        this.load.once('complete', () => {
-          try {
-            const texture = this.textures.get(tempKey);
-            if (!texture || !texture.source[0]) {
-              throw new Error(`Texture ${tempKey} introuvable`);
-            }
-            
-            const width = texture.source[0].width;
-            const height = texture.source[0].height;
-            
-            // 🆕 Détection automatique de la structure
-            const structure = this.detectBattleSpriteStructure(width, height, view);
-            this.spriteStructures.set(structureKey, structure);
-            
-            console.log(`📐 [BattleScene] ${spriteKey}: ${width}×${height} → ${structure.description}`);
-            
-            // Étape 2: Charger comme spritesheet avec les bonnes dimensions
-            this.load.spritesheet(spriteKey, imagePath, {
-              frameWidth: structure.frameWidth,
-              frameHeight: structure.frameHeight
-            });
-            
-            this.load.once('complete', () => {
-              // Nettoyer la texture temporaire
-              this.textures.remove(tempKey);
-              
-              // 🆕 Créer des animations si multi-frames
-              if (structure.totalFrames > 1) {
-                this.createBattleAnimations(spriteKey, structure);
-              }
-              
-              this.loadedSprites.add(spriteKey);
-              this.loadingSprites.delete(spriteKey);
-              
-              console.log(`✅ [BattleScene] Sprite ${spriteKey} chargé (${structure.totalFrames} frames)`);
-              resolve(spriteKey);
-            });
-            
-            this.load.start();
-            
-          } catch (error) {
-            console.error(`❌ [BattleScene] Erreur traitement ${tempKey}:`, error);
-            this.loadingSprites.delete(spriteKey);
-            reject(error);
-          }
-        });
-        
-        this.load.once('loaderror', (fileObj) => {
-          console.error(`❌ [BattleScene] Erreur chargement ${imagePath}:`, fileObj);
-          this.loadingSprites.delete(spriteKey);
-          reject(new Error(`Impossible de charger ${imagePath}`));
-        });
-        
-        this.load.start();
-      });
-      
-      return spriteKey;
-      
-    } catch (error) {
-      console.error(`❌ [BattleScene] Erreur loadPokemonSprite ${pokemonId}/${view}:`, error);
-      this.loadingSprites.delete(spriteKey);
-      
-      // Retourner un sprite de fallback
-      return this.createFallbackSprite(view);
-    }
-  }
-
-  /**
-   * 🆕 Crée des animations pour un sprite de combat multi-frames
-   */
-  createBattleAnimations(spriteKey, structure) {
-    const [, pokemonIdPadded, view] = spriteKey.split('_');
-    const pokemonId = parseInt(pokemonIdPadded);
-    
-    console.log(`🎬 [BattleScene] Création animations pour ${spriteKey} (${structure.totalFrames} frames)`);
-    
-    // Animation idle (utilise quelques frames du début)
-    const idleFrames = Math.min(4, structure.totalFrames);
-    const idleKey = `${spriteKey}_idle`;
-    
-    if (!this.anims.exists(idleKey)) {
-      this.anims.create({
-        key: idleKey,
-        frames: this.anims.generateFrameNumbers(spriteKey, {
-          start: 0,
-          end: idleFrames - 1
-        }),
-        frameRate: 3, // Animation lente pour idle
-        repeat: -1
-      });
-      console.log(`✅ [BattleScene] Animation idle créée: ${idleKey} (${idleFrames} frames)`);
-    }
-    
-    // Animation complète (toutes les frames)
-    const fullKey = `${spriteKey}_full`;
-    
-    if (!this.anims.exists(fullKey)) {
-      this.anims.create({
-        key: fullKey,
-        frames: this.anims.generateFrameNumbers(spriteKey, {
-          start: 0,
-          end: structure.totalFrames - 1
-        }),
-        frameRate: 8, // Animation plus rapide
-        repeat: -1
-      });
-      console.log(`✅ [BattleScene] Animation complète créée: ${fullKey} (${structure.totalFrames} frames)`);
-    }
-    
-    // Animation d'attaque (milieu du spritesheet)
-    if (structure.totalFrames >= 10) {
-      const attackStart = Math.floor(structure.totalFrames * 0.3);
-      const attackEnd = Math.floor(structure.totalFrames * 0.7);
-      const attackKey = `${spriteKey}_attack`;
-      
-      if (!this.anims.exists(attackKey)) {
-        this.anims.create({
-          key: attackKey,
-          frames: this.anims.generateFrameNumbers(spriteKey, {
-            start: attackStart,
-            end: attackEnd
-          }),
-          frameRate: 12, // Animation rapide pour attaque
-          repeat: 1 // Une seule fois
-        });
-        console.log(`✅ [BattleScene] Animation attaque créée: ${attackKey} (frames ${attackStart}-${attackEnd})`);
-      }
     }
   }
 
@@ -827,6 +519,7 @@ export class BattleScene extends Phaser.Scene {
       }
       break;
       case 'pokemon':
+        // ✅ SIMPLIFIÉ: Pas de timer côté client
         this.showActionMessage('Changement de Pokémon indisponible.');
         break;
       case 'run':
@@ -839,6 +532,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showAttackMenu() {
+    // ✅ SIMPLIFIÉ: Pas de timer côté client
     this.showActionMessage('Sélectionnez une attaque...');
     
     // Utiliser première attaque par défaut (garde un délai pour l'UX)
@@ -866,7 +560,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // === 🆕 AFFICHAGE POKÉMON AVEC ANIMATIONS ===
+  // === AFFICHAGE POKÉMON ===
 
   async displayPlayerPokemon(pokemonData) {
     if (!pokemonData) return;
@@ -886,16 +580,6 @@ export class BattleScene extends Phaser.Scene {
       this.playerPokemonSprite.setScale(3.5);
       this.playerPokemonSprite.setDepth(25);
       this.playerPokemonSprite.setOrigin(0.5, 1);
-      
-      // 🆕 Jouer l'animation idle si disponible
-      const structure = this.spriteStructures.get(`${pokemonData.pokemonId || pokemonData.id}_back`);
-      if (structure && structure.totalFrames > 1) {
-        const idleKey = `${spriteKey}_idle`;
-        if (this.anims.exists(idleKey)) {
-          this.playerPokemonSprite.anims.play(idleKey);
-          console.log(`🎬 [BattleScene] Animation idle joueur: ${idleKey}`);
-        }
-      }
       
       this.animatePokemonEntry(this.playerPokemonSprite, 'left');
       this.currentPlayerPokemon = pokemonData;
@@ -928,16 +612,6 @@ export class BattleScene extends Phaser.Scene {
       this.opponentPokemonSprite.setScale(2.8);
       this.opponentPokemonSprite.setDepth(20);
       this.opponentPokemonSprite.setOrigin(0.5, 1);
-      
-      // 🆕 Jouer l'animation idle si disponible
-      const structure = this.spriteStructures.get(`${pokemonData.pokemonId || pokemonData.id}_front`);
-      if (structure && structure.totalFrames > 1) {
-        const idleKey = `${spriteKey}_idle`;
-        if (this.anims.exists(idleKey)) {
-          this.opponentPokemonSprite.anims.play(idleKey);
-          console.log(`🎬 [BattleScene] Animation idle adversaire: ${idleKey}`);
-        }
-      }
       
       this.animatePokemonEntry(this.opponentPokemonSprite, 'right');
       
@@ -1084,6 +758,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleDialog.setVisible(false);
   }
 
+  // ✅ SIMPLIFIÉ: showBattleMessage sans timer par défaut
   showBattleMessage(message, duration = 0) {
     if (!this.battleDialog || !this.dialogText) return;
     
@@ -1098,6 +773,7 @@ export class BattleScene extends Phaser.Scene {
       ease: 'Power2.easeOut'
     });
     
+    // ✅ SEULEMENT si une durée est explicitement demandée
     if (duration > 0) {
       setTimeout(() => {
         this.hideBattleMessage();
@@ -1119,8 +795,9 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  // === INTERFACE STATE MANAGEMENT ===
+  // === INTERFACE STATE MANAGEMENT (SIMPLIFIÉ) ===
 
+  // ✅ SIMPLIFIÉ: showActionMessage sans timer par défaut
   showActionMessage(message) {
     if (!this.actionInterface || !this.actionMessageText) return;
     
@@ -1175,37 +852,13 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  // === 🆕 EFFETS VISUELS AVEC ANIMATIONS ===
+  // === EFFETS VISUELS ===
 
   createAttackEffect(attacker, target) {
     if (!attacker || !target) return;
     
-    // Déterminer le type d'attaquant et jouer l'animation d'attaque
-    let attackAnimKey = null;
-    
-    if (attacker === this.playerPokemonSprite && this.currentPlayerPokemon) {
-      const spriteKey = `pokemon_${this.currentPlayerPokemon.pokemonId.toString().padStart(3, '0')}_back`;
-      attackAnimKey = `${spriteKey}_attack`;
-    } else if (attacker === this.opponentPokemonSprite && this.currentOpponentPokemon) {
-      const spriteKey = `pokemon_${this.currentOpponentPokemon.pokemonId.toString().padStart(3, '0')}_front`;
-      attackAnimKey = `${spriteKey}_attack`;
-    }
-    
     const originalX = attacker.x;
     
-    // Jouer l'animation d'attaque si disponible
-    if (attackAnimKey && this.anims.exists(attackAnimKey)) {
-      attacker.anims.play(attackAnimKey);
-      console.log(`🎬 [BattleScene] Animation attaque: ${attackAnimKey}`);
-      
-      // Retourner à l'idle après l'attaque
-      const idleAnimKey = attackAnimKey.replace('_attack', '_idle');
-      if (this.anims.exists(idleAnimKey)) {
-        attacker.anims.chain(idleAnimKey);
-      }
-    }
-    
-    // Animation de mouvement
     this.tweens.add({
       targets: attacker,
       x: originalX + (target.x > attacker.x ? 50 : -50),
@@ -1278,7 +931,55 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  // === 🆕 FALLBACK SPRITE AMÉLIORÉ ===
+  // === CHARGEMENT SPRITES ===
+
+  async loadPokemonSpritesheets() {
+    if (!this.cache.json.has('pokemonSpriteConfig')) {
+      this.load.json('pokemonSpriteConfig', 'assets/pokemon/PokemonSpriteConfig.json');
+      this.load.start();
+      
+      await new Promise(resolve => {
+        this.load.once('complete', resolve);
+      });
+    }
+    
+    pokemonSpriteConfig = this.cache.json.get('pokemonSpriteConfig');
+  }
+
+  async loadPokemonSprite(pokemonId, view = 'front') {
+    const spriteKey = `pokemon_${pokemonId.toString().padStart(3, '0')}_${view}`;
+    
+    if (this.textures.exists(spriteKey)) {
+      return spriteKey;
+    }
+    
+    try {
+      if (!pokemonSpriteConfig) {
+        await this.loadPokemonSpritesheets();
+      }
+      
+      const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
+      const paddedId = pokemonId.toString().padStart(3, '0');
+      const imagePath = `assets/pokemon/${paddedId}/${view}.png`;
+      
+      this.load.spritesheet(spriteKey, imagePath, {
+        frameWidth: config.spriteWidth,
+        frameHeight: config.spriteHeight
+      });
+      
+      await new Promise((resolve, reject) => {
+        this.load.once('complete', resolve);
+        this.load.once('loaderror', reject);
+        this.load.start();
+      });
+      
+      return this.textures.exists(spriteKey) ? spriteKey : this.createFallbackSprite(view);
+      
+    } catch (error) {
+      console.error(`[BattleScene] ❌ Erreur chargement ${spriteKey}:`, error);
+      return this.createFallbackSprite(view);
+    }
+  }
 
   createFallbackSprite(view) {
     const fallbackKey = `pokemon_placeholder_${view}`;
@@ -1318,10 +1019,10 @@ export class BattleScene extends Phaser.Scene {
   setupBattleNetworkEvents() {
     if (!this.battleNetworkHandler) return;
     
-    // Action result
+    // ✅ SIMPLIFIÉ: Action result sans gestion de timing compliquée
     this.battleNetworkHandler.on('actionResult', (data) => {
       if (data.success && data.gameState) {
-        // Synchroniser HP
+        // Synchroniser HP (garde les setTimeout pour les animations)
         if (data.gameState.player1?.pokemon && this.currentPlayerPokemon) {
           this.currentPlayerPokemon.currentHp = data.gameState.player1.pokemon.currentHp;
           this.currentPlayerPokemon.maxHp = data.gameState.player1.pokemon.maxHp;
@@ -1338,10 +1039,11 @@ export class BattleScene extends Phaser.Scene {
           }, 500);
         }
         
-        // Événements serveur
+        // ✅ NOUVEAU: Événements typés du serveur (si disponibles)
         if (data.battleEvents && data.battleEvents.length > 0) {
           this.processBattleEventsServerDriven(data.battleEvents);
         } else if (data.events && data.events.length > 0) {
+          // ✅ Fallback: traiter les anciens événements SANS timer
           this.processLegacyEventsServerDriven(data.events);
         }
       }
@@ -1351,10 +1053,11 @@ export class BattleScene extends Phaser.Scene {
       }
     });
 
-    // Déconnexion BattleRoom
+        // ✅ NOUVEAU: Handler pour déconnexion BattleRoom
     this.battleNetworkHandler.on('battleRoomDisconnected', (data) => {
       console.log('👋 [BattleScene] Déconnexion BattleRoom détectée:', data);
       
+      // Forcer le retour à l'exploration
       setTimeout(() => {
         this.endBattle({ result: 'disconnected' });
       }, 1000);
@@ -1374,6 +1077,7 @@ export class BattleScene extends Phaser.Scene {
       
       if (data.opponentPokemon) {
         this.displayOpponentPokemon(data.opponentPokemon);
+        // ✅ Utiliser traduction
         this.handleBattleEvent('wildPokemonAppears', { 
           pokemonName: data.opponentPokemon.name 
         });
@@ -1393,10 +1097,10 @@ export class BattleScene extends Phaser.Scene {
       this.handleBattleEvent('opponentTurn', data);
     });
     
-    // Tour changé
+    // ✅ SIMPLIFIÉ: Tour changé sans timer
     this.battleNetworkHandler.on('turnChanged', (data) => {
       if (data.currentTurn === 'player1') {
-        // Le serveur enverra yourTurn quand il voudra
+        // ✅ Le serveur enverra yourTurn quand il voudra
       } else if (data.currentTurn === 'player2') {
         this.hideActionButtons();
       } else if (data.currentTurn === 'narrator') {
@@ -1404,14 +1108,11 @@ export class BattleScene extends Phaser.Scene {
       }
     });
     
-    // Fin de combat
+    // ✅ SIMPLIFIÉ: Fin de combat sans timer côté client
     this.battleNetworkHandler.on('battleEnd', (data) => {
       this.hideActionButtons();
       this.handleBattleEvent('battleEnd', { winnerId: data.winner });
-      
-      setTimeout(() => {
-        this.endBattle({ result: 'ended' });
-      }, 3000);
+      // ✅ Le serveur gérera le timing de endBattle()
     });
     
     // Autres événements
@@ -1425,12 +1126,13 @@ export class BattleScene extends Phaser.Scene {
       this.handleNetworkBattleStart(data);
     });
     
+    // ✅ SIMPLIFIÉ: yourTurn sans timer
     this.battleNetworkHandler.on('yourTurn', (data) => {
       this.handleBattleEvent('yourTurn', data);
     });
   }
 
-  // === SYSTÈME DE TRADUCTION D'ÉVÉNEMENTS ===
+  // === SYSTÈME DE TRADUCTION D'ÉVÉNEMENTS (INCHANGÉ) ===
 
   handleBattleEvent(eventType, data = {}) {
     console.log(`🌍 [BattleScene] Événement: ${eventType}`, data);
@@ -1438,25 +1140,27 @@ export class BattleScene extends Phaser.Scene {
     // Actions d'interface
     if (eventType === 'yourTurn') {
       this.showActionButtons();
-      return;
+      return; // ✅ Pas de message pour yourTurn
     }
     
     if (eventType === 'opponentTurn') {
       this.hideActionButtons();
     }
-
-    if (eventType === 'battleEnd') {
-      this.hideActionButtons();
-      
-      setTimeout(() => {
-        this.endBattle({ result: 'ended' });
-      }, 3000);
-    }
+    
+if (eventType === 'battleEnd') {
+  this.hideActionButtons();
+  
+  // ✅ NOUVEAU: Forcer fermeture après battleEnd
+  setTimeout(() => {
+    this.endBattle({ result: 'ended' });
+  }, 3000);
+}
     
     // Traduction du message
     if (this.battleTranslator) {
       const message = this.battleTranslator.translate(eventType, data);
       if (message) {
+        // ✅ Messages restent affichés jusqu'au prochain événement
         this.showActionMessage(message);
         console.log(`💬 Message traduit (${this.battleTranslator.language}): "${message}"`);
       }
@@ -1470,23 +1174,26 @@ export class BattleScene extends Phaser.Scene {
   processBattleEventsServerDriven(battleEvents) {
     console.log('⚔️ [BattleScene] Traitement événements server-driven:', battleEvents);
     
+    // ✅ NOUVEAU: Traiter les événements IMMÉDIATEMENT
+    // Le serveur a déjà géré le timing !
     battleEvents.forEach((event, index) => {
       this.handleBattleEvent(event.type, event.data);
     });
   }
 
-  processLegacyEventsServerDriven(events) {
-    console.log('📜 [BattleScene] Traitement événements legacy server-driven:', events);
-    
-    if (events.length > 0 && this.interfaceMode !== 'buttons') {
-      const lastEvent = events[events.length - 1];
-      this.showActionMessage(lastEvent);
-    } else {
-      console.log('🎮 [BattleScene] Interface boutons active, ignorer legacy events');
-    }
+processLegacyEventsServerDriven(events) {
+  console.log('📜 [BattleScene] Traitement événements legacy server-driven:', events);
+  
+  // ✅ CORRECTION: Ne pas afficher si interface boutons active
+  if (events.length > 0 && this.interfaceMode !== 'buttons') {
+    const lastEvent = events[events.length - 1];
+    this.showActionMessage(lastEvent);
+  } else {
+    console.log('🎮 [BattleScene] Interface boutons active, ignorer legacy events');
   }
+}
 
-  // === HANDLERS RÉSEAU ===
+  // === HANDLERS RÉSEAU (SIMPLIFIÉS) ===
 
   handleNetworkBattleStart(data) {
     // Vérifier mode narratif
@@ -1510,6 +1217,7 @@ export class BattleScene extends Phaser.Scene {
     this.startBattleIntroSequence(opponentPokemon);
   }
 
+  // ✅ SIMPLIFIÉ: Introduction sans timer compliqué
   startBattleIntroSequence(opponentPokemon) {
     // Délai minimal pour l'entrée des Pokémon
     setTimeout(() => {
@@ -1517,9 +1225,11 @@ export class BattleScene extends Phaser.Scene {
         pokemonName: opponentPokemon?.name || 'Pokémon' 
       });
     }, 2000);
+    
+    // ✅ Le serveur enverra yourTurn quand il voudra !
   }
 
-  // === UI MANAGEMENT ===
+  // === UI MANAGEMENT (INCHANGÉ) ===
 
   activateBattleUI() {
     if (window.pokemonUISystem?.setGameState) {
@@ -1711,6 +1421,7 @@ export class BattleScene extends Phaser.Scene {
       console.error('[BattleScene] ❌ Erreur envoi battleFinished:', error);
     }
     
+    // ✅ SIMPLIFIÉ: Nettoyage immédiat ou léger délai
     setTimeout(() => {
       this.completeBattleCleanup(battleResult);
     }, 500);
@@ -1749,35 +1460,6 @@ export class BattleScene extends Phaser.Scene {
         console.warn('[BattleScene] ⚠️ Erreur reset UI:', error);
       }
     }
-  }
-
-  // === 🆕 FONCTIONS DE DEBUG POUR LA DÉTECTION ===
-
-  debugSpriteDetection(pokemonId, view = 'front') {
-    const structureKey = `${pokemonId}_${view}`;
-    const structure = this.spriteStructures.get(structureKey);
-    
-    if (structure) {
-      console.log(`🔍 [BattleScene] Structure Pokémon ${pokemonId} (${view}):`, {
-        cols: structure.cols,
-        rows: structure.rows,
-        frameSize: `${structure.frameWidth}×${structure.frameHeight}px`,
-        totalFrames: structure.totalFrames,
-        method: structure.method,
-        description: structure.description
-      });
-    } else {
-      console.warn(`⚠️ [BattleScene] Aucune structure trouvée pour Pokémon ${pokemonId} (${view})`);
-    }
-  }
-
-  debugAllSpriteStructures() {
-    console.log(`🔍 [BattleScene] === DEBUG TOUTES LES STRUCTURES ===`);
-    console.log(`📊 Structures détectées: ${this.spriteStructures.size}`);
-    
-    this.spriteStructures.forEach((structure, key) => {
-      console.log(`📐 ${key}: ${structure.description} (méthode: ${structure.method})`);
-    });
   }
 
   // === SIMULATION POUR TESTS ===
@@ -1837,6 +1519,7 @@ export class BattleScene extends Phaser.Scene {
     setTimeout(() => this.displayPlayerPokemon(testPlayerPokemon), 500);
     setTimeout(() => this.displayOpponentPokemon(testOpponentPokemon), 1200);
     setTimeout(() => this.showBattleMessage('Un Pikachu chromatique apparaît !'), 2000);
+    // ✅ SIMPLIFIÉ: Pas de timer pour l'interface
   }
 
   // === DESTRUCTION ===
@@ -1868,16 +1551,11 @@ export class BattleScene extends Phaser.Scene {
       this.battleBackground = null;
     }
     
-    // 🆕 Nettoyer les caches de sprites
-    this.spriteStructures.clear();
-    this.loadedSprites.clear();
-    this.loadingSprites.clear();
-    
     super.destroy();
   }
 }
 
-// === 🆕 FONCTIONS GLOBALES DE TEST ===
+// === FONCTIONS GLOBALES DE TEST ===
 
 window.testModernBattle = function() {
   const battleScene = window.game?.scene?.getScene('BattleScene');
@@ -1910,56 +1588,6 @@ window.modernDamageOpponent = function(damage = 5) {
   }
 };
 
-// 🆕 Fonctions de test pour la détection automatique
-window.testBattleSpriteDetection = function(pokemonId = 1, view = 'front') {
-  const battleScene = window.game?.scene?.getScene('BattleScene');
-  if (!battleScene) {
-    console.error('❌ BattleScene non trouvée');
-    return;
-  }
-  
-  battleScene.debugSpriteDetection(pokemonId, view);
-};
-
-window.debugAllBattleSprites = function() {
-  const battleScene = window.game?.scene?.getScene('BattleScene');
-  if (!battleScene) {
-    console.error('❌ BattleScene non trouvée');
-    return;
-  }
-  
-  battleScene.debugAllSpriteStructures();
-};
-
-// 🆕 Test de détection avec tes exemples
-window.testSpriteExamples = function() {
-  const battleScene = window.game?.scene?.getScene('BattleScene');
-  if (!battleScene) {
-    console.error('❌ BattleScene non trouvée');
-    return;
-  }
-  
-  console.log('🧪 [BattleScene] Test avec tes exemples:');
-  
-  // Simulations des tailles que tu as mentionnées
-  const examples = [
-    { width: 2544, height: 53, desc: "Premier exemple" },
-    { width: 6142, height: 74, desc: "Deuxième exemple" }, 
-    { width: 1118, height: 43, desc: "Troisième exemple" }
-  ];
-  
-  examples.forEach((ex, i) => {
-    console.log(`\n📐 ${ex.desc} (${ex.width}×${ex.height}):`);
-    const structure = battleScene.detectBattleSpriteStructure(ex.width, ex.height, 'test');
-    console.log(`   → ${structure.cols} colonnes de ${structure.frameWidth}×${structure.frameHeight}px`);
-    console.log(`   → ${structure.description} (${structure.method})`);
-  });
-};
-
-console.log('✅ [BattleScene] VERSION COMPLÈTE avec détection automatique des sprites !');
-console.log('🔍 Détection auto: 2544×53 → ~40 cols, 6142×74 → ~96 cols, 1118×43 → ~17 cols');
-console.log('🧪 Tests disponibles:');
-console.log('   - window.testModernBattle() : Test combat complet');
-console.log('   - window.testBattleSpriteDetection(pokemonId, view) : Test détection');
-console.log('   - window.debugAllBattleSprites() : Voir toutes les structures');
-console.log('   - window.testSpriteExamples() : Test avec tes exemples de tailles');
+console.log('✅ [BattleScene] VERSION SERVER-DRIVEN CHARGÉE !');
+console.log('🎯 Système: Messages persistent jusqu\'au prochain événement');
+console.log('🧪 Test: window.testModernBattle()');
