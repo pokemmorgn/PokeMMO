@@ -1,5 +1,5 @@
 // ================================================================================================
-// CLIENT/SRC/GAME/OVERWORLDPOKEMONMANAGER.JS - POKÉMON OVERWORLD SIMPLIFIÉ
+// CLIENT/SRC/GAME/OVERWORLDPOKEMONMANAGER.JS - POKÉMON OVERWORLD AVEC SWING-ANIM
 // ================================================================================================
 
 export class OverworldPokemonManager {
@@ -14,15 +14,40 @@ export class OverworldPokemonManager {
   }
 
   /**
+   * ✅ NOUVEAU: Détermine si une animation utilise la première rangée seulement
+   */
+  isFirstRowOnlyAnimation(animationFile) {
+    // Seulement Swing-Anim.png utilise la première rangée
+    return animationFile.toLowerCase().includes('swing-anim.png');
+  }
+
+  /**
    * Détecte automatiquement la structure du spritesheet
+   * ✅ AMÉLIORATION: Plus de possibilités et meilleure logique
    */
   detectSpriteStructure(width, height) {
+    console.log(`🔍 [OverworldPokemonManager] Détection structure pour ${width}x${height}`);
+    
     const possibilities = [
-      { cols: 6, rows: 8, priority: 1 },
-      { cols: 4, rows: 8, priority: 2 },
-      { cols: 8, rows: 8, priority: 3 },
-      { cols: 5, rows: 8, priority: 4 },
-      { cols: 7, rows: 8, priority: 5 },
+      // Format standard 8 directions
+      { cols: 6, rows: 8, priority: 1, name: "6x8 (standard)" },
+      { cols: 4, rows: 8, priority: 2, name: "4x8 (compact)" },
+      { cols: 8, rows: 8, priority: 3, name: "8x8 (large)" },
+      { cols: 5, rows: 8, priority: 4, name: "5x8 (medium)" },
+      { cols: 7, rows: 8, priority: 5, name: "7x8 (extended)" },
+      
+      // ✅ NOUVEAU: Format Swing-Anim (9x8)
+      { cols: 9, rows: 8, priority: 1, name: "9x8 (swing)" },
+      
+      // Autres formats possibles
+      { cols: 3, rows: 8, priority: 6, name: "3x8 (minimal)" },
+      { cols: 10, rows: 8, priority: 7, name: "10x8 (extended)" },
+      { cols: 12, rows: 8, priority: 8, name: "12x8 (full)" },
+      
+      // Formats 4 directions
+      { cols: 3, rows: 4, priority: 9, name: "3x4 (simple)" },
+      { cols: 4, rows: 4, priority: 10, name: "4x4 (basic)" },
+      { cols: 6, rows: 4, priority: 11, name: "6x4 (medium)" },
     ];
 
     const validOptions = [];
@@ -32,6 +57,18 @@ export class OverworldPokemonManager {
       const frameH = height / p.rows;
       
       if (frameW % 1 === 0 && frameH % 1 === 0) {
+        // Calculer un score de qualité
+        const aspectRatio = frameW / frameH;
+        const isSquareish = Math.abs(aspectRatio - 1) < 0.5;
+        const isReasonableSize = frameW >= 16 && frameW <= 128 && frameH >= 16 && frameH <= 128;
+        
+        let qualityScore = 0;
+        
+        if (isSquareish) qualityScore += 20;
+        if (isReasonableSize) qualityScore += 15;
+        if (p.rows === 8) qualityScore += 25;
+        if (p.cols > 12) qualityScore -= 10;
+        
         validOptions.push({
           cols: p.cols,
           rows: p.rows,
@@ -39,7 +76,9 @@ export class OverworldPokemonManager {
           frameHeight: frameH,
           totalFrames: p.cols * p.rows,
           priority: p.priority,
-          squareBonus: Math.abs(frameW - frameH) < 5 ? 10 : 0
+          qualityScore: qualityScore,
+          name: p.name,
+          aspectRatio: aspectRatio
         });
       }
     });
@@ -50,17 +89,25 @@ export class OverworldPokemonManager {
         cols: Math.round(width / 32),
         rows: 8,
         frameWidth: Math.round(width / Math.round(width / 32)),
-        frameHeight: Math.round(height / 8)
+        frameHeight: Math.round(height / 8),
+        name: "fallback"
       };
     }
 
+    // Tri par score de qualité puis priorité
     validOptions.sort((a, b) => {
-      const scoreA = (10 - a.priority) + a.squareBonus;
-      const scoreB = (10 - b.priority) + b.squareBonus;
-      return scoreB - scoreA;
+      if (b.qualityScore !== a.qualityScore) {
+        return b.qualityScore - a.qualityScore;
+      }
+      return a.priority - b.priority;
     });
 
-    return validOptions[0];
+    const best = validOptions[0];
+    
+    console.log(`✅ [OverworldPokemonManager] Structure détectée: ${best.name}`);
+    console.log(`📊 Frames: ${best.frameWidth}x${best.frameHeight} (${best.totalFrames} total)`);
+    
+    return best;
   }
 
   /**
@@ -139,9 +186,90 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * Crée les animations pour un Pokémon
+   * ✅ MODIFIÉ: Crée les animations avec support première rangée pour Swing-Anim
    */
   createPokemonAnimations(pokemonId, spriteKey, structure, animationFile) {
+    const isFirstRowOnly = this.isFirstRowOnlyAnimation(animationFile);
+    
+    console.log(`🎬 [OverworldPokemonManager] Création animations ${pokemonId} - Mode: ${isFirstRowOnly ? 'Première rangée (Swing)' : 'Standard'}`);
+
+    if (isFirstRowOnly) {
+      this.createSwingAnimations(pokemonId, spriteKey, structure, animationFile);
+    } else {
+      this.createStandardAnimations(pokemonId, spriteKey, structure, animationFile);
+    }
+  }
+
+  /**
+   * ✅ NOUVEAU: Animations Swing-Anim utilisant seulement la première rangée
+   */
+  createSwingAnimations(pokemonId, spriteKey, structure, animationFile) {
+    const animType = animationFile.replace('-Anim.png', '').toLowerCase();
+    
+    // ✅ Directions mappées sur les colonnes de la première rangée (9 colonnes)
+    const directions = [
+      { name: 'down', col: 0 },
+      { name: 'down-left', col: 1 },
+      { name: 'left', col: 2 },
+      { name: 'up-left', col: 3 },
+      { name: 'up', col: 4 },
+      { name: 'up-right', col: 5 },
+      { name: 'right', col: 6 },
+      { name: 'down-right', col: 7 }
+      // Colonne 8 = frame bonus/transition
+    ];
+
+    directions.forEach(dir => {
+      if (dir.col < structure.cols) {
+        const walkKey = `overworld_pokemon_${pokemonId}_${animType}_${dir.name}`;
+        const idleKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${dir.name}`;
+        
+        // Frame de base pour cette direction (première rangée seulement)
+        const baseFrame = dir.col; // Rangée 0, colonne dir.col
+        
+        // Animation de marche/vol (peut utiliser plusieurs frames si disponible)
+        if (!this.scene.anims.exists(walkKey)) {
+          // Pour Swing-Anim, on peut utiliser la frame actuelle + la frame bonus (col 8) pour plus de fluidité
+          const frames = [baseFrame];
+          if (structure.cols >= 9) {
+            frames.push(8); // Frame bonus
+          }
+          
+          this.scene.anims.create({
+            key: walkKey,
+            frames: frames.map(frameIndex => ({
+              key: spriteKey,
+              frame: frameIndex
+            })),
+            frameRate: 6, // Plus lent pour le vol
+            repeat: -1
+          });
+        }
+        
+        // Animation idle (toujours la première frame de la direction)
+        if (!this.scene.anims.exists(idleKey)) {
+          this.scene.anims.create({
+            key: idleKey,
+            frames: [{
+              key: spriteKey,
+              frame: baseFrame
+            }],
+            frameRate: 1,
+            repeat: 0
+          });
+        }
+        
+        console.log(`✅ Direction ${dir.name}: frame ${baseFrame} (Swing mode)`);
+      }
+    });
+
+    console.log(`✅ [OverworldPokemonManager] Animations Swing créées pour Pokémon ${pokemonId} (${animType})`);
+  }
+
+  /**
+   * ✅ EXISTANT: Animations standard (8 rangées) pour Walk-Anim et autres
+   */
+  createStandardAnimations(pokemonId, spriteKey, structure, animationFile) {
     const directions = [
       { name: 'down', row: 0 },
       { name: 'down-right', row: 1 },
@@ -156,38 +284,40 @@ export class OverworldPokemonManager {
     const animType = animationFile.replace('-Anim.png', '').toLowerCase();
 
     directions.forEach(dir => {
-      const walkKey = `overworld_pokemon_${pokemonId}_${animType}_${dir.name}`;
-      const idleKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${dir.name}`;
-      
-      const startFrame = dir.row * structure.cols;
-      const endFrame = startFrame + (structure.cols - 1);
-      
-      if (!this.scene.anims.exists(walkKey)) {
-        this.scene.anims.create({
-          key: walkKey,
-          frames: this.scene.anims.generateFrameNumbers(spriteKey, {
-            start: startFrame,
-            end: endFrame
-          }),
-          frameRate: 8,
-          repeat: -1
-        });
-      }
-      
-      if (!this.scene.anims.exists(idleKey)) {
-        this.scene.anims.create({
-          key: idleKey,
-          frames: [{
-            key: spriteKey,
-            frame: startFrame
-          }],
-          frameRate: 1,
-          repeat: 0
-        });
+      if (dir.row < structure.rows) {
+        const walkKey = `overworld_pokemon_${pokemonId}_${animType}_${dir.name}`;
+        const idleKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${dir.name}`;
+        
+        const startFrame = dir.row * structure.cols;
+        const endFrame = startFrame + (structure.cols - 1);
+        
+        if (!this.scene.anims.exists(walkKey)) {
+          this.scene.anims.create({
+            key: walkKey,
+            frames: this.scene.anims.generateFrameNumbers(spriteKey, {
+              start: startFrame,
+              end: endFrame
+            }),
+            frameRate: 8,
+            repeat: -1
+          });
+        }
+        
+        if (!this.scene.anims.exists(idleKey)) {
+          this.scene.anims.create({
+            key: idleKey,
+            frames: [{
+              key: spriteKey,
+              frame: startFrame
+            }],
+            frameRate: 1,
+            repeat: 0
+          });
+        }
       }
     });
 
-    console.log(`✅ [OverworldPokemonManager] Animations créées pour Pokémon ${pokemonId} (${animType})`);
+    console.log(`✅ [OverworldPokemonManager] Animations standard créées pour Pokémon ${pokemonId} (${animType})`);
   }
 
   /**
@@ -281,8 +411,7 @@ export class OverworldPokemonManager {
     const pokemon = this.overworldPokemon.get(id);
     
     if (!pokemon) {
-      console.warn(`⚠️ [OverworldPokemonManager] Pokémon overworld ${id} non trouvé`);
-      return;
+      return; // Ignorer silencieusement les updates pour des Pokémon non locaux
     }
     
     // Mise à jour des cibles pour interpolation fluide
