@@ -300,7 +300,7 @@ if (pokemon.isMoving) {
     this.broadcastPokemonUpdate(pokemon);
   }
 }
-
+  }
   private updatePatrolMovement(pokemon: OverworldPokemonData, timeSinceLastMove: number, deltaTime: number): void {
     if (!pokemon.patrolPoints || pokemon.patrolPoints.length === 0) {
       this.updateRandomMovement(pokemon, timeSinceLastMove, deltaTime);
