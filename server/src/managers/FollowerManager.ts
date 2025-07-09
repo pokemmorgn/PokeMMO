@@ -93,7 +93,7 @@ export class FollowerManager {
    * ✅ NOUVEAU: Calcule la position derrière le joueur au spawn
    */
   private calculateBehindPosition(playerX: number, playerY: number, direction: string): { x: number, y: number } {
-    const distance = 48; // ✅ CORRIGÉ: Distance fixe plus raisonnable (1.5 cases)
+    const distance = 24; // ✅ CORRIGÉ: Distance réduite (moins d'une case)
     
     switch (direction) {
       case 'up':
