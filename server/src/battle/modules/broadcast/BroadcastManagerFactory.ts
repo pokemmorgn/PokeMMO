@@ -1,8 +1,8 @@
 // server/src/battle/modules/broadcast/BroadcastManagerFactory.ts
 // FACTORY + PRESETS POUR BROADCAST MANAGER
 
-import { BroadcastManager, BATTLE_TIMINGS, BattleEvent } from './BroadcastManager';
-import { BattleGameState, PlayerRole } from '../types/BattleTypes';
+import { BroadcastManager, BATTLE_TIMINGS, BattleEvent } from '../BroadcastManager';
+import { BattleGameState, PlayerRole } from '../../types/BattleTypes';
 
 // === PRESETS DE CONFIGURATION ===
 
