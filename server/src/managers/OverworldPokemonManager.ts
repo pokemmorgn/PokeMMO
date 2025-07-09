@@ -260,43 +260,46 @@ switch (pokemon.direction) {
   }
 
   private updateRandomMovement(pokemon: OverworldPokemonData, timeSinceLastMove: number, deltaTime: number): void {
-    const moveInterval = 2000 + Math.random() * 3000;
-const dx = target.x - pokemon.x;
-const dy = target.y - pokemon.y;
-const distance = Math.sqrt(dx * dx + dy * dy);
-const speed = pokemon.speed || 80; // pixels/seconde
-const moveDuration = distance / speed * 1000; // ms
-    if (pokemon.isMoving) {
-      const moveProgress = (Date.now() - (pokemon.moveStartTime || 0)) / (pokemon.moveDuration || 1000);
-      if (moveProgress >= 1.0) {
-        if (pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
-          pokemon.x = pokemon.targetX;
-          pokemon.y = pokemon.targetY;
-        }
-        pokemon.isMoving = false;
-        pokemon.lastMoveTime = Date.now();
-        pokemon.lastDirectionFrame = pokemon.direction;
-        this.broadcastPokemonUpdate(pokemon);
-        console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à destination (${pokemon.x}, ${pokemon.y})`);
-      } else {
-        if (Math.random() < 0.1) {
-          this.broadcastPokemonUpdate(pokemon);
-        }
-      }
-    } else {
-      if (timeSinceLastMove > moveInterval) {
-        const target = this.calculateFluidMovementTarget(pokemon);
-        pokemon.isMoving = true;
-        pokemon.targetX = target.x;
-        pokemon.targetY = target.y;
-        pokemon.moveStartTime = Date.now();
-        pokemon.moveDuration = moveDuration;
-        pokemon.lastMoveTime = Date.now();
-        console.log(`🚀 [OverworldPokemonManager] ${pokemon.name} commence mouvement: (${pokemon.x}, ${pokemon.y}) → (${target.x}, ${target.y})`);
-        this.broadcastPokemonUpdate(pokemon);
-      }
+   const moveInterval = 2000 + Math.random() * 3000;
+
+if (pokemon.isMoving) {
+  const moveProgress = (Date.now() - (pokemon.moveStartTime || 0)) / (pokemon.moveDuration || 1000);
+  if (moveProgress >= 1.0) {
+    if (pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
+      pokemon.x = pokemon.targetX;
+      pokemon.y = pokemon.targetY;
+    }
+    pokemon.isMoving = false;
+    pokemon.lastMoveTime = Date.now();
+    pokemon.lastDirectionFrame = pokemon.direction;
+    this.broadcastPokemonUpdate(pokemon);
+    console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à destination (${pokemon.x}, ${pokemon.y})`);
+  } else {
+    if (Math.random() < 0.1) {
+      this.broadcastPokemonUpdate(pokemon);
     }
   }
+} else {
+  if (timeSinceLastMove > moveInterval) {
+    const target = this.calculateFluidMovementTarget(pokemon);
+
+    // ↓↓↓ Calculer distance et durée ici, après avoir le target
+    const dx = target.x - pokemon.x;
+    const dy = target.y - pokemon.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const speed = pokemon.speed || 80; // pixels/seconde
+    const moveDuration = distance / speed * 1000; // ms
+
+    pokemon.isMoving = true;
+    pokemon.targetX = target.x;
+    pokemon.targetY = target.y;
+    pokemon.moveStartTime = Date.now();
+    pokemon.moveDuration = moveDuration;
+    pokemon.lastMoveTime = Date.now();
+    console.log(`🚀 [OverworldPokemonManager] ${pokemon.name} commence mouvement: (${pokemon.x}, ${pokemon.y}) → (${target.x}, ${target.y})`);
+    this.broadcastPokemonUpdate(pokemon);
+  }
+}
 
   private updatePatrolMovement(pokemon: OverworldPokemonData, timeSinceLastMove: number, deltaTime: number): void {
     if (!pokemon.patrolPoints || pokemon.patrolPoints.length === 0) {
