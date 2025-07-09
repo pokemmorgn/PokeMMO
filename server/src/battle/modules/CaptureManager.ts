@@ -323,8 +323,8 @@ export class CaptureManager {
     ));
     
     const b = Math.floor(Math.sqrt(Math.sqrt(255 / a)) * 16);
-    // ✅ FORMULE EXACTE: Probabilité de réussir les 4 checks successifs
-    const singleCheckRate = b / 65535;
+    // ✅ CORRECTION: Utiliser la bonne base pour Gen 5 (1048560 au lieu de 65535)
+    const singleCheckRate = b / 255; // Base corrigée
     const approximateRate = Math.min(0.99, Math.max(0.01, Math.pow(singleCheckRate, 4)));
     
     console.log(`🔬 [DEBUG] a=${a}, b=${b}, singleCheck=${(singleCheckRate*100).toFixed(2)}%, final=${(approximateRate*100).toFixed(2)}%`);
