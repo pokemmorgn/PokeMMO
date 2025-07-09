@@ -128,14 +128,14 @@ export class BattleInventoryUI extends InventoryUI {
         transform: translate(-50%, -50%) scale(0.95); /* ✅ Centrage + scale */
         width: 600px; /* Plus compact */
         height: 500px; /* Plus petit */
-        background: linear-gradient(145deg, #3d1a1a, #2a0f0f); /* Thème rouge combat */
-        border: 3px solid #e74c3c; /* Rouge combat */
+        background: linear-gradient(145deg, #2a3f5f, #1e2d42); /* Thème bleu habituel */
+        border: 3px solid #4a90e2; /* Bleu principal */
         border-radius: 16px;
         display: flex;
         flex-direction: column;
         color: white;
         font-family: 'Segoe UI', Arial, sans-serif;
-        box-shadow: 0 15px 40px rgba(231, 76, 60, 0.4); /* Lueur rouge */
+        box-shadow: 0 15px 40px rgba(74, 144, 226, 0.4); /* Lueur bleue */
         transition: transform 0.2s ease;
       }
 
@@ -144,13 +144,13 @@ export class BattleInventoryUI extends InventoryUI {
       }
 
       .battle-inventory-header {
-        background: linear-gradient(90deg, #e74c3c, #c0392b); /* Rouge dégradé */
+        background: linear-gradient(90deg, #4a90e2, #357abd); /* Dégradé bleu habituel */
         padding: 12px 20px; /* Plus compact */
         border-radius: 13px 13px 0 0;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 2px solid #c0392b;
+        border-bottom: 2px solid #357abd;
       }
 
       .battle-inventory-title {
@@ -191,7 +191,7 @@ export class BattleInventoryUI extends InventoryUI {
       .battle-pocket-tabs {
         display: flex;
         background: rgba(0, 0, 0, 0.3);
-        border-bottom: 2px solid #c0392b;
+        border-bottom: 2px solid #357abd;
         padding: 0;
       }
 
@@ -210,14 +210,14 @@ export class BattleInventoryUI extends InventoryUI {
       }
 
       .battle-pocket-tab:hover {
-        background: rgba(231, 76, 60, 0.2);
-        border-bottom-color: #e74c3c;
+        background: rgba(74, 144, 226, 0.2);
+        border-bottom-color: #4a90e2;
       }
 
       .battle-pocket-tab.active {
-        background: rgba(231, 76, 60, 0.4);
-        border-bottom-color: #f39c12;
-        color: #f39c12;
+        background: rgba(74, 144, 226, 0.4);
+        border-bottom-color: #87ceeb;
+        color: #87ceeb;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
       }
 
@@ -258,16 +258,16 @@ export class BattleInventoryUI extends InventoryUI {
       }
 
       .battle-items-grid .item-slot:hover {
-        background: rgba(231, 76, 60, 0.3);
-        border-color: #e74c3c;
+        background: rgba(74, 144, 226, 0.3);
+        border-color: #4a90e2;
         transform: translateY(-2px) scale(1.02);
-        box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
       }
 
       .battle-items-grid .item-slot.selected {
-        background: rgba(231, 76, 60, 0.5);
-        border-color: #f39c12;
-        box-shadow: 0 0 20px rgba(243, 156, 18, 0.6);
+        background: rgba(74, 144, 226, 0.5);
+        border-color: #87ceeb;
+        box-shadow: 0 0 20px rgba(135, 206, 235, 0.6);
         transform: scale(1.05);
       }
 
@@ -318,7 +318,7 @@ export class BattleInventoryUI extends InventoryUI {
       .battle-inventory-footer {
         background: rgba(0, 0, 0, 0.4);
         padding: 12px 20px;
-        border-top: 2px solid #c0392b;
+        border-top: 2px solid #357abd;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -350,14 +350,14 @@ export class BattleInventoryUI extends InventoryUI {
       }
 
       .battle-inventory-btn.primary {
-        background: linear-gradient(45deg, #e74c3c, #c0392b);
-        box-shadow: 0 3px 10px rgba(231, 76, 60, 0.4);
+        background: linear-gradient(45deg, #4a90e2, #357abd);
+        box-shadow: 0 3px 10px rgba(74, 144, 226, 0.4);
       }
 
       .battle-inventory-btn.primary:hover:not(:disabled) {
-        background: linear-gradient(45deg, #c0392b, #a93226);
+        background: linear-gradient(45deg, #357abd, #2e5bb8);
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(231, 76, 60, 0.6);
+        box-shadow: 0 5px 15px rgba(74, 144, 226, 0.6);
       }
 
       .battle-inventory-btn.primary:disabled {
@@ -405,12 +405,12 @@ export class BattleInventoryUI extends InventoryUI {
       }
 
       .battle-items-grid::-webkit-scrollbar-thumb {
-        background: rgba(231, 76, 60, 0.6);
+        background: rgba(74, 144, 226, 0.6);
         border-radius: 3px;
       }
 
       .battle-items-grid::-webkit-scrollbar-thumb:hover {
-        background: rgba(231, 76, 60, 0.8);
+        background: rgba(74, 144, 226, 0.8);
       }
 
       /* === RESPONSIVE COMBAT === */
