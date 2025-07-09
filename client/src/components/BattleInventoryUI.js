@@ -472,10 +472,16 @@ export class BattleInventoryUI extends InventoryUI {
   // === OVERRIDE: EVENT LISTENERS SPÉCIALISÉS ===
   
   setupEventListeners() {
-    // Fermeture
-    this.overlay.querySelector('.battle-inventory-close-btn').addEventListener('click', () => {
-      this.hide();
-    });
+    // Fermeture avec vérification
+    const closeBtn = this.overlay.querySelector('.battle-inventory-close-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        console.log('🔴 [BattleInventory] Croix cliquée');
+        this.hide();
+      });
+    } else {
+      console.error('❌ [BattleInventory] Bouton close non trouvé');
+    }
 
     // ESC pour fermer
     const escHandler = (e) => {
@@ -710,7 +716,7 @@ export class BattleInventoryUI extends InventoryUI {
     }
 
     const item = this.selectedItem;
-    console.log(`⚔️ Action combat: ${item.itemId} (${this.currentPocket})`);
+    console.log(`⚔️ [BattleInventory] Action combat: ${item.itemId} (${this.currentPocket})`);
 
     if (this.currentPocket === 'balls') {
       this.handleCapture(item);
@@ -720,9 +726,12 @@ export class BattleInventoryUI extends InventoryUI {
       this.handleBattleItem(item);
     }
 
-    // ✅ Fermeture automatique après action
+    // ✅ Fermeture automatique avec debug
     if (this.autoCloseAfterAction) {
-      this.hide();
+      console.log('🔒 [BattleInventory] Fermeture automatique...');
+      setTimeout(() => {
+        this.hide();
+      }, 300); // Petit délai pour voir l'action
     }
   }
 
@@ -813,8 +822,12 @@ export class BattleInventoryUI extends InventoryUI {
   // === OVERRIDE: MASQUAGE AVEC CLEANUP ===
   
   hide() {
-    if (!this.isVisible) return;
+    if (!this.isVisible) {
+      console.log('ℹ️ [BattleInventory] Déjà masqué');
+      return;
+    }
     
+    console.log('🔒 [BattleInventory] Fermeture...');
     this.isVisible = false;
     this.overlay.classList.add('hidden');
     this.selectedItem = null;
@@ -828,7 +841,8 @@ export class BattleInventoryUI extends InventoryUI {
 
     // ✅ Notifier BattleScene que l'inventaire est fermé
     if (this.battleContext.battleScene) {
-      this.battleContext.battleScene.hideActionButtons();
+      // Ne pas masquer les boutons, juste notifier
+      console.log('📢 [BattleInventory] Notification BattleScene');
     }
   }
 
