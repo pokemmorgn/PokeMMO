@@ -319,7 +319,14 @@ export class CaptureManager {
     const b = Math.floor(Math.sqrt(Math.sqrt(255 / a)) * 16);
     const approximateRate = Math.min(0.99, Math.max(0.01, Math.pow(b / 65535, 4)));
     
-    console.log(`🧮 [CaptureManager] Taux: ${(approximateRate * 100).toFixed(1)}% (Ball: ${ballEffect.description})`);
+    console.log(`🧮 [CaptureManager] DÉTAIL CAPTURE:`, {
+      pokemon: pokemon.name,
+      currentHp: pokemon.currentHp,
+      maxHp: pokemon.maxHp,
+      hpRatio: ((pokemon.currentHp / pokemon.maxHp) * 100).toFixed(1) + '%',
+      ballEffect: ballEffect.description,
+      taux: (approximateRate * 100).toFixed(1) + '%'
+    });  
     
     return approximateRate;
   }
