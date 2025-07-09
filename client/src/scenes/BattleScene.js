@@ -36,7 +36,9 @@ export class BattleScene extends Phaser.Scene {
     this.currentPlayerPokemon = null;
     this.currentOpponentPokemon = null;
     this.previousUIState = null;
-    
+    this.spriteStructures = new Map(); // pokemonId_view -> structure
+this.loadingSprites = new Set(); // Cache des sprites en cours de chargement
+this.loadedSprites = new Set(); // Cache des sprites chargés
     // Positions optimisées
     this.pokemonPositions = {
       player: { x: 0.22, y: 0.75 },
@@ -90,7 +92,6 @@ export class BattleScene extends Phaser.Scene {
       this.load.image('battlebg01', 'assets/battle/bg_battle_01.png');
     }
     
-    this.loadPokemonSpritesheets();
   }
 
   create() {
@@ -119,6 +120,94 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  detectBattleSpriteStructure(width, height, view) {
+  console.log(`🔍 [BattleScene] Détection structure pour ${width}×${height} (${view})`);
+  
+  const rows = 1;
+  const commonFrameWidths = [32, 48, 64, 80, 96, 128];
+  const validOptions = [];
+  
+  commonFrameWidths.forEach(frameWidth => {
+    if (width % frameWidth === 0) {
+      const cols = width / frameWidth;
+      const frameHeight = height / rows;
+      
+      if (cols >= 10 && cols <= 200 && frameHeight >= 32) {
+        validOptions.push({
+          cols: cols,
+          rows: rows,
+          frameWidth: frameWidth,
+          frameHeight: frameHeight,
+          totalFrames: cols,
+          description: `${cols} frames (${frameWidth}×${frameHeight}px)`,
+          score: this.calculateSpriteScore(frameWidth, frameHeight, cols, rows),
+          method: 'common_width'
+        });
+      }
+    }
+  });
+  
+  // Si pas de largeur courante, essayer division auto
+  if (validOptions.length === 0) {
+    for (let frameWidth = 32; frameWidth <= 128; frameWidth += 4) {
+      if (width % frameWidth === 0) {
+        const cols = width / frameWidth;
+        if (cols >= 10 && cols <= 200) {
+          validOptions.push({
+            cols: cols,
+            rows: rows,
+            frameWidth: frameWidth,
+            frameHeight: height,
+            totalFrames: cols,
+            description: `${cols} frames auto (${frameWidth}×${height}px)`,
+            score: this.calculateSpriteScore(frameWidth, height, cols, rows),
+            method: 'auto_division'
+          });
+        }
+      }
+    }
+  }
+  
+  // Fallback
+  if (validOptions.length === 0) {
+    const estimatedCols = Math.round(width / 64);
+    const frameWidth = width / estimatedCols;
+    
+    return {
+      cols: estimatedCols,
+      rows: rows,
+      frameWidth: Math.floor(frameWidth),
+      frameHeight: height,
+      totalFrames: estimatedCols,
+      description: `${estimatedCols} frames estimé`,
+      method: 'fallback_estimate'
+    };
+  }
+  
+  validOptions.sort((a, b) => b.score - a.score);
+  return validOptions[0];
+}
+
+  calculateSpriteScore(frameW, frameH, cols, rows) {
+  let score = 0;
+  
+  const commonSizes = [48, 64, 80, 96];
+  if (commonSizes.includes(frameW)) score += 30;
+  if (commonSizes.includes(frameH)) score += 20;
+  
+  const aspectRatio = frameW / frameH;
+  if (aspectRatio >= 0.8 && aspectRatio <= 1.2) score += 25;
+  else if (aspectRatio >= 0.6 && aspectRatio <= 1.5) score += 15;
+  
+  if (rows === 1) score += 20;
+  if (cols >= 20 && cols <= 50) score += 15;
+  else if (cols >= 10 && cols <= 100) score += 10;
+  
+  if (frameW < 32 || frameW > 200) score -= 20;
+  if (frameH < 32 || frameH > 200) score -= 20;
+  
+  return score;
+}
   // === ENVIRONNEMENT ===
 
   createBattleEnvironment() {
@@ -946,40 +1035,92 @@ export class BattleScene extends Phaser.Scene {
     pokemonSpriteConfig = this.cache.json.get('pokemonSpriteConfig');
   }
 
-  async loadPokemonSprite(pokemonId, view = 'front') {
-    const spriteKey = `pokemon_${pokemonId.toString().padStart(3, '0')}_${view}`;
+ async loadPokemonSprite(pokemonId, view = 'front') {
+  const spriteKey = `pokemon_${pokemonId.toString().padStart(3, '0')}_${view}`;
+  const structureKey = `${pokemonId}_${view}`;
+  
+  if (this.loadedSprites.has(spriteKey)) {
+    return spriteKey;
+  }
+  
+  if (this.loadingSprites.has(spriteKey)) {
+    return new Promise((resolve) => {
+      const checkLoaded = () => {
+        if (this.loadedSprites.has(spriteKey)) {
+          resolve(spriteKey);
+        } else {
+          setTimeout(checkLoaded, 50);
+        }
+      };
+      checkLoaded();
+    });
+  }
+  
+  this.loadingSprites.add(spriteKey);
+  
+  try {
+    const paddedId = pokemonId.toString().padStart(3, '0');
+    const imagePath = `assets/pokemon/${paddedId}/${view}.png`;
     
-    if (this.textures.exists(spriteKey)) {
-      return spriteKey;
-    }
+    // Charger et détecter automatiquement
+    const tempKey = `${spriteKey}_temp`;
     
-    try {
-      if (!pokemonSpriteConfig) {
-        await this.loadPokemonSpritesheets();
-      }
+    await new Promise((resolve, reject) => {
+      this.load.image(tempKey, imagePath);
       
-      const config = pokemonSpriteConfig[pokemonId] || pokemonSpriteConfig.default;
-      const paddedId = pokemonId.toString().padStart(3, '0');
-      const imagePath = `assets/pokemon/${paddedId}/${view}.png`;
-      
-      this.load.spritesheet(spriteKey, imagePath, {
-        frameWidth: config.spriteWidth,
-        frameHeight: config.spriteHeight
-      });
-      
-      await new Promise((resolve, reject) => {
-        this.load.once('complete', resolve);
-        this.load.once('loaderror', reject);
+      this.load.once('complete', () => {
+        const texture = this.textures.get(tempKey);
+        const width = texture.source[0].width;
+        const height = texture.source[0].height;
+        
+        // Détection auto : assumer 1 ligne, calculer colonnes
+        let cols = Math.round(width / 64); // Estimer 64px par frame
+        if (width % 64 !== 0) {
+          // Essayer d'autres tailles
+          for (let frameW = 48; frameW <= 96; frameW += 8) {
+            if (width % frameW === 0) {
+              cols = width / frameW;
+              break;
+            }
+          }
+        }
+        
+        const frameWidth = Math.floor(width / cols);
+        const frameHeight = height;
+        
+        console.log(`📐 [BattleScene] ${spriteKey}: ${cols} colonnes de ${frameWidth}×${frameHeight}px`);
+        
+        // Charger comme spritesheet
+        this.load.spritesheet(spriteKey, imagePath, {
+          frameWidth: frameWidth,
+          frameHeight: frameHeight
+        });
+        
+        this.load.once('complete', () => {
+          this.textures.remove(tempKey);
+          this.loadedSprites.add(spriteKey);
+          this.loadingSprites.delete(spriteKey);
+          resolve(spriteKey);
+        });
+        
         this.load.start();
       });
       
-      return this.textures.exists(spriteKey) ? spriteKey : this.createFallbackSprite(view);
+      this.load.once('loaderror', () => {
+        this.loadingSprites.delete(spriteKey);
+        reject();
+      });
       
-    } catch (error) {
-      console.error(`[BattleScene] ❌ Erreur chargement ${spriteKey}:`, error);
-      return this.createFallbackSprite(view);
-    }
+      this.load.start();
+    });
+    
+    return spriteKey;
+    
+  } catch (error) {
+    this.loadingSprites.delete(spriteKey);
+    return this.createFallbackSprite(view);
   }
+}
 
   createFallbackSprite(view) {
     const fallbackKey = `pokemon_placeholder_${view}`;
