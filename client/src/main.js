@@ -347,8 +347,7 @@ const config = {
     NoctherbCave2BisScene,
     WraithmoorScene,
     WraithmoorManor1Scene,
-    WraithmoorCimeteryScene,
-    { scene: BattleScene, active: false, visible: false }
+    WraithmoorCimeteryScene
   ],
   physics: {
     default: 'arcade',
@@ -534,6 +533,15 @@ window.initBattleSystemWhenReady = async function() {
       return false;
     }
 
+    // ✅ NOUVEAU : Ajouter BattleScene dynamiquement
+    if (!window.game.scene.getScene('BattleScene')) {
+      console.log("🎬 [MAIN] Ajout dynamique BattleScene...");
+      window.game.scene.add('BattleScene', BattleScene, false);
+      console.log("✅ [MAIN] BattleScene ajoutée dynamiquement");
+    } else {
+      console.log("ℹ️ [MAIN] BattleScene déjà présente");
+    }
+
     console.log("🚀 [MAIN] Tous pré-requis OK, initialisation BattleSystem...");
     window.battleSystem = new BattleIntegration(window);
     const battleInitSuccess = await window.battleSystem.initialize(
@@ -554,7 +562,6 @@ window.initBattleSystemWhenReady = async function() {
     return false;
   }
 };
-
 // ✅ NOUVEAU : Système de retry intelligent
 let battleInitAttempts = 0;
 const maxBattleInitAttempts = 15;
