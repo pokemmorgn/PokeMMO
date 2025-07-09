@@ -1,0 +1,73 @@
+{
+  "areas": {
+    "village": {
+      "name": "Village",
+      "boundaries": {
+        "minX": 100,
+        "maxX": 900,
+        "minY": 100,
+        "maxY": 700
+      },
+      "maxPokemon": 3,
+      "spawnInterval": 15000,
+      "pokemon": [
+        {
+          "pokemonId": 17,
+          "name": "Roucoups",
+          "spawnChance": 0.6,
+          "maxCount": 2,
+          "isShiny": false,
+          "movePattern": "random",
+          "speed": 40,
+          "animations": {
+            "idle": "Fly-Anim.png",
+            "walk": "Fly-Anim.png",
+            "sleep": "Sleep-Anim.png"
+          },
+          "currentAnimation": "walk",
+          "patrolPoints": [
+            { "x": 200, "y": 200 },
+            { "x": 400, "y": 200 },
+            { "x": 400, "y": 400 },
+            { "x": 200, "y": 400 }
+          ]
+        }
+      ]
+    },
+    "lavandia": {
+      "name": "Lavandia",
+      "boundaries": {
+        "minX": 50,
+        "maxX": 950,
+        "minY": 50,
+        "maxY": 750
+      },
+      "maxPokemon": 2,
+      "spawnInterval": 20000,
+      "pokemon": [
+        {
+          "pokemonId": 92,
+          "name": "Fantominus",
+          "spawnChance": 0.4,
+          "maxCount": 1,
+          "isShiny": false,
+          "movePattern": "random",
+          "speed": 30,
+          "animations": {
+            "idle": "Walk-Anim.png",
+            "walk": "Walk-Anim.png",
+            "sleep": "Sleep-Anim.png"
+          },
+          "currentAnimation": "walk"
+        }
+      ]
+    }
+  },
+  "globalSettings": {
+    "updateInterval": 1000,
+    "maxPokemonTotal": 10,
+    "defaultSpeed": 50,
+    "defaultAnimation": "walk",
+    "debugMode": false
+  }
+}
