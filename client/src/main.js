@@ -438,11 +438,11 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
 
     console.log("🎮 Lancement de Phaser avec chargement étendu...");
 
-    window.extendedLoadingScreen = LoadingScreen.createGlobal({
-      enabled: true,
-      fastMode: false,
-      theme: 'extended'
-    });
+window.globalLoadingScreen = LoadingScreen.createGlobal({
+  enabled: true,
+  fastMode: false,
+  theme: 'uiInit'
+});
 
     window.extendedLoadingScreen.addCustomTheme('extended', {
       title: 'PokeWorld MMO',
