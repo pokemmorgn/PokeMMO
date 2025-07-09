@@ -307,66 +307,65 @@ export class CaptureManager {
   
   // === CALCULS DE CAPTURE ===
   
-  private async calculateCaptureRate(pokemon: Pokemon, ballType: string): Promise<number> {
-    const pokemonData = await getPokemonById(pokemon.id);
-    const baseCaptureRate = (pokemonData as any)?.captureRate || 45;
+private async calculateCaptureRate(pokemon: Pokemon, ballType: string): Promise<number> {
+  const pokemonData = await getPokemonById(pokemon.id);
+  const baseCaptureRate = (pokemonData as any)?.captureRate || 45;
+  
+  // Effet de la Ball via BallManager
+  const ballEffect = this.ballManager.calculateBallEffect(ballType, pokemon);
+  
+  // ✅ FORMULE GEN 5 AUTHENTIQUE
+  const hpTerm = (3 * pokemon.maxHp - 2 * pokemon.currentHp);
+  const statusMultiplier = this.getStatusMultiplier(pokemon.status || 'normal');
+  
+  const x = Math.max(1, Math.floor(
+    (hpTerm * baseCaptureRate * ballEffect.multiplier * statusMultiplier) / (3 * pokemon.maxHp)
+  ));
+  
+  // ✅ PROBABILITÉ FINALE GEN 5 : (X/255)^0.75
+  const approximateRate = Math.min(0.99, Math.max(0.01, Math.pow(x / 255, 0.75)));
+  
+  console.log(`🔬 [DEBUG Gen 5] X=${x}, taux final=${(approximateRate*100).toFixed(2)}%`);
+  
+  console.log(`🧮 [CaptureManager] DÉTAIL CAPTURE:`, {
+    pokemon: pokemon.name,
+    currentHp: pokemon.currentHp,
+    maxHp: pokemon.maxHp,
+    hpRatio: ((pokemon.currentHp / pokemon.maxHp) * 100).toFixed(1) + '%',
+    ballEffect: ballEffect.description,
+    taux: (approximateRate * 100).toFixed(1) + '%'
+  });  
+  
+  return approximateRate;
+}
+
+private performFourChecks(captureRate: number): { captured: boolean; shakeCount: number; checks: boolean[] } {
+  const X = captureRate * 255;
+  const Y = Math.floor(Math.sqrt(Math.sqrt(65536 * X / 255)) * 16);
+  
+  const checks: boolean[] = [];
+  let shakeCount = 0;
+  
+  // ✅ GEN 5 = 3 CHECKS, PAS 4 !
+  for (let i = 0; i < 3; i++) {
+    const randomValue = Math.floor(Math.random() * 65536);
+    const checkPassed = randomValue < Y;
     
-    // Effet de la Ball via BallManager
-    const ballEffect = this.ballManager.calculateBallEffect(ballType, pokemon);
+    checks.push(checkPassed);
     
-    // Formule Gen 5 exacte
-    const hpTerm = (3 * pokemon.maxHp - 2 * pokemon.currentHp);
-    const statusMultiplier = this.getStatusMultiplier(pokemon.status || 'normal');
-    
-    const a = Math.max(1, Math.floor(
-      (hpTerm * baseCaptureRate * ballEffect.multiplier * statusMultiplier) / (3 * pokemon.maxHp)
-    ));
-    
-    const b = Math.floor(Math.sqrt(Math.sqrt(255 / a)) * 16);
-    // ✅ CORRECTION: Utiliser la bonne base pour Gen 5 (1048560 au lieu de 65535)
-    const singleCheckRate = b / 255; // Base corrigée
-    const approximateRate = Math.min(0.99, Math.max(0.01, Math.pow(singleCheckRate, 4)));
-    
-    console.log(`🔬 [DEBUG] a=${a}, b=${b}, singleCheck=${(singleCheckRate*100).toFixed(2)}%, final=${(approximateRate*100).toFixed(2)}%`);
-    
-    console.log(`🧮 [CaptureManager] DÉTAIL CAPTURE:`, {
-      pokemon: pokemon.name,
-      currentHp: pokemon.currentHp,
-      maxHp: pokemon.maxHp,
-      hpRatio: ((pokemon.currentHp / pokemon.maxHp) * 100).toFixed(1) + '%',
-      ballEffect: ballEffect.description,
-      taux: (approximateRate * 100).toFixed(1) + '%'
-    });  
-    
-    return approximateRate;
+    if (checkPassed) {
+      shakeCount++;
+    } else {
+      break; // Échec = arrêt
+    }
   }
   
-  private performFourChecks(captureRate: number): { captured: boolean; shakeCount: number; checks: boolean[] } {
-    const a = Math.max(1, Math.floor(captureRate * 255));
-    const b = Math.floor(Math.sqrt(Math.sqrt(255 / a)) * 16);
-    
-    const checks: boolean[] = [];
-    let shakeCount = 0;
-    
-    for (let i = 0; i < 4; i++) {
-      const randomValue = Math.floor(Math.random() * 65536);
-      const checkPassed = randomValue < b;
-      
-      checks.push(checkPassed);
-      
-      if (checkPassed) {
-        shakeCount++;
-      } else {
-        break; // Échec = arrêt
-      }
-    }
-    
-    const captured = shakeCount === 4;
-    
-    console.log(`🎲 [CaptureManager] 4 Checks: ${shakeCount}/4 passés → ${captured ? 'SUCCÈS' : 'ÉCHEC'}`);
-    
-    return { captured, shakeCount, checks };
-  }
+  const captured = shakeCount === 3;
+  
+  console.log(`🎲 [CaptureManager] 3 Checks Gen 5: X=${X}, Y=${Y}, ${shakeCount}/3 passés → ${captured ? 'SUCCÈS' : 'ÉCHEC'}`);
+  
+  return { captured, shakeCount, checks };
+}
   
   // === GÉNÉRATION D'ANIMATIONS ===
   
