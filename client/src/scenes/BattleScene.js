@@ -1074,8 +1074,7 @@ this.loadedSprites = new Set(); // Cache des sprites chargés
         const height = texture.source[0].height;
         
         // Détection auto : assumer 1 ligne, calculer colonnes
-        // Détection auto améliorée
-let cols, frameWidth;
+let cols, finalFrameWidth;
 
 // Essayer toutes les tailles de 32 à 128px
 for (let testFrameW = 32; testFrameW <= 128; testFrameW++) {
@@ -1083,7 +1082,7 @@ for (let testFrameW = 32; testFrameW <= 128; testFrameW++) {
     const testCols = width / testFrameW;
     if (testCols >= 10 && testCols <= 100) {
       cols = testCols;
-      frameWidth = testFrameW;
+      finalFrameWidth = testFrameW;
       break;
     }
   }
@@ -1092,11 +1091,11 @@ for (let testFrameW = 32; testFrameW <= 128; testFrameW++) {
 // Fallback si rien trouvé
 if (!cols) {
   cols = Math.round(width / 64);
-  frameWidth = Math.floor(width / cols);
+  finalFrameWidth = Math.floor(width / cols);
 }
-        
-        const frameWidth = Math.floor(width / cols);
-        const frameHeight = height;
+
+const frameWidth = finalFrameWidth;
+const frameHeight = height;
         
         console.log(`📐 [BattleScene] ${spriteKey}: ${cols} colonnes de ${frameWidth}×${frameHeight}px`);
         
