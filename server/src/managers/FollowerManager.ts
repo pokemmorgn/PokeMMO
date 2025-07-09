@@ -4,12 +4,85 @@ import { PokemonFollower } from "../schema/PokemonFollowerSchema";
 
 export class FollowerManager {
   private room: any;
-  private playerTrail: Map<string, Array<{ x: number, y: number, direction: string }>> = new Map();
-  private trailDistance = 3; // ✅ CORRIGÉ: Distance par défaut augmentée à 3 cases
+  private playerTrail: Map<string, Array<{ x: number, y: number, direction: string, timestamp: number }>> = new Map();
+  private trailDistance = 3; // Distance par défaut
+  
+  // ✅ SÉCURITÉ: Rate limiting pour éviter le spam
+  private lastDistanceChange: Map<string, number> = new Map();
+  private distanceChangeInterval = 5000; // 5 secondes minimum entre changements
+  
+  // ✅ SÉCURITÉ: Limites de validation
+  private readonly MAX_DISTANCE = 10;
+  private readonly MIN_DISTANCE = 1;
+  private readonly MAX_TRAIL_SIZE = 15;
+  private readonly MAX_POSITION_DIFF = 100; // Pixels max de différence entre positions
   
   constructor(room: any) {
     this.room = room;
-    console.log("🐾 [FollowerManager] Version simple initialisée - Distance: 3 cases");
+    console.log("🐾 [FollowerManager] Initialisé avec sécurité renforcée - Distance: 3 cases");
+  }
+
+  /**
+   * ✅ SÉCURITÉ: Validation stricte des positions
+   */
+  private validatePosition(x: number, y: number, playerId: string): boolean {
+    // Vérifier que les coordonnées sont des nombres valides
+    if (typeof x !== 'number' || typeof y !== 'number' || 
+        !isFinite(x) || !isFinite(y) || 
+        isNaN(x) || isNaN(y)) {
+      console.warn(`⚠️ [FollowerManager] Position invalide pour ${playerId}: (${x}, ${y})`);
+      return false;
+    }
+    
+    // Vérifier les limites de la carte (ajustez selon votre carte)
+    const mapBounds = this.getMapBounds();
+    if (x < 0 || y < 0 || x > mapBounds.width || y > mapBounds.height) {
+      console.warn(`⚠️ [FollowerManager] Position hors limites pour ${playerId}: (${x}, ${y})`);
+      return false;
+    }
+    
+    // Vérifier la différence avec la dernière position connue
+    const trail = this.playerTrail.get(playerId);
+    if (trail && trail.length > 0) {
+      const lastPos = trail[trail.length - 1];
+      const distance = Math.sqrt(Math.pow(x - lastPos.x, 2) + Math.pow(y - lastPos.y, 2));
+      
+      if (distance > this.MAX_POSITION_DIFF) {
+        console.warn(`⚠️ [FollowerManager] Téléportation détectée pour ${playerId}: ${distance}px`);
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  /**
+   * ✅ SÉCURITÉ: Validation stricte de la direction
+   */
+  private validateDirection(direction: string): boolean {
+    const validDirections = ['up', 'down', 'left', 'right'];
+    return validDirections.includes(direction);
+  }
+
+  /**
+   * ✅ SÉCURITÉ: Méthode pour obtenir les limites de la carte
+   */
+  private getMapBounds(): { width: number, height: number } {
+    // À adapter selon votre système de carte
+    // Exemple pour une carte 2000x2000 (ajustez selon vos cartes)
+    return { width: 2000, height: 2000 };
+  }
+
+  /**
+   * ✅ SÉCURITÉ: Vérifier si le joueur peut avoir un follower
+   */
+  private canPlayerHaveFollower(playerId: string): boolean {
+    const player = this.room.state.players.get(playerId);
+    if (!player) return false;
+    
+    // Ajouter vos règles métier ici
+    // Par exemple: niveau minimum, quête accomplie, etc.
+    return true;
   }
 
   /**
@@ -20,6 +93,12 @@ export class FollowerManager {
       const player = this.room.state.players.get(playerId);
       if (!player) {
         console.warn(`⚠️ [FollowerManager] Joueur ${playerId} non trouvé`);
+        return;
+      }
+
+      // ✅ VALIDATION: Vérifier que le joueur a le droit d'avoir un follower
+      if (!this.canPlayerHaveFollower(playerId)) {
+        console.warn(`⚠️ [FollowerManager] Joueur ${playerId} non autorisé à avoir un follower`);
         return;
       }
 
@@ -44,7 +123,12 @@ export class FollowerManager {
         const trail = this.playerTrail.get(playerId)!;
         // Ajouter quelques positions fictives pour que le système fonctionne tout de suite
         for (let i = 0; i < this.trailDistance + 1; i++) {
-          trail.push({ x: player.x, y: player.y, direction: player.direction || 'down' });
+          trail.push({ 
+            x: player.x, 
+            y: player.y, 
+            direction: player.direction || 'down',
+            timestamp: Date.now()
+          });
         }
         
         console.log(`🐾 [FollowerManager] Trail initialisé avec ${trail.length} positions pour ${player.name}`);
@@ -55,6 +139,7 @@ export class FollowerManager {
 
     } catch (error) {
       console.error(`❌ [FollowerManager] Erreur updatePlayerFollower:`, error);
+      // Ne pas exposer l'erreur détaillée au client
     }
   }
 
@@ -90,10 +175,10 @@ export class FollowerManager {
   }
 
   /**
-   * ✅ NOUVEAU: Calcule la position derrière le joueur au spawn
+   * ✅ CALCULE la position derrière le joueur au spawn
    */
   private calculateBehindPosition(playerX: number, playerY: number, direction: string): { x: number, y: number } {
-    const distance = 24; // ✅ CORRIGÉ: Distance réduite (moins d'une case)
+    const distance = 24; // Distance réduite (moins d'une case)
     
     switch (direction) {
       case 'up':
@@ -110,11 +195,22 @@ export class FollowerManager {
   }
 
   /**
-   * ✅ CORRIGÉ : Le follower s'arrête exactement où il marche (pas de rattrapage)
+   * ✅ SÉCURITÉ: Mise à jour sécurisée des positions avec validation
    */
   updateFollowerPosition(playerId: string, playerX: number, playerY: number, direction: string, isMoving: boolean): void {
     const player = this.room.state.players.get(playerId);
     if (!player || !player.follower) return;
+
+    // ✅ VALIDATION: Position et direction
+    if (!this.validatePosition(playerX, playerY, playerId)) {
+      console.error(`❌ [FollowerManager] Position rejetée pour ${playerId}`);
+      return;
+    }
+    
+    if (!this.validateDirection(direction)) {
+      console.error(`❌ [FollowerManager] Direction invalide pour ${playerId}: ${direction}`);
+      return;
+    }
 
     // Initialiser le trail si nécessaire
     if (!this.playerTrail.has(playerId)) {
@@ -128,12 +224,16 @@ export class FollowerManager {
       // Éviter les doublons dans le trail
       const lastEntry = trail[trail.length - 1];
       if (!lastEntry || lastEntry.x !== playerX || lastEntry.y !== playerY) {
-        // Ajouter la position actuelle au trail
-        trail.push({ x: playerX, y: playerY, direction });
+        // ✅ SÉCURITÉ: Ajouter timestamp et limiter la taille
+        trail.push({ 
+          x: playerX, 
+          y: playerY, 
+          direction, 
+          timestamp: Date.now() 
+        });
         
-        // Garder seulement les positions nécessaires
-        const maxTrailLength = this.trailDistance + 3;
-        if (trail.length > maxTrailLength) {
+        // ✅ SÉCURITÉ: Limiter la taille du trail
+        if (trail.length > this.MAX_TRAIL_SIZE) {
           trail.shift();
         }
       }
@@ -165,9 +265,37 @@ export class FollowerManager {
     }
     
     // Log occasionnel pour debug
-    if (Math.random() < 0.1) {
+    if (Math.random() < 0.05) { // Réduit à 5% pour moins de spam
       console.log(`🐾 [FollowerManager] ${player.name} - Joueur: (${playerX}, ${playerY}) moving: ${isMoving} → Follower: (${player.follower.x}, ${player.follower.y}) moving: ${player.follower.isMoving} | Trail: ${trail.length}`);
     }
+  }
+
+  /**
+   * ✅ SÉCURITÉ: Rate limiting pour changement de distance
+   */
+  setTrailDistance(distance: number, playerId?: string): boolean {
+    // Validation de la distance
+    if (distance < this.MIN_DISTANCE || distance > this.MAX_DISTANCE) {
+      console.warn(`⚠️ [FollowerManager] Distance invalide: ${distance} (min: ${this.MIN_DISTANCE}, max: ${this.MAX_DISTANCE})`);
+      return false;
+    }
+    
+    // Rate limiting si playerId fourni
+    if (playerId) {
+      const now = Date.now();
+      const lastChange = this.lastDistanceChange.get(playerId);
+      
+      if (lastChange && now - lastChange < this.distanceChangeInterval) {
+        console.warn(`⚠️ [FollowerManager] Rate limit dépassé pour ${playerId}`);
+        return false;
+      }
+      
+      this.lastDistanceChange.set(playerId, now);
+    }
+    
+    this.trailDistance = distance;
+    console.log(`🐾 [FollowerManager] Distance changée à: ${this.trailDistance} cases`);
+    return true;
   }
 
   /**
@@ -187,6 +315,8 @@ export class FollowerManager {
 
       // Nettoyer le trail
       this.playerTrail.delete(playerId);
+      // Nettoyer le rate limiting
+      this.lastDistanceChange.delete(playerId);
 
     } catch (error) {
       console.error(`❌ [FollowerManager] Erreur removePlayerFollower:`, error);
@@ -205,46 +335,86 @@ export class FollowerManager {
       }
     });
 
-    // Nettoyer tous les trails
+    // Nettoyer tous les trails et rate limiting
     this.playerTrail.clear();
+    this.lastDistanceChange.clear();
   }
 
   /**
-   * Permet de changer la distance dynamiquement
+   * ✅ SÉCURITÉ: Nettoyage automatique avec timestamps
    */
-  setTrailDistance(distance: number): void {
-    this.trailDistance = Math.max(1, Math.min(distance, 5)); // Entre 1 et 5
-    console.log(`🐾 [FollowerManager] Distance changée à: ${this.trailDistance} cases`);
+  cleanupOldTrails(): void {
+    const now = Date.now();
+    const maxAge = 300000; // 5 minutes
+    
+    this.playerTrail.forEach((trail, playerId) => {
+      const filteredTrail = trail.filter(pos => now - pos.timestamp < maxAge);
+      
+      if (filteredTrail.length !== trail.length) {
+        console.log(`🧹 [FollowerManager] Trail nettoyé pour ${playerId}: ${trail.length} → ${filteredTrail.length}`);
+        this.playerTrail.set(playerId, filteredTrail);
+      }
+    });
+    
+    // Nettoyer aussi le rate limiting
+    this.lastDistanceChange.forEach((timestamp, playerId) => {
+      if (now - timestamp > this.distanceChangeInterval * 2) {
+        this.lastDistanceChange.delete(playerId);
+      }
+    });
   }
 
   /**
-   * Debug - affiche l'état de tous les followers
+   * ✅ SÉCURITÉ: Statistiques sécurisées (pas de données sensibles)
+   */
+  getSecureStats(): any {
+    return {
+      activeFollowers: this.playerTrail.size,
+      totalTrailEntries: Array.from(this.playerTrail.values()).reduce((sum, trail) => sum + trail.length, 0),
+      currentDistance: this.trailDistance,
+      maxDistance: this.MAX_DISTANCE,
+      rateLimitedPlayers: this.lastDistanceChange.size,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * ✅ SÉCURITÉ: Debug sécurisé (production)
    */
   debugFollowers(): void {
-    console.log(`🔍 [FollowerManager] === DEBUG SIMPLE (Distance: ${this.trailDistance}) ===`);
+    // Désactiver en production
+    if (process.env.NODE_ENV === 'production') {
+      console.log("🔒 [FollowerManager] Debug désactivé en production");
+      return;
+    }
+    
+    console.log(`🔍 [FollowerManager] === DEBUG SÉCURISÉ (Distance: ${this.trailDistance}) ===`);
+    console.log(`📊 Followers actifs: ${this.playerTrail.size}`);
+    console.log(`📏 Distance actuelle: ${this.trailDistance}`);
+    console.log(`⏰ Rate limits actifs: ${this.lastDistanceChange.size}`);
+    
     let count = 0;
     this.room.state.players.forEach((player: any, playerId: string) => {
       if (player.follower) {
         count++;
         const trail = this.playerTrail.get(playerId);
         const trailLength = trail ? trail.length : 0;
+        const lastTimestamp = trail && trail.length > 0 ? trail[trail.length - 1].timestamp : 0;
+        
         console.log(`🐾 ${player.name}:`, {
           pokemonId: player.follower.pokemonId,
           nickname: player.follower.nickname,
           position: `(${player.follower.x}, ${player.follower.y})`,
           direction: player.follower.direction,
           isMoving: player.follower.isMoving,
-          isShiny: player.follower.isShiny,
-          level: player.follower.level,
-          trailLength: trailLength
+          trailLength: trailLength,
+          lastUpdate: lastTimestamp ? new Date(lastTimestamp).toLocaleTimeString() : 'N/A'
         });
-        
-        if (trail && trail.length > 0) {
-          console.log(`  📍 Trail: ${trail.map(p => `(${p.x},${p.y})`).join(' → ')}`);
-        }
       }
     });
+    
     console.log(`📊 Total followers: ${count}`);
+    console.log(`🔒 Sécurité: Rate limiting activé, validation stricte`);
   }
 
   /**
@@ -264,30 +434,19 @@ export class FollowerManager {
   }
 
   /**
-   * Nettoie les trails anciens (appelé périodiquement)
+   * Getters pour les trails (pour debug seulement)
    */
-  cleanupOldTrails(): void {
-    const now = Date.now();
-    const maxAge = 60000; // 1 minute - pas utilisé dans cette version simple
-    
-    // Dans cette version simple, on nettoie juste les trails trop longs
-    this.playerTrail.forEach((trail, playerId) => {
-      if (trail.length > 10) {
-        // Garder seulement les 5 dernières positions
-        this.playerTrail.set(playerId, trail.slice(-5));
-        console.log(`🧹 [FollowerManager] Nettoyage trail ${playerId}: ${trail.length} → 5`);
-      }
-    });
-  }
-
-  /**
-   * Getters pour les trails (pour debug)
-   */
-  getPlayerTrail(playerId: string): Array<{ x: number, y: number, direction: string }> | undefined {
+  getPlayerTrail(playerId: string): Array<{ x: number, y: number, direction: string, timestamp: number }> | undefined {
+    if (process.env.NODE_ENV === 'production') {
+      return undefined; // Pas de debug en production
+    }
     return this.playerTrail.get(playerId);
   }
 
-  getAllTrails(): Map<string, Array<{ x: number, y: number, direction: string }>> {
+  getAllTrails(): Map<string, Array<{ x: number, y: number, direction: string, timestamp: number }>> {
+    if (process.env.NODE_ENV === 'production') {
+      return new Map(); // Pas de debug en production
+    }
     return new Map(this.playerTrail);
   }
 
@@ -296,5 +455,16 @@ export class FollowerManager {
    */
   getTrailDistance(): number {
     return this.trailDistance;
+  }
+
+  /**
+   * Getter pour les limites de sécurité
+   */
+  getSecurityLimits(): { maxDistance: number, minDistance: number, maxTrailSize: number } {
+    return {
+      maxDistance: this.MAX_DISTANCE,
+      minDistance: this.MIN_DISTANCE,
+      maxTrailSize: this.MAX_TRAIL_SIZE
+    };
   }
 }
