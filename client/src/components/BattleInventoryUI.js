@@ -861,10 +861,10 @@ export class BattleInventoryUI extends InventoryUI {
     
     console.log('⚔️ Inventaire de combat fermé');
 
-    // ✅ Notifier BattleScene que l'inventaire est fermé
+    // ✅ RÉAFFICHER LES BOUTONS DE COMBAT
     if (this.battleContext.battleScene) {
-      // Ne pas masquer les boutons, juste notifier
-      console.log('📢 [BattleInventory] Notification BattleScene');
+      this.battleContext.battleScene.showActionButtons();
+      console.log('🎮 [BattleInventory] Boutons d\'action réaffichés');
     }
   }
 
