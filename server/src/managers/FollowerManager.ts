@@ -5,11 +5,11 @@ import { PokemonFollower } from "../schema/PokemonFollowerSchema";
 export class FollowerManager {
   private room: any;
   private playerTrail: Map<string, Array<{ x: number, y: number, direction: string }>> = new Map();
-  private trailDistance = 2; // Le follower suit à 2 cases de distance
+  private trailDistance = 3; // ✅ CORRIGÉ: Distance par défaut augmentée à 3 cases
   
   constructor(room: any) {
     this.room = room;
-    console.log("🐾 [FollowerManager] Version simple initialisée - Distance: 2 cases");
+    console.log("🐾 [FollowerManager] Version simple initialisée - Distance: 3 cases");
   }
 
   /**
@@ -35,10 +35,19 @@ export class FollowerManager {
         // Créer ou mettre à jour le follower
         await this.createFollowerFromPokemon(player, firstPokemon);
         
-        // Initialiser le trail si nécessaire
+        // ✅ NOUVEAU: Initialiser le trail avec la position actuelle du joueur
         if (!this.playerTrail.has(playerId)) {
           this.playerTrail.set(playerId, []);
         }
+        
+        // ✅ AJOUTER: Pré-remplir le trail pour que le follower réagisse immédiatement
+        const trail = this.playerTrail.get(playerId)!;
+        // Ajouter quelques positions fictives pour que le système fonctionne tout de suite
+        for (let i = 0; i < this.trailDistance + 1; i++) {
+          trail.push({ x: player.x, y: player.y, direction: player.direction || 'down' });
+        }
+        
+        console.log(`🐾 [FollowerManager] Trail initialisé avec ${trail.length} positions pour ${player.name}`);
       } else {
         // Supprimer le follower s'il n'y a pas de Pokémon valide
         this.removePlayerFollower(playerId);
@@ -84,7 +93,7 @@ export class FollowerManager {
    * ✅ NOUVEAU: Calcule la position derrière le joueur au spawn
    */
   private calculateBehindPosition(playerX: number, playerY: number, direction: string): { x: number, y: number } {
-    const distance = 32 * this.trailDistance; // 32px par case * distance
+    const distance = 48; // ✅ CORRIGÉ: Distance fixe plus raisonnable (1.5 cases)
     
     switch (direction) {
       case 'up':
