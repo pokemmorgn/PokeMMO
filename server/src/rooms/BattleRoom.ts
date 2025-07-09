@@ -313,6 +313,16 @@ export class BattleRoom extends Room<BattleState> {
   private setupBattleEngineEvents() {
     console.log('🎮 [BattleRoom] Configuration des événements BattleEngine Narratif V2.6 + capture');
 
+       // === ✅ NOUVEAU: CONFIGURER CALLBACK BROADCASTMANAGER ===
+    this.battleEngine.configureBroadcast((event) => {
+      console.log(`📡 [BattleRoom] BroadcastManager → WebSocket: ${event.eventId}`, event);
+      
+      // ✅ ENVOYER l'événement BroadcastManager aux clients
+      this.broadcast('battleEvent', event);
+    });
+    
+    console.log('📡 [BattleRoom] Callback BroadcastManager configuré');
+    
     // === ✅ DÉMARRAGE NARRATIF ===
     this.battleEngine.on('battleStart', (data: any) => {
       console.log(`📖 [BattleRoom] Mode narratif activé`);
