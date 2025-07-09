@@ -317,7 +317,7 @@ export class CaptureManager {
     ));
     
     const b = Math.floor(Math.sqrt(Math.sqrt(255 / a)) * 16);
-    const approximateRate = Math.min(0.99, Math.max(0.01, Math.pow(b / 65535, 4)));
+    const approximateRate = Math.min(0.99, Math.max(0.01, (a / 255) * 0.5)); // Formule simplifiée mais correcte
     
     console.log(`🧮 [CaptureManager] DÉTAIL CAPTURE:`, {
       pokemon: pokemon.name,
