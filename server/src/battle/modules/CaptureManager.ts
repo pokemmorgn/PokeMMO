@@ -340,31 +340,27 @@ private async calculateCaptureRate(pokemon: Pokemon, ballType: string): Promise<
 }
 
 private performFourChecks(captureRate: number): { captured: boolean; shakeCount: number; checks: boolean[] } {
-  const X = captureRate * 255;
-  const Y = Math.floor(Math.sqrt(Math.sqrt(65536 * X / 255)) * 16);
+  // ✅ NOUVELLE LOGIQUE - UN SEUL CHECK AUTHENTIQUE GEN 5
   
-  const checks: boolean[] = [];
+  // Le captureRate vient déjà calculé avec (X/255)^0.75
+  const success = Math.random() < captureRate;
+  
+  // Simulation des secousses pour l'animation
   let shakeCount = 0;
-  
-  // ✅ GEN 5 = 3 CHECKS, PAS 4 !
-  for (let i = 0; i < 3; i++) {
-    const randomValue = Math.floor(Math.random() * 65536);
-    const checkPassed = randomValue < Y;
-    
-    checks.push(checkPassed);
-    
-    if (checkPassed) {
-      shakeCount++;
-    } else {
-      break; // Échec = arrêt
-    }
+  if (success) {
+    shakeCount = 3; // Succès = 3 secousses
+  } else {
+    // Échec = nombre aléatoire de secousses (0-2)
+    shakeCount = Math.floor(Math.random() * 3);
   }
   
-  const captured = shakeCount === 3;
+  console.log(`🎲 [CaptureManager] Check unique Gen 5: probabilité=${(captureRate*100).toFixed(2)}%, ${shakeCount}/3 secousses → ${success ? 'SUCCÈS' : 'ÉCHEC'}`);
   
-  console.log(`🎲 [CaptureManager] 3 Checks Gen 5: X=${X}, Y=${Y}, ${shakeCount}/3 passés → ${captured ? 'SUCCÈS' : 'ÉCHEC'}`);
-  
-  return { captured, shakeCount, checks };
+  return { 
+    captured: success, 
+    shakeCount, 
+    checks: [success] 
+  };
 }
   
   // === GÉNÉRATION D'ANIMATIONS ===
