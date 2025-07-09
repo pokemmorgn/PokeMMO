@@ -493,20 +493,7 @@ export class OverworldPokemonManager {
     }
     
     // ✅ MISE À JOUR DE LA DIRECTION (sans affecter le mouvement en cours)
-    if (direction !== undefined && direction !== pokemon.lastDirection) {
-      pokemon.lastDirection = direction;
-      
-      // ✅ SI EN MOUVEMENT, CHANGER L'ANIMATION DE MARCHE
-      if (pokemon.isMoving && pokemon.isInterpolating) {
-        const animDirection = this.getDirectionForAnimation(direction);
-        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
-        const walkAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${animDirection}`;
-        
-        if (this.scene.anims.exists(walkAnimKey)) {
-          pokemon.anims.play(walkAnimKey, true);
-        }
-      }
-    }
+   
     
     // ✅ CHANGEMENT D'ANIMATION SI NÉCESSAIRE
     if (currentAnimation !== undefined && currentAnimation !== pokemon.currentAnimation) {
