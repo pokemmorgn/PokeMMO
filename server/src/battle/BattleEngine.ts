@@ -269,11 +269,12 @@ export class BattleEngine {
           console.log(`🔄 [BattleEngine] Tour suivant: ${nextPlayer}`);
           
           // ✅ NOUVEAU: Transition de tour avec BroadcastManager
-          if (this.broadcastManager) {
+          if (this.broadcastManager && nextPlayer !== 'narrator') {
+            const playerRole = nextPlayer as PlayerRole; // Cast sécurisé après vérification
             await this.broadcastManager.emitTurnTransition(
-              nextPlayer,
-              nextPlayer === 'player1' ? this.gameState.player1.name : this.gameState.player2.name,
-              nextPlayer === 'player2' // isAI
+              playerRole,
+              playerRole === 'player1' ? this.gameState.player1.name : this.gameState.player2.name,
+              playerRole === 'player2' // isAI
             );
           }
         }
