@@ -56,6 +56,9 @@ export class FollowerManager {
     try {
       console.log(`🐾 [FollowerManager] Création follower: ${pokemon.nickname || `Pokémon #${pokemon.pokemonId}`} pour ${player.name}`);
 
+      // ✅ CALCUL POSITION INITIALE DERRIÈRE LE JOUEUR
+      const behindPosition = this.calculateBehindPosition(player.x, player.y, player.direction || 'down');
+
       // Créer ou mettre à jour l'objet follower
       if (!player.follower) {
         player.follower = new PokemonFollower();
@@ -63,14 +66,14 @@ export class FollowerManager {
 
       player.follower.pokemonId = pokemon.pokemonId;
       player.follower.nickname = pokemon.nickname || "";
-      player.follower.x = player.x;
-      player.follower.y = player.y;
+      player.follower.x = behindPosition.x;
+      player.follower.y = behindPosition.y;
       player.follower.direction = player.direction || 'down';
       player.follower.isMoving = false;
       player.follower.isShiny = pokemon.shiny || false;
       player.follower.level = pokemon.level;
 
-      console.log(`✅ [FollowerManager] Follower créé à (${player.x}, ${player.y})`);
+      console.log(`✅ [FollowerManager] Follower créé DERRIÈRE le joueur à (${behindPosition.x}, ${behindPosition.y})`);
 
     } catch (error) {
       console.error(`❌ [FollowerManager] Erreur createFollowerFromPokemon:`, error);
@@ -78,7 +81,27 @@ export class FollowerManager {
   }
 
   /**
-   * ✅ CORRIGÉ : Le follower suit à 2 cases de distance ET reste en place à l'arrêt
+   * ✅ NOUVEAU: Calcule la position derrière le joueur au spawn
+   */
+  private calculateBehindPosition(playerX: number, playerY: number, direction: string): { x: number, y: number } {
+    const distance = 32 * this.trailDistance; // 32px par case * distance
+    
+    switch (direction) {
+      case 'up':
+        return { x: playerX, y: playerY + distance };
+      case 'down':
+        return { x: playerX, y: playerY - distance };
+      case 'left':
+        return { x: playerX + distance, y: playerY };
+      case 'right':
+        return { x: playerX - distance, y: playerY };
+      default:
+        return { x: playerX, y: playerY + distance }; // Défaut: derrière vers le bas
+    }
+  }
+
+  /**
+   * ✅ CORRIGÉ : Le follower s'arrête exactement où il marche (pas de rattrapage)
    */
   updateFollowerPosition(playerId: string, playerX: number, playerY: number, direction: string, isMoving: boolean): void {
     const player = this.room.state.players.get(playerId);
@@ -100,29 +123,37 @@ export class FollowerManager {
         trail.push({ x: playerX, y: playerY, direction });
         
         // Garder seulement les positions nécessaires
-        const maxTrailLength = this.trailDistance + 2;
+        const maxTrailLength = this.trailDistance + 3;
         if (trail.length > maxTrailLength) {
           trail.shift();
         }
       }
     }
 
-    // ✅ CORRIGÉ: Le follower prend la position d'il y a X mouvements
+    // ✅ NOUVEAU : Le follower suit ET s'arrête exactement où il doit
     if (trail.length > this.trailDistance) {
       const followerIndex = trail.length - this.trailDistance - 1;
       const followerPos = trail[followerIndex];
       
-      player.follower.x = followerPos.x;
-      player.follower.y = followerPos.y;
-      player.follower.direction = followerPos.direction;
+      // ✅ SEULEMENT bouger si le joueur bouge ET si on a une nouvelle position
+      if (isMoving && (player.follower.x !== followerPos.x || player.follower.y !== followerPos.y)) {
+        player.follower.x = followerPos.x;
+        player.follower.y = followerPos.y;
+        player.follower.direction = followerPos.direction;
+        player.follower.isMoving = true;
+      } else {
+        // ✅ ARRÊT : Le follower reste exactement où il est
+        player.follower.isMoving = false;
+      }
     } else {
-      // Pas assez de trail, le follower reste à sa position actuelle
-      // (ne bouge pas tant qu'il n'y a pas assez d'historique)
+      // ✅ Pas assez de trail, le follower ne bouge pas
       player.follower.isMoving = false;
     }
     
-    // ✅ IMPORTANT: État de mouvement du follower
-    player.follower.isMoving = isMoving && trail.length > this.trailDistance;
+    // ✅ Toujours mettre à jour la direction (même à l'arrêt)
+    if (direction) {
+      player.follower.direction = direction;
+    }
     
     // Log occasionnel pour debug
     if (Math.random() < 0.1) {
