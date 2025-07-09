@@ -568,18 +568,29 @@ initializeOverworldPokemon() {
       return;
     }
     
+    // ✅ UTILISER LA FONCTION EXISTANTE
+    const currentZone = this.mapSceneToZone(this.scene.key);
+    
+    // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
+    const configuredZones = ['village', 'lavandia'];
+    
+    if (!configuredZones.includes(currentZone)) {
+      console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld - skip`);
+      return;
+    }
+    
     // Marquer comme initialisé
     this.overworldPokemonInitialized = true;
     
     // Demander la synchronisation au serveur
     setTimeout(() => {
       if (this.networkManager?.room) {
-        console.log(`🔄 [${this.scene.key}] Demande synchronisation Pokémon overworld`);
+        console.log(`🔄 [${this.scene.key}] Demande synchronisation Pokémon overworld pour zone: ${currentZone}`);
         this.networkManager.room.send("requestOverworldSync");
       }
     }, 3000); // Après tous les autres systèmes
     
-    console.log(`✅ [${this.scene.key}] Pokémon overworld initialisé`);
+    console.log(`✅ [${this.scene.key}] Pokémon overworld initialisé pour zone: ${currentZone}`);
     
   } catch (error) {
     console.error(`❌ [${this.scene.key}] Erreur initialisation Pokémon overworld:`, error);
@@ -3112,6 +3123,18 @@ promisifyMethod(method) {
 debugOverworldPokemon() {
   console.log(`🔍 [${this.scene.key}] === DEBUG POKÉMON OVERWORLD ===`);
   
+  // ✅ UTILISER LA FONCTION EXISTANTE
+  const currentZone = this.mapSceneToZone(this.scene.key); // Utilise la méthode existante
+  
+  // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
+  const configuredZones = ['village', 'lavandia']; // Zones avec des Pokémon overworld
+  
+  if (!configuredZones.includes(currentZone)) {
+    console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld`);
+    this.showNotification(`Zone ${currentZone} : pas de Pokémon overworld`, 'info');
+    return;
+  }
+  
   if (!this.overworldPokemonManager) {
     console.log("❌ OverworldPokemonManager non initialisé");
     return;
@@ -3129,6 +3152,18 @@ debugOverworldPokemon() {
 forceSpawnOverworldPokemon() {
   console.log(`🎯 [${this.scene.key}] Force spawn Pokémon overworld`);
   
+  // ✅ UTILISER LA FONCTION EXISTANTE
+  const currentZone = this.mapSceneToZone(this.scene.key);
+  
+  // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
+  const configuredZones = ['village', 'lavandia'];
+  
+  if (!configuredZones.includes(currentZone)) {
+    console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld`);
+    this.showNotification(`Zone ${currentZone} : pas de Pokémon overworld`, 'warning');
+    return;
+  }
+  
   const myPlayer = this.playerManager?.getMyPlayer();
   if (!myPlayer) {
     console.log("❌ Pas de joueur pour spawn");
@@ -3136,17 +3171,15 @@ forceSpawnOverworldPokemon() {
     return;
   }
   
-  const currentArea = this.mapSceneToArea(this.scene.key);
-  
   if (this.networkManager?.room) {
     this.networkManager.room.send("forceSpawnOverworldPokemon", {
-      areaId: currentArea,
+      areaId: currentZone, // ✅ Utiliser directement le nom de zone
       pokemonId: 17, // Roucoups par défaut
       x: myPlayer.x,
       y: myPlayer.y
     });
     
-    this.showNotification(`Force spawn Roucoups dans ${currentArea}`, 'success');
+    this.showNotification(`Force spawn Roucoups dans ${currentZone}`, 'success');
   } else {
     this.showNotification("Pas de connexion serveur", 'error');
   }
@@ -3155,29 +3188,27 @@ forceSpawnOverworldPokemon() {
 clearCurrentOverworldArea() {
   console.log(`🧹 [${this.scene.key}] Nettoyage zone overworld actuelle`);
   
-  const currentArea = this.mapSceneToArea(this.scene.key);
+  // ✅ UTILISER LA FONCTION EXISTANTE
+  const currentZone = this.mapSceneToZone(this.scene.key);
+  
+  // ✅ VÉRIFIER SI LA ZONE EST CONFIGURÉE CÔTÉ SERVEUR
+  const configuredZones = ['village', 'lavandia'];
+  
+  if (!configuredZones.includes(currentZone)) {
+    console.log(`ℹ️ [${this.scene.key}] Zone ${currentZone} non configurée pour les Pokémon overworld`);
+    this.showNotification(`Zone ${currentZone} : pas de Pokémon overworld`, 'warning');
+    return;
+  }
   
   if (this.networkManager?.room) {
     this.networkManager.room.send("clearOverworldArea", {
-      areaId: currentArea
+      areaId: currentZone // ✅ Utiliser directement le nom de zone
     });
     
-    this.showNotification(`Zone ${currentArea} nettoyée`, 'success');
+    this.showNotification(`Zone ${currentZone} nettoyée`, 'success');
   } else {
     this.showNotification("Pas de connexion serveur", 'error');
   }
 }
 
-mapSceneToArea(sceneKey) {
-  const mapping = {
-    'VillageScene': 'village',
-    'LavandiaScene': 'lavandia',
-    'BeachScene': 'beach',
-    'Road1Scene': 'road1',
-    'Road2Scene': 'road2',
-    'Road3Scene': 'road3'
-  };
-  
-  return mapping[sceneKey] || 'village'; // Défaut
-}
 }
