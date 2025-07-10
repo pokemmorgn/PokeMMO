@@ -1265,7 +1265,7 @@ this.battleNetworkHandler.on('moveUsed', (data) => {
 this.battleNetworkHandler.on('damageDealt', (data) => {
   console.log('💥 [BattleScene] damageDealt:', data);
   // Mettre à jour la barre de vie SANS message texte
-  this.updateHealthBar(data.targetRole, data.newHp, data.maxHp);
+  this.updateModernHealthBar(data.targetRole, data.newHp, data.maxHp);
 });
 
 this.battleNetworkHandler.on('pokemonFainted', (data) => {
