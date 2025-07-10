@@ -798,15 +798,18 @@ export class BattleCaptureManager {
   
   // === UTILITAIRES ===
   
-  showCaptureMessage(message, duration) {
+  showCaptureMessage(message, duration = 0) {
     console.log(`💬 [BattleCaptureManager] Message: "${message}"`);
     
-    // Utiliser le système de messages de BattleScene si disponible
+    // ✅ PRIORITÉ 1: Utiliser le système de messages de BattleScene
     if (this.battleScene.showBattleMessage) {
+      // Utiliser le système de dialogue principal (en bas)
       this.battleScene.showBattleMessage(message, duration);
     } else if (this.battleScene.showActionMessage) {
+      // Fallback vers le système d'action (à droite)
       this.battleScene.showActionMessage(message);
     } else {
+      // Fallback console si aucun système disponible
       console.log(`📢 ${message}`);
     }
   }
@@ -897,26 +900,40 @@ export class BattleCaptureManager {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   
-  // === NETTOYAGE AMÉLIORÉ ===
+  // === NETTOYAGE COMPLET ET SÉCURISÉ ===
   
   cleanup() {
-    console.log('🧹 [BattleCaptureManager] Nettoyage capture authentique');
+    console.log('🧹 [BattleCaptureManager] Nettoyage capture COMPLET');
     
-    // Supprimer sprite Ball (graphics)
+    // ✅ ARRÊTER TOUS LES TWEENS LIÉS À LA CAPTURE
+    this.stopAllCaptureTweens();
+    
+    // ✅ SUPPRIMER SPRITE BALL (GRAPHICS)
     if (this.ballSprite) {
-      this.ballSprite.destroy();
-      this.ballSprite = null;
+      try {
+        this.ballSprite.destroy();
+        this.ballSprite = null;
+        console.log('🎾 [BattleCaptureManager] Ball sprite détruite');
+      } catch (error) {
+        console.warn('⚠️ [BattleCaptureManager] Erreur destruction Ball:', error);
+        this.ballSprite = null;
+      }
     }
     
-    // Supprimer effets
-    this.captureEffects.forEach(effect => {
+    // ✅ SUPPRIMER TOUS LES EFFETS
+    this.captureEffects.forEach((effect, index) => {
       if (effect && effect.destroy) {
-        effect.destroy();
+        try {
+          effect.destroy();
+          console.log(`🌟 [BattleCaptureManager] Effet ${index} détruit`);
+        } catch (error) {
+          console.warn(`⚠️ [BattleCaptureManager] Erreur destruction effet ${index}:`, error);
+        }
       }
     });
     this.captureEffects = [];
     
-    // Restaurer le Pokémon s'il était caché
+    // ✅ RESTAURER LE POKÉMON CIBLE S'IL ÉTAIT CACHÉ
     if (this.targetPokemonSprite && !this.targetPokemonSprite.visible) {
       this.targetPokemonSprite.setVisible(true);
       this.targetPokemonSprite.setScale(this.targetPokemonSprite.originalScaleX || 2.8);
@@ -924,14 +941,79 @@ export class BattleCaptureManager {
       console.log('🐾 [BattleCaptureManager] Pokémon restauré après nettoyage');
     }
     
-    // Reset état
+    // ✅ RESET COMPLET DE L'ÉTAT
     this.isCapturing = false;
     this.currentCaptureData = null;
     this.captureAnimations = [];
     this.currentAnimationIndex = 0;
     this.targetPokemonSprite = null;
     
-    console.log('✅ [BattleCaptureManager] Nettoyage authentique terminé');
+    // ✅ NETTOYER LES TIMERS SI NÉCESSAIRE
+    this.clearCaptureTimers();
+    
+    console.log('✅ [BattleCaptureManager] Nettoyage COMPLET terminé');
+  }
+  
+  /**
+   * Arrête tous les tweens liés à la capture en cours
+   */
+  stopAllCaptureTweens() {
+    try {
+      const allTweens = this.battleScene.tweens.getAllTweens();
+      let stoppedCount = 0;
+      
+      allTweens.forEach(tween => {
+        // Vérifier si le tween cible la Ball ou des effets de capture
+        if (tween.targets && Array.isArray(tween.targets)) {
+          const isCaptureTween = tween.targets.some(target => {
+            return target === this.ballSprite || 
+                   this.captureEffects.includes(target) ||
+                   (target && target.texture && target.texture.key && target.texture.key.includes('capture'));
+          });
+          
+          if (isCaptureTween) {
+            tween.stop();
+            tween.destroy();
+            stoppedCount++;
+          }
+        }
+      });
+      
+      if (stoppedCount > 0) {
+        console.log(`🛑 [BattleCaptureManager] ${stoppedCount} tweens de capture arrêtés`);
+      }
+    } catch (error) {
+      console.warn('⚠️ [BattleCaptureManager] Erreur arrêt tweens:', error);
+    }
+  }
+  
+  /**
+   * Nettoie les timers de capture
+   */
+  clearCaptureTimers() {
+    // Pour les futurs timers si nécessaire
+    // (actuellement on utilise setTimeout mais on pourrait les tracker)
+  }
+  
+  /**
+   * Méthode de nettoyage d'urgence (publique)
+   */
+  forceCleanup() {
+    console.log('🚨 [BattleCaptureManager] NETTOYAGE FORCÉ !');
+    
+    // Arrêter immédiatement tout
+    this.isCapturing = false;
+    
+    // Nettoyage agressif
+    this.cleanup();
+    
+    // Vérification finale
+    if (this.ballSprite) {
+      console.warn('⚠️ [BattleCaptureManager] Ball sprite persistante détectée');
+      this.ballSprite = null;
+    }
+    
+    console.log('✅ [BattleCaptureManager] Nettoyage forcé terminé');
   }
   
   // === API CONFIGURATION ===
@@ -967,7 +1049,9 @@ export class BattleCaptureManager {
       language: this.translator?.language || 'unknown',
       playerRole: this.playerRole,
       supportedLanguages: this.translator?.getSupportedLanguages() || [],
-      version: 'pokemon_authentique_multilingue_v1'
+      isClean: this.isClean(), // ✅ NOUVEAU
+      activeTweens: this.battleScene ? this.battleScene.tweens.getAllTweens().length : 0, // ✅ NOUVEAU
+      version: 'pokemon_authentique_multilingue_clean_v2' // ✅ MISE À JOUR
     };
   }
   
@@ -1023,11 +1107,14 @@ export class BattleCaptureManager {
   }
 }
 
-// === FONCTIONS GLOBALES DE TEST AMÉLIORÉES ===
+// === FONCTIONS GLOBALES DE TEST ET DEBUG AMÉLIORÉES ===
 
 window.testCapture = function(ballType = 'poke_ball') {
   const battleScene = window.game?.scene?.getScene('BattleScene');
   if (battleScene && battleScene.captureManager) {
+    // ✅ NETTOYAGE PRÉVENTIF
+    battleScene.captureManager.forceCleanup();
+    
     battleScene.captureManager.testCapture(ballType);
   } else {
     console.error('❌ BattleScene ou CaptureManager non trouvé');
@@ -1037,6 +1124,9 @@ window.testCapture = function(ballType = 'poke_ball') {
 window.testCriticalCapture = function() {
   const battleScene = window.game?.scene?.getScene('BattleScene');
   if (battleScene && battleScene.captureManager) {
+    // ✅ NETTOYAGE PRÉVENTIF
+    battleScene.captureManager.forceCleanup();
+    
     // Force une capture critique
     const testPokemon = battleScene.add.circle(400, 200, 30, 0xFFFF00);
     battleScene.captureManager.attemptCapture('master_ball', testPokemon);
@@ -1073,8 +1163,35 @@ window.setCaptureLanguage = function(language) {
   }
 };
 
-console.log('✅ [BattleCaptureManager] Chargé avec traductions multilingues !');
+// ✅ NOUVELLES FONCTIONS DE DEBUG
+window.cleanupCapture = function() {
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (battleScene && battleScene.captureManager) {
+    battleScene.captureManager.forceCleanup();
+    console.log('🧹 Nettoyage forcé effectué');
+  }
+};
+
+window.captureStatus = function() {
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (battleScene && battleScene.captureManager) {
+    const status = battleScene.captureManager.getStatus();
+    console.log('📊 Status CaptureManager:', status);
+    return status;
+  }
+};
+
+window.resetCaptureManager = function() {
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (battleScene && battleScene.captureManager) {
+    battleScene.captureManager.resetForNewBattle();
+    console.log('🔄 CaptureManager reset pour nouveau combat');
+  }
+};
+
+console.log('✅ [BattleCaptureManager] Chargé avec système de nettoyage avancé !');
 console.log('🧪 Tests: window.testCapture(), window.testCriticalCapture()');
 console.log('🌍 Langues: window.testCaptureLanguages(), window.setCaptureLanguage("fr|en|es")');
+console.log('🔧 Debug: window.cleanupCapture(), window.captureStatus(), window.resetCaptureManager()');
 
 export default BattleCaptureManager;
