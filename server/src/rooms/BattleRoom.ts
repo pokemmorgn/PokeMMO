@@ -316,38 +316,65 @@ export class BattleRoom extends Room<BattleState> {
     
     // === ⚔️ ÉVÉNEMENTS DE COMBAT INDIVIDUELS AVEC TIMING ===
     
-    // Attaque utilisée
-    this.battleEngine.on('battleEvent', async (event: any) => {
-      console.log(`⚔️ [BattleRoom] Événement combat: ${event.eventId}`);
+  // Attaque utilisée
+this.battleEngine.on('battleEvent', async (event: any) => {
+  console.log(`⚔️ [BattleRoom] Événement combat: ${event.eventId}`);
+  
+  // ✅ NOUVEAU: DEBUG COMPLET DES DONNÉES
+  console.log(`🔍 [DEBUG] Event Data:`, JSON.stringify(event.data, null, 2));
+  
+  // ✅ DEBUG SPÉCIFIQUE PAR TYPE D'ÉVÉNEMENT
+  if (event.eventId === 'damageDealt') {
+    console.log(`🔍 [DEBUG damageDealt] Détails:`);
+    console.log(`   - Target: ${event.data.targetName} (${event.data.targetRole})`);
+    console.log(`   - Damage: ${event.data.damage}`);
+    console.log(`   - HP: ${event.data.oldHp} → ${event.data.newHp}/${event.data.maxHp}`);
+    console.log(`   - Cible joueur: ${event.data.targetRole === 'player1' ? 'OUI' : 'NON'}`);
+  }
+  
+  if (event.eventId === 'moveUsed') {
+    console.log(`🔍 [DEBUG moveUsed] Détails:`);
+    console.log(`   - Attacker: ${event.data.attackerName} (${event.data.attackerRole})`);
+    console.log(`   - Move: ${event.data.moveName}`);
+    console.log(`   - SubPhase: ${event.data.subPhase}`);
+  }
+  
+  // Calculer le délai selon le type d'événement
+  const delay = this.getBattleEventDelay(event.eventId);
+  
+  if (delay > 0) {
+    console.log(`⏰ [BattleRoom] Attente ${delay}ms avant retransmission ${event.eventId}`);
+    await this.delay(delay);
+  }
+  
+  // ✅ DEBUG: Log avant envoi au client
+  console.log(`📤 [DEBUG] Envoi au client:`, {
+    eventId: event.eventId,
+    targetRole: event.data.targetRole,
+    damage: event.data.damage,
+    clientsConnected: this.clients.length
+  });
+  
+  // Retransmettre l'événement avec délai respecté
+  this.broadcast('battleEvent', event);
+  
+  // Messages spécifiques selon le type
+  switch (event.eventId) {
+    case 'moveUsed':
+      console.log(`⚔️ ${event.data.attackerName} utilise ${event.data.moveName} !`);
+      break;
       
-      // ✅ NOUVEAU: Calculer le délai selon le type d'événement
-      const delay = this.getBattleEventDelay(event.eventId);
+    case 'damageDealt':
+      console.log(`💥 ${event.data.damage} dégâts à ${event.data.targetName} !`);
+      break;
       
-      if (delay > 0) {
-        console.log(`⏰ [BattleRoom] Attente ${delay}ms avant retransmission ${event.eventId}`);
-        await this.delay(delay);
-      }
-      
-      // Retransmettre l'événement avec délai respecté
-      this.broadcast('battleEvent', event);
-      
-      // Messages spécifiques selon le type
-      switch (event.eventId) {
-        case 'moveUsed':
-          console.log(`⚔️ ${event.data.attackerName} utilise ${event.data.moveName} !`);
-          break;
-          
-        case 'damageDealt':
-          console.log(`💥 ${event.data.damage} dégâts à ${event.data.targetName} !`);
-          break;
-          
-        case 'pokemonFainted':
-          console.log(`💀 ${event.data.pokemonName} est K.O. !`);
-          break;
-      }
-      
-      console.log(`✅ [BattleRoom] Événement ${event.eventId} retransmis avec délai`);
-    });
+    case 'pokemonFainted':
+      console.log(`💀 ${event.data.pokemonName} est K.O. !`);
+      break;
+  }
+  
+  console.log(`✅ [BattleRoom] Événement ${event.eventId} retransmis avec délai`);
+});
 
     // === 🏁 FIN DE COMBAT ===
     this.battleEngine.on('battleEnd', (data: any) => {
