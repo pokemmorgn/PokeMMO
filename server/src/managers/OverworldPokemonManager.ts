@@ -359,10 +359,7 @@ export class OverworldPokemonManager {
   }
 }
 
-  onMessage(client: any, type: string, message: any) {
-  if (type === 'overworldPokemonSpawnResponse') {
-    this.overworldPokemonManager.handleClientSpawnResponse(client, message);
-  }
+
   }
   private updateAllPokemon(deltaTime: number): void {
     this.overworldPokemon.forEach((pokemon, id) => {
