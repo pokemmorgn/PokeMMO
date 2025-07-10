@@ -13,6 +13,7 @@ export enum InternalBattlePhase {
   INTRO = 'intro',
   ACTION_SELECTION = 'action_selection',
   ACTION_RESOLUTION = 'action_resolution',
+  POKEMON_FAINTED = 'pokemon_fainted',
   CAPTURE = 'capture', 
   ENDED = 'ended'
 }
