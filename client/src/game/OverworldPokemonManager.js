@@ -475,7 +475,7 @@ const structure = this.detectSpriteStructure(width, height);
   /**
    * ✅ MODIFIÉ: Met à jour un Pokémon avec vérification de collision
    */
-  updateOverworldPokemon(pokemonData) {
+updateOverworldPokemon(pokemonData) {
   const { 
     id, x, y, direction, isMoving, currentAnimation,
     targetX, targetY, moveStartTime, moveDuration, lastDirectionFrame
@@ -484,26 +484,25 @@ const structure = this.detectSpriteStructure(width, height);
   const pokemon = this.overworldPokemon.get(id);
   if (!pokemon) return;
   
-  // ✅ SYNCHRONISATION UNIVERSELLE CLIENT-SERVEUR
-  
-  // 1. Mettre à jour les propriétés serveur
+  // ✅ 1. Mettre à jour les propriétés non-position
   if (direction !== undefined) pokemon.lastDirection = direction;
   if (currentAnimation !== undefined) pokemon.currentAnimation = currentAnimation;
   if (lastDirectionFrame !== undefined) pokemon.lastDirectionFrame = lastDirectionFrame;
   
-  // 2. Gestion du mouvement selon l'état serveur
+  // ✅ 2. Gestion du mouvement
   if (isMoving && targetX !== undefined && targetY !== undefined) {
-    // ✅ NOUVEAU MOUVEMENT : Démarrer l'interpolation
     const distance = Math.sqrt((targetX - pokemon.x) ** 2 + (targetY - pokemon.y) ** 2);
     
-    if (distance > 2) { // Seulement si vraiment besoin de bouger
+    if (distance > 2 && !pokemon.isInterpolating) { // ← SEULEMENT si pas déjà en cours
+      console.log(`🚀 [${pokemon.name}] NOUVEAU mouvement: (${pokemon.x.toFixed(1)}, ${pokemon.y.toFixed(1)}) → (${targetX.toFixed(1)}, ${targetY.toFixed(1)})`);
+      
       pokemon.targetX = targetX;
       pokemon.targetY = targetY;
-      pokemon.moveStartTime = moveStartTime || Date.now();
+      pokemon.moveStartTime = Date.now(); // ← Utiliser temps client
       pokemon.moveDuration = moveDuration || 1000;
       pokemon.isMoving = true;
       pokemon.isInterpolating = true;
-      pokemon.serverX = pokemon.x; // Position de départ pour interpolation
+      pokemon.serverX = pokemon.x; // Position de départ
       pokemon.serverY = pokemon.y;
       
       // Animation de marche
@@ -515,18 +514,15 @@ const structure = this.detectSpriteStructure(width, height);
         pokemon.anims.play(walkAnimKey, true);
       }
     }
-  } else if (!isMoving) {
-    // ✅ ARRÊT DU MOUVEMENT : Finaliser la position
-    if (pokemon.isInterpolating) {
-      // Terminer l'interpolation immédiatement
-      if (pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
-        pokemon.x = pokemon.targetX;
-        pokemon.y = pokemon.targetY;
-        pokemon.setPosition(pokemon.targetX, pokemon.targetY);
-      }
-      pokemon.isInterpolating = false;
+  } else if (!isMoving && pokemon.isInterpolating) {
+    // ✅ 3. Arrêt forcé par le serveur
+    console.log(`⏹️ [${pokemon.name}] ARRÊT forcé par serveur`);
+    if (pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
+      pokemon.x = pokemon.targetX;
+      pokemon.y = pokemon.targetY;
+      pokemon.setPosition(pokemon.targetX, pokemon.targetY);
     }
-    
+    pokemon.isInterpolating = false;
     pokemon.isMoving = false;
     
     // Animation idle
@@ -541,12 +537,17 @@ const structure = this.detectSpriteStructure(width, height);
     }
   }
   
-  // 3. Mise à jour immédiate de la position si pas d'interpolation
+  // ✅ 4. IGNORER les updates de position du serveur pendant interpolation
   if (!pokemon.isInterpolating && x !== undefined && y !== undefined) {
+    // Seulement mettre à jour la position si on n'est pas en train d'interpoler
     pokemon.x = x;
     pokemon.y = y;
     pokemon.setPosition(x, y);
   }
+  
+  // ✅ 5. Mettre à jour les positions serveur pour le prochain mouvement
+  if (x !== undefined) pokemon.lastServerX = x;
+  if (y !== undefined) pokemon.lastServerY = y;
 }
   /**
    * ✅ NOUVEAU: Trouve un chemin alternatif en cas de collision
