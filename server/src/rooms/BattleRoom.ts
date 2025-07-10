@@ -561,7 +561,7 @@ this.battleEngine.on('battleEvent', async (event: any) => {
     // Timings Pokémon authentiques (copie de BroadcastManager)
     const BATTLE_TIMINGS: Record<string, number> = {
       moveUsed: 500,           // Annonce attaque
-      damageDealt: 1200,        // Application dégâts  
+      damageDealt: 600,        // Application dégâts  
       criticalHit: 800,         // "Coup critique !"
       superEffective: 900,      // "C'est super efficace !"
       notVeryEffective: 900,    // "Ce n'est pas très efficace..."
