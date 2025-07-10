@@ -305,6 +305,17 @@ private async startAttackerPhase(attackerIndex: number): Promise<void> {
   const attackerNumber = attackerIndex + 1;
   const totalAttackers = this.orderedActions.length;
   
+  // ✅ VÉRIFICATION K.O. AVANT D'AGIR
+  const currentPokemon = this.getCurrentPokemonInGame(this.currentAttackerData.playerRole);
+  if (!currentPokemon || currentPokemon.currentHp <= 0) {
+    console.log(`💀 [BattleEngine] ${this.currentAttackerData.pokemon.name} est K.O., ne peut pas agir !`);
+    console.log(`⏭️ [BattleEngine] Passage à l'attaquant suivant...`);
+    
+    // Passer à l'attaquant suivant sans délai
+    await this.startAttackerPhase(attackerIndex + 1);
+    return;
+  }
+  
   // Déterminer la sous-phase
   this.currentSubPhase = attackerIndex === 0 ? SubPhase.ATTACKER_1 : SubPhase.ATTACKER_2;
   
@@ -897,6 +908,21 @@ private async executeFullAttackerAction(): Promise<void> {
   }
   
   // === UTILITAIRES ===
+  
+  /**
+   * ✅ NOUVEAU: Récupère le Pokémon actuel dans le gameState (pas la copie de l'action)
+   */
+  private getCurrentPokemonInGame(playerRole: PlayerRole): Pokemon | null {
+    if (!this.gameState) return null;
+    
+    if (playerRole === 'player1') {
+      return this.gameState.player1.pokemon;
+    } else if (playerRole === 'player2') {
+      return this.gameState.player2.pokemon;
+    }
+    
+    return null;
+  }
   
   private getPlayerRole(playerId: string): PlayerRole | null {
     if (playerId === this.gameState.player1.sessionId) {
