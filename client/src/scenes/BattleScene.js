@@ -316,7 +316,7 @@ createBattleInventoryUI() {
     const { width, height } = this.cameras.main;
     
     // Barre adversaire (à gauche)
-    this.createModernHealthBar('opponent', {
+    this.createModernHealthBar('player2', {
       x: width * 0.05,
       y: height * 0.15,
       width: 280,
@@ -324,7 +324,7 @@ createBattleInventoryUI() {
     });
     
     // Barre joueur (en bas à gauche)
-    this.createModernHealthBar('player', {
+    this.createModernHealthBar('player1', {
       x: width * 0.05,
       y: height * 0.75,
       width: 320,
@@ -708,7 +708,7 @@ createBattleInventoryUI() {
       this.currentPlayerPokemon = pokemonData;
       
       setTimeout(() => {
-        this.updateModernHealthBar('player', pokemonData);
+        this.updateModernHealthBar('player1', pokemonData);
       }, 500);
       
     } catch (error) {
@@ -745,7 +745,7 @@ createBattleInventoryUI() {
       this.currentOpponentPokemon = pokemonData;
       
       setTimeout(() => {
-        this.updateModernHealthBar('opponent', pokemonData);
+        this.updateModernHealthBar('player2', pokemonData);
       }, 800);
       
     } catch (error) {
@@ -1225,21 +1225,21 @@ const frameHeight = height;
     this.battleNetworkHandler.on('actionResult', (data) => {
       if (data.success && data.gameState) {
         // Synchroniser HP (garde les setTimeout pour les animations)
-        if (data.gameState.player1?.pokemon && this.currentPlayerPokemon) {
-          this.currentPlayerPokemon.currentHp = data.gameState.player1.pokemon.currentHp;
-          this.currentPlayerPokemon.maxHp = data.gameState.player1.pokemon.maxHp;
-          setTimeout(() => {
-            this.updateModernHealthBar('player', this.currentPlayerPokemon);
-          }, 500);
-        }
+         if (data.gameState.player1?.pokemon && this.currentPlayerPokemon) {
+            this.currentPlayerPokemon.currentHp = data.gameState.player1.pokemon.currentHp;
+            this.currentPlayerPokemon.maxHp = data.gameState.player1.pokemon.maxHp;
+            setTimeout(() => {
+              this.updateModernHealthBar('player1', this.currentPlayerPokemon); // ⬅️ CHANGÉ
+            }, 500);
+          }
         
-        if (data.gameState.player2?.pokemon && this.currentOpponentPokemon) {
-          this.currentOpponentPokemon.currentHp = data.gameState.player2.pokemon.currentHp;
-          this.currentOpponentPokemon.maxHp = data.gameState.player2.pokemon.maxHp;
-          setTimeout(() => {
-            this.updateModernHealthBar('opponent', this.currentOpponentPokemon);
-          }, 500);
-        }
+          if (data.gameState.player2?.pokemon && this.currentOpponentPokemon) {
+            this.currentOpponentPokemon.currentHp = data.gameState.player2.pokemon.currentHp;
+            this.currentOpponentPokemon.maxHp = data.gameState.player2.pokemon.maxHp;
+            setTimeout(() => {
+              this.updateModernHealthBar('player2', this.currentOpponentPokemon); // ⬅️ CHANGÉ
+            }, 500);
+          }
         
         // ✅ NOUVEAU: Événements typés du serveur (si disponibles)
         if (data.battleEvents && data.battleEvents.length > 0) {
@@ -1765,7 +1765,7 @@ processLegacyEventsServerDriven(events) {
         healthBar.container.destroy();
       }
     });
-    this.modernHealthBars = { player: null, opponent: null };
+    this.modernHealthBars = { player1: null, player2: null };
     
     if (this.battleBackground) {
       this.battleBackground.destroy();
