@@ -173,9 +173,9 @@ export class BroadcastManager {
   
   // === SÉQUENCES PRÉ-CONSTRUITES ===
   
-  /**
-   * Séquence complète d'attaque avec timing optimal
-   */
+/**
+ * Séquence complète d'attaque SANS timing (timing géré par BattleEngine)
+ */
 async emitAttackSequence(attackData: AttackSequenceData): Promise<void> {
   console.log(`⚔️ [BroadcastManager] Séquence attaque: ${attackData.move.name}`);
   
@@ -187,7 +187,7 @@ async emitAttackSequence(attackData: AttackSequenceData): Promise<void> {
     moveId: attackData.move.id
   });
   
-  // 2. Dégâts infligés (INSTANTANÉ)
+  // 2. Dégâts infligés (INSTANTANÉ - données pour barre de vie)
   if (attackData.damage > 0) {
     this.emit('damageDealt', {
       targetName: attackData.target.name,
@@ -210,10 +210,7 @@ async emitAttackSequence(attackData: AttackSequenceData): Promise<void> {
     });
   }
   
-  // 4. ATTENDRE À LA FIN (pour laisser voir les dégâts)
-  await this.delay(BATTLE_TIMINGS.moveUsed); // 1.8s d'attente APRÈS les dégâts
-  
-  console.log(`✅ [BroadcastManager] Séquence attaque terminée`);
+  console.log(`✅ [BroadcastManager] Séquence attaque envoyée (sans timing)`);
 }
   
   /**
