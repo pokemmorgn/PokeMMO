@@ -1255,6 +1255,25 @@ const frameHeight = height;
       }
     });
 
+    // === ✅ ÉVÉNEMENTS POKÉMON AUTHENTIQUES (NOUVEAU) ===
+this.battleNetworkHandler.on('moveUsed', (data) => {
+  console.log('⚔️ [BattleScene] moveUsed:', data);
+  const message = `${data.attackerName} utilise ${data.moveName} !`;
+  this.showActionMessage(message);
+});
+
+this.battleNetworkHandler.on('damageDealt', (data) => {
+  console.log('💥 [BattleScene] damageDealt:', data);
+  // Mettre à jour la barre de vie SANS message texte
+  this.updateHealthBar(data.targetRole, data.newHp, data.maxHp);
+});
+
+this.battleNetworkHandler.on('pokemonFainted', (data) => {
+  console.log('💀 [BattleScene] pokemonFainted:', data);
+  const message = `${data.pokemonName} est mis K.O. !`;
+  this.showActionMessage(message);
+});
+    
         // ✅ NOUVEAU: Handler pour déconnexion BattleRoom
     this.battleNetworkHandler.on('battleRoomDisconnected', (data) => {
       console.log('👋 [BattleScene] Déconnexion BattleRoom détectée:', data);
