@@ -1245,10 +1245,6 @@ this.battleNetworkHandler.on('actionResult', (data) => {
     if (data.battleEvents && data.battleEvents.length > 0) {
       this.processBattleEventsServerDriven(data.battleEvents);
     }
-    // ❌ SUPPRIMÉ: Les événements legacy qui causaient la double attaque
-    // else if (data.events && data.events.length > 0) {
-    //   this.processLegacyEventsServerDriven(data.events);
-    // }
   }
   
   if (!data.success) {
@@ -1431,17 +1427,6 @@ if (eventType === 'battleEnd') {
     });
   }
 
-processLegacyEventsServerDriven(events) {
-  console.log('📜 [BattleScene] Traitement événements legacy server-driven:', events);
-  
-  // ✅ CORRECTION: Ne pas afficher si interface boutons active
-  if (events.length > 0 && this.interfaceMode !== 'buttons') {
-    const lastEvent = events[events.length - 1];
-    this.showActionMessage(lastEvent);
-  } else {
-    console.log('🎮 [BattleScene] Interface boutons active, ignorer legacy events');
-  }
-}
 
   // === HANDLERS RÉSEAU (SIMPLIFIÉS) ===
 
