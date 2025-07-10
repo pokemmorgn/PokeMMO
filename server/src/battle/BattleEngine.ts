@@ -460,79 +460,113 @@ private async executeFullAttackerAction(): Promise<void> {
   
   // === SOUMISSION D'ACTIONS (INCHANGÉ) ===
   
-  async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
-    console.log(`🎮 [BattleEngine] Action soumise: ${action.type} par ${action.playerId}`);
-    
-    if (!this.isInitialized) {
-      return this.createErrorResult('Combat non initialisé');
-    }
-    
-    if (this.gameState.isEnded) {
-      return this.createErrorResult('Combat déjà terminé');
-    }
-    
-    // Validation de phase
-    const phaseValidation = this.phaseManager.validateAction(action);
-    if (!phaseValidation.isValid) {
-      return this.createErrorResult(phaseValidation.reason || 'Action non autorisée');
-    }
-    
-    // Validation joueur
-    const playerRole = this.getPlayerRole(action.playerId);
-    if (!playerRole) {
-      return this.createErrorResult('Joueur non reconnu');
-    }
-    
-    try {
-      // Gestion capture spéciale
-      if (action.type === 'capture') {
-        return await this.handleCaptureAction(action, teamManager);
-      }
-      
-      // Ajouter à la file d'attente
-      const pokemon = playerRole === 'player1' ? 
-        this.gameState.player1.pokemon! : 
-        this.gameState.player2.pokemon!;
-      
-      const success = this.actionQueue.addAction(playerRole, action, pokemon);
-      if (!success) {
-        return this.createErrorResult('Erreur ajout action en file');
-      }
-      
-      console.log(`📥 [BattleEngine] Action ajoutée: ${playerRole} → ${action.type}`);
-      
-      // Émettre événement d'action ajoutée
-      this.emit('actionQueued', {
-        playerRole,
-        actionType: action.type,
-        queueState: this.actionQueue.getQueueState()
-      });
-      
-      // Vérifier si toutes les actions sont prêtes
-      if (this.actionQueue.areAllActionsReady()) {
-        console.log('🔄 [BattleEngine] Toutes les actions prêtes → Résolution style Pokémon Rouge/Bleu');
-        
-        // Annuler le timer IA si toujours actif
-        this.clearActionTimers();
-        
-        // Transition vers résolution
-        this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'all_actions_ready');
-      }
-      
-      return {
-        success: true,
-        gameState: this.gameState,
-        events: [`Action "${action.type}" enregistrée`],
-        actionQueued: true
-      };
-      
-    } catch (error) {
-      console.error(`❌ [BattleEngine] Erreur soumission action:`, error);
-      return this.createErrorResult(
-        error instanceof Error ? error.message : 'Erreur inconnue'
-      );
-    }
+async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
+  console.log(`🎮 [BattleEngine] Action soumise: ${action.type} par ${action.playerId}`);
+  
+  if (!this.isInitialized) {
+    return this.createErrorResult('Combat non initialisé');
   }
+
+  if (this.gameState.isEnded) {
+    return this.createErrorResult('Combat déjà terminé');
+  }
+
+  // Validation de phase
+  const phaseValidation = this.phaseManager.validateAction(action);
+  if (!phaseValidation.isValid) {
+    return this.createErrorResult(phaseValidation.reason || 'Action non autorisée');
+  }
+
+  // Validation joueur
+  const playerRole = this.getPlayerRole(action.playerId);
+  if (!playerRole) {
+    return this.createErrorResult('Joueur non reconnu');
+  }
+
+  try {
+    // Gestion capture spéciale
+    if (action.type === 'capture') {
+      return await this.handleCaptureAction(action, teamManager);
+    }
+
+    // Ajouter à la file d'attente
+    const pokemon = playerRole === 'player1' ? 
+      this.gameState.player1.pokemon! : 
+      this.gameState.player2.pokemon!;
+
+    const success = this.actionQueue.addAction(playerRole, action, pokemon);
+    if (!success) {
+      return this.createErrorResult('Erreur ajout action en file');
+    }
+
+    console.log(`📥 [BattleEngine] Action ajoutée: ${playerRole} → ${action.type}`);
+
+    // ✅ FIX PRINCIPAL: IA SYNCHRONE POUR COMBAT SAUVAGE
+    if (this.gameState.type === 'wild' && playerRole === 'player1') {
+      console.log('⚡ [BattleEngine] Combat sauvage - IA SYNCHRONE');
+      
+      // Annuler tout timer IA existant
+      this.clearActionTimers();
+      
+      // Générer action IA immédiatement
+      const aiAction = this.aiPlayer.generateAction();
+      if (aiAction) {
+        const aiPokemon = this.gameState.player2.pokemon!;
+        const aiSuccess = this.actionQueue.addAction('player2', aiAction, aiPokemon);
+        
+        if (aiSuccess) {
+          console.log(`🤖 [BattleEngine] IA action ajoutée: ${aiAction.type}`);
+          
+          // Transition immédiate vers résolution
+          console.log('⚡ [BattleEngine] Résolution IMMÉDIATE');
+          this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'instant_resolution');
+          
+          return {
+            success: true,
+            gameState: this.gameState,
+            events: [`Combat sauvage - Résolution immédiate !`],
+            actionQueued: true,
+            phaseChanged: true,
+            newPhase: InternalBattlePhase.ACTION_RESOLUTION
+          };
+        }
+      }
+      
+      // Fallback si problème IA
+      console.warn('⚠️ [BattleEngine] Problème IA, mode normal');
+    }
+
+    // ✅ LOGIQUE NORMALE pour PvP/Dresseurs
+    this.emit('actionQueued', {
+      playerRole,
+      actionType: action.type,
+      queueState: this.actionQueue.getQueueState()
+    });
+
+    // Vérifier si toutes les actions sont prêtes
+    if (this.actionQueue.areAllActionsReady()) {
+      console.log('🔄 [BattleEngine] Toutes les actions prêtes → Résolution');
+      this.clearActionTimers();
+      this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'all_actions_ready');
+    } else {
+      // Programmer IA pour dresseurs/PvP
+      this.scheduleAIAction();
+    }
+
+    return {
+      success: true,
+      gameState: this.gameState,
+      events: [`Action "${action.type}" enregistrée`],
+      actionQueued: true
+    };
+
+  } catch (error) {
+    console.error(`❌ [BattleEngine] Erreur soumission action:`, error);
+    return this.createErrorResult(
+      error instanceof Error ? error.message : 'Erreur inconnue'
+    );
+  }
+}
   
   // === IA (INCHANGÉ) ===
   
