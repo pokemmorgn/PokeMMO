@@ -519,6 +519,110 @@ export class BattleScene extends Phaser.Scene {
 
   // === AFFICHAGE POKÉMON AVEC ANIMATION MANAGER ===
 
+  /**
+   * ✅ Affiche les deux Pokémon simultanément
+   */
+  async displayBothPokemon(playerPokemonData, opponentPokemonData) {
+    const sprites = [];
+    
+    // Créer le sprite joueur
+    if (playerPokemonData) {
+      const playerSprite = await this.createPlayerSprite(playerPokemonData);
+      if (playerSprite) sprites.push({ sprite: playerSprite, direction: 'left' });
+    }
+    
+    // Créer le sprite adversaire  
+    if (opponentPokemonData) {
+      const opponentSprite = await this.createOpponentSprite(opponentPokemonData);
+      if (opponentSprite) sprites.push({ sprite: opponentSprite, direction: 'right' });
+    }
+    
+    // Configurer les références du manager
+    this.battleAnimationManager.setSpriteReferences(this.playerPokemonSprite, this.opponentPokemonSprite);
+    
+    // ✅ Ajouter toutes les animations d'entrée EN MÊME TEMPS
+    sprites.forEach(({ sprite, direction }) => {
+      this.battleAnimationManager.queueAnimation('pokemonEntry', {
+        sprite: sprite,
+        direction: direction
+      });
+    });
+    
+    // Mettre à jour les barres de vie après un délai
+    setTimeout(() => {
+      if (playerPokemonData) {
+        this.updateModernHealthBar('player1', playerPokemonData);
+      }
+      if (opponentPokemonData) {
+        this.updateModernHealthBar('player2', opponentPokemonData);
+      }
+    }, 500);
+  }
+
+  /**
+   * ✅ Crée le sprite du joueur sans animation
+   */
+  async createPlayerSprite(pokemonData) {
+    if (this.playerPokemonSprite) {
+      this.playerPokemonSprite.destroy();
+      this.playerPokemonSprite = null;
+    }
+    
+    try {
+      const spriteKey = await this.loadPokemonSprite(pokemonData.pokemonId || pokemonData.id, 'back');
+      const { width, height } = this.cameras.main;
+      const x = width * this.pokemonPositions.player.x;
+      const y = height * this.pokemonPositions.player.y;
+      
+      this.playerPokemonSprite = this.add.sprite(x, y, spriteKey, 0);
+      this.playerPokemonSprite.setScale(3.5);
+      this.playerPokemonSprite.setDepth(25);
+      this.playerPokemonSprite.setOrigin(0.5, 1);
+      this.playerPokemonSprite.setVisible(false);
+      
+      this.currentPlayerPokemon = pokemonData;
+      return this.playerPokemonSprite;
+      
+    } catch (error) {
+      console.error('[BattleScene] ❌ Erreur Pokémon joueur:', error);
+      return this.createPokemonPlaceholder('player', pokemonData);
+    }
+  }
+
+  /**
+   * ✅ Crée le sprite de l'adversaire sans animation
+   */
+  async createOpponentSprite(pokemonData) {
+    if (this.opponentPokemonSprite) {
+      this.opponentPokemonSprite.destroy();
+      this.opponentPokemonSprite = null;
+    }
+    
+    try {
+      const spriteKey = await this.loadPokemonSprite(pokemonData.pokemonId || pokemonData.id, 'front');
+      const { width, height } = this.cameras.main;
+      const x = width * this.pokemonPositions.opponent.x;
+      const y = height * this.pokemonPositions.opponent.y;
+      
+      this.opponentPokemonSprite = this.add.sprite(x, y, spriteKey, 0);
+      this.opponentPokemonSprite.setScale(2.8);
+      this.opponentPokemonSprite.setDepth(20);
+      this.opponentPokemonSprite.setOrigin(0.5, 1);
+      this.opponentPokemonSprite.setVisible(false);
+      
+      if (pokemonData.shiny) {
+        // TODO: Ajouter effet shiny via BattleAnimationManager
+      }
+      
+      this.currentOpponentPokemon = pokemonData;
+      return this.opponentPokemonSprite;
+      
+    } catch (error) {
+      console.error('[BattleScene] ❌ Erreur Pokémon adversaire:', error);
+      return this.createPokemonPlaceholder('opponent', pokemonData);
+    }
+  }
+
   async displayPlayerPokemon(pokemonData) {
     if (!pokemonData) return;
     
@@ -1066,12 +1170,10 @@ export class BattleScene extends Phaser.Scene {
       this.scene.setVisible(true);
       this.scene.bringToTop();
       
-      if (data.playerPokemon) {
-        this.displayPlayerPokemon(data.playerPokemon);
-      }
+      // ✅ Afficher les Pokémon simultanément
+      this.displayBothPokemon(data.playerPokemon, data.opponentPokemon);
       
       if (data.opponentPokemon) {
-        this.displayOpponentPokemon(data.opponentPokemon);
         this.handleBattleEvent('wildPokemonAppears', { 
           pokemonName: data.opponentPokemon.name 
         });
