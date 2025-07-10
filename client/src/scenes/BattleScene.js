@@ -1386,9 +1386,7 @@ this.battleNetworkHandler.on('pokemonFainted', (data) => {
 
   handleBattleEvent(eventType, data = {}) {
     console.log(`🌍 [BattleScene] Événement: ${eventType}`, data);
-      if (eventType === 'moveUsed') {
-    return;
-    }
+    if (eventType === 'moveUsed') return;
     // Actions d'interface
     if (eventType === 'yourTurn') {
       this.showActionButtons();
