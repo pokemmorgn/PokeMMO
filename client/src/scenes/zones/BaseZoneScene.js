@@ -1623,10 +1623,10 @@ positionPlayer(player) {
 
     if (this.playerManager) this.playerManager.update();
     if (this.cameraManager) this.cameraManager.update();
-    // ✅ NOUVEAU: Mettre à jour les Pokémon overworld
-  if (this.overworldManager) {
-    this.overworldManager.updateMain(delta); // Utilise updateMain au lieu de update
-  }
+// ✅ CORRIGER EN :
+if (this.overworldPokemonManager) {
+    this.overworldPokemonManager.update(this.game.loop.delta);
+}
     
     if (this.sys.animatedTiles && typeof this.sys.animatedTiles.update === 'function') {
       this.sys.animatedTiles.update();
