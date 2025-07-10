@@ -11,7 +11,7 @@ import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule
 import { BroadcastManager } from './modules/BroadcastManager';
 import { BroadcastManagerFactory } from './modules/broadcast/BroadcastManagerFactory';
 import { SpectatorManager } from './modules/broadcast/SpectatorManager';
-import { BATTLE_TIMINGS } from './modules/broadcast/BroadcastManager';
+import { BATTLE_TIMINGS } from './modules/BroadcastManager';
 /**
  * BATTLE ENGINE - Chef d'orchestre du combat avec narrateur + capture
  * 
