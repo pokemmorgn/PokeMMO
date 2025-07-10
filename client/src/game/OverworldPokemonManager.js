@@ -1332,49 +1332,7 @@ update(delta = 16) {
     console.log(`✅ [OverworldPokemonManager] ${count} Pokémon mis à jour avec personnalité ${personality}`);
   }
 
-  /**
- * ✅ NOUVEAU: Créer un body physique avec collisions pour un Pokémon
- */
-setupPokemonPhysics(pokemon) {
-  if (!pokemon.body) {
-    // Convertir le sprite en physics sprite
-    this.scene.physics.add.existing(pokemon);
-    
-    // Configuration du body (comme le joueur)
-    pokemon.body.setSize(16, 16);
-    pokemon.body.setOffset(8, 8);
-    pokemon.body.setCollideWorldBounds(true);
-    
-    // ✅ AJOUTER LES COLLIDERS avec les layers de collision
-    if (this.scene.collisionLayers && this.scene.collisionLayers.length > 0) {
-      if (!pokemon.colliders) pokemon.colliders = [];
-      
-      this.scene.collisionLayers.forEach((layer, index) => {
-        const collider = this.scene.physics.add.collider(pokemon, layer, (pokemon, tile) => {
-          // Arrêter le mouvement en cas de collision
-          pokemon.body.setVelocity(0, 0);
-          pokemon.isMoving = false;
-          
-          console.log(`💥 [${pokemon.name}] Collision détectée à (${Math.round(pokemon.x)}, ${Math.round(pokemon.y)})`);
-          
-          // Animation idle immédiate
-          const idleDirection = this.getDirectionForAnimation(pokemon.lastDirection || 'down');
-          const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
-          const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${idleDirection}`;
-          
-          if (this.scene.anims.exists(idleAnimKey)) {
-            pokemon.anims.play(idleAnimKey, true);
-          }
-        }, null, this.scene);
-        
-        pokemon.colliders.push(collider);
-      });
-      
-      console.log(`🛡️ [${pokemon.name}] Colliders ajoutés: ${pokemon.colliders.length}`);
-    }
-  }
-}
-  
+
   /**
    * Force tous les Pokémon à utiliser un pattern spécifique
    */
