@@ -314,28 +314,49 @@ export class BattleRoom extends Room<BattleState> {
       });
     });
 
-    // === 💀 NOUVEAUX ÉVÉNEMENTS K.O. ===
-    this.battleEngine.on('koMessage', (data: any) => {
-      console.log(`💀 [BattleRoom] K.O. Message: ${data.message}`);
-      
-      this.broadcast('koMessage', {
-        pokemonName: data.pokemonName,
-        playerRole: data.playerRole,
-        message: data.message,
-        messageType: data.messageType || 'official_ko'
-      });
-    });
-    
-    this.battleEngine.on('winnerAnnounce', (data: any) => {
-      console.log(`🏆 [BattleRoom] Annonce vainqueur: ${data.message}`);
-      
-      this.broadcast('winnerAnnounce', {
-        winner: data.winner,
-        message: data.message,
-        battleEndType: data.battleEndType,
-        messageType: data.messageType || 'victory'
-      });
-    });
+this.battleEngine.on('koMessage', (data: any) => {
+  console.log(`💀 [BattleRoom] K.O. Message reçu: ${data.message}`);
+  
+  // ✅ CRÉER UN ÉVÉNEMENT BATTLEEVENT POUR LE TIMING
+  const battleEvent = {
+    eventId: 'koMessage',
+    battleId: this.state.battleId,
+    timestamp: Date.now(),
+    data: {
+      pokemonName: data.pokemonName,
+      playerRole: data.playerRole,
+      message: data.message,
+      messageType: data.messageType || 'official_ko'
+    }
+  };
+  
+  // ✅ RETRANSMETTRE VIA LE SYSTÈME BATTLEEVENT (avec timing automatique)
+  this.broadcast('battleEvent', battleEvent);
+  
+  console.log(`✅ [BattleRoom] K.O. Message retransmis via battleEvent`);
+});
+
+this.battleEngine.on('winnerAnnounce', (data: any) => {
+  console.log(`🏆 [BattleRoom] Winner Announce reçu: ${data.message}`);
+  
+  // ✅ CRÉER UN ÉVÉNEMENT BATTLEEVENT POUR LE TIMING
+  const battleEvent = {
+    eventId: 'winnerAnnounce',
+    battleId: this.state.battleId,
+    timestamp: Date.now(),
+    data: {
+      winner: data.winner,
+      message: data.message,
+      battleEndType: data.battleEndType,
+      messageType: data.messageType || 'victory'
+    }
+  };
+  
+  // ✅ RETRANSMETTRE VIA LE SYSTÈME BATTLEEVENT (avec timing automatique)
+  this.broadcast('battleEvent', battleEvent);
+  
+  console.log(`✅ [BattleRoom] Winner Announce retransmis via battleEvent`);
+});
 
     // === ⚔️ ÉVÉNEMENTS DE COMBAT INDIVIDUELS AVEC TIMING ===
     
@@ -539,13 +560,17 @@ this.battleEngine.on('battleEvent', async (event: any) => {
   private getBattleEventDelay(eventId: string): number {
     // Timings Pokémon authentiques (copie de BroadcastManager)
     const BATTLE_TIMINGS: Record<string, number> = {
-      moveUsed: 1800,           // Annonce attaque
+      moveUsed: 500,           // Annonce attaque
       damageDealt: 1200,        // Application dégâts  
       criticalHit: 800,         // "Coup critique !"
       superEffective: 900,      // "C'est super efficace !"
       notVeryEffective: 900,    // "Ce n'est pas très efficace..."
       noEffect: 1000,           // "Ça n'a aucun effet !"
       pokemonFainted: 2000,     // K.O. (pause importante)
+
+     // ✅ AJOUTER LES TIMINGS K.O.
+      koMessage: 1500,        // Message K.O. officiel
+      winnerAnnounce: 2200,   // Annonce vainqueur
       
       // Capture
       captureAttempt: 1500,     // Lancer Ball
