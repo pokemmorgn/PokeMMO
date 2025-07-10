@@ -362,25 +362,25 @@ private async executeFullAttackerAction(): Promise<void> {
   if (action.type === 'attack' && result.data && this.broadcastManager) {
     
     // ✅ ÉTAPE 1: Message d'attaque (AVEC TIMING)
-    console.log(`📢 [BattleEngine] "${this.getPlayerName(action.playerId)} utilise ${this.getMoveDisplayName(action.data.moveId)} !"`);
+    console.log(`📢 [BattleEngine] "${pokemon.name} utilise ${this.getMoveDisplayName(action.data.moveId)} !"`);
     
     await this.broadcastManager.emitTimed('moveUsed', {
-      attackerName: this.getPlayerName(action.playerId),
+      attackerName: pokemon.name, // ✅ CORRECTION !
       attackerRole: playerRole,
       moveName: this.getMoveDisplayName(action.data.moveId),
       moveId: action.data.moveId,
       subPhase: this.currentSubPhase,
-      message: `${this.getPlayerName(action.playerId)} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
+      message: `${pokemon.name} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
     });
-    
+        
     // ✅ ÉTAPE 2: Dégâts (AVEC TIMING)
     if (result.data.damage > 0) {
       console.log(`💥 [BattleEngine] ${result.data.damage} dégâts infligés !`);
       
-      await this.broadcastManager.emitTimed('damageDealt', {
-        targetName: result.data.defenderRole === 'player1' ? 
-          this.gameState.player1.name : 
-          this.gameState.player2.name,
+    await this.broadcastManager.emitTimed('damageDealt', {
+      targetName: result.data.defenderRole === 'player1' ? 
+        this.gameState.player1.pokemon!.name : 
+        this.gameState.player2.pokemon!.name,
         targetRole: result.data.defenderRole,
         damage: result.data.damage,
         oldHp: result.data.oldHp,
