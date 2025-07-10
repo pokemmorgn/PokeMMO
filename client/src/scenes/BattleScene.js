@@ -556,38 +556,59 @@ createBattleInventoryUI() {
     });
   }
 
-   createPokemonMovesInterface() {
-    if (!this.battleNetworkHandler) {
-      console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour PokemonMovesUI');
-      return;
-    }
-
-    this.pokemonMovesUI = new PokemonMovesUI(this, this.battleNetworkHandler);
-    this.pokemonMovesUI.create();
-
-    // Écouter les événements de l'interface
-    this.events.on('moveSelected', (data) => {
-      console.log(`⚔️ [BattleScene] Attaque sélectionnée: ${data.moveName}`);
-      
-      // Afficher le message d'action
-      this.showActionMessage(`${this.currentPlayerPokemon?.name || 'Votre Pokémon'} utilise ${data.moveName} !`);
-      
-      // Déclencher l'événement pour le système de combat
-      this.scene.events.emit('battleActionSelected', {
-        type: 'move',
-        moveId: data.moveId,
-        moveName: data.moveName,
-        moveData: data.moveData
-      });
-    });
-
-    this.events.on('movesMenuClosed', () => {
-      console.log('🔙 [BattleScene] Menu attaques fermé - retour menu principal');
-      this.showActionButtons(); // Revenir au menu principal
-    });
-
-    console.log('✅ [BattleScene] Interface attaques Pokémon authentique créée');
+createPokemonMovesInterface() {
+  if (!this.battleNetworkHandler) {
+    console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour PokemonMovesUI');
+    return;
   }
+
+  // ✅ VÉRIFICATION: NetworkHandler est-il vraiment connecté ?
+  if (this.battleNetworkHandler && typeof this.battleNetworkHandler.canSendBattleActions === 'function') {
+    const canSend = this.battleNetworkHandler.canSendBattleActions();
+    if (!canSend) {
+      console.warn('⚠️ [BattleScene] NetworkHandler pas encore connecté - interface en attente');
+    }
+  }
+
+  this.pokemonMovesUI = new PokemonMovesUI(this, this.battleNetworkHandler);
+  this.pokemonMovesUI.create();
+
+  // ✅ NOUVEL ÉVÉNEMENT: Gestion des erreurs
+  this.events.on('movesMenuError', (data) => {
+    console.error('❌ [BattleScene] Erreur menu attaques:', data.message);
+    
+    // Afficher l'erreur dans l'interface principale
+    this.showActionMessage(`Erreur attaques: ${data.message}`);
+    
+    // Revenir au menu principal après 3 secondes
+    setTimeout(() => {
+      this.showActionButtons();
+    }, 3000);
+  });
+
+  // Écouter les événements de l'interface (existants)
+  this.events.on('moveSelected', (data) => {
+    console.log(`⚔️ [BattleScene] Attaque sélectionnée: ${data.moveName}`);
+    
+    // Afficher le message d'action
+    this.showActionMessage(`${this.currentPlayerPokemon?.name || 'Votre Pokémon'} utilise ${data.moveName} !`);
+    
+    // Déclencher l'événement pour le système de combat
+    this.scene.events.emit('battleActionSelected', {
+      type: 'move',
+      moveId: data.moveId,
+      moveName: data.moveName,
+      moveData: data.moveData
+    });
+  });
+
+  this.events.on('movesMenuClosed', () => {
+    console.log('🔙 [BattleScene] Menu attaques fermé - retour menu principal');
+    this.showActionButtons(); // Revenir au menu principal
+  });
+
+  console.log('✅ [BattleScene] Interface attaques Pokémon authentique créée (anti-freeze)');
+}
 
   createModernButton(x, y, config, action) {
     const buttonContainer = this.add.container(x, y);
@@ -656,48 +677,106 @@ createBattleInventoryUI() {
     return buttonContainer;
   }
 
-  handleActionButton(actionKey) {
-    console.log('[BattleScene] 🎯 Action:', actionKey);
-    
-    this.hideActionButtons();
-    
-    switch (actionKey) {
-      case 'attack':
-        // ✅ NOUVEAU : Utiliser l'interface Pokémon authentique
-        if (this.pokemonMovesUI) {
-          console.log('🎮 [BattleScene] Ouverture menu attaques authentique...');
-          this.pokemonMovesUI.requestMoves(); // Demande au serveur + affichage auto
-        } else {
-          console.error('❌ [BattleScene] PokemonMovesUI non initialisé');
-          this.showActionMessage('Interface attaques non disponible');
-          this.showActionButtons(); // Revenir au menu
-        }
-        break;
-      case 'bag':
+handleActionButton(actionKey) {
+  console.log('[BattleScene] 🎯 Action:', actionKey);
+  
+  this.hideActionButtons();
+  
+  switch (actionKey) {
+    case 'attack':
+      // ✅ VÉRIFICATIONS PRÉALABLES
+      if (!this.pokemonMovesUI) {
+        console.error('❌ [BattleScene] PokemonMovesUI non initialisé');
+        this.showActionMessage('Interface attaques non disponible');
+        
+        // ✅ AUTO-RETOUR au menu après erreur
+        setTimeout(() => {
+          this.showActionButtons();
+        }, 2000);
+        return;
+      }
+
+      // ✅ VÉRIFICATION: NetworkHandler connecté ?
+      if (!this.battleNetworkHandler || !this.battleNetworkHandler.canSendBattleActions?.()) {
+        console.error('❌ [BattleScene] NetworkHandler non connecté');
+        this.showActionMessage('Non connecté au combat');
+        
+        setTimeout(() => {
+          this.showActionButtons();
+        }, 2000);
+        return;
+      }
+
+      // ✅ AFFICHAGE TEMPORAIRE pendant la requête
+      this.showActionMessage('Chargement des attaques...');
+
+      console.log('🎮 [BattleScene] Ouverture menu attaques authentique...');
+      
+      // ✅ TIMEOUT DE SÉCURITÉ: Si pas de réponse en 6 secondes, revenir au menu
+      const safetyTimeout = setTimeout(() => {
+        console.error('⏰ [BattleScene] Timeout sécurité - retour menu principal');
+        this.showActionMessage('Timeout - réessayez');
+        
+        setTimeout(() => {
+          this.showActionButtons();
+        }, 2000);
+      }, 6000);
+
+      // ✅ Effacer le timeout si tout va bien
+      const originalRequestMoves = this.pokemonMovesUI.requestMoves.bind(this.pokemonMovesUI);
+      this.pokemonMovesUI.requestMoves = () => {
+        clearTimeout(safetyTimeout);
+        originalRequestMoves();
+      };
+
+      this.pokemonMovesUI.requestMoves(); // Demande au serveur + affichage auto
+      break;
+      
+    case 'bag':
+      // ✅ GESTION AMÉLIORÉE
+      try {
         if (!this.battleInventoryUI) {
-          this.hideActionButtons();
+          this.showActionMessage('Initialisation inventaire...');
           this.createBattleInventoryUI();
         }
         
         if (this.battleInventoryUI) {
-          
           this.battleInventoryUI.openToBalls();
         } else {
           this.showActionMessage('Inventaire de combat non disponible');
+          setTimeout(() => this.showActionButtons(), 2000);
         }
-        break;
-      case 'pokemon':
-        // ✅ SIMPLIFIÉ: Pas de timer côté client
-        this.showActionMessage('Changement de Pokémon indisponible.');
-        break;
-      case 'run':
-        this.showActionMessage('Tentative de fuite...');
-        if (this.battleNetworkHandler) {
-          this.battleNetworkHandler.attemptRun();
-        }
-        break;
-    }
+      } catch (error) {
+        console.error('❌ [BattleScene] Erreur inventaire:', error);
+        this.showActionMessage('Erreur inventaire');
+        setTimeout(() => this.showActionButtons(), 2000);
+      }
+      break;
+      
+    case 'pokemon':
+      this.showActionMessage('Changement de Pokémon indisponible.');
+      setTimeout(() => this.showActionButtons(), 2000);
+      break;
+      
+    case 'run':
+      // ✅ VÉRIFICATION avant fuite
+      if (!this.battleNetworkHandler) {
+        this.showActionMessage('Impossible de fuir - pas de connexion');
+        setTimeout(() => this.showActionButtons(), 2000);
+        return;
+      }
+      
+      this.showActionMessage('Tentative de fuite...');
+      try {
+        this.battleNetworkHandler.attemptRun();
+      } catch (error) {
+        console.error('❌ [BattleScene] Erreur fuite:', error);
+        this.showActionMessage('Erreur lors de la fuite');
+        setTimeout(() => this.showActionButtons(), 2000);
+      }
+      break;
   }
+}
     // CAPTURE SYSTEMS
   initializeCaptureManager() {
   if (!this.battleNetworkHandler) {
@@ -1356,20 +1435,61 @@ const frameHeight = height;
       }, 1000);
     });
 
-        this.battleNetworkHandler.on('requestMovesResult', (data) => {
-      console.log('📋 [BattleScene] Résultat demande attaques:', data);
+  this.battleNetworkHandler.on('requestMovesResult', (data) => {
+    console.log('📋 [BattleScene] Résultat demande attaques (amélioré):', data);
+    
+    if (!data.success) {
+      console.error('❌ [BattleScene] Erreur attaques:', data.error);
       
-      if (!data.success) {
-        console.error('❌ [BattleScene] Erreur attaques:', data.error);
-        this.showActionMessage(`Erreur: ${data.error}`);
-        
-        // Revenir au menu principal après erreur
-        setTimeout(() => {
-          this.showActionButtons();
-        }, 2000);
+      // ✅ Masquer le message de chargement
+      this.hideActionMessage();
+      
+      // Afficher l'erreur
+      this.showActionMessage(`Erreur: ${data.error}`);
+      
+      // ✅ Si l'interface est bloquée, la débloquer
+      if (this.pokemonMovesUI) {
+        this.pokemonMovesUI.cancelRequest();
       }
-      // Si succès, PokemonMovesUI gère automatiquement l'affichage
-    });
+      
+      // Revenir au menu principal après erreur
+      setTimeout(() => {
+        this.showActionButtons();
+      }, 3000);
+    } else {
+      // ✅ Masquer le message de chargement en cas de succès
+      this.hideActionMessage();
+    }
+    // Si succès, PokemonMovesUI gère automatiquement l'affichage
+  });
+      this.battleNetworkHandler.on('connectionTimeout', (data) => {
+    console.error('⏰ [BattleScene] Timeout connexion:', data);
+    this.showActionMessage('Connexion instable - réessayez');
+    
+    // Débloquer l'interface
+    if (this.pokemonMovesUI) {
+      this.pokemonMovesUI.cancelRequest();
+    }
+    
+    setTimeout(() => {
+      this.showActionButtons();
+    }, 3000);
+  });
+
+  // ✅ NOUVEAU: Handler d'erreur générale
+  this.battleNetworkHandler.on('networkError', (data) => {
+    console.error('🌐 [BattleScene] Erreur réseau:', data);
+    this.showActionMessage('Erreur réseau - reconnexion...');
+    
+    // Débloquer tout
+    if (this.pokemonMovesUI) {
+      this.pokemonMovesUI.cancelRequest();
+    }
+    
+    setTimeout(() => {
+      this.showActionButtons();
+    }, 4000);
+  });
     // Début narratif
     this.battleNetworkHandler.on('narrativeStart', (data) => {
       if (this.scene.isSleeping()) {
