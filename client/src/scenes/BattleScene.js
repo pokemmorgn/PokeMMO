@@ -671,19 +671,14 @@ createBattleInventoryUI() {
 executePlayerAction(actionData) {
   if (actionData.type === 'move') {
     this.hideActionButtons();
-    
-    // ❌ SUPPRIMÉ: Cette ligne causait le message précoce !
-    // this.showActionMessage(`${this.currentPlayerPokemon?.name} utilise ${actionData.moveName}!`);
-    
-    // ✅ NOUVEAU: Message temporaire ou pas de message
     this.showActionMessage('Action envoyée au serveur...');
     
-    // Délai minimal pour l'UX, puis envoi au serveur
     setTimeout(() => {
       if (this.battleNetworkHandler) {
         this.battleNetworkHandler.useMove(actionData.moveId);
       }
-      this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
+      // ❌ SUPPRIMER CETTE LIGNE :
+      // this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
     }, 1000);
   }
 }
@@ -1284,22 +1279,18 @@ this.battleNetworkHandler.on('actionResult', (data) => {
     // === ✅ ÉVÉNEMENTS POKÉMON AUTHENTIQUES (NOUVEAU) ===
 this.battleNetworkHandler.on('moveUsed', (data) => {
   console.log('⚔️ [BattleScene] moveUsed:', data);
-  console.log('🐛 [DEBUG] moveUsed ENTREE:', {
-    attackerName: data.attackerName,
-    moveName: data.moveName,
-    subPhase: data.subPhase,
-    timestamp: Date.now()
-  });
   
   const message = `${data.attackerName} utilise ${data.moveName} ! AHAHAH`;
-  
-  console.log('🐛 [DEBUG] Message à afficher:', message);
-  console.log('🐛 [DEBUG] Interface mode avant:', this.interfaceMode);
-  
   this.showActionMessage(message);
   
-  console.log('🐛 [DEBUG] Interface mode après:', this.interfaceMode);
-  console.log('🐛 [DEBUG] moveUsed SORTIE');
+  // ✅ AJOUTER ICI L'ANIMATION AU BON MOMENT :
+  if (data.attackerRole === 'player1') {
+    // Animation pour attaque du joueur
+    this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
+  } else {
+    // Animation pour attaque de l'adversaire  
+    this.createAttackEffect(this.opponentPokemonSprite, this.playerPokemonSprite);
+  }
 });
 
 this.battleNetworkHandler.on('damageDealt', (data) => {
