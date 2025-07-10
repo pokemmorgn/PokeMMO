@@ -170,13 +170,6 @@ async emitTimed(eventId: string, data: any): Promise<void> {
   const timing = this.getTimingForEvent(eventId);
   await this.emitWithDelay(eventId, data, timing);
 }
-
-/**
- * Récupère le timing approprié pour un type d'événement
- */
-private getTimingForEvent(eventId: string): number {
-  return (BATTLE_TIMINGS as any)[eventId] || BATTLE_TIMINGS.transitionNormal;
-}
   // === SÉQUENCES PRÉ-CONSTRUITES ===
   
 /**
