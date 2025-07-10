@@ -313,7 +313,30 @@ export class BattleRoom extends Room<BattleState> {
         message: "Tour terminé !"
       });
     });
+
+    // === 💀 NOUVEAUX ÉVÉNEMENTS K.O. ===
+    this.battleEngine.on('koMessage', (data: any) => {
+      console.log(`💀 [BattleRoom] K.O. Message: ${data.message}`);
+      
+      this.broadcast('koMessage', {
+        pokemonName: data.pokemonName,
+        playerRole: data.playerRole,
+        message: data.message,
+        messageType: data.messageType || 'official_ko'
+      });
+    });
     
+    this.battleEngine.on('winnerAnnounce', (data: any) => {
+      console.log(`🏆 [BattleRoom] Annonce vainqueur: ${data.message}`);
+      
+      this.broadcast('winnerAnnounce', {
+        winner: data.winner,
+        message: data.message,
+        battleEndType: data.battleEndType,
+        messageType: data.messageType || 'victory'
+      });
+    });
+
     // === ⚔️ ÉVÉNEMENTS DE COMBAT INDIVIDUELS AVEC TIMING ===
     
   // Attaque utilisée
