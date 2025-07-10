@@ -1,5 +1,5 @@
 // server/src/battle/BattleEngine.ts
-// VERSION POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE
+// VERSION POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE + KO MANAGER
 
 import { PhaseManager, BattlePhase as InternalBattlePhase } from './modules/PhaseManager';
 import { ActionQueue } from './modules/ActionQueue';
@@ -8,14 +8,15 @@ import { ActionProcessor } from './modules/ActionProcessor';
 import { AIPlayer } from './modules/AIPlayer';
 import { BattleEndManager } from './modules/BattleEndManager';
 import { CaptureManager } from './modules/CaptureManager';
+import { KOManager } from './modules/KOManager';
 import { BroadcastManager } from './modules/BroadcastManager';
 import { BroadcastManagerFactory } from './modules/broadcast/BroadcastManagerFactory';
 import { SpectatorManager } from './modules/broadcast/SpectatorManager';
 import { BATTLE_TIMINGS } from './modules/BroadcastManager';
-import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule, PlayerRole, Pokemon } from './types/BattleTypes';
+import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule, PlayerRole } from './types/BattleTypes';
 
 /**
- * BATTLE ENGINE - POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE
+ * BATTLE ENGINE - POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE + KO MANAGER
  * 
  * Flow EXACT des vrais jeux :
  * 1. INTRO → "Un Pokémon sauvage apparaît !"
@@ -23,7 +24,8 @@ import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule
  * 3. ACTION_RESOLUTION → VRAIES SOUS-PHASES :
  *    - ATTACKER_1_PHASE → Pokémon 1 attaque COMPLÈTEMENT
  *    - ATTACKER_2_PHASE → Pokémon 2 attaque COMPLÈTEMENT
- * 4. Retour à ACTION_SELECTION (nouveau tour)
+ *    - KO_CHECK → Vérification K.O. et fin de combat
+ * 4. Retour à ACTION_SELECTION (nouveau tour) OU fin si K.O.
  * 5. CAPTURE (optionnel)
  * 6. END
  */
@@ -32,7 +34,8 @@ import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule
 enum SubPhase {
   NONE = 'none',
   ATTACKER_1 = 'attacker_1_phase',
-  ATTACKER_2 = 'attacker_2_phase'
+  ATTACKER_2 = 'attacker_2_phase',
+  KO_CHECK = 'ko_check_phase'
 }
 
 export class BattleEngine {
@@ -57,6 +60,7 @@ export class BattleEngine {
   private aiPlayer: AIPlayer;
   private battleEndManager: BattleEndManager;
   private captureManager: CaptureManager;
+  private koManager: KOManager; // ✅ NOUVEAU KO MANAGER
   
   // === MODULES BROADCAST ===
   private broadcastManager: BroadcastManager | null = null;
@@ -72,7 +76,7 @@ export class BattleEngine {
   private subPhaseTimer: NodeJS.Timeout | null = null;
   
   constructor() {
-    console.log('🎯 [BattleEngine] Système Pokémon Rouge/Bleu ABSOLUMENT authentique');
+    console.log('🎯 [BattleEngine] Système Pokémon Rouge/Bleu ABSOLUMENT authentique + KO Manager');
     
     // === MODULES ===
     this.phaseManager = new PhaseManager();
@@ -82,11 +86,12 @@ export class BattleEngine {
     this.aiPlayer = new AIPlayer();
     this.battleEndManager = new BattleEndManager();
     this.captureManager = new CaptureManager();
+    this.koManager = new KOManager(); // ✅ INITIALISATION KO MANAGER
     
     // État initial vide
     this.gameState = this.createEmptyState();
     
-    console.log('✅ [BattleEngine] Pokémon Rouge/Bleu AUTHENTIQUE prêt');
+    console.log('✅ [BattleEngine] Pokémon Rouge/Bleu AUTHENTIQUE + KO Manager prêt');
   }
   
   // === API PRINCIPALE ===
@@ -184,27 +189,23 @@ export class BattleEngine {
     console.log(`✅ [BattleEngine] Nouvelle phase Pokémon: ${newPhase}`);
     
     // Logique spécifique selon la nouvelle phase
-switch (newPhase) {
-  case InternalBattlePhase.ACTION_SELECTION:
-    this.handleActionSelectionPhase();
-    break;
-    
-  case InternalBattlePhase.ACTION_RESOLUTION:
-    this.handleActionResolutionPhase();
-    break;
-    
-  case InternalBattlePhase.POKEMON_FAINTED:  // 🆕
-    // Géré directement dans handlePokemonFainted
-    break;
-    
-  case InternalBattlePhase.CAPTURE:
-    // Géré directement dans submitAction
-    break;
-    
-  case InternalBattlePhase.ENDED:
-    this.handleEndedPhase();
-    break;
-}
+    switch (newPhase) {
+      case InternalBattlePhase.ACTION_SELECTION:
+        this.handleActionSelectionPhase();
+        break;
+        
+      case InternalBattlePhase.ACTION_RESOLUTION:
+        this.handleActionResolutionPhase();
+        break;
+        
+      case InternalBattlePhase.CAPTURE:
+        // Géré directement dans submitAction
+        break;
+        
+      case InternalBattlePhase.ENDED:
+        this.handleEndedPhase();
+        break;
+    }
     
     // Émettre événement de changement de phase
     this.emit('phaseChanged', {
@@ -246,10 +247,10 @@ switch (newPhase) {
   }
   
   /**
-   * ✅ POKÉMON ROUGE/BLEU AUTHENTIQUE: Gestion phase ACTION_RESOLUTION avec VRAIES SOUS-PHASES
+   * ✅ POKÉMON ROUGE/BLEU AUTHENTIQUE: Gestion phase ACTION_RESOLUTION avec VRAIES SOUS-PHASES + KO
    */
   private async handleActionResolutionPhase(): Promise<void> {
-    console.log('⚔️ [BattleEngine] ACTION_RESOLUTION - SOUS-PHASES POKÉMON ROUGE/BLEU AUTHENTIQUES');
+    console.log('⚔️ [BattleEngine] ACTION_RESOLUTION - SOUS-PHASES POKÉMON ROUGE/BLEU AUTHENTIQUES + KO CHECK');
     
     this.isProcessingActions = true;
     
@@ -294,8 +295,9 @@ switch (newPhase) {
    */
 private async startAttackerPhase(attackerIndex: number): Promise<void> {
   if (attackerIndex >= this.orderedActions.length) {
-    // Tous les attaquants ont agi
-    await this.completeActionResolution();
+    // ✅ NOUVEAU: Tous les attaquants ont agi → PHASE K.O. CHECK
+    console.log('💀 [BattleEngine] === PHASE K.O. CHECK ===');
+    await this.performKOCheckPhase();
     return;
   }
   
@@ -327,23 +329,128 @@ private async startAttackerPhase(attackerIndex: number): Promise<void> {
   
   console.log(`⏰ [BattleEngine] FIN action ${this.currentAttackerData.pokemon.name} - Délais respectés`);
   
-  // Vérifier fin de combat après cette phase
-  const battleEndCheck = this.checkBattleEnd();
-  if (battleEndCheck.isEnded) {
-    console.log(`🏁 [BattleEngine] Combat terminé après phase ${this.currentSubPhase}: ${battleEndCheck.reason}`);
-    this.gameState.isEnded = true;
-    this.gameState.winner = battleEndCheck.winner;
-    this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
-    return;
-  }
-  
-  // ✅ POKÉMON AUTHENTIQUE: Passer à l'attaquant suivant APRÈS avoir attendu
+  // ✅ NOUVEAU: Ne pas vérifier la fin ici, continuer jusqu'à K.O. CHECK
   console.log(`✅ [BattleEngine] Phase ${this.currentSubPhase} terminée, attaquant suivant...`);
   
   // ✅ DÉLAI ENTRE LES ATTAQUANTS (optionnel - peut être retiré si trop lent)
   await this.delay(500); // 0.5s entre les attaquants
   
   await this.startAttackerPhase(attackerIndex + 1);
+}
+
+/**
+ * ✅ NOUVELLE PHASE: K.O. CHECK après toutes les attaques
+ */
+private async performKOCheckPhase(): Promise<void> {
+  console.log('💀 [BattleEngine] === PHASE K.O. CHECK POKÉMON AUTHENTIQUE ===');
+  
+  this.currentSubPhase = SubPhase.KO_CHECK;
+  
+  // Vérifier les K.O. pour chaque Pokémon
+  const player1Pokemon = this.gameState.player1.pokemon;
+  const player2Pokemon = this.gameState.player2.pokemon;
+  
+  if (!player1Pokemon || !player2Pokemon) {
+    console.error('❌ [BattleEngine] Pokémon manquants pour K.O. check');
+    await this.completeActionResolution();
+    return;
+  }
+  
+  // ✅ VÉRIFIER K.O. JOUEUR 1
+  const player1KO = this.koManager.checkAndProcessKO(player1Pokemon, 'player1');
+  if (player1KO.isKO) {
+    console.log(`💀 [BattleEngine] JOUEUR 1 K.O. : ${player1KO.message}`);
+    await this.processKOSequence(player1KO);
+  }
+  
+  // ✅ VÉRIFIER K.O. JOUEUR 2 (seulement si joueur 1 pas K.O. ou double K.O.)
+  const player2KO = this.koManager.checkAndProcessKO(player2Pokemon, 'player2');
+  if (player2KO.isKO) {
+    console.log(`💀 [BattleEngine] JOUEUR 2 K.O. : ${player2KO.message}`);
+    await this.processKOSequence(player2KO);
+  }
+  
+  // ✅ VÉRIFICATION FINALE DE FIN DE COMBAT
+  const battleEndCheck = this.koManager.checkBattleEnd();
+  if (battleEndCheck.isEnded) {
+    console.log(`🏁 [BattleEngine] COMBAT TERMINÉ PAR K.O.: ${battleEndCheck.message}`);
+    
+    this.gameState.isEnded = true;
+    this.gameState.winner = battleEndCheck.winner;
+    
+    // Délai avant annonce finale
+    await this.delay(1000);
+    
+    this.emit('battleEnd', {
+      winner: battleEndCheck.winner,
+      reason: battleEndCheck.reason,
+      message: battleEndCheck.message,
+      gameState: this.gameState,
+      koVictory: true
+    });
+    
+    this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
+    return;
+  }
+  
+  // ✅ COMBAT CONTINUE - Nouveau tour
+  console.log('✅ [BattleEngine] Aucun K.O. définitif - Combat continue');
+  await this.completeActionResolution();
+}
+
+/**
+ * ✅ TRAITE LA SÉQUENCE K.O. AVEC TIMING
+ */
+private async processKOSequence(koResult: any): Promise<void> {
+  console.log(`🎬 [BattleEngine] Traitement séquence K.O. pour ${koResult.pokemonName}`);
+  
+  // Exécuter chaque étape de la séquence avec timing
+  for (const step of koResult.sequence) {
+    console.log(`🎬 [BattleEngine] Étape K.O.: ${step.type} - ${step.message}`);
+    
+    // Émettre l'événement selon le type
+    switch (step.type) {
+      case 'faint_animation':
+        if (this.broadcastManager) {
+          await this.broadcastManager.emitTimed('pokemonFainted', {
+            pokemonName: koResult.pokemonName,
+            targetRole: koResult.playerRole,
+            playerId: koResult.playerRole === 'player1' ? 
+              this.gameState.player1.sessionId : 
+              this.gameState.player2.sessionId,
+            animationType: step.data?.animationType || 'faint_fall',
+            message: step.message
+          });
+        }
+        break;
+        
+      case 'ko_message':
+        this.emit('koMessage', {
+          pokemonName: koResult.pokemonName,
+          playerRole: koResult.playerRole,
+          message: step.message,
+          messageType: step.data?.messageType || 'official_ko'
+        });
+        await this.delay(step.timing);
+        break;
+        
+      case 'winner_announce':
+        this.emit('winnerAnnounce', {
+          winner: step.data?.winner,
+          message: step.message,
+          battleEndType: step.data?.battleEndType,
+          messageType: step.data?.messageType
+        });
+        await this.delay(step.timing);
+        break;
+        
+      default:
+        await this.delay(step.timing);
+        break;
+    }
+  }
+  
+  console.log(`✅ [BattleEngine] Séquence K.O. ${koResult.pokemonName} terminée`);
 }
   
   /**
@@ -381,10 +488,10 @@ private async executeFullAttackerAction(): Promise<void> {
     if (result.data.damage > 0) {
       console.log(`💥 [BattleEngine] ${result.data.damage} dégâts infligés !`);
       
-      await this.broadcastManager.emitTimed('damageDealt', {
-        targetName: result.data.defenderRole === 'player1' ? 
-          this.gameState.player1.pokemon!.name : 
-          this.gameState.player2.pokemon!.name,
+    await this.broadcastManager.emitTimed('damageDealt', {
+      targetName: result.data.defenderRole === 'player1' ? 
+        this.gameState.player1.pokemon!.name : 
+        this.gameState.player2.pokemon!.name,
         targetRole: result.data.defenderRole,
         damage: result.data.damage,
         oldHp: result.data.oldHp,
@@ -396,35 +503,18 @@ private async executeFullAttackerAction(): Promise<void> {
     }
     
     // ✅ ÉTAPE 3: Efficacité (TODO: implémenter plus tard)
+    // TODO: Calculer efficacité des types et émettre message si nécessaire
     
-    // 🆕 ÉTAPE 4: K.O. AVEC GESTION DE PHASE
-    if (result.data.isKnockedOut) {
-      const defenderName = result.data.defenderRole === 'player1' ? 
-        this.gameState.player1.pokemon!.name : 
-        this.gameState.player2.pokemon!.name;
-        
-      console.log(`💀 [BattleEngine] ${defenderName} est mis K.O. !`);
-      
-      await this.broadcastManager.emitTimed('pokemonFainted', {
-        pokemonName: defenderName,
-        targetRole: result.data.defenderRole,
-        subPhase: this.currentSubPhase,
-        message: `${defenderName} est mis K.O. !`
-      });
-      
-      // 🆕 TRANSITION VERS PHASE POKEMON_FAINTED
-      console.log(`🎭 [BattleEngine] Transition vers phase POKEMON_FAINTED`);
-      this.handlePokemonFainted(result.data.defenderRole, defenderName);
-      return; // Arrêter l'exécution ici
-    }
+    // ✅ NOUVEAU: On ne traite plus les K.O. ici, c'est fait dans KO_CHECK_PHASE
+    // Les dégâts sont appliqués, les K.O. seront vérifiés plus tard
     
-    // ✅ ÉTAPE 5: Émettre fin de phase d'attaquant (seulement si pas de K.O.)
+    // ✅ ÉTAPE 4: Émettre fin de phase d'attaquant
     this.emit('attackerPhaseComplete', {
       subPhase: this.currentSubPhase,
       playerRole: playerRole,
       pokemon: pokemon.name,
       damageDealt: result.data.damage || 0,
-      targetKnockedOut: false
+      targetRole: result.data.defenderRole
     });
   }
   
@@ -438,101 +528,9 @@ private async executeFullAttackerAction(): Promise<void> {
   
   console.log(`✅ [BattleEngine] Phase complète de ${pokemon.name} terminée avec timing authentique`);
 }
-
-  /**
- * 🆕 Gère la phase POKEMON_FAINTED comme dans Pokémon Rouge/Bleu
- */
-private async handlePokemonFainted(faintedRole: 'player1' | 'player2', pokemonName: string): Promise<void> {
-  console.log(`💀 [BattleEngine] === PHASE POKEMON_FAINTED === ${pokemonName}`);
-  
-  // 1. Transition vers la phase POKEMON_FAINTED
-  this.transitionToPhase(InternalBattlePhase.POKEMON_FAINTED, 'pokemon_knocked_out');
-  
-  // 2. Émettre événement spécifique
-  this.emit('pokemonFaintedPhase', {
-    faintedRole: faintedRole,
-    pokemonName: pokemonName,
-    gameState: this.gameState,
-    message: `${pokemonName} est mis K.O. !`
-  });
-  
-  // 3. Attendre pour l'effet dramatique (comme les vrais jeux)
-  await this.delay(2500); // 2.5 secondes comme Pokémon authentique
-  
-  // 4. Vérifier fin de combat
-  const battleEndCheck = this.checkBattleEnd();
-  if (battleEndCheck.isEnded) {
-    console.log(`🏁 [BattleEngine] Combat terminé après K.O.: ${battleEndCheck.reason}`);
-    this.gameState.isEnded = true;
-    this.gameState.winner = battleEndCheck.winner;
-    this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
-    return;
-  }
-  
-  // 5. Si combat continue, gérer la suite selon le type
-  await this.handlePostFaintedLogic(faintedRole);
-}
-
-/**
- * 🆕 Logique après K.O. selon le type de combat
- */
-private async handlePostFaintedLogic(faintedRole: 'player1' | 'player2'): Promise<void> {
-  console.log(`🔄 [BattleEngine] Logique post-K.O. pour ${faintedRole}`);
-  
-  if (this.gameState.type === 'wild') {
-    // Combat sauvage : seulement expérience
-    await this.handleWildBattleExperience(faintedRole);
-    
-    // Retour à la sélection d'action
-    this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'post_fainted_continue');
-    
-  } else if (this.gameState.type === 'trainer' || this.gameState.type === 'pvp') {
-    // TODO: Combat dresseur - choix du prochain Pokémon
-    console.log(`🔮 [BattleEngine] Combat dresseur pas encore implémenté`);
-    this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'post_fainted_continue');
-  }
-}
-
-/**
- * 🆕 Gestion expérience combat sauvage
- */
-private async handleWildBattleExperience(faintedRole: 'player1' | 'player2'): Promise<void> {
-  console.log(`🌟 [BattleEngine] Calcul expérience combat sauvage`);
-  
-  // Déterminer qui gagne l'expérience
-  if (faintedRole === 'player2') {
-    // Le joueur a gagné contre le sauvage
-    const winnerPokemon = this.gameState.player1.pokemon;
-    const loserPokemon = this.gameState.player2.pokemon;
-    
-    if (winnerPokemon && loserPokemon) {
-      // TODO: Calculer et donner l'expérience
-      const expGained = this.calculateExperience(winnerPokemon, loserPokemon);
-      
-      this.emit('experienceGained', {
-        pokemon: winnerPokemon,
-        experience: expGained,
-        source: 'wild_victory'
-      });
-      
-      console.log(`🌟 [BattleEngine] ${winnerPokemon.name} gagne ${expGained} EXP !`);
-    }
-  }
-  // Si player1 fainted, pas d'expérience (défaite)
-}
-
-/**
- * 🆕 Calcul d'expérience simple (à améliorer plus tard)
- */
-private calculateExperience(winner: Pokemon, loser: Pokemon): number {
-  // Formule très simple pour commencer
-  const baseExp = loser.level * 15;
-  const levelDiff = Math.max(1, loser.level - winner.level + 5);
-  return Math.floor(baseExp * levelDiff / 10);
-}
   
   /**
-   * ✅ POKÉMON ROUGE/BLEU: Termine la phase de résolution (tous les attaquants ont agi)
+   * ✅ POKÉMON ROUGE/BLEU: Termine la phase de résolution (tous les attaquants ont agi + K.O. check terminé)
    */
   private async completeActionResolution(): Promise<void> {
     console.log('✅ [BattleEngine] === RÉSOLUTION COMPLÈTE === Nouveau tour Pokémon');
@@ -738,49 +736,7 @@ private calculateExperience(winner: Pokemon, loser: Pokemon): number {
     this.cleanupSpectators();
   }
   
-  private checkBattleEnd(): { isEnded: boolean; winner: PlayerRole | null; reason: string } {
-    if (!this.gameState) {
-      return { isEnded: false, winner: null, reason: '' };
-    }
-    
-    const player1Pokemon = this.gameState.player1.pokemon;
-    const player2Pokemon = this.gameState.player2.pokemon;
-    
-    if (!player1Pokemon || !player2Pokemon) {
-      return { isEnded: false, winner: null, reason: '' };
-    }
-    
-    const player1KO = player1Pokemon.currentHp <= 0;
-    const player2KO = player2Pokemon.currentHp <= 0;
-    
-    if (player1KO && player2KO) {
-      return {
-        isEnded: true,
-        winner: null,
-        reason: 'Match nul ! Les deux Pokémon sont K.O.'
-      };
-    }
-    
-    if (player1KO) {
-      return {
-        isEnded: true,
-        winner: 'player2',
-        reason: `${player1Pokemon.name} est K.O. ! Vous avez perdu !`
-      };
-    }
-    
-    if (player2KO) {
-      return {
-        isEnded: true,
-        winner: 'player1',
-        reason: `${player2Pokemon.name} est K.O. ! Vous avez gagné !`
-      };
-    }
-    
-    return { isEnded: false, winner: null, reason: '' };
-  }
-  
-  // === INITIALISATION MODULES (INCHANGÉE) ===
+  // === INITIALISATION MODULES (MISE À JOUR) ===
   
   private initializeAllModules(): void {
     console.log('🔧 [BattleEngine] Initialisation de tous les modules...');
@@ -790,9 +746,10 @@ private calculateExperience(winner: Pokemon, loser: Pokemon): number {
     this.aiPlayer.initialize(this.gameState);
     this.battleEndManager.initialize(this.gameState);
     this.captureManager.initialize(this.gameState);
+    this.koManager.initialize(this.gameState); // ✅ INITIALISER KO MANAGER
     this.configureBroadcastSystem();
     
-    console.log('✅ [BattleEngine] Tous les modules initialisés');
+    console.log('✅ [BattleEngine] Tous les modules initialisés (+ KOManager)');
   }
   
   private configureBroadcastSystem(): void {
@@ -1043,13 +1000,14 @@ private calculateExperience(winner: Pokemon, loser: Pokemon): number {
     this.aiPlayer.reset();
     this.battleEndManager.reset();
     this.captureManager.reset();
+    this.koManager.reset(); // ✅ RESET KO MANAGER
     
     // Reset sous-phases
     this.currentSubPhase = SubPhase.NONE;
     this.orderedActions = [];
     this.currentAttackerData = null;
     
-    console.log('🧹 [BattleEngine] Nettoyage complet effectué');
+    console.log('🧹 [BattleEngine] Nettoyage complet effectué (+ KOManager)');
   }
   
   // === MÉTHODES PRIVÉES ===
@@ -1108,8 +1066,8 @@ private calculateExperience(winner: Pokemon, loser: Pokemon): number {
   
   getSystemState(): any {
     return {
-      version: 'pokemon_rouge_bleu_ABSOLUMENT_authentique_v1',
-      architecture: 'sous_phases_pokemon_authentiques',
+      version: 'pokemon_rouge_bleu_ABSOLUMENT_authentique_v2_KO',
+      architecture: 'sous_phases_pokemon_authentiques + ko_manager',
       isInitialized: this.isInitialized,
       isProcessingActions: this.isProcessingActions,
       currentSubPhase: this.currentSubPhase,
@@ -1117,6 +1075,7 @@ private calculateExperience(winner: Pokemon, loser: Pokemon): number {
       
       phaseState: this.phaseManager.getPhaseState(),
       actionQueueState: this.actionQueue.getQueueState(),
+      koManagerStats: this.koManager.getStats(), // ✅ NOUVEAU
       gameState: {
         battleId: this.gameState.battleId,
         type: this.gameState.type,
@@ -1136,13 +1095,17 @@ private calculateExperience(winner: Pokemon, loser: Pokemon): number {
         'pokemon_rouge_bleu_ABSOLUMENT_authentique',
         'vraies_sous_phases_attaquants',
         'execution_complete_par_attaquant',
-        'authentique_pokemon_classic',
+        'ko_manager_integration', // ✅ NOUVEAU
+        'ko_check_phase_authentique', // ✅ NOUVEAU
+        'authentic_pokemon_classic',
         'zero_compromise_authenticity'
       ],
       
       corrections: [
         'sous_phases_attaquants_separees',
         'execution_complete_par_pokemon',
+        'ko_check_phase_ajoutee', // ✅ NOUVEAU
+        'gestion_ko_authentique', // ✅ NOUVEAU
         'flow_pokemon_rouge_bleu_exact',
         'aucun_raccourci_aucun_compromise'
       ]
