@@ -671,17 +671,13 @@ createBattleInventoryUI() {
 executePlayerAction(actionData) {
   if (actionData.type === 'move') {
     this.hideActionButtons();
-    this.showActionMessage('Attaque sélectionnée...');
     
-    // ✅ JUSTE ENVOYER AU SERVEUR, RIEN D'AUTRE !
-    setTimeout(() => {
-      if (this.battleNetworkHandler) {
-        this.battleNetworkHandler.useMove(actionData.moveId);
-      }
-      // ❌ SUPPRIMER TOUT ÇA :
-      // this.createAttackEffect(...)
-      // Pas d'animation, pas de dégâts côté client !
-    }, 1000);
+    // ✅ ENVOI IMMÉDIAT au serveur (pas de setTimeout)
+    if (this.battleNetworkHandler) {
+      this.battleNetworkHandler.useMove(actionData.moveId);
+    }
+    
+    // Le serveur va répondre avec moveUsed dans ~1-2 secondes
   }
 }
 
