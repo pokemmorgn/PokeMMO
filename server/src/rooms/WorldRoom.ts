@@ -518,20 +518,23 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
     });
 
     // Handler pour debug des Pokémon overworld
-    this.onMessage("debugOverworldPokemon", (client) => {
-      console.log(`🔍 [WorldRoom] Debug Pokémon overworld demandé par ${client.sessionId}`);
-      if (this.overworldPokemonManager) {
-        this.overworldPokemonManager.debug();
-        const stats = this.overworldPokemonManager.getStats();
-        client.send("overworldPokemonStats", stats);
-      }
-    });
+// Handler pour debug des Pokémon overworld
+this.onMessage("debugOverworldPokemon", (client) => {
+  console.log(`🔍 [WorldRoom] Debug Pokémon overworld demandé par ${client.sessionId}`);
+  if (this.overworldPokemonManager) {
+    this.overworldPokemonManager.debug();
+    const stats = this.overworldPokemonManager.getStats();
+    client.send("overworldPokemonStats", stats);
+  }
+});
 
-    onMessage(client: any, type: string, message: any) {
-  if (type === 'overworldPokemonSpawnResponse') {
+// ✅ AJOUTE CE HANDLER ICI
+this.onMessage("overworldPokemonSpawnResponse", (client, message) => {
+  console.log(`📍 [WorldRoom] Réponse spawn reçue de ${client.sessionId}:`, message);
+  if (this.overworldPokemonManager) {
     this.overworldPokemonManager.handleClientSpawnResponse(client, message);
   }
-    }
+});
     // Handler pour force spawn d'un Pokémon overworld
     this.onMessage("forceSpawnOverworldPokemon", (client, data: { 
       areaId: string, 
