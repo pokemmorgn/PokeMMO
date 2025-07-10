@@ -211,7 +211,6 @@ this.loadedSprites = new Set(); // Cache des sprites chargés
 }
   // Après la méthode create(), ajouter cette nouvelle méthode
 createBattleInventoryUI() {
-  // ✅ Même pattern que endBattle()
   const gameRoom = this.gameManager?.gameRoom || 
                    this.battleNetworkHandler?.gameRoom || 
                    window.currentGameRoom;
@@ -219,7 +218,8 @@ createBattleInventoryUI() {
   const battleContext = {
     battleScene: this,
     networkHandler: this.battleNetworkHandler,
-    battleRoomId: this.battleNetworkHandler?.battleRoomId || null
+    battleRoomId: this.battleNetworkHandler?.battleRoomId || null,
+    captureManager: this.captureManager  // ✅ AJOUTER CETTE LIGNE
   };
   
   if (!gameRoom) {
@@ -233,12 +233,12 @@ createBattleInventoryUI() {
   }
   
   this.battleInventoryUI = new BattleInventoryUI(gameRoom, battleContext);
-  console.log('⚔️ BattleInventoryUI créé avec:', {
+  console.log('⚔️ BattleInventoryUI créé avec CaptureManager:', {
     gameRoom: !!gameRoom,
-    networkHandler: !!this.battleNetworkHandler
+    networkHandler: !!this.battleNetworkHandler,
+    captureManager: !!this.captureManager  // ✅ VÉRIFICATION
   });
 }
-  
   // === ENVIRONNEMENT ===
 
   createBattleEnvironment() {
