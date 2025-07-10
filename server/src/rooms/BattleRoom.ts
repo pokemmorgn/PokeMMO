@@ -97,6 +97,118 @@ export class BattleRoom extends Room<BattleState> {
       await this.handleRequestMoves(client);
     });
   }
+
+  /**
+ * Gère la demande d'attaques disponibles du joueur
+ */
+private async handleRequestMoves(client: Client) {
+  console.log(`🎮 [BattleRoom] Demande d'attaques de ${client.sessionId}`);
+  
+  try {
+    // Vérifier que le combat est en cours et c'est le tour du joueur
+    if (!this.battleGameState) {
+      client.send("requestMovesResult", {
+        success: false,
+        error: "Aucun combat en cours",
+        moves: []
+      });
+      return;
+    }
+    
+    if (this.battleGameState.phase !== 'action_selection') {
+      client.send("requestMovesResult", {
+        success: false,
+        error: "Ce n'est pas le moment de choisir une attaque",
+        moves: []
+      });
+      return;
+    }
+    
+    // Vérifier que c'est bien le joueur actuel
+    if (client.sessionId !== this.state.player1Id) {
+      client.send("requestMovesResult", {
+        success: false,
+        error: "Ce n'est pas votre tour",
+        moves: []
+      });
+      return;
+    }
+    
+    // Récupérer le TeamManager pour ce joueur
+    const teamManager = this.teamManagers.get(client.sessionId);
+    if (!teamManager) {
+      client.send("requestMovesResult", {
+        success: false,
+        error: "TeamManager non trouvé",
+        moves: []
+      });
+      return;
+    }
+    
+    // Récupérer le premier Pokémon vivant de l'équipe
+    const alivePokemon = await teamManager.getFirstAlivePokemon();
+    if (!alivePokemon) {
+      client.send("requestMovesResult", {
+        success: false,
+        error: "Aucun Pokémon disponible pour combattre",
+        moves: []
+      });
+      return;
+    }
+    
+    // Récupérer les attaques avec toutes leurs données
+    const movesWithData = await PokemonMoveService.getMovesWithData(alivePokemon);
+    
+    console.log(`✅ [BattleRoom] Envoi de ${movesWithData.length} attaques à ${client.sessionId}`);
+    console.log(`📋 [BattleRoom] Attaques: ${movesWithData.map(m => `${m.name}(${m.currentPp}/${m.maxPp})`).join(', ')}`);
+    
+    // Vérifier si le Pokémon doit utiliser Struggle
+    const shouldUseStruggle = PokemonMoveService.shouldUseStruggle(alivePokemon);
+    
+    if (shouldUseStruggle) {
+      console.log(`⚔️ [BattleRoom] ${alivePokemon.nickname || alivePokemon.pokemonId} doit utiliser Lutte !`);
+      
+      // Envoyer Struggle comme seule option
+      client.send("requestMovesResult", {
+        success: true,
+        moves: [{
+          moveId: "struggle",
+          name: "Lutte",
+          currentPp: 1,
+          maxPp: 1,
+          power: 50,
+          accuracy: 100,
+          type: "Normal",
+          category: "Physical",
+          description: "Une attaque désespérée utilisée quand toutes les autres sont épuisées.",
+          disabled: false
+        }],
+        pokemonName: alivePokemon.nickname || `Pokémon ${alivePokemon.pokemonId}`,
+        forceStruggle: true,
+        message: "Toutes les attaques sont épuisées ! Utilise Lutte !"
+      });
+      return;
+    }
+    
+    // Envoyer les attaques normales
+    client.send("requestMovesResult", {
+      success: true,
+      moves: movesWithData,
+      pokemonName: alivePokemon.nickname || `Pokémon ${alivePokemon.pokemonId}`,
+      forceStruggle: false,
+      message: "Choisis une attaque !"
+    });
+    
+  } catch (error) {
+    console.error(`❌ [BattleRoom] Erreur handleRequestMoves:`, error);
+    
+    client.send("requestMovesResult", {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+      moves: []
+    });
+  }
+}
   
   private async handleBattleAction(client: Client, data: any) {
     console.log(`🎮 [BattleRoom] Action reçue: ${data.actionType} de ${client.sessionId}`);
