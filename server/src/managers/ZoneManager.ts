@@ -56,6 +56,8 @@ import { QuestManager } from "./QuestManager";
 import { ShopManager } from "./ShopManager";
 import { InteractionManager } from "./InteractionManager";
 import { QuestProgressEvent } from "../types/QuestTypes";
+import { SpectatorManager } from "../battle/modules/broadcast/SpectatorManager";
+
 
 // COLLISION MANAGER
 import { CollisionManager } from "./CollisionManager";
@@ -68,7 +70,7 @@ export class ZoneManager {
   private questManager: QuestManager;
   private shopManager: ShopManager;
   private interactionManager: InteractionManager;
-
+  private spectatorManager: SpectatorManager;
   constructor(room: WorldRoom) {
     this.room = room;
     console.log(`🗺️ === ZONE MANAGER INIT ===`);
@@ -82,11 +84,14 @@ export class ZoneManager {
       console.log(`✅ QuestManager initialisé`);
       this.shopManager = new ShopManager(`../data/shops/shops.json`, `../data/items/items.json`);
       console.log(`✅ ShopManager initialisé`);
+      this.spectatorManager = new SpectatorManager(); // ✅ AJOUTER CETTE LIGNE
+      console.log(`✅ SpectatorManager initialisé`); // ✅ AJOUTER CETTE LIGNE
       this.interactionManager = new InteractionManager(
         this.room.getNpcManager.bind(this.room),
         this.questManager,
         this.shopManager,
-        this.room.starterHandlers // ✅ PASSER L'INSTANCE
+        this.room.starterHandlers, // ✅ PASSER L'INSTANCE
+        this.spectatorManager
       );
       console.log(`✅ InteractionManager initialisé avec ShopManager`);
     } catch (error) {
