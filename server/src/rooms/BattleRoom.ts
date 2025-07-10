@@ -116,8 +116,8 @@ private async handleRequestMoves(client: Client) {
       return;
     }
     
-    // ✅ CORRECTION: Utiliser la méthode du BattleEngine pour vérifier la phase
-    if (this.battleEngine.getCurrentPhase() !== 'ACTION_SELECTION') {
+    // ✅ CORRECTION: Utiliser canSubmitAction() qui est plus sûr
+    if (!this.battleEngine.canSubmitAction()) {
       client.send("requestMovesResult", {
         success: false,
         error: "Ce n'est pas le moment de choisir une attaque",
