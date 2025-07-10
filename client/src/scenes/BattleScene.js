@@ -1354,7 +1354,6 @@ const frameHeight = height;
     // ✅ SIMPLIFIÉ: Fin de combat sans timer côté client
     this.battleNetworkHandler.on('battleEnd', (data) => {
       this.hideActionButtons();
-      this.handleBattleEvent('battleEnd', { winnerId: data.winner });
       // ✅ Le serveur gérera le timing de endBattle()
     });
     
