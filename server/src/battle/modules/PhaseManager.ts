@@ -9,6 +9,7 @@ export enum BattlePhase {
   INTRO = 'intro',
   ACTION_SELECTION = 'action_selection',
   ACTION_RESOLUTION = 'action_resolution', 
+  POKEMON_FAINTED = 'pokemon_fainted',
   CAPTURE = 'capture',
   ENDED = 'ended'
 }
@@ -257,13 +258,14 @@ export class PhaseManager {
    */
   private validateTransition(from: BattlePhase, to: BattlePhase): PhaseValidation {
     // Matrice des transitions autorisées
-    const allowedTransitions: Record<BattlePhase, BattlePhase[]> = {
-      [BattlePhase.INTRO]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED],
-      [BattlePhase.ACTION_SELECTION]: [BattlePhase.ACTION_RESOLUTION, BattlePhase.CAPTURE, BattlePhase.ENDED],
-      [BattlePhase.ACTION_RESOLUTION]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED],
-      [BattlePhase.CAPTURE]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED],
-      [BattlePhase.ENDED]: [] // Phase finale
-    };
+const allowedTransitions: Record<BattlePhase, BattlePhase[]> = {
+  [BattlePhase.INTRO]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED],
+  [BattlePhase.ACTION_SELECTION]: [BattlePhase.ACTION_RESOLUTION, BattlePhase.CAPTURE, BattlePhase.ENDED],
+  [BattlePhase.ACTION_RESOLUTION]: [BattlePhase.POKEMON_FAINTED, BattlePhase.ACTION_SELECTION, BattlePhase.ENDED], // 🆕
+  [BattlePhase.POKEMON_FAINTED]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED], // 🆕 Nouvelle phase
+  [BattlePhase.CAPTURE]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED],
+  [BattlePhase.ENDED]: []
+};
     
     const allowed = allowedTransitions[from] || [];
     
