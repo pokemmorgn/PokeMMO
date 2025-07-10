@@ -654,19 +654,14 @@ createBattleInventoryUI() {
     }
   }
 
-  showAttackMenu() {
-    // ✅ SIMPLIFIÉ: Pas de timer côté client
-    this.showActionMessage('Sélectionnez une attaque...');
-    
-    // Utiliser première attaque par défaut (garde un délai pour l'UX)
-    setTimeout(() => {
-      this.executePlayerAction({
-        type: 'move',
-        moveId: 'tackle',
-        moveName: 'Charge'
-      });
-    }, 1000);
-  }
+showAttackMenu() {
+  // ✅ LANCER DIRECTEMENT L'ATTAQUE
+  this.executePlayerAction({
+    type: 'move',
+    moveId: 'tackle',
+    moveName: 'Charge'
+  });
+}
 
     executePlayerAction(actionData) {
       if (actionData.type === 'move') {
