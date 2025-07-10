@@ -1,412 +1,399 @@
 // server/src/battle/modules/PhaseManager.ts
-// GESTION DES PHASES AVEC VERROUILLAGE CAPTURE
+// SYSTÈME DE PHASES POKÉMON AUTHENTIQUE
 
-import { BattleGameState, BattlePhase, BattleAction } from '../types/BattleTypes';
-import { EventEmitter } from 'events';
+import { BattleGameState, BattleAction, PlayerRole } from '../types/BattleTypes';
+
+// === ÉNUMÉRATION DES PHASES ===
+
+export enum BattlePhase {
+  INTRO = 'intro',
+  ACTION_SELECTION = 'action_selection',
+  ACTION_RESOLUTION = 'action_resolution', 
+  POKEMON_FAINTED = 'pokemon_fainted',
+  CAPTURE = 'capture',
+  ENDED = 'ended'
+}
+
+// === INTERFACES ===
+
+export interface PhaseTransition {
+  from: BattlePhase;
+  to: BattlePhase;
+  timestamp: number;
+  trigger: string;
+  data?: any;
+}
+
+export interface PhaseValidation {
+  isValid: boolean;
+  reason?: string;
+  allowedActions?: string[];
+}
 
 /**
- * PHASE MANAGER - Gestion des phases avec protection capture
+ * PHASE MANAGER - Gestionnaire de phases authentique Pokémon
  * 
  * Responsabilités :
- * - Contrôle des transitions de phases
- * - Validation des actions selon la phase
- * - Protection contre les exploits pendant la capture
- * - Synchronisation avec les animations client
+ * - Gérer les 5 phases distinctes
+ * - Valider les transitions
+ * - Contrôler les actions autorisées
+ * - Historique des transitions
+ * - Timings de phases
  */
-export class PhaseManager extends EventEmitter {
+export class PhaseManager {
   
-  private gameState: BattleGameState;
-  private previousPhase: BattlePhase | null = null;
+  private currentPhase: BattlePhase = BattlePhase.INTRO;
+  private gameState: BattleGameState | null = null;
+  private phaseHistory: PhaseTransition[] = [];
+  private phaseStartTime: number = 0;
+  private isTransitioning: boolean = false;
   
-  // ✅ NOUVEAU : Timestamps pour protection capture
-  private captureStartTime: number | null = null;
-  private captureExpectedDuration: number | null = null;
+  constructor() {
+    console.log('🎭 [PhaseManager] Initialisé avec 5 phases');
+  }
   
-  constructor(gameState: BattleGameState) {
-    super();
+  // === INITIALISATION ===
+  
+  /**
+   * Initialise avec l'état du jeu
+   */
+  initialize(gameState: BattleGameState): void {
     this.gameState = gameState;
-    console.log('🎭 [PhaseManager] Initialisé avec protection capture');
+    this.currentPhase = BattlePhase.INTRO;
+    this.phaseStartTime = Date.now();
+    this.phaseHistory = [];
+    this.isTransitioning = false;
+    
+    console.log('✅ [PhaseManager] Configuré pour combat avec phases');
   }
   
   // === GESTION DES PHASES ===
   
   /**
-   * Change la phase actuelle
+   * Change de phase avec validation
    */
-  setPhase(newPhase: BattlePhase, trigger?: string): void {
-    const oldPhase = this.gameState.phase;
-    
-    // ✅ NOUVEAU : Gestion spéciale phase CAPTURE
-    if (newPhase === 'capture') {
-      this.captureStartTime = Date.now();
-      console.log(`🎯 [PhaseManager] DÉBUT PHASE CAPTURE - Timestamp: ${this.captureStartTime}`);
+  setPhase(newPhase: BattlePhase, trigger: string = 'manual', data?: any): boolean {
+    if (this.isTransitioning) {
+      console.log(`⏳ [PhaseManager] Transition en cours, changement refusé: ${newPhase}`);
+      return false;
     }
     
-    if (oldPhase === 'capture') {
-      this.captureStartTime = null;
-      this.captureExpectedDuration = null;
-      console.log(`🎯 [PhaseManager] FIN PHASE CAPTURE`);
+    const validation = this.validateTransition(this.currentPhase, newPhase);
+    if (!validation.isValid) {
+      console.log(`❌ [PhaseManager] Transition invalide: ${this.currentPhase} → ${newPhase} (${validation.reason})`);
+      return false;
     }
     
-    this.previousPhase = oldPhase;
-    this.gameState.phase = newPhase;
+    this.isTransitioning = true;
     
-    console.log(`🎭 [PhaseManager] ${oldPhase} → ${newPhase} ${trigger ? `(${trigger})` : ''}`);
+    // Enregistrer la transition
+    const transition: PhaseTransition = {
+      from: this.currentPhase,
+      to: newPhase,
+      timestamp: Date.now(),
+      trigger,
+      data
+    };
     
-    // Émettre l'événement de changement
-    this.emit('phaseChanged', {
-      phase: newPhase,
-      previousPhase: oldPhase,
-      trigger: trigger || 'manual',
-      canAct: this.canPlayerAct(),
-      timestamp: Date.now()
-    });
+    this.phaseHistory.push(transition);
+    
+    console.log(`🎭 [PhaseManager] Transition: ${this.currentPhase} → ${newPhase} (${trigger})`);
+    
+    // Effectuer le changement
+    this.currentPhase = newPhase;
+    this.phaseStartTime = Date.now();
+    this.isTransitioning = false;
+    
+    // Mettre à jour l'état du jeu avec le bon type
+    if (this.gameState) {
+      const gameStatePhase = this.mapPhaseToGameState(newPhase);
+      (this.gameState as any).phase = gameStatePhase;
+    }
+    
+    return true;
   }
   
   /**
-   * ✅ NOUVEAU : Définit la durée attendue de la capture
-   */
-  setCaptureExpectedDuration(durationMs: number): void {
-    if (this.gameState.phase === 'capture') {
-      this.captureExpectedDuration = durationMs;
-      console.log(`⏰ [PhaseManager] Durée capture attendue: ${durationMs}ms`);
-    }
-  }
-  
-  /**
-   * Obtient la phase actuelle
+   * Récupère la phase actuelle
    */
   getCurrentPhase(): BattlePhase {
-    return this.gameState.phase;
+    return this.currentPhase;
   }
   
   /**
-   * Obtient la phase précédente
+   * Vérifie si on est dans une phase spécifique
    */
-  getPreviousPhase(): BattlePhase | null {
-    return this.previousPhase;
+  isInPhase(phase: BattlePhase): boolean {
+    return this.currentPhase === phase && !this.isTransitioning;
   }
   
-  // === ✅ VALIDATION DES ACTIONS AVEC PROTECTION CAPTURE ===
+  /**
+   * Durée de la phase actuelle en millisecondes
+   */
+  getCurrentPhaseDuration(): number {
+    return Date.now() - this.phaseStartTime;
+  }
+  
+  // === VALIDATION DES ACTIONS ===
   
   /**
    * Vérifie si une action peut être soumise
    */
-  canSubmitAction(action: BattleAction): { allowed: boolean; reason?: string } {
-    const currentPhase = this.getCurrentPhase();
-    
-    console.log(`🔍 [PhaseManager] Vérification action ${action.type} en phase ${currentPhase}`);
-    
-    // ✅ PROTECTION CAPTURE STRICTE
-    if (currentPhase === 'capture') {
-      const captureStatus = this.getCaptureStatus();
-      
-      console.log(`🎯 [PhaseManager] Action bloquée en phase capture:`, captureStatus);
-      
+  canSubmitAction(actionType?: string): boolean {
+    switch (this.currentPhase) {
+      case BattlePhase.INTRO:
+        return false; // Aucune action pendant l'intro
+        
+      case BattlePhase.ACTION_SELECTION:
+        return !this.isTransitioning; // Actions autorisées
+        
+      case BattlePhase.ACTION_RESOLUTION:
+        return false; // Actions en cours de traitement
+        
+      case BattlePhase.CAPTURE:
+        return false; // Capture en cours
+        
+      case BattlePhase.ENDED:
+        return false; // Combat terminé
+        
+      default:
+        return false;
+    }
+  }
+  
+  /**
+   * Valide qu'une action est appropriée pour la phase
+   */
+  validateAction(action: BattleAction): PhaseValidation {
+    if (!this.canSubmitAction(action.type)) {
       return {
-        allowed: false,
-        reason: `Action impossible pendant la capture (${captureStatus.timeRemaining}ms restantes)`
+        isValid: false,
+        reason: `Actions non autorisées en phase ${this.currentPhase}`
       };
     }
     
-    // ✅ PROTECTION TRANSITION DE CAPTURE
-    if (this.isTransitioningFromCapture()) {
-      console.log(`🎯 [PhaseManager] Action bloquée pendant transition post-capture`);
-      
-      return {
-        allowed: false,
-        reason: 'Transition en cours après capture'
-      };
-    }
-    
-    // Validation standard par phase
-    switch (currentPhase) {
-      case 'waiting':
-        return {
-          allowed: false,
-          reason: 'Combat pas encore commencé'
-        };
-        
-      case 'intro':
-        return {
-          allowed: false,
-          reason: 'Phase d\'introduction en cours'
-        };
-        
-      case 'action_selection':
-        // ✅ SEULE PHASE QUI AUTORISE LES ACTIONS
-        if (action.type === 'move' || action.type === 'capture' || action.type === 'item' || action.type === 'run') {
-          return { allowed: true };
-        }
-        return {
-          allowed: false,
-          reason: `Action ${action.type} non autorisée en sélection d'action`
-        };
-        
-      case 'action_resolution':
-        return {
-          allowed: false,
-          reason: 'Résolution des actions en cours'
-        };
-        
-      case 'ended':
-        return {
-          allowed: false,
-          reason: 'Combat terminé'
-        };
+    switch (this.currentPhase) {
+      case BattlePhase.ACTION_SELECTION:
+        return this.validateActionSelection(action);
         
       default:
         return {
-          allowed: false,
-          reason: `Phase ${currentPhase} non reconnue`
+          isValid: false,
+          reason: `Phase ${this.currentPhase} ne gère pas les actions`
         };
     }
   }
   
   /**
-   * ✅ NOUVEAU : Vérifie si le joueur peut agir
+   * Validation spécifique phase ACTION_SELECTION
    */
-  canPlayerAct(): boolean {
-    const currentPhase = this.getCurrentPhase();
+  private validateActionSelection(action: BattleAction): PhaseValidation {
+    const allowedActions = ['attack', 'item', 'switch', 'run', 'capture'];
     
-    // ✅ CAPTURE = INTERDIT
-    if (currentPhase === 'capture') {
-      return false;
-    }
-    
-    // ✅ TRANSITION POST-CAPTURE = INTERDIT
-    if (this.isTransitioningFromCapture()) {
-      return false;
-    }
-    
-    // Standard
-    return currentPhase === 'action_selection';
-  }
-  
-  // === ✅ NOUVEAUX UTILITAIRES CAPTURE ===
-  
-  /**
-   * Vérifie si on est en transition depuis la capture
-   */
-  private isTransitioningFromCapture(): boolean {
-    // Si on vient de sortir de capture il y a moins de 1 seconde
-    if (this.previousPhase === 'capture' && this.captureStartTime) {
-      const timeSinceCapture = Date.now() - this.captureStartTime;
-      return timeSinceCapture < 1000; // 1 seconde de grâce
-    }
-    return false;
-  }
-  
-  /**
-   * Obtient le statut de la capture en cours
-   */
-  getCaptureStatus(): {
-    isActive: boolean;
-    timeElapsed: number;
-    timeRemaining: number;
-    expectedDuration: number;
-  } {
-    if (this.gameState.phase !== 'capture' || !this.captureStartTime) {
+    if (!allowedActions.includes(action.type)) {
       return {
-        isActive: false,
-        timeElapsed: 0,
-        timeRemaining: 0,
-        expectedDuration: 0
+        isValid: false,
+        reason: `Type d'action non autorisé: ${action.type}`,
+        allowedActions
       };
     }
     
-    const timeElapsed = Date.now() - this.captureStartTime;
-    const expectedDuration = this.captureExpectedDuration || 8000; // 8s par défaut
-    const timeRemaining = Math.max(0, expectedDuration - timeElapsed);
+    // Validation capture seulement en combat sauvage
+    if (action.type === 'capture' && this.gameState?.type !== 'wild') {
+      return {
+        isValid: false,
+        reason: 'Capture seulement possible contre Pokémon sauvages'
+      };
+    }
     
+    return { isValid: true };
+  }
+  
+  // === TRANSITIONS SPÉCIALES ===
+  
+  /**
+   * Transition automatique vers ACTION_SELECTION
+   */
+  transitionToActionSelection(): boolean {
+    return this.setPhase(BattlePhase.ACTION_SELECTION, 'auto_intro_end');
+  }
+  
+  /**
+   * Transition vers RESOLUTION quand toutes les actions sont prêtes
+   */
+  transitionToResolution(actionsReady: boolean): boolean {
+    if (!actionsReady) {
+      console.log(`⏳ [PhaseManager] Attente des actions pour résolution`);
+      return false;
+    }
+    
+    return this.setPhase(BattlePhase.ACTION_RESOLUTION, 'actions_ready');
+  }
+  
+  /**
+   * Transition vers CAPTURE
+   */
+  transitionToCapture(): boolean {
+    return this.setPhase(BattlePhase.CAPTURE, 'capture_attempt');
+  }
+  
+  /**
+   * Transition vers ENDED
+   */
+  transitionToEnded(reason: string): boolean {
+    return this.setPhase(BattlePhase.ENDED, reason);
+  }
+  
+  /**
+   * Retour à ACTION_SELECTION après résolution
+   */
+  returnToActionSelection(): boolean {
+    return this.setPhase(BattlePhase.ACTION_SELECTION, 'resolution_complete');
+  }
+  
+  // === VALIDATION DES TRANSITIONS ===
+  
+  /**
+   * Valide qu'une transition est autorisée
+   */
+  private validateTransition(from: BattlePhase, to: BattlePhase): PhaseValidation {
+    // Matrice des transitions autorisées
+const allowedTransitions: Record<BattlePhase, BattlePhase[]> = {
+  [BattlePhase.INTRO]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED],
+  [BattlePhase.ACTION_SELECTION]: [BattlePhase.ACTION_RESOLUTION, BattlePhase.CAPTURE, BattlePhase.ENDED],
+  [BattlePhase.ACTION_RESOLUTION]: [BattlePhase.POKEMON_FAINTED, BattlePhase.ACTION_SELECTION, BattlePhase.ENDED], // 🆕
+  [BattlePhase.POKEMON_FAINTED]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED], // 🆕 Nouvelle phase
+  [BattlePhase.CAPTURE]: [BattlePhase.ACTION_SELECTION, BattlePhase.ENDED],
+  [BattlePhase.ENDED]: []
+};
+    
+    const allowed = allowedTransitions[from] || [];
+    
+    if (!allowed.includes(to)) {
+      return {
+        isValid: false,
+        reason: `Transition non autorisée: ${from} → ${to}`
+      };
+    }
+    
+    return { isValid: true };
+  }
+  
+  // === LOGIQUES SPÉCIALES ===
+  
+  /**
+   * Vérifie si la phase INTRO devrait se terminer automatiquement
+   */
+  shouldAutoEndIntro(): boolean {
+    if (this.currentPhase !== BattlePhase.INTRO) return false;
+    
+    const INTRO_DURATION = 3000; // 3 secondes
+    return this.getCurrentPhaseDuration() >= INTRO_DURATION;
+  }
+  
+  /**
+   * Détermine la prochaine phase après résolution
+   */
+  getNextPhaseAfterResolution(battleEnded: boolean): BattlePhase {
+    if (battleEnded) {
+      return BattlePhase.ENDED;
+    }
+    return BattlePhase.ACTION_SELECTION;
+  }
+  
+  // === INFORMATIONS ===
+  
+  /**
+   * État complet du gestionnaire de phases
+   */
+  getPhaseState(): any {
     return {
-      isActive: true,
-      timeElapsed,
-      timeRemaining,
-      expectedDuration
+      currentPhase: this.currentPhase,
+      phaseDuration: this.getCurrentPhaseDuration(),
+      isTransitioning: this.isTransitioning,
+      canSubmitActions: this.canSubmitAction(),
+      transitionCount: this.phaseHistory.length,
+      gameStatePhase: this.gameState?.phase || 'unknown'
     };
   }
   
   /**
-   * Force la fin de la phase capture (pour sécurité)
+   * Historique des transitions
    */
-  forceCaptureEnd(): void {
-    if (this.gameState.phase === 'capture') {
-      console.log(`🚨 [PhaseManager] FORCE FIN CAPTURE`);
-      this.setPhase('action_selection', 'force_capture_end');
-    }
-  }
-  
-  // === VALIDATION AVANCÉE ===
-  
-  /**
-   * Vérifie si une phase peut être atteinte depuis la phase actuelle
-   */
-  canTransitionTo(targetPhase: BattlePhase): boolean {
-    const currentPhase = this.getCurrentPhase();
-    
-    // ✅ CAPTURE NE PEUT PAS ÊTRE INTERROMPUE
-    if (currentPhase === 'capture' && targetPhase !== 'ended') {
-      const captureStatus = this.getCaptureStatus();
-      console.log(`🎯 [PhaseManager] Transition ${currentPhase} → ${targetPhase} REFUSÉE (capture ${captureStatus.timeRemaining}ms)`);
-      return false;
-    }
-    
-    // Transitions autorisées
-    const allowedTransitions: Record<BattlePhase, BattlePhase[]> = {
-      'waiting': ['intro', 'ended'],
-      'intro': ['action_selection', 'ended'],
-      'action_selection': ['action_resolution', 'capture', 'ended'],
-      'action_resolution': ['action_selection', 'ended'],
-      'capture': ['action_selection', 'ended'], // ✅ Seulement après timing
-      'ended': [] // Phase finale
-    };
-    
-    const allowed = allowedTransitions[currentPhase]?.includes(targetPhase) || false;
-    
-    if (!allowed) {
-      console.log(`🚫 [PhaseManager] Transition ${currentPhase} → ${targetPhase} interdite`);
-    }
-    
-    return allowed;
+  getPhaseHistory(): PhaseTransition[] {
+    return [...this.phaseHistory];
   }
   
   /**
-   * Transition sécurisée vers une nouvelle phase
+   * Statistiques des phases
    */
-  transitionTo(targetPhase: BattlePhase, trigger?: string): boolean {
-    if (!this.canTransitionTo(targetPhase)) {
-      console.warn(`⚠️ [PhaseManager] Transition vers ${targetPhase} refusée`);
-      return false;
-    }
+  getPhaseStats(): any {
+    const phaseCount: Record<string, number> = {};
+    const phaseTime: Record<string, number> = {};
     
-    this.setPhase(targetPhase, trigger);
-    return true;
-  }
-  
-  // === CYCLE DE VIE ===
-  
-  /**
-   * Vérifie si le combat est dans une phase active
-   */
-  isActive(): boolean {
-    return this.gameState.phase !== 'waiting' && this.gameState.phase !== 'ended';
-  }
-  
-  /**
-   * Vérifie si le combat est terminé
-   */
-  isEnded(): boolean {
-    return this.gameState.phase === 'ended';
-  }
-  
-  /**
-   * Vérifie si le combat attend des actions
-   */
-  isWaitingForActions(): boolean {
-    return this.gameState.phase === 'action_selection' && this.canPlayerAct();
-  }
-  
-  // === DIAGNOSTICS ===
-  
-  /**
-   * Obtient un diagnostic complet du PhaseManager
-   */
-  getDiagnostics(): any {
-    const captureStatus = this.getCaptureStatus();
+    this.phaseHistory.forEach((transition, index) => {
+      const phase = transition.from;
+      phaseCount[phase] = (phaseCount[phase] || 0) + 1;
+      
+      if (index > 0) {
+        const duration = transition.timestamp - this.phaseHistory[index - 1].timestamp;
+        phaseTime[phase] = (phaseTime[phase] || 0) + duration;
+      }
+    });
     
     return {
-      version: 'phase_manager_capture_lock_v1',
-      currentPhase: this.getCurrentPhase(),
-      previousPhase: this.getPreviousPhase(),
-      canPlayerAct: this.canPlayerAct(),
-      isActive: this.isActive(),
-      isEnded: this.isEnded(),
-      isWaitingForActions: this.isWaitingForActions(),
-      captureStatus: captureStatus,
-      captureProtection: {
-        isInCapture: this.gameState.phase === 'capture',
-        isTransitioning: this.isTransitioningFromCapture(),
-        startTime: this.captureStartTime,
-        expectedDuration: this.captureExpectedDuration
-      },
-      allowedTransitions: this.getAllowedTransitions(),
+      version: 'phase_system_v1',
+      currentPhase: this.currentPhase,
+      totalTransitions: this.phaseHistory.length,
+      phaseCount,
+      averagePhaseTime: phaseTime,
       features: [
-        'capture_phase_locking',
-        'transition_protection',
+        'five_phase_system',
+        'transition_validation',
         'action_validation',
-        'timing_synchronization',
-        'exploit_prevention'
+        'automatic_transitions',
+        'phase_history'
       ]
     };
   }
   
+  // === UTILITAIRES ===
+  
   /**
-   * Obtient les transitions autorisées depuis la phase actuelle
+   * Mappe les phases internes vers l'état du jeu
    */
-  private getAllowedTransitions(): BattlePhase[] {
-    const currentPhase = this.getCurrentPhase();
-    
-    const allowedTransitions: Record<BattlePhase, BattlePhase[]> = {
-      'waiting': ['intro', 'ended'],
-      'intro': ['action_selection', 'ended'],
-      'action_selection': ['action_resolution', 'capture', 'ended'],
-      'action_resolution': ['action_selection', 'ended'],
-      'capture': ['action_selection', 'ended'],
-      'ended': []
-    };
-    
-    return allowedTransitions[currentPhase] || [];
+  private mapPhaseToGameState(phase: BattlePhase): 'waiting' | 'battle' | 'ended' | 'fled' {
+    switch (phase) {
+      case BattlePhase.INTRO:
+      case BattlePhase.ACTION_SELECTION:
+      case BattlePhase.ACTION_RESOLUTION:
+      case BattlePhase.CAPTURE:
+        return 'battle';
+      case BattlePhase.ENDED:
+        return 'ended';
+      default:
+        return 'waiting';
+    }
   }
   
   /**
-   * Reset pour un nouveau combat
+   * Reset pour nouveau combat
    */
   reset(): void {
-    this.previousPhase = null;
-    this.captureStartTime = null;
-    this.captureExpectedDuration = null;
-    this.gameState.phase = 'waiting';
+    this.currentPhase = BattlePhase.INTRO;
+    this.gameState = null;
+    this.phaseHistory = [];
+    this.phaseStartTime = 0;
+    this.isTransitioning = false;
     
     console.log('🔄 [PhaseManager] Reset effectué');
   }
   
-  // === MÉTHODES DE SÉCURITÉ ===
-  
   /**
-   * Vérifie l'intégrité des phases
+   * Vérifie si le gestionnaire est prêt
    */
-  validatePhaseIntegrity(): boolean {
-    const currentPhase = this.getCurrentPhase();
-    
-    // ✅ Vérification capture
-    if (currentPhase === 'capture') {
-      if (!this.captureStartTime) {
-        console.error('❌ [PhaseManager] Phase capture sans timestamp !');
-        return false;
-      }
-      
-      const captureStatus = this.getCaptureStatus();
-      if (captureStatus.timeElapsed > 15000) { // 15s max
-        console.error('❌ [PhaseManager] Phase capture trop longue !');
-        this.forceCaptureEnd();
-        return false;
-      }
-    }
-    
-    return true;
-  }
-  
-  /**
-   * Nettoie les états obsolètes
-   */
-  cleanup(): void {
-    // Nettoyer les timestamps anciens
-    if (this.captureStartTime && Date.now() - this.captureStartTime > 30000) {
-      console.log('🧹 [PhaseManager] Nettoyage timestamp capture obsolète');
-      this.captureStartTime = null;
-      this.captureExpectedDuration = null;
-    }
+  isReady(): boolean {
+    return this.gameState !== null;
   }
 }
 
