@@ -668,20 +668,25 @@ createBattleInventoryUI() {
     }, 1000);
   }
 
-  executePlayerAction(actionData) {
-    if (actionData.type === 'move') {
-      this.hideActionButtons();
-      this.showActionMessage(`${this.currentPlayerPokemon?.name} utilise ${actionData.moveName}!`);
-      
-      // Délai minimal pour l'UX, puis envoi au serveur
-      setTimeout(() => {
-        if (this.battleNetworkHandler) {
-          this.battleNetworkHandler.useMove(actionData.moveId);
-        }
-        this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
-      }, 1000);
-    }
+executePlayerAction(actionData) {
+  if (actionData.type === 'move') {
+    this.hideActionButtons();
+    
+    // ❌ SUPPRIMÉ: Cette ligne causait le message précoce !
+    // this.showActionMessage(`${this.currentPlayerPokemon?.name} utilise ${actionData.moveName}!`);
+    
+    // ✅ NOUVEAU: Message temporaire ou pas de message
+    this.showActionMessage('Action envoyée au serveur...');
+    
+    // Délai minimal pour l'UX, puis envoi au serveur
+    setTimeout(() => {
+      if (this.battleNetworkHandler) {
+        this.battleNetworkHandler.useMove(actionData.moveId);
+      }
+      this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
+    }, 1000);
   }
+}
 
   // === AFFICHAGE POKÉMON ===
 
