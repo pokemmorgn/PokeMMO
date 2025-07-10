@@ -1,7 +1,8 @@
-// server/src/models/OwnedPokemon.ts - Version avec types corrigés
+// server/src/models/OwnedPokemon.ts - Version avec types corrigés + PP
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { getPokemonById } from "../data/PokemonData";
 import naturesData from "../data/natures.json";
+import { PokemonMoveService } from '../services/PokemonMoveService';
 
 // Interface pour les attaques
 interface IPokemonMove {
@@ -68,10 +69,14 @@ export interface IOwnedPokemon extends Document {
   getEffectiveAttack(): number;
   getEffectiveSpeed(): number;
   applyStatus(status: string, turns?: number): boolean;
+  
+  // === NOUVELLES MÉTHODES PP ===
+  consumePP(moveId: string): any;
+  canUseMove(moveId: string): boolean;
+  hasUsableMoves(): boolean;
+  restorePP(moveId?: string): void;
+  getMovesWithData(): Promise<any[]>;
 }
-
-// Interface pour les méthodes statiques - SUPPRIMÉE
-// Nous utiliserons des requêtes directes dans le TeamManager
 
 const OwnedPokemonSchema = new Schema<IOwnedPokemon>({
   // === DONNÉES DE BASE ===
@@ -164,6 +169,20 @@ OwnedPokemonSchema.pre('save', function(next) {
 OwnedPokemonSchema.pre('save', async function(next) {
   if (this.isNew || this.isModified('level') || this.isModified('ivs') || this.isModified('evs') || this.isModified('nature')) {
     await this.recalculateStats();
+  }
+  next();
+});
+
+// === MIDDLEWARE PP ===
+OwnedPokemonSchema.pre('save', async function(next) {
+  // Initialisation PP pour nouveaux Pokémon ou moves modifiés
+  if (this.isNew || this.isModified('moves')) {
+    try {
+      await PokemonMoveService.initializePP(this);
+    } catch (error) {
+      console.error(`❌ [OwnedPokemon] Erreur initialisation PP:`, error);
+      // Ne pas bloquer la sauvegarde
+    }
   }
   next();
 });
@@ -278,6 +297,43 @@ OwnedPokemonSchema.methods.applyStatus = function(this: IOwnedPokemon, newStatus
   this.status = newStatus as any;
   this.statusTurns = turns;
   return true;
+};
+
+// === MÉTHODES DE CONVENANCE PP ===
+
+/**
+ * Méthode de convenance pour consommer PP
+ */
+OwnedPokemonSchema.methods.consumePP = function(this: IOwnedPokemon, moveId: string) {
+  return PokemonMoveService.consumePP(this, moveId);
+};
+
+/**
+ * Méthode de convenance pour vérifier attaque utilisable
+ */
+OwnedPokemonSchema.methods.canUseMove = function(this: IOwnedPokemon, moveId: string): boolean {
+  return PokemonMoveService.canUseMove(this, moveId);
+};
+
+/**
+ * Méthode de convenance pour vérifier attaques utilisables
+ */
+OwnedPokemonSchema.methods.hasUsableMoves = function(this: IOwnedPokemon): boolean {
+  return PokemonMoveService.hasUsableMoves(this);
+};
+
+/**
+ * Méthode de convenance pour restaurer PP
+ */
+OwnedPokemonSchema.methods.restorePP = function(this: IOwnedPokemon, moveId?: string): void {
+  return PokemonMoveService.restorePP(this, moveId);
+};
+
+/**
+ * Méthode de convenance pour obtenir attaques avec données
+ */
+OwnedPokemonSchema.methods.getMovesWithData = async function(this: IOwnedPokemon) {
+  return await PokemonMoveService.getMovesWithData(this);
 };
 
 // Export du modèle simplifié
