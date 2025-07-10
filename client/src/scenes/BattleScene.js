@@ -28,7 +28,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleBackground = null;
     
     // Interface moderne
-    this.modernHealthBars = { player: null, opponent: null };
+    this.modernHealthBars = { player1: null, player2: null };
     this.actionInterface = null;
     this.actionMessageText = null;
     this.battleDialog = null;
