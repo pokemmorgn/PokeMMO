@@ -498,8 +498,7 @@ export class OverworldPokemonManager {
           case 'lazy': effectiveSpeed *= 0.7; break;
         }
         
-        const moveDuration = Math.max(600, distance / effectiveSpeed * 1000);
-
+const moveDuration = Math.max(2000, distance / effectiveSpeed * 1500); // ← De 600ms à 2000ms minimum
         pokemon.isMoving = true;
         pokemon.targetX = target.x;
         pokemon.targetY = target.y;
