@@ -317,27 +317,73 @@ export class BattleRoom extends Room<BattleState> {
     // === ⚔️ ÉVÉNEMENTS DE COMBAT INDIVIDUELS ===
     
     // Attaque utilisée
-    this.battleEngine.on('battleEvent', (event: any) => {
-      console.log(`⚔️ [BattleRoom] Événement combat: ${event.eventId}`);
+this.battleEngine.on('battleEvent', async (event: any) => {
+  console.log(`⚔️ [BattleRoom] Événement combat: ${event.eventId}`);
+  
+  // ✅ NOUVEAU: Calculer le délai selon le type d'événement
+  const delay = this.getBattleEventDelay(event.eventId);
+  
+  if (delay > 0) {
+    console.log(`⏰ [BattleRoom] Attente ${delay}ms avant retransmission ${event.eventId}`);
+    await this.delay(delay);
+  }
+  
+  // Retransmettre l'événement avec délai respecté
+  this.broadcast('battleEvent', event);
+  
+  // Messages spécifiques selon le type
+  switch (event.eventId) {
+    case 'moveUsed':
+      console.log(`⚔️ ${event.data.attackerName} utilise ${event.data.moveName} !`);
+      break;
       
-      // Retransmettre l'événement tel quel
-      this.broadcast('battleEvent', event);
+    case 'damageDealt':
+      console.log(`💥 ${event.data.damage} dégâts à ${event.data.targetName} !`);
+      break;
       
-      // Messages spécifiques selon le type
-      switch (event.eventId) {
-        case 'moveUsed':
-          console.log(`⚔️ ${event.data.attackerName} utilise ${event.data.moveName} !`);
-          break;
-          
-        case 'damageDealt':
-          console.log(`💥 ${event.data.damage} dégâts à ${event.data.targetName} !`);
-          break;
-          
-        case 'pokemonFainted':
-          console.log(`💀 ${event.data.pokemonName} est K.O. !`);
-          break;
-      }
-    });
+    case 'pokemonFainted':
+      console.log(`💀 ${event.data.pokemonName} est K.O. !`);
+      break;
+  }
+  
+  console.log(`✅ [BattleRoom] Événement ${event.eventId} retransmis avec délai`);
+});
+
+// === MÉTHODE UTILITAIRE POUR DÉLAIS ===
+
+/**
+ * Calcule le délai approprié pour chaque type d'événement
+ */
+private getBattleEventDelay(eventId: string): number {
+  // Timings Pokémon authentiques (copie de BroadcastManager)
+  const BATTLE_TIMINGS: Record<string, number> = {
+    moveUsed: 1800,           // Annonce attaque
+    damageDealt: 1200,        // Application dégâts  
+    criticalHit: 800,         // "Coup critique !"
+    superEffective: 900,      // "C'est super efficace !"
+    notVeryEffective: 900,    // "Ce n'est pas très efficace..."
+    noEffect: 1000,           // "Ça n'a aucun effet !"
+    pokemonFainted: 2000,     // K.O. (pause importante)
+    
+    // Capture
+    captureAttempt: 1500,     // Lancer Ball
+    captureShake: 600,        // Chaque secousse
+    captureSuccess: 2000,     // "Pokémon capturé !"
+    captureFailure: 1500,     // "Il s'est échappé !"
+    
+    // Défaut
+    default: 500
+  };
+  
+  return BATTLE_TIMINGS[eventId] || BATTLE_TIMINGS.default;
+}
+
+/**
+ * Délai utilitaire
+ */
+private delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
     // === 🏁 FIN DE COMBAT ===
     this.battleEngine.on('battleEnd', (data: any) => {
