@@ -154,21 +154,22 @@ export class BattleEngine {
     console.log(`⚔️ [BattleEngine] Combat actif - Premier combattant: ${firstCombatant}`);
   }
   
-  /**
-   * Traite une action (bloquée pendant la narration) + CAPTURE
-   */
-  async processAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
-    console.log(`🎮 [BattleEngine] Action reçue: ${action.type} par ${action.playerId}`);
-    
-    if (!this.isInitialized) {
-      return {
-        success: false,
-        error: 'Combat non initialisé',
-        gameState: this.gameState,
-        events: []
-      };
-    }
-     if (this.gameState.isEnded) {
+ /**
+ * Traite une action (bloquée pendant la narration) + CAPTURE
+ */
+async processAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
+  console.log(`🎮 [BattleEngine] Action reçue: ${action.type} par ${action.playerId}`);
+  
+  if (!this.isInitialized) {
+    return {
+      success: false,
+      error: 'Combat non initialisé',
+      gameState: this.gameState,
+      events: []
+    };
+  }
+  
+  if (this.gameState.isEnded) {
     console.log(`❌ [BattleEngine] Action refusée: Combat déjà terminé (winner: ${this.gameState.winner})`);
     return {
       success: false,
@@ -176,28 +177,29 @@ export class BattleEngine {
       gameState: this.gameState,
       events: ['Le combat est déjà terminé !']
     };
-    }
-    // ✅ NOUVEAU: Bloquer les actions pendant la narration
-    if (this.turnManager.isNarrative()) {
+  }
+  
+  // ✅ NOUVEAU: Bloquer les actions pendant la narration
+  if (this.turnManager.isNarrative()) {
+    return {
+      success: false,
+      error: 'Attendez la fin de la présentation',
+      gameState: this.gameState,
+      events: ['Le combat va bientôt commencer...']
+    };
+  }
+  
+  try {
+    // Vérifier si le joueur peut agir
+    if (!this.turnManager.canPlayerAct(action.playerId)) {
       return {
         success: false,
-        error: 'Attendez la fin de la présentation',
+        error: 'Ce n\'est pas votre tour',
         gameState: this.gameState,
-        events: ['Le combat va bientôt commencer...']
+        events: []
       };
     }
     
-    try {
-      // Vérifier si le joueur peut agir
-      if (!this.turnManager.canPlayerAct(action.playerId)) {
-        return {
-          success: false,
-          error: 'Ce n\'est pas votre tour',
-          gameState: this.gameState,
-          events: []
-        };
-      }
-      
     // ✅ NOUVEAU: Traiter l'action selon son type
     let result: BattleResult;
     
@@ -217,136 +219,145 @@ export class BattleEngine {
       // Traiter via ActionProcessor pour les autres actions
       result = this.actionProcessor.processAction(action);
     }
+    
+    if (result.success) {
+      console.log(`✅ [BattleEngine] Action traitée avec succès`);
       
-      if (result.success) {
-        console.log(`✅ [BattleEngine] Action traitée avec succès`);
+      // ✅ NOUVEAU: Vérifier si la capture a terminé le combat
+      if (action.type === 'capture' && result.data?.captured && result.data?.battleEnded) {
+        console.log(`🎉 [BattleEngine] Combat terminé par capture !`);
         
-        // ✅ NOUVEAU: Vérifier si la capture a terminé le combat
-        if (action.type === 'capture' && result.data?.captured && result.data?.battleEnded) {
-          console.log(`🎉 [BattleEngine] Combat terminé par capture !`);
-          
-          // Nettoyer le timer narratif si actif
-          if (this.narrativeTimer) {
-            clearTimeout(this.narrativeTimer);
-            this.narrativeTimer = null;
+        // Nettoyer le timer narratif si actif
+        if (this.narrativeTimer) {
+          clearTimeout(this.narrativeTimer);
+          this.narrativeTimer = null;
+        }
+        
+        // Marquer le combat comme terminé
+        this.gameState.isEnded = true;
+        this.gameState.winner = result.data.winner;
+        this.gameState.phase = 'ended';
+        
+        // Émettre événement de fin par capture
+        this.emit('battleEnd', {
+          winner: result.data.winner,
+          reason: 'Pokémon capturé !',
+          gameState: this.gameState,
+          captureSuccess: true
+        });
+        
+        return result;
+      }
+      
+      // ✅ Vérifier fin de combat AVANT de changer de tour (pour les autres actions)
+      const battleEndCheck = this.checkBattleEnd();
+      
+      if (battleEndCheck.isEnded) {
+        console.log(`🏁 [BattleEngine] Fin de combat détectée`);
+        
+        // Nettoyer le timer narratif si actif
+        if (this.narrativeTimer) {
+          clearTimeout(this.narrativeTimer);
+          this.narrativeTimer = null;
+        }
+        
+        // Marquer le combat comme terminé
+        this.gameState.isEnded = true;
+        this.gameState.winner = battleEndCheck.winner;
+        this.gameState.phase = 'ended';
+        
+        // Sauvegarder les Pokémon via BattleEndManager
+        this.savePokemonAfterBattle();
+        
+        // Émettre événement de fin
+        this.emit('battleEnd', {
+          winner: battleEndCheck.winner,
+          reason: battleEndCheck.reason,
+          gameState: this.gameState
+        });
+        
+        // Retourner résultat avec fin de combat
+        return {
+          success: true,
+          gameState: this.gameState,
+          events: [...result.events, battleEndCheck.reason],
+          data: {
+            ...result.data,
+            battleEnded: true,
+            winner: battleEndCheck.winner
           }
-          
-          // Marquer le combat comme terminé
-          this.gameState.isEnded = true;
-          this.gameState.winner = result.data.winner;
-          this.gameState.phase = 'ended';
-          
-          // Émettre événement de fin par capture
-          this.emit('battleEnd', {
-            winner: result.data.winner,
-            reason: 'Pokémon capturé !',
-            gameState: this.gameState,
-            captureSuccess: true
+        };
+      }
+      
+      // Changer de tour seulement si le combat continue ET que ce n'est pas une capture ratée
+      if (!(action.type === 'capture' && !result.data?.captured)) {
+        const nextPlayer = this.turnManager.nextTurn();
+        console.log(`🔄 [BattleEngine] Tour suivant: ${nextPlayer}`);
+        
+        // Émettre événement de changement de tour
+        this.emit('turnChanged', {
+          newPlayer: nextPlayer,
+          turnNumber: this.turnManager.getCurrentTurnNumber()
+        });
+      }
+      
+      // ✅ NOUVEAU: Émettre via BroadcastManager avec timing
+      if (this.broadcastManager) {
+        if (action.type === 'attack' && result.data) {
+          // Utiliser la séquence d'attaque avec timing
+          await this.broadcastManager.emitAttackSequence({
+            attacker: { 
+              name: this.getPlayerName(action.playerId), 
+              role: action.playerId === this.gameState.player1.sessionId ? 'player1' : 'player2' 
+            },
+            target: { 
+              name: result.data.defenderRole === 'player1' ? this.gameState.player1.name : this.gameState.player2.name,
+              role: result.data.defenderRole 
+            },
+            move: { 
+              id: action.data.moveId, 
+              name: action.data.moveId
+            },
+            damage: result.data.damage || 0,
+            oldHp: result.data.oldHp || 0,
+            newHp: result.data.newHp || 0,
+            maxHp: result.data.maxHp || 100,
+            effects: [],
+            isKnockedOut: result.data.isKnockedOut || false
           });
-          
-          return result;
-        }
-        
-        // ✅ Vérifier fin de combat AVANT de changer de tour (pour les autres actions)
-        const battleEndCheck = this.checkBattleEnd();
-        
-        if (battleEndCheck.isEnded) {
-          console.log(`🏁 [BattleEngine] Fin de combat détectée`);
-          
-          // Nettoyer le timer narratif si actif
-          if (this.narrativeTimer) {
-            clearTimeout(this.narrativeTimer);
-            this.narrativeTimer = null;
-          }
-          
-          // Marquer le combat comme terminé
-          this.gameState.isEnded = true;
-          this.gameState.winner = battleEndCheck.winner;
-          this.gameState.phase = 'ended';
-          
-          // Sauvegarder les Pokémon via BattleEndManager
-          this.savePokemonAfterBattle();
-          
-          // Émettre événement de fin
-          this.emit('battleEnd', {
-            winner: battleEndCheck.winner,
-            reason: battleEndCheck.reason,
-            gameState: this.gameState
-          });
-          
-          // Retourner résultat avec fin de combat
-          return {
-            success: true,
-            gameState: this.gameState,
-            events: [...result.events, battleEndCheck.reason],
-            data: {
-              ...result.data,
-              battleEnded: true,
-              winner: battleEndCheck.winner
-            }
-          };
-        }
-        
-        // Changer de tour seulement si le combat continue ET que ce n'est pas une capture ratée
-        if (!(action.type === 'capture' && !result.data?.captured)) {
-          const nextPlayer = this.turnManager.nextTurn();
-          console.log(`🔄 [BattleEngine] Tour suivant: ${nextPlayer}`);
-          
-          // Émettre événement de changement de tour
-          this.emit('turnChanged', {
-            newPlayer: nextPlayer,
-            turnNumber: this.turnManager.getCurrentTurnNumber()
+        } else {
+          // Autres types d'actions - utiliser emit simple
+          this.broadcastManager.emit('actionProcessed', {
+            action: action,
+            result: result,
+            nextPlayer: this.turnManager.getCurrentPlayer()
           });
         }
-        
-                // Émettre événement d'action
-        // ✅ NOUVEAU: Émettre via BroadcastManager avec timing
-if (this.broadcastManager && result.success) {
-  if (action.type === 'attack' && result.data) {
-    // Utiliser la séquence d'attaque avec timing
-    await this.broadcastManager.emitAttackSequence({
-      attacker: { 
-        name: this.getPlayerName(action.playerId), 
-        role: action.playerId === this.gameState.player1.sessionId ? 'player1' : 'player2' 
-      },
-      target: { 
-        name: result.data.defenderRole === 'player1' ? this.gameState.player1.name : this.gameState.player2.name,
-        role: result.data.defenderRole 
-      },
-      move: { 
-        id: action.data.moveId, 
-        name: action.data.moveId
-      },
-      damage: result.data.damage || 0,
-      oldHp: result.data.oldHp || 0,
-      newHp: result.data.newHp || 0,
-      maxHp: result.data.maxHp || 100,
-      effects: [],
-      isKnockedOut: result.data.isKnockedOut || false
-    });
-  }
-} else {
-  // Fallback vers ancien système
-  this.emit('actionProcessed', {
-    action: action,
-    result: result,
-    nextPlayer: this.turnManager.getCurrentPlayer()
-  });
-}
-      
-      return result;
-      
-    } catch (error) {
-      console.error(`❌ [BattleEngine] Erreur traitement action:`, error);
-      
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Erreur inconnue',
-        gameState: this.gameState,
-        events: []
-      };
+      } else {
+        // Fallback vers ancien système si BroadcastManager pas disponible
+        this.emit('actionProcessed', {
+          action: action,
+          result: result,
+          nextPlayer: this.turnManager.getCurrentPlayer()
+        });
+      }
+    } else {
+      console.log(`❌ [BattleEngine] Échec action: ${result.error}`);
     }
+    
+    return result;
+    
+  } catch (error) {
+    console.error(`❌ [BattleEngine] Erreur traitement action:`, error);
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+      gameState: this.gameState,
+      events: []
+    };
   }
+}
   // === CONFIGURATION BROADCAST ===
 
 private configureBroadcastSystem(config: BattleConfig): void {
