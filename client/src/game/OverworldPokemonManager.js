@@ -91,37 +91,28 @@ detectSpriteStructure(width, height) {
  * ✅ CALCUL DE SCORE INTELLIGENT basé sur les exemples réels
  */
 calculateStructureScore(cols, rows, frameWidth, frameHeight) {
-  let score = 100; // Score de base
+  // ✅ TES 5 POKÉMON EN PRIORITÉ ABSOLUE
   
-  // ✅ BONUS ÉNORME pour correspondances exactes avec tes exemples
-  const examples = [
-    { cols: 7, rows: 8, frameW: 48, frameH: 40, name: 'Rattata' },   // 336x320
-    { cols: 5, rows: 8, frameW: 32, frameH: 32, name: 'Roucool' },   // 160x256  
-    { cols: 4, rows: 8, frameW: 24, frameH: 32, name: 'Miaouss' },   // 96x256
-    { cols: 4, rows: 8, frameW: 40, frameH: 48, name: 'Dracaufeu' }, // 160x384
-    { cols: 3, rows: 8, frameW: 32, frameH: 32, name: 'Chenipan' }   // 96x256
-  ];
+  // Rattata: 7x8, 336x320 → 48x40
+  if (cols === 7 && rows === 8 && frameWidth >= 47 && frameWidth <= 49) return 10000;
   
-  // Vérifier correspondance exacte avec exemples
-  const exactMatch = examples.find(ex => 
-    ex.cols === cols && ex.rows === rows && 
-    Math.abs(ex.frameW - frameWidth) <= 2 && 
-    Math.abs(ex.frameH - frameHeight) <= 2
-  );
+  // Roucool: 5x8, 160x256 → 32x32  
+  if (cols === 5 && rows === 8 && frameWidth >= 31 && frameWidth <= 33) return 9000;
   
-  if (exactMatch) {
-    score += 500; // ÉNORME bonus pour correspondance exacte
-    console.log(`🎯 Correspondance exacte avec ${exactMatch.name}!`);
-    return score; // Retourner directement, c'est LE bon
-  }
+  // Miaouss: 4x8, 96x256 → 24x32
+  if (cols === 4 && rows === 8 && frameWidth >= 23 && frameWidth <= 25) return 8000;
   
-  // ✅ BONUS pour configurations standard (mais moins que les exactes)
-  if (rows === 8) score += 50; // 8 rangées = standard
+  // Dracaufeu: 4x8, 160x384 → 40x48
+  if (cols === 4 && rows === 8 && frameWidth >= 39 && frameWidth <= 41) return 7000;
+  
+  // Chenipan: 3x8, 96x256 → 32x32
+  if (cols === 3 && rows === 8 && frameWidth >= 31 && frameWidth <= 33) return 6000;
+  
+  // ✅ POUR TOUS LES AUTRES
+  let score = 100;
+  if (rows === 8) score += 50;
   if (cols >= 3 && cols <= 8) score += 20;
-  
-  // ✅ MALUS pour trucs bizarres
   if (cols > 10 || rows > 10) score -= 100;
-  if (frameWidth < 16 || frameHeight < 16) score -= 200;
   
   return score;
 }
