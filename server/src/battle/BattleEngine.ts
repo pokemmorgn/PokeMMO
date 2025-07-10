@@ -81,6 +81,7 @@ export class BattleEngine {
       this.gameState = this.initializeGameState(config);
       
       // 3. Configurer les modules
+      this.configureBroadcastSystem(config);
       this.turnManager.initialize(this.gameState);
       this.actionProcessor.initialize(this.gameState);
       this.aiPlayer.initialize(this.gameState);
@@ -321,7 +322,20 @@ export class BattleEngine {
       };
     }
   }
+  // === CONFIGURATION BROADCAST ===
+
+private configureBroadcastSystem(config: BattleConfig): void {
+  console.log('📡 [BattleEngine] Configuration système broadcast...');
   
+  // Créer BroadcastManager via Factory
+  this.broadcastManager = BroadcastManagerFactory.createForWildBattle(
+    this.gameState.battleId,
+    this.gameState,
+    this.gameState.player1.sessionId
+  );
+  
+  console.log('✅ [BattleEngine] BroadcastManager créé');
+}
   /**
    * ✅ NOUVEAU: Traite une tentative de capture (délègue au CaptureManager)
    */
