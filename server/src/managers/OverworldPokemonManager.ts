@@ -307,6 +307,10 @@ export class OverworldPokemonManager {
   }
 
   private spawnPokemonInArea(areaId: string): void {
+    console.log(`[SPAWN-DEBUG] spawnPokemon appelé: ${config.name} dans ${areaId}`);
+
+    console.log(`[SPAWN-DEBUG] Tentative de spawn dans la zone: ${areaId}`);
+
     const areaConfig = this.config.areas[areaId];
     if (!areaConfig) return;
     
@@ -360,6 +364,8 @@ export class OverworldPokemonManager {
   }
 
   public handleClientSpawnResponse(client: any, data: any): void {
+    console.log(`[SPAWN-DEBUG] handleClientSpawnResponse data=`, data);
+
     const { id, x, y, success } = data;
     
     if (!success) {
