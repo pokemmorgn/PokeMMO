@@ -7,7 +7,7 @@ import { BattleEngine } from "../battle/BattleEngine";
 import { BattleConfig, BattleGameState, Pokemon, BattleAction } from "../battle/types/BattleTypes";
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
-
+import { PokemonMoveService } from "../services/PokemonMoveService";
 // === INTERFACES BATTLEROOM ===
 
 export interface BattleInitData {
@@ -92,6 +92,9 @@ export class BattleRoom extends Room<BattleState> {
     // Handler pour obtenir l'état du combat
     this.onMessage("getBattleState", (client) => {
       client.send("battleStateUpdate", this.getClientBattleState());
+    });
+    this.onMessage("requestMoves", async (client) => {
+      await this.handleRequestMoves(client);
     });
   }
   
