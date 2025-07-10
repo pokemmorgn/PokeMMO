@@ -307,7 +307,6 @@ export class OverworldPokemonManager {
   }
 
   private spawnPokemonInArea(areaId: string): void {
-    console.log(`[SPAWN-DEBUG] spawnPokemon appelé: ${config.name} dans ${areaId}`);
 
     console.log(`[SPAWN-DEBUG] Tentative de spawn dans la zone: ${areaId}`);
 
