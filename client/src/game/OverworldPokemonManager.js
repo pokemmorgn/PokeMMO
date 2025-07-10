@@ -492,20 +492,24 @@ updateOverworldPokemon(pokemonData) {
   
   // ✅ 2. NOUVEAU: Système de mouvement comme les joueurs
   if (isMoving && targetX !== undefined && targetY !== undefined) {
-    // Définir la cible SANS interpolation forcée
-    pokemon.targetX = targetX;
-    pokemon.targetY = targetY;
-    pokemon.isMoving = true;
-    pokemon.serverMoveTime = moveStartTime || Date.now(); // Temps serveur
-    
-    // Animation de marche
-    const animDirection = this.getDirectionForAnimation(direction || pokemon.lastDirection);
-    const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
-    const walkAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${animDirection}`;
-    
-    if (this.scene.anims.exists(walkAnimKey)) {
-      pokemon.anims.play(walkAnimKey, true);
-    }
+  // Stocker les données de mouvement serveur
+  pokemon.targetX = targetX;
+  pokemon.targetY = targetY;
+  pokemon.isMoving = true;
+  pokemon.serverMoveTime = moveStartTime || Date.now();
+  pokemon.serverMoveDuration = moveDuration || 2000; // Durée serveur
+  pokemon.moveStartX = pokemon.x; // Position de départ
+  pokemon.moveStartY = pokemon.y;
+  
+  // Animation
+  const animDirection = this.getDirectionForAnimation(direction || pokemon.lastDirection);
+  const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+  const walkAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${animDirection}`;
+  
+  if (this.scene.anims.exists(walkAnimKey)) {
+    pokemon.anims.play(walkAnimKey, true);
+  }
+}
     
     console.log(`🎯 [${pokemon.name}] Nouvelle cible: (${targetX.toFixed(1)}, ${targetY.toFixed(1)})`);
   } else if (!isMoving) {
@@ -588,27 +592,36 @@ updateOverworldPokemon(pokemonData) {
    */
  // ✅ COMME LE PLAYERMANAGER - Lerp simple et efficace
 update(delta = 16) {
+  const now = Date.now();
+  
   this.overworldPokemon.forEach((pokemon, id) => {
-    // ✅ MOUVEMENT LERP SIMPLE comme PlayerManager
     if (pokemon.isMoving && pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
-      // Vitesse de lerp réaliste (comme les autres joueurs)
-      const lerpSpeed = 0.08; // Plus lent que les joueurs (0.18)
       
-      pokemon.x += (pokemon.targetX - pokemon.x) * lerpSpeed;
-      pokemon.y += (pokemon.targetY - pokemon.y) * lerpSpeed;
-      pokemon.setPosition(pokemon.x, pokemon.y);
+      // ✅ UTILISER LE TIMING SERVEUR au lieu du lerp
+      const elapsed = now - (pokemon.serverMoveTime || now);
+      const duration = pokemon.serverMoveDuration || 2000; // Fallback 2 secondes
+      const progress = Math.min(elapsed / duration, 1.0);
       
-      // ✅ Debug occasionnel
-      if (Math.random() < 0.005) { // 0.5% de chance par frame
-        const distance = Math.sqrt(
-          (pokemon.targetX - pokemon.x) ** 2 + 
-          (pokemon.targetY - pokemon.y) ** 2
-        );
-        console.log(`🏃 [${pokemon.name}] Distance restante: ${distance.toFixed(1)}px`);
+      if (progress >= 1.0) {
+        // Mouvement terminé
+        pokemon.x = pokemon.targetX;
+        pokemon.y = pokemon.targetY;
+        pokemon.setPosition(pokemon.targetX, pokemon.targetY);
+        pokemon.isMoving = false;
+      } else {
+        // Interpolation basée sur le temps serveur
+        const startX = pokemon.moveStartX || pokemon.x;
+        const startY = pokemon.moveStartY || pokemon.y;
+        
+        const newX = startX + (pokemon.targetX - startX) * progress;
+        const newY = startY + (pokemon.targetY - startY) * progress;
+        
+        pokemon.x = newX;
+        pokemon.y = newY;
+        pokemon.setPosition(newX, newY);
       }
     }
     
-    // ✅ Mise à jour profondeur
     pokemon.setDepth(3 + (pokemon.y / 1000));
   });
 }
