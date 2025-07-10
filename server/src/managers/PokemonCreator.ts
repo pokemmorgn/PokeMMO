@@ -292,14 +292,24 @@ export class PokemonCreator {
       return await this.createMovesWithPP(['tackle']);
     }
     
-    // Filtrer les attaques apprises jusqu'au niveau actuel
-    const availableMoves = Object.entries(baseData.learnset)
-      .filter(([moveId, learnLevel]) => (learnLevel as number) <= level)
-      .sort(([, a], [, b]) => (b as number) - (a as number)) // Plus récentes en premier
+    // ✅ CORRIGER: learnset est un array de PokemonMove
+    const availableMoves = baseData.learnset
+      .filter(moveData => moveData.level <= level) // moveData a une propriété level
+      .sort((a, b) => b.level - a.level) // Trier par niveau décroissant
       .slice(0, 4) // Max 4 attaques
-      .map(([moveId]) => moveId);
+      .map(moveData => moveData.moveId); // Extraire le moveId
     
     if (availableMoves.length === 0) {
+      // Fallback: prendre les attaques de niveau 1
+      const level1Moves = baseData.learnset
+        .filter(moveData => moveData.level === 1)
+        .map(moveData => moveData.moveId);
+      
+      if (level1Moves.length > 0) {
+        return await this.createMovesWithPP(level1Moves.slice(0, 4));
+      }
+      
+      // Ultimate fallback
       return await this.createMovesWithPP(['tackle']);
     }
     
