@@ -102,17 +102,6 @@ const BATTLE_TRANSLATIONS = {
     'selectMove': () => `Choisissez une attaque.`,
     'selectItem': () => `Choisissez un objet.`,
     'selectPokemon': () => `Choisissez un Pokémon.`,
-
-    // 🏁 Fin de combat
-    'battleEnd': (data, myPlayerId) => {
-      if (data.winnerId === myPlayerId) {
-        return `Vous avez gagné !`;
-      } else if (data.winnerId === null) {
-        return `Combat nul !`;
-      } else {
-        return `Vous avez perdu !`;
-      }
-    }
   },
 
   // === ANGLAIS ===
