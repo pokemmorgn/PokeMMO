@@ -1,5 +1,5 @@
 // server/src/rooms/BattleRoom.ts
-// VERSION 2.6 : BattleRoom avec système narratif complet + CAPTURE
+// VERSION POKÉMON AUTHENTIQUE COMPLÈTE - Flow Rouge/Bleu
 
 import { Room, Client } from "@colyseus/core";
 import { BattleState, BattlePokemon } from "../schema/BattleState";
@@ -26,7 +26,7 @@ export interface BattleInitData {
   };
 }
 
-// === BATTLEROOM V2.6 - AVEC SYSTÈME NARRATIF + CAPTURE ===
+// === BATTLEROOM POKÉMON AUTHENTIQUE ===
 
 export class BattleRoom extends Room<BattleState> {
   
@@ -43,7 +43,7 @@ export class BattleRoom extends Room<BattleState> {
   // === CRÉATION ROOM ===
   
   async onCreate(options: BattleInitData) {
-    console.log(`⚔️ [BattleRoom] Création V2.6 avec système narratif + capture`);
+    console.log(`⚔️ [BattleRoom] Création Pokémon authentique`);
     console.log(`🎯 Type: ${options.battleType}, Joueur: ${options.playerData.name}`);
     
     this.battleInitData = options;
@@ -54,20 +54,20 @@ export class BattleRoom extends Room<BattleState> {
     this.state.battleType = options.battleType;
     this.state.phase = "waiting";
     
-    // ✅ Initialiser BattleEngine avec système narratif
+    // ✅ Initialiser BattleEngine Pokémon authentique
     this.battleEngine = new BattleEngine();
     this.setupBattleEngineEvents();
     this.setupMessageHandlers();
     
-    console.log(`✅ [BattleRoom] ${this.roomId} créée avec BattleEngine narratif V2.6 + capture`);
+    console.log(`✅ [BattleRoom] ${this.roomId} créée avec flow Pokémon authentique`);
   }
   
   // === GESTION MESSAGES ===
   
   private setupMessageHandlers() {
-    console.log('🎮 [BattleRoom] Configuration message handlers narratif V2.6 + capture');
+    console.log('🎮 [BattleRoom] Configuration message handlers Pokémon authentique');
     
-    // Handler pour les actions de combat (maintenant async)
+    // Handler pour les actions de combat
     this.onMessage("battleAction", async (client, data: {
       actionType: "attack" | "item" | "switch" | "run" | "capture";
       moveId?: string;
@@ -78,7 +78,7 @@ export class BattleRoom extends Room<BattleState> {
       await this.handleBattleAction(client, data);
     });
 
-        // Handler spécifique pour la capture
+    // Handler spécifique pour la capture
     this.onMessage("attemptCapture", async (client, data: {
       ballType: string;
     }) => {
@@ -113,7 +113,7 @@ export class BattleRoom extends Room<BattleState> {
         timestamp: Date.now()
       };
       
-      // ✅ NOUVEAU: Récupérer le TeamManager pour la capture
+      // Récupérer le TeamManager pour la capture
       let teamManager = null;
       if (data.actionType === 'capture') {
         teamManager = this.teamManagers.get(client.sessionId);
@@ -127,7 +127,7 @@ export class BattleRoom extends Room<BattleState> {
         }
       }
       
-      // ✅ CORRIGÉ: Traiter via BattleEngine (maintenant async)
+      // Traiter via BattleEngine
       const result = await this.battleEngine.processAction(action, teamManager);
       
       if (result.success) {
@@ -167,55 +167,314 @@ export class BattleRoom extends Room<BattleState> {
     }
   }
   
-  // === ✅ EXÉCUTION ACTION IA (maintenant async) ===
+  // === ✅ NOUVEAUX ÉVÉNEMENTS BATTLEENGINE POKÉMON AUTHENTIQUE ===
   
-  private async executeAIAction() {
-    console.log('🤖 [BattleRoom] Exécution action IA');
-    
-    try {
-      // Générer l'action IA
-      const aiAction = this.battleEngine.generateAIAction();
+  private setupBattleEngineEvents() {
+    console.log('🎮 [BattleRoom] Configuration événements Pokémon authentique');
+
+    // === 📖 INTRO NARRATIF ===
+    this.battleEngine.on('battleStart', (data: any) => {
+      console.log(`📖 [BattleRoom] "${data.introMessage}"`);
       
-      if (!aiAction) {
-        console.error('❌ [BattleRoom] Aucune action IA générée');
-        return;
-      }
-      
-      console.log(`🤖 [BattleRoom] IA va utiliser: ${aiAction.data.moveId}`);
-      
-      // ✅ CORRIGÉ: Traiter l'action via BattleEngine (maintenant async)
-      const result = await this.battleEngine.processAction(aiAction);
-      
-      if (result.success) {
-        console.log(`✅ [BattleRoom] Action IA traitée avec succès`);
-        
-        // Synchroniser le state
+      if (data.gameState) {
+        this.battleGameState = data.gameState;
         this.syncStateFromGameState();
-        
-        // Notifier tous les clients
-        this.broadcast("actionResult", {
-          success: true,
-          isAI: true,
-          events: result.events,
-          data: result.data,
-          gameState: this.getClientBattleState(),
-          battleEnded: result.data?.battleEnded || false
-        });
-        
-      } else {
-        console.error(`❌ [BattleRoom] Échec action IA: ${result.error}`);
-        
-        // En cas d'échec IA, passer au tour suivant
-        // TODO: Gérer les échecs IA plus proprement
       }
       
-    } catch (error) {
-      console.error(`❌ [BattleRoom] Erreur executeAIAction:`, error);
-    }
+      // ✅ Message d'introduction Pokémon authentique
+      this.broadcast("narrativeStart", {
+        playerPokemon: this.battleGameState?.player1.pokemon,
+        opponentPokemon: this.battleGameState?.player2.pokemon,
+        gameState: this.getClientBattleState(),
+        events: [data.introMessage || `Un ${this.battleGameState?.player2.pokemon?.name} sauvage apparaît !`],
+        duration: 3000
+      });
+      
+      console.log(`📖 [BattleRoom] Narration Pokémon envoyée`);
+    });
+
+    // === 🎭 CHANGEMENTS DE PHASE ===
+    this.battleEngine.on('phaseChanged', (data: any) => {
+      console.log(`🎭 [BattleRoom] Phase: ${data.phase} (${data.trigger})`);
+      
+      this.syncStateFromGameState();
+      
+      this.broadcast('phaseChanged', {
+        phase: data.phase,
+        previousPhase: data.previousPhase,
+        canAct: data.canAct,
+        trigger: data.trigger,
+        gameState: this.getClientBattleState()
+      });
+      
+      // ✅ Gestion spécifique phases Pokémon
+      switch (data.phase) {
+        case 'action_selection':
+          console.log(`🎮 [BattleRoom] "Que doit faire votre Pokémon ?"`);
+          
+          const client = this.clients.find(c => c.sessionId === this.state.player1Id);
+          if (client) {
+            client.send('yourTurn', { 
+              phase: 'action_selection',
+              message: "Que doit faire votre Pokémon ?",
+              turnNumber: this.battleGameState?.turnNumber || 1
+            });
+          }
+          break;
+          
+        case 'action_resolution':
+          console.log(`⚔️ [BattleRoom] Résolution des actions par vitesse`);
+          this.broadcast('actionsResolving', {
+            message: "Résolution des actions...",
+            phase: 'action_resolution'
+          });
+          break;
+          
+        case 'capture':
+          console.log(`🎯 [BattleRoom] Phase capture`);
+          this.broadcast('capturePhase', {
+            message: "Tentative de capture...",
+            phase: 'capture'
+          });
+          break;
+          
+        case 'ended':
+          console.log(`🏁 [BattleRoom] Combat terminé`);
+          break;
+      }
+    });
+
+    // === 🎮 SÉLECTION D'ACTIONS ===
+    this.battleEngine.on('actionSelectionStart', (data: any) => {
+      console.log(`🎮 [BattleRoom] Sélection d'actions - Tour ${data.turnNumber}`);
+      
+      this.broadcast('actionSelectionStart', {
+        canAct: data.canAct,
+        turnNumber: data.turnNumber,
+        message: data.message || "Que doit faire votre Pokémon ?",
+        gameState: this.getClientBattleState()
+      });
+      
+      // Notifier le joueur spécifiquement
+      const client = this.clients.find(c => c.sessionId === this.state.player1Id);
+      if (client) {
+        client.send('yourTurn', { 
+          turnNumber: data.turnNumber,
+          message: data.message || "À vous de jouer !",
+          canAct: true
+        });
+      }
+    });
+
+    // === 📥 ACTION AJOUTÉE À LA QUEUE ===
+    this.battleEngine.on('actionQueued', (data: any) => {
+      console.log(`📥 [BattleRoom] Action en file: ${data.playerRole} → ${data.actionType}`);
+      
+      this.broadcast('actionQueued', {
+        playerRole: data.playerRole,
+        actionType: data.actionType,
+        queueState: data.queueState
+      });
+    });
+
+    // === ⚡ DÉBUT RÉSOLUTION ===
+    this.battleEngine.on('resolutionStart', (data: any) => {
+      console.log(`⚡ [BattleRoom] Début résolution - ${data.actionCount} actions par vitesse`);
+      
+      this.broadcast('resolutionStart', {
+        actionCount: data.actionCount,
+        orderPreview: data.orderPreview,
+        message: "Résolution des actions par ordre de vitesse..."
+      });
+    });
+
+    // === ✅ NOUVEAU: TOUR D'ATTAQUANT ===
+    this.battleEngine.on('attackerTurn', (data: any) => {
+      console.log(`👊 [BattleRoom] Tour attaquant ${data.attackerNumber}/${data.totalAttackers}: ${data.playerRole}`);
+      
+      this.broadcast('attackerTurn', {
+        playerRole: data.playerRole,
+        actionType: data.actionType,
+        attackerNumber: data.attackerNumber,
+        totalAttackers: data.totalAttackers,
+        pokemon: data.pokemon,
+        message: `C'est au tour de ${data.pokemon} !`
+      });
+    });
+
+    // === ✅ FIN RÉSOLUTION ===
+    this.battleEngine.on('resolutionComplete', (data: any) => {
+      console.log(`✅ [BattleRoom] Résolution terminée - ${data.actionsExecuted} actions`);
+      
+      this.broadcast('resolutionComplete', {
+        actionsExecuted: data.actionsExecuted,
+        battleEnded: data.battleEnded,
+        newTurnNumber: data.newTurnNumber,
+        message: "Tour terminé !"
+      });
+    });
+    
+    // === ⚔️ ÉVÉNEMENTS DE COMBAT INDIVIDUELS ===
+    
+    // Attaque utilisée
+    this.battleEngine.on('battleEvent', (event: any) => {
+      console.log(`⚔️ [BattleRoom] Événement combat: ${event.eventId}`);
+      
+      // Retransmettre l'événement tel quel
+      this.broadcast('battleEvent', event);
+      
+      // Messages spécifiques selon le type
+      switch (event.eventId) {
+        case 'moveUsed':
+          console.log(`⚔️ ${event.data.attackerName} utilise ${event.data.moveName} !`);
+          break;
+          
+        case 'damageDealt':
+          console.log(`💥 ${event.data.damage} dégâts à ${event.data.targetName} !`);
+          break;
+          
+        case 'pokemonFainted':
+          console.log(`💀 ${event.data.pokemonName} est K.O. !`);
+          break;
+      }
+    });
+
+    // === 🏁 FIN DE COMBAT ===
+    this.battleEngine.on('battleEnd', (data: any) => {
+      console.log(`🏁 [BattleRoom] Fin de combat: ${data.winner || 'Match nul'}`);
+      console.log(`📄 [BattleRoom] Raison: ${data.reason}`);
+      
+      if (data.captureSuccess) {
+        console.log(`🎯 [BattleRoom] Combat terminé par capture !`);
+      }
+      
+      this.syncStateFromGameState();
+      
+      this.broadcast("battleEnd", {
+        winner: data.winner,
+        reason: data.reason,
+        gameState: this.getClientBattleState(),
+        captureSuccess: data.captureSuccess || false,
+        timestamp: Date.now()
+      });
+      
+      // Message de victoire/défaite
+      let victoryMessage: string;
+      if (data.captureSuccess) {
+        victoryMessage = 'Pokémon capturé avec succès !';
+      } else {
+        victoryMessage = data.winner === 'player1' ? 
+          'Félicitations ! Vous avez gagné !' : 
+          data.winner === 'player2' ?
+          'Défaite ! Vous avez perdu...' :
+          'Match nul !';
+      }
+        
+      this.broadcast("battleMessage", {
+        message: victoryMessage,
+        type: data.captureSuccess ? 'capture' : data.winner === 'player1' ? 'victory' : data.winner === 'player2' ? 'defeat' : 'draw',
+        timing: 3000
+      });
+      
+      // Programmer la fermeture
+      console.log('⏰ [BattleRoom] Fermeture programmée dans 5 secondes...');
+      this.clock.setTimeout(() => {
+        console.log('🚪 [BattleRoom] Fermeture de la room');
+        this.disconnect();
+      }, 5000);
+    });
+
+    // === 💾 SAUVEGARDE POKÉMON ===
+    this.battleEngine.on('pokemonSaved', (data: any) => {
+      console.log(`💾 [BattleRoom] Pokémon sauvegardés`);
+      
+      this.broadcast("pokemonSaved", {
+        success: true,
+        message: "Données Pokémon sauvegardées !",
+        events: data.events,
+        pokemonCount: data.data?.pokemonSaved || 0
+      });
+    });
+
+    // === ❌ ERREURS ===
+    this.battleEngine.on('saveError', (data: any) => {
+      console.error(`❌ [BattleRoom] Erreur sauvegarde: ${data.error}`);
+      
+      this.broadcast("saveError", {
+        success: false,
+        message: "Erreur lors de la sauvegarde !",
+        error: data.error,
+        severity: 'critical'
+      });
+    });
+
+    this.battleEngine.on('actionProcessed', (data: any) => {
+      console.log(`⚔️ [BattleRoom] Action traitée: ${data.action.type}`);
+    });
+
+    // === 🎯 CAPTURE ===
+    this.battleEngine.on('pokemonCaptured', (data: any) => {
+      console.log(`🎯 [BattleRoom] Pokémon capturé: ${data.pokemon.name}`);
+      
+      this.broadcast("pokemonCaptured", {
+        pokemon: data.pokemon,
+        ball: data.ball,
+        success: data.success,
+        shakes: data.shakes
+      });
+    });
+
+    // === 🌟 EXPÉRIENCE (FUTUR) ===
+    this.battleEngine.on('experienceGained', (data: any) => {
+      console.log(`🌟 [BattleRoom] Expérience: ${data.amount} EXP`);
+      
+      this.broadcast("experienceGained", {
+        pokemon: data.pokemon,
+        experience: data.amount,
+        newLevel: data.newLevel,
+        evolution: data.evolution
+      });
+    });
+
+    // === 🎁 RÉCOMPENSES (FUTUR) ===
+    this.battleEngine.on('rewardsGained', (data: any) => {
+      console.log(`🎁 [BattleRoom] Récompenses: ${data.rewards}`);
+      
+      this.broadcast("rewardsGained", {
+        money: data.money,
+        items: data.items,
+        experience: data.experience
+      });
+    });
+
+    // === 🏃 FUITE ===
+    this.battleEngine.on('battleFled', (data: any) => {
+      console.log(`🏃 [BattleRoom] Fuite par ${data.player}`);
+      
+      this.broadcast("battleFled", {
+        player: data.player,
+        reason: data.reason
+      });
+    });
+
+    // === ❌ ERREURS GÉNÉRALES ===
+    this.battleEngine.on('error', (data: any) => {
+      console.error(`❌ [BattleRoom] Erreur: ${data.error}`);
+      
+      this.broadcast("battleError", {
+        message: "Une erreur est survenue",
+        error: data.error,
+        timestamp: Date.now()
+      });
+    });
+
+    console.log('✅ [BattleRoom] Tous les événements Pokémon authentique configurés');
   }
   
+  // === GESTION CLIENTS ===
+  
   async onJoin(client: Client, options: any) {
-    console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom narratif V2.6 + capture`);
+    console.log(`🔥 [JOIN] ${client.sessionId} rejoint BattleRoom Pokémon authentique`);
     
     try {
       const effectiveSessionId = options?.worldSessionId || client.sessionId;
@@ -236,7 +495,7 @@ export class BattleRoom extends Room<BattleState> {
       });
       
       // Démarrer le combat automatiquement
-      this.clock.setTimeout(() => this.startBattleV2(), 1000);
+      this.clock.setTimeout(() => this.startBattleAuthentic(), 1000);
       
     } catch (error) {
       console.error(`❌ [JOIN] Erreur:`, error);
@@ -245,14 +504,14 @@ export class BattleRoom extends Room<BattleState> {
   }
   
   async onLeave(client: Client) {
-    console.log(`👋 ${client.sessionId} quitte BattleRoom narratif V2.6 + capture`);
+    console.log(`👋 ${client.sessionId} quitte BattleRoom Pokémon authentique`);
     this.cleanupPlayer(client.sessionId);
   }
   
-  // === DÉMARRAGE COMBAT V2.6 ===
+  // === DÉMARRAGE COMBAT POKÉMON AUTHENTIQUE ===
   
-  private async startBattleV2() {
-    console.log(`🚀 [BattleRoom] Démarrage combat narratif V2.6 + capture`);
+  private async startBattleAuthentic() {
+    console.log(`🚀 [BattleRoom] Démarrage combat Pokémon authentique`);
     
     try {
       // 1. Récupérer les données des Pokémon
@@ -286,376 +545,26 @@ export class BattleRoom extends Room<BattleState> {
         }
       };
       
-      // 4. Démarrer le combat via BattleEngine (avec narrateur)
+      // 4. Démarrer le combat via BattleEngine Pokémon authentique
       const result = this.battleEngine.startBattle(battleConfig);
       
       if (result.success) {
         this.battleGameState = result.gameState;
         this.syncStateFromGameState();
         
-        console.log(`✅ [BattleRoom] Combat narratif V2.6 + capture démarré avec succès`);
-        console.log(`📖 [BattleRoom] Mode narratif actif - Tour ${this.battleGameState.turnNumber}`);
+        console.log(`✅ [BattleRoom] Combat Pokémon authentique démarré`);
+        console.log(`📖 [BattleRoom] Tour ${this.battleGameState.turnNumber} - ${result.events[0]}`);
         
       } else {
         throw new Error(result.error || 'Erreur démarrage combat');
       }
       
     } catch (error) {
-      console.error(`❌ [BattleRoom] Erreur démarrage narratif V2.6 + capture:`, error);
+      console.error(`❌ [BattleRoom] Erreur démarrage:`, error);
       this.broadcast("battleError", { 
         message: error instanceof Error ? error.message : 'Erreur inconnue' 
       });
     }
-  }
-  
-  // === ✅ ÉVÉNEMENTS BATTLEENGINE NARRATIFS COMPLETS ===
-  
-  private setupBattleEngineEvents() {
-    console.log('🎮 [BattleRoom] Configuration des événements BattleEngine Narratif V2.6 + capture');
-
-    // === ✅ DÉMARRAGE NARRATIF ===
-    this.battleEngine.on('battleStart', (data: any) => {
-      console.log(`📖 [BattleRoom] Mode narratif activé`);
-      
-      // Synchroniser state avec gameState
-      if (data.gameState) {
-        this.battleGameState = data.gameState;
-        this.syncStateFromGameState();
-      }
-      
-      // Envoyer les infos narratives au client
-      this.broadcast("narrativeStart", {
-        playerPokemon: this.battleGameState?.player1.pokemon,
-        opponentPokemon: this.battleGameState?.player2.pokemon,
-        gameState: this.getClientBattleState(),
-        events: [`Une ${this.battleGameState?.player2.pokemon?.name} sauvage apparaît !`],
-        duration: 3000 // 3 secondes de narration
-      });
-      
-      console.log(`📖 [BattleRoom] Narration envoyée aux clients`);
-    });
-
-    // === ✅ FIN DE NARRATION ===
-    this.battleEngine.on('narrativeEnd', (data: any) => {
-      console.log(`📖→⚔️ [BattleRoom] Narration terminée, combat commence avec ${data.firstCombatant}`);
-      
-      // Synchroniser le state
-      this.syncStateFromGameState();
-      
-      // Notifier la fin de narration
-      this.broadcast("narrativeEnd", {
-        firstCombatant: data.firstCombatant,
-        message: "Le combat commence !",
-        gameState: this.getClientBattleState()
-      });
-      
-      console.log(`⚔️ [BattleRoom] Combat actif, premier combattant: ${data.firstCombatant}`);
-    });
-
-    // === ✅ CHANGEMENTS DE PHASE (NOUVEAU) ===
-this.battleEngine.on('phaseChanged', (data: any) => {
-  console.log(`🎭 [BattleRoom] Changement de phase: ${data.phase} (trigger: ${data.trigger})`);
-  
-  // Synchroniser le state
-  this.syncStateFromGameState();
-  
-  // Notifier tous les clients du changement de phase
-  this.broadcast('phaseChanged', {
-    phase: data.phase,
-    previousPhase: data.previousPhase,
-    canAct: data.canAct,
-    trigger: data.trigger,
-    gameState: this.getClientBattleState()
-  });
-  
-  // Gestion spécifique selon la nouvelle phase
-  switch (data.phase) {
-    case 'action_selection':
-      console.log(`🎮 [BattleRoom] Phase ACTION_SELECTION - Interface débloquée`);
-      
-      // Notifier le joueur qu'il peut agir
-      const client = this.clients.find(c => c.sessionId === this.state.player1Id);
-      if (client) {
-        client.send('canAct', { 
-          phase: 'action_selection',
-          message: "Choisissez votre action !",
-          turnNumber: this.battleGameState?.turnNumber || 1
-        });
-      }
-      break;
-      
-    case 'action_resolution':
-      console.log(`⚔️ [BattleRoom] Phase ACTION_RESOLUTION - Actions en cours`);
-      
-      this.broadcast('actionsResolving', {
-        message: "Résolution des actions...",
-        phase: 'action_resolution'
-      });
-      break;
-      
-    case 'capture':
-      console.log(`🎯 [BattleRoom] Phase CAPTURE - Tentative de capture`);
-      
-      this.broadcast('capturePhase', {
-        message: "Tentative de capture...",
-        phase: 'capture'
-      });
-      break;
-      
-    case 'ended':
-      console.log(`🏁 [BattleRoom] Phase ENDED - Combat terminé`);
-      // Le battleEnd sera géré par l'événement dédié
-      break;
-  }
-});
-
-// === ✅ SÉLECTION D'ACTION (NOUVEAU) ===
-this.battleEngine.on('actionSelectionStart', (data: any) => {
-  console.log(`🎮 [BattleRoom] Début sélection d'actions - Tour ${data.turnNumber}`);
-  
-  // Notifier tous les clients que la sélection d'actions commence
-  this.broadcast('actionSelectionStart', {
-    canAct: data.canAct,
-    turnNumber: data.turnNumber,
-    gameState: this.getClientBattleState()
-  });
-  
-  // Notifier spécifiquement le joueur qu'il peut agir
-  const client = this.clients.find(c => c.sessionId === this.state.player1Id);
-  if (client) {
-    client.send('yourTurn', { 
-      turnNumber: data.turnNumber,
-      message: "À vous de jouer !",
-      canAct: true
-    });
-  }
-});
-
-// === ✅ ACTION AJOUTÉE À LA QUEUE (NOUVEAU) ===
-this.battleEngine.on('actionQueued', (data: any) => {
-  console.log(`📥 [BattleRoom] Action ajoutée à la queue: ${data.playerRole} → ${data.actionType}`);
-  
-  this.broadcast('actionQueued', {
-    playerRole: data.playerRole,
-    actionType: data.actionType,
-    queueState: data.queueState
-  });
-});
-
-// === ✅ DÉBUT RÉSOLUTION (NOUVEAU) ===
-this.battleEngine.on('resolutionStart', (data: any) => {
-  console.log(`⚡ [BattleRoom] Début résolution - ${data.actionCount} actions par vitesse`);
-  
-  this.broadcast('resolutionStart', {
-    actionCount: data.actionCount,
-    orderPreview: data.orderPreview,
-    message: "Résolution des actions par ordre de vitesse..."
-  });
-});
-
-// === ✅ FIN RÉSOLUTION (NOUVEAU) ===
-this.battleEngine.on('resolutionComplete', (data: any) => {
-  console.log(`✅ [BattleRoom] Résolution terminée - ${data.actionsExecuted} actions exécutées`);
-  
-  this.broadcast('resolutionComplete', {
-    actionsExecuted: data.actionsExecuted,
-    battleEnded: data.battleEnded,
-    newTurnNumber: data.newTurnNumber,
-    message: "Résolution terminée !"
-  });
-});
-    
-    // === CHANGEMENTS DE TOUR (Combat actif) ===
-    this.battleEngine.on('turnChanged', (data: any) => {
-      console.log(`🔄 [BattleRoom] Tour de combat: ${data.newPlayer} (Tour ${data.turnNumber})`);
-      
-      // Synchroniser le state
-      this.syncStateFromGameState();
-      
-      // Notifier tous les clients du changement de tour
-      this.broadcast('turnChanged', {
-        currentTurn: data.newPlayer,
-        turnNumber: data.turnNumber,
-        gameState: this.getClientBattleState()
-      });
-      
-      // Gestion spécifique selon le joueur
-      if (data.newPlayer === 'player1') {
-        // C'est le tour du joueur humain
-        const client = this.clients.find(c => c.sessionId === this.state.player1Id);
-        if (client) {
-          client.send('yourTurn', { 
-            turnNumber: data.turnNumber,
-            message: "C'est votre tour !"
-          });
-        }
-        
-        console.log(`👤 [BattleRoom] Tour du joueur ${this.state.player1Name}`);
-        
-      } else if (data.newPlayer === 'player2') {
-        // C'est le tour de l'IA
-        const aiDelay = this.battleEngine.getAIThinkingDelay();
-        console.log(`🤖 [BattleRoom] Tour de l'IA - Réflexion ${aiDelay}ms...`);
-        
-        // Notifier que l'IA réfléchit
-        this.broadcast('aiThinking', {
-          delay: aiDelay,
-          message: "L'adversaire réfléchit...",
-          turnNumber: data.turnNumber
-        });
-        
-        // Programmer l'action de l'IA
-        this.clock.setTimeout(async () => {
-          if (!this.battleGameState?.isEnded) {
-            await this.executeAIAction();
-          } else {
-            console.log('⏹️ [BattleRoom] Combat terminé, IA annulée');
-          }
-        }, aiDelay);
-      }
-    });
-
-    // === FIN DE COMBAT (avec capture) ===
-    this.battleEngine.on('battleEnd', (data: any) => {
-      console.log(`🏁 [BattleRoom] Fin de combat: ${data.winner || 'Match nul'}`);
-      console.log(`📄 [BattleRoom] Raison: ${data.reason}`);
-      
-      // ✅ NOUVEAU: Vérifier si c'est une fin par capture
-      if (data.captureSuccess) {
-        console.log(`🎯 [BattleRoom] Combat terminé par capture réussie !`);
-      }
-      
-      // Synchroniser le state final
-      this.syncStateFromGameState();
-      
-      // Notifier tous les clients de la fin
-      this.broadcast("battleEnd", {
-        winner: data.winner,
-        reason: data.reason,
-        gameState: this.getClientBattleState(),
-        captureSuccess: data.captureSuccess || false,
-        timestamp: Date.now()
-      });
-      
-      // Message de victoire/défaite personnalisé
-      let victoryMessage: string;
-      if (data.captureSuccess) {
-        victoryMessage = 'Pokémon capturé avec succès !';
-      } else {
-        victoryMessage = data.winner === 'player1' ? 
-          'Félicitations ! Vous avez gagné !' : 
-          data.winner === 'player2' ?
-          'Défaite ! Vous avez perdu...' :
-          'Match nul !';
-      }
-        
-      this.broadcast("battleMessage", {
-        message: victoryMessage,
-        type: data.captureSuccess ? 'capture' : data.winner === 'player1' ? 'victory' : data.winner === 'player2' ? 'defeat' : 'draw',
-        timing: 3000
-      });
-      
-      // Programmer la fermeture de la room
-      console.log('⏰ [BattleRoom] Fermeture programmée dans 5 secondes...');
-      this.clock.setTimeout(() => {
-        console.log('🚪 [BattleRoom] Fermeture de la room de combat');
-        this.disconnect();
-      }, 5000);
-    });
-
-    // === SAUVEGARDE POKÉMON ===
-    this.battleEngine.on('pokemonSaved', (data: any) => {
-      console.log(`💾 [BattleRoom] Pokémon sauvegardés avec succès`);
-      console.log(`📋 [BattleRoom] Événements: ${data.events.join(', ')}`);
-      
-      // Notifier les clients de la sauvegarde réussie
-      this.broadcast("pokemonSaved", {
-        success: true,
-        message: "Données Pokémon sauvegardées !",
-        events: data.events,
-        pokemonCount: data.data?.pokemonSaved || 0
-      });
-    });
-
-    // === ERREURS DE SAUVEGARDE ===
-    this.battleEngine.on('saveError', (data: any) => {
-      console.error(`❌ [BattleRoom] Erreur critique de sauvegarde: ${data.error}`);
-      
-      // Notifier les clients de l'erreur (critique)
-      this.broadcast("saveError", {
-        success: false,
-        message: "Erreur lors de la sauvegarde des données !",
-        error: data.error,
-        severity: 'critical'
-      });
-    });
-
-    // === TRAITEMENT D'ACTIONS ===
-    this.battleEngine.on('actionProcessed', (data: any) => {
-      console.log(`⚔️ [BattleRoom] Action traitée: ${data.action.type} → Tour suivant: ${data.nextPlayer}`);
-    });
-
-    // === ✅ NOUVEAUX ÉVÉNEMENTS CAPTURE ===
-    
-    // Capture de Pokémon
-    this.battleEngine.on('pokemonCaptured', (data: any) => {
-      console.log(`🎯 [BattleRoom] Pokémon capturé: ${data.pokemon.name}`);
-      
-      this.broadcast("pokemonCaptured", {
-        pokemon: data.pokemon,
-        ball: data.ball,
-        success: data.success,
-        shakes: data.shakes
-      });
-    });
-
-    // === ÉVÉNEMENTS FUTURS (prêts pour extension) ===
-    
-    // Expérience gagnée
-    this.battleEngine.on('experienceGained', (data: any) => {
-      console.log(`🌟 [BattleRoom] Expérience gagnée: ${data.amount} EXP`);
-      
-      this.broadcast("experienceGained", {
-        pokemon: data.pokemon,
-        experience: data.amount,
-        newLevel: data.newLevel,
-        evolution: data.evolution
-      });
-    });
-
-    // Récompenses obtenues
-    this.battleEngine.on('rewardsGained', (data: any) => {
-      console.log(`🎁 [BattleRoom] Récompenses: ${data.rewards}`);
-      
-      this.broadcast("rewardsGained", {
-        money: data.money,
-        items: data.items,
-        experience: data.experience
-      });
-    });
-
-    // Fuite du combat
-    this.battleEngine.on('battleFled', (data: any) => {
-      console.log(`🏃 [BattleRoom] Fuite du combat par ${data.player}`);
-      
-      this.broadcast("battleFled", {
-        player: data.player,
-        reason: data.reason
-      });
-    });
-
-    // Erreurs générales
-    this.battleEngine.on('error', (data: any) => {
-      console.error(`❌ [BattleRoom] Erreur BattleEngine: ${data.error}`);
-      
-      this.broadcast("battleError", {
-        message: "Une erreur est survenue",
-        error: data.error,
-        timestamp: Date.now()
-      });
-    });
-
-    console.log('✅ [BattleRoom] Tous les événements BattleEngine narratifs + capture configurés');
   }
   
   // === CONVERSION DE DONNÉES ===
@@ -690,14 +599,14 @@ this.battleEngine.on('resolutionComplete', (data: any) => {
   private syncStateFromGameState() {
     if (!this.battleGameState) return;
     
-    console.log(`🔄 [BattleRoom] Synchronisation state depuis gameState`);
+    console.log(`🔄 [BattleRoom] Synchronisation state`);
     
     // Phase
     this.state.phase = this.battleGameState.phase;
     this.state.turnNumber = this.battleGameState.turnNumber;
     this.state.currentTurn = this.battleGameState.currentTurn;
     
-    // Pokémon (conversion vers BattlePokemon si nécessaire)
+    // Pokémon
     if (this.battleGameState.player1.pokemon) {
       this.state.player1Pokemon = this.convertToBattlePokemon(this.battleGameState.player1.pokemon);
     }
@@ -779,21 +688,17 @@ this.battleEngine.on('resolutionComplete', (data: any) => {
     this.teamManagers.delete(sessionId);
   }
   
-  // === ✅ NETTOYAGE AVEC BATTLEENGINE ===
+  // === NETTOYAGE ===
   
   async onDispose() {
-    console.log(`💀 [BattleRoom] Narratif + capture ${this.roomId} en cours de destruction`);
+    console.log(`💀 [BattleRoom] Pokémon authentique ${this.roomId} en cours de destruction`);
     
-    // ✅ Nettoyer le BattleEngine
     if (this.battleEngine) {
       this.battleEngine.cleanup();
       console.log('🧹 [BattleRoom] BattleEngine nettoyé');
     }
     
-    // Nettoyer les TeamManagers
     this.teamManagers.clear();
-    
-    // Nettoyer les références
     this.battleGameState = null;
     
     console.log(`✅ [BattleRoom] Destruction complète de ${this.roomId}`);
