@@ -403,7 +403,7 @@ export class OverworldPokemonManager {
   // Broadcaster le spawn à tous les clients de la zone
   this.broadcastPokemonSpawn(pokemon);
 }
-
+}
   }
   private updateAllPokemon(deltaTime: number): void {
     this.overworldPokemon.forEach((pokemon, id) => {
