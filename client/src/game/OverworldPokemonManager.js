@@ -444,21 +444,21 @@ const structure = this.detectSpriteStructure(width, height);
       const animDirection = this.getDirectionForAnimation(direction || 'down');
       const animType = animationFile.replace('-Anim.png', '').toLowerCase();
       
-      let animKey;
-      if (isMoving) {
-        animKey = `overworld_pokemon_${pokemonId}_${animType}_${animDirection}`;
-        pokemon.isInterpolating = true;
-      } else {
-        const idleDirection = lastDirectionFrame ? this.getDirectionForAnimation(lastDirectionFrame) : animDirection;
-        animKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${idleDirection}`;
-      }
-      
-      if (this.scene.anims.exists(animKey)) {
-        pokemon.anims.play(animKey, true);
-        console.log(`🎬 [OverworldPokemonManager] Animation: ${animKey}`);
-      } else {
-        console.warn(`⚠️ [OverworldPokemonManager] Animation ${animKey} n'existe pas`);
-      }
+     let animKey;
+if (isMoving) {
+  animKey = `overworld_pokemon_${pokemonId}_${animType}_${animDirection}`;
+  // ❌ SUPPRIMER : pokemon.isInterpolating = true;
+} else {
+  const idleDirection = lastDirectionFrame ? this.getDirectionForAnimation(lastDirectionFrame) : animDirection;
+  animKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${idleDirection}`;
+}
+
+if (this.scene.anims.exists(animKey)) {
+  pokemon.anims.play(animKey, true);
+  console.log(`🎬 [OverworldPokemonManager] Animation: ${animKey}`);
+} else {
+  console.warn(`⚠️ [OverworldPokemonManager] Animation ${animKey} n'existe pas`);
+}
       
       // Ajouter au cache
       this.overworldPokemon.set(id, pokemon);
@@ -599,59 +599,41 @@ updateOverworldPokemon(pokemonData) {
    */
  // ✅ COMME LE PLAYERMANAGER - Lerp simple et efficace
 update(delta = 16) {
-  const now = Date.now();
-  
   this.overworldPokemon.forEach((pokemon, id) => {
     if (pokemon.isMoving && pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
       
-      const elapsed = now - (pokemon.serverMoveTime || now);
-      const duration = pokemon.serverMoveDuration || 2000;
-      const progress = Math.min(elapsed / duration, 1.0);
+      // ✅ CALCUL DE DISTANCE
+      const dx = pokemon.targetX - pokemon.x;
+      const dy = pokemon.targetY - pokemon.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
       
-      if (progress >= 1.0) {
-        // Mouvement terminé
-        pokemon.body.setVelocity(0, 0); // ✅ Arrêter la physique
-        pokemon.x = pokemon.targetX;
-        pokemon.y = pokemon.targetY;
-        pokemon.setPosition(pokemon.targetX, pokemon.targetY);
+      if (distance < 5) {
+        // ✅ ARRIVÉ - Arrêt immédiat
+        pokemon.body.setVelocity(0, 0);
         pokemon.isMoving = false;
         
-        // Animation idle
+        // ✅ Animation idle IMMÉDIATE
         const idleDirection = pokemon.lastDirectionFrame ? 
           this.getDirectionForAnimation(pokemon.lastDirectionFrame) : 
           this.getDirectionForAnimation(pokemon.lastDirection);
-const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
         const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${idleDirection}`;
         
         if (this.scene.anims.exists(idleAnimKey)) {
           pokemon.anims.play(idleAnimKey, true);
         }
         
+        console.log(`✅ [${pokemon.name}] Arrivé à destination`);
       } else {
-        // ✅ UTILISER LA PHYSIQUE pour le mouvement
-        const startX = pokemon.moveStartX || pokemon.x;
-        const startY = pokemon.moveStartY || pokemon.y;
+        // ✅ EN MOUVEMENT - Vélocité vers la cible
+        const speed = 40; // Vitesse plus lente
+        const velocityX = (dx / distance) * speed;
+        const velocityY = (dy / distance) * speed;
         
-        const targetX = pokemon.targetX;
-        const targetY = pokemon.targetY;
-        
-        // Calculer la vélocité nécessaire
-        const dx = targetX - pokemon.x;
-        const dy = targetY - pokemon.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance > 2) { // Seulement si pas encore arrivé
-          const speed = 60; // Vitesse fixe comme le joueur
-          const velocityX = (dx / distance) * speed;
-          const velocityY = (dy / distance) * speed;
-          
-          pokemon.body.setVelocity(velocityX, velocityY);
-        } else {
-          pokemon.body.setVelocity(0, 0);
-        }
+        pokemon.body.setVelocity(velocityX, velocityY);
       }
     } else {
-      // ✅ Arrêter la vélocité si pas en mouvement
+      // ✅ Pas en mouvement - arrêter
       if (pokemon.body) {
         pokemon.body.setVelocity(0, 0);
       }
@@ -660,7 +642,6 @@ const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png
     pokemon.setDepth(3 + (pokemon.y / 1000));
   });
 }
-  
   /**
    * ✅ Fonction d'easing pour mouvement plus naturel
    */
