@@ -79,6 +79,11 @@ export class PokemonMoveService {
     
     return result;
   }
+  
+  /**
+   * Consomme PP pour une attaque (en mémoire seulement)
+   */
+  static consumePP(pokemon: IOwnedPokemon, moveId: string): PPConsumptionResult {
     const move = pokemon.moves.find(m => m.moveId === moveId);
     
     if (!move) {
@@ -161,19 +166,25 @@ export class PokemonMoveService {
       console.error(`❌ [PokemonMoveService] Erreur sauvegarde restauration:`, error);
     }
   }
+  
+  /**
+   * Restaure les PP (en mémoire seulement)
+   */
+  static restorePP(pokemon: IOwnedPokemon, moveId?: string): void {
     if (moveId) {
+      // Restaurer une attaque spécifique
       const move = pokemon.moves.find(m => m.moveId === moveId);
       if (move) {
         const oldPp = move.currentPp;
         move.currentPp = move.maxPp;
-        console.log(`💊 [PokemonMoveService] ${moveId}: ${oldPp} → ${move.currentPp} PP restauré`);
+        console.log(`💊 [PokemonMoveService] ${moveId}: ${oldPp} → ${move.currentPp}/${move.maxPp} PP restauré`);
       }
     } else {
       // Restaurer toutes les attaques
       pokemon.moves.forEach(move => {
         const oldPp = move.currentPp;
         move.currentPp = move.maxPp;
-        console.log(`💊 [PokemonMoveService] ${move.moveId}: ${oldPp} → ${move.currentPp} PP restauré`);
+        console.log(`💊 [PokemonMoveService] ${move.moveId}: ${oldPp} → ${move.currentPp}/${move.maxPp} PP restauré`);
       });
     }
   }
