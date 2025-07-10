@@ -1,7 +1,7 @@
 {
   "globalSettings": {
-    "updateInterval": 80,
-    "defaultSpeed": 60,
+    "updateInterval": 200,
+    "defaultSpeed": 30,
     "enablePersonalities": true,
     "enableFluidMovement": true,
     "collisionHandling": "client-side"
