@@ -406,7 +406,7 @@ const structure = this.detectSpriteStructure(width, height);
       
       // Créer le sprite
       const pokemon = this.scene.physics.add.sprite(x, y, spriteKey, 0);
-      
+
       // Configuration
       pokemon.setOrigin(0.5, 1);
       pokemon.setScale(1.0);
@@ -609,34 +609,51 @@ update(delta = 16) {
       const progress = Math.min(elapsed / duration, 1.0);
       
       if (progress >= 1.0) {
-        // ✅ Mouvement terminé - IMMÉDIATEMENT passer en idle
+        // Mouvement terminé
+        pokemon.body.setVelocity(0, 0); // ✅ Arrêter la physique
         pokemon.x = pokemon.targetX;
         pokemon.y = pokemon.targetY;
         pokemon.setPosition(pokemon.targetX, pokemon.targetY);
         pokemon.isMoving = false;
         
-        // ✅ Animation idle IMMÉDIATE
+        // Animation idle
         const idleDirection = pokemon.lastDirectionFrame ? 
           this.getDirectionForAnimation(pokemon.lastDirectionFrame) : 
           this.getDirectionForAnimation(pokemon.lastDirection);
-        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png, '').toLowerCase();
         const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${idleDirection}`;
         
         if (this.scene.anims.exists(idleAnimKey)) {
-          pokemon.anims.play(idleAnimKey, true); // ✅ Force le restart
+          pokemon.anims.play(idleAnimKey, true);
         }
         
       } else {
-        // Interpolation normale
+        // ✅ UTILISER LA PHYSIQUE pour le mouvement
         const startX = pokemon.moveStartX || pokemon.x;
         const startY = pokemon.moveStartY || pokemon.y;
         
-        const newX = startX + (pokemon.targetX - startX) * progress;
-        const newY = startY + (pokemon.targetY - startY) * progress;
+        const targetX = pokemon.targetX;
+        const targetY = pokemon.targetY;
         
-        pokemon.x = newX;
-        pokemon.y = newY;
-        pokemon.setPosition(newX, newY);
+        // Calculer la vélocité nécessaire
+        const dx = targetX - pokemon.x;
+        const dy = targetY - pokemon.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 2) { // Seulement si pas encore arrivé
+          const speed = 60; // Vitesse fixe comme le joueur
+          const velocityX = (dx / distance) * speed;
+          const velocityY = (dy / distance) * speed;
+          
+          pokemon.body.setVelocity(velocityX, velocityY);
+        } else {
+          pokemon.body.setVelocity(0, 0);
+        }
+      }
+    } else {
+      // ✅ Arrêter la vélocité si pas en mouvement
+      if (pokemon.body) {
+        pokemon.body.setVelocity(0, 0);
       }
     }
     
@@ -1315,6 +1332,49 @@ update(delta = 16) {
     console.log(`✅ [OverworldPokemonManager] ${count} Pokémon mis à jour avec personnalité ${personality}`);
   }
 
+  /**
+ * ✅ NOUVEAU: Créer un body physique avec collisions pour un Pokémon
+ */
+setupPokemonPhysics(pokemon) {
+  if (!pokemon.body) {
+    // Convertir le sprite en physics sprite
+    this.scene.physics.add.existing(pokemon);
+    
+    // Configuration du body (comme le joueur)
+    pokemon.body.setSize(16, 16);
+    pokemon.body.setOffset(8, 8);
+    pokemon.body.setCollideWorldBounds(true);
+    
+    // ✅ AJOUTER LES COLLIDERS avec les layers de collision
+    if (this.scene.collisionLayers && this.scene.collisionLayers.length > 0) {
+      if (!pokemon.colliders) pokemon.colliders = [];
+      
+      this.scene.collisionLayers.forEach((layer, index) => {
+        const collider = this.scene.physics.add.collider(pokemon, layer, (pokemon, tile) => {
+          // Arrêter le mouvement en cas de collision
+          pokemon.body.setVelocity(0, 0);
+          pokemon.isMoving = false;
+          
+          console.log(`💥 [${pokemon.name}] Collision détectée à (${Math.round(pokemon.x)}, ${Math.round(pokemon.y)})`);
+          
+          // Animation idle immédiate
+          const idleDirection = this.getDirectionForAnimation(pokemon.lastDirection || 'down');
+          const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+          const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${idleDirection}`;
+          
+          if (this.scene.anims.exists(idleAnimKey)) {
+            pokemon.anims.play(idleAnimKey, true);
+          }
+        }, null, this.scene);
+        
+        pokemon.colliders.push(collider);
+      });
+      
+      console.log(`🛡️ [${pokemon.name}] Colliders ajoutés: ${pokemon.colliders.length}`);
+    }
+  }
+}
+  
   /**
    * Force tous les Pokémon à utiliser un pattern spécifique
    */
