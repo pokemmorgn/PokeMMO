@@ -533,10 +533,12 @@ export class BattleScene extends Phaser.Scene {
       const x = width * this.pokemonPositions.player.x;
       const y = height * this.pokemonPositions.player.y;
       
+      // Créer le sprite mais le rendre invisible initialement
       this.playerPokemonSprite = this.add.sprite(x, y, spriteKey, 0);
       this.playerPokemonSprite.setScale(3.5);
       this.playerPokemonSprite.setDepth(25);
       this.playerPokemonSprite.setOrigin(0.5, 1);
+      this.playerPokemonSprite.setVisible(false); // ✅ Masquer jusqu'à l'animation
       
       // Utiliser le BattleAnimationManager
       this.battleAnimationManager.setSpriteReferences(this.playerPokemonSprite, this.opponentPokemonSprite);
@@ -571,10 +573,12 @@ export class BattleScene extends Phaser.Scene {
       const x = width * this.pokemonPositions.opponent.x;
       const y = height * this.pokemonPositions.opponent.y;
       
+      // Créer le sprite mais le rendre invisible initialement
       this.opponentPokemonSprite = this.add.sprite(x, y, spriteKey, 0);
       this.opponentPokemonSprite.setScale(2.8);
       this.opponentPokemonSprite.setDepth(20);
       this.opponentPokemonSprite.setOrigin(0.5, 1);
+      this.opponentPokemonSprite.setVisible(false); // ✅ Masquer jusqu'à l'animation
       
       // Utiliser le BattleAnimationManager
       this.battleAnimationManager.setSpriteReferences(this.playerPokemonSprite, this.opponentPokemonSprite);
@@ -628,6 +632,7 @@ export class BattleScene extends Phaser.Scene {
     container.add([body, nameText]);
     container.setScale(type === 'player' ? 1.5 : 1.2);
     container.setDepth(type === 'player' ? 25 : 20);
+    container.setVisible(false); // ✅ Masquer jusqu'à l'animation
     
     // Utiliser le BattleAnimationManager pour l'animation
     this.battleAnimationManager.queueAnimation('pokemonEntry', {
