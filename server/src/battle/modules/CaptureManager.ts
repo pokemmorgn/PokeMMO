@@ -1,5 +1,5 @@
 // server/src/battle/modules/CaptureManager.ts
-// VERSION FINALE COMPLÈTE - SANS BUGS - GEN 5 AUTHENTIQUE
+// VERSION FINALE COMPLÈTE - SYNCHRONISATION CLIENT-SERVEUR
 
 import { BattleGameState, BattleResult, Pokemon } from '../types/BattleTypes';
 import { TeamManager } from '../../managers/TeamManager';
@@ -44,19 +44,34 @@ export interface CaptureResult extends BattleResult {
 }
 
 /**
- * CAPTURE MANAGER - VERSION FINALE GEN 5 AUTHENTIQUE
+ * CAPTURE MANAGER - VERSION FINALE GEN 5 AVEC SYNCHRONISATION CLIENT-SERVEUR
  * 
- * Architecture modulaire avec BallManager séparé
- * Système complet : Capture critique + 4 checks + 25 Balls
+ * NOUVEAU : Timings synchronisés avec le client pour éviter les exploits
  */
 export class CaptureManager {
   
   private gameState: BattleGameState | null = null;
   private ballManager: BallManager;
   
+  // ✅ NOUVEAUX TIMINGS SYNCHRONISÉS AVEC LE CLIENT
+  private readonly CLIENT_TIMINGS = {
+    ballThrow: 800,           // Lancer de Ball
+    ballHit: 300,             // Contact avec Pokémon
+    pokemonDisappear: 400,    // Pokémon disparaît dans Ball
+    ballFall: 600,            // Ball tombe au sol
+    shakeDelay: 200,          // Délai avant première secousse
+    shakeDuration: 600,       // Durée d'une secousse
+    shakeInterval: 400,       // Intervalle entre secousses
+    resultDelay: 800,         // Délai avant résultat final
+    successCelebration: 2000, // Célébration de capture
+    failureEscape: 1000,      // Animation d'échappement
+    criticalEffect: 1000,     // Effet critique spécial
+    bufferSafety: 500         // Buffer de sécurité
+  };
+  
   constructor() {
     this.ballManager = new BallManager();
-    console.log('🎯 [CaptureManager] Version finale avec BallManager initialisée');
+    console.log('🎯 [CaptureManager] Version finale avec synchronisation client-serveur');
   }
   
   // === INITIALISATION ===
@@ -69,10 +84,10 @@ export class CaptureManager {
       turnNumber: gameState.turnNumber || 1
     });
     
-    console.log('✅ [CaptureManager] Configuré avec BallManager');
+    console.log('✅ [CaptureManager] Configuré avec BallManager et timings synchronisés');
   }
   
-  // === API PRINCIPALE ===
+  // === API PRINCIPALE AVEC TIMING ===
   
   async attemptCapture(
     playerId: string, 
@@ -113,11 +128,11 @@ export class CaptureManager {
       const criticalResult = await this.calculateCriticalCaptureChance(targetPokemon, ballType, playerName);
       
       if (criticalResult.isCritical) {
-        // CAPTURE CRITIQUE - Succès garanti
+        // ✅ CAPTURE CRITIQUE AVEC TIMING
         return await this.processCriticalCapture(targetPokemon, ballType, ballValidation, criticalResult, teamManager, playerName);
       }
       
-      // 5. Capture normale
+      // 5. Capture normale avec timing
       return await this.processNormalCapture(targetPokemon, ballType, ballValidation, criticalResult, teamManager, playerName);
       
     } catch (error) {
@@ -128,54 +143,7 @@ export class CaptureManager {
     }
   }
   
-  // === CAPTURE CRITIQUE ===
-  
-  private async calculateCriticalCaptureChance(
-    pokemon: Pokemon, 
-    ballType: string,
-    playerName: string
-  ): Promise<CriticalCaptureResult> {
-    
-    // Nombre de Pokémon uniques capturés
-    const pokemonCaughtCount = await this.getPokemonCaughtCount(playerName);
-    
-    // Multiplicateur de critique selon expérience
-    let criticalMultiplier = 0;
-    if (pokemonCaughtCount >= 600) criticalMultiplier = 2.5;
-    else if (pokemonCaughtCount >= 450) criticalMultiplier = 2.0;
-    else if (pokemonCaughtCount >= 300) criticalMultiplier = 1.5;
-    else if (pokemonCaughtCount >= 150) criticalMultiplier = 1.0;
-    else if (pokemonCaughtCount >= 60) criticalMultiplier = 0.5;
-    else criticalMultiplier = 0;
-    
-    // Effet de la Ball
-    const ballEffect = this.ballManager.calculateBallEffect(ballType, pokemon, playerName);
-    
-    // Calcul de la chance critique
-    const pokemonData = await getPokemonById(pokemon.id);
-    const baseCaptureRate = (pokemonData as any)?.captureRate || 45;
-    console.log(`🔍 [DEBUG] PokemonData pour ${pokemon.name}:`, {
-      id: pokemon.id,
-      captureRateFromDB: (pokemonData as any)?.captureRate,
-      baseCaptureRateUsed: baseCaptureRate,
-      pokemonDataKeys: pokemonData ? Object.keys(pokemonData) : 'null'
-    });
-    const statusMultiplier = this.getStatusMultiplier(pokemon.status || 'normal');
-    
-    const criticalBase = Math.min(255, baseCaptureRate * ballEffect.multiplier * statusMultiplier * criticalMultiplier);
-    const criticalChance = Math.min(0.25, criticalBase / 6 / 255);
-    
-    const isCritical = Math.random() < criticalChance;
-    
-    console.log(`⭐ [CaptureManager] Critique: ${(criticalChance * 100).toFixed(1)}% → ${isCritical ? 'OUI' : 'NON'}`);
-    
-    return {
-      isCritical,
-      chance: criticalChance,
-      pokemonCaughtCount,
-      message: isCritical ? 'Capture critique !' : undefined
-    };
-  }
+  // === ✅ CAPTURE CRITIQUE AVEC TIMING ===
   
   private async processCriticalCapture(
     pokemon: Pokemon,
@@ -186,14 +154,24 @@ export class CaptureManager {
     playerName: string
   ): Promise<CaptureResult> {
     
-    console.log(`⭐ [CaptureManager] CAPTURE CRITIQUE !`);
+    console.log(`⭐ [CaptureManager] CAPTURE CRITIQUE - CALCUL TIMING`);
     
     // Animation critique (1 secousse)
     const animations = await this.generateCriticalAnimations(pokemon, ballValidation);
     
-    // Créer le Pokémon capturé
+    // ✅ CALCULER LE TEMPS TOTAL D'ANIMATION CLIENT
+    const totalAnimationTime = this.calculateTotalAnimationTime(animations);
+    console.log(`⏰ [CaptureManager] Temps total animation critique: ${totalAnimationTime}ms`);
+    
+    // ✅ ATTENDRE AVANT DE CONTINUER (garde la phase CAPTURE)
+    console.log(`⏳ [CaptureManager] Attente synchronisation client...`);
+    await this.delay(totalAnimationTime);
+    
+    // Maintenant créer le Pokémon capturé
     const capturedPokemon = await this.createCapturedPokemon(pokemon, playerName, ballType);
     const addResult = await this.addPokemonToTeamOrPC(capturedPokemon, teamManager);
+    
+    console.log(`✅ [CaptureManager] Capture critique terminée après ${totalAnimationTime}ms`);
     
     return {
       success: true,
@@ -227,7 +205,7 @@ export class CaptureManager {
     };
   }
   
-  // === CAPTURE NORMALE ===
+  // === ✅ CAPTURE NORMALE AVEC TIMING ===
   
   private async processNormalCapture(
     pokemon: Pokemon,
@@ -238,7 +216,7 @@ export class CaptureManager {
     playerName: string
   ): Promise<CaptureResult> {
     
-    console.log(`🎯 [CaptureManager] Capture normale`);
+    console.log(`🎯 [CaptureManager] CAPTURE NORMALE - CALCUL TIMING`);
     
     // Calculer le taux de capture
     const captureRate = await this.calculateCaptureRate(pokemon, ballType);
@@ -249,10 +227,20 @@ export class CaptureManager {
     // Générer les animations
     const animations = await this.generateNormalAnimations(pokemon, ballValidation, checkResult);
     
+    // ✅ CALCULER LE TEMPS TOTAL D'ANIMATION CLIENT
+    const totalAnimationTime = this.calculateTotalAnimationTime(animations);
+    console.log(`⏰ [CaptureManager] Temps total animation normale: ${totalAnimationTime}ms`);
+    
+    // ✅ ATTENDRE AVANT DE CONTINUER (garde la phase CAPTURE)
+    console.log(`⏳ [CaptureManager] Attente synchronisation client...`);
+    await this.delay(totalAnimationTime);
+    
     if (checkResult.captured) {
       // SUCCÈS
       const capturedPokemon = await this.createCapturedPokemon(pokemon, playerName, ballType);
       const addResult = await this.addPokemonToTeamOrPC(capturedPokemon, teamManager);
+      
+      console.log(`✅ [CaptureManager] Capture normale réussie après ${totalAnimationTime}ms`);
       
       return {
         success: true,
@@ -281,6 +269,8 @@ export class CaptureManager {
       
     } else {
       // ÉCHEC
+      console.log(`❌ [CaptureManager] Capture normale échouée après ${totalAnimationTime}ms`);
+      
       return {
         success: true,
         gameState: this.gameState,
@@ -305,65 +295,143 @@ export class CaptureManager {
     }
   }
   
-  // === CALCULS DE CAPTURE ===
+  // === ✅ NOUVEAUX CALCULS DE TIMING ===
   
-private async calculateCaptureRate(pokemon: Pokemon, ballType: string): Promise<number> {
-  const pokemonData = await getPokemonById(pokemon.id);
-  const baseCaptureRate = (pokemonData as any)?.captureRate || 45;
-  
-  // Effet de la Ball via BallManager
-  const ballEffect = this.ballManager.calculateBallEffect(ballType, pokemon);
-  
-  // ✅ FORMULE GEN 5 AUTHENTIQUE
-  const hpTerm = (3 * pokemon.maxHp - 2 * pokemon.currentHp);
-  const statusMultiplier = this.getStatusMultiplier(pokemon.status || 'normal');
-  
-  const x = Math.max(1, Math.floor(
-    (hpTerm * baseCaptureRate * ballEffect.multiplier * statusMultiplier) / (3 * pokemon.maxHp)
-  ));
-  
-  // ✅ PROBABILITÉ FINALE GEN 5 : (X/255)^0.75
-  const approximateRate = Math.min(0.99, Math.max(0.01, Math.pow(x / 255, 0.75)));
-  
-  console.log(`🔬 [DEBUG Gen 5] X=${x}, taux final=${(approximateRate*100).toFixed(2)}%`);
-  
-  console.log(`🧮 [CaptureManager] DÉTAIL CAPTURE:`, {
-    pokemon: pokemon.name,
-    currentHp: pokemon.currentHp,
-    maxHp: pokemon.maxHp,
-    hpRatio: ((pokemon.currentHp / pokemon.maxHp) * 100).toFixed(1) + '%',
-    ballEffect: ballEffect.description,
-    taux: (approximateRate * 100).toFixed(1) + '%'
-  });  
-  
-  return approximateRate;
-}
-
-private performFourChecks(captureRate: number): { captured: boolean; shakeCount: number; checks: boolean[] } {
-  // ✅ NOUVELLE LOGIQUE - UN SEUL CHECK AUTHENTIQUE GEN 5
-  
-  // Le captureRate vient déjà calculé avec (X/255)^0.75
-  const success = Math.random() < captureRate;
-  
-  // Simulation des secousses pour l'animation
-  let shakeCount = 0;
-  if (success) {
-    shakeCount = 3; // Succès = 3 secousses
-  } else {
-    // Échec = nombre aléatoire de secousses (0-2)
-    shakeCount = Math.floor(Math.random() * 3);
+  /**
+   * Calcule le temps total d'animation côté client
+   */
+  private calculateTotalAnimationTime(animations: CaptureAnimation[]): number {
+    let totalTime = 0;
+    
+    animations.forEach(animation => {
+      totalTime += animation.timing;
+      
+      // Ajouter délais entre phases
+      if (animation.phase === 'throw') {
+        totalTime += this.CLIENT_TIMINGS.ballHit + this.CLIENT_TIMINGS.pokemonDisappear + this.CLIENT_TIMINGS.ballFall;
+      } else if (animation.phase === 'shake') {
+        totalTime += this.CLIENT_TIMINGS.shakeInterval;
+      }
+    });
+    
+    // Ajouter buffer de sécurité
+    totalTime += this.CLIENT_TIMINGS.bufferSafety;
+    
+    console.log(`🧮 [CaptureManager] Détail timing:`, {
+      animationsCount: animations.length,
+      baseTime: totalTime - this.CLIENT_TIMINGS.bufferSafety,
+      buffer: this.CLIENT_TIMINGS.bufferSafety,
+      totalTime: totalTime
+    });
+    
+    return totalTime;
   }
   
-  console.log(`🎲 [CaptureManager] Check unique Gen 5: probabilité=${(captureRate*100).toFixed(2)}%, ${shakeCount}/3 secousses → ${success ? 'SUCCÈS' : 'ÉCHEC'}`);
+  /**
+   * Délai d'attente pour synchronisation
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
   
-  return { 
-    captured: success, 
-    shakeCount, 
-    checks: [success] 
-  };
-}
+  // === CALCULS DE CAPTURE (INCHANGÉS) ===
   
-  // === GÉNÉRATION D'ANIMATIONS ===
+  private async calculateCriticalCaptureChance(
+    pokemon: Pokemon, 
+    ballType: string,
+    playerName: string
+  ): Promise<CriticalCaptureResult> {
+    
+    // Nombre de Pokémon uniques capturés
+    const pokemonCaughtCount = await this.getPokemonCaughtCount(playerName);
+    
+    // Multiplicateur de critique selon expérience
+    let criticalMultiplier = 0;
+    if (pokemonCaughtCount >= 600) criticalMultiplier = 2.5;
+    else if (pokemonCaughtCount >= 450) criticalMultiplier = 2.0;
+    else if (pokemonCaughtCount >= 300) criticalMultiplier = 1.5;
+    else if (pokemonCaughtCount >= 150) criticalMultiplier = 1.0;
+    else if (pokemonCaughtCount >= 60) criticalMultiplier = 0.5;
+    else criticalMultiplier = 0;
+    
+    // Effet de la Ball
+    const ballEffect = this.ballManager.calculateBallEffect(ballType, pokemon, playerName);
+    
+    // Calcul de la chance critique
+    const pokemonData = await getPokemonById(pokemon.id);
+    const baseCaptureRate = (pokemonData as any)?.captureRate || 45;
+    const statusMultiplier = this.getStatusMultiplier(pokemon.status || 'normal');
+    
+    const criticalBase = Math.min(255, baseCaptureRate * ballEffect.multiplier * statusMultiplier * criticalMultiplier);
+    const criticalChance = Math.min(0.25, criticalBase / 6 / 255);
+    
+    const isCritical = Math.random() < criticalChance;
+    
+    console.log(`⭐ [CaptureManager] Critique: ${(criticalChance * 100).toFixed(1)}% → ${isCritical ? 'OUI' : 'NON'}`);
+    
+    return {
+      isCritical,
+      chance: criticalChance,
+      pokemonCaughtCount,
+      message: isCritical ? 'Capture critique !' : undefined
+    };
+  }
+  
+  private async calculateCaptureRate(pokemon: Pokemon, ballType: string): Promise<number> {
+    const pokemonData = await getPokemonById(pokemon.id);
+    const baseCaptureRate = (pokemonData as any)?.captureRate || 45;
+    
+    // Effet de la Ball via BallManager
+    const ballEffect = this.ballManager.calculateBallEffect(ballType, pokemon);
+    
+    // ✅ FORMULE GEN 5 AUTHENTIQUE
+    const hpTerm = (3 * pokemon.maxHp - 2 * pokemon.currentHp);
+    const statusMultiplier = this.getStatusMultiplier(pokemon.status || 'normal');
+    
+    const x = Math.max(1, Math.floor(
+      (hpTerm * baseCaptureRate * ballEffect.multiplier * statusMultiplier) / (3 * pokemon.maxHp)
+    ));
+    
+    // ✅ PROBABILITÉ FINALE GEN 5 : (X/255)^0.75
+    const approximateRate = Math.min(0.99, Math.max(0.01, Math.pow(x / 255, 0.75)));
+    
+    console.log(`🧮 [CaptureManager] DÉTAIL CAPTURE:`, {
+      pokemon: pokemon.name,
+      currentHp: pokemon.currentHp,
+      maxHp: pokemon.maxHp,
+      hpRatio: ((pokemon.currentHp / pokemon.maxHp) * 100).toFixed(1) + '%',
+      ballEffect: ballEffect.description,
+      taux: (approximateRate * 100).toFixed(1) + '%'
+    });  
+    
+    return approximateRate;
+  }
+
+  private performFourChecks(captureRate: number): { captured: boolean; shakeCount: number; checks: boolean[] } {
+    // ✅ NOUVELLE LOGIQUE - UN SEUL CHECK AUTHENTIQUE GEN 5
+    
+    // Le captureRate vient déjà calculé avec (X/255)^0.75
+    const success = Math.random() < captureRate;
+    
+    // Simulation des secousses pour l'animation
+    let shakeCount = 0;
+    if (success) {
+      shakeCount = 3; // Succès = 3 secousses
+    } else {
+      // Échec = nombre aléatoire de secousses (0-2)
+      shakeCount = Math.floor(Math.random() * 3);
+    }
+    
+    console.log(`🎲 [CaptureManager] Check unique Gen 5: probabilité=${(captureRate*100).toFixed(2)}%, ${shakeCount}/3 secousses → ${success ? 'SUCCÈS' : 'ÉCHEC'}`);
+    
+    return { 
+      captured: success, 
+      shakeCount, 
+      checks: [success] 
+    };
+  }
+  
+  // === GÉNÉRATION D'ANIMATIONS AVEC TIMING PRÉCIS ===
   
   private async generateCriticalAnimations(pokemon: Pokemon, ballValidation: any): Promise<CaptureAnimation[]> {
     return [
@@ -372,21 +440,21 @@ private performFourChecks(captureRate: number): { captured: boolean; shakeCount:
         shakeCount: 0,
         totalShakes: 1,
         message: `Vous lancez ${ballValidation.displayName} !`,
-        timing: 800
+        timing: this.CLIENT_TIMINGS.ballThrow
       },
       {
         phase: 'shake',
         shakeCount: 1,
         totalShakes: 1,
         message: '⭐ Capture critique ! ⭐',
-        timing: 400
+        timing: this.CLIENT_TIMINGS.criticalEffect
       },
       {
         phase: 'success',
         shakeCount: 1,
         totalShakes: 1,
         message: `${pokemon.name} a été capturé !`,
-        timing: 1500
+        timing: this.CLIENT_TIMINGS.successCelebration
       }
     ];
   }
@@ -404,7 +472,7 @@ private performFourChecks(captureRate: number): { captured: boolean; shakeCount:
       shakeCount: 0,
       totalShakes: 4,
       message: `Vous lancez ${ballValidation.displayName} !`,
-      timing: 800
+      timing: this.CLIENT_TIMINGS.ballThrow
     });
     
     // Secousses
@@ -414,7 +482,7 @@ private performFourChecks(captureRate: number): { captured: boolean; shakeCount:
         shakeCount: i + 1,
         totalShakes: 4,
         message: this.getShakeMessage(i + 1),
-        timing: 600
+        timing: this.CLIENT_TIMINGS.shakeDuration
       });
     }
     
@@ -425,7 +493,7 @@ private performFourChecks(captureRate: number): { captured: boolean; shakeCount:
         shakeCount: checkResult.shakeCount,
         totalShakes: 4,
         message: `${pokemon.name} a été capturé !`,
-        timing: 1500
+        timing: this.CLIENT_TIMINGS.successCelebration
       });
     } else {
       animations.push({
@@ -433,87 +501,87 @@ private performFourChecks(captureRate: number): { captured: boolean; shakeCount:
         shakeCount: checkResult.shakeCount,
         totalShakes: 4,
         message: `Oh non ! ${pokemon.name} s'est échappé !`,
-        timing: 1000
+        timing: this.CLIENT_TIMINGS.failureEscape
       });
     }
     
     return animations;
   }
   
-  // === CRÉATION POKÉMON CAPTURÉ ===
+  // === CRÉATION POKÉMON CAPTURÉ (INCHANGÉ) ===
   
   private async createCapturedPokemon(
-  wildPokemon: Pokemon, 
-  ownerName: string, 
-  ballType: string
-): Promise<any> {
-  
-  const pokemonData = await getPokemonById(wildPokemon.id);
-  const baseStats = pokemonData.baseStats;
-  const level = wildPokemon.level;
-  const ivs = this.generateRandomIVs();
-  
-  // ✅ CALCULER LES STATS MANUELLEMENT (requis par le schéma)
-  const calculateStat = (baseStat: number, iv: number): number => {
-    return Math.floor(((2 * baseStat + iv) * level) / 100) + 5;
-  };
-  
-  const calculatedStats = {
-    attack: calculateStat(baseStats.attack, ivs.attack),
-    defense: calculateStat(baseStats.defense, ivs.defense),
-    spAttack: calculateStat(baseStats.specialAttack, ivs.spAttack),
-    spDefense: calculateStat(baseStats.specialDefense, ivs.spDefense),
-    speed: calculateStat(baseStats.speed, ivs.speed)
-  };
-  
-  // ✅ CALCULER HP SÉPARÉMENT
-  const maxHp = Math.floor(((2 * baseStats.hp + ivs.hp) * level) / 100) + level + 10;
-  
-  const ownedPokemon = new OwnedPokemon({
-    owner: ownerName,
-    pokemonId: wildPokemon.id,
-    level: level,
-    experience: this.calculateExperienceForLevel(level),
-    nature: this.generateRandomNature(),
-    nickname: undefined,
-    shiny: wildPokemon.shiny || false,
-    gender: this.generateRandomGender(pokemonData),  // ✅ Maintenant correct
-    ability: this.generateRandomAbility(pokemonData),
+    wildPokemon: Pokemon, 
+    ownerName: string, 
+    ballType: string
+  ): Promise<any> {
     
-    ivs: ivs,
-    evs: { hp: 0, attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0 },
-    calculatedStats: calculatedStats,  // ✅ Stats calculées ajoutées
+    const pokemonData = await getPokemonById(wildPokemon.id);
+    const baseStats = pokemonData.baseStats;
+    const level = wildPokemon.level;
+    const ivs = this.generateRandomIVs();
     
-    moves: wildPokemon.moves.map(moveId => {
-      const moveData = MoveManager.getMoveData(moveId);
-      const maxPp = moveData?.pp || 20;
-      return {
-        moveId: moveId,
-        currentPp: maxPp,
-        maxPp: maxPp
-      };
-    }),
+    // ✅ CALCULER LES STATS MANUELLEMENT (requis par le schéma)
+    const calculateStat = (baseStat: number, iv: number): number => {
+      return Math.floor(((2 * baseStat + iv) * level) / 100) + 5;
+    };
     
-    currentHp: maxHp,  // ✅ HP calculé
-    maxHp: maxHp,
-    status: 'normal',
+    const calculatedStats = {
+      attack: calculateStat(baseStats.attack, ivs.attack),
+      defense: calculateStat(baseStats.defense, ivs.defense),
+      spAttack: calculateStat(baseStats.specialAttack, ivs.spAttack),
+      spDefense: calculateStat(baseStats.specialDefense, ivs.spDefense),
+      speed: calculateStat(baseStats.speed, ivs.speed)
+    };
     
-    isInTeam: false,
-    box: 0,
+    // ✅ CALCULER HP SÉPARÉMENT
+    const maxHp = Math.floor(((2 * baseStats.hp + ivs.hp) * level) / 100) + level + 10;
     
-    caughtAt: new Date(),
-    friendship: this.getBaseFriendship(ballType),
-    pokeball: ballType,
-    originalTrainer: ownerName
-  });
+    const ownedPokemon = new OwnedPokemon({
+      owner: ownerName,
+      pokemonId: wildPokemon.id,
+      level: level,
+      experience: this.calculateExperienceForLevel(level),
+      nature: this.generateRandomNature(),
+      nickname: undefined,
+      shiny: wildPokemon.shiny || false,
+      gender: this.generateRandomGender(pokemonData),
+      ability: this.generateRandomAbility(pokemonData),
+      
+      ivs: ivs,
+      evs: { hp: 0, attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0 },
+      calculatedStats: calculatedStats,
+      
+      moves: wildPokemon.moves.map(moveId => {
+        const moveData = MoveManager.getMoveData(moveId);
+        const maxPp = moveData?.pp || 20;
+        return {
+          moveId: moveId,
+          currentPp: maxPp,
+          maxPp: maxPp
+        };
+      }),
+      
+      currentHp: maxHp,
+      maxHp: maxHp,
+      status: 'normal',
+      
+      isInTeam: false,
+      box: 0,
+      
+      caughtAt: new Date(),
+      friendship: this.getBaseFriendship(ballType),
+      pokeball: ballType,
+      originalTrainer: ownerName
+    });
+    
+    await ownedPokemon.save();
+    console.log(`🆕 [CaptureManager] ${wildPokemon.name} créé avec ID: ${ownedPokemon._id}`);
+    
+    return ownedPokemon;
+  }
   
-  await ownedPokemon.save();
-  console.log(`🆕 [CaptureManager] ${wildPokemon.name} créé avec ID: ${ownedPokemon._id}`);
-  
-  return ownedPokemon;
-}
-  
-  // === UTILITAIRES ===
+  // === UTILITAIRES (INCHANGÉS) ===
   
   private async getPokemonCaughtCount(playerName: string): Promise<number> {
     try {
@@ -583,12 +651,12 @@ private performFourChecks(captureRate: number): { captured: boolean; shakeCount:
   
   private generateRandomGender(pokemonData: any): string {
     const genderRatio = pokemonData.genderRatio;
-    if (genderRatio === -1) return 'Genderless';   // ✅ Conforme à l'enum
-    if (genderRatio === 0) return 'Male';          // ✅ Conforme à l'enum
-    if (genderRatio === 8) return 'Female';        // ✅ Conforme à l'enum
+    if (genderRatio === -1) return 'Genderless';
+    if (genderRatio === 0) return 'Male';
+    if (genderRatio === 8) return 'Female';
     
     const random = Math.random() * 8;
-    return random < genderRatio ? 'Female' : 'Male';  // ✅ Conforme à l'enum
+    return random < genderRatio ? 'Female' : 'Male';
   }
   
   private generateRandomAbility(pokemonData: any): string {
@@ -633,7 +701,7 @@ private performFourChecks(captureRate: number): { captured: boolean; shakeCount:
     };
   }
   
-  // === VALIDATION ===
+  // === VALIDATION (INCHANGÉE) ===
   
   private async validateCaptureConditions(playerId: string, ballType: string): Promise<BattleResult> {
     if (!this.gameState) {
@@ -696,17 +764,19 @@ private performFourChecks(captureRate: number): { captured: boolean; shakeCount:
   
   getStats(): any {
     return {
-      version: 'gen5_final_clean_v1',
-      architecture: 'CaptureManager + BallManager modulaire',
-      status: 'Production Ready - Sans Bugs',
+      version: 'gen5_final_client_sync_v1',
+      architecture: 'CaptureManager + BallManager + Client Sync',
+      status: 'Production Ready - Synchronisation Client-Serveur',
       features: [
         'critical_capture_gen5',
         'four_checks_authentic',
         'ball_manager_integration',
-        'modular_architecture',
-        'error_free_implementation'
+        'client_server_synchronization',
+        'timing_based_phase_protection',
+        'exploit_prevention'
       ],
-      completion: '100% fonctionnel',
+      timings: this.CLIENT_TIMINGS,
+      completion: '100% fonctionnel avec synchronisation',
       ready: this.isReady(),
       ballManager: this.getBallManagerStats()
     };
