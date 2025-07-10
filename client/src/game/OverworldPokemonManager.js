@@ -492,16 +492,22 @@ updateOverworldPokemon(pokemonData) {
   
   // ✅ 2. NOUVEAU: Système de mouvement comme les joueurs
   if (isMoving && targetX !== undefined && targetY !== undefined) {
-  // Stocker les données de mouvement serveur
-  pokemon.targetX = targetX;
-  pokemon.targetY = targetY;
-  pokemon.isMoving = true;
-  pokemon.serverMoveTime = moveStartTime || Date.now();
-  pokemon.serverMoveDuration = moveDuration || 2000; // Durée serveur
-  pokemon.moveStartX = pokemon.x; // Position de départ
-  pokemon.moveStartY = pokemon.y;
+  // ✅ Seulement si ce n'est pas déjà le mouvement en cours
+  const isSameTarget = (pokemon.targetX === targetX && pokemon.targetY === targetY);
   
-  // Animation
+  if (!isSameTarget) {
+    pokemon.targetX = targetX;
+    pokemon.targetY = targetY;
+    pokemon.isMoving = true;
+    pokemon.serverMoveTime = Date.now(); // ✅ Temps client pour éviter désync
+    pokemon.serverMoveDuration = moveDuration || 2000;
+    pokemon.moveStartX = pokemon.x; // ✅ Position ACTUELLE, pas serveur
+    pokemon.moveStartY = pokemon.y;
+    
+    console.log(`🚀 [${pokemon.name}] Nouveau mouvement: (${pokemon.x.toFixed(1)}, ${pokemon.y.toFixed(1)}) → (${targetX.toFixed(1)}, ${targetY.toFixed(1)})`);
+  }
+  
+  // Animation (toujours mettre à jour)
   const animDirection = this.getDirectionForAnimation(direction || pokemon.lastDirection);
   const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
   const walkAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${animDirection}`;
@@ -509,6 +515,7 @@ updateOverworldPokemon(pokemonData) {
   if (this.scene.anims.exists(walkAnimKey)) {
     pokemon.anims.play(walkAnimKey, true);
   }
+
 
     
     console.log(`🎯 [${pokemon.name}] Nouvelle cible: (${targetX.toFixed(1)}, ${targetY.toFixed(1)})`);
@@ -597,19 +604,30 @@ update(delta = 16) {
   this.overworldPokemon.forEach((pokemon, id) => {
     if (pokemon.isMoving && pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
       
-      // ✅ UTILISER LE TIMING SERVEUR au lieu du lerp
       const elapsed = now - (pokemon.serverMoveTime || now);
-      const duration = pokemon.serverMoveDuration || 2000; // Fallback 2 secondes
+      const duration = pokemon.serverMoveDuration || 2000;
       const progress = Math.min(elapsed / duration, 1.0);
       
       if (progress >= 1.0) {
-        // Mouvement terminé
+        // ✅ Mouvement terminé - IMMÉDIATEMENT passer en idle
         pokemon.x = pokemon.targetX;
         pokemon.y = pokemon.targetY;
         pokemon.setPosition(pokemon.targetX, pokemon.targetY);
         pokemon.isMoving = false;
+        
+        // ✅ Animation idle IMMÉDIATE
+        const idleDirection = pokemon.lastDirectionFrame ? 
+          this.getDirectionForAnimation(pokemon.lastDirectionFrame) : 
+          this.getDirectionForAnimation(pokemon.lastDirection);
+        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+        const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${idleDirection}`;
+        
+        if (this.scene.anims.exists(idleAnimKey)) {
+          pokemon.anims.play(idleAnimKey, true); // ✅ Force le restart
+        }
+        
       } else {
-        // Interpolation basée sur le temps serveur
+        // Interpolation normale
         const startX = pokemon.moveStartX || pokemon.x;
         const startY = pokemon.moveStartY || pokemon.y;
         
@@ -625,6 +643,7 @@ update(delta = 16) {
     pokemon.setDepth(3 + (pokemon.y / 1000));
   });
 }
+  
   /**
    * ✅ Fonction d'easing pour mouvement plus naturel
    */
