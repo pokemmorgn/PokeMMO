@@ -5,6 +5,7 @@ import { ShopManager } from "./ShopManager"; // ✅ IMPORT SHOP
 import { StarterHandlers } from "../handlers/StarterHandlers";
 import { InventoryManager } from "./InventoryManager";
 import { Player } from "../schema/PokeWorldState";
+import { SpectatorManager } from "../battle/modules/broadcast/SpectatorManager";
 
 export interface NpcInteractionResult {
   type: string;
@@ -29,20 +30,21 @@ export class InteractionManager {
   private questManager: QuestManager;
   private shopManager: ShopManager; // ✅ NOUVEAU MANAGER
   private starterHandlers: StarterHandlers;
-
+  private spectatorManager: SpectatorManager;
 
   constructor(
     getNpcManager: (zoneName: string) => any, 
     questManager: QuestManager,
     shopManager: ShopManager, // ✅ NOUVEAU PARAMÈTRE
-    starterHandlers: StarterHandlers // ✅ NOUVEAU PARAMÈTRE
+    starterHandlers: StarterHandlers, // ✅ NOUVEAU PARAMÈTRE
+    spectatorManager: SpectatorManager
 
   ) {
     this.getNpcManager = getNpcManager;
     this.questManager = questManager;
     this.shopManager = shopManager; // ✅ INITIALISATION
     this.starterHandlers = starterHandlers; // ✅ INITIALISATION
-
+    this.spectatorManager = spectatorManager; 
   }
 
   async handleNpcInteraction(player: Player, npcId: number): Promise<NpcInteractionResult> {
