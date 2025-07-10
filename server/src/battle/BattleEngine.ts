@@ -1,5 +1,5 @@
 // server/src/battle/BattleEngine.ts
-// VERSION CORRIGÉE - SYSTÈME DE PHASES POKÉMON AUTHENTIQUE
+// VERSION POKÉMON ROUGE/BLEU AUTHENTIQUE
 
 import { PhaseManager, BattlePhase as InternalBattlePhase } from './modules/PhaseManager';
 import { ActionQueue } from './modules/ActionQueue';
@@ -15,13 +15,18 @@ import { BATTLE_TIMINGS } from './modules/BroadcastManager';
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule, PlayerRole } from './types/BattleTypes';
 
 /**
- * BATTLE ENGINE - VERSION CORRIGÉE AVEC PHASES
+ * BATTLE ENGINE - POKÉMON ROUGE/BLEU AUTHENTIQUE
  * 
- * Corrections principales :
- * - Transition automatique INTRO → ACTION_SELECTION
- * - Gestion correcte des événements de phase
- * - Timing amélioré pour IA
- * - Debugging complet
+ * Flow exact des vrais jeux :
+ * 1. INTRO → "Un Pokémon sauvage apparaît !"
+ * 2. ACTION_SELECTION → Attendre les 2 choix d'actions
+ * 3. ACTION_RESOLUTION → Mais divisée :
+ *    - Calculer l'ordre par vitesse
+ *    - ATTACKER_1 → Animation + message + dégâts + pause
+ *    - ATTACKER_2 → Animation + message + dégâts + pause
+ * 4. Retour à ACTION_SELECTION (nouveau tour)
+ * 5. CAPTURE (optionnel)
+ * 6. END
  */
 export class BattleEngine {
   
@@ -34,6 +39,11 @@ export class BattleEngine {
   private gameState: BattleGameState;
   private isInitialized: boolean = false;
   private isProcessingActions: boolean = false;
+  
+  // === NOUVELLES PROPRIÉTÉS POUR SOUS-PHASES ===
+  private currentAttackerIndex: number = 0;
+  private orderedActions: any[] = [];
+  private isInSubPhase: boolean = false;
   
   // === MODULES CORE ===
   private actionProcessor: ActionProcessor;
@@ -52,16 +62,15 @@ export class BattleEngine {
   // === TIMERS ===
   private introTimer: NodeJS.Timeout | null = null;
   private aiActionTimer: NodeJS.Timeout | null = null;
+  private attackTimer: NodeJS.Timeout | null = null; // NOUVEAU: Timer pour sous-phases
   
   constructor() {
-    console.log('🎯 [BattleEngine] Initialisation système de phases corrigé...');
+    console.log('🎯 [BattleEngine] Système Pokémon Rouge/Bleu authentique initialisé');
     
-    // === NOUVEAUX MODULES ===
+    // === MODULES ===
     this.phaseManager = new PhaseManager();
     this.actionQueue = new ActionQueue();
     this.speedCalculator = new SpeedCalculator();
-    
-    // === MODULES EXISTANTS ===
     this.actionProcessor = new ActionProcessor();
     this.aiPlayer = new AIPlayer();
     this.battleEndManager = new BattleEndManager();
@@ -70,16 +79,16 @@ export class BattleEngine {
     // État initial vide
     this.gameState = this.createEmptyState();
     
-    console.log('✅ [BattleEngine] Système de phases corrigé initialisé');
+    console.log('✅ [BattleEngine] Pokémon Rouge/Bleu authentique prêt');
   }
   
   // === API PRINCIPALE ===
   
   /**
-   * Démarre un nouveau combat avec phases - VERSION CORRIGÉE
+   * Démarre un nouveau combat - Style Pokémon Rouge/Bleu
    */
   startBattle(config: BattleConfig): BattleResult {
-    console.log(`🚀 [BattleEngine] Démarrage combat corrigé - Type: ${config.type}`);
+    console.log(`🚀 [BattleEngine] Démarrage combat Pokémon authentique - Type: ${config.type}`);
     
     try {
       // 1. Nettoyer les timers précédents
@@ -99,21 +108,22 @@ export class BattleEngine {
       
       this.isInitialized = true;
       
-      // 6. Émettre événement de début
+      // 6. Émettre événement de début avec message authentique
       this.emit('battleStart', {
         gameState: this.gameState,
-        phase: InternalBattlePhase.INTRO
+        phase: InternalBattlePhase.INTRO,
+        introMessage: `Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`
       });
       
-      // 7. CORRECTION : Programmer la transition automatique de manière fiable
+      // 7. Programmer la transition automatique INTRO → ACTION_SELECTION
       this.scheduleIntroTransition();
       
-      console.log(`✅ [BattleEngine] Combat démarré - Phase INTRO (3s) programmée`);
+      console.log(`✅ [BattleEngine] Combat Pokémon authentique démarré`);
       
       return {
         success: true,
         gameState: this.gameState,
-        events: [`Combat démarré ! ${this.gameState.player1.pokemon!.name} VS ${this.gameState.player2.pokemon!.name}`]
+        events: [`Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`]
       };
       
     } catch (error) {
@@ -129,44 +139,42 @@ export class BattleEngine {
     }
   }
   
-  // === GESTION DES PHASES CORRIGÉE ===
+  // === GESTION DES PHASES POKÉMON AUTHENTIQUE ===
   
   /**
    * Programme la transition automatique INTRO → ACTION_SELECTION
    */
   private scheduleIntroTransition(): void {
-    console.log('⏰ [BattleEngine] Programmation transition INTRO → ACTION_SELECTION dans 3s');
+    console.log('⏰ [BattleEngine] Intro Pokémon - Transition dans 3s');
     
     this.introTimer = setTimeout(() => {
-      console.log('🎭 [BattleEngine] Transition automatique INTRO → ACTION_SELECTION');
+      console.log('🎮 [BattleEngine] "Que doit faire [Pokémon] ?"');
       
       if (this.getCurrentPhase() === InternalBattlePhase.INTRO && this.isInitialized) {
-        this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'intro_timeout');
-      } else {
-        console.log(`⚠️ [BattleEngine] Transition annulée - Phase: ${this.getCurrentPhase()}, Initialisé: ${this.isInitialized}`);
+        this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'intro_complete');
       }
     }, 3000);
   }
   
   /**
-   * Transition vers une nouvelle phase - VERSION CORRIGÉE
+   * Transition vers une nouvelle phase
    */
   transitionToPhase(newPhase: InternalBattlePhase, trigger: string = 'manual'): void {
     if (!this.isInitialized) {
-      console.log('❌ [BattleEngine] Combat non initialisé pour transition');
+      console.log('❌ [BattleEngine] Combat non initialisé');
       return;
     }
     
     const currentPhase = this.phaseManager.getCurrentPhase();
-    console.log(`🎭 [BattleEngine] Tentative transition: ${currentPhase} → ${newPhase} (${trigger})`);
+    console.log(`🎭 [BattleEngine] Transition: ${currentPhase} → ${newPhase} (${trigger})`);
     
     const success = this.phaseManager.setPhase(newPhase, trigger);
     if (!success) {
-      console.log(`❌ [BattleEngine] Transition refusée: ${currentPhase} → ${newPhase}`);
+      console.log(`❌ [BattleEngine] Transition refusée`);
       return;
     }
     
-    console.log(`✅ [BattleEngine] Transition réussie: ${currentPhase} → ${newPhase}`);
+    console.log(`✅ [BattleEngine] Nouvelle phase: ${newPhase}`);
     
     // Logique spécifique selon la nouvelle phase
     switch (newPhase) {
@@ -198,10 +206,10 @@ export class BattleEngine {
   }
   
   /**
-   * Gestion phase ACTION_SELECTION - VERSION CORRIGÉE
+   * Gestion phase ACTION_SELECTION - Pokémon authentique
    */
   private handleActionSelectionPhase(): void {
-    console.log('🎮 [BattleEngine] Phase ACTION_SELECTION activée');
+    console.log('🎮 [BattleEngine] Phase ACTION_SELECTION - "Que doit faire votre Pokémon ?"');
     
     // Nettoyer les timers précédents
     this.clearActionTimers();
@@ -209,85 +217,221 @@ export class BattleEngine {
     // Vider la file d'attente pour le nouveau tour
     this.actionQueue.clear();
     
+    // Reset des variables de sous-phases
+    this.currentAttackerIndex = 0;
+    this.orderedActions = [];
+    this.isInSubPhase = false;
+    
     // Émettre événement pour l'interface utilisateur
     this.emit('actionSelectionStart', {
       canAct: true,
       gameState: this.gameState,
-      turnNumber: this.gameState.turnNumber
+      turnNumber: this.gameState.turnNumber,
+      message: "Que doit faire votre Pokémon ?"
     });
     
-    // IA agit automatiquement selon le type de combat - AVEC DÉLAI APPROPRIÉ
+    // IA agit automatiquement selon le type de combat
     this.scheduleAIAction();
   }
   
   /**
-   * Programme l'action IA avec le bon délai
+   * Gestion phase ACTION_RESOLUTION - Style Pokémon Rouge/Bleu
    */
-  private scheduleAIAction(): void {
-    if (this.gameState.player2.sessionId !== 'ai') {
-      console.log('👤 [BattleEngine] Pas d\'IA, en attente joueur 2');
+  private async handleActionResolutionPhase(): Promise<void> {
+    console.log('⚔️ [BattleEngine] Phase ACTION_RESOLUTION - Style Pokémon Rouge/Bleu');
+    
+    this.isProcessingActions = true;
+    this.isInSubPhase = true;
+    
+    try {
+      // 1. Récupérer et ordonner les actions par vitesse
+      const allActions = this.actionQueue.getAllActions();
+      
+      if (allActions.length === 0) {
+        console.log('⚠️ [BattleEngine] Aucune action à résoudre');
+        this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'no_actions');
+        return;
+      }
+      
+      // 2. Calculer l'ordre par vitesse (comme Pokémon Rouge/Bleu)
+      this.orderedActions = this.actionQueue.getActionsBySpeed();
+      this.currentAttackerIndex = 0;
+      
+      console.log(`⚡ [BattleEngine] Ordre d'attaque: ${this.orderedActions.map(qa => 
+        `${qa.playerRole}(${qa.action.type})`
+      ).join(' puis ')}`);
+      
+      // 3. Émettre événement de début de résolution
+      this.emit('resolutionStart', {
+        actionCount: this.orderedActions.length,
+        orderPreview: this.orderedActions.map(qa => ({
+          playerRole: qa.playerRole,
+          actionType: qa.action.type
+        }))
+      });
+      
+      // 4. ✅ NOUVEAU: Commencer la séquence d'attaques Pokémon authentique
+      await this.executeNextAttacker();
+      
+    } catch (error) {
+      console.error('❌ [BattleEngine] Erreur résolution:', error);
+      this.isProcessingActions = false;
+      this.isInSubPhase = false;
+    }
+  }
+  
+  /**
+   * ✅ NOUVEAU: Exécute l'attaquant suivant dans l'ordre (style Pokémon Rouge/Bleu)
+   */
+  private async executeNextAttacker(): Promise<void> {
+    // Vérifier s'il y a encore des attaquants
+    if (this.currentAttackerIndex >= this.orderedActions.length) {
+      // Tous les attaquants ont agi, finir le tour
+      await this.completeActionResolution();
       return;
     }
     
-    const delay = this.getAIDelay();
-    console.log(`🤖 [BattleEngine] IA programmée dans ${delay}ms`);
+    const currentAttacker = this.orderedActions[this.currentAttackerIndex];
+    const attackerNumber = this.currentAttackerIndex + 1;
+    const totalAttackers = this.orderedActions.length;
     
-    this.aiActionTimer = setTimeout(() => {
-      if (this.getCurrentPhase() === InternalBattlePhase.ACTION_SELECTION && this.isInitialized) {
-        console.log('🤖 [BattleEngine] Exécution action IA programmée');
-        this.executeAIAction();
+    console.log(`▶️ [BattleEngine] Attaquant ${attackerNumber}/${totalAttackers}: ${currentAttacker.playerRole} → ${currentAttacker.action.type}`);
+    
+    // Émettre événement d'attaquant actuel
+    this.emit('attackerTurn', {
+      playerRole: currentAttacker.playerRole,
+      actionType: currentAttacker.action.type,
+      attackerNumber,
+      totalAttackers,
+      pokemon: currentAttacker.pokemon.name
+    });
+    
+    // Exécuter l'action de cet attaquant
+    await this.executeAttackerAction(currentAttacker);
+    
+    // Vérifier fin de combat après chaque action
+    const battleEndCheck = this.checkBattleEnd();
+    if (battleEndCheck.isEnded) {
+      console.log(`🏁 [BattleEngine] Combat terminé après l'action de ${currentAttacker.playerRole}: ${battleEndCheck.reason}`);
+      this.gameState.isEnded = true;
+      this.gameState.winner = battleEndCheck.winner;
+      this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
+      return;
+    }
+    
+    // Passer à l'attaquant suivant avec délai Pokémon authentique
+    this.currentAttackerIndex++;
+    
+    // ✅ DÉLAI ENTRE ATTAQUANTS (comme dans Pokémon Rouge/Bleu)
+    const delayBetweenAttackers = 1000; // 1 seconde entre chaque attaquant
+    
+    this.attackTimer = setTimeout(async () => {
+      await this.executeNextAttacker();
+    }, delayBetweenAttackers);
+  }
+  
+  /**
+   * ✅ NOUVEAU: Exécute l'action d'un attaquant spécifique
+   */
+  private async executeAttackerAction(queuedAction: any): Promise<void> {
+    const { action, playerRole } = queuedAction;
+    
+    console.log(`⚔️ [BattleEngine] ${playerRole} utilise ${action.data?.moveId || action.type}!`);
+    
+    // 1. Traiter l'action via ActionProcessor
+    const result = this.actionProcessor.processAction(action);
+    
+    if (!result.success) {
+      console.log(`❌ [BattleEngine] Échec action ${playerRole}: ${result.error}`);
+      return;
+    }
+    
+    // 2. ✅ ÉMISSION STYLE POKÉMON ROUGE/BLEU
+    if (action.type === 'attack' && result.data && this.broadcastManager) {
+      
+      // Message d'attaque (instantané comme Pokémon Rouge/Bleu)
+      this.broadcastManager.emit('moveUsed', {
+        attackerName: this.getPlayerName(action.playerId),
+        attackerRole: playerRole,
+        moveName: this.getMoveDisplayName(action.data.moveId),
+        moveId: action.data.moveId,
+        message: `${this.getPlayerName(action.playerId)} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
+      });
+      
+      // Attendre un peu pour le message (comme dans les vrais jeux)
+      await this.delay(800);
+      
+      // Dégâts appliqués (avec animation de barre de vie)
+      if (result.data.damage > 0) {
+        this.broadcastManager.emit('damageDealt', {
+          targetName: result.data.defenderRole === 'player1' ? 
+            this.gameState.player1.name : 
+            this.gameState.player2.name,
+          targetRole: result.data.defenderRole,
+          damage: result.data.damage,
+          oldHp: result.data.oldHp,
+          newHp: result.data.newHp,
+          maxHp: result.data.maxHp,
+          isKnockedOut: result.data.isKnockedOut
+        });
+        
+        // Attendre pour l'animation de dégâts
+        await this.delay(1200);
       }
-    }, delay);
-  }
-  
-  /**
-   * Exécute l'action de l'IA
-   */
-  private executeAIAction(): void {
-    console.log('🤖 [BattleEngine] IA génère son action...');
-    
-    const aiAction = this.aiPlayer.generateAction();
-    if (aiAction) {
-      console.log(`🤖 [BattleEngine] IA choisit: ${aiAction.type}`);
-      this.submitAction(aiAction);
-    } else {
-      console.error('❌ [BattleEngine] IA n\'a pas pu générer d\'action');
+      
+      // Message K.O. si applicable
+      if (result.data.isKnockedOut) {
+        const defenderName = result.data.defenderRole === 'player1' ? 
+          this.gameState.player1.pokemon!.name : 
+          this.gameState.player2.pokemon!.name;
+          
+        this.broadcastManager.emit('pokemonFainted', {
+          pokemonName: defenderName,
+          targetRole: result.data.defenderRole,
+          message: `${defenderName} est mis K.O. !`
+        });
+        
+        // Pause pour le K.O. (importante dans Pokémon)
+        await this.delay(1500);
+      }
     }
+    
+    // 3. Émettre événement d'action traitée
+    this.emit('actionProcessed', {
+      action,
+      result,
+      playerRole
+    });
   }
   
   /**
-   * Gestion phase ACTION_RESOLUTION - VERSION CORRIGÉE
+   * ✅ NOUVEAU: Termine la phase de résolution (tous les attaquants ont agi)
    */
-  private async handleActionResolutionPhase(): Promise<void> {
-    console.log('⚔️ [BattleEngine] Phase ACTION_RESOLUTION - Résolution par vitesse');
+  private async completeActionResolution(): Promise<void> {
+    console.log('✅ [BattleEngine] Résolution complète - Nouveau tour');
     
-    this.isProcessingActions = true;
+    // Reset des variables de sous-phases
+    this.isProcessingActions = false;
+    this.isInSubPhase = false;
+    this.currentAttackerIndex = 0;
+    this.orderedActions = [];
     
-    try {
-      await this.resolveActionsBySpeed();
-    } catch (error) {
-      console.error('❌ [BattleEngine] Erreur résolution:', error);
-    } finally {
-      this.isProcessingActions = false;
-    }
+    // Incrémenter le numéro de tour
+    this.gameState.turnNumber++;
+    
+    // Émettre événement de fin de résolution
+    this.emit('resolutionComplete', {
+      actionsExecuted: this.actionQueue.getAllActions().length,
+      battleEnded: false,
+      newTurnNumber: this.gameState.turnNumber
+    });
+    
+    // Retour à la sélection d'action pour le nouveau tour
+    this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'turn_complete');
   }
   
-  /**
-   * Gestion phase ENDED
-   */
-  private handleEndedPhase(): void {
-    console.log('🏁 [BattleEngine] Phase ENDED - Combat terminé');
-    
-    this.clearAllTimers();
-    this.savePokemonAfterBattle();
-    this.cleanupSpectators();
-  }
+  // === SOUMISSION D'ACTIONS (INCHANGÉ) ===
   
-  // === SOUMISSION D'ACTIONS - VERSION CORRIGÉE ===
-  
-  /**
-   * Soumet une action avec validation de phase
-   */
   async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
     console.log(`🎮 [BattleEngine] Action soumise: ${action.type} par ${action.playerId}`);
     
@@ -299,25 +443,25 @@ export class BattleEngine {
       return this.createErrorResult('Combat déjà terminé');
     }
     
-    // === VALIDATION DE PHASE ===
+    // Validation de phase
     const phaseValidation = this.phaseManager.validateAction(action);
     if (!phaseValidation.isValid) {
       return this.createErrorResult(phaseValidation.reason || 'Action non autorisée');
     }
     
-    // === VALIDATION JOUEUR ===
+    // Validation joueur
     const playerRole = this.getPlayerRole(action.playerId);
     if (!playerRole) {
       return this.createErrorResult('Joueur non reconnu');
     }
     
     try {
-      // === GESTION CAPTURE SPÉCIALE ===
+      // Gestion capture spéciale
       if (action.type === 'capture') {
         return await this.handleCaptureAction(action, teamManager);
       }
       
-      // === AJOUTER À LA FILE D'ATTENTE ===
+      // Ajouter à la file d'attente
       const pokemon = playerRole === 'player1' ? 
         this.gameState.player1.pokemon! : 
         this.gameState.player2.pokemon!;
@@ -336,9 +480,9 @@ export class BattleEngine {
         queueState: this.actionQueue.getQueueState()
       });
       
-      // === VÉRIFIER SI TOUTES LES ACTIONS SONT PRÊTES ===
+      // Vérifier si toutes les actions sont prêtes
       if (this.actionQueue.areAllActionsReady()) {
-        console.log('🔄 [BattleEngine] Toutes les actions prêtes → Résolution');
+        console.log('🔄 [BattleEngine] Toutes les actions prêtes → Résolution style Pokémon');
         
         // Annuler le timer IA si toujours actif
         this.clearActionTimers();
@@ -362,186 +506,110 @@ export class BattleEngine {
     }
   }
   
-  // === RÉSOLUTION PAR VITESSE - VERSION CORRIGÉE ===
+  // === IA (INCHANGÉ) ===
   
-  /**
-   * Résolution des actions par vitesse - CŒUR DU SYSTÈME
-   */
-  private async resolveActionsBySpeed(): Promise<void> {
-    console.log('⚡ [BattleEngine] === RÉSOLUTION PAR VITESSE ===');
-    
-    // 1. Récupérer toutes les actions
-    const allActions = this.actionQueue.getAllActions();
-    
-    if (allActions.length === 0) {
-      console.log('⚠️ [BattleEngine] Aucune action à résoudre');
-      this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'no_actions');
+  private scheduleAIAction(): void {
+    if (this.gameState.player2.sessionId !== 'ai') {
+      console.log('👤 [BattleEngine] Pas d\'IA, en attente joueur 2');
       return;
     }
     
-    // 2. Calculer l'ordre par vitesse
-    const orderedActions = this.actionQueue.getActionsBySpeed();
+    const delay = this.getAIDelay();
+    console.log(`🤖 [BattleEngine] IA programmée dans ${delay}ms`);
     
-    console.log(`⚡ [BattleEngine] Ordre calculé: ${orderedActions.map(qa => 
-      `${qa.playerRole}(${qa.action.type})`
-    ).join(' → ')}`);
-    
-    // Émettre événement de début de résolution
-    this.emit('resolutionStart', {
-      actionCount: orderedActions.length,
-      orderPreview: orderedActions.map(qa => ({
-        playerRole: qa.playerRole,
-        actionType: qa.action.type
-      }))
-    });
-    
-    // 3. Exécuter séquentiellement avec timing Pokémon
-    for (let i = 0; i < orderedActions.length; i++) {
-      const queuedAction = orderedActions[i];
-      
-      console.log(`▶️ [BattleEngine] Exécution ${i + 1}/${orderedActions.length}: ${queuedAction.playerRole} → ${queuedAction.action.type}`);
-      
-      // Exécuter l'action
-      await this.executeAction(queuedAction);
-      
-      // Vérifier fin de combat
-      const battleEndCheck = this.checkBattleEnd();
-      if (battleEndCheck.isEnded) {
-        console.log(`🏁 [BattleEngine] Combat terminé pendant résolution: ${battleEndCheck.reason}`);
-        this.gameState.isEnded = true;
-        this.gameState.winner = battleEndCheck.winner;
-        this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
-        return;
+    this.aiActionTimer = setTimeout(() => {
+      if (this.getCurrentPhase() === InternalBattlePhase.ACTION_SELECTION && this.isInitialized) {
+        console.log('🤖 [BattleEngine] Exécution action IA programmée');
+        this.executeAIAction();
       }
-      
-      // Délai entre les actions (pas après la dernière)
-      if (i < orderedActions.length - 1) {
-        await this.delay(BATTLE_TIMINGS.transitionNormal);
-      }
-    }
-    
-    // 4. Retour à la sélection d'action
-    console.log('🔄 [BattleEngine] Résolution terminée → Retour ACTION_SELECTION');
-    
-    // Incrémenter le numéro de tour
-    this.gameState.turnNumber++;
-    
-    // Émettre événement de fin de résolution
-    this.emit('resolutionComplete', {
-      actionsExecuted: orderedActions.length,
-      battleEnded: false,
-      newTurnNumber: this.gameState.turnNumber
-    });
-    
-    this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'resolution_complete');
+    }, delay);
   }
   
-  /**
-   * Exécute une action individuelle avec timing authentique
-   */
-  private async executeAction(queuedAction: any): Promise<void> {
-    const { action, playerRole } = queuedAction;
+  private executeAIAction(): void {
+    console.log('🤖 [BattleEngine] IA génère son action...');
     
-    console.log(`⚔️ [BattleEngine] Exécution: ${playerRole} → ${action.type}`);
-    
-    // 1. Traiter l'action via ActionProcessor
-    const result = this.actionProcessor.processAction(action);
-    
-    if (!result.success) {
-      console.log(`❌ [BattleEngine] Échec action: ${result.error}`);
-      return;
+    const aiAction = this.aiPlayer.generateAction();
+    if (aiAction) {
+      console.log(`🤖 [BattleEngine] IA choisit: ${aiAction.type}`);
+      this.submitAction(aiAction);
+    } else {
+      console.error('❌ [BattleEngine] IA n\'a pas pu générer d\'action');
     }
-    
-    // 2. TIMING POKÉMON AUTHENTIQUE
-    if (action.type === 'attack' && result.data && this.broadcastManager) {
-      
-      // ENVOI INSTANTANÉ : Attaque + Dégâts
-      this.broadcastManager.emitAttackSequence({
-        attacker: { 
-          name: this.getPlayerName(action.playerId), 
-          role: playerRole 
-        },
-        target: { 
-          name: result.data.defenderRole === 'player1' ? 
-            this.gameState.player1.name : 
-            this.gameState.player2.name,
-          role: result.data.defenderRole 
-        },
-        move: { 
-          id: action.data.moveId, 
-          name: this.getMoveDisplayName(action.data.moveId)
-        },
-        damage: result.data.damage || 0,
-        oldHp: result.data.oldHp || 0,
-        newHp: result.data.newHp || 0,
-        maxHp: result.data.maxHp || 100,
-        effects: [],
-        isKnockedOut: result.data.isKnockedOut || false
-      });
-      
-      // DÉLAI 1s : Effets
-      await this.delay(1000);
-      
-      // DÉLAI 2s : Transition (géré par la boucle principale)
-    }
-    
-    // 3. Émettre événement d'action traitée
-    this.emit('actionProcessed', {
-      action,
-      result,
-      playerRole
-    });
   }
   
-  // === GESTION CAPTURE ===
+  // === GESTION DES TIMERS ===
   
-  /**
-   * Gestion spéciale des captures
-   */
-  private async handleCaptureAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
+  private clearAllTimers(): void {
+    this.clearIntroTimer();
+    this.clearActionTimers();
+    this.clearAttackTimer(); // NOUVEAU
+  }
+  
+  private clearIntroTimer(): void {
+    if (this.introTimer) {
+      clearTimeout(this.introTimer);
+      this.introTimer = null;
+    }
+  }
+  
+  private clearActionTimers(): void {
+    if (this.aiActionTimer) {
+      clearTimeout(this.aiActionTimer);
+      this.aiActionTimer = null;
+    }
+  }
+  
+  private clearAttackTimer(): void {
+    if (this.attackTimer) {
+      clearTimeout(this.attackTimer);
+      this.attackTimer = null;
+    }
+  }
+  
+  // === RESTE DES MÉTHODES (INCHANGÉES) ===
+  
+  private handleCaptureAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
     console.log('🎯 [BattleEngine] Gestion capture spéciale');
     
-    // Transition vers phase CAPTURE
     this.transitionToPhase(InternalBattlePhase.CAPTURE, 'capture_attempt');
     
     if (!teamManager) {
-      return this.createErrorResult('TeamManager requis pour la capture');
+      return Promise.resolve(this.createErrorResult('TeamManager requis pour la capture'));
     }
     
-    // Traiter via CaptureManager
     this.captureManager.initialize(this.gameState);
-    const result = await this.captureManager.attemptCapture(
+    return this.captureManager.attemptCapture(
       action.playerId, 
       action.data.ballType || 'poke_ball', 
       teamManager
-    );
-    
-    if (result.success && result.captureData?.captured) {
-      // Combat terminé par capture réussie
-      this.gameState.isEnded = true;
-      this.gameState.winner = 'player1';
-      this.transitionToPhase(InternalBattlePhase.ENDED, 'pokemon_captured');
+    ).then(result => {
+      if (result.success && result.captureData?.captured) {
+        this.gameState.isEnded = true;
+        this.gameState.winner = 'player1';
+        this.transitionToPhase(InternalBattlePhase.ENDED, 'pokemon_captured');
+        
+        this.emit('battleEnd', {
+          winner: 'player1',
+          reason: 'Pokémon capturé !',
+          gameState: this.gameState,
+          captureSuccess: true
+        });
+      } else {
+        this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'capture_failed');
+      }
       
-      this.emit('battleEnd', {
-        winner: 'player1',
-        reason: 'Pokémon capturé !',
-        gameState: this.gameState,
-        captureSuccess: true
-      });
-      
-    } else {
-      // Capture ratée, retour au combat
-      this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'capture_failed');
-    }
-    
-    return result;
+      return result;
+    });
   }
   
-  // === VÉRIFICATION FIN DE COMBAT ===
+  private handleEndedPhase(): void {
+    console.log('🏁 [BattleEngine] Phase ENDED - Combat terminé');
+    
+    this.clearAllTimers();
+    this.savePokemonAfterBattle();
+    this.cleanupSpectators();
+  }
   
-  /**
-   * Vérifie si le combat doit se terminer
-   */
   private checkBattleEnd(): { isEnded: boolean; winner: PlayerRole | null; reason: string } {
     if (!this.gameState) {
       return { isEnded: false, winner: null, reason: '' };
@@ -569,7 +637,7 @@ export class BattleEngine {
       return {
         isEnded: true,
         winner: 'player2',
-        reason: `${player1Pokemon.name} est K.O. ! ${this.gameState.player2.name} gagne !`
+        reason: `${player1Pokemon.name} est K.O. ! Vous avez perdu !`
       };
     }
     
@@ -577,98 +645,46 @@ export class BattleEngine {
       return {
         isEnded: true,
         winner: 'player1',
-        reason: `${player2Pokemon.name} est K.O. ! ${this.gameState.player1.name} gagne !`
+        reason: `${player2Pokemon.name} est K.O. ! Vous avez gagné !`
       };
     }
     
     return { isEnded: false, winner: null, reason: '' };
   }
   
-  // === GESTION DES TIMERS ===
+  // === INITIALISATION MODULES (INCHANGÉE) ===
   
-  /**
-   * Nettoie tous les timers
-   */
-  private clearAllTimers(): void {
-    this.clearIntroTimer();
-    this.clearActionTimers();
-  }
-  
-  /**
-   * Nettoie le timer d'intro
-   */
-  private clearIntroTimer(): void {
-    if (this.introTimer) {
-      clearTimeout(this.introTimer);
-      this.introTimer = null;
-      console.log('🧹 [BattleEngine] Timer intro nettoyé');
-    }
-  }
-  
-  /**
-   * Nettoie les timers d'action
-   */
-  private clearActionTimers(): void {
-    if (this.aiActionTimer) {
-      clearTimeout(this.aiActionTimer);
-      this.aiActionTimer = null;
-      console.log('🧹 [BattleEngine] Timer IA nettoyé');
-    }
-  }
-  
-  // === INITIALISATION MODULES ===
-  
-  /**
-   * Initialise tous les modules avec l'état du jeu
-   */
   private initializeAllModules(): void {
     console.log('🔧 [BattleEngine] Initialisation de tous les modules...');
     
-    // === MODULES PHASES ===
     this.phaseManager.initialize(this.gameState);
-    // ActionQueue et SpeedCalculator sont stateless
-    
-    // === MODULES EXISTANTS ===
     this.actionProcessor.initialize(this.gameState);
     this.aiPlayer.initialize(this.gameState);
     this.battleEndManager.initialize(this.gameState);
     this.captureManager.initialize(this.gameState);
-    
-    // === MODULES BROADCAST ===
     this.configureBroadcastSystem();
     
     console.log('✅ [BattleEngine] Tous les modules initialisés');
   }
   
-  /**
-   * Configuration du système de broadcast
-   */
   private configureBroadcastSystem(): void {
     console.log('📡 [BattleEngine] Configuration système broadcast...');
     
-    // Créer BroadcastManager
     this.broadcastManager = BroadcastManagerFactory.createForWildBattle(
       this.gameState.battleId,
       this.gameState,
       this.gameState.player1.sessionId
     );
     
-    // Configurer callback
     this.broadcastManager.setEmitCallback((event) => {
       this.emit('battleEvent', event);
     });
     
-    // Configurer SpectatorManager
     this.spectatorManager = new SpectatorManager();
     
     console.log('✅ [BattleEngine] BroadcastManager et SpectatorManager configurés');
   }
   
-  // === SAUVEGARDE POKÉMON ===
-  
-  /**
-   * Sauvegarde des Pokémon après combat
-   */
   private async savePokemonAfterBattle(): Promise<void> {
     console.log('💾 [BattleEngine] Démarrage sauvegarde post-combat...');
     
@@ -677,14 +693,12 @@ export class BattleEngine {
       
       if (result.success) {
         console.log('✅ [BattleEngine] Pokémon sauvegardés avec succès');
-        
         this.emit('pokemonSaved', {
           events: result.events,
           data: result.data
         });
       } else {
         console.error(`❌ [BattleEngine] Erreur sauvegarde: ${result.error}`);
-        
         this.emit('saveError', {
           error: result.error
         });
@@ -692,6 +706,13 @@ export class BattleEngine {
       
     } catch (error) {
       console.error(`❌ [BattleEngine] Erreur critique sauvegarde:`, error);
+    }
+  }
+  
+  private cleanupSpectators(): void {
+    if (this.spectatorManager) {
+      const cleanup = this.spectatorManager.cleanupBattle(this.gameState.battleId);
+      console.log(`🧹 [BattleEngine] ${cleanup.spectatorsRemoved.length} spectateurs nettoyés`);
     }
   }
   
@@ -708,7 +729,6 @@ export class BattleEngine {
         this.gameState,
         worldPosition
       );
-      console.log(`📍 [BattleEngine] Position combat enregistrée pour spectateurs`);
     }
   }
   
@@ -739,25 +759,12 @@ export class BattleEngine {
     return { removed: false, shouldLeaveBattleRoom: false };
   }
   
-  private cleanupSpectators(): void {
-    if (this.spectatorManager) {
-      const cleanup = this.spectatorManager.cleanupBattle(this.gameState.battleId);
-      console.log(`🧹 [BattleEngine] ${cleanup.spectatorsRemoved.length} spectateurs nettoyés`);
-    }
-  }
-  
   // === COMPATIBILITÉ BATTLEROOM ===
   
-  /**
-   * Alias pour submitAction (compatibilité BattleRoom)
-   */
   async processAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
     return await this.submitAction(action, teamManager);
   }
   
-  /**
-   * Génère une action IA (compatibilité BattleRoom)
-   */
   generateAIAction(): BattleAction | null {
     console.log('🤖 [BattleEngine] Génération action IA via méthode legacy');
     
@@ -771,20 +778,9 @@ export class BattleEngine {
       return null;
     }
     
-    const aiAction = this.aiPlayer.generateAction();
-    
-    if (aiAction) {
-      console.log(`🤖 [BattleEngine] Action IA générée: ${aiAction.type}`);
-    } else {
-      console.error('❌ [BattleEngine] Échec génération action IA');
-    }
-    
-    return aiAction;
+    return this.aiPlayer.generateAction();
   }
   
-  /**
-   * Récupère le délai de réflexion IA (compatibilité BattleRoom)
-   */
   getAIThinkingDelay(): number {
     return this.getAIDelay();
   }
@@ -813,9 +809,6 @@ export class BattleEngine {
   
   // === UTILITAIRES ===
   
-  /**
-   * Détermine le rôle d'un joueur
-   */
   private getPlayerRole(playerId: string): PlayerRole | null {
     if (playerId === this.gameState.player1.sessionId) {
       return 'player1';
@@ -825,9 +818,6 @@ export class BattleEngine {
     return null;
   }
   
-  /**
-   * Récupère le nom d'un joueur
-   */
   private getPlayerName(playerId: string): string {
     if (!this.gameState) return playerId;
     
@@ -840,9 +830,6 @@ export class BattleEngine {
     return playerId;
   }
   
-  /**
-   * Récupère le nom d'affichage d'une attaque
-   */
   private getMoveDisplayName(moveId: string): string {
     const names: Record<string, string> = {
       'tackle': 'Charge',
@@ -859,26 +846,17 @@ export class BattleEngine {
     return names[moveId] || moveId;
   }
   
-  /**
-   * Calcule le délai avant action IA
-   */
   private getAIDelay(): number {
     if (this.gameState.type === 'wild') {
-      return 1000; // 1s pour sauvage (pas instantané pour debug)
+      return 1000; // 1s pour sauvage
     }
-    return this.aiPlayer.getThinkingDelay(); // Réflexion pour dresseur
+    return this.aiPlayer.getThinkingDelay();
   }
   
-  /**
-   * Délai contrôlé
-   */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   
-  /**
-   * Crée un résultat d'erreur
-   */
   private createErrorResult(message: string): BattleResult {
     return {
       success: false,
@@ -892,10 +870,8 @@ export class BattleEngine {
   
   addModule(name: string, module: BattleModule): void {
     console.log(`🔧 [BattleEngine] Ajout module: ${name}`);
-    
     this.modules.set(name, module);
     module.initialize(this);
-    
     console.log(`✅ [BattleEngine] Module ${name} ajouté`);
   }
   
@@ -935,6 +911,11 @@ export class BattleEngine {
     this.aiPlayer.reset();
     this.battleEndManager.reset();
     this.captureManager.reset();
+    
+    // Reset variables sous-phases
+    this.currentAttackerIndex = 0;
+    this.orderedActions = [];
+    this.isInSubPhase = false;
     
     console.log('🧹 [BattleEngine] Nettoyage complet effectué');
   }
@@ -993,17 +974,15 @@ export class BattleEngine {
   
   // === DIAGNOSTICS ===
   
-  /**
-   * État complet du système
-   */
   getSystemState(): any {
     return {
-      version: 'battle_engine_phases_v2_fixed',
-      architecture: 'phase_based_authentic_pokemon_corrected',
+      version: 'pokemon_rouge_bleu_authentique_v1',
+      architecture: 'phase_based_pokemon_classic',
       isInitialized: this.isInitialized,
       isProcessingActions: this.isProcessingActions,
+      isInSubPhase: this.isInSubPhase,
+      currentAttackerIndex: this.currentAttackerIndex,
       
-      // États des modules
       phaseState: this.phaseManager.getPhaseState(),
       actionQueueState: this.actionQueue.getQueueState(),
       gameState: {
@@ -1011,43 +990,30 @@ export class BattleEngine {
         type: this.gameState.type,
         phase: this.gameState.phase,
         isEnded: this.gameState.isEnded,
-        winner: this.gameState.winner
+        winner: this.gameState.winner,
+        turnNumber: this.gameState.turnNumber
       },
       
-      // États des timers
       timers: {
         introTimer: this.introTimer !== null,
-        aiActionTimer: this.aiActionTimer !== null
+        aiActionTimer: this.aiActionTimer !== null,
+        attackTimer: this.attackTimer !== null
       },
-      
-      // Statistiques modules
-      moduleStats: {
-        phaseManager: this.phaseManager.getPhaseStats(),
-        actionQueue: this.actionQueue.getStats(),
-        actionProcessor: this.actionProcessor.isReady(),
-        aiPlayer: this.aiPlayer.getStats(),
-        broadcastManager: this.broadcastManager?.getStats(),
-        spectatorManager: this.spectatorManager?.getStats()
-      },
-      
-      corrections: [
-        'automatic_intro_transition_fixed',
-        'timer_management_improved',
-        'ai_action_scheduling_corrected',
-        'phase_event_emissions_added',
-        'error_handling_enhanced'
-      ],
       
       features: [
-        'five_phase_system',
-        'speed_based_resolution', 
-        'authentic_pokemon_timing',
-        'action_queue_management',
-        'modular_architecture',
-        'broadcast_integration',
-        'spectator_support',
-        'capture_system',
-        'ai_integration'
+        'pokemon_rouge_bleu_authentic',
+        'sequential_attackers',
+        'action_resolution_subphases',
+        'classic_pokemon_timing',
+        'authentic_battle_flow'
+      ],
+      
+      corrections: [
+        'action_resolution_subdivided',
+        'sequential_attacker_execution',
+        'pokemon_classic_delays',
+        'authentic_message_timing',
+        'proper_battle_phases'
       ]
     };
   }
