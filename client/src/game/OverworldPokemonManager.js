@@ -21,82 +21,99 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * Détecte automatiquement la structure du spritesheet
+   * ✅ NOUVEAU: Détection automatique intelligente
    */
   detectSpriteStructure(width, height) {
-    console.log(`🔍 [OverworldPokemonManager] Détection structure pour ${width}x${height}`);
+    console.log(`🔍 [OverworldPokemonManager] Détection auto pour ${width}x${height}`);
     
-    const possibilities = [
-      { cols: 6, rows: 8, priority: 1, name: "6x8 (standard)" },
-      { cols: 4, rows: 8, priority: 2, name: "4x8 (compact)" },
-      { cols: 8, rows: 8, priority: 3, name: "8x8 (large)" },
-      { cols: 5, rows: 8, priority: 4, name: "5x8 (medium)" },
-      { cols: 7, rows: 8, priority: 5, name: "7x8 (extended)" },
-      { cols: 9, rows: 8, priority: 1, name: "9x8 (swing)" },
-      { cols: 3, rows: 8, priority: 6, name: "3x8 (minimal)" },
-      { cols: 10, rows: 8, priority: 7, name: "10x8 (extended)" },
-      { cols: 12, rows: 8, priority: 8, name: "12x8 (full)" },
-      { cols: 3, rows: 4, priority: 9, name: "3x4 (simple)" },
-      { cols: 4, rows: 4, priority: 10, name: "4x4 (basic)" },
-      { cols: 6, rows: 4, priority: 11, name: "6x4 (medium)" },
-    ];
-
-    const validOptions = [];
-
-    possibilities.forEach(p => {
-      const frameW = width / p.cols;
-      const frameH = height / p.rows;
-      
-      if (frameW % 1 === 0 && frameH % 1 === 0) {
-        const aspectRatio = frameW / frameH;
-        const isSquareish = Math.abs(aspectRatio - 1) < 0.5;
-        const isReasonableSize = frameW >= 16 && frameW <= 128 && frameH >= 16 && frameH <= 128;
-        
-        let qualityScore = 0;
-        
-        if (isSquareish) qualityScore += 20;
-        if (isReasonableSize) qualityScore += 15;
-        if (p.rows === 8) qualityScore += 25;
-        if (p.cols > 12) qualityScore -= 10;
-        
-        validOptions.push({
-          cols: p.cols,
-          rows: p.rows,
-          frameWidth: frameW,
-          frameHeight: frameH,
-          totalFrames: p.cols * p.rows,
-          priority: p.priority,
-          qualityScore: qualityScore,
-          name: p.name,
-          aspectRatio: aspectRatio
-        });
+    // ✅ ÉTAPE 1: Trouver toutes les divisions exactes possibles
+    const possibleCols = [];
+    const possibleRows = [];
+    
+    // Chercher les diviseurs de la largeur (colonnes)
+    for (let cols = 1; cols <= 20; cols++) {
+      if (width % cols === 0) {
+        const frameWidth = width / cols;
+        if (frameWidth >= 16 && frameWidth <= 128) { // Taille raisonnable
+          possibleCols.push({ cols, frameWidth });
+        }
       }
+    }
+    
+    // Chercher les diviseurs de la hauteur (rangées)
+    for (let rows = 1; rows <= 12; rows++) {
+      if (height % rows === 0) {
+        const frameHeight = height / rows;
+        if (frameHeight >= 16 && frameHeight <= 128) { // Taille raisonnable
+          possibleRows.push({ rows, frameHeight });
+        }
+      }
+    }
+    
+    console.log(`📊 Colonnes possibles:`, possibleCols);
+    console.log(`📊 Rangées possibles:`, possibleRows);
+    
+    // ✅ ÉTAPE 2: Trouver la meilleure combinaison
+    let bestStructure = null;
+    let bestScore = -1;
+    
+    possibleCols.forEach(colInfo => {
+      possibleRows.forEach(rowInfo => {
+        const frameWidth = colInfo.frameWidth;
+        const frameHeight = rowInfo.frameHeight;
+        const aspectRatio = frameWidth / frameHeight;
+        
+        // Calculer un score de qualité
+        let score = 0;
+        
+        // Préférer les frames carrées ou proches du carré
+        if (aspectRatio >= 0.7 && aspectRatio <= 1.4) score += 30;
+        
+        // Préférer 8 rangées (standard Pokémon)
+        if (rowInfo.rows === 8) score += 25;
+        if (rowInfo.rows === 4) score += 15;
+        
+        // Préférer certaines colonnes communes
+        if (colInfo.cols === 6) score += 20;
+        if (colInfo.cols === 7) score += 18;
+        if (colInfo.cols === 8) score += 15;
+        if (colInfo.cols === 4) score += 12;
+        if (colInfo.cols === 9) score += 10;
+        
+        // Pénaliser les tailles trop petites ou grandes
+        if (frameWidth < 20 || frameHeight < 20) score -= 20;
+        if (frameWidth > 80 || frameHeight > 80) score -= 10;
+        
+        if (score > bestScore) {
+          bestScore = score;
+          bestStructure = {
+            cols: colInfo.cols,
+            rows: rowInfo.rows,
+            frameWidth: frameWidth,
+            frameHeight: frameHeight,
+            totalFrames: colInfo.cols * rowInfo.rows,
+            aspectRatio: aspectRatio,
+            score: score,
+            name: `${colInfo.cols}x${rowInfo.rows} (auto-détecté)`
+          };
+        }
+      });
     });
-
-    if (validOptions.length === 0) {
-      console.warn(`⚠️ [OverworldPokemonManager] Aucune structure valide pour ${width}×${height}`);
+    
+    // ✅ ÉTAPE 3: Fallback si rien trouvé
+    if (!bestStructure) {
+      console.warn(`⚠️ [OverworldPokemonManager] Aucune structure détectée pour ${width}×${height}`);
       return {
-        cols: Math.round(width / 32),
+        cols: Math.max(1, Math.round(width / 32)),
         rows: 8,
-        frameWidth: Math.round(width / Math.round(width / 32)),
+        frameWidth: Math.round(width / Math.max(1, Math.round(width / 32))),
         frameHeight: Math.round(height / 8),
-        name: "fallback"
+        name: "fallback auto"
       };
     }
-
-    validOptions.sort((a, b) => {
-      if (b.qualityScore !== a.qualityScore) {
-        return b.qualityScore - a.qualityScore;
-      }
-      return a.priority - b.priority;
-    });
-
-    const best = validOptions[0];
     
-    console.log(`✅ [OverworldPokemonManager] Structure détectée: ${best.name}`);
-    console.log(`📊 Frames: ${best.frameWidth}x${best.frameHeight} (${best.totalFrames} total)`);
-    
-    return best;
+    console.log(`✅ [OverworldPokemonManager] Meilleure structure détectée:`, bestStructure);
+    return bestStructure;
   }
 
   /**
@@ -237,9 +254,9 @@ export class OverworldPokemonManager {
               key: spriteKey,
               frame: baseFrame
             }],
-frameRate: 1,
-repeat: 0,
-duration: 1000
+            frameRate: 1,
+            repeat: 0,
+            duration: 1000
           });
         }
         
@@ -295,7 +312,8 @@ duration: 1000
               frame: startFrame
             }],
             frameRate: 1,
-            repeat: 0
+            repeat: 0,
+            duration: 1000
           });
         }
       }
@@ -354,6 +372,7 @@ duration: 1000
       pokemon.setOrigin(0.5, 1);
       pokemon.setScale(1.0);
       pokemon.setDepth(3);
+      pokemon.body.setSize(16, 16); // ✅ Définir la taille du body physique
       
       // Propriétés custom
       pokemon.overworldId = id;
@@ -483,7 +502,7 @@ duration: 1000
         const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
         const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${idleDirection}`;
         if (this.scene.anims.exists(idleAnimKey)) {
-pokemon.anims.play(idleAnimKey, false); // ← false = pas de restart si déjà en cours
+          pokemon.anims.play(idleAnimKey, false); // ✅ false = pas de restart si déjà en cours
           console.log(`🏃‍♂️ [OverworldPokemonManager] Animation idle: ${idleAnimKey}`);
         }
       }
@@ -591,65 +610,43 @@ pokemon.anims.play(idleAnimKey, false); // ← false = pas de restart si déjà 
         const elapsed = now - pokemon.moveStartTime;
         const progress = Math.min(elapsed / pokemon.moveDuration, 1.0);
         
-if (progress >= 1.0) {
-  // ✅ MOUVEMENT TERMINÉ
-  if (pokemon.alternativePath && pokemon.alternativePath.length > 1) {
-    // Passer au point suivant du chemin alternatif
-    pokemon.alternativePath.shift();
-    const nextPoint = pokemon.alternativePath[0];
-    pokemon.x = pokemon.targetX;
-    pokemon.y = pokemon.targetY;
-    pokemon.setPosition(pokemon.targetX, pokemon.targetY); // ← AJOUTER
-    pokemon.targetX = nextPoint.x;
-    pokemon.targetY = nextPoint.y;
-    pokemon.moveStartTime = now;
-    console.log(`🔄 [OverworldPokemonManager] ${pokemon.name} suit chemin alternatif vers (${nextPoint.x}, ${nextPoint.y})`);
-  } else {
-    // Fin du mouvement
-    pokemon.x = pokemon.targetX;
-    pokemon.y = pokemon.targetY;
-    pokemon.setPosition(pokemon.targetX, pokemon.targetY); // ← AJOUTER
-    pokemon.isInterpolating = false;
-    pokemon.alternativePath = null;
-    console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} a terminé son mouvement à (${pokemon.targetX}, ${pokemon.targetY})`);
-  }
-} else {
-  // ✅ INTERPOLATION EN COURS
-  const easeProgress = this.easeInOutCubic(progress);
-  
-  const startX = pokemon.serverX || pokemon.x;
-  const startY = pokemon.serverY || pokemon.y;
-  
-  const newX = startX + (pokemon.targetX - startX) * easeProgress;
-  const newY = startY + (pokemon.targetY - startY) * easeProgress;
-  
-  // ✅ VÉRIFICATION FINALE AVANT DÉPLACEMENT
-  if (!this.scene.collisionManager || this.scene.collisionManager.canMoveTo(newX, newY)) {
-    pokemon.x = newX;
-    pokemon.y = newY;
-    pokemon.setPosition(newX, newY); // ← AJOUTER CETTE LIGNE CRITIQUE
-  } else {
-    // Collision détectée, arrêter le mouvement
-    pokemon.isInterpolating = false;
-    pokemon.stuckCounter = (pokemon.stuckCounter || 0) + 1;
-    console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} collision finale à (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
-  }
-}
-      } else if (!pokemon.isMoving) {
-        // ✅ POKEMON IMMOBILE - SYNCHRONISATION DOUCE
-        const dx = pokemon.serverX - pokemon.x;
-        const dy = pokemon.serverY - pokemon.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance > 2) {
-          const correctionSpeed = 0.05;
-          const newX = pokemon.x + dx * correctionSpeed;
-          const newY = pokemon.y + dy * correctionSpeed;
+        if (progress >= 1.0) {
+          // ✅ MOUVEMENT TERMINÉ
+          if (pokemon.alternativePath && pokemon.alternativePath.length > 1) {
+            // Passer au point suivant du chemin alternatif
+            pokemon.alternativePath.shift();
+            const nextPoint = pokemon.alternativePath[0];
+            pokemon.x = pokemon.targetX;
+            pokemon.y = pokemon.targetY;
+            pokemon.setPosition(pokemon.targetX, pokemon.targetY); // ✅ AJOUTER
+            pokemon.targetX = nextPoint.x;
+            pokemon.targetY = nextPoint.y;
+            pokemon.moveStartTime = now;
+            console.log(`🔄 [OverworldPokemonManager] ${pokemon.name} suit chemin alternatif vers (${nextPoint.x}, ${nextPoint.y})`);
+          } else {
+            // Fin du mouvement
+            pokemon.x = pokemon.targetX;
+            pokemon.y = pokemon.targetY;
+            pokemon.setPosition(pokemon.targetX, pokemon.targetY); // ✅ AJOUTER
+            pokemon.isInterpolating = false;
+            pokemon.alternativePath = null;
+            console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} a terminé son mouvement à (${pokemon.targetX}, ${pokemon.targetY})`);
+          }
+        } else {
+          // ✅ INTERPOLATION EN COURS
+          const easeProgress = this.easeInOutCubic(progress);
           
-          // Vérifier que la correction ne cause pas de collision
+          const startX = pokemon.serverX || pokemon.x;
+          const startY = pokemon.serverY || pokemon.y;
+          
+          const newX = startX + (pokemon.targetX - startX) * easeProgress;
+          const newY = startY + (pokemon.targetY - startY) * easeProgress;
+          
+          // ✅ VÉRIFICATION FINALE AVANT DÉPLACEMENT
           if (!this.scene.collisionManager || this.scene.collisionManager.canMoveTo(newX, newY)) {
             pokemon.x = newX;
             pokemon.y = newY;
+            pokemon.setPosition(newX, newY); // ✅ SYNCHRONISER LA POSITION VISUELLE
           }
         }
       }
@@ -745,26 +742,26 @@ if (progress >= 1.0) {
   }
 
   handlePokemonSpawnRequest(data) {
-  const { id, boundaries } = data;
-  let found = false;
-  let pos = { x: 0, y: 0 };
-  for (let i = 0; i < 30; i++) {
-    const x = boundaries.minX + Math.random() * (boundaries.maxX - boundaries.minX);
-    const y = boundaries.minY + Math.random() * (boundaries.maxY - boundaries.minY);
-    if (!this.scene.collisionManager || this.scene.collisionManager.canMoveTo(x, y)) {
-      pos = { x, y };
-      found = true;
-      break;
+    const { id, boundaries } = data;
+    let found = false;
+    let pos = { x: 0, y: 0 };
+    for (let i = 0; i < 30; i++) {
+      const x = boundaries.minX + Math.random() * (boundaries.maxX - boundaries.minX);
+      const y = boundaries.minY + Math.random() * (boundaries.maxY - boundaries.minY);
+      if (!this.scene.collisionManager || this.scene.collisionManager.canMoveTo(x, y)) {
+        pos = { x, y };
+        found = true;
+        break;
+      }
     }
+    // ✅ CORRECTION: Utiliser la bonne référence réseau
+    this.scene.networkManager.room.send('overworldPokemonSpawnResponse', {
+      ...data,
+      success: found,
+      x: pos.x,
+      y: pos.y
+    });
   }
-  // Répondre au serveur
-this.scene.networkManager.room.send('overworldPokemonSpawnResponse', {
-    ...data,
-    success: found,
-    x: pos.x,
-    y: pos.y
-  });
-}
 
   /**
    * Synchronise tous les Pokémon overworld
@@ -1003,6 +1000,7 @@ this.scene.networkManager.room.send('overworldPokemonSpawnResponse', {
           pokemon.targetY = freePos.y;
           pokemon.serverX = freePos.x;
           pokemon.serverY = freePos.y;
+          pokemon.setPosition(freePos.x, freePos.y); // ✅ SYNCHRONISER LA POSITION VISUELLE
           pokemon.isInterpolating = false;
           pokemon.isMoving = false;
           pokemon.stuckCounter = 0;
@@ -1285,4 +1283,27 @@ this.scene.networkManager.room.send('overworldPokemonSpawnResponse', {
       this.lastOptimization = Date.now();
     }
   }
-}
+};
+            pokemon.y = newY;
+            pokemon.setPosition(newX, newY); // ✅ AJOUTER CETTE LIGNE CRITIQUE
+          } else {
+            // Collision détectée, arrêter le mouvement
+            pokemon.isInterpolating = false;
+            pokemon.stuckCounter = (pokemon.stuckCounter || 0) + 1;
+            console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} collision finale à (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
+          }
+        }
+      } else if (!pokemon.isMoving) {
+        // ✅ POKEMON IMMOBILE - SYNCHRONISATION DOUCE
+        const dx = pokemon.serverX - pokemon.x;
+        const dy = pokemon.serverY - pokemon.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 2) {
+          const correctionSpeed = 0.05;
+          const newX = pokemon.x + dx * correctionSpeed;
+          const newY = pokemon.y + dy * correctionSpeed;
+          
+          // Vérifier que la correction ne cause pas de collision
+          if (!this.scene.collisionManager || this.scene.collisionManager.canMoveTo(newX, newY)) {
+            pokemon.x = newX
