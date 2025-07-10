@@ -663,26 +663,16 @@ showAttackMenu() {
   });
 }
 
-    executePlayerAction(actionData) {
-      if (actionData.type === 'move') {
-        this.hideActionButtons();
-        
-        const waitingMessages = [
-          `${this.currentPlayerPokemon?.name} se prépare à utiliser ${actionData.moveName}...`,
-          `${this.currentPlayerPokemon?.name} se concentre pour ${actionData.moveName}...`,
-          `${this.currentPlayerPokemon?.name} va utiliser ${actionData.moveName} !`,
-          `${actionData.moveName} en préparation...`,
-          `${this.currentPlayerPokemon?.name} charge ${actionData.moveName}...`
-        ];
-        
-        const randomMessage = waitingMessages[Math.floor(Math.random() * waitingMessages.length)];
-        this.showActionMessage(randomMessage);
-        
-        if (this.battleNetworkHandler) {
-          this.battleNetworkHandler.useMove(actionData.moveId);
-        }
-      }
+executePlayerAction(actionData) {
+  if (actionData.type === 'move') {
+    this.hideActionButtons();
+    this.hideActionMessage(); // ✅ Interface vide
+    
+    if (this.battleNetworkHandler) {
+      this.battleNetworkHandler.useMove(actionData.moveId);
     }
+  }
+}
 
 
   // === AFFICHAGE POKÉMON ===
