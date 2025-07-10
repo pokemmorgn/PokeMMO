@@ -1904,136 +1904,104 @@ transitionToEndBattle(winnerData) {
   console.log('🎯 [BattleScene] Transition vers end battle');
   console.log('🏆 Données vainqueur:', winnerData);
   
+  // ✅ VÉRIFICATION SÉCURISÉE
+  if (!this.battleNetworkHandler?.isConnectedToBattle || this.interfaceMode === 'ended') {
+    console.warn('⚠️ [BattleScene] Transition ignorée - combat déjà terminé');
+    return;
+  }
+  
+  // ✅ MARQUER comme terminé pour éviter les exploits
+  this.interfaceMode = 'ended';
+  
   // Masquer l'interface d'actions
   this.hideActionButtons();
-  this.hideActionMessage();
   
-  // Afficher écran de fin avec gains
-  this.showBattleEndScreen({
-    winner: winnerData.winner,
-    message: winnerData.message,
-    battleEndType: winnerData.battleEndType,
-    messageType: winnerData.messageType
-  });
+  // ✅ AFFICHER MESSAGE DE VICTOIRE + RÉCOMPENSES
+  this.showBattleEndMessage(winnerData);
+  
+  // ✅ TERMINER AUTOMATIQUEMENT APRÈS 4S
+  setTimeout(() => {
+    this.endBattle({ result: 'completed', winner: winnerData.winner });
+  }, 4000);
 }
 
-    showBattleEndScreen(endData) {
-      console.log('🎁 [BattleScene] Affichage écran de fin');
-      
-      // Créer overlay de fin
-      const { width, height } = this.cameras.main;
-      const endOverlay = this.add.container(width/2, height/2);
-      
-      // Background semi-transparent
-      const bg = this.add.graphics();
-      bg.fillStyle(0x000000, 0.8);
-      bg.fillRect(-width/2, -height/2, width, height);
-      
-      // Panel principal
-      const panel = this.add.graphics();
-      panel.fillStyle(0x1a1a1a, 0.95);
-      panel.fillRoundedRect(-200, -150, 400, 300, 20);
-      panel.lineStyle(4, endData.winner === 'player1' ? 0x4CAF50 : 0xF44336, 1);
-      panel.strokeRoundedRect(-200, -150, 400, 300, 20);
-      
-      // Titre
-      const titleText = endData.winner === 'player1' ? '🎉 VICTOIRE !' : '💀 DÉFAITE...';
-      const title = this.add.text(0, -80, titleText, {
-        fontSize: '32px',
-        fontFamily: 'Arial Black, sans-serif',
-        color: endData.winner === 'player1' ? '#4CAF50' : '#F44336',
-        fontWeight: 'bold'
-      });
-      title.setOrigin(0.5);
-      
-      // Message détaillé
-      const message = this.add.text(0, -20, endData.message, {
-        fontSize: '18px',
-        fontFamily: 'Arial, sans-serif',
-        color: '#FFFFFF',
-        fontWeight: 'bold',
-        align: 'center',
-        wordWrap: { width: 350 }
-      });
-      message.setOrigin(0.5);
-      
-      // Gains (pour plus tard)
-      const gainsText = this.add.text(0, 40, '💰 Expérience et récompenses à venir...', {
-        fontSize: '16px',
-        fontFamily: 'Arial, sans-serif',
-        color: '#FFD700',
-        align: 'center'
-      });
-      gainsText.setOrigin(0.5);
-      
-      // Bouton continuer
-      const continueButton = this.createEndBattleButton();
-      
-      endOverlay.add([bg, panel, title, message, gainsText, continueButton]);
-      endOverlay.setDepth(300);
-      endOverlay.setAlpha(0);
-      
-      // Animation d'entrée
-      this.tweens.add({
-        targets: endOverlay,
-        alpha: 1,
-        duration: 800,
-        ease: 'Power2.easeOut'
-      });
-      
-      // Programmer fermeture automatique après 5s
-      setTimeout(() => {
-        this.endBattle({ result: 'completed', winner: endData.winner });
-      }, 5000);
+showBattleEndMessage(winnerData) {
+  console.log('🎁 [BattleScene] Affichage message de fin avec récompenses');
+  
+  // ✅ CONSTRUIRE LE MESSAGE COMPLET
+  let fullMessage = winnerData.message;
+  
+  // ✅ AJOUTER LES RÉCOMPENSES (simulées pour l'instant)
+  if (winnerData.winner === 'player1') {
+    const rewards = this.calculateBattleRewards();
+    fullMessage += '\n\n🎁 Récompenses :';
+    
+    if (rewards.experience > 0) {
+      fullMessage += `\n🌟 +${rewards.experience} XP`;
     }
     
-    createEndBattleButton() {
-      const buttonContainer = this.add.container(0, 100);
-      
-      // Background bouton
-      const bg = this.add.graphics();
-      bg.fillStyle(0x4A90E2, 0.8);
-      bg.fillRoundedRect(-80, -20, 160, 40, 12);
-      bg.lineStyle(2, 0xFFFFFF, 0.8);
-      bg.strokeRoundedRect(-80, -20, 160, 40, 12);
-      
-      // Texte bouton
-      const text = this.add.text(0, 0, 'Continuer', {
-        fontSize: '18px',
-        fontFamily: 'Arial Black, sans-serif',
-        color: '#FFFFFF',
-        fontWeight: 'bold'
-      });
-      text.setOrigin(0.5);
-      
-      buttonContainer.add([bg, text]);
-      buttonContainer.setSize(160, 40);
-      buttonContainer.setInteractive();
-      
-      // Hover effect
-      buttonContainer.on('pointerover', () => {
-        bg.clear();
-        bg.fillStyle(0x4A90E2, 1);
-        bg.fillRoundedRect(-80, -20, 160, 40, 12);
-        bg.lineStyle(3, 0xFFD700, 1);
-        bg.strokeRoundedRect(-80, -20, 160, 40, 12);
-      });
-      
-      buttonContainer.on('pointerout', () => {
-        bg.clear();
-        bg.fillStyle(0x4A90E2, 0.8);
-        bg.fillRoundedRect(-80, -20, 160, 40, 12);
-        bg.lineStyle(2, 0xFFFFFF, 0.8);
-        bg.strokeRoundedRect(-80, -20, 160, 40, 12);
-      });
-      
-      // Action clic
-      buttonContainer.on('pointerdown', () => {
-        this.endBattle({ result: 'manual_continue' });
-      });
-      
-      return buttonContainer;
+    if (rewards.money > 0) {
+      fullMessage += `\n💰 +${rewards.money}₽`;
     }
+    
+    if (rewards.items && rewards.items.length > 0) {
+      rewards.items.forEach(item => {
+        fullMessage += `\n📦 ${item.name} x${item.quantity}`;
+      });
+    }
+  }
+  
+  // ✅ AFFICHER DANS LE CADRE D'ACTION EXISTANT
+  this.showActionMessage(fullMessage);
+  
+  // ✅ EFFET VISUEL SPÉCIAL POUR LA VICTOIRE
+  if (winnerData.winner === 'player1') {
+    this.createVictoryEffect();
+  }
+}
+
+calculateBattleRewards() {
+  // ✅ CALCUL SIMPLE DES RÉCOMPENSES (à remplacer par les vraies données serveur)
+  const opponentLevel = this.currentOpponentPokemon?.level || 5;
+  
+  return {
+    experience: Math.floor(opponentLevel * 10 + Math.random() * 20),
+    money: Math.floor(opponentLevel * 15 + Math.random() * 50),
+    items: Math.random() > 0.7 ? [
+      { name: 'Potion', quantity: 1 }
+    ] : []
+  };
+}
+
+createVictoryEffect() {
+  // ✅ EFFET VISUEL LÉGER POUR LA VICTOIRE
+  const { width, height } = this.cameras.main;
+  
+  // Créer des étoiles qui tombent
+  for (let i = 0; i < 8; i++) {
+    setTimeout(() => {
+      const star = this.add.text(
+        Math.random() * width, 
+        -50, 
+        '⭐', 
+        { fontSize: '24px' }
+      );
+      star.setDepth(150);
+      
+      this.tweens.add({
+        targets: star,
+        y: height + 50,
+        x: star.x + (Math.random() - 0.5) * 100,
+        rotation: Math.PI * 4,
+        alpha: 0,
+        duration: 3000,
+        ease: 'Power2.easeIn',
+        onComplete: () => star.destroy()
+      });
+    }, i * 300);
+  }
+}
+
   // === DESTRUCTION ===
 
   destroy() {
