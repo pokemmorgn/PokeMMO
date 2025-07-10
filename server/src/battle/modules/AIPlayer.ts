@@ -85,11 +85,18 @@ export class AIPlayer {
   /**
    * Calcule le délai de réflexion de l'IA
    */
-  getThinkingDelay(): number {
-    const delay = getRandomAIDelay();
-    console.log(`🤔 [AIPlayer] Temps de réflexion: ${delay}ms`);
-    return delay;
+getThinkingDelay(): number {
+  // Combat sauvage : pas de délai de réflexion
+  if (this.gameState?.type === 'wild') {
+    console.log(`🌿 [AIPlayer] Combat sauvage - Pas de réflexion (0ms)`);
+    return 0;
   }
+  
+  // Combat dresseur : délai de réflexion normal
+  const delay = getRandomAIDelay();
+  console.log(`🤔 [AIPlayer] Combat dresseur - Temps de réflexion: ${delay}ms`);
+  return delay;
+}
   
   // === CHOIX D'ACTIONS ===
   
