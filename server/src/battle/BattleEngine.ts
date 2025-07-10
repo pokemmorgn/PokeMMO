@@ -8,7 +8,7 @@ import { BattleEndManager } from './modules/BattleEndManager';
 import { CaptureManager } from './modules/CaptureManager';
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule, TurnPlayer, PlayerRole } from './types/BattleTypes';
 
-import { BroadcastManager } from './modules/broadcast/BroadcastManager';
+import { BroadcastManager } from './modules/BroadcastManager';
 import { BroadcastManagerFactory } from './modules/broadcast/BroadcastManagerFactory';
 import { SpectatorManager } from './modules/broadcast/SpectatorManager';
 
