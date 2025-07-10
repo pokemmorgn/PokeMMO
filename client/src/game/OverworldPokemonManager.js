@@ -591,47 +591,50 @@ pokemon.anims.play(idleAnimKey, false); // ← false = pas de restart si déjà 
         const elapsed = now - pokemon.moveStartTime;
         const progress = Math.min(elapsed / pokemon.moveDuration, 1.0);
         
-        if (progress >= 1.0) {
-          // ✅ MOUVEMENT TERMINÉ
-          if (pokemon.alternativePath && pokemon.alternativePath.length > 1) {
-            // Passer au point suivant du chemin alternatif
-            pokemon.alternativePath.shift();
-            const nextPoint = pokemon.alternativePath[0];
-            pokemon.x = pokemon.targetX;
-            pokemon.y = pokemon.targetY;
-            pokemon.targetX = nextPoint.x;
-            pokemon.targetY = nextPoint.y;
-            pokemon.moveStartTime = now;
-            console.log(`🔄 [OverworldPokemonManager] ${pokemon.name} suit chemin alternatif vers (${nextPoint.x}, ${nextPoint.y})`);
-          } else {
-            // Fin du mouvement
-            pokemon.x = pokemon.targetX;
-            pokemon.y = pokemon.targetY;
-            pokemon.isInterpolating = false;
-            pokemon.alternativePath = null;
-            console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} a terminé son mouvement à (${pokemon.targetX}, ${pokemon.targetY})`);
-          }
-        } else {
-          // ✅ INTERPOLATION EN COURS
-          const easeProgress = this.easeInOutCubic(progress);
-          
-          const startX = pokemon.serverX || pokemon.x;
-          const startY = pokemon.serverY || pokemon.y;
-          
-          const newX = startX + (pokemon.targetX - startX) * easeProgress;
-          const newY = startY + (pokemon.targetY - startY) * easeProgress;
-          
-          // ✅ VÉRIFICATION FINALE AVANT DÉPLACEMENT
-          if (!this.scene.collisionManager || this.scene.collisionManager.canMoveTo(newX, newY)) {
-            pokemon.x = newX;
-            pokemon.y = newY;
-          } else {
-            // Collision détectée, arrêter le mouvement
-            pokemon.isInterpolating = false;
-            pokemon.stuckCounter = (pokemon.stuckCounter || 0) + 1;
-            console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} collision finale à (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
-          }
-        }
+if (progress >= 1.0) {
+  // ✅ MOUVEMENT TERMINÉ
+  if (pokemon.alternativePath && pokemon.alternativePath.length > 1) {
+    // Passer au point suivant du chemin alternatif
+    pokemon.alternativePath.shift();
+    const nextPoint = pokemon.alternativePath[0];
+    pokemon.x = pokemon.targetX;
+    pokemon.y = pokemon.targetY;
+    pokemon.setPosition(pokemon.targetX, pokemon.targetY); // ← AJOUTER
+    pokemon.targetX = nextPoint.x;
+    pokemon.targetY = nextPoint.y;
+    pokemon.moveStartTime = now;
+    console.log(`🔄 [OverworldPokemonManager] ${pokemon.name} suit chemin alternatif vers (${nextPoint.x}, ${nextPoint.y})`);
+  } else {
+    // Fin du mouvement
+    pokemon.x = pokemon.targetX;
+    pokemon.y = pokemon.targetY;
+    pokemon.setPosition(pokemon.targetX, pokemon.targetY); // ← AJOUTER
+    pokemon.isInterpolating = false;
+    pokemon.alternativePath = null;
+    console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} a terminé son mouvement à (${pokemon.targetX}, ${pokemon.targetY})`);
+  }
+} else {
+  // ✅ INTERPOLATION EN COURS
+  const easeProgress = this.easeInOutCubic(progress);
+  
+  const startX = pokemon.serverX || pokemon.x;
+  const startY = pokemon.serverY || pokemon.y;
+  
+  const newX = startX + (pokemon.targetX - startX) * easeProgress;
+  const newY = startY + (pokemon.targetY - startY) * easeProgress;
+  
+  // ✅ VÉRIFICATION FINALE AVANT DÉPLACEMENT
+  if (!this.scene.collisionManager || this.scene.collisionManager.canMoveTo(newX, newY)) {
+    pokemon.x = newX;
+    pokemon.y = newY;
+    pokemon.setPosition(newX, newY); // ← AJOUTER CETTE LIGNE CRITIQUE
+  } else {
+    // Collision détectée, arrêter le mouvement
+    pokemon.isInterpolating = false;
+    pokemon.stuckCounter = (pokemon.stuckCounter || 0) + 1;
+    console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} collision finale à (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
+  }
+}
       } else if (!pokemon.isMoving) {
         // ✅ POKEMON IMMOBILE - SYNCHRONISATION DOUCE
         const dx = pokemon.serverX - pokemon.x;
