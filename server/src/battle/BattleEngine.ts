@@ -297,7 +297,7 @@ export class BattleEngine {
     
     if (allActions.length === 0) {
       console.log('⚠️ [BattleEngine] Aucune action à résoudre');
-      this.transitionToPhase(BattlePhase.ACTION_SELECTION, 'no_actions');
+      this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'no_actions');
       return;
     }
     
@@ -640,6 +640,49 @@ export class BattleEngine {
     }
   }
   
+  // === COMPATIBILITÉ BATTLEROOM ===
+  
+  /**
+   * Alias pour submitAction (compatibilité BattleRoom)
+   */
+  async processAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
+    return await this.submitAction(action, teamManager);
+  }
+  
+  /**
+   * Génère une action IA (compatibilité BattleRoom)
+   */
+  generateAIAction(): BattleAction | null {
+    console.log('🤖 [BattleEngine] Génération action IA via méthode legacy');
+    
+    if (!this.isInitialized) {
+      console.error('❌ [BattleEngine] Combat non initialisé pour IA');
+      return null;
+    }
+    
+    if (this.getCurrentPhase() !== InternalBattlePhase.ACTION_SELECTION) {
+      console.log('⏳ [BattleEngine] IA en attente de phase ACTION_SELECTION');
+      return null;
+    }
+    
+    const aiAction = this.aiPlayer.generateAction();
+    
+    if (aiAction) {
+      console.log(`🤖 [BattleEngine] Action IA générée: ${aiAction.type}`);
+    } else {
+      console.error('❌ [BattleEngine] Échec génération action IA');
+    }
+    
+    return aiAction;
+  }
+  
+  /**
+   * Récupère le délai de réflexion IA (compatibilité BattleRoom)
+   */
+  getAIThinkingDelay(): number {
+    return this.getAIDelay();
+  }
+  
   // === GETTERS ===
   
   getCurrentState(): BattleGameState {
@@ -856,7 +899,7 @@ export class BattleEngine {
       
       // Statistiques modules
       moduleStats: {
-        phaseManager: this.phaseManager.getStats(),
+        phaseManager: this.phaseManager.getPhaseStats(),
         actionQueue: this.actionQueue.getStats(),
         actionProcessor: this.actionProcessor.isReady(),
         aiPlayer: this.aiPlayer.getStats(),
