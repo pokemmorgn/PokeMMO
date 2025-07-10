@@ -632,6 +632,7 @@ createBattleInventoryUI() {
         break;
       case 'bag':
         if (!this.battleInventoryUI) {
+          this.hideActionButtons();
           this.createBattleInventoryUI();
         }
         
