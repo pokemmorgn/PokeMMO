@@ -184,23 +184,27 @@ export class BattleEngine {
     console.log(`✅ [BattleEngine] Nouvelle phase Pokémon: ${newPhase}`);
     
     // Logique spécifique selon la nouvelle phase
-    switch (newPhase) {
-      case InternalBattlePhase.ACTION_SELECTION:
-        this.handleActionSelectionPhase();
-        break;
-        
-      case InternalBattlePhase.ACTION_RESOLUTION:
-        this.handleActionResolutionPhase();
-        break;
-        
-      case InternalBattlePhase.CAPTURE:
-        // Géré directement dans submitAction
-        break;
-        
-      case InternalBattlePhase.ENDED:
-        this.handleEndedPhase();
-        break;
-    }
+switch (newPhase) {
+  case InternalBattlePhase.ACTION_SELECTION:
+    this.handleActionSelectionPhase();
+    break;
+    
+  case InternalBattlePhase.ACTION_RESOLUTION:
+    this.handleActionResolutionPhase();
+    break;
+    
+  case InternalBattlePhase.POKEMON_FAINTED:  // 🆕
+    // Géré directement dans handlePokemonFainted
+    break;
+    
+  case InternalBattlePhase.CAPTURE:
+    // Géré directement dans submitAction
+    break;
+    
+  case InternalBattlePhase.ENDED:
+    this.handleEndedPhase();
+    break;
+}
     
     // Émettre événement de changement de phase
     this.emit('phaseChanged', {
@@ -433,6 +437,98 @@ private async executeFullAttackerAction(): Promise<void> {
   });
   
   console.log(`✅ [BattleEngine] Phase complète de ${pokemon.name} terminée avec timing authentique`);
+}
+
+  /**
+ * 🆕 Gère la phase POKEMON_FAINTED comme dans Pokémon Rouge/Bleu
+ */
+private async handlePokemonFainted(faintedRole: 'player1' | 'player2', pokemonName: string): Promise<void> {
+  console.log(`💀 [BattleEngine] === PHASE POKEMON_FAINTED === ${pokemonName}`);
+  
+  // 1. Transition vers la phase POKEMON_FAINTED
+  this.transitionToPhase(InternalBattlePhase.POKEMON_FAINTED, 'pokemon_knocked_out');
+  
+  // 2. Émettre événement spécifique
+  this.emit('pokemonFaintedPhase', {
+    faintedRole: faintedRole,
+    pokemonName: pokemonName,
+    gameState: this.gameState,
+    message: `${pokemonName} est mis K.O. !`
+  });
+  
+  // 3. Attendre pour l'effet dramatique (comme les vrais jeux)
+  await this.delay(2500); // 2.5 secondes comme Pokémon authentique
+  
+  // 4. Vérifier fin de combat
+  const battleEndCheck = this.checkBattleEnd();
+  if (battleEndCheck.isEnded) {
+    console.log(`🏁 [BattleEngine] Combat terminé après K.O.: ${battleEndCheck.reason}`);
+    this.gameState.isEnded = true;
+    this.gameState.winner = battleEndCheck.winner;
+    this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
+    return;
+  }
+  
+  // 5. Si combat continue, gérer la suite selon le type
+  await this.handlePostFaintedLogic(faintedRole);
+}
+
+/**
+ * 🆕 Logique après K.O. selon le type de combat
+ */
+private async handlePostFaintedLogic(faintedRole: 'player1' | 'player2'): Promise<void> {
+  console.log(`🔄 [BattleEngine] Logique post-K.O. pour ${faintedRole}`);
+  
+  if (this.gameState.type === 'wild') {
+    // Combat sauvage : seulement expérience
+    await this.handleWildBattleExperience(faintedRole);
+    
+    // Retour à la sélection d'action
+    this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'post_fainted_continue');
+    
+  } else if (this.gameState.type === 'trainer' || this.gameState.type === 'pvp') {
+    // TODO: Combat dresseur - choix du prochain Pokémon
+    console.log(`🔮 [BattleEngine] Combat dresseur pas encore implémenté`);
+    this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'post_fainted_continue');
+  }
+}
+
+/**
+ * 🆕 Gestion expérience combat sauvage
+ */
+private async handleWildBattleExperience(faintedRole: 'player1' | 'player2'): Promise<void> {
+  console.log(`🌟 [BattleEngine] Calcul expérience combat sauvage`);
+  
+  // Déterminer qui gagne l'expérience
+  if (faintedRole === 'player2') {
+    // Le joueur a gagné contre le sauvage
+    const winnerPokemon = this.gameState.player1.pokemon;
+    const loserPokemon = this.gameState.player2.pokemon;
+    
+    if (winnerPokemon && loserPokemon) {
+      // TODO: Calculer et donner l'expérience
+      const expGained = this.calculateExperience(winnerPokemon, loserPokemon);
+      
+      this.emit('experienceGained', {
+        pokemon: winnerPokemon,
+        experience: expGained,
+        source: 'wild_victory'
+      });
+      
+      console.log(`🌟 [BattleEngine] ${winnerPokemon.name} gagne ${expGained} EXP !`);
+    }
+  }
+  // Si player1 fainted, pas d'expérience (défaite)
+}
+
+/**
+ * 🆕 Calcul d'expérience simple (à améliorer plus tard)
+ */
+private calculateExperience(winner: Pokemon, loser: Pokemon): number {
+  // Formule très simple pour commencer
+  const baseExp = loser.level * 15;
+  const levelDiff = Math.max(1, loser.level - winner.level + 5);
+  return Math.floor(baseExp * levelDiff / 10);
 }
   
   /**
