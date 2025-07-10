@@ -103,9 +103,10 @@ export class PhaseManager {
     this.phaseStartTime = Date.now();
     this.isTransitioning = false;
     
-    // Mettre à jour l'état du jeu
+    // Mettre à jour l'état du jeu avec le bon type
     if (this.gameState) {
-      this.gameState.phase = this.mapPhaseToGameState(newPhase);
+      const gameStatePhase = this.mapPhaseToGameState(newPhase);
+      (this.gameState as any).phase = gameStatePhase;
     }
     
     return true;
@@ -359,7 +360,7 @@ export class PhaseManager {
   /**
    * Mappe les phases internes vers l'état du jeu
    */
-  private mapPhaseToGameState(phase: BattlePhase): string {
+  private mapPhaseToGameState(phase: BattlePhase): 'waiting' | 'battle' | 'ended' | 'fled' {
     switch (phase) {
       case BattlePhase.INTRO:
       case BattlePhase.ACTION_SELECTION:
