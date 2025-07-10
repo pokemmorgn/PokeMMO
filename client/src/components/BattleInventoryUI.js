@@ -754,23 +754,43 @@ export class BattleInventoryUI extends InventoryUI {
 
   // === NOUVEAU: ACTIONS SPÉCIALISÉES ===
   
-  handleCapture(ballItem) {
-    console.log(`🎯 Tentative capture avec: ${ballItem.itemId}`);
+// REMPLACER cette méthode dans BattleInventoryUI.js
+handleCapture(ballItem) {
+  console.log(`🎯 Tentative capture avec: ${ballItem.itemId}`);
+  
+  // ✅ NOUVEAU: Utiliser le CaptureManager au lieu du NetworkHandler direct
+  if (this.battleContext.captureManager) {
+    // Récupérer le sprite du Pokémon adversaire
+    const targetPokemon = this.battleContext.battleScene?.opponentPokemonSprite;
     
-    if (this.battleContext.networkHandler) {
-      // ✅ Appel méthode serveur
-      this.battleContext.networkHandler.attemptCapture(ballItem.itemId);
-      
-      // ✅ Feedback immédiat
-      if (this.battleContext.battleScene) {
-        this.battleContext.battleScene.showActionMessage(
-          `Lancement d'une ${this.getItemName(ballItem.itemId)}...`
-        );
-      }
-    } else {
-      console.error('❌ NetworkHandler manquant pour capture');
+    if (!targetPokemon) {
+      console.error('❌ Sprite Pokémon adversaire non trouvé');
+      return;
     }
+    
+    // ✅ Lancer l'animation de capture immédiatement
+    this.battleContext.captureManager.attemptCapture(ballItem.itemId, targetPokemon);
+    
+    // ✅ Message immédiat pendant l'animation
+    if (this.battleContext.battleScene) {
+      // Le CaptureManager gère déjà le message de lancer
+      console.log('🎬 Animation de capture démarrée');
+    }
+    
+  } else if (this.battleContext.networkHandler) {
+    // ✅ FALLBACK: Ancienne méthode si CaptureManager pas disponible
+    console.warn('⚠️ CaptureManager non disponible, utilisation méthode legacy');
+    this.battleContext.networkHandler.attemptCapture(ballItem.itemId);
+    
+    if (this.battleContext.battleScene) {
+      this.battleContext.battleScene.showActionMessage(
+        `Lancement d'une ${this.getItemName(ballItem.itemId)}...`
+      );
+    }
+  } else {
+    console.error('❌ Ni CaptureManager ni NetworkHandler disponible');
   }
+}
 
   handleHeal(medicineItem) {
     console.log(`💊 Utilisation soin: ${medicineItem.itemId}`);
