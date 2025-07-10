@@ -1774,9 +1774,7 @@ processLegacyEventsServerDriven(events) {
     
     super.destroy();
   }
-}
-
-// === DIAGNOSTIC COMPLET DES BARRES DE VIE ===
+  // === DIAGNOSTIC COMPLET DES BARRES DE VIE ===
 // À ajouter dans BattleScene.js pour diagnostiquer le problème
 
 // 🔍 ÉTAPE 1: Fonction de diagnostic complète
@@ -2014,7 +2012,7 @@ window.forceBattleHealthBars = function() {
   }
   return battleScene.forceCreateHealthBars();
 };
-
+}
 // === FONCTIONS GLOBALES DE TEST ===
 
 window.testModernBattle = function() {
