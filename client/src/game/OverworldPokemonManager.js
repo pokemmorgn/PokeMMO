@@ -237,8 +237,9 @@ export class OverworldPokemonManager {
               key: spriteKey,
               frame: baseFrame
             }],
-            frameRate: 1,
-            repeat: 0
+frameRate: 1,
+repeat: 0,
+duration: 1000
           });
         }
         
@@ -482,7 +483,7 @@ export class OverworldPokemonManager {
         const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
         const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${idleDirection}`;
         if (this.scene.anims.exists(idleAnimKey)) {
-          pokemon.anims.play(idleAnimKey, true);
+pokemon.anims.play(idleAnimKey, false); // ← false = pas de restart si déjà en cours
           console.log(`🏃‍♂️ [OverworldPokemonManager] Animation idle: ${idleAnimKey}`);
         }
       }
