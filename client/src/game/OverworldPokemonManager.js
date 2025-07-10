@@ -91,33 +91,6 @@ detectSpriteStructure(width, height) {
  * ✅ CALCUL DE SCORE INTELLIGENT basé sur les exemples réels
  */
 calculateStructureScore(cols, rows, frameWidth, frameHeight) {
-  let score = 100;
-  
-  // ✅ BONUS ÉNORME pour 8 rangées
-  if (rows === 8) score += 200;
-  
-  // ✅ BONUS pour toutes les colonnes raisonnables
-  if (cols >= 3 && cols <= 8) score += 100;
-  
-  // ✅ BONUS pour tailles frame raisonnables (élargi)
-  if (frameWidth >= 20 && frameWidth <= 60) score += 50;
-  if (frameHeight >= 20 && frameHeight <= 60) score += 50;
-  
-  // ✅ BONUS aspect ratio plus permissif
-  const aspectRatio = frameWidth / frameHeight;
-  if (aspectRatio >= 0.6 && aspectRatio <= 1.6) score += 50;
-  
-  // ✅ MALUS seulement pour trucs vraiment bizarres
-  if (cols > 12 || rows > 12) score -= 100;
-  if (frameWidth < 16 || frameHeight < 16) score -= 200;
-  
-  return score;
-}
-
-/**
- * ✅ Trouve un exemple correspondant pour debug
- */
-calculateStructureScore(cols, rows, frameWidth, frameHeight) {
   let score = 100; // Score de base
   
   // ✅ BONUS ÉNORME pour correspondances exactes avec tes exemples
@@ -151,6 +124,44 @@ calculateStructureScore(cols, rows, frameWidth, frameHeight) {
   if (frameWidth < 16 || frameHeight < 16) score -= 200;
   
   return score;
+}
+
+/**
+ * ✅ Trouve un exemple correspondant pour debug
+ */
+getExampleMatch(cols, rows, frameWidth, frameHeight) {
+  if (cols === 7 && rows === 8 && frameWidth >= 46 && frameWidth <= 50) return 'Type Rattata';
+  if (cols === 5 && rows === 8 && frameWidth >= 30 && frameWidth <= 34) return 'Type Roucool';
+  if (cols === 4 && rows === 8 && frameWidth >= 22 && frameWidth <= 26) return 'Type Miaouss';
+  if (cols === 4 && rows === 8 && frameWidth >= 38 && frameWidth <= 42) return 'Type Dracaufeu';
+  
+  if (rows === 8) return 'Standard Walk';
+  if (rows === 1) return 'Standard Swing';
+  
+  return 'Configuration inconnue';
+}
+
+/**
+ * ✅ Structure fallback intelligente
+ */
+createFallbackStructure(width, height) {
+  console.log(`🆘 [OverworldPokemonManager] Création fallback pour ${width}×${height}`);
+  
+  // Estimer 8 rangées par défaut, calculer colonnes
+  const estimatedRows = 8;
+  const estimatedCols = Math.round(width / 40); // Taille moyenne frame
+  const frameWidth = Math.floor(width / estimatedCols);
+  const frameHeight = Math.floor(height / estimatedRows);
+  
+  return {
+    cols: estimatedCols,
+    rows: estimatedRows,
+    frameWidth: frameWidth,
+    frameHeight: frameHeight,
+    totalFrames: estimatedCols * estimatedRows,
+    score: 0,
+    name: `${estimatedCols}x${estimatedRows} fallback`
+  };
 }
   
   /**
@@ -1858,4 +1869,3 @@ const structure = this.detectSpriteStructure(width, height);
 if (typeof window !== 'undefined' && window.location?.hostname === 'localhost') {
  console.log(`🔧 Mode développement détecté - debug automatique activé`);
 }
-
