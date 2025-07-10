@@ -754,7 +754,7 @@ export class OverworldPokemonManager {
     }
   }
   // Répondre au serveur
-  this.scene.network.send('overworldPokemonSpawnResponse', {
+this.scene.networkManager.room.send('overworldPokemonSpawnResponse', {
     ...data,
     success: found,
     x: pos.x,
