@@ -536,6 +536,9 @@ export class ZoneManager {
   getQuestManager(): QuestManager {
     return this.questManager;
   }
+  getSpectatorManager(): SpectatorManager {
+  return this.spectatorManager;
+}
   getShopManager(): ShopManager {
     return this.shopManager;
   }
