@@ -1273,7 +1273,7 @@ const frameHeight = height;
       console.log('⚔️ [BattleScene] moveUsed - FAIT TOUT:', data);
       
       // ✅ 1. MESSAGE
-      const message = `${data.attackerName} utilise ${data.moveName} ! AHAHAH`;
+      const message = `${data.attackerName} utilise ${data.moveName} !`;
       this.showActionMessage(message);
       
       // ✅ 2. ANIMATION
