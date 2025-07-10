@@ -172,52 +172,98 @@ export class BattleCaptureManager {
     });
   }
   
-  // === CRÉATION SPRITES ===
+  // === CRÉATION SPRITES AUTHENTIQUES ===
   
   createBallSprite(ballType) {
-    // Pour le moment, sprite simple - à améliorer avec vraies textures
-    this.ballSprite = this.battleScene.add.circle(
-      this.ballStartPosition.x,
-      this.ballStartPosition.y,
-      12,
-      this.getBallColor(ballType)
-    );
+    // ✅ Créer une vraie Pokéball avec graphics
+    this.ballSprite = this.battleScene.add.graphics();
+    this.ballSprite.setPosition(this.ballStartPosition.x, this.ballStartPosition.y);
+    this.ballSprite.setDepth(1000);
     
-    this.ballSprite.setStroke(0x000000, 2);
-    this.ballSprite.setDepth(100);
+    // Dessiner la Pokéball réaliste
+    this.drawPokeball(this.ballSprite, 0, 0, 25, ballType);
     
-    // Ajouter indicateur de type de Ball
-    const ballText = this.battleScene.add.text(
-      this.ballStartPosition.x,
-      this.ballStartPosition.y - 20,
-      this.getBallDisplayName(ballType),
-      {
-        fontSize: '10px',
-        fontFamily: 'Arial',
-        color: '#FFFFFF',
-        stroke: '#000000',
-        strokeThickness: 1
-      }
-    );
-    ballText.setOrigin(0.5);
-    ballText.setDepth(101);
-    
-    this.captureEffects.push(ballText);
-    
-    console.log(`🎾 [BattleCaptureManager] Sprite ${ballType} créé`);
+    console.log(`🎾 [BattleCaptureManager] Pokéball ${ballType} créée à:`, {
+      x: this.ballStartPosition.x,
+      y: this.ballStartPosition.y
+    });
   }
   
-  // === ANIMATIONS DE BASE ===
+  /**
+   * Dessine une Pokéball réaliste selon le type
+   */
+  drawPokeball(graphics, x = 0, y = 0, size = 25, ballType = 'poke_ball') {
+    graphics.clear();
+    
+    // Couleurs selon le type de Ball
+    const colors = this.getBallColors(ballType);
+    
+    // Partie supérieure 
+    graphics.fillStyle(colors.top);
+    graphics.beginPath();
+    graphics.arc(x, y, size, Math.PI, 0, true);
+    graphics.fill();
+    
+    // Partie inférieure
+    graphics.fillStyle(colors.bottom);
+    graphics.beginPath();
+    graphics.arc(x, y, size, 0, Math.PI, true);
+    graphics.fill();
+    
+    // Ligne centrale noire
+    graphics.lineStyle(3, 0x000000);
+    graphics.beginPath();
+    graphics.moveTo(x - size, y);
+    graphics.lineTo(x + size, y);
+    graphics.stroke();
+    
+    // Bouton central
+    graphics.fillStyle(colors.button);
+    graphics.fillCircle(x, y, 8);
+    graphics.lineStyle(2, 0x000000);
+    graphics.strokeCircle(x, y, 8);
+    graphics.fillStyle(0x000000);
+    graphics.fillCircle(x, y, 4);
+    
+    // Effet spécial selon le type
+    if (colors.special) {
+      graphics.lineStyle(2, colors.special, 0.6);
+      graphics.strokeCircle(x, y, size + 3);
+    }
+  }
+  
+  /**
+   * Couleurs authentiques des différentes Balls
+   */
+  getBallColors(ballType) {
+    const ballColors = {
+      'poke_ball': { top: 0xFF4444, bottom: 0xFFFFFF, button: 0xFFFFFF },
+      'great_ball': { top: 0x4444FF, bottom: 0xFFFFFF, button: 0xFFFFFF },
+      'ultra_ball': { top: 0xFFD700, bottom: 0x000000, button: 0xFFD700 },
+      'master_ball': { top: 0x9932CC, bottom: 0xFFFFFF, button: 0xFF69B4, special: 0xFFD700 },
+      'timer_ball': { top: 0xFFFFFF, bottom: 0xFF8C00, button: 0xFFFFFF },
+      'quick_ball': { top: 0x00FFFF, bottom: 0xFFFF00, button: 0xFFFFFF },
+      'dusk_ball': { top: 0x2F4F2F, bottom: 0xFF4500, button: 0x8B0000 },
+      'repeat_ball': { top: 0xFFD700, bottom: 0x4169E1, button: 0xFFFFFF },
+      'net_ball': { top: 0x00CED1, bottom: 0x000080, button: 0xFFFFFF },
+      'dive_ball': { top: 0x4169E1, bottom: 0x87CEEB, button: 0xFFFFFF },
+      'nest_ball': { top: 0x9ACD32, bottom: 0xFFD700, button: 0x8B4513 }
+    };
+    
+    return ballColors[ballType] || ballColors['poke_ball'];
+  }
+  
+  // === ANIMATIONS AUTHENTIQUES ===
   
   async startThrowAnimation() {
-    console.log('🚀 [BattleCaptureManager] Animation de lancer');
+    console.log('🚀 [BattleCaptureManager] Animation lancer authentique');
     
     if (!this.ballSprite) {
       console.error('❌ [BattleCaptureManager] Sprite Ball manquant');
       return;
     }
     
-    // Animation de lancer avec rotation
+    // Animation de lancer avec rotation authentique
     this.battleScene.tweens.add({
       targets: this.ballSprite,
       x: this.pokemonPosition.x,
@@ -229,15 +275,12 @@ export class BattleCaptureManager {
         this.handleBallContact();
       }
     });
-    
-    // Effet de trail (optionnel)
-    this.createBallTrail();
   }
   
   handleBallContact() {
     console.log('💥 [BattleCaptureManager] Contact Ball-Pokémon');
     
-    // Effet visuel de contact
+    // Effet visuel de contact authentique
     this.createContactEffect();
     
     // Attendre un court instant puis faire disparaître le Pokémon
@@ -251,7 +294,7 @@ export class BattleCaptureManager {
     
     if (!this.targetPokemonSprite) return;
     
-    // Animation de réduction et disparition
+    // Animation de réduction et disparition authentique
     this.battleScene.tweens.add({
       targets: this.targetPokemonSprite,
       scaleX: 0.1,
@@ -274,7 +317,7 @@ export class BattleCaptureManager {
     
     if (!this.ballSprite) return;
     
-    // Animation de chute avec rebond
+    // Animation de chute avec rebond authentique
     this.battleScene.tweens.add({
       targets: this.ballSprite,
       x: this.ballLandPosition.x,
@@ -283,7 +326,7 @@ export class BattleCaptureManager {
       duration: this.timings.ballFall,
       ease: 'Bounce.easeOut',
       onComplete: () => {
-        // Attendre la réponse du serveur ou commencer les secousses
+        console.log('⏳ [BattleCaptureManager] En attente réponse serveur...');
         this.waitForServerResponse();
       }
     });
@@ -373,7 +416,7 @@ export class BattleCaptureManager {
     }
   }
   
-  // === SÉQUENCES DE CAPTURE ===
+  // === SÉQUENCES DE CAPTURE AUTHENTIQUES ===
   
   async startCriticalCaptureSequence() {
     console.log('⭐ [BattleCaptureManager] CAPTURE CRITIQUE !');
@@ -385,9 +428,13 @@ export class BattleCaptureManager {
     const criticalMessage = this.getCaptureMessage('criticalCapture');
     this.showCaptureMessage(criticalMessage, 2000);
     
-    // Une seule secousse puis succès
+    // Une seule secousse puis succès (authentique)
     setTimeout(() => {
-      this.performShake(1, 1, true);
+      this.performShake(1, 1, true).then(() => {
+        setTimeout(() => {
+          this.captureSuccess();
+        }, this.timings.resultDelay);
+      });
     }, this.timings.shakeDelay);
   }
   
@@ -399,19 +446,30 @@ export class BattleCaptureManager {
     
     console.log(`🔄 [BattleCaptureManager] ${shakeCount} secousses prévues, capture: ${captured}`);
     
-    // Commencer les secousses
+    // Commencer les secousses après délai
     setTimeout(() => {
       this.startShakeSequence(shakeCount, captured);
     }, this.timings.shakeDelay);
   }
   
-  // === ANIMATIONS DE SECOUSSES ===
+  // === ANIMATIONS DE SECOUSSES AUTHENTIQUES ===
   
   async startShakeSequence(totalShakes, willSucceed) {
-    console.log(`🔄 [BattleCaptureManager] Début ${totalShakes} secousses`);
+    console.log(`🔄 [BattleCaptureManager] Début ${totalShakes} secousses authentiques`);
+    
+    // Messages de secousse authentiques traduits
+    const shakeMessages = [
+      this.getCaptureMessage('ballShake1'),
+      this.getCaptureMessage('ballShake2'), 
+      this.getCaptureMessage('ballShake3'),
+      this.getCaptureMessage('ballShake4')
+    ];
     
     for (let i = 0; i < totalShakes; i++) {
-      await this.performShake(i + 1, totalShakes, false);
+      // Afficher le message de secousse
+      this.showCaptureMessage(shakeMessages[i] || this.getCaptureMessage('ballShake1'), this.timings.shakeDuration);
+      
+      await this.performShakeAuthentic(i + 1, totalShakes);
       
       // Pause entre secousses (sauf dernière)
       if (i < totalShakes - 1) {
@@ -419,7 +477,7 @@ export class BattleCaptureManager {
       }
     }
     
-    // Délai avant résultat final
+    // Délai suspense avant résultat
     await this.delay(this.timings.resultDelay);
     
     if (willSucceed) {
@@ -429,47 +487,55 @@ export class BattleCaptureManager {
     }
   }
   
-  async performShake(shakeNumber, totalShakes, isCritical) {
-    console.log(`〰️ [BattleCaptureManager] Secousse ${shakeNumber}/${totalShakes}`);
+  /**
+   * Secousse authentique avec effets visuels améliorés
+   */
+  async performShakeAuthentic(shakeNumber, totalShakes) {
+    console.log(`〰️ [BattleCaptureManager] Secousse authentique ${shakeNumber}/${totalShakes}`);
     
     if (!this.ballSprite) return;
     
-    // Message de secousse traduit
-    const shakeMessage = this.getCaptureMessage(`ballShake${shakeNumber}`);
-    this.showCaptureMessage(shakeMessage, this.timings.shakeDuration);
-    
-    // Animation de secousse
-    const originalX = this.ballSprite.x;
-    const shakeIntensity = isCritical ? 15 : 10;
-    
     return new Promise((resolve) => {
+      const originalX = this.ballSprite.x;
+      
+      // Intensité progressive comme dans les vrais jeux
+      const intensity = 10 + (shakeNumber * 2);
+      
       this.battleScene.tweens.add({
         targets: this.ballSprite,
-        x: originalX - shakeIntensity,
-        duration: this.timings.shakeDuration / 4,
+        x: originalX - intensity,
+        duration: 120,
         ease: 'Power2.easeInOut',
         yoyo: true,
-        repeat: 3,
+        repeat: 4, // Plus de répétitions = secousses plus visibles
         onComplete: () => {
-          this.ballSprite.setX(originalX);
+          this.ballSprite.setPosition(originalX, this.ballSprite.y);
+          
+          // Effet de poussière authentique
+          this.createShakeEffectAuthentic(shakeNumber, intensity);
+          
           resolve();
         }
       });
-      
-      // Effet visuel de secousse
-      this.createShakeEffect(shakeNumber);
     });
   }
   
-  // === RÉSULTATS FINAUX ===
+  /**
+   * Ancienne méthode performShake pour compatibilité
+   */
+  async performShake(shakeNumber, totalShakes, isCritical) {
+    return this.performShakeAuthentic(shakeNumber, totalShakes);
+  }
+  
+  // === RÉSULTATS FINAUX AUTHENTIQUES ===
   
   captureSuccess() {
     console.log('🎉 [BattleCaptureManager] CAPTURE RÉUSSIE !');
     
     const pokemonName = this.currentCaptureData?.pokemonName || 'Pokémon';
     
-    // Effet de confirmation
-    this.createSuccessEffect();
+    // Effet de confirmation doré authentique
+    this.createSuccessEffectAuthentic();
     
     // Message de succès authentique traduit
     const successMessage = this.getCaptureMessage('captureSuccess', { pokemonName });
@@ -486,8 +552,8 @@ export class BattleCaptureManager {
       }, 1500);
     }
     
-    // Animation de célébration
-    this.celebrateCapture();
+    // Animation de célébration authentique
+    this.celebrateCaptureAuthentic();
     
     // Nettoyage après célébration
     setTimeout(() => {
@@ -500,8 +566,8 @@ export class BattleCaptureManager {
     
     const pokemonName = this.currentCaptureData?.pokemonName || 'Pokémon';
     
-    // Ouvrir la Ball
-    this.ballOpenAnimation();
+    // Ball s'ouvre authentique
+    this.ballOpenAnimationAuthentic();
     
     // Message d'échec traduit
     const failureMessage = this.getCaptureMessage('captureFailure', { pokemonName });
@@ -509,7 +575,7 @@ export class BattleCaptureManager {
     
     // Faire réapparaître le Pokémon
     setTimeout(() => {
-      this.pokemonEscapeAnimation();
+      this.pokemonEscapeAnimationAuthentic();
     }, 300);
     
     // Nettoyage après échec
@@ -518,44 +584,40 @@ export class BattleCaptureManager {
     }, this.timings.failureEscape);
   }
   
-  // === EFFETS VISUELS ===
-  
-  createBallTrail() {
-    // Effet de traînée derrière la Ball (simple pour commencer)
-    // TODO: Améliorer avec particules
-  }
+  // === EFFETS VISUELS AUTHENTIQUES ===
   
   createContactEffect() {
-    // Effet d'impact Ball-Pokémon
+    // Effet d'impact Ball-Pokémon authentique
     const impact = this.battleScene.add.circle(
       this.pokemonPosition.x,
       this.pokemonPosition.y,
-      20,
+      30,
       0xFFFFFF,
       0.8
     );
-    impact.setDepth(99);
+    impact.setDepth(999);
     
     this.battleScene.tweens.add({
       targets: impact,
       scaleX: 2,
       scaleY: 2,
       alpha: 0,
-      duration: 300,
+      duration: 400,
+      ease: 'Power2.easeOut',
       onComplete: () => impact.destroy()
     });
   }
   
   createAbsorptionEffect() {
-    // Effet de lumière d'aspiration
+    // Effet de lumière d'aspiration authentique
     const absorption = this.battleScene.add.circle(
       this.pokemonPosition.x,
       this.pokemonPosition.y,
-      30,
+      40,
       0x00FFFF,
       0.6
     );
-    absorption.setDepth(98);
+    absorption.setDepth(998);
     
     this.battleScene.tweens.add({
       targets: absorption,
@@ -570,122 +632,167 @@ export class BattleCaptureManager {
   
   createCriticalEffect() {
     // Effet spécial capture critique (étoiles dorées)
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 8; i++) {
       setTimeout(() => {
         const star = this.battleScene.add.text(
-          this.ballLandPosition.x + (Math.random() - 0.5) * 60,
-          this.ballLandPosition.y + (Math.random() - 0.5) * 40,
+          this.ballLandPosition.x + (Math.random() - 0.5) * 80,
+          this.ballLandPosition.y + (Math.random() - 0.5) * 60,
           '⭐',
-          { fontSize: '20px' }
+          { fontSize: '24px' }
         );
-        star.setDepth(102);
+        star.setDepth(1500);
         
         this.battleScene.tweens.add({
           targets: star,
-          y: star.y - 50,
+          y: star.y - 60,
           alpha: 0,
-          scale: 2,
-          duration: 1500,
+          scaleX: 2,
+          scaleY: 2,
+          rotation: Math.PI * 2,
+          duration: 2000,
           onComplete: () => star.destroy()
         });
-      }, i * 200);
+      }, i * 150);
     }
   }
   
-  createShakeEffect(shakeNumber) {
-    // Effet visuel pendant les secousses
-    const dust = this.battleScene.add.circle(
-      this.ballLandPosition.x + (Math.random() - 0.5) * 30,
-      this.ballLandPosition.y + 15,
-      3,
-      0x8B4513,
-      0.7
-    );
-    dust.setDepth(90);
-    
-    this.battleScene.tweens.add({
-      targets: dust,
-      y: dust.y - 20,
-      alpha: 0,
-      duration: 500,
-      onComplete: () => dust.destroy()
-    });
+  createShakeEffectAuthentic(shakeNumber, intensity) {
+    // Effet visuel pendant les secousses authentique
+    for (let j = 0; j < 5; j++) {
+      const dust = this.battleScene.add.circle(
+        this.ballLandPosition.x + (Math.random() - 0.5) * 40,
+        this.ballLandPosition.y + 25,
+        2 + Math.random() * 3,
+        0x8B4513,
+        0.8
+      );
+      dust.setDepth(990);
+      
+      this.battleScene.tweens.add({
+        targets: dust,
+        y: dust.y - 25,
+        alpha: 0,
+        scaleX: 2,
+        scaleY: 2,
+        duration: 600,
+        onComplete: () => dust.destroy()
+      });
+    }
   }
   
-  createSuccessEffect() {
-    // Effet de confirmation (flash blanc)
-    const flash = this.battleScene.add.rectangle(
+  createSuccessEffectAuthentic() {
+    // Flash de succès doré authentique
+    const successFlash = this.battleScene.add.rectangle(
       this.battleScene.cameras.main.centerX,
       this.battleScene.cameras.main.centerY,
       this.battleScene.cameras.main.width,
       this.battleScene.cameras.main.height,
-      0xFFFFFF,
-      0.8
+      0xFFD700,
+      0.7
     );
-    flash.setDepth(200);
+    successFlash.setDepth(2000);
     
     this.battleScene.tweens.add({
-      targets: flash,
+      targets: successFlash,
       alpha: 0,
-      duration: 500,
-      onComplete: () => flash.destroy()
+      duration: 800,
+      onComplete: () => successFlash.destroy()
     });
+    
+    // Étoiles de célébration
+    for (let i = 0; i < 8; i++) {
+      setTimeout(() => {
+        const star = this.battleScene.add.text(
+          this.ballLandPosition.x + (Math.random() - 0.5) * 100,
+          this.ballLandPosition.y + (Math.random() - 0.5) * 60,
+          '⭐',
+          { fontSize: '20px' }
+        );
+        star.setDepth(1500);
+        
+        this.battleScene.tweens.add({
+          targets: star,
+          y: star.y - 60,
+          alpha: 0,
+          scaleX: 2,
+          scaleY: 2,
+          rotation: Math.PI * 2,
+          duration: 2000,
+          onComplete: () => star.destroy()
+        });
+      }, i * 150);
+    }
   }
   
-  // === ANIMATIONS SPÉCIALES ===
+  // === ANIMATIONS SPÉCIALES AUTHENTIQUES ===
   
-  ballOpenAnimation() {
-    console.log('📖 [BattleCaptureManager] Ball s\'ouvre');
+  ballOpenAnimationAuthentic() {
+    console.log('📖 [BattleCaptureManager] Ball s\'ouvre authentique');
     
     if (!this.ballSprite) return;
     
-    // Animation d'ouverture (changement de couleur/forme)
-    this.ballSprite.setFillStyle(0xFF4444, 0.7);
+    // Redessiner la Ball ouverte (gris transparent)
+    this.ballSprite.clear();
+    this.ballSprite.fillStyle(0x888888, 0.5);
+    this.ballSprite.fillRect(-25, -25, 50, 50);
     
+    // Animation d'ouverture
     this.battleScene.tweens.add({
       targets: this.ballSprite,
-      scaleX: 1.3,
-      scaleY: 0.7,
-      duration: 200,
+      scaleX: 1.2,
+      scaleY: 0.8,
+      duration: 300,
+      ease: 'Power2.easeInOut',
       yoyo: true,
       onComplete: () => {
-        this.ballSprite.setFillStyle(0xCCCCCC, 0.5);
+        // Redessiner la Ball normale mais plus transparente
+        this.drawPokeball(this.ballSprite, 0, 0, 25, this.currentCaptureData?.ballType || 'poke_ball');
+        this.ballSprite.setAlpha(0.6);
       }
     });
   }
   
-  pokemonEscapeAnimation() {
-    console.log('💨 [BattleCaptureManager] Pokémon s\'échappe');
+  pokemonEscapeAnimationAuthentic() {
+    console.log('💨 [BattleCaptureManager] Pokémon s\'échappe authentique');
     
     if (!this.targetPokemonSprite) return;
     
-    // Faire réapparaître le Pokémon
+    // Faire réapparaître le Pokémon avec animation Back.easeOut
     this.targetPokemonSprite.setVisible(true);
     this.targetPokemonSprite.setScale(0.1);
     this.targetPokemonSprite.setAlpha(0.3);
     
     this.battleScene.tweens.add({
       targets: this.targetPokemonSprite,
-      scaleX: this.targetPokemonSprite.scaleX || 1,
-      scaleY: this.targetPokemonSprite.scaleY || 1,
+      scaleX: this.targetPokemonSprite.originalScaleX || 2.8,
+      scaleY: this.targetPokemonSprite.originalScaleY || 2.8,
       alpha: 1,
-      duration: 600,
-      ease: 'Back.easeOut'
+      duration: 800,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        console.log('✅ [BattleCaptureManager] Pokémon réapparu correctement');
+      }
     });
   }
   
-  celebrateCapture() {
-    console.log('🎊 [BattleCaptureManager] Célébration capture');
+  celebrateCaptureAuthentic() {
+    console.log('🎊 [BattleCaptureManager] Célébration capture authentique');
     
     if (!this.ballSprite) return;
     
-    // Animation de joie de la Ball
+    // Animation de joie de la Ball + rotation authentique
     this.battleScene.tweens.add({
       targets: this.ballSprite,
-      y: this.ballSprite.y - 20,
-      duration: 300,
+      y: this.ballSprite.y - 30,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      duration: 400,
       ease: 'Back.easeOut',
-      yoyo: true
+      yoyo: true,
+      repeat: 2,
+      onComplete: () => {
+        console.log('✅ [BattleCaptureManager] Célébration terminée');
+      }
     });
   }
   
@@ -790,12 +897,12 @@ export class BattleCaptureManager {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   
-  // === NETTOYAGE ===
+  // === NETTOYAGE AMÉLIORÉ ===
   
   cleanup() {
-    console.log('🧹 [BattleCaptureManager] Nettoyage capture');
+    console.log('🧹 [BattleCaptureManager] Nettoyage capture authentique');
     
-    // Supprimer sprites
+    // Supprimer sprite Ball (graphics)
     if (this.ballSprite) {
       this.ballSprite.destroy();
       this.ballSprite = null;
@@ -809,6 +916,14 @@ export class BattleCaptureManager {
     });
     this.captureEffects = [];
     
+    // Restaurer le Pokémon s'il était caché
+    if (this.targetPokemonSprite && !this.targetPokemonSprite.visible) {
+      this.targetPokemonSprite.setVisible(true);
+      this.targetPokemonSprite.setScale(this.targetPokemonSprite.originalScaleX || 2.8);
+      this.targetPokemonSprite.setAlpha(1);
+      console.log('🐾 [BattleCaptureManager] Pokémon restauré après nettoyage');
+    }
+    
     // Reset état
     this.isCapturing = false;
     this.currentCaptureData = null;
@@ -816,7 +931,7 @@ export class BattleCaptureManager {
     this.currentAnimationIndex = 0;
     this.targetPokemonSprite = null;
     
-    console.log('✅ [BattleCaptureManager] Nettoyage terminé');
+    console.log('✅ [BattleCaptureManager] Nettoyage authentique terminé');
   }
   
   // === API CONFIGURATION ===
