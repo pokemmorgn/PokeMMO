@@ -117,39 +117,40 @@ calculateStructureScore(cols, rows, frameWidth, frameHeight) {
 /**
  * ✅ Trouve un exemple correspondant pour debug
  */
-getExampleMatch(cols, rows, frameWidth, frameHeight) {
-  if (cols === 7 && rows === 8 && frameWidth >= 46 && frameWidth <= 50) return 'Type Rattata';
-  if (cols === 5 && rows === 8 && frameWidth >= 30 && frameWidth <= 34) return 'Type Roucool';
-  if (cols === 4 && rows === 8 && frameWidth >= 22 && frameWidth <= 26) return 'Type Miaouss';
-  if (cols === 4 && rows === 8 && frameWidth >= 38 && frameWidth <= 42) return 'Type Dracaufeu';
+calculateStructureScore(cols, rows, frameWidth, frameHeight) {
+  let score = 100; // Score de base
   
-  if (rows === 8) return 'Standard Walk';
-  if (rows === 1) return 'Standard Swing';
+  // ✅ BONUS ÉNORME pour correspondances exactes avec tes exemples
+  const examples = [
+    { cols: 7, rows: 8, frameW: 48, frameH: 40, name: 'Rattata' },   // 336x320
+    { cols: 5, rows: 8, frameW: 32, frameH: 32, name: 'Roucool' },   // 160x256  
+    { cols: 4, rows: 8, frameW: 24, frameH: 32, name: 'Miaouss' },   // 96x256
+    { cols: 4, rows: 8, frameW: 40, frameH: 48, name: 'Dracaufeu' }, // 160x384
+    { cols: 3, rows: 8, frameW: 32, frameH: 32, name: 'Chenipan' }   // 96x256
+  ];
   
-  return 'Configuration inconnue';
-}
-
-/**
- * ✅ Structure fallback intelligente
- */
-createFallbackStructure(width, height) {
-  console.log(`🆘 [OverworldPokemonManager] Création fallback pour ${width}×${height}`);
+  // Vérifier correspondance exacte avec exemples
+  const exactMatch = examples.find(ex => 
+    ex.cols === cols && ex.rows === rows && 
+    Math.abs(ex.frameW - frameWidth) <= 2 && 
+    Math.abs(ex.frameH - frameHeight) <= 2
+  );
   
-  // Estimer 8 rangées par défaut, calculer colonnes
-  const estimatedRows = 8;
-  const estimatedCols = Math.round(width / 40); // Taille moyenne frame
-  const frameWidth = Math.floor(width / estimatedCols);
-  const frameHeight = Math.floor(height / estimatedRows);
+  if (exactMatch) {
+    score += 500; // ÉNORME bonus pour correspondance exacte
+    console.log(`🎯 Correspondance exacte avec ${exactMatch.name}!`);
+    return score; // Retourner directement, c'est LE bon
+  }
   
-  return {
-    cols: estimatedCols,
-    rows: estimatedRows,
-    frameWidth: frameWidth,
-    frameHeight: frameHeight,
-    totalFrames: estimatedCols * estimatedRows,
-    score: 0,
-    name: `${estimatedCols}x${estimatedRows} fallback`
-  };
+  // ✅ BONUS pour configurations standard (mais moins que les exactes)
+  if (rows === 8) score += 50; // 8 rangées = standard
+  if (cols >= 3 && cols <= 8) score += 20;
+  
+  // ✅ MALUS pour trucs bizarres
+  if (cols > 10 || rows > 10) score -= 100;
+  if (frameWidth < 16 || frameHeight < 16) score -= 200;
+  
+  return score;
 }
   
   /**
