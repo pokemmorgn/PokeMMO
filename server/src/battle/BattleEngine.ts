@@ -337,91 +337,91 @@ export class BattleEngine {
   /**
    * ✅ POKÉMON ROUGE/BLEU: Exécute l'action COMPLÈTE d'un attaquant (message + dégâts + efficacité + K.O.)
    */
-  private async executeFullAttackerAction(): Promise<void> {
-    const { action, playerRole, pokemon } = this.currentAttackerData;
+private async executeFullAttackerAction(): Promise<void> {
+  const { action, playerRole, pokemon } = this.currentAttackerData;
+  
+  console.log(`⚔️ [BattleEngine] EXÉCUTION COMPLÈTE AVEC TIMING: ${pokemon.name} utilise ${action.data?.moveId}!`);
+  
+  // 1. Traiter l'action via ActionProcessor
+  const result = this.actionProcessor.processAction(action);
+  
+  if (!result.success) {
+    console.log(`❌ [BattleEngine] Échec action ${playerRole}: ${result.error}`);
+    return;
+  }
+  
+  // 2. ✅ POKÉMON ROUGE/BLEU AUTHENTIQUE: Séquence complète AVEC TIMING
+  if (action.type === 'attack' && result.data && this.broadcastManager) {
     
-    console.log(`⚔️ [BattleEngine] EXÉCUTION COMPLÈTE: ${pokemon.name} utilise ${action.data?.moveId}!`);
+    // ✅ ÉTAPE 1: Message d'attaque (AVEC TIMING)
+    console.log(`📢 [BattleEngine] "${this.getPlayerName(action.playerId)} utilise ${this.getMoveDisplayName(action.data.moveId)} !"`);
     
-    // 1. Traiter l'action via ActionProcessor
-    const result = this.actionProcessor.processAction(action);
-    
-    if (!result.success) {
-      console.log(`❌ [BattleEngine] Échec action ${playerRole}: ${result.error}`);
-      return;
-    }
-    
-    // 2. ✅ POKÉMON ROUGE/BLEU AUTHENTIQUE: Séquence complète
-    if (action.type === 'attack' && result.data && this.broadcastManager) {
-      
-      // ✅ ÉTAPE 1: Message d'attaque
-      console.log(`📢 [BattleEngine] "${this.getPlayerName(action.playerId)} utilise ${this.getMoveDisplayName(action.data.moveId)} !"`);
-      
-      this.broadcastManager.emit('moveUsed', {
-        attackerName: this.getPlayerName(action.playerId),
-        attackerRole: playerRole,
-        moveName: this.getMoveDisplayName(action.data.moveId),
-        moveId: action.data.moveId,
-        subPhase: this.currentSubPhase,
-        message: `${this.getPlayerName(action.playerId)} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
-      });
-      
-      // ✅ ÉTAPE 2: Dégâts (si applicable)
-      if (result.data.damage > 0) {
-        console.log(`💥 [BattleEngine] ${result.data.damage} dégâts infligés !`);
-        
-        this.broadcastManager.emit('damageDealt', {
-          targetName: result.data.defenderRole === 'player1' ? 
-            this.gameState.player1.name : 
-            this.gameState.player2.name,
-          targetRole: result.data.defenderRole,
-          damage: result.data.damage,
-          oldHp: result.data.oldHp,
-          newHp: result.data.newHp,
-          maxHp: result.data.maxHp,
-          subPhase: this.currentSubPhase,
-          isKnockedOut: result.data.isKnockedOut
-        });
-      }
-      
-      // ✅ ÉTAPE 3: Efficacité (TODO: implémenter)
-      // TODO: Calculer efficacité des types et émettre message si nécessaire
-      
-      // ✅ ÉTAPE 4: K.O. (si applicable)
-      if (result.data.isKnockedOut) {
-        const defenderName = result.data.defenderRole === 'player1' ? 
-          this.gameState.player1.pokemon!.name : 
-          this.gameState.player2.pokemon!.name;
-          
-        console.log(`💀 [BattleEngine] ${defenderName} est mis K.O. !`);
-        
-        this.broadcastManager.emit('pokemonFainted', {
-          pokemonName: defenderName,
-          targetRole: result.data.defenderRole,
-          subPhase: this.currentSubPhase,
-          message: `${defenderName} est mis K.O. !`
-        });
-      }
-      
-      // ✅ ÉTAPE 5: Émettre fin de phase d'attaquant
-      this.emit('attackerPhaseComplete', {
-        subPhase: this.currentSubPhase,
-        playerRole: playerRole,
-        pokemon: pokemon.name,
-        damageDealt: result.data.damage || 0,
-        targetKnockedOut: result.data.isKnockedOut || false
-      });
-    }
-    
-    // 3. Émettre événement d'action traitée
-    this.emit('actionProcessed', {
-      action,
-      result,
-      playerRole,
-      subPhase: this.currentSubPhase
+    await this.broadcastManager.emitTimed('moveUsed', {
+      attackerName: this.getPlayerName(action.playerId),
+      attackerRole: playerRole,
+      moveName: this.getMoveDisplayName(action.data.moveId),
+      moveId: action.data.moveId,
+      subPhase: this.currentSubPhase,
+      message: `${this.getPlayerName(action.playerId)} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
     });
     
-    console.log(`✅ [BattleEngine] Phase complète de ${pokemon.name} terminée`);
+    // ✅ ÉTAPE 2: Dégâts (AVEC TIMING)
+    if (result.data.damage > 0) {
+      console.log(`💥 [BattleEngine] ${result.data.damage} dégâts infligés !`);
+      
+      await this.broadcastManager.emitTimed('damageDealt', {
+        targetName: result.data.defenderRole === 'player1' ? 
+          this.gameState.player1.name : 
+          this.gameState.player2.name,
+        targetRole: result.data.defenderRole,
+        damage: result.data.damage,
+        oldHp: result.data.oldHp,
+        newHp: result.data.newHp,
+        maxHp: result.data.maxHp,
+        subPhase: this.currentSubPhase,
+        isKnockedOut: result.data.isKnockedOut
+      });
+    }
+    
+    // ✅ ÉTAPE 3: Efficacité (TODO: implémenter plus tard)
+    // TODO: Calculer efficacité des types et émettre message si nécessaire
+    
+    // ✅ ÉTAPE 4: K.O. (AVEC TIMING)
+    if (result.data.isKnockedOut) {
+      const defenderName = result.data.defenderRole === 'player1' ? 
+        this.gameState.player1.pokemon!.name : 
+        this.gameState.player2.pokemon!.name;
+        
+      console.log(`💀 [BattleEngine] ${defenderName} est mis K.O. !`);
+      
+      await this.broadcastManager.emitTimed('pokemonFainted', {
+        pokemonName: defenderName,
+        targetRole: result.data.defenderRole,
+        subPhase: this.currentSubPhase,
+        message: `${defenderName} est mis K.O. !`
+      });
+    }
+    
+    // ✅ ÉTAPE 5: Émettre fin de phase d'attaquant
+    this.emit('attackerPhaseComplete', {
+      subPhase: this.currentSubPhase,
+      playerRole: playerRole,
+      pokemon: pokemon.name,
+      damageDealt: result.data.damage || 0,
+      targetKnockedOut: result.data.isKnockedOut || false
+    });
   }
+  
+  // 3. Émettre événement d'action traitée
+  this.emit('actionProcessed', {
+    action,
+    result,
+    playerRole,
+    subPhase: this.currentSubPhase
+  });
+  
+  console.log(`✅ [BattleEngine] Phase complète de ${pokemon.name} terminée avec timing authentique`);
+}
   
   /**
    * ✅ POKÉMON ROUGE/BLEU: Termine la phase de résolution (tous les attaquants ont agi)
