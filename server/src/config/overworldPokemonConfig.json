@@ -31,8 +31,8 @@
           "directionChangeChance": 0.2,
           "pauseChance": 0.2,
           "animations": {
-            "idle": "Swing-Anim.png",
-            "walk": "Swing-Anim.png",
+            "idle": "Walk-Anim.png",
+            "walk": "Walk-Anim.png",
             "sleep": "Sleep-Anim.png"
           },
           "currentAnimation": "walk"
