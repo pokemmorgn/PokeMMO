@@ -1,4 +1,130 @@
-const texture = this.scene.textures.get(tempKey);
+// ================================================================================================
+// CLIENT/SRC/GAME/OVERWORLDPOKEMONMANAGER.JS - POKÉMON OVERWORLD AVEC COLLISION CLIENT
+// ================================================================================================
+
+export class OverworldPokemonManager {
+  constructor(scene) {
+    this.scene = scene;
+    this.overworldPokemon = new Map(); // pokemonId -> sprite
+    this.loadedSprites = new Set(); // Cache des sprites chargés
+    this.loadingSprites = new Set(); // Cache des sprites en cours de chargement
+    this.spriteStructures = new Map(); // Cache des structures détectées
+    
+    console.log("🌍 [OverworldPokemonManager] Initialisé avec collision côté client");
+  }
+
+  /**
+   * ✅ Détermine si une animation utilise la première rangée seulement
+   */
+  isFirstRowOnlyAnimation(animationFile) {
+    return animationFile.toLowerCase().includes('swing-anim.png');
+  }
+
+  /**
+   * Détecte automatiquement la structure du spritesheet
+   */
+  detectSpriteStructure(width, height) {
+    console.log(`🔍 [OverworldPokemonManager] Détection structure pour ${width}x${height}`);
+    
+    const possibilities = [
+      { cols: 6, rows: 8, priority: 1, name: "6x8 (standard)" },
+      { cols: 4, rows: 8, priority: 2, name: "4x8 (compact)" },
+      { cols: 8, rows: 8, priority: 3, name: "8x8 (large)" },
+      { cols: 5, rows: 8, priority: 4, name: "5x8 (medium)" },
+      { cols: 7, rows: 8, priority: 5, name: "7x8 (extended)" },
+      { cols: 9, rows: 8, priority: 1, name: "9x8 (swing)" },
+      { cols: 3, rows: 8, priority: 6, name: "3x8 (minimal)" },
+      { cols: 10, rows: 8, priority: 7, name: "10x8 (extended)" },
+      { cols: 12, rows: 8, priority: 8, name: "12x8 (full)" },
+      { cols: 3, rows: 4, priority: 9, name: "3x4 (simple)" },
+      { cols: 4, rows: 4, priority: 10, name: "4x4 (basic)" },
+      { cols: 6, rows: 4, priority: 11, name: "6x4 (medium)" },
+    ];
+
+    const validOptions = [];
+
+    possibilities.forEach(p => {
+      const frameW = width / p.cols;
+      const frameH = height / p.rows;
+      
+      if (frameW % 1 === 0 && frameH % 1 === 0) {
+        const aspectRatio = frameW / frameH;
+        const isSquareish = Math.abs(aspectRatio - 1) < 0.5;
+        const isReasonableSize = frameW >= 16 && frameW <= 128 && frameH >= 16 && frameH <= 128;
+        
+        let qualityScore = 0;
+        
+        if (isSquareish) qualityScore += 20;
+        if (isReasonableSize) qualityScore += 15;
+        if (p.rows === 8) qualityScore += 25;
+        if (p.cols > 12) qualityScore -= 10;
+        
+        validOptions.push({
+          cols: p.cols,
+          rows: p.rows,
+          frameWidth: frameW,
+          frameHeight: frameH,
+          totalFrames: p.cols * p.rows,
+          priority: p.priority,
+          qualityScore: qualityScore,
+          name: p.name,
+          aspectRatio: aspectRatio
+        });
+      }
+    });
+
+    if (validOptions.length === 0) {
+      console.warn(`⚠️ [OverworldPokemonManager] Aucune structure valide pour ${width}×${height}`);
+      return {
+        cols: Math.round(width / 32),
+        rows: 8,
+        frameWidth: Math.round(width / Math.round(width / 32)),
+        frameHeight: Math.round(height / 8),
+        name: "fallback"
+      };
+    }
+
+    validOptions.sort((a, b) => {
+      if (b.qualityScore !== a.qualityScore) {
+        return b.qualityScore - a.qualityScore;
+      }
+      return a.priority - b.priority;
+    });
+
+    const best = validOptions[0];
+    
+    console.log(`✅ [OverworldPokemonManager] Structure détectée: ${best.name}`);
+    console.log(`📊 Frames: ${best.frameWidth}x${best.frameHeight} (${best.totalFrames} total)`);
+    
+    return best;
+  }
+
+  /**
+   * Charge un sprite Pokémon avec animation spécifique
+   */
+  async loadPokemonSprite(pokemonId, animationFile = 'Walk-Anim.png') {
+    const spriteKey = `overworld_pokemon_${pokemonId}_${animationFile.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    
+    if (this.loadedSprites.has(spriteKey) || this.loadingSprites.has(spriteKey)) {
+      return spriteKey;
+    }
+    
+    this.loadingSprites.add(spriteKey);
+    
+    const paddedId = pokemonId.toString().padStart(3, '0');
+    const spritePath = `/assets/pokemon/${paddedId}/${animationFile}`;
+    
+    console.log(`🎨 [OverworldPokemonManager] Chargement sprite ${pokemonId}: ${spritePath}`);
+    
+    try {
+      const tempKey = `${spriteKey}_temp`;
+      
+      await new Promise((resolve, reject) => {
+        this.scene.load.image(tempKey, spritePath);
+        
+        this.scene.load.once('complete', () => {
+          try {
+            const texture = this.scene.textures.get(tempKey);
             if (!texture || !texture.source[0]) {
               throw new Error(`Texture ${tempKey} introuvable`);
             }
@@ -382,7 +508,6 @@ const texture = this.scene.textures.get(tempKey);
     
     const path = [];
     const stepSize = 16; // Une demi-case
-    const maxSteps = 8;
     
     // Direction principale
     const dx = toX - fromX;
@@ -1131,132 +1256,4 @@ const texture = this.scene.textures.get(tempKey);
       this.lastOptimization = Date.now();
     }
   }
-}// ================================================================================================
-// CLIENT/SRC/GAME/OVERWORLDPOKEMONMANAGER.JS - POKÉMON OVERWORLD AVEC COLLISION CLIENT
-// ================================================================================================
-
-export class OverworldPokemonManager {
-  constructor(scene) {
-    this.scene = scene;
-    this.overworldPokemon = new Map(); // pokemonId -> sprite
-    this.loadedSprites = new Set(); // Cache des sprites chargés
-    this.loadingSprites = new Set(); // Cache des sprites en cours de chargement
-    this.spriteStructures = new Map(); // Cache des structures détectées
-    
-    console.log("🌍 [OverworldPokemonManager] Initialisé avec collision côté client");
-  }
-
-  /**
-   * ✅ Détermine si une animation utilise la première rangée seulement
-   */
-  isFirstRowOnlyAnimation(animationFile) {
-    return animationFile.toLowerCase().includes('swing-anim.png');
-  }
-
-  /**
-   * Détecte automatiquement la structure du spritesheet
-   */
-  detectSpriteStructure(width, height) {
-    console.log(`🔍 [OverworldPokemonManager] Détection structure pour ${width}x${height}`);
-    
-    const possibilities = [
-      { cols: 6, rows: 8, priority: 1, name: "6x8 (standard)" },
-      { cols: 4, rows: 8, priority: 2, name: "4x8 (compact)" },
-      { cols: 8, rows: 8, priority: 3, name: "8x8 (large)" },
-      { cols: 5, rows: 8, priority: 4, name: "5x8 (medium)" },
-      { cols: 7, rows: 8, priority: 5, name: "7x8 (extended)" },
-      { cols: 9, rows: 8, priority: 1, name: "9x8 (swing)" },
-      { cols: 3, rows: 8, priority: 6, name: "3x8 (minimal)" },
-      { cols: 10, rows: 8, priority: 7, name: "10x8 (extended)" },
-      { cols: 12, rows: 8, priority: 8, name: "12x8 (full)" },
-      { cols: 3, rows: 4, priority: 9, name: "3x4 (simple)" },
-      { cols: 4, rows: 4, priority: 10, name: "4x4 (basic)" },
-      { cols: 6, rows: 4, priority: 11, name: "6x4 (medium)" },
-    ];
-
-    const validOptions = [];
-
-    possibilities.forEach(p => {
-      const frameW = width / p.cols;
-      const frameH = height / p.rows;
-      
-      if (frameW % 1 === 0 && frameH % 1 === 0) {
-        const aspectRatio = frameW / frameH;
-        const isSquareish = Math.abs(aspectRatio - 1) < 0.5;
-        const isReasonableSize = frameW >= 16 && frameW <= 128 && frameH >= 16 && frameH <= 128;
-        
-        let qualityScore = 0;
-        
-        if (isSquareish) qualityScore += 20;
-        if (isReasonableSize) qualityScore += 15;
-        if (p.rows === 8) qualityScore += 25;
-        if (p.cols > 12) qualityScore -= 10;
-        
-        validOptions.push({
-          cols: p.cols,
-          rows: p.rows,
-          frameWidth: frameW,
-          frameHeight: frameH,
-          totalFrames: p.cols * p.rows,
-          priority: p.priority,
-          qualityScore: qualityScore,
-          name: p.name,
-          aspectRatio: aspectRatio
-        });
-      }
-    });
-
-    if (validOptions.length === 0) {
-      console.warn(`⚠️ [OverworldPokemonManager] Aucune structure valide pour ${width}×${height}`);
-      return {
-        cols: Math.round(width / 32),
-        rows: 8,
-        frameWidth: Math.round(width / Math.round(width / 32)),
-        frameHeight: Math.round(height / 8),
-        name: "fallback"
-      };
-    }
-
-    validOptions.sort((a, b) => {
-      if (b.qualityScore !== a.qualityScore) {
-        return b.qualityScore - a.qualityScore;
-      }
-      return a.priority - b.priority;
-    });
-
-    const best = validOptions[0];
-    
-    console.log(`✅ [OverworldPokemonManager] Structure détectée: ${best.name}`);
-    console.log(`📊 Frames: ${best.frameWidth}x${best.frameHeight} (${best.totalFrames} total)`);
-    
-    return best;
-  }
-
-  /**
-   * Charge un sprite Pokémon avec animation spécifique
-   */
-  async loadPokemonSprite(pokemonId, animationFile = 'Walk-Anim.png') {
-    const spriteKey = `overworld_pokemon_${pokemonId}_${animationFile.replace(/[^a-zA-Z0-9]/g, '_')}`;
-    
-    if (this.loadedSprites.has(spriteKey) || this.loadingSprites.has(spriteKey)) {
-      return spriteKey;
-    }
-    
-    this.loadingSprites.add(spriteKey);
-    
-    const paddedId = pokemonId.toString().padStart(3, '0');
-    const spritePath = `/assets/pokemon/${paddedId}/${animationFile}`;
-    
-    console.log(`🎨 [OverworldPokemonManager] Chargement sprite ${pokemonId}: ${spritePath}`);
-    
-    try {
-      const tempKey = `${spriteKey}_temp`;
-      
-      await new Promise((resolve, reject) => {
-        this.scene.load.image(tempKey, spritePath);
-        
-        this.scene.load.once('complete', () => {
-          try {
-            const texture = this.scene.textures.get(tempKey);
-            if (!texture || !texture.source[0]) {
-              throw new Error(`Texture ${tempKey}
+}
