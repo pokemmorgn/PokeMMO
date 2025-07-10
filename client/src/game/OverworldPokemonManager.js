@@ -509,7 +509,7 @@ updateOverworldPokemon(pokemonData) {
   if (this.scene.anims.exists(walkAnimKey)) {
     pokemon.anims.play(walkAnimKey, true);
   }
-}
+
     
     console.log(`🎯 [${pokemon.name}] Nouvelle cible: (${targetX.toFixed(1)}, ${targetY.toFixed(1)})`);
   } else if (!isMoving) {
