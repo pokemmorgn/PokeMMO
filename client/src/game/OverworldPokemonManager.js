@@ -1822,4 +1822,3 @@ if (typeof window !== 'undefined' && window.location?.hostname === 'localhost') 
  console.log(`🔧 Mode développement détecté - debug automatique activé`);
 }
 
-export { OverworldPokemonManager };
