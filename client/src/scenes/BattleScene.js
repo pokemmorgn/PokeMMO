@@ -672,12 +672,10 @@ executePlayerAction(actionData) {
   if (actionData.type === 'move') {
     this.hideActionButtons();
     
-    // ✅ ENVOI IMMÉDIAT au serveur (pas de setTimeout)
+    // ✅ ENVOI IMMÉDIAT au serveur
     if (this.battleNetworkHandler) {
       this.battleNetworkHandler.useMove(actionData.moveId);
     }
-    
-    // Le serveur va répondre avec moveUsed dans ~1-2 secondes
   }
 }
 
@@ -1244,71 +1242,63 @@ const frameHeight = height;
     if (!this.battleNetworkHandler) return;
     
     // ✅ SIMPLIFIÉ: Action result sans gestion de timing compliquée
-this.battleNetworkHandler.on('actionResult', (data) => {
-  if (data.success && data.gameState) {
-    // Synchroniser HP (garde les setTimeout pour les animations)
-    if (data.gameState.player1?.pokemon && this.currentPlayerPokemon) {
-      this.currentPlayerPokemon.currentHp = data.gameState.player1.pokemon.currentHp;
-      this.currentPlayerPokemon.maxHp = data.gameState.player1.pokemon.maxHp;
-      setTimeout(() => {
-        this.updateModernHealthBar('player1', this.currentPlayerPokemon);
-      }, 500);
-    }
-    
-    if (data.gameState.player2?.pokemon && this.currentOpponentPokemon) {
-      this.currentOpponentPokemon.currentHp = data.gameState.player2.pokemon.currentHp;
-      this.currentOpponentPokemon.maxHp = data.gameState.player2.pokemon.maxHp;
-      setTimeout(() => {
-        this.updateModernHealthBar('player2', this.currentOpponentPokemon);
-      }, 500);
-    }
-    
-    // ✅ NOUVEAU: Événements typés du serveur (si disponibles)
-    if (data.battleEvents && data.battleEvents.length > 0) {
-      this.processBattleEventsServerDriven(data.battleEvents);
-    }
-  }
-  
-  if (!data.success) {
-    this.showActionMessage(`Erreur: ${data.error}`);
-  }
-});
+      this.battleNetworkHandler.on('actionResult', (data) => {
+        if (data.success) {
+          console.log('✅ [BattleScene] Action confirmée par le serveur');
+          
+          // ✅ JUSTE traiter les événements non-moveUsed
+          if (data.battleEvents && data.battleEvents.length > 0) {
+            this.processBattleEventsServerDriven(data.battleEvents);
+          }
+        }
+        
+        if (!data.success) {
+          this.showActionMessage(`Erreur: ${data.error}`);
+        }
+      });
 
     // === ✅ ÉVÉNEMENTS POKÉMON AUTHENTIQUES (NOUVEAU) ===
-this.battleNetworkHandler.on('moveUsed', (data) => {
-  console.log('⚔️ [BattleScene] moveUsed:', data);
-  
-  const message = `${data.attackerName} utilise ${data.moveName} ! AHAHAH`;
-  this.showActionMessage(message);
-  
-  // ✅ ANIMATION ICI (au bon moment)
-  if (data.attackerRole === 'player1') {
-    this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
-  } else {
-    this.createAttackEffect(this.opponentPokemonSprite, this.playerPokemonSprite);
-  }
-});
+    this.battleNetworkHandler.on('moveUsed', (data) => {
+      console.log('⚔️ [BattleScene] moveUsed - FAIT TOUT:', data);
+      
+      // ✅ 1. MESSAGE
+      const message = `${data.attackerName} utilise ${data.moveName} ! AHAHAH`;
+      this.showActionMessage(message);
+      
+      // ✅ 2. ANIMATION
+      if (data.attackerRole === 'player1') {
+        this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
+      } else {
+        this.createAttackEffect(this.opponentPokemonSprite, this.playerPokemonSprite);
+      }
+    });
 
-this.battleNetworkHandler.on('damageDealt', (data) => {
-  console.log('💥 [BattleScene] damageDealt:', data);
-  
-  const pokemonData = {
-    name: data.targetName || 'Pokémon',
-    currentHp: data.newHp,
-    maxHp: data.maxHp || this.getCurrentMaxHp(data.targetRole),
-    level: this.getCurrentLevel(data.targetRole)
-  };
-  
-  // ✅ BARRES DE VIE ICI (au bon moment)
-  this.updateModernHealthBar(data.targetRole, pokemonData);
-  this.createDamageEffectForRole(data.targetRole, data.damage);
-});
-
-this.battleNetworkHandler.on('pokemonFainted', (data) => {
-  console.log('💀 [BattleScene] pokemonFainted:', data);
-  const message = `${data.pokemonName} est mis K.O. !`;
-  this.showActionMessage(message);
-});
+    this.battleNetworkHandler.on('damageDealt', (data) => {
+      console.log('💥 [BattleScene] damageDealt - GÈRE LES DÉGÂTS:', data);
+      
+      // ✅ METTRE À JOUR LES HP et BARRES DE VIE
+      const pokemonData = {
+        name: data.targetName || 'Pokémon',
+        currentHp: data.newHp,
+        maxHp: data.maxHp || this.getCurrentMaxHp(data.targetRole),
+        level: this.getCurrentLevel(data.targetRole)
+      };
+      
+      // ✅ SYNCHRONISER LES DONNÉES LOCALES
+      if (data.targetRole === 'player1' && this.currentPlayerPokemon) {
+        this.currentPlayerPokemon.currentHp = data.newHp;
+        this.currentPlayerPokemon.maxHp = data.maxHp || this.currentPlayerPokemon.maxHp;
+      } else if (data.targetRole === 'player2' && this.currentOpponentPokemon) {
+        this.currentOpponentPokemon.currentHp = data.newHp;
+        this.currentOpponentPokemon.maxHp = data.maxHp || this.currentOpponentPokemon.maxHp;
+      }
+      
+      // ✅ METTRE À JOUR LES BARRES DE VIE
+      this.updateModernHealthBar(data.targetRole, pokemonData);
+      
+      // ✅ EFFET VISUEL DE DÉGÂTS
+      this.createDamageEffectForRole(data.targetRole, data.damage);
+    });
     
         // ✅ NOUVEAU: Handler pour déconnexion BattleRoom
     this.battleNetworkHandler.on('battleRoomDisconnected', (data) => {
