@@ -1829,11 +1829,7 @@ processLegacyEventsServerDriven(events) {
     // 4. Lister TOUS les enfants de la scène
     console.log('🧒 Enfants de la scène (total:', this.children.length, '):');
     this.children.list.forEach((child, index) => {
-      console.log(`  ${index}: ${child.type || 'Unknown'} - 
-        Key: ${child.texture?.key || 'N/A'} - 
-        Visible: ${child.visible} - 
-        Position: ${child.x || 'N/A'}, ${child.y || 'N/A'} - 
-        Depth: ${child.depth}`);
+      console.log(`  ${index}: ${child.type || 'Unknown'} - Key: ${child.texture?.key || 'N/A'} - Visible: ${child.visible} - Position: ${child.x || 'N/A'}, ${child.y || 'N/A'} - Depth: ${child.depth}`);
     });
     
     // 5. Vérifier les managers
@@ -1984,40 +1980,6 @@ processLegacyEventsServerDriven(events) {
     // 5. Diagnostic final
     return this.debugHealthBarsState();
   }
-
-  // 🌐 Fonctions globales pour debug depuis la console
-  static setupGlobalDebugFunctions() {
-    window.debugBattleHealthBars = function() {
-      const battleScene = window.game?.scene?.getScene('BattleScene');
-      if (!battleScene) {
-        console.error('❌ BattleScene non trouvée');
-        return null;
-      }
-      return battleScene.debugHealthBarsState();
-    };
-
-    window.testBattleHealthBars = function() {
-      const battleScene = window.game?.scene?.getScene('BattleScene');
-      if (!battleScene) {
-        console.error('❌ BattleScene non trouvée');
-        return null;
-      }
-      return battleScene.testHealthBarUpdate();
-    };
-
-    window.forceBattleHealthBars = function() {
-      const battleScene = window.game?.scene?.getScene('BattleScene');
-      if (!battleScene) {
-        console.error('❌ BattleScene non trouvée');
-        return null;
-      }
-      return battleScene.forceCreateHealthBars();
-    };
-  }
-}
-
-// Initialiser les fonctions globales
-BattleScene.setupGlobalDebugFunctions();
 }
 
 // === FONCTIONS GLOBALES DE TEST ===
