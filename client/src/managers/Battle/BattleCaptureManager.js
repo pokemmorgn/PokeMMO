@@ -23,6 +23,8 @@ import { BattleTranslator } from '../../Battle/BattleTranslator.js';
 
 export class BattleCaptureManager {
   
+  // === INITIALISATION AVEC RETRY COUNTER ===
+  
   constructor(battleScene, networkHandler, playerRole = 'player1') {
     console.log('🎯 [BattleCaptureManager] Initialisation authentique Pokémon + Traductions');
     
@@ -39,6 +41,9 @@ export class BattleCaptureManager {
     this.currentCaptureData = null;
     this.captureAnimations = [];
     this.currentAnimationIndex = 0;
+    
+    // === GESTION RÉSEAU ===
+    this.retryCount = 0; // ✅ NOUVEAU: Compteur de retry
     
     // === SPRITES DE CAPTURE ===
     this.ballSprite = null;
@@ -404,6 +409,9 @@ export class BattleCaptureManager {
   handleCaptureResult(captureData) {
     console.log('📋 [BattleCaptureManager] Traitement résultat capture:', captureData);
     
+    // ✅ RESET RETRY COUNTER
+    this.resetRetryCount();
+    
     this.currentCaptureData = captureData;
     this.captureAnimations = captureData.animations || [];
     this.currentAnimationIndex = 0;
@@ -416,21 +424,21 @@ export class BattleCaptureManager {
     }
   }
   
-  // === SÉQUENCE DE TEXTES AUTHENTIQUE POKÉMON ===
+  // === SÉQUENCE DE TEXTES AUTHENTIQUE DANS LE PANEL D'ACTION ===
   
   async startCaptureTextSequence() {
-    console.log('📖 [BattleCaptureManager] Début séquence textes authentique');
+    console.log('📖 [BattleCaptureManager] Début séquence textes dans panel d\'action');
     
-    // ✅ MASQUER L'ACTION PANEL
-    this.battleScene.hideActionButtons();
-    this.battleScene.hideActionMessage();
+    // ✅ PAS DE MASQUAGE - Utiliser le panel d'action
+    // this.battleScene.hideActionButtons(); // SUPPRIMÉ
+    // this.battleScene.hideActionMessage(); // SUPPRIMÉ
     
-    // ✅ SÉQUENCE COMPLÈTE DE TEXTES
+    // ✅ SÉQUENCE COMPLÈTE DE TEXTES DANS LE PANEL
     const ballDisplayName = this.getBallDisplayName(this.currentCaptureData?.ballType || 'poke_ball');
     const throwMessage = this.getCaptureMessage('ballThrow', { ballName: ballDisplayName });
     
     // 1. Message de lancer
-    this.showCaptureMessage(throwMessage, 1500);
+    this.showCaptureMessage(throwMessage);
     
     // Attendre que l'animation de lancer soit terminée
     await this.delay(2000);
@@ -439,7 +447,7 @@ export class BattleCaptureManager {
     if (this.currentCaptureData?.critical) {
       // Capture critique - message spécial
       const criticalMessage = this.getCaptureMessage('criticalCapture');
-      this.showCaptureMessage(criticalMessage, 2000);
+      this.showCaptureMessage(criticalMessage);
       await this.delay(2500);
     } else {
       // Secousses normales avec délais authentiques
@@ -452,7 +460,7 @@ export class BattleCaptureManager {
       ];
       
       for (let i = 0; i < shakeCount; i++) {
-        this.showCaptureMessage(shakeMessages[i], 1200);
+        this.showCaptureMessage(shakeMessages[i]);
         await this.delay(1500); // Délai entre chaque secousse
       }
       
@@ -466,7 +474,7 @@ export class BattleCaptureManager {
     if (this.currentCaptureData?.captured) {
       // Succès - "Gotcha ! Pikachu a été capturé !"
       const successMessage = this.getCaptureMessage('captureSuccess', { pokemonName });
-      this.showCaptureMessage(successMessage, 3000);
+      this.showCaptureMessage(successMessage);
       
       // Message d'ajout équipe/PC
       if (this.currentCaptureData?.addedTo) {
@@ -475,13 +483,13 @@ export class BattleCaptureManager {
             this.getCaptureMessage('addedToTeam', { pokemonName }) :
             this.getCaptureMessage('sentToPC', { pokemonName });
           
-          this.showCaptureMessage(addMessage, 2500);
+          this.showCaptureMessage(addMessage);
         }, 2000);
       }
     } else {
       // Échec - "Oh non ! Pikachu s'est échappé !"
       const failureMessage = this.getCaptureMessage('captureFailure', { pokemonName });
-      this.showCaptureMessage(failureMessage, 2000);
+      this.showCaptureMessage(failureMessage);
     }
     
     console.log('✅ [BattleCaptureManager] Séquence textes terminée');
@@ -859,16 +867,15 @@ export class BattleCaptureManager {
   showCaptureMessage(message, duration = 2000) {
     console.log(`💬 [BattleCaptureManager] Message: "${message}"`);
     
-    // ✅ UTILISER EXCLUSIVEMENT LE DIALOGUE PRINCIPAL
-    if (this.battleScene.showBattleMessage) {
-      // Masquer l'action panel pendant la capture
-      this.battleScene.hideActionButtons();
-      this.battleScene.hideActionMessage();
-      
-      // Afficher dans le dialogue principal
+    // ✅ UTILISER LE SYSTÈME D'ACTION (panel à droite)
+    if (this.battleScene.showActionMessage) {
+      // Utiliser le système d'action avec debug
+      this.battleScene.showActionMessage(message);
+    } else if (this.battleScene.showBattleMessage) {
+      // Fallback vers le dialogue principal
       this.battleScene.showBattleMessage(message, duration);
     } else {
-      // Fallback console si système non disponible
+      // Fallback console si aucun système disponible
       console.log(`📢 [Capture] ${message}`);
     }
   }
