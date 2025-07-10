@@ -323,88 +323,87 @@ export class OverworldPokemonManager {
   }
 
   private spawnPokemon(areaId: string, config: OverworldPokemonConfig): void {
-  const areaConfig = this.config.areas[areaId];
-  if (!areaConfig) return;
-  
-  const id = `overworld_${areaId}_${config.pokemonId}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-  
-  // ✅ SPAWN AVEC VALIDATION CLIENT
-  const spawnRequest = {
-    type: "OVERWORLD_POKEMON_SPAWN_REQUEST",
-    data: {
-      id,
-      pokemonId: config.pokemonId,
-      name: config.name,
-      areaId: areaId,
-      boundaries: areaConfig.boundaries,
-      direction: this.directions[Math.floor(Math.random() * this.directions.length)],
-      isShiny: config.isShiny || (Math.random() < 0.001),
-      speed: config.speed,
-      movePattern: config.movePattern,
-      patrolPoints: config.patrolPoints,
-      animations: config.animations,
-      currentAnimation: config.currentAnimation,
-      wanderRadius: config.wanderRadius || 128,
-      personality: config.personality || 'calm',
-      directionChangeChance: config.directionChangeChance || 0.15,
-      pauseChance: config.pauseChance || 0.1
+    const areaConfig = this.config.areas[areaId];
+    if (!areaConfig) return;
+    
+    const id = `overworld_${areaId}_${config.pokemonId}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    
+    // ✅ SPAWN AVEC VALIDATION CLIENT
+    const spawnRequest = {
+      type: "OVERWORLD_POKEMON_SPAWN_REQUEST",
+      data: {
+        id,
+        pokemonId: config.pokemonId,
+        name: config.name,
+        areaId: areaId,
+        boundaries: areaConfig.boundaries,
+        direction: this.directions[Math.floor(Math.random() * this.directions.length)],
+        isShiny: config.isShiny || (Math.random() < 0.001),
+        speed: config.speed,
+        movePattern: config.movePattern,
+        patrolPoints: config.patrolPoints,
+        animations: config.animations,
+        currentAnimation: config.currentAnimation,
+        wanderRadius: config.wanderRadius || 128,
+        personality: config.personality || 'calm',
+        directionChangeChance: config.directionChangeChance || 0.15,
+        pauseChance: config.pauseChance || 0.1
+      }
+    };
+    
+    // Envoyer la demande aux clients pour qu'ils trouvent une position libre
+    const clientsInZone = this.getClientsInZone(areaId);
+    if (clientsInZone.length > 0) {
+      // Demander au premier client de trouver une position libre
+      clientsInZone[0].send("overworldPokemon", spawnRequest);
     }
-  };
-  
-  // Envoyer la demande aux clients pour qu'ils trouvent une position libre
-  const clientsInZone = this.getClientsInZone(areaId);
-  if (clientsInZone.length > 0) {
-    // Demander au premier client de trouver une position libre
-    clientsInZone[0].send("overworldPokemon", spawnRequest);
   }
-}
 
   public handleClientSpawnResponse(client: any, data: any): void {
-  const { id, x, y, success } = data;
-  
-  if (!success) {
-    console.warn(`⚠️ [OverworldPokemonManager] Client n'a pas trouvé de position libre pour ${id}`);
-    return;
+    const { id, x, y, success } = data;
+    
+    if (!success) {
+      console.warn(`⚠️ [OverworldPokemonManager] Client n'a pas trouvé de position libre pour ${id}`);
+      return;
+    }
+    
+    // Créer le Pokémon avec la position validée par le client
+    const pokemon: OverworldPokemonData = {
+      id: data.id,
+      pokemonId: data.pokemonId,
+      name: data.name,
+      x: x,
+      y: y,
+      direction: data.direction,
+      isMoving: false,
+      isShiny: data.isShiny,
+      spawnTime: Date.now(),
+      lastMoveTime: Date.now(),
+      speed: data.speed,
+      movePattern: data.movePattern,
+      patrolPoints: data.patrolPoints,
+      currentPatrolIndex: 0,
+      areaId: data.areaId,
+      boundaries: data.boundaries,
+      animations: data.animations,
+      currentAnimation: data.currentAnimation,
+      targetX: x,
+      targetY: y,
+      moveStartTime: Date.now(),
+      moveDuration: 1000,
+      lastDirectionFrame: data.direction,
+      wanderRadius: data.wanderRadius,
+      wanderCenter: { x: x, y: y },
+      personality: data.personality
+    };
+    
+    this.overworldPokemon.set(id, pokemon);
+    console.log(`🐾 [OverworldPokemonManager] ${data.name} spawné à (${x.toFixed(1)}, ${y.toFixed(1)})`);
+    
+    // Broadcaster le spawn à tous les clients de la zone
+    this.broadcastPokemonSpawn(pokemon);
   }
-  
-  // Créer le Pokémon avec la position validée par le client
-  const pokemon: OverworldPokemonData = {
-    id: data.id,
-    pokemonId: data.pokemonId,
-    name: data.name,
-    x: x,
-    y: y,
-    direction: data.direction,
-    isMoving: false,
-    isShiny: data.isShiny,
-    spawnTime: Date.now(),
-    lastMoveTime: Date.now(),
-    speed: data.speed,
-    movePattern: data.movePattern,
-    patrolPoints: data.patrolPoints,
-    currentPatrolIndex: 0,
-    areaId: data.areaId,
-    boundaries: data.boundaries,
-    animations: data.animations,
-    currentAnimation: data.currentAnimation,
-    targetX: x,
-    targetY: y,
-    moveStartTime: Date.now(),
-    moveDuration: 1000,
-    lastDirectionFrame: data.direction,
-    wanderRadius: data.wanderRadius,
-    wanderCenter: { x: x, y: y },
-    personality: data.personality
-  };
-  
-  this.overworldPokemon.set(id, pokemon);
-  console.log(`🐾 [OverworldPokemonManager] ${data.name} spawné à (${x.toFixed(1)}, ${y.toFixed(1)})`);
-  
-  // Broadcaster le spawn à tous les clients de la zone
-  this.broadcastPokemonSpawn(pokemon);
-}
-}
-  }
+
   private updateAllPokemon(deltaTime: number): void {
     this.overworldPokemon.forEach((pokemon, id) => {
       this.updatePokemonMovement(pokemon, deltaTime);
