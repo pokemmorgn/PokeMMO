@@ -383,11 +383,13 @@ private configureBroadcastSystem(config: BattleConfig): void {
     this.gameState.player1.sessionId
   );
   
-  // ✅ NOUVEAU: Configurer le callback d'émission
+  //  Configurer le callback d'émission
   this.broadcastManager.setEmitCallback((event) => {
-    // Émettre vers l'ancien système pour l'instant
     this.emit('battleEvent', event);
   });
+
+    // Configurer SpectatorManager
+  this.spectatorManager = new SpectatorManager();
   
   console.log('✅ [BattleEngine] BroadcastManager créé et configuré');
 }
@@ -660,6 +662,15 @@ private cleanupSpectators(): void {
       clearTimeout(this.narrativeTimer);
       this.narrativeTimer = null;
     }
+
+    // ✅ NOUVEAU: Nettoyer les spectateurs
+  this.cleanupSpectators();
+  
+  // ✅ NOUVEAU: Nettoyer le BroadcastManager
+  if (this.broadcastManager) {
+    this.broadcastManager.cleanup();
+    this.broadcastManager = null;
+  }
     console.log('🧹 [BattleEngine] Nettoyage effectué');
   }
   
