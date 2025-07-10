@@ -352,6 +352,119 @@ export class BattleRoom extends Room<BattleState> {
       console.log(`⚔️ [BattleRoom] Combat actif, premier combattant: ${data.firstCombatant}`);
     });
 
+    // === ✅ CHANGEMENTS DE PHASE (NOUVEAU) ===
+this.battleEngine.on('phaseChanged', (data: any) => {
+  console.log(`🎭 [BattleRoom] Changement de phase: ${data.phase} (trigger: ${data.trigger})`);
+  
+  // Synchroniser le state
+  this.syncStateFromGameState();
+  
+  // Notifier tous les clients du changement de phase
+  this.broadcast('phaseChanged', {
+    phase: data.phase,
+    previousPhase: data.previousPhase,
+    canAct: data.canAct,
+    trigger: data.trigger,
+    gameState: this.getClientBattleState()
+  });
+  
+  // Gestion spécifique selon la nouvelle phase
+  switch (data.phase) {
+    case 'action_selection':
+      console.log(`🎮 [BattleRoom] Phase ACTION_SELECTION - Interface débloquée`);
+      
+      // Notifier le joueur qu'il peut agir
+      const client = this.clients.find(c => c.sessionId === this.state.player1Id);
+      if (client) {
+        client.send('canAct', { 
+          phase: 'action_selection',
+          message: "Choisissez votre action !",
+          turnNumber: this.battleGameState?.turnNumber || 1
+        });
+      }
+      break;
+      
+    case 'action_resolution':
+      console.log(`⚔️ [BattleRoom] Phase ACTION_RESOLUTION - Actions en cours`);
+      
+      this.broadcast('actionsResolving', {
+        message: "Résolution des actions...",
+        phase: 'action_resolution'
+      });
+      break;
+      
+    case 'capture':
+      console.log(`🎯 [BattleRoom] Phase CAPTURE - Tentative de capture`);
+      
+      this.broadcast('capturePhase', {
+        message: "Tentative de capture...",
+        phase: 'capture'
+      });
+      break;
+      
+    case 'ended':
+      console.log(`🏁 [BattleRoom] Phase ENDED - Combat terminé`);
+      // Le battleEnd sera géré par l'événement dédié
+      break;
+  }
+});
+
+// === ✅ SÉLECTION D'ACTION (NOUVEAU) ===
+this.battleEngine.on('actionSelectionStart', (data: any) => {
+  console.log(`🎮 [BattleRoom] Début sélection d'actions - Tour ${data.turnNumber}`);
+  
+  // Notifier tous les clients que la sélection d'actions commence
+  this.broadcast('actionSelectionStart', {
+    canAct: data.canAct,
+    turnNumber: data.turnNumber,
+    gameState: this.getClientBattleState()
+  });
+  
+  // Notifier spécifiquement le joueur qu'il peut agir
+  const client = this.clients.find(c => c.sessionId === this.state.player1Id);
+  if (client) {
+    client.send('yourTurn', { 
+      turnNumber: data.turnNumber,
+      message: "À vous de jouer !",
+      canAct: true
+    });
+  }
+});
+
+// === ✅ ACTION AJOUTÉE À LA QUEUE (NOUVEAU) ===
+this.battleEngine.on('actionQueued', (data: any) => {
+  console.log(`📥 [BattleRoom] Action ajoutée à la queue: ${data.playerRole} → ${data.actionType}`);
+  
+  this.broadcast('actionQueued', {
+    playerRole: data.playerRole,
+    actionType: data.actionType,
+    queueState: data.queueState
+  });
+});
+
+// === ✅ DÉBUT RÉSOLUTION (NOUVEAU) ===
+this.battleEngine.on('resolutionStart', (data: any) => {
+  console.log(`⚡ [BattleRoom] Début résolution - ${data.actionCount} actions par vitesse`);
+  
+  this.broadcast('resolutionStart', {
+    actionCount: data.actionCount,
+    orderPreview: data.orderPreview,
+    message: "Résolution des actions par ordre de vitesse..."
+  });
+});
+
+// === ✅ FIN RÉSOLUTION (NOUVEAU) ===
+this.battleEngine.on('resolutionComplete', (data: any) => {
+  console.log(`✅ [BattleRoom] Résolution terminée - ${data.actionsExecuted} actions exécutées`);
+  
+  this.broadcast('resolutionComplete', {
+    actionsExecuted: data.actionsExecuted,
+    battleEnded: data.battleEnded,
+    newTurnNumber: data.newTurnNumber,
+    message: "Résolution terminée !"
+  });
+});
+    
     // === CHANGEMENTS DE TOUR (Combat actif) ===
     this.battleEngine.on('turnChanged', (data: any) => {
       console.log(`🔄 [BattleRoom] Tour de combat: ${data.newPlayer} (Tour ${data.turnNumber})`);
