@@ -1,4 +1,4 @@
-// server/src/battle/modules/broadcast/BroadcastManager.ts
+// server/src/battle/modules/BroadcastManager.ts
 // SYSTÈME DE TIMING SERVER-DRIVEN POUR COMBATS POKÉMON
 
 import { BattleGameState, PlayerRole } from '../../types/BattleTypes';
