@@ -1417,15 +1417,22 @@ if (eventType === 'battleEnd') {
 
   // === TRAITEMENT DES ÉVÉNEMENTS SERVER-DRIVEN ===
 
-  processBattleEventsServerDriven(battleEvents) {
-    console.log('⚔️ [BattleScene] Traitement événements server-driven:', battleEvents);
+processBattleEventsServerDriven(battleEvents) {
+  console.log('⚔️ [BattleScene] Traitement événements server-driven:', battleEvents);
+  
+  // ✅ FILTRER LES MOVEUSED POUR ÉVITER LES DOUBLONS !
+  battleEvents.forEach((event, index) => {
     
-    // ✅ NOUVEAU: Traiter les événements IMMÉDIATEMENT
-    // Le serveur a déjà géré le timing !
-    battleEvents.forEach((event, index) => {
-      this.handleBattleEvent(event.type, event.data);
-    });
-  }
+    // 🚫 IGNORER MOVEUSED (déjà géré par handler direct)
+    if (event.type === 'moveUsed') {
+      console.log('🚫 [BattleScene] moveUsed ignoré dans processBattleEventsServerDriven');
+      return;
+    }
+    
+    // ✅ Traiter tous les autres événements normalement
+    this.handleBattleEvent(event.type, event.data);
+  });
+}
 
 
   // === HANDLERS RÉSEAU (SIMPLIFIÉS) ===
