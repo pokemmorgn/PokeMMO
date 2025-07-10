@@ -1775,9 +1775,8 @@ processLegacyEventsServerDriven(events) {
     super.destroy();
   }
 // === DIAGNOSTIC COMPLET DES BARRES DE VIE ===
-  // À ajouter dans BattleScene.js pour diagnostiquer le problème
+  // Version corrigée pour Phaser
 
-  // 🔍 ÉTAPE 1: Fonction de diagnostic complète
   debugHealthBarsState() {
     console.log('🔍 === DIAGNOSTIC COMPLET BARRES DE VIE ===');
     console.log('📍 Timestamp:', new Date().toISOString());
@@ -1788,7 +1787,8 @@ processLegacyEventsServerDriven(events) {
       isVisible: this.isVisible,
       sceneKey: this.scene.key,
       sceneVisible: this.scene.visible,
-      sceneActive: this.scene.scene.isActive()
+      sceneActive: this.scene.isActive(), // Corrigé
+      sceneAwake: !this.scene.isSleeping()
     });
     
     // 2. Vérifier l'objet modernHealthBars
@@ -1826,31 +1826,59 @@ processLegacyEventsServerDriven(events) {
       }
     });
     
-    // 4. Lister TOUS les enfants de la scène
+    // 4. Vérifier le mapping des rôles
+    console.log('🎭 Mapping des rôles:', {
+      playerRole: this.playerRole,
+      battleTranslator: !!this.battleTranslator,
+      expectedMapping: {
+        'player1 devrait mapper vers': 'player',
+        'player2 devrait mapper vers': 'opponent'
+      }
+    });
+    
+    // 5. Lister quelques enfants de la scène
     console.log('🧒 Enfants de la scène (total:', this.children.length, '):');
-    this.children.list.forEach((child, index) => {
+    const relevantChildren = this.children.list.filter(child => 
+      child.type === 'Container' || 
+      child.texture?.key?.includes('pokemon') ||
+      child.depth > 50
+    );
+    
+    relevantChildren.slice(0, 10).forEach((child, index) => {
       console.log(`  ${index}: ${child.type || 'Unknown'} - Key: ${child.texture?.key || 'N/A'} - Visible: ${child.visible} - Position: ${child.x || 'N/A'}, ${child.y || 'N/A'} - Depth: ${child.depth}`);
     });
     
-    // 5. Vérifier les managers
+    // 6. Vérifier les managers
     console.log('🏥 Managers:', {
       healthBarManager: !!this.healthBarManager,
       gameManager: !!this.gameManager,
       battleNetworkHandler: !!this.battleNetworkHandler
     });
     
-    // 6. Vérifier les événements réseau récents
-    if (this.battleNetworkHandler) {
-      console.log('📡 BattleNetworkHandler:', {
-        connected: this.battleNetworkHandler.isConnectedToBattle,
-        battleRoomId: this.battleNetworkHandler.battleRoomId,
-        playerRole: this.playerRole
-      });
+    // 7. Test rapide updateModernHealthBar
+    console.log('🧪 Test rapide updateModernHealthBar:');
+    try {
+      // Test avec 'player'
+      if (this.modernHealthBars?.player) {
+        console.log('✅ modernHealthBars.player existe');
+      } else {
+        console.log('❌ modernHealthBars.player manquant');
+      }
+      
+      // Test avec 'opponent'  
+      if (this.modernHealthBars?.opponent) {
+        console.log('✅ modernHealthBars.opponent existe');
+      } else {
+        console.log('❌ modernHealthBars.opponent manquant');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur test updateModernHealthBar:', error);
     }
     
     console.log('🔍 === FIN DIAGNOSTIC ===');
     
-    // 7. Retourner un résumé structuré
+    // 8. Retourner un résumé structuré
     return {
       sceneReady: this.isActive && this.isVisible,
       healthBarsCreated: !!(this.modernHealthBars?.player && this.modernHealthBars?.opponent),
@@ -1859,126 +1887,9 @@ processLegacyEventsServerDriven(events) {
         player: this.modernHealthBars?.player?.container?.visible || false,
         opponent: this.modernHealthBars?.opponent?.container?.visible || false
       },
+      playerRole: this.playerRole,
       recommendation: this.getDiagnosticRecommendation()
     };
-  }
-
-  // 🎯 Fonction pour obtenir une recommandation basée sur le diagnostic
-  getDiagnosticRecommendation() {
-    if (!this.isActive) {
-      return 'SCENE_NOT_ACTIVE: Activer la BattleScene d\'abord';
-    }
-    
-    if (!this.modernHealthBars?.player || !this.modernHealthBars?.opponent) {
-      return 'HEALTH_BARS_NOT_CREATED: Exécuter createModernHealthBars()';
-    }
-    
-    if (!this.modernHealthBars.player.container?.visible || !this.modernHealthBars.opponent.container?.visible) {
-      return 'HEALTH_BARS_HIDDEN: Les barres existent mais sont masquées';
-    }
-    
-    if (!this.currentPlayerPokemon || !this.currentOpponentPokemon) {
-      return 'POKEMON_DATA_MISSING: Charger les données Pokémon avec displayPlayerPokemon/displayOpponentPokemon';
-    }
-    
-    return 'ALL_GOOD: Tout semble correct, problème ailleurs';
-  }
-
-  // 🧪 Fonction de test pour forcer la création des barres
-  forceCreateHealthBars() {
-    console.log('🔧 Force création des barres de vie...');
-    
-    try {
-      // Supprimer les anciennes barres si elles existent
-      if (this.modernHealthBars?.player?.container) {
-        this.modernHealthBars.player.container.destroy();
-      }
-      if (this.modernHealthBars?.opponent?.container) {
-        this.modernHealthBars.opponent.container.destroy();
-      }
-      
-      // Recréer
-      this.createModernHealthBars();
-      
-      console.log('✅ Barres de vie recréées');
-      return this.debugHealthBarsState();
-    } catch (error) {
-      console.error('❌ Erreur lors de la création forcée:', error);
-      return { error: error.message };
-    }
-  }
-
-  // 🧪 Fonction de test pour données Pokémon
-  injectTestPokemonData() {
-    console.log('🧪 Injection de données Pokémon de test...');
-    
-    const testPlayerPokemon = {
-      pokemonId: 1,
-      name: 'Bulbasaur',
-      level: 12,
-      currentHp: 17, // HP réduit pour simuler les dégâts reçus
-      maxHp: 20,
-      currentExp: 156,
-      expToNext: 250,
-      statusCondition: 'normal',
-      types: ['grass', 'poison']
-    };
-    
-    const testOpponentPokemon = {
-      pokemonId: 25,
-      name: 'Pikachu',
-      level: 10,
-      currentHp: 28,
-      maxHp: 32,
-      statusCondition: 'normal',
-      types: ['electric']
-    };
-    
-    this.currentPlayerPokemon = testPlayerPokemon;
-    this.currentOpponentPokemon = testOpponentPokemon;
-    
-    console.log('✅ Données Pokémon injectées');
-    return {
-      player: testPlayerPokemon,
-      opponent: testOpponentPokemon
-    };
-  }
-
-  // 🧪 Test complet de mise à jour des barres
-  testHealthBarUpdate() {
-    console.log('🧪 Test complet mise à jour barres de vie...');
-    
-    // 1. Diagnostic initial
-    const initialState = this.debugHealthBarsState();
-    console.log('📊 État initial:', initialState);
-    
-    // 2. Créer les barres si nécessaire
-    if (!initialState.healthBarsCreated) {
-      console.log('🔧 Création des barres manquantes...');
-      this.forceCreateHealthBars();
-    }
-    
-    // 3. Injecter des données si nécessaire
-    if (!initialState.pokemonDataPresent) {
-      console.log('🧪 Injection données Pokémon...');
-      this.injectTestPokemonData();
-    }
-    
-    // 4. Tester la mise à jour
-    try {
-      console.log('🔄 Test updateModernHealthBar player...');
-      this.updateModernHealthBar('player', this.currentPlayerPokemon);
-      
-      console.log('🔄 Test updateModernHealthBar opponent...');
-      this.updateModernHealthBar('opponent', this.currentOpponentPokemon);
-      
-      console.log('✅ Tests de mise à jour terminés');
-    } catch (error) {
-      console.error('❌ Erreur lors des tests:', error);
-    }
-    
-    // 5. Diagnostic final
-    return this.debugHealthBarsState();
   }
 }
 
