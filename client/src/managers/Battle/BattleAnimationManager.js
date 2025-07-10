@@ -1,5 +1,5 @@
 // client/src/managers/Battle/BattleAnimationManager.js
-// Gestionnaire spécialisé pour les animations de combat
+// Gestionnaire spécialisé pour les animations de combat avec support des animations simultanées
 
 export class BattleAnimationManager {
   constructor(scene) {
@@ -9,6 +9,7 @@ export class BattleAnimationManager {
     this.isAnimating = false;
     this.animationQueue = [];
     this.currentAnimation = null;
+    this.concurrentAnimations = new Set(); // ✅ Nouvelles animations concurrentes
     
     // Références aux sprites (à injecter depuis l'extérieur)
     this.playerSprite = null;
@@ -44,7 +45,10 @@ export class BattleAnimationManager {
       }
     };
     
-    console.log('✨ [BattleAnimationManager] Initialisé');
+    // ✅ Types d'animations pouvant être simultanées
+    this.concurrentTypes = new Set(['pokemonEntry', 'heal', 'statusEffect']);
+    
+    console.log('✨ [BattleAnimationManager] Initialisé avec support concurrent');
   }
 
   // === CONFIGURATION ===
@@ -69,21 +73,22 @@ export class BattleAnimationManager {
     }
   }
 
-  // === SYSTÈME DE QUEUE ===
+  // === SYSTÈME DE QUEUE AMÉLIORÉ ===
 
   /**
-   * Ajoute une animation à la queue
+   * Ajoute une animation à la queue avec support de concurrence
    */
-  queueAnimation(animationType, data = {}) {
+  queueAnimation(animationType, data = {}, options = {}) {
     const animation = {
       id: Date.now() + Math.random(),
       type: animationType,
       data: data,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      concurrent: options.concurrent !== false && this.concurrentTypes.has(animationType) // ✅ Par défaut concurrent pour certains types
     };
     
     this.animationQueue.push(animation);
-    console.log(`🎬 [BattleAnimationManager] Animation ajoutée: ${animationType}`);
+    console.log(`🎬 [BattleAnimationManager] Animation ajoutée: ${animationType} (concurrent: ${animation.concurrent})`);
     
     // Démarrer si pas en cours
     if (!this.isAnimating) {
@@ -94,19 +99,54 @@ export class BattleAnimationManager {
   }
 
   /**
-   * Traite la queue d'animations
+   * Traite la queue d'animations avec support de concurrence
    */
   async processAnimationQueue() {
-    if (this.animationQueue.length === 0) {
+    if (this.animationQueue.length === 0 && this.concurrentAnimations.size === 0) {
       this.isAnimating = false;
       return;
     }
     
     this.isAnimating = true;
-    const animation = this.animationQueue.shift();
-    this.currentAnimation = animation;
     
-    console.log(`▶️ [BattleAnimationManager] Exécution: ${animation.type}`);
+    // ✅ Traiter toutes les animations concurrentes disponibles
+    const concurrentBatch = [];
+    while (this.animationQueue.length > 0) {
+      const animation = this.animationQueue[0];
+      
+      if (animation.concurrent) {
+        // Animation concurrente : la retirer de la queue et l'ajouter au batch
+        this.animationQueue.shift();
+        concurrentBatch.push(animation);
+      } else {
+        // Animation séquentielle : s'arrêter ici si on a déjà des concurrentes
+        if (concurrentBatch.length > 0) {
+          break;
+        }
+        // Sinon traiter cette animation seule
+        const singleAnimation = this.animationQueue.shift();
+        await this.executeSingleAnimation(singleAnimation);
+        // Continuer avec la suite de la queue
+        this.processAnimationQueue();
+        return;
+      }
+    }
+    
+    // ✅ Exécuter le batch d'animations concurrentes
+    if (concurrentBatch.length > 0) {
+      await this.executeConcurrentAnimations(concurrentBatch);
+    }
+    
+    // Continuer avec la suite de la queue
+    this.processAnimationQueue();
+  }
+
+  /**
+   * Exécute une animation unique (séquentielle)
+   */
+  async executeSingleAnimation(animation) {
+    this.currentAnimation = animation;
+    console.log(`▶️ [BattleAnimationManager] Exécution séquentielle: ${animation.type}`);
     
     try {
       await this.executeAnimation(animation);
@@ -115,9 +155,34 @@ export class BattleAnimationManager {
     }
     
     this.currentAnimation = null;
+  }
+
+  /**
+   * ✅ Exécute plusieurs animations en parallèle
+   */
+  async executeConcurrentAnimations(animations) {
+    console.log(`⚡ [BattleAnimationManager] Exécution concurrente de ${animations.length} animations:`, 
+                animations.map(a => a.type));
     
-    // Continuer avec la suivante
-    this.processAnimationQueue();
+    // Ajouter au set des animations concurrentes
+    animations.forEach(anim => this.concurrentAnimations.add(anim));
+    
+    // Lancer toutes les animations en parallèle
+    const promises = animations.map(async (animation) => {
+      try {
+        await this.executeAnimation(animation);
+      } catch (error) {
+        console.error(`❌ [BattleAnimationManager] Erreur animation concurrente ${animation.type}:`, error);
+      } finally {
+        // Retirer du set à la fin
+        this.concurrentAnimations.delete(animation);
+      }
+    });
+    
+    // Attendre que toutes les animations soient terminées
+    await Promise.all(promises);
+    
+    console.log(`✅ [BattleAnimationManager] Batch concurrent terminé`);
   }
 
   /**
@@ -156,8 +221,6 @@ export class BattleAnimationManager {
   async animatePokemonEntry(data) {
     const { sprite, direction = 'left' } = data;
     if (!sprite) return;
-
-     sprite.setVisible(true);
     
     const targetX = sprite.x;
     const targetY = sprite.y;
@@ -170,6 +233,7 @@ export class BattleAnimationManager {
     sprite.setPosition(startX, targetY + 50);
     sprite.setScale(targetScale * 0.3);
     sprite.setAlpha(0);
+    sprite.setVisible(true); // ✅ Rendre visible au début de l'animation
     
     return new Promise(resolve => {
       // Animation d'entrée
@@ -695,7 +759,6 @@ export class BattleAnimationManager {
     
     console.log(`🎯 [BattleAnimationManager] Animation capture: ${ballType}`);
     
-    // TODO: Implémenter l'animation de capture complète
     return new Promise(resolve => {
       setTimeout(resolve, 2000); // Placeholder
     });
@@ -952,6 +1015,7 @@ export class BattleAnimationManager {
     
     // Vider la queue
     this.animationQueue = [];
+    this.concurrentAnimations.clear();
     this.isAnimating = false;
     this.currentAnimation = null;
     
@@ -991,6 +1055,7 @@ export class BattleAnimationManager {
    */
   clearQueue() {
     this.animationQueue = [];
+    this.concurrentAnimations.clear();
     console.log('🗑️ [BattleAnimationManager] Queue vidée');
   }
 
@@ -1017,6 +1082,29 @@ export class BattleAnimationManager {
     return this.currentAnimation;
   }
 
+  /**
+   * ✅ Obtient les animations concurrentes en cours
+   */
+  getConcurrentAnimations() {
+    return Array.from(this.concurrentAnimations);
+  }
+
+  // === API PUBLIQUES POUR CONTRÔLER LA CONCURRENCE ===
+
+  /**
+   * ✅ Force une animation à être concurrente
+   */
+  queueConcurrentAnimation(animationType, data = {}) {
+    return this.queueAnimation(animationType, data, { concurrent: true });
+  }
+
+  /**
+   * ✅ Force une animation à être séquentielle
+   */
+  queueSequentialAnimation(animationType, data = {}) {
+    return this.queueAnimation(animationType, data, { concurrent: false });
+  }
+
   // === NETTOYAGE ===
 
   /**
@@ -1032,6 +1120,7 @@ export class BattleAnimationManager {
     this.playerSprite = null;
     this.opponentSprite = null;
     this.currentAnimation = null;
+    this.concurrentAnimations.clear();
     
     console.log('✅ [BattleAnimationManager] Détruit');
   }
