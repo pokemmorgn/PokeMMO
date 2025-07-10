@@ -1283,27 +1283,543 @@ export class OverworldPokemonManager {
       this.lastOptimization = Date.now();
     }
   }
-};
-            pokemon.y = newY;
-            pokemon.setPosition(newX, newY); // ✅ AJOUTER CETTE LIGNE CRITIQUE
-          } else {
-            // Collision détectée, arrêter le mouvement
-            pokemon.isInterpolating = false;
-            pokemon.stuckCounter = (pokemon.stuckCounter || 0) + 1;
-            console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} collision finale à (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
-          }
+
+  // =====================================
+  // MÉTHODES UTILITAIRES AVANCÉES
+  // =====================================
+
+  /**
+   * Change la personnalité de tous les Pokémon d'une zone
+   */
+  setZonePersonality(areaId, personality) {
+    console.log(`🎭 [OverworldPokemonManager] Changement personnalité zone ${areaId}: ${personality}`);
+    let count = 0;
+    
+    this.overworldPokemon.forEach(pokemon => {
+      if (pokemon.areaId === areaId) {
+        pokemon.personality = personality;
+        
+        // Ajuster les chances selon la nouvelle personnalité
+        switch (personality) {
+          case 'active':
+            pokemon.directionChangeChance = 0.25;
+            pokemon.pauseChance = 0.05;
+            break;
+          case 'erratic':
+            pokemon.directionChangeChance = 0.4;
+            pokemon.pauseChance = 0.3;
+            break;
+          case 'lazy':
+            pokemon.directionChangeChance = 0.1;
+            pokemon.pauseChance = 0.4;
+            break;
+          case 'calm':
+          default:
+            pokemon.directionChangeChance = 0.15;
+            pokemon.pauseChance = 0.1;
+            break;
         }
-      } else if (!pokemon.isMoving) {
-        // ✅ POKEMON IMMOBILE - SYNCHRONISATION DOUCE
-        const dx = pokemon.serverX - pokemon.x;
-        const dy = pokemon.serverY - pokemon.y;
+        
+        count++;
+      }
+    });
+    
+    console.log(`✅ [OverworldPokemonManager] ${count} Pokémon mis à jour avec personnalité ${personality}`);
+  }
+
+  /**
+   * Force tous les Pokémon à utiliser un pattern spécifique
+   */
+  setGlobalMovePattern(pattern) {
+    console.log(`🔄 [OverworldPokemonManager] Changement pattern global: ${pattern}`);
+    let count = 0;
+    
+    this.overworldPokemon.forEach(pokemon => {
+      pokemon.movePattern = pattern;
+      
+      if (pattern === 'wander' && !pokemon.wanderCenter) {
+        pokemon.wanderCenter = { x: pokemon.x, y: pokemon.y };
+        pokemon.wanderRadius = pokemon.wanderRadius || 128;
+      }
+      
+      count++;
+    });
+    
+    console.log(`✅ [OverworldPokemonManager] ${count} Pokémon mis à jour avec pattern ${pattern}`);
+  }
+
+  /**
+   * Crée une "tempête" de mouvements (tous les Pokémon bougent)
+   */
+  createMovementStorm(duration = 10000) {
+    console.log(`🌪️ [OverworldPokemonManager] Tempête de mouvements pendant ${duration}ms`);
+    
+    this.overworldPokemon.forEach(pokemon => {
+      // Forcer le mouvement immédiat
+      pokemon.lastMoveTime = Date.now() - 10000;
+      
+      // Temporairement rendre tous les Pokémon "actifs"
+      const originalPersonality = pokemon.personality;
+      pokemon.personality = 'active';
+      pokemon.directionChangeChance = 0.3;
+      pokemon.pauseChance = 0.02;
+      
+      // Restaurer après la durée
+      setTimeout(() => {
+        pokemon.personality = originalPersonality || 'calm';
+        pokemon.directionChangeChance = 0.15;
+        pokemon.pauseChance = 0.1;
+      }, duration);
+    });
+    
+    console.log(`✅ [OverworldPokemonManager] Tempête de mouvements déclenchée`);
+  }
+
+  /**
+   * Mode "parade" - tous les Pokémon se dirigent vers un point
+   */
+  createParade(targetX, targetY, areaId) {
+    console.log(`🎪 [OverworldPokemonManager] Parade vers (${targetX}, ${targetY})`);
+    
+    this.overworldPokemon.forEach(pokemon => {
+      if (!areaId || pokemon.areaId === areaId) {
+        const dx = targetX - pokemon.x;
+        const dy = targetY - pokemon.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        if (distance > 2) {
-          const correctionSpeed = 0.05;
-          const newX = pokemon.x + dx * correctionSpeed;
-          const newY = pokemon.y + dy * correctionSpeed;
+        if (distance > 32) { // Seulement si pas déjà proche
+          const speed = pokemon.speed || 60;
+          const moveDuration = Math.max(1000, distance / speed * 1000);
+
+          pokemon.isMoving = true;
+          pokemon.targetX = targetX + (Math.random() - 0.5) * 64; // Un peu de variation
+          pokemon.targetY = targetY + (Math.random() - 0.5) * 64;
+          pokemon.moveStartTime = Date.now();
+          pokemon.moveDuration = moveDuration;
+          pokemon.direction = this.getDirectionToTarget(pokemon.x, pokemon.y, pokemon.targetX, pokemon.targetY);
+          pokemon.isInterpolating = true;
           
-          // Vérifier que la correction ne cause pas de collision
-          if (!this.scene.collisionManager || this.scene.collisionManager.canMoveTo(newX, newY)) {
-            pokemon.x = newX
+          // Mettre à jour l'animation
+          const animDirection = this.getDirectionForAnimation(pokemon.direction);
+          const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+          const walkAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${animDirection}`;
+          
+          if (this.scene.anims.exists(walkAnimKey)) {
+            pokemon.anims.play(walkAnimKey, true);
+          }
+        }
+      }
+    });
+    
+    console.log(`✅ [OverworldPokemonManager] Parade déclenchée`);
+  }
+
+  /**
+   * Obtient la direction vers une cible
+   */
+  getDirectionToTarget(fromX, fromY, toX, toY) {
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    return this.getDirectionFromMovement(dx, dy);
+  }
+
+  /**
+   * Obtient les Pokémon par personnalité
+   */
+  getPokemonByPersonality(personality) {
+    return Array.from(this.overworldPokemon.values()).filter(pokemon => pokemon.personality === personality);
+  }
+
+  /**
+   * Teste les différents patterns de mouvement
+   */
+  testMovementPatterns() {
+    console.log(`🧪 [OverworldPokemonManager] Test des patterns de mouvement`);
+    
+    const patterns = ['random', 'wander', 'float', 'patrol'];
+    let index = 0;
+    
+    this.overworldPokemon.forEach(pokemon => {
+      const oldPattern = pokemon.movePattern;
+      pokemon.movePattern = patterns[index % patterns.length];
+      pokemon.lastMoveTime = Date.now() - 3000; // Force mouvement immédiat
+      
+      console.log(`  🔄 ${pokemon.name}: ${oldPattern} → ${pokemon.movePattern}`);
+      index++;
+    });
+  }
+
+  /**
+   * Arrête tous les mouvements
+   */
+  stopAllMovements() {
+    console.log(`⏸️ [OverworldPokemonManager] Arrêt de tous les mouvements`);
+    this.overworldPokemon.forEach(pokemon => {
+      if (pokemon.isMoving) {
+        if (pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
+          pokemon.x = pokemon.targetX;
+          pokemon.y = pokemon.targetY;
+          pokemon.setPosition(pokemon.targetX, pokemon.targetY);
+        }
+        pokemon.isMoving = false;
+        pokemon.isInterpolating = false;
+        pokemon.lastDirectionFrame = pokemon.direction;
+        
+        // Animation idle
+        const animDirection = this.getDirectionForAnimation(pokemon.direction);
+        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+        const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${animDirection}`;
+        
+        if (this.scene.anims.exists(idleAnimKey)) {
+          pokemon.anims.play(idleAnimKey, true);
+        }
+      }
+    });
+  }
+
+  /**
+   * Reprend tous les mouvements
+   */
+  resumeAllMovements() {
+    console.log(`▶️ [OverworldPokemonManager] Reprise de tous les mouvements`);
+    this.overworldPokemon.forEach(pokemon => {
+      if (!pokemon.isMoving) {
+        pokemon.lastMoveTime = Date.now() - 2000;
+      }
+    });
+  }
+
+  /**
+   * Change la vitesse globale
+   */
+  setGlobalSpeed(speedMultiplier) {
+    console.log(`🏃‍♂️ [OverworldPokemonManager] Changement vitesse globale: x${speedMultiplier}`);
+    this.overworldPokemon.forEach(pokemon => {
+      pokemon.speed = (pokemon.speed || 60) * speedMultiplier;
+      if (pokemon.moveDuration && pokemon.isMoving) {
+        pokemon.moveDuration = Math.max(500, pokemon.moveDuration / speedMultiplier);
+      }
+    });
+  }
+
+  /**
+   * Obtient les Pokémon en mouvement
+   */
+  getMovingPokemon() {
+    return Array.from(this.overworldPokemon.values()).filter(pokemon => pokemon.isMoving);
+  }
+
+  /**
+   * Obtient les Pokémon immobiles
+   */
+  getIdlePokemon() {
+    return Array.from(this.overworldPokemon.values()).filter(pokemon => !pokemon.isMoving);
+  }
+
+  /**
+   * Force le mouvement d'un Pokémon spécifique
+   */
+  forcePokemonMovementById(pokemonId, direction) {
+    const pokemon = this.overworldPokemon.get(pokemonId);
+    if (!pokemon) {
+      console.warn(`⚠️ [OverworldPokemonManager] Pokémon ${pokemonId} non trouvé`);
+      return;
+    }
+    
+    if (direction && ['up', 'down', 'left', 'right', 'up-left', 'up-right', 'down-left', 'down-right'].includes(direction)) {
+      pokemon.direction = direction;
+    }
+    
+    // Calculer nouvelle cible basée sur la direction
+    let targetX = pokemon.x;
+    let targetY = pokemon.y;
+    const distance = 64; // 2 cases
+    
+    switch (pokemon.direction) {
+      case 'up': targetY -= distance; break;
+      case 'down': targetY += distance; break;
+      case 'left': targetX -= distance; break;
+      case 'right': targetX += distance; break;
+      case 'up-left': targetX -= distance; targetY -= distance; break;
+      case 'up-right': targetX += distance; targetY -= distance; break;
+      case 'down-left': targetX -= distance; targetY += distance; break;
+      case 'down-right': targetX += distance; targetY += distance; break;
+    }
+    
+    this.forcePokemonMovement(pokemonId, targetX, targetY);
+  }
+
+  /**
+   * Téléporte un Pokémon
+   */
+  teleportPokemon(pokemonId, x, y) {
+    const pokemon = this.overworldPokemon.get(pokemonId);
+    if (!pokemon) {
+      console.warn(`⚠️ [OverworldPokemonManager] Pokémon ${pokemonId} non trouvé`);
+      return;
+    }
+    
+    pokemon.x = x;
+    pokemon.y = y;
+    pokemon.targetX = x;
+    pokemon.targetY = y;
+    pokemon.serverX = x;
+    pokemon.serverY = y;
+    pokemon.setPosition(x, y);
+    pokemon.isMoving = false;
+    pokemon.isInterpolating = false;
+    
+    if (pokemon.movePattern === 'wander') {
+      pokemon.wanderCenter = { x, y };
+    }
+    
+    console.log(`📍 [OverworldPokemonManager] ${pokemon.name} téléporté à (${x}, ${y})`);
+  }
+
+  /**
+   * Change l'animation de tous les Pokémon d'une zone
+   */
+  changeZoneAnimation(areaId, newAnimation) {
+    console.log(`🎬 [OverworldPokemonManager] Changement animation zone ${areaId}: ${newAnimation}`);
+    let count = 0;
+    this.overworldPokemon.forEach(pokemon => {
+      if (pokemon.areaId === areaId && pokemon.animations[newAnimation]) {
+        pokemon.currentAnimation = newAnimation;
+        const newAnimationFile = pokemon.animations[newAnimation];
+        this.changeAnimationSprite(pokemon, newAnimationFile);
+        count++;
+      }
+    });
+    console.log(`✅ [OverworldPokemonManager] ${count} Pokémon mis à jour dans ${areaId}`);
+  }
+
+  // =====================================
+  // MÉTHODES DE DEBUG ET STATISTIQUES
+  // =====================================
+
+  /**
+   * Affiche les statistiques complètes
+   */
+  getDetailedStats() {
+    const stats = {
+      general: {
+        totalPokemon: this.overworldPokemon.size,
+        loadedSprites: this.loadedSprites.size,
+        loadingSprites: this.loadingSprites.size,
+        spriteStructures: this.spriteStructures.size
+      },
+      movement: {
+        moving: 0,
+        idle: 0,
+        interpolating: 0,
+        stuck: 0
+      },
+      personalities: {
+        calm: 0,
+        active: 0,
+        erratic: 0,
+        lazy: 0
+      },
+      patterns: {
+        random: 0,
+        wander: 0,
+        float: 0,
+        patrol: 0
+      },
+      animations: {},
+      areas: {}
+    };
+
+    this.overworldPokemon.forEach(pokemon => {
+      // Mouvement
+      if (pokemon.isMoving) stats.movement.moving++;
+      else stats.movement.idle++;
+      if (pokemon.isInterpolating) stats.movement.interpolating++;
+      if ((pokemon.stuckCounter || 0) > 2) stats.movement.stuck++;
+
+      // Personnalités
+      const personality = pokemon.personality || 'calm';
+      if (stats.personalities[personality] !== undefined) {
+        stats.personalities[personality]++;
+      }
+
+      // Patterns
+      const pattern = pokemon.movePattern || 'random';
+      if (stats.patterns[pattern] !== undefined) {
+        stats.patterns[pattern]++;
+      }
+
+      // Animations
+      const animation = pokemon.currentAnimation || 'walk';
+      stats.animations[animation] = (stats.animations[animation] || 0) + 1;
+
+      // Aires
+      const area = pokemon.areaId || 'unknown';
+      stats.areas[area] = (stats.areas[area] || 0) + 1;
+    });
+
+    return stats;
+  }
+
+  /**
+   * Debug complet avec toutes les informations
+   */
+  debugComplete() {
+    console.log(`🔍 [OverworldPokemonManager] === DEBUG COMPLET ===`);
+    
+    const stats = this.getDetailedStats();
+    console.log(`📊 Statistiques détaillées:`, stats);
+    
+    const collisionStats = this.getCollisionStats();
+    console.log(`🛡️ Statistiques collision:`, collisionStats);
+    
+    console.log(`🎮 État du système:`, {
+      sceneActive: this.scene?.scene?.isActive() || false,
+      collisionManagerActive: !!this.scene?.collisionManager,
+      networkManagerActive: !!this.scene?.networkManager,
+      debugMode: this.collisionDebugEnabled || false
+    });
+    
+    // Pokémon individuels
+    console.log(`🐾 Pokémon actifs (${this.overworldPokemon.size}):`);
+    this.overworldPokemon.forEach((pokemon, id) => {
+      const moveProgress = pokemon.moveStartTime && pokemon.moveDuration ? 
+        `${(((Date.now() - pokemon.moveStartTime) / pokemon.moveDuration) * 100).toFixed(1)}%` : 'N/A';
+      
+      console.log(`  ${pokemon.name} (${id}):`, {
+        position: `(${pokemon.x.toFixed(1)}, ${pokemon.y.toFixed(1)})`,
+        target: `(${pokemon.targetX?.toFixed(1)}, ${pokemon.targetY?.toFixed(1)})`,
+        status: pokemon.isMoving ? 'Bouge' : 'Immobile',
+        direction: pokemon.lastDirection,
+        personality: pokemon.personality,
+        pattern: pokemon.movePattern,
+        animation: pokemon.currentAnimation,
+        progress: moveProgress,
+        stuck: pokemon.stuckCounter || 0,
+        alternativePath: pokemon.alternativePath?.length || 0
+      });
+    });
+    
+    return {
+      stats,
+      collisionStats,
+      systemStatus: {
+        sceneActive: this.scene?.scene?.isActive() || false,
+        collisionManagerActive: !!this.scene?.collisionManager,
+        networkManagerActive: !!this.scene?.networkManager,
+        debugMode: this.collisionDebugEnabled || false
+      }
+    };
+  }
+
+  /**
+   * Valide l'état du système
+   */
+  validateSystem() {
+    const issues = [];
+    const warnings = [];
+
+    // Vérifications système
+    if (!this.scene) {
+      issues.push("Scene manquante");
+    }
+    if (!this.scene?.networkManager) {
+      issues.push("NetworkManager manquant");
+    }
+    if (!this.scene?.collisionManager) {
+      warnings.push("CollisionManager manquant - collisions désactivées");
+    }
+
+    // Vérifications Pokémon
+    this.overworldPokemon.forEach((pokemon, id) => {
+      if (!pokemon.name) {
+        issues.push(`Pokémon ${id}: nom manquant`);
+      }
+      if (pokemon.x === undefined || pokemon.y === undefined) {
+        issues.push(`Pokémon ${id}: position invalide`);
+      }
+      if (!pokemon.animations) {
+        issues.push(`Pokémon ${id}: animations manquantes`);
+      }
+      if ((pokemon.stuckCounter || 0) > 5) {
+        warnings.push(`Pokémon ${id}: bloqué depuis longtemps (${pokemon.stuckCounter})`);
+      }
+    });
+
+    // Vérifications sprites
+    if (this.loadingSprites.size > 10) {
+      warnings.push(`Beaucoup de sprites en chargement: ${this.loadingSprites.size}`);
+    }
+
+    return {
+      valid: issues.length === 0,
+      issues,
+      warnings,
+      totalChecks: this.overworldPokemon.size + 3
+    };
+  }
+
+  /**
+   * Réinitialise complètement le système
+   */
+ /**
+  * Réinitialise complètement le système
+  */
+ reset() {
+   console.log(`🔄 [OverworldPokemonManager] Réinitialisation complète du système`);
+   
+   // Nettoyer tous les Pokémon
+   this.cleanup();
+   
+   // Réinitialiser les caches
+   this.loadedSprites.clear();
+   this.loadingSprites.clear();
+   this.spriteStructures.clear();
+   
+   // Réinitialiser les flags
+   this.collisionDebugEnabled = false;
+   this.lastOptimization = null;
+   
+   console.log(`✅ [OverworldPokemonManager] Système réinitialisé`);
+ }
+
+ // =====================================
+ // MÉTHODES D'EXPOSITION GLOBALE
+ // =====================================
+
+ /**
+  * Expose les méthodes pour debug en console
+  */
+ exposeDebugMethods() {
+   if (typeof window !== 'undefined') {
+     window.OverworldPokemonDebug = {
+       manager: this,
+       debug: () => this.debugComplete(),
+       stats: () => this.getDetailedStats(),
+       collision: () => this.getCollisionStats(),
+       validate: () => this.validateSystem(),
+       reset: () => this.reset(),
+       storm: (duration) => this.createMovementStorm(duration),
+       parade: (x, y, area) => this.createParade(x, y, area),
+       toggleDebug: (enabled) => this.toggleCollisionDebug(enabled),
+       stopAll: () => this.stopAllMovements(),
+       resumeAll: () => this.resumeAllMovements(),
+       testPatterns: () => this.testMovementPatterns(),
+       optimizeCollisions: () => this.optimizeCollisions()
+     };
+     
+     console.log(`🔧 [OverworldPokemonManager] Méthodes debug exposées: window.OverworldPokemonDebug`);
+   }
+ }
+}
+
+// =====================================
+// EXPORT ET INITIALISATION
+// =====================================
+
+// Auto-exposition des méthodes debug si en mode développement
+if (typeof window !== 'undefined' && window.location?.hostname === 'localhost') {
+ console.log(`🔧 Mode développement détecté - debug automatique activé`);
+}
+
+export { OverworldPokemonManager };
