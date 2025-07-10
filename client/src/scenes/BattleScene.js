@@ -671,14 +671,16 @@ createBattleInventoryUI() {
 executePlayerAction(actionData) {
   if (actionData.type === 'move') {
     this.hideActionButtons();
-    this.showActionMessage('Action envoyée au serveur...');
+    this.showActionMessage('Attaque sélectionnée...');
     
+    // ✅ JUSTE ENVOYER AU SERVEUR, RIEN D'AUTRE !
     setTimeout(() => {
       if (this.battleNetworkHandler) {
         this.battleNetworkHandler.useMove(actionData.moveId);
       }
-      // ❌ SUPPRIMER CETTE LIGNE :
-      // this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
+      // ❌ SUPPRIMER TOUT ÇA :
+      // this.createAttackEffect(...)
+      // Pas d'animation, pas de dégâts côté client !
     }, 1000);
   }
 }
@@ -1283,12 +1285,10 @@ this.battleNetworkHandler.on('moveUsed', (data) => {
   const message = `${data.attackerName} utilise ${data.moveName} ! AHAHAH`;
   this.showActionMessage(message);
   
-  // ✅ AJOUTER ICI L'ANIMATION AU BON MOMENT :
+  // ✅ ANIMATION ICI (au bon moment)
   if (data.attackerRole === 'player1') {
-    // Animation pour attaque du joueur
     this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
   } else {
-    // Animation pour attaque de l'adversaire  
     this.createAttackEffect(this.opponentPokemonSprite, this.playerPokemonSprite);
   }
 });
@@ -1296,7 +1296,6 @@ this.battleNetworkHandler.on('moveUsed', (data) => {
 this.battleNetworkHandler.on('damageDealt', (data) => {
   console.log('💥 [BattleScene] damageDealt:', data);
   
-  // 🔧 Construire l'objet pokemonData correct
   const pokemonData = {
     name: data.targetName || 'Pokémon',
     currentHp: data.newHp,
@@ -1304,12 +1303,8 @@ this.battleNetworkHandler.on('damageDealt', (data) => {
     level: this.getCurrentLevel(data.targetRole)
   };
   
-  console.log('🩺 [BattleScene] pokemonData construit:', pokemonData);
-  
-  // 🎯 Mettre à jour avec les bonnes données
+  // ✅ BARRES DE VIE ICI (au bon moment)
   this.updateModernHealthBar(data.targetRole, pokemonData);
-  
-  // 🎨 Créer l'effet de dégâts visuel
   this.createDamageEffectForRole(data.targetRole, data.damage);
 });
 
