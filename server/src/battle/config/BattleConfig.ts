@@ -144,7 +144,7 @@ export const GAME_MODES = {
 
 // === CONFIGURATION ACTIVE ===
 // Changer ici pour basculer entre les modes
-export const CURRENT_MODE = 'NORMAL'; // 'NORMAL' | 'FAST' | 'DEBUG'
+export const CURRENT_MODE = 'FAST'; // 'NORMAL' | 'FAST' | 'DEBUG'
 
 // === EXPORTS UTILITAIRES ===
 
