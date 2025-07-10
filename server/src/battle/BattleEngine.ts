@@ -880,7 +880,7 @@ private async executeFullAttackerAction(): Promise<void> {
   
   private getAIDelay(): number {
     if (this.gameState.type === 'wild') {
-      return 1000; // 1s pour sauvage
+      return 0; // 1s pour sauvage
     }
     return this.aiPlayer.getThinkingDelay();
   }
