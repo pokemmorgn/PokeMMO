@@ -921,26 +921,50 @@ createBattleInventoryUI() {
   // === INTERFACE STATE MANAGEMENT (SIMPLIFIÉ) ===
 
   // ✅ SIMPLIFIÉ: showActionMessage sans timer par défaut
-  showActionMessage(message) {
-    if (!this.actionInterface || !this.actionMessageText) return;
-    
-    this.hideActionButtons();
-    this.actionMessageText.setText(message);
-    this.actionMessageText.setVisible(true);
-    
-    if (!this.actionInterface.visible) {
-      this.actionInterface.setVisible(true);
-      this.actionInterface.setAlpha(0);
-      this.tweens.add({
-        targets: this.actionInterface,
-        alpha: 1,
-        duration: 400,
-        ease: 'Power2.easeOut'
-      });
-    }
-    
-    this.interfaceMode = 'message';
+// REMPLACE ta méthode showActionMessage() par cette version DEBUG :
+
+showActionMessage(message) {
+  // 🔍 DEBUG COMPLET DE TOUS LES AFFICHAGES
+  console.log('🔍 [DOUBLE ACTION DEBUG] ==========================================');
+  console.log('🔍 [DOUBLE ACTION DEBUG] showActionMessage() appelé !');
+  console.log('🔍 [DOUBLE ACTION DEBUG] Message:', message);
+  console.log('🔍 [DOUBLE ACTION DEBUG] Timestamp:', Date.now());
+  
+  // 🔍 STACK TRACE pour voir QUI appelle cette méthode
+  console.log('🔍 [DOUBLE ACTION DEBUG] STACK TRACE:');
+  console.trace();
+  
+  // 🔍 État actuel de l'interface
+  console.log('🔍 [DOUBLE ACTION DEBUG] Interface mode avant:', this.interfaceMode);
+  console.log('🔍 [DOUBLE ACTION DEBUG] actionInterface visible:', this.actionInterface?.visible);
+  console.log('🔍 [DOUBLE ACTION DEBUG] actionMessageText visible:', this.actionMessageText?.visible);
+  
+  if (!this.actionInterface || !this.actionMessageText) {
+    console.log('🔍 [DOUBLE ACTION DEBUG] ❌ Interface manquante, ABANDON');
+    return;
   }
+  
+  this.hideActionButtons();
+  this.actionMessageText.setText(message);
+  this.actionMessageText.setVisible(true);
+  
+  if (!this.actionInterface.visible) {
+    this.actionInterface.setVisible(true);
+    this.actionInterface.setAlpha(0);
+    this.tweens.add({
+      targets: this.actionInterface,
+      alpha: 1,
+      duration: 400,
+      ease: 'Power2.easeOut'
+    });
+  }
+  
+  this.interfaceMode = 'message';
+  
+  console.log('🔍 [DOUBLE ACTION DEBUG] Interface mode après:', this.interfaceMode);
+  console.log('🔍 [DOUBLE ACTION DEBUG] Message affiché avec succès');
+  console.log('🔍 [DOUBLE ACTION DEBUG] ==========================================');
+}
 
   hideActionMessage() {
     if (!this.actionMessageText) return;
