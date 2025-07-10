@@ -365,7 +365,7 @@ private async executeFullAttackerAction(): Promise<void> {
     console.log(`📢 [BattleEngine] "${pokemon.name} utilise ${this.getMoveDisplayName(action.data.moveId)} !"`);
     
     await this.broadcastManager.emitTimed('moveUsed', {
-      attackerName: pokemon.name, // ✅ CORRECTION !
+      attackerName: pokemon.name,
       attackerRole: playerRole,
       moveName: this.getMoveDisplayName(action.data.moveId),
       moveId: action.data.moveId,
@@ -377,10 +377,10 @@ private async executeFullAttackerAction(): Promise<void> {
     if (result.data.damage > 0) {
       console.log(`💥 [BattleEngine] ${result.data.damage} dégâts infligés !`);
       
-    await this.broadcastManager.emitTimed('damageDealt', {
-      targetName: result.data.defenderRole === 'player1' ? 
-        this.gameState.player1.pokemon!.name : 
-        this.gameState.player2.pokemon!.name,
+      await this.broadcastManager.emitTimed('damageDealt', {
+        targetName: result.data.defenderRole === 'player1' ? 
+          this.gameState.player1.pokemon!.name : 
+          this.gameState.player2.pokemon!.name,
         targetRole: result.data.defenderRole,
         damage: result.data.damage,
         oldHp: result.data.oldHp,
@@ -392,9 +392,8 @@ private async executeFullAttackerAction(): Promise<void> {
     }
     
     // ✅ ÉTAPE 3: Efficacité (TODO: implémenter plus tard)
-    // TODO: Calculer efficacité des types et émettre message si nécessaire
     
-    // ✅ ÉTAPE 4: K.O. (AVEC TIMING)
+    // 🆕 ÉTAPE 4: K.O. AVEC GESTION DE PHASE
     if (result.data.isKnockedOut) {
       const defenderName = result.data.defenderRole === 'player1' ? 
         this.gameState.player1.pokemon!.name : 
@@ -408,15 +407,20 @@ private async executeFullAttackerAction(): Promise<void> {
         subPhase: this.currentSubPhase,
         message: `${defenderName} est mis K.O. !`
       });
+      
+      // 🆕 TRANSITION VERS PHASE POKEMON_FAINTED
+      console.log(`🎭 [BattleEngine] Transition vers phase POKEMON_FAINTED`);
+      this.handlePokemonFainted(result.data.defenderRole, defenderName);
+      return; // Arrêter l'exécution ici
     }
     
-    // ✅ ÉTAPE 5: Émettre fin de phase d'attaquant
+    // ✅ ÉTAPE 5: Émettre fin de phase d'attaquant (seulement si pas de K.O.)
     this.emit('attackerPhaseComplete', {
       subPhase: this.currentSubPhase,
       playerRole: playerRole,
       pokemon: pokemon.name,
       damageDealt: result.data.damage || 0,
-      targetKnockedOut: result.data.isKnockedOut || false
+      targetKnockedOut: false
     });
   }
   
