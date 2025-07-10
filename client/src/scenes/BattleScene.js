@@ -5,6 +5,7 @@ import { BattleActionUI } from '../Battle/BattleActionUI.js';
 import { BattleTranslator } from '../Battle/BattleTranslator.js';
 import { BattleInventoryUI } from '../components/BattleInventoryUI.js';
 import { BattleCaptureManager } from '../managers/Battle/BattleCaptureManager.js';
+import { PokemonMovesUI } from '../Battle/PokemonMovesUI.js';
 
 let pokemonSpriteConfig = null;
 
@@ -27,7 +28,7 @@ export class BattleScene extends Phaser.Scene {
     this.playerPokemonSprite = null;
     this.opponentPokemonSprite = null;
     this.battleBackground = null;
-    
+    this.pokemonMovesUI = null;
     // Interface moderne
     this.modernHealthBars = { player1: null, player2: null };
     this.actionInterface = null;
@@ -109,6 +110,7 @@ this.loadedSprites = new Set(); // Cache des sprites chargés
       this.healthBarManager = new HealthBarManager(this);
       this.createModernHealthBars();
       this.createModernActionInterface();
+      this.createPokemonMovesInterface();
       this.createBattleDialog();
       this.setupBattleNetworkEvents();
       this.isActive = true;
@@ -554,6 +556,39 @@ createBattleInventoryUI() {
     });
   }
 
+   createPokemonMovesInterface() {
+    if (!this.battleNetworkHandler) {
+      console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour PokemonMovesUI');
+      return;
+    }
+
+    this.pokemonMovesUI = new PokemonMovesUI(this, this.battleNetworkHandler);
+    this.pokemonMovesUI.create();
+
+    // Écouter les événements de l'interface
+    this.events.on('moveSelected', (data) => {
+      console.log(`⚔️ [BattleScene] Attaque sélectionnée: ${data.moveName}`);
+      
+      // Afficher le message d'action
+      this.showActionMessage(`${this.currentPlayerPokemon?.name || 'Votre Pokémon'} utilise ${data.moveName} !`);
+      
+      // Déclencher l'événement pour le système de combat
+      this.scene.events.emit('battleActionSelected', {
+        type: 'move',
+        moveId: data.moveId,
+        moveName: data.moveName,
+        moveData: data.moveData
+      });
+    });
+
+    this.events.on('movesMenuClosed', () => {
+      console.log('🔙 [BattleScene] Menu attaques fermé - retour menu principal');
+      this.showActionButtons(); // Revenir au menu principal
+    });
+
+    console.log('✅ [BattleScene] Interface attaques Pokémon authentique créée');
+  }
+
   createModernButton(x, y, config, action) {
     const buttonContainer = this.add.container(x, y);
     
@@ -628,7 +663,15 @@ createBattleInventoryUI() {
     
     switch (actionKey) {
       case 'attack':
-        this.showAttackMenu();
+        // ✅ NOUVEAU : Utiliser l'interface Pokémon authentique
+        if (this.pokemonMovesUI) {
+          console.log('🎮 [BattleScene] Ouverture menu attaques authentique...');
+          this.pokemonMovesUI.requestMoves(); // Demande au serveur + affichage auto
+        } else {
+          console.error('❌ [BattleScene] PokemonMovesUI non initialisé');
+          this.showActionMessage('Interface attaques non disponible');
+          this.showActionButtons(); // Revenir au menu
+        }
         break;
       case 'bag':
         if (!this.battleInventoryUI) {
@@ -675,27 +718,6 @@ createBattleInventoryUI() {
   console.log('🎯 [BattleScene] CaptureManager initialisé');
 } 
   // CAPTURE SYSTEM END
-  
-showAttackMenu() {
-  // ✅ LANCER DIRECTEMENT L'ATTAQUE
-  this.executePlayerAction({
-    type: 'move',
-    moveId: 'tackle',
-    moveName: 'Charge'
-  });
-}
-
-executePlayerAction(actionData) {
-  if (actionData.type === 'move') {
-    this.hideActionButtons();
-    this.hideActionMessage(); // ✅ Interface vide
-    
-    if (this.battleNetworkHandler) {
-      this.battleNetworkHandler.useMove(actionData.moveId);
-    }
-  }
-}
-
 
   // === AFFICHAGE POKÉMON ===
 
@@ -1277,17 +1299,23 @@ const frameHeight = height;
 
     // === ✅ ÉVÉNEMENTS POKÉMON AUTHENTIQUES (NOUVEAU) ===
     this.battleNetworkHandler.on('moveUsed', (data) => {
-      console.log('⚔️ [BattleScene] moveUsed - FAIT TOUT:', data);
+      console.log('⚔️ [BattleScene] moveUsed avec données PP:', data);
       
-      // ✅ 1. MESSAGE
+      // Message d'attaque
       const message = `${data.attackerName} utilise ${data.moveName} !`;
       this.showActionMessage(message);
       
-      // ✅ 2. ANIMATION
+      // Animation d'attaque
       if (data.attackerRole === 'player1') {
         this.createAttackEffect(this.playerPokemonSprite, this.opponentPokemonSprite);
       } else {
         this.createAttackEffect(this.opponentPokemonSprite, this.playerPokemonSprite);
+      }
+      
+      // ✅ NOUVEAU : Si c'est le joueur qui attaque, mettre à jour les PP localement
+      if (data.attackerRole === 'player1' && this.pokemonMovesUI) {
+        // Optionnel : Synchroniser les PP affichés si le menu est encore ouvert
+        // (Normalement le menu se ferme après sélection)
       }
     });
 
@@ -1327,7 +1355,21 @@ const frameHeight = height;
         this.endBattle({ result: 'disconnected' });
       }, 1000);
     });
-    
+
+        this.battleNetworkHandler.on('requestMovesResult', (data) => {
+      console.log('📋 [BattleScene] Résultat demande attaques:', data);
+      
+      if (!data.success) {
+        console.error('❌ [BattleScene] Erreur attaques:', data.error);
+        this.showActionMessage(`Erreur: ${data.error}`);
+        
+        // Revenir au menu principal après erreur
+        setTimeout(() => {
+          this.showActionButtons();
+        }, 2000);
+      }
+      // Si succès, PokemonMovesUI gère automatiquement l'affichage
+    });
     // Début narratif
     this.battleNetworkHandler.on('narrativeStart', (data) => {
       if (this.scene.isSleeping()) {
@@ -2030,7 +2072,12 @@ createVictoryEffect() {
   destroy() {
     this.deactivateBattleUI();
     this.clearAllPokemonSprites();
-    
+
+    // ✅ NOUVEAU : Nettoyer l'interface attaques
+    if (this.pokemonMovesUI) {
+      this.pokemonMovesUI.destroy();
+      this.pokemonMovesUI = null;
+    }
     // Nettoyer conteneurs
     if (this.actionInterface) {
       this.actionInterface.destroy();
