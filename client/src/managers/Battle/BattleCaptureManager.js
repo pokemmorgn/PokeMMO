@@ -416,7 +416,76 @@ export class BattleCaptureManager {
     }
   }
   
-  // === SÉQUENCES DE CAPTURE AUTHENTIQUES ===
+  // === SÉQUENCE DE TEXTES AUTHENTIQUE POKÉMON ===
+  
+  async startCaptureTextSequence() {
+    console.log('📖 [BattleCaptureManager] Début séquence textes authentique');
+    
+    // ✅ MASQUER L'ACTION PANEL
+    this.battleScene.hideActionButtons();
+    this.battleScene.hideActionMessage();
+    
+    // ✅ SÉQUENCE COMPLÈTE DE TEXTES
+    const ballDisplayName = this.getBallDisplayName(this.currentCaptureData?.ballType || 'poke_ball');
+    const throwMessage = this.getCaptureMessage('ballThrow', { ballName: ballDisplayName });
+    
+    // 1. Message de lancer
+    this.showCaptureMessage(throwMessage, 1500);
+    
+    // Attendre que l'animation de lancer soit terminée
+    await this.delay(2000);
+    
+    // 2. Messages de secousses selon le serveur
+    if (this.currentCaptureData?.critical) {
+      // Capture critique - message spécial
+      const criticalMessage = this.getCaptureMessage('criticalCapture');
+      this.showCaptureMessage(criticalMessage, 2000);
+      await this.delay(2500);
+    } else {
+      // Secousses normales avec délais authentiques
+      const shakeCount = this.currentCaptureData?.shakeCount || 0;
+      const shakeMessages = [
+        this.getCaptureMessage('ballShake1'), // "La Ball bouge..."
+        this.getCaptureMessage('ballShake2'), // "Elle bouge encore..."
+        this.getCaptureMessage('ballShake3'), // "Et encore une fois..."
+        this.getCaptureMessage('ballShake4')  // "Une dernière fois..."
+      ];
+      
+      for (let i = 0; i < shakeCount; i++) {
+        this.showCaptureMessage(shakeMessages[i], 1200);
+        await this.delay(1500); // Délai entre chaque secousse
+      }
+      
+      // Délai suspense avant résultat
+      await this.delay(1000);
+    }
+    
+    // 3. Message final
+    const pokemonName = this.currentCaptureData?.pokemonName || 'Pokémon';
+    
+    if (this.currentCaptureData?.captured) {
+      // Succès - "Gotcha ! Pikachu a été capturé !"
+      const successMessage = this.getCaptureMessage('captureSuccess', { pokemonName });
+      this.showCaptureMessage(successMessage, 3000);
+      
+      // Message d'ajout équipe/PC
+      if (this.currentCaptureData?.addedTo) {
+        setTimeout(() => {
+          const addMessage = this.currentCaptureData.addedTo === 'team' ?
+            this.getCaptureMessage('addedToTeam', { pokemonName }) :
+            this.getCaptureMessage('sentToPC', { pokemonName });
+          
+          this.showCaptureMessage(addMessage, 2500);
+        }, 2000);
+      }
+    } else {
+      // Échec - "Oh non ! Pikachu s'est échappé !"
+      const failureMessage = this.getCaptureMessage('captureFailure', { pokemonName });
+      this.showCaptureMessage(failureMessage, 2000);
+    }
+    
+    console.log('✅ [BattleCaptureManager] Séquence textes terminée');
+  }
   
   async startCriticalCaptureSequence() {
     console.log('⭐ [BattleCaptureManager] CAPTURE CRITIQUE !');
@@ -452,23 +521,15 @@ export class BattleCaptureManager {
     }, this.timings.shakeDelay);
   }
   
-  // === ANIMATIONS DE SECOUSSES AUTHENTIQUES ===
+  // === ANIMATIONS DE SECOUSSES SILENCIEUSES ===
   
   async startShakeSequence(totalShakes, willSucceed) {
-    console.log(`🔄 [BattleCaptureManager] Début ${totalShakes} secousses authentiques`);
+    console.log(`🔄 [BattleCaptureManager] Début ${totalShakes} secousses silencieuses`);
     
-    // Messages de secousse authentiques traduits
-    const shakeMessages = [
-      this.getCaptureMessage('ballShake1'),
-      this.getCaptureMessage('ballShake2'), 
-      this.getCaptureMessage('ballShake3'),
-      this.getCaptureMessage('ballShake4')
-    ];
+    // ✅ PAS DE MESSAGES ICI - La séquence texte s'en charge
+    // Juste les animations visuelles
     
     for (let i = 0; i < totalShakes; i++) {
-      // Afficher le message de secousse
-      this.showCaptureMessage(shakeMessages[i] || this.getCaptureMessage('ballShake1'), this.timings.shakeDuration);
-      
       await this.performShakeAuthentic(i + 1, totalShakes);
       
       // Pause entre secousses (sauf dernière)
@@ -488,10 +549,10 @@ export class BattleCaptureManager {
   }
   
   /**
-   * Secousse authentique avec effets visuels améliorés
+   * Secousse authentique SILENCIEUSE (pas de message)
    */
   async performShakeAuthentic(shakeNumber, totalShakes) {
-    console.log(`〰️ [BattleCaptureManager] Secousse authentique ${shakeNumber}/${totalShakes}`);
+    console.log(`〰️ [BattleCaptureManager] Secousse silencieuse ${shakeNumber}/${totalShakes}`);
     
     if (!this.ballSprite) return;
     
@@ -527,30 +588,16 @@ export class BattleCaptureManager {
     return this.performShakeAuthentic(shakeNumber, totalShakes);
   }
   
-  // === RÉSULTATS FINAUX AUTHENTIQUES ===
+  // === RÉSULTATS FINAUX SILENCIEUX ===
   
   captureSuccess() {
-    console.log('🎉 [BattleCaptureManager] CAPTURE RÉUSSIE !');
+    console.log('🎉 [BattleCaptureManager] CAPTURE RÉUSSIE - Animation seule !');
     
-    const pokemonName = this.currentCaptureData?.pokemonName || 'Pokémon';
+    // ✅ PAS DE MESSAGE ICI - La séquence texte s'en charge
+    // Juste les effets visuels
     
     // Effet de confirmation doré authentique
     this.createSuccessEffectAuthentic();
-    
-    // Message de succès authentique traduit
-    const successMessage = this.getCaptureMessage('captureSuccess', { pokemonName });
-    this.showCaptureMessage(successMessage, this.timings.successCelebration);
-    
-    // Message d'ajout à l'équipe/PC si disponible
-    if (this.currentCaptureData?.addedTo) {
-      const addMessage = this.currentCaptureData.addedTo === 'team' ?
-        this.getCaptureMessage('addedToTeam', { pokemonName }) :
-        this.getCaptureMessage('sentToPC', { pokemonName });
-      
-      setTimeout(() => {
-        this.showCaptureMessage(addMessage, 2000);
-      }, 1500);
-    }
     
     // Animation de célébration authentique
     this.celebrateCaptureAuthentic();
@@ -558,20 +605,24 @@ export class BattleCaptureManager {
     // Nettoyage après célébration
     setTimeout(() => {
       this.cleanup();
+      
+      // ✅ RÉAFFICHER LES BOUTONS APRÈS LA CAPTURE
+      setTimeout(() => {
+        if (this.battleScene.showActionButtons) {
+          this.battleScene.showActionButtons();
+        }
+      }, 1000);
     }, this.timings.successCelebration);
   }
   
   captureFailure() {
-    console.log('💨 [BattleCaptureManager] Capture échouée !');
+    console.log('💨 [BattleCaptureManager] Capture échouée - Animation seule !');
     
-    const pokemonName = this.currentCaptureData?.pokemonName || 'Pokémon';
+    // ✅ PAS DE MESSAGE ICI - La séquence texte s'en charge
+    // Juste les effets visuels
     
     // Ball s'ouvre authentique
     this.ballOpenAnimationAuthentic();
-    
-    // Message d'échec traduit
-    const failureMessage = this.getCaptureMessage('captureFailure', { pokemonName });
-    this.showCaptureMessage(failureMessage, this.timings.failureEscape);
     
     // Faire réapparaître le Pokémon
     setTimeout(() => {
@@ -581,6 +632,13 @@ export class BattleCaptureManager {
     // Nettoyage après échec
     setTimeout(() => {
       this.cleanup();
+      
+      // ✅ RÉAFFICHER LES BOUTONS APRÈS L'ÉCHEC
+      setTimeout(() => {
+        if (this.battleScene.showActionButtons) {
+          this.battleScene.showActionButtons();
+        }
+      }, 1000);
     }, this.timings.failureEscape);
   }
   
@@ -798,19 +856,20 @@ export class BattleCaptureManager {
   
   // === UTILITAIRES ===
   
-  showCaptureMessage(message, duration = 0) {
+  showCaptureMessage(message, duration = 2000) {
     console.log(`💬 [BattleCaptureManager] Message: "${message}"`);
     
-    // ✅ PRIORITÉ 1: Utiliser le système de messages de BattleScene
+    // ✅ UTILISER EXCLUSIVEMENT LE DIALOGUE PRINCIPAL
     if (this.battleScene.showBattleMessage) {
-      // Utiliser le système de dialogue principal (en bas)
+      // Masquer l'action panel pendant la capture
+      this.battleScene.hideActionButtons();
+      this.battleScene.hideActionMessage();
+      
+      // Afficher dans le dialogue principal
       this.battleScene.showBattleMessage(message, duration);
-    } else if (this.battleScene.showActionMessage) {
-      // Fallback vers le système d'action (à droite)
-      this.battleScene.showActionMessage(message);
     } else {
-      // Fallback console si aucun système disponible
-      console.log(`📢 ${message}`);
+      // Fallback console si système non disponible
+      console.log(`📢 [Capture] ${message}`);
     }
   }
   
