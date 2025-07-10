@@ -23,8 +23,6 @@ import { BattleTranslator } from '../../Battle/BattleTranslator.js';
 
 export class BattleCaptureManager {
   
-  // === INITIALISATION AVEC RETRY COUNTER ===
-  
   constructor(battleScene, networkHandler, playerRole = 'player1') {
     console.log('🎯 [BattleCaptureManager] Initialisation authentique Pokémon + Traductions');
     
@@ -41,9 +39,7 @@ export class BattleCaptureManager {
     this.currentCaptureData = null;
     this.captureAnimations = [];
     this.currentAnimationIndex = 0;
-    
-    // === GESTION RÉSEAU ===
-    this.retryCount = 0; // ✅ NOUVEAU: Compteur de retry
+    this.currentBallType = null; // ✅ STOCKER TYPE DE BALL ACTUEL
     
     // === SPRITES DE CAPTURE ===
     this.ballSprite = null;
@@ -120,6 +116,7 @@ export class BattleCaptureManager {
     
     // Préparer la capture
     this.isCapturing = true;
+    this.currentBallType = ballType; // ✅ STOCKER TYPE DE BALL
     this.targetPokemonSprite = targetPokemonSprite;
     this.pokemonPosition = { x: targetPokemonSprite.x, y: targetPokemonSprite.y };
     
@@ -409,9 +406,6 @@ export class BattleCaptureManager {
   handleCaptureResult(captureData) {
     console.log('📋 [BattleCaptureManager] Traitement résultat capture:', captureData);
     
-    // ✅ RESET RETRY COUNTER
-    this.resetRetryCount();
-    
     this.currentCaptureData = captureData;
     this.captureAnimations = captureData.animations || [];
     this.currentAnimationIndex = 0;
@@ -424,21 +418,21 @@ export class BattleCaptureManager {
     }
   }
   
-  // === SÉQUENCE DE TEXTES AUTHENTIQUE DANS LE PANEL D'ACTION ===
+  // === SÉQUENCE DE TEXTES AUTHENTIQUE POKÉMON ===
   
   async startCaptureTextSequence() {
-    console.log('📖 [BattleCaptureManager] Début séquence textes dans panel d\'action');
+    console.log('📖 [BattleCaptureManager] Début séquence textes authentique');
     
-    // ✅ PAS DE MASQUAGE - Utiliser le panel d'action
-    // this.battleScene.hideActionButtons(); // SUPPRIMÉ
-    // this.battleScene.hideActionMessage(); // SUPPRIMÉ
+    // ✅ MASQUER L'ACTION PANEL
+    this.battleScene.hideActionButtons();
+    this.battleScene.hideActionMessage();
     
-    // ✅ SÉQUENCE COMPLÈTE DE TEXTES DANS LE PANEL
+    // ✅ SÉQUENCE COMPLÈTE DE TEXTES
     const ballDisplayName = this.getBallDisplayName(this.currentCaptureData?.ballType || 'poke_ball');
     const throwMessage = this.getCaptureMessage('ballThrow', { ballName: ballDisplayName });
     
     // 1. Message de lancer
-    this.showCaptureMessage(throwMessage);
+    this.showCaptureMessage(throwMessage, 1500);
     
     // Attendre que l'animation de lancer soit terminée
     await this.delay(2000);
@@ -447,7 +441,7 @@ export class BattleCaptureManager {
     if (this.currentCaptureData?.critical) {
       // Capture critique - message spécial
       const criticalMessage = this.getCaptureMessage('criticalCapture');
-      this.showCaptureMessage(criticalMessage);
+      this.showCaptureMessage(criticalMessage, 2000);
       await this.delay(2500);
     } else {
       // Secousses normales avec délais authentiques
@@ -460,7 +454,7 @@ export class BattleCaptureManager {
       ];
       
       for (let i = 0; i < shakeCount; i++) {
-        this.showCaptureMessage(shakeMessages[i]);
+        this.showCaptureMessage(shakeMessages[i], 1200);
         await this.delay(1500); // Délai entre chaque secousse
       }
       
@@ -474,7 +468,7 @@ export class BattleCaptureManager {
     if (this.currentCaptureData?.captured) {
       // Succès - "Gotcha ! Pikachu a été capturé !"
       const successMessage = this.getCaptureMessage('captureSuccess', { pokemonName });
-      this.showCaptureMessage(successMessage);
+      this.showCaptureMessage(successMessage, 3000);
       
       // Message d'ajout équipe/PC
       if (this.currentCaptureData?.addedTo) {
@@ -483,13 +477,13 @@ export class BattleCaptureManager {
             this.getCaptureMessage('addedToTeam', { pokemonName }) :
             this.getCaptureMessage('sentToPC', { pokemonName });
           
-          this.showCaptureMessage(addMessage);
+          this.showCaptureMessage(addMessage, 2500);
         }, 2000);
       }
     } else {
       // Échec - "Oh non ! Pikachu s'est échappé !"
       const failureMessage = this.getCaptureMessage('captureFailure', { pokemonName });
-      this.showCaptureMessage(failureMessage);
+      this.showCaptureMessage(failureMessage, 2000);
     }
     
     console.log('✅ [BattleCaptureManager] Séquence textes terminée');
@@ -867,15 +861,24 @@ export class BattleCaptureManager {
   showCaptureMessage(message, duration = 2000) {
     console.log(`💬 [BattleCaptureManager] Message: "${message}"`);
     
-    // ✅ UTILISER LE SYSTÈME D'ACTION (panel à droite)
-    if (this.battleScene.showActionMessage) {
-      // Utiliser le système d'action avec debug
-      this.battleScene.showActionMessage(message);
-    } else if (this.battleScene.showBattleMessage) {
-      // Fallback vers le dialogue principal
+    // ✅ MASQUER L'ACTION INTERFACE COMPLÈTEMENT
+    if (this.battleScene.hideActionButtons) {
+      this.battleScene.hideActionButtons();
+    }
+    if (this.battleScene.hideActionMessage) {
+      this.battleScene.hideActionMessage();
+    }
+    
+    // ✅ MASQUER L'ACTION INTERFACE ELLE-MÊME
+    if (this.battleScene.actionInterface) {
+      this.battleScene.actionInterface.setVisible(false);
+    }
+    
+    // ✅ UTILISER LE DIALOGUE PRINCIPAL
+    if (this.battleScene.showBattleMessage) {
       this.battleScene.showBattleMessage(message, duration);
     } else {
-      // Fallback console si aucun système disponible
+      // Fallback console si système non disponible
       console.log(`📢 [Capture] ${message}`);
     }
   }
@@ -966,7 +969,7 @@ export class BattleCaptureManager {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   
-  // === NETTOYAGE COMPLET ET SÉCURISÉ ===
+  // === NETTOYAGE COMPLET AVEC RESTAURATION UI ===
   
   cleanup() {
     console.log('🧹 [BattleCaptureManager] Nettoyage capture COMPLET');
@@ -1007,12 +1010,18 @@ export class BattleCaptureManager {
       console.log('🐾 [BattleCaptureManager] Pokémon restauré après nettoyage');
     }
     
+    // ✅ RESTAURER L'ACTION INTERFACE
+    if (this.battleScene.actionInterface) {
+      this.battleScene.actionInterface.setVisible(true);
+    }
+    
     // ✅ RESET COMPLET DE L'ÉTAT
     this.isCapturing = false;
     this.currentCaptureData = null;
     this.captureAnimations = [];
     this.currentAnimationIndex = 0;
     this.targetPokemonSprite = null;
+    this.currentBallType = null;
     
     // ✅ NETTOYER LES TIMERS SI NÉCESSAIRE
     this.clearCaptureTimers();
