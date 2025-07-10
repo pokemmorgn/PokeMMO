@@ -1,5 +1,5 @@
 // server/src/battle/modules/broadcast/SpectatorManager.ts
-// GESTION BASIQUE DES SPECTATEURS - SQUELETTE SIMPLE
+// GESTION SPECTATEURS SPATIAUX - INTÉGRATION BATTLEROOM
 
 import { BattleGameState } from '../../types/BattleTypes';
 
@@ -8,284 +8,470 @@ import { BattleGameState } from '../../types/BattleTypes';
 export interface SpectatorInfo {
   sessionId: string;
   battleId: string;
+  battleRoomId: string;
   joinedAt: number;
-  isActive: boolean;
+  joinedFromWorld: boolean;
+  worldPosition?: { x: number; y: number; mapId: string };
 }
 
-export interface BattleVisibility {
+export interface BattleWorldPosition {
   battleId: string;
-  isPublic: boolean;
+  battleRoomId: string;
+  x: number;
+  y: number;
+  mapId: string;
+  participantIds: string[];
   allowSpectators: boolean;
   maxSpectators: number;
-  battleType: 'wild' | 'pvp' | 'trainer';
+}
+
+export interface SpectatorRequest {
+  spectatorId: string;
+  targetPlayerId: string;
+  spectatorPosition: { x: number; y: number; mapId: string };
+  targetPosition: { x: number; y: number; mapId: string };
+  interactionDistance: number;
 }
 
 /**
- * SPECTATOR MANAGER - Gestion basique des spectateurs
+ * SPECTATOR MANAGER - Gestion spectateurs spatiaux via BattleRoom
  * 
- * Responsabilités (pour l'instant) :
- * - Ajouter/retirer spectateurs
- * - Vérifier permissions de base
- * - Compter spectateurs
- * - Règles simples public/privé
+ * Responsabilités :
+ * - Gérer spectateurs via proximité spatiale
+ * - Intégration avec BattleRoom
+ * - Validation positions monde/combat
+ * - Gestion des interactions "E" pour regarder
  * 
- * ÉVOLUTIF : Base pour futures features (chat, réactions, etc.)
+ * WORKFLOW :
+ * 1. Joueur en combat → Position enregistrée dans le monde
+ * 2. Autre joueur s'approche → Peut appuyer sur E
+ * 3. Validation proximité → Rejoindre BattleRoom en spectateur
+ * 4. Interface combat en mode readonly
  */
 export class SpectatorManager {
   
   private spectators: Map<string, SpectatorInfo> = new Map();
-  private battleVisibility: Map<string, BattleVisibility> = new Map();
+  private battlePositions: Map<string, BattleWorldPosition> = new Map();
+  private playerBattleStatus: Map<string, string> = new Map(); // playerId → battleId
+  
+  // Configuration
+  private readonly MAX_INTERACTION_DISTANCE = 100; // unités de jeu
+  private readonly DEFAULT_MAX_SPECTATORS = 5;
   
   constructor() {
-    console.log('👁️ [SpectatorManager] Initialisé - Mode basique');
+    console.log('👁️ [SpectatorManager] Initialisé - Mode spatial/BattleRoom');
   }
   
-  // === GESTION SPECTATEURS ===
+  // === GESTION POSITIONS COMBAT ===
   
   /**
-   * Ajoute un spectateur à un combat
+   * Enregistre la position d'un combat dans le monde
    */
-  addSpectator(sessionId: string, battleId: string): boolean {
-    console.log(`👁️ [SpectatorManager] Tentative ajout spectateur ${sessionId} → ${battleId}`);
+  setBattleWorldPosition(
+    battleId: string,
+    battleRoomId: string,
+    gameState: BattleGameState,
+    worldPosition: { x: number; y: number; mapId: string }
+  ): void {
     
-    // Vérifier si peut regarder
-    if (!this.canWatchBattle(sessionId, battleId)) {
-      console.log(`❌ [SpectatorManager] Spectateur ${sessionId} refusé pour ${battleId}`);
+    const participantIds = [
+      gameState.player1.sessionId,
+      gameState.player2.sessionId !== 'ai' ? gameState.player2.sessionId : ''
+    ].filter(id => id);
+    
+    const battlePosition: BattleWorldPosition = {
+      battleId,
+      battleRoomId,
+      x: worldPosition.x,
+      y: worldPosition.y,
+      mapId: worldPosition.mapId,
+      participantIds,
+      allowSpectators: this.getAllowSpectators(gameState.type),
+      maxSpectators: this.getMaxSpectators(gameState.type)
+    };
+    
+    this.battlePositions.set(battleId, battlePosition);
+    
+    // Marquer les joueurs comme étant en combat
+    participantIds.forEach(playerId => {
+      if (playerId) {
+        this.playerBattleStatus.set(playerId, battleId);
+      }
+    });
+    
+    console.log(`📍 [SpectatorManager] Position combat enregistrée: ${battleId} à (${worldPosition.x}, ${worldPosition.y}) sur ${worldPosition.mapId}`);
+  }
+  
+  /**
+   * Met à jour la position d'un combat (si les joueurs bougent)
+   */
+  updateBattlePosition(
+    battleId: string,
+    newPosition: { x: number; y: number; mapId: string }
+  ): void {
+    const battle = this.battlePositions.get(battleId);
+    if (battle) {
+      battle.x = newPosition.x;
+      battle.y = newPosition.y;
+      battle.mapId = newPosition.mapId;
+      
+      console.log(`🔄 [SpectatorManager] Position combat mise à jour: ${battleId}`);
+    }
+  }
+  
+  // === INTERACTION SPATIALE ===
+  
+  /**
+   * Traite une demande d'interaction "E" pour regarder un combat
+   */
+  requestWatchBattle(request: SpectatorRequest): {
+    canWatch: boolean;
+    battleId?: string;
+    battleRoomId?: string;
+    reason?: string;
+  } {
+    
+    console.log(`👁️ [SpectatorManager] Demande spectateur: ${request.spectatorId} → ${request.targetPlayerId}`);
+    
+    // 1. Vérifier que le joueur cible est en combat
+    const targetBattleId = this.playerBattleStatus.get(request.targetPlayerId);
+    if (!targetBattleId) {
+      return {
+        canWatch: false,
+        reason: 'Le joueur n\'est pas en combat'
+      };
+    }
+    
+    // 2. Récupérer la position du combat
+    const battlePosition = this.battlePositions.get(targetBattleId);
+    if (!battlePosition) {
+      return {
+        canWatch: false,
+        reason: 'Combat introuvable'
+      };
+    }
+    
+    // 3. Vérifier la proximité spatiale
+    if (!this.isWithinInteractionDistance(request)) {
+      return {
+        canWatch: false,
+        reason: 'Vous êtes trop loin du combat'
+      };
+    }
+    
+    // 4. Vérifier les permissions
+    if (!battlePosition.allowSpectators) {
+      return {
+        canWatch: false,
+        reason: 'Ce combat n\'autorise pas les spectateurs'
+      };
+    }
+    
+    // 5. Vérifier la limite de spectateurs
+    const currentSpectatorCount = this.getBattleSpectatorCount(targetBattleId);
+    if (currentSpectatorCount >= battlePosition.maxSpectators) {
+      return {
+        canWatch: false,
+        reason: 'Trop de spectateurs pour ce combat'
+      };
+    }
+    
+    // 6. Vérifier que le spectateur n'est pas déjà en train de regarder
+    if (this.spectators.has(request.spectatorId)) {
+      return {
+        canWatch: false,
+        reason: 'Vous regardez déjà un autre combat'
+      };
+    }
+    
+    // ✅ Autoriser le spectateur
+    return {
+      canWatch: true,
+      battleId: targetBattleId,
+      battleRoomId: battlePosition.battleRoomId
+    };
+  }
+  
+  /**
+   * Ajoute un spectateur à un combat (après validation)
+   */
+  addSpectator(
+    sessionId: string,
+    battleId: string,
+    battleRoomId: string,
+    worldPosition: { x: number; y: number; mapId: string }
+  ): boolean {
+    
+    // Vérifier que le combat existe encore
+    const battlePosition = this.battlePositions.get(battleId);
+    if (!battlePosition) {
+      console.log(`❌ [SpectatorManager] Combat ${battleId} introuvable pour spectateur ${sessionId}`);
       return false;
     }
     
-    // Ajouter le spectateur
+    // Créer l'info spectateur
     const spectatorInfo: SpectatorInfo = {
       sessionId,
       battleId,
+      battleRoomId,
       joinedAt: Date.now(),
-      isActive: true
+      joinedFromWorld: true,
+      worldPosition
     };
     
     this.spectators.set(sessionId, spectatorInfo);
     
-    console.log(`✅ [SpectatorManager] Spectateur ${sessionId} ajouté à ${battleId}`);
+    console.log(`✅ [SpectatorManager] Spectateur ${sessionId} ajouté au combat ${battleId} (BattleRoom: ${battleRoomId})`);
     return true;
   }
   
   /**
    * Retire un spectateur
    */
-  removeSpectator(sessionId: string): boolean {
+  removeSpectator(sessionId: string): { 
+    removed: boolean; 
+    shouldLeaveBattleRoom: boolean;
+    battleRoomId?: string;
+  } {
+    
+    const spectatorInfo = this.spectators.get(sessionId);
     const removed = this.spectators.delete(sessionId);
     
-    if (removed) {
-      console.log(`👋 [SpectatorManager] Spectateur ${sessionId} retiré`);
+    if (removed && spectatorInfo) {
+      console.log(`👋 [SpectatorManager] Spectateur ${sessionId} retiré du combat ${spectatorInfo.battleId}`);
+      
+      return {
+        removed: true,
+        shouldLeaveBattleRoom: true,
+        battleRoomId: spectatorInfo.battleRoomId
+      };
     }
     
-    return removed;
+    return { removed: false, shouldLeaveBattleRoom: false };
+  }
+  
+  // === DÉTECTION PROXIMITÉ ===
+  
+  /**
+   * Vérifie si un joueur est assez proche pour interagir
+   */
+  private isWithinInteractionDistance(request: SpectatorRequest): boolean {
+    const distance = this.calculateDistance(
+      request.spectatorPosition,
+      request.targetPosition
+    );
+    
+    const isClose = distance <= (request.interactionDistance || this.MAX_INTERACTION_DISTANCE);
+    const sameMap = request.spectatorPosition.mapId === request.targetPosition.mapId;
+    
+    console.log(`📏 [SpectatorManager] Distance: ${distance.toFixed(1)} (max: ${this.MAX_INTERACTION_DISTANCE}), même carte: ${sameMap}`);
+    
+    return isClose && sameMap;
   }
   
   /**
-   * Vérifie si un spectateur peut regarder un combat
+   * Calcule la distance entre deux positions
    */
-  canWatchBattle(sessionId: string, battleId: string): boolean {
-    const visibility = this.battleVisibility.get(battleId);
-    
-    // Pas de règles définies = autoriser (défaut permissif)
-    if (!visibility) {
-      return true;
-    }
-    
-    // Combat n'autorise pas les spectateurs
-    if (!visibility.allowSpectators) {
-      return false;
-    }
-    
-    // Combat privé (PvP par défaut)
-    if (!visibility.isPublic) {
-      // TODO: Système d'invitations/liens plus tard
-      return false;
-    }
-    
-    // Vérifier limite de spectateurs
-    const currentCount = this.getSpectatorCount(battleId);
-    if (currentCount >= visibility.maxSpectators) {
-      return false;
-    }
-    
-    return true;
-  }
-  
-  // === CONFIGURATION COMBATS ===
-  
-  /**
-   * Configure la visibilité d'un combat
-   */
-  setBattleVisibility(battleId: string, gameState: BattleGameState): void {
-    const visibility: BattleVisibility = {
-      battleId,
-      isPublic: this.getDefaultVisibility(gameState.type),
-      allowSpectators: true,
-      maxSpectators: this.getDefaultMaxSpectators(gameState.type),
-      battleType: gameState.type
-    };
-    
-    this.battleVisibility.set(battleId, visibility);
-    
-    console.log(`👁️ [SpectatorManager] Visibilité configurée pour ${battleId}: public=${visibility.isPublic}, max=${visibility.maxSpectators}`);
+  private calculateDistance(
+    pos1: { x: number; y: number },
+    pos2: { x: number; y: number }
+  ): number {
+    const dx = pos1.x - pos2.x;
+    const dy = pos1.y - pos2.y;
+    return Math.sqrt(dx * dx + dy * dy);
   }
   
   /**
-   * Met à jour les paramètres de visibilité
+   * Trouve tous les joueurs proches d'un combat
    */
-  updateBattleVisibility(
-    battleId: string, 
-    updates: Partial<Omit<BattleVisibility, 'battleId' | 'battleType'>>
-  ): void {
-    const current = this.battleVisibility.get(battleId);
-    if (current) {
-      Object.assign(current, updates);
-      console.log(`🔧 [SpectatorManager] Visibilité mise à jour pour ${battleId}`);
-    }
+  getNearbyPlayers(
+    battleId: string,
+    allPlayersPositions: Map<string, { x: number; y: number; mapId: string }>
+  ): string[] {
+    
+    const battlePosition = this.battlePositions.get(battleId);
+    if (!battlePosition) return [];
+    
+    const nearbyPlayers: string[] = [];
+    
+    allPlayersPositions.forEach((position, playerId) => {
+      // Ignorer les participants du combat
+      if (battlePosition.participantIds.includes(playerId)) return;
+      
+      // Ignorer si déjà spectateur d'un autre combat
+      if (this.spectators.has(playerId)) return;
+      
+      // Vérifier la proximité
+      const distance = this.calculateDistance(battlePosition, position);
+      const sameMap = battlePosition.mapId === position.mapId;
+      
+      if (distance <= this.MAX_INTERACTION_DISTANCE && sameMap) {
+        nearbyPlayers.push(playerId);
+      }
+    });
+    
+    return nearbyPlayers;
   }
   
   // === INFORMATIONS ===
   
   /**
-   * Récupère le nombre de spectateurs pour un combat
+   * Vérifie si un joueur est en combat
    */
-  getSpectatorCount(battleId: string): number {
+  isPlayerInBattle(playerId: string): boolean {
+    return this.playerBattleStatus.has(playerId);
+  }
+  
+  /**
+   * Récupère le statut de combat d'un joueur
+   */
+  getPlayerBattleStatus(playerId: string): {
+    inBattle: boolean;
+    battleId?: string;
+    battleRoomId?: string;
+    allowSpectators?: boolean;
+  } {
+    
+    const battleId = this.playerBattleStatus.get(playerId);
+    if (!battleId) {
+      return { inBattle: false };
+    }
+    
+    const battlePosition = this.battlePositions.get(battleId);
+    return {
+      inBattle: true,
+      battleId,
+      battleRoomId: battlePosition?.battleRoomId,
+      allowSpectators: battlePosition?.allowSpectators || false
+    };
+  }
+  
+  /**
+   * Compte les spectateurs d'un combat
+   */
+  getBattleSpectatorCount(battleId: string): number {
     return Array.from(this.spectators.values())
-      .filter(s => s.battleId === battleId && s.isActive)
+      .filter(s => s.battleId === battleId)
       .length;
   }
   
   /**
-   * Récupère la liste des spectateurs d'un combat
+   * Récupère tous les spectateurs d'un combat
    */
   getBattleSpectators(battleId: string): string[] {
     return Array.from(this.spectators.values())
-      .filter(s => s.battleId === battleId && s.isActive)
+      .filter(s => s.battleId === battleId)
       .map(s => s.sessionId);
   }
   
   /**
-   * Récupère les infos d'un spectateur
+   * Récupère les informations d'un spectateur
    */
   getSpectatorInfo(sessionId: string): SpectatorInfo | null {
     return this.spectators.get(sessionId) || null;
   }
   
-  /**
-   * Vérifie si un utilisateur est spectateur d'un combat
-   */
-  isWatching(sessionId: string, battleId: string): boolean {
-    const info = this.spectators.get(sessionId);
-    return info ? info.battleId === battleId && info.isActive : false;
-  }
-  
   // === NETTOYAGE ===
   
   /**
-   * Nettoie tous les spectateurs d'un combat terminé
+   * Nettoie un combat terminé
    */
-  cleanupBattle(battleId: string): number {
-    const removed = Array.from(this.spectators.entries())
+  cleanupBattle(battleId: string): {
+    spectatorsRemoved: string[];
+    battleRoomIds: string[];
+  } {
+    
+    console.log(`🧹 [SpectatorManager] Nettoyage combat ${battleId}`);
+    
+    // Récupérer les spectateurs à retirer
+    const spectatorsToRemove = Array.from(this.spectators.entries())
       .filter(([_, info]) => info.battleId === battleId)
-      .map(([sessionId, _]) => sessionId);
+      .map(([sessionId, info]) => ({ sessionId, battleRoomId: info.battleRoomId }));
     
-    removed.forEach(sessionId => this.spectators.delete(sessionId));
-    this.battleVisibility.delete(battleId);
+    // Retirer les spectateurs
+    spectatorsToRemove.forEach(({ sessionId }) => {
+      this.spectators.delete(sessionId);
+    });
     
-    console.log(`🧹 [SpectatorManager] Combat ${battleId} nettoyé - ${removed.length} spectateurs retirés`);
-    return removed.length;
+    // Récupérer les infos de la bataille
+    const battlePosition = this.battlePositions.get(battleId);
+    const battleRoomIds = battlePosition ? [battlePosition.battleRoomId] : [];
+    
+    // Nettoyer les statuts des joueurs
+    battlePosition?.participantIds.forEach(playerId => {
+      if (playerId) {
+        this.playerBattleStatus.delete(playerId);
+      }
+    });
+    
+    // Supprimer la position du combat
+    this.battlePositions.delete(battleId);
+    
+    console.log(`✅ [SpectatorManager] Combat ${battleId} nettoyé - ${spectatorsToRemove.length} spectateurs retirés`);
+    
+    return {
+      spectatorsRemoved: spectatorsToRemove.map(s => s.sessionId),
+      battleRoomIds
+    };
   }
   
-  /**
-   * Marque un spectateur comme inactif (déconnexion)
-   */
-  markInactive(sessionId: string): void {
-    const info = this.spectators.get(sessionId);
-    if (info) {
-      info.isActive = false;
-      console.log(`💤 [SpectatorManager] Spectateur ${sessionId} marqué inactif`);
+  // === CONFIGURATION ===
+  
+  private getAllowSpectators(battleType: string): boolean {
+    switch (battleType) {
+      case 'wild':
+        return true;  // Combats sauvages = spectateurs OK
+      case 'pvp':
+        return true;  // PvP = spectateurs OK (dans le monde)
+      case 'trainer':
+        return true;  // Dresseurs = spectateurs OK
+      default:
+        return true;
     }
   }
   
-  // === RÈGLES PAR DÉFAUT ===
-  
-  private getDefaultVisibility(battleType: string): boolean {
+  private getMaxSpectators(battleType: string): number {
     switch (battleType) {
       case 'wild':
-        return true;  // Combats sauvages = publics
+        return 3;  // Pas trop de monde pour un sauvage
       case 'pvp':
-        return false; // PvP = privés par défaut
+        return 8;  // PvP plus populaire
       case 'trainer':
-        return true;  // Dresseurs = publics
+        return 5;  // Intermédiaire
       default:
-        return true;  // Défaut permissif
-    }
-  }
-  
-  private getDefaultMaxSpectators(battleType: string): number {
-    switch (battleType) {
-      case 'wild':
-        return 10;   // Limite raisonnable
-      case 'pvp':
-        return 20;   // Plus populaire
-      case 'trainer':
-        return 15;   // Intermédiaire
-      default:
-        return 10;   // Défaut sûr
+        return this.DEFAULT_MAX_SPECTATORS;
     }
   }
   
   // === STATISTIQUES ===
   
-  /**
-   * Statistiques générales
-   */
   getStats(): any {
     const totalSpectators = this.spectators.size;
-    const activeSpectators = Array.from(this.spectators.values())
-      .filter(s => s.isActive).length;
-    
-    const battleCounts = new Map<string, number>();
-    Array.from(this.spectators.values()).forEach(s => {
-      if (s.isActive) {
-        battleCounts.set(s.battleId, (battleCounts.get(s.battleId) || 0) + 1);
-      }
-    });
+    const activeBattles = this.battlePositions.size;
+    const playersInBattle = this.playerBattleStatus.size;
     
     return {
-      version: 'basic_v1',
+      version: 'spatial_v1',
       totalSpectators,
-      activeSpectators,
-      activeBattles: this.battleVisibility.size,
-      mostWatchedBattle: this.getMostWatchedBattle(),
-      features: ['basic_permissions', 'public_private_battles', 'spectator_limits']
+      activeBattles,
+      playersInBattle,
+      maxInteractionDistance: this.MAX_INTERACTION_DISTANCE,
+      features: [
+        'spatial_proximity',
+        'battleroom_integration',
+        'world_position_tracking',
+        'interaction_validation'
+      ]
     };
   }
   
-  private getMostWatchedBattle(): { battleId: string; count: number } | null {
-    const counts = new Map<string, number>();
-    
-    Array.from(this.spectators.values())
-      .filter(s => s.isActive)
-      .forEach(s => {
-        counts.set(s.battleId, (counts.get(s.battleId) || 0) + 1);
-      });
-    
-    if (counts.size === 0) return null;
-    
-    const [battleId, count] = Array.from(counts.entries())
-      .reduce((max, current) => current[1] > max[1] ? current : max);
-    
-    return { battleId, count };
-  }
-  
   /**
-   * Reset complet (pour tests)
+   * Reset complet
    */
   reset(): void {
     this.spectators.clear();
-    this.battleVisibility.clear();
+    this.battlePositions.clear();
+    this.playerBattleStatus.clear();
     console.log('🔄 [SpectatorManager] Reset effectué');
   }
 }
