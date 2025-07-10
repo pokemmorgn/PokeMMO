@@ -288,51 +288,59 @@ export class BattleEngine {
   /**
    * ✅ POKÉMON ROUGE/BLEU: Démarre la phase d'un attaquant spécifique
    */
-  private async startAttackerPhase(attackerIndex: number): Promise<void> {
-    if (attackerIndex >= this.orderedActions.length) {
-      // Tous les attaquants ont agi
-      await this.completeActionResolution();
-      return;
-    }
-    
-    this.currentAttackerData = this.orderedActions[attackerIndex];
-    const attackerNumber = attackerIndex + 1;
-    const totalAttackers = this.orderedActions.length;
-    
-    // Déterminer la sous-phase
-    this.currentSubPhase = attackerIndex === 0 ? SubPhase.ATTACKER_1 : SubPhase.ATTACKER_2;
-    
-    console.log(`👊 [BattleEngine] === ${this.currentSubPhase.toUpperCase()} === `);
-    console.log(`🎯 [BattleEngine] ${this.currentAttackerData.pokemon.name} (${this.currentAttackerData.playerRole}) va agir`);
-    
-    // Émettre événement de début de phase attaquant
-    this.emit('attackerPhaseStart', {
-      subPhase: this.currentSubPhase,
-      playerRole: this.currentAttackerData.playerRole,
-      actionType: this.currentAttackerData.action.type,
-      attackerNumber,
-      totalAttackers,
-      pokemon: this.currentAttackerData.pokemon.name,
-      message: `Phase d'attaque de ${this.currentAttackerData.pokemon.name}`
-    });
-    
-    // ✅ POKÉMON AUTHENTIQUE: Exécuter l'action COMPLÈTEMENT
-    await this.executeFullAttackerAction();
-    
-    // Vérifier fin de combat après cette phase
-    const battleEndCheck = this.checkBattleEnd();
-    if (battleEndCheck.isEnded) {
-      console.log(`🏁 [BattleEngine] Combat terminé après phase ${this.currentSubPhase}: ${battleEndCheck.reason}`);
-      this.gameState.isEnded = true;
-      this.gameState.winner = battleEndCheck.winner;
-      this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
-      return;
-    }
-    
-    // ✅ POKÉMON AUTHENTIQUE: Passer à l'attaquant suivant
-    console.log(`✅ [BattleEngine] Phase ${this.currentSubPhase} terminée, attaquant suivant...`);
-    await this.startAttackerPhase(attackerIndex + 1);
+private async startAttackerPhase(attackerIndex: number): Promise<void> {
+  if (attackerIndex >= this.orderedActions.length) {
+    // Tous les attaquants ont agi
+    await this.completeActionResolution();
+    return;
   }
+  
+  this.currentAttackerData = this.orderedActions[attackerIndex];
+  const attackerNumber = attackerIndex + 1;
+  const totalAttackers = this.orderedActions.length;
+  
+  // Déterminer la sous-phase
+  this.currentSubPhase = attackerIndex === 0 ? SubPhase.ATTACKER_1 : SubPhase.ATTACKER_2;
+  
+  console.log(`👊 [BattleEngine] === ${this.currentSubPhase.toUpperCase()} === `);
+  console.log(`🎯 [BattleEngine] ${this.currentAttackerData.pokemon.name} (${this.currentAttackerData.playerRole}) va agir`);
+  
+  // Émettre événement de début de phase attaquant
+  this.emit('attackerPhaseStart', {
+    subPhase: this.currentSubPhase,
+    playerRole: this.currentAttackerData.playerRole,
+    actionType: this.currentAttackerData.action.type,
+    attackerNumber,
+    totalAttackers,
+    pokemon: this.currentAttackerData.pokemon.name,
+    message: `Phase d'attaque de ${this.currentAttackerData.pokemon.name}`
+  });
+  
+  // ✅ POKÉMON AUTHENTIQUE: Exécuter l'action COMPLÈTEMENT et ATTENDRE
+  console.log(`⏰ [BattleEngine] DÉBUT action ${this.currentAttackerData.pokemon.name} - AVEC ATTENTE`);
+  
+  await this.executeFullAttackerAction();
+  
+  console.log(`⏰ [BattleEngine] FIN action ${this.currentAttackerData.pokemon.name} - Délais respectés`);
+  
+  // Vérifier fin de combat après cette phase
+  const battleEndCheck = this.checkBattleEnd();
+  if (battleEndCheck.isEnded) {
+    console.log(`🏁 [BattleEngine] Combat terminé après phase ${this.currentSubPhase}: ${battleEndCheck.reason}`);
+    this.gameState.isEnded = true;
+    this.gameState.winner = battleEndCheck.winner;
+    this.transitionToPhase(InternalBattlePhase.ENDED, battleEndCheck.reason);
+    return;
+  }
+  
+  // ✅ POKÉMON AUTHENTIQUE: Passer à l'attaquant suivant APRÈS avoir attendu
+  console.log(`✅ [BattleEngine] Phase ${this.currentSubPhase} terminée, attaquant suivant...`);
+  
+  // ✅ DÉLAI ENTRE LES ATTAQUANTS (optionnel - peut être retiré si trop lent)
+  await this.delay(500); // 0.5s entre les attaquants
+  
+  await this.startAttackerPhase(attackerIndex + 1);
+}
   
   /**
    * ✅ POKÉMON ROUGE/BLEU: Exécute l'action COMPLÈTE d'un attaquant (message + dégâts + efficacité + K.O.)
