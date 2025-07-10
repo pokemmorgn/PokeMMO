@@ -323,53 +323,41 @@ export class OverworldPokemonManager {
   }
 
   private spawnPokemon(areaId: string, config: OverworldPokemonConfig): void {
-    const areaConfig = this.config.areas[areaId];
-    if (!areaConfig) return;
-    
-    const id = `overworld_${areaId}_${config.pokemonId}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    
-    // ✅ Position aléatoire dans la zone (pas de vérification collision)
-    const spawnX = areaConfig.boundaries.minX + Math.random() * (areaConfig.boundaries.maxX - areaConfig.boundaries.minX);
-    const spawnY = areaConfig.boundaries.minY + Math.random() * (areaConfig.boundaries.maxY - areaConfig.boundaries.minY);
-    const direction = this.directions[Math.floor(Math.random() * this.directions.length)];
-    
-    const pokemon: OverworldPokemonData = {
+  const areaConfig = this.config.areas[areaId];
+  if (!areaConfig) return;
+  
+  const id = `overworld_${areaId}_${config.pokemonId}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  
+  // ✅ SPAWN AVEC VALIDATION CLIENT
+  const spawnRequest = {
+    type: "OVERWORLD_POKEMON_SPAWN_REQUEST",
+    data: {
       id,
       pokemonId: config.pokemonId,
       name: config.name,
-      x: spawnX,
-      y: spawnY,
-      direction,
-      isMoving: false,
+      areaId: areaId,
+      boundaries: areaConfig.boundaries,
+      direction: this.directions[Math.floor(Math.random() * this.directions.length)],
       isShiny: config.isShiny || (Math.random() < 0.001),
-      spawnTime: Date.now(),
-      lastMoveTime: Date.now(),
       speed: config.speed,
       movePattern: config.movePattern,
       patrolPoints: config.patrolPoints,
-      currentPatrolIndex: 0,
-      areaId: areaId,
-      boundaries: areaConfig.boundaries,
       animations: config.animations,
       currentAnimation: config.currentAnimation,
-      targetX: spawnX,
-      targetY: spawnY,
-      moveStartTime: Date.now(),
-      moveDuration: 1000,
-      lastDirectionFrame: direction,
-      // ✅ NOUVELLES PROPRIÉTÉS
       wanderRadius: config.wanderRadius || 128,
-      wanderCenter: { x: spawnX, y: spawnY },
       personality: config.personality || 'calm',
-      preferredDirection: direction,
       directionChangeChance: config.directionChangeChance || 0.15,
       pauseChance: config.pauseChance || 0.1
-    };
-    
-    this.overworldPokemon.set(id, pokemon);
-    console.log(`🐾 [OverworldPokemonManager] ${config.name} spawné dans ${areaId} à (${spawnX.toFixed(1)}, ${spawnY.toFixed(1)}) - ${pokemon.personality}`);
-    this.broadcastPokemonSpawn(pokemon);
+    }
+  };
+  
+  // Envoyer la demande aux clients pour qu'ils trouvent une position libre
+  const clientsInZone = this.getClientsInZone(areaId);
+  if (clientsInZone.length > 0) {
+    // Demander au premier client de trouver une position libre
+    clientsInZone[0].send("overworldPokemon", spawnRequest);
   }
+}
 
   private updateAllPokemon(deltaTime: number): void {
     this.overworldPokemon.forEach((pokemon, id) => {
