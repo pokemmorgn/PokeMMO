@@ -8,6 +8,7 @@ import { BattleConfig, BattleGameState, Pokemon, BattleAction } from "../battle/
 import { getPokemonById } from "../data/PokemonData";
 import { TeamManager } from "../managers/TeamManager";
 import { PokemonMoveService } from "../services/PokemonMoveService";
+import { BattlePhase } from '../battle/types/BattleTypes';
 // === INTERFACES BATTLEROOM ===
 
 export interface BattleInitData {
@@ -115,7 +116,8 @@ private async handleRequestMoves(client: Client) {
       return;
     }
     
-    if (this.battleGameState.phase !== 'action_selection') {
+    // ✅ CORRECTION: Utiliser la méthode du BattleEngine pour vérifier la phase
+    if (this.battleEngine.getCurrentPhase() !== 'ACTION_SELECTION') {
       client.send("requestMovesResult", {
         success: false,
         error: "Ce n'est pas le moment de choisir une attaque",
