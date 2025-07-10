@@ -23,6 +23,15 @@ export interface NpcInteractionResult {
   starterData?: any;
   starterEligible?: boolean; // ✅ AJOUTÉ
   starterReason?: string;    // ✅ AJOUTÉ
+
+    // ✅ NOUVELLES PROPRIÉTÉS POUR SPECTATEURS
+  battleSpectate?: {
+    battleId: string;
+    battleRoomId: string;
+    targetPlayerName: string;
+    canWatch: boolean;
+    reason?: string;
+  };
 }
 
 export class InteractionManager {
