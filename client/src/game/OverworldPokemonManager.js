@@ -93,26 +93,23 @@ detectSpriteStructure(width, height) {
 calculateStructureScore(cols, rows, frameWidth, frameHeight) {
   let score = 100;
   
-  // ✅ BONUS ÉNORME pour 8 rangées (standard Pokémon overworld)
-  if (rows === 8) score += 150;
+  // ✅ BONUS ÉNORME pour 8 rangées
+  if (rows === 8) score += 200;
   
-  // ✅ BONUS pour colonnes raisonnables (la plupart des Pokémon)
-  if (cols >= 3 && cols <= 8) score += 80;
-  if (cols >= 4 && cols <= 7) score += 40; // Zone optimale
+  // ✅ BONUS pour toutes les colonnes raisonnables
+  if (cols >= 3 && cols <= 8) score += 100;
   
-  // ✅ BONUS pour frames carrées/rectangulaires standard
+  // ✅ BONUS pour tailles frame raisonnables (élargi)
+  if (frameWidth >= 20 && frameWidth <= 60) score += 50;
+  if (frameHeight >= 20 && frameHeight <= 60) score += 50;
+  
+  // ✅ BONUS aspect ratio plus permissif
   const aspectRatio = frameWidth / frameHeight;
-  if (aspectRatio >= 0.8 && aspectRatio <= 1.2) score += 100; // Quasi-carré
-  if (aspectRatio >= 0.9 && aspectRatio <= 1.1) score += 50;  // Parfaitement carré
+  if (aspectRatio >= 0.6 && aspectRatio <= 1.6) score += 50;
   
-  // ✅ BONUS pour tailles communes (16, 24, 32, 40, 48, 64)
-  if ([16, 24, 32, 40, 48, 64].includes(frameWidth)) score += 60;
-  if ([16, 24, 32, 40, 48, 64].includes(frameHeight)) score += 60;
-  
-  // ✅ MALUS pour trucs bizarres
-  if (cols > 10 || rows > 10) score -= 100;
+  // ✅ MALUS seulement pour trucs vraiment bizarres
+  if (cols > 12 || rows > 12) score -= 100;
   if (frameWidth < 16 || frameHeight < 16) score -= 200;
-  if (frameWidth > 80 || frameHeight > 80) score -= 100;
   
   return score;
 }
