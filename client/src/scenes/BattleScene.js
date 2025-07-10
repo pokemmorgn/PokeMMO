@@ -1264,9 +1264,70 @@ this.battleNetworkHandler.on('moveUsed', (data) => {
 
 this.battleNetworkHandler.on('damageDealt', (data) => {
   console.log('💥 [BattleScene] damageDealt:', data);
-  // Mettre à jour la barre de vie SANS message texte
-  this.updateModernHealthBar(data.targetRole, data.newHp, data.maxHp);
+  
+  // 🔧 Construire l'objet pokemonData correct
+  const pokemonData = {
+    name: data.targetName || 'Pokémon',
+    currentHp: data.newHp,
+    maxHp: data.maxHp || this.getCurrentMaxHp(data.targetRole),
+    level: this.getCurrentLevel(data.targetRole)
+  };
+  
+  console.log('🩺 [BattleScene] pokemonData construit:', pokemonData);
+  
+  // 🎯 Mettre à jour avec les bonnes données
+  this.updateModernHealthBar(data.targetRole, pokemonData);
+  
+  // 🎨 Créer l'effet de dégâts visuel
+  this.createDamageEffectForRole(data.targetRole, data.damage);
 });
+
+// === FONCTIONS HELPER À AJOUTER ===
+
+// Helper pour récupérer maxHp actuel
+getCurrentMaxHp(targetRole) {
+  if (targetRole === 'player1' && this.currentPlayerPokemon) {
+    return this.currentPlayerPokemon.maxHp;
+  }
+  if (targetRole === 'player2' && this.currentOpponentPokemon) {
+    return this.currentOpponentPokemon.maxHp;
+  }
+  return 100; // Fallback
+}
+
+// Helper pour récupérer level actuel  
+getCurrentLevel(targetRole) {
+  if (targetRole === 'player1' && this.currentPlayerPokemon) {
+    return this.currentPlayerPokemon.level;
+  }
+  if (targetRole === 'player2' && this.currentOpponentPokemon) {
+    return this.currentOpponentPokemon.level;
+  }
+  return 5; // Fallback
+}
+
+// Helper pour effet visuel selon le rôle
+createDamageEffectForRole(targetRole, damage) {
+  let targetSprite = null;
+  
+  if (targetRole === 'player1') {
+    targetSprite = this.playerPokemonSprite;
+    // Mettre à jour les données locales
+    if (this.currentPlayerPokemon) {
+      this.currentPlayerPokemon.currentHp = Math.max(0, this.currentPlayerPokemon.currentHp - damage);
+    }
+  } else if (targetRole === 'player2') {
+    targetSprite = this.opponentPokemonSprite;
+    // Mettre à jour les données locales
+    if (this.currentOpponentPokemon) {
+      this.currentOpponentPokemon.currentHp = Math.max(0, this.currentOpponentPokemon.currentHp - damage);
+    }
+  }
+  
+  if (targetSprite && damage > 0) {
+    this.createDamageEffect(targetSprite, damage);
+  }
+}
 
 this.battleNetworkHandler.on('pokemonFainted', (data) => {
   console.log('💀 [BattleScene] pokemonFainted:', data);
