@@ -1258,8 +1258,22 @@ const frameHeight = height;
     // === ✅ ÉVÉNEMENTS POKÉMON AUTHENTIQUES (NOUVEAU) ===
 this.battleNetworkHandler.on('moveUsed', (data) => {
   console.log('⚔️ [BattleScene] moveUsed:', data);
+  console.log('🐛 [DEBUG] moveUsed ENTREE:', {
+    attackerName: data.attackerName,
+    moveName: data.moveName,
+    subPhase: data.subPhase,
+    timestamp: Date.now()
+  });
+  
   const message = `${data.attackerName} utilise ${data.moveName} !`;
+  
+  console.log('🐛 [DEBUG] Message à afficher:', message);
+  console.log('🐛 [DEBUG] Interface mode avant:', this.interfaceMode);
+  
   this.showActionMessage(message);
+  
+  console.log('🐛 [DEBUG] Interface mode après:', this.interfaceMode);
+  console.log('🐛 [DEBUG] moveUsed SORTIE');
 });
 
 this.battleNetworkHandler.on('damageDealt', (data) => {
