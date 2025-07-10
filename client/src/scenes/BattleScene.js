@@ -4,6 +4,7 @@ import { HealthBarManager } from '../managers/HealthBarManager.js';
 import { BattleActionUI } from '../Battle/BattleActionUI.js';
 import { BattleTranslator } from '../Battle/BattleTranslator.js';
 import { BattleInventoryUI } from '../components/BattleInventoryUI.js';
+import { BattleCaptureManager } from '../managers/Battle/BattleCaptureManager.js';
 
 let pokemonSpriteConfig = null;
 
@@ -21,7 +22,7 @@ export class BattleScene extends Phaser.Scene {
     this.isActive = false;
     this.isVisible = false;
     this.isReadyForActivation = false;
-    
+    this.captureManager = null;
     // Sprites Pokémon
     this.playerPokemonSprite = null;
     this.opponentPokemonSprite = null;
@@ -112,7 +113,7 @@ this.loadedSprites = new Set(); // Cache des sprites chargés
       this.setupBattleNetworkEvents();
       this.isActive = true;
       this.isReadyForActivation = true;
-      
+      this.initializeCaptureManager();
       console.log('[BattleScene] ✅ Création terminée');
       
     } catch (error) {
@@ -653,7 +654,27 @@ createBattleInventoryUI() {
         break;
     }
   }
-
+    // CAPTURE SYSTEMS
+  initializeCaptureManager() {
+  if (!this.battleNetworkHandler) {
+    console.warn('⚠️ [BattleScene] BattleNetworkHandler manquant pour CaptureManager');
+    return;
+  }
+  
+  // Déterminer le playerRole
+  const playerRole = this.playerRole || 'player1';
+  
+  // Créer le CaptureManager
+  this.captureManager = new BattleCaptureManager(
+    this,                     // battleScene
+    this.battleNetworkHandler, // networkHandler 
+    playerRole                // playerRole pour traductions
+  );
+  
+  console.log('🎯 [BattleScene] CaptureManager initialisé');
+} 
+  // CAPTURE SYSTEM END
+  
 showAttackMenu() {
   // ✅ LANCER DIRECTEMENT L'ATTAQUE
   this.executePlayerAction({
