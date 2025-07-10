@@ -1368,7 +1368,33 @@ const frameHeight = height;
     this.battleNetworkHandler.on('battleStart', (data) => {
       this.handleNetworkBattleStart(data);
     });
+
+        // === ✅ NOUVEAUX HANDLERS K.O. (ÉTAPE 2) ===
+    this.battleNetworkHandler.on('koMessage', (data) => {
+      console.log('💀 [BattleScene] K.O. Message reçu:', data);
+      
+      // Afficher le message K.O.
+      this.showActionMessage(data.message);
+      
+      // Animation K.O. du Pokémon si nécessaire
+      if (data.playerRole === 'player1') {
+        this.showPlayerPokemonFaint();
+      } else {
+        this.showEnemyPokemonFaint();
+      }
+    });
     
+    this.battleNetworkHandler.on('winnerAnnounce', (data) => {
+      console.log('🏆 [BattleScene] Winner Announce reçu:', data);
+      
+      // Afficher le message de victoire
+      this.showActionMessage(data.message);
+      
+      // Programmer la transition vers "end battle" après 1.5s
+      setTimeout(() => {
+        this.transitionToEndBattle(data);
+      }, 1500);
+    });
     // ✅ SIMPLIFIÉ: yourTurn sans timer
     this.battleNetworkHandler.on('yourTurn', (data) => {
       this.handleBattleEvent('yourTurn', data);
@@ -1806,6 +1832,208 @@ createDamageEffectForRole(targetRole, damage) {
     // ✅ SIMPLIFIÉ: Pas de timer pour l'interface
   }
 
+  // === ✅ NOUVELLES MÉTHODES K.O. (ÉTAPE 2) ===
+
+showPlayerPokemonFaint() {
+  if (!this.playerPokemonSprite) return;
+  
+  console.log('💀 [BattleScene] Animation K.O. joueur');
+  
+  // Animation de chute
+  this.tweens.add({
+    targets: this.playerPokemonSprite,
+    y: this.playerPokemonSprite.y + 30,
+    alpha: 0.3,
+    angle: -90,
+    duration: 1500,
+    ease: 'Power2.easeIn'
+  });
+  
+  // Effet visuel
+  this.createKOEffect(this.playerPokemonSprite);
+}
+
+showEnemyPokemonFaint() {
+  if (!this.opponentPokemonSprite) return;
+  
+  console.log('💀 [BattleScene] Animation K.O. adversaire');
+  
+  // Animation de chute
+  this.tweens.add({
+    targets: this.opponentPokemonSprite,
+    y: this.opponentPokemonSprite.y + 30,
+    alpha: 0.3,
+    angle: 90,
+    duration: 1500,
+    ease: 'Power2.easeIn'
+  });
+  
+  // Effet visuel
+  this.createKOEffect(this.opponentPokemonSprite);
+}
+
+createKOEffect(sprite) {
+  if (!sprite) return;
+  
+  // Effet de spirale K.O.
+  const spirals = [];
+  for (let i = 0; i < 3; i++) {
+    const spiral = this.add.graphics();
+    spiral.lineStyle(3, 0xFFFFFF, 0.8);
+    spiral.arc(0, 0, 20 + i * 10, 0, Math.PI * 2);
+    spiral.setPosition(sprite.x, sprite.y - 20);
+    spiral.setDepth(50);
+    spirals.push(spiral);
+    
+    this.tweens.add({
+      targets: spiral,
+      y: spiral.y - 50,
+      alpha: 0,
+      scaleX: 2,
+      scaleY: 2,
+      rotation: Math.PI * 4,
+      duration: 2000,
+      delay: i * 200,
+      ease: 'Power2.easeOut',
+      onComplete: () => spiral.destroy()
+    });
+  }
+}
+
+transitionToEndBattle(winnerData) {
+  console.log('🎯 [BattleScene] Transition vers end battle');
+  console.log('🏆 Données vainqueur:', winnerData);
+  
+  // Masquer l'interface d'actions
+  this.hideActionButtons();
+  this.hideActionMessage();
+  
+  // Afficher écran de fin avec gains
+  this.showBattleEndScreen({
+    winner: winnerData.winner,
+    message: winnerData.message,
+    battleEndType: winnerData.battleEndType,
+    messageType: winnerData.messageType
+  });
+}
+
+    showBattleEndScreen(endData) {
+      console.log('🎁 [BattleScene] Affichage écran de fin');
+      
+      // Créer overlay de fin
+      const { width, height } = this.cameras.main;
+      const endOverlay = this.add.container(width/2, height/2);
+      
+      // Background semi-transparent
+      const bg = this.add.graphics();
+      bg.fillStyle(0x000000, 0.8);
+      bg.fillRect(-width/2, -height/2, width, height);
+      
+      // Panel principal
+      const panel = this.add.graphics();
+      panel.fillStyle(0x1a1a1a, 0.95);
+      panel.fillRoundedRect(-200, -150, 400, 300, 20);
+      panel.lineStyle(4, endData.winner === 'player1' ? 0x4CAF50 : 0xF44336, 1);
+      panel.strokeRoundedRect(-200, -150, 400, 300, 20);
+      
+      // Titre
+      const titleText = endData.winner === 'player1' ? '🎉 VICTOIRE !' : '💀 DÉFAITE...';
+      const title = this.add.text(0, -80, titleText, {
+        fontSize: '32px',
+        fontFamily: 'Arial Black, sans-serif',
+        color: endData.winner === 'player1' ? '#4CAF50' : '#F44336',
+        fontWeight: 'bold'
+      });
+      title.setOrigin(0.5);
+      
+      // Message détaillé
+      const message = this.add.text(0, -20, endData.message, {
+        fontSize: '18px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        align: 'center',
+        wordWrap: { width: 350 }
+      });
+      message.setOrigin(0.5);
+      
+      // Gains (pour plus tard)
+      const gainsText = this.add.text(0, 40, '💰 Expérience et récompenses à venir...', {
+        fontSize: '16px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#FFD700',
+        align: 'center'
+      });
+      gainsText.setOrigin(0.5);
+      
+      // Bouton continuer
+      const continueButton = this.createEndBattleButton();
+      
+      endOverlay.add([bg, panel, title, message, gainsText, continueButton]);
+      endOverlay.setDepth(300);
+      endOverlay.setAlpha(0);
+      
+      // Animation d'entrée
+      this.tweens.add({
+        targets: endOverlay,
+        alpha: 1,
+        duration: 800,
+        ease: 'Power2.easeOut'
+      });
+      
+      // Programmer fermeture automatique après 5s
+      setTimeout(() => {
+        this.endBattle({ result: 'completed', winner: endData.winner });
+      }, 5000);
+    }
+    
+    createEndBattleButton() {
+      const buttonContainer = this.add.container(0, 100);
+      
+      // Background bouton
+      const bg = this.add.graphics();
+      bg.fillStyle(0x4A90E2, 0.8);
+      bg.fillRoundedRect(-80, -20, 160, 40, 12);
+      bg.lineStyle(2, 0xFFFFFF, 0.8);
+      bg.strokeRoundedRect(-80, -20, 160, 40, 12);
+      
+      // Texte bouton
+      const text = this.add.text(0, 0, 'Continuer', {
+        fontSize: '18px',
+        fontFamily: 'Arial Black, sans-serif',
+        color: '#FFFFFF',
+        fontWeight: 'bold'
+      });
+      text.setOrigin(0.5);
+      
+      buttonContainer.add([bg, text]);
+      buttonContainer.setSize(160, 40);
+      buttonContainer.setInteractive();
+      
+      // Hover effect
+      buttonContainer.on('pointerover', () => {
+        bg.clear();
+        bg.fillStyle(0x4A90E2, 1);
+        bg.fillRoundedRect(-80, -20, 160, 40, 12);
+        bg.lineStyle(3, 0xFFD700, 1);
+        bg.strokeRoundedRect(-80, -20, 160, 40, 12);
+      });
+      
+      buttonContainer.on('pointerout', () => {
+        bg.clear();
+        bg.fillStyle(0x4A90E2, 0.8);
+        bg.fillRoundedRect(-80, -20, 160, 40, 12);
+        bg.lineStyle(2, 0xFFFFFF, 0.8);
+        bg.strokeRoundedRect(-80, -20, 160, 40, 12);
+      });
+      
+      // Action clic
+      buttonContainer.on('pointerdown', () => {
+        this.endBattle({ result: 'manual_continue' });
+      });
+      
+      return buttonContainer;
+    }
   // === DESTRUCTION ===
 
   destroy() {
