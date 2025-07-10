@@ -1999,6 +1999,25 @@ window.testModernBattle = function() {
   battleScene.testModernBattleDisplay();
 };
 
+// === FONCTIONS GLOBALES DE DEBUG ===
+window.debugBattleHealthBars = function() {
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (!battleScene) {
+    console.error('❌ BattleScene non trouvée');
+    return null;
+  }
+  return battleScene.debugHealthBarsState();
+};
+
+window.testBattleHealthBars = function() {
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (!battleScene) {
+    console.error('❌ BattleScene non trouvée');
+    return null;
+  }
+  return battleScene.testHealthBarUpdate();
+};
+
 window.modernDamagePlayer = function(damage = 5) {
   const battleScene = window.game?.scene?.getScene('BattleScene');
   if (battleScene && window.game.scene.isActive('BattleScene')) {
