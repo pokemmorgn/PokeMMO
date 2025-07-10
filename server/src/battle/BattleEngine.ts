@@ -267,7 +267,7 @@ export class BattleEngine {
       // === VÉRIFIER SI TOUTES LES ACTIONS SONT PRÊTES ===
       if (this.actionQueue.areAllActionsReady()) {
         console.log('🔄 [BattleEngine] Toutes les actions prêtes → Résolution');
-        this.transitionToPhase(BattlePhase.ACTION_RESOLUTION, 'all_actions_ready');
+        this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'all_actions_ready');
       }
       
       return {
