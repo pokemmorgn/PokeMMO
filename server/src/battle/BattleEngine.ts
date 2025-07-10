@@ -299,7 +299,35 @@ export class BattleEngine {
           });
         }
         
-        // Émettre événement d'action
+                // Émettre événement d'action
+        // ✅ NOUVEAU: Émettre via BroadcastManager avec timing
+        if (this.broadcastManager && result.success) {
+          if (action.type === 'attack' && result.data) {
+            // Utiliser la séquence d'attaque avec timing
+            await this.broadcastManager.emitAttackSequence({
+              attacker: { 
+                name: this.getPlayerName(action.playerId), 
+                role: action.playerId === this.gameState.player1.sessionId ? 'player1' : 'player2' 
+              },
+              target: { 
+                name: result.data.defenderRole === 'player1' ? this.gameState.player1.name : this.gameState.player2.name,
+                role: result.data.defenderRole 
+              },
+              move: { 
+                id: action.data.moveId, 
+                name: action.data.moveId // TODO: Récupérer vrai nom
+              },
+              damage: result.data.damage || 0,
+              oldHp: result.data.oldHp || 0,
+              newHp: result.data.newHp || 0,
+              maxHp: result.data.maxHp || 100,
+              effects: [], // TODO: Calculer effets de type
+              isKnockedOut: result.data.isKnockedOut || false
+            });
+          }
+        }
+        
+        // Émettre événement d'action (garde l'ancien pour compatibilité)
         this.emit('actionProcessed', {
           action: action,
           result: result,
