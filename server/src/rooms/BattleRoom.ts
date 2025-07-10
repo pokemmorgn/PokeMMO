@@ -136,15 +136,6 @@ export class BattleRoom extends Room<BattleState> {
         // Synchroniser le state
         this.syncStateFromGameState();
         
-        // Notifier tous les clients
-        this.broadcast("actionResult", {
-          success: true,
-          events: result.events,
-          data: result.data,
-          gameState: this.getClientBattleState(),
-          battleEnded: result.data?.battleEnded || false
-        });
-        
       } else {
         console.log(`❌ [BattleRoom] Échec action: ${result.error}`);
         
