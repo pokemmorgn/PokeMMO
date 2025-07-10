@@ -503,8 +503,8 @@ updateOverworldPokemon(pokemonData) {
      
      pokemon.targetX = targetX;
      pokemon.targetY = targetY;
-     pokemon.moveStartTime = Date.now();
-     pokemon.moveDuration = moveDuration || 1000;
+pokemon.moveStartTime = moveStartTime || Date.now(); // ← Utiliser temps SERVEUR
+pokemon.moveDuration = Math.max(moveDuration || 2000, 2000); // ← Minimum 2000ms au lieu de 1000ms
      pokemon.isMoving = true;
      pokemon.isInterpolating = true;
      pokemon.serverX = pokemon.x;
