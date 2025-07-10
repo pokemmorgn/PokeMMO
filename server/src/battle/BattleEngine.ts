@@ -1,5 +1,5 @@
 // server/src/battle/BattleEngine.ts
-// VERSION POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE - ZERO ATTENTE SAUVAGE
+// VERSION POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE
 
 import { PhaseManager, BattlePhase as InternalBattlePhase } from './modules/PhaseManager';
 import { ActionQueue } from './modules/ActionQueue';
@@ -16,7 +16,16 @@ import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule
 
 /**
  * BATTLE ENGINE - POKÉMON ROUGE/BLEU ABSOLUMENT AUTHENTIQUE
- * ✅ ZERO ATTENTE POUR COMBAT SAUVAGE
+ * 
+ * Flow EXACT des vrais jeux :
+ * 1. INTRO → "Un Pokémon sauvage apparaît !"
+ * 2. ACTION_SELECTION → Attendre les 2 choix d'actions
+ * 3. ACTION_RESOLUTION → VRAIES SOUS-PHASES :
+ *    - ATTACKER_1_PHASE → Pokémon 1 attaque COMPLÈTEMENT
+ *    - ATTACKER_2_PHASE → Pokémon 2 attaque COMPLÈTEMENT
+ * 4. Retour à ACTION_SELECTION (nouveau tour)
+ * 5. CAPTURE (optionnel)
+ * 6. END
  */
 
 // === SOUS-PHASES POKÉMON AUTHENTIQUES ===
@@ -63,7 +72,7 @@ export class BattleEngine {
   private subPhaseTimer: NodeJS.Timeout | null = null;
   
   constructor() {
-    console.log('🎯 [BattleEngine] Système Pokémon Rouge/Bleu - ZERO ATTENTE SAUVAGE');
+    console.log('🎯 [BattleEngine] Système Pokémon Rouge/Bleu ABSOLUMENT authentique');
     
     // === MODULES ===
     this.phaseManager = new PhaseManager();
@@ -77,7 +86,7 @@ export class BattleEngine {
     // État initial vide
     this.gameState = this.createEmptyState();
     
-    console.log('✅ [BattleEngine] Pokémon Rouge/Bleu INSTANTANÉ prêt');
+    console.log('✅ [BattleEngine] Pokémon Rouge/Bleu AUTHENTIQUE prêt');
   }
   
   // === API PRINCIPALE ===
@@ -86,7 +95,7 @@ export class BattleEngine {
    * Démarre un nouveau combat - Style Pokémon Rouge/Bleu AUTHENTIQUE
    */
   startBattle(config: BattleConfig): BattleResult {
-    console.log(`🚀 [BattleEngine] DÉBUT COMBAT POKÉMON INSTANTANÉ - Type: ${config.type}`);
+    console.log(`🚀 [BattleEngine] DÉBUT COMBAT POKÉMON AUTHENTIQUE - Type: ${config.type}`);
     
     try {
       // 1. Nettoyer les timers précédents
@@ -113,10 +122,10 @@ export class BattleEngine {
         introMessage: `Un ${this.gameState.player2.pokemon!.name} sauvage apparaît !`
       });
       
-      // 7. ✅ INTRO RAPIDE POUR SAUVAGE
+      // 7. Programmer la transition automatique INTRO → ACTION_SELECTION
       this.scheduleIntroTransition();
       
-      console.log(`✅ [BattleEngine] Combat Pokémon INSTANTANÉ démarré`);
+      console.log(`✅ [BattleEngine] Combat Pokémon Rouge/Bleu AUTHENTIQUE démarré`);
       
       return {
         success: true,
@@ -140,11 +149,10 @@ export class BattleEngine {
   // === GESTION DES PHASES POKÉMON ROUGE/BLEU AUTHENTIQUE ===
   
   /**
-   * ✅ INTRO ULTRA-RAPIDE POUR SAUVAGE
+   * Programme la transition automatique INTRO → ACTION_SELECTION
    */
   private scheduleIntroTransition(): void {
-    const introDelay = this.gameState.type === 'wild' ? 500 : 3000; // ✅ 0.5s pour sauvage
-    console.log(`⏰ [BattleEngine] Intro - Transition dans ${introDelay}ms`);
+    console.log('⏰ [BattleEngine] Intro Pokémon - Transition dans 3s');
     
     this.introTimer = setTimeout(() => {
       console.log('🎮 [BattleEngine] "Que doit faire [Pokémon] ?" - POKÉMON AUTHENTIQUE');
@@ -152,7 +160,7 @@ export class BattleEngine {
       if (this.getCurrentPhase() === InternalBattlePhase.INTRO && this.isInitialized) {
         this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'intro_complete');
       }
-    }, introDelay);
+    }, 3000);
   }
   
   /**
@@ -205,10 +213,10 @@ export class BattleEngine {
   }
   
   /**
-   * ✅ GESTION ACTION_SELECTION - PAS D'IA AUTO POUR SAUVAGE
+   * Gestion phase ACTION_SELECTION - Pokémon Rouge/Bleu authentique
    */
   private handleActionSelectionPhase(): void {
-    console.log('🎮 [BattleEngine] ACTION_SELECTION - "Que doit faire votre Pokémon ?"');
+    console.log('🎮 [BattleEngine] ACTION_SELECTION - "Que doit faire votre Pokémon ?" - POKÉMON AUTHENTIQUE');
     
     // Nettoyer les timers précédents
     this.clearActionTimers();
@@ -229,20 +237,15 @@ export class BattleEngine {
       message: "Que doit faire votre Pokémon ?"
     });
     
-    // ✅ PAS D'IA AUTO POUR SAUVAGE - Elle sera gérée dans submitAction()
-    if (this.gameState.type !== 'wild') {
-      console.log('🤖 [BattleEngine] Programmation IA pour dresseur/PvP');
-      this.scheduleAIAction();
-    } else {
-      console.log('🌿 [BattleEngine] Combat sauvage - IA gérée au clic joueur');
-    }
+    // IA agit automatiquement selon le type de combat
+    this.scheduleAIAction();
   }
   
   /**
    * ✅ POKÉMON ROUGE/BLEU AUTHENTIQUE: Gestion phase ACTION_RESOLUTION avec VRAIES SOUS-PHASES
    */
   private async handleActionResolutionPhase(): Promise<void> {
-    console.log('⚔️ [BattleEngine] ACTION_RESOLUTION - SOUS-PHASES POKÉMON AUTHENTIQUES');
+    console.log('⚔️ [BattleEngine] ACTION_RESOLUTION - SOUS-PHASES POKÉMON ROUGE/BLEU AUTHENTIQUES');
     
     this.isProcessingActions = true;
     
@@ -314,11 +317,11 @@ private async startAttackerPhase(attackerIndex: number): Promise<void> {
   });
   
   // ✅ POKÉMON AUTHENTIQUE: Exécuter l'action COMPLÈTEMENT et ATTENDRE
-  console.log(`⏰ [BattleEngine] DÉBUT action ${this.currentAttackerData.pokemon.name} - AVEC TIMING OPTIMISÉ`);
+  console.log(`⏰ [BattleEngine] DÉBUT action ${this.currentAttackerData.pokemon.name} - AVEC ATTENTE`);
   
   await this.executeFullAttackerAction();
   
-  console.log(`⏰ [BattleEngine] FIN action ${this.currentAttackerData.pokemon.name} - Délais optimisés`);
+  console.log(`⏰ [BattleEngine] FIN action ${this.currentAttackerData.pokemon.name} - Délais respectés`);
   
   // Vérifier fin de combat après cette phase
   const battleEndCheck = this.checkBattleEnd();
@@ -330,20 +333,22 @@ private async startAttackerPhase(attackerIndex: number): Promise<void> {
     return;
   }
   
-  // ✅ DÉLAI ULTRA-COURT ENTRE ATTAQUANTS
-  const betweenDelay = this.gameState.type === 'wild' ? 100 : 500;
-  await this.delay(betweenDelay);
+  // ✅ POKÉMON AUTHENTIQUE: Passer à l'attaquant suivant APRÈS avoir attendu
+  console.log(`✅ [BattleEngine] Phase ${this.currentSubPhase} terminée, attaquant suivant...`);
+  
+  // ✅ DÉLAI ENTRE LES ATTAQUANTS (optionnel - peut être retiré si trop lent)
+  await this.delay(500); // 0.5s entre les attaquants
   
   await this.startAttackerPhase(attackerIndex + 1);
 }
   
   /**
-   * ✅ EXÉCUTION ATTAQUE AVEC TIMING OPTIMISÉ
+   * ✅ POKÉMON ROUGE/BLEU: Exécute l'action COMPLÈTE d'un attaquant (message + dégâts + efficacité + K.O.)
    */
 private async executeFullAttackerAction(): Promise<void> {
   const { action, playerRole, pokemon } = this.currentAttackerData;
   
-  console.log(`⚔️ [BattleEngine] EXÉCUTION OPTIMISÉE: ${pokemon.name} utilise ${action.data?.moveId}!`);
+  console.log(`⚔️ [BattleEngine] EXÉCUTION COMPLÈTE AVEC TIMING: ${pokemon.name} utilise ${action.data?.moveId}!`);
   
   // 1. Traiter l'action via ActionProcessor
   const result = this.actionProcessor.processAction(action);
@@ -353,100 +358,59 @@ private async executeFullAttackerAction(): Promise<void> {
     return;
   }
   
-  // 2. ✅ ÉMISSION ULTRA-RAPIDE POUR SAUVAGE
+  // 2. ✅ POKÉMON ROUGE/BLEU AUTHENTIQUE: Séquence complète AVEC TIMING
   if (action.type === 'attack' && result.data && this.broadcastManager) {
     
-    const isWild = this.gameState.type === 'wild';
-    
-    // Message d'attaque
+    // ✅ ÉTAPE 1: Message d'attaque (AVEC TIMING)
     console.log(`📢 [BattleEngine] "${pokemon.name} utilise ${this.getMoveDisplayName(action.data.moveId)} !"`);
     
-    if (isWild) {
-      // ✅ MODE INSTANTANÉ POUR SAUVAGE
-      this.broadcastManager.emit('moveUsed', {
-        attackerName: pokemon.name,
-        attackerRole: playerRole,
-        moveName: this.getMoveDisplayName(action.data.moveId),
-        moveId: action.data.moveId,
+    await this.broadcastManager.emitTimed('moveUsed', {
+      attackerName: pokemon.name, // ✅ CORRECTION !
+      attackerRole: playerRole,
+      moveName: this.getMoveDisplayName(action.data.moveId),
+      moveId: action.data.moveId,
+      subPhase: this.currentSubPhase,
+      message: `${pokemon.name} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
+    });
+        
+    // ✅ ÉTAPE 2: Dégâts (AVEC TIMING)
+    if (result.data.damage > 0) {
+      console.log(`💥 [BattleEngine] ${result.data.damage} dégâts infligés !`);
+      
+    await this.broadcastManager.emitTimed('damageDealt', {
+      targetName: result.data.defenderRole === 'player1' ? 
+        this.gameState.player1.pokemon!.name : 
+        this.gameState.player2.pokemon!.name,
+        targetRole: result.data.defenderRole,
+        damage: result.data.damage,
+        oldHp: result.data.oldHp,
+        newHp: result.data.newHp,
+        maxHp: result.data.maxHp,
         subPhase: this.currentSubPhase,
-        message: `${pokemon.name} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
+        isKnockedOut: result.data.isKnockedOut
       });
-      
-      // Dégâts avec micro-délai pour ordre
-      if (result.data.damage > 0) {
-        setTimeout(() => {
-          this.broadcastManager!.emit('damageDealt', {
-            targetName: result.data.defenderRole === 'player1' ? 
-              this.gameState.player1.pokemon!.name : 
-              this.gameState.player2.pokemon!.name,
-            targetRole: result.data.defenderRole,
-            damage: result.data.damage,
-            oldHp: result.data.oldHp,
-            newHp: result.data.newHp,
-            maxHp: result.data.maxHp,
-            subPhase: this.currentSubPhase,
-            isKnockedOut: result.data.isKnockedOut
-          });
-        }, 50);
-      }
-      
-      // K.O. avec micro-délai
-      if (result.data.isKnockedOut) {
-        const defenderName = result.data.defenderRole === 'player1' ? 
-          this.gameState.player1.pokemon!.name : 
-          this.gameState.player2.pokemon!.name;
-          
-        setTimeout(() => {
-          this.broadcastManager!.emit('pokemonFainted', {
-            pokemonName: defenderName,
-            targetRole: result.data.defenderRole,
-            subPhase: this.currentSubPhase,
-            message: `${defenderName} est mis K.O. !`
-          });
-        }, 100);
-      }
-      
-    } else {
-      // Mode normal avec timing pour dresseurs
-      await this.broadcastManager.emitTimed('moveUsed', {
-        attackerName: pokemon.name,
-        attackerRole: playerRole,
-        moveName: this.getMoveDisplayName(action.data.moveId),
-        moveId: action.data.moveId,
-        subPhase: this.currentSubPhase,
-        message: `${pokemon.name} utilise ${this.getMoveDisplayName(action.data.moveId)} !`
-      });
-      
-      if (result.data.damage > 0) {
-        await this.broadcastManager.emitTimed('damageDealt', {
-          targetName: result.data.defenderRole === 'player1' ? 
-            this.gameState.player1.pokemon!.name : 
-            this.gameState.player2.pokemon!.name,
-          targetRole: result.data.defenderRole,
-          damage: result.data.damage,
-          oldHp: result.data.oldHp,
-          newHp: result.data.newHp,
-          maxHp: result.data.maxHp,
-          subPhase: this.currentSubPhase,
-          isKnockedOut: result.data.isKnockedOut
-        });
-      }
-      
-      if (result.data.isKnockedOut) {
-        const defenderName = result.data.defenderRole === 'player1' ? 
-          this.gameState.player1.pokemon!.name : 
-          this.gameState.player2.pokemon!.name;
-          
-        await this.broadcastManager.emitTimed('pokemonFainted', {
-          pokemonName: defenderName,
-          targetRole: result.data.defenderRole,
-          subPhase: this.currentSubPhase,
-          message: `${defenderName} est mis K.O. !`
-        });
-      }
     }
     
-    // Émettre fin de phase d'attaquant
+    // ✅ ÉTAPE 3: Efficacité (TODO: implémenter plus tard)
+    // TODO: Calculer efficacité des types et émettre message si nécessaire
+    
+    // ✅ ÉTAPE 4: K.O. (AVEC TIMING)
+    if (result.data.isKnockedOut) {
+      const defenderName = result.data.defenderRole === 'player1' ? 
+        this.gameState.player1.pokemon!.name : 
+        this.gameState.player2.pokemon!.name;
+        
+      console.log(`💀 [BattleEngine] ${defenderName} est mis K.O. !`);
+      
+      await this.broadcastManager.emitTimed('pokemonFainted', {
+        pokemonName: defenderName,
+        targetRole: result.data.defenderRole,
+        subPhase: this.currentSubPhase,
+        message: `${defenderName} est mis K.O. !`
+      });
+    }
+    
+    // ✅ ÉTAPE 5: Émettre fin de phase d'attaquant
     this.emit('attackerPhaseComplete', {
       subPhase: this.currentSubPhase,
       playerRole: playerRole,
@@ -464,7 +428,7 @@ private async executeFullAttackerAction(): Promise<void> {
     subPhase: this.currentSubPhase
   });
   
-  console.log(`✅ [BattleEngine] Phase complète de ${pokemon.name} terminée`);
+  console.log(`✅ [BattleEngine] Phase complète de ${pokemon.name} terminée avec timing authentique`);
 }
   
   /**
@@ -494,7 +458,7 @@ private async executeFullAttackerAction(): Promise<void> {
     this.transitionToPhase(InternalBattlePhase.ACTION_SELECTION, 'turn_complete');
   }
   
-  // === ✅ SOUMISSION D'ACTIONS OPTIMISÉE POUR SAUVAGE ===
+  // === SOUMISSION D'ACTIONS (INCHANGÉ) ===
   
   async submitAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
     console.log(`🎮 [BattleEngine] Action soumise: ${action.type} par ${action.playerId}`);
@@ -537,40 +501,7 @@ private async executeFullAttackerAction(): Promise<void> {
       
       console.log(`📥 [BattleEngine] Action ajoutée: ${playerRole} → ${action.type}`);
       
-      // ✅ FIX PRINCIPAL: IA SYNCHRONE POUR COMBAT SAUVAGE
-      if (this.gameState.type === 'wild' && playerRole === 'player1') {
-        console.log('⚡ [BattleEngine] Combat sauvage - IA SYNCHRONE IMMÉDIATE');
-        
-        // Annuler tout timer IA existant
-        this.clearActionTimers();
-        
-        // Générer action IA immédiatement
-        const aiAction = this.aiPlayer.generateAction();
-        if (aiAction) {
-          const aiPokemon = this.gameState.player2.pokemon!;
-          const aiSuccess = this.actionQueue.addAction('player2', aiAction, aiPokemon);
-          
-          if (aiSuccess) {
-            console.log(`🤖 [BattleEngine] IA action ajoutée: ${aiAction.type}`);
-            
-            // Transition immédiate vers résolution
-            console.log('⚡ [BattleEngine] RÉSOLUTION IMMÉDIATE - ZERO ATTENTE !');
-            this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'instant_wild_resolution');
-            
-            return {
-              success: true,
-              gameState: this.gameState,
-              events: [`Combat sauvage - Résolution immédiate !`],
-              actionQueued: true
-            };
-          }
-        }
-        
-        // Fallback si problème IA
-        console.warn('⚠️ [BattleEngine] Problème IA, mode normal');
-      }
-      
-      // ✅ LOGIQUE NORMALE pour PvP/Dresseurs
+      // Émettre événement d'action ajoutée
       this.emit('actionQueued', {
         playerRole,
         actionType: action.type,
@@ -579,12 +510,13 @@ private async executeFullAttackerAction(): Promise<void> {
       
       // Vérifier si toutes les actions sont prêtes
       if (this.actionQueue.areAllActionsReady()) {
-        console.log('🔄 [BattleEngine] Toutes les actions prêtes → Résolution');
+        console.log('🔄 [BattleEngine] Toutes les actions prêtes → Résolution style Pokémon Rouge/Bleu');
+        
+        // Annuler le timer IA si toujours actif
         this.clearActionTimers();
+        
+        // Transition vers résolution
         this.transitionToPhase(InternalBattlePhase.ACTION_RESOLUTION, 'all_actions_ready');
-      } else {
-        // Programmer IA pour dresseurs/PvP
-        this.scheduleAIAction();
       }
       
       return {
@@ -602,24 +534,14 @@ private async executeFullAttackerAction(): Promise<void> {
     }
   }
   
-  // === IA OPTIMISÉE ===
+  // === IA (INCHANGÉ) ===
   
-  /**
-   * ✅ SCHEDULING IA - PAS POUR SAUVAGE
-   */
   private scheduleAIAction(): void {
     if (this.gameState.player2.sessionId !== 'ai') {
       console.log('👤 [BattleEngine] Pas d\'IA, en attente joueur 2');
       return;
     }
     
-    // ✅ NE PAS PROGRAMMER D'IA POUR SAUVAGE (gérée en synchrone)
-    if (this.gameState.type === 'wild') {
-      console.log('🌿 [BattleEngine] Combat sauvage - IA gérée en synchrone dans submitAction()');
-      return;
-    }
-    
-    // Logique normale pour dresseurs/PvP
     const delay = this.getAIDelay();
     console.log(`🤖 [BattleEngine] IA programmée dans ${delay}ms`);
     
@@ -641,16 +563,6 @@ private async executeFullAttackerAction(): Promise<void> {
     } else {
       console.error('❌ [BattleEngine] IA n\'a pas pu générer d\'action');
     }
-  }
-  
-  /**
-   * ✅ DÉLAI IA OPTIMISÉ
-   */
-  private getAIDelay(): number {
-    if (this.gameState.type === 'wild') {
-      return 0; // ✅ ZERO pour sauvage (mais ne devrait pas être appelé)
-    }
-    return this.aiPlayer.getThinkingDelay();
   }
   
   // === GESTION DES TIMERS ===
@@ -966,6 +878,13 @@ private async executeFullAttackerAction(): Promise<void> {
     return names[moveId] || moveId;
   }
   
+  private getAIDelay(): number {
+    if (this.gameState.type === 'wild') {
+      return 0; // 1s pour sauvage
+    }
+    return this.aiPlayer.getThinkingDelay();
+  }
+  
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
@@ -1089,8 +1008,8 @@ private async executeFullAttackerAction(): Promise<void> {
   
   getSystemState(): any {
     return {
-      version: 'pokemon_rouge_bleu_ZERO_ATTENTE_v1',
-      architecture: 'wild_instant_synchronous_ai',
+      version: 'pokemon_rouge_bleu_ABSOLUMENT_authentique_v1',
+      architecture: 'sous_phases_pokemon_authentiques',
       isInitialized: this.isInitialized,
       isProcessingActions: this.isProcessingActions,
       currentSubPhase: this.currentSubPhase,
@@ -1113,22 +1032,19 @@ private async executeFullAttackerAction(): Promise<void> {
         subPhaseTimer: this.subPhaseTimer !== null
       },
       
-      optimizations: [
-        'zero_ai_delay_wild',
-        'synchronous_ai_execution',
-        'instant_action_resolution',
-        'optimized_intro_timing',
-        'ultra_fast_emissions',
-        'no_setTimeout_for_wild'
+      features: [
+        'pokemon_rouge_bleu_ABSOLUMENT_authentique',
+        'vraies_sous_phases_attaquants',
+        'execution_complete_par_attaquant',
+        'authentique_pokemon_classic',
+        'zero_compromise_authenticity'
       ],
       
-      wildBattleFlow: [
-        'click_attack',
-        'submitAction_immediate',
-        'ai_synchronous_generation',
-        'instant_phase_transition',
-        'ultra_fast_execution',
-        'ZERO_WAITING_TIME'
+      corrections: [
+        'sous_phases_attaquants_separees',
+        'execution_complete_par_pokemon',
+        'flow_pokemon_rouge_bleu_exact',
+        'aucun_raccourci_aucun_compromise'
       ]
     };
   }
