@@ -315,45 +315,47 @@ async processAction(action: BattleAction, teamManager?: any): Promise<BattleResu
       }
       
       // ✅ NOUVEAU: Émettre via BroadcastManager avec timing
-      if (this.broadcastManager) {
-        if (action.type === 'attack' && result.data) {
-          // Utiliser la séquence d'attaque avec timing
-          await this.broadcastManager.emitAttackSequence({
-            attacker: { 
-              name: this.getPlayerName(action.playerId), 
-              role: action.playerId === this.gameState.player1.sessionId ? 'player1' : 'player2' 
-            },
-            target: { 
-              name: result.data.defenderRole === 'player1' ? this.gameState.player1.name : this.gameState.player2.name,
-              role: result.data.defenderRole 
-            },
-            move: { 
-              id: action.data.moveId, 
-              name: action.data.moveId
-            },
-            damage: result.data.damage || 0,
-            oldHp: result.data.oldHp || 0,
-            newHp: result.data.newHp || 0,
-            maxHp: result.data.maxHp || 100,
-            effects: [],
-            isKnockedOut: result.data.isKnockedOut || false
-          });
-        } else {
-          // Autres types d'actions - utiliser emit simple
-          this.broadcastManager.emit('actionProcessed', {
-            action: action,
-            result: result,
-            nextPlayer: this.turnManager.getCurrentPlayer()
-          });
-        }
-      } else {
-        // Fallback vers ancien système si BroadcastManager pas disponible
-        this.emit('actionProcessed', {
-          action: action,
-          result: result,
-          nextPlayer: this.turnManager.getCurrentPlayer()
-        });
-      }
+// ✅ NOUVEAU: Timing géré par BattleEngine (pas BroadcastManager)
+if (this.broadcastManager && action.type === 'attack' && result.data) {
+  // 1. Envoyer attaque + dégâts INSTANTANÉMENT
+  this.broadcastManager.emitAttackSequence({
+    attacker: { 
+      name: this.getPlayerName(action.playerId), 
+      role: action.playerId === this.gameState.player1.sessionId ? 'player1' : 'player2' 
+    },
+    target: { 
+      name: result.data.defenderRole === 'player1' ? this.gameState.player1.name : this.gameState.player2.name,
+      role: result.data.defenderRole 
+    },
+    move: { 
+      id: action.data.moveId, 
+      name: action.data.moveId
+    },
+    damage: result.data.damage || 0,
+    oldHp: result.data.oldHp || 0,
+    newHp: result.data.newHp || 0,
+    maxHp: result.data.maxHp || 100,
+    effects: [], // TODO: Calculer effets
+    isKnockedOut: result.data.isKnockedOut || false
+  });
+  
+  // 2. TIMING CONTRÔLÉ PAR LE COMBAT
+  await this.emitTypeEffects([], {
+    targetName: result.data.defenderRole === 'player1' ? this.gameState.player1.name : this.gameState.player2.name,
+    targetRole: result.data.defenderRole
+  });
+  
+  // 3. DÉLAI FINAL avant tour suivant (2s comme Pokémon)
+  await this.delay(BATTLE_TIMINGS.transitionSlow);
+  
+} else {
+  // Fallback pour autres types d'actions
+  this.emit('actionProcessed', {
+    action: action,
+    result: result,
+    nextPlayer: this.turnManager.getCurrentPlayer()
+  });
+}
     } else {
       console.log(`❌ [BattleEngine] Échec action: ${result.error}`);
     }
