@@ -21,100 +21,118 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ NOUVEAU: Détection automatique intelligente
-   */
-  detectSpriteStructure(width, height) {
-    console.log(`🔍 [OverworldPokemonManager] Détection auto pour ${width}x${height}`);
-    
-    // ✅ ÉTAPE 1: Trouver toutes les divisions exactes possibles
-    const possibleCols = [];
-    const possibleRows = [];
-    
-    // Chercher les diviseurs de la largeur (colonnes)
-    for (let cols = 1; cols <= 20; cols++) {
-      if (width % cols === 0) {
-        const frameWidth = width / cols;
-        if (frameWidth >= 16 && frameWidth <= 128) { // Taille raisonnable
-          possibleCols.push({ cols, frameWidth });
+/**
+ * ✅ NOUVEAU: Détection automatique VRAIMENT intelligente
+ */
+detectSpriteStructure(width, height) {
+  console.log(`🔍 [OverworldPokemonManager] Détection auto pour ${width}x${height}`);
+  
+  // ✅ ÉTAPE 1: Trouver TOUS les diviseurs exacts
+  const validStructures = [];
+  
+  for (let cols = 1; cols <= 20; cols++) {
+    if (width % cols === 0) { // Division exacte
+      const frameWidth = width / cols;
+      
+      for (let rows = 1; rows <= 12; rows++) {
+        if (height % rows === 0) { // Division exacte
+          const frameHeight = height / rows;
+          
+          // ✅ Filtrer les tailles déraisonnables
+          if (frameWidth >= 16 && frameWidth <= 128 && 
+              frameHeight >= 16 && frameHeight <= 128) {
+            
+            const aspectRatio = frameWidth / frameHeight;
+            
+            // ✅ NOUVEAU SCORING AMÉLIORÉ
+            let score = 100; // Score de base
+            
+            // 🎯 BONUS pour frames carrées ou rectangulaires normales
+            if (aspectRatio >= 0.8 && aspectRatio <= 1.5) score += 50;
+            if (aspectRatio >= 1.0 && aspectRatio <= 1.3) score += 20; // Légèrement rectangulaire = parfait
+            
+            // 🎯 BONUS ÉNORME pour 8 rangées (standard Pokémon)
+            if (rows === 8) score += 100;
+            if (rows === 4) score += 30;
+            if (rows === 1) score += 10; // Swing animation
+            
+            // 🎯 BONUS pour colonnes communes
+            if (cols === 7) score += 80; // ← RATTATA
+            if (cols === 6) score += 75;
+            if (cols === 8) score += 70;
+            if (cols === 9) score += 60; // Swing avec extra frame
+            if (cols === 4) score += 50;
+            if (cols === 3) score += 30;
+            
+            // 🎯 MALUS pour tailles bizarres
+            if (frameWidth < 20 || frameHeight < 20) score -= 50;
+            if (frameWidth > 80 || frameHeight > 80) score -= 30;
+            if (cols > 12) score -= 40;
+            if (rows > 10) score -= 40;
+            
+            // 🎯 BONUS pour combinaisons typiques
+            if ((cols === 7 && rows === 8) || 
+                (cols === 6 && rows === 8) || 
+                (cols === 8 && rows === 8) ||
+                (cols === 9 && rows === 1)) score += 30;
+            
+            validStructures.push({
+              cols,
+              rows,
+              frameWidth,
+              frameHeight,
+              totalFrames: cols * rows,
+              aspectRatio,
+              score,
+              name: `${cols}x${rows} (score: ${score})`
+            });
+          }
         }
       }
     }
-    
-    // Chercher les diviseurs de la hauteur (rangées)
-    for (let rows = 1; rows <= 12; rows++) {
-      if (height % rows === 0) {
-        const frameHeight = height / rows;
-        if (frameHeight >= 16 && frameHeight <= 128) { // Taille raisonnable
-          possibleRows.push({ rows, frameHeight });
-        }
-      }
-    }
-    
-    console.log(`📊 Colonnes possibles:`, possibleCols);
-    console.log(`📊 Rangées possibles:`, possibleRows);
-    
-    // ✅ ÉTAPE 2: Trouver la meilleure combinaison
-    let bestStructure = null;
-    let bestScore = -1;
-    
-    possibleCols.forEach(colInfo => {
-      possibleRows.forEach(rowInfo => {
-        const frameWidth = colInfo.frameWidth;
-        const frameHeight = rowInfo.frameHeight;
-        const aspectRatio = frameWidth / frameHeight;
-        
-        // Calculer un score de qualité
-        let score = 0;
-        
-        // Préférer les frames carrées ou proches du carré
-        if (aspectRatio >= 0.7 && aspectRatio <= 1.4) score += 30;
-        
-        // Préférer 8 rangées (standard Pokémon)
-        if (rowInfo.rows === 8) score += 25;
-        if (rowInfo.rows === 4) score += 15;
-        
-        // Préférer certaines colonnes communes
-        if (colInfo.cols === 6) score += 20;
-        if (colInfo.cols === 7) score += 18;
-        if (colInfo.cols === 8) score += 15;
-        if (colInfo.cols === 4) score += 12;
-        if (colInfo.cols === 9) score += 10;
-        
-        // Pénaliser les tailles trop petites ou grandes
-        if (frameWidth < 20 || frameHeight < 20) score -= 20;
-        if (frameWidth > 80 || frameHeight > 80) score -= 10;
-        
-        if (score > bestScore) {
-          bestScore = score;
-          bestStructure = {
-            cols: colInfo.cols,
-            rows: rowInfo.rows,
-            frameWidth: frameWidth,
-            frameHeight: frameHeight,
-            totalFrames: colInfo.cols * rowInfo.rows,
-            aspectRatio: aspectRatio,
-            score: score,
-            name: `${colInfo.cols}x${rowInfo.rows} (auto-détecté)`
-          };
-        }
-      });
-    });
-    
-    // ✅ ÉTAPE 3: Fallback si rien trouvé
-    if (!bestStructure) {
-      console.warn(`⚠️ [OverworldPokemonManager] Aucune structure détectée pour ${width}×${height}`);
-      return {
-        cols: Math.max(1, Math.round(width / 32)),
-        rows: 8,
-        frameWidth: Math.round(width / Math.max(1, Math.round(width / 32))),
-        frameHeight: Math.round(height / 8),
-        name: "fallback auto"
-      };
-    }
-    
-    console.log(`✅ [OverworldPokemonManager] Meilleure structure détectée:`, bestStructure);
-    return bestStructure;
   }
+  
+  console.log(`📊 Structures trouvées:`, validStructures.map(s => 
+    `${s.cols}x${s.rows} = ${s.frameWidth}x${s.frameHeight} (score: ${s.score})`
+  ));
+  
+  // ✅ ÉTAPE 2: Prendre la meilleure
+  if (validStructures.length === 0) {
+    console.warn(`⚠️ Aucune structure valide pour ${width}×${height}`);
+    return {
+      cols: Math.max(1, Math.round(width / 32)),
+      rows: 8,
+      frameWidth: Math.round(width / Math.max(1, Math.round(width / 32))),
+      frameHeight: Math.round(height / 8),
+      name: "fallback emergency"
+    };
+  }
+  
+  // Trier par score décroissant
+  validStructures.sort((a, b) => b.score - a.score);
+  const best = validStructures[0];
+  
+  console.log(`✅ [OverworldPokemonManager] MEILLEURE structure:`, best);
+  console.log(`🏆 Gagnant: ${best.cols}x${best.rows} = ${best.frameWidth}x${best.frameHeight} (score: ${best.score})`);
+  
+  // Afficher les autres candidats pour debug
+  if (validStructures.length > 1) {
+    console.log(`🥈 Autres candidats:`, validStructures.slice(1, 4).map(s => 
+      `${s.cols}x${s.rows} (${s.score})`
+    ));
+  }
+  
+  return {
+    cols: best.cols,
+    rows: best.rows,
+    frameWidth: best.frameWidth,
+    frameHeight: best.frameHeight,
+    totalFrames: best.totalFrames,
+    aspectRatio: best.aspectRatio,
+    score: best.score,
+    name: `${best.cols}x${best.rows} (auto-détecté, score: ${best.score})`
+  };
+}
 
   /**
    * Charge un sprite Pokémon avec animation spécifique
