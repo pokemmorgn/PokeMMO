@@ -156,6 +156,8 @@ export class BattleAnimationManager {
   async animatePokemonEntry(data) {
     const { sprite, direction = 'left' } = data;
     if (!sprite) return;
+
+     sprite.setVisible(true);
     
     const targetX = sprite.x;
     const targetY = sprite.y;
