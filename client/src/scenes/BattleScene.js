@@ -1266,7 +1266,7 @@ this.battleNetworkHandler.on('moveUsed', (data) => {
     timestamp: Date.now()
   });
   
-  const message = `${data.attackerName} utilise ${data.moveName} !`;
+  const message = `${data.attackerName} utilise ${data.moveName} ! AHAHAH`;
   
   console.log('🐛 [DEBUG] Message à afficher:', message);
   console.log('🐛 [DEBUG] Interface mode avant:', this.interfaceMode);
