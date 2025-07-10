@@ -176,69 +176,45 @@ export class BroadcastManager {
   /**
    * Séquence complète d'attaque avec timing optimal
    */
-  async emitAttackSequence(attackData: AttackSequenceData): Promise<void> {
-    console.log(`⚔️ [BroadcastManager] Séquence attaque: ${attackData.move.name}`);
-    
-    // 1. Annonce de l'attaque (ID seulement)
-    await this.emitTimed('moveUsed', {
-      attackerName: attackData.attacker.name,
-      attackerRole: attackData.attacker.role,
-      moveName: attackData.move.name,
-      moveId: attackData.move.id
+async emitAttackSequence(attackData: AttackSequenceData): Promise<void> {
+  console.log(`⚔️ [BroadcastManager] Séquence attaque: ${attackData.move.name}`);
+  
+  // 1. Annonce de l'attaque (INSTANTANÉ)
+  this.emit('moveUsed', {
+    attackerName: attackData.attacker.name,
+    attackerRole: attackData.attacker.role,
+    moveName: attackData.move.name,
+    moveId: attackData.move.id
+  });
+  
+  // 2. Dégâts infligés (INSTANTANÉ)
+  if (attackData.damage > 0) {
+    this.emit('damageDealt', {
+      targetName: attackData.target.name,
+      targetRole: attackData.target.role,
+      targetPlayerId: attackData.target.role === 'player1' ? this.gameState.player1.sessionId : this.gameState.player2.sessionId,
+      damage: attackData.damage,
+      oldHp: attackData.oldHp,
+      newHp: attackData.newHp,
+      maxHp: attackData.maxHp,
+      hpPercentage: Math.round((attackData.newHp / attackData.maxHp) * 100)
     });
-    
-    // 2. Effets de type (si applicable)
-    if (attackData.effects && attackData.effects.length > 0) {
-      for (const effect of attackData.effects) {
-        // Envoyer l'ID de l'effet, pas le texte
-        if (effect === 'super_effective') {
-          await this.emitTimed('superEffective', {
-            targetName: attackData.target.name,
-            targetRole: attackData.target.role
-          });
-        } else if (effect === 'not_very_effective') {
-          await this.emitTimed('notVeryEffective', {
-            targetName: attackData.target.name,
-            targetRole: attackData.target.role
-          });
-        } else if (effect === 'no_effect') {
-          await this.emitTimed('noEffect', {
-            targetName: attackData.target.name,
-            targetRole: attackData.target.role
-          });
-        } else if (effect === 'critical_hit') {
-          await this.emitTimed('criticalHit', {
-            targetName: attackData.target.name
-          });
-        }
-      }
-    }
-    
-    // 3. Dégâts infligés (données brutes seulement)
-    if (attackData.damage > 0) {
-      await this.emitTimed('damageDealt', {
-        targetName: attackData.target.name,
-        targetRole: attackData.target.role,
-        targetPlayerId: attackData.target.role === 'player1' ? this.gameState.player1.sessionId : this.gameState.player2.sessionId,
-        damage: attackData.damage,
-        oldHp: attackData.oldHp,
-        newHp: attackData.newHp,
-        maxHp: attackData.maxHp,
-        hpPercentage: Math.round((attackData.newHp / attackData.maxHp) * 100)
-      });
-    }
-    
-    // 4. K.O. si applicable (ID seulement)
-    if (attackData.isKnockedOut) {
-      await this.emitTimed('pokemonFainted', {
-        pokemonName: attackData.target.name,
-        targetRole: attackData.target.role,
-        playerId: attackData.target.role === 'player1' ? this.gameState.player1.sessionId : this.gameState.player2.sessionId
-      });
-    }
-    
-    console.log(`✅ [BroadcastManager] Séquence attaque terminée`);
   }
+  
+  // 3. K.O. si applicable (INSTANTANÉ)
+  if (attackData.isKnockedOut) {
+    this.emit('pokemonFainted', {
+      pokemonName: attackData.target.name,
+      targetRole: attackData.target.role,
+      playerId: attackData.target.role === 'player1' ? this.gameState.player1.sessionId : this.gameState.player2.sessionId
+    });
+  }
+  
+  // 4. ATTENDRE À LA FIN (pour laisser voir les dégâts)
+  await this.delay(BATTLE_TIMINGS.moveUsed); // 1.8s d'attente APRÈS les dégâts
+  
+  console.log(`✅ [BroadcastManager] Séquence attaque terminée`);
+}
   
   /**
    * Séquence complète de capture avec timing optimal
