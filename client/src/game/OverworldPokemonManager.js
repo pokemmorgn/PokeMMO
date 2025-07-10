@@ -592,7 +592,7 @@ update(delta = 16) {
     // ✅ MOUVEMENT LERP SIMPLE comme PlayerManager
     if (pokemon.isMoving && pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
       // Vitesse de lerp réaliste (comme les autres joueurs)
-      const lerpSpeed = 0.12; // Plus lent que les joueurs (0.18)
+      const lerpSpeed = 0.08; // Plus lent que les joueurs (0.18)
       
       pokemon.x += (pokemon.targetX - pokemon.x) * lerpSpeed;
       pokemon.y += (pokemon.targetY - pokemon.y) * lerpSpeed;
