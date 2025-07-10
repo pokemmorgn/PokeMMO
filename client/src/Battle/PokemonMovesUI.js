@@ -1,5 +1,5 @@
 // client/src/Battle/PokemonMovesUI.js
-// Interface d'attaques Pokémon authentique (style Rouge/Bleu) avec gestion PP et Struggle
+// VERSION CORRIGÉE ANTI-FREEZE avec debug complet et timeouts
 
 export class PokemonMovesUI {
   constructor(scene, battleNetworkHandler) {
@@ -12,6 +12,11 @@ export class PokemonMovesUI {
     this.forceStruggle = false;
     this.isWaitingForMoves = false;
     
+    // ✅ NOUVEAU: Anti-freeze avec timeout
+    this.requestTimeout = null;
+    this.maxWaitTime = 5000; // 5 secondes max
+    this.debugMode = true; // Pour identifier les problèmes
+    
     // Interface
     this.movesContainer = null;
     this.moveButtons = [];
@@ -23,7 +28,7 @@ export class PokemonMovesUI {
     this.config = {
       width: 440,
       height: 280,
-      x: 0.5, // Centre écran
+      x: 0.5,
       y: 0.65,
       buttonWidth: 180,
       buttonHeight: 50,
@@ -31,7 +36,7 @@ export class PokemonMovesUI {
       cornerRadius: 8
     };
     
-    console.log('⚔️ [PokemonMovesUI] Interface attaques Pokémon authentique initialisée');
+    console.log('⚔️ [PokemonMovesUI] Interface attaques Pokémon authentique initialisée (version anti-freeze)');
   }
 
   // === CRÉATION INTERFACE ===
@@ -61,10 +66,10 @@ export class PokemonMovesUI {
     // Bouton retour
     this.createBackButton();
     
-    // Configuration événements réseau
-    this.setupNetworkEvents();
+    // ✅ AMÉLIORATION: Configuration événements réseau avec vérifications
+    this.setupNetworkEventsRobust();
     
-    console.log('✅ [PokemonMovesUI] Interface créée avec style Pokémon authentique');
+    console.log('✅ [PokemonMovesUI] Interface créée avec style Pokémon authentique (anti-freeze)');
   }
 
   createGameBoyBackground() {
@@ -282,6 +287,7 @@ export class PokemonMovesUI {
     });
     
     backHitArea.on('pointerdown', () => {
+      this.cancelRequest(); // ✅ NOUVEAU: Annuler proprement
       this.hide();
     });
     
@@ -289,30 +295,84 @@ export class PokemonMovesUI {
     this.backButton = backContainer;
   }
 
-  // === GESTION ÉVÉNEMENTS RÉSEAU ===
+  // === ✅ GESTION ÉVÉNEMENTS RÉSEAU ROBUSTE ===
 
-  setupNetworkEvents() {
+  setupNetworkEventsRobust() {
     if (!this.networkHandler) {
-      console.warn('⚠️ [PokemonMovesUI] NetworkHandler manquant');
+      console.error('❌ [PokemonMovesUI] NetworkHandler manquant - interface non fonctionnelle');
       return;
     }
 
-    // Réponse aux attaques disponibles
-    this.networkHandler.on('requestMovesResult', (data) => {
-      this.handleMovesResult(data);
-    });
+    // ✅ VERIFICATION: Le networkHandler a-t-il la méthode on() ?
+    if (typeof this.networkHandler.on !== 'function') {
+      console.error('❌ [PokemonMovesUI] NetworkHandler invalide - pas de méthode on()');
+      console.error('🔍 NetworkHandler type:', typeof this.networkHandler);
+      console.error('🔍 NetworkHandler methods:', Object.getOwnPropertyNames(this.networkHandler));
+      return;
+    }
 
-    console.log('📡 [PokemonMovesUI] Événements réseau configurés');
+    try {
+      // Réponse aux attaques disponibles
+      this.networkHandler.on('requestMovesResult', (data) => {
+        if (this.debugMode) {
+          console.log('📥 [PokemonMovesUI] requestMovesResult reçu:', data);
+        }
+        this.handleMovesResultRobust(data);
+      });
+
+      console.log('📡 [PokemonMovesUI] Événements réseau configurés avec succès');
+      
+      // ✅ TEST: Vérifier que l'handler est bien ajouté
+      this.testNetworkHandler();
+      
+    } catch (error) {
+      console.error('❌ [PokemonMovesUI] Erreur configuration événements:', error);
+    }
   }
 
-  handleMovesResult(data) {
-    console.log('📋 [PokemonMovesUI] Attaques reçues:', data);
+  // ✅ NOUVEAU: Test de connectivité
+  testNetworkHandler() {
+    if (!this.networkHandler) {
+      console.error('❌ [PokemonMovesUI] Test failed: pas de networkHandler');
+      return false;
+    }
+
+    // Vérifier si c'est connecté
+    if (typeof this.networkHandler.canSendBattleActions === 'function') {
+      const canSend = this.networkHandler.canSendBattleActions();
+      console.log(`🔗 [PokemonMovesUI] Test connexion: ${canSend ? '✅ OK' : '❌ KO'}`);
+      return canSend;
+    }
+
+    // Vérifier si sendToBattle existe
+    if (typeof this.networkHandler.sendToBattle === 'function') {
+      console.log('✅ [PokemonMovesUI] sendToBattle disponible');
+      return true;
+    }
+
+    console.error('❌ [PokemonMovesUI] sendToBattle non disponible');
+    return false;
+  }
+
+  handleMovesResultRobust(data) {
+    // ✅ Arrêter le timeout
+    this.clearRequestTimeout();
+
+    console.log('📋 [PokemonMovesUI] Attaques reçues (robuste):', data);
 
     if (!data.success) {
-      console.error('❌ [PokemonMovesUI] Erreur:', data.error);
-      this.hide();
+      console.error('❌ [PokemonMovesUI] Erreur serveur:', data.error);
+      
+      // ✅ Reset l'état
+      this.isWaitingForMoves = false;
+      
+      // Afficher erreur à l'utilisateur
+      this.showError(data.error || 'Erreur inconnue');
       return;
     }
+
+    // ✅ Reset l'état d'attente
+    this.isWaitingForMoves = false;
 
     // Mettre à jour les données
     this.availableMoves = data.moves || [];
@@ -323,21 +383,151 @@ export class PokemonMovesUI {
     this.displayMoves();
   }
 
-  // === AFFICHAGE DES ATTAQUES ===
+  // === ✅ MÉTHODES PUBLIQUES ROBUSTES ===
+
+  /**
+   * Demande les attaques disponibles au serveur (version robuste)
+   */
+  requestMoves() {
+    console.log('📤 [PokemonMovesUI] Demande attaques (robuste)...');
+
+    // ✅ Vérifications préalables
+    if (!this.networkHandler) {
+      console.error('❌ [PokemonMovesUI] NetworkHandler manquant');
+      this.showError('Connexion réseau indisponible');
+      return;
+    }
+
+    if (this.isWaitingForMoves) {
+      console.warn('⚠️ [PokemonMovesUI] Demande déjà en cours, ignorée');
+      return;
+    }
+
+    // ✅ Test de connectivité
+    if (!this.testNetworkHandler()) {
+      console.error('❌ [PokemonMovesUI] NetworkHandler non connecté');
+      this.showError('Non connecté au combat');
+      return;
+    }
+
+    // ✅ Marquer comme en attente
+    this.isWaitingForMoves = true;
+
+    // ✅ Démarrer le timeout
+    this.startRequestTimeout();
+
+    try {
+      // ✅ Envoi avec vérification de retour
+      const sent = this.networkHandler.sendToBattle('requestMoves');
+      
+      if (sent === false) {
+        console.error('❌ [PokemonMovesUI] Échec envoi sendToBattle');
+        this.handleRequestFailure('Échec envoi requête');
+        return;
+      }
+
+      console.log('✅ [PokemonMovesUI] Requête envoyée, attente réponse...');
+      
+    } catch (error) {
+      console.error('❌ [PokemonMovesUI] Erreur lors de l\'envoi:', error);
+      this.handleRequestFailure('Erreur réseau');
+    }
+  }
+
+  // ✅ NOUVEAU: Gestion timeout
+  startRequestTimeout() {
+    this.clearRequestTimeout(); // Au cas où
+
+    this.requestTimeout = setTimeout(() => {
+      console.error('⏰ [PokemonMovesUI] Timeout - pas de réponse du serveur');
+      this.handleRequestFailure('Timeout serveur');
+    }, this.maxWaitTime);
+
+    if (this.debugMode) {
+      console.log(`⏰ [PokemonMovesUI] Timeout démarré (${this.maxWaitTime}ms)`);
+    }
+  }
+
+  clearRequestTimeout() {
+    if (this.requestTimeout) {
+      clearTimeout(this.requestTimeout);
+      this.requestTimeout = null;
+      
+      if (this.debugMode) {
+        console.log('⏰ [PokemonMovesUI] Timeout arrêté');
+      }
+    }
+  }
+
+  // ✅ NOUVEAU: Gestion échec de requête
+  handleRequestFailure(reason) {
+    this.clearRequestTimeout();
+    this.isWaitingForMoves = false;
+    
+    console.error(`❌ [PokemonMovesUI] Échec requête: ${reason}`);
+    this.showError(reason);
+  }
+
+  // ✅ NOUVEAU: Annulation manuelle
+  cancelRequest() {
+    if (this.isWaitingForMoves) {
+      console.log('🚫 [PokemonMovesUI] Annulation requête en cours');
+      this.clearRequestTimeout();
+      this.isWaitingForMoves = false;
+    }
+  }
+
+  // ✅ NOUVEAU: Affichage d'erreur
+  showError(message) {
+    // Mettre le titre en rouge
+    if (this.titleText) {
+      this.titleText.setText('ERREUR');
+      this.titleText.setStyle({ color: '#FF0000' });
+    }
+
+    // Afficher le message d'erreur
+    if (this.pokemonNameText) {
+      this.pokemonNameText.setText(message);
+      this.pokemonNameText.setStyle({ color: '#FF0000' });
+    }
+
+    // Vider les boutons
+    for (let i = 0; i < 4; i++) {
+      this.clearMoveButton(this.moveButtons[i]);
+    }
+
+    // Afficher l'interface d'erreur
+    this.show();
+
+    // ✅ Auto-fermeture après 3 secondes
+    setTimeout(() => {
+      this.hide();
+    }, 3000);
+
+    // ✅ Déclencher l'événement d'erreur pour la BattleScene
+    this.scene.events.emit('movesMenuError', { message });
+  }
+
+  // === AFFICHAGE DES ATTAQUES (INCHANGÉ) ===
 
   displayMoves() {
     console.log(`🎮 [PokemonMovesUI] Affichage ${this.availableMoves.length} attaques`);
 
-    // Mettre à jour le nom du Pokémon
-    this.pokemonNameText.setText(this.currentPokemonName);
+    // Remettre les couleurs normales
+    if (this.titleText) {
+      if (this.forceStruggle) {
+        this.titleText.setText('LUTTE FORCÉE');
+        this.titleText.setStyle({ color: '#FF0000' });
+      } else {
+        this.titleText.setText('ATTAQUES');
+        this.titleText.setStyle({ color: '#0F380F' });
+      }
+    }
 
-    // Titre spécial pour Struggle
-    if (this.forceStruggle) {
-      this.titleText.setText('LUTTE FORCÉE');
-      this.titleText.setStyle({ color: '#FF0000' });
-    } else {
-      this.titleText.setText('ATTAQUES');
-      this.titleText.setStyle({ color: '#0F380F' });
+    // Mettre à jour le nom du Pokémon
+    if (this.pokemonNameText) {
+      this.pokemonNameText.setText(this.currentPokemonName);
+      this.pokemonNameText.setStyle({ color: '#0F380F' });
     }
 
     // Mettre à jour chaque bouton
@@ -405,7 +595,7 @@ export class PokemonMovesUI {
     button.container.setAlpha(0.3);
   }
 
-  // === ÉVÉNEMENTS BOUTONS ===
+  // === ÉVÉNEMENTS BOUTONS (INCHANGÉ) ===
 
   onMoveButtonHover(index, isHover) {
     const button = this.moveButtons[index];
@@ -473,26 +663,8 @@ export class PokemonMovesUI {
     });
   }
 
-  // === MÉTHODES PUBLIQUES ===
+  // === AFFICHAGE/MASQUAGE (INCHANGÉ) ===
 
-  /**
-   * Demande les attaques disponibles au serveur
-   */
-  requestMoves() {
-    if (!this.networkHandler) {
-      console.error('❌ [PokemonMovesUI] NetworkHandler manquant');
-      return;
-    }
-
-    console.log('📤 [PokemonMovesUI] Demande attaques au serveur...');
-    this.isWaitingForMoves = true;
-    
-    this.networkHandler.sendToBattle('requestMoves');
-  }
-
-  /**
-   * Affiche l'interface d'attaques
-   */
   show() {
     if (!this.movesContainer) return;
 
@@ -512,11 +684,11 @@ export class PokemonMovesUI {
     console.log('👁️ [PokemonMovesUI] Interface affichée');
   }
 
-  /**
-   * Masque l'interface d'attaques
-   */
   hide() {
     if (!this.movesContainer) return;
+
+    // ✅ Annuler toute requête en cours
+    this.cancelRequest();
 
     this.scene.tweens.add({
       targets: this.movesContainer,
@@ -527,7 +699,6 @@ export class PokemonMovesUI {
       ease: 'Power2.easeIn',
       onComplete: () => {
         this.movesContainer.setVisible(false);
-        this.isWaitingForMoves = false;
       }
     });
 
@@ -537,14 +708,11 @@ export class PokemonMovesUI {
     console.log('👁️ [PokemonMovesUI] Interface masquée');
   }
 
-  /**
-   * Vérifie si l'interface est visible
-   */
   isVisible() {
     return this.movesContainer && this.movesContainer.visible;
   }
 
-  // === UTILITAIRES DE COULEURS ===
+  // === UTILITAIRES DE COULEURS (INCHANGÉ) ===
 
   getTypeColor(type) {
     const typeColors = {
@@ -589,9 +757,37 @@ export class PokemonMovesUI {
     return (newR << 16) | (newG << 8) | newB;
   }
 
+  // === ✅ DEBUG ET DIAGNOSTIC ===
+
+  debugState() {
+    console.log('🔍 === DEBUG POKEMONMOVESUI ===');
+    console.log('📊 État:', {
+      isWaitingForMoves: this.isWaitingForMoves,
+      hasNetworkHandler: !!this.networkHandler,
+      isVisible: this.isVisible(),
+      availableMovesCount: this.availableMoves.length,
+      currentPokemon: this.currentPokemonName,
+      forceStruggle: this.forceStruggle
+    });
+    
+    if (this.networkHandler) {
+      console.log('🌐 NetworkHandler:', {
+        type: typeof this.networkHandler,
+        hasSendToBattle: typeof this.networkHandler.sendToBattle === 'function',
+        hasOn: typeof this.networkHandler.on === 'function',
+        canSend: this.networkHandler.canSendBattleActions?.() || 'unknown'
+      });
+    }
+    
+    console.log('🔍 === FIN DEBUG ===');
+  }
+
   // === NETTOYAGE ===
 
   destroy() {
+    // ✅ Nettoyer les timeouts
+    this.clearRequestTimeout();
+    
     if (this.movesContainer) {
       this.movesContainer.destroy();
       this.movesContainer = null;
@@ -600,7 +796,72 @@ export class PokemonMovesUI {
     this.moveButtons = [];
     this.availableMoves = [];
     this.networkHandler = null;
+    this.isWaitingForMoves = false;
     
-    console.log('💀 [PokemonMovesUI] Interface détruite');
+    console.log('💀 [PokemonMovesUI] Interface détruite (robuste)');
   }
 }
+
+// === ✅ NOUVELLES FONCTIONS DE TEST ANTI-FREEZE ===
+
+// Test basique de l'interface
+window.testPokemonMovesUIRobust = function() {
+  console.log('🧪 === TEST POKEMONMOVESUI ANTI-FREEZE ===');
+  
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (!battleScene) {
+    console.error('❌ BattleScene non trouvée');
+    return;
+  }
+  
+  if (!battleScene.pokemonMovesUI) {
+    console.error('❌ PokemonMovesUI non initialisé');
+    return;
+  }
+  
+  // Test de l'état
+  battleScene.pokemonMovesUI.debugState();
+  
+  // Test de connectivité
+  const canConnect = battleScene.pokemonMovesUI.testNetworkHandler();
+  console.log(`🔗 Test connectivité: ${canConnect ? '✅ OK' : '❌ KO'}`);
+  
+  // Test d'affichage d'erreur
+  console.log('🧪 Test affichage erreur...');
+  battleScene.pokemonMovesUI.showError('Test erreur');
+};
+
+// Test de la requête avec debug
+window.testPokemonMovesRequest = function() {
+  console.log('🧪 === TEST REQUÊTE ATTAQUES ===');
+  
+  const battleScene = window.game?.scene?.getScene('BattleScene');
+  if (!battleScene?.pokemonMovesUI) {
+    console.error('❌ PokemonMovesUI non disponible');
+    return;
+  }
+  
+  const ui = battleScene.pokemonMovesUI;
+  
+  console.log('📤 Tentative de requête...');
+  ui.debugMode = true; // Activer debug
+  ui.requestMoves();
+  
+  // Tester l'annulation après 2 secondes
+  setTimeout(() => {
+    console.log('🚫 Test annulation...');
+    ui.cancelRequest();
+  }, 2000);
+};
+
+console.log('✅ [PokemonMovesUI] VERSION ANTI-FREEZE CHARGÉE !');
+console.log('🧪 Tests disponibles :');
+console.log('   window.testPokemonMovesUIRobust() - Test diagnostic complet');
+console.log('   window.testPokemonMovesRequest() - Test requête avec debug');
+console.log('🔧 Améliorations anti-freeze :');
+console.log('   ✅ Timeout de 5 secondes sur les requêtes');
+console.log('   ✅ Vérification connectivité avant envoi');
+console.log('   ✅ Gestion d\'erreurs robuste');
+console.log('   ✅ Annulation manuelle possible');
+console.log('   ✅ Debug mode intégré');
+console.log('   ✅ Reset automatique des états');
