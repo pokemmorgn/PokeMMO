@@ -370,7 +370,13 @@ private configureBroadcastSystem(config: BattleConfig): void {
     this.gameState.player1.sessionId
   );
   
-  console.log('✅ [BattleEngine] BroadcastManager créé');
+  // ✅ NOUVEAU: Configurer le callback d'émission
+  this.broadcastManager.setEmitCallback((event) => {
+    // Émettre vers l'ancien système pour l'instant
+    this.emit('battleEvent', event);
+  });
+  
+  console.log('✅ [BattleEngine] BroadcastManager créé et configuré');
 }
   /**
    * ✅ NOUVEAU: Traite une tentative de capture (délègue au CaptureManager)
