@@ -153,9 +153,8 @@ export class BattleEngine {
     
     console.log(`⚔️ [BattleEngine] Combat actif - Premier combattant: ${firstCombatant}`);
   }
-  
- /**
- * Traite une action (bloquée pendant la narration) + CAPTURE
+/**
+ * Traite une action avec timing Pokémon authentique
  */
 async processAction(action: BattleAction, teamManager?: any): Promise<BattleResult> {
   console.log(`🎮 [BattleEngine] Action reçue: ${action.type} par ${action.playerId}`);
@@ -179,7 +178,7 @@ async processAction(action: BattleAction, teamManager?: any): Promise<BattleResu
     };
   }
   
-  // ✅ NOUVEAU: Bloquer les actions pendant la narration
+  // Bloquer les actions pendant la narration
   if (this.turnManager.isNarrative()) {
     return {
       success: false,
@@ -200,7 +199,7 @@ async processAction(action: BattleAction, teamManager?: any): Promise<BattleResu
       };
     }
     
-    // ✅ NOUVEAU: Traiter l'action selon son type
+    // Traiter l'action selon son type
     let result: BattleResult;
     
     if (action.type === 'capture') {
@@ -223,7 +222,7 @@ async processAction(action: BattleAction, teamManager?: any): Promise<BattleResu
     if (result.success) {
       console.log(`✅ [BattleEngine] Action traitée avec succès`);
       
-      // ✅ NOUVEAU: Vérifier si la capture a terminé le combat
+      // Vérifier si la capture a terminé le combat
       if (action.type === 'capture' && result.data?.captured && result.data?.battleEnded) {
         console.log(`🎉 [BattleEngine] Combat terminé par capture !`);
         
@@ -239,30 +238,17 @@ async processAction(action: BattleAction, teamManager?: any): Promise<BattleResu
         this.gameState.phase = 'ended';
         
         // Émettre événement de fin par capture
-        if (this.broadcastManager) {
-          await this.broadcastManager.emitCaptureSequence({
-            playerName: this.getPlayerName(action.playerId),
-            pokemonName: this.gameState.player2.pokemon!.name,
-            ballType: action.data.ballType || 'poke_ball',
-            ballDisplayName: action.data.ballDisplayName || 'Poké Ball',
-            shakeCount: result.data?.shakeCount || 0,
-            captured: true,
-            critical: result.data?.critical || false,
-            addedTo: result.data?.addedTo || 'team'
-          });
-        } else {
-          this.emit('battleEnd', {
-            winner: result.data.winner,
-            reason: 'Pokémon capturé !',
-            gameState: this.gameState,
-            captureSuccess: true
-          });
-        }
+        this.emit('battleEnd', {
+          winner: result.data.winner,
+          reason: 'Pokémon capturé !',
+          gameState: this.gameState,
+          captureSuccess: true
+        });
         
         return result;
       }
       
-      // ✅ Vérifier fin de combat AVANT de changer de tour (pour les autres actions)
+      // Vérifier fin de combat AVANT de changer de tour
       const battleEndCheck = this.checkBattleEnd();
       
       if (battleEndCheck.isEnded) {
@@ -302,6 +288,42 @@ async processAction(action: BattleAction, teamManager?: any): Promise<BattleResu
         };
       }
       
+      // ✅ NOUVEAU: TIMING POKÉMON AUTHENTIQUE (AVANT nextTurn)
+      if (this.broadcastManager && action.type === 'attack' && result.data) {
+        // 1. Envoyer attaque + dégâts INSTANTANÉMENT
+        this.broadcastManager.emitAttackSequence({
+          attacker: { 
+            name: this.getPlayerName(action.playerId), 
+            role: action.playerId === this.gameState.player1.sessionId ? 'player1' : 'player2' 
+          },
+          target: { 
+            name: result.data.defenderRole === 'player1' ? this.gameState.player1.name : this.gameState.player2.name,
+            role: result.data.defenderRole 
+          },
+          move: { 
+            id: action.data.moveId, 
+            name: action.data.moveId
+          },
+          damage: result.data.damage || 0,
+          oldHp: result.data.oldHp || 0,
+          newHp: result.data.newHp || 0,
+          maxHp: result.data.maxHp || 100,
+          effects: [], // TODO: Calculer effets
+          isKnockedOut: result.data.isKnockedOut || false
+        });
+        
+        // 2. TIMING CONTRÔLÉ PAR LE COMBAT
+        await this.emitTypeEffects([], {
+          targetName: result.data.defenderRole === 'player1' ? this.gameState.player1.name : this.gameState.player2.name,
+          targetRole: result.data.defenderRole
+        });
+        
+        // 3. DÉLAI FINAL avant tour suivant (2s comme Pokémon)
+        await this.delay(BATTLE_TIMINGS.transitionSlow);
+        
+        console.log(`⏱️ [BattleEngine] Timing Pokémon terminé, changement de tour`);
+      }
+      
       // Changer de tour seulement si le combat continue ET que ce n'est pas une capture ratée
       if (!(action.type === 'capture' && !result.data?.captured)) {
         const nextPlayer = this.turnManager.nextTurn();
@@ -314,7 +336,33 @@ async processAction(action: BattleAction, teamManager?: any): Promise<BattleResu
         });
       }
       
-      // ✅ NOUVEAU: Émettre via BroadcastManager avec timing
+      // Fallback pour autres types d'actions (non-attack)
+      if (action.type !== 'attack') {
+        this.emit('actionProcessed', {
+          action: action,
+          result: result,
+          nextPlayer: this.turnManager.getCurrentPlayer()
+        });
+      }
+      
+    } else {
+      console.log(`❌ [BattleEngine] Échec action: ${result.error}`);
+    }
+    
+    return result;
+    
+  } catch (error) {
+    console.error(`❌ [BattleEngine] Erreur traitement action:`, error);
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+      gameState: this.gameState,
+      events: []
+    };
+  }
+}
+      
 // ✅ NOUVEAU: Timing géré par BattleEngine (pas BroadcastManager)
 if (this.broadcastManager && action.type === 'attack' && result.data) {
   // 1. Envoyer attaque + dégâts INSTANTANÉMENT
