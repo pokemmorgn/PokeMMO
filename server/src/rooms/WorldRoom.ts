@@ -527,6 +527,11 @@ console.log('🚀 [FIX] Handler starter RÉEL configuré !')
       }
     });
 
+    onMessage(client: any, type: string, message: any) {
+  if (type === 'overworldPokemonSpawnResponse') {
+    this.overworldPokemonManager.handleClientSpawnResponse(client, message);
+  }
+    }
     // Handler pour force spawn d'un Pokémon overworld
     this.onMessage("forceSpawnOverworldPokemon", (client, data: { 
       areaId: string, 
