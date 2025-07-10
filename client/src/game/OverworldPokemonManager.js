@@ -91,52 +91,28 @@ detectSpriteStructure(width, height) {
  * ✅ CALCUL DE SCORE INTELLIGENT basé sur les exemples réels
  */
 calculateStructureScore(cols, rows, frameWidth, frameHeight) {
-  let score = 100; // Score de base
+  let score = 100;
   
-  // ✅ BONUS pour correspondances exactes avec tes exemples
-  const examples = [
-    { cols: 7, rows: 8, frameW: 48, frameH: 40, name: 'Rattata' },   // 336x320
-    { cols: 5, rows: 8, frameW: 32, frameH: 32, name: 'Roucool' },   // 160x256  
-    { cols: 4, rows: 8, frameW: 24, frameH: 32, name: 'Miaouss' },   // 96x256
-    { cols: 4, rows: 8, frameW: 40, frameH: 48, name: 'Dracaufeu' }  // 160x384
-  ];
+  // ✅ BONUS ÉNORME pour 8 rangées (standard Pokémon overworld)
+  if (rows === 8) score += 150;
   
-  // Vérifier correspondance exacte avec exemples
-  const exactMatch = examples.find(ex => 
-    ex.cols === cols && ex.rows === rows && 
-    Math.abs(ex.frameW - frameWidth) <= 2 && 
-    Math.abs(ex.frameH - frameHeight) <= 2
-  );
+  // ✅ BONUS pour colonnes raisonnables (la plupart des Pokémon)
+  if (cols >= 3 && cols <= 8) score += 80;
+  if (cols >= 4 && cols <= 7) score += 40; // Zone optimale
   
-  if (exactMatch) {
-    score += 200; // ÉNORME bonus pour correspondance exacte
-    console.log(`🎯 Correspondance exacte avec ${exactMatch.name}!`);
-  }
-  
-  // ✅ BONUS pour configurations standard Pokémon
-  if (rows === 8) score += 100; // 8 rangées = standard walk
-  if (rows === 1) score += 50;  // 1 rangée = swing
-  
-  // ✅ BONUS pour nombre de colonnes typiques
-  if ([4, 5, 6, 7, 8].includes(cols)) score += 50;
-  if (cols === 7) score += 30; // Bonus Rattata
-  if (cols === 5) score += 25; // Bonus Roucool
-  if (cols === 4) score += 20; // Bonus Miaouss/Dracaufeu
-  
-  // ✅ BONUS pour tailles de frame courantes
-  const commonSizes = [24, 32, 40, 48, 64];
-  if (commonSizes.includes(frameWidth)) score += 30;
-  if (commonSizes.includes(frameHeight)) score += 30;
-  
-  // ✅ BONUS pour ratio d'aspect carré/rectangulaire normal
+  // ✅ BONUS pour frames carrées/rectangulaires standard
   const aspectRatio = frameWidth / frameHeight;
-  if (aspectRatio >= 0.8 && aspectRatio <= 1.4) score += 40;
+  if (aspectRatio >= 0.8 && aspectRatio <= 1.2) score += 100; // Quasi-carré
+  if (aspectRatio >= 0.9 && aspectRatio <= 1.1) score += 50;  // Parfaitement carré
   
-  // ✅ MALUS pour configurations bizarres
-  if (cols > 10) score -= 30;
-  if (rows > 10) score -= 40;
-  if (frameWidth < 20 || frameHeight < 20) score -= 50;
-  if (frameWidth > 100 || frameHeight > 100) score -= 30;
+  // ✅ BONUS pour tailles communes (16, 24, 32, 40, 48, 64)
+  if ([16, 24, 32, 40, 48, 64].includes(frameWidth)) score += 60;
+  if ([16, 24, 32, 40, 48, 64].includes(frameHeight)) score += 60;
+  
+  // ✅ MALUS pour trucs bizarres
+  if (cols > 10 || rows > 10) score -= 100;
+  if (frameWidth < 16 || frameHeight < 16) score -= 200;
+  if (frameWidth > 80 || frameHeight > 80) score -= 100;
   
   return score;
 }
