@@ -365,7 +365,7 @@ private async processKOSequence(koResult: any): Promise<void> {
 private async executeFullAttackerAction(): Promise<void> {
   const { action, playerRole, pokemon } = this.currentAttackerData;
   
-  const result = this.actionProcessor.processAction(action);
+   const result = await this.actionProcessor.processAction(action);
   
   if (!result.success) return;
   
