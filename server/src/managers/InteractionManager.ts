@@ -501,7 +501,103 @@ if (npc.properties.startertable === true || npc.properties.startertable === 'tru
     
     return questDefinition.dialogues[dialogueType];
   }
+// ✅ === NOUVELLE MÉTHODE : INTERACTION AVEC JOUEUR EN COMBAT ===
 
+async handlePlayerInteraction(
+  spectatorPlayer: Player, 
+  targetPlayerId: string,
+  targetPlayerPosition: { x: number; y: number; mapId: string }
+): Promise<NpcInteractionResult> {
+  
+  console.log(`👁️ === INTERACTION JOUEUR COMBAT ===`);
+  console.log(`👤 Spectateur: ${spectatorPlayer.name}`);
+  console.log(`🎯 Cible: ${targetPlayerId}`);
+  
+  // 1. Vérifier que le joueur cible est en combat
+  const battleStatus = this.spectatorManager.getPlayerBattleStatus(targetPlayerId);
+  
+  if (!battleStatus.inBattle) {
+    return {
+      type: "error",
+      message: "Ce joueur n'est pas en combat actuellement."
+    };
+  }
+  
+  // 2. Valider la demande de spectateur
+  const spectatorRequest = {
+    spectatorId: spectatorPlayer.name,
+    targetPlayerId: targetPlayerId,
+    spectatorPosition: {
+      x: spectatorPlayer.x,
+      y: spectatorPlayer.y,
+      mapId: spectatorPlayer.currentZone
+    },
+    targetPosition: targetPlayerPosition,
+    interactionDistance: 100
+  };
+  
+  const watchResult = this.spectatorManager.requestWatchBattle(spectatorRequest);
+  
+  if (!watchResult.canWatch) {
+    return {
+      type: "error",
+      message: watchResult.reason || "Impossible de regarder ce combat"
+    };
+  }
+  
+  // 3. Retourner les infos pour rejoindre la BattleRoom
+  return {
+    type: "battleSpectate",
+    message: `Vous regardez le combat de ${targetPlayerId}`,
+    battleSpectate: {
+      battleId: watchResult.battleId!,
+      battleRoomId: watchResult.battleRoomId!,
+      targetPlayerName: targetPlayerId,
+      canWatch: true
+    }
+  };
+}
+
+// ✅ === MÉTHODE HELPER : CONFIRMER SPECTATEUR ===
+
+async confirmSpectatorJoin(
+  spectatorId: string,
+  battleId: string,
+  battleRoomId: string,
+  spectatorPosition: { x: number; y: number; mapId: string }
+): Promise<boolean> {
+  
+  console.log(`✅ Confirmation spectateur ${spectatorId} → combat ${battleId}`);
+  
+  return this.spectatorManager.addSpectator(
+    spectatorId,
+    battleId,
+    battleRoomId,
+    spectatorPosition
+  );
+}
+
+// ✅ === MÉTHODE HELPER : RETIRER SPECTATEUR ===
+
+removeSpectator(spectatorId: string): {
+  removed: boolean;
+  shouldLeaveBattleRoom: boolean;
+  battleRoomId?: string;
+} {
+  console.log(`👋 Retrait spectateur ${spectatorId}`);
+  return this.spectatorManager.removeSpectator(spectatorId);
+}
+
+// ✅ === MÉTHODES D'INFORMATION ===
+
+isPlayerInBattle(playerId: string): boolean {
+  return this.spectatorManager.isPlayerInBattle(playerId);
+}
+
+getBattleSpectatorCount(battleId: string): number {
+  return this.spectatorManager.getBattleSpectatorCount(battleId);
+}
+  
   // ✅ === MÉTHODE HELPER : Récupérer nom NPC ===
   private async getNpcName(npcId: number): Promise<string> {
     const npcNames: { [key: number]: string } = {
