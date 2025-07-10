@@ -309,22 +309,24 @@ export class BattleEngine {
                 turnNumber: this.turnManager.getCurrentTurnNumber()
               });
               
-              // Si c'est l'IA, elle attaque après son délai de réflexion
-              if (nextPlayer === 'player2' && this.gameState.type === 'trainer') {
-                console.log(`🤖 [BattleEngine] IA va réfléchir puis attaquer`);
-                setTimeout(() => {
+              // Si c'est l'IA, elle attaque selon le type de combat
+              if (nextPlayer === 'player2') {
+                if (this.gameState.type === 'trainer') {
+                  // Combat dresseur : IA réfléchit puis attaque
+                  console.log(`🤖 [BattleEngine] Combat dresseur - IA va réfléchir puis attaquer`);
+                  setTimeout(() => {
+                    const aiAction = this.generateAIAction();
+                    if (aiAction) {
+                      this.processAction(aiAction);
+                    }
+                  }, this.getAIThinkingDelay());
+                } else {
+                  // Combat sauvage : IA attaque immédiatement sans réflexion
+                  console.log(`🌿 [BattleEngine] Combat sauvage - IA attaque immédiatement`);
                   const aiAction = this.generateAIAction();
                   if (aiAction) {
                     this.processAction(aiAction);
                   }
-                }, this.getAIThinkingDelay());
-              }
-              else if (nextPlayer === 'player2' && this.gameState.type === 'wild') {
-                // Combat sauvage : IA attaque immédiatement sans réflexion
-                console.log(`🌿 [BattleEngine] Combat sauvage - IA attaque immédiatement`);
-                const aiAction = this.generateAIAction();
-                if (aiAction) {
-                  this.processAction(aiAction);
                 }
               }
             }
