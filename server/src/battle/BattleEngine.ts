@@ -8,6 +8,10 @@ import { BattleEndManager } from './modules/BattleEndManager';
 import { CaptureManager } from './modules/CaptureManager';
 import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule, TurnPlayer, PlayerRole } from './types/BattleTypes';
 
+import { BroadcastManager } from './modules/broadcast/BroadcastManager';
+import { BroadcastManagerFactory } from './modules/broadcast/BroadcastManagerFactory';
+import { SpectatorManager } from './modules/broadcast/SpectatorManager';
+
 /**
  * BATTLE ENGINE - Chef d'orchestre du combat avec narrateur + capture
  * 
@@ -36,6 +40,10 @@ export class BattleEngine {
   private aiPlayer: AIPlayer;
   private battleEndManager: BattleEndManager;
   private captureManager: CaptureManager;
+
+
+  private broadcastManager: BroadcastManager | null = null;
+  private spectatorManager: SpectatorManager | null = null;
   
   // === MODULES OPTIONNELS (ajoutés par étapes) ===
   private modules: Map<string, BattleModule> = new Map();
