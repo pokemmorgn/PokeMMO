@@ -232,6 +232,7 @@ export class BattleNetworkHandler {
     try {
       // ✅ ÉVÉNEMENTS COMBAT ESSENTIELS - correspondent aux callbacks BattleRoom.ts
 
+      
       // ✅ CRITICAL: ActionResult - pour synchronisation HP
       this.battleRoom.onMessage('actionResult', (data) => {
         console.log('🎮 [NETWORK] actionResult reçu:', data);
@@ -270,6 +271,17 @@ export class BattleNetworkHandler {
         console.log('🎯 yourTurn événement déclenché, callbacks:', this.eventCallbacks.get('yourTurn')?.length || 0);
       });
 
+            // === ✅ ÉVÉNEMENTS BROADCAST MANAGER (NOUVEAU) ===
+      this.battleRoom.onMessage('battleEvent', (event) => {
+        console.log('⚔️ [NETWORK] battleEvent reçu:', event.eventId, event.data);
+        
+        // Déclencher l'événement spécifique
+        this.triggerEvent(event.eventId, event.data);
+        
+        // Déclencher aussi l'événement générique
+        this.triggerEvent('battleEvent', event);
+      });
+      
       // ✅ EVENTS DE BATAILLE
       this.battleRoom.onMessage('battleJoined', (data) => {
         console.log('⚔️ [NETWORK] battleJoined:', data);
