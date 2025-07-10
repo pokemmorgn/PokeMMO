@@ -239,12 +239,25 @@ async processAction(action: BattleAction, teamManager?: any): Promise<BattleResu
         this.gameState.phase = 'ended';
         
         // Émettre événement de fin par capture
-        this.emit('battleEnd', {
-          winner: result.data.winner,
-          reason: 'Pokémon capturé !',
-          gameState: this.gameState,
-          captureSuccess: true
-        });
+        if (this.broadcastManager) {
+          await this.broadcastManager.emitCaptureSequence({
+            playerName: this.getPlayerName(action.playerId),
+            pokemonName: this.gameState.player2.pokemon!.name,
+            ballType: action.data.ballType || 'poke_ball',
+            ballDisplayName: action.data.ballDisplayName || 'Poké Ball',
+            shakeCount: result.data?.shakeCount || 0,
+            captured: true,
+            critical: result.data?.critical || false,
+            addedTo: result.data?.addedTo || 'team'
+          });
+        } else {
+          this.emit('battleEnd', {
+            winner: result.data.winner,
+            reason: 'Pokémon capturé !',
+            gameState: this.gameState,
+            captureSuccess: true
+          });
+        }
         
         return result;
       }
@@ -518,7 +531,69 @@ private configureBroadcastSystem(config: BattleConfig): void {
       console.error(`❌ [BattleEngine] Erreur critique sauvegarde:`, error);
     }
   }
-  
+
+  // === GESTION SPECTATEURS ===
+
+/**
+ * Enregistre la position du combat dans le monde pour les spectateurs
+ */
+setBattleWorldPosition(
+  battleRoomId: string,
+  worldPosition: { x: number; y: number; mapId: string }
+): void {
+  if (this.spectatorManager) {
+    this.spectatorManager.setBattleWorldPosition(
+      this.gameState.battleId,
+      battleRoomId,
+      this.gameState,
+      worldPosition
+    );
+    console.log(`📍 [BattleEngine] Position combat enregistrée pour spectateurs`);
+  }
+}
+
+/**
+ * Ajoute un spectateur au combat
+ */
+addSpectator(
+  sessionId: string,
+  battleRoomId: string,
+  worldPosition: { x: number; y: number; mapId: string }
+): boolean {
+  if (this.spectatorManager) {
+    return this.spectatorManager.addSpectator(
+      sessionId,
+      this.gameState.battleId,
+      battleRoomId,
+      worldPosition
+    );
+  }
+  return false;
+}
+
+/**
+ * Retire un spectateur
+ */
+removeSpectator(sessionId: string): {
+  removed: boolean;
+  shouldLeaveBattleRoom: boolean;
+  battleRoomId?: string;
+} {
+  if (this.spectatorManager) {
+    return this.spectatorManager.removeSpectator(sessionId);
+  }
+  return { removed: false, shouldLeaveBattleRoom: false };
+}
+
+/**
+ * Nettoie les spectateurs à la fin du combat
+ */
+private cleanupSpectators(): void {
+  if (this.spectatorManager) {
+    const cleanup = this.spectatorManager.cleanupBattle(this.gameState.battleId);
+    console.log(`🧹 [BattleEngine] ${cleanup.spectatorsRemoved.length} spectateurs nettoyés`);
+  }
+}
   /**
    * Récupère le délai de réflexion de l'IA
    */
