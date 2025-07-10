@@ -1,3 +1,4 @@
+
 // ================================================================================================
 // CLIENT/SRC/GAME/OVERWORLDPOKEMONMANAGER.JS - POKÉMON OVERWORLD AVEC COLLISION CLIENT
 // ================================================================================================
@@ -610,19 +611,17 @@ update(delta = 16) {
       
       if (progress >= 1.0) {
         // Mouvement terminé
-        pokemon.body.setVelocity(0, 0);
+        pokemon.body.setVelocity(0, 0); // ✅ Arrêter la physique
+        pokemon.x = pokemon.targetX;
+        pokemon.y = pokemon.targetY;
+        pokemon.setPosition(pokemon.targetX, pokemon.targetY);
         pokemon.isMoving = false;
-        
-        // ❌ SUPPRIMER CES LIGNES QUI FORCENT LA POSITION
-        // pokemon.x = pokemon.targetX;
-        // pokemon.y = pokemon.targetY;
-        // pokemon.setPosition(pokemon.targetX, pokemon.targetY);
         
         // Animation idle
         const idleDirection = pokemon.lastDirectionFrame ? 
           this.getDirectionForAnimation(pokemon.lastDirectionFrame) : 
           this.getDirectionForAnimation(pokemon.lastDirection);
-        const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
         const idleAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${idleDirection}`;
         
         if (this.scene.anims.exists(idleAnimKey)) {
@@ -630,24 +629,30 @@ update(delta = 16) {
         }
         
       } else {
-        // ✅ SEULEMENT la vélocité - laisser la physique gérer la position
-        const dx = pokemon.targetX - pokemon.x;
-        const dy = pokemon.targetY - pokemon.y;
+        // ✅ UTILISER LA PHYSIQUE pour le mouvement
+        const startX = pokemon.moveStartX || pokemon.x;
+        const startY = pokemon.moveStartY || pokemon.y;
+        
+        const targetX = pokemon.targetX;
+        const targetY = pokemon.targetY;
+        
+        // Calculer la vélocité nécessaire
+        const dx = targetX - pokemon.x;
+        const dy = targetY - pokemon.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        if (distance > 5) { // Seulement si pas encore arrivé
-          const speed = 60; // Vitesse comme le joueur
+        if (distance > 2) { // Seulement si pas encore arrivé
+          const speed = 60; // Vitesse fixe comme le joueur
           const velocityX = (dx / distance) * speed;
           const velocityY = (dy / distance) * speed;
           
           pokemon.body.setVelocity(velocityX, velocityY);
         } else {
           pokemon.body.setVelocity(0, 0);
-          pokemon.isMoving = false; // Considérer comme arrivé
         }
       }
     } else {
-      // Arrêter la vélocité si pas en mouvement
+      // ✅ Arrêter la vélocité si pas en mouvement
       if (pokemon.body) {
         pokemon.body.setVelocity(0, 0);
       }
