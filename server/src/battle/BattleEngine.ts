@@ -11,7 +11,7 @@ import { BattleConfig, BattleGameState, BattleResult, BattleAction, BattleModule
 import { BroadcastManager } from './modules/BroadcastManager';
 import { BroadcastManagerFactory } from './modules/broadcast/BroadcastManagerFactory';
 import { SpectatorManager } from './modules/broadcast/SpectatorManager';
-
+import { BATTLE_TIMINGS } from './modules/broadcast/BroadcastManager';
 /**
  * BATTLE ENGINE - Chef d'orchestre du combat avec narrateur + capture
  * 
@@ -534,6 +534,28 @@ private configureBroadcastSystem(config: BattleConfig): void {
     }
   }
 
+  /**
+ * Envoie les effets de type avec le bon timing
+ */
+private async emitTypeEffects(effects: string[], targetData: any): Promise<void> {
+  if (effects && effects.length > 0) {
+    // Délai avant les effets (comme Pokémon)
+    await this.delay(1000);
+    
+    for (const effect of effects) {
+      if (this.broadcastManager) {
+        if (effect === 'super_effective') {
+          this.broadcastManager.emit('superEffective', targetData);
+        } else if (effect === 'not_very_effective') {
+          this.broadcastManager.emit('notVeryEffective', targetData);
+        } else if (effect === 'critical_hit') {
+          this.broadcastManager.emit('criticalHit', targetData);
+        }
+      }
+    }
+  }
+}
+  
   // === GESTION SPECTATEURS ===
 
 /**
@@ -675,6 +697,13 @@ private cleanupSpectators(): void {
   }
   
   // === MÉTHODES UTILITAIRES ===
+
+  /**
+   * Délai contrôlé par le combat
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
   
   /**
    * Récupère le nom du joueur depuis son ID
