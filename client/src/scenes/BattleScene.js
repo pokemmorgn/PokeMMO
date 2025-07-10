@@ -1387,17 +1387,13 @@ const frameHeight = height;
     this.battleNetworkHandler.on('winnerAnnounce', (data) => {
       console.log('🏆 [BattleScene] Winner Announce reçu:', data);
       
-      // Afficher le message de victoire
-      this.showActionMessage(data.message);
+      // ✅ PAS de message simple ici - juste programmer les récompenses
+      // this.showActionMessage(data.message); // ❌ SUPPRIMER CETTE LIGNE
       
-      // Programmer la transition vers "end battle" après 1.5s
+      // ✅ Programmer SEULEMENT les récompenses après 1.5s
       setTimeout(() => {
         this.transitionToEndBattle(data);
       }, 1500);
-    });
-    // ✅ SIMPLIFIÉ: yourTurn sans timer
-    this.battleNetworkHandler.on('yourTurn', (data) => {
-      this.handleBattleEvent('yourTurn', data);
     });
   }
 
@@ -1928,12 +1924,13 @@ transitionToEndBattle(winnerData) {
 showBattleEndMessage(winnerData) {
   console.log('🎁 [BattleScene] Affichage message de fin avec récompenses');
   
-  // ✅ CONSTRUIRE LE MESSAGE COMPLET
+  // ✅ MESSAGE UNIQUE avec tout dedans
   let fullMessage = winnerData.message;
   
-  // ✅ AJOUTER LES RÉCOMPENSES (simulées pour l'instant)
   if (winnerData.winner === 'player1') {
     const rewards = this.calculateBattleRewards();
+    
+    // ✅ Ajouter directement les récompenses
     fullMessage += '\n\n🎁 Récompenses :';
     
     if (rewards.experience > 0) {
@@ -1951,10 +1948,9 @@ showBattleEndMessage(winnerData) {
     }
   }
   
-  // ✅ AFFICHER DANS LE CADRE D'ACTION EXISTANT
+  // ✅ UN SEUL AFFICHAGE
   this.showActionMessage(fullMessage);
   
-  // ✅ EFFET VISUEL SPÉCIAL POUR LA VICTOIRE
   if (winnerData.winner === 'player1') {
     this.createVictoryEffect();
   }
