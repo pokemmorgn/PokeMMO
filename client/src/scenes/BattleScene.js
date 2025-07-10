@@ -1222,38 +1222,39 @@ const frameHeight = height;
     if (!this.battleNetworkHandler) return;
     
     // ✅ SIMPLIFIÉ: Action result sans gestion de timing compliquée
-    this.battleNetworkHandler.on('actionResult', (data) => {
-      if (data.success && data.gameState) {
-        // Synchroniser HP (garde les setTimeout pour les animations)
-         if (data.gameState.player1?.pokemon && this.currentPlayerPokemon) {
-            this.currentPlayerPokemon.currentHp = data.gameState.player1.pokemon.currentHp;
-            this.currentPlayerPokemon.maxHp = data.gameState.player1.pokemon.maxHp;
-            setTimeout(() => {
-              this.updateModernHealthBar('player1', this.currentPlayerPokemon); // ⬅️ CHANGÉ
-            }, 500);
-          }
-        
-          if (data.gameState.player2?.pokemon && this.currentOpponentPokemon) {
-            this.currentOpponentPokemon.currentHp = data.gameState.player2.pokemon.currentHp;
-            this.currentOpponentPokemon.maxHp = data.gameState.player2.pokemon.maxHp;
-            setTimeout(() => {
-              this.updateModernHealthBar('player2', this.currentOpponentPokemon); // ⬅️ CHANGÉ
-            }, 500);
-          }
-        
-        // ✅ NOUVEAU: Événements typés du serveur (si disponibles)
-        if (data.battleEvents && data.battleEvents.length > 0) {
-          this.processBattleEventsServerDriven(data.battleEvents);
-        } else if (data.events && data.events.length > 0) {
-          // ✅ Fallback: traiter les anciens événements SANS timer
-          this.processLegacyEventsServerDriven(data.events);
-        }
-      }
-      
-      if (!data.success) {
-        this.showActionMessage(`Erreur: ${data.error}`);
-      }
-    });
+this.battleNetworkHandler.on('actionResult', (data) => {
+  if (data.success && data.gameState) {
+    // Synchroniser HP (garde les setTimeout pour les animations)
+    if (data.gameState.player1?.pokemon && this.currentPlayerPokemon) {
+      this.currentPlayerPokemon.currentHp = data.gameState.player1.pokemon.currentHp;
+      this.currentPlayerPokemon.maxHp = data.gameState.player1.pokemon.maxHp;
+      setTimeout(() => {
+        this.updateModernHealthBar('player1', this.currentPlayerPokemon);
+      }, 500);
+    }
+    
+    if (data.gameState.player2?.pokemon && this.currentOpponentPokemon) {
+      this.currentOpponentPokemon.currentHp = data.gameState.player2.pokemon.currentHp;
+      this.currentOpponentPokemon.maxHp = data.gameState.player2.pokemon.maxHp;
+      setTimeout(() => {
+        this.updateModernHealthBar('player2', this.currentOpponentPokemon);
+      }, 500);
+    }
+    
+    // ✅ NOUVEAU: Événements typés du serveur (si disponibles)
+    if (data.battleEvents && data.battleEvents.length > 0) {
+      this.processBattleEventsServerDriven(data.battleEvents);
+    }
+    // ❌ SUPPRIMÉ: Les événements legacy qui causaient la double attaque
+    // else if (data.events && data.events.length > 0) {
+    //   this.processLegacyEventsServerDriven(data.events);
+    // }
+  }
+  
+  if (!data.success) {
+    this.showActionMessage(`Erreur: ${data.error}`);
+  }
+});
 
     // === ✅ ÉVÉNEMENTS POKÉMON AUTHENTIQUES (NOUVEAU) ===
 this.battleNetworkHandler.on('moveUsed', (data) => {
