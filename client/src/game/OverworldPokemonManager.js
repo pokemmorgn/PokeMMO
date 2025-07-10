@@ -732,10 +732,35 @@ export class OverworldPokemonManager {
         this.syncAllOverworldPokemon(data.pokemon);
         break;
         
+      case 'OVERWORLD_POKEMON_SPAWN_REQUEST':
+        this.handlePokemonSpawnRequest(data);
+        break;
       default:
         console.warn(`⚠️ [OverworldPokemonManager] Message inconnu: ${type}`);
     }
   }
+
+  handlePokemonSpawnRequest(data) {
+  const { id, boundaries } = data;
+  let found = false;
+  let pos = { x: 0, y: 0 };
+  for (let i = 0; i < 30; i++) {
+    const x = boundaries.minX + Math.random() * (boundaries.maxX - boundaries.minX);
+    const y = boundaries.minY + Math.random() * (boundaries.maxY - boundaries.minY);
+    if (!this.scene.collisionManager || this.scene.collisionManager.canMoveTo(x, y)) {
+      pos = { x, y };
+      found = true;
+      break;
+    }
+  }
+  // Répondre au serveur
+  this.scene.network.send('overworldPokemonSpawnResponse', {
+    ...data,
+    success: found,
+    x: pos.x,
+    y: pos.y
+  });
+}
 
   /**
    * Synchronise tous les Pokémon overworld
