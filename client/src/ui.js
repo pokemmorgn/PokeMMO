@@ -42,7 +42,7 @@ const UI_CONFIG = {
 // === ÉTATS DE JEU POKÉMON ===
 const POKEMON_GAME_STATES = {
   exploration: {
-    visibleModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
+    visibleModules: ['inventory', 'quest', 'questTracker', 'chat'],
     enabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
     hiddenModules: [],
     disabledModules: [],
