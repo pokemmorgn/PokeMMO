@@ -433,24 +433,131 @@ export class PokemonUISystem {
         priority: 100
       },
       
-      {
-        id: 'team',
-        critical: true,
-        factory: this.createTeamModule.bind(this),
-        groups: ['ui-icons', 'battle-ui'],
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 2,
-          spacing: 10
-        },
-        responsive: {
-          mobile: { scale: 0.8, position: { right: '15px' } },
-          tablet: { scale: 0.9 },
-          desktop: { scale: 1.0 }
-        },
-        priority: 110
+{
+    id: 'teamManager',
+    critical: true,
+    factory: this.createTeamModule.bind(this), // Réutilise la factory modifiée
+    dependencies: [],
+    defaultState: {
+      visible: false,     // Business logic, pas d'UI directe
+      enabled: true,
+      initialized: false
+    },
+    priority: 200,        // Priorité haute pour business logic
+    layout: {
+      type: 'none'        // Pas d'UI directe
+    },
+    groups: ['business-logic'],
+    critical: true,
+    metadata: {
+      name: 'Team Manager',
+      description: 'Team business logic and data management',
+      category: 'Business Logic'
+    }
+  },
+
+  // ===== ✅ NOUVEAU : TEAMICON MODULE =====
+  {
+    id: 'teamIcon',
+    critical: true,
+    factory: this.createTeamIconModule.bind(this),
+    dependencies: ['teamManager'], // Dépend du TeamManager
+    defaultState: {
+      visible: true,
+      enabled: true,
+      initialized: false
+    },
+    priority: 110,
+    layout: {
+      type: 'icon',
+      anchor: 'bottom-right',
+      order: 2,
+      spacing: 10
+    },
+    responsive: {
+      mobile: { 
+        scale: 0.8, 
+        position: { right: '15px' } 
       },
+      tablet: { 
+        scale: 0.9 
+      },
+      desktop: { 
+        scale: 1.0 
+      }
+    },
+    groups: ['ui-icons'],
+    animations: {
+      show: { type: 'fadeIn', duration: 300, easing: 'ease-out' },
+      hide: { type: 'fadeOut', duration: 200, easing: 'ease-in' },
+      enable: { type: 'pulse', duration: 150 },
+      disable: { type: 'grayscale', duration: 200 }
+    },
+    metadata: {
+      name: 'Team Icon',
+      description: 'Quick access icon for team management',
+      category: 'UI Icons'
+    }
+  },
+
+  // ===== ✅ NOUVEAU : TEAMUI MODULE =====
+  {
+    id: 'teamUI',
+    critical: false,
+    factory: this.createTeamUIModule.bind(this),
+    dependencies: ['teamManager', 'teamIcon'], // Dépend du TeamManager et TeamIcon
+    defaultState: {
+      visible: false,     // Caché par défaut
+      enabled: true,
+      initialized: false
+    },
+    priority: 100,
+    layout: {
+      type: 'overlay',
+      anchor: 'center',
+      zIndex: 1000
+    },
+    responsive: {
+      mobile: {
+        layout: {
+          type: 'fullscreen',
+          position: { top: '5%', left: '5%', right: '5%', bottom: '5%' }
+        },
+        optimizations: {
+          compactView: true,
+          touchOptimized: true
+        }
+      },
+      tablet: {
+        layout: {
+          position: { top: '10%', left: '10%', right: '10%', bottom: '10%' }
+        }
+      },
+      desktop: {
+        layout: {
+          position: { top: '7.5%', left: '7.5%', right: '7.5%', bottom: '7.5%' }
+        }
+      }
+    },
+    groups: ['overlays', 'team-management'],
+    animations: {
+      show: { 
+        type: 'custom', 
+        duration: 500, 
+        easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+      },
+      hide: { 
+        type: 'custom', 
+        duration: 300, 
+        easing: 'ease-in'
+      }
+    },
+    metadata: {
+      name: 'Team UI',
+      description: 'Complete team management interface',
+      category: 'Management UI'
+    }
+  },
       
       {
         id: 'quest',
@@ -728,7 +835,76 @@ createTeamManagerWrapper(teamManager) {
 }
 
   /// TEAM MODULE END
+/// TEAMICON MODULE START
 
+async createTeamIconModule() {
+  console.log('🎯 [PokemonUI] Création TeamIcon module...');
+  
+  try {
+    // Récupérer le TeamManager business logic depuis le module 'teamManager'
+    const teamManagerWrapper = this.moduleInstances.get('teamManager');
+    
+    if (!teamManagerWrapper || !teamManagerWrapper.originalModule) {
+      throw new Error('TeamManager requis pour créer TeamIcon');
+    }
+    
+    const teamManager = teamManagerWrapper.originalModule;
+    
+    // Créer TeamIcon via la factory du TeamManager
+    const teamIcon = teamManager.createTeamIconForUIManager();
+    
+    if (!teamIcon) {
+      throw new Error('Factory TeamIcon a échoué');
+    }
+    
+    // Stocker la référence dans le TeamManager wrapper pour compatibilité
+    teamManagerWrapper.iconElement = teamIcon.iconElement;
+    
+    console.log('✅ [PokemonUI] TeamIcon créé via TeamManager factory');
+    
+    return teamIcon;
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur création TeamIcon:', error);
+    return this.createEmptyWrapper('teamIcon');
+  }
+}
+
+/// TEAMICON MODULE END
+
+/// TEAMUI MODULE START
+
+async createTeamUIModule() {
+  console.log('🎯 [PokemonUI] Création TeamUI module...');
+  
+  try {
+    // Récupérer le TeamManager business logic depuis le module 'teamManager'
+    const teamManagerWrapper = this.moduleInstances.get('teamManager');
+    
+    if (!teamManagerWrapper || !teamManagerWrapper.originalModule) {
+      throw new Error('TeamManager requis pour créer TeamUI');
+    }
+    
+    const teamManager = teamManagerWrapper.originalModule;
+    
+    // Créer TeamUI via la factory du TeamManager
+    const teamUI = teamManager.createTeamUIForUIManager();
+    
+    if (!teamUI) {
+      throw new Error('Factory TeamUI a échoué');
+    }
+    
+    console.log('✅ [PokemonUI] TeamUI créé via TeamManager factory');
+    
+    return teamUI;
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur création TeamUI:', error);
+    return this.createEmptyWrapper('teamUI');
+  }
+}
+
+/// TEAMUI MODULE END
   async createQuestModule() {
     console.log('📋 [PokemonUI] Création module quêtes...');
     
