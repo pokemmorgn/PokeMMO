@@ -86,12 +86,12 @@ export class TeamUI {
         pointer-events: auto;
       }
       
-      /* ===== CONTAINER NÉOMORPHISME ===== */
+      /* ===== CONTAINER SIMPLIFIÉ ===== */
       .team-container {
         width: 90vw;
         max-width: 1200px;
-        height: 80vh;
-        max-height: 650px;
+        height: 75vh;
+        max-height: 600px;
         background: 
           linear-gradient(145deg, #1a1a2e, #16213e),
           radial-gradient(circle at 30% 40%, rgba(74, 144, 226, 0.1), transparent);
@@ -100,7 +100,7 @@ export class TeamUI {
         color: white;
         font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
         display: grid;
-        grid-template-rows: auto auto 1fr auto;
+        grid-template-rows: auto auto 1fr;
         gap: 0;
         box-shadow: 
           0 32px 64px rgba(0, 0, 0, 0.4),
@@ -1236,10 +1236,6 @@ export class TeamUI {
             <span class="tab-icon">📊</span>
             <span class="tab-text">Détails</span>
           </button>
-          <button class="team-tab" data-view="moves">
-            <span class="tab-icon">⚡</span>
-            <span class="tab-text">Attaques</span>
-          </button>
         </div>
         
         <!-- Contenu -->
@@ -1310,39 +1306,6 @@ export class TeamUI {
               </div>
             </div>
           </div>
-          
-          <!-- Vue Attaques -->
-          <div class="team-view" id="team-moves">
-            <div class="team-moves-content">
-              <div class="no-selection">
-                <div class="no-selection-icon">⚡</div>
-                <h3>Gestion Attaques</h3>
-                <p>Gérez les attaques de votre équipe</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Footer -->
-        <div class="team-footer">
-          <div class="team-actions">
-            <button class="team-btn" id="heal-team-btn">
-              <span class="btn-icon">💊</span>
-              <span class="btn-text">Soigner Tout</span>
-            </button>
-            <button class="team-btn secondary" id="pc-access-btn">
-              <span class="btn-icon">💻</span>
-              <span class="btn-text">PC Pokémon</span>
-            </button>
-            <button class="team-btn secondary" id="auto-arrange-btn">
-              <span class="btn-icon">🔄</span>
-              <span class="btn-text">Réorganiser</span>
-            </button>
-          </div>
-          
-          <div class="team-info">
-            💡 Double-cliquez sur un Pokémon pour voir ses détails
-          </div>
         </div>
       </div>
     `;
@@ -1401,18 +1364,18 @@ export class TeamUI {
       });
     });
     
-    // Actions footer
-    this.overlayElement.querySelector('#heal-team-btn').addEventListener('click', () => {
-      this.handleAction('healTeam');
-    });
+    // Actions footer - SUPPRIMÉ
+    // this.overlayElement.querySelector('#heal-team-btn').addEventListener('click', () => {
+    //   this.handleAction('healTeam');
+    // });
     
-    this.overlayElement.querySelector('#pc-access-btn').addEventListener('click', () => {
-      this.handleAction('openPC');
-    });
+    // this.overlayElement.querySelector('#pc-access-btn').addEventListener('click', () => {
+    //   this.handleAction('openPC');
+    // });
     
-    this.overlayElement.querySelector('#auto-arrange-btn').addEventListener('click', () => {
-      this.handleAction('autoArrange');
-    });
+    // this.overlayElement.querySelector('#auto-arrange-btn').addEventListener('click', () => {
+    //   this.handleAction('autoArrange');
+    // });
     
     // Sélection des slots
     this.setupSlotSelection();
@@ -1754,14 +1717,9 @@ export class TeamUI {
         </div>
         
         <div style="margin-top: 20px; text-align: center;">
-          <button class="team-btn" onclick="window.teamUI?.handlePokemonAction('heal', '${pokemon._id}')">
-            <span class="btn-icon">💊</span>
-            <span class="btn-text">Soigner</span>
-          </button>
-          <button class="team-btn secondary" onclick="window.teamUI?.handlePokemonAction('remove', '${pokemon._id}')" style="margin-left: 10px;">
-            <span class="btn-icon">📦</span>
-            <span class="btn-text">Vers PC</span>
-          </button>
+          <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin: 0;">
+            Informations détaillées du Pokémon sélectionné
+          </p>
         </div>
       </div>
     `;
