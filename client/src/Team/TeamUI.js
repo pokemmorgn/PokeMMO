@@ -322,7 +322,7 @@ export class TeamUI {
         border-color: rgba(40, 167, 69, 0.8);
       }
       
-      /* Grille des slots Pokémon */
+      /* Grille des slots Pokémon - LARGEUR UNIFORME FORCÉE */
       .team-slots-grid {
         flex: 1;
         padding: 25px;
@@ -332,9 +332,11 @@ export class TeamUI {
         gap: 20px;
         align-content: start;
         width: 100%;
+        /* FORCER LA LARGEUR MINIMALE DES COLONNES */
+        grid-template-columns: repeat(3, minmax(180px, 1fr));
       }
       
-      /* Slot Pokémon - TAILLE FIXE POUR SLOTS VIDES ET PLEINS */
+      /* Slot Pokémon - TAILLE FIXE COMPLÈTE (LARGEUR + HAUTEUR) */
       .team-slot {
         background: rgba(255, 255, 255, 0.08);
         border: 2px solid rgba(255, 255, 255, 0.2);
@@ -343,8 +345,11 @@ export class TeamUI {
         text-align: center;
         cursor: pointer;
         transition: all 0.3s ease;
-        /* TAILLE FIXE - MÊME HAUTEUR POUR TOUS */
+        /* TAILLE FIXE COMPLÈTE - LARGEUR ET HAUTEUR */
+        width: 180px;
         height: 180px;
+        min-width: 180px;
+        max-width: 180px;
         min-height: 180px;
         max-height: 180px;
         display: flex;
@@ -352,6 +357,8 @@ export class TeamUI {
         justify-content: center;
         position: relative;
         backdrop-filter: blur(5px);
+        /* ÉVITER LE SHRINKING */
+        flex-shrink: 0;
       }
       
       .team-slot:hover {
@@ -371,14 +378,17 @@ export class TeamUI {
       .team-slot.empty {
         border-style: dashed;
         background: rgba(255, 255, 255, 0.04);
-        /* MÊME COMPORTEMENT FLEX QUE LES SLOTS PLEINS */
+        /* MÊME TAILLE EXACTE QUE LES SLOTS PLEINS */
         display: flex;
         align-items: center;
         justify-content: center;
-        /* MÊME HAUTEUR EXACTE */
+        width: 180px;
         height: 180px;
+        min-width: 180px;
+        max-width: 180px;
         min-height: 180px;
         max-height: 180px;
+        flex-shrink: 0;
       }
       
       /* Numéro du slot */
@@ -864,11 +874,15 @@ export class TeamUI {
         }
         
         .team-slot {
-          /* TAILLE FIXE MOBILE */
+          /* TAILLE FIXE MOBILE - LARGEUR ET HAUTEUR */
+          width: 140px;
           height: 140px;
+          min-width: 140px;
+          max-width: 140px;
           min-height: 140px;
           max-height: 140px;
           padding: 15px 10px;
+          flex-shrink: 0;
         }
         
         .pokemon-portrait {
