@@ -488,25 +488,27 @@ export class OverworldPokemonManager {
         
         pokemon.isMoving = false;
       } else {
-        // ✅ Interpolation en cours - VÉRIFIER LA TRAJECTOIRE
-        const easeProgress = this.easeInOutQuad(progress);
-        
-        const startX = pokemon.serverX;
-        const startY = pokemon.serverY;
-        
-        const newX = startX + (pokemon.targetX - startX) * easeProgress;
-        const newY = startY + (pokemon.targetY - startY) * easeProgress;
-        
-        // ✅ VÉRIFIER SI LA POSITION INTERMÉDIAIRE EST VALIDE
-        if (this.canMoveToGrid(newX, newY)) {
-          pokemon.setPosition(newX, newY);
-        } else {
-          // ✅ COLLISION PENDANT LE MOUVEMENT - ARRÊTER IMMÉDIATEMENT
-          console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} collision pendant mouvement à (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
-          pokemon.isMoving = false;
-          // Rester à la position actuelle
-        }
-      }
+  // ✅ Interpolation en cours - VÉRIFIER LA TRAJECTOIRE
+  const easeProgress = this.easeInOutQuad(progress);
+  
+  const startX = pokemon.serverX;
+  const startY = pokemon.serverY;
+  
+  const newX = startX + (pokemon.targetX - startX) * easeProgress;
+  const newY = startY + (pokemon.targetY - startY) * easeProgress;
+  
+  // ✅ VÉRIFIER SI LA POSITION INTERMÉDIAIRE EST VALIDE
+  if (this.canMoveToGrid(newX, newY)) {
+    pokemon.setPosition(newX, newY);
+  } else {
+    // ✅ COLLISION - ARRÊT TOTAL SANS BOUGER
+    console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} collision - arrêt total`);
+    pokemon.isMoving = false;
+    pokemon.targetX = pokemon.x; // ← GARDER POSITION ACTUELLE
+    pokemon.targetY = pokemon.y; // ← GARDER POSITION ACTUELLE
+    // NE PAS CHANGER LA POSITION DU TOUT
+  }
+}
     }
     
     // ✅ Mise à jour de la profondeur
