@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import AnimatedTiles from 'phaser-animated-tiles/dist/AnimatedTiles.js';
 import { NetworkManager } from "./network/NetworkManager.js";
 import { LoadingScreen, QuickLoading } from './components/LoadingScreen.js';
-import { setupTeamSystem } from './integration/teamIntegration.js';
+// ❌ SUPPRIMÉ: import { setupTeamSystem } from './integration/teamIntegration.js';
 import { SceneRegistry } from './scenes/SceneRegistry.js';
 import { TimeService } from './services/TimeService.js';
 import { DayNightWeatherManagerPhaser } from './game/DayNightWeatherManager.js';
@@ -10,7 +10,7 @@ import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
 import { ClientTimeWeatherManager } from './managers/ClientTimeWeatherManager.js';
 import { StarterUtils, integrateStarterSelectorToScene } from './components/StarterSelector.js';
 import { BattleUITransition } from './Battle/BattleUITransition.js';
-import { createTeamUIIntegration } from './components/TeamUIIntegration.js';
+// ❌ SUPPRIMÉ: import { createTeamUIIntegration } from './components/TeamUIIntegration.js';
 
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
@@ -537,7 +537,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
     window.starterHUD = null;
     window.questSystemGlobal = null;
     window.inventorySystemGlobal = null;
-    window.teamManagerGlobal = null;
+    // ❌ SUPPRIMÉ: window.teamManagerGlobal = null;
     window.encounterManagerGlobal = null;
 
     window.initEncounterSystem = function(scene, mapData = null) {
@@ -586,55 +586,8 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
       }
     };
 
-    window.forceInitTeamSystem = function(gameRoom) {
-      console.log('🔧 [MAIN] Force initialisation système d\'équipe...');
-      
-      if (window.teamManagerGlobal) {
-        console.log('🧹 [MAIN] Nettoyage ancien TeamManager...');
-        if (window.teamManagerGlobal.destroy) {
-          window.teamManagerGlobal.destroy();
-        }
-        window.teamManagerGlobal = null;
-      }
-      
-      if (window.TeamManager) {
-        console.log('🧹 [MAIN] Nettoyage window.TeamManager...');
-        if (window.TeamManager.destroy) {
-          window.TeamManager.destroy();
-        }
-        window.TeamManager = null;
-      }
-      
-      if (window.teamSystem) {
-        if (window.teamSystem.destroy) {
-          window.teamSystem.destroy();
-        }
-        window.teamSystem = null;
-      }
-      
-      try {
-        window.teamManagerGlobal = setupTeamSystem(gameRoom || window.currentGameRoom);
-        
-        if (window.teamManagerGlobal) {
-          console.log('✅ [MAIN] Système d\'équipe forcé avec succès');
-          
-          if (typeof window.onSystemInitialized === 'function') {
-            window.onSystemInitialized('team');
-          }
-          
-          return window.teamManagerGlobal;
-        } else {
-          console.error('❌ [MAIN] Échec force initialisation');
-          return null;
-        }
-        
-      } catch (error) {
-        console.error('❌ [MAIN] Erreur force initialisation:', error);
-        return null;
-      }
-    };
-
-    window.forceInitTeamSystem(window.currentGameRoom);
+    // ❌ SUPPRIMÉ TOUTE LA SECTION: window.forceInitTeamSystem
+    // ❌ SUPPRIMÉ: window.forceInitTeamSystem(window.currentGameRoom);
 
     window.forceInitEncounterSystem = function(scene, mapData = null) {
       console.log('🔧 [MAIN] Force initialisation système d\'encounters...');
@@ -975,57 +928,8 @@ setTimeout(() => {
   }
 }, 10000); // 10 secondes après le chargement
     
-    // Debug functions
-    window.debugTeamSystem = function() {
-      console.log('🔍 === DEBUG SYSTÈME D\'ÉQUIPE COMPLET ===');
-      
-      const teamStatus = {
-        teamManagerGlobal: {
-          exists: !!window.teamManagerGlobal,
-          initialized: window.teamManagerGlobal?.isInitialized || false,
-          type: typeof window.teamManagerGlobal
-        },
-        teamManagerWindow: {
-          exists: !!window.TeamManager,
-          initialized: window.TeamManager?.isInitialized || false,
-          type: typeof window.TeamManager
-        },
-        
-        teamIcon: {
-          exists: !!document.querySelector('#team-icon'),
-          visible: document.querySelector('#team-icon')?.style.display !== 'none',
-          classes: document.querySelector('#team-icon')?.className || 'N/A'
-        },
-        
-        network: {
-          globalNetworkManager: !!window.globalNetworkManager,
-          currentGameRoom: !!window.currentGameRoom,
-          connected: window.globalNetworkManager?.isConnected || false,
-          roomState: window.globalNetworkManager?.room?.connection?.readyState || 'N/A'
-        },
-        
-        functions: {
-          initTeamSystem: typeof window.initTeamSystem,
-          forceInitTeamSystem: typeof window.forceInitTeamSystem,
-          testTeam: typeof window.testTeam,
-          toggleTeam: typeof window.toggleTeam
-        }
-      };
-      
-      console.log('📊 Status complet:', teamStatus);
-      
-      const activeScene = window.game?.scene?.getScenes(true)[0];
-      if (activeScene) {
-        console.log('🎬 Scène active:', {
-          key: activeScene.scene.key,
-          teamSystemInitialized: activeScene.teamSystemInitialized,
-          teamInitAttempts: activeScene.teamInitializationAttempts,
-          hasTeamSystem: !!activeScene.getTeamManager
-        });
-      }
-      
-      return teamStatus;
-    };
+    // Debug functions (SANS LES FONCTIONS TEAM)
+    // ❌ SUPPRIMÉ: window.debugTeamSystem = function() {...}
 
     window.debugEncounterSystem = function() {
       console.log('🔍 === DEBUG SYSTÈME D\'ENCOUNTERS COMPLET ===');
@@ -1106,80 +1010,7 @@ setTimeout(() => {
       return encounterStatus;
     };
 
-    window.debugBattleSystem = function() {
-      console.log('🔍 === DEBUG SYSTÈME DE COMBAT COMPLET ===');
-      
-      const battleStatus = {
-        battleSystemGlobal: {
-          exists: !!window.battleSystem,
-          initialized: window.battleSystem?.isInitialized || false,
-          type: typeof window.battleSystem
-        },
-        
-        battleScene: {
-          existsInPhaser: !!window.game?.scene?.getScene('BattleScene'),
-          isActive: window.game?.scene?.isActive('BattleScene') || false,
-          isVisible: window.game?.scene?.isVisible('BattleScene') || false
-        },
-        
-        battleState: {
-          inBattle: window.battleSystem?.isCurrentlyInBattle() || false,
-          currentState: window.battleSystem?.getCurrentBattleState() || null
-        },
-        
-        functions: {
-          initBattleSystem: typeof window.initBattleSystem,
-          testBattle: typeof window.testBattle,
-          startWildBattle: typeof window.startWildBattle,
-          exitBattle: typeof window.exitBattle
-        }
-      };
-      
-      console.log('📊 Status système de combat:', battleStatus);
-      
-      return battleStatus;
-    };
-
-    window.fixTeamSystem = function() {
-      console.log('🔧 === TENTATIVE DE RÉPARATION SYSTÈME D\'ÉQUIPE ===');
-      
-      const currentScene = window.game?.scene?.getScenes(true)[0];
-      if (!currentScene) {
-        console.error('❌ Aucune scène active trouvée');
-        return false;
-      }
-      
-      console.log(`🎬 Réparation sur scène: ${currentScene.scene.key}`);
-      
-      const teamManager = window.forceInitTeamSystem();
-      
-      if (!teamManager) {
-        console.error('❌ Échec force init global');
-        return false;
-      }
-      
-      if (currentScene.teamSystemInitialized !== undefined) {
-        currentScene.teamSystemInitialized = true;
-        console.log('✅ Scène marquée comme team initialisée');
-      }
-      
-      setTimeout(() => {
-        const teamIcon = document.querySelector('#team-icon');
-        if (!teamIcon) {
-          console.warn('⚠️ Icône team manquante, création...');
-        } else {
-          console.log('✅ Icône team présente');
-        }
-        
-        setTimeout(() => {
-          window.debugTeamSystem();
-          console.log('🎯 Essayez window.testTeam() pour tester');
-        }, 1000);
-        
-      }, 500);
-      
-      return true;
-    };
+    // ❌ SUPPRIMÉ: window.fixTeamSystem = function() {...}
 
     window.fixEncounterSystem = function() {
       console.log('🔧 === TENTATIVE DE RÉPARATION SYSTÈME D\'ENCOUNTERS ===');
@@ -1235,23 +1066,8 @@ setTimeout(() => {
       }
     };
 
-    // Quick debug functions
-    window.quickTeamDebug = function() {
-      console.log('⚡ === DEBUG RAPIDE TEAM ===');
-      console.log('TeamManager Global:', !!window.teamManagerGlobal);
-      console.log('Team Icon:', !!document.querySelector('#team-icon'));
-      console.log('Init Function:', typeof window.initTeamSystem);
-      console.log('Network Connected:', window.globalNetworkManager?.isConnected);
-      
-      const activeScene = window.game?.scene?.getScenes(true)[0];
-      console.log('Scene Team Init:', activeScene?.teamSystemInitialized);
-      
-      if (!window.teamManagerGlobal) {
-        console.log('🔧 Utilisez window.fixTeamSystem() pour réparer');
-      } else {
-        console.log('🎯 Utilisez window.testTeam() pour tester');
-      }
-    };
+    // Quick debug functions (SANS LES FONCTIONS TEAM)
+    // ❌ SUPPRIMÉ: window.quickTeamDebug = function() {...}
 
     window.quickEncounterDebug = function() {
       console.log('⚡ === DEBUG RAPIDE ENCOUNTERS ===');
@@ -1351,7 +1167,7 @@ setTimeout(() => {
       const icons = {
         inventory: document.querySelector('#inventory-icon'),
         quest: document.querySelector('#quest-icon'),
-        team: document.querySelector('#team-icon')
+        // ❌ SUPPRIMÉ: team: document.querySelector('#team-icon')
       };
       
       Object.entries(icons).forEach(([name, element]) => {
@@ -1379,7 +1195,7 @@ setTimeout(() => {
       
       const inventory = document.querySelector('#inventory-icon');
       const quest = document.querySelector('#quest-icon');
-      const team = document.querySelector('#team-icon');
+      // ❌ SUPPRIMÉ: const team = document.querySelector('#team-icon');
       
       if (inventory) {
         inventory.style.right = '20px';
@@ -1391,31 +1207,13 @@ setTimeout(() => {
         quest.style.bottom = '20px';
       }
       
-      if (team) {
-        team.style.right = '200px';
-        team.style.bottom = '20px';
-      }
+      // ❌ SUPPRIMÉ: Code pour team icon
       
       console.log('✅ Positions corrigées manuellement');
       setTimeout(() => window.debugUIIcons(), 100);
     };
 
-    window.testTeamIcon = function() {
-      const teamIcon = document.querySelector('#team-icon');
-      if (teamIcon) {
-        console.log('⚔️ Test de l\'icône team...');
-        teamIcon.click();
-        
-        setTimeout(() => {
-          teamIcon.classList.add('team-updated');
-          setTimeout(() => teamIcon.classList.remove('team-updated'), 600);
-        }, 1000);
-        
-        console.log('✅ Test terminé');
-      } else {
-        console.error('❌ Icône team non trouvée');
-      }
-    };
+    // ❌ SUPPRIMÉ: window.testTeamIcon = function() {...}
 
     // UI functions
     window.openInventory = function() {
@@ -1492,45 +1290,7 @@ setTimeout(() => {
       }
     };
 
-    window.openTeam = function() {
-      if (window.teamManagerGlobal) {
-        window.teamManagerGlobal.openTeamUI();
-        window.showGameNotification("Équipe ouverte", "info", { duration: 1500, position: 'bottom-right' });
-      } else {
-        window.showGameAlert?.("Système d'équipe non initialisé");
-      }
-    };
-
-    window.toggleTeam = function() {
-      if (window.pokemonUISystem && window.pokemonUISystem.getOriginalModule) {
-        const teamModule = window.pokemonUISystem.getOriginalModule('team');
-        if (teamModule && teamModule.toggleTeamUI) {
-          teamModule.toggleTeamUI();
-          return;
-        }
-      }
-      
-      if (window.teamManagerGlobal) {
-        const wasOpen = window.teamManagerGlobal.teamUI?.isOpen();
-        window.teamManagerGlobal.toggleTeamUI();
-        if (!wasOpen) {
-          window.showGameNotification("Équipe ouverte", "info", { duration: 1000, position: 'bottom-right' });
-        }
-      } else {
-        window.showGameAlert?.("Aucun système d'équipe disponible");
-      }
-    };
-
-    window.testTeam = function() {
-      if (window.teamManagerGlobal) {
-        window.teamManagerGlobal.toggleTeamUI();
-        setTimeout(() => {
-          window.showGameNotification("Test d'équipe réussi !", "success", { duration: 2000, position: 'top-center' });
-        }, 500);
-      } else {
-        window.showGameAlert?.("Système d'équipe non initialisé");
-      }
-    };
+    // ❌ SUPPRIMÉ TOUTES LES FONCTIONS TEAM: window.openTeam, window.toggleTeam, window.testTeam
 
     // Encounter test functions
     window.testEncounter = function() {
@@ -1632,106 +1392,52 @@ setTimeout(() => {
     };
 
     // Battle test functions
-  window.testBattle = function() {
-  if (!window.battleSystem) {
-    window.showGameAlert?.("Système de combat non initialisé");
-    console.log("❌ Utilisez window.initBattleSystem() pour l'initialiser");
-    return;
-  }
+    window.testBattle = function() {
+      if (!window.battleSystem) {
+        window.showGameAlert?.("Système de combat non initialisé");
+        console.log("❌ Utilisez window.initBattleSystem() pour l'initialiser");
+        return;
+      }
 
-  if (!window.battleSystem.isInitialized) {
-    window.showGameAlert?.("Système de combat pas encore prêt");
-    console.log("⏳ Système en cours d'initialisation...");
-    return;
-  }
+      if (!window.battleSystem.isInitialized) {
+        window.showGameAlert?.("Système de combat pas encore prêt");
+        console.log("⏳ Système en cours d'initialisation...");
+        return;
+      }
 
-  console.log("🧪 Test du système de combat...");
-  
-  // ✅ NOUVEAU: Utiliser la méthode moderne
-  const result = window.battleSystem.test ? window.battleSystem.test() : window.battleSystem.testBattle?.();
-  
-  if (result) {
-    window.showGameNotification("Test de combat lancé !", "info", { duration: 2000, position: 'top-center' });
-    console.log("✅ Combat de test démarré");
-  } else {
-    window.showGameAlert?.("Échec du test de combat");
-    console.log("❌ Échec du test de combat");
-  }
-};
-
-// ✅ NOUVEAU: Fonction moderne directe
-window.testBattleModern = function() {
-  if (!window.battleSystem?.isInitialized) {
-    console.error('❌ Système de combat non initialisé');
-    return false;
-  }
-  
-  return window.battleSystem.test();
-};
-
-// ✅ NOUVEAU: Compatibilité avec votre startWildBattle existant
-window.startWildBattle = function(pokemonData = null) {
-  if (!window.battleSystem) {
-    window.showGameAlert?.("Système de combat non initialisé");
-    return false;
-  }
-
-  if (!window.battleSystem.isInitialized) {
-    window.showGameAlert?.("Système de combat pas encore prêt");
-    return false;
-  }
-
-  const testPokemon = pokemonData || {
-    pokemonId: 25,
-    level: 5,
-    name: 'Pikachu',
-    shiny: false,
-    gender: 'male'
-  };
-
-  console.log("⚔️ Démarrage combat sauvage:", testPokemon);
-  
-  // ✅ NOUVEAU: Utiliser la méthode moderne
-  const result = window.battleSystem.startWildBattle({
-    pokemon: testPokemon,
-    location: 'test_zone',
-    method: 'manual'
-  });
-
-  if (result) {
-    window.showGameNotification("Combat sauvage démarré !", "info", { duration: 2000, position: 'top-center' });
-    console.log("✅ Combat sauvage lancé");
-  } else {
-    window.showGameAlert?.("Impossible de démarrer le combat");
-    console.log("❌ Échec démarrage combat");
-  }
-
-  return result;
-};
-
-// ✅ NOUVEAU: Debug moderne
-window.debugBattleSystem = function() {
-  console.log('🔍 === DEBUG SYSTÈME DE COMBAT MODERNE ===');
-  
-  if (window.battleSystem?.debug) {
-    return window.battleSystem.debug();
-  } else {
-    const status = {
-      battleSystemExists: !!window.battleSystem,
-      isInitialized: window.battleSystem?.isInitialized || false,
-      isInBattle: window.battleSystem?.isInBattle || false,
-      hasTest: typeof window.battleSystem?.test === 'function',
-      hasDebug: typeof window.battleSystem?.debug === 'function'
+      console.log("🧪 Test du système de combat...");
+      
+      // ✅ NOUVEAU: Utiliser la méthode moderne
+      const result = window.battleSystem.test ? window.battleSystem.test() : window.battleSystem.testBattle?.();
+      
+      if (result) {
+        window.showGameNotification("Test de combat lancé !", "info", { duration: 2000, position: 'top-center' });
+        console.log("✅ Combat de test démarré");
+      } else {
+        window.showGameAlert?.("Échec du test de combat");
+        console.log("❌ Échec du test de combat");
+      }
     };
-    
-    console.log('📊 Status système:', status);
-    return status;
-  }
-};
 
+    // ✅ NOUVEAU: Fonction moderne directe
+    window.testBattleModern = function() {
+      if (!window.battleSystem?.isInitialized) {
+        console.error('❌ Système de combat non initialisé');
+        return false;
+      }
+      
+      return window.battleSystem.test();
+    };
+
+    // ✅ NOUVEAU: Compatibilité avec votre startWildBattle existant
     window.startWildBattle = function(pokemonData = null) {
       if (!window.battleSystem) {
         window.showGameAlert?.("Système de combat non initialisé");
+        return false;
+      }
+
+      if (!window.battleSystem.isInitialized) {
+        window.showGameAlert?.("Système de combat pas encore prêt");
         return false;
       }
 
@@ -1745,6 +1451,7 @@ window.debugBattleSystem = function() {
 
       console.log("⚔️ Démarrage combat sauvage:", testPokemon);
       
+      // ✅ NOUVEAU: Utiliser la méthode moderne
       const result = window.battleSystem.startWildBattle({
         pokemon: testPokemon,
         location: 'test_zone',
@@ -1880,141 +1587,20 @@ window.debugBattleSystem = function() {
     };
 
     // === PATCH DEV anti-crash module quest ===
-if (!window.questSystemGlobal && typeof window.initQuestSystem !== "function") {
-  window.questSystemGlobal = {
-    openQuestJournal: () => { alert("Journal de quêtes non dispo !"); },
-    isQuestJournalOpen: () => false,
-    canPlayerInteract: () => true
-  };
-  console.warn("[PATCH] Système de quêtes factice injecté (fallback dev)");
-}
+    if (!window.questSystemGlobal && typeof window.initQuestSystem !== "function") {
+      window.questSystemGlobal = {
+        openQuestJournal: () => { alert("Journal de quêtes non dispo !"); },
+        isQuestJournalOpen: () => false,
+        canPlayerInteract: () => true
+      };
+      console.warn("[PATCH] Système de quêtes factice injecté (fallback dev)");
+    }
     
     window.initializeUIWithLoading = window.initializePokemonUI;
 
     showNotificationInstructions();
 
-    // 🔥 AJOUTER ICI LE CODE TEAM UI INTEGRATION 🔥
-// === INTÉGRATION TEAM UI AVEC UIMANAGER ===
-window.initializeTeamUIIntegration = async function() {
-  console.log("🔧 [MAIN] === INTÉGRATION TEAM UI AVEC UIMANAGER ===");
-  
-  try {
-    // Vérifier les pré-requis
-    if (!window.pokemonUISystem) {
-      throw new Error("PokemonUISystem requis pour intégration TeamUI");
-    }
-    
-    if (!window.globalNetworkManager?.room) {
-      throw new Error("NetworkManager et room requis");
-    }
-    
-    // Obtenir l'UIManager du système UI Pokémon
-    const uiManager = window.pokemonUISystem.uiManager || window.uiManager;
-    if (!uiManager) {
-      throw new Error("UIManager non disponible");
-    }
-    
-    console.log("🚀 [MAIN] Création intégration TeamUI...");
-    
-    // Créer l'intégration TeamUI
-    const teamIntegration = await createTeamUIIntegration(
-      uiManager, 
-      window.globalNetworkManager.room
-    );
-    
-    // Stocker globalement
-    window.teamUIIntegration = teamIntegration;
-    
-    // Les modules TeamUI sont maintenant disponibles
-    console.log("✅ [MAIN] TeamUI intégré avec UIManager !");
-    console.log("🎮 Modules disponibles: teamUI, teamIcon");
-    
-    // Fonction pour ouvrir l'interface team
-    window.openTeamUI = function() {
-      return uiManager.showModule('teamUI');
-    };
-    
-    // Fonction pour fermer l'interface team
-    window.closeTeamUI = function() {
-      return uiManager.hideModule('teamUI');
-    };
-    
-    // Fonction pour basculer l'interface team
-    window.toggleTeamUI = function() {
-      return uiManager.toggleModule('teamUI');
-    };
-    
-    // Notification de succès
-    window.showGameNotification?.("Team UI intégré avec succès !", "success", { 
-      duration: 3000, 
-      position: 'bottom-center' 
-    });
-    
-    return teamIntegration;
-    
-  } catch (error) {
-    console.error("❌ [MAIN] Erreur intégration TeamUI:", error);
-    window.showGameNotification?.("Erreur intégration Team UI", "error", { 
-      duration: 5000, 
-      position: 'top-center' 
-    });
-    return null;
-  }
-};
-
-// === DÉCLENCHEMENT DE L'INTÉGRATION ===
-setTimeout(async () => {
-  console.log("🔄 [MAIN] Démarrage intégration TeamUI...");
-  
-  // Attendre que le système UI Pokémon soit prêt
-  let attempts = 0;
-  const maxAttempts = 20;
-  
-  const waitForUI = async () => {
-    attempts++;
-    
-    if (window.pokemonUISystem && window.globalNetworkManager?.room) {
-      console.log("✅ [MAIN] Pré-requis TeamUI détectés, intégration...");
-      
-      const result = await window.initializeTeamUIIntegration();
-      
-      if (result) {
-        console.log("🎯 [MAIN] TeamUI prêt ! Utilisez 'T' pour ouvrir");
-        console.log("🎯 [MAIN] Ou window.toggleTeamUI() en code");
-        
-        // Test de validation
-        setTimeout(() => {
-          if (window.teamUIIntegration?.isInitialized()) {
-            console.log("✅ [MAIN] Validation TeamUI intégration réussie");
-          }
-        }, 2000);
-        
-      } else {
-        console.warn("⚠️ [MAIN] Intégration TeamUI échouée mais on continue");
-      }
-      
-    } else if (attempts < maxAttempts) {
-      console.log(`⏳ [MAIN] Attente pré-requis TeamUI (${attempts}/${maxAttempts})...`);
-      setTimeout(waitForUI, 1000);
-    } else {
-      console.warn("⚠️ [MAIN] Timeout intégration TeamUI - mode fallback");
-      
-      // Mode fallback - utiliser l'ancien système
-      window.toggleTeamUI = function() {
-        if (window.teamManagerGlobal) {
-          window.teamManagerGlobal.toggleTeamUI();
-        } else {
-          window.showGameAlert?.("Système Team non disponible");
-        }
-      };
-    }
-  };
-  
-  waitForUI();
-  
-}, 8000); // 8 secondes après le chargement initial
-
-// 🔥 FIN DE L'AJOUT 🔥
+    // ❌ SUPPRIMÉ TOUTE LA SECTION TEAM UI INTEGRATION
     
     // Pokemon UI Manager functions
     window.setUIGameState = function(stateName, options = {}) {
@@ -2075,7 +1661,7 @@ setTimeout(async () => {
     console.log("🎯 [MAIN] Tous les systèmes initialisés !");
     console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
     console.log("🎒 Utilisez 'I' pour ouvrir l'inventaire en jeu");
-    console.log("⚔️ Utilisez 'T' pour ouvrir l'équipe en jeu");
+    // ❌ SUPPRIMÉ: console.log("⚔️ Utilisez 'T' pour ouvrir l'équipe en jeu");
     console.log("🎲 Utilisez 'F' pour debug encounters en jeu");
     console.log("🎲 Utilisez 'G' pour forcer un encounter en jeu");
     console.log("⚔️ Utilisez 'B' pour tester le système de combat en jeu");
@@ -2123,9 +1709,7 @@ window.isInventoryOpen = function() {
   return false;
 };
 
-window.isTeamOpen = function() {
-  return window.teamManagerGlobal ? window.teamManagerGlobal.teamUI?.isOpen() || false : false;
-};
+// ❌ SUPPRIMÉ: window.isTeamOpen = function() {...}
 
 window.isEncounterActive = function() {
   const activeScene = window.game?.scene?.getScenes(true)[0];
@@ -2146,7 +1730,7 @@ window.shouldBlockInput = function() {
     window.isStarterHUDOpen() ||
     window.isQuestJournalOpen() ||
     window.isInventoryOpen() ||
-    window.isTeamOpen() ||
+    // ❌ SUPPRIMÉ: window.isTeamOpen() ||
     window.isEncounterActive() ||
     window.isBattleActive() ||
     window.isStarterSelectionActive();
@@ -2164,7 +1748,7 @@ window.getGameSystemsStatus = function() {
     inventory: { initialized: !!window.inventorySystemGlobal, open: window.isInventoryOpen() },
     quests: { initialized: !!window.questSystemGlobal, journalOpen: window.isQuestJournalOpen() },
     starter: { initialized: !!window.starterHUD, open: window.isStarterHUDOpen() },
-    team: { initialized: !!window.teamManagerGlobal, open: window.isTeamOpen() },
+    // ❌ SUPPRIMÉ: team: { initialized: !!window.teamManagerGlobal, open: window.isTeamOpen() },
     encounters: { 
       initialized: !!window.encounterManagerGlobal, 
       active: window.isEncounterActive(),
@@ -2252,7 +1836,6 @@ window.showGameHelp = function() {
 
 === Contrôles de base ===
 • I - Ouvrir/Fermer l'inventaire
-• T - Ouvrir/Fermer l'équipe
 • Q - Ouvrir/Fermer le journal des quêtes
 • F - Debug encounters (dans les zones)
 • G - Forcer un encounter (dans les zones)
@@ -2264,7 +1847,6 @@ window.showGameHelp = function() {
 
 === Fonctions de test ===
 • window.testInventory() - Tester l'inventaire
-• window.testTeam() - Tester l'équipe
 • window.testEncounter() - Tester les encounters
 • window.testBattle() - Tester le système de combat
 • window.testNotifications() - Tester les notifications
@@ -2301,7 +1883,6 @@ window.showGameHelp = function() {
 
 === Systèmes disponibles ===
 • Inventaire: ${!!window.inventorySystemGlobal}
-• Équipe: ${!!window.teamManagerGlobal}
 • Quêtes: ${!!window.questSystemGlobal}
 • Encounters: ${!!window.encounterManagerGlobal}
 • Combat: ${!!window.battleSystem} (prêt: ${window.battleSystem?.isInitialized || false})
@@ -2328,7 +1909,6 @@ console.log(`
 Utilisez window.showGameHelp() pour l'aide complète
 Tous les systèmes sont initialisés et prêts !
 🔄 Support des transitions robustes intégré !
-⚔️ Système d'équipe Pokémon disponible !
 🎲 Système d'encounters Pokémon intégré !
 ⚔️ Système de combat MMO Pokémon intégré !
 🎛️ ✨ NOUVEAU: Système UI Manager professionnel actif ! ✨
