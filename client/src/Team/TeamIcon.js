@@ -1,5 +1,5 @@
-// Team/TeamIcon.js - Icône Team Simplifiée
-// 🎯 Affiche l'icône cliquable bottom-right
+// Team/TeamIcon.js - Icône Team Simplifiée SANS POSITIONNEMENT MANUEL
+// 🎯 Crée juste l'élément DOM, UIManager calcule la position
 
 export class TeamIcon {
   constructor(teamManager) {
@@ -20,21 +20,27 @@ export class TeamIcon {
       canBattle: false
     };
     
-    console.log('🎯 [TeamIcon] Instance créée');
+    // === IMPORTANT: POSITIONNEMENT GÉRÉ PAR UIMANAGER ===
+    this.positioningMode = 'uimanager'; // Signale que UIManager gère la position
+    
+    console.log('🎯 [TeamIcon] Instance créée (positionnement géré par UIManager)');
   }
   
   // === 🚀 INITIALISATION ===
   
   init() {
     try {
-      console.log('🚀 [TeamIcon] Initialisation...');
+      console.log('🚀 [TeamIcon] Initialisation sans positionnement manuel...');
       
       this.createIcon();
       this.addStyles();
       this.setupEventListeners();
-      this.positionIcon();
       
-      console.log('✅ [TeamIcon] Initialisé');
+      // === PAS DE POSITIONNEMENT MANUEL ===
+      // this.positionIcon(); ← SUPPRIMÉ
+      // UIManager s'occupera du positionnement via registerIconPosition()
+      
+      console.log('✅ [TeamIcon] Initialisé (position sera gérée par UIManager)');
       return this;
       
     } catch (error) {
@@ -78,10 +84,14 @@ export class TeamIcon {
       </div>
     `;
     
+    // === IMPORTANT: PAS DE POSITIONNEMENT INITIAL ===
+    // On ne définit PAS position, right, bottom, etc.
+    // UIManager s'en chargera
+    
     document.body.appendChild(icon);
     this.iconElement = icon;
     
-    console.log('🎨 [TeamIcon] Icône créée');
+    console.log('🎨 [TeamIcon] Icône créée SANS positionnement (UIManager prendra le relais)');
   }
   
   addStyles() {
@@ -92,17 +102,24 @@ export class TeamIcon {
     const style = document.createElement('style');
     style.id = 'team-icon-styles';
     style.textContent = `
-      /* ===== TEAM ICON STYLES ===== */
+      /* ===== TEAM ICON STYLES (SANS POSITIONNEMENT MANUEL) ===== */
       .team-icon {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
+        /* === PAS DE POSITIONNEMENT FIXE ===
+         * position: fixed;     ← SUPPRIMÉ
+         * bottom: 20px;        ← SUPPRIMÉ  
+         * right: 20px;         ← SUPPRIMÉ
+         * UIManager gérera position, left, top
+         */
         width: 70px;
         height: 80px;
         cursor: pointer;
         z-index: 500;
         transition: all 0.3s ease;
         user-select: none;
+        
+        /* Style de base pour quand UIManager positionnera */
+        display: block;
+        box-sizing: border-box;
       }
       
       .team-icon:hover {
@@ -327,11 +344,10 @@ export class TeamIcon {
         50% { background: linear-gradient(145deg, #9c27b0, #7b1fa2); }
       }
       
-      /* ===== RESPONSIVE ===== */
+      /* ===== RESPONSIVE (SIZES SEULEMENT) ===== */
+      /* UIManager gérera les positions selon breakpoints */
       @media (max-width: 768px) {
         .team-icon {
-          bottom: 15px;
-          right: 15px;
           width: 60px;
           height: 70px;
         }
@@ -382,7 +398,7 @@ export class TeamIcon {
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [TeamIcon] Styles ajoutés');
+    console.log('🎨 [TeamIcon] Styles ajoutés (sans positionnement fixe)');
   }
   
   // === 🎛️ ÉVÉNEMENTS ===
@@ -428,29 +444,12 @@ export class TeamIcon {
     console.log('🎛️ [TeamIcon] Événements configurés');
   }
   
-  // === 📍 POSITIONNEMENT ===
+  // === ❌ MÉTHODE DE POSITIONNEMENT SUPPRIMÉE ===
   
-  positionIcon() {
-    if (!this.iconElement) return;
-    
-    // Position de base
-    let rightPosition = 20;
-    const spacing = 10;
-    const iconWidth = 70;
-    
-    // Détecter les autres icônes pour ajuster la position
-    const otherIcons = [
-      document.querySelector('#inventory-icon'),
-      document.querySelector('#quest-icon')
-    ].filter(icon => icon && icon.style.display !== 'none');
-    
-    // Calculer position selon les autres icônes
-    rightPosition = 20 + (otherIcons.length * (iconWidth + spacing));
-    
-    this.iconElement.style.right = `${rightPosition}px`;
-    
-    console.log(`📍 [TeamIcon] Positionné à ${rightPosition}px du bord`);
-  }
+  // positionIcon() {
+  //   // ❌ SUPPRIMÉ - UIManager gère maintenant
+  //   // Cette méthode ne doit plus être appelée
+  // }
   
   // === 📊 MISE À JOUR DONNÉES ===
   
@@ -509,7 +508,7 @@ export class TeamIcon {
   // === 🎛️ CONTRÔLE UI MANAGER ===
   
   show() {
-    console.log('👁️ [TeamIcon] Affichage');
+    console.log('👁️ [TeamIcon] Affichage (position gérée par UIManager)');
     
     this.isVisible = true;
     
@@ -560,10 +559,15 @@ export class TeamIcon {
     
     const tooltip = document.createElement('div');
     tooltip.className = 'team-tooltip';
+    
+    // === POSITION TOOLTIP RELATIVE À L'ICÔNE ===
+    // Au lieu de position fixe, on utilise la position de l'icône
+    const iconRect = this.iconElement.getBoundingClientRect();
+    
     tooltip.style.cssText = `
       position: fixed;
-      bottom: 110px;
-      right: 20px;
+      bottom: ${window.innerHeight - iconRect.top + 10}px;
+      right: ${window.innerWidth - iconRect.right}px;
       background: rgba(42, 63, 95, 0.95);
       color: white;
       padding: 8px 12px;
@@ -700,9 +704,14 @@ export class TeamIcon {
       elementInDOM: this.iconElement ? document.contains(this.iconElement) : false,
       displayStats: this.displayStats,
       hasOnClick: !!this.onClick,
-      position: this.iconElement ? {
+      positioningMode: this.positioningMode, // 'uimanager'
+      elementPosition: this.iconElement ? {
+        position: this.iconElement.style.position,
+        left: this.iconElement.style.left,
+        top: this.iconElement.style.top,
         right: this.iconElement.style.right,
-        bottom: this.iconElement.style.bottom
+        bottom: this.iconElement.style.bottom,
+        transform: this.iconElement.style.transform
       } : null
     };
   }
@@ -711,44 +720,36 @@ export class TeamIcon {
 export default TeamIcon;
 
 console.log(`
-🎯 === TEAM ICON SIMPLIFIÉ ===
+🎯 === TEAM ICON SANS POSITIONNEMENT MANUEL ===
 
-✅ RESPONSABILITÉS:
-- Affichage icône bottom-right
-- Indicateurs visuels (compteur, statut)
-- Gestion clic et hover
-- Animations feedback
+❌ SUPPRIMÉ:
+- positionIcon() méthode
+- Positionnement fixe en CSS
+- right/bottom en style
+- Calculs de position
 
-🎨 DESIGN:
-- Thème bleu harmonisé avec inventaire
-- Compteur équipe (0/6)
-- Statut combat (vert/rouge/orange)
-- Notifications badge
-- Tooltip informatif
+✅ RESPONSABILITÉS ACTUELLES:
+- Crée l'élément DOM seulement
+- Gère le contenu et styles
+- Animations et interactions
+- Événements clic/hover
 
-🎛️ API UIMANAGER:
-- show() → affiche icône
-- hide() → cache icône  
-- setEnabled(bool) → active/désactive
+📍 POSITIONNEMENT:
+- UIManager.registerIconPosition() gère la position
+- LayoutManager calcule automatiquement
+- TeamIcon n'a plus à se soucier de sa position
+- Responsive géré par UIManager
 
-📊 DONNÉES:
-- updateStats(stats) → met à jour affichage
-- teamCount, aliveCount, canBattle
+🎨 STYLES:
+- Pas de position: fixed
+- Pas de right/bottom
+- Tailles responsive seulement
+- UIManager appliquera position/left/top
 
-🎭 ANIMATIONS:
-- Clic → teamBounce
-- Équipe pleine → teamFullGlow
-- Pokémon KO → faintedFlash
-- Soins → notification temporaire
+🔗 INTÉGRATION:
+- positioningMode: 'uimanager'
+- iconElement exposé pour UIManager
+- Compatible avec système de positionnement
 
-🔗 CALLBACK:
-- onClick() → défini par TeamModule
-- Déclenche ouverture TeamUI
-
-📱 RESPONSIVE:
-- Mobile: 60x70px
-- Tablet: 65x75px  
-- Desktop: 70x80px
-
-🎯 SIMPLE ET ÉLÉGANT !
+🎯 PARFAIT POUR UIMANAGER !
 `);
