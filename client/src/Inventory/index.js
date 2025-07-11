@@ -1,5 +1,6 @@
 // Inventory/index.js - Module Inventory Unifié pour UIManager
 // 🎯 1 SEUL module qui gère TOUT : business logic + icône + interface
+// ✅ MODIFIÉ: Auto-enregistrement UIManager pour positionnement intelligent
 
 import { InventorySystem } from './InventorySystem.js';
 import { InventoryIcon } from './InventoryIcon.js';
@@ -41,6 +42,7 @@ export class InventoryModule {
       
       // 2. Créer l'icône d'inventaire  
       this.icon = new InventoryIcon(this.ui);
+      await this.icon.init(); // S'assurer que l'icône est créée
       
       // 3. Créer le système principal (qui orchestre)
       this.system = new InventorySystem(this.scene, this.gameRoom);
@@ -48,18 +50,57 @@ export class InventoryModule {
       // 4. Connecter les composants
       this.connectComponents();
       
-      // 5. Appliquer l'état initial
+      // ✅ 5. AUTO-ENREGISTREMENT DANS UIMANAGER
+      this.registerWithUIManager();
+      
+      // 6. Appliquer l'état initial
       this.applyUIManagerState();
       
       this.uiManagerState.initialized = true;
       
-      console.log('✅ [InventoryModule] Initialisé');
+      console.log('✅ [InventoryModule] Initialisé avec UIManager');
       return this;
       
     } catch (error) {
       console.error('❌ [InventoryModule] Erreur initialisation:', error);
       throw error;
     }
+  }
+  
+  // ✅ NOUVELLE MÉTHODE: Auto-enregistrement UIManager
+  registerWithUIManager() {
+    console.log('📍 [InventoryModule] Enregistrement dans UIManager...');
+    
+    // Vérifier que UIManager existe
+    if (!window.uiManager || !window.uiManager.registerIconPosition) {
+      console.warn('⚠️ [InventoryModule] UIManager non disponible pour positionnement');
+      return;
+    }
+    
+    // Vérifier que l'icône existe
+    if (!this.icon || !this.icon.iconElement) {
+      console.warn('⚠️ [InventoryModule] IconElement non disponible pour enregistrement');
+      return;
+    }
+    
+    // Supprimer tout positionnement manuel existant
+    const iconElement = this.icon.iconElement;
+    iconElement.style.position = '';
+    iconElement.style.right = '';
+    iconElement.style.bottom = '';
+    iconElement.style.left = '';
+    iconElement.style.top = '';
+    
+    // Enregistrer dans UIManager
+    window.uiManager.registerIconPosition('inventory', iconElement, {
+      anchor: 'bottom-right',
+      order: 0,               // Première position (plus à droite)
+      group: 'ui-icons',
+      spacing: 10,
+      size: { width: 70, height: 80 }
+    });
+    
+    console.log('✅ [InventoryModule] Icône enregistrée dans UIManager (ordre: 0)');
   }
   
   // === 🔗 CONNEXION DES COMPOSANTS ===
@@ -309,6 +350,7 @@ export class InventoryModule {
       iconElement: this.icon ? !!this.icon.iconElement : false,
       uiVisible: this.ui ? this.ui.isVisible : false,
       canOpen: this.canOpenInventory(),
+      registeredInUIManager: !!(window.uiManager?.registeredIcons?.has('inventory')),
       components: {
         system: this.system?.constructor?.name || 'none',
         icon: this.icon?.constructor?.name || 'none',
@@ -541,7 +583,7 @@ export async function setupInventorySystem(uiManager) {
 export default InventoryModule;
 
 console.log(`
-🎒 === MODULE INVENTORY UNIFIÉ ===
+🎒 === MODULE INVENTORY UNIFIÉ AVEC UIMANAGER ===
 
 ✅ ARCHITECTURE:
 • InventoryModule → Orchestrateur UIManager
@@ -554,6 +596,12 @@ console.log(`
 • hide() → Cache l'icône + interface
 • setEnabled(bool) → Active/désactive
 • getUIManagerState() → État complet
+
+📍 POSITIONNEMENT AUTOMATIQUE:
+• registerWithUIManager() → Auto-enregistrement
+• Position bottom-right calculée automatiquement
+• Ordre 0 = position la plus à droite
+• Espacement 10px avec autres icônes
 
 📦 API PUBLIQUE:
 • toggle() → Ouvre/ferme l'interface
@@ -572,5 +620,5 @@ console.log(`
 • Responsive automatique
 • Événements globaux
 
-🎯 PRÊT POUR UIMANAGER !
+🎯 PRÊT POUR UIMANAGER AVEC POSITIONNEMENT !
 `);
