@@ -56,7 +56,7 @@ import { Client } from 'colyseus.js';
 import { initPokeChat } from './network/PokeChatSystem.js';
 import { StarterSelectionHUD } from './components/StarterSelectionHUD.js';
 import { QuestSystem } from './game/QuestSystem.js';
-// ❌ SUPPRIMÉ: import { InventorySystem } from './game/InventorySystem.js';
+import { InventorySystem } from './game/InventorySystem.js';
 import { initializeGameNotifications, showNotificationInstructions } from './notification.js';
 import { PsyduckIntroManager } from './scenes/intros/PsyduckIntroManager.js';
 import { initializePokemonUI } from './ui.js';
@@ -536,7 +536,7 @@ console.log("[DEBUG ROOT] JS bootstrap - reload complet ?");
 
     window.starterHUD = null;
     window.questSystemGlobal = null;
-    // ❌ SUPPRIMÉ: window.inventorySystemGlobal = null;
+    window.inventorySystemGlobal = null;
     // ❌ SUPPRIMÉ: window.teamManagerGlobal = null;
     window.encounterManagerGlobal = null;
 
@@ -798,10 +798,29 @@ window.debugBattleSystem = function() {
   return battleStatus;
 };
 
-// === NOUVEAUX RACCOURCIS CLAVIER ===
+// === MISE À JOUR AIDE (ligne ~650) ===
+
+// ✅ AJOUT dans window.showGameHelp: nouvelles fonctions
+/*
+Ajouter ces lignes dans la section "=== Fonctions combat ===" :
+
+• window.testBattleUIOnly() - Test transition UI uniquement
+• window.testCompleteBattleWithUI() - Test combat complet avec UI
+• window.testBattleUITransition() - Test transition UI du système
+
+=== UI Transition Battle ===
+• Les icônes UI disparaissent automatiquement en combat
+• Transition fluide avec overlay d'information
+• Retour automatique après combat
+• Compatible avec système UI Pokémon professionnel
+*/
+
+// === NOUVEAUX RACCOURCIS CLAVIER (ligne ~750) ===
 
 // ✅ AJOUT: Raccourci pour test UI battle
 document.addEventListener('keydown', (event) => {
+  // ... code existant ...
+  
   // ✅ NOUVEAU: U = Test UI Transition uniquement
   if (event.key.toLowerCase() === 'u' && !window.shouldBlockInput()) {
     event.preventDefault();
@@ -819,21 +838,6 @@ document.addEventListener('keydown', (event) => {
       // Fallback vers ancien test
       window.testBattle?.();
     }
-  }
-  
-  // ❌ SUPPRIMÉ: Raccourci clavier 'I' pour l'ancien système inventory
-  // Le nouveau système inventory est géré par le UIManager via ui.js
-  
-  // ❌ SUPPRIMÉ: Raccourci Q pour quêtes (Q = déplacement !)
-  
-  if (event.key.toLowerCase() === 'f' && !window.shouldBlockInput()) {
-    event.preventDefault();
-    window.debugEncounters();
-  }
-  
-  if (event.key.toLowerCase() === 'g' && !window.shouldBlockInput()) {
-    event.preventDefault();
-    window.forceEncounter();
   }
 });
 
@@ -901,6 +905,8 @@ window.validateBattleUISystem = function() {
   
   return allReady;
 };
+
+// === NOUVELLES INSTRUCTIONS FINALES ===
 
 console.log(`
 🎉 === POKÉMON MMO AVEC UI BATTLE TRANSITION PRÊT ===
@@ -1209,10 +1215,35 @@ setTimeout(() => {
 
     // ❌ SUPPRIMÉ: window.testTeamIcon = function() {...}
 
-    // ❌ SUPPRIMÉ: Anciennes fonctions UI inventory
-    // UI functions - utilisant maintenant le nouveau système UIManager
-    // window.openInventory = function() {...}
-    // window.toggleInventory = function() {...}
+    // UI functions
+    window.openInventory = function() {
+      if (window.inventorySystemGlobal) {
+        window.inventorySystemGlobal.openInventory();
+        window.showGameNotification("Inventaire ouvert", "info", { duration: 1500, position: 'bottom-right' });
+      } else {
+        window.showGameAlert?.("Système d'inventaire non initialisé");
+      }
+    };
+    
+    window.toggleInventory = function() {
+      if (window.pokemonUISystem && window.pokemonUISystem.getOriginalModule) {
+        const inventoryModule = window.pokemonUISystem.getOriginalModule('inventory');
+        if (inventoryModule && inventoryModule.toggleInventory) {
+          inventoryModule.toggleInventory();
+          return;
+        }
+      }
+      
+      if (window.inventorySystemGlobal) {
+        const wasOpen = window.inventorySystemGlobal.isInventoryOpen();
+        window.inventorySystemGlobal.toggleInventory();
+        if (!wasOpen) {
+          window.showGameNotification("Inventaire ouvert", "info", { duration: 1000, position: 'bottom-right' });
+        }
+      } else {
+        window.showGameAlert?.("Aucun système d'inventaire disponible");
+      }
+    };
 
     // Starter functions
     window.testStarterSelection = function() {
@@ -1248,7 +1279,16 @@ setTimeout(() => {
       console.log("Fonction test:", typeof StarterUtils.test === 'function');
     };
     
-    // ❌ SUPPRIMÉ: window.testInventory = function() {...}
+    window.testInventory = function() {
+      if (window.inventorySystemGlobal) {
+        window.inventorySystemGlobal.toggleInventory();
+        setTimeout(() => {
+          window.showGameNotification("Test d'inventaire réussi !", "success", { duration: 2000, position: 'top-center' });
+        }, 500);
+      } else {
+        window.showGameAlert?.("Système d'inventaire non initialisé");
+      }
+    };
 
     // ❌ SUPPRIMÉ TOUTES LES FONCTIONS TEAM: window.openTeam, window.toggleTeam, window.testTeam
 
@@ -1619,7 +1659,8 @@ setTimeout(() => {
     };
     
     console.log("🎯 [MAIN] Tous les systèmes initialisés !");
-    console.log("🎒 L'inventaire est maintenant géré par le nouveau UIManager via ui.js");
+    console.log("📋 Utilisez 'Q' pour ouvrir le journal des quêtes en jeu");
+    console.log("🎒 Utilisez 'I' pour ouvrir l'inventaire en jeu");
     // ❌ SUPPRIMÉ: console.log("⚔️ Utilisez 'T' pour ouvrir l'équipe en jeu");
     console.log("🎲 Utilisez 'F' pour debug encounters en jeu");
     console.log("🎲 Utilisez 'G' pour forcer un encounter en jeu");
@@ -1662,8 +1703,11 @@ window.isQuestJournalOpen = function() {
   return window.questSystemGlobal ? window.questSystemGlobal.isQuestJournalOpen() : false;
 };
 
-// ❌ SUPPRIMÉ: window.isInventoryOpen = function() {...}
-// Le nouveau système inventory est géré par le UIManager
+window.isInventoryOpen = function() {
+  if (window.inventorySystemGlobal) return window.inventorySystemGlobal.isInventoryOpen();
+  if (typeof window.isInventoryVisible === 'function') return window.isInventoryVisible();
+  return false;
+};
 
 // ❌ SUPPRIMÉ: window.isTeamOpen = function() {...}
 
@@ -1685,7 +1729,7 @@ window.shouldBlockInput = function() {
   return window.isChatFocused() ||
     window.isStarterHUDOpen() ||
     window.isQuestJournalOpen() ||
-    // ❌ SUPPRIMÉ: window.isInventoryOpen() ||
+    window.isInventoryOpen() ||
     // ❌ SUPPRIMÉ: window.isTeamOpen() ||
     window.isEncounterActive() ||
     window.isBattleActive() ||
@@ -1693,7 +1737,7 @@ window.shouldBlockInput = function() {
 };
 
 window.canPlayerInteract = function() {
-  // ❌ SUPPRIMÉ: if (window.inventorySystemGlobal) return window.inventorySystemGlobal.canPlayerInteract();
+  if (window.inventorySystemGlobal) return window.inventorySystemGlobal.canPlayerInteract();
   if (window.questSystemGlobal) return window.questSystemGlobal.canPlayerInteract();
   return !window.shouldBlockInput();
 };
@@ -1701,12 +1745,7 @@ window.canPlayerInteract = function() {
 window.getGameSystemsStatus = function() {
   const status = {
     chat: { initialized: !!window.pokeChat, focused: window.isChatFocused() },
-    // ❌ SUPPRIMÉ: inventory: { initialized: !!window.inventorySystemGlobal, open: window.isInventoryOpen() },
-    inventory: { 
-      newSystem: !!window.pokemonUISystem,
-      managed: 'via UIManager',
-      note: 'Géré par le nouveau système unifié' 
-    },
+    inventory: { initialized: !!window.inventorySystemGlobal, open: window.isInventoryOpen() },
     quests: { initialized: !!window.questSystemGlobal, journalOpen: window.isQuestJournalOpen() },
     starter: { initialized: !!window.starterHUD, open: window.isStarterHUDOpen() },
     // ❌ SUPPRIMÉ: team: { initialized: !!window.teamManagerGlobal, open: window.isTeamOpen() },
@@ -1796,26 +1835,20 @@ window.showGameHelp = function() {
 🎮 === AIDE DU JEU ===
 
 === Contrôles de base ===
+• I - Ouvrir/Fermer l'inventaire
+• Q - Ouvrir/Fermer le journal des quêtes
 • F - Debug encounters (dans les zones)
 • G - Forcer un encounter (dans les zones)
 • B - Tester le système de combat
-• U - Test transition UI battle uniquement
 • E - Interagir avec NPCs/objets
 • S - Afficher sélection starter (test)
 • ESC - Fermer sélection starter
-• WASD ou Flèches - Déplacement (Q = gauche, pas quêtes !)
-
-=== Nouveau système Inventory ===
-• L'inventaire est maintenant géré par le UIManager unifié
-• Accessible via window.pokemonUISystem
-• Plus de raccourci 'I' - utiliser l'interface UI moderne
-• Intégration complète avec le système Pokémon
+• WASD ou Flèches - Déplacement
 
 === Fonctions de test ===
+• window.testInventory() - Tester l'inventaire
 • window.testEncounter() - Tester les encounters
 • window.testBattle() - Tester le système de combat
-• window.testBattleUIOnly() - Test transition UI uniquement
-• window.testCompleteBattleWithUI() - Test combat complet avec UI
 • window.testNotifications() - Tester les notifications
 • window.quickTestNotifications() - Test rapide
 • window.debugGameSystems() - Debug des systèmes
@@ -1830,8 +1863,6 @@ window.showGameHelp = function() {
 
 === Fonctions combat ===
 • window.testBattle() - Test complet du système
-• window.testBattleUIOnly() - Test transition UI uniquement
-• window.testCompleteBattleWithUI() - Test combat complet avec UI
 • window.startWildBattle() - Démarrer combat sauvage
 • window.exitBattle() - Quitter combat en cours
 • window.getBattleStatus() - État du combat actuel
@@ -1850,15 +1881,8 @@ window.showGameHelp = function() {
 • window.testStarterSelection() - Tester la sélection de starter
 • window.debugStarterSelection() - Debug du système starter
 
-=== UI Manager moderne ===
-• window.setUIGameState('battle') - Changer état UI
-• window.debugPokemonUI() - Debug interface complète
-• window.testPokemonUI() - Test tous les modules UI
-• window.showUIModule('inventory') - Afficher module
-• window.hideUIModule('inventory') - Masquer module
-
 === Systèmes disponibles ===
-• Inventory: Nouveau système unifié via UIManager
+• Inventaire: ${!!window.inventorySystemGlobal}
 • Quêtes: ${!!window.questSystemGlobal}
 • Encounters: ${!!window.encounterManagerGlobal}
 • Combat: ${!!window.battleSystem} (prêt: ${window.battleSystem?.isInitialized || false})
@@ -1876,15 +1900,12 @@ window.showGameHelp = function() {
 • window.restartCurrentZone() - Redémarrer la zone actuelle
 • window.fixEncounterSystem() - Réparer system encounters
 • window.fixBattleSystem() - Réparer système combat
-• window.validateBattleUISystem() - Valider UI battle
 ========================
   `);
 };
 
 console.log(`
 🎉 === POKÉMON MMO PRÊT (NOUVELLE GÉNÉRATION) ===
-✅ NETTOYAGE ANCIEN SYSTÈME INVENTORY TERMINÉ !
-🆕 Nouveau système Inventory unifié via UIManager actif
 Utilisez window.showGameHelp() pour l'aide complète
 Tous les systèmes sont initialisés et prêts !
 🔄 Support des transitions robustes intégré !
@@ -1895,6 +1916,5 @@ Tous les systèmes sont initialisés et prêts !
 🛡️ Gestion d'erreurs et récupération automatique
 🚀 Performance optimisée pour MMO
 🎮 États de jeu: exploration, battle, pokemonCenter, dialogue
-🧹 Plus de conflits entre anciens/nouveaux systèmes !
 ==============================
 `);
