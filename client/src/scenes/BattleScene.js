@@ -1762,6 +1762,20 @@ processBattleEventsServerDriven(battleEvents) {
       console.error('[BattleScene] ❌ Scène non active');
       return;
     }
+
+      // ===== 🎯 NOUVEAU: Prévenir UIManager =====
+  console.log('[BattleScene] 🎮 Notification UIManager: mode battle');
+  try {
+    if (window.pokemonUISystem?.setGameState) {
+      window.pokemonUISystem.setGameState('battle', { animated: true });
+    } else if (window.uiManager?.setGameState) {
+      window.uiManager.setGameState('battle', { animated: true });
+    } else {
+      console.warn('[BattleScene] ⚠️ UIManager non disponible');
+    }
+  } catch (error) {
+    console.error('[BattleScene] ❌ Erreur notification UIManager:', error);
+  }
     
     this.handleNetworkBattleStart(battleData);
   }
