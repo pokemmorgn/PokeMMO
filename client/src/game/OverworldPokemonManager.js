@@ -417,7 +417,14 @@ export class OverworldPokemonManager {
     if (x !== undefined) pokemon.serverX = x;
     if (y !== undefined) pokemon.serverY = y;
     if (direction !== undefined) pokemon.lastDirection = direction;
-    
+    // ✅ AJOUTEZ CETTE LIGNE CRITIQUE :
+  // Si le serveur dit "ne bouge pas", forcer l'arrêt immédiat
+  if (isMoving === false) {
+    pokemon.isMoving = false;
+    pokemon.x = pokemon.serverX; // ← FORCER POSITION SERVEUR
+    pokemon.y = pokemon.serverY; // ← FORCER POSITION SERVEUR
+    pokemon.setPosition(pokemon.serverX, pokemon.serverY); // ← PHYSICS
+  }
     // ✅ Gestion du changement d'état de mouvement
     const wasMoving = pokemon.isMoving;
     if (isMoving !== undefined) pokemon.isMoving = isMoving;
