@@ -260,12 +260,17 @@ export class TeamUI {
       
       .team-view {
         display: none;
+        /* FORCER LA LARGEUR COMPLÈTE POUR TOUTES LES VUES */
         width: 100%;
+        min-width: 100%;
+        box-sizing: border-box;
       }
       
       .team-view.active {
         display: flex;
         width: 100%;
+        min-width: 100%;
+        box-sizing: border-box;
       }
       
       /* ===== LAYOUT OVERVIEW - REMPLISSAGE COMPLET ===== */
@@ -745,7 +750,7 @@ export class TeamUI {
         border: 1px solid rgba(255, 255, 255, 0.3);
       }
       
-      /* ===== VUE DÉTAILS ===== */
+      /* ===== VUE DÉTAILS - LARGEUR COMPLÈTE ===== */
       .team-details-content {
         border-top: 2px solid #357abd;
         background: rgba(0, 0, 0, 0.2);
@@ -754,6 +759,11 @@ export class TeamUI {
         display: flex;
         flex-direction: column;
         overflow-y: auto;
+        /* FORCER LA LARGEUR COMPLÈTE */
+        width: 100%;
+        min-width: 100%;
+        box-sizing: border-box;
+        flex: 1; /* Prendre tout l'espace disponible en hauteur */
       }
       
       .no-selection {
@@ -764,47 +774,51 @@ export class TeamUI {
         height: 100%;
         color: #888;
         text-align: center;
+        /* UTILISER TOUTE LA LARGEUR DISPONIBLE */
+        width: 100%;
+        min-height: 400px; /* Hauteur minimale pour bien centrer */
       }
       
       .no-selection-icon {
-        font-size: 48px;
-        margin-bottom: 15px;
+        font-size: 64px; /* Augmenté pour la plus grande surface */
+        margin-bottom: 20px;
         opacity: 0.5;
         filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
       }
       
       .no-selection h3 {
-        font-size: 18px;
-        margin: 8px 0;
+        font-size: 24px; /* Augmenté */
+        margin: 12px 0;
         color: #ccc;
       }
       
       .no-selection p {
-        font-size: 14px;
+        font-size: 16px; /* Augmenté */
         margin: 0;
         opacity: 0.8;
+        max-width: 400px; /* Largeur maximale pour la lisibilité */
       }
       
-      /* ===== DÉTAILS POKÉMON ===== */
+      /* ===== DÉTAILS POKÉMON - OPTIMISÉS POUR LARGEUR COMPLÈTE ===== */
       .pokemon-details {
         width: 100%;
-        max-width: 600px;
+        max-width: 800px; /* Augmenté pour utiliser plus d'espace */
         margin: 0 auto;
       }
       
       .pokemon-details-header {
         text-align: center;
-        margin-bottom: 25px;
-        padding: 20px;
+        margin-bottom: 30px;
+        padding: 25px;
         background: rgba(255, 255, 255, 0.05);
         border-radius: 15px;
         border: 1px solid rgba(74, 144, 226, 0.3);
       }
       
       .pokemon-details-portrait {
-        width: 120px;
-        height: 120px;
-        margin: 0 auto 20px;
+        width: 140px;
+        height: 140px;
+        margin: 0 auto 25px;
         border: 4px solid #4a90e2;
         border-radius: 15px;
         background-size: cover;
@@ -814,39 +828,41 @@ export class TeamUI {
       }
       
       .pokemon-details-name {
-        margin: 0 0 8px 0;
+        margin: 0 0 10px 0;
         color: #87ceeb;
-        font-size: 24px;
+        font-size: 28px;
         font-weight: bold;
       }
       
       .pokemon-details-info {
         color: rgba(255,255,255,0.9);
-        font-size: 15px;
+        font-size: 16px;
         margin: 0;
         font-weight: 500;
       }
       
       .pokemon-details-stats {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-        margin-top: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 25px;
       }
       
       .pokemon-stat-group {
         background: rgba(255, 255, 255, 0.05);
-        padding: 15px;
-        border-radius: 10px;
+        padding: 20px;
+        border-radius: 12px;
         border: 1px solid rgba(74, 144, 226, 0.2);
       }
       
       .pokemon-stat-group h4 {
-        margin: 0 0 12px 0;
+        margin: 0 0 15px 0;
         color: #87ceeb;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: 600;
         text-transform: uppercase;
+        border-bottom: 2px solid rgba(74, 144, 226, 0.3);
+        padding-bottom: 8px;
       }
       
       /* ===== SCROLLBAR CUSTOM ===== */
