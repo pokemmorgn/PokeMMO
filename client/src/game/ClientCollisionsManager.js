@@ -714,10 +714,9 @@ const canMove = this.canMoveToGrid(toX, toY) && !this.isPokemonAt(toX, toY);
 
 // 📍 TROUVEZ cette méthode vers ligne 580 :
 canMoveTo(x, y) {
-  if (!this.scene.collisionManager) {
-    console.warn(`⚠️ [OverworldPokemonManager] Pas de collision manager - mouvement autorisé`);
-    return true; // Pas de collision manager = pas de vérification
-  }
+  // ✅ REDIRECTION SIMPLE vers canMoveToGrid qui fonctionne
+  return this.canMoveToGrid(x, y);
+}
   
   // ✅ UTILISER LE MÊME SYSTÈME QUE LE JOUEUR
   const canMove = this.scene.collisionManager.canMoveTo(x, y);
