@@ -251,16 +251,21 @@ export class TeamUI {
         text-align: center;
       }
       
-      /* ===== CONTENU ===== */
+      /* ===== CONTENU - FORCER LARGEUR POUR TOUTES LES VUES ===== */
       .team-content {
         flex: 1;
         display: flex;
         overflow: hidden;
+        /* FORCER LA LARGEUR COMPLÈTE */
+        width: 100%;
+        min-width: 100%;
+        box-sizing: border-box;
       }
       
       .team-view {
         display: none;
-        /* FORCER LA LARGEUR COMPLÈTE POUR TOUTES LES VUES */
+        /* STRUCTURE FLEX IDENTIQUE POUR TOUTES LES VUES */
+        flex-direction: column;
         width: 100%;
         min-width: 100%;
         box-sizing: border-box;
@@ -268,6 +273,7 @@ export class TeamUI {
       
       .team-view.active {
         display: flex;
+        flex-direction: column;
         width: 100%;
         min-width: 100%;
         box-sizing: border-box;
