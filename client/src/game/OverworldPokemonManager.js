@@ -604,27 +604,44 @@ export class OverworldPokemonManager {
    * ✅ Gestion demande de mouvement (vérification collision)
    */
   handlePokemonMoveRequest(data) {
-    const { id, fromX, fromY, toX, toY, direction } = data;
-    
-    // Vérifier si le mouvement est possible
-    const canMove = this.canMoveToGrid(toX, toY) && !this.isPokemonAt(toX, toY);
-    
-    // ✅ CORRECTION: Utiliser networkManager.room.send
-    if (this.scene.networkManager?.room) {
-      this.scene.networkManager.room.send('overworldPokemonMoveResponse', {
-        id,
-        success: canMove,
-        toX,
-        toY,
-        direction
-      });
-    } else {
-      console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au mouvement`);
-    }
-    
-    console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'} (${fromX},${fromY}) → (${toX},${toY})`);
+  const { id, fromX, fromY, toX, toY, direction } = data;
+  
+  // ✅ VÉRIFICATION STRICTE - REFUSER SI DESTINATION INVALIDE
+  const canMove = this.canMoveToGrid(toX, toY) && !this.isPokemonAt(toX, toY);
+  
+  // ✅ VÉRIFICATION SUPPLÉMENTAIRE - TRAJECTORY CLEAR
+  const trajectoryOK = this.isTrajectoryValid(fromX, fromY, toX, toY);
+  const finalCanMove = canMove && trajectoryOK;
+  
+  if (this.scene.networkManager?.room) {
+    this.scene.networkManager.room.send('overworldPokemonMoveResponse', {
+      id,
+      success: finalCanMove, // ← Plus strict
+      toX,
+      toY,
+      direction
+    });
   }
+  
+  console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${finalCanMove ? 'OK' : 'BLOQUÉ'} (${fromX},${fromY}) → (${toX},${toY})`);
+}
 
+// ✅ NOUVELLE MÉTHODE - Vérifier que la trajectoire est libre
+isTrajectoryValid(fromX, fromY, toX, toY) {
+  // Vérifier quelques points intermédiaires
+  const steps = 3;
+  for (let i = 1; i <= steps; i++) {
+    const progress = i / steps;
+    const checkX = fromX + (toX - fromX) * progress;
+    const checkY = fromY + (toY - fromY) * progress;
+    
+    if (!this.canMoveToGrid(checkX, checkY)) {
+      console.log(`🛡️ [OverworldPokemonManager] Trajectoire bloquée à (${checkX.toFixed(1)}, ${checkY.toFixed(1)})`);
+      return false;
+    }
+  }
+  return true;
+}
   /**
    * ✅ Vérification si on peut spawn à une position
    */
