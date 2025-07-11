@@ -520,11 +520,9 @@ export class TeamUI {
         margin: 8px 0;
       }
       
-       .pokemon-portrait {
+      .pokemon-portrait {
         width: 80px;
         height: 80px;
-        background-size: cover;
-        background-position: center;
         border-radius: 12px;
         border: 3px solid rgba(255, 255, 255, 0.4);
         image-rendering: pixelated;
