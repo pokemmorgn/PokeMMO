@@ -80,12 +80,12 @@ export class TeamUI {
         pointer-events: none;
       }
       
-      /* ===== CONTAINER PRINCIPAL ===== */
+      /* ===== CONTAINER PRINCIPAL OPTIMISÉ ===== */
       .team-container {
         width: 90%;
-        max-width: 1000px;
+        max-width: 1200px; /* Augmenté de 1000px à 1200px */
         height: 85%;
-        max-height: 750px;
+        max-height: 800px; /* Augmenté de 750px à 800px */
         background: linear-gradient(145deg, #2a3f5f, #1e2d42);
         border: 3px solid #4a90e2;
         border-radius: 20px;
@@ -97,22 +97,28 @@ export class TeamUI {
         transform: scale(0.9);
         transition: transform 0.3s ease;
         overflow: hidden;
+        /* ASSURER QUE LE CONTAINER UTILISE TOUT L'ESPACE */
+        min-width: 800px;
       }
       
       .team-overlay:not(.hidden) .team-container {
         transform: scale(1);
       }
       
-      /* ===== HEADER ===== */
+      /* ===== HEADER FULL WIDTH ===== */
       .team-header {
         background: linear-gradient(90deg, #4a90e2, #357abd);
-        padding: 15px 20px;
+        padding: 15px 25px; /* Plus de padding horizontal */
         border-radius: 17px 17px 0 0;
         display: flex;
         justify-content: space-between;
         align-items: center;
         border-bottom: 2px solid #357abd;
         flex-shrink: 0;
+        /* FORCER LA LARGEUR COMPLÈTE */
+        width: 100%;
+        min-width: 100%;
+        box-sizing: border-box;
       }
       
       .team-title {
@@ -122,6 +128,9 @@ export class TeamUI {
         font-size: 20px;
         font-weight: bold;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        /* PERMETTRE L'EXPANSION */
+        flex: 1;
+        min-width: 0; /* Permet le shrinking si nécessaire */
       }
       
       .team-icon {
@@ -147,6 +156,8 @@ export class TeamUI {
         display: flex;
         align-items: center;
         gap: 20px;
+        /* EMPÊCHER LE SHRINKING */
+        flex-shrink: 0;
       }
       
       .team-stats-header {
