@@ -468,19 +468,17 @@ export class TeamUI {
         font-weight: 500;
       }
       
-      /* ===== POKEMON CARD - AJUSTÉE POUR SLOT 170px ===== */
-    .pokemon-card {
-      /* ✅ NOUVELLE TAILLE : 90% du slot (170px) = ~153px */
-      height: 153px; /* Au lieu de 140px */
-      width: 100%; /* Prendre toute la largeur disponible */
-      display: flex;
-      flex-direction: column;
-      gap: 4px; /* Réduit légèrement pour plus d'espace */
-      justify-content: space-between;
-      padding: 8px; /* Ajout padding pour ne pas toucher les bords */
-      box-sizing: border-box;
-    }
-      
+        .pokemon-card {
+          height: 153px;
+          width: 100%; 
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          justify-content: space-between;
+          padding: 8px;
+          box-sizing: border-box;
+        }
+          
       .pokemon-header {
         display: flex;
         justify-content: space-between;
