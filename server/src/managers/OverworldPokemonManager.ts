@@ -284,29 +284,36 @@ export class OverworldPokemonManager {
     }
   }
 
-  public handleClientMoveResponse(client: any, data: any): void {
-    const { id, success, toX, toY, direction } = data;
-    const pokemon = this.overworldPokemon.get(id);
+ public handleClientMoveResponse(client: any, data: any): void {
+  const { id, success, toX, toY, direction } = data;
+  const pokemon = this.overworldPokemon.get(id);
+  
+  if (!pokemon) return;
+  
+  if (success) {
+    // ✅ Mouvement autorisé par le client
+    pokemon.isMoving = true;
+    pokemon.targetX = toX;
+    pokemon.targetY = toY;
+    pokemon.direction = direction;
+    pokemon.moveStartTime = Date.now();
+    pokemon.moveDuration = 800; // 800ms pour une case
+    pokemon.lastMoveTime = Date.now();
     
-    if (!pokemon) return;
+    this.broadcastPokemonUpdate(pokemon);
+    console.log(`🚀 [OverworldPokemonManager] ${pokemon.name}: (${pokemon.x}, ${pokemon.y}) → (${toX}, ${toY}) ${direction}`);
+  } else {
+    // ✅ MOUVEMENT BLOQUÉ - NE PAS BOUGER
+    console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} bloqué par collision à (${toX}, ${toY})`);
     
-    if (success) {
-      // Mouvement autorisé
-      pokemon.isMoving = true;
-      pokemon.targetX = toX;
-      pokemon.targetY = toY;
-      pokemon.direction = direction;
-      pokemon.moveStartTime = Date.now();
-      pokemon.moveDuration = 800; // 800ms pour une case
-      pokemon.lastMoveTime = Date.now();
-      
-      this.broadcastPokemonUpdate(pokemon);
-      console.log(`🚀 [OverworldPokemonManager] ${pokemon.name}: (${pokemon.x}, ${pokemon.y}) → (${toX}, ${toY}) ${direction}`);
-    } else {
-      // Mouvement bloqué, attendre avant le prochain essai
-      pokemon.lastMoveTime = Date.now() + 500;
-    }
+    // Marquer comme immobile et attendre avant le prochain essai
+    pokemon.isMoving = false;
+    pokemon.lastMoveTime = Date.now() + 1000; // Attendre 1 seconde avant de re-essayer
+    
+    // ✅ BROADCASTER L'ÉTAT IMMOBILE
+    this.broadcastPokemonUpdate(pokemon);
   }
+}
 
   private calculateTargetPosition(x: number, y: number, direction: string): {x: number, y: number} {
     let targetX = x;
