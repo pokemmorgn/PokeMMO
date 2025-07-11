@@ -599,23 +599,135 @@ export class PokemonUISystem {
     console.warn('⚠️ [PokemonUI] Inventaire non disponible, création module vide');
     return this.createEmptyWrapper('inventory');
   }
-
-  async createTeamModule() {
-    console.log('⚔️ [PokemonUI] Création module équipe...');
+  /// TEAM MODULE START 
+  
+async createTeamModule() {
+  console.log('⚔️ [PokemonUI] Création module équipe (UIManager-controlled)...');
+  
+  try {
+    // Import du nouveau TeamManager
+    const { createUIManagerControlledTeamManager, setupTeamManagerUIManagerBridge } = 
+      await import('./managers/TeamManager.js');
     
-    if (window.teamManagerGlobal) {
-      console.log('🔄 [PokemonUI] Réutilisation équipe existante');
-      return this.wrapExistingModule(window.teamManagerGlobal, 'team');
+    // Créer TeamManager en mode contrôlé
+    const teamManager = createUIManagerControlledTeamManager(
+      window.game?.scene?.getScenes(true)[0], 
+      window.currentGameRoom
+    );
+    
+    // Initialiser la logique business
+    await teamManager.init();
+    
+    // Setup le bridge de communication (une seule fois)
+    if (!window.teamManagerBridgeSetup) {
+      setupTeamManagerUIManagerBridge();
+      window.teamManagerBridgeSetup = true;
     }
     
-    if (typeof window.initTeamSystem === 'function') {
-      const teamSystem = window.initTeamSystem(window.currentGameRoom);
-      return this.wrapExistingModule(teamSystem, 'team');
-    }
+    // Stocker globalement pour accès facile
+    window.teamManagerGlobal = teamManager;
     
-    console.warn('⚠️ [PokemonUI] Équipe non disponible, création module vide');
+    console.log('✅ [PokemonUI] TeamManager créé (business logic ready)');
+    
+    // Retourner un wrapper UIManager-compatible
+    return this.createTeamManagerWrapper(teamManager);
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur création TeamManager:', error);
     return this.createEmptyWrapper('team');
   }
+}
+
+// ===== NOUVELLE MÉTHODE : Wrapper TeamManager =====
+createTeamManagerWrapper(teamManager) {
+  console.log('🔧 [PokemonUI] Création wrapper TeamManager...');
+  
+  const wrapper = {
+    // Identification
+    moduleType: 'team',
+    originalModule: teamManager,
+    iconElement: null, // Sera créé par la factory TeamIcon
+    
+    // === MÉTHODES UIMANAGER REQUISES ===
+    
+    show: function() {
+      console.log('👁️ [TeamWrapper] show() → délégation TeamManager');
+      return teamManager.show();
+    },
+    
+    hide: function() {
+      console.log('👻 [TeamWrapper] hide() → délégation TeamManager');
+      return teamManager.hide();
+    },
+    
+    setEnabled: function(enabled) {
+      console.log(`🔧 [TeamWrapper] setEnabled(${enabled}) → délégation TeamManager`);
+      return teamManager.setEnabled(enabled);
+    },
+    
+    destroy: function() {
+      console.log('🧹 [TeamWrapper] destroy() → délégation TeamManager');
+      return teamManager.destroy();
+    },
+    
+    // === MÉTHODES SPÉCIFIQUES TEAM ===
+    
+    getTeamData: function() {
+      return teamManager.getTeamData();
+    },
+    
+    getTeamStats: function() {
+      return teamManager.getTeamStats();
+    },
+    
+    canBattle: function() {
+      return teamManager.canBattle();
+    },
+    
+    // === COMPATIBILITÉ LEGACY ===
+    
+    toggleTeamUI: function() {
+      console.log('🔄 [TeamWrapper] toggleTeamUI() → request UIManager');
+      teamManager.requestUIManagerAction('toggleTeamUI');
+    },
+    
+    openTeam: function() {
+      console.log('📂 [TeamWrapper] openTeam() → request UIManager');
+      teamManager.requestUIManagerAction('showTeamUI');
+    },
+    
+    closeTeam: function() {
+      console.log('📁 [TeamWrapper] closeTeam() → request UIManager');
+      teamManager.requestUIManagerAction('hideTeamUI');
+    },
+    
+    // === STATE MANAGEMENT ===
+    
+    getUIManagerState: function() {
+      return teamManager.getUIManagerState();
+    },
+    
+    // === GETTERS POUR COMPATIBILITÉ ===
+    
+    get teamUI() {
+      return teamManager.teamUI;
+    },
+    
+    get teamIcon() {
+      return teamManager.teamIcon;
+    },
+    
+    get isInitialized() {
+      return teamManager.uiManagerState.initialized;
+    }
+  };
+  
+  console.log('✅ [PokemonUI] Wrapper TeamManager créé');
+  
+  return wrapper;
+}
+
+  /// TEAM MODULE END
 
   async createQuestModule() {
     console.log('📋 [PokemonUI] Création module quêtes...');
