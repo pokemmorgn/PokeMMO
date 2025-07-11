@@ -552,13 +552,17 @@ export class OverworldPokemonManager {
     // Vérifier si la position est libre
     const canSpawn = this.canSpawnAt(x, y);
     
-    // Répondre au serveur
-    this.scene.network.send('overworldPokemonSpawnResponse', {
-      ...data,
-      success: canSpawn,
-      x: x,
-      y: y
-    });
+    // ✅ CORRECTION: Utiliser networkManager.room.send au lieu de scene.network.send
+    if (this.scene.networkManager?.room) {
+      this.scene.networkManager.room.send('overworldPokemonSpawnResponse', {
+        ...data,
+        success: canSpawn,
+        x: x,
+        y: y
+      });
+    } else {
+      console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au spawn`);
+    }
     
     console.log(`🎯 [OverworldPokemonManager] Spawn request ${id}: ${canSpawn ? 'OK' : 'BLOQUÉ'} à (${x}, ${y})`);
   }
@@ -572,14 +576,18 @@ export class OverworldPokemonManager {
     // Vérifier si le mouvement est possible
     const canMove = this.canMoveTo(toX, toY) && !this.isPokemonAt(toX, toY);
     
-    // Répondre au serveur
-    this.scene.network.send('overworldPokemonMoveResponse', {
-      id,
-      success: canMove,
-      toX,
-      toY,
-      direction
-    });
+    // ✅ CORRECTION: Utiliser networkManager.room.send
+    if (this.scene.networkManager?.room) {
+      this.scene.networkManager.room.send('overworldPokemonMoveResponse', {
+        id,
+        success: canMove,
+        toX,
+        toY,
+        direction
+      });
+    } else {
+      console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au mouvement`);
+    }
     
     console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'} (${fromX},${fromY}) → (${toX},${toY})`);
   }
