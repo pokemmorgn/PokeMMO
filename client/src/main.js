@@ -5,13 +5,10 @@ import { LoadingScreen } from './components/LoadingScreen.js';
 import { SceneRegistry } from './scenes/SceneRegistry.js';
 import { TimeService } from './services/TimeService.js';
 import { globalWeatherManager } from './managers/GlobalWeatherManager.js';
-import { ClientEncounterManager } from './managers/EncounterManager.js';
+import { StarterUtils } from './components/StarterSelector.js';
 import { BattleIntegration } from './managers/BattleIntegration.js';
-import { initializeGameNotifications } from './notification.js';
-import { initializePokemonUI } from './ui.js';
-import { initPokeChat } from './network/PokeChatSystem.js';
 
-// Scene imports
+// Scenes
 import { LoaderScene } from "./scenes/LoaderScene.js";
 import { BeachScene } from "./scenes/zones/BeachScene.js";
 import { VillageScene } from "./scenes/zones/VillageScene.js";
@@ -49,11 +46,15 @@ import { NoctherbCave2BisScene } from './scenes/zones/NoctherbCave2BisScene.js';
 import { WraithmoorScene } from './scenes/zones/WraithmoorScene.js';
 import { WraithmoorCimeteryScene } from './scenes/zones/WraithmoorCimeteryScene.js';
 import { WraithmoorManor1Scene } from './scenes/zones/WraithmoorManor1Scene.js';
-import { BattleScene } from './scenes/BattleScene.js';
 
 import { Client } from 'colyseus.js';
+import { initPokeChat } from './network/PokeChatSystem.js';
+import { initializeGameNotifications } from './notification.js';
+import { ClientEncounterManager } from './managers/EncounterManager.js';
+import { BattleScene } from './scenes/BattleScene.js';
+import { initializePokemonUI } from './ui.js';
+import './debug-notifications.js';
 
-// Connection setup
 const ENDPOINT =
   (location.protocol === "https:" ? "wss://" : "ws://") +
   location.hostname +
@@ -63,7 +64,8 @@ const ENDPOINT =
 const client = new Client(ENDPOINT);
 window.client = client;
 
-// User authentication
+// === CONFIGURATION ET CONNEXION ===
+
 function getWalletFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return params.get('wallet');
@@ -79,13 +81,12 @@ if (!username) {
 }
 window.username = username;
 
-// Scene system initialization
+// === SYSTÈME DE SCÈNES ===
+
 async function initializeSceneSystem() {
-  console.log("🏗️ Initialisation système de scènes...");
-  
   const registry = SceneRegistry.getInstance();
   
-  // Register scene classes
+  // Enregistrement des scènes principales
   registry.registerSceneClass('beach', BeachScene);
   registry.registerSceneClass('village', VillageScene);
   registry.registerSceneClass('villagelab', VillageLabScene);
@@ -95,7 +96,7 @@ async function initializeSceneSystem() {
   
   window.sceneRegistry = registry;
   
-  // Global scene management functions
+  // Fonctions de transition
   window.switchToZone = async function(zoneName, transitionData = {}) {
     const sceneKey = registry.getSceneKey(zoneName);
     const targetScene = window.game.scene.getScene(sceneKey);
@@ -122,14 +123,12 @@ async function initializeSceneSystem() {
     return registry.getAvailableZones();
   };
   
-  console.log("✅ Système de scènes initialisé");
   return registry;
 }
 
-// Weather system initialization
+// === SYSTÈME MÉTÉO GLOBAL ===
+
 async function initializeGlobalWeatherSystem() {
-  console.log("🌤️ Initialisation système météo global...");
-  
   try {
     const success = await globalWeatherManager.initialize(window.globalNetworkManager);
     
@@ -145,6 +144,10 @@ async function initializeGlobalWeatherSystem() {
       };
       
       window.registerSceneToWeather = function(scene, zoneName) {
+        if (!globalWeatherManager.isInitialized) {
+          console.warn("⚠️ Système météo pas prêt pour enregistrement");
+          return false;
+        }
         return globalWeatherManager.registerScene(scene, zoneName);
       };
       
@@ -154,26 +157,21 @@ async function initializeGlobalWeatherSystem() {
     }
     
   } catch (error) {
-    console.error("❌ Erreur système météo:", error);
+    console.error("❌ Erreur initialisation système météo:", error);
     
-    // Fallback weather system
+    // Fallback
     window.globalWeatherManager = {
       isInitialized: false,
       getCurrentWeather: () => ({ weather: 'clear', displayName: 'Ciel dégagé' }),
       getCurrentTime: () => ({ hour: 12, isDayTime: true }),
       registerScene: () => false
     };
-    
-    window.getGlobalWeather = () => ({ weather: 'clear', displayName: 'Ciel dégagé' });
-    window.getGlobalTime = () => ({ hour: 12, isDayTime: true });
-    window.registerSceneToWeather = () => false;
   }
 }
 
-// Encounter system initialization
+// === SYSTÈME D'ENCOUNTERS ===
+
 window.initEncounterSystem = function(scene, mapData = null) {
-  console.log('🎲 Initialisation système encounters...');
-  
   if (scene?.encounterManager && scene.encounterInitialized) {
     return scene.encounterManager;
   }
@@ -198,19 +196,17 @@ window.initEncounterSystem = function(scene, mapData = null) {
       scene.encounterInitialized = true;
     }
     
-    console.log('✅ Système encounters initialisé');
     return encounterManager;
     
   } catch (error) {
-    console.error('❌ Erreur système encounters:', error);
+    console.error('❌ Erreur initialisation système encounters:', error);
     return null;
   }
 };
 
-// Battle system initialization
+// === SYSTÈME DE COMBAT ===
+
 window.initBattleSystem = function(gameRoom) {
-  console.log('⚔️ Initialisation système de combat...');
-  
   if (window.battleSystem?.isInitialized) {
     return window.battleSystem;
   }
@@ -236,12 +232,13 @@ window.initBattleSystem = function(gameRoom) {
     return window.battleSystem;
     
   } catch (error) {
-    console.error('❌ Erreur système de combat:', error);
+    console.error('❌ Erreur initialisation système de combat:', error);
     return null;
   }
 };
 
-// Phaser configuration
+// === CONFIGURATION PHASER ===
+
 const config = {
   type: Phaser.AUTO,
   width: 800,
@@ -313,17 +310,61 @@ const config = {
   }
 };
 
-// Main initialization
+// === CSS POUR STARTER HUD ===
+
+const starterHudCSS = `
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+#starter-selection-hud { 
+  font-family: 'Orbitron', 'Arial', sans-serif !important; 
+  animation: fadeIn 0.5s ease-in-out; 
+}
+#starter-selection-hud h1 { 
+  text-transform: uppercase; 
+  letter-spacing: 2px; 
+}
+#starter-selection-hud img { 
+  transition: transform 0.3s ease; 
+}
+#starter-selection-hud img:hover { 
+  transform: scale(1.1); 
+}
+@keyframes fadeIn { 
+  from { opacity: 0; transform: scale(0.9); } 
+  to { opacity: 1; transform: scale(1); } 
+}
+.starter-card { 
+  animation: slideUp 0.6s ease-out; 
+}
+.starter-card:nth-child(1) { animation-delay: 0.1s; }
+.starter-card:nth-child(2) { animation-delay: 0.2s; }
+.starter-card:nth-child(3) { animation-delay: 0.3s; }
+@keyframes slideUp { 
+  from { opacity: 0; transform: translateY(30px); } 
+  to { opacity: 1; transform: translateY(0); } 
+}
+.starter-success-message { 
+  animation: bounceIn 0.8s ease-out; 
+}
+@keyframes bounceIn { 
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); } 
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 
+}
+`;
+
+const styleSheet = document.createElement('style');
+styleSheet.textContent = starterHudCSS;
+document.head.appendChild(styleSheet);
+
+// === INITIALISATION PRINCIPALE ===
+
 (async () => {
   try {
-    console.log("🚀 Démarrage PokeWorld MMO...");
-    
-    // Initialize notification system
+    // Système de notifications
     const notificationSystem = initializeGameNotifications();
     console.log("✅ Système de notification initialisé");
     
-    // Initialize network manager
-    console.log("🌐 Connexion au serveur...");
+    // NetworkManager global
     window.globalNetworkManager = new NetworkManager(client, window.username);
     
     const connectionSuccess = await window.globalNetworkManager.connect("beach", {
@@ -336,31 +377,30 @@ const config = {
     }
     
     window.currentGameRoom = window.globalNetworkManager.room;
-    console.log("✅ Connecté au serveur");
+    console.log("✅ Connecté à la WorldRoom:", window.currentGameRoom.sessionId);
     
-    // Connect time service
+    // TimeService
     TimeService.getInstance().connectToRoom(window.currentGameRoom);
     
-    // Initialize weather system
+    // Système météo
     await initializeGlobalWeatherSystem();
     
-    // Initialize scene system
+    // Système de scènes
     await initializeSceneSystem();
     
-    // Connect to world chat
-    console.log("💬 Connexion chat mondial...");
+    // Chat mondial
     const worldChat = await client.joinOrCreate("worldchat", { username });
     window.worldChat = worldChat;
     initPokeChat(worldChat, window.username);
     console.log("✅ Chat mondial connecté");
-    
-    // Show loading screen
+
+    // Écran de chargement étendu
     window.extendedLoadingScreen = LoadingScreen.createGlobal({
       enabled: true,
       fastMode: false,
       theme: 'extended'
     });
-    
+
     window.extendedLoadingScreen.addCustomTheme('extended', {
       title: 'PokeWorld MMO',
       steps: [
@@ -379,16 +419,15 @@ const config = {
       color: 'rgba(34, 197, 94, 0.8)',
       stepDelay: 800
     });
-    
-    // Start loading and game
+
+    // Démarrage de Phaser avec chargement
     window.extendedLoadingScreen.show('extended');
     
     setTimeout(() => {
-      console.log("🎮 Lancement Phaser...");
       window.game = new Phaser.Game(config);
     }, 1000);
-    
-    // Audio context setup
+
+    // AudioContext
     document.addEventListener('click', function resumeAudioContext() {
       if (window.game?.sound?.context?.state === 'suspended') {
         window.game.sound.context.resume().then(() => {
@@ -398,50 +437,59 @@ const config = {
       document.removeEventListener('click', resumeAudioContext);
     }, { once: true });
     
-    // Initialize battle system after delay
+    // Initialisation du système de combat (délayée)
     setTimeout(async () => {
       try {
-        if (window.game && window.globalNetworkManager?.isConnected) {
-          window.battleSystem = new BattleIntegration(window);
-          const battleInitSuccess = await window.battleSystem.initialize(
-            window.globalNetworkManager.room,
-            window.game
-          );
-          if (battleInitSuccess) {
-            console.log("✅ Système de combat initialisé");
-          }
+        const hasPrereqs = window.game && window.globalNetworkManager?.isConnected;
+        
+        if (!hasPrereqs) {
+          throw new Error("Pré-requis manquants pour le système de combat");
         }
+
+        window.battleSystem = new BattleIntegration(window);
+        const battleInitSuccess = await window.battleSystem.initialize(
+          window.globalNetworkManager.room,
+          window.game
+        );
+        
+        if (battleInitSuccess) {
+          console.log("✅ Système de combat initialisé");
+        }
+
       } catch (error) {
-        console.error("❌ Erreur initialisation combat:", error);
+        console.error("❌ Erreur initialisation système de combat:", error);
       }
     }, 5000);
-    
-    // Initialize Pokemon UI system
+
+    // Initialisation du système UI Pokémon
     window.initializePokemonUI = async function() {
-      console.log("🎮 Initialisation interface Pokémon...");
-      
       try {
         const uiResult = await initializePokemonUI();
         
         if (uiResult.success) {
-          console.log("✅ Interface Pokémon initialisée");
+          console.log("✅ Système UI Pokémon initialisé");
           window.showGameNotification?.("Interface utilisateur prête !", "success", { 
             duration: 2000, 
             position: 'bottom-center' 
           });
         } else {
-          console.error("❌ Erreur interface Pokémon:", uiResult.error);
+          console.error("❌ Erreur initialisation UI Pokémon:", uiResult.error);
+          window.showGameNotification?.("Erreur interface utilisateur", "error", { 
+            duration: 3000, 
+            position: 'top-center' 
+          });
         }
         
         return uiResult;
         
       } catch (error) {
-        console.error("❌ Erreur critique interface:", error);
+        console.error("❌ Erreur critique initialisation UI:", error);
         return { success: false, error: error.message };
       }
     };
-    
-    console.log("🎯 PokeWorld MMO initialisé avec succès !");
+
+    console.log("🎯 Tous les systèmes initialisés !");
+    console.log("🎮 Nouveau système UI Pokémon actif !");
     
   } catch (e) {
     console.error("❌ Erreur d'initialisation:", e);
@@ -450,171 +498,100 @@ const config = {
   }
 })();
 
-// Utility functions for input management
+// === FONCTIONS UTILITAIRES ===
+
 window.isChatFocused = function() {
   return window.pokeChat ? window.pokeChat.hasFocus() : false;
 };
 
-window.isInventoryOpen = function() {
-  if (window.pokemonUISystem) {
-    const inventoryModule = window.pokemonUISystem.getOriginalModule('inventory');
-    return inventoryModule?.isInventoryOpen() || false;
-  }
-  return false;
+window.isStarterHUDOpen = function() {
+  return window.starterHUD ? window.starterHUD.isVisible : false;
 };
 
-window.isTeamOpen = function() {
-  if (window.pokemonUISystem) {
-    const teamModule = window.pokemonUISystem.getOriginalModule('team');
-    return teamModule?.isTeamOpen() || false;
-  }
-  return false;
-};
-
-window.isQuestJournalOpen = function() {
-  if (window.pokemonUISystem) {
-    const questModule = window.pokemonUISystem.getOriginalModule('quest');
-    return questModule?.isQuestJournalOpen() || false;
-  }
-  return false;
-};
-
-window.isBattleActive = function() {
-  try {
-    return window.battleSystem?.isCurrentlyInBattle?.() || false;
-  } catch (error) {
-    return false;
-  }
+window.isStarterSelectionActive = function() {
+  return StarterUtils.isActive();
 };
 
 window.shouldBlockInput = function() {
   return window.isChatFocused() ||
-    window.isInventoryOpen() ||
-    window.isTeamOpen() ||
-    window.isQuestJournalOpen() ||
-    window.isBattleActive();
+    window.isStarterHUDOpen() ||
+    window.isStarterSelectionActive() ||
+    (window.pokemonUISystem?.isAnyUIOpen?.() || false) ||
+    (window.battleSystem?.isCurrentlyInBattle?.() || false);
 };
 
 window.canPlayerInteract = function() {
   return !window.shouldBlockInput();
 };
 
-// UI management functions
-window.toggleInventory = function() {
-  if (window.pokemonUISystem) {
-    const inventoryModule = window.pokemonUISystem.getOriginalModule('inventory');
-    if (inventoryModule?.toggleInventory) {
-      inventoryModule.toggleInventory();
-    }
+// === GESTION DES INPUTS ===
+// Les contrôles sont gérés par les scènes individuelles et le système UI
+
+// === FONCTIONS DE TRANSITION ===
+
+window.testTransition = function(targetZone = 'village') {
+  if (window.sceneRegistry && window.sceneRegistry.hasZone(targetZone)) {
+    window.switchToZone(targetZone, { 
+      spawnX: 100, 
+      spawnY: 100,
+      testMode: true 
+    });
+    window.showGameNotification?.(`Transition vers ${targetZone}`, "info", { 
+      duration: 2000, 
+      position: 'top-center' 
+    });
+  } else {
+    console.error(`❌ Zone ${targetZone} non disponible`);
   }
 };
 
-window.toggleTeam = function() {
-  if (window.pokemonUISystem) {
-    const teamModule = window.pokemonUISystem.getOriginalModule('team');
-    if (teamModule?.toggleTeamUI) {
-      teamModule.toggleTeamUI();
-    }
-  }
-};
+// === FONCTIONS DE DEBUG ===
 
-window.toggleQuests = function() {
-  if (window.pokemonUISystem) {
-    const questModule = window.pokemonUISystem.getOriginalModule('quest');
-    if (questModule?.toggleQuestJournal) {
-      questModule.toggleQuestJournal();
-    }
-  }
-};
-
-// Battle functions
-window.testBattle = function() {
-  if (!window.battleSystem?.isInitialized) {
-    console.error('❌ Système de combat non initialisé');
-    return false;
-  }
-  
-  return window.battleSystem.test();
-};
-
-window.startWildBattle = function(pokemonData = null) {
-  if (!window.battleSystem?.isInitialized) {
-    console.error('❌ Système de combat non prêt');
-    return false;
-  }
-
-  const testPokemon = pokemonData || {
-    pokemonId: 25,
-    level: 5,
-    name: 'Pikachu',
-    shiny: false,
-    gender: 'male'
+window.getGameSystemsStatus = function() {
+  return {
+    networkManager: {
+      initialized: !!window.globalNetworkManager,
+      connected: window.globalNetworkManager?.isConnected || false,
+      sessionId: window.globalNetworkManager?.getSessionId() || null
+    },
+    ui: {
+      pokemonUISystem: !!window.pokemonUISystem,
+      ready: window.pokemonUISystem?.isReady?.() || false
+    },
+    battle: {
+      initialized: !!window.battleSystem,
+      ready: window.battleSystem?.isInitialized || false,
+      inBattle: window.battleSystem?.isCurrentlyInBattle?.() || false
+    },
+    encounters: {
+      global: !!window.encounterManagerGlobal,
+      sceneManager: !!window.game?.scene?.getScenes(true)[0]?.encounterManager
+    },
+    weather: {
+      initialized: window.globalWeatherManager?.isInitialized || false
+    },
+    scenes: {
+      registry: !!window.sceneRegistry,
+      availableZones: window.sceneRegistry?.getAvailableZones() || []
+    },
+    canInteract: window.canPlayerInteract()
   };
-
-  return window.battleSystem.startWildBattle({
-    pokemon: testPokemon,
-    location: 'test_zone',
-    method: 'manual'
-  });
 };
 
-// Keyboard controls
-document.addEventListener('keydown', (event) => {
-  if (window.shouldBlockInput()) return;
-
-  // Only handle UI keys, not movement keys (wasd/zqsd)
-  const movementKeys = ['w', 'a', 's', 'd', 'z', 'q', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
-  const keyLower = event.key.toLowerCase();
-  
-  // Don't prevent movement keys
-  if (movementKeys.includes(keyLower)) {
-    return;
-  }
-
-  switch (keyLower) {
-    case 'i':
-      event.preventDefault();
-      window.toggleInventory();
-      break;
-    case 't':
-      event.preventDefault();
-      window.toggleTeam();
-      break;
-    case 'j': // Changed from 'q' to 'j' for quest journal (J for Journal)
-      event.preventDefault();
-      window.toggleQuests();
-      break;
-    case 'b':
-      event.preventDefault();
-      window.testBattle();
-      break;
-    case 'f':
-      event.preventDefault();
-      const activeScene = window.game?.scene?.getScenes(true)[0];
-      if (activeScene?.debugEncounters) {
-        activeScene.debugEncounters();
-      }
-      break;
-    case 'g':
-      event.preventDefault();
-      const currentScene = window.game?.scene?.getScenes(true)[0];
-      if (currentScene?.forceEncounterTest) {
-        currentScene.forceEncounterTest();
-      }
-      break;
-  }
-});
+window.debugGameSystems = function() {
+  const status = window.getGameSystemsStatus();
+  console.log("🔍 État des systèmes:", status);
+  return status;
+};
 
 console.log(`
 🎉 === POKÉMON MMO PRÊT ===
-Contrôles:
-• I - Inventaire
-• T - Équipe
-• J - Quêtes (Journal)
-• B - Test combat
-• F - Debug encounters
-• G - Force encounter
-• WASD/ZQSD - Déplacement
+✨ Système UI moderne intégré
+⚔️ Combat MMO disponible
+🎲 Système d'encounters actif
+🌤️ Météo globale synchronisée
+🔄 Transitions de scènes robustes
+🎮 Contrôles gérés par les scènes et l'interface
 ========================
 `);
 
