@@ -625,40 +625,50 @@ export class PokemonUISystem {
   // === FACTORIES DES MODULES ===
 
   async createInventoryModule() {
-  console.log('🎒 [PokemonUI] Création NOUVEAU module inventaire compatible UIManager...');
+    console.log('🎒 [PokemonUI] Création module inventaire...');
+    
+    if (window.inventorySystemGlobal) {
+      console.log('🔄 [PokemonUI] Réutilisation inventaire existant');
+      return this.wrapExistingModule(window.inventorySystemGlobal, 'inventory');
+    }
+    
+    if (typeof window.initInventorySystem === 'function') {
+      const inventorySystem = window.initInventorySystem(window.currentGameRoom);
+      return this.wrapExistingModule(inventorySystem, 'inventory');
+    }
+    
+    console.warn('⚠️ [PokemonUI] Inventaire non disponible, création module vide');
+    return this.createEmptyWrapper('inventory');
+  }
+
+  async createTeamModuleUnified() {
+  console.log('⚔️ [PokemonUI] Création module Team unifié...');
   
   try {
-    // Import du nouveau système unifié
-    const { createInventoryModule } = await import('./Inventory/index.js');
+    // Import dynamique du système Team unifié
+    const { createTeamModule } = await import('./Team/index.js');
     
-    // Créer le module avec UIManager
-    const inventoryModule = await createInventoryModule(
+    // Créer le module avec les paramètres du jeu
+    const teamModule = await createTeamModule(
       window.currentGameRoom,
       window.game?.scene?.getScenes(true)[0]
     );
     
-    if (!inventoryModule) {
-      throw new Error('Échec création InventoryModule');
-    }
-    
-    // ✅ Le nouveau module est déjà compatible UIManager
-    console.log('✅ [PokemonUI] Nouveau InventoryModule créé avec API UIManager');
-    
     // Exposer globalement pour compatibilité
-    window.inventorySystem = inventoryModule.system;          // Business logic
-    window.inventorySystemGlobal = inventoryModule;           // Module complet
-    window.toggleInventory = () => inventoryModule.toggle();
-    window.openInventory = () => inventoryModule.openInventory();
-    window.closeInventory = () => inventoryModule.closeInventory();
+    window.teamSystem = teamModule;
+    window.toggleTeam = () => teamModule.toggleTeamUI();
+    window.openTeam = () => teamModule.openTeam();
+    window.closeTeam = () => teamModule.closeTeam();
     
-    console.log('🔗 [PokemonUI] Nouveau inventaire exposé globalement');
+    console.log('✅ [PokemonUI] Module Team unifié créé et exposé globalement');
     
-    return inventoryModule;
+    return teamModule;
     
   } catch (error) {
-    console.error('❌ [PokemonUI] Erreur création nouveau inventaire:', error);
-    console.log('🔧 [PokemonUI] Fallback vers wrapper vide...');
-    return this.createEmptyWrapper('inventory');
+    console.error('❌ [PokemonUI] Erreur création Team unifié:', error);
+    
+    // Fallback vers module vide en cas d'erreur
+    return this.createEmptyWrapper('team');
   }
 }
 
@@ -1924,17 +1934,17 @@ export async function createMinimalPokemonUI() {
 function setupCompatibilityFunctions() {
   console.log('🔗 [PokemonUI] Configuration fonctions de compatibilité...');
   
-// ✅ NOUVELLE FONCTION (plus simple et robuste)
-window.toggleInventory = () => {
-  if (window.inventorySystemGlobal && window.inventorySystemGlobal.toggle) {
-    window.inventorySystemGlobal.toggle();
-  } else if (window.inventorySystem && window.inventorySystem.toggleInventory) {
-    window.inventorySystem.toggleInventory();
-  } else {
-    console.warn('⚠️ [PokemonUI] Système inventaire non disponible pour toggle');
-    console.log('🔧 [PokemonUI] Utilisez window.fixInventorySystem() pour réparer');
-  }
-};
+  // Fonctions toggle pour compatibilité
+  window.toggleInventory = () => {
+    const module = pokemonUISystem.getOriginalModule?.('inventory');
+    if (module && module.toggle) {
+      module.toggle();
+    } else if (module && module.toggleInventory) {
+      module.toggleInventory();
+    } else {
+      console.warn('⚠️ Module inventaire non disponible pour toggle');
+    }
+  };
 
   window.toggleTeam = () => {
     const module = pokemonUISystem.getModule?.('team');
