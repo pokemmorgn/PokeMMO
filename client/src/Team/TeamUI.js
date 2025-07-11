@@ -1,5 +1,5 @@
-// Team/TeamUI.js - Interface Team COMPLÈTEMENT REFAITE
-// 🎯 Layout moderne clean sans superposition
+// Team/TeamUI.js - Interface Team COMPLÈTE avec affichage Pokémon
+// 🎯 Layout moderne avec affichage correct des données Pokémon
 
 export class TeamUI {
   constructor(teamManager, gameRoom) {
@@ -20,20 +20,20 @@ export class TeamUI {
     // === CALLBACKS ===
     this.onAction = null;
     
-    console.log('🎯 [TeamUI] Instance créée - Layout refait');
+    console.log('🎯 [TeamUI] Instance créée - Interface Pokémon complète');
   }
   
   // === 🚀 INITIALISATION ===
   
   async init() {
     try {
-      console.log('🚀 [TeamUI] Initialisation layout refait...');
+      console.log('🚀 [TeamUI] Initialisation interface Pokémon...');
       
       await this.loadModernCSS();
-      this.createCleanInterface();
+      this.createCompleteInterface();
       this.setupEventListeners();
       
-      console.log('✅ [TeamUI] Interface refaite initialisée');
+      console.log('✅ [TeamUI] Interface Pokémon initialisée');
       return this;
       
     } catch (error) {
@@ -42,19 +42,19 @@ export class TeamUI {
     }
   }
   
-  // === 🎨 CSS MODERNE COMPLÈTEMENT REFAIT ===
+  // === 🎨 CSS MODERNE COMPLET ===
   
   async loadModernCSS() {
     // Supprimer l'ancien style s'il existe
-    const existingStyle = document.querySelector('#modern-team-ui-styles');
+    const existingStyle = document.querySelector('#complete-team-ui-styles');
     if (existingStyle) {
       existingStyle.remove();
     }
     
     const style = document.createElement('style');
-    style.id = 'modern-team-ui-styles';
+    style.id = 'complete-team-ui-styles';
     style.textContent = `
-      /* ===== RESET ET BASE - SCOPED UNIQUEMENT POUR TEAM UI ===== */
+      /* ===== RESET ET BASE ===== */
       .team-overlay * {
         box-sizing: border-box;
       }
@@ -66,12 +66,12 @@ export class TeamUI {
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.8);
+        background: rgba(0, 0, 0, 0.85);
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 1000;
-        backdrop-filter: blur(5px);
+        backdrop-filter: blur(8px);
         transition: opacity 0.3s ease;
       }
       
@@ -80,12 +80,12 @@ export class TeamUI {
         pointer-events: none;
       }
       
-      /* ===== CONTAINER STYLE INVENTAIRE ===== */
+      /* ===== CONTAINER PRINCIPAL ===== */
       .team-container {
         width: 90%;
-        max-width: 900px;
+        max-width: 1000px;
         height: 85%;
-        max-height: 700px;
+        max-height: 750px;
         background: linear-gradient(145deg, #2a3f5f, #1e2d42);
         border: 3px solid #4a90e2;
         border-radius: 20px;
@@ -93,16 +93,17 @@ export class TeamUI {
         flex-direction: column;
         color: white;
         font-family: 'Segoe UI', Arial, sans-serif;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
         transform: scale(0.9);
         transition: transform 0.3s ease;
+        overflow: hidden;
       }
       
       .team-overlay:not(.hidden) .team-container {
         transform: scale(1);
       }
       
-      /* ===== HEADER STYLE INVENTAIRE ===== */
+      /* ===== HEADER ===== */
       .team-header {
         background: linear-gradient(90deg, #4a90e2, #357abd);
         padding: 15px 20px;
@@ -111,25 +112,27 @@ export class TeamUI {
         justify-content: space-between;
         align-items: center;
         border-bottom: 2px solid #357abd;
+        flex-shrink: 0;
       }
       
       .team-title {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         font-size: 20px;
         font-weight: bold;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
       }
       
       .team-icon {
-        font-size: 28px;
+        font-size: 32px;
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
       }
       
       .team-title-text h2 {
         margin: 0;
         color: #ffffff;
-        font-size: 20px;
+        font-size: 22px;
         font-weight: bold;
       }
       
@@ -143,57 +146,65 @@ export class TeamUI {
       .team-controls {
         display: flex;
         align-items: center;
-        gap: 15px;
+        gap: 20px;
       }
       
-      .team-stats {
+      .team-stats-header {
         text-align: right;
         background: rgba(255, 255, 255, 0.1);
-        padding: 8px 12px;
-        border-radius: 8px;
+        padding: 10px 15px;
+        border-radius: 10px;
         font-size: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
       }
       
       .team-count {
-        font-size: 18px;
+        font-size: 20px;
         font-weight: bold;
         color: #87ceeb;
+        display: block;
       }
       
       .team-status {
         font-size: 12px;
-        margin-top: 2px;
+        margin-top: 3px;
         font-weight: 600;
       }
       
       .team-close-btn {
-        background: rgba(220, 53, 69, 0.8);
-        border: none;
+        background: rgba(220, 53, 69, 0.9);
+        border: 2px solid rgba(220, 53, 69, 0.5);
         color: white;
-        width: 35px;
-        height: 35px;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
-        font-size: 18px;
+        font-size: 20px;
         cursor: pointer;
-        transition: background 0.3s ease;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       
       .team-close-btn:hover {
         background: rgba(220, 53, 69, 1);
+        border-color: rgba(220, 53, 69, 0.8);
+        transform: scale(1.1);
       }
       
-      /* ===== TABS STYLE INVENTAIRE ===== */
+      /* ===== TABS ===== */
       .team-tabs {
         display: flex;
-        gap: 5px;
-        padding: 10px 0;
+        gap: 0;
+        padding: 0;
         background: rgba(0, 0, 0, 0.3);
         border-bottom: 2px solid #357abd;
+        flex-shrink: 0;
       }
       
       .team-tab {
         flex: 1;
-        padding: 12px 15px;
+        padding: 15px 20px;
         background: none;
         border: none;
         color: rgba(255, 255, 255, 0.7);
@@ -202,33 +213,31 @@ export class TeamUI {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        font-size: 14px;
+        gap: 10px;
+        font-size: 15px;
         font-weight: 600;
-        border-left: 4px solid transparent;
-        margin: 0 5px;
-        border-radius: 0 8px 8px 0;
+        border-bottom: 4px solid transparent;
+        position: relative;
       }
       
       .team-tab:hover {
-        background: rgba(74, 144, 226, 0.2);
-        border-left-color: #4a90e2;
+        background: rgba(74, 144, 226, 0.15);
         color: #87ceeb;
       }
       
       .team-tab.active {
-        background: rgba(74, 144, 226, 0.4);
-        border-left-color: #4a90e2;
+        background: rgba(74, 144, 226, 0.25);
         color: #87ceeb;
+        border-bottom-color: #4a90e2;
       }
       
       .tab-icon {
-        font-size: 16px;
-        width: 20px;
+        font-size: 18px;
+        width: 22px;
         text-align: center;
       }
       
-      /* ===== CONTENU STYLE INVENTAIRE ===== */
+      /* ===== CONTENU ===== */
       .team-content {
         flex: 1;
         display: flex;
@@ -245,39 +254,75 @@ export class TeamUI {
         width: 100%;
       }
       
-      /* ===== LAYOUT COMME INVENTAIRE ===== */
+      /* ===== LAYOUT OVERVIEW ===== */
       .team-overview-content {
         display: flex;
         width: 100%;
         height: 100%;
       }
       
-      /* Section principale des slots - Style inventaire */
+      /* Section principale des slots */
       .team-slots-section {
         flex: 1;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        width: 100%;
+        min-width: 0;
       }
       
       .slots-header {
-        padding: 15px 20px;
+        padding: 20px 25px 15px 25px;
         background: rgba(0, 0, 0, 0.2);
         border-bottom: 1px solid #357abd;
+        flex-shrink: 0;
       }
       
       .slots-title {
-        font-size: 16px;
-        font-weight: 600;
+        font-size: 18px;
+        font-weight: 700;
         color: #87ceeb;
         margin: 0;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
       }
       
-      /* Grille des slots Pokemon - Style inventaire AMÉLIORÉ */
+      /* Actions rapides */
+      .team-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      
+      .action-btn {
+        padding: 8px 16px;
+        background: rgba(74, 144, 226, 0.8);
+        border: 1px solid rgba(74, 144, 226, 0.5);
+        border-radius: 8px;
+        color: white;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      
+      .action-btn:hover {
+        background: rgba(74, 144, 226, 1);
+        border-color: rgba(74, 144, 226, 0.8);
+        transform: translateY(-2px);
+      }
+      
+      .action-btn.heal {
+        background: rgba(40, 167, 69, 0.8);
+        border-color: rgba(40, 167, 69, 0.5);
+      }
+      
+      .action-btn.heal:hover {
+        background: rgba(40, 167, 69, 1);
+        border-color: rgba(40, 167, 69, 0.8);
+      }
+      
+      /* Grille des slots Pokémon */
       .team-slots-grid {
         flex: 1;
         padding: 25px;
@@ -289,16 +334,16 @@ export class TeamUI {
         width: 100%;
       }
       
-      /* Slot Pokemon - Style inventaire AMÉLIORÉ */
+      /* Slot Pokémon */
       .team-slot {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.08);
         border: 2px solid rgba(255, 255, 255, 0.2);
         border-radius: 15px;
         padding: 20px 15px;
         text-align: center;
         cursor: pointer;
         transition: all 0.3s ease;
-        min-height: 140px;
+        min-height: 160px;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -307,22 +352,22 @@ export class TeamUI {
       }
       
       .team-slot:hover {
-        background: rgba(74, 144, 226, 0.25);
+        background: rgba(74, 144, 226, 0.2);
         border-color: #4a90e2;
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(74, 144, 226, 0.3);
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(74, 144, 226, 0.4);
       }
       
       .team-slot.selected {
-        background: rgba(74, 144, 226, 0.4);
+        background: rgba(74, 144, 226, 0.35);
         border-color: #87ceeb;
-        box-shadow: 0 0 20px rgba(74, 144, 226, 0.6);
-        transform: translateY(-2px);
+        box-shadow: 0 0 25px rgba(74, 144, 226, 0.7);
+        transform: translateY(-3px);
       }
       
       .team-slot.empty {
         border-style: dashed;
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.04);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -331,18 +376,19 @@ export class TeamUI {
       /* Numéro du slot */
       .slot-number {
         position: absolute;
-        top: 8px;
-        left: 8px;
-        background: rgba(74, 144, 226, 0.8);
+        top: 10px;
+        left: 10px;
+        background: rgba(74, 144, 226, 0.9);
         color: white;
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: bold;
+        border: 2px solid rgba(255, 255, 255, 0.3);
       }
       
       /* Slot vide */
@@ -351,56 +397,62 @@ export class TeamUI {
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: 10px;
         opacity: 0.6;
         height: 100%;
       }
       
       .empty-icon {
-        font-size: 24px;
+        font-size: 28px;
         color: #4a90e2;
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
       }
       
       .empty-text {
-        font-size: 11px;
+        font-size: 12px;
         color: rgba(255, 255, 255, 0.6);
         text-align: center;
+        font-weight: 500;
       }
       
-      /* ===== POKEMON CARD STYLE INVENTAIRE ===== */
+      /* ===== POKEMON CARD ===== */
       .pokemon-card {
         height: 100%;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
       }
       
       .pokemon-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-top: 10px;
+        margin-top: 15px;
+        gap: 5px;
       }
       
       .pokemon-name {
-        font-weight: 600;
+        font-weight: 700;
         color: #ffffff;
-        font-size: 13px;
+        font-size: 14px;
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
-        max-width: 90px;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        max-width: 100px;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+        flex: 1;
       }
       
       .pokemon-level {
-        background: rgba(74, 144, 226, 0.9);
+        background: linear-gradient(135deg, #4a90e2, #357abd);
         color: white;
-        padding: 3px 8px;
-        border-radius: 8px;
-        font-size: 10px;
+        padding: 4px 10px;
+        border-radius: 10px;
+        font-size: 11px;
         font-weight: bold;
-        box-shadow: 0 2px 8px rgba(74, 144, 226, 0.4);
+        box-shadow: 0 3px 10px rgba(74, 144, 226, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        flex-shrink: 0;
       }
       
       .pokemon-sprite {
@@ -409,25 +461,47 @@ export class TeamUI {
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 4px 0;
+        margin: 8px 0;
       }
       
       .pokemon-portrait {
-        width: 56px;
-        height: 56px;
+        width: 64px;
+        height: 64px;
         background-size: cover;
         background-position: center;
-        border-radius: 10px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        border: 3px solid rgba(255, 255, 255, 0.4);
         image-rendering: pixelated;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.4);
         transition: all 0.3s ease;
+        position: relative;
       }
       
       .team-slot:hover .pokemon-portrait {
-        transform: scale(1.05);
-        border-color: rgba(74, 144, 226, 0.6);
-        box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
+        transform: scale(1.08);
+        border-color: rgba(74, 144, 226, 0.7);
+        box-shadow: 0 8px 25px rgba(74, 144, 226, 0.5);
+      }
+      
+      /* Status Pokémon */
+      .pokemon-status {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid white;
+        background: #28a745;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+      
+      .pokemon-status.fainted {
+        background: #dc3545;
+      }
+      
+      .pokemon-status.status {
+        background: #ffc107;
       }
       
       .pokemon-health {
@@ -436,91 +510,138 @@ export class TeamUI {
       
       .health-bar {
         width: 100%;
-        height: 4px;
+        height: 6px;
         background: rgba(0, 0, 0, 0.4);
-        border-radius: 2px;
+        border-radius: 3px;
         overflow: hidden;
-        margin-bottom: 3px;
+        margin-bottom: 5px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
       }
       
       .health-fill {
         height: 100%;
-        transition: width 0.3s ease;
-        border-radius: 2px;
+        transition: width 0.5s ease;
+        border-radius: 3px;
+        position: relative;
       }
       
-      .health-fill.high { background: #28a745; }
-      .health-fill.medium { background: #ffc107; }
-      .health-fill.low { background: #dc3545; }
-      .health-fill.critical { background: #6f42c1; }
+      .health-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        animation: healthShine 2s infinite;
+      }
+      
+      @keyframes healthShine {
+        0%, 100% { transform: translateX(-100%); }
+        50% { transform: translateX(100%); }
+      }
+      
+      .health-fill.high { 
+        background: linear-gradient(90deg, #28a745, #20c997);
+      }
+      .health-fill.medium { 
+        background: linear-gradient(90deg, #ffc107, #fd7e14);
+      }
+      .health-fill.low { 
+        background: linear-gradient(90deg, #fd7e14, #dc3545);
+      }
+      .health-fill.critical { 
+        background: linear-gradient(90deg, #dc3545, #6f42c1);
+        animation: healthCritical 0.5s infinite alternate;
+      }
+      
+      @keyframes healthCritical {
+        from { opacity: 0.7; }
+        to { opacity: 1; }
+      }
       
       .health-text {
-        font-size: 9px;
+        font-size: 10px;
         text-align: center;
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 600;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
       }
       
       .pokemon-types {
         display: flex;
-        gap: 2px;
+        gap: 4px;
         justify-content: center;
-        margin-top: 3px;
+        margin-top: 6px;
+        flex-wrap: wrap;
       }
       
       .type-badge {
-        padding: 1px 3px;
-        border-radius: 3px;
-        font-size: 8px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 9px;
         font-weight: bold;
         text-transform: uppercase;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
       }
       
-      /* Types */
-      .type-badge.type-fire { background: #ff6347; }
-      .type-badge.type-water { background: #1e90ff; }
-      .type-badge.type-grass { background: #32cd32; }
-      .type-badge.type-electric { background: #ffd700; color: #333; }
-      .type-badge.type-psychic { background: #ff69b4; }
-      .type-badge.type-ice { background: #87ceeb; }
-      .type-badge.type-dragon { background: #9370db; }
-      .type-badge.type-dark { background: #2f4f4f; }
-      .type-badge.type-fairy { background: #ffb6c1; color: #333; }
-      .type-badge.type-normal { background: #d3d3d3; color: #333; }
+      /* Types Pokémon avec gradients */
+      .type-badge.type-fire { background: linear-gradient(135deg, #ff6347, #ff4500); }
+      .type-badge.type-water { background: linear-gradient(135deg, #1e90ff, #0066cc); }
+      .type-badge.type-grass { background: linear-gradient(135deg, #32cd32, #228b22); }
+      .type-badge.type-electric { background: linear-gradient(135deg, #ffd700, #ffb347); color: #333; }
+      .type-badge.type-psychic { background: linear-gradient(135deg, #ff69b4, #da70d6); }
+      .type-badge.type-ice { background: linear-gradient(135deg, #87ceeb, #4682b4); }
+      .type-badge.type-dragon { background: linear-gradient(135deg, #9370db, #663399); }
+      .type-badge.type-dark { background: linear-gradient(135deg, #2f4f4f, #1c1c1c); }
+      .type-badge.type-fairy { background: linear-gradient(135deg, #ffb6c1, #ff69b4); color: #333; }
+      .type-badge.type-normal { background: linear-gradient(135deg, #d3d3d3, #a9a9a9); color: #333; }
+      .type-badge.type-fighting { background: linear-gradient(135deg, #cd853f, #8b4513); }
+      .type-badge.type-poison { background: linear-gradient(135deg, #9932cc, #663399); }
+      .type-badge.type-ground { background: linear-gradient(135deg, #daa520, #b8860b); color: #333; }
+      .type-badge.type-flying { background: linear-gradient(135deg, #87ceeb, #6495ed); }
+      .type-badge.type-bug { background: linear-gradient(135deg, #9acd32, #6b8e23); }
+      .type-badge.type-rock { background: linear-gradient(135deg, #a0522d, #8b4513); }
+      .type-badge.type-ghost { background: linear-gradient(135deg, #9370db, #483d8b); }
+      .type-badge.type-steel { background: linear-gradient(135deg, #b0c4de, #778899); color: #333; }
       
-      /* ===== SIDEBAR STYLE INVENTAIRE ===== */
+      /* ===== SIDEBAR ===== */
       .team-sidebar {
-        width: 250px;
+        width: 280px;
         background: rgba(0, 0, 0, 0.3);
         border-left: 2px solid #357abd;
         display: flex;
         flex-direction: column;
+        overflow-y: auto;
       }
       
       /* Section stats */
       .stats-section {
         background: rgba(0, 0, 0, 0.2);
-        margin: 10px;
-        border-radius: 8px;
-        padding: 15px;
+        margin: 15px;
+        border-radius: 10px;
+        padding: 18px;
         border: 1px solid rgba(74, 144, 226, 0.3);
       }
       
       .section-header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 10px;
+        margin-bottom: 15px;
       }
       
       .section-title {
-        font-size: 14px;
-        font-weight: 600;
+        font-size: 16px;
+        font-weight: 700;
         color: #87ceeb;
         margin: 0;
       }
       
       .section-icon {
-        font-size: 16px;
+        font-size: 18px;
         color: #4a90e2;
       }
       
@@ -528,26 +649,33 @@ export class TeamUI {
       .stat-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
       }
       
       .stat-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 6px 10px;
+        padding: 8px 12px;
         background: rgba(255, 255, 255, 0.08);
-        border-radius: 4px;
+        border-radius: 6px;
         border: 1px solid rgba(74, 144, 226, 0.2);
+        transition: all 0.3s ease;
+      }
+      
+      .stat-item:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(74, 144, 226, 0.4);
       }
       
       .stat-label {
-        font-size: 12px;
+        font-size: 13px;
         color: rgba(255, 255, 255, 0.8);
+        font-weight: 500;
       }
       
       .stat-value {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: bold;
         color: #ffffff;
       }
@@ -556,26 +684,28 @@ export class TeamUI {
       .type-coverage {
         display: flex;
         flex-wrap: wrap;
-        gap: 4px;
-        margin-top: 8px;
+        gap: 6px;
+        margin-top: 10px;
       }
       
       .coverage-type {
-        padding: 2px 5px;
-        border-radius: 3px;
-        font-size: 8px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 10px;
         font-weight: bold;
         text-transform: uppercase;
+        border: 1px solid rgba(255, 255, 255, 0.3);
       }
       
-      /* ===== VUE DÉTAILS STYLE INVENTAIRE ===== */
+      /* ===== VUE DÉTAILS ===== */
       .team-details-content {
         border-top: 2px solid #357abd;
         background: rgba(0, 0, 0, 0.2);
-        padding: 20px;
-        min-height: 150px;
+        padding: 25px;
+        min-height: 200px;
         display: flex;
         flex-direction: column;
+        overflow-y: auto;
       }
       
       .no-selection {
@@ -589,38 +719,112 @@ export class TeamUI {
       }
       
       .no-selection-icon {
-        font-size: 36px;
-        margin-bottom: 10px;
+        font-size: 48px;
+        margin-bottom: 15px;
         opacity: 0.5;
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
       }
       
       .no-selection h3 {
-        font-size: 16px;
-        margin: 5px 0;
+        font-size: 18px;
+        margin: 8px 0;
         color: #ccc;
       }
       
       .no-selection p {
         font-size: 14px;
         margin: 0;
+        opacity: 0.8;
+      }
+      
+      /* ===== DÉTAILS POKÉMON ===== */
+      .pokemon-details {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      
+      .pokemon-details-header {
+        text-align: center;
+        margin-bottom: 25px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        border: 1px solid rgba(74, 144, 226, 0.3);
+      }
+      
+      .pokemon-details-portrait {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 20px;
+        border: 4px solid #4a90e2;
+        border-radius: 15px;
+        background-size: cover;
+        background-position: center;
+        image-rendering: pixelated;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+      }
+      
+      .pokemon-details-name {
+        margin: 0 0 8px 0;
+        color: #87ceeb;
+        font-size: 24px;
+        font-weight: bold;
+      }
+      
+      .pokemon-details-info {
+        color: rgba(255,255,255,0.9);
+        font-size: 15px;
+        margin: 0;
+        font-weight: 500;
+      }
+      
+      .pokemon-details-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+      
+      .pokemon-stat-group {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid rgba(74, 144, 226, 0.2);
+      }
+      
+      .pokemon-stat-group h4 {
+        margin: 0 0 12px 0;
+        color: #87ceeb;
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
       }
       
       /* ===== SCROLLBAR CUSTOM ===== */
-      .team-slots-grid::-webkit-scrollbar {
+      .team-slots-grid::-webkit-scrollbar,
+      .team-sidebar::-webkit-scrollbar,
+      .team-details-content::-webkit-scrollbar {
         width: 8px;
       }
       
-      .team-slots-grid::-webkit-scrollbar-track {
+      .team-slots-grid::-webkit-scrollbar-track,
+      .team-sidebar::-webkit-scrollbar-track,
+      .team-details-content::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.1);
         border-radius: 4px;
       }
       
-      .team-slots-grid::-webkit-scrollbar-thumb {
+      .team-slots-grid::-webkit-scrollbar-thumb,
+      .team-sidebar::-webkit-scrollbar-thumb,
+      .team-details-content::-webkit-scrollbar-thumb {
         background: rgba(74, 144, 226, 0.6);
         border-radius: 4px;
       }
       
-      .team-slots-grid::-webkit-scrollbar-thumb:hover {
+      .team-slots-grid::-webkit-scrollbar-thumb:hover,
+      .team-sidebar::-webkit-scrollbar-thumb:hover,
+      .team-details-content::-webkit-scrollbar-thumb:hover {
         background: rgba(74, 144, 226, 0.8);
       }
       
@@ -640,22 +844,28 @@ export class TeamUI {
           order: 2;
           border-left: none;
           border-top: 2px solid #357abd;
+          max-height: 200px;
         }
         
         .team-slots-grid {
-          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-          gap: 10px;
-          padding: 15px;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 15px;
+          padding: 20px;
         }
         
         .team-slot {
-          min-height: 100px;
-          padding: 10px 8px;
+          min-height: 120px;
+          padding: 15px 10px;
         }
         
         .pokemon-portrait {
-          width: 40px;
-          height: 40px;
+          width: 48px;
+          height: 48px;
+        }
+        
+        .pokemon-details-portrait {
+          width: 100px;
+          height: 100px;
         }
       }
       
@@ -672,17 +882,39 @@ export class TeamUI {
       }
       
       .team-slot.new {
-        animation: itemAppear 0.4s ease;
+        animation: itemAppear 0.5s ease;
+      }
+      
+      @keyframes teamFullGlow {
+        0%, 100% { 
+          box-shadow: 0 10px 30px rgba(74, 144, 226, 0.4); 
+        }
+        50% { 
+          box-shadow: 0 10px 40px rgba(74, 144, 226, 0.8); 
+        }
+      }
+      
+      .team-container.team-full {
+        animation: teamFullGlow 1.5s ease;
+      }
+      
+      @keyframes pokemonUpdate {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      
+      .pokemon-card.updated {
+        animation: pokemonUpdate 0.6s ease;
       }
     `;
     
     document.head.appendChild(style);
-    console.log('🎨 [TeamUI] CSS moderne chargé');
+    console.log('🎨 [TeamUI] CSS complet chargé');
   }
   
-  // === 🏗️ INTERFACE PROPRE ===
+  // === 🏗️ INTERFACE COMPLÈTE ===
   
-  createCleanInterface() {
+  createCompleteInterface() {
     // Supprimer l'ancienne interface
     const existing = document.querySelector('#team-overlay');
     if (existing) {
@@ -701,11 +933,11 @@ export class TeamUI {
             <div class="team-icon">⚔️</div>
             <div class="team-title-text">
               <h2>Mon Équipe Pokémon</h2>
-              <p class="team-subtitle">Gestion de votre équipe de combat</p>
+              <p class="team-subtitle">Gestion complète de votre équipe de combat</p>
             </div>
           </div>
           <div class="team-controls">
-            <div class="team-stats">
+            <div class="team-stats-header">
               <div class="team-count">0/6</div>
               <div class="team-status">En attente</div>
             </div>
@@ -737,9 +969,17 @@ export class TeamUI {
                     <span>⚔️</span>
                     <span>Équipe de Combat</span>
                   </h3>
+                  <div class="team-actions">
+                    <button class="action-btn heal" id="heal-team-btn">
+                      💊 Soigner l'équipe
+                    </button>
+                    <button class="action-btn" id="organize-team-btn">
+                      🔄 Organiser
+                    </button>
+                  </div>
                 </div>
                 <div class="team-slots-grid">
-                  ${this.generateCleanSlots()}
+                  ${this.generateCompleteSlots()}
                 </div>
               </div>
               
@@ -767,6 +1007,10 @@ export class TeamUI {
                       <span class="stat-label">Pokémon Vivants</span>
                       <span class="stat-value" id="alive-count">0</span>
                     </div>
+                    <div class="stat-item">
+                      <span class="stat-label">Équipe Complète</span>
+                      <span class="stat-value" id="team-complete">Non</span>
+                    </div>
                   </div>
                 </div>
                 
@@ -779,6 +1023,19 @@ export class TeamUI {
                     <!-- Types générés dynamiquement -->
                   </div>
                 </div>
+                
+                <div class="stats-section">
+                  <div class="section-header">
+                    <span class="section-icon">⚡</span>
+                    <h4 class="section-title">Actions Rapides</h4>
+                  </div>
+                  <div class="stat-list">
+                    <button class="stat-item" style="cursor: pointer; border: none; background: inherit;" id="refresh-team-btn">
+                      <span class="stat-label">🔄 Actualiser</span>
+                      <span class="stat-value">→</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -789,7 +1046,7 @@ export class TeamUI {
               <div class="no-selection">
                 <div class="no-selection-icon">📊</div>
                 <h3>Détails Pokémon</h3>
-                <p>Sélectionnez un Pokémon pour voir ses détails</p>
+                <p>Sélectionnez un Pokémon pour voir ses détails complets</p>
               </div>
             </div>
           </div>
@@ -800,10 +1057,10 @@ export class TeamUI {
     document.body.appendChild(overlay);
     this.overlayElement = overlay;
     
-    console.log('🎨 [TeamUI] Interface propre créée');
+    console.log('🎨 [TeamUI] Interface complète créée');
   }
   
-  generateCleanSlots() {
+  generateCompleteSlots() {
     let slotsHTML = '';
     for (let i = 0; i < 6; i++) {
       slotsHTML += `
@@ -819,7 +1076,7 @@ export class TeamUI {
     return slotsHTML;
   }
   
-  // === LE RESTE DU CODE JAVASCRIPT RESTE IDENTIQUE ===
+  // === 🎛️ SETUP ÉVÉNEMENTS ===
   
   setupEventListeners() {
     if (!this.overlayElement) return;
@@ -836,13 +1093,6 @@ export class TeamUI {
       }
     });
     
-    // Fermeture en cliquant à l'extérieur - SUPPRIMÉ
-    // this.overlayElement.addEventListener('click', (e) => {
-    //   if (e.target === this.overlayElement) {
-    //     this.hide();
-    //   }
-    // });
-    
     // Navigation tabs
     this.overlayElement.querySelectorAll('.team-tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -851,18 +1101,27 @@ export class TeamUI {
       });
     });
     
-    // Actions footer - SUPPRIMÉ
-    // this.overlayElement.querySelector('#heal-team-btn').addEventListener('click', () => {
-    //   this.handleAction('healTeam');
-    // });
+    // Actions équipe
+    const healTeamBtn = this.overlayElement.querySelector('#heal-team-btn');
+    if (healTeamBtn) {
+      healTeamBtn.addEventListener('click', () => {
+        this.handleAction('healTeam');
+      });
+    }
     
-    // this.overlayElement.querySelector('#pc-access-btn').addEventListener('click', () => {
-    //   this.handleAction('openPC');
-    // });
+    const organizeTeamBtn = this.overlayElement.querySelector('#organize-team-btn');
+    if (organizeTeamBtn) {
+      organizeTeamBtn.addEventListener('click', () => {
+        this.handleAction('organizeTeam');
+      });
+    }
     
-    // this.overlayElement.querySelector('#auto-arrange-btn').addEventListener('click', () => {
-    //   this.handleAction('autoArrange');
-    // });
+    const refreshTeamBtn = this.overlayElement.querySelector('#refresh-team-btn');
+    if (refreshTeamBtn) {
+      refreshTeamBtn.addEventListener('click', () => {
+        this.handleAction('requestData');
+      });
+    }
     
     // Sélection des slots
     this.setupSlotSelection();
@@ -905,7 +1164,7 @@ export class TeamUI {
   // === 🎛️ CONTRÔLE UI MANAGER ===
   
   show() {
-    console.log('👁️ [TeamUI] Affichage interface propre');
+    console.log('👁️ [TeamUI] Affichage interface complète');
     
     this.isVisible = true;
     
@@ -920,7 +1179,7 @@ export class TeamUI {
   }
   
   hide() {
-    console.log('👻 [TeamUI] Masquage interface propre');
+    console.log('👻 [TeamUI] Masquage interface');
     
     this.isVisible = false;
     
@@ -960,18 +1219,39 @@ export class TeamUI {
     return true;
   }
   
-  // === 📊 GESTION DONNÉES ===
+  // === 📊 GESTION DONNÉES POKÉMON ===
   
   updateTeamData(data) {
-    console.log('📊 [TeamUI] Mise à jour données équipe propre:', data);
+    console.log('📊 [TeamUI] === MISE À JOUR DONNÉES ÉQUIPE ===');
+    console.log('📊 Data reçue:', data);
     
-    this.teamData = Array.isArray(data.team) ? data.team : [];
+    // Extraire les données d'équipe selon le format
+    if (data && Array.isArray(data.team)) {
+      this.teamData = data.team;
+    } else if (data && Array.isArray(data)) {
+      this.teamData = data;
+    } else if (data && data.pokemon && Array.isArray(data.pokemon)) {
+      this.teamData = data.pokemon;
+    } else {
+      console.warn('⚠️ [TeamUI] Format de données non reconnu:', data);
+      this.teamData = [];
+    }
     
-    this.refreshCleanDisplay();
-    this.updateCleanSummary();
+    console.log('📊 [TeamUI] Équipe parsée:', {
+      count: this.teamData.length,
+      pokemon: this.teamData.map(p => ({
+        name: p?.nickname || p?.name || 'Unknown',
+        level: p?.level || '?',
+        hp: `${p?.currentHp || 0}/${p?.maxHp || 0}`,
+        types: p?.types || []
+      }))
+    });
     
+    this.refreshCompleteDisplay();
+    this.updateCompleteStats();
+    
+    // Mettre à jour le Pokémon sélectionné si nécessaire
     if (this.selectedPokemon) {
-      // Mettre à jour le Pokémon sélectionné
       const updatedPokemon = this.teamData.find(p => p._id === this.selectedPokemon._id);
       if (updatedPokemon) {
         this.selectedPokemon = updatedPokemon;
@@ -980,24 +1260,42 @@ export class TeamUI {
     }
   }
   
-  refreshCleanDisplay() {
+  refreshCompleteDisplay() {
     const slotsContainer = this.overlayElement.querySelector('.team-slots-grid');
     if (!slotsContainer) return;
+    
+    console.log('🔄 [TeamUI] Rafraîchissement affichage complet...');
     
     // Vider la grille
     slotsContainer.innerHTML = '';
     
-    // Créer les 6 slots
+    // Créer les 6 slots avec les données
     for (let i = 0; i < 6; i++) {
       const pokemon = this.teamData[i];
-      const slot = this.createCleanSlotElement(pokemon, i);
+      const slot = this.createCompleteSlotElement(pokemon, i);
       slotsContainer.appendChild(slot);
+      
+      // Animation d'apparition
+      setTimeout(() => {
+        slot.classList.add('new');
+        setTimeout(() => {
+          slot.classList.remove('new');
+        }, 500);
+      }, i * 100);
     }
     
-    console.log('🔄 [TeamUI] Affichage propre rafraîchi');
+    // Marquer équipe complète si applicable
+    if (this.teamData.length === 6) {
+      this.overlayElement.querySelector('.team-container').classList.add('team-full');
+      setTimeout(() => {
+        this.overlayElement.querySelector('.team-container').classList.remove('team-full');
+      }, 1500);
+    }
+    
+    console.log('✅ [TeamUI] Affichage rafraîchi');
   }
   
-  createCleanSlotElement(pokemon, index) {
+  createCompleteSlotElement(pokemon, index) {
     const slot = document.createElement('div');
     slot.className = 'team-slot';
     slot.dataset.slot = index;
@@ -1006,7 +1304,7 @@ export class TeamUI {
       slot.classList.remove('empty');
       slot.innerHTML = `
         <div class="slot-number">${index + 1}</div>
-        ${this.createCleanPokemonCardHTML(pokemon)}
+        ${this.createCompletePokemonCardHTML(pokemon)}
       `;
     } else {
       slot.classList.add('empty');
@@ -1022,29 +1320,48 @@ export class TeamUI {
     return slot;
   }
   
-  createCleanPokemonCardHTML(pokemon) {
-    const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
+  createCompletePokemonCardHTML(pokemon) {
+    console.log('🎨 [TeamUI] Création carte Pokémon:', pokemon);
+    
+    // Calculs de santé
+    const currentHp = pokemon.currentHp || 0;
+    const maxHp = pokemon.maxHp || 1;
+    const healthPercent = (currentHp / maxHp) * 100;
     const healthClass = this.getHealthClass(healthPercent);
+    
+    // Types
     const typesHTML = this.getTypesHTML(pokemon.types);
+    
+    // Nom d'affichage
+    const displayName = pokemon.nickname || pokemon.name || `Pokémon #${pokemon.pokemonId || '?'}`;
+    
+    // Level
+    const level = pokemon.level || 1;
+    
+    // Status
+    const isFainted = currentHp === 0;
+    const hasStatus = pokemon.status && pokemon.status !== 'normal' && pokemon.status !== 'none';
     
     return `
       <div class="pokemon-card">
         <div class="pokemon-header">
-          <div class="pokemon-name" title="${pokemon.nickname || pokemon.name || 'Pokémon'}">
-            ${pokemon.nickname || pokemon.name || `#${pokemon.pokemonId}`}
+          <div class="pokemon-name" title="${displayName}">
+            ${displayName}
           </div>
-          <div class="pokemon-level">Niv. ${pokemon.level}</div>
+          <div class="pokemon-level">Niv. ${level}</div>
         </div>
         
         <div class="pokemon-sprite">
-          <div class="pokemon-portrait" style="${this.getPortraitStyle(pokemon.pokemonId)}"></div>
+          <div class="pokemon-portrait" style="${this.getPortraitStyle(pokemon.pokemonId)}">
+            <div class="pokemon-status ${isFainted ? 'fainted' : hasStatus ? 'status' : ''}"></div>
+          </div>
         </div>
         
         <div class="pokemon-health">
           <div class="health-bar">
             <div class="health-fill ${healthClass}" style="width: ${healthPercent}%"></div>
           </div>
-          <div class="health-text">${pokemon.currentHp}/${pokemon.maxHp}</div>
+          <div class="health-text">${currentHp}/${maxHp} HP</div>
         </div>
         
         <div class="pokemon-types">
@@ -1055,6 +1372,10 @@ export class TeamUI {
   }
   
   getPortraitStyle(pokemonId) {
+    if (!pokemonId) {
+      return `background: linear-gradient(45deg, #ccc, #999); display: flex; align-items: center; justify-content: center;`;
+    }
+    
     const url = `/assets/pokemon/portraitanime/${pokemonId}.png`;
     return `background-image: url('${url}'); background-size: cover; background-position: center;`;
   }
@@ -1074,53 +1395,81 @@ export class TeamUI {
     ).join('');
   }
   
-  // === 📊 RÉSUMÉ PROPRE ===
+  // === 📊 STATISTIQUES COMPLÈTES ===
   
-  updateCleanSummary() {
+  updateCompleteStats() {
     if (!this.overlayElement) return;
     
+    console.log('📊 [TeamUI] Mise à jour statistiques complètes...');
+    
     const teamCount = this.teamData.length;
-    const aliveCount = this.teamData.filter(p => p.currentHp > 0).length;
+    const aliveCount = this.teamData.filter(p => p && p.currentHp > 0).length;
     const avgLevel = teamCount > 0 ? 
-      Math.round(this.teamData.reduce((sum, p) => sum + p.level, 0) / teamCount) : 0;
-    const totalCurrentHp = this.teamData.reduce((sum, p) => sum + p.currentHp, 0);
-    const totalMaxHp = this.teamData.reduce((sum, p) => sum + p.maxHp, 0);
+      Math.round(this.teamData.reduce((sum, p) => sum + (p?.level || 1), 0) / teamCount) : 0;
+    const totalCurrentHp = this.teamData.reduce((sum, p) => sum + (p?.currentHp || 0), 0);
+    const totalMaxHp = this.teamData.reduce((sum, p) => sum + (p?.maxHp || 0), 0);
     const canBattle = aliveCount > 0;
+    const isComplete = teamCount === 6;
     
     // Header stats
-    this.overlayElement.querySelector('.team-count').textContent = `${teamCount}/6`;
-    const statusElement = this.overlayElement.querySelector('.team-status');
-    statusElement.textContent = canBattle ? 'Prêt' : 'Non Prêt';
-    statusElement.style.color = canBattle ? '#2ecc71' : '#e74c3c';
+    const teamCountElement = this.overlayElement.querySelector('.team-count');
+    if (teamCountElement) {
+      teamCountElement.textContent = `${teamCount}/6`;
+    }
     
-    // Summary stats
-    this.overlayElement.querySelector('#avg-level').textContent = avgLevel;
-    this.overlayElement.querySelector('#total-hp').textContent = `${totalCurrentHp}/${totalMaxHp}`;
-    this.overlayElement.querySelector('#alive-count').textContent = aliveCount;
+    const statusElement = this.overlayElement.querySelector('.team-status');
+    if (statusElement) {
+      statusElement.textContent = canBattle ? 'Prêt au Combat' : 'Non Prêt';
+      statusElement.style.color = canBattle ? '#28a745' : '#dc3545';
+    }
+    
+    // Stats détaillées
+    const elements = {
+      'avg-level': avgLevel,
+      'total-hp': `${totalCurrentHp}/${totalMaxHp}`,
+      'alive-count': aliveCount,
+      'team-complete': isComplete ? 'Oui' : 'Non'
+    };
+    
+    Object.entries(elements).forEach(([id, value]) => {
+      const element = this.overlayElement.querySelector(`#${id}`);
+      if (element) {
+        element.textContent = value;
+        
+        // Couleurs conditionnelles
+        if (id === 'battle-ready') {
+          element.style.color = canBattle ? '#28a745' : '#dc3545';
+        } else if (id === 'team-complete') {
+          element.style.color = isComplete ? '#28a745' : '#ffc107';
+        }
+      }
+    });
     
     const battleReadyElement = this.overlayElement.querySelector('#battle-ready');
-    battleReadyElement.textContent = canBattle ? 'Oui' : 'Non';
-    battleReadyElement.style.color = canBattle ? '#2ecc71' : '#e74c3c';
+    if (battleReadyElement) {
+      battleReadyElement.textContent = canBattle ? 'Oui' : 'Non';
+      battleReadyElement.style.color = canBattle ? '#28a745' : '#dc3545';
+    }
     
     // Type coverage
-    this.updateCleanTypeCoverage();
+    this.updateCompleteTypeCoverage();
     
-    console.log('📊 [TeamUI] Résumé propre mis à jour');
+    console.log('✅ [TeamUI] Statistiques mises à jour');
   }
   
-  updateCleanTypeCoverage() {
+  updateCompleteTypeCoverage() {
     const coverageContainer = this.overlayElement.querySelector('#type-coverage');
     if (!coverageContainer) return;
     
     const types = new Set();
     this.teamData.forEach(pokemon => {
-      if (pokemon.types) {
+      if (pokemon.types && Array.isArray(pokemon.types)) {
         pokemon.types.forEach(type => types.add(type));
       }
     });
     
     if (types.size === 0) {
-      coverageContainer.innerHTML = '<div style="color: rgba(255,255,255,0.5); font-style: italic;">Aucun type</div>';
+      coverageContainer.innerHTML = '<div style="color: rgba(255,255,255,0.5); font-style: italic; text-align: center;">Aucun type</div>';
       return;
     }
     
@@ -1134,7 +1483,7 @@ export class TeamUI {
   // === 🎯 SÉLECTION POKÉMON ===
   
   selectPokemon(pokemon, slotElement, slotIndex) {
-    console.log('🎯 [TeamUI] Sélection Pokémon propre:', pokemon.nickname || pokemon.name);
+    console.log('🎯 [TeamUI] Sélection Pokémon:', pokemon.nickname || pokemon.name);
     
     // Désélectionner l'ancien
     this.overlayElement.querySelectorAll('.team-slot').forEach(slot => {
@@ -1146,6 +1495,12 @@ export class TeamUI {
     
     this.selectedPokemon = pokemon;
     this.selectedSlot = slotIndex;
+    
+    // Animation de sélection
+    slotElement.querySelector('.pokemon-card')?.classList.add('updated');
+    setTimeout(() => {
+      slotElement.querySelector('.pokemon-card')?.classList.remove('updated');
+    }, 600);
     
     // Mettre à jour la vue détaillée
     this.updateDetailView();
@@ -1171,7 +1526,7 @@ export class TeamUI {
         <div class="no-selection">
           <div class="no-selection-icon">📊</div>
           <h3>Détails Pokémon</h3>
-          <p>Sélectionnez un Pokémon pour voir ses détails</p>
+          <p>Sélectionnez un Pokémon pour voir ses détails complets</p>
         </div>
       `;
       return;
@@ -1179,33 +1534,62 @@ export class TeamUI {
     
     const pokemon = this.selectedPokemon;
     const healthPercent = (pokemon.currentHp / pokemon.maxHp) * 100;
+    const displayName = pokemon.nickname || pokemon.name || `Pokémon #${pokemon.pokemonId}`;
+    const typesText = pokemon.types ? pokemon.types.join(' / ') : 'Type Inconnu';
     
     detailsContent.innerHTML = `
-      <div style="width: 100%; max-width: 500px;">
-        <div style="text-align: center; margin-bottom: 20px;">
-          <div class="pokemon-portrait" style="${this.getPortraitStyle(pokemon.pokemonId)}; width: 100px; height: 100px; margin: 0 auto 15px; border: 3px solid #4a90e2;"></div>
-          <h2 style="margin: 0; color: #87ceeb;">${pokemon.nickname || pokemon.name}</h2>
-          <p style="margin: 5px 0; color: rgba(255,255,255,0.8);">Niveau ${pokemon.level} • ${pokemon.types?.join('/') || 'Type Inconnu'}</p>
+      <div class="pokemon-details">
+        <div class="pokemon-details-header">
+          <div class="pokemon-details-portrait" style="${this.getPortraitStyle(pokemon.pokemonId)}"></div>
+          <h2 class="pokemon-details-name">${displayName}</h2>
+          <p class="pokemon-details-info">Niveau ${pokemon.level} • ${typesText}</p>
         </div>
         
-        <div class="stat-list">
-          <div class="stat-item">
-            <span class="stat-label">Points de Vie</span>
-            <span class="stat-value">${pokemon.currentHp}/${pokemon.maxHp} (${Math.round(healthPercent)}%)</span>
+        <div class="pokemon-details-stats">
+          <div class="pokemon-stat-group">
+            <h4>Informations Générales</h4>
+            <div class="stat-list">
+              <div class="stat-item">
+                <span class="stat-label">Points de Vie</span>
+                <span class="stat-value">${pokemon.currentHp}/${pokemon.maxHp} (${Math.round(healthPercent)}%)</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Niveau</span>
+                <span class="stat-value">${pokemon.level}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Expérience</span>
+                <span class="stat-value">${pokemon.experience || 0} XP</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Nature</span>
+                <span class="stat-value">${pokemon.nature || 'Inconnue'}</span>
+              </div>
+            </div>
           </div>
-          <div class="stat-item">
-            <span class="stat-label">Nature</span>
-            <span class="stat-value">${pokemon.nature || 'Inconnue'}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Expérience</span>
-            <span class="stat-value">${pokemon.experience || 0} XP</span>
+          
+          <div class="pokemon-stat-group">
+            <h4>État et Statut</h4>
+            <div class="stat-list">
+              <div class="stat-item">
+                <span class="stat-label">Statut</span>
+                <span class="stat-value">${pokemon.status || 'Normal'}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Peut Combattre</span>
+                <span class="stat-value" style="color: ${pokemon.currentHp > 0 ? '#28a745' : '#dc3545'}">${pokemon.currentHp > 0 ? 'Oui' : 'Non'}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Position</span>
+                <span class="stat-value">Slot ${(this.selectedSlot || 0) + 1}</span>
+              </div>
+            </div>
           </div>
         </div>
         
         <div style="margin-top: 20px; text-align: center;">
           <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin: 0;">
-            Informations détaillées du Pokémon sélectionné
+            Double-cliquez sur un Pokémon dans la vue d'ensemble pour voir ses détails
           </p>
         </div>
       </div>
@@ -1215,7 +1599,7 @@ export class TeamUI {
   // === 🎮 NAVIGATION VUES ===
   
   switchToView(viewName) {
-    console.log(`🎮 [TeamUI] Changement vue propre: ${viewName}`);
+    console.log(`🎮 [TeamUI] Changement vue: ${viewName}`);
     
     // Mettre à jour les tabs
     this.overlayElement.querySelectorAll('.team-tab').forEach(tab => {
@@ -1238,15 +1622,43 @@ export class TeamUI {
   // === 🎬 GESTION ACTIONS ===
   
   handleAction(action, data = null) {
-    console.log(`🎬 [TeamUI] Action propre: ${action}`, data);
+    console.log(`🎬 [TeamUI] Action: ${action}`, data);
     
     if (this.onAction) {
       this.onAction(action, data);
     }
+    
+    // Feedback visuel
+    this.showActionFeedback(action);
   }
   
-  handlePokemonAction(action, pokemonId) {
-    this.handleAction(action, { pokemonId });
+  showActionFeedback(action) {
+    let message = '';
+    let type = 'info';
+    
+    switch (action) {
+      case 'healTeam':
+        message = 'Équipe en cours de soin...';
+        type = 'success';
+        break;
+      case 'organizeTeam':
+        message = 'Organisation de l\'équipe...';
+        type = 'info';
+        break;
+      case 'requestData':
+        message = 'Actualisation des données...';
+        type = 'info';
+        break;
+      default:
+        message = `Action ${action} en cours...`;
+    }
+    
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification(message, type, {
+        duration: 2000,
+        position: 'bottom-center'
+      });
+    }
   }
   
   requestTeamData() {
@@ -1256,7 +1668,7 @@ export class TeamUI {
   // === 🧹 NETTOYAGE ===
   
   destroy() {
-    console.log('🧹 [TeamUI] Destruction interface propre...');
+    console.log('🧹 [TeamUI] Destruction interface complète...');
     
     // Supprimer l'élément DOM
     if (this.overlayElement && this.overlayElement.parentNode) {
@@ -1270,12 +1682,7 @@ export class TeamUI {
     this.selectedPokemon = null;
     this.onAction = null;
     
-    // Supprimer la référence globale
-    if (window.teamUI === this) {
-      window.teamUI = null;
-    }
-    
-    console.log('✅ [TeamUI] Interface propre détruite');
+    console.log('✅ [TeamUI] Interface complète détruite');
   }
   
   // === 🐛 DEBUG ===
@@ -1291,8 +1698,405 @@ export class TeamUI {
       selectedPokemon: this.selectedPokemon ? this.selectedPokemon.nickname || this.selectedPokemon.name : null,
       selectedSlot: this.selectedSlot,
       hasOnAction: !!this.onAction,
-      style: 'modern-design'
+      style: 'complete-modern-design',
+      teamData: this.teamData.map(p => ({
+        name: p?.nickname || p?.name || 'Unknown',
+        level: p?.level || '?',
+        hp: `${p?.currentHp || 0}/${p?.maxHp || 0}`,
+        types: p?.types || []
+      }))
     };
+  }
+  
+  // === 🔧 MÉTHODES UTILITAIRES ===
+  
+  getPokemonCount() {
+    return this.teamData.length;
+  }
+  
+  getAliveCount() {
+    return this.teamData.filter(p => p && p.currentHp > 0).length;
+  }
+  
+  getFaintedCount() {
+    return this.teamData.filter(p => p && p.currentHp === 0).length;
+  }
+  
+  getAverageLevel() {
+    if (this.teamData.length === 0) return 0;
+    return Math.round(this.teamData.reduce((sum, p) => sum + (p?.level || 1), 0) / this.teamData.length);
+  }
+  
+  getTotalHP() {
+    return this.teamData.reduce((sum, p) => sum + (p?.currentHp || 0), 0);
+  }
+  
+  getMaxHP() {
+    return this.teamData.reduce((sum, p) => sum + (p?.maxHp || 0), 0);
+  }
+  
+  getHealthPercentage() {
+    const total = this.getTotalHP();
+    const max = this.getMaxHP();
+    return max > 0 ? Math.round((total / max) * 100) : 0;
+  }
+  
+  canBattle() {
+    return this.getAliveCount() > 0;
+  }
+  
+  isTeamFull() {
+    return this.teamData.length >= 6;
+  }
+  
+  needsHealing() {
+    return this.teamData.some(p => p && p.currentHp < p.maxHp);
+  }
+  
+  hasStatusConditions() {
+    return this.teamData.some(p => p && p.status && p.status !== 'normal' && p.status !== 'none');
+  }
+  
+  getTypeCoverage() {
+    const types = new Set();
+    this.teamData.forEach(pokemon => {
+      if (pokemon.types && Array.isArray(pokemon.types)) {
+        pokemon.types.forEach(type => types.add(type));
+      }
+    });
+    return Array.from(types);
+  }
+  
+  // === 🎮 MÉTHODES PUBLIQUES POUR L'INTERACTION ===
+  
+  selectSlot(slotIndex) {
+    if (slotIndex < 0 || slotIndex >= 6) return false;
+    
+    const slot = this.overlayElement.querySelector(`[data-slot="${slotIndex}"]`);
+    const pokemon = this.teamData[slotIndex];
+    
+    if (slot && pokemon) {
+      this.selectPokemon(pokemon, slot, slotIndex);
+      return true;
+    }
+    
+    return false;
+  }
+  
+  healPokemon(slotIndex) {
+    if (slotIndex < 0 || slotIndex >= 6) return false;
+    
+    const pokemon = this.teamData[slotIndex];
+    if (!pokemon) return false;
+    
+    this.handleAction('healPokemon', { pokemonId: pokemon._id, slotIndex });
+    return true;
+  }
+  
+  swapPokemon(fromSlot, toSlot) {
+    if (fromSlot < 0 || fromSlot >= 6 || toSlot < 0 || toSlot >= 6) return false;
+    if (fromSlot === toSlot) return false;
+    
+    this.handleAction('swapPokemon', { fromSlot, toSlot });
+    return true;
+  }
+  
+  removePokemon(slotIndex) {
+    if (slotIndex < 0 || slotIndex >= 6) return false;
+    
+    const pokemon = this.teamData[slotIndex];
+    if (!pokemon) return false;
+    
+    this.handleAction('removePokemon', { pokemonId: pokemon._id, slotIndex });
+    return true;
+  }
+  
+  // === 📊 MÉTHODES D'ANALYSE ===
+  
+  getTeamAnalysis() {
+    return {
+      basic: {
+        count: this.getPokemonCount(),
+        aliveCount: this.getAliveCount(),
+        faintedCount: this.getFaintedCount(),
+        averageLevel: this.getAverageLevel(),
+        healthPercentage: this.getHealthPercentage()
+      },
+      battle: {
+        canBattle: this.canBattle(),
+        isComplete: this.isTeamFull(),
+        needsHealing: this.needsHealing(),
+        hasStatusConditions: this.hasStatusConditions()
+      },
+      types: {
+        coverage: this.getTypeCoverage(),
+        coverageCount: this.getTypeCoverage().length,
+        duplicateTypes: this.findDuplicateTypes()
+      },
+      recommendations: this.getRecommendations()
+    };
+  }
+  
+  findDuplicateTypes() {
+    const typeCount = {};
+    this.teamData.forEach(pokemon => {
+      if (pokemon.types && Array.isArray(pokemon.types)) {
+        pokemon.types.forEach(type => {
+          typeCount[type] = (typeCount[type] || 0) + 1;
+        });
+      }
+    });
+    
+    return Object.entries(typeCount)
+      .filter(([type, count]) => count > 1)
+      .map(([type, count]) => ({ type, count }));
+  }
+  
+  getRecommendations() {
+    const recommendations = [];
+    
+    if (this.getFaintedCount() > 0) {
+      recommendations.push({
+        type: 'healing',
+        priority: 'high',
+        message: `${this.getFaintedCount()} Pokémon K.O. - Utilisez un Centre Pokémon`
+      });
+    }
+    
+    if (this.needsHealing() && this.getFaintedCount() === 0) {
+      recommendations.push({
+        type: 'healing',
+        priority: 'medium',
+        message: 'Certains Pokémon sont blessés - Soignez votre équipe'
+      });
+    }
+    
+    if (!this.isTeamFull()) {
+      recommendations.push({
+        type: 'team',
+        priority: 'medium',
+        message: `Équipe incomplète (${this.getPokemonCount()}/6) - Capturez plus de Pokémon`
+      });
+    }
+    
+    const typeCoverage = this.getTypeCoverage();
+    if (typeCoverage.length < 4) {
+      recommendations.push({
+        type: 'strategy',
+        priority: 'low',
+        message: 'Couverture de types limitée - Diversifiez votre équipe'
+      });
+    }
+    
+    if (this.hasStatusConditions()) {
+      recommendations.push({
+        type: 'status',
+        priority: 'medium',
+        message: 'Certains Pokémon ont des altérations de statut'
+      });
+    }
+    
+    return recommendations;
+  }
+  
+  // === 🎨 MÉTHODES D'AFFICHAGE AVANCÉES ===
+  
+  highlightPokemon(slotIndex, duration = 2000) {
+    const slot = this.overlayElement.querySelector(`[data-slot="${slotIndex}"]`);
+    if (!slot) return;
+    
+    slot.style.boxShadow = '0 0 30px rgba(255, 215, 0, 0.8)';
+    slot.style.transform = 'scale(1.05)';
+    
+    setTimeout(() => {
+      slot.style.boxShadow = '';
+      slot.style.transform = '';
+    }, duration);
+  }
+  
+  showPokemonAnimation(slotIndex, animationType = 'update') {
+    const slot = this.overlayElement.querySelector(`[data-slot="${slotIndex}"]`);
+    if (!slot) return;
+    
+    const pokemonCard = slot.querySelector('.pokemon-card');
+    if (!pokemonCard) return;
+    
+    switch (animationType) {
+      case 'update':
+        pokemonCard.classList.add('updated');
+        setTimeout(() => pokemonCard.classList.remove('updated'), 600);
+        break;
+      case 'heal':
+        slot.style.background = 'rgba(40, 167, 69, 0.3)';
+        setTimeout(() => slot.style.background = '', 1000);
+        break;
+      case 'faint':
+        slot.style.background = 'rgba(220, 53, 69, 0.3)';
+        setTimeout(() => slot.style.background = '', 1000);
+        break;
+    }
+  }
+  
+  updateSlotRealtime(slotIndex, newData) {
+    if (slotIndex < 0 || slotIndex >= 6) return;
+    
+    // Mettre à jour les données locales
+    if (newData) {
+      this.teamData[slotIndex] = { ...this.teamData[slotIndex], ...newData };
+    } else {
+      this.teamData[slotIndex] = null;
+    }
+    
+    // Recréer le slot
+    const slot = this.overlayElement.querySelector(`[data-slot="${slotIndex}"]`);
+    if (slot) {
+      const newSlot = this.createCompleteSlotElement(this.teamData[slotIndex], slotIndex);
+      slot.parentNode.replaceChild(newSlot, slot);
+      
+      // Animation d'apparition
+      newSlot.classList.add('new');
+      setTimeout(() => newSlot.classList.remove('new'), 500);
+    }
+    
+    // Mettre à jour les stats
+    this.updateCompleteStats();
+  }
+  
+  // === 🔄 MÉTHODES DE SYNCHRONISATION ===
+  
+  syncWithTeamManager(teamManager) {
+    if (!teamManager) return;
+    
+    try {
+      const teamStats = teamManager.getTeamStats();
+      const teamData = teamManager.getTeamData();
+      
+      console.log('🔄 [TeamUI] Synchronisation avec TeamManager:', {
+        stats: teamStats,
+        dataCount: teamData.length
+      });
+      
+      this.updateTeamData({ team: teamData });
+      
+    } catch (error) {
+      console.error('❌ [TeamUI] Erreur synchronisation TeamManager:', error);
+    }
+  }
+  
+  forceRefresh() {
+    console.log('🔄 [TeamUI] Force refresh interface...');
+    
+    this.refreshCompleteDisplay();
+    this.updateCompleteStats();
+    this.updateDetailView();
+    
+    if (typeof window.showGameNotification === 'function') {
+      window.showGameNotification('Interface équipe actualisée', 'success', {
+        duration: 1500,
+        position: 'bottom-center'
+      });
+    }
+  }
+  
+  // === 📱 MÉTHODES RESPONSIVE ===
+  
+  updateForScreenSize() {
+    if (!this.overlayElement) return;
+    
+    const container = this.overlayElement.querySelector('.team-container');
+    const screenWidth = window.innerWidth;
+    
+    if (screenWidth <= 768) {
+      container.classList.add('mobile-layout');
+    } else {
+      container.classList.remove('mobile-layout');
+    }
+  }
+  
+  // === 🎯 MÉTHODES DE TESTS ===
+  
+  testInterface() {
+    console.log('🧪 [TeamUI] Test interface...');
+    
+    // Test data simulée
+    const testData = {
+      team: [
+        {
+          _id: 'test1',
+          pokemonId: 1,
+          name: 'Bulbasaur',
+          nickname: 'Bulbi',
+          level: 15,
+          currentHp: 45,
+          maxHp: 45,
+          types: ['Grass', 'Poison'],
+          status: 'normal'
+        },
+        {
+          _id: 'test2',
+          pokemonId: 4,
+          name: 'Charmander',
+          level: 12,
+          currentHp: 20,
+          maxHp: 39,
+          types: ['Fire'],
+          status: 'normal'
+        },
+        {
+          _id: 'test3',
+          pokemonId: 7,
+          name: 'Squirtle',
+          level: 14,
+          currentHp: 0,
+          maxHp: 44,
+          types: ['Water'],
+          status: 'fainted'
+        }
+      ]
+    };
+    
+    this.updateTeamData(testData);
+    
+    console.log('✅ [TeamUI] Test data appliquée');
+    
+    return {
+      testDataApplied: true,
+      pokemonCount: this.teamData.length,
+      interfaceReady: !!this.overlayElement
+    };
+  }
+  
+  // === 🔍 MÉTHODES DE RECHERCHE ===
+  
+  findPokemonByName(name) {
+    return this.teamData.find(p => 
+      (p.nickname && p.nickname.toLowerCase().includes(name.toLowerCase())) ||
+      (p.name && p.name.toLowerCase().includes(name.toLowerCase()))
+    );
+  }
+  
+  findPokemonsByType(type) {
+    return this.teamData.filter(p => 
+      p.types && p.types.some(t => t.toLowerCase() === type.toLowerCase())
+    );
+  }
+  
+  findPokemonsByLevel(minLevel, maxLevel = Infinity) {
+    return this.teamData.filter(p => 
+      p.level >= minLevel && p.level <= maxLevel
+    );
+  }
+  
+  findFaintedPokemon() {
+    return this.teamData.filter(p => p && p.currentHp === 0);
+  }
+  
+  findHealthyPokemon() {
+    return this.teamData.filter(p => p && p.currentHp === p.maxHp);
+  }
+  
+  findInjuredPokemon() {
+    return this.teamData.filter(p => p && p.currentHp > 0 && p.currentHp < p.maxHp);
   }
 }
 
@@ -1304,38 +2108,39 @@ if (typeof window !== 'undefined') {
 }
 
 console.log(`
-🎯 === TEAM UI DESIGN MODERNE ===
+🎯 === TEAM UI INTERFACE COMPLÈTE ===
 
-✨ NOUVEAU DESIGN:
+✨ NOUVELLES FONCTIONNALITÉS:
+• Affichage complet des Pokémon avec portraits
+• Barres de vie animées avec effets visuels
+• Types Pokémon avec gradients colorés
+• Statistiques détaillées en temps réel
+• Vue détails avec informations complètes
+• Actions rapides (soigner, organiser)
+• Sélection et interactions avancées
+
+🎨 DESIGN MODERNE:
 • Glassmorphisme et néomorphisme
-• Animations fluides avec cubic-bezier
-• Gradients dynamiques et effets glow
-• Layout Grid CSS moderne
-• Sidebar fixe 350px (plus d'espace bizarre!)
+• Animations fluides et microinteractions
+• Layout responsive mobile/desktop
+• Effets de brillance sur les barres de vie
+• Status visuels (fainted, status, healthy)
+• Gradients et ombres professionnels
 
-🎨 AMÉLIORATIONS VISUELLES:
-• Background avec grain et particules
-• Cards flottantes avec ombres douces
-• Barres de vie avec effets glass
-• Types Pokemon avec gradients
-• Boutons avec effet shimmer
+📊 FONCTIONNALITÉS AVANCÉES:
+• Analyse d'équipe complète
+• Recommandations intelligentes
+• Couverture de types automatique
+• Synchronisation temps réel
+• Debug et test intégrés
+• Recherche et filtrage
 
-🏗️ LAYOUT OPTIMISÉ:
-• Grid container stable
-• Slots 3x2 responsive vers 2x3 puis 1x6
-• Tabs flottants modernes
-• Footer avec glassmorphisme
+🔧 API COMPLÈTE:
+• updateTeamData() - Mise à jour données
+• selectPokemon() - Sélection interactive
+• healPokemon() - Actions de soin
+• getTeamAnalysis() - Analyse complète
+• testInterface() - Tests automatisés
 
-📱 RESPONSIVE INTELLIGENT:
-• Breakpoints logiques (1200px, 768px, 480px)
-• Micro-interactions préservées
-• Performance optimisée
-
-♿ ACCESSIBILITÉ:
-• prefers-reduced-motion
-• Focus states
-• High contrast
-• Print styles
-
-🚀 FINI L'ESPACE BIZARRE À DROITE !
+🎯 PRÊT POUR L'AFFICHAGE POKÉMON !
 `);
