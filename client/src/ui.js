@@ -42,18 +42,18 @@ const UI_CONFIG = {
 // === ÉTATS DE JEU POKÉMON ===
 const POKEMON_GAME_STATES = {
   exploration: {
-    visibleModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
-    enabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
-    hiddenModules: [],
+    visibleModules: ['inventory', 'teamIcon', 'quest', 'questTracker', 'chat'],
+    enabledModules: ['inventory', 'teamIcon', 'teamUI', 'quest', 'questTracker', 'chat'],
+    hiddenModules: ['teamUI'], // TeamUI caché par défaut, s'ouvre sur clic TeamIcon
     disabledModules: [],
     responsive: {
       mobile: { 
-        hiddenModules: ['questTracker'], 
-        visibleModules: ['inventory', 'team', 'quest']
+        hiddenModules: ['questTracker', 'teamUI'], 
+        visibleModules: ['inventory', 'teamIcon', 'quest']
       },
       tablet: { 
-        hiddenModules: ['chat'],
-        visibleModules: ['inventory', 'team', 'quest', 'questTracker']
+        hiddenModules: ['chat', 'teamUI'],
+        visibleModules: ['inventory', 'teamIcon', 'quest', 'questTracker']
       }
     }
   },
@@ -61,66 +61,76 @@ const POKEMON_GAME_STATES = {
   battle: {
     visibleModules: ['battleInterface'],
     enabledModules: ['battleInterface'],
-    hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
-    disabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
+    hiddenModules: ['inventory', 'teamIcon', 'teamUI', 'quest', 'questTracker', 'chat'],
+    disabledModules: ['inventory', 'teamIcon', 'teamUI', 'quest', 'questTracker', 'chat'],
     responsive: {
       mobile: { 
         visibleModules: ['battleInterface'],
-        hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat']
+        hiddenModules: ['inventory', 'teamIcon', 'teamUI', 'quest', 'questTracker', 'chat']
       },
       tablet: {
         visibleModules: ['battleInterface'],
-        hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat']
+        hiddenModules: ['inventory', 'teamIcon', 'teamUI', 'quest', 'questTracker', 'chat']
       }
     }
   },
   
   pokemonCenter: {
-    visibleModules: ['team', 'inventory', 'pc'],
-    enabledModules: ['team', 'inventory', 'pc'],
+    visibleModules: ['teamIcon', 'teamUI', 'inventory', 'pc'], // TeamUI visible au centre Pokémon
+    enabledModules: ['teamIcon', 'teamUI', 'inventory', 'pc'],
     hiddenModules: ['questTracker', 'chat'],
     disabledModules: ['quest'],
     responsive: {
       mobile: {
-        visibleModules: ['team', 'pc'],
+        visibleModules: ['teamIcon', 'teamUI', 'pc'],
         hiddenModules: ['inventory', 'questTracker', 'chat', 'quest']
       }
     }
   },
   
   dialogue: {
-    visibleModules: ['inventory', 'team', 'quest'],
-    enabledModules: [],
-    hiddenModules: ['questTracker', 'chat'],
-    disabledModules: ['inventory', 'team', 'quest']
+    visibleModules: ['inventory', 'teamIcon', 'quest'],
+    enabledModules: [], // Tous désactivés pendant dialogue
+    hiddenModules: ['questTracker', 'chat', 'teamUI'],
+    disabledModules: ['inventory', 'teamIcon', 'teamUI', 'quest']
   },
   
   menu: {
-    visibleModules: ['inventory', 'team', 'quest'],
-    enabledModules: ['inventory', 'team', 'quest'],
-    hiddenModules: ['questTracker', 'chat'],
+    visibleModules: ['inventory', 'teamIcon', 'quest'],
+    enabledModules: ['inventory', 'teamIcon', 'teamUI', 'quest'], // TeamUI peut s'ouvrir dans menu
+    hiddenModules: ['questTracker', 'chat', 'teamUI'], // TeamUI caché par défaut
     disabledModules: []
   },
   
   starterSelection: {
     visibleModules: [],
     enabledModules: [],
-    hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'],
-    disabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat']
+    hiddenModules: ['inventory', 'teamIcon', 'teamUI', 'quest', 'questTracker', 'chat'],
+    disabledModules: ['inventory', 'teamIcon', 'teamUI', 'quest', 'questTracker', 'chat']
   }
 };
 
 // === GROUPES LOGIQUES POKÉMON ===
 const POKEMON_UI_GROUPS = {
   'ui-icons': {
-    modules: ['inventory', 'team', 'quest'],
+    modules: ['inventory', 'teamIcon', 'quest'], // teamIcon au lieu de team
     layout: {
       type: 'horizontal',
       anchor: 'bottom-right',
       spacing: 10,
-      order: ['inventory', 'quest', 'team']
+      order: ['inventory', 'quest', 'teamIcon'] // teamIcon en dernier (position droite)
     },
     priority: 100
+  },
+  
+  'team-management': {
+    modules: ['teamManager', 'teamIcon', 'teamUI'], // Nouveau groupe pour team
+    layout: {
+      type: 'coordinated', // Layout coordonné entre les 3 modules
+      anchor: 'mixed', // Positions mixtes
+      spacing: 0
+    },
+    priority: 110
   },
   
   'panels': {
@@ -131,6 +141,16 @@ const POKEMON_UI_GROUPS = {
       spacing: 15
     },
     priority: 90
+  },
+  
+  'overlays': {
+    modules: ['teamUI', 'chat'], // TeamUI dans les overlays
+    layout: {
+      type: 'overlay',
+      anchor: 'center',
+      spacing: 0
+    },
+    priority: 85
   },
   
   'social': {
@@ -151,6 +171,16 @@ const POKEMON_UI_GROUPS = {
       spacing: 20
     },
     priority: 110
+  },
+  
+  'business-logic': {
+    modules: ['teamManager'], // Business logic séparé
+    layout: {
+      type: 'none', // Pas d'UI
+      anchor: 'none',
+      spacing: 0
+    },
+    priority: 200
   }
 };
 
@@ -835,6 +865,47 @@ createTeamManagerWrapper(teamManager) {
 }
 
   /// TEAM MODULE END
+  setupTeamManagerBridge() {
+  console.log('🌉 [PokemonUI] Configuration bridge TeamManager ↔ UIManager...');
+  
+  // Écouter les requêtes du TeamManager
+  window.addEventListener('teamManagerRequest', (event) => {
+    const { action, data } = event.detail;
+    
+    console.log(`🌉 [Bridge] TeamManager → UIManager: ${action}`);
+    
+    if (!this.uiManager) {
+      console.warn('⚠️ [Bridge] UIManager non disponible');
+      return;
+    }
+    
+    // Router l'action vers UIManager
+    switch (action) {
+      case 'toggleTeamUI':
+        // Vérifier si TeamUI est visible
+        const teamUIModule = this.getModule('teamUI');
+        if (teamUIModule && teamUIModule.isVisible) {
+          this.uiManager.hideModule('teamUI');
+        } else {
+          this.uiManager.showModule('teamUI');
+        }
+        break;
+        
+      case 'showTeamUI':
+        this.uiManager.showModule('teamUI');
+        break;
+        
+      case 'hideTeamUI':
+        this.uiManager.hideModule('teamUI');
+        break;
+        
+      default:
+        console.warn(`⚠️ [Bridge] Action inconnue: ${action}`);
+    }
+  });
+  
+  console.log('✅ [Bridge] TeamManager ↔ UIManager configuré');
+}
 /// TEAMICON MODULE START
 
 async createTeamIconModule() {
@@ -1419,11 +1490,16 @@ async createTeamUIModule() {
   // === SETUP CALLBACKS GLOBAUX ===
   setupGlobalCallbacks() {
     console.log('🔗 [PokemonUI] Configuration callbacks globaux...');
+
+      // === AJOUTER CETTE LIGNE ===
+      this.setupTeamManagerBridge();
     
     if (!this.uiManager || !this.uiManager.on) {
       console.log('ℹ️ [PokemonUI] Callbacks non supportés en mode minimal');
       return;
     }
+
+
     
     this.uiManager.on('moduleInitialized', (event) => {
       const { moduleId, instance } = event.detail;
