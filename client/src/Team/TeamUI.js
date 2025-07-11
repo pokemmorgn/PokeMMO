@@ -1450,7 +1450,7 @@ export class TeamUI {
   }
   
 getPortraitStyle(pokemonId) {
-  console.log('🎨 [TeamUI] Génération style portrait optimisé:', pokemonId);
+  console.log('🎨 [TeamUI] Génération style portrait avec SpriteUtils:', pokemonId);
   
   if (!pokemonId) {
     return `
@@ -1465,20 +1465,14 @@ getPortraitStyle(pokemonId) {
   }
   
   const style = getPokemonPortraitStyle(pokemonId, {
-    width: '100%',
-    height: '100%',
-    preservePixelArt: true,
-    fitMode: 'cover'
+    width: '128px',
+    height: '128px',
+    preservePixelArt: true
   });
   
-  const customStyles = `
-    ${style}
-    background-color: transparent;
-    border-radius: 12px;
-    overflow: hidden;
-  `;
+  console.log('🎨 [TeamUI] Style généré par SpriteUtils:', style);
   
-  return customStyles;
+  return style;
 }
   
   getHealthClass(healthPercent) {
