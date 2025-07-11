@@ -2295,11 +2295,7 @@ public getOverworldPokemonStats(): any {
   return this.overworldPokemonManager ? this.overworldPokemonManager.getStats() : {};
 }
 
-public forceSpawnOverworldPokemon(areaId: string, pokemonId: number, x?: number, y?: number): void {
-  if (this.overworldPokemonManager) {
-    this.overworldPokemonManager.forceSpawn(areaId, pokemonId, x, y);
-  }
-}
+
 
 public clearOverworldArea(areaId: string): void {
   if (this.overworldPokemonManager) {
