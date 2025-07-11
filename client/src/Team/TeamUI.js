@@ -1450,27 +1450,26 @@ export class TeamUI {
   
   getPortraitStyle(pokemonId) {
     if (!pokemonId) {
-      return `
-        background: linear-gradient(45deg, #ccc, #999); 
-        display: flex; 
-        align-items: center; 
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: 20px;
-      `;
+      return `background: linear-gradient(45deg, #ccc, #999); display: flex; align-items: center; justify-content: center;`;
     }
     
     const url = `/assets/pokemon/portraitanime/${pokemonId}.png`;
+    return `background-image: url('${url}'); background-size: cover; background-position: center;`;
+  }
+  
+  getHealthClass(healthPercent) {
+    if (healthPercent > 75) return 'high';
+    if (healthPercent > 50) return 'medium';
+    if (healthPercent > 25) return 'low';
+    return 'critical';
+  }
+  
+  getTypesHTML(types) {
+    if (!types || !Array.isArray(types)) return '';
     
-    // ✅ AFFICHER SEULEMENT LA PREMIÈRE FRAME
-    return `
-      background-image: url('${url}');
-      background-size: auto 100%;
-      background-position: 0px 0px;
-      background-repeat: no-repeat;
-      image-rendering: pixelated;
-    `;
+    return types.map(type => 
+      `<span class="type-badge type-${type.toLowerCase()}">${type}</span>`
+    ).join('');
   }
   
   // === 📊 STATISTIQUES COMPLÈTES ===
