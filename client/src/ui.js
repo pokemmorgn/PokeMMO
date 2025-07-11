@@ -269,99 +269,26 @@ export class PokemonUISystem {
         });
         return this;
       }
-       setupManualIconPositioning() {
-        console.log('📍 [PokemonUI] Configuration positionnement manuel des icônes...');
-        
-        // Délai pour s'assurer que toutes les icônes sont créées
-        setTimeout(() => {
-          const icons = [
-            { 
-              id: '#inventory-icon', 
-              name: 'inventory',
-              position: { right: '110px', bottom: '20px' }, // À gauche de team
-              order: 0 
-            },
-            { 
-              id: '#quest-icon', 
-              name: 'quest',
-              position: { right: '200px', bottom: '20px' }, // À gauche d'inventory
-              order: 1 
-            },
-            { 
-              id: '#team-icon', 
-              name: 'team',
-              position: { right: '20px', bottom: '20px' },  // Plus à droite
-              order: 2 
-            }
-          ];
-          
-          icons.forEach(iconConfig => {
-            const iconElement = document.querySelector(iconConfig.id);
-            
-            if (iconElement) {
-              console.log(`📍 [PokemonUI] Positionnement manuel ${iconConfig.name}...`);
-              
-              // Appliquer position fixe
-              iconElement.style.position = 'fixed';
-              iconElement.style.right = iconConfig.position.right;
-              iconElement.style.bottom = iconConfig.position.bottom;
-              iconElement.style.left = 'auto';
-              iconElement.style.top = 'auto';
-              iconElement.style.zIndex = '500';
-              
-              // Marquer comme positionné manuellement
-              iconElement.setAttribute('data-positioned-by', 'manual-fallback');
-              
-              console.log(`✅ [PokemonUI] ${iconConfig.name} positionné à ${iconConfig.position.right}`);
-            } else {
-              console.warn(`⚠️ [PokemonUI] Icône ${iconConfig.name} non trouvée`);
-            }
-          });
-          
-          console.log('✅ [PokemonUI] Positionnement manuel terminé');
-        }, 500); // Délai pour s'assurer que les icônes existent
-      }     
       
       async initializeAllModules() {
-        if (!this.uiManager) {
-          throw new Error('UIManager non initialisé');
+        console.log('🚀 [MinimalUI] Initialisation modules...');
+        const results = {};
+        const errors = [];
+        
+        for (const [moduleId, config] of this.modules) {
+          try {
+            if (config.factory) {
+              const instance = await config.factory();
+              config.instance = instance;
+              this.moduleStates.get(moduleId).initialized = true;
+              results[moduleId] = instance;
+            }
+          } catch (error) {
+            errors.push(`${moduleId}: ${error.message}`);
+          }
         }
         
-        console.log('🚀 [PokemonUI] Initialisation de tous les modules...');
-        
-        if (this.uiManager.initializeAllModules) {
-          const result = await this.uiManager.initializeAllModules(
-            window.currentGameRoom,
-            window.game?.scene?.getScenes(true)[0]
-          );
-          
-          // 🆕 AJOUTER LE POSITIONNEMENT MANUEL APRÈS INITIALISATION
-          if (!this.uiManager.registerIconPosition) {
-            console.log('⚠️ [PokemonUI] UIManager sans registerIconPosition - positionnement manuel');
-            this.setupManualIconPositioning();
-          } else {
-            console.log('✅ [PokemonUI] UIManager avec registerIconPosition détecté');
-          }
-          
-          if (result.success) {
-            console.log('✅ [PokemonUI] Tous les modules initialisés !');
-          } else {
-            console.warn('⚠️ [PokemonUI] Initialisation avec erreurs:', result.errors);
-          }
-          
-          return result;
-        } else {
-          console.log('✅ [PokemonUI] Modules en mode minimal prêts');
-          
-          // 🆕 FORCER LE POSITIONNEMENT MANUEL EN MODE MINIMAL
-          this.setupManualIconPositioning();
-          
-          return { 
-            success: true, 
-            results: Object.fromEntries(this.moduleInstances), 
-            errors: [] 
-          };
-        }
+        return { success: errors.length === 0, results, errors };
       }
       
       setGameState(stateName, options = {}) {
@@ -706,7 +633,7 @@ export class PokemonUISystem {
   // === FACTORIES DES MODULES ===
 
 async createInventoryModule() {
-  console.log('🎒 [PokemonUI] Création module inventaire...');
+  console.log('🎒 [PokemonUI] Création NOUVEAU module inventaire compatible UIManager...');
   
   try {
     // Import du nouveau système unifié
@@ -722,7 +649,17 @@ async createInventoryModule() {
       throw new Error('Échec création InventoryModule');
     }
     
-    // 🆕 SUPPRIMER LE POSITIONNEMENT INDIVIDUEL - sera géré par setupManualIconPositioning()
+    // 🆕 FORCER L'ENREGISTREMENT UIMANAGER
+    if (this.uiManager && this.uiManager.registerIconPosition) {
+      console.log('📍 [PokemonUI] Connexion Inventory à UIManager...');
+      
+      // L'InventoryModule a déjà la méthode, on la force juste
+      setTimeout(() => {
+        inventoryModule.registerWithUIManager();
+      }, 100);
+    } else {
+      console.warn('⚠️ [PokemonUI] UIManager sans registerIconPosition pour Inventory');
+    }
     
     // Exposer globalement pour compatibilité
     window.inventorySystem = inventoryModule.system;          
@@ -731,7 +668,7 @@ async createInventoryModule() {
     window.openInventory = () => inventoryModule.openInventory();
     window.closeInventory = () => inventoryModule.closeInventory();
     
-    console.log('✅ [PokemonUI] Inventaire créé');
+    console.log('✅ [PokemonUI] Inventaire créé et connecté à UIManager');
     
     return inventoryModule;
     
@@ -741,37 +678,52 @@ async createInventoryModule() {
   }
 }
 
-    async createTeamModuleUnified() {
-      console.log('⚔️ [PokemonUI] Création module Team unifié...');
-      
-      try {
-        // Import dynamique du système Team unifié
-        const { createTeamModule } = await import('./Team/index.js');
-        
-        // Créer le module avec les paramètres du jeu
-        const teamModule = await createTeamModule(
-          window.currentGameRoom,
-          window.game?.scene?.getScenes(true)[0]
-        );
-        
-        // 🆕 SUPPRIMER LE POSITIONNEMENT INDIVIDUEL - sera géré par setupManualIconPositioning()
-        // Plus besoin de connecter individuellement à UIManager ici
-        
-        // Exposer globalement pour compatibilité
-        window.teamSystem = teamModule;
-        window.toggleTeam = () => teamModule.toggleTeamUI();
-        window.openTeam = () => teamModule.openTeam();
-        window.closeTeam = () => teamModule.closeTeam();
-        
-        console.log('✅ [PokemonUI] Module Team unifié créé');
-        
-        return teamModule;
-        
-      } catch (error) {
-        console.error('❌ [PokemonUI] Erreur création Team unifié:', error);
-        return this.createEmptyWrapper('team');
-      }
+  async createTeamModuleUnified() {
+  console.log('⚔️ [PokemonUI] Création module Team unifié...');
+  
+  try {
+    // Import dynamique du système Team unifié
+    const { createTeamModule } = await import('./Team/index.js');
+    
+    // Créer le module avec les paramètres du jeu
+    const teamModule = await createTeamModule(
+      window.currentGameRoom,
+      window.game?.scene?.getScenes(true)[0]
+    );
+    // 🆕 CONNECTER À UIMANAGER
+if (this.uiManager && this.uiManager.registerIconPosition) {
+  console.log('📍 [PokemonUI] Connexion Team à UIManager...');
+  teamModule.connectUIManager(this.uiManager);
+} else {
+  console.warn('⚠️ [PokemonUI] Fallback position manuelle');
+  setTimeout(() => {
+    const teamIcon = document.querySelector('#team-icon');
+    if (teamIcon) {
+      teamIcon.style.position = 'fixed';
+      teamIcon.style.right = '20px';
+      teamIcon.style.bottom = '20px';
+      teamIcon.style.zIndex = '500';
     }
+  }, 100);
+}
+    // Exposer globalement pour compatibilité
+    window.teamSystem = teamModule;
+    window.toggleTeam = () => teamModule.toggleTeamUI();
+    window.openTeam = () => teamModule.openTeam();
+    window.closeTeam = () => teamModule.closeTeam();
+    
+    console.log('✅ [PokemonUI] Module Team unifié créé et exposé globalement');
+    
+    return teamModule;
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur création Team unifié:', error);
+    
+    // Fallback vers module vide en cas d'erreur
+    return this.createEmptyWrapper('team');
+  }
+}
+
   async createQuestModule() {
     console.log('📋 [PokemonUI] Création module quêtes...');
     
