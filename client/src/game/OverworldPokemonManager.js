@@ -523,43 +523,54 @@ export class OverworldPokemonManager {
   /**
    * ✅ Gestion demande de spawn (vérification collision)
    */
-  handlePokemonSpawnRequest(data) {
-    const { id, x, y } = data;
-    
-    // Vérifier si la position est libre
-    const canSpawn = this.canSpawnAt(x, y);
-    
-    // Répondre au serveur
-    this.scene.network.send('overworldPokemonSpawnResponse', {
+ /**
+ * ✅ Gestion demande de spawn (vérification collision)
+ */
+handlePokemonSpawnRequest(data) {
+  const { id, x, y } = data;
+  
+  // Vérifier si la position est libre
+  const canSpawn = this.canSpawnAt(x, y);
+  
+  // ✅ CORRECTION: Utiliser networkManager.room.send au lieu de scene.network.send
+  if (this.scene.networkManager?.room) {
+    this.scene.networkManager.room.send('overworldPokemonSpawnResponse', {
       ...data,
       success: canSpawn,
       x: x,
       y: y
     });
-    
-    console.log(`🎯 [OverworldPokemonManager] Spawn request ${id}: ${canSpawn ? 'OK' : 'BLOQUÉ'} à (${x}, ${y})`);
+  } else {
+    console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au spawn`);
   }
+  
+  console.log(`🎯 [OverworldPokemonManager] Spawn request ${id}: ${canSpawn ? 'OK' : 'BLOQUÉ'} à (${x}, ${y})`);
+}
 
   /**
    * ✅ Gestion demande de mouvement (vérification collision)
    */
-  handlePokemonMoveRequest(data) {
-    const { id, fromX, fromY, toX, toY, direction } = data;
-    
-    // Vérifier si le mouvement est possible
-    const canMove = this.canMoveTo(toX, toY) && !this.isPokemonAt(toX, toY);
-    
-    // Répondre au serveur
-    this.scene.network.send('overworldPokemonMoveResponse', {
+handlePokemonMoveRequest(data) {
+  const { id, fromX, fromY, toX, toY, direction } = data;
+  
+  // Vérifier si le mouvement est possible
+  const canMove = this.canMoveTo(toX, toY) && !this.isPokemonAt(toX, toY);
+  
+  // ✅ CORRECTION: Utiliser networkManager.room.send
+  if (this.scene.networkManager?.room) {
+    this.scene.networkManager.room.send('overworldPokemonMoveResponse', {
       id,
       success: canMove,
       toX,
       toY,
       direction
     });
-    
-    console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'} (${fromX},${fromY}) → (${toX},${toY})`);
+  } else {
+    console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au mouvement`);
   }
+  
+  console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'} (${fromX},${fromY}) → (${toX},${toY})`);
+}
 
   /**
    * ✅ Vérification si on peut spawn à une position
