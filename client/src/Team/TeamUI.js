@@ -1448,14 +1448,30 @@ export class TeamUI {
     `;
   }
   
-  getPortraitStyle(pokemonId) {
-    if (!pokemonId) {
-      return `background: linear-gradient(45deg, #ccc, #999); display: flex; align-items: center; justify-content: center;`;
-    }
-    
-    const url = `/assets/pokemon/portraitanime/${pokemonId}.png`;
-    return `background-image: url('${url}'); background-size: cover; background-position: center;`;
+getPortraitStyle(pokemonId) {
+  if (!pokemonId) {
+    return `
+      background: linear-gradient(45deg, #ccc, #999); 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 20px;
+    `;
   }
+  
+  const url = `/assets/pokemon/portraitanime/${pokemonId}.png`;
+  
+  // ✅ AFFICHER SEULEMENT LA PREMIÈRE FRAME
+  return `
+    background-image: url('${url}');
+    background-size: auto 100%;
+    background-position: 0px 0px;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+  `;
+}
   
   getHealthClass(healthPercent) {
     if (healthPercent > 75) return 'high';
