@@ -1452,9 +1452,9 @@ export class TeamUI {
   
 getPortraitStyle(pokemonId) {
   console.log('🎨 [TeamUI] Génération style portrait avec SpriteUtils:', pokemonId);
-
+  
   if (!pokemonId) {
-    return 
+    return `
       background: linear-gradient(45deg, #ccc, #999); 
       display: flex; 
       align-items: center; 
@@ -1462,17 +1462,17 @@ getPortraitStyle(pokemonId) {
       color: white;
       font-weight: bold;
       font-size: 20px;
-    ;
+    `;
   }
-
+  
   const style = getPokemonPortraitStyle(pokemonId, {
-    width: '128px',
-    height: '128px',
+    width: '64px',
+    height: '64px',
     preservePixelArt: true
   });
-
+  
   console.log('🎨 [TeamUI] Style généré par SpriteUtils:', style);
-
+  
   return style;
 }
   
