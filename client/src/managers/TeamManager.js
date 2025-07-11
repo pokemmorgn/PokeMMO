@@ -1,5 +1,5 @@
-// client/src/managers/TeamManager.js - VERSION REFACTORISÉE ET OPTIMISÉE
-// 🚀 Performance optimisée, intégration UIManager parfaite, design amélioré
+// client/src/managers/TeamManager.js - VERSION CONTRÔLÉE PAR UIMANAGER
+// 🎯 UIManager devient le MAÎTRE - modules deviennent des SERVANTS obéissants
 
 import { TeamUI } from '../components/TeamUI.js';
 import { TeamIcon } from '../components/TeamIcon.js';
@@ -9,12 +9,19 @@ export class TeamManager {
     this.scene = scene;
     this.gameRoom = gameRoom;
     
-    // === MODULES UI ===
+    // === ÉTAT CENTRALISÉ CONTRÔLÉ PAR UIMANAGER ===
+    this.uiManagerState = {
+      visible: false,           // UIManager contrôle la visibilité
+      enabled: false,           // UIManager contrôle l'état
+      initialized: false,       // UIManager contrôle l'initialisation
+      controlled: true          // Marquer comme contrôlé par UIManager
+    };
+    
+    // === MODULES UI PASSIFS ===
     this.teamUI = null;
     this.teamIcon = null;
     
-    // === ÉTAT ET DONNÉES ===
-    this.isInitialized = false;
+    // === DONNÉES BUSINESS LOGIC SEULEMENT ===
     this.teamData = [];
     this.teamStats = {
       totalPokemon: 0,
@@ -24,173 +31,46 @@ export class TeamManager {
       canBattle: false
     };
     
-    // === PERFORMANCE OPTIMISATIONS ===
-    this.updateQueue = new Set();
-    this.isUpdating = false;
-    this.lastUpdate = 0;
-    this.updateThrottle = 100; // 100ms throttle
-    this.rafId = null;
-    
-    // === CACHE ET MÉMOIRE ===
-    this.cache = {
-      lastTeamData: null,
-      lastStatsHash: null,
-      renderedElements: new Map()
-    };
-    
-    // === EVENT MANAGEMENT ===
-    this.eventListeners = new Map();
-    this.abortController = new AbortController();
-    
-    // === UI MANAGER INTEGRATION ===
-    this.uiManagerState = {
-      visible: true,
-      enabled: true,
-      initialized: false,
-      moduleId: 'teamManager',
-      priority: 100
-    };
-    
     // === CONFIGURATION ===
-    this.config = {
-      enableDebugLogs: false,
-      autoSave: true,
-      saveInterval: 30000, // 30 secondes
-      maxRetries: 3,
-      enableAnimations: true,
-      batchUpdates: true
-    };
+    this.isUIManagerControlled = true;  // Flag important
+    this.preventAutoActions = true;     // Empêcher les actions automatiques
+    this.silentMode = false;           // Mode silencieux pour les logs
     
-    console.log("⚔️ [TeamManager] Instance créée (optimisée)");
-    this.init();
+    console.log("⚔️ [TeamManager] Instance créée (UIManager-controlled)");
   }
 
-  // ===== 🚀 INITIALISATION OPTIMISÉE =====
+  // ===== 🎯 INITIALISATION CONTRÔLÉE PAR UIMANAGER =====
   
   async init() {
-    try {
-      this.log("🚀 Initialisation TeamManager optimisé...");
+    if (this.isUIManagerControlled) {
+      // En mode contrôlé, on ne fait QUE la logique business
+      this.log("🎯 [TeamManager] Init en mode UIManager-controlled");
       
-      // Créer les composants UI de manière optimisée
-      await this.createUIComponents();
+      // Setup data logic seulement
+      this.setupDataLogic();
+      this.setupServerListeners();
       
-      // Setup des intégrations système
-      await this.setupSystemIntegrations();
-      
-      // Configuration des optimisations
-      this.setupPerformanceOptimizations();
-      
-      // Setup des event listeners avec cleanup automatique
-      this.setupEventListeners();
-      
-      // Setup auto-save
-      if (this.config.autoSave) {
-        this.setupAutoSave();
-      }
-      
-      // Marquer comme initialisé
-      this.isInitialized = true;
+      // PAS d'UI - sera créée par UIManager via les factories
       this.uiManagerState.initialized = true;
       
-      this.log("✅ TeamManager initialisé avec succès");
-      
-      // Notifier l'initialisation
-      this.emit('initialized', { teamManager: this });
-      
-    } catch (error) {
-      console.error("❌ [TeamManager] Erreur d'initialisation:", error);
-      this.handleError(error, 'initialization');
+      this.log("✅ [TeamManager] Logique business initialisée");
+      return this;
     }
+    
+    // Mode legacy (ne devrait pas être utilisé)
+    return this.initLegacy();
   }
 
-  async createUIComponents() {
-    this.log("🎨 Création composants UI...");
+  setupDataLogic() {
+    // Setup uniquement la logique de données
+    this.dataUpdateHandlers = new Map();
+    this.eventQueue = [];
+    this.lastDataUpdate = 0;
     
-    try {
-      // Créer TeamUI avec configuration optimisée
-      this.teamUI = new TeamUI(this.gameRoom, {
-        enableCache: true,
-        enableAnimations: this.config.enableAnimations,
-        batchUpdates: this.config.batchUpdates,
-        parent: this
-      });
-      
-      // Attendre que TeamUI soit prêt
-      await this.waitForUIReady(this.teamUI);
-      
-      // Créer TeamIcon avec référence TeamUI
-      this.teamIcon = new TeamIcon(this.teamUI, {
-        enableNotifications: true,
-        autoPosition: true,
-        parent: this
-      });
-      
-      // Attendre que TeamIcon soit prêt
-      await this.waitForUIReady(this.teamIcon);
-      
-      // Connecter les composants
-      this.connectUIComponents();
-      
-      this.log("✅ Composants UI créés");
-      
-    } catch (error) {
-      this.handleError(error, 'ui_creation');
-      throw error;
-    }
-  }
-
-  async waitForUIReady(component, timeout = 5000) {
-    return new Promise((resolve, reject) => {
-      const startTime = Date.now();
-      
-      const checkReady = () => {
-        if (component && (component.iconElement || component.overlay)) {
-          resolve(component);
-        } else if (Date.now() - startTime > timeout) {
-          reject(new Error(`Component ${component.constructor.name} timeout`));
-        } else {
-          setTimeout(checkReady, 50);
-        }
-      };
-      
-      checkReady();
-    });
-  }
-
-  connectUIComponents() {
-    this.log("🔗 Connexion composants UI...");
-    
-    if (this.teamUI && this.teamIcon) {
-      // Connecter les événements bidirectionnels
-      this.teamUI.teamIcon = this.teamIcon;
-      this.teamIcon.teamUI = this.teamUI;
-      
-      // Setup callbacks optimisés
-      this.teamUI.onDataUpdate = (data) => this.scheduleUpdate('stats', data);
-      this.teamIcon.onClick = () => this.handleIconClick();
-      
-      // Setup notifications cross-component
-      this.teamUI.onNotification = (msg, type) => this.showNotification(msg, type);
-      this.teamIcon.onNotification = (msg, type) => this.showNotification(msg, type);
-    }
-  }
-
-  // ===== 🎯 INTÉGRATIONS SYSTÈME OPTIMISÉES =====
-
-  async setupSystemIntegrations() {
-    this.log("🔧 Configuration intégrations système...");
-    
-    // Setup serveur listeners avec gestion d'erreur
-    this.setupServerListeners();
-    
-    // Setup raccourcis clavier optimisés
-    this.setupKeyboardShortcuts();
-    
-    // Intégration avec autres systèmes
-    this.setupExternalIntegrations();
-    
-    // Setup responsive design
-    this.setupResponsiveHandling();
+    // Auto-cleanup des données anciennes
+    setInterval(() => {
+      this.cleanupStaleData();
+    }, 60000); // 1 minute
   }
 
   setupServerListeners() {
@@ -199,369 +79,353 @@ export class TeamManager {
       return;
     }
 
-    const signal = this.abortController.signal;
-
     try {
-      // === LISTENERS OPTIMISÉS AVEC THROTTLING ===
+      // === LISTENERS PUREMENT DATA - SANS UI ===
       
-      // Données d'équipe complètes - throttlé
-      this.gameRoom.onMessage("teamData", this.throttle((data) => {
+      this.gameRoom.onMessage("teamData", (data) => {
         this.handleTeamDataUpdate(data);
-      }, this.updateThrottle));
+      });
 
-      // Actions d'équipe - immédiat
       this.gameRoom.onMessage("teamActionResult", (data) => {
         this.handleTeamActionResult(data);
       });
 
-      // Pokémon soigné - immédiat
       this.gameRoom.onMessage("teamHealed", (data) => {
         this.handleTeamHealed(data);
       });
 
-      // Stats d'équipe - throttlé et déduplication
-      this.gameRoom.onMessage("teamStats", this.throttle((data) => {
+      this.gameRoom.onMessage("teamStats", (data) => {
         this.handleTeamStats(data);
-      }, this.updateThrottle));
-
-      // Événements Pokémon individuels - batchés
-      this.gameRoom.onMessage("pokemonAdded", (data) => {
-        this.scheduleUpdate('pokemonAdded', data);
-      });
-
-      this.gameRoom.onMessage("pokemonRemoved", (data) => {
-        this.scheduleUpdate('pokemonRemoved', data);
-      });
-
-      this.gameRoom.onMessage("pokemonUpdated", (data) => {
-        this.scheduleUpdate('pokemonUpdated', data);
       });
       
-      this.log("✅ Listeners serveur configurés (optimisés)");
+      this.log("✅ [TeamManager] Listeners data configurés");
       
     } catch (error) {
-      this.handleError(error, 'server_listeners');
+      console.error("❌ [TeamManager] Erreur setup listeners:", error);
     }
   }
 
-  setupKeyboardShortcuts() {
-    const keyHandler = (e) => {
-      // Vérifier si on peut interagir
-      if (!this.canPlayerInteract()) return;
-      
-      switch (e.key.toLowerCase()) {
-        case 't':
-          if (!e.ctrlKey && !e.altKey && !e.metaKey) {
-            e.preventDefault();
-            this.toggleTeam();
-          }
-          break;
-        case 'escape':
-          if (this.teamUI?.isVisible) {
-            e.preventDefault();
-            this.closeTeam();
-          }
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', keyHandler, { 
-      signal: this.abortController.signal,
-      passive: false 
-    });
+  // ===== 🏭 FACTORIES POUR UIMANAGER =====
+  
+  /**
+   * Factory pour TeamIcon - appelée par UIManager
+   */
+  createTeamIconForUIManager() {
+    this.log("🏭 [Factory] Création TeamIcon pour UIManager");
     
-    this.eventListeners.set('keydown', keyHandler);
-  }
-
-  setupExternalIntegrations() {
-    // Intégration avec le système de quêtes
-    if (window.questSystem) {
-      this.questSystemIntegration();
+    if (this.teamIcon) {
+      this.warn("⚠️ TeamIcon existe déjà - destruction...");
+      this.destroyTeamIcon();
     }
 
-    // Intégration avec le chat
-    this.chatIntegration();
-    
-    // Intégration UIManager
-    this.uiManagerIntegration();
-  }
-
-  questSystemIntegration() {
     try {
-      const questSystem = window.questSystem || window.questSystemGlobal;
-      
-      if (questSystem) {
-        // Écouter les captures pour les quêtes
-        this.on('pokemonCaught', (data) => {
-          if (data.addedToTeam && questSystem.triggerCatchEvent) {
-            questSystem.triggerCatchEvent(data.pokemon);
-          }
-        });
-        
-        this.log("✅ Intégration système de quêtes");
-      }
-    } catch (error) {
-      this.warn("⚠️ Erreur intégration quêtes:", error);
-    }
-  }
-
-  chatIntegration() {
-    try {
-      // Désactiver l'équipe quand le chat est actif
-      if (typeof window.isChatFocused === 'function') {
-        const checkChatFocus = this.throttle(() => {
-          const chatFocused = window.isChatFocused();
-          if (this.teamIcon) {
-            this.teamIcon.setEnabled(!chatFocused);
-          }
-        }, 1000);
-        
-        // Check périodique optimisé
-        const intervalId = setInterval(checkChatFocus, 2000);
-        
-        // Cleanup automatique
-        this.abortController.signal.addEventListener('abort', () => {
-          clearInterval(intervalId);
-        });
-      }
-    } catch (error) {
-      this.warn("⚠️ Erreur intégration chat:", error);
-    }
-  }
-
-  uiManagerIntegration() {
-    try {
-      // Enregistrer dans l'UIManager si disponible
-      if (window.uiManager || window.pokemonUISystem?.uiManager) {
-        const uiManager = window.uiManager || window.pokemonUISystem.uiManager;
-        
-        if (uiManager.registerModule) {
-          this.registerWithUIManager(uiManager);
-        }
-      }
-      
-      // Écouter les événements UIManager
-      window.addEventListener('pokemonUIStateChanged', (e) => {
-        this.handleUIStateChange(e.detail);
-      }, { signal: this.abortController.signal });
-      
-    } catch (error) {
-      this.warn("⚠️ Erreur intégration UIManager:", error);
-    }
-  }
-
-  async registerWithUIManager(uiManager) {
-    try {
-      await uiManager.registerModule('teamManager', {
-        factory: () => Promise.resolve(this),
-        instance: this,
-        dependencies: [],
-        defaultState: this.uiManagerState,
-        priority: this.uiManagerState.priority,
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 2,
-          spacing: 10
-        }
+      // Créer TeamIcon en mode passif
+      this.teamIcon = new TeamIcon(null, {
+        uiManagerControlled: true,
+        preventAutoActions: true,
+        silent: this.silentMode,
+        dataProvider: this // TeamManager fournit les données
       });
       
-      this.log("✅ Enregistré dans UIManager");
+      // Connecter les données sans logique UI
+      this.connectTeamIconData();
+      
+      this.log("✅ [Factory] TeamIcon créé (contrôlé par UIManager)");
+      return this.teamIcon;
       
     } catch (error) {
-      this.warn("⚠️ Erreur enregistrement UIManager:", error);
+      console.error("❌ [Factory] Erreur création TeamIcon:", error);
+      return this.createFallbackTeamIcon();
     }
   }
 
-  setupResponsiveHandling() {
-    const handleResize = this.throttle(() => {
-      if (this.teamUI?.handleResize) {
-        this.teamUI.handleResize();
-      }
-      if (this.teamIcon?.adjustPosition) {
-        this.teamIcon.adjustPosition();
-      }
-    }, 250);
-
-    window.addEventListener('resize', handleResize, { 
-      signal: this.abortController.signal 
-    });
-  }
-
-  // ===== ⚡ OPTIMISATIONS PERFORMANCE =====
-
-  setupPerformanceOptimizations() {
-    this.log("⚡ Configuration optimisations performance...");
+  /**
+   * Factory pour TeamUI - appelée par UIManager
+   */
+  createTeamUIForUIManager() {
+    this.log("🏭 [Factory] Création TeamUI pour UIManager");
     
-    // Setup du système de batch updates
-    this.setupBatchUpdates();
-    
-    // Setup du cache intelligent
-    this.setupCache();
-    
-    // Setup monitoring performance
-    this.setupPerformanceMonitoring();
-  }
+    if (this.teamUI) {
+      this.warn("⚠️ TeamUI existe déjà - destruction...");
+      this.destroyTeamUI();
+    }
 
-  setupBatchUpdates() {
-    // Traitement par batch des mises à jour
-    this.processBatchUpdates = this.debounce(() => {
-      if (this.updateQueue.size === 0 || this.isUpdating) return;
-      
-      this.isUpdating = true;
-      const updates = Array.from(this.updateQueue);
-      this.updateQueue.clear();
-      
-      // Traiter les updates par type
-      const groupedUpdates = this.groupUpdatesByType(updates);
-      
-      this.rafId = requestAnimationFrame(() => {
-        this.processGroupedUpdates(groupedUpdates);
-        this.isUpdating = false;
-        this.lastUpdate = Date.now();
+    try {
+      // Créer TeamUI en mode passif
+      this.teamUI = new TeamUI(this.gameRoom, {
+        uiManagerControlled: true,
+        preventAutoShow: true,
+        preventAutoHide: true,
+        dataProvider: this // TeamManager fournit les données
       });
       
-    }, 50);
-  }
-
-  scheduleUpdate(type, data) {
-    this.updateQueue.add({ type, data, timestamp: Date.now() });
-    this.processBatchUpdates();
-  }
-
-  groupUpdatesByType(updates) {
-    const grouped = {};
-    
-    updates.forEach(update => {
-      if (!grouped[update.type]) {
-        grouped[update.type] = [];
-      }
-      grouped[update.type].push(update.data);
-    });
-    
-    return grouped;
-  }
-
-  processGroupedUpdates(groupedUpdates) {
-    try {
-      // Traiter les stats en premier (plus critique)
-      if (groupedUpdates.stats) {
-        this.processStatsUpdates(groupedUpdates.stats);
-      }
+      // Connecter les données sans logique UI
+      this.connectTeamUIData();
       
-      // Puis les événements Pokémon
-      if (groupedUpdates.pokemonAdded) {
-        this.processPokemonEvents('added', groupedUpdates.pokemonAdded);
-      }
-      
-      if (groupedUpdates.pokemonRemoved) {
-        this.processPokemonEvents('removed', groupedUpdates.pokemonRemoved);
-      }
-      
-      if (groupedUpdates.pokemonUpdated) {
-        this.processPokemonEvents('updated', groupedUpdates.pokemonUpdated);
-      }
+      this.log("✅ [Factory] TeamUI créé (contrôlé par UIManager)");
+      return this.teamUI;
       
     } catch (error) {
-      this.handleError(error, 'batch_updates');
+      console.error("❌ [Factory] Erreur création TeamUI:", error);
+      return this.createFallbackTeamUI();
     }
   }
 
-  setupCache() {
-    // Cache intelligent avec invalidation automatique
-    this.cache.maxAge = 30000; // 30 secondes
-    this.cache.maxSize = 100;
-    
-    // Nettoyage périodique du cache
-    const cleanupInterval = setInterval(() => {
-      this.cleanupCache();
-    }, 60000); // 1 minute
-    
-    this.abortController.signal.addEventListener('abort', () => {
-      clearInterval(cleanupInterval);
-    });
-  }
+  // ===== 🔗 CONNEXIONS DATA SANS LOGIQUE UI =====
 
-  cleanupCache() {
-    const now = Date.now();
+  connectTeamIconData() {
+    if (!this.teamIcon) return;
     
-    // Nettoyer les entrées expirées
-    for (const [key, entry] of this.cache.renderedElements) {
-      if (now - entry.timestamp > this.cache.maxAge) {
-        this.cache.renderedElements.delete(key);
-      }
-    }
+    // Fournir les données initiales
+    this.teamIcon.updateTeamStats(this.teamStats);
     
-    // Limiter la taille du cache
-    if (this.cache.renderedElements.size > this.cache.maxSize) {
-      const entries = Array.from(this.cache.renderedElements.entries());
-      entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
-      
-      const toDelete = entries.slice(0, entries.length - this.cache.maxSize);
-      toDelete.forEach(([key]) => this.cache.renderedElements.delete(key));
-    }
-  }
-
-  setupPerformanceMonitoring() {
-    this.performanceMetrics = {
-      updateCount: 0,
-      errorCount: 0,
-      avgUpdateTime: 0,
-      lastPerformanceCheck: Date.now()
+    // Connecter le click handler SANS logique d'affichage
+    this.teamIcon.onClickRequest = () => {
+      // Demander à UIManager d'ouvrir TeamUI
+      this.requestUIManagerAction('toggleTeamUI');
     };
     
-    // Monitoring périodique
-    const monitorInterval = setInterval(() => {
-      this.checkPerformance();
-    }, 30000); // 30 secondes
-    
-    this.abortController.signal.addEventListener('abort', () => {
-      clearInterval(monitorInterval);
+    // Connecter les updates de données
+    this.on('statsUpdated', (stats) => {
+      if (this.teamIcon && this.teamIcon.updateTeamStats) {
+        this.teamIcon.updateTeamStats(stats);
+      }
     });
   }
 
-  checkPerformance() {
-    const now = Date.now();
-    const timeSinceLastCheck = now - this.performanceMetrics.lastPerformanceCheck;
+  connectTeamUIData() {
+    if (!this.teamUI) return;
     
-    // Calculer les métriques
-    const updatesPerSecond = this.performanceMetrics.updateCount / (timeSinceLastCheck / 1000);
+    // Fournir les données initiales
+    this.teamUI.updateTeamData({ team: this.teamData });
     
-    // Ajuster les optimisations si nécessaire
-    if (updatesPerSecond > 10) {
-      this.updateThrottle = Math.min(this.updateThrottle * 1.2, 500);
-      this.warn(`⚡ Performance: augmentation throttle à ${this.updateThrottle}ms`);
-    } else if (updatesPerSecond < 2 && this.updateThrottle > 100) {
-      this.updateThrottle = Math.max(this.updateThrottle * 0.8, 100);
-      this.log(`⚡ Performance: réduction throttle à ${this.updateThrottle}ms`);
-    }
+    // Connecter les actions SANS logique d'affichage
+    this.teamUI.onActionRequest = (action, data) => {
+      this.handleTeamUIAction(action, data);
+    };
     
-    // Reset des compteurs
-    this.performanceMetrics.updateCount = 0;
-    this.performanceMetrics.lastPerformanceCheck = now;
+    // Connecter les updates de données
+    this.on('teamDataUpdated', (data) => {
+      if (this.teamUI && this.teamUI.updateTeamData) {
+        this.teamUI.updateTeamData(data);
+      }
+    });
   }
 
-  // ===== 📨 GESTION ÉVÉNEMENTS OPTIMISÉE =====
+  // ===== 📡 COMMUNICATION AVEC UIMANAGER =====
+
+  requestUIManagerAction(action, data = null) {
+    this.log(`📡 [Request] Demande action UIManager: ${action}`);
+    
+    // Notifier UIManager via événement global
+    window.dispatchEvent(new CustomEvent('teamManagerRequest', {
+      detail: { action, data, source: 'teamManager' }
+    }));
+    
+    // Fallback si UIManager n'est pas disponible
+    if (!window.uiManager && !window.pokemonUISystem?.uiManager) {
+      this.warn("⚠️ UIManager non disponible - action directe");
+      this.handleDirectAction(action, data);
+    }
+  }
+
+  handleDirectAction(action, data) {
+    // Actions de fallback si UIManager n'est pas disponible
+    switch (action) {
+      case 'toggleTeamUI':
+        if (this.teamUI) {
+          this.teamUI.isVisible ? this.teamUI.hide() : this.teamUI.show();
+        }
+        break;
+      case 'showTeamUI':
+        if (this.teamUI) {
+          this.teamUI.show();
+        }
+        break;
+      case 'hideTeamUI':
+        if (this.teamUI) {
+          this.teamUI.hide();
+        }
+        break;
+    }
+  }
+
+  handleTeamUIAction(action, data) {
+    this.log(`🎬 [Action] TeamUI action: ${action}`);
+    
+    switch (action) {
+      case 'healTeam':
+        this.healTeam();
+        break;
+      case 'healPokemon':
+        this.healPokemon(data.pokemonId);
+        break;
+      case 'removePokemon':
+        this.removePokemon(data.pokemonId);
+        break;
+      case 'swapPokemon':
+        this.swapPokemon(data.fromSlot, data.toSlot);
+        break;
+      case 'close':
+        this.requestUIManagerAction('hideTeamUI');
+        break;
+    }
+  }
+
+  // ===== 🎛️ MÉTHODES UIMANAGER (INTERFACE PRINCIPALE) =====
+
+  /**
+   * UIManager appelle cette méthode pour afficher
+   */
+  show() {
+    this.log("👁️ [UIManager→TeamManager] show() appelée");
+    
+    this.uiManagerState.visible = true;
+    
+    // Afficher uniquement si les composants existent
+    if (this.teamIcon && !this.teamIcon.isDestroyed) {
+      this.teamIcon.show();
+    }
+    
+    // TeamUI reste caché par défaut (sera affiché sur demande)
+    return true;
+  }
+
+  /**
+   * UIManager appelle cette méthode pour cacher
+   */
+  hide() {
+    this.log("👻 [UIManager→TeamManager] hide() appelée");
+    
+    this.uiManagerState.visible = false;
+    
+    // Cacher tous les composants
+    if (this.teamIcon && !this.teamIcon.isDestroyed) {
+      this.teamIcon.hide();
+    }
+    
+    if (this.teamUI && !this.teamUI.isDestroyed) {
+      this.teamUI.hide();
+    }
+    
+    return true;
+  }
+
+  /**
+   * UIManager appelle cette méthode pour activer/désactiver
+   */
+  setEnabled(enabled) {
+    this.log(`🔧 [UIManager→TeamManager] setEnabled(${enabled}) appelée`);
+    
+    this.uiManagerState.enabled = enabled;
+    
+    // Appliquer aux composants
+    if (this.teamIcon && !this.teamIcon.isDestroyed) {
+      this.teamIcon.setEnabled(enabled);
+    }
+    
+    if (this.teamUI && !this.teamUI.isDestroyed) {
+      this.teamUI.setEnabled(enabled);
+    }
+    
+    return true;
+  }
+
+  /**
+   * UIManager appelle cette méthode pour obtenir l'état
+   */
+  getUIManagerState() {
+    return {
+      ...this.uiManagerState,
+      teamStats: this.teamStats,
+      hasTeamIcon: !!this.teamIcon && !this.teamIcon.isDestroyed,
+      hasTeamUI: !!this.teamUI && !this.teamUI.isDestroyed,
+      canBattle: this.canBattle(),
+      isTeamFull: this.isTeamFull(),
+      lastUpdate: this.lastDataUpdate
+    };
+  }
+
+  /**
+   * UIManager appelle cette méthode pour destruction
+   */
+  destroy() {
+    this.log("🧹 [UIManager→TeamManager] destroy() appelée");
+    
+    try {
+      // Détruire les composants UI
+      this.destroyTeamIcon();
+      this.destroyTeamUI();
+      
+      // Nettoyer les données
+      this.cleanupData();
+      
+      // Reset état
+      this.uiManagerState.initialized = false;
+      this.uiManagerState.visible = false;
+      this.uiManagerState.enabled = false;
+      
+      this.log("✅ [TeamManager] Destruction terminée");
+      
+    } catch (error) {
+      console.error("❌ [TeamManager] Erreur destruction:", error);
+    }
+  }
+
+  // ===== 🗑️ DESTRUCTION COMPOSANTS =====
+
+  destroyTeamIcon() {
+    if (this.teamIcon) {
+      try {
+        if (typeof this.teamIcon.destroy === 'function') {
+          this.teamIcon.destroy();
+        }
+        this.teamIcon.isDestroyed = true;
+        this.teamIcon = null;
+        this.log("✅ TeamIcon détruit");
+      } catch (error) {
+        console.error("❌ Erreur destruction TeamIcon:", error);
+        this.teamIcon = null;
+      }
+    }
+  }
+
+  destroyTeamUI() {
+    if (this.teamUI) {
+      try {
+        if (typeof this.teamUI.destroy === 'function') {
+          this.teamUI.destroy();
+        }
+        this.teamUI.isDestroyed = true;
+        this.teamUI = null;
+        this.log("✅ TeamUI détruit");
+      } catch (error) {
+        console.error("❌ Erreur destruction TeamUI:", error);
+        this.teamUI = null;
+      }
+    }
+  }
+
+  cleanupData() {
+    this.teamData = [];
+    this.teamStats = {
+      totalPokemon: 0,
+      alivePokemon: 0,
+      faintedPokemon: 0,
+      averageLevel: 0,
+      canBattle: false
+    };
+    this.eventQueue = [];
+    this.dataUpdateHandlers.clear();
+  }
+
+  // ===== 📊 GESTION DONNÉES (BUSINESS LOGIC PURE) =====
 
   handleTeamDataUpdate(data) {
     try {
-      // Vérifier si les données ont vraiment changé
-      const dataHash = this.hashData(data);
-      if (dataHash === this.cache.lastTeamData) {
-        return; // Pas de changement, ignorer
-      }
-      
-      this.cache.lastTeamData = dataHash;
       this.updateLocalTeamData(data);
-      
-      // Mettre à jour l'UI de manière optimisée
-      if (this.teamUI) {
-        this.teamUI.updateTeamData(data);
-      }
-      
-      this.performanceMetrics.updateCount++;
+      this.emit('teamDataUpdated', data);
       this.log("📊 Données équipe mises à jour");
-      
     } catch (error) {
       this.handleError(error, 'team_data_update');
     }
@@ -569,18 +433,19 @@ export class TeamManager {
 
   handleTeamActionResult(data) {
     try {
-      if (this.teamUI) {
-        this.teamUI.handleTeamActionResult(data);
+      // Traiter le résultat d'action
+      this.emit('actionResult', data);
+      
+      // Notifier via système global si disponible
+      if (typeof window.showGameNotification === 'function') {
+        window.showGameNotification(
+          data.message, 
+          data.success ? 'success' : 'error'
+        );
       }
       
-      this.showNotification(
-        data.message, 
-        data.success ? 'success' : 'error',
-        { duration: data.success ? 2000 : 4000 }
-      );
-      
-      // Rafraîchir les données après une action
-      this.scheduleDataRefresh();
+      // Rafraîchir les données après action
+      setTimeout(() => this.requestTeamData(), 500);
       
     } catch (error) {
       this.handleError(error, 'team_action_result');
@@ -589,15 +454,14 @@ export class TeamManager {
 
   handleTeamHealed(data) {
     try {
-      this.showNotification('Équipe soignée!', 'success', { duration: 2000 });
+      this.emit('teamHealed', data);
       
-      // Animation spéciale sur l'icône
-      if (this.teamIcon) {
-        this.teamIcon.onTeamUpdate({ type: 'healed' });
+      if (typeof window.showGameNotification === 'function') {
+        window.showGameNotification('Équipe soignée!', 'success');
       }
       
       // Rafraîchir les données
-      this.scheduleDataRefresh();
+      setTimeout(() => this.requestTeamData(), 500);
       
     } catch (error) {
       this.handleError(error, 'team_healed');
@@ -606,133 +470,34 @@ export class TeamManager {
 
   handleTeamStats(data) {
     try {
-      const statsHash = this.hashData(data);
-      if (statsHash === this.cache.lastStatsHash) {
-        return; // Stats identiques, ignorer
-      }
-      
-      this.cache.lastStatsHash = statsHash;
       this.teamStats = { ...data };
-      
-      // Mettre à jour l'icône
-      if (this.teamIcon) {
-        this.teamIcon.updateTeamStats(data);
-      }
-      
       this.emit('statsUpdated', data);
-      
     } catch (error) {
       this.handleError(error, 'team_stats');
     }
   }
 
-  handleUIStateChange(stateData) {
-    const { newState, previousState } = stateData;
+  updateLocalTeamData(data) {
+    this.teamData = Array.isArray(data.team) ? data.team : [];
+    this.calculateStats();
+    this.lastDataUpdate = Date.now();
+  }
+
+  calculateStats() {
+    this.teamStats.totalPokemon = this.teamData.length;
+    this.teamStats.alivePokemon = this.teamData.filter(p => p && p.currentHp > 0).length;
+    this.teamStats.faintedPokemon = this.teamData.filter(p => p && p.currentHp === 0).length;
+    this.teamStats.canBattle = this.teamStats.alivePokemon > 0;
     
-    try {
-      switch (newState) {
-        case 'battle':
-          this.setGameState('battle');
-          break;
-        case 'exploration':
-          this.setGameState('exploration');
-          break;
-        case 'pokemonCenter':
-          this.setGameState('pokemonCenter');
-          break;
-        case 'dialogue':
-          this.setGameState('dialogue');
-          break;
-      }
-    } catch (error) {
-      this.handleError(error, 'ui_state_change');
+    if (this.teamData.length > 0) {
+      const totalLevel = this.teamData.reduce((sum, p) => sum + (p?.level || 1), 0);
+      this.teamStats.averageLevel = Math.round(totalLevel / this.teamData.length);
+    } else {
+      this.teamStats.averageLevel = 0;
     }
   }
 
-  setGameState(state) {
-    this.log(`🎮 Changement état: ${state}`);
-    
-    switch (state) {
-      case 'battle':
-        this.hideTeam();
-        this.setEnabled(false);
-        break;
-      case 'exploration':
-        this.setEnabled(true);
-        break;
-      case 'pokemonCenter':
-        this.setEnabled(true);
-        break;
-      case 'dialogue':
-        this.setEnabled(false);
-        break;
-    }
-  }
-
-  // ===== 🎯 MÉTHODES PUBLIQUES OPTIMISÉES =====
-
-  toggleTeam() {
-    if (!this.canPlayerInteract()) {
-      this.showCannotInteractMessage();
-      return false;
-    }
-
-    if (this.teamUI) {
-      return this.teamUI.toggle();
-    }
-    
-    return false;
-  }
-
-  openTeam() {
-    if (!this.canPlayerInteract()) {
-      this.showCannotInteractMessage();
-      return false;
-    }
-
-    if (this.teamUI) {
-      return this.teamUI.show();
-    }
-    
-    return false;
-  }
-
-  closeTeam() {
-    if (this.teamUI) {
-      return this.teamUI.hide();
-    }
-    
-    return false;
-  }
-
-  hideTeam() {
-    if (this.teamUI) {
-      this.teamUI.hide();
-    }
-    if (this.teamIcon) {
-      this.teamIcon.hide();
-    }
-  }
-
-  showTeam() {
-    if (this.teamIcon) {
-      this.teamIcon.show();
-    }
-  }
-
-  setEnabled(enabled) {
-    this.uiManagerState.enabled = enabled;
-    
-    if (this.teamIcon) {
-      this.teamIcon.setEnabled(enabled);
-    }
-    
-    if (this.teamUI) {
-      this.teamUI.setEnabled(enabled);
-    }
-  }
-
-  // ===== 🔧 ACTIONS ÉQUIPE OPTIMISÉES =====
+  // ===== 🎬 ACTIONS ÉQUIPE (BUSINESS LOGIC) =====
 
   requestTeamData() {
     if (this.gameRoom && this.canSendRequest()) {
@@ -744,7 +509,6 @@ export class TeamManager {
   healTeam() {
     if (this.gameRoom && this.canSendRequest()) {
       this.gameRoom.send("healTeam");
-      this.showNotification("Soignage en cours...", "info", { duration: 1000 });
     }
   }
 
@@ -772,224 +536,7 @@ export class TeamManager {
     return timeSinceLastRequest > 1000; // 1 seconde de cooldown
   }
 
-  scheduleDataRefresh() {
-    // Rafraîchir les données après un délai
-    setTimeout(() => {
-      this.requestTeamData();
-    }, 500);
-  }
-
-  // ===== 🛡️ GESTION D'ERREUR AVANCÉE =====
-
-  handleError(error, context = 'unknown') {
-    this.performanceMetrics.errorCount++;
-    
-    console.error(`❌ [TeamManager:${context}]`, error);
-    
-    // Stratégies de récupération selon le contexte
-    switch (context) {
-      case 'initialization':
-        this.handleInitializationError(error);
-        break;
-      case 'ui_creation':
-        this.handleUICreationError(error);
-        break;
-      case 'server_listeners':
-        this.handleServerError(error);
-        break;
-      default:
-        this.handleGenericError(error);
-    }
-    
-    // Notifier l'erreur
-    this.emit('error', { error, context });
-  }
-
-  handleInitializationError(error) {
-    // Tentative de réinitialisation
-    setTimeout(() => {
-      this.reinitialize();
-    }, 2000);
-  }
-
-  handleUICreationError(error) {
-    // Créer une UI de fallback
-    this.createFallbackUI();
-  }
-
-  handleServerError(error) {
-    // Réessayer la connexion serveur
-    setTimeout(() => {
-      this.setupServerListeners();
-    }, 5000);
-  }
-
-  handleGenericError(error) {
-    // Log et continue
-    this.warn(`⚠️ Erreur générique: ${error.message}`);
-  }
-
-  createFallbackUI() {
-    this.warn("🆘 Création UI de secours...");
-    
-    // UI minimaliste en cas d'échec
-    this.teamIcon = {
-      show: () => this.log("Fallback show"),
-      hide: () => this.log("Fallback hide"),
-      setEnabled: (enabled) => this.log(`Fallback enabled: ${enabled}`),
-      updateTeamStats: (stats) => this.log("Fallback stats update"),
-      iconElement: document.createElement('div')
-    };
-  }
-
-  // ===== 🧹 NETTOYAGE ET DESTRUCTION =====
-
-  destroy() {
-    this.log("🧹 Destruction TeamManager...");
-    
-    try {
-      // Annuler tous les événements
-      this.abortController.abort();
-      
-      // Annuler les animations en cours
-      if (this.rafId) {
-        cancelAnimationFrame(this.rafId);
-      }
-      
-      // Nettoyer l'UI
-      if (this.teamUI && typeof this.teamUI.destroy === 'function') {
-        this.teamUI.destroy();
-      }
-      
-      if (this.teamIcon && typeof this.teamIcon.destroy === 'function') {
-        this.teamIcon.destroy();
-      }
-      
-      // Nettoyer le cache
-      this.cache.renderedElements.clear();
-      
-      // Nettoyer les références globales
-      this.cleanupGlobalReferences();
-      
-      // Reset état
-      this.isInitialized = false;
-      this.uiManagerState.initialized = false;
-      
-      this.log("✅ TeamManager détruit");
-      
-    } catch (error) {
-      console.error("❌ Erreur destruction TeamManager:", error);
-    }
-  }
-
-  cleanupGlobalReferences() {
-    if (window.TeamManager === this) {
-      window.TeamManager = null;
-    }
-    if (window.teamSystem === this) {
-      window.teamSystem = null;
-    }
-    if (window.teamManagerGlobal === this) {
-      window.teamManagerGlobal = null;
-    }
-  }
-
-  async reinitialize() {
-    this.log("🔄 Réinitialisation TeamManager...");
-    
-    try {
-      // Nettoyer d'abord
-      this.destroy();
-      
-      // Attendre un peu
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Réinitialiser
-      await this.init();
-      
-      this.log("✅ Réinitialisation réussie");
-      
-    } catch (error) {
-      console.error("❌ Échec réinitialisation:", error);
-    }
-  }
-
-  // ===== 🛠️ UTILITAIRES OPTIMISÉS =====
-
-  updateLocalTeamData(data) {
-    this.teamData = Array.isArray(data.team) ? data.team : [];
-    this.calculateStats();
-  }
-
-  calculateStats() {
-    this.teamStats.totalPokemon = this.teamData.length;
-    this.teamStats.alivePokemon = this.teamData.filter(p => p && p.currentHp > 0).length;
-    this.teamStats.faintedPokemon = this.teamData.filter(p => p && p.currentHp === 0).length;
-    this.teamStats.canBattle = this.teamStats.alivePokemon > 0;
-    
-    if (this.teamData.length > 0) {
-      const totalLevel = this.teamData.reduce((sum, p) => sum + (p?.level || 1), 0);
-      this.teamStats.averageLevel = Math.round(totalLevel / this.teamData.length);
-    } else {
-      this.teamStats.averageLevel = 0;
-    }
-  }
-
-  canPlayerInteract() {
-    return this.teamUI ? this.teamUI.canPlayerInteract() : true;
-  }
-
-  showCannotInteractMessage() {
-    this.showNotification(
-      "Cannot open team right now", 
-      "warning", 
-      { duration: 2000 }
-    );
-  }
-
-  showNotification(message, type = 'info', options = {}) {
-    if (typeof window.showGameNotification === 'function') {
-      window.showGameNotification(message, type, options);
-    } else {
-      this.log(`📢 [${type}]: ${message}`);
-    }
-  }
-
-  handleIconClick() {
-    if (this.canPlayerInteract()) {
-      this.toggleTeam();
-    } else {
-      this.showCannotInteractMessage();
-    }
-  }
-
-  setupAutoSave() {
-    const autoSaveInterval = setInterval(() => {
-      this.autoSave();
-    }, this.config.saveInterval);
-    
-    this.abortController.signal.addEventListener('abort', () => {
-      clearInterval(autoSaveInterval);
-    });
-  }
-
-  autoSave() {
-    try {
-      const saveData = {
-        teamData: this.teamData,
-        teamStats: this.teamStats,
-        timestamp: Date.now()
-      };
-      
-      // Sauvegarder en sessionStorage (localStorage n'est pas supporté)
-      sessionStorage.setItem('teamManager_autoSave', JSON.stringify(saveData));
-      
-    } catch (error) {
-      this.warn("⚠️ Erreur auto-save:", error);
-    }
-  }
-
-  // ===== 📊 GETTERS OPTIMISÉS =====
+  // ===== 🔍 GETTERS (LECTURE SEULE) =====
 
   getTeamData() {
     return [...this.teamData];
@@ -1019,79 +566,78 @@ export class TeamManager {
     return this.teamData.filter(p => p && p.currentHp > 0);
   }
 
-  // ===== 🔧 MÉTHODES UIMANAGER COMPATIBLES =====
+  // ===== 🆘 FALLBACKS =====
 
-  show() {
-    this.uiManagerState.visible = true;
-    this.showTeam();
-    return true;
-  }
-
-  hide() {
-    this.uiManagerState.visible = false;
-    this.hideTeam();
-    return true;
-  }
-
-  getUIManagerState() {
+  createFallbackTeamIcon() {
+    this.warn("🆘 Création TeamIcon de secours");
+    
     return {
-      ...this.uiManagerState,
-      teamStats: this.teamStats,
-      isOpen: this.isTeamOpen(),
-      canBattle: this.canBattle(),
-      performance: {
-        updateCount: this.performanceMetrics.updateCount,
-        errorCount: this.performanceMetrics.errorCount,
-        cacheSize: this.cache.renderedElements.size
-      }
+      show: () => this.log("Fallback TeamIcon show"),
+      hide: () => this.log("Fallback TeamIcon hide"),
+      setEnabled: (enabled) => this.log(`Fallback TeamIcon enabled: ${enabled}`),
+      updateTeamStats: (stats) => this.log("Fallback TeamIcon stats update"),
+      destroy: () => this.log("Fallback TeamIcon destroy"),
+      isDestroyed: false,
+      iconElement: document.createElement('div')
     };
   }
 
-  // ===== 🎛️ UTILITAIRES PERFORMANCE =====
-
-  throttle(func, limit) {
-    let inThrottle;
-    return function(...args) {
-      if (!inThrottle) {
-        func.apply(this, args);
-        inThrottle = true;
-        setTimeout(() => inThrottle = false, limit);
-      }
+  createFallbackTeamUI() {
+    this.warn("🆘 Création TeamUI de secours");
+    
+    return {
+      show: () => this.log("Fallback TeamUI show"),
+      hide: () => this.log("Fallback TeamUI hide"),
+      setEnabled: (enabled) => this.log(`Fallback TeamUI enabled: ${enabled}`),
+      updateTeamData: (data) => this.log("Fallback TeamUI data update"),
+      destroy: () => this.log("Fallback TeamUI destroy"),
+      isDestroyed: false,
+      isVisible: false
     };
   }
 
-  debounce(func, delay) {
-    let timeoutId;
-    return function(...args) {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => func.apply(this, args), delay);
-    };
+  // ===== 🛠️ UTILITAIRES =====
+
+  cleanupStaleData() {
+    const now = Date.now();
+    const maxAge = 5 * 60 * 1000; // 5 minutes
+    
+    // Nettoyer les événements anciens
+    this.eventQueue = this.eventQueue.filter(event => 
+      now - event.timestamp < maxAge
+    );
   }
 
-  hashData(data) {
-    // Hash simple mais efficace pour détecter les changements
-    return JSON.stringify(data).split('').reduce((hash, char) => {
-      return ((hash << 5) - hash) + char.charCodeAt(0);
-    }, 0);
+  handleError(error, context = 'unknown') {
+    console.error(`❌ [TeamManager:${context}]`, error);
+    
+    // En mode UIManager-controlled, on ne fait PAS de récupération automatique
+    // On laisse UIManager gérer les erreurs
+    this.emit('error', { error, context });
   }
 
-  // ===== 📢 SYSTÈME D'ÉVÉNEMENTS =====
+  // ===== 📢 SYSTÈME D'ÉVÉNEMENTS SIMPLE =====
 
   on(event, callback) {
+    if (!this.eventListeners) {
+      this.eventListeners = new Map();
+    }
+    
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
     }
+    
     this.eventListeners.get(event).add(callback);
   }
 
   off(event, callback) {
-    if (this.eventListeners.has(event)) {
+    if (this.eventListeners && this.eventListeners.has(event)) {
       this.eventListeners.get(event).delete(callback);
     }
   }
 
   emit(event, data) {
-    if (this.eventListeners.has(event)) {
+    if (this.eventListeners && this.eventListeners.has(event)) {
       this.eventListeners.get(event).forEach(callback => {
         try {
           callback(data);
@@ -1102,10 +648,10 @@ export class TeamManager {
     }
   }
 
-  // ===== 🐛 LOGGING OPTIMISÉ =====
+  // ===== 🐛 LOGGING CONTRÔLÉ =====
 
   log(...args) {
-    if (this.config.enableDebugLogs) {
+    if (!this.silentMode) {
       console.log('[TeamManager]', ...args);
     }
   }
@@ -1118,61 +664,164 @@ export class TeamManager {
     console.error('[TeamManager]', ...args);
   }
 
-  // ===== 📊 MÉTHODES DE DEBUG =====
+  // ===== 🔧 MODE LEGACY (NE PAS UTILISER) =====
+
+  async initLegacy() {
+    this.warn("⚠️ Mode legacy - utiliser UIManager à la place");
+    
+    // Ancienne initialisation pour compatibilité
+    this.teamUI = new TeamUI(this.gameRoom);
+    this.teamIcon = new TeamIcon(this.teamUI);
+    
+    this.setupServerListeners();
+    
+    return this;
+  }
+
+  // ===== 🎯 MÉTHODES PUBLIQUES LEGACY (DÉPRÉCIÉ) =====
+
+  toggleTeam() {
+    this.warn("⚠️ toggleTeam() déprécié - utiliser UIManager");
+    this.requestUIManagerAction('toggleTeamUI');
+  }
+
+  openTeam() {
+    this.warn("⚠️ openTeam() déprécié - utiliser UIManager");
+    this.requestUIManagerAction('showTeamUI');
+  }
+
+  closeTeam() {
+    this.warn("⚠️ closeTeam() déprécié - utiliser UIManager");
+    this.requestUIManagerAction('hideTeamUI');
+  }
+
+  // ===== 📊 DEBUG =====
 
   debugInfo() {
     return {
-      initialized: this.isInitialized,
-      teamData: this.teamData.length,
+      mode: 'UIManager-controlled',
+      uiManagerState: this.uiManagerState,
+      hasTeamIcon: !!this.teamIcon && !this.teamIcon.isDestroyed,
+      hasTeamUI: !!this.teamUI && !this.teamUI.isDestroyed,
       teamStats: this.teamStats,
-      performance: this.performanceMetrics,
-      cache: {
-        size: this.cache.renderedElements.size,
-        lastTeamData: !!this.cache.lastTeamData,
-        lastStatsHash: !!this.cache.lastStatsHash
-      },
-      uiComponents: {
-        teamUI: !!this.teamUI,
-        teamIcon: !!this.teamIcon
-      },
-      config: this.config
+      teamData: this.teamData.length,
+      lastUpdate: this.lastDataUpdate,
+      eventListeners: this.eventListeners ? this.eventListeners.size : 0
     };
   }
 
-  enableDebugMode() {
-    this.config.enableDebugLogs = true;
-    this.log("🐛 Mode debug activé");
+  enableSilentMode() {
+    this.silentMode = true;
+    this.log("🔇 Mode silencieux activé");
   }
 
-  disableDebugMode() {
-    this.config.enableDebugLogs = false;
-  }
-
-  performanceReport() {
-    const report = {
-      metrics: this.performanceMetrics,
-      cache: {
-        size: this.cache.renderedElements.size,
-        hitRate: this.cache.hitRate || 0
-      },
-      config: {
-        updateThrottle: this.updateThrottle,
-        batchUpdates: this.config.batchUpdates
-      },
-      recommendations: []
-    };
-
-    // Ajouter des recommandations basées sur les métriques
-    if (this.performanceMetrics.errorCount > 5) {
-      report.recommendations.push("Beaucoup d'erreurs détectées - vérifier la stabilité");
-    }
-
-    if (this.updateThrottle > 200) {
-      report.recommendations.push("Throttle élevé - considérer optimiser les updates");
-    }
-
-    return report;
+  disableSilentMode() {
+    this.silentMode = false;
+    this.log("🔊 Mode silencieux désactivé");
   }
 }
 
+// ===== 🏭 FONCTIONS FACTORY POUR UIMANAGER =====
+
+/**
+ * Factory function pour créer TeamManager contrôlé par UIManager
+ */
+export function createUIManagerControlledTeamManager(scene, gameRoom) {
+  console.log("🏭 [Factory] Création TeamManager UIManager-controlled");
+  
+  const teamManager = new TeamManager(scene, gameRoom);
+  teamManager.isUIManagerControlled = true;
+  teamManager.preventAutoActions = true;
+  
+  return teamManager;
+}
+
+/**
+ * Factory function pour TeamIcon à utiliser dans UIManager
+ */
+export function createTeamIconForUIManager(teamManager) {
+  if (!teamManager) {
+    throw new Error("TeamManager requis pour créer TeamIcon");
+  }
+  
+  return teamManager.createTeamIconForUIManager();
+}
+
+/**
+ * Factory function pour TeamUI à utiliser dans UIManager
+ */
+export function createTeamUIForUIManager(teamManager) {
+  if (!teamManager) {
+    throw new Error("TeamManager requis pour créer TeamUI");
+  }
+  
+  return teamManager.createTeamUIForUIManager();
+}
+
+/**
+ * Setup listener pour les requêtes TeamManager → UIManager
+ */
+export function setupTeamManagerUIManagerBridge() {
+  window.addEventListener('teamManagerRequest', (event) => {
+    const { action, data } = event.detail;
+    
+    console.log(`🌉 [Bridge] TeamManager → UIManager: ${action}`);
+    
+    const uiManager = window.uiManager || window.pokemonUISystem?.uiManager;
+    
+    if (!uiManager) {
+      console.warn("⚠️ [Bridge] UIManager non disponible");
+      return;
+    }
+    
+    // Router l'action vers UIManager
+    switch (action) {
+      case 'toggleTeamUI':
+        uiManager.toggleModule?.('teamUI');
+        break;
+      case 'showTeamUI':
+        uiManager.showModule?.('teamUI');
+        break;
+      case 'hideTeamUI':
+        uiManager.hideModule?.('teamUI');
+        break;
+      default:
+        console.warn(`⚠️ [Bridge] Action inconnue: ${action}`);
+    }
+  });
+  
+  console.log("🌉 [Bridge] TeamManager ↔ UIManager configuré");
+}
+
 export default TeamManager;
+
+// ===== 📋 INSTRUCTIONS D'UTILISATION =====
+
+console.log(`
+🎯 === TEAMMANAGER UIMANAGER-CONTROLLED ===
+
+✅ NOUVELLE ARCHITECTURE:
+- TeamManager = BUSINESS LOGIC seulement
+- UIManager = MAÎTRE qui contrôle tout
+- Modules UI = SERVANTS obéissants
+
+🏭 UTILISATION DANS UIMANAGER:
+uiManager.registerModule('teamIcon', {
+  factory: () => createTeamIconForUIManager(teamManager)
+});
+
+uiManager.registerModule('teamUI', {
+  factory: () => createTeamUIForUIManager(teamManager)
+});
+
+🚫 PLUS DE SPAM:
+- Un seul maître: UIManager
+- Modules passifs qui obéissent
+- Communication via événements contrôlés
+
+🔧 SETUP:
+1. Créer TeamManager: createUIManagerControlledTeamManager()
+2. Setup bridge: setupTeamManagerUIManagerBridge()
+3. Enregistrer modules dans UIManager
+4. UIManager contrôle tout !
+`);
