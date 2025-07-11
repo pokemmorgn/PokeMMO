@@ -507,14 +507,25 @@ updateOverworldPokemon(pokemonData) {
     console.log(`🚀 [${pokemon.name}] Nouveau mouvement: (${pokemon.x.toFixed(1)}, ${pokemon.y.toFixed(1)}) → (${targetX.toFixed(1)}, ${targetY.toFixed(1)})`);
   }
   
-  // Animation (toujours mettre à jour)
-  const animDirection = this.getDirectionForAnimation(direction || pokemon.lastDirection);
-  const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
-  const walkAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${animDirection}`;
-  
-  if (this.scene.anims.exists(walkAnimKey)) {
-    pokemon.anims.play(walkAnimKey, true);
+  // Animation (toujours mettre à jour) - MODIFIE POUR SECURISER
+try {
+  if (pokemon.animations && pokemon.currentAnimation && pokemon.animations[pokemon.currentAnimation]) {
+    const animDirection = this.getDirectionForAnimation(direction || pokemon.lastDirection);
+    const animType = pokemon.animations[pokemon.currentAnimation].replace('-Anim.png', '').toLowerCase();
+    const walkAnimKey = `overworld_pokemon_${pokemon.pokemonId}_${animType}_${animDirection}`;
+    
+    if (this.scene.anims.exists(walkAnimKey) && pokemon.anims) {
+      pokemon.anims.play(walkAnimKey, true);
+      console.log(`🎬 Animation joué: ${walkAnimKey}`);
+    } else {
+      console.warn(`⚠️ Animation ${walkAnimKey} n'existe pas ou pokemon.anims manquant`);
+    }
+  } else {
+    console.warn(`⚠️ Données d'animation manquantes pour ${pokemon.name}`);
   }
+} catch (error) {
+  console.error(`❌ Erreur animation pour ${pokemon.name}:`, error);
+}
 
 
     
