@@ -460,35 +460,59 @@ export class OverworldPokemonManager {
    * ✅ Mise à jour principale avec interpolation case par case
    */
   update(delta = 16) {
-    const now = Date.now();
-    
-    this.overworldPokemon.forEach((pokemon, id) => {
-      if (pokemon.isMoving && pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
-        // ✅ Interpolation fluide case par case
-        const elapsed = now - pokemon.moveStartTime;
-        const progress = Math.min(elapsed / pokemon.moveDuration, 1.0);
+  const now = Date.now();
+  
+  this.overworldPokemon.forEach((pokemon, id) => {
+    if (pokemon.isMoving && pokemon.targetX !== undefined && pokemon.targetY !== undefined) {
+      // ✅ Interpolation fluide case par case
+      const elapsed = now - pokemon.moveStartTime;
+      const progress = Math.min(elapsed / pokemon.moveDuration, 1.0);
+      
+      if (progress >= 1.0) {
+        // ✅ AVANT D'ARRIVER, VÉRIFIER SI LA DESTINATION EST VALIDE
+        const canReachTarget = this.canMoveToGrid(pokemon.targetX, pokemon.targetY);
         
-        if (progress >= 1.0) {
-          // ✅ Mouvement terminé
+        if (canReachTarget) {
+          // Mouvement terminé normalement
           pokemon.x = pokemon.targetX;
           pokemon.y = pokemon.targetY;
+          pokemon.setPosition(pokemon.targetX, pokemon.targetY);
           console.log(`🎯 [OverworldPokemonManager] ${pokemon.name} arrivé à (${pokemon.targetX}, ${pokemon.targetY})`);
         } else {
-          // ✅ Interpolation en cours
-          const easeProgress = this.easeInOutQuad(progress);
-          
-          const startX = pokemon.serverX;
-          const startY = pokemon.serverY;
-          
-          pokemon.x = startX + (pokemon.targetX - startX) * easeProgress;
-          pokemon.y = startY + (pokemon.targetY - startY) * easeProgress;
+          // ✅ DESTINATION DEVENUE INVALIDE - ARRÊTER AVANT
+          console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} bloqué avant destination (${pokemon.targetX}, ${pokemon.targetY})`);
+          // Rester à la position actuelle
+          pokemon.targetX = pokemon.x;
+          pokemon.targetY = pokemon.y;
+        }
+        
+        pokemon.isMoving = false;
+      } else {
+        // ✅ Interpolation en cours - VÉRIFIER LA TRAJECTOIRE
+        const easeProgress = this.easeInOutQuad(progress);
+        
+        const startX = pokemon.serverX;
+        const startY = pokemon.serverY;
+        
+        const newX = startX + (pokemon.targetX - startX) * easeProgress;
+        const newY = startY + (pokemon.targetY - startY) * easeProgress;
+        
+        // ✅ VÉRIFIER SI LA POSITION INTERMÉDIAIRE EST VALIDE
+        if (this.canMoveToGrid(newX, newY)) {
+          pokemon.setPosition(newX, newY);
+        } else {
+          // ✅ COLLISION PENDANT LE MOUVEMENT - ARRÊTER IMMÉDIATEMENT
+          console.log(`🛡️ [OverworldPokemonManager] ${pokemon.name} collision pendant mouvement à (${newX.toFixed(1)}, ${newY.toFixed(1)})`);
+          pokemon.isMoving = false;
+          // Rester à la position actuelle
         }
       }
-      
-      // ✅ Mise à jour de la profondeur
-      pokemon.setDepth(3 + (pokemon.y / 1000));
-    });
-  }
+    }
+    
+    // ✅ Mise à jour de la profondeur
+    pokemon.setDepth(4.5 + (pokemon.y / 1000));
+  });
+}
 
   /**
    * ✅ Fonction d'easing simple pour mouvement fluide
