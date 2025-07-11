@@ -59,18 +59,18 @@ const POKEMON_GAME_STATES = {
   },
   
   battle: {
-    visibleModules: ['battleInterface'],
-    enabledModules: ['battleInterface'],
-    hiddenModules: ['inventory', 'teamIcon', 'teamUI', 'quest', 'questTracker', 'chat'],
-    disabledModules: ['inventory', 'teamIcon', 'teamUI', 'quest', 'questTracker', 'chat'],
+    visibleModules: ['battleInterface'],           // Seul battleInterface visible
+    enabledModules: ['battleInterface'],           // Seul battleInterface activé
+    hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'], // TOUT caché
+    disabledModules: ['inventory', 'team', 'quest', 'questTracker', 'chat'], // TOUT désactivé
     responsive: {
       mobile: { 
         visibleModules: ['battleInterface'],
-        hiddenModules: ['inventory', 'teamIcon', 'teamUI', 'quest', 'questTracker', 'chat']
+        hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat']
       },
       tablet: {
         visibleModules: ['battleInterface'],
-        hiddenModules: ['inventory', 'teamIcon', 'teamUI', 'quest', 'questTracker', 'chat']
+        hiddenModules: ['inventory', 'team', 'quest', 'questTracker', 'chat']
       }
     }
   },
