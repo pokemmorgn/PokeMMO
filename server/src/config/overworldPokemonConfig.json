@@ -7,13 +7,13 @@
   "areas": {
     "village": {
       "name": "Village de Départ",
-      "maxPokemon": 4,
-      "spawnInterval": 30000,
+      "maxPokemon": 10,
+      "spawnInterval": 25000,
       "pokemon": [
         {
           "pokemonId": 16,
           "name": "Roucool",
-          "count": 4,
+          "count": 2,
           "animations": {
             "idle": "Walk-Anim.png",
             "walk": "Walk-Anim.png"
@@ -21,9 +21,63 @@
           "currentAnimation": "walk",
           "spawnPositions": [
             {"x": 400, "y": 300},
-            {"x": 500, "y": 350},
-            {"x": 600, "y": 400},
-            {"x": 450, "y": 450}
+            {"x": 500, "y": 350}
+          ]
+        },
+        {
+          "pokemonId": 25,
+          "name": "Pikachu",
+          "count": 2,
+          "animations": {
+            "idle": "Walk-Anim.png",
+            "walk": "Walk-Anim.png"
+          },
+          "currentAnimation": "walk",
+          "spawnPositions": [
+            {"x": 450, "y": 250},
+            {"x": 550, "y": 300}
+          ]
+        },
+        {
+          "pokemonId": 1,
+          "name": "Bulbizarre",
+          "count": 2,
+          "animations": {
+            "idle": "Walk-Anim.png",
+            "walk": "Walk-Anim.png"
+          },
+          "currentAnimation": "walk",
+          "spawnPositions": [
+            {"x": 350, "y": 400},
+            {"x": 600, "y": 400}
+          ]
+        },
+        {
+          "pokemonId": 4,
+          "name": "Salamèche",
+          "count": 2,
+          "animations": {
+            "idle": "Walk-Anim.png",
+            "walk": "Walk-Anim.png"
+          },
+          "currentAnimation": "walk",
+          "spawnPositions": [
+            {"x": 300, "y": 350},
+            {"x": 650, "y": 350}
+          ]
+        },
+        {
+          "pokemonId": 7,
+          "name": "Carapuce",
+          "count": 2,
+          "animations": {
+            "idle": "Walk-Anim.png",
+            "walk": "Walk-Anim.png"
+          },
+          "currentAnimation": "walk",
+          "spawnPositions": [
+            {"x": 400, "y": 450},
+            {"x": 500, "y": 200}
           ]
         }
       ]
