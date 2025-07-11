@@ -59,30 +59,31 @@ export class TeamUI {
         box-sizing: border-box;
       }
       
-      /* ===== OVERLAY FRESH ===== */
+      /* ===== OVERLAY TRANSPARENT ===== */
       .team-overlay {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: 
-          radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3), transparent 50%),
-          radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.15), transparent 50%),
-          linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
-        backdrop-filter: blur(12px) saturate(150%);
+        background: transparent;
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 1000;
         opacity: 1;
         transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
       }
       
       .team-overlay.hidden {
         opacity: 0;
         pointer-events: none;
-        transform: scale(0.9) rotateX(10deg);
+        transform: scale(0.9);
+      }
+      
+      .team-overlay .team-container {
+        pointer-events: auto;
       }
       
       /* ===== CONTAINER NÉOMORPHISME ===== */
@@ -1385,12 +1386,12 @@ export class TeamUI {
       }
     });
     
-    // Fermeture en cliquant à l'extérieur
-    this.overlayElement.addEventListener('click', (e) => {
-      if (e.target === this.overlayElement) {
-        this.hide();
-      }
-    });
+    // Fermeture en cliquant à l'extérieur - SUPPRIMÉ
+    // this.overlayElement.addEventListener('click', (e) => {
+    //   if (e.target === this.overlayElement) {
+    //     this.hide();
+    //   }
+    // });
     
     // Navigation tabs
     this.overlayElement.querySelectorAll('.team-tab').forEach(tab => {
