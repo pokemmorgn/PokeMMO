@@ -799,10 +799,6 @@ function forceCloseTeamUI() {
   console.log('✅ Team UI forcée fermée');
 }
 
-// ✅ EXPOSER GLOBALEMENT POUR DEBUG
-window.cleanupTeamBeforeInit = cleanupTeamBeforeInit;
-window.forceCloseTeamUI = forceCloseTeamUI;
-
   async createQuestModule() {
     console.log('📋 [PokemonUI] Création module quêtes...');
     
