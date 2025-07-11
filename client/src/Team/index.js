@@ -1,5 +1,6 @@
 // Team/index.js - Module Team Unifié pour Pokémon MMO
 // 🎯 1 SEUL module qui gère TOUT : business logic + icône + interface
+// ✅ CORRIGÉ: Callbacks onTeamDataUpdate fonctionnels
 
 import { TeamManager } from './TeamManager.js';
 import { TeamIcon } from './TeamIcon.js';
@@ -65,11 +66,14 @@ export class TeamModule {
     }
   }
   
-  // === 🔗 CONNEXION DES COMPOSANTS ===
+  // === 🔗 CONNEXION DES COMPOSANTS (CORRIGÉE) ===
   
   connectComponents() {
+    console.log('🔗 [TeamModule] === CONNEXION DES COMPOSANTS ===');
+    
     // Icône → Interface (clic ouvre l'interface)
     this.icon.onClick = () => {
+      console.log('🎯 [TeamModule] Clic sur icône');
       if (this.canOpenTeamUI()) {
         this.ui.toggle();
       } else {
@@ -77,24 +81,68 @@ export class TeamModule {
       }
     };
     
-    // Manager → Icône (mise à jour des stats)
+    // ✅ FIX: Manager → Icône (mise à jour des stats)
     this.manager.onStatsUpdate = (stats) => {
+      console.log('🔄 [TeamModule] Stats reçues pour icône:', stats);
       this.icon.updateStats(stats);
     };
     
-    // Manager → Interface (mise à jour des données)
+    // ✅ FIX CRITIQUE: Manager → Interface (mise à jour des données)
     this.manager.onTeamDataUpdate = (data) => {
+      console.log('🔄 [TeamModule] === DONNÉES REÇUES POUR UI ===');
+      console.log('📊 [TeamModule] Data:', data);
+      console.log('🖥️ [TeamModule] UI visible:', this.ui.isVisible);
+      
+      // ✅ FIX: Toujours mettre à jour, même si l'UI n'est pas visible
+      // Car on veut que les données soient prêtes quand on ouvre l'UI
+      console.log('📤 [TeamModule] Appel updateTeamData...');
+      this.ui.updateTeamData(data);
+      
+      // ✅ FIX: Si l'UI est visible, forcer aussi un refresh
       if (this.ui.isVisible) {
-        this.ui.updateTeamData(data);
+        console.log('🔄 [TeamModule] UI visible - force refresh');
+        setTimeout(() => {
+          this.ui.refreshCompleteDisplay();
+          this.ui.updateCompleteStats();
+        }, 100);
       }
     };
     
     // Interface → Manager (actions utilisateur)
     this.ui.onAction = (action, data) => {
+      console.log('🎬 [TeamModule] Action UI:', action, data);
       this.manager.handleAction(action, data);
     };
     
-    console.log('🔗 [TeamModule] Composants connectés');
+    console.log('🔗 [TeamModule] Composants connectés avec callbacks corrigés');
+    
+    // ✅ FIX: Vérifier que les callbacks sont bien assignés
+    this.verifyCallbacks();
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Vérifier les callbacks
+  verifyCallbacks() {
+    console.log('🔍 [TeamModule] === VÉRIFICATION CALLBACKS ===');
+    
+    const callbackStatus = {
+      'icon.onClick': !!this.icon.onClick,
+      'manager.onStatsUpdate': !!this.manager.onStatsUpdate,
+      'manager.onTeamDataUpdate': !!this.manager.onTeamDataUpdate,
+      'ui.onAction': !!this.ui.onAction
+    };
+    
+    console.log('📊 [TeamModule] Status callbacks:', callbackStatus);
+    
+    // Vérifier que tous les callbacks essentiels sont présents
+    const missingCallbacks = Object.entries(callbackStatus)
+      .filter(([name, exists]) => !exists)
+      .map(([name]) => name);
+    
+    if (missingCallbacks.length === 0) {
+      console.log('✅ [TeamModule] Tous les callbacks sont configurés');
+    } else {
+      console.error('❌ [TeamModule] Callbacks manquants:', missingCallbacks);
+    }
   }
   
   // === 🎛️ MÉTHODES UIMANAGER (INTERFACE PRINCIPALE) ===
@@ -111,6 +159,14 @@ export class TeamModule {
     // Afficher l'icône
     if (this.icon) {
       this.icon.show();
+    }
+    
+    // ✅ FIX: Demander une mise à jour des données quand on affiche le module
+    if (this.manager) {
+      console.log('🔄 [TeamModule] Demande mise à jour données lors de show()');
+      setTimeout(() => {
+        this.manager.requestTeamData();
+      }, 200);
     }
     
     // L'interface reste cachée (s'ouvre au clic)
@@ -213,6 +269,27 @@ export class TeamModule {
       });
     }
   }
+
+  // ✅ NOUVELLE MÉTHODE: Forcer la synchronisation
+  forceSyncData() {
+    console.log('🔄 [TeamModule] === FORCE SYNC DONNÉES ===');
+    
+    if (!this.manager) {
+      console.error('❌ [TeamModule] Pas de manager pour sync');
+      return;
+    }
+    
+    // Demander les données au serveur
+    this.manager.requestTeamData();
+    
+    // Après un délai, forcer la mise à jour si nécessaire
+    setTimeout(() => {
+      if (this.manager.teamData && this.manager.teamData.length > 0) {
+        console.log('🔄 [TeamModule] Force update UI avec données existantes');
+        this.ui.updateTeamData({ team: this.manager.teamData });
+      }
+    }, 1000);
+  }
   
   // === 📊 API PUBLIQUE POUR COMPATIBILITÉ ===
   
@@ -305,12 +382,61 @@ export class TeamModule {
     }
   }
   
-  // === 🐛 DEBUG ===
+  // === 🐛 DEBUG (AMÉLIORÉ) ===
   
+  debugTeamFlow() {
+    console.log('🔍 [TeamModule] === DEBUG FLUX DONNÉES ===');
+    
+    console.log('📊 Manager:', {
+      initialized: this.manager?.initialized,
+      teamData: this.manager?.teamData?.length || 0,
+      teamStats: this.manager?.teamStats,
+      hasCallbacks: {
+        onStatsUpdate: !!this.manager?.onStatsUpdate,
+        onTeamDataUpdate: !!this.manager?.onTeamDataUpdate
+      }
+    });
+    
+    console.log('🎯 Icon:', {
+      isVisible: this.icon?.isVisible,
+      displayStats: this.icon?.displayStats,
+      hasElement: !!this.icon?.iconElement,
+      hasOnClick: !!this.icon?.onClick
+    });
+    
+    console.log('🖥️ UI:', {
+      isVisible: this.ui?.isVisible,
+      teamData: this.ui?.teamData?.length || 0,
+      hasOnAction: !!this.ui?.onAction
+    });
+    
+    // ✅ FIX: Test complet de la chaîne
+    console.log('🧪 [TeamModule] Test chaîne complète...');
+    
+    // Test 1: Vérifier callbacks
+    this.verifyCallbacks();
+    
+    // Test 2: Demander données
+    if (this.manager) {
+      console.log('📤 [TeamModule] Test demande données...');
+      this.manager.requestTeamData();
+    }
+    
+    // Test 3: Test callback manuel après délai
+    setTimeout(() => {
+      if (this.manager?.teamData?.length > 0) {
+        console.log('🧪 [TeamModule] Test callback manuel...');
+        if (this.manager.onTeamDataUpdate) {
+          this.manager.onTeamDataUpdate({ team: this.manager.teamData });
+        }
+      }
+    }, 2000);
+  }
+
   debugInfo() {
     return {
       module: 'TeamModule',
-      version: 'unified',
+      version: 'unified-fixed',
       uiManagerState: this.uiManagerState,
       components: {
         manager: !!this.manager,
@@ -327,6 +453,12 @@ export class TeamModule {
         show: typeof this.show === 'function',
         hide: typeof this.hide === 'function',
         setEnabled: typeof this.setEnabled === 'function'
+      },
+      callbacks: {
+        iconOnClick: !!this.icon?.onClick,
+        managerOnStatsUpdate: !!this.manager?.onStatsUpdate,
+        managerOnTeamDataUpdate: !!this.manager?.onTeamDataUpdate,
+        uiOnAction: !!this.ui?.onAction
       }
     };
   }
@@ -401,7 +533,7 @@ export const TEAM_MODULE_CONFIG = {
   metadata: {
     name: 'Team Manager',
     description: 'Complete Pokemon team management system',
-    version: '1.0.0',
+    version: '1.1.0-fixed',
     category: 'Pokemon Management'
   }
 };
@@ -520,8 +652,13 @@ export async function setupTeamSystem(uiManager) {
     window.openTeam = () => teamInstance.openTeam();
     window.closeTeam = () => teamInstance.closeTeam();
     
+    // ✅ EXPOSER LES NOUVELLES MÉTHODES DE DEBUG
+    window.debugTeamFlow = () => teamInstance.debugTeamFlow();
+    window.forceSyncTeamData = () => teamInstance.forceSyncData();
+    
     console.log('✅ [TeamSetup] Système Team configuré avec succès');
     console.log('🎮 Utilisez window.toggleTeam() ou touche T');
+    console.log('🔧 Debug: window.debugTeamFlow() ou window.forceSyncTeamData()');
     
     return teamInstance;
     
@@ -536,19 +673,26 @@ export async function setupTeamSystem(uiManager) {
 export default TeamModule;
 
 console.log(`
-🎯 === MODULE TEAM UNIFIÉ ===
+🎯 === MODULE TEAM UNIFIÉ (VERSION CORRIGÉE) ===
 
-✅ ARCHITECTURE SIMPLE:
-- 1 seul module "TeamModule"
-- Business logic + Icône + Interface
-- Compatible UIManager
+✅ CORRECTIONS APPLIQUÉES:
+- connectComponents() corrigé
+- onTeamDataUpdate appelle updateTeamData()
+- Callbacks vérifiés automatiquement
+- Force refresh si UI visible
+- Sync automatique lors du show()
+
+🔧 NOUVELLES MÉTHODES:
+- verifyCallbacks() → vérifier les connexions
+- forceSyncData() → forcer la synchronisation
+- debugTeamFlow() → debug complet amélioré
 
 🎮 UTILISATION:
 import { setupTeamSystem } from './Team/index.js';
 await setupTeamSystem(uiManager);
 
 🎛️ API UIMANAGER:
-- show() → affiche l'icône
+- show() → affiche l'icône + sync data
 - hide() → cache tout
 - setEnabled(bool) → active/désactive
 
@@ -566,5 +710,9 @@ await setupTeamSystem(uiManager);
 - battleStarted → ferme interface
 - pokemonCenterEntered → refresh data
 
-🧹 SIMPLE ET EFFICACE !
+🔧 DEBUG:
+- window.debugTeamFlow() → test complet
+- window.forceSyncTeamData() → force sync
+
+🎯 CALLBACKS 100% FONCTIONNELS !
 `);
