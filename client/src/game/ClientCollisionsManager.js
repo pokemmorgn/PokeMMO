@@ -707,17 +707,68 @@ const canMove = this.canMoveToGrid(toX, toY) && !this.isPokemonAt(toX, toY);
   /**
    * ✅ Vérification si on peut se déplacer vers une position
    */
-  canMoveTo(x, y) {
-    if (!this.scene.collisionManager) {
-      console.warn(`⚠️ [OverworldPokemonManager] Pas de collision manager - mouvement autorisé`);
-      return true; // Pas de collision manager = pas de vérification
+ 
+// ================================================================================================
+// 🔧 FIX DÉFINITIF - REMPLACER COMPLÈTEMENT canMoveTo() dans OverworldPokemonManager.js
+// ================================================================================================
+
+// 📍 TROUVEZ cette méthode vers ligne 580 :
+canMoveTo(x, y) {
+  if (!this.scene.collisionManager) {
+    console.warn(`⚠️ [OverworldPokemonManager] Pas de collision manager - mouvement autorisé`);
+    return true; // Pas de collision manager = pas de vérification
+  }
+  
+  // ✅ UTILISER LE MÊME SYSTÈME QUE LE JOUEUR
+  const canMove = this.scene.collisionManager.canMoveTo(x, y);
+  console.log(`🔍 [OverworldPokemonManager] canMoveTo(${x}, ${y}) = ${canMove}`);
+  return canMove;
+}
+
+// ================================================================================================
+// ✅ REMPLACEZ PAR CETTE NOUVELLE VERSION :
+// ================================================================================================
+
+canMoveTo(x, y) {
+  // ✅ UTILISER LE MÊME SYSTÈME QUE canMoveToGrid() 
+  console.log(`🔍 [OverworldPokemonManager] canMoveTo(${x}, ${y}) - utilisant collisionLayers`);
+  
+  // 1. Vérifier que la position est dans les limites de la carte
+  if (!this.scene.map) {
+    console.warn(`⚠️ [OverworldPokemonManager] Pas de carte chargée`);
+    return false;
+  }
+  
+  const mapWidth = this.scene.map.widthInPixels;
+  const mapHeight = this.scene.map.heightInPixels;
+  
+  if (x < 0 || x > mapWidth || y < 0 || y > mapHeight) {
+    console.log(`🚫 [OverworldPokemonManager] Position hors carte: (${x}, ${y})`);
+    return false;
+  }
+  
+  // 2. Test des tiles de collision avec collisionLayers (comme BaseZoneScene)
+  if (this.scene.collisionLayers && this.scene.collisionLayers.length > 0) {
+    const tileX = Math.floor(x / 16);
+    const tileY = Math.floor(y / 16);
+    
+    for (const layer of this.scene.collisionLayers) {
+      if (layer && layer.getTileAt) {
+        const tile = layer.getTileAt(tileX, tileY);
+        if (tile && tile.collides) {
+          console.log(`🛡️ [OverworldPokemonManager] Collision tile détectée: (${tileX}, ${tileY})`);
+          return false;
+        }
+      }
     }
     
-    // ✅ UTILISER LE MÊME SYSTÈME QUE LE JOUEUR
-    const canMove = this.scene.collisionManager.canMoveTo(x, y);
-    console.log(`🔍 [OverworldPokemonManager] canMoveTo(${x}, ${y}) = ${canMove}`);
-    return canMove;
+    console.log(`✅ [OverworldPokemonManager] Pas de collision tile à (${x}, ${y})`);
+    return true;
+  } else {
+    console.warn(`⚠️ [OverworldPokemonManager] Pas de collisionLayers - autorisation par défaut`);
+    return true; // Autoriser si pas de layers
   }
+}
 
   /**
    * ✅ Vérification si un Pokémon est déjà à cette position
