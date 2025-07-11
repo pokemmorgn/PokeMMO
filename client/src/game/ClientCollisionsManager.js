@@ -597,13 +597,13 @@ export class OverworldPokemonManager {
   }
 
   /**
-   * ✅ Gestion demande de mouvement (vérification collision)
+   * ✅ Gestion demande de mouvement (vérification collision Physics)
    */
   handlePokemonMoveRequest(data) {
     const { id, fromX, fromY, toX, toY, direction } = data;
     
-    // Vérifier si le mouvement est possible
-    const canMove = this.canMoveTo(toX, toY) && !this.isPokemonAt(toX, toY);
+    // ✅ NOUVEAU: Test de collision simple pour case par case
+    const canMove = this.canMoveToGrid(toX, toY);
     
     // ✅ CORRECTION: Utiliser networkManager.room.send
     if (this.scene.networkManager?.room) {
@@ -619,6 +619,57 @@ export class OverworldPokemonManager {
     }
     
     console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'} (${fromX},${fromY}) → (${toX},${toY})`);
+  }
+
+  /**
+   * ✅ NOUVELLE MÉTHODE: Vérification collision pour mouvement case par case
+   */
+  canMoveToGrid(x, y) {
+    // 1. Vérifier que la position est dans les limites de la carte
+    if (!this.scene.map) {
+      return true;
+    }
+    
+    const mapWidth = this.scene.map.widthInPixels;
+    const mapHeight = this.scene.map.heightInPixels;
+    
+    if (x < 0 || x > mapWidth || y < 0 || y > mapHeight) {
+      console.log(`🚫 [OverworldPokemonManager] Position hors carte: (${x}, ${y})`);
+      return false;
+    }
+    
+    // 2. Vérifier collision avec autres Pokémon (pas dans le même endroit)
+    if (this.isPokemonAt(x, y)) {
+      console.log(`🐾 [OverworldPokemonManager] Position occupée par autre Pokémon: (${x}, ${y})`);
+      return false;
+    }
+    
+    // 3. Vérifier collision avec le joueur
+    const player = this.scene.playerManager?.getMyPlayer();
+    if (player) {
+      const distance = Math.abs(player.x - x) + Math.abs(player.y - y);
+      if (distance < this.gridSize) {
+        console.log(`👤 [OverworldPokemonManager] Position trop proche du joueur: (${x}, ${y})`);
+        return false;
+      }
+    }
+    
+    // 4. Test basique des tiles de collision
+    if (this.scene.collisionLayers && this.scene.collisionLayers.length > 0) {
+      const tileX = Math.floor(x / 16);
+      const tileY = Math.floor(y / 16);
+      
+      for (const layer of this.scene.collisionLayers) {
+        const tile = layer.getTileAt(tileX, tileY);
+        if (tile && tile.collides) {
+          console.log(`🛡️ [OverworldPokemonManager] Collision tile détectée: (${tileX}, ${tileY})`);
+          return false;
+        }
+      }
+    }
+    
+    console.log(`✅ [OverworldPokemonManager] Mouvement autorisé vers (${x}, ${y})`);
+    return true;
   }
 
   /**
