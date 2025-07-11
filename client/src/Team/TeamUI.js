@@ -372,7 +372,7 @@ export class TeamUI {
       
       /* Slot Pokémon - AJUSTÉ POUR LA NOUVELLE GRILLE */
       .team-slot {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 255, 0.2);
         border: 2px solid rgba(255, 255, 255, 0.2);
         border-radius: 15px;
         padding: 15px 12px; /* Légèrement réduit */
