@@ -1721,6 +1721,49 @@ update(delta = 16) {
   }
 
   /**
+ * ✅ DÉSACTIVATION TEMPORAIRE DES ANIMATIONS (test anti-freeze)
+ */
+disableAllAnimations() {
+  console.log('🚫 DÉSACTIVATION TEMPORAIRE DES ANIMATIONS POKÉMON');
+  
+  // Remplacer la méthode updateOverworldPokemon
+  this.originalUpdateMethod = this.updateOverworldPokemon;
+  
+  this.updateOverworldPokemon = (pokemonData) => {
+    const { id, x, y, direction, isMoving, targetX, targetY, moveStartTime, moveDuration } = pokemonData;
+    const pokemon = this.overworldPokemon.get(id);
+    if (!pokemon) return;
+    
+    // Mise à jour position SEULEMENT (pas d'animation)
+    if (direction !== undefined) pokemon.lastDirection = direction;
+    
+    if (isMoving && targetX !== undefined && targetY !== undefined) {
+      const isSameTarget = (pokemon.targetX === targetX && pokemon.targetY === targetY);
+      if (!isSameTarget) {
+        pokemon.targetX = targetX;
+        pokemon.targetY = targetY;
+        pokemon.isMoving = true;
+        pokemon.serverMoveTime = Date.now();
+        pokemon.serverMoveDuration = moveDuration || 2000;
+        pokemon.moveStartX = pokemon.x;
+        pokemon.moveStartY = pokemon.y;
+      }
+    } else if (!isMoving) {
+      pokemon.isMoving = false;
+    }
+    
+    // Position directe si pas en mouvement
+    if (!pokemon.isMoving && x !== undefined && y !== undefined) {
+      pokemon.x = x;
+      pokemon.y = y;
+      pokemon.setPosition(x, y);
+    }
+    
+    // ✅ AUCUNE ANIMATION - test anti-freeze
+    console.log(`📍 Update position ${pokemon.name}: (${pokemon.x}, ${pokemon.y})`);
+  };
+}
+  /**
    * Valide l'état du système
    */
   validateSystem() {
