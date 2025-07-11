@@ -191,16 +191,24 @@ export class PokemonUISystem {
     try {
       console.log('🚀 [PokemonUI] === INITIALISATION UI MANAGER ===');
       
-      // Import UIManager avec fallback
-      let UIManagerClass;
-      try {
-        const uiManagerModule = await import('./managers/UIManager.js');
-        UIManagerClass = uiManagerModule.UIManager;
-      } catch (importError) {
-        console.warn('⚠️ [PokemonUI] Impossible d\'importer UIManager:', importError);
-        console.log('🔧 [PokemonUI] Création UIManager minimal...');
-        UIManagerClass = this.createMinimalUIManager();
-      }
+      // Import UIManager COMPLET obligatoire
+        let UIManagerClass;
+        try {
+          const uiManagerModule = await import('./managers/UIManager.js');
+          UIManagerClass = uiManagerModule.UIManager;
+          
+          if (!UIManagerClass || typeof UIManagerClass.prototype.registerIconPosition !== 'function') {
+            console.error('❌ [PokemonUI] UIManager sans registerIconPosition');
+            throw new Error('UIManager incomplet');
+          }
+          
+          console.log('✅ [PokemonUI] UIManager COMPLET importé');
+          
+        } catch (importError) {
+          console.error('❌ [PokemonUI] Erreur import UIManager:', importError);
+          const uiManagerModule = await import('./managers/UIManager.js?v=' + Date.now());
+          UIManagerClass = uiManagerModule.UIManager || uiManagerModule.default;
+        }
       
       // Créer le UIManager
       const config = {
@@ -674,7 +682,22 @@ export class PokemonUISystem {
       window.currentGameRoom,
       window.game?.scene?.getScenes(true)[0]
     );
-    
+    // 🆕 CONNECTER À UIMANAGER
+if (this.uiManager && this.uiManager.registerIconPosition) {
+  console.log('📍 [PokemonUI] Connexion Team à UIManager...');
+  teamModule.connectUIManager(this.uiManager);
+} else {
+  console.warn('⚠️ [PokemonUI] Fallback position manuelle');
+  setTimeout(() => {
+    const teamIcon = document.querySelector('#team-icon');
+    if (teamIcon) {
+      teamIcon.style.position = 'fixed';
+      teamIcon.style.right = '20px';
+      teamIcon.style.bottom = '20px';
+      teamIcon.style.zIndex = '500';
+    }
+  }, 100);
+}
     // Exposer globalement pour compatibilité
     window.teamSystem = teamModule;
     window.toggleTeam = () => teamModule.toggleTeamUI();
