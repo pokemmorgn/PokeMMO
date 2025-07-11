@@ -258,6 +258,7 @@ export class TeamUI {
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        width: 100%;
       }
       
       .slots-header {
@@ -282,9 +283,10 @@ export class TeamUI {
         padding: 20px;
         overflow-y: auto;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        grid-template-columns: repeat(3, 1fr);
         gap: 15px;
         align-content: start;
+        width: 100%;
       }
       
       /* Slot Pokemon - Style inventaire */
