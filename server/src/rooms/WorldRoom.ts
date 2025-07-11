@@ -535,19 +535,14 @@ this.onMessage("overworldPokemonSpawnResponse", (client, message) => {
     this.overworldPokemonManager.handleClientSpawnResponse(client, message);
   }
 });
-    // Handler pour force spawn d'un Pokémon overworld
-    this.onMessage("forceSpawnOverworldPokemon", (client, data: { 
-      areaId: string, 
-      pokemonId: number, 
-      x?: number, 
-      y?: number 
-    }) => {
-      console.log(`🎯 [WorldRoom] Force spawn Pokémon overworld par ${client.sessionId}:`, data);
-      if (this.overworldPokemonManager) {
-        this.overworldPokemonManager.forceSpawn(data.areaId, data.pokemonId, data.x, data.y);
-      }
-    });
-
+    
+   // ✅ AJOUTE CE HANDLER ICI
+this.onMessage("overworldPokemonSpawnResponse", (client, message) => {
+  console.log(`📍 [WorldRoom] Réponse spawn reçue de ${client.sessionId}:`, message);
+  if (this.overworldPokemonManager) {
+    this.overworldPokemonManager.handleClientSpawnResponse(client, message);
+  }
+});
     // Handler pour nettoyer une zone overworld
     this.onMessage("clearOverworldArea", (client, data: { areaId: string }) => {
       console.log(`🧹 [WorldRoom] Nettoyage zone overworld ${data.areaId} par ${client.sessionId}`);
