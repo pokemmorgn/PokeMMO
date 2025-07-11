@@ -5,7 +5,16 @@
 import { TeamManager } from './TeamManager.js';
 import { TeamIcon } from './TeamIcon.js';
 import { TeamUI } from './TeamUI.js';
-console.trace('🔍 TEAM MODULE CHARGÉ - Trace:');
+const stackTrace = new Error().stack;
+console.group('🔍 TEAM MODULE CHARGÉ');
+console.log('Stack complet:', stackTrace);
+console.log('Lignes du stack:');
+stackTrace.split('\n').forEach((line, i) => {
+  if (line.includes('.js:')) {
+    console.log(`${i}: ${line.trim()}`);
+  }
+});
+console.groupEnd();
 /**
  * Module Team Unifié avec Singleton Pattern
  * Compatible avec UIManager simplifié
