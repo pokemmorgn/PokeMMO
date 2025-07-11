@@ -477,6 +477,7 @@ export class TeamUI {
         justify-content: space-between;
         padding: 8px;
         box-sizing: border-box;
+        background: transparent;
       }
           
       .pokemon-header {
