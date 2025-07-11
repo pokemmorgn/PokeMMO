@@ -1,5 +1,6 @@
 // Team/TeamUI.js - Interface Team COMPLÈTE avec affichage Pokémon
 // 🎯 Layout moderne avec affichage correct des données Pokémon
+import { SpriteUtils, getPokemonPortraitStyle } from '../utils/SpriteUtils.js';
 
 export class TeamUI {
   constructor(teamManager, gameRoom) {
@@ -20,7 +21,7 @@ export class TeamUI {
     // === CALLBACKS ===
     this.onAction = null;
     
-    console.log('🎯 [TeamUI] Instance créée - Interface Pokémon complète');
+    console.log('🎯 [TeamUI] Instance créée - Interface Pokémon avec SpriteUtils');
   }
   
   // === 🚀 INITIALISATION ===
@@ -1449,6 +1450,8 @@ export class TeamUI {
   }
   
 getPortraitStyle(pokemonId) {
+  console.log('🎨 [TeamUI] Génération style portrait avec SpriteUtils:', pokemonId);
+  
   if (!pokemonId) {
     return `
       background: linear-gradient(45deg, #ccc, #999); 
@@ -1461,16 +1464,15 @@ getPortraitStyle(pokemonId) {
     `;
   }
   
-  const url = `/assets/pokemon/portraitanime/${pokemonId}.png`;
+  const style = getPokemonPortraitStyle(pokemonId, {
+    width: '64px',
+    height: '64px',
+    preservePixelArt: true
+  });
   
-  // ✅ AFFICHER SEULEMENT LA PREMIÈRE FRAME
-  return `
-    background-image: url('${url}');
-    background-size: auto 100%;
-    background-position: 0px 0px;
-    background-repeat: no-repeat;
-    image-rendering: pixelated;
-  `;
+  console.log('🎨 [TeamUI] Style généré par SpriteUtils:', style);
+  
+  return style;
 }
   
   getHealthClass(healthPercent) {
