@@ -2,7 +2,7 @@
 // 🎯 1 SEUL module qui gère TOUT : business logic + icône + interface
 // ✅ MODIFIÉ: Auto-enregistrement UIManager pour positionnement intelligent
 
-import { TeamSystem } from './TeamSystem.js';
+import { TeamSystem } from './TeamManager.js';
 import { TeamIcon } from './TeamIcon.js';
 import { TeamUI } from './TeamUI.js';
 
