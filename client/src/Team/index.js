@@ -5,7 +5,7 @@
 import { TeamManager } from './TeamManager.js';
 import { TeamIcon } from './TeamIcon.js';
 import { TeamUI } from './TeamUI.js';
-
+console.trace('🔍 TEAM MODULE CHARGÉ - Trace:');
 /**
  * Module Team Unifié avec Singleton Pattern
  * Compatible avec UIManager simplifié
