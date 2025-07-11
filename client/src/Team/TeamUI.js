@@ -277,44 +277,47 @@ export class TeamUI {
         gap: 8px;
       }
       
-      /* Grille des slots Pokemon - Style inventaire */
+      /* Grille des slots Pokemon - Style inventaire AMÉLIORÉ */
       .team-slots-grid {
         flex: 1;
-        padding: 20px;
+        padding: 25px;
         overflow-y: auto;
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
+        gap: 20px;
         align-content: start;
         width: 100%;
       }
       
-      /* Slot Pokemon - Style inventaire */
+      /* Slot Pokemon - Style inventaire AMÉLIORÉ */
       .team-slot {
         background: rgba(255, 255, 255, 0.1);
         border: 2px solid rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        padding: 15px 10px;
+        border-radius: 15px;
+        padding: 20px 15px;
         text-align: center;
         cursor: pointer;
         transition: all 0.3s ease;
-        min-height: 120px;
+        min-height: 140px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         position: relative;
+        backdrop-filter: blur(5px);
       }
       
       .team-slot:hover {
-        background: rgba(74, 144, 226, 0.2);
+        background: rgba(74, 144, 226, 0.25);
         border-color: #4a90e2;
-        transform: translateY(-2px);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(74, 144, 226, 0.3);
       }
       
       .team-slot.selected {
         background: rgba(74, 144, 226, 0.4);
         border-color: #87ceeb;
-        box-shadow: 0 0 15px rgba(74, 144, 226, 0.5);
+        box-shadow: 0 0 20px rgba(74, 144, 226, 0.6);
+        transform: translateY(-2px);
       }
       
       .team-slot.empty {
@@ -382,20 +385,22 @@ export class TeamUI {
       .pokemon-name {
         font-weight: 600;
         color: #ffffff;
-        font-size: 12px;
+        font-size: 13px;
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
-        max-width: 80px;
+        max-width: 90px;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
       }
       
       .pokemon-level {
-        background: rgba(74, 144, 226, 0.8);
+        background: rgba(74, 144, 226, 0.9);
         color: white;
-        padding: 2px 6px;
-        border-radius: 6px;
-        font-size: 9px;
+        padding: 3px 8px;
+        border-radius: 8px;
+        font-size: 10px;
         font-weight: bold;
+        box-shadow: 0 2px 8px rgba(74, 144, 226, 0.4);
       }
       
       .pokemon-sprite {
@@ -408,14 +413,21 @@ export class TeamUI {
       }
       
       .pokemon-portrait {
-        width: 48px;
-        height: 48px;
+        width: 56px;
+        height: 56px;
         background-size: cover;
         background-position: center;
-        border-radius: 8px;
+        border-radius: 10px;
         border: 2px solid rgba(255, 255, 255, 0.3);
         image-rendering: pixelated;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: all 0.3s ease;
+      }
+      
+      .team-slot:hover .pokemon-portrait {
+        transform: scale(1.05);
+        border-color: rgba(74, 144, 226, 0.6);
+        box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
       }
       
       .pokemon-health {
