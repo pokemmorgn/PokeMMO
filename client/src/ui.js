@@ -625,21 +625,42 @@ export class PokemonUISystem {
   // === FACTORIES DES MODULES ===
 
   async createInventoryModule() {
-    console.log('🎒 [PokemonUI] Création module inventaire...');
+  console.log('🎒 [PokemonUI] Création NOUVEAU module inventaire compatible UIManager...');
+  
+  try {
+    // Import du nouveau système unifié
+    const { createInventoryModule } = await import('./Inventory/index.js');
     
-    if (window.inventorySystemGlobal) {
-      console.log('🔄 [PokemonUI] Réutilisation inventaire existant');
-      return this.wrapExistingModule(window.inventorySystemGlobal, 'inventory');
+    // Créer le module avec UIManager
+    const inventoryModule = await createInventoryModule(
+      window.currentGameRoom,
+      window.game?.scene?.getScenes(true)[0]
+    );
+    
+    if (!inventoryModule) {
+      throw new Error('Échec création InventoryModule');
     }
     
-    if (typeof window.initInventorySystem === 'function') {
-      const inventorySystem = window.initInventorySystem(window.currentGameRoom);
-      return this.wrapExistingModule(inventorySystem, 'inventory');
-    }
+    // ✅ Le nouveau module est déjà compatible UIManager
+    console.log('✅ [PokemonUI] Nouveau InventoryModule créé avec API UIManager');
     
-    console.warn('⚠️ [PokemonUI] Inventaire non disponible, création module vide');
+    // Exposer globalement pour compatibilité
+    window.inventorySystem = inventoryModule.system;          // Business logic
+    window.inventorySystemGlobal = inventoryModule;           // Module complet
+    window.toggleInventory = () => inventoryModule.toggle();
+    window.openInventory = () => inventoryModule.openInventory();
+    window.closeInventory = () => inventoryModule.closeInventory();
+    
+    console.log('🔗 [PokemonUI] Nouveau inventaire exposé globalement');
+    
+    return inventoryModule;
+    
+  } catch (error) {
+    console.error('❌ [PokemonUI] Erreur création nouveau inventaire:', error);
+    console.log('🔧 [PokemonUI] Fallback vers wrapper vide...');
     return this.createEmptyWrapper('inventory');
   }
+}
 
   async createTeamModuleUnified() {
   console.log('⚔️ [PokemonUI] Création module Team unifié...');
