@@ -1163,6 +1163,13 @@ this.networkManager.onMessage("overworldPokemon", (data) => {
       console.warn(`⚠️ [${this.scene.key}] OverworldPokemonManager pas prêt pour message ${data.type}`);
     }
   });
+
+    // ✅ AJOUTER APRÈS le handler "overworldPokemon" existant :
+this.networkManager.send = (messageType, data) => {
+  if (this.networkManager?.room) {
+    this.networkManager.room.send(messageType, data);
+  }
+};
     // ✅ Handler d'état avec protection
     this.networkManager.onStateChange((state) => {
       if (!this.isSceneReady || !this.networkSetupComplete) {
