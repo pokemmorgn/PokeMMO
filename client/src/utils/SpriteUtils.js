@@ -1,384 +1,359 @@
-// client/src/utils/SpriteUtils.js - Module utilitaire pour gestion des spritesheets
-// 🎯 Module réutilisable pour tous les types de sprites du jeu
-
 /**
- * Utilitaire pour la gestion et l'affichage des spritesheets
- * Utilisable partout : TeamUI, OverworldPokemon, BattleUI, etc.
+ * 🔧 MISE À JOUR SPRITEUTILS.JS AVEC SYSTÈME JSON + DÉTECTION AVANCÉE
+ * ✅ Intégrer le JSON et la détection automatique qu'on a développé
  */
+
+// ✅ 1. MISE À JOUR DU CONSTRUCTOR DANS SpriteUtils
 export class SpriteUtils {
   
-  // === 🔍 DÉTECTION AUTOMATIQUE DE STRUCTURE ===
-  
-  /**
-   * Détecte automatiquement la structure d'un spritesheet
-   * @param {number} width - Largeur totale de l'image
-   * @param {number} height - Hauteur totale de l'image
-   * @param {string} type - Type de sprite ('portrait', 'overworld', 'battle', 'auto')
-   * @returns {Object} Structure détectée
-   */
-  static detectSpriteStructure(width, height, type = 'auto') {
-    console.log(`🔍 [SpriteUtils] Détection structure ${width}x${height} (type: ${type})`);
-    
-    const possibilities = this.getSpriteTypePossibilities(type);
-    const validOptions = [];
+  // Cache pour les tailles de sprites
+  static spriteSizes = null;
+  static spriteSizesLoaded = false;
 
-    possibilities.forEach(p => {
-      const frameW = width / p.cols;
-      const frameH = height / p.rows;
+  // ✅ NOUVELLE MÉTHODE: Charger la base de données des tailles
+  static async loadSpriteSizes() {
+    if (this.spriteSizesLoaded) return;
+    
+    try {
+      console.log("📋 [SpriteUtils] Chargement sprite-sizes.json...");
       
-      if (frameW % 1 === 0 && frameH % 1 === 0) {
-        const aspectRatio = frameW / frameH;
-        const isSquareish = Math.abs(aspectRatio - 1) < 0.5;
-        const isReasonableSize = frameW >= 16 && frameW <= 256 && frameH >= 16 && frameH <= 256;
-        
-        let qualityScore = 0;
-        
-        if (isSquareish) qualityScore += 20;
-        if (isReasonableSize) qualityScore += 15;
-        if (p.commonForType) qualityScore += 30;
-        if (p.cols * p.rows <= 100) qualityScore += 10; // Préférer moins de frames
-        
-        validOptions.push({
-          cols: p.cols,
-          rows: p.rows,
-          frameWidth: frameW,
-          frameHeight: frameH,
-          totalFrames: p.cols * p.rows,
-          priority: p.priority,
-          qualityScore: qualityScore,
-          name: p.name,
-          aspectRatio: aspectRatio,
-          type: type
+      const response = await fetch('/assets/pokemon/sprite-sizes.json');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      this.spriteSizes = await response.json();
+      this.spriteSizesLoaded = true;
+      
+      console.log(`✅ [SpriteUtils] ${Object.keys(this.spriteSizes).length} Pokémon sprites chargés`);
+    } catch (error) {
+      console.warn(`⚠️ [SpriteUtils] Impossible de charger sprite-sizes.json:`, error);
+      this.spriteSizes = {};
+      this.spriteSizesLoaded = true; // Éviter les retry
+    }
+  }
+
+  // ✅ MÉTHODE AMÉLIORÉE: Obtenir structure avec JSON + auto-détection
+  static async getSpriteStructure(pokemonId, animationFile, width, height) {
+    // Charger la base de données si pas encore fait
+    if (!this.spriteSizesLoaded) {
+      await this.loadSpriteSizes();
+    }
+    
+    console.log(`🎯 [SpriteUtils] getSpriteStructure pour ${pokemonId} - ${animationFile} (${width}x${height})`);
+    
+    // 1. Vérifier JSON des tailles connues
+    if (this.spriteSizes?.[pokemonId]?.[animationFile]) {
+      const expectedSize = this.spriteSizes[pokemonId][animationFile];
+      const [expectedW, expectedH] = expectedSize.split('x').map(Number);
+      
+      if (width === expectedW && height === expectedH) {
+        console.log(`📋 [SpriteUtils] Taille confirmée par JSON: ${expectedSize}`);
+        return this.getKnownStructureFromSize(expectedSize, animationFile);
+      } else {
+        console.warn(`⚠️ [SpriteUtils] Taille JSON ne correspond pas:`, {
+          expected: expectedSize,
+          actual: `${width}x${height}`,
+          using: 'auto-detection'
         });
       }
-    });
-
-    if (validOptions.length === 0) {
-      console.warn(`⚠️ [SpriteUtils] Aucune structure valide pour ${width}×${height}`);
-      return this.getFallbackStructure(width, height);
     }
-
-    // Trier par qualité puis par priorité
-    validOptions.sort((a, b) => {
-      if (b.qualityScore !== a.qualityScore) {
-        return b.qualityScore - a.qualityScore;
-      }
-      return a.priority - b.priority;
-    });
-
-    const best = validOptions[0];
-    console.log(`✅ [SpriteUtils] Structure détectée: ${best.name} (${best.cols}x${best.rows})`);
     
+    // 2. Fallback sur auto-détection améliorée
+    return this.detectSpriteStructureAdvanced(width, height, animationFile);
+  }
+
+  // ✅ NOUVELLE MÉTHODE: Structure connue depuis taille
+  static getKnownStructureFromSize(sizeString, animationFile) {
+    const [width, height] = sizeString.split('x').map(Number);
+    
+    // Règles automatiques basées sur nos tests
+    let structure;
+    
+    if (animationFile.includes('Walk-Anim')) {
+      // Walk animations = toujours 8 lignes
+      if (width === 160 && height === 256) structure = { cols: 5, rows: 8 }; // Roucool
+      else if (width === 240 && height === 320) structure = { cols: 6, rows: 8 }; // Bulbizarre  
+      else if (width === 192 && height === 256) structure = { cols: 6, rows: 8 }; // Standard
+      else if (width === 128 && height === 256) structure = { cols: 4, rows: 8 }; // Compact
+      else if (width === 256 && height === 256) structure = { cols: 8, rows: 8 }; // Large
+      else {
+        // Auto-calcul pour Walk
+        const possibleCols = [4, 5, 6, 8, 9, 10];
+        for (const cols of possibleCols) {
+          if (width % cols === 0 && height === 256) {
+            structure = { cols, rows: 8 };
+            break;
+          }
+        }
+      }
+    } else if (animationFile.includes('Swing-Anim')) {
+      // Swing animations = 1 ligne
+      if (width === 288) structure = { cols: 9, rows: 1 };
+      else if (width === 256) structure = { cols: 8, rows: 1 };
+      else if (width === 192) structure = { cols: 6, rows: 1 };
+      else {
+        // Auto-calcul pour Swing
+        const possibleCols = [6, 8, 9, 10];
+        for (const cols of possibleCols) {
+          if (width % cols === 0) {
+            structure = { cols, rows: 1 };
+            break;
+          }
+        }
+      }
+    }
+    
+    // Fallback si aucune règle
+    if (!structure) {
+      structure = this.detectSpriteStructureAdvanced(width, height, animationFile);
+    } else {
+      structure.frameWidth = width / structure.cols;
+      structure.frameHeight = height / structure.rows;
+      structure.totalFrames = structure.cols * structure.rows;
+      structure.name = `${structure.cols}x${structure.rows} (JSON-${animationFile})`;
+      structure.source = 'json-rules';
+      structure.qualityScore = 100;
+    }
+    
+    console.log(`✅ [SpriteUtils] Structure JSON: ${structure.name}`);
+    return structure;
+  }
+
+  // ✅ DÉTECTION AVANCÉE (notre système perfectionné)
+  static detectSpriteStructureAdvanced(width, height, animationFile = '') {
+    console.log(`🔍 [SpriteUtils] Détection avancée pour ${width}x${height} (${animationFile})`);
+    
+    // Générer toutes les divisions exactes possibles
+    const exactDivisions = [];
+    
+    for (let cols = 1; cols <= 20; cols++) {
+      for (let rows = 1; rows <= 20; rows++) {
+        const frameW = width / cols;
+        const frameH = height / rows;
+        
+        if (frameW % 1 === 0 && frameH % 1 === 0) {
+          exactDivisions.push({
+            cols, rows, frameWidth: frameW, frameHeight: frameH,
+            totalFrames: cols * rows
+          });
+        }
+      }
+    }
+    
+    if (exactDivisions.length === 0) {
+      return this.createFallbackStructure(width, height);
+    }
+    
+    // Scoring intelligent
+    const scoredOptions = exactDivisions.map(option => {
+      let score = 0;
+      const { cols, rows, frameWidth, frameHeight } = option;
+      
+      // 🎯 BONUS WALK ANIMATION (8 lignes)
+      if (rows === 8 && animationFile.includes('Walk')) {
+        score += 50;
+        if (cols === 5) score += 30; // Roucool
+        if (cols === 6) score += 35; // Standard/Bulbizarre
+        if (cols === 4) score += 20; // Compact
+        if (cols === 8) score += 15; // Large
+      }
+      
+      // 🎯 BONUS SWING ANIMATION (1 ligne)
+      if (rows === 1 && animationFile.includes('Swing')) {
+        score += 40;
+        if (cols === 8) score += 25;
+        if (cols === 9) score += 30;
+        if (cols === 6) score += 15;
+      }
+      
+      // 🎯 TAILLE DE FRAME OPTIMALE
+      if (frameWidth >= 16 && frameWidth <= 64 && frameHeight >= 16 && frameHeight <= 64) {
+        score += 30;
+        if (frameWidth % 8 === 0) score += 10;
+        if (frameHeight % 8 === 0) score += 10;
+        if (frameWidth === 32 && frameHeight === 32) score += 20;
+        if (frameWidth === 40 && frameHeight === 40) score += 15; // Bulbizarre
+      }
+      
+      // 🎯 RATIO D'ASPECT
+      const aspectRatio = frameWidth / frameHeight;
+      if (aspectRatio >= 0.5 && aspectRatio <= 2.0) {
+        score += 20;
+        if (aspectRatio >= 0.8 && aspectRatio <= 1.2) score += 15;
+      }
+      
+      // 🎯 NOMBRE DE FRAMES LOGIQUE
+      const totalFrames = cols * rows;
+      if (totalFrames >= 8 && totalFrames <= 80) {
+        score += 15;
+        if ([40, 48, 64, 32, 8, 9].includes(totalFrames)) score += 10;
+      }
+      
+      // 🎯 ÉVITER FORMATS BIZARRES
+      if (cols > 15 || rows > 12) score -= 20;
+      if (frameWidth < 8 || frameHeight < 8) score -= 30;
+      if (frameWidth > 128 || frameHeight > 128) score -= 20;
+      
+      return {
+        ...option,
+        score,
+        aspectRatio: (frameWidth / frameHeight).toFixed(2),
+        name: this.generateStructureName(cols, rows, frameWidth, frameHeight, animationFile)
+      };
+    });
+    
+    // Trier par score
+    scoredOptions.sort((a, b) => b.score - a.score);
+    const best = scoredOptions[0];
+    
+    console.log(`✅ [SpriteUtils] Détection avancée: ${best.name} (score: ${best.score})`);
     return best;
   }
 
-  /**
-   * Retourne les possibilités selon le type de sprite
-   */
-  static getSpriteTypePossibilities(type) {
-    const commonStructures = [
-      // Structures communes
-      { cols: 1, rows: 1, priority: 1, name: "1x1 (static)", commonForType: type === 'portrait' },
-      { cols: 2, rows: 1, priority: 2, name: "2x1 (simple anim)" },
-      { cols: 3, rows: 1, priority: 3, name: "3x1 (short anim)" },
-      { cols: 4, rows: 1, priority: 4, name: "4x1 (standard anim)", commonForType: type === 'portrait' },
-      
-      // Grilles carrées
-      { cols: 2, rows: 2, priority: 5, name: "2x2 (quad)" },
-      { cols: 3, rows: 3, priority: 6, name: "3x3 (nine)" },
-      { cols: 4, rows: 4, priority: 7, name: "4x4 (sixteen)" },
-      
-      // Structures overworld communes
-      { cols: 6, rows: 8, priority: 8, name: "6x8 (overworld standard)", commonForType: type === 'overworld' },
-      { cols: 4, rows: 8, priority: 9, name: "4x8 (overworld compact)", commonForType: type === 'overworld' },
-      { cols: 8, rows: 8, priority: 10, name: "8x8 (overworld large)", commonForType: type === 'overworld' },
-      { cols: 9, rows: 8, priority: 11, name: "9x8 (overworld extended)" },
-      { cols: 9, rows: 9, priority: 12, name: "9x9 (large grid)" },
-      
-      // Structures battle
-      { cols: 5, rows: 1, priority: 13, name: "5x1 (battle sequence)", commonForType: type === 'battle' },
-      { cols: 6, rows: 1, priority: 14, name: "6x1 (battle extended)" },
-      { cols: 8, rows: 1, priority: 15, name: "8x1 (battle full)" },
-      
-      // Structures grandes
-      { cols: 10, rows: 8, priority: 16, name: "10x8 (extended)" },
-      { cols: 12, rows: 8, priority: 17, name: "12x8 (full)" },
-      { cols: 16, rows: 8, priority: 18, name: "16x8 (mega)" },
-    ];
-
-    return commonStructures;
-  }
-
-  /**
-   * Structure de fallback en cas d'échec de détection
-   */
-  static getFallbackStructure(width, height) {
-    const estimatedFrameSize = Math.min(width, height, 64);
-    const cols = Math.max(1, Math.round(width / estimatedFrameSize));
-    const rows = Math.max(1, Math.round(height / estimatedFrameSize));
+  // ✅ GÉNÉRATION DE NOM INTELLIGENT
+  static generateStructureName(cols, rows, frameWidth, frameHeight, animationFile) {
+    let type = 'unknown';
     
-    return {
-      cols: cols,
-      rows: rows,
-      frameWidth: Math.round(width / cols),
-      frameHeight: Math.round(height / rows),
-      totalFrames: cols * rows,
-      name: "fallback",
-      type: "auto"
-    };
-  }
-
-  // === 🎨 GÉNÉRATION DE STYLES CSS ===
-
-  /**
-   * Génère le style CSS pour afficher une frame spécifique d'un spritesheet
-   * @param {string} imageUrl - URL de l'image spritesheet
-   * @param {Object} structure - Structure du spritesheet (de detectSpriteStructure)
-   * @param {number} frameIndex - Index de la frame à afficher (défaut: 0)
-   * @param {Object} options - Options d'affichage
-   * @returns {string} Style CSS
-   */
-  static generateSpriteCSS(imageUrl, structure, frameIndex = 0, options = {}) {
-    const {
-      width = 'auto',
-      height = 'auto',
-      preservePixelArt = true,
-      fitMode = 'contain' // 'contain', 'cover', 'exact'
-    } = options;
-
-    // Calculer la position de la frame
-    const frameCol = frameIndex % structure.cols;
-    const frameRow = Math.floor(frameIndex / structure.cols);
-    
-    // Calculer background-size (agrandir le spritesheet)
-    const backgroundSizeX = structure.cols * 100;
-    const backgroundSizeY = structure.rows * 100;
-    
-    // Calculer background-position (positionner sur la bonne frame)
-    const positionX = frameCol * (100 / (structure.cols - 1 || 1));
-    const positionY = frameRow * (100 / (structure.rows - 1 || 1));
-
-    const styles = [
-      `background-image: url('${imageUrl}')`,
-      `background-size: ${backgroundSizeX}% ${backgroundSizeY}%`,
-      `background-position: ${positionX}% ${positionY}%`,
-      `background-repeat: no-repeat`
-    ];
-
-    if (width !== 'auto') styles.push(`width: ${width}`);
-    if (height !== 'auto') styles.push(`height: ${height}`);
-    
-    if (preservePixelArt) {
-      styles.push(`image-rendering: pixelated`);
-      styles.push(`image-rendering: -moz-crisp-edges`);
-      styles.push(`image-rendering: crisp-edges`);
+    if (rows === 8 && animationFile.includes('Walk')) {
+      if (cols === 5) type = 'walk-roucool';
+      else if (cols === 6) type = 'walk-standard';
+      else if (cols === 4) type = 'walk-compact';
+      else type = 'walk';
+    } else if (rows === 1 && animationFile.includes('Swing')) {
+      type = 'swing';
+    } else if (rows === 8) {
+      type = 'walk-variant';
     }
+    
+    return `${cols}x${rows} (${type}) [${frameWidth}x${frameHeight}px]`;
+  }
 
-    return styles.join('; ') + ';';
+  // === 🔧 INTÉGRATION DANS OVERWORLDPOKEMONMANAGER ===
+
+  /**
+   * ✅ REMPLACER detectSpriteStructure() dans OverworldPokemonManager.js par :
+   */
+  static async detectSpriteStructureForOverworld(pokemonId, animationFile, width, height) {
+    return await this.getSpriteStructure(pokemonId, animationFile, width, height);
   }
 
   /**
-   * Version simplifiée pour afficher la première frame
+   * ✅ MÉTHODE POUR OVERWORLDPOKEMONMANAGER: Chargement sprite avec structure
    */
-  static generateFirstFrameCSS(imageUrl, structure, options = {}) {
-    return this.generateSpriteCSS(imageUrl, structure, 0, options);
-  }
-
-  // === 📱 MÉTHODES POUR DIFFÉRENTS USAGES ===
-
-  /**
-   * Spécialisé pour les portraits Pokémon dans l'interface Team
-   */
-  static generatePokemonPortraitStyle(pokemonId, options = {}) {
-    if (!pokemonId) {
-      return `
-        background: linear-gradient(45deg, #ccc, #999);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: 20px;
-      `;
+  static async loadPokemonSpriteStructure(pokemonId, animationFile, scene) {
+    try {
+      // Charger l'image temporairement pour obtenir les dimensions
+      const paddedId = pokemonId.toString().padStart(3, '0');
+      const spritePath = `/assets/pokemon/${paddedId}/${animationFile}`;
+      
+      return new Promise((resolve, reject) => {
+        const tempImage = new Image();
+        
+        tempImage.onload = async () => {
+          try {
+            const structure = await this.getSpriteStructure(
+              pokemonId, 
+              animationFile, 
+              tempImage.width, 
+              tempImage.height
+            );
+            
+            console.log(`✅ [SpriteUtils] Structure pour ${pokemonId}/${animationFile}:`, structure);
+            resolve(structure);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        
+        tempImage.onerror = () => {
+          reject(new Error(`Impossible de charger ${spritePath}`));
+        };
+        
+        tempImage.src = spritePath;
+      });
+      
+    } catch (error) {
+      console.error(`❌ [SpriteUtils] Erreur chargement structure:`, error);
+      throw error;
     }
-
-    const imageUrl = `/assets/pokemon/portraitanime/${pokemonId}.png`;
-    
-    // Structure typique pour les portraits (à ajuster selon tes sprites)
-    const structure = {
-      cols: 9,  // Ajuste selon tes tests
-      rows: 9,  // Ajuste selon tes tests
-      frameWidth: 64,
-      frameHeight: 64
-    };
-
-    return this.generateFirstFrameCSS(imageUrl, structure, {
-      width: '64px',
-      height: '64px',
-      preservePixelArt: true,
-      ...options
-    });
   }
 
+  // === 📋 MÉTHODES DE TEST ET DEBUG ===
+
   /**
-   * Pour les sprites overworld animés
+   * 🧪 Test spécifique pour un Pokémon
    */
-  static generateOverworldSpriteStyle(pokemonId, frameIndex = 0, options = {}) {
-    const imageUrl = `/assets/pokemon/${pokemonId.toString().padStart(3, '0')}/Walk-Anim.png`;
+  static async testPokemonSprite(pokemonId, animationFile = 'Walk-Anim.png') {
+    console.log(`🧪 [SpriteUtils] === TEST ${pokemonId} - ${animationFile} ===`);
     
-    // Structure typique overworld (utilise ta logique existante)
-    const structure = {
-      cols: 6,
-      rows: 8,
-      frameWidth: 32,
-      frameHeight: 32
-    };
-
-    return this.generateSpriteCSS(imageUrl, structure, frameIndex, options);
-  }
-
-  /**
-   * Pour les sprites de battle
-   */
-  static generateBattleSpriteStyle(pokemonId, frameIndex = 0, options = {}) {
-    const imageUrl = `/assets/pokemon/battle/${pokemonId}.png`;
-    
-    const structure = {
-      cols: 5,
-      rows: 1,
-      frameWidth: 96,
-      frameHeight: 96
-    };
-
-    return this.generateSpriteCSS(imageUrl, structure, frameIndex, options);
-  }
-
-  // === 🔧 MÉTHODES UTILITAIRES ===
-
-  /**
-   * Détecte automatiquement la structure d'une image chargée
-   */
-  static async detectImageStructure(imageUrl, type = 'auto') {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
+    try {
+      const structure = await this.loadPokemonSpriteStructure(pokemonId, animationFile);
       
-      img.onload = () => {
-        const structure = this.detectSpriteStructure(img.width, img.height, type);
-        resolve(structure);
-      };
+      console.log(`📊 Résultat:`, {
+        pokemonId,
+        animationFile,
+        structure: structure.name,
+        frames: `${structure.frameWidth}x${structure.frameHeight}`,
+        grid: `${structure.cols}x${structure.rows}`,
+        source: structure.source,
+        score: structure.score || 'N/A'
+      });
       
-      img.onerror = () => {
-        reject(new Error(`Impossible de charger l'image: ${imageUrl}`));
-      };
-      
-      img.src = imageUrl;
-    });
+      return structure;
+    } catch (error) {
+      console.error(`❌ Test échoué:`, error);
+      return null;
+    }
   }
 
   /**
-   * Applique un style sprite à un élément DOM
+   * 🧪 Test batch de plusieurs Pokémon
    */
-  static applySpriteToElement(element, imageUrl, structure, frameIndex = 0, options = {}) {
-    const cssStyle = this.generateSpriteCSS(imageUrl, structure, frameIndex, options);
+  static async testMultiplePokemon() {
+    const testCases = [
+      { id: 1, name: 'Bulbizarre' },
+      { id: 4, name: 'Salamèche' },
+      { id: 7, name: 'Carapuce' },
+      { id: 16, name: 'Roucool' },
+      { id: 25, name: 'Pikachu' }
+    ];
     
-    // Appliquer chaque propriété CSS
-    cssStyle.split(';').forEach(rule => {
-      const [property, value] = rule.split(':').map(s => s.trim());
-      if (property && value) {
-        element.style.setProperty(property, value);
+    console.log(`🧪 [SpriteUtils] === TEST BATCH ${testCases.length} POKÉMON ===`);
+    
+    const results = [];
+    
+    for (const testCase of testCases) {
+      console.log(`\n🎯 Test ${testCase.name} (${testCase.id}):`);
+      
+      try {
+        const walkResult = await this.testPokemonSprite(testCase.id, 'Walk-Anim.png');
+        const swingResult = await this.testPokemonSprite(testCase.id, 'Swing-Anim.png');
+        
+        results.push({
+          pokemon: testCase,
+          walk: walkResult,
+          swing: swingResult,
+          success: !!(walkResult && swingResult)
+        });
+        
+      } catch (error) {
+        console.error(`❌ Erreur ${testCase.name}:`, error);
+        results.push({
+          pokemon: testCase,
+          success: false,
+          error: error.message
+        });
       }
-    });
-  }
-
-  /**
-   * Crée un élément HTML avec un sprite
-   */
-  static createSpriteElement(imageUrl, structure, frameIndex = 0, options = {}) {
-    const element = document.createElement('div');
-    element.className = 'sprite-element';
+    }
     
-    const cssStyle = this.generateSpriteCSS(imageUrl, structure, frameIndex, options);
-    element.style.cssText = cssStyle;
+    // Résumé
+    const successCount = results.filter(r => r.success).length;
+    console.log(`\n📊 === RÉSUMÉ BATCH ===`);
+    console.log(`✅ Succès: ${successCount}/${testCases.length}`);
+    console.log(`❌ Échecs: ${testCases.length - successCount}/${testCases.length}`);
     
-    return element;
+    return results;
   }
 
-  // === 📊 MÉTHODES D'INFORMATION ===
-
-  /**
-   * Retourne des infos sur un spritesheet
-   */
-  static getSpriteInfo(structure) {
-    return {
-      totalFrames: structure.totalFrames,
-      frameSize: `${structure.frameWidth}x${structure.frameHeight}`,
-      gridSize: `${structure.cols}x${structure.rows}`,
-      type: structure.type || 'unknown',
-      name: structure.name || 'unnamed'
-    };
-  }
-
-  /**
-   * Debug d'un spritesheet
-   */
-  static debugSprite(imageUrl, structure) {
-    console.group(`🔍 [SpriteUtils] Debug: ${imageUrl}`);
-    console.log('📊 Structure:', structure);
-    console.log('🎯 Info:', this.getSpriteInfo(structure));
-    console.log('🎨 CSS premier frame:', this.generateFirstFrameCSS(imageUrl, structure));
-    console.groupEnd();
-  }
 }
-
-// === 🎯 FONCTIONS DE COMMODITÉ ===
-
-/**
- * Raccourci pour les portraits Pokémon
- */
-export function getPokemonPortraitStyle(pokemonId, options = {}) {
-  return SpriteUtils.generatePokemonPortraitStyle(pokemonId, options);
-}
-
-/**
- * Raccourci pour détecter une structure
- */
-export function detectSprite(width, height, type = 'auto') {
-  return SpriteUtils.detectSpriteStructure(width, height, type);
-}
-
-/**
- * Raccourci pour appliquer un sprite
- */
-export function applySprite(element, imageUrl, structure, frameIndex = 0, options = {}) {
-  return SpriteUtils.applySpriteToElement(element, imageUrl, structure, frameIndex, options);
-}
-
-// === 📋 EXPORT PAR DÉFAUT ===
-
-export default SpriteUtils;
-
-console.log(`
-🎯 === SPRITE UTILS MODULE ===
-
-✨ FONCTIONNALITÉS:
-• Détection automatique de structure spritesheet
-• Génération CSS optimisée pour toute frame
-• Support multi-types (portrait, overworld, battle)
-• Méthodes spécialisées par usage
-• Utilitaires DOM intégrés
-
-🎮 UTILISATION PARTOUT:
-import { SpriteUtils, getPokemonPortraitStyle } from './utils/SpriteUtils.js';
-
-// TeamUI
-const style = getPokemonPortraitStyle(pokemonId);
-
-// OverworldPokemon  
-const structure = SpriteUtils.detectSpriteStructure(width, height, 'overworld');
-const css = SpriteUtils.generateSpriteCSS(url, structure, frameIndex);
-
-// BattleUI
-const battleStyle = SpriteUtils.generateBattleSpriteStyle(pokemonId, 0);
-
-🔧 RÉUTILISABLE ET MAINTENABLE !
-`);
