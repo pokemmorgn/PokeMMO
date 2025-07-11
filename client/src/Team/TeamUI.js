@@ -245,16 +245,16 @@ export class TeamUI {
         display: block;
       }
       
-      /* ===== OVERVIEW LAYOUT PROPRE ===== */
+      /* ===== OVERVIEW LAYOUT OPTIMISÉ ===== */
       .team-overview-content {
         display: flex;
-        gap: 20px;
+        gap: 15px;
         height: 100%;
       }
       
       /* Section principale des slots */
       .team-slots-section {
-        flex: 2;
+        flex: 3;
         display: flex;
         flex-direction: column;
         min-width: 0;
@@ -274,28 +274,28 @@ export class TeamUI {
         gap: 8px;
       }
       
-      /* Grille des slots Pokemon */
+      /* Grille des slots Pokemon - Plus grande */
       .team-slots-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         grid-template-rows: repeat(2, 1fr);
-        gap: 15px;
+        gap: 20px;
         flex: 1;
         min-height: 0;
       }
       
-      /* Slot Pokemon individuel */
+      /* Slot Pokemon individuel - Plus grand */
       .team-slot {
         background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
         border: 2px solid rgba(74, 144, 226, 0.4);
         border-radius: 15px;
-        padding: 15px;
+        padding: 18px;
         cursor: pointer;
         transition: all 0.3s ease;
         position: relative;
         display: flex;
         flex-direction: column;
-        min-height: 120px;
+        min-height: 140px;
       }
       
       .team-slot:hover {
@@ -403,12 +403,12 @@ export class TeamUI {
       }
       
       .pokemon-portrait {
-        width: 50px;
-        height: 50px;
+        width: 64px;
+        height: 64px;
         background-size: cover;
         background-position: center;
-        border-radius: 8px;
-        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
         image-rendering: pixelated;
       }
       
@@ -469,10 +469,11 @@ export class TeamUI {
       .type-badge.type-fairy { background: #ffb6c1; color: #333; }
       .type-badge.type-normal { background: #d3d3d3; color: #333; }
       
-      /* ===== SIDEBAR STATISTIQUES ===== */
+      /* ===== SIDEBAR STATISTIQUES OPTIMISÉE ===== */
       .team-sidebar {
-        flex: 1;
-        min-width: 250px;
+        flex: 2;
+        min-width: 300px;
+        max-width: 400px;
         display: flex;
         flex-direction: column;
         gap: 15px;
@@ -626,7 +627,7 @@ export class TeamUI {
         font-style: italic;
       }
       
-      /* ===== RESPONSIVE ===== */
+      /* ===== RESPONSIVE OPTIMISÉ ===== */
       @media (max-width: 1000px) {
         .team-overview-content {
           flex-direction: column;
@@ -635,6 +636,7 @@ export class TeamUI {
         
         .team-sidebar {
           min-width: auto;
+          max-width: none;
         }
         
         .team-slots-grid {
