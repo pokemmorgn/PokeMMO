@@ -353,7 +353,7 @@ export class OverworldPokemonManager {
       pokemon.serverX = x;
       pokemon.serverY = y;
       
-      // ✅ Gestion animation initiale
+      // ✅ Gestion animation initiale avec protection
       const animDirection = this.getDirectionForAnimation(direction || 'down');
       const animType = animationFile.replace('-Anim.png', '').toLowerCase();
       
@@ -364,12 +364,24 @@ export class OverworldPokemonManager {
         animKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${animDirection}`;
       }
       
-      if (this.scene.anims.exists(animKey)) {
-        pokemon.anims.play(animKey, true);
-        console.log(`🎬 [OverworldPokemonManager] Animation: ${animKey}`);
-      } else {
-        console.warn(`⚠️ [OverworldPokemonManager] Animation ${animKey} n'existe pas`);
-      }
+      // ✅ PROTECTION: Attendre que les animations soient vraiment créées
+      this.scene.time.delayedCall(100, () => {
+        if (pokemon && pokemon.anims && this.scene.anims.exists(animKey)) {
+          try {
+            pokemon.anims.play(animKey, true);
+            console.log(`🎬 [OverworldPokemonManager] Animation: ${animKey}`);
+          } catch (error) {
+            console.warn(`⚠️ [OverworldPokemonManager] Erreur animation ${animKey}:`, error);
+            // Fallback vers frame statique
+            pokemon.setFrame(0);
+          }
+        } else {
+          console.warn(`⚠️ [OverworldPokemonManager] Animation ${animKey} n'existe pas`);
+          if (pokemon) {
+            pokemon.setFrame(0);
+          }
+        }
+      });
       
       // Ajouter au cache
       this.overworldPokemon.set(id, pokemon);
@@ -419,9 +431,20 @@ export class OverworldPokemonManager {
         ? `overworld_pokemon_${pokemon.pokemonId}_${animType}_${animDirection}`
         : `overworld_pokemon_${pokemon.pokemonId}_${animType}_idle_${animDirection}`;
       
-      if (this.scene.anims.exists(animKey)) {
-        pokemon.anims.play(animKey, true);
-        console.log(`🎬 [OverworldPokemonManager] Animation: ${animKey}`);
+      // ✅ PROTECTION: Vérifier que l'animation existe et que le sprite est prêt
+      if (pokemon.anims && this.scene.anims.exists(animKey)) {
+        try {
+          pokemon.anims.play(animKey, true);
+          console.log(`🎬 [OverworldPokemonManager] Animation: ${animKey}`);
+        } catch (error) {
+          console.warn(`⚠️ [OverworldPokemonManager] Erreur changement animation:`, error);
+          pokemon.setFrame(0);
+        }
+      } else {
+        console.warn(`⚠️ [OverworldPokemonManager] Animation ${animKey} non disponible`);
+        if (pokemon) {
+          pokemon.setFrame(0);
+        }
       }
     }
   }
@@ -523,54 +546,43 @@ export class OverworldPokemonManager {
   /**
    * ✅ Gestion demande de spawn (vérification collision)
    */
- /**
- * ✅ Gestion demande de spawn (vérification collision)
- */
-handlePokemonSpawnRequest(data) {
-  const { id, x, y } = data;
-  
-  // Vérifier si la position est libre
-  const canSpawn = this.canSpawnAt(x, y);
-  
-  // ✅ CORRECTION: Utiliser networkManager.room.send au lieu de scene.network.send
-  if (this.scene.networkManager?.room) {
-    this.scene.networkManager.room.send('overworldPokemonSpawnResponse', {
+  handlePokemonSpawnRequest(data) {
+    const { id, x, y } = data;
+    
+    // Vérifier si la position est libre
+    const canSpawn = this.canSpawnAt(x, y);
+    
+    // Répondre au serveur
+    this.scene.network.send('overworldPokemonSpawnResponse', {
       ...data,
       success: canSpawn,
       x: x,
       y: y
     });
-  } else {
-    console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au spawn`);
+    
+    console.log(`🎯 [OverworldPokemonManager] Spawn request ${id}: ${canSpawn ? 'OK' : 'BLOQUÉ'} à (${x}, ${y})`);
   }
-  
-  console.log(`🎯 [OverworldPokemonManager] Spawn request ${id}: ${canSpawn ? 'OK' : 'BLOQUÉ'} à (${x}, ${y})`);
-}
 
   /**
    * ✅ Gestion demande de mouvement (vérification collision)
    */
-handlePokemonMoveRequest(data) {
-  const { id, fromX, fromY, toX, toY, direction } = data;
-  
-  // Vérifier si le mouvement est possible
-  const canMove = this.canMoveTo(toX, toY) && !this.isPokemonAt(toX, toY);
-  
-  // ✅ CORRECTION: Utiliser networkManager.room.send
-  if (this.scene.networkManager?.room) {
-    this.scene.networkManager.room.send('overworldPokemonMoveResponse', {
+  handlePokemonMoveRequest(data) {
+    const { id, fromX, fromY, toX, toY, direction } = data;
+    
+    // Vérifier si le mouvement est possible
+    const canMove = this.canMoveTo(toX, toY) && !this.isPokemonAt(toX, toY);
+    
+    // Répondre au serveur
+    this.scene.network.send('overworldPokemonMoveResponse', {
       id,
       success: canMove,
       toX,
       toY,
       direction
     });
-  } else {
-    console.error(`❌ [OverworldPokemonManager] Pas de connexion réseau pour répondre au mouvement`);
+    
+    console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'} (${fromX},${fromY}) → (${toX},${toY})`);
   }
-  
-  console.log(`🚀 [OverworldPokemonManager] Move request ${id}: ${canMove ? 'OK' : 'BLOQUÉ'} (${fromX},${fromY}) → (${toX},${toY})`);
-}
 
   /**
    * ✅ Vérification si on peut spawn à une position
