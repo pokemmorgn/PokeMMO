@@ -248,118 +248,128 @@ const structure = this.detectSpriteStructure(width, height);
   /**
    * ✅ Animations Swing-Anim utilisant seulement la première rangée
    */
-  createSwingAnimations(pokemonId, spriteKey, structure, animationFile) {
-    const animType = animationFile.replace('-Anim.png', '').toLowerCase();
-    
-    const directions = [
-      { name: 'down', col: 0 },
-      { name: 'down-left', col: 1 },
-      { name: 'left', col: 2 },
-      { name: 'up-left', col: 3 },
-      { name: 'up', col: 4 },
-      { name: 'up-right', col: 5 },
-      { name: 'right', col: 6 },
-      { name: 'down-right', col: 7 }
-    ];
+createSwingAnimations(pokemonId, spriteKey, structure, animationFile) {
+  const animType = animationFile.replace('-Anim.png', '').toLowerCase();
+  
+  const directions = [
+    { name: 'down', col: 0 },
+    { name: 'down-left', col: 1 },
+    { name: 'left', col: 2 },
+    { name: 'up-left', col: 3 },
+    { name: 'up', col: 4 },
+    { name: 'up-right', col: 5 },
+    { name: 'right', col: 6 },
+    { name: 'down-right', col: 7 }
+  ];
 
-    directions.forEach(dir => {
-      if (dir.col < structure.cols) {
-        const walkKey = `overworld_pokemon_${pokemonId}_${animType}_${dir.name}`;
-        const idleKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${dir.name}`;
-        
-        const baseFrame = dir.col;
-        
-        if (!this.scene.anims.exists(walkKey)) {
-          const frames = [baseFrame];
-          if (structure.cols >= 9) {
-            frames.push(8);
-          }
-          
-          this.scene.anims.create({
-            key: walkKey,
-            frames: frames.map(frameIndex => ({
-              key: spriteKey,
-              frame: frameIndex
-            })),
-            frameRate: 6,
-            repeat: -1
-          });
+  directions.forEach(dir => {
+    if (dir.col < structure.cols) {
+      const walkKey = `overworld_pokemon_${pokemonId}_${animType}_${dir.name}`;
+      const idleKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${dir.name}`;
+      
+      const baseFrame = dir.col;
+      
+      // ✅ ANIMATION MARCHE avec duration
+      if (!this.scene.anims.exists(walkKey)) {
+        const frames = [baseFrame];
+        if (structure.cols >= 9) {
+          frames.push(8);
         }
         
-        if (!this.scene.anims.exists(idleKey)) {
-          this.scene.anims.create({
-            key: idleKey,
-            frames: [{
-              key: spriteKey,
-              frame: baseFrame
-            }],
-            frameRate: 1,
-            repeat: 0,
-            duration: 1000
-          });
-        }
-        
-        console.log(`✅ Direction ${dir.name}: frame ${baseFrame} (Swing mode)`);
+        this.scene.anims.create({
+          key: walkKey,
+          frames: frames.map(frameIndex => ({
+            key: spriteKey,
+            frame: frameIndex
+          })),
+          frameRate: 6,
+          repeat: -1,
+          duration: 1000, // ✅ AJOUT OBLIGATOIRE
+          skipMissedFrames: true // ✅ SÉCURITÉ SUPPLÉMENTAIRE
+        });
       }
-    });
-
-    console.log(`✅ [OverworldPokemonManager] Animations Swing créées pour Pokémon ${pokemonId} (${animType})`);
-  }
-
-  /**
-   * ✅ Animations standard (8 rangées) pour Walk-Anim et autres
-   */
-  createStandardAnimations(pokemonId, spriteKey, structure, animationFile) {
-    const directions = [
-      { name: 'down', row: 0 },
-      { name: 'down-right', row: 1 },
-      { name: 'right', row: 2 },
-      { name: 'up-right', row: 3 },
-      { name: 'up', row: 4 },
-      { name: 'up-left', row: 5 },
-      { name: 'left', row: 6 },
-      { name: 'down-left', row: 7 }
-    ];
-
-    const animType = animationFile.replace('-Anim.png', '').toLowerCase();
-
-    directions.forEach(dir => {
-      if (dir.row < structure.rows) {
-        const walkKey = `overworld_pokemon_${pokemonId}_${animType}_${dir.name}`;
-        const idleKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${dir.name}`;
-        
-        const startFrame = dir.row * structure.cols;
-        const endFrame = startFrame + (structure.cols - 1);
-        
-        if (!this.scene.anims.exists(walkKey)) {
-          this.scene.anims.create({
-            key: walkKey,
-            frames: this.scene.anims.generateFrameNumbers(spriteKey, {
-              start: startFrame,
-              end: endFrame
-            }),
-            frameRate: 8,
-            repeat: -1
-          });
-        }
-        
-        if (!this.scene.anims.exists(idleKey)) {
-          this.scene.anims.create({
-            key: idleKey,
-            frames: [{
-              key: spriteKey,
-              frame: startFrame
-            }],
-            frameRate: 1,
-            repeat: 0,
-            duration: 1000
-          });
-        }
+      
+      // ✅ ANIMATION IDLE avec duration
+      if (!this.scene.anims.exists(idleKey)) {
+        this.scene.anims.create({
+          key: idleKey,
+          frames: [{
+            key: spriteKey,
+            frame: baseFrame
+          }],
+          frameRate: 1,
+          repeat: 0,
+          duration: 1000, // ✅ AJOUT OBLIGATOIRE
+          skipMissedFrames: true // ✅ SÉCURITÉ SUPPLÉMENTAIRE
+        });
       }
-    });
+      
+      console.log(`✅ Direction ${dir.name}: frame ${baseFrame} (Swing mode)`);
+    }
+  });
 
-    console.log(`✅ [OverworldPokemonManager] Animations standard créées pour Pokémon ${pokemonId} (${animType})`);
-  }
+  console.log(`✅ [OverworldPokemonManager] Animations Swing créées pour Pokémon ${pokemonId} (${animType})`);
+}
+
+/**
+ * ✅ CORRIGÉ: Animations standard avec duration obligatoire
+ */
+createStandardAnimations(pokemonId, spriteKey, structure, animationFile) {
+  const directions = [
+    { name: 'down', row: 0 },
+    { name: 'down-right', row: 1 },
+    { name: 'right', row: 2 },
+    { name: 'up-right', row: 3 },
+    { name: 'up', row: 4 },
+    { name: 'up-left', row: 5 },
+    { name: 'left', row: 6 },
+    { name: 'down-left', row: 7 }
+  ];
+
+  const animType = animationFile.replace('-Anim.png', '').toLowerCase();
+
+  directions.forEach(dir => {
+    if (dir.row < structure.rows) {
+      const walkKey = `overworld_pokemon_${pokemonId}_${animType}_${dir.name}`;
+      const idleKey = `overworld_pokemon_${pokemonId}_${animType}_idle_${dir.name}`;
+      
+      const startFrame = dir.row * structure.cols;
+      const endFrame = startFrame + (structure.cols - 1);
+      
+      // ✅ ANIMATION MARCHE avec duration
+      if (!this.scene.anims.exists(walkKey)) {
+        this.scene.anims.create({
+          key: walkKey,
+          frames: this.scene.anims.generateFrameNumbers(spriteKey, {
+            start: startFrame,
+            end: endFrame
+          }),
+          frameRate: 8,
+          repeat: -1,
+          duration: 1000, // ✅ AJOUT OBLIGATOIRE
+          skipMissedFrames: true // ✅ SÉCURITÉ SUPPLÉMENTAIRE
+        });
+      }
+      
+      // ✅ ANIMATION IDLE avec duration
+      if (!this.scene.anims.exists(idleKey)) {
+        this.scene.anims.create({
+          key: idleKey,
+          frames: [{
+            key: spriteKey,
+            frame: startFrame
+          }],
+          frameRate: 1,
+          repeat: 0,
+          duration: 1000, // ✅ AJOUT OBLIGATOIRE
+          skipMissedFrames: true // ✅ SÉCURITÉ SUPPLÉMENTAIRE
+        });
+      }
+    }
+  });
+
+  console.log(`✅ [OverworldPokemonManager] Animations standard créées pour Pokémon ${pokemonId} (${animType})`);
+}
 
   /**
    * Convertit la direction du serveur en direction d'animation
