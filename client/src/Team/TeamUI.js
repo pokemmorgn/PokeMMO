@@ -525,7 +525,7 @@ export class TeamUI {
         width: 80px;
         height: 80px;
         border-radius: 12px;
-        border: 3px solid rgba(255, 255, 255, 0.4);
+        border: none;
         image-rendering: pixelated;
         box-shadow: 0 6px 15px rgba(0,0,0,0.4);
         transition: all 0.3s ease;
