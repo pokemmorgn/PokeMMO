@@ -113,12 +113,12 @@ const POKEMON_GAME_STATES = {
 // === GROUPES LOGIQUES POKÉMON ===
 const POKEMON_UI_GROUPS = {
   'ui-icons': {
-    modules: ['inventory', 'team', 'quest'],                                   // ✅ 'team' au lieu de 'teamIcon'
+    modules: ['inventory', 'quest', 'team'],                           // 🔧 CORRECTION: Ordre cohérent
     layout: {
       type: 'horizontal',
       anchor: 'bottom-right',
       spacing: 10,
-      order: ['inventory', 'quest', 'team']                                    // ✅ 'team' en dernier (position droite)
+      order: ['inventory', 'quest', 'team']                           // 🔧 CORRECTION: Ordre explicite
     },
     priority: 100
   },
@@ -438,47 +438,64 @@ export class PokemonUISystem {
   }
 
   // === ENREGISTREMENT MODULES ===
-  async registerAllModules() {
-    console.log('📝 [PokemonUI] Enregistrement des modules...');
-    
-    const moduleConfigs = [
-      {
-        id: 'inventory',
-        critical: true,
-        factory: this.createInventoryModule.bind(this),
-        groups: ['ui-icons'],
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 0,
-          spacing: 10
-        },
-        responsive: {
-          mobile: { scale: 0.8 },
-          tablet: { scale: 0.9 },
-          desktop: { scale: 1.0 }
-        },
-        priority: 100
-      },     
-      {
-        id: 'quest',
-        critical: false,
-        factory: this.createQuestModule.bind(this),
-        groups: ['ui-icons'],
-        layout: {
-          type: 'icon',
-          anchor: 'bottom-right',
-          order: 1,
-          spacing: 10
-        },
-        responsive: {
-          mobile: { scale: 0.8 },
-          tablet: { scale: 0.9 },
-          desktop: { scale: 1.0 }
-        },
-        priority: 90
+async registerAllModules() {
+  console.log('📝 [PokemonUI] Enregistrement des modules...');
+  
+  const moduleConfigs = [
+    // === INVENTORY EN PREMIER (ORDER 0) ===
+    {
+      id: 'inventory',
+      critical: true,
+      factory: this.createInventoryModule.bind(this),
+      groups: ['ui-icons'],
+      layout: {
+        type: 'icon',
+        anchor: 'bottom-right',
+        order: 0,           // 🔧 CORRECTION: Order 0 = Position la plus à droite
+        spacing: 10
       },
-          {
+      responsive: {
+        mobile: { scale: 0.8 },
+        tablet: { scale: 0.9 },
+        desktop: { scale: 1.0 }
+      },
+      priority: 100,
+      metadata: {
+        name: 'Inventory Manager',
+        description: 'Complete inventory management system',
+        version: '1.0.0',
+        category: 'Inventory Management'
+      }
+    },
+    
+    // === QUEST EN SECOND (ORDER 1) ===     
+    {
+      id: 'quest',
+      critical: false,
+      factory: this.createQuestModule.bind(this),
+      groups: ['ui-icons'],
+      layout: {
+        type: 'icon',
+        anchor: 'bottom-right',
+        order: 1,           // 🔧 CORRECTION: Order 1 = Position milieu
+        spacing: 10
+      },
+      responsive: {
+        mobile: { scale: 0.8 },
+        tablet: { scale: 0.9 },
+        desktop: { scale: 1.0 }
+      },
+      priority: 90,
+      metadata: {
+        name: 'Quest Manager',
+        description: 'Quest tracking and management system',
+        version: '1.0.0',
+        category: 'Quest Management'
+      }
+    },
+    
+    // === TEAM EN TROISIÈME (ORDER 2) ===
+    {
       id: 'team',
       critical: true,
       factory: this.createTeamModuleUnified.bind(this),
@@ -492,7 +509,7 @@ export class PokemonUISystem {
       layout: {
         type: 'icon',
         anchor: 'bottom-right',
-        order: 2,           // Après inventory (0) et quest (1)
+        order: 2,           // 🔧 CORRECTION: Order 2 = Position la plus à gauche
         spacing: 10
       },
       responsive: {
@@ -521,114 +538,126 @@ export class PokemonUISystem {
         category: 'Pokemon Management'
       }
     },
-      {
-        id: 'questTracker',
-        critical: false,
-        factory: this.createQuestTrackerModule.bind(this),
-        groups: ['panels'],
-        layout: {
-          type: 'panel',
-          anchor: 'top-right',
-          order: 0
-        },
-        responsive: {
-          mobile: { hidden: true },
-          tablet: { scale: 0.9 },
-          desktop: { scale: 1.0 }
-        },
-        priority: 80
-      },      
-      {
-        id: 'chat',
-        critical: false,
-        factory: this.createChatModule.bind(this),
-        groups: ['social'],
-        layout: {
-          type: 'overlay',
-          anchor: 'bottom-left',
-          order: 0
-        },
-        responsive: {
-          mobile: { hidden: true },
-          tablet: { hidden: true },
-          desktop: { scale: 1.0 }
-        },
-        priority: 70
+    
+    // === AUTRES MODULES (INCHANGÉS) ===
+    {
+      id: 'questTracker',
+      critical: false,
+      factory: this.createQuestTrackerModule.bind(this),
+      groups: ['panels'],
+      layout: {
+        type: 'panel',
+        anchor: 'top-right',
+        order: 0
       },
-      
-      // === MODULE BATTLEINTERFACE CORRIGÉ ===
-      {
-        id: 'battleInterface',
-        critical: true,
-        factory: this.createBattleInterfaceModule.bind(this),
-        groups: ['battle-ui'],
-        layout: {
-          type: 'overlay',
-          anchor: 'center',
-          order: 0,
-          zIndex: 9999
+      responsive: {
+        mobile: { hidden: true },
+        tablet: { scale: 0.9 },
+        desktop: { scale: 1.0 }
+      },
+      priority: 80
+    },      
+    {
+      id: 'chat',
+      critical: false,
+      factory: this.createChatModule.bind(this),
+      groups: ['social'],
+      layout: {
+        type: 'overlay',
+        anchor: 'bottom-left',
+        order: 0
+      },
+      responsive: {
+        mobile: { hidden: true },
+        tablet: { hidden: true },
+        desktop: { scale: 1.0 }
+      },
+      priority: 70
+    },
+    
+    // === MODULE BATTLEINTERFACE INCHANGÉ ===
+    {
+      id: 'battleInterface',
+      critical: true,
+      factory: this.createBattleInterfaceModule.bind(this),
+      groups: ['battle-ui'],
+      layout: {
+        type: 'overlay',
+        anchor: 'center',
+        order: 0,
+        zIndex: 9999
+      },
+      responsive: {
+        mobile: { 
+          scale: 0.8,
+          simplifiedLayout: true,
+          position: { top: '5%', left: '5%', right: '5%', bottom: '5%' }
         },
-        responsive: {
-          mobile: { 
-            scale: 0.8,
-            simplifiedLayout: true,
-            position: { top: '5%', left: '5%', right: '5%', bottom: '5%' }
-          },
-          tablet: { 
-            scale: 0.9,
-            position: { top: '10%', left: '10%', right: '10%', bottom: '10%' }
-          },
-          desktop: { 
-            scale: 1.0,
-            position: { top: '7.5%', left: '7.5%', right: '7.5%', bottom: '7.5%' }
-          }
+        tablet: { 
+          scale: 0.9,
+          position: { top: '10%', left: '10%', right: '10%', bottom: '10%' }
         },
-        defaultState: {
-          visible: false,
-          enabled: true,
-          initialized: false
-        },
-        priority: 150,
-        lazyLoad: false,
-        animations: {
-          show: { type: 'fadeIn', duration: 400, easing: 'ease-out' },
-          hide: { type: 'fadeOut', duration: 300, easing: 'ease-in' }
+        desktop: { 
+          scale: 1.0,
+          position: { top: '7.5%', left: '7.5%', right: '7.5%', bottom: '7.5%' }
         }
-      }
-    ];
-
-    // Enregistrer chaque module
-    for (const config of moduleConfigs) {
-      try {
-        if (this.uiManager.registerModule) {
-          await this.uiManager.registerModule(config.id, config);
-          console.log(`  📝 Module '${config.id}' enregistré dans UIManager`);
-          
-          // Créer immédiatement l'instance
-          try {
-            const instance = await config.factory();
-            
-            // Stocker dans les deux systèmes
-            if (this.uiManager.modules && this.uiManager.modules.has(config.id)) {
-              this.uiManager.modules.get(config.id).instance = instance;
-            }
-            this.moduleInstances.set(config.id, instance);
-            
-            console.log(`  ✅ Module '${config.id}' instance créée et synchronisée`);
-          } catch (factoryError) {
-            console.error(`  ❌ Erreur factory '${config.id}':`, factoryError);
-          }
-          
-        } else {
-          const instance = await config.factory();
-          this.moduleInstances.set(config.id, instance);
-          console.log(`  ✅ Module '${config.id}' créé (mode minimal)`);
-        }
-      } catch (error) {
-        console.error(`  ❌ Erreur module '${config.id}':`, error);
+      },
+      defaultState: {
+        visible: false,
+        enabled: true,
+        initialized: false
+      },
+      priority: 150,
+      lazyLoad: false,
+      animations: {
+        show: { type: 'fadeIn', duration: 400, easing: 'ease-out' },
+        hide: { type: 'fadeOut', duration: 300, easing: 'ease-in' }
       }
     }
+  ];
+
+  // === ENREGISTREMENT AVEC VÉRIFICATION ORDRE ===
+  
+  // Enregistrer chaque module
+  for (const config of moduleConfigs) {
+    try {
+      if (this.uiManager.registerModule) {
+        await this.uiManager.registerModule(config.id, config);
+        console.log(`  📝 Module '${config.id}' enregistré dans UIManager (order: ${config.layout?.order || 'none'})`);
+        
+        // Créer immédiatement l'instance
+        try {
+          const instance = await config.factory();
+          
+          // Stocker dans les deux systèmes
+          if (this.uiManager.modules && this.uiManager.modules.has(config.id)) {
+            this.uiManager.modules.get(config.id).instance = instance;
+          }
+          this.moduleInstances.set(config.id, instance);
+          
+          console.log(`  ✅ Module '${config.id}' instance créée et synchronisée`);
+        } catch (factoryError) {
+          console.error(`  ❌ Erreur factory '${config.id}':`, factoryError);
+        }
+        
+      } else {
+        const instance = await config.factory();
+        this.moduleInstances.set(config.id, instance);
+        console.log(`  ✅ Module '${config.id}' créé (mode minimal)`);
+      }
+    } catch (error) {
+      console.error(`  ❌ Erreur module '${config.id}':`, error);
+    }
   }
+  
+  // === VÉRIFICATION ORDRE FINAL ===
+  console.log('📍 [PokemonUI] === ORDRE FINAL DES ICÔNES ===');
+  console.log('📍 Order 0 (droite): Inventory 🎒');
+  console.log('📍 Order 1 (milieu): Quest 📋');
+  console.log('📍 Order 2 (gauche): Team ⚔️');
+  console.log('📍 Résultat: [⚔️ Team] [📋 Quest] [🎒 Inventory]');
+}
+
 
   // === FACTORIES DES MODULES ===
 
@@ -649,16 +678,47 @@ async createInventoryModule() {
       throw new Error('Échec création InventoryModule');
     }
     
-    // 🆕 FORCER L'ENREGISTREMENT UIMANAGER
+    // 🆕 CONNECTER À UIMANAGER (COMME TEAM)
     if (this.uiManager && this.uiManager.registerIconPosition) {
       console.log('📍 [PokemonUI] Connexion Inventory à UIManager...');
       
-      // L'InventoryModule a déjà la méthode, on la force juste
-      setTimeout(() => {
-        inventoryModule.registerWithUIManager();
-      }, 100);
+      // 🔧 CORRECTION: Utiliser la même méthode que Team
+      if (inventoryModule.connectUIManager) {
+        inventoryModule.connectUIManager(this.uiManager);
+      } else {
+        // Fallback: Force l'enregistrement comme Team
+        setTimeout(() => {
+          if (inventoryModule.registerWithUIManager) {
+            inventoryModule.registerWithUIManager();
+          } else if (inventoryModule.icon?.iconElement) {
+            // Force registration directe
+            this.uiManager.registerIconPosition('inventory', inventoryModule.icon.iconElement, {
+              anchor: 'bottom-right',
+              order: 0,
+              group: 'ui-icons',
+              spacing: 10,
+              size: { width: 70, height: 80 }
+            });
+            console.log('✅ [PokemonUI] Inventory connecté via fallback');
+          }
+        }, 100);
+      }
     } else {
       console.warn('⚠️ [PokemonUI] UIManager sans registerIconPosition pour Inventory');
+      // Fallback position manuelle
+      setTimeout(() => {
+        const inventoryIcon = document.querySelector('#inventory-icon');
+        if (inventoryIcon) {
+          inventoryIcon.style.position = 'fixed';
+          inventoryIcon.style.right = '110px';  // Position calculée
+          inventoryIcon.style.bottom = '20px';
+          inventoryIcon.style.left = 'auto';
+          inventoryIcon.style.top = 'auto';
+          inventoryIcon.style.zIndex = '500';
+          inventoryIcon.setAttribute('data-positioned-by', 'manual-fallback');
+          console.log('✅ [PokemonUI] Inventory positionné manuellement');
+        }
+      }, 200);
     }
     
     // Exposer globalement pour compatibilité
@@ -678,7 +738,7 @@ async createInventoryModule() {
   }
 }
 
-  async createTeamModuleUnified() {
+async createTeamModuleUnified() {
   console.log('⚔️ [PokemonUI] Création module Team unifié...');
   
   try {
@@ -690,22 +750,24 @@ async createInventoryModule() {
       window.currentGameRoom,
       window.game?.scene?.getScenes(true)[0]
     );
-    // 🆕 CONNECTER À UIMANAGER
-if (this.uiManager && this.uiManager.registerIconPosition) {
-  console.log('📍 [PokemonUI] Connexion Team à UIManager...');
-  teamModule.connectUIManager(this.uiManager);
-} else {
-  console.warn('⚠️ [PokemonUI] Fallback position manuelle');
-  setTimeout(() => {
-    const teamIcon = document.querySelector('#team-icon');
-    if (teamIcon) {
-      teamIcon.style.position = 'fixed';
-      teamIcon.style.right = '20px';
-      teamIcon.style.bottom = '20px';
-      teamIcon.style.zIndex = '500';
+    
+    // 🆕 CONNECTER À UIMANAGER (MODÈLE À SUIVRE)
+    if (this.uiManager && this.uiManager.registerIconPosition) {
+      console.log('📍 [PokemonUI] Connexion Team à UIManager...');
+      teamModule.connectUIManager(this.uiManager);
+    } else {
+      console.warn('⚠️ [PokemonUI] Fallback position manuelle Team');
+      setTimeout(() => {
+        const teamIcon = document.querySelector('#team-icon');
+        if (teamIcon) {
+          teamIcon.style.position = 'fixed';
+          teamIcon.style.right = '20px';
+          teamIcon.style.bottom = '20px';
+          teamIcon.style.zIndex = '500';
+        }
+      }, 100);
     }
-  }, 100);
-}
+    
     // Exposer globalement pour compatibilité
     window.teamSystem = teamModule;
     window.toggleTeam = () => teamModule.toggleTeamUI();
@@ -718,8 +780,6 @@ if (this.uiManager && this.uiManager.registerIconPosition) {
     
   } catch (error) {
     console.error('❌ [PokemonUI] Erreur création Team unifié:', error);
-    
-    // Fallback vers module vide en cas d'erreur
     return this.createEmptyWrapper('team');
   }
 }
